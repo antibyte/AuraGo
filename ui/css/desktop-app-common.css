@@ -1,0 +1,151 @@
+/* desktop-app-common.css - shared app controls and primitives */
+/* desktop-apps.css — file manager, editor, office, settings, calculator, todo, calendar, chat, viewer, looper, gallery, sysinfo, quick connect, launchpad */
+
+
+
+.vd-tool-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.vd-chat-send {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.vd-chat-send.is-stop {
+    background: rgba(248, 113, 113, 0.18);
+    border-color: rgba(248, 113, 113, 0.45);
+}
+
+.vd-chat-send.is-stop:hover {
+    background: rgba(248, 113, 113, 0.26);
+}
+
+.vd-chat-voice {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid var(--vd-border);
+    border-radius: 8px;
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12);
+    color: var(--vd-text);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.vd-chat-voice:hover:not(:disabled),
+.vd-chat-voice.is-active {
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.22);
+    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.45);
+}
+
+.vd-chat-voice.is-active {
+    box-shadow: 0 0 0 3px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.16);
+}
+
+.vd-chat-voice:disabled,
+.vd-chat-voice.is-disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    filter: grayscale(0.75);
+}
+
+.vd-chat-voice-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.vd-viewer-file-icon,
+.vd-viewer-action-icon,
+.vd-viewer-glyph-icon {
+    width: 17px;
+    height: 17px;
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+}
+
+.vd-viewer-file-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.vd-viewer-glyph-icon {
+    color: var(--vd-text);
+    font-size: 15px;
+    font-weight: 850;
+    line-height: 1;
+    text-shadow: 0 0 8px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.16);
+}
+
+.vd-viewer-icon-button {
+    width: 44px;
+    padding-inline: 0;
+}
+
+.vd-panel {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    min-height: 0;
+}
+
+.vd-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    border-bottom: 1px solid var(--vd-border);
+}
+
+.vd-path {
+    color: var(--vd-muted);
+    font-size: 0.78rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-file-list {
+    overflow: auto;
+    padding: 8px;
+}
+
+.vd-file-row {
+    display: grid;
+    grid-template-columns: 34px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.vd-file-row:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.vd-file-row.selected {
+    background: rgba(39, 199, 166, 0.15);
+    outline: 1px solid rgba(39, 199, 166, 0.35);
+}
+
+.vd-file-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-file-meta,
+.vd-chat-meta {
+    color: var(--vd-muted);
+    font-size: 0.72rem;
+}

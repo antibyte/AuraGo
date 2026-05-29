@@ -8,20 +8,16 @@
     <link rel="shortcut icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>AuraGo Virtual Desktop</title>
+    <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}"></script>
+    <script type="application/json" id="aurago-template-data">{"systemLang":"{{.Lang}}","buildVersion":"{{.BuildVersion}}","i18n":{{.I18N}}}</script>
+    <script src="/js/shared/template-data.js?v={{.BuildVersion}}"></script>
     <link href="/fonts/fonts.css" rel="stylesheet">
     <link rel="stylesheet" href="/shared-variables.css">
     <link rel="stylesheet" href="/shared-utilities.css">
     <link rel="stylesheet" href="/shared-components.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/shared-animations.css">
-    <link rel="stylesheet" href="/css/desktop.css?v={{.BuildVersion}}-desktop-20260525-window-ai-context">
+    <link rel="stylesheet" href="/css/desktop-shell.bundle.css?v={{.BuildVersion}}">
     <script src="/js/shared/shared-core.js?v={{.BuildVersion}}"></script>
-    <script>
-        const SYSTEM_LANG = "{{.Lang}}";
-        const BUILD_VERSION = "{{.BuildVersion}}";
-        window.BUILD_VERSION = BUILD_VERSION;
-        (function () { var th = localStorage.getItem('aurago-theme'); if (th) document.documentElement.setAttribute('data-theme', th); })();
-        const I18N = {{.I18N}};
-    </script>
     <script src="/js/shared/lazy-assets.js?v={{.BuildVersion}}"></script>
 </head>
 

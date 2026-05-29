@@ -8,7 +8,7 @@ import (
 func TestDesktopLooperActionButtonsShareConsistentStyle(t *testing.T) {
 	t.Parallel()
 
-	css := strings.ReplaceAll(readDesktopAssetText(t, "css/desktop-apps.css"), "\r\n", "\n")
+	css := strings.ReplaceAll(readDesktopAssetText(t, "css/desktop-app-looper.css"), "\r\n", "\n")
 	shared := desktopLooperCSSRuleBody(t, css, ".vd-looper-start,\n.vd-looper-stop")
 	for _, want := range []string{
 		"width: 100%;",
@@ -58,14 +58,14 @@ func TestDesktopLooperActionButtonsShareConsistentStyle(t *testing.T) {
 func TestDesktopLooperStylesBustComponentCache(t *testing.T) {
 	t.Parallel()
 
-	desktopCSS := readDesktopAssetText(t, "css/desktop.css")
-	if !strings.Contains(desktopCSS, "@import url('desktop-apps.css?v=20260524-calculator-layout');") {
-		t.Fatal("desktop.css must bust the desktop-apps.css cache for Looper action button styling")
+	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
+	if !strings.Contains(loader, "'/css/desktop-app-looper.css'") {
+		t.Fatal("desktop module loader must lazy-load Looper component CSS")
 	}
 
 	desktopHTML := readDesktopAssetText(t, "desktop.html")
-	if !strings.Contains(desktopHTML, `/css/desktop.css?v={{.BuildVersion}}-desktop-20260525-window-ai-context`) {
-		t.Fatal("desktop.html must bust the desktop.css aggregator cache for Looper action button styling")
+	if !strings.Contains(desktopHTML, `/css/desktop-shell.bundle.css?v={{.BuildVersion}}`) {
+		t.Fatal("desktop.html must load cache-busted shell CSS")
 	}
 }
 

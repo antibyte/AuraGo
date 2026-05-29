@@ -212,10 +212,7 @@ func TestVirtualDesktopChat_MessageTimestampsRemainWired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read desktop chat app JS: %v", err)
 	}
-	desktopCSSContent, err := os.ReadFile(filepath.Join("css", "desktop-apps.css"))
-	if err != nil {
-		t.Fatalf("read desktop apps CSS: %v", err)
-	}
+	desktopCSSContent := []byte(readAllDesktopAppCSS(t))
 
 	rendererJS := string(rendererContent)
 	for _, marker := range []string{
@@ -316,8 +313,8 @@ func TestChatFrontend_IntegrationsDrawerRemainsWired(t *testing.T) {
 		`id="integrations-toggle-btn"`,
 		`class="integrations-edge-tab"`,
 		`id="integrations-drawer"`,
-		`/css/integrations-drawer.css`,
-		`/js/chat/modules/integrations-drawer.js`,
+		`/css/chat.bundle.css`,
+		`/js/chat/bundles/chat-runtime.bundle.js`,
 	} {
 		if !strings.Contains(indexHTML, marker) {
 			t.Fatalf("index.html missing integrations drawer marker %q", marker)
@@ -579,8 +576,8 @@ func TestChatFrontend_PersonaPreviewDescriptionsRemainLocalized(t *testing.T) {
 	for _, marker := range []string{
 		`class="personality-preview-image-frame"`,
 		`id="personality-preview-description"`,
-		`/css/chat.css?v=20260520a`,
-		`/js/chat/chat-history.js?v=20260520a`,
+		`/css/chat.bundle.css?v={{.BuildVersion}}`,
+		`/js/chat/bundles/chat-runtime.bundle.js?v={{.BuildVersion}}`,
 	} {
 		if !strings.Contains(indexHTML, marker) {
 			t.Fatalf("index.html missing persona description marker %q", marker)
@@ -680,8 +677,8 @@ func TestChatFrontend_PersonaPreviewHoverDoesNotResetSameImageSrc(t *testing.T) 
 			t.Fatalf("chat-history.js missing stable persona preview src marker %q", marker)
 		}
 	}
-	if !strings.Contains(string(indexContent), `/js/chat/chat-history.js?v=20260520a`) {
-		t.Fatal("index.html must bump chat-history.js cache version after stabilizing persona preview hover")
+	if !strings.Contains(string(indexContent), `/js/chat/bundles/chat-runtime.bundle.js?v={{.BuildVersion}}`) {
+		t.Fatal("index.html must load the chat runtime bundle containing chat history")
 	}
 }
 
@@ -914,11 +911,12 @@ func TestChatFrontend_HeaderControlsRemainNormalizedAcrossThemes(t *testing.T) {
 	}
 
 	indexHTML := string(indexContent)
-	if !strings.Contains(indexHTML, `/css/chat-header-controls.css`) {
-		t.Fatal("index.html must load final chat header controls CSS after theme styles")
+	if !strings.Contains(indexHTML, `/css/chat.bundle.css`) {
+		t.Fatal("index.html must load bundled chat CSS")
 	}
-	if strings.Index(indexHTML, `/css/chat-header-controls.css`) < strings.Index(indexHTML, `/css/chat-themes.css`) {
-		t.Fatal("chat header controls CSS must load after all chat theme styles")
+	chatBundle := readDesktopAssetText(t, "css/chat.bundle.css")
+	if strings.Index(chatBundle, `/* ui/css/chat-header-controls.css */`) < strings.Index(chatBundle, `/* ui/css/chat-themes.css */`) {
+		t.Fatal("chat header controls CSS must be bundled after all chat theme styles")
 	}
 
 	themeCSSFiles, err := filepath.Glob(filepath.Join("css", "chat*.css"))
@@ -1171,8 +1169,8 @@ func TestChatFrontend_LollipopHeaderFooterAndPetalsStayPolished(t *testing.T) {
 		}
 	}
 
-	if !strings.Contains(indexHTML, `/css/chat-themes.css?v={{.BuildVersion}}`) {
-		t.Fatal("index.html must load consolidated chat theme CSS with BuildVersion cache busting")
+	if !strings.Contains(indexHTML, `/css/chat.bundle.css?v={{.BuildVersion}}`) {
+		t.Fatal("index.html must load bundled chat CSS with BuildVersion cache busting")
 	}
 	themeEffects := readDesktopAssetText(t, "js/chat/theme-effects.js")
 	if !strings.Contains(themeEffects, `/js/chat/lollipop-petals.js`) {
@@ -1206,7 +1204,7 @@ func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 
 	indexHTML := string(indexContent)
 	for _, marker := range []string{
-		`/css/chat-themes.css`,
+		`/css/chat.bundle.css`,
 		`data-theme="8bit"`,
 		`data-chat-icon="theme-8bit"`,
 		`chat.theme_8bit`,
@@ -2271,8 +2269,8 @@ func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 	}
 
 	indexHTML := string(indexContent)
-	if !strings.Contains(indexHTML, `/js/chat/tool-icons.js`) {
-		t.Fatalf("%s does not load the tool icon catalog", indexPath)
+	if !strings.Contains(indexHTML, `/js/chat/bundles/chat-runtime.bundle.js`) {
+		t.Fatalf("%s does not load the chat runtime bundle containing the tool icon catalog", indexPath)
 	}
 	if !strings.Contains(indexHTML, `id="tool-icon-stack"`) {
 		t.Fatalf("%s does not include the right-side tool icon stack", indexPath)
@@ -2371,12 +2369,11 @@ func TestChatUIEmojiIconsAreImageAssets(t *testing.T) {
 	}
 
 	indexHTML := string(indexContent)
-	iconVersion := extractJSStringConst(t, iconsJS, "ICON_VERSION")
-	if !strings.Contains(indexHTML, `/js/chat/ui-icons.js?v=`+iconVersion) {
-		t.Fatalf("%s loads ui-icons.js without the current icon cache-bust version %q", indexPath, iconVersion)
+	if !strings.Contains(indexHTML, `/js/chat/bundles/chat-runtime.bundle.js?v={{.BuildVersion}}`) {
+		t.Fatalf("%s loads chat UI icons through the runtime bundle without BuildVersion cache busting", indexPath)
 	}
 	for _, marker := range []string{
-		`/js/chat/ui-icons.js`,
+		`/js/chat/bundles/chat-runtime.bundle.js`,
 		`data-chat-icon="robot"`,
 		`data-chat-icon="voice"`,
 		`data-chat-icon="send"`,

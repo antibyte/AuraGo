@@ -51,13 +51,13 @@ func TestDesktopCSSBumpsCacheAfterCalculatorLayoutFix(t *testing.T) {
 	t.Parallel()
 
 	html := readDesktopAssetText(t, "desktop.html")
-	if !strings.Contains(html, `/css/desktop.css?v={{.BuildVersion}}-desktop-20260525-window-ai-context`) {
-		t.Fatal("desktop CSS link must be cache-busted after window AI context changes")
+	if !strings.Contains(html, `/css/desktop-shell.bundle.css?v={{.BuildVersion}}`) {
+		t.Fatal("desktop shell CSS link must be cache-busted with BuildVersion")
 	}
 
-	css := rawDesktopAssetText(t, "css/desktop.css")
-	if !strings.Contains(css, `@import url('desktop-windows.css?v=20260525-window-ai-context');`) {
-		t.Fatal("desktop windows CSS import must be cache-busted after window AI context changes")
+	css := rawDesktopAssetText(t, "css/desktop-shell.bundle.css")
+	if !strings.Contains(css, `/* ui/css/desktop-windows.css */`) {
+		t.Fatal("desktop shell CSS bundle must include desktop windows CSS")
 	}
 }
 

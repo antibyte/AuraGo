@@ -402,8 +402,38 @@ func readAllDesktopCSS(t *testing.T) string {
 		"css/desktop-icons.css",
 		"css/desktop-widgets.css",
 		"css/desktop-modals.css",
-		"css/desktop-apps.css",
 		"css/desktop-sdk.css",
+	}
+	var buf strings.Builder
+	for _, f := range cssFiles {
+		data, err := Content.ReadFile(f)
+		if err != nil {
+			t.Fatalf("read %s: %v", f, err)
+		}
+		buf.Write(data)
+		buf.WriteByte('\n')
+	}
+	buf.WriteString(readAllDesktopAppCSS(t))
+	return buf.String()
+}
+
+func readAllDesktopAppCSS(t *testing.T) string {
+	t.Helper()
+	var cssFiles = []string{
+		"css/desktop-app-common.css",
+		"css/desktop-app-file-manager.css",
+		"css/desktop-app-office.css",
+		"css/desktop-app-settings.css",
+		"css/desktop-app-calculator.css",
+		"css/desktop-app-planning.css",
+		"css/desktop-app-chat.css",
+		"css/desktop-app-quick-connect.css",
+		"css/desktop-app-gallery.css",
+		"css/desktop-app-launchpad.css",
+		"css/desktop-app-system-info.css",
+		"css/desktop-app-looper.css",
+		"css/desktop-app-viewer.css",
+		"css/desktop-app-software-store.css",
 	}
 	var buf strings.Builder
 	for _, f := range cssFiles {

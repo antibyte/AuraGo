@@ -70,7 +70,7 @@ func TestDesktopChatCanStopActiveStreamWithoutOverwritingHistory(t *testing.T) {
 		}
 	}
 
-	css := readDesktopAssetText(t, "css/desktop-apps.css")
+	css := readAllDesktopAppCSS(t)
 	if !strings.Contains(css, ".vd-chat-send.is-stop") {
 		t.Fatal("desktop chat CSS missing stop-state send button styling")
 	}

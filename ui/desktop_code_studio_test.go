@@ -95,8 +95,9 @@ func TestCodeStudioScriptsUseBuildVersionCacheBusting(t *testing.T) {
 	t.Parallel()
 
 	desktopHTML := rawDesktopAssetText(t, "desktop.html")
-	if !strings.Contains(desktopHTML, "window.BUILD_VERSION = BUILD_VERSION;") {
-		t.Fatalf("desktop BUILD_VERSION must be exported for deferred module loaders")
+	if !strings.Contains(desktopHTML, `"buildVersion":"{{.BuildVersion}}"`) ||
+		!strings.Contains(desktopHTML, `/js/shared/template-data.js?v={{.BuildVersion}}`) {
+		t.Fatalf("desktop BUILD_VERSION must be exported through template-data for deferred module loaders")
 	}
 	if strings.Contains(desktopHTML, `<script defer src="/js/desktop/apps/code-studio.js`) {
 		t.Fatalf("Code Studio app script must be lazy-loaded instead of upfront in desktop.html")

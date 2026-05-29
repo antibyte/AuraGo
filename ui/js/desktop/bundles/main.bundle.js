@@ -2010,7 +2010,7 @@
         const recentIds = readJSONStorage(recentKey, []).slice(0, 5);
         const recentApps = query ? [] : recentIds.map(id => allApps.find(app => app.id === id)).filter(Boolean);
         const nonRecentApps = apps.filter(app => !recentApps.some(r => r.id === app.id));
-        
+
         let html = '';
         if (recentApps.length > 0) {
             html += `<div class="vd-start-recent-label">${esc(t('desktop.recent_apps', 'Recent'))}</div>`;
@@ -2023,7 +2023,7 @@
             ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
             <span>${esc(appName(app))}${brokenAppLabel(app)}</span>
         </button>`).join('');
-        
+
         $('vd-start-apps').innerHTML = html;
         $('vd-start-apps').querySelectorAll('[data-app-id]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -5127,7 +5127,7 @@ if (appId === 'system-info') {
                 window.AuraDesktopModules.loadAppScript('viewer-3d').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            if (typeof window.Viewer3DApp.render === 'function') return window.Viewer3DApp.render(contentEl(id), id, withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, openApp })); 
+            if (typeof window.Viewer3DApp.render === 'function') return window.Viewer3DApp.render(contentEl(id), id, withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, openApp }));
         } if (appId === 'quick-connect') return renderQuickConnect(id);
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
             return window.CodeStudio.render(contentEl(id), id, withDesktopFileDialogs(context, { iconMarkup, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
@@ -9168,4 +9168,3 @@ rfb.addEventListener('credentialsrequired', () => {
         init();
     }
 })();
-

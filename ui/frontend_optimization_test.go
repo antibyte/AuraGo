@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -10,8 +12,8 @@ func TestChatTemplateExposesBuildVersionForLazyAssets(t *testing.T) {
 
 	html := readEmbeddedText(t, "index.html")
 	for _, want := range []string{
-		`const BUILD_VERSION = "{{.BuildVersion}}";`,
-		`window.BUILD_VERSION = BUILD_VERSION;`,
+		`"buildVersion":"{{.BuildVersion}}"`,
+		`/js/shared/template-data.js?v={{.BuildVersion}}`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("chat template missing build version marker %q", want)
@@ -35,11 +37,13 @@ func TestSharedLazyAssetsAPIIsEmbedded(t *testing.T) {
 		}
 	}
 
-	for _, page := range []string{"index.html", "desktop.html"} {
-		html := readEmbeddedText(t, page)
-		if !strings.Contains(html, `/js/shared/lazy-assets.js?v={{.BuildVersion}}`) {
-			t.Fatalf("%s must load shared lazy asset loader", page)
-		}
+	desktopHTML := readEmbeddedText(t, "desktop.html")
+	if !strings.Contains(desktopHTML, `/js/shared/lazy-assets.js?v={{.BuildVersion}}`) {
+		t.Fatal("desktop.html must load shared lazy asset loader")
+	}
+	chatRuntime := readEmbeddedText(t, "js/chat/bundles/chat-runtime.bundle.js")
+	if !strings.Contains(chatRuntime, `/* ui/js/shared/lazy-assets.js */`) {
+		t.Fatal("chat runtime bundle must include shared lazy asset loader")
 	}
 }
 
@@ -83,16 +87,17 @@ func TestSharedChatCoreAPIIsEmbedded(t *testing.T) {
 	}
 
 	chatHTML := readEmbeddedText(t, "index.html")
-	chatCoreIndex := strings.Index(chatHTML, `/js/shared/chat-core.js?v={{.BuildVersion}}`)
-	chatMessagesIndex := strings.Index(chatHTML, `/js/chat/chat-messages.js`)
-	if chatCoreIndex < 0 {
-		t.Fatal("chat page must load shared chat core")
+	if !strings.Contains(chatHTML, `/js/chat/bundles/chat-runtime.bundle.js?v={{.BuildVersion}}`) {
+		t.Fatal("chat page must load bundled shared chat runtime")
 	}
-	if chatMessagesIndex < 0 {
-		t.Fatal("chat page missing chat message renderer")
+	chatRuntime := readEmbeddedText(t, "js/chat/bundles/chat-runtime.bundle.js")
+	chatCoreIndex := strings.Index(chatRuntime, `/* ui/js/shared/chat-core.js */`)
+	chatMessagesIndex := strings.Index(chatRuntime, `/* ui/js/chat/chat-messages.js */`)
+	if chatCoreIndex < 0 {
+		t.Fatal("chat runtime bundle must include shared chat core")
 	}
 	if chatCoreIndex > chatMessagesIndex {
-		t.Fatal("chat page must load shared chat core before chat message renderer")
+		t.Fatal("chat runtime bundle must load shared chat core before chat message renderer")
 	}
 
 	desktopLoader := readEmbeddedText(t, "js/desktop/core/module-loader.js")
@@ -338,12 +343,70 @@ func TestChatInitialLoadDefersThemeEffectsAndThreeJS(t *testing.T) {
 	}
 
 	for _, want := range []string{
-		`/js/chat/theme-effects.js?v={{.BuildVersion}}`,
-		`/js/chat/stl-viewer.js?v={{.BuildVersion}}`,
-		`/css/chat-themes.css?v={{.BuildVersion}}`,
+		`/js/chat/bundles/chat-runtime.bundle.js?v={{.BuildVersion}}`,
+		`/css/chat.bundle.css?v={{.BuildVersion}}`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("chat page missing optimized asset %q", want)
+		}
+	}
+}
+
+func TestChatInitialLoadUsesBundledRuntimeAssets(t *testing.T) {
+	t.Parallel()
+
+	html := readEmbeddedText(t, "index.html")
+	for _, want := range []string{
+		`/js/shared/template-data.js?v={{.BuildVersion}}`,
+		`/js/chat/bundles/chat-vendor.bundle.js?v={{.BuildVersion}}`,
+		`/js/chat/bundles/chat-runtime.bundle.js?v={{.BuildVersion}}`,
+		`/css/chat.bundle.css?v={{.BuildVersion}}`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("chat page missing bundled initial-load asset %q", want)
+		}
+	}
+	for _, forbidden := range []string{
+		`/js/vendor/markdown-it.min.js`,
+		`/js/vendor/highlight.min.js`,
+		`/js/shared/render-markdown.js`,
+		`/js/shared/lazy-assets.js`,
+		`/js/shared/chat-core.js`,
+		`/js/chat/theme-effects.js`,
+		`/js/chat/main.js`,
+		`/js/chat/modules/voice-recorder.js`,
+		`/js/chat/modules/speech-to-text.js`,
+		`/js/chat/modules/drag-drop.js`,
+		`/js/chat/modules/mermaid-loader.js`,
+	} {
+		if strings.Contains(html, forbidden) {
+			t.Fatalf("chat page should use bundles instead of direct initial-load asset %q", forbidden)
+		}
+	}
+}
+
+func TestChatRuntimeBundleIsBuiltFromSplitMainSources(t *testing.T) {
+	t.Parallel()
+
+	buildScript := readEmbeddedRepoText(t, "../scripts/build-ui-bundles.js")
+	bundle := readEmbeddedText(t, "js/chat/bundles/chat-runtime.bundle.js")
+	compatMain := readEmbeddedText(t, "js/chat/main.js")
+	for _, path := range []string{
+		"ui/js/chat/main/state-dom.js",
+		"ui/js/chat/main/i18n-ui-chrome.js",
+		"ui/js/chat/main/feedback-audio-plan.js",
+		"ui/js/chat/main/composer-uploads.js",
+		"ui/js/chat/main/network-submit.js",
+		"ui/js/chat/main/bootstrap.js",
+	} {
+		if !strings.Contains(buildScript, path) {
+			t.Fatalf("UI build script must include split chat main source %q", path)
+		}
+		if !strings.Contains(bundle, "/* "+path+" */") {
+			t.Fatalf("chat runtime bundle missing split source marker %q", path)
+		}
+		if !strings.Contains(compatMain, "/* "+path+" */") {
+			t.Fatalf("chat compatibility main bundle missing split source marker %q", path)
 		}
 	}
 }
@@ -445,6 +508,41 @@ func TestDesktopInitialLoadDefersAppAssets(t *testing.T) {
 	}
 }
 
+func TestDesktopInitialLoadUsesShellCSSBundleOnly(t *testing.T) {
+	t.Parallel()
+
+	html := readEmbeddedText(t, "desktop.html")
+	if !strings.Contains(html, `/css/desktop-shell.bundle.css?v={{.BuildVersion}}`) {
+		t.Fatal("desktop page must load the generated shell CSS bundle")
+	}
+	for _, forbidden := range []string{
+		`/css/desktop.css`,
+		`desktop-apps.css`,
+		`desktop-app-file-manager.css`,
+		`desktop-app-office.css`,
+		`desktop-app-chat.css`,
+		`desktop-app-looper.css`,
+	} {
+		if strings.Contains(html, forbidden) {
+			t.Fatalf("desktop initial page must not load app CSS asset %q", forbidden)
+		}
+	}
+
+	shellBundle := readEmbeddedText(t, "css/desktop-shell.bundle.css")
+	for _, want := range []string{
+		"/* ui/css/desktop-base.css */",
+		"/* ui/css/desktop-taskbar.css */",
+		"/* ui/css/desktop-shell-overrides.css */",
+	} {
+		if !strings.Contains(shellBundle, want) {
+			t.Fatalf("desktop shell CSS bundle missing source marker %q", want)
+		}
+	}
+	if strings.Contains(shellBundle, ".file-manager") || strings.Contains(shellBundle, ".vd-looper") {
+		t.Fatal("desktop shell CSS bundle must not contain app-specific selectors")
+	}
+}
+
 func TestDesktopModuleLoaderUsesBuiltBundlesWithoutEval(t *testing.T) {
 	t.Parallel()
 
@@ -504,4 +602,117 @@ func TestDesktopAppAssetsRegistryCoversHeavyApps(t *testing.T) {
 			t.Fatalf("desktop app asset registry missing marker %q", want)
 		}
 	}
+}
+
+func TestDesktopAppAssetsRegistryCoversLazyCSSForAllBuiltinApps(t *testing.T) {
+	t.Parallel()
+
+	loader := readEmbeddedText(t, "js/desktop/core/module-loader.js")
+	for _, want := range []string{
+		"'/css/desktop-app-common.css'",
+		"'/css/desktop-app-file-manager.css'",
+		"'/css/desktop-app-office.css'",
+		"'/css/desktop-app-settings.css'",
+		"'/css/desktop-app-calculator.css'",
+		"'/css/desktop-app-planning.css'",
+		"'/css/desktop-app-gallery.css'",
+		"'/css/desktop-app-chat.css'",
+		"'/css/desktop-app-quick-connect.css'",
+		"'/css/desktop-app-launchpad.css'",
+		"'/css/desktop-app-system-info.css'",
+		"'/css/desktop-app-looper.css'",
+		"'/css/desktop-app-viewer.css'",
+		"'/css/desktop-app-software-store.css'",
+		"'settings'",
+		"'calculator'",
+		"'todo'",
+		"'calendar'",
+		"'gallery'",
+		"'music-player'",
+		"'launchpad'",
+	} {
+		if !strings.Contains(loader, want) {
+			t.Fatalf("desktop app asset registry missing lazy CSS marker %q", want)
+		}
+	}
+}
+
+func TestConfigFormBuilderAPIIsEmbeddedAndLoadedBeforeConfigMain(t *testing.T) {
+	t.Parallel()
+
+	html := readEmbeddedText(t, "config.html")
+	builderRef := `/cfg/form-builder.js?v=20`
+	mainRef := `/js/config/main.js?v=20`
+	if !strings.Contains(html, builderRef) {
+		t.Fatal("config page must load the shared config form builder")
+	}
+	if strings.Index(html, builderRef) > strings.Index(html, mainRef) {
+		t.Fatal("config form builder must load before config main.js")
+	}
+
+	builder := readEmbeddedText(t, "cfg/form-builder.js")
+	for _, want := range []string{
+		"window.AuraConfigForm",
+		"section(",
+		"field(",
+		"toggle(",
+		"select(",
+		"textarea(",
+		"password(",
+		"number(",
+		"note(",
+		"actions(",
+		"renderSpec(",
+	} {
+		if !strings.Contains(builder, want) {
+			t.Fatalf("config form builder missing public API marker %q", want)
+		}
+	}
+
+	grafana := readEmbeddedText(t, "cfg/grafana.js")
+	if !strings.Contains(grafana, "window.AuraConfigForm.renderSpec") {
+		t.Fatal("at least one field-list config section must use AuraConfigForm.renderSpec")
+	}
+}
+
+func TestChatAndDesktopAvoidExecutableInlineScriptsForCSPPrep(t *testing.T) {
+	t.Parallel()
+
+	for _, page := range []string{"index.html", "desktop.html"} {
+		html := readEmbeddedText(t, page)
+		for _, forbidden := range []string{
+			"<script>",
+			"onclick=",
+			"ontouchend=",
+		} {
+			if strings.Contains(html, forbidden) {
+				t.Fatalf("%s must not contain executable inline marker %q", page, forbidden)
+			}
+		}
+		if !strings.Contains(html, `type="application/json" id="aurago-template-data"`) {
+			t.Fatalf("%s must expose template data through a non-executable JSON script", page)
+		}
+	}
+
+	sharedCore := readEmbeddedText(t, "js/shared/shared-core.js")
+	for _, forbidden := range []string{
+		`onclick="performLogout()`,
+		`ontouchend="event.preventDefault(); performLogout()`,
+	} {
+		if strings.Contains(sharedCore, forbidden) {
+			t.Fatalf("shared radial logout markup must not contain inline handler %q", forbidden)
+		}
+	}
+}
+
+func readEmbeddedRepoText(t *testing.T, rel string) string {
+	t.Helper()
+	if strings.HasPrefix(rel, "../") {
+		rel = strings.TrimPrefix(rel, "../")
+	}
+	data, err := os.ReadFile(filepath.Join("..", filepath.FromSlash(rel)))
+	if err != nil {
+		t.Fatalf("read repo file %s: %v", rel, err)
+	}
+	return string(data)
 }

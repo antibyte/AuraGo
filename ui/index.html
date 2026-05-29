@@ -12,10 +12,9 @@
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>AuraGo Interface</title>
-    <script src="/js/vendor/markdown-it.min.js"></script>
-    <link id="hljs-theme" rel="stylesheet" href="/css/hljs-github-dark.min.css">
-    <script src="/js/vendor/highlight.min.js"></script>
-    <script src="/js/shared/render-markdown.js?v={{.BuildVersion}}"></script>
+    <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}"></script>
+    <script type="application/json" id="aurago-template-data">{"systemLang":"{{.Lang}}","buildVersion":"{{.BuildVersion}}","showToolResults":{{.ShowToolResults}},"debugMode":{{.DebugMode}},"personalityEnabled":{{.PersonalityEnabled}},"i18n":{{.I18N}}}</script>
+    <script src="/js/shared/template-data.js?v={{.BuildVersion}}"></script>
     <link href="/fonts/fonts.css?v=20260502a" rel="stylesheet">
     <link rel="stylesheet" href="/css/tailwind-compat.css">
     <link rel="stylesheet" href="/shared-variables.css">
@@ -23,30 +22,9 @@
     <link rel="stylesheet" href="/shared-components.css?v=20260502b">
     <link rel="stylesheet" href="/shared-animations.css">
     <script src="/js/shared/shared-core.js?v={{.BuildVersion}}"></script>
-    <script>
-        const SYSTEM_LANG = "{{.Lang}}";
-        const BUILD_VERSION = "{{.BuildVersion}}";
-        window.BUILD_VERSION = BUILD_VERSION;
-        const SHOW_TOOL_RESULTS = {{.ShowToolResults }};
-        const AGENT_DEBUG_MODE = {{.DebugMode }};
-        const PERSONALITY_ENABLED = {{.PersonalityEnabled }};
-        const I18N = {{.I18N}};
-        /* Prevent theme-flash: apply saved theme before first paint */
-        (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
-    </script>
     <script src="/js/shared/shared-chat.js?v={{.BuildVersion}}"></script>
-    <script src="/js/shared/lazy-assets.js?v={{.BuildVersion}}"></script>
-    <script src="/js/shared/chat-core.js?v={{.BuildVersion}}"></script>
-    <script src="/js/chat/theme-effects.js?v={{.BuildVersion}}"></script>
-    <link rel="stylesheet" href="/css/tokens.css">
-    <link rel="stylesheet" href="/css/chat.css?v=20260520a">
-    <link rel="stylesheet" href="/css/chat-modules.css">
-    <link rel="stylesheet" href="/css/stt-overlay.css">
-    <link rel="stylesheet" href="/css/session-drawer.css?v=3">
-    <link rel="stylesheet" href="/css/integrations-drawer.css?v=4">
-    <link rel="stylesheet" href="/css/enhancements.css?v=20260425a">
-    <link rel="stylesheet" href="/css/chat-themes.css?v={{.BuildVersion}}">
-    <link rel="stylesheet" href="/css/chat-header-controls.css?v=20260502f">
+    <link id="hljs-theme" rel="stylesheet" href="/css/hljs-github-dark.min.css">
+    <link rel="stylesheet" href="/css/chat.bundle.css?v={{.BuildVersion}}">
 </head>
 
 <body class="h-screen h-[100dvh] flex flex-col">
@@ -163,9 +141,7 @@
             <span id="connectionPill" class="pill pill-active"></span>
             <a id="logout-btn" href="/auth/logout" class="btn-header btn-header-link is-hidden"
                 data-logout-action="true"
-                data-i18n-aria-label="chat.aria_logout"
-                onclick="performLogout(); return false;"
-                ontouchend="event.preventDefault(); performLogout(); return false;"></a>
+                data-i18n-aria-label="chat.aria_logout"></a>
         </div>
     </header>
 
@@ -346,27 +322,8 @@
         </div>
     </div>
 
-    <script src="/js/chat/ui-icons.js?v=20260501a"></script>
-    <script src="/js/chat/audio-player.js"></script>
-    <!-- Chat Modules -->
-    <script src="/js/chat/modules/smart-scroller.js?v=20260427a"></script>
-    <script src="/js/chat/modules/code-blocks.js"></script>
-    <script src="/js/chat/modules/chart-renderer.js?v={{.BuildVersion}}"></script>
-    <script src="/js/chat/modules/voice-recorder.js"></script>
-    <script src="/js/chat/modules/speech-to-text.js"></script>
-    <script src="/js/chat/modules/drag-drop.js"></script>
-    <script src="/js/chat/modules/mermaid-loader.js?v=20260501a"></script>
-    <script src="/js/chat/modules/warnings.js"></script>
-    <script src="/js/chat/modules/session-drawer.js?v=3"></script>
-    <script src="/js/chat/modules/integrations-drawer.js?v=2"></script>
-    <script src="/js/chat/main.js?v=20260502b"></script>
-    <script src="/js/chat/tool-icons.js?v=20260426a"></script>
-    <script src="/js/chat/robot-mascot.js?v=20260520a"></script>
-    <script src="/js/chat/chat-messages.js?v=20260426a"></script>
-    <script src="/js/chat/stl-viewer.js?v={{.BuildVersion}}"></script>
-    <script src="/js/chat/chat-question.js?v=20260501a"></script>
-    <script src="/js/chat/chat-streaming.js?v=20260515a"></script>
-    <script src="/js/chat/chat-history.js?v=20260520a"></script>
+    <script src="/js/chat/bundles/chat-vendor.bundle.js?v={{.BuildVersion}}"></script>
+    <script src="/js/chat/bundles/chat-runtime.bundle.js?v={{.BuildVersion}}"></script>
 
     <!-- Image Lightbox Overlay -->
     <div id="img-lightbox">
@@ -377,7 +334,6 @@
     <!-- Toast container -->
     <div id="toast-container" class="toast-container"></div>
 
-    <script src="/js/chat/viewport-fix.js"></script>
     <!-- SVG Filters for Ocean Refraction -->
     <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
         <defs>

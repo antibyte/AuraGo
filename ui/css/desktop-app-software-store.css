@@ -1,0 +1,354 @@
+/* desktop-app-software-store.css */
+/* ─── Software Store ─── */
+.vd-store {
+    height: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    background: rgba(4, 8, 14, 0.18);
+}
+
+.vd-store-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--vd-border);
+}
+
+.vd-store-heading {
+    min-width: 0;
+}
+
+.vd-store-title {
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+
+.vd-store-subtitle,
+.vd-store-card-image,
+.vd-store-card-desc,
+.vd-store-meta,
+.vd-store-modal-copy,
+.vd-store-choice small,
+.vd-store-progress {
+    color: var(--vd-muted);
+}
+
+.vd-store-subtitle {
+    margin-top: 2px;
+    font-size: 12px;
+}
+
+.vd-store-grid {
+    min-height: 0;
+    overflow: auto;
+    padding: 14px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    align-content: start;
+    gap: 12px;
+}
+
+.vd-store-card {
+    display: grid;
+    grid-template-rows: auto minmax(64px, auto) auto auto 1fr;
+    align-content: start;
+    min-width: 0;
+    border: 1px solid var(--vd-border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.045);
+    padding: 12px;
+    gap: 10px;
+}
+
+.vd-store-card-head {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.vd-store-logo-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0,0,0,0.22);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+}
+
+.vd-store-logo {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    grid-area: 1 / 1;
+}
+
+.vd-store-logo-fallback {
+    display: grid;
+    place-items: center;
+    grid-area: 1 / 1;
+}
+
+.vd-store-logo[hidden],
+.vd-store-logo-fallback[hidden] {
+    display: none !important;
+}
+
+.vd-store-card-title-wrap {
+    min-width: 0;
+}
+
+.vd-store-card-title {
+    font-weight: 800;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-store-card-image {
+    margin-top: 2px;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-store-card-desc {
+    min-height: 42px;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.vd-store-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 11px;
+}
+
+.vd-store-warning {
+    border: 1px solid rgba(234,179,8,0.32);
+    background: rgba(234,179,8,0.12);
+    color: #fde68a;
+    border-radius: 7px;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.4;
+    font-weight: 700;
+}
+
+.vd-store-card-warning {
+    border: 1px solid rgba(234,179,8,0.24);
+    background: rgba(234,179,8,0.08);
+    color: #fde68a;
+    border-radius: 7px;
+    padding: 7px 9px;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.vd-store-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05);
+    color: var(--vd-text);
+    font-weight: 700;
+}
+
+.vd-store-status.status-running {
+    border-color: rgba(34,197,94,0.35);
+    background: rgba(34,197,94,0.14);
+}
+
+.vd-store-status.status-installing,
+.vd-store-status.status-updating {
+    border-color: rgba(234,179,8,0.35);
+    background: rgba(234,179,8,0.14);
+    color: #fde047;
+}
+
+.vd-store-status.status-error,
+.vd-store-status.status-failed {
+    border-color: rgba(239,68,68,0.35);
+    background: rgba(239,68,68,0.14);
+}
+
+.vd-store-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    align-items: stretch;
+    gap: 8px;
+    margin-top: auto;
+    min-width: 0;
+}
+
+.vd-store-btn {
+    width: 100%;
+    min-height: 32px;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border-radius: 7px;
+    border: 1px solid var(--vd-border);
+    background: rgba(255,255,255,0.045);
+    color: var(--vd-text);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.vd-store-btn span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-store-btn:hover:not(:disabled) {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.38);
+}
+
+.vd-store-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+}
+
+.vd-store-primary {
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.16);
+    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.38);
+}
+
+.vd-store-danger {
+    color: #fecaca;
+    background: rgba(239,68,68,0.12);
+    border-color: rgba(239,68,68,0.3);
+}
+
+.vd-store-btn-icon {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 auto;
+}
+
+.vd-store-progress {
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.vd-store-loading,
+.vd-store-empty,
+.vd-store-frame-loading,
+.vd-store-frame-error {
+    min-height: 180px;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    color: var(--vd-muted);
+    text-align: center;
+}
+
+.vd-store-frame-error {
+    gap: 10px;
+}
+
+.vd-store-frame-error-title {
+    color: var(--vd-text);
+    font-weight: 800;
+}
+
+.vd-store-frame-error-msg {
+    color: var(--vd-muted);
+    font-size: 12px;
+}
+
+.vd-store-app-frame {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #fff;
+}
+
+.vd-store-modal {
+    max-width: 430px;
+}
+
+.vd-store-choice {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    align-items: start;
+    gap: 10px;
+    padding: 9px 0;
+    color: var(--vd-text);
+}
+
+.vd-store-choice input {
+    margin-top: 3px;
+}
+
+.vd-store-choice span {
+    display: grid;
+    gap: 2px;
+}
+
+.vd-store-field,
+.vd-store-credential {
+    display: grid;
+    gap: 6px;
+    margin: 10px 0;
+    color: var(--vd-text);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.vd-store-field input,
+.vd-store-field textarea,
+.vd-store-credential input {
+    width: 100%;
+    min-height: 34px;
+    border-radius: 7px;
+    border: 1px solid var(--vd-border);
+    background: rgba(0,0,0,0.18);
+    color: var(--vd-text);
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 12px;
+}
+
+.vd-store-field textarea {
+    min-height: 76px;
+    resize: vertical;
+}
+
+@media (max-width: 720px) {
+    .vd-store-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .vd-store-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.fm-status-clipboard {
+    color: var(--vd-accent, #27c7a6);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}

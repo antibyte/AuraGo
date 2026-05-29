@@ -2826,4 +2826,3 @@ sidebar.innerHTML = `<div class="cs-sidebar-head">
         toggle: togglePalette
     };
 })();
-

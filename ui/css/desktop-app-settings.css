@@ -1,0 +1,236 @@
+/* desktop-app-settings.css */
+.vd-settings-app {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 236px 1fr;
+    background: rgba(5, 8, 12, 0.2);
+}
+
+.vd-settings-sidebar {
+    padding: 14px 10px;
+    border-right: 1px solid var(--vd-border);
+    background: rgba(8, 12, 18, 0.4);
+    overflow: auto;
+}
+
+.vd-settings-sidebar-title {
+    padding: 2px 10px 12px;
+    color: var(--vd-muted);
+    font-size: 0.74rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.vd-settings-search {
+    padding: 4px 10px 10px;
+}
+
+.vd-settings-search-input {
+    width: 100%;
+    height: 36px;
+    padding: 0 11px;
+    border: 1px solid var(--vd-border);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.22);
+    color: var(--vd-text);
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.vd-settings-search-input:focus {
+    border-color: var(--vd-accent);
+}
+
+.vd-settings-nav {
+    width: 100%;
+    min-height: 40px;
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    align-items: center;
+    gap: 8px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--vd-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vd-settings-nav-icon {
+    justify-self: center;
+}
+
+.vd-settings-nav:hover,
+.vd-settings-nav.active {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.vd-settings-nav.active {
+    box-shadow: inset 3px 0 0 var(--vd-accent);
+}
+
+.vd-settings-pane {
+    min-width: 0;
+    overflow: auto;
+    padding: 22px;
+}
+
+.vd-settings-pane-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.vd-settings-pane-icon {
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    background: rgba(39, 199, 166, 0.18);
+    color: var(--vd-accent);
+    font-weight: 900;
+}
+
+.vd-settings-pane-papirus-icon {
+    width: 28px;
+    height: 28px;
+}
+
+.vd-settings-pane-title {
+    font-size: 1.34rem;
+    font-weight: 900;
+}
+
+.vd-settings-pane-desc,
+.vd-setting-help {
+    color: var(--vd-muted);
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+.vd-settings-list {
+    display: grid;
+    gap: 10px;
+}
+
+.vd-setting-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 16px;
+    padding: 14px;
+    border: 1px solid var(--vd-border);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.055);
+}
+
+.vd-setting-row.readonly {
+    background: rgba(0, 0, 0, 0.14);
+}
+
+.vd-setting-label {
+    font-size: 0.88rem;
+    font-weight: 850;
+    margin-bottom: 5px;
+}
+
+.vd-setting-value {
+    max-width: 360px;
+    color: var(--vd-muted);
+    font-weight: 800;
+    overflow-wrap: anywhere;
+    text-align: right;
+}
+
+.vd-setting-select {
+    min-width: 180px;
+    height: 38px;
+    padding: 0 10px;
+    border: 1px solid var(--vd-border);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.26);
+    color: var(--vd-text);
+    font: inherit;
+}
+
+.vd-switch {
+    position: relative;
+    width: 52px;
+    height: 30px;
+    display: inline-block;
+}
+
+.vd-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.vd-switch span {
+    position: absolute;
+    inset: 0;
+    border: 1px solid var(--vd-border);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+}
+
+.vd-switch span::before {
+    content: "";
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    left: 3px;
+    top: 3px;
+    border-radius: 50%;
+    background: var(--vd-text);
+    transition: transform 140ms ease, background 140ms ease;
+}
+
+.vd-switch input:checked + span {
+    background: rgba(39, 199, 166, 0.32);
+    border-color: rgba(39, 199, 166, 0.52);
+}
+
+.vd-switch input:checked + span::before {
+    transform: translateX(22px);
+    background: var(--vd-accent);
+}
+
+
+.vd-settings-app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+    }
+.vd-settings-sidebar {
+        display: flex;
+        gap: 6px;
+        overflow: auto hidden;
+        border-right: 0;
+        border-bottom: 1px solid var(--vd-border);
+    }
+.vd-settings-sidebar-title {
+        display: none;
+    }
+.vd-settings-nav {
+        width: auto;
+        min-width: max-content;
+        grid-template-columns: 24px auto;
+        padding: 0 10px;
+    }
+.vd-settings-pane {
+        padding: 14px;
+    }
+.vd-setting-row {
+        grid-template-columns: 1fr;
+        align-items: start;
+    }
+.vd-setting-value {
+        text-align: left;
+    }

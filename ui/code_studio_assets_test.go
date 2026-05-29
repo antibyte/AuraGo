@@ -45,9 +45,8 @@ func TestJavaScriptLibraryAuditWiring(t *testing.T) {
 		t.Fatal("chat page should lazy-load Chart.js instead of loading it up front")
 	}
 	for _, want := range []string{
-		"/js/shared/render-markdown.js",
-		"/js/chat/modules/chart-renderer.js",
-		"/js/chat/modules/mermaid-loader.js",
+		"/js/chat/bundles/chat-vendor.bundle.js",
+		"/js/chat/bundles/chat-runtime.bundle.js",
 	} {
 		if !strings.Contains(indexHTML, want) {
 			t.Fatalf("chat page missing %q", want)

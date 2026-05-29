@@ -338,7 +338,7 @@ function injectRadialMenu() {
         </button>
         <div class="radial-items">
             ${items}
-            <button id="radialLogout" type="button" class="radial-item radial-item-button is-hidden" data-logout-action="true" onclick="performLogout(); return false;" ontouchend="event.preventDefault(); performLogout(); return false;" style="--radial-index:${logoutIndex};--radial-open-delay:${logoutOpenDelay}s;--radial-close-delay:${logoutCloseDelay}s"><span class="radial-item-label" data-i18n="common.nav_logout">${t('common.nav_logout')}</span><span class="radial-item-icon">🔓</span></button>
+            <button id="radialLogout" type="button" class="radial-item radial-item-button is-hidden" data-logout-action="true" style="--radial-index:${logoutIndex};--radial-open-delay:${logoutOpenDelay}s;--radial-close-delay:${logoutCloseDelay}s"><span class="radial-item-label" data-i18n="common.nav_logout">${t('common.nav_logout')}</span><span class="radial-item-icon">🔓</span></button>
         </div>
     </nav>
     <div class="radial-backdrop" id="radialBackdrop"></div>`;

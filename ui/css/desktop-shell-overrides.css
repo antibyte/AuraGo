@@ -1,0 +1,35 @@
+/* desktop-shell-overrides.css - final shell-level desktop overrides */
+.desktop-body[data-theme="fruity"] .vd-window > .vd-window-titlebar > .vd-window-actions,
+.desktop-body[data-theme="fruity"] .vd-widget-manager > .vd-wm-header > .vd-window-actions {
+    position: absolute !important;
+    left: 14px !important;
+    right: auto !important;
+    top: 50% !important;
+    z-index: 4;
+    transform: translateY(-50%) !important;
+    justify-self: start !important;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-actions {
+    position: static !important;
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    align-self: center !important;
+    justify-self: start !important;
+    transform: none !important;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar {
+    grid-template-columns: 78px minmax(0, 1fr) 78px !important;
+    padding: 0 14px !important;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-title-group {
+    grid-column: 2 !important;
+    justify-content: center !important;
+    padding: 0 8px;
+}
+
+.desktop-body[data-theme="fruity"] .vd-widget-manager > .vd-wm-header > .vd-window-actions {
+    left: 18px !important;
+}

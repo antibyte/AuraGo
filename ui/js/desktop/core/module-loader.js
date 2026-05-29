@@ -11,20 +11,45 @@
         'file-manager': '/js/desktop/bundles/file-manager.bundle.js',
         'code-studio': '/js/desktop/bundles/code-studio.bundle.js'
     };
+    const commonAppStyles = ['/css/desktop-app-common.css'];
+
+    function appStyles(...styles) {
+        return commonAppStyles.concat(styles);
+    }
 
     const DESKTOP_APP_ASSETS = {
         'files': {
+            styles: appStyles('/css/desktop-app-file-manager.css'),
             scripts: ['/js/desktop/bundles/file-manager.bundle.js']
         },
         'writer': {
-            styles: ['/css/quill.snow.css'],
+            styles: appStyles('/css/desktop-app-office.css', '/css/quill.snow.css'),
             scripts: ['/js/vendor/quill.js', '/js/desktop/apps/writer.js']
         },
         'sheets': {
+            styles: appStyles('/css/desktop-app-office.css'),
             scripts: ['/js/desktop/apps/sheets.js']
         },
+        'settings': {
+            styles: appStyles('/css/desktop-app-settings.css')
+        },
+        'calculator': {
+            styles: appStyles('/css/desktop-app-calculator.css')
+        },
+        'todo': {
+            styles: appStyles('/css/desktop-app-planning.css')
+        },
+        'calendar': {
+            styles: appStyles('/css/desktop-app-planning.css')
+        },
+        'music-player': {
+            styles: appStyles('/css/desktop-app-planning.css')
+        },
+        'gallery': {
+            styles: appStyles('/css/desktop-app-gallery.css')
+        },
         'agent-chat': {
-            styles: ['/css/chat-modules.css', '/css/stt-overlay.css', '/css/hljs-github-dark.min.css'],
+            styles: appStyles('/css/desktop-app-chat.css', '/css/chat-modules.css', '/css/stt-overlay.css', '/css/hljs-github-dark.min.css'),
             scripts: [
                 '/js/vendor/markdown-it.min.js',
                 '/js/vendor/highlight.min.js',
@@ -39,7 +64,7 @@
             ]
         },
         'code-studio': {
-            styles: ['/css/code-studio.css', '/css/xterm.css', '/css/hljs-github-dark.min.css'],
+            styles: appStyles('/css/code-studio.css', '/css/xterm.css', '/css/hljs-github-dark.min.css'),
             scripts: [
                 '/js/vendor/xterm.min.js',
                 '/js/vendor/xterm-addon-fit.min.js',
@@ -48,33 +73,35 @@
             ]
         },
         'radio': {
-            styles: ['/css/radio.css'],
+            styles: appStyles('/css/radio.css'),
             scripts: ['/js/desktop/apps/radio.js']
         },
         'looper': {
+            styles: appStyles('/css/desktop-app-looper.css'),
             scripts: ['/js/desktop/apps/looper.js']
         },
         'viewer': {
+            styles: appStyles('/css/desktop-app-viewer.css'),
             scripts: ['/js/vendor/pdf.min.js', '/js/desktop/apps/viewer.js']
         },
         'camera': {
-            styles: ['/css/camera.css'],
+            styles: appStyles('/css/camera.css'),
             scripts: ['/js/desktop/apps/camera.js']
         },
         'zipper': {
-            styles: ['/css/zipper.css'],
+            styles: appStyles('/css/zipper.css'),
             scripts: ['/js/desktop/apps/zipper.js']
         },
         'pixel': {
-            styles: ['/css/pixel.css'],
+            styles: appStyles('/css/pixel.css'),
             scripts: ['/js/desktop/apps/pixel.js']
         },
         'galaxa-deluxe': {
-            styles: ['/css/galaxa-deluxe.css'],
+            styles: appStyles('/css/galaxa-deluxe.css'),
             scripts: ['/js/desktop/apps/galaxa-deluxe.js']
         },
         'viewer-3d': {
-            styles: ['/css/stl-viewer.css'],
+            styles: appStyles('/css/stl-viewer.css'),
             scripts: [
                 '/js/vendor/three.min.js',
                 '/js/vendor/STLLoader.min.js',
@@ -83,17 +110,22 @@
             ]
         },
         'system-info': {
+            styles: appStyles('/css/desktop-app-system-info.css'),
             scripts: ['/chart.min.js', '/js/desktop/apps/system-info.js']
         },
         'quick-connect': {
-            styles: ['/css/xterm.css'],
+            styles: appStyles('/css/desktop-app-quick-connect.css', '/css/xterm.css'),
             scripts: [
                 '/js/vendor/xterm.min.js',
                 '/js/vendor/xterm-addon-fit.min.js',
                 '/js/vendor/novnc.min.js'
             ]
         },
+        'launchpad': {
+            styles: appStyles('/css/desktop-app-launchpad.css')
+        },
         'software-store': {
+            styles: appStyles('/css/desktop-app-software-store.css'),
             scripts: ['/js/desktop/apps/software-store.js']
         }
     };

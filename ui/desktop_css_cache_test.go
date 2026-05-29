@@ -9,16 +9,19 @@ import (
 func TestDesktopCSSImportsBustComponentCache(t *testing.T) {
 	t.Parallel()
 
-	css := readDesktopAssetText(t, "css/desktop.css")
-	importRE := regexp.MustCompile(`@import\s+url\('([^']+)'\);`)
-	matches := importRE.FindAllStringSubmatch(css, -1)
-	if len(matches) == 0 {
-		t.Fatal("desktop.css must import split desktop component stylesheets")
-	}
-	for _, match := range matches {
-		path := match[1]
-		if strings.HasPrefix(path, "desktop-") && !strings.Contains(path, "?v=") {
-			t.Fatalf("desktop.css imports %q without component cache busting", path)
+	css := readDesktopAssetText(t, "css/desktop-shell.bundle.css")
+	for _, marker := range []string{
+		"/* ui/css/desktop-base.css */",
+		"/* ui/css/desktop-taskbar.css */",
+		"/* ui/css/desktop-start-menu.css */",
+		"/* ui/css/desktop-windows.css */",
+		"/* ui/css/desktop-icons.css */",
+		"/* ui/css/desktop-widgets.css */",
+		"/* ui/css/desktop-modals.css */",
+		"/* ui/css/desktop-shell-overrides.css */",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("desktop shell CSS bundle missing source marker %q", marker)
 		}
 	}
 }
@@ -27,15 +30,15 @@ func TestDesktopHTMLBustsDesktopCSSAggregatorCache(t *testing.T) {
 	t.Parallel()
 
 	html := readDesktopAssetText(t, "desktop.html")
-	if !strings.Contains(html, `/css/desktop.css?v={{.BuildVersion}}-desktop-20260525-window-ai-context`) {
-		t.Fatalf("desktop.html must bust the desktop.css aggregator cache with the current desktop asset version")
+	if !strings.Contains(html, `/css/desktop-shell.bundle.css?v={{.BuildVersion}}`) {
+		t.Fatalf("desktop.html must load the generated desktop shell CSS bundle with BuildVersion cache busting")
 	}
 }
 
 func TestDesktopCSSCarriesFinalFruityWindowControlOverride(t *testing.T) {
 	t.Parallel()
 
-	css := readDesktopAssetText(t, "css/desktop.css")
+	css := readDesktopAssetText(t, "css/desktop-shell.bundle.css")
 	for _, want := range []string{
 		".desktop-body[data-theme=\"fruity\"] .vd-window > .vd-window-titlebar > .vd-window-actions",
 		".desktop-body[data-theme=\"fruity\"] .vd-window.has-window-menu > .vd-window-titlebar",
@@ -95,7 +98,20 @@ func TestDesktopCSSDoesNotAppendAlphaToCSSVariables(t *testing.T) {
 	for _, path := range []string{
 		"css/desktop-base.css",
 		"css/desktop-icons.css",
-		"css/desktop-apps.css",
+		"css/desktop-app-common.css",
+		"css/desktop-app-file-manager.css",
+		"css/desktop-app-office.css",
+		"css/desktop-app-settings.css",
+		"css/desktop-app-calculator.css",
+		"css/desktop-app-planning.css",
+		"css/desktop-app-chat.css",
+		"css/desktop-app-quick-connect.css",
+		"css/desktop-app-gallery.css",
+		"css/desktop-app-launchpad.css",
+		"css/desktop-app-system-info.css",
+		"css/desktop-app-looper.css",
+		"css/desktop-app-viewer.css",
+		"css/desktop-app-software-store.css",
 	} {
 		css := readDesktopAssetText(t, path)
 		if match := invalidVarAlpha.FindString(css); match != "" {

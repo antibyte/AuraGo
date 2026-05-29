@@ -32,7 +32,7 @@ func TestDesktopCalendarModernizationAssets(t *testing.T) {
 func TestDesktopCalendarModernizationStyles(t *testing.T) {
 	t.Parallel()
 
-	css := readDesktopAssetText(t, "css/desktop-apps.css")
+	css := readAllDesktopAppCSS(t)
 	for _, marker := range []string{
 		".vd-calendar-shell",
 		".vd-calendar-weekdays",

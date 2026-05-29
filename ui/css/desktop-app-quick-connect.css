@@ -1,0 +1,629 @@
+/* desktop-app-quick-connect.css */
+/* ═══════════════════════════════════════════════════════════════
+   Quick Connect – SSH Terminal App
+   ═══════════════════════════════════════════════════════════════ */
+
+.vd-quick-connect {
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+    min-height: 0;
+    background:
+        radial-gradient(circle at top right, rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.08), transparent 34%),
+        var(--vd-surface);
+    border-radius: 0 0 6px 6px;
+    overflow: hidden;
+}
+
+.vd-qc-sidebar {
+    width: 240px;
+    min-width: 200px;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--vd-border);
+    background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015)), var(--vd-surface-strong);
+}
+
+.vd-qc-sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    border-bottom: 1px solid var(--vd-border);
+}
+
+.vd-qc-title {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--vd-text);
+    white-space: nowrap;
+}
+
+.vd-qc-search {
+    padding: 10px;
+    border-bottom: 1px solid var(--vd-border);
+}
+
+.vd-qc-search input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--vd-border);
+    background: var(--vd-bg);
+    color: var(--vd-text);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.vd-qc-search input:focus {
+    border-color: var(--vd-accent);
+}
+
+.vd-qc-device-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.vd-qc-device {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    text-align: left;
+    padding: 9px;
+    margin-bottom: 6px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.025);
+    color: var(--vd-text);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.vd-qc-device:hover {
+    background: rgba(39, 199, 166, 0.08);
+    border-color: rgba(39, 199, 166, 0.15);
+    transform: translateY(-1px);
+}
+
+.vd-qc-device.active {
+    background: rgba(39, 199, 166, 0.14);
+    border-color: var(--vd-accent);
+}
+
+.vd-qc-device.template {
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.09);
+    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.24);
+}
+
+.vd-qc-device-icon {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.08);
+}
+
+.vd-qc-device-main {
+    min-width: 0;
+}
+
+.vd-qc-device-name {
+    font-weight: 500;
+    font-size: 13px;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vd-qc-device-meta {
+    font-size: 11px;
+    color: var(--vd-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vd-qc-device-desc {
+    margin-top: 3px;
+    font-size: 11px;
+    color: rgba(184, 196, 212, 0.85);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-qc-terminal-area {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+    position: relative;
+    background: #0d1117;
+}
+
+.vd-qc-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: var(--vd-muted);
+    gap: 10px;
+}
+
+.vd-qc-placeholder-icon {
+    width: 58px;
+    height: 58px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.055);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.vd-qc-placeholder-text {
+    font-size: 13px;
+    opacity: 0.6;
+}
+
+.vd-qc-term-container {
+    width: 100%;
+    height: 100%;
+    padding: 4px;
+    box-sizing: border-box;
+}
+
+.vd-qc-term-container .xterm {
+    height: 100%;
+}
+
+.vd-qc-term-container .xterm-viewport {
+    overflow-y: auto !important;
+}
+
+.vd-segmented {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px;
+    border-radius: 6px;
+    border: 1px solid var(--vd-border);
+    background: var(--vd-surface-strong);
+}
+
+.vd-segmented .vd-tool-button.active {
+    background: rgba(39, 199, 166, 0.18);
+    border-color: rgba(39, 199, 166, 0.35);
+    color: var(--vd-text);
+}
+
+
+/* Quick Connect – Header actions */
+.vd-qc-header-actions {
+    display: flex;
+    gap: 4px;
+}
+
+/* Quick Connect – Device badges */
+.vd-qc-device-badges {
+    display: flex;
+    gap: 4px;
+    margin-top: 3px;
+}
+
+.vd-qc-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+.vd-qc-badge-ok {
+    background: rgba(39, 199, 166, 0.18);
+    color: var(--vd-accent);
+}
+
+.vd-qc-badge-warn {
+    background: rgba(242, 184, 75, 0.18);
+    color: var(--vd-amber);
+}
+
+/* Quick Connect – Modal overlay */
+.vd-qc-modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--vd-z-modal);
+    backdrop-filter: blur(2px);
+}
+
+/* Quick Connect – Modal */
+.vd-qc-modal {
+    background: var(--vd-surface-strong);
+    border: 1px solid var(--vd-border);
+    border-radius: 10px;
+    width: 460px;
+    max-width: 95%;
+    max-height: 90%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.vd-qc-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--vd-border);
+}
+
+.vd-qc-modal-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--vd-text);
+}
+
+.vd-qc-modal-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--vd-muted);
+    cursor: pointer;
+    padding: 0;
+}
+
+.vd-qc-modal-close:hover {
+    border-color: var(--vd-border);
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--vd-text);
+}
+
+.vd-qc-modal-body {
+    padding: 16px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.vd-qc-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--vd-border);
+}
+
+/* Quick Connect – Form sections */
+.vd-qc-form-section {
+    margin-bottom: 16px;
+}
+
+.vd-qc-form-section:last-child {
+    margin-bottom: 0;
+}
+
+.vd-qc-form-title {
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--vd-muted);
+    margin-bottom: 10px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--vd-border);
+}
+
+.vd-qc-form-row {
+    display: flex;
+    gap: 10px;
+}
+
+.vd-qc-flex-3 { flex: 3; }
+.vd-qc-flex-2 { flex: 2; }
+.vd-qc-flex-1 { flex: 1; }
+
+.vd-qc-vnc-container {
+    width: 100%;
+    height: 100%;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vd-qc-vnc-container canvas {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* Quick Connect – Labels & Inputs */
+.vd-qc-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--vd-muted);
+    margin-bottom: 8px;
+}
+
+.vd-qc-input {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px 10px;
+    margin-top: 3px;
+    border-radius: 6px;
+    border: 1px solid var(--vd-border);
+    background: var(--vd-bg);
+    color: var(--vd-text);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.vd-qc-input:focus {
+    border-color: var(--vd-accent);
+}
+
+.vd-qc-textarea {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px 10px;
+    margin-top: 3px;
+    border-radius: 6px;
+    border: 1px solid var(--vd-border);
+    background: var(--vd-bg);
+    color: var(--vd-text);
+    font-size: 12px;
+    font-family: 'Cascadia Code', 'JetBrains Mono', monospace;
+    outline: none;
+    resize: vertical;
+    min-height: 60px;
+    transition: border-color 0.15s;
+}
+
+.vd-qc-textarea:focus {
+    border-color: var(--vd-accent);
+}
+
+.vd-qc-input-group {
+    display: flex;
+    gap: 4px;
+    margin-top: 3px;
+}
+
+.vd-qc-input-group .vd-qc-input {
+    flex: 1;
+    margin-top: 0;
+}
+
+.vd-qc-input-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    background: var(--vd-bg);
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    color: var(--vd-muted);
+    cursor: pointer;
+    padding: 0;
+    font-size: 14px;
+}
+
+.vd-qc-input-toggle:hover {
+    color: var(--vd-text);
+}
+
+/* Quick Connect – Cert area */
+.vd-qc-cert-area {
+    margin-top: 3px;
+}
+
+.vd-qc-cert-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.vd-qc-hint {
+    display: block;
+    font-size: 11px;
+    color: var(--vd-accent);
+    margin-top: 4px;
+    opacity: 0.8;
+}
+
+/* Quick Connect – Buttons */
+.vd-qc-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--vd-border);
+    background: var(--vd-bg);
+    color: var(--vd-text);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+
+.vd-qc-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.vd-qc-btn-sm {
+    padding: 4px 10px;
+    font-size: 11px;
+}
+
+.vd-qc-icon-only {
+    width: 34px;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.vd-qc-btn-primary {
+    background: var(--vd-accent);
+    color: #111;
+    border-color: var(--vd-accent);
+    font-weight: 600;
+}
+
+.vd-qc-btn-primary:hover {
+    background: #2edbb5;
+    border-color: #2edbb5;
+}
+
+.vd-qc-btn-secondary {
+    background: transparent;
+    color: var(--vd-muted);
+}
+
+.vd-qc-btn-secondary:hover {
+    color: var(--vd-text);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.vd-qc-btn-danger {
+    background: var(--vd-coral);
+    color: #fff;
+    border-color: var(--vd-coral);
+    font-weight: 600;
+}
+
+.vd-qc-btn-danger:hover {
+    background: #ff9580;
+    border-color: #ff9580;
+}
+
+/* Quick Connect – Confirm dialog */
+.vd-qc-confirm {
+    background: var(--vd-surface-strong);
+    border: 1px solid var(--vd-border);
+    border-radius: 10px;
+    padding: 20px;
+    width: 340px;
+    max-width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.vd-qc-confirm-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.vd-qc-confirm-msg {
+    font-size: 13px;
+    color: var(--vd-muted);
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+
+.vd-qc-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+
+/* Quick Connect – Notify toast */
+.vd-qc-notify {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--vd-coral);
+    color: #fff;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    z-index: 200;
+    animation: vd-qc-notify-in 0.2s ease-out;
+    max-width: 80%;
+    text-align: center;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes vd-qc-notify-in {
+    from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.vd-qc-placeholder.vd-qc-connecting {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+}
+
+.vd-qc-spinner {
+    width: 28px;
+    height: 28px;
+}
+
+.vd-qc-placeholder.vd-qc-disconnected {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+}
+
+.vd-qc-reconnect-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.vd-qc-credentials-modal {
+    width: 380px;
+}
+
+
+@media (max-width: 680px) {
+.vd-quick-connect {
+        flex-direction: column;
+    }
+.vd-qc-sidebar {
+        width: 100%;
+        max-width: none;
+        height: 180px;
+        min-width: 0;
+        border-right: none;
+        border-bottom: 1px solid var(--vd-border);
+    }
+.vd-qc-modal {
+        width: 95%;
+    }
+}

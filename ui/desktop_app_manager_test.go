@@ -81,7 +81,7 @@ func TestDesktopAppManagerAssetVersionsBustCache(t *testing.T) {
 
 	desktopHTML := readDesktopAssetText(t, "desktop.html")
 	for _, want := range []string{
-		`/css/desktop.css?v={{.BuildVersion}}`,
+		`/css/desktop-shell.bundle.css?v={{.BuildVersion}}`,
 		`/js/desktop/main.js?v={{.BuildVersion}}`,
 		`/js/desktop/core/module-loader.js?v={{.BuildVersion}}`,
 	} {

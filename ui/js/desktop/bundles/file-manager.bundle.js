@@ -549,32 +549,32 @@
     function buildMarkup() {
         const tabHtml = typeof renderTabBarHtml === 'function' ? renderTabBarHtml() : '';
         const previewHtml = fm.previewOpen && typeof renderPreviewPanelHtml === 'function' ? renderPreviewPanelHtml() : '';
-        
+
         let bodyHtml = '';
         if (fm.splitViewEnabled) {
             let leftContentHtml = '';
             let rightContentHtml = '';
-            
+
             const originalActivePane = fm.activePane;
             if (originalActivePane === 'right') {
                 fm.activePane = 'left';
                 loadPaneState(fm.leftPane);
                 leftContentHtml = renderPaneHtml('left');
-                
+
                 fm.activePane = 'right';
                 loadPaneState(fm.rightPane);
                 rightContentHtml = renderPaneHtml('right');
             } else {
                 leftContentHtml = renderPaneHtml('left');
-                
+
                 fm.activePane = 'right';
                 loadPaneState(fm.rightPane);
                 rightContentHtml = renderPaneHtml('right');
-                
+
                 fm.activePane = 'left';
                 loadPaneState(fm.leftPane);
             }
-            
+
             bodyHtml = `
                 ${renderSidebarHtml()}
                 <div class="fm-split-body" style="display: flex; flex: 1; min-height: 0; position: relative;">
@@ -641,17 +641,17 @@
         if (!fm.splitViewEnabled) {
             fm.splitViewEnabled = true;
             fm.activePane = 'left';
-            
+
             fm.leftPane = createPaneState(fm.currentPath, [...fm.history], fm.historyIndex);
             fm.leftPane.files = [...fm.files];
             fm.leftPane.filteredFiles = fm.filteredFiles ? [...fm.filteredFiles] : null;
             fm.leftPane.selectedPaths = new Set(fm.selectedPaths);
             fm.leftPane.lastClickedPath = fm.lastClickedPath;
-            
+
             fm.rightPane = createPaneState(fm.currentPath, [...fm.history], fm.historyIndex);
             fm.rightPane.files = [...fm.files];
             fm.rightPane.filteredFiles = fm.filteredFiles ? [...fm.filteredFiles] : null;
-            
+
             loadPaneState(fm.leftPane);
         } else {
             const activeState = fm.activePane === 'right' ? fm.rightPane : fm.leftPane;
@@ -677,7 +677,7 @@
         if (!fm.splitViewEnabled) return;
         const pane = fm.activePane === 'right' ? fm.rightPane : fm.leftPane;
         if (!pane) return;
-        
+
         pane.currentPath = fm.currentPath;
         pane.files = [...fm.files];
         pane.filteredFiles = fm.filteredFiles ? [...fm.filteredFiles] : null;
@@ -687,7 +687,7 @@
         pane.searchQuery = fm.searchQuery;
         pane.lastClickedPath = fm.lastClickedPath;
         pane.renamePath = fm.renamePath;
-        
+
         const main = fm.host ? fm.host.querySelector(`.fm-pane[data-pane="${fm.activePane}"] [data-fm-main]`) : null;
         pane.scrollPosition = main ? main.scrollTop : 0;
     }
@@ -703,19 +703,19 @@
         fm.searchQuery = pane.searchQuery;
         fm.lastClickedPath = pane.lastClickedPath;
         fm.renamePath = pane.renamePath;
-        
+
         const searchInput = fm.host ? fm.host.querySelector('.fm-search-input') : null;
         if (searchInput) searchInput.value = pane.searchQuery || '';
     }
 
     function switchActivePane(paneName) {
         if (!fm.splitViewEnabled || fm.activePane === paneName) return;
-        
+
         saveActivePaneState();
         fm.activePane = paneName;
         const nextPane = paneName === 'right' ? fm.rightPane : fm.leftPane;
         loadPaneState(nextPane);
-        
+
         if (fm.host) {
             fm.host.querySelectorAll('.fm-pane').forEach(pane => {
                 if (pane.dataset.pane === paneName) {
@@ -728,29 +728,29 @@
                     if (pathSpan) pathSpan.style.color = 'var(--vd-muted, #888)';
                 }
             });
-            
+
             const breadcrumbWrap = fm.host.querySelector('[data-fm-breadcrumb]');
             if (breadcrumbWrap) breadcrumbWrap.innerHTML = renderBreadcrumbSegments();
-            
+
             const statusBar = fm.host.querySelector('.fm-statusbar');
             if (statusBar) {
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = renderStatusBarHtml();
                 statusBar.replaceWith(tempDiv.firstChild);
             }
-            
+
             const sidebar = fm.host.querySelector('.fm-sidebar');
             if (sidebar) {
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = renderSidebarHtml();
                 sidebar.replaceWith(tempDiv.firstChild);
             }
-            
+
             const searchInput = fm.host.querySelector('.fm-search-input');
             if (searchInput) {
                 searchInput.value = fm.searchQuery || '';
             }
-            
+
             attachEvents();
         }
     }
@@ -758,15 +758,15 @@
     function initSplitResize(root) {
         const resizer = root.querySelector('.fm-split-resizer');
         if (!resizer) return;
-        
+
         const leftPane = root.querySelector('.fm-pane[data-pane="left"]');
         const rightPane = root.querySelector('.fm-pane[data-pane="right"]');
         if (!leftPane || !rightPane) return;
-        
+
         let startX = 0;
         let startLeftWidth = 0;
         let containerWidth = 0;
-        
+
         function onPointerMove(e) {
             const dx = e.clientX - startX;
             const newLeftWidth = Math.max(100, Math.min(containerWidth - 100, startLeftWidth + dx));
@@ -776,13 +776,13 @@
             rightPane.style.flex = `none`;
             rightPane.style.width = `${100 - leftPercent}%`;
         }
-        
+
         function onPointerUp() {
             document.removeEventListener('pointermove', onPointerMove);
             document.removeEventListener('pointerup', onPointerUp);
             localStorage.setItem('aurago.fm.splitRatio', leftPane.style.width);
         }
-        
+
         resizer.addEventListener('pointerdown', e => {
             e.preventDefault();
             startX = e.clientX;
@@ -791,7 +791,7 @@
             document.addEventListener('pointermove', onPointerMove);
             document.addEventListener('pointerup', onPointerUp);
         });
-        
+
         const savedRatio = localStorage.getItem('aurago.fm.splitRatio');
         if (savedRatio) {
             leftPane.style.flex = 'none';
@@ -1426,7 +1426,7 @@
             renameInput.addEventListener('blur', () => finishRename(renameInput));
         }
         attachMainAreaEvents(root, true);
-        
+
         // Split pane pointerdown activation
         root.querySelectorAll('.fm-pane').forEach(pane => {
             pane.addEventListener('pointerdown', e => {
@@ -1826,7 +1826,7 @@
         const barFill = overlay.querySelector('.fm-upload-bar-fill');
         const percentEl = overlay.querySelector('.fm-upload-percent');
         const fileEl = overlay.querySelector('.fm-upload-file');
-        
+
         return {
             update(current, fileName) {
                 const pct = Math.round((current / total) * 100);
@@ -1872,7 +1872,7 @@
                 });
             }
             if (progress) progress.close();
-            
+
             redoStack.push(action);
             showNotification({ type: 'success', message: t('desktop.fm.undone', 'Operation undone') });
             refresh();
@@ -1902,7 +1902,7 @@
                 });
             }
             if (progress) progress.close();
-            
+
             undoStack.push(action);
             showNotification({ type: 'success', message: t('desktop.fm.redone', 'Operation redone') });
             refresh();
@@ -1919,22 +1919,22 @@
             quickLookOverlay = null;
             return;
         }
-        
+
         const selected = getSelectedFiles();
         if (selected.length !== 1) return;
-        
+
         const file = selected[0];
         const isImg = isPreviewableImage(file);
         const isMedia = isMediaFile(file.name);
-        
+
         const ext = String(file.name || '').split('.').pop().toLowerCase();
         const textExts = new Set(['txt', 'log', 'md', 'json', 'yaml', 'yml', 'sh', 'py', 'go', 'js', 'css', 'html', 'xml', 'ini', 'conf']);
         const isTxt = textExts.has(ext);
-        
+
         const overlay = document.createElement('div');
         overlay.className = 'fm-modal-overlay fm-quick-look-overlay';
         overlay.style.zIndex = '999999';
-        
+
         let content = '';
         if (isImg) {
             content = `<img src="${previewURL(file)}" style="max-width: 90vw; max-height: 80vh; object-fit: contain; border-radius: 8px;" />`;
@@ -1958,7 +1958,7 @@
                 </div>
             `;
         }
-        
+
         overlay.innerHTML = `
             <div style="position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 10;">
                 <button class="fm-btn" data-close-ql style="padding: 6px 12px; font-size: 0.85rem;">Close (Space)</button>
@@ -1970,10 +1970,10 @@
                 </div>
             </div>
         `;
-        
+
         document.body.appendChild(overlay);
         quickLookOverlay = overlay;
-        
+
         overlay.querySelector('[data-close-ql]').addEventListener('click', () => {
             overlay.remove();
             quickLookOverlay = null;
@@ -1984,7 +1984,7 @@
                 quickLookOverlay = null;
             }
         });
-        
+
         async function fetchTextPreview(path) {
             try {
                 const res = await fetch('/api/desktop/file-content?path=' + encodeURIComponent(path));
@@ -2074,8 +2074,8 @@
 
         let progress = null;
         if (clipboard.paths.length > 1) {
-            const title = clipboard.mode === 'copy' 
-                ? t('desktop.fm.copying', 'Copying...') 
+            const title = clipboard.mode === 'copy'
+                ? t('desktop.fm.copying', 'Copying...')
                 : t('desktop.fm.moving', 'Moving...');
             progress = showProgressOverlay(title, clipboard.paths.length);
         }
@@ -2433,26 +2433,26 @@
         if (isReadonly()) return;
         const cleanPaths = Array.from(new Set((paths || []).filter(Boolean)));
         if (!cleanPaths.length) return;
-        
+
         let progress = null;
         if (cleanPaths.length > 1) {
             progress = showProgressOverlay(t('desktop.fm.moving', 'Moving...'), cleanPaths.length);
         }
-        
+
         let count = 0;
         const undoItems = [];
-        
+
         for (const src of cleanPaths) {
             if (!src || src === destPath) continue;
             const name = baseName(src);
             const newPath = joinPath(destPath, name);
             if (newPath === src) continue;
-            
+
             count++;
             if (progress) {
                 progress.update(count, name);
             }
-            
+
             try {
                 await api('/api/desktop/file', {
                     method: 'PATCH',
@@ -2463,18 +2463,18 @@
                 showNotification({ type: 'error', message: (err.message || String(err)) });
             }
         }
-        
+
         if (progress) {
             progress.close();
         }
-        
+
         if (undoItems.length > 0) {
             pushToUndo({
                 type: 'move',
                 items: undoItems
             });
         }
-        
+
         if (fm.callbacks && typeof fm.callbacks.refreshDesktop === 'function') await fm.callbacks.refreshDesktop();
         clearSelection();
         dragSrcPath = null;
@@ -2645,12 +2645,12 @@
     function buildOpenWithSubmenu(file) {
         if (!file || file.type !== 'file') return [];
         const apps = [];
-        
+
         const isText = isViewerFile(file.name) || String(file.name).endsWith('.txt') || String(file.name).endsWith('.log');
         const isImage = isImageFile(file.name);
         const isMedia = isMediaFile(file.name);
         const isDoc = isViewerFile(file.name);
-        
+
         if (isText) {
             apps.push({ label: t('desktop.app_editor', 'Editor'), appId: 'editor' });
             apps.push({ label: t('desktop.app_code_studio', 'Code Studio'), appId: 'code-studio' });
@@ -2681,7 +2681,7 @@
             apps.push({ label: t('desktop.app_viewer', 'Viewer'), appId: 'viewer' });
             apps.push({ label: t('desktop.app_code_studio', 'Code Studio'), appId: 'code-studio' });
         }
-        
+
         return apps.map(app => ({
             label: app.label,
             action: 'open-with-' + app.appId,
@@ -2761,9 +2761,9 @@
         const defaultName = file.name + '_symlink';
         const linkName = await promptDialog(t('desktop.fm.create_symlink_prompt', 'Symlink name'), defaultName);
         if (!linkName) return;
-        
+
         const linkPath = joinPath(fm.currentPath, linkName);
-        
+
         try {
             await api('/api/desktop/symlink', {
                 method: 'POST',
@@ -2782,13 +2782,13 @@
     async function calculateFolderSize(path) {
         const span = fm.host ? fm.host.querySelector(`[data-preview-folder-size="${path.replace(/"/g, '\\"')}"]`) : null;
         if (!span) return;
-        
+
         span.innerHTML = `<span style="color:var(--vd-muted);font-style:italic">${esc(t('desktop.fm.calculating', 'Calculating...'))}</span>`;
         try {
             const res = await api('/api/desktop/folder-size?path=' + encodeURIComponent(path));
             if (res && res.status === 'ok') {
                 span.textContent = fmtBytes(res.size || 0);
-                
+
                 const file = fm.files.find(f => f.path === path);
                 if (file) {
                     file.size = res.size;
@@ -2841,8 +2841,8 @@
                 e.preventDefault();
                 if (typeof initTabs === 'function') initTabs(fm);
                 if (fm.tabs && fm.tabs.length > 1) {
-                    const nextIdx = e.shiftKey ? 
-                        (fm.activeTabIndex - 1 + fm.tabs.length) % fm.tabs.length : 
+                    const nextIdx = e.shiftKey ?
+                        (fm.activeTabIndex - 1 + fm.tabs.length) % fm.tabs.length :
                         (fm.activeTabIndex + 1) % fm.tabs.length;
                     if (typeof switchTab === 'function') switchTab(nextIdx);
                 }
@@ -3008,10 +3008,10 @@
             e.preventDefault();
             const files = getDisplayFiles();
             if (!files.length) return;
-            
+
             let currentIndex = files.findIndex(f => f.path === (fm.lastClickedPath || ''));
             let newIndex = currentIndex;
-            
+
             if (e.key === 'Home') {
                 newIndex = 0;
             } else if (e.key === 'End') {
@@ -3039,7 +3039,7 @@
                     newIndex = currentIndex === -1 ? 0 : Math.min(files.length - 1, currentIndex + 1);
                 }
             }
-            
+
             if (newIndex !== currentIndex && newIndex >= 0 && newIndex < files.length) {
                 const targetPath = files[newIndex].path;
                 if (e.shiftKey) {
@@ -3055,7 +3055,7 @@
                 fm.lastClickedPath = targetPath;
                 updateSelectionDOM();
                 focusFileItem(targetPath);
-                
+
                 // Trigger preview panel update if it's open
                 const previewPanel = fm.host ? fm.host.querySelector('.fm-preview-panel') : null;
                 if (previewPanel && typeof renderPreviewPanelHtml === 'function') {
@@ -3093,7 +3093,7 @@
 
     function renderTabBarHtml() {
         initTabs(fm);
-        
+
         const tabItems = fm.tabs.map((tab, idx) => {
             const active = idx === fm.activeTabIndex ? ' active' : '';
             const title = tab.path ? tab.path.split('/').pop() : t('desktop.fm.workspace_root', 'Workspace');
@@ -3103,7 +3103,7 @@
                 ${fm.tabs.length > 1 ? `<button type="button" class="fm-tab-close" data-action="close-tab" data-tab-index="${idx}" title="${esc(t('desktop.close', 'Close'))}">&times;</button>` : ''}
             </div>`;
         }).join('');
-        
+
         return `<div class="fm-tab-bar" role="tablist">
             <div class="fm-tabs-container">${tabItems}</div>
             <button type="button" class="fm-tab-new" data-action="new-tab" title="${esc(t('desktop.fm.new_tab', 'New Tab (Ctrl+T)'))}">+</button>
@@ -3138,7 +3138,7 @@
     function switchTab(index) {
         initTabs(fm);
         if (index < 0 || index >= fm.tabs.length) return;
-        
+
         // Save current state to the active tab before switching
         const currentTab = fm.tabs[fm.activeTabIndex];
         if (currentTab) {
@@ -3149,22 +3149,22 @@
             const main = fm.host ? fm.host.querySelector('[data-fm-main]') : null;
             currentTab.scrollPosition = main ? main.scrollTop : 0;
         }
-        
+
         fm.activeTabIndex = index;
         const targetTab = fm.tabs[index];
-        
+
         // Load state from the target tab
         fm.currentPath = targetTab.path;
         fm.history = [...targetTab.history];
         fm.historyIndex = targetTab.historyIndex;
         fm.selectedPaths = new Set(targetTab.selectedPaths);
         fm.searchQuery = ''; // Reset search on tab switch
-        
+
         const searchInput = fm.host ? fm.host.querySelector('.fm-search-input') : null;
         if (searchInput) searchInput.value = '';
-        
+
         renderAll();
-        
+
         // Restore scroll position after render
         setTimeout(() => {
             const main = fm.host ? fm.host.querySelector('[data-fm-main]') : null;
@@ -3173,20 +3173,20 @@
     }
 
     let dragTabSourceIndex = null;
-    
+
     function handleTabDragStart(e) {
         const index = parseInt(e.currentTarget.dataset.tabIndex);
         dragTabSourceIndex = index;
         e.dataTransfer.effectAllowed = 'move';
         e.stopPropagation();
     }
-    
+
     function handleTabDragOver(e) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         e.stopPropagation();
     }
-    
+
     function handleTabDrop(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -3194,7 +3194,7 @@
         if (dragTabSourceIndex !== null && dragTabSourceIndex !== targetIndex) {
             const moved = fm.tabs.splice(dragTabSourceIndex, 1)[0];
             fm.tabs.splice(targetIndex, 0, moved);
-            
+
             // Adjust activeTabIndex if needed
             if (fm.activeTabIndex === dragTabSourceIndex) {
                 fm.activeTabIndex = targetIndex;
@@ -3203,7 +3203,7 @@
             } else if (fm.activeTabIndex < dragTabSourceIndex && fm.activeTabIndex >= targetIndex) {
                 fm.activeTabIndex++;
             }
-            
+
             renderAll();
         }
         dragTabSourceIndex = null;
@@ -3236,7 +3236,7 @@
             if (!res.ok) throw new Error();
             const text = await res.text();
             const excerpt = text.length > 500 ? text.slice(0, 500) + '...' : text;
-            
+
             const container = fm.host ? fm.host.querySelector(`.fm-preview-text-wrap[data-preview-path="${path.replace(/"/g, '\\"')}"]`) : null;
             if (container) {
                 container.innerHTML = `<pre class="fm-preview-text-pre">${esc(excerpt)}</pre>`;
@@ -3251,10 +3251,10 @@
 
     function renderPreviewPanelHtml() {
         const selected = getSelectedFiles();
-        
+
         let header = '';
         let body = '';
-        
+
         if (selected.length === 0) {
             header = `<div class="fm-preview-header"><h3>${esc(t('desktop.fm.preview_properties', 'File Details'))}</h3></div>`;
             body = `<div class="fm-preview-empty">${esc(t('desktop.fm.no_file_selected', 'No file selected'))}</div>`;
@@ -3275,11 +3275,11 @@
                 <h3>${esc(t('desktop.fm.preview_properties', 'File Details'))}</h3>
                 <button type="button" class="fm-preview-close" data-action="toggle-preview" title="${esc(t('desktop.close', 'Close'))}">&times;</button>
             </div>`;
-            
+
             const isImg = isPreviewableImage(file);
             const isMedia = isMediaFile(file.name);
             const isText = isTextFile(file.name);
-            
+
             let previewContent = '';
             if (isImg) {
                 previewContent = `<div class="fm-preview-media-wrap">
@@ -3305,7 +3305,7 @@
             } else {
                 previewContent = `<div class="fm-preview-icon-large">${thumbnailMarkup(file, iconForFile(file), '', 'grid')}</div>`;
             }
-            
+
             body = `<div class="fm-preview-details">
                 ${previewContent}
                 <div class="fm-preview-name-title" title="${esc(file.name)}">${esc(file.name)}</div>
@@ -3330,9 +3330,9 @@
                 </div>` : ''}
             </div>`;
         }
-        
+
         const width = fm.previewWidth || 250;
-        
+
         return `<div class="fm-preview-panel" style="width: ${width}px" role="complementary">
             <div class="fm-preview-resize" data-resize-handle="preview"></div>
             <div class="fm-preview-container">
@@ -3345,10 +3345,10 @@
     function initPreviewResize(root) {
         const handle = root.querySelector('[data-resize-handle="preview"]');
         if (!handle) return;
-        
+
         let startX = 0;
         let startWidth = 0;
-        
+
         function onPointerMove(e) {
             const dx = startX - e.clientX;
             const newWidth = Math.max(200, Math.min(500, startWidth + dx));
@@ -3356,13 +3356,13 @@
             const panel = root.querySelector('.fm-preview-panel');
             if (panel) panel.style.width = newWidth + 'px';
         }
-        
+
         function onPointerUp() {
             document.removeEventListener('pointermove', onPointerMove);
             document.removeEventListener('pointerup', onPointerUp);
             localStorage.setItem('aurago.fm.previewWidth', fm.previewWidth);
         }
-        
+
         handle.addEventListener('pointerdown', e => {
             e.preventDefault();
             startX = e.clientX;
@@ -3376,7 +3376,7 @@
     function initColumnResize(root) {
         const header = root.querySelector('.fm-list-header');
         if (!header) return;
-        
+
         const cols = ['name', 'size', 'date', 'type'];
         cols.forEach(col => {
             const val = localStorage.getItem(`aurago.fm.col.${col}`);
@@ -3384,31 +3384,31 @@
                 root.style.setProperty(`--fm-col-width-${col}`, val);
             }
         });
-        
+
         const handles = root.querySelectorAll('.fm-col-resize-handle');
         handles.forEach(handle => {
             handle.addEventListener('pointerdown', e => {
                 e.preventDefault();
                 e.stopPropagation();
-                
+
                 const colKey = handle.dataset.colKey;
                 const cell = handle.closest('.fm-list-cell');
                 const startX = e.clientX;
                 const startWidth = cell.offsetWidth;
-                
+
                 function onPointerMove(ev) {
                     const dx = ev.clientX - startX;
                     const newWidth = Math.max(50, startWidth + dx) + 'px';
                     root.style.setProperty(`--fm-col-width-${colKey}`, newWidth);
                 }
-                
+
                 function onPointerUp() {
                     document.removeEventListener('pointermove', onPointerMove);
                     document.removeEventListener('pointerup', onPointerUp);
                     const finalWidth = root.style.getPropertyValue(`--fm-col-width-${colKey}`);
                     localStorage.setItem(`aurago.fm.col.${colKey}`, finalWidth);
                 }
-                
+
                 document.addEventListener('pointermove', onPointerMove);
                 document.addEventListener('pointerup', onPointerUp);
             });
@@ -3432,19 +3432,19 @@
     }
 
     let dragFavSourceIndex = null;
-    
+
     function handleFavDragStart(e) {
         dragFavSourceIndex = parseInt(e.currentTarget.dataset.favIndex);
         e.dataTransfer.effectAllowed = 'move';
         e.stopPropagation();
     }
-    
+
     function handleFavDragOver(e) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         e.stopPropagation();
     }
-    
+
     function handleFavDrop(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -3463,7 +3463,7 @@
         e.dataTransfer.dropEffect = 'copy';
         e.stopPropagation();
     }
-    
+
     function handleFavoritesSectionDrop(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -3489,18 +3489,18 @@
     async function compressSelectionToZip() {
         const selected = getSelectedFiles();
         if (selected.length === 0) return;
-        
+
         let defaultName = 'archive.zip';
         if (selected.length === 1) {
             const base = baseName(selected[0].path);
             defaultName = base.includes('.') ? base.slice(0, base.lastIndexOf('.')) + '.zip' : base + '.zip';
         }
-        
+
         const zipName = await promptDialog(t('desktop.fm.compress_zip', 'Compress to ZIP'), defaultName);
         if (!zipName) return;
-        
+
         const destPath = joinPath(fm.currentPath, zipName);
-        
+
         try {
             showNotification({ type: 'info', message: t('desktop.fm.copy_progress', 'Copying files...') });
             await api('/api/desktop/archive', {
@@ -3524,7 +3524,7 @@
             if (!destPrompt) return;
             dest = destPrompt;
         }
-        
+
         try {
             await api('/api/desktop/extract', {
                 method: 'POST',
@@ -3543,18 +3543,18 @@
     function showBatchRenameDialog() {
         const selected = getSelectedFiles();
         if (selected.length === 0) return;
-        
+
         return new Promise(resolve => {
             const overlay = document.createElement('div');
             overlay.className = 'fm-modal-overlay';
-            
+
             function generatePreviews(prefix, suffix, findText, replaceText, numbering, startNum) {
                 return selected.map((file, idx) => {
                     const origName = file.name;
                     const extIndex = origName.lastIndexOf('.');
                     const ext = extIndex !== -1 ? origName.slice(extIndex) : '';
                     let base = extIndex !== -1 ? origName.slice(0, extIndex) : origName;
-                    
+
                     if (findText) {
                         try {
                             const regex = new RegExp(findText, 'g');
@@ -3563,18 +3563,18 @@
                             base = base.replaceAll(findText, replaceText);
                         }
                     }
-                    
+
                     let numberStr = '';
                     if (numbering) {
                         const num = parseInt(startNum || '1') + idx;
                         numberStr = String(num).padStart(3, '0');
                     }
-                    
+
                     const newName = `${prefix}${base}${suffix}${numberStr}${ext}`;
                     return { file, origName, newName };
                 });
             }
-            
+
             function updatePreviewTable() {
                 const prefix = overlay.querySelector('[name="prefix"]').value;
                 const suffix = overlay.querySelector('[name="suffix"]').value;
@@ -3582,7 +3582,7 @@
                 const replaceText = overlay.querySelector('[name="replace"]').value;
                 const numbering = overlay.querySelector('[name="numbering"]').checked;
                 const startNum = overlay.querySelector('[name="startNum"]').value;
-                
+
                 const previews = generatePreviews(prefix, suffix, findText, replaceText, numbering, startNum);
                 const tableBody = overlay.querySelector('.fm-batch-rename-table-body');
                 if (tableBody) {
@@ -3594,7 +3594,7 @@
                     `).join('');
                 }
             }
-            
+
             overlay.innerHTML = `<div class="fm-modal fm-batch-rename-modal" style="max-width: 650px; width: 90%">
                 <div class="fm-modal-title">${esc(t('desktop.fm.batch_rename_title', 'Batch Rename Files'))}</div>
                 <div class="fm-batch-rename-grid" style="display:grid;grid-template-columns: 240px 1fr; gap:16px; margin: 12px 0;">
@@ -3637,23 +3637,23 @@
                     <button type="button" class="fm-btn primary" data-rename>${esc(t('desktop.fm.batch_rename', 'Rename'))}</button>
                 </div>
             </div>`;
-            
+
             document.body.appendChild(overlay);
-            
+
             const inputs = overlay.querySelectorAll('input');
             inputs.forEach(input => {
                 input.addEventListener('input', updatePreviewTable);
             });
-            
+
             const numCheck = overlay.querySelector('[name="numbering"]');
             numCheck.addEventListener('change', e => {
                 const startGroup = overlay.querySelector('#fm-rename-start-group');
                 startGroup.style.display = e.target.checked ? 'flex' : 'none';
                 updatePreviewTable();
             });
-            
+
             updatePreviewTable();
-            
+
             const cleanup = result => { overlay.remove(); resolve(result); };
             overlay.querySelector('[data-cancel]').addEventListener('click', () => cleanup(null));
             overlay.querySelector('[data-rename]').addEventListener('click', () => {
@@ -3663,7 +3663,7 @@
                 const replaceText = overlay.querySelector('[name="replace"]').value;
                 const numbering = numCheck.checked;
                 const startNum = overlay.querySelector('[name="startNum"]').value;
-                
+
                 const previews = generatePreviews(prefix, suffix, findText, replaceText, numbering, startNum);
                 const payload = previews.map(p => ({
                     old_path: p.file.path,
@@ -3671,7 +3671,7 @@
                 }));
                 cleanup(payload);
             });
-            
+
             overlay.addEventListener('click', e => { if (e.target === overlay) cleanup(null); });
         });
     }
@@ -3680,7 +3680,7 @@
         if (isReadonly()) return;
         const payload = await showBatchRenameDialog();
         if (!payload || !payload.length) return;
-        
+
         try {
             await api('/api/desktop/batch-rename', {
                 method: 'POST',
@@ -3695,11 +3695,11 @@
 
     async function createNewFileWithTemplate() {
         if (isReadonly()) return;
-        
+
         return new Promise(resolve => {
             const overlay = document.createElement('div');
             overlay.className = 'fm-modal-overlay';
-            
+
             const templates = [
                 { ext: 'txt', label: 'Plain Text', content: '' },
                 { ext: 'md', label: 'Markdown', content: '# Document Title\n\n' },
@@ -3712,9 +3712,9 @@
                 { ext: 'html', label: 'HTML Page', content: '<!DOCTYPE html>\n<html>\n<head>\n    <title>Page Title</title>\n</head>\n<body>\n    <h1>Hello, World!</h1>\n</body>\n</html>\n' },
                 { ext: 'css', label: 'CSS Stylesheet', content: 'body {\n    background-color: #f0f0f0;\n}\n' }
             ];
-            
+
             const options = templates.map(t => `<option value="${t.ext}">${t.label} (.${t.ext})</option>`).join('');
-            
+
             overlay.innerHTML = `<form class="fm-modal">
                 <div class="fm-modal-title">${esc(t('desktop.fm.new_file_template', 'Create File from Template'))}</div>
                 <div class="fm-field-group" style="margin-bottom: 12px; display:flex; flex-direction:column; gap:4px">
@@ -3730,11 +3730,11 @@
                     <button type="submit" class="fm-btn primary">${esc(t('desktop.ok', 'OK'))}</button>
                 </div>
             </form>`;
-            
+
             document.body.appendChild(overlay);
             const input = overlay.querySelector('[name="filename"]');
             const select = overlay.querySelector('[name="template"]');
-            
+
             select.addEventListener('change', e => {
                 const ext = e.target.value;
                 const currentName = input.value;
@@ -3742,7 +3742,7 @@
                 const base = dotIdx !== -1 ? currentName.slice(0, dotIdx) : currentName;
                 input.value = base + '.' + ext;
             });
-            
+
             const cleanup = result => { overlay.remove(); resolve(result); };
             overlay.querySelector('form').addEventListener('submit', e => {
                 e.preventDefault();
@@ -3753,7 +3753,7 @@
             });
             overlay.querySelector('[data-cancel]').addEventListener('click', () => cleanup(null));
             overlay.addEventListener('click', e => { if (e.target === overlay) cleanup(null); });
-            
+
             input.focus();
             input.select();
         });
@@ -3804,4 +3804,3 @@
     // Expose the module
     window.FileManager = { render, navigateTo, dropDesktopFiles, dispose };
 })();
-

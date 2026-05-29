@@ -27,7 +27,7 @@ func TestSoftwareStoreDisablesMutatingActionsWhenBackendDisallowsThem(t *testing
 func TestSoftwareStoreLogoFallbackRespectsHiddenAttribute(t *testing.T) {
 	t.Parallel()
 
-	source := readDesktopAssetText(t, "css/desktop-apps.css")
+	source := readAllDesktopAppCSS(t)
 	for _, want := range []string{
 		".vd-store-logo-fallback[hidden]",
 		"display: none",
@@ -211,7 +211,7 @@ func TestDesktopAPIClientBypassesBrowserCache(t *testing.T) {
 func TestSoftwareStoreActionButtonsUseStableGridLayout(t *testing.T) {
 	t.Parallel()
 
-	source := strings.ReplaceAll(readDesktopAssetText(t, "css/desktop-apps.css"), "\r\n", "\n")
+	source := strings.ReplaceAll(readAllDesktopAppCSS(t), "\r\n", "\n")
 	for _, want := range []string{
 		".vd-store-card {\n    display: grid;",
 		"grid-template-rows: auto minmax(64px, auto) auto auto 1fr;",

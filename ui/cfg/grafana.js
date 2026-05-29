@@ -6,70 +6,35 @@ function renderGrafanaSection(section) {
     const insecureOn = data.insecure_ssl === true;
     const readonlyOn = data.readonly !== false;
     const apiKeyPlaceholder = cfgSecretPlaceholder(data.api_key, t('config.grafana.api_key_placeholder'));
-
-    let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
-    html += '<div class="section-desc">' + section.desc + '</div>';
-
-    html += '<div id="grafana-status-banner" class="adg-status-banner">' + t('config.grafana.checking') + '</div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.grafana.enabled_label') + '</div>';
-    html += '<div class="field-help">' + t('help.grafana.enabled') + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (enabledOn ? ' on' : '') + '" data-path="grafana.enabled" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (enabledOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.grafana.base_url_label') + '</div>';
-    html += '<div class="field-help">' + t('help.grafana.base_url') + '</div>';
-    html += '<input class="field-input" type="text" data-path="grafana.base_url" value="' + escapeAttr(data.base_url || '') + '" placeholder="http://grafana.local:3000">';
-    html += '</div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.grafana.api_key_label') + '</div>';
-    html += '<div class="field-help">' + t('help.grafana.api_key') + '</div>';
-    html += '<div class="adg-password-row">';
-    html += '<div class="password-wrap" style="flex:1;">';
-    html += '<input class="field-input adg-password-input" type="password" id="grafana-api-key" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '" autocomplete="off">';
-    html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
-    html += '</div>';
-    html += '<button class="btn-save adg-save-btn" onclick="grafanaSaveAPIKey()">' + t('config.grafana.save_icon') + ' ' + t('config.grafana.save_vault') + '</button>';
-    html += '</div></div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.grafana.readonly_label') + '</div>';
-    html += '<div class="field-help">' + t('help.grafana.readonly') + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (readonlyOn ? ' on' : '') + '" data-path="grafana.readonly" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (readonlyOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.grafana.insecure_ssl_label') + '</div>';
-    html += '<div class="field-help">' + t('help.grafana.insecure_ssl') + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (insecureOn ? ' on' : '') + '" data-path="grafana.insecure_ssl" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (insecureOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.grafana.request_timeout_label') + '</div>';
-    html += '<div class="field-help">' + t('help.grafana.request_timeout') + '</div>';
-    html += '<input class="field-input" type="number" min="1" step="1" data-path="grafana.request_timeout" value="' + escapeAttr(String(data.request_timeout || 15)) + '">';
-    html += '</div>';
-
-    html += '<div class="field-group">';
-    html += '<button class="btn-save adg-test-btn" onclick="grafanaTestConnection()" id="grafana-test-btn">🔌 ' + t('config.grafana.test_btn') + '</button>';
-    html += '<span id="grafana-test-result" class="adg-test-result"></span>';
-    html += '</div>';
-
-    html += '<div id="grafana-summary" class="adg-quick-stats is-hidden">';
-    html += '<div class="adg-stats-title">📊 ' + t('config.grafana.summary_title') + '</div>';
-    html += '<div id="grafana-summary-content" class="adg-stats-grid"></div>';
-    html += '</div>';
-    html += '</div>';
+    const form = window.AuraConfigForm;
+    const html = window.AuraConfigForm.renderSpec({
+        icon: section.icon,
+        label: section.label,
+        desc: section.desc,
+        beforeHTML: '<div id="grafana-status-banner" class="adg-status-banner">' + t('config.grafana.checking') + '</div>',
+        fields: [
+            form.toggle({ label: t('config.grafana.enabled_label'), help: t('help.grafana.enabled'), path: 'grafana.enabled', value: enabledOn }),
+            form.field({ label: t('config.grafana.base_url_label'), help: t('help.grafana.base_url'), path: 'grafana.base_url', value: data.base_url || '', placeholder: 'http://grafana.local:3000' }),
+            form.password({
+                label: t('config.grafana.api_key_label'),
+                help: t('help.grafana.api_key'),
+                id: 'grafana-api-key',
+                value: data.api_key,
+                placeholder: apiKeyPlaceholder,
+                actionHTML: '<button class="btn-save adg-save-btn" onclick="grafanaSaveAPIKey()">' + t('config.grafana.save_icon') + ' ' + t('config.grafana.save_vault') + '</button>'
+            }),
+            form.toggle({ label: t('config.grafana.readonly_label'), help: t('help.grafana.readonly'), path: 'grafana.readonly', value: readonlyOn }),
+            form.toggle({ label: t('config.grafana.insecure_ssl_label'), help: t('help.grafana.insecure_ssl'), path: 'grafana.insecure_ssl', value: insecureOn }),
+            form.number({ label: t('config.grafana.request_timeout_label'), help: t('help.grafana.request_timeout'), path: 'grafana.request_timeout', value: String(data.request_timeout || 15), min: 1, step: 1 })
+        ],
+        afterHTML: form.actions([
+            { html: '<button class="btn-save adg-test-btn" onclick="grafanaTestConnection()" id="grafana-test-btn">🔌 ' + t('config.grafana.test_btn') + '</button>' },
+            { html: '<span id="grafana-test-result" class="adg-test-result"></span>' }
+        ]) + '<div id="grafana-summary" class="adg-quick-stats is-hidden">'
+            + '<div class="adg-stats-title">📊 ' + t('config.grafana.summary_title') + '</div>'
+            + '<div id="grafana-summary-content" class="adg-stats-grid"></div>'
+            + '</div>'
+    });
 
     document.getElementById('content').innerHTML = html;
 

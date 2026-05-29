@@ -47,7 +47,7 @@ func TestDesktopChatProvidesSpeechToTextInput(t *testing.T) {
 		}
 	}
 
-	css := readDesktopAssetText(t, "css/desktop-apps.css")
+	css := readAllDesktopAppCSS(t)
 	for _, marker := range []string{
 		".vd-chat-voice",
 		".vd-chat-voice.is-active",

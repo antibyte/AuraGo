@@ -4,27 +4,65 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-const bundles = [
+const desktopMainParts = [
+  'ui/js/desktop/core/desktop-foundation.js',
+  'ui/js/desktop/core/icon-selection-runtime.js',
+  'ui/js/desktop/core/window-shell-runtime.js',
+  'ui/js/desktop/core/window-interactions-runtime.js',
+  'ui/js/desktop/core/window-ai-context.js',
+  'ui/js/desktop/core/lifecycle-cleanup.js',
+  'ui/js/desktop/core/widget-autosize-runtime.js',
+  'ui/js/desktop/core/shortcut-runtime.js',
+  'ui/js/desktop/core/file-dialog-runtime.js',
+  'ui/js/desktop/core/desktop-file-drops.js',
+  'ui/js/desktop/core/desktop-window-file-drops.js',
+  'ui/js/desktop/core/menus-and-routing.js',
+  'ui/js/desktop/apps/settings-calculator.js',
+  'ui/js/desktop/apps/planning-gallery-music.js',
+  'ui/js/desktop/apps/quickconnect-launchpad-chat.js',
+  'ui/js/desktop/core/sdk-events-bootstrap.js'
+];
+
+const chatMainParts = [
+  'ui/js/chat/main/state-dom.js',
+  'ui/js/chat/main/i18n-ui-chrome.js',
+  'ui/js/chat/main/feedback-audio-plan.js',
+  'ui/js/chat/main/composer-uploads.js',
+  'ui/js/chat/main/network-submit.js',
+  'ui/js/chat/main/bootstrap.js'
+];
+
+const chatRuntimeParts = [
+  'ui/js/shared/lazy-assets.js',
+  'ui/js/shared/chat-core.js',
+  'ui/js/chat/theme-effects.js',
+  'ui/js/chat/ui-icons.js',
+  'ui/js/chat/audio-player.js',
+  'ui/js/chat/modules/smart-scroller.js',
+  'ui/js/chat/modules/code-blocks.js',
+  'ui/js/chat/modules/chart-renderer.js',
+  'ui/js/chat/modules/voice-recorder.js',
+  'ui/js/chat/modules/speech-to-text.js',
+  'ui/js/chat/modules/drag-drop.js',
+  'ui/js/chat/modules/mermaid-loader.js',
+  'ui/js/chat/modules/warnings.js',
+  'ui/js/chat/modules/session-drawer.js',
+  'ui/js/chat/modules/integrations-drawer.js',
+  ...chatMainParts,
+  'ui/js/chat/tool-icons.js',
+  'ui/js/chat/robot-mascot.js',
+  'ui/js/chat/chat-messages.js',
+  'ui/js/chat/stl-viewer.js',
+  'ui/js/chat/chat-question.js',
+  'ui/js/chat/chat-streaming.js',
+  'ui/js/chat/chat-history.js',
+  'ui/js/chat/viewport-fix.js'
+];
+
+const jsBundles = [
   {
     out: 'ui/js/desktop/bundles/main.bundle.js',
-    parts: [
-      'ui/js/desktop/core/desktop-foundation.js',
-      'ui/js/desktop/core/icon-selection-runtime.js',
-      'ui/js/desktop/core/window-shell-runtime.js',
-      'ui/js/desktop/core/window-interactions-runtime.js',
-      'ui/js/desktop/core/window-ai-context.js',
-      'ui/js/desktop/core/lifecycle-cleanup.js',
-      'ui/js/desktop/core/widget-autosize-runtime.js',
-      'ui/js/desktop/core/shortcut-runtime.js',
-      'ui/js/desktop/core/file-dialog-runtime.js',
-      'ui/js/desktop/core/desktop-file-drops.js',
-      'ui/js/desktop/core/desktop-window-file-drops.js',
-      'ui/js/desktop/core/menus-and-routing.js',
-      'ui/js/desktop/apps/settings-calculator.js',
-      'ui/js/desktop/apps/planning-gallery-music.js',
-      'ui/js/desktop/apps/quickconnect-launchpad-chat.js',
-      'ui/js/desktop/core/sdk-events-bootstrap.js'
-    ]
+    parts: desktopMainParts
   },
   {
     out: 'ui/js/desktop/bundles/file-manager.bundle.js',
@@ -47,6 +85,52 @@ const bundles = [
       'ui/js/desktop/apps/code-studio/actions-agent-editor.js',
       'ui/js/desktop/apps/code-studio/command-palette.js'
     ]
+  },
+  {
+    out: 'ui/js/chat/bundles/chat-vendor.bundle.js',
+    parts: [
+      'ui/js/vendor/markdown-it.min.js',
+      'ui/js/vendor/highlight.min.js',
+      'ui/js/shared/render-markdown.js'
+    ]
+  },
+  {
+    out: 'ui/js/chat/bundles/chat-runtime.bundle.js',
+    parts: chatRuntimeParts
+  },
+  {
+    out: 'ui/js/chat/main.js',
+    parts: chatMainParts
+  }
+];
+
+const cssBundles = [
+  {
+    out: 'ui/css/desktop-shell.bundle.css',
+    parts: [
+      'ui/css/desktop-base.css',
+      'ui/css/desktop-taskbar.css',
+      'ui/css/desktop-start-menu.css',
+      'ui/css/desktop-windows.css',
+      'ui/css/desktop-icons.css',
+      'ui/css/desktop-widgets.css',
+      'ui/css/desktop-modals.css',
+      'ui/css/desktop-shell-overrides.css'
+    ]
+  },
+  {
+    out: 'ui/css/chat.bundle.css',
+    parts: [
+      'ui/css/tokens.css',
+      'ui/css/chat.css',
+      'ui/css/chat-modules.css',
+      'ui/css/stt-overlay.css',
+      'ui/css/session-drawer.css',
+      'ui/css/integrations-drawer.css',
+      'ui/css/enhancements.css',
+      'ui/css/chat-themes.css',
+      'ui/css/chat-header-controls.css'
+    ]
   }
 ];
 
@@ -54,12 +138,16 @@ function toPosixPath(value) {
   return value.split(path.sep).join('/');
 }
 
-async function buildBundle(bundle) {
+function normalizeBundleContent(value) {
+  return value.replace(/[ \t]+$/gm, '').trimEnd();
+}
+
+async function buildJSBundle(bundle) {
   const sections = [];
   for (const part of bundle.parts) {
     const absolute = path.join(root, part);
     const source = (await readFile(absolute, 'utf8')).replace(/^\uFEFF/, '');
-    sections.push(`\n;\n/* ${toPosixPath(part)} */\n${source.trimEnd()}\n`);
+    sections.push(`\n;\n/* ${toPosixPath(part)} */\n${normalizeBundleContent(source)}\n`);
   }
   const outPath = path.join(root, bundle.out);
   await mkdir(path.dirname(outPath), { recursive: true });
@@ -68,8 +156,29 @@ async function buildBundle(bundle) {
     '// Source files are listed in scripts/build-ui-bundles.js.',
     ''
   ].join('\n');
-  await writeFile(outPath, header + sections.join('') + '\n', 'utf8');
+  await writeFile(outPath, normalizeBundleContent(header + sections.join('')) + '\n', 'utf8');
   console.log(`Built ${toPosixPath(bundle.out)} (${bundle.parts.length} parts)`);
 }
 
-await Promise.all(bundles.map(buildBundle));
+async function buildCSSBundle(bundle) {
+  const sections = [];
+  for (const part of bundle.parts) {
+    const absolute = path.join(root, part);
+    const source = (await readFile(absolute, 'utf8')).replace(/^\uFEFF/, '');
+    sections.push(`\n/* ${toPosixPath(part)} */\n${normalizeBundleContent(source)}\n`);
+  }
+  const outPath = path.join(root, bundle.out);
+  await mkdir(path.dirname(outPath), { recursive: true });
+  const header = [
+    '/* Generated by scripts/build-ui-bundles.js. Do not edit by hand.',
+    '   Source files are listed in scripts/build-ui-bundles.js. */',
+    ''
+  ].join('\n');
+  await writeFile(outPath, normalizeBundleContent(header + sections.join('')) + '\n', 'utf8');
+  console.log(`Built ${toPosixPath(bundle.out)} (${bundle.parts.length} parts)`);
+}
+
+await Promise.all([
+  ...jsBundles.map(buildJSBundle),
+  ...cssBundles.map(buildCSSBundle)
+]);
