@@ -54,18 +54,59 @@
     function sanitizeRenderedHTML(html) {
         const template = document.createElement('template');
         template.innerHTML = html;
-        template.content.querySelectorAll('*').forEach((node) => {
+        const allowed = new Set([
+            'a', 'b', 'br', 'code', 'details', 'div', 'em', 'h1', 'h2', 'h3',
+            'h4', 'h5', 'h6', 'hr', 'i', 'img', 'li', 'mark', 'ol', 'p',
+            'pre', 's', 'span', 'strong', 'sub', 'summary', 'sup', 'table',
+            'tbody', 'td', 'th', 'thead', 'tr', 'u', 'ul', 'blockquote',
+            'del', 'ins', 'kbd', 'abbr', 'cite', 'dl', 'dt', 'dd', 'figure',
+            'figcaption', 'picture', 'source', 'video', 'audio', 'track',
+            'iframe', 'ruby', 'rt', 'rp', 'bdi', 'bdo', 'wbr', 'time',
+            'small', 'var', 'samp', 'dfn', 'q', 'address', 'footer',
+            'header', 'main', 'section', 'article', 'aside', 'nav'
+        ]);
+        const allowedAttrs = new Set([
+            'href', 'src', 'alt', 'title', 'class', 'id', 'target', 'rel',
+            'loading', 'decoding', 'width', 'height', 'colspan', 'rowspan',
+            'data-language', 'data-line', 'start', 'type', 'download',
+            'open', 'name', 'value', 'disabled', 'data-persona-icon',
+            'controls', 'playsinline', 'poster', 'preload', 'sandbox',
+            'allow', 'referrerpolicy', 'aria-label'
+        ]);
+        const all = template.content.querySelectorAll('*');
+        for (let i = all.length - 1; i >= 0; i--) {
+            const node = all[i];
+            if (!allowed.has(node.tagName.toLowerCase())) {
+                while (node.firstChild) node.parentNode.insertBefore(node.firstChild, node);
+                node.parentNode.removeChild(node);
+                continue;
+            }
             Array.from(node.attributes).forEach((attr) => {
                 const name = attr.name.toLowerCase();
-                if (name.startsWith('on')) {
+                if (name.startsWith('data-')) return;
+                if (name.startsWith('on') || !allowedAttrs.has(name)) {
                     node.removeAttribute(attr.name);
                     return;
                 }
                 if ((name === 'href' || name === 'src') && !isSafeHref(attr.value, true)) {
-                    node.removeAttribute(attr.name);
+                    let keepBlobMedia = false;
+                    if (name === 'src' && (node.tagName.toLowerCase() === 'video' || node.tagName.toLowerCase() === 'audio')) {
+                        try { keepBlobMedia = new URL(attr.value, window.location.origin).protocol === 'blob:'; } catch (_err) {}
+                    }
+                    if (!keepBlobMedia) node.removeAttribute(attr.name);
                 }
             });
-        });
+            if (node.tagName.toLowerCase() === 'a') {
+                node.setAttribute('target', '_blank');
+                node.setAttribute('rel', 'noopener noreferrer');
+            }
+            if (node.tagName.toLowerCase() === 'img') {
+                node.setAttribute('loading', 'lazy');
+            }
+            if (node.tagName.toLowerCase() === 'iframe' && !node.getAttribute('sandbox')) {
+                node.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+            }
+        }
         return template.innerHTML;
     }
 

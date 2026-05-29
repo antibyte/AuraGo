@@ -14,26 +14,11 @@
         _currentAudio: null,
 
         escapeHtml(str) {
-            if (window.AuraChatCore && typeof window.AuraChatCore.escapeHtml === 'function') {
-                return window.AuraChatCore.escapeHtml(str);
-            }
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
+            return window.AuraChatCore.escapeHtml(str);
         },
 
         escapeAttr(s) {
-            if (window.AuraChatCore && typeof window.AuraChatCore.escapeAttr === 'function') {
-                return window.AuraChatCore.escapeAttr(s);
-            }
-            return String(s)
-                .replace(/&/g, '&amp;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;');
+            return window.AuraChatCore.escapeAttr(s);
         },
 
         translate(key, fallback) {
@@ -43,26 +28,11 @@
         },
 
         normalizeChatTimestamp(timestamp) {
-            if (window.AuraChatCore && typeof window.AuraChatCore.normalizeTimestamp === 'function') {
-                return window.AuraChatCore.normalizeTimestamp(timestamp);
-            }
-            const date = timestamp ? new Date(timestamp) : new Date();
-            return Number.isNaN(date.getTime()) ? new Date() : date;
+            return window.AuraChatCore.normalizeTimestamp(timestamp);
         },
 
         formatChatTimestamp(timestamp) {
-            if (window.AuraChatCore && typeof window.AuraChatCore.formatTimestamp === 'function') {
-                return window.AuraChatCore.formatTimestamp(timestamp);
-            }
-            const date = this.normalizeChatTimestamp(timestamp);
-            try {
-                return new Intl.DateTimeFormat(undefined, {
-                    dateStyle: 'short',
-                    timeStyle: 'short'
-                }).format(date);
-            } catch (_) {
-                return date.toLocaleString();
-            }
+            return window.AuraChatCore.formatTimestamp(timestamp);
         },
 
         appendTimestamp(chatLog, role, timestamp) {
@@ -82,152 +52,26 @@
 
         getMarkdown() {
             if (this._md) return this._md;
-            if (window.AuraChatCore && typeof window.AuraChatCore.createMarkdownRenderer === 'function') {
-                this._md = window.AuraChatCore.createMarkdownRenderer();
-                return this._md;
-            }
-            if (window.AuraMarkdown) {
-                this._md = window.AuraMarkdown.createMarkdownIt();
-                return this._md;
-            }
-            if (typeof window.markdownit === 'undefined') return null;
-            this._md = window.markdownit({ html: false, breaks: true, linkify: true });
+            this._md = window.AuraChatCore.createMarkdownRenderer();
             return this._md;
         },
 
         stripLeakedToolMarkup(text) {
-            if (window.AuraChatCore && typeof window.AuraChatCore.stripLeakedToolMarkup === 'function') {
-                return window.AuraChatCore.stripLeakedToolMarkup(text);
-            }
-            if (!text || typeof text !== 'string') return '';
-            return text
-                .replace(/<tool_call[\s\S]*?<\/tool_call>/gi, '')
-                .replace(/<\/?tool_call[^>]*>/gi, '')
-                .replace(/<invoke\b[^>]*>[\s\S]*?<\/invoke>/gi, '')
-                .replace(/<parameter\b[^>]*>[\s\S]*?<\/parameter>/gi, '')
-                .replace(/<done\s*\/?>/gi, '')
-                .replace(/```(?:json)?\s*\{\s*"(?:action|tool|tool_call|tool_name)"[\s\S]*?\}\s*```/gi, '')
-                .replace(/\n{3,}/g, '\n\n')
-                .trim();
+            return window.AuraChatCore.stripLeakedToolMarkup(text);
         },
 
         containsLeakedToolMarkup(text) {
-            if (window.AuraChatCore && typeof window.AuraChatCore.containsLeakedToolMarkup === 'function') {
-                return window.AuraChatCore.containsLeakedToolMarkup(text);
-            }
-            if (!text || typeof text !== 'string') return false;
-            return [
-                /<\/?tool_call[^>]*>/i,
-                /<invoke\b[^>]*>/i,
-                /<parameter\b[^>]*>/i,
-                /^\[Tool Output\]/im
-            ].some(p => p.test(text));
+            return window.AuraChatCore.containsLeakedToolMarkup(text);
         },
 
         sanitizeHTML(html) {
-            const template = document.createElement('template');
-            template.innerHTML = html;
-            const all = template.content.querySelectorAll('*');
-            const allowed = new Set([
-                'a', 'b', 'br', 'code', 'details', 'div', 'em', 'h1', 'h2', 'h3',
-                'h4', 'h5', 'h6', 'hr', 'i', 'img', 'li', 'mark', 'ol', 'p',
-                'pre', 's', 'span', 'strong', 'sub', 'summary', 'sup', 'table',
-                'tbody', 'td', 'th', 'thead', 'tr', 'u', 'ul', 'blockquote',
-                'del', 'ins', 'kbd', 'abbr', 'cite', 'dl', 'dt', 'dd', 'figure',
-                'figcaption', 'picture', 'source', 'video', 'audio', 'track',
-                'iframe', 'ruby', 'rt', 'rp', 'bdi', 'bdo', 'wbr', 'time',
-                'small', 'var', 'samp', 'dfn', 'q', 'address', 'footer',
-                'header', 'main', 'section', 'article', 'aside', 'nav'
-            ]);
-            const allowedAttrs = new Set([
-                'href', 'src', 'alt', 'title', 'class', 'id', 'target', 'rel',
-                'loading', 'decoding', 'width', 'height', 'colspan', 'rowspan',
-                'data-language', 'data-line', 'start', 'type', 'download',
-                'open', 'name', 'value', 'disabled', 'data-persona-icon'
-            ]);
-            for (let i = all.length - 1; i >= 0; i--) {
-                const el = all[i];
-                if (!allowed.has(el.tagName.toLowerCase())) {
-                    while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
-                    el.parentNode.removeChild(el);
-                    continue;
-                }
-                const attrs = Array.from(el.attributes);
-                for (const attr of attrs) {
-                    const name = attr.name.toLowerCase();
-                    if (name.startsWith('data-')) continue;
-                    if (!allowedAttrs.has(name)) {
-                        el.removeAttribute(attr.name);
-                    }
-                }
-                if (el.tagName.toLowerCase() === 'a') {
-                    const href = el.getAttribute('href') || '';
-                    const safeHref = window.AuraChatCore && typeof window.AuraChatCore.isSafeHref === 'function'
-                        ? window.AuraChatCore.isSafeHref(href, true)
-                        : false;
-                    if (href && !safeHref && !href.startsWith('/') && !href.startsWith('./')) {
-                        try {
-                            const parsed = new URL(href, window.location.origin);
-                            if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-                                el.removeAttribute('href');
-                            }
-                        } catch (_) {
-                            el.removeAttribute('href');
-                        }
-                    }
-                    el.setAttribute('target', '_blank');
-                    el.setAttribute('rel', 'noopener noreferrer');
-                }
-                if (el.tagName.toLowerCase() === 'img') {
-                    el.setAttribute('loading', 'lazy');
-                }
-                if (el.tagName.toLowerCase() === 'iframe') {
-                    const src = el.getAttribute('src') || '';
-                    if (src) {
-                        const safeSrc = window.AuraChatCore && typeof window.AuraChatCore.isSafeHref === 'function'
-                            ? window.AuraChatCore.isSafeHref(src, true)
-                            : false;
-                        if (!safeSrc) {
-                            el.removeAttribute('src');
-                        }
-                    }
-                    if (!el.getAttribute('sandbox')) {
-                        el.setAttribute('sandbox', 'allow-scripts allow-same-origin');
-                    }
-                }
-                if (el.tagName.toLowerCase() === 'video' || el.tagName.toLowerCase() === 'audio') {
-                    const src = el.getAttribute('src') || '';
-                    if (src) {
-                        const safeSrc = window.AuraChatCore && typeof window.AuraChatCore.isSafeHref === 'function'
-                            ? window.AuraChatCore.isSafeHref(src, true)
-                            : false;
-                        try {
-                            const parsed = new URL(src, window.location.origin);
-                            if (!safeSrc && !parsed.protocol.startsWith('blob:')) {
-                                el.removeAttribute('src');
-                            }
-                        } catch (_) {
-                            el.removeAttribute('src');
-                        }
-                    }
-                }
-            }
-            return template.innerHTML;
+            return window.AuraChatCore.sanitizeRenderedHTML(html);
         },
 
         renderMarkdown(text) {
             const md = this.getMarkdown();
             if (!md) return this.escapeHtml(text);
-            const preparedDisplay = (window.AuraChatCore && typeof window.AuraChatCore.prepareDisplayContent === 'function')
-                ? window.AuraChatCore.prepareDisplayContent(text, false)
-                : (function () {
-                    const strippedContent = this.stripLeakedToolMarkup(text);
-                    const isTechnical = !strippedContent && this.containsLeakedToolMarkup(text);
-                    return {
-                        displayContent: (isTechnical ? String(text || '') : strippedContent).trim(),
-                        isTechnical
-                    };
-                }).call(this);
+            const preparedDisplay = window.AuraChatCore.prepareDisplayContent(text, false);
             let displayContent = preparedDisplay.displayContent;
             const isTechnical = preparedDisplay.isTechnical;
             if (isTechnical) {
@@ -235,50 +79,20 @@
             }
             if (!displayContent) return '';
             if (this.seenSSEImages.size > 0) {
-                displayContent = (window.AuraChatCore && typeof window.AuraChatCore.removeSeenMarkdownImages === 'function')
-                    ? window.AuraChatCore.removeSeenMarkdownImages(displayContent, this.seenSSEImages)
-                    : displayContent.replace(/!\[[^\]]*\]\(([^)]+)\)/g, (match, url) =>
-                        this.seenSSEImages.has(url) ? '' : match
-                    ).trim();
+                displayContent = window.AuraChatCore.removeSeenMarkdownImages(displayContent, this.seenSSEImages);
                 if (!displayContent) return '';
             }
-            const prepared = (window.AuraChatCore && typeof window.AuraChatCore.prepareMarkdownContent === 'function')
-                ? window.AuraChatCore.prepareMarkdownContent(displayContent)
-                : (function () {
-                    const contentStripped = displayContent.replace(
-                        /<external_data>([\s\S]*?)<\/external_data>/gi,
-                        (_match, inner) => inner.trim()
-                    );
-                    const thinkingBlocks = [];
-                    const contentForRender = contentStripped.replace(
-                        /<(thinking|think)>([\s\S]*?)<\/\1>/gi,
-                        (_match, _tag, inner) => {
-                            const idx = thinkingBlocks.length;
-                            thinkingBlocks.push(inner.trim());
-                            return '\n\n%%THINKING_BLOCK_' + idx + '%%\n\n';
-                        }
-                    );
-                    return { contentForRender, thinkingBlocks };
-                })();
+            const prepared = window.AuraChatCore.prepareMarkdownContent(displayContent);
             const contentForRender = prepared.contentForRender;
             const thinkingBlocks = prepared.thinkingBlocks;
             let finalHTML = md.render(contentForRender);
-            finalHTML = (window.AuraChatCore && typeof window.AuraChatCore.applyMarkdownLinkTargets === 'function')
-                ? window.AuraChatCore.applyMarkdownLinkTargets(finalHTML)
-                : finalHTML.replace(/<a(\s+[^>]*)?\s+href="([^"]+)"/g,
-                    '<a$1href="$2" target="_blank" rel="noopener noreferrer"');
+            finalHTML = window.AuraChatCore.applyMarkdownLinkTargets(finalHTML);
             const renderThinkingBlock = (innerText) => {
                 const innerHtml = md.render(innerText);
                 const label = this.translate('chat.thinking_label', 'Reasoning');
                 return '<details class="vd-thinking-block"><summary>' + label + '</summary><div class="vd-thinking-content">' + innerHtml + '</div></details>';
             };
-            finalHTML = (window.AuraChatCore && typeof window.AuraChatCore.replaceThinkingPlaceholders === 'function')
-                ? window.AuraChatCore.replaceThinkingPlaceholders(finalHTML, thinkingBlocks, renderThinkingBlock)
-                : thinkingBlocks.reduce((html, innerText, idx) => {
-                    const detailsHtml = renderThinkingBlock(innerText, idx);
-                    html = html.replace(new RegExp('<p>%%THINKING_BLOCK_' + idx + '%%</p>', 'g'), detailsHtml);
-                    return html.replace(new RegExp('%%THINKING_BLOCK_' + idx + '%%', 'g'), detailsHtml);
-                }, finalHTML);
+            finalHTML = window.AuraChatCore.replaceThinkingPlaceholders(finalHTML, thinkingBlocks, renderThinkingBlock);
             finalHTML = this.sanitizeHTML(finalHTML);
             return finalHTML;
         },

@@ -174,18 +174,59 @@
     function sanitizeRenderedHTML(html) {
         const template = document.createElement('template');
         template.innerHTML = html;
-        template.content.querySelectorAll('*').forEach((node) => {
+        const allowed = new Set([
+            'a', 'b', 'br', 'code', 'details', 'div', 'em', 'h1', 'h2', 'h3',
+            'h4', 'h5', 'h6', 'hr', 'i', 'img', 'li', 'mark', 'ol', 'p',
+            'pre', 's', 'span', 'strong', 'sub', 'summary', 'sup', 'table',
+            'tbody', 'td', 'th', 'thead', 'tr', 'u', 'ul', 'blockquote',
+            'del', 'ins', 'kbd', 'abbr', 'cite', 'dl', 'dt', 'dd', 'figure',
+            'figcaption', 'picture', 'source', 'video', 'audio', 'track',
+            'iframe', 'ruby', 'rt', 'rp', 'bdi', 'bdo', 'wbr', 'time',
+            'small', 'var', 'samp', 'dfn', 'q', 'address', 'footer',
+            'header', 'main', 'section', 'article', 'aside', 'nav'
+        ]);
+        const allowedAttrs = new Set([
+            'href', 'src', 'alt', 'title', 'class', 'id', 'target', 'rel',
+            'loading', 'decoding', 'width', 'height', 'colspan', 'rowspan',
+            'data-language', 'data-line', 'start', 'type', 'download',
+            'open', 'name', 'value', 'disabled', 'data-persona-icon',
+            'controls', 'playsinline', 'poster', 'preload', 'sandbox',
+            'allow', 'referrerpolicy', 'aria-label'
+        ]);
+        const all = template.content.querySelectorAll('*');
+        for (let i = all.length - 1; i >= 0; i--) {
+            const node = all[i];
+            if (!allowed.has(node.tagName.toLowerCase())) {
+                while (node.firstChild) node.parentNode.insertBefore(node.firstChild, node);
+                node.parentNode.removeChild(node);
+                continue;
+            }
             Array.from(node.attributes).forEach((attr) => {
                 const name = attr.name.toLowerCase();
-                if (name.startsWith('on')) {
+                if (name.startsWith('data-')) return;
+                if (name.startsWith('on') || !allowedAttrs.has(name)) {
                     node.removeAttribute(attr.name);
                     return;
                 }
                 if ((name === 'href' || name === 'src') && !isSafeHref(attr.value, true)) {
-                    node.removeAttribute(attr.name);
+                    let keepBlobMedia = false;
+                    if (name === 'src' && (node.tagName.toLowerCase() === 'video' || node.tagName.toLowerCase() === 'audio')) {
+                        try { keepBlobMedia = new URL(attr.value, window.location.origin).protocol === 'blob:'; } catch (_err) {}
+                    }
+                    if (!keepBlobMedia) node.removeAttribute(attr.name);
                 }
             });
-        });
+            if (node.tagName.toLowerCase() === 'a') {
+                node.setAttribute('target', '_blank');
+                node.setAttribute('rel', 'noopener noreferrer');
+            }
+            if (node.tagName.toLowerCase() === 'img') {
+                node.setAttribute('loading', 'lazy');
+            }
+            if (node.tagName.toLowerCase() === 'iframe' && !node.getAttribute('sandbox')) {
+                node.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+            }
+        }
         return template.innerHTML;
     }
 
@@ -6188,87 +6229,24 @@ function isDebugOnlyHistoryMessage(msg) {
 }
 
 function escapeHtml(str) {
-    if (window.AuraChatCore && typeof window.AuraChatCore.escapeHtml === 'function') {
-        return window.AuraChatCore.escapeHtml(str);
-    }
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+    return window.AuraChatCore.escapeHtml(str);
 }
 
 function replaceRedactedMarkers(html) {
     const label = (typeof t === 'function') ? t('chat.redacted_label') : '[removed]';
-    if (window.AuraChatCore && typeof window.AuraChatCore.replaceRedactedMarkers === 'function') {
-        return window.AuraChatCore.replaceRedactedMarkers(html, label);
-    }
-    return html
-        .replace(/\[redacted\]([^<]*)/gi, (match, reason) => {
-            const reasonText = reason.trim();
-            if (reasonText) {
-                return `<span class="redacted-badge" title="${escapeAttr(reasonText)}">${label}</span> <span class="redacted-reason">${escapeHtml(reasonText)}</span>`;
-            }
-            return `<span class="redacted-badge">${label}</span>`;
-        })
-        .replace(/\[sanitized\]([^<]*)/gi, (match, reason) => {
-            const reasonText = reason.trim();
-            if (reasonText) {
-                return `<span class="sanitized-badge" title="${escapeAttr(reasonText)}">${label}</span> <span class="redacted-reason">${escapeHtml(reasonText)}</span>`;
-            }
-            return `<span class="sanitized-badge">${label}</span>`;
-        });
+    return window.AuraChatCore.replaceRedactedMarkers(html, label);
 }
 
 function escapeAttr(s) {
-    if (window.AuraChatCore && typeof window.AuraChatCore.escapeAttr === 'function') {
-        return window.AuraChatCore.escapeAttr(s);
-    }
-    return String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+    return window.AuraChatCore.escapeAttr(s);
 }
 
 function isSafeHref(url, allowRelative = true) {
-    if (window.AuraChatCore && typeof window.AuraChatCore.isSafeHref === 'function') {
-        return window.AuraChatCore.isSafeHref(url, allowRelative);
-    }
-    if (!url || typeof url !== 'string') return false;
-    const trimmed = url.trim();
-    if (!trimmed) return false;
-    if (allowRelative && (trimmed.startsWith('/') || trimmed.startsWith('./') || trimmed.startsWith('../'))) {
-        return true;
-    }
-    try {
-        const parsed = new URL(trimmed, window.location.origin);
-        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-    } catch (_err) {
-        return false;
-    }
+    return window.AuraChatCore.isSafeHref(url, allowRelative);
 }
 
 function sanitizeRenderedHTML(html) {
-    if (window.AuraChatCore && typeof window.AuraChatCore.sanitizeRenderedHTML === 'function') {
-        return window.AuraChatCore.sanitizeRenderedHTML(html);
-    }
-    const template = document.createElement('template');
-    template.innerHTML = html;
-    template.content.querySelectorAll('*').forEach((node) => {
-        Array.from(node.attributes).forEach((attr) => {
-            const name = attr.name.toLowerCase();
-            if (name.startsWith('on')) {
-                node.removeAttribute(attr.name);
-                return;
-            }
-            if ((name === 'href' || name === 'src') && !isSafeHref(attr.value, true)) {
-                node.removeAttribute(attr.name);
-            }
-        });
-    });
-    return template.innerHTML;
+    return window.AuraChatCore.sanitizeRenderedHTML(html);
 }
 
 function isVideoHref(url) {
@@ -6700,49 +6678,8 @@ function renderYouTubeLinksAsPlayers(html) {
     return output;
 }
 
-const emojiGlyphPattern = /(?:\p{Extended_Pictographic}(?:\uFE0F)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F)?)*)|[✓✔✕✖✗✘☑☒☐⚠⚡★☆]/gu;
-
 function decorateEmojiGlyphs(root) {
-    if (window.AuraChatCore && typeof window.AuraChatCore.decorateEmojiGlyphs === 'function') {
-        return window.AuraChatCore.decorateEmojiGlyphs(root);
-    }
-    if (!root || typeof document === 'undefined' || typeof document.createTreeWalker !== 'function') return;
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    const textNodes = [];
-    let node;
-    while ((node = walker.nextNode())) {
-        const parent = node.parentElement;
-        if (!parent) continue;
-        if (parent.closest('code, pre, .hljs, .mermaid-raw, .tool-output-content')) continue;
-        emojiGlyphPattern.lastIndex = 0;
-        if (!emojiGlyphPattern.test(node.nodeValue || '')) continue;
-        textNodes.push(node);
-    }
-
-    textNodes.forEach((textNode) => {
-        const text = textNode.nodeValue || '';
-        emojiGlyphPattern.lastIndex = 0;
-        if (!emojiGlyphPattern.test(text)) return;
-        emojiGlyphPattern.lastIndex = 0;
-
-        const fragment = document.createDocumentFragment();
-        let lastIndex = 0;
-        let match;
-        while ((match = emojiGlyphPattern.exec(text)) !== null) {
-            if (match.index > lastIndex) {
-                fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
-            }
-            const glyph = document.createElement('span');
-            glyph.className = 'chat-emoji-glyph';
-            glyph.textContent = match[0];
-            fragment.appendChild(glyph);
-            lastIndex = match.index + match[0].length;
-        }
-        if (lastIndex < text.length) {
-            fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
-        }
-        textNode.parentNode.replaceChild(fragment, textNode);
-    });
+    return window.AuraChatCore.decorateEmojiGlyphs(root);
 }
 
 window.decorateEmojiGlyphs = decorateEmojiGlyphs;

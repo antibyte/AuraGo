@@ -293,12 +293,41 @@ func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 		"window.AuraChatCore.normalizeTimestamp(timestamp)",
 		"window.AuraChatCore.formatTimestamp(timestamp)",
 		"window.AuraChatCore.createMarkdownRenderer()",
-		"window.AuraChatCore.isSafeHref(href, true)",
-		"window.AuraChatCore.isSafeHref(src, true)",
+		"window.AuraChatCore.sanitizeRenderedHTML(html)",
 		"window.AuraChatCore.videoMimeTypeForPath(videoData.path)",
 	} {
 		if !strings.Contains(desktopChatJS, want) {
 			t.Fatalf("desktop chat renderer must delegate to AuraChatCore marker %q", want)
+		}
+	}
+	chatCoreJS := readEmbeddedText(t, "js/shared/chat-core.js")
+	for _, want := range []string{
+		"const allowed = new Set([",
+		"const allowedAttrs = new Set([",
+		"node.setAttribute('sandbox', 'allow-scripts allow-same-origin')",
+		"keepBlobMedia",
+	} {
+		if !strings.Contains(chatCoreJS, want) {
+			t.Fatalf("shared chat core sanitizer missing central security marker %q", want)
+		}
+	}
+
+	for _, forbidden := range []string{
+		"return String(str)\n                .replace(/&/g, '&amp;')",
+		"const allowed = new Set([",
+		"const allowedAttrs = new Set([",
+		"function decorateEmojiGlyphs(root) {\n    if (window.AuraChatCore",
+	} {
+		if strings.Contains(desktopChatJS, forbidden) {
+			t.Fatalf("desktop chat renderer must not keep local fallback implementation marker %q", forbidden)
+		}
+	}
+	for _, forbidden := range []string{
+		"const emojiGlyphPattern =",
+		"function decorateEmojiGlyphs(root) {\n    if (window.AuraChatCore",
+	} {
+		if strings.Contains(chatJS, forbidden) {
+			t.Fatalf("chat message renderer must not keep local fallback implementation marker %q", forbidden)
 		}
 	}
 }
