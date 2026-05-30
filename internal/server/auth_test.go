@@ -492,7 +492,34 @@ func TestAuthMiddlewareAllowsDesktopFileWithEmbedTokenWithoutSession(t *testing.
 	}
 }
 
-func TestAuthMiddlewareAllowsPrinterCameraStreamWithDesktopEmbedTokenReferer(t *testing.T) {
+func TestAuthMiddlewareAllowsPrinterCameraStreamWithDesktopEmbedTokenQuery(t *testing.T) {
+	t.Parallel()
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.SessionSecret = "0123456789abcdef0123456789abcdef"
+	s.Cfg.Auth.PasswordHash = "configured"
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler := authMiddleware(s, next)
+
+	desktopPath := "Widgets/printer-camera/index.html"
+	token, err := issueDesktopEmbedToken(s.Cfg.Auth.SessionSecret, desktopPath, time.Now())
+	if err != nil {
+		t.Fatalf("issueDesktopEmbedToken: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/3d-printers/printer-1/camera/stream?desktop_token="+url.QueryEscape(token), nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("camera stream with desktop embed token query status = %d, want 204; body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAuthMiddlewareRejectsPrinterCameraStreamWithDesktopEmbedTokenReferer(t *testing.T) {
 	t.Parallel()
 
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
@@ -515,8 +542,8 @@ func TestAuthMiddlewareAllowsPrinterCameraStreamWithDesktopEmbedTokenReferer(t *
 	req.Header.Set("Referer", "https://example.test/files/desktop/"+desktopPath+"?desktop_token="+url.QueryEscape(token))
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
-	if rec.Code != http.StatusNoContent {
-		t.Fatalf("camera stream with desktop embed token referer status = %d, want 204; body=%s", rec.Code, rec.Body.String())
+	if rec.Code == http.StatusNoContent {
+		t.Fatal("camera stream authenticated with desktop token from Referer")
 	}
 }
 

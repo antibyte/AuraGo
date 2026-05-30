@@ -233,9 +233,6 @@ func validDesktopEmbedResourceToken(r *http.Request, secret string, now time.Tim
 		return false
 	}
 	token := strings.TrimSpace(r.URL.Query().Get(desktopEmbedTokenParam))
-	if token == "" {
-		token = desktopEmbedTokenFromReferer(r)
-	}
 	payload, ok := parseDesktopEmbedToken(token, secret, now)
 	if !ok {
 		return false
@@ -245,21 +242,6 @@ func validDesktopEmbedResourceToken(r *http.Request, secret string, now time.Tim
 		return false
 	}
 	return desktopEmbedPathCanLoadResource(desktopPath)
-}
-
-func desktopEmbedTokenFromReferer(r *http.Request) string {
-	if r == nil {
-		return ""
-	}
-	raw := strings.TrimSpace(r.Header.Get("Referer"))
-	if raw == "" {
-		return ""
-	}
-	ref, err := url.Parse(raw)
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(ref.Query().Get(desktopEmbedTokenParam))
 }
 
 func isDesktopEmbedResourcePath(requestPath string) bool {

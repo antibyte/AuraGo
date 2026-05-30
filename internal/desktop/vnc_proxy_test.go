@@ -49,7 +49,8 @@ func TestHandleVNCProxyProtocolMismatch(t *testing.T) {
 	defer server.Close()
 
 	wsURL := strings.Replace(server.URL, "http", "ws", 1) + "?device_id=test-ssh"
-	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{"Origin": []string{server.URL}}
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 	if err != nil {
 		t.Fatalf("unexpected dial error: %v", err)
 	}
@@ -77,7 +78,8 @@ func TestHandleVNCProxyDeviceNotFound(t *testing.T) {
 	defer server.Close()
 
 	wsURL := strings.Replace(server.URL, "http", "ws", 1) + "?device_id=nonexistent"
-	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{"Origin": []string{server.URL}}
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 	if err != nil {
 		t.Fatalf("unexpected dial error: %v", err)
 	}

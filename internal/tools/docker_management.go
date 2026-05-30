@@ -25,6 +25,7 @@ type ContainerCreateOptions struct {
 	User        string
 	SecurityOpt []string
 	CapDrop     []string
+	NetworkMode string
 }
 
 // DockerCreateContainer creates a new container from a configuration.
@@ -117,6 +118,9 @@ func buildDockerCreateContainerPayloadWithOptions(image string, env []string, po
 	}
 	if len(options.CapDrop) > 0 {
 		hostConfig["CapDrop"] = append([]string(nil), options.CapDrop...)
+	}
+	if networkMode := strings.TrimSpace(options.NetworkMode); networkMode != "" {
+		hostConfig["NetworkMode"] = networkMode
 	}
 
 	payload := map[string]interface{}{

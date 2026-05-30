@@ -201,6 +201,12 @@ func TestCodeContainerEnsureStartedCreatesContainerWithNoPortsAndLimits(t *testi
 	if len(req.Ports) != 0 {
 		t.Fatalf("ports = %#v, want no host ports", req.Ports)
 	}
+	if req.Restart != "no" {
+		t.Fatalf("restart policy = %q, want no", req.Restart)
+	}
+	if req.NetworkMode != "none" {
+		t.Fatalf("network mode = %q, want none", req.NetworkMode)
+	}
 	if req.User != "developer" {
 		t.Fatalf("user = %q, want developer", req.User)
 	}

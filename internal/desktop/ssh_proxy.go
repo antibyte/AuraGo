@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -29,12 +28,7 @@ import (
 // sshUpgrader is the WebSocket upgrader for SSH terminal connections.
 var sshUpgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		origin := strings.TrimSpace(r.Header.Get("Origin"))
-		if origin == "" {
-			return true
-		}
-		u, err := url.Parse(origin)
-		return err == nil && strings.EqualFold(u.Host, r.Host)
+		return sameHostWebSocketOrigin(r)
 	},
 }
 
@@ -327,8 +321,8 @@ func resolveSSHAccess(device inventory.DeviceRecord, inventoryDB *sql.DB, vault 
 }
 
 // buildSSHConfig creates an ssh.ClientConfig, auto-detecting password vs private-key auth.
-// Host-key verification follows the desktop Quick Connect policy: prefer known_hosts,
-// fall back to insecure with a warning when the file is absent.
+// Host-key verification follows the desktop Quick Connect policy: prefer
+// known_hosts and require explicit insecure opt-in before disabling checks.
 func buildSSHConfig(user string, secret []byte, logger *slog.Logger) (sshConfigResult, error) {
 	var auth []ssh.AuthMethod
 
@@ -357,9 +351,7 @@ func buildSSHConfig(user string, secret []byte, logger *slog.Logger) (sshConfigR
 			}
 		}
 		if !usingKnownHosts {
-			logger.Warn("SSH known_hosts not found, falling back to insecure host key verification for desktop Quick Connect")
-			hostKeyCallback = ssh.InsecureIgnoreHostKey() //nolint:gosec
-			insecureHostKey = true
+			return sshConfigResult{}, fmt.Errorf("SSH host key verification failed: no known_hosts file found at ~/.ssh/known_hosts. Add the host key with 'ssh-keyscan <host> >> ~/.ssh/known_hosts' or enable 'remote_control.ssh_insecure_host_key: true' in config to disable host verification (not recommended)")
 		}
 	}
 

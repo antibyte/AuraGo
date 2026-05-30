@@ -94,6 +94,7 @@ type CodeDockerCreateRequest struct {
 	Volumes     []string
 	Cmd         []string
 	Restart     string
+	NetworkMode string
 	User        string
 	SecurityOpt []string
 	CapDrop     []string
@@ -296,7 +297,8 @@ func (s *CodeContainerService) createCodeStudioContainerLocked(ctx context.Conte
 		Ports:       map[string]string{},
 		Volumes:     []string{codeWorkspaceDir + ":" + codeWorkspaceInContainer},
 		Cmd:         []string{"sleep", "infinity"},
-		Restart:     "unless-stopped",
+		Restart:     "no",
+		NetworkMode: "none",
 		User:        "developer",
 		SecurityOpt: []string{"no-new-privileges:true"},
 		CapDrop:     []string{"ALL"},

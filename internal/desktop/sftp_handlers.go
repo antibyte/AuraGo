@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"path"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -18,6 +17,8 @@ import (
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
+
+const maxSFTPUploadBytes int64 = 50 << 20
 
 // connectSFTP opens an SSH connection and returns an SFTP client with a cleanup function.
 func connectSFTP(deviceID string, inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger) (*sftp.Client, func(), error) {
@@ -53,6 +54,49 @@ func connectSFTP(deviceID string, inventoryDB *sql.DB, vault *security.Vault, lo
 		sshClient.Close()
 	}
 	return sftpClient, cleanup, nil
+}
+
+func normalizeSFTPRemotePath(raw string) (string, error) {
+	p := strings.TrimSpace(raw)
+	if p == "" {
+		return "", fmt.Errorf("remote path is required")
+	}
+	p = strings.ReplaceAll(p, "\\", "/")
+	if strings.ContainsRune(p, 0) {
+		return "", fmt.Errorf("remote path contains invalid character")
+	}
+	if strings.HasPrefix(p, "~") {
+		return "", fmt.Errorf("remote home shortcuts are not allowed")
+	}
+	if sftpPathHasParentSegment(p) {
+		return "", fmt.Errorf("remote path traversal is not allowed")
+	}
+	cleaned := path.Clean("/" + strings.TrimLeft(p, "/"))
+	if isSensitiveSFTPAbsolutePath(cleaned) {
+		return "", fmt.Errorf("remote path is outside the allowed SFTP workspace")
+	}
+	if cleaned == "/" {
+		return ".", nil
+	}
+	return strings.TrimPrefix(cleaned, "/"), nil
+}
+
+func sftpPathHasParentSegment(raw string) bool {
+	for _, part := range strings.Split(raw, "/") {
+		if part == ".." {
+			return true
+		}
+	}
+	return false
+}
+
+func isSensitiveSFTPAbsolutePath(cleaned string) bool {
+	for _, root := range []string{"/etc", "/root", "/proc", "/sys", "/dev", "/run", "/var/run"} {
+		if cleaned == root || strings.HasPrefix(cleaned, root+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // sftpEntry represents a file/directory entry in the SFTP listing.
@@ -92,6 +136,11 @@ func HandleSFTPList(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 		}
 		if dirPath == "" {
 			dirPath = "/"
+		}
+		dirPath, err := normalizeSFTPRemotePath(dirPath)
+		if err != nil {
+			jsonSFTPError(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 
 		client, cleanup, err := connectSFTP(deviceID, inventoryDB, vault, logger)
@@ -133,6 +182,11 @@ func HandleSFTPStat(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 		filePath := r.URL.Query().Get("path")
 		if deviceID == "" || filePath == "" {
 			jsonSFTPError(w, "missing device_id or path", http.StatusBadRequest)
+			return
+		}
+		filePath, err := normalizeSFTPRemotePath(filePath)
+		if err != nil {
+			jsonSFTPError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -179,6 +233,12 @@ func HandleSFTPMkdir(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Lo
 			jsonSFTPError(w, "missing device_id or path", http.StatusBadRequest)
 			return
 		}
+		var err error
+		req.Path, err = normalizeSFTPRemotePath(req.Path)
+		if err != nil {
+			jsonSFTPError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		client, cleanup, err := connectSFTP(req.DeviceID, inventoryDB, vault, logger)
 		if err != nil {
@@ -214,6 +274,12 @@ func HandleSFTPDelete(inventoryDB *sql.DB, vault *security.Vault, logger *slog.L
 		req.DeviceID = strings.TrimSpace(req.DeviceID)
 		if req.DeviceID == "" || req.Path == "" {
 			jsonSFTPError(w, "missing device_id or path", http.StatusBadRequest)
+			return
+		}
+		var err error
+		req.Path, err = normalizeSFTPRemotePath(req.Path)
+		if err != nil {
+			jsonSFTPError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -267,6 +333,17 @@ func HandleSFTPRename(inventoryDB *sql.DB, vault *security.Vault, logger *slog.L
 			jsonSFTPError(w, "missing device_id, old_path, or new_path", http.StatusBadRequest)
 			return
 		}
+		var err error
+		req.OldPath, err = normalizeSFTPRemotePath(req.OldPath)
+		if err != nil {
+			jsonSFTPError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		req.NewPath, err = normalizeSFTPRemotePath(req.NewPath)
+		if err != nil {
+			jsonSFTPError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		client, cleanup, err := connectSFTP(req.DeviceID, inventoryDB, vault, logger)
 		if err != nil {
@@ -303,6 +380,17 @@ func HandleSFTPCopy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 		req.DeviceID = strings.TrimSpace(req.DeviceID)
 		if req.DeviceID == "" || req.SrcPath == "" || req.DstPath == "" {
 			jsonSFTPError(w, "missing device_id, src_path, or dst_path", http.StatusBadRequest)
+			return
+		}
+		var err error
+		req.SrcPath, err = normalizeSFTPRemotePath(req.SrcPath)
+		if err != nil {
+			jsonSFTPError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		req.DstPath, err = normalizeSFTPRemotePath(req.DstPath)
+		if err != nil {
+			jsonSFTPError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -357,6 +445,17 @@ func HandleSFTPMove(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			jsonSFTPError(w, "missing device_id, src_path, or dst_path", http.StatusBadRequest)
 			return
 		}
+		var err error
+		req.SrcPath, err = normalizeSFTPRemotePath(req.SrcPath)
+		if err != nil {
+			jsonSFTPError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		req.DstPath, err = normalizeSFTPRemotePath(req.DstPath)
+		if err != nil {
+			jsonSFTPError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		client, cleanup, err := connectSFTP(req.DeviceID, inventoryDB, vault, logger)
 		if err != nil {
@@ -381,7 +480,8 @@ func HandleSFTPUpload(inventoryDB *sql.DB, vault *security.Vault, logger *slog.L
 			jsonSFTPError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if err := r.ParseMultipartForm(100 << 20); err != nil {
+		r.Body = http.MaxBytesReader(w, r.Body, maxSFTPUploadBytes)
+		if err := r.ParseMultipartForm(maxSFTPUploadBytes); err != nil {
 			jsonSFTPError(w, "invalid multipart form", http.StatusBadRequest)
 			return
 		}
@@ -400,7 +500,12 @@ func HandleSFTPUpload(inventoryDB *sql.DB, vault *security.Vault, logger *slog.L
 		defer file.Close()
 
 		if strings.HasSuffix(remotePath, "/") || strings.HasSuffix(remotePath, "\\") {
-			remotePath = remotePath + filepath.Base(header.Filename)
+			remotePath = remotePath + path.Base(strings.ReplaceAll(header.Filename, "\\", "/"))
+		}
+		remotePath, err = normalizeSFTPRemotePath(remotePath)
+		if err != nil {
+			jsonSFTPError(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 
 		client, cleanup, err := connectSFTP(deviceID, inventoryDB, vault, logger)
@@ -437,6 +542,11 @@ func HandleSFTPDownload(inventoryDB *sql.DB, vault *security.Vault, logger *slog
 		filePath := r.URL.Query().Get("path")
 		if deviceID == "" || filePath == "" {
 			jsonSFTPError(w, "missing device_id or path", http.StatusBadRequest)
+			return
+		}
+		filePath, err := normalizeSFTPRemotePath(filePath)
+		if err != nil {
+			jsonSFTPError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 

@@ -34,6 +34,26 @@ func TestDockerMutationsDenyWhenRuntimeReadOnly(t *testing.T) {
 	}
 }
 
+func TestBuildDockerCreateContainerPayloadAppliesNetworkModeOption(t *testing.T) {
+	payload := buildDockerCreateContainerPayloadWithOptions(
+		"alpine:latest",
+		nil,
+		map[string]string{},
+		nil,
+		nil,
+		"no",
+		nil,
+		ContainerCreateOptions{NetworkMode: "none"},
+	)
+	hostConfig, ok := payload["HostConfig"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("HostConfig = %#v", payload["HostConfig"])
+	}
+	if got := hostConfig["NetworkMode"]; got != "none" {
+		t.Fatalf("NetworkMode = %#v, want none", got)
+	}
+}
+
 func TestValidateDockerCopyContainerPathRejectsTraversal(t *testing.T) {
 	_, err := validateDockerCopyContainerPath("../../etc/shadow")
 	if err == nil {
