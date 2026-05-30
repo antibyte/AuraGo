@@ -354,46 +354,6 @@
             };
         }
 
-        function showVNCCredentialsModal(rfb) {
-            const overlay = document.createElement('div');
-            overlay.className = 'vd-qc-modal-overlay';
-            overlay.innerHTML = `<div class="vd-qc-modal vd-qc-credentials-modal">
-                <div class="vd-qc-modal-header">
-                    <span class="vd-qc-modal-title">${esc(t('desktop.qc_vnc_password_prompt'))}</span>
-                    <button class="vd-qc-modal-close" type="button" data-action="close">${iconMarkup('x', 'X', 'vd-qc-close-icon', 14)}</button>
-                </div>
-                <div class="vd-qc-modal-body">
-                    <label class="vd-qc-label">${esc(t('desktop.qc_password'))}
-                        <div class="vd-qc-input-group">
-                            <input class="vd-qc-input" type="password" name="vnc-password" autofocus required>
-                            <button class="vd-qc-input-toggle" type="button" data-action="toggle-pw">${iconMarkup('key', 'K', 'vd-qc-input-icon', 14)}</button>
-                        </div>
-                    </label>
-                </div>
-                <div class="vd-qc-modal-footer">
-                    <button class="vd-qc-btn vd-qc-btn-secondary" type="button" data-action="cancel">${iconMarkup('x', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.cancel'))}</span></button>
-                    <button class="vd-qc-btn vd-qc-btn-primary" type="button" data-action="connect">${iconMarkup('run', 'C', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_connect'))}</span></button>
-                </div>
-            </div>`;
-            host.querySelector('.vd-quick-connect').appendChild(overlay);
-            const pwInput = overlay.querySelector('input[name="vnc-password"]');
-            overlay.querySelector('[data-action="toggle-pw"]').addEventListener('click', () => {
-                pwInput.type = pwInput.type === 'password' ? 'text' : 'password';
-            });
-            overlay.querySelector('[data-action="close"]').addEventListener('click', () => { overlay.remove(); rfb.disconnect(); });
-            overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => { overlay.remove(); rfb.disconnect(); });
-            overlay.querySelector('[data-action="connect"]').addEventListener('click', () => {
-                const pw = pwInput.value;
-                overlay.remove();
-                rfb.sendCredentials({ password: pw });
-            });
-            pwInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') { e.preventDefault(); overlay.querySelector('[data-action="connect"]').click(); }
-                if (e.key === 'Escape') { overlay.remove(); rfb.disconnect(); }
-            });
-            pwInput.focus();
-        }
-
         async function connectVNC(deviceId) {
             deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
@@ -414,15 +374,6 @@
             activeTerm = null;
             activeFitAddon = null;
 
-            let password = '';
-            const device = cachedDevices.find(d => d.id === deviceId);
-            if (device && device.credential_id) {
-                try {
-                    const body = await api('/api/credentials/export/' + device.credential_id + '?type=password');
-                    if (body && body.content) password = body.content;
-                } catch(_) {}
-            }
-
             const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = proto + '//' + location.host + '/api/desktop/vnc?device_id=' + encodeURIComponent(deviceId);
 
@@ -432,7 +383,6 @@
             }
 
             const rfb = new window.RFB(vncContainer, wsUrl, {
-                credentials: { password: password },
                 wsProtocols: ['binary']
             });
             rfb.viewOnly = false;
@@ -447,9 +397,6 @@
                 tabContent.innerHTML = disconnectPlaceholderHTML('desktop.qc_vnc_disconnected', deviceId, true);
                 const reconnectBtn = tabContent.querySelector('[data-action="reconnect"]');
                 if (reconnectBtn) reconnectBtn.addEventListener('click', () => connectVNC(deviceId));
-            });
-rfb.addEventListener('credentialsrequired', () => {
-                showVNCCredentialsModal(rfb);
             });
             rfb.addEventListener('securityfailure', (e) => {
                 showNotify(t('desktop.qc_vnc_connection_error') + ': ' + (e.detail.reason || ''));

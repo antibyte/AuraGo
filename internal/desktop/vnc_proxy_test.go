@@ -1,10 +1,15 @@
 package desktop
 
 import (
+	"bytes"
+	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/inventory"
 	"aurago/internal/security"
@@ -120,4 +125,198 @@ func TestResolveVNCAccessDefaults(t *testing.T) {
 	if password != "" {
 		t.Fatalf("expected empty password, got %q", password)
 	}
+}
+
+func TestPerformRFBHandshakeNoAuth(t *testing.T) {
+	err := runRFBHandshakeTest(t, "", fakeRFBNoAuthServer, fakeNoAuthBrowser)
+	if err != nil {
+		t.Fatalf("performRFBHandshake no-auth: %v", err)
+	}
+}
+
+func TestPerformRFBHandshakePasswordAuth(t *testing.T) {
+	err := runRFBHandshakeTest(t, "secret", func(t *testing.T, conn net.Conn) error {
+		return fakeRFBPasswordServer(t, conn, "secret")
+	}, fakeNoAuthBrowser)
+	if err != nil {
+		t.Fatalf("performRFBHandshake password auth: %v", err)
+	}
+}
+
+func TestPerformRFBHandshakeRejectsWrongPassword(t *testing.T) {
+	err := runRFBHandshakeTest(t, "wrong", func(t *testing.T, conn net.Conn) error {
+		return fakeRFBPasswordServer(t, conn, "secret")
+	}, fakeNoAuthBrowser)
+	if err == nil {
+		t.Fatal("performRFBHandshake succeeded with wrong password")
+	}
+	if !strings.Contains(err.Error(), "authentication failed") {
+		t.Fatalf("expected authentication failure, got %v", err)
+	}
+}
+
+func runRFBHandshakeTest(t *testing.T, password string, serverFn func(*testing.T, net.Conn) error, browserFn func(*testing.T, net.Conn) error) error {
+	t.Helper()
+	browserClient, browserProxy := net.Pipe()
+	serverProxy, serverPeer := net.Pipe()
+	deadline := time.Now().Add(2 * time.Second)
+	for _, conn := range []net.Conn{browserClient, browserProxy, serverProxy, serverPeer} {
+		if err := conn.SetDeadline(deadline); err != nil {
+			t.Fatalf("set deadline: %v", err)
+		}
+	}
+	defer browserClient.Close()
+	defer browserProxy.Close()
+	defer serverProxy.Close()
+	defer serverPeer.Close()
+
+	proxyErr := make(chan error, 1)
+	serverErr := make(chan error, 1)
+	browserErr := make(chan error, 1)
+	go func() { proxyErr <- performRFBHandshake(browserProxy, serverProxy, password) }()
+	go func() { serverErr <- serverFn(t, serverPeer) }()
+	go func() { browserErr <- browserFn(t, browserClient) }()
+
+	var err error
+	select {
+	case err = <-proxyErr:
+	case <-time.After(3 * time.Second):
+		t.Fatal("performRFBHandshake timed out")
+	}
+	_ = browserClient.Close()
+	_ = serverPeer.Close()
+	if serverErr := <-serverErr; serverErr != nil && err == nil {
+		t.Fatalf("fake server failed: %v", serverErr)
+	}
+	if browserErr := <-browserErr; browserErr != nil && err == nil {
+		t.Fatalf("fake browser failed: %v", browserErr)
+	}
+	return err
+}
+
+func fakeNoAuthBrowser(t *testing.T, conn net.Conn) error {
+	t.Helper()
+	version, err := readRFBTestBytes(conn, 12)
+	if err != nil {
+		return err
+	}
+	if string(version) != "RFB 003.008\n" {
+		return errUnexpectedRFB("browser version", version)
+	}
+	if _, err := conn.Write(version); err != nil {
+		return err
+	}
+	securityTypes, err := readRFBTestBytes(conn, 2)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(securityTypes, []byte{1, 1}) {
+		return errUnexpectedRFB("browser security types", securityTypes)
+	}
+	if _, err := conn.Write([]byte{1}); err != nil {
+		return err
+	}
+	result, err := readRFBTestBytes(conn, 4)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(result, []byte{0, 0, 0, 0}) {
+		return errUnexpectedRFB("browser security result", result)
+	}
+	_, err = conn.Write([]byte{1})
+	return err
+}
+
+func fakeRFBNoAuthServer(t *testing.T, conn net.Conn) error {
+	t.Helper()
+	version := []byte("RFB 003.008\n")
+	if _, err := conn.Write(version); err != nil {
+		return err
+	}
+	clientVersion, err := readRFBTestBytes(conn, 12)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(clientVersion, version) {
+		return errUnexpectedRFB("server client version", clientVersion)
+	}
+	if _, err := conn.Write([]byte{1, 1}); err != nil {
+		return err
+	}
+	choice, err := readRFBTestBytes(conn, 1)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(choice, []byte{1}) {
+		return errUnexpectedRFB("server no-auth choice", choice)
+	}
+	if _, err := conn.Write([]byte{0, 0, 0, 0}); err != nil {
+		return err
+	}
+	clientInit, err := readRFBTestBytes(conn, 1)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(clientInit, []byte{1}) {
+		return errUnexpectedRFB("server client init", clientInit)
+	}
+	return nil
+}
+
+func fakeRFBPasswordServer(t *testing.T, conn net.Conn, expectedPassword string) error {
+	t.Helper()
+	version := []byte("RFB 003.008\n")
+	if _, err := conn.Write(version); err != nil {
+		return err
+	}
+	if _, err := readRFBTestBytes(conn, 12); err != nil {
+		return err
+	}
+	if _, err := conn.Write([]byte{1, 2}); err != nil {
+		return err
+	}
+	choice, err := readRFBTestBytes(conn, 1)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(choice, []byte{2}) {
+		return errUnexpectedRFB("server password choice", choice)
+	}
+	challenge := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
+	if _, err := conn.Write(challenge); err != nil {
+		return err
+	}
+	response, err := readRFBTestBytes(conn, 16)
+	if err != nil {
+		return err
+	}
+	want, err := vncPasswordResponse(expectedPassword, challenge)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(response, want) {
+		_, _ = conn.Write([]byte{0, 0, 0, 1, 0, 0, 0, 0})
+		return nil
+	}
+	if _, err := conn.Write([]byte{0, 0, 0, 0}); err != nil {
+		return err
+	}
+	clientInit, err := readRFBTestBytes(conn, 1)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(clientInit, []byte{1}) {
+		return errUnexpectedRFB("server password client init", clientInit)
+	}
+	return nil
+}
+
+func readRFBTestBytes(conn net.Conn, n int) ([]byte, error) {
+	buf := make([]byte, n)
+	_, err := io.ReadFull(conn, buf)
+	return buf, err
+}
+
+func errUnexpectedRFB(label string, got []byte) error {
+	return fmt.Errorf("%s = %v", label, got)
 }
