@@ -137,6 +137,87 @@ func TestMediaBulkDeleteReportsPartialFailure(t *testing.T) {
 	}
 }
 
+func TestMediaListSkipsUnservableRegistryItems(t *testing.T) {
+	tmpDir := t.TempDir()
+	imageDir := filepath.Join(tmpDir, "generated_images")
+	privateDir := filepath.Join(tmpDir, "private")
+	if err := os.MkdirAll(imageDir, 0755); err != nil {
+		t.Fatalf("create image dir: %v", err)
+	}
+	if err := os.MkdirAll(privateDir, 0755); err != nil {
+		t.Fatalf("create private dir: %v", err)
+	}
+	existingPath := filepath.Join(imageDir, "existing.png")
+	if err := os.WriteFile(existingPath, []byte("fake image"), 0644); err != nil {
+		t.Fatalf("write existing image: %v", err)
+	}
+	privatePath := filepath.Join(privateDir, "stale.png")
+	if err := os.WriteFile(privatePath, []byte("private image"), 0644); err != nil {
+		t.Fatalf("write private image: %v", err)
+	}
+
+	db, err := tools.InitMediaRegistryDB(filepath.Join(tmpDir, "media_registry.db"))
+	if err != nil {
+		t.Fatalf("init media registry db: %v", err)
+	}
+	defer db.Close()
+
+	if _, _, err := tools.RegisterMedia(db, tools.MediaItem{
+		MediaType: "image",
+		Filename:  "existing.png",
+		FilePath:  existingPath,
+		WebPath:   "/files/generated_images/existing.png",
+	}); err != nil {
+		t.Fatalf("register existing image: %v", err)
+	}
+	if _, _, err := tools.RegisterMedia(db, tools.MediaItem{
+		MediaType: "image",
+		Filename:  "stale.png",
+		FilePath:  privatePath,
+		WebPath:   "/files/generated_images/stale.png",
+	}); err != nil {
+		t.Fatalf("register stale image: %v", err)
+	}
+	if _, _, err := tools.RegisterMedia(db, tools.MediaItem{
+		MediaType: "image",
+		Filename:  "missing.png",
+		FilePath:  filepath.Join(imageDir, "missing.png"),
+		WebPath:   "/files/generated_images/missing.png",
+	}); err != nil {
+		t.Fatalf("register missing image: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = tmpDir
+	s := &Server{
+		Cfg:             cfg,
+		Logger:          slog.New(slog.NewTextHandler(io.Discard, nil)),
+		MediaRegistryDB: db,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/media?type=image", nil)
+	rr := httptest.NewRecorder()
+	handleMediaList(s).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rr.Code, rr.Body.String())
+	}
+	var body struct {
+		Status string            `json:"status"`
+		Items  []tools.MediaItem `json:"items"`
+		Total  int               `json:"total"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Status != "ok" || body.Total != 1 || len(body.Items) != 1 {
+		t.Fatalf("response = %+v", body)
+	}
+	if body.Items[0].Filename != "existing.png" {
+		t.Fatalf("filename = %q, want existing.png", body.Items[0].Filename)
+	}
+}
+
 func int64String(v int64) string {
 	return strconv.FormatInt(v, 10)
 }

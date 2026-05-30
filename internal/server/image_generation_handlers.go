@@ -199,7 +199,8 @@ func handleImageGalleryList(s *Server) http.HandlerFunc {
 					if provider != "" && item.Provider != provider {
 						continue
 					}
-					if !mediaRegistryImageFileExists(dataDir, item) {
+					wp, ok := mediaRegistryItemDisplayWebPath(dataDir, item)
+					if !ok {
 						continue
 					}
 					key := item.Filename
@@ -207,10 +208,6 @@ func handleImageGalleryList(s *Server) http.HandlerFunc {
 						continue
 					}
 					seen[key] = true
-					wp := item.WebPath
-					if wp == "" {
-						wp = "/files/generated_images/" + item.Filename
-					}
 					all = append(all, unifiedImage{
 						ID:               item.ID,
 						CreatedAt:        item.CreatedAt,
@@ -313,25 +310,82 @@ var mediaFileServerDataSubdirs = []struct {
 }
 
 func mediaRegistryImageFileExists(dataDir string, item tools.MediaItem) bool {
-	candidates := make([]string, 0, 3)
-	if localPath, ok := mediaWebPathToLocalPath(dataDir, item.FilePath); ok {
-		candidates = append(candidates, localPath)
-	} else if strings.TrimSpace(item.FilePath) != "" {
-		candidates = append(candidates, item.FilePath)
-	}
-	if localPath, ok := mediaWebPathToLocalPath(dataDir, item.WebPath); ok {
-		candidates = append(candidates, localPath)
-	}
-	if item.Filename != "" && strings.TrimSpace(dataDir) != "" {
-		candidates = append(candidates, filepath.Join(dataDir, "generated_images", item.Filename))
-	}
+	_, ok := mediaRegistryItemDisplayWebPath(dataDir, item)
+	return ok
+}
 
-	for _, candidate := range candidates {
-		if regularFileExists(candidate) {
-			return true
-		}
+func mediaRegistryItemDisplayWebPath(dataDir string, item tools.MediaItem) (string, bool) {
+	if webPath, ok := displayableMediaWebPath(dataDir, item.WebPath); ok {
+		return webPath, true
 	}
-	return len(candidates) == 0 && isExternalWebPath(item.WebPath)
+	if webPath, ok := displayableMediaWebPath(dataDir, item.FilePath); ok {
+		return webPath, true
+	}
+	if webPath, ok := webPathForLocalMediaFile(dataDir, item.FilePath); ok {
+		return webPath, true
+	}
+	return defaultMediaWebPathForFilename(dataDir, item.MediaType, item.Filename)
+}
+
+func displayableMediaWebPath(dataDir, rawPath string) (string, bool) {
+	webPath := strings.TrimSpace(rawPath)
+	if webPath == "" {
+		return "", false
+	}
+	if isExternalWebPath(webPath) {
+		return webPath, true
+	}
+	localPath, ok := mediaWebPathToLocalPath(dataDir, webPath)
+	if !ok || !regularFileExists(localPath) {
+		return "", false
+	}
+	return webPath, true
+}
+
+func webPathForLocalMediaFile(dataDir, filePath string) (string, bool) {
+	if strings.TrimSpace(dataDir) == "" || strings.TrimSpace(filePath) == "" || !regularFileExists(filePath) {
+		return "", false
+	}
+	cleanFilePath := filepath.Clean(filePath)
+	for _, mapping := range mediaFileServerDataSubdirs {
+		root := filepath.Clean(filepath.Join(dataDir, mapping.subdir))
+		rel, err := filepath.Rel(root, cleanFilePath)
+		if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+			continue
+		}
+		return mapping.prefix + filepath.ToSlash(rel), true
+	}
+	return "", false
+}
+
+func defaultMediaWebPathForFilename(dataDir, mediaType, filename string) (string, bool) {
+	if strings.TrimSpace(dataDir) == "" || strings.TrimSpace(filename) == "" {
+		return "", false
+	}
+	subdir, prefix, ok := defaultMediaFileLocation(mediaType)
+	if !ok {
+		return "", false
+	}
+	localPath := filepath.Join(dataDir, subdir, filename)
+	if !regularFileExists(localPath) {
+		return "", false
+	}
+	return prefix + filename, true
+}
+
+func defaultMediaFileLocation(mediaType string) (subdir, prefix string, ok bool) {
+	switch mediaType {
+	case "image":
+		return "generated_images", "/files/generated_images/", true
+	case "video":
+		return "generated_videos", "/files/generated_videos/", true
+	case "audio", "music":
+		return "audio", "/files/audio/", true
+	case "document":
+		return "documents", "/files/documents/", true
+	default:
+		return "", "", false
+	}
 }
 
 func generatedImageFileExists(dataDir, filename string) bool {

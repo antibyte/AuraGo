@@ -43,12 +43,18 @@ func handleMediaList(s *Server) http.HandlerFunc {
 			offset = v
 		}
 
-		items, total, err := tools.SearchMedia(s.MediaRegistryDB, query, mediaType, nil, limit, offset)
+		s.CfgMu.RLock()
+		dataDir := s.Cfg.Directories.DataDir
+		s.CfgMu.RUnlock()
+
+		items, _, err := tools.SearchMedia(s.MediaRegistryDB, query, mediaType, nil, 5000, 0)
 		if err != nil {
 			s.Logger.Error("Failed to search media", "query", query, "media_type", mediaType, "error", err)
 			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to load media"})
 			return
 		}
+		var total int
+		items, total = filterDisplayableMediaItems(dataDir, items, limit, offset)
 
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status": "ok",
@@ -58,6 +64,28 @@ func handleMediaList(s *Server) http.HandlerFunc {
 			"offset": offset,
 		})
 	}
+}
+
+func filterDisplayableMediaItems(dataDir string, items []tools.MediaItem, limit, offset int) ([]tools.MediaItem, int) {
+	filtered := make([]tools.MediaItem, 0, len(items))
+	for _, item := range items {
+		webPath, ok := mediaRegistryItemDisplayWebPath(dataDir, item)
+		if !ok {
+			continue
+		}
+		item.WebPath = webPath
+		filtered = append(filtered, item)
+	}
+
+	total := len(filtered)
+	if offset > total {
+		offset = total
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	return filtered[offset:end], total
 }
 
 func (s *Server) deleteMediaItemByID(id int64, dataDir string) error {
