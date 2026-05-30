@@ -662,6 +662,88 @@ func TestServiceWriteFileRejectsWorkspaceSymlinkInPath(t *testing.T) {
 	}
 }
 
+func TestServiceAuditMigrationAddsRequestColumns(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "desktop.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if _, err := db.Exec(`CREATE TABLE desktop_audit (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		action TEXT NOT NULL,
+		target TEXT,
+		source TEXT,
+		details_json TEXT NOT NULL,
+		created_at TEXT NOT NULL
+	)`); err != nil {
+		t.Fatalf("create old audit table: %v", err)
+	}
+	_ = db.Close()
+
+	svc := testServiceWithConfig(t, Config{
+		Enabled:            true,
+		WorkspaceDir:       filepath.Join(dir, "workspace"),
+		DBPath:             dbPath,
+		MaxFileSizeMB:      1,
+		AllowGeneratedApps: true,
+		AllowAgentControl:  true,
+		ControlLevel:       ControlConfirmDestructive,
+	})
+
+	rows, err := svc.getDB().Query(`SELECT name FROM pragma_table_info('desktop_audit')`)
+	if err != nil {
+		t.Fatalf("pragma table info: %v", err)
+	}
+	defer rows.Close()
+	columns := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			t.Fatalf("scan column: %v", err)
+		}
+		columns[name] = true
+	}
+	for _, want := range []string{"client_ip", "session_hash", "user_agent"} {
+		if !columns[want] {
+			t.Fatalf("desktop_audit missing column %q: %v", want, columns)
+		}
+	}
+}
+
+func TestServiceAuditWithRequestStoresAttributionAndPlainAuditStaysCompatible(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	if err := svc.AuditWithRequest(ctx, "desktop_vnc_connect", "device-1", map[string]string{"status": "attempt"}, SourceUser, AuditRequestInfo{
+		ClientIP:    "203.0.113.7",
+		SessionHash: "abc123",
+		UserAgent:   "desktop-test",
+	}); err != nil {
+		t.Fatalf("AuditWithRequest: %v", err)
+	}
+	if err := svc.Audit(ctx, "install_app", "app-1", map[string]string{"status": "ok"}, SourceAgent); err != nil {
+		t.Fatalf("Audit: %v", err)
+	}
+
+	var clientIP, sessionHash, userAgent string
+	if err := svc.getDB().QueryRow(`SELECT client_ip, session_hash, user_agent FROM desktop_audit WHERE action = ?`, "desktop_vnc_connect").Scan(&clientIP, &sessionHash, &userAgent); err != nil {
+		t.Fatalf("query request audit row: %v", err)
+	}
+	if clientIP != "203.0.113.7" || sessionHash != "abc123" || userAgent != "desktop-test" {
+		t.Fatalf("request audit attribution = %q/%q/%q", clientIP, sessionHash, userAgent)
+	}
+	if err := svc.getDB().QueryRow(`SELECT client_ip, session_hash, user_agent FROM desktop_audit WHERE action = ?`, "install_app").Scan(&clientIP, &sessionHash, &userAgent); err != nil {
+		t.Fatalf("query plain audit row: %v", err)
+	}
+	if clientIP != "" || sessionHash != "" || userAgent != "" {
+		t.Fatalf("plain audit attribution = %q/%q/%q, want empty", clientIP, sessionHash, userAgent)
+	}
+}
+
 func createTestSymlinkOrSkip(t *testing.T, target, link string) {
 	t.Helper()
 	if err := os.Symlink(target, link); err != nil {

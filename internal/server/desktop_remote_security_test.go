@@ -1,6 +1,8 @@
 package server
 
 import (
+	"context"
+	"database/sql"
 	"io"
 	"log/slog"
 	"net/http"
@@ -11,6 +13,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/desktop"
 	"aurago/internal/inventory"
 	"aurago/internal/security"
 )
@@ -194,6 +197,63 @@ func TestWithDesktopRemoteGuardAllowsAdminSessionWithoutDeviceScope(t *testing.T
 	}
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
+	}
+}
+
+func TestWithDesktopRemoteGuardWritesRequestAuditAttribution(t *testing.T) {
+	t.Parallel()
+
+	s, _ := testDesktopRemoteGuardServer(t, inventory.DeviceRecord{
+		ID:       "device-a",
+		Name:     "device-a",
+		Type:     "server",
+		Protocol: "ssh",
+		Tags:     []string{"lab"},
+	}, nil)
+	s.Cfg.Auth.Enabled = false
+	desktopDBPath := filepath.Join(t.TempDir(), "desktop.db")
+	desktopSvc, err := desktop.NewService(desktop.Config{
+		Enabled:            true,
+		WorkspaceDir:       filepath.Join(t.TempDir(), "workspace"),
+		DBPath:             desktopDBPath,
+		MaxFileSizeMB:      1,
+		AllowGeneratedApps: true,
+		AllowAgentControl:  true,
+		ControlLevel:       desktop.ControlConfirmDestructive,
+	})
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	if err := desktopSvc.Init(context.Background()); err != nil {
+		t.Fatalf("Init desktop service: %v", err)
+	}
+	t.Cleanup(func() { _ = desktopSvc.Close() })
+	s.DesktopService = desktopSvc
+
+	handler := withDesktopRemoteGuard(s, "desktop_ssh_connect", "", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/desktop/ssh?device_id=device-a", nil)
+	req.RemoteAddr = "203.0.113.20:1234"
+	req.Header.Set("User-Agent", "desktop-audit-test")
+	req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: "session-value"})
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusNoContent, rec.Body.String())
+	}
+
+	auditDB, err := sql.Open("sqlite", desktopDBPath)
+	if err != nil {
+		t.Fatalf("open audit db: %v", err)
+	}
+	defer auditDB.Close()
+	var clientIP, sessionHash, userAgent string
+	if err := auditDB.QueryRow(`SELECT client_ip, session_hash, user_agent FROM desktop_audit WHERE action = ? AND target = ?`, "desktop_ssh_connect", "device-a").Scan(&clientIP, &sessionHash, &userAgent); err != nil {
+		t.Fatalf("query audit row: %v", err)
+	}
+	if clientIP != "203.0.113.20" || sessionHash != desktopRequestSessionHash(req) || userAgent != "desktop-audit-test" {
+		t.Fatalf("audit attribution = %q/%q/%q", clientIP, sessionHash, userAgent)
 	}
 }
 

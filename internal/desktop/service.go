@@ -353,6 +353,9 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 			target TEXT,
 			source TEXT,
 			details_json TEXT NOT NULL,
+			client_ip TEXT NOT NULL DEFAULT '',
+			session_hash TEXT NOT NULL DEFAULT '',
+			user_agent TEXT NOT NULL DEFAULT '',
 			created_at TEXT NOT NULL
 		)`,
 		`INSERT INTO desktop_meta(key, value) VALUES('schema_version', '4')
@@ -370,6 +373,15 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 		return err
 	}
 	if err := s.ensureColumnLocked(ctx, "desktop_widgets", "builtin", "INTEGER NOT NULL DEFAULT 0"); err != nil {
+		return err
+	}
+	if err := s.ensureColumnLocked(ctx, "desktop_audit", "client_ip", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return err
+	}
+	if err := s.ensureColumnLocked(ctx, "desktop_audit", "session_hash", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return err
+	}
+	if err := s.ensureColumnLocked(ctx, "desktop_audit", "user_agent", "TEXT NOT NULL DEFAULT ''"); err != nil {
 		return err
 	}
 	if err := s.seedBuiltinWidgetsLocked(ctx); err != nil {

@@ -1,6 +1,8 @@
 package server
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -175,13 +177,47 @@ func auditDesktopRemoteAttempt(s *Server, r *http.Request, action, deviceID, sta
 	details := map[string]interface{}{
 		"status":      strings.TrimSpace(status),
 		"reason":      strings.TrimSpace(reason),
-		"client_ip":   ClientIP(r, s.Cfg != nil && s.Cfg.Server.HTTPS.BehindProxy),
-		"user_agent":  r.UserAgent(),
 		"method":      r.Method,
 		"path":        r.URL.Path,
 		"remote_addr": r.RemoteAddr,
 	}
-	_ = s.DesktopService.Audit(r.Context(), action, strings.TrimSpace(deviceID), details, desktop.SourceUser)
+	_ = s.DesktopService.AuditWithRequest(r.Context(), action, strings.TrimSpace(deviceID), details, desktop.SourceUser, desktopAuditRequestInfo(s, r))
+}
+
+func desktopAuditRequestInfo(s *Server, r *http.Request) desktop.AuditRequestInfo {
+	if r == nil {
+		return desktop.AuditRequestInfo{}
+	}
+	behindProxy := false
+	if s != nil && s.Cfg != nil {
+		behindProxy = s.Cfg.Server.HTTPS.BehindProxy
+	}
+	return desktop.AuditRequestInfo{
+		ClientIP:    ClientIP(r, behindProxy),
+		SessionHash: desktopRequestSessionHash(r),
+		UserAgent:   r.UserAgent(),
+	}
+}
+
+func desktopRequestSessionHash(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	material := ""
+	if cookie, err := r.Cookie(sessionCookieName); err == nil {
+		material = cookie.Value
+	}
+	if material == "" {
+		authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			material = strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+		}
+	}
+	if material == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(material))
+	return hex.EncodeToString(sum[:])
 }
 
 func writeDesktopRemoteGuardError(w http.ResponseWriter, message string, code int) {
