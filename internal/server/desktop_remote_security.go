@@ -10,9 +10,16 @@ import (
 	"aurago/internal/inventory"
 )
 
+const (
+	desktopRemoteScopeAll          = "desktop:remote"
+	desktopRemoteScopeDevicePrefix = "desktop:remote:device:"
+	desktopRemoteScopeTagPrefix    = "desktop:remote:tag:"
+)
+
 func withDesktopRemoteGuard(s *Server, action, expectedProtocol string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+		rawToken, bearerToken, ok := requireDesktopRemoteBaseAccess(s, w, r)
+		if !ok {
 			return
 		}
 
@@ -26,6 +33,12 @@ func withDesktopRemoteGuard(s *Server, action, expectedProtocol string, next htt
 		}
 		if deviceID == "" {
 			if strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "multipart/form-data") {
+				if bearerToken && !desktopRemoteTokenHasAdminOrGlobalScope(s, rawToken) {
+					recordDesktopRemoteRateFailure(s, rateKeys...)
+					auditDesktopRemoteAttempt(s, r, action, deviceID, "blocked", "missing_device_id_for_scoped_token")
+					writeDesktopRemoteGuardError(w, "missing device_id", http.StatusBadRequest)
+					return
+				}
 				auditDesktopRemoteAttempt(s, r, action, deviceID, "attempt", "multipart_device_id_deferred")
 				next(w, r)
 				return
@@ -49,11 +62,82 @@ func withDesktopRemoteGuard(s *Server, action, expectedProtocol string, next htt
 				writeDesktopRemoteGuardError(w, fmt.Sprintf("device protocol is %q, expected %s", device.Protocol, expectedProtocol), http.StatusBadRequest)
 				return
 			}
+			if bearerToken && !desktopRemoteTokenAllowsDevice(s, rawToken, device) {
+				recordDesktopRemoteRateFailure(s, rateKeys...)
+				auditDesktopRemoteAttempt(s, r, action, deviceID, "blocked", "scope_denied")
+				writeDesktopRemoteGuardError(w, "desktop remote scope required", http.StatusForbidden)
+				return
+			}
+		} else if bearerToken && !desktopRemoteTokenHasAdminOrGlobalScope(s, rawToken) {
+			recordDesktopRemoteRateFailure(s, rateKeys...)
+			auditDesktopRemoteAttempt(s, r, action, deviceID, "blocked", "inventory_unavailable_for_scoped_token")
+			writeDesktopRemoteGuardError(w, "desktop remote scope required", http.StatusForbidden)
+			return
 		}
 
 		auditDesktopRemoteAttempt(s, r, action, deviceID, "attempt", "")
 		next(w, r)
 	}
+}
+
+func requireDesktopRemoteBaseAccess(s *Server, w http.ResponseWriter, r *http.Request) (string, bool, bool) {
+	rawToken, bearerToken := desktopRemoteBearerToken(r)
+	if !bearerToken {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return "", false, false
+		}
+		return "", false, true
+	}
+	if rawToken == "" || s == nil || s.TokenManager == nil {
+		writeDesktopRemoteGuardError(w, "desktop remote scope required", http.StatusForbidden)
+		return rawToken, true, false
+	}
+	if _, ok := s.TokenManager.Validate(rawToken, ""); ok {
+		return rawToken, true, true
+	}
+	writeDesktopRemoteGuardError(w, "desktop remote scope required", http.StatusForbidden)
+	return rawToken, true, false
+}
+
+func desktopRemoteBearerToken(r *http.Request) (string, bool) {
+	if r == nil {
+		return "", false
+	}
+	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		return "", false
+	}
+	return strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer ")), true
+}
+
+func desktopRemoteTokenAllowsDevice(s *Server, rawToken string, device inventory.DeviceRecord) bool {
+	if desktopRemoteTokenHasAdminOrGlobalScope(s, rawToken) {
+		return true
+	}
+	deviceID := strings.TrimSpace(device.ID)
+	if deviceID != "" && desktopRemoteTokenHasExactScope(s, rawToken, desktopRemoteScopeDevicePrefix+deviceID) {
+		return true
+	}
+	for _, tag := range device.Tags {
+		tag = strings.TrimSpace(tag)
+		if tag != "" && desktopRemoteTokenHasExactScope(s, rawToken, desktopRemoteScopeTagPrefix+tag) {
+			return true
+		}
+	}
+	return false
+}
+
+func desktopRemoteTokenHasAdminOrGlobalScope(s *Server, rawToken string) bool {
+	return desktopRemoteTokenHasExactScope(s, rawToken, desktopScopeAdmin) ||
+		desktopRemoteTokenHasExactScope(s, rawToken, desktopRemoteScopeAll)
+}
+
+func desktopRemoteTokenHasExactScope(s *Server, rawToken, scope string) bool {
+	if s == nil || s.TokenManager == nil || strings.TrimSpace(rawToken) == "" || strings.TrimSpace(scope) == "" {
+		return false
+	}
+	_, ok := s.TokenManager.Validate(rawToken, scope)
+	return ok
 }
 
 func desktopRemoteRateLimitKeys(action, ip, deviceID string) []string {

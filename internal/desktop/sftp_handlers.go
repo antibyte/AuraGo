@@ -486,6 +486,10 @@ func HandleSFTPUpload(inventoryDB *sql.DB, vault *security.Vault, logger *slog.L
 			return
 		}
 		deviceID := strings.TrimSpace(r.FormValue("device_id"))
+		if guardedDeviceID := strings.TrimSpace(r.URL.Query().Get("device_id")); guardedDeviceID != "" && guardedDeviceID != deviceID {
+			jsonSFTPError(w, "device_id mismatch", http.StatusBadRequest)
+			return
+		}
 		remotePath := r.FormValue("remote_path")
 		if deviceID == "" || remotePath == "" {
 			jsonSFTPError(w, "missing device_id or remote_path", http.StatusBadRequest)
