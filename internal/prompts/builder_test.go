@@ -783,6 +783,28 @@ func TestBuildSystemPromptInjectsTaskRulesAndHomepageDesignBeforeAdditionalPromp
 	}
 }
 
+func TestBuildSystemPromptKeepsTaskRulesForMissionRuns(t *testing.T) {
+	flags := ContextFlags{
+		Tier:           "full",
+		SystemLanguage: "en",
+		IsMission:      true,
+		MessageSource:  "mission",
+		TaskRules:      "## Homepage Workflow\nUse project-relative web URLs for local assets.",
+	}
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+
+	for _, marker := range []string{
+		"# TASK RULES",
+		"## Homepage Workflow",
+		"Use project-relative web URLs for local assets.",
+		"> **Channel:** Mission (automated)",
+	} {
+		if !strings.Contains(prompt, marker) {
+			t.Fatalf("mission prompt missing task rule marker %q:\n%s", marker, prompt)
+		}
+	}
+}
+
 func TestBuildSystemPromptSkipsChineseDriftGuardForChineseLanguage(t *testing.T) {
 	for _, language := range []string{"zh", "zh-CN", "Chinese", "中文"} {
 		t.Run(language, func(t *testing.T) {

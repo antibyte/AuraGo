@@ -29,6 +29,15 @@ The default visual target is Atmospheric Glass. Unless the user supplied a diffe
 
 Keep homepage paths relative to the homepage workspace. Use project-prefixed paths such as `my-site/src/App.tsx`, and use `project_dir` values such as `my-site`, never `/workspace/my-site`.
 
+## Local Asset References
+
+When adding local images, videos, fonts, downloads, or other static files, place them inside the project's public/static asset directory and reference them with project-relative web URLs, not host filesystem paths or homepage workspace paths.
+
+- For Vite, React, and plain HTML projects, prefer `public/assets/...` or the framework-equivalent static directory.
+- Example: write the file as `my-site/public/assets/hero.jpg`, then reference it in HTML, CSS, or JavaScript as `/assets/hero.jpg`.
+- Never use `C:\...`, `/workspace/...`, `data/homepage/...`, `agent_workspace/...`, or `file://...` in page markup; browsers cannot fetch those from the served site.
+- If importing assets from source code, keep the asset within the project and let the framework emit the served URL; verify the build or preview after moving or generating assets.
+
 Before editing an existing project, inspect it with homepage `list_files` and `read_file`. Prefer source edits through homepage `write_file` or `edit_file`; do not write directly into generated output directories such as `dist`, `build`, or `out`.
 
 For build and deploy work, use this sequence: inspect project, edit source, run homepage `build`, preview or publish locally when useful, verify the rendered page, then deploy through homepage `deploy_netlify`, `deploy_vercel`, or `deploy` as appropriate.
