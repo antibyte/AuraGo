@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -44,11 +45,26 @@ func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(tmpPath, path); err != nil {
+	if err := replaceFileAtomic(tmpPath, path); err != nil {
 		return err
 	}
 	success = true
 	return nil
+}
+
+func replaceFileAtomic(tmpPath, path string) error {
+	var err error
+	for attempt := 0; attempt < 8; attempt++ {
+		err = os.Rename(tmpPath, path)
+		if err == nil {
+			return nil
+		}
+		if runtime.GOOS != "windows" || !os.IsPermission(err) {
+			return err
+		}
+		time.Sleep(time.Duration(attempt+1) * 15 * time.Millisecond)
+	}
+	return err
 }
 
 var defaultIndexingExtensions = []string{".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml", ".pdf", ".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp", ".rtf"}
