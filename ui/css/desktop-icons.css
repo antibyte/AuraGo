@@ -39,14 +39,16 @@
 .vd-icon:hover,
 .vd-icon:focus-visible,
 .vd-icon.selected {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: var(--vd-border);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
     outline: none;
 }
 
 .vd-icon.selected {
-    background: rgba(39, 199, 166, 0.16);
-    border-color: rgba(39, 199, 166, 0.5);
+    background: rgba(39, 199, 166, 0.18);
+    border-color: rgba(39, 199, 166, 0.52);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28), 0 0 12px rgba(39, 199, 166, 0.14), 0 0 0 1px rgba(39, 199, 166, 0.1) inset;
 }
 
 .vd-icon.vd-trash-drop-target {

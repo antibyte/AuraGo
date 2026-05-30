@@ -48,16 +48,17 @@
 }
 
 .vd-start-menu {
-    position: absolute;
-    left: 18px;
-    bottom: 62px;
+    position: fixed;
+    left: 16px;
+    bottom: calc(var(--vd-taskbar-height, 54px) + var(--vd-taskbar-offset, 12px) + 8px);
     width: min(360px, calc(100vw - 36px));
     max-height: min(520px, calc(100vh - 120px));
     border: 1px solid var(--vd-border);
-    border-radius: 10px;
+    border-radius: 14px;
     background: var(--vd-surface-strong);
-    box-shadow: var(--vd-shadow), var(--vd-inner-glow);
-    backdrop-filter: blur(28px);
+    box-shadow: var(--vd-shadow), var(--vd-inner-glow), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+    backdrop-filter: blur(44px) saturate(160%);
+    -webkit-backdrop-filter: blur(44px) saturate(160%);
     z-index: var(--vd-z-menu);
     overflow: hidden;
 }
@@ -156,7 +157,7 @@
 .vd-start-menu {
         left: 0 !important;
         right: 0 !important;
-        bottom: calc(58px + env(safe-area-inset-bottom)) !important;
+        bottom: calc(var(--vd-taskbar-height, 54px) + var(--vd-taskbar-offset, 12px) + env(safe-area-inset-bottom, 0px)) !important;
         width: 100vw !important;
         max-height: 70dvh;
         border-radius: 16px 16px 0 0;

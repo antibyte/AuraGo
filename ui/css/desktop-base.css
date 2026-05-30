@@ -1,24 +1,25 @@
 /* desktop-base.css — CSS variables, resets, body/root, wallpapers, themes, shell, disabled overlay */
 
 :root {
-    --vd-bg: #11151c;
-    --vd-surface: rgba(18, 24, 36, 0.92);
-    --vd-surface-strong: rgba(24, 30, 42, 0.97);
-    --vd-border: rgba(255, 255, 255, 0.08);
-    --vd-border-bright: rgba(255, 255, 255, 0.14);
-    --vd-text: #f6f7fb;
-    --vd-muted: #b8c4d4;
+    --vd-bg: #0d1117;
+    --vd-surface: rgba(16, 22, 34, 0.88);
+    --vd-surface-strong: rgba(20, 28, 44, 0.97);
+    --vd-border: rgba(255, 255, 255, 0.09);
+    --vd-border-bright: rgba(255, 255, 255, 0.16);
+    --vd-text: #f0f4fb;
+    --vd-muted: #a8bbd0;
     --vd-accent: #27c7a6;
     --vd-accent-r: 39;
     --vd-accent-g: 199;
     --vd-accent-b: 166;
     --vd-coral: #ff8066;
     --vd-amber: #f2b84b;
-    --vd-shadow: 0 8px 32px rgba(0, 0, 0, 0.44), 0 2px 8px rgba(0, 0, 0, 0.28);
-    --vd-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-    --vd-accent-glow: rgba(39, 199, 166, 0.18);
-    --vd-control-bg: rgba(255, 255, 255, 0.08);
-    --vd-control-hover: rgba(255, 255, 255, 0.12);
+    --vd-shadow: 0 16px 48px rgba(0, 0, 0, 0.56), 0 4px 12px rgba(0, 0, 0, 0.32);
+    --vd-shadow-window: 0 32px 80px rgba(0, 0, 0, 0.52), 0 8px 24px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    --vd-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    --vd-accent-glow: rgba(39, 199, 166, 0.22);
+    --vd-control-bg: rgba(255, 255, 255, 0.09);
+    --vd-control-hover: rgba(255, 255, 255, 0.14);
     --vd-editor-bg: #ffffff;
     --vd-editor-text: #111827;
     --vd-editor-muted: #334155;
@@ -30,6 +31,10 @@
     --vd-mobile-workspace-width: 920px;
     --vd-start-button-size: 52px;
     --vd-start-recess-size: 64px;
+    --vd-taskbar-height: 54px;
+    --vd-taskbar-offset: 12px;
+    --vd-taskbar-gap: 80px;
+    --vd-window-radius: 12px;
     --vd-z-desktop: 0;
     --vd-z-widget: 10;
     --vd-z-window: 100;
@@ -134,9 +139,11 @@
     min-height: 100vh;
     color: var(--vd-text);
     background:
-        linear-gradient(145deg, rgba(39, 199, 166, 0.18), transparent 32%),
-        linear-gradient(25deg, rgba(255, 128, 102, 0.13), transparent 34%),
-        var(--vd-bg);
+        radial-gradient(ellipse at 18% 22%, rgba(39, 199, 166, 0.20) 0%, transparent 48%),
+        radial-gradient(ellipse at 82% 75%, rgba(99, 84, 220, 0.18) 0%, transparent 50%),
+        radial-gradient(ellipse at 76% 12%, rgba(255, 128, 102, 0.15) 0%, transparent 40%),
+        radial-gradient(ellipse at 50% 50%, rgba(10, 18, 36, 0.4) 0%, transparent 70%),
+        linear-gradient(170deg, #0a0e16 0%, #0d1422 55%, #080c13 100%);
     overflow: hidden;
     overscroll-behavior: none;
     -webkit-overflow-scrolling: auto;
@@ -233,8 +240,12 @@
 
 .desktop-body[data-theme="light"] .vd-topbar,
 .desktop-body[data-theme="light"] .vd-taskbar {
-    background: rgba(255, 255, 255, 0.7);
-    box-shadow: 0 12px 34px rgba(31, 41, 55, 0.1);
+    background: rgba(250, 252, 255, 0.82);
+    border-color: rgba(57, 72, 93, 0.14);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.7) inset,
+        0 24px 60px rgba(31, 41, 55, 0.16),
+        0 4px 14px rgba(31, 41, 55, 0.1);
 }
 
 .desktop-body[data-theme="light"] .vd-window-titlebar {
@@ -314,19 +325,18 @@
 
 .desktop-body[data-theme="fruity"] .vd-topbar,
 .desktop-body[data-theme="fruity"] .vd-taskbar {
-    background: rgba(246, 250, 255, 0.72);
+    background: rgba(246, 250, 255, 0.82);
     border-color: rgba(78, 92, 118, 0.14);
-    box-shadow: 0 12px 34px rgba(52, 64, 84, 0.12);
-    backdrop-filter: blur(30px) saturate(1.28);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.72) inset,
+        0 24px 56px rgba(52, 64, 84, 0.18),
+        0 4px 14px rgba(52, 64, 84, 0.1);
+    backdrop-filter: blur(36px) saturate(1.36);
 }
 
 .desktop-body[data-theme="fruity"] .vd-taskbar::before {
-    background:
-        radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.84), rgba(232, 240, 250, 0.55) 62%, rgba(255, 255, 255, 0.18) 63%, transparent 65%);
-    box-shadow:
-        inset 0 0 0 1px rgba(78, 92, 118, 0.12),
-        inset 0 12px 20px rgba(52, 64, 84, 0.1),
-        0 0 0 7px rgba(246, 250, 255, 0.42);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.38) 30%, rgba(255, 255, 255, 0.38) 70%, transparent);
+    box-shadow: none;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window {
@@ -1151,8 +1161,13 @@
     padding-block: 7px;
 }
 
+.desktop-body[data-density="compact"] {
+    --vd-taskbar-height: 48px;
+    --vd-taskbar-gap: 72px;
+}
+
 .desktop-body[data-density="compact"] .vd-shell {
-    grid-template-rows: 1fr 48px;
+    grid-template-rows: 1fr;
 }
 
 .desktop-body[data-widgets="false"] .vd-widgets {
@@ -1166,13 +1181,17 @@
     transition: none !important;
 }
 
+.vd-workspace {
+    padding-bottom: var(--vd-taskbar-gap, 80px);
+}
+
 .vd-shell {
     position: relative;
     width: 100vw;
     height: 100vh;
     min-height: 560px;
     display: grid;
-    grid-template-rows: 1fr 54px;
+    grid-template-rows: 1fr;
     overscroll-behavior: none;
 }
 
@@ -1232,6 +1251,6 @@
 .vd-shell {
         height: var(--vd-visual-height, 100dvh);
         min-height: 0;
-        grid-template-rows: minmax(0, 1fr) auto;
+        grid-template-rows: minmax(0, 1fr);
     }
 }

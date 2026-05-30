@@ -13,10 +13,15 @@
     position: absolute;
     min-height: 56px;
     padding: 10px;
-    border-radius: 8px;
-    border: 1px solid var(--vd-border);
-    background: rgba(12, 17, 24, 0.58);
-    backdrop-filter: blur(20px);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(10, 14, 22, 0.68);
+    backdrop-filter: blur(32px) saturate(140%);
+    -webkit-backdrop-filter: blur(32px) saturate(140%);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+        0 20px 54px rgba(0, 0, 0, 0.38),
+        0 4px 12px rgba(0, 0, 0, 0.24);
     pointer-events: auto;
     overflow: hidden;
     transition: height 200ms ease;

@@ -5,24 +5,25 @@
 /* desktop-base.css — CSS variables, resets, body/root, wallpapers, themes, shell, disabled overlay */
 
 :root {
-    --vd-bg: #11151c;
-    --vd-surface: rgba(18, 24, 36, 0.92);
-    --vd-surface-strong: rgba(24, 30, 42, 0.97);
-    --vd-border: rgba(255, 255, 255, 0.08);
-    --vd-border-bright: rgba(255, 255, 255, 0.14);
-    --vd-text: #f6f7fb;
-    --vd-muted: #b8c4d4;
+    --vd-bg: #0d1117;
+    --vd-surface: rgba(16, 22, 34, 0.88);
+    --vd-surface-strong: rgba(20, 28, 44, 0.97);
+    --vd-border: rgba(255, 255, 255, 0.09);
+    --vd-border-bright: rgba(255, 255, 255, 0.16);
+    --vd-text: #f0f4fb;
+    --vd-muted: #a8bbd0;
     --vd-accent: #27c7a6;
     --vd-accent-r: 39;
     --vd-accent-g: 199;
     --vd-accent-b: 166;
     --vd-coral: #ff8066;
     --vd-amber: #f2b84b;
-    --vd-shadow: 0 8px 32px rgba(0, 0, 0, 0.44), 0 2px 8px rgba(0, 0, 0, 0.28);
-    --vd-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-    --vd-accent-glow: rgba(39, 199, 166, 0.18);
-    --vd-control-bg: rgba(255, 255, 255, 0.08);
-    --vd-control-hover: rgba(255, 255, 255, 0.12);
+    --vd-shadow: 0 16px 48px rgba(0, 0, 0, 0.56), 0 4px 12px rgba(0, 0, 0, 0.32);
+    --vd-shadow-window: 0 32px 80px rgba(0, 0, 0, 0.52), 0 8px 24px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    --vd-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    --vd-accent-glow: rgba(39, 199, 166, 0.22);
+    --vd-control-bg: rgba(255, 255, 255, 0.09);
+    --vd-control-hover: rgba(255, 255, 255, 0.14);
     --vd-editor-bg: #ffffff;
     --vd-editor-text: #111827;
     --vd-editor-muted: #334155;
@@ -34,6 +35,10 @@
     --vd-mobile-workspace-width: 920px;
     --vd-start-button-size: 52px;
     --vd-start-recess-size: 64px;
+    --vd-taskbar-height: 54px;
+    --vd-taskbar-offset: 12px;
+    --vd-taskbar-gap: 80px;
+    --vd-window-radius: 12px;
     --vd-z-desktop: 0;
     --vd-z-widget: 10;
     --vd-z-window: 100;
@@ -138,9 +143,11 @@
     min-height: 100vh;
     color: var(--vd-text);
     background:
-        linear-gradient(145deg, rgba(39, 199, 166, 0.18), transparent 32%),
-        linear-gradient(25deg, rgba(255, 128, 102, 0.13), transparent 34%),
-        var(--vd-bg);
+        radial-gradient(ellipse at 18% 22%, rgba(39, 199, 166, 0.20) 0%, transparent 48%),
+        radial-gradient(ellipse at 82% 75%, rgba(99, 84, 220, 0.18) 0%, transparent 50%),
+        radial-gradient(ellipse at 76% 12%, rgba(255, 128, 102, 0.15) 0%, transparent 40%),
+        radial-gradient(ellipse at 50% 50%, rgba(10, 18, 36, 0.4) 0%, transparent 70%),
+        linear-gradient(170deg, #0a0e16 0%, #0d1422 55%, #080c13 100%);
     overflow: hidden;
     overscroll-behavior: none;
     -webkit-overflow-scrolling: auto;
@@ -237,8 +244,12 @@
 
 .desktop-body[data-theme="light"] .vd-topbar,
 .desktop-body[data-theme="light"] .vd-taskbar {
-    background: rgba(255, 255, 255, 0.7);
-    box-shadow: 0 12px 34px rgba(31, 41, 55, 0.1);
+    background: rgba(250, 252, 255, 0.82);
+    border-color: rgba(57, 72, 93, 0.14);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.7) inset,
+        0 24px 60px rgba(31, 41, 55, 0.16),
+        0 4px 14px rgba(31, 41, 55, 0.1);
 }
 
 .desktop-body[data-theme="light"] .vd-window-titlebar {
@@ -318,19 +329,18 @@
 
 .desktop-body[data-theme="fruity"] .vd-topbar,
 .desktop-body[data-theme="fruity"] .vd-taskbar {
-    background: rgba(246, 250, 255, 0.72);
+    background: rgba(246, 250, 255, 0.82);
     border-color: rgba(78, 92, 118, 0.14);
-    box-shadow: 0 12px 34px rgba(52, 64, 84, 0.12);
-    backdrop-filter: blur(30px) saturate(1.28);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.72) inset,
+        0 24px 56px rgba(52, 64, 84, 0.18),
+        0 4px 14px rgba(52, 64, 84, 0.1);
+    backdrop-filter: blur(36px) saturate(1.36);
 }
 
 .desktop-body[data-theme="fruity"] .vd-taskbar::before {
-    background:
-        radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.84), rgba(232, 240, 250, 0.55) 62%, rgba(255, 255, 255, 0.18) 63%, transparent 65%);
-    box-shadow:
-        inset 0 0 0 1px rgba(78, 92, 118, 0.12),
-        inset 0 12px 20px rgba(52, 64, 84, 0.1),
-        0 0 0 7px rgba(246, 250, 255, 0.42);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.38) 30%, rgba(255, 255, 255, 0.38) 70%, transparent);
+    box-shadow: none;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window {
@@ -1155,8 +1165,13 @@
     padding-block: 7px;
 }
 
+.desktop-body[data-density="compact"] {
+    --vd-taskbar-height: 48px;
+    --vd-taskbar-gap: 72px;
+}
+
 .desktop-body[data-density="compact"] .vd-shell {
-    grid-template-rows: 1fr 48px;
+    grid-template-rows: 1fr;
 }
 
 .desktop-body[data-widgets="false"] .vd-widgets {
@@ -1170,13 +1185,17 @@
     transition: none !important;
 }
 
+.vd-workspace {
+    padding-bottom: var(--vd-taskbar-gap, 80px);
+}
+
 .vd-shell {
     position: relative;
     width: 100vw;
     height: 100vh;
     min-height: 560px;
     display: grid;
-    grid-template-rows: 1fr 54px;
+    grid-template-rows: 1fr;
     overscroll-behavior: none;
 }
 
@@ -1236,7 +1255,7 @@
 .vd-shell {
         height: var(--vd-visual-height, 100dvh);
         min-height: 0;
-        grid-template-rows: minmax(0, 1fr) auto;
+        grid-template-rows: minmax(0, 1fr);
     }
 }
 
@@ -1249,9 +1268,9 @@
     align-items: center;
     gap: 12px;
     padding: 10px 18px;
-    background: rgba(10, 14, 20, 0.62);
+    background: rgba(10, 14, 20, 0.72);
     border-color: var(--vd-border);
-    backdrop-filter: blur(22px);
+    backdrop-filter: blur(28px) saturate(140%);
     z-index: var(--vd-z-dock);
 }
 
@@ -1260,31 +1279,39 @@
     border-bottom: 1px solid var(--vd-border);
 }
 
+/* Floating pill taskbar */
 .vd-taskbar {
-    background: rgba(10, 14, 20, 0.55);
-    backdrop-filter: blur(36px) saturate(150%);
-    -webkit-backdrop-filter: blur(36px) saturate(150%);
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 -4px 24px rgba(0, 0, 0, 0.3);
-    position: relative;
+    position: fixed;
+    bottom: var(--vd-taskbar-offset, 12px);
+    left: 16px;
+    right: 16px;
+    height: var(--vd-taskbar-height, 54px);
+    padding: 0 14px 0 10px;
+    gap: 10px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    background: rgba(9, 13, 21, 0.82);
+    backdrop-filter: blur(44px) saturate(168%);
+    -webkit-backdrop-filter: blur(44px) saturate(168%);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+        0 2px 0 rgba(0, 0, 0, 0.35) inset,
+        0 28px 72px rgba(0, 0, 0, 0.48),
+        0 6px 20px rgba(0, 0, 0, 0.32);
     overflow: visible;
+    z-index: var(--vd-z-dock);
 }
 
+/* Subtle inner-top shine */
 .vd-taskbar::before {
     content: '';
     position: absolute;
-    left: 12px;
-    top: calc(50% - 4px);
-    width: var(--vd-start-recess-size);
-    height: var(--vd-start-recess-size);
-    border-radius: 50%;
-    transform: translateY(-50%);
-    background:
-        radial-gradient(circle at 50% 42%, rgba(2, 6, 12, 0.72), rgba(2, 6, 12, 0.38) 62%, rgba(255, 255, 255, 0.06) 63%, transparent 65%);
-    box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, 0.12),
-        inset 0 12px 20px rgba(0, 0, 0, 0.3),
-        0 0 0 7px rgba(10, 14, 20, 0.34);
+    top: 0;
+    left: 18px;
+    right: 18px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14) 30%, rgba(255, 255, 255, 0.14) 70%, transparent);
+    border-radius: 0 0 2px 2px;
     pointer-events: none;
     z-index: 0;
 }
@@ -1494,21 +1521,36 @@
     padding: 0;
     gap: 0;
     border-radius: 50%;
-    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.48);
+    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.52);
     background:
-        radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.28), transparent 30%),
-        linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+        radial-gradient(circle at 38% 26%, rgba(255, 255, 255, 0.32), transparent 34%),
+        linear-gradient(145deg,
+            rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.34),
+            rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.16) 46%,
+            rgba(16, 20, 32, 0.88));
     box-shadow:
-        0 15px 34px rgba(0, 0, 0, 0.34),
-        0 0 0 5px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.08),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        0 0 0 5px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12),
+        0 0 0 1px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.28),
+        0 16px 38px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
     transform: translateY(-4px);
+    transition: transform 0.25s cubic-bezier(0.2, 1, 0.22, 1), box-shadow 0.25s ease, background 0.25s ease;
 }
 
 .vd-start-button:hover {
     background:
-        radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.34), transparent 31%),
-        linear-gradient(145deg, rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.24), rgba(255, 255, 255, 0.08));
+        radial-gradient(circle at 38% 26%, rgba(255, 255, 255, 0.38), transparent 35%),
+        linear-gradient(145deg,
+            rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.5),
+            rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.26) 46%,
+            rgba(22, 28, 44, 0.88));
+    box-shadow:
+        0 0 0 5px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.2),
+        0 0 0 1px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.42),
+        0 0 22px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.18),
+        0 18px 44px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    transform: translateY(-6px);
 }
 
 .vd-start-button .vd-sprite-start,
@@ -1530,20 +1572,27 @@
 }
 
 .vd-task-button {
-    max-width: 180px;
-    height: 38px;
+    max-width: 186px;
+    height: 36px;
     padding: 0 12px;
     display: inline-flex;
     align-items: center;
     justify-content: flex-start;
     gap: 8px;
-    border-radius: 8px;
-    border: 1px solid var(--vd-border);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.06);
     color: var(--vd-text);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 0.8rem;
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.vd-task-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.13);
 }
 
 .vd-task-icon {
@@ -1560,7 +1609,8 @@
 
 .vd-task-button.active {
     border-color: rgba(39, 199, 166, 0.5);
-    background: rgba(39, 199, 166, 0.1);
+    background: rgba(39, 199, 166, 0.12);
+    box-shadow: 0 0 12px rgba(39, 199, 166, 0.1), inset 0 1px 0 rgba(39, 199, 166, 0.12);
 }
 
 .vd-agent-dot {
@@ -1681,16 +1731,17 @@
 }
 
 .vd-start-menu {
-    position: absolute;
-    left: 18px;
-    bottom: 62px;
+    position: fixed;
+    left: 16px;
+    bottom: calc(var(--vd-taskbar-height, 54px) + var(--vd-taskbar-offset, 12px) + 8px);
     width: min(360px, calc(100vw - 36px));
     max-height: min(520px, calc(100vh - 120px));
     border: 1px solid var(--vd-border);
-    border-radius: 10px;
+    border-radius: 14px;
     background: var(--vd-surface-strong);
-    box-shadow: var(--vd-shadow), var(--vd-inner-glow);
-    backdrop-filter: blur(28px);
+    box-shadow: var(--vd-shadow), var(--vd-inner-glow), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+    backdrop-filter: blur(44px) saturate(160%);
+    -webkit-backdrop-filter: blur(44px) saturate(160%);
     z-index: var(--vd-z-menu);
     overflow: hidden;
 }
@@ -1789,7 +1840,7 @@
 .vd-start-menu {
         left: 0 !important;
         right: 0 !important;
-        bottom: calc(58px + env(safe-area-inset-bottom)) !important;
+        bottom: calc(var(--vd-taskbar-height, 54px) + var(--vd-taskbar-offset, 12px) + env(safe-area-inset-bottom, 0px)) !important;
         width: 100vw !important;
         max-height: 70dvh;
         border-radius: 16px 16px 0 0;
@@ -1915,10 +1966,10 @@
     min-height: 280px;
     display: grid;
     grid-template-rows: 46px 1fr;
-    border-radius: 10px;
+    border-radius: var(--vd-window-radius, 12px);
     border: 1px solid var(--vd-border);
     background: var(--vd-surface);
-    box-shadow: var(--vd-shadow), var(--vd-inner-glow);
+    box-shadow: var(--vd-shadow-window, var(--vd-shadow)), var(--vd-inner-glow);
     backdrop-filter: blur(30px);
     overflow: visible;
     pointer-events: auto;
@@ -1945,8 +1996,13 @@
 }
 
 .vd-window.active {
-    border-color: rgba(39, 199, 166, 0.32);
-    box-shadow: var(--vd-shadow), var(--vd-inner-glow), 0 0 24px var(--vd-accent-glow);
+    border-color: rgba(39, 199, 166, 0.38);
+    box-shadow:
+        var(--vd-shadow-window, var(--vd-shadow)),
+        var(--vd-inner-glow),
+        0 0 0 1px rgba(39, 199, 166, 0.14) inset,
+        0 0 32px var(--vd-accent-glow),
+        0 0 0 1px rgba(39, 199, 166, 0.12);
 }
 
 .vd-window.vd-window-file-drop-target {
@@ -1979,8 +2035,8 @@
     justify-content: space-between;
     gap: 10px;
     padding: 0 12px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.02) 60%, transparent);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     cursor: grab;
     user-select: none;
     touch-action: none;
@@ -2575,14 +2631,16 @@
 .vd-icon:hover,
 .vd-icon:focus-visible,
 .vd-icon.selected {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: var(--vd-border);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
     outline: none;
 }
 
 .vd-icon.selected {
-    background: rgba(39, 199, 166, 0.16);
-    border-color: rgba(39, 199, 166, 0.5);
+    background: rgba(39, 199, 166, 0.18);
+    border-color: rgba(39, 199, 166, 0.52);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28), 0 0 12px rgba(39, 199, 166, 0.14), 0 0 0 1px rgba(39, 199, 166, 0.1) inset;
 }
 
 .vd-icon.vd-trash-drop-target {
@@ -2824,10 +2882,15 @@
     position: absolute;
     min-height: 56px;
     padding: 10px;
-    border-radius: 8px;
-    border: 1px solid var(--vd-border);
-    background: rgba(12, 17, 24, 0.58);
-    backdrop-filter: blur(20px);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(10, 14, 22, 0.68);
+    backdrop-filter: blur(32px) saturate(140%);
+    -webkit-backdrop-filter: blur(32px) saturate(140%);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+        0 20px 54px rgba(0, 0, 0, 0.38),
+        0 4px 12px rgba(0, 0, 0, 0.24);
     pointer-events: auto;
     overflow: hidden;
     transition: height 200ms ease;
@@ -3647,12 +3710,16 @@
 .vd-context-menu {
     position: fixed;
     min-width: 214px;
-    padding: 7px;
-    border: 1px solid var(--vd-border);
-    border-radius: 10px;
-    background: rgba(14, 18, 28, 0.94);
-    box-shadow: 0 22px 58px rgba(0, 0, 0, 0.42);
-    backdrop-filter: blur(24px);
+    padding: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    background: rgba(11, 15, 24, 0.92);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+        0 28px 64px rgba(0, 0, 0, 0.52),
+        0 6px 18px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(40px) saturate(160%);
+    -webkit-backdrop-filter: blur(40px) saturate(160%);
     z-index: var(--vd-z-context-menu);
 }
 
@@ -3675,7 +3742,8 @@
 }
 
 .vd-context-item:hover:not(:disabled) {
-    background: rgba(39, 199, 166, 0.12);
+    background: rgba(39, 199, 166, 0.13);
+    border-radius: 8px;
 }
 
 .vd-context-submenu {
@@ -3688,12 +3756,16 @@
     left: calc(100% + 6px);
     top: -7px;
     min-width: 214px;
-    padding: 7px;
-    border: 1px solid var(--vd-border);
-    border-radius: 10px;
-    background: rgba(14, 18, 28, 0.94);
-    box-shadow: 0 22px 58px rgba(0, 0, 0, 0.42);
-    backdrop-filter: blur(24px);
+    padding: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    background: rgba(11, 15, 24, 0.92);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+        0 28px 64px rgba(0, 0, 0, 0.52),
+        0 6px 18px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(40px) saturate(160%);
+    -webkit-backdrop-filter: blur(40px) saturate(160%);
 }
 
 .vd-context-submenu:hover > .vd-context-submenu-popover,
@@ -3730,18 +3802,24 @@
     inset: 0;
     display: grid;
     place-items: center;
-    background: rgba(4, 7, 12, 0.58);
-    backdrop-filter: blur(8px);
+    background: rgba(4, 7, 12, 0.64);
+    backdrop-filter: blur(12px) saturate(120%);
+    -webkit-backdrop-filter: blur(12px) saturate(120%);
     z-index: var(--vd-z-modal);
 }
 
 .vd-modal {
     width: min(420px, calc(100vw - 32px));
-    padding: 18px;
-    border: 1px solid var(--vd-border);
-    border-radius: 14px;
-    background: var(--vd-surface-strong);
-    box-shadow: var(--vd-shadow);
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    background: rgba(12, 16, 26, 0.92);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+        0 32px 80px rgba(0, 0, 0, 0.52),
+        0 8px 24px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(44px) saturate(160%);
+    -webkit-backdrop-filter: blur(44px) saturate(160%);
 }
 
 .vd-modal-title {

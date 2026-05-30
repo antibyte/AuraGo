@@ -36,12 +36,16 @@
 .vd-context-menu {
     position: fixed;
     min-width: 214px;
-    padding: 7px;
-    border: 1px solid var(--vd-border);
-    border-radius: 10px;
-    background: rgba(14, 18, 28, 0.94);
-    box-shadow: 0 22px 58px rgba(0, 0, 0, 0.42);
-    backdrop-filter: blur(24px);
+    padding: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    background: rgba(11, 15, 24, 0.92);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+        0 28px 64px rgba(0, 0, 0, 0.52),
+        0 6px 18px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(40px) saturate(160%);
+    -webkit-backdrop-filter: blur(40px) saturate(160%);
     z-index: var(--vd-z-context-menu);
 }
 
@@ -64,7 +68,8 @@
 }
 
 .vd-context-item:hover:not(:disabled) {
-    background: rgba(39, 199, 166, 0.12);
+    background: rgba(39, 199, 166, 0.13);
+    border-radius: 8px;
 }
 
 .vd-context-submenu {
@@ -77,12 +82,16 @@
     left: calc(100% + 6px);
     top: -7px;
     min-width: 214px;
-    padding: 7px;
-    border: 1px solid var(--vd-border);
-    border-radius: 10px;
-    background: rgba(14, 18, 28, 0.94);
-    box-shadow: 0 22px 58px rgba(0, 0, 0, 0.42);
-    backdrop-filter: blur(24px);
+    padding: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    background: rgba(11, 15, 24, 0.92);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+        0 28px 64px rgba(0, 0, 0, 0.52),
+        0 6px 18px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(40px) saturate(160%);
+    -webkit-backdrop-filter: blur(40px) saturate(160%);
 }
 
 .vd-context-submenu:hover > .vd-context-submenu-popover,
@@ -119,18 +128,24 @@
     inset: 0;
     display: grid;
     place-items: center;
-    background: rgba(4, 7, 12, 0.58);
-    backdrop-filter: blur(8px);
+    background: rgba(4, 7, 12, 0.64);
+    backdrop-filter: blur(12px) saturate(120%);
+    -webkit-backdrop-filter: blur(12px) saturate(120%);
     z-index: var(--vd-z-modal);
 }
 
 .vd-modal {
     width: min(420px, calc(100vw - 32px));
-    padding: 18px;
-    border: 1px solid var(--vd-border);
-    border-radius: 14px;
-    background: var(--vd-surface-strong);
-    box-shadow: var(--vd-shadow);
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    background: rgba(12, 16, 26, 0.92);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+        0 32px 80px rgba(0, 0, 0, 0.52),
+        0 8px 24px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(44px) saturate(160%);
+    -webkit-backdrop-filter: blur(44px) saturate(160%);
 }
 
 .vd-modal-title {

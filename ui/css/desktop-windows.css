@@ -102,10 +102,10 @@
     min-height: 280px;
     display: grid;
     grid-template-rows: 46px 1fr;
-    border-radius: 10px;
+    border-radius: var(--vd-window-radius, 12px);
     border: 1px solid var(--vd-border);
     background: var(--vd-surface);
-    box-shadow: var(--vd-shadow), var(--vd-inner-glow);
+    box-shadow: var(--vd-shadow-window, var(--vd-shadow)), var(--vd-inner-glow);
     backdrop-filter: blur(30px);
     overflow: visible;
     pointer-events: auto;
@@ -132,8 +132,13 @@
 }
 
 .vd-window.active {
-    border-color: rgba(39, 199, 166, 0.32);
-    box-shadow: var(--vd-shadow), var(--vd-inner-glow), 0 0 24px var(--vd-accent-glow);
+    border-color: rgba(39, 199, 166, 0.38);
+    box-shadow:
+        var(--vd-shadow-window, var(--vd-shadow)),
+        var(--vd-inner-glow),
+        0 0 0 1px rgba(39, 199, 166, 0.14) inset,
+        0 0 32px var(--vd-accent-glow),
+        0 0 0 1px rgba(39, 199, 166, 0.12);
 }
 
 .vd-window.vd-window-file-drop-target {
@@ -166,8 +171,8 @@
     justify-content: space-between;
     gap: 10px;
     padding: 0 12px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.02) 60%, transparent);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     cursor: grab;
     user-select: none;
     touch-action: none;
