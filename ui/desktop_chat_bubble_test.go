@@ -108,3 +108,37 @@ func TestDesktopChatDropOverlayStartsTrulyHidden(t *testing.T) {
 		t.Fatal("desktop chat drop overlay must explicitly become visible only while active")
 	}
 }
+
+func TestDesktopChatSidebarToggleDoesNotOpenAsCollapsed(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/agent-chat.js")
+	body := jsFunctionBodyInWindowMenuTest(t, source, "function initSidebar")
+	for _, marker := range []string{
+		"chat.dataset.sidebarCompact = isWide ? 'false' : 'true';",
+		"const sidebarCollapsed = !sidebarOpen;",
+		"chat.dataset.sidebarCollapsed = sidebarCollapsed ? 'true' : 'false';",
+		"if (!isWide && sidebarOpen) chat.dataset.sidebarOpen = 'true';",
+	} {
+		if !strings.Contains(body, marker) {
+			t.Fatalf("desktop chat sidebar toggle missing state marker %q", marker)
+		}
+	}
+	if strings.Contains(body, "chat.dataset.sidebarCollapsed = 'true';") {
+		t.Fatal("desktop chat sidebar must not mark the sidebar collapsed while opening the mobile overlay")
+	}
+
+	css := readDesktopAssetText(t, "css/desktop-app-chat.css")
+	for _, marker := range []string{
+		`.vd-chat[data-sidebar-compact="true"] {`,
+		`.vd-chat[data-sidebar-compact="true"] .vd-chat-sidebar {`,
+		`inset: 51px auto 0 0;`,
+		`.vd-chat[data-sidebar-compact="true"][data-sidebar-open="true"] .vd-chat-sidebar {`,
+		`.vd-chat[data-sidebar-compact="true"] .vd-chat-sidebar-backdrop {`,
+		`inset: 51px 0 0 0;`,
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("desktop chat compact sidebar CSS missing marker %q", marker)
+		}
+	}
+}

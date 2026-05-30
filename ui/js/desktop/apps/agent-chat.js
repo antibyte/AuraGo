@@ -217,14 +217,11 @@
         function updateSidebarState() {
             if (!chat) return;
             const isWide = host.offsetWidth > 900;
-            if (isWide) {
-                chat.dataset.sidebarCollapsed = sidebarOpen ? 'false' : 'true';
-                chat.removeAttribute('data-sidebar-open');
-            } else {
-                chat.dataset.sidebarCollapsed = 'true';
-                if (sidebarOpen) chat.dataset.sidebarOpen = 'true';
-                else chat.removeAttribute('data-sidebar-open');
-            }
+            chat.dataset.sidebarCompact = isWide ? 'false' : 'true';
+            const sidebarCollapsed = !sidebarOpen;
+            chat.dataset.sidebarCollapsed = sidebarCollapsed ? 'true' : 'false';
+            if (!isWide && sidebarOpen) chat.dataset.sidebarOpen = 'true';
+            else chat.removeAttribute('data-sidebar-open');
         }
 
         if (toggleBtn) toggleBtn.addEventListener('click', () => {
