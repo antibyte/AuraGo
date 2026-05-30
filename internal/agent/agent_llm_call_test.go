@@ -14,11 +14,33 @@ func TestShouldSuppressStreamedToolCallJSONRecognizesToolParametersWrapper(t *te
 	}
 }
 
+func TestShouldSuppressStreamedToolCallJSONRecognizesFencedToolDiscoveryPayload(t *testing.T) {
+	input := "```json\n" + `{
+  "_todo": "- [ ] Discover available tools",
+  "operation": "list_categories",
+  "category": "system",
+  "query": null,
+  "tool_name": null
+}` + "\n```"
+
+	if !shouldSuppressStreamedToolCallJSON(input) {
+		t.Fatal("expected fenced tool-discovery JSON to be suppressed")
+	}
+}
+
 func TestShouldSuppressStreamedToolCallJSONAllowsOrdinaryJSON(t *testing.T) {
 	input := `{"status": "ok", "message": "plain JSON answer"}`
 
 	if shouldSuppressStreamedToolCallJSON(input) {
 		t.Fatal("did not expect ordinary JSON answer to be suppressed")
+	}
+}
+
+func TestShouldHoldPotentialStreamedToolCallJSONFencePrefix(t *testing.T) {
+	input := "```json\n{\n  \"_todo\":"
+
+	if !shouldHoldPotentialStreamedToolCallJSON(input) {
+		t.Fatal("expected fenced JSON tool-call prefix to be held until classification")
 	}
 }
 

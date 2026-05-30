@@ -28,7 +28,7 @@ type streamingResponseResult struct {
 }
 
 func shouldSuppressStreamedToolCallJSON(content string) bool {
-	trimmed := strings.ToLower(strings.TrimLeft(content, " \t\r\n"))
+	trimmed := normalizeStreamedToolCallJSONCandidate(content)
 	if !strings.HasPrefix(trimmed, "{") {
 		return false
 	}
@@ -57,7 +57,11 @@ func shouldSuppressStreamedToolCallJSON(content string) bool {
 }
 
 func shouldHoldPotentialStreamedToolCallJSON(content string) bool {
-	trimmed := strings.ToLower(strings.TrimLeft(content, " \t\r\n"))
+	rawTrimmed := strings.ToLower(strings.TrimLeft(content, " \t\r\n"))
+	if isStreamedJSONFencePrefix(rawTrimmed) {
+		return true
+	}
+	trimmed := normalizeStreamedToolCallJSONCandidate(content)
 	if !strings.HasPrefix(trimmed, "{") {
 		return false
 	}
@@ -67,6 +71,45 @@ func shouldHoldPotentialStreamedToolCallJSON(content string) bool {
 		}
 	}
 	return false
+}
+
+func normalizeStreamedToolCallJSONCandidate(content string) string {
+	trimmed := strings.TrimLeft(content, " \t\r\n")
+	lower := strings.ToLower(trimmed)
+	if !strings.HasPrefix(lower, "```") {
+		return lower
+	}
+
+	body := trimmed[3:]
+	lineEnd := strings.IndexAny(body, "\r\n")
+	if lineEnd == -1 {
+		return lower
+	}
+	lang := strings.TrimSpace(strings.ToLower(body[:lineEnd]))
+	if lang != "" && lang != "json" && lang != "jsonc" {
+		return lower
+	}
+
+	body = strings.TrimLeft(body[lineEnd:], " \t\r\n")
+	lowerBody := strings.ToLower(body)
+	if fenceIdx := strings.LastIndex(lowerBody, "\n```"); fenceIdx != -1 {
+		lowerBody = strings.TrimSpace(lowerBody[:fenceIdx])
+	}
+	return lowerBody
+}
+
+func isStreamedJSONFencePrefix(trimmedLower string) bool {
+	if !strings.HasPrefix(trimmedLower, "```") {
+		return false
+	}
+	rest := strings.TrimPrefix(trimmedLower, "```")
+	lineEnd := strings.IndexAny(rest, "\r\n")
+	if lineEnd == -1 {
+		langPrefix := strings.TrimSpace(rest)
+		return langPrefix == "" || strings.HasPrefix("json", langPrefix) || strings.HasPrefix("jsonc", langPrefix)
+	}
+	lang := strings.TrimSpace(rest[:lineEnd])
+	return lang == "" || lang == "json" || lang == "jsonc"
 }
 
 // utf8SafePrefixSplit keeps the byte-sized stream hold buffer from cutting a
