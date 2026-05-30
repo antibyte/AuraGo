@@ -252,7 +252,14 @@
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
             disconnectActiveResizeObserver();
-            terminalArea.innerHTML = `<div class="vd-qc-placeholder vd-qc-connecting"><div class="vd-qc-spinner fm-spinner"></div><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_connecting'))}</span></div>`;
+            connectedDeviceId = deviceId;
+            connectedProtocol = 'ssh';
+            activeTab = 'terminal';
+            qcTabs.hidden = false;
+            qcTabs.querySelector('[data-tab="files"]').hidden = false;
+            qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === 'terminal'));
+            closeSFTPPanel(tabContent);
+            tabContent.innerHTML = `<div class="vd-qc-placeholder vd-qc-connecting"><div class="vd-qc-spinner fm-spinner"></div><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_connecting'))}</span></div>`;
 
             const term = new Terminal({
                 theme: {
@@ -271,7 +278,7 @@
             term.loadAddon(fitAddon);
             const termContainer = document.createElement('div');
             termContainer.className = 'vd-qc-term-container';
-            terminalArea.replaceChildren(termContainer);
+            tabContent.replaceChildren(termContainer);
             term.open(termContainer);
             activeTerm = term;
             activeFitAddon = fitAddon;
@@ -323,9 +330,9 @@
                         const newTermBtn = reconnectActions.querySelector('[data-action="new-terminal"]');
                         if (newTermBtn) newTermBtn.addEventListener('click', () => connectSSH(deviceId));
                     }
-                    const termContainer = terminalArea.querySelector('.vd-qc-term-container');
+                    const termContainer = tabContent.querySelector('.vd-qc-term-container');
                     if (termContainer) termContainer.appendChild(placeholder.firstElementChild);
-                    else terminalArea.appendChild(placeholder.firstElementChild);
+                    else tabContent.appendChild(placeholder.firstElementChild);
                 }
             };
             ws.onerror = () => {
@@ -340,9 +347,9 @@
                         const newTermBtn = reconnectActions.querySelector('[data-action="new-terminal"]');
                         if (newTermBtn) newTermBtn.addEventListener('click', () => connectSSH(deviceId));
                     }
-                    const termContainer = terminalArea.querySelector('.vd-qc-term-container');
+                    const termContainer = tabContent.querySelector('.vd-qc-term-container');
                     if (termContainer) termContainer.appendChild(placeholder.firstElementChild);
-                    else terminalArea.appendChild(placeholder.firstElementChild);
+                    else tabContent.appendChild(placeholder.firstElementChild);
                 }
             };
         }
@@ -392,11 +399,18 @@
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
             disconnectActiveResizeObserver();
-            terminalArea.innerHTML = `<div class="vd-qc-placeholder vd-qc-connecting"><div class="vd-qc-spinner fm-spinner"></div><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_vnc_connecting'))}</span></div>`;
+            connectedDeviceId = deviceId;
+            connectedProtocol = 'vnc';
+            activeTab = 'terminal';
+            qcTabs.hidden = false;
+            qcTabs.querySelector('[data-tab="files"]').hidden = true;
+            qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === 'terminal'));
+            closeSFTPPanel(tabContent);
+            tabContent.innerHTML = `<div class="vd-qc-placeholder vd-qc-connecting"><div class="vd-qc-spinner fm-spinner"></div><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_vnc_connecting'))}</span></div>`;
 
             const vncContainer = document.createElement('div');
             vncContainer.className = 'vd-qc-vnc-container';
-            terminalArea.replaceChildren(vncContainer);
+            tabContent.replaceChildren(vncContainer);
             activeTerm = null;
             activeFitAddon = null;
 
@@ -413,7 +427,7 @@
             const wsUrl = proto + '//' + location.host + '/api/desktop/vnc?device_id=' + encodeURIComponent(deviceId);
 
             if (!window.RFB) {
-                terminalArea.innerHTML = `<div class="vd-qc-placeholder"><span class="vd-qc-placeholder-text">noVNC not loaded</span></div>`;
+                tabContent.innerHTML = `<div class="vd-qc-placeholder"><span class="vd-qc-placeholder-text">noVNC not loaded</span></div>`;
                 return;
             }
 
@@ -430,8 +444,8 @@
             });
             rfb.addEventListener('disconnect', () => {
                 if (activeWS && activeWS.close) { activeWS = null; }
-                terminalArea.innerHTML = disconnectPlaceholderHTML('desktop.qc_vnc_disconnected', deviceId, true);
-                const reconnectBtn = terminalArea.querySelector('[data-action="reconnect"]');
+                tabContent.innerHTML = disconnectPlaceholderHTML('desktop.qc_vnc_disconnected', deviceId, true);
+                const reconnectBtn = tabContent.querySelector('[data-action="reconnect"]');
                 if (reconnectBtn) reconnectBtn.addEventListener('click', () => connectVNC(deviceId));
             });
 rfb.addEventListener('credentialsrequired', () => {
@@ -443,9 +457,292 @@ rfb.addEventListener('credentialsrequired', () => {
 
             activeWS = { close: () => { try { rfb.disconnect(); } catch(_) {} } };
         }
+
+        let sftpCurrentPath = '/';
+        let sftpEntries = [];
+
+        function closeSFTPPanel(container) {
+            const panel = container.querySelector('.vd-qc-sftp-panel');
+            if (panel) panel.remove();
+            const termContainer = container.querySelector('.vd-qc-term-container');
+            if (termContainer) termContainer.style.display = '';
+            const vncContainer = container.querySelector('.vd-qc-vnc-container');
+            if (vncContainer) vncContainer.style.display = '';
+        }
+
+        function openSFTPPanel(deviceId, container) {
+            closeSFTPPanel(container);
+            const termContainer = container.querySelector('.vd-qc-term-container');
+            if (termContainer) termContainer.style.display = 'none';
+            const vncContainer = container.querySelector('.vd-qc-vnc-container');
+            if (vncContainer) vncContainer.style.display = 'none';
+
+            const panel = document.createElement('div');
+            panel.className = 'vd-qc-sftp-panel';
+            panel.innerHTML = `
+                <div class="vd-qc-sftp-toolbar">
+                    <button class="vd-qc-btn vd-qc-btn-sm vd-qc-sftp-back" type="button" title="${esc(t('desktop.qc_sftp_browse'))}">${iconMarkup('arrow-left', 'B', 'vd-qc-btn-icon', 14)}</button>
+                    <div class="vd-qc-sftp-breadcrumb" data-sftp-breadcrumb></div>
+                    <div class="vd-qc-sftp-actions">
+                        <label class="vd-qc-btn vd-qc-btn-sm vd-qc-sftp-upload-btn" title="${esc(t('desktop.qc_sftp_upload'))}">
+                            ${iconMarkup('upload', 'U', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_sftp_upload'))}</span>
+                            <input type="file" multiple hidden data-sftp-file-input>
+                        </label>
+                        <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-action="mkdir" title="${esc(t('desktop.qc_sftp_mkdir'))}">${iconMarkup('folder', 'N', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_sftp_mkdir'))}</span></button>
+                        <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-action="refresh" title="${esc(t('desktop.qc_sftp_refresh'))}">${iconMarkup('refresh', 'R', 'vd-qc-btn-icon', 14)}</button>
+                    </div>
+                </div>
+                <div class="vd-qc-sftp-list" data-sftp-list>
+                    <div class="vd-qc-sftp-loading">${esc(t('desktop.qc_sftp_loading'))}</div>
+                </div>
+                <div class="vd-qc-sftp-status" data-sftp-status></div>
+            `;
+            container.appendChild(panel);
+
+            const breadcrumb = panel.querySelector('[data-sftp-breadcrumb]');
+            const listEl = panel.querySelector('[data-sftp-list]');
+            const statusEl = panel.querySelector('[data-sftp-status]');
+            const fileInput = panel.querySelector('[data-sftp-file-input]');
+
+            sftpCurrentPath = '/';
+            loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumb, statusEl);
+
+            panel.querySelector('.vd-qc-sftp-back').addEventListener('click', () => {
+                const parent = sftpCurrentPath === '/' ? '/' : sftpCurrentPath.replace(/\/[^/]+\/?$/, '') || '/';
+                sftpCurrentPath = parent;
+                loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumb, statusEl);
+            });
+
+            panel.querySelector('[data-action="refresh"]').addEventListener('click', () => {
+                loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumb, statusEl);
+            });
+
+            panel.querySelector('[data-action="mkdir"]').addEventListener('click', () => {
+                sftpMkdir(deviceId, sftpCurrentPath, listEl, breadcrumb, statusEl);
+            });
+
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files.length) {
+                    sftpUploadFiles(deviceId, sftpCurrentPath, fileInput.files, listEl, breadcrumb, statusEl);
+                    fileInput.value = '';
+                }
+            });
+
+            listEl.addEventListener('dragover', (e) => { e.preventDefault(); listEl.classList.add('vd-qc-sftp-drag-over'); });
+            listEl.addEventListener('dragleave', () => { listEl.classList.remove('vd-qc-sftp-drag-over'); });
+            listEl.addEventListener('drop', (e) => {
+                e.preventDefault();
+                listEl.classList.remove('vd-qc-sftp-drag-over');
+                if (e.dataTransfer.files.length) {
+                    sftpUploadFiles(deviceId, sftpCurrentPath, e.dataTransfer.files, listEl, breadcrumb, statusEl);
+                }
+            });
+        }
+
+        function renderSFTPBreadcrumb(pathStr, breadcrumbEl, deviceId, listEl, statusEl) {
+            const parts = pathStr.split('/').filter(Boolean);
+            let html = `<button class="vd-qc-sftp-crumb" data-path="/">/</button>`;
+            let accumulated = '';
+            for (const part of parts) {
+                accumulated += '/' + part;
+                html += `<span class="vd-qc-sftp-crumb-sep">/</span><button class="vd-qc-sftp-crumb" data-path="${esc(accumulated)}">${esc(part)}</button>`;
+            }
+            breadcrumbEl.innerHTML = html;
+            breadcrumbEl.querySelectorAll('.vd-qc-sftp-crumb').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    sftpCurrentPath = btn.dataset.path;
+                    loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumbEl, statusEl);
+                });
+            });
+        }
+
+        function formatSFTPSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KiB';
+            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MiB';
+            return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GiB';
+        }
+
+        async function loadSFTPList(deviceId, dirPath, listEl, breadcrumbEl, statusEl) {
+            listEl.innerHTML = `<div class="vd-qc-sftp-loading">${esc(t('desktop.qc_sftp_loading'))}</div>`;
+            try {
+                const resp = await api('/api/desktop/sftp/list?device_id=' + encodeURIComponent(deviceId) + '&path=' + encodeURIComponent(dirPath));
+                sftpEntries = resp.entries || [];
+                sftpEntries.sort((a, b) => {
+                    if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+                    return a.name.localeCompare(b.name);
+                });
+                renderSFTPBreadcrumb(dirPath, breadcrumbEl, deviceId, listEl, statusEl);
+                renderSFTPList(deviceId, listEl, breadcrumbEl, statusEl);
+            } catch (err) {
+                listEl.innerHTML = `<div class="vd-qc-sftp-error">${esc(err.message || t('desktop.qc_sftp_error'))}</div>`;
+            }
+        }
+
+        function renderSFTPList(deviceId, listEl, breadcrumbEl, statusEl) {
+            if (!sftpEntries.length) {
+                listEl.innerHTML = `<div class="vd-qc-sftp-empty">${iconMarkup('folder-open', 'F', 'vd-qc-sftp-empty-icon', 32)}<span>${esc(t('desktop.qc_sftp_empty'))}</span></div>`;
+                statusEl.textContent = '0 items';
+                return;
+            }
+            let html = `<table class="vd-qc-sftp-table"><thead><tr>
+                <th>${esc(t('desktop.qc_sftp_name'))}</th>
+                <th class="vd-qc-sftp-col-size">${esc(t('desktop.qc_sftp_size'))}</th>
+                <th class="vd-qc-sftp-col-modified">${esc(t('desktop.qc_sftp_modified'))}</th>
+                <th class="vd-qc-sftp-col-perms">${esc(t('desktop.qc_sftp_permissions'))}</th>
+            </tr></thead><tbody>`;
+            for (const entry of sftpEntries) {
+                const icon = entry.is_dir ? iconMarkup('folder', 'D', 'vd-qc-sftp-entry-icon', 16) : iconMarkup('file', 'F', 'vd-qc-sftp-entry-icon', 16);
+                const modTime = entry.mod_time ? new Date(entry.mod_time).toLocaleString() : '';
+                html += `<tr class="vd-qc-sftp-row" data-name="${esc(entry.name)}" data-is-dir="${entry.is_dir}">
+                    <td class="vd-qc-sftp-name">${icon}<span>${esc(entry.name)}</span></td>
+                    <td class="vd-qc-sftp-col-size">${entry.is_dir ? '' : formatSFTPSize(entry.size)}</td>
+                    <td class="vd-qc-sftp-col-modified">${esc(modTime)}</td>
+                    <td class="vd-qc-sftp-col-perms"><code>${esc(entry.mode)}</code></td>
+                </tr>`;
+            }
+            html += '</tbody></table>';
+            listEl.innerHTML = html;
+            statusEl.textContent = sftpEntries.length + ' items';
+
+            listEl.querySelectorAll('.vd-qc-sftp-row').forEach(row => {
+                row.addEventListener('dblclick', () => {
+                    const name = row.dataset.name;
+                    const isDir = row.dataset.isDir === 'true';
+                    if (isDir) {
+                        sftpCurrentPath = sftpCurrentPath === '/' ? '/' + name : sftpCurrentPath + '/' + name;
+                        loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumbEl, statusEl);
+                    } else {
+                        sftpDownload(deviceId, sftpCurrentPath + (sftpCurrentPath === '/' ? '' : '/') + name);
+                    }
+                });
+                row.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    const name = row.dataset.name;
+                    const isDir = row.dataset.isDir === 'true';
+                    const fullPath = sftpCurrentPath + (sftpCurrentPath === '/' ? '' : '/') + name;
+                    showSFTPContextMenu(e.clientX, e.clientY, deviceId, fullPath, name, isDir, listEl, breadcrumbEl, statusEl);
+                });
+            });
+        }
+
+        function showSFTPContextMenu(x, y, deviceId, fullPath, name, isDir, listEl, breadcrumbEl, statusEl) {
+            closeContextMenu();
+            const items = [];
+            if (isDir) {
+                items.push({ label: t('desktop.qc_sftp_browse'), icon: 'folder-open', fallback: 'O', action: () => {
+                    sftpCurrentPath = fullPath;
+                    loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumbEl, statusEl);
+                }});
+            } else {
+                items.push({ label: t('desktop.qc_sftp_download'), icon: 'download', fallback: 'D', action: () => sftpDownload(deviceId, fullPath) });
+            }
+            items.push({ separator: true });
+            items.push({ label: t('desktop.qc_sftp_rename'), icon: 'edit', fallback: 'R', action: () => sftpRename(deviceId, fullPath, listEl, breadcrumbEl, statusEl) });
+            items.push({ label: t('desktop.qc_sftp_copy'), icon: 'copy', fallback: 'C', action: () => sftpCopy(deviceId, fullPath, listEl, breadcrumbEl, statusEl) });
+            items.push({ label: t('desktop.qc_sftp_move'), icon: 'archive', fallback: 'M', action: () => sftpMove(deviceId, fullPath, listEl, breadcrumbEl, statusEl) });
+            items.push({ separator: true });
+            items.push({ label: t('desktop.qc_sftp_delete'), icon: 'trash', fallback: 'X', action: () => sftpDelete(deviceId, fullPath, name, listEl, breadcrumbEl, statusEl) });
+            showContextMenu(x, y, items);
+        }
+
+        function sftpDownload(deviceId, remotePath) {
+            const url = '/api/desktop/sftp/download?device_id=' + encodeURIComponent(deviceId) + '&path=' + encodeURIComponent(remotePath);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '';
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        async function sftpUploadFiles(deviceId, remotePath, files, listEl, breadcrumbEl, statusEl) {
+            for (const file of files) {
+                try {
+                    const formData = new FormData();
+                    formData.append('device_id', deviceId);
+                    formData.append('remote_path', remotePath + (remotePath === '/' ? '' : '/') + file.name);
+                    formData.append('file', file);
+                    const resp = await fetch('/api/desktop/sftp/upload', { method: 'POST', body: formData });
+                    if (!resp.ok) {
+                        const err = await resp.json().catch(() => ({ error: 'Upload failed' }));
+                        showNotify(err.error || t('desktop.qc_sftp_error'));
+                    }
+                } catch (err) {
+                    showNotify(err.message || t('desktop.qc_sftp_error'));
+                }
+            }
+            loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumbEl, statusEl);
+        }
+
+        async function sftpDelete(deviceId, fullPath, name, listEl, breadcrumbEl, statusEl) {
+            const ok = await showConfirmModal(t('desktop.qc_sftp_delete'), t('desktop.qc_sftp_delete_confirm').replace('{{name}}', name));
+            if (!ok) return;
+            try {
+                await api('/api/desktop/sftp/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: fullPath }) });
+                loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumbEl, statusEl);
+            } catch (err) {
+                showNotify(err.message || t('desktop.qc_sftp_error'));
+            }
+        }
+
+        async function sftpRename(deviceId, oldPath, listEl, breadcrumbEl, statusEl) {
+            const oldName = oldPath.split('/').pop();
+            const newName = prompt(t('desktop.qc_sftp_rename_prompt'), oldName);
+            if (!newName || newName === oldName) return;
+            const dir = oldPath.substring(0, oldPath.lastIndexOf('/')) || '/';
+            const newPath = dir + (dir === '/' ? '' : '/') + newName;
+            try {
+                await api('/api/desktop/sftp/rename', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, old_path: oldPath, new_path: newPath }) });
+                loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumbEl, statusEl);
+            } catch (err) {
+                showNotify(err.message || t('desktop.qc_sftp_error'));
+            }
+        }
+
+        async function sftpMkdir(deviceId, currentPath, listEl, breadcrumbEl, statusEl) {
+            const dirName = prompt(t('desktop.qc_sftp_mkdir_prompt'));
+            if (!dirName) return;
+            const newPath = currentPath + (currentPath === '/' ? '' : '/') + dirName;
+            try {
+                await api('/api/desktop/sftp/mkdir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: newPath }) });
+                loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumbEl, statusEl);
+            } catch (err) {
+                showNotify(err.message || t('desktop.qc_sftp_error'));
+            }
+        }
+
+        async function sftpCopy(deviceId, srcPath, listEl, breadcrumbEl, statusEl) {
+            const dstPath = prompt(t('desktop.qc_sftp_copy_prompt'), srcPath);
+            if (!dstPath || dstPath === srcPath) return;
+            try {
+                await api('/api/desktop/sftp/copy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
+                loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumbEl, statusEl);
+            } catch (err) {
+                showNotify(err.message || t('desktop.qc_sftp_error'));
+            }
+        }
+
+        async function sftpMove(deviceId, srcPath, listEl, breadcrumbEl, statusEl) {
+            const dstPath = prompt(t('desktop.qc_sftp_move_prompt'), srcPath);
+            if (!dstPath || dstPath === srcPath) return;
+            try {
+                await api('/api/desktop/sftp/move', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
+                loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumbEl, statusEl);
+            } catch (err) {
+                showNotify(err.message || t('desktop.qc_sftp_error'));
+            }
+        }
     }
 
-    function setQuickConnectMenus(id, host, loadAll, showServerModal) {
+    function setQuickConnectMenus(id, host, loadAll, showServerModal, toggleFiles) {
+        const viewItems = [
+            { id: 'refresh', labelKey: 'desktop.qc_refresh', icon: 'refresh', shortcut: 'F5', action: loadAll }
+        ];
+        if (toggleFiles) {
+            viewItems.push({ id: 'toggle-files', labelKey: 'desktop.qc_tab_files', icon: 'folder', shortcut: 'Ctrl+Shift+F', action: toggleFiles });
+        }
         setWindowMenus(id, [
             {
                 id: 'file',
@@ -457,9 +754,7 @@ rfb.addEventListener('credentialsrequired', () => {
             {
                 id: 'view',
                 labelKey: 'desktop.menu_view',
-                items: [
-                    { id: 'refresh', labelKey: 'desktop.qc_refresh', icon: 'refresh', shortcut: 'F5', action: loadAll }
-                ]
+                items: viewItems
             }
         ]);
     }

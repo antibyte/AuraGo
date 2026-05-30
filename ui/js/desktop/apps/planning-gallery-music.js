@@ -692,9 +692,15 @@
                 <div class="vd-qc-device-list" data-device-list>${esc(t('desktop.loading'))}</div>
             </div>
             <div class="vd-qc-terminal-area" data-terminal-area>
-                <div class="vd-qc-placeholder">
-                    <span class="vd-qc-placeholder-icon">${iconMarkup('server', 'S', 'vd-qc-placeholder-papirus-icon', 42)}</span>
-                    <span class="vd-qc-placeholder-text">${esc(t('desktop.qc_select_device'))}</span>
+                <div class="vd-qc-tabs" data-qc-tabs hidden>
+                    <button class="vd-qc-tab active" data-tab="terminal">${iconMarkup('terminal', 'T', 'vd-qc-tab-icon', 14)}<span>${esc(t('desktop.qc_tab_terminal'))}</span></button>
+                    <button class="vd-qc-tab" data-tab="files">${iconMarkup('folder', 'F', 'vd-qc-tab-icon', 14)}<span>${esc(t('desktop.qc_tab_files'))}</span></button>
+                </div>
+                <div class="vd-qc-tab-content" data-tab-content>
+                    <div class="vd-qc-placeholder">
+                        <span class="vd-qc-placeholder-icon">${iconMarkup('server', 'S', 'vd-qc-placeholder-papirus-icon', 42)}</span>
+                        <span class="vd-qc-placeholder-text">${esc(t('desktop.qc_select_device'))}</span>
+                    </div>
                 </div>
             </div>
         </div>`;
@@ -704,12 +710,31 @@
         searchInput.placeholder = t('desktop.qc_search_placeholder');
         const deviceList = host.querySelector('[data-device-list]');
         const terminalArea = host.querySelector('[data-terminal-area]');
+        const tabContent = host.querySelector('[data-tab-content]');
+        const qcTabs = host.querySelector('[data-qc-tabs]');
         let activeWS = null;
         let activeTerm = null;
         let activeFitAddon = null;
         let activeResizeObserver = null;
         let cachedDevices = null;
         let cachedCredentials = null;
+        let activeTab = 'terminal';
+        let connectedDeviceId = null;
+        let connectedProtocol = null;
+
+        function switchTab(tab) {
+            activeTab = tab;
+            qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+            if (tab === 'files' && connectedDeviceId && connectedProtocol === 'ssh') {
+                openSFTPPanel(connectedDeviceId, tabContent);
+            } else if (tab === 'terminal') {
+                closeSFTPPanel(tabContent);
+            }
+        }
+
+        qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => {
+            btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        });
 
         registerWindowCleanup(id, () => {
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
@@ -717,7 +742,7 @@
             if (activeResizeObserver) { activeResizeObserver.disconnect(); activeResizeObserver = null; }
         });
 
-        setQuickConnectMenus(id, host, loadAll, showServerModal);
+        setQuickConnectMenus(id, host, loadAll, showServerModal, () => switchTab('files'));
         loadAll();
 
         searchInput.addEventListener('input', () => filterDevices());

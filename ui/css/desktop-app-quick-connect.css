@@ -145,6 +145,7 @@
     flex: 1;
     min-width: 0;
     display: flex;
+    flex-direction: column;
     align-items: stretch;
     justify-content: stretch;
     position: relative;
@@ -608,6 +609,275 @@
 
 .vd-qc-credentials-modal {
     width: 380px;
+}
+
+/* Quick Connect – Tab bar */
+.vd-qc-tabs {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--vd-surface-strong);
+    border-bottom: 1px solid var(--vd-border);
+    padding: 0 8px;
+    flex-shrink: 0;
+}
+
+.vd-qc-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: none;
+    background: transparent;
+    color: var(--vd-muted);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.vd-qc-tab:hover {
+    color: var(--vd-text);
+}
+
+.vd-qc-tab.active {
+    color: var(--vd-accent);
+    border-bottom-color: var(--vd-accent);
+}
+
+.vd-qc-tab-icon {
+    opacity: 0.7;
+}
+
+.vd-qc-tab.active .vd-qc-tab-icon {
+    opacity: 1;
+}
+
+.vd-qc-tab-content {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+/* Quick Connect – SFTP Panel */
+.vd-qc-sftp-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--vd-surface);
+    color: var(--vd-text);
+}
+
+.vd-qc-sftp-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--vd-border);
+    background: var(--vd-surface-strong);
+    flex-shrink: 0;
+}
+
+.vd-qc-sftp-back {
+    flex-shrink: 0;
+}
+
+.vd-qc-sftp-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.vd-qc-sftp-breadcrumb::-webkit-scrollbar {
+    display: none;
+}
+
+.vd-qc-sftp-crumb {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 6px;
+    border: none;
+    background: transparent;
+    color: var(--vd-muted);
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+}
+
+.vd-qc-sftp-crumb:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--vd-text);
+}
+
+.vd-qc-sftp-crumb-sep {
+    color: var(--vd-border);
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+.vd-qc-sftp-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.vd-qc-sftp-upload-btn {
+    cursor: pointer;
+}
+
+/* Quick Connect – SFTP File List */
+.vd-qc-sftp-list {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.vd-qc-sftp-list.vd-qc-sftp-drag-over {
+    background: rgba(39, 199, 166, 0.08);
+    outline: 2px dashed var(--vd-accent);
+    outline-offset: -2px;
+}
+
+.vd-qc-sftp-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: var(--vd-muted);
+    font-size: 13px;
+}
+
+.vd-qc-sftp-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: var(--vd-coral);
+    font-size: 13px;
+}
+
+.vd-qc-sftp-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    gap: 10px;
+    color: var(--vd-muted);
+    font-size: 13px;
+}
+
+.vd-qc-sftp-empty-icon {
+    opacity: 0.4;
+}
+
+.vd-qc-sftp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.vd-qc-sftp-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--vd-surface-strong);
+    padding: 7px 10px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--vd-muted);
+    border-bottom: 1px solid var(--vd-border);
+}
+
+.vd-qc-sftp-table tbody td {
+    padding: 6px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.vd-qc-sftp-row {
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.vd-qc-sftp-row:hover {
+    background: rgba(39, 199, 166, 0.06);
+}
+
+.vd-qc-sftp-row:nth-child(even) {
+    background: rgba(255, 255, 255, 0.015);
+}
+
+.vd-qc-sftp-row:nth-child(even):hover {
+    background: rgba(39, 199, 166, 0.06);
+}
+
+.vd-qc-sftp-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+}
+
+.vd-qc-sftp-entry-icon {
+    flex-shrink: 0;
+    opacity: 0.6;
+}
+
+.vd-qc-sftp-row[data-is-dir="true"] .vd-qc-sftp-entry-icon {
+    color: var(--vd-accent);
+    opacity: 0.8;
+}
+
+.vd-qc-sftp-col-size {
+    width: 90px;
+    text-align: right;
+    color: var(--vd-muted);
+    font-family: 'Cascadia Code', 'JetBrains Mono', monospace;
+    font-size: 11px;
+}
+
+.vd-qc-sftp-col-modified {
+    width: 150px;
+    color: var(--vd-muted);
+    font-size: 11px;
+}
+
+.vd-qc-sftp-col-perms {
+    width: 110px;
+}
+
+.vd-qc-sftp-col-perms code {
+    font-family: 'Cascadia Code', 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--vd-muted);
+    background: rgba(255, 255, 255, 0.04);
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+
+/* Quick Connect – SFTP Status Bar */
+.vd-qc-sftp-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 10px;
+    border-top: 1px solid var(--vd-border);
+    background: var(--vd-surface-strong);
+    font-size: 11px;
+    color: var(--vd-muted);
+    flex-shrink: 0;
 }
 
 

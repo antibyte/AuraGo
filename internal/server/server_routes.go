@@ -492,6 +492,69 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		}
 		desktopVNCHandler(w, r)
 	})
+	desktopSFTPList := desktop.HandleSFTPList(s.InventoryDB, s.Vault, s.Logger)
+	mux.HandleFunc("/api/desktop/sftp/list", func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
+		desktopSFTPList(w, r)
+	})
+	desktopSFTPStat := desktop.HandleSFTPStat(s.InventoryDB, s.Vault, s.Logger)
+	mux.HandleFunc("/api/desktop/sftp/stat", func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
+		desktopSFTPStat(w, r)
+	})
+	desktopSFTPMkdir := desktop.HandleSFTPMkdir(s.InventoryDB, s.Vault, s.Logger)
+	mux.HandleFunc("/api/desktop/sftp/mkdir", func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
+		desktopSFTPMkdir(w, r)
+	})
+	desktopSFTPDelete := desktop.HandleSFTPDelete(s.InventoryDB, s.Vault, s.Logger)
+	mux.HandleFunc("/api/desktop/sftp/delete", func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
+		desktopSFTPDelete(w, r)
+	})
+	desktopSFTPRename := desktop.HandleSFTPRename(s.InventoryDB, s.Vault, s.Logger)
+	mux.HandleFunc("/api/desktop/sftp/rename", func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
+		desktopSFTPRename(w, r)
+	})
+	desktopSFTPCopy := desktop.HandleSFTPCopy(s.InventoryDB, s.Vault, s.Logger)
+	mux.HandleFunc("/api/desktop/sftp/copy", func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
+		desktopSFTPCopy(w, r)
+	})
+	desktopSFTPMove := desktop.HandleSFTPMove(s.InventoryDB, s.Vault, s.Logger)
+	mux.HandleFunc("/api/desktop/sftp/move", func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
+		desktopSFTPMove(w, r)
+	})
+	desktopSFTPUpload := desktop.HandleSFTPUpload(s.InventoryDB, s.Vault, s.Logger)
+	mux.HandleFunc("/api/desktop/sftp/upload", func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
+		desktopSFTPUpload(w, r)
+	})
+	desktopSFTPDownload := desktop.HandleSFTPDownload(s.InventoryDB, s.Vault, s.Logger)
+	mux.HandleFunc("/api/desktop/sftp/download", func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
+		desktopSFTPDownload(w, r)
+	})
 	mux.HandleFunc("/api/desktop/looper/presets", handleLooperPresets(s))
 	mux.HandleFunc("/api/desktop/looper/presets/", handleLooperPresetByID(s))
 	mux.HandleFunc("/api/desktop/looper/examples", handleLooperExamples(s))
