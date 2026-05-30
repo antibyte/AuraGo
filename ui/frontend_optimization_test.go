@@ -681,6 +681,17 @@ func TestDesktopAppAssetsRegistryCoversLazyCSSForAllBuiltinApps(t *testing.T) {
 			t.Fatalf("desktop app asset registry missing lazy CSS marker %q", want)
 		}
 	}
+	for _, want := range []string{
+		"function loadStyles(styles)",
+		"console.warn('Desktop app stylesheet failed to load; continuing without optional CSS'",
+		"return null;",
+		"loadStyles(assets.styles)",
+		".then(() => loadScriptsInOrder(assets.scripts))",
+	} {
+		if !strings.Contains(loader, want) {
+			t.Fatalf("desktop app style loading must not block app startup on optional CSS failures; missing marker %q", want)
+		}
+	}
 }
 
 func TestConfigFormBuilderAPIIsEmbeddedAndLoadedBeforeConfigMain(t *testing.T) {

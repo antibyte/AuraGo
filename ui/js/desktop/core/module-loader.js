@@ -201,7 +201,10 @@
     }
 
     function loadStyles(styles) {
-        return Promise.all((styles || []).map(href => loadStyle(href)));
+        return Promise.all((styles || []).map(href => loadStyle(href).catch(err => {
+            console.warn('Desktop app stylesheet failed to load; continuing without optional CSS', href, err);
+            return null;
+        })));
     }
 
     function loadBundle(label, src) {
