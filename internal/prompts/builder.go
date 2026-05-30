@@ -421,6 +421,14 @@ func loadCriticalFallbackModule(promptsDir, filename string, logger *slog.Logger
 	return ""
 }
 
+func writeActionLedgerReminder(finalPrompt *strings.Builder) {
+	finalPrompt.WriteString("**Supervisor action ledger:** Actual work is tracked from tool-call lifecycle events, not from prose. " +
+		"Text such as \"I will check\", \"I am doing it\", or \"handled\" does not start or complete an action. " +
+		"For actionable user requests, either call the required tool now, use `question_user` when approval or a concrete choice is required, " +
+		"or clearly state why no permitted action can be taken. " +
+		"Final completion claims must be backed by completed tool results from this turn.\n\n")
+}
+
 // buildSystemPromptInner contains the actual prompt-building logic, extracted
 // from BuildSystemPrompt so it can run in a goroutine with a timeout.
 func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int) {
@@ -505,6 +513,7 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 			"ALWAYS invoke tools via the API tool-call mechanism. " +
 			"NEVER output raw JSON objects as tool invocations — that protocol " +
 			"is for non-native sessions only.\n\n")
+		writeActionLedgerReminder(&finalPrompt)
 		finalPrompt.WriteString("**Preamble rule:** When calling a tool as a single-step action, " +
 			"your response must START with the tool call directly. Do NOT announce " +
 			"what you are about to do (no \"I will…\", \"Let me…\", \"Lass mich…\"). " +
@@ -521,6 +530,7 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 		finalPrompt.WriteString("You MUST invoke tools by outputting a single raw JSON object " +
 			"as your ENTIRE response. Do NOT wrap it in markdown fences, XML tags, or code blocks. " +
 			"Do NOT add any explanation before or after the JSON.\n\n")
+		writeActionLedgerReminder(&finalPrompt)
 		finalPrompt.WriteString("Required format:\n" +
 			"{\"action\": \"tool_name\", \"param1\": \"value1\", \"param2\": \"value2\"}\n\n")
 		finalPrompt.WriteString("**Critical rules:**\n" +

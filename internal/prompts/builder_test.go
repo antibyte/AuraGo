@@ -367,6 +367,46 @@ func TestBuildSystemPromptNativeModeOmitsRawJSONToolProtocol(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptIncludesActionLedgerReminderForToolModes(t *testing.T) {
+	tests := []struct {
+		name  string
+		flags ContextFlags
+	}{
+		{
+			name: "native",
+			flags: ContextFlags{
+				Tier:               "full",
+				SystemLanguage:     "en",
+				NativeToolsEnabled: true,
+			},
+		},
+		{
+			name: "text-json",
+			flags: ContextFlags{
+				Tier:            "full",
+				SystemLanguage:  "en",
+				IsTextModeModel: true,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prompt, _ := buildSystemPromptInner("", &tt.flags, "", slog.Default())
+			for _, want := range []string{
+				"Supervisor action ledger",
+				"Actual work is tracked from tool-call lifecycle events, not from prose",
+				"does not start or complete an action",
+				"Final completion claims must be backed by completed tool results from this turn",
+			} {
+				if !strings.Contains(prompt, want) {
+					t.Fatalf("prompt missing action ledger reminder fragment %q", want)
+				}
+			}
+		})
+	}
+}
+
 func TestBuildSystemPromptMissionWarnsNotToAskInChat(t *testing.T) {
 	flags := ContextFlags{
 		Tier:               "full",
