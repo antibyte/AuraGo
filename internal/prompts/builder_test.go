@@ -570,6 +570,29 @@ func TestPrepareDynamicGuidesWithStrategySkipsToolsOutsideAllowedSet(t *testing.
 	}
 }
 
+func TestHomepageAndMediaManualsRequireDeployableProjectAssetRefs(t *testing.T) {
+	for _, path := range []string{"tools_manuals/homepage.md", "tools_manuals/media_registry.md"} {
+		raw, err := promptsembed.FS.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read embedded %s: %v", path, err)
+		}
+		manual := string(raw)
+		for _, forbidden := range []string{
+			"Simply embed the image in your HTML using the exact URL path from `media_registry`",
+			"Use the returned `web_path` directly when placing images in pages.",
+		} {
+			if strings.Contains(manual, forbidden) {
+				t.Fatalf("%s still contains unsafe homepage asset guidance %q", path, forbidden)
+			}
+		}
+		for _, marker := range []string{"public/assets", "/assets/", "deployable project asset"} {
+			if !strings.Contains(manual, marker) {
+				t.Fatalf("%s missing deployable project asset guidance marker %q:\n%s", path, marker, manual)
+			}
+		}
+	}
+}
+
 func TestIsToolPathSafeAllowsWindowsCaseVariant(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("Windows path comparison is case-insensitive")

@@ -1034,18 +1034,21 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	// can bundle the actual files into the ZIP (they're served by AuraGo locally
 	// but must be included as static assets for Netlify to serve them).
 	type assetRef struct {
-		subdir string
-		name   string
+		subdir  string
+		name    string
+		zipPath string
 	}
 	referencedAssets := make(map[assetRef]struct{})
 	assetRegexes := []struct {
-		re     *regexp.Regexp
-		subdir string
+		re        *regexp.Regexp
+		subdir    string
+		zipPrefix string
 	}{
-		{generatedImageRefRegex, "generated_images"},
-		{generatedVideoRefRegex, "generated_videos"},
-		{audioFileRefRegex, "audio"},
-		{documentFileRefRegex, "documents"},
+		{generatedImageRefRegex, "generated_images", "files/generated_images"},
+		{legacyRootGeneratedImageRefRegex, "generated_images", ""},
+		{generatedVideoRefRegex, "generated_videos", "files/generated_videos"},
+		{audioFileRefRegex, "audio", "files/audio"},
+		{documentFileRefRegex, "documents", "files/documents"},
 	}
 
 	walkErr := filepath.Walk(deployPath, func(path string, info os.FileInfo, err error) error {
@@ -1083,7 +1086,7 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 			for _, ar := range assetRegexes {
 				for _, m := range ar.re.FindAllSubmatch(data, -1) {
 					if len(m) > 1 {
-						referencedAssets[assetRef{subdir: ar.subdir, name: string(m[1])}] = struct{}{}
+						referencedAssets[assetRef{subdir: ar.subdir, name: string(m[1]), zipPath: ar.zipPrefix}] = struct{}{}
 					}
 				}
 			}
@@ -1106,7 +1109,10 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 				logger.Warn("[Homepage] Could not bundle asset", "subdir", ref.subdir, "file", ref.name, "error", readErr)
 				continue
 			}
-			zipPath := "files/" + ref.subdir + "/" + filepath.Base(ref.name)
+			zipPath := filepath.Base(ref.name)
+			if ref.zipPath != "" {
+				zipPath = filepath.ToSlash(filepath.Join(ref.zipPath, zipPath))
+			}
 			if iw, werr := zw.Create(zipPath); werr == nil {
 				_, _ = iw.Write(srcData)
 				bundled++
@@ -1683,6 +1689,7 @@ func HomepagePublishToLocal(cfg HomepageConfig, projectDir string, logger *slog.
 // ─── Internal Helpers ─────────────────────────────────────────────────────
 
 var generatedImageRefRegex = regexp.MustCompile(`/files/generated_images/([^"' ><\\]+)`)
+var legacyRootGeneratedImageRefRegex = regexp.MustCompile(`(?:^|[^A-Za-z0-9_./-])/(img_[A-Za-z0-9_-]+\.(?i:jpe?g|png|webp|gif))`)
 var generatedVideoRefRegex = regexp.MustCompile(`/files/generated_videos/([^"' ><\\]+)`)
 var audioFileRefRegex = regexp.MustCompile(`/files/audio/([^"' ><\\]+)`)
 var documentFileRefRegex = regexp.MustCompile(`/files/documents/([^"' ><\\]+)`)
