@@ -154,6 +154,178 @@ func TestLoadCatalogIncludesEmbeddedSkillCreationRule(t *testing.T) {
 	}
 }
 
+func TestLoadCatalogIncludesEmbeddedDockerRule(t *testing.T) {
+	t.Parallel()
+
+	catalog, err := LoadCatalog(LoadOptions{
+		PromptsDir: t.TempDir(),
+		EmbeddedFS: promptsembed.FS,
+	})
+	if err != nil {
+		t.Fatalf("LoadCatalog: %v", err)
+	}
+
+	rule, ok := catalog.Rule("docker")
+	if !ok {
+		t.Fatal("expected embedded docker rule")
+	}
+	if !rule.Enabled {
+		t.Fatal("embedded docker rule should be enabled")
+	}
+	if !contains(rule.Tools, "docker") {
+		t.Fatalf("docker rule tools = %v, want docker", rule.Tools)
+	}
+	for _, marker := range []string{
+		"Docker Workflow",
+		"Security-First Defaults",
+		"Non-root execution",
+		"Capability dropping",
+		"Volume and Bind Mount Safety",
+		"No blind prune",
+		"Compose Stacks",
+	} {
+		if !strings.Contains(rule.Body, marker) {
+			t.Fatalf("docker rule body missing marker %q:\n%s", marker, rule.Body)
+		}
+	}
+}
+
+func TestLoadCatalogIncludesEmbeddedAnsibleRule(t *testing.T) {
+	t.Parallel()
+
+	catalog, err := LoadCatalog(LoadOptions{
+		PromptsDir: t.TempDir(),
+		EmbeddedFS: promptsembed.FS,
+	})
+	if err != nil {
+		t.Fatalf("LoadCatalog: %v", err)
+	}
+
+	rule, ok := catalog.Rule("ansible")
+	if !ok {
+		t.Fatal("expected embedded ansible rule")
+	}
+	if !rule.Enabled {
+		t.Fatal("embedded ansible rule should be enabled")
+	}
+	if !contains(rule.Tools, "ansible") {
+		t.Fatalf("ansible rule tools = %v, want ansible", rule.Tools)
+	}
+	for _, marker := range []string{
+		"Ansible Workflow",
+		"Pre-Execution Checklist",
+		"Dry-run first",
+		"Idempotence is mandatory",
+		"Ad-Hoc Command Discipline",
+		"Limit blast radius",
+	} {
+		if !strings.Contains(rule.Body, marker) {
+			t.Fatalf("ansible rule body missing marker %q:\n%s", marker, rule.Body)
+		}
+	}
+}
+
+func TestLoadCatalogIncludesEmbeddedProxmoxRule(t *testing.T) {
+	t.Parallel()
+
+	catalog, err := LoadCatalog(LoadOptions{
+		PromptsDir: t.TempDir(),
+		EmbeddedFS: promptsembed.FS,
+	})
+	if err != nil {
+		t.Fatalf("LoadCatalog: %v", err)
+	}
+
+	rule, ok := catalog.Rule("proxmox")
+	if !ok {
+		t.Fatal("expected embedded proxmox rule")
+	}
+	if !rule.Enabled {
+		t.Fatal("embedded proxmox rule should be enabled")
+	}
+	if !contains(rule.Tools, "proxmox") {
+		t.Fatalf("proxmox rule tools = %v, want proxmox", rule.Tools)
+	}
+	for _, marker := range []string{
+		"Proxmox VE Workflow",
+		"Read-Only First",
+		"Snapshot Before Mutate",
+		"Power Action Discipline",
+		"VM vs. Container Selection",
+		"Node and Cluster Awareness",
+	} {
+		if !strings.Contains(rule.Body, marker) {
+			t.Fatalf("proxmox rule body missing marker %q:\n%s", marker, rule.Body)
+		}
+	}
+}
+
+func TestCatalogMatchSelectsDockerRuleByToolAndKeyword(t *testing.T) {
+	t.Parallel()
+
+	catalog, err := LoadCatalog(LoadOptions{
+		PromptsDir: t.TempDir(),
+		EmbeddedFS: promptsembed.FS,
+	})
+	if err != nil {
+		t.Fatalf("LoadCatalog: %v", err)
+	}
+
+	byTool := catalog.Match(MatchContext{Tools: []string{"docker"}})
+	if len(byTool.Rules) == 0 || byTool.Rules[0].ID != "docker" {
+		t.Fatalf("docker tool should select docker rule first, got %+v", byTool.Rules)
+	}
+
+	byKeyword := catalog.Match(MatchContext{Prompt: "Please create a docker container with compose"})
+	if len(byKeyword.Rules) == 0 || byKeyword.Rules[0].ID != "docker" {
+		t.Fatalf("docker keyword should select docker rule first, got %+v", byKeyword.Rules)
+	}
+}
+
+func TestCatalogMatchSelectsAnsibleRuleByToolAndKeyword(t *testing.T) {
+	t.Parallel()
+
+	catalog, err := LoadCatalog(LoadOptions{
+		PromptsDir: t.TempDir(),
+		EmbeddedFS: promptsembed.FS,
+	})
+	if err != nil {
+		t.Fatalf("LoadCatalog: %v", err)
+	}
+
+	byTool := catalog.Match(MatchContext{Tools: []string{"ansible"}})
+	if len(byTool.Rules) == 0 || byTool.Rules[0].ID != "ansible" {
+		t.Fatalf("ansible tool should select ansible rule first, got %+v", byTool.Rules)
+	}
+
+	byKeyword := catalog.Match(MatchContext{Prompt: "Run an ansible playbook to deploy nginx"})
+	if len(byKeyword.Rules) == 0 || byKeyword.Rules[0].ID != "ansible" {
+		t.Fatalf("ansible keyword should select ansible rule first, got %+v", byKeyword.Rules)
+	}
+}
+
+func TestCatalogMatchSelectsProxmoxRuleByToolAndKeyword(t *testing.T) {
+	t.Parallel()
+
+	catalog, err := LoadCatalog(LoadOptions{
+		PromptsDir: t.TempDir(),
+		EmbeddedFS: promptsembed.FS,
+	})
+	if err != nil {
+		t.Fatalf("LoadCatalog: %v", err)
+	}
+
+	byTool := catalog.Match(MatchContext{Tools: []string{"proxmox"}})
+	if len(byTool.Rules) == 0 || byTool.Rules[0].ID != "proxmox" {
+		t.Fatalf("proxmox tool should select proxmox rule first, got %+v", byTool.Rules)
+	}
+
+	byKeyword := catalog.Match(MatchContext{Prompt: "Start the Proxmox VM 100 on node pve"})
+	if len(byKeyword.Rules) == 0 || byKeyword.Rules[0].ID != "proxmox" {
+		t.Fatalf("proxmox keyword should select proxmox rule first, got %+v", byKeyword.Rules)
+	}
+}
+
 func TestLoadCatalogUsesDiskOverrideBeforeEmbeddedRule(t *testing.T) {
 	t.Parallel()
 

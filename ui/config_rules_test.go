@@ -38,6 +38,9 @@ func TestConfigRulesSectionContract(t *testing.T) {
 		"rulesAddTarget('${kind}')",
 		"function rulesAddTarget(kind)",
 		"showConfirm(",
+		"'docker'",
+		"'ansible'",
+		"'proxmox'",
 	} {
 		if !strings.Contains(rulesJS, marker) {
 			t.Fatalf("rules config module missing marker %q", marker)

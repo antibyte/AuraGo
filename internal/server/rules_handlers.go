@@ -170,6 +170,7 @@ func defaultRuleWorkflowCandidates() []ruleCandidate {
 		{ID: "remote_execution", Label: "Remote execution"},
 		{ID: "containers", Label: "Containers"},
 		{ID: "docker", Label: "Docker"},
+		{ID: "ansible", Label: "Ansible"},
 		{ID: "proxmox", Label: "Proxmox"},
 		{ID: "truenas", Label: "TrueNAS"},
 		{ID: "tailscale", Label: "Tailscale"},

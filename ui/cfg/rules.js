@@ -40,7 +40,7 @@ function rulesWorkflowFallbackCandidates() {
     return [
         'homepage', 'website', 'landing_page', 'web_design', 'build', 'preview', 'deploy',
         'cronjobs', 'missions', 'heartbeat', 'remote_execution', 'containers', 'docker',
-        'proxmox', 'truenas', 'tailscale', 'cloudflare_tunnel', 'email', 'agentmail',
+        'ansible', 'proxmox', 'truenas', 'tailscale', 'cloudflare_tunnel', 'email', 'agentmail',
         'webhooks', 'research', 'browser', 'scraper', 'secrets', 'security', 'audit',
         'media', 'image_generation', 'video_generation', 'tts', 'smart_home',
         'home_assistant', 'mcp', 'skills', 'co_agents', 'sql', 's3', 'webdav',
