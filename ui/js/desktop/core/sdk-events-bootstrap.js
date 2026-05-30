@@ -216,6 +216,18 @@
         }
     }
 
+    function cleanupDesktopShellRuntime() {
+        if (state._clockTimer) {
+            clearInterval(state._clockTimer);
+            state._clockTimer = null;
+        }
+        cleanupDesktopWS();
+        if (wsReconnectTimer) {
+            clearTimeout(wsReconnectTimer);
+            wsReconnectTimer = null;
+        }
+    }
+
     function connectWS() {
         if (wsReconnectTimer) {
             clearTimeout(wsReconnectTimer);
@@ -1022,6 +1034,7 @@
         document.addEventListener('focusin', ensureFocusedControlVisible);
         updateClock();
         state._clockTimer = setInterval(updateClock, 15000);
+        window.addEventListener('beforeunload', cleanupDesktopShellRuntime);
         await loadBootstrap();
         if (state.bootstrap && state.bootstrap.enabled) connectWS();
     }

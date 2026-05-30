@@ -10,6 +10,13 @@
             setTimeout(() => el.remove(), 4000);
         }
 
+        function disconnectActiveResizeObserver() {
+            if (activeResizeObserver) {
+                activeResizeObserver.disconnect();
+                activeResizeObserver = null;
+            }
+        }
+
         function showConfirmModal(title, message) {
             return new Promise(resolve => {
                 const overlay = document.createElement('div');
@@ -244,6 +251,7 @@
             deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
+            disconnectActiveResizeObserver();
             terminalArea.innerHTML = `<div class="vd-qc-placeholder vd-qc-connecting"><div class="vd-qc-spinner fm-spinner"></div><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_connecting'))}</span></div>`;
 
             const term = new Terminal({
@@ -383,7 +391,7 @@
             deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
-            if (activeResizeObserver) { activeResizeObserver.disconnect(); activeResizeObserver = null; }
+            disconnectActiveResizeObserver();
             terminalArea.innerHTML = `<div class="vd-qc-placeholder vd-qc-connecting"><div class="vd-qc-spinner fm-spinner"></div><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_vnc_connecting'))}</span></div>`;
 
             const vncContainer = document.createElement('div');

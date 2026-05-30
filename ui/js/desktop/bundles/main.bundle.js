@@ -7356,6 +7356,13 @@ if (appId === 'pixel') {
             setTimeout(() => el.remove(), 4000);
         }
 
+        function disconnectActiveResizeObserver() {
+            if (activeResizeObserver) {
+                activeResizeObserver.disconnect();
+                activeResizeObserver = null;
+            }
+        }
+
         function showConfirmModal(title, message) {
             return new Promise(resolve => {
                 const overlay = document.createElement('div');
@@ -7590,6 +7597,7 @@ if (appId === 'pixel') {
             deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
+            disconnectActiveResizeObserver();
             terminalArea.innerHTML = `<div class="vd-qc-placeholder vd-qc-connecting"><div class="vd-qc-spinner fm-spinner"></div><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_connecting'))}</span></div>`;
 
             const term = new Terminal({
@@ -7729,7 +7737,7 @@ if (appId === 'pixel') {
             deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
-            if (activeResizeObserver) { activeResizeObserver.disconnect(); activeResizeObserver = null; }
+            disconnectActiveResizeObserver();
             terminalArea.innerHTML = `<div class="vd-qc-placeholder vd-qc-connecting"><div class="vd-qc-spinner fm-spinner"></div><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_vnc_connecting'))}</span></div>`;
 
             const vncContainer = document.createElement('div');
@@ -8524,6 +8532,18 @@ rfb.addEventListener('credentialsrequired', () => {
         if (state.ws) {
             try { state.ws.close(); } catch (_) {}
             state.ws = null;
+        }
+    }
+
+    function cleanupDesktopShellRuntime() {
+        if (state._clockTimer) {
+            clearInterval(state._clockTimer);
+            state._clockTimer = null;
+        }
+        cleanupDesktopWS();
+        if (wsReconnectTimer) {
+            clearTimeout(wsReconnectTimer);
+            wsReconnectTimer = null;
         }
     }
 
@@ -9333,6 +9353,7 @@ rfb.addEventListener('credentialsrequired', () => {
         document.addEventListener('focusin', ensureFocusedControlVisible);
         updateClock();
         state._clockTimer = setInterval(updateClock, 15000);
+        window.addEventListener('beforeunload', cleanupDesktopShellRuntime);
         await loadBootstrap();
         if (state.bootstrap && state.bootstrap.enabled) connectWS();
     }

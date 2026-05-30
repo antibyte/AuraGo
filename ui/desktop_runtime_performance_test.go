@@ -123,3 +123,30 @@ func TestPixelEditorUsesCanvasPoolAndBoundedHistory(t *testing.T) {
 		t.Fatal("pixel editor history must not keep 20 full ImageData snapshots")
 	}
 }
+
+func TestDesktopLongSessionResourcesExposeCleanupHooks(t *testing.T) {
+	t.Parallel()
+
+	events := readEmbeddedText(t, "js/desktop/core/sdk-events-bootstrap.js")
+	for _, marker := range []string{
+		"function cleanupDesktopShellRuntime()",
+		"clearInterval(state._clockTimer)",
+		"cleanupDesktopWS();",
+		"window.addEventListener('beforeunload', cleanupDesktopShellRuntime)",
+	} {
+		if !strings.Contains(events, marker) {
+			t.Fatalf("desktop shell cleanup missing marker %q", marker)
+		}
+	}
+
+	quickConnect := readEmbeddedText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
+	for _, marker := range []string{
+		"function disconnectActiveResizeObserver()",
+		"disconnectActiveResizeObserver();",
+		"activeResizeObserver = resizeObserver;",
+	} {
+		if !strings.Contains(quickConnect, marker) {
+			t.Fatalf("quick connect resize observer cleanup missing marker %q", marker)
+		}
+	}
+}
