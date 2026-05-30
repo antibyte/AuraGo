@@ -256,8 +256,8 @@
    4. Main Chat Area
    ============================================================ */
 .vd-chat-main {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
     min-height: 0;
     min-width: 0;
     grid-column: 2;

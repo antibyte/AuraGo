@@ -7904,7 +7904,7 @@ if (appId === 'pixel') {
                             <input type="file" multiple hidden data-sftp-file-input>
                         </label>
                         <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-action="mkdir" title="${esc(t('desktop.qc_sftp_mkdir'))}">${iconMarkup('folder', 'N', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_sftp_mkdir'))}</span></button>
-                        <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-action="refresh" title="${esc(t('desktop.qc_sftp_refresh'))}">${iconMarkup('refresh', 'R', 'vd-qc-btn-icon', 14)}</button>
+                        <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-action="sftp-refresh" title="${esc(t('desktop.qc_sftp_refresh'))}">${iconMarkup('refresh', 'R', 'vd-qc-btn-icon', 14)}</button>
                     </div>
                 </div>
                 <div class="vd-qc-sftp-list" data-sftp-list>
@@ -7928,7 +7928,7 @@ if (appId === 'pixel') {
                 loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumb, statusEl);
             });
 
-            panel.querySelector('[data-action="refresh"]').addEventListener('click', () => {
+            panel.querySelector('[data-action="sftp-refresh"]').addEventListener('click', () => {
                 loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumb, statusEl);
             });
 

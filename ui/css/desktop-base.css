@@ -1,12 +1,12 @@
 /* desktop-base.css — CSS variables, resets, body/root, wallpapers, themes, shell, disabled overlay */
 
 :root {
-    --vd-bg: #0d1117;
-    --vd-surface: rgba(16, 22, 34, 0.88);
+    --vd-bg: #11151c;
+    --vd-surface: rgba(18, 24, 36, 0.92);
     --vd-surface-strong: rgba(20, 28, 44, 0.97);
     --vd-border: rgba(255, 255, 255, 0.09);
     --vd-border-bright: rgba(255, 255, 255, 0.16);
-    --vd-text: #f0f4fb;
+    --vd-text: #f6f7fb;
     --vd-muted: #a8bbd0;
     --vd-accent: #27c7a6;
     --vd-accent-r: 39;
@@ -18,8 +18,8 @@
     --vd-shadow-window: 0 32px 80px rgba(0, 0, 0, 0.52), 0 8px 24px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.07);
     --vd-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
     --vd-accent-glow: rgba(39, 199, 166, 0.22);
-    --vd-control-bg: rgba(255, 255, 255, 0.09);
-    --vd-control-hover: rgba(255, 255, 255, 0.14);
+    --vd-control-bg: rgba(255, 255, 255, 0.08);
+    --vd-control-hover: rgba(255, 255, 255, 0.12);
     --vd-editor-bg: #ffffff;
     --vd-editor-text: #111827;
     --vd-editor-muted: #334155;
@@ -1251,6 +1251,6 @@
 .vd-shell {
         height: var(--vd-visual-height, 100dvh);
         min-height: 0;
-        grid-template-rows: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) auto;
     }
 }

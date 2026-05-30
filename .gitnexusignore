@@ -40,6 +40,9 @@ pnpm-lock.yaml
 yarn.lock
 **/Cargo.lock
 /tools/aurago-tui/zig/
+/tools/aurago-tui/zig/**
+/tools/aurago-tui/target/
+/tools/aurago-tui/target/**
 
 # Build outputs, release bundles, and binaries
 /bin/
@@ -55,6 +58,10 @@ yarn.lock
 /aurago
 /aurago.exe
 /aurago_test*
+/aurago_test_build
+/aurago_test_build.exe
+/aurago_test_build2.exe
+/aurago_test_build2.exe~
 /tmp_aurago*
 /config-merger.exe
 /lifeboat.exe

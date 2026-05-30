@@ -468,6 +468,14 @@
         const chatLog = host && host.querySelector('.vd-chat-log');
         if (!chatLog) return;
 
+        const renderer = window.DesktopChatRenderer;
+        if (!renderer) {
+            appendChat(host, 'agent', t('desktop.chat_welcome'));
+            return;
+        }
+
+        // Legacy path: renderer.appendRichBubble(chatLog, 'agent', t('desktop.chat_welcome'));
+
         const avatarHtml = (window.AuraChatCore && typeof window.AuraChatCore.personaAvatarMarkup === 'function')
             ? window.AuraChatCore.personaAvatarMarkup('agent')
             : iconMarkup('chat', '🤖', '', 32);
@@ -847,7 +855,8 @@
 
         const chips = [];
         if (windowContext) {
-            chips.push(`<span class="vd-chat-context-chip context-window">${esc(windowContext.label || windowContext.app_id || windowContext.purpose)}</span>`);
+            const contextLabel = windowContext.label || windowContext.app_id || windowContext.purpose;
+            chips.push(`<span class="vd-chat-context-chip context-window" title="${esc(desktopText('desktop.chat_request_context', 'Request context'))}: ${esc(contextLabel)}">${esc(contextLabel)}</span>`);
         }
         files.forEach(file => {
             const name = file.name || file.path;
@@ -903,7 +912,7 @@
             if (input) input.focus();
             return;
         }
-        if (context.chat_autosend && input && input.value.trim() && !state.chatBusy) {
+        if (context.chat_autosend && input.value.trim() && !state.chatBusy) {
             window.setTimeout(() => {
                 submitDesktopChatMessage(host, input.value.trim()).catch(err => appendDesktopChatError(host, err));
             }, 0);
