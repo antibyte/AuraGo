@@ -342,6 +342,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			s.currentLogger = logger
 		}
 
+		if shortTermMem != nil && (loopIterationCount == 1 || loopIterationCount%10 == 0) {
+			if err := newAgentActionLedger(shortTermMem, s.currentLogger, broker, sessionID, runCfg.MessageSource).MarkStalledActions(defaultAgentActionStallTimeout); err != nil {
+				s.currentLogger.Debug("Failed to mark stalled agent actions", "error", err)
+			}
+		}
+
 		s.currentLogger.Debug("[Sync] Agent loop iteration starting", "is_maintenance", isMaintenance, "lock_exists", tools.IsBusy())
 
 		if lastResponseWasTool {

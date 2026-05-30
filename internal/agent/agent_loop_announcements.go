@@ -10,6 +10,9 @@ var pathLikePattern = regexp.MustCompile(`(?i)(?:[A-Za-z]:\\|/|\.{1,2}/|[A-Za-z0
 var urlLikePattern = regexp.MustCompile(`(?i)\bhttps?://`)
 var resultMetricPattern = regexp.MustCompile(`(?i)\b\d+\s+(?:bytes?|files?|lines?|matches?|entries?|tests?|warnings?|errors?|items?|records?|results?|seconds?|minutes?|hours?|ms|kb|mb|gb)\b`)
 var statusEvidencePattern = regexp.MustCompile(`(?i)\b(?:status|exit code|http)\s*[:=]?\s*(?:ok|success|successful|error|failed|200|201|204|400|401|403|404|409|422|429|500)\b`)
+var actionPromisePattern = regexp.MustCompile(`(?i)\b(?:ich\s+(?:werde|pr[üu]fe|schaue|checke|mache|starte|f[üu]hre|erstelle|sende|aktualisiere|behebe|repariere|k[üu]mmere)|i\s+(?:will|am going to)|i'll|i'm going to|let me)\b`)
+var actionableUserIntentPattern = regexp.MustCompile(`(?i)\b(?:ja|ok|okay|weiter|mach|go ahead|do it|check|fix|run|repair|pr[üu]f|sende|erstelle|beheb|reparier|starte|f[üu]hre)\b`)
+var refusalPattern = regexp.MustCompile(`(?i)\b(?:cannot|can't|can not|unable|nicht|kann\s+nicht|keine\s+berechtigung|not allowed)\b`)
 
 func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, lastResponseWasTool bool, lastUserMsg string) bool {
 	if tc.IsTool || tc.RawCodeDetected || len(content) > 1000 {
@@ -42,6 +45,20 @@ func shouldRecoverAnnouncementOnlyResponse(parsedToolResp ParsedToolResponse, tc
 		return false
 	}
 	return true
+}
+
+func shouldRecoverActionPromiseWithoutTool(content string, tc ToolCall, lastUserMsg string) bool {
+	if tc.IsTool || tc.RawCodeDetected || len(content) > 600 {
+		return false
+	}
+	trimmedContent := strings.TrimSpace(content)
+	if trimmedContent == "" || asksUserForInput(trimmedContent) || containsCompletionEvidence(trimmedContent) {
+		return false
+	}
+	if refusalPattern.MatchString(trimmedContent) {
+		return false
+	}
+	return actionPromisePattern.MatchString(trimmedContent) && actionableUserIntentPattern.MatchString(lastUserMsg)
 }
 
 func looksLikePlanStructure(trimmedContent, leadIn string) bool {

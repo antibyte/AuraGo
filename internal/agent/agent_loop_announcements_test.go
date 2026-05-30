@@ -23,6 +23,49 @@ func TestAnnouncementDetectorIgnoresPhraseOnlyPromises(t *testing.T) {
 	}
 }
 
+func TestActionPromiseWithoutToolTriggersLedgerAwareRecovery(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.AnnouncementDetector.Enabled = true
+	cfg.Agent.AnnouncementDetector.MaxRetries = 2
+	logger := slog.New(slog.NewTextHandler(testDiscardWriter{}, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	s := &agentLoopState{
+		ctx:                context.Background(),
+		broker:             NoopBroker{},
+		currentLogger:      logger,
+		useNativeFunctions: true,
+		lastUserMsg:        "ja, prüfe docker jetzt",
+		recoverySession:    NewRecoverySessionState(logger, NoopBroker{}, cfg),
+		runCfg: RunConfig{
+			Config:         cfg,
+			SessionID:      "sess-1",
+			MessageSource:  "web_chat",
+			ShortTermMem:   stm,
+			HistoryManager: memory.NewEphemeralHistoryManager(),
+		},
+	}
+	content := "Ich prüfe Docker jetzt und melde mich gleich."
+	parsed := ParsedToolResponse{
+		Content:          content,
+		SanitizedContent: content,
+	}
+
+	_, _, shouldContinue, _ := handleAgentLoopRecoveries(s, content, ToolCall{}, parsed, true, emotionBehaviorPolicy{})
+	if !shouldContinue {
+		t.Fatal("expected promise-only response to request a real tool call")
+	}
+	if s.announcementCount != 1 {
+		t.Fatalf("announcementCount = %d, want 1", s.announcementCount)
+	}
+	if len(s.req.Messages) == 0 || !strings.Contains(s.req.Messages[len(s.req.Messages)-1].Content, "function-calling") {
+		t.Fatalf("expected recovery feedback to require tool calling, got %#v", s.req.Messages)
+	}
+}
+
 func TestAnnouncementDetectorCatchesStructuredPlanWithoutToolCall(t *testing.T) {
 	tc := ToolCall{}
 	content := "1. Build production bundle\n2. Deploy to Netlify\n3. Verify homepage"

@@ -7627,6 +7627,29 @@ function connectSSE() {
             window.showQuestionModal(payload);
         }
     });
+
+    window.AuraSSE.on('agent_action', function (payload) {
+        if (!isCurrentSession(payload)) return;
+        if (!payload) return;
+        const toolName = payload.tool_name || payload.toolName || 'tool';
+        const state = String(payload.state || '').toLowerCase();
+        let message = '';
+        if (state === 'started') {
+            message = t('chat.sse_tool_start') + toolName;
+            setStatusToolIcon(toolName);
+            spawnFloatingIcon(toolName);
+        } else if (state === 'succeeded' || state === 'sanitized') {
+            message = t('chat.sse_tool_end') + toolName;
+            setStatusToolIcon(toolName);
+        } else if (state === 'failed' || state === 'blocked' || state === 'cancelled') {
+            message = t('chat.sse_error_recovery');
+            setStatusToolIcon(toolName || 'generic_tool');
+        }
+        if (message) {
+            agentStatusText.textContent = message;
+            chatSetHidden(agentStatusDiv, false);
+        }
+    });
 }
 
 setConnectionState('reconnecting');

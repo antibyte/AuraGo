@@ -33,6 +33,7 @@ const (
 	EventLLMStreamDone     SSEEventType = "llm_stream_done"
 	EventTokenUpdate       SSEEventType = "token_update"
 	EventToolCallPreview   SSEEventType = "tool_call_preview"
+	EventAgentAction       SSEEventType = "agent_action"
 	EventThinkingBlock     SSEEventType = "thinking_block"
 	EventCoAgentProgress   SSEEventType = "coagent_progress"
 	EventSpaceAgentMessage SSEEventType = "space_agent_message"

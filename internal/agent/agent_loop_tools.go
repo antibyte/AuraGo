@@ -40,6 +40,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	if ptc.Action == "homepage" || ptc.Action == "homepage_tool" {
 		s.homepageUsedInChain = true
 	}
+	actionLedger, toolAction := beginAgentToolAction(s, ptc, agentActionTurnID(sessionID, len(s.req.Messages), s.toolCallCount))
 	broker.Send("thinking", fmt.Sprintf("[%d] Running %s...", s.toolCallCount, ptc.Action))
 	ptcJSON := ptc.RawJSON
 	if ptcJSON == "" {
@@ -59,8 +60,10 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	}
 
 	pResultContent := ""
+	actionBlocked := false
 	if preload, blocked := ensureTaskRulesBeforeToolExecution(s, ptc, lastUserMsg); blocked {
 		pResultContent = preload
+		actionBlocked = true
 	} else if precomputed, ok := s.pendingSummaryBatch[pendingSummaryBatchKey(ptc)]; ok {
 		pResultContent = precomputed
 		delete(s.pendingSummaryBatch, pendingSummaryBatchKey(ptc))
@@ -69,7 +72,9 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		}
 	} else if s.recoveryState.handleDuplicateToolCall(ptc, &s.req, currentLogger, s.telemetryScope) {
 		pResultContent = blockedToolOutputFromRequest(&s.req)
+		actionBlocked = true
 	} else {
+		toolAction = startAgentToolAction(currentLogger, actionLedger, toolAction)
 		pResultContent = DispatchToolCall(ctx, &ptc, dispatchCtx, lastUserMsg)
 	}
 	policyResult := finalizeToolExecution(ptc, pResultContent, ptc.GuardianBlocked, cfg, shortTermMem, sessionID,
@@ -78,6 +83,11 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	pResultContent = policyResult.Content
 	if policyResult.Failed {
 		recordToolFailureOperationalIssue(s.runCfg, ptc, pResultContent, currentLogger)
+	}
+	if actionBlocked {
+		toolAction = blockAgentToolAction(currentLogger, actionLedger, toolAction, pResultContent)
+	} else {
+		toolAction = completeAgentToolAction(currentLogger, actionLedger, toolAction, policyResult, dispatchCtx.ExecutionTimeMs)
 	}
 	recordToolAuditEvent(shortTermMem, currentLogger, ptc, policyResult, sessionID, s.runCfg.MessageSource, dispatchCtx.ExecutionTimeMs)
 	trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, ptc.Action, pResultContent)
@@ -151,6 +161,7 @@ func executeAgentToolTurn(
 	if tc.Action == "homepage" || tc.Action == "homepage_tool" {
 		s.homepageUsedInChain = true
 	}
+	actionLedger, toolAction := beginAgentToolAction(s, tc, agentActionTurnID(sessionID, len(s.req.Messages), s.toolCallCount))
 	broker.Send("thinking", fmt.Sprintf("[%d] Running %s...", s.toolCallCount, tc.Action))
 
 	// Persist tool call to history: native path synthesizes a text representation
@@ -218,6 +229,7 @@ func executeAgentToolTurn(
 	preloadedRules, rulesBlocked := ensureTaskRulesBeforeToolExecution(s, tc, lastUserMsg)
 	if rulesBlocked {
 		resultContent := preloadedRules
+		toolAction = blockAgentToolAction(currentLogger, actionLedger, toolAction, resultContent)
 		if useNativePath && tc.NativeCallID != "" {
 			s.req.Messages = append(s.req.Messages, nativeAssistantMsg)
 			s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{
@@ -251,8 +263,9 @@ func executeAgentToolTurn(
 	}
 
 	if s.recoveryState.handleDuplicateToolCall(tc, &s.req, currentLogger, s.telemetryScope) {
+		syntheticResult := blockedToolOutputFromRequest(&s.req)
+		toolAction = blockAgentToolAction(currentLogger, actionLedger, toolAction, syntheticResult)
 		if useNativePath && tc.NativeCallID != "" {
-			syntheticResult := blockedToolOutputFromRequest(&s.req)
 			s.req.Messages = append(s.req.Messages, nativeAssistantMsg)
 			s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{
 				Role:       openai.ChatMessageRoleTool,
@@ -268,6 +281,8 @@ func executeAgentToolTurn(
 				}, resultID, false, true)
 			}
 		}
+		broker.Send("tool_output", syntheticResult)
+		broker.Send("tool_end", tc.Action)
 		s.lastResponseWasTool = false
 		return resp, nil, true
 	}
@@ -290,12 +305,14 @@ func executeAgentToolTurn(
 	}
 
 	dispatchCtx := s.makeDispatchContext(currentLogger)
+	toolAction = startAgentToolAction(currentLogger, actionLedger, toolAction)
 	resultContent := DispatchToolCall(ctx, &tc, dispatchCtx, lastUserMsg)
 	policyResult := finalizeToolExecution(tc, resultContent, tc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(tc.Action), dispatchCtx.ExecutionTimeMs)
 	resultContent = policyResult.Content
 	if policyResult.Failed {
 		recordToolFailureOperationalIssue(s.runCfg, tc, resultContent, currentLogger)
 	}
+	toolAction = completeAgentToolAction(currentLogger, actionLedger, toolAction, policyResult, dispatchCtx.ExecutionTimeMs)
 	recordToolAuditEvent(shortTermMem, currentLogger, tc, policyResult, sessionID, s.runCfg.MessageSource, dispatchCtx.ExecutionTimeMs)
 	trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, tc.Action, resultContent)
 	recordPlanToolProgress(shortTermMem, sessionID, tc, resultContent, currentLogger)
@@ -476,6 +493,7 @@ func executeAgentToolTurn(
 			if btc.Action == "homepage" || btc.Action == "homepage_tool" {
 				s.homepageUsedInChain = true
 			}
+			batchedLedger, batchedAction := beginAgentToolAction(s, btc, agentActionTurnID(sessionID, len(s.req.Messages), s.toolCallCount))
 			broker.Send("thinking", fmt.Sprintf("[%d] Running %s (batched)...", s.toolCallCount, btc.Action))
 			broker.Send("tool_start", btc.Action)
 			if btc.Action != "" {
@@ -483,8 +501,10 @@ func executeAgentToolTurn(
 			}
 
 			bResult := ""
+			batchedBlocked := false
 			if preload, blocked := ensureTaskRulesBeforeToolExecution(s, btc, lastUserMsg); blocked {
 				bResult = preload
+				batchedBlocked = true
 			} else if precomputed, ok := nativePendingSummaryBatch[pendingSummaryBatchKey(btc)]; ok {
 				bResult = precomputed
 				delete(nativePendingSummaryBatch, pendingSummaryBatchKey(btc))
@@ -493,13 +513,20 @@ func executeAgentToolTurn(
 				}
 			} else if s.recoveryState.handleDuplicateToolCall(btc, &s.req, currentLogger, s.telemetryScope) {
 				bResult = blockedToolOutputFromRequest(&s.req)
+				batchedBlocked = true
 			} else {
+				batchedAction = startAgentToolAction(currentLogger, batchedLedger, batchedAction)
 				bResult = DispatchToolCall(ctx, &btc, nativeDispatchCtx, lastUserMsg)
 			}
 			policyResult := finalizeToolExecution(btc, bResult, btc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(btc.Action), nativeDispatchCtx.ExecutionTimeMs)
 			bResult = policyResult.Content
 			if policyResult.Failed {
 				recordToolFailureOperationalIssue(s.runCfg, btc, bResult, currentLogger)
+			}
+			if batchedBlocked {
+				batchedAction = blockAgentToolAction(currentLogger, batchedLedger, batchedAction, bResult)
+			} else {
+				batchedAction = completeAgentToolAction(currentLogger, batchedLedger, batchedAction, policyResult, nativeDispatchCtx.ExecutionTimeMs)
 			}
 			recordToolAuditEvent(shortTermMem, currentLogger, btc, policyResult, sessionID, s.runCfg.MessageSource, nativeDispatchCtx.ExecutionTimeMs)
 			trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, btc.Action, bResult)

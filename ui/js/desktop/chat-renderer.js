@@ -477,6 +477,21 @@
             if (event === 'thinking') {
                 return detail || this.translate('chat.sse_thinking', this.translate('desktop.chat_thinking', 'Reasoning...'));
             }
+            if (event === 'agent_action') {
+                const payload = data.payload && typeof data.payload === 'object' ? data.payload : data;
+                const toolName = String(payload.tool_name || payload.toolName || detail || 'tool').trim();
+                const state = String(payload.state || '').toLowerCase();
+                if (state === 'started') {
+                    return this.translate('chat.sse_tool_start', this.translate('desktop.chat_using_tool', 'Using tool') + ': ') + toolName;
+                }
+                if (state === 'succeeded' || state === 'sanitized') {
+                    return this.translate('chat.sse_tool_end', 'Tool completed: ') + toolName;
+                }
+                if (state === 'failed' || state === 'blocked' || state === 'cancelled') {
+                    return this.translate('chat.sse_error_recovery', 'Script had an error. Fixing code...');
+                }
+                return '';
+            }
             if (event === 'tool_start') {
                 if (detail === 'co_agent' || detail === 'co_agents') return '';
                 if (detail === 'list_skills') {

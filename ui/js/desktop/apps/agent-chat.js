@@ -1112,7 +1112,7 @@
                         }
                     } else if (event === 'thinking' || event === 'tool_start' || event === 'tool_end' ||
                         event === 'co_agent_spawn' || event === 'workflow_plan' || event === 'coding' ||
-                        event === 'error_recovery') {
+                        event === 'error_recovery' || event === 'agent_action') {
                         if (statusEl && renderer) {
                             const status = renderer.formatAgentActionStatus(data);
                             if (status) {

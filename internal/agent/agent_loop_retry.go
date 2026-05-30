@@ -131,6 +131,13 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 			"attempt", s.invalidNativeToolCount,
 			"action", tc.Action,
 			"error", tc.NativeArgsError)
+		ledger := newAgentActionLedger(shortTermMem, currentLogger, broker, sessionID, s.runCfg.MessageSource)
+		action, actionErr := ledger.ProposeTool(agentActionTurnID(sessionID, len(s.req.Messages), s.toolCallCount+1), tc)
+		if actionErr == nil {
+			failAgentToolAction(currentLogger, ledger, action, firstNonEmpty(tc.NativeArgsError, "invalid native tool arguments"))
+		} else {
+			currentLogger.Warn("Failed to record invalid native tool action", "action", tc.Action, "error", actionErr)
+		}
 		if dropped := len(s.pendingTCs); dropped > 0 {
 			s.pendingTCs = nil
 			s.pendingSummaryBatch = nil
@@ -280,6 +287,27 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 	announcementOnly := announcementContent != "" &&
 		!tc.IsTool &&
 		shouldRecoverAnnouncementOnlyResponse(parsedToolResp, tc, useNativePath, s.lastResponseWasTool, s.lastUserMsg)
+	promiseOnly := announcementContent != "" &&
+		!tc.IsTool &&
+		!parsedToolResp.IsFinished &&
+		shouldRecoverActionPromiseWithoutTool(announcementContent, tc, s.lastUserMsg)
+	if promiseOnly && s.announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
+		s.announcementCount++
+		currentLogger.Warn("[Sync] Action promise without tool call detected, requesting an actual tool call",
+			"attempt", s.announcementCount,
+			"last_user_msg", Truncate(s.lastUserMsg, 120),
+			"content_preview", Truncate(announcementContent, 120))
+		feedbackMsg := applyEmotionRecoveryNudge(FormatAnnouncementFeedback(s.useNativeFunctions, s.recentTools), emotionPolicy)
+		msgs := s.recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
+			SessionID:        sessionID,
+			AssistantContent: content,
+			FeedbackMsg:      feedbackMsg,
+			BrokerEventType:  "error_recovery",
+			I18nKey:          "backend.stream_error_recovery_announcement_no_action",
+		}, shortTermMem, historyManager)
+		s.req.Messages = append(s.req.Messages, msgs...)
+		return content, tc, true, false
+	}
 	if announcementOnly && s.announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
 		s.announcementCount++
 		currentLogger.Warn("[Sync] Announcement-only text response detected, requesting tool call or completion signal",

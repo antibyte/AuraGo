@@ -259,6 +259,7 @@ func TestSSEEventTypeConstants(t *testing.T) {
 		{EventLLMStreamDone, "llm_stream_done"},
 		{EventTokenUpdate, "token_update"},
 		{EventToolCallPreview, "tool_call_preview"},
+		{EventAgentAction, "agent_action"},
 		{EventSystemMetrics, "system_metrics"},
 	}
 	for _, tt := range tests {
