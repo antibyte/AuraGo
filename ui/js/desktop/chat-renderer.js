@@ -106,21 +106,178 @@
             return bubble;
         },
 
-        appendRichBubble(chatLog, role, text) {
+        appendAvatar(chatLog, role, bubble, isContinuation) {
+            if (role === 'user') {
+                chatLog.appendChild(bubble);
+                return;
+            }
+            const row = document.createElement('div');
+            row.className = 'vd-chat-message-row agent';
+            if (isContinuation) {
+                const spacer = document.createElement('div');
+                spacer.className = 'vd-chat-avatar-hidden';
+                row.appendChild(spacer);
+            } else {
+                const avatar = document.createElement('div');
+                avatar.className = 'vd-chat-avatar';
+                if (window.AuraChatCore && typeof window.AuraChatCore.personaAvatarMarkup === 'function') {
+                    avatar.innerHTML = window.AuraChatCore.personaAvatarMarkup('agent');
+                } else {
+                    avatar.textContent = '🤖';
+                }
+                row.appendChild(avatar);
+            }
+            row.appendChild(bubble);
+            chatLog.appendChild(row);
+        },
+
+        appendRichBubble(chatLog, role, text, prevRole) {
             const bubble = this.createBubble(role, '');
+            const isGroup = prevRole === role;
+
+            if (isGroup) {
+                bubble.dataset.roleGroup = 'continuation';
+            }
+
             if (role === 'user') {
                 bubble.textContent = text;
             } else {
                 bubble.innerHTML = this.renderMarkdown(text);
                 this.processImages(bubble);
+                this.enhanceCodeBlocks(bubble);
                 if (window.MermaidLoader) {
                     window.MermaidLoader.processBlocks(bubble);
                 }
             }
-            chatLog.appendChild(bubble);
+
+            this.appendMessageActions(bubble, role);
+
+            if (role === 'agent') {
+                this.appendAvatar(chatLog, role, bubble, isGroup);
+            } else {
+                chatLog.appendChild(bubble);
+            }
+
             const stamp = this.appendTimestamp(chatLog, role);
             (stamp || bubble).scrollIntoView({ block: 'end', behavior: 'smooth' });
             return bubble;
+        },
+
+        enhanceCodeBlocks(bubble) {
+            if (!bubble) return;
+            const codeBlocks = bubble.querySelectorAll('pre > code');
+            codeBlocks.forEach(code => {
+                const pre = code.parentElement;
+                if (!pre || pre.querySelector('.vd-chat-code-block-header')) return;
+
+                const langMatch = (code.className || '').match(/(?:language-|lang-)(\w[\w+-]*)/);
+                const lang = langMatch ? langMatch[1] : '';
+
+                const header = document.createElement('div');
+                header.className = 'vd-chat-code-block-header';
+
+                const langLabel = document.createElement('span');
+                langLabel.className = 'vd-chat-code-lang';
+                langLabel.textContent = lang || 'code';
+
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'vd-chat-code-copy';
+                copyBtn.type = 'button';
+                copyBtn.textContent = this.translate('desktop.copy', 'Copy');
+                copyBtn.addEventListener('click', () => {
+                    const text = code.textContent || '';
+                    navigator.clipboard.writeText(text).then(() => {
+                        copyBtn.textContent = this.translate('desktop.copied', 'Copied!');
+                        copyBtn.classList.add('copied');
+                        setTimeout(() => {
+                            copyBtn.textContent = this.translate('desktop.copy', 'Copy');
+                            copyBtn.classList.remove('copied');
+                        }, 2000);
+                    }).catch(() => {});
+                });
+
+                header.appendChild(langLabel);
+                header.appendChild(copyBtn);
+                pre.insertBefore(header, pre.firstChild);
+            });
+        },
+
+        appendMessageActions(bubble, role) {
+            const actions = document.createElement('div');
+            actions.className = 'vd-chat-actions';
+
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'vd-chat-action-btn';
+            copyBtn.type = 'button';
+            copyBtn.title = this.translate('desktop.copy', 'Copy');
+            copyBtn.setAttribute('aria-label', this.translate('desktop.copy', 'Copy'));
+            copyBtn.innerHTML = '<span class="vd-chat-action-icon">📋</span>';
+            copyBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const text = bubble.textContent || '';
+                navigator.clipboard.writeText(text).then(() => {
+                    copyBtn.querySelector('.vd-chat-action-icon').textContent = '✅';
+                    setTimeout(() => {
+                        copyBtn.querySelector('.vd-chat-action-icon').textContent = '📋';
+                    }, 1500);
+                }).catch(() => {});
+            });
+            actions.appendChild(copyBtn);
+
+            if (role === 'user') {
+                const editBtn = document.createElement('button');
+                editBtn.className = 'vd-chat-action-btn';
+                editBtn.type = 'button';
+                editBtn.title = this.translate('desktop.edit', 'Edit');
+                editBtn.setAttribute('aria-label', this.translate('desktop.edit', 'Edit'));
+                editBtn.innerHTML = '<span class="vd-chat-action-icon">✏️</span>';
+                editBtn.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    const chat = bubble.closest('.vd-chat');
+                    if (!chat) return;
+                    const input = chat.querySelector('.vd-chat-input');
+                    if (input) {
+                        input.value = bubble.textContent || '';
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        input.focus();
+                    }
+                });
+                actions.appendChild(editBtn);
+            }
+
+            if (role === 'agent') {
+                const retryBtn = document.createElement('button');
+                retryBtn.className = 'vd-chat-action-btn';
+                retryBtn.type = 'button';
+                retryBtn.title = this.translate('desktop.retry', 'Retry');
+                retryBtn.setAttribute('aria-label', this.translate('desktop.retry', 'Retry'));
+                retryBtn.innerHTML = '<span class="vd-chat-action-icon">🔄</span>';
+                retryBtn.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    const chat = bubble.closest('.vd-chat');
+                    if (!chat) return;
+                    const chatLog = chat.querySelector('.vd-chat-log');
+                    if (!chatLog) return;
+                    const userBubbles = chatLog.querySelectorAll('.vd-chat-bubble.user, .vd-chat-message-row.user .vd-chat-bubble');
+                    const lastUser = userBubbles[userBubbles.length - 1];
+                    if (lastUser) {
+                        const host = chat.closest('[data-window-content]') || chat.parentElement;
+                        if (host && window.AgentChatApp && typeof window.AgentChatApp.render === 'function') {
+                            const text = lastUser.textContent || '';
+                            if (text) {
+                                const input = chat.querySelector('.vd-chat-input');
+                                if (input) {
+                                    input.value = text;
+                                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                                }
+                            }
+                        }
+                    }
+                });
+                actions.appendChild(retryBtn);
+            }
+
+            bubble.appendChild(actions);
         },
 
         processImages(container) {
@@ -176,7 +333,8 @@
             img.style.cursor = 'pointer';
             img.addEventListener('click', () => this.openLightbox(imgData.path, cap));
             bubble.appendChild(img);
-            chatLog.appendChild(bubble);
+            this.appendMessageActions(bubble, 'agent');
+            this.appendAvatar(chatLog, 'agent', bubble);
             const stamp = this.appendTimestamp(chatLog, 'agent');
             (stamp || bubble).scrollIntoView({ block: 'end', behavior: 'smooth' });
         },
@@ -197,7 +355,8 @@
                 : 'video/mp4'));
             video.appendChild(source);
             bubble.appendChild(video);
-            chatLog.appendChild(bubble);
+            this.appendMessageActions(bubble, 'agent');
+            this.appendAvatar(chatLog, 'agent', bubble);
             const stamp = this.appendTimestamp(chatLog, 'agent');
             (stamp || bubble).scrollIntoView({ block: 'end', behavior: 'smooth' });
         },
@@ -235,7 +394,8 @@
             }
 
             bubble.appendChild(wrapper);
-            chatLog.appendChild(bubble);
+            this.appendMessageActions(bubble, 'agent');
+            this.appendAvatar(chatLog, 'agent', bubble);
             const stamp = this.appendTimestamp(chatLog, 'agent');
             (stamp || bubble).scrollIntoView({ block: 'end', behavior: 'smooth' });
         },
@@ -291,7 +451,8 @@
                 '</div>';
             const bubble = this.createBubble('agent', '');
             bubble.appendChild(card);
-            chatLog.appendChild(bubble);
+            this.appendMessageActions(bubble, 'agent');
+            this.appendAvatar(chatLog, 'agent', bubble);
             const stamp = this.appendTimestamp(chatLog, 'agent');
             (stamp || bubble).scrollIntoView({ block: 'end', behavior: 'smooth' });
         },
