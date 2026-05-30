@@ -115,6 +115,24 @@ func TestDesktopWindowDropRunsBeforeAppDropSurfaces(t *testing.T) {
 	}
 }
 
+func TestDesktopChatDropOverlayCleansUpAfterCapturedWindowDrops(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/agent-chat.js")
+	for _, marker := range []string{
+		"function clearDropOverlay()",
+		"host._desktopChatDropCleanup",
+		"window.addEventListener('drop', clearDropOverlay, true)",
+		"window.addEventListener('dragend', clearDropOverlay, true)",
+		"window.removeEventListener('drop', clearDropOverlay, true)",
+		"window.removeEventListener('dragend', clearDropOverlay, true)",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop chat drop overlay cleanup missing marker %q", marker)
+		}
+	}
+}
+
 func TestDesktopMainLoadsWindowDropRuntime(t *testing.T) {
 	t.Parallel()
 

@@ -34,7 +34,9 @@ func TestDesktopChatLogItemsDoNotCollapseAroundLongResponses(t *testing.T) {
 
 	css := readAllDesktopCSS(t)
 	for _, marker := range []string{
-		"grid-template-rows: auto minmax(0, 1fr) auto auto;",
+		"grid-template-rows: minmax(0, 1fr) auto auto;",
+		".vd-chat-context[hidden]",
+		"display: none;",
 		".vd-chat-log > *",
 		"flex: 0 0 auto;",
 		"display: flow-root;",
@@ -46,5 +48,29 @@ func TestDesktopChatLogItemsDoNotCollapseAroundLongResponses(t *testing.T) {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("desktop chat CSS missing anti-collapse marker %q", marker)
 		}
+	}
+}
+
+func TestDesktopChatDropOverlayStartsTrulyHidden(t *testing.T) {
+	t.Parallel()
+
+	css := readAllDesktopCSS(t)
+	overlayBlocks := regexp.MustCompile(`(?s)\.vd-chat-drop-overlay\s*\{([^}]*)\}`).FindAllStringSubmatch(css, -1)
+	if len(overlayBlocks) == 0 {
+		t.Fatal("desktop chat CSS missing drop overlay rules")
+	}
+	if !strings.Contains(overlayBlocks[0][1], "visibility: hidden") {
+		t.Fatal("desktop chat drop overlay must be visibility-hidden until a drag is active")
+	}
+	if !strings.Contains(overlayBlocks[0][1], "pointer-events: none") {
+		t.Fatal("desktop chat drop overlay must not intercept normal chat input when inactive")
+	}
+
+	activeBlocks := regexp.MustCompile(`(?s)\.vd-chat-drop-overlay\.active\s*\{([^}]*)\}`).FindAllStringSubmatch(css, -1)
+	if len(activeBlocks) == 0 {
+		t.Fatal("desktop chat CSS missing active drop overlay rules")
+	}
+	if !strings.Contains(activeBlocks[0][1], "visibility: visible") {
+		t.Fatal("desktop chat drop overlay must explicitly become visible only while active")
 	}
 }

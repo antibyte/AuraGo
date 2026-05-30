@@ -257,7 +257,7 @@
    ============================================================ */
 .vd-chat-main {
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-rows: minmax(0, 1fr) auto auto;
     min-height: 0;
     min-width: 0;
     grid-column: 2;
@@ -496,6 +496,10 @@
     flex-shrink: 0;
 }
 
+.vd-chat-context[hidden] {
+    display: none;
+}
+
 .vd-chat-context-chips {
     display: flex;
     align-items: center;
@@ -666,13 +670,14 @@
     border: 2px dashed rgba(39, 199, 166, 0.5);
     border-radius: var(--vd-window-radius, 12px);
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
     transition: opacity 200ms;
 }
 
 .vd-chat-drop-overlay.active {
     opacity: 1;
-    pointer-events: auto;
+    visibility: visible;
 }
 
 .vd-chat-drop-overlay-content {

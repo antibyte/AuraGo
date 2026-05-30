@@ -281,34 +281,51 @@
         const overlay = host.querySelector('[data-chat-drop-overlay]');
         if (!chatMain || !overlay) return;
 
+        if (typeof host._desktopChatDropCleanup === 'function') {
+            host._desktopChatDropCleanup();
+        }
+
         let dragCounter = 0;
 
+        function hasFileDrag(event) {
+            const types = Array.from((event && event.dataTransfer && event.dataTransfer.types) || []);
+            return types.includes('Files');
+        }
+
+        function clearDropOverlay() {
+            dragCounter = 0;
+            overlay.classList.remove('active');
+        }
+
         chatMain.addEventListener('dragenter', (event) => {
+            if (!hasFileDrag(event)) return;
             event.preventDefault();
             dragCounter++;
-            if (event.dataTransfer && event.dataTransfer.types && event.dataTransfer.types.includes('Files')) {
-                overlay.classList.add('active');
-            }
+            overlay.classList.add('active');
         });
 
         chatMain.addEventListener('dragleave', (event) => {
+            if (!hasFileDrag(event)) return;
             event.preventDefault();
             dragCounter--;
-            if (dragCounter <= 0) {
-                dragCounter = 0;
-                overlay.classList.remove('active');
+            if (dragCounter <= 0 || !chatMain.contains(event.relatedTarget)) {
+                clearDropOverlay();
             }
         });
 
         chatMain.addEventListener('dragover', (event) => {
+            if (!hasFileDrag(event)) return;
             event.preventDefault();
             if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
         });
 
         chatMain.addEventListener('drop', (event) => {
+            if (!hasFileDrag(event)) {
+                clearDropOverlay();
+                return;
+            }
             event.preventDefault();
-            dragCounter = 0;
-            overlay.classList.remove('active');
+            clearDropOverlay();
 
             const files = event.dataTransfer && event.dataTransfer.files;
             if (!files || !files.length) return;
@@ -331,6 +348,13 @@
                 renderChatContextBar(host);
             }
         });
+
+        window.addEventListener('drop', clearDropOverlay, true);
+        window.addEventListener('dragend', clearDropOverlay, true);
+        host._desktopChatDropCleanup = () => {
+            window.removeEventListener('drop', clearDropOverlay, true);
+            window.removeEventListener('dragend', clearDropOverlay, true);
+        };
     }
 
     function initScrollFab(host) {
