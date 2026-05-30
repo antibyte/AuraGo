@@ -634,6 +634,7 @@
   "dashboard.audit_status_blocked": "Αποκλειστηκε",
   "dashboard.audit_status_sanitized": "Καθαριστηκε",
   "dashboard.audit_type_tool_call": "Κληση εργαλειου",
+  "dashboard.audit_type_agent_action": "Κυκλος ζωης ενεργειας",
   "dashboard.audit_type_mission_run": "Εκτελεση αποστολης",
   "dashboard.audit_type_heartbeat_run": "Εκτελεση heartbeat",
   "dashboard.audit_type_remote_heartbeat": "Απομακρυσμενο heartbeat",

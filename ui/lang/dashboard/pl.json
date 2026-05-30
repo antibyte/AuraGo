@@ -634,6 +634,7 @@
   "dashboard.audit_status_blocked": "Zablokowane",
   "dashboard.audit_status_sanitized": "Oczyszczone",
   "dashboard.audit_type_tool_call": "Wywolanie narzedzia",
+  "dashboard.audit_type_agent_action": "Cykl zycia akcji",
   "dashboard.audit_type_mission_run": "Uruchomienie misji",
   "dashboard.audit_type_heartbeat_run": "Uruchomienie heartbeat",
   "dashboard.audit_type_remote_heartbeat": "Zdalny heartbeat",

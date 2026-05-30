@@ -51,6 +51,19 @@ func (b *SSEBrokerAdapter) SendJSON(jsonStr string) {
 	b.sse.SendJSON(jsonStr)
 }
 
+func (b *SSEBrokerAdapter) SendTyped(eventType string, payload interface{}) bool {
+	if b == nil || b.sse == nil || eventType == "" {
+		return false
+	}
+	enriched := enrichPayloadWithSessionID(payload, b.sessionID)
+	msg, err := encodeTypedSSEEvent(eventType, enriched)
+	if err != nil {
+		return false
+	}
+	b.sse.SendJSON(msg)
+	return true
+}
+
 func (b *SSEBrokerAdapter) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
 	b.sse.BroadcastType(EventLLMStreamDelta, LLMStreamDeltaPayload{
 		SessionID:    b.sessionID,
@@ -94,4 +107,58 @@ func (b *SSEBrokerAdapter) SendThinkingBlock(provider, content, state string) {
 
 func (b *SSEBrokerAdapter) Scrub(s string) string {
 	return security.Scrub(s)
+}
+
+func enrichPayloadWithSessionID(payload interface{}, sessionID string) interface{} {
+	if sessionID == "" {
+		return payload
+	}
+	switch v := payload.(type) {
+	case map[string]interface{}:
+		if _, ok := v["session_id"]; ok {
+			return payload
+		}
+		enriched := make(map[string]interface{}, len(v)+1)
+		for key, value := range v {
+			enriched[key] = value
+		}
+		enriched["session_id"] = sessionID
+		return enriched
+	case map[string]json.RawMessage:
+		if _, ok := v["session_id"]; ok {
+			return payload
+		}
+		enriched := make(map[string]json.RawMessage, len(v)+1)
+		for key, value := range v {
+			enriched[key] = value
+		}
+		sid, _ := json.Marshal(sessionID)
+		enriched["session_id"] = sid
+		return enriched
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return payload
+	}
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return payload
+	}
+	if _, ok := obj["session_id"]; ok {
+		return obj
+	}
+	sid, _ := json.Marshal(sessionID)
+	obj["session_id"] = sid
+	return obj
+}
+
+func encodeTypedSSEEvent(eventType string, payload interface{}) (string, error) {
+	msg, err := json.Marshal(struct {
+		Type    SSEEventType `json:"type"`
+		Payload interface{}  `json:"payload"`
+	}{SSEEventType(eventType), payload})
+	if err != nil {
+		return "", err
+	}
+	return string(msg), nil
 }

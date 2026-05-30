@@ -634,6 +634,7 @@
   "dashboard.audit_status_blocked": "Blockerad",
   "dashboard.audit_status_sanitized": "Rensad",
   "dashboard.audit_type_tool_call": "Verktygsanrop",
+  "dashboard.audit_type_agent_action": "Atgardslivscykel",
   "dashboard.audit_type_mission_run": "Uppdragskörning",
   "dashboard.audit_type_heartbeat_run": "Heartbeat-körning",
   "dashboard.audit_type_remote_heartbeat": "Fjarr heartbeat",

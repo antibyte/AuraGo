@@ -56,6 +56,43 @@ func TestBroadcastTypeProducesTypedEvent(t *testing.T) {
 	b.unsubscribe(ch)
 }
 
+func TestSSEBrokerAdapterSendTypedAddsSessionToPayload(t *testing.T) {
+	b := NewSSEBroadcaster()
+	ch := b.subscribe()
+	defer b.unsubscribe(ch)
+
+	adapter := NewSSEBrokerAdapterWithSession(b, "sess-typed")
+	if !adapter.SendTyped(string(EventAgentAction), map[string]interface{}{"state": "started", "tool_name": "execute_shell"}) {
+		t.Fatal("SendTyped returned false")
+	}
+
+	for i := 0; i < 10; i++ {
+		select {
+		case msg := <-ch:
+			var evt struct {
+				Type    SSEEventType           `json:"type"`
+				Payload map[string]interface{} `json:"payload"`
+			}
+			if err := json.Unmarshal([]byte(msg), &evt); err != nil {
+				t.Fatalf("failed to unmarshal typed event: %v", err)
+			}
+			if evt.Type != EventAgentAction {
+				t.Fatalf("event type = %q, want %q", evt.Type, EventAgentAction)
+			}
+			if evt.Payload["session_id"] != "sess-typed" {
+				t.Fatalf("payload session_id = %#v, want sess-typed", evt.Payload["session_id"])
+			}
+			if evt.Payload["state"] != "started" || evt.Payload["tool_name"] != "execute_shell" {
+				t.Fatalf("payload = %#v", evt.Payload)
+			}
+			return
+		default:
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+	t.Fatal("no typed message received from broker adapter")
+}
+
 func TestBroadcastTypeLLMStreamDone(t *testing.T) {
 	b := NewSSEBroadcaster()
 	ch := b.subscribe()

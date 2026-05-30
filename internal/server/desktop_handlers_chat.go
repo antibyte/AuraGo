@@ -265,6 +265,31 @@ func (b *desktopStreamCombinedBroker) SendJSON(jsonStr string) {
 	b.stream.mu.Unlock()
 }
 
+func (b *desktopStreamCombinedBroker) SendTyped(eventType string, payload interface{}) bool {
+	if b == nil || b.sse == nil || eventType == "" {
+		return false
+	}
+	enriched := enrichPayloadWithSessionID(payload, b.sse.sessionID)
+	if !b.sse.SendTyped(eventType, enriched) {
+		return false
+	}
+	msg, err := encodeTypedSSEEvent(eventType, enriched)
+	if err != nil {
+		return false
+	}
+	b.stream.mu.Lock()
+	if b.stream.closed {
+		b.stream.mu.Unlock()
+		return true
+	}
+	fmt.Fprintf(b.stream.w, "data: %s\n\n", security.Scrub(msg))
+	if b.stream.canFlush {
+		b.stream.flusher.Flush()
+	}
+	b.stream.mu.Unlock()
+	return true
+}
+
 func (b *desktopStreamCombinedBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
 	b.sse.SendLLMStreamDelta(content, toolName, toolID, index, finishReason)
 	b.stream.mu.Lock()

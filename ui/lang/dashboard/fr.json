@@ -634,6 +634,7 @@
   "dashboard.audit_status_blocked": "Bloque",
   "dashboard.audit_status_sanitized": "Nettoye",
   "dashboard.audit_type_tool_call": "Appel d'outil",
+  "dashboard.audit_type_agent_action": "Cycle de vie d'action",
   "dashboard.audit_type_mission_run": "Execution de mission",
   "dashboard.audit_type_heartbeat_run": "Execution heartbeat",
   "dashboard.audit_type_remote_heartbeat": "Heartbeat distant",

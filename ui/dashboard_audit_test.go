@@ -16,6 +16,7 @@ func TestDashboardAuditTabContract(t *testing.T) {
 		`id="audit-source-filter"`,
 		`id="audit-status-filter"`,
 		`id="audit-type-filter"`,
+		`value="agent_action"`,
 		`id="audit-from-filter"`,
 		`id="audit-to-filter"`,
 		`id="audit-tbody"`,
@@ -45,9 +46,19 @@ func TestDashboardAuditTabContract(t *testing.T) {
 		"showConfirm(",
 		"audit-cell-summary",
 		"audit-cell-actions",
+		"scheduleAuditRefresh",
 	} {
 		if !strings.Contains(widgetsJS, marker) {
 			t.Fatalf("dashboard widgets JS missing audit marker %q", marker)
+		}
+	}
+	eventsJS := readDesktopAssetText(t, "js/dashboard/dashboard-events.js")
+	for _, marker := range []string{
+		"scheduleAuditRefresh",
+		"setTimeout",
+	} {
+		if !strings.Contains(eventsJS, marker) {
+			t.Fatalf("dashboard events JS missing audit refresh debounce marker %q", marker)
 		}
 	}
 
@@ -65,5 +76,12 @@ func TestDashboardAuditTabContract(t *testing.T) {
 	}
 	if strings.Contains(mainJS+widgetsJS, "alert(") {
 		t.Fatal("dashboard audit UI must use modals/toasts instead of alert()")
+	}
+
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		langFile := readDesktopAssetText(t, "lang/dashboard/"+lang+".json")
+		if !strings.Contains(langFile, `"dashboard.audit_type_agent_action"`) {
+			t.Fatalf("dashboard %s translation missing agent_action audit label", lang)
+		}
 	}
 }

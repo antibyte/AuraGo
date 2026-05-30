@@ -73,6 +73,34 @@ func (b *coAgentBroker) SendJSON(jsonStr string) {
 	}
 }
 
+func (b *coAgentBroker) SendTyped(eventType string, payload interface{}) bool {
+	if b == nil || eventType != agentActionSSEType {
+		return false
+	}
+	var action AgentActionEvent
+	switch v := payload.(type) {
+	case AgentActionEvent:
+		action = v
+	case *AgentActionEvent:
+		if v != nil {
+			action = *v
+		}
+	default:
+		return true
+	}
+	if b.registry != nil {
+		summary := strings.TrimSpace(action.Summary)
+		if summary == "" {
+			summary = strings.TrimSpace(fmt.Sprintf("%s %s", action.ToolName, action.State))
+		}
+		if summary != "" {
+			b.registry.RecordEvent(b.id, summary)
+		}
+	}
+	b.emitProgress()
+	return true
+}
+
 func (b *coAgentBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
 }
 
@@ -259,6 +287,7 @@ func SpawnCoAgent(
 			CoAgentRegistry:   nil,
 			BudgetTracker:     budgetTracker,
 			SessionID:         sessionID,
+			MessageSource:     "co_agent",
 			IsMaintenance:     false,
 			IsCoAgent:         true,
 			CoAgentSpecialist: req.Specialist,

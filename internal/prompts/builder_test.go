@@ -388,13 +388,20 @@ func TestBuildSystemPromptIncludesActionLedgerReminderForToolModes(t *testing.T)
 				IsTextModeModel: true,
 			},
 		},
+		{
+			name: "text fallback",
+			flags: ContextFlags{
+				Tier:           "full",
+				SystemLanguage: "en",
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			prompt, _ := buildSystemPromptInner("", &tt.flags, "", slog.Default())
 			for _, want := range []string{
-				"Supervisor action ledger",
+				"Action ledger",
 				"Actual work is tracked from tool-call lifecycle events, not from prose",
 				"does not start or complete an action",
 				"Final completion claims must be backed by completed tool results from this turn",

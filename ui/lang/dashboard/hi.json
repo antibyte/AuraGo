@@ -634,6 +634,7 @@
   "dashboard.audit_status_blocked": "ब्लॉक किया गया",
   "dashboard.audit_status_sanitized": "साफ किया गया",
   "dashboard.audit_type_tool_call": "टूल कॉल",
+  "dashboard.audit_type_agent_action": "कार्रवाई जीवनचक्र",
   "dashboard.audit_type_mission_run": "मिशन रन",
   "dashboard.audit_type_heartbeat_run": "हार्टबीट रन",
   "dashboard.audit_type_remote_heartbeat": "रिमोट हार्टबीट",

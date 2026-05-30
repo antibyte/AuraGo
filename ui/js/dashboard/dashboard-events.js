@@ -129,8 +129,8 @@
                 }
             });
             window.AuraSSE.on('audit_update', function () {
-                if (TabState.active === 'audit') {
-                    loadTabAudit();
+                if (typeof scheduleAuditRefresh === 'function') {
+                    scheduleAuditRefresh();
                 }
             });
             window.AuraSSE.onLegacy(function (event) {

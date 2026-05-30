@@ -422,7 +422,7 @@ func loadCriticalFallbackModule(promptsDir, filename string, logger *slog.Logger
 }
 
 func writeActionLedgerReminder(finalPrompt *strings.Builder) {
-	finalPrompt.WriteString("**Supervisor action ledger:** Actual work is tracked from tool-call lifecycle events, not from prose. " +
+	finalPrompt.WriteString("**Action ledger:** Actual work is tracked from tool-call lifecycle events, not from prose. " +
 		"Text such as \"I will check\", \"I am doing it\", or \"handled\" does not start or complete an action. " +
 		"For actionable user requests, either call the required tool now, use `question_user` when approval or a concrete choice is required, " +
 		"or clearly state why no permitted action can be taken. " +
@@ -507,13 +507,13 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 	// CHANGE LOG 2026-04-11: Model-class-specific tool calling prompts.
 	// Native API models get the standard native prompt. Text-mode models (MiniMax, GLM)
 	// get an explicit JSON format prompt because they cannot use the native function calling API.
+	writeActionLedgerReminder(&finalPrompt)
 	if flags.NativeToolsEnabled {
 		finalPrompt.WriteString("## TOOL CALLING MODE\n")
 		finalPrompt.WriteString("This session uses the **native function calling API**. " +
 			"ALWAYS invoke tools via the API tool-call mechanism. " +
 			"NEVER output raw JSON objects as tool invocations — that protocol " +
 			"is for non-native sessions only.\n\n")
-		writeActionLedgerReminder(&finalPrompt)
 		finalPrompt.WriteString("**Preamble rule:** When calling a tool as a single-step action, " +
 			"your response must START with the tool call directly. Do NOT announce " +
 			"what you are about to do (no \"I will…\", \"Let me…\", \"Lass mich…\"). " +
@@ -530,7 +530,6 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 		finalPrompt.WriteString("You MUST invoke tools by outputting a single raw JSON object " +
 			"as your ENTIRE response. Do NOT wrap it in markdown fences, XML tags, or code blocks. " +
 			"Do NOT add any explanation before or after the JSON.\n\n")
-		writeActionLedgerReminder(&finalPrompt)
 		finalPrompt.WriteString("Required format:\n" +
 			"{\"action\": \"tool_name\", \"param1\": \"value1\", \"param2\": \"value2\"}\n\n")
 		finalPrompt.WriteString("**Critical rules:**\n" +
