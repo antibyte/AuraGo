@@ -1,13 +1,19 @@
 /* desktop-app-office.css */
 .vd-editor {
     display: grid;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
     min-height: 0;
+    min-width: 0;
 }
 
 .vd-editor textarea {
+    width: 100%;
+    height: 100%;
     min-height: 0;
+    box-sizing: border-box;
     resize: none;
+    overflow: auto;
     border-radius: 0;
     border-width: 0;
     padding: 14px;

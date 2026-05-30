@@ -205,6 +205,35 @@ func TestEditorWriterAndSheetsExposeAgentMenus(t *testing.T) {
 	}
 }
 
+func TestDesktopEditorFillsWindowContent(t *testing.T) {
+	t.Parallel()
+
+	css := strings.ReplaceAll(readDesktopAssetText(t, "css/desktop-app-office.css"), "\r\n", "\n")
+	editorRule := desktopOfficeCSSRuleBody(t, css, ".vd-editor")
+	for _, marker := range []string{
+		"grid-template-rows: auto minmax(0, 1fr);",
+		"height: 100%;",
+		"min-height: 0;",
+		"min-width: 0;",
+	} {
+		if !strings.Contains(editorRule, marker) {
+			t.Fatalf("editor root layout rule missing marker %q", marker)
+		}
+	}
+
+	textareaRule := desktopOfficeCSSRuleBody(t, css, ".vd-editor textarea")
+	for _, marker := range []string{
+		"width: 100%;",
+		"height: 100%;",
+		"box-sizing: border-box;",
+		"overflow: auto;",
+	} {
+		if !strings.Contains(textareaRule, marker) {
+			t.Fatalf("editor textarea layout rule missing marker %q", marker)
+		}
+	}
+}
+
 func TestDesktopAgentLaunchContextPreservesSourceApp(t *testing.T) {
 	t.Parallel()
 
@@ -267,4 +296,22 @@ func jsFunctionBody(t *testing.T, source, name string) string {
 		t.Fatalf("missing closing brace for function %s", name)
 	}
 	return source[bodyStart : bodyStart+closeBrace]
+}
+
+func desktopOfficeCSSRuleBody(t *testing.T, source, selector string) string {
+	t.Helper()
+	start := strings.Index(source, selector+" {")
+	if start < 0 {
+		t.Fatalf("desktop office CSS missing selector %q", selector)
+	}
+	open := strings.Index(source[start:], "{")
+	if open < 0 {
+		t.Fatalf("desktop office CSS selector %q is missing opening brace", selector)
+	}
+	bodyStart := start + open + 1
+	close := strings.Index(source[bodyStart:], "}")
+	if close < 0 {
+		t.Fatalf("desktop office CSS selector %q is missing closing brace", selector)
+	}
+	return source[bodyStart : bodyStart+close]
 }
