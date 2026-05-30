@@ -273,13 +273,13 @@ func (s *Service) listApps(ctx context.Context) ([]AppManifest, error) {
 
 func (s *Service) validateGeneratedAppEntry(ctx context.Context, app AppManifest) AppManifest {
 	app.EntryPath = filepath.ToSlash(filepath.Join("Apps", app.ID, app.Entry))
-	entryPath, err := s.ResolvePath(app.EntryPath)
+	entryPath, err := s.resolveWorkspacePathNoSymlinks(app.EntryPath, true)
 	if err != nil {
 		app.Health = "broken"
 		app.HealthReason = "invalid_entry_path"
 		return app
 	}
-	data, err := os.ReadFile(entryPath)
+	data, _, err := secureReadWorkspaceFile(entryPath)
 	if err != nil {
 		app.Health = "broken"
 		if os.IsNotExist(err) {

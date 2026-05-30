@@ -556,6 +556,119 @@ func TestServiceCopyRejectsNestedSymlinkEscape(t *testing.T) {
 	}
 }
 
+func TestServiceReadFileBytesRejectsWorkspaceSymlinkFinalTarget(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	if err := svc.WriteFile(ctx, "Documents/source.txt", "secret", SourceAgent); err != nil {
+		t.Fatalf("WriteFile source: %v", err)
+	}
+	source, err := svc.ResolvePath("Documents/source.txt")
+	if err != nil {
+		t.Fatalf("ResolvePath source: %v", err)
+	}
+	link, err := svc.resolveRenamePath("Documents/source-link.txt")
+	if err != nil {
+		t.Fatalf("resolve link path: %v", err)
+	}
+	createTestSymlinkOrSkip(t, source, link)
+
+	if _, _, err := svc.ReadFileBytes(ctx, "Documents/source-link.txt"); err == nil {
+		t.Fatal("ReadFileBytes should reject final symlink target")
+	}
+}
+
+func TestServiceReadFileBytesRejectsWorkspaceSymlinkInPath(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	if err := svc.WriteFile(ctx, "Documents/source/file.txt", "secret", SourceAgent); err != nil {
+		t.Fatalf("WriteFile source: %v", err)
+	}
+	sourceDir, err := svc.ResolvePath("Documents/source")
+	if err != nil {
+		t.Fatalf("ResolvePath source dir: %v", err)
+	}
+	linkDir, err := svc.resolveRenamePath("Documents/source-link")
+	if err != nil {
+		t.Fatalf("resolve link dir path: %v", err)
+	}
+	createTestSymlinkOrSkip(t, sourceDir, linkDir)
+
+	if _, _, err := svc.ReadFileBytes(ctx, "Documents/source-link/file.txt"); err == nil {
+		t.Fatal("ReadFileBytes should reject symlink in path")
+	}
+}
+
+func TestServiceWriteFileRejectsWorkspaceSymlinkFinalTarget(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	if err := svc.WriteFile(ctx, "Documents/source.txt", "secret", SourceAgent); err != nil {
+		t.Fatalf("WriteFile source: %v", err)
+	}
+	source, err := svc.ResolvePath("Documents/source.txt")
+	if err != nil {
+		t.Fatalf("ResolvePath source: %v", err)
+	}
+	link, err := svc.resolveRenamePath("Documents/source-link.txt")
+	if err != nil {
+		t.Fatalf("resolve link path: %v", err)
+	}
+	createTestSymlinkOrSkip(t, source, link)
+
+	if err := svc.WriteFile(ctx, "Documents/source-link.txt", "changed", SourceAgent); err == nil {
+		t.Fatal("WriteFile should reject final symlink target")
+	}
+	got, _, err := svc.ReadFile(ctx, "Documents/source.txt")
+	if err != nil {
+		t.Fatalf("ReadFile source: %v", err)
+	}
+	if got != "secret" {
+		t.Fatalf("source content = %q, want unchanged", got)
+	}
+}
+
+func TestServiceWriteFileRejectsWorkspaceSymlinkInPath(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	if err := svc.WriteFile(ctx, "Documents/source/file.txt", "secret", SourceAgent); err != nil {
+		t.Fatalf("WriteFile source: %v", err)
+	}
+	sourceDir, err := svc.ResolvePath("Documents/source")
+	if err != nil {
+		t.Fatalf("ResolvePath source dir: %v", err)
+	}
+	linkDir, err := svc.resolveRenamePath("Documents/source-link")
+	if err != nil {
+		t.Fatalf("resolve link dir path: %v", err)
+	}
+	createTestSymlinkOrSkip(t, sourceDir, linkDir)
+
+	if err := svc.WriteFile(ctx, "Documents/source-link/file.txt", "changed", SourceAgent); err == nil {
+		t.Fatal("WriteFile should reject symlink in path")
+	}
+	got, _, err := svc.ReadFile(ctx, "Documents/source/file.txt")
+	if err != nil {
+		t.Fatalf("ReadFile source: %v", err)
+	}
+	if got != "secret" {
+		t.Fatalf("source content = %q, want unchanged", got)
+	}
+}
+
+func createTestSymlinkOrSkip(t *testing.T, target, link string) {
+	t.Helper()
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+}
+
 func TestServiceCopyRejectsDirectoryTreesPastDepthLimit(t *testing.T) {
 	t.Parallel()
 

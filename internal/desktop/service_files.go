@@ -218,14 +218,15 @@ func (s *Service) ReadFile(ctx context.Context, rawPath string) (string, FileEnt
 		}
 		return string(data), entry, nil
 	}
-	path, err := s.ResolvePath(rawPath)
+	path, err := s.resolveWorkspacePathNoSymlinks(rawPath, false)
 	if err != nil {
 		return "", FileEntry{}, err
 	}
-	info, err := os.Stat(path)
+	file, info, err := secureOpenWorkspaceRead(path)
 	if err != nil {
-		return "", FileEntry{}, fmt.Errorf("stat desktop file: %w", err)
+		return "", FileEntry{}, fmt.Errorf("open desktop file: %w", err)
 	}
+	defer file.Close()
 	if info.IsDir() {
 		return "", FileEntry{}, fmt.Errorf("desktop path is a directory")
 	}
@@ -247,7 +248,7 @@ func (s *Service) ReadFile(ctx context.Context, rawPath string) (string, FileEnt
 			Created:   getCreationTime(info),
 		}, fmt.Errorf("desktop file is binary; use ReadFileBytes or download")
 	}
-	data, err := os.ReadFile(path)
+	data, err := io.ReadAll(file)
 	if err != nil {
 		return "", FileEntry{}, fmt.Errorf("read desktop file: %w", err)
 	}
@@ -292,14 +293,15 @@ func (s *Service) ReadFileBytes(ctx context.Context, rawPath string) ([]byte, Fi
 		}
 		return data, mediaFileEntry(mount, path, info), nil
 	}
-	path, err := s.ResolvePath(rawPath)
+	path, err := s.resolveWorkspacePathNoSymlinks(rawPath, false)
 	if err != nil {
 		return nil, FileEntry{}, err
 	}
-	info, err := os.Stat(path)
+	file, info, err := secureOpenWorkspaceRead(path)
 	if err != nil {
-		return nil, FileEntry{}, fmt.Errorf("stat desktop file: %w", err)
+		return nil, FileEntry{}, fmt.Errorf("open desktop file: %w", err)
 	}
+	defer file.Close()
 	if info.IsDir() {
 		return nil, FileEntry{}, fmt.Errorf("desktop path is a directory")
 	}
@@ -310,7 +312,7 @@ func (s *Service) ReadFileBytes(ctx context.Context, rawPath string) ([]byte, Fi
 	if info.Size() > maxBytes {
 		return nil, FileEntry{}, fmt.Errorf("desktop file exceeds max size")
 	}
-	data, err := os.ReadFile(path)
+	data, err := io.ReadAll(file)
 	if err != nil {
 		return nil, FileEntry{}, fmt.Errorf("read desktop file: %w", err)
 	}
@@ -351,20 +353,17 @@ func (s *Service) OpenPreviewFile(ctx context.Context, rawPath string) (*os.File
 		entry := mediaFileEntry(mount, path, info)
 		return file, entry, entry.MIMEType, nil
 	}
-	path, err := s.ResolvePath(rawPath)
+	path, err := s.resolveWorkspacePathNoSymlinks(rawPath, false)
 	if err != nil {
 		return nil, FileEntry{}, "", err
 	}
-	info, err := os.Stat(path)
-	if err != nil {
-		return nil, FileEntry{}, "", fmt.Errorf("stat desktop preview: %w", err)
-	}
-	if info.IsDir() {
-		return nil, FileEntry{}, "", fmt.Errorf("desktop preview path is a directory")
-	}
-	file, err := os.Open(path)
+	file, info, err := secureOpenWorkspaceRead(path)
 	if err != nil {
 		return nil, FileEntry{}, "", fmt.Errorf("open desktop preview: %w", err)
+	}
+	if info.IsDir() {
+		_ = file.Close()
+		return nil, FileEntry{}, "", fmt.Errorf("desktop preview path is a directory")
 	}
 	return file, FileEntry{
 		Name:     filepath.Base(path),
@@ -421,7 +420,7 @@ func (s *Service) writeFileBytes(ctx context.Context, rawPath string, content []
 		}
 		return FileEntry{}, fmt.Errorf("desktop media mounts are read-only for file writes")
 	}
-	path, err := s.ResolvePath(rawPath)
+	path, err := s.resolveWorkspacePathNoSymlinks(rawPath, true)
 	if err != nil {
 		return FileEntry{}, err
 	}
@@ -442,12 +441,20 @@ func (s *Service) writeFileBytes(ctx context.Context, rawPath string, content []
 		return FileEntry{}, fmt.Errorf("create desktop file directory: %w", err)
 	}
 	_ = os.Chmod(filepath.Dir(path), 0o700)
-	if err := os.WriteFile(path, content, 0o600); err != nil {
-		return FileEntry{}, fmt.Errorf("write desktop file: %w", err)
-	}
-	info, err := os.Stat(path)
+	rootAbs, err := filepath.Abs(s.Config().WorkspaceDir)
 	if err != nil {
-		return FileEntry{}, fmt.Errorf("stat written desktop file: %w", err)
+		return FileEntry{}, fmt.Errorf("resolve desktop root: %w", err)
+	}
+	dirAbs, err := filepath.Abs(filepath.Dir(path))
+	if err != nil {
+		return FileEntry{}, fmt.Errorf("resolve desktop file directory: %w", err)
+	}
+	if err := validateNoSymlinkComponents(rootAbs, dirAbs, false); err != nil {
+		return FileEntry{}, err
+	}
+	info, err := secureWriteWorkspaceFile(path, content)
+	if err != nil {
+		return FileEntry{}, fmt.Errorf("write desktop file: %w", err)
 	}
 	entry := s.workspaceFileEntry(path, info)
 	_ = s.Audit(ctx, "write_file", s.relativePath(path), map[string]interface{}{"bytes": len(content)}, source)
@@ -475,12 +482,15 @@ func (s *Service) invalidateBootstrapCacheForFileMutation(paths ...string) {
 }
 
 func (s *Service) fileWriteStateLocked(path string, maxBytes int64) (FileWriteState, error) {
-	info, err := os.Stat(path)
+	info, err := os.Lstat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return FileWriteState{}, nil
 		}
 		return FileWriteState{}, fmt.Errorf("stat desktop file: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return FileWriteState{}, fmt.Errorf("desktop path is a symlink")
 	}
 	if info.IsDir() {
 		return FileWriteState{}, fmt.Errorf("desktop path is a directory")
@@ -488,7 +498,7 @@ func (s *Service) fileWriteStateLocked(path string, maxBytes int64) (FileWriteSt
 	if maxBytes > 0 && info.Size() > maxBytes {
 		return FileWriteState{}, fmt.Errorf("desktop file exceeds max size")
 	}
-	data, err := os.ReadFile(path)
+	data, info, err := secureReadWorkspaceFile(path)
 	if err != nil {
 		return FileWriteState{}, fmt.Errorf("read desktop file: %w", err)
 	}
@@ -577,7 +587,7 @@ func (s *Service) MovePath(ctx context.Context, oldPath, newPath, source string)
 	if err != nil {
 		return err
 	}
-	to, err := s.resolveRenamePath(newPath)
+	to, err := s.resolveWorkspaceRenameDestinationNoSymlinkParent(newPath)
 	if err != nil {
 		return err
 	}
@@ -588,6 +598,17 @@ func (s *Service) MovePath(ctx context.Context, oldPath, newPath, source string)
 		return fmt.Errorf("create desktop destination directory: %w", err)
 	}
 	_ = os.Chmod(filepath.Dir(to), 0o700)
+	rootAbs, err := filepath.Abs(s.Config().WorkspaceDir)
+	if err != nil {
+		return fmt.Errorf("resolve desktop root: %w", err)
+	}
+	toDirAbs, err := filepath.Abs(filepath.Dir(to))
+	if err != nil {
+		return fmt.Errorf("resolve desktop destination directory: %w", err)
+	}
+	if err := validateNoSymlinkComponents(rootAbs, toDirAbs, false); err != nil {
+		return err
+	}
 	if err := os.Rename(from, to); err != nil {
 		return fmt.Errorf("move desktop path: %w", err)
 	}
@@ -642,11 +663,11 @@ func (s *Service) CopyPath(ctx context.Context, srcPath, dstPath, source string)
 	} else if toOK {
 		return fmt.Errorf("desktop workspace paths cannot copy into media mounts")
 	}
-	from, err := s.ResolvePath(srcPath)
+	from, err := s.resolveWorkspacePathNoSymlinks(srcPath, false)
 	if err != nil {
 		return err
 	}
-	to, err := s.ResolvePath(dstPath)
+	to, err := s.resolveWorkspacePathNoSymlinks(dstPath, true)
 	if err != nil {
 		return err
 	}
@@ -700,7 +721,7 @@ func copyPathLimited(src, dst string, depth int, stats *desktopCopyStats) error 
 }
 
 func copyFile(src, dst string) error {
-	in, err := os.Open(src)
+	in, err := openFileNoFollow(src, os.O_RDONLY, 0)
 	if err != nil {
 		return err
 	}
@@ -712,7 +733,7 @@ func copyFile(src, dst string) error {
 	if !info.Mode().IsRegular() {
 		return fmt.Errorf("copy source is not a regular file")
 	}
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	out, err := openFileNoFollow(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}

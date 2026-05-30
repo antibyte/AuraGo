@@ -48,11 +48,11 @@ func (s *Service) SetIntegritySecretStore(store IntegritySecretStore) {
 func (s *Service) buildDesktopIntegrity(kind, id, baseRel string, rels []string) (*IntegrityData, error) {
 	hashes := map[string]string{}
 	for _, rel := range cleanIntegrityRelPaths(rels) {
-		fullPath, err := s.ResolvePath(filepath.ToSlash(filepath.Join(baseRel, rel)))
+		fullPath, err := s.resolveWorkspacePathNoSymlinks(filepath.ToSlash(filepath.Join(baseRel, rel)), false)
 		if err != nil {
 			return nil, err
 		}
-		data, err := os.ReadFile(fullPath)
+		data, _, err := secureReadWorkspaceFile(fullPath)
 		if err != nil {
 			return nil, fmt.Errorf("read integrity file %q: %w", rel, err)
 		}
@@ -132,11 +132,11 @@ func (s *Service) verifyDesktopIntegrity(kind, id, baseRel string, integrity *In
 		if !strings.HasPrefix(want, "sha256:") {
 			return "integrity_hash_invalid"
 		}
-		fullPath, err := s.ResolvePath(filepath.ToSlash(filepath.Join(baseRel, cleanRel)))
+		fullPath, err := s.resolveWorkspacePathNoSymlinks(filepath.ToSlash(filepath.Join(baseRel, cleanRel)), false)
 		if err != nil {
 			return "integrity_path_invalid"
 		}
-		data, err := os.ReadFile(fullPath)
+		data, _, err := secureReadWorkspaceFile(fullPath)
 		if err != nil {
 			if os.IsNotExist(err) {
 				return "integrity_file_missing"

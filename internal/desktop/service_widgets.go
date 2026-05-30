@@ -183,11 +183,11 @@ func (s *Service) validateWidgetEntryFile(appID, entry string) error {
 	if appID != "" {
 		base = filepath.ToSlash(filepath.Join("Apps", appID))
 	}
-	path, err := s.ResolvePath(filepath.ToSlash(filepath.Join(base, entry)))
+	path, err := s.resolveWorkspacePathNoSymlinks(filepath.ToSlash(filepath.Join(base, entry)), true)
 	if err != nil {
 		return err
 	}
-	content, err := os.ReadFile(path)
+	content, _, err := secureReadWorkspaceFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("desktop widget entry file is missing")
@@ -250,13 +250,13 @@ func (s *Service) validateWidgetEntry(widget Widget) Widget {
 	}
 	baseRel := widgetBaseRel(widget)
 	widget.EntryPath = filepath.ToSlash(filepath.Join(baseRel, widget.Entry))
-	entryPath, err := s.ResolvePath(widget.EntryPath)
+	entryPath, err := s.resolveWorkspacePathNoSymlinks(widget.EntryPath, true)
 	if err != nil {
 		widget.Health = "broken"
 		widget.HealthReason = "invalid_entry_path"
 		return widget
 	}
-	data, err := os.ReadFile(entryPath)
+	data, _, err := secureReadWorkspaceFile(entryPath)
 	if err != nil {
 		widget.Health = "broken"
 		if os.IsNotExist(err) {
