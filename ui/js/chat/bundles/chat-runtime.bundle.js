@@ -122,6 +122,26 @@
     'use strict';
 
     const emojiGlyphPattern = /(?:\p{Extended_Pictographic}(?:\uFE0F)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F)?)*)|[✓✔✕✖✗✘☑☒☐⚠⚡★☆]/gu;
+    const CHAT_SANITIZER_ALLOWED_TAGS = new Set([
+        'a', 'b', 'br', 'code', 'details', 'div', 'em', 'h1', 'h2', 'h3',
+        'h4', 'h5', 'h6', 'hr', 'i', 'img', 'li', 'mark', 'ol', 'p',
+        'pre', 's', 'span', 'strong', 'sub', 'summary', 'sup', 'table',
+        'tbody', 'td', 'th', 'thead', 'tr', 'u', 'ul', 'blockquote',
+        'del', 'ins', 'kbd', 'abbr', 'cite', 'dl', 'dt', 'dd', 'figure',
+        'figcaption', 'picture', 'source', 'video', 'audio', 'track',
+        'iframe', 'ruby', 'rt', 'rp', 'bdi', 'bdo', 'wbr', 'time',
+        'small', 'var', 'samp', 'dfn', 'q', 'address', 'footer',
+        'header', 'main', 'section', 'article', 'aside', 'nav'
+    ]);
+    const CHAT_SANITIZER_ALLOWED_ATTRS = new Set([
+        'href', 'src', 'alt', 'title', 'class', 'id', 'target', 'rel',
+        'loading', 'decoding', 'width', 'height', 'colspan', 'rowspan',
+        'data-language', 'data-line', 'start', 'type', 'download',
+        'open', 'name', 'value', 'disabled', 'data-persona-icon',
+        'controls', 'playsinline', 'poster', 'preload', 'sandbox',
+        'allow', 'referrerpolicy', 'aria-label'
+    ]);
+    const chatSanitizeTemplate = document.createElement('template');
 
     function personaIconUrl(key) {
         const version = window.PERSONA_ASSET_VERSION || '20260502-persona-refresh';
@@ -172,31 +192,13 @@
     }
 
     function sanitizeRenderedHTML(html) {
-        const template = document.createElement('template');
-        template.innerHTML = html;
-        const allowed = new Set([
-            'a', 'b', 'br', 'code', 'details', 'div', 'em', 'h1', 'h2', 'h3',
-            'h4', 'h5', 'h6', 'hr', 'i', 'img', 'li', 'mark', 'ol', 'p',
-            'pre', 's', 'span', 'strong', 'sub', 'summary', 'sup', 'table',
-            'tbody', 'td', 'th', 'thead', 'tr', 'u', 'ul', 'blockquote',
-            'del', 'ins', 'kbd', 'abbr', 'cite', 'dl', 'dt', 'dd', 'figure',
-            'figcaption', 'picture', 'source', 'video', 'audio', 'track',
-            'iframe', 'ruby', 'rt', 'rp', 'bdi', 'bdo', 'wbr', 'time',
-            'small', 'var', 'samp', 'dfn', 'q', 'address', 'footer',
-            'header', 'main', 'section', 'article', 'aside', 'nav'
-        ]);
-        const allowedAttrs = new Set([
-            'href', 'src', 'alt', 'title', 'class', 'id', 'target', 'rel',
-            'loading', 'decoding', 'width', 'height', 'colspan', 'rowspan',
-            'data-language', 'data-line', 'start', 'type', 'download',
-            'open', 'name', 'value', 'disabled', 'data-persona-icon',
-            'controls', 'playsinline', 'poster', 'preload', 'sandbox',
-            'allow', 'referrerpolicy', 'aria-label'
-        ]);
-        const all = template.content.querySelectorAll('*');
+        if (typeof html !== 'string') html = String(html == null ? '' : html);
+        if (html.indexOf('<') === -1) return html;
+        chatSanitizeTemplate.innerHTML = html;
+        const all = chatSanitizeTemplate.content.querySelectorAll('*');
         for (let i = all.length - 1; i >= 0; i--) {
             const node = all[i];
-            if (!allowed.has(node.tagName.toLowerCase())) {
+            if (!CHAT_SANITIZER_ALLOWED_TAGS.has(node.tagName.toLowerCase())) {
                 while (node.firstChild) node.parentNode.insertBefore(node.firstChild, node);
                 node.parentNode.removeChild(node);
                 continue;
@@ -204,7 +206,7 @@
             Array.from(node.attributes).forEach((attr) => {
                 const name = attr.name.toLowerCase();
                 if (name.startsWith('data-')) return;
-                if (name.startsWith('on') || !allowedAttrs.has(name)) {
+                if (name.startsWith('on') || !CHAT_SANITIZER_ALLOWED_ATTRS.has(name)) {
                     node.removeAttribute(attr.name);
                     return;
                 }
@@ -227,7 +229,9 @@
                 node.setAttribute('sandbox', 'allow-scripts allow-same-origin');
             }
         }
-        return template.innerHTML;
+        const sanitized = chatSanitizeTemplate.innerHTML;
+        chatSanitizeTemplate.innerHTML = '';
+        return sanitized;
     }
 
     function decorateEmojiGlyphs(root) {
@@ -3909,37 +3913,41 @@ function bindHeaderActivation(el, handler) {
         handler(event);
     }
 
-    el.addEventListener('pointerdown', (event) => {
-        if (event.pointerType === 'mouse') return;
-        rememberTouchStart(event.clientX, event.clientY);
-    }, { passive: true });
-    el.addEventListener('pointermove', (event) => {
-        if (event.pointerType === 'mouse') return;
-        markTouchMove(event.clientX, event.clientY);
-    }, { passive: true });
-    el.addEventListener('pointercancel', () => {
-        trackingTouch = false;
-        touchMoved = true;
-        suppressClickUntil = Date.now() + 500;
-    }, { passive: true });
-    el.addEventListener('touchstart', (event) => {
-        const touch = event.changedTouches && event.changedTouches[0];
-        if (!touch) return;
-        rememberTouchStart(touch.clientX, touch.clientY);
-    }, { passive: true });
-    el.addEventListener('touchmove', (event) => {
-        const touch = event.changedTouches && event.changedTouches[0];
-        if (!touch) return;
-        markTouchMove(touch.clientX, touch.clientY);
-    }, { passive: true });
-    el.addEventListener('touchcancel', () => {
-        trackingTouch = false;
-        touchMoved = true;
-        suppressClickUntil = Date.now() + 500;
-    }, { passive: true });
+    const supportsPointerEvents = typeof window.PointerEvent !== 'undefined';
+    if (supportsPointerEvents) {
+        el.addEventListener('pointerdown', (event) => {
+            if (event.pointerType === 'mouse') return;
+            rememberTouchStart(event.clientX, event.clientY);
+        }, { passive: true });
+        el.addEventListener('pointermove', (event) => {
+            if (event.pointerType === 'mouse') return;
+            markTouchMove(event.clientX, event.clientY);
+        }, { passive: true });
+        el.addEventListener('pointercancel', () => {
+            trackingTouch = false;
+            touchMoved = true;
+            suppressClickUntil = Date.now() + 500;
+        }, { passive: true });
+        el.addEventListener('pointerup', activate);
+    } else {
+        el.addEventListener('touchstart', (event) => {
+            const touch = event.changedTouches && event.changedTouches[0];
+            if (!touch) return;
+            rememberTouchStart(touch.clientX, touch.clientY);
+        }, { passive: true });
+        el.addEventListener('touchmove', (event) => {
+            const touch = event.changedTouches && event.changedTouches[0];
+            if (!touch) return;
+            markTouchMove(touch.clientX, touch.clientY);
+        }, { passive: true });
+        el.addEventListener('touchcancel', () => {
+            trackingTouch = false;
+            touchMoved = true;
+            suppressClickUntil = Date.now() + 500;
+        }, { passive: true });
+        el.addEventListener('touchend', activate, { passive: false });
+    }
     el.addEventListener('click', activate);
-    el.addEventListener('pointerup', activate);
-    el.addEventListener('touchend', activate, { passive: false });
 }
 
 ;
@@ -5952,6 +5960,37 @@ document.addEventListener('DOMContentLoaded', () => {
 // AuraGo Chat — Message rendering & DOM utilities
 
 window.PERSONA_ASSET_VERSION = '20260502-persona-refresh';
+let cachedMarkdownRenderer = null;
+
+function getMarkdownRenderer() {
+    if (cachedMarkdownRenderer) return cachedMarkdownRenderer;
+    if (window.AuraChatCore && typeof window.AuraChatCore.createMarkdownRenderer === 'function') {
+        cachedMarkdownRenderer = window.AuraChatCore.createMarkdownRenderer({
+            enableCharts: true,
+            codeBlockFactory: (str, lang) => window.CodeBlocks ? window.CodeBlocks.createCodeBlock(str, lang) : ''
+        });
+    } else if (window.AuraMarkdown && typeof window.AuraMarkdown.createMarkdownIt === 'function') {
+        cachedMarkdownRenderer = window.AuraMarkdown.createMarkdownIt({
+            enableCharts: true,
+            codeBlockFactory: (str, lang) => window.CodeBlocks ? window.CodeBlocks.createCodeBlock(str, lang) : ''
+        });
+    } else if (typeof window.markdownit !== 'undefined') {
+        cachedMarkdownRenderer = window.markdownit({ html: false, breaks: true, linkify: true });
+    }
+    return cachedMarkdownRenderer;
+}
+
+function shouldDecorateEmojiGlyphs(displayContent, finalHTML) {
+    return /(?:\p{Extended_Pictographic}|[✓✔✕✖✗✘☑☒☐⚠⚡★☆])/u.test(String(displayContent || finalHTML || ''));
+}
+
+function messageMayContainMermaid(displayContent) {
+    return /```mermaid\b|<div class="mermaid-raw"/i.test(String(displayContent || ''));
+}
+
+function messageMayContainChart(displayContent) {
+    return /```(?:chart|bar|line|pie|doughnut|radar|scatter|bubble)\b|<div class="chart-raw"/i.test(String(displayContent || ''));
+}
 
 function personaIconUrl(key) {
     if (window.AuraChatCore && typeof window.AuraChatCore.personaIconUrl === 'function') {
@@ -6105,17 +6144,7 @@ function appendMessage(role, text, timestamp) {
     } else {
         try {
             if (window.AuraMarkdown || typeof window.markdownit !== 'undefined') {
-                const md = (window.AuraChatCore && typeof window.AuraChatCore.createMarkdownRenderer === 'function')
-                    ? window.AuraChatCore.createMarkdownRenderer({
-                        enableCharts: true,
-                        codeBlockFactory: (str, lang) => window.CodeBlocks ? window.CodeBlocks.createCodeBlock(str, lang) : ''
-                    })
-                    : (window.AuraMarkdown
-                        ? window.AuraMarkdown.createMarkdownIt({
-                            enableCharts: true,
-                            codeBlockFactory: (str, lang) => window.CodeBlocks ? window.CodeBlocks.createCodeBlock(str, lang) : ''
-                        })
-                        : window.markdownit({ html: false, breaks: true, linkify: true }));
+                const md = getMarkdownRenderer();
                 if (!md) throw new Error('Markdown renderer unavailable');
 
                 const prepared = (window.AuraChatCore && typeof window.AuraChatCore.prepareMarkdownContent === 'function')
@@ -6200,17 +6229,17 @@ function appendMessage(role, text, timestamp) {
     const newMessage = chatContent.lastElementChild;
     appendMessageTimestamp(newMessage, isUser ? 'user' : 'bot', timestamp);
     const renderedBubble = newMessage && newMessage.querySelector('.bubble');
-    if (renderedBubble) {
+    if (renderedBubble && shouldDecorateEmojiGlyphs(displayContent, finalHTML)) {
         decorateEmojiGlyphs(renderedBubble);
     }
 
     // Render mermaid diagrams if available
-    if (window.MermaidLoader) {
+    if (window.MermaidLoader && messageMayContainMermaid(displayContent)) {
         if (newMessage) {
             window.MermaidLoader.processBlocks(newMessage);
         }
     }
-    if (window.ChatChartRenderer && newMessage) {
+    if (window.ChatChartRenderer && newMessage && messageMayContainChart(displayContent)) {
         window.ChatChartRenderer.processBlocks(newMessage);
     }
 
@@ -7455,6 +7484,7 @@ function connectSSE() {
     let _thinkingDiv = null;
     let _inThinkingBlock = false;
     let _streamingFlushFrame = 0;
+    let _streamingScrollTimer = 0;
     let _streamingNeedsFinalDecoration = false;
 
     function streamingBubble() {
@@ -7473,10 +7503,20 @@ function connectSSE() {
         }
     }
 
+    function scheduleStreamingScroll() {
+        if (_streamingScrollTimer) return;
+        _streamingScrollTimer = setTimeout(() => {
+            _streamingScrollTimer = 0;
+            if (!chatBox) return;
+            if (window.SmartScroller && window.SmartScroller.isUserScrolledUp) return;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }, 100);
+    }
+
     function flushStreamingBubble() {
         _streamingFlushFrame = 0;
         renderStreamingBubble();
-        if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+        scheduleStreamingScroll();
     }
 
     function queueStreamingBubbleFlush() {

@@ -130,37 +130,41 @@ function bindHeaderActivation(el, handler) {
         handler(event);
     }
 
-    el.addEventListener('pointerdown', (event) => {
-        if (event.pointerType === 'mouse') return;
-        rememberTouchStart(event.clientX, event.clientY);
-    }, { passive: true });
-    el.addEventListener('pointermove', (event) => {
-        if (event.pointerType === 'mouse') return;
-        markTouchMove(event.clientX, event.clientY);
-    }, { passive: true });
-    el.addEventListener('pointercancel', () => {
-        trackingTouch = false;
-        touchMoved = true;
-        suppressClickUntil = Date.now() + 500;
-    }, { passive: true });
-    el.addEventListener('touchstart', (event) => {
-        const touch = event.changedTouches && event.changedTouches[0];
-        if (!touch) return;
-        rememberTouchStart(touch.clientX, touch.clientY);
-    }, { passive: true });
-    el.addEventListener('touchmove', (event) => {
-        const touch = event.changedTouches && event.changedTouches[0];
-        if (!touch) return;
-        markTouchMove(touch.clientX, touch.clientY);
-    }, { passive: true });
-    el.addEventListener('touchcancel', () => {
-        trackingTouch = false;
-        touchMoved = true;
-        suppressClickUntil = Date.now() + 500;
-    }, { passive: true });
+    const supportsPointerEvents = typeof window.PointerEvent !== 'undefined';
+    if (supportsPointerEvents) {
+        el.addEventListener('pointerdown', (event) => {
+            if (event.pointerType === 'mouse') return;
+            rememberTouchStart(event.clientX, event.clientY);
+        }, { passive: true });
+        el.addEventListener('pointermove', (event) => {
+            if (event.pointerType === 'mouse') return;
+            markTouchMove(event.clientX, event.clientY);
+        }, { passive: true });
+        el.addEventListener('pointercancel', () => {
+            trackingTouch = false;
+            touchMoved = true;
+            suppressClickUntil = Date.now() + 500;
+        }, { passive: true });
+        el.addEventListener('pointerup', activate);
+    } else {
+        el.addEventListener('touchstart', (event) => {
+            const touch = event.changedTouches && event.changedTouches[0];
+            if (!touch) return;
+            rememberTouchStart(touch.clientX, touch.clientY);
+        }, { passive: true });
+        el.addEventListener('touchmove', (event) => {
+            const touch = event.changedTouches && event.changedTouches[0];
+            if (!touch) return;
+            markTouchMove(touch.clientX, touch.clientY);
+        }, { passive: true });
+        el.addEventListener('touchcancel', () => {
+            trackingTouch = false;
+            touchMoved = true;
+            suppressClickUntil = Date.now() + 500;
+        }, { passive: true });
+        el.addEventListener('touchend', activate, { passive: false });
+    }
     el.addEventListener('click', activate);
-    el.addEventListener('pointerup', activate);
-    el.addEventListener('touchend', activate, { passive: false });
 }
 
 ;

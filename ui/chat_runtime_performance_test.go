@@ -25,7 +25,9 @@ func TestChatStreamingBatchesDOMWritesAndResetsSSEDedup(t *testing.T) {
 	streaming := readEmbeddedText(t, "js/chat/chat-streaming.js")
 	for _, marker := range []string{
 		"let _streamingFlushFrame = 0",
+		"let _streamingScrollTimer = 0",
 		"function flushStreamingBubble()",
+		"function scheduleStreamingScroll()",
 		"function queueStreamingBubbleFlush()",
 		"window.requestAnimationFrame ||",
 		"resetSSEDedupSets();",
@@ -45,6 +47,10 @@ func TestChatStreamingBatchesDOMWritesAndResetsSSEDedup(t *testing.T) {
 		if strings.Contains(deltaBlock, forbidden) {
 			t.Fatalf("llm_stream_delta hot path must not contain %q", forbidden)
 		}
+	}
+	flushBlock := sectionBetween(t, streaming, "function flushStreamingBubble()", "function queueStreamingBubbleFlush()")
+	if strings.Contains(flushBlock, "chatBox.scrollTop = chatBox.scrollHeight") {
+		t.Fatal("streaming bubble flush must not force synchronous scroll layout")
 	}
 
 	state := readEmbeddedText(t, "js/chat/main/feedback-audio-plan.js")
@@ -93,6 +99,55 @@ func TestChatMediaLinkReplacementUsesReusableTemplatesAndFastPaths(t *testing.T)
 	}
 }
 
+func TestChatMessageRenderingCachesMarkdownAndSkipsUnneededPostProcessing(t *testing.T) {
+	t.Parallel()
+
+	source := readEmbeddedText(t, "js/chat/chat-messages.js")
+	for _, marker := range []string{
+		"let cachedMarkdownRenderer = null",
+		"function getMarkdownRenderer()",
+		"cachedMarkdownRenderer = window.AuraChatCore.createMarkdownRenderer",
+		"if (renderedBubble && shouldDecorateEmojiGlyphs(displayContent, finalHTML))",
+		"if (window.MermaidLoader && messageMayContainMermaid(displayContent))",
+		"if (window.ChatChartRenderer && newMessage && messageMayContainChart(displayContent))",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("chat message rendering optimization missing marker %q", marker)
+		}
+	}
+	appendBody := sectionBetween(t, source, "function appendMessage(role, text, timestamp)", "function appendToolOutput(text, label)")
+	if strings.Contains(appendBody, "window.AuraChatCore.createMarkdownRenderer({") {
+		t.Fatal("appendMessage must use the cached markdown renderer instead of creating one per message")
+	}
+}
+
+func TestSharedChatSanitizerReusesStaticState(t *testing.T) {
+	t.Parallel()
+
+	source := readEmbeddedText(t, "js/shared/chat-core.js")
+	for _, marker := range []string{
+		"const CHAT_SANITIZER_ALLOWED_TAGS = new Set",
+		"const CHAT_SANITIZER_ALLOWED_ATTRS = new Set",
+		"const chatSanitizeTemplate = document.createElement('template')",
+		"if (html.indexOf('<') === -1) return html;",
+		"CHAT_SANITIZER_ALLOWED_TAGS.has",
+		"CHAT_SANITIZER_ALLOWED_ATTRS.has",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("shared chat sanitizer optimization missing marker %q", marker)
+		}
+	}
+	body := sectionBetween(t, source, "function sanitizeRenderedHTML(html)", "function decorateEmojiGlyphs(root)")
+	for _, forbidden := range []string{
+		"new Set([",
+		"document.createElement('template')",
+	} {
+		if strings.Contains(body, forbidden) {
+			t.Fatalf("sanitizeRenderedHTML must not allocate %q per call", forbidden)
+		}
+	}
+}
+
 func TestDesktopChatUsesSingleScrollScheduler(t *testing.T) {
 	t.Parallel()
 
@@ -103,7 +158,7 @@ func TestDesktopChatUsesSingleScrollScheduler(t *testing.T) {
 		"function scheduleChatScroll(target, smooth = true)",
 		"window.requestAnimationFrame ||",
 		"pendingScrollTarget.scrollIntoView",
-		"scheduleChatScroll(statusEl",
+		"scheduleChatScroll(streamingBubble",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("desktop chat missing single scroll scheduler marker %q", marker)
@@ -113,6 +168,28 @@ func TestDesktopChatUsesSingleScrollScheduler(t *testing.T) {
 	keepStatus := sectionBetween(t, source, "function keepAgentStatusAtEnd()", "fetch('/api/desktop/chat/stream'")
 	if strings.Contains(keepStatus, "scrollIntoView({ block: 'end', behavior: 'smooth' })") {
 		t.Fatal("keepAgentStatusAtEnd must delegate smooth scrolling to scheduleChatScroll")
+	}
+	if strings.Contains(keepStatus, "scheduleChatScroll(statusEl") {
+		t.Fatal("keepAgentStatusAtEnd must only maintain DOM order; streaming/status scrolls should be scheduled at semantic boundaries")
+	}
+}
+
+func TestChatHeaderActivationAvoidsRedundantTouchListeners(t *testing.T) {
+	t.Parallel()
+
+	source := readEmbeddedText(t, "js/chat/main/state-dom.js")
+	for _, marker := range []string{
+		"const supportsPointerEvents = typeof window.PointerEvent !== 'undefined';",
+		"if (supportsPointerEvents) {",
+		"} else {",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("chat header activation missing pointer/touch feature split marker %q", marker)
+		}
+	}
+	pointerBlock := sectionBetween(t, source, "if (supportsPointerEvents) {", "} else {")
+	if strings.Contains(pointerBlock, "touchstart") || strings.Contains(pointerBlock, "touchmove") || strings.Contains(pointerBlock, "touchcancel") || strings.Contains(pointerBlock, "touchend") {
+		t.Fatal("pointer-event capable browsers must not bind duplicate touch listeners")
 	}
 }
 

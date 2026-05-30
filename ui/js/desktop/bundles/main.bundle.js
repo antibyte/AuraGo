@@ -739,15 +739,46 @@
     function registerWidgetCleanup(cleanup) {
         if (typeof cleanup !== 'function') return;
         if (!state.widgetCleanups) state.widgetCleanups = [];
-        state.widgetCleanups.push(cleanup);
+        const entry = { cleanup, active: true };
+        state.widgetCleanups.push(entry);
+        if (state._widgetCleanupCard) {
+            const card = state._widgetCleanupCard;
+            if (!card._widgetCleanupEntries) card._widgetCleanupEntries = [];
+            card._widgetCleanupEntries.push(entry);
+        }
+    }
+
+    function runWidgetCleanupEntry(entry) {
+        if (!entry) return;
+        const cleanup = typeof entry === 'function' ? entry : entry.cleanup;
+        if (typeof cleanup !== 'function') return;
+        if (entry.active === false) return;
+        entry.active = false;
+        try { cleanup(); } catch (err) { console.warn('Desktop widget cleanup failed', err); }
+    }
+
+    function cleanupWidgetCard(card) {
+        if (!card) return;
+        blankWidgetFrames(card);
+        (card._widgetCleanupEntries || []).forEach(runWidgetCleanupEntry);
+        card._widgetCleanupEntries = [];
+        card._widgetRuntimeReady = false;
+        card._widgetLastResizePayload = null;
+        if (card._widgetResizeFrame) {
+            window.cancelAnimationFrame(card._widgetResizeFrame);
+            card._widgetResizeFrame = 0;
+        }
+        if (card._widgetResizeObserver) {
+            card._widgetResizeObserver.disconnect();
+            card._widgetResizeObserver = null;
+        }
+        card._widgetCleanupRegistered = false;
     }
 
     function clearWidgetRuntime() {
         const cleanups = state.widgetCleanups || [];
         state.widgetCleanups = [];
-        cleanups.forEach(cleanup => {
-            try { cleanup(); } catch (err) { console.warn('Desktop widget cleanup failed', err); }
-        });
+        cleanups.forEach(runWidgetCleanupEntry);
     }
 
     function blankWidgetFrames(host) {
@@ -755,6 +786,12 @@
         host.querySelectorAll('iframe').forEach(frame => {
             try { frame.src = 'about:blank'; } catch (_) {}
         });
+    }
+
+    function withWidgetCleanupScope(card, callback) {
+        const previous = state._widgetCleanupCard;
+        state._widgetCleanupCard = card || null;
+        try { return callback(); } finally { state._widgetCleanupCard = previous; }
     }
 
     function widgetShouldAutoSize(widget) {
@@ -1083,44 +1120,103 @@
         btn.addEventListener('pointercancel', finishDrag);
     }
 
+    function widgetContentSignature(widget) {
+        const isBuiltinType = widget.type === 'builtin' || widget.runtime === 'builtin';
+        return JSON.stringify({
+            id: widget.id || '',
+            type: widget.type || '',
+            runtime: widget.runtime || '',
+            entry: widget.entry || '',
+            app_id: widget.app_id || '',
+            title: widget.title || '',
+            builtin: isBuiltinType,
+            autoSize: widgetShouldAutoSize(widget)
+        });
+    }
+
+    function widgetBodyHTML(widget) {
+        const isBuiltinType = widget.type === 'builtin' || widget.runtime === 'builtin';
+        if (isBuiltinType) return `<div class="vd-widget-builtin" data-builtin-type="${esc(widget.id)}"></div>`;
+        if (widget.entry) return `<div class="vd-widget-frame-wrap"></div>`;
+        return `<div class="vd-widget-body">${esc(widget.type || widget.app_id || t('desktop.widget_custom'))}</div>`;
+    }
+
+    function updateWidgetCard(card, widget, index) {
+        const bounds = widgetBounds(widget, index);
+        const autoSize = widgetShouldAutoSize(widget);
+        const signature = widgetContentSignature(widget);
+        const changed = card.dataset.widgetSignature !== signature;
+        if (changed) {
+            cleanupWidgetCard(card);
+            card.innerHTML = widgetBodyHTML(widget);
+            card.dataset.widgetSignature = signature;
+            card._widgetRuntimeReady = false;
+        }
+        card._widgetData = widget;
+        card.className = 'vd-widget' + (autoSize ? ' vd-widget-auto' : '') + (widget.id === 'builtin-quickchat' ? ' vd-widget-quickchat' : '');
+        card.dataset.widgetId = widget.id || '';
+        card.dataset.appId = widget.app_id || '';
+        card.dataset.widgetDefaultWidth = String(bounds.w);
+        if (autoSize) card.dataset.widgetAutoSize = 'true';
+        else delete card.dataset.widgetAutoSize;
+        card.title = widget.title || widget.id || '';
+        card.style.left = bounds.x + 'px';
+        card.style.top = bounds.y + 'px';
+        card.style.width = bounds.w + 'px';
+        return changed;
+    }
+
+    function bindWidgetCard(card, widget) {
+        card._widgetData = widget;
+        if (card.dataset.widgetBound === 'true') return;
+        card.dataset.widgetBound = 'true';
+        card.addEventListener('contextmenu', event => showWidgetContextMenu(event, card._widgetData || widget));
+        wireLongPress(card, event => showWidgetContextMenu(event, card._widgetData || widget));
+        wireDraggableWidget(card, widget);
+    }
+
+    function renderWidgetRuntime(card, widget, changed) {
+        const isBuiltinType = widget.type === 'builtin' || widget.runtime === 'builtin';
+        if (isBuiltinType) {
+            if (changed || !card._widgetRuntimeReady || widget.id === 'builtin-analog-clock') {
+                withWidgetCleanupScope(card, () => renderBuiltinWidget(card, widget));
+                card._widgetRuntimeReady = true;
+            }
+        } else if (widget.entry) {
+            const frameWrap = card.querySelector('.vd-widget-frame-wrap');
+            if (frameWrap && (changed || !card._widgetRuntimeReady)) {
+                withWidgetCleanupScope(card, () => renderWidgetFrame(frameWrap, widget));
+                card._widgetRuntimeReady = true;
+            }
+        }
+        withWidgetCleanupScope(card, () => scheduleWidgetAutoSize(card, widget));
+    }
+
     function renderWidgets() {
         const host = $('vd-widgets');
-        blankWidgetFrames(host);
-        clearWidgetRuntime();
         const boot = state.bootstrap || {};
         const widgets = boot.widgets || [];
-        const cards = [];
+        const seenWidgetIds = new Set();
         widgets.forEach((widget, index) => {
-            const isBuiltinType = widget.type === 'builtin' || widget.runtime === 'builtin';
-            const autoSize = widgetShouldAutoSize(widget);
-            const bounds = widgetBounds(widget, index);
-            let sizeClass = autoSize ? ' vd-widget-auto' : '';
-            if (widget.id === 'builtin-quickchat') sizeClass += ' vd-widget-quickchat';
-            const autoSizeAttr = autoSize ? ' data-widget-auto-size="true"' : '';
-            const widgetBody = isBuiltinType
-                ? `<div class="vd-widget-builtin" data-builtin-type="${esc(widget.id)}"></div>`
-                : widget.entry
-                    ? `<div class="vd-widget-frame-wrap"></div>`
-                    : `<div class="vd-widget-body">${esc(widget.type || widget.app_id || t('desktop.widget_custom'))}</div>`;
-            cards.push(`<article class="vd-widget${sizeClass}" data-widget-id="${esc(widget.id)}" data-app-id="${esc(widget.app_id || '')}" data-widget-default-width="${bounds.w}"${autoSizeAttr} title="${esc(widget.title || widget.id)}" style="left:${bounds.x}px;top:${bounds.y}px;width:${bounds.w}px;">
-                ${widgetBody}
-            </article>`);
-        });
-        host.innerHTML = cards.join('');
-        widgets.forEach(widget => {
-            const card = host.querySelector(`[data-widget-id="${cssSel(widget.id)}"]`);
-            if (!card) return;
-            const isBuiltinType = widget.type === 'builtin' || widget.runtime === 'builtin';
-            if (isBuiltinType) {
-                renderBuiltinWidget(card, widget);
-            } else if (widget.entry) {
-                const frameWrap = card.querySelector('.vd-widget-frame-wrap');
-                if (frameWrap) renderWidgetFrame(frameWrap, widget);
+            const widgetId = widget.id || ('widget-' + index);
+            seenWidgetIds.add(widgetId);
+            let card = host.querySelector(`:scope > .vd-widget[data-widget-id="${cssSel(widgetId)}"]`);
+            if (!card) {
+                card = document.createElement('article');
+                card.dataset.widgetId = widgetId;
+                host.insertBefore(card, host.children[index] || null);
+            } else if (card !== host.children[index]) {
+                host.insertBefore(card, host.children[index] || null);
             }
-            card.addEventListener('contextmenu', event => showWidgetContextMenu(event, widget));
-            wireLongPress(card, event => showWidgetContextMenu(event, widget));
-            scheduleWidgetAutoSize(card, widget);
-            wireDraggableWidget(card, widget);
+            const changed = updateWidgetCard(card, Object.assign({}, widget, { id: widgetId }), index);
+            bindWidgetCard(card, card._widgetData);
+            renderWidgetRuntime(card, card._widgetData, changed);
+        });
+        host.querySelectorAll(':scope > .vd-widget[data-widget-id]').forEach(card => {
+            if (!seenWidgetIds.has(card.dataset.widgetId)) {
+                cleanupWidgetCard(card);
+                card.remove();
+            }
         });
     }
 
@@ -1505,10 +1601,11 @@
             container.innerHTML = `<div class="vd-widget-body">${esc(widget.title)}</div>`;
         }
     }
-    function renderAnalogClockWidget(container) {
-        const size = Math.min(container.parentElement.offsetWidth || 200, container.parentElement.offsetHeight || 200);
-        const svgSize = Math.max(80, size - 20);
-        container.innerHTML = `<svg class="vd-analog-clock-svg" viewBox="0 0 200 200" width="${svgSize}" height="${svgSize}">
+
+    function ensureAnalogClockSvg(container, svgSize) {
+        let svg = container.querySelector('.vd-analog-clock-svg');
+        if (!svg) {
+            container.innerHTML = `<svg class="vd-analog-clock-svg" viewBox="0 0 200 200" width="${svgSize}" height="${svgSize}">
             <circle cx="100" cy="100" r="95" fill="none" stroke="var(--vd-border)" stroke-width="2"/>
             <g class="vd-clock-ticks"></g>
             <line class="vd-clock-hour" x1="100" y1="100" x2="100" y2="50" stroke="var(--vd-text)" stroke-width="4" stroke-linecap="round"/>
@@ -1516,43 +1613,43 @@
             <line class="vd-clock-second" x1="100" y1="100" x2="100" y2="25" stroke="var(--vd-accent)" stroke-width="1.2" stroke-linecap="round"/>
             <circle cx="100" cy="100" r="4" fill="var(--vd-accent)"/>
         </svg>`;
-        const ticksG = container.querySelector('.vd-clock-ticks');
-        for (let i = 0; i < 12; i++) {
-            const angle = (i * 30) * Math.PI / 180;
-            const isMain = i % 3 === 0;
-            const r1 = isMain ? 78 : 84;
-            const r2 = 90;
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', 100 + r1 * Math.sin(angle));
-            line.setAttribute('y1', 100 - r1 * Math.cos(angle));
-            line.setAttribute('x2', 100 + r2 * Math.sin(angle));
-            line.setAttribute('y2', 100 - r2 * Math.cos(angle));
-            line.setAttribute('stroke', isMain ? 'var(--vd-text)' : 'var(--vd-muted)');
-            line.setAttribute('stroke-width', isMain ? '2.5' : '1.2');
-            line.setAttribute('stroke-linecap', 'round');
-            ticksG.appendChild(line);
+            svg = container.querySelector('.vd-analog-clock-svg');
+            const ticksG = container.querySelector('.vd-clock-ticks');
+            for (let i = 0; i < 12; i++) {
+                const angle = (i * 30) * Math.PI / 180, isMain = i % 3 === 0, r1 = isMain ? 78 : 84, r2 = 90;
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                [['x1', 100 + r1 * Math.sin(angle)], ['y1', 100 - r1 * Math.cos(angle)], ['x2', 100 + r2 * Math.sin(angle)], ['y2', 100 - r2 * Math.cos(angle)], ['stroke', isMain ? 'var(--vd-text)' : 'var(--vd-muted)'], ['stroke-width', isMain ? '2.5' : '1.2'], ['stroke-linecap', 'round']].forEach(([name, value]) => line.setAttribute(name, value));
+                ticksG.appendChild(line);
+            }
         }
-        function updateClockHands() {
-            const now = new Date();
-            const h = now.getHours() % 12;
-            const m = now.getMinutes();
-            const s = now.getSeconds();
-            const hourAngle = (h + m / 60) * 30;
-            const minuteAngle = (m + s / 60) * 6;
-            const secondAngle = s * 6;
-            const hourHand = container.querySelector('.vd-clock-hour');
-            const minuteHand = container.querySelector('.vd-clock-minute');
-            const secondHand = container.querySelector('.vd-clock-second');
-            if (hourHand) hourHand.setAttribute('transform', `rotate(${hourAngle}, 100, 100)`);
-            if (minuteHand) minuteHand.setAttribute('transform', `rotate(${minuteAngle}, 100, 100)`);
-            if (secondHand) secondHand.setAttribute('transform', `rotate(${secondAngle}, 100, 100)`);
+        if (svg && svg.dataset.clockSize !== String(svgSize)) {
+            svg.dataset.clockSize = String(svgSize);
+            svg.setAttribute('width', svgSize);
+            svg.setAttribute('height', svgSize);
         }
-        updateClockHands();
-        const timer = setInterval(updateClockHands, 1000);
-        container._clockTimer = timer;
+        return svg;
+    }
+
+    function updateClockHands(container) {
+        const now = new Date();
+        const h = now.getHours() % 12, m = now.getMinutes(), s = now.getSeconds();
+        const hourAngle = (h + m / 60) * 30, minuteAngle = (m + s / 60) * 6, secondAngle = s * 6;
+        const hourHand = container.querySelector('.vd-clock-hour'), minuteHand = container.querySelector('.vd-clock-minute'), secondHand = container.querySelector('.vd-clock-second');
+        if (hourHand) hourHand.setAttribute('transform', `rotate(${hourAngle}, 100, 100)`);
+        if (minuteHand) minuteHand.setAttribute('transform', `rotate(${minuteAngle}, 100, 100)`);
+        if (secondHand) secondHand.setAttribute('transform', `rotate(${secondAngle}, 100, 100)`);
+    }
+
+    function renderAnalogClockWidget(container) {
+        const size = Math.min(container.parentElement.offsetWidth || 200, container.parentElement.offsetHeight || 200);
+        const svgSize = Math.max(80, size - 20);
+        ensureAnalogClockSvg(container, svgSize);
+        updateClockHands(container);
+        if (container._clockTimer) return;
+        container._clockTimer = setInterval(() => updateClockHands(container), 1000);
         registerWidgetCleanup(() => {
-            clearInterval(timer);
-            if (container._clockTimer === timer) container._clockTimer = 0;
+            clearInterval(container._clockTimer);
+            container._clockTimer = 0;
         });
     }
 
@@ -1919,7 +2016,7 @@
             card.classList.remove('vd-dragging');
             document.body.classList.remove('vd-touch-drag-active');
             if (drag.moved) {
-                persistWidgetBounds(widget, card);
+                persistWidgetBounds(card._widgetData || widget, card);
                 if (event) event.preventDefault();
             }
             drag = null;

@@ -1,6 +1,37 @@
 // AuraGo Chat — Message rendering & DOM utilities
 
 window.PERSONA_ASSET_VERSION = '20260502-persona-refresh';
+let cachedMarkdownRenderer = null;
+
+function getMarkdownRenderer() {
+    if (cachedMarkdownRenderer) return cachedMarkdownRenderer;
+    if (window.AuraChatCore && typeof window.AuraChatCore.createMarkdownRenderer === 'function') {
+        cachedMarkdownRenderer = window.AuraChatCore.createMarkdownRenderer({
+            enableCharts: true,
+            codeBlockFactory: (str, lang) => window.CodeBlocks ? window.CodeBlocks.createCodeBlock(str, lang) : ''
+        });
+    } else if (window.AuraMarkdown && typeof window.AuraMarkdown.createMarkdownIt === 'function') {
+        cachedMarkdownRenderer = window.AuraMarkdown.createMarkdownIt({
+            enableCharts: true,
+            codeBlockFactory: (str, lang) => window.CodeBlocks ? window.CodeBlocks.createCodeBlock(str, lang) : ''
+        });
+    } else if (typeof window.markdownit !== 'undefined') {
+        cachedMarkdownRenderer = window.markdownit({ html: false, breaks: true, linkify: true });
+    }
+    return cachedMarkdownRenderer;
+}
+
+function shouldDecorateEmojiGlyphs(displayContent, finalHTML) {
+    return /(?:\p{Extended_Pictographic}|[✓✔✕✖✗✘☑☒☐⚠⚡★☆])/u.test(String(displayContent || finalHTML || ''));
+}
+
+function messageMayContainMermaid(displayContent) {
+    return /```mermaid\b|<div class="mermaid-raw"/i.test(String(displayContent || ''));
+}
+
+function messageMayContainChart(displayContent) {
+    return /```(?:chart|bar|line|pie|doughnut|radar|scatter|bubble)\b|<div class="chart-raw"/i.test(String(displayContent || ''));
+}
 
 function personaIconUrl(key) {
     if (window.AuraChatCore && typeof window.AuraChatCore.personaIconUrl === 'function') {
@@ -154,17 +185,7 @@ function appendMessage(role, text, timestamp) {
     } else {
         try {
             if (window.AuraMarkdown || typeof window.markdownit !== 'undefined') {
-                const md = (window.AuraChatCore && typeof window.AuraChatCore.createMarkdownRenderer === 'function')
-                    ? window.AuraChatCore.createMarkdownRenderer({
-                        enableCharts: true,
-                        codeBlockFactory: (str, lang) => window.CodeBlocks ? window.CodeBlocks.createCodeBlock(str, lang) : ''
-                    })
-                    : (window.AuraMarkdown
-                        ? window.AuraMarkdown.createMarkdownIt({
-                            enableCharts: true,
-                            codeBlockFactory: (str, lang) => window.CodeBlocks ? window.CodeBlocks.createCodeBlock(str, lang) : ''
-                        })
-                        : window.markdownit({ html: false, breaks: true, linkify: true }));
+                const md = getMarkdownRenderer();
                 if (!md) throw new Error('Markdown renderer unavailable');
 
                 const prepared = (window.AuraChatCore && typeof window.AuraChatCore.prepareMarkdownContent === 'function')
@@ -249,17 +270,17 @@ function appendMessage(role, text, timestamp) {
     const newMessage = chatContent.lastElementChild;
     appendMessageTimestamp(newMessage, isUser ? 'user' : 'bot', timestamp);
     const renderedBubble = newMessage && newMessage.querySelector('.bubble');
-    if (renderedBubble) {
+    if (renderedBubble && shouldDecorateEmojiGlyphs(displayContent, finalHTML)) {
         decorateEmojiGlyphs(renderedBubble);
     }
     
     // Render mermaid diagrams if available
-    if (window.MermaidLoader) {
+    if (window.MermaidLoader && messageMayContainMermaid(displayContent)) {
         if (newMessage) {
             window.MermaidLoader.processBlocks(newMessage);
         }
     }
-    if (window.ChatChartRenderer && newMessage) {
+    if (window.ChatChartRenderer && newMessage && messageMayContainChart(displayContent)) {
         window.ChatChartRenderer.processBlocks(newMessage);
     }
     

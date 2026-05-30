@@ -683,6 +683,7 @@
                 if (!streamingBubble || !streamingBubble.classList.contains('vd-streaming')) return;
                 streamingBubble.textContent = streamingContent;
                 keepAgentStatusAtEnd();
+                scheduleChatScroll(streamingBubble, false);
             }
 
             function queueStreamingBubbleFlush() {
@@ -696,7 +697,6 @@
                 if (chatLog.lastElementChild !== statusEl) {
                     chatLog.appendChild(statusEl);
                 }
-                scheduleChatScroll(statusEl, true);
             }
 
             fetch('/api/desktop/chat/stream', {

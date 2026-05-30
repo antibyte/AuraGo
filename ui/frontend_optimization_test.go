@@ -302,8 +302,8 @@ func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 	}
 	chatCoreJS := readEmbeddedText(t, "js/shared/chat-core.js")
 	for _, want := range []string{
-		"const allowed = new Set([",
-		"const allowedAttrs = new Set([",
+		"const CHAT_SANITIZER_ALLOWED_TAGS = new Set([",
+		"const CHAT_SANITIZER_ALLOWED_ATTRS = new Set([",
 		"node.setAttribute('sandbox', 'allow-scripts allow-same-origin')",
 		"keepBlobMedia",
 	} {

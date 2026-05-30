@@ -33,12 +33,55 @@ func TestDesktopWidgetsBlankIframesBeforeRebuild(t *testing.T) {
 		"function blankWidgetFrames(host)",
 		"host.querySelectorAll('iframe')",
 		"frame.src = 'about:blank'",
-		"blankWidgetFrames(host);",
-		"clearWidgetRuntime();",
+		"blankWidgetFrames(card);",
+		"function clearWidgetRuntime()",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("desktop widget iframe cleanup missing marker %q", marker)
 		}
+	}
+}
+
+func TestDesktopWidgetsUseReconciliation(t *testing.T) {
+	t.Parallel()
+
+	source := readEmbeddedText(t, "js/desktop/core/desktop-foundation.js")
+	for _, marker := range []string{
+		"function updateWidgetCard(card, widget, index)",
+		"function bindWidgetCard(card, widget)",
+		"const seenWidgetIds = new Set()",
+		"card.dataset.widgetSignature",
+		"widgetContentSignature(widget)",
+		"if (!seenWidgetIds.has(card.dataset.widgetId))",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop widget reconciliation missing marker %q", marker)
+		}
+	}
+	renderBody := sectionBetween(t, source, "function renderWidgets()", "function activateDesktopItem(btn)")
+	if strings.Contains(renderBody, "host.innerHTML = cards.join('')") {
+		t.Fatal("desktop widgets must not fully rebuild via host.innerHTML")
+	}
+}
+
+func TestAnalogClockWidgetReusesSvg(t *testing.T) {
+	t.Parallel()
+
+	source := readEmbeddedText(t, "js/desktop/core/window-shell-runtime.js")
+	for _, marker := range []string{
+		"function ensureAnalogClockSvg(container, svgSize)",
+		"if (!svg) {",
+		"svg.dataset.clockSize = String(svgSize)",
+		"function updateClockHands(container)",
+		"container._clockTimer = setInterval(() => updateClockHands(container), 1000)",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("analog clock reuse optimization missing marker %q", marker)
+		}
+	}
+	body := sectionBetween(t, source, "function renderAnalogClockWidget(container)", "function renderQuickChatWidget(container)")
+	if strings.Contains(body, "container.innerHTML = `<svg") {
+		t.Fatal("analog clock render must reuse the SVG instead of rebuilding it")
 	}
 }
 

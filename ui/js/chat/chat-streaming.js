@@ -123,6 +123,7 @@ function connectSSE() {
     let _thinkingDiv = null;
     let _inThinkingBlock = false;
     let _streamingFlushFrame = 0;
+    let _streamingScrollTimer = 0;
     let _streamingNeedsFinalDecoration = false;
 
     function streamingBubble() {
@@ -141,10 +142,20 @@ function connectSSE() {
         }
     }
 
+    function scheduleStreamingScroll() {
+        if (_streamingScrollTimer) return;
+        _streamingScrollTimer = setTimeout(() => {
+            _streamingScrollTimer = 0;
+            if (!chatBox) return;
+            if (window.SmartScroller && window.SmartScroller.isUserScrolledUp) return;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }, 100);
+    }
+
     function flushStreamingBubble() {
         _streamingFlushFrame = 0;
         renderStreamingBubble();
-        if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+        scheduleStreamingScroll();
     }
 
     function queueStreamingBubbleFlush() {

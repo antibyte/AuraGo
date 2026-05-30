@@ -16,7 +16,7 @@ func TestDesktopWidgetsAutoSizeByDefault(t *testing.T) {
 		"function applyWidgetAutoSize(",
 		"function resizeWidgetToContent(",
 		"widgetShouldAutoSize(widget)",
-		`data-widget-auto-size="true"`,
+		"card.dataset.widgetAutoSize = 'true'",
 		"ResizeObserver",
 		"--vd-widget-auto-height",
 		"--vd-widget-frame-height",
