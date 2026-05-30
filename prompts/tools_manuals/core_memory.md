@@ -4,7 +4,7 @@ Add or remove critical, permanent facts from `core_memory.md`. This file is inje
 
 Core Memory is agent-owned. No background maintenance, startup migration, dashboard form, memory analysis, media registry, or tool integration may add or update facts here. Only the agent may write through `manage_memory/core_memory` or `remember` when it deliberately records a durable fact.
 
-Core Memory is not a task list, maintenance scratchpad, or bulk cleanup surface. Use the agent's dedicated notes, planner, journal, or internal task list for operational work.
+Core Memory is not a task list, maintenance scratchpad, infrastructure inventory, deployment log, or bulk cleanup surface. Use the agent's dedicated notes, planner, journal, inventory, knowledge graph, or internal task list for operational work.
 
 ## When to use — Decision Tree
 
@@ -25,13 +25,15 @@ Is it a preference, constraint, or environment fact?
 - **User identity** — name, role, language, how they want to be addressed
 - **Permanent preferences** — "User prefers German", "Always use tabs"
 - **Hard constraints** — "Never use Python 2", "No emojis"
-- **Persistent environment** — "Main server: Dell R730 with Proxmox"
+- **Persistent environment** — only rare facts the user explicitly wants available every turn, such as "Main server platform is Proxmox"
 - **Key relationships** — "User's colleague Max handles networking"
 
 ## NEVER use for
 
 - Current tasks or to-do items → `manage_notes` (category: `todo`)
 - Project progress or status → `manage_journal` (entry_type: `task_completed`)
+- Mission runs, daily site updates, build/deploy state, health checks, "last run", "state: ready", HTTP status, Site IDs, and article/image counts → `manage_journal` / activity memory
+- Discovered devices, IP addresses, ports, reachability, TTS/Chromecast/SMB scan results → Inventory / Knowledge Graph / Journal
 - Generated media history, Koofr uploads, file paths, durations, or Media Registry IDs → Media Registry / Journal
 - Tool availability, tool failures, transient errors, app IDs, widget IDs, or "not found" diagnostics → error tracking / Journal
 - `recent_operational_details`, project artifacts, test-file output, or app-generation state → Journal / Episodic Memory

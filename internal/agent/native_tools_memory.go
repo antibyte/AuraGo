@@ -6,7 +6,7 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 	if ff.MemoryEnabled {
 		tools = append(tools,
 			tool("manage_memory",
-				"Manage permanently stored core memory facts. Use this only for durable facts and preferences, not task lists, cleanup scratchpads, or session status. Use 'add' to store a new fact, 'update' to correct an existing fact by ID, 'delete' to remove a fact by ID, 'remove' to remove a fact by exact text match, 'list' to read all stored facts. For cleanup, delete at most one clearly identified numeric ID per call and stop after any warning or error.",
+				"Manage permanently stored core memory facts. Use this only for durable identity, preferences, hard constraints, and explicitly permanent facts, not task lists, cleanup scratchpads, session status, deploy/build results, health checks, mission runs, or discovered IPs/ports. Use 'add' to store a new fact, 'update' to correct an existing fact by ID, 'delete' to remove a fact by ID, 'remove' to remove a fact by exact text match, 'list' to read all stored facts. For cleanup, delete at most one clearly identified numeric ID per call and stop after any warning or error.",
 				schema(map[string]interface{}{
 					"operation": map[string]interface{}{
 						"type":        "string",
@@ -60,7 +60,7 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 
 			// remember — simplified single-entry-point for storing any kind of information
 			tool("remember",
-				"Store useful information without worrying about which memory system to use. Automatically routes to the right place: core memory (only stable facts/preferences/constraints that rarely change), journal (events/milestones/learnings), notes (tasks/todos), or knowledge graph (relationships). Ambiguous information should not go to core memory. Use 'category' to override auto-classification.",
+				"Store useful information without worrying about which memory system to use. Automatically routes to the right place: core memory (only stable facts/preferences/constraints that rarely change and must be present every turn), journal (events/milestones/learnings/run status), notes (tasks/todos), or knowledge graph (relationships). Ambiguous information, deploy/build results, health checks, mission runs, and discovered IPs/ports must not go to core memory. Use 'category' to override auto-classification.",
 				schema(map[string]interface{}{
 					"content":    prop("string", "The information to remember (required)"),
 					"category":   prop("string", "Optional routing hint: 'fact' (core memory; only durable facts/preferences), 'event' (journal), 'task' (note/todo), 'relationship' (knowledge graph). If omitted, auto-classified from content."),

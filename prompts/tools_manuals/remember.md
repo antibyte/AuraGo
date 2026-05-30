@@ -2,7 +2,7 @@
 
 A simplified single-entry-point for storing useful information. The system auto-routes content to the appropriate storage (core memory, journal, notes, or knowledge graph).
 
-Core Memory is a tiny permanent profile injected into every prompt. It is not the default destination. If content is not clearly a stable user fact, durable preference, hard constraint, or rarely-changing environment fact, route it to Journal or Notes instead.
+Core Memory is a tiny permanent profile injected into every prompt. It is not the default destination. If content is not clearly a stable user fact, durable preference, hard constraint, or explicitly permanent environment fact, route it to Journal, Notes, Inventory, or Knowledge Graph instead.
 
 Core Memory writes are agent-only. `remember` may route to Core Memory only when the agent deliberately records a durable fact; background systems, dashboard forms, migration jobs, and tool integrations must not create or update Core Memory entries.
 
@@ -12,6 +12,8 @@ Core Memory writes are agent-only. `remember` may route to Core Memory only when
 |----------------|------------|---------|
 | Stable identity, durable preferences, hard constraints | Core Memory | "User prefers concise German answers" |
 | Events, completions, milestones | Journal entry | "Successfully migrated the database" |
+| Run/deploy status, health checks, daily updates, mission results | Journal entry | "Mission X last run succeeded" |
+| Device/IP/port discovery | Inventory / Knowledge Graph / Journal | "Google Home Mini reachable at port 8009" |
 | Tasks, reminders, to-dos | Notes | "TODO: check backup script" |
 | Entity relationships (with source/target) | Knowledge Graph | "server_prod runs PostgreSQL" |
 | Unclear operational detail | Journal entry | "Observed Koofr upload failure during mission X" |
@@ -42,6 +44,7 @@ Core Memory writes are agent-only. `remember` may route to Core Memory only when
 
 - **When to use**: Use when you want to store something useful but don't want to choose the target system
 - **Core memory gate**: If it probably will not matter in 6 months, it must not go to Core Memory
+- **Operational gate**: Build/deploy results, mission last-run summaries, health checks, article counts, Site IDs, discovered IPs/ports, and temporary failures must not be forced into Core Memory with `category=fact`
 - **Hard rejection**: Even explicit `category=fact` / `category=core` is rejected for transient operational or media-history entries
 - **When NOT to use**: For complex operations (update, delete, list, search) use specific tools directly
 - **Querying memory**: Use `query_memory` instead for searching across all memory layers

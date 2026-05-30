@@ -9,6 +9,10 @@ import (
 var (
 	coreMemoryDatedEntryPattern = regexp.MustCompile(`^\[?\d+\]?\s*\d{4}-\d{2}-\d{2}\s*:`)
 	coreMemoryPathArtifact      = regexp.MustCompile(`(?i)(^|\s)(/home/[^,\s]+|/data/audio/[^,\s]+|agent_workspace/[^,\s]+|apps/[a-z0-9_-]+\.html)(\s|,|$)`)
+	coreMemoryOperationalDate   = regexp.MustCompile(`(?i)\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}\.\d{1,2}\.?(?:\d{2,4})?)\b`)
+	coreMemoryOperationalID     = regexp.MustCompile(`(?i)\bmission_[a-z0-9_]+\b|\bsite-id:\s*[a-f0-9-]{8,}`)
+	coreMemoryHTTPStatus        = regexp.MustCompile(`(?i)\bhttp\s+[45]\d\d\b`)
+	coreMemoryIPv4              = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b`)
 )
 
 // ValidateCoreMemoryFact rejects facts that are useful history, logs, media
@@ -38,6 +42,12 @@ func ValidateCoreMemoryFact(fact string) error {
 	}
 	if hasAnyCoreMemoryMarker(lower, transientCoreMemoryTaskMarkers) {
 		return fmt.Errorf("task-local operational details belong in journal or episodic memory, not core memory")
+	}
+	if isCoreMemoryOperationalSnapshot(lower) {
+		return fmt.Errorf("operational run status and deployment snapshots belong in journal or activity memory, not core memory")
+	}
+	if isCoreMemoryNetworkDiscovery(lower) {
+		return fmt.Errorf("network and device discoveries belong in inventory, knowledge graph, or journal, not core memory")
 	}
 	if isCoreMemoryToolStateClaim(lower) {
 		return fmt.Errorf("tool availability and transient failure state must not be stored in core memory")
@@ -95,6 +105,68 @@ var transientCoreMemoryTaskMarkers = []string{
 	"not found",
 }
 
+var transientCoreMemoryOperationalMarkers = []string{
+	"aktualisiert am",
+	"artikel mit quellen",
+	"bot-token prüfen",
+	"build erfolgreich",
+	"build successful",
+	"deploy state",
+	"erfolgreich gesendet",
+	"health-check",
+	"heartbeat",
+	"letzter lauf",
+	"live-verifikation",
+	"lokaler preview",
+	"mission abgeschlossen",
+	"mission completed",
+	"netlify-deploy",
+	"port-problem",
+	"port-scan",
+	"problem ist behoben",
+	"state: ready",
+	"tts-begr",
+	"updated on",
+	"zuletzt gesehen",
+}
+
+var transientCoreMemoryOperationalContextMarkers = []string{
+	"api",
+	"artikel",
+	"build",
+	"deploy",
+	"geladen",
+	"health",
+	"ki news",
+	"last run",
+	"letzter lauf",
+	"mission",
+	"modell",
+	"netlify",
+	"ollama",
+	"port ",
+	"ready",
+	"seite",
+	"site",
+	"stand ",
+	"success",
+}
+
+var transientCoreMemoryNetworkDiscoveryMarkers = []string{
+	"chromecast",
+	"device",
+	"erreichbar",
+	"gerät",
+	"google home",
+	"ip ",
+	"port ",
+	"port-scan",
+	"reachable",
+	"smb",
+	"tts",
+	"windows",
+}
+
 func hasAnyCoreMemoryMarker(text string, markers []string) bool {
 	for _, marker := range markers {
 		if strings.Contains(text, marker) {
@@ -102,6 +174,22 @@ func hasAnyCoreMemoryMarker(text string, markers []string) bool {
 		}
 	}
 	return false
+}
+
+func isCoreMemoryOperationalSnapshot(text string) bool {
+	if hasAnyCoreMemoryMarker(text, transientCoreMemoryOperationalMarkers) {
+		return true
+	}
+	if coreMemoryOperationalID.MatchString(text) || coreMemoryHTTPStatus.MatchString(text) {
+		return true
+	}
+	return coreMemoryOperationalDate.MatchString(text) &&
+		hasAnyCoreMemoryMarker(text, transientCoreMemoryOperationalContextMarkers)
+}
+
+func isCoreMemoryNetworkDiscovery(text string) bool {
+	return coreMemoryIPv4.MatchString(text) &&
+		hasAnyCoreMemoryMarker(text, transientCoreMemoryNetworkDiscoveryMarkers)
 }
 
 func isCoreMemoryToolStateClaim(text string) bool {
