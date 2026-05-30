@@ -131,6 +131,13 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 			"attempt", s.invalidNativeToolCount,
 			"action", tc.Action,
 			"error", tc.NativeArgsError)
+		if dropped := len(s.pendingTCs); dropped > 0 {
+			s.pendingTCs = nil
+			s.pendingSummaryBatch = nil
+			currentLogger.Warn("[Sync] Dropped queued native tool calls after malformed native call",
+				"action", tc.Action,
+				"dropped", dropped)
+		}
 		recoveryTool := tc.Action
 		if strings.TrimSpace(recoveryTool) == "" {
 			recoveryTool = "the requested tool"

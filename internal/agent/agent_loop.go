@@ -1429,6 +1429,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if shouldContinue {
 			explicitTools = s.explicitTools
 			lastResponseWasTool = s.lastResponseWasTool
+			pendingTCs = s.pendingTCs
 			req = s.req
 			continue
 		}
