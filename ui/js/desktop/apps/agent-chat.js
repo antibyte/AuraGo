@@ -1,5 +1,21 @@
     const state = { chatBusy: false };
     let desktopRuntime = {};
+    let sidebarOpen = true;
+    let lastRole = null;
+
+    const WELCOME_PROMPTS = [
+        'desktop.chat_prompt_what_can_you_do',
+        'desktop.chat_prompt_help_code',
+        'desktop.chat_prompt_analyze_files',
+        'desktop.chat_prompt_explain'
+    ];
+
+    const WELCOME_PROMPT_FALLBACKS = [
+        'What can you do?',
+        'Help me with code',
+        'Analyze my files',
+        'Explain something'
+    ];
 
     function useDesktopChatRuntime(context) {
         if (context && context.__desktopRuntime) desktopRuntime = context.__desktopRuntime;
@@ -63,32 +79,90 @@
         return null;
     }
 
+    function chatFileContextFromEntry(entry) {
+        const path = String((entry && entry.path) || '').replace(/\\/g, '/').replace(/\/+/g, '/').trim();
+        if (!path) return null;
+        return {
+            path,
+            name: (entry && (entry.name || entry.filename)) || path.split('/').pop() || path,
+            web_path: (entry && entry.web_path) || '',
+            media_kind: (entry && entry.media_kind) || '',
+            mime_type: (entry && entry.mime_type) || ''
+        };
+    }
+
     function renderChat(id, context) {
         useDesktopChatRuntime(context || {});
         const host = agentChatContentEl(id);
         if (!host) throw new Error('Desktop chat window content is not available');
-        host.innerHTML = `<div class="vd-chat">
-            <div class="vd-chat-toolbar">
-                <button class="vd-chat-clear-history" type="button" data-chat-clear-history title="${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}" aria-label="${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}">
-                    ${iconMarkup('trash', 'X', 'vd-chat-toolbar-icon', 14)}<span>${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}</span>
-                </button>
+
+        const sidebarCollapsed = !sidebarOpen;
+        host.innerHTML = `<div class="vd-chat" data-sidebar-collapsed="${sidebarCollapsed}" ${sidebarOpen ? 'data-sidebar-open="true"' : ''}>
+            <div class="vd-chat-sidebar">
+                <div class="vd-chat-sidebar-header">
+                    <span class="vd-chat-sidebar-title">${esc(desktopText('desktop.chat_sessions', 'Conversations'))}</span>
+                    <button class="vd-chat-new-chat-btn" type="button" data-chat-new title="${esc(desktopText('desktop.chat_new', 'New Chat'))}" aria-label="${esc(desktopText('desktop.chat_new', 'New Chat'))}">
+                        ${iconMarkup('plus', '+', 'vd-chat-sidebar-icon', 14)}<span>${esc(desktopText('desktop.chat_new', 'New Chat'))}</span>
+                    </button>
+                </div>
+                <div class="vd-chat-sidebar-search">
+                    <input type="text" placeholder="${esc(desktopText('desktop.chat_search', 'Search conversations...'))}" data-chat-sidebar-search autocomplete="off">
+                </div>
+                <div class="vd-chat-sidebar-list" data-chat-sidebar-list></div>
             </div>
-            <div class="vd-chat-log"></div>
-            <div class="vd-chat-context" data-chat-context hidden></div>
-            <form class="vd-chat-form">
-                <input class="vd-chat-input" autocomplete="off" data-i18n-placeholder="desktop.chat_placeholder">
-                <button class="vd-chat-voice" type="button" data-i18n-title="desktop.chat_voice_input" data-i18n-aria-label="desktop.chat_voice_input">${iconMarkup('microphone', 'M', 'vd-chat-voice-icon', 15)}</button>
-                <button class="vd-chat-send" type="submit" data-chat-send-button>${iconMarkup('chat', 'S', 'vd-chat-send-icon', 15)}<span data-chat-send-label>${esc(t('desktop.send'))}</span></button>
-            </form>
+            <div class="vd-chat-sidebar-backdrop" data-chat-sidebar-backdrop></div>
+            <div class="vd-chat-toolbar">
+                <div class="vd-chat-toolbar-left">
+                    <button class="vd-chat-sidebar-toggle" type="button" data-chat-sidebar-toggle title="${esc(desktopText('desktop.chat_toggle_sidebar', 'Toggle sidebar'))}" aria-label="${esc(desktopText('desktop.chat_toggle_sidebar', 'Toggle sidebar'))}">
+                        ${iconMarkup('menu', '☰', 'vd-chat-toolbar-icon', 16)}
+                    </button>
+                </div>
+                <div class="vd-chat-toolbar-right">
+                    <button class="vd-chat-clear-history" type="button" data-chat-clear-history title="${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}" aria-label="${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}">
+                        ${iconMarkup('trash', 'X', 'vd-chat-toolbar-icon', 14)}<span>${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}</span>
+                    </button>
+                </div>
+            </div>
+            <div class="vd-chat-main">
+                <div class="vd-chat-log"></div>
+                <div class="vd-chat-scroll-fab" data-chat-scroll-fab aria-label="${esc(desktopText('desktop.chat_scroll_bottom', 'Scroll to bottom'))}">
+                    ${iconMarkup('chevron-down', '↓', 'vd-chat-scroll-icon', 18)}
+                </div>
+                <div class="vd-chat-drop-overlay" data-chat-drop-overlay>
+                    <div class="vd-chat-drop-overlay-content">
+                        <div class="vd-chat-drop-overlay-icon">📎</div>
+                        <div class="vd-chat-drop-overlay-text">${esc(desktopText('desktop.chat_drop_files', 'Drop files here'))}</div>
+                    </div>
+                </div>
+                <div class="vd-chat-context" data-chat-context hidden></div>
+                <form class="vd-chat-form">
+                    <div class="vd-chat-input-wrap">
+                        <textarea class="vd-chat-input" rows="1" autocomplete="off" placeholder="${esc(desktopText('desktop.chat_placeholder', 'Type a message...'))}"></textarea>
+                        <span class="vd-chat-input-counter" data-chat-input-counter></span>
+                    </div>
+                    <div class="vd-chat-form-buttons">
+                        <button class="vd-chat-voice" type="button" data-i18n-title="desktop.chat_voice_input" data-i18n-aria-label="desktop.chat_voice_input">${iconMarkup('microphone', 'M', 'vd-chat-voice-icon', 15)}</button>
+                        <button class="vd-chat-send" type="submit" data-chat-send-button>${iconMarkup('chat', 'S', 'vd-chat-send-icon', 15)}<span data-chat-send-label>${esc(desktopText('desktop.send', 'Send'))}</span></button>
+                    </div>
+                </form>
+            </div>
         </div>`;
+
         const input = host.querySelector('.vd-chat-input');
         const voiceBtn = host.querySelector('.vd-chat-voice');
-        input.placeholder = t('desktop.chat_placeholder');
+
+        initTextarea(host, input);
         initDesktopChatVoice(host, input, voiceBtn);
+        initSidebar(host);
+        initDragAndDrop(host);
+        initScrollFab(host);
         setDesktopChatBusy(host, false);
+
         loadDesktopChatHistory(host).finally(() => applyChatLaunchContext(id, context || {}));
+
         const clearHistory = host.querySelector('[data-chat-clear-history]');
         if (clearHistory) clearHistory.addEventListener('click', () => clearDesktopChatHistory(host));
+
         host.querySelector('form').addEventListener('submit', async (event) => {
             event.preventDefault();
             if (state.chatBusy) {
@@ -99,21 +173,214 @@
         });
     }
 
+    function initTextarea(host, input) {
+        if (!input) return;
+        const counter = host.querySelector('[data-chat-input-counter]');
+
+        function autoResize() {
+            input.style.height = 'auto';
+            const maxHeight = 150;
+            input.style.height = Math.min(input.scrollHeight, maxHeight) + 'px';
+            input.style.overflowY = input.scrollHeight > maxHeight ? 'auto' : 'hidden';
+        }
+
+        function updateCounter() {
+            if (!counter) return;
+            const len = input.value.length;
+            if (len > 50) {
+                counter.textContent = len;
+                counter.classList.add('visible');
+            } else {
+                counter.classList.remove('visible');
+            }
+        }
+
+        input.addEventListener('input', () => { autoResize(); updateCounter(); });
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                const form = host.querySelector('form');
+                if (form) form.dispatchEvent(new Event('submit', { cancelable: true }));
+            }
+        });
+
+        autoResize();
+    }
+
+    function initSidebar(host) {
+        const chat = host.querySelector('.vd-chat');
+        const toggleBtn = host.querySelector('[data-chat-sidebar-toggle]');
+        const backdrop = host.querySelector('[data-chat-sidebar-backdrop]');
+        const newChatBtn = host.querySelector('[data-chat-new]');
+        const searchInput = host.querySelector('[data-chat-sidebar-search]');
+
+        function updateSidebarState() {
+            if (!chat) return;
+            const isWide = host.offsetWidth > 900;
+            if (isWide) {
+                chat.dataset.sidebarCollapsed = sidebarOpen ? 'false' : 'true';
+                chat.removeAttribute('data-sidebar-open');
+            } else {
+                chat.dataset.sidebarCollapsed = 'true';
+                if (sidebarOpen) chat.dataset.sidebarOpen = 'true';
+                else chat.removeAttribute('data-sidebar-open');
+            }
+        }
+
+        if (toggleBtn) toggleBtn.addEventListener('click', () => {
+            sidebarOpen = !sidebarOpen;
+            updateSidebarState();
+        });
+
+        if (backdrop) backdrop.addEventListener('click', () => {
+            sidebarOpen = false;
+            updateSidebarState();
+        });
+
+        if (newChatBtn) newChatBtn.addEventListener('click', () => {
+            clearDesktopChatHistory(host, true);
+        });
+
+        if (searchInput) searchInput.addEventListener('input', () => {
+            filterSidebarItems(host, searchInput.value.trim().toLowerCase());
+        });
+
+        renderSidebarList(host);
+        updateSidebarState();
+
+        const ro = new ResizeObserver(() => updateSidebarState());
+        ro.observe(host);
+        host._sidebarResizeObserver = ro;
+    }
+
+    function renderSidebarList(host) {
+        const list = host.querySelector('[data-chat-sidebar-list]');
+        if (!list) return;
+        const sessionId = 'virtual-desktop';
+        const title = desktopText('desktop.chat_current_session', 'Current Session');
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        list.innerHTML = `<div class="vd-chat-sidebar-item active" data-session-id="${esc(sessionId)}">
+            <div class="vd-chat-sidebar-item-content">
+                <div class="vd-chat-sidebar-item-title">${esc(title)}</div>
+                <div class="vd-chat-sidebar-item-time">${esc(time)}</div>
+            </div>
+        </div>`;
+    }
+
+    function filterSidebarItems(host, query) {
+        const items = host.querySelectorAll('.vd-chat-sidebar-item');
+        items.forEach(item => {
+            const title = item.querySelector('.vd-chat-sidebar-item-title');
+            const text = title ? title.textContent.toLowerCase() : '';
+            item.style.display = (!query || text.includes(query)) ? '' : 'none';
+        });
+    }
+
+    function initDragAndDrop(host) {
+        const chatMain = host.querySelector('.vd-chat-main');
+        const overlay = host.querySelector('[data-chat-drop-overlay]');
+        if (!chatMain || !overlay) return;
+
+        let dragCounter = 0;
+
+        chatMain.addEventListener('dragenter', (event) => {
+            event.preventDefault();
+            dragCounter++;
+            if (event.dataTransfer && event.dataTransfer.types && event.dataTransfer.types.includes('Files')) {
+                overlay.classList.add('active');
+            }
+        });
+
+        chatMain.addEventListener('dragleave', (event) => {
+            event.preventDefault();
+            dragCounter--;
+            if (dragCounter <= 0) {
+                dragCounter = 0;
+                overlay.classList.remove('active');
+            }
+        });
+
+        chatMain.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+        });
+
+        chatMain.addEventListener('drop', (event) => {
+            event.preventDefault();
+            dragCounter = 0;
+            overlay.classList.remove('active');
+
+            const files = event.dataTransfer && event.dataTransfer.files;
+            if (!files || !files.length) return;
+
+            const fileEntries = [];
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (file && file.name) {
+                    fileEntries.push({ path: file.name, name: file.name, mime_type: file.type || '' });
+                }
+            }
+
+            if (fileEntries.length) {
+                const existing = chatAttachedFiles(host);
+                const merged = existing.slice();
+                fileEntries.forEach(entry => {
+                    if (!merged.some(f => f.path === entry.path)) merged.push(entry);
+                });
+                host.dataset.chatFiles = JSON.stringify(merged);
+                renderChatContextBar(host);
+            }
+        });
+    }
+
+    function initScrollFab(host) {
+        const chatLog = host.querySelector('.vd-chat-log');
+        const fab = host.querySelector('[data-chat-scroll-fab]');
+        if (!chatLog || !fab) return;
+
+        chatLog.addEventListener('scroll', () => {
+            const distanceFromBottom = chatLog.scrollHeight - chatLog.scrollTop - chatLog.clientHeight;
+            fab.classList.toggle('visible', distanceFromBottom > 200);
+        });
+
+        fab.addEventListener('click', () => {
+            chatLog.scrollTo({ top: chatLog.scrollHeight, behavior: 'smooth' });
+        });
+    }
+
+    function updateSidebarSessionTitle(host, text) {
+        const title = host.querySelector('.vd-chat-sidebar-item-title');
+        if (title && text) {
+            title.textContent = text.slice(0, 50) + (text.length > 50 ? '...' : '');
+        }
+    }
+
     async function submitDesktopChatMessage(host, message) {
         const input = host && host.querySelector('.vd-chat-input');
         message = String(message || '').trim();
         if (!host || !message || state.chatBusy) return;
-        if (input) input.value = '';
+        if (input) { input.value = ''; input.style.height = 'auto'; }
         host._desktopChatHistoryToken = null;
         state.chatBusy = true;
         setDesktopChatBusy(host, true);
+
+        if (!lastRole) {
+            const chatLog = host.querySelector('.vd-chat-log');
+            const welcome = chatLog && chatLog.querySelector('.vd-chat-welcome');
+            if (welcome) welcome.remove();
+        }
+
+        updateSidebarSessionTitle(host, message);
+
         const chatLog = host.querySelector('.vd-chat-log');
         const renderer = window.DesktopChatRenderer;
-        if (renderer) renderer.appendRichBubble(chatLog, 'user', message);
+        if (renderer) renderer.appendRichBubble(chatLog, 'user', message, lastRole);
         else appendChat(host, 'user', message);
+        lastRole = 'user';
+
         try {
             await sendDesktopChatStream(host, message, chatContextPayload(host));
-            try { await loadBootstrap(); } catch (_) { /* bootstrap refresh failed, chat still succeeded */ }
+            try { await loadBootstrap(); } catch (_) { }
         } catch (err) {
             if (!isDesktopChatAbortError(err)) appendDesktopChatError(host, err);
         } finally {
@@ -135,6 +402,7 @@
             const messages = await api('/history?session_id=virtual-desktop');
             if (host._desktopChatHistoryToken !== token) return;
             chatLog.innerHTML = '';
+            lastRole = null;
             const visible = (Array.isArray(messages) ? messages : [])
                 .map(normalizeDesktopChatHistoryMessage)
                 .filter(Boolean)
@@ -148,6 +416,7 @@
         } catch (err) {
             if (host._desktopChatHistoryToken !== token) return;
             chatLog.innerHTML = '';
+            lastRole = null;
             appendDesktopChatWelcome(host);
             if (typeof showDesktopNotification === 'function') {
                 showDesktopNotification({ message: desktopText('desktop.chat_history_load_error', 'Could not load chat history.') });
@@ -197,9 +466,37 @@
 
     function appendDesktopChatWelcome(host) {
         const chatLog = host && host.querySelector('.vd-chat-log');
-        const renderer = window.DesktopChatRenderer;
-        if (renderer && chatLog) renderer.appendRichBubble(chatLog, 'agent', t('desktop.chat_welcome'));
-        else if (host) appendChat(host, 'agent', t('desktop.chat_welcome'));
+        if (!chatLog) return;
+
+        const avatarHtml = (window.AuraChatCore && typeof window.AuraChatCore.personaAvatarMarkup === 'function')
+            ? window.AuraChatCore.personaAvatarMarkup('agent')
+            : iconMarkup('chat', '🤖', '', 32);
+
+        const promptChips = WELCOME_PROMPTS.map((key, i) => {
+            const label = desktopText(key, WELCOME_PROMPT_FALLBACKS[i]);
+            return `<button class="vd-chat-welcome-prompt" type="button" data-prompt-index="${i}">${esc(label)}</button>`;
+        }).join('');
+
+        const welcome = document.createElement('div');
+        welcome.className = 'vd-chat-welcome';
+        welcome.innerHTML = `
+            <div class="vd-chat-welcome-avatar">${avatarHtml}</div>
+            <div class="vd-chat-welcome-heading">${esc(desktopText('desktop.chat_welcome_heading', 'How can I help you?'))}</div>
+            <div class="vd-chat-welcome-sub">${esc(desktopText('desktop.chat_welcome_sub', 'Ask me anything or try a suggestion below'))}</div>
+            <div class="vd-chat-welcome-prompts">${promptChips}</div>
+        `;
+        chatLog.appendChild(welcome);
+
+        welcome.querySelectorAll('.vd-chat-welcome-prompt').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = parseInt(btn.getAttribute('data-prompt-index'), 10);
+                const key = WELCOME_PROMPTS[idx];
+                const text = desktopText(key, WELCOME_PROMPT_FALLBACKS[idx]);
+                submitDesktopChatMessage(host, text);
+            });
+        });
+
+        lastRole = null;
     }
 
     function appendDesktopChatHistoryBubble(host, message) {
@@ -208,31 +505,47 @@
         const renderer = window.DesktopChatRenderer;
         if (!renderer) {
             appendChat(host, message.role, message.text);
+            lastRole = message.role;
             return;
         }
+
+        const isGroup = lastRole === message.role;
         const bubble = renderer.createBubble(message.role, '');
+        if (isGroup) bubble.dataset.roleGroup = 'continuation';
+
         if (message.role === 'user') {
             bubble.textContent = message.text;
         } else {
             bubble.innerHTML = renderer.renderMarkdown(message.text);
             renderer.processImages(bubble);
+            renderer.enhanceCodeBlocks(bubble);
             if (window.MermaidLoader) window.MermaidLoader.processBlocks(bubble);
         }
-        chatLog.appendChild(bubble);
+
+        if (renderer.appendAvatar) {
+            renderer.appendAvatar(chatLog, message.role, bubble, isGroup);
+        } else {
+            chatLog.appendChild(bubble);
+        }
+
         renderer.appendTimestamp(chatLog, message.role, message.timestamp);
+        lastRole = message.role;
     }
 
-    async function clearDesktopChatHistory(host) {
+    async function clearDesktopChatHistory(host, silent) {
         if (!host || state.chatBusy) return;
-        const ok = await confirmDesktopChatClear(host);
-        if (!ok) return;
+        if (!silent) {
+            const ok = await confirmDesktopChatClear(host);
+            if (!ok) return;
+        }
         try {
             await api('/clear?session_id=virtual-desktop', { method: 'DELETE' });
             host._desktopChatHistoryToken = null;
             const chatLog = host.querySelector('.vd-chat-log');
             if (chatLog) chatLog.innerHTML = '';
+            lastRole = null;
             appendDesktopChatWelcome(host);
-            if (typeof showDesktopNotification === 'function') {
+            if (!silent && typeof showDesktopNotification === 'function') {
                 showDesktopNotification({ message: desktopText('desktop.chat_history_cleared', 'Chat history cleared.') });
             }
         } catch (err) {
@@ -250,8 +563,8 @@
                 <div class="vd-qc-confirm-title">${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}</div>
                 <div class="vd-qc-confirm-msg">${esc(desktopText('desktop.chat_clear_confirm', 'Delete the visible desktop chat history?'))}</div>
                 <div class="vd-qc-confirm-actions">
-                    <button class="vd-qc-btn vd-qc-btn-secondary" type="button" data-action="cancel">${iconMarkup('x', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.cancel'))}</span></button>
-                    <button class="vd-qc-btn vd-qc-btn-danger" type="button" data-action="ok">${iconMarkup('trash', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.delete'))}</span></button>
+                    <button class="vd-qc-btn vd-qc-btn-secondary" type="button" data-action="cancel">${iconMarkup('x', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(desktopText('desktop.cancel', 'Cancel'))}</span></button>
+                    <button class="vd-qc-btn vd-qc-btn-danger" type="button" data-action="ok">${iconMarkup('trash', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(desktopText('desktop.delete', 'Delete'))}</span></button>
                 </div>
             </div>`;
             container.appendChild(overlay);
@@ -303,7 +616,7 @@
         }).join('');
         const freeText = payload.allow_free_text ? `<form class="vd-chat-question-free-text" data-question-free-text>
                 <input type="text" autocomplete="off" placeholder="${esc(desktopText('desktop.chat_question_free_text_placeholder', 'Type a custom answer...'))}">
-                <button class="vd-qc-btn vd-qc-btn-primary" type="submit">${iconMarkup('chat', 'S', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.send'))}</span></button>
+                <button class="vd-qc-btn vd-qc-btn-primary" type="submit">${iconMarkup('chat', 'S', 'vd-qc-btn-icon', 14)}<span>${esc(desktopText('desktop.send', 'Send'))}</span></button>
             </form>` : '';
 
         overlay.innerHTML = `<div class="vd-qc-confirm vd-chat-question-panel">
@@ -366,8 +679,13 @@
 
     function setDesktopChatBusy(host, busy) {
         if (!host) return;
-        const input = host.querySelector('.vd-chat-input'), voiceBtn = host.querySelector('.vd-chat-voice'), sendBtn = host.querySelector('.vd-chat-send'), label = host.querySelector('[data-chat-send-label]'), clearBtn = host.querySelector('[data-chat-clear-history]');
-        const stop = desktopText('desktop.chat_stop', 'Stop'), send = desktopText('desktop.send', 'Send');
+        const input = host.querySelector('.vd-chat-input');
+        const voiceBtn = host.querySelector('.vd-chat-voice');
+        const sendBtn = host.querySelector('.vd-chat-send');
+        const label = host.querySelector('[data-chat-send-label]');
+        const clearBtn = host.querySelector('[data-chat-clear-history]');
+        const stop = desktopText('desktop.chat_stop', 'Stop');
+        const send = desktopText('desktop.send', 'Send');
         if (input) input.disabled = !!busy;
         if (voiceBtn) {
             const disabled = !!busy || voiceBtn.dataset.voiceAvailable === 'false';
@@ -386,9 +704,12 @@
     }
 
     function appendDesktopChatError(host, err) {
-        const message = err && err.message ? err.message : String(err || 'Request failed'), chatLog = host && host.querySelector('.vd-chat-log'), renderer = window.DesktopChatRenderer;
-        if (renderer && chatLog) renderer.appendRichBubble(chatLog, 'agent', message);
+        const message = err && err.message ? err.message : String(err || 'Request failed');
+        const chatLog = host && host.querySelector('.vd-chat-log');
+        const renderer = window.DesktopChatRenderer;
+        if (renderer && chatLog) renderer.appendRichBubble(chatLog, 'agent', message, lastRole);
         else if (host) appendChat(host, 'agent', message);
+        lastRole = 'agent';
     }
 
     function initDesktopChatVoice(host, input, voiceBtn) {
@@ -412,7 +733,9 @@
         const populateInput = (text) => {
             const value = String(text || '').trim();
             if (!value) return;
-            input.value = value; input.dispatchEvent(new Event('input', { bubbles: true })); input.focus();
+            input.value = value;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.focus();
         };
         const showVoiceError = (message) => {
             voiceBtn.classList.remove('is-active');
@@ -521,17 +844,31 @@
             bar.innerHTML = '';
             return;
         }
-        const pieces = [];
+
+        const chips = [];
         if (windowContext) {
-            pieces.push(`${desktopText('desktop.chat_request_context', 'Request context')}: ${windowContext.label || windowContext.app_id || windowContext.purpose}`);
+            chips.push(`<span class="vd-chat-context-chip context-window">${esc(windowContext.label || windowContext.app_id || windowContext.purpose)}</span>`);
         }
-        if (files.length) {
-            const names = files.map(file => file.name || file.path).join(', ');
-            pieces.push(`${desktopText('desktop.chat_file_context', 'File context')}: ${names}`);
-        }
+        files.forEach(file => {
+            const name = file.name || file.path;
+            chips.push(`<span class="vd-chat-context-chip">${iconMarkup('file', '📄', 'vd-chat-context-icon', 12)}${esc(name)}
+                <button class="vd-chat-context-chip-remove" type="button" data-remove-file="${esc(file.path)}" title="${esc(desktopText('desktop.remove', 'Remove'))}">${iconMarkup('x', 'X', 'vd-chat-context-icon', 10)}</button>
+            </span>`);
+        });
+
         bar.hidden = false;
-        bar.innerHTML = `<span>${esc(pieces.join(' | '))}</span>
-            <button type="button" data-chat-context-clear title="${esc(desktopText('desktop.clear', 'Clear'))}">${iconMarkup('x', 'X', 'vd-chat-context-icon', 12)}</button>`;
+        bar.innerHTML = `<div class="vd-chat-context-chips">${chips.join('')}</div>
+            <button class="vd-chat-context-clear-all" type="button" data-chat-context-clear title="${esc(desktopText('desktop.clear', 'Clear'))}" aria-label="${esc(desktopText('desktop.clear', 'Clear all context'))}">${iconMarkup('x', 'X', 'vd-chat-context-icon', 14)}</button>`;
+
+        bar.querySelectorAll('[data-remove-file]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const path = btn.getAttribute('data-remove-file');
+                const current = chatAttachedFiles(host).filter(f => f.path !== path);
+                host.dataset.chatFiles = JSON.stringify(current);
+                renderChatContextBar(host);
+            });
+        });
+
         const clear = bar.querySelector('[data-chat-context-clear]');
         if (clear) clear.addEventListener('click', () => {
             host.dataset.chatFiles = '[]';
@@ -560,12 +897,13 @@
         const input = host.querySelector('.vd-chat-input');
         if (input && context && context.chat_prefill && !input.value.trim()) {
             input.value = context.chat_prefill;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
         }
         if (context.chat_autosend && state.chatBusy) {
             if (input) input.focus();
             return;
         }
-        if (context.chat_autosend && input.value.trim() && !state.chatBusy) {
+        if (context.chat_autosend && input && input.value.trim() && !state.chatBusy) {
             window.setTimeout(() => {
                 submitDesktopChatMessage(host, input.value.trim()).catch(err => appendDesktopChatError(host, err));
             }, 0);
@@ -653,6 +991,7 @@
                         const html = renderer.renderMarkdown(streamingContent);
                         streamingBubble.innerHTML = html;
                         renderer.processImages(streamingBubble);
+                        renderer.enhanceCodeBlocks(streamingBubble);
                         if (window.MermaidLoader) {
                             window.MermaidLoader.processBlocks(streamingBubble);
                         }
@@ -717,10 +1056,18 @@
                         const content = data.content || '';
                         if (!content) return;
                         if (!streamingBubble) {
+                            const isGroup = lastRole === 'agent';
                             streamingBubble = document.createElement('div');
                             streamingBubble.className = 'vd-chat-bubble agent vd-streaming';
-                            chatLog.appendChild(streamingBubble);
+                            if (isGroup) streamingBubble.dataset.roleGroup = 'continuation';
+
+                            if (renderer && renderer.appendAvatar) {
+                                renderer.appendAvatar(chatLog, 'agent', streamingBubble, isGroup);
+                            } else {
+                                chatLog.appendChild(streamingBubble);
+                            }
                             if (renderer) renderer.appendTimestamp(chatLog, 'agent');
+                            lastRole = 'agent';
                             keepAgentStatusAtEnd();
                         }
                         streamingContent += content;
@@ -747,7 +1094,8 @@
                         if (renderer) {
                             const text = renderer.extractToolCallNarration(data.detail || data.message || '');
                             if (text) {
-                                renderer.appendRichBubble(chatLog, 'agent', text);
+                                renderer.appendRichBubble(chatLog, 'agent', text, lastRole);
+                                lastRole = 'agent';
                                 keepAgentStatusAtEnd();
                             }
                         }
@@ -756,6 +1104,7 @@
                             const imgData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
                             if (renderer) {
                                 renderer.appendImageMessage(chatLog, imgData);
+                                lastRole = 'agent';
                                 keepAgentStatusAtEnd();
                             }
                         } catch (_) {}
@@ -764,6 +1113,7 @@
                             const videoData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
                             if (renderer) {
                                 renderer.appendVideoMessage(chatLog, videoData);
+                                lastRole = 'agent';
                                 keepAgentStatusAtEnd();
                             }
                         } catch (_) {}
@@ -772,6 +1122,7 @@
                             const streamData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
                             if (renderer) {
                                 renderer.appendLiveStreamMessage(chatLog, streamData);
+                                lastRole = 'agent';
                                 keepAgentStatusAtEnd();
                             }
                         } catch (_) {}
@@ -785,6 +1136,7 @@
                             const docData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
                             if (renderer) {
                                 renderer.appendDocumentMessage(chatLog, docData);
+                                lastRole = 'agent';
                                 keepAgentStatusAtEnd();
                             }
                         } catch (_) {}
@@ -795,10 +1147,12 @@
                             const text = data.detail || data.message || '';
                             if (!streamingBubble && text.trim()) {
                                 if (renderer) {
-                                    renderer.appendRichBubble(chatLog, 'agent', text);
+                                    renderer.appendRichBubble(chatLog, 'agent', text, lastRole);
+                                    lastRole = 'agent';
                                     keepAgentStatusAtEnd();
                                 } else {
                                     appendChat(host, 'agent', text);
+                                    lastRole = 'agent';
                                 }
                             } else if (streamingBubble && !streamingContent.trim() && text.trim()) {
                                 streamingContent = text;
@@ -825,13 +1179,20 @@
     }
 
     function appendChat(host, role, text) {
-        const bubble = document.createElement('div');
-        bubble.className = 'vd-chat-bubble ' + role;
-        bubble.textContent = text;
         const chatLog = host.querySelector('.vd-chat-log');
-        chatLog.appendChild(bubble);
+        const renderer = window.DesktopChatRenderer;
+        if (renderer) {
+            renderer.appendRichBubble(chatLog, role, text, lastRole);
+        } else {
+            const bubble = document.createElement('div');
+            bubble.className = 'vd-chat-bubble ' + role;
+            bubble.textContent = text;
+            chatLog.appendChild(bubble);
+        }
         appendChatTimestamp(host, role);
-        bubble.scrollIntoView({ block: 'end' });
+        lastRole = role;
+        const last = chatLog.lastElementChild;
+        if (last) last.scrollIntoView({ block: 'end' });
     }
 
     function appendChatTimestamp(host, role) {
