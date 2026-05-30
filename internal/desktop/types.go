@@ -131,8 +131,21 @@ type AppManifest struct {
 	Health       string            `json:"health,omitempty"`
 	HealthReason string            `json:"health_reason,omitempty"`
 	EntryPath    string            `json:"entry_path,omitempty"`
+	Integrity    *IntegrityData    `json:"integrity,omitempty"`
 	CreatedAt    time.Time         `json:"created_at,omitempty"`
 	UpdatedAt    time.Time         `json:"updated_at,omitempty"`
+}
+
+// IntegrityData records signed file hashes for generated desktop assets.
+type IntegrityData struct {
+	Hashes    map[string]string   `json:"hashes,omitempty"`
+	Signature *IntegritySignature `json:"signature,omitempty"`
+}
+
+// IntegritySignature stores the local AuraGo signature over IntegrityData.Hashes.
+type IntegritySignature struct {
+	Algorithm string `json:"algorithm"`
+	Value     string `json:"value"`
 }
 
 // Shortcut describes one persistent icon pinned to the desktop surface.
@@ -149,24 +162,28 @@ type Shortcut struct {
 
 // Widget describes a pinned desktop widget backed by a built-in or installed app.
 type Widget struct {
-	ID          string                 `json:"id"`
-	AppID       string                 `json:"app_id,omitempty"`
-	Type        string                 `json:"type,omitempty"`
-	Title       string                 `json:"title"`
-	Icon        string                 `json:"icon,omitempty"`
-	Entry       string                 `json:"entry,omitempty"`
-	Runtime     string                 `json:"runtime,omitempty"`
-	Permissions []string               `json:"permissions,omitempty"`
-	X           int                    `json:"x"`
-	Y           int                    `json:"y"`
-	W           int                    `json:"w"`
-	H           int                    `json:"h"`
-	Visible     bool                   `json:"visible"`
-	Builtin     bool                   `json:"builtin"`
-	Config      map[string]interface{} `json:"config,omitempty"`
-	Metadata    map[string]string      `json:"metadata,omitempty"`
-	CreatedAt   time.Time              `json:"created_at,omitempty"`
-	UpdatedAt   time.Time              `json:"updated_at,omitempty"`
+	ID           string                 `json:"id"`
+	AppID        string                 `json:"app_id,omitempty"`
+	Type         string                 `json:"type,omitempty"`
+	Title        string                 `json:"title"`
+	Icon         string                 `json:"icon,omitempty"`
+	Entry        string                 `json:"entry,omitempty"`
+	Runtime      string                 `json:"runtime,omitempty"`
+	Permissions  []string               `json:"permissions,omitempty"`
+	X            int                    `json:"x"`
+	Y            int                    `json:"y"`
+	W            int                    `json:"w"`
+	H            int                    `json:"h"`
+	Visible      bool                   `json:"visible"`
+	Builtin      bool                   `json:"builtin"`
+	Health       string                 `json:"health,omitempty"`
+	HealthReason string                 `json:"health_reason,omitempty"`
+	EntryPath    string                 `json:"entry_path,omitempty"`
+	Integrity    *IntegrityData         `json:"integrity,omitempty"`
+	Config       map[string]interface{} `json:"config,omitempty"`
+	Metadata     map[string]string      `json:"metadata,omitempty"`
+	CreatedAt    time.Time              `json:"created_at,omitempty"`
+	UpdatedAt    time.Time              `json:"updated_at,omitempty"`
 }
 
 // Event is sent over WebSocket/SSE when the desktop state changes.

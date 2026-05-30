@@ -843,6 +843,23 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			s.Logger.Warn("unauthorized access attempt to desktop files", "path", r.URL.Path, "remote_addr", r.RemoteAddr)
 			return
 		}
+		relPath, err := normalizeDesktopEmbedPath(strings.TrimPrefix(r.URL.Path, "/files/desktop/"))
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		if svc, _, svcErr := s.getDesktopService(r.Context()); svcErr != nil {
+			s.Logger.Warn("desktop service unavailable for file integrity check", "path", r.URL.Path, "error", svcErr)
+			http.NotFound(w, r)
+			return
+		} else if ok, reason, verifyErr := svc.VerifyGeneratedAssetIntegrity(r.Context(), relPath); verifyErr != nil {
+			s.Logger.Warn("desktop file integrity check failed", "path", r.URL.Path, "error", verifyErr)
+			http.NotFound(w, r)
+			return
+		} else if !ok {
+			http.Error(w, fmt.Sprintf("desktop asset integrity check failed: %s", reason), http.StatusConflict)
+			return
+		}
 		setDesktopFileResponseHeaders(w, r.URL.Path)
 		if serveDesktopWidgetAutoResizeHTML(w, r, desktopDir, s.Cfg) {
 			return

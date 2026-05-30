@@ -28,9 +28,10 @@ const virtualDesktopCodeStudioWorkspaceRoot = "/workspace"
 const virtualDesktopLargeReadLimitBytes = 8 * 1024
 
 var (
-	toolDesktopMu  sync.Mutex
-	toolDesktopSvc *desktop.Service
-	toolDesktopCfg desktop.Config
+	toolDesktopMu               sync.Mutex
+	toolDesktopSvc              *desktop.Service
+	toolDesktopCfg              desktop.Config
+	toolDesktopIntegritySecrets desktop.IntegritySecretStore
 )
 
 // SetToolDesktopService registers a shared desktop.Service instance for reuse
@@ -44,9 +45,21 @@ func SetToolDesktopService(svc *desktop.Service) {
 	// instances exist in the same process during parallel tests.
 	toolDesktopSvc = svc
 	if svc != nil {
+		svc.SetIntegritySecretStore(toolDesktopIntegritySecrets)
 		toolDesktopCfg = svc.Config()
 	} else {
 		toolDesktopCfg = desktop.Config{}
+	}
+}
+
+// SetToolDesktopIntegritySecretStore registers the vault-backed signer store
+// used by transient virtual desktop services.
+func SetToolDesktopIntegritySecretStore(store desktop.IntegritySecretStore) {
+	toolDesktopMu.Lock()
+	defer toolDesktopMu.Unlock()
+	toolDesktopIntegritySecrets = store
+	if toolDesktopSvc != nil {
+		toolDesktopSvc.SetIntegritySecretStore(store)
 	}
 }
 
@@ -79,6 +92,7 @@ func getToolDesktopService(ctx context.Context, cfg *config.Config) (*desktop.Se
 	if err != nil {
 		return nil, nil, err
 	}
+	svc.SetIntegritySecretStore(toolDesktopIntegritySecrets)
 	if err := svc.Init(ctx); err != nil {
 		_ = svc.Close()
 		return nil, nil, err

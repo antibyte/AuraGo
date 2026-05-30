@@ -55,6 +55,9 @@ type Service struct {
 	mediaRegistryDB     *sql.DB
 	imageGalleryDB      *sql.DB
 	codeContainer       *CodeContainerService
+	integritySecrets    IntegritySecretStore
+	integrityPrivateKey []byte
+	integrityPublicKey  []byte
 	closed              bool
 	bootstrapCache      BootstrapPayload
 	bootstrapCacheMu    sync.RWMutex

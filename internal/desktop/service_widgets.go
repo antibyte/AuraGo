@@ -81,6 +81,13 @@ func (s *Service) UpsertWidget(ctx context.Context, widget Widget, source string
 			widget.Visible = existingVisible != 0
 		}
 	}
+	if !widget.Builtin && widget.Entry != "" {
+		baseRel := widgetBaseRel(widget)
+		widget.Integrity, err = s.buildDesktopIntegrity("widget", widget.ID, baseRel, []string{widget.Entry})
+		if err != nil {
+			return fmt.Errorf("build desktop widget integrity: %w", err)
+		}
+	}
 	configJSON, err := json.Marshal(widget.Config)
 	if err != nil {
 		return fmt.Errorf("marshal desktop widget config: %w", err)
@@ -228,9 +235,57 @@ func (s *Service) ListAllWidgets(ctx context.Context) ([]Widget, error) {
 		}
 		widget.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
 		widget.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAt)
+		widget = s.validateWidgetEntry(widget)
 		widgets = append(widgets, widget)
 	}
 	return widgets, rows.Err()
+}
+
+func (s *Service) validateWidgetEntry(widget Widget) Widget {
+	if widget.Entry == "" {
+		widget.Health = ""
+		widget.HealthReason = ""
+		widget.EntryPath = ""
+		return widget
+	}
+	baseRel := widgetBaseRel(widget)
+	widget.EntryPath = filepath.ToSlash(filepath.Join(baseRel, widget.Entry))
+	entryPath, err := s.ResolvePath(widget.EntryPath)
+	if err != nil {
+		widget.Health = "broken"
+		widget.HealthReason = "invalid_entry_path"
+		return widget
+	}
+	data, err := os.ReadFile(entryPath)
+	if err != nil {
+		widget.Health = "broken"
+		if os.IsNotExist(err) {
+			widget.HealthReason = "missing_entry_file"
+		} else {
+			widget.HealthReason = "unreadable_entry_file"
+		}
+		return widget
+	}
+	if strings.TrimSpace(string(data)) == "" {
+		widget.Health = "broken"
+		widget.HealthReason = "empty_entry_file"
+		return widget
+	}
+	if reason := s.verifyDesktopIntegrity("widget", widget.ID, baseRel, widget.Integrity); reason != "" {
+		widget.Health = "broken"
+		widget.HealthReason = reason
+		return widget
+	}
+	widget.Health = ""
+	widget.HealthReason = ""
+	return widget
+}
+
+func widgetBaseRel(widget Widget) string {
+	if strings.TrimSpace(widget.AppID) != "" {
+		return filepath.ToSlash(filepath.Join("Apps", widget.AppID))
+	}
+	return "Widgets"
 }
 
 func cleanOptionalDesktopFile(rawPath string) string {

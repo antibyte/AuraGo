@@ -26,6 +26,7 @@ func testService(t *testing.T) *Service {
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
 	}
+	svc.SetIntegritySecretStore(newTestIntegritySecretStore())
 	if err := svc.Init(context.Background()); err != nil {
 		t.Fatalf("Init: %v", err)
 	}
@@ -54,6 +55,7 @@ func testMediaService(t *testing.T) *Service {
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
 	}
+	svc.SetIntegritySecretStore(newTestIntegritySecretStore())
 	if err := svc.Init(context.Background()); err != nil {
 		t.Fatalf("Init: %v", err)
 	}
@@ -67,6 +69,7 @@ func testServiceWithConfig(t *testing.T, cfg Config) *Service {
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
 	}
+	svc.SetIntegritySecretStore(newTestIntegritySecretStore())
 	if err := svc.Init(context.Background()); err != nil {
 		t.Fatalf("Init: %v", err)
 	}
@@ -85,6 +88,27 @@ func stringSliceContains(values []string, want string) bool {
 
 func boolPtr(value bool) *bool {
 	return &value
+}
+
+type testIntegritySecretStore struct {
+	values map[string]string
+}
+
+func newTestIntegritySecretStore() *testIntegritySecretStore {
+	return &testIntegritySecretStore{values: map[string]string{}}
+}
+
+func (s *testIntegritySecretStore) ReadSecret(key string) (string, error) {
+	value, ok := s.values[key]
+	if !ok {
+		return "", os.ErrNotExist
+	}
+	return value, nil
+}
+
+func (s *testIntegritySecretStore) WriteSecret(key, value string) error {
+	s.values[key] = value
+	return nil
 }
 
 func testFindApp(t *testing.T, apps []AppManifest, id string) AppManifest {
@@ -951,6 +975,75 @@ func TestServiceInstallAppPersistsManifestAndFiles(t *testing.T) {
 	}
 }
 
+func TestServiceInstallAppAddsIntegrityAndDetectsTampering(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	manifest := AppManifest{
+		ID:      "quick-notes",
+		Name:    "Quick Notes",
+		Version: "1.0.0",
+		Icon:    "note",
+		Entry:   "index.html",
+	}
+	files := map[string]string{
+		"index.html": "<main>Quick Notes</main>",
+		"app.js":     "window.quickNotes = true;",
+	}
+	if err := svc.InstallApp(ctx, manifest, files, SourceAgent); err != nil {
+		t.Fatalf("InstallApp: %v", err)
+	}
+	bootstrap, err := svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	app := testFindApp(t, bootstrap.InstalledApps, "quick-notes")
+	if app.Integrity == nil {
+		t.Fatal("installed app integrity is missing")
+	}
+	if got := app.Integrity.Hashes["index.html"]; !strings.HasPrefix(got, "sha256:") {
+		t.Fatalf("index.html hash = %q, want sha256 hash", got)
+	}
+	if got := app.Integrity.Hashes["app.js"]; !strings.HasPrefix(got, "sha256:") {
+		t.Fatalf("app.js hash = %q, want sha256 hash", got)
+	}
+	if app.Integrity.Signature == nil || app.Integrity.Signature.Algorithm != "ed25519" || app.Integrity.Signature.Value == "" {
+		t.Fatalf("signature missing or invalid: %+v", app.Integrity.Signature)
+	}
+	ok, reason, err := svc.VerifyGeneratedAssetIntegrity(ctx, "Apps/quick-notes/index.html")
+	if err != nil {
+		t.Fatalf("VerifyGeneratedAssetIntegrity: %v", err)
+	}
+	if !ok || reason != "" {
+		t.Fatalf("integrity verification before tamper = %v/%q, want ok", ok, reason)
+	}
+
+	appPath, err := svc.ResolvePath("Apps/quick-notes/index.html")
+	if err != nil {
+		t.Fatalf("ResolvePath: %v", err)
+	}
+	if err := os.WriteFile(appPath, []byte("<main>Tampered but non-empty</main>"), 0o644); err != nil {
+		t.Fatalf("tamper app entry: %v", err)
+	}
+	svc.invalidateBootstrapCache()
+	bootstrap, err = svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap after tamper: %v", err)
+	}
+	app = testFindApp(t, bootstrap.InstalledApps, "quick-notes")
+	if app.Health != "broken" || app.HealthReason != "integrity_hash_mismatch" {
+		t.Fatalf("health after tamper = %s/%s, want broken/integrity_hash_mismatch", app.Health, app.HealthReason)
+	}
+	ok, reason, err = svc.VerifyGeneratedAssetIntegrity(ctx, "Apps/quick-notes/index.html")
+	if err != nil {
+		t.Fatalf("VerifyGeneratedAssetIntegrity after tamper: %v", err)
+	}
+	if ok || reason != "integrity_hash_mismatch" {
+		t.Fatalf("integrity verification after tamper = %v/%q, want integrity_hash_mismatch", ok, reason)
+	}
+}
+
 func TestServiceBootstrapMarksGeneratedAppWithMissingEntryBroken(t *testing.T) {
 	t.Parallel()
 
@@ -1805,6 +1898,69 @@ func TestServiceBootstrapSeedsBuiltinWidgets(t *testing.T) {
 	if !chat.Builtin {
 		t.Fatal("quickchat widget should be builtin")
 	}
+}
+
+func TestServiceUpsertWidgetAddsIntegrityAndDetectsTampering(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	if err := svc.WriteFile(ctx, "Widgets/status.html", "<section>Status</section>", SourceAgent); err != nil {
+		t.Fatalf("WriteFile widget: %v", err)
+	}
+	widget := Widget{
+		ID:      "status",
+		Title:   "Status",
+		Type:    WidgetTypeCustom,
+		Entry:   "status.html",
+		Visible: true,
+	}
+	if err := svc.UpsertWidget(ctx, widget, SourceAgent); err != nil {
+		t.Fatalf("UpsertWidget: %v", err)
+	}
+	bootstrap, err := svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	found := false
+	for _, w := range bootstrap.AllWidgets {
+		if w.ID != "status" {
+			continue
+		}
+		found = true
+		if w.Integrity == nil {
+			t.Fatal("widget integrity is missing")
+		}
+		if got := w.Integrity.Hashes["status.html"]; !strings.HasPrefix(got, "sha256:") {
+			t.Fatalf("status.html hash = %q, want sha256 hash", got)
+		}
+	}
+	if !found {
+		t.Fatalf("status widget missing: %+v", bootstrap.AllWidgets)
+	}
+
+	widgetPath, err := svc.ResolvePath("Widgets/status.html")
+	if err != nil {
+		t.Fatalf("ResolvePath: %v", err)
+	}
+	if err := os.WriteFile(widgetPath, []byte("<section>Tampered</section>"), 0o644); err != nil {
+		t.Fatalf("tamper widget: %v", err)
+	}
+	svc.invalidateBootstrapCache()
+	bootstrap, err = svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap after tamper: %v", err)
+	}
+	for _, w := range bootstrap.AllWidgets {
+		if w.ID != "status" {
+			continue
+		}
+		if w.Health != "broken" || w.HealthReason != "integrity_hash_mismatch" {
+			t.Fatalf("widget health after tamper = %s/%s, want broken/integrity_hash_mismatch", w.Health, w.HealthReason)
+		}
+		return
+	}
+	t.Fatalf("status widget missing after tamper: %+v", bootstrap.AllWidgets)
 }
 
 func TestServiceBootstrapSeparatesVisibleAndAllWidgets(t *testing.T) {

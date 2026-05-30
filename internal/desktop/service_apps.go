@@ -61,6 +61,7 @@ func (s *Service) InstallApp(ctx context.Context, manifest AppManifest, files ma
 		return err
 	}
 	baseRel := filepath.ToSlash(filepath.Join("Apps", manifest.ID))
+	var fileRels []string
 	for rel, content := range files {
 		cleanRel := cleanDesktopPath(rel)
 		if cleanRel == "." || strings.HasPrefix(cleanRel, "..") || filepath.IsAbs(cleanRel) {
@@ -69,6 +70,11 @@ func (s *Service) InstallApp(ctx context.Context, manifest AppManifest, files ma
 		if err := s.WriteFile(ctx, filepath.ToSlash(filepath.Join(baseRel, cleanRel)), content, source); err != nil {
 			return err
 		}
+		fileRels = append(fileRels, cleanRel)
+	}
+	manifest.Integrity, err = s.buildDesktopIntegrity("app", manifest.ID, baseRel, fileRels)
+	if err != nil {
+		return fmt.Errorf("build desktop app integrity: %w", err)
 	}
 	now := time.Now().UTC()
 	manifest.CreatedAt = now
@@ -286,6 +292,11 @@ func (s *Service) validateGeneratedAppEntry(ctx context.Context, app AppManifest
 	if strings.TrimSpace(string(data)) == "" {
 		app.Health = "broken"
 		app.HealthReason = "empty_entry_file"
+		return app
+	}
+	if reason := s.verifyDesktopIntegrity("app", app.ID, filepath.ToSlash(filepath.Join("Apps", app.ID)), app.Integrity); reason != "" {
+		app.Health = "broken"
+		app.HealthReason = reason
 		return app
 	}
 	app.Health = ""

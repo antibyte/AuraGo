@@ -83,6 +83,7 @@ func (s *Server) getDesktopService(ctx context.Context) (*desktop.Service, *desk
 		if err != nil {
 			return nil, nil, err
 		}
+		svc.SetIntegritySecretStore(s.Vault)
 		if err := svc.Init(ctx); err != nil {
 			_ = svc.Close()
 			return nil, nil, err
@@ -95,6 +96,7 @@ func (s *Server) getDesktopService(ctx context.Context) (*desktop.Service, *desk
 		// Share the long-lived instance with the agent tool layer so that
 		// virtual_desktop / office tool calls reuse the same service instead of
 		// spinning up transient instances on every call.
+		tools.SetToolDesktopIntegritySecretStore(s.Vault)
 		tools.SetToolDesktopService(svc)
 	}
 	return s.DesktopService, s.DesktopHub, nil
