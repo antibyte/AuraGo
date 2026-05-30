@@ -51,6 +51,40 @@ func TestDesktopChatLogItemsDoNotCollapseAroundLongResponses(t *testing.T) {
 	}
 }
 
+func TestDesktopChatShellKeepsToolbarAboveScrollableMain(t *testing.T) {
+	t.Parallel()
+
+	css := readAllDesktopCSS(t)
+	chatBlocks := regexp.MustCompile(`(?s)\.vd-chat\s*\{([^}]*)\}`).FindAllStringSubmatch(css, -1)
+	if len(chatBlocks) == 0 {
+		t.Fatal("desktop chat CSS missing shell grid rule")
+	}
+	if !strings.Contains(chatBlocks[0][1], "grid-template-rows: auto minmax(0, 1fr);") {
+		t.Fatal("desktop chat shell must reserve a top toolbar row and a flexible main row")
+	}
+
+	sidebarBlocks := regexp.MustCompile(`(?s)\.vd-chat-sidebar\s*\{([^}]*)\}`).FindAllStringSubmatch(css, -1)
+	if len(sidebarBlocks) == 0 || !strings.Contains(sidebarBlocks[0][1], "grid-row: 1 / -1;") {
+		t.Fatal("desktop chat sidebar must span toolbar and main rows")
+	}
+
+	toolbarBlocks := regexp.MustCompile(`(?s)\.vd-chat-toolbar\s*\{([^}]*)\}`).FindAllStringSubmatch(css, -1)
+	if len(toolbarBlocks) == 0 || !strings.Contains(toolbarBlocks[0][1], "grid-row: 1;") {
+		t.Fatal("desktop chat toolbar must stay in the top shell row")
+	}
+
+	mainBlocks := regexp.MustCompile(`(?s)\.vd-chat-main\s*\{([^}]*)\}`).FindAllStringSubmatch(css, -1)
+	if len(mainBlocks) == 0 {
+		t.Fatal("desktop chat CSS missing main grid rule")
+	}
+	if !strings.Contains(mainBlocks[0][1], "grid-row: 2;") {
+		t.Fatal("desktop chat main area must stay below the toolbar")
+	}
+	if strings.Contains(mainBlocks[0][1], "grid-row: 1 / -1;") {
+		t.Fatal("desktop chat main area must not overlap the toolbar row")
+	}
+}
+
 func TestDesktopChatDropOverlayStartsTrulyHidden(t *testing.T) {
 	t.Parallel()
 
