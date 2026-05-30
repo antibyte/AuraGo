@@ -160,6 +160,9 @@ func TestServiceBootstrapCreatesWorkspaceFolders(t *testing.T) {
 	if !bootstrap.Enabled {
 		t.Fatal("desktop should be enabled")
 	}
+	if bootstrap.Workspace.Root != "/" {
+		t.Fatalf("workspace root = %q, want opaque browser root", bootstrap.Workspace.Root)
+	}
 	for _, name := range workspaceDirectories() {
 		if _, err := os.Stat(filepath.Join(svc.Config().WorkspaceDir, name)); err != nil {
 			t.Fatalf("expected workspace directory %s: %v", name, err)
@@ -167,6 +170,45 @@ func TestServiceBootstrapCreatesWorkspaceFolders(t *testing.T) {
 	}
 	if len(bootstrap.BuiltinApps) < 4 {
 		t.Fatalf("expected builtin desktop apps, got %d", len(bootstrap.BuiltinApps))
+	}
+}
+
+func TestCleanupStaleDeletesOnlyRemovesStagedDeleteMarkers(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	workspace := svc.Config().WorkspaceDir
+	staged := filepath.Join(workspace, "old-app.delete-20260530123456.123456789")
+	userFile := filepath.Join(workspace, "notes.delete-draft")
+	if err := os.MkdirAll(staged, 0o755); err != nil {
+		t.Fatalf("create staged delete dir: %v", err)
+	}
+	if err := os.WriteFile(userFile, []byte("keep me"), 0o644); err != nil {
+		t.Fatalf("create user file: %v", err)
+	}
+
+	svc.cleanupStaleDeletes()
+
+	if _, err := os.Stat(staged); !os.IsNotExist(err) {
+		t.Fatalf("staged delete marker still exists or stat failed differently: %v", err)
+	}
+	if _, err := os.Stat(userFile); err != nil {
+		t.Fatalf("user file with .delete- in name should remain: %v", err)
+	}
+}
+
+func TestMediaTypeSQLPredicateUsesPlaceholders(t *testing.T) {
+	t.Parallel()
+
+	clause, args := mediaTypeSQLPredicate("audio")
+	if strings.Contains(clause, "'") {
+		t.Fatalf("media predicate must use placeholders, got %q", clause)
+	}
+	if clause != "media_type IN (?, ?)" {
+		t.Fatalf("audio predicate = %q, want placeholder IN clause", clause)
+	}
+	if len(args) != 2 || args[0] != "audio" || args[1] != "music" {
+		t.Fatalf("audio predicate args = %#v", args)
 	}
 }
 

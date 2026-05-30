@@ -20,8 +20,8 @@ import (
 	"aurago/ui"
 )
 
-const desktopWidgetWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com; object-src 'none'; base-uri 'none'"
-const desktopAppWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals; default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://esm.sh https://cdn.skypack.dev; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; connect-src https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://esm.sh https://cdn.skypack.dev; object-src 'none'; base-uri 'none'"
+const desktopWidgetWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'"
+const desktopAppWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals; default-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://esm.sh https://cdn.skypack.dev; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; connect-src https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://esm.sh https://cdn.skypack.dev; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'"
 const desktopWidgetAutoResizeMarker = "data-aurago-widget-auto-resize"
 const desktopAppKeyBridgeMarker = "data-aurago-app-key-bridge"
 
@@ -260,6 +260,33 @@ func desktopWorkspaceCSPForPath(requestPath string) string {
 		return desktopAppWorkspaceCSP
 	}
 	return desktopWidgetWorkspaceCSP
+}
+
+func setDesktopFileResponseHeaders(w http.ResponseWriter, requestPath string) {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Content-Security-Policy", desktopWorkspaceCSPForPath(requestPath))
+	if !shouldServeDesktopFileInline(requestPath) {
+		filename := filepath.Base(strings.TrimPrefix(requestPath, "/files/desktop/"))
+		if filename == "." || filename == string(filepath.Separator) || strings.TrimSpace(filename) == "" {
+			filename = "download"
+		}
+		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filename}))
+	}
+}
+
+func shouldServeDesktopFileInline(requestPath string) bool {
+	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(requestPath)))
+	switch ext {
+	case ".html", ".htm", ".css", ".js", ".mjs", ".json", ".webmanifest",
+		".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".ico",
+		".mp3", ".wav", ".ogg", ".m4a", ".mp4", ".m4v", ".webm", ".mov", ".ogv",
+		".woff", ".woff2", ".ttf", ".otf", ".wasm", ".glb":
+		return true
+	default:
+		return false
+	}
 }
 
 func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopDir string, cfg *config.Config) bool {
@@ -816,10 +843,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			s.Logger.Warn("unauthorized access attempt to desktop files", "path", r.URL.Path, "remote_addr", r.RemoteAddr)
 			return
 		}
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
-		w.Header().Set("Pragma", "no-cache")
-		w.Header().Set("Content-Security-Policy", desktopWorkspaceCSPForPath(r.URL.Path))
+		setDesktopFileResponseHeaders(w, r.URL.Path)
 		if serveDesktopWidgetAutoResizeHTML(w, r, desktopDir, s.Cfg) {
 			return
 		}

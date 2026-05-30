@@ -105,7 +105,7 @@ func TestDesktopWorkspaceCSPKeepsGeneratedAppsOriginIsolated(t *testing.T) {
 
 func TestDesktopWorkspaceCSPAllowsGeneratedAppCDNs(t *testing.T) {
 	for _, marker := range []string{
-		"script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+		"script-src 'self' 'unsafe-inline'",
 		"https://cdn.jsdelivr.net",
 		"https://cdnjs.cloudflare.com",
 		"https://unpkg.com",
@@ -115,6 +115,16 @@ func TestDesktopWorkspaceCSPAllowsGeneratedAppCDNs(t *testing.T) {
 		"font-src 'self' data: https://fonts.gstatic.com",
 		"img-src 'self' data: blob: https:",
 	} {
+		if !strings.Contains(desktopAppWorkspaceCSP, marker) {
+			t.Fatalf("generated app CSP missing %q: %s", marker, desktopAppWorkspaceCSP)
+		}
+	}
+	for _, forbidden := range []string{"'unsafe-eval'", "new Function"} {
+		if strings.Contains(desktopAppWorkspaceCSP, forbidden) {
+			t.Fatalf("generated app CSP must not allow %q: %s", forbidden, desktopAppWorkspaceCSP)
+		}
+	}
+	for _, marker := range []string{"form-action 'self'", "frame-ancestors 'self'"} {
 		if !strings.Contains(desktopAppWorkspaceCSP, marker) {
 			t.Fatalf("generated app CSP missing %q: %s", marker, desktopAppWorkspaceCSP)
 		}

@@ -199,10 +199,14 @@ func (s *Service) updateMediaRegistriesAfterMove(ctx context.Context, mount medi
 	newBase := filepath.Base(newAbs)
 	newWebPath := mediaWebPath(mount, mediaRelativePath(mount, newAbs))
 	s.withMediaRegistryDB(ctx, cfg.MediaRegistryPath, func(db *sql.DB) {
+		mediaPredicate, mediaArgs := mediaTypeSQLPredicate(mount.Kind)
+		args := []interface{}{newBase, newAbs, newWebPath}
+		args = append(args, mediaArgs...)
+		args = append(args, oldAbs, oldBase)
 		_, _ = db.ExecContext(ctx, `UPDATE media_items
 			SET filename = ?, file_path = ?, web_path = ?, updated_at = CURRENT_TIMESTAMP
-			WHERE deleted = 0 AND (`+mediaTypeSQLClause(mount.Kind)+`) AND (file_path = ? OR filename = ?)`,
-			newBase, newAbs, newWebPath, oldAbs, oldBase)
+			WHERE deleted = 0 AND (`+mediaPredicate+`) AND (file_path = ? OR filename = ?)`,
+			args...)
 	})
 	if mount.Kind == "image" {
 		s.withMediaRegistryDB(ctx, cfg.ImageGalleryPath, func(db *sql.DB) {
@@ -216,10 +220,13 @@ func (s *Service) softDeleteMediaRegistries(ctx context.Context, mount mediaMoun
 	base := filepath.Base(absPath)
 	prefix := filepath.Clean(absPath) + string(os.PathSeparator) + "%"
 	s.withMediaRegistryDB(ctx, cfg.MediaRegistryPath, func(db *sql.DB) {
+		mediaPredicate, mediaArgs := mediaTypeSQLPredicate(mount.Kind)
+		args := append([]interface{}{}, mediaArgs...)
+		args = append(args, absPath, prefix, base)
 		_, _ = db.ExecContext(ctx, `UPDATE media_items
 			SET deleted = 1, updated_at = CURRENT_TIMESTAMP
-			WHERE deleted = 0 AND (`+mediaTypeSQLClause(mount.Kind)+`) AND (file_path = ? OR file_path LIKE ? OR filename = ?)`,
-			absPath, prefix, base)
+			WHERE deleted = 0 AND (`+mediaPredicate+`) AND (file_path = ? OR file_path LIKE ? OR filename = ?)`,
+			args...)
 	})
 	if mount.Kind == "image" {
 		s.withMediaRegistryDB(ctx, cfg.ImageGalleryPath, func(db *sql.DB) {
@@ -275,15 +282,15 @@ func (s *Service) mediaDB(ctx context.Context, dbPath string) (*sql.DB, error) {
 	return db, nil
 }
 
-func mediaTypeSQLClause(kind string) string {
+func mediaTypeSQLPredicate(kind string) (string, []interface{}) {
 	switch kind {
 	case "audio":
-		return "media_type IN ('audio', 'music')"
+		return "media_type IN (?, ?)", []interface{}{"audio", "music"}
 	case "document":
-		return "media_type = 'document'"
+		return "media_type = ?", []interface{}{"document"}
 	case "video":
-		return "media_type = 'video'"
+		return "media_type = ?", []interface{}{"video"}
 	default:
-		return "media_type = 'image'"
+		return "media_type = ?", []interface{}{"image"}
 	}
 }

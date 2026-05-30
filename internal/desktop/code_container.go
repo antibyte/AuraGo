@@ -354,9 +354,10 @@ func (s *CodeContainerService) ensureWorkspaceLocked() (string, error) {
 		return "", fmt.Errorf("desktop workspace directory is required")
 	}
 	codeWorkspaceDir := workspaceDir
-	if err := os.MkdirAll(codeWorkspaceDir, 0o755); err != nil {
+	if err := os.MkdirAll(codeWorkspaceDir, 0o700); err != nil {
 		return "", fmt.Errorf("create code studio workspace: %w", err)
 	}
+	_ = os.Chmod(codeWorkspaceDir, 0o700)
 	if err := seedCodeStudioWorkspace(codeWorkspaceDir); err != nil {
 		return "", fmt.Errorf("seed code studio workspace: %w", err)
 	}
@@ -372,7 +373,7 @@ func seedCodeStudioWorkspace(dir string) error {
 		return nil
 	}
 	for name, content := range defaultCodeStudioWorkspaceFiles() {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
 			return err
 		}
 	}

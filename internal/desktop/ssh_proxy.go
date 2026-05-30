@@ -32,6 +32,13 @@ var sshUpgrader = websocket.Upgrader{
 	},
 }
 
+const (
+	remoteProxyMaxSessionDuration = 60 * time.Minute
+	remoteProxyIdleTimeout        = 5 * time.Minute
+	remoteProxyWriteTimeout       = 10 * time.Second
+	remoteProxyReadLimit          = 1 << 20
+)
+
 // sshControlMessage is a JSON control message from the client.
 type sshControlMessage struct {
 	Type string `json:"type"`
@@ -67,6 +74,7 @@ type wsBinaryWriter struct {
 func (w *wsBinaryWriter) Write(p []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	_ = w.conn.SetWriteDeadline(time.Now().Add(remoteProxyWriteTimeout))
 	if err := w.conn.WriteMessage(websocket.BinaryMessage, p); err != nil {
 		return 0, err
 	}
@@ -80,11 +88,13 @@ func (w *wsBinaryWriter) writeText(msg sshStatusMessage) error {
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	_ = w.conn.SetWriteDeadline(time.Now().Add(remoteProxyWriteTimeout))
 	return w.conn.WriteMessage(websocket.TextMessage, data)
 }
 
 func sendError(conn *websocket.Conn, message string) {
 	data, _ := json.Marshal(sshStatusMessage{Type: "error", Message: message})
+	_ = conn.SetWriteDeadline(time.Now().Add(remoteProxyWriteTimeout))
 	_ = conn.WriteMessage(websocket.TextMessage, data)
 }
 
@@ -117,6 +127,7 @@ func HandleSSHProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			return
 		}
 		defer conn.Close()
+		conn.SetReadLimit(remoteProxyReadLimit)
 
 		device, err := inventory.GetDeviceByID(inventoryDB, deviceID)
 		if err != nil {
@@ -194,7 +205,7 @@ func HandleSSHProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			return
 		}
 
-		ctx, cancel := context.WithCancel(r.Context())
+		ctx, cancel := context.WithTimeout(r.Context(), remoteProxyMaxSessionDuration)
 		defer cancel()
 
 		// Forward SSH stdout/stderr to WebSocket; cancel context when either ends.
@@ -218,6 +229,7 @@ func HandleSSHProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 		go func() {
 			defer close(msgCh)
 			for {
+				_ = conn.SetReadDeadline(time.Now().Add(remoteProxyIdleTimeout))
 				mt, data, err := conn.ReadMessage()
 				select {
 				case <-ctx.Done():

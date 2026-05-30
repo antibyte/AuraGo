@@ -20,6 +20,7 @@ import (
 const SchemaVersion = 4
 
 var desktopIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{1,63}$`)
+var stagedDeletePattern = regexp.MustCompile(`^.+\.delete-\d{14}\.\d{9}$`)
 
 // desktopMutationMu serializes file mutations across all Service instances
 // sharing the same workspace directory.  Kept at package level so that
@@ -159,9 +160,10 @@ func (s *Service) Init(ctx context.Context) error {
 	ensureDir := func(path string) error {
 		_, err := os.Stat(path)
 		exists := err == nil
-		if err := os.MkdirAll(path, 0o755); err != nil {
+		if err := os.MkdirAll(path, 0o700); err != nil {
 			return err
 		}
+		_ = os.Chmod(path, 0o700)
 		if !exists {
 			createdDirs = append(createdDirs, path)
 		}
@@ -213,7 +215,7 @@ func (s *Service) cleanupStaleDeletes() {
 		return
 	}
 	for _, e := range entries {
-		if strings.Contains(e.Name(), ".delete-") {
+		if stagedDeletePattern.MatchString(e.Name()) {
 			_ = os.RemoveAll(filepath.Join(s.cfg.WorkspaceDir, e.Name()))
 		}
 	}
@@ -542,7 +544,7 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 		AllowPythonJobs:    cfg.AllowPythonJobs,
 		ControlLevel:       cfg.ControlLevel,
 		Workspace: WorkspaceInfo{
-			Root:        cfg.WorkspaceDir,
+			Root:        "/",
 			Directories: DefaultDirectories(),
 			MaxFileSize: int64(cfg.MaxFileSizeMB) * 1024 * 1024,
 		},

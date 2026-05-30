@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"aurago/internal/credentials"
 	"aurago/internal/inventory"
@@ -46,6 +48,7 @@ func HandleVNCProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			return
 		}
 		defer conn.Close()
+		conn.SetReadLimit(remoteProxyReadLimit)
 
 		device, err := inventory.GetDeviceByID(inventoryDB, deviceID)
 		if err != nil {
@@ -71,12 +74,16 @@ func HandleVNCProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			return
 		}
 		defer vncConn.Close()
+		_ = vncConn.SetDeadline(time.Now().Add(remoteProxyMaxSessionDuration))
 
 		writer := &wsBinaryWriter{conn: conn}
 		if err := writer.writeText(sshStatusMessage{Type: "connected", Message: "VNC session established"}); err != nil {
 			logger.Warn("failed to send VNC connected status", "error", err)
 			return
 		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), remoteProxyMaxSessionDuration)
+		defer cancel()
 
 		// Bidirectional copy between WebSocket and VNC TCP connection.
 		var wg sync.WaitGroup
@@ -86,22 +93,26 @@ func HandleVNCProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 		go func() {
 			defer wg.Done()
 			_, _ = io.Copy(writer, vncConn)
+			cancel()
 		}()
 
 		// WebSocket -> VNC server
 		go func() {
 			defer wg.Done()
 			for {
+				_ = conn.SetReadDeadline(time.Now().Add(remoteProxyIdleTimeout))
 				mt, data, readErr := conn.ReadMessage()
 				if readErr != nil {
 					if websocket.IsUnexpectedCloseError(readErr, websocket.CloseGoingAway, websocket.CloseNormalClosure, websocket.CloseNoStatusReceived) {
 						logger.Warn("VNC proxy WebSocket read error", "error", readErr)
 					}
+					cancel()
 					return
 				}
 				if mt == websocket.BinaryMessage {
 					if _, werr := vncConn.Write(data); werr != nil {
 						logger.Warn("VNC proxy TCP write error", "error", werr)
+						cancel()
 						return
 					}
 				}
@@ -109,7 +120,18 @@ func HandleVNCProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			}
 		}()
 
-		wg.Wait()
+		done := make(chan struct{})
+		go func() {
+			wg.Wait()
+			close(done)
+		}()
+		select {
+		case <-ctx.Done():
+			_ = vncConn.Close()
+			_ = conn.Close()
+			<-done
+		case <-done:
+		}
 		_ = writer.writeText(sshStatusMessage{Type: "disconnected", Message: "VNC session closed"})
 	}
 }

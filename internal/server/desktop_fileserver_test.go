@@ -104,3 +104,33 @@ func TestServeDesktopExactIndexFileRewritesPrinterCameraURLToProxy(t *testing.T)
 		t.Fatalf("served app did not contain proxied camera URL: %s", rec.Body.String())
 	}
 }
+
+func TestSetDesktopFileResponseHeadersForcesAttachmentForUntrustedExtensions(t *testing.T) {
+	t.Parallel()
+
+	rec := httptest.NewRecorder()
+	setDesktopFileResponseHeaders(rec, "/files/desktop/Notes/readme.txt")
+
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
+	}
+	if got := rec.Header().Get("Content-Disposition"); !strings.Contains(got, "attachment") || !strings.Contains(got, "readme.txt") {
+		t.Fatalf("Content-Disposition = %q, want attachment filename", got)
+	}
+}
+
+func TestSetDesktopFileResponseHeadersAllowsAppAssetsInline(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"/files/desktop/Apps/game/game.js",
+		"/files/desktop/Apps/game/style.css",
+		"/files/desktop/Apps/game/sprite.png",
+	} {
+		rec := httptest.NewRecorder()
+		setDesktopFileResponseHeaders(rec, path)
+		if got := rec.Header().Get("Content-Disposition"); got != "" {
+			t.Fatalf("Content-Disposition for %s = %q, want empty", path, got)
+		}
+	}
+}

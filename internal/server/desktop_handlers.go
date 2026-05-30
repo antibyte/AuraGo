@@ -114,7 +114,7 @@ func (s *Server) disabledDesktopBootstrap() desktop.BootstrapPayload {
 		AllowPythonJobs:    desktopCfg.AllowPythonJobs,
 		ControlLevel:       desktopCfg.ControlLevel,
 		Workspace: desktop.WorkspaceInfo{
-			Root:        desktopCfg.WorkspaceDir,
+			Root:        "/",
 			Directories: desktop.DefaultDirectories(),
 			MaxFileSize: int64(desktopCfg.MaxFileSizeMB) * 1024 * 1024,
 		},

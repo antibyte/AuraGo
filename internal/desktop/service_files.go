@@ -139,14 +139,14 @@ func (s *Service) ListFilesRecursive(ctx context.Context, rawPath string, offset
 			return fmt.Errorf("stat desktop file %s: %w", entry.Name(), statErr)
 		}
 		result = append(result, FileEntry{
-			Name:    entry.Name(),
-			Path:    s.relativePath(path),
-			Type:    "file",
-			Size:    info.Size(),
-			ModTime: info.ModTime(),
+			Name:     entry.Name(),
+			Path:     s.relativePath(path),
+			Type:     "file",
+			Size:     info.Size(),
+			ModTime:  info.ModTime(),
 			Modified: info.ModTime(),
-			Mode:    info.Mode().String(),
-			Created: getCreationTime(info),
+			Mode:     info.Mode().String(),
+			Created:  getCreationTime(info),
 		})
 		return nil
 	}); err != nil {
@@ -252,14 +252,14 @@ func (s *Service) ReadFile(ctx context.Context, rawPath string) (string, FileEnt
 		return "", FileEntry{}, fmt.Errorf("read desktop file: %w", err)
 	}
 	return string(data), FileEntry{
-		Name:    filepath.Base(path),
-		Path:    s.relativePath(path),
-		Type:    "file",
-		Size:    info.Size(),
-		ModTime: info.ModTime(),
+		Name:     filepath.Base(path),
+		Path:     s.relativePath(path),
+		Type:     "file",
+		Size:     info.Size(),
+		ModTime:  info.ModTime(),
 		Modified: info.ModTime(),
-		Mode:    info.Mode().String(),
-		Created: getCreationTime(info),
+		Mode:     info.Mode().String(),
+		Created:  getCreationTime(info),
 	}, nil
 }
 
@@ -438,10 +438,11 @@ func (s *Service) writeFileBytes(ctx context.Context, rawPath string, content []
 			return FileEntry{}, err
 		}
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return FileEntry{}, fmt.Errorf("create desktop file directory: %w", err)
 	}
-	if err := os.WriteFile(path, content, 0o644); err != nil {
+	_ = os.Chmod(filepath.Dir(path), 0o700)
+	if err := os.WriteFile(path, content, 0o600); err != nil {
 		return FileEntry{}, fmt.Errorf("write desktop file: %w", err)
 	}
 	info, err := os.Stat(path)
@@ -517,9 +518,10 @@ func (s *Service) CreateDirectory(ctx context.Context, rawPath, source string) e
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(path, 0o755); err != nil {
+	if err := os.MkdirAll(path, 0o700); err != nil {
 		return fmt.Errorf("create desktop directory: %w", err)
 	}
+	_ = os.Chmod(path, 0o700)
 	_ = s.Audit(ctx, "create_directory", s.relativePath(path), map[string]interface{}{}, source)
 	s.invalidateBootstrapCacheForFileMutation(s.relativePath(path))
 	return nil
@@ -555,9 +557,10 @@ func (s *Service) MovePath(ctx context.Context, oldPath, newPath, source string)
 		if strings.EqualFold(from, to) {
 			return nil
 		}
-		if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(to), 0o700); err != nil {
 			return fmt.Errorf("create desktop media destination directory: %w", err)
 		}
+		_ = os.Chmod(filepath.Dir(to), 0o700)
 		if err := os.Rename(from, to); err != nil {
 			return fmt.Errorf("move desktop media path: %w", err)
 		}
@@ -581,9 +584,10 @@ func (s *Service) MovePath(ctx context.Context, oldPath, newPath, source string)
 	if strings.EqualFold(from, to) {
 		return nil
 	}
-	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(to), 0o700); err != nil {
 		return fmt.Errorf("create desktop destination directory: %w", err)
 	}
+	_ = os.Chmod(filepath.Dir(to), 0o700)
 	if err := os.Rename(from, to); err != nil {
 		return fmt.Errorf("move desktop path: %w", err)
 	}
@@ -623,9 +627,10 @@ func (s *Service) CopyPath(ctx context.Context, srcPath, dstPath, source string)
 		if strings.EqualFold(from, to) {
 			return fmt.Errorf("source and destination are the same")
 		}
-		if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(to), 0o700); err != nil {
 			return fmt.Errorf("create desktop media destination directory: %w", err)
 		}
+		_ = os.Chmod(filepath.Dir(to), 0o700)
 		if err := copyPath(from, to); err != nil {
 			return fmt.Errorf("copy desktop media path: %w", err)
 		}
@@ -648,9 +653,10 @@ func (s *Service) CopyPath(ctx context.Context, srcPath, dstPath, source string)
 	if strings.EqualFold(from, to) {
 		return fmt.Errorf("source and destination are the same")
 	}
-	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(to), 0o700); err != nil {
 		return fmt.Errorf("create desktop destination directory: %w", err)
 	}
+	_ = os.Chmod(filepath.Dir(to), 0o700)
 	if err := copyPath(from, to); err != nil {
 		return fmt.Errorf("copy desktop path: %w", err)
 	}
@@ -706,7 +712,7 @@ func copyFile(src, dst string) error {
 	if !info.Mode().IsRegular() {
 		return fmt.Errorf("copy source is not a regular file")
 	}
-	out, err := os.Create(dst)
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}
@@ -717,15 +723,16 @@ func copyFile(src, dst string) error {
 	if err := out.Sync(); err != nil {
 		return err
 	}
-	_ = os.Chmod(dst, info.Mode())
+	_ = os.Chmod(dst, 0o600)
 	_ = os.Chtimes(dst, info.ModTime(), info.ModTime())
 	return nil
 }
 
 func copyDirLimited(src, dst string, depth int, stats *desktopCopyStats) error {
-	if err := os.MkdirAll(dst, 0o755); err != nil {
+	if err := os.MkdirAll(dst, 0o700); err != nil {
 		return err
 	}
+	_ = os.Chmod(dst, 0o700)
 	entries, err := os.ReadDir(src)
 	if err != nil {
 		return err
@@ -833,6 +840,7 @@ func (s *Service) SearchFiles(ctx context.Context, rawPath, query string) ([]Fil
 	sortFileEntries(result)
 	return result, nil
 }
+
 // CreateSymlink creates a symbolic link at linkPath pointing to targetPath.
 func (s *Service) CreateSymlink(ctx context.Context, targetPath, linkPath string) error {
 	if err := s.ensureReady(ctx); err != nil {
