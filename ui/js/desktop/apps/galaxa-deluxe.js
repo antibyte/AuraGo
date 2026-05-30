@@ -487,20 +487,33 @@ themes: {
                 const warpAlpha = Math.min(1, G.warpT / 500);
                 const cx = W / 2, cy = H / 2;
                 cv.save();
+                // Batch warp streaks by lineWidth to reduce state changes & stroke() calls
+                cv.globalAlpha = warpAlpha * 0.85;
+                cv.strokeStyle = 'rgba(220,240,255,' + warpAlpha + ')';
+                cv.lineWidth = 1; cv.beginPath();
                 for (const s of STARS) {
-                    if (s.layer < 2) continue;
+                    if (s.layer < 2 || s.sz !== 1) continue;
                     const dx = s.x - cx, dy = s.y - cy;
                     const dist = Math.hypot(dx, dy);
                     if (dist < 5) continue;
                     const len = Math.min(40, dist * 0.3 + 10) * warpAlpha;
                     const nx = dx / dist, ny = dy / dist;
-                    cv.strokeStyle = 'rgba(220,240,255,' + (warpAlpha * s.br * 0.9) + ')';
-                    cv.lineWidth = s.sz;
-                    cv.beginPath();
                     cv.moveTo(s.x - nx * len, s.y - ny * len);
                     cv.lineTo(s.x, s.y);
-                    cv.stroke();
                 }
+                cv.stroke();
+                cv.lineWidth = 2; cv.beginPath();
+                for (const s of STARS) {
+                    if (s.layer < 2 || s.sz !== 2) continue;
+                    const dx = s.x - cx, dy = s.y - cy;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist < 5) continue;
+                    const len = Math.min(40, dist * 0.3 + 10) * warpAlpha;
+                    const nx = dx / dist, ny = dy / dist;
+                    cv.moveTo(s.x - nx * len, s.y - ny * len);
+                    cv.lineTo(s.x, s.y);
+                }
+                cv.stroke();
                 cv.restore();
             }
             drawBG(cv, dt);
@@ -511,8 +524,7 @@ themes: {
                 if (p.type === 'blackhole') {
                     p.rotSp += dt; const rr = p.r + Math.sin(tick * 0.02) * 3;
                     cv.save(); cv.globalAlpha = 0.4;
-                    const gr = cv.createRadialGradient(p.x, p.y, 0, p.x, p.y, rr);
-                    gr.addColorStop(0, '#000'); gr.addColorStop(0.5, '#110033'); gr.addColorStop(1, 'transparent');
+                    const gr = cachedRadialGradient(cv, 'blackhole', p.x, p.y, 0, p.r + 3, [[0, '#000'], [0.5, '#110033'], [1, 'transparent']]);
                     cv.fillStyle = gr; cv.fillRect(p.x - rr, p.y - rr, rr * 2, rr * 2);
                     cv.restore();
                 } else if (p.type === 'debris') {
@@ -892,12 +904,14 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(); G.shkT = 300; G.shkM = 4;
                 const tRgb = G.activePU && PU_TRAIL_COL[G.activePU.type] ? PU_TRAIL_COL[G.activePU.type] : '255,150,50';
                 const tCol1 = 'rgba(' + tRgb + ',' + eg + ')';
                 const tCol2 = 'rgba(' + tRgb + ',0.4)';
-                G.trails.push({ x: G.p.x - 6, y: G.p.y + 12, vx: (Math.random() - 0.5) * 10, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
-                G.trails.push({ x: G.p.x + 3, y: G.p.y + 12, vx: (Math.random() - 0.5) * 10, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
-                G.trails.push({ x: G.p.x - 4, y: G.p.y + 14, vx: (Math.random() - 0.5) * 5, vy: 15 + Math.random() * 10, life: 100, t: 0, col: tCol2, size: 1 });
-                if (G.p.dual) {
-                    G.trails.push({ x: G.p.x + 28, y: G.p.y + 12, vx: (Math.random() - 0.5) * 10, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
-                    G.trails.push({ x: G.p.x + 34, y: G.p.y + 12, vx: (Math.random() - 0.5) * 10, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
+                if (G.trails.length < 80) {
+                    G.trails.push({ x: G.p.x - 6, y: G.p.y + 12, vx: (Math.random() - 0.5) * 10, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
+                    G.trails.push({ x: G.p.x + 3, y: G.p.y + 12, vx: (Math.random() - 0.5) * 10, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
+                    G.trails.push({ x: G.p.x - 4, y: G.p.y + 14, vx: (Math.random() - 0.5) * 5, vy: 15 + Math.random() * 10, life: 100, t: 0, col: tCol2, size: 1 });
+                    if (G.p.dual) {
+                        G.trails.push({ x: G.p.x + 28, y: G.p.y + 12, vx: (Math.random() - 0.5) * 10, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
+                        G.trails.push({ x: G.p.x + 34, y: G.p.y + 12, vx: (Math.random() - 0.5) * 10, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
+                    }
                 }
             }
             for (let i = G.powerups.length - 1; i >= 0; i--) {
@@ -1096,7 +1110,8 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(); G.shkT = 300; G.shkM = 4;
                 if (bossAlive && MusicEngine.playing !== bossTheme) { SFX.bossJingle(); MusicEngine.play(bossTheme); }
                 else if (!bossAlive && (MusicEngine.playing === 'boss' || MusicEngine.playing === 'miniboss')) MusicEngine.play(baseTheme);
                 else if (!bossAlive && MusicEngine.playing !== baseTheme && MusicEngine.playing !== 'challenge' && MusicEngine.playing !== 'victory') MusicEngine.play(baseTheme);
-                MusicEngine.setIntensity(G.enemies.filter(e => e.st !== 'DEAD').length);
+                const _aliveN = G.enemies.filter(e => e.st !== 'DEAD').length;
+                if (_aliveN !== MusicEngine._lastIntensity) { MusicEngine.setIntensity(_aliveN); MusicEngine._lastIntensity = _aliveN; }
             }
         }
 
@@ -1245,8 +1260,9 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(); G.shkT = 300; G.shkM = 4;
             if (p.alive) {
                 c.save(); c.translate(p.x, p.y); c.rotate(G.shipTilt); c.translate(-p.x, -p.y);
                 if (p.inv > 0) {
-                    drawSp(c, SP.player, rainbowPC(), p.x - 12, p.y - 12, false);
-                    if (p.dual) drawSp(c, SP.player, rainbowPC(), p.x + 28, p.y - 12, false);
+                    const rpc = rainbowPC();
+                    drawSp(c, SP.player, rpc, p.x - 12, p.y - 12, false);
+                    if (p.dual) drawSp(c, SP.player, rpc, p.x + 28, p.y - 12, false);
                 } else {
                     drawSp(c, SP.player, SP.pC, p.x - 12, p.y - 12, false);
                     if (p.dual) drawSp(c, SP.player, SP.pC, p.x + 28, p.y - 12, false);
@@ -1309,27 +1325,43 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(); G.shkT = 300; G.shkM = 4;
                 c.shadowBlur = 0;
             }
             c.globalAlpha = 1;
+            // bullet trails (no shadow)
             for (const b of G.bul) {
-                if (b.laser) {
-                    c.shadowBlur = 10; c.shadowColor = '#eeeeff';
-                    c.fillStyle = '#eeeeff'; c.fillRect(Math.floor(b.x - 2), Math.floor(b.y - 7), 4, 14);
-                    c.fillStyle = 'rgba(170,200,255,0.4)'; c.fillRect(Math.floor(b.x - 3), Math.floor(b.y - 5), 6, 10);
-                    c.shadowBlur = 0;
-                } else {
-                    const trailAlpha = 0.3;
-                    c.fillStyle = 'rgba(255,255,136,' + trailAlpha + ')';
+                if (!b.laser) {
+                    c.fillStyle = 'rgba(255,255,136,0.3)';
                     c.fillRect(Math.floor(b.x - 1), Math.floor(b.y + 3), 2, 4);
-                    c.shadowBlur = 4; c.shadowColor = '#ffff88';
-                    c.fillStyle = '#ffff88'; c.fillRect(Math.floor(b.x - 1), Math.floor(b.y - 3), b.vx ? 2 : 2, 6);
-                    c.shadowBlur = 0;
                 }
             }
-            for (const b of G.ebul) {
-                c.fillStyle = 'rgba(255,68,68,0.25)'; c.fillRect(Math.floor(b.x - 1), Math.floor(b.y + 3), 2, 4);
-                c.shadowBlur = 4; c.shadowColor = '#ff4444';
-                c.fillStyle = '#ff4444'; c.fillRect(Math.floor(b.x - 1), Math.floor(b.y - 3), 2, 6);
-                c.shadowBlur = 0;
+            // player bullets — shadow set once for the whole batch
+            c.shadowColor = '#ffff88'; c.shadowBlur = 4;
+            for (const b of G.bul) {
+                if (!b.laser) {
+                    c.fillStyle = '#ffff88';
+                    c.fillRect(Math.floor(b.x - 1), Math.floor(b.y - 3), 2, 6);
+                }
             }
+            c.shadowBlur = 0;
+            // laser bullets — shadow set once for the whole batch
+            c.shadowColor = '#eeeeff'; c.shadowBlur = 10;
+            for (const b of G.bul) {
+                if (b.laser) {
+                    c.fillStyle = '#eeeeff'; c.fillRect(Math.floor(b.x - 2), Math.floor(b.y - 7), 4, 14);
+                    c.fillStyle = 'rgba(170,200,255,0.4)'; c.fillRect(Math.floor(b.x - 3), Math.floor(b.y - 5), 6, 10);
+                }
+            }
+            c.shadowBlur = 0;
+            // enemy bullet trails (no shadow)
+            for (const b of G.ebul) {
+                c.fillStyle = 'rgba(255,68,68,0.25)';
+                c.fillRect(Math.floor(b.x - 1), Math.floor(b.y + 3), 2, 4);
+            }
+            // enemy bullets — shadow set once for the whole batch
+            c.shadowColor = '#ff4444'; c.shadowBlur = 4;
+            for (const b of G.ebul) {
+                c.fillStyle = '#ff4444';
+                c.fillRect(Math.floor(b.x - 1), Math.floor(b.y - 3), 2, 6);
+            }
+            c.shadowBlur = 0;
 
             for (const e of G.enemies) {
                 if (e.st === 'DEAD') continue;
@@ -1345,11 +1377,25 @@ if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === '
                 if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === 'butterfly') { sp = SP.bf[e.fr]; cols = SP.bfC; } else if (e.type === 'miniboss') { sp = e.hp <= 1 ? SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? SP.bossHit : SP.boss; cols = SP.bossC; } else { sp = e.hp <= 1 ? SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? SP.bossHit : SP.boss; cols = SP.bossC; }
                 drawSp(c, sp, cols, e.x - 12, e.y - 12, fl);
                 if (!fl && G.beatPhase > 0.82 && (e.type === 'bee' || e.type === 'butterfly')) {
-                    c.globalAlpha = (G.beatPhase - 0.82) * 5.5 * 0.25;
-                    c.shadowBlur = 5; c.shadowColor = e.type === 'bee' ? '#8899ff' : '#88ffaa';
-                    drawSp(c, sp, cols, e.x - 12, e.y - 12, false);
-                    c.shadowBlur = 0; c.globalAlpha = 1;
+                    // beat glow drawn in batched pass below to avoid per-enemy shadowBlur changes
                 }
+            }
+
+            // batched beat-glow pass — one shadow setup per color type instead of per enemy
+            if (G.beatPhase > 0.82) {
+                const _ba = (G.beatPhase - 0.82) * 5.5 * 0.25;
+                c.globalAlpha = _ba;
+                c.shadowBlur = 5; c.shadowColor = '#8899ff';
+                for (const e of G.enemies) {
+                    if (e.st === 'DEAD' || e.hitF > 0 || e.type !== 'bee') continue;
+                    drawSp(c, SP.bee[e.fr], SP.bC, e.x - 12, e.y - 12, false);
+                }
+                c.shadowColor = '#88ffaa';
+                for (const e of G.enemies) {
+                    if (e.st === 'DEAD' || e.hitF > 0 || e.type !== 'butterfly') continue;
+                    drawSp(c, SP.bf[e.fr], SP.bfC, e.x - 12, e.y - 12, false);
+                }
+                c.shadowBlur = 0; c.globalAlpha = 1;
             }
 
             for (const pu of G.powerups) {
@@ -1420,9 +1466,7 @@ if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === '
                 const alpha = Math.max(0, 1 - pt.t / pt.life);
                 c.globalAlpha = alpha;
                 if (pt.spark) {
-                    c.shadowBlur = 4; c.shadowColor = pt.col;
                     c.fillStyle = pt.col; c.fillRect(Math.floor(pt.x), Math.floor(pt.y), 1, 1);
-                    c.shadowBlur = 0;
                 } else if (pt.debris) {
                     c.save(); c.translate(pt.x, pt.y); c.rotate(pt.rot);
                     c.fillStyle = pt.col; c.fillRect(-pt.size / 2, -pt.size / 2, pt.size, pt.size);
@@ -1506,8 +1550,12 @@ if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === '
 
         function renderBeam(tb) {
             c.shadowBlur = 8; c.shadowColor = '#4488ff';
-            c.strokeStyle = '#4488ff'; c.lineWidth = 2; const w = 20 + Math.sin(tick * 0.15) * 8;
-            for (let i = 0; i < 8; i++) { const t2 = i / 8, y1 = tb.y + t2 * tb.h, y2 = tb.y + (t2 + 0.125) * tb.h, ww = w * (1 - t2 * 0.3); c.globalAlpha = 0.4 + 0.3 * Math.sin(tick * 0.2 + i); c.beginPath(); c.moveTo(tb.x - ww / 2, y1); c.lineTo(tb.x - ww * 0.4, y2); c.stroke(); c.beginPath(); c.moveTo(tb.x + ww / 2, y1); c.lineTo(tb.x + ww * 0.4, y2); c.stroke(); } c.globalAlpha = 1; c.shadowBlur = 0;
+            c.strokeStyle = '#4488ff'; c.lineWidth = 2; c.globalAlpha = 0.55;
+            const w = 20 + Math.sin(tick * 0.15) * 8;
+            c.beginPath();
+            for (let i = 0; i < 8; i++) { const t2 = i / 8, y1 = tb.y + t2 * tb.h, y2 = tb.y + (t2 + 0.125) * tb.h, ww = w * (1 - t2 * 0.3); c.moveTo(tb.x - ww / 2, y1); c.lineTo(tb.x - ww * 0.4, y2); c.moveTo(tb.x + ww / 2, y1); c.lineTo(tb.x + ww * 0.4, y2); }
+            c.stroke();
+            c.globalAlpha = 1; c.shadowBlur = 0;
         }
 
         function renderHUD() {
@@ -1529,7 +1577,7 @@ if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === '
                 c.fillStyle = '#ff8800'; c.font = 'bold 10px "Courier New",monospace'; c.textAlign = 'center';
                 c.fillText(t('galaxa.challenge_stage', 'CHALLENGE') + ' ' + remaining + '/' + G.chalTot, W / 2, 28);
             }
-            const alive2 = G.enemies.filter(e => e.st !== 'DEAD').filter(e => e.type !== 'boss' && e.type !== 'miniboss');
+            const alive2 = G.enemies.filter(e => e.st !== 'DEAD' && e.type !== 'boss' && e.type !== 'miniboss');
             if (alive2.length > 0 && alive2.length <= 5) {
                 c.fillStyle = '#888'; c.font = '10px "Courier New",monospace'; c.textAlign = 'center';
                 c.fillText(alive2.length + ' LEFT', W / 2, G.chal ? 38 : 28);
