@@ -216,10 +216,11 @@ func (b *desktopStreamBroker) sendHeartbeat() bool {
 }
 
 type desktopStreamCombinedBroker struct {
-	stream       *desktopStreamBroker
-	sse          *SSEBrokerAdapter
-	shortTermMem *memory.SQLiteMemory
-	sessionID    string
+	stream         *desktopStreamBroker
+	sse            *SSEBrokerAdapter
+	shortTermMem   *memory.SQLiteMemory
+	sessionID      string
+	hasTurnContent bool
 }
 
 func (b *desktopStreamCombinedBroker) Send(event, message string) {
@@ -230,8 +231,10 @@ func (b *desktopStreamCombinedBroker) Send(event, message string) {
 		return
 	}
 	if event == "done" {
-		if answer := latestDesktopAssistantMessage(b.shortTermMem, b.sessionID); answer != "" {
-			sseWriteData(b.stream.w, "final_response", answer)
+		if b.hasTurnContent {
+			if answer := latestDesktopAssistantMessage(b.shortTermMem, b.sessionID); answer != "" {
+				sseWriteData(b.stream.w, "final_response", answer)
+			}
 		}
 		sseWriteDone(b.stream.w)
 		b.stream.closed = true
@@ -268,6 +271,9 @@ func (b *desktopStreamCombinedBroker) SendLLMStreamDelta(content, toolName, tool
 	if b.stream.closed {
 		b.stream.mu.Unlock()
 		return
+	}
+	if strings.TrimSpace(content) != "" {
+		b.hasTurnContent = true
 	}
 	payload := LLMStreamDeltaPayload{
 		SessionID:    b.sse.sessionID,
@@ -705,11 +711,14 @@ func runDesktopAgentChat(ctx context.Context, s *Server, message string, chatCon
 	broker := &desktopReplyBroker{FeedbackBroker: NewSSEBrokerAdapterWithSession(s.SSE, desktopChatSessionID)}
 	ctx, cancel := context.WithTimeout(ctx, desktopChatAgentTurnTimeout)
 	defer cancel()
+	var resp openai.ChatCompletionResponse
+	var loopErr error
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		if _, err := agent.ExecuteAgentLoop(ctx, turn.req, turn.runCfg, false, broker); err != nil {
-			broker.Send("error_recovery", chatCompletionErrorMessage(desktopUILanguage(s), err))
+		resp, loopErr = agent.ExecuteAgentLoop(ctx, turn.req, turn.runCfg, false, broker)
+		if loopErr != nil {
+			broker.Send("error_recovery", chatCompletionErrorMessage(desktopUILanguage(s), loopErr))
 		}
 	}()
 	select {
@@ -718,10 +727,10 @@ func runDesktopAgentChat(ctx context.Context, s *Server, message string, chatCon
 		return "The desktop agent request timed out."
 	}
 	answer := strings.TrimSpace(broker.finalResponse)
-	if answer == "" {
-		answer = latestDesktopAssistantMessage(s.ShortTermMem, desktopChatSessionID)
+	if answer == "" && len(resp.Choices) > 0 {
+		answer = strings.TrimSpace(resp.Choices[0].Message.Content)
 	}
-	return strings.TrimSpace(answer)
+	return security.StripThinkingTags(answer)
 }
 
 func buildDesktopAgentPrompt(message string, chatContext desktopChatContext) string {

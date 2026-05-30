@@ -14,8 +14,10 @@ import (
 	"aurago/internal/agent"
 	"aurago/internal/agodesk"
 	"aurago/internal/remote"
+	"aurago/internal/security"
 
 	"github.com/gorilla/websocket"
+	"github.com/sashabaranov/go-openai"
 )
 
 const (
@@ -340,11 +342,14 @@ func runAgodeskAgentChat(s *Server, r *http.Request, sessionID, message string) 
 	broker := &desktopReplyBroker{FeedbackBroker: NewSSEBrokerAdapterWithSession(s.SSE, sessionID)}
 	ctx, cancel := context.WithTimeout(r.Context(), desktopChatAgentTurnTimeout)
 	defer cancel()
+	var resp openai.ChatCompletionResponse
+	var loopErr error
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		if _, err := agent.ExecuteAgentLoop(ctx, turn.req, turn.runCfg, false, broker); err != nil {
-			broker.Send("error_recovery", chatCompletionErrorMessage(desktopUILanguage(s), err))
+		resp, loopErr = agent.ExecuteAgentLoop(ctx, turn.req, turn.runCfg, false, broker)
+		if loopErr != nil {
+			broker.Send("error_recovery", chatCompletionErrorMessage(desktopUILanguage(s), loopErr))
 		}
 	}()
 	select {
@@ -353,10 +358,10 @@ func runAgodeskAgentChat(s *Server, r *http.Request, sessionID, message string) 
 		return "", fmt.Errorf("agent request timed out")
 	}
 	answer := strings.TrimSpace(broker.finalResponse)
-	if answer == "" {
-		answer = latestDesktopAssistantMessage(s.ShortTermMem, sessionID)
+	if answer == "" && len(resp.Choices) > 0 {
+		answer = strings.TrimSpace(resp.Choices[0].Message.Content)
 	}
-	return strings.TrimSpace(answer), nil
+	return security.StripThinkingTags(answer), nil
 }
 
 func buildAgodeskAgentContext() string {
