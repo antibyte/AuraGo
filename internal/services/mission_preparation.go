@@ -130,8 +130,12 @@ func (s *MissionPreparationService) autoPrepareEligible(ctx context.Context) {
 		if !m.Enabled {
 			continue
 		}
-		// Auto-prepare: scheduled missions with global flag, or any mission with auto_prepare
-		shouldPrepare := (m.ExecutionType == "scheduled" && autoPrepScheduled) || m.AutoPrepare
+		// Auto-prepare is a per-mission opt-in. The global scheduled setting is
+		// only a safety gate for scheduled missions, never an implicit opt-in.
+		shouldPrepare := m.AutoPrepare
+		if m.ExecutionType == tools.ExecutionScheduled && !autoPrepScheduled {
+			shouldPrepare = false
+		}
 		if !shouldPrepare {
 			continue
 		}
