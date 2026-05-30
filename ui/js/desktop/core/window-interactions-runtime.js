@@ -105,18 +105,19 @@ function wireWindow(win, id) {
     }
 
     const SNAP_EDGE = 4;
+    const SNAP_TOP_SIDE_EDGE = 96;
 
     function updateSnapZone(drag, left, top, width, height) {
         const workspace = $('vd-workspace') || document.body;
         const ww = workspace.clientWidth;
         const wh = workspace.clientHeight;
-        const cx = left + width / 2;
+        const nearLeftEdge = left <= SNAP_TOP_SIDE_EDGE;
+        const nearRightEdge = left + width >= ww - SNAP_TOP_SIDE_EDGE;
         let zone = null;
-        if (left <= SNAP_EDGE) zone = 'left-half';
+        if (top <= SNAP_EDGE && nearLeftEdge) zone = 'top-left';
+        else if (top <= SNAP_EDGE && nearRightEdge) zone = 'top-right';
+        else if (left <= SNAP_EDGE) zone = 'left-half';
         else if (left + width >= ww - SNAP_EDGE) zone = 'right-half';
-        else if (top <= SNAP_EDGE && cx <= ww / 2) zone = 'top-left';
-        else if (top <= SNAP_EDGE && cx > ww / 2) zone = 'top-right';
-        else if (top <= SNAP_EDGE) zone = 'top-half';
         drag.snapZone = zone;
         showSnapOverlay(zone, ww, wh);
     }
