@@ -90,7 +90,13 @@
 .vd-sprite-start,
 .vd-sprite-start-item,
 .vd-sprite-file,
-.vd-chat-voice-icon {
+.vd-chat-sidebar-icon,
+.vd-chat-toolbar-icon,
+.vd-chat-scroll-icon,
+.vd-chat-voice-icon,
+.vd-chat-send-icon,
+.vd-chat-context-icon,
+.vd-qc-btn-icon {
     display: block;
     flex: 0 0 auto;
     background-image: url('/img/desktop-icons-sprite.png');

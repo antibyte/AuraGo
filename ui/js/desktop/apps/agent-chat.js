@@ -17,6 +17,13 @@
         'Explain something'
     ];
 
+    const DESKTOP_PERSONA_PREVIEW_FALLBACK = 'custom';
+    const DESKTOP_PERSONA_PREVIEW_KEYS = new Set([
+        'evil', 'friend', 'mcp', 'mistress', 'neutral', 'professional', 'psycho',
+        'punk', 'secretary', 'servant', 'terminator', 'thinker'
+    ]);
+    let desktopPersonaPromise = null;
+
     function useDesktopChatRuntime(context) {
         if (context && context.__desktopRuntime) desktopRuntime = context.__desktopRuntime;
         return desktopRuntime || {};
@@ -77,6 +84,44 @@
             return runtime.showDesktopNotification(payload);
         }
         return null;
+    }
+
+    function desktopPersonaPreviewKey(name, isCore) {
+        const key = String(name || '').toLowerCase();
+        if (!isCore) return DESKTOP_PERSONA_PREVIEW_FALLBACK;
+        return DESKTOP_PERSONA_PREVIEW_KEYS.has(key) ? key : DESKTOP_PERSONA_PREVIEW_FALLBACK;
+    }
+
+    function applyDesktopPersonaIconKey(previewKey) {
+        const key = previewKey || DESKTOP_PERSONA_PREVIEW_FALLBACK;
+        window._activePersonaIconKey = key;
+        if (window.AuraChatCore && typeof window.AuraChatCore.personaIconUrl === 'function') {
+            const src = window.AuraChatCore.personaIconUrl(key);
+            document.querySelectorAll('.vd-chat-avatar .persona-avatar-img, .vd-chat-welcome-avatar .persona-avatar-img').forEach(img => {
+                img.src = src;
+                img.dataset.personaIcon = key;
+            });
+        }
+        try {
+            window.dispatchEvent(new CustomEvent('aurago:persona-icon-change', { detail: { key } }));
+        } catch (_) { }
+        return key;
+    }
+
+    if (typeof window._setActivePersonaIconKey !== 'function') {
+        window._setActivePersonaIconKey = applyDesktopPersonaIconKey;
+    }
+
+    async function ensureDesktopChatPersona() {
+        if (window._activePersonaIconKey) return window._activePersonaIconKey;
+        if (desktopPersonaPromise) return desktopPersonaPromise;
+        desktopPersonaPromise = api('/api/personalities').then(data => {
+            const active = String((data && data.active) || '').trim();
+            const personalities = Array.isArray(data && data.personalities) ? data.personalities : [];
+            const entry = personalities.find(item => item && item.name === active);
+            return applyDesktopPersonaIconKey(desktopPersonaPreviewKey(active, !!(entry && entry.core)));
+        }).catch(() => applyDesktopPersonaIconKey(DESKTOP_PERSONA_PREVIEW_FALLBACK));
+        return desktopPersonaPromise;
     }
 
     function chatFileContextFromEntry(entry) {
@@ -158,7 +203,7 @@
         initScrollFab(host);
         setDesktopChatBusy(host, false);
 
-        loadDesktopChatHistory(host).finally(() => applyChatLaunchContext(id, context || {}));
+        ensureDesktopChatPersona().finally(() => loadDesktopChatHistory(host).finally(() => applyChatLaunchContext(id, context || {})));
 
         const clearHistory = host.querySelector('[data-chat-clear-history]');
         if (clearHistory) clearHistory.addEventListener('click', () => clearDesktopChatHistory(host));
