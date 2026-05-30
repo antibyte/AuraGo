@@ -1,8 +1,15 @@
 package agent
 
 import (
+	"context"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"aurago/internal/config"
 )
 
 func TestDecodeCallWebhookArgsUsesParamsFallback(t *testing.T) {
@@ -299,6 +306,41 @@ func TestDecodeAPIRequestArgsUsesParamsFallback(t *testing.T) {
 	}
 	if req.Headers["Authorization"] != "Bearer token" || req.Headers["Content-Type"] != "application/json" {
 		t.Fatalf("unexpected headers decode: %+v", req.Headers)
+	}
+}
+
+func TestDispatchExecAPIRequestUsesConfiguredLocalOllamaAllow(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/chat/completions" {
+			t.Fatalf("unexpected path %q", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	t.Cleanup(server.Close)
+
+	cfg := &config.Config{}
+	cfg.Agent.AllowNetworkRequests = true
+	cfg.Ollama.URL = server.URL
+
+	out, handled := dispatchExec(context.Background(), ToolCall{
+		Action: "api_request",
+		Params: map[string]interface{}{
+			"method": "POST",
+			"url":    server.URL + "/v1/chat/completions",
+			"body":   `{"model":"phi3:latest","messages":[]}`,
+		},
+	}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if !handled {
+		t.Fatal("dispatchExec did not handle api_request")
+	}
+	if strings.Contains(out, "URL validation failed") || strings.Contains(out, "SSRF protection") {
+		t.Fatalf("api_request was still blocked by SSRF: %s", out)
+	}
+	if !strings.Contains(out, `"status":"success"`) || !strings.Contains(out, `{\"ok\":true}`) {
+		t.Fatalf("unexpected api_request output: %s", out)
 	}
 }
 

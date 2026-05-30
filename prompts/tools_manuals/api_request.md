@@ -14,6 +14,10 @@ Make HTTP requests to any API endpoint.
 
 For authenticated APIs, pass an `Authorization` header or retrieve the key via `get_secret` first.
 
+### Local/Internal Safety
+
+`api_request` blocks private, link-local, and loopback addresses by default (SSRF protection). The only local exception is the configured Ollama API base URL (`ollama.url`), and only for Ollama API paths under `/api/` or `/v1/`. Use the configured Ollama URL, normally `http://localhost:11434`, for local Ollama chat/completion calls. Do not use AuraGo's internal loopback port (for example `127.0.0.1:18080`) as an Ollama endpoint.
+
 ### Examples
 
 ```json

@@ -1073,7 +1073,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			req := decodeAPIRequestArgs(tc)
 			logger.Info("LLM requested generic API request", "url", req.URL)
-			return tools.ExecuteAPIRequest(req.Method, req.URL, req.Body, req.Headers)
+			apiOpts := tools.APIRequestOptions{}
+			apiOpts.AllowedLocalOllamaBaseURL = cfg.Ollama.URL
+			return tools.ExecuteAPIRequestWithOptions(req.Method, req.URL, req.Body, req.Headers, apiOpts)
 
 		case "koofr", "koofr_api", "koofr_op":
 			if !cfg.Koofr.Enabled {
