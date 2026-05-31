@@ -1046,5 +1046,10 @@
   "desktop.edit": "Upravit",
   "desktop.retry": "Zkusit znovu",
   "desktop.clear": "Vymazat",
-  "desktop.remove": "Odebrat"
+  "desktop.remove": "Odebrat",
+  "desktop.app_mission_control": "Mission Control",
+  "desktop.mc_new_mission": "Nová mise",
+  "desktop.mc_search_placeholder": "Hledat mise...",
+  "desktop.mc_view_grid": "Mřížka",
+  "desktop.mc_view_list": "Seznam"
 }

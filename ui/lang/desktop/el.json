@@ -1046,5 +1046,10 @@
   "desktop.edit": "Επεξεργασία",
   "desktop.retry": "Δοκιμή ξανά",
   "desktop.clear": "Εκκαθάριση",
-  "desktop.remove": "Αφαίρεση"
+  "desktop.remove": "Αφαίρεση",
+  "desktop.app_mission_control": "Mission Control",
+  "desktop.mc_new_mission": "Νέα αποστολή",
+  "desktop.mc_search_placeholder": "Αναζήτηση αποστολών...",
+  "desktop.mc_view_grid": "Πλέγμα",
+  "desktop.mc_view_list": "Λίστα"
 }

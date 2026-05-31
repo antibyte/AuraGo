@@ -1046,5 +1046,10 @@
   "desktop.edit": "編集",
   "desktop.retry": "再試行",
   "desktop.clear": "クリア",
-  "desktop.remove": "削除"
+  "desktop.remove": "削除",
+  "desktop.app_mission_control": "Mission Control",
+  "desktop.mc_new_mission": "新しいミッション",
+  "desktop.mc_search_placeholder": "ミッションを検索...",
+  "desktop.mc_view_grid": "グリッド表示",
+  "desktop.mc_view_list": "リスト表示"
 }

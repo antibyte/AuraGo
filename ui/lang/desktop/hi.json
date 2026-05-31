@@ -1046,5 +1046,10 @@
   "desktop.edit": "संपादित करें",
   "desktop.retry": "फिर कोशिश करें",
   "desktop.clear": "साफ़ करें",
-  "desktop.remove": "हटाएँ"
+  "desktop.remove": "हटाएँ",
+  "desktop.app_mission_control": "Mission Control",
+  "desktop.mc_new_mission": "नया मिशन",
+  "desktop.mc_search_placeholder": "मिशन खोजें...",
+  "desktop.mc_view_grid": "ग्रिड दृश्य",
+  "desktop.mc_view_list": "सूची दृश्य"
 }

@@ -1046,5 +1046,10 @@
   "desktop.edit": "编辑",
   "desktop.retry": "重试",
   "desktop.clear": "清除",
-  "desktop.remove": "移除"
+  "desktop.remove": "移除",
+  "desktop.app_mission_control": "Mission Control",
+  "desktop.mc_new_mission": "新建任务",
+  "desktop.mc_search_placeholder": "搜索任务...",
+  "desktop.mc_view_grid": "网格视图",
+  "desktop.mc_view_list": "列表视图"
 }

@@ -1071,6 +1071,14 @@ if (appId === 'pixel') {
             }
             if (typeof window.PeopleApp.render === 'function') return window.PeopleApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
         }
+        if (appId === 'mission-control' && window.MissionControlApp && typeof window.MissionControlApp.render === 'function') {
+            return window.MissionControlApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc, api, t, iconMarkup, notify: showDesktopNotification,
+                readonly: desktopReadonly(), loadBootstrap, updateWindowContext,
+                setWindowMenus, clearWindowMenus, wireContextMenuBoundary,
+                confirmDialog, promptDialog
+            }));
+        }
         return renderGeneratedApp(id, appId);
         } catch (err) { renderAppError(id, appId, err); return undefined; }
     }

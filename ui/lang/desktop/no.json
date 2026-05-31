@@ -1046,5 +1046,10 @@
   "desktop.edit": "Rediger",
   "desktop.retry": "Prøv igjen",
   "desktop.clear": "Tøm",
-  "desktop.remove": "Fjern"
+  "desktop.remove": "Fjern",
+  "desktop.app_mission_control": "Mission Control",
+  "desktop.mc_new_mission": "Ny oppgave",
+  "desktop.mc_search_placeholder": "Søk oppdrag...",
+  "desktop.mc_view_grid": "Rutenett",
+  "desktop.mc_view_list": "Liste"
 }

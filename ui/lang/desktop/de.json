@@ -1046,5 +1046,10 @@
   "desktop.edit": "Bearbeiten",
   "desktop.retry": "Erneut versuchen",
   "desktop.clear": "Leeren",
-  "desktop.remove": "Entfernen"
+  "desktop.remove": "Entfernen",
+  "desktop.app_mission_control": "Mission Control",
+  "desktop.mc_new_mission": "Neue Mission",
+  "desktop.mc_search_placeholder": "Missionen suchen...",
+  "desktop.mc_view_grid": "Rasteransicht",
+  "desktop.mc_view_list": "Listenansicht"
 }

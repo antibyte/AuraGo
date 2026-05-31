@@ -1046,5 +1046,10 @@
   "desktop.edit": "Redigera",
   "desktop.retry": "Försök igen",
   "desktop.clear": "Rensa",
-  "desktop.remove": "Ta bort"
+  "desktop.remove": "Ta bort",
+  "desktop.app_mission_control": "Mission Control",
+  "desktop.mc_new_mission": "Nytt uppdrag",
+  "desktop.mc_search_placeholder": "Sök uppdrag...",
+  "desktop.mc_view_grid": "Rutnätsvy",
+  "desktop.mc_view_list": "Listvy"
 }

@@ -135,6 +135,10 @@
         'people': {
             styles: appStyles('/css/desktop-app-people.css'),
             scripts: ['/js/desktop/apps/people.js']
+        },
+        'mission-control': {
+            styles: appStyles('/css/desktop-app-mission-control.css'),
+            scripts: ['/js/desktop/apps/mission-control.js']
         }
     };
 

@@ -1046,5 +1046,10 @@
   "desktop.edit": "Bewerken",
   "desktop.retry": "Opnieuw proberen",
   "desktop.clear": "Wissen",
-  "desktop.remove": "Verwijderen"
+  "desktop.remove": "Verwijderen",
+  "desktop.app_mission_control": "Mission Control",
+  "desktop.mc_new_mission": "Nieuwe missie",
+  "desktop.mc_search_placeholder": "Missies zoeken...",
+  "desktop.mc_view_grid": "Rasterweergave",
+  "desktop.mc_view_list": "Lijstweergave"
 }

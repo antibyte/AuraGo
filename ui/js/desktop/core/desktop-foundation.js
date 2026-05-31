@@ -454,7 +454,8 @@
             zipper: 'ZipperApp',
             pixel: 'PixelApp',
             'galaxa-deluxe': 'GalaxaDeluxe',
-            people: 'PeopleApp'
+            people: 'PeopleApp',
+            'mission-control': 'MissionControlApp'
         }[appId] || '';
     }
 
