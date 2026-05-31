@@ -34,6 +34,16 @@
     pointer-events: none;
 }
 
+/* Stronger, more premium active window indication (improves UX clarity) */
+.vd-window.active {
+    box-shadow: var(--vd-shadow-window), 0 0 0 1.5px color-mix(in srgb, var(--vd-accent) 45%, transparent);
+    z-index: calc(var(--vd-z-window) + 1);
+}
+
+.vd-window.active .vd-window-titlebar {
+    background: color-mix(in srgb, var(--vd-surface-strong) 100%, var(--vd-accent) 4%);
+}
+
 .vd-snap-overlay {
     position: absolute;
     border: 2px solid rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.55);
