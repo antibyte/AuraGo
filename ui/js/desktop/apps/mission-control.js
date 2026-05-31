@@ -415,7 +415,7 @@
                         <div class="${P}-card-header-left">${chip}${remoteBadge}${prepBadge}</div>
                         <button type="button" class="${P}-expand-btn" data-mc-action="toggle-expand" data-mission-id="${mid}" aria-expanded="${isExpanded}">${SVG.chevron}</button>
                     </div>
-                    <div class="${P}-card-body">
+                    <div class="${P}-card-body" data-mc-action="edit" data-mission-id="${mid}" style="cursor:pointer">
                         <div class="${P}-card-name"><span>${esc(mission.name)}</span>${lockedMark}</div>
                         ${triggerPill}
                         <p class="${P}-card-prompt">${esc(mission.prompt)}</p>
@@ -424,7 +424,9 @@
                                 <span class="${P}-meta-item ${resultClass}">${resultIcon ? `<span class="${P}-meta-icon">${resultIcon}</span>` : `<span>${SVG.clock}</span>`}<span>${lastRun}</span></span>
                                 <span class="${P}-meta-item">${esc(t('missions.meta_run_count', { count: mission.run_count }) || (mission.run_count + 'x'))}</span>
                             </div>
-                            <button type="button" class="${P}-run-btn" data-mc-action="run" data-mission-id="${mid}" ${isRunning ? 'disabled' : ''}>${SVG.play}<span>${esc(t('missions.card_run_label', 'Run'))}</span></button>
+                            <div style="display:flex;gap:4px;align-items:center">
+                                <button type="button" class="${P}-run-btn" data-mc-action="run" data-mission-id="${mid}" ${isRunning ? 'disabled' : ''}>${SVG.play}<span>${esc(t('missions.card_run_label', 'Run'))}</span></button>
+                            </div>
                         </div>
                     </div>
                     <div class="${P}-card-expand">
