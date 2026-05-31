@@ -234,6 +234,20 @@ func TestDesktopEditorFillsWindowContent(t *testing.T) {
 	}
 }
 
+func TestDesktopEditorLazyLoadsOfficeStyles(t *testing.T) {
+	t.Parallel()
+
+	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
+	for _, marker := range []string{
+		"'editor': {",
+		"styles: appStyles('/css/desktop-app-office.css')",
+	} {
+		if !strings.Contains(loader, marker) {
+			t.Fatalf("desktop editor asset registry missing marker %q", marker)
+		}
+	}
+}
+
 func TestDesktopAgentLaunchContextPreservesSourceApp(t *testing.T) {
 	t.Parallel()
 

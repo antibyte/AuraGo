@@ -22,6 +22,9 @@
             styles: appStyles('/css/desktop-app-file-manager.css'),
             scripts: ['/js/desktop/bundles/file-manager.bundle.js']
         },
+        'editor': {
+            styles: appStyles('/css/desktop-app-office.css')
+        },
         'writer': {
             styles: appStyles('/css/desktop-app-office.css', '/css/quill.snow.css'),
             scripts: ['/js/vendor/quill.js', '/js/desktop/apps/writer.js']
