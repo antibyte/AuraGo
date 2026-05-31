@@ -179,7 +179,7 @@
         btn.addEventListener('dragstart', event => {
             const path = normalizeDesktopPath(btn.dataset.path || '');
             if (!path) return;
-            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.effectAllowed = 'copyMove';
             event.dataTransfer.setData('text/plain', path);
             event.dataTransfer.setData(DESKTOP_FILE_DRAG_TYPE, JSON.stringify({ source: 'desktop', paths: [path] }));
             btn.classList.add('vd-dragging');

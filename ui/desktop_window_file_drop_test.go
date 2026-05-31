@@ -38,10 +38,25 @@ func TestDesktopFileEntriesKeepNativeDragForWindowDrops(t *testing.T) {
 	}
 	for _, marker := range []string{
 		"btn.draggable = true;",
+		"event.dataTransfer.effectAllowed = 'copyMove';",
 		"event.dataTransfer.setData(DESKTOP_FILE_DRAG_TYPE",
 	} {
 		if !strings.Contains(fileDrops, marker) {
 			t.Fatalf("desktop file drag runtime missing native drag payload marker %q", marker)
+		}
+	}
+}
+
+func TestDesktopFileDragSourcesAllowCopyWindowDrops(t *testing.T) {
+	t.Parallel()
+
+	for _, asset := range []string{
+		"js/desktop/core/desktop-file-drops.js",
+		"js/desktop/file-manager/actions-operations.js",
+	} {
+		source := rawDesktopAssetText(t, asset)
+		if !strings.Contains(source, "effectAllowed = 'copyMove'") {
+			t.Fatalf("%s must allow copyMove so copy drop targets like zipper do not show a blocked cursor", asset)
 		}
 	}
 }
