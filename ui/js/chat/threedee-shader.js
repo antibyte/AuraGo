@@ -29,6 +29,7 @@
     const COLOR_PATTERN_DURATION = 4;
     const COLOR_PATTERN_FADE = 1.4;
 
+    let lightningMesh;
     let smokeTexture;
     const spheres = [];
     const sprites = [];
@@ -110,6 +111,130 @@
             const m = shockwavePool.pop();
             scene.remove(m);
             m.material.dispose();
+        }
+    }
+
+    function ensureLightningMesh() {
+        if (lightningMesh) return;
+        const geom = new THREE.BufferGeometry();
+        const positionAttr = new THREE.BufferAttribute(new Float32Array(512 * 3), 3);
+        positionAttr.setUsage(THREE.DynamicDrawUsage);
+        geom.setAttribute('position', positionAttr);
+
+        const colorsAttr = new THREE.BufferAttribute(new Float32Array(512 * 3), 3);
+        colorsAttr.setUsage(THREE.DynamicDrawUsage);
+        geom.setAttribute('color', colorsAttr);
+
+        const mat = new THREE.LineBasicMaterial({
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.95,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        lightningMesh = new THREE.LineSegments(geom, mat);
+        scene.add(lightningMesh);
+    }
+
+    function generateLightning(start, end, colorHex, floatArray, colorArray, startIdx, maxSegs) {
+        let idx = startIdx;
+        const subSec = maxSegs || 8;
+        const dir = end.clone().sub(start);
+        const len = dir.length();
+        dir.normalize();
+
+        const right = new THREE.Vector3(0, 1, 0).cross(dir).normalize();
+        const up = dir.clone().cross(right).normalize();
+
+        const tempColor = new THREE.Color(colorHex);
+
+        let prevPoint = start.clone();
+        for (let i = 1; i <= subSec; i++) {
+            const nextPoint = start.clone().addScaledVector(dir, (i / subSec) * len);
+            if (i < subSec) {
+                const t = (i / subSec);
+                const envelope = Math.sin(t * Math.PI);
+                const jitterMag = 0.28 * envelope;
+                const jitterX = (Math.random() - 0.5) * jitterMag;
+                const jitterY = (Math.random() - 0.5) * jitterMag;
+                nextPoint.addScaledVector(right, jitterX).addScaledVector(up, jitterY);
+            }
+
+            floatArray[idx * 3] = prevPoint.x;
+            floatArray[idx * 3 + 1] = prevPoint.y;
+            floatArray[idx * 3 + 2] = prevPoint.z;
+            colorArray[idx * 3] = tempColor.r;
+            colorArray[idx * 3 + 1] = tempColor.g;
+            colorArray[idx * 3 + 2] = tempColor.b;
+            idx++;
+
+            floatArray[idx * 3] = nextPoint.x;
+            floatArray[idx * 3 + 1] = nextPoint.y;
+            floatArray[idx * 3 + 2] = nextPoint.z;
+            colorArray[idx * 3] = tempColor.r * 0.4;
+            colorArray[idx * 3 + 1] = tempColor.g * 0.4;
+            colorArray[idx * 3 + 2] = tempColor.b * 0.4;
+            idx++;
+
+            prevPoint.copy(nextPoint);
+        }
+        return idx;
+    }
+
+    function updateLightning(dt, t) {
+        if (!active || !scene) return;
+        ensureLightningMesh();
+        const geom = lightningMesh.geometry;
+        const positionAttr = geom.getAttribute('position');
+        const colorAttr = geom.getAttribute('color');
+        const positionArray = positionAttr.array;
+        const colorsArray = colorAttr.array;
+
+        let activeVertices = 0;
+        const maxVertices = 512;
+
+        robotFleet.forEach(function (bot) {
+            if (active && bot.group && bot.state && bot.state.isAiming && bot.opponent && bot.opponent.group) {
+                const start = robotMuzzlePosition(bot);
+                const end = robotAimPoint(bot.opponent);
+                const colorHex = bot.projectileHex || 0x22d3ee;
+                const mainSegs = bot.state.isSuperweaponCharging ? 12 : 6;
+                if (activeVertices + mainSegs * 2 < maxVertices) {
+                    activeVertices = generateLightning(start, end, colorHex, positionArray, colorsArray, activeVertices, mainSegs);
+                }
+
+                if (bot.state.isSuperweaponCharging) {
+                    const branches = 2;
+                    for (let b = 0; b < branches; b++) {
+                        const tBlend = 0.25 + Math.random() * 0.5;
+                        const branchStart = start.clone().lerp(end, tBlend);
+                        branchStart.x += (Math.random() - 0.5) * 0.2;
+                        branchStart.y += (Math.random() - 0.5) * 0.2;
+                        branchStart.z += (Math.random() - 0.5) * 0.2;
+
+                        const rAngle = Math.random() * Math.PI * 2;
+                        const rDist = 1.2 + Math.random() * 1.5;
+                        const bx = branchStart.x + Math.cos(rAngle) * rDist;
+                        const bz = branchStart.z + Math.sin(rAngle) * rDist;
+                        const h = heightAt(bx, bz, t);
+                        const branchEnd = new THREE.Vector3(bx, h + (surface ? surface.position.y : -2.55), bz);
+
+                        if (activeVertices + 6 * 2 < maxVertices) {
+                            activeVertices = generateLightning(branchStart, branchEnd, colorHex, positionArray, colorsArray, activeVertices, 6);
+                        }
+                    }
+                }
+            }
+        });
+
+        if (activeVertices > 0) {
+            lightningMesh.visible = true;
+            positionAttr.needsUpdate = true;
+            colorAttr.needsUpdate = true;
+            geom.setDrawRange(0, activeVertices);
+        } else {
+            lightningMesh.visible = false;
+            geom.setDrawRange(0, 0);
         }
     }
 
@@ -383,6 +508,12 @@
 
     function clearThreeDeeRuntimeState() {
         clearPools();
+        if (lightningMesh) {
+            if (scene) scene.remove(lightningMesh);
+            if (lightningMesh.geometry) lightningMesh.geometry.dispose();
+            if (lightningMesh.material) lightningMesh.material.dispose();
+            lightningMesh = null;
+        }
         impulses.length = 0;
         spheres.length = 0;
         sprites.length = 0;
@@ -677,24 +808,17 @@
         impactLights.push({ light: flash, life: 0.72, maxLife: 0.72, baseIntensity: 13 * strength });
 
         for (let ring = 0; ring < 3; ring++) {
-            const shock = new THREE.Mesh(window.shockwaveGeom, window.shockwaveMat.clone());
-            
             // Position it offset along the normal to prevent z-fighting
             const offsetPos = new THREE.Vector3(x, y, z).addScaledVector(worldNormal, 0.04 + ring * 0.018);
-            shock.position.copy(offsetPos);
+            const baseOpacity = 0.88 - ring * 0.16;
+            const shock = acquireShockwave(offsetPos, 0xffaa00, baseOpacity, worldNormal);
 
-            // Align the ring's geometry normal (0, 0, 1) to the worldNormal
-            const normalAlign = new THREE.Quaternion();
-            normalAlign.setFromUnitVectors(new THREE.Vector3(0, 0, 1), worldNormal);
-            shock.quaternion.copy(normalAlign);
-
-            scene.add(shock);
             shockwaves.push({
                 mesh: shock,
                 life: 0.68 + ring * 0.14,
                 maxLife: 0.68 + ring * 0.14,
                 maxScale: 7.0 + ring * 2.4,
-                baseOpacity: 0.88 - ring * 0.16,
+                baseOpacity: baseOpacity,
                 kind: 'blastRing'
             });
         }
@@ -758,17 +882,34 @@
             let p = sprites[i];
             p.life -= dt;
             if (p.life <= 0) {
-                scene.remove(p.sprite);
-                p.sprite.material.dispose();
+                releaseSprite(p.sprite);
                 sprites.splice(i, 1);
             } else {
                 const ratio = p.life / p.maxLife;
                 p.sprite.material.opacity = p.baseOpacity * Math.pow(ratio, p.fadePower);
                 const s = p.initialScale * (1 + p.expansion * (1 - ratio));
                 p.sprite.scale.set(s, s, s);
-                p.sprite.position.x += p.vx * dt;
-                p.sprite.position.y += (p.vy + 0.12) * dt;
-                p.sprite.position.z += p.vz * dt;
+                if (p.kind === 'vortexEmber') {
+                    const dx = p.sprite.position.x;
+                    const dz = p.sprite.position.z - (surface ? surface.position.z : -5.3);
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+                    if (dist > 0.1) {
+                        const rotSpeed = 3.6 / (dist + 0.8);
+                        const angle = rotSpeed * dt;
+                        const cos = Math.cos(angle);
+                        const sin = Math.sin(angle);
+                        const rx = dx * cos - dz * sin;
+                        const rz = dx * sin + dz * cos;
+                        const pull = 0.82;
+                        p.sprite.position.x = rx * (1 - dt * pull);
+                        p.sprite.position.z = rz * (1 - dt * pull) + (surface ? surface.position.z : -5.3);
+                        p.sprite.position.y += (p.vy - 0.95) * dt;
+                    }
+                } else {
+                    p.sprite.position.x += p.vx * dt;
+                    p.sprite.position.y += (p.vy + 0.12) * dt;
+                    p.sprite.position.z += p.vz * dt;
+                }
                 p.sprite.material.rotation += p.spin * dt;
             }
         }
@@ -832,8 +973,7 @@
             let s = shockwaves[i];
             s.life -= dt;
             if (s.life <= 0) {
-                scene.remove(s.mesh);
-                s.mesh.material.dispose();
+                releaseShockwave(s.mesh);
                 shockwaves.splice(i, 1);
             } else {
                 const progress = 1.0 - (s.life / s.maxLife);
@@ -875,14 +1015,14 @@
             }
             
             createSmokeSprite(rx, ry, rz + (surface ? surface.position.z : -5.3), emberColor, 0.05 + Math.random() * 0.06, 1.8 + Math.random() * 1.4, {
-                vx: (Math.random() - 0.5) * 0.4,
-                vy: 0.35 + Math.random() * 0.45,
-                vz: (Math.random() - 0.5) * 0.4,
+                vx: currentMode === 4 ? 0 : (Math.random() - 0.5) * 0.4,
+                vy: currentMode === 4 ? 0.02 + Math.random() * 0.08 : 0.35 + Math.random() * 0.45,
+                vz: currentMode === 4 ? 0 : (Math.random() - 0.5) * 0.4,
                 spin: (Math.random() - 0.5) * 2.5,
                 opacity: 0.65,
                 expansion: 0.08,
                 fadePower: 1.4,
-                kind: 'ember'
+                kind: currentMode === 4 ? 'vortexEmber' : 'ember'
             });
         }
     }
@@ -2707,21 +2847,16 @@
         impactLights.push({ light: flash, life: 0.32, maxLife: 0.32, baseIntensity: hitTarget ? 6.8 : 4.5 });
 
         for (let ring = 0; ring < 2; ring++) {
-            const material = window.shockwaveMat.clone();
-            material.color.setHex(color);
-            material.opacity = 0.48 - ring * 0.16;
-            const shock = new THREE.Mesh(window.shockwaveGeom, material);
-            shock.position.copy(burstCenter.clone().addScaledVector(worldNormal, 0.02 + ring * 0.012));
-            const normalAlign = new THREE.Quaternion();
-            normalAlign.setFromUnitVectors(new THREE.Vector3(0, 0, 1), worldNormal);
-            shock.quaternion.copy(normalAlign);
-            scene.add(shock);
+            const offsetPos = burstCenter.clone().addScaledVector(worldNormal, 0.02 + ring * 0.012);
+            const baseOpacity = 0.44 - ring * 0.12;
+            const shock = acquireShockwave(offsetPos, color, baseOpacity, worldNormal);
+
             shockwaves.push({
                 mesh: shock,
                 life: 0.3 + ring * 0.08,
                 maxLife: 0.3 + ring * 0.08,
                 maxScale: (hitTarget ? 2.15 : 1.6) + ring * 0.65,
-                baseOpacity: 0.44 - ring * 0.12,
+                baseOpacity: baseOpacity,
                 kind: 'energyImpactRing'
             });
         }
@@ -2804,21 +2939,16 @@
 
         const ringCount = hitTarget ? 4 : 3;
         for (let ring = 0; ring < ringCount; ring++) {
-            const material = window.shockwaveMat.clone();
-            material.color.setHex(color);
-            material.opacity = 0.65 - ring * 0.15;
-            const shock = new THREE.Mesh(window.shockwaveGeom, material);
-            shock.position.copy(burstCenter.clone().addScaledVector(worldNormal, 0.03 + ring * 0.022));
-            const normalAlign = new THREE.Quaternion();
-            normalAlign.setFromUnitVectors(new THREE.Vector3(0, 0, 1), worldNormal);
-            shock.quaternion.copy(normalAlign);
-            scene.add(shock);
+            const offsetPos = burstCenter.clone().addScaledVector(worldNormal, 0.03 + ring * 0.022);
+            const baseOpacity = 0.65 - ring * 0.12;
+            const shock = acquireShockwave(offsetPos, color, baseOpacity, worldNormal);
+
             shockwaves.push({
                 mesh: shock,
                 life: 0.45 + ring * 0.12,
                 maxLife: 0.45 + ring * 0.12,
                 maxScale: (hitTarget ? 5.2 : 3.8) + ring * 1.5,
-                baseOpacity: 0.65 - ring * 0.12,
+                baseOpacity: baseOpacity,
                 kind: 'superExplosionRing'
             });
         }
@@ -3386,6 +3516,7 @@
         updateFloatingRobot(dt, t);
         updateParticles(dt, t);
         updateSurface(t);
+        updateLightning(dt, t);
 
         if (camera) {
             const sway = Math.sin(t * 0.2) * 0.18;
