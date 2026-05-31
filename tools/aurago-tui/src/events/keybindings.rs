@@ -329,3 +329,25 @@ fn try_global_keys(key: KeyEvent) -> Option<Action> {
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn global_keys_quit_and_help() {
+        let key = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL);
+        assert!(matches!(try_global_keys(key), Some(Action::Quit)));
+
+        let key = KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE);
+        assert!(matches!(try_global_keys(key), Some(Action::ToggleHelp)));
+    }
+
+    #[test]
+    fn chat_enter_sends() {
+        let key = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+        let ctx = KeyContext::Chat { focus_sidebar: false, session_drawer: false };
+        assert!(matches!(map_key(key, ctx), Action::SendMessage));
+    }
+}

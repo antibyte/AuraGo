@@ -553,3 +553,33 @@ impl AppState {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn char_len_ascii_and_unicode() {
+        assert_eq!(char_len("hello"), 5);
+        assert_eq!(char_len(""), 0);
+        assert_eq!(char_len("a🦀b"), 3); // emoji is one char
+        assert_eq!(char_len("日本語"), 3);
+    }
+
+    #[test]
+    fn char_to_byte_basic() {
+        assert_eq!(char_to_byte("hello", 0), 0);
+        assert_eq!(char_to_byte("hello", 5), 5);
+        assert_eq!(char_to_byte("hello", 99), 5); // OOB -> len
+    }
+
+    #[test]
+    fn cursor_roundtrip_ascii() {
+        let mut s = AppState { chat_input: "abc".to_string(), chat_input_cursor: 0, ..Default::default() };
+        s.insert_at_cursor('x');
+        assert_eq!(s.chat_input, "xabc");
+        assert_eq!(s.chat_input_cursor, 1);
+        s.backspace_at_cursor();
+        assert_eq!(s.chat_input, "abc");
+    }
+}
