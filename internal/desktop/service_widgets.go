@@ -119,7 +119,7 @@ func (s *Service) UpsertWidget(ctx context.Context, widget Widget, source string
 		return fmt.Errorf("save desktop widget: %w", err)
 	}
 	_ = s.Audit(ctx, "upsert_widget", widget.ID, widget, source)
-	s.invalidateBootstrapCache()
+	s.InvalidateWidgets()
 	return nil
 }
 
@@ -147,7 +147,7 @@ func (s *Service) DeleteWidget(ctx context.Context, id, source string) error {
 		return fmt.Errorf("delete desktop widget: %w", err)
 	}
 	_ = s.Audit(ctx, "delete_widget", id, map[string]interface{}{}, source)
-	s.invalidateBootstrapCache()
+	s.InvalidateWidgets()
 	return nil
 }
 
@@ -174,7 +174,7 @@ func (s *Service) SetWidgetVisible(ctx context.Context, id string, visible bool,
 		return fmt.Errorf("desktop widget not found")
 	}
 	_ = s.Audit(ctx, "set_widget_visible", id, map[string]interface{}{"visible": visible}, source)
-	s.invalidateBootstrapCache()
+	s.InvalidateWidgets()
 	return nil
 }
 

@@ -19,14 +19,17 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
 }
 
 .galaxa-canvas {
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     display: block;
+    border-radius: 4px;
 }
 
+/* Enhanced CRT overlay with scanlines, vignette, and barrel distortion feel */
 .galaxa-crt::after {
     content: '';
     position: absolute;
@@ -37,8 +40,8 @@
     pointer-events: none;
     z-index: 1;
     background:
-        radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.55) 100%);
-    box-shadow: inset 0 0 120px rgba(0,0,0,0.5);
+        radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.65) 90%, rgba(0,0,0,0.9) 100%);
+    box-shadow: inset 0 0 120px rgba(0,0,0,0.6);
     border-radius: 8px;
 }
 
@@ -51,20 +54,28 @@
     height: 100%;
     pointer-events: none;
     z-index: 2;
-    background: repeating-linear-gradient(
-        0deg,
-        rgba(0, 0, 0, 0.15) 0px,
-        rgba(0, 0, 0, 0.15) 1px,
-        transparent 1px,
-        transparent 3px
-    );
-    opacity: 0.4;
-    animation: galaxa-crt-flicker 0.05s infinite alternate;
+    background:
+        repeating-linear-gradient(
+            0deg,
+            rgba(0, 0, 0, 0.18) 0px,
+            rgba(0, 0, 0, 0.18) 1px,
+            transparent 1px,
+            transparent 3px
+        ),
+        repeating-linear-gradient(
+            90deg,
+            rgba(255, 0, 0, 0.02) 0px,
+            rgba(0, 255, 0, 0.02) 1px,
+            rgba(0, 0, 255, 0.02) 2px,
+            transparent 3px
+        );
+    opacity: 0.45;
+    animation: galaxa-crt-flicker 0.06s infinite alternate;
 }
 
 @keyframes galaxa-crt-flicker {
-    from { opacity: 0.38; }
-    to { opacity: 0.42; }
+    from { opacity: 0.40; }
+    to { opacity: 0.48; }
 }
 
 .galaxa-powerup-active .galaxa-canvas {
@@ -159,6 +170,17 @@
     to { box-shadow: 0 0 50px rgba(255, 0, 0, 0.5), 0 0 80px rgba(255, 0, 0, 0.3), inset 0 0 20px rgba(255, 0, 0, 0.1); }
 }
 
+/* Freeze screen effect */
+.galaxa-freeze .galaxa-canvas {
+    filter: hue-rotate(180deg) saturate(1.3);
+    box-shadow: 0 0 30px rgba(136, 238, 255, 0.25), 0 0 60px rgba(136, 238, 255, 0.1);
+}
+
+/* Time slow effect */
+.galaxa-timeslow .galaxa-canvas {
+    filter: saturate(0.6) contrast(1.1);
+}
+
 .galaxa-overlay {
     position: absolute;
     top: 0;
@@ -178,7 +200,7 @@
 }
 
 .galaxa-overlay-box {
-    background: rgba(0, 0, 0, 0.85);
+    background: rgba(0, 0, 0, 0.88);
     border: 2px solid #4488ff;
     border-radius: 4px;
     padding: 20px 32px;
@@ -186,6 +208,13 @@
     color: #fff;
     font-family: 'Courier New', monospace;
     min-width: 260px;
+    box-shadow: 0 0 30px rgba(68, 136, 255, 0.2);
+    animation: galaxa-box-enter 0.3s ease-out;
+}
+
+@keyframes galaxa-box-enter {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
 }
 
 .galaxa-overlay-box h2 {
@@ -194,6 +223,7 @@
     margin: 0 0 12px;
     text-transform: uppercase;
     letter-spacing: 2px;
+    text-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
 }
 
 .galaxa-overlay-box p {
@@ -220,11 +250,15 @@
     text-align: center;
     line-height: 40px;
     cursor: pointer;
+    transition: all 0.15s ease;
+    text-shadow: 0 0 6px rgba(255, 204, 0, 0.4);
 }
 
 .galaxa-name-char.active {
     border-color: #ffcc00;
     background: #223366;
+    box-shadow: 0 0 10px rgba(255, 204, 0, 0.25);
+    transform: scale(1.08);
 }
 
 .galaxa-hs-table {
@@ -250,4 +284,5 @@
 
 .galaxa-hs-table tr:first-child td {
     color: #ffcc00;
+    text-shadow: 0 0 6px rgba(255, 204, 0, 0.3);
 }

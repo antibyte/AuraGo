@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 // ListFiles lists one workspace directory.
@@ -99,6 +100,15 @@ func (s *Service) ListFilesRecursive(ctx context.Context, rawPath string, offset
 	if limit < 0 {
 		limit = 0
 	}
+
+	cacheKey := rawPath
+	s.listCacheMu.Lock()
+	if entry, ok := s.listCache[cacheKey]; ok && time.Now().Before(entry.expiry) {
+		s.listCacheMu.Unlock()
+		return pageFileEntries(entry.result, offset, limit)
+	}
+	s.listCacheMu.Unlock()
+
 	var result []FileEntry
 	if mount, dirPath, _, ok, err := s.resolveMediaMount(rawPath); ok || err != nil {
 		if err != nil {
@@ -121,6 +131,14 @@ func (s *Service) ListFilesRecursive(ctx context.Context, rawPath string, offset
 			return nil, false, fmt.Errorf("list desktop media files recursively: %w", err)
 		}
 		sortFileEntriesByNewest(result)
+
+		s.listCacheMu.Lock()
+		s.listCache[cacheKey] = listCacheEntry{
+			result: result,
+			expiry: time.Now().Add(30 * time.Second),
+		}
+		s.listCacheMu.Unlock()
+
 		return pageFileEntries(result, offset, limit)
 	}
 	dirPath, err := s.ResolvePath(rawPath)
@@ -153,6 +171,14 @@ func (s *Service) ListFilesRecursive(ctx context.Context, rawPath string, offset
 		return nil, false, fmt.Errorf("list desktop files recursively: %w", err)
 	}
 	sortFileEntriesByNewest(result)
+
+	s.listCacheMu.Lock()
+	s.listCache[cacheKey] = listCacheEntry{
+		result: result,
+		expiry: time.Now().Add(30 * time.Second),
+	}
+	s.listCacheMu.Unlock()
+
 	return pageFileEntries(result, offset, limit)
 }
 
@@ -474,9 +500,12 @@ func (s *Service) invalidateBootstrapCacheForFileMutation(paths ...string) {
 			top = top[:idx]
 		}
 		switch strings.ToLower(top) {
-		case "apps", "widgets", "desktop":
-			s.invalidateBootstrapCache()
-			return
+		case "apps":
+			s.InvalidateApps()
+		case "widgets":
+			s.InvalidateWidgets()
+		case "desktop":
+			s.InvalidateShortcuts()
 		}
 	}
 }

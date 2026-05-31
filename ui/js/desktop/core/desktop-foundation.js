@@ -545,6 +545,18 @@
     function bindViewportMetrics() {
         updateViewportMetrics();
         window.addEventListener('resize', updateViewportMetrics);
+        const workspace = $('vd-workspace');
+        if (workspace) {
+            workspace.addEventListener('scroll', () => {
+                // Use requestAnimationFrame to throttle desktop icon rendering on scroll
+                if (!state._iconScrollFrame) {
+                    state._iconScrollFrame = requestAnimationFrame(() => {
+                        renderIcons();
+                        state._iconScrollFrame = 0;
+                    });
+                }
+            }, { passive: true });
+        }
         if (window.visualViewport) {
             window.visualViewport.addEventListener('resize', updateViewportMetrics);
             window.visualViewport.addEventListener('scroll', updateViewportMetrics);
@@ -995,8 +1007,36 @@
     function renderIcons() {
         const items = desktopShortcutItems();
         const positions = iconPositions();
-        reconcileDesktopIcons(items, positions);
+        const visibleItems = filterVisibleIcons(items, positions);
+        reconcileDesktopIcons(visibleItems, positions);
         syncDesktopIconSelection();
+    }
+
+    function getWorkspaceVisibleArea() {
+        const workspace = $('vd-workspace');
+        if (!workspace) return { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
+        return {
+            left: workspace.scrollLeft,
+            top: workspace.scrollTop,
+            right: workspace.scrollLeft + workspace.clientWidth,
+            bottom: workspace.scrollTop + workspace.clientHeight
+        };
+    }
+
+    function filterVisibleIcons(items, positions) {
+        const area = getWorkspaceVisibleArea();
+        const buffer = 120; // Extra buffer around viewport
+        return items.filter((item, index) => {
+            const pos = positions[item.id] || defaultIconPosition(index);
+            const iconW = 92;
+            const iconH = 88;
+            return (
+                pos.x + iconW >= area.left - buffer &&
+                pos.x <= area.right + buffer &&
+                pos.y + iconH >= area.top - buffer &&
+                pos.y <= area.bottom + buffer
+            );
+        });
     }
 
     function updateDesktopIconButton(btn, item, pos) {

@@ -98,7 +98,7 @@ func (s *Service) InstallApp(ctx context.Context, manifest AppManifest, files ma
 		return fmt.Errorf("save desktop app manifest: %w", err)
 	}
 	_ = s.Audit(ctx, "install_app", manifest.ID, manifest, source)
-	s.invalidateBootstrapCache()
+	s.InvalidateApps()
 	return nil
 }
 
@@ -178,7 +178,9 @@ func (s *Service) DeleteApp(ctx context.Context, id, source string) error {
 		return fmt.Errorf("delete desktop app files: %w", err)
 	}
 	_ = s.Audit(ctx, "delete_app", id, map[string]interface{}{}, source)
-	s.invalidateBootstrapCache()
+	s.InvalidateApps()
+	s.InvalidateWidgets()
+	s.InvalidateShortcuts()
 	return nil
 }
 
@@ -232,7 +234,7 @@ func (s *Service) SetAppVisibility(ctx context.Context, id string, dockVisible, 
 		"dock_visible":  visibility.DockVisible,
 		"start_visible": visibility.StartVisible,
 	}, source)
-	s.invalidateBootstrapCache()
+	s.InvalidateApps()
 	return nil
 }
 

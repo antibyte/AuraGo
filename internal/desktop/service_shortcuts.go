@@ -50,7 +50,7 @@ func (s *Service) RemoveDesktopShortcut(ctx context.Context, id, source string) 
 		return fmt.Errorf("remove desktop shortcut: %w", err)
 	}
 	_ = s.Audit(ctx, "remove_shortcut", id, map[string]interface{}{}, source)
-	s.invalidateBootstrapCache()
+	s.InvalidateShortcuts()
 	return nil
 }
 
@@ -99,7 +99,7 @@ func (s *Service) upsertDesktopShortcut(ctx context.Context, shortcut Shortcut, 
 		return fmt.Errorf("save desktop shortcut: %w", err)
 	}
 	_ = s.Audit(ctx, "upsert_shortcut", shortcut.ID, shortcut, source)
-	s.invalidateBootstrapCache()
+	s.InvalidateShortcuts()
 	return nil
 }
 

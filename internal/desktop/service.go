@@ -62,6 +62,27 @@ type Service struct {
 	bootstrapCache      BootstrapPayload
 	bootstrapCacheMu    sync.RWMutex
 	bootstrapCacheValid bool
+
+	// Granular cache
+	cacheApps          []AppManifest
+	cacheInstalledApps []AppManifest
+	cacheWidgets       []Widget
+	cacheAllWidgets    []Widget
+	cacheShortcuts     []Shortcut
+	cacheSettings      map[string]string
+	cacheAppsValid     bool
+	cacheWidgetsValid  bool
+	cacheShortsValid   bool
+	cacheSettingsValid bool
+
+	// List cache
+	listCache   map[string]listCacheEntry
+	listCacheMu sync.Mutex
+}
+
+type listCacheEntry struct {
+	result []FileEntry
+	expiry time.Time
 }
 
 // FileWriteState is the current target state observed while holding the shared desktop mutation lock.
@@ -80,7 +101,11 @@ func NewService(cfg Config) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Service{cfg: normalized, codeContainer: NewCodeContainerService(normalized, nil)}, nil
+	return &Service{
+		cfg:           normalized,
+		codeContainer: NewCodeContainerService(normalized, nil),
+		listCache:     make(map[string]listCacheEntry),
+	}, nil
 }
 
 func normalizeConfig(cfg Config) (Config, error) {
@@ -510,47 +535,66 @@ func (s *Service) mediaMounts() []mediaMount {
 
 // Bootstrap returns all state needed to render the virtual desktop shell.
 func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
-	s.bootstrapCacheMu.RLock()
-	if s.bootstrapCacheValid {
-		payload := s.bootstrapCache
-		s.bootstrapCacheMu.RUnlock()
-		return payload, nil
-	}
-	s.bootstrapCacheMu.RUnlock()
+	s.bootstrapCacheMu.Lock()
+	defer s.bootstrapCacheMu.Unlock()
 
 	if err := s.ensureReady(ctx); err != nil {
 		return BootstrapPayload{}, err
 	}
-	apps, err := s.listApps(ctx)
-	if err != nil {
-		return BootstrapPayload{}, err
-	}
-	for i := range apps {
-		apps[i] = s.validateGeneratedAppEntry(ctx, apps[i])
-	}
+
 	appVisibility, err := s.listAppVisibility(ctx)
 	if err != nil {
 		return BootstrapPayload{}, err
 	}
-	widgets, err := s.listWidgets(ctx)
-	if err != nil {
-		return BootstrapPayload{}, err
-	}
-	shortcuts, err := s.listShortcuts(ctx)
-	if err != nil {
-		return BootstrapPayload{}, err
-	}
-	settings, err := s.listSettings(ctx)
-	if err != nil {
-		return BootstrapPayload{}, err
-	}
-	cfg := s.Config()
-	var visibleWidgets []Widget
-	for _, w := range widgets {
-		if w.Visible {
-			visibleWidgets = append(visibleWidgets, w)
+
+	if !s.cacheAppsValid {
+		apps, err := s.listApps(ctx)
+		if err != nil {
+			return BootstrapPayload{}, err
 		}
+		for i := range apps {
+			apps[i] = s.validateGeneratedAppEntry(ctx, apps[i])
+		}
+		s.cacheApps = BuiltinApps()
+		s.cacheInstalledApps = apps
+		s.cacheAppsValid = true
 	}
+
+	if !s.cacheWidgetsValid {
+		widgets, err := s.listWidgets(ctx)
+		if err != nil {
+			return BootstrapPayload{}, err
+		}
+		var visibleWidgets []Widget
+		for _, w := range widgets {
+			if w.Visible {
+				visibleWidgets = append(visibleWidgets, w)
+			}
+		}
+		s.cacheWidgets = visibleWidgets
+		s.cacheAllWidgets = widgets
+		s.cacheWidgetsValid = true
+	}
+
+	if !s.cacheShortsValid {
+		shortcuts, err := s.listShortcuts(ctx)
+		if err != nil {
+			return BootstrapPayload{}, err
+		}
+		s.cacheShortcuts = shortcuts
+		s.cacheShortsValid = true
+	}
+
+	if !s.cacheSettingsValid {
+		settings, err := s.listSettings(ctx)
+		if err != nil {
+			return BootstrapPayload{}, err
+		}
+		s.cacheSettings = settings
+		s.cacheSettingsValid = true
+	}
+
+	cfg := s.Config()
 	payload := BootstrapPayload{
 		Enabled:            cfg.Enabled,
 		ReadOnly:           cfg.ReadOnly,
@@ -563,25 +607,48 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 			Directories: DefaultDirectories(),
 			MaxFileSize: int64(cfg.MaxFileSizeMB) * 1024 * 1024,
 		},
-		BuiltinApps:   applyAppVisibility(BuiltinApps(), true, appVisibility),
-		InstalledApps: applyAppVisibility(apps, false, appVisibility),
-		Shortcuts:     shortcuts,
-		Widgets:       visibleWidgets,
-		AllWidgets:    widgets,
-		Settings:      settings,
-		IconCatalog:   DesktopIconCatalog(settings),
+		BuiltinApps:   applyAppVisibility(s.cacheApps, true, appVisibility),
+		InstalledApps: applyAppVisibility(s.cacheInstalledApps, false, appVisibility),
+		Shortcuts:     s.cacheShortcuts,
+		Widgets:       s.cacheWidgets,
+		AllWidgets:    s.cacheAllWidgets,
+		Settings:      s.cacheSettings,
+		IconCatalog:   DesktopIconCatalog(s.cacheSettings),
 	}
 
-	s.bootstrapCacheMu.Lock()
-	s.bootstrapCache = payload
-	s.bootstrapCacheValid = true
-	s.bootstrapCacheMu.Unlock()
 	return payload, nil
 }
 
 func (s *Service) invalidateBootstrapCache() {
 	s.bootstrapCacheMu.Lock()
-	s.bootstrapCacheValid = false
+	s.cacheAppsValid = false
+	s.cacheWidgetsValid = false
+	s.cacheShortsValid = false
+	s.cacheSettingsValid = false
+	s.bootstrapCacheMu.Unlock()
+}
+
+func (s *Service) InvalidateApps() {
+	s.bootstrapCacheMu.Lock()
+	s.cacheAppsValid = false
+	s.bootstrapCacheMu.Unlock()
+}
+
+func (s *Service) InvalidateWidgets() {
+	s.bootstrapCacheMu.Lock()
+	s.cacheWidgetsValid = false
+	s.bootstrapCacheMu.Unlock()
+}
+
+func (s *Service) InvalidateShortcuts() {
+	s.bootstrapCacheMu.Lock()
+	s.cacheShortsValid = false
+	s.bootstrapCacheMu.Unlock()
+}
+
+func (s *Service) InvalidateSettings() {
+	s.bootstrapCacheMu.Lock()
+	s.cacheSettingsValid = false
 	s.bootstrapCacheMu.Unlock()
 }
 

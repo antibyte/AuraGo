@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -30,18 +29,29 @@ func handleDesktopViewerContent(s *Server) http.HandlerFunc {
 			jsonError(w, "path is required", http.StatusBadRequest)
 			return
 		}
+
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext == ".pdf" {
+			file, entry, _, err := svc.OpenPreviewFile(r.Context(), path)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			defer file.Close()
+			w.Header().Set("Content-Type", "application/pdf")
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, sanitizeContentDisposition(entry.Name)))
+			http.ServeContent(w, r, entry.Name, entry.ModTime, file)
+			return
+		}
+
 		data, entry, err := svc.ReadFileBytes(r.Context(), path)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		ext := strings.ToLower(filepath.Ext(entry.Name))
+
 		switch ext {
-		case ".pdf":
-			w.Header().Set("Content-Type", "application/pdf")
-			w.Header().Set("X-Content-Type-Options", "nosniff")
-			w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, sanitizeContentDisposition(entry.Name)))
-			http.ServeContent(w, r, entry.Name, entry.ModTime, bytes.NewReader(data))
 		case ".md":
 			content := string(data)
 			w.Header().Set("Content-Type", "application/json")

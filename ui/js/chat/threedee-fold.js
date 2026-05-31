@@ -33,15 +33,17 @@
     function foldMetricsForRow(row, rect) {
         const textLength = textLengthForRow(row);
         const textFactor = clamp(0, 1, (textLength - 320) / 1680);
-        const heightFactor = clamp(0, 1, (((rect && rect.height) || 0) - 260) / 900);
+        const rawHeight = (rect && rect.height) || 0;
+        // Much stronger damping for extremely tall bubbles so bottom stays readable
+        const heightFactor = clamp(0, 1.5, (rawHeight - 260) / 720);
         const longBubbleFactor = Math.max(textFactor, heightFactor);
         const maxDelay = rect && rect.height ? rect.height * 0.35 : 0;
 
         return {
-            partialDelay: clamp(0, maxDelay, longBubbleFactor * 180),
-            progressSpan: Math.max(1, ((rect && rect.height) || 0) + longBubbleFactor * 240),
-            maxPartialAngle: 4 - longBubbleFactor * 1.6,
-            fullFoldDivisor: 22 + longBubbleFactor * 18
+            partialDelay: clamp(0, maxDelay, longBubbleFactor * 150),
+            progressSpan: Math.max(1, rawHeight + longBubbleFactor * 260),
+            maxPartialAngle: Math.max(0.9, 3.2 - longBubbleFactor * 2.0),
+            fullFoldDivisor: 28 + longBubbleFactor * 24
         };
     }
 
@@ -87,7 +89,7 @@
                 const foldAngle = clamp(2, 6, aboveBy / metrics.fullFoldDivisor);
                 row.classList.add('folding', 'folded');
                 row.classList.remove('unfolding');
-                row.style.transform = `perspective(800px) rotateX(-${foldAngle.toFixed(2)}deg) translateY(-2px) scale(0.995)`;
+                row.style.transform = `perspective(1400px) rotateX(-${foldAngle.toFixed(2)}deg) translateY(-2px) scale(0.995)`;
                 row.style.opacity = String(clamp(0.72, 0.94, 1 - foldAngle / 54));
                 row.style.filter = `blur(${clamp(0, 0.28, foldAngle / 42).toFixed(2)}px)`;
             } else if (partial > metrics.partialDelay && rect.height > 0) {
@@ -95,7 +97,7 @@
                 const foldAngle = progress * metrics.maxPartialAngle;
                 row.classList.add('folding');
                 row.classList.remove('folded', 'unfolding');
-                row.style.transform = `perspective(800px) rotateX(-${foldAngle.toFixed(2)}deg) scale(${(1 - progress * 0.003).toFixed(3)})`;
+                row.style.transform = `perspective(1400px) rotateX(-${foldAngle.toFixed(2)}deg) scale(${(1 - progress * 0.003).toFixed(3)})`;
                 row.style.opacity = String(clamp(0.88, 1, 1 - progress * 0.08));
                 row.style.filter = progress > 0.72 ? `blur(${((progress - 0.72) * 0.35).toFixed(2)}px)` : '';
             } else {

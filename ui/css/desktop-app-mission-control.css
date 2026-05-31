@@ -198,7 +198,7 @@
 
 .vd-mc-stat-label {
     color: var(--vd-text-muted, #9aa3ad);
-    font-size: 10px;
+    font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.3px;
 }
@@ -224,7 +224,7 @@
     align-items: center;
     gap: 8px;
     padding: 6px 12px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -242,7 +242,7 @@
     border-radius: 4px;
     background: var(--vd-accent, #3b82f6);
     color: #fff;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
 }
 
@@ -277,7 +277,7 @@
     justify-content: center;
     border-radius: 50%;
     background: var(--vd-surface, rgba(255,255,255,0.06));
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     flex-shrink: 0;
 }
@@ -353,70 +353,6 @@
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 12px;
     align-content: start;
-}
-
-/* Clean native desktop cards */
-.vd-mc-card {
-    background: var(--vd-surface-alt);
-    border: 1px solid var(--vd-border);
-    border-radius: 8px;
-    padding: 12px 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
-}
-
-.vd-mc-card:hover {
-    border-color: var(--vd-border-hover);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-}
-
-.vd-mc-card-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
-}
-
-.vd-mc-card-title {
-    font-weight: 600;
-    font-size: 15px;
-    color: var(--vd-text);
-    line-height: 1.3;
-}
-
-.vd-mc-card-badges {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-}
-
-.vd-mc-badge {
-    font-size: 11px;
-    padding: 2px 7px;
-    border-radius: 4px;
-    background: var(--vd-surface);
-    color: var(--vd-text-muted);
-    border: 1px solid var(--vd-border);
-    white-space: nowrap;
-}
-
-.vd-mc-card-body {
-    font-size: 13px;
-    color: var(--vd-text-muted);
-    line-height: 1.4;
-}
-
-.vd-mc-card-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 4px;
-    font-size: 11px;
-    color: var(--vd-text-muted);
-}
-    container-type: inline-size;
 }
 
 .vd-mc-grid.list-view {
@@ -500,7 +436,7 @@
     gap: 4px;
     padding: 2px 8px;
     border-radius: 10px;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.3px;
@@ -564,14 +500,14 @@
     border-radius: 4px;
     background: rgba(139,92,246,0.12);
     color: #a78bfa;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
 }
 
 .vd-mc-prep-badge {
     padding: 2px 6px;
     border-radius: 4px;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
 }
 
@@ -586,7 +522,7 @@
 }
 
 .vd-mc-card-name {
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--vd-text, #e8ecf1);
     margin: 0 0 4px;
@@ -618,7 +554,7 @@
     border-radius: 6px;
     background: rgba(245,158,11,0.08);
     border: 1px solid rgba(245,158,11,0.15);
-    font-size: 10px;
+    font-size: 11px;
     color: #fbbf24;
     margin-bottom: 4px;
     max-width: 100%;
@@ -634,7 +570,7 @@
 }
 
 .vd-mc-card-prompt {
-    font-size: 11px;
+    font-size: 12.5px;
     color: var(--vd-text-muted, #9aa3ad);
     line-height: 1.4;
     overflow: hidden;
@@ -655,7 +591,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 10px;
+    font-size: 11.5px;
     color: var(--vd-text-muted, #9aa3ad);
     min-width: 0;
 }
@@ -668,8 +604,8 @@
 }
 
 .vd-mc-meta-item svg {
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
 }
 
 .vd-mc-meta-item--ok { color: #34d399; }
@@ -679,12 +615,12 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 3px 10px;
+    padding: 5px 14px;
     border: 1px solid var(--vd-accent, #3b82f6);
     border-radius: 6px;
     background: rgba(59,130,246,0.1);
     color: var(--vd-accent, #3b82f6);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.15s;
@@ -727,7 +663,7 @@
 }
 
 .vd-mc-prompt-full {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--vd-text-muted, #9aa3ad);
     line-height: 1.5;
     white-space: pre-wrap;
@@ -743,16 +679,16 @@
     padding: 6px 8px;
     background: var(--vd-surface, rgba(0,0,0,0.15));
     border-radius: 6px;
-    font-size: 11px;
+    font-size: 12px;
 }
 
 .vd-mc-trigger-label {
     font-weight: 600;
     color: var(--vd-text, #e8ecf1);
     margin-bottom: 2px;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
+    font-size: 11px;
+    text-transform: none;
+    letter-spacing: normal;
 }
 
 .vd-mc-trigger-value {
@@ -770,10 +706,10 @@
     gap: 5px;
     padding: 5px 8px;
     background: var(--vd-surface, rgba(0,0,0,0.15));
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
+    text-transform: none;
+    letter-spacing: normal;
     color: var(--vd-text-muted, #9aa3ad);
     cursor: pointer;
 }
@@ -791,7 +727,7 @@
     margin: 0;
     padding: 8px;
     background: rgba(0,0,0,0.2);
-    font-size: 11px;
+    font-size: 12px;
     font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
     color: var(--vd-text-muted, #9aa3ad);
     line-height: 1.5;
@@ -817,7 +753,7 @@
     border-radius: 5px;
     background: transparent;
     color: var(--vd-text-muted, #9aa3ad);
-    font-size: 11px;
+    font-size: 12px;
     cursor: pointer;
     transition: all 0.15s;
 }
@@ -874,7 +810,7 @@
 
 .vd-mc-card-list-name {
     flex: 1;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -891,7 +827,7 @@
     display: flex;
     gap: 2px;
     flex-shrink: 0;
-    opacity: 0;
+    opacity: 0.35;
     transition: opacity 0.15s;
 }
 
@@ -937,7 +873,7 @@
 }
 
 .vd-mc-modal-title {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--vd-text, #e8ecf1);
     margin: 0;
@@ -983,10 +919,10 @@
 
 .vd-mc-form-group label {
     display: block;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
+    font-size: 12.5px;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: normal;
     color: var(--vd-text-muted, #9aa3ad);
     margin-bottom: 4px;
 }
@@ -1000,7 +936,7 @@
     border-radius: 6px;
     background: var(--vd-surface-alt, rgba(255,255,255,0.04));
     color: var(--vd-text, #e8ecf1);
-    font-size: 12px;
+    font-size: 13px;
     outline: none;
     transition: border-color 0.15s;
     box-sizing: border-box;
@@ -1028,7 +964,7 @@
 }
 
 .vd-mc-form-hint {
-    font-size: 10px;
+    font-size: 11px;
     color: var(--vd-text-muted, #6b7280);
     margin-top: 3px;
     line-height: 1.4;
@@ -1086,12 +1022,12 @@
 }
 
 .vd-mc-exec-label {
-    font-size: 11px;
+    font-size: 12.5px;
     font-weight: 600;
 }
 
 .vd-mc-exec-desc {
-    font-size: 9px;
+    font-size: 11px;
     color: var(--vd-text-muted, #6b7280);
 }
 
@@ -1109,7 +1045,7 @@
     border-radius: 5px;
     background: transparent;
     color: var(--vd-text-muted, #9aa3ad);
-    font-size: 10px;
+    font-size: 11px;
     cursor: pointer;
     transition: all 0.15s;
     white-space: nowrap;
@@ -1178,12 +1114,12 @@
 }
 
 .vd-mc-runner-label {
-    font-size: 11px;
+    font-size: 12.5px;
     font-weight: 600;
 }
 
 .vd-mc-runner-desc {
-    font-size: 9px;
+    font-size: 11px;
     color: var(--vd-text-muted, #6b7280);
 }
 
@@ -1238,12 +1174,12 @@
 }
 
 .vd-mc-toggle-text {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--vd-text, #e8ecf1);
 }
 
 .vd-mc-toggle-hint {
-    font-size: 10px;
+    font-size: 11px;
     color: var(--vd-text-muted, #6b7280);
 }
 
@@ -1265,7 +1201,7 @@
 }
 
 .vd-mc-empty-text {
-    font-size: 13px;
+    font-size: 14px;
 }
 
 /* ── Loading Skeleton ── */
@@ -1305,19 +1241,19 @@
 }
 
 .vd-mc-cheatsheet-item label {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--vd-text, #e8ecf1);
     cursor: pointer;
 }
 
 .vd-mc-cheatsheet-preview {
-    font-size: 9px;
+    font-size: 10.5px;
     color: var(--vd-text-muted, #6b7280);
     margin-top: 1px;
 }
 
 .vd-mc-cheatsheet-empty {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--vd-text-muted, #6b7280);
     padding: 4px;
 }
@@ -1357,14 +1293,42 @@
 }
 
 .vd-mc-mission-option-name {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
     color: var(--vd-text, #e8ecf1);
 }
 
 .vd-mc-mission-option-meta {
-    font-size: 10px;
+    font-size: 11px;
     color: var(--vd-text-muted, #9aa3ad);
+}
+
+/* ── Card Body Hover Affordance ── */
+.vd-mc-card-body[data-mc-action="edit"] {
+    cursor: pointer;
+    transition: background 0.15s;
+    border-radius: 0 0 8px 8px;
+}
+
+.vd-mc-card-body[data-mc-action="edit"]:hover {
+    background: rgba(255,255,255,0.02);
+}
+
+/* ── Card Stagger Animation ── */
+.vd-mc-card:nth-child(1) { animation-delay: 0ms; }
+.vd-mc-card:nth-child(2) { animation-delay: 30ms; }
+.vd-mc-card:nth-child(3) { animation-delay: 60ms; }
+.vd-mc-card:nth-child(4) { animation-delay: 90ms; }
+.vd-mc-card:nth-child(5) { animation-delay: 120ms; }
+.vd-mc-card:nth-child(6) { animation-delay: 150ms; }
+
+/* ── Focus Visible ── */
+.vd-mc-btn:focus-visible,
+.vd-mc-run-btn:focus-visible,
+.vd-mc-action-btn:focus-visible,
+.vd-mc-tab:focus-visible {
+    outline: 2px solid var(--vd-accent);
+    outline-offset: 2px;
 }
 
 /* ── Responsive ── */

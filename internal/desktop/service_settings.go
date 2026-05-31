@@ -28,7 +28,7 @@ func (s *Service) SetSetting(ctx context.Context, key, value, source string) err
 		return fmt.Errorf("save desktop setting: %w", err)
 	}
 	_ = s.Audit(ctx, "set_setting", key, map[string]interface{}{"value": value}, source)
-	s.invalidateBootstrapCache()
+	s.InvalidateSettings()
 	return nil
 }
 
@@ -71,7 +71,7 @@ func (s *Service) SetSettings(ctx context.Context, values map[string]string, sou
 		return fmt.Errorf("commit desktop settings: %w", err)
 	}
 	_ = s.Audit(ctx, "set_settings", "desktop_settings", values, source)
-	s.invalidateBootstrapCache()
+	s.InvalidateSettings()
 	return nil
 }
 

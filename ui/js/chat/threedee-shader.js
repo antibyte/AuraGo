@@ -37,6 +37,82 @@
     const shockwaves = [];
     let cameraShake = 0;
 
+    const spritePool = [];
+    const shockwavePool = [];
+
+    function acquireSprite(x, y, z, color, opacity, blending) {
+        let sprite;
+        const b = blending == null ? THREE.AdditiveBlending : blending;
+        if (spritePool.length > 0) {
+            sprite = spritePool.pop();
+            sprite.material.color.setHex(color);
+            sprite.material.opacity = opacity;
+            sprite.material.blending = b;
+            sprite.material.rotation = 0;
+            sprite.position.set(x, y, z);
+            sprite.scale.set(1, 1, 1);
+            sprite.visible = true;
+        } else {
+            const material = new THREE.SpriteMaterial({
+                map: smokeTexture,
+                color: color,
+                transparent: true,
+                opacity: opacity,
+                blending: b,
+                depthWrite: false
+            });
+            sprite = new THREE.Sprite(material);
+            sprite.position.set(x, y, z);
+            scene.add(sprite);
+        }
+        return sprite;
+    }
+
+    function releaseSprite(sprite) {
+        sprite.visible = false;
+        spritePool.push(sprite);
+    }
+
+    function acquireShockwave(worldPos, color, opacity, worldNormal) {
+        let mesh;
+        if (shockwavePool.length > 0) {
+            mesh = shockwavePool.pop();
+            mesh.material.color.setHex(color);
+            mesh.material.opacity = opacity;
+            mesh.position.copy(worldPos);
+            mesh.scale.set(1, 1, 1);
+            mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), worldNormal);
+            mesh.visible = true;
+        } else {
+            const material = window.shockwaveMat.clone();
+            material.color.setHex(color);
+            material.opacity = opacity;
+            mesh = new THREE.Mesh(window.shockwaveGeom, material);
+            mesh.position.copy(worldPos);
+            mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), worldNormal);
+            scene.add(mesh);
+        }
+        return mesh;
+    }
+
+    function releaseShockwave(mesh) {
+        mesh.visible = false;
+        shockwavePool.push(mesh);
+    }
+
+    function clearPools() {
+        while (spritePool.length) {
+            const s = spritePool.pop();
+            scene.remove(s);
+            s.material.dispose();
+        }
+        while (shockwavePool.length) {
+            const m = shockwavePool.pop();
+            scene.remove(m);
+            m.material.dispose();
+        }
+    }
+
     const GRID = {
         width: 24,
         depth: 14,
@@ -306,6 +382,7 @@
     }
 
     function clearThreeDeeRuntimeState() {
+        clearPools();
         impulses.length = 0;
         spheres.length = 0;
         sprites.length = 0;
@@ -485,24 +562,17 @@
 
     function createSmokeSprite(x, y, z, color, scale, life, options) {
         const opts = options || {};
-        const material = new THREE.SpriteMaterial({
-            map: smokeTexture,
-            color: color,
-            transparent: true,
-            opacity: opts.opacity == null ? 0.5 : opts.opacity,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        });
-        const sprite = new THREE.Sprite(material);
-        sprite.position.set(x, y, z);
-        sprite.scale.set(scale, scale, scale);
-        scene.add(sprite);
+        const opacity = opts.opacity == null ? 0.5 : opts.opacity;
+        const b = opts.blending || THREE.AdditiveBlending;
+        const sprite = acquireSprite(x, y, z, color, opacity, b);
+        sprite.scale.setScalar(scale);
+
         sprites.push({
             sprite,
             life,
             maxLife: life,
             initialScale: scale,
-            baseOpacity: material.opacity,
+            baseOpacity: opacity,
             vx: opts.vx || 0,
             vy: opts.vy || 0,
             vz: opts.vz || 0,
@@ -883,9 +953,12 @@
         const weight = Math.max(modeWeight(1, t), 0);
         if (weight <= 0.001 || !mouseActive) return 0;
 
-        const dist = Math.hypot(x - mouseGridX, z - mouseGridZ);
+        const dx = x - mouseGridX;
+        const dz = z - mouseGridZ;
+        const distSq = dx * dx + dz * dz;
+        const dist = Math.sqrt(distSq);
         const radius = mouseDown ? 3.4 : 2.5;
-        const push = Math.exp(-(dist * dist) / radius) * (mouseDown ? 1.15 : 0.7);
+        const push = Math.exp(-distSq / radius) * (mouseDown ? 1.15 : 0.7);
         const ring = Math.sin(dist * 5.2 - t * 8.4) * Math.exp(-dist * 0.72) * 0.26;
         return (push + ring) * weight;
     }
@@ -894,7 +967,8 @@
         if (pattern === 0) {
             target.setHSL(((x + z) * 0.035 + t * 0.12) % 1, 0.9, 0.58);
         } else if (pattern === 1) {
-            const rings = Math.sin(Math.hypot(x, z) * 1.9 - t * 5.1) * 0.5 + 0.5;
+            const distSq = x * x + z * z;
+            const rings = Math.sin(Math.sqrt(distSq) * 1.9 - t * 5.1) * 0.5 + 0.5;
             target.setHSL(0.56 + rings * 0.25, 0.95, 0.48 + rings * 0.18);
         } else if (pattern === 2) {
             const fire = clamp((height + 0.9) / 1.8 + Math.sin(x * 0.8 + t * 4.2) * 0.12, 0, 1);
@@ -944,7 +1018,8 @@
         const weight = Math.max(modeWeight(4, t), 0);
         if (weight <= 0.001) return;
 
-        const dist = Math.hypot(x, z);
+        const distSq = x * x + z * z;
+        const dist = Math.sqrt(distSq);
         const angle = Math.atan2(z, x);
         const swirlVal = Math.sin(dist * 1.5 - angle * 2.0 - t * 5.5) * 0.5 + 0.5;
 
@@ -960,13 +1035,14 @@
         const weight = Math.max(modeWeight(4, t), 0);
         if (weight <= 0.001) return 0;
 
-        const dist = Math.hypot(x, z);
+        const distSq = x * x + z * z;
+        const dist = Math.sqrt(distSq);
         const angle = Math.atan2(z, x);
 
         // swirling whirlpool waves
         const swirl = Math.sin(dist * 1.6 - angle * 2.0 - t * 5.5) * 0.36;
         // vortex funnel shape pulled down at the center and lifted around the walls
-        const funnel = -0.9 * Math.exp(-(dist * dist) / 1.4) + 0.45 * Math.exp(-((dist - 3.2) * (dist - 3.2)) / 2.5);
+        const funnel = -0.9 * Math.exp(-distSq / 1.4) + 0.45 * Math.exp(-((dist - 3.2) * (dist - 3.2)) / 2.5);
 
         return (swirl + funnel) * weight;
     }
@@ -1095,7 +1171,10 @@
         const aliveCount = pre.alive;
         if (aliveCount > 0) {
             for (let idx = 0; idx < aliveCount; idx++) {
-                const dist = Math.hypot(x - impulses[idx].x, z - impulses[idx].z);
+                const dx = x - impulses[idx].x;
+                const dz = z - impulses[idx].z;
+                const distSq = dx * dx + dz * dz;
+                const dist = Math.sqrt(distSq);
                 const radius = pre.radii[idx];
                 const ring = Math.sin((dist - radius) * 3.65);
                 const envelope = Math.exp(-Math.abs(dist - radius) * 0.78);
@@ -1109,7 +1188,10 @@
                 const fade = Math.pow(1 - age / IMPULSE_LIFETIME, 1.4);
                 if (fade < IMPULSE_FADE_CUTOFF) continue;
 
-                const dist = Math.hypot(x - impulse.x, z - impulse.z);
+                const dx = x - impulse.x;
+                const dz = z - impulse.z;
+                const distSq = dx * dx + dz * dz;
+                const dist = Math.sqrt(distSq);
                 const radius = age * 3.05;
                 const ring = Math.sin((dist - radius) * 3.65);
                 const envelope = Math.exp(-Math.abs(dist - radius) * 0.78);
@@ -1131,11 +1213,13 @@
                 if (!bot || !bot.state) continue;
                 const botOwner = bot.id || 'robot';
                 if (ignoreRobotOwner && botOwner === ignoreRobotOwner) continue;
-                const distToRobot = Math.hypot(x - (bot.state.px || bot.state.x), z - (bot.state.pz || bot.state.z));
+                const rx = x - (bot.state.px || bot.state.x);
+                const rz = z - (bot.state.pz || bot.state.z);
+                const distSq = rx * rx + rz * rz;
                 // Skip far-away robots (Gaussian is negligible beyond ~2.5 units)
-                if (distToRobot > 2.5) continue;
+                if (distSq > 6.25) continue; // 2.5 * 2.5 = 6.25
                 const flightWaveInfluence = robotWaveInfluenceForFlightHeight(bot.state.flightLift || 0);
-                const hoverDepression = -0.2 * Math.exp(-(distToRobot * distToRobot) / 0.72);
+                const hoverDepression = -0.2 * Math.exp(-distSq / 0.72);
                 height += hoverDepression * flightWaveInfluence;
             }
         }
@@ -1158,7 +1242,12 @@
             const age = t - ripple.start;
             if (age < 0 || age > ROBOT_THRUSTER_RIPPLE_LIFETIME) continue;
 
-            const dist = Math.hypot(x - ripple.x, z - ripple.z);
+            const dx = x - ripple.x;
+            const dz = z - ripple.z;
+            const distSq = dx * dx + dz * dz;
+            if (distSq > 3.24) continue; // Skip far ripples
+
+            const dist = Math.sqrt(distSq);
             const progress = age / ROBOT_THRUSTER_RIPPLE_LIFETIME;
             const radius = 0.18 + age * 1.25;
             const delta = dist - radius;
@@ -1706,7 +1795,7 @@
         if (!bot || !bot.opponent || !bot.opponent.state) return;
         const dx = bot.opponent.state.x - bot.state.x;
         const dz = bot.opponent.state.z - bot.state.z;
-        const dist = Math.hypot(dx, dz);
+        const dist = Math.sqrt(dx * dx + dz * dz);
         if (dist < 0.001) return;
 
         const nx = dx / dist;
@@ -2192,7 +2281,7 @@
             if (source.id === 'blue') {
                 const dx2D = targetPosition.x - start.x;
                 const dz2D = targetPosition.z - start.z;
-                const dist2D = Math.hypot(dx2D, dz2D);
+                const dist2D = Math.sqrt(dx2D * dx2D + dz2D * dz2D);
                 const dir2DX = dist2D > 0.001 ? dx2D / dist2D : 1;
                 const dir2DZ = dist2D > 0.001 ? dz2D / dist2D : 0;
 
@@ -2291,7 +2380,7 @@
             : toRobot.normalize();
         let sideX = -approach.z;
         let sideZ = approach.x;
-        if (Math.hypot(sideX, sideZ) < 0.001) {
+        if (Math.sqrt(sideX * sideX + sideZ * sideZ) < 0.001) {
             sideX = bot.id === 'red' ? -1 : 1;
             sideZ = 0;
         }
@@ -2442,7 +2531,7 @@
                 const currentOffsetX = nextX - basePositions[baseIndex];
                 const currentOffsetY = nextY - basePositions[baseIndex + 1];
                 const currentOffsetZ = nextZ - basePositions[baseIndex + 2];
-                const offsetLength = Math.hypot(currentOffsetX, currentOffsetY, currentOffsetZ);
+                const offsetLength = Math.sqrt(currentOffsetX * currentOffsetX + currentOffsetY * currentOffsetY + currentOffsetZ * currentOffsetZ);
                 const offsetScale = Math.min(1, ROBOT_DAMAGE_MAX_DENT_OFFSET / offsetLength);
                 position.setXYZ(
                     i,
@@ -2910,7 +2999,7 @@
 
         const dx = redRobot.state.x - blueRobot.state.x;
         const dz = redRobot.state.z - blueRobot.state.z;
-        const distance = Math.hypot(dx, dz);
+        const distance = Math.sqrt(dx * dx + dz * dz);
 
         const ROBOT_SUPER_DISTANCE = 8.85;
 
@@ -3400,7 +3489,10 @@
         },
         debugState: function () {
             const duelDistance = robotFleet.length >= 2
-                ? Math.hypot(robotFleet[0].state.x - robotFleet[1].state.x, robotFleet[0].state.z - robotFleet[1].state.z)
+                ? Math.sqrt(
+                    (robotFleet[0].state.x - robotFleet[1].state.x) * (robotFleet[0].state.x - robotFleet[1].state.x) +
+                    (robotFleet[0].state.z - robotFleet[1].state.z) * (robotFleet[0].state.z - robotFleet[1].state.z)
+                )
                 : null;
             return {
                 active,

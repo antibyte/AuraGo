@@ -255,6 +255,8 @@
         }
 
         function handleGridClick(e) {
+            const emptyBtn = e.target.closest('[data-mc="btn-new-empty"]');
+            if (emptyBtn) { openModal(); return; }
             const actionEl = e.target.closest('[data-mc-action]');
             if (!actionEl) return;
             const mid = actionEl.dataset.missionId;
@@ -373,7 +375,7 @@
             if (state.searchQuery) filtered = filtered.filter(m => (m.name || '').toLowerCase().includes(state.searchQuery) || (m.prompt || '').toLowerCase().includes(state.searchQuery));
 
             if (filtered.length === 0) {
-                el.innerHTML = `<div class="${P}-empty" style="grid-column:1/-1"><div class="${P}-empty-icon">🚀</div><div class="${P}-empty-text">${esc(state.currentFilter === 'all' ? t('missions.empty_create_first', 'Create your first mission') : t('missions.empty_no_missions_of_type', 'No missions of this type'))}</div></div>`;
+                el.innerHTML = `<div class="${P}-empty" style="grid-column:1/-1"><div class="${P}-empty-icon">🚀</div><div class="${P}-empty-text">${esc(state.currentFilter === 'all' ? t('missions.empty_create_first', 'Create your first mission') : t('missions.empty_no_missions_of_type', 'No missions of this type'))}</div><button type="button" class="${P}-btn ${P}-btn-primary" data-mc="btn-new-empty">+ ${esc(t('desktop.mc_new_mission', 'New Mission'))}</button></div>`;
                 return;
             }
 
@@ -415,7 +417,7 @@
                         <div class="${P}-card-header-left">${chip}${remoteBadge}${prepBadge}</div>
                         <button type="button" class="${P}-expand-btn" data-mc-action="toggle-expand" data-mission-id="${mid}" aria-expanded="${isExpanded}">${SVG.chevron}</button>
                     </div>
-                    <div class="${P}-card-body" data-mc-action="edit" data-mission-id="${mid}" style="cursor:pointer">
+                    <div class="${P}-card-body" data-mc-action="edit" data-mission-id="${mid}">
                         <div class="${P}-card-name"><span>${esc(mission.name)}</span>${lockedMark}</div>
                         ${triggerPill}
                         <p class="${P}-card-prompt">${esc(mission.prompt)}</p>
