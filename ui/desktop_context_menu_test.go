@@ -143,6 +143,31 @@ func TestDesktopIconGridSnapsDraggedIconsWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestDesktopIconGridSnapsIconsDuringDragMove(t *testing.T) {
+	t.Parallel()
+
+	mainText := readDesktopAssetText(t, "js/desktop/main.js")
+	moveBody := jsFunctionBodyInWindowMenuTest(t, mainText, "function moveDesktopDragItems(items, dx, dy)")
+	for _, want := range []string{
+		"if (desktopIconGridEnabled()) {",
+		"positionDesktopDragItemsOnGrid(items, item => ({ left: item.left + dx, top: item.top + dy }), false);",
+		"return;",
+	} {
+		if !strings.Contains(moveBody, want) {
+			t.Fatalf("desktop icon grid must snap icons during drag movement; missing %q", want)
+		}
+	}
+	for _, want := range []string{
+		"function positionDesktopDragItemsOnGrid(items, positionForItem, persist)",
+		"if (persist) saveIconPosition(item.id, pos.x, pos.y);",
+		"positionDesktopDragItemsOnGrid(items, item => desktopDragItemCurrentPosition(item), true);",
+	} {
+		if !strings.Contains(mainText, want) {
+			t.Fatalf("desktop icon grid must share live/final snap placement; missing %q", want)
+		}
+	}
+}
+
 func TestDesktopIconGridTranslations(t *testing.T) {
 	t.Parallel()
 

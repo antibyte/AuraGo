@@ -1567,6 +1567,10 @@
     }
 
     function moveDesktopDragItems(items, dx, dy) {
+        if (desktopIconGridEnabled()) {
+            positionDesktopDragItemsOnGrid(items, item => ({ left: item.left + dx, top: item.top + dy }), false);
+            return;
+        }
         (items || []).forEach(item => {
             item.icon.style.left = Math.round(item.left + dx) + 'px';
             item.icon.style.top = Math.round(item.top + dy) + 'px';
@@ -1582,16 +1586,28 @@
     }
 
     function snapDesktopDragItemsToGrid(items) {
+        positionDesktopDragItemsOnGrid(items, item => desktopDragItemCurrentPosition(item), true);
+    }
+
+    function desktopDragItemCurrentPosition(item) {
+        const left = parseInt(item.icon.style.left, 10);
+        const top = parseInt(item.icon.style.top, 10);
+        return {
+            left: Number.isFinite(left) ? left : item.left || 0,
+            top: Number.isFinite(top) ? top : item.top || 0
+        };
+    }
+
+    function positionDesktopDragItemsOnGrid(items, positionForItem, persist) {
         const dragItems = (items || []).filter(item => item && item.icon && item.id);
         const draggedIds = new Set(dragItems.map(item => item.id));
         const usedCells = desktopIconGridUsedCells(draggedIds);
         dragItems.forEach(item => {
-            const left = parseInt(item.icon.style.left, 10) || item.left || 0;
-            const top = parseInt(item.icon.style.top, 10) || item.top || 0;
-            const pos = desktopIconGridNearestFreePosition(left, top, usedCells);
+            const next = typeof positionForItem === 'function' ? positionForItem(item) : desktopDragItemCurrentPosition(item);
+            const pos = desktopIconGridNearestFreePosition(next.left, next.top, usedCells);
             item.icon.style.left = pos.x + 'px';
             item.icon.style.top = pos.y + 'px';
-            saveIconPosition(item.id, pos.x, pos.y);
+            if (persist) saveIconPosition(item.id, pos.x, pos.y);
         });
     }
 
