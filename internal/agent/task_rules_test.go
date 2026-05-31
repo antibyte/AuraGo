@@ -73,6 +73,21 @@ func TestBuildTaskRulePromptContextTreatsGermanPageRebuildAsHomepageWorkflow(t *
 	}
 }
 
+func TestBuildTaskRulePromptContextIncludesHomepageLocalAssetGuidance(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Rules.Enabled = true
+	cfg.Directories.PromptsDir = t.TempDir()
+
+	ctx := buildTaskRulePromptContext(cfg, "Build a homepage with local images", []string{"homepage"}, []string{"homepage"}, "")
+	for _, marker := range []string{"Local Asset References", "project-relative web URLs", "public/assets/hero.jpg", "/assets/hero.jpg", "file://"} {
+		if !strings.Contains(ctx.TaskRules, marker) {
+			t.Fatalf("homepage rule missing local asset guidance marker %q:\n%s", marker, ctx.TaskRules)
+		}
+	}
+}
+
 func TestBuildTaskRulePromptContextSelectsPDFRuleByKeyword(t *testing.T) {
 	t.Parallel()
 
@@ -141,6 +156,33 @@ func TestEnsureTaskRulesBeforeHomepageToolDoesNotDependOnIntentLanguage(t *testi
 	}
 	if !strings.Contains(state.flags.HomepageDesignSystem, "Atmospheric Glass") {
 		t.Fatalf("homepage tool did not inject design system:\n%s", state.flags.HomepageDesignSystem)
+	}
+}
+
+func TestEnsureTaskRulesBeforeHomepageToolAppliesToMissionRuns(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Rules.Enabled = true
+	cfg.Directories.PromptsDir = t.TempDir()
+
+	state := &agentLoopState{runCfg: RunConfig{
+		Config:        cfg,
+		IsMission:     true,
+		MessageSource: "mission",
+	}}
+	result, blocked := ensureTaskRulesBeforeToolExecution(state, ToolCall{Action: "homepage"}, "mission: build a landing page")
+	if !blocked {
+		t.Fatal("expected mission homepage tool call to be blocked until required rules are injected")
+	}
+	if !strings.Contains(result, `"status":"blocked"`) {
+		t.Fatalf("expected blocked result, got: %s", result)
+	}
+	if !strings.Contains(state.flags.TaskRules, "Homepage Workflow") {
+		t.Fatalf("mission homepage tool did not inject required rule:\n%s", state.flags.TaskRules)
+	}
+	if !strings.Contains(state.flags.HomepageDesignSystem, "Atmospheric Glass") {
+		t.Fatalf("mission homepage tool did not inject design system:\n%s", state.flags.HomepageDesignSystem)
 	}
 }
 

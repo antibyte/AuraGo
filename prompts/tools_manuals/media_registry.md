@@ -27,7 +27,9 @@ Media is automatically registered when generated via `generate_image` or `tts`. 
 {"action": "media_registry", "operation": "search", "query": "sunset", "limit": 10}
 {"action": "media_registry", "operation": "search", "query": "tts greeting", "media_type": "tts"}
 ```
-For `media_type: "image"`, results include both MediaRegistry entries and legacy ImageGallery entries. Use the returned `web_path` directly when placing images in pages. The `source_db` field tells whether the item came from `media_registry` or `image_gallery`.
+For `media_type: "image"`, results include both MediaRegistry entries and legacy ImageGallery entries. The `source_db` field tells whether the item came from `media_registry` or `image_gallery`.
+
+For homepage projects, do not paste `web_path` directly into deployable source unless the page is only meant to run inside AuraGo. Copy or regenerate the image into the homepage project's `public/assets/...` directory, then reference the deployable project asset with a URL such as `/assets/hero.jpeg`. This keeps local previews, Netlify, and Vercel deployments from depending on AuraGo-only media routes.
 
 ### get — Get a single media item by ID
 ```json

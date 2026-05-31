@@ -634,6 +634,7 @@
   "dashboard.audit_status_blocked": "ブロック済み",
   "dashboard.audit_status_sanitized": "サニタイズ済み",
   "dashboard.audit_type_tool_call": "ツール呼び出し",
+  "dashboard.audit_type_agent_action": "アクションライフサイクル",
   "dashboard.audit_type_mission_run": "ミッション実行",
   "dashboard.audit_type_heartbeat_run": "ハートビート実行",
   "dashboard.audit_type_remote_heartbeat": "リモートハートビート",

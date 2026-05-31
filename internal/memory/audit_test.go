@@ -124,3 +124,58 @@ func TestAuditEventsRequireBulkDeleteConfirmationAndScrubSecrets(t *testing.T) {
 		t.Fatalf("detail length = %d, want <= 2000 runes", len([]rune(page.Entries[0].Detail)))
 	}
 }
+
+func TestAuditNotifierIncludesEventContext(t *testing.T) {
+	stm := newAuditTestMemory(t)
+	updates := make([]AuditUpdate, 0, 2)
+	stm.SetAuditNotifier(func(update AuditUpdate) {
+		updates = append(updates, update)
+	})
+
+	id, err := stm.RecordAuditEvent(AuditEvent{
+		Source:        AuditSourceAgentTool,
+		EventType:     "agent_action",
+		Status:        AuditStatusRunning,
+		TargetID:      "execute_shell",
+		TargetName:    "execute_shell",
+		Summary:       "execute_shell started",
+		CorrelationID: "agent_action:act_1",
+	})
+	if err != nil {
+		t.Fatalf("RecordAuditEvent: %v", err)
+	}
+	if len(updates) != 1 {
+		t.Fatalf("updates = %d, want 1", len(updates))
+	}
+	if updates[0].Source != AuditSourceAgentTool || updates[0].EventType != "agent_action" || updates[0].Status != AuditStatusRunning {
+		t.Fatalf("record update context = %#v", updates[0])
+	}
+	if updates[0].CorrelationID != "agent_action:act_1" {
+		t.Fatalf("record update correlation = %q", updates[0].CorrelationID)
+	}
+	if updates[0].Event == nil || updates[0].Event.ID != id || updates[0].Event.TargetName != "execute_shell" {
+		t.Fatalf("record update event = %#v, id=%d", updates[0].Event, id)
+	}
+
+	if err := stm.UpsertAuditEventByCorrelation(AuditEvent{
+		Source:        AuditSourceAgentTool,
+		EventType:     "agent_action",
+		Status:        AuditStatusSuccess,
+		TargetID:      "execute_shell",
+		TargetName:    "execute_shell",
+		Summary:       "execute_shell succeeded",
+		CorrelationID: "agent_action:act_1",
+	}); err != nil {
+		t.Fatalf("UpsertAuditEventByCorrelation: %v", err)
+	}
+	if len(updates) != 2 {
+		t.Fatalf("updates = %d, want 2", len(updates))
+	}
+	got := updates[1]
+	if got.Action != "updated" || got.ID != id || got.Source != AuditSourceAgentTool || got.EventType != "agent_action" || got.Status != AuditStatusSuccess {
+		t.Fatalf("upsert update context = %#v", got)
+	}
+	if got.Event == nil || got.Event.ID != id || got.Event.Status != AuditStatusSuccess {
+		t.Fatalf("upsert update event = %#v", got.Event)
+	}
+}

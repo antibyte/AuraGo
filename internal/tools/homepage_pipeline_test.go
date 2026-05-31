@@ -176,6 +176,79 @@ func TestHomepageDeployNetlifyFallsBackToStaticSiblingAfterBuildFailure(t *testi
 	}
 }
 
+func TestHomepageDeployNetlifyBundlesLegacyRootGeneratedImageRefs(t *testing.T) {
+	dir := t.TempDir()
+	dataDir := filepath.Join(dir, "data")
+	projectRoot := filepath.Join(dir, "ki-news")
+	imageName := "img_20260530_223436_3106625df7fa.jpeg"
+	if err := os.MkdirAll(filepath.Join(dataDir, "generated_images"), 0o755); err != nil {
+		t.Fatalf("mkdir data images: %v", err)
+	}
+	if err := os.MkdirAll(projectRoot, 0o755); err != nil {
+		t.Fatalf("mkdir project: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "generated_images", imageName), []byte("jpeg-bytes"), 0o644); err != nil {
+		t.Fatalf("write generated image: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "index.html"), []byte(`<div id="app"></div><script src="/assets/main.js"></script>`), 0o644); err != nil {
+		t.Fatalf("write index: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(projectRoot, "assets"), 0o755); err != nil {
+		t.Fatalf("mkdir assets: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "assets", "main.js"), []byte(`const hero="/`+imageName+`";`), 0o644); err != nil {
+		t.Fatalf("write bundle: %v", err)
+	}
+
+	oldBaseURL := netlifyBaseURL
+	oldAttempts := netlifyDeployPollAttempts
+	defer func() {
+		netlifyBaseURL = oldBaseURL
+		netlifyDeployPollAttempts = oldAttempts
+	}()
+	netlifyDeployPollAttempts = 0
+
+	var sawRootImage bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/sites/site-123/deploys" {
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read deploy body: %v", err)
+		}
+		zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+		if err != nil {
+			t.Fatalf("read deploy zip: %v", err)
+		}
+		for _, f := range zr.File {
+			if f.Name == imageName {
+				sawRootImage = true
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"","state":"ready"}`))
+	}))
+	defer server.Close()
+	netlifyBaseURL = server.URL
+
+	result := HomepageDeployNetlify(
+		HomepageConfig{WorkspacePath: dir, DataDir: dataDir},
+		NetlifyConfig{Token: "token", DefaultSiteID: "site-123", AllowDeploy: true},
+		"ki-news", ".", "", "", false, slogDiscard(),
+	)
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+		t.Fatalf("decode result %q: %v", result, err)
+	}
+	if parsed["status"] == "error" {
+		t.Fatalf("deploy should bundle legacy root image reference, got %s", result)
+	}
+	if !sawRootImage {
+		t.Fatalf("Netlify ZIP did not contain root legacy generated image %q; result=%s", imageName, result)
+	}
+}
+
 func TestEnsureNextJsStaticExportWritesValidMJS(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "next.config.mjs")

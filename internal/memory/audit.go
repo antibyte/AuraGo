@@ -73,9 +73,14 @@ type AuditPage struct {
 
 // AuditUpdate is emitted to optional subscribers after audit mutations.
 type AuditUpdate struct {
-	Action  string `json:"action"`
-	ID      int64  `json:"id,omitempty"`
-	Deleted int64  `json:"deleted,omitempty"`
+	Action        string      `json:"action"`
+	ID            int64       `json:"id,omitempty"`
+	Deleted       int64       `json:"deleted,omitempty"`
+	Source        string      `json:"source,omitempty"`
+	EventType     string      `json:"event_type,omitempty"`
+	Status        string      `json:"status,omitempty"`
+	CorrelationID string      `json:"correlation_id,omitempty"`
+	Event         *AuditEvent `json:"event,omitempty"`
 }
 
 // SetAuditNotifier registers an optional callback for audit mutations.
@@ -146,7 +151,8 @@ func (s *SQLiteMemory) RecordAuditEvent(event AuditEvent) (int64, error) {
 		return 0, fmt.Errorf("record audit event: %w", err)
 	}
 	id, _ := res.LastInsertId()
-	s.notifyAudit(AuditUpdate{Action: "recorded", ID: id})
+	event.ID = id
+	s.notifyAudit(auditUpdateFromEvent("recorded", event))
 	return id, nil
 }
 
@@ -180,7 +186,11 @@ func (s *SQLiteMemory) UpsertAuditEventByCorrelation(event AuditEvent) error {
 		return fmt.Errorf("upsert audit event: %w", err)
 	}
 	if rows, _ := res.RowsAffected(); rows > 0 {
-		s.notifyAudit(AuditUpdate{Action: "updated"})
+		if updated, ok := s.auditEventByCorrelation(event.CorrelationID); ok {
+			s.notifyAudit(auditUpdateFromEvent("updated", updated))
+		} else {
+			s.notifyAudit(auditUpdateFromEvent("updated", event))
+		}
 		return nil
 	}
 	_, err = s.RecordAuditEvent(event)
@@ -227,13 +237,19 @@ func (s *SQLiteMemory) DeleteAuditEvent(id int64) error {
 	if id <= 0 {
 		return fmt.Errorf("audit event id is required")
 	}
+	event, hasEvent := s.auditEventByID(id)
 	res, err := s.db.Exec(`DELETE FROM audit_events WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("delete audit event: %w", err)
 	}
 	deleted, _ := res.RowsAffected()
 	if deleted > 0 {
-		s.notifyAudit(AuditUpdate{Action: "deleted", ID: id, Deleted: deleted})
+		update := AuditUpdate{Action: "deleted", ID: id, Deleted: deleted}
+		if hasEvent {
+			update = auditUpdateFromEvent("deleted", event)
+			update.Deleted = deleted
+		}
+		s.notifyAudit(update)
 	}
 	return nil
 }
@@ -251,9 +267,56 @@ func (s *SQLiteMemory) DeleteAuditEvents(filter AuditFilter, confirm string) (in
 	}
 	deleted, _ := res.RowsAffected()
 	if deleted > 0 {
-		s.notifyAudit(AuditUpdate{Action: "bulk_deleted", Deleted: deleted})
+		s.notifyAudit(AuditUpdate{
+			Action:    "bulk_deleted",
+			Deleted:   deleted,
+			Source:    filter.Source,
+			EventType: filter.Type,
+			Status:    filter.Status,
+		})
 	}
 	return deleted, nil
+}
+
+func auditUpdateFromEvent(action string, event AuditEvent) AuditUpdate {
+	return AuditUpdate{
+		Action:        action,
+		ID:            event.ID,
+		Source:        event.Source,
+		EventType:     event.EventType,
+		Status:        event.Status,
+		CorrelationID: event.CorrelationID,
+		Event:         &event,
+	}
+}
+
+func (s *SQLiteMemory) auditEventByID(id int64) (AuditEvent, bool) {
+	if s == nil || id <= 0 {
+		return AuditEvent{}, false
+	}
+	row := s.db.QueryRow(`
+		SELECT id, timestamp, source, event_type, actor, session_id, target_id, target_name,
+			status, summary, detail, duration_ms, correlation_id, metadata_json
+		FROM audit_events
+		WHERE id = ?
+		LIMIT 1`, id)
+	event, err := scanAuditEventRow(row)
+	return event, err == nil
+}
+
+func (s *SQLiteMemory) auditEventByCorrelation(correlationID string) (AuditEvent, bool) {
+	if s == nil || strings.TrimSpace(correlationID) == "" {
+		return AuditEvent{}, false
+	}
+	row := s.db.QueryRow(`
+		SELECT id, timestamp, source, event_type, actor, session_id, target_id, target_name,
+			status, summary, detail, duration_ms, correlation_id, metadata_json
+		FROM audit_events
+		WHERE correlation_id = ?
+		ORDER BY id DESC
+		LIMIT 1`, correlationID)
+	event, err := scanAuditEventRow(row)
+	return event, err == nil
 }
 
 func normalizeAuditEvent(event AuditEvent) AuditEvent {
@@ -362,6 +425,18 @@ func scanAuditEvents(rows *sql.Rows) ([]AuditEvent, error) {
 		return nil, fmt.Errorf("iterate audit events: %w", err)
 	}
 	return entries, nil
+}
+
+func scanAuditEventRow(row *sql.Row) (AuditEvent, error) {
+	var event AuditEvent
+	if err := row.Scan(
+		&event.ID, &event.Timestamp, &event.Source, &event.EventType, &event.Actor, &event.SessionID,
+		&event.TargetID, &event.TargetName, &event.Status, &event.Summary, &event.Detail,
+		&event.DurationMS, &event.CorrelationID, &event.MetadataJSON,
+	); err != nil {
+		return AuditEvent{}, err
+	}
+	return event, nil
 }
 
 func normalizeAuditMetadata(metadata string) string {

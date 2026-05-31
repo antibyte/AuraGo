@@ -634,6 +634,7 @@
   "dashboard.audit_status_blocked": "Blokovano",
   "dashboard.audit_status_sanitized": "Vycisteno",
   "dashboard.audit_type_tool_call": "Volani nastroje",
+  "dashboard.audit_type_agent_action": "Zivotni cyklus akce",
   "dashboard.audit_type_mission_run": "Beh mise",
   "dashboard.audit_type_heartbeat_run": "Beh heartbeatu",
   "dashboard.audit_type_remote_heartbeat": "Vzdaleny heartbeat",

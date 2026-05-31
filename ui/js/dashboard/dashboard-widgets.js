@@ -2533,11 +2533,22 @@
         let auditTotal = 0;
         const AUDIT_PAGE_SIZE = 25;
         let auditSearchTimer = null;
+        let auditRefreshTimer = null;
 
         async function loadTabAudit() {
             auditOffset = 0;
             await loadAuditPage(0);
         }
+
+        function scheduleAuditRefresh() {
+            if (TabState.active !== 'audit') return;
+            clearTimeout(auditRefreshTimer);
+            auditRefreshTimer = setTimeout(() => {
+                auditRefreshTimer = null;
+                loadTabAudit();
+            }, 200);
+        }
+        window.scheduleAuditRefresh = scheduleAuditRefresh;
 
         async function loadAuditPage(offset) {
             auditOffset = Math.max(0, offset || 0);
@@ -2629,7 +2640,10 @@
                 const timeLabel = event.timestamp ? new Date(event.timestamp).toLocaleString(document.documentElement.lang || LANG, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
                 const duration = formatAuditDuration(event.duration_ms || 0);
                 const status = event.status || 'warning';
-                const detail = [event.summary || '', event.detail || ''].filter(Boolean).join('\n\n');
+                const metadata = parseAuditMetadata(event.metadata_json);
+                const stateHistory = Array.isArray(metadata?.state_history) ? metadata.state_history.join(' -> ') : '';
+                const operation = metadata?.operation ? `${t('dashboard.audit_col_type')}: ${metadata.operation}` : '';
+                const detail = [event.summary || '', event.detail || '', stateHistory ? `State: ${stateHistory}` : '', operation].filter(Boolean).join('\n\n');
                 tr.innerHTML = `
                     <td class="audit-cell-time" data-label="${esc(t('dashboard.audit_col_time'))}">${esc(timeLabel)}</td>
                     <td class="audit-cell-source" data-label="${esc(t('dashboard.audit_col_source'))}"><span class="audit-source audit-source-${esc(event.source || 'system')}">${esc(auditSourceLabel(event.source))}</span></td>
@@ -2665,6 +2679,16 @@
 
         function auditTypeLabel(type) {
             return t('dashboard.audit_type_' + (type || '').replace(/-/g, '_')) || type || '—';
+        }
+
+        function parseAuditMetadata(raw) {
+            if (!raw) return {};
+            try {
+                const parsed = JSON.parse(raw);
+                return parsed && typeof parsed === 'object' ? parsed : {};
+            } catch (e) {
+                return {};
+            }
         }
 
         async function deleteAuditEvent(id) {

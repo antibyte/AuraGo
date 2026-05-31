@@ -483,14 +483,18 @@ Starts a Cloudflare quick tunnel to expose a local port to the internet via a te
 
 ### Using Generated Images in Netlify Deployments
 
-**IMPORTANT:** Images generated with `generate_image` are served by AuraGo at `/files/generated_images/<filename>`. When deploying to Netlify, these images are **automatically bundled** into the ZIP — you do NOT need to manually copy them.
+**IMPORTANT:** Images generated with `generate_image` or found through `media_registry` are AuraGo-local assets first. For homepage source code, prefer copying the image into the project's deployable static directory and referencing that project asset.
 
-Simply embed the image in your HTML using the exact URL path from `media_registry`:
+For Vite, React, and plain HTML projects, put local images under `public/assets/...` or the framework-equivalent static directory, then reference them with a project-relative web URL:
 ```html
-<img src="/files/generated_images/img_20260316_114059_254b5b21fe9f.jpeg" alt="Banner">
+<img src="/assets/banner.jpeg" alt="Banner">
 ```
 
-The `deploy_netlify` operation installs missing dependencies, builds, validates that the selected output contains `index.html`, scans HTML/CSS/JS for `/files/generated_images/` and other generated asset references, uploads a ZIP, waits for Netlify to report the deploy as ready, and verifies the public URL. After deploying, bundled generated assets are live at the same URL path on Netlify.
+If an existing page already references generated AuraGo assets such as `/files/generated_images/<filename>` or legacy `/img_<id>.jpeg` paths, `deploy_netlify` tries to bundle those files into the ZIP. Do not rely on that as the primary workflow for new edits: make the image a deployable project asset in `public/assets` and update the markup to `/assets/<filename>`.
+
+Never use `file://`, host filesystem paths, `/workspace/...`, `data/homepage/...`, or `agent_workspace/...` in page markup. Those paths are not fetchable from a deployed browser.
+
+The `deploy_netlify` operation installs missing dependencies, builds, validates that the selected output contains `index.html`, scans HTML/CSS/JS for generated asset references, uploads a ZIP, waits for Netlify to report the deploy as ready, and verifies the public URL.
 
 If a framework build fails but a finished static sibling directory exists, such as `my-site-static/index.html`, `deploy_netlify` may fall back to that static project and returns `fallback_project_dir` in the result. For an explicitly static export, you can also call `deploy_netlify` with `project_dir: "my-site-static"` and `build_dir: "."`.
 

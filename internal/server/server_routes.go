@@ -53,6 +53,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		<-shutdownCh
 		serverCancel()
 	}()
+	startAgentActionReconciler(serverCtx, s, NewSSEBrokerAdapter(sse))
 	go func() {
 		<-shutdownCh
 		s.DesktopMu.Lock()

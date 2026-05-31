@@ -634,6 +634,7 @@
   "dashboard.audit_status_blocked": "已阻止",
   "dashboard.audit_status_sanitized": "已清理",
   "dashboard.audit_type_tool_call": "工具调用",
+  "dashboard.audit_type_agent_action": "操作生命周期",
   "dashboard.audit_type_mission_run": "任务运行",
   "dashboard.audit_type_heartbeat_run": "心跳运行",
   "dashboard.audit_type_remote_heartbeat": "远程心跳",

@@ -388,13 +388,20 @@ func TestBuildSystemPromptIncludesActionLedgerReminderForToolModes(t *testing.T)
 				IsTextModeModel: true,
 			},
 		},
+		{
+			name: "text fallback",
+			flags: ContextFlags{
+				Tier:           "full",
+				SystemLanguage: "en",
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			prompt, _ := buildSystemPromptInner("", &tt.flags, "", slog.Default())
 			for _, want := range []string{
-				"Supervisor action ledger",
+				"Action ledger",
 				"Actual work is tracked from tool-call lifecycle events, not from prose",
 				"does not start or complete an action",
 				"Final completion claims must be backed by completed tool results from this turn",
@@ -560,6 +567,29 @@ func TestPrepareDynamicGuidesWithStrategySkipsToolsOutsideAllowedSet(t *testing.
 	)
 	if len(guides) != 0 {
 		t.Fatalf("expected disabled/not-allowed guide to be skipped, got %d guides: %q", len(guides), guides)
+	}
+}
+
+func TestHomepageAndMediaManualsRequireDeployableProjectAssetRefs(t *testing.T) {
+	for _, path := range []string{"tools_manuals/homepage.md", "tools_manuals/media_registry.md"} {
+		raw, err := promptsembed.FS.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read embedded %s: %v", path, err)
+		}
+		manual := string(raw)
+		for _, forbidden := range []string{
+			"Simply embed the image in your HTML using the exact URL path from `media_registry`",
+			"Use the returned `web_path` directly when placing images in pages.",
+		} {
+			if strings.Contains(manual, forbidden) {
+				t.Fatalf("%s still contains unsafe homepage asset guidance %q", path, forbidden)
+			}
+		}
+		for _, marker := range []string{"public/assets", "/assets/", "deployable project asset"} {
+			if !strings.Contains(manual, marker) {
+				t.Fatalf("%s missing deployable project asset guidance marker %q:\n%s", path, marker, manual)
+			}
+		}
 	}
 }
 
@@ -773,6 +803,28 @@ func TestBuildSystemPromptInjectsTaskRulesAndHomepageDesignBeforeAdditionalPromp
 	}
 	if strings.Index(prompt, "# HOMEPAGE DESIGN SYSTEM") > strings.Index(prompt, "# ADDITIONAL INSTRUCTIONS") {
 		t.Fatalf("homepage design should be injected before additional instructions:\n%s", prompt)
+	}
+}
+
+func TestBuildSystemPromptKeepsTaskRulesForMissionRuns(t *testing.T) {
+	flags := ContextFlags{
+		Tier:           "full",
+		SystemLanguage: "en",
+		IsMission:      true,
+		MessageSource:  "mission",
+		TaskRules:      "## Homepage Workflow\nUse project-relative web URLs for local assets.",
+	}
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+
+	for _, marker := range []string{
+		"# TASK RULES",
+		"## Homepage Workflow",
+		"Use project-relative web URLs for local assets.",
+		"> **Channel:** Mission (automated)",
+	} {
+		if !strings.Contains(prompt, marker) {
+			t.Fatalf("mission prompt missing task rule marker %q:\n%s", marker, prompt)
+		}
 	}
 }
 

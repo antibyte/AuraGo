@@ -244,6 +244,10 @@ type FeedbackBroker interface {
 	SendThinkingBlock(provider, content, state string)
 }
 
+type TypedFeedbackBroker interface {
+	SendTyped(eventType string, payload interface{}) bool
+}
+
 // NoopBroker is a silent fallback for transports that don't support real-time feedback
 type NoopBroker struct{}
 
