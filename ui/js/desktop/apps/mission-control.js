@@ -166,7 +166,10 @@
                 console.error('MC: load failed', err);
                 const host = container.querySelector(`.${P}`);
                 if (host) {
-                    host.innerHTML = `<div class="${P}-empty"><div class="${P}-empty-icon">⚠️</div><div class="${P}-empty-text">${esc(t('missions.empty_load_error', 'Error loading missions'))}</div></div>`;
+                    const detail = err && err.message ? ': ' + esc(err.message) : '';
+                    host.innerHTML = `<div class="${P}-empty"><div class="${P}-empty-icon">⚠️</div><div class="${P}-empty-text">${esc(t('missions.empty_load_error', 'Error loading missions'))}${detail}</div><button type="button" class="${P}-btn" data-mc="retry" style="margin-top:8px">${esc(t('desktop.retry', 'Retry'))}</button></div>`;
+                    const retry = host.querySelector('[data-mc="retry"]');
+                    if (retry) retry.addEventListener('click', () => { host.innerHTML = `<div class="${P}-loading">${esc(t('desktop.loading', 'Loading...'))}</div>`; loadData(); });
                 }
             }
         }
@@ -223,7 +226,7 @@
         }
 
         function bindLayoutEvents() {
-            const btnNew = $('[data-mc="btn-new"]');
+            const btnNew = $('btn-new');
             if (btnNew) btnNew.addEventListener('click', () => openModal());
 
             const search = $('search');
@@ -232,8 +235,8 @@
             const filterSel = $('filter-select');
             if (filterSel) filterSel.addEventListener('change', (e) => setFilter(e.target.value));
 
-            const viewGrid = $('[data-mc="view-grid"]');
-            const viewList = $('[data-mc="view-list"]');
+            const viewGrid = $('view-grid');
+            const viewList = $('view-list');
             if (viewGrid) viewGrid.addEventListener('click', () => setViewMode('grid'));
             if (viewList) viewList.addEventListener('click', () => setViewMode('list'));
 
