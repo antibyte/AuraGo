@@ -18,6 +18,8 @@ Manage remote machines running the AuraGo Remote agent or a paired agodesk deskt
 | `desktop_permission_request` | Ask agodesk for desktop input permission/status |
 | `desktop_input` | Send mouse/keyboard/text input to agodesk after local approval |
 
+AgoDesk desktop commands require the client to advertise matching `session.start.client_capabilities`: `remote.desktop.capture` for screenshots, `remote.desktop.permission_request` for permission checks, and `remote.desktop.input` for input. If a desktop command returns `UNSUPPORTED_CAPABILITY`, the WebSocket may still be alive for chat/heartbeat, but that client version or configuration is not remote-control capable.
+
 ## Parameters
 
 | Parameter | Type | Required | Description |

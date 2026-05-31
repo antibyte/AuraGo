@@ -51,11 +51,12 @@ type agodeskDesktopBroker struct {
 }
 
 type agodeskDesktopSession struct {
-	deviceID  string
-	conn      *websocket.Conn
-	state     *agodeskConnectionState
-	pendingMu sync.Mutex
-	pending   map[string]chan agodeskDesktopCommandResult
+	deviceID     string
+	conn         *websocket.Conn
+	state        *agodeskConnectionState
+	capabilities map[string]struct{}
+	pendingMu    sync.Mutex
+	pending      map[string]chan agodeskDesktopCommandResult
 }
 
 type agodeskDesktopCommandResult struct {
@@ -138,7 +139,7 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 		state.readOnly = accepted.ReadOnly
 		state.paired = accepted.Approved
 		state.mu.Unlock()
-		registerAgodeskDesktopSession(s, conn, state, accepted)
+		registerAgodeskDesktopSession(s, conn, state, accepted, payload.ClientCapabilities)
 		_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeSessionAccepted, accepted)
 	case agodesk.TypeChatMessage:
 		payload, errPayload := decodeAgodeskPayload[agodesk.ChatMessagePayload](env)
@@ -410,6 +411,7 @@ func buildAgodeskAgentContext() string {
 		"The user is chatting from agodesk, a paired desktop companion running on a remote PC.",
 		"When the user asks about that remote PC, prefer the remote_control tool for available device operations and respect read-only policy.",
 		"Desktop screenshots are available through remote_control desktop_screenshot when the agodesk client is connected.",
+		"If desktop screenshot or permission requests return UNSUPPORTED_CAPABILITY, explain that the client is connected for chat but does not advertise remote-control support.",
 		"Desktop input requires local approval in the agodesk remote-control banner; the backend cannot approve or bypass that local control session.",
 		"Desktop streaming is not available in this backend version.",
 	}, "\n")
@@ -434,7 +436,7 @@ func ensureAgodeskDesktopBroker(s *Server) *agodeskDesktopBroker {
 	return broker
 }
 
-func registerAgodeskDesktopSession(s *Server, conn *websocket.Conn, state *agodeskConnectionState, accepted agodesk.SessionAcceptedPayload) {
+func registerAgodeskDesktopSession(s *Server, conn *websocket.Conn, state *agodeskConnectionState, accepted agodesk.SessionAcceptedPayload, clientCapabilities []string) {
 	if !accepted.Approved || strings.TrimSpace(accepted.DeviceID) == "" {
 		return
 	}
@@ -442,7 +444,7 @@ func registerAgodeskDesktopSession(s *Server, conn *websocket.Conn, state *agode
 	if broker == nil {
 		return
 	}
-	broker.RegisterSession(accepted.DeviceID, conn, state)
+	broker.RegisterSession(accepted.DeviceID, conn, state, clientCapabilities)
 	if s != nil && s.RemoteHub != nil && s.RemoteHub.DB() != nil {
 		_ = remote.UpdateDeviceStatus(s.RemoteHub.DB(), accepted.DeviceID, "connected")
 	}
@@ -471,15 +473,16 @@ func agodeskStateDevice(state *agodeskConnectionState) (string, bool) {
 	return state.deviceID, state.paired
 }
 
-func (b *agodeskDesktopBroker) RegisterSession(deviceID string, conn *websocket.Conn, state *agodeskConnectionState) {
+func (b *agodeskDesktopBroker) RegisterSession(deviceID string, conn *websocket.Conn, state *agodeskConnectionState, clientCapabilities []string) {
 	if b == nil || strings.TrimSpace(deviceID) == "" || conn == nil || state == nil {
 		return
 	}
 	session := &agodeskDesktopSession{
-		deviceID: deviceID,
-		conn:     conn,
-		state:    state,
-		pending:  make(map[string]chan agodeskDesktopCommandResult),
+		deviceID:     deviceID,
+		conn:         conn,
+		state:        state,
+		capabilities: normalizeAgodeskCapabilities(clientCapabilities),
+		pending:      make(map[string]chan agodeskDesktopCommandResult),
 	}
 	var old *agodeskDesktopSession
 	b.mu.Lock()
@@ -524,6 +527,21 @@ func (b *agodeskDesktopBroker) SendCommand(deviceID string, cmd remote.CommandPa
 	session := b.session(deviceID)
 	if session == nil {
 		return remote.ResultPayload{}, fmt.Errorf("no active agodesk session for device %s", deviceID)
+	}
+	requiredCapability := agodeskDesktopCapabilityForOperation(cmd.Operation)
+	if requiredCapability == "" {
+		return remote.ResultPayload{
+			CommandID: cmd.CommandID,
+			Status:    "error",
+			Error:     fmt.Sprintf("%s: agodesk desktop transport does not support operation %q", agodesk.ErrorUnsupportedCapability, cmd.Operation),
+		}, nil
+	}
+	if !session.hasCapability(requiredCapability) {
+		return remote.ResultPayload{
+			CommandID: cmd.CommandID,
+			Status:    "error",
+			Error:     fmt.Sprintf("%s: agodesk client does not advertise %s for %s", agodesk.ErrorUnsupportedCapability, requiredCapability, cmd.Operation),
+		}, nil
 	}
 	resultCh := make(chan agodeskDesktopCommandResult, 1)
 	session.pendingMu.Lock()
@@ -579,6 +597,38 @@ func (b *agodeskDesktopBroker) session(deviceID string) *agodeskDesktopSession {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	return b.sessions[deviceID]
+}
+
+func (s *agodeskDesktopSession) hasCapability(capability string) bool {
+	if s == nil || strings.TrimSpace(capability) == "" {
+		return false
+	}
+	_, ok := s.capabilities[capability]
+	return ok
+}
+
+func agodeskDesktopCapabilityForOperation(operation string) string {
+	switch operation {
+	case remote.OpDesktopScreenshot:
+		return "remote.desktop.capture"
+	case remote.OpDesktopPermissionRequest:
+		return "remote.desktop.permission_request"
+	case remote.OpDesktopInput:
+		return "remote.desktop.input"
+	default:
+		return ""
+	}
+}
+
+func normalizeAgodeskCapabilities(capabilities []string) map[string]struct{} {
+	normalized := make(map[string]struct{}, len(capabilities))
+	for _, capability := range capabilities {
+		capability = strings.TrimSpace(capability)
+		if capability != "" {
+			normalized[capability] = struct{}{}
+		}
+	}
+	return normalized
 }
 
 func (s *agodeskDesktopSession) removePending(commandID string) {

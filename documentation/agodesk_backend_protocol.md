@@ -42,6 +42,18 @@ Every frame uses this envelope:
 - `persona.assets`: server response with the active persona name, asset key, avatar image URL, and icon URL.
 - `desktop.command` / `desktop.result`: server-to-client desktop command transport for screenshots, permission requests, and locally approved input.
 
+## Client Capabilities
+
+Clients must include `payload.client_capabilities` in `session.start`. AuraGo treats `session.accepted.capabilities` as the server-side feature list, and `session.start.client_capabilities` as the client's advertised feature list for that WebSocket session.
+
+Desktop commands are dispatched only when the matching client capability is present:
+
+- `remote.desktop.capture`: required for `desktop_screenshot`
+- `remote.desktop.permission_request`: required for `desktop_permission_request`
+- `remote.desktop.input`: required for `desktop_input`
+
+If a client omits these capabilities, pairing, heartbeat, persona assets, and chat can still work, but desktop commands return `UNSUPPORTED_CAPABILITY` immediately instead of waiting for a `desktop.result` timeout. A client that sends keepalives but does not advertise the desktop capabilities is connected, but not remote-control capable.
+
 ## Pairing
 
 Fresh pairing:

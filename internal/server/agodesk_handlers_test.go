@@ -518,9 +518,10 @@ func TestAgodeskDesktopCommandRoutesThroughPairedSocket(t *testing.T) {
 	defer cleanup()
 	_ = readAgodeskTestEnvelope(t, conn)
 	start, err := agodesk.NewEnvelope(agodesk.TypeSessionStart, agodesk.SessionStartPayload{
-		ClientVersion: "0.1.0",
-		PairingToken:  token,
-		Host:          agodesk.SessionStartHost{Hostname: "DESKTOP-PC", OS: "windows", Arch: "amd64"},
+		ClientVersion:      "0.1.0",
+		PairingToken:       token,
+		ClientCapabilities: []string{"remote.desktop.capture", "remote.desktop.permission_request", "remote.desktop.input"},
+		Host:               agodesk.SessionStartHost{Hostname: "DESKTOP-PC", OS: "windows", Arch: "amd64"},
 	})
 	if err != nil {
 		t.Fatalf("NewEnvelope session.start: %v", err)
@@ -608,6 +609,61 @@ func TestAgodeskDesktopCommandRoutesThroughPairedSocket(t *testing.T) {
 	pong := readAgodeskTestEnvelope(t, conn)
 	if pong.Type != agodesk.TypeSystemPong {
 		t.Fatalf("response after unknown desktop.result = %q, want pong", pong.Type)
+	}
+}
+
+func TestAgodeskDesktopCommandWithoutClientCapabilityFailsFast(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	token := "desktop-command-no-capability-token"
+	if _, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
+		TokenHash:  hashSHA256(token),
+		DeviceName: "chat-only-pc",
+		ExpiresAt:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+	}); err != nil {
+		t.Fatalf("CreateEnrollment: %v", err)
+	}
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws")
+	defer cleanup()
+	_ = readAgodeskTestEnvelope(t, conn)
+	start, err := agodesk.NewEnvelope(agodesk.TypeSessionStart, agodesk.SessionStartPayload{
+		ClientVersion:      "0.1.0",
+		PairingToken:       token,
+		ClientCapabilities: []string{"chat.full_response"},
+		Host:               agodesk.SessionStartHost{Hostname: "CHAT-PC", OS: "windows", Arch: "amd64"},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope session.start: %v", err)
+	}
+	if err := conn.WriteJSON(start); err != nil {
+		t.Fatalf("write session.start: %v", err)
+	}
+	acceptedEnvelope := readAgodeskTestEnvelope(t, conn)
+	var accepted agodesk.SessionAcceptedPayload
+	decodeAgodeskTestPayload(t, acceptedEnvelope, &accepted)
+	if accepted.DeviceID == "" {
+		t.Fatalf("accepted payload missing device id: %+v", accepted)
+	}
+
+	result, err := s.RemoteHub.SendCommand(accepted.DeviceID, remote.CommandPayload{
+		Operation: remote.OpDesktopScreenshot,
+		Args:      map[string]interface{}{"format": "png"},
+	}, 25*time.Millisecond)
+	if err != nil {
+		t.Fatalf("SendCommand returned transport error: %v", err)
+	}
+	if result.Status != "error" || !strings.Contains(result.Error, agodesk.ErrorUnsupportedCapability) {
+		t.Fatalf("desktop command result = %+v, want unsupported capability error", result)
+	}
+
+	permission, err := s.RemoteHub.SendCommand(accepted.DeviceID, remote.CommandPayload{
+		Operation: remote.OpDesktopPermissionRequest,
+	}, 25*time.Millisecond)
+	if err != nil {
+		t.Fatalf("SendCommand permission request returned transport error: %v", err)
+	}
+	if permission.Status != "error" || !strings.Contains(permission.Error, "remote.desktop.permission_request") {
+		t.Fatalf("permission command result = %+v, want permission capability error", permission)
 	}
 }
 
