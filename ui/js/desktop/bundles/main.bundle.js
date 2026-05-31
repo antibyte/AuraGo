@@ -2138,9 +2138,10 @@
         };
     }
 
+    function isWidgetInteractiveTarget(target) { return !!(target && target.closest && target.closest('button, input, textarea, select, option, a[href], [contenteditable="true"], [contenteditable=""]')); }
+
     function wireDraggableWidget(card, widget) {
-        const handle = card;
-        let drag = null;
+        const handle = card; let drag = null;
         function finishDrag(event) {
             if (!drag) return;
             if (event && event.pointerId != null && event.pointerId !== drag.pointerId) return;
@@ -2157,7 +2158,7 @@
             drag = null;
         }
         handle.addEventListener('pointerdown', event => {
-            if (event.button !== 0) return;
+            if (event.button !== 0 || isWidgetInteractiveTarget(event.target)) return;
             const touchDrag = isTouchLikePointer(event);
             drag = {
                 pointerId: event.pointerId,

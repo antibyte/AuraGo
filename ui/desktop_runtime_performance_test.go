@@ -85,6 +85,27 @@ func TestAnalogClockWidgetReusesSvg(t *testing.T) {
 	}
 }
 
+func TestDesktopWidgetDragIgnoresInteractiveControls(t *testing.T) {
+	t.Parallel()
+
+	source := readEmbeddedText(t, "js/desktop/core/window-shell-runtime.js")
+	for _, marker := range []string{
+		"function isWidgetInteractiveTarget(target)",
+		"target.closest('button, input, textarea, select, option, a[href], [contenteditable=\"true\"], [contenteditable=\"\"]')",
+		"if (event.button !== 0 || isWidgetInteractiveTarget(event.target)) return;",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop widget drag must not capture interactive control clicks; missing marker %q", marker)
+		}
+	}
+	body := sectionBetween(t, source, "handle.addEventListener('pointerdown', event => {", "handle.addEventListener('pointermove', event => {")
+	interactiveCheck := strings.Index(body, "isWidgetInteractiveTarget(event.target)")
+	pointerCapture := strings.Index(body, "handle.setPointerCapture(event.pointerId)")
+	if interactiveCheck < 0 || pointerCapture < 0 || interactiveCheck > pointerCapture {
+		t.Fatal("desktop widget drag must skip interactive targets before pointer capture")
+	}
+}
+
 func TestDesktopTaskbarAndDockUseReconciliation(t *testing.T) {
 	t.Parallel()
 
