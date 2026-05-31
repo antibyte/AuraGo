@@ -359,16 +359,17 @@ themes: {
             const cols = [
                 ['#1a0033', '#0d1a2e', '#0a2218'], ['#2a0a1a', '#1a1a3e', '#0d2a22'],
                 ['#3a1a0a', '#1a2a3a', '#0a3a2a'], ['#0a1a3a', '#2a0a2a', '#1a3a0a'],
-                ['#1a2a1a', '#3a0a1a', '#0a0a3a']
+                ['#1a2a1a', '#3a0a1a', '#0a0a3a'], ['#1a0a2a', '#0a2a1a', '#2a1a0a'],
+                ['#0a2a2a', '#1a0a3a', '#2a2a0a']
             ];
             nebulaColors = cols[(G.stage - 1) % cols.length];
             nebulaCv = ensureNebulaCanvas();
             const nc = nebulaCv.getContext('2d');
             nc.clearRect(0, 0, W, H);
-            for (let i = 0; i < 3; i++) {
-                const cx = W * (0.2 + i * 0.3), cy = H * (0.3 + i * 0.15), r = 120 + i * 40;
+            for (let i = 0; i < 4; i++) {
+                const cx = W * (0.15 + i * 0.22 + Math.random() * 0.1), cy = H * (0.2 + i * 0.18 + Math.random() * 0.1), r = 100 + i * 35 + Math.random() * 30;
                 const gr = nc.createRadialGradient(cx, cy, 0, cx, cy, r);
-                gr.addColorStop(0, nebulaColors[i]); gr.addColorStop(1, 'transparent');
+                gr.addColorStop(0, nebulaColors[i % 3]); gr.addColorStop(0.6, nebulaColors[i % 3] + '66'); gr.addColorStop(1, 'transparent');
                 nc.fillStyle = gr; nc.fillRect(0, 0, W, H);
             }
         }
@@ -833,7 +834,7 @@ themes: {
                     const dist = Math.hypot(dx, dy);
                     G.bul.push({ x: G.p.x, y: G.p.y - 8, w: 3, h: 6, vx: (dx / dist) * PB_SPEED * 0.7, vy: (dy / dist) * PB_SPEED * 0.7, homing: true, target: nearestE });
                     G.activePU.shots--;
-                    SFX.homingLock();
+                    SFX.homingLock(G.p.x);
                     if (G.activePU.shots <= 0) { G.activePU = null; G.puTimer = 0; setPUClass(null); }
                 }
                 return;
@@ -868,7 +869,7 @@ themes: {
                     G.bul.push({ x: G.p.x, y: G.p.y - 8, w: 2, h: 6, vx: Math.sin(0.2) * PB_SPEED * 0.2, vy: -PB_SPEED, pierce: isPierce });
                 }
             }
-            SFX.shoot(); G.muzzleT = 50;
+            SFX.shoot(G.p.x); G.muzzleT = 50;
         }
 
         function boom(x, y, isBoss) {
@@ -1338,18 +1339,21 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
         }
 
         function renderFlame(cv, fx, fy, intensity, tk) {
-            const f1 = Math.abs(Math.sin(tk * 0.35 + fx * 0.08)) * 3;
-            const f2 = Math.abs(Math.sin(tk * 0.55 + fx * 0.12)) * 2;
-            cv.fillStyle = 'rgba(255,252,210,' + intensity + ')';
+            const f1 = Math.abs(Math.sin(tk * 0.35 + fx * 0.08)) * 4;
+            const f2 = Math.abs(Math.sin(tk * 0.55 + fx * 0.12)) * 3;
+            const f3 = Math.abs(Math.sin(tk * 0.7 + fx * 0.2)) * 2;
+            cv.fillStyle = 'rgba(255,255,240,' + intensity + ')';
             cv.fillRect(Math.floor(fx), Math.floor(fy), 2, 3);
-            cv.fillStyle = 'rgba(255,210,40,' + (intensity * 0.9) + ')';
+            cv.fillStyle = 'rgba(255,230,60,' + (intensity * 0.95) + ')';
             cv.fillRect(Math.floor(fx - 1), Math.floor(fy + 2), 4, 2 + Math.ceil(f1 * 0.5));
-            cv.fillStyle = 'rgba(255,110,20,' + (intensity * 0.75) + ')';
+            cv.fillStyle = 'rgba(255,140,20,' + (intensity * 0.85) + ')';
             cv.fillRect(Math.floor(fx - 1), Math.floor(fy + 4), 4, 3 + Math.ceil(f1));
-            cv.fillStyle = 'rgba(220,50,10,' + (intensity * 0.45) + ')';
+            cv.fillStyle = 'rgba(255,60,10,' + (intensity * 0.6) + ')';
             cv.fillRect(Math.floor(fx), Math.floor(fy + 7), 3, 2 + Math.ceil(f2));
-            cv.fillStyle = 'rgba(180,30,10,' + (intensity * 0.18) + ')';
-            cv.fillRect(Math.floor(fx), Math.floor(fy + 9), 2, 1 + Math.ceil(f2 * 0.5));
+            cv.fillStyle = 'rgba(200,40,10,' + (intensity * 0.35) + ')';
+            cv.fillRect(Math.floor(fx), Math.floor(fy + 9), 2, 2 + Math.ceil(f3));
+            cv.fillStyle = 'rgba(160,20,10,' + (intensity * 0.15) + ')';
+            cv.fillRect(Math.floor(fx + 0.5), Math.floor(fy + 11), 1, 1 + Math.ceil(f3 * 0.5));
         }
 
         function renderFrame() {
@@ -1394,9 +1398,18 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
         }
 
         function renderTitle() {
-            for (const _tp of G.titleParts) { const _ta = Math.max(0, 1 - _tp.t / _tp.life); c.globalAlpha = _ta; c.fillStyle = _tp.col; c.shadowBlur = 4; c.shadowColor = _tp.col; c.fillRect(Math.floor(_tp.x), Math.floor(_tp.y), _tp.size, _tp.size); } c.globalAlpha = 1; c.shadowBlur = 0;
-            c.textAlign = 'center'; c.fillStyle = '#4488ff'; c.font = 'bold 36px "Courier New",monospace'; c.fillText('GALAXA', W / 2, 180);
-            c.fillStyle = '#ffcc00'; c.font = 'bold 20px "Courier New",monospace'; c.fillText('DELUXE', W / 2, 210);
+            for (const _tp of G.titleParts) { const _ta = Math.max(0, 1 - _tp.t / _tp.life); c.globalAlpha = _ta; c.fillStyle = _tp.col; c.shadowBlur = 6; c.shadowColor = _tp.col; c.fillRect(Math.floor(_tp.x), Math.floor(_tp.y), _tp.size, _tp.size); } c.globalAlpha = 1; c.shadowBlur = 0;
+            c.textAlign = 'center';
+            // Glowing title
+            const titlePulse = 1 + Math.sin(tick * 0.04) * 0.03;
+            c.save(); c.translate(W / 2, 180); c.scale(titlePulse, titlePulse);
+            c.shadowBlur = 15; c.shadowColor = '#4488ff';
+            c.fillStyle = '#4488ff'; c.font = 'bold 36px "Courier New",monospace'; c.fillText('GALAXA', 0, 0);
+            c.shadowBlur = 0; c.restore();
+            c.save(); c.translate(W / 2, 210); c.scale(titlePulse, titlePulse);
+            c.shadowBlur = 10; c.shadowColor = '#ffcc00';
+            c.fillStyle = '#ffcc00'; c.font = 'bold 20px "Courier New",monospace'; c.fillText('DELUXE', 0, 0);
+            c.shadowBlur = 0; c.restore();
             if (Math.sin(tick * 0.08) > 0) { c.fillStyle = '#fff'; c.font = '14px "Courier New",monospace'; c.fillText(t('galaxa.insert_coin', 'PRESS START'), W / 2, 320); }
             c.fillStyle = '#4488ff'; c.font = '12px "Courier New",monospace'; c.fillText(t('galaxa.high_score', 'HIGH SCORE'), W / 2, 260);
             c.fillStyle = '#ffcc00'; c.fillText(String(G.hi).padStart(8, '0'), W / 2, 280);
@@ -1408,9 +1421,10 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             c.textAlign = 'center';
             const sc = Math.max(1, 3 - (G.sTmr / 2000) * 2);
             c.save(); c.translate(W / 2, H / 2 - 20); c.scale(sc, sc);
+            c.shadowBlur = 12; c.shadowColor = '#ffcc00';
             c.fillStyle = '#ffcc00'; c.font = 'bold 24px "Courier New",monospace';
             c.fillText(G.chal ? t('galaxa.challenge_stage', 'CHALLENGE STAGE') : t('galaxa.stage', 'STAGE') + ' ' + G.stage, 0, 0);
-            c.restore();
+            c.shadowBlur = 0; c.restore();
             c.fillStyle = '#fff'; c.font = '14px "Courier New",monospace'; c.fillText('READY', W / 2, H / 2 + 20);
         }
 
@@ -1887,22 +1901,28 @@ if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === '
 
         function renderPause() {
             if (G.st !== 'PAUSED') return;
-            c.fillStyle = 'rgba(0,0,0,0.7)'; c.fillRect(0, 0, W, H);
-            c.textAlign = 'center'; c.fillStyle = '#ffcc00'; c.font = 'bold 24px "Courier New",monospace';
+            c.fillStyle = 'rgba(0,0,0,0.75)'; c.fillRect(0, 0, W, H);
+            c.textAlign = 'center'; c.fillStyle = '#ffcc00'; c.font = 'bold 26px "Courier New",monospace';
+            c.shadowBlur = 10; c.shadowColor = '#ffcc00';
             c.fillText(t('galaxa.paused', 'PAUSED'), W / 2, H / 2 - 60);
+            c.shadowBlur = 0;
             c.fillStyle = '#aaccee'; c.font = '12px "Courier New",monospace';
             c.fillText(t('galaxa.score', 'SCORE') + ': ' + G.score + '  ' + t('galaxa.stage', 'STAGE') + ': ' + G.stage, W / 2, H / 2 - 35);
             const items = [t('galaxa.resume', 'RESUME'), t('galaxa.restart', 'RESTART'), t('galaxa.quit', 'QUIT')];
             items.forEach((it, i) => {
                 c.fillStyle = i === G.pauseSel ? '#ffcc00' : '#888'; c.font = i === G.pauseSel ? 'bold 16px "Courier New",monospace' : '14px "Courier New",monospace';
+                if (i === G.pauseSel) { c.shadowBlur = 6; c.shadowColor = '#ffcc00'; }
                 c.fillText(it, W / 2, H / 2 + i * 30);
+                c.shadowBlur = 0;
             });
         }
 
         function renderSettings() {
-            c.fillStyle = 'rgba(0,0,0,0.85)'; c.fillRect(0, 0, W, H);
-            c.textAlign = 'center'; c.fillStyle = '#ffcc00'; c.font = 'bold 20px "Courier New",monospace';
+            c.fillStyle = 'rgba(0,0,0,0.88)'; c.fillRect(0, 0, W, H);
+            c.textAlign = 'center'; c.fillStyle = '#ffcc00'; c.font = 'bold 22px "Courier New",monospace';
+            c.shadowBlur = 10; c.shadowColor = '#ffcc00';
             c.fillText(t('galaxa.settings', 'SETTINGS'), W / 2, 120);
+            c.shadowBlur = 0;
             const items = [
                 { label: t('galaxa.sound', 'SOUND'), val: G.muted ? 'OFF' : 'ON' },
                 { label: t('galaxa.difficulty', 'DIFFICULTY'), val: t('galaxa.' + settings.diff, settings.diff.toUpperCase()) },
@@ -1912,11 +1932,14 @@ if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === '
             items.forEach((it, i) => {
                 const sel = i === G.settingsSel;
                 c.fillStyle = sel ? '#ffcc00' : '#888'; c.font = sel ? 'bold 14px "Courier New",monospace' : '12px "Courier New",monospace';
+                if (sel) { c.shadowBlur = 6; c.shadowColor = '#ffcc00'; }
                 c.fillText(it.label + (it.val ? ': ' + it.val : ''), W / 2, 180 + i * 40);
+                c.shadowBlur = 0;
                 if (i === 2) {
                     const bw = 200, bh = 8, bx = W / 2 - bw / 2, by = 200 + i * 40;
-                    c.fillStyle = '#333'; c.fillRect(bx, by, bw, bh);
+                    c.fillStyle = '#222'; c.fillRect(bx, by, bw, bh);
                     c.fillStyle = '#4488ff'; c.fillRect(bx, by, bw * settings.vol / 100, bh);
+                    if (sel) { c.strokeStyle = '#4488ff'; c.lineWidth = 1; c.strokeRect(bx - 1, by - 1, bw + 2, bh + 2); }
                 }
             });
             c.fillStyle = '#666'; c.font = '10px "Courier New",monospace';
