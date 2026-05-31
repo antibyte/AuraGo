@@ -286,6 +286,7 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 
 	announcementOnly := announcementContent != "" &&
 		!tc.IsTool &&
+		!parsedToolResp.IsFinished &&
 		shouldRecoverAnnouncementOnlyResponse(parsedToolResp, tc, useNativePath, s.lastResponseWasTool, s.lastUserMsg)
 	promiseOnly := announcementContent != "" &&
 		!tc.IsTool &&

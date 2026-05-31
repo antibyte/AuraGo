@@ -66,6 +66,53 @@ func TestActionPromiseWithoutToolTriggersLedgerAwareRecovery(t *testing.T) {
 	}
 }
 
+func TestMidTaskSubstantiveTextWithoutDoneSkipsAnnouncementRecovery(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.AnnouncementDetector.Enabled = true
+	cfg.Agent.AnnouncementDetector.MaxRetries = 2
+	logger := slog.New(slog.NewTextHandler(testDiscardWriter{}, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	s := &agentLoopState{
+		ctx:                 context.Background(),
+		broker:              NoopBroker{},
+		currentLogger:       logger,
+		useNativeFunctions:  true,
+		lastResponseWasTool: true,
+		lastUserMsg:         "ja, prüfe docker jetzt",
+		recoverySession:     NewRecoverySessionState(logger, NoopBroker{}, cfg),
+		runCfg: RunConfig{
+			Config:         cfg,
+			SessionID:      "sess-1",
+			MessageSource:  "web_chat",
+			ShortTermMem:   stm,
+			HistoryManager: memory.NewEphemeralHistoryManager(),
+		},
+	}
+	content := "- Docker inspection summary:\n" + strings.Repeat("The response explains the observed runtime state in prose and no extra operation is needed for this human-facing summary. ", 4)
+	if len(content) < 300 {
+		t.Fatalf("test content must cross substantive threshold, got len=%d", len(content))
+	}
+	parsed := ParsedToolResponse{
+		Content:          content,
+		SanitizedContent: content,
+	}
+
+	_, _, shouldContinue, _ := handleAgentLoopRecoveries(s, content, ToolCall{}, parsed, true, emotionBehaviorPolicy{})
+	if shouldContinue {
+		t.Fatal("substantive mid-task text should be accepted as implicit completion, not retried as announcement-only")
+	}
+	if s.announcementCount != 0 {
+		t.Fatalf("announcementCount = %d, want 0", s.announcementCount)
+	}
+	if len(s.req.Messages) != 0 {
+		t.Fatalf("expected no recovery feedback messages, got %#v", s.req.Messages)
+	}
+}
+
 func TestAnnouncementDetectorCatchesStructuredPlanWithoutToolCall(t *testing.T) {
 	tc := ToolCall{}
 	content := "1. Build production bundle\n2. Deploy to Netlify\n3. Verify homepage"
