@@ -103,6 +103,57 @@ func TestDesktopTrashCanSupportsDropAndEmptyMenu(t *testing.T) {
 	}
 }
 
+func TestDesktopIconGridContextMenuToggle(t *testing.T) {
+	t.Parallel()
+
+	mainText := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, want := range []string{
+		"const ICON_GRID_KEY = 'aurago.desktop.iconGrid.v1'",
+		"function desktopIconGridEnabled()",
+		"function setDesktopIconGridEnabled(enabled)",
+		"function toggleDesktopIconGrid()",
+		"desktop.context_icon_grid",
+		"icon: desktopIconGridEnabled() ? 'check-square' : 'square'",
+		"action: toggleDesktopIconGrid",
+		"setDesktopIconGridEnabled(enabled);",
+		"if (enabled) arrangeDesktopIconsToGrid();",
+	} {
+		if !strings.Contains(mainText, want) {
+			t.Fatalf("desktop icon grid menu integration missing marker %q", want)
+		}
+	}
+}
+
+func TestDesktopIconGridSnapsDraggedIconsWhenEnabled(t *testing.T) {
+	t.Parallel()
+
+	mainText := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, want := range []string{
+		"function desktopIconGridMetrics()",
+		"function desktopIconGridPosition(index)",
+		"function desktopIconGridNearestFreePosition(left, top, usedCells)",
+		"function snapDesktopDragItemsToGrid(items)",
+		"if (desktopIconGridEnabled()) {",
+		"snapDesktopDragItemsToGrid(items);",
+		"return;",
+	} {
+		if !strings.Contains(mainText, want) {
+			t.Fatalf("desktop icon grid drag snapping missing marker %q", want)
+		}
+	}
+}
+
+func TestDesktopIconGridTranslations(t *testing.T) {
+	t.Parallel()
+
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		text := rawDesktopAssetText(t, filepath.ToSlash(filepath.Join("lang", "desktop", lang+".json")))
+		if !strings.Contains(text, `"desktop.context_icon_grid"`) {
+			t.Fatalf("%s desktop translations missing %q", lang, "desktop.context_icon_grid")
+		}
+	}
+}
+
 func TestDesktopBuiltInAppsDeclareContextMenuPolicy(t *testing.T) {
 	t.Parallel()
 

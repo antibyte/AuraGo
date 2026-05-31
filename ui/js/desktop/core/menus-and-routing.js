@@ -94,6 +94,7 @@
             { label: t('desktop.app_manager'), icon: 'apps', fallback: 'A', action: () => showAppManager() },
             { separator: true },
             { label: t('desktop.context_refresh'), icon: 'refresh', fallback: 'R', action: () => loadBootstrap() },
+            { label: t('desktop.context_icon_grid'), icon: desktopIconGridEnabled() ? 'check-square' : 'square', fallback: 'G', action: toggleDesktopIconGrid },
             { label: t('desktop.context_sort_icons'), icon: 'sort', fallback: 'S', action: autoArrangeIcons }
         ];
         showContextMenu(event.clientX, event.clientY, items);
@@ -187,14 +188,13 @@
     }
 
     function autoArrangeIcons() {
-        const icons = [...document.querySelectorAll('.vd-icon')];
-        icons.forEach((icon, index) => {
-            const arranged = defaultIconPosition(index);
-            const pos = clampDesktopIconPosition(arranged.x, arranged.y);
-            icon.style.left = pos.x + 'px';
-            icon.style.top = pos.y + 'px';
-            saveIconPosition(icon.dataset.id, pos.x, pos.y);
-        });
+        arrangeDesktopIconsToGrid();
+    }
+
+    function toggleDesktopIconGrid() {
+        const enabled = !desktopIconGridEnabled();
+        setDesktopIconGridEnabled(enabled);
+        if (enabled) arrangeDesktopIconsToGrid();
     }
 
     function pathDir(path) {

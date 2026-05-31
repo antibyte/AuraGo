@@ -204,7 +204,25 @@
     }
 
     function saveDesktopDragItems(items) {
+        if (desktopIconGridEnabled()) {
+            snapDesktopDragItemsToGrid(items);
+            return;
+        }
         (items || []).forEach(item => saveIconPosition(item.id, parseInt(item.icon.style.left, 10) || 0, parseInt(item.icon.style.top, 10) || 0));
+    }
+
+    function snapDesktopDragItemsToGrid(items) {
+        const dragItems = (items || []).filter(item => item && item.icon && item.id);
+        const draggedIds = new Set(dragItems.map(item => item.id));
+        const usedCells = desktopIconGridUsedCells(draggedIds);
+        dragItems.forEach(item => {
+            const left = parseInt(item.icon.style.left, 10) || item.left || 0;
+            const top = parseInt(item.icon.style.top, 10) || item.top || 0;
+            const pos = desktopIconGridNearestFreePosition(left, top, usedCells);
+            item.icon.style.left = pos.x + 'px';
+            item.icon.style.top = pos.y + 'px';
+            saveIconPosition(item.id, pos.x, pos.y);
+        });
     }
 
     function resetDesktopDragItems(items) {

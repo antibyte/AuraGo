@@ -41,6 +41,7 @@
     const WEBAMP_TRACK_SCAN_LIMIT = 1000;
     const GALLERY_PAGE_SIZE = 80;
     const ICON_POSITIONS_KEY = 'aurago.desktop.iconPositions.v1';
+    const ICON_GRID_KEY = 'aurago.desktop.iconGrid.v1';
     const WINDOW_MIN_W = 360;
     const WINDOW_MIN_H = 280;
     const DRAG_THRESHOLD = 5;
@@ -663,6 +664,14 @@
         writeJSONStorage(ICON_POSITIONS_KEY, positions);
     }
 
+    function desktopIconGridEnabled() {
+        return readJSONStorage(ICON_GRID_KEY, false) === true;
+    }
+
+    function setDesktopIconGridEnabled(enabled) {
+        writeJSONStorage(ICON_GRID_KEY, !!enabled);
+    }
+
     function removeIconPosition(id) {
         const positions = iconPositions();
         delete positions[id];
@@ -678,6 +687,97 @@
         const col = Math.floor(index / rows);
         const row = index % rows;
         return { x: 18 + col * cellW, y: 18 + row * cellH };
+    }
+
+    function desktopIconGridMetrics() {
+        const workspace = $('vd-workspace');
+        const width = (workspace && workspace.clientWidth) || window.innerWidth || 920;
+        const height = (workspace && workspace.clientHeight) || window.innerHeight || 520;
+        const originX = 18;
+        const originY = 18;
+        const cellW = 92;
+        const cellH = 104;
+        const maxX = Math.max(originX, width - 92 - 8);
+        const maxY = Math.max(originY, height - 88 - 8);
+        return {
+            originX,
+            originY,
+            cellW,
+            cellH,
+            maxX,
+            maxY,
+            columns: Math.max(1, Math.floor((maxX - originX) / cellW) + 1),
+            rows: Math.max(1, Math.floor((maxY - originY) / cellH) + 1)
+        };
+    }
+
+    function desktopIconGridPosition(index) {
+        const metrics = desktopIconGridMetrics();
+        const col = Math.floor(index / metrics.rows);
+        const row = index % metrics.rows;
+        return clampDesktopIconPosition(metrics.originX + col * metrics.cellW, metrics.originY + row * metrics.cellH);
+    }
+
+    function desktopIconGridCellKey(col, row) {
+        return col + ':' + row;
+    }
+
+    function desktopIconGridCellFromPosition(left, top) {
+        const metrics = desktopIconGridMetrics();
+        return {
+            col: Math.max(0, Math.min(metrics.columns - 1, Math.round((left - metrics.originX) / metrics.cellW))),
+            row: Math.max(0, Math.min(metrics.rows - 1, Math.round((top - metrics.originY) / metrics.cellH)))
+        };
+    }
+
+    function desktopIconGridPositionForCell(cell) {
+        const metrics = desktopIconGridMetrics();
+        return clampDesktopIconPosition(metrics.originX + cell.col * metrics.cellW, metrics.originY + cell.row * metrics.cellH);
+    }
+
+    function desktopIconGridUsedCells(excludedIds) {
+        const excluded = excludedIds || new Set();
+        const used = new Set();
+        document.querySelectorAll('.vd-icon[data-id]').forEach(icon => {
+            const id = icon.dataset.id || '';
+            if (excluded.has(id)) return;
+            const left = parseInt(icon.style.left, 10) || 0;
+            const top = parseInt(icon.style.top, 10) || 0;
+            const cell = desktopIconGridCellFromPosition(left, top);
+            used.add(desktopIconGridCellKey(cell.col, cell.row));
+        });
+        return used;
+    }
+
+    function desktopIconGridNearestFreePosition(left, top, usedCells) {
+        const metrics = desktopIconGridMetrics();
+        const used = usedCells || new Set();
+        let best = null;
+        let bestDistance = Infinity;
+        for (let col = 0; col < metrics.columns; col++) {
+            for (let row = 0; row < metrics.rows; row++) {
+                const key = desktopIconGridCellKey(col, row);
+                if (used.has(key)) continue;
+                const pos = desktopIconGridPositionForCell({ col, row });
+                const distance = Math.hypot(pos.x - left, pos.y - top);
+                if (distance < bestDistance) {
+                    best = { key, pos };
+                    bestDistance = distance;
+                }
+            }
+        }
+        if (!best) return clampDesktopIconPosition(left, top);
+        used.add(best.key);
+        return best.pos;
+    }
+
+    function arrangeDesktopIconsToGrid() {
+        document.querySelectorAll('.vd-icon[data-id]').forEach((icon, index) => {
+            const pos = desktopIconGridPosition(index);
+            icon.style.left = pos.x + 'px';
+            icon.style.top = pos.y + 'px';
+            saveIconPosition(icon.dataset.id, pos.x, pos.y);
+        });
     }
 
     function clampToWorkspace(x, y, w, h) {
@@ -1474,7 +1574,25 @@
     }
 
     function saveDesktopDragItems(items) {
+        if (desktopIconGridEnabled()) {
+            snapDesktopDragItemsToGrid(items);
+            return;
+        }
         (items || []).forEach(item => saveIconPosition(item.id, parseInt(item.icon.style.left, 10) || 0, parseInt(item.icon.style.top, 10) || 0));
+    }
+
+    function snapDesktopDragItemsToGrid(items) {
+        const dragItems = (items || []).filter(item => item && item.icon && item.id);
+        const draggedIds = new Set(dragItems.map(item => item.id));
+        const usedCells = desktopIconGridUsedCells(draggedIds);
+        dragItems.forEach(item => {
+            const left = parseInt(item.icon.style.left, 10) || item.left || 0;
+            const top = parseInt(item.icon.style.top, 10) || item.top || 0;
+            const pos = desktopIconGridNearestFreePosition(left, top, usedCells);
+            item.icon.style.left = pos.x + 'px';
+            item.icon.style.top = pos.y + 'px';
+            saveIconPosition(item.id, pos.x, pos.y);
+        });
     }
 
     function resetDesktopDragItems(items) {
@@ -4493,6 +4611,7 @@ function wireWindow(win, id) {
             { label: t('desktop.app_manager'), icon: 'apps', fallback: 'A', action: () => showAppManager() },
             { separator: true },
             { label: t('desktop.context_refresh'), icon: 'refresh', fallback: 'R', action: () => loadBootstrap() },
+            { label: t('desktop.context_icon_grid'), icon: desktopIconGridEnabled() ? 'check-square' : 'square', fallback: 'G', action: toggleDesktopIconGrid },
             { label: t('desktop.context_sort_icons'), icon: 'sort', fallback: 'S', action: autoArrangeIcons }
         ];
         showContextMenu(event.clientX, event.clientY, items);
@@ -4586,14 +4705,13 @@ function wireWindow(win, id) {
     }
 
     function autoArrangeIcons() {
-        const icons = [...document.querySelectorAll('.vd-icon')];
-        icons.forEach((icon, index) => {
-            const arranged = defaultIconPosition(index);
-            const pos = clampDesktopIconPosition(arranged.x, arranged.y);
-            icon.style.left = pos.x + 'px';
-            icon.style.top = pos.y + 'px';
-            saveIconPosition(icon.dataset.id, pos.x, pos.y);
-        });
+        arrangeDesktopIconsToGrid();
+    }
+
+    function toggleDesktopIconGrid() {
+        const enabled = !desktopIconGridEnabled();
+        setDesktopIconGridEnabled(enabled);
+        if (enabled) arrangeDesktopIconsToGrid();
     }
 
     function pathDir(path) {
