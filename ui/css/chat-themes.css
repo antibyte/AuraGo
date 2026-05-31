@@ -1059,12 +1059,23 @@
 [data-theme="cyberwar"] .vd-window-button {
     color: var(--accent);
     transition: all 0.15s ease;
+    border-radius: 0;
+    clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
+    border: 1px solid rgba(0, 240, 255, 0.2);
 }
 
 [data-theme="cyberwar"] .vd-window-button:hover {
     background: rgba(0, 240, 255, 0.15);
     color: #fff;
-    box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+    border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.35);
+}
+
+[data-theme="cyberwar"] .vd-window-button[data-action="close"]:hover {
+    background: rgba(255, 0, 92, 0.2);
+    border-color: var(--accent-tertiary);
+    color: #fff;
+    box-shadow: 0 0 10px rgba(255, 0, 92, 0.35);
 }
 
 [data-theme="cyberwar"] .vd-window.active .vd-window-titlebar {
@@ -1093,6 +1104,21 @@
 [data-theme="cyberwar"] .vd-taskbar-item.active {
     background: rgba(0, 240, 255, 0.12);
     box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.3);
+}
+
+/* Resize handles & Snap in Cyberwar */
+[data-theme="cyberwar"] .vd-window-resize-handle {
+    background: transparent;
+}
+
+[data-theme="cyberwar"] .vd-window-resize-handle:hover {
+    background: rgba(0, 240, 255, 0.15);
+}
+
+[data-theme="cyberwar"] .vd-snap-overlay {
+    border-color: var(--accent);
+    background: rgba(0, 240, 255, 0.06);
+    box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.2);
 }
 
 /* Make Papirus-style icons pop in cyberwar desktop */

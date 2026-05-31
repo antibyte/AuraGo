@@ -46,12 +46,13 @@
 
 .vd-snap-overlay {
     position: absolute;
-    border: 2px solid rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.55);
-    border-radius: 10px;
-    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.08);
+    border: 2px solid color-mix(in srgb, var(--vd-accent) 55%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--vd-accent) 8%, transparent);
     pointer-events: none;
     z-index: calc(var(--vd-z-window) - 1);
-    transition: left 80ms ease, top 80ms ease, width 80ms ease, height 80ms ease;
+    transition: all 90ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--vd-accent) 25%, transparent);
 }
 
 .vd-snap-overlay[hidden] {
@@ -186,6 +187,12 @@
     cursor: grab;
     user-select: none;
     touch-action: none;
+    transition: background 0.1s ease;
+}
+
+.vd-window.dragging .vd-window-titlebar {
+    cursor: grabbing;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.04) 60%, transparent);
 }
 
 .vd-window.has-window-menu .vd-window-titlebar {
@@ -513,6 +520,31 @@
     position: absolute;
     z-index: 3;
     background: transparent;
+    transition: background-color 0.12s ease;
+}
+
+.vd-resize-handle:hover {
+    background: color-mix(in srgb, var(--vd-accent) 22%, transparent);
+}
+
+.vd-resize-handle[data-edge="right"],
+.vd-resize-handle[data-edge="left"] {
+    width: 6px;
+}
+
+.vd-resize-handle[data-edge="top"],
+.vd-resize-handle[data-edge="bottom"] {
+    height: 6px;
+}
+
+.vd-resize-handle[data-corner] {
+    width: 14px;
+    height: 14px;
+    background: transparent;
+}
+
+.vd-resize-handle[data-corner]:hover {
+    background: color-mix(in srgb, var(--vd-accent) 30%, transparent);
 }
 
 .vd-resize-handle::after {
