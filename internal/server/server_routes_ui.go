@@ -29,13 +29,16 @@ var desktopPrinterCameraProxyPattern = regexp.MustCompile(`/api/3d-printers/[^"'
 var desktopAppResourceAttrPattern = regexp.MustCompile(`\b(src|href)=(["'])([^"']+)(["'])`)
 
 // uiBuildVersion is set once at server start and used as a cache-busting
-// query parameter for all embedded static assets.  Formatted as a compact
-// timestamp (e.g. "20260509a").
+// query parameter for all embedded static assets. Formatted as a compact
+// timestamp (e.g. "20260509T143012a").
 var uiBuildVersion string
 
 func init() {
-	now := time.Now()
-	uiBuildVersion = now.Format("20060102") + "a"
+	uiBuildVersion = formatUIBuildVersion(time.Now())
+}
+
+func formatUIBuildVersion(now time.Time) string {
+	return now.Format("20060102T150405") + "a"
 }
 
 // uiTemplateData returns the common template data map shared by all HTML pages.
