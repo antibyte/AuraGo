@@ -140,6 +140,52 @@ func TestZipperWindowDropCreatesArchiveFromDroppedFiles(t *testing.T) {
 	}
 }
 
+func TestZipperWindowDropAcceptsHostFilesAndPlainTextPaths(t *testing.T) {
+	t.Parallel()
+
+	drops := rawDesktopAssetText(t, "js/desktop/core/desktop-window-file-drops.js")
+	zipper := readDesktopAssetText(t, "js/desktop/apps/zipper.js")
+	for _, marker := range []string{
+		"function desktopWindowHasHostFileDrag(event)",
+		"function desktopWindowHasPlainTextDrag(event)",
+		"if (appId === 'zipper' && (hostFiles || plainText))",
+		"return window.ZipperApp.dropHostFiles(windowId, target.files);",
+		"return window.ZipperApp.dropDesktopFiles(windowId, [target.textPath]);",
+		"desktopWindowCanHandleDropEvent(event, event.currentTarget.dataset.windowId)",
+	} {
+		if !strings.Contains(drops, marker) {
+			t.Fatalf("desktop window drop runtime must accept zipper host/plain-text drops; missing %q", marker)
+		}
+	}
+	for _, marker := range []string{
+		"async function createArchiveFromHostFiles(files)",
+		"state.dropHostFiles = createArchiveFromHostFiles;",
+		"window.ZipperApp.dropHostFiles = dropHostFiles;",
+		"const hasPlainPath = types.includes('text/plain');",
+		"hasFileDrag || hasPlainFile || hasPlainPath",
+	} {
+		if !strings.Contains(zipper, marker) {
+			t.Fatalf("zipper app must accept host files and plain-text path drags; missing %q", marker)
+		}
+	}
+}
+
+func TestHostAndPlainTextWindowDropFallbackIsZipperScoped(t *testing.T) {
+	t.Parallel()
+
+	source := rawDesktopAssetText(t, "js/desktop/core/desktop-window-file-drops.js")
+	for _, marker := range []string{
+		"function desktopWindowCanHandleDropEvent(event, windowId)",
+		"if (desktopWindowHasDragPayload(event)) return true;",
+		"return !!(win && win.appId === 'zipper' && (desktopWindowHasHostFileDrag(event) || desktopWindowHasPlainTextDrag(event)));",
+		"desktopWindowCanHandleDropEvent(event, event.currentTarget.dataset.windowId)",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("host/plain-text window drop fallback must be scoped to zipper; missing %q", marker)
+		}
+	}
+}
+
 func TestDesktopWindowDropRunsBeforeAppDropSurfaces(t *testing.T) {
 	t.Parallel()
 

@@ -23,10 +23,36 @@
         return types.includes('application/x-aurago-desktop-files');
     }
 
+    function desktopWindowDragTypes(event) {
+        return Array.from((event && event.dataTransfer && event.dataTransfer.types) || []);
+    }
+
+    function desktopWindowHasHostFileDrag(event) {
+        return desktopWindowDragTypes(event).includes('Files');
+    }
+
+    function desktopWindowHasPlainTextDrag(event) {
+        return desktopWindowDragTypes(event).includes('text/plain');
+    }
+
+    function desktopWindowCanHandleDropEvent(event, windowId) {
+        if (desktopWindowHasDragPayload(event)) return true;
+        const win = state.windows.get(windowId);
+        return !!(win && win.appId === 'zipper' && (desktopWindowHasHostFileDrag(event) || desktopWindowHasPlainTextDrag(event)));
+    }
+
     function desktopWindowReadDragPayload(event) {
         const ops = desktopWindowFileOps();
         if (ops && typeof ops.readDragPayload === 'function') return ops.readDragPayload(event);
         return null;
+    }
+
+    function desktopWindowReadPlainTextPath(event) {
+        try {
+            return normalizeDesktopPath(event && event.dataTransfer ? event.dataTransfer.getData('text/plain') : '');
+        } catch (_) {
+            return '';
+        }
     }
 
     function desktopWindowDropPathInfo(path) {
@@ -62,11 +88,29 @@
         };
     }
 
-    function desktopWindowDropTarget(windowId, payload) {
+    function desktopWindowDropTarget(windowId, payload, event) {
         const win = state.windows.get(windowId);
         const appId = win && win.appId;
         if (!appId) return null;
         const paths = payload && Array.isArray(payload.paths) ? payload.paths.map(normalizeDesktopPath).filter(Boolean) : [];
+        const accepted = desktopWindowAcceptedDropTarget(windowId, payload);
+        if (accepted) return accepted;
+        const hostFiles = desktopWindowHasHostFileDrag(event);
+        const plainText = desktopWindowHasPlainTextDrag(event);
+        if (appId === 'zipper' && (hostFiles || plainText)) {
+            const textPath = desktopWindowReadPlainTextPath(event);
+            return {
+                accepted: true,
+                appId,
+                effect: 'copy',
+                hostFiles,
+                plainText,
+                textPath,
+                files: Array.from((event && event.dataTransfer && event.dataTransfer.files) || []),
+                path: textPath || '',
+                paths: textPath ? [textPath] : paths
+            };
+        }
         if (!DESKTOP_WINDOW_DROP_CAPABILITIES[appId]) return {
             accepted: false,
             appId,
@@ -74,7 +118,7 @@
             path: '',
             paths
         };
-        return desktopWindowAcceptedDropTarget(windowId, payload) || {
+        return {
             accepted: false,
             appId,
             effect: 'none',
@@ -98,6 +142,12 @@
             return window.FileManager.dropDesktopFiles(windowId, target.paths);
         }
         if (appId === 'zipper' && window.ZipperApp && typeof window.ZipperApp.dropDesktopFiles === 'function') {
+            if (target.hostFiles && typeof window.ZipperApp.dropHostFiles === 'function') {
+                return window.ZipperApp.dropHostFiles(windowId, target.files);
+            }
+            if (target.textPath) {
+                return window.ZipperApp.dropDesktopFiles(windowId, [target.textPath]);
+            }
             return window.ZipperApp.dropDesktopFiles(windowId, target.paths);
         }
         const path = normalizeDesktopPath(target.path || target.paths[0] || '');
@@ -119,13 +169,13 @@
     }
 
     function handleDesktopFileWindowDragOver(event) {
-        if (!desktopWindowHasDragPayload(event)) return;
+        if (!desktopWindowCanHandleDropEvent(event, event.currentTarget.dataset.windowId)) return;
         if (event.defaultPrevented) {
             event.stopPropagation();
             return;
         }
         const payload = desktopWindowReadDragPayload(event);
-        const target = desktopWindowDropTarget(event.currentTarget.dataset.windowId, payload);
+        const target = desktopWindowDropTarget(event.currentTarget.dataset.windowId, payload, event);
         if (!target) return;
         event.preventDefault();
         event.stopPropagation();
@@ -143,14 +193,14 @@
     }
 
     async function handleDesktopFileWindowDrop(event) {
-        if (!desktopWindowHasDragPayload(event)) return;
+        if (!desktopWindowCanHandleDropEvent(event, event.currentTarget.dataset.windowId)) return;
         if (event.defaultPrevented) {
             event.stopPropagation();
             clearDesktopFileWindowDropState(event.currentTarget.dataset.windowId);
             return;
         }
         const payload = desktopWindowReadDragPayload(event);
-        const target = desktopWindowDropTarget(event.currentTarget.dataset.windowId, payload);
+        const target = desktopWindowDropTarget(event.currentTarget.dataset.windowId, payload, event);
         if (!target) return;
         event.preventDefault();
         event.stopPropagation();

@@ -296,6 +296,19 @@
             return uploadedPaths;
         }
 
+        async function createArchiveFromHostFiles(files) {
+            const externalFiles = Array.from(files || []).filter(Boolean);
+            if (!externalFiles.length) return false;
+            try {
+                const paths = await uploadExternalFilesForArchive(externalFiles);
+                return await createArchiveFromPaths(paths);
+            } catch (err) {
+                setStatus(t('zipper.error_create', 'Failed to create archive'));
+                notify({ type: 'error', message: err.message || String(err) });
+                return false;
+            }
+        }
+
         async function createArchiveFromPaths(paths) {
             const cleanPaths = [...new Set((paths || []).map(normalizePath).filter(Boolean))];
             if (!cleanPaths.length) return false;
@@ -429,6 +442,7 @@
         }
 
         state.dropDesktopFiles = createArchiveFromPaths;
+        state.dropHostFiles = createArchiveFromHostFiles;
         load();
 
         const appEl = host.querySelector('.zipper-app');
@@ -440,7 +454,8 @@
                     ? fileOps.hasDragPayload(event)
                     : types.includes('application/x-aurago-desktop-files');
                 const hasPlainFile = types.includes('Files');
-                if (hasFileDrag || hasPlainFile) {
+                const hasPlainPath = types.includes('text/plain');
+                if (hasFileDrag || hasPlainFile || hasPlainPath) {
                     event.preventDefault();
                     event.dataTransfer.dropEffect = 'copy';
                     appEl.classList.add('zipper-drop-target');
@@ -460,13 +475,8 @@
                 if (payload && Array.isArray(payload.paths)) paths = payload.paths;
                 const externalFiles = Array.from((event.dataTransfer && event.dataTransfer.files) || []);
                 if (!paths.length && externalFiles.length) {
-                    try {
-                        paths = await uploadExternalFilesForArchive(externalFiles);
-                    } catch (err) {
-                        setStatus(t('zipper.error_create', 'Failed to create archive'));
-                        notify({ type: 'error', message: err.message || String(err) });
-                        return;
-                    }
+                    await createArchiveFromHostFiles(externalFiles);
+                    return;
                 }
                 if (!paths.length) {
                     const text = event.dataTransfer.getData('text/plain');
@@ -495,6 +505,12 @@
         return !!(await state.dropDesktopFiles(paths));
     }
 
+    async function dropHostFiles(windowId, files) {
+        const state = instances.get(windowId);
+        if (!state || typeof state.dropHostFiles !== 'function') return false;
+        return !!(await state.dropHostFiles(files));
+    }
+
     async function fetchJSON(url, options) {
         const resp = await fetch(url, options);
         const body = await resp.json().catch(() => ({}));
@@ -506,4 +522,5 @@
     window.ZipperApp.render = render;
     window.ZipperApp.dispose = dispose;
     window.ZipperApp.dropDesktopFiles = dropDesktopFiles;
+    window.ZipperApp.dropHostFiles = dropHostFiles;
 })();
