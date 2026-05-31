@@ -44,6 +44,7 @@ type systemPromptCacheKey struct {
 	KnowledgeContext         string   `json:"knowledge_context"`
 	ErrorPatternContext      string   `json:"error_pattern_context"`
 	ReuseContext             string   `json:"reuse_context"`
+	ChatChannelsContext      string   `json:"chat_channels_context"`
 	TaskRulesHash            string   `json:"task_rules_hash"`
 	TaskRuleIDs              []string `json:"task_rule_ids"`
 	HomepageDesignSystemHash string   `json:"homepage_design_system_hash"`
@@ -106,6 +107,7 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		KnowledgeContext:         flags.KnowledgeContext,
 		ErrorPatternContext:      flags.ErrorPatternContext,
 		ReuseContext:             flags.ReuseContext,
+		ChatChannelsContext:      flags.ChatChannelsContext,
 		TaskRulesHash:            taskRulesHash,
 		TaskRuleIDs:              sortedStringCopy(flags.TaskRuleIDs),
 		HomepageDesignSystemHash: homepageDesignHash,
@@ -156,6 +158,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	}
 	if flags.DiscordEnabled {
 		tools = append(tools, "discord")
+	}
+	if flags.TelegramEnabled {
+		tools = append(tools, "telegram")
 	}
 	if flags.EmailEnabled {
 		tools = append(tools, "email")

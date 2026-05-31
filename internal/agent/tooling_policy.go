@@ -445,6 +445,7 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 	// All other flags (config-based, cfg.Runtime-based) are already set by buildToolFlagsFromConfig.
 	toolFlags.InvasionControlEnabled = cfg.InvasionControl.Enabled && runCfg.InvasionDB != nil
 	toolFlags.RemoteControlEnabled = cfg.RemoteControl.Enabled && runCfg.RemoteHub != nil
+	toolFlags.AgoDeskChatEnabled = hasConnectedAgoDeskChatDevice(runCfg.RemoteHub)
 	toolFlags.MediaRegistryEnabled = cfg.MediaRegistry.Enabled && runCfg.MediaRegistryDB != nil
 	toolFlags.HomepageRegistryEnabled = cfg.Homepage.Enabled && runCfg.HomepageRegistryDB != nil
 	toolFlags.ContactsEnabled = cfg.Tools.Contacts.Enabled && runCfg.ContactsDB != nil
@@ -494,6 +495,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		CoAgentEnabled:           flags.CoAgentEnabled,
 		GoogleWorkspaceEnabled:   flags.GoogleWorkspaceEnabled,
 		OneDriveEnabled:          flags.OneDriveEnabled,
+		TelegramEnabled:          flags.TelegramEnabled,
 		JellyfinEnabled:          flags.JellyfinEnabled,
 		ObsidianEnabled:          flags.ObsidianEnabled,
 		TrueNASEnabled:           flags.TrueNASEnabled,
@@ -573,6 +575,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		TelnyxEnabled:            state.TelnyxEnabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 		MessageSource:            runCfg.MessageSource,
+		ChatChannelsContext:      buildReachableChatChannelsContext(runCfg),
 		ToolsDir:                 cfg.Directories.ToolsDir,
 		SkillsDir:                cfg.Directories.SkillsDir,
 		UnifiedMemoryBlock:       state.UnifiedMemoryBlock,

@@ -186,7 +186,7 @@ fn draw_overview_tab(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
                 Span::styled(format!("${:.3}", cost), Style::default().fg(theme.warning)),
                 Span::styled(" / ", Style::default().fg(theme.fg)),
                 Span::styled(format!("${:.2}", limit), Style::default().fg(theme.accent)),
-                Span::styled(format!(" ({:.0}%)", pct), budget_color(pct, theme)),
+                Span::styled(format!(" ({:.0}%)", pct), theme.percent_color(pct)),
             ]),
             Line::from(vec![
                 Span::styled("Enforcement: ", Style::default().fg(theme.fg)),
@@ -410,15 +410,7 @@ fn draw_gauge(percent: f64, width: usize, theme: &Theme) -> Span<'static> {
     )
 }
 
-fn budget_color(percent: f64, theme: &Theme) -> ratatui::style::Color {
-    if percent >= 100.0 {
-        theme.error
-    } else if percent >= 80.0 {
-        theme.warning
-    } else {
-        theme.success
-    }
-}
+
 
 fn format_uptime(seconds: i64) -> String {
     let days = seconds / 86400;

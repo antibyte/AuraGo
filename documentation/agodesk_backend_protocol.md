@@ -37,7 +37,7 @@ AuraGo accepts AgoDesk WebSocket messages up to 16 MiB. Desktop screenshot resul
 - `session.start`: client pairing or reconnect request.
 - `session.accepted`: server approval. Fresh pairing includes `shared_key` once so the client can store it securely. The returned `session_id` replaces the temporary ID from `system.connected` and must be used in every subsequent `chat.message`.
 - `chat.message`: user prompt.
-- `chat.response`: full assistant response with `request_id`.
+- `chat.response`: full assistant response with `request_id`; may also be server-initiated when `metadata.server_push=true`.
 - `chat.error`: machine-readable error.
 - `chat.response.chunk`: reserved for streaming support.
 - `persona.assets.request`: client request for the currently active AuraGo persona's visual assets.
@@ -50,6 +50,7 @@ Clients must include `payload.client_capabilities` in `session.start`. AuraGo tr
 
 Desktop commands are dispatched only when the matching client capability is present:
 
+- `chat.full_response`: required for server-initiated AgoChat messages.
 - `remote.desktop.capture`: required for `desktop_screenshot`
 - `remote.desktop.permission_request`: required for `desktop_permission_request`
 - `remote.desktop.input`: required for `desktop_input`
@@ -124,6 +125,32 @@ hmac = hex(HMAC_SHA256(shared_key_bytes, material))
   - `inject_input(event)` only during an approved local control session.
   - `set_input_approval(approved)` / `reset_desktop_session()`
 - Display a visible local remote-control banner with approve, deny, and stop controls before allowing input injection.
+
+## Server-Initiated AgoChat Messages
+
+AuraGo can proactively send a text message to a connected AgoDesk client from autonomous sessions such as missions, heartbeat, planner notifications, or maintenance.
+
+The backend emits a normal `chat.response` envelope without a preceding client `chat.message`. Clients must display these as assistant messages when `payload.metadata.server_push` is `true`:
+
+```json
+{
+  "id": "server-generated-id",
+  "type": "chat.response",
+  "timestamp": "2026-05-31T17:00:00Z",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "request_id": "chat-push-1",
+    "text": "Mission finished successfully.",
+    "role": "assistant",
+    "metadata": {
+      "source": "aurago_agent",
+      "server_push": true
+    }
+  }
+}
+```
+
+Coding agents should use the AuraGo `send_agodesk_chat` tool for proactive AgoChat messages. Use the `device_id` shown in the system prompt's `REACHABLE CHAT CHANNELS` section or discover connected clients through `remote_control` `list_devices`.
 
 ## Active Persona Assets
 

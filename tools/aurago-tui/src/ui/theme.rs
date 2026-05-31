@@ -133,6 +133,18 @@ impl Theme {
         let hue = (tick % 360) as f32;
         utils::hsv_to_rgb(hue, 1.0, 1.0)
     }
+
+    /// Canonical color for percentage-based gauges (success → warning → error).
+    /// Thresholds: <70% success, 70-89% warning, >=90% error.
+    pub fn percent_color(&self, percent: f64) -> Color {
+        if percent >= 90.0 {
+            self.error
+        } else if percent >= 70.0 {
+            self.warning
+        } else {
+            self.success
+        }
+    }
 }
 
 

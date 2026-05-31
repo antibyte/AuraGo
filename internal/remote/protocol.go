@@ -50,13 +50,15 @@ const (
 	OpDesktopStreamStop        = "desktop_stream_stop"
 	OpDesktopInput             = "desktop_input"
 	OpDesktopPermissionRequest = "desktop_permission_request"
+	OpAgoDeskChatMessage       = "agodesk_chat_message"
 )
 
 // ReadOnlySafe reports whether an operation is safe in read-only mode.
 func ReadOnlySafe(op string) bool {
 	switch op {
 	case OpSysinfo, OpFileRead, OpFileList, OpFileSearch, OpFileReadAdv,
-		OpDesktopScreenshot, OpDesktopStreamStart, OpDesktopStreamStop, OpDesktopPermissionRequest:
+		OpDesktopScreenshot, OpDesktopStreamStart, OpDesktopStreamStop, OpDesktopPermissionRequest,
+		OpAgoDeskChatMessage:
 		return true
 	default:
 		return false

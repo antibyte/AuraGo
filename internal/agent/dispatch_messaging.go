@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
 
+	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/telnyx"
 	"aurago/internal/tools"
@@ -21,6 +24,10 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 		req := decodeSendTelegramArgs(tc)
 		logger.Info("LLM requested telegram message", "title", req.Title)
 		return "Tool Output: " + tools.SendNotification(cfg, logger, "telegram", req.Title, req.Message, req.Priority, nil, nil), true
+
+	case "send_agodesk_chat":
+		req := decodeAgoDeskChatArgs(tc)
+		return "Tool Output: " + sendAgoDeskChatMessage(dc, req), true
 
 	case "send_notification", "notification_center", "send_push_notification", "web_push":
 		req := decodeNotificationArgs(tc)
@@ -184,4 +191,66 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 		return "Tool Output: " + telnyx.DispatchManage(ctx, req.Operation, req.Limit, req.Port, cfg, logger), true
 	}
 	return "", false
+}
+
+func sendAgoDeskChatMessage(dc *DispatchContext, req agoDeskChatArgs) string {
+	encode := func(r map[string]interface{}) string {
+		b, _ := json.Marshal(r)
+		return string(b)
+	}
+	if dc == nil || dc.RemoteHub == nil {
+		return encode(map[string]interface{}{"status": "error", "message": "AgoChat is not available in this session."})
+	}
+	message := strings.TrimSpace(req.Message)
+	if message == "" {
+		return encode(map[string]interface{}{"status": "error", "message": "message is required"})
+	}
+	deviceID := strings.TrimSpace(req.DeviceID)
+	if deviceID == "" {
+		resolved, err := resolveAgoDeskChatDeviceID(dc.RemoteHub, req.DeviceName)
+		if err != nil {
+			return encode(map[string]interface{}{"status": "error", "message": err.Error()})
+		}
+		deviceID = resolved
+	}
+	result, err := dc.RemoteHub.SendCommand(deviceID, remote.CommandPayload{
+		Operation: remote.OpAgoDeskChatMessage,
+		Args: map[string]interface{}{
+			"message": message,
+		},
+	}, 10*time.Second)
+	if err != nil {
+		return encode(map[string]interface{}{"status": "error", "message": "AgoChat send failed: " + err.Error()})
+	}
+	if result.Status != "ok" {
+		detail := strings.TrimSpace(result.Error)
+		if detail == "" {
+			detail = strings.TrimSpace(result.Output)
+		}
+		if detail == "" {
+			detail = "AgoChat send failed"
+		}
+		return encode(map[string]interface{}{"status": "error", "message": detail, "device_id": deviceID})
+	}
+	return encode(map[string]interface{}{"status": "success", "message": "Message sent to AgoChat", "device_id": deviceID})
+}
+
+func resolveAgoDeskChatDeviceID(hub *remote.RemoteHub, deviceName string) (string, error) {
+	devices := connectedAgoDeskChatDevices(hub)
+	if len(devices) == 0 {
+		return "", fmt.Errorf("no connected AgoChat devices are available")
+	}
+	name := strings.TrimSpace(deviceName)
+	if name != "" {
+		for _, device := range devices {
+			if strings.EqualFold(device.Name, name) || strings.EqualFold(device.Hostname, name) {
+				return device.ID, nil
+			}
+		}
+		return "", fmt.Errorf("connected AgoChat device %q was not found", name)
+	}
+	if len(devices) > 1 {
+		return "", fmt.Errorf("multiple AgoChat devices are connected; provide device_id")
+	}
+	return devices[0].ID, nil
 }

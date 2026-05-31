@@ -177,6 +177,8 @@ type ToolFeatureFlags struct {
 	DiscordEnabled bool
 	// Telegram messaging
 	TelegramEnabled bool
+	// AgoDesk chat push messaging
+	AgoDeskChatEnabled bool
 	// TrueNAS storage
 	TrueNASEnabled bool
 	// Koofr cloud storage

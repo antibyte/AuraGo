@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"log/slog"
@@ -264,6 +265,57 @@ func TestRemoteDesktopInputMapsInputActionToClientAction(t *testing.T) {
 	}
 	if _, ok := transport.calls[0].Args["input_action"]; ok {
 		t.Fatalf("desktop_input should not forward input_action alias: %#v", transport.calls[0].Args)
+	}
+}
+
+func TestSendAgoDeskChatRoutesThroughRemoteHubTransport(t *testing.T) {
+	t.Parallel()
+
+	db, err := remote.InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatalf("init remote db: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	deviceID, err := remote.CreateDevice(db, remote.DeviceRecord{
+		Name:   "agodesk",
+		Status: "approved",
+		Tags:   []string{"agodesk", "desktop-client"},
+	})
+	if err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	transport := &agentRecordingTransport{
+		connected: map[string]bool{deviceID: true},
+	}
+	hub := remote.NewRemoteHub(db, nil, slog.Default())
+	hub.RegisterCommandTransport("agodesk", transport)
+
+	out, handled := dispatchMessagingCases(context.Background(), ToolCall{
+		Action:   "send_agodesk_chat",
+		DeviceID: deviceID,
+		Params: map[string]interface{}{
+			"message": "mission update",
+		},
+	}, &DispatchContext{
+		Cfg:       &config.Config{},
+		Logger:    slog.Default(),
+		RemoteHub: hub,
+	})
+	if !handled {
+		t.Fatal("send_agodesk_chat should be handled by messaging dispatch")
+	}
+	if !strings.Contains(out, `"status":"success"`) {
+		t.Fatalf("expected success output, got %s", out)
+	}
+	if len(transport.calls) != 1 {
+		t.Fatalf("transport calls = %d, want 1", len(transport.calls))
+	}
+	if got := transport.calls[0].Operation; got != "agodesk_chat_message" {
+		t.Fatalf("operation = %q, want agodesk_chat_message", got)
+	}
+	if got := transport.calls[0].Args["message"]; got != "mission update" {
+		t.Fatalf("message arg = %#v, want mission update", got)
 	}
 }
 

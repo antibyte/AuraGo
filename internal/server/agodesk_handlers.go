@@ -530,6 +530,9 @@ func (b *agodeskDesktopBroker) SendCommand(deviceID string, cmd remote.CommandPa
 	if session == nil {
 		return remote.ResultPayload{}, fmt.Errorf("no active agodesk session for device %s", deviceID)
 	}
+	if cmd.Operation == remote.OpAgoDeskChatMessage {
+		return session.sendChatMessage(cmd)
+	}
 	requiredCapability := agodeskDesktopCapabilityForOperation(cmd.Operation)
 	if requiredCapability == "" {
 		return remote.ResultPayload{
@@ -599,6 +602,50 @@ func (b *agodeskDesktopBroker) session(deviceID string) *agodeskDesktopSession {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	return b.sessions[deviceID]
+}
+
+func (s *agodeskDesktopSession) sendChatMessage(cmd remote.CommandPayload) (remote.ResultPayload, error) {
+	rawMessage, ok := cmd.Args["message"]
+	if !ok {
+		return remote.ResultPayload{CommandID: cmd.CommandID, Status: "error", Error: "message is required"}, nil
+	}
+	message := strings.TrimSpace(fmt.Sprint(rawMessage))
+	if message == "" {
+		return remote.ResultPayload{CommandID: cmd.CommandID, Status: "error", Error: "message is required"}, nil
+	}
+	if !s.hasCapability("chat.full_response") {
+		return remote.ResultPayload{
+			CommandID: cmd.CommandID,
+			Status:    "error",
+			Error:     fmt.Sprintf("%s: agodesk client does not advertise chat.full_response", agodesk.ErrorUnsupportedCapability),
+		}, nil
+	}
+	sessionID := ""
+	if s.state != nil {
+		s.state.mu.RLock()
+		sessionID = s.state.sessionID
+		s.state.mu.RUnlock()
+	}
+	if sessionID == "" {
+		sessionID = "agodesk:" + s.deviceID
+	}
+	if err := writeAgodeskEnvelopeLocked(s.conn, s.state, agodesk.TypeChatResponse, agodesk.ChatResponsePayload{
+		SessionID: sessionID,
+		RequestID: cmd.CommandID,
+		Text:      message,
+		Role:      "assistant",
+		Metadata: map[string]interface{}{
+			"source":      "aurago_agent",
+			"server_push": true,
+		},
+	}); err != nil {
+		return remote.ResultPayload{}, fmt.Errorf("send agodesk chat message: %w", err)
+	}
+	return remote.ResultPayload{
+		CommandID: cmd.CommandID,
+		Status:    "ok",
+		Output:    `{"sent":true}`,
+	}, nil
 }
 
 func (s *agodeskDesktopSession) hasCapability(capability string) bool {

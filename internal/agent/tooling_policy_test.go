@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -352,6 +353,42 @@ func TestBuildPromptContextFlagsAndToolFeatureFlagsShareResolvedCapabilities(t *
 		contextFlags.AllowRemoteShell != toolFlags.AllowRemoteShell ||
 		contextFlags.AllowSelfUpdate != toolFlags.AllowSelfUpdate {
 		t.Fatal("danger-zone capability mismatch between prompt context and tool feature flags")
+	}
+}
+
+func TestBuildPromptContextFlagsInjectsReachableChatChannelsForAutonomousRuns(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.SystemLanguage = "en"
+	cfg.Telegram.BotToken = "telegram-token"
+	cfg.Telegram.UserID = 42
+	cfg.Discord.Enabled = true
+	cfg.Discord.GuildID = "guild-1"
+	cfg.Discord.DefaultChannelID = "channel-1"
+	cfg.Telnyx.Enabled = true
+	cfg.Telnyx.PhoneNumber = "+15550001000"
+	cfg.Telnyx.AllowedNumbers = []string{"+15550001001"}
+
+	runCfg := RunConfig{
+		Config:        cfg,
+		SessionID:     "heartbeat",
+		MessageSource: "heartbeat",
+	}
+	policy := buildToolingPolicy(cfg, "notify the user")
+	flags := buildPromptContextFlags(runCfg, policy, promptContextOptions{})
+
+	prompt, _ := prompts.BuildSystemPrompt("", &flags, "", slog.Default())
+	for _, want := range []string{
+		"# REACHABLE CHAT CHANNELS",
+		"Telegram",
+		"send_telegram",
+		"Discord",
+		"send_discord",
+		"SMS",
+		"send_notification",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("prompt missing reachable chat channel marker %q:\n%s", want, prompt)
+		}
 	}
 }
 

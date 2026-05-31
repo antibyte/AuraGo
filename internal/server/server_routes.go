@@ -526,10 +526,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// ── Integration bots (disabled in egg mode — eggs are headless workers) ──
 	if !s.Cfg.EggMode.Enabled {
 		// Phase 35.2: Start the Telegram Long Polling loop
-		telegram.StartLongPolling(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.Guardian)
+		telegram.StartLongPolling(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian)
 
 		// Discord Bot: listen for messages and relay to the agent
-		discord.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.Guardian)
+		discord.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian)
 
 		// Email Watcher: poll IMAP for new messages and wake the agent
 		if emailWatcher := tools.StartEmailWatcher(s.Cfg, s.Logger, s.Guardian, s.LLMGuardian, s.CheatsheetDB); emailWatcher != nil {
@@ -538,7 +538,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		s.configureAgentMailRelay(s.Cfg)
 
 		// Rocket.Chat Bot: listen for messages and relay to the agent
-		rocketchat.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.Guardian)
+		rocketchat.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian)
 
 		// MQTT Client: connect to broker and register bridge
 		s.configureMQTTRelay()

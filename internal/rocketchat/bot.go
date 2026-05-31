@@ -17,6 +17,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 
@@ -27,7 +28,7 @@ import (
 var rcHTTPClient = &http.Client{Timeout: 30 * time.Second}
 
 // StartBot initializes the Rocket.Chat bot and begins polling for new messages.
-func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.Guardian) {
+func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian) {
 	if !cfg.RocketChat.Enabled {
 		return
 	}
@@ -38,7 +39,7 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 
 	logger.Info("[RocketChat] Bot starting", "url", cfg.RocketChat.URL, "channel", cfg.RocketChat.Channel)
 
-	go pollLoop(cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, guardian)
+	go pollLoop(cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian)
 }
 
 // rcRequest performs a REST API request against the Rocket.Chat server.
@@ -107,7 +108,7 @@ type message struct {
 }
 
 // pollLoop continuously polls for new messages in the configured channel.
-func pollLoop(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.Guardian) {
+func pollLoop(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian) {
 	channel := cfg.RocketChat.Channel
 	if channel == "" {
 		logger.Error("[RocketChat] No channel configured")
@@ -163,7 +164,7 @@ func pollLoop(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 
 			logger.Info("[RocketChat] Received message", "user", msg.User.Username, "text_len", len(msg.Msg))
 
-			go processMessage(cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, channelID, msg, missionManagerV2, guardian)
+			go processMessage(cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, channelID, msg, missionManagerV2, remoteHub, guardian)
 		}
 	}
 }
@@ -222,7 +223,7 @@ func fetchNewMessages(cfg *config.Config, channelID string, since time.Time) ([]
 }
 
 // processMessage handles a single incoming Rocket.Chat message.
-func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, channelID string, msg message, missionManagerV2 *tools.MissionManagerV2, guardian *security.Guardian) {
+func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, channelID string, msg message, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian) {
 	inputText := msg.Msg
 
 	// Command interception
@@ -266,24 +267,25 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 
 	// Build RunConfig first so it can be used for prompt flag derivation
 	runCfg := agent.RunConfig{
-		Config:            cfg,
-		Logger:            logger,
-		LLMClient:         client,
-		ShortTermMem:      shortTermMem,
-		HistoryManager:    historyManager,
-		LongTermMem:       longTermMem,
-		KG:                kg,
-		InventoryDB:       inventoryDB,
-		Vault:             vault,
-		Registry:          registry,
-		Manifest:          manifest,
-		CronManager:       cronManager,
+		Config:             cfg,
+		Logger:             logger,
+		LLMClient:          client,
+		ShortTermMem:       shortTermMem,
+		HistoryManager:     historyManager,
+		LongTermMem:        longTermMem,
+		KG:                 kg,
+		InventoryDB:        inventoryDB,
+		RemoteHub:          remoteHub,
+		Vault:              vault,
+		Registry:           registry,
+		Manifest:           manifest,
+		CronManager:        cronManager,
 		MissionManagerV2:   missionManagerV2,
 		PreparationService: nil,
 		SessionID:          sessionID,
-		IsMaintenance:     tools.IsBusy(),
-		MessageSource:     "rocketchat",
-		VoiceOutputActive: agent.GetVoiceMode(),
+		IsMaintenance:      tools.IsBusy(),
+		MessageSource:      "rocketchat",
+		VoiceOutputActive:  agent.GetVoiceMode(),
 	}
 	finalMessages := historyManager.Get()
 	if currentSummary := historyManager.GetSummary(); currentSummary != "" {

@@ -78,7 +78,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		PlannerEnabled: true, JournalEnabled: true, MemoryAnalysisEnabled: true, DocumentCreatorEnabled: true, MediaConversionEnabled: true, VideoDownloadEnabled: true, VideoDownloadAllowDownload: true, VideoDownloadAllowTranscribe: true, SendYouTubeVideoEnabled: true,
 		WebCaptureEnabled: true, BrowserAutomationEnabled: true, SpaceAgentEnabled: true, VirtualDesktopEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,
 		S3Enabled: true, NetworkScanEnabled: true, FormAutomationEnabled: true, UPnPScanEnabled: true,
-		JellyfinEnabled: true, ChromecastEnabled: true, DiscordEnabled: true, TelegramEnabled: true, TrueNASEnabled: true,
+		JellyfinEnabled: true, ChromecastEnabled: true, DiscordEnabled: true, TelegramEnabled: true, AgoDeskChatEnabled: true, TrueNASEnabled: true,
 		KoofrEnabled: true, FritzBoxSystemEnabled: true, FritzBoxNetworkEnabled: true,
 		FritzBoxTelephonyEnabled: true, FritzBoxSmartHomeEnabled: true, FritzBoxStorageEnabled: true,
 		FritzBoxTVEnabled: true, TelnyxSMSEnabled: true, TelnyxCallEnabled: true,
@@ -194,6 +194,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("chromecast", ff.ChromecastEnabled)
 	appendToolFeatureKeyPart("discord", ff.DiscordEnabled)
 	appendToolFeatureKeyPart("telegram", ff.TelegramEnabled)
+	appendToolFeatureKeyPart("agodesk_chat", ff.AgoDeskChatEnabled)
 	appendToolFeatureKeyPart("truenas", ff.TrueNASEnabled)
 	appendToolFeatureKeyPart("koofr", ff.KoofrEnabled)
 	appendToolFeatureKeyPart("fritzbox_system", ff.FritzBoxSystemEnabled)

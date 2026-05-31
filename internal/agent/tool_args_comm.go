@@ -115,6 +115,12 @@ type telnyxManageArgs struct {
 	Port      int
 }
 
+type agoDeskChatArgs struct {
+	DeviceID   string
+	DeviceName string
+	Message    string
+}
+
 type addressBookArgs struct {
 	Operation      string
 	ID             string
@@ -336,6 +342,14 @@ func decodeTelnyxManageArgs(tc ToolCall) telnyxManageArgs {
 		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
 		Limit:     toolArgInt(tc.Params, tc.Limit, "limit"),
 		Port:      toolArgInt(tc.Params, tc.Port, "port"),
+	}
+}
+
+func decodeAgoDeskChatArgs(tc ToolCall) agoDeskChatArgs {
+	return agoDeskChatArgs{
+		DeviceID:   firstNonEmptyToolString(tc.DeviceID, toolArgString(tc.Params, "device_id")),
+		DeviceName: firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "device_name", "name")),
+		Message:    firstNonEmptyToolString(tc.Message, tc.Text, tc.Content, toolArgString(tc.Params, "message", "text", "content")),
 	}
 }
 

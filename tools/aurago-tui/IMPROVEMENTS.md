@@ -72,4 +72,4 @@ When adding a feature from this list, please:
 
 ---
 
-**Last updated**: 2026-05-18 (full audit next-steps execution + previous 2026-05 bug-fix pass)
+**Last updated**: 2026-05-18 (full audit next-steps + post-audit polish: overlays.rs extraction, color mapper unification, minimal i18n scaffolding)

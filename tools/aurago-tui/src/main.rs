@@ -20,6 +20,7 @@ mod api;
 mod app;
 mod config;
 mod events;
+mod i18n;
 mod ui;
 
 use api::{ApiClient, auth, sse, types::*};
@@ -28,7 +29,8 @@ use events::AppEvent;
 use events::keybindings::{Action, KeyContext, map_key};
 use ui::{theme::Theme, utils::truncate_str};
 
-use actions::{draw_confirm_dialog, draw_nav_bar, execute_confirmed_action};
+use actions::execute_confirmed_action;
+use ui::overlays::{draw_confirm_dialog, draw_nav_bar};
 
 #[derive(Parser, Debug)]
 #[command(name = "aurago-tui")]

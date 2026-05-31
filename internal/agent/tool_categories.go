@@ -216,6 +216,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"send_discord", "Send messages to Discord channels"},
 		{"fetch_discord", "Read messages from Discord channels"},
 		{"list_discord_channels", "List available Discord channels"},
+		{"send_agodesk_chat", "Send messages to connected AgoChat desktop clients"},
 		{"telnyx_sms", "Send and receive SMS via Telnyx"},
 		{"telnyx_call", "Make and manage phone calls via Telnyx"},
 		{"telnyx_manage", "Manage Telnyx phone numbers and messaging profiles"},

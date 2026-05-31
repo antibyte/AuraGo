@@ -31,7 +31,7 @@ pub fn draw_containers(f: &mut Frame, app: &AppState, theme: &Theme) {
     draw_containers_status(f, app, theme, chunks[2]);
 
     if let Some(toast) = &app.toast {
-        super::chat::draw_toast_simple(f, toast, theme);
+        super::overlays::draw_toast_simple(f, toast, theme);
     }
 }
 

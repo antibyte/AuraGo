@@ -667,6 +667,64 @@ func TestAgodeskDesktopCommandWithoutClientCapabilityFailsFast(t *testing.T) {
 	}
 }
 
+func TestAgodeskChatMessageCommandSendsServerPushResponse(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	token := "agodesk-chat-push-token"
+	if _, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
+		TokenHash:  hashSHA256(token),
+		DeviceName: "agodesk-chat",
+		ExpiresAt:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+	}); err != nil {
+		t.Fatalf("CreateEnrollment: %v", err)
+	}
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws")
+	defer cleanup()
+	_ = readAgodeskTestEnvelope(t, conn)
+	start, err := agodesk.NewEnvelope(agodesk.TypeSessionStart, agodesk.SessionStartPayload{
+		ClientVersion:      "test-client",
+		PairingToken:       token,
+		ClientCapabilities: []string{"chat.full_response"},
+		Host:               agodesk.SessionStartHost{Hostname: "AGOCHAT-PC", OS: "windows", Arch: "amd64"},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope session.start: %v", err)
+	}
+	if err := conn.WriteJSON(start); err != nil {
+		t.Fatalf("write session.start: %v", err)
+	}
+	acceptedEnvelope := readAgodeskTestEnvelope(t, conn)
+	var accepted agodesk.SessionAcceptedPayload
+	decodeAgodeskTestPayload(t, acceptedEnvelope, &accepted)
+
+	result, err := s.RemoteHub.SendCommand(accepted.DeviceID, remote.CommandPayload{
+		CommandID: "chat-push-1",
+		Operation: "agodesk_chat_message",
+		Args: map[string]interface{}{
+			"message": "mission update",
+		},
+	}, time.Second)
+	if err != nil {
+		t.Fatalf("send chat command: %v", err)
+	}
+	if result.Status != "ok" {
+		t.Fatalf("result = %+v, want ok", result)
+	}
+
+	push := readAgodeskTestEnvelope(t, conn)
+	if push.Type != agodesk.TypeChatResponse {
+		t.Fatalf("push type = %q, want %q", push.Type, agodesk.TypeChatResponse)
+	}
+	var payload agodesk.ChatResponsePayload
+	decodeAgodeskTestPayload(t, push, &payload)
+	if payload.SessionID != accepted.SessionID || payload.RequestID != "chat-push-1" || payload.Text != "mission update" || payload.Role != "assistant" {
+		t.Fatalf("push payload = %+v", payload)
+	}
+	if payload.Metadata["server_push"] != true {
+		t.Fatalf("push metadata = %#v, want server_push=true", payload.Metadata)
+	}
+}
+
 func TestAgodeskDesktopResultAcceptsLargeScreenshotPayload(t *testing.T) {
 	s := newAgodeskPairingTestServer(t)
 	token := "desktop-command-large-screenshot-token"

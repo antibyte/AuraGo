@@ -94,14 +94,9 @@ pub fn draw_gauge_span(percent: f64, width: usize) -> String {
 }
 
 /// Return a color based on a percentage value (green → yellow → red).
+/// Delegates to Theme::percent_color for the single source of truth.
 pub fn percent_color(percent: f64, theme: &super::theme::Theme) -> Color {
-    if percent >= 90.0 {
-        theme.error
-    } else if percent >= 70.0 {
-        theme.warning
-    } else {
-        theme.success
-    }
+    theme.percent_color(percent)
 }
 
 /// Capitalize the first letter of a string.

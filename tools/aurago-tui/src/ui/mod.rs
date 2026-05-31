@@ -6,6 +6,7 @@ pub mod knowledge;
 pub mod login;
 pub mod media;
 pub mod missions;
+pub mod overlays;
 pub mod plans;
 pub mod skills;
 pub mod splash;

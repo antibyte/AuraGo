@@ -50,6 +50,7 @@ const (
 var DefaultCapabilities = []string{
 	"chat.full_response",
 	"chat.streaming",
+	"chat.server_push",
 	"pairing.remotehub",
 	"remote.desktop.capture",
 	"remote.desktop.permission_request",

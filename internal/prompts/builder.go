@@ -134,6 +134,7 @@ type ContextFlags struct {
 	CoAgentEnabled           bool
 	GoogleWorkspaceEnabled   bool
 	OneDriveEnabled          bool
+	TelegramEnabled          bool
 	JellyfinEnabled          bool
 	ObsidianEnabled          bool
 	TrueNASEnabled           bool
@@ -224,6 +225,7 @@ type ContextFlags struct {
 	KnowledgeContext         string // Relevant KG entities injected from SearchForContext
 	ErrorPatternContext      string // Known error patterns with resolutions for agent learning
 	ReuseContext             string // Reuse-first lookup hints for non-trivial tasks
+	ChatChannelsContext      string // Reachable chat/notification channels for this runtime
 	TaskRules                string // Task-scoped markdown rules selected for the current request/tools
 	TaskRuleIDs              []string
 	HomepageDesignSystem     string // Homepage DESIGN.md guidance selected for homepage workflows
@@ -679,6 +681,11 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 		finalPrompt.WriteString(overview)
 		finalPrompt.WriteString("\n\n")
 	}
+	if strings.TrimSpace(flags.ChatChannelsContext) != "" {
+		finalPrompt.WriteString("# REACHABLE CHAT CHANNELS\n")
+		finalPrompt.WriteString(strings.TrimSpace(flags.ChatChannelsContext))
+		finalPrompt.WriteString("\n\n")
+	}
 	if spaceAgentContext := buildSpaceAgentRuntimeContext(flags); spaceAgentContext != "" {
 		finalPrompt.WriteString(spaceAgentContext)
 		finalPrompt.WriteString("\n\n")
@@ -787,10 +794,28 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 			label = "Telegram"
 		case "discord":
 			label = "Discord"
+		case "agodesk_chat":
+			label = "AgoChat"
+		case "virtual_desktop_chat":
+			label = "Virtual Desktop Chat"
+		case "rocketchat":
+			label = "Rocket.Chat"
 		case "a2a":
 			label = "A2A (Agent-to-Agent)"
 		case "sms":
 			label = "SMS"
+		case "heartbeat":
+			label = "Heartbeat (automated)"
+		case "planner_notification":
+			label = "Planner notification (automated)"
+		case "uptime_kuma":
+			label = "Uptime Kuma (automated)"
+		case "follow_up":
+			label = "Follow-up (automated)"
+		case "cron":
+			label = "Cron (automated)"
+		case "maintenance":
+			label = "Maintenance (automated)"
 		case "mission":
 			label = "Mission (automated)"
 		}
@@ -1912,6 +1937,7 @@ func buildEnabledToolsOverview(flags *ContextFlags) string {
 	add("koofr", flags.KoofrEnabled)
 	add("chromecast", flags.ChromecastEnabled)
 	add("discord", flags.DiscordEnabled)
+	add("telegram", flags.TelegramEnabled)
 	add("truenas", flags.TrueNASEnabled)
 	add("jellyfin", flags.JellyfinEnabled)
 	add("obsidian", flags.ObsidianEnabled)

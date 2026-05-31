@@ -436,6 +436,21 @@ func TestBuildSystemPromptMissionWarnsNotToAskInChat(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptLabelsAgoDeskChatSource(t *testing.T) {
+	flags := ContextFlags{
+		SystemLanguage: "en",
+		MessageSource:  "agodesk_chat",
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+	if !strings.Contains(prompt, "> **Channel:** AgoChat") {
+		t.Fatalf("prompt should label agodesk_chat as AgoChat, got:\n%s", prompt)
+	}
+	if strings.Contains(prompt, "> **Channel:** agodesk_chat") {
+		t.Fatalf("prompt exposed raw agodesk_chat source instead of a user-facing channel label:\n%s", prompt)
+	}
+}
+
 func TestBuildSystemPromptNativeModeOmitsLegacyToolSyntaxExamples(t *testing.T) {
 	flags := ContextFlags{
 		Tier:               "full",
