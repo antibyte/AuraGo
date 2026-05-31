@@ -1014,6 +1014,94 @@
 }
 
 
+/* === Virtual Desktop — Cyberwar Tactical HUD === */
+[data-theme="cyberwar"] .vd-window,
+[data-theme="cyberwar"] .vd-widget {
+    border: 1px solid rgba(0, 240, 255, 0.28);
+    background: rgba(3, 7, 18, 0.96);
+    box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.7),
+        0 0 0 1px rgba(0, 240, 255, 0.08) inset;
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+
+/* Desktop CSS variable overrides for full Cyberwar cohesion */
+[data-theme="cyberwar"] {
+    --vd-bg: #02050f;
+    --vd-surface: rgba(3, 7, 18, 0.96);
+    --vd-surface-strong: rgba(5, 11, 26, 0.98);
+    --vd-border: rgba(0, 240, 255, 0.22);
+    --vd-border-bright: rgba(0, 240, 255, 0.4);
+    --vd-text: #d1f4ff;
+    --vd-muted: #7fa4bd;
+    --vd-accent: #00f0ff;
+    --vd-accent-r: 0;
+    --vd-accent-g: 240;
+    --vd-accent-b: 255;
+    --vd-shadow-window: 0 24px 70px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(0, 240, 255, 0.1) inset;
+}
+
+[data-theme="cyberwar"] .vd-window-titlebar {
+    background: linear-gradient(180deg, rgba(4, 9, 22, 0.98), rgba(2, 5, 14, 0.95));
+    border-bottom: 1px solid rgba(0, 240, 255, 0.22);
+    font-family: var(--cyber-font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    height: 38px;
+}
+
+[data-theme="cyberwar"] .vd-window-title {
+    color: #d1f4ff;
+    font-weight: 600;
+    font-size: 0.82rem;
+}
+
+[data-theme="cyberwar"] .vd-window-button {
+    color: var(--accent);
+    transition: all 0.15s ease;
+}
+
+[data-theme="cyberwar"] .vd-window-button:hover {
+    background: rgba(0, 240, 255, 0.15);
+    color: #fff;
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+}
+
+[data-theme="cyberwar"] .vd-window.active .vd-window-titlebar {
+    background: linear-gradient(180deg, rgba(5, 11, 26, 0.98), rgba(3, 7, 18, 0.96));
+    border-bottom-color: rgba(0, 240, 255, 0.4);
+}
+
+[data-theme="cyberwar"] .vd-taskbar,
+[data-theme="cyberwar"] .vd-dock {
+    background: rgba(2, 5, 14, 0.92);
+    border-top: 1px solid rgba(0, 240, 255, 0.22);
+    backdrop-filter: blur(16px);
+}
+
+[data-theme="cyberwar"] .vd-taskbar-item,
+[data-theme="cyberwar"] .vd-dock-icon {
+    transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.15s ease;
+}
+
+[data-theme="cyberwar"] .vd-taskbar-item:hover,
+[data-theme="cyberwar"] .vd-dock-icon:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 12px rgba(0, 240, 255, 0.25);
+}
+
+[data-theme="cyberwar"] .vd-taskbar-item.active {
+    background: rgba(0, 240, 255, 0.12);
+    box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.3);
+}
+
+/* Make Papirus-style icons pop in cyberwar desktop */
+[data-theme="cyberwar"] .vd-window-header-icon,
+[data-theme="cyberwar"] .vd-dock-icon .vd-papirus-icon,
+[data-theme="cyberwar"] .vd-launchpad-icon {
+    filter: brightness(0) saturate(100%) invert(88%) sepia(20%) saturate(1200%) hue-rotate(170deg) brightness(1.1) contrast(1.05) drop-shadow(0 0 4px rgba(0, 240, 255, 0.4));
+}
+
 /* === chat-lollipop.css === */
 [data-theme="lollipop"] {
     color-scheme: light;
