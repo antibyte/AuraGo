@@ -4150,6 +4150,18 @@ function wireWindow(win, id) {
         if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
     }
 
+    function desktopFileDropExcludedIconIds(paths) {
+        return new Set((paths || []).map(path => {
+            const cleanPath = normalizeDesktopPath(path);
+            return cleanPath ? 'desktop-entry-' + cleanPath : '';
+        }).filter(Boolean));
+    }
+
+    function desktopFileDropIconPosition(left, top, usedCells) {
+        if (desktopIconGridEnabled()) return desktopIconGridNearestFreePosition(left, top, usedCells);
+        return clampDesktopIconPosition(left, top);
+    }
+
     async function moveDraggedFilesToDesktop(paths, clientX, clientY) {
         const cleanPaths = [...new Set((paths || []).map(normalizeDesktopPath).filter(Boolean))];
         if (!cleanPaths.length) return;
@@ -4157,6 +4169,7 @@ function wireWindow(win, id) {
         const entries = Array.isArray(body.files) ? body.files : [];
         const existingNames = new Set(entries.map(entry => String(entry.name || desktopDropBaseName(entry.path)).toLowerCase()));
         const basePos = clampDesktopIconPosition(clientX - 40, clientY - 44);
+        let usedCells = desktopIconGridEnabled() ? desktopIconGridUsedCells(desktopFileDropExcludedIconIds(cleanPaths)) : null;
         let offset = 0;
         for (const src of cleanPaths) {
             if (src === 'Desktop') continue;
@@ -4169,7 +4182,7 @@ function wireWindow(win, id) {
                     body: JSON.stringify({ old_path: src, new_path: newPath })
                 });
             }
-            const iconPos = clampDesktopIconPosition(basePos.x + offset, basePos.y + offset);
+            const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
             saveIconPosition('desktop-entry-' + newPath, iconPos.x, iconPos.y);
             offset += 18;
         }
@@ -4186,6 +4199,7 @@ function wireWindow(win, id) {
         const clientX = options && Number.isFinite(options.clientX) ? options.clientX : 48;
         const clientY = options && Number.isFinite(options.clientY) ? options.clientY : 48;
         const basePos = clampDesktopIconPosition(clientX - 40, clientY - 44);
+        let usedCells = desktopIconGridEnabled() ? desktopIconGridUsedCells(desktopFileDropExcludedIconIds(clipboard.mode === 'cut' ? clipboard.paths : [])) : null;
         let offset = 0;
         for (const src of clipboard.paths) {
             const naturalPath = desktopDropJoinPath(targetBase, desktopDropBaseName(src) || 'item');
@@ -4206,7 +4220,7 @@ function wireWindow(win, id) {
                 });
             }
             if (targetBase.toLowerCase() === 'desktop') {
-                const iconPos = clampDesktopIconPosition(basePos.x + offset, basePos.y + offset);
+                const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
                 saveIconPosition('desktop-entry-' + newPath, iconPos.x, iconPos.y);
                 offset += 18;
             }

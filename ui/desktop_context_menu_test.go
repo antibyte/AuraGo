@@ -168,6 +168,40 @@ func TestDesktopIconGridSnapsIconsDuringDragMove(t *testing.T) {
 	}
 }
 
+func TestDesktopIconGridSnapsDesktopFileDropsWhenEnabled(t *testing.T) {
+	t.Parallel()
+
+	mainText := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, want := range []string{
+		"function desktopFileDropIconPosition(left, top, usedCells)",
+		"if (desktopIconGridEnabled()) return desktopIconGridNearestFreePosition(left, top, usedCells);",
+	} {
+		if !strings.Contains(mainText, want) {
+			t.Fatalf("desktop file drops must share grid-aware icon placement; missing %q", want)
+		}
+	}
+
+	dropBody := jsFunctionBodyInWindowMenuTest(t, mainText, "async function moveDraggedFilesToDesktop(paths, clientX, clientY)")
+	for _, want := range []string{
+		"let usedCells = desktopIconGridEnabled() ? desktopIconGridUsedCells(desktopFileDropExcludedIconIds(cleanPaths)) : null;",
+		"const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);",
+	} {
+		if !strings.Contains(dropBody, want) {
+			t.Fatalf("desktop file drag/drop must snap saved icon positions when grid is enabled; missing %q", want)
+		}
+	}
+
+	pasteBody := jsFunctionBodyInWindowMenuTest(t, mainText, "async function pasteDesktopFileClipboard(destBase, options)")
+	for _, want := range []string{
+		"let usedCells = desktopIconGridEnabled() ? desktopIconGridUsedCells(desktopFileDropExcludedIconIds(clipboard.mode === 'cut' ? clipboard.paths : [])) : null;",
+		"const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);",
+	} {
+		if !strings.Contains(pasteBody, want) {
+			t.Fatalf("desktop paste must snap saved icon positions when grid is enabled; missing %q", want)
+		}
+	}
+}
+
 func TestDesktopIconGridTranslations(t *testing.T) {
 	t.Parallel()
 
