@@ -38,6 +38,8 @@ Every frame uses this envelope:
 - `chat.response`: full assistant response with `request_id`.
 - `chat.error`: machine-readable error.
 - `chat.response.chunk`: reserved for streaming support.
+- `persona.assets.request`: client request for the currently active AuraGo persona's visual assets.
+- `persona.assets`: server response with the active persona name, asset key, avatar image URL, and icon URL.
 - `desktop.command` / `desktop.result`: server-to-client desktop command transport for screenshots, permission requests, and locally approved input.
 
 ## Pairing
@@ -98,6 +100,7 @@ hmac = hex(HMAC_SHA256(shared_key_bytes, material))
 - Never print the shared key in logs or UI.
 - Send `session.start` automatically after `system.connected` when paired.
 - Block chat input until `session.accepted` in production mode.
+- After `session.accepted`, send `persona.assets.request` and cache the returned `persona.assets` values for chat/avatar UI. Re-request after reconnect or when the server sends/your UI observes a persona change.
 - Implement native Tauri commands for desktop control:
   - `collect_host_info()`
   - `list_displays()`
@@ -107,6 +110,63 @@ hmac = hex(HMAC_SHA256(shared_key_bytes, material))
   - `inject_input(event)` only during an approved local control session.
   - `set_input_approval(approved)` / `reset_desktop_session()`
 - Display a visible local remote-control banner with approve, deny, and stop controls before allowing input injection.
+
+## Active Persona Assets
+
+The desktop client can ask AuraGo which avatar and icon should represent the currently active persona. This is intended for chat headers, tray overlays, notifications, and any local UI that should mirror the web chat persona.
+
+Request after the WebSocket session is accepted:
+
+```json
+{
+  "id": "persona-assets-1",
+  "type": "persona.assets.request",
+  "timestamp": "2026-05-24T12:00:00Z",
+  "payload": {
+    "session_id": "agodesk:dev:abc123"
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "id": "server-generated-id",
+  "type": "persona.assets",
+  "timestamp": "2026-05-24T12:00:00Z",
+  "payload": {
+    "session_id": "agodesk:dev:abc123",
+    "persona": "punk",
+    "icon_key": "punk",
+    "avatar_image_url": "/img/personas/punk.png?v=20260502-persona-refresh",
+    "icon_url": "/img/persona-icons/punk.png?v=20260502-persona-refresh",
+    "asset_version": "20260502-persona-refresh"
+  }
+}
+```
+
+Rules:
+
+- `session_id` is required and must match the accepted AgoDesk session.
+- `persona` is the configured active persona name.
+- `icon_key` is the asset key the UI should use. Built-in personas use their own key; custom or unknown personas return `custom`.
+- `avatar_image_url` is the larger persona portrait from `/img/personas/`.
+- `icon_url` is the small chat/avatar icon from `/img/persona-icons/`.
+- URLs are same-origin relative paths. Prefix them with the connected AuraGo origin in native clients.
+- Treat these URLs as UI assets, not user-provided content. Do not execute or parse returned image data.
+
+## Coding Agent Instruction: Persona Assets
+
+When modifying the AgoDesk desktop client, use the persona asset protocol instead of hard-coding persona images.
+
+1. Wait for `session.accepted`.
+2. Send `persona.assets.request` with the accepted `session_id`. Go clients using `internal/agodesk` should call `agodesk.NewPersonaAssetsRequest(sessionID)` instead of hand-building the envelope.
+3. On `persona.assets`, resolve `avatar_image_url` and `icon_url` against the AuraGo server origin.
+4. Use `icon_url` for compact chat bubbles, tray/status indicators, and 32px controls.
+5. Use `avatar_image_url` for larger profile cards, welcome panels, or previews.
+6. Store `asset_version` with the cached URLs; refresh the cache after reconnect, after an explicit persona-change event, or when `asset_version` changes.
+7. If the request returns `chat.error` with `PAIRING_REQUIRED` or `SESSION_NOT_FOUND`, do not guess a persona. Retry only after a fresh `session.accepted`.
 
 ## Desktop Control
 

@@ -16,17 +16,19 @@ const ProtocolVersion = "agodesk.v1"
 type MessageType string
 
 const (
-	TypeSystemConnected MessageType = "system.connected"
-	TypeSystemPing      MessageType = "system.ping"
-	TypeSystemPong      MessageType = "system.pong"
-	TypeSessionStart    MessageType = "session.start"
-	TypeSessionAccepted MessageType = "session.accepted"
-	TypeChatMessage     MessageType = "chat.message"
-	TypeChatResponse    MessageType = "chat.response"
-	TypeChatError       MessageType = "chat.error"
-	TypeChatChunk       MessageType = "chat.response.chunk"
-	TypeDesktopCommand  MessageType = "desktop.command"
-	TypeDesktopResult   MessageType = "desktop.result"
+	TypeSystemConnected      MessageType = "system.connected"
+	TypeSystemPing           MessageType = "system.ping"
+	TypeSystemPong           MessageType = "system.pong"
+	TypeSessionStart         MessageType = "session.start"
+	TypeSessionAccepted      MessageType = "session.accepted"
+	TypeChatMessage          MessageType = "chat.message"
+	TypeChatResponse         MessageType = "chat.response"
+	TypeChatError            MessageType = "chat.error"
+	TypeChatChunk            MessageType = "chat.response.chunk"
+	TypeDesktopCommand       MessageType = "desktop.command"
+	TypeDesktopResult        MessageType = "desktop.result"
+	TypePersonaAssetsRequest MessageType = "persona.assets.request"
+	TypePersonaAssets        MessageType = "persona.assets"
 )
 
 const (
@@ -52,6 +54,24 @@ var DefaultCapabilities = []string{
 	"remote.desktop.capture",
 	"remote.desktop.permission_request",
 	"remote.desktop.input",
+	"persona.assets",
+}
+
+const PersonaAssetVersion = "20260502-persona-refresh"
+
+var corePersonaAssetKeys = map[string]bool{
+	"evil":         true,
+	"friend":       true,
+	"mcp":          true,
+	"mistress":     true,
+	"neutral":      true,
+	"professional": true,
+	"psycho":       true,
+	"punk":         true,
+	"secretary":    true,
+	"servant":      true,
+	"terminator":   true,
+	"thinker":      true,
 }
 
 type Envelope struct {
@@ -130,6 +150,19 @@ type ChatChunkPayload struct {
 	Sequence  int    `json:"sequence"`
 }
 
+type PersonaAssetsRequestPayload struct {
+	SessionID string `json:"session_id"`
+}
+
+type PersonaAssetsPayload struct {
+	SessionID      string `json:"session_id"`
+	Persona        string `json:"persona"`
+	IconKey        string `json:"icon_key"`
+	AvatarImageURL string `json:"avatar_image_url"`
+	IconURL        string `json:"icon_url"`
+	AssetVersion   string `json:"asset_version"`
+}
+
 type DesktopCommandPayload struct {
 	CommandID string                 `json:"command_id"`
 	Operation string                 `json:"operation"`
@@ -154,6 +187,12 @@ func NewEnvelope(messageType MessageType, payload interface{}) (Envelope, error)
 		Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
 		Payload:   raw,
 	}, nil
+}
+
+func NewPersonaAssetsRequest(sessionID string) (Envelope, error) {
+	return NewEnvelope(TypePersonaAssetsRequest, PersonaAssetsRequestPayload{
+		SessionID: strings.TrimSpace(sessionID),
+	})
 }
 
 func DecodeEnvelope(data []byte, maxBytes int) (Envelope, error) {
@@ -224,6 +263,30 @@ func VerifySharedKeyProof(sharedKey, envelopeID, deviceID string, proof SharedKe
 	}
 	want := signSharedKeyProof(sharedKey, envelopeID, deviceID, proof.Nonce, proof.Timestamp)
 	return hmac.Equal([]byte(strings.ToLower(want)), []byte(strings.ToLower(strings.TrimSpace(proof.HMAC))))
+}
+
+func NewPersonaAssetsPayload(sessionID, personaName string, core bool) PersonaAssetsPayload {
+	persona := strings.TrimSpace(personaName)
+	if persona == "" {
+		persona = "custom"
+	}
+	iconKey := PersonaAssetKey(persona, core)
+	return PersonaAssetsPayload{
+		SessionID:      strings.TrimSpace(sessionID),
+		Persona:        persona,
+		IconKey:        iconKey,
+		AvatarImageURL: "/img/personas/" + iconKey + ".png?v=" + PersonaAssetVersion,
+		IconURL:        "/img/persona-icons/" + iconKey + ".png?v=" + PersonaAssetVersion,
+		AssetVersion:   PersonaAssetVersion,
+	}
+}
+
+func PersonaAssetKey(personaName string, core bool) string {
+	key := strings.ToLower(strings.TrimSpace(personaName))
+	if core && corePersonaAssetKeys[key] {
+		return key
+	}
+	return "custom"
 }
 
 func signSharedKeyProof(sharedKey, envelopeID, deviceID, nonce, timestamp string) string {

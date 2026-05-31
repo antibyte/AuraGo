@@ -147,6 +147,13 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 			return true
 		}
 		go handleAgodeskChatMessage(s, r, conn, state, env.ID, payload)
+	case agodesk.TypePersonaAssetsRequest:
+		payload, errPayload := decodeAgodeskPayload[agodesk.PersonaAssetsRequestPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskPersonaAssetsRequest(s, conn, state, env.ID, payload)
 	case agodesk.TypeDesktopResult:
 		payload, errPayload := decodeAgodeskPayload[agodesk.DesktopResultPayload](env)
 		if errPayload != nil {
@@ -169,6 +176,40 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 		return true
 	}
 	return true
+}
+
+func handleAgodeskPersonaAssetsRequest(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.PersonaAssetsRequestPayload) {
+	paired := false
+	stateSessionID := ""
+	if state != nil {
+		state.mu.RLock()
+		paired = state.paired
+		stateSessionID = state.sessionID
+		state.mu.RUnlock()
+	}
+	if !paired {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorPairingRequired, "Pairing is required before persona assets are available.")
+		return
+	}
+	sessionID := strings.TrimSpace(payload.SessionID)
+	if sessionID == "" {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorSessionNotFound, "persona.assets.request session_id is required")
+		return
+	}
+	if sessionID != stateSessionID {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorSessionNotFound, "persona.assets.request session_id does not match the active agodesk session")
+		return
+	}
+	persona := "custom"
+	if s != nil && s.Cfg != nil {
+		s.CfgMu.RLock()
+		persona = strings.TrimSpace(s.Cfg.Personality.CorePersonality)
+		s.CfgMu.RUnlock()
+	}
+	if persona == "" {
+		persona = "custom"
+	}
+	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypePersonaAssets, agodesk.NewPersonaAssetsPayload(sessionID, persona, isCorePersonality(persona)))
 }
 
 func handleAgodeskChatMessage(s *Server, r *http.Request, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.ChatMessagePayload) {

@@ -273,6 +273,45 @@ func TestAgodeskWebSocketPongsWhileChatMessageInFlight(t *testing.T) {
 	}
 }
 
+func TestAgodeskPersonaAssetsRequestReturnsActivePersonaAvatarAndIcon(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	s.Cfg.Personality.CorePersonality = "punk"
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws?insecure_loopback=1")
+	defer cleanup()
+
+	connected := readAgodeskTestEnvelope(t, conn)
+	var connectedPayload agodesk.SystemConnectedPayload
+	decodeAgodeskTestPayload(t, connected, &connectedPayload)
+	if !agodeskTestContainsString(connectedPayload.Capabilities, "persona.assets") {
+		t.Fatalf("system.connected capabilities = %v, want persona.assets", connectedPayload.Capabilities)
+	}
+
+	req, err := agodesk.NewEnvelope(agodesk.TypePersonaAssetsRequest, agodesk.PersonaAssetsRequestPayload{
+		SessionID: connectedPayload.SessionID,
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope persona assets: %v", err)
+	}
+	if err := conn.WriteJSON(req); err != nil {
+		t.Fatalf("write persona.assets.request: %v", err)
+	}
+	resp := readAgodeskTestEnvelope(t, conn)
+	if resp.Type != agodesk.TypePersonaAssets {
+		t.Fatalf("response type = %q, want %q", resp.Type, agodesk.TypePersonaAssets)
+	}
+	var payload agodesk.PersonaAssetsPayload
+	decodeAgodeskTestPayload(t, resp, &payload)
+	if payload.SessionID != connectedPayload.SessionID || payload.Persona != "punk" || payload.IconKey != "punk" {
+		t.Fatalf("persona assets payload = %+v", payload)
+	}
+	if payload.AvatarImageURL != "/img/personas/punk.png?v="+agodesk.PersonaAssetVersion {
+		t.Fatalf("avatar_image_url = %q", payload.AvatarImageURL)
+	}
+	if payload.IconURL != "/img/persona-icons/punk.png?v="+agodesk.PersonaAssetVersion {
+		t.Fatalf("icon_url = %q", payload.IconURL)
+	}
+}
+
 func TestAgodeskSessionStartWithPairingTokenCreatesRemoteDevice(t *testing.T) {
 	s := newAgodeskPairingTestServer(t)
 	token := "remote_test_pairing_token"

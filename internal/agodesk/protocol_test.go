@@ -61,3 +61,51 @@ func TestSharedKeyProofVerifiesEnvelopeBoundHMAC(t *testing.T) {
 		t.Fatal("proof verified outside allowed clock skew")
 	}
 }
+
+func TestNewPersonaAssetsPayloadUsesCoreAvatarAndIcon(t *testing.T) {
+	payload := NewPersonaAssetsPayload("agodesk:dev:1", "friend", true)
+
+	if payload.SessionID != "agodesk:dev:1" {
+		t.Fatalf("session_id = %q, want agodesk:dev:1", payload.SessionID)
+	}
+	if payload.Persona != "friend" || payload.IconKey != "friend" {
+		t.Fatalf("persona payload = %+v, want friend persona and icon key", payload)
+	}
+	if payload.AvatarImageURL != "/img/personas/friend.png?v="+PersonaAssetVersion {
+		t.Fatalf("avatar_image_url = %q", payload.AvatarImageURL)
+	}
+	if payload.IconURL != "/img/persona-icons/friend.png?v="+PersonaAssetVersion {
+		t.Fatalf("icon_url = %q", payload.IconURL)
+	}
+}
+
+func TestNewPersonaAssetsRequestBuildsClientEnvelope(t *testing.T) {
+	env, err := NewPersonaAssetsRequest(" agodesk:dev:1 ")
+	if err != nil {
+		t.Fatalf("NewPersonaAssetsRequest: %v", err)
+	}
+	if env.Type != TypePersonaAssetsRequest {
+		t.Fatalf("type = %q, want %q", env.Type, TypePersonaAssetsRequest)
+	}
+	var payload PersonaAssetsRequestPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		t.Fatalf("unmarshal request payload: %v", err)
+	}
+	if payload.SessionID != "agodesk:dev:1" {
+		t.Fatalf("session_id = %q, want trimmed session", payload.SessionID)
+	}
+}
+
+func TestNewPersonaAssetsPayloadFallsBackForCustomPersona(t *testing.T) {
+	payload := NewPersonaAssetsPayload("agodesk:dev:1", "lab-assistant", false)
+
+	if payload.Persona != "lab-assistant" {
+		t.Fatalf("persona = %q, want original active persona name", payload.Persona)
+	}
+	if payload.IconKey != "custom" {
+		t.Fatalf("icon_key = %q, want custom fallback", payload.IconKey)
+	}
+	if !strings.Contains(payload.AvatarImageURL, "/img/personas/custom.png") || !strings.Contains(payload.IconURL, "/img/persona-icons/custom.png") {
+		t.Fatalf("custom asset urls not returned: %+v", payload)
+	}
+}
