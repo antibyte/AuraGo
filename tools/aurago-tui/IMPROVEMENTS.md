@@ -50,6 +50,19 @@ A lighter Go/Bubbletea TUI (`cmd/agocli` in feature worktrees) also exists. It f
 
 It may be merged or kept as a companion tool. The Rust `aurago-tui` is the full-featured daily driver.
 
+## Completed During 2026-05-18 Audit Follow-up
+
+All items from the original audit "Next Steps" list have been addressed (see `reports/aurago-tui-audit-2026-05-18.md` for full details).
+
+- ✅ Removed accidental 443 MB full Zig 0.14 toolchain (`zig/`) + `zigcc.bat` (never wired into any build script, CI, or Cargo config; was bloating clones and disk).
+- ✅ Fixed remaining hardcoded `Color::Yellow` / `Color::Black` in UI (now consistently uses `theme.*`).
+- ✅ Extracted ~600 LOC of action dispatch + orchestration from monolithic `main.rs` into `src/actions.rs` (major maintainability win).
+- ✅ Added first unit tests (cursor unicode handling, `apply_sse_event`, keybinding matrix).
+- ✅ Expanded help overlay with previously undocumented global shortcuts.
+- ✅ All changes pass `cargo check`, `clippy -D warnings`, and new tests.
+
+**Last updated**: 2026-05-18 (full audit next-steps execution)
+
 ## How to Contribute
 
 When adding a feature from this list, please:
@@ -59,4 +72,4 @@ When adding a feature from this list, please:
 
 ---
 
-**Last updated**: 2026-05 during the comprehensive bug-fix pass that resolved the critical scroll, resize, and stability issues.
+**Last updated**: 2026-05-18 (full audit next-steps execution + previous 2026-05 bug-fix pass)

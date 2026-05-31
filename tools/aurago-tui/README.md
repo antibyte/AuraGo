@@ -28,6 +28,8 @@ On Windows you need either:
 
 installed so that Rust can link native binaries.
 
+(Note: A previous experimental `zigcc.bat` + full Zig toolchain was removed in the 2026-05-18 audit as it was unused and bloated the tree by 443 MB.)
+
 ## Usage
 
 ```bash
