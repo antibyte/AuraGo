@@ -1083,6 +1083,13 @@
     border-bottom-color: rgba(0, 240, 255, 0.4);
 }
 
+[data-theme="cyberwar"] .vd-window.active {
+    box-shadow: 
+        0 24px 70px rgba(0, 0, 0, 0.65),
+        0 0 0 1px rgba(0, 240, 255, 0.25),
+        0 0 18px rgba(0, 240, 255, 0.12);
+}
+
 [data-theme="cyberwar"] .vd-taskbar,
 [data-theme="cyberwar"] .vd-dock {
     background: rgba(2, 5, 14, 0.92);
@@ -1119,6 +1126,45 @@
     border-color: var(--accent);
     background: rgba(0, 240, 255, 0.06);
     box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.2);
+}
+
+/* Window Menus in Cyberwar */
+[data-theme="cyberwar"] .vd-window-menubar {
+    background: rgba(2, 5, 14, 0.6);
+    border-top-color: rgba(0, 240, 255, 0.18);
+}
+
+[data-theme="cyberwar"] .vd-window-menu-button {
+    color: var(--text-secondary);
+    font-family: var(--cyber-font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.7rem;
+}
+
+[data-theme="cyberwar"] .vd-window-menu-button:hover,
+[data-theme="cyberwar"] .vd-window-menu.open > .vd-window-menu-button {
+    background: rgba(0, 240, 255, 0.1);
+    border-color: rgba(0, 240, 255, 0.3);
+    color: #d1f4ff;
+}
+
+[data-theme="cyberwar"] .vd-window-menu-popover {
+    background: rgba(3, 7, 18, 0.98);
+    border-color: rgba(0, 240, 255, 0.25);
+    box-shadow: 0 16px 50px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(0, 240, 255, 0.1);
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+
+[data-theme="cyberwar"] .vd-window-menu-item {
+    font-family: var(--cyber-font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+[data-theme="cyberwar"] .vd-window-menu-item:hover {
+    background: rgba(0, 240, 255, 0.12);
+    color: #fff;
 }
 
 /* Make Papirus-style icons pop in cyberwar desktop */
