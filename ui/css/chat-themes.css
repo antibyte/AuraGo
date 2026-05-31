@@ -5443,6 +5443,35 @@
     --code-bg: rgba(5, 8, 18, 0.94);
     --inline-code-bg: rgba(129, 140, 248, 0.12);
     --input-bg: rgba(8, 13, 25, 0.92);
+
+    /* Virtual Desktop 3D tilt tuning (for windows in threedee theme) */
+    --threedee-vd-perspective: 1600px;
+    --threedee-vd-max-tilt-deg: 7; /* significantly reduced for tall content readability */
+}
+
+/* === Virtual Desktop windows — milder 3D tilt in threedee theme === */
+[data-theme="threedee"] .vd-window {
+    perspective: var(--threedee-vd-perspective) !important;
+}
+
+[data-theme="threedee"] .vd-window .vd-window-content,
+[data-theme="threedee"] .vd-window .vd-window-body,
+[data-theme="threedee"] .vd-window .vd-window-scroller {
+    perspective: var(--threedee-vd-perspective) !important;
+}
+
+/* Extra relief for very long windows so the bottom remains readable */
+[data-theme="threedee"] .vd-window[data-content-tall="true"],
+[data-theme="threedee"] .vd-window.tall-content {
+    perspective: 2400px !important;
+}
+
+[data-theme="threedee"] .vd-window[data-content-tall="true"] .vd-window-content,
+[data-theme="threedee"] .vd-window.tall-content .vd-window-content {
+    perspective: 2400px !important;
+}
+
+    /* Virtual Desktop window 3D tilt tuning for threedee theme */
     --input-border: rgba(129, 140, 248, 0.26);
     --text-primary: #e2e8f0;
     --text-secondary: #94a3b8;
