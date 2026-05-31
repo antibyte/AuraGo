@@ -368,8 +368,8 @@
     position: relative;
     z-index: 3;
     overflow: hidden;
-    padding-top: 2rem;
-    padding-bottom: 2.5rem;
+    padding-top: 1.75rem;
+    padding-bottom: 3.25rem; /* extra breathing room so last message doesn't feel cramped against composer */
 }
 
 /* Avatars as Tactical HUD Reticles */
@@ -494,6 +494,7 @@
     box-shadow:
         0 12px 40px rgba(0, 0, 0, 0.6),
         0 0 25px rgba(0, 240, 255, 0.18);
+    transform: translateY(-1px);
 }
 
 [data-theme="cyberwar"] .msg-row:hover .bubble.user {
@@ -501,6 +502,14 @@
     box-shadow:
         0 12px 40px rgba(0, 0, 0, 0.6),
         0 0 25px rgba(255, 0, 92, 0.18);
+    transform: translateY(-1px);
+}
+
+/* Keyboard focus for accessibility + premium feel */
+[data-theme="cyberwar"] .bubble:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-color: var(--accent);
 }
 
 /* Diagnostic Sandboxed Terminal Panels */
@@ -805,6 +814,7 @@
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%);
     color: #02050f;
     animation: cyberwarPulse 1.5s infinite alternate;
+    box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.4), 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
 [data-theme="cyberwar"] #img-lightbox img {
