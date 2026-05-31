@@ -1,6 +1,6 @@
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
     Frame,
 };
@@ -69,7 +69,7 @@ pub fn draw_login(f: &mut Frame, app: &AppState, theme: &Theme) {
                 .borders(Borders::ALL)
                 .border_style(pass_border),
         )
-        .style(Style::default().bg(Color::Black).fg(theme.fg));
+        .style(Style::default().bg(theme.bg).fg(theme.fg));
     f.render_widget(pass_input, chunks[3]);
 
     if app.totp_enabled {
@@ -85,7 +85,7 @@ pub fn draw_login(f: &mut Frame, app: &AppState, theme: &Theme) {
                     .borders(Borders::ALL)
                     .border_style(totp_border),
             )
-            .style(Style::default().bg(Color::Black).fg(theme.fg));
+            .style(Style::default().bg(theme.bg).fg(theme.fg));
         f.render_widget(totp_input, chunks[4]);
     }
 

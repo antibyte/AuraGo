@@ -1,7 +1,7 @@
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Margin, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, Paragraph, Scrollbar, ScrollbarOrientation, Wrap},
 };
@@ -243,7 +243,7 @@ fn draw_input(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
 
     let para = Paragraph::new(Line::from(spans))
         .block(block)
-        .style(Style::default().bg(Color::Black).fg(theme.fg));
+        .style(Style::default().bg(theme.bg).fg(theme.fg));
     f.render_widget(para, area);
 }
 
