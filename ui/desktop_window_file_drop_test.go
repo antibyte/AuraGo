@@ -58,7 +58,8 @@ func TestDesktopWindowDropCapabilityMapIsCentralized(t *testing.T) {
 		"'viewer-3d': { multiple: false",
 		"writer: { multiple: false",
 		"sheets: { multiple: false",
-		"zipper: { multiple: false",
+		"zipper: { multiple: true",
+		"accepts: path => !!desktopWindowDropPathInfo(path).name",
 		"'code-studio': { multiple: false",
 		"editor: { multiple: false",
 		"'agent-chat': { multiple: false",
@@ -96,6 +97,31 @@ func TestDesktopWindowDropUpdatesTargetWindow(t *testing.T) {
 	body := jsFunctionBodyInWindowMenuTest(t, drops, "function openDesktopFileDropInWindow(windowId, target)")
 	if strings.Contains(body, "openApp(appId") || strings.Contains(body, "openApp(target.appId") {
 		t.Fatal("desktop window drops must update the target window instead of opening a new app instance")
+	}
+}
+
+func TestZipperWindowDropCreatesArchiveFromDroppedFiles(t *testing.T) {
+	t.Parallel()
+
+	drops := rawDesktopAssetText(t, "js/desktop/core/desktop-window-file-drops.js")
+	zipper := readDesktopAssetText(t, "js/desktop/apps/zipper.js")
+	for _, marker := range []string{
+		"if (appId === 'zipper' && window.ZipperApp && typeof window.ZipperApp.dropDesktopFiles === 'function')",
+		"return window.ZipperApp.dropDesktopFiles(windowId, target.paths);",
+	} {
+		if !strings.Contains(drops, marker) {
+			t.Fatalf("desktop window drop runtime must delegate zipper file drops; missing %q", marker)
+		}
+	}
+	for _, marker := range []string{
+		"async function createArchiveFromPaths(paths)",
+		"body: JSON.stringify({ paths: cleanPaths, dest: dest })",
+		"const externalFiles = Array.from((event.dataTransfer && event.dataTransfer.files) || []);",
+		"window.ZipperApp.dropDesktopFiles = dropDesktopFiles;",
+	} {
+		if !strings.Contains(zipper, marker) {
+			t.Fatalf("zipper app must create archives from dropped files; missing %q", marker)
+		}
 	}
 }
 

@@ -4178,7 +4178,7 @@ function wireWindow(win, id) {
         'viewer-3d': { multiple: false, accepts: path => desktopWindowDropExtIn(path, ['stl']), effect: 'copy' },
         writer: { multiple: false, accepts: path => desktopWindowDropExtIn(path, ['docx', 'html', 'htm', 'md', 'txt']), effect: 'copy' },
         sheets: { multiple: false, accepts: path => desktopWindowDropExtIn(path, ['xlsx', 'xlsm', 'csv']), effect: 'copy' },
-        zipper: { multiple: false, accepts: path => desktopWindowDropExtIn(path, ['zip']), effect: 'copy' },
+        zipper: { multiple: true, accepts: path => !!desktopWindowDropPathInfo(path).name, effect: 'copy' },
         'code-studio': { multiple: false, accepts: path => desktopWindowDropExtIn(path, DESKTOP_WINDOW_TEXT_EXTS), effect: 'copy' },
         editor: { multiple: false, accepts: path => desktopWindowDropExtIn(path, DESKTOP_WINDOW_TEXT_EXTS), effect: 'copy' },
         'agent-chat': { multiple: false, accepts: path => !!desktopWindowDropPathInfo(path).name, effect: 'copy' }
@@ -4268,6 +4268,9 @@ function wireWindow(win, id) {
         const appId = target.appId;
         if (appId === 'files' && window.FileManager && typeof window.FileManager.dropDesktopFiles === 'function') {
             return window.FileManager.dropDesktopFiles(windowId, target.paths);
+        }
+        if (appId === 'zipper' && window.ZipperApp && typeof window.ZipperApp.dropDesktopFiles === 'function') {
+            return window.ZipperApp.dropDesktopFiles(windowId, target.paths);
         }
         const path = normalizeDesktopPath(target.path || target.paths[0] || '');
         if (!path) return false;

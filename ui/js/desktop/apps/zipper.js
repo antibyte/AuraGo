@@ -5,7 +5,8 @@
 
     function render(host, windowId, context) {
         if (!host) return;
-        instances.set(windowId, { container: host });
+        const state = { container: host };
+        instances.set(windowId, state);
         const ctx = context || {};
         const esc = ctx.esc || (value => String(value == null ? '' : value));
         const t = ctx.t || ((key, fallback) => fallback || key);
@@ -66,6 +67,42 @@
 
         function setStatus(msg) {
             if (statusNode) statusNode.textContent = msg || '';
+        }
+
+        function normalizePath(path) {
+            return String(path || '').replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+/g, '/').replace(/\/+$/, '');
+        }
+
+        function joinPath(base, name) {
+            const left = normalizePath(base);
+            const right = normalizePath(name);
+            return left ? (right ? left + '/' + right : left) : right;
+        }
+
+        function baseName(path) {
+            const parts = normalizePath(path).split('/').filter(Boolean);
+            return parts.pop() || '';
+        }
+
+        function dirName(path) {
+            const parts = normalizePath(path).split('/').filter(Boolean);
+            parts.pop();
+            return parts.join('/');
+        }
+
+        function ensureZipExtension(path) {
+            const value = normalizePath(path);
+            return /\.zip$/i.test(value) ? value : value + '.zip';
+        }
+
+        function defaultArchiveName(paths) {
+            if (paths.length === 1) {
+                const name = baseName(paths[0]) || 'archive';
+                const dot = name.lastIndexOf('.');
+                const stem = dot > 0 ? name.slice(0, dot) : name;
+                return stem + '.zip';
+            }
+            return 'archive.zip';
         }
 
         function updateBreadcrumb() {
@@ -245,6 +282,51 @@
             }
         }
 
+        async function uploadExternalFilesForArchive(files) {
+            const uploadDir = 'Downloads';
+            const uploadedPaths = [];
+            for (const file of files) {
+                const form = new FormData();
+                form.append('path', uploadDir);
+                form.append('file', file);
+                const body = await api('/api/desktop/upload', { method: 'POST', body: form });
+                uploadedPaths.push(body.path || joinPath(uploadDir, file.name || 'file'));
+            }
+            if (typeof ctx.loadBootstrap === 'function') await ctx.loadBootstrap();
+            return uploadedPaths;
+        }
+
+        async function createArchiveFromPaths(paths) {
+            const cleanPaths = [...new Set((paths || []).map(normalizePath).filter(Boolean))];
+            if (!cleanPaths.length) return false;
+            if (cleanPaths.length === 1 && /\.zip$/i.test(cleanPaths[0])) {
+                openZipPath(cleanPaths[0]);
+                return true;
+            }
+            const prompt = ctx.promptDialog || (async () => null);
+            const defaultDir = dirName(cleanPaths[0]) || 'Documents';
+            let dest = await prompt(t('zipper.new_archive', 'New Archive'), joinPath(defaultDir, defaultArchiveName(cleanPaths)));
+            if (!dest) return false;
+            dest = ensureZipExtension(dest);
+            setStatus(t('zipper.creating', 'Creating archive...'));
+            try {
+                await api('/api/desktop/archive', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ paths: cleanPaths, dest: dest })
+                });
+                setStatus(t('zipper.created', 'Archive created'));
+                notify({ type: 'success', message: t('zipper.created', 'Archive created') });
+                if (typeof ctx.loadBootstrap === 'function') await ctx.loadBootstrap();
+                openZipPath(dest);
+                return true;
+            } catch (err) {
+                setStatus(t('zipper.error_create', 'Failed to create archive'));
+                notify({ type: 'error', message: err.message || String(err) });
+                return false;
+            }
+        }
+
         async function extractHere() {
             if (!zipPath) return;
             const dest = zipPath.split('/').slice(0, -1).join('/') || '.';
@@ -346,16 +428,18 @@
             ]);
         }
 
+        state.dropDesktopFiles = createArchiveFromPaths;
         load();
 
         const appEl = host.querySelector('.zipper-app');
         if (appEl) {
             appEl.addEventListener('dragover', event => {
                 if (!event.dataTransfer) return;
+                const types = Array.from(event.dataTransfer.types || []);
                 const hasFileDrag = fileOps && typeof fileOps.hasDragPayload === 'function'
                     ? fileOps.hasDragPayload(event)
-                    : Array.from(event.dataTransfer.types || []).includes('application/x-aurago-desktop-files');
-                const hasPlainFile = event.dataTransfer.types.includes('Files');
+                    : types.includes('application/x-aurago-desktop-files');
+                const hasPlainFile = types.includes('Files');
                 if (hasFileDrag || hasPlainFile) {
                     event.preventDefault();
                     event.dataTransfer.dropEffect = 'copy';
@@ -367,19 +451,28 @@
                     appEl.classList.remove('zipper-drop-target');
                 }
             });
-            appEl.addEventListener('drop', event => {
+            appEl.addEventListener('drop', async event => {
                 appEl.classList.remove('zipper-drop-target');
                 event.preventDefault();
                 event.stopPropagation();
                 let paths = [];
                 const payload = fileOps && typeof fileOps.readDragPayload === 'function' ? fileOps.readDragPayload(event) : null;
                 if (payload && Array.isArray(payload.paths)) paths = payload.paths;
+                const externalFiles = Array.from((event.dataTransfer && event.dataTransfer.files) || []);
+                if (!paths.length && externalFiles.length) {
+                    try {
+                        paths = await uploadExternalFilesForArchive(externalFiles);
+                    } catch (err) {
+                        setStatus(t('zipper.error_create', 'Failed to create archive'));
+                        notify({ type: 'error', message: err.message || String(err) });
+                        return;
+                    }
+                }
                 if (!paths.length) {
                     const text = event.dataTransfer.getData('text/plain');
                     if (text) paths = [text];
                 }
-                const droppedZipPath = paths.find(p => /\.zip$/i.test(p));
-                if (droppedZipPath) openZipPath(droppedZipPath);
+                if (paths.length) await createArchiveFromPaths(paths);
             });
         }
 
@@ -396,6 +489,12 @@
         instances.delete(windowId);
     }
 
+    async function dropDesktopFiles(windowId, paths) {
+        const state = instances.get(windowId);
+        if (!state || typeof state.dropDesktopFiles !== 'function') return false;
+        return !!(await state.dropDesktopFiles(paths));
+    }
+
     async function fetchJSON(url, options) {
         const resp = await fetch(url, options);
         const body = await resp.json().catch(() => ({}));
@@ -406,4 +505,5 @@
     window.ZipperApp = window.ZipperApp || {};
     window.ZipperApp.render = render;
     window.ZipperApp.dispose = dispose;
+    window.ZipperApp.dropDesktopFiles = dropDesktopFiles;
 })();
