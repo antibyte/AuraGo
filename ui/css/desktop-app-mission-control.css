@@ -7,7 +7,7 @@
     flex-direction: column;
     height: 100%;
     overflow: hidden;
-    font-size: 13px;
+    font-size: 14px; /* Increased for better readability vs other desktop apps */
     color: var(--vd-text);
     background: var(--vd-surface);
     /* Force clean Virtual Desktop look even when outer theme is Cyberwar or other fancy themes */
@@ -108,12 +108,12 @@
     flex: 1;
     min-width: 140px;
     max-width: 280px;
-    padding: 5px 10px;
-    border: 1px solid var(--vd-border, rgba(255,255,255,0.1));
+    padding: 6px 11px;
+    border: 1px solid var(--vd-border);
     border-radius: 6px;
-    background: var(--vd-surface-alt, rgba(255,255,255,0.04));
-    color: var(--vd-text, #e8ecf1);
-    font-size: 12px;
+    background: var(--vd-surface-alt);
+    color: var(--vd-text);
+    font-size: 13px;
     outline: none;
     transition: border-color 0.15s;
 }
@@ -127,12 +127,12 @@
 }
 
 .vd-mc-filter-select {
-    padding: 5px 8px;
-    border: 1px solid var(--vd-border, rgba(255,255,255,0.1));
+    padding: 6px 10px;
+    border: 1px solid var(--vd-border);
     border-radius: 6px;
-    background: var(--vd-surface-alt, rgba(255,255,255,0.04));
-    color: var(--vd-text, #e8ecf1);
-    font-size: 12px;
+    background: var(--vd-surface-alt);
+    color: var(--vd-text);
+    font-size: 13px;
     cursor: pointer;
     outline: none;
 }
@@ -145,10 +145,10 @@
 }
 
 .vd-mc-view-btn {
-    padding: 4px 8px;
+    padding: 5px 10px;
     background: transparent;
     border: none;
-    color: var(--vd-text-muted, #9aa3ad);
+    color: var(--vd-text-muted);
     cursor: pointer;
     font-size: 13px;
     transition: all 0.15s;
@@ -177,11 +177,11 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px;
+    padding: 5px 11px;
     border-radius: 8px;
-    background: var(--vd-surface-alt, rgba(255,255,255,0.03));
-    border: 1px solid var(--vd-border, rgba(255,255,255,0.04));
-    font-size: 11px;
+    background: var(--vd-surface-alt);
+    border: 1px solid var(--vd-border);
+    font-size: 12px;
     white-space: nowrap;
     min-width: 80px;
 }
@@ -193,7 +193,7 @@
 .vd-mc-stat-value {
     font-weight: 700;
     font-size: 14px;
-    color: var(--vd-text, #e8ecf1);
+    color: var(--vd-text);
 }
 
 .vd-mc-stat-label {
@@ -257,11 +257,11 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 10px;
+    padding: 7px 11px;
     border-radius: 6px;
-    background: var(--vd-surface-alt, rgba(255,255,255,0.03));
-    border: 1px solid var(--vd-border, rgba(255,255,255,0.04));
-    font-size: 12px;
+    background: var(--vd-surface-alt);
+    border: 1px solid var(--vd-border);
+    font-size: 13px;
 }
 
 .vd-mc-queue-item.running {
@@ -291,8 +291,8 @@
 }
 
 .vd-mc-queue-meta {
-    color: var(--vd-text-muted, #9aa3ad);
-    font-size: 11px;
+    color: var(--vd-text-muted);
+    font-size: 12px;
     white-space: nowrap;
 }
 
@@ -381,7 +381,7 @@
 
 .vd-mc-card-title {
     font-weight: 600;
-    font-size: 14px;
+    font-size: 15px;
     color: var(--vd-text);
     line-height: 1.3;
 }
@@ -393,8 +393,8 @@
 }
 
 .vd-mc-badge {
-    font-size: 10px;
-    padding: 1px 6px;
+    font-size: 11px;
+    padding: 2px 7px;
     border-radius: 4px;
     background: var(--vd-surface);
     color: var(--vd-text-muted);
@@ -403,7 +403,7 @@
 }
 
 .vd-mc-card-body {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--vd-text-muted);
     line-height: 1.4;
 }
