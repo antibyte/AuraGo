@@ -667,6 +667,109 @@ func TestAgodeskDesktopCommandWithoutClientCapabilityFailsFast(t *testing.T) {
 	}
 }
 
+func TestAgodeskDesktopResultAcceptsLargeScreenshotPayload(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	token := "desktop-command-large-screenshot-token"
+	if _, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
+		TokenHash:  hashSHA256(token),
+		DeviceName: "large-screenshot-pc",
+		ExpiresAt:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+	}); err != nil {
+		t.Fatalf("CreateEnrollment: %v", err)
+	}
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws")
+	defer cleanup()
+	_ = readAgodeskTestEnvelope(t, conn)
+	start, err := agodesk.NewEnvelope(agodesk.TypeSessionStart, agodesk.SessionStartPayload{
+		ClientVersion:      "0.1.0",
+		PairingToken:       token,
+		ClientCapabilities: []string{"remote.desktop.capture"},
+		Host:               agodesk.SessionStartHost{Hostname: "BIG-SHOT-PC", OS: "windows", Arch: "amd64"},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope session.start: %v", err)
+	}
+	if err := conn.WriteJSON(start); err != nil {
+		t.Fatalf("write session.start: %v", err)
+	}
+	acceptedEnvelope := readAgodeskTestEnvelope(t, conn)
+	var accepted agodesk.SessionAcceptedPayload
+	decodeAgodeskTestPayload(t, acceptedEnvelope, &accepted)
+
+	type commandResult struct {
+		result remote.ResultPayload
+		err    error
+	}
+	resultCh := make(chan commandResult, 1)
+	go func() {
+		result, err := s.RemoteHub.SendCommand(accepted.DeviceID, remote.CommandPayload{
+			Operation: remote.OpDesktopScreenshot,
+			Args:      map[string]interface{}{"format": "png"},
+		}, 2*time.Second)
+		resultCh <- commandResult{result: result, err: err}
+	}()
+
+	cmdEnvelope := readAgodeskTestEnvelope(t, conn)
+	var cmd agodesk.DesktopCommandPayload
+	decodeAgodeskTestPayload(t, cmdEnvelope, &cmd)
+	if cmd.CommandID == "" {
+		t.Fatalf("desktop command payload = %+v", cmd)
+	}
+	largeImage := strings.Repeat("a", 420*1024)
+	resultEnvelope, err := agodesk.NewEnvelope(agodesk.TypeDesktopResult, agodesk.DesktopResultPayload{
+		CommandID: cmd.CommandID,
+		OK:        true,
+		Data: map[string]interface{}{
+			"source":      "display",
+			"display_id":  "display-0",
+			"format":      "png",
+			"mime":        "image/png",
+			"data_base64": largeImage,
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope desktop.result: %v", err)
+	}
+	raw, _ := json.Marshal(resultEnvelope)
+	if len(raw) <= 256*1024 {
+		t.Fatalf("test payload = %d bytes, want above old agodesk limit", len(raw))
+	}
+	if err := conn.WriteMessage(websocket.TextMessage, raw); err != nil {
+		t.Fatalf("write large desktop.result: %v", err)
+	}
+
+	select {
+	case got := <-resultCh:
+		if got.err != nil {
+			t.Fatalf("SendCommand returned error: %v", got.err)
+		}
+		if got.result.Status != "ok" || !strings.Contains(got.result.Output, `"display_id":"display-0"`) {
+			t.Fatalf("large desktop command result = %+v", got.result)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for large desktop result")
+	}
+}
+
+func TestAgodeskRejectsLargeNonDesktopMessage(t *testing.T) {
+	msg, err := agodesk.NewEnvelope(agodesk.TypeChatMessage, agodesk.ChatMessagePayload{
+		SessionID: "agodesk:test",
+		Text:      strings.Repeat("x", 300*1024),
+		Role:      "user",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat.message: %v", err)
+	}
+	raw, _ := json.Marshal(msg)
+	if len(raw) <= agodeskControlMessageMaxBytes {
+		t.Fatalf("test payload = %d bytes, want above control limit", len(raw))
+	}
+	if _, err := decodeAgodeskEnvelope(raw); err == nil || !strings.Contains(err.Error(), "message too large") {
+		t.Fatalf("decodeAgodeskEnvelope error = %v, want message too large", err)
+	}
+}
+
 func newAgodeskHandlerTestServer() *Server {
 	return &Server{
 		Cfg:    &config.Config{},

@@ -21,8 +21,10 @@ import (
 )
 
 const (
-	agodeskMessageSource   = "agodesk_chat"
-	agodeskMaxMessageBytes = 256 * 1024
+	agodeskMessageSource           = "agodesk_chat"
+	agodeskControlMessageMaxBytes  = 256 * 1024
+	agodeskDesktopResultMaxBytes   = 16 * 1024 * 1024
+	agodeskWebSocketReadLimitBytes = agodeskDesktopResultMaxBytes
 )
 
 var agodeskUpgrader = websocket.Upgrader{
@@ -74,7 +76,7 @@ func handleAgodeskWebSocket(s *Server) http.HandlerFunc {
 			return
 		}
 		defer conn.Close()
-		conn.SetReadLimit(agodeskMaxMessageBytes)
+		conn.SetReadLimit(agodeskWebSocketReadLimitBytes)
 
 		state := agodeskConnectionState{
 			sessionID: "agodesk:temp:" + agodeskConnectionID(),
@@ -103,7 +105,7 @@ func handleAgodeskWebSocket(s *Server) http.HandlerFunc {
 			if err != nil {
 				return
 			}
-			env, err := agodesk.DecodeEnvelope(data, agodeskMaxMessageBytes)
+			env, err := decodeAgodeskEnvelope(data)
 			if err != nil {
 				_ = writeAgodeskEnvelopeLocked(conn, &state, agodesk.TypeChatError, agodesk.ChatErrorPayload{
 					Code:    agodesk.ErrorInvalidMessage,
@@ -676,6 +678,17 @@ func agodeskDesktopResultToRemoteResult(commandID string, payload agodesk.Deskto
 		Output:    output,
 		Error:     payload.Error,
 	}
+}
+
+func decodeAgodeskEnvelope(data []byte) (agodesk.Envelope, error) {
+	env, err := agodesk.DecodeEnvelope(data, agodeskWebSocketReadLimitBytes)
+	if err != nil {
+		return agodesk.Envelope{}, err
+	}
+	if env.Type != agodesk.TypeDesktopResult && len(data) > agodeskControlMessageMaxBytes {
+		return agodesk.Envelope{}, fmt.Errorf("message too large: %d bytes exceeds %d for %s", len(data), agodeskControlMessageMaxBytes, env.Type)
+	}
+	return env, nil
 }
 
 func decodeAgodeskPayload[T any](env agodesk.Envelope) (T, error) {

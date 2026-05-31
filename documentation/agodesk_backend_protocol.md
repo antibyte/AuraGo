@@ -20,6 +20,8 @@ Every frame uses this envelope:
 }
 ```
 
+AuraGo accepts AgoDesk WebSocket messages up to 16 MiB. Desktop screenshot results include `data_base64` inside `desktop.result`, so clients must allow outgoing screenshot frames at least this large or downscale/compress before replying.
+
 ## Connection Flow
 
 1. Client connects to `/api/agodesk/ws`.
