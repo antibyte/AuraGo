@@ -33,14 +33,14 @@ fn draw_config_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) 
             Style::default().fg(theme.fg).add_modifier(Modifier::BOLD),
         ),
         if app.config_dirty {
-            Span::styled(" ● ", Style::default().fg(ratatui::style::Color::Yellow))
+            Span::styled(" ● ", Style::default().fg(theme.warning))
         } else {
             Span::raw("")
         },
         if app.config_dirty {
             Span::styled(
                 "unsaved",
-                Style::default().fg(ratatui::style::Color::Yellow),
+                Style::default().fg(theme.warning),
             )
         } else {
             Span::raw("")
@@ -248,11 +248,11 @@ fn draw_config_status(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) 
     if app.config_dirty {
         spans.push(Span::styled(
             "  ● ",
-            Style::default().fg(ratatui::style::Color::Yellow),
+            Style::default().fg(theme.warning),
         ));
         spans.push(Span::styled(
             "unsaved changes",
-            Style::default().fg(ratatui::style::Color::Yellow),
+            Style::default().fg(theme.warning),
         ));
     }
 
