@@ -51,7 +51,7 @@ func TestVirtualDesktopHasMobileLayoutMarkers(t *testing.T) {
 		"overscroll-behavior: none",
 		".vd-window-titlebar",
 		"touch-action: none;",
-		"max-height: 70dvh",
+		"max-height: min(70dvh",
 		"@media (max-width: 560px)",
 		".fm-sidebar-toggle",
 	} {
@@ -76,6 +76,8 @@ func TestVirtualDesktopMobileWorkspaceCanScrollHorizontally(t *testing.T) {
 		"width: 100vw !important;",
 		".vd-mobile-wide-window",
 		"width: var(--vd-mobile-workspace-width) !important;",
+		".vd-window.vd-mobile-wide-window .vd-window-titlebar",
+		"position: sticky;",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("desktop mobile stylesheet missing horizontal scroll marker %q", want)
@@ -93,6 +95,34 @@ func TestVirtualDesktopMobileWorkspaceCanScrollHorizontally(t *testing.T) {
 	}
 	if strings.Contains(js, "'agent-chat',") {
 		t.Fatal("desktop agent chat should not opt into the wide mobile window layout")
+	}
+}
+
+func TestVirtualDesktopMobileOverlaysAvoidTaskbar(t *testing.T) {
+	t.Parallel()
+
+	css := readAllDesktopCSS(t)
+	for _, want := range []string{
+		"bottom: var(--vd-mobile-taskbar-reserve",
+		"max-height: min(70dvh",
+		"calc(var(--vd-visual-height, 100dvh) - var(--vd-mobile-taskbar-reserve",
+	} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("desktop mobile overlay stylesheet missing taskbar avoidance marker %q", want)
+		}
+	}
+
+	js := readDesktopAssetText(t, "js/desktop/core/menus-and-routing.js")
+	for _, want := range []string{
+		"function contextMenuUsableBottom()",
+		"window.matchMedia('(max-width: 820px)')",
+		"const usableBottom = contextMenuUsableBottom();",
+		"menu.style.maxHeight = maxMenuHeight + 'px';",
+		"menu.style.top = Math.max(8, Math.min(y, usableBottom - rect.height)) + 'px';",
+	} {
+		if !strings.Contains(js, want) {
+			t.Fatalf("desktop mobile overlay script missing taskbar avoidance marker %q", want)
+		}
 	}
 }
 

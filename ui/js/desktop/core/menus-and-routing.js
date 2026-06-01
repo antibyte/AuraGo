@@ -39,6 +39,15 @@
         }).filter(Boolean);
     }
 
+    function contextMenuUsableBottom() {
+        const taskbar = document.querySelector('.vd-taskbar');
+        if (window.matchMedia && window.matchMedia('(max-width: 820px)').matches && taskbar) {
+            const rect = taskbar.getBoundingClientRect();
+            if (rect.top > 0) return Math.max(8, Math.floor(rect.top - 8));
+        }
+        return window.innerHeight - 8;
+    }
+
     function showContextMenu(x, y, items) {
         closeContextMenu(true);
         items = normalizeContextMenuItems(items);
@@ -65,9 +74,13 @@
         menu.setAttribute('role', 'menu');
         menu.innerHTML = renderItems(items, []);
         document.body.appendChild(menu);
+        const usableBottom = contextMenuUsableBottom();
+        const maxMenuHeight = Math.max(160, usableBottom - 8);
+        menu.style.maxHeight = maxMenuHeight + 'px';
+        menu.style.overflowY = menu.scrollHeight > maxMenuHeight ? 'auto' : '';
         const rect = menu.getBoundingClientRect();
         menu.style.left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8)) + 'px';
-        menu.style.top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8)) + 'px';
+        menu.style.top = Math.max(8, Math.min(y, usableBottom - rect.height)) + 'px';
         animateThen(menu, 'vd-context-menu-opening', isFruityTheme() ? 150 : 100);
         menu.querySelectorAll('[data-context-action]').forEach(btn => {
             btn.addEventListener('click', () => {

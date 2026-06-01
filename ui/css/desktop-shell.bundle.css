@@ -1841,14 +1841,14 @@
 .vd-start-menu {
         left: 0 !important;
         right: 0 !important;
-        bottom: calc(var(--vd-taskbar-height, 54px) + var(--vd-taskbar-offset, 12px) + env(safe-area-inset-bottom, 0px)) !important;
+        bottom: var(--vd-mobile-taskbar-reserve, calc(70px + env(safe-area-inset-bottom, 0px))) !important;
         width: 100vw !important;
-        max-height: 70dvh;
+        max-height: min(70dvh, calc(var(--vd-visual-height, 100dvh) - var(--vd-mobile-taskbar-reserve, calc(70px + env(safe-area-inset-bottom, 0px))) - 8px));
         border-radius: 16px 16px 0 0;
         animation: vd-start-sheet-in 180ms ease-out;
     }
 .vd-start-apps {
-        max-height: calc(70dvh - 64px);
+        max-height: min(calc(70dvh - 64px), calc(var(--vd-visual-height, 100dvh) - var(--vd-mobile-taskbar-reserve, calc(70px + env(safe-area-inset-bottom, 0px))) - 72px));
     }
 }
 
@@ -2616,6 +2616,14 @@
 .vd-window.vd-mobile-wide-window.maximized {
         min-width: var(--vd-mobile-workspace-width);
         width: var(--vd-mobile-workspace-width) !important;
+    }
+.vd-window.vd-mobile-wide-window .vd-window-titlebar {
+        position: sticky;
+        left: 0;
+        width: 100vw;
+        max-width: 100vw;
+        z-index: 3;
+        box-sizing: border-box;
     }
 .vd-window.has-window-menu {
         grid-template-rows: 84px 1fr;
