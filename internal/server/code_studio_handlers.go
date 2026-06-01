@@ -1043,6 +1043,10 @@ func (s *codeStudioTerminalSession) consume(input string) (string, string) {
 }
 
 func (a codeStudioDockerAdapter) Exec(ctx context.Context, containerID string, cmd []string, timeout time.Duration) (codeStudioExecResult, error) {
+	return a.exec(ctx, containerID, cmd, "", timeout)
+}
+
+func (a codeStudioDockerAdapter) exec(ctx context.Context, containerID string, cmd []string, user string, timeout time.Duration) (codeStudioExecResult, error) {
 	if timeout <= 0 || timeout > codeStudioMaxExecTime {
 		timeout = codeStudioMaxExecTime
 	}
@@ -1053,6 +1057,9 @@ func (a codeStudioDockerAdapter) Exec(ctx context.Context, containerID string, c
 		"AttachStderr": true,
 		"Cmd":          cmd,
 		"Tty":          false,
+	}
+	if strings.TrimSpace(user) != "" {
+		payload["User"] = strings.TrimSpace(user)
 	}
 	body, _ := json.Marshal(payload)
 	data, code, err := tools.DockerRequestContext(ctx, a.cfg, http.MethodPost, "/containers/"+url.PathEscape(containerID)+"/exec", string(body))

@@ -23,6 +23,7 @@ type fakeCodeContainerDocker struct {
 type fakeCodeContainerExec struct {
 	container string
 	cmd       []string
+	user      string
 }
 
 func TestCodeContainerEnsureStartedSeedsDefaultWorkspace(t *testing.T) {
@@ -113,9 +114,9 @@ func (f *fakeCodeContainerDocker) ContainerAction(ctx context.Context, container
 	return nil
 }
 
-func (f *fakeCodeContainerDocker) ExecContainer(ctx context.Context, container string, cmd []string, timeout time.Duration) (CodeDockerExecResult, error) {
+func (f *fakeCodeContainerDocker) ExecContainer(ctx context.Context, container string, cmd []string, user string, timeout time.Duration) (CodeDockerExecResult, error) {
 	index := len(f.execs)
-	f.execs = append(f.execs, fakeCodeContainerExec{container: container, cmd: append([]string(nil), cmd...)})
+	f.execs = append(f.execs, fakeCodeContainerExec{container: container, cmd: append([]string(nil), cmd...), user: user})
 	if index < len(f.execResults) {
 		return f.execResults[index], nil
 	}
@@ -144,11 +145,20 @@ func TestCodeContainerEnsureStartedSeedsContainerWorkspaceAfterCreate(t *testing
 	if err := svc.EnsureStarted(context.Background()); err != nil {
 		t.Fatalf("EnsureStarted returned error: %v", err)
 	}
-	if len(fake.execs) != 2 {
-		t.Fatalf("container exec count = %d, want runtime check and seed", len(fake.execs))
+	if len(fake.execs) != 3 {
+		t.Fatalf("container exec count = %d, want runtime check, workspace permission repair, and seed", len(fake.execs))
 	}
-	if fake.execs[1].container != "created-1" {
-		t.Fatalf("container seed target = %q, want created-1", fake.execs[1].container)
+	if fake.execs[1].container != "created-1" || fake.execs[1].user != "0:0" {
+		t.Fatalf("container repair exec = %#v, want created-1 as root", fake.execs[1])
+	}
+	repair := strings.Join(fake.execs[1].cmd, " ")
+	for _, want := range []string{"chmod", "/workspace"} {
+		if !strings.Contains(repair, want) {
+			t.Fatalf("container repair command %q missing %q", repair, want)
+		}
+	}
+	if fake.execs[2].container != "created-1" || fake.execs[2].user != "" {
+		t.Fatalf("container seed exec = %#v, want created-1 as default user", fake.execs[2])
 	}
 	runtimeProbe := strings.Join(fake.execs[0].cmd, " ")
 	for _, want := range []string{"command -v node", "command -v python3", "command -v go"} {
@@ -156,7 +166,7 @@ func TestCodeContainerEnsureStartedSeedsContainerWorkspaceAfterCreate(t *testing
 			t.Fatalf("runtime probe command %q missing %q", runtimeProbe, want)
 		}
 	}
-	joined := strings.Join(fake.execs[1].cmd, " ")
+	joined := strings.Join(fake.execs[2].cmd, " ")
 	for _, want := range []string{"/workspace", "README.md", "hello.go", "hello.py", "Hello from Code Studio"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("container seed command %q missing %q", joined, want)

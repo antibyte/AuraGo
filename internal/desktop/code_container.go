@@ -52,7 +52,7 @@ type CodeContainerDocker interface {
 	EnsureImage(ctx context.Context, image string) error
 	CreateContainer(ctx context.Context, req CodeDockerCreateRequest) (string, error)
 	ContainerAction(ctx context.Context, container, action string) error
-	ExecContainer(ctx context.Context, container string, cmd []string, timeout time.Duration) (CodeDockerExecResult, error)
+	ExecContainer(ctx context.Context, container string, cmd []string, user string, timeout time.Duration) (CodeDockerExecResult, error)
 }
 
 // CodeDockerContainer is the subset of Docker container metadata Code Studio needs.
@@ -327,7 +327,7 @@ func (s *CodeContainerService) defaultContainerRuntimeMissingLocked(ctx context.
 }
 
 func (s *CodeContainerService) containerRuntimeMissingLocked(ctx context.Context, containerID string) (bool, error) {
-	result, err := s.docker.ExecContainer(ctx, containerID, []string{"sh", "-lc", buildCodeStudioRuntimeProbeScript()}, 30*time.Second)
+	result, err := s.docker.ExecContainer(ctx, containerID, []string{"sh", "-lc", buildCodeStudioRuntimeProbeScript()}, "", 30*time.Second)
 	if err != nil {
 		return false, fmt.Errorf("check code studio container runtime tools: %w", err)
 	}
@@ -384,8 +384,11 @@ func seedCodeStudioContainerWorkspace(ctx context.Context, docker CodeContainerD
 	if strings.TrimSpace(containerID) == "" {
 		return fmt.Errorf("code studio container id is required")
 	}
+	if err := repairCodeStudioContainerWorkspace(ctx, docker, containerID); err != nil {
+		return err
+	}
 	script := buildCodeStudioContainerSeedScript()
-	result, err := docker.ExecContainer(ctx, containerID, []string{"sh", "-lc", script}, 30*time.Second)
+	result, err := docker.ExecContainer(ctx, containerID, []string{"sh", "-lc", script}, "", 30*time.Second)
 	if err != nil {
 		return fmt.Errorf("seed code studio container workspace: %w", err)
 	}
@@ -393,6 +396,32 @@ func seedCodeStudioContainerWorkspace(ctx context.Context, docker CodeContainerD
 		return fmt.Errorf("seed code studio container workspace failed: %s", strings.TrimSpace(result.Output))
 	}
 	return nil
+}
+
+func repairCodeStudioContainerWorkspace(ctx context.Context, docker CodeContainerDocker, containerID string) error {
+	script := buildCodeStudioContainerWorkspaceRepairScript()
+	result, err := docker.ExecContainer(ctx, containerID, []string{"sh", "-lc", script}, "0:0", 30*time.Second)
+	if err != nil {
+		return fmt.Errorf("repair code studio container workspace permissions: %w", err)
+	}
+	if result.ExitCode != 0 {
+		return fmt.Errorf("repair code studio container workspace permissions failed: %s", strings.TrimSpace(result.Output))
+	}
+	return nil
+}
+
+func buildCodeStudioContainerWorkspaceRepairScript() string {
+	return strings.Join([]string{
+		"set -eu",
+		"mkdir -p /workspace",
+		"if [ ! -w /workspace ]; then",
+		"  chmod 0777 /workspace 2>/dev/null || true",
+		"fi",
+		"if [ ! -w /workspace ]; then",
+		"  echo 'workspace is not writable after permission repair'",
+		"  exit 1",
+		"fi",
+	}, "\n")
 }
 
 func buildCodeStudioContainerSeedScript() string {
@@ -703,6 +732,6 @@ func (missingCodeContainerDocker) ContainerAction(ctx context.Context, container
 	return fmt.Errorf("code studio Docker backend is not configured")
 }
 
-func (missingCodeContainerDocker) ExecContainer(ctx context.Context, container string, cmd []string, timeout time.Duration) (CodeDockerExecResult, error) {
+func (missingCodeContainerDocker) ExecContainer(ctx context.Context, container string, cmd []string, user string, timeout time.Duration) (CodeDockerExecResult, error) {
 	return CodeDockerExecResult{}, fmt.Errorf("code studio Docker backend is not configured")
 }

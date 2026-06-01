@@ -229,8 +229,8 @@ func (a codeStudioDockerAdapter) ContainerAction(ctx context.Context, container,
 	return nil
 }
 
-func (a codeStudioDockerAdapter) ExecContainer(ctx context.Context, container string, cmd []string, timeout time.Duration) (desktop.CodeDockerExecResult, error) {
-	result, err := a.Exec(ctx, container, cmd, timeout)
+func (a codeStudioDockerAdapter) ExecContainer(ctx context.Context, container string, cmd []string, user string, timeout time.Duration) (desktop.CodeDockerExecResult, error) {
+	result, err := a.exec(ctx, container, cmd, user, timeout)
 	if err != nil {
 		return desktop.CodeDockerExecResult{}, err
 	}
