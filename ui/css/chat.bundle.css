@@ -7869,8 +7869,8 @@ pre,
     position: relative;
     z-index: 3;
     overflow: hidden;
-    padding-top: 2rem;
-    padding-bottom: 2.5rem;
+    padding-top: 1.75rem;
+    padding-bottom: 3.25rem; /* extra breathing room so last message doesn't feel cramped against composer */
 }
 
 /* Avatars as Tactical HUD Reticles */
@@ -7995,6 +7995,7 @@ pre,
     box-shadow:
         0 12px 40px rgba(0, 0, 0, 0.6),
         0 0 25px rgba(0, 240, 255, 0.18);
+    transform: translateY(-1px);
 }
 
 [data-theme="cyberwar"] .msg-row:hover .bubble.user {
@@ -8002,6 +8003,14 @@ pre,
     box-shadow:
         0 12px 40px rgba(0, 0, 0, 0.6),
         0 0 25px rgba(255, 0, 92, 0.18);
+    transform: translateY(-1px);
+}
+
+/* Keyboard focus for accessibility + premium feel */
+[data-theme="cyberwar"] .bubble:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-color: var(--accent);
 }
 
 /* Diagnostic Sandboxed Terminal Panels */
@@ -8306,6 +8315,7 @@ pre,
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%);
     color: #02050f;
     animation: cyberwarPulse 1.5s infinite alternate;
+    box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.4), 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
 [data-theme="cyberwar"] #img-lightbox img {
@@ -8504,6 +8514,166 @@ pre,
     flex-shrink: 0;
 }
 
+
+/* === Virtual Desktop — Cyberwar Tactical HUD === */
+[data-theme="cyberwar"] .vd-window,
+[data-theme="cyberwar"] .vd-widget {
+    border: 1px solid rgba(0, 240, 255, 0.28);
+    background: rgba(3, 7, 18, 0.96);
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.7),
+        0 0 0 1px rgba(0, 240, 255, 0.08) inset;
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+
+/* Desktop CSS variable overrides for full Cyberwar cohesion */
+[data-theme="cyberwar"] {
+    --vd-bg: #02050f;
+    --vd-surface: rgba(3, 7, 18, 0.96);
+    --vd-surface-strong: rgba(5, 11, 26, 0.98);
+    --vd-border: rgba(0, 240, 255, 0.22);
+    --vd-border-bright: rgba(0, 240, 255, 0.4);
+    --vd-text: #d1f4ff;
+    --vd-muted: #7fa4bd;
+    --vd-accent: #00f0ff;
+    --vd-accent-r: 0;
+    --vd-accent-g: 240;
+    --vd-accent-b: 255;
+    --vd-shadow-window: 0 24px 70px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(0, 240, 255, 0.1) inset;
+}
+
+[data-theme="cyberwar"] .vd-window-titlebar {
+    background: linear-gradient(180deg, rgba(4, 9, 22, 0.98), rgba(2, 5, 14, 0.95));
+    border-bottom: 1px solid rgba(0, 240, 255, 0.22);
+    font-family: var(--cyber-font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    height: 38px;
+}
+
+[data-theme="cyberwar"] .vd-window-title {
+    color: #d1f4ff;
+    font-weight: 600;
+    font-size: 0.82rem;
+}
+
+[data-theme="cyberwar"] .vd-window-button {
+    color: var(--accent);
+    transition: all 0.15s ease;
+    border-radius: 0;
+    clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
+    border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+[data-theme="cyberwar"] .vd-window-button:hover {
+    background: rgba(0, 240, 255, 0.15);
+    color: #fff;
+    border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.35);
+}
+
+[data-theme="cyberwar"] .vd-window-button[data-action="close"]:hover {
+    background: rgba(255, 0, 92, 0.2);
+    border-color: var(--accent-tertiary);
+    color: #fff;
+    box-shadow: 0 0 10px rgba(255, 0, 92, 0.35);
+}
+
+[data-theme="cyberwar"] .vd-window.active .vd-window-titlebar {
+    background: linear-gradient(180deg, rgba(5, 11, 26, 0.98), rgba(3, 7, 18, 0.96));
+    border-bottom-color: rgba(0, 240, 255, 0.4);
+}
+
+[data-theme="cyberwar"] .vd-window.active {
+    box-shadow:
+        0 24px 70px rgba(0, 0, 0, 0.65),
+        0 0 0 1px rgba(0, 240, 255, 0.25),
+        0 0 18px rgba(0, 240, 255, 0.12);
+}
+
+[data-theme="cyberwar"] .vd-taskbar,
+[data-theme="cyberwar"] .vd-dock {
+    background: rgba(2, 5, 14, 0.92);
+    border-top: 1px solid rgba(0, 240, 255, 0.22);
+    backdrop-filter: blur(16px);
+}
+
+[data-theme="cyberwar"] .vd-taskbar-item,
+[data-theme="cyberwar"] .vd-dock-icon {
+    transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.15s ease;
+}
+
+[data-theme="cyberwar"] .vd-taskbar-item:hover,
+[data-theme="cyberwar"] .vd-dock-icon:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 12px rgba(0, 240, 255, 0.25);
+}
+
+[data-theme="cyberwar"] .vd-taskbar-item.active {
+    background: rgba(0, 240, 255, 0.12);
+    box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.3);
+}
+
+/* Resize handles & Snap in Cyberwar */
+[data-theme="cyberwar"] .vd-window-resize-handle {
+    background: transparent;
+}
+
+[data-theme="cyberwar"] .vd-window-resize-handle:hover {
+    background: rgba(0, 240, 255, 0.15);
+}
+
+[data-theme="cyberwar"] .vd-snap-overlay {
+    border-color: var(--accent);
+    background: rgba(0, 240, 255, 0.06);
+    box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.2);
+}
+
+/* Window Menus in Cyberwar */
+[data-theme="cyberwar"] .vd-window-menubar {
+    background: rgba(2, 5, 14, 0.6);
+    border-top-color: rgba(0, 240, 255, 0.18);
+}
+
+[data-theme="cyberwar"] .vd-window-menu-button {
+    color: var(--text-secondary);
+    font-family: var(--cyber-font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.7rem;
+}
+
+[data-theme="cyberwar"] .vd-window-menu-button:hover,
+[data-theme="cyberwar"] .vd-window-menu.open > .vd-window-menu-button {
+    background: rgba(0, 240, 255, 0.1);
+    border-color: rgba(0, 240, 255, 0.3);
+    color: #d1f4ff;
+}
+
+[data-theme="cyberwar"] .vd-window-menu-popover {
+    background: rgba(3, 7, 18, 0.98);
+    border-color: rgba(0, 240, 255, 0.25);
+    box-shadow: 0 16px 50px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(0, 240, 255, 0.1);
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+
+[data-theme="cyberwar"] .vd-window-menu-item {
+    font-family: var(--cyber-font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+[data-theme="cyberwar"] .vd-window-menu-item:hover {
+    background: rgba(0, 240, 255, 0.12);
+    color: #fff;
+}
+
+/* Make Papirus-style icons pop in cyberwar desktop */
+[data-theme="cyberwar"] .vd-window-header-icon,
+[data-theme="cyberwar"] .vd-dock-icon .vd-papirus-icon,
+[data-theme="cyberwar"] .vd-launchpad-icon {
+    filter: brightness(0) saturate(100%) invert(88%) sepia(20%) saturate(1200%) hue-rotate(170deg) brightness(1.1) contrast(1.05) drop-shadow(0 0 4px rgba(0, 240, 255, 0.4));
+}
 
 /* === chat-lollipop.css === */
 [data-theme="lollipop"] {
@@ -12774,6 +12944,35 @@ pre,
     --code-bg: rgba(5, 8, 18, 0.94);
     --inline-code-bg: rgba(129, 140, 248, 0.12);
     --input-bg: rgba(8, 13, 25, 0.92);
+
+    /* Virtual Desktop 3D tilt tuning (for windows in threedee theme) */
+    --threedee-vd-perspective: 1600px;
+    --threedee-vd-max-tilt-deg: 7; /* significantly reduced for tall content readability */
+}
+
+/* === Virtual Desktop windows — milder 3D tilt in threedee theme === */
+[data-theme="threedee"] .vd-window {
+    perspective: var(--threedee-vd-perspective) !important;
+}
+
+[data-theme="threedee"] .vd-window .vd-window-content,
+[data-theme="threedee"] .vd-window .vd-window-body,
+[data-theme="threedee"] .vd-window .vd-window-scroller {
+    perspective: var(--threedee-vd-perspective) !important;
+}
+
+/* Extra relief for very long windows so the bottom remains readable */
+[data-theme="threedee"] .vd-window[data-content-tall="true"],
+[data-theme="threedee"] .vd-window.tall-content {
+    perspective: 2400px !important;
+}
+
+[data-theme="threedee"] .vd-window[data-content-tall="true"] .vd-window-content,
+[data-theme="threedee"] .vd-window.tall-content .vd-window-content {
+    perspective: 2400px !important;
+}
+
+    /* Virtual Desktop window 3D tilt tuning for threedee theme */
     --input-border: rgba(129, 140, 248, 0.26);
     --text-primary: #e2e8f0;
     --text-secondary: #94a3b8;
