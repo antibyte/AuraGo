@@ -54,6 +54,30 @@ func TestBuildDockerCreateContainerPayloadAppliesNetworkModeOption(t *testing.T)
 	}
 }
 
+func TestBuildDockerCreateContainerPayloadAppliesCapAddOption(t *testing.T) {
+	payload := buildDockerCreateContainerPayloadWithOptions(
+		"alpine:latest",
+		nil,
+		map[string]string{},
+		nil,
+		nil,
+		"no",
+		nil,
+		ContainerCreateOptions{CapAdd: []string{"CHOWN", "FOWNER"}},
+	)
+	hostConfig, ok := payload["HostConfig"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("HostConfig = %#v", payload["HostConfig"])
+	}
+	got, ok := hostConfig["CapAdd"].([]string)
+	if !ok {
+		t.Fatalf("CapAdd = %#v, want []string", hostConfig["CapAdd"])
+	}
+	if strings.Join(got, ",") != "CHOWN,FOWNER" {
+		t.Fatalf("CapAdd = %#v, want CHOWN,FOWNER", got)
+	}
+}
+
 func TestValidateDockerCopyContainerPathRejectsTraversal(t *testing.T) {
 	_, err := validateDockerCopyContainerPath("../../etc/shadow")
 	if err == nil {

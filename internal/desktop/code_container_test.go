@@ -152,7 +152,7 @@ func TestCodeContainerEnsureStartedSeedsContainerWorkspaceAfterCreate(t *testing
 		t.Fatalf("container repair exec = %#v, want created-1 as root", fake.execs[1])
 	}
 	repair := strings.Join(fake.execs[1].cmd, " ")
-	for _, want := range []string{"chmod", "/workspace"} {
+	for _, want := range []string{"chown developer:developer /workspace", "chmod", "/workspace"} {
 		if !strings.Contains(repair, want) {
 			t.Fatalf("container repair command %q missing %q", repair, want)
 		}
@@ -225,6 +225,9 @@ func TestCodeContainerEnsureStartedCreatesContainerWithNoPortsAndLimits(t *testi
 	}
 	if len(req.CapDrop) != 1 || req.CapDrop[0] != "ALL" {
 		t.Fatalf("cap drop = %#v, want ALL", req.CapDrop)
+	}
+	if len(req.CapAdd) != 2 || req.CapAdd[0] != "CHOWN" || req.CapAdd[1] != "FOWNER" {
+		t.Fatalf("cap add = %#v, want CHOWN and FOWNER for workspace permission repair", req.CapAdd)
 	}
 	if req.Resources == nil || req.Resources.MemoryMB != 2048 || req.Resources.CPUCores != 1 || req.Resources.PidsLimit != defaultCodeContainerPidsLimit {
 		t.Fatalf("resources = %#v, want configured memory/cpu and default pids", req.Resources)
@@ -321,6 +324,51 @@ func TestCodeContainerEnsureStartedReplacesDefaultContainerWhenRuntimeMissing(t 
 		if !strings.Contains(runtimeProbe, want) {
 			t.Fatalf("runtime probe %q missing %q", runtimeProbe, want)
 		}
+	}
+}
+
+func TestCodeContainerEnsureStartedReplacesExistingContainerWhenWorkspaceRepairFails(t *testing.T) {
+	t.Parallel()
+
+	workspace := t.TempDir()
+	fake := &fakeCodeContainerDocker{
+		containers: []CodeDockerContainer{{ID: "old-1", Names: []string{"/" + codeContainerName}}},
+		inspectByName: map[string]CodeDockerInspect{
+			"old-1": {
+				ID:    "old-1",
+				Name:  "/" + codeContainerName,
+				State: CodeDockerState{Running: true},
+				Mounts: []CodeDockerMount{{
+					Source:      workspace,
+					Destination: codeWorkspaceInContainer,
+				}},
+			},
+		},
+		execResults: []CodeDockerExecResult{
+			{ExitCode: 0},
+			{ExitCode: 1, Output: "workspace is not writable after permission repair\n"},
+			{ExitCode: 0},
+			{ExitCode: 0},
+			{ExitCode: 0},
+		},
+	}
+	svc := NewCodeContainerService(Config{
+		WorkspaceDir: workspace,
+		CodeStudio:   CodeStudioConfig{Enabled: true},
+	}, nil)
+	svc.docker = fake
+
+	if err := svc.EnsureStarted(context.Background()); err != nil {
+		t.Fatalf("EnsureStarted returned error: %v", err)
+	}
+	if !containsString(fake.actions, "old-1:remove") {
+		t.Fatalf("actions = %#v, want old container removal after workspace repair failure", fake.actions)
+	}
+	if len(fake.creates) != 1 {
+		t.Fatalf("create count = %d, want replacement container", len(fake.creates))
+	}
+	if len(fake.creates[0].CapAdd) != 2 || fake.creates[0].CapAdd[0] != "CHOWN" || fake.creates[0].CapAdd[1] != "FOWNER" {
+		t.Fatalf("replacement cap add = %#v, want CHOWN,FOWNER", fake.creates[0].CapAdd)
 	}
 }
 

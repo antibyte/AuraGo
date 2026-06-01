@@ -98,6 +98,7 @@ type CodeDockerCreateRequest struct {
 	User        string
 	SecurityOpt []string
 	CapDrop     []string
+	CapAdd      []string
 	Resources   *CodeContainerResources
 }
 
@@ -231,12 +232,17 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 	}
 	if containerID != "" {
 		if err := seedCodeStudioContainerWorkspace(ctx, s.docker, containerID); err != nil {
-			s.state = StateError
-			return err
+			if removeErr := s.docker.ContainerAction(ctx, containerID, "remove"); removeErr != nil {
+				s.state = StateError
+				return fmt.Errorf("replace code studio container after workspace seed failure: %w", removeErr)
+			}
+			containerID = ""
+			running = false
+		} else {
+			s.state = StateRunning
+			s.touchLocked()
+			return nil
 		}
-		s.state = StateRunning
-		s.touchLocked()
-		return nil
 	}
 
 	image := codeStudioImage(s.cfg.CodeStudio)
@@ -302,6 +308,7 @@ func (s *CodeContainerService) createCodeStudioContainerLocked(ctx context.Conte
 		User:        "developer",
 		SecurityOpt: []string{"no-new-privileges:true"},
 		CapDrop:     []string{"ALL"},
+		CapAdd:      []string{"CHOWN", "FOWNER"},
 		Resources:   codeStudioResourcesPtr(s.cfg.CodeStudio),
 	})
 	if err != nil {
@@ -414,6 +421,7 @@ func buildCodeStudioContainerWorkspaceRepairScript() string {
 	return strings.Join([]string{
 		"set -eu",
 		"mkdir -p /workspace",
+		"chown developer:developer /workspace 2>/dev/null || true",
 		"if [ ! -w /workspace ]; then",
 		"  chmod 0777 /workspace 2>/dev/null || true",
 		"fi",

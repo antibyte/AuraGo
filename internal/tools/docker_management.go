@@ -25,6 +25,7 @@ type ContainerCreateOptions struct {
 	User        string
 	SecurityOpt []string
 	CapDrop     []string
+	CapAdd      []string
 	NetworkMode string
 }
 
@@ -118,6 +119,9 @@ func buildDockerCreateContainerPayloadWithOptions(image string, env []string, po
 	}
 	if len(options.CapDrop) > 0 {
 		hostConfig["CapDrop"] = append([]string(nil), options.CapDrop...)
+	}
+	if len(options.CapAdd) > 0 {
+		hostConfig["CapAdd"] = append([]string(nil), options.CapAdd...)
 	}
 	if networkMode := strings.TrimSpace(options.NetworkMode); networkMode != "" {
 		hostConfig["NetworkMode"] = networkMode

@@ -197,6 +197,7 @@ func (a codeStudioDockerAdapter) CreateContainer(ctx context.Context, req deskto
 		User:        req.User,
 		SecurityOpt: req.SecurityOpt,
 		CapDrop:     req.CapDrop,
+		CapAdd:      req.CapAdd,
 		NetworkMode: req.NetworkMode,
 	}
 	raw := tools.DockerCreateContainerWithOptions(a.cfg, req.Name, req.Image, req.Env, req.Ports, req.Volumes, req.Cmd, req.Restart, resources, options)
