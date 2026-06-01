@@ -27,6 +27,7 @@ var knownContextWindows = []struct {
 	context int
 }{
 	// ── MiniMax (api.minimaxi.com) ────────────────────────────────────────────
+	{"minimax-m3", 1_048_576}, // MiniMax-M3: 1M
 	// M2 generation — specific variants before generic "minimax-m2" catch-all
 	{"minimax-m2.7", 204_800},   // MiniMax-M2.7 / M2.7-highspeed: 200K
 	{"minimax-m2.5", 196_608},   // MiniMax-M2.5 / M2.5-highspeed: ~192K
@@ -43,6 +44,7 @@ var knownContextWindows = []struct {
 	{"abab5.5s", 8_192},
 
 	// ── Stepfun (api.stepfun.ai) ─────────────────────────────────────────────
+	{"step-3.7-flash", 256_000},
 	{"step-3.5-flash", 262_144},
 
 	// ── Kimi / Moonshot AI (api.moonshot.cn) ─────────────────────────────────

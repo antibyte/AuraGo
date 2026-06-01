@@ -16,6 +16,10 @@ func TestGetModelInfo(t *testing.T) {
 		{"openai", "gpt-4o", true, 128000},
 		{"anthropic", "claude-3-5-sonnet-20241022", true, 200000},
 		{"deepseek", "deepseek-chat", true, 1000000},
+		{"minimax", "MiniMax-M3", true, 1048576},
+		{"openrouter", "minimax/minimax-m3", true, 1048576},
+		{"openrouter", "stepfun/step-3.7-flash", true, 256000},
+		{"stepfun", "step-3.7-flash", true, 256000},
 		{"groq", "llama3-70b-8192", true, 8192},
 		{"nonexistent", "unknown", false, 0},
 	}
@@ -78,6 +82,10 @@ func TestDetectContextWindowFromRegistry(t *testing.T) {
 		{"anthropic", "claude-opus-4-0", 200000, true},
 		{"deepseek", "deepseek-chat", 1000000, true},
 		{"moonshot", "kimi-k2.5", 262144, true},
+		{"minimax", "MiniMax-M3", 1048576, true},
+		{"openrouter", "minimax/minimax-m3", 1048576, true},
+		{"openrouter", "stepfun/step-3.7-flash", 256000, true},
+		{"stepfun", "step-3.7-flash", 256000, true},
 		{"nonexistent", "unknown", 0, false},
 	}
 
@@ -133,6 +141,36 @@ func TestGetCapabilitiesFromRegistry(t *testing.T) {
 	}
 	if !reasoning {
 		t.Error("o3-pro should support reasoning")
+	}
+
+	tests := []struct {
+		provider string
+		modelID  string
+	}{
+		{"minimax", "MiniMax-M3"},
+		{"openrouter", "minimax/minimax-m3"},
+		{"openrouter", "stepfun/step-3.7-flash"},
+		{"stepfun", "step-3.7-flash"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.provider+"/"+tt.modelID, func(t *testing.T) {
+			toolCall, reasoning, structuredOutput, multimodal, ok := GetCapabilitiesFromRegistry(tt.provider, tt.modelID)
+			if !ok {
+				t.Fatalf("expected capabilities for %s/%s", tt.provider, tt.modelID)
+			}
+			if !toolCall {
+				t.Error("expected tool calling support")
+			}
+			if !reasoning {
+				t.Error("expected reasoning support")
+			}
+			if !structuredOutput {
+				t.Error("expected structured output support")
+			}
+			if !multimodal {
+				t.Error("expected multimodal input support")
+			}
+		})
 	}
 }
 

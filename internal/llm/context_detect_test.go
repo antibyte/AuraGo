@@ -17,6 +17,10 @@ func TestLookupKnownContextWindow_PrefixMatchingOnly(t *testing.T) {
 		{name: "stepfun flash direct match", model: "step-3.5-flash", wantSize: 262_144, wantOK: true},
 		{name: "stepfun flash dated match", model: "step-3.5-flash-2603", wantSize: 262_144, wantOK: true},
 		{name: "stepfun provider style match", model: "stepfun/step-3.5-flash-2603", wantSize: 262_144, wantOK: true},
+		{name: "minimax m3 direct match", model: "MiniMax-M3", wantSize: 1_048_576, wantOK: true},
+		{name: "minimax m3 provider style match", model: "minimax/MiniMax-M3", wantSize: 1_048_576, wantOK: true},
+		{name: "stepfun 3.7 flash direct match", model: "step-3.7-flash", wantSize: 256_000, wantOK: true},
+		{name: "stepfun 3.7 flash provider style match", model: "stepfun/step-3.7-flash", wantSize: 256_000, wantOK: true},
 		{name: "no contains fallback", model: "my-custom-qwen-adapter", wantSize: 0, wantOK: false},
 	}
 
