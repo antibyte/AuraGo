@@ -557,20 +557,35 @@
     window.useMobileDesktopMode = useMobileDesktopMode;
 
     /**
+     * Returns true if we should force a maximized + single-window
+     * experience for this app on mobile devices.
+     */
+    function shouldForceMobileMaximizedWindow(appId) {
+        if (!useMobileDesktopMode()) return false;
+
+        // These apps are intentionally wide and should keep horizontal scrolling
+        const wideAppsOnMobile = [
+            'files', 'writer', 'sheets', 'code-studio',
+            'viewer', 'viewer-3d', 'mission-control', 'launchpad'
+        ];
+
+        return !wideAppsOnMobile.includes(appId);
+    }
+
+    window.shouldForceMobileMaximizedWindow = shouldForceMobileMaximizedWindow;
+
+    /**
      * =====================================================
-     * MOBILE DESKTOP EXPERIENCE (Phase 0 - 2026)
+     * MOBILE DESKTOP EXPERIENCE (2026)
      * =====================================================
-     * Strategy:
-     * - On phones and small tablets we want a significantly
-     *   simplified experience (fewer overlapping windows,
-     *   larger touch targets, better keyboard handling).
-     * - The big decision (still open):
-     *   → Should we enforce a "Single maximized window" model
-     *     on mobile, or allow multiple windows but default to maximized?
+     * Decision (confirmed):
+     * - On mobile (useMobileDesktopMode() === true):
+     *     → Normal apps open as a single maximized window.
+     *     → Complex/wide apps (Code Studio, Sheets, etc.) keep
+     *       horizontal scrolling via vd-mobile-wide-window.
      *
-     * Current detection:
-     * - useMobileDesktopMode() → true on compact viewports or touch devices
-     * - Controlled via setting 'desktop.mobile_experience' ('auto' | 'enabled' | 'disabled')
+     * This gives a clean phone experience while preserving
+     * necessary functionality for content-heavy apps.
      */
 
     function updateViewportMetrics() {

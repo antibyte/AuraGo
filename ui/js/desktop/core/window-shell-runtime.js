@@ -1045,25 +1045,49 @@
         const id = 'w-' + appId + '-' + Date.now();
         const win = document.createElement('section');
         win.className = 'vd-window';
-        win.classList.toggle('vd-mobile-wide-window', shouldUseMobileWideWindow(appId));
         win.dataset.windowId = id;
+
+        const isMobileMode = window.useMobileDesktopMode && window.useMobileDesktopMode();
+        const forceMaximized = window.shouldForceMobileMaximizedWindow && window.shouldForceMobileMaximizedWindow(appId);
+
+        // On mobile, most apps open maximized (single window experience)
+        if (isMobileMode && forceMaximized) {
+            win.classList.add('maximized', 'vd-mobile-forced-maximized');
+        } else {
+            win.classList.toggle('vd-mobile-wide-window', shouldUseMobileWideWindow(appId));
+        }
+
         const requestedSize = appWindowSize(appId);
         const size = clampWindowSize(requestedSize);
         const position = nextWindowPosition(size);
-        win.style.left = position.left + 'px';
-        win.style.top = position.top + 'px';
-        win.style.width = size.width + 'px';
-        win.style.height = size.height + 'px';
+
+        if (isMobileMode && forceMaximized) {
+            // Mobile forced maximized windows take full available space
+            win.style.left = '0px';
+            win.style.top = '0px';
+            win.style.width = '100%';
+            win.style.height = '100%';
+        } else {
+            win.style.left = position.left + 'px';
+            win.style.top = position.top + 'px';
+            win.style.width = size.width + 'px';
+            win.style.height = size.height + 'px';
+        }
         const isResizable = appId !== 'calculator' && appId !== 'galaxa-deluxe';
+        const isMobileMode = window.useMobileDesktopMode && window.useMobileDesktopMode();
+        const forceMaximized = window.shouldForceMobileMaximizedWindow && window.shouldForceMobileMaximizedWindow(appId);
+
         win.style.minWidth = Math.min(WINDOW_MIN_W, size.width) + 'px';
         win.style.minHeight = Math.min(WINDOW_MIN_H, size.height) + 'px';
         const minSize = appWindowMinSize(appId);
         win.style.minWidth = Math.min(minSize.width, size.width) + 'px';
         win.style.minHeight = Math.min(minSize.height, size.height) + 'px';
-        if (!isResizable) {
+
+        if (!isResizable || (isMobileMode && forceMaximized)) {
             win.style.maxWidth = size.width + 'px';
             win.style.maxHeight = size.height + 'px';
             win.style.resize = 'none';
+        }
         }
         win.style.zIndex = String(++state.z);
         win.innerHTML = `<header class="vd-window-titlebar">
