@@ -403,10 +403,19 @@
     }
 }
 @media (max-width: 820px) {
-.vd-taskbar {
+    .vd-taskbar {
         min-height: 52px;
-        padding: 6px max(8px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+        /* Full safe area support (bottom + sides for landscape notched devices) */
+        padding: 6px 
+                 max(8px, env(safe-area-inset-right)) 
+                 calc(6px + env(safe-area-inset-bottom)) 
+                 max(8px, env(safe-area-inset-left));
         gap: 6px;
+    }
+
+    /* Fruity Dock safe area handling on mobile */
+    .vd-dock {
+        padding-bottom: max(6px, env(safe-area-inset-bottom, 6px)) !important;
     }
 
     /* More compact taskbar on phones */
@@ -423,7 +432,7 @@
     }
 
     .vd-taskbar .vd-task-label {
-        display: none; /* Hide labels on very small screens for space */
+        display: none;
     }
 
     .vd-agent-button span:last-child,

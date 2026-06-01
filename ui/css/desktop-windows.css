@@ -732,16 +732,19 @@
 }
 
 @media (max-width: 820px) {
-.desktop-body {
-        --vd-mobile-taskbar-reserve: calc(70px + env(safe-area-inset-bottom, 0px));
+    .desktop-body {
+        /* Keep in sync with the actual mobile taskbar height */
+        --vd-mobile-taskbar-reserve: calc(54px + env(safe-area-inset-bottom, 0px));
     }
 
 .vd-window,
-.vd-window.maximized {
+.vd-window.maximized,
+.vd-window.vd-mobile-forced-maximized {
         left: 0 !important;
         top: 0 !important;
         width: 100vw !important;
-        height: calc(var(--vd-visual-height, 100dvh) - var(--vd-mobile-taskbar-reserve, calc(70px + env(safe-area-inset-bottom, 0px)))) !important;
+        /* Better safe area + taskbar reserve calculation for mobile */
+        height: calc(var(--vd-visual-height, 100dvh) - var(--vd-mobile-taskbar-reserve, calc(54px + env(safe-area-inset-bottom, 0px)))) !important;
         min-width: 0 !important;
         min-height: 0 !important;
         border-radius: 0 !important;
@@ -762,6 +765,14 @@
     }
 .vd-window.has-window-menu {
         grid-template-rows: 84px 1fr;
+    }
+
+    /* Safe area padding for content in forced-maximized mobile windows */
+    .vd-window.vd-mobile-forced-maximized .vd-window-content,
+    .vd-window.vd-mobile-forced-maximized .vd-window-body {
+        padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
+        padding-left: env(safe-area-inset-left, 0px);
+        padding-right: env(safe-area-inset-right, 0px);
     }
 .vd-window-titlebar {
         min-height: 52px;
