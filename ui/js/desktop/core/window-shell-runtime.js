@@ -620,6 +620,7 @@
             host._fruityDockResizeObserver = null;
         }
         renderStandardTaskbar();
+        ensureMobileTaskbarSwipe();
     }
 
     function taskbarButtonHTML(win) {
@@ -672,6 +673,74 @@
     }
 
     function renderStandardTaskbar() { reconcileStandardTaskbar(); }
+
+    // --- Mobile Horizontal Swipe App Switcher (Phase 2) ---
+    let taskbarSwipeState = null;
+
+    function wireMobileTaskbarSwipe() {
+        const host = $('vd-taskbar-apps');
+        if (!host || host._mobileSwipeWired) return;
+        if (!window.useMobileDesktopMode || !window.useMobileDesktopMode()) return;
+
+        host._mobileSwipeWired = true;
+
+        host.addEventListener('touchstart', e => {
+            if (e.touches.length !== 1) return;
+            taskbarSwipeState = {
+                startX: e.touches[0].clientX,
+                startTime: Date.now(),
+            };
+        }, { passive: true });
+
+        host.addEventListener('touchmove', e => {
+            if (!taskbarSwipeState || e.touches.length !== 1) return;
+            const deltaX = e.touches[0].clientX - taskbarSwipeState.startX;
+            // Prevent vertical scroll interference on strong horizontal movement
+            if (Math.abs(deltaX) > 20) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        host.addEventListener('touchend', e => {
+            if (!taskbarSwipeState) return;
+
+            const deltaX = e.changedTouches[0].clientX - taskbarSwipeState.startX;
+            const deltaTime = Date.now() - taskbarSwipeState.startTime;
+            const velocity = Math.abs(deltaX) / deltaTime;
+
+            taskbarSwipeState = null;
+
+            // Require meaningful swipe
+            if (Math.abs(deltaX) < 50 && velocity < 0.4) return;
+
+            const windows = Array.from(state.windows.values());
+            if (windows.length < 2) return;
+
+            const currentIndex = windows.findIndex(w => w.id === state.activeWindowId);
+            if (currentIndex === -1) return;
+
+            let nextIndex;
+            if (deltaX < 0) {
+                // Swipe left → next app
+                nextIndex = (currentIndex + 1) % windows.length;
+            } else {
+                // Swipe right → previous app
+                nextIndex = (currentIndex - 1 + windows.length) % windows.length;
+            }
+
+            const nextWin = windows[nextIndex];
+            if (nextWin) {
+                focusWindow(nextWin.id);
+            }
+        }, { passive: true });
+    }
+
+    // Call this after taskbar renders on mobile
+    function ensureMobileTaskbarSwipe() {
+        if (window.useMobileDesktopMode && window.useMobileDesktopMode()) {
+            wireMobileTaskbarSwipe();
+        }
+    }
 
     function ensureFruityDockShell(host) {
         let track = host && host.querySelector('[data-fruity-dock-track]');
