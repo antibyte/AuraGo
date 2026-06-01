@@ -695,7 +695,7 @@
         host.addEventListener('touchmove', e => {
             if (!taskbarSwipeState || e.touches.length !== 1) return;
             const deltaX = e.touches[0].clientX - taskbarSwipeState.startX;
-            // Prevent vertical scroll interference on strong horizontal movement
+            // Prevent vertical scroll interference + pull-to-refresh on strong horizontal movement
             if (Math.abs(deltaX) > 20) {
                 e.preventDefault();
             }
@@ -761,6 +761,15 @@
             if (e.touches.length !== 1) return;
             dockSwipeState = { startX: e.touches[0].clientX, startTime: Date.now() };
         }, { passive: true });
+
+        // Help prevent pull-to-refresh during horizontal swipes on dock
+        scrollRegion.addEventListener('touchmove', e => {
+            if (!dockSwipeState || e.touches.length !== 1) return;
+            const deltaX = e.touches[0].clientX - dockSwipeState.startX;
+            if (Math.abs(deltaX) > 25) {
+                e.preventDefault();
+            }
+        }, { passive: false });
 
         scrollRegion.addEventListener('touchend', e => {
             if (!dockSwipeState) return;
@@ -1208,8 +1217,6 @@
             win.style.height = size.height + 'px';
         }
         const isResizable = appId !== 'calculator' && appId !== 'galaxa-deluxe';
-        const isMobileMode = window.useMobileDesktopMode && window.useMobileDesktopMode();
-        const forceMaximized = window.shouldForceMobileMaximizedWindow && window.shouldForceMobileMaximizedWindow(appId);
 
         win.style.minWidth = Math.min(WINDOW_MIN_W, size.width) + 'px';
         win.style.minHeight = Math.min(WINDOW_MIN_H, size.height) + 'px';

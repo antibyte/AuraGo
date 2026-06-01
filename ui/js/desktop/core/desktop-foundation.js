@@ -598,6 +598,12 @@
     function bindViewportMetrics() {
         updateViewportMetrics();
         window.addEventListener('resize', updateViewportMetrics);
+        // Orientation change can fire before visualViewport updates on some devices (esp. older iOS/Android)
+        window.addEventListener('orientationchange', () => {
+            // Small delay ensures visualViewport has settled after rotation
+            window.setTimeout(updateViewportMetrics, 60);
+            window.setTimeout(updateViewportMetrics, 220);
+        });
         const workspace = $('vd-workspace');
         if (workspace) {
             workspace.addEventListener('scroll', () => {

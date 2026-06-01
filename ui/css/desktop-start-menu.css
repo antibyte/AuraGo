@@ -157,14 +157,14 @@
 .vd-start-menu {
         left: 0 !important;
         right: 0 !important;
-        bottom: var(--vd-mobile-taskbar-reserve, calc(70px + env(safe-area-inset-bottom, 0px))) !important;
+        bottom: var(--vd-mobile-taskbar-reserve, calc(54px + env(safe-area-inset-bottom, 0px))) !important;
         width: 100vw !important;
-        max-height: min(70dvh, calc(var(--vd-visual-height, 100dvh) - var(--vd-mobile-taskbar-reserve, calc(70px + env(safe-area-inset-bottom, 0px))) - 8px));
+        max-height: min(70dvh, calc(var(--vd-visual-height, 100dvh) - var(--vd-mobile-taskbar-reserve, calc(54px + env(safe-area-inset-bottom, 0px))) - 8px));
         border-radius: 16px 16px 0 0;
         animation: vd-start-sheet-in 180ms ease-out;
     }
 .vd-start-apps {
-        max-height: min(calc(70dvh - 64px), calc(var(--vd-visual-height, 100dvh) - var(--vd-mobile-taskbar-reserve, calc(70px + env(safe-area-inset-bottom, 0px))) - 72px));
+        max-height: min(calc(70dvh - 64px), calc(var(--vd-visual-height, 100dvh) - var(--vd-mobile-taskbar-reserve, calc(54px + env(safe-area-inset-bottom, 0px))) - 72px));
     }
 }
 
