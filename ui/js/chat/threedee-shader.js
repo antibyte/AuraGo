@@ -2671,7 +2671,7 @@
                 const currentOffsetX = nextX - basePositions[baseIndex];
                 const currentOffsetY = nextY - basePositions[baseIndex + 1];
                 const currentOffsetZ = nextZ - basePositions[baseIndex + 2];
-                const offsetLength = Math.sqrt(currentOffsetX * currentOffsetX + currentOffsetY * currentOffsetY + currentOffsetZ * currentOffsetZ);
+                const offsetLength = Math.hypot(currentOffsetX, currentOffsetY, currentOffsetZ);
                 const offsetScale = Math.min(1, ROBOT_DAMAGE_MAX_DENT_OFFSET / offsetLength);
                 position.setXYZ(
                     i,

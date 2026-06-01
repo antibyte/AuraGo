@@ -574,6 +574,7 @@
   "desktop.chat_open_in": "Öppna i",
   "desktop.chat_document": "Dokument",
   "desktop.widget_manager": "Widget-hanterare",
+  "desktop.widget_drawer_empty": "Inga widgetar tillgängliga.",
   "desktop.widget_add_to_desktop": "Lägg till på skrivbordet",
   "desktop.widget_remove_from_desktop": "Ta bort från skrivbordet",
   "desktop.widget_delete_permanent": "Ta bort permanent",

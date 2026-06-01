@@ -577,6 +577,7 @@
   "desktop.chat_open_in": "Open in",
   "desktop.chat_document": "Document",
   "desktop.widget_manager": "Widget Manager",
+  "desktop.widget_drawer_empty": "No widgets available.",
   "desktop.widget_add_to_desktop": "Add to Desktop",
   "desktop.widget_remove_from_desktop": "Remove from Desktop",
   "desktop.widget_delete_permanent": "Delete Permanently",

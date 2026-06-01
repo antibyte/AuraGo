@@ -369,6 +369,13 @@
         if (widgetDrawerBtn) widgetDrawerBtn.addEventListener('click', toggleWidgetDrawer);
         const showDesktopBtn = document.getElementById('vd-show-desktop-btn');
         if (showDesktopBtn) showDesktopBtn.addEventListener('click', minimizeAllWindows);
+
+        // Hide shortcuts and widgets buttons on mobile (they make little sense on phones)
+        updateTaskbarSystemButtonsForMobile();
+        // Re-evaluate on rotation / major viewport changes
+        window.addEventListener('resize', () => {
+            if (window.useMobileDesktopMode) updateTaskbarSystemButtonsForMobile();
+        }, { passive: true });
         let startSearchTimer = null;
         $('vd-start-search').addEventListener('input', (event) => {
             state.startQuery = event.target.value;
@@ -380,7 +387,8 @@
             if (!event.target.closest('.vd-context-menu')) closeContextMenu();
             if (!event.target.closest('.vd-window-menubar')) closeWindowMenu();
             const menu = $('vd-start-menu');
-            if (!menu.hidden && !menu.contains(event.target) && !event.target.closest('#vd-start-button')) {
+            // Protect both classic start button and Fruity Dock orb from the outside-click closer
+            if (!menu.hidden && !menu.contains(event.target) && !event.target.closest('#vd-start-button, [data-fruity-dock-orb]')) {
                 closeStartMenu();
             }
         });
@@ -421,20 +429,26 @@
         const drawer = document.getElementById('vd-widget-drawer');
         const backdrop = document.getElementById('vd-widget-drawer-backdrop');
         if (!drawer || !backdrop) return;
+
         const isOpen = drawer.classList.contains('open');
         if (isOpen) {
             drawer.classList.remove('open');
             backdrop.hidden = true;
             return;
         }
+
         drawer.classList.add('open');
         backdrop.hidden = false;
+
         backdrop.addEventListener('click', () => {
             drawer.classList.remove('open');
             backdrop.hidden = true;
         }, { once: true });
+
         const title = drawer.querySelector('.vd-widget-drawer-title');
         title.textContent = t('desktop.widget_drawer_title', 'Widgets');
+
+        renderWidgetDrawerContent(drawer);
     }
 
     function wireStartMenuSwipe() {

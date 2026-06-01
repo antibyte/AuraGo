@@ -40,7 +40,7 @@
         const maxDelay = rect && rect.height ? rect.height * 0.35 : 0;
 
         return {
-            partialDelay: clamp(0, maxDelay, longBubbleFactor * 150),
+            partialDelay: clamp(0, maxDelay, longBubbleFactor * 180),
             progressSpan: Math.max(1, rawHeight + longBubbleFactor * 260),
             maxPartialAngle: Math.max(0.9, 3.2 - longBubbleFactor * 2.0),
             fullFoldDivisor: 28 + longBubbleFactor * 24

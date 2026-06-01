@@ -8,6 +8,7 @@ const desktopMainParts = [
   'ui/js/desktop/core/desktop-foundation.js',
   'ui/js/desktop/core/icon-selection-runtime.js',
   'ui/js/desktop/core/window-shell-runtime.js',
+  'ui/js/desktop/core/fruity-dock-scroll.js',
   'ui/js/desktop/core/window-interactions-runtime.js',
   'ui/js/desktop/core/window-ai-context.js',
   'ui/js/desktop/core/lifecycle-cleanup.js',
@@ -20,6 +21,7 @@ const desktopMainParts = [
   'ui/js/desktop/apps/settings-calculator.js',
   'ui/js/desktop/apps/planning-gallery-music.js',
   'ui/js/desktop/apps/quickconnect-launchpad-chat.js',
+  'ui/js/desktop/core/widget-drawer-runtime.js',
   'ui/js/desktop/core/sdk-events-bootstrap.js'
 ];
 

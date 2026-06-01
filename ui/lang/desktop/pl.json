@@ -574,6 +574,7 @@
   "desktop.chat_open_in": "Otwórz w",
   "desktop.chat_document": "Dokument",
   "desktop.widget_manager": "Menedżer widżetów",
+  "desktop.widget_drawer_empty": "Brak dostępnych widżetów.",
   "desktop.widget_add_to_desktop": "Dodaj do pulpitu",
   "desktop.widget_remove_from_desktop": "Usuń z pulpitu",
   "desktop.widget_delete_permanent": "Usuń na stałe",

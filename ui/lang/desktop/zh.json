@@ -574,6 +574,7 @@
   "desktop.chat_open_in": "在...中打开",
   "desktop.chat_document": "文档",
   "desktop.widget_manager": "小组件管理器",
+  "desktop.widget_drawer_empty": "没有可用的小组件。",
   "desktop.widget_add_to_desktop": "添加到桌面",
   "desktop.widget_remove_from_desktop": "从桌面移除",
   "desktop.widget_delete_permanent": "永久删除",

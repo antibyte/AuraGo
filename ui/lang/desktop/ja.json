@@ -574,6 +574,7 @@
   "desktop.chat_open_in": "で開く",
   "desktop.chat_document": "ドキュメント",
   "desktop.widget_manager": "ウィジェット管理",
+  "desktop.widget_drawer_empty": "利用できるウィジェットはありません。",
   "desktop.widget_add_to_desktop": "デスクトップに追加",
   "desktop.widget_remove_from_desktop": "デスクトップから削除",
   "desktop.widget_delete_permanent": "完全に削除",

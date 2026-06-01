@@ -239,7 +239,9 @@
         'windows.default_size': 'balanced',
         'files.confirm_delete': 'true',
         'files.default_folder': 'Documents',
-        'agent.show_chat_button': 'true'
+        'agent.show_chat_button': 'true',
+        // Mobile experience (Phase 0)
+        'desktop.mobile_experience': 'auto'   // 'auto' | 'enabled' | 'disabled'
     };
 
     function $(id) {
@@ -528,7 +530,11 @@
     }
 
     function isCompactViewport() {
-        return !!(window.matchMedia && window.matchMedia('(max-width: 820px)').matches);
+        if (!window.matchMedia) return false;
+        // Consider both width and height for better mobile detection (especially in landscape)
+        const widthMatch = window.matchMedia('(max-width: 820px)').matches;
+        const heightMatch = window.matchMedia('(max-height: 720px)').matches;
+        return widthMatch || heightMatch;
     }
 
     function isTouchLikePointer(event) {
@@ -540,6 +546,53 @@
         return isTouchLikePointer(event) || isCompactViewport();
     }
 
+    /**
+     * Returns whether the enhanced mobile desktop experience should be active.
+     * Respects the 'desktop.mobile_experience' setting.
+     */
+    function useMobileDesktopMode() {
+        const setting = settingValue('desktop.mobile_experience');
+        if (setting === 'enabled') return true;
+        if (setting === 'disabled') return false;
+        // 'auto' mode → decide based on viewport + input type
+        return isCompactViewport() || isTouchLikePointer();
+    }
+
+    // Expose for other modules
+    window.useMobileDesktopMode = useMobileDesktopMode;
+
+    /**
+     * Returns true if we should force a maximized + single-window
+     * experience for this app on mobile devices.
+     */
+    function shouldForceMobileMaximizedWindow(appId) {
+        if (!useMobileDesktopMode()) return false;
+
+        // These apps are intentionally wide and should keep horizontal scrolling
+        const wideAppsOnMobile = [
+            'files', 'writer', 'sheets', 'code-studio',
+            'viewer', 'viewer-3d', 'mission-control', 'launchpad'
+        ];
+
+        return !wideAppsOnMobile.includes(appId);
+    }
+
+    window.shouldForceMobileMaximizedWindow = shouldForceMobileMaximizedWindow;
+
+    /**
+     * =====================================================
+     * MOBILE DESKTOP EXPERIENCE (2026)
+     * =====================================================
+     * Decision (confirmed):
+     * - On mobile (useMobileDesktopMode() === true):
+     *     → Normal apps open as a single maximized window.
+     *     → Complex/wide apps (Code Studio, Sheets, etc.) keep
+     *       horizontal scrolling via vd-mobile-wide-window.
+     *
+     * This gives a clean phone experience while preserving
+     * necessary functionality for content-heavy apps.
+     */
+
     function updateViewportMetrics() {
         const visual = window.visualViewport;
         const height = visual && visual.height ? visual.height : window.innerHeight;
@@ -550,6 +603,12 @@
     function bindViewportMetrics() {
         updateViewportMetrics();
         window.addEventListener('resize', updateViewportMetrics);
+        // Orientation change can fire before visualViewport updates on some devices (esp. older iOS/Android)
+        window.addEventListener('orientationchange', () => {
+            // Small delay ensures visualViewport has settled after rotation
+            window.setTimeout(updateViewportMetrics, 60);
+            window.setTimeout(updateViewportMetrics, 220);
+        });
         const workspace = $('vd-workspace');
         if (workspace) {
             workspace.addEventListener('scroll', () => {
@@ -1406,10 +1465,9 @@
         if (typeof initRadialMenu === 'function') initRadialMenu();
         return anchor;
     }
-
 ;
 /* ui/js/desktop/core/icon-selection-runtime.js */
-    let desktopSelectionDrag = null;
+let desktopSelectionDrag = null;
     let desktopSelectionSuppressClick = false;
 
     function ensureDesktopIconSelectionState() {
@@ -1760,10 +1818,9 @@
             if (icon && !isTrashIcon(icon)) await handleTrashDrop(icon);
         }
     }
-
 ;
 /* ui/js/desktop/core/window-shell-runtime.js */
-    function renderBuiltinWidget(card, widget) {
+function renderBuiltinWidget(card, widget) {
         const container = card.querySelector('.vd-widget-builtin');
         if (!container) return;
         if (widget.id === 'builtin-analog-clock') {
@@ -2276,48 +2333,6 @@
         }
     }
 
-    function wireFruityDockScroll(host) {
-        const scroller = host && host.querySelector('[data-fruity-dock-scroll-region]'), track = host && host.querySelector('[data-fruity-dock-track]');
-        if (!host || !scroller || !track) return;
-        const queueUpdate = () => {
-            const schedule = window.requestAnimationFrame || ((callback) => window.setTimeout(callback, 16));
-            if (host._fruityDockScrollFrame) return;
-            host._fruityDockScrollFrame = schedule(() => {
-                host._fruityDockScrollFrame = 0;
-                updateFruityDockScrollControls(host);
-            });
-        };
-        host.querySelectorAll('[data-fruity-dock-scroll-button]').forEach(button => {
-            button.addEventListener('click', event => {
-                event.stopPropagation();
-                const direction = button.dataset.fruityDockScrollButton === 'left' ? -1 : 1;
-                scroller.scrollBy({ left: direction * Math.max(180, Math.floor(scroller.clientWidth * 0.72)), behavior: 'smooth' });
-            });
-        });
-        scroller.addEventListener('scroll', queueUpdate, { passive: true });
-        if (host._fruityDockResizeObserver) host._fruityDockResizeObserver.disconnect();
-        if (window.ResizeObserver) {
-            host._fruityDockResizeObserver = new ResizeObserver(queueUpdate);
-            [scroller, track].forEach(item => host._fruityDockResizeObserver.observe(item));
-        }
-        queueUpdate();
-    }
-
-    function updateFruityDockScrollControls(host) {
-        const scroller = host && host.querySelector('[data-fruity-dock-scroll-region]');
-        if (!host || !scroller) return;
-        const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
-        const overflowing = maxScroll > 2;
-        const atStart = !overflowing || scroller.scrollLeft <= 2;
-        const atEnd = !overflowing || scroller.scrollLeft >= maxScroll - 2;
-        host.classList.toggle('vd-dock-overflowing', overflowing);
-        host.classList.toggle('vd-dock-at-start', atStart);
-        host.classList.toggle('vd-dock-at-end', atEnd);
-        host.querySelectorAll('[data-fruity-dock-scroll-button]').forEach(button => {
-            button.disabled = !overflowing || (button.dataset.fruityDockScrollButton === 'left' ? atStart : atEnd);
-        });
-    }
-
     function widgetFramePath(widget) {
         return widget.app_id
             ? 'Apps/' + widget.app_id + '/' + widget.entry
@@ -2385,6 +2400,7 @@
             host._fruityDockResizeObserver = null;
         }
         renderStandardTaskbar();
+        ensureMobileTaskbarSwipe();
     }
 
     function taskbarButtonHTML(win) {
@@ -2517,61 +2533,6 @@
             if (!seenDockAppIds.has(btn.dataset.appId)) btn.remove();
         });
         updateFruityDockScrollControls(host);
-    }
-
-    function renderFruityDock() {
-        reconcileFruityDock();
-    }
-
-    function scheduleFruityDockOcclusionCheck() {
-        if (state.fruityDockOcclusionFrame) return;
-        const schedule = window.requestAnimationFrame || ((callback) => window.setTimeout(callback, 16));
-        state.fruityDockOcclusionFrame = schedule(() => {
-            state.fruityDockOcclusionFrame = 0;
-            updateFruityDockOcclusion();
-        });
-    }
-
-    function updateFruityDockOcclusion() {
-        const body = document.body;
-        const host = $('vd-taskbar-apps');
-        if (!body || !host || !isFruityTheme()) {
-            if (body) body.classList.remove('fruity-dock-collapsed');
-            state.fruityDockFootprint = null;
-            return;
-        }
-        const dockRect = fruityDockFootprint(host);
-        const occluded = [...state.windows.values()].some(win => windowOverlapsFruityDock(win, dockRect));
-        body.classList.toggle('fruity-dock-collapsed', occluded);
-    }
-
-    function fruityDockFootprint(host) {
-        const rect = host.getBoundingClientRect();
-        const collapsed = document.body.classList.contains('fruity-dock-collapsed');
-        if (!collapsed && rect.width > 120 && rect.height > 40) {
-            state.fruityDockFootprint = {
-                left: rect.left,
-                top: rect.top,
-                right: rect.right,
-                bottom: rect.bottom
-            };
-        }
-        if (state.fruityDockFootprint) return state.fruityDockFootprint;
-        const width = Math.min(920, Math.max(160, window.innerWidth - 170));
-        const left = Math.max(0, (window.innerWidth - width) / 2);
-        const bottom = window.innerHeight - 8;
-        const height = 110;
-        return { left, top: Math.max(0, bottom - height), right: left + width, bottom };
-    }
-
-    function windowOverlapsFruityDock(win, dockRect) {
-        if (!win || !win.element || win.element.style.display === 'none' || win.element.hidden) return false;
-        const rect = win.element.getBoundingClientRect();
-        const margin = 6;
-        return rect.right > dockRect.left + margin &&
-            rect.left < dockRect.right - margin &&
-            rect.bottom > dockRect.top + margin &&
-            rect.top < dockRect.bottom - margin;
     }
 
     function windowTitle(appId) {
@@ -2810,22 +2771,51 @@
         const id = 'w-' + appId + '-' + Date.now();
         const win = document.createElement('section');
         win.className = 'vd-window';
-        win.classList.toggle('vd-mobile-wide-window', shouldUseMobileWideWindow(appId));
         win.dataset.windowId = id;
+
+        const isMobileMode = window.useMobileDesktopMode && window.useMobileDesktopMode();
+        const forceMaximized = window.shouldForceMobileMaximizedWindow && window.shouldForceMobileMaximizedWindow(appId);
+
+        // On mobile, most apps open maximized (single window experience)
+        if (isMobileMode && forceMaximized) {
+            win.classList.add('maximized', 'vd-mobile-forced-maximized');
+        } else {
+            win.classList.toggle('vd-mobile-wide-window', shouldUseMobileWideWindow(appId));
+        }
+
         const requestedSize = appWindowSize(appId);
         const size = clampWindowSize(requestedSize);
         const position = nextWindowPosition(size);
-        win.style.left = position.left + 'px';
-        win.style.top = position.top + 'px';
-        win.style.width = size.width + 'px';
-        win.style.height = size.height + 'px';
+
+        if (isMobileMode && forceMaximized) {
+            // Mobile forced maximized windows take full available space
+            win.style.left = '0px';
+            win.style.top = '0px';
+            win.style.width = '100%';
+            win.style.height = '100%';
+
+            // Enforce Single Window behavior on mobile:
+            // Minimize all other open windows when opening a new normal app
+            state.windows.forEach((existingWin, existingId) => {
+                if (existingId !== id && !existingWin.minimized) {
+                    minimizeWindow(existingId);
+                }
+            });
+        } else {
+            win.style.left = position.left + 'px';
+            win.style.top = position.top + 'px';
+            win.style.width = size.width + 'px';
+            win.style.height = size.height + 'px';
+        }
         const isResizable = appId !== 'calculator' && appId !== 'galaxa-deluxe';
+
         win.style.minWidth = Math.min(WINDOW_MIN_W, size.width) + 'px';
         win.style.minHeight = Math.min(WINDOW_MIN_H, size.height) + 'px';
         const minSize = appWindowMinSize(appId);
         win.style.minWidth = Math.min(minSize.width, size.width) + 'px';
         win.style.minHeight = Math.min(minSize.height, size.height) + 'px';
-        if (!isResizable) {
+
+        if (!isResizable || (isMobileMode && forceMaximized)) {
             win.style.maxWidth = size.width + 'px';
             win.style.maxHeight = size.height + 'px';
             win.style.resize = 'none';
@@ -2862,10 +2852,218 @@
             .map(edge => `<span class="vd-resize-handle vd-resize-${edge}" data-resize="${edge}"></span>`)
             .join('');
     }
+;
+/* ui/js/desktop/core/fruity-dock-scroll.js */
+function wireFruityDockScroll(host) {
+    const scroller = host && host.querySelector('[data-fruity-dock-scroll-region]'), track = host && host.querySelector('[data-fruity-dock-track]');
+    if (!host || !scroller || !track) return;
+    const queueUpdate = () => {
+        const schedule = window.requestAnimationFrame || ((callback) => window.setTimeout(callback, 16));
+        if (host._fruityDockScrollFrame) return;
+        host._fruityDockScrollFrame = schedule(() => {
+            host._fruityDockScrollFrame = 0;
+            updateFruityDockScrollControls(host);
+        });
+    };
+    host.querySelectorAll('[data-fruity-dock-scroll-button]').forEach(button => {
+        button.addEventListener('click', event => {
+            event.stopPropagation();
+            const direction = button.dataset.fruityDockScrollButton === 'left' ? -1 : 1;
+            scroller.scrollBy({ left: direction * Math.max(180, Math.floor(scroller.clientWidth * 0.72)), behavior: 'smooth' });
+        });
+    });
+    scroller.addEventListener('scroll', queueUpdate, { passive: true });
+    if (host._fruityDockResizeObserver) host._fruityDockResizeObserver.disconnect();
+    if (window.ResizeObserver) {
+        host._fruityDockResizeObserver = new ResizeObserver(queueUpdate);
+        [scroller, track].forEach(item => host._fruityDockResizeObserver.observe(item));
+    }
+    queueUpdate();
+}
 
+function updateFruityDockScrollControls(host) {
+    const scroller = host && host.querySelector('[data-fruity-dock-scroll-region]');
+    if (!host || !scroller) return;
+    const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+    const overflowing = maxScroll > 2;
+    const atStart = !overflowing || scroller.scrollLeft <= 2;
+    const atEnd = !overflowing || scroller.scrollLeft >= maxScroll - 2;
+    host.classList.toggle('vd-dock-overflowing', overflowing);
+    host.classList.toggle('vd-dock-at-start', atStart);
+    host.classList.toggle('vd-dock-at-end', atEnd);
+    host.querySelectorAll('[data-fruity-dock-scroll-button]').forEach(button => {
+        button.disabled = !overflowing || (button.dataset.fruityDockScrollButton === 'left' ? atStart : atEnd);
+    });
+}
+
+let taskbarSwipeState = null;
+
+function wireMobileTaskbarSwipe() {
+    const host = $('vd-taskbar-apps');
+    if (!host || host._mobileSwipeWired) return;
+    if (!window.useMobileDesktopMode || !window.useMobileDesktopMode()) return;
+
+    host._mobileSwipeWired = true;
+
+    host.addEventListener('touchstart', e => {
+        if (e.touches.length !== 1) return;
+        taskbarSwipeState = {
+            startX: e.touches[0].clientX,
+            startTime: Date.now(),
+        };
+    }, { passive: true });
+
+    host.addEventListener('touchmove', e => {
+        if (!taskbarSwipeState || e.touches.length !== 1) return;
+        const deltaX = e.touches[0].clientX - taskbarSwipeState.startX;
+        if (Math.abs(deltaX) > 20) e.preventDefault();
+    }, { passive: false });
+
+    host.addEventListener('touchend', e => {
+        if (!taskbarSwipeState) return;
+
+        const deltaX = e.changedTouches[0].clientX - taskbarSwipeState.startX;
+        const deltaTime = Date.now() - taskbarSwipeState.startTime;
+        const velocity = Math.abs(deltaX) / deltaTime;
+
+        taskbarSwipeState = null;
+        if (Math.abs(deltaX) < 50 && velocity < 0.4) return;
+
+        const windows = Array.from(state.windows.values());
+        if (windows.length < 2) return;
+
+        const currentIndex = windows.findIndex(w => w.id === state.activeWindowId);
+        if (currentIndex === -1) return;
+
+        const nextIndex = deltaX < 0
+            ? (currentIndex + 1) % windows.length
+            : (currentIndex - 1 + windows.length) % windows.length;
+        const nextWin = windows[nextIndex];
+        if (nextWin) focusWindow(nextWin.id);
+    }, { passive: true });
+}
+
+function ensureMobileTaskbarSwipe() {
+    if (!window.useMobileDesktopMode || !window.useMobileDesktopMode()) return;
+
+    wireMobileTaskbarSwipe();
+
+    if (isFruityTheme()) {
+        const dockHost = $('vd-taskbar-apps');
+        const scrollRegion = dockHost && dockHost.querySelector('[data-fruity-dock-scroll-region]');
+        if (scrollRegion && !scrollRegion._mobileSwipeWired) wireMobileDockSwipe(scrollRegion);
+    }
+}
+
+function wireMobileDockSwipe(scrollRegion) {
+    if (!scrollRegion) return;
+    scrollRegion._mobileSwipeWired = true;
+
+    let dockSwipeState = null;
+
+    scrollRegion.addEventListener('touchstart', e => {
+        if (e.touches.length !== 1) return;
+        dockSwipeState = { startX: e.touches[0].clientX, startTime: Date.now() };
+    }, { passive: true });
+
+    scrollRegion.addEventListener('touchmove', e => {
+        if (!dockSwipeState || e.touches.length !== 1) return;
+        const deltaX = e.touches[0].clientX - dockSwipeState.startX;
+        if (Math.abs(deltaX) > 25) e.preventDefault();
+    }, { passive: false });
+
+    scrollRegion.addEventListener('touchend', e => {
+        if (!dockSwipeState) return;
+        const deltaX = e.changedTouches[0].clientX - dockSwipeState.startX;
+        dockSwipeState = null;
+
+        if (Math.abs(deltaX) < 60) return;
+
+        const runningWindows = [...state.windows.values()];
+        if (runningWindows.length < 2) return;
+
+        const currentIndex = runningWindows.findIndex(w => w.id === state.activeWindowId);
+        if (currentIndex === -1) return;
+
+        const nextIndex = deltaX < 0
+            ? (currentIndex + 1) % runningWindows.length
+            : (currentIndex - 1 + runningWindows.length) % runningWindows.length;
+
+        const nextWin = runningWindows[nextIndex];
+        if (nextWin) focusWindow(nextWin.id);
+    }, { passive: true });
+}
+
+function renderFruityDock() {
+    reconcileFruityDock();
+}
+
+function scheduleFruityDockOcclusionCheck() {
+    if (state.fruityDockOcclusionFrame) return;
+    const schedule = window.requestAnimationFrame || ((callback) => window.setTimeout(callback, 16));
+    state.fruityDockOcclusionFrame = schedule(() => {
+        state.fruityDockOcclusionFrame = 0;
+        updateFruityDockOcclusion();
+    });
+}
+
+function updateFruityDockOcclusion() {
+    const body = document.body;
+    const host = $('vd-taskbar-apps');
+    if (!body || !host || !isFruityTheme()) {
+        if (body) body.classList.remove('fruity-dock-collapsed');
+        state.fruityDockFootprint = null;
+        return;
+    }
+
+    const isMobileMode = window.useMobileDesktopMode && window.useMobileDesktopMode();
+    const hasMaximizedMobileWindow = isMobileMode && [...state.windows.values()].some(win =>
+        win.element.classList.contains('maximized') ||
+        win.element.classList.contains('vd-mobile-forced-maximized')
+    );
+
+    if (isMobileMode && hasMaximizedMobileWindow) {
+        body.classList.add('fruity-dock-collapsed');
+        state.fruityDockFootprint = null;
+        return;
+    }
+
+    const dockRect = fruityDockFootprint(host);
+    const occluded = [...state.windows.values()].some(win => windowOverlapsFruityDock(win, dockRect));
+    body.classList.toggle('fruity-dock-collapsed', occluded);
+}
+
+function fruityDockFootprint(host) {
+    const rect = host.getBoundingClientRect();
+    const collapsed = document.body.classList.contains('fruity-dock-collapsed');
+    if (!collapsed && rect.width > 120 && rect.height > 40) {
+        state.fruityDockFootprint = {
+            left: rect.left,
+            top: rect.top,
+            right: rect.right,
+            bottom: rect.bottom
+        };
+    }
+    if (state.fruityDockFootprint) return state.fruityDockFootprint;
+    const width = Math.min(920, Math.max(160, window.innerWidth - 170));
+    const left = Math.max(0, (window.innerWidth - width) / 2);
+    const bottom = window.innerHeight - 8;
+    const height = 110;
+    return { left, top: Math.max(0, bottom - height), right: left + width, bottom };
+}
+
+function windowOverlapsFruityDock(win, dockRect) {
+    if (!win || !win.element || win.element.style.display === 'none' || win.element.hidden) return false;
+    const rect = win.element.getBoundingClientRect();
+    const margin = 6;
+    return rect.right > dockRect.left + margin &&
+        rect.left < dockRect.right - margin &&
+        rect.bottom > dockRect.top + margin &&
+        rect.top < dockRect.bottom - margin;
+}
 ;
 /* ui/js/desktop/core/window-interactions-runtime.js */
-    function minimizeWindow(id) {
+function minimizeWindow(id) {
         const item = state.windows.get(id);
         if (!item) return;
         if (item.minimizing) return;
@@ -3250,6 +3448,17 @@ function wireWindow(win, id) {
     function focusWindow(id) {
         const win = state.windows.get(id);
         if (!win) return;
+
+        const isMobileMode = window.useMobileDesktopMode && window.useMobileDesktopMode();
+
+        // On mobile: Enforce single active window by minimizing the previous one
+        if (isMobileMode && state.activeWindowId && state.activeWindowId !== id) {
+            const previousWin = state.windows.get(state.activeWindowId);
+            if (previousWin && !previousWin.minimized) {
+                minimizeWindow(state.activeWindowId);
+            }
+        }
+
         if (state.z > 100000) normalizeWindowZIndexes();
         const wasHidden = win.element.style.display === 'none' || win.element.hidden;
         win.minimizing = false;
@@ -3311,10 +3520,9 @@ function wireWindow(win, id) {
         });
         state.z = wins.length * 10;
     }
-
 ;
 /* ui/js/desktop/core/window-ai-context.js */
-    function aiButtonMarkup(appId) {
+function aiButtonMarkup(appId) {
         if (appId !== 'agent-chat') {
             return `<button class="vd-window-button vd-window-ai-button" type="button" data-action="ai-context" title="${esc(t('desktop.window_ai_context'))}" aria-label="${esc(t('desktop.window_ai_context'))}">${iconMarkup('agent', 'AI', 'vd-window-ai-button-icon', 14)}</button>`;
         }
@@ -3367,15 +3575,13 @@ function wireWindow(win, id) {
         if (!context) return;
         openApp('agent-chat', { window_context: context });
     }
-
 ;
 /* ui/js/desktop/core/lifecycle-cleanup.js */
 // Lifecycle cleanup functions are defined in desktop-foundation.js
 // This file is intentionally empty to avoid duplicate definitions.
-
 ;
 /* ui/js/desktop/core/widget-autosize-runtime.js */
-    const WIDGET_FRAME_SHRINK_THRESHOLD = 18;
+const WIDGET_FRAME_SHRINK_THRESHOLD = 18;
 
     function widgetShouldAutoSize(widget) {
         if (!widget) return true;
@@ -3534,10 +3740,9 @@ function wireWindow(win, id) {
         const current = Math.round(parseFloat(card.style.width) || card.offsetWidth || 0);
         if (Math.abs(current - next) > 1) card.style.width = next + 'px';
     }
-
 ;
 /* ui/js/desktop/core/shortcut-runtime.js */
-    function shortcutKeyMatches(eventKey, eventCode, wanted) {
+function shortcutKeyMatches(eventKey, eventCode, wanted) {
         if (eventKey === wanted || eventCode === wanted || eventCode === ('Key' + wanted)) return true;
         const code = eventCode ? eventCode.toLowerCase() : '';
         const codeAliases = {
@@ -3552,10 +3757,9 @@ function wireWindow(win, id) {
         const keyAliases = { '=': ['+'], '+': ['='] };
         return (keyAliases[wanted] || []).includes(eventKey);
     }
-
 ;
 /* ui/js/desktop/core/file-dialog-runtime.js */
-    const fileDialogDefaultRoots = ['Desktop', 'Documents', 'Downloads', 'Pictures', 'Music', 'Videos', 'Apps', 'Widgets', 'Shared'];
+const fileDialogDefaultRoots = ['Desktop', 'Documents', 'Downloads', 'Pictures', 'Music', 'Videos', 'Apps', 'Widgets', 'Shared'];
 
     function fileDialogText(key, fallback, vars) {
         let value = '';
@@ -4082,10 +4286,9 @@ function wireWindow(win, id) {
         importHostFiles,
         exportWorkspaceFile
     };
-
 ;
 /* ui/js/desktop/core/desktop-file-drops.js */
-    const DESKTOP_FILE_DRAG_TYPE = 'application/x-aurago-desktop-files';
+const DESKTOP_FILE_DRAG_TYPE = 'application/x-aurago-desktop-files';
 
     function desktopDropJoinPath(base, name) {
         const left = String(base || '').replace(/\\/g, '/').replace(/\/+$/, '');
@@ -4358,10 +4561,9 @@ function wireWindow(win, id) {
         hasClipboard: hasDesktopFileClipboard,
         paste: pasteDesktopFileClipboard
     };
-
 ;
 /* ui/js/desktop/core/desktop-window-file-drops.js */
-    const DESKTOP_WINDOW_TEXT_EXTS = ['txt', 'log', 'md', 'json', 'yaml', 'yml', 'sh', 'py', 'go', 'js', 'mjs', 'ts', 'tsx', 'jsx', 'rs', 'css', 'html', 'htm', 'xml', 'ini', 'conf'];
+const DESKTOP_WINDOW_TEXT_EXTS = ['txt', 'log', 'md', 'json', 'yaml', 'yml', 'sh', 'py', 'go', 'js', 'mjs', 'ts', 'tsx', 'jsx', 'rs', 'css', 'html', 'htm', 'xml', 'ini', 'conf'];
     const DESKTOP_WINDOW_DROP_CAPABILITIES = {
         files: { multiple: true, accepts: () => true, effect: 'move' },
         pixel: { multiple: false, accepts: path => desktopWindowDropExtIn(path, ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif']), effect: 'copy' },
@@ -4585,10 +4787,9 @@ function wireWindow(win, id) {
         win.element.addEventListener('dragleave', handleDesktopFileWindowDragLeave, useCapture);
         win.element.addEventListener('drop', handleDesktopFileWindowDrop, useCapture);
     }
-
 ;
 /* ui/js/desktop/core/menus-and-routing.js */
-    function isEditableTarget(target) { return !!(target && target.closest && target.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""], .ql-editor, .xterm-helper-textarea')); }
+function isEditableTarget(target) { return !!(target && target.closest && target.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""], .ql-editor, .xterm-helper-textarea')); }
     function isNativeContextMenuTarget(target) { return isEditableTarget(target); }
     function shouldAllowBrowserContextMenu(event) { const target = event && event.target; if (isNativeContextMenuTarget(target)) return true; const selection = window.getSelection && window.getSelection(); if (!selection || selection.isCollapsed || !String(selection).trim()) return false; if (!target || !target.closest) return false; return !!target.closest('.vd-window-content, .vd-modal, .vd-qc-modal, .vd-context-native-text'); }
     function suppressBrowserContextMenu(event) { if (!event || event.defaultPrevented || shouldAllowBrowserContextMenu(event)) return false; event.preventDefault(); event.stopPropagation(); closeContextMenu(); return true; }
@@ -5755,10 +5956,9 @@ if (appId === 'pixel') {
         setFallbackFileMenus(id, state.filesPath);
         try {
             const body = await api('/api/desktop/files?path=' + encodeURIComponent(state.filesPath));
-
 ;
 /* ui/js/desktop/apps/settings-calculator.js */
-            const files = body.files || [];
+const files = body.files || [];
             host.querySelector('.vd-file-list').innerHTML = files.length ? files.map(file => `<div class="vd-file-row" data-type="${esc(file.type)}" data-path="${esc(file.path)}" data-web-path="${esc(file.web_path || '')}" data-media-kind="${esc(file.media_kind || '')}" data-mime-type="${esc(file.mime_type || '')}">
                 ${iconMarkup(iconForFile(file), file.type === 'directory' ? 'D' : file.name, 'vd-sprite-file', 26)}
                 <span class="vd-file-name">${esc(file.name)}</span>
@@ -6866,10 +7066,9 @@ if (appId === 'pixel') {
         let index = 0;
         const isDigit = ch => {
             if (base === 2) return ch === '0' || ch === '1';
-
 ;
 /* ui/js/desktop/apps/planning-gallery-music.js */
-            if (base === 8) return ch >= '0' && ch <= '7';
+if (base === 8) return ch >= '0' && ch <= '7';
             if (base === 10) return ch >= '0' && ch <= '9';
             if (base === 16) return /[0-9A-Fa-f]/.test(ch);
             return false;
@@ -7729,7 +7928,6 @@ if (appId === 'pixel') {
             } catch (err) {
                 showNotify(t('desktop.qc_delete_error') + ': ' + err.message);
             }
-
 ;
 /* ui/js/desktop/apps/quickconnect-launchpad-chat.js */
 }
@@ -8966,10 +9164,108 @@ if (appId === 'pixel') {
 
     function sdkMenuItems(client, items) {
         return (Array.isArray(items) ? items : []).map(item => {
+;
+/* ui/js/desktop/core/widget-drawer-runtime.js */
+async function renderWidgetDrawerContent(drawer) {
+    drawer.querySelectorAll('.vd-widget-drawer-content').forEach(el => el.remove());
 
+    const content = document.createElement('div');
+    content.className = 'vd-widget-drawer-content';
+    content.style.padding = '12px 16px 20px';
+    content.style.overflow = 'auto';
+    content.style.maxHeight = 'calc(100% - 48px)';
+
+    const allWidgets = (state.bootstrap && state.bootstrap.all_widgets) || [];
+
+    if (allWidgets.length === 0) {
+        content.innerHTML = `
+            <div style="padding: 24px 12px; color: var(--vd-muted); font-size: 13px; text-align: center;">
+                ${t('desktop.widget_drawer_empty', 'No widgets available.')}
+            </div>
+        `;
+        drawer.appendChild(content);
+        return;
+    }
+
+    const list = document.createElement('div');
+    list.style.display = 'flex';
+    list.style.flexDirection = 'column';
+    list.style.gap = '8px';
+
+    allWidgets.forEach(widget => {
+        const isVisible = widget.visible !== false;
+        const isBuiltin = widget.builtin === true;
+        const card = document.createElement('div');
+        const iconKey = widget.icon || 'widgets';
+
+        card.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--vd-surface); border:1px solid var(--vd-border); border-radius:8px;';
+        card.innerHTML = `
+            <div style="flex-shrink:0;">${iconMarkup(iconKey, widget.title || widget.id, 'vd-sprite-file', 22)}</div>
+            <div style="flex:1; min-width:0;">
+                <div style="font-weight:600; font-size:13px; color:var(--vd-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    ${esc(widget.title || widget.id)}
+                </div>
+                <div style="font-size:11px; color:var(--vd-muted);">
+                    ${isBuiltin ? t('desktop.widget_builtin', 'Builtin') : t('desktop.widget_custom', 'Custom')}
+                    ${isVisible ? ' • ' + t('desktop.widget_on_desktop', 'On desktop') : ''}
+                </div>
+            </div>
+            <div>
+                <button type="button" class="vd-wm-btn" data-widget-action="${isVisible ? 'hide' : 'show'}" data-widget-id="${esc(widget.id)}"
+                    style="font-size:11px; padding:4px 10px; min-width:72px;">
+                    ${isVisible ? t('desktop.widget_remove_from_desktop', 'Remove') : t('desktop.widget_add_to_desktop', 'Add')}
+                </button>
+            </div>
+        `;
+
+        const btn = card.querySelector('button');
+        btn.addEventListener('click', async e => {
+            e.stopPropagation();
+            const action = btn.dataset.widgetAction;
+            const id = btn.dataset.widgetId;
+            if (!id) return;
+
+            btn.disabled = true;
+            btn.textContent = '...';
+
+            try {
+                await api('/api/desktop/widgets?id=' + encodeURIComponent(id), {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ visible: action === 'show' })
+                });
+                await loadBootstrap();
+                renderWidgetDrawerContent(drawer);
+            } catch (err) {
+                showDesktopNotification({
+                    title: t('desktop.notification'),
+                    message: err.message || 'Failed to update widget'
+                });
+                btn.disabled = false;
+                btn.textContent = action === 'show'
+                    ? t('desktop.widget_add_to_desktop', 'Add')
+                    : t('desktop.widget_remove_from_desktop', 'Remove');
+            }
+        });
+
+        list.appendChild(card);
+    });
+
+    content.appendChild(list);
+    drawer.appendChild(content);
+}
+
+function updateTaskbarSystemButtonsForMobile() {
+    const isMobile = window.useMobileDesktopMode && window.useMobileDesktopMode();
+    const shortcutsBtn = document.getElementById('vd-shortcuts-trigger');
+    const widgetsBtn = document.getElementById('vd-widget-drawer-btn');
+
+    if (shortcutsBtn) shortcutsBtn.style.display = isMobile ? 'none' : '';
+    if (widgetsBtn) widgetsBtn.style.display = isMobile ? 'none' : '';
+}
 ;
 /* ui/js/desktop/core/sdk-events-bootstrap.js */
-            if (!item || item.hidden) return null;
+if (!item || item.hidden) return null;
             if (item.type === 'separator' || item.separator) return { type: 'separator' };
             const actionId = item.actionId || (typeof item.action === 'string' ? item.action : '') || item.id || '';
             const submenuItems = item.items || item.children;
@@ -9340,6 +9636,13 @@ if (appId === 'pixel') {
         if (widgetDrawerBtn) widgetDrawerBtn.addEventListener('click', toggleWidgetDrawer);
         const showDesktopBtn = document.getElementById('vd-show-desktop-btn');
         if (showDesktopBtn) showDesktopBtn.addEventListener('click', minimizeAllWindows);
+
+        // Hide shortcuts and widgets buttons on mobile (they make little sense on phones)
+        updateTaskbarSystemButtonsForMobile();
+        // Re-evaluate on rotation / major viewport changes
+        window.addEventListener('resize', () => {
+            if (window.useMobileDesktopMode) updateTaskbarSystemButtonsForMobile();
+        }, { passive: true });
         let startSearchTimer = null;
         $('vd-start-search').addEventListener('input', (event) => {
             state.startQuery = event.target.value;
@@ -9351,7 +9654,8 @@ if (appId === 'pixel') {
             if (!event.target.closest('.vd-context-menu')) closeContextMenu();
             if (!event.target.closest('.vd-window-menubar')) closeWindowMenu();
             const menu = $('vd-start-menu');
-            if (!menu.hidden && !menu.contains(event.target) && !event.target.closest('#vd-start-button')) {
+            // Protect both classic start button and Fruity Dock orb from the outside-click closer
+            if (!menu.hidden && !menu.contains(event.target) && !event.target.closest('#vd-start-button, [data-fruity-dock-orb]')) {
                 closeStartMenu();
             }
         });
@@ -9392,20 +9696,26 @@ if (appId === 'pixel') {
         const drawer = document.getElementById('vd-widget-drawer');
         const backdrop = document.getElementById('vd-widget-drawer-backdrop');
         if (!drawer || !backdrop) return;
+
         const isOpen = drawer.classList.contains('open');
         if (isOpen) {
             drawer.classList.remove('open');
             backdrop.hidden = true;
             return;
         }
+
         drawer.classList.add('open');
         backdrop.hidden = false;
+
         backdrop.addEventListener('click', () => {
             drawer.classList.remove('open');
             backdrop.hidden = true;
         }, { once: true });
+
         const title = drawer.querySelector('.vd-widget-drawer-title');
         title.textContent = t('desktop.widget_drawer_title', 'Widgets');
+
+        renderWidgetDrawerContent(drawer);
     }
 
     function wireStartMenuSwipe() {
