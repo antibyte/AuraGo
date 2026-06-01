@@ -47,6 +47,136 @@
     --vd-z-toast: 1000;
 }
 
+:root {
+    /* === Design System Tokens (Phase 1) === */
+
+    /* Color: foreground */
+    --ds-color-fg-primary: #f6f7fb;
+    --ds-color-fg-secondary: #d4dbe7;
+    --ds-color-fg-muted: #a8bbd0;
+    --ds-color-fg-disabled: #6b7785;
+
+    /* Color: background */
+    --ds-color-bg-canvas: #11151c;
+    --ds-color-bg-raised: #181f2c;
+    --ds-color-bg-overlay: #1d2533;
+    --ds-color-bg-modal: #232c3d;
+
+    /* Color: surface layers (translucent, for glass) */
+    --ds-color-surface-0: #11151c;
+    --ds-color-surface-1: rgba(18, 24, 36, 0.78);
+    --ds-color-surface-2: rgba(20, 28, 44, 0.92);
+    --ds-color-surface-3: rgba(28, 36, 52, 0.97);
+
+    /* Color: border */
+    --ds-color-border-subtle: rgba(255, 255, 255, 0.09);
+    --ds-color-border-default: rgba(255, 255, 255, 0.16);
+    --ds-color-border-strong: rgba(255, 255, 255, 0.28);
+    --ds-color-border-focus: #27c7a6;
+
+    /* Color: accent scale */
+    --ds-color-accent-50: #e6faf4;
+    --ds-color-accent-100: #c4f1e2;
+    --ds-color-accent-200: #92e2c6;
+    --ds-color-accent-300: #5dd1a8;
+    --ds-color-accent-400: #3bce8a;
+    --ds-color-accent-500: #27c7a6;
+    --ds-color-accent-600: #1fae8e;
+    --ds-color-accent-700: #188f76;
+    --ds-color-accent-800: #11705c;
+    --ds-color-accent-900: #0a5043;
+    --ds-color-accent-coral: #ff8066;
+    --ds-color-accent-amber: #f2b84b;
+    --ds-color-accent-glow: rgba(39, 199, 166, 0.22);
+
+    /* Color: control */
+    --ds-color-control-bg: rgba(255, 255, 255, 0.08);
+    --ds-color-control-hover: rgba(255, 255, 255, 0.12);
+    --ds-color-control-active: rgba(255, 255, 255, 0.16);
+    --ds-color-inner-highlight: rgba(255, 255, 255, 0.08);
+
+    /* Color: semantic */
+    --ds-color-success-fg: #4ad29c;
+    --ds-color-warning-fg: #f2b84b;
+    --ds-color-danger-fg: #ff7a72;
+    --ds-color-info-fg: #5aa9ff;
+
+    /* Spacing scale (4-based) */
+    --ds-space-1: 4px;
+    --ds-space-2: 8px;
+    --ds-space-3: 12px;
+    --ds-space-4: 16px;
+    --ds-space-5: 20px;
+    --ds-space-6: 24px;
+    --ds-space-7: 32px;
+    --ds-space-8: 40px;
+    --ds-space-9: 48px;
+    --ds-space-10: 56px;
+
+    /* Radius scale */
+    --ds-radius-xs: 4px;
+    --ds-radius-sm: 6px;
+    --ds-radius-md: 10px;
+    --ds-radius-lg: 14px;
+    --ds-radius-xl: 20px;
+    --ds-radius-full: 9999px;
+
+    /* Elevation (shadow levels, themed per theme override) */
+    --ds-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    --ds-elevation-2: 0 4px 12px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    --ds-elevation-3: 0 12px 32px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+    --ds-elevation-4: 0 24px 64px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(255, 255, 255, 0.07) inset;
+    --ds-elevation-5: 0 32px 96px rgba(0, 0, 0, 0.62), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+
+    /* Motion */
+    --ds-motion-duration-fast: 120ms;
+    --ds-motion-duration-base: 200ms;
+    --ds-motion-duration-slow: 320ms;
+    --ds-motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --ds-motion-ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
+    --ds-motion-ease-decel: cubic-bezier(0, 0, 0, 1);
+    --ds-motion-ease-accel: cubic-bezier(0.3, 0, 1, 1);
+
+    /* Typography */
+    --ds-type-size-xs: 11px;
+    --ds-type-size-sm: 12px;
+    --ds-type-size-base: 13px;
+    --ds-type-size-md: 14px;
+    --ds-type-size-lg: 16px;
+    --ds-type-size-xl: 20px;
+    --ds-type-size-2xl: 24px;
+    --ds-type-size-3xl: 32px;
+    --ds-type-size-display: 40px;
+
+    --ds-type-weight-regular: 400;
+    --ds-type-weight-medium: 500;
+    --ds-type-weight-semibold: 600;
+    --ds-type-weight-bold: 700;
+
+    --ds-type-leading-tight: 1.2;
+    --ds-type-leading-normal: 1.45;
+    --ds-type-leading-relaxed: 1.6;
+
+    /* Z-index */
+    --ds-z-base: 0;
+    --ds-z-widget: 10;
+    --ds-z-window: 100;
+    --ds-z-dock: 400;
+    --ds-z-menu: 700;
+    --ds-z-modal: 800;
+    --ds-z-context: 900;
+    --ds-z-media: 950;
+    --ds-z-toast: 1000;
+
+    /* Backdrop blur (glassmorphism) */
+    --ds-blur-fine: blur(24px) saturate(1.4);
+    --ds-blur-coarse: blur(8px) saturate(1.15);
+
+    /* Focus ring */
+    --ds-focus-ring-width: 2px;
+    --ds-focus-ring-offset: 2px;
+}
+
 .vd-toast-container {
     position: fixed;
     top: 14px;
