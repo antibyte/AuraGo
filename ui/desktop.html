@@ -7,6 +7,9 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="shortcut icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#11151c" />
     <title>AuraGo Virtual Desktop</title>
     <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}"></script>
     <script type="application/json" id="aurago-template-data">{"systemLang":"{{.Lang}}","buildVersion":"{{.BuildVersion}}","i18n":{{.I18N}}}</script>
@@ -60,7 +63,7 @@
 
         <aside class="vd-start-menu" id="vd-start-menu" hidden>
             <div class="vd-start-search">
-                <input id="vd-start-search" type="search" autocomplete="off" spellcheck="false" data-i18n-placeholder="desktop.search_placeholder">
+                <input id="vd-start-search" type="search" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off" data-i18n-placeholder="desktop.search_placeholder">
             </div>
             <div id="vd-start-apps" class="vd-start-apps"></div>
         </aside>

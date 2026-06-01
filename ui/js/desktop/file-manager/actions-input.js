@@ -210,7 +210,7 @@
             item.addEventListener('click', handleItemClick);
             item.addEventListener('dblclick', handleItemDblClick);
             item.addEventListener('contextmenu', handleItemContextMenu);
-            wireLongPress(item, handleItemContextMenu);
+            wireLongPress(item, handleItemLongPress);
             item.addEventListener('keydown', handleItemKeyDown);
             item.draggable = true;
             item.addEventListener('dragstart', handleDragStart);
@@ -222,6 +222,31 @@
     }
 
     function attachMainAreaEvents(root, includePersistentDropOverlay) {
+        root.querySelectorAll('.fm-selection-toolbar [data-action]').forEach(btn => {
+            if (btn.dataset.fmSelBound === 'true') return;
+            btn.dataset.fmSelBound = 'true';
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const action = btn.dataset.action;
+                const selected = getSelectedFiles();
+                const singleFile = selected.length === 1 ? selected[0] : null;
+                switch (action) {
+                    case 'selection-close': exitSelectionMode(); break;
+                    case 'selection-open':
+                        if (singleFile) openFileItem(singleFile.path, singleFile.type);
+                        break;
+                    case 'selection-copy': copySelection(); break;
+                    case 'selection-cut': cutSelection(); break;
+                    case 'selection-delete': deleteSelected(); break;
+                    case 'selection-download':
+                        if (singleFile && singleFile.type === 'file') downloadFile(singleFile);
+                        break;
+                    case 'selection-properties':
+                        if (singleFile) showProperties(singleFile);
+                        break;
+                }
+            });
+        });
         root.querySelectorAll('[data-sort]').forEach(header => {
             header.addEventListener('click', () => {
                 const sortKey = header.dataset.sort;
@@ -237,7 +262,7 @@
         if (main) {
             main.addEventListener('click', e => {
                 if (e.target === main || e.target.classList.contains('fm-empty') || e.target.classList.contains('fm-grid') || e.target.classList.contains('fm-list-body')) {
-                    clearSelection();
+                    exitSelectionMode();
                     renderFileContent();
                 }
             });
@@ -343,6 +368,14 @@
         const type = e.currentTarget.dataset.type;
         if (isTouchLikePointer(e)) {
             e.preventDefault();
+            if (fm.selectionMode) {
+                toggleSelection(path);
+                fm.lastClickedPath = path;
+                activateKeyboardWindow();
+                updateSelectionDOM();
+                focusFileItem(path);
+                return;
+            }
             openFileItem(path, type);
             return;
         }
@@ -358,6 +391,23 @@
         activateKeyboardWindow();
         updateSelectionDOM();
         focusFileItem(path);
+    }
+
+    function handleItemLongPress(e) {
+        const path = e.currentTarget.dataset.path;
+        fm.selectionMode = true;
+        toggleSelection(path);
+        fm.lastClickedPath = path;
+        activateKeyboardWindow();
+        updateSelectionDOM();
+        focusFileItem(path);
+        if (navigator.vibrate) navigator.vibrate(15);
+    }
+
+    function exitSelectionMode() {
+        fm.selectionMode = false;
+        clearSelection();
+        updateSelectionDOM();
     }
 
     function openFileItem(path, type) {

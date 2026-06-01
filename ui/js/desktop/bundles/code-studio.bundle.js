@@ -2642,7 +2642,7 @@ sidebar.innerHTML = `<div class="cs-sidebar-head">
         backdrop.innerHTML = `<div class="cs-command-palette">
             <div class="cs-command-palette-input">
                 <span class="cs-cp-icon">${getApp()?.api ? '' : '?'}</span>
-                <input type="text" placeholder="${esc(tr('codeStudio.cpPlaceholder', 'Search files, commands, tabs...'))}" autocomplete="off" spellcheck="false">
+                <input type="text" placeholder="${esc(tr('codeStudio.cpPlaceholder', 'Search files, commands, tabs...'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
             </div>
             <div class="cs-command-palette-results" data-cp-results></div>
         </div>`;

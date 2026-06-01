@@ -208,7 +208,7 @@
                 <section class="vd-file-dialog-main">
                     <nav class="vd-file-dialog-breadcrumbs" data-file-dialog-breadcrumbs></nav>
                     <div class="vd-file-dialog-tools">
-                        <input class="vd-file-dialog-search" data-file-dialog-search type="search" placeholder="${fileDialogEscape(fileDialogText('desktop.file_dialog_search', 'Search'))}" autocomplete="off">
+                        <input class="vd-file-dialog-search" data-file-dialog-search type="search" placeholder="${fileDialogEscape(fileDialogText('desktop.file_dialog_search', 'Search'))}" autocomplete="off" inputmode="search" enterkeyhint="search" autocapitalize="off">
                         <select class="vd-file-dialog-filter" data-file-dialog-filter></select>
                     </div>
                     <div class="vd-file-dialog-list" data-file-dialog-list data-file-dialog-multi-select="${isMulti ? 'true' : 'false'}" role="listbox"></div>
@@ -217,7 +217,7 @@
             <footer class="vd-file-dialog-footer">
                 <label class="vd-file-dialog-name ${isSave ? '' : 'is-hidden'}">
                     <span>${fileDialogEscape(fileDialogText('desktop.file_dialog_name', 'File name'))}</span>
-                    <input data-file-dialog-filename type="text" autocomplete="off" value="${fileDialogEscape(options.defaultName || options.filename || fileDialogBaseName(options.path))}">
+                    <input data-file-dialog-filename type="text" autocomplete="off" enterkeyhint="done" value="${fileDialogEscape(options.defaultName || options.filename || fileDialogBaseName(options.path))}">
                 </label>
                 <div class="vd-file-dialog-actions">
                     <button type="button" class="vd-button" data-file-dialog-import>${fileDialogEscape(fileDialogText('desktop.file_dialog_import', 'Import'))}</button>

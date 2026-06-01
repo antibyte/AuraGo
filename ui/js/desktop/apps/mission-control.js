@@ -206,7 +206,7 @@
             return `
                 <div class="${P}-toolbar" data-mc="toolbar">
                     <button type="button" class="${P}-btn ${P}-btn-primary" data-mc="btn-new">+ ${esc(t('desktop.mc_new_mission', 'New Mission'))}</button>
-                    <input type="text" class="${P}-search" data-mc="search" placeholder="${esc(t('desktop.mc_search_placeholder', 'Search missions...'))}">
+                    <input type="text" class="${P}-search" data-mc="search" placeholder="${esc(t('desktop.mc_search_placeholder', 'Search missions...'))}" inputmode="search" enterkeyhint="search" autocapitalize="off">
                     <select class="${P}-filter-select" data-mc="filter-select">
                         <option value="all">${esc(t('missions.filter_all', 'All'))}</option>
                         <option value="manual">${esc(t('missions.filter_manual', 'Manual'))}</option>

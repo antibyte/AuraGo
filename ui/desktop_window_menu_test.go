@@ -403,6 +403,7 @@ func readAllDesktopCSS(t *testing.T) string {
 		"css/desktop-widgets.css",
 		"css/desktop-modals.css",
 		"css/desktop-sdk.css",
+		"css/desktop-shell-overrides.css",
 	}
 	var buf strings.Builder
 	for _, f := range cssFiles {

@@ -66,7 +66,7 @@
         host.innerHTML = `<div class="vd-people">
             <div class="vd-people-toolbar">
                 <div class="vd-people-search-wrap">
-                    <input class="vd-people-search" type="text" placeholder="${esc(t(context, 'desktop.people_search_placeholder'))}" autocomplete="off" spellcheck="false">
+                    <input class="vd-people-search" type="text" placeholder="${esc(t(context, 'desktop.people_search_placeholder'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
                     <button class="vd-people-semantic-toggle" type="button" title="${esc(t(context, 'desktop.people_semantic_hint'))}">KG</button>
                 </div>
                 <div class="vd-people-toolbar-actions">

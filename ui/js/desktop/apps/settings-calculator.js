@@ -487,7 +487,7 @@
             <aside class="vd-settings-sidebar" aria-label="${esc(t('desktop.app_settings'))}">
                 <div class="vd-settings-sidebar-title">${esc(t('desktop.app_settings'))}</div>
                 <div class="vd-settings-search">
-                    <input type="search" class="vd-settings-search-input" placeholder="${esc(t('desktop.settings_search_placeholder', 'Search settings\u2026'))}" autocomplete="off" spellcheck="false">
+                    <input type="search" class="vd-settings-search-input" placeholder="${esc(t('desktop.settings_search_placeholder', 'Search settings\u2026'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
                 </div>
                 ${sections.map(section => `<button type="button" class="vd-settings-nav ${section.id === active.id ? 'active' : ''}" data-section="${esc(section.id)}">
                     ${iconMarkup(section.icon, section.fallback || section.icon, 'vd-settings-nav-icon', 18)}<span>${esc(t(section.title))}</span>

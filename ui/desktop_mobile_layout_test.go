@@ -154,3 +154,114 @@ func TestDesktopAgentChatMobileKeepsInputReachable(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopHasPWAMetaTags(t *testing.T) {
+	t.Parallel()
+
+	html := readDesktopAssetText(t, "desktop.html")
+	for _, want := range []string{
+		`<link rel="manifest" href="/site.webmanifest" />`,
+		`<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />`,
+		`<meta name="theme-color" content="#11151c" />`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("desktop.html missing PWA meta tag %q", want)
+		}
+	}
+}
+
+func TestDesktopInputsHaveMobileAttributes(t *testing.T) {
+	t.Parallel()
+
+	html := readDesktopAssetText(t, "desktop.html")
+	if !strings.Contains(html, `inputmode="search"`) || !strings.Contains(html, `enterkeyhint="search"`) {
+		t.Fatal("desktop.html start search input missing mobile input attributes")
+	}
+
+	jsFiles := []string{
+		"js/desktop/file-manager/core-render.js",
+		"js/desktop/apps/settings-calculator.js",
+		"js/desktop/apps/quickconnect-launchpad-chat.js",
+		"js/desktop/core/window-shell-runtime.js",
+		"js/desktop/core/file-dialog-runtime.js",
+		"js/desktop/apps/agent-chat.js",
+		"js/desktop/apps/people.js",
+		"js/desktop/apps/radio.js",
+		"js/desktop/apps/mission-control.js",
+		"js/desktop/apps/looper.js",
+		"js/desktop/apps/code-studio/command-palette.js",
+	}
+	for _, file := range jsFiles {
+		js := readDesktopAssetText(t, file)
+		if !strings.Contains(js, "inputmode=") {
+			t.Fatalf("%s missing inputmode attribute on inputs", file)
+		}
+		if !strings.Contains(js, "enterkeyhint=") {
+			t.Fatalf("%s missing enterkeyhint attribute on inputs", file)
+		}
+	}
+}
+
+func TestDesktopHasMobileBackdropFilterReduction(t *testing.T) {
+	t.Parallel()
+
+	css := readAllDesktopCSS(t)
+	if !strings.Contains(css, "@media (pointer: coarse)") {
+		t.Fatal("desktop CSS missing mobile performance @media (pointer: coarse) query")
+	}
+	want := "blur(6px) saturate(120%)"
+	if !strings.Contains(css, want) {
+		t.Fatalf("desktop CSS missing mobile backdrop-filter reduction %q", want)
+	}
+}
+
+func TestDesktopHasMobileInputFontSize(t *testing.T) {
+	t.Parallel()
+
+	css := readAllDesktopCSS(t)
+	if !strings.Contains(css, "@media (pointer: coarse)") {
+		t.Fatal("desktop CSS missing mobile @media (pointer: coarse) query")
+	}
+	if !strings.Contains(css, ".vd-shell input[type=\"text\"]") && !strings.Contains(css, `.vd-shell input[type="text"]`) {
+		t.Fatal("desktop CSS missing mobile input font-size rule for text inputs")
+	}
+}
+
+func TestFileManagerHasTouchSelection(t *testing.T) {
+	t.Parallel()
+
+	js := readDesktopAssetText(t, "js/desktop/file-manager/actions-input.js")
+	for _, want := range []string{
+		"function handleItemLongPress(e)",
+		"function exitSelectionMode()",
+		"fm.selectionMode = true",
+		"fm.selectionMode = false",
+		"wireLongPress(item, handleItemLongPress)",
+	} {
+		if !strings.Contains(js, want) {
+			t.Fatalf("file manager actions-input.js missing touch selection marker %q", want)
+		}
+	}
+
+	render := readDesktopAssetText(t, "js/desktop/file-manager/core-render.js")
+	for _, want := range []string{
+		"function renderSelectionToolbarHtml()",
+		"fm-selection-toolbar",
+		"selectionMode: false",
+	} {
+		if !strings.Contains(render, want) {
+			t.Fatalf("file manager core-render.js missing touch selection marker %q", want)
+		}
+	}
+
+	css := readDesktopAssetText(t, "css/desktop-app-file-manager.css")
+	for _, want := range []string{
+		".fm-selection-toolbar",
+		".fm-selection-toolbar.active",
+		".fm-selection-btn",
+	} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("file manager CSS missing touch selection style %q", want)
+		}
+	}
+}

@@ -204,7 +204,7 @@
                 <button class="vd-weather-edit-btn" type="button" title="Change location">\u270f\ufe0f</button>
             </div>
             <div class="vd-weather-search-row" hidden>
-                <input class="vd-weather-search-input" type="text" placeholder="Search city\u2026" autocomplete="off" spellcheck="false">
+                <input class="vd-weather-search-input" type="text" placeholder="Search city\u2026" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
                 <button class="vd-weather-search-btn" type="button">Set</button>
             </div>
             <div class="vd-weather-suggestions" hidden></div>

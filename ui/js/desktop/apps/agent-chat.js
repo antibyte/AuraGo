@@ -151,7 +151,7 @@
                     </button>
                 </div>
                 <div class="vd-chat-sidebar-search">
-                    <input type="text" placeholder="${esc(desktopText('desktop.chat_search', 'Search conversations...'))}" data-chat-sidebar-search autocomplete="off">
+                    <input type="text" placeholder="${esc(desktopText('desktop.chat_search', 'Search conversations...'))}" data-chat-sidebar-search autocomplete="off" inputmode="search" enterkeyhint="search" autocapitalize="off">
                 </div>
                 <div class="vd-chat-sidebar-list" data-chat-sidebar-list></div>
             </div>
@@ -691,7 +691,7 @@
             </button>`;
         }).join('');
         const freeText = payload.allow_free_text ? `<form class="vd-chat-question-free-text" data-question-free-text>
-                <input type="text" autocomplete="off" placeholder="${esc(desktopText('desktop.chat_question_free_text_placeholder', 'Type a custom answer...'))}">
+                <input type="text" autocomplete="off" placeholder="${esc(desktopText('desktop.chat_question_free_text_placeholder', 'Type a custom answer...'))}" inputmode="text" enterkeyhint="send" autocapitalize="on">
                 <button class="vd-qc-btn vd-qc-btn-primary" type="submit">${iconMarkup('chat', 'S', 'vd-qc-btn-icon', 14)}<span>${esc(desktopText('desktop.send', 'Send'))}</span></button>
             </form>` : '';
 

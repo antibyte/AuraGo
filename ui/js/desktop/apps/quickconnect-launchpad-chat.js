@@ -52,11 +52,11 @@
                     <div class="vd-qc-form-section">
                         <div class="vd-qc-form-title">${esc(t('desktop.qc_section_server'))}</div>
                         <label class="vd-qc-label">${esc(t('desktop.qc_name'))}
-                            <input class="vd-qc-input" type="text" name="name" value="${esc(existingDevice ? existingDevice.name : '')}" required>
+                            <input class="vd-qc-input" type="text" name="name" value="${esc(existingDevice ? existingDevice.name : '')}" required inputmode="text" enterkeyhint="next" autocapitalize="words">
                         </label>
                         <div class="vd-qc-form-row">
                             <label class="vd-qc-label vd-qc-flex-2">${esc(t('desktop.qc_host'))}
-                                <input class="vd-qc-input" type="text" name="host" value="${esc(existingDevice ? (existingDevice.ip_address || '') : '')}" placeholder="192.168.1.1" required>
+                                <input class="vd-qc-input" type="text" name="host" value="${esc(existingDevice ? (existingDevice.ip_address || '') : '')}" placeholder="192.168.1.1" required inputmode="url" enterkeyhint="next" autocapitalize="off">
                             </label>
                             <label class="vd-qc-label vd-qc-flex-1">${esc(t('desktop.qc_protocol'))}
                                 <select class="vd-qc-input" name="protocol">
@@ -69,13 +69,13 @@
                             </label>
                         </div>
                         <label class="vd-qc-label">${esc(t('desktop.qc_description'))}
-                            <input class="vd-qc-input" type="text" name="description" value="${esc(existingDevice ? (existingDevice.description || '') : '')}">
+                            <input class="vd-qc-input" type="text" name="description" value="${esc(existingDevice ? (existingDevice.description || '') : '')}" inputmode="text" enterkeyhint="next" autocapitalize="sentences">
                         </label>
                     </div>
                     <div class="vd-qc-form-section">
                         <div class="vd-qc-form-title">${esc(t('desktop.qc_section_credential'))}</div>
                         <label class="vd-qc-label vd-qc-username-row">${esc(t('desktop.qc_username'))}
-                            <input class="vd-qc-input" type="text" name="username" value="${esc(existingCred ? existingCred.username : '')}" required>
+                            <input class="vd-qc-input" type="text" name="username" value="${esc(existingCred ? existingCred.username : '')}" required inputmode="email" enterkeyhint="next" autocapitalize="off">
                         </label>
                         <label class="vd-qc-label">${esc(t('desktop.qc_password'))}
                             <div class="vd-qc-input-group">
@@ -719,7 +719,7 @@
         host.innerHTML = `
             <div class="vd-launchpad">
                 <div class="vd-launchpad-toolbar">
-                    <input type="search" class="vd-launchpad-search" data-i18n-placeholder="desktop.launchpad_search" placeholder="${esc(t('desktop.launchpad_search'))}">
+                    <input type="search" class="vd-launchpad-search" data-i18n-placeholder="desktop.launchpad_search" placeholder="${esc(t('desktop.launchpad_search'))}" inputmode="search" enterkeyhint="search" autocapitalize="off">
                     <select class="vd-launchpad-category"><option value="">${esc(t('desktop.launchpad_all_categories'))}</option></select>
                 </div>
                 <div class="vd-launchpad-grid"></div>

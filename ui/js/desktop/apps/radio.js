@@ -49,7 +49,7 @@
                     </div>
                     <label class="radio-search">
                         ${iconMarkup('search', 'S', 'radio-search-icon', 15)}
-                        <input type="search" data-search autocomplete="off" spellcheck="false" placeholder="${esc(t('desktop.radio_search_placeholder', 'Search stations...'))}">
+                        <input type="search" data-search autocomplete="off" spellcheck="false" placeholder="${esc(t('desktop.radio_search_placeholder', 'Search stations...'))}" inputmode="search" enterkeyhint="search" autocapitalize="off">
                     </label>
                 </div>
                 <div class="radio-tabs" role="tablist" aria-label="${esc(t('desktop.radio_categories', 'Categories'))}" data-tabs></div>

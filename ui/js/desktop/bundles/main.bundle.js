@@ -1969,7 +1969,7 @@
                 <button class="vd-weather-edit-btn" type="button" title="Change location">\u270f\ufe0f</button>
             </div>
             <div class="vd-weather-search-row" hidden>
-                <input class="vd-weather-search-input" type="text" placeholder="Search city\u2026" autocomplete="off" spellcheck="false">
+                <input class="vd-weather-search-input" type="text" placeholder="Search city\u2026" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
                 <button class="vd-weather-search-btn" type="button">Set</button>
             </div>
             <div class="vd-weather-suggestions" hidden></div>
@@ -3765,7 +3765,7 @@ function wireWindow(win, id) {
                 <section class="vd-file-dialog-main">
                     <nav class="vd-file-dialog-breadcrumbs" data-file-dialog-breadcrumbs></nav>
                     <div class="vd-file-dialog-tools">
-                        <input class="vd-file-dialog-search" data-file-dialog-search type="search" placeholder="${fileDialogEscape(fileDialogText('desktop.file_dialog_search', 'Search'))}" autocomplete="off">
+                        <input class="vd-file-dialog-search" data-file-dialog-search type="search" placeholder="${fileDialogEscape(fileDialogText('desktop.file_dialog_search', 'Search'))}" autocomplete="off" inputmode="search" enterkeyhint="search" autocapitalize="off">
                         <select class="vd-file-dialog-filter" data-file-dialog-filter></select>
                     </div>
                     <div class="vd-file-dialog-list" data-file-dialog-list data-file-dialog-multi-select="${isMulti ? 'true' : 'false'}" role="listbox"></div>
@@ -3774,7 +3774,7 @@ function wireWindow(win, id) {
             <footer class="vd-file-dialog-footer">
                 <label class="vd-file-dialog-name ${isSave ? '' : 'is-hidden'}">
                     <span>${fileDialogEscape(fileDialogText('desktop.file_dialog_name', 'File name'))}</span>
-                    <input data-file-dialog-filename type="text" autocomplete="off" value="${fileDialogEscape(options.defaultName || options.filename || fileDialogBaseName(options.path))}">
+                    <input data-file-dialog-filename type="text" autocomplete="off" enterkeyhint="done" value="${fileDialogEscape(options.defaultName || options.filename || fileDialogBaseName(options.path))}">
                 </label>
                 <div class="vd-file-dialog-actions">
                     <button type="button" class="vd-button" data-file-dialog-import>${fileDialogEscape(fileDialogText('desktop.file_dialog_import', 'Import'))}</button>
@@ -6247,7 +6247,7 @@ if (appId === 'pixel') {
             <aside class="vd-settings-sidebar" aria-label="${esc(t('desktop.app_settings'))}">
                 <div class="vd-settings-sidebar-title">${esc(t('desktop.app_settings'))}</div>
                 <div class="vd-settings-search">
-                    <input type="search" class="vd-settings-search-input" placeholder="${esc(t('desktop.settings_search_placeholder', 'Search settings\u2026'))}" autocomplete="off" spellcheck="false">
+                    <input type="search" class="vd-settings-search-input" placeholder="${esc(t('desktop.settings_search_placeholder', 'Search settings\u2026'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
                 </div>
                 ${sections.map(section => `<button type="button" class="vd-settings-nav ${section.id === active.id ? 'active' : ''}" data-section="${esc(section.id)}">
                     ${iconMarkup(section.icon, section.fallback || section.icon, 'vd-settings-nav-icon', 18)}<span>${esc(t(section.title))}</span>
@@ -7786,11 +7786,11 @@ if (appId === 'pixel') {
                     <div class="vd-qc-form-section">
                         <div class="vd-qc-form-title">${esc(t('desktop.qc_section_server'))}</div>
                         <label class="vd-qc-label">${esc(t('desktop.qc_name'))}
-                            <input class="vd-qc-input" type="text" name="name" value="${esc(existingDevice ? existingDevice.name : '')}" required>
+                            <input class="vd-qc-input" type="text" name="name" value="${esc(existingDevice ? existingDevice.name : '')}" required inputmode="text" enterkeyhint="next" autocapitalize="words">
                         </label>
                         <div class="vd-qc-form-row">
                             <label class="vd-qc-label vd-qc-flex-2">${esc(t('desktop.qc_host'))}
-                                <input class="vd-qc-input" type="text" name="host" value="${esc(existingDevice ? (existingDevice.ip_address || '') : '')}" placeholder="192.168.1.1" required>
+                                <input class="vd-qc-input" type="text" name="host" value="${esc(existingDevice ? (existingDevice.ip_address || '') : '')}" placeholder="192.168.1.1" required inputmode="url" enterkeyhint="next" autocapitalize="off">
                             </label>
                             <label class="vd-qc-label vd-qc-flex-1">${esc(t('desktop.qc_protocol'))}
                                 <select class="vd-qc-input" name="protocol">
@@ -7803,13 +7803,13 @@ if (appId === 'pixel') {
                             </label>
                         </div>
                         <label class="vd-qc-label">${esc(t('desktop.qc_description'))}
-                            <input class="vd-qc-input" type="text" name="description" value="${esc(existingDevice ? (existingDevice.description || '') : '')}">
+                            <input class="vd-qc-input" type="text" name="description" value="${esc(existingDevice ? (existingDevice.description || '') : '')}" inputmode="text" enterkeyhint="next" autocapitalize="sentences">
                         </label>
                     </div>
                     <div class="vd-qc-form-section">
                         <div class="vd-qc-form-title">${esc(t('desktop.qc_section_credential'))}</div>
                         <label class="vd-qc-label vd-qc-username-row">${esc(t('desktop.qc_username'))}
-                            <input class="vd-qc-input" type="text" name="username" value="${esc(existingCred ? existingCred.username : '')}" required>
+                            <input class="vd-qc-input" type="text" name="username" value="${esc(existingCred ? existingCred.username : '')}" required inputmode="email" enterkeyhint="next" autocapitalize="off">
                         </label>
                         <label class="vd-qc-label">${esc(t('desktop.qc_password'))}
                             <div class="vd-qc-input-group">
@@ -8453,7 +8453,7 @@ if (appId === 'pixel') {
         host.innerHTML = `
             <div class="vd-launchpad">
                 <div class="vd-launchpad-toolbar">
-                    <input type="search" class="vd-launchpad-search" data-i18n-placeholder="desktop.launchpad_search" placeholder="${esc(t('desktop.launchpad_search'))}">
+                    <input type="search" class="vd-launchpad-search" data-i18n-placeholder="desktop.launchpad_search" placeholder="${esc(t('desktop.launchpad_search'))}" inputmode="search" enterkeyhint="search" autocapitalize="off">
                     <select class="vd-launchpad-category"><option value="">${esc(t('desktop.launchpad_all_categories'))}</option></select>
                 </div>
                 <div class="vd-launchpad-grid"></div>

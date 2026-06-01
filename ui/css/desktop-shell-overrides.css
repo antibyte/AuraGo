@@ -1,4 +1,39 @@
 /* desktop-shell-overrides.css - final shell-level desktop overrides */
+
+/* === Mobile Performance: reduce backdrop-filter on touch devices === */
+@media (pointer: coarse) {
+  .vd-taskbar,
+  .vd-start-menu,
+  .vd-window,
+  .vd-widget,
+  .vd-widget-frame,
+  .vd-modal-overlay,
+  .vd-modal,
+  .vd-modal-panel,
+  .vd-context-menu,
+  .vd-toast-container,
+  .vd-widget-drawer,
+  .vd-widget-drawer-backdrop,
+  .vd-disabled .vd-disabled-panel,
+  .vd-file-dialog-overlay,
+  .cs-command-palette-backdrop {
+    backdrop-filter: blur(6px) saturate(120%) !important;
+    -webkit-backdrop-filter: blur(6px) saturate(120%) !important;
+  }
+}
+
+/* === Mobile UX: prevent iOS zoom on inputs === */
+@media (pointer: coarse) {
+  .vd-shell input[type="text"],
+  .vd-shell input[type="search"],
+  .vd-shell input[type="url"],
+  .vd-shell input[type="email"],
+  .vd-shell input[type="number"],
+  .vd-shell input[type="password"],
+  .vd-shell textarea {
+    font-size: 16px;
+  }
+}
 .desktop-body[data-theme="fruity"] .vd-window > .vd-window-titlebar > .vd-window-actions,
 .desktop-body[data-theme="fruity"] .vd-widget-manager > .vd-wm-header > .vd-window-actions {
     position: absolute !important;

@@ -58,7 +58,7 @@
                         </div>
                         <div class="vd-looper-field">
                             <label>${esc(t('desktop.looper_model'))}</label>
-                            <input type="text" id="looper-model-${windowId}" placeholder="${esc(t('desktop.looper_model_placeholder'))}">
+                            <input type="text" id="looper-model-${windowId}" placeholder="${esc(t('desktop.looper_model_placeholder'))}" inputmode="text" enterkeyhint="done" autocapitalize="off">
                         </div>
                         <div class="vd-looper-field vd-looper-field-xs">
                             <label>${esc(t('desktop.looper_max_iter'))}</label>

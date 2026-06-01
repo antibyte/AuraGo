@@ -1082,3 +1082,97 @@
 .fm-preview-calc-size-btn:hover {
     background: rgba(255, 255, 255, 0.12);
 }
+
+/* ─── Selection Toolbar (mobile touch selection) ─── */
+.fm-selection-toolbar {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--vd-border);
+    background: var(--vd-surface-strong);
+    min-height: 0;
+}
+.fm-selection-toolbar.active {
+    display: flex;
+}
+.fm-selection-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+    color: var(--vd-text);
+}
+.fm-selection-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--vd-muted);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0;
+    touch-action: manipulation;
+}
+.fm-selection-count {
+    font-weight: 700;
+    color: var(--vd-accent);
+    min-width: 18px;
+    text-align: center;
+}
+.fm-selection-label {
+    color: var(--vd-muted);
+    font-size: 0.8rem;
+}
+.fm-selection-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.fm-selection-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--vd-muted);
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0;
+    touch-action: manipulation;
+    transition: background 0.12s, color 0.12s;
+}
+.fm-selection-btn:hover:not(:disabled) {
+    background: var(--vd-control-hover);
+    color: var(--vd-text);
+}
+.fm-selection-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+.fm-selection-btn.is-hidden {
+    display: none;
+}
+
+@media (max-width: 560px) {
+    .fm-selection-toolbar {
+        padding: 6px;
+    }
+    .fm-selection-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+    .fm-selection-close {
+        width: 32px;
+        height: 32px;
+    }
+}

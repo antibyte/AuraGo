@@ -45,6 +45,7 @@
             tabs: null,
             activeTabIndex: 0,
             showHidden: false,
+            selectionMode: false,
             previewOpen: false,
             previewWidth: 250,
             favorites: [],
@@ -542,8 +543,50 @@
         });
         const status = root.querySelector('.fm-statusbar');
         if (status) status.outerHTML = renderStatusBarHtml();
+        const selToolbar = root.querySelector('.fm-selection-toolbar');
+        if (selToolbar) {
+            const hasSelection = fm.selectedPaths.size > 0;
+            selToolbar.classList.toggle('active', hasSelection);
+            const countEl = selToolbar.querySelector('.fm-selection-count');
+            if (countEl) countEl.textContent = String(fm.selectedPaths.size);
+        }
         updateWindowMenus();
         updateToolbarState();
+    }
+
+    function renderSelectionToolbarHtml() {
+        const selected = getSelectedFiles ? (typeof getSelectedFiles === 'function' ? getSelectedFiles() : []) : [];
+        const hasFile = selected.length === 1 && selected[0] && selected[0].type === 'file';
+        const isReadonly = typeof isReadonly === 'function' ? isReadonly() : false;
+        return `<div class="fm-selection-toolbar">
+            <div class="fm-selection-toolbar-left">
+                <button type="button" class="fm-selection-close" data-action="selection-close" title="${esc(t('desktop.close', 'Close'))}" aria-label="${esc(t('desktop.close', 'Close'))}">
+                    ${iconMarkup('x', '\u00D7', '', 16)}
+                </button>
+                <span class="fm-selection-count">0</span>
+                <span class="fm-selection-label">${esc(t('desktop.fm.selected', 'selected'))}</span>
+            </div>
+            <div class="fm-selection-toolbar-actions">
+                <button type="button" class="fm-selection-btn" data-action="selection-open" title="Open" aria-label="Open">
+                    ${iconMarkup('folder-open', '\u25B6', '', 16)}
+                </button>
+                <button type="button" class="fm-selection-btn" data-action="selection-copy" title="${esc(t('desktop.fm.copy', 'Copy'))}" aria-label="${esc(t('desktop.fm.copy', 'Copy'))}">
+                    ${iconMarkup('copy', '\u2398', '', 16)}
+                </button>
+                <button type="button" class="fm-selection-btn" data-action="selection-cut" title="${esc(t('desktop.fm.cut', 'Cut'))}" aria-label="${esc(t('desktop.fm.cut', 'Cut'))}"${isReadonly ? ' disabled' : ''}>
+                    ${iconMarkup('scissors', '\u2702', '', 16)}
+                </button>
+                <button type="button" class="fm-selection-btn${hasFile ? '' : ' is-hidden'}" data-action="selection-download" title="${esc(t('desktop.fm.download', 'Download'))}" aria-label="${esc(t('desktop.fm.download', 'Download'))}">
+                    ${iconMarkup('download', '\u2193', '', 16)}
+                </button>
+                <button type="button" class="fm-selection-btn" data-action="selection-delete" title="${esc(t('desktop.fm.delete', 'Delete'))}" aria-label="${esc(t('desktop.fm.delete', 'Delete'))}"${isReadonly ? ' disabled' : ''}>
+                    ${iconMarkup('trash', '\u267B', '', 16)}
+                </button>
+                <button type="button" class="fm-selection-btn" data-action="selection-properties" title="${esc(t('desktop.fm.properties', 'Properties'))}" aria-label="${esc(t('desktop.fm.properties', 'Properties'))}">
+                    ${iconMarkup('info', 'i', '', 16)}
+                </button>
+            </div>
+        </div>`;
     }
 
     function buildMarkup() {
@@ -600,6 +643,7 @@
             <div class="fm-sidebar-backdrop" hidden data-action="sidebar-backdrop-close"></div>
             ${tabHtml}
             ${renderToolbarHtml()}
+            ${renderSelectionToolbarHtml()}
             ${renderSearchHtml()}
             <div class="fm-body">
                 ${bodyHtml}
@@ -850,7 +894,7 @@
         const hidden = fm.searchQuery ? '' : ' hidden';
         return `<div class="fm-search-bar" data-fm-search${hidden}>
             ${iconMarkup('search', '\u2315', 'fm-search-icon', 14)}
-            <input type="text" class="fm-search-input" placeholder="${esc(t('desktop.fm.search_placeholder', 'Search files...'))}" value="${esc(fm.searchQuery)}">
+            <input type="text" class="fm-search-input" placeholder="${esc(t('desktop.fm.search_placeholder', 'Search files...'))}" value="${esc(fm.searchQuery)}" inputmode="search" enterkeyhint="search" autocapitalize="off">
             <button type="button" class="fm-search-clear" data-action="search-clear">${iconMarkup('x', '\u00D7', '', 14)}</button>
         </div>`;
     }
@@ -1456,7 +1500,7 @@
             item.addEventListener('click', handleItemClick);
             item.addEventListener('dblclick', handleItemDblClick);
             item.addEventListener('contextmenu', handleItemContextMenu);
-            wireLongPress(item, handleItemContextMenu);
+            wireLongPress(item, handleItemLongPress);
             item.addEventListener('keydown', handleItemKeyDown);
             item.draggable = true;
             item.addEventListener('dragstart', handleDragStart);
@@ -1468,6 +1512,31 @@
     }
 
     function attachMainAreaEvents(root, includePersistentDropOverlay) {
+        root.querySelectorAll('.fm-selection-toolbar [data-action]').forEach(btn => {
+            if (btn.dataset.fmSelBound === 'true') return;
+            btn.dataset.fmSelBound = 'true';
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const action = btn.dataset.action;
+                const selected = getSelectedFiles();
+                const singleFile = selected.length === 1 ? selected[0] : null;
+                switch (action) {
+                    case 'selection-close': exitSelectionMode(); break;
+                    case 'selection-open':
+                        if (singleFile) openFileItem(singleFile.path, singleFile.type);
+                        break;
+                    case 'selection-copy': copySelection(); break;
+                    case 'selection-cut': cutSelection(); break;
+                    case 'selection-delete': deleteSelected(); break;
+                    case 'selection-download':
+                        if (singleFile && singleFile.type === 'file') downloadFile(singleFile);
+                        break;
+                    case 'selection-properties':
+                        if (singleFile) showProperties(singleFile);
+                        break;
+                }
+            });
+        });
         root.querySelectorAll('[data-sort]').forEach(header => {
             header.addEventListener('click', () => {
                 const sortKey = header.dataset.sort;
@@ -1483,7 +1552,7 @@
         if (main) {
             main.addEventListener('click', e => {
                 if (e.target === main || e.target.classList.contains('fm-empty') || e.target.classList.contains('fm-grid') || e.target.classList.contains('fm-list-body')) {
-                    clearSelection();
+                    exitSelectionMode();
                     renderFileContent();
                 }
             });
@@ -1589,6 +1658,14 @@
         const type = e.currentTarget.dataset.type;
         if (isTouchLikePointer(e)) {
             e.preventDefault();
+            if (fm.selectionMode) {
+                toggleSelection(path);
+                fm.lastClickedPath = path;
+                activateKeyboardWindow();
+                updateSelectionDOM();
+                focusFileItem(path);
+                return;
+            }
             openFileItem(path, type);
             return;
         }
@@ -1604,6 +1681,23 @@
         activateKeyboardWindow();
         updateSelectionDOM();
         focusFileItem(path);
+    }
+
+    function handleItemLongPress(e) {
+        const path = e.currentTarget.dataset.path;
+        fm.selectionMode = true;
+        toggleSelection(path);
+        fm.lastClickedPath = path;
+        activateKeyboardWindow();
+        updateSelectionDOM();
+        focusFileItem(path);
+        if (navigator.vibrate) navigator.vibrate(15);
+    }
+
+    function exitSelectionMode() {
+        fm.selectionMode = false;
+        clearSelection();
+        updateSelectionDOM();
     }
 
     function openFileItem(path, type) {
