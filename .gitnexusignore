@@ -29,6 +29,9 @@ build/
 coverage/
 test-results/
 playwright-report/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 **/__pycache__/
 **/.pytest_cache/
 **/.mypy_cache/
@@ -85,6 +88,11 @@ coverage.*
 /build.log
 /diff.txt
 /nul
+*.map
+*.wasm
+*.pdb
+*.rlib
+*.rmeta
 
 # Runtime state, databases, generated media, and logs
 /data/
@@ -105,7 +113,36 @@ coverage.*
 chat_history.json
 chromem-go_data/
 
+# Generated frontend bundles and third-party browser libraries
+/ui/js/**/bundles/
+/ui/js/**/bundles/**
+/ui/js/vendor/
+/ui/js/vendor/**
+/ui/vendor/
+/ui/vendor/**
+/ui/css/*.bundle.css
+/ui/css/*.min.css
+/ui/*.min.js
+/ui/js/**/*.min.js
+
 # Large sample media; metadata and sample skill definitions remain indexable
+*.avif
+*.bmp
+*.gif
+*.ico
+*.jpeg
+*.jpg
+*.mp3
+*.mp4
+*.ogg
+*.opus
+*.pdf
+*.png
+*.svg
+*.tiff
+*.webm
+*.webp
+*.wav
 /assets/media_samples/*.jpeg
 /assets/media_samples/*.jpg
 /assets/media_samples/*.png
