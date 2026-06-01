@@ -234,7 +234,9 @@
         'windows.default_size': 'balanced',
         'files.confirm_delete': 'true',
         'files.default_folder': 'Documents',
-        'agent.show_chat_button': 'true'
+        'agent.show_chat_button': 'true',
+        // Mobile experience (Phase 0)
+        'desktop.mobile_experience': 'auto'   // 'auto' | 'enabled' | 'disabled'
     };
 
     function $(id) {
@@ -523,7 +525,11 @@
     }
 
     function isCompactViewport() {
-        return !!(window.matchMedia && window.matchMedia('(max-width: 820px)').matches);
+        if (!window.matchMedia) return false;
+        // Consider both width and height for better mobile detection (especially in landscape)
+        const widthMatch = window.matchMedia('(max-width: 820px)').matches;
+        const heightMatch = window.matchMedia('(max-height: 720px)').matches;
+        return widthMatch || heightMatch;
     }
 
     function isTouchLikePointer(event) {
@@ -534,6 +540,38 @@
     function shouldOpenOnTap(event) {
         return isTouchLikePointer(event) || isCompactViewport();
     }
+
+    /**
+     * Returns whether the enhanced mobile desktop experience should be active.
+     * Respects the 'desktop.mobile_experience' setting.
+     */
+    function useMobileDesktopMode() {
+        const setting = settingValue('desktop.mobile_experience');
+        if (setting === 'enabled') return true;
+        if (setting === 'disabled') return false;
+        // 'auto' mode → decide based on viewport + input type
+        return isCompactViewport() || isTouchLikePointer();
+    }
+
+    // Expose for other modules
+    window.useMobileDesktopMode = useMobileDesktopMode;
+
+    /**
+     * =====================================================
+     * MOBILE DESKTOP EXPERIENCE (Phase 0 - 2026)
+     * =====================================================
+     * Strategy:
+     * - On phones and small tablets we want a significantly
+     *   simplified experience (fewer overlapping windows,
+     *   larger touch targets, better keyboard handling).
+     * - The big decision (still open):
+     *   → Should we enforce a "Single maximized window" model
+     *     on mobile, or allow multiple windows but default to maximized?
+     *
+     * Current detection:
+     * - useMobileDesktopMode() → true on compact viewports or touch devices
+     * - Controlled via setting 'desktop.mobile_experience' ('auto' | 'enabled' | 'disabled')
+     */
 
     function updateViewportMetrics() {
         const visual = window.visualViewport;
