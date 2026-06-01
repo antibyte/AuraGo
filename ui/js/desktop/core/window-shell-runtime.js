@@ -737,9 +737,52 @@
 
     // Call this after taskbar renders on mobile
     function ensureMobileTaskbarSwipe() {
-        if (window.useMobileDesktopMode && window.useMobileDesktopMode()) {
-            wireMobileTaskbarSwipe();
+        if (!window.useMobileDesktopMode || !window.useMobileDesktopMode()) return;
+
+        wireMobileTaskbarSwipe();
+
+        // Also wire swipe on Fruity Dock track for mobile
+        if (isFruityTheme()) {
+            const dockHost = $('vd-taskbar-apps');
+            const scrollRegion = dockHost && dockHost.querySelector('[data-fruity-dock-scroll-region]');
+            if (scrollRegion && !scrollRegion._mobileSwipeWired) {
+                wireMobileDockSwipe(scrollRegion);
+            }
         }
+    }
+
+    function wireMobileDockSwipe(scrollRegion) {
+        if (!scrollRegion) return;
+        scrollRegion._mobileSwipeWired = true;
+
+        let dockSwipeState = null;
+
+        scrollRegion.addEventListener('touchstart', e => {
+            if (e.touches.length !== 1) return;
+            dockSwipeState = { startX: e.touches[0].clientX, startTime: Date.now() };
+        }, { passive: true });
+
+        scrollRegion.addEventListener('touchend', e => {
+            if (!dockSwipeState) return;
+            const deltaX = e.changedTouches[0].clientX - dockSwipeState.startX;
+            const deltaTime = Date.now() - dockSwipeState.startTime;
+            dockSwipeState = null;
+
+            if (Math.abs(deltaX) < 60) return;
+
+            const runningWindows = [...state.windows.values()];
+            if (runningWindows.length < 2) return;
+
+            const currentIndex = runningWindows.findIndex(w => w.id === state.activeWindowId);
+            if (currentIndex === -1) return;
+
+            const nextIndex = deltaX < 0 
+                ? (currentIndex + 1) % runningWindows.length 
+                : (currentIndex - 1 + runningWindows.length) % runningWindows.length;
+
+            const nextWin = runningWindows[nextIndex];
+            if (nextWin) focusWindow(nextWin.id);
+        }, { passive: true });
     }
 
     function ensureFruityDockShell(host) {
@@ -844,6 +887,20 @@
             state.fruityDockFootprint = null;
             return;
         }
+
+        const isMobileMode = window.useMobileDesktopMode && window.useMobileDesktopMode();
+        const hasMaximizedMobileWindow = isMobileMode && [...state.windows.values()].some(win => 
+            win.element.classList.contains('maximized') || 
+            win.element.classList.contains('vd-mobile-forced-maximized')
+        );
+
+        // On mobile with maximized window, always collapse the dock for more screen space
+        if (isMobileMode && hasMaximizedMobileWindow) {
+            body.classList.add('fruity-dock-collapsed');
+            state.fruityDockFootprint = null;
+            return;
+        }
+
         const dockRect = fruityDockFootprint(host);
         const occluded = [...state.windows.values()].some(win => windowOverlapsFruityDock(win, dockRect));
         body.classList.toggle('fruity-dock-collapsed', occluded);
