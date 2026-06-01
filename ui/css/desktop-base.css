@@ -34,6 +34,7 @@
     --vd-taskbar-height: 54px;
     --vd-taskbar-offset: 12px;
     --vd-taskbar-gap: 80px;
+    --vd-mobile-taskbar-reserve: calc(var(--vd-taskbar-height, 54px) + var(--vd-taskbar-offset, 12px) + env(safe-area-inset-bottom, 0px));
     --vd-window-radius: 12px;
     --vd-z-desktop: 0;
     --vd-z-widget: 10;

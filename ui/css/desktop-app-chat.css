@@ -1480,8 +1480,18 @@
 }
 
 @media (max-width: 600px) {
+    .vd-chat {
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .vd-chat-main {
+        min-height: 0;
+        overflow: hidden;
+    }
+
     .vd-chat-log {
         padding: 12px 14px;
+        min-height: 0;
     }
 
     .vd-chat-bubble {
@@ -1493,7 +1503,20 @@
     }
 
     .vd-chat-form {
+        position: relative;
+        z-index: 16;
         padding: 8px;
+        background: var(--vd-surface, rgba(18, 24, 36, 0.94));
+    }
+
+    .vd-chat-input {
+        max-height: 96px;
+        font-size: 16px;
+        line-height: 1.35;
+    }
+
+    .vd-chat-form-buttons {
+        gap: 5px;
     }
 
     .vd-chat-welcome-prompts {

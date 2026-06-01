@@ -224,7 +224,8 @@
 
         function autoResize() {
             input.style.height = 'auto';
-            const maxHeight = 150;
+            const parsedMaxHeight = parseFloat(window.getComputedStyle(input).maxHeight || '');
+            const maxHeight = Number.isFinite(parsedMaxHeight) && parsedMaxHeight > 0 ? parsedMaxHeight : 150;
             input.style.height = Math.min(input.scrollHeight, maxHeight) + 'px';
             input.style.overflowY = input.scrollHeight > maxHeight ? 'auto' : 'hidden';
         }
@@ -258,6 +259,7 @@
         const backdrop = host.querySelector('[data-chat-sidebar-backdrop]');
         const newChatBtn = host.querySelector('[data-chat-new]');
         const searchInput = host.querySelector('[data-chat-sidebar-search]');
+        sidebarOpen = host.offsetWidth > 900;
 
         function updateSidebarState() {
             if (!chat) return;

@@ -67,6 +67,7 @@ func TestVirtualDesktopMobileWorkspaceCanScrollHorizontally(t *testing.T) {
 	css := readAllDesktopCSS(t)
 	for _, want := range []string{
 		"--vd-mobile-workspace-width",
+		"--vd-mobile-taskbar-reserve",
 		"overflow-x: auto;",
 		"-webkit-overflow-scrolling: touch;",
 		"touch-action: pan-x pan-y;",
@@ -92,5 +93,34 @@ func TestVirtualDesktopMobileWorkspaceCanScrollHorizontally(t *testing.T) {
 	}
 	if strings.Contains(js, "'agent-chat',") {
 		t.Fatal("desktop agent chat should not opt into the wide mobile window layout")
+	}
+}
+
+func TestDesktopAgentChatMobileKeepsInputReachable(t *testing.T) {
+	t.Parallel()
+
+	css := readAllDesktopCSS(t)
+	for _, want := range []string{
+		"height: calc(var(--vd-visual-height, 100dvh) - var(--vd-mobile-taskbar-reserve",
+		".vd-chat-main",
+		"overflow: hidden;",
+		".vd-chat-input",
+		"max-height: 96px;",
+		"font-size: 16px;",
+		"z-index: 16;",
+	} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("desktop chat mobile stylesheet missing reachable input marker %q", want)
+		}
+	}
+
+	js := readDesktopAssetText(t, "js/desktop/apps/agent-chat.js")
+	for _, want := range []string{
+		"sidebarOpen = host.offsetWidth > 900;",
+		"parseFloat(window.getComputedStyle(input).maxHeight || '')",
+	} {
+		if !strings.Contains(js, want) {
+			t.Fatalf("desktop chat mobile script missing reachable input marker %q", want)
+		}
 	}
 }
