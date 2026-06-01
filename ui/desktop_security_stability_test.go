@@ -136,6 +136,10 @@ func TestDesktopQuickConnectWarnsAndCleansUpSSHResources(t *testing.T) {
 		"msg.type === 'warning'",
 		"msg.code === 'insecure_host_key'",
 		"desktop.qc_host_key_warning",
+		"msg.type === 'host_key_prompt'",
+		"host_key_decision",
+		"desktop.qc_host_key_prompt_title",
+		"desktop.qc_host_key_accept",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("quick connect missing warning/cleanup marker %q", want)

@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -41,22 +43,28 @@ const (
 
 // sshControlMessage is a JSON control message from the client.
 type sshControlMessage struct {
-	Type string `json:"type"`
-	Cols int    `json:"cols,omitempty"`
-	Rows int    `json:"rows,omitempty"`
+	Type   string `json:"type"`
+	Cols   int    `json:"cols,omitempty"`
+	Rows   int    `json:"rows,omitempty"`
+	Accept bool   `json:"accept,omitempty"`
 }
 
 // sshStatusMessage is a JSON status message from the server.
 type sshStatusMessage struct {
-	Type    string `json:"type"`
-	Message string `json:"message,omitempty"`
-	Code    string `json:"code,omitempty"`
+	Type        string `json:"type"`
+	Message     string `json:"message,omitempty"`
+	Code        string `json:"code,omitempty"`
+	Host        string `json:"host,omitempty"`
+	KeyType     string `json:"key_type,omitempty"`
+	Fingerprint string `json:"fingerprint,omitempty"`
 }
 
 type sshConfigResult struct {
 	Config          *ssh.ClientConfig
 	InsecureHostKey bool
 }
+
+type sshHostKeyPrompter func(hostname string, remoteAddr net.Addr, key ssh.PublicKey) (bool, error)
 
 // wsMessage wraps a WebSocket message for channel transport.
 type wsMessage struct {
@@ -141,7 +149,9 @@ func HandleSSHProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			return
 		}
 
-		configResult, err := buildSSHConfig(username, secret, logger)
+		configResult, err := buildSSHConfig(username, secret, logger, func(hostname string, remoteAddr net.Addr, key ssh.PublicKey) (bool, error) {
+			return promptSSHHostKey(conn, hostname, key)
+		})
 		if err != nil {
 			sendError(conn, fmt.Sprintf("SSH configuration error: %v", err))
 			return
@@ -276,6 +286,43 @@ func HandleSSHProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 	}
 }
 
+func promptSSHHostKey(conn *websocket.Conn, hostname string, key ssh.PublicKey) (bool, error) {
+	host := knownhosts.Normalize(hostname)
+	fingerprint := ssh.FingerprintSHA256(key)
+	message := fmt.Sprintf("Unknown SSH host key for %s (%s, %s). Trust and save this host key?", host, key.Type(), fingerprint)
+	_ = conn.SetWriteDeadline(time.Now().Add(remoteProxyWriteTimeout))
+	if err := conn.WriteJSON(sshStatusMessage{
+		Type:        "host_key_prompt",
+		Code:        "unknown_host_key",
+		Message:     message,
+		Host:        host,
+		KeyType:     key.Type(),
+		Fingerprint: fingerprint,
+	}); err != nil {
+		return false, fmt.Errorf("send host key prompt: %w", err)
+	}
+
+	deadline := time.Now().Add(2 * time.Minute)
+	for {
+		_ = conn.SetReadDeadline(deadline)
+		msgType, data, err := conn.ReadMessage()
+		if err != nil {
+			return false, fmt.Errorf("read host key decision: %w", err)
+		}
+		if msgType != websocket.TextMessage {
+			continue
+		}
+
+		var ctrl sshControlMessage
+		if err := json.Unmarshal(data, &ctrl); err != nil {
+			continue
+		}
+		if ctrl.Type == "host_key_decision" {
+			return ctrl.Accept, nil
+		}
+	}
+}
+
 // resolveSSHAccess resolves host, port, username and secret for a device,
 // following the same logic as the agent's resolveDeviceSSHAccess.
 func resolveSSHAccess(device inventory.DeviceRecord, inventoryDB *sql.DB, vault *security.Vault) (host string, port int, username string, secret []byte, err error) {
@@ -334,8 +381,8 @@ func resolveSSHAccess(device inventory.DeviceRecord, inventoryDB *sql.DB, vault 
 
 // buildSSHConfig creates an ssh.ClientConfig, auto-detecting password vs private-key auth.
 // Host-key verification follows the desktop Quick Connect policy: prefer
-// known_hosts and require explicit insecure opt-in before disabling checks.
-func buildSSHConfig(user string, secret []byte, logger *slog.Logger) (sshConfigResult, error) {
+// known_hosts and prompt the user before storing a new host key.
+func buildSSHConfig(user string, secret []byte, logger *slog.Logger, prompter sshHostKeyPrompter) (sshConfigResult, error) {
 	var auth []ssh.AuthMethod
 
 	signer, err := ssh.ParsePrivateKey(secret)
@@ -351,19 +398,13 @@ func buildSSHConfig(user string, secret []byte, logger *slog.Logger) (sshConfigR
 		hostKeyCallback = ssh.InsecureIgnoreHostKey() //nolint:gosec
 		insecureHostKey = true
 	} else {
-		usingKnownHosts := false
-		homeDir, err := os.UserHomeDir()
-		if err == nil {
-			knownHostsFile := filepath.Join(homeDir, ".ssh", "known_hosts")
-			if _, statErr := os.Stat(knownHostsFile); statErr == nil {
-				if cb, khErr := knownhosts.New(knownHostsFile); khErr == nil {
-					hostKeyCallback = cb
-					usingKnownHosts = true
-				}
-			}
+		knownHostsFile, err := defaultKnownHostsFile()
+		if err != nil {
+			return sshConfigResult{}, err
 		}
-		if !usingKnownHosts {
-			return sshConfigResult{}, fmt.Errorf("SSH host key verification failed: no known_hosts file found at ~/.ssh/known_hosts. Add the host key with 'ssh-keyscan <host> >> ~/.ssh/known_hosts' or enable 'remote_control.ssh_insecure_host_key: true' in config to disable host verification (not recommended)")
+		hostKeyCallback, err = knownHostsCallback(knownHostsFile, prompter, logger)
+		if err != nil {
+			return sshConfigResult{}, err
 		}
 	}
 
@@ -373,4 +414,84 @@ func buildSSHConfig(user string, secret []byte, logger *slog.Logger) (sshConfigR
 		HostKeyCallback: hostKeyCallback,
 		Timeout:         15 * time.Second,
 	}, InsecureHostKey: insecureHostKey}, nil
+}
+
+func defaultKnownHostsFile() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("SSH host key verification failed: find user home directory: %w", err)
+	}
+	return filepath.Join(homeDir, ".ssh", "known_hosts"), nil
+}
+
+func knownHostsCallback(knownHostsFile string, prompter sshHostKeyPrompter, logger *slog.Logger) (ssh.HostKeyCallback, error) {
+	cb, err := knownhosts.New(knownHostsFile)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) && prompter != nil {
+			return func(hostname string, remoteAddr net.Addr, key ssh.PublicKey) error {
+				return promptAndStoreHostKey(knownHostsFile, prompter, logger, hostname, remoteAddr, key)
+			}, nil
+		}
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("SSH host key verification failed: no known_hosts file found at ~/.ssh/known_hosts. Add the host key with 'ssh-keyscan <host> >> ~/.ssh/known_hosts' or connect through Quick Connect and approve the host key prompt")
+		}
+		return nil, fmt.Errorf("SSH host key verification failed: load known_hosts: %w", err)
+	}
+	if prompter == nil {
+		return cb, nil
+	}
+
+	return func(hostname string, remoteAddr net.Addr, key ssh.PublicKey) error {
+		err := cb(hostname, remoteAddr, key)
+		if err == nil {
+			return nil
+		}
+
+		var keyErr *knownhosts.KeyError
+		if errors.As(err, &keyErr) && len(keyErr.Want) == 0 {
+			return promptAndStoreHostKey(knownHostsFile, prompter, logger, hostname, remoteAddr, key)
+		}
+		return err
+	}, nil
+}
+
+func promptAndStoreHostKey(knownHostsFile string, prompter sshHostKeyPrompter, logger *slog.Logger, hostname string, remoteAddr net.Addr, key ssh.PublicKey) error {
+	accepted, err := prompter(hostname, remoteAddr, key)
+	if err != nil {
+		return fmt.Errorf("host key prompt failed: %w", err)
+	}
+	if !accepted {
+		return fmt.Errorf("SSH host key for %s was rejected by the user", knownhosts.Normalize(hostname))
+	}
+	if err := appendKnownHostKey(knownHostsFile, hostname, remoteAddr, key); err != nil {
+		return fmt.Errorf("store SSH host key: %w", err)
+	}
+	if logger != nil {
+		logger.Info("stored SSH host key exception", "host", knownhosts.Normalize(hostname), "key_type", key.Type())
+	}
+	return nil
+}
+
+func appendKnownHostKey(knownHostsFile string, hostname string, remoteAddr net.Addr, key ssh.PublicKey) error {
+	if err := os.MkdirAll(filepath.Dir(knownHostsFile), 0o700); err != nil {
+		return fmt.Errorf("create .ssh directory: %w", err)
+	}
+
+	addresses := []string{hostname}
+	if remoteAddr != nil {
+		if remote := strings.TrimSpace(remoteAddr.String()); remote != "" && remote != hostname {
+			addresses = append(addresses, remote)
+		}
+	}
+
+	file, err := os.OpenFile(knownHostsFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	if _, err := fmt.Fprintln(file, knownhosts.Line(addresses, key)); err != nil {
+		return err
+	}
+	return nil
 }

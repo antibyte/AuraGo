@@ -32,7 +32,7 @@ func connectSFTP(deviceID string, inventoryDB *sql.DB, vault *security.Vault, lo
 		return nil, nil, fmt.Errorf("resolve SSH access: %w", err)
 	}
 
-	configResult, err := buildSSHConfig(username, secret, logger)
+	configResult, err := buildSSHConfig(username, secret, logger, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("SSH config: %w", err)
 	}

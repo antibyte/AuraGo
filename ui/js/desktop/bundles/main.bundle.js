@@ -7732,7 +7732,7 @@ if (appId === 'pixel') {
 
 ;
 /* ui/js/desktop/apps/quickconnect-launchpad-chat.js */
-        }
+}
 
         function showNotify(msg) {
             const existing = host.querySelector('.vd-qc-notify');
@@ -7751,8 +7751,12 @@ if (appId === 'pixel') {
             }
         }
 
-        function showConfirmModal(title, message) {
+        function showConfirmModal(title, message, options) {
             return new Promise(resolve => {
+                const opts = options || {};
+                const okLabel = opts.okLabel || t('desktop.delete');
+                const okIcon = opts.okIcon || 'trash';
+                const okClass = opts.okClass || 'vd-qc-btn-danger';
                 const overlay = document.createElement('div');
                 overlay.className = 'vd-qc-modal-overlay';
                 overlay.innerHTML = `<div class="vd-qc-confirm">
@@ -7760,7 +7764,7 @@ if (appId === 'pixel') {
                     <div class="vd-qc-confirm-msg">${esc(message)}</div>
                     <div class="vd-qc-confirm-actions">
                         <button class="vd-qc-btn vd-qc-btn-secondary" type="button" data-action="cancel">${iconMarkup('x', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.cancel'))}</span></button>
-                        <button class="vd-qc-btn vd-qc-btn-danger" type="button" data-action="ok">${iconMarkup('trash', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.delete'))}</span></button>
+                        <button class="vd-qc-btn ${esc(okClass)}" type="button" data-action="ok">${iconMarkup(okIcon, 'OK', 'vd-qc-btn-icon', 14)}<span>${esc(okLabel)}</span></button>
                     </div>
                 </div>`;
                 host.querySelector('.vd-quick-connect').appendChild(overlay);
@@ -8035,7 +8039,7 @@ if (appId === 'pixel') {
             term.onResize(({ cols, rows }) => {
                 if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'resize', cols, rows }));
             });
-            ws.onmessage = (event) => {
+            ws.onmessage = async (event) => {
                 if (typeof event.data === 'string') {
                     try {
                         const msg = JSON.parse(event.data);
@@ -8044,6 +8048,24 @@ if (appId === 'pixel') {
                             const warning = t('desktop.qc_host_key_warning');
                             term.write('\r\n\x1b[33m' + warning + '\x1b[0m\r\n');
                             showNotify(warning);
+                        }
+                        else if (msg.type === 'host_key_prompt' && msg.code === 'unknown_host_key') {
+                            const detail = t('desktop.qc_host_key_prompt_message')
+                                .replace('{{host}}', msg.host || '')
+                                .replace('{{key_type}}', msg.key_type || '')
+                                .replace('{{fingerprint}}', msg.fingerprint || '');
+                            term.write('\r\n\x1b[33m' + detail + '\x1b[0m\r\n');
+                            const accept = await showConfirmModal(t('desktop.qc_host_key_prompt_title'), detail, {
+                                okLabel: t('desktop.qc_host_key_accept'),
+                                okIcon: 'check-square',
+                                okClass: 'vd-qc-btn-primary'
+                            });
+                            if (ws.readyState === WebSocket.OPEN) {
+                                ws.send(JSON.stringify({ type: 'host_key_decision', accept }));
+                            }
+                            if (!accept) {
+                                term.write('\r\n\x1b[31m' + t('desktop.qc_host_key_rejected') + '\x1b[0m\r\n');
+                            }
                         }
                         else if (msg.type === 'disconnected') term.write('\r\n\x1b[33m' + msg.message + '\x1b[0m\r\n');
                     } catch(_) {}
