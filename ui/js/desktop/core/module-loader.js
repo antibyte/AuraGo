@@ -138,7 +138,7 @@
         },
         'mission-control': {
             styles: appStyles('/css/desktop-app-mission-control.css'),
-            scripts: ['/js/desktop/apps/mission-control.js']
+            scripts: ['/js/desktop/apps/mission-control-modal.js', '/js/desktop/apps/mission-control.js']
         }
     };
 
