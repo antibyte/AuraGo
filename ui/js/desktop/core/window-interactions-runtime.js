@@ -383,6 +383,17 @@ function wireWindow(win, id) {
     function focusWindow(id) {
         const win = state.windows.get(id);
         if (!win) return;
+
+        const isMobileMode = window.useMobileDesktopMode && window.useMobileDesktopMode();
+
+        // On mobile: Enforce single active window by minimizing the previous one
+        if (isMobileMode && state.activeWindowId && state.activeWindowId !== id) {
+            const previousWin = state.windows.get(state.activeWindowId);
+            if (previousWin && !previousWin.minimized) {
+                minimizeWindow(state.activeWindowId);
+            }
+        }
+
         if (state.z > 100000) normalizeWindowZIndexes();
         const wasHidden = win.element.style.display === 'none' || win.element.hidden;
         win.minimizing = false;

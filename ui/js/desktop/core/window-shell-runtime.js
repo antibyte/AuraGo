@@ -1136,6 +1136,14 @@
             win.style.top = '0px';
             win.style.width = '100%';
             win.style.height = '100%';
+
+            // Enforce Single Window behavior on mobile:
+            // Minimize all other open windows when opening a new normal app
+            state.windows.forEach((existingWin, existingId) => {
+                if (existingId !== id && !existingWin.minimized) {
+                    minimizeWindow(existingId);
+                }
+            });
         } else {
             win.style.left = position.left + 'px';
             win.style.top = position.top + 'px';
