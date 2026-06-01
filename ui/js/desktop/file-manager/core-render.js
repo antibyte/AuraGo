@@ -552,7 +552,7 @@
     function renderSelectionToolbarHtml() {
         const selected = getSelectedFiles ? (typeof getSelectedFiles === 'function' ? getSelectedFiles() : []) : [];
         const hasFile = selected.length === 1 && selected[0] && selected[0].type === 'file';
-        const isReadonly = typeof isReadonly === 'function' ? isReadonly() : false;
+        const readonly = (typeof isReadonly === 'function') ? isReadonly() : false;
         return `<div class="fm-selection-toolbar">
             <div class="fm-selection-toolbar-left">
                 <button type="button" class="fm-selection-close" data-action="selection-close" title="${esc(t('desktop.close', 'Close'))}" aria-label="${esc(t('desktop.close', 'Close'))}">
@@ -568,13 +568,13 @@
                 <button type="button" class="fm-selection-btn" data-action="selection-copy" title="${esc(t('desktop.fm.copy', 'Copy'))}" aria-label="${esc(t('desktop.fm.copy', 'Copy'))}">
                     ${iconMarkup('copy', '\u2398', '', 16)}
                 </button>
-                <button type="button" class="fm-selection-btn" data-action="selection-cut" title="${esc(t('desktop.fm.cut', 'Cut'))}" aria-label="${esc(t('desktop.fm.cut', 'Cut'))}"${isReadonly ? ' disabled' : ''}>
+                <button type="button" class="fm-selection-btn" data-action="selection-cut" title="${esc(t('desktop.fm.cut', 'Cut'))}" aria-label="${esc(t('desktop.fm.cut', 'Cut'))}"${readonly ? ' disabled' : ''}>
                     ${iconMarkup('scissors', '\u2702', '', 16)}
                 </button>
                 <button type="button" class="fm-selection-btn${hasFile ? '' : ' is-hidden'}" data-action="selection-download" title="${esc(t('desktop.fm.download', 'Download'))}" aria-label="${esc(t('desktop.fm.download', 'Download'))}">
                     ${iconMarkup('download', '\u2193', '', 16)}
                 </button>
-                <button type="button" class="fm-selection-btn" data-action="selection-delete" title="${esc(t('desktop.fm.delete', 'Delete'))}" aria-label="${esc(t('desktop.fm.delete', 'Delete'))}"${isReadonly ? ' disabled' : ''}>
+                <button type="button" class="fm-selection-btn" data-action="selection-delete" title="${esc(t('desktop.fm.delete', 'Delete'))}" aria-label="${esc(t('desktop.fm.delete', 'Delete'))}"${readonly ? ' disabled' : ''}>
                     ${iconMarkup('trash', '\u267B', '', 16)}
                 </button>
                 <button type="button" class="fm-selection-btn" data-action="selection-properties" title="${esc(t('desktop.fm.properties', 'Properties'))}" aria-label="${esc(t('desktop.fm.properties', 'Properties'))}">

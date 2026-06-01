@@ -265,3 +265,20 @@ func TestFileManagerHasTouchSelection(t *testing.T) {
 		}
 	}
 }
+
+func TestFileManagerSelectionToolbarAvoidsReadonlyShadowing(t *testing.T) {
+	t.Parallel()
+
+	for _, file := range []string{
+		"js/desktop/file-manager/core-render.js",
+		"js/desktop/bundles/file-manager.bundle.js",
+	} {
+		js := readDesktopAssetText(t, file)
+		if strings.Contains(js, "const isReadonly = typeof isReadonly") {
+			t.Fatalf("%s shadows isReadonly and can throw a temporal-dead-zone ReferenceError", file)
+		}
+		if !strings.Contains(js, "const readonly = (typeof isReadonly === 'function') ? isReadonly() : false;") {
+			t.Fatalf("%s missing safe readonly selection toolbar marker", file)
+		}
+	}
+}
