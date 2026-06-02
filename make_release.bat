@@ -126,7 +126,12 @@ del /f /q "%TMPSTAGE%\agent_workspace\skills\client_secret.json"  2>nul
 del /f /q "%TMPSTAGE%\agent_workspace\skills\client_secrets.json" 2>nul
 del /f /q "%TMPSTAGE%\agent_workspace\skills\token.json"          2>nul
 
-powershell -nologo -noprofile -command "(Get-Content 'config_template.yaml') -replace 'api_key: \"sk-[^\"]*\"','api_key: \"\"' -replace 'bot_token: \"[^\"]*\"','bot_token: \"\"' -replace 'access_token: \"[^\"]*\"','access_token: \"\"' | Set-Content '%TMPSTAGE%\config.yaml'"
+powershell -nologo -noprofile -command "$ErrorActionPreference='Stop'; $q=[char]34; $content=Get-Content -Raw -LiteralPath 'config_template.yaml'; $content=$content -replace ('api_key: '+$q+'sk-[^'+$q+']*'+$q),('api_key: '+$q+$q); $content=$content -replace ('bot_token: '+$q+'[^'+$q+']*'+$q),('bot_token: '+$q+$q); $content=$content -replace ('access_token: '+$q+'[^'+$q+']*'+$q),('access_token: '+$q+$q); Set-Content -LiteralPath '%TMPSTAGE%\config.yaml' -Value $content"
+if errorlevel 1 (
+    echo [ERROR] Failed to sanitize config_template.yaml for resources.dat.
+    rmdir /s /q "%TMPSTAGE%" 2>nul
+    exit /b 1
+)
 
 tar -czf "deploy\resources.dat" -C "%TMPSTAGE%" .
 rmdir /s /q "%TMPSTAGE%"

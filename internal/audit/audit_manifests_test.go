@@ -478,6 +478,24 @@ func TestWindowsReleaseChecksumGenerationAvoidsGetFileHash(t *testing.T) {
 	}
 }
 
+func TestWindowsReleaseConfigSanitizerKeepsPowerShellPipelineInsidePowerShell(t *testing.T) {
+	t.Parallel()
+
+	script := readRepoFile(t, "make_release.bat")
+	if strings.Contains(script, `\"sk-[^\"]*\"`) || strings.Contains(script, `| Set-Content '%TMPSTAGE%\config.yaml'`) {
+		t.Fatal("make_release.bat config sanitizer must not use cmd-visible escaped quotes or pipe into Set-Content")
+	}
+	for _, want := range []string{
+		"$q=[char]34",
+		"Set-Content -LiteralPath '%TMPSTAGE%\\config.yaml'",
+		"Failed to sanitize config_template.yaml for resources.dat",
+	} {
+		if !strings.Contains(script, want) {
+			t.Fatalf("make_release.bat config sanitizer missing robust PowerShell marker %q", want)
+		}
+	}
+}
+
 func TestWindowsReleaseUploadsAssetsIndividually(t *testing.T) {
 	t.Parallel()
 
