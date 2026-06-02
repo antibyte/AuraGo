@@ -1,4 +1,12 @@
-﻿(function () {
+﻿// AUDIT(Task27 / 2026-06-02): All 24 `.style.*` assignments in this file were reviewed.
+// No tokenizable hard-coded colors/sizes/radii were found. Every match is one of:
+//   - Reading current inline state (parseInt on style.left/top/width) for math
+//   - Writing a dynamic computed value (icon grid, widget bounds, drag delta)
+//   - Writing a CSS custom property via setProperty('--vd-*')
+//   - Numeric fallback (`18`) for default icon offset when position data is missing
+// No migration needed for Task 28. See reports/virtual_desktop_js_audit_2026-06-01.md
+// for the line-by-line breakdown (lines 389-1360).
+(function () {
     const state = {
         bootstrap: null,
         filesPath: '',

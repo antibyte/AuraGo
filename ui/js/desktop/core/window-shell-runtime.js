@@ -1,3 +1,12 @@
+    // AUDIT(Task27 / 2026-06-02): All 28 `.style.*` assignments in this file were reviewed.
+    // No tokenizable hard-coded colors/sizes/radii were found. Every match is one of:
+    //   - Reading current inline state (parseInt on style.left/top) for drag/persist math
+    //   - Writing a dynamic computed value (drag clamp, cascade placement, min/max size)
+    //   - Writing a CSS custom property via setProperty('--vd-*' / '--dock-index')
+    //   - CSS keyword ('none' for resize, '0px'/'100%' for fullscreen layout)
+    // No migration needed for Task 28. See reports/virtual_desktop_js_audit_2026-06-01.md
+    // for the line-by-line breakdown (lines 442-1001).
+
     function renderBuiltinWidget(card, widget) {
         const container = card.querySelector('.vd-widget-builtin');
         if (!container) return;
