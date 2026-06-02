@@ -468,6 +468,46 @@
     --fruity-window-chrome: rgba(249, 251, 255, 0.74);
 }
 
+.desktop-body[data-theme="fruity"] {
+    --ds-color-fg-primary: #202635;
+    --ds-color-fg-secondary: #3a455a;
+    --ds-color-fg-muted: #667085;
+    --ds-color-fg-disabled: #97a1b5;
+
+    --ds-color-bg-canvas: #f4f8fc;
+    --ds-color-bg-raised: #ffffff;
+    --ds-color-bg-overlay: #ffffff;
+    --ds-color-bg-modal: #ffffff;
+
+    --ds-color-surface-0: #f4f8fc;
+    --ds-color-surface-1: rgba(255, 255, 255, 0.72);
+    --ds-color-surface-2: rgba(255, 255, 255, 0.88);
+    --ds-color-surface-3: rgba(255, 255, 255, 0.96);
+
+    --ds-color-border-subtle: rgba(78, 92, 118, 0.12);
+    --ds-color-border-default: rgba(78, 92, 118, 0.2);
+    --ds-color-border-strong: rgba(78, 92, 118, 0.3);
+    --ds-color-border-focus: #0a84ff;
+
+    --ds-color-accent-500: #0a84ff;
+    --ds-color-accent-600: #0066cc;
+    --ds-color-accent-glow: rgba(10, 132, 255, 0.14);
+
+    --ds-color-control-bg: rgba(255, 255, 255, 0.6);
+    --ds-color-control-hover: rgba(10, 132, 255, 0.12);
+    --ds-color-control-active: rgba(10, 132, 255, 0.2);
+    --ds-color-inner-highlight: rgba(255, 255, 255, 0.6);
+
+    --ds-elevation-1: 0 1px 2px rgba(52, 64, 84, 0.08);
+    --ds-elevation-2: 0 4px 12px rgba(52, 64, 84, 0.12);
+    --ds-elevation-3: 0 12px 28px rgba(52, 64, 84, 0.16);
+    --ds-elevation-4: 0 28px 72px rgba(52, 64, 84, 0.22), 0 0 0 1px rgba(10, 132, 255, 0.12);
+    --ds-elevation-5: 0 32px 88px rgba(52, 64, 84, 0.28);
+
+    --ds-blur-fine: blur(40px) saturate(1.3);
+    --ds-blur-coarse: blur(12px) saturate(1.2);
+}
+
 .desktop-body[data-theme="fruity"] .vd-shell {
     grid-template-rows: minmax(0, 1fr);
 }
