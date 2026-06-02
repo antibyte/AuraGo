@@ -617,7 +617,7 @@
                 ${renderSidebarHtml()}
                 <div class="fm-split-body" style="display: flex; flex: 1; min-height: 0; position: relative;">
                     ${leftContentHtml}
-                    <div class="fm-split-resizer" style="width: 4px; background: var(--vd-border, #333); cursor: col-resize; z-index: 10;"></div>
+                    <div class="fm-split-resizer" style="width: 4px; background: var(--ds-color-border-subtle); cursor: col-resize; z-index: 10;"></div>
                     ${rightContentHtml}
                 </div>
                 ${previewHtml}
@@ -651,8 +651,8 @@
     function renderPaneHtml(paneName) {
         const isActive = fm.activePane === paneName ? ' active' : '';
         return `<div class="fm-pane fm-content${isActive}" data-pane="${paneName}" style="display: flex; flex: 1; flex-direction: column; min-width: 0; position: relative;">
-            <div class="fm-pane-header" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--vd-border, #333); display: flex; align-items: center; justify-content: space-between;">
-                <span class="fm-pane-path" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: bold; color: ${fm.activePane === paneName ? 'var(--vd-accent, #27c7a6)' : 'var(--vd-muted, #888)'};">${esc(fm.currentPath || '/')}</span>
+            <div class="fm-pane-header" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--ds-color-border-subtle); display: flex; align-items: center; justify-content: space-between;">
+                <span class="fm-pane-path" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: bold; color: ${fm.activePane === paneName ? 'var(--ds-color-accent-500)' : 'var(--ds-color-fg-muted)'};">${esc(fm.currentPath || '/')}</span>
             </div>
             <div class="fm-main" data-fm-main style="flex: 1; overflow-y: auto;">
                 ${renderContentHtml()}
@@ -760,11 +760,11 @@
                 if (pane.dataset.pane === paneName) {
                     pane.classList.add('active');
                     const pathSpan = pane.querySelector('.fm-pane-path');
-                    if (pathSpan) pathSpan.style.color = 'var(--vd-accent, #27c7a6)';
+                    if (pathSpan) pathSpan.style.color = 'var(--ds-color-accent-500)';
                 } else {
                     pane.classList.remove('active');
                     const pathSpan = pane.querySelector('.fm-pane-path');
-                    if (pathSpan) pathSpan.style.color = 'var(--vd-muted, #888)';
+                    if (pathSpan) pathSpan.style.color = 'var(--ds-color-fg-muted)';
                 }
             });
             
@@ -910,7 +910,7 @@
             return `<div class="fm-sidebar-item${isActive ? ' active' : ''} fm-favorite-item" data-sidebar-path="${esc(fav)}" draggable="true" data-fav-index="${idx}" role="button" tabindex="0" style="position:relative">
                 ${iconMarkup('star', '\u2605', 'fm-sidebar-icon', 18)}
                 <span class="fm-sidebar-label">${esc(baseName(fav) || fav)}</span>
-                <button type="button" class="fm-favorite-remove" data-action="remove-favorite" data-path="${esc(fav)}" title="${esc(t('desktop.fm.remove_favorite', 'Remove from Favorites'))}" style="position:absolute;right:8px;background:none;border:none;color:var(--vd-muted);cursor:pointer;font-size:1rem;line-height:1;display:none;align-items:center;justify-content:center;height:100%;top:0">&times;</button>
+                <button type="button" class="fm-favorite-remove" data-action="remove-favorite" data-path="${esc(fav)}" title="${esc(t('desktop.fm.remove_favorite', 'Remove from Favorites'))}" style="position:absolute;right:8px;background:none;border:none;color:var(--ds-color-fg-muted);cursor:pointer;font-size:1rem;line-height:1;display:none;align-items:center;justify-content:center;height:100%;top:0">&times;</button>
             </div>`;
         }).join('');
 
@@ -921,7 +921,7 @@
             </div>
             <div class="fm-sidebar-section fm-favorites-section">
                 <div class="fm-sidebar-head">${esc(t('desktop.fm.favorites', 'Favorites'))}</div>
-                ${favItems || `<div class="fm-sidebar-empty" style="font-size:0.7rem;color:var(--vd-muted);padding:8px 12px">${esc(t('desktop.fm.drag_favorite_hint', 'Drag folders here'))}</div>`}
+                ${favItems || `<div class="fm-sidebar-empty" style="font-size:0.7rem;color:var(--ds-color-fg-muted);padding:8px 12px">${esc(t('desktop.fm.drag_favorite_hint', 'Drag folders here'))}</div>`}
             </div>
         </aside>`;
     }

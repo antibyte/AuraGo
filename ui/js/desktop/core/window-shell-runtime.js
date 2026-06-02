@@ -25,19 +25,19 @@
         let svg = container.querySelector('.vd-analog-clock-svg');
         if (!svg) {
             container.innerHTML = `<svg class="vd-analog-clock-svg" viewBox="0 0 200 200" width="${svgSize}" height="${svgSize}">
-            <circle cx="100" cy="100" r="95" fill="none" stroke="var(--vd-border)" stroke-width="2"/>
+            <circle cx="100" cy="100" r="95" fill="none" stroke="var(--ds-color-border-subtle)" stroke-width="2"/>
             <g class="vd-clock-ticks"></g>
-            <line class="vd-clock-hour" x1="100" y1="100" x2="100" y2="50" stroke="var(--vd-text)" stroke-width="4" stroke-linecap="round"/>
-            <line class="vd-clock-minute" x1="100" y1="100" x2="100" y2="30" stroke="var(--vd-text)" stroke-width="2.5" stroke-linecap="round"/>
-            <line class="vd-clock-second" x1="100" y1="100" x2="100" y2="25" stroke="var(--vd-accent)" stroke-width="1.2" stroke-linecap="round"/>
-            <circle cx="100" cy="100" r="4" fill="var(--vd-accent)"/>
+            <line class="vd-clock-hour" x1="100" y1="100" x2="100" y2="50" stroke="var(--ds-color-fg-primary)" stroke-width="4" stroke-linecap="round"/>
+            <line class="vd-clock-minute" x1="100" y1="100" x2="100" y2="30" stroke="var(--ds-color-fg-primary)" stroke-width="2.5" stroke-linecap="round"/>
+            <line class="vd-clock-second" x1="100" y1="100" x2="100" y2="25" stroke="var(--ds-color-accent-500)" stroke-width="1.2" stroke-linecap="round"/>
+            <circle cx="100" cy="100" r="4" fill="var(--ds-color-accent-500)"/>
         </svg>`;
             svg = container.querySelector('.vd-analog-clock-svg');
             const ticksG = container.querySelector('.vd-clock-ticks');
             for (let i = 0; i < 12; i++) {
                 const angle = (i * 30) * Math.PI / 180, isMain = i % 3 === 0, r1 = isMain ? 78 : 84, r2 = 90;
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                [['x1', 100 + r1 * Math.sin(angle)], ['y1', 100 - r1 * Math.cos(angle)], ['x2', 100 + r2 * Math.sin(angle)], ['y2', 100 - r2 * Math.cos(angle)], ['stroke', isMain ? 'var(--vd-text)' : 'var(--vd-muted)'], ['stroke-width', isMain ? '2.5' : '1.2'], ['stroke-linecap', 'round']].forEach(([name, value]) => line.setAttribute(name, value));
+                [['x1', 100 + r1 * Math.sin(angle)], ['y1', 100 - r1 * Math.cos(angle)], ['x2', 100 + r2 * Math.sin(angle)], ['y2', 100 - r2 * Math.cos(angle)], ['stroke', isMain ? 'var(--ds-color-fg-primary)' : 'var(--ds-color-fg-muted)'], ['stroke-width', isMain ? '2.5' : '1.2'], ['stroke-linecap', 'round']].forEach(([name, value]) => line.setAttribute(name, value));
                 ticksG.appendChild(line);
             }
         }

@@ -11,7 +11,7 @@ async function renderWidgetDrawerContent(drawer) {
 
     if (allWidgets.length === 0) {
         content.innerHTML = `
-            <div style="padding: 24px 12px; color: var(--vd-muted); font-size: 13px; text-align: center;">
+            <div style="padding: 24px 12px; color: var(--ds-color-fg-muted); font-size: 13px; text-align: center;">
                 ${t('desktop.widget_drawer_empty', 'No widgets available.')}
             </div>
         `;
@@ -30,14 +30,14 @@ async function renderWidgetDrawerContent(drawer) {
         const card = document.createElement('div');
         const iconKey = widget.icon || 'widgets';
 
-        card.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--vd-surface); border:1px solid var(--vd-border); border-radius:8px;';
+        card.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--ds-color-surface-1); border:1px solid var(--ds-color-border-subtle); border-radius:8px;';
         card.innerHTML = `
             <div style="flex-shrink:0;">${iconMarkup(iconKey, widget.title || widget.id, 'vd-sprite-file', 22)}</div>
             <div style="flex:1; min-width:0;">
-                <div style="font-weight:600; font-size:13px; color:var(--vd-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                <div style="font-weight:600; font-size:13px; color:var(--ds-color-fg-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                     ${esc(widget.title || widget.id)}
                 </div>
-                <div style="font-size:11px; color:var(--vd-muted);">
+                <div style="font-size:11px; color:var(--ds-color-fg-muted);">
                     ${isBuiltin ? t('desktop.widget_builtin', 'Builtin') : t('desktop.widget_custom', 'Custom')}
                     ${isVisible ? ' • ' + t('desktop.widget_on_desktop', 'On desktop') : ''}
                 </div>

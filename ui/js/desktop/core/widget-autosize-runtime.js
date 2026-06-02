@@ -54,8 +54,8 @@
         if (frameWrap && reportedFrameHeight > 0) {
             const frameHeight = clampWidgetFrameHeight(card, reportedFrameHeight + WIDGET_FRAME_SCROLLBAR_BUFFER);
             const stableFrameHeight = stableWidgetFrameHeight(card, frameHeight);
-            setWidgetPixelVar(card, '--vd-widget-frame-height', stableFrameHeight);
-            setWidgetPixelVar(frameWrap, '--vd-widget-frame-height', stableFrameHeight);
+            setWidgetPixelVar(card, '--ds-size-widget-frame', stableFrameHeight);
+            setWidgetPixelVar(frameWrap, '--ds-size-widget-frame', stableFrameHeight);
         }
         const measuredContentHeight = widgetMeasuredContentHeight(card, data);
         const renderedScrollHeight = reportedFrameHeight > 0 ? 0 : Math.ceil(card.scrollHeight || 0);
@@ -65,7 +65,7 @@
             measuredContentHeight,
             renderedScrollHeight
         );
-        setWidgetPixelVar(card, '--vd-widget-auto-height', clampWidgetHeight(card, desiredHeight, WIDGET_MIN_HEIGHT));
+        setWidgetPixelVar(card, '--ds-size-widget-auto', clampWidgetHeight(card, desiredHeight, WIDGET_MIN_HEIGHT));
     }
 
     function widgetMeasuredContentHeight(card, data) {
@@ -116,7 +116,7 @@
     }
 
     function stableWidgetFrameHeight(card, nextHeight) {
-        const current = Math.ceil(parseFloat(card && card.style.getPropertyValue('--vd-widget-frame-height')) || 0);
+        const current = Math.ceil(parseFloat(card && card.style.getPropertyValue('--ds-size-widget-frame')) || 0);
         if (current > nextHeight && current - nextHeight <= WIDGET_FRAME_SHRINK_THRESHOLD) return current;
         return nextHeight;
     }

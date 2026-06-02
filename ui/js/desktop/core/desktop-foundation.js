@@ -377,7 +377,7 @@
         const sheetH = Math.round((manifest.height || 768) * scale * 1000) / 1000;
         const x = Math.round(-(icon.x || 0) * scale * 1000) / 1000;
         const y = Math.round(-(icon.y || 0) * scale * 1000) / 1000;
-        return `<span class="${esc(className)}" aria-hidden="true" style="--vd-sprite-x:${x}px;--vd-sprite-y:${y}px;--vd-sprite-sheet:${sheetW}px ${sheetH}px"></span>`;
+        return `<span class="${esc(className)}" aria-hidden="true" style="--ds-asset-sprite-x:${x}px;--ds-asset-sprite-y:${y}px;--ds-asset-sprite-sheet:${sheetW}px ${sheetH}px"></span>`;
     }
 
     function iconMarkup(key, fallback, className, size) {
@@ -390,11 +390,11 @@
         const source = resolveIconSource(key);
         if (source.type === 'theme') {
             const pixels = Number(size || 42) || 42;
-            return `<span class="${esc(className)} vd-theme-icon vd-papirus-icon" data-vd-icon-key="${esc(key)}" aria-hidden="true" style="--vd-theme-icon-url:${esc(iconUrlStyle(source.path))};width:${pixels}px;height:${pixels}px"></span>`;
+            return `<span class="${esc(className)} vd-theme-icon vd-papirus-icon" data-vd-icon-key="${esc(key)}" aria-hidden="true" style="--ds-asset-theme-icon:${esc(iconUrlStyle(source.path))};width:${pixels}px;height:${pixels}px"></span>`;
         }
         return spriteMarkup(source.key || key, fallback, className, size);
     }
-    function refreshThemeIconElements(root) { (root || document).querySelectorAll('.vd-theme-icon[data-vd-icon-key], .vd-papirus-icon[data-vd-icon-key]').forEach(icon => { const path = themeIconPath(icon.dataset.vdIconKey || ''); if (path) icon.style.setProperty('--vd-theme-icon-url', iconUrlStyle(path)); }); }
+    function refreshThemeIconElements(root) { (root || document).querySelectorAll('.vd-theme-icon[data-vd-icon-key], .vd-papirus-icon[data-vd-icon-key]').forEach(icon => { const path = themeIconPath(icon.dataset.vdIconKey || ''); if (path) icon.style.setProperty('--ds-asset-theme-icon', iconUrlStyle(path)); }); }
     function iconForApp(app) { return app ? (appLogoIconKey(app) || appIconKeys[app.id] || app.icon || 'apps') : 'apps'; }
     function shortcutIconForApp(shortcut, app) {
         const appLogo = appLogoIconKey(app);
@@ -520,7 +520,7 @@
         body.dataset.widgets = settingValue('desktop.show_widgets');
         body.dataset.iconSize = settingValue('desktop.icon_size');
         const sizes = { small: 34, medium: 42, large: 52 };
-        body.style.setProperty('--vd-icon-glyph-size', (sizes[settingValue('desktop.icon_size')] || 42) + 'px');
+        body.style.setProperty('--ds-size-icon-glyph', (sizes[settingValue('desktop.icon_size')] || 42) + 'px');
         refreshThemeIconElements(document);
         const agentButton = $('vd-agent-button');
         if (agentButton) agentButton.hidden = !settingBool('agent.show_chat_button');
@@ -599,7 +599,7 @@
     function updateViewportMetrics() {
         const visual = window.visualViewport;
         const height = visual && visual.height ? visual.height : window.innerHeight;
-        document.documentElement.style.setProperty('--vd-visual-height', Math.max(1, Math.round(height)) + 'px');
+        document.documentElement.style.setProperty('--ds-size-visual-height', Math.max(1, Math.round(height)) + 'px');
         scheduleFruityDockOcclusionCheck();
     }
 
@@ -976,7 +976,7 @@
     }
 
     function scheduleWidgetAutoSize(card, widget) { if (!card || !widgetShouldAutoSize(widget)) return; card.dataset.widgetAutoSize = 'true'; applyWidgetAutoSize(card, card._widgetLastResizePayload || {}); }
-    function applyWidgetAutoSize(card, payload) { if (!card || card.dataset.widgetAutoSize !== 'true') return; const data = payload && typeof payload === 'object' ? payload : {}; const frameWrap = card.querySelector('.vd-widget-frame-wrap'); const reportedFrameHeight = Number(data.height || data.h || 0); if (frameWrap && reportedFrameHeight > 0) { const frameHeight = clampWidgetFrameHeight(card, reportedFrameHeight + WIDGET_FRAME_SCROLLBAR_BUFFER); setWidgetPixelVar(card, '--vd-widget-frame-height', frameHeight); setWidgetPixelVar(frameWrap, '--vd-widget-frame-height', frameHeight); } const measuredContentHeight = widgetMeasuredContentHeight(card, data); const renderedScrollHeight = reportedFrameHeight > 0 ? 0 : Math.ceil(card.scrollHeight || 0); const desiredHeight = Math.max(WIDGET_MIN_HEIGHT, Math.ceil(Number(data.cardHeight || data.card_height || 0)), measuredContentHeight, renderedScrollHeight); setWidgetPixelVar(card, '--vd-widget-auto-height', clampWidgetHeight(card, desiredHeight, WIDGET_MIN_HEIGHT)); }
+    function applyWidgetAutoSize(card, payload) { if (!card || card.dataset.widgetAutoSize !== 'true') return; const data = payload && typeof payload === 'object' ? payload : {}; const frameWrap = card.querySelector('.vd-widget-frame-wrap'); const reportedFrameHeight = Number(data.height || data.h || 0); if (frameWrap && reportedFrameHeight > 0) { const frameHeight = clampWidgetFrameHeight(card, reportedFrameHeight + WIDGET_FRAME_SCROLLBAR_BUFFER); setWidgetPixelVar(card, '--ds-size-widget-frame', frameHeight); setWidgetPixelVar(frameWrap, '--ds-size-widget-frame', frameHeight); } const measuredContentHeight = widgetMeasuredContentHeight(card, data); const renderedScrollHeight = reportedFrameHeight > 0 ? 0 : Math.ceil(card.scrollHeight || 0); const desiredHeight = Math.max(WIDGET_MIN_HEIGHT, Math.ceil(Number(data.cardHeight || data.card_height || 0)), measuredContentHeight, renderedScrollHeight); setWidgetPixelVar(card, '--ds-size-widget-auto', clampWidgetHeight(card, desiredHeight, WIDGET_MIN_HEIGHT)); }
     function resizeWidgetToContent(widgetId, payload) { const id = String(widgetId || ''); if (!id) return; const card = document.querySelector(`.vd-widget[data-widget-id="${cssSel(id)}"]`); if (!card || card.dataset.widgetAutoSize !== 'true') return; const data = payload && typeof payload === 'object' ? payload : {}; card._widgetLastResizePayload = data; const reportedWidth = Number(data.width || data.w || 0); const reportedViewportWidth = Number(data.viewportWidth || data.viewport_width || 0); if (reportedWidth > 16) { const shouldGrowWidth = !reportedViewportWidth || reportedWidth > reportedViewportWidth + WIDGET_WIDTH_GROW_THRESHOLD; const desiredWidth = shouldGrowWidth ? reportedWidth + WIDGET_FRAME_CHROME_BUFFER : widgetPreferredWidth(card); const nextWidth = Math.max(220, Math.min(Math.ceil(desiredWidth), widgetMaxWidth(card))); setWidgetWidthIfChanged(card, nextWidth); } applyWidgetAutoSize(card, data); }
     function widgetMeasuredContentHeight(card, data) { if (!card) return 0; let bottom = 0; const frameWrap = card.querySelector('.vd-widget-frame-wrap'); if (frameWrap) bottom = Math.max(bottom, widgetElementBottom(card, frameWrap)); ['.vd-widget-builtin', '.vd-widget-body', '.vd-quickchat-response'].forEach(selector => { const target = card.querySelector(selector); if (target) bottom = Math.max(bottom, widgetElementBottom(card, target)); }); const requestedCardHeight = Number(data.cardHeight || data.card_height || 0); return Math.ceil(Math.max(bottom, requestedCardHeight, 0) + WIDGET_AUTO_SIZE_PADDING); }
     function widgetElementBottom(card, element) { if (!card || !element) return 0; const cardRect = typeof card.getBoundingClientRect === 'function' ? card.getBoundingClientRect() : null; const elementRect = typeof element.getBoundingClientRect === 'function' ? element.getBoundingClientRect() : null; const cardStyle = window.getComputedStyle ? window.getComputedStyle(card) : null; const paddingBottom = parseFloat(cardStyle && cardStyle.paddingBottom) || 0; const rectBottom = cardRect && elementRect ? elementRect.bottom - cardRect.top + paddingBottom : 0; const layoutBottom = (element.offsetTop || 0) + Math.max(element.scrollHeight || 0, element.offsetHeight || 0); return Math.ceil(Math.max(rectBottom, layoutBottom)); }

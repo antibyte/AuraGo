@@ -751,14 +751,14 @@
                 content = `<video src="${previewURL(file)}" controls style="max-width: 90vw; max-height: 80vh; border-radius: 8px;"></video>`;
             }
         } else if (isTxt) {
-            content = `<div class="fm-quick-look-text" style="width: min(700px, 90vw); height: 60vh; background: var(--vd-surface-strong, #1a1a1a); border: 1px solid var(--vd-border); border-radius: 8px; padding: 16px; overflow: auto; text-align: left; font-family: monospace; white-space: pre-wrap; font-size: 0.85rem; color: var(--vd-text);">Loading preview...</div>`;
+            content = `<div class="fm-quick-look-text" style="width: min(700px, 90vw); height: 60vh; background: var(--ds-color-surface-2); border: 1px solid var(--ds-color-border-subtle); border-radius: 8px; padding: 16px; overflow: auto; text-align: left; font-family: monospace; white-space: pre-wrap; font-size: 0.85rem; color: var(--ds-color-fg-primary);">Loading preview...</div>`;
             fetchTextPreview(file.path);
         } else {
             content = `
                 <div style="display:flex; flex-direction:column; align-items:center; gap:16px;">
                     <div style="font-size: 4rem;">📄</div>
                     <div style="font-size: 1.1rem; font-weight: 600;">${esc(file.name)}</div>
-                    <div style="color: var(--vd-muted);">${esc(fmtBytes(file.size))}</div>
+                    <div style="color: var(--ds-color-fg-muted);">${esc(fmtBytes(file.size))}</div>
                 </div>
             `;
         }
@@ -770,7 +770,7 @@
             <div style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%;">
                 <div class="fm-quick-look-panel" style="padding: 24px; background: rgba(0,0,0,0.85); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 32px rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; flex-direction: column; min-width: 280px; max-width: 95vw;">
                     ${content}
-                    <div style="margin-top: 16px; font-size: 0.8rem; color: var(--vd-muted);">${esc(file.path)}</div>
+                    <div style="margin-top: 16px; font-size: 0.8rem; color: var(--ds-color-fg-muted);">${esc(file.path)}</div>
                 </div>
             </div>
         `;

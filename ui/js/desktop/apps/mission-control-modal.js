@@ -449,7 +449,7 @@
         function showInfoModal(title, body) {
             const overlay = document.createElement('div');
             overlay.className = P + '-modal-overlay';
-            overlay.innerHTML = `<div class="${P}-modal" style="max-width:600px"><div class="${P}-modal-header"><h2 class="${P}-modal-title">${esc(title)}</h2><button type="button" class="${P}-modal-close" data-mc="info-close">${SVG.x}</button></div><div class="${P}-modal-body"><pre style="white-space:pre-wrap;font-size:11px;color:var(--vd-text-muted,#9aa3ad);line-height:1.5;max-height:400px;overflow-y:auto;margin:0">${esc(body)}</pre></div></div>`;
+            overlay.innerHTML = `<div class="${P}-modal" style="max-width:600px"><div class="${P}-modal-header"><h2 class="${P}-modal-title">${esc(title)}</h2><button type="button" class="${P}-modal-close" data-mc="info-close">${SVG.x}</button></div><div class="${P}-modal-body"><pre style="white-space:pre-wrap;font-size:11px;color:var(--ds-color-fg-muted);line-height:1.5;max-height:400px;overflow-y:auto;margin:0">${esc(body)}</pre></div></div>`;
             container.appendChild(overlay);
             const close = () => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); };
             overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
