@@ -273,7 +273,7 @@ func TestAgodeskWebSocketPongsWhileChatMessageInFlight(t *testing.T) {
 	}
 }
 
-func TestAgodeskPersonaAssetsRequestReturnsActivePersonaAvatarAndIcon(t *testing.T) {
+func TestAgodeskPersonaAssetsRequestReturnsActivePersonaAvatarIconAndPrompt(t *testing.T) {
 	s := newAgodeskHandlerTestServer()
 	s.Cfg.Personality.CorePersonality = "punk"
 	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws?insecure_loopback=1")
@@ -309,6 +309,12 @@ func TestAgodeskPersonaAssetsRequestReturnsActivePersonaAvatarAndIcon(t *testing
 	}
 	if payload.IconURL != "/img/persona-icons/punk.png?v="+agodesk.PersonaAssetVersion {
 		t.Fatalf("icon_url = %q", payload.IconURL)
+	}
+	if !strings.Contains(payload.PersonaPrompt, "# Core Personality: Punk") {
+		t.Fatalf("persona_prompt missing punk markdown body: %q", payload.PersonaPrompt)
+	}
+	if strings.Contains(payload.PersonaPrompt, "anchor_traits:") {
+		t.Fatalf("persona_prompt should not include YAML front matter: %q", payload.PersonaPrompt)
 	}
 }
 

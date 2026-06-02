@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -15,6 +17,7 @@ import (
 	"aurago/internal/agodesk"
 	"aurago/internal/remote"
 	"aurago/internal/security"
+	promptsembed "aurago/prompts"
 
 	"github.com/gorilla/websocket"
 	"github.com/sashabaranov/go-openai"
@@ -204,15 +207,46 @@ func handleAgodeskPersonaAssetsRequest(s *Server, conn *websocket.Conn, state *a
 		return
 	}
 	persona := "custom"
+	promptsDir := ""
 	if s != nil && s.Cfg != nil {
 		s.CfgMu.RLock()
 		persona = strings.TrimSpace(s.Cfg.Personality.CorePersonality)
+		promptsDir = strings.TrimSpace(s.Cfg.Directories.PromptsDir)
 		s.CfgMu.RUnlock()
 	}
 	if persona == "" {
 		persona = "custom"
 	}
-	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypePersonaAssets, agodesk.NewPersonaAssetsPayload(sessionID, persona, isCorePersonality(persona)))
+	personaPrompt := loadAgodeskPersonaPrompt(promptsDir, persona)
+	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypePersonaAssets, agodesk.NewPersonaAssetsPayload(sessionID, persona, isCorePersonality(persona), personaPrompt))
+}
+
+func loadAgodeskPersonaPrompt(promptsDir, personaName string) string {
+	persona := strings.TrimSpace(personaName)
+	if !isValidPersonalityName(persona) {
+		return ""
+	}
+	if promptsDir != "" {
+		if data, err := os.ReadFile(filepath.Join(promptsDir, "personalities", persona+".md")); err == nil {
+			return stripAgodeskPersonaFrontMatter(data)
+		}
+	}
+	if data, err := promptsembed.FS.ReadFile("personalities/" + persona + ".md"); err == nil {
+		return stripAgodeskPersonaFrontMatter(data)
+	}
+	return ""
+}
+
+func stripAgodeskPersonaFrontMatter(data []byte) string {
+	body := strings.TrimSpace(string(data))
+	if !strings.HasPrefix(body, "---") {
+		return body
+	}
+	rest := body[3:]
+	if idx := strings.Index(rest, "\n---"); idx != -1 {
+		return strings.TrimSpace(rest[idx+4:])
+	}
+	return body
 }
 
 func handleAgodeskChatMessage(s *Server, r *http.Request, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.ChatMessagePayload) {

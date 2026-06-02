@@ -161,6 +161,7 @@ type PersonaAssetsPayload struct {
 	IconKey        string `json:"icon_key"`
 	AvatarImageURL string `json:"avatar_image_url"`
 	IconURL        string `json:"icon_url"`
+	PersonaPrompt  string `json:"persona_prompt"`
 	AssetVersion   string `json:"asset_version"`
 }
 
@@ -266,7 +267,7 @@ func VerifySharedKeyProof(sharedKey, envelopeID, deviceID string, proof SharedKe
 	return hmac.Equal([]byte(strings.ToLower(want)), []byte(strings.ToLower(strings.TrimSpace(proof.HMAC))))
 }
 
-func NewPersonaAssetsPayload(sessionID, personaName string, core bool) PersonaAssetsPayload {
+func NewPersonaAssetsPayload(sessionID, personaName string, core bool, personaPrompt string) PersonaAssetsPayload {
 	persona := strings.TrimSpace(personaName)
 	if persona == "" {
 		persona = "custom"
@@ -278,6 +279,7 @@ func NewPersonaAssetsPayload(sessionID, personaName string, core bool) PersonaAs
 		IconKey:        iconKey,
 		AvatarImageURL: "/img/personas/" + iconKey + ".png?v=" + PersonaAssetVersion,
 		IconURL:        "/img/persona-icons/" + iconKey + ".png?v=" + PersonaAssetVersion,
+		PersonaPrompt:  strings.TrimSpace(personaPrompt),
 		AssetVersion:   PersonaAssetVersion,
 	}
 }

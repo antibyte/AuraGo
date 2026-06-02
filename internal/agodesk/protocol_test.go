@@ -63,7 +63,7 @@ func TestSharedKeyProofVerifiesEnvelopeBoundHMAC(t *testing.T) {
 }
 
 func TestNewPersonaAssetsPayloadUsesCoreAvatarAndIcon(t *testing.T) {
-	payload := NewPersonaAssetsPayload("agodesk:dev:1", "friend", true)
+	payload := NewPersonaAssetsPayload("agodesk:dev:1", "friend", true, "Friendly and supportive.")
 
 	if payload.SessionID != "agodesk:dev:1" {
 		t.Fatalf("session_id = %q, want agodesk:dev:1", payload.SessionID)
@@ -76,6 +76,9 @@ func TestNewPersonaAssetsPayloadUsesCoreAvatarAndIcon(t *testing.T) {
 	}
 	if payload.IconURL != "/img/persona-icons/friend.png?v="+PersonaAssetVersion {
 		t.Fatalf("icon_url = %q", payload.IconURL)
+	}
+	if payload.PersonaPrompt != "Friendly and supportive." {
+		t.Fatalf("persona_prompt = %q, want trimmed prompt", payload.PersonaPrompt)
 	}
 }
 
@@ -97,7 +100,7 @@ func TestNewPersonaAssetsRequestBuildsClientEnvelope(t *testing.T) {
 }
 
 func TestNewPersonaAssetsPayloadFallsBackForCustomPersona(t *testing.T) {
-	payload := NewPersonaAssetsPayload("agodesk:dev:1", "lab-assistant", false)
+	payload := NewPersonaAssetsPayload("agodesk:dev:1", "lab-assistant", false, "  Custom lab tone.  ")
 
 	if payload.Persona != "lab-assistant" {
 		t.Fatalf("persona = %q, want original active persona name", payload.Persona)
@@ -107,5 +110,8 @@ func TestNewPersonaAssetsPayloadFallsBackForCustomPersona(t *testing.T) {
 	}
 	if !strings.Contains(payload.AvatarImageURL, "/img/personas/custom.png") || !strings.Contains(payload.IconURL, "/img/persona-icons/custom.png") {
 		t.Fatalf("custom asset urls not returned: %+v", payload)
+	}
+	if payload.PersonaPrompt != "Custom lab tone." {
+		t.Fatalf("persona_prompt = %q, want trimmed custom prompt", payload.PersonaPrompt)
 	}
 }
