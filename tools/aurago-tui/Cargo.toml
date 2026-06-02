@@ -5,7 +5,7 @@ edition = "2024"
 rust-version = "1.85"
 
 [dependencies]
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "cookies", "stream", "rustls-tls"] }
 eventsource-stream = "0.2"
 futures = "0.3"

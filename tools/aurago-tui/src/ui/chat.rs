@@ -3,13 +3,13 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Margin, Rect},
     style::{Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, Paragraph, Scrollbar, ScrollbarOrientation, Wrap},
+    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, Wrap},
 };
 
 use super::overlays::{draw_help, draw_session_drawer};
 use super::theme::{Theme, spinner_frame};
-use super::utils;
 use crate::app::AppState;
+use crate::i18n;
 
 // Re-export toast helpers from the new overlays module so other UI modules
 // that previously did `super::chat::draw_toast_simple(...)` continue to work
@@ -126,8 +126,18 @@ fn draw_messages(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let inner = block.inner(area);
     f.render_widget(block, area);
 
+    // Wave 3 viewport optimization (P1): only build visible tail of history + buffer.
+    // This avoids O(N) full rebuild + lines.clone() + Paragraph on thousands of messages every frame.
+    // Scrollbar uses a cheap full-logical estimate (pre-wrap) so thumb stays accurate.
+    // See plan.md and IMPROVEMENTS.md. Preserves all UX (wrap, streaming, auto MAX, unicode, indicator).
     let mut lines: Vec<Line> = Vec::new();
-    for msg in &app.chat_messages {
+    let total_msgs = app.chat_messages.len();
+    let area_h = inner.height as usize;
+    let est_lines_per_msg = 3usize; // avg (content lines + sep); long tool output will under-estimate but buffer helps
+    let buffer_msgs = 6;
+    let visible_msgs_est = (area_h / est_lines_per_msg).max(3) + buffer_msgs;
+    let start_idx = total_msgs.saturating_sub(visible_msgs_est);
+    for msg in &app.chat_messages[start_idx..] {
         let (prefix, color) = match msg.role.as_str() {
             "user" => ("🧑 ", theme.user_msg),
             "assistant" => ("🤖 ", theme.assistant_msg),
@@ -181,22 +191,32 @@ fn draw_messages(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
-                "New messages — press Ctrl+G to scroll down",
+                i18n::current().new_messages_hint,
                 Style::default().fg(theme.accent_dim),
             ),
         ]));
     }
+
+    // Full logical line count (pre-wrap, cheap) for scrollbar accuracy even when viewport-sliced.
+    // (Current model is logical pre-wrap lines; this approx matches old behavior for thumb position.)
+    let full_logical: usize = app
+        .chat_messages
+        .iter()
+        .map(|m| m.content.lines().count() + 1)
+        .sum::<usize>()
+        + if app.thinking_active { 1 } else { 0 }
+        + if !app.auto_scroll && !app.chat_messages.is_empty() { 1 } else { 0 };
 
     let para = Paragraph::new(Text::from(lines.clone()))
         .scroll((app.scroll as u16, 0))
         .wrap(Wrap { trim: true });
     f.render_widget(para, inner);
 
-    // Use the *actual* number of rendered lines for the scrollbar (was previously a wrong message*3 hack)
-    let total_lines = lines.len();
+    // Scrollbar uses full_logical (pre-wrap estimate across *all* history) so thumb/position correct
+    // even though we only built viewport lines (Wave 3). The Paragraph scroll still uses the (small) built lines.
     let mut scrollbar_state =
-        ratatui::widgets::ScrollbarState::new(total_lines)
-            .position(app.scroll.min(total_lines));
+        ratatui::widgets::ScrollbarState::new(full_logical)
+            .position(app.scroll.min(full_logical));
     let scrollbar = Scrollbar::default()
         .orientation(ScrollbarOrientation::VerticalRight)
         .begin_symbol(Some("↑"))
@@ -220,7 +240,7 @@ fn draw_input(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         glow
     };
     let block = Block::default()
-        .title(" Message ")
+        .title(i18n::current().message_input_title)
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
 

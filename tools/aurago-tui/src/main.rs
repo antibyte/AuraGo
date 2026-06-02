@@ -23,11 +23,12 @@ mod events;
 mod i18n;
 mod ui;
 
-use api::{ApiClient, auth, sse, types::*};
-use app::{AppState, ConfirmAction, DashTab, MediaTab, Screen, char_len, char_to_byte};
+use api::{ApiClient, auth, sse};
+use app::{AppState, DashTab, MediaTab, Screen};
 use events::AppEvent;
-use events::keybindings::{Action, KeyContext, map_key};
-use ui::{theme::Theme, utils::truncate_str};
+use events::keybindings::{KeyContext, map_key};
+use ui::theme::Theme;
+use ui::utils::truncate_str;
 
 use actions::execute_confirmed_action;
 use ui::overlays::{draw_confirm_dialog, draw_nav_bar};

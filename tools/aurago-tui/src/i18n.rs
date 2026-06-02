@@ -9,33 +9,53 @@
 //! driven by config or env var.
 
 pub struct Strings {
-    // Titles & general
+    // Titles & general (some used in overlays; others allowed for future integration)
+    #[allow(dead_code)]
     pub app_title: &'static str,
     pub help_title: &'static str,
     pub notification_title: &'static str,
     pub sessions_title: &'static str,
     pub navigate_title: &'static str,
 
-    // Common actions / buttons
+    // Common actions / buttons (scaffolding; integrate in follow-up)
+    #[allow(dead_code)]
     pub send: &'static str,
+    #[allow(dead_code)]
     pub new_line: &'static str,
+    #[allow(dead_code)]
     pub login: &'static str,
+    #[allow(dead_code)]
     pub logout: &'static str,
+    #[allow(dead_code)]
     pub refresh: &'static str,
+    #[allow(dead_code)]
     pub delete: &'static str,
+    #[allow(dead_code)]
     pub confirm: &'static str,
+    #[allow(dead_code)]
     pub cancel: &'static str,
 
-    // Status / toasts
+    // Status / toasts (scaffolding)
+    #[allow(dead_code)]
     pub connected: &'static str,
+    #[allow(dead_code)]
     pub disconnected: &'static str,
+    #[allow(dead_code)]
     pub unsaved_changes: &'static str,
 
-    // Help section headers (already used in draw_help)
+    // Help section headers (scaffolding; hardcoded in overlays::draw_help for now)
+    #[allow(dead_code)]
     pub help_chat: &'static str,
+    #[allow(dead_code)]
     pub help_navigation: &'static str,
+    #[allow(dead_code)]
     pub help_list_pages: &'static str,
+    #[allow(dead_code)]
     pub help_general: &'static str,
+
+    // Chat specific (integrated in wave 1/4)
+    pub message_input_title: &'static str,
+    pub new_messages_hint: &'static str,
 }
 
 /// English (default / current only language)
@@ -63,6 +83,9 @@ pub static EN: Strings = Strings {
     help_navigation: "── Navigation ────────────────────",
     help_list_pages: "── List pages ────────────────────",
     help_general: "── General ───────────────────────",
+
+    message_input_title: " Message ",
+    new_messages_hint: "New messages — press Ctrl+G to scroll down",
 };
 
 /// Current strings (for now always EN).

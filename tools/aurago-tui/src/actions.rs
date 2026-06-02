@@ -1,24 +1,14 @@
 //! Action dispatch, loading, execution helpers, and small overlay drawers.
 //! Extracted from main.rs during the 2026-05-18 audit refactor for maintainability.
 
-use std::sync::Arc;
-
-use crossterm::event::KeyEvent;
-use ratatui::{
-    Frame,
-    layout::{Alignment, Margin, Rect},
-    style::{Modifier, Style},
-    text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, Paragraph},
-};
 use tokio::sync::mpsc::UnboundedSender;
 use reqwest::Method;
 
 use crate::api::{ApiClient, auth, types::*};
 use crate::app::{AppState, ConfirmAction, DashTab, MediaTab, Screen, char_len, char_to_byte};
 use crate::events::AppEvent;
-use crate::events::keybindings::{Action, KeyContext, map_key};
-use crate::ui::{theme::Theme, utils::truncate_str};
+use crate::events::keybindings::Action;
+use crate::ui::theme::Theme;
 
 
 
@@ -125,9 +115,10 @@ pub fn dispatch_action(
         }
         Action::ClearChat => {
             let c = client.clone();
-            tokio::spawn(async move {
+            let h = tokio::spawn(async move {
                 let _ = auth::clear_history(&c).await;
             });
+            app.spawn_tracked(h);
             app.chat_messages.clear();
             app.scroll = 0;
         }
@@ -647,52 +638,59 @@ fn load_data_for_screen(app: &mut AppState, client: &ApiClient, tx: &UnboundedSe
             app.dash_loading = true;
             let c = client.clone();
             let t = tx.clone();
-            tokio::spawn(async move {
+            let h = tokio::spawn(async move {
                 let result = auth::fetch_system_info(&c).await.map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::DashboardSystemLoaded(result));
             });
+            app.spawn_tracked(h);
             let c = client.clone();
             let t = tx.clone();
-            tokio::spawn(async move {
+            let h = tokio::spawn(async move {
                 let result = auth::fetch_budget(&c).await.map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::DashboardBudgetLoaded(result));
             });
+            app.spawn_tracked(h);
             let c = client.clone();
             let t = tx.clone();
-            tokio::spawn(async move {
+            let h = tokio::spawn(async move {
                 let result = auth::fetch_overview(&c).await.map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::DashboardOverviewLoaded(result));
             });
+            app.spawn_tracked(h);
             let c = client.clone();
             let t = tx.clone();
-            tokio::spawn(async move {
+            let h = tokio::spawn(async move {
                 let result = auth::fetch_personality_state(&c)
                     .await
                     .map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::DashboardPersonalityLoaded(result));
             });
+            app.spawn_tracked(h);
             let c = client.clone();
             let t = tx.clone();
-            tokio::spawn(async move {
+            let h = tokio::spawn(async move {
                 let result = auth::fetch_logs(&c, 100).await.map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::DashboardLogsLoaded(result));
             });
+            app.spawn_tracked(h);
             let c = client.clone();
             let t = tx.clone();
-            tokio::spawn(async move {
+            let h = tokio::spawn(async move {
                 let result = auth::fetch_activity(&c).await.map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::DashboardActivityLoaded(result));
             });
+            app.spawn_tracked(h);
         }
         Screen::Plans => {
             app.plans_loading = true;
             let c = client.clone();
             let t = tx.clone();
             let sid = app.active_session_id.clone();
-            tokio::spawn(async move {
+            let h = tokio::spawn(async move {
                 let result = auth::fetch_plans(&c, &sid).await.map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::PlansLoaded(result));
             });
+            app.spawn_tracked(h);
         }
         Screen::Missions => {
             app.missions_loading = true;
@@ -968,9 +966,10 @@ pub fn execute_confirmed_action(
         }
         ConfirmAction::ClearChat => {
             let c = client.clone();
-            tokio::spawn(async move {
+            let h = tokio::spawn(async move {
                 let _ = auth::clear_history(&c).await;
             });
+            app.spawn_tracked(h);
             app.chat_messages.clear();
             app.scroll = 0;
         }

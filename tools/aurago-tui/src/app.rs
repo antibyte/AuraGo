@@ -102,7 +102,7 @@ pub struct ChatMessage {
     pub is_thinking: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct AppState {
     // ── Core ──────────────────────────────────────────────────────────────
     pub screen: Screen,
@@ -219,6 +219,10 @@ pub struct AppState {
 
     /// Dummy field for list_selected_mut() default case
     pub _list_dummy: Option<usize>,
+
+    // ── Background task tracking (Wave 2 / P2: abort fire-and-forget spawns on nav/quit) ─
+    /// JoinHandles for cancellable background tasks (loads, deletes, etc.). Not for sse_handle (special cased).
+    pub background_tasks: Vec<tokio::task::JoinHandle<()>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -342,6 +346,7 @@ impl Default for AppState {
             auto_scroll: true,
             confirm_action: None,
             _list_dummy: None,
+            background_tasks: Vec::new(),
         }
     }
 }
@@ -504,11 +509,21 @@ impl AppState {
                 self.toast_anim = 0;
             }
         }
+        // Occasional prune of finished tracked tasks (Wave 2)
+        if self.tick_counter % 10 == 0 {
+            self.prune_finished_tasks();
+        }
     }
 
     // ── Navigation helpers ────────────────────────────────────────────────
 
     pub fn navigate_to(&mut self, screen: Screen) {
+        // Wave 2: abort prior background loads to prevent pile-up on rapid nav (P2)
+        // sse_handle for Chat is managed separately (abort only on explicit session change / logout).
+        self.prune_finished_tasks();
+        if self.screen != screen {
+            self.abort_all_background();
+        }
         self.screen = screen;
         self.nav_bar_index = screen.nav_index();
         self.nav_bar_open = false;
@@ -551,6 +566,25 @@ impl AppState {
             Screen::Media => self.media_items.len(),
             _ => 0,
         }
+    }
+
+    // ── Background task tracking (Wave 2 P2 optimization) ─────────────────
+    /// Spawn a task and track its JoinHandle so it can be aborted on nav/quit.
+    pub fn spawn_tracked(&mut self, handle: tokio::task::JoinHandle<()>) {
+        self.background_tasks.push(handle);
+    }
+
+    /// Abort all tracked background tasks (e.g. on screen nav away from loaders, or quit).
+    /// Does not touch the special sse_handle (managed separately in main.rs).
+    pub fn abort_all_background(&mut self) {
+        for handle in self.background_tasks.drain(..) {
+            handle.abort();
+        }
+    }
+
+    /// Remove finished tasks from the tracker (call periodically or on nav).
+    pub fn prune_finished_tasks(&mut self) {
+        self.background_tasks.retain(|h| !h.is_finished());
     }
 }
 

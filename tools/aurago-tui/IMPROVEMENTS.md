@@ -73,3 +73,14 @@ When adding a feature from this list, please:
 ---
 
 **Last updated**: 2026-05-18 (full audit next-steps + post-audit polish: overlays.rs extraction, color mapper unification, minimal i18n scaffolding)
+
+## Completed in 2026-06 "gehe 1-4 an" Optimization Pass (Waves 1-3 + partial 4)
+- ✅ P0: `cargo clippy -- -D warnings` now 0 errors (was 12 unused imports + dead_code from post-refactor). All files cleaned (actions, main, chat, overlays, i18n).
+- ✅ P2 (item 2): tokio slimmed to exact features needed (no "full"); i18n scaffolding advanced (allows + 2 new fields + 2 strings wired in chat input + hint; 4 were pre-wired in overlays).
+- ✅ P2/P3: Added `background_tasks` tracker + spawn_tracked/abort_all/prune to AppState; wired into navigate_to + tick + 7+ dashboard loads + clear chat + samples in actions. Nav aborts prior loaders (prevents pile-up on rapid switch).
+- ✅ P1: Chat `draw_messages` now slices to viewport tail + buffer (start_idx via saturating) + full_logical for scrollbar. lines built + clone now O(viewport) not O(all history). Common live-chat-at-bottom case no longer rebuilds 1000s msgs every 100ms tick. Preserves wrap/stream/auto/unicode/scroll/indicator.
+- ✅ P3: Import clean + new methods + tracker calls gave measurable hygiene win in main/actions (less noise); no forced large extract this pass (risk low, delta controlled per plan — main still contains run_app/event loop as expected).
+- ✅ All waves: rtk cargo check/clippy -D/test passed after batches. 5 existing tests + logic intact. Disposable notes + this entry created.
+- ✅ GitNexus impacts + GSD (plan.md + todos + enter/exit) + rtk + disposable rule followed before/during.
+
+**Last updated**: 2026-06-02 (1-4 pass per user request; see .grok/.../plan.md and disposable/aurago-tui-wave*-*.md for details)
