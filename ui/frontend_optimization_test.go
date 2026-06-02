@@ -619,6 +619,35 @@ func TestDesktopModuleLoaderUsesBuiltBundlesWithoutEval(t *testing.T) {
 	}
 }
 
+func TestFileManagerBundleKeepsRenderComponentsInsideCoreScope(t *testing.T) {
+	t.Parallel()
+
+	buildScript := readEmbeddedRepoText(t, "../scripts/build-ui-bundles.js")
+	bundle := readEmbeddedText(t, "js/desktop/bundles/file-manager.bundle.js")
+	corePart := "ui/js/desktop/file-manager/core-render.js"
+	componentsPart := "ui/js/desktop/file-manager/core-render-components.js"
+	coreMarker := "/* " + corePart + " */"
+	componentsMarker := "/* " + componentsPart + " */"
+
+	coreBuildIndex := strings.Index(buildScript, corePart)
+	componentsBuildIndex := strings.Index(buildScript, componentsPart)
+	if coreBuildIndex < 0 || componentsBuildIndex < 0 {
+		t.Fatalf("UI build script missing file-manager split parts: core=%d components=%d", coreBuildIndex, componentsBuildIndex)
+	}
+	if coreBuildIndex > componentsBuildIndex {
+		t.Fatal("file-manager core-render.js must load before core-render-components.js so render helpers share the fm closure")
+	}
+
+	coreBundleIndex := strings.Index(bundle, coreMarker)
+	componentsBundleIndex := strings.Index(bundle, componentsMarker)
+	if coreBundleIndex < 0 || componentsBundleIndex < 0 {
+		t.Fatalf("file-manager bundle missing split markers: core=%d components=%d", coreBundleIndex, componentsBundleIndex)
+	}
+	if coreBundleIndex > componentsBundleIndex {
+		t.Fatal("file-manager bundle must keep render components inside the core-render.js closure")
+	}
+}
+
 func TestDesktopAppAssetsRegistryCoversHeavyApps(t *testing.T) {
 	t.Parallel()
 
