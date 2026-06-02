@@ -136,6 +136,16 @@
     animation: galaxa-supernova-flash 0.3s ease-out;
 }
 
+.galaxa-powerup-levelskip .galaxa-canvas {
+    box-shadow: 0 0 30px rgba(255, 136, 255, 0.4), 0 0 60px rgba(255, 136, 255, 0.2);
+    animation: galaxa-levelskip-flash 0.4s ease-out;
+}
+
+@keyframes galaxa-levelskip-flash {
+    from { filter: brightness(1.8) hue-rotate(20deg); }
+    to { filter: brightness(1); }
+}
+
 @keyframes galaxa-supernova-flash {
     from { filter: brightness(2); }
     to { filter: brightness(1); }

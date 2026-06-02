@@ -3,12 +3,12 @@
     const W = 480, H = 640, PLAYER_SPEED = 220, PB_SPEED = 500, EB_SPEED = 260;
     const FCOLS = 10, FROWS = 5, ESP_X = 36, ESP_Y = 32, FTOP = 60, DIVE_SPD = 180;
     const EXTRA_LIFE = 20000, TITLE_IDLE = 15000;
-const PU_TYPES = ['rapid', 'spread', 'shield', 'bomb', 'speed', 'magnet', 'laser', 'multibomb', 'timeslow', 'pierce', 'homing', 'supernova', 'freeze'];
-        const PU_COL = { rapid: '#00ffcc', spread: '#ff6600', shield: '#4488ff', bomb: '#ff4444', speed: '#ffee00', magnet: '#ff44ff', laser: '#eeeeff', multibomb: '#cc2222', timeslow: '#aa44ff', pierce: '#88ffaa', homing: '#ff88aa', supernova: '#ffffff', freeze: '#88eeff' };
+const PU_TYPES = ['rapid', 'spread', 'shield', 'bomb', 'speed', 'magnet', 'laser', 'multibomb', 'timeslow', 'pierce', 'homing', 'supernova', 'freeze', 'levelskip'];
+        const PU_COL = { rapid: '#00ffcc', spread: '#ff6600', shield: '#4488ff', bomb: '#ff4444', speed: '#ffee00', magnet: '#ff44ff', laser: '#eeeeff', multibomb: '#cc2222', timeslow: '#aa44ff', pierce: '#88ffaa', homing: '#ff88aa', supernova: '#ffffff', freeze: '#88eeff', levelskip: '#ff88ff' };
         const PU_DUR = { rapid: 8000, spread: 10000, speed: 6000, magnet: 8000, laser: 5000, timeslow: 4000, pierce: 6000, homing: 0, freeze: 4000 };
         const PU_UPGRADE = { rapid: 'ultra_rapid', spread: 'mega_spread', speed: 'hyper_speed', magnet: 'super_magnet', laser: 'mega_laser', pierce: 'mega_pierce' };
         const PU_UPGRADE_COL = { ultra_rapid: '#00ffee', mega_spread: '#ff8800', hyper_speed: '#ffff44', super_magnet: '#ff88ff', mega_laser: '#ccddff', mega_pierce: '#aaffcc' };
-        const PU_TRAIL_COL = { rapid: '0,255,204', ultra_rapid: '0,255,238', spread: '255,102,0', mega_spread: '255,136,0', shield: '68,136,255', speed: '255,238,0', hyper_speed: '255,255,68', magnet: '255,68,255', super_magnet: '255,136,255', laser: '180,200,255', mega_laser: '160,180,255', timeslow: '170,68,255', pierce: '136,255,170', mega_pierce: '170,255,204', homing: '255,136,170', freeze: '136,238,255' };
+        const PU_TRAIL_COL = { rapid: '0,255,204', ultra_rapid: '0,255,238', spread: '255,102,0', mega_spread: '255,136,0', shield: '68,136,255', speed: '255,238,0', hyper_speed: '255,255,68', magnet: '255,68,255', super_magnet: '255,136,255', laser: '180,200,255', mega_laser: '160,180,255', timeslow: '170,68,255', pierce: '136,255,170', mega_pierce: '170,255,204', homing: '255,136,170', freeze: '136,238,255', levelskip: '255,136,255' };
     const COMBO_TIMEOUT = 2000;
     const COMBO_THRESH = [2, 3, 5, 8];
     const COMBO_MULT = [1, 2, 4, 4, 8];
@@ -69,7 +69,7 @@ const PU_TYPES = ['rapid', 'spread', 'shield', 'bomb', 'speed', 'magnet', 'laser
             timeScale: 1, timeSlowTimer: 0,
             bossWarningT: 0, bossWarningShown: false,
             weaponLv: 1, killCount: 0, puUpgrade: null, upgradeBanner: null,
-            slowMoT: 0, chromAb: 0, displayScore: 0, shipTilt: 0, muzzleT: 0, deathParts: [],
+            slowMoT: 0, chromAb: 0, displayScore: 0, shipTilt: 0, muzzleT: 0, deathParts: [], pendingBooms: [], levelSkipTimer: 0,
             beatPhase: 0, beatT: 0, plasmaRings: [], titleParts: [],
             inp: { l: false, r: false, f: false, fp: false, s: false, sp: false, p: false, pp: false, u: false, d: false, rp: false, lp: false, up: false, dp: false },
             kb: { l: false, r: false, u: false, d: false, f: false, s: false, p: false },
@@ -524,15 +524,7 @@ themes: {
 
         function drawSp(cv, sp, cols, x, y, flash) {
             const pixels = getPixelSprite(sp, cols, flash);
-            if (pixels) {
-                drawPixelSprite(cv, pixels, x, y);
-                return;
-            }
-            for (let r = 0; r < sp.length; r++) for (let cl = 0; cl < sp[r].length; cl++) {
-                const v = sp[r][cl]; if (!v) continue;
-                cv.fillStyle = flash ? '#fff' : (cols[v] || '#fff');
-                cv.fillRect(Math.floor(x + cl), Math.floor(y + r), 1, 1);
-            }
+            if (pixels) drawPixelSprite(cv, pixels, x, y);
         }
         let _rcTick = -1, _rcCache = null;
         function rainbowPC() {
@@ -789,7 +781,7 @@ themes: {
         }
 
         function startStage() {
-            G.st = 'STAGE_INTRO'; G.sTmr = 2000; G.bul = []; G.ebul = []; G.exp = []; G.part = [];
+            G.st = 'STAGE_INTRO'; G.sTmr = 2000; G.bul = []; G.ebul = []; G.exp = []; G.part = []; G.pendingBooms = []; G.levelSkipTimer = 0;
             G.beam = null; G.powerups = []; G.activePU = null; G.puTimer = 0; G.shieldHits = 0;
             G.scorePopups = []; G.warpT = 0; G.warpFlash = 0; G.perfectT = 0;
             G.combo = 0; G.comboTimer = 0; G.comboMult = 1; G.comboBanner = null;
@@ -908,7 +900,7 @@ themes: {
             }
             if (isBoss) {
                 for (let i = 0; i < 6; i++) {
-                    setTimeout(() => { if (!state.disposed) boom(x + (Math.random() - 0.5) * 50, y + (Math.random() - 0.5) * 40, false); }, i * 100);
+                    G.pendingBooms.push({ x: x + (Math.random() - 0.5) * 50, y: y + (Math.random() - 0.5) * 40, isBoss: false, delay: i * 100 });
                 }
                 G.plasmaRings.push({ x, y, r: 0, maxR: 140, t: 0, dur: 800, col: '#ff4444' });
                 G.plasmaRings.push({ x, y, r: 0, maxR: 100, t: 0, dur: 550, col: '#ff8800' });
@@ -959,7 +951,9 @@ themes: {
         function dropPU(e) {
             const chance = e.type === 'miniboss' ? 1 : (e.type === 'boss' ? 0.35 : (e.type === 'bee' && !diffMod('puFromBee') ? 0 : 0.12));
             if (Math.random() < chance) {
-                const type = PU_TYPES[Math.floor(Math.random() * PU_TYPES.length)];
+                let type = PU_TYPES[Math.floor(Math.random() * PU_TYPES.length)];
+                if (type === 'levelskip' && (e.type !== 'boss' && e.type !== 'miniboss')) type = 'rapid';
+                if (type === 'levelskip' && Math.random() > 0.05) type = PU_TYPES[Math.floor(Math.random() * (PU_TYPES.length - 1))];
                 G.powerups.push({ x: e.x, y: e.y, type, t: 0 });
             }
         }
@@ -992,6 +986,25 @@ themes: {
                     }
                 }
                 G.flashT = 30; return;
+            }
+            if (pu.type === 'levelskip') {
+                SFX.supernova(pu.x);
+                let delay = 0;
+                for (const e of G.enemies) {
+                    if (e.st !== 'DEAD') {
+                        const pts = PTS[e.type] ? PTS[e.type][0] : 200;
+                        addScore(pts + 200, e.x, e.y, '#ff88ff');
+                        G.pendingBooms.push({ x: e.x, y: e.y, isBoss: e.type === 'boss' || e.type === 'miniboss', delay });
+                        e.st = 'DEAD';
+                        delay += 120;
+                    }
+                }
+                for (let i = G.ebul.length - 1; i >= 0; i--) bulletImpact(G.ebul[i].x, G.ebul[i].y, '#ff88ff');
+                G.ebul = [];
+                G.levelSkipTimer = delay + 800;
+                G.flashT = 200; G.shkT = 300; G.shkM = 6;
+                G.activePU = null; G.puTimer = 0; setPUClass(null);
+                return;
             }
             const isUpgradeable = PU_UPGRADE[pu.type];
             const isSameType = G.activePU && G.activePU.type === pu.type;
@@ -1186,7 +1199,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             G.dTmr -= dtMs;
             if (G.dTmr <= 0 && !G.chal) { const fe = G.enemies.filter(e => e.st === 'FORM'); if (fe.length) startDive(fe[Math.floor(Math.random() * fe.length)]); G.dTmr = Math.max(500, (2000 - G.stage * 100) / diffMod('diveRate')); }
             const alive = G.enemies.filter(e => e.st !== 'DEAD');
-            if (alive.length === 0) {
+            if (alive.length === 0 && G.levelSkipTimer <= 0) {
                 if (G.st === 'GAME_OVER') return;
                 if (G.chal && G.chalHits === G.chalTot) { G.perfectT = 2000; addScore(5000, W / 2, H / 2 - 40, '#00ffcc'); SFX.perfect(); }
                 G.warpT = 1500; G.warpFlash = 50; G.stage++;
@@ -1206,7 +1219,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             for (let i = 0; i < G.exp.length; i++) { const ex = G.exp[i]; ex.t += dtMs; if (ex.t < ex.dur) G.exp[elen++] = ex; }
             G.exp.length = elen;
             // Cap particle count to prevent runaway allocations
-            if (G.part.length > 200) G.part.length = 200;
+            if (G.part.length > 150) G.part.length = 150;
             let plen = 0;
             for (let i = 0; i < G.part.length; i++) {
                 const p = G.part[i];
@@ -1240,6 +1253,21 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             let prlen = 0;
             for (let i = 0; i < G.plasmaRings.length; i++) { const _pr = G.plasmaRings[i]; _pr.t += dtMs; _pr.r = (_pr.t / _pr.dur) * _pr.maxR; if (_pr.t < _pr.dur) G.plasmaRings[prlen++] = _pr; }
             G.plasmaRings.length = prlen;
+            let bmlen = 0;
+            for (let i = 0; i < G.pendingBooms.length; i++) {
+                const bm = G.pendingBooms[i]; bm.delay -= dtMs;
+                if (bm.delay <= 0) { boom(bm.x, bm.y, bm.isBoss); } else { G.pendingBooms[bmlen++] = bm; }
+            }
+            G.pendingBooms.length = bmlen;
+            if (G.levelSkipTimer > 0) {
+                G.levelSkipTimer -= dtMs;
+                if (G.levelSkipTimer <= 0 && G.st === 'PLAYING') {
+                    G.levelSkipTimer = 0;
+                    G.warpT = 1500; G.warpFlash = 50; G.stage++;
+                    SFX.warpJump(); if (!G.chal) { MusicEngine.play('victory'); setTimeout(() => { if (!state.disposed && MusicEngine.playing === 'victory') MusicEngine.play('gameplay'); }, 3500); }
+                    startStage();
+                }
+            }
             const inp2 = G.inp;
             if (inp2.l) G.shipTilt = Math.max(-0.15, G.shipTilt - dt * 2);
             else if (inp2.r) G.shipTilt = Math.min(0.15, G.shipTilt + dt * 2);
@@ -1389,6 +1417,10 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             }
             if (G.warpFlash > 0) { c.fillStyle = 'rgba(255,255,255,' + (G.warpFlash / 50) + ')'; c.fillRect(0, 0, W, H); }
             if (G.flashT > 0) { c.fillStyle = 'rgba(255,255,255,' + (G.flashT > 30 ? 0.5 : G.flashT / 60) + ')'; c.fillRect(0, 0, W, H); }
+            if (G.levelSkipTimer > 0) {
+                const _lsA = Math.min(1, G.levelSkipTimer / 500) * 0.15;
+                c.fillStyle = 'rgba(255,136,255,' + _lsA + ')'; c.fillRect(0, 0, W, H);
+            }
             if (G.st === 'TITLE' && !G.attract) renderTitle();
             else if (G.st === 'STAGE_INTRO') renderStageIntro();
             else if (G.st === 'SETTINGS') renderSettings();
@@ -1688,6 +1720,11 @@ if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === '
                     for (let i2 = 0; i2 < 6; i2++) { const a2 = i2 * Math.PI / 3; c.moveTo(0, 0); c.lineTo(Math.round(Math.cos(a2) * 5), Math.round(Math.sin(a2) * 5)); }
                     c.stroke();
                 }
+                else if (pu.type === 'levelskip') {
+                    c.strokeStyle = PU_COL.levelskip; c.fillStyle = PU_COL.levelskip; c.lineWidth = 1;
+                    c.beginPath(); c.moveTo(-3, -4); c.lineTo(1, 0); c.lineTo(-3, 4); c.closePath(); c.fill();
+                    c.beginPath(); c.moveTo(1, -4); c.lineTo(5, 0); c.lineTo(1, 4); c.closePath(); c.fill();
+                }
                 else { for (let i2 = 0; i2 < 5; i2++) { const a2 = i2 * 1.26; c.fillRect(Math.floor(Math.cos(a2) * 4), Math.floor(Math.sin(a2) * 4), 2, 2); } }
                 c.restore();
                 c.shadowBlur = 0;
@@ -1735,23 +1772,20 @@ if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === '
             }
             for (const pt of G.part) {
                 const alpha = Math.max(0, 1 - pt.t / pt.life);
-                c.globalAlpha = alpha;
-                if (pt.spark) {
-                    c.shadowBlur = 4; c.shadowColor = pt.col;
-                    c.fillStyle = pt.col; c.fillRect(Math.floor(pt.x), Math.floor(pt.y), 1, 1);
-                    c.shadowBlur = 0;
+                if (pt.smoke) {
+                    c.globalAlpha = alpha * 0.35; c.fillStyle = pt.col;
+                    c.fillRect(Math.floor(pt.x), Math.floor(pt.y), pt.size || 3, pt.size || 3);
                 } else if (pt.debris) {
+                    c.globalAlpha = alpha;
                     c.save(); c.translate(pt.x, pt.y); c.rotate(pt.rot);
                     c.fillStyle = pt.col; c.fillRect(-pt.size / 2, -pt.size / 2, pt.size, pt.size);
                     c.restore();
-                } else if (pt.smoke) {
-                    c.globalAlpha = alpha * 0.35; c.fillStyle = pt.col;
-                    c.fillRect(Math.floor(pt.x), Math.floor(pt.y), pt.size || 3, pt.size || 3);
+                } else if (pt.spark) {
+                    c.globalAlpha = alpha; c.fillStyle = pt.col; c.fillRect(Math.floor(pt.x), Math.floor(pt.y), 1, 1);
                 } else {
-                    c.fillStyle = pt.col;
-                    if (pt.size >= 3) { c.shadowBlur = 6; c.shadowColor = pt.col; }
-                    c.fillRect(Math.floor(pt.x), Math.floor(pt.y), pt.size || 2, pt.size || 2);
-                    c.shadowBlur = 0;
+                    c.globalAlpha = alpha; c.fillStyle = pt.col;
+                    if (pt.size >= 3) { c.shadowBlur = 6; c.shadowColor = pt.col; c.fillRect(Math.floor(pt.x), Math.floor(pt.y), pt.size || 2, pt.size || 2); c.shadowBlur = 0; }
+                    else c.fillRect(Math.floor(pt.x), Math.floor(pt.y), pt.size || 2, pt.size || 2);
                 }
             } c.globalAlpha = 1;
             for (const sp of G.scorePopups) {
@@ -2041,7 +2075,7 @@ if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === '
         loadHS().then(() => { showTitle(); rafId = requestAnimationFrame(loop); });
 
         state.dispose = function () {
-            state.disposed = true; cancelAnimationFrame(rafId); MusicEngine.stop();
+            state.disposed = true; cancelAnimationFrame(rafId); MusicEngine.stop(); G.pendingBooms = []; G.levelSkipTimer = 0;
             document.removeEventListener('keydown', onKey); document.removeEventListener('keyup', onKeyUp);
             ro.disconnect(); radialGradientCache.clear(); if (actx) try { actx.close(); } catch (e) {}
             setPUClass(null); wrapEl.classList.remove('galaxa-boss-warning');
