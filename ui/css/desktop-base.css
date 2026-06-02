@@ -407,6 +407,46 @@
     background: var(--vd-control-hover);
 }
 
+.desktop-body[data-theme="light"] {
+    --ds-color-fg-primary: #1f2937;
+    --ds-color-fg-secondary: #374151;
+    --ds-color-fg-muted: #64748b;
+    --ds-color-fg-disabled: #9ca3af;
+
+    --ds-color-bg-canvas: #edf2f7;
+    --ds-color-bg-raised: #f4f7fb;
+    --ds-color-bg-overlay: #ffffff;
+    --ds-color-bg-modal: #ffffff;
+
+    --ds-color-surface-0: #edf2f7;
+    --ds-color-surface-1: rgba(255, 255, 255, 0.78);
+    --ds-color-surface-2: rgba(255, 255, 255, 0.92);
+    --ds-color-surface-3: rgba(255, 255, 255, 0.98);
+
+    --ds-color-border-subtle: rgba(57, 72, 93, 0.14);
+    --ds-color-border-default: rgba(57, 72, 93, 0.22);
+    --ds-color-border-strong: rgba(57, 72, 93, 0.32);
+    --ds-color-border-focus: #0f8f7a;
+
+    --ds-color-accent-500: #0f8f7a;
+    --ds-color-accent-600: #0c7a68;
+    --ds-color-accent-glow: rgba(15, 143, 122, 0.12);
+
+    --ds-color-control-bg: rgba(255, 255, 255, 0.66);
+    --ds-color-control-hover: rgba(15, 143, 122, 0.12);
+    --ds-color-control-active: rgba(15, 143, 122, 0.2);
+    --ds-color-inner-highlight: rgba(255, 255, 255, 0.7);
+
+    --ds-elevation-1: 0 1px 2px rgba(31, 41, 55, 0.08);
+    --ds-elevation-2: 0 4px 12px rgba(31, 41, 55, 0.1);
+    --ds-elevation-3: 0 12px 28px rgba(31, 41, 55, 0.12);
+    --ds-elevation-4: 0 24px 56px rgba(31, 41, 55, 0.16);
+    --ds-elevation-5: 0 32px 80px rgba(31, 41, 55, 0.2);
+
+    --ds-blur-fine: blur(20px) saturate(1.3);
+    --ds-blur-coarse: blur(8px) saturate(1.1);
+}
+
 .desktop-body[data-theme="fruity"] {
     color-scheme: light;
     --vd-bg: #f4f8fc;
