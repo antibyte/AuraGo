@@ -49,11 +49,11 @@ func TestDesktopCSSCarriesFinalFruityWindowControlOverride(t *testing.T) {
 		"justify-content: center !important;",
 		".desktop-body[data-theme=\"fruity\"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-actions",
 		"left: 14px !important;",
-		"right: auto !important;",
+		"right: 14px !important;",
 		"justify-self: start !important;",
-		"grid-column: 1 !important;",
-		"position: static !important;",
-		"transform: none !important;",
+		"top: 24px !important;",
+		"position: absolute !important;",
+		"transform: translateY(-50%) !important;",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("desktop.css missing final Fruity window control override marker %q", want)

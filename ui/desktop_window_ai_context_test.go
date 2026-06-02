@@ -59,6 +59,9 @@ func TestDesktopWindowAIContextAssets(t *testing.T) {
 	for _, marker := range []string{
 		`.vd-window-button[data-action="ai-context"]::before`,
 		`.vd-window-ai-button-icon`,
+		`.desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button`,
+		`margin-left: auto;`,
+		`order: 20;`,
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("desktop window AI context CSS missing marker %q", marker)

@@ -125,7 +125,7 @@ func TestDesktopFruityWindowControlsStayOnLeft(t *testing.T) {
 		{
 			name:     "window controls",
 			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window .vd-window-actions",
-			wants:    []string{"position: absolute;", "left: 14px;", "transform: translateY(-50%);"},
+			wants:    []string{"position: absolute;", "left: 14px;", "right: 14px;", "transform: translateY(-50%);"},
 		},
 		{
 			name:     "menu window controls",
@@ -151,6 +151,11 @@ func TestDesktopFruityWindowControlsStayOnLeft(t *testing.T) {
 			name:     "maximize dot order",
 			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window-button[data-action=\"maximize\"]",
 			wants:    []string{"order: 3;", "background: var(--fruity-window-maximize);"},
+		},
+		{
+			name:     "agent chat button stays right",
+			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window .vd-window-ai-button",
+			wants:    []string{"margin-left: auto;", "order: 20;"},
 		},
 	} {
 		body := cssRuleBodyInFruityThemeTest(t, cssText, check.selector)

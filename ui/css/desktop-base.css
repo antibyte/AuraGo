@@ -653,6 +653,7 @@
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-actions {
     position: absolute;
     left: 14px;
+    right: 14px;
     top: 50%;
     z-index: 4;
     transform: translateY(-50%);
@@ -687,6 +688,11 @@
     z-index: 4;
     transform: translateY(-50%);
     gap: 8px;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button {
+    margin-left: auto;
+    order: 20;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-button,
