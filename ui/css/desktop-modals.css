@@ -128,24 +128,21 @@
     inset: 0;
     display: grid;
     place-items: center;
-    background: rgba(4, 7, 12, 0.64);
-    backdrop-filter: blur(12px) saturate(120%);
-    -webkit-backdrop-filter: blur(12px) saturate(120%);
-    z-index: var(--vd-z-modal);
+    background: rgba(8, 12, 22, 0.6);
+    backdrop-filter: var(--ds-blur-coarse);
+    -webkit-backdrop-filter: var(--ds-blur-coarse);
+    z-index: var(--ds-z-modal);
 }
 
 .vd-modal {
     width: min(420px, calc(100vw - 32px));
-    padding: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    background: rgba(12, 16, 26, 0.92);
-    box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.05) inset,
-        0 32px 80px rgba(0, 0, 0, 0.52),
-        0 8px 24px rgba(0, 0, 0, 0.32);
-    backdrop-filter: blur(44px) saturate(160%);
-    -webkit-backdrop-filter: blur(44px) saturate(160%);
+    padding: var(--ds-space-5);
+    border: 1px solid var(--ds-color-border-default);
+    border-radius: var(--ds-radius-xl);
+    background: var(--ds-color-surface-3);
+    box-shadow: var(--ds-elevation-5);
+    backdrop-filter: var(--ds-blur-fine);
+    -webkit-backdrop-filter: var(--ds-blur-fine);
 }
 
 .vd-modal-title {
