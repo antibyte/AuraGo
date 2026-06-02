@@ -3310,7 +3310,7 @@
     position: absolute;
     min-height: 56px;
     padding: 10px;
-    border-radius: 12px;
+    border-radius: var(--ds-radius-md);
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: rgba(10, 14, 22, 0.68);
     backdrop-filter: blur(32px) saturate(140%);
@@ -3392,13 +3392,13 @@
 }
 
 .vd-widget-kind {
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-size: 0.68rem;
     text-transform: uppercase;
 }
 
 .vd-widget-body {
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-size: 0.78rem;
     line-height: 1.5;
 }
@@ -3459,7 +3459,7 @@
 
 .vd-quickchat-response {
     flex: 1;
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-size: 0.72rem;
     line-height: 1.4;
     overflow: hidden;
@@ -3470,7 +3470,7 @@
 
 .vd-quickchat-response.vd-quickchat-active {
     opacity: 1;
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
 }
 
 .vd-quickchat-form {
@@ -3483,10 +3483,10 @@
     flex: 1;
     height: 28px;
     padding: 0 8px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 6px;
     background: rgba(0, 0, 0, 0.24);
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     font: inherit;
     font-size: 0.72rem;
     min-width: 0;
@@ -3498,7 +3498,7 @@
     justify-content: center;
     width: 28px;
     height: 28px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 6px;
     background: rgba(39, 199, 166, 0.15);
     color: var(--vd-accent);
@@ -3521,10 +3521,10 @@
     display: flex;
     flex-direction: column;
     padding: 0;
-    border: 1px solid var(--vd-border);
-    border-radius: 12px;
-    background: var(--vd-surface-strong);
-    box-shadow: var(--vd-shadow);
+    border: 1px solid var(--ds-color-border-subtle);
+    border-radius: var(--ds-radius-md);
+    background: var(--ds-color-surface-2);
+    box-shadow: var(--ds-elevation-2);
     overflow: hidden;
 }
 
@@ -3537,7 +3537,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 14px 18px;
-    border-bottom: 1px solid var(--vd-border);
+    border-bottom: 1px solid var(--ds-color-border-subtle);
     position: relative;
 }
 
@@ -3551,7 +3551,7 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--ds-space-2);
 }
 
 .vd-wm-card {
@@ -3559,7 +3559,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 10px 12px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.12);
     gap: 10px;
@@ -3612,7 +3612,7 @@
 
 .vd-wm-badge-off {
     background: rgba(255, 255, 255, 0.08);
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
 }
 
 .vd-wm-badge-builtin {
@@ -3644,10 +3644,10 @@
 
 .vd-wm-btn {
     padding: 4px 10px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 6px;
     background: transparent;
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font: inherit;
     font-size: 0.7rem;
     cursor: pointer;
@@ -3656,7 +3656,7 @@
 
 .vd-wm-btn:hover {
     background: rgba(255, 255, 255, 0.06);
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
 }
 
 .vd-wm-btn-add {
@@ -3700,9 +3700,9 @@
     width: min(360px, calc(100vw - 32px));
     height: 100vh;
     z-index: var(--vd-z-modal);
-    background: var(--vd-surface-strong);
-    border-left: 1px solid var(--vd-border);
-    box-shadow: var(--vd-shadow);
+    background: var(--ds-color-surface-2);
+    border-left: 1px solid var(--ds-color-border-subtle);
+    box-shadow: var(--ds-elevation-2);
     transform: translateX(100%);
     transition: transform 200ms ease;
     overflow-y: auto;
@@ -3726,8 +3726,8 @@
 
 .vd-widget-drawer-title {
     font-weight: 800;
-    font-size: 14px;
-    color: var(--vd-text);
+    font-size: var(--ds-type-size-md);
+    color: var(--ds-color-fg-primary);
     margin-bottom: 12px;
 }
 
@@ -3742,10 +3742,10 @@
         height: 44px;
         align-items: center;
         justify-content: center;
-        border: 1px solid var(--vd-border);
+        border: 1px solid var(--ds-color-border-subtle);
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.06);
-        color: var(--vd-muted);
+        color: var(--ds-color-fg-muted);
         cursor: pointer;
         font-size: 18px;
         padding: 0;
@@ -3753,7 +3753,7 @@
 
     .vd-taskbar-widget-btn:hover {
         background: rgba(255, 255, 255, 0.12);
-        color: var(--vd-text);
+        color: var(--ds-color-fg-primary);
     }
 }
 
@@ -3788,7 +3788,7 @@
 .vd-weather-location-name {
     font-size: 0.72rem;
     font-weight: 700;
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     letter-spacing: 0.015em;
     white-space: nowrap;
     overflow: hidden;
@@ -3805,10 +3805,10 @@
     justify-content: center;
     width: 22px;
     height: 22px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 5px;
     background: rgba(255, 255, 255, 0.05);
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     cursor: pointer;
     font-size: 0.62rem;
     padding: 0;
@@ -3821,7 +3821,7 @@
 .vd-weather-edit-btn:hover,
 .vd-weather-geo-btn:hover {
     background: rgba(255, 255, 255, 0.11);
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     border-color: rgba(255, 255, 255, 0.22);
 }
 
@@ -3840,10 +3840,10 @@
     flex: 1;
     height: 26px;
     padding: 0 8px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 5px;
     background: rgba(0, 0, 0, 0.28);
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     font: inherit;
     font-size: 0.67rem;
     min-width: 0;
@@ -3857,7 +3857,7 @@
 }
 
 .vd-weather-search-input::placeholder {
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     opacity: 0.55;
 }
 
@@ -3898,7 +3898,7 @@
     border: 1px solid transparent;
     border-radius: 4px;
     background: transparent;
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     font: inherit;
     font-size: 0.65rem;
     cursor: pointer;
@@ -3912,7 +3912,7 @@
 
 .vd-weather-suggestion:hover {
     background: rgba(255, 255, 255, 0.08);
-    border-color: var(--vd-border);
+    border-color: var(--ds-color-border-subtle);
 }
 
 .vd-weather-main {
@@ -3944,7 +3944,7 @@
     font-size: 2.4rem;
     font-weight: 900;
     line-height: 1;
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     letter-spacing: -0.025em;
     font-variant-numeric: tabular-nums;
 }
@@ -3952,7 +3952,7 @@
 .vd-weather-condition {
     font-size: 0.7rem;
     font-weight: 600;
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     margin-top: 1px;
 }
 
@@ -3962,7 +3962,7 @@
     gap: 7px 10px;
     margin-top: 5px;
     font-size: 0.62rem;
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
 }
 
 .vd-weather-meta-item {
@@ -4007,7 +4007,7 @@
 .vd-weather-day-name {
     font-size: 0.56rem;
     font-weight: 700;
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     opacity: 0.85;
@@ -4030,19 +4030,19 @@
 .vd-weather-day-temp-high {
     font-size: 0.63rem;
     font-weight: 750;
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     line-height: 1.1;
 }
 
 .vd-weather-day-temp-low {
     font-size: 0.57rem;
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     opacity: 0.68;
     line-height: 1.1;
 }
 
 .vd-weather-loading {
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-size: 0.72rem;
     opacity: 0.65;
     margin-top: 2px;
@@ -4061,7 +4061,7 @@
     right: 12px;
     bottom: 6px;
     font-size: 0.52rem;
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     opacity: 0;
     letter-spacing: 0.02em;
     font-variant-numeric: tabular-nums;
@@ -4095,8 +4095,33 @@
 }
 
 .vd-weather-suggestions::-webkit-scrollbar-thumb {
-    background: var(--vd-border);
+    background: var(--ds-color-border-subtle);
     border-radius: 2px;
+}
+
+/* === Widget frame token polish (Phase 4) === */
+.vd-widget {
+    background: var(--ds-color-surface-2);
+    border: 1px solid var(--ds-color-border-subtle);
+    border-radius: var(--ds-radius-lg);
+    box-shadow: var(--ds-elevation-2);
+    backdrop-filter: var(--ds-blur-fine);
+    -webkit-backdrop-filter: var(--ds-blur-fine);
+    transition: box-shadow var(--ds-motion-duration-base) var(--ds-motion-ease-standard);
+}
+
+.vd-widget:hover {
+    box-shadow: var(--ds-elevation-3);
+}
+
+.vd-widget-frame {
+    padding: var(--ds-space-3) var(--ds-space-4);
+}
+
+.vd-widget-title {
+    font-size: var(--ds-type-size-md);
+    font-weight: var(--ds-type-weight-semibold);
+    color: var(--ds-color-fg-primary);
 }
 
 /* ui/css/desktop-modals.css */
