@@ -749,13 +749,7 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button::before {
-    content: "AI";
-    display: block;
-    width: auto;
-    height: auto;
-    margin: 0;
-    border-radius: 0;
-    background: none;
+    display: none;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button:hover {
@@ -769,7 +763,7 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button-icon {
-    display: none;
+    display: block;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-button[data-action="close"],

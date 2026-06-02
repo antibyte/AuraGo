@@ -1519,6 +1519,87 @@ func TestServiceDeleteAppRemovesGeneratedAppVisibility(t *testing.T) {
 	}
 }
 
+func TestServiceInitMigratesStoreAppsBackIntoDockOnce(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	root := filepath.Join(t.TempDir(), "workspace")
+	dbPath := filepath.Join(t.TempDir(), "desktop.db")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("create workspace: %v", err)
+	}
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	for _, stmt := range []string{
+		`CREATE TABLE desktop_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+		`CREATE TABLE desktop_apps (id TEXT PRIMARY KEY, name TEXT NOT NULL, version TEXT NOT NULL, icon TEXT NOT NULL, entry TEXT NOT NULL, manifest_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE desktop_app_visibility (app_id TEXT PRIMARY KEY, dock_visible INTEGER NOT NULL DEFAULT 1, start_visible INTEGER NOT NULL DEFAULT 1, updated_at TEXT NOT NULL)`,
+	} {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("seed schema: %v", err)
+		}
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	manifestJSON := `{"id":"store-n8n","name":"n8n","version":"1.0.0","icon":"workflow","entry":"index.html","runtime":"container_web_app","metadata":{"store_app_id":"n8n"}}`
+	if _, err := db.ExecContext(ctx, `INSERT INTO desktop_apps(id, name, version, icon, entry, manifest_json, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`, "store-n8n", "n8n", "1.0.0", "workflow", "index.html", manifestJSON, now, now); err != nil {
+		t.Fatalf("seed store app: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO desktop_app_visibility(app_id, dock_visible, start_visible, updated_at) VALUES(?, 0, 1, ?)`, "store-n8n", now); err != nil {
+		t.Fatalf("seed hidden visibility: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close seed db: %v", err)
+	}
+
+	svc, err := NewService(Config{
+		Enabled:            true,
+		WorkspaceDir:       root,
+		DBPath:             dbPath,
+		MaxFileSizeMB:      1,
+		AllowGeneratedApps: true,
+	})
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	t.Cleanup(func() { _ = svc.Close() })
+	if err := svc.Init(ctx); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+
+	svc.mu.Lock()
+	liveDB := svc.db
+	svc.mu.Unlock()
+	var dockVisible int
+	if err := liveDB.QueryRowContext(ctx, `SELECT dock_visible FROM desktop_app_visibility WHERE app_id = ?`, "store-n8n").Scan(&dockVisible); err != nil {
+		t.Fatalf("read migrated visibility: %v", err)
+	}
+	if dockVisible != 1 {
+		t.Fatalf("store app dock visibility = %d, want migrated visible", dockVisible)
+	}
+	var migrated string
+	if err := liveDB.QueryRowContext(ctx, `SELECT value FROM desktop_meta WHERE key = 'store_apps_dock_visibility_migrated'`).Scan(&migrated); err != nil {
+		t.Fatalf("read migration marker: %v", err)
+	}
+	if migrated != "true" {
+		t.Fatalf("migration marker = %q, want true", migrated)
+	}
+
+	if _, err := liveDB.ExecContext(ctx, `UPDATE desktop_app_visibility SET dock_visible = 0 WHERE app_id = ?`, "store-n8n"); err != nil {
+		t.Fatalf("simulate user hiding app after migration: %v", err)
+	}
+	if err := svc.migrateLocked(ctx); err != nil {
+		t.Fatalf("rerun migrations: %v", err)
+	}
+	if err := liveDB.QueryRowContext(ctx, `SELECT dock_visible FROM desktop_app_visibility WHERE app_id = ?`, "store-n8n").Scan(&dockVisible); err != nil {
+		t.Fatalf("read rerun visibility: %v", err)
+	}
+	if dockVisible != 0 {
+		t.Fatalf("migration must not override later user hide, dock visibility = %d", dockVisible)
+	}
+}
+
 func TestServiceDeleteAppRejectsBuiltinApps(t *testing.T) {
 	t.Parallel()
 

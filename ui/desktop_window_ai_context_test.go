@@ -30,6 +30,7 @@ func TestDesktopWindowAIContextAssets(t *testing.T) {
 
 	for _, marker := range []string{
 		`data-action="ai-context"`,
+		`iconMarkup('agent-chat', 'AI', 'vd-window-ai-button-icon', 14)`,
 		"function aiButtonMarkup(",
 		"function buildWindowAIContext(",
 		"function oliveTinWindowAIContext(",
@@ -65,12 +66,15 @@ func TestDesktopWindowAIContextAssets(t *testing.T) {
 		`color: #0b4f7a;`,
 		`.desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button::after`,
 		`display: none;`,
-		`.desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button::before`,
-		`content: "AI";`,
+		`display: block;`,
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("desktop window AI context CSS missing marker %q", marker)
 		}
+	}
+
+	if strings.Contains(css, ".vd-window-ai-button-icon.vd-papirus-icon,") {
+		t.Fatal("desktop window AI context icon must keep its semantic icon colors instead of inheriting the global tinted tool-icon filter")
 	}
 }
 

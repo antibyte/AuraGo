@@ -753,13 +753,7 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button::before {
-    content: "AI";
-    display: block;
-    width: auto;
-    height: auto;
-    margin: 0;
-    border-radius: 0;
-    background: none;
+    display: none;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button:hover {
@@ -773,7 +767,7 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button-icon {
-    display: none;
+    display: block;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-button[data-action="close"],
@@ -2278,7 +2272,6 @@
 .vd-todo-action-icon.vd-papirus-icon,
 .vd-calendar-action-icon.vd-papirus-icon,
 .vd-modal-action-icon.vd-papirus-icon,
-.vd-window-ai-button-icon.vd-papirus-icon,
 .vd-chat-send-icon.vd-papirus-icon,
 .vd-qc-close-icon.vd-papirus-icon,
 .vd-qc-input-icon.vd-papirus-icon,
@@ -2401,6 +2394,21 @@
 
 .vd-window.has-window-menu {
     grid-template-rows: 76px 1fr;
+}
+
+.vd-window:not(.maximized) > .vd-window-titlebar {
+    border-top-left-radius: inherit;
+    border-top-right-radius: inherit;
+}
+
+.vd-window:not(.maximized) > .vd-window-content {
+    border-bottom-left-radius: inherit;
+    border-bottom-right-radius: inherit;
+    overflow: hidden;
+}
+
+.vd-window.no-titlebar:not(.maximized) > .vd-window-content {
+    border-radius: inherit;
 }
 
 .vd-window.maximized {
@@ -2610,6 +2618,15 @@
 
 .vd-window-button[data-action="ai-context"]::before {
     display: none;
+}
+
+.vd-window-ai-button {
+    color: var(--ds-color-accent-500);
+}
+
+.vd-window-ai-button:hover {
+    background: color-mix(in srgb, var(--ds-color-accent-500) 14%, transparent);
+    border-color: color-mix(in srgb, var(--ds-color-accent-500) 28%, transparent);
 }
 
 .vd-window-ai-button-icon {

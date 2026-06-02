@@ -161,7 +161,6 @@ func TestDesktopFruityWindowControlsStayOnLeft(t *testing.T) {
 				"margin-left: auto;",
 				"order: 20;",
 				"color: #0b4f7a;",
-				"font-size: 0.68rem;",
 			},
 		},
 		{
@@ -170,20 +169,62 @@ func TestDesktopFruityWindowControlsStayOnLeft(t *testing.T) {
 			wants:    []string{"display: none;"},
 		},
 		{
-			name:     "agent chat button shows AI badge",
-			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window .vd-window-ai-button::before",
-			wants:    []string{`content: "AI";`, "display: block;", "background: none;"},
-		},
-		{
-			name:     "agent chat button hides inherited glyph",
+			name:     "agent chat button keeps semantic icon visible",
 			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window .vd-window-ai-button-icon",
-			wants:    []string{"display: none;"},
+			wants:    []string{"display: block;"},
 		},
 	} {
 		body := cssRuleBodyInFruityThemeTest(t, cssText, check.selector)
 		for _, want := range check.wants {
 			if !strings.Contains(body, want) {
 				t.Fatalf("fruity %s rule %q missing %q in body %q", check.name, check.selector, want, body)
+			}
+		}
+	}
+
+	cssText = readAllDesktopCSS(t)
+	body := cssRuleBodyInFruityThemeTest(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-window .vd-window-ai-button::before")
+	if strings.Contains(body, `content: "AI";`) {
+		t.Fatalf("fruity agent chat button must not render a text-only AI badge: %q", body)
+	}
+}
+
+func TestDesktopWindowContentPreservesRoundedCornersInAllThemes(t *testing.T) {
+	t.Parallel()
+
+	cssText := readAllDesktopCSS(t)
+	for _, check := range []struct {
+		name     string
+		selector string
+		wants    []string
+	}{
+		{
+			name:     "titlebar follows top shell radius",
+			selector: ".vd-window:not(.maximized) > .vd-window-titlebar",
+			wants: []string{
+				"border-top-left-radius: inherit;",
+				"border-top-right-radius: inherit;",
+			},
+		},
+		{
+			name:     "content clips to bottom shell radius",
+			selector: ".vd-window:not(.maximized) > .vd-window-content",
+			wants: []string{
+				"border-bottom-left-radius: inherit;",
+				"border-bottom-right-radius: inherit;",
+				"overflow: hidden;",
+			},
+		},
+		{
+			name:     "titlebarless windows clip all content corners",
+			selector: ".vd-window.no-titlebar:not(.maximized) > .vd-window-content",
+			wants:    []string{"border-radius: inherit;"},
+		},
+	} {
+		body := cssRuleBodyInFruityThemeTest(t, cssText, check.selector)
+		for _, want := range check.wants {
+			if !strings.Contains(body, want) {
+				t.Fatalf("desktop %s rule %q missing %q in body %q", check.name, check.selector, want, body)
 			}
 		}
 	}

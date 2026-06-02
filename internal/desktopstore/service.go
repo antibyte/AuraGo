@@ -1790,7 +1790,7 @@ func (s *Service) installDesktopApp(ctx context.Context, entry CatalogEntry, app
 	if err := s.cfg.Desktop.InstallApp(ctx, manifest, files, storeSource); err != nil {
 		return fmt.Errorf("install desktop app: %w", err)
 	}
-	dockVisible := false
+	dockVisible := true
 	startVisible := true
 	if err := s.cfg.Desktop.SetAppVisibility(ctx, app.DesktopAppID, &dockVisible, &startVisible, storeSource); err != nil {
 		return fmt.Errorf("set desktop app visibility: %w", err)

@@ -359,8 +359,8 @@ func TestInstallOperationCreatesContainerDesktopShortcutAndLaunchpadLink(t *test
 	if desktopAdapter.shortcutAppID != "store-n8n" {
 		t.Fatalf("shortcut app id = %q", desktopAdapter.shortcutAppID)
 	}
-	if desktopAdapter.dockVisible == nil || *desktopAdapter.dockVisible {
-		t.Fatalf("dock visibility should be false")
+	if desktopAdapter.dockVisible == nil || !*desktopAdapter.dockVisible {
+		t.Fatalf("store apps should be visible in the desktop dock")
 	}
 	if desktopAdapter.startVisible == nil || !*desktopAdapter.startVisible {
 		t.Fatalf("start visibility should be true")

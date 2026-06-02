@@ -409,6 +409,9 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 	if err := s.ensureColumnLocked(ctx, "desktop_audit", "user_agent", "TEXT NOT NULL DEFAULT ''"); err != nil {
 		return err
 	}
+	if err := s.migrateStoreAppsDockVisibilityLocked(ctx); err != nil {
+		return err
+	}
 	if err := s.seedBuiltinWidgetsLocked(ctx); err != nil {
 		return err
 	}
@@ -416,6 +419,60 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+func (s *Service) migrateStoreAppsDockVisibilityLocked(ctx context.Context) error {
+	var migrated string
+	err := s.db.QueryRowContext(ctx, `SELECT value FROM desktop_meta WHERE key = 'store_apps_dock_visibility_migrated'`).Scan(&migrated)
+	if err == nil && migrated == "true" {
+		return nil
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("read store app dock visibility migration state: %w", err)
+	}
+
+	rows, err := s.db.QueryContext(ctx, `SELECT id, manifest_json FROM desktop_apps`)
+	if err != nil {
+		return fmt.Errorf("list desktop apps for store app dock visibility migration: %w", err)
+	}
+	var storeAppIDs []string
+	for rows.Next() {
+		var id, manifestJSON string
+		if err := rows.Scan(&id, &manifestJSON); err != nil {
+			rows.Close()
+			return fmt.Errorf("scan desktop app for store app dock visibility migration: %w", err)
+		}
+		var app AppManifest
+		if err := json.Unmarshal([]byte(manifestJSON), &app); err != nil {
+			continue
+		}
+		if app.Metadata != nil && strings.TrimSpace(app.Metadata["store_app_id"]) != "" {
+			storeAppIDs = append(storeAppIDs, id)
+		}
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("close store app dock visibility migration rows: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate store app dock visibility migration rows: %w", err)
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin store app dock visibility migration: %w", err)
+	}
+	defer tx.Rollback()
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	for _, id := range storeAppIDs {
+		if _, err := tx.ExecContext(ctx, `UPDATE desktop_app_visibility SET dock_visible = 1, updated_at = ? WHERE app_id = ? AND dock_visible = 0`, now, id); err != nil {
+			return fmt.Errorf("migrate store app %s dock visibility: %w", id, err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO desktop_meta(key, value) VALUES('store_apps_dock_visibility_migrated', 'true')
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value`); err != nil {
+		return fmt.Errorf("mark store app dock visibility migrated: %w", err)
+	}
+	return tx.Commit()
 }
 
 func (s *Service) seedDesktopShortcutsLocked(ctx context.Context) error {
