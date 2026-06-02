@@ -136,6 +136,14 @@
     font-size: 0.78rem;
 }
 
+.vd-clock {
+    font-weight: var(--ds-type-weight-medium);
+    padding: 0 var(--ds-space-3);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+    font-size: var(--ds-type-size-sm);
+}
+
 .vd-status-strip {
     display: flex;
     align-items: center;
@@ -151,27 +159,29 @@
 }
 
 .vd-status-dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    background: #ef4444;
-    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.16);
+    width: 8px;
+    height: 8px;
+    border-radius: var(--ds-radius-full);
+    background: var(--ds-color-fg-disabled);
+    box-shadow: 0 0 0 3px var(--ds-color-accent-glow);
+    transition: background var(--ds-motion-duration-base) var(--ds-motion-ease-standard),
+                box-shadow var(--ds-motion-duration-base) var(--ds-motion-ease-standard);
 }
 
 .vd-status-dot[data-state="online"] {
-    background: var(--vd-accent);
-    box-shadow: 0 0 0 4px rgba(39, 199, 166, 0.16);
+    background: var(--ds-color-success-fg);
+    box-shadow: 0 0 0 3px var(--ds-color-accent-glow);
 }
 
 .vd-status-dot[data-state="reconnecting"] {
-    background: var(--vd-amber);
-    box-shadow: 0 0 0 4px rgba(242, 184, 75, 0.16);
-    animation: vd-status-pulse 1.2s ease-in-out infinite;
+    background: var(--ds-color-warning-fg);
+    box-shadow: 0 0 0 3px var(--ds-color-accent-glow);
+    animation: vd-status-pulse 1.2s var(--ds-motion-ease-standard) infinite;
 }
 
 @keyframes vd-status-pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.6; transform: scale(0.92); }
+    50% { opacity: 0.4; transform: scale(0.92); }
 }
 
 .vd-window-button,
