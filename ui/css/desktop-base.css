@@ -508,6 +508,15 @@
     --ds-blur-coarse: blur(12px) saturate(1.2);
 }
 
+/* Fruity widgets use a translucent Apple-style material so the wallpaper
+   bleeds through. The default --ds-color-surface-2 is too opaque (white
+   in light mode), which kills the vibrancy effect. */
+.desktop-body[data-theme="fruity"] .vd-widget {
+    background: var(--fruity-window-chrome);
+    -webkit-backdrop-filter: blur(40px) saturate(1.4);
+    backdrop-filter: blur(40px) saturate(1.4);
+}
+
 .desktop-body[data-theme="fruity"] .vd-shell {
     grid-template-rows: minmax(0, 1fr);
 }
@@ -574,7 +583,9 @@
     position: relative;
     justify-content: center;
     padding: 0 92px;
-    background: linear-gradient(180deg, var(--fruity-window-chrome), rgba(238, 244, 252, 0.58));
+    background: var(--fruity-window-chrome);
+    -webkit-backdrop-filter: blur(40px) saturate(1.4);
+    backdrop-filter: blur(40px) saturate(1.4);
     border-bottom-color: rgba(78, 92, 118, 0.14);
     cursor: default;
 }
@@ -583,7 +594,9 @@
    is communicated via the window border + box-shadow glow, not the titlebar.
    Prevents the titlebar from going near-white when window is focused. */
 .desktop-body[data-theme="fruity"] .vd-window.active .vd-window-titlebar {
-    background: linear-gradient(180deg, var(--fruity-window-chrome), rgba(238, 244, 252, 0.58));
+    background: var(--fruity-window-chrome);
+    -webkit-backdrop-filter: blur(40px) saturate(1.4);
+    backdrop-filter: blur(40px) saturate(1.4);
     border-bottom-color: rgba(78, 92, 118, 0.14);
 }
 
@@ -631,7 +644,9 @@
     justify-content: center;
     min-height: 48px;
     padding: 14px 92px;
-    background: linear-gradient(180deg, var(--fruity-window-chrome), rgba(238, 244, 252, 0.58));
+    background: var(--fruity-window-chrome);
+    -webkit-backdrop-filter: blur(40px) saturate(1.4);
+    backdrop-filter: blur(40px) saturate(1.4);
 }
 
 .desktop-body[data-theme="fruity"] .vd-widget-manager .vd-wm-title {
@@ -1238,7 +1253,9 @@
 
     .desktop-body[data-theme="fruity"] .vd-window-titlebar,
     .desktop-body[data-theme="fruity"] .vd-widget-manager .vd-wm-header {
-        background: linear-gradient(180deg, var(--fruity-window-chrome), rgba(23, 30, 43, 0.62));
+        background: var(--fruity-window-chrome);
+        -webkit-backdrop-filter: blur(40px) saturate(1.4);
+        backdrop-filter: blur(40px) saturate(1.4);
     }
 
     .desktop-body[data-theme="fruity"] .vd-window-subtitle {
