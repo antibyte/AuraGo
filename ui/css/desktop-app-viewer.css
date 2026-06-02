@@ -140,7 +140,7 @@
 
 .vd-viewer-md pre {
     background: rgba(0,0,0,0.3);
-    border-radius: 6px;
+    border-radius: var(--ds-radius-sm);
     padding: 12px 16px;
     overflow-x: auto;
     margin: 8px 0;
@@ -154,7 +154,7 @@
 .vd-viewer-md :not(pre) > code {
     background: rgba(255,255,255,0.1);
     padding: 1px 5px;
-    border-radius: 3px;
+    border-radius: var(--ds-radius-xs);
 }
 
 .vd-viewer-md blockquote {
@@ -203,7 +203,7 @@
 
 .vd-viewer-md img {
     max-width: 100%;
-    border-radius: 4px;
+    border-radius: var(--ds-radius-xs);
 }
 
 .vd-viewer-docx h1,
@@ -298,7 +298,7 @@
 .vd-viewer-pdf-canvas {
     max-width: 100%;
     box-shadow: 0 2px 12px rgba(0,0,0,0.4);
-    border-radius: 2px;
+    border-radius: var(--ds-radius-xs);
 }
 
 .vd-print-frame {

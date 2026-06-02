@@ -189,7 +189,7 @@
     min-width: 0;
     padding: 0 9px;
     border: 1px solid var(--cs-border);
-    border-radius: 6px;
+    border-radius: var(--ds-radius-sm);
     color: var(--cs-text);
     background: var(--cs-panel-soft);
 }
@@ -222,7 +222,7 @@
     min-height: 28px;
     padding: 4px 6px;
     border: 1px solid transparent;
-    border-radius: 6px;
+    border-radius: var(--ds-radius-sm);
     color: var(--cs-text);
     background: transparent;
     text-align: left;
@@ -347,7 +347,7 @@
     gap: 6px;
     height: 28px;
     border: 1px solid var(--cs-border);
-    border-radius: 6px;
+    border-radius: var(--ds-radius-sm);
     color: var(--cs-text);
     background: var(--cs-panel-soft);
     cursor: pointer;
@@ -484,7 +484,7 @@
     gap: 4px;
     padding: 2px 5px;
     border: 0;
-    border-radius: 4px;
+    border-radius: var(--ds-radius-xs);
     background: transparent;
     color: var(--cs-muted);
     font: inherit;
@@ -538,7 +538,7 @@
     transform: translate(-50%, -50%);
     width: 36px;
     height: 3px;
-    border-radius: 2px;
+    border-radius: var(--ds-radius-xs);
     background: var(--cs-border);
     opacity: 0;
     transition: opacity 0.15s;
@@ -602,7 +602,7 @@
     margin-bottom: 2px;
     padding: 4px 6px;
     border: 1px solid transparent;
-    border-radius: 6px;
+    border-radius: var(--ds-radius-sm);
     color: var(--cs-text);
     background: transparent;
     text-align: left;
@@ -636,7 +636,7 @@
     min-width: 22px;
     height: 22px;
     border: 1px solid var(--cs-border);
-    border-radius: 5px;
+    border-radius: var(--ds-radius-sm);
     color: var(--cs-muted);
     background: rgba(255, 255, 255, 0.03);
     font-size: 11px;
@@ -685,7 +685,7 @@
 
 .code-studio-tabs::-webkit-scrollbar-thumb {
     background: var(--cs-border);
-    border-radius: 3px;
+    border-radius: var(--ds-radius-xs);
 }
 
 .cs-tab {
@@ -900,7 +900,7 @@
     max-width: 92%;
     padding: 8px 10px;
     border: 1px solid var(--cs-border);
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     color: var(--cs-text);
     background: var(--cs-panel-soft);
     font-size: 13px;
@@ -930,7 +930,7 @@
     height: 32px;
     padding: 0 10px;
     border: 1px solid var(--cs-border);
-    border-radius: 6px;
+    border-radius: var(--ds-radius-sm);
     color: var(--cs-text);
     background: var(--cs-panel-soft);
 }
@@ -967,7 +967,7 @@
     min-width: 190px;
     padding: 6px;
     border: 1px solid var(--cs-border);
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: var(--cs-panel);
     box-shadow: 0 14px 38px rgba(0, 0, 0, 0.36);
 }
@@ -976,7 +976,7 @@
     height: 30px;
     padding: 0 9px;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--ds-radius-sm);
     color: var(--cs-text);
     background: transparent;
     font: inherit;
@@ -1002,7 +1002,7 @@
     width: min(360px, calc(100vw - 32px));
     padding: 18px;
     border: 1px solid var(--cs-border);
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: var(--cs-panel);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
 }
@@ -1018,7 +1018,7 @@
     height: 34px;
     padding: 0 10px;
     border: 1px solid var(--cs-border);
-    border-radius: 6px;
+    border-radius: var(--ds-radius-sm);
     color: var(--cs-text);
     background: var(--cs-panel-soft);
 }
@@ -1265,7 +1265,7 @@
 
 .cs-command-palette-results::-webkit-scrollbar-thumb {
     background: var(--cs-border);
-    border-radius: 4px;
+    border-radius: var(--ds-radius-xs);
 }
 
 .cs-cp-item {
@@ -1316,7 +1316,7 @@
 .cs-cp-item .cs-cp-item-label mark {
     background: var(--cs-accent-soft);
     color: var(--cs-accent);
-    border-radius: 2px;
+    border-radius: var(--ds-radius-xs);
     padding: 0 1px;
 }
 
@@ -1375,7 +1375,7 @@
     bottom: 4px;
     width: 2px;
     background: var(--cs-accent);
-    border-radius: 1px;
+    border-radius: var(--ds-radius-xs);
     z-index: 3;
 }
 
@@ -1521,7 +1521,7 @@
 
 .cs-agent-message .cs-md-content code {
     padding: 1px 5px;
-    border-radius: 3px;
+    border-radius: var(--ds-radius-xs);
     background: rgba(0, 0, 0, 0.18);
     font: 12px var(--cs-mono-font);
 }
@@ -1677,7 +1677,7 @@
     justify-content: center;
     width: 16px;
     height: 16px;
-    border-radius: 3px;
+    border-radius: var(--ds-radius-xs);
     opacity: 0;
     transition: opacity var(--cs-transition-fast), background var(--cs-transition-fast);
     font-size: 10px;
@@ -1716,7 +1716,7 @@
 .code-studio-statusbar > span[data-clickable] {
     cursor: pointer;
     padding: 2px 6px;
-    border-radius: 3px;
+    border-radius: var(--ds-radius-xs);
     transition: background var(--cs-transition-fast);
 }
 
@@ -1815,7 +1815,7 @@
     height: 22px;
     padding: 0 6px;
     border: 1px solid var(--cs-border);
-    border-radius: 4px;
+    border-radius: var(--ds-radius-xs);
     background: var(--cs-panel-soft);
     font: 11px var(--cs-mono-font);
     color: var(--cs-muted);

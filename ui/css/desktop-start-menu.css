@@ -11,7 +11,7 @@
 .vd-start-glyph {
     display: grid;
     place-items: center;
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: linear-gradient(135deg, rgba(39, 199, 166, 0.96), rgba(242, 184, 75, 0.94));
     color: #071014;
     font-weight: 900;
@@ -23,7 +23,7 @@
 .vd-start-search input {
     width: 100%;
     border: 1px solid var(--vd-border);
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: rgba(0, 0, 0, 0.22);
     color: var(--vd-text);
     font: inherit;
@@ -54,7 +54,7 @@
     width: min(360px, calc(100vw - 36px));
     max-height: min(520px, calc(100vh - 120px));
     border: 1px solid var(--vd-border);
-    border-radius: 14px;
+    border-radius: var(--ds-radius-lg);
     background: var(--vd-surface-strong);
     box-shadow: var(--vd-shadow), var(--vd-inner-glow), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
     backdrop-filter: blur(44px) saturate(160%);
@@ -113,7 +113,7 @@
     align-items: center;
     gap: 10px;
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: transparent;
     color: var(--vd-text);
     padding: 9px;

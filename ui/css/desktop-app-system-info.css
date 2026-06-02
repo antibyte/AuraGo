@@ -30,7 +30,7 @@
     justify-content: space-between;
     gap: 12px;
     padding: 12px 14px;
-    border-radius: 18px;
+    border-radius: var(--ds-radius-xl);
 }
 
 .vd-sysinfo-kicker {
@@ -73,7 +73,7 @@
     position: relative;
     min-height: 120px;
     padding: 10px 10px 14px;
-    border-radius: 18px;
+    border-radius: var(--ds-radius-xl);
     overflow: hidden;
 }
 
@@ -124,7 +124,7 @@
 .vd-sysinfo-history {
     min-height: 140px;
     padding: 10px 12px;
-    border-radius: 18px;
+    border-radius: var(--ds-radius-xl);
     overflow: hidden;
 }
 
@@ -153,7 +153,7 @@
     gap: 4px;
     min-width: 0;
     padding: 8px 10px;
-    border-radius: 14px;
+    border-radius: var(--ds-radius-lg);
 }
 
 .vd-sysinfo-detail span {

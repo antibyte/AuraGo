@@ -195,7 +195,7 @@
     align-items: start;
     gap: 8px;
     padding: 10px 14px;
-    border-radius: 10px;
+    border-radius: var(--ds-radius-md);
     border: 1px solid var(--vd-border);
     background: var(--vd-surface-strong);
     box-shadow: var(--vd-shadow);
@@ -220,7 +220,7 @@
     width: 28px;
     height: 28px;
     border: 1px solid var(--vd-border);
-    border-radius: 7px;
+    border-radius: var(--ds-radius-sm);
     background: rgba(255, 255, 255, 0.06);
     color: var(--vd-muted);
     cursor: pointer;
@@ -756,7 +756,7 @@
 
 .desktop-body[data-theme="fruity"] .vd-window-menu-button {
     height: 23px;
-    border-radius: 7px;
+    border-radius: var(--ds-radius-sm);
     color: rgba(32, 38, 53, 0.72);
     font-size: 0.72rem;
 }
@@ -770,7 +770,7 @@
 
 .desktop-body[data-theme="fruity"] .vd-window-menu-popover {
     border-color: rgba(78, 92, 118, 0.14);
-    border-radius: 10px;
+    border-radius: var(--ds-radius-md);
     background: rgba(255, 255, 255, 0.86);
     box-shadow: 0 18px 44px rgba(52, 64, 84, 0.2);
     backdrop-filter: blur(32px) saturate(1.24);
@@ -988,7 +988,7 @@
     place-items: center;
     flex: 0 0 50px;
     border: 0;
-    border-radius: 15px;
+    border-radius: var(--ds-radius-lg);
     background: transparent;
     color: var(--vd-text);
     cursor: pointer;
@@ -1066,7 +1066,7 @@
     max-width: 120px;
     padding: 5px 8px;
     border: 1px solid rgba(78, 92, 118, 0.14);
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: rgba(255, 255, 255, 0.9);
     color: var(--vd-text);
     box-shadow: 0 10px 24px rgba(52, 64, 84, 0.18);
@@ -1486,7 +1486,7 @@
 .vd-disabled-panel {
     width: min(460px, calc(100vw - 32px));
     border: 1px solid var(--vd-border);
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: var(--vd-surface-strong);
     box-shadow: var(--vd-shadow);
     padding: 24px;

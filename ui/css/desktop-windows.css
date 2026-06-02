@@ -73,7 +73,7 @@
     gap: 8px;
     padding: 12px;
     border: 1px solid var(--vd-border);
-    border-radius: 12px;
+    border-radius: var(--ds-radius-md);
     background: var(--vd-surface-strong);
     box-shadow: var(--vd-shadow);
     backdrop-filter: blur(24px);
@@ -87,7 +87,7 @@
     min-height: 44px;
     padding: 8px 14px;
     border: 1px solid transparent;
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: transparent;
     color: var(--vd-text);
     font: inherit;
@@ -380,7 +380,7 @@
     height: 24px;
     padding: 0 10px;
     border: 1px solid transparent;
-    border-radius: 6px;
+    border-radius: var(--ds-radius-sm);
     background: transparent;
     color: var(--vd-muted);
     font: inherit;
@@ -406,7 +406,7 @@
     min-width: 210px;
     padding: 6px;
     border: 1px solid var(--vd-border);
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: var(--vd-surface-strong);
     box-shadow: 0 20px 48px rgba(0, 0, 0, 0.34);
     backdrop-filter: blur(22px) saturate(1.14);
@@ -442,7 +442,7 @@
     gap: 8px;
     padding: 5px 8px;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--ds-radius-sm);
     background: transparent;
     color: var(--vd-text);
     font: inherit;

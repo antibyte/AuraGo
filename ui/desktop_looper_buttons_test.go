@@ -17,7 +17,7 @@ func TestDesktopLooperActionButtonsShareConsistentStyle(t *testing.T) {
 		"align-items: center;",
 		"justify-content: center;",
 		"gap: 8px;",
-		"border-radius: 7px;",
+		"border-radius: var(--ds-radius-sm);",
 		"border: 1px solid var(--vd-border, rgba(255,255,255,0.08));",
 		"background: var(--vd-surface-strong, rgba(0,0,0,0.25));",
 		"color: var(--vd-text, #e8ecf1);",

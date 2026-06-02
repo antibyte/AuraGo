@@ -199,7 +199,7 @@
     align-items: start;
     gap: 8px;
     padding: 10px 14px;
-    border-radius: 10px;
+    border-radius: var(--ds-radius-md);
     border: 1px solid var(--vd-border);
     background: var(--vd-surface-strong);
     box-shadow: var(--vd-shadow);
@@ -224,7 +224,7 @@
     width: 28px;
     height: 28px;
     border: 1px solid var(--vd-border);
-    border-radius: 7px;
+    border-radius: var(--ds-radius-sm);
     background: rgba(255, 255, 255, 0.06);
     color: var(--vd-muted);
     cursor: pointer;
@@ -760,7 +760,7 @@
 
 .desktop-body[data-theme="fruity"] .vd-window-menu-button {
     height: 23px;
-    border-radius: 7px;
+    border-radius: var(--ds-radius-sm);
     color: rgba(32, 38, 53, 0.72);
     font-size: 0.72rem;
 }
@@ -774,7 +774,7 @@
 
 .desktop-body[data-theme="fruity"] .vd-window-menu-popover {
     border-color: rgba(78, 92, 118, 0.14);
-    border-radius: 10px;
+    border-radius: var(--ds-radius-md);
     background: rgba(255, 255, 255, 0.86);
     box-shadow: 0 18px 44px rgba(52, 64, 84, 0.2);
     backdrop-filter: blur(32px) saturate(1.24);
@@ -992,7 +992,7 @@
     place-items: center;
     flex: 0 0 50px;
     border: 0;
-    border-radius: 15px;
+    border-radius: var(--ds-radius-lg);
     background: transparent;
     color: var(--vd-text);
     cursor: pointer;
@@ -1070,7 +1070,7 @@
     max-width: 120px;
     padding: 5px 8px;
     border: 1px solid rgba(78, 92, 118, 0.14);
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: rgba(255, 255, 255, 0.9);
     color: var(--vd-text);
     box-shadow: 0 10px 24px rgba(52, 64, 84, 0.18);
@@ -1490,7 +1490,7 @@
 .vd-disabled-panel {
     width: min(460px, calc(100vw - 32px));
     border: 1px solid var(--vd-border);
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: var(--vd-surface-strong);
     box-shadow: var(--vd-shadow);
     padding: 24px;
@@ -1590,7 +1590,7 @@
     width: 32px;
     height: 32px;
     border: 1px solid var(--vd-border);
-    border-radius: 7px;
+    border-radius: var(--ds-radius-sm);
     background: rgba(255, 255, 255, 0.06);
     color: var(--vd-muted);
     font-size: 16px;
@@ -1611,7 +1611,7 @@
     width: 6px;
     height: 32px;
     border: 1px solid var(--vd-border);
-    border-radius: 3px;
+    border-radius: var(--ds-radius-xs);
     background: rgba(255, 255, 255, 0.06);
     cursor: pointer;
     padding: 0;
@@ -1634,7 +1634,7 @@
     height: 34px;
     display: grid;
     place-items: center;
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: linear-gradient(135deg, var(--vd-accent), #7bd1ff);
     color: #071014;
     font-weight: 800;
@@ -1709,7 +1709,7 @@
 .vd-tool-button,
 .vd-chat-send {
     border: 1px solid var(--vd-border);
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: rgba(255, 255, 255, 0.08);
     color: var(--vd-text);
     cursor: pointer;
@@ -2002,7 +2002,7 @@
 .vd-start-glyph {
     display: grid;
     place-items: center;
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: linear-gradient(135deg, rgba(39, 199, 166, 0.96), rgba(242, 184, 75, 0.94));
     color: #071014;
     font-weight: 900;
@@ -2014,7 +2014,7 @@
 .vd-start-search input {
     width: 100%;
     border: 1px solid var(--vd-border);
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: rgba(0, 0, 0, 0.22);
     color: var(--vd-text);
     font: inherit;
@@ -2045,7 +2045,7 @@
     width: min(360px, calc(100vw - 36px));
     max-height: min(520px, calc(100vh - 120px));
     border: 1px solid var(--vd-border);
-    border-radius: 14px;
+    border-radius: var(--ds-radius-lg);
     background: var(--vd-surface-strong);
     box-shadow: var(--vd-shadow), var(--vd-inner-glow), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
     backdrop-filter: blur(44px) saturate(160%);
@@ -2104,7 +2104,7 @@
     align-items: center;
     gap: 10px;
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: transparent;
     color: var(--vd-text);
     padding: 9px;
@@ -2272,7 +2272,7 @@
     gap: 8px;
     padding: 12px;
     border: 1px solid var(--vd-border);
-    border-radius: 12px;
+    border-radius: var(--ds-radius-md);
     background: var(--vd-surface-strong);
     box-shadow: var(--vd-shadow);
     backdrop-filter: blur(24px);
@@ -2286,7 +2286,7 @@
     min-height: 44px;
     padding: 8px 14px;
     border: 1px solid transparent;
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: transparent;
     color: var(--vd-text);
     font: inherit;
@@ -2579,7 +2579,7 @@
     height: 24px;
     padding: 0 10px;
     border: 1px solid transparent;
-    border-radius: 6px;
+    border-radius: var(--ds-radius-sm);
     background: transparent;
     color: var(--vd-muted);
     font: inherit;
@@ -2605,7 +2605,7 @@
     min-width: 210px;
     padding: 6px;
     border: 1px solid var(--vd-border);
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: var(--vd-surface-strong);
     box-shadow: 0 20px 48px rgba(0, 0, 0, 0.34);
     backdrop-filter: blur(22px) saturate(1.14);
@@ -2641,7 +2641,7 @@
     gap: 8px;
     padding: 5px 8px;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--ds-radius-sm);
     background: transparent;
     color: var(--vd-text);
     font: inherit;
