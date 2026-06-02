@@ -28,18 +28,18 @@
 }
 
 .vd-widget[data-widget-auto-size="true"] {
-    height: var(--vd-widget-auto-height, auto) !important;
+    height: var(--ds-size-widget-auto) !important;
     transition: none;
 }
 
 .vd-widget.vd-widget-auto {
-    height: var(--vd-widget-auto-height, auto) !important;
+    height: var(--ds-size-widget-auto) !important;
     transition: none;
 }
 
 .vd-widget[data-widget-auto-size="true"] .vd-widget-frame-wrap,
 .vd-widget.vd-widget-auto .vd-widget-frame-wrap {
-    height: var(--vd-widget-frame-height, auto);
+    height: var(--ds-size-widget-frame);
     min-height: 80px;
 }
 
@@ -80,7 +80,7 @@
 .vd-dragging {
     opacity: 0.82;
     transform: scale(1.015);
-    z-index: var(--vd-z-modal) !important;
+    z-index: var(--ds-z-modal) !important;
     box-shadow: 0 28px 80px rgba(0, 0, 0, 0.46);
 }
 
@@ -117,8 +117,8 @@
 
 .vd-widget-frame {
     width: 100%;
-    height: var(--vd-widget-frame-height, 100%);
-    min-height: var(--vd-widget-frame-height, 80px);
+    height: var(--ds-size-widget-frame);
+    min-height: var(--ds-size-widget-frame);
     display: block;
     border: 0;
     background: transparent;
@@ -204,7 +204,7 @@
     border: 1px solid var(--ds-color-border-subtle);
     border-radius: 6px;
     background: rgba(39, 199, 166, 0.15);
-    color: var(--vd-accent);
+    color: var(--ds-color-accent-500);
     cursor: pointer;
     flex-shrink: 0;
     padding: 0;
@@ -215,7 +215,7 @@
 }
 
 .vd-widget-manager-backdrop {
-    z-index: var(--vd-z-modal);
+    z-index: var(--ds-z-modal);
 }
 
 .vd-widget-manager {
@@ -310,7 +310,7 @@
 
 .vd-wm-badge-on {
     background: rgba(39, 199, 166, 0.18);
-    color: var(--vd-accent);
+    color: var(--ds-color-accent-500);
 }
 
 .vd-wm-badge-off {
@@ -320,7 +320,7 @@
 
 .vd-wm-badge-builtin {
     background: rgba(242, 184, 75, 0.18);
-    color: var(--vd-amber);
+    color: var(--ds-color-accent-amber);
 }
 
 .vd-wm-badge-user {
@@ -364,7 +364,7 @@
 
 .vd-wm-btn-add {
     border-color: rgba(39, 199, 166, 0.3);
-    color: var(--vd-accent);
+    color: var(--ds-color-accent-500);
 }
 
 .vd-wm-btn-add:hover {
@@ -373,7 +373,7 @@
 
 .vd-wm-btn-delete {
     border-color: rgba(255, 128, 102, 0.3);
-    color: var(--vd-coral);
+    color: var(--ds-color-accent-coral);
 }
 
 .vd-wm-btn-delete:hover {
@@ -402,7 +402,7 @@
     right: 0;
     width: min(360px, calc(100vw - 32px));
     height: 100vh;
-    z-index: var(--vd-z-modal);
+    z-index: var(--ds-z-modal);
     background: var(--ds-color-surface-2);
     border-left: 1px solid var(--ds-color-border-subtle);
     box-shadow: var(--ds-elevation-2);
@@ -419,7 +419,7 @@
 .vd-widget-drawer-backdrop {
     position: fixed;
     inset: 0;
-    z-index: calc(var(--vd-z-modal) - 1);
+    z-index: calc(var(--ds-z-modal) - 1);
     background: rgba(4, 7, 12, 0.45);
 }
 
@@ -555,7 +555,7 @@
 }
 
 .vd-weather-search-input:focus {
-    border-color: var(--vd-accent);
+    border-color: var(--ds-color-accent-500);
     background: rgba(0, 0, 0, 0.38);
 }
 
@@ -567,10 +567,10 @@
 .vd-weather-search-btn {
     height: 26px;
     padding: 0 9px;
-    border: 1px solid rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.3);
+    border: 1px solid rgba(var(--ds-color-accent-rgb), 0.3);
     border-radius: 5px;
-    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.13);
-    color: var(--vd-accent);
+    background: rgba(var(--ds-color-accent-rgb), 0.13);
+    color: var(--ds-color-accent-500);
     cursor: pointer;
     font: inherit;
     font-size: 0.66rem;
@@ -580,7 +580,7 @@
 }
 
 .vd-weather-search-btn:hover {
-    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.27);
+    background: rgba(var(--ds-color-accent-rgb), 0.27);
 }
 
 .vd-weather-suggestions {
@@ -703,8 +703,8 @@
 }
 
 .vd-weather-day.is-today {
-    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.09);
-    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.18);
+    background: rgba(var(--ds-color-accent-rgb), 0.09);
+    border-color: rgba(var(--ds-color-accent-rgb), 0.18);
 }
 
 .vd-weather-day-name {
@@ -752,7 +752,7 @@
 }
 
 .vd-weather-error {
-    color: var(--vd-coral);
+    color: var(--ds-color-accent-coral);
     font-size: 0.68rem;
     opacity: 0.85;
     margin-top: 2px;

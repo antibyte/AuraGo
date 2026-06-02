@@ -12,7 +12,7 @@
     min-height: 0;
     overflow: auto;
     padding: 14px;
-    border-right: 1px solid var(--vd-border);
+    border-right: 1px solid var(--ds-color-border-subtle);
 }
 
 .vd-todo-sidebar {
@@ -37,10 +37,10 @@
 .vd-calendar-modal select {
     width: 100%;
     box-sizing: border-box;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 8px;
     padding: 9px 10px;
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     background: rgba(0, 0, 0, 0.22);
 }
 
@@ -48,7 +48,7 @@
     width: 16px;
     height: 16px;
     margin: 0;
-    accent-color: var(--vd-accent);
+    accent-color: var(--ds-color-accent-500);
 }
 
 .vd-todo-list,
@@ -61,7 +61,7 @@
 
 .vd-todo-card {
     padding: 12px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.07);
     cursor: pointer;
@@ -91,7 +91,7 @@
 }
 
 .vd-todo-card-copy small {
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     line-height: 1.35;
 }
 
@@ -129,7 +129,7 @@
 .vd-todo-progress span {
     display: block;
     height: 100%;
-    background: var(--vd-accent);
+    background: var(--ds-color-accent-500);
 }
 
 .vd-todo-detail textarea {
@@ -170,7 +170,7 @@
     border: 1px solid transparent;
     border-radius: 6px;
     background: transparent;
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     cursor: pointer;
     flex-shrink: 0;
 }
@@ -197,7 +197,7 @@
     justify-content: space-between;
     gap: 12px;
     padding: 12px;
-    border-bottom: 1px solid var(--vd-border);
+    border-bottom: 1px solid var(--ds-color-border-subtle);
 }
 
 .vd-calendar-titlebar,
@@ -229,9 +229,9 @@
     width: 30px;
     height: 30px;
     padding: 0;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 6px;
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     background: rgba(255, 255, 255, 0.055);
     cursor: pointer;
 }
@@ -259,7 +259,7 @@
 
 .vd-calendar-heading span,
 .vd-calendar-empty-slot {
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-size: 11px;
 }
 
@@ -272,7 +272,7 @@
 .vd-calendar-view-switch {
     gap: 3px;
     padding: 3px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.2);
 }
@@ -281,14 +281,14 @@
     border: 0;
     border-radius: 6px;
     padding: 6px 10px;
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     background: transparent;
     cursor: pointer;
 }
 
 .vd-calendar-view-switch button.active {
     color: #071014;
-    background: var(--vd-accent);
+    background: var(--ds-color-accent-500);
 }
 
 .vd-calendar-stage {
@@ -309,7 +309,7 @@
     min-width: 0;
     overflow: auto;
     padding: 12px;
-    border-left: 1px solid var(--vd-border);
+    border-left: 1px solid var(--ds-color-border-subtle);
     background: rgba(0, 0, 0, 0.16);
 }
 
@@ -328,7 +328,7 @@
 
 .vd-calendar-weekdays span {
     padding: 0 2px;
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
@@ -336,10 +336,10 @@
 
 .vd-calendar-cell {
     min-height: 112px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 8px;
     padding: 8px;
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     background: rgba(255, 255, 255, 0.05);
     cursor: pointer;
     transition: border-color 0.15s ease, background 0.15s ease;
@@ -348,8 +348,8 @@
 .vd-calendar-cell:hover,
 .vd-calendar-cell.drop-target,
 .vd-calendar-hour.drop-target {
-    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.62);
-    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.1);
+    border-color: rgba(var(--ds-color-accent-rgb), 0.62);
+    background: rgba(var(--ds-color-accent-rgb), 0.1);
 }
 
 .vd-calendar-cell.muted {
@@ -396,8 +396,8 @@
     min-width: 0;
     border: 1px solid transparent;
     border-radius: 7px;
-    color: var(--vd-text);
-    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.18);
+    color: var(--ds-color-fg-primary);
+    background: rgba(var(--ds-color-accent-rgb), 0.18);
     text-align: left;
     cursor: pointer;
 }
@@ -411,13 +411,13 @@
 .vd-calendar-event:hover,
 .vd-calendar-side-item:hover,
 .vd-calendar-more:hover {
-    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.45);
+    border-color: rgba(var(--ds-color-accent-rgb), 0.45);
 }
 
 .vd-calendar-event.completed,
 .vd-calendar-side-item.completed {
     background: rgba(148, 163, 184, 0.16);
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
 }
 
 .vd-calendar-event.overdue,
@@ -429,13 +429,13 @@
 .vd-calendar-event.cancelled,
 .vd-calendar-side-item.cancelled {
     background: rgba(167, 176, 192, 0.1);
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     text-decoration: line-through;
 }
 
 .vd-calendar-event-time {
     flex: 0 0 auto;
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-size: 10px;
     font-weight: 700;
 }
@@ -457,16 +457,16 @@
 
 .vd-calendar-more {
     padding: 4px 6px;
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     background: rgba(255, 255, 255, 0.045);
     font-size: 11px;
 }
 
 .vd-calendar-time-grid {
     display: grid;
-    grid-template-columns: 58px repeat(var(--vd-calendar-days), minmax(150px, 1fr));
-    min-width: calc(58px + (var(--vd-calendar-days) * 150px));
-    border: 1px solid var(--vd-border);
+    grid-template-columns: 58px repeat(var(--ds-size-calendar-days), minmax(150px, 1fr));
+    min-width: calc(58px + (var(--ds-size-calendar-days) * 150px));
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 8px;
     overflow: hidden;
     background: rgba(0, 0, 0, 0.12);
@@ -497,13 +497,13 @@
 }
 
 .vd-calendar-day-head span {
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-size: 11px;
 }
 
 .vd-calendar-time-label {
     padding: 8px 6px;
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-size: 11px;
     background: rgba(0, 0, 0, 0.14);
 }
@@ -529,7 +529,7 @@
 
 .vd-calendar-side-section.compact {
     padding: 9px 10px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.045);
 }
@@ -537,18 +537,18 @@
 .vd-calendar-side-title {
     justify-content: space-between;
     gap: 8px;
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-size: 12px;
     font-weight: 750;
     text-transform: uppercase;
 }
 
 .vd-calendar-side-title strong {
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
 }
 
 .vd-calendar-side-title.overdue strong {
-    color: var(--vd-coral);
+    color: var(--ds-color-accent-coral);
 }
 
 .vd-calendar-side-list {
@@ -558,7 +558,7 @@
 
 .vd-calendar-side-list p {
     margin: 0;
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-size: 12px;
 }
 
@@ -580,7 +580,7 @@
 .vd-calendar-side-item strong,
 .vd-calendar-side-item small,
 .vd-calendar-side-item em {
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-size: 11px;
     font-style: normal;
 }
@@ -595,7 +595,7 @@
 .vd-calendar-participants strong {
     display: block;
     margin-bottom: 5px;
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-size: 12px;
     font-weight: 700;
 }
@@ -621,13 +621,13 @@
 
 .vd-calendar-participants {
     padding: 9px 10px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.045);
 }
 
 .vd-calendar-participants span {
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
 }
 
 .vd-calendar-recurring {
@@ -668,13 +668,13 @@
 }
 
 .vd-webamp-launcher-copy strong {
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     font-size: 15px;
     font-weight: 650;
 }
 
 .vd-webamp-launcher-copy span {
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-size: 12px;
     line-height: 1.35;
 }
@@ -684,10 +684,10 @@
     justify-content: space-between;
     gap: 10px;
     padding: 10px 12px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.16);
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-size: 12px;
 }
 
@@ -699,7 +699,7 @@
 }
 
 .vd-webamp-status [data-track-count] {
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     font-weight: 600;
 }
 
@@ -727,7 +727,7 @@
     }
 .vd-calendar-sidebar {
         border-left: 0;
-        border-top: 1px solid var(--vd-border);
+        border-top: 1px solid var(--ds-color-border-subtle);
     }
 .vd-calendar-month-wrap {
         min-width: 0;

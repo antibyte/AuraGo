@@ -49,7 +49,7 @@
     --cs-border-subtle: rgba(51, 65, 85, 0.08);
     --cs-text: #172033;
     --cs-muted: #64748b;
-    --cs-accent: var(--vd-accent);
+    --cs-accent: var(--ds-color-accent-500);
     --cs-accent-soft: rgba(62, 198, 181, 0.08);
     --cs-accent-glow: rgba(62, 198, 181, 0.18);
     --cs-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -962,7 +962,7 @@
 
 .cs-context-menu {
     position: fixed;
-    z-index: var(--vd-z-context-menu);
+    z-index: var(--ds-z-context);
     display: grid;
     min-width: 190px;
     padding: 6px;
@@ -991,7 +991,7 @@
 .cs-modal-backdrop {
     position: fixed;
     inset: 0;
-    z-index: var(--vd-z-modal);
+    z-index: var(--ds-z-modal);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1187,7 +1187,7 @@
 .cs-command-palette-backdrop {
     position: fixed;
     inset: 0;
-    z-index: calc(var(--vd-z-modal) + 10);
+    z-index: calc(var(--ds-z-modal) + 10);
     display: flex;
     align-items: flex-start;
     justify-content: center;
@@ -1744,7 +1744,7 @@
 .cs-shortcut-overlay {
     position: fixed;
     inset: 0;
-    z-index: calc(var(--vd-z-modal) + 5);
+    z-index: calc(var(--ds-z-modal) + 5);
     display: flex;
     align-items: center;
     justify-content: center;

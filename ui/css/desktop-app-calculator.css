@@ -57,7 +57,7 @@
     justify-content: center;
     gap: 4px;
     border: 1px solid rgba(255, 255, 255, 0.10);
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     background: rgba(255, 255, 255, 0.05);
     border-radius: 8px;
     padding: 5px 10px;
@@ -81,7 +81,7 @@
 
 .vd-calc-tabs button:hover {
     border-color: rgba(39, 199, 166, 0.35);
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(39, 199, 166, 0.12);
 }
@@ -178,7 +178,7 @@
     min-height: 32px;
     border: 0;
     border-radius: 10px;
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     background:
         linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.07));
     font-weight: 700;
@@ -316,7 +316,7 @@
     border-radius: 12px;
     background:
         linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-size: 11px;
     position: relative;
     z-index: 1;
@@ -399,7 +399,7 @@
     align-items: center;
     justify-content: center;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     background: rgba(255, 255, 255, 0.04);
     border-radius: 6px;
     padding: 4px 6px;

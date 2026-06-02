@@ -22,10 +22,10 @@
 .vd-chat-input,
 .vd-start-search input {
     width: 100%;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.22);
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     font: inherit;
 }
 
@@ -50,16 +50,16 @@
 .vd-start-menu {
     position: fixed;
     left: 16px;
-    bottom: calc(var(--vd-taskbar-height, 54px) + var(--vd-taskbar-offset, 12px) + 8px);
+    bottom: calc(var(--ds-size-taskbar-height) + var(--ds-size-taskbar-offset) + 8px);
     width: min(360px, calc(100vw - 36px));
     max-height: min(520px, calc(100vh - 120px));
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 14px;
-    background: var(--vd-surface-strong);
-    box-shadow: var(--vd-shadow), var(--vd-inner-glow), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+    background: var(--ds-color-surface-2);
+    box-shadow: var(--ds-elevation-2), var(--ds-color-inner-highlight), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
     backdrop-filter: blur(44px) saturate(160%);
     -webkit-backdrop-filter: blur(44px) saturate(160%);
-    z-index: var(--vd-z-menu);
+    z-index: var(--ds-z-menu);
     overflow: hidden;
 }
 
@@ -115,7 +115,7 @@
     border: 0;
     border-radius: 8px;
     background: transparent;
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     padding: 9px;
     text-align: left;
     cursor: pointer;
@@ -131,13 +131,13 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     opacity: 0.7;
 }
 
 .vd-start-recent-item {
-    border-left: 2px solid var(--vd-accent);
-    background: rgba(var(--vd-accent-rgb, 99, 102, 241), 0.05);
+    border-left: 2px solid var(--ds-color-accent-500);
+    background: rgba(var(--ds-color-accent-rgb), 0.05);
 }
 
 .vd-app-health {
@@ -184,14 +184,14 @@
 .vd-start-menu {
         left: 0 !important;
         right: 0 !important;
-        bottom: var(--vd-mobile-taskbar-reserve, calc(54px + env(safe-area-inset-bottom, 0px))) !important;
+        bottom: var(--ds-size-mobile-taskbar-reserve))) !important;
         width: 100vw !important;
-        max-height: min(70dvh, calc(var(--vd-visual-height, 100dvh) - var(--vd-mobile-taskbar-reserve, calc(54px + env(safe-area-inset-bottom, 0px))) - 8px));
+        max-height: min(70dvh, calc(var(--ds-size-visual-height) - var(--ds-size-mobile-taskbar-reserve))) - 8px));
         border-radius: 16px 16px 0 0;
         animation: vd-start-sheet-in 180ms ease-out;
     }
 .vd-start-apps {
-        max-height: min(calc(70dvh - 64px), calc(var(--vd-visual-height, 100dvh) - var(--vd-mobile-taskbar-reserve, calc(54px + env(safe-area-inset-bottom, 0px))) - 72px));
+        max-height: min(calc(70dvh - 64px), calc(var(--ds-size-visual-height) - var(--ds-size-mobile-taskbar-reserve))) - 72px));
     }
 }
 

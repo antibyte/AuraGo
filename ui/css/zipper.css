@@ -7,7 +7,7 @@
     flex-direction: column;
     height: 100%;
     min-height: 100%;
-    color: var(--vd-text, #eff7ff);
+    color: var(--ds-color-fg-primary);
 }
 
 .desktop-body[data-theme="light"] .zipper-app {
@@ -111,7 +111,7 @@
 }
 
 .zipper-table th:hover {
-    color: var(--vd-text, #eff7ff);
+    color: var(--ds-color-fg-primary);
 }
 
 .zipper-col-check {
@@ -183,6 +183,6 @@
 }
 
 .zipper-drop-target {
-    outline: 2px dashed var(--vd-accent, #59d4c8);
+    outline: 2px dashed var(--ds-color-accent-500);
     outline-offset: -2px;
 }

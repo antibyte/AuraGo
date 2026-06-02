@@ -31,8 +31,8 @@
 
 .office-writer {
     grid-template-rows: auto auto minmax(0, 1fr);
-    background: var(--vd-editor-bg);
-    color: var(--vd-editor-text);
+    background: var(--ds-color-editor-bg);
+    color: var(--ds-color-editor-text);
 }
 
 .office-toolbar {
@@ -41,26 +41,26 @@
 }
 
 .office-writer .office-toolbar {
-    border-bottom: 1px solid var(--vd-editor-border);
-    background: var(--vd-editor-toolbar-bg);
-    color: var(--vd-editor-toolbar-text);
+    border-bottom: 1px solid var(--ds-color-editor-border);
+    background: var(--ds-color-editor-toolbar-bg);
+    color: var(--ds-color-editor-toolbar-text);
 }
 
 .office-writer .office-path-input,
 .office-writer .office-title-input {
-    border-color: var(--vd-editor-border);
-    background: var(--vd-editor-bg);
-    color: var(--vd-editor-text);
+    border-color: var(--ds-color-editor-border);
+    background: var(--ds-color-editor-bg);
+    color: var(--ds-color-editor-text);
 }
 
 .office-path-input,
 .office-title-input {
     min-width: 130px;
     height: 32px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 6px;
     background: rgba(0, 0, 0, 0.22);
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     padding: 0 10px;
     font: inherit;
 }
@@ -79,7 +79,7 @@
     align-items: center;
     gap: 8px;
     padding: 8px 10px;
-    border-bottom: 1px solid var(--vd-border);
+    border-bottom: 1px solid var(--ds-color-border-subtle);
     background: rgba(8, 12, 18, 0.5);
 }
 
@@ -89,16 +89,16 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.06);
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     font-size: 0.82rem;
     font-weight: 700;
 }
 
 .office-formula-fx {
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-weight: 800;
     font-style: italic;
 }
@@ -106,10 +106,10 @@
 .office-formula-input {
     min-width: 0;
     height: 32px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 6px;
     background: rgba(0, 0, 0, 0.22);
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     padding: 0 10px;
     font: inherit;
 }
@@ -120,14 +120,14 @@
 
 .office-writer-tools {
     border: 0;
-    border-bottom: 1px solid var(--vd-editor-border);
-    background: var(--vd-editor-toolbar-bg);
-    color: var(--vd-editor-toolbar-text);
+    border-bottom: 1px solid var(--ds-color-editor-border);
+    background: var(--ds-color-editor-toolbar-bg);
+    color: var(--ds-color-editor-toolbar-text);
 }
 
 .office-writer .ql-toolbar.ql-snow,
 .office-writer .ql-container.ql-snow {
-    border-color: var(--vd-editor-border);
+    border-color: var(--ds-color-editor-border);
 }
 
 .office-writer .ql-toolbar.ql-snow {
@@ -139,45 +139,45 @@
 }
 
 .office-writer .ql-picker {
-    color: var(--vd-editor-toolbar-text);
+    color: var(--ds-color-editor-toolbar-text);
 }
 
 .office-writer .ql-stroke {
-    stroke: var(--vd-editor-icon);
+    stroke: var(--ds-color-editor-icon);
 }
 
 .office-writer .ql-fill {
-    fill: var(--vd-editor-icon);
+    fill: var(--ds-color-editor-icon);
 }
 
 .office-writer .ql-picker-options {
-    background: var(--vd-editor-bg);
-    border-color: var(--vd-editor-border);
-    color: var(--vd-editor-text);
+    background: var(--ds-color-editor-bg);
+    border-color: var(--ds-color-editor-border);
+    color: var(--ds-color-editor-text);
 }
 
 .office-writer-editor {
     grid-row: 3;
     min-height: 0;
     overflow: auto;
-    background: var(--vd-editor-bg);
-    color: var(--vd-editor-text);
+    background: var(--ds-color-editor-bg);
+    color: var(--ds-color-editor-text);
 }
 
 .office-writer-editor.ql-container,
 .office-writer-editor .ql-container {
     height: 100%;
     min-height: 0;
-    background: var(--vd-editor-bg);
-    color: var(--vd-editor-text);
+    background: var(--ds-color-editor-bg);
+    color: var(--ds-color-editor-text);
 }
 
 .office-writer-editor .ql-editor {
     height: 100%;
     min-height: 100%;
     padding: 28px clamp(22px, 5vw, 64px);
-    background: var(--vd-editor-bg);
-    color: var(--vd-editor-text);
+    background: var(--ds-color-editor-bg);
+    color: var(--ds-color-editor-text);
     line-height: 1.65;
     font-size: 1rem;
 }
@@ -189,8 +189,8 @@
     border: 0;
     border-radius: 0;
     padding: 18px;
-    background: var(--vd-editor-bg);
-    color: var(--vd-editor-text);
+    background: var(--ds-color-editor-bg);
+    color: var(--ds-color-editor-text);
     font: inherit;
     line-height: 1.6;
 }
@@ -202,22 +202,22 @@
     min-width: 0;
     overflow-x: auto;
     padding: 8px 10px;
-    border-bottom: 1px solid var(--vd-border);
+    border-bottom: 1px solid var(--ds-color-border-subtle);
     background: rgba(8, 12, 18, 0.36);
 }
 
 .office-sheet-tabs button {
     min-width: 82px;
     height: 30px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.06);
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     font: inherit;
 }
 
 .office-sheet-tabs button.active {
-    border-color: var(--vd-accent);
+    border-color: var(--ds-color-accent-500);
     background: rgba(48, 213, 200, 0.16);
 }
 
@@ -270,7 +270,7 @@
 }
 
 .office-grid td.office-cell-active {
-    box-shadow: inset 0 0 0 2px var(--vd-accent);
+    box-shadow: inset 0 0 0 2px var(--ds-color-accent-500);
 }
 
 .office-grid input {
@@ -285,21 +285,21 @@
 }
 
 .office-grid input:focus {
-    outline: 2px solid var(--vd-accent);
+    outline: 2px solid var(--ds-color-accent-500);
     outline-offset: -2px;
     background: #f8fbff;
 }
 
 .office-sheet-context-menu {
     position: fixed;
-    z-index: var(--vd-z-menu);
+    z-index: var(--ds-z-menu);
     min-width: 210px;
     padding: 6px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--ds-color-border-subtle);
     border-radius: 8px;
     background: rgba(10, 15, 24, 0.98);
     box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
 }
 
 .office-sheet-context-menu button {
@@ -324,7 +324,7 @@
 .office-sheet-context-separator {
     height: 1px;
     margin: 5px 4px;
-    background: var(--vd-border);
+    background: var(--ds-color-border-subtle);
 }
 
 .office-sheet-context-icon {

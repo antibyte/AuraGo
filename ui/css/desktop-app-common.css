@@ -20,7 +20,7 @@
     border: 1px solid rgba(39, 199, 166, 0.35);
     border-radius: var(--ds-radius-md);
     background: rgba(39, 199, 166, 0.15);
-    color: var(--vd-accent, #27c7a6);
+    color: var(--ds-color-accent-500);
     font-size: 0.84rem;
     font-weight: 600;
     cursor: pointer;
@@ -58,7 +58,7 @@
     padding: 0;
     border: 1px solid var(--ds-color-border-subtle);
     border-radius: var(--ds-radius-md);
-    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.1);
+    background: rgba(var(--ds-color-accent-rgb), 0.1);
     color: var(--ds-color-fg-primary);
     display: inline-flex;
     align-items: center;
@@ -69,12 +69,12 @@
 
 .vd-chat-voice:hover:not(:disabled),
 .vd-chat-voice.is-active {
-    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.22);
-    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.45);
+    background: rgba(var(--ds-color-accent-rgb), 0.22);
+    border-color: rgba(var(--ds-color-accent-rgb), 0.45);
 }
 
 .vd-chat-voice.is-active {
-    box-shadow: 0 0 0 3px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.16);
+    box-shadow: 0 0 0 3px rgba(var(--ds-color-accent-rgb), 0.16);
 }
 
 .vd-chat-voice:disabled,
@@ -109,7 +109,7 @@
     font-size: 15px;
     font-weight: 850;
     line-height: 1;
-    text-shadow: 0 0 8px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.16);
+    text-shadow: 0 0 8px rgba(var(--ds-color-accent-rgb), 0.16);
 }
 
 .vd-viewer-icon-button {
