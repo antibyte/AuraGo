@@ -583,6 +583,14 @@
     cursor: default;
 }
 
+/* Active window: same titlebar as inactive (macOS style) — the active state
+   is communicated via the window border + box-shadow glow, not the titlebar.
+   Prevents the titlebar from going near-white when window is focused. */
+.desktop-body[data-theme="fruity"] .vd-window.active .vd-window-titlebar {
+    background: linear-gradient(180deg, var(--fruity-window-chrome), rgba(238, 244, 252, 0.58));
+    border-bottom-color: rgba(78, 92, 118, 0.14);
+}
+
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu .vd-window-titlebar {
     grid-template-rows: 47px 30px;
     padding: 0 92px 0 92px;
