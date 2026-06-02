@@ -53,6 +53,7 @@ func TestDesktopStoreAppFramesAllowInteractiveWebAppBrowserFeatures(t *testing.T
 		`function shouldOpenStoreAppExternally(app)`,
 		`app.metadata.open_external === 'true'`,
 		`app.metadata.store_app_id === 'romm'`,
+		`app.metadata.store_app_id === 'termix'`,
 		`function openPendingExternalStoreWindow()`,
 		`function navigateExternalStoreWindow(pendingWindow, url)`,
 		`function cacheBustURL(src, paramName)`,

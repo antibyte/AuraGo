@@ -1049,7 +1049,7 @@
     }
 
     function shouldOpenStoreAppExternally(app) {
-        return !!(app && app.metadata && (app.metadata.open_external === 'true' || app.metadata.store_app_id === 'romm'));
+        return !!(app && app.metadata && (app.metadata.open_external === 'true' || app.metadata.store_app_id === 'romm' || app.metadata.store_app_id === 'termix'));
     }
 
     function openPendingExternalStoreWindow() {

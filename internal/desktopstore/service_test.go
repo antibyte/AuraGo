@@ -145,6 +145,11 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 				t.Fatalf("code-server must define an exposed generated PASSWORD secret: %#v", entry.GeneratedSecrets)
 			}
 		}
+		if entry.ID == "termix" {
+			if entry.Metadata["open_external"] != "true" {
+				t.Fatalf("termix must open outside the desktop iframe because its app redirect requires a top-level tab: %#v", entry.Metadata)
+			}
+		}
 		delete(expected, entry.ID)
 	}
 	if len(expected) != 0 {

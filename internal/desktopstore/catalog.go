@@ -346,6 +346,9 @@ func DefaultCatalog() []CatalogEntry {
 				"GUACD_PORT=4822",
 				"ENABLE_GUACAMOLE=true",
 			},
+			Metadata: map[string]string{
+				"open_external": "true",
+			},
 			Companions: []CompanionTemplate{
 				{
 					ID:          "guacd",
