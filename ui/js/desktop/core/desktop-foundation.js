@@ -560,7 +560,7 @@
         if (setting === 'enabled') return true;
         if (setting === 'disabled') return false;
         // 'auto' mode → decide based on viewport + input type
-        return isCompactViewport() || isTouchLikePointer();
+        return isCompactViewport() && isTouchLikePointer();
     }
 
     // Expose for other modules

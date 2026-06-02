@@ -565,7 +565,7 @@
         if (setting === 'enabled') return true;
         if (setting === 'disabled') return false;
         // 'auto' mode → decide based on viewport + input type
-        return isCompactViewport() || isTouchLikePointer();
+        return isCompactViewport() && isTouchLikePointer();
     }
 
     // Expose for other modules
@@ -3139,7 +3139,7 @@ function wireWindow(win, id) {
         let drag = null;
         bar.addEventListener('pointerdown', (event) => {
             if (event.target.closest('button, .vd-window-menubar')) return;
-            if (isCompactViewport()) return;
+            if (window.useMobileDesktopMode && window.useMobileDesktopMode()) return;
             if (state.windows.get(id) && state.windows.get(id).maximized) return;
             drag = {
                 x: event.clientX,
@@ -3371,7 +3371,7 @@ function wireWindow(win, id) {
             let resize = null;
             handle.addEventListener('pointerdown', event => {
                 const item = state.windows.get(id);
-                if (isCompactViewport()) return;
+                if (window.useMobileDesktopMode && window.useMobileDesktopMode()) return;
                 if (item && item.maximized) return;
                 event.preventDefault();
                 event.stopPropagation();

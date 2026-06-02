@@ -69,6 +69,61 @@ func TestVirtualDesktopShortDesktopHeightDoesNotDisableWindowDragging(t *testing
 	}
 }
 
+func TestVirtualDesktopNarrowFinePointerDoesNotDisableWindowChrome(t *testing.T) {
+	t.Parallel()
+
+	foundationSources := map[string]string{
+		"source": rawDesktopAssetText(t, "js/desktop/core/desktop-foundation.js"),
+		"bundle": readDesktopAssetText(t, "js/desktop/main.js"),
+	}
+	for name, source := range foundationSources {
+		t.Run(name+" mobile mode", func(t *testing.T) {
+			body := jsFunctionBodyInWindowMenuTest(t, source, "function useMobileDesktopMode()")
+			if !strings.Contains(body, "return isCompactViewport() && isTouchLikePointer();") {
+				t.Fatalf("auto mobile desktop mode must require compact viewport and touch-like input, body:\n%s", body)
+			}
+			if strings.Contains(body, "return isCompactViewport() || isTouchLikePointer();") {
+				t.Fatal("auto mobile desktop mode must not treat narrow desktop width alone as mobile")
+			}
+		})
+	}
+
+	interactionSources := map[string]string{
+		"source": rawDesktopAssetText(t, "js/desktop/core/window-interactions-runtime.js"),
+		"bundle": readDesktopAssetText(t, "js/desktop/main.js"),
+	}
+	for name, source := range interactionSources {
+		t.Run(name+" pointer gates", func(t *testing.T) {
+			wireBody := jsFunctionBodyInWindowMenuTest(t, source, "function wireWindow(win, id)")
+			resizeBody := jsFunctionBodyInWindowMenuTest(t, source, "function wireWindowResize(win, id)")
+			for label, body := range map[string]string{
+				"window drag":   wireBody,
+				"window resize": resizeBody,
+			} {
+				if !strings.Contains(body, "window.useMobileDesktopMode && window.useMobileDesktopMode()") {
+					t.Fatalf("%s must use mobile desktop mode instead of compact viewport alone", label)
+				}
+				if strings.Contains(body, "if (isCompactViewport()) return;") {
+					t.Fatalf("%s must not disable pointer chrome for narrow fine-pointer desktop viewports", label)
+				}
+			}
+		})
+	}
+
+	cssSources := map[string]string{
+		"source": rawDesktopAssetText(t, "css/desktop-windows.css"),
+		"bundle": readDesktopAssetText(t, "css/desktop-shell.bundle.css"),
+	}
+	for name, css := range cssSources {
+		t.Run(name+" css", func(t *testing.T) {
+			want := "@media (max-width: 820px) and (hover: none), (max-width: 820px) and (pointer: coarse)"
+			if !strings.Contains(css, want) {
+				t.Fatalf("mobile fullscreen window CSS must be scoped to touch-like devices, missing %q", want)
+			}
+		})
+	}
+}
+
 func TestVirtualDesktopHasMobileLayoutMarkers(t *testing.T) {
 	t.Parallel()
 
