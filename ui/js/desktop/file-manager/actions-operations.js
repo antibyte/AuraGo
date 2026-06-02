@@ -646,7 +646,7 @@
         const span = fm.host ? fm.host.querySelector(`[data-preview-folder-size="${path.replace(/"/g, '\\"')}"]`) : null;
         if (!span) return;
         
-        span.innerHTML = `<span style="color:var(--ds-color-fg-muted);font-style:italic">${esc(t('desktop.fm.calculating', 'Calculating...'))}</span>`;
+        span.innerHTML = `<span style="color:var(--vd-muted);font-style:italic">${esc(t('desktop.fm.calculating', 'Calculating...'))}</span>`;
         try {
             const res = await api('/api/desktop/folder-size?path=' + encodeURIComponent(path));
             if (res && res.status === 'ok') {

@@ -3,13 +3,13 @@
     --pixel-surface: rgba(255, 255, 255, 0.04);
     --pixel-hover: rgba(255, 255, 255, 0.08);
     --pixel-muted: rgba(232, 244, 255, 0.6);
-    --pixel-accent: var(--ds-color-accent-500);
+    --pixel-accent: var(--vd-accent, #59d4c8);
     display: flex;
     flex-direction: column;
     height: 100%;
     min-height: 100%;
-    color: var(--ds-color-fg-primary);
-    background: var(--ds-color-surface-1);
+    color: var(--vd-text, #eff7ff);
+    background: var(--vd-surface, #1a1f2e);
     font-size: 0.86rem;
     user-select: none;
 }
@@ -139,12 +139,12 @@
 }
 
 .pixel-tab:hover {
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text, #eff7ff);
     background: var(--pixel-surface);
 }
 
 .pixel-tab.active {
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text, #eff7ff);
     background: var(--pixel-hover);
     border-color: var(--pixel-line);
 }
@@ -172,7 +172,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--ds-color-bg-canvas);
+    background: var(--vd-bg, #0e1117);
     background-image: linear-gradient(45deg, rgba(255,255,255,0.03) 25%, transparent 25%),
         linear-gradient(-45deg, rgba(255,255,255,0.03) 25%, transparent 25%),
         linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.03) 75%),
@@ -213,7 +213,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     border-left: 1px solid var(--pixel-line);
-    background: var(--ds-color-surface-1);
+    background: var(--vd-surface, #1a1f2e);
     padding: 10px;
 }
 
@@ -271,7 +271,7 @@
     border-radius: 50%;
     background: var(--pixel-accent);
     cursor: pointer;
-    border: 2px solid var(--ds-color-surface-1);
+    border: 2px solid var(--vd-surface, #1a1f2e);
 }
 
 .pixel-slider::-moz-range-thumb {
@@ -280,7 +280,7 @@
     border-radius: 50%;
     background: var(--pixel-accent);
     cursor: pointer;
-    border: 2px solid var(--ds-color-surface-1);
+    border: 2px solid var(--vd-surface, #1a1f2e);
 }
 
 .pixel-slider-value {

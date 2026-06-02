@@ -84,10 +84,10 @@
 
     function createHistoryChart(canvas) {
         if (!window.Chart || !canvas) return null;
-        const accent = cssVar('--ds-color-accent-500', '#27c7a6');
-        const coral = cssVar('--ds-color-accent-coral', '#ff8066');
-        const amber = cssVar('--ds-color-accent-amber', '#f2b84b');
-        const muted = cssVar('--ds-color-fg-muted', '#a7b0c0');
+        const accent = cssVar('--vd-accent', '#27c7a6');
+        const coral = cssVar('--vd-coral', '#ff8066');
+        const amber = cssVar('--vd-amber', '#f2b84b');
+        const muted = cssVar('--vd-muted', '#a7b0c0');
         return new Chart(canvas, {
             type: 'line',
             data: {
@@ -141,9 +141,9 @@
                 <section class="vd-sysinfo-details" data-role="details"></section>
             </div>`;
 
-        const accent = cssVar('--ds-color-accent-500', '#27c7a6');
-        const coral = cssVar('--ds-color-accent-coral', '#ff8066');
-        const amber = cssVar('--ds-color-accent-amber', '#f2b84b');
+        const accent = cssVar('--vd-accent', '#27c7a6');
+        const coral = cssVar('--vd-coral', '#ff8066');
+        const amber = cssVar('--vd-amber', '#f2b84b');
         const instance = {
             host,
             context,

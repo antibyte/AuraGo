@@ -855,7 +855,7 @@
     function calendarAgendaHTML(activeDate, appointments, view) {
         const days = view === 'week' ? calendarWeekDays(activeDate) : [activeDate];
         const hours = Array.from({ length: 17 }, (_, i) => i + 6);
-        return `<div class="vd-calendar-time-grid ${esc(view)}" style="--ds-size-calendar-days:${days.length}">
+        return `<div class="vd-calendar-time-grid ${esc(view)}" style="--vd-calendar-days:${days.length}">
             <div class="vd-calendar-time-corner">${esc(t('desktop.cal_schedule'))}</div>
             ${days.map(day => `<div class="vd-calendar-day-head ${isoDate(day) === isoDate(new Date()) ? 'today' : ''}"><strong>${esc(day.toLocaleDateString(undefined, { weekday: 'short' }))}</strong><span>${esc(day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))}</span></div>`).join('')}
             ${hours.map(hour => `<div class="vd-calendar-time-label">${String(hour).padStart(2, '0')}:00</div>${days.map(day => {

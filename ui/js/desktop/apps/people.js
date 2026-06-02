@@ -530,7 +530,7 @@
             modal.innerHTML = `
                 <div class="vd-people-modal-form">
                     <div class="vd-people-modal-title">${esc(title)}</div>
-                    <div style="font-size:13px;color:var(--ds-color-fg-muted);margin-bottom:18px">${esc(message)}</div>
+                    <div style="font-size:13px;color:var(--vd-muted);margin-bottom:18px">${esc(message)}</div>
                     <div class="vd-people-modal-actions">
                         <button type="button" class="vd-people-modal-cancel">${esc(t(inst.context, 'desktop.cancel'))}</button>
                         <button type="button" class="vd-people-modal-save vd-people-modal-danger">${esc(t(inst.context, 'desktop.people_delete'))}</button>

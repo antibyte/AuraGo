@@ -24,7 +24,7 @@
     gap: 10px;
     align-items: center;
     padding: 10px 14px;
-    border-bottom: 1px solid var(--ds-color-border-subtle);
+    border-bottom: 1px solid var(--vd-border);
     flex-shrink: 0;
     flex-wrap: wrap;
 }
@@ -38,22 +38,22 @@
 .vd-people-search {
     flex: 1;
     padding: 7px 12px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-border);
     border-radius: 6px;
-    background: var(--ds-color-surface-1);
-    color: var(--ds-color-fg-primary);
+    background: var(--vd-surface);
+    color: var(--vd-text);
     font-size: 13px;
     outline: none;
     transition: border-color 0.15s;
 }
-.vd-people-search:focus { border-color: var(--ds-color-accent-500); }
+.vd-people-search:focus { border-color: var(--vd-accent); }
 
 .vd-people-semantic-toggle {
     padding: 5px 8px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-border);
     border-radius: 6px;
-    background: var(--ds-color-surface-1);
-    color: var(--ds-color-fg-muted);
+    background: var(--vd-surface);
+    color: var(--vd-muted);
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.5px;
@@ -61,11 +61,11 @@
     transition: all 0.15s;
     white-space: nowrap;
 }
-.vd-people-semantic-toggle:hover { border-color: var(--ds-color-accent-500); color: var(--ds-color-accent-500); }
+.vd-people-semantic-toggle:hover { border-color: var(--vd-accent); color: var(--vd-accent); }
 .vd-people-semantic-toggle.active {
-    background: var(--ds-color-accent-500);
+    background: var(--vd-accent);
     color: #fff;
-    border-color: var(--ds-color-accent-500);
+    border-color: var(--vd-accent);
 }
 
 .vd-people-toolbar-actions {
@@ -75,7 +75,7 @@
 }
 .vd-people-view-toggle {
     display: flex;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-border);
     border-radius: 6px;
     overflow: hidden;
 }
@@ -83,19 +83,19 @@
     padding: 5px 10px;
     border: none;
     background: transparent;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
     cursor: pointer;
     font-size: 14px;
     transition: all 0.15s;
 }
-.vd-people-view-btn:hover { color: var(--ds-color-fg-primary); }
-.vd-people-view-btn.active { background: var(--ds-color-accent-500); color: #fff; }
+.vd-people-view-btn:hover { color: var(--vd-text); }
+.vd-people-view-btn.active { background: var(--vd-accent); color: #fff; }
 
 .vd-people-add-btn {
     padding: 6px 14px;
-    border: 1px solid var(--ds-color-accent-500);
+    border: 1px solid var(--vd-accent);
     border-radius: 6px;
-    background: var(--ds-color-accent-500);
+    background: var(--vd-accent);
     color: #fff;
     font-size: 13px;
     font-weight: 500;
@@ -116,13 +116,13 @@
 
 /* ── Sidebar ── */
 .vd-people-sidebar {
-    width: var(--ds-size-people-sidebar-w);
-    min-width: var(--ds-size-people-sidebar-w);
+    width: var(--vd-people-sidebar-w);
+    min-width: var(--vd-people-sidebar-w);
     padding: 10px 8px;
-    border-right: 1px solid var(--ds-color-border-subtle);
+    border-right: 1px solid var(--vd-border);
     overflow-y: auto;
     flex-shrink: 0;
-    background: var(--ds-color-surface-1);
+    background: var(--vd-surface);
 }
 .vd-people-sidebar-section {
     margin-bottom: 12px;
@@ -132,7 +132,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.8px;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
     padding: 4px 8px 4px;
     margin-bottom: 2px;
 }
@@ -144,7 +144,7 @@
     border: none;
     border-radius: 5px;
     background: transparent;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     font-size: 12px;
     cursor: pointer;
     transition: background 0.12s;
@@ -154,12 +154,12 @@
 }
 .vd-people-sidebar-item:hover { background: rgba(255,255,255,0.06); }
 .vd-people-sidebar-item.active {
-    background: var(--ds-color-accent-500);
+    background: var(--vd-accent);
     color: #fff;
 }
 .vd-people-sidebar-empty {
     font-size: 11px;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
     padding: 4px 8px;
 }
 
@@ -173,7 +173,7 @@
     border: none;
     border-radius: 5px;
     background: transparent;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     font-size: 11px;
     cursor: pointer;
     transition: background 0.12s;
@@ -187,7 +187,7 @@
 }
 .vd-people-birthday-days {
     font-size: 10px;
-    color: var(--ds-color-accent-500);
+    color: var(--vd-accent);
     font-weight: 600;
     margin-left: 6px;
     flex-shrink: 0;
@@ -203,7 +203,7 @@
 .vd-people-loading {
     text-align: center;
     padding: 40px;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
     font-size: 13px;
 }
 
@@ -218,15 +218,15 @@
     flex-direction: column;
     gap: 8px;
     padding: 14px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-border);
     border-radius: 8px;
-    background: var(--ds-color-surface-1);
+    background: var(--vd-surface);
     cursor: pointer;
     transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
     position: relative;
 }
 .vd-people-card:hover {
-    border-color: var(--ds-color-accent-500);
+    border-color: var(--vd-accent);
     box-shadow: 0 2px 10px rgba(0,0,0,0.15);
     transform: translateY(-1px);
 }
@@ -242,7 +242,7 @@
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--ds-color-accent-500), color-mix(in srgb, var(--ds-color-accent-500) 60%, #000));
+    background: linear-gradient(135deg, var(--vd-accent), color-mix(in srgb, var(--vd-accent) 60%, #000));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -257,7 +257,7 @@
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--ds-color-accent-500), color-mix(in srgb, var(--ds-color-accent-500) 60%, #000));
+    background: linear-gradient(135deg, var(--vd-accent), color-mix(in srgb, var(--vd-accent) 60%, #000));
     align-items: center;
     justify-content: center;
     color: #fff;
@@ -271,7 +271,7 @@
     width: 64px;
     height: 64px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--ds-color-accent-500), color-mix(in srgb, var(--ds-color-accent-500) 60%, #000));
+    background: linear-gradient(135deg, var(--vd-accent), color-mix(in srgb, var(--vd-accent) 60%, #000));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -286,7 +286,7 @@
 .vd-people-card-name {
     font-size: 13px;
     font-weight: 600;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -294,7 +294,7 @@
 .vd-people-card-email,
 .vd-people-card-phone {
     font-size: 11px;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -329,10 +329,10 @@
     padding: 8px 12px;
     font-size: 11px;
     font-weight: 700;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    border-bottom: 1px solid var(--ds-color-border-subtle);
+    border-bottom: 1px solid var(--vd-border);
 }
 .vd-people-list-row {
     display: flex;
@@ -346,7 +346,7 @@
 .vd-people-list-col {
     flex: 1;
     font-size: 12px;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -354,8 +354,8 @@
     align-items: center;
 }
 .vd-people-list-name { flex: 2; }
-.vd-people-list-email { flex: 2; color: var(--ds-color-fg-muted); }
-.vd-people-list-phone { flex: 1.5; color: var(--ds-color-fg-muted); }
+.vd-people-list-email { flex: 2; color: var(--vd-muted); }
+.vd-people-list-phone { flex: 1.5; color: var(--vd-muted); }
 .vd-people-list-birthday { flex: 1.5; gap: 6px; }
 
 /* ── Detail Panel ── */
@@ -363,16 +363,16 @@
     width: 0;
     min-width: 0;
     overflow: hidden;
-    border-left: 1px solid var(--ds-color-border-subtle);
-    background: var(--ds-color-surface-1);
+    border-left: 1px solid var(--vd-border);
+    background: var(--vd-surface);
     transition: width 0.2s ease, min-width 0.2s ease;
     position: relative;
     flex-shrink: 0;
     padding: 0;
 }
 .vd-people-detail.open {
-    width: var(--ds-size-people-detail-w);
-    min-width: var(--ds-size-people-detail-w);
+    width: var(--vd-people-detail-w);
+    min-width: var(--vd-people-detail-w);
     padding: 16px;
     overflow-y: auto;
 }
@@ -385,7 +385,7 @@
     border: none;
     border-radius: 50%;
     background: rgba(255,255,255,0.08);
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
     font-size: 18px;
     cursor: pointer;
     display: flex;
@@ -394,23 +394,23 @@
     z-index: 2;
     transition: background 0.12s;
 }
-.vd-people-detail-close:hover { background: rgba(255,255,255,0.15); color: var(--ds-color-fg-primary); }
+.vd-people-detail-close:hover { background: rgba(255,255,255,0.15); color: var(--vd-text); }
 
 .vd-people-detail-header {
     text-align: center;
     padding-bottom: 14px;
-    border-bottom: 1px solid var(--ds-color-border-subtle);
+    border-bottom: 1px solid var(--vd-border);
     margin-bottom: 14px;
 }
 .vd-people-detail-name {
     font-size: 16px;
     font-weight: 700;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     margin-top: 6px;
 }
 .vd-people-detail-rel {
     font-size: 12px;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
     margin-top: 2px;
 }
 
@@ -424,24 +424,24 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.6px;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
     margin-bottom: 2px;
 }
 .vd-people-detail-field span {
     font-size: 13px;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     word-break: break-word;
 }
 .vd-people-detail-notes span {
     white-space: pre-wrap;
     font-size: 12px;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
 }
 
 /* ── Detail KG Section ── */
 .vd-people-detail-kg {
     padding-top: 12px;
-    border-top: 1px solid var(--ds-color-border-subtle);
+    border-top: 1px solid var(--vd-border);
     margin-bottom: 14px;
 }
 .vd-people-detail-kg-title {
@@ -449,12 +449,12 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.6px;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
     margin-bottom: 8px;
 }
 .vd-people-detail-kg-empty {
     font-size: 12px;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
 }
 .vd-people-detail-kg-list { font-size: 12px; }
 .vd-people-detail-kg-edge {
@@ -465,14 +465,14 @@
 }
 .vd-people-detail-kg-rel {
     font-size: 10px;
-    color: var(--ds-color-accent-500);
+    color: var(--vd-accent);
     font-weight: 600;
     text-transform: uppercase;
 }
-.vd-people-detail-kg-target { color: var(--ds-color-fg-primary); }
+.vd-people-detail-kg-target { color: var(--vd-text); }
 .vd-people-detail-kg-neighbor {
     padding: 2px 0;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
 }
 
 /* ── Detail Actions ── */
@@ -480,21 +480,21 @@
     display: flex;
     gap: 8px;
     padding-top: 12px;
-    border-top: 1px solid var(--ds-color-border-subtle);
+    border-top: 1px solid var(--vd-border);
 }
 .vd-people-detail-edit,
 .vd-people-detail-delete {
     flex: 1;
     padding: 7px 0;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-border);
     border-radius: 6px;
     background: transparent;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     font-size: 12px;
     cursor: pointer;
     transition: all 0.12s;
 }
-.vd-people-detail-edit:hover { border-color: var(--ds-color-accent-500); color: var(--ds-color-accent-500); }
+.vd-people-detail-edit:hover { border-color: var(--vd-accent); color: var(--vd-accent); }
 .vd-people-detail-delete:hover { border-color: #e74c3c; color: #e74c3c; }
 
 /* ── Modal ── */
@@ -512,8 +512,8 @@
     display: flex;
 }
 .vd-people-modal {
-    background: var(--ds-color-surface-1);
-    border: 1px solid var(--ds-color-border-subtle);
+    background: var(--vd-surface);
+    border: 1px solid var(--vd-border);
     border-radius: 10px;
     min-width: 360px;
     max-width: 480px;
@@ -526,7 +526,7 @@
 .vd-people-modal-title {
     font-size: 16px;
     font-weight: 700;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     margin-bottom: 16px;
 }
 .vd-people-modal-fields {
@@ -540,16 +540,16 @@
     gap: 3px;
     font-size: 12px;
     font-weight: 600;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
 }
 .vd-people-modal-fields input,
 .vd-people-modal-fields select,
 .vd-people-modal-fields textarea {
     padding: 7px 10px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-border);
     border-radius: 6px;
-    background: var(--ds-color-bg-canvas);
-    color: var(--ds-color-fg-primary);
+    background: var(--vd-bg, #1a1a2e);
+    color: var(--vd-text);
     font-size: 13px;
     font-family: inherit;
     outline: none;
@@ -558,7 +558,7 @@
 .vd-people-modal-fields input:focus,
 .vd-people-modal-fields select:focus,
 .vd-people-modal-fields textarea:focus {
-    border-color: var(--ds-color-accent-500);
+    border-color: var(--vd-accent);
 }
 .vd-people-modal-notes textarea { min-height: 60px; resize: vertical; }
 
@@ -574,18 +574,18 @@
     border-radius: 6px;
     font-size: 13px;
     cursor: pointer;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-border);
     transition: all 0.12s;
 }
 .vd-people-modal-cancel {
     background: transparent;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
 }
 .vd-people-modal-cancel:hover { background: rgba(255,255,255,0.06); }
 .vd-people-modal-save {
-    background: var(--ds-color-accent-500);
+    background: var(--vd-accent);
     color: #fff;
-    border-color: var(--ds-color-accent-500);
+    border-color: var(--vd-accent);
 }
 .vd-people-modal-save:hover { opacity: 0.85; }
 .vd-people-modal-save.vd-people-modal-danger {
@@ -606,12 +606,12 @@
 .vd-people-empty-title {
     font-size: 16px;
     font-weight: 700;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     margin-bottom: 6px;
 }
 .vd-people-empty-hint {
     font-size: 13px;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
 }
 
 /* ── Responsive ── */

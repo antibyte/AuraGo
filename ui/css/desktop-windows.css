@@ -23,14 +23,14 @@
 .fm-sort-indicator.vd-papirus-icon,
 .fm-context-icon .vd-papirus-icon,
 .fm-drop-icon.vd-papirus-icon {
-    filter: brightness(0) saturate(100%) invert(88%) sepia(17%) saturate(787%) hue-rotate(118deg) brightness(105%) contrast(94%) drop-shadow(0 0 5px rgba(var(--ds-color-accent-rgb), 0.2));
+    filter: brightness(0) saturate(100%) invert(88%) sepia(17%) saturate(787%) hue-rotate(118deg) brightness(105%) contrast(94%) drop-shadow(0 0 5px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.2));
     opacity: 0.96;
 }
 
 .vd-window-layer {
     position: absolute;
     inset: 0;
-    z-index: var(--ds-z-window);
+    z-index: var(--vd-z-window);
     pointer-events: none;
 }
 
@@ -72,12 +72,12 @@
     display: flex;
     gap: 8px;
     padding: 12px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-border);
     border-radius: 12px;
-    background: var(--ds-color-surface-2);
-    box-shadow: var(--ds-elevation-2);
+    background: var(--vd-surface-strong);
+    box-shadow: var(--vd-shadow);
     backdrop-filter: blur(24px);
-    z-index: var(--ds-z-modal);
+    z-index: var(--vd-z-modal);
 }
 
 .vd-switcher-item {
@@ -89,7 +89,7 @@
     border: 1px solid transparent;
     border-radius: 8px;
     background: transparent;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     font: inherit;
     font-size: 13px;
     cursor: pointer;
@@ -98,8 +98,8 @@
 
 .vd-switcher-item:hover,
 .vd-switcher-item.active {
-    background: rgba(var(--ds-color-accent-rgb), 0.15);
-    border-color: rgba(var(--ds-color-accent-rgb), 0.4);
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.15);
+    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.4);
 }
 
 .vd-switcher-icon {
@@ -155,21 +155,21 @@
 .vd-window.active {
     border-color: rgba(39, 199, 166, 0.38);
     box-shadow:
-        var(--ds-elevation-4)),
-        var(--ds-color-inner-highlight),
+        var(--vd-shadow-window, var(--vd-shadow)),
+        var(--vd-inner-glow),
         0 0 0 1px rgba(39, 199, 166, 0.14) inset,
-        0 0 32px var(--ds-color-accent-glow),
+        0 0 32px var(--vd-accent-glow),
         0 0 0 1px rgba(39, 199, 166, 0.12);
 }
 
 .vd-window.vd-window-file-drop-target {
     border-color: rgba(39, 199, 166, 0.72);
-    box-shadow: var(--ds-elevation-2), 0 0 0 2px rgba(39, 199, 166, 0.25);
+    box-shadow: var(--vd-shadow), 0 0 0 2px rgba(39, 199, 166, 0.25);
 }
 
 .vd-window.vd-window-file-drop-reject {
     border-color: rgba(248, 113, 113, 0.68);
-    box-shadow: var(--ds-elevation-2), 0 0 0 2px rgba(248, 113, 113, 0.2);
+    box-shadow: var(--vd-shadow), 0 0 0 2px rgba(248, 113, 113, 0.2);
 }
 
 .vd-window.no-titlebar {
@@ -382,7 +382,7 @@
     border: 1px solid transparent;
     border-radius: 6px;
     background: transparent;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
     font: inherit;
     font-size: 0.75rem;
     font-weight: 760;
@@ -394,7 +394,7 @@
 .vd-window-menu-button:focus-visible {
     border-color: rgba(39, 199, 166, 0.28);
     background: rgba(39, 199, 166, 0.12);
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     outline: none;
 }
 
@@ -402,12 +402,12 @@
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
-    z-index: var(--ds-z-menu);
+    z-index: var(--vd-z-menu);
     min-width: 210px;
     padding: 6px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-border);
     border-radius: 8px;
-    background: var(--ds-color-surface-2);
+    background: var(--vd-surface-strong);
     box-shadow: 0 20px 48px rgba(0, 0, 0, 0.34);
     backdrop-filter: blur(22px) saturate(1.14);
     opacity: 0;
@@ -444,7 +444,7 @@
     border: 0;
     border-radius: 6px;
     background: transparent;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     font: inherit;
     font-size: 0.78rem;
     text-align: left;
@@ -459,13 +459,13 @@
 
 .vd-window-menu-item:disabled,
 .vd-window-menu-submenu.disabled > .vd-window-menu-item {
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
     cursor: default;
     opacity: 0.52;
 }
 
 .vd-window-menu-item.checked {
-    color: var(--ds-color-accent-500);
+    color: var(--vd-accent);
 }
 
 .vd-window-menu-item.checked .vd-window-menu-icon::after {
@@ -501,7 +501,7 @@
 
 .vd-window-menu-item kbd,
 .vd-window-menu-arrow {
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
     font: inherit;
     font-size: 0.68rem;
     white-space: nowrap;
@@ -515,7 +515,7 @@
 .vd-window-menu-separator {
     height: 1px;
     margin: 5px 6px;
-    background: var(--ds-color-border-subtle);
+    background: var(--vd-border);
 }
 
 .vd-window-content {
@@ -562,7 +562,7 @@
 }
 
 .vd-window-content ::-webkit-scrollbar-thumb:hover {
-    background: rgba(var(--ds-color-accent-rgb), 0.72);
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.72);
     background-clip: padding-box;
 }
 
@@ -788,7 +788,7 @@
         top: 0 !important;
         width: 100vw !important;
         /* Better safe area + taskbar reserve calculation for mobile */
-        height: calc(var(--ds-size-visual-height) - var(--ds-size-mobile-taskbar-reserve)))) !important;
+        height: calc(var(--vd-visual-height, 100dvh) - var(--vd-mobile-taskbar-reserve, calc(54px + env(safe-area-inset-bottom, 0px)))) !important;
         min-width: 0 !important;
         min-height: 0 !important;
         border-radius: 0 !important;
@@ -796,8 +796,8 @@
     }
 .vd-window.vd-mobile-wide-window,
 .vd-window.vd-mobile-wide-window.maximized {
-        min-width: var(--ds-size-mobile-workspace);
-        width: var(--ds-size-mobile-workspace) !important;
+        min-width: var(--vd-mobile-workspace-width);
+        width: var(--vd-mobile-workspace-width) !important;
     }
 .vd-window.vd-mobile-wide-window .vd-window-titlebar {
         position: sticky;

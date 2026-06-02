@@ -169,8 +169,8 @@
                 if (tableBody) {
                     tableBody.innerHTML = previews.map(p => `
                         <div class="fm-batch-rename-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:4px 6px;border-bottom:1px solid rgba(255,255,255,0.03)">
-                            <div class="text-ellipsis" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.75rem;color:var(--ds-color-fg-muted)" title="${esc(p.origName)}">${esc(p.origName)}</div>
-                            <div class="text-ellipsis" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.75rem;color:var(--ds-color-accent-500)" title="${esc(p.newName)}">${esc(p.newName)}</div>
+                            <div class="text-ellipsis" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.75rem;color:var(--vd-muted)" title="${esc(p.origName)}">${esc(p.origName)}</div>
+                            <div class="text-ellipsis" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.75rem;color:var(--vd-accent, #27c7a6)" title="${esc(p.newName)}">${esc(p.newName)}</div>
                         </div>
                     `).join('');
                 }
@@ -181,19 +181,19 @@
                 <div class="fm-batch-rename-grid" style="display:grid;grid-template-columns: 240px 1fr; gap:16px; margin: 12px 0;">
                     <div class="fm-batch-rename-fields" style="display:flex;flex-direction:column;gap:8px">
                         <div class="fm-field-group" style="display:flex;flex-direction:column;gap:2px">
-                            <label style="font-size:0.7rem;color:var(--ds-color-fg-muted)">${esc(t('desktop.fm.batch_rename_prefix', 'Prefix'))}</label>
+                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_prefix', 'Prefix'))}</label>
                             <input type="text" name="prefix" value="" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
                         </div>
                         <div class="fm-field-group" style="display:flex;flex-direction:column;gap:2px">
-                            <label style="font-size:0.7rem;color:var(--ds-color-fg-muted)">${esc(t('desktop.fm.batch_rename_suffix', 'Suffix'))}</label>
+                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_suffix', 'Suffix'))}</label>
                             <input type="text" name="suffix" value="" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
                         </div>
                         <div class="fm-field-group" style="display:flex;flex-direction:column;gap:2px">
-                            <label style="font-size:0.7rem;color:var(--ds-color-fg-muted)">${esc(t('desktop.fm.batch_rename_find', 'Find'))}</label>
+                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_find', 'Find'))}</label>
                             <input type="text" name="find" value="" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
                         </div>
                         <div class="fm-field-group" style="display:flex;flex-direction:column;gap:2px">
-                            <label style="font-size:0.7rem;color:var(--ds-color-fg-muted)">${esc(t('desktop.fm.batch_rename_replace', 'Replace'))}</label>
+                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_replace', 'Replace'))}</label>
                             <input type="text" name="replace" value="" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
                         </div>
                         <div class="fm-field-group fm-checkbox-group" style="display:flex;align-items:center;gap:6px;margin:4px 0">
@@ -201,12 +201,12 @@
                             <label for="fm-rename-num" style="font-size:0.75rem;user-select:none">${esc(t('desktop.fm.batch_rename_numbering', 'Numbering (001...)'))}</label>
                         </div>
                         <div class="fm-field-group" style="display:none;flex-direction:column;gap:2px" id="fm-rename-start-group">
-                            <label style="font-size:0.7rem;color:var(--ds-color-fg-muted)">Start Number</label>
+                            <label style="font-size:0.7rem;color:var(--vd-muted)">Start Number</label>
                             <input type="number" name="startNum" value="1" min="1" step="1" style="width:100%;box-sizing:border-box">
                         </div>
                     </div>
-                    <div class="fm-batch-rename-preview-panel" style="border:1px solid var(--ds-color-border-subtle);background:rgba(0,0,0,0.15);border-radius:6px;display:flex;flex-direction:column;height:240px;overflow:hidden">
-                        <div class="fm-batch-rename-table-header" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:6px;background:rgba(255,255,255,0.02);border-bottom:1px solid var(--ds-color-border-subtle);font-size:0.75rem;color:var(--ds-color-fg-muted);font-weight:600">
+                    <div class="fm-batch-rename-preview-panel" style="border:1px solid var(--vd-border);background:rgba(0,0,0,0.15);border-radius:6px;display:flex;flex-direction:column;height:240px;overflow:hidden">
+                        <div class="fm-batch-rename-table-header" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:6px;background:rgba(255,255,255,0.02);border-bottom:1px solid var(--vd-border);font-size:0.75rem;color:var(--vd-muted);font-weight:600">
                             <div>Original</div>
                             <div>New Name</div>
                         </div>
@@ -299,12 +299,12 @@
             overlay.innerHTML = `<form class="fm-modal">
                 <div class="fm-modal-title">${esc(t('desktop.fm.new_file_template', 'Create File from Template'))}</div>
                 <div class="fm-field-group" style="margin-bottom: 12px; display:flex; flex-direction:column; gap:4px">
-                    <label style="font-size:0.75rem;color:var(--ds-color-fg-muted)">${esc(t('desktop.fm.new_file_prompt', 'File name'))}</label>
+                    <label style="font-size:0.75rem;color:var(--vd-muted)">${esc(t('desktop.fm.new_file_prompt', 'File name'))}</label>
                     <input type="text" name="filename" value="new-file.txt" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
                 </div>
                 <div class="fm-field-group" style="margin-bottom: 16px; display:flex; flex-direction:column; gap:4px">
-                    <label style="font-size:0.75rem;color:var(--ds-color-fg-muted)">Template</label>
-                    <select name="template" style="width:100%;box-sizing:border-box;background:#1a1a1a;color:var(--ds-color-fg-primary);border:1px solid var(--ds-color-border-subtle);padding:6px;border-radius:4px">${options}</select>
+                    <label style="font-size:0.75rem;color:var(--vd-muted)">Template</label>
+                    <select name="template" style="width:100%;box-sizing:border-box;background:#1a1a1a;color:var(--vd-text);border:1px solid var(--vd-border);padding:6px;border-radius:4px">${options}</select>
                 </div>
                 <div class="fm-modal-actions">
                     <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel', 'Cancel'))}</button>

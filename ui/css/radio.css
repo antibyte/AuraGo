@@ -8,7 +8,7 @@
     flex-direction: column;
     min-height: 100%;
     height: 100%;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text, #eff7ff);
     background:
         radial-gradient(circle at 16% 8%, rgba(57, 213, 199, 0.22), transparent 32%),
         radial-gradient(circle at 92% 12%, rgba(64, 130, 255, 0.18), transparent 34%),
@@ -20,7 +20,7 @@
     --radio-glass-strong: rgba(255, 255, 255, 0.88);
     --radio-line: rgba(51, 65, 85, 0.16);
     --radio-text-muted: rgba(71, 85, 105, 0.78);
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     background:
         radial-gradient(circle at 16% 8%, rgba(15, 143, 122, 0.16), transparent 32%),
         radial-gradient(circle at 92% 12%, rgba(99, 179, 255, 0.16), transparent 34%),
@@ -107,7 +107,7 @@
 .radio-tab:focus-visible {
     transform: translateY(-1px);
     border-color: rgba(63, 220, 205, 0.55);
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text, #eff7ff);
 }
 
 .radio-tab.active {
@@ -333,7 +333,7 @@
     position: absolute;
     top: 18px;
     right: 18px;
-    z-index: var(--ds-z-toast);
+    z-index: var(--vd-z-toast);
     max-width: min(360px, calc(100% - 36px));
     border: 1px solid rgba(255, 134, 134, 0.35);
     border-radius: 16px;

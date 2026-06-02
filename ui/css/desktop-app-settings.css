@@ -41,7 +41,7 @@
 }
 
 .vd-settings-search-input:focus {
-    border-color: var(--ds-color-accent-500);
+    border-color: var(--vd-accent);
 }
 
 .vd-settings-nav {
@@ -70,7 +70,7 @@
 }
 
 .vd-settings-nav.active {
-    box-shadow: inset 3px 0 0 var(--ds-color-accent-500);
+    box-shadow: inset 3px 0 0 var(--vd-accent);
 }
 
 .vd-settings-pane {
@@ -93,7 +93,7 @@
     place-items: center;
     border-radius: 14px;
     background: rgba(39, 199, 166, 0.18);
-    color: var(--ds-color-accent-500);
+    color: var(--vd-accent);
     font-weight: 900;
 }
 
@@ -200,7 +200,7 @@
 
 .vd-switch input:checked + span::before {
     transform: translateX(22px);
-    background: var(--ds-color-accent-500);
+    background: var(--vd-accent);
 }
 
 

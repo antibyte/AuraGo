@@ -46,7 +46,7 @@
         0 6px 18px rgba(0, 0, 0, 0.32);
     backdrop-filter: blur(40px) saturate(160%);
     -webkit-backdrop-filter: blur(40px) saturate(160%);
-    z-index: var(--ds-z-context);
+    z-index: var(--vd-z-context-menu);
 }
 
 .vd-context-item {
@@ -60,7 +60,7 @@
     border: 0;
     border-radius: 8px;
     background: transparent;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     font: inherit;
     font-size: 0.82rem;
     text-align: left;
@@ -109,7 +109,7 @@
 }
 
 .vd-context-icon {
-    color: var(--ds-color-accent-500);
+    color: var(--vd-accent);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -120,7 +120,7 @@
 .vd-context-separator {
     height: 1px;
     margin: 6px 4px;
-    background: var(--ds-color-border-subtle);
+    background: var(--vd-border);
 }
 
 .vd-modal-backdrop {
@@ -151,7 +151,7 @@
 }
 
 .vd-modal-copy {
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
     line-height: 1.45;
     margin-bottom: 12px;
 }
@@ -161,10 +161,10 @@
     height: 40px;
     margin: 8px 0 14px;
     padding: 0 11px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-border);
     border-radius: 9px;
     background: rgba(0, 0, 0, 0.18);
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     font: inherit;
 }
 
@@ -182,7 +182,7 @@
 .vd-file-dialog-backdrop {
     position: fixed;
     inset: 0;
-    z-index: var(--ds-z-modal);
+    z-index: var(--vd-z-modal);
     display: grid;
     place-items: center;
     padding: 18px;
@@ -196,10 +196,10 @@
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
     overflow: hidden;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-border);
     border-radius: 12px;
-    background: var(--ds-color-surface-2);
-    box-shadow: var(--ds-elevation-2);
+    background: var(--vd-surface-strong);
+    box-shadow: var(--vd-shadow);
 }
 
 .vd-file-dialog-header,
@@ -209,11 +209,11 @@
     justify-content: space-between;
     gap: 12px;
     padding: 14px 16px;
-    border-bottom: 1px solid var(--ds-color-border-subtle);
+    border-bottom: 1px solid var(--vd-border);
 }
 
 .vd-file-dialog-footer {
-    border-top: 1px solid var(--ds-color-border-subtle);
+    border-top: 1px solid var(--vd-border);
     border-bottom: 0;
 }
 
@@ -225,17 +225,17 @@
 .vd-file-dialog-status {
     min-height: 18px;
     margin-top: 3px;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
     font-size: 0.82rem;
 }
 
 .vd-file-dialog-close {
     width: 34px;
     height: 34px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-border);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.06);
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     font: inherit;
     cursor: pointer;
 }
@@ -250,7 +250,7 @@
     min-height: 0;
     overflow: auto;
     padding: 12px;
-    border-right: 1px solid var(--ds-color-border-subtle);
+    border-right: 1px solid var(--vd-border);
 }
 
 .vd-file-dialog-sidebar-item {
@@ -262,7 +262,7 @@
     border: 0;
     border-radius: 8px;
     background: transparent;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     font: inherit;
     text-align: left;
     cursor: pointer;
@@ -287,7 +287,7 @@
     gap: 6px;
     min-height: 34px;
     overflow-x: auto;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
     white-space: nowrap;
 }
 
@@ -295,7 +295,7 @@
     border: 0;
     border-radius: 7px;
     background: transparent;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     font: inherit;
     cursor: pointer;
 }
@@ -312,10 +312,10 @@
 .vd-file-dialog-name input {
     width: 100%;
     min-height: 38px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-border);
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.22);
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     font: inherit;
 }
 
@@ -331,7 +331,7 @@
 .vd-file-dialog-list {
     min-height: 260px;
     overflow: auto;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-border);
     border-radius: 10px;
     background: rgba(0, 0, 0, 0.14);
 }
@@ -347,7 +347,7 @@
     border: 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     background: transparent;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     font: inherit;
     text-align: left;
     cursor: pointer;
@@ -361,7 +361,7 @@
 .vd-file-dialog-entry-icon,
 .vd-file-dialog-entry-type,
 .vd-file-dialog-entry-size {
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
 }
 
 .vd-file-dialog-entry-name {
@@ -374,7 +374,7 @@
     display: grid;
     place-items: center;
     min-height: 220px;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
 }
 
 .vd-file-dialog-name {
@@ -384,7 +384,7 @@
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
     gap: 10px;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
 }
 
 .vd-file-dialog-name.is-hidden {
@@ -427,7 +427,7 @@
 .vd-lightbox-overlay {
     position: fixed;
     inset: 0;
-    z-index: var(--ds-z-context);
+    z-index: var(--vd-z-context-menu);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -486,17 +486,17 @@
     place-items: center;
     background: rgba(4, 7, 12, 0.58);
     backdrop-filter: blur(8px);
-    z-index: var(--ds-z-modal);
+    z-index: var(--vd-z-modal);
     padding: 18px;
 }
 
 .vd-shortcuts-modal {
     width: min(420px, calc(100vw - 32px));
     padding: 18px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-border);
     border-radius: 12px;
-    background: var(--ds-color-surface-2);
-    box-shadow: var(--ds-elevation-2);
+    background: var(--vd-surface-strong);
+    box-shadow: var(--vd-shadow);
 }
 
 .vd-shortcuts-header {
@@ -515,9 +515,9 @@
     width: 32px;
     height: 32px;
     border-radius: 8px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-border);
     background: rgba(255,255,255,0.08);
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     font-size: 1.2rem;
     cursor: pointer;
     display: inline-flex;
@@ -551,12 +551,12 @@
     padding: 3px 8px;
     border-radius: 6px;
     background: rgba(255,255,255,0.1);
-    border: 1px solid var(--ds-color-border-subtle);
-    color: var(--ds-color-fg-primary);
+    border: 1px solid var(--vd-border);
+    color: var(--vd-text);
     white-space: nowrap;
 }
 
 .vd-shortcuts-action {
     font-size: 0.85rem;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-muted);
 }

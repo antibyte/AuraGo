@@ -6,14 +6,14 @@
     height: 100%;
     overflow: hidden;
     font-size: 13px;
-    color: var(--ds-color-fg-primary);
-    background: var(--ds-color-surface-1));
+    color: var(--vd-text, #e8ecf1);
+    background: var(--vd-surface, rgba(20,24,30,0.85));
 }
 
 /* ── Header / Toolbar ── */
 .vd-looper-header {
     padding: 10px 14px;
-    border-bottom: 1px solid var(--ds-color-border-subtle));
+    border-bottom: 1px solid var(--vd-border, rgba(255,255,255,0.06));
     background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
     flex-shrink: 0;
     display: flex;
@@ -30,7 +30,7 @@
 
 .vd-looper-header-group-config {
     padding-top: 6px;
-    border-top: 1px solid var(--ds-color-border-subtle));
+    border-top: 1px solid var(--vd-border, rgba(255,255,255,0.04));
 }
 
 .vd-looper-field {
@@ -46,7 +46,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-text-muted, #9aa3ad);
     white-space: normal;
     line-height: 1.25;
 }
@@ -56,8 +56,8 @@
 .vd-looper-field input[type="number"] {
     padding: 5px 9px;
     border-radius: 7px;
-    border: 1px solid var(--ds-color-border-subtle));
-    background: var(--ds-color-surface-2));
+    border: 1px solid var(--vd-border, rgba(255,255,255,0.08));
+    background: var(--vd-surface-strong, rgba(0,0,0,0.25));
     color: inherit;
     font-size: 12px;
     outline: none;
@@ -67,8 +67,8 @@
 
 .vd-looper-field select:focus,
 .vd-looper-field input:focus {
-    border-color: var(--ds-color-accent-500);
-    box-shadow: 0 0 0 2px rgba(var(--ds-color-accent-rgb), 0.09);
+    border-color: var(--vd-accent, #27c7a6);
+    box-shadow: 0 0 0 2px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.09);
 }
 
 .vd-looper-field-preset {
@@ -97,9 +97,9 @@
     width: 30px;
     height: 30px;
     border-radius: 7px;
-    border: 1px solid var(--ds-color-border-subtle));
-    background: var(--ds-color-surface-2));
-    color: var(--ds-color-fg-muted);
+    border: 1px solid var(--vd-border, rgba(255,255,255,0.08));
+    background: var(--vd-surface-strong, rgba(0,0,0,0.25));
+    color: var(--vd-text-muted, #9aa3ad);
     cursor: pointer;
     transition: all 0.15s ease;
     flex-shrink: 0;
@@ -107,16 +107,16 @@
 
 .vd-looper-icon-btn:hover {
     background: rgba(255,255,255,0.08);
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text, #e8ecf1);
     transform: translateY(-1px);
 }
 
 .vd-looper-icon-btn:active { transform: translateY(0); }
 
 .vd-looper-btn-save:hover {
-    border-color: var(--ds-color-accent-500);
-    color: var(--ds-color-accent-500);
-    background: rgba(var(--ds-color-accent-rgb), 0.06);
+    border-color: var(--vd-accent, #27c7a6);
+    color: var(--vd-accent, #27c7a6);
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.06);
 }
 
 .vd-looper-btn-delete:hover {
@@ -125,7 +125,7 @@
     background: rgba(239,68,68,0.1);
 }
 
-.vd-looper-opt-builtin { font-weight: 600; color: var(--ds-color-accent-500); }
+.vd-looper-opt-builtin { font-weight: 600; color: var(--vd-accent, #27c7a6); }
 
 /* ── Workspace (sidebar + editor) ── */
 .vd-looper-workspace {
@@ -153,9 +153,9 @@
     gap: 8px;
     padding: 8px 10px;
     border-radius: 7px;
-    border: 1px solid var(--ds-color-border-subtle));
-    background: var(--ds-color-surface-2));
-    color: var(--ds-color-fg-primary);
+    border: 1px solid var(--vd-border, rgba(255,255,255,0.08));
+    background: var(--vd-surface-strong, rgba(0,0,0,0.25));
+    color: var(--vd-text, #e8ecf1);
     font-size: 12px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -173,8 +173,8 @@
 
 .vd-looper-step-btn--active {
     background: rgba(255,255,255,0.08);
-    border-color: var(--step-color, var(--ds-color-accent-500));
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--step-color, var(--ds-color-accent-500)) 19%, transparent);
+    border-color: var(--step-color, var(--vd-accent, #27c7a6));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--step-color, var(--vd-accent, #27c7a6)) 19%, transparent);
 }
 
 .vd-looper-step-btn--running {
@@ -190,7 +190,7 @@
 .vd-looper-step-btn-num {
     font-size: 11px;
     font-weight: 700;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-text-muted, #9aa3ad);
     flex-shrink: 0;
     min-width: 16px;
 }
@@ -235,8 +235,8 @@
     width: 100%;
     padding: 10px 12px;
     border-radius: 8px;
-    border: 1px solid var(--ds-color-border-subtle));
-    background: var(--ds-color-surface-2));
+    border: 1px solid var(--vd-border, rgba(255,255,255,0.08));
+    background: var(--vd-surface-strong, rgba(0,0,0,0.25));
     color: inherit;
     font-size: 13px;
     line-height: 1.5;
@@ -247,19 +247,19 @@
 }
 
 .vd-looper-editor textarea:focus {
-    border-color: var(--ds-color-accent-500);
-    box-shadow: 0 0 0 2px rgba(var(--ds-color-accent-rgb), 0.07);
+    border-color: var(--vd-accent, #27c7a6);
+    box-shadow: 0 0 0 2px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.07);
 }
 
 .vd-looper-editor textarea::placeholder {
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-text-muted, #9aa3ad);
     opacity: 0.5;
 }
 
 /* ── Controls (Start/Stop in sidebar) ── */
 .vd-looper-start,
 .vd-looper-stop {
-    --vd-looper-action-accent: var(--ds-color-accent-500);
+    --vd-looper-action-accent: var(--vd-accent, #27c7a6);
     width: 100%;
     min-height: 32px;
     display: inline-flex;
@@ -268,9 +268,9 @@
     gap: 8px;
     padding: 7px 10px;
     border-radius: 7px;
-    border: 1px solid var(--ds-color-border-subtle));
-    background: var(--ds-color-surface-2));
-    color: var(--ds-color-fg-primary);
+    border: 1px solid var(--vd-border, rgba(255,255,255,0.08));
+    background: var(--vd-surface-strong, rgba(0,0,0,0.25));
+    color: var(--vd-text, #e8ecf1);
     box-sizing: border-box;
     font-size: 12px;
     font-weight: 700;
@@ -281,7 +281,7 @@
 }
 
 .vd-looper-start {
-    --vd-looper-action-accent: var(--ds-color-accent-500);
+    --vd-looper-action-accent: var(--vd-accent, #27c7a6);
 }
 
 .vd-looper-stop {
@@ -293,16 +293,16 @@
     width: 14px;
     height: 14px;
     flex: 0 0 auto;
-    color: var(--ds-color-looper-action-accent);
-    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--ds-color-looper-action-accent) 28%, transparent));
+    color: var(--vd-looper-action-accent);
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--vd-looper-action-accent) 28%, transparent));
 }
 
 .vd-looper-start:hover:not(:disabled),
 .vd-looper-stop:hover:not(:disabled) {
     background: rgba(255,255,255,0.06);
-    border-color: var(--ds-color-looper-action-accent);
+    border-color: var(--vd-looper-action-accent);
     color: #fff;
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ds-color-looper-action-accent) 22%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--vd-looper-action-accent) 22%, transparent);
     transform: translateY(-1px);
 }
 
@@ -315,9 +315,9 @@
 .vd-looper-stop:disabled {
     cursor: not-allowed;
     opacity: 0.46;
-    background: var(--ds-color-surface-2));
-    border-color: var(--ds-color-border-subtle));
-    color: var(--ds-color-fg-muted);
+    background: var(--vd-surface-strong, rgba(0,0,0,0.25));
+    border-color: var(--vd-border, rgba(255,255,255,0.08));
+    color: var(--vd-text-muted, #9aa3ad);
     box-shadow: none;
 }
 
@@ -330,7 +330,7 @@
 /* ── Monitor ── */
 .vd-looper-monitor {
     padding: 10px 14px 12px;
-    border-top: 1px solid var(--ds-color-border-subtle));
+    border-top: 1px solid var(--vd-border, rgba(255,255,255,0.06));
     flex-shrink: 0;
     max-height: 240px;
     display: flex;
@@ -341,7 +341,7 @@
 }
 
 .vd-looper-monitor--running {
-    border-top-color: rgba(var(--ds-color-accent-rgb), 0.25);
+    border-top-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.25);
 }
 
 .vd-looper-monitor--error {
@@ -362,7 +362,7 @@
     gap: 7px;
     font-size: 12px;
     font-weight: 600;
-    color: var(--ds-color-accent-500);
+    color: var(--vd-accent, #27c7a6);
     letter-spacing: 0.2px;
 }
 
@@ -381,7 +381,7 @@
 
 .vd-looper-monitor-meta {
     font-size: 11px;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-text-muted, #9aa3ad);
     font-weight: 500;
     font-variant-numeric: tabular-nums;
 }
@@ -399,12 +399,12 @@
 
 .vd-looper-progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, var(--ds-color-accent-500) 0%, color-mix(in srgb, var(--ds-color-accent-500) 87%, transparent) 100%);
+    background: linear-gradient(90deg, var(--vd-accent, #27c7a6) 0%, color-mix(in srgb, var(--vd-accent, #27c7a6) 87%, transparent) 100%);
     border-radius: 3px;
     transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     width: 0%;
     position: relative;
-    box-shadow: 0 0 8px rgba(var(--ds-color-accent-rgb), 0.19);
+    box-shadow: 0 0 8px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.19);
 }
 
 .vd-looper-progress-glow {
@@ -413,10 +413,10 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: var(--ds-color-accent-500);
+    background: var(--vd-accent, #27c7a6);
     transform: translateX(-50%);
     transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 0 10px var(--ds-color-accent-500), 0 0 20px rgba(var(--ds-color-accent-rgb), 0.38);
+    box-shadow: 0 0 10px var(--vd-accent, #27c7a6), 0 0 20px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.38);
     opacity: 0;
 }
 
@@ -426,8 +426,8 @@
 }
 
 @keyframes vd-looper-glow-pulse {
-    0%, 100% { box-shadow: 0 0 10px var(--ds-color-accent-500), 0 0 20px rgba(var(--ds-color-accent-rgb), 0.38); }
-    50% { box-shadow: 0 0 14px var(--ds-color-accent-500), 0 0 28px rgba(var(--ds-color-accent-rgb), 0.56); }
+    0%, 100% { box-shadow: 0 0 10px var(--vd-accent, #27c7a6), 0 0 20px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.38); }
+    50% { box-shadow: 0 0 14px var(--vd-accent, #27c7a6), 0 0 28px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.56); }
 }
 
 /* ── Logs ── */
@@ -451,7 +451,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-text-muted, #9aa3ad);
     background: rgba(255,255,255,0.02);
     border-bottom: 1px solid rgba(255,255,255,0.04);
 }
@@ -462,7 +462,7 @@
     gap: 4px;
     font-size: 10px;
     font-weight: 500;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-text-muted, #9aa3ad);
     background: transparent;
     border: none;
     cursor: pointer;
@@ -487,7 +487,7 @@
 .vd-looper-log-empty {
     text-align: center;
     padding: 16px;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-text-muted, #9aa3ad);
     font-size: 12px;
     font-style: italic;
     opacity: 0.7;
@@ -533,13 +533,13 @@
 
 .vd-looper-log-time {
     font-size: 10px;
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-text-muted, #9aa3ad);
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
 }
 
 .vd-looper-log-prompt {
-    color: var(--ds-color-fg-muted);
+    color: var(--vd-text-muted, #9aa3ad);
     font-style: italic;
     margin-bottom: 3px;
     white-space: pre-wrap;
@@ -551,7 +551,7 @@
 .vd-looper-log-response {
     white-space: pre-wrap;
     word-break: break-word;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text, #e8ecf1);
     font-size: 11.5px;
     line-height: 1.5;
 }
@@ -656,9 +656,9 @@
     padding: 4px 8px;
     height: 24px;
     border-radius: 5px;
-    border: 1px solid var(--ds-color-border-subtle));
-    background: var(--ds-color-surface-2));
-    color: var(--ds-color-fg-muted);
+    border: 1px solid var(--vd-border, rgba(255,255,255,0.08));
+    background: var(--vd-surface-strong, rgba(0,0,0,0.25));
+    color: var(--vd-text-muted, #9aa3ad);
     cursor: pointer;
     font-size: 11px;
     font-weight: 600;
@@ -667,7 +667,7 @@
 
 .vd-looper-monitor-btn:hover {
     background: rgba(255,255,255,0.08);
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text, #e8ecf1);
     border-color: rgba(255,255,255,0.15);
 }
 
