@@ -58,7 +58,7 @@
     align-content: start;
     min-width: 0;
     border: 1px solid var(--vd-border);
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: rgba(255, 255, 255, 0.045);
     padding: 12px;
     gap: 10px;
@@ -75,7 +75,7 @@
 .vd-store-logo-wrap {
     width: 44px;
     height: 44px;
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     border: 1px solid rgba(255,255,255,0.08);
     background: rgba(0,0,0,0.22);
     display: grid;

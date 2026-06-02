@@ -477,7 +477,7 @@
 .fm-thumb-list {
     width: 24px;
     height: 20px;
-    border-radius: 4px;
+    border-radius: var(--ds-radius-xs);
 }
 .fm-thumb-fallback {
     display: none;
@@ -522,7 +522,7 @@
     inset: 0;
     background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.06);
     border: 2px dashed rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.4);
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     display: none;
     align-items: center;
     justify-content: center;

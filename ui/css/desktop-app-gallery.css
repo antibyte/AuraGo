@@ -35,7 +35,7 @@
     min-height: 192px;
     overflow: hidden;
     border: 1px solid var(--vd-border);
-    border-radius: 6px;
+    border-radius: var(--ds-radius-sm);
     background: var(--vd-surface);
 }
 
@@ -102,7 +102,7 @@
     flex-direction: column;
     overflow: hidden;
     border: 1px solid var(--vd-border);
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     background: var(--vd-surface);
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
 }

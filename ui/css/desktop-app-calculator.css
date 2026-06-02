@@ -59,7 +59,7 @@
     border: 1px solid rgba(255, 255, 255, 0.10);
     color: var(--vd-muted);
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
+    border-radius: var(--ds-radius-md);
     padding: 5px 10px;
     cursor: pointer;
     font-size: 11px;
@@ -106,7 +106,7 @@
 
 .vd-calc-display {
     padding: 12px 16px;
-    border-radius: 14px;
+    border-radius: var(--ds-radius-lg);
     background:
         linear-gradient(145deg, rgba(7, 16, 20, 0.9), rgba(5, 12, 16, 0.95));
     text-align: right;
@@ -177,7 +177,7 @@
 .vd-calc-keys button {
     min-height: 32px;
     border: 0;
-    border-radius: 10px;
+    border-radius: var(--ds-radius-md);
     color: var(--vd-text);
     background:
         linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.07));
@@ -313,7 +313,7 @@
     max-height: 90px;
     overflow: auto;
     padding: 8px 10px;
-    border-radius: 12px;
+    border-radius: var(--ds-radius-lg);
     background:
         linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
     color: var(--vd-muted);
@@ -372,7 +372,7 @@
 
 .vd-calc-history li {
     padding: 5px 8px;
-    border-radius: 8px;
+    border-radius: var(--ds-radius-sm);
     background: rgba(255, 255, 255, 0.03);
     font-family: 'SF Mono', Monaco, Consolas, monospace;
     letter-spacing: 0.3px;
@@ -401,7 +401,7 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
     color: var(--vd-muted);
     background: rgba(255, 255, 255, 0.04);
-    border-radius: 6px;
+    border-radius: var(--ds-radius-sm);
     padding: 4px 6px;
     cursor: pointer;
     font-size: 10px;
@@ -425,7 +425,7 @@
     position: relative;
     z-index: 1;
     padding: 8px 10px;
-    border-radius: 10px;
+    border-radius: var(--ds-radius-md);
     background: linear-gradient(145deg, rgba(7, 16, 20, 0.8), rgba(5, 12, 16, 0.85));
     border: 1px solid rgba(154, 216, 207, 0.1);
     box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.3);

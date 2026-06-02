@@ -454,12 +454,12 @@
 .desktop-body[data-theme="fruity"] {
     color-scheme: light;
     --vd-bg: #f4f8fc;
-    --vd-surface: rgba(255, 255, 255, 0.72);
-    --vd-surface-strong: rgba(255, 255, 255, 0.92);
+    --vd-surface: rgba(255, 255, 255, 0.55);
+    --vd-surface-strong: rgba(255, 255, 255, 0.74);
     --vd-border: rgba(78, 92, 118, 0.12);
     --vd-border-bright: rgba(78, 92, 118, 0.2);
-    --vd-text: #202635;
-    --vd-muted: #667085;
+    --vd-text: #1a2030;
+    --vd-muted: #4f5a73;
     --vd-accent: #0a84ff;
     --vd-coral: #ff5f57;
     --vd-amber: #ffbd2e;
@@ -473,20 +473,20 @@
 }
 
 .desktop-body[data-theme="fruity"] {
-    --ds-color-fg-primary: #202635;
+    --ds-color-fg-primary: #1a2030;
     --ds-color-fg-secondary: #3a455a;
-    --ds-color-fg-muted: #667085;
+    --ds-color-fg-muted: #4f5a73;
     --ds-color-fg-disabled: #97a1b5;
 
     --ds-color-bg-canvas: #f4f8fc;
-    --ds-color-bg-raised: #ffffff;
-    --ds-color-bg-overlay: #ffffff;
-    --ds-color-bg-modal: #ffffff;
+    --ds-color-bg-raised: rgba(255, 255, 255, 0.72);
+    --ds-color-bg-overlay: rgba(255, 255, 255, 0.78);
+    --ds-color-bg-modal: rgba(255, 255, 255, 0.82);
 
     --ds-color-surface-0: #f4f8fc;
-    --ds-color-surface-1: rgba(255, 255, 255, 0.72);
-    --ds-color-surface-2: rgba(255, 255, 255, 0.88);
-    --ds-color-surface-3: rgba(255, 255, 255, 0.96);
+    --ds-color-surface-1: rgba(255, 255, 255, 0.55);
+    --ds-color-surface-2: rgba(255, 255, 255, 0.72);
+    --ds-color-surface-3: rgba(255, 255, 255, 0.84);
 
     --ds-color-border-subtle: rgba(78, 92, 118, 0.12);
     --ds-color-border-default: rgba(78, 92, 118, 0.2);
@@ -510,6 +510,14 @@
 
     --ds-blur-fine: blur(40px) saturate(1.3);
     --ds-blur-coarse: blur(12px) saturate(1.2);
+
+    /* Apple-style corner radii: bigger than the generic scale so the
+       theme reads as macOS rather than the default squared look. */
+    --ds-radius-xs: 6px;
+    --ds-radius-sm: 9px;
+    --ds-radius-md: 12px;
+    --ds-radius-lg: 16px;
+    --ds-radius-xl: 22px;
 }
 
 /* Fruity widgets use a translucent Apple-style material so the wallpaper
@@ -1232,13 +1240,25 @@
     .desktop-body[data-theme="fruity"] {
         color-scheme: dark;
         --vd-bg: #111723;
-        --vd-surface: rgba(25, 31, 43, 0.82);
-        --vd-surface-strong: rgba(31, 38, 52, 0.94);
+        --vd-surface: rgba(25, 31, 43, 0.62);
+        --vd-surface-strong: rgba(31, 38, 52, 0.78);
         --vd-border: rgba(255, 255, 255, 0.14);
         --vd-text: #f6f8fb;
-        --vd-muted: #a9b4c4;
+        --vd-muted: #c5cdd9;
         --vd-shadow: 0 26px 70px rgba(0, 0, 0, 0.36);
         --fruity-window-chrome: rgba(34, 41, 55, 0.78);
+
+        /* Override the light fruity design-system tokens for dark mode so
+           contrast is preserved (muted text stays readable on dark surfaces). */
+        --ds-color-fg-primary: #f6f8fb;
+        --ds-color-fg-secondary: #d4dbe7;
+        --ds-color-fg-muted: #c5cdd9;
+        --ds-color-fg-disabled: #6b7785;
+
+        --ds-color-surface-0: #11151c;
+        --ds-color-surface-1: rgba(25, 31, 43, 0.62);
+        --ds-color-surface-2: rgba(31, 38, 52, 0.78);
+        --ds-color-surface-3: rgba(38, 46, 64, 0.88);
     }
 
     .desktop-body[data-theme="fruity"][data-wallpaper="aurora"] {
