@@ -282,7 +282,29 @@
     height: 28px;
     display: inline-grid;
     place-items: center;
-    border-radius: 7px;
+    border-radius: var(--ds-radius-sm);
+    background: transparent;
+    color: var(--ds-color-fg-muted);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition:
+        background var(--ds-motion-duration-fast) var(--ds-motion-ease-standard),
+        color var(--ds-motion-duration-fast) var(--ds-motion-ease-standard),
+        border-color var(--ds-motion-duration-fast) var(--ds-motion-ease-standard);
+}
+
+.vd-window-button:hover {
+    background: var(--ds-color-control-hover);
+    color: var(--ds-color-fg-primary);
+}
+
+.vd-window-button:focus-visible {
+    outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+    outline-offset: var(--ds-focus-ring-offset);
+}
+
+.vd-window-button:active {
+    transform: scale(0.96);
 }
 
 .vd-window-button::before {
@@ -310,8 +332,9 @@
 }
 
 .vd-window-button[data-action="close"]:hover {
-    background: rgba(239, 68, 68, 0.25);
-    border-color: rgba(239, 68, 68, 0.4);
+    background: var(--ds-color-danger-fg);
+    color: white;
+    border-color: transparent;
 }
 
 .vd-window-button[data-action="ai-context"]::before {
