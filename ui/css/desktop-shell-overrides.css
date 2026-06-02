@@ -36,8 +36,8 @@
 }
 .desktop-body[data-theme="fruity"] .vd-window > .vd-window-titlebar > .vd-window-actions {
     position: absolute !important;
-    left: 14px !important;
-    right: 14px !important;
+    left: 10px !important;
+    right: 10px !important;
     top: 50% !important;
     z-index: 4;
     transform: translateY(-50%) !important;
@@ -46,8 +46,8 @@
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-actions {
     position: absolute !important;
-    left: 14px !important;
-    right: 14px !important;
+    left: 10px !important;
+    right: 10px !important;
     top: 24px !important;
     transform: translateY(-50%) !important;
 }

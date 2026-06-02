@@ -125,7 +125,7 @@ func TestDesktopFruityWindowControlsStayOnLeft(t *testing.T) {
 		{
 			name:     "window controls",
 			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window .vd-window-actions",
-			wants:    []string{"position: absolute;", "left: 14px;", "right: 14px;", "transform: translateY(-50%);"},
+			wants:    []string{"position: absolute;", "left: 10px;", "right: 10px;", "transform: translateY(-50%);"},
 		},
 		{
 			name:     "menu window controls",
@@ -155,7 +155,29 @@ func TestDesktopFruityWindowControlsStayOnLeft(t *testing.T) {
 		{
 			name:     "agent chat button stays right",
 			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window .vd-window-ai-button",
-			wants:    []string{"margin-left: auto;", "order: 20;"},
+			wants: []string{
+				"width: 28px;",
+				"height: 24px;",
+				"margin-left: auto;",
+				"order: 20;",
+				"color: #0b4f7a;",
+				"font-size: 0.68rem;",
+			},
+		},
+		{
+			name:     "agent chat button suppresses dot marker",
+			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window .vd-window-ai-button::after",
+			wants:    []string{"display: none;"},
+		},
+		{
+			name:     "agent chat button shows AI badge",
+			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window .vd-window-ai-button::before",
+			wants:    []string{`content: "AI";`, "display: block;", "background: none;"},
+		},
+		{
+			name:     "agent chat button hides inherited glyph",
+			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window .vd-window-ai-button-icon",
+			wants:    []string{"display: none;"},
 		},
 	} {
 		body := cssRuleBodyInFruityThemeTest(t, cssText, check.selector)
