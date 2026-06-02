@@ -162,6 +162,62 @@ func TestDesktopFruityWindowControlsStayOnLeft(t *testing.T) {
 	}
 }
 
+func TestDesktopFruityWindowContentPreservesRoundedCorners(t *testing.T) {
+	t.Parallel()
+
+	cssText := readAllDesktopCSS(t)
+	for _, check := range []struct {
+		name      string
+		selector  string
+		wants     []string
+		forbidden []string
+	}{
+		{
+			name:     "window shell keeps external chrome visible",
+			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window",
+			wants:    []string{"border-radius: 14px;"},
+			forbidden: []string{
+				"overflow: hidden;",
+				"overflow: clip;",
+			},
+		},
+		{
+			name:     "titlebar follows top shell radius",
+			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window:not(.maximized) > .vd-window-titlebar",
+			wants: []string{
+				"border-top-left-radius: inherit;",
+				"border-top-right-radius: inherit;",
+			},
+		},
+		{
+			name:     "content clips to bottom shell radius",
+			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window:not(.maximized) > .vd-window-content",
+			wants: []string{
+				"border-bottom-left-radius: inherit;",
+				"border-bottom-right-radius: inherit;",
+				"overflow: hidden;",
+			},
+		},
+		{
+			name:     "titlebarless windows clip all content corners",
+			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window.no-titlebar:not(.maximized) > .vd-window-content",
+			wants:    []string{"border-radius: inherit;"},
+		},
+	} {
+		body := cssRuleBodyInFruityThemeTest(t, cssText, check.selector)
+		for _, want := range check.wants {
+			if !strings.Contains(body, want) {
+				t.Fatalf("fruity %s rule %q missing %q in body %q", check.name, check.selector, want, body)
+			}
+		}
+		for _, bad := range check.forbidden {
+			if strings.Contains(body, bad) {
+				t.Fatalf("fruity %s rule %q must not contain %q in body %q", check.name, check.selector, bad, body)
+			}
+		}
+	}
+}
+
 func cssRuleBodyInFruityThemeTest(t *testing.T, source, selector string) string {
 	t.Helper()
 	start := strings.Index(source, selector)
