@@ -3,6 +3,14 @@
 
 ;
 /* ui/js/desktop/core/desktop-foundation.js */
+// AUDIT(Task27 / 2026-06-02): All 24 `.style.*` assignments in this file were reviewed.
+// No tokenizable hard-coded colors/sizes/radii were found. Every match is one of:
+//   - Reading current inline state (parseInt on style.left/top/width) for math
+//   - Writing a dynamic computed value (icon grid, widget bounds, drag delta)
+//   - Writing a CSS custom property via setProperty('--vd-*')
+//   - Numeric fallback (`18`) for default icon offset when position data is missing
+// No migration needed for Task 28. See reports/virtual_desktop_js_audit_2026-06-01.md
+// for the line-by-line breakdown (lines 389-1360).
 (function () {
     const state = {
         bootstrap: null,
@@ -374,7 +382,7 @@
         const sheetH = Math.round((manifest.height || 768) * scale * 1000) / 1000;
         const x = Math.round(-(icon.x || 0) * scale * 1000) / 1000;
         const y = Math.round(-(icon.y || 0) * scale * 1000) / 1000;
-        return `<span class="${esc(className)}" aria-hidden="true" style="--vd-sprite-x:${x}px;--vd-sprite-y:${y}px;--vd-sprite-sheet:${sheetW}px ${sheetH}px"></span>`;
+        return `<span class="${esc(className)}" aria-hidden="true" style="--ds-asset-sprite-x:${x}px;--ds-asset-sprite-y:${y}px;--ds-asset-sprite-sheet:${sheetW}px ${sheetH}px"></span>`;
     }
 
     function iconMarkup(key, fallback, className, size) {
@@ -387,11 +395,11 @@
         const source = resolveIconSource(key);
         if (source.type === 'theme') {
             const pixels = Number(size || 42) || 42;
-            return `<span class="${esc(className)} vd-theme-icon vd-papirus-icon" data-vd-icon-key="${esc(key)}" aria-hidden="true" style="--vd-theme-icon-url:${esc(iconUrlStyle(source.path))};width:${pixels}px;height:${pixels}px"></span>`;
+            return `<span class="${esc(className)} vd-theme-icon vd-papirus-icon" data-vd-icon-key="${esc(key)}" aria-hidden="true" style="--ds-asset-theme-icon:${esc(iconUrlStyle(source.path))};width:${pixels}px;height:${pixels}px"></span>`;
         }
         return spriteMarkup(source.key || key, fallback, className, size);
     }
-    function refreshThemeIconElements(root) { (root || document).querySelectorAll('.vd-theme-icon[data-vd-icon-key], .vd-papirus-icon[data-vd-icon-key]').forEach(icon => { const path = themeIconPath(icon.dataset.vdIconKey || ''); if (path) icon.style.setProperty('--vd-theme-icon-url', iconUrlStyle(path)); }); }
+    function refreshThemeIconElements(root) { (root || document).querySelectorAll('.vd-theme-icon[data-vd-icon-key], .vd-papirus-icon[data-vd-icon-key]').forEach(icon => { const path = themeIconPath(icon.dataset.vdIconKey || ''); if (path) icon.style.setProperty('--ds-asset-theme-icon', iconUrlStyle(path)); }); }
     function iconForApp(app) { return app ? (appLogoIconKey(app) || appIconKeys[app.id] || app.icon || 'apps') : 'apps'; }
     function shortcutIconForApp(shortcut, app) {
         const appLogo = appLogoIconKey(app);
@@ -517,7 +525,7 @@
         body.dataset.widgets = settingValue('desktop.show_widgets');
         body.dataset.iconSize = settingValue('desktop.icon_size');
         const sizes = { small: 34, medium: 42, large: 52 };
-        body.style.setProperty('--vd-icon-glyph-size', (sizes[settingValue('desktop.icon_size')] || 42) + 'px');
+        body.style.setProperty('--ds-size-icon-glyph', (sizes[settingValue('desktop.icon_size')] || 42) + 'px');
         refreshThemeIconElements(document);
         const agentButton = $('vd-agent-button');
         if (agentButton) agentButton.hidden = !settingBool('agent.show_chat_button');
@@ -596,7 +604,7 @@
     function updateViewportMetrics() {
         const visual = window.visualViewport;
         const height = visual && visual.height ? visual.height : window.innerHeight;
-        document.documentElement.style.setProperty('--vd-visual-height', Math.max(1, Math.round(height)) + 'px');
+        document.documentElement.style.setProperty('--ds-size-visual-height', Math.max(1, Math.round(height)) + 'px');
         scheduleFruityDockOcclusionCheck();
     }
 
@@ -973,7 +981,7 @@
     }
 
     function scheduleWidgetAutoSize(card, widget) { if (!card || !widgetShouldAutoSize(widget)) return; card.dataset.widgetAutoSize = 'true'; applyWidgetAutoSize(card, card._widgetLastResizePayload || {}); }
-    function applyWidgetAutoSize(card, payload) { if (!card || card.dataset.widgetAutoSize !== 'true') return; const data = payload && typeof payload === 'object' ? payload : {}; const frameWrap = card.querySelector('.vd-widget-frame-wrap'); const reportedFrameHeight = Number(data.height || data.h || 0); if (frameWrap && reportedFrameHeight > 0) { const frameHeight = clampWidgetFrameHeight(card, reportedFrameHeight + WIDGET_FRAME_SCROLLBAR_BUFFER); setWidgetPixelVar(card, '--vd-widget-frame-height', frameHeight); setWidgetPixelVar(frameWrap, '--vd-widget-frame-height', frameHeight); } const measuredContentHeight = widgetMeasuredContentHeight(card, data); const renderedScrollHeight = reportedFrameHeight > 0 ? 0 : Math.ceil(card.scrollHeight || 0); const desiredHeight = Math.max(WIDGET_MIN_HEIGHT, Math.ceil(Number(data.cardHeight || data.card_height || 0)), measuredContentHeight, renderedScrollHeight); setWidgetPixelVar(card, '--vd-widget-auto-height', clampWidgetHeight(card, desiredHeight, WIDGET_MIN_HEIGHT)); }
+    function applyWidgetAutoSize(card, payload) { if (!card || card.dataset.widgetAutoSize !== 'true') return; const data = payload && typeof payload === 'object' ? payload : {}; const frameWrap = card.querySelector('.vd-widget-frame-wrap'); const reportedFrameHeight = Number(data.height || data.h || 0); if (frameWrap && reportedFrameHeight > 0) { const frameHeight = clampWidgetFrameHeight(card, reportedFrameHeight + WIDGET_FRAME_SCROLLBAR_BUFFER); setWidgetPixelVar(card, '--ds-size-widget-frame', frameHeight); setWidgetPixelVar(frameWrap, '--ds-size-widget-frame', frameHeight); } const measuredContentHeight = widgetMeasuredContentHeight(card, data); const renderedScrollHeight = reportedFrameHeight > 0 ? 0 : Math.ceil(card.scrollHeight || 0); const desiredHeight = Math.max(WIDGET_MIN_HEIGHT, Math.ceil(Number(data.cardHeight || data.card_height || 0)), measuredContentHeight, renderedScrollHeight); setWidgetPixelVar(card, '--ds-size-widget-auto', clampWidgetHeight(card, desiredHeight, WIDGET_MIN_HEIGHT)); }
     function resizeWidgetToContent(widgetId, payload) { const id = String(widgetId || ''); if (!id) return; const card = document.querySelector(`.vd-widget[data-widget-id="${cssSel(id)}"]`); if (!card || card.dataset.widgetAutoSize !== 'true') return; const data = payload && typeof payload === 'object' ? payload : {}; card._widgetLastResizePayload = data; const reportedWidth = Number(data.width || data.w || 0); const reportedViewportWidth = Number(data.viewportWidth || data.viewport_width || 0); if (reportedWidth > 16) { const shouldGrowWidth = !reportedViewportWidth || reportedWidth > reportedViewportWidth + WIDGET_WIDTH_GROW_THRESHOLD; const desiredWidth = shouldGrowWidth ? reportedWidth + WIDGET_FRAME_CHROME_BUFFER : widgetPreferredWidth(card); const nextWidth = Math.max(220, Math.min(Math.ceil(desiredWidth), widgetMaxWidth(card))); setWidgetWidthIfChanged(card, nextWidth); } applyWidgetAutoSize(card, data); }
     function widgetMeasuredContentHeight(card, data) { if (!card) return 0; let bottom = 0; const frameWrap = card.querySelector('.vd-widget-frame-wrap'); if (frameWrap) bottom = Math.max(bottom, widgetElementBottom(card, frameWrap)); ['.vd-widget-builtin', '.vd-widget-body', '.vd-quickchat-response'].forEach(selector => { const target = card.querySelector(selector); if (target) bottom = Math.max(bottom, widgetElementBottom(card, target)); }); const requestedCardHeight = Number(data.cardHeight || data.card_height || 0); return Math.ceil(Math.max(bottom, requestedCardHeight, 0) + WIDGET_AUTO_SIZE_PADDING); }
     function widgetElementBottom(card, element) { if (!card || !element) return 0; const cardRect = typeof card.getBoundingClientRect === 'function' ? card.getBoundingClientRect() : null; const elementRect = typeof element.getBoundingClientRect === 'function' ? element.getBoundingClientRect() : null; const cardStyle = window.getComputedStyle ? window.getComputedStyle(card) : null; const paddingBottom = parseFloat(cardStyle && cardStyle.paddingBottom) || 0; const rectBottom = cardRect && elementRect ? elementRect.bottom - cardRect.top + paddingBottom : 0; const layoutBottom = (element.offsetTop || 0) + Math.max(element.scrollHeight || 0, element.offsetHeight || 0); return Math.ceil(Math.max(rectBottom, layoutBottom)); }
@@ -1465,9 +1473,10 @@
         if (typeof initRadialMenu === 'function') initRadialMenu();
         return anchor;
     }
+
 ;
 /* ui/js/desktop/core/icon-selection-runtime.js */
-let desktopSelectionDrag = null;
+    let desktopSelectionDrag = null;
     let desktopSelectionSuppressClick = false;
 
     function ensureDesktopIconSelectionState() {
@@ -1818,9 +1827,19 @@ let desktopSelectionDrag = null;
             if (icon && !isTrashIcon(icon)) await handleTrashDrop(icon);
         }
     }
+
 ;
 /* ui/js/desktop/core/window-shell-runtime.js */
-function renderBuiltinWidget(card, widget) {
+    // AUDIT(Task27 / 2026-06-02): All 28 `.style.*` assignments in this file were reviewed.
+    // No tokenizable hard-coded colors/sizes/radii were found. Every match is one of:
+    //   - Reading current inline state (parseInt on style.left/top) for drag/persist math
+    //   - Writing a dynamic computed value (drag clamp, cascade placement, min/max size)
+    //   - Writing a CSS custom property via setProperty('--vd-*' / '--dock-index')
+    //   - CSS keyword ('none' for resize, '0px'/'100%' for fullscreen layout)
+    // No migration needed for Task 28. See reports/virtual_desktop_js_audit_2026-06-01.md
+    // for the line-by-line breakdown (lines 442-1001).
+
+    function renderBuiltinWidget(card, widget) {
         const container = card.querySelector('.vd-widget-builtin');
         if (!container) return;
         if (widget.id === 'builtin-analog-clock') {
@@ -1838,19 +1857,19 @@ function renderBuiltinWidget(card, widget) {
         let svg = container.querySelector('.vd-analog-clock-svg');
         if (!svg) {
             container.innerHTML = `<svg class="vd-analog-clock-svg" viewBox="0 0 200 200" width="${svgSize}" height="${svgSize}">
-            <circle cx="100" cy="100" r="95" fill="none" stroke="var(--vd-border)" stroke-width="2"/>
+            <circle cx="100" cy="100" r="95" fill="none" stroke="var(--ds-color-border-subtle)" stroke-width="2"/>
             <g class="vd-clock-ticks"></g>
-            <line class="vd-clock-hour" x1="100" y1="100" x2="100" y2="50" stroke="var(--vd-text)" stroke-width="4" stroke-linecap="round"/>
-            <line class="vd-clock-minute" x1="100" y1="100" x2="100" y2="30" stroke="var(--vd-text)" stroke-width="2.5" stroke-linecap="round"/>
-            <line class="vd-clock-second" x1="100" y1="100" x2="100" y2="25" stroke="var(--vd-accent)" stroke-width="1.2" stroke-linecap="round"/>
-            <circle cx="100" cy="100" r="4" fill="var(--vd-accent)"/>
+            <line class="vd-clock-hour" x1="100" y1="100" x2="100" y2="50" stroke="var(--ds-color-fg-primary)" stroke-width="4" stroke-linecap="round"/>
+            <line class="vd-clock-minute" x1="100" y1="100" x2="100" y2="30" stroke="var(--ds-color-fg-primary)" stroke-width="2.5" stroke-linecap="round"/>
+            <line class="vd-clock-second" x1="100" y1="100" x2="100" y2="25" stroke="var(--ds-color-accent-500)" stroke-width="1.2" stroke-linecap="round"/>
+            <circle cx="100" cy="100" r="4" fill="var(--ds-color-accent-500)"/>
         </svg>`;
             svg = container.querySelector('.vd-analog-clock-svg');
             const ticksG = container.querySelector('.vd-clock-ticks');
             for (let i = 0; i < 12; i++) {
                 const angle = (i * 30) * Math.PI / 180, isMain = i % 3 === 0, r1 = isMain ? 78 : 84, r2 = 90;
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                [['x1', 100 + r1 * Math.sin(angle)], ['y1', 100 - r1 * Math.cos(angle)], ['x2', 100 + r2 * Math.sin(angle)], ['y2', 100 - r2 * Math.cos(angle)], ['stroke', isMain ? 'var(--vd-text)' : 'var(--vd-muted)'], ['stroke-width', isMain ? '2.5' : '1.2'], ['stroke-linecap', 'round']].forEach(([name, value]) => line.setAttribute(name, value));
+                [['x1', 100 + r1 * Math.sin(angle)], ['y1', 100 - r1 * Math.cos(angle)], ['x2', 100 + r2 * Math.sin(angle)], ['y2', 100 - r2 * Math.cos(angle)], ['stroke', isMain ? 'var(--ds-color-fg-primary)' : 'var(--ds-color-fg-muted)'], ['stroke-width', isMain ? '2.5' : '1.2'], ['stroke-linecap', 'round']].forEach(([name, value]) => line.setAttribute(name, value));
                 ticksG.appendChild(line);
             }
         }
@@ -2852,6 +2871,7 @@ function renderBuiltinWidget(card, widget) {
             .map(edge => `<span class="vd-resize-handle vd-resize-${edge}" data-resize="${edge}"></span>`)
             .join('');
     }
+
 ;
 /* ui/js/desktop/core/fruity-dock-scroll.js */
 function wireFruityDockScroll(host) {
@@ -3061,9 +3081,10 @@ function windowOverlapsFruityDock(win, dockRect) {
         rect.bottom > dockRect.top + margin &&
         rect.top < dockRect.bottom - margin;
 }
+
 ;
 /* ui/js/desktop/core/window-interactions-runtime.js */
-function minimizeWindow(id) {
+    function minimizeWindow(id) {
         const item = state.windows.get(id);
         if (!item) return;
         if (item.minimizing) return;
@@ -3520,9 +3541,10 @@ function wireWindow(win, id) {
         });
         state.z = wins.length * 10;
     }
+
 ;
 /* ui/js/desktop/core/window-ai-context.js */
-function aiButtonMarkup(appId) {
+    function aiButtonMarkup(appId) {
         if (appId !== 'agent-chat') {
             return `<button class="vd-window-button vd-window-ai-button" type="button" data-action="ai-context" title="${esc(t('desktop.window_ai_context'))}" aria-label="${esc(t('desktop.window_ai_context'))}">${iconMarkup('agent', 'AI', 'vd-window-ai-button-icon', 14)}</button>`;
         }
@@ -3575,13 +3597,15 @@ function aiButtonMarkup(appId) {
         if (!context) return;
         openApp('agent-chat', { window_context: context });
     }
+
 ;
 /* ui/js/desktop/core/lifecycle-cleanup.js */
 // Lifecycle cleanup functions are defined in desktop-foundation.js
 // This file is intentionally empty to avoid duplicate definitions.
+
 ;
 /* ui/js/desktop/core/widget-autosize-runtime.js */
-const WIDGET_FRAME_SHRINK_THRESHOLD = 18;
+    const WIDGET_FRAME_SHRINK_THRESHOLD = 18;
 
     function widgetShouldAutoSize(widget) {
         if (!widget) return true;
@@ -3637,8 +3661,8 @@ const WIDGET_FRAME_SHRINK_THRESHOLD = 18;
         if (frameWrap && reportedFrameHeight > 0) {
             const frameHeight = clampWidgetFrameHeight(card, reportedFrameHeight + WIDGET_FRAME_SCROLLBAR_BUFFER);
             const stableFrameHeight = stableWidgetFrameHeight(card, frameHeight);
-            setWidgetPixelVar(card, '--vd-widget-frame-height', stableFrameHeight);
-            setWidgetPixelVar(frameWrap, '--vd-widget-frame-height', stableFrameHeight);
+            setWidgetPixelVar(card, '--ds-size-widget-frame', stableFrameHeight);
+            setWidgetPixelVar(frameWrap, '--ds-size-widget-frame', stableFrameHeight);
         }
         const measuredContentHeight = widgetMeasuredContentHeight(card, data);
         const renderedScrollHeight = reportedFrameHeight > 0 ? 0 : Math.ceil(card.scrollHeight || 0);
@@ -3648,7 +3672,7 @@ const WIDGET_FRAME_SHRINK_THRESHOLD = 18;
             measuredContentHeight,
             renderedScrollHeight
         );
-        setWidgetPixelVar(card, '--vd-widget-auto-height', clampWidgetHeight(card, desiredHeight, WIDGET_MIN_HEIGHT));
+        setWidgetPixelVar(card, '--ds-size-widget-auto', clampWidgetHeight(card, desiredHeight, WIDGET_MIN_HEIGHT));
     }
 
     function widgetMeasuredContentHeight(card, data) {
@@ -3699,7 +3723,7 @@ const WIDGET_FRAME_SHRINK_THRESHOLD = 18;
     }
 
     function stableWidgetFrameHeight(card, nextHeight) {
-        const current = Math.ceil(parseFloat(card && card.style.getPropertyValue('--vd-widget-frame-height')) || 0);
+        const current = Math.ceil(parseFloat(card && card.style.getPropertyValue('--ds-size-widget-frame')) || 0);
         if (current > nextHeight && current - nextHeight <= WIDGET_FRAME_SHRINK_THRESHOLD) return current;
         return nextHeight;
     }
@@ -3740,9 +3764,10 @@ const WIDGET_FRAME_SHRINK_THRESHOLD = 18;
         const current = Math.round(parseFloat(card.style.width) || card.offsetWidth || 0);
         if (Math.abs(current - next) > 1) card.style.width = next + 'px';
     }
+
 ;
 /* ui/js/desktop/core/shortcut-runtime.js */
-function shortcutKeyMatches(eventKey, eventCode, wanted) {
+    function shortcutKeyMatches(eventKey, eventCode, wanted) {
         if (eventKey === wanted || eventCode === wanted || eventCode === ('Key' + wanted)) return true;
         const code = eventCode ? eventCode.toLowerCase() : '';
         const codeAliases = {
@@ -3757,9 +3782,10 @@ function shortcutKeyMatches(eventKey, eventCode, wanted) {
         const keyAliases = { '=': ['+'], '+': ['='] };
         return (keyAliases[wanted] || []).includes(eventKey);
     }
+
 ;
 /* ui/js/desktop/core/file-dialog-runtime.js */
-const fileDialogDefaultRoots = ['Desktop', 'Documents', 'Downloads', 'Pictures', 'Music', 'Videos', 'Apps', 'Widgets', 'Shared'];
+    const fileDialogDefaultRoots = ['Desktop', 'Documents', 'Downloads', 'Pictures', 'Music', 'Videos', 'Apps', 'Widgets', 'Shared'];
 
     function fileDialogText(key, fallback, vars) {
         let value = '';
@@ -4286,9 +4312,10 @@ const fileDialogDefaultRoots = ['Desktop', 'Documents', 'Downloads', 'Pictures',
         importHostFiles,
         exportWorkspaceFile
     };
+
 ;
 /* ui/js/desktop/core/desktop-file-drops.js */
-const DESKTOP_FILE_DRAG_TYPE = 'application/x-aurago-desktop-files';
+    const DESKTOP_FILE_DRAG_TYPE = 'application/x-aurago-desktop-files';
 
     function desktopDropJoinPath(base, name) {
         const left = String(base || '').replace(/\\/g, '/').replace(/\/+$/, '');
@@ -4561,9 +4588,10 @@ const DESKTOP_FILE_DRAG_TYPE = 'application/x-aurago-desktop-files';
         hasClipboard: hasDesktopFileClipboard,
         paste: pasteDesktopFileClipboard
     };
+
 ;
 /* ui/js/desktop/core/desktop-window-file-drops.js */
-const DESKTOP_WINDOW_TEXT_EXTS = ['txt', 'log', 'md', 'json', 'yaml', 'yml', 'sh', 'py', 'go', 'js', 'mjs', 'ts', 'tsx', 'jsx', 'rs', 'css', 'html', 'htm', 'xml', 'ini', 'conf'];
+    const DESKTOP_WINDOW_TEXT_EXTS = ['txt', 'log', 'md', 'json', 'yaml', 'yml', 'sh', 'py', 'go', 'js', 'mjs', 'ts', 'tsx', 'jsx', 'rs', 'css', 'html', 'htm', 'xml', 'ini', 'conf'];
     const DESKTOP_WINDOW_DROP_CAPABILITIES = {
         files: { multiple: true, accepts: () => true, effect: 'move' },
         pixel: { multiple: false, accepts: path => desktopWindowDropExtIn(path, ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif']), effect: 'copy' },
@@ -4787,9 +4815,10 @@ const DESKTOP_WINDOW_TEXT_EXTS = ['txt', 'log', 'md', 'json', 'yaml', 'yml', 'sh
         win.element.addEventListener('dragleave', handleDesktopFileWindowDragLeave, useCapture);
         win.element.addEventListener('drop', handleDesktopFileWindowDrop, useCapture);
     }
+
 ;
 /* ui/js/desktop/core/menus-and-routing.js */
-function isEditableTarget(target) { return !!(target && target.closest && target.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""], .ql-editor, .xterm-helper-textarea')); }
+    function isEditableTarget(target) { return !!(target && target.closest && target.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""], .ql-editor, .xterm-helper-textarea')); }
     function isNativeContextMenuTarget(target) { return isEditableTarget(target); }
     function shouldAllowBrowserContextMenu(event) { const target = event && event.target; if (isNativeContextMenuTarget(target)) return true; const selection = window.getSelection && window.getSelection(); if (!selection || selection.isCollapsed || !String(selection).trim()) return false; if (!target || !target.closest) return false; return !!target.closest('.vd-window-content, .vd-modal, .vd-qc-modal, .vd-context-native-text'); }
     function suppressBrowserContextMenu(event) { if (!event || event.defaultPrevented || shouldAllowBrowserContextMenu(event)) return false; event.preventDefault(); event.stopPropagation(); closeContextMenu(); return true; }
@@ -5956,9 +5985,110 @@ if (appId === 'pixel') {
         setFallbackFileMenus(id, state.filesPath);
         try {
             const body = await api('/api/desktop/files?path=' + encodeURIComponent(state.filesPath));
+
+;
+/* ui/js/desktop/core/widget-drawer-runtime.js */
+async function renderWidgetDrawerContent(drawer) {
+    drawer.querySelectorAll('.vd-widget-drawer-content').forEach(el => el.remove());
+
+    const content = document.createElement('div');
+    content.className = 'vd-widget-drawer-content';
+    content.style.padding = '12px 16px 20px';
+    content.style.overflow = 'auto';
+    content.style.maxHeight = 'calc(100% - 48px)';
+
+    const allWidgets = (state.bootstrap && state.bootstrap.all_widgets) || [];
+
+    if (allWidgets.length === 0) {
+        content.innerHTML = `
+            <div style="padding: 24px 12px; color: var(--ds-color-fg-muted); font-size: 13px; text-align: center;">
+                ${t('desktop.widget_drawer_empty', 'No widgets available.')}
+            </div>
+        `;
+        drawer.appendChild(content);
+        return;
+    }
+
+    const list = document.createElement('div');
+    list.style.display = 'flex';
+    list.style.flexDirection = 'column';
+    list.style.gap = '8px';
+
+    allWidgets.forEach(widget => {
+        const isVisible = widget.visible !== false;
+        const isBuiltin = widget.builtin === true;
+        const card = document.createElement('div');
+        const iconKey = widget.icon || 'widgets';
+
+        card.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--ds-color-surface-1); border:1px solid var(--ds-color-border-subtle); border-radius:8px;';
+        card.innerHTML = `
+            <div style="flex-shrink:0;">${iconMarkup(iconKey, widget.title || widget.id, 'vd-sprite-file', 22)}</div>
+            <div style="flex:1; min-width:0;">
+                <div style="font-weight:600; font-size:13px; color:var(--ds-color-fg-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    ${esc(widget.title || widget.id)}
+                </div>
+                <div style="font-size:11px; color:var(--ds-color-fg-muted);">
+                    ${isBuiltin ? t('desktop.widget_builtin', 'Builtin') : t('desktop.widget_custom', 'Custom')}
+                    ${isVisible ? ' • ' + t('desktop.widget_on_desktop', 'On desktop') : ''}
+                </div>
+            </div>
+            <div>
+                <button type="button" class="vd-wm-btn" data-widget-action="${isVisible ? 'hide' : 'show'}" data-widget-id="${esc(widget.id)}"
+                    style="font-size:11px; padding:4px 10px; min-width:72px;">
+                    ${isVisible ? t('desktop.widget_remove_from_desktop', 'Remove') : t('desktop.widget_add_to_desktop', 'Add')}
+                </button>
+            </div>
+        `;
+
+        const btn = card.querySelector('button');
+        btn.addEventListener('click', async e => {
+            e.stopPropagation();
+            const action = btn.dataset.widgetAction;
+            const id = btn.dataset.widgetId;
+            if (!id) return;
+
+            btn.disabled = true;
+            btn.textContent = '...';
+
+            try {
+                await api('/api/desktop/widgets?id=' + encodeURIComponent(id), {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ visible: action === 'show' })
+                });
+                await loadBootstrap();
+                renderWidgetDrawerContent(drawer);
+            } catch (err) {
+                showDesktopNotification({
+                    title: t('desktop.notification'),
+                    message: err.message || 'Failed to update widget'
+                });
+                btn.disabled = false;
+                btn.textContent = action === 'show'
+                    ? t('desktop.widget_add_to_desktop', 'Add')
+                    : t('desktop.widget_remove_from_desktop', 'Remove');
+            }
+        });
+
+        list.appendChild(card);
+    });
+
+    content.appendChild(list);
+    drawer.appendChild(content);
+}
+
+function updateTaskbarSystemButtonsForMobile() {
+    const isMobile = window.useMobileDesktopMode && window.useMobileDesktopMode();
+    const shortcutsBtn = document.getElementById('vd-shortcuts-trigger');
+    const widgetsBtn = document.getElementById('vd-widget-drawer-btn');
+
+    if (shortcutsBtn) shortcutsBtn.style.display = isMobile ? 'none' : '';
+    if (widgetsBtn) widgetsBtn.style.display = isMobile ? 'none' : '';
+}
+
 ;
 /* ui/js/desktop/apps/settings-calculator.js */
-const files = body.files || [];
+            const files = body.files || [];
             host.querySelector('.vd-file-list').innerHTML = files.length ? files.map(file => `<div class="vd-file-row" data-type="${esc(file.type)}" data-path="${esc(file.path)}" data-web-path="${esc(file.web_path || '')}" data-media-kind="${esc(file.media_kind || '')}" data-mime-type="${esc(file.mime_type || '')}">
                 ${iconMarkup(iconForFile(file), file.type === 'directory' ? 'D' : file.name, 'vd-sprite-file', 26)}
                 <span class="vd-file-name">${esc(file.name)}</span>
@@ -7066,9 +7196,10 @@ const files = body.files || [];
         let index = 0;
         const isDigit = ch => {
             if (base === 2) return ch === '0' || ch === '1';
+
 ;
 /* ui/js/desktop/apps/planning-gallery-music.js */
-if (base === 8) return ch >= '0' && ch <= '7';
+            if (base === 8) return ch >= '0' && ch <= '7';
             if (base === 10) return ch >= '0' && ch <= '9';
             if (base === 16) return /[0-9A-Fa-f]/.test(ch);
             return false;
@@ -7928,9 +8059,10 @@ if (base === 8) return ch >= '0' && ch <= '7';
             } catch (err) {
                 showNotify(t('desktop.qc_delete_error') + ': ' + err.message);
             }
+
 ;
 /* ui/js/desktop/apps/quickconnect-launchpad-chat.js */
-}
+        }
 
         function showNotify(msg) {
             const existing = host.querySelector('.vd-qc-notify');
@@ -9164,108 +9296,10 @@ if (base === 8) return ch >= '0' && ch <= '7';
 
     function sdkMenuItems(client, items) {
         return (Array.isArray(items) ? items : []).map(item => {
-;
-/* ui/js/desktop/core/widget-drawer-runtime.js */
-async function renderWidgetDrawerContent(drawer) {
-    drawer.querySelectorAll('.vd-widget-drawer-content').forEach(el => el.remove());
 
-    const content = document.createElement('div');
-    content.className = 'vd-widget-drawer-content';
-    content.style.padding = '12px 16px 20px';
-    content.style.overflow = 'auto';
-    content.style.maxHeight = 'calc(100% - 48px)';
-
-    const allWidgets = (state.bootstrap && state.bootstrap.all_widgets) || [];
-
-    if (allWidgets.length === 0) {
-        content.innerHTML = `
-            <div style="padding: 24px 12px; color: var(--vd-muted); font-size: 13px; text-align: center;">
-                ${t('desktop.widget_drawer_empty', 'No widgets available.')}
-            </div>
-        `;
-        drawer.appendChild(content);
-        return;
-    }
-
-    const list = document.createElement('div');
-    list.style.display = 'flex';
-    list.style.flexDirection = 'column';
-    list.style.gap = '8px';
-
-    allWidgets.forEach(widget => {
-        const isVisible = widget.visible !== false;
-        const isBuiltin = widget.builtin === true;
-        const card = document.createElement('div');
-        const iconKey = widget.icon || 'widgets';
-
-        card.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--vd-surface); border:1px solid var(--vd-border); border-radius:8px;';
-        card.innerHTML = `
-            <div style="flex-shrink:0;">${iconMarkup(iconKey, widget.title || widget.id, 'vd-sprite-file', 22)}</div>
-            <div style="flex:1; min-width:0;">
-                <div style="font-weight:600; font-size:13px; color:var(--vd-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                    ${esc(widget.title || widget.id)}
-                </div>
-                <div style="font-size:11px; color:var(--vd-muted);">
-                    ${isBuiltin ? t('desktop.widget_builtin', 'Builtin') : t('desktop.widget_custom', 'Custom')}
-                    ${isVisible ? ' • ' + t('desktop.widget_on_desktop', 'On desktop') : ''}
-                </div>
-            </div>
-            <div>
-                <button type="button" class="vd-wm-btn" data-widget-action="${isVisible ? 'hide' : 'show'}" data-widget-id="${esc(widget.id)}"
-                    style="font-size:11px; padding:4px 10px; min-width:72px;">
-                    ${isVisible ? t('desktop.widget_remove_from_desktop', 'Remove') : t('desktop.widget_add_to_desktop', 'Add')}
-                </button>
-            </div>
-        `;
-
-        const btn = card.querySelector('button');
-        btn.addEventListener('click', async e => {
-            e.stopPropagation();
-            const action = btn.dataset.widgetAction;
-            const id = btn.dataset.widgetId;
-            if (!id) return;
-
-            btn.disabled = true;
-            btn.textContent = '...';
-
-            try {
-                await api('/api/desktop/widgets?id=' + encodeURIComponent(id), {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ visible: action === 'show' })
-                });
-                await loadBootstrap();
-                renderWidgetDrawerContent(drawer);
-            } catch (err) {
-                showDesktopNotification({
-                    title: t('desktop.notification'),
-                    message: err.message || 'Failed to update widget'
-                });
-                btn.disabled = false;
-                btn.textContent = action === 'show'
-                    ? t('desktop.widget_add_to_desktop', 'Add')
-                    : t('desktop.widget_remove_from_desktop', 'Remove');
-            }
-        });
-
-        list.appendChild(card);
-    });
-
-    content.appendChild(list);
-    drawer.appendChild(content);
-}
-
-function updateTaskbarSystemButtonsForMobile() {
-    const isMobile = window.useMobileDesktopMode && window.useMobileDesktopMode();
-    const shortcutsBtn = document.getElementById('vd-shortcuts-trigger');
-    const widgetsBtn = document.getElementById('vd-widget-drawer-btn');
-
-    if (shortcutsBtn) shortcutsBtn.style.display = isMobile ? 'none' : '';
-    if (widgetsBtn) widgetsBtn.style.display = isMobile ? 'none' : '';
-}
 ;
 /* ui/js/desktop/core/sdk-events-bootstrap.js */
-if (!item || item.hidden) return null;
+            if (!item || item.hidden) return null;
             if (item.type === 'separator' || item.separator) return { type: 'separator' };
             const actionId = item.actionId || (typeof item.action === 'string' ? item.action : '') || item.id || '';
             const submenuItems = item.items || item.children;
@@ -10122,7 +10156,7 @@ if (!item || item.hidden) return null;
     function calendarAgendaHTML(activeDate, appointments, view) {
         const days = view === 'week' ? calendarWeekDays(activeDate) : [activeDate];
         const hours = Array.from({ length: 17 }, (_, i) => i + 6);
-        return `<div class="vd-calendar-time-grid ${esc(view)}" style="--vd-calendar-days:${days.length}">
+        return `<div class="vd-calendar-time-grid ${esc(view)}" style="--ds-size-calendar-days:${days.length}">
             <div class="vd-calendar-time-corner">${esc(t('desktop.cal_schedule'))}</div>
             ${days.map(day => `<div class="vd-calendar-day-head ${isoDate(day) === isoDate(new Date()) ? 'today' : ''}"><strong>${esc(day.toLocaleDateString(undefined, { weekday: 'short' }))}</strong><span>${esc(day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))}</span></div>`).join('')}
             ${hours.map(hour => `<div class="vd-calendar-time-label">${String(hour).padStart(2, '0')}:00</div>${days.map(day => {

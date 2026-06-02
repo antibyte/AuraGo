@@ -98,6 +98,30 @@ func TestDesktopMainBundleOrdersSplitShellFragmentsBeforeLifecycleHelpers(t *tes
 	}
 }
 
+func TestDesktopMainBundleKeepsWidgetDrawerOutsideSDKMenuItemSplit(t *testing.T) {
+	t.Parallel()
+
+	bundle := readDesktopAssetText(t, "js/desktop/bundles/main.bundle.js")
+	widgetMarker := "/* ui/js/desktop/core/widget-drawer-runtime.js */"
+	quickConnectMarker := "/* ui/js/desktop/apps/quickconnect-launchpad-chat.js */"
+	bootstrapMarker := "/* ui/js/desktop/core/sdk-events-bootstrap.js */"
+
+	widgetIndex := strings.Index(bundle, widgetMarker)
+	quickConnectIndex := strings.Index(bundle, quickConnectMarker)
+	bootstrapIndex := strings.Index(bundle, bootstrapMarker)
+	if widgetIndex < 0 || quickConnectIndex < 0 || bootstrapIndex < 0 {
+		t.Fatalf("desktop main bundle missing expected split markers: widget=%d quickconnect=%d bootstrap=%d", widgetIndex, quickConnectIndex, bootstrapIndex)
+	}
+	if widgetIndex > quickConnectIndex {
+		t.Fatal("widget drawer runtime must load before quickconnect-launchpad-chat because that file starts the SDK menu item split")
+	}
+
+	sdkMenuBody := jsFunctionBodyInWindowMenuTest(t, bundle, "function sdkMenuItems")
+	if strings.Contains(sdkMenuBody, "function updateTaskbarSystemButtonsForMobile") {
+		t.Fatal("widget drawer helpers must not be nested inside sdkMenuItems; wireChrome needs them in the desktop shell scope")
+	}
+}
+
 func TestDesktopFoundationKeepsLifecycleHelpersAvailableForEarlyRender(t *testing.T) {
 	t.Parallel()
 
