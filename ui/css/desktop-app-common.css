@@ -18,7 +18,7 @@
     min-height: 40px;
     padding: 8px 16px;
     border: 1px solid rgba(39, 199, 166, 0.35);
-    border-radius: 10px;
+    border-radius: var(--ds-radius-md);
     background: rgba(39, 199, 166, 0.15);
     color: var(--vd-accent, #27c7a6);
     font-size: 0.84rem;
@@ -56,10 +56,10 @@
     min-width: 40px;
     height: 40px;
     padding: 0;
-    border: 1px solid var(--vd-border);
-    border-radius: 10px;
+    border: 1px solid var(--ds-color-border-subtle);
+    border-radius: var(--ds-radius-md);
     background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.1);
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -105,7 +105,7 @@
 }
 
 .vd-viewer-glyph-icon {
-    color: var(--vd-text);
+    color: var(--ds-color-fg-primary);
     font-size: 15px;
     font-weight: 850;
     line-height: 1;
@@ -126,13 +126,13 @@
 .vd-toolbar {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--ds-space-2);
     padding: 10px;
-    border-bottom: 1px solid var(--vd-border);
+    border-bottom: 1px solid var(--ds-color-border-subtle);
 }
 
 .vd-path {
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-size: 0.78rem;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -141,7 +141,7 @@
 
 .vd-file-list {
     overflow: auto;
-    padding: 8px;
+    padding: var(--ds-space-2);
 }
 
 .vd-file-row {
@@ -172,6 +172,17 @@
 
 .vd-file-meta,
 .vd-chat-meta {
-    color: var(--vd-muted);
+    color: var(--ds-color-fg-muted);
     font-size: 0.72rem;
+}
+
+/* === Global focus-visible for app shell (Phase 4) === */
+.vd-shell button:focus-visible,
+.vd-shell input:focus-visible,
+.vd-shell select:focus-visible,
+.vd-shell textarea:focus-visible,
+.vd-shell [tabindex]:focus-visible,
+.vd-shell a:focus-visible {
+    outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+    outline-offset: var(--ds-focus-ring-offset);
 }
