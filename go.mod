@@ -41,7 +41,7 @@ require (
 	github.com/vishen/go-chromecast v0.3.4
 	github.com/xuri/excelize/v2 v2.10.1
 	golang.org/x/crypto v0.52.0
-	golang.org/x/image v0.39.0
+	golang.org/x/image v0.41.0
 	golang.org/x/net v0.55.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/sys v0.45.0
