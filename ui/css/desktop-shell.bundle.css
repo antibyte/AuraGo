@@ -2145,12 +2145,12 @@
 
 /* Stronger, more premium active window indication (improves UX clarity) */
 .vd-window.active {
-    box-shadow: var(--vd-shadow-window), 0 0 0 1.5px color-mix(in srgb, var(--vd-accent) 45%, transparent);
-    z-index: calc(var(--vd-z-window) + 1);
+    box-shadow: var(--ds-elevation-4), 0 0 0 1.5px color-mix(in srgb, var(--ds-color-accent-500) 45%, transparent);
+    z-index: calc(var(--ds-z-window) + 1);
 }
 
 .vd-window.active .vd-window-titlebar {
-    background: color-mix(in srgb, var(--vd-surface-strong) 100%, var(--vd-accent) 4%);
+    background: color-mix(in srgb, var(--ds-color-surface-2) 100%, var(--ds-color-accent-500) 4%);
 }
 
 .vd-snap-overlay {
@@ -2222,14 +2222,19 @@
     min-height: 280px;
     display: grid;
     grid-template-rows: 46px 1fr;
-    border-radius: var(--vd-window-radius, 12px);
-    border: 1px solid var(--vd-border);
-    background: var(--vd-surface);
-    box-shadow: var(--vd-shadow-window, var(--vd-shadow)), var(--vd-inner-glow);
-    backdrop-filter: blur(30px);
+    border-radius: var(--ds-radius-lg);
+    border: 1px solid var(--ds-color-border-subtle);
+    background: var(--ds-color-surface-2);
+    box-shadow: var(--ds-elevation-4);
+    backdrop-filter: var(--ds-blur-fine);
+    -webkit-backdrop-filter: var(--ds-blur-fine);
     overflow: visible;
     pointer-events: auto;
-    transition: box-shadow 140ms ease, border-color 140ms ease, transform 120ms ease;
+    transition:
+        background var(--ds-motion-duration-base) var(--ds-motion-ease-standard),
+        border-color var(--ds-motion-duration-base) var(--ds-motion-ease-standard),
+        box-shadow var(--ds-motion-duration-base) var(--ds-motion-ease-standard),
+        transform var(--ds-motion-duration-fast) var(--ds-motion-ease-standard);
 }
 
 .vd-window.has-window-menu {
