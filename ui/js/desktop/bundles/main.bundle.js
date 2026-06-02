@@ -539,10 +539,12 @@
 
     function isCompactViewport() {
         if (!window.matchMedia) return false;
-        // Consider both width and height for better mobile detection (especially in landscape)
+        // Width catches narrow layouts. Height alone is common on laptops/browser panes,
+        // so only use it for coarse-pointer landscape mobile/tablet layouts.
         const widthMatch = window.matchMedia('(max-width: 820px)').matches;
         const heightMatch = window.matchMedia('(max-height: 720px)').matches;
-        return widthMatch || heightMatch;
+        const coarsePointerMatch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+        return widthMatch || (heightMatch && coarsePointerMatch);
     }
 
     function isTouchLikePointer(event) {

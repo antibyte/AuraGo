@@ -42,6 +42,33 @@ func TestVirtualDesktopHasMobileInteractionMarkers(t *testing.T) {
 	}
 }
 
+func TestVirtualDesktopShortDesktopHeightDoesNotDisableWindowDragging(t *testing.T) {
+	t.Parallel()
+
+	sources := map[string]string{
+		"source": rawDesktopAssetText(t, "js/desktop/core/desktop-foundation.js"),
+		"bundle": readDesktopAssetText(t, "js/desktop/main.js"),
+	}
+	for name, source := range sources {
+		t.Run(name, func(t *testing.T) {
+			body := jsFunctionBodyInWindowMenuTest(t, source, "function isCompactViewport()")
+			for _, want := range []string{
+				"const widthMatch = window.matchMedia('(max-width: 820px)').matches;",
+				"const heightMatch = window.matchMedia('(max-height: 720px)').matches;",
+				"const coarsePointerMatch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;",
+				"return widthMatch || (heightMatch && coarsePointerMatch);",
+			} {
+				if !strings.Contains(body, want) {
+					t.Fatalf("compact viewport detection must keep short desktop windows draggable, missing %q", want)
+				}
+			}
+			if strings.Contains(body, "return widthMatch || heightMatch;") {
+				t.Fatal("compact viewport detection must not treat short viewport height alone as mobile")
+			}
+		})
+	}
+}
+
 func TestVirtualDesktopHasMobileLayoutMarkers(t *testing.T) {
 	t.Parallel()
 
