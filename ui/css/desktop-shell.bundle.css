@@ -1750,7 +1750,10 @@
         0 16px 38px rgba(0, 0, 0, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.12);
     transform: translateY(-4px);
-    transition: transform 0.25s cubic-bezier(0.2, 1, 0.22, 1), box-shadow 0.25s ease, background 0.25s ease;
+    transition:
+        transform var(--ds-motion-duration-base) var(--ds-motion-ease-emphasized),
+        box-shadow var(--ds-motion-duration-base) var(--ds-motion-ease-standard),
+        background var(--ds-motion-duration-base) var(--ds-motion-ease-standard);
 }
 
 .vd-start-button:hover {
@@ -1767,6 +1770,19 @@
         0 18px 44px rgba(0, 0, 0, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.18);
     transform: translateY(-6px);
+}
+
+.vd-start-button:focus-visible {
+    outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+    outline-offset: var(--ds-focus-ring-offset);
+}
+
+.vd-start-button[data-active="true"] {
+    transform: translateY(-2px);
+}
+
+.vd-start-button[data-active="true"]::after {
+    opacity: 1;
 }
 
 .vd-start-button .vd-sprite-start,
