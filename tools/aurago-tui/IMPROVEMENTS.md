@@ -84,3 +84,12 @@ When adding a feature from this list, please:
 - ✅ GitNexus impacts + GSD (plan.md + todos + enter/exit) + rtk + disposable rule followed before/during.
 
 **Last updated**: 2026-06-02 (1-4 pass per user request; see .grok/.../plan.md and disposable/aurago-tui-wave*-*.md for details)
+
+## Completed in 2026-06 "Weitere Verbesserungen" Wave A (F1 partial + F4 + F5)
+- ✅ F1: Tracker wiring extended significantly (Dashboard/Plans already, added Missions/Skills/Containers/Config/Knowledge/Media loads in load_data, detail loads for plans/containers, primary actions for plans/missions/containers, toggle, deletes for all types, some main.rs post-action refreshes for missions/skills/containers). Bare spawns reduced from ~45 to ~16. spawn_tracked now used in 27+ places.
+- ✅ F4: Added basic tracker test (default/prune) in app.rs; total tests now 6.
+- ✅ F5: Added fmt --check, clippy -D warnings, test steps to the build job in .github/workflows/aurago-tui-release.yml (run before the release builds).
+- All with rtk cargo verify after edits, clippy clean, tests pass.
+- disposable/ used for spawn list.
+
+**Last updated**: 2026-06-03 (Wave A of weitere per user "fange an, eine wave nach der anderen")

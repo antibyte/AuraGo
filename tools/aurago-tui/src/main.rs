@@ -454,10 +454,11 @@ async fn run_app(
                     app_lock.status_message = "Mission action completed".to_string();
                     let c = client.clone();
                     let tx = event_tx.clone();
-                    tokio::spawn(async move {
+                    let h = tokio::spawn(async move {
                         let result = auth::fetch_missions(&c).await.map_err(|e| e.to_string());
                         let _ = tx.send(AppEvent::MissionsLoaded(result));
                     });
+                    app_lock.spawn_tracked(h);
                 }
                 Err(e) => {
                     app_lock.toast = Some(format!("Mission action failed: {}", e));
@@ -486,10 +487,11 @@ async fn run_app(
                     app_lock.status_message = "Skill action completed".to_string();
                     let c = client.clone();
                     let tx = event_tx.clone();
-                    tokio::spawn(async move {
+                    let h = tokio::spawn(async move {
                         let result = auth::fetch_skills(&c).await.map_err(|e| e.to_string());
                         let _ = tx.send(AppEvent::SkillsLoaded(result));
                     });
+                    app_lock.spawn_tracked(h);
                 }
                 Err(e) => {
                     app_lock.toast = Some(format!("Skill action failed: {}", e));
@@ -519,10 +521,11 @@ async fn run_app(
                     app_lock.status_message = "Container action completed".to_string();
                     let c = client.clone();
                     let tx = event_tx.clone();
-                    tokio::spawn(async move {
+                    let h = tokio::spawn(async move {
                         let result = auth::fetch_containers(&c).await.map_err(|e| e.to_string());
                         let _ = tx.send(AppEvent::ContainersLoaded(result));
                     });
+                    app_lock.spawn_tracked(h);
                 }
                 Err(e) => {
                     app_lock.toast = Some(format!("Container action failed: {}", e));

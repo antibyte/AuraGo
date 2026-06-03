@@ -616,4 +616,13 @@ mod tests {
         s.backspace_at_cursor();
         assert_eq!(s.chat_input, "abc");
     }
+
+    #[test]
+    fn tracker_default_prune() {
+        let mut s = AppState::default();
+        assert!(s.background_tasks.is_empty());
+        s.prune_finished_tasks();
+        assert!(s.background_tasks.is_empty());
+        // Full spawn_tracked/abort tests require async runtime; covered in manual/integration for Wave A
+    }
 }

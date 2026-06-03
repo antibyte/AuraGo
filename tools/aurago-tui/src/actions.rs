@@ -696,56 +696,62 @@ fn load_data_for_screen(app: &mut AppState, client: &ApiClient, tx: &UnboundedSe
             app.missions_loading = true;
             let c = client.clone();
             let t = tx.clone();
-            tokio::spawn(async move {
+            let h = tokio::spawn(async move {
                 let result = auth::fetch_missions(&c).await.map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::MissionsLoaded(result));
             });
+            app.spawn_tracked(h);
         }
         Screen::Skills => {
             app.skills_loading = true;
             let c = client.clone();
             let t = tx.clone();
-            tokio::spawn(async move {
+            let h = tokio::spawn(async move {
                 let result = auth::fetch_skills(&c).await.map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::SkillsLoaded(result));
             });
+            app.spawn_tracked(h);
         }
         Screen::Containers => {
             app.containers_loading = true;
             let c = client.clone();
             let t = tx.clone();
-            tokio::spawn(async move {
+            let h = tokio::spawn(async move {
                 let result = auth::fetch_containers(&c).await.map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::ContainersLoaded(result));
             });
+            app.spawn_tracked(h);
         }
         Screen::Config => {
             app.config_loading = true;
             let c = client.clone();
             let t = tx.clone();
-            tokio::spawn(async move {
+            let h = tokio::spawn(async move {
                 let result = auth::fetch_config(&c).await.map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::ConfigLoaded(result));
             });
+            app.spawn_tracked(h);
             let c = client.clone();
             let t = tx.clone();
-            tokio::spawn(async move {
+            let h = tokio::spawn(async move {
                 let result = auth::fetch_config_schema(&c)
                     .await
                     .map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::ConfigSchemaLoaded(result));
             });
+            app.spawn_tracked(h);
         }
         Screen::Knowledge => {
             app.knowledge_loading = true;
             let c = client.clone();
             let t = tx.clone();
-            tokio::spawn(async move {
+            let h = tokio::spawn(async move {
                 let result = auth::fetch_knowledge_files(&c)
                     .await
                     .map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::KnowledgeFilesLoaded(result));
             });
+            app.spawn_tracked(h);
         }
         Screen::Media => {
             app.media_loading = true;
@@ -762,19 +768,20 @@ fn load_data_for_screen(app: &mut AppState, client: &ApiClient, tx: &UnboundedSe
             } else {
                 Some(app.media_search.clone())
             };
-            tokio::spawn(async move {
+            let h = tokio::spawn(async move {
                 let result = auth::fetch_media(&c, &media_type, 50, offset, query.as_deref())
                     .await
                     .map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::MediaLoaded(result));
             });
+            app.spawn_tracked(h);
         }
         _ => {}
     }
 }
 
 /// Load detail data for the currently selected list item
-fn load_detail_for_selected(app: &AppState, client: &ApiClient, tx: &UnboundedSender<AppEvent>) {
+fn load_detail_for_selected(app: &mut AppState, client: &ApiClient, tx: &UnboundedSender<AppEvent>) {
     match app.screen {
         Screen::Plans => {
             if let Some(idx) = app.plans_selected {
@@ -782,12 +789,13 @@ fn load_detail_for_selected(app: &AppState, client: &ApiClient, tx: &UnboundedSe
                     let id = plan.id.clone();
                     let c = client.clone();
                     let t = tx.clone();
-                    tokio::spawn(async move {
+                    let h = tokio::spawn(async move {
                         let result = auth::fetch_plan_detail(&c, &id)
                             .await
                             .map_err(|e| e.to_string());
                         let _ = t.send(AppEvent::PlanDetailLoaded(result));
                     });
+                    app.spawn_tracked(h);
                 }
             }
         }
@@ -797,12 +805,13 @@ fn load_detail_for_selected(app: &AppState, client: &ApiClient, tx: &UnboundedSe
                     let id = container.id.clone();
                     let c = client.clone();
                     let t = tx.clone();
-                    tokio::spawn(async move {
+                    let h = tokio::spawn(async move {
                         let result = auth::fetch_container_logs(&c, &id)
                             .await
                             .map_err(|e| e.to_string());
                         let _ = t.send(AppEvent::ContainerLogsLoaded(result));
                     });
+                    app.spawn_tracked(h);
                 }
             }
         }
@@ -811,7 +820,7 @@ fn load_detail_for_selected(app: &AppState, client: &ApiClient, tx: &UnboundedSe
 }
 
 /// Execute the primary action (Enter) for the selected item
-fn execute_primary_action(app: &AppState, client: &ApiClient, tx: &UnboundedSender<AppEvent>) {
+fn execute_primary_action(app: &mut AppState, client: &ApiClient, tx: &UnboundedSender<AppEvent>) {
     match app.screen {
         Screen::Plans => {
             if let Some(idx) = app.plans_selected {
@@ -819,10 +828,11 @@ fn execute_primary_action(app: &AppState, client: &ApiClient, tx: &UnboundedSend
                     let id = plan.id.clone();
                     let c = client.clone();
                     let t = tx.clone();
-                    tokio::spawn(async move {
+                    let h = tokio::spawn(async move {
                         let result = auth::advance_plan(&c, &id).await.map_err(|e| e.to_string());
                         let _ = t.send(AppEvent::PlanActionDone(result));
                     });
+                    app.spawn_tracked(h);
                 }
             }
         }
@@ -832,10 +842,11 @@ fn execute_primary_action(app: &AppState, client: &ApiClient, tx: &UnboundedSend
                     let id = mission.id.clone();
                     let c = client.clone();
                     let t = tx.clone();
-                    tokio::spawn(async move {
+                    let h = tokio::spawn(async move {
                         let result = auth::run_mission(&c, &id).await.map_err(|e| e.to_string());
                         let _ = t.send(AppEvent::MissionActionDone(result));
                     });
+                    app.spawn_tracked(h);
                 }
             }
         }
@@ -851,12 +862,13 @@ fn execute_primary_action(app: &AppState, client: &ApiClient, tx: &UnboundedSend
                     let c = client.clone();
                     let t = tx.clone();
                     let a = action_str.to_string();
-                    tokio::spawn(async move {
+                    let h = tokio::spawn(async move {
                         let result = auth::container_action(&c, &id, &a)
                             .await
                             .map_err(|e| e.to_string());
                         let _ = t.send(AppEvent::ContainerActionDone(result));
                     });
+                    app.spawn_tracked(h);
                 }
             }
         }
@@ -865,7 +877,7 @@ fn execute_primary_action(app: &AppState, client: &ApiClient, tx: &UnboundedSend
 }
 
 /// Execute toggle action (enable/disable) for the selected item
-fn execute_toggle_action(app: &AppState, client: &ApiClient, tx: &UnboundedSender<AppEvent>) {
+fn execute_toggle_action(app: &mut AppState, client: &ApiClient, tx: &UnboundedSender<AppEvent>) {
     if app.screen == Screen::Skills {
         if let Some(idx) = app.skills_selected {
             if let Some(skill) = app.skills.get(idx) {
@@ -873,12 +885,13 @@ fn execute_toggle_action(app: &AppState, client: &ApiClient, tx: &UnboundedSende
                 let new_state = !skill.enabled;
                 let c = client.clone();
                 let t = tx.clone();
-                tokio::spawn(async move {
+                let h = tokio::spawn(async move {
                     let result = auth::toggle_skill(&c, &id, new_state)
                         .await
                         .map_err(|e| e.to_string());
                     let _ = t.send(AppEvent::SkillActionDone(result));
                 });
+                app.spawn_tracked(h);
             }
         }
     }
@@ -919,12 +932,13 @@ pub fn execute_confirmed_action(
                 let id = mission.id.clone();
                 let c = client.clone();
                 let t = tx.clone();
-                tokio::spawn(async move {
+                let h = tokio::spawn(async move {
                     let result = auth::delete_mission(&c, &id)
                         .await
                         .map_err(|e| e.to_string());
                     let _ = t.send(AppEvent::MissionActionDone(result));
                 });
+                app.spawn_tracked(h);
             }
         }
         ConfirmAction::DeleteContainer { index } => {
@@ -932,12 +946,13 @@ pub fn execute_confirmed_action(
                 let id = container.id.clone();
                 let c = client.clone();
                 let t = tx.clone();
-                tokio::spawn(async move {
+                let h = tokio::spawn(async move {
                     let result = auth::remove_container(&c, &id, false)
                         .await
                         .map_err(|e| e.to_string());
                     let _ = t.send(AppEvent::ContainerActionDone(result));
                 });
+                app.spawn_tracked(h);
             }
         }
         ConfirmAction::DeleteKnowledge { index } => {
@@ -945,12 +960,13 @@ pub fn execute_confirmed_action(
                 let name = file.name.clone();
                 let c = client.clone();
                 let t = tx.clone();
-                tokio::spawn(async move {
+                let h = tokio::spawn(async move {
                     let result = auth::delete_knowledge_file(&c, &name)
                         .await
                         .map_err(|e| e.to_string());
                     let _ = t.send(AppEvent::KnowledgeFileDeleted(result));
                 });
+                app.spawn_tracked(h);
             }
         }
         ConfirmAction::DeleteMedia { index } => {
@@ -958,10 +974,11 @@ pub fn execute_confirmed_action(
                 let id = item.id;
                 let c = client.clone();
                 let t = tx.clone();
-                tokio::spawn(async move {
+                let h = tokio::spawn(async move {
                     let result = auth::delete_media(&c, id).await.map_err(|e| e.to_string());
                     let _ = t.send(AppEvent::MediaDeleted(result));
                 });
+                app.spawn_tracked(h);
             }
         }
         ConfirmAction::ClearChat => {
