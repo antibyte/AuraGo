@@ -1591,17 +1591,13 @@ func TestStorePortAcceptsChecksLocalTCPPort(t *testing.T) {
 	}
 }
 
-func TestDefaultPortAllocatorSkipsPreferredPortInsideDockerContainer(t *testing.T) {
-	originalDetector := desktopStoreRunsInDockerContainer
-	desktopStoreRunsInDockerContainer = func() bool { return true }
-	t.Cleanup(func() { desktopStoreRunsInDockerContainer = originalDetector })
-
+func TestDefaultPortAllocatorUsesDynamicHostPortInsteadOfAppDefault(t *testing.T) {
 	port, err := DefaultPortAllocator(context.Background(), 8080)
 	if err != nil {
 		t.Fatalf("allocate port: %v", err)
 	}
 	if port == 8080 {
-		t.Fatal("containerized store installs must not reuse the container default port as host port")
+		t.Fatal("store installs must not reuse the container default port as host port")
 	}
 	if port <= 0 {
 		t.Fatalf("allocated invalid port %d", port)
