@@ -92,7 +92,7 @@ When adding a feature from this list, please:
 - All with rtk cargo verify after edits, clippy clean, tests pass.
 - disposable/ used for spawn list.
 
-**Last updated**: 2026-06-04 (sequential Points 1-3 complete: i18n, tests, high-contrast theme)
+**Last updated**: 2026-06-04 (sequential Points 1-4 complete: i18n, tests, high-contrast, long-chat prune)
 
 ## Wave C / F3 + F6 completed (wave abgeschlossen)
 - F3: Significantly expanded i18n with loading, many *_title (dashboard tabs, list screens, details, login, confirm, history, etc.), confirm action strings, nav labels. Wired across dashboard, chat, overlays, plans, missions, skills, containers, knowledge, config, login, media.
@@ -138,6 +138,17 @@ When adding a feature from this list, please:
 - rtk clippy -D 0, cargo test still 13 passed.
 - Updated disposable/next-wave-highcontrast-point3-*.txt + IMPROVEMENTS.
 - Focus/borders now much more visible in HC mode; color-blind friendly strong contrasts.
+
+## Completed 2026-06-04 sequential "arbeite die punkte nacheinander ab" - Point 4: Long chat perf/memory (bounded history)
+- Added prune_old_messages (MAX=400 msgs) to AppState: drains oldest from front on exceed, uses cached_line_count sum for removed_logical to adjust scroll if !auto_scroll (keeps relative view).
+- Wired calls after every grow path: push_user_message, start_assistant_stream, tool push in apply_sse_event, load_history (post-set, so recent kept), + direct ChatError push in main.
+- Clears (session new, /clear chat etc) unaffected.
+- draw_messages / full_logical / viewport walk / scrollbar now operate only on bounded vec (sum O(remaining) but capped; "new messages" hint, auto MAX, streaming deltas, unicode prefix, cum walk all unchanged).
+- load_history from server still gets full (for accuracy), UI immediately prunes to last MAX for mem/perf.
+- Impacts pre on append_stream_delta, load_history, draw_messages, ChatMessage (LOW); detect pre (medium on AppState/run_app).
+- rtk clippy -D 0, cargo test 13 passed (prune not hit in unit tests).
+- Updated disposable + IMPROVEMENTS.
+- Addresses audit "keeps entire chat_messages in mem" for 1000s msgs sessions; server history untouched. No big widget refactor (kept optimized Paragraph viewport from F2/F6).
 
 ## Completed in 2026-06 "Weitere Verbesserungen" more F3 i18n
 - More strings: detail_title, edit_field_title, password/otp/login_title, confirm_* actions.

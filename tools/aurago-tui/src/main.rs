@@ -259,6 +259,7 @@ async fn run_app(
                     cached_line_count: 1,
                 });
                 app_lock.scroll_to_bottom();
+                app_lock.prune_old_messages();
             }
             AppEvent::LoginResult(result) => {
                 app_lock.login_loading = false;

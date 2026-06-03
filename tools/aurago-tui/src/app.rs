@@ -368,6 +368,7 @@ impl AppState {
             cached_line_count: line_count,
         });
         self.scroll_to_bottom();
+        self.prune_old_messages();
     }
 
     pub fn insert_at_cursor(&mut self, c: char) {
@@ -430,6 +431,7 @@ impl AppState {
             cached_line_count: 0,
         });
         self.scroll_to_bottom();
+        self.prune_old_messages();
     }
 
     pub fn append_stream_delta(&mut self, delta: String) {
@@ -450,6 +452,28 @@ impl AppState {
     pub fn scroll_to_bottom(&mut self) {
         // Set a flag to auto-scroll; actual value will be clamped during rendering
         self.auto_scroll = true;
+    }
+
+    /// Prune old messages from UI to bound memory for very long chats (Point 4 perf).
+    /// Keeps the most recent MAX_CHAT_MESSAGES. Server history remains full.
+    /// Adjusts scroll on prune (from top) so manual scroll view stays relative if possible.
+    pub fn prune_old_messages(&mut self) {
+        const MAX: usize = 400; // Tunable; ~400 msgs keeps UI responsive while supporting long sessions.
+        let len = self.chat_messages.len();
+        if len > MAX {
+            let excess = len - MAX;
+            // Sum logical lines removed (cached + separator) for scroll adjust.
+            let removed_logical: usize = self
+                .chat_messages
+                .iter()
+                .take(excess)
+                .map(|m| m.cached_line_count + 1)
+                .sum();
+            self.chat_messages.drain(0..excess);
+            if !self.auto_scroll {
+                self.scroll = self.scroll.saturating_sub(removed_logical);
+            }
+        }
     }
 
     pub fn apply_sse_event(&mut self, event: SseEvent) {
@@ -475,6 +499,7 @@ impl AppState {
                 if self.auto_scroll {
                     self.scroll_to_bottom(); // will be turned into usize::MAX in next draw
                 }
+                self.prune_old_messages();
             }
             SseEvent::TokenUpdate(p) => self.tokens = p,
             SseEvent::PersonalityUpdate(p) => self.personality = p,
@@ -509,6 +534,7 @@ impl AppState {
                 }
             })
             .collect();
+        self.prune_old_messages();
         self.scroll_to_bottom();
     }
 
