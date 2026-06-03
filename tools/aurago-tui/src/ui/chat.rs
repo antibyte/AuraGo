@@ -191,7 +191,7 @@ fn draw_messages(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         if msg.image_url.is_some() {
             lines.push(Line::from(vec![
                 Span::styled("   ", Style::default()),
-                Span::styled("🖼 [Image attached]", Style::default().fg(theme.accent_dim).add_modifier(Modifier::ITALIC)),
+                Span::styled(i18n::current().image_placeholder, Style::default().fg(theme.accent_dim).add_modifier(Modifier::ITALIC)),
             ]));
         }
         if msg.is_streaming {
@@ -274,9 +274,9 @@ fn draw_input(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     };
     let block = Block::default()
         .title(if app.attaching_image {
-            " Attach Image Path "
+            i18n::current().attach_image_title
         } else if app.attached_image_url.is_some() {
-            " Message [🖼 Image attached] "
+            i18n::current().message_with_image_title
         } else {
             i18n::current().message_input_title
         })
@@ -285,7 +285,7 @@ fn draw_input(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
 
     // For attach mode, simple display (cursor at end)
     let (display_text, show_cursor) = if app.attaching_image {
-        (format!("Image path: {}", app.image_path_input), false)
+        (format!("{}: {}", i18n::current().attach_image_title.trim(), app.image_path_input), false)
     } else if app.attached_image_url.is_some() {
         (format!("{} [🖼]", app.chat_input), true)
     } else {

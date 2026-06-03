@@ -57,6 +57,13 @@ pub struct Strings {
     pub message_input_title: &'static str,
     pub new_messages_hint: &'static str,
 
+    // Multimodal attach (Point 5)
+    pub attach_image_title: &'static str,
+    pub message_with_image_title: &'static str,
+    pub image_attached_status: &'static str,
+    pub image_placeholder: &'static str,
+    pub attach_image_prompt: &'static str,
+
     // Common UI titles and status (expanding in Wave C / F3)
     pub loading: &'static str,
     pub overview_title: &'static str,
@@ -179,6 +186,13 @@ pub static EN: Strings = Strings {
 
     message_input_title: " Message ",
     new_messages_hint: "New messages — press Ctrl+G to scroll down",
+
+    // Point 5 multimodal
+    attach_image_title: " Attach Image Path ",
+    message_with_image_title: " Message [🖼 Image attached] ",
+    image_attached_status: "Image attached (will send with next message)",
+    image_placeholder: "🖼 [Image attached]",
+    attach_image_prompt: "Enter image path (png/jpg) and press Enter",
 
     loading: "Loading...",
     overview_title: " Overview ",

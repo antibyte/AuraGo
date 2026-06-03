@@ -8,6 +8,7 @@ use crate::api::{ApiClient, auth};
 use crate::app::{AppState, ConfirmAction, DashTab, MediaTab, Screen, char_len, char_to_byte};
 use crate::events::AppEvent;
 use crate::events::keybindings::Action;
+use crate::i18n;
 use crate::ui::theme::Theme;
 
 
@@ -73,7 +74,7 @@ pub fn dispatch_action(
                         if let Err(e) = app.attach_image_from_path(&p) {
                             app.status_message = format!("Attach failed: {}", e);
                         } else {
-                            app.status_message = "Image attached (will send with next message)".to_string();
+                            app.status_message = i18n::current().image_attached_status.to_string();
                         }
                     }
                     app.attaching_image = false;
@@ -150,7 +151,7 @@ pub fn dispatch_action(
             if app.screen == Screen::Chat {
                 app.attaching_image = true;
                 app.image_path_input.clear();
-                app.status_message = "Enter image path (png/jpg) and press Enter".to_string();
+                app.status_message = i18n::current().attach_image_prompt.to_string();
             }
         }
         Action::ClearChat => {
