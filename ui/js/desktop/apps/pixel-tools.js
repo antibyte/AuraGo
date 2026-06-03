@@ -334,6 +334,7 @@
             }),
             addLayer: Pixel.bindRuntime(runtime, function addLayer() {
                                 if (layers.length >= 10) { notify({ type: 'error', message: t('pixel.max_layers', 'Maximum 10 layers') }); return; }
+                                ensureBackgroundMigrated();
                                 const c = document.createElement('canvas');
                                 c.width = imgWidth;
                                 c.height = imgHeight;
@@ -347,6 +348,11 @@
                                 if (layers.length <= 1) return;
                                 layers.splice(activeLayerIdx, 1);
                                 activeLayerIdx = Math.min(activeLayerIdx, layers.length - 1);
+                                if (layers.length === 1 && layers[0].canvas) {
+                                    cctx.clearRect(0, 0, canvas.width, canvas.height);
+                                    cctx.drawImage(layers[0].canvas, 0, 0);
+                                    layers[0].canvas = null;
+                                }
                                 compositeLayers();
                                 refreshLayerPanel();
                                 pushHistory('delete layer');

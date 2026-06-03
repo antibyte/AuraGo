@@ -26,6 +26,13 @@
                                 if (layers.length === 1 || !layers[activeLayerIdx].canvas) return cctx;
                                 return layers[activeLayerIdx].canvas.getContext('2d');
             }),
+            ensureBackgroundMigrated: Pixel.bindRuntime(runtime, function ensureBackgroundMigrated() {
+                                if (layers.length <= 1) return;
+                                if (layers[0].canvas) return;
+                                const bgCanvas = acquireTempCanvas(imgWidth || canvas.width, imgHeight || canvas.height);
+                                bgCanvas.getContext('2d').drawImage(canvas, 0, 0);
+                                layers[0].canvas = bgCanvas;
+            }),
             compositeLayers: Pixel.bindRuntime(runtime, function compositeLayers() {
                                 cctx.clearRect(0, 0, canvas.width, canvas.height);
                                 for (let i = 0; i < layers.length; i++) {
@@ -34,6 +41,7 @@
                                     cctx.globalAlpha = layer.opacity;
                                     if (layer.canvas) {
                                         cctx.drawImage(layer.canvas, 0, 0);
+                                    } else if (i === 0 && layers.length === 1) {
                                     }
                                 }
                                 cctx.globalAlpha = 1;
@@ -41,9 +49,10 @@
             pushHistory: Pixel.bindRuntime(runtime, function pushHistory(label) {
                                 if (!canvas.width || !canvas.height) return;
                                 const layerStates = layers.map(l => {
-                                    if (!l.canvas) return null;
-                                    const tmp = acquireTempCanvas(l.canvas.width, l.canvas.height);
-                                    tmp.getContext('2d').drawImage(l.canvas, 0, 0);
+                                    const src = l.canvas || (layers.length > 1 ? null : canvas);
+                                    if (!src) return null;
+                                    const tmp = acquireTempCanvas(src.width || canvas.width, src.height || canvas.height);
+                                    tmp.getContext('2d').drawImage(src, 0, 0);
                                     return tmp;
                                 });
                                 if (historyIdx < history.length - 1) history = history.slice(0, historyIdx + 1);
@@ -163,6 +172,8 @@
             }),
             applyFilterPreview: Pixel.bindRuntime(runtime, function applyFilterPreview(name) {
                                 if (!canvas.width) return;
+                                const isMultiLayer = layers.length > 1;
+                                if (isMultiLayer) ensureBackgroundMigrated();
                                 const src = originalImage || canvas;
                                 const tmpCanvas = acquireTempCanvas(imgWidth, imgHeight);
                                 const tmpCtx = tmpCanvas.getContext('2d');
@@ -178,18 +189,18 @@
                                     default: tmpCtx.filter = 'none';
                                 }
                                 tmpCtx.drawImage(src, 0, 0, imgWidth, imgHeight);
-                                cctx.clearRect(0, 0, canvas.width, canvas.height);
-                                cctx.drawImage(tmpCanvas, 0, 0);
-                                releaseTempCanvas(tmpCanvas);
-                                if (name === 'vignette') applyVignette(cctx);
-                                if (name === 'emboss') applyEmboss(cctx);
-                                if (layers.length > 1) {
-                                    const layerCtx = layers[0].canvas ? layers[0].canvas.getContext('2d') : null;
-                                    if (layerCtx) {
-                                        layerCtx.clearRect(0, 0, canvas.width, canvas.height);
-                                        layerCtx.drawImage(canvas, 0, 0);
-                                    }
+                                if (name === 'vignette') applyVignette(tmpCtx);
+                                if (name === 'emboss') applyEmboss(tmpCtx);
+                                if (isMultiLayer) {
+                                    const actx = getActiveCtx();
+                                    actx.clearRect(0, 0, canvas.width, canvas.height);
+                                    actx.drawImage(tmpCanvas, 0, 0);
+                                    compositeLayers();
+                                } else {
+                                    cctx.clearRect(0, 0, canvas.width, canvas.height);
+                                    cctx.drawImage(tmpCanvas, 0, 0);
                                 }
+                                releaseTempCanvas(tmpCanvas);
                                 pushHistory('filter:' + name);
             }),
             applyVignette: Pixel.bindRuntime(runtime, function applyVignette(ctx) {
@@ -241,14 +252,23 @@
             }),
             applyAdjustmentsPreview: Pixel.bindRuntime(runtime, function applyAdjustmentsPreview() {
                                 if (!originalImage || !canvas.width) return;
+                                const isMultiLayer = layers.length > 1;
+                                if (isMultiLayer) ensureBackgroundMigrated();
                                 const tmpCanvas = acquireTempCanvas(imgWidth, imgHeight);
                                 const tmpCtx = tmpCanvas.getContext('2d');
                                 tmpCtx.filter = buildFilterString();
                                 tmpCtx.drawImage(originalImage, 0, 0, imgWidth, imgHeight);
-                                cctx.clearRect(0, 0, canvas.width, canvas.height);
-                                cctx.drawImage(tmpCanvas, 0, 0);
+                                applyCustomAdjustments(tmpCtx);
+                                if (isMultiLayer) {
+                                    const actx = getActiveCtx();
+                                    actx.clearRect(0, 0, canvas.width, canvas.height);
+                                    actx.drawImage(tmpCanvas, 0, 0);
+                                    compositeLayers();
+                                } else {
+                                    cctx.clearRect(0, 0, canvas.width, canvas.height);
+                                    cctx.drawImage(tmpCanvas, 0, 0);
+                                }
                                 releaseTempCanvas(tmpCanvas);
-                                applyCustomAdjustments(cctx);
             }),
             applyCustomAdjustments: Pixel.bindRuntime(runtime, function applyCustomAdjustments(ctx) {
                                 if (adjustments.temperature === 0 && adjustments.shadows === 0 && adjustments.highlights === 0) return;
@@ -273,9 +293,6 @@
                                 const img = new Image();
                                 img.onload = function () { originalImage = img; };
                                 img.src = dataURL;
-                                if (layers.length === 1 && !layers[0].canvas) {
-                                    // single layer, already on canvas
-                                }
                                 pushHistory('adjust');
                                 resetAdjustments();
             }),
@@ -283,7 +300,18 @@
                                 for (const k in adjustments) adjustments[k] = 0;
                                 host.querySelectorAll('[data-adjust]').forEach(s => { s.value = 0; });
                                 host.querySelectorAll('[data-val-brightness],[data-val-contrast],[data-val-saturation],[data-val-exposure],[data-val-sharpness],[data-val-temperature],[data-val-shadows],[data-val-highlights]').forEach(el => { el.textContent = '0'; });
-                                if (originalImage && canvas.width) { cctx.clearRect(0, 0, canvas.width, canvas.height); cctx.drawImage(originalImage, 0, 0); }
+                                if (originalImage && canvas.width) {
+                                    if (layers.length > 1) {
+                                        ensureBackgroundMigrated();
+                                        const actx = layers[0].canvas.getContext('2d');
+                                        actx.clearRect(0, 0, canvas.width, canvas.height);
+                                        actx.drawImage(originalImage, 0, 0);
+                                        compositeLayers();
+                                    } else {
+                                        cctx.clearRect(0, 0, canvas.width, canvas.height);
+                                        cctx.drawImage(originalImage, 0, 0);
+                                    }
+                                }
             }),
             toggleCompare: Pixel.bindRuntime(runtime, function toggleCompare() {
                                 if (!originalImage || !canvas.width) return;
@@ -298,7 +326,18 @@
                                     compareOrigData = null;
                                     compareDivider.hidden = true;
                                     clearOverlay();
-                                    if (originalImage && canvas.width) { cctx.clearRect(0, 0, canvas.width, canvas.height); cctx.drawImage(originalImage, 0, 0); }
+                                    if (originalImage && canvas.width) {
+                                        if (layers.length > 1) {
+                                            ensureBackgroundMigrated();
+                                            const actx = layers[0].canvas.getContext('2d');
+                                            actx.clearRect(0, 0, canvas.width, canvas.height);
+                                            actx.drawImage(originalImage, 0, 0);
+                                            compositeLayers();
+                                        } else {
+                                            cctx.clearRect(0, 0, canvas.width, canvas.height);
+                                            cctx.drawImage(originalImage, 0, 0);
+                                        }
+                                    }
                                 }
             }),
             renderCompare: Pixel.bindRuntime(runtime, function renderCompare() {
