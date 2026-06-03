@@ -292,6 +292,66 @@
     background: var(--pixel-surface);
 }
 
+.pixel-photos-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    max-width: 360px;
+}
+
+.pixel-photos-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    width: 100%;
+}
+
+.pixel-photo-thumb {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 4px;
+    border: 1px solid var(--pixel-line);
+    border-radius: 6px;
+    background: var(--pixel-surface);
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    overflow: hidden;
+    transition: background 120ms ease, border-color 120ms ease;
+}
+
+.pixel-photo-thumb:hover {
+    background: var(--pixel-hover);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.pixel-photo-thumb img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 3px;
+    background: rgba(0,0,0,0.2);
+}
+
+.pixel-photo-name {
+    max-width: 100%;
+    font-size: 0.68rem;
+    color: var(--pixel-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pixel-photos-empty {
+    font-size: 0.76rem;
+    color: var(--pixel-muted);
+    opacity: 0.6;
+}
+
 .pixel-panel {
     flex: 0 0 clamp(320px, 24vw, 360px);
     width: clamp(320px, 24vw, 360px);

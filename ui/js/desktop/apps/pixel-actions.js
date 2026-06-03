@@ -49,6 +49,21 @@
                                 container.innerHTML = `<span class="pixel-label">${esc(t('pixel.recent_files', 'Recent'))}</span>` +
                                     recent.map(p => `<button class="pixel-recent-file-btn" type="button" data-recent-path="${esc(p)}" title="${esc(p)}">${esc(p.split('/').pop())}</button>`).join('');
             }),
+            loadPhotos: Pixel.bindRuntime(runtime, async function loadPhotos() {
+                                const grid = host.querySelector('[data-photos-grid]');
+                                if (!grid) return;
+                                try {
+                                    const resp = await api('/api/desktop/files?path=Pictures&recursive=true&limit=30');
+                                    if (!resp || !resp.files || !resp.files.length) { grid.innerHTML = `<span class="pixel-photos-empty">${esc(t('pixel.no_photos', 'No photos found'))}</span>`; return; }
+                                    const imageFiles = resp.files.filter(f => f.is_dir === false && IMAGE_EXTS.some(ext => (f.name || '').toLowerCase().endsWith('.' + ext)));
+                                    if (!imageFiles.length) { grid.innerHTML = `<span class="pixel-photos-empty">${esc(t('pixel.no_photos', 'No photos found'))}</span>`; return; }
+                                    grid.innerHTML = imageFiles.slice(0, 12).map(f => {
+                                        const name = f.name || f.path || '';
+                                        const previewUrl = '/api/desktop/preview?path=' + encodeURIComponent(f.path) + '&thumb=1';
+                                        return `<button class="pixel-photo-thumb" type="button" data-photo-path="${esc(f.path)}" title="${esc(name)}"><img src="${esc(previewUrl)}" alt="${esc(name)}" loading="lazy"><span class="pixel-photo-name">${esc(name)}</span></button>`;
+                                    }).join('');
+                                } catch (_) { grid.innerHTML = ''; }
+            }),
             openFile: Pixel.bindRuntime(runtime, async function openFile() {
                                 if (!ctx.openFileDialog) return;
                                 const result = await ctx.openFileDialog({ filters: [{ name: 'Images', extensions: IMAGE_EXTS }] });

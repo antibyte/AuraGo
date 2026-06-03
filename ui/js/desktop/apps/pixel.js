@@ -201,6 +201,7 @@
             loadRecentFiles,
             saveRecentFile,
             renderRecentFiles,
+            loadPhotos,
             openFile,
             saveFile,
             saveFileAs,
@@ -310,6 +311,10 @@
                             </div>
                         </div>
                         <div class="pixel-recent-files" data-recent-files></div>
+                        <div class="pixel-photos-section" data-photos-section>
+                            <span class="pixel-label">${esc(t('pixel.photos', 'Photos'))}</span>
+                            <div class="pixel-photos-grid" data-photos-grid></div>
+                        </div>
                     </div>
                 </div>
                 <div class="pixel-panel" data-panel-container>${buildPanelHTML()}</div>
@@ -390,6 +395,14 @@
                 const path = recentBtn.dataset.recentPath;
                 filePath = path;
                 fileName = path.split('/').pop();
+                api('/api/desktop/preview?path=' + encodeURIComponent(path)).then(r => { if (r && r.url) loadImageToCanvas(r.url); }).catch(() => {});
+            }
+            const photoBtn = e.target.closest('[data-photo-path]');
+            if (photoBtn) {
+                const path = photoBtn.dataset.photoPath;
+                filePath = path;
+                fileName = path.split('/').pop();
+                saveRecentFile(filePath);
                 api('/api/desktop/preview?path=' + encodeURIComponent(path)).then(r => { if (r && r.url) loadImageToCanvas(r.url); }).catch(() => {});
             }
         });
@@ -674,6 +687,7 @@
         }
 
         renderRecentFiles();
+        loadPhotos();
         checkAIConfig();
 
         state.dispose = function () {
