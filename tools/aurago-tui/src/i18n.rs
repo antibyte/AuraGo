@@ -83,6 +83,20 @@ pub struct Strings {
     pub media_title: &'static str,
     #[allow(dead_code)]
     pub config_sections_title: &'static str,
+
+    // More UI (details, login, edit - expanding F3)
+    pub detail_title: &'static str,
+    pub edit_field_title: &'static str,
+    pub password_title: &'static str,
+    pub otp_title: &'static str,
+    pub login_title: &'static str,
+
+    // Confirm actions (F3)
+    pub confirm_delete_mission: &'static str,
+    pub confirm_remove_container: &'static str,
+    pub confirm_delete_knowledge: &'static str,
+    pub confirm_delete_media: &'static str,
+    pub confirm_clear_chat: &'static str,
 }
 
 /// English (default / current only language)
@@ -131,6 +145,18 @@ pub static EN: Strings = Strings {
     knowledge_files_title: " Files ",
     media_title: " Media ",
     config_sections_title: " Sections ",
+
+    detail_title: " Detail ",
+    edit_field_title: " Edit Field (Enter=Save, Esc=Cancel) ",
+    password_title: " Password ",
+    otp_title: " OTP Code ",
+    login_title: " 🔐 AuraGo Terminal Chat ",
+
+    confirm_delete_mission: "delete this mission",
+    confirm_remove_container: "remove this container",
+    confirm_delete_knowledge: "delete this file",
+    confirm_delete_media: "delete this media item",
+    confirm_clear_chat: "clear chat history",
 };
 
 /// Current strings (for now always EN).

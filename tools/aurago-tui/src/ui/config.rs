@@ -207,7 +207,7 @@ fn draw_edit_field(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     f.render_widget(Clear, area);
 
     let block = Block::default()
-        .title(" Edit Field (Enter=Save, Esc=Cancel) ")
+        .title(i18n::current().edit_field_title)
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.accent));
     let inner = block.inner(area);

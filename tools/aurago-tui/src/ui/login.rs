@@ -8,6 +8,7 @@ use ratatui::{
 use crate::app::AppState;
 use super::theme::{spinner_frame, Theme};
 use super::utils;
+use crate::i18n;
 
 pub fn draw_login(f: &mut Frame, app: &AppState, theme: &Theme) {
     let area = f.area();
@@ -20,7 +21,7 @@ pub fn draw_login(f: &mut Frame, app: &AppState, theme: &Theme) {
     f.render_widget(Clear, center);
 
     let block = Block::default()
-        .title(" 🔐 AuraGo Terminal Chat ")
+        .title(i18n::current().login_title)
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.border_focus).add_modifier(Modifier::BOLD))
         .style(Style::default().bg(theme.bg).fg(theme.fg));
@@ -65,7 +66,7 @@ pub fn draw_login(f: &mut Frame, app: &AppState, theme: &Theme) {
     let pass_input = Paragraph::new(password_masked)
         .block(
             Block::default()
-                .title(" Password ")
+                .title(i18n::current().password_title)
                 .borders(Borders::ALL)
                 .border_style(pass_border),
         )
@@ -81,7 +82,7 @@ pub fn draw_login(f: &mut Frame, app: &AppState, theme: &Theme) {
         let totp_input = Paragraph::new(app.login_totp.clone())
             .block(
                 Block::default()
-                    .title(" OTP Code ")
+                    .title(i18n::current().otp_title)
                     .borders(Borders::ALL)
                     .border_style(totp_border),
             )

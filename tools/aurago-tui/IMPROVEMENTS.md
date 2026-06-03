@@ -92,7 +92,16 @@ When adding a feature from this list, please:
 - All with rtk cargo verify after edits, clippy clean, tests pass.
 - disposable/ used for spawn list.
 
-**Last updated**: 2026-06-03 (Wave A of weitere per user "fange an, eine wave nach der anderen")
+**Last updated**: 2026-06-03 (continued F3/F6 on "mache weiter mit offenen punkten")
+
+## Completed in 2026-06 "Weitere Verbesserungen" more F3 i18n
+- More strings: detail_title, edit_field_title, password/otp/login_title, confirm_* actions.
+- Wired details in plans/missions/skills/containers/knowledge, login titles, confirm action texts.
+- check/clippy clean.
+
+## Completed in 2026-06 "Weitere Verbesserungen" more F6
+- Added simple debug task count to dash status (shows " │ tasks:N" when active background tasks).
+- rtk clean.
 
 ## Completed in 2026-06 "Weitere Verbesserungen" Wave C F6 (polish cache)
 - ✅ F6: Added cached_line_count to ChatMessage, updated in push_user/append/load_history/apply_sse (tool), main error push. Switched full_logical in chat.rs to use cache (was recompute lines() every draw). Good for long chat scrollbar perf.

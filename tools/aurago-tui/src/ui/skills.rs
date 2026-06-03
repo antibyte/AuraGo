@@ -211,7 +211,7 @@ fn draw_skills_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) 
     };
 
     let block = Block::default()
-        .title(" Detail ")
+        .title(i18n::current().detail_title)
         .borders(Borders::NONE)
         .style(Style::default().bg(theme.bg));
     let para = Paragraph::new(text).block(block).wrap(Wrap { trim: true });

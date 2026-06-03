@@ -126,7 +126,7 @@ fn draw_knowledge_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect)
 
 fn draw_knowledge_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let block = Block::default()
-        .title(" Details ")
+        .title(i18n::current().detail_title)
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.border));
     let inner = block.inner(area);

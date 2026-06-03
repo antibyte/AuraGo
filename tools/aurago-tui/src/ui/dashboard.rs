@@ -394,7 +394,8 @@ fn draw_logs_tab(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
 
 fn draw_dash_status(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let left = format!("⚡ {} ", app.status_message);
-    let right = " h/l: tabs │ j/k: scroll │ r: refresh │ F1: nav │ ?: help ";
+    let tasks = if !app.background_tasks.is_empty() { format!(" │ tasks:{}", app.background_tasks.len()) } else { "".to_string() };
+    let right = format!(" h/l: tabs │ j/k: scroll │ r: refresh │ F1: nav │ ?: help{}", tasks);
     let total = area.width as usize;
     let spacer = total.saturating_sub(left.len() + right.len());
     let text = format!("{}{}{}", left, " ".repeat(spacer), right);

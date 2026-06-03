@@ -8,6 +8,7 @@ use ratatui::{
 
 use super::theme::Theme;
 use super::utils;
+use crate::i18n;
 use crate::app::{AppState, MediaTab};
 
 pub fn draw_media(f: &mut Frame, app: &AppState, theme: &Theme) {
@@ -165,7 +166,7 @@ fn draw_media_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
 
 fn draw_media_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let block = Block::default()
-        .title(" Details ")
+        .title(i18n::current().detail_title)
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.border));
     let inner = block.inner(area);
