@@ -2347,9 +2347,13 @@ func ManagedLaunchpadLinkID(appID string) string {
 }
 
 func DefaultPortAllocator(ctx context.Context, preferred int) (int, error) {
-	if preferred >= 1024 && portAvailable(ctx, preferred) {
+	if !desktopStoreRunsInDockerContainer() && preferred >= 1024 && portAvailable(ctx, preferred) {
 		return preferred, nil
 	}
+	return allocateDynamicHostPort(ctx)
+}
+
+func allocateDynamicHostPort(ctx context.Context) (int, error) {
 	lc := net.ListenConfig{}
 	ln, err := lc.Listen(ctx, "tcp4", "0.0.0.0:0")
 	if err != nil {
@@ -2357,6 +2361,15 @@ func DefaultPortAllocator(ctx context.Context, preferred int) (int, error) {
 	}
 	defer ln.Close()
 	return ln.Addr().(*net.TCPAddr).Port, nil
+}
+
+var desktopStoreRunsInDockerContainer = detectDesktopStoreDockerContainer
+
+func detectDesktopStoreDockerContainer() bool {
+	if _, err := os.Stat("/.dockerenv"); err != nil {
+		return false
+	}
+	return true
 }
 
 func portAvailable(ctx context.Context, port int) bool {

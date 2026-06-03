@@ -1591,6 +1591,23 @@ func TestStorePortAcceptsChecksLocalTCPPort(t *testing.T) {
 	}
 }
 
+func TestDefaultPortAllocatorSkipsPreferredPortInsideDockerContainer(t *testing.T) {
+	originalDetector := desktopStoreRunsInDockerContainer
+	desktopStoreRunsInDockerContainer = func() bool { return true }
+	t.Cleanup(func() { desktopStoreRunsInDockerContainer = originalDetector })
+
+	port, err := DefaultPortAllocator(context.Background(), 8080)
+	if err != nil {
+		t.Fatalf("allocate port: %v", err)
+	}
+	if port == 8080 {
+		t.Fatal("containerized store installs must not reuse the container default port as host port")
+	}
+	if port <= 0 {
+		t.Fatalf("allocated invalid port %d", port)
+	}
+}
+
 func newTestService(t *testing.T, docker DockerAdapter, desktopAdapter DesktopAdapter, launchpad LaunchpadAdapter, ports PortAllocator) *Service {
 	t.Helper()
 	return newTestServiceAtPath(t, filepath.Join(t.TempDir(), "desktop_store.db"), docker, desktopAdapter, launchpad, ports, nil)
