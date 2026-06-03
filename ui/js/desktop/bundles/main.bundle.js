@@ -93,7 +93,7 @@
         Weather: 'weather',
         Workflows: 'workflow',
         'AuraGo Documents': 'documents',
-        Trash: 'trash',
+        Trash: 'trash-empty',
         Shared: 'share'
     };
     const appIconKeys = {
@@ -135,10 +135,11 @@
         terminal: 'terminal', 'quick-connect': 'server',
         browser: 'browser', viewer: 'eye',
         launchpad: 'launchpad',
-        'software-store': 'package',
+        'software-store': 'software-store',
         looper: 'looper',
         'system-info': 'monitor',
-        pixel: 'image',
+        zipper: 'zipper',
+        pixel: 'pixel',
         'galaxa-deluxe': 'run',
         people: 'users'
     };
@@ -232,8 +233,17 @@
         radio: 'radio',
         workflow: 'workflow',
         workflows: 'workflow',
-        'software-store': 'package',
-        software_store: 'package'
+        'software-store': 'software-store',
+        software_store: 'software-store',
+        store: 'software-store',
+        'app-store': 'software-store',
+        zipper: 'zipper',
+        zip: 'zipper',
+        pixel: 'pixel',
+        paint: 'pixel',
+        trash: 'trash-empty',
+        'trash-empty': 'trash-empty',
+        'trash-full': 'trash-full'
     };
     const desktopSettingDefaults = {
         'appearance.wallpaper': 'groupshoot',
@@ -3548,7 +3558,7 @@ function wireWindow(win, id) {
 /* ui/js/desktop/core/window-ai-context.js */
     function aiButtonMarkup(appId) {
         if (appId !== 'agent-chat') {
-            return `<button class="vd-window-button vd-window-ai-button" type="button" data-action="ai-context" title="${esc(t('desktop.window_ai_context'))}" aria-label="${esc(t('desktop.window_ai_context'))}">${iconMarkup('chat', 'AI', 'vd-window-ai-button-icon', 18)}</button>`;
+            return `<button class="vd-window-button vd-window-ai-button" type="button" data-action="ai-context" title="${esc(t('desktop.window_ai_context'))}" aria-label="${esc(t('desktop.window_ai_context'))}">${iconMarkup('agent-chat', 'AI', 'vd-window-ai-button-icon', 14)}</button>`;
         }
         return '';
     }

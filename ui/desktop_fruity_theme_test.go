@@ -160,7 +160,7 @@ func TestDesktopFruityWindowControlsStayOnLeft(t *testing.T) {
 				"height: 26px;",
 				"margin-left: 4px;",
 				"order: 20;",
-				"color: #062b4f;",
+				"color: #0b4f7a;",
 			},
 		},
 		{
@@ -204,8 +204,8 @@ func TestDesktopFruityWindowControlsStayOnLeft(t *testing.T) {
 
 	menuActionsOverride := desktopExactCSSRuleBody(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-actions")
 	for _, want := range []string{
-		"left: 12px !important;",
-		"right: auto !important;",
+		"left: 10px !important;",
+		"right: 10px !important;",
 		"grid-column: 1 !important;",
 		"justify-self: start !important;",
 		"top: 24px !important;",
@@ -218,9 +218,8 @@ func TestDesktopFruityWindowControlsStayOnLeft(t *testing.T) {
 
 	menuTitlebarOverride := desktopExactCSSRuleBody(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-window.has-window-menu > .vd-window-titlebar")
 	for _, want := range []string{
-		"grid-template-columns: minmax(0, 1fr) !important;",
-		"padding-left: 12px !important;",
-		"padding-right: 12px !important;",
+		"grid-template-columns: 78px minmax(0, 1fr) 78px !important;",
+		"padding: 0 14px !important;",
 		"overflow: visible !important;",
 	} {
 		if !strings.Contains(menuTitlebarOverride, want) {

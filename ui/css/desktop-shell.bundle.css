@@ -716,7 +716,7 @@
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(226, 243, 255, 0.82)),
         linear-gradient(135deg, rgba(10, 132, 255, 0.48), rgba(52, 211, 153, 0.5));
-    color: #062b4f;
+    color: #0b4f7a;
     font-size: 0.68rem;
     font-weight: 850;
     line-height: 1;
@@ -777,6 +777,7 @@
 
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button-icon {
     display: block;
+    color: #0b4f7a;
     filter: brightness(0) saturate(100%) invert(15%) sepia(77%) saturate(1501%) hue-rotate(187deg) brightness(91%) contrast(99%);
     opacity: 1;
 }
@@ -4880,8 +4881,8 @@
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-actions {
     position: absolute !important;
-    left: 12px !important;
-    right: auto !important;
+    left: 10px !important;
+    right: 10px !important;
     top: 24px !important;
     transform: translateY(-50%) !important;
     grid-column: 1 !important;
@@ -4892,16 +4893,15 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar {
-    grid-template-columns: minmax(0, 1fr) !important;
-    padding-left: 12px !important;
-    padding-right: 12px !important;
+    grid-template-columns: 78px minmax(0, 1fr) 78px !important;
+    padding: 0 14px !important;
     overflow: visible !important;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-title-group {
-    grid-column: 1 !important;
+    grid-column: 2 !important;
     justify-content: center !important;
-    padding: 0 110px;
+    padding: 0;
 }
 
 .desktop-body[data-theme="fruity"] .vd-widget-manager > .vd-wm-header > .vd-window-actions {

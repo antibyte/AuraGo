@@ -712,7 +712,7 @@
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(226, 243, 255, 0.82)),
         linear-gradient(135deg, rgba(10, 132, 255, 0.48), rgba(52, 211, 153, 0.5));
-    color: #062b4f;
+    color: #0b4f7a;
     font-size: 0.68rem;
     font-weight: 850;
     line-height: 1;
@@ -773,6 +773,7 @@
 
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button-icon {
     display: block;
+    color: #0b4f7a;
     filter: brightness(0) saturate(100%) invert(15%) sepia(77%) saturate(1501%) hue-rotate(187deg) brightness(91%) contrast(99%);
     opacity: 1;
 }

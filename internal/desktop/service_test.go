@@ -295,14 +295,17 @@ func TestServiceBootstrapUsesDistinctBuiltinAppIcons(t *testing.T) {
 		got[app.ID] = app
 	}
 	for id, wantIcon := range map[string]string{
-		"writer":       "writer",
-		"launchpad":    "launchpad",
-		"gallery":      "gallery",
-		"music-player": "audio-player",
-		"radio":        "radio",
-		"agent-chat":   "agent-chat",
-		"code-studio":  "code-studio",
-		"looper":       "looper",
+		"writer":         "writer",
+		"launchpad":      "launchpad",
+		"gallery":        "gallery",
+		"music-player":   "audio-player",
+		"radio":          "radio",
+		"agent-chat":     "agent-chat",
+		"code-studio":    "code-studio",
+		"looper":         "looper",
+		"software-store": "software-store",
+		"zipper":         "zipper",
+		"pixel":          "pixel",
 	} {
 		if got[id].Icon != wantIcon {
 			t.Fatalf("builtin app %q icon = %q, want %q", id, got[id].Icon, wantIcon)
@@ -438,7 +441,7 @@ func TestServiceBootstrapIncludesGeneratedAppIconCatalog(t *testing.T) {
 	if bootstrap.IconCatalog.LegacySpritePrefix != "sprite:" {
 		t.Fatalf("legacy sprite prefix = %q, want sprite:", bootstrap.IconCatalog.LegacySpritePrefix)
 	}
-	for _, want := range []string{"analytics", "chat", "cloud", "mail", "notes", "server", "settings", "tools", "weather", "folder", "file-plus", "folder-plus", "refresh", "search", "run", "save", "stop", "eye", "heart", "maximize", "minus", "redo", "undo", "zoom-in", "zoom-out", "zoom-reset"} {
+	for _, want := range []string{"analytics", "chat", "cloud", "mail", "notes", "server", "settings", "tools", "weather", "software-store", "pixel", "zipper", "trash-empty", "trash-full", "folder", "file-plus", "folder-plus", "refresh", "search", "run", "save", "stop", "eye", "heart", "maximize", "minus", "redo", "undo", "zoom-in", "zoom-out", "zoom-reset"} {
 		if !stringSliceContains(bootstrap.IconCatalog.Preferred, want) {
 			t.Fatalf("icon catalog missing preferred icon %q: %+v", want, bootstrap.IconCatalog.Preferred)
 		}
