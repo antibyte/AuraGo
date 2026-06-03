@@ -55,6 +55,8 @@ var DefaultCapabilities = []string{
 	"remote.desktop.capture",
 	"remote.desktop.permission_request",
 	"remote.desktop.input",
+	"remote.files.read",
+	"remote.files.write",
 	"persona.assets",
 }
 
@@ -92,13 +94,28 @@ type SystemConnectedPayload struct {
 }
 
 type SessionStartPayload struct {
-	ClientVersion      string            `json:"client_version"`
-	DeviceID           string            `json:"device_id,omitempty"`
-	PairingToken       string            `json:"pairing_token,omitempty"`
-	SharedKeyProof     *SharedKeyProof   `json:"shared_key_proof,omitempty"`
-	ClientCapabilities []string          `json:"client_capabilities,omitempty"`
-	Host               SessionStartHost  `json:"host"`
-	Metadata           map[string]string `json:"metadata,omitempty"`
+	ClientVersion      string             `json:"client_version"`
+	DeviceID           string             `json:"device_id,omitempty"`
+	PairingToken       string             `json:"pairing_token,omitempty"`
+	SharedKeyProof     *SharedKeyProof    `json:"shared_key_proof,omitempty"`
+	ClientCapabilities []string           `json:"client_capabilities,omitempty"`
+	FileAccess         *FileAccessPayload `json:"file_access,omitempty"`
+	Host               SessionStartHost   `json:"host"`
+	Metadata           map[string]string  `json:"metadata,omitempty"`
+}
+
+type FileAccessPayload struct {
+	Enabled       bool             `json:"enabled"`
+	Roots         []FileAccessRoot `json:"roots,omitempty"`
+	MaxReadBytes  int64            `json:"max_read_bytes,omitempty"`
+	MaxWriteBytes int64            `json:"max_write_bytes,omitempty"`
+}
+
+type FileAccessRoot struct {
+	RootID      string   `json:"root_id"`
+	Label       string   `json:"label,omitempty"`
+	PathDisplay string   `json:"path_display,omitempty"`
+	Permissions []string `json:"permissions,omitempty"`
 }
 
 type SessionStartHost struct {

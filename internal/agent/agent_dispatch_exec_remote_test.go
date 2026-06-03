@@ -339,6 +339,52 @@ func TestRemoteDesktopInputBlockedByGlobalReadOnly(t *testing.T) {
 	}
 }
 
+func TestRemoteFileOperationsForwardAgoDeskRootID(t *testing.T) {
+	t.Parallel()
+
+	db, err := remote.InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatalf("init remote db: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	deviceID, err := remote.CreateDevice(db, remote.DeviceRecord{
+		Name:   "agodesk",
+		Status: "approved",
+		Tags:   []string{"agodesk", "desktop-client"},
+	})
+	if err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	transport := &agentRecordingTransport{
+		connected: map[string]bool{deviceID: true},
+		output:    "package main\n",
+	}
+	hub := remote.NewRemoteHub(db, nil, slog.Default())
+	hub.RegisterCommandTransport("agodesk", transport)
+
+	cfg := &config.Config{}
+	cfg.RemoteControl.Enabled = true
+
+	out := handleRemoteControl(ToolCall{
+		Operation: "read_file",
+		DeviceID:  deviceID,
+		Path:      "src/main.go",
+		Params: map[string]interface{}{
+			"root_id": "workspace",
+		},
+	}, cfg, hub, slog.Default())
+	if !strings.Contains(out, `"status":"ok"`) {
+		t.Fatalf("expected ok output, got %s", out)
+	}
+	if len(transport.calls) != 1 {
+		t.Fatalf("transport calls = %d, want 1", len(transport.calls))
+	}
+	if got := transport.calls[0].Args["root_id"]; got != "workspace" {
+		t.Fatalf("root_id arg = %#v, want workspace", got)
+	}
+}
+
 type agentRecordingTransport struct {
 	connected map[string]bool
 	output    string

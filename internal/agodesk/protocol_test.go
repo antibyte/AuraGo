@@ -62,6 +62,47 @@ func TestSharedKeyProofVerifiesEnvelopeBoundHMAC(t *testing.T) {
 	}
 }
 
+func TestSessionStartPayloadCarriesFileAccessMetadata(t *testing.T) {
+	env, err := NewEnvelope(TypeSessionStart, SessionStartPayload{
+		ClientVersion:      "agodesk-test",
+		ClientCapabilities: []string{"remote.files.read", "remote.files.write"},
+		FileAccess: &FileAccessPayload{
+			Enabled:       true,
+			MaxReadBytes:  8 * 1024 * 1024,
+			MaxWriteBytes: 4 * 1024 * 1024,
+			Roots: []FileAccessRoot{
+				{
+					RootID:      "workspace",
+					Label:       "Workspace",
+					PathDisplay: "~/Projects/AuraGo",
+					Permissions: []string{"read", "write"},
+				},
+			},
+		},
+		Host: SessionStartHost{Hostname: "AGODESK", OS: "windows", Arch: "amd64"},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope: %v", err)
+	}
+
+	var payload SessionStartPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		t.Fatalf("unmarshal session.start payload: %v", err)
+	}
+	if payload.FileAccess == nil || !payload.FileAccess.Enabled {
+		t.Fatalf("file_access missing or disabled: %+v", payload.FileAccess)
+	}
+	if payload.FileAccess.MaxReadBytes != 8*1024*1024 || payload.FileAccess.MaxWriteBytes != 4*1024*1024 {
+		t.Fatalf("file_access limits = %+v", payload.FileAccess)
+	}
+	if len(payload.FileAccess.Roots) != 1 || payload.FileAccess.Roots[0].RootID != "workspace" {
+		t.Fatalf("file_access roots = %+v", payload.FileAccess.Roots)
+	}
+	if got := payload.FileAccess.Roots[0].Permissions; len(got) != 2 || got[0] != "read" || got[1] != "write" {
+		t.Fatalf("permissions = %#v, want read/write", got)
+	}
+}
+
 func TestNewPersonaAssetsPayloadUsesCoreAvatarAndIcon(t *testing.T) {
 	payload := NewPersonaAssetsPayload("agodesk:dev:1", "friend", true, "Friendly and supportive.")
 

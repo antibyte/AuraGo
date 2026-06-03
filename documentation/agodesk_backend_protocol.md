@@ -20,7 +20,7 @@ Every frame uses this envelope:
 }
 ```
 
-AuraGo accepts AgoDesk WebSocket messages up to 16 MiB. Desktop screenshot results include `data_base64` inside `desktop.result`, so clients must allow outgoing screenshot frames at least this large or downscale/compress before replying.
+AuraGo accepts AgoDesk WebSocket messages up to 16 MiB. Desktop screenshot results include `data_base64` inside `desktop.result`, so clients must allow outgoing screenshot frames at least this large or downscale/compress before replying. File payloads use a stricter v1 inline limit of 8 MiB or the smaller limit negotiated in `session.start.file_access`.
 
 ## Connection Flow
 
@@ -42,7 +42,7 @@ AuraGo accepts AgoDesk WebSocket messages up to 16 MiB. Desktop screenshot resul
 - `chat.response.chunk`: reserved for streaming support.
 - `persona.assets.request`: client request for the currently active AuraGo persona's visual assets and prompt.
 - `persona.assets`: server response with the active persona name, asset key, avatar image URL, icon URL, and persona prompt.
-- `desktop.command` / `desktop.result`: server-to-client desktop command transport for screenshots, permission requests, and locally approved input.
+- `desktop.command` / `desktop.result`: server-to-client command transport for screenshots, permission requests, locally approved input, and locally approved file access.
 
 ## Client Capabilities
 
@@ -54,8 +54,47 @@ Desktop commands are dispatched only when the matching client capability is pres
 - `remote.desktop.capture`: required for `desktop_screenshot`
 - `remote.desktop.permission_request`: required for `desktop_permission_request`
 - `remote.desktop.input`: required for `desktop_input`
+- `remote.files.read`: required for `file_list` and `file_read`
+- `remote.files.write`: required for `file_write`
 
-If a client omits these capabilities, pairing, heartbeat, persona assets, and chat can still work, but desktop commands return `UNSUPPORTED_CAPABILITY` immediately instead of waiting for a `desktop.result` timeout. A client that sends keepalives but does not advertise the desktop capabilities is connected, but not remote-control capable.
+If a client omits these capabilities, pairing, heartbeat, persona assets, and chat can still work, but remote commands return `UNSUPPORTED_CAPABILITY` immediately instead of waiting for a `desktop.result` timeout. A client that sends keepalives but does not advertise the desktop or file capabilities is connected, but only capable of the features it advertised.
+
+## File Access Metadata
+
+AgoDesk owns local file permissions. If local file access is available, include `payload.file_access` in `session.start`:
+
+```json
+{
+  "client_version": "agodesk-1.2.0",
+  "client_capabilities": ["chat.full_response", "remote.files.read", "remote.files.write"],
+  "file_access": {
+    "enabled": true,
+    "max_read_bytes": 8388608,
+    "max_write_bytes": 8388608,
+    "roots": [
+      {
+        "root_id": "workspace",
+        "label": "Workspace",
+        "path_display": "~/Projects/AuraGo",
+        "permissions": ["read", "write"]
+      }
+    ]
+  },
+  "host": {
+    "hostname": "AGODESK",
+    "os": "windows",
+    "arch": "amd64"
+  }
+}
+```
+
+Rules:
+
+- `file_access` is optional for backward compatibility.
+- `enabled=false` means AgoDesk should not advertise `remote.files.read` or `remote.files.write`.
+- `root_id` is stable for the local AgoDesk configuration and is used in later commands.
+- `path_display` is UI/debug metadata. AuraGo must not treat it as an authorization boundary.
+- AuraGo may display/cache this metadata, but AgoDesk must enforce canonical path checks and permissions locally for every command.
 
 ## Pairing
 
@@ -125,6 +164,8 @@ hmac = hex(HMAC_SHA256(shared_key_bytes, material))
   - `inject_input(event)` only during an approved local control session.
   - `set_input_approval(approved)` / `reset_desktop_session()`
 - Display a visible local remote-control banner with approve, deny, and stop controls before allowing input injection.
+- Store file-access roots and per-root read/write permissions locally in AgoDesk. AuraGo does not configure or enforce these roots.
+- Canonicalize every requested file path before access, reject traversal and symlink escapes, enforce per-root permissions, and use atomic writes.
 
 ## Server-Initiated AgoChat Messages
 
@@ -273,6 +314,111 @@ Window captures set `"source": "window"` and include `window_id`.
 
 Input is blocked until the user approves remote control locally.
 
+## File Access Commands
+
+File commands reuse the existing `desktop.command` / `desktop.result` envelope pair. AgoDesk must execute them only when local file access is enabled and the path resolves inside a configured root with the required permission.
+
+### List files (`file_list`)
+
+Requires `remote.files.read`.
+
+```json
+{
+  "command_id": "cmd-list-1",
+  "operation": "file_list",
+  "params": {
+    "root_id": "workspace",
+    "path": "src",
+    "recursive": false
+  }
+}
+```
+
+Successful result:
+
+```json
+{
+  "command_id": "cmd-list-1",
+  "ok": true,
+  "data": {
+    "files": [
+      {
+        "name": "main.go",
+        "path": "src/main.go",
+        "type": "file",
+        "size": 1234,
+        "modified_at": "2026-06-03T12:00:00Z"
+      }
+    ]
+  }
+}
+```
+
+### Read file (`file_read`)
+
+Requires `remote.files.read`.
+
+```json
+{
+  "command_id": "cmd-read-1",
+  "operation": "file_read",
+  "params": {
+    "root_id": "workspace",
+    "path": "src/main.go",
+    "encoding": "utf-8"
+  }
+}
+```
+
+Successful result:
+
+```json
+{
+  "command_id": "cmd-read-1",
+  "ok": true,
+  "data": {
+    "content": "package main\n",
+    "encoding": "utf-8",
+    "bytes": 13,
+    "truncated": false
+  }
+}
+```
+
+### Write file (`file_write`)
+
+Requires `remote.files.write`.
+
+```json
+{
+  "command_id": "cmd-write-1",
+  "operation": "file_write",
+  "params": {
+    "root_id": "workspace",
+    "path": "src/main.go",
+    "content": "package main\n"
+  }
+}
+```
+
+Successful result:
+
+```json
+{
+  "command_id": "cmd-write-1",
+  "ok": true,
+  "data": {
+    "bytes": 13
+  }
+}
+```
+
+If `root_id` is present, `path` is relative to that root. If `root_id` is omitted, AgoDesk may accept an absolute path only when the canonical path resolves inside a configured root.
+
+File command errors use `ok=false` and a stable error code in `error`, for example `FILE_ACCESS_DISABLED`, `FILE_ACCESS_DENIED`, `FILE_TOO_LARGE`, or `FILE_CONFLICT`. Do not include file contents in error messages or logs.
+
+Inline file payloads are limited to 8 MiB in v1 or the smaller value from `file_access.max_read_bytes` / `file_access.max_write_bytes`. Larger transfers should return `FILE_TOO_LARGE`; chunked transfer is reserved for a later protocol version.
+
 ## RemoteHub Operations
 
 The existing RemoteHub command protocol supports these agodesk-capable operations in this backend version:
@@ -280,7 +426,12 @@ The existing RemoteHub command protocol supports these agodesk-capable operation
 - `desktop_screenshot`
 - `desktop_permission_request`
 - `desktop_input`
+- `file_list`
+- `file_read`
+- `file_write`
 
-Read-only policy permits screenshot and permission status requests. It denies desktop input.
+Read-only policy permits screenshot, permission status requests, file listing, and file reading. It denies desktop input and file writing.
 
 `desktop_stream_start` and `desktop_stream_stop` remain reserved for a later backend version and are not available in v1.
+
+For a concrete client-side implementation checklist, see [`agodesk_coding_agent_file_access.md`](./agodesk_coding_agent_file_access.md).

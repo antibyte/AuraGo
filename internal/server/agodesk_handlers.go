@@ -698,6 +698,10 @@ func agodeskDesktopCapabilityForOperation(operation string) string {
 		return "remote.desktop.permission_request"
 	case remote.OpDesktopInput:
 		return "remote.desktop.input"
+	case remote.OpFileRead, remote.OpFileList:
+		return "remote.files.read"
+	case remote.OpFileWrite:
+		return "remote.files.write"
 	default:
 		return ""
 	}
@@ -746,8 +750,16 @@ func agodeskDesktopResultToRemoteResult(commandID string, payload agodesk.Deskto
 	}
 	output := ""
 	if payload.Data != nil {
-		if data, err := json.Marshal(payload.Data); err == nil {
-			output = string(data)
+		if content, ok := payload.Data["content"].(string); ok {
+			output = content
+		} else if files, ok := payload.Data["files"]; ok {
+			if data, err := json.Marshal(files); err == nil {
+				output = string(data)
+			}
+		} else {
+			if data, err := json.Marshal(payload.Data); err == nil {
+				output = string(data)
+			}
 		}
 	}
 	if payload.CommandID != "" {

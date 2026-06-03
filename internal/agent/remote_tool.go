@@ -218,9 +218,14 @@ func remoteReadFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 		return `Tool Output: {"status":"error","message":"'path' is required for read_file"}`
 	}
 
+	args := map[string]interface{}{"path": path}
+	if rootID := strings.TrimSpace(toolArgString(tc.Params, "root_id")); rootID != "" {
+		args["root_id"] = rootID
+	}
+
 	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
 		Operation: remote.OpFileRead,
-		Args:      map[string]interface{}{"path": path},
+		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
@@ -257,12 +262,17 @@ func remoteWriteFile(cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, log
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
 	}
 
+	args := map[string]interface{}{
+		"path":    path,
+		"content": content,
+	}
+	if rootID := strings.TrimSpace(toolArgString(tc.Params, "root_id")); rootID != "" {
+		args["root_id"] = rootID
+	}
+
 	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
 		Operation: remote.OpFileWrite,
-		Args: map[string]interface{}{
-			"path":    path,
-			"content": content,
-		},
+		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
@@ -304,6 +314,9 @@ func remoteListFiles(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) st
 	}
 
 	args := map[string]interface{}{"path": path}
+	if rootID := strings.TrimSpace(toolArgString(tc.Params, "root_id")); rootID != "" {
+		args["root_id"] = rootID
+	}
 	if tc.Recursive {
 		args["recursive"] = true
 	}

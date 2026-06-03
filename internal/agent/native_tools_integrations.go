@@ -1035,6 +1035,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"device_name": prop("string", "Device name — alternative to device_id for lookup"),
 				"command":     prop("string", "Shell command to execute (for execute_command)"),
 				"path":        prop("string", "File or directory path on the remote device"),
+				"root_id":     prop("string", "Agodesk file-access root id for read_file, write_file, or list_files. When set, path is relative to that root."),
 				"content":     prop("string", "File content to write (for write_file) or text to insert (for edit_file insert_after/insert_before/append/prepend)"),
 				"recursive":   map[string]interface{}{"type": "boolean", "description": "List directory recursively (for list_files, default: false)"},
 				"action":      prop("string", "Sub-operation. edit_file: str_replace, str_replace_all, insert_after, insert_before, append, prepend, delete_lines. json_edit/yaml_edit: get, set, delete, keys, validate, format. xml_edit: get, set_text, set_attribute, add_element, delete, validate, format. file_search: grep, grep_recursive, find. file_read_advanced: read_lines, head, tail, count_lines, search_context"),

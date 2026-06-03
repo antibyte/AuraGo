@@ -673,6 +673,85 @@ func TestAgodeskDesktopCommandWithoutClientCapabilityFailsFast(t *testing.T) {
 	}
 }
 
+func TestAgodeskFileCommandsRequireClientCapabilities(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	token := "agodesk-file-no-capability-token"
+	if _, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
+		TokenHash:  hashSHA256(token),
+		DeviceName: "chat-only-file-pc",
+		ExpiresAt:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+	}); err != nil {
+		t.Fatalf("CreateEnrollment: %v", err)
+	}
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws")
+	defer cleanup()
+	_ = readAgodeskTestEnvelope(t, conn)
+	start, err := agodesk.NewEnvelope(agodesk.TypeSessionStart, agodesk.SessionStartPayload{
+		ClientVersion:      "0.1.0",
+		PairingToken:       token,
+		ClientCapabilities: []string{"chat.full_response"},
+		Host:               agodesk.SessionStartHost{Hostname: "FILES-PC", OS: "windows", Arch: "amd64"},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope session.start: %v", err)
+	}
+	if err := conn.WriteJSON(start); err != nil {
+		t.Fatalf("write session.start: %v", err)
+	}
+	acceptedEnvelope := readAgodeskTestEnvelope(t, conn)
+	var accepted agodesk.SessionAcceptedPayload
+	decodeAgodeskTestPayload(t, acceptedEnvelope, &accepted)
+
+	for _, tc := range []struct {
+		op          string
+		wantCap     string
+		description string
+	}{
+		{op: remote.OpFileRead, wantCap: "remote.files.read", description: "file_read"},
+		{op: remote.OpFileList, wantCap: "remote.files.read", description: "file_list"},
+		{op: remote.OpFileWrite, wantCap: "remote.files.write", description: "file_write"},
+	} {
+		result, err := s.RemoteHub.SendCommand(accepted.DeviceID, remote.CommandPayload{
+			Operation: tc.op,
+			Args:      map[string]interface{}{"path": "src/main.go"},
+		}, 25*time.Millisecond)
+		if err != nil {
+			t.Fatalf("%s SendCommand returned transport error: %v", tc.description, err)
+		}
+		if result.Status != "error" || !strings.Contains(result.Error, agodesk.ErrorUnsupportedCapability) || !strings.Contains(result.Error, tc.wantCap) {
+			t.Fatalf("%s result = %+v, want unsupported capability %s", tc.description, result, tc.wantCap)
+		}
+	}
+}
+
+func TestAgodeskFileDesktopResultsNormalizeRemoteOutput(t *testing.T) {
+	read := agodeskDesktopResultToRemoteResult("read-1", agodesk.DesktopResultPayload{
+		CommandID: "read-1",
+		OK:        true,
+		Data: map[string]interface{}{
+			"content":  "package main\n",
+			"encoding": "utf-8",
+		},
+	})
+	if read.Status != "ok" || read.Output != "package main\n" {
+		t.Fatalf("file_read normalized result = %+v", read)
+	}
+
+	list := agodeskDesktopResultToRemoteResult("list-1", agodesk.DesktopResultPayload{
+		CommandID: "list-1",
+		OK:        true,
+		Data: map[string]interface{}{
+			"files": []interface{}{
+				map[string]interface{}{"name": "main.go", "type": "file"},
+			},
+		},
+	})
+	if list.Status != "ok" || !strings.Contains(list.Output, `"name":"main.go"`) || strings.Contains(list.Output, `"files"`) {
+		t.Fatalf("file_list normalized result = %+v", list)
+	}
+}
+
 func TestAgodeskChatMessageCommandSendsServerPushResponse(t *testing.T) {
 	s := newAgodeskPairingTestServer(t)
 	token := "agodesk-chat-push-token"
