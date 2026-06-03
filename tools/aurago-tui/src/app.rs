@@ -100,6 +100,8 @@ pub struct ChatMessage {
     pub is_streaming: bool,
     pub is_tool: bool,
     pub is_thinking: bool,
+    /// Cached for fast full_logical sum in chat scrollbar (F6 polish)
+    pub cached_line_count: usize,
 }
 
 #[derive(Debug)]
@@ -355,12 +357,14 @@ impl AppState {
     // ── Chat helpers ──────────────────────────────────────────────────────
 
     pub fn push_user_message(&mut self, text: String) {
+        let line_count = text.lines().count();
         self.chat_messages.push(ChatMessage {
             role: "user".to_string(),
             content: text,
             is_streaming: false,
             is_tool: false,
             is_thinking: false,
+            cached_line_count: line_count,
         });
         self.scroll_to_bottom();
     }
@@ -422,6 +426,7 @@ impl AppState {
             is_streaming: true,
             is_tool: false,
             is_thinking: false,
+            cached_line_count: 0,
         });
         self.scroll_to_bottom();
     }
@@ -430,6 +435,7 @@ impl AppState {
         if let Some(last) = self.chat_messages.last_mut() {
             if last.is_streaming {
                 last.content.push_str(&delta);
+                last.cached_line_count = last.content.lines().count();
             }
         }
     }
@@ -456,12 +462,14 @@ impl AppState {
             SseEvent::ThinkingStart => self.thinking_active = true,
             SseEvent::ThinkingStop => self.thinking_active = false,
             SseEvent::ToolCall(name) => {
+                let content = format!("🔧 Tool: {}", name);
                 self.chat_messages.push(ChatMessage {
                     role: "tool".to_string(),
-                    content: format!("🔧 Tool: {}", name),
+                    content,
                     is_streaming: false,
                     is_tool: true,
                     is_thinking: false,
+                    cached_line_count: 1,
                 });
                 if self.auto_scroll {
                     self.scroll_to_bottom(); // will be turned into usize::MAX in next draw
@@ -488,12 +496,16 @@ impl AppState {
         self.chat_messages = history
             .into_iter()
             .filter(|m| !m.is_internal)
-            .map(|m| ChatMessage {
-                role: m.role,
-                content: m.content,
-                is_streaming: false,
-                is_tool: false,
-                is_thinking: false,
+            .map(|m| {
+                let line_count = m.content.lines().count();
+                ChatMessage {
+                    role: m.role,
+                    content: m.content,
+                    is_streaming: false,
+                    is_tool: false,
+                    is_thinking: false,
+                    cached_line_count: line_count,
+                }
             })
             .collect();
         self.scroll_to_bottom();

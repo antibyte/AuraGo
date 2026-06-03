@@ -225,11 +225,11 @@ fn draw_messages(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     }
 
     // Full logical line count (pre-wrap, cheap) for scrollbar accuracy even when viewport-sliced.
-    // (Current model is logical pre-wrap lines; this approx matches old behavior for thumb position.)
+    // Uses cached_line_count (F6 polish) instead of recomputing lines() every draw.
     let full_logical: usize = app
         .chat_messages
         .iter()
-        .map(|m| m.content.lines().count() + 1)
+        .map(|m| m.cached_line_count + 1)
         .sum::<usize>()
         + if app.thinking_active { 1 } else { 0 }
         + if !app.auto_scroll && !app.chat_messages.is_empty() { 1 } else { 0 };

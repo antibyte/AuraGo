@@ -241,12 +241,14 @@ async fn run_app(
                 // Finish any in-flight streaming assistant message so we don't leave a dangling spinner
                 app_lock.finish_stream();
                 // Add a visible error line in the chat
+                let content = format!("⚠️  {}", err);
                 app_lock.chat_messages.push(crate::app::ChatMessage {
                     role: "system".to_string(),
-                    content: format!("⚠️  {}", err),
+                    content,
                     is_streaming: false,
                     is_tool: false,
                     is_thinking: false,
+                    cached_line_count: 1,
                 });
                 app_lock.scroll_to_bottom();
             }
