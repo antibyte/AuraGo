@@ -201,6 +201,8 @@
 }
 
 .vd-window-titlebar {
+    position: relative;
+    z-index: 2;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -208,6 +210,7 @@
     padding: 0 var(--ds-space-4);
     background: var(--ds-color-surface-2);
     border-bottom: 1px solid var(--ds-color-border-subtle);
+    overflow: visible;
     cursor: grab;
     user-select: none;
     touch-action: none;
@@ -380,6 +383,8 @@
 }
 
 .vd-window-menubar {
+    position: relative;
+    z-index: 3;
     grid-column: 1 / -1;
     grid-row: 2;
     display: flex;
@@ -425,7 +430,7 @@
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
-    z-index: var(--vd-z-menu);
+    z-index: calc(var(--vd-z-menu) + 1);
     min-width: 210px;
     padding: 6px;
     border: 1px solid var(--vd-border);
@@ -542,6 +547,8 @@
 }
 
 .vd-window-content {
+    position: relative;
+    z-index: 1;
     overflow: hidden;
     display: grid;
     min-height: 0;

@@ -90,6 +90,57 @@ func TestDesktopWindowMenuAssets(t *testing.T) {
 	}
 }
 
+func TestDesktopWindowMenuRendersAboveWindowContent(t *testing.T) {
+	t.Parallel()
+
+	cssText := strings.ReplaceAll(readDesktopAssetText(t, "css/desktop-windows.css"), "\r\n", "\n")
+	for _, check := range []struct {
+		name     string
+		selector string
+		wants    []string
+	}{
+		{
+			name:     "titlebar creates visible overlay layer",
+			selector: ".vd-window-titlebar",
+			wants: []string{
+				"position: relative;",
+				"z-index: 2;",
+				"overflow: visible;",
+			},
+		},
+		{
+			name:     "content stays below titlebar overlay layer",
+			selector: ".vd-window-content",
+			wants: []string{
+				"position: relative;",
+				"z-index: 1;",
+			},
+		},
+		{
+			name:     "menubar stays above app content",
+			selector: ".vd-window-menubar",
+			wants: []string{
+				"position: relative;",
+				"z-index: 3;",
+			},
+		},
+		{
+			name:     "popover rises above shell menus in titlebar layer",
+			selector: ".vd-window-menu-popover",
+			wants: []string{
+				"z-index: calc(var(--vd-z-menu) + 1);",
+			},
+		},
+	} {
+		body := desktopExactCSSRuleBody(t, cssText, check.selector)
+		for _, want := range check.wants {
+			if !strings.Contains(body, want) {
+				t.Fatalf("desktop window menu %s rule %q missing %q in body %q", check.name, check.selector, want, body)
+			}
+		}
+	}
+}
+
 func TestDesktopWindowMenuTranslations(t *testing.T) {
 	t.Parallel()
 
@@ -446,6 +497,35 @@ func readAllDesktopAppCSS(t *testing.T) string {
 		buf.WriteByte('\n')
 	}
 	return buf.String()
+}
+
+func desktopExactCSSRuleBody(t *testing.T, source, selector string) string {
+	t.Helper()
+	haystack := "\n" + strings.ReplaceAll(source, "\r\n", "\n")
+	start := strings.Index(haystack, "\n"+selector+" {")
+	if start < 0 {
+		t.Fatalf("missing exact CSS selector %q", selector)
+	}
+	start++
+	open := strings.Index(haystack[start:], "{")
+	if open < 0 {
+		t.Fatalf("missing CSS block for selector %q", selector)
+	}
+	pos := start + open
+	depth := 0
+	for i := pos; i < len(haystack); i++ {
+		switch haystack[i] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return haystack[pos : i+1]
+			}
+		}
+	}
+	t.Fatalf("missing closing brace for CSS selector %q", selector)
+	return ""
 }
 
 func jsFunctionBodyInWindowMenuTest(t *testing.T, source, signature string) string {

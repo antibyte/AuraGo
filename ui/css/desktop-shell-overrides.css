@@ -36,35 +36,39 @@
 }
 .desktop-body[data-theme="fruity"] .vd-window > .vd-window-titlebar > .vd-window-actions {
     position: absolute !important;
-    left: 14px !important;
+    left: 12px !important;
     right: auto !important;
     top: 50% !important;
     z-index: 4;
     transform: translateY(-50%) !important;
     justify-self: start !important;
     width: auto !important;
+    min-width: 0 !important;
     justify-content: flex-start !important;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-actions {
     position: absolute !important;
-    left: 14px !important;
+    left: 12px !important;
     right: auto !important;
     top: 24px !important;
     transform: translateY(-50%) !important;
     width: auto !important;
+    min-width: 0 !important;
     justify-content: flex-start !important;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar {
-    grid-template-columns: 78px minmax(0, 1fr) 78px !important;
-    padding: 0 14px !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    overflow: visible !important;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-title-group {
-    grid-column: 2 !important;
+    grid-column: 1 !important;
     justify-content: center !important;
-    padding: 0 8px;
+    padding: 0 110px;
 }
 
 .desktop-body[data-theme="fruity"] .vd-widget-manager > .vd-wm-header > .vd-window-actions {

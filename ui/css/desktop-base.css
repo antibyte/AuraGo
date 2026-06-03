@@ -652,17 +652,20 @@
 
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-actions {
     position: absolute;
-    left: 14px;
+    left: 12px;
     right: auto;
     top: 50%;
     z-index: 4;
     transform: translateY(-50%);
     gap: 8px;
     width: auto;
+    min-width: 0;
     justify-content: flex-start;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu .vd-window-actions {
+    left: 12px;
+    right: auto;
     top: 24px;
 }
 

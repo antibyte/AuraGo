@@ -656,17 +656,20 @@
 
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-actions {
     position: absolute;
-    left: 14px;
+    left: 12px;
     right: auto;
     top: 50%;
     z-index: 4;
     transform: translateY(-50%);
     gap: 8px;
     width: auto;
+    min-width: 0;
     justify-content: flex-start;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu .vd-window-actions {
+    left: 12px;
+    right: auto;
     top: 24px;
 }
 
@@ -2465,6 +2468,8 @@
 }
 
 .vd-window-titlebar {
+    position: relative;
+    z-index: 2;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2472,6 +2477,7 @@
     padding: 0 var(--ds-space-4);
     background: var(--ds-color-surface-2);
     border-bottom: 1px solid var(--ds-color-border-subtle);
+    overflow: visible;
     cursor: grab;
     user-select: none;
     touch-action: none;
@@ -2644,6 +2650,8 @@
 }
 
 .vd-window-menubar {
+    position: relative;
+    z-index: 3;
     grid-column: 1 / -1;
     grid-row: 2;
     display: flex;
@@ -2689,7 +2697,7 @@
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
-    z-index: var(--vd-z-menu);
+    z-index: calc(var(--vd-z-menu) + 1);
     min-width: 210px;
     padding: 6px;
     border: 1px solid var(--vd-border);
@@ -2806,6 +2814,8 @@
 }
 
 .vd-window-content {
+    position: relative;
+    z-index: 1;
     overflow: hidden;
     display: grid;
     min-height: 0;
@@ -4852,35 +4862,39 @@
 }
 .desktop-body[data-theme="fruity"] .vd-window > .vd-window-titlebar > .vd-window-actions {
     position: absolute !important;
-    left: 14px !important;
+    left: 12px !important;
     right: auto !important;
     top: 50% !important;
     z-index: 4;
     transform: translateY(-50%) !important;
     justify-self: start !important;
     width: auto !important;
+    min-width: 0 !important;
     justify-content: flex-start !important;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-actions {
     position: absolute !important;
-    left: 14px !important;
+    left: 12px !important;
     right: auto !important;
     top: 24px !important;
     transform: translateY(-50%) !important;
     width: auto !important;
+    min-width: 0 !important;
     justify-content: flex-start !important;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar {
-    grid-template-columns: 78px minmax(0, 1fr) 78px !important;
-    padding: 0 14px !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    overflow: visible !important;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-title-group {
-    grid-column: 2 !important;
+    grid-column: 1 !important;
     justify-content: center !important;
-    padding: 0 8px;
+    padding: 0 110px;
 }
 
 .desktop-body[data-theme="fruity"] .vd-widget-manager > .vd-wm-header > .vd-window-actions {

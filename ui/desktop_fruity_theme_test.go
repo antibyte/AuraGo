@@ -125,12 +125,12 @@ func TestDesktopFruityWindowControlsStayOnLeft(t *testing.T) {
 		{
 			name:     "window controls",
 			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window .vd-window-actions",
-			wants:    []string{"position: absolute;", "left: 10px;", "right: 10px;", "transform: translateY(-50%);"},
+			wants:    []string{"position: absolute;", "left: 12px;", "right: auto;", "transform: translateY(-50%);", "justify-content: flex-start;"},
 		},
 		{
 			name:     "menu window controls",
 			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window.has-window-menu .vd-window-actions",
-			wants:    []string{"top: 24px;"},
+			wants:    []string{"left: 12px;", "top: 24px;", "right: auto;"},
 		},
 		{
 			name:     "manager dialog controls",
@@ -156,11 +156,11 @@ func TestDesktopFruityWindowControlsStayOnLeft(t *testing.T) {
 			name:     "agent chat button stays right",
 			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window .vd-window-ai-button",
 			wants: []string{
-				"width: 28px;",
-				"height: 24px;",
-				"margin-left: auto;",
+				"width: 30px;",
+				"height: 26px;",
+				"margin-left: 4px;",
 				"order: 20;",
-				"color: #0b4f7a;",
+				"color: #062b4f;",
 			},
 		},
 		{
@@ -186,6 +186,30 @@ func TestDesktopFruityWindowControlsStayOnLeft(t *testing.T) {
 	body := cssRuleBodyInFruityThemeTest(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-window .vd-window-ai-button::before")
 	if strings.Contains(body, `content: "AI";`) {
 		t.Fatalf("fruity agent chat button must not render a text-only AI badge: %q", body)
+	}
+
+	actionsOverride := desktopExactCSSRuleBody(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-window > .vd-window-titlebar > .vd-window-actions")
+	for _, want := range []string{
+		"left: 12px !important;",
+		"right: auto !important;",
+		"min-width: 0 !important;",
+		"justify-content: flex-start !important;",
+	} {
+		if !strings.Contains(actionsOverride, want) {
+			t.Fatalf("fruity final window actions override missing %q in body %q", want, actionsOverride)
+		}
+	}
+
+	menuTitlebarOverride := desktopExactCSSRuleBody(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-window.has-window-menu > .vd-window-titlebar")
+	for _, want := range []string{
+		"grid-template-columns: minmax(0, 1fr) !important;",
+		"padding-left: 12px !important;",
+		"padding-right: 12px !important;",
+		"overflow: visible !important;",
+	} {
+		if !strings.Contains(menuTitlebarOverride, want) {
+			t.Fatalf("fruity menu titlebar override missing %q in body %q", want, menuTitlebarOverride)
+		}
 	}
 }
 
