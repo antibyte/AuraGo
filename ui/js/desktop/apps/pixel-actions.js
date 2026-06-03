@@ -66,7 +66,7 @@
             }),
             openFile: Pixel.bindRuntime(runtime, async function openFile() {
                                 if (!ctx.openFileDialog) return;
-                                const result = await ctx.openFileDialog({ filters: [{ name: 'Images', extensions: IMAGE_EXTS }] });
+                                const result = await ctx.openFileDialog({ title: t('pixel.open', 'Open'), initialPath: 'Photos', filters: [{ name: 'Images', extensions: IMAGE_EXTS }] });
                                 if (result && !result.canceled && result.path) {
                                     filePath = result.path;
                                     fileName = filePath.split('/').pop();

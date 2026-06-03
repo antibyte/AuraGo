@@ -181,6 +181,57 @@ func TestPixelHasContextMenuCSS(t *testing.T) {
 	}
 }
 
+func TestPixelTextInputDoesNotLeakKeyboardShortcuts(t *testing.T) {
+	js := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-events.js"))
+	body := jsFunctionBodyInWindowMenuTest(t, js, "showTextInput: Pixel.bindRuntime(runtime, function showTextInput(x, y)")
+
+	for _, want := range []string{
+		"ev.stopPropagation();",
+		"ev.stopImmediatePropagation();",
+		"textarea.addEventListener('keyup', stopTextShortcutPropagation);",
+		"textarea.addEventListener('keypress', stopTextShortcutPropagation);",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("Pixel text input should contain %q to keep typing from triggering shortcuts: %s", want, body)
+		}
+	}
+}
+
+func TestPixelOpenDialogStartsInPhotosRoot(t *testing.T) {
+	actions := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-actions.js"))
+	dialog := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/core/file-dialog-runtime.js"))
+	openBody := jsFunctionBodyInWindowMenuTest(t, actions, "openFile: Pixel.bindRuntime(runtime, async function openFile()")
+
+	if !strings.Contains(openBody, "initialPath: 'Photos'") {
+		t.Fatalf("Pixel open dialog should start in the Photos root: %s", openBody)
+	}
+	if !strings.Contains(dialog, "'Pictures', 'Photos',") {
+		t.Fatalf("desktop file dialog should expose Photos next to Pictures in default roots")
+	}
+}
+
+func TestPixelGermanOpenLabelsUseUmlaut(t *testing.T) {
+	var values map[string]string
+	if err := json.Unmarshal([]byte(readDesktopAssetText(t, "lang/desktop/de.json")), &values); err != nil {
+		t.Fatalf("parse German desktop translations: %v", err)
+	}
+
+	for _, key := range []string{
+		"desktop.file_dialog_open",
+		"desktop.gallery_open",
+		"desktop.media_open",
+		"pixel.open",
+	} {
+		value := values[key]
+		if strings.Contains(value, "oe") || strings.Contains(value, "Oe") {
+			t.Fatalf("%s should use an umlaut instead of oe transliteration, got %q", key, value)
+		}
+		if !strings.Contains(value, "öff") && !strings.Contains(value, "Öff") {
+			t.Fatalf("%s should contain öffnen/Öffnen, got %q", key, value)
+		}
+	}
+}
+
 func TestPixelAdjustApplyCommitsPreviewWithoutRestoringOriginal(t *testing.T) {
 	js := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-canvas.js"))
 	applyBody := jsFunctionBodyInWindowMenuTest(t, js, "applyAdjustments: Pixel.bindRuntime(runtime, function applyAdjustments()")

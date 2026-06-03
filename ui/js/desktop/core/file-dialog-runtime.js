@@ -1,4 +1,4 @@
-    const fileDialogDefaultRoots = ['Desktop', 'Documents', 'Downloads', 'Pictures', 'Music', 'Videos', 'Apps', 'Widgets', 'Shared'];
+    const fileDialogDefaultRoots = ['Desktop', 'Documents', 'Downloads', 'Pictures', 'Photos', 'Music', 'Videos', 'Apps', 'Widgets', 'Shared'];
 
     function fileDialogText(key, fallback, vars) {
         let value = '';

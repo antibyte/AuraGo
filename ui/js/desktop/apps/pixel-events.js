@@ -183,7 +183,12 @@
                                 canvasArea.appendChild(inputWrap);
                                 const textarea = inputWrap.querySelector('textarea');
                                 textarea.focus();
+                                const stopTextShortcutPropagation = ev => {
+                                    ev.stopPropagation();
+                                    ev.stopImmediatePropagation();
+                                };
                                 textarea.addEventListener('keydown', ev => {
+                                    stopTextShortcutPropagation(ev);
                                     if (ev.key === 'Enter' && !ev.shiftKey) {
                                         ev.preventDefault();
                                         commitTextToCanvas(textarea.value, x, y);
@@ -191,6 +196,8 @@
                                     }
                                     if (ev.key === 'Escape') { inputWrap.remove(); }
                                 });
+                                textarea.addEventListener('keyup', stopTextShortcutPropagation);
+                                textarea.addEventListener('keypress', stopTextShortcutPropagation);
                                 textarea.addEventListener('blur', () => {
                                     if (textarea.value) commitTextToCanvas(textarea.value, x, y);
                                     inputWrap.remove();
