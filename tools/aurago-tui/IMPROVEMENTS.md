@@ -93,3 +93,10 @@ When adding a feature from this list, please:
 - disposable/ used for spawn list.
 
 **Last updated**: 2026-06-03 (Wave A of weitere per user "fange an, eine wave nach der anderen")
+
+## Completed in 2026-06 "Weitere Verbesserungen" Wave B (F2)
+- ✅ F2: Chat viewport now scroll-position aware. For auto/bottom: tail (as before). For manual scroll: walks cum lines from app.scroll to find start msg - buffer, builds that window, computes rel offset into the built lines for Paragraph.scroll. Scrollbar still uses full_logical + global scroll for thumb. Preserves all previous UX.
+- rtk check/clippy 0, tests 6 pass.
+- Updated plan and IMPROVEMENTS.
+
+**Last updated**: 2026-06-03 (Wave B)

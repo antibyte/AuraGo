@@ -136,7 +136,34 @@ fn draw_messages(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let est_lines_per_msg = 3usize; // avg (content lines + sep); long tool output will under-estimate but buffer helps
     let buffer_msgs = 6;
     let visible_msgs_est = (area_h / est_lines_per_msg).max(3) + buffer_msgs;
-    let start_idx = total_msgs.saturating_sub(visible_msgs_est);
+
+    // Wave B / F2: scroll-position aware viewport (builds on tail-only from 1-4).
+    // For auto/bottom: use tail (shows latest, MAX clamped by Paragraph).
+    // Otherwise: walk cumulative logical lines from app.scroll to find window start, compute rel offset for para.
+    let auto_or_bottom = app.auto_scroll || app.scroll == usize::MAX;
+    let (start_idx, para_scroll) = if auto_or_bottom || total_msgs <= visible_msgs_est {
+        (total_msgs.saturating_sub(visible_msgs_est), usize::MAX)
+    } else {
+        let target = app.scroll;
+        let mut cum = 0usize;
+        let mut found_idx = total_msgs.saturating_sub(1);
+        for (i, m) in app.chat_messages.iter().enumerate() {
+            cum += m.content.lines().count() + 1;
+            if cum > target {
+                found_idx = i;
+                break;
+            }
+        }
+        let start = found_idx.saturating_sub(buffer_msgs);
+        // rel offset within the window's logical lines
+        let mut cum_before = 0usize;
+        for m in &app.chat_messages[..start] {
+            cum_before += m.content.lines().count() + 1;
+        }
+        let rel = target.saturating_sub(cum_before);
+        (start, rel)
+    };
+
     for msg in &app.chat_messages[start_idx..] {
         let (prefix, color) = match msg.role.as_str() {
             "user" => ("🧑 ", theme.user_msg),
@@ -208,7 +235,7 @@ fn draw_messages(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         + if !app.auto_scroll && !app.chat_messages.is_empty() { 1 } else { 0 };
 
     let para = Paragraph::new(Text::from(lines.clone()))
-        .scroll((app.scroll as u16, 0))
+        .scroll((para_scroll as u16, 0))
         .wrap(Wrap { trim: true });
     f.render_widget(para, inner);
 
