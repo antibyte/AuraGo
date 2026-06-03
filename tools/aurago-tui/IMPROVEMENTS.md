@@ -92,7 +92,7 @@ When adding a feature from this list, please:
 - All with rtk cargo verify after edits, clippy clean, tests pass.
 - disposable/ used for spawn list.
 
-**Last updated**: 2026-06-04 (sequential Point 1 i18n + Point 2 tests complete)
+**Last updated**: 2026-06-04 (sequential Points 1-3 complete: i18n, tests, high-contrast theme)
 
 ## Wave C / F3 + F6 completed (wave abgeschlossen)
 - F3: Significantly expanded i18n with loading, many *_title (dashboard tabs, list screens, details, login, confirm, history, etc.), confirm action strings, nav labels. Wired across dashboard, chat, overlays, plans, missions, skills, containers, knowledge, config, login, media.
@@ -126,6 +126,18 @@ When adding a feature from this list, please:
 - rtk clippy -D 0, cargo test 13 passed.
 - Updated disposable/next-wave-tests-point2-*.txt + IMPROVEMENTS.
 - Table-driven style where sensible; no logic changes, pure coverage.
+
+## Completed 2026-06-04 sequential "arbeite die punkte nacheinander ab" - Point 3: Theming/Accessibility (high-contrast)
+- Added Theme::high_contrast() with max-contrast palette (Black/White bg/fg, bright pure colors for accent/success/warning/error, White border_focus for strong focus indicators).
+- Extended by_name("highcontrast"|"hc") and next_name cycle (default->light->midnight->highcontrast->default).
+- Refactored from_mood to from_mood_on_base(mood, base) so personality moods (accent overrides) still apply on top of high-contrast base in chat.
+- Updated main draw logic: select high_contrast() base when theme_name=hc, then on_base for chat moods, else normal.
+- ToggleTheme (Ctrl+T) now seamlessly includes high-contrast (persisted to config).
+- All existing UI (chat, dash tabs, lists, overlays, status, gauges, etc.) automatically uses high-vis colors; no per-widget changes needed.
+- GitNexus impacts (Theme/by_name/next_name/dispatch_action etc LOW); detect_changes pre (medium, expected for run_app + theme).
+- rtk clippy -D 0, cargo test still 13 passed.
+- Updated disposable/next-wave-highcontrast-point3-*.txt + IMPROVEMENTS.
+- Focus/borders now much more visible in HC mode; color-blind friendly strong contrasts.
 
 ## Completed in 2026-06 "Weitere Verbesserungen" more F3 i18n
 - More strings: detail_title, edit_field_title, password/otp/login_title, confirm_* actions.

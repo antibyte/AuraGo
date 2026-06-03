@@ -79,10 +79,30 @@ impl Theme {
         }
     }
 
+    pub fn high_contrast() -> Self {
+        // High contrast for accessibility: max fg/bg diff, bright distinct accents, strong focus.
+        Self {
+            bg: Color::Black,
+            fg: Color::White,
+            accent: Color::Rgb(0, 255, 255),      // bright cyan
+            accent_dim: Color::Rgb(180, 180, 180),
+            success: Color::Rgb(0, 255, 0),       // pure green
+            warning: Color::Rgb(255, 255, 0),     // pure yellow
+            error: Color::Rgb(255, 0, 0),         // pure red
+            border: Color::Rgb(128, 128, 128),
+            border_focus: Color::White,           // max visible focus
+            user_msg: Color::Rgb(135, 206, 250),  // light sky blue
+            assistant_msg: Color::Rgb(255, 182, 193), // light pink
+            system_msg: Color::Rgb(200, 200, 200),
+            tool_msg: Color::Rgb(255, 215, 0),    // gold
+        }
+    }
+
     pub fn by_name(name: &str) -> Self {
         match name {
             "light" => Self::light(),
             "midnight" => Self::midnight(),
+            "highcontrast" | "hc" => Self::high_contrast(),
             _ => Self::dark(),
         }
     }
@@ -91,15 +111,16 @@ impl Theme {
         match current {
             "default" => "light",
             "light" => "midnight",
-            "midnight" => "default",
+            "midnight" => "highcontrast",
+            "highcontrast" | "hc" => "default",
             _ => "light",
         }
     }
 }
 
 impl Theme {
-    pub fn from_mood(mood: &str) -> Self {
-        let base = Self::default();
+    /// Apply mood overrides on top of a provided base (supports high-contrast base + mood).
+    pub fn from_mood_on_base(mood: &str, base: Self) -> Self {
         match mood.to_lowercase().as_str() {
             "happy" | "fröhlich" | "excited" => Self {
                 accent: Color::Yellow,
@@ -127,6 +148,11 @@ impl Theme {
             },
             _ => base,
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn from_mood(mood: &str) -> Self {
+        Self::from_mood_on_base(mood, Self::default())
     }
 
     pub fn glow_color(&self, tick: u64) -> Color {

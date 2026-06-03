@@ -147,10 +147,18 @@ async fn run_app(
                 app_lock.scroll = usize::MAX;
             }
 
-            let current_theme = if app_lock.screen == Screen::Chat {
-                Theme::from_mood(app_lock.personality.mood.as_deref().unwrap_or("neutral"))
+            let base = if app_lock.theme_name == "highcontrast" || app_lock.theme_name == "hc" {
+                Theme::high_contrast()
             } else {
                 Theme::by_name(&app_lock.theme_name)
+            };
+            let current_theme = if app_lock.screen == Screen::Chat {
+                Theme::from_mood_on_base(
+                    app_lock.personality.mood.as_deref().unwrap_or("neutral"),
+                    base,
+                )
+            } else {
+                base
             };
             terminal
                 .draw(|f| {
