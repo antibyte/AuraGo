@@ -94,6 +94,10 @@ When adding a feature from this list, please:
 
 **Last updated**: 2026-06-03 (Wave A of weitere per user "fange an, eine wave nach der anderen")
 
+## Completed in 2026-06 "Weitere Verbesserungen" Wave C F6 (polish cache)
+- ✅ F6: Added cached_line_count to ChatMessage, updated in push_user/append/load_history/apply_sse (tool), main error push. Switched full_logical in chat.rs to use cache (was recompute lines() every draw). Good for long chat scrollbar perf.
+- rtk clean.
+
 ## Completed in 2026-06 "Weitere Verbesserungen" Wave C F3 (i18n expansion start)
 - ✅ F3: Added 10+ new strings to i18n (loading, various *_title for dashboard tabs, list screens like plans/missions, confirm, history, etc.).
 - Wired many into dashboard.rs (all tab titles + loading), chat.rs (history_title), overlays.rs (confirm_title), plans.rs, missions.rs, skills.rs, containers.rs (list titles), config.rs (sections), knowledge.rs (files title).
