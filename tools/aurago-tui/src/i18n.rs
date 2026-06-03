@@ -97,6 +97,11 @@ pub struct Strings {
     pub confirm_delete_knowledge: &'static str,
     pub confirm_delete_media: &'static str,
     pub confirm_clear_chat: &'static str,
+
+    // Nav actions (F3 close)
+    pub nav_new: &'static str,
+    pub nav_del: &'static str,
+    pub nav_label: &'static str,
 }
 
 /// English (default / current only language)
@@ -157,6 +162,10 @@ pub static EN: Strings = Strings {
     confirm_delete_knowledge: "delete this file",
     confirm_delete_media: "delete this media item",
     confirm_clear_chat: "clear chat history",
+
+    nav_new: " New  ",
+    nav_del: " Del  ",
+    nav_label: " Navigate  ",
 };
 
 /// Current strings (for now always EN).

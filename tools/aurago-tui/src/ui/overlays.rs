@@ -103,21 +103,21 @@ pub fn draw_session_drawer(f: &mut Frame, app: &AppState, theme: &Theme) {
                 .fg(theme.accent)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" Navigate  ", Style::default().fg(theme.accent_dim)),
+        Span::styled(i18n::current().nav_label, Style::default().fg(theme.accent_dim)),
         Span::styled(
             "n",
             Style::default()
                 .fg(theme.accent)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" New  ", Style::default().fg(theme.accent_dim)),
+        Span::styled(i18n::current().nav_new, Style::default().fg(theme.accent_dim)),
         Span::styled(
             "d",
             Style::default()
                 .fg(theme.accent)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" Del  ", Style::default().fg(theme.accent_dim)),
+        Span::styled(i18n::current().nav_del, Style::default().fg(theme.accent_dim)),
         Span::styled(
             "Esc",
             Style::default()
@@ -234,11 +234,11 @@ pub fn draw_confirm_dialog(f: &mut Frame, app: &AppState, theme: &Theme) {
     f.render_widget(Clear, area);
 
     let action_text = match app.confirm_action {
-        Some(ConfirmAction::DeleteMission { .. }) => "delete this mission",
-        Some(ConfirmAction::DeleteContainer { .. }) => "remove this container",
-        Some(ConfirmAction::DeleteKnowledge { .. }) => "delete this file",
-        Some(ConfirmAction::DeleteMedia { .. }) => "delete this media item",
-        Some(ConfirmAction::ClearChat) => "clear chat history",
+        Some(ConfirmAction::DeleteMission { .. }) => i18n::current().confirm_delete_mission,
+        Some(ConfirmAction::DeleteContainer { .. }) => i18n::current().confirm_remove_container,
+        Some(ConfirmAction::DeleteKnowledge { .. }) => i18n::current().confirm_delete_knowledge,
+        Some(ConfirmAction::DeleteMedia { .. }) => i18n::current().confirm_delete_media,
+        Some(ConfirmAction::ClearChat) => i18n::current().confirm_clear_chat,
         None => "",
     };
 

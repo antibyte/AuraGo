@@ -92,7 +92,15 @@ When adding a feature from this list, please:
 - All with rtk cargo verify after edits, clippy clean, tests pass.
 - disposable/ used for spawn list.
 
-**Last updated**: 2026-06-03 (continued F3/F6 on "mache weiter mit offenen punkten")
+**Last updated**: 2026-06-03 (wave abgeschlossen on "wave abschließen" - final)
+
+## Wave C / F3 + F6 completed (wave abgeschlossen)
+- F3: Significantly expanded i18n with loading, many *_title (dashboard tabs, list screens, details, login, confirm, history, etc.), confirm action strings, nav labels. Wired across dashboard, chat, overlays, plans, missions, skills, containers, knowledge, config, login, media.
+- F6: Cache for line counts (perf), debug task count in status.
+- check/clippy 0, tests pass.
+- Open from original (help text keys, some toasts, full 15-lang) noted for future, but core UI titles/status now i18n-driven.
+
+**Wave closed per user request "wave abschließen"**. All planned F1-F6 from "weitere Verbesserungen" (after 1-4) addressed in waves A/B/C + "rest f1" + "mache weiter" + "offene punkte" continuations. See disposable/wave-abschliessen-final-2026-06-03.txt for exact delivered bullets, 44 spawn_tracked count, 3 documented bare specials (main:121/851/868), GitNexus detect run, rtk verifies. IMPROVEMENTS + GSD session artifacts serve as living docs (no plan.md md file in session dir).
 
 ## Completed in 2026-06 "Weitere Verbesserungen" more F3 i18n
 - More strings: detail_title, edit_field_title, password/otp/login_title, confirm_* actions.
@@ -119,4 +127,4 @@ When adding a feature from this list, please:
 - rtk check/clippy 0, tests 6 pass.
 - Updated plan and IMPROVEMENTS.
 
-**Last updated**: 2026-06-03 (Wave B)
+**Last updated**: 2026-06-03 (Wave B + full wave close via "wave abschließen"; see top close section + disposable/wave-abschliessen-final-*.txt)

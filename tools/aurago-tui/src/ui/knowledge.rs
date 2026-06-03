@@ -60,7 +60,7 @@ fn draw_knowledge_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rec
 fn draw_knowledge_content(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     if app.knowledge_loading {
         let msg = Paragraph::new(Line::from(vec![
-            Span::styled("  Loading knowledge files…", Style::default().fg(theme.accent_dim)),
+            Span::styled(format!("  {}", i18n::current().loading), Style::default().fg(theme.accent_dim)),
         ]));
         f.render_widget(msg, area);
         return;
