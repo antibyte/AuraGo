@@ -188,6 +188,12 @@ fn draw_messages(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
                 ]));
             }
         }
+        if msg.image_url.is_some() {
+            lines.push(Line::from(vec![
+                Span::styled("   ", Style::default()),
+                Span::styled("🖼 [Image attached]", Style::default().fg(theme.accent_dim).add_modifier(Modifier::ITALIC)),
+            ]));
+        }
         if msg.is_streaming {
             let cursor = spinner_frame(app.tick_counter).to_string();
             lines.push(Line::from(vec![
@@ -267,31 +273,48 @@ fn draw_input(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         glow
     };
     let block = Block::default()
-        .title(i18n::current().message_input_title)
+        .title(if app.attaching_image {
+            " Attach Image Path "
+        } else if app.attached_image_url.is_some() {
+            " Message [🖼 Image attached] "
+        } else {
+            i18n::current().message_input_title
+        })
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
 
-    // Split text at cursor and show a blinking cursor
-    // Convert character cursor to byte offset for split_at to avoid panic with non-ASCII
-    let char_count = app.chat_input.chars().count();
-    let cursor_char = app.chat_input_cursor.min(char_count);
-    let byte_idx = app
-        .chat_input
-        .char_indices()
-        .nth(cursor_char)
-        .map(|(i, _)| i)
-        .unwrap_or_else(|| app.chat_input.len());
+    // For attach mode, simple display (cursor at end)
+    let (display_text, show_cursor) = if app.attaching_image {
+        (format!("Image path: {}", app.image_path_input), false)
+    } else if app.attached_image_url.is_some() {
+        (format!("{} [🖼]", app.chat_input), true)
+    } else {
+        (app.chat_input.clone(), true)
+    };
 
-    let cursor_visible = app.tick_counter % 4 < 2;
-    let cursor_str = if cursor_visible { "▎" } else { " " };
-    let (before, after) = app.chat_input.split_at(byte_idx);
+    let mut spans = vec![];
+    if show_cursor {
+        // Split text at cursor and show a blinking cursor
+        // Convert character cursor to byte offset for split_at to avoid panic with non-ASCII
+        let char_count = display_text.chars().count();
+        let cursor_char = app.chat_input_cursor.min(char_count);
+        let byte_idx = display_text
+            .char_indices()
+            .nth(cursor_char)
+            .map(|(i, _)| i)
+            .unwrap_or_else(|| display_text.len());
 
-    let mut spans = vec![
-        Span::styled(before, Style::default().fg(theme.fg)),
-        Span::styled(cursor_str, Style::default().fg(theme.accent)),
-    ];
-    if !after.is_empty() {
-        spans.push(Span::styled(after, Style::default().fg(theme.fg)));
+        let cursor_visible = app.tick_counter % 4 < 2;
+        let cursor_str = if cursor_visible { "▎" } else { " " };
+        let (before, after) = display_text.split_at(byte_idx);
+
+        spans.push(Span::styled(before, Style::default().fg(theme.fg)));
+        spans.push(Span::styled(cursor_str, Style::default().fg(theme.accent)));
+        if !after.is_empty() {
+            spans.push(Span::styled(after, Style::default().fg(theme.fg)));
+        }
+    } else {
+        spans.push(Span::styled(display_text, Style::default().fg(theme.fg)));
     }
 
     let para = Paragraph::new(Line::from(spans))

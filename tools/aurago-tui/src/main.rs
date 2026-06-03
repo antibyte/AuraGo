@@ -257,6 +257,7 @@ async fn run_app(
                     is_tool: false,
                     is_thinking: false,
                     cached_line_count: 1,
+                    image_url: None,
                 });
                 app_lock.scroll_to_bottom();
                 app_lock.prune_old_messages();
@@ -324,6 +325,7 @@ async fn run_app(
                         app_lock.active_session_id = session.id.clone();
                         app_lock.sessions.insert(0, session);
                         app_lock.chat_messages.clear();
+                        app_lock.clear_attached_image();
                         app_lock.status_message = "New session created".to_string();
                         // Fetch history for new session
                         let c = client.clone();

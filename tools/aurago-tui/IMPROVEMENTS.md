@@ -92,7 +92,7 @@ When adding a feature from this list, please:
 - All with rtk cargo verify after edits, clippy clean, tests pass.
 - disposable/ used for spawn list.
 
-**Last updated**: 2026-06-04 (sequential Points 1-4 complete: i18n, tests, high-contrast, long-chat prune)
+**Last updated**: 2026-06-04 (sequential Points 1-5 complete: i18n, tests, high-contrast, long-chat prune, multimodal vision)
 
 ## Wave C / F3 + F6 completed (wave abgeschlossen)
 - F3: Significantly expanded i18n with loading, many *_title (dashboard tabs, list screens, details, login, confirm, history, etc.), confirm action strings, nav labels. Wired across dashboard, chat, overlays, plans, missions, skills, containers, knowledge, config, login, media.
@@ -149,6 +149,24 @@ When adding a feature from this list, please:
 - rtk clippy -D 0, cargo test 13 passed (prune not hit in unit tests).
 - Updated disposable + IMPROVEMENTS.
 - Addresses audit "keeps entire chat_messages in mem" for 1000s msgs sessions; server history untouched. No big widget refactor (kept optimized Paragraph viewport from F2/F6).
+
+## Completed 2026-06-04 sequential "arbeite die punkte nacheinander ab" - Point 5: Multimodal/Vision & Image Upload
+- Added base64 dep for encoding.
+- Extended AppState (attaching_image, image_path_input, attached_image_url) and app::ChatMessage (image_url: Option<String>).
+- Added attach_image_from_path (fs::read + base64 data: url with mime from ext), clear_attached.
+- Added Action::AttachImage, key Ctrl+I in chat (keybindings), dispatch routes to attach mode (chars go to path input).
+- In SendMessage: if attaching, load/attach from path, else normal; on send with image clear after.
+- Updated send build: messages as Vec<Value>, user msg with image becomes vision content array [{type:text}, {type:image_url, image_url:{url}}], else text. Send as json req.
+- Updated all ChatMessage ctors/literals (push, start, tool, load, error, tests paths) to include image_url: None (or set from attached).
+- Updated push_user to accept image, +1 to cached_line for placeholder, set field.
+- Draw input: dynamic title for attach/attached mode, display path or [🖼] marker.
+- Draw messages: after text content, show "🖼 [Image attached]" if image_url.
+- Clears attached on ClearChat, new session.
+- Impacts pre (LOW on dispatch_action, AppState, draw_chat etc); detect pre (medium from struct/enum changes).
+- rtk clippy 0, cargo test 13 pass.
+- Updated disposable + IMPROVEMENTS.
+- Enables sending images as vision to backend /v1/chat/completions (standard OpenAI format); UI shows placeholder (terminal text render only, no sixel etc).
+- Text-only paths preserved. Picker is path-entry (Ctrl+I then path+Enter) to avoid new GUI deps.
 
 ## Completed in 2026-06 "Weitere Verbesserungen" more F3 i18n
 - More strings: detail_title, edit_field_title, password/otp/login_title, confirm_* actions.

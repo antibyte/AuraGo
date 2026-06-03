@@ -2,6 +2,9 @@ use crate::api::sse::SseEvent;
 use crate::api::types::*;
 use crate::i18n;
 
+use base64::{engine::general_purpose, Engine as _};
+use std::fs;
+
 /// Convert a character index to a byte index in a string.
 /// Returns `s.len()` if char_idx is out of bounds.
 pub fn char_to_byte(s: &str, char_idx: usize) -> usize {
@@ -103,6 +106,8 @@ pub struct ChatMessage {
     pub is_thinking: bool,
     /// Cached for fast full_logical sum in chat scrollbar (F6 polish)
     pub cached_line_count: usize,
+    /// Optional image for multimodal (Point 5): data URL
+    pub image_url: Option<String>,
 }
 
 #[derive(Debug)]
@@ -208,6 +213,12 @@ pub struct AppState {
     /// Input cursor positions for TUI polish
     pub chat_input_cursor: usize,
     pub config_edit_cursor: usize,
+
+    // ── Multimodal image attach (Point 5) ─────────────────────────────────
+    pub attaching_image: bool,
+    pub image_path_input: String,
+    pub attached_image_url: Option<String>, // "data:image/...;base64,..." for vision
+
     pub session_drawer_index: usize,
 
     /// Graceful quit flag
@@ -270,6 +281,12 @@ impl Default for AppState {
             chat_input: String::new(),
             chat_input_cursor: 0,
             chat_messages: Vec::new(),
+
+            // multimodal
+            attaching_image: false,
+            image_path_input: String::new(),
+            attached_image_url: None,
+
             scroll: 0,
             status_message: "Disconnected".to_string(),
             tokens: TokenUpdatePayload {
@@ -357,8 +374,11 @@ impl Default for AppState {
 impl AppState {
     // ── Chat helpers ──────────────────────────────────────────────────────
 
-    pub fn push_user_message(&mut self, text: String) {
-        let line_count = text.lines().count();
+    pub fn push_user_message(&mut self, text: String, image_url: Option<String>) {
+        let mut line_count = text.lines().count();
+        if image_url.is_some() {
+            line_count += 1; // for placeholder line
+        }
         self.chat_messages.push(ChatMessage {
             role: "user".to_string(),
             content: text,
@@ -366,6 +386,7 @@ impl AppState {
             is_tool: false,
             is_thinking: false,
             cached_line_count: line_count,
+            image_url,
         });
         self.scroll_to_bottom();
         self.prune_old_messages();
@@ -429,6 +450,7 @@ impl AppState {
             is_tool: false,
             is_thinking: false,
             cached_line_count: 0,
+            image_url: None,
         });
         self.scroll_to_bottom();
         self.prune_old_messages();
@@ -476,6 +498,31 @@ impl AppState {
         }
     }
 
+    /// Load image from path, base64 encode as data URL for vision (Point 5 multimodal).
+    pub fn attach_image_from_path(&mut self, path: &str) -> Result<(), String> {
+        let data = fs::read(path).map_err(|e| format!("read {}: {}", path, e))?;
+        let mime = if path.to_lowercase().ends_with(".png") {
+            "image/png"
+        } else if path.to_lowercase().ends_with(".jpg") || path.to_lowercase().ends_with(".jpeg") {
+            "image/jpeg"
+        } else if path.to_lowercase().ends_with(".gif") {
+            "image/gif"
+        } else {
+            "image/png" // default
+        };
+        let b64 = general_purpose::STANDARD.encode(&data);
+        self.attached_image_url = Some(format!("data:{};base64,{}", mime, b64));
+        self.attaching_image = false;
+        self.image_path_input.clear();
+        Ok(())
+    }
+
+    pub fn clear_attached_image(&mut self) {
+        self.attached_image_url = None;
+        self.attaching_image = false;
+        self.image_path_input.clear();
+    }
+
     pub fn apply_sse_event(&mut self, event: SseEvent) {
         match event {
             SseEvent::Delta(text) => {
@@ -495,6 +542,7 @@ impl AppState {
                     is_tool: true,
                     is_thinking: false,
                     cached_line_count: 1,
+                    image_url: None,
                 });
                 if self.auto_scroll {
                     self.scroll_to_bottom(); // will be turned into usize::MAX in next draw
@@ -531,6 +579,7 @@ impl AppState {
                     is_tool: false,
                     is_thinking: false,
                     cached_line_count: line_count,
+                    image_url: None,
                 }
             })
             .collect();

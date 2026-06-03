@@ -4,7 +4,7 @@
 use tokio::sync::mpsc::UnboundedSender;
 use reqwest::Method;
 
-use crate::api::{ApiClient, auth, types::*};
+use crate::api::{ApiClient, auth};
 use crate::app::{AppState, ConfirmAction, DashTab, MediaTab, Screen, char_len, char_to_byte};
 use crate::events::AppEvent;
 use crate::events::keybindings::Action;
@@ -66,53 +66,91 @@ pub fn dispatch_action(
                     }
                 });
                 app.spawn_tracked(h);
-            } else if app.screen == Screen::Chat && !app.chat_input.trim().is_empty() {
-                let text = app.chat_input.trim().to_string();
-                app.chat_input.clear();
-                app.chat_input_cursor = 0;
-                app.push_user_message(text.clone());
-                app.start_assistant_stream();
-
-                let c = client.clone();
-                let t = tx.clone();
-                let messages: Vec<ChatMessage> = app
-                    .chat_messages
-                    .iter()
-                    .filter(|m| !m.is_tool && !m.is_thinking)
-                    .map(|m| ChatMessage {
-                        role: m.role.clone(),
-                        content: m.content.clone(),
-                    })
-                    .collect();
-
-                let h = tokio::spawn(async move {
-                    let req = ChatCompletionRequest {
-                        model: "aurago".to_string(),
-                        messages,
-                        stream: true,
-                    };
-                    match c
-                        .request::<ChatCompletionRequest, serde_json::Value>(
-                            Method::POST,
-                            "/v1/chat/completions",
-                            Some(&req),
-                        )
-                        .await
-                    {
-                        Ok(_) => {
-                            let _ = t.send(AppEvent::ChatSent);
-                        }
-                        Err(e) => {
-                            let _ = t.send(AppEvent::ChatError(e.to_string()));
+            } else if app.screen == Screen::Chat {
+                if app.attaching_image {
+                    if !app.image_path_input.trim().is_empty() {
+                        let p = app.image_path_input.trim().to_string();
+                        if let Err(e) = app.attach_image_from_path(&p) {
+                            app.status_message = format!("Attach failed: {}", e);
+                        } else {
+                            app.status_message = "Image attached (will send with next message)".to_string();
                         }
                     }
-                });
-                app.spawn_tracked(h);
+                    app.attaching_image = false;
+                    app.image_path_input.clear();
+                    return;
+                }
+                if !app.chat_input.trim().is_empty() {
+                    let text = app.chat_input.trim().to_string();
+                    app.chat_input.clear();
+                    app.chat_input_cursor = 0;
+                    let img = app.attached_image_url.clone();
+                    app.push_user_message(text.clone(), img);
+                    if app.attached_image_url.is_some() {
+                        app.clear_attached_image();
+                    }
+                    app.start_assistant_stream();
+
+                    let c = client.clone();
+                    let t = tx.clone();
+                    let messages: Vec<serde_json::Value> = app
+                        .chat_messages
+                        .iter()
+                        .filter(|m| !m.is_tool && !m.is_thinking)
+                        .map(|m| {
+                            if let Some(ref img) = m.image_url {
+                                serde_json::json!({
+                                    "role": m.role,
+                                    "content": [
+                                        {"type": "text", "text": m.content},
+                                        {"type": "image_url", "image_url": {"url": img}}
+                                    ]
+                                })
+                            } else {
+                                serde_json::json!({
+                                    "role": m.role,
+                                    "content": m.content
+                                })
+                            }
+                        })
+                        .collect();
+
+                    let h = tokio::spawn(async move {
+                        let req = serde_json::json!({
+                            "model": "aurago",
+                            "messages": messages,
+                            "stream": true,
+                        });
+                        match c
+                            .request::<serde_json::Value, serde_json::Value>(
+                                Method::POST,
+                                "/v1/chat/completions",
+                                Some(&req),
+                            )
+                            .await
+                        {
+                            Ok(_) => {
+                                let _ = t.send(AppEvent::ChatSent);
+                            }
+                            Err(e) => {
+                                let _ = t.send(AppEvent::ChatError(e.to_string()));
+                            }
+                        }
+                    });
+                    app.spawn_tracked(h);
+                }
             }
         }
         Action::NewLine => {
             if app.screen == Screen::Chat {
                 app.insert_at_cursor('\n');
+            }
+        }
+        Action::AttachImage => {
+            if app.screen == Screen::Chat {
+                app.attaching_image = true;
+                app.image_path_input.clear();
+                app.status_message = "Enter image path (png/jpg) and press Enter".to_string();
             }
         }
         Action::ClearChat => {
@@ -123,6 +161,7 @@ pub fn dispatch_action(
             app.spawn_tracked(h);
             app.chat_messages.clear();
             app.scroll = 0;
+            app.clear_attached_image();
         }
         Action::Logout => {
             let c = client.clone();
@@ -297,6 +336,12 @@ pub fn dispatch_action(
                     app.media_search.pop();
                 } else if !c.is_control() {
                     app.media_search.push(c);
+                }
+            } else if app.screen == Screen::Chat && app.attaching_image {
+                if is_backspace {
+                    app.image_path_input.pop();
+                } else if !c.is_control() {
+                    app.image_path_input.push(c);
                 }
             } else {
                 if is_backspace {
@@ -997,6 +1042,7 @@ pub fn execute_confirmed_action(
             app.spawn_tracked(h);
             app.chat_messages.clear();
             app.scroll = 0;
+            app.clear_attached_image();
         }
     }
 }
