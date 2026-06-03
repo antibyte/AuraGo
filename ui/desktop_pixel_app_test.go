@@ -181,6 +181,51 @@ func TestPixelHasContextMenuCSS(t *testing.T) {
 	}
 }
 
+func TestPixelAdjustApplyCommitsPreviewWithoutRestoringOriginal(t *testing.T) {
+	js := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-canvas.js"))
+	applyBody := jsFunctionBodyInWindowMenuTest(t, js, "applyAdjustments: Pixel.bindRuntime(runtime, function applyAdjustments()")
+
+	if strings.Contains(applyBody, "resetAdjustments();") {
+		t.Fatalf("Pixel applyAdjustments must not call resetAdjustments because it redraws the old original image: %s", applyBody)
+	}
+	if !strings.Contains(applyBody, "resetAdjustmentControls();") {
+		t.Fatalf("Pixel applyAdjustments should reset slider controls without repainting the canvas: %s", applyBody)
+	}
+	if !strings.Contains(applyBody, "originalImage = img;") {
+		t.Fatalf("Pixel applyAdjustments should commit the adjusted canvas as the new original image: %s", applyBody)
+	}
+}
+
+func TestPixelCompareModeClearsWhenLeavingAdjustPanel(t *testing.T) {
+	tools := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-tools.js"))
+	canvas := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-canvas.js"))
+	showPanelBody := jsFunctionBodyInWindowMenuTest(t, tools, "showPanel: Pixel.bindRuntime(runtime, function showPanel(name)")
+
+	if !strings.Contains(canvas, "exitCompareMode: Pixel.bindRuntime(runtime, function exitCompareMode(") {
+		t.Fatalf("Pixel needs a shared exitCompareMode helper so panel changes can leave compare mode cleanly")
+	}
+	if !strings.Contains(showPanelBody, "if (name !== 'adjust' && compareMode) exitCompareMode({ preservePreview: true });") {
+		t.Fatalf("Pixel showPanel should disable compare mode when leaving adjustments so drawing is not blocked: %s", showPanelBody)
+	}
+}
+
+func TestPixelAddLayerPreservesCurrentCanvasAsBackground(t *testing.T) {
+	canvas := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-canvas.js"))
+	tools := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-tools.js"))
+	migrateBody := jsFunctionBodyInWindowMenuTest(t, canvas, "ensureBackgroundMigrated: Pixel.bindRuntime(runtime, function ensureBackgroundMigrated()")
+	addLayerBody := jsFunctionBodyInWindowMenuTest(t, tools, "addLayer: Pixel.bindRuntime(runtime, function addLayer()")
+
+	if strings.Contains(migrateBody, "layers.length <= 1") {
+		t.Fatalf("ensureBackgroundMigrated must also copy the single-layer canvas before a new layer is added: %s", migrateBody)
+	}
+	if !strings.Contains(migrateBody, "bgCanvas.getContext('2d').drawImage(canvas, 0, 0);") {
+		t.Fatalf("ensureBackgroundMigrated should preserve the current visible canvas as the background layer: %s", migrateBody)
+	}
+	if strings.Index(addLayerBody, "ensureBackgroundMigrated();") < 0 || strings.Index(addLayerBody, "ensureBackgroundMigrated();") > strings.Index(addLayerBody, "layers.push(") {
+		t.Fatalf("addLayer should migrate the background before inserting a blank layer: %s", addLayerBody)
+	}
+}
+
 func TestPixelLoaderUsesOrderedSemanticScripts(t *testing.T) {
 	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
 

@@ -27,7 +27,7 @@
                                 return layers[activeLayerIdx].canvas.getContext('2d');
             }),
             ensureBackgroundMigrated: Pixel.bindRuntime(runtime, function ensureBackgroundMigrated() {
-                                if (layers.length <= 1) return;
+                                if (!canvas.width || !canvas.height) return;
                                 if (layers[0].canvas) return;
                                 const bgCanvas = acquireTempCanvas(imgWidth || canvas.width, imgHeight || canvas.height);
                                 bgCanvas.getContext('2d').drawImage(canvas, 0, 0);
@@ -288,18 +288,23 @@
             }),
             applyAdjustments: Pixel.bindRuntime(runtime, function applyAdjustments() {
                                 if (!originalImage) return;
-                                applyAdjustmentsPreview();
+                                if (compareMode) exitCompareMode({ preservePreview: true });
+                                else applyAdjustmentsPreview();
                                 const dataURL = canvas.toDataURL();
                                 const img = new Image();
                                 img.onload = function () { originalImage = img; };
                                 img.src = dataURL;
                                 pushHistory('adjust');
-                                resetAdjustments();
+                                resetAdjustmentControls();
             }),
-            resetAdjustments: Pixel.bindRuntime(runtime, function resetAdjustments() {
+            resetAdjustmentControls: Pixel.bindRuntime(runtime, function resetAdjustmentControls() {
                                 for (const k in adjustments) adjustments[k] = 0;
                                 host.querySelectorAll('[data-adjust]').forEach(s => { s.value = 0; });
                                 host.querySelectorAll('[data-val-brightness],[data-val-contrast],[data-val-saturation],[data-val-exposure],[data-val-sharpness],[data-val-temperature],[data-val-shadows],[data-val-highlights]').forEach(el => { el.textContent = '0'; });
+            }),
+            resetAdjustments: Pixel.bindRuntime(runtime, function resetAdjustments() {
+                                if (compareMode) exitCompareMode({ preservePreview: false });
+                                resetAdjustmentControls();
                                 if (originalImage && canvas.width) {
                                     if (layers.length > 1) {
                                         ensureBackgroundMigrated();
@@ -315,28 +320,39 @@
             }),
             toggleCompare: Pixel.bindRuntime(runtime, function toggleCompare() {
                                 if (!originalImage || !canvas.width) return;
-                                compareMode = !compareMode;
                                 if (compareMode) {
+                                    exitCompareMode({ preservePreview: true });
+                                } else {
+                                    compareMode = true;
                                     comparePos = 0.5;
                                     compareOrigData = cctx.getImageData(0, 0, canvas.width, canvas.height);
                                     applyAdjustmentsPreview();
                                     renderCompare();
                                     compareDivider.hidden = false;
-                                } else {
-                                    compareOrigData = null;
-                                    compareDivider.hidden = true;
-                                    clearOverlay();
-                                    if (originalImage && canvas.width) {
-                                        if (layers.length > 1) {
-                                            ensureBackgroundMigrated();
-                                            const actx = layers[0].canvas.getContext('2d');
-                                            actx.clearRect(0, 0, canvas.width, canvas.height);
-                                            actx.drawImage(originalImage, 0, 0);
-                                            compositeLayers();
-                                        } else {
-                                            cctx.clearRect(0, 0, canvas.width, canvas.height);
-                                            cctx.drawImage(originalImage, 0, 0);
-                                        }
+                                }
+            }),
+            exitCompareMode: Pixel.bindRuntime(runtime, function exitCompareMode(options) {
+                                if (!compareMode) return;
+                                const preservePreview = !!(options && options.preservePreview);
+                                compareMode = false;
+                                compareOrigData = null;
+                                if (compareDivider) compareDivider.hidden = true;
+                                clearOverlay();
+                                const hasAdjustments = Object.keys(adjustments).some(k => Number(adjustments[k]) !== 0);
+                                if (preservePreview && hasAdjustments) {
+                                    applyAdjustmentsPreview();
+                                    return;
+                                }
+                                if (originalImage && canvas.width) {
+                                    if (layers.length > 1) {
+                                        ensureBackgroundMigrated();
+                                        const actx = layers[0].canvas.getContext('2d');
+                                        actx.clearRect(0, 0, canvas.width, canvas.height);
+                                        actx.drawImage(originalImage, 0, 0);
+                                        compositeLayers();
+                                    } else {
+                                        cctx.clearRect(0, 0, canvas.width, canvas.height);
+                                        cctx.drawImage(originalImage, 0, 0);
                                     }
                                 }
             }),

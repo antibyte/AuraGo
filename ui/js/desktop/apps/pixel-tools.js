@@ -4,6 +4,7 @@
     Pixel.installTools = function installTools(runtime) {
         Object.assign(runtime, {
             showPanel: Pixel.bindRuntime(runtime, function showPanel(name) {
+                                if (name !== 'adjust' && compareMode) exitCompareMode({ preservePreview: true });
                                 activePanel = name;
                                 host.querySelectorAll('.pixel-tab').forEach(b => b.classList.toggle('active', b.dataset.panel === name));
                                 host.querySelectorAll('[data-section]').forEach(s => { s.hidden = s.dataset.section !== name; });
