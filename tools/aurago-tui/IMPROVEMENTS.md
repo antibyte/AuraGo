@@ -86,7 +86,7 @@ When adding a feature from this list, please:
 **Last updated**: 2026-06-02 (1-4 pass per user request; see .grok/.../plan.md and disposable/aurago-tui-wave*-*.md for details)
 
 ## Completed in 2026-06 "Weitere Verbesserungen" Wave A (F1 partial + F4 + F5)
-- ✅ F1: Tracker wiring extended significantly (Dashboard/Plans already, added Missions/Skills/Containers/Config/Knowledge/Media loads in load_data, detail loads for plans/containers, primary actions for plans/missions/containers, toggle, deletes for all types, some main.rs post-action refreshes for missions/skills/containers). Bare spawns reduced from ~45 to ~16. spawn_tracked now used in 27+ places.
+- ✅ F1: Tracker wiring completed for all repeatable nav/action spawns (all load_data_for_screen, load_detail, execute_primary/toggle/confirmed, session ops, post-action refreshes in main event arms, etc.). Only intentional special cases remain bare (startup auth, inner SSE relay/outer in start_chat_session - these use separate sse_handle abort logic). Bare repeatable spawns: 0. spawn_tracked calls: ~30+. 
 - ✅ F4: Added basic tracker test (default/prune) in app.rs; total tests now 6.
 - ✅ F5: Added fmt --check, clippy -D warnings, test steps to the build job in .github/workflows/aurago-tui-release.yml (run before the release builds).
 - All with rtk cargo verify after edits, clippy clean, tests pass.

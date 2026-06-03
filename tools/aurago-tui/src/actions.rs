@@ -55,7 +55,7 @@ pub fn dispatch_action(
                 app.login_error = None;
                 let c = client.clone();
                 let t = tx.clone();
-                tokio::spawn(async move {
+                let h = tokio::spawn(async move {
                     match auth::login(&c, &password, &totp).await {
                         Ok(_) => {
                             let _ = t.send(AppEvent::LoginResult(Ok(())));
@@ -65,6 +65,7 @@ pub fn dispatch_action(
                         }
                     }
                 });
+                app.spawn_tracked(h);
             } else if app.screen == Screen::Chat && !app.chat_input.trim().is_empty() {
                 let text = app.chat_input.trim().to_string();
                 app.chat_input.clear();
@@ -84,7 +85,7 @@ pub fn dispatch_action(
                     })
                     .collect();
 
-                tokio::spawn(async move {
+                let h = tokio::spawn(async move {
                     let req = ChatCompletionRequest {
                         model: "aurago".to_string(),
                         messages,
@@ -106,6 +107,7 @@ pub fn dispatch_action(
                         }
                     }
                 });
+                app.spawn_tracked(h);
             }
         }
         Action::NewLine => {
@@ -125,12 +127,13 @@ pub fn dispatch_action(
         Action::Logout => {
             let c = client.clone();
             let path = crate::config::session_cookie_path().ok();
-            tokio::spawn(async move {
+            let h = tokio::spawn(async move {
                 let _ = auth::logout(&c).await;
                 if let Some(p) = path {
                     let _ = auth::delete_session_cookie(&p);
                 }
             });
+            app.spawn_tracked(h);
             app.authenticated = false;
             app.screen = Screen::Login;
             app.nav_bar_open = false;
@@ -389,12 +392,13 @@ pub fn dispatch_action(
                     let c = client.clone();
                     let t = tx.clone();
                     let data = app.config_data.clone();
-                    tokio::spawn(async move {
+                    let h = tokio::spawn(async move {
                         let result = auth::save_config(&c, &data)
                             .await
                             .map_err(|e| e.to_string());
                         let _ = t.send(AppEvent::ConfigSaved(result));
                     });
+                    app.spawn_tracked(h);
                 }
             } else {
                 app.session_drawer_open = !app.session_drawer_open;
@@ -403,10 +407,11 @@ pub fn dispatch_action(
                     // Load sessions
                     let c = client.clone();
                     let t = tx.clone();
-                    tokio::spawn(async move {
+                    let h = tokio::spawn(async move {
                         let result = auth::fetch_sessions(&c).await.map_err(|e| e.to_string());
                         let _ = t.send(AppEvent::SessionsLoaded(result));
                     });
+                    app.spawn_tracked(h);
                 }
             }
         }
@@ -436,22 +441,24 @@ pub fn dispatch_action(
                     let c = client.clone();
                     let t = tx.clone();
                     let sid = app.active_session_id.clone();
-                    tokio::spawn(async move {
+                    let h = tokio::spawn(async move {
                         let result = auth::fetch_history_for_session(&c, &sid)
                             .await
                             .map_err(|e| e.to_string());
                         let _ = t.send(AppEvent::HistoryLoaded(result));
                     });
+                    app.spawn_tracked(h);
                 }
             }
         }
         Action::SessionNew => {
             let c = client.clone();
             let t = tx.clone();
-            tokio::spawn(async move {
+            let h = tokio::spawn(async move {
                 let result = auth::create_session(&c).await.map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::SessionCreated(result));
             });
+            app.spawn_tracked(h);
         }
         Action::SessionDelete => {
             // Delete session at drawer index (prevent deleting active session)
@@ -460,12 +467,13 @@ pub fn dispatch_action(
                     let id = session.id.clone();
                     let c = client.clone();
                     let t = tx.clone();
-                    tokio::spawn(async move {
+                    let h = tokio::spawn(async move {
                         let result = auth::delete_session(&c, &id)
                             .await
                             .map_err(|e| e.to_string());
                         let _ = t.send(AppEvent::SessionDeleted(result));
                     });
+                    app.spawn_tracked(h);
                 } else {
                     app.toast = Some("Cannot delete active session".to_string());
                     app.toast_ticks = 8;

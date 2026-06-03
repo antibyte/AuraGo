@@ -318,12 +318,13 @@ async fn run_app(
                         let c = client.clone();
                         let tx = event_tx.clone();
                         let sid = app_lock.active_session_id.clone();
-                        tokio::spawn(async move {
+                        let h = tokio::spawn(async move {
                             let result = auth::fetch_history_for_session(&c, &sid)
                                 .await
                                 .map_err(|e| e.to_string());
                             let _ = tx.send(AppEvent::HistoryLoaded(result));
                         });
+                        app_lock.spawn_tracked(h);
                     }
                     Err(e) => {
                         app_lock.toast = Some(format!("Failed to create session: {}", e));
@@ -337,10 +338,11 @@ async fn run_app(
                         // Refresh sessions
                         let c = client.clone();
                         let tx = event_tx.clone();
-                        tokio::spawn(async move {
+                        let h = tokio::spawn(async move {
                             let result = auth::fetch_sessions(&c).await.map_err(|e| e.to_string());
                             let _ = tx.send(AppEvent::SessionsLoaded(result));
                         });
+                        app_lock.spawn_tracked(h);
                         app_lock.status_message = "Session deleted".to_string();
                     }
                     Err(e) => {
@@ -420,11 +422,12 @@ async fn run_app(
                         let c = client.clone();
                         let tx = event_tx.clone();
                         let sid = app_lock.active_session_id.clone();
-                        tokio::spawn(async move {
+                        let h = tokio::spawn(async move {
                             let result =
                                 auth::fetch_plans(&c, &sid).await.map_err(|e| e.to_string());
                             let _ = tx.send(AppEvent::PlansLoaded(result));
                         });
+                        app_lock.spawn_tracked(h);
                     }
                     Err(e) => {
                         app_lock.toast = Some(format!("Plan action failed: {}", e));
@@ -625,12 +628,13 @@ async fn run_app(
                         // Refresh knowledge files
                         let c = client.clone();
                         let tx = event_tx.clone();
-                        tokio::spawn(async move {
+                        let h = tokio::spawn(async move {
                             let result = auth::fetch_knowledge_files(&c)
                                 .await
                                 .map_err(|e| e.to_string());
                             let _ = tx.send(AppEvent::KnowledgeFilesLoaded(result));
                         });
+                        app_lock.spawn_tracked(h);
                     }
                     Err(e) => {
                         app_lock.toast = Some(format!("Failed to delete file: {}", e));
@@ -675,13 +679,14 @@ async fn run_app(
                         } else {
                             Some(app_lock.media_search.clone())
                         };
-                        tokio::spawn(async move {
+                        let h = tokio::spawn(async move {
                             let result =
                                 auth::fetch_media(&c, &media_type, 50, offset, query.as_deref())
                                     .await
                                     .map_err(|e| e.to_string());
                             let _ = tx.send(AppEvent::MediaLoaded(result));
                         });
+                        app_lock.spawn_tracked(h);
                     }
                     Err(e) => {
                         app_lock.toast = Some(format!("Failed to delete media: {}", e));
