@@ -9,6 +9,7 @@ use ratatui::{
 use super::theme::Theme;
 use super::utils;
 use crate::app::{AppState, DashTab};
+use crate::i18n;
 
 pub fn draw_dashboard(f: &mut Frame, app: &AppState, theme: &Theme) {
     let area = f.area();
@@ -78,7 +79,7 @@ fn draw_dash_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
 
 fn draw_dash_content(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     if app.dash_loading {
-        let loading = Paragraph::new("Loading...")
+        let loading = Paragraph::new(i18n::current().loading)
             .style(Style::default().fg(theme.accent_dim))
             .alignment(ratatui::layout::Alignment::Center);
         f.render_widget(loading, area);
@@ -162,7 +163,7 @@ fn draw_overview_tab(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         ]),
     ]);
     let overview_block = Block::default()
-        .title(" Overview ")
+        .title(i18n::current().overview_title)
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.border));
     let overview_para = Paragraph::new(overview_text)
@@ -197,7 +198,7 @@ fn draw_overview_tab(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         Text::from(Line::from("Budget tracking disabled"))
     };
     let budget_block = Block::default()
-        .title(" Budget ")
+        .title(i18n::current().budget_title)
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.border));
     let budget_para = Paragraph::new(budget_text)
@@ -225,7 +226,7 @@ fn draw_overview_tab(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
             .collect()
     };
     let activity_block = Block::default()
-        .title(" Scheduled Tasks ")
+        .title(i18n::current().scheduled_tasks_title)
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.border));
     let activity_list = List::new(items).block(activity_block);
@@ -281,7 +282,7 @@ fn draw_agent_tab(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     );
 
     let block = Block::default()
-        .title(" Personality ")
+        .title(i18n::current().personality_title)
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.border));
     let para = Paragraph::new(text).block(block).wrap(Wrap { trim: true });
@@ -344,7 +345,7 @@ fn draw_system_tab(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     ]);
 
     let block = Block::default()
-        .title(" System ")
+        .title(i18n::current().system_title)
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.border));
     let para = Paragraph::new(text).block(block).wrap(Wrap { trim: true });
@@ -384,7 +385,7 @@ fn draw_logs_tab(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     };
 
     let block = Block::default()
-        .title(" Live Logs ")
+        .title(i18n::current().live_logs_title)
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.border));
     let list = List::new(items).block(block);

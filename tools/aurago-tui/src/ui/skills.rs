@@ -8,6 +8,7 @@ use ratatui::{
 
 use super::theme::Theme;
 use super::utils;
+use crate::i18n;
 use crate::app::AppState;
 
 pub fn draw_skills(f: &mut Frame, app: &AppState, theme: &Theme) {
@@ -108,7 +109,7 @@ fn draw_skills_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     };
 
     let block = Block::default()
-        .title(" Skills ")
+        .title(i18n::current().skills_title)
         .borders(Borders::RIGHT)
         .border_style(Style::default().fg(theme.border));
     let list = List::new(items).block(block);

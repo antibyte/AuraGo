@@ -8,6 +8,7 @@ use ratatui::{
 
 use super::theme::Theme;
 use super::utils;
+use crate::i18n;
 use crate::app::{AppState, char_to_byte};
 
 pub fn draw_config(f: &mut Frame, app: &AppState, theme: &Theme) {
@@ -111,7 +112,7 @@ fn draw_section_sidebar(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect
         .collect();
 
     let block = Block::default()
-        .title(" Sections ")
+        .title(i18n::current().config_sections_title)
         .borders(Borders::RIGHT)
         .border_style(Style::default().fg(theme.border));
     let inner = block.inner(area);

@@ -56,6 +56,33 @@ pub struct Strings {
     // Chat specific (integrated in wave 1/4)
     pub message_input_title: &'static str,
     pub new_messages_hint: &'static str,
+
+    // Common UI titles and status (expanding in Wave C / F3)
+    pub loading: &'static str,
+    pub overview_title: &'static str,
+    pub budget_title: &'static str,
+    pub scheduled_tasks_title: &'static str,
+    pub personality_title: &'static str,
+    pub system_title: &'static str,
+    pub live_logs_title: &'static str,
+    pub history_title: &'static str,
+    pub confirm_title: &'static str,
+
+    // List screen titles (expanding F3)
+    #[allow(dead_code)]
+    pub containers_title: &'static str,
+    #[allow(dead_code)]
+    pub plans_title: &'static str,
+    #[allow(dead_code)]
+    pub missions_title: &'static str,
+    #[allow(dead_code)]
+    pub skills_title: &'static str,
+    #[allow(dead_code)]
+    pub knowledge_files_title: &'static str,
+    #[allow(dead_code)]
+    pub media_title: &'static str,
+    #[allow(dead_code)]
+    pub config_sections_title: &'static str,
 }
 
 /// English (default / current only language)
@@ -86,6 +113,24 @@ pub static EN: Strings = Strings {
 
     message_input_title: " Message ",
     new_messages_hint: "New messages — press Ctrl+G to scroll down",
+
+    loading: "Loading...",
+    overview_title: " Overview ",
+    budget_title: " Budget ",
+    scheduled_tasks_title: " Scheduled Tasks ",
+    personality_title: " Personality ",
+    system_title: " System ",
+    live_logs_title: " Live Logs ",
+    history_title: " History ",
+    confirm_title: " ⚠ Confirm ",
+
+    containers_title: " Containers ",
+    plans_title: " Plans ",
+    missions_title: " Missions ",
+    skills_title: " Skills ",
+    knowledge_files_title: " Files ",
+    media_title: " Media ",
+    config_sections_title: " Sections ",
 };
 
 /// Current strings (for now always EN).

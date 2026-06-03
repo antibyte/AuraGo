@@ -8,6 +8,7 @@ use ratatui::{
 
 use super::theme::Theme;
 use super::utils;
+use crate::i18n;
 use crate::app::AppState;
 
 pub fn draw_containers(f: &mut Frame, app: &AppState, theme: &Theme) {
@@ -110,7 +111,7 @@ fn draw_containers_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect
     };
 
     let block = Block::default()
-        .title(" Containers ")
+        .title(i18n::current().containers_title)
         .borders(Borders::RIGHT)
         .border_style(Style::default().fg(theme.border));
     let list = List::new(items).block(block);

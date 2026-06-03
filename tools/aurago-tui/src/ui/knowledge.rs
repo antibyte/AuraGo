@@ -9,6 +9,7 @@ use ratatui::{
 use crate::app::AppState;
 use super::theme::Theme;
 use super::utils;
+use crate::i18n;
 
 pub fn draw_knowledge(f: &mut Frame, app: &AppState, theme: &Theme) {
     let chunks = Layout::default()
@@ -111,7 +112,7 @@ fn draw_knowledge_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect)
         .collect();
 
     let block = Block::default()
-        .title(" Files ")
+        .title(i18n::current().knowledge_files_title)
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.border));
     let inner = block.inner(area);

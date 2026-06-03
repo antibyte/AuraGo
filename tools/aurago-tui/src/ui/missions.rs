@@ -8,6 +8,7 @@ use ratatui::{
 
 use super::theme::Theme;
 use super::utils;
+use crate::i18n;
 use crate::app::AppState;
 
 pub fn draw_missions(f: &mut Frame, app: &AppState, theme: &Theme) {
@@ -100,7 +101,7 @@ fn draw_missions_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) 
     };
 
     let block = Block::default()
-        .title(" Missions ")
+        .title(i18n::current().missions_title)
         .borders(Borders::RIGHT)
         .border_style(Style::default().fg(theme.border));
     let list = List::new(items).block(block);

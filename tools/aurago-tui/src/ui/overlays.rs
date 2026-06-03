@@ -265,7 +265,7 @@ pub fn draw_confirm_dialog(f: &mut Frame, app: &AppState, theme: &Theme) {
     ];
 
     let block = Block::default()
-        .title(" ⚠ Confirm ")
+        .title(i18n::current().confirm_title)
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.warning))
         .style(Style::default().bg(theme.bg));

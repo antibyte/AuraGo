@@ -8,6 +8,7 @@ use ratatui::{
 
 use super::theme::Theme;
 use super::utils;
+use crate::i18n;
 use crate::app::AppState;
 
 pub fn draw_plans(f: &mut Frame, app: &AppState, theme: &Theme) {
@@ -99,7 +100,7 @@ fn draw_plans_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     };
 
     let block = Block::default()
-        .title(" Plans ")
+        .title(i18n::current().plans_title)
         .borders(Borders::RIGHT)
         .border_style(Style::default().fg(theme.border));
     let list = List::new(items).block(block);

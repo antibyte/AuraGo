@@ -101,7 +101,7 @@ fn wave_line(width: usize, tick: u64) -> String {
 
 fn draw_sidebar(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let block = Block::default()
-        .title(" History ")
+        .title(i18n::current().history_title)
         .borders(Borders::RIGHT)
         .border_style(if app.focus_sidebar {
             Style::default().fg(theme.border_focus)
