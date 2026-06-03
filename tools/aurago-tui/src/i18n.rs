@@ -102,6 +102,53 @@ pub struct Strings {
     pub nav_new: &'static str,
     pub nav_del: &'static str,
     pub nav_label: &'static str,
+
+    // Empty states (completing F3 i18n polish - Point 1 sequential)
+    pub no_plans_found: &'static str,
+    pub no_missions_found: &'static str,
+    pub no_skills_found: &'static str,
+    pub no_containers_found: &'static str,
+    pub no_knowledge_files_found: &'static str,
+    pub no_sessions_yet: &'static str,
+    pub no_media_audio_found: &'static str,
+    pub no_media_documents_found: &'static str,
+    pub no_scheduled_tasks: &'static str,
+
+    // Inner list header labels (emoji + name for draw_*_header)
+    pub plans_header: &'static str,
+    pub missions_header: &'static str,
+    pub skills_header: &'static str,
+    pub containers_header: &'static str,
+    pub knowledge_header: &'static str,
+
+    // Media tabs + search
+    pub media_tab_audio: &'static str,
+    pub media_tab_documents: &'static str,
+    pub search_label: &'static str,
+
+    // Overlays small remaining texts
+    pub session_close: &'static str,
+    pub confirm_y_label: &'static str,
+    pub confirm_other_label: &'static str,
+    pub confirm_cancel_label: &'static str,
+
+    // Dashboard status bar hints (for draw_dash_status right side + F6 tasks)
+    pub status_hint_tabs: &'static str,
+    pub status_hint_scroll: &'static str,
+    pub status_hint_refresh: &'static str,
+    pub status_hint_nav: &'static str,
+    pub status_hint_help: &'static str,
+
+    // Screen titles (for nav bar + Screen::title)
+    pub screen_chat: &'static str,
+    pub screen_dashboard: &'static str,
+    pub screen_plans: &'static str,
+    pub screen_missions: &'static str,
+    pub screen_skills: &'static str,
+    pub screen_containers: &'static str,
+    pub screen_config: &'static str,
+    pub screen_knowledge: &'static str,
+    pub screen_media: &'static str,
 }
 
 /// English (default / current only language)
@@ -166,6 +213,53 @@ pub static EN: Strings = Strings {
     nav_new: " New  ",
     nav_del: " Del  ",
     nav_label: " Navigate  ",
+
+    // Empty states
+    no_plans_found: "No plans found",
+    no_missions_found: "No missions found",
+    no_skills_found: "No skills found",
+    no_containers_found: "No containers found",
+    no_knowledge_files_found: "  No knowledge files found",
+    no_sessions_yet: "  No sessions yet",
+    no_media_audio_found: "  No audio files found",
+    no_media_documents_found: "  No document files found",
+    no_scheduled_tasks: "No scheduled tasks",
+
+    // Headers (full with emoji for direct use in draw_*_header)
+    plans_header: " 📋 Plans ",
+    missions_header: " 🚀 Missions ",
+    skills_header: " 🧩 Skills ",
+    containers_header: " 🐳 Containers ",
+    knowledge_header: " 📚 Knowledge ",
+
+    // Media
+    media_tab_audio: " 🎵 Audio ",
+    media_tab_documents: " 📄 Documents ",
+    search_label: "Search",
+
+    // Overlays
+    session_close: " Close",
+    confirm_y_label: " = Confirm   ",
+    confirm_other_label: "Any other key",
+    confirm_cancel_label: " = Cancel",
+
+    // Status hints
+    status_hint_tabs: "tabs",
+    status_hint_scroll: "scroll",
+    status_hint_refresh: "refresh",
+    status_hint_nav: "nav",
+    status_hint_help: "help",
+
+    // Screen names (for nav + title())
+    screen_chat: "Chat",
+    screen_dashboard: "Dashboard",
+    screen_plans: "Plans",
+    screen_missions: "Missions",
+    screen_skills: "Skills",
+    screen_containers: "Containers",
+    screen_config: "Config",
+    screen_knowledge: "Knowledge",
+    screen_media: "Media",
 };
 
 /// Current strings (for now always EN).

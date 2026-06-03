@@ -28,15 +28,14 @@ pub fn draw_knowledge(f: &mut Frame, app: &AppState, theme: &Theme) {
 
 fn draw_knowledge_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let search_indicator = if app.knowledge_search_active {
-        format!(" Search: {}▎", app.knowledge_search)
+        format!(" {}: {}▎", i18n::current().search_label, app.knowledge_search)
     } else {
         String::new()
     };
 
     let header = Line::from(vec![
-        Span::styled(" 📚 ", Style::default().fg(theme.accent)),
         Span::styled(
-            "Knowledge",
+            i18n::current().knowledge_header,
             Style::default().fg(theme.fg).add_modifier(Modifier::BOLD),
         ),
         Span::styled(
@@ -68,7 +67,7 @@ fn draw_knowledge_content(f: &mut Frame, app: &AppState, theme: &Theme, area: Re
 
     if app.knowledge_files.is_empty() {
         let msg = Paragraph::new(Line::from(vec![
-            Span::styled("  No knowledge files found", Style::default().fg(theme.accent_dim)),
+            Span::styled(i18n::current().no_knowledge_files_found, Style::default().fg(theme.accent_dim)),
         ]));
         f.render_widget(msg, area);
         return;

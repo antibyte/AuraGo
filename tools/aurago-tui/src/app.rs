@@ -1,5 +1,6 @@
 use crate::api::sse::SseEvent;
 use crate::api::types::*;
+use crate::i18n;
 
 /// Convert a character index to a byte index in a string.
 /// Returns `s.len()` if char_idx is out of bounds.
@@ -33,17 +34,17 @@ pub enum Screen {
 impl Screen {
     pub fn title(&self) -> &str {
         match self {
-            Screen::Splash => "AuraGo",
-            Screen::Login => "Login",
-            Screen::Chat => "Chat",
-            Screen::Dashboard => "Dashboard",
-            Screen::Plans => "Plans",
-            Screen::Missions => "Missions",
-            Screen::Skills => "Skills",
-            Screen::Containers => "Containers",
-            Screen::Config => "Config",
-            Screen::Knowledge => "Knowledge",
-            Screen::Media => "Media",
+            Screen::Splash => i18n::current().app_title,
+            Screen::Login => "Login", // not in main nav
+            Screen::Chat => i18n::current().screen_chat,
+            Screen::Dashboard => i18n::current().screen_dashboard,
+            Screen::Plans => i18n::current().screen_plans,
+            Screen::Missions => i18n::current().screen_missions,
+            Screen::Skills => i18n::current().screen_skills,
+            Screen::Containers => i18n::current().screen_containers,
+            Screen::Config => i18n::current().screen_config,
+            Screen::Knowledge => i18n::current().screen_knowledge,
+            Screen::Media => i18n::current().screen_media,
         }
     }
 

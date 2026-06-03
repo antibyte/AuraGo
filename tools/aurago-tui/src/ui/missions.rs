@@ -38,7 +38,7 @@ pub fn draw_missions(f: &mut Frame, app: &AppState, theme: &Theme) {
 
 fn draw_missions_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let title = Span::styled(
-        " 🚀 Missions ",
+        i18n::current().missions_header,
         Style::default()
             .fg(theme.accent)
             .add_modifier(Modifier::BOLD),
@@ -77,7 +77,7 @@ fn draw_missions_content(f: &mut Frame, app: &AppState, theme: &Theme, area: Rec
 
 fn draw_missions_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let items: Vec<ListItem> = if app.missions.is_empty() {
-        vec![ListItem::new(Line::from("No missions found"))]
+        vec![ListItem::new(Line::from(i18n::current().no_missions_found))]
     } else {
         app.missions
             .iter()

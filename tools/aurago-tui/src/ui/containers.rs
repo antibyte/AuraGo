@@ -44,7 +44,7 @@ fn draw_containers_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Re
         .count();
     let stopped = app.containers.len().saturating_sub(running);
     let title = Span::styled(
-        " 🐳 Containers ",
+        i18n::current().containers_header,
         Style::default()
             .fg(theme.accent)
             .add_modifier(Modifier::BOLD),
@@ -88,7 +88,7 @@ fn draw_containers_content(f: &mut Frame, app: &AppState, theme: &Theme, area: R
 
 fn draw_containers_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let items: Vec<ListItem> = if app.containers.is_empty() {
-        vec![ListItem::new(Line::from("No containers found"))]
+        vec![ListItem::new(Line::from(i18n::current().no_containers_found))]
     } else {
         app.containers
             .iter()

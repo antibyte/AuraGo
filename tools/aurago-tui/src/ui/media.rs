@@ -28,16 +28,16 @@ pub fn draw_media(f: &mut Frame, app: &AppState, theme: &Theme) {
 
 fn draw_media_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let tab_audio = match app.media_tab {
-        MediaTab::Audio => " 🎵 Audio ",
-        MediaTab::Documents => "   Audio ",
+        MediaTab::Audio => i18n::current().media_tab_audio,
+        MediaTab::Documents => "   Audio ",  // keep visual alignment for inactive; or enhance later
     };
     let tab_docs = match app.media_tab {
-        MediaTab::Documents => " 📄 Documents ",
+        MediaTab::Documents => i18n::current().media_tab_documents,
         MediaTab::Audio => "   Documents ",
     };
 
     let search_indicator = if app.media_search_active {
-        format!("  Search: {}▎", app.media_search)
+        format!("  {}: {}▎", i18n::current().search_label, app.media_search)
     } else {
         String::new()
     };
@@ -82,7 +82,7 @@ fn draw_media_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
 fn draw_media_content(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     if app.media_loading {
         let msg = Paragraph::new(Line::from(vec![Span::styled(
-            "  Loading media…",
+            format!("  {}", i18n::current().loading),
             Style::default().fg(theme.accent_dim),
         )]));
         f.render_widget(msg, area);
@@ -91,13 +91,10 @@ fn draw_media_content(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) 
 
     if app.media_items.is_empty() {
         let msg = Paragraph::new(Line::from(vec![Span::styled(
-            format!(
-                "  No {} files found",
-                match app.media_tab {
-                    MediaTab::Audio => "audio",
-                    MediaTab::Documents => "document",
-                }
-            ),
+            match app.media_tab {
+                MediaTab::Audio => i18n::current().no_media_audio_found,
+                MediaTab::Documents => i18n::current().no_media_documents_found,
+            },
             Style::default().fg(theme.accent_dim),
         )]));
         f.render_widget(msg, area);

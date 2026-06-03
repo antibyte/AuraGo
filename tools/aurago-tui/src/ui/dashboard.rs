@@ -208,7 +208,7 @@ fn draw_overview_tab(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
 
     // Activity / Cron
     let items: Vec<ListItem> = if app.dash_activity.is_empty() {
-        vec![ListItem::new(Line::from("No scheduled tasks"))]
+        vec![ListItem::new(Line::from(i18n::current().no_scheduled_tasks))]
     } else {
         app.dash_activity
             .iter()
@@ -395,7 +395,15 @@ fn draw_logs_tab(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
 fn draw_dash_status(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let left = format!("⚡ {} ", app.status_message);
     let tasks = if !app.background_tasks.is_empty() { format!(" │ tasks:{}", app.background_tasks.len()) } else { "".to_string() };
-    let right = format!(" h/l: tabs │ j/k: scroll │ r: refresh │ F1: nav │ ?: help{}", tasks);
+    let right = format!(
+        " h/l: {} │ j/k: {} │ r: {} │ F1: {} │ ?: {}{}",
+        i18n::current().status_hint_tabs,
+        i18n::current().status_hint_scroll,
+        i18n::current().status_hint_refresh,
+        i18n::current().status_hint_nav,
+        i18n::current().status_hint_help,
+        tasks
+    );
     let total = area.width as usize;
     let spacer = total.saturating_sub(left.len() + right.len());
     let text = format!("{}{}{}", left, " ".repeat(spacer), right);

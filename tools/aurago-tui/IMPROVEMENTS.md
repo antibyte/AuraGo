@@ -92,7 +92,7 @@ When adding a feature from this list, please:
 - All with rtk cargo verify after edits, clippy clean, tests pass.
 - disposable/ used for spawn list.
 
-**Last updated**: 2026-06-03 (wave abgeschlossen on "wave abschließen" - final)
+**Last updated**: 2026-06-04 (wave abgeschlossen + sequential open points start: Point 1 i18n polish complete)
 
 ## Wave C / F3 + F6 completed (wave abgeschlossen)
 - F3: Significantly expanded i18n with loading, many *_title (dashboard tabs, list screens, details, login, confirm, history, etc.), confirm action strings, nav labels. Wired across dashboard, chat, overlays, plans, missions, skills, containers, knowledge, config, login, media.
@@ -101,6 +101,20 @@ When adding a feature from this list, please:
 - Open from original (help text keys, some toasts, full 15-lang) noted for future, but core UI titles/status now i18n-driven.
 
 **Wave closed per user request "wave abschließen"**. All planned F1-F6 from "weitere Verbesserungen" (after 1-4) addressed in waves A/B/C + "rest f1" + "mache weiter" + "offene punkte" continuations. See disposable/wave-abschliessen-final-2026-06-03.txt for exact delivered bullets, 44 spawn_tracked count, 3 documented bare specials (main:121/851/868), GitNexus detect run, rtk verifies. IMPROVEMENTS + GSD session artifacts serve as living docs (no plan.md md file in session dir).
+
+## Completed 2026-06-04 sequential "arbeite die punkte nacheinander ab" - Point 1: i18n polish (remaining F3)
+- Wired help section headers (using pre-existing help_* fields).
+- Added ~30 new Strings fields for empty states, list headers (with emoji), media tabs/search, overlays smalls (confirm y/cancel/close, session), status hints, screen titles.
+- Wired all list draw_*_header (plans/missions/skills/containers/knowledge) + their "No X found" empties.
+- Wired media header tabs (active), search indicators (knowledge+media), loading, dynamic empties.
+- Wired dashboard status hints + "No scheduled tasks".
+- Wired overlays: no_sessions_yet, session_close, confirm y/other/cancel labels.
+- Wired app.rs Screen::title() (all nav screens now pull from i18n, import added).
+- GitNexus impacts run first on all edited symbols (draw_help, draw_*_header, draw_dash_status, Screen title, Strings; all LOW risk).
+- rtk cargo check/clippy -D / test: clean + 6 pass.
+- Updated disposable/next-wave-i18n-completion-2026-06-04.txt + this file.
+- No behavior change, more raw English eliminated.
+- (Help individual shortcut lines + some padding/inactive tabs + "tasks:" debug left for now; help is special-cased per original scaffolding.)
 
 ## Completed in 2026-06 "Weitere Verbesserungen" more F3 i18n
 - More strings: detail_title, edit_field_title, password/otp/login_title, confirm_* actions.

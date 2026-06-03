@@ -48,7 +48,7 @@ pub fn draw_session_drawer(f: &mut Frame, app: &AppState, theme: &Theme) {
     // Session list
     let items: Vec<Line> = if app.sessions.is_empty() {
         vec![Line::from(Span::styled(
-            "  No sessions yet",
+            i18n::current().no_sessions_yet,
             Style::default().fg(theme.accent_dim),
         ))]
     } else {
@@ -124,7 +124,7 @@ pub fn draw_session_drawer(f: &mut Frame, app: &AppState, theme: &Theme) {
                 .fg(theme.accent)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" Close", Style::default().fg(theme.accent_dim)),
+        Span::styled(i18n::current().session_close, Style::default().fg(theme.accent_dim)),
     ]);
     let hint_para = Paragraph::new(hints).style(Style::default().bg(theme.bg));
     f.render_widget(hint_para, chunks[1]);
@@ -140,7 +140,7 @@ pub fn draw_help(f: &mut Frame, theme: &Theme) {
     let text = Text::from(vec![
         Line::from(""),
         Line::from(Span::styled(
-            "── Chat ──────────────────────────",
+            i18n::current().help_chat,
             Style::default().fg(theme.accent),
         )),
         Line::from("Enter          Send message"),
@@ -152,7 +152,7 @@ pub fn draw_help(f: &mut Frame, theme: &Theme) {
         Line::from("Tab            Focus sidebar"),
         Line::from(""),
         Line::from(Span::styled(
-            "── Navigation ────────────────────",
+            i18n::current().help_navigation,
             Style::default().fg(theme.accent),
         )),
         Line::from("F1             Open nav bar"),
@@ -166,7 +166,7 @@ pub fn draw_help(f: &mut Frame, theme: &Theme) {
         Line::from("Ctrl+O         Logout"),
         Line::from(""),
         Line::from(Span::styled(
-            "── List pages ────────────────────",
+            i18n::current().help_list_pages,
             Style::default().fg(theme.accent),
         )),
         Line::from("j / ↓          Move down"),
@@ -178,7 +178,7 @@ pub fn draw_help(f: &mut Frame, theme: &Theme) {
         Line::from("r              Refresh"),
         Line::from(""),
         Line::from(Span::styled(
-            "── General ───────────────────────",
+            i18n::current().help_general,
             Style::default().fg(theme.accent),
         )),
         Line::from("Esc / ?        Close help"),
@@ -258,9 +258,9 @@ pub fn draw_confirm_dialog(f: &mut Frame, app: &AppState, theme: &Theme) {
                     .fg(theme.accent)
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::styled(" = Confirm   ", Style::default().fg(theme.fg)),
-            Span::styled("Any other key", Style::default().fg(theme.accent)),
-            Span::styled(" = Cancel", Style::default().fg(theme.fg)),
+            Span::styled(i18n::current().confirm_y_label, Style::default().fg(theme.fg)),
+            Span::styled(i18n::current().confirm_other_label, Style::default().fg(theme.accent)),
+            Span::styled(i18n::current().confirm_cancel_label, Style::default().fg(theme.fg)),
         ]),
     ];
 

@@ -38,7 +38,7 @@ pub fn draw_skills(f: &mut Frame, app: &AppState, theme: &Theme) {
 
 fn draw_skills_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let title = Span::styled(
-        " 🧩 Skills ",
+        i18n::current().skills_header,
         Style::default()
             .fg(theme.accent)
             .add_modifier(Modifier::BOLD),
@@ -77,7 +77,7 @@ fn draw_skills_content(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect)
 
 fn draw_skills_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let items: Vec<ListItem> = if app.skills.is_empty() {
-        vec![ListItem::new(Line::from("No skills found"))]
+        vec![ListItem::new(Line::from(i18n::current().no_skills_found))]
     } else {
         app.skills
             .iter()

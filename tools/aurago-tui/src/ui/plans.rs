@@ -38,7 +38,7 @@ pub fn draw_plans(f: &mut Frame, app: &AppState, theme: &Theme) {
 
 fn draw_plans_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let title = Span::styled(
-        " 📋 Plans ",
+        i18n::current().plans_header,
         Style::default()
             .fg(theme.accent)
             .add_modifier(Modifier::BOLD),
@@ -77,7 +77,7 @@ fn draw_plans_content(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) 
 
 fn draw_plans_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let items: Vec<ListItem> = if app.plans.is_empty() {
-        vec![ListItem::new(Line::from("No plans found"))]
+        vec![ListItem::new(Line::from(i18n::current().no_plans_found))]
     } else {
         app.plans
             .iter()
