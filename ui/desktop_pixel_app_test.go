@@ -45,7 +45,7 @@ func TestPixelInspectorLayoutFitsLocalizedControls(t *testing.T) {
 }
 
 func TestPixelImageMenuUsesThemeIcons(t *testing.T) {
-	js := readDesktopAssetText(t, "js/desktop/apps/pixel.js")
+	js := readPixelAppScripts(t)
 
 	for _, unavailable := range []string{
 		"icon: 'rotate-cw'",
@@ -90,8 +90,133 @@ func TestPixelImageMenuUsesThemeIcons(t *testing.T) {
 	}
 }
 
+func TestPixelDrawPanelHasGridLayout(t *testing.T) {
+	css := normalizePixelAsset(readDesktopAssetText(t, "css/pixel.css"))
+
+	if !pixelCSSRuleContains(css, `.pixel-draw-tools-grid`, "grid-template-columns") {
+		t.Fatalf("pixel draw tools should use a grid layout")
+	}
+}
+
+func TestPixelOverlayCanvasPositionedAbsolute(t *testing.T) {
+	css := normalizePixelAsset(readDesktopAssetText(t, "css/pixel.css"))
+
+	if !pixelCSSRuleContains(css, `.pixel-overlay`, "position: absolute") {
+		t.Fatalf("pixel overlay canvas must be positioned absolutely over the main canvas")
+	}
+	if !pixelCSSRuleContains(css, `.pixel-overlay`, "pointer-events: auto") {
+		t.Fatalf("pixel overlay canvas needs pointer-events to receive drawing input")
+	}
+}
+
+func TestPixelCanvasWrapExists(t *testing.T) {
+	js := readPixelAppScripts(t)
+
+	if !strings.Contains(js, "pixel-canvas-wrap") {
+		t.Fatalf("pixel.js should use a canvas wrapper div for overlay positioning")
+	}
+	if !strings.Contains(js, "data-overlay") {
+		t.Fatalf("pixel.js should have an overlay canvas element")
+	}
+}
+
+func TestPixelNewMenuItemsUseAvailableIcons(t *testing.T) {
+	js := readPixelAppScripts(t)
+
+	newMenuIcons := map[string]string{
+		"new-image": "image",
+		"copy":      "image",
+		"cut":       "scissors",
+		"paste":     "image",
+		"select-all": "image",
+		"deselect":  "image",
+		"shortcuts": "image",
+	}
+	for id, icon := range newMenuIcons {
+		pattern := regexp.MustCompile(`\{\s*id:\s*'` + regexp.QuoteMeta(id) + `',\s*labelKey:\s*'[^']+',\s*icon:\s*'` + regexp.QuoteMeta(icon) + `'`)
+		if !pattern.MatchString(js) {
+			t.Fatalf("pixel menu item %q should use available icon %q", id, icon)
+		}
+	}
+}
+
+func TestPixelHasColorPickerCSS(t *testing.T) {
+	css := normalizePixelAsset(readDesktopAssetText(t, "css/pixel.css"))
+
+	for _, selector := range []string{
+		".pixel-color-swatch",
+		".pixel-palette-grid",
+		".pixel-hex-input",
+		".pixel-recent-colors",
+	} {
+		if !strings.Contains(css, selector) {
+			t.Fatalf("pixel.css should contain styles for %q", selector)
+		}
+	}
+}
+
+func TestPixelHasLayerPanelCSS(t *testing.T) {
+	css := normalizePixelAsset(readDesktopAssetText(t, "css/pixel.css"))
+
+	for _, selector := range []string{
+		".pixel-layer-list",
+		".pixel-layer-item",
+		".pixel-layer-vis",
+		".pixel-layer-actions",
+	} {
+		if !strings.Contains(css, selector) {
+			t.Fatalf("pixel.css should contain styles for %q", selector)
+		}
+	}
+}
+
+func TestPixelHasContextMenuCSS(t *testing.T) {
+	css := normalizePixelAsset(readDesktopAssetText(t, "css/pixel.css"))
+
+	if !strings.Contains(css, ".pixel-ctx-menu") {
+		t.Fatalf("pixel.css should contain context menu styles")
+	}
+}
+
+func TestPixelLoaderUsesOrderedSemanticScripts(t *testing.T) {
+	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
+
+	last := -1
+	for _, scriptPath := range pixelAppScriptPaths {
+		needle := "'" + "/" + scriptPath + "'"
+		idx := strings.Index(loader, needle)
+		if idx < 0 {
+			t.Fatalf("pixel loader is missing %s", needle)
+		}
+		if idx <= last {
+			t.Fatalf("pixel loader should load %s after the previous Pixel script", needle)
+		}
+		last = idx
+	}
+}
+
 func normalizePixelAsset(text string) string {
 	return strings.ReplaceAll(text, "\r\n", "\n")
+}
+
+var pixelAppScriptPaths = []string{
+	"js/desktop/apps/pixel-state.js",
+	"js/desktop/apps/pixel-view.js",
+	"js/desktop/apps/pixel-canvas.js",
+	"js/desktop/apps/pixel-tools.js",
+	"js/desktop/apps/pixel-actions.js",
+	"js/desktop/apps/pixel-events.js",
+	"js/desktop/apps/pixel.js",
+}
+
+func readPixelAppScripts(t *testing.T) string {
+	t.Helper()
+	var b strings.Builder
+	for _, scriptPath := range pixelAppScriptPaths {
+		b.WriteString(readDesktopAssetText(t, scriptPath))
+		b.WriteByte('\n')
+	}
+	return b.String()
 }
 
 func pixelCSSRuleContains(css, selector, needle string) bool {

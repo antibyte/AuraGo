@@ -98,7 +98,15 @@
         },
         'pixel': {
             styles: appStyles('/css/pixel.css'),
-            scripts: ['/js/desktop/apps/pixel.js']
+            scripts: [
+                '/js/desktop/apps/pixel-state.js',
+                '/js/desktop/apps/pixel-view.js',
+                '/js/desktop/apps/pixel-canvas.js',
+                '/js/desktop/apps/pixel-tools.js',
+                '/js/desktop/apps/pixel-actions.js',
+                '/js/desktop/apps/pixel-events.js',
+                '/js/desktop/apps/pixel.js'
+            ]
         },
         'galaxa-deluxe': {
             styles: appStyles('/css/galaxa-deluxe.css'),

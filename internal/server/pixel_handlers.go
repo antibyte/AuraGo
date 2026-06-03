@@ -344,5 +344,42 @@ func imageDimensions(path string) (int, int) {
 			}
 		}
 	}
+	// WEBP (lossy VP8)
+	if len(data) > 30 && data[0] == 'R' && data[1] == 'I' && data[2] == 'F' && data[3] == 'F' && data[8] == 'W' && data[9] == 'E' && data[10] == 'B' && data[11] == 'P' {
+		if data[12] == 'V' && data[13] == 'P' && data[14] == '8' && data[15] != 'L' {
+			if len(data) > 26 {
+				w := int(data[26]) | int(data[27])<<8
+				h := int(data[28]) | int(data[29])<<8
+				return w & 0x3FFF, h & 0x3FFF
+			}
+		}
+		if data[12] == 'V' && data[13] == 'P' && data[14] == '8' && data[15] == 'L' {
+			if len(data) > 25 {
+				b0 := uint32(data[21])
+				b1 := uint32(data[22])
+				b2 := uint32(data[23])
+				w := int(b0|(b1<<8)&0x3FFF) + 1
+				h := int((b1>>6)|(b2<<2)&0x3FFF) + 1
+				return w, h
+			}
+		}
+	}
+	// BMP
+	if len(data) > 26 && data[0] == 'B' && data[1] == 'M' {
+		w := int(data[18]) | int(data[19])<<8 | int(data[20])<<16 | int(data[21])<<24
+		h := int(data[22]) | int(data[23])<<8 | int(data[24])<<16 | int(data[25])<<24
+		if h < 0 {
+			h = -h
+		}
+		if w > 0 && h > 0 && w < 100000 && h < 100000 {
+			return w, h
+		}
+	}
+	// GIF
+	if len(data) > 10 && data[0] == 'G' && data[1] == 'I' && data[2] == 'F' {
+		w := int(data[6]) | int(data[7])<<8
+		h := int(data[8]) | int(data[9])<<8
+		return w, h
+	}
 	return 0, 0
 }

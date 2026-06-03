@@ -171,9 +171,9 @@ func TestGalaxaDeluxeCachesCanvasResources(t *testing.T) {
 func TestPixelEditorUsesCanvasPoolAndBoundedHistory(t *testing.T) {
 	t.Parallel()
 
-	source := readEmbeddedText(t, "js/desktop/apps/pixel.js")
+	source := readPixelAppScripts(t)
 	for _, marker := range []string{
-		"const MAX_HISTORY = 5",
+		"const MAX_HISTORY = 30",
 		"const canvasPool = []",
 		"function acquireTempCanvas(width, height)",
 		"function releaseTempCanvas(canvas)",
