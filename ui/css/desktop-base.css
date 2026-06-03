@@ -657,6 +657,8 @@
     top: 50%;
     z-index: 4;
     transform: translateY(-50%);
+    grid-column: 1;
+    justify-self: start;
     gap: 8px;
     width: auto;
     min-width: 0;
@@ -667,6 +669,8 @@
     left: 12px;
     right: auto;
     top: 24px;
+    grid-column: 1;
+    justify-self: start;
 }
 
 .desktop-body[data-theme="fruity"] .vd-widget-manager .vd-wm-header {

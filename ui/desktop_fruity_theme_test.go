@@ -192,11 +192,27 @@ func TestDesktopFruityWindowControlsStayOnLeft(t *testing.T) {
 	for _, want := range []string{
 		"left: 12px !important;",
 		"right: auto !important;",
+		"grid-column: 1 !important;",
+		"justify-self: start !important;",
 		"min-width: 0 !important;",
 		"justify-content: flex-start !important;",
 	} {
 		if !strings.Contains(actionsOverride, want) {
 			t.Fatalf("fruity final window actions override missing %q in body %q", want, actionsOverride)
+		}
+	}
+
+	menuActionsOverride := desktopExactCSSRuleBody(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-actions")
+	for _, want := range []string{
+		"left: 12px !important;",
+		"right: auto !important;",
+		"grid-column: 1 !important;",
+		"justify-self: start !important;",
+		"top: 24px !important;",
+		"min-width: 0 !important;",
+	} {
+		if !strings.Contains(menuActionsOverride, want) {
+			t.Fatalf("fruity menu window actions override missing %q in body %q", want, menuActionsOverride)
 		}
 	}
 

@@ -41,6 +41,7 @@
     top: 50% !important;
     z-index: 4;
     transform: translateY(-50%) !important;
+    grid-column: 1 !important;
     justify-self: start !important;
     width: auto !important;
     min-width: 0 !important;
@@ -53,6 +54,8 @@
     right: auto !important;
     top: 24px !important;
     transform: translateY(-50%) !important;
+    grid-column: 1 !important;
+    justify-self: start !important;
     width: auto !important;
     min-width: 0 !important;
     justify-content: flex-start !important;
