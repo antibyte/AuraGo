@@ -350,4 +350,27 @@ mod tests {
         let ctx = KeyContext::Chat { focus_sidebar: false, session_drawer: false };
         assert!(matches!(map_key(key, ctx), Action::SendMessage));
     }
+
+    #[test]
+    fn list_j_k_enter_delete() {
+        let ctx = KeyContext::List { selected: Some(0), len: 3 };
+        let j = KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE);
+        assert!(matches!(map_key(j, ctx.clone()), Action::ListDown));
+
+        let k = KeyEvent::new(KeyCode::Char('k'), KeyModifiers::NONE);
+        assert!(matches!(map_key(k, ctx.clone()), Action::ListUp));
+
+        let enter = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+        assert!(matches!(map_key(enter, ctx.clone()), Action::ListSelect));
+
+        let del = KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE);
+        assert!(matches!(map_key(del, ctx.clone()), Action::ActionDelete));
+    }
+
+    #[test]
+    fn nav_esc_closes() {
+        let key = KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
+        let ctx = KeyContext::NavBar { index: 0, max: 5 };
+        assert!(matches!(map_key(key, ctx), Action::CloseNavBar));
+    }
 }

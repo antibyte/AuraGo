@@ -92,7 +92,7 @@ When adding a feature from this list, please:
 - All with rtk cargo verify after edits, clippy clean, tests pass.
 - disposable/ used for spawn list.
 
-**Last updated**: 2026-06-04 (wave abgeschlossen + sequential open points start: Point 1 i18n polish complete)
+**Last updated**: 2026-06-04 (sequential Point 1 i18n + Point 2 tests complete)
 
 ## Wave C / F3 + F6 completed (wave abgeschlossen)
 - F3: Significantly expanded i18n with loading, many *_title (dashboard tabs, list screens, details, login, confirm, history, etc.), confirm action strings, nav labels. Wired across dashboard, chat, overlays, plans, missions, skills, containers, knowledge, config, login, media.
@@ -115,6 +115,17 @@ When adding a feature from this list, please:
 - Updated disposable/next-wave-i18n-completion-2026-06-04.txt + this file.
 - No behavior change, more raw English eliminated.
 - (Help individual shortcut lines + some padding/inactive tabs + "tasks:" debug left for now; help is special-cased per original scaffolding.)
+
+## Completed 2026-06-04 sequential "arbeite die punkte nacheinander ab" - Point 2: more/better tests
+- Expanded from 6 to 13 tests.
+- New tests in app.rs: apply_sse delta/done/toolcall (content, cache updates, auto_scroll), load_history (filter internal, set cache+scroll), scroll_to_bottom, append cache.
+- Expanded keybindings tests: list j/k/enter/delete, nav esc (more KeyContext coverage).
+- Focused on audit/IMPROVEMENTS gaps: SSE streaming logic, scroll/auto state + cache (F6), tracker, key matrix.
+- GitNexus impacts on apply_sse_event, append_stream_delta, map_key, ChatMessage etc (all LOW).
+- Pre-commit gitnexus__detect_changes (low risk, test additions).
+- rtk clippy -D 0, cargo test 13 passed.
+- Updated disposable/next-wave-tests-point2-*.txt + IMPROVEMENTS.
+- Table-driven style where sensible; no logic changes, pure coverage.
 
 ## Completed in 2026-06 "Weitere Verbesserungen" more F3 i18n
 - More strings: detail_title, edit_field_title, password/otp/login_title, confirm_* actions.

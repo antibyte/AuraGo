@@ -638,4 +638,57 @@ mod tests {
         assert!(s.background_tasks.is_empty());
         // Full spawn_tracked/abort tests require async runtime; covered in manual/integration for Wave A
     }
+
+    #[test]
+    fn apply_sse_delta_updates_content_and_cache() {
+        let mut s = AppState::default();
+        s.start_assistant_stream();
+        s.append_stream_delta("hello\nworld".to_string());
+        assert!(s.chat_messages.last().unwrap().is_streaming);
+        assert_eq!(s.chat_messages.last().unwrap().cached_line_count, 2);
+        assert_eq!(s.chat_messages.last().unwrap().content, "hello\nworld");
+    }
+
+    #[test]
+    fn apply_sse_deltadone_finishes_stream() {
+        let mut s = AppState::default();
+        s.start_assistant_stream();
+        s.apply_sse_event(SseEvent::DeltaDone);
+        assert!(!s.chat_messages.last().unwrap().is_streaming);
+    }
+
+    #[test]
+    fn apply_sse_toolcall_adds_with_cache_and_respects_auto() {
+        let mut s = AppState::default();
+        s.auto_scroll = true;
+        s.apply_sse_event(SseEvent::ToolCall("foo".to_string()));
+        let last = s.chat_messages.last().unwrap();
+        assert_eq!(last.role, "tool");
+        assert!(last.is_tool);
+        assert_eq!(last.cached_line_count, 1);
+        assert!(s.auto_scroll);
+    }
+
+    #[test]
+    fn load_history_filters_internal_sets_cache_and_scroll() {
+        let mut s = AppState::default();
+        let hist = vec![
+            HistoryMessage { role: "user".into(), content: "hi".into(), id: None, is_internal: false, timestamp: None },
+            HistoryMessage { role: "system".into(), content: "internal".into(), id: None, is_internal: true, timestamp: None },
+            HistoryMessage { role: "assistant".into(), content: "bye\nthere".into(), id: None, is_internal: false, timestamp: None },
+        ];
+        s.load_history(hist);
+        assert_eq!(s.chat_messages.len(), 2);
+        assert_eq!(s.chat_messages[0].cached_line_count, 1);
+        assert_eq!(s.chat_messages[1].cached_line_count, 2);
+        assert!(s.auto_scroll);
+    }
+
+    #[test]
+    fn scroll_to_bottom_sets_auto_scroll() {
+        let mut s = AppState::default();
+        s.auto_scroll = false;
+        s.scroll_to_bottom();
+        assert!(s.auto_scroll);
+    }
 }
