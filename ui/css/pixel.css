@@ -239,6 +239,10 @@
     pointer-events: none;
 }
 
+.pixel-empty-state[hidden] {
+    display: none;
+}
+
 .pixel-empty-state > * {
     pointer-events: auto;
 }

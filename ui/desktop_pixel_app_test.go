@@ -13,6 +13,9 @@ func TestPixelInspectorTabsRespectHiddenPanels(t *testing.T) {
 	if !pixelCSSRuleContains(css, `.pixel-panel-section[hidden]`, "display: none") {
 		t.Fatalf("pixel panel sections use flex display, so [hidden] needs an explicit display:none override")
 	}
+	if !pixelCSSRuleContains(css, `.pixel-empty-state[hidden]`, "display: none") {
+		t.Fatalf("pixel empty state uses flex display, so [hidden] needs an explicit display:none override after an image loads")
+	}
 }
 
 func TestPixelInspectorLayoutFitsLocalizedControls(t *testing.T) {
