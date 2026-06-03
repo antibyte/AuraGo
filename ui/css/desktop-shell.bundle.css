@@ -656,12 +656,14 @@
 
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-actions {
     position: absolute;
-    left: 10px;
-    right: 10px;
+    left: 14px;
+    right: auto;
     top: 50%;
     z-index: 4;
     transform: translateY(-50%);
     gap: 8px;
+    width: auto;
+    justify-content: flex-start;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu .vd-window-actions {
@@ -695,25 +697,25 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button {
-    width: 28px;
-    height: 24px;
+    width: 30px;
+    height: 26px;
     display: inline-grid;
     place-items: center;
-    margin-left: auto;
+    margin-left: 4px;
     padding: 0;
     order: 20;
     border-radius: 999px;
-    border-color: rgba(10, 132, 255, 0.24);
+    border-color: rgba(22, 101, 190, 0.56);
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.32)),
-        linear-gradient(135deg, rgba(10, 132, 255, 0.2), rgba(90, 200, 250, 0.28));
-    color: #0b4f7a;
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(226, 243, 255, 0.82)),
+        linear-gradient(135deg, rgba(10, 132, 255, 0.48), rgba(52, 211, 153, 0.5));
+    color: #062b4f;
     font-size: 0.68rem;
     font-weight: 850;
     line-height: 1;
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.78),
-        0 2px 6px rgba(10, 132, 255, 0.18);
+        inset 0 1px 0 rgba(255, 255, 255, 0.95),
+        0 2px 8px rgba(10, 132, 255, 0.32);
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-button,
@@ -757,17 +759,19 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button:hover {
-    border-color: rgba(10, 132, 255, 0.42);
+    border-color: rgba(22, 101, 190, 0.72);
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.38)),
-        linear-gradient(135deg, rgba(10, 132, 255, 0.28), rgba(90, 200, 250, 0.36));
+        linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(231, 246, 255, 0.9)),
+        linear-gradient(135deg, rgba(10, 132, 255, 0.62), rgba(52, 211, 153, 0.58));
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.84),
-        0 3px 10px rgba(10, 132, 255, 0.24);
+        inset 0 1px 0 rgba(255, 255, 255, 1),
+        0 4px 12px rgba(10, 132, 255, 0.38);
 }
 
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button-icon {
     display: block;
+    filter: brightness(0) saturate(100%) invert(15%) sepia(77%) saturate(1501%) hue-rotate(187deg) brightness(91%) contrast(99%);
+    opacity: 1;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-button[data-action="close"],
@@ -4848,20 +4852,24 @@
 }
 .desktop-body[data-theme="fruity"] .vd-window > .vd-window-titlebar > .vd-window-actions {
     position: absolute !important;
-    left: 10px !important;
-    right: 10px !important;
+    left: 14px !important;
+    right: auto !important;
     top: 50% !important;
     z-index: 4;
     transform: translateY(-50%) !important;
     justify-self: start !important;
+    width: auto !important;
+    justify-content: flex-start !important;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-actions {
     position: absolute !important;
-    left: 10px !important;
-    right: 10px !important;
+    left: 14px !important;
+    right: auto !important;
     top: 24px !important;
     transform: translateY(-50%) !important;
+    width: auto !important;
+    justify-content: flex-start !important;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar {

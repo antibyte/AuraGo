@@ -36,20 +36,24 @@
 }
 .desktop-body[data-theme="fruity"] .vd-window > .vd-window-titlebar > .vd-window-actions {
     position: absolute !important;
-    left: 10px !important;
-    right: 10px !important;
+    left: 14px !important;
+    right: auto !important;
     top: 50% !important;
     z-index: 4;
     transform: translateY(-50%) !important;
     justify-self: start !important;
+    width: auto !important;
+    justify-content: flex-start !important;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-actions {
     position: absolute !important;
-    left: 10px !important;
-    right: 10px !important;
+    left: 14px !important;
+    right: auto !important;
     top: 24px !important;
     transform: translateY(-50%) !important;
+    width: auto !important;
+    justify-content: flex-start !important;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar {

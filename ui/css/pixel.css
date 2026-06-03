@@ -85,19 +85,44 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     padding: 0;
-    border: 1px solid var(--pixel-line);
-    border-radius: 6px;
-    background: var(--pixel-surface);
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.035)),
+        var(--pixel-surface);
     color: inherit;
     cursor: pointer;
-    transition: background 120ms ease;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
 
 .pixel-btn-icon:hover {
-    background: var(--pixel-hover);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.055)),
+        var(--pixel-hover);
+    border-color: rgba(255, 255, 255, 0.24);
+    transform: translateY(-1px);
+}
+
+.pixel-toolbar-icon,
+.pixel-app .vd-theme-icon:not(.pixel-empty-icon),
+.pixel-app .vd-papirus-icon:not(.pixel-empty-icon) {
+    width: 16px !important;
+    height: 16px !important;
+    opacity: 0.92;
+}
+
+.pixel-btn-icon .vd-theme-icon,
+.pixel-btn-icon .vd-papirus-icon {
+    filter: brightness(0) saturate(100%) invert(88%) sepia(15%) saturate(495%) hue-rotate(176deg) brightness(101%) contrast(98%);
+}
+
+.desktop-body[data-theme="light"] .pixel-btn-icon .vd-theme-icon,
+.desktop-body[data-theme="light"] .pixel-btn-icon .vd-papirus-icon {
+    filter: brightness(0) saturate(100%) invert(22%) sepia(20%) saturate(1238%) hue-rotate(176deg) brightness(88%) contrast(86%);
 }
 
 .pixel-btn-group {

@@ -264,19 +264,20 @@
             showContextMenu,
             wireDrawOptionEvents
         } = runtime;
+        const toolbarIcon = (key, fallback) => iconMarkup(key, fallback, 'pixel-toolbar-icon', 16);
         host.innerHTML = `<div class="pixel-app">
             <div class="pixel-toolbar">
-                <button class="pixel-btn-icon" type="button" data-action="open" title="${esc(t('pixel.open', 'Open'))} (Ctrl+O)">${iconMarkup('folder-open', 'O')}</button>
-                <button class="pixel-btn-icon" type="button" data-action="save" title="${esc(t('pixel.save', 'Save'))} (Ctrl+S)">${iconMarkup('save', 'S')}</button>
-                <button class="pixel-btn-icon" type="button" data-action="export" title="${esc(t('pixel.export', 'Export'))}">${iconMarkup('download', 'E')}</button>
+                <button class="pixel-btn-icon" type="button" data-action="open" title="${esc(t('pixel.open', 'Open'))} (Ctrl+O)">${toolbarIcon('folder-open', 'O')}</button>
+                <button class="pixel-btn-icon" type="button" data-action="save" title="${esc(t('pixel.save', 'Save'))} (Ctrl+S)">${toolbarIcon('save', 'S')}</button>
+                <button class="pixel-btn-icon" type="button" data-action="export" title="${esc(t('pixel.export', 'Export'))}">${toolbarIcon('download', 'E')}</button>
                 <span class="pixel-toolbar-sep"></span>
-                <button class="pixel-btn-icon" type="button" data-action="undo" title="${esc(t('pixel.undo', 'Undo'))} (Ctrl+Z)">${iconMarkup('undo', 'U')}</button>
-                <button class="pixel-btn-icon" type="button" data-action="redo" title="${esc(t('pixel.redo', 'Redo'))} (Ctrl+Shift+Z)">${iconMarkup('redo', 'R')}</button>
+                <button class="pixel-btn-icon" type="button" data-action="undo" title="${esc(t('pixel.undo', 'Undo'))} (Ctrl+Z)">${toolbarIcon('undo', 'U')}</button>
+                <button class="pixel-btn-icon" type="button" data-action="redo" title="${esc(t('pixel.redo', 'Redo'))} (Ctrl+Shift+Z)">${toolbarIcon('redo', 'R')}</button>
                 <span class="pixel-toolbar-sep"></span>
-                <button class="pixel-btn-icon" type="button" data-action="zoom-out" title="${esc(t('pixel.zoom_out', 'Zoom Out'))}">${iconMarkup('zoom-out', '-')}</button>
+                <button class="pixel-btn-icon" type="button" data-action="zoom-out" title="${esc(t('pixel.zoom_out', 'Zoom Out'))}">${toolbarIcon('zoom-out', '-')}</button>
                 <span class="pixel-zoom-label" data-zoom-label>100%</span>
-                <button class="pixel-btn-icon" type="button" data-action="zoom-in" title="${esc(t('pixel.zoom_in', 'Zoom In'))}">${iconMarkup('zoom-in', '+')}</button>
-                <button class="pixel-btn-icon" type="button" data-action="zoom-fit" title="${esc(t('pixel.zoom_fit', 'Fit'))}">${iconMarkup('maximize', 'F')}</button>
+                <button class="pixel-btn-icon" type="button" data-action="zoom-in" title="${esc(t('pixel.zoom_in', 'Zoom In'))}">${toolbarIcon('zoom-in', '+')}</button>
+                <button class="pixel-btn-icon" type="button" data-action="zoom-fit" title="${esc(t('pixel.zoom_fit', 'Fit'))}">${toolbarIcon('maximize', 'F')}</button>
                 <span class="pixel-toolbar-spacer"></span>
                 <div class="pixel-tabs">
                     <button class="pixel-tab${activePanel === 'adjust' ? ' active' : ''}" type="button" data-panel="adjust">${esc(t('pixel.adjust', 'Adjust'))}</button>
