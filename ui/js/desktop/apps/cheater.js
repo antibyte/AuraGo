@@ -377,6 +377,8 @@
     function onHover(e) {
         const block = e.target.closest('[data-md-block]');
         if (!block || block.dataset.pinned === '1') return;
+        const source = block.closest('[data-source]');
+        if (source && (document.activeElement === source || source.contains(document.activeElement))) return;
         if (block._hoverTimer) return;
         block._hoverTimer = setTimeout(() => renderBlock(block), HOVER_DELAY_MS);
     }
@@ -393,11 +395,17 @@
     function onClickPin(e) {
         const block = e.target.closest('[data-md-block]');
         if (!block) return;
+        const source = block.closest('[data-source]');
+        const isEditing = source && (document.activeElement === source || source.contains(document.activeElement));
         if (block.dataset.rendered !== '1') {
+            if (isEditing) return;
             renderBlock(block);
             block.dataset.pinned = '1';
         } else {
             unrenderBlock(block);
+            if (source) {
+                source.focus();
+            }
         }
     }
 
