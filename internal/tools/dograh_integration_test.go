@@ -1,7 +1,11 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -19,6 +23,100 @@ func TestResolveDograhStackConfigRequiresManagedSecrets(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "oss jwt secret") {
 		t.Fatalf("error = %v, want missing OSS JWT secret", err)
+	}
+}
+
+func TestResolveDograhStackConfigMigratesLegacyDockerHubDefaultImages(t *testing.T) {
+	cfg := dograhTestConfig()
+	cfg.Dograh.APIImage = "dograhai/dograh-api:latest"
+	cfg.Dograh.UIImage = "dograhai/dograh-ui:latest"
+
+	stack, err := ResolveDograhStackConfig(cfg, false)
+	if err != nil {
+		t.Fatalf("ResolveDograhStackConfig() error = %v", err)
+	}
+	if stack.APIImage != dograhDefaultAPIImage {
+		t.Fatalf("APIImage = %q, want %q", stack.APIImage, dograhDefaultAPIImage)
+	}
+	if stack.UIImage != dograhDefaultUIImage {
+		t.Fatalf("UIImage = %q, want %q", stack.UIImage, dograhDefaultUIImage)
+	}
+}
+
+func TestResolveDograhStackConfigKeepsExplicitPinnedImages(t *testing.T) {
+	cfg := dograhTestConfig()
+	cfg.Dograh.APIImage = "dograhai/dograh-api:1.30.1"
+	cfg.Dograh.UIImage = "registry.example/dograh-ui:custom"
+
+	stack, err := ResolveDograhStackConfig(cfg, false)
+	if err != nil {
+		t.Fatalf("ResolveDograhStackConfig() error = %v", err)
+	}
+	if stack.APIImage != "dograhai/dograh-api:1.30.1" {
+		t.Fatalf("APIImage = %q, want explicit pinned image", stack.APIImage)
+	}
+	if stack.UIImage != "registry.example/dograh-ui:custom" {
+		t.Fatalf("UIImage = %q, want explicit custom image", stack.UIImage)
+	}
+}
+
+func TestEnsureDograhStackRunningUsesCurrentImagesForLegacyRuntimeConfig(t *testing.T) {
+	cfg := dograhTestConfig()
+	cfg.Dograh.APIImage = "dograhai/dograh-api:latest"
+	cfg.Dograh.UIImage = "dograhai/dograh-ui:latest"
+
+	pulledImages := map[string]bool{}
+	createdImages := map[string]string{}
+	dockerAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		switch {
+		case r.Method == http.MethodGet && path == "/"+dockerAPIVersion+"/networks/aurago_dograh":
+			writeDograhTestJSON(w, http.StatusOK, map[string]any{"Name": "aurago_dograh"})
+		case r.Method == http.MethodPost && path == "/"+dockerAPIVersion+"/images/create":
+			pulledImages[r.URL.Query().Get("fromImage")] = true
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"status":"pulled"}` + "\n"))
+		case r.Method == http.MethodGet && strings.HasPrefix(path, "/"+dockerAPIVersion+"/containers/") && strings.HasSuffix(path, "/json"):
+			writeDograhTestJSON(w, http.StatusNotFound, map[string]string{"message": "not found"})
+		case r.Method == http.MethodGet && strings.HasPrefix(path, "/"+dockerAPIVersion+"/images/") && strings.HasSuffix(path, "/json"):
+			writeDograhTestJSON(w, http.StatusOK, map[string]any{"Id": "image-id"})
+		case r.Method == http.MethodPost && path == "/"+dockerAPIVersion+"/containers/create":
+			raw, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("read create payload: %v", err)
+			}
+			var payload struct {
+				Image string `json:"Image"`
+			}
+			if err := json.Unmarshal(raw, &payload); err != nil {
+				t.Fatalf("parse create payload: %v", err)
+			}
+			createdImages[r.URL.Query().Get("name")] = payload.Image
+			writeDograhTestJSON(w, http.StatusCreated, map[string]string{"Id": "container-id"})
+		case r.Method == http.MethodPost && strings.HasPrefix(path, "/"+dockerAPIVersion+"/containers/") && strings.HasSuffix(path, "/start"):
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Fatalf("unexpected Docker request: %s %s", r.Method, r.URL.String())
+		}
+	}))
+	defer dockerAPI.Close()
+
+	dockerHost := "tcp://" + strings.TrimPrefix(dockerAPI.URL, "http://")
+	if err := EnsureDograhStackRunning(context.Background(), dockerHost, cfg, nil); err != nil {
+		t.Fatalf("EnsureDograhStackRunning() error = %v", err)
+	}
+
+	if !pulledImages[dograhDefaultAPIImage] {
+		t.Fatalf("pulled images = %#v, want %q", pulledImages, dograhDefaultAPIImage)
+	}
+	if !pulledImages[dograhDefaultUIImage] {
+		t.Fatalf("pulled images = %#v, want %q", pulledImages, dograhDefaultUIImage)
+	}
+	if createdImages[cfg.Dograh.APIContainerName] != dograhDefaultAPIImage {
+		t.Fatalf("API create image = %q, want %q", createdImages[cfg.Dograh.APIContainerName], dograhDefaultAPIImage)
+	}
+	if createdImages[cfg.Dograh.UIContainerName] != dograhDefaultUIImage {
+		t.Fatalf("UI create image = %q, want %q", createdImages[cfg.Dograh.UIContainerName], dograhDefaultUIImage)
 	}
 }
 
@@ -432,4 +530,10 @@ func dograhTestConfig() *config.Config {
 	cfg.Dograh.RedisPassword = "redis-secret"
 	cfg.Dograh.MinioRootPassword = "minio-secret"
 	return cfg
+}
+
+func writeDograhTestJSON(w http.ResponseWriter, status int, value any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(value)
 }

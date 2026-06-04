@@ -19,6 +19,8 @@ import (
 const (
 	dograhDefaultAPIImage              = "ghcr.io/dograh-hq/dograh-api:latest"
 	dograhDefaultUIImage               = "ghcr.io/dograh-hq/dograh-ui:latest"
+	dograhLegacyDockerHubAPIImage      = "dograhai/dograh-api:latest"
+	dograhLegacyDockerHubUIImage       = "dograhai/dograh-ui:latest"
 	dograhDefaultPostgresImage         = "pgvector/pgvector:pg17"
 	dograhDefaultRedisImage            = "redis:7"
 	dograhDefaultMinioImage            = "minio/minio:latest"
@@ -222,8 +224,8 @@ func ResolveDograhStackConfig(cfg *config.Config, runningInDocker bool) (DograhS
 		RedisAlias:            dograhDefaultRedisAlias,
 		MinioAlias:            dograhDefaultMinioAlias,
 		CoturnAlias:           dograhDefaultCoturnAlias,
-		APIImage:              defaultString(cfg.Dograh.APIImage, dograhDefaultAPIImage),
-		UIImage:               defaultString(cfg.Dograh.UIImage, dograhDefaultUIImage),
+		APIImage:              normalizeDograhManagedImage(cfg.Dograh.APIImage, dograhDefaultAPIImage, dograhLegacyDockerHubAPIImage),
+		UIImage:               normalizeDograhManagedImage(cfg.Dograh.UIImage, dograhDefaultUIImage, dograhLegacyDockerHubUIImage),
 		PostgresImage:         defaultString(cfg.Dograh.PostgresImage, dograhDefaultPostgresImage),
 		RedisImage:            defaultString(cfg.Dograh.RedisImage, dograhDefaultRedisImage),
 		MinioImage:            defaultString(cfg.Dograh.MinioImage, dograhDefaultMinioImage),
@@ -243,6 +245,14 @@ func ResolveDograhStackConfig(cfg *config.Config, runningInDocker bool) (DograhS
 		TurnEnabled:           cfg.Dograh.TurnEnabled,
 		RunningInDocker:       runningInDocker,
 	}, nil
+}
+
+func normalizeDograhManagedImage(raw, currentDefault, legacyDefault string) string {
+	image := strings.TrimSpace(raw)
+	if image == "" || strings.EqualFold(image, legacyDefault) {
+		return currentDefault
+	}
+	return image
 }
 
 func dograhRunsInDocker(cfg *config.Config) bool {
