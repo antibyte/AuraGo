@@ -112,7 +112,7 @@
                 <button type="button" class="cheater-attach-btn" data-action="attachments" aria-label="${esc(t('cheater.attachments', 'Anhänge'))}">📎 <span data-attach-count>${(sheet.attachments || []).length}</span></button>
             </header>
             <div class="cheater-content" data-content>
-                <pre class="cheater-source" data-source spellcheck="true">${esc(sheet.content || '')}</pre>
+                <pre class="cheater-source" data-source contenteditable="true" spellcheck="true">${esc(sheet.content || '')}</pre>
             </div>
             <footer class="cheater-footer">
                 <span data-charcount>${(sheet.content || '').length}</span> ${esc(t('cheater.chars', 'Zeichen'))} ·

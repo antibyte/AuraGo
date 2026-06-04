@@ -244,8 +244,8 @@
     const GRID = {
         width: 24,
         depth: 14,
-        cols: 72,
-        rows: 42
+        cols: 48,
+        rows: 28
     };
 
     const IMPULSE_LIFETIME = 3.6;
@@ -3337,7 +3337,7 @@
             camera = null;
             return false;
         }
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
         renderer.setSize(window.innerWidth, window.innerHeight, false);
         renderer.setClearColor(0x000000, 0);
         if ('outputColorSpace' in renderer) {
@@ -3352,8 +3352,8 @@
         const key = new THREE.DirectionalLight(0xb9d9ff, 1.35);
         key.position.set(-5, 8, 2);
         key.castShadow = true;
-        key.shadow.mapSize.width = 1024;
-        key.shadow.mapSize.height = 1024;
+        key.shadow.mapSize.width = 512;
+        key.shadow.mapSize.height = 512;
         key.shadow.camera.near = 0.5;
         key.shadow.camera.far = 30;
         key.shadow.camera.left = -15;
@@ -3413,7 +3413,7 @@
         }
 
         if (!reflectionRenderTarget) {
-            reflectionRenderTarget = new THREE.WebGLRenderTarget(512, 512, {
+            reflectionRenderTarget = new THREE.WebGLRenderTarget(256, 256, {
                 minFilter: THREE.LinearFilter,
                 magFilter: THREE.LinearFilter,
                 format: THREE.RGBAFormat
@@ -3449,7 +3449,10 @@
 
         const currentRenderTarget = renderer.getRenderTarget();
         renderer.setRenderTarget(reflectionRenderTarget);
+        const currentShadows = renderer.shadowMap.enabled;
+        renderer.shadowMap.enabled = false;
         renderer.render(scene, reflectionCamera);
+        renderer.shadowMap.enabled = currentShadows;
         
         renderer.setRenderTarget(currentRenderTarget);
         surface.visible = true;
@@ -3568,9 +3571,9 @@
 
         position.needsUpdate = true;
         color.needsUpdate = true;
-        // Throttle normal recomputation to every 2nd frame (Fix 6)
+        // Throttle normal recomputation to every 3rd frame
         normalFrameToggle++;
-        if (normalFrameToggle & 1) {
+        if (normalFrameToggle % 3 === 0) {
             surfaceGeometry.computeVertexNormals();
             surfaceGeometry.attributes.normal.needsUpdate = true;
         }
