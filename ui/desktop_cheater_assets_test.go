@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -431,6 +432,66 @@ func TestDesktopCheaterDeleteAndPolling(t *testing.T) {
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("cheater delete/polling CSS missing marker %q", marker)
+		}
+	}
+}
+
+func TestDesktopCheaterTranslations(t *testing.T) {
+	t.Parallel()
+
+	required := []string{
+		"cheater.app_name",
+		"cheater.empty_subtitle",
+		"cheater.empty_cta",
+		"cheater.empty_hint",
+		"cheater.back",
+		"cheater.attachments",
+		"cheater.chars",
+		"cheater.hover_help",
+		"cheater.saving",
+		"cheater.saved",
+		"cheater.saved_ago",
+		"cheater.save_error",
+		"cheater.spotlight_placeholder",
+		"cheater.spotlight_hint",
+		"cheater.create_title",
+		"cheater.field_title",
+		"cheater.field_description",
+		"cheater.field_tags",
+		"cheater.field_template",
+		"cheater.cancel",
+		"cheater.create_submit",
+		"cheater.delete",
+		"cheater.undo",
+		"cheater.template.empty",
+		"cheater.template.deployment",
+		"cheater.template.debug",
+		"cheater.template.routine",
+		"cheater.template.api",
+		"cheater.template.backup",
+		"cheater.attach_empty",
+		"cheater.attach_drop_hint",
+		"cheater.agent_badge",
+		"cheater.update_available",
+		"cheater.update_apply",
+		"cheater.close",
+	}
+
+	languages := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
+	for _, lang := range languages {
+		path := filepath.Join("lang", "desktop", lang+".json")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var doc map[string]interface{}
+		if err := json.Unmarshal(data, &doc); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, key := range required {
+			if _, ok := doc[key]; !ok {
+				t.Errorf("language %s missing key %q", lang, key)
+			}
 		}
 	}
 }
