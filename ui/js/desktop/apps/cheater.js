@@ -4,6 +4,7 @@
     const instances = new Map();
     const SAVE_DEBOUNCE_MS = 500;
     const HOVER_DELAY_MS = 300;
+    const POLL_INTERVAL_MS = 30000;
 
     function render(host, windowId, context) {
         if (!host) return;
@@ -113,9 +114,51 @@
         </section>`;
     }
 
+    function startPolling(state) {
+        if (state.pollTimer) return;
+        state.pollTimer = setInterval(() => pollRemote(state), POLL_INTERVAL_MS);
+    }
+
+    function stopPolling(state) {
+        if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
+    }
+
+    async function pollRemote(state) {
+        if (!state.sheet) return;
+        try {
+            const fresh = await state.api('/api/cheatsheets/' + encodeURIComponent(state.sheet.id));
+            if (!fresh) return;
+            if (fresh.updated_at && state.sheet.updated_at && fresh.updated_at > state.sheet.updated_at && !state.dirty) {
+                showUpdateBadge(state, fresh);
+            }
+        } catch (err) {
+            console.warn('cheater poll failed', err);
+        }
+    }
+
+    function showUpdateBadge(state, fresh) {
+        if (state.host.querySelector('[data-update-badge]')) return;
+        const bar = document.createElement('div');
+        bar.className = 'cheater-update-bar';
+        bar.dataset.updateBadge = '1';
+        const t = state.t;
+        bar.innerHTML = `<span>${esc(t('cheater.update_available', '🔄 Aktualisiert verfügbar'))}</span><button type="button" data-action="apply">${esc(t('cheater.update_apply', 'Neu laden'))}</button><button type="button" data-action="dismiss" aria-label="${esc(t('cheater.close', 'Schließen'))}">×</button>`;
+        bar.querySelector('[data-action="apply"]').addEventListener('click', () => {
+            openSheet(state, fresh);
+            bar.remove();
+        });
+        bar.querySelector('[data-action="dismiss"]').addEventListener('click', () => bar.remove());
+        const content = state.host.querySelector('.cheater-content');
+        if (content) content.prepend(bar);
+    }
+
     function dispose(windowId) {
         const state = instances.get(windowId);
-        if (state && state.saveTimer) clearTimeout(state.saveTimer);
+        if (state) {
+            if (state.saveTimer) clearTimeout(state.saveTimer);
+            if (state.pollTimer) clearInterval(state.pollTimer);
+            if (state.currentAbort) state.currentAbort.abort();
+        }
         instances.delete(windowId);
     }
 
@@ -147,6 +190,7 @@
         renderAgentBadge(state);
         bindBackButton(state);
         bindGlobalShortcuts(state);
+        startPolling(state);
     }
 
     function renderAgentBadge(state) {
@@ -309,6 +353,7 @@
 
     function goBackToEmpty(state) {
         if (state.saveTimer) clearTimeout(state.saveTimer);
+        if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
         state.sheet = null;
         state.host.innerHTML = '';
         render(state.host, state.windowId, state);

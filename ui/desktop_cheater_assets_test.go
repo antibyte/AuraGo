@@ -389,3 +389,48 @@ func TestDesktopCheaterAttachments(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopCheaterDeleteAndPolling(t *testing.T) {
+	t.Parallel()
+
+	spotlight := readDesktopAssetText(t, "js/desktop/apps/cheater-spotlight.js")
+	for _, marker := range []string{
+		"function showContextMenu",
+		"function deleteEntry",
+		"contextmenu",
+		"data-action=\"delete\"",
+		"method: 'DELETE'",
+		"setTimeout(commit, 5000)",
+		"data-undo",
+	} {
+		if !strings.Contains(spotlight, marker) {
+			t.Fatalf("cheater spotlight missing delete marker %q", marker)
+		}
+	}
+
+	main := readDesktopAssetText(t, "js/desktop/apps/cheater.js")
+	for _, marker := range []string{
+		"function startPolling",
+		"function stopPolling",
+		"function pollRemote",
+		"function showUpdateBadge",
+		"POLL_INTERVAL_MS = 30000",
+		"data-update-badge",
+		"startPolling(state)",
+		"if (state.pollTimer) clearInterval",
+	} {
+		if !strings.Contains(main, marker) {
+			t.Fatalf("cheater polling missing JS marker %q", marker)
+		}
+	}
+
+	css := readAllDesktopAppCSS(t)
+	for _, marker := range []string{
+		".cheater-context-menu",
+		".cheater-update-bar",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("cheater delete/polling CSS missing marker %q", marker)
+		}
+	}
+}

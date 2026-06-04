@@ -415,6 +415,34 @@
 }
 .cheater-toast button { background: transparent; color: inherit; border: 0; cursor: pointer; text-decoration: underline; }
 
+.cheater-update-bar {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .5rem 1rem;
+    background: var(--bg-update, rgba(74,144,226,.08));
+    color: var(--accent, #4a90e2);
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: .875rem;
+}
+.cheater-update-bar button { background: transparent; border: 0; color: inherit; cursor: pointer; padding: .125rem .5rem; }
+.cheater-update-bar button[data-action="apply"] { text-decoration: underline; }
+.cheater-update-bar button[data-action="dismiss"] { font-size: 1.25rem; }
+
+.cheater-context-menu {
+    position: fixed;
+    list-style: none; margin: 0; padding: .25rem 0;
+    background: var(--bg-surface, #fff);
+    border: 1px solid var(--border-subtle, #e0e0e0);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.15);
+    z-index: 10003;
+    min-width: 160px;
+}
+.cheater-context-menu li { padding: .5rem 1rem; cursor: pointer; color: var(--text-primary, #222); }
+.cheater-context-menu li:hover { background: var(--bg-hover, rgba(0,0,0,.05)); }
+
 @media (prefers-reduced-motion: reduce) {
     .cheater-attach-panel { animation: none; }
 }

@@ -121,10 +121,60 @@
         }
 
         backdrop.addEventListener('click', close);
+        results.addEventListener('contextmenu', (e) => {
+            const li = e.target.closest('[data-index]');
+            if (!li) return;
+            e.preventDefault();
+            showContextMenu(e.clientX, e.clientY, currentResults[Number(li.dataset.index)]);
+        });
         input.addEventListener('input', debounce(runSearch, 80));
         document.addEventListener('keydown', onKey, true);
         setTimeout(() => input.focus(), 0);
         runSearch();
+
+        function showContextMenu(x, y, result) {
+            if (!result || result.action !== 'open') return;
+            const existing = document.querySelector('.cheater-context-menu');
+            if (existing) existing.remove();
+            const menu = document.createElement('ul');
+            menu.className = 'cheater-context-menu';
+            menu.setAttribute('role', 'menu');
+            menu.innerHTML = `<li role="menuitem" data-action="delete">🗑️ ${esc(t('cheater.delete', 'Löschen'))}</li>`;
+            menu.style.left = x + 'px';
+            menu.style.top = y + 'px';
+            document.body.appendChild(menu);
+            menu.addEventListener('click', (e) => {
+                const item = e.target.closest('[data-action]');
+                if (!item) return;
+                if (item.dataset.action === 'delete') deleteEntry(result.entry);
+                menu.remove();
+            });
+            setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
+        }
+
+        function deleteEntry(entry) {
+            const toast = document.createElement('div');
+            toast.className = 'cheater-toast';
+            toast.innerHTML = `<span>${esc(t('cheater.deleted', 'Sheet gelöscht'))}</span><button data-undo>${esc(t('cheater.undo', 'Rückgängig'))}</button>`;
+            document.body.appendChild(toast);
+            const commit = async () => {
+                try {
+                    await state.api('/api/cheatsheets/' + encodeURIComponent(entry.id), { method: 'DELETE' });
+                    state.searchIndex = state.searchIndex.filter(e => e.id !== entry.id);
+                    runSearch();
+                } catch (err) {
+                    state.notify('cheater.error.delete_failed', 'error');
+                    console.error('cheater delete failed', err);
+                } finally {
+                    toast.remove();
+                }
+            };
+            const timer = setTimeout(commit, 5000);
+            toast.querySelector('[data-undo]').addEventListener('click', () => {
+                clearTimeout(timer);
+                toast.remove();
+            });
+        }
 
         return { close, runSearch };
     }
