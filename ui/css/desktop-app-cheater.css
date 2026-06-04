@@ -365,3 +365,56 @@
 
 .cheater-modal-footer { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
 .cheater-secondary { background: transparent; border: 1px solid var(--border-subtle, #e0e0e0); padding: .5rem 1rem; border-radius: 6px; color: var(--text-primary, #222); cursor: pointer; }
+
+.cheater-attach-panel {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: min(480px, 40vw);
+    background: var(--bg-surface, #fff);
+    border-left: 1px solid var(--border-subtle, #e0e0e0);
+    box-shadow: -8px 0 24px rgba(0,0,0,.15);
+    display: flex; flex-direction: column;
+    z-index: 9999;
+    animation: cheater-slide-in 250ms ease-out;
+}
+
+@keyframes cheater-slide-in {
+    from { transform: translateX(100%); }
+    to   { transform: translateX(0); }
+}
+
+.cheater-attach-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem; border-bottom: 1px solid var(--border-subtle, #e0e0e0); }
+.cheater-attach-header h3 { margin: 0; font-size: 1rem; }
+.cheater-attach-close { background: transparent; border: 0; font-size: 1.5rem; cursor: pointer; color: var(--text-muted, #666); }
+
+.cheater-attach-drop {
+    margin: 1rem; padding: 1.5rem; text-align: center;
+    border: 2px dashed var(--border-subtle, #e0e0e0); border-radius: 8px;
+    color: var(--text-muted, #666);
+    cursor: pointer;
+}
+.cheater-attach-drop.is-drag { border-color: var(--accent, #4a90e2); background: var(--bg-tag, rgba(74,144,226,.08)); }
+.cheater-attach-drop p { margin: 0; }
+
+.cheater-attach-list { list-style: none; margin: 0; padding: 0; flex: 1; overflow-y: auto; }
+.cheater-attach-empty { padding: 1rem; color: var(--text-muted, #666); text-align: center; }
+.cheater-attach-item { display: flex; align-items: center; gap: .5rem; padding: .5rem 1rem; border-bottom: 1px solid var(--border-subtle, #e0e0e0); }
+.cheater-attach-icon { font-size: 1.25rem; }
+.cheater-attach-name { flex: 1; color: var(--text-primary, #222); }
+.cheater-attach-size { color: var(--text-muted, #666); font-size: .8125rem; }
+.cheater-attach-delete { background: transparent; border: 0; cursor: pointer; }
+
+.cheater-toast {
+    position: fixed;
+    bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+    background: var(--bg-toast, #222); color: var(--fg-toast, #fff);
+    padding: .75rem 1rem; border-radius: 8px;
+    display: flex; gap: 1rem; align-items: center;
+    z-index: 10002;
+    box-shadow: 0 8px 24px rgba(0,0,0,.25);
+}
+.cheater-toast button { background: transparent; color: inherit; border: 0; cursor: pointer; text-decoration: underline; }
+
+@media (prefers-reduced-motion: reduce) {
+    .cheater-attach-panel { animation: none; }
+}

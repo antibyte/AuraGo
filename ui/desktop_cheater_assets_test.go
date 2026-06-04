@@ -341,3 +341,51 @@ func TestDesktopCheaterAgentBadge(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopCheaterAttachments(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/cheater-attachments.js")
+	for _, marker := range []string{
+		"window.CheaterAttachments",
+		"window.CheaterAttachments.open",
+		"function openAttachmentPanel",
+		"function uploadFile",
+		"function deleteAttachment",
+		"function showToast",
+		"data-action=\"close\"",
+		"data-action=\"delete\"",
+		"cheater-attach-drop",
+		"/attachments",
+		"method: 'POST'",
+		"method: 'DELETE'",
+		"10 * 1024 * 1024",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("cheater attachments missing JS marker %q", marker)
+		}
+	}
+
+	wiring := readDesktopAssetText(t, "js/desktop/apps/cheater.js")
+	if !strings.Contains(wiring, "window.CheaterAttachments.open") {
+		t.Fatalf("cheater.js does not wire the attach button")
+	}
+
+	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
+	if !strings.Contains(loader, "cheater-attachments.js") {
+		t.Fatalf("module-loader missing cheater-attachments.js")
+	}
+
+	css := readAllDesktopAppCSS(t)
+	for _, marker := range []string{
+		".cheater-attach-panel",
+		".cheater-attach-drop",
+		".cheater-attach-item",
+		".cheater-attach-delete",
+		".cheater-toast",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("cheater attachments CSS missing marker %q", marker)
+		}
+	}
+}

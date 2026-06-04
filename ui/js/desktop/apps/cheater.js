@@ -287,6 +287,14 @@
                 flushSave(state);
             }
         });
+        const attachBtn = state.host.querySelector('[data-action="attachments"]');
+        if (attachBtn) {
+            attachBtn.addEventListener('click', () => {
+                if (window.CheaterAttachments && typeof window.CheaterAttachments.open === 'function') {
+                    window.CheaterAttachments.open(state);
+                }
+            });
+        }
         applyBlockStructure(state);
     }
 
