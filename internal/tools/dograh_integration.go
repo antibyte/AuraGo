@@ -52,7 +52,7 @@ const (
 	dograhCoturnPort                   = 3478
 	dograhStatusSetupRequired          = "setup_required"
 	dograhHealthProbeTimeout           = 3 * time.Second
-	dograhStackRevision                = "20260604-ui-config-proxy"
+	dograhStackRevision                = "20260604-ui-api-route-proxy"
 	dograhStackRevisionLabel           = "org.aurago.dograh.stack-revision"
 )
 
@@ -602,7 +602,7 @@ server {
         return 200 '{"enabled":false,"key":"","host":"/ingest","uiHost":"https://us.posthog.com"}';
     }
 
-    location /api/ {
+    location /api/v1/ {
         proxy_pass $dograh_api;
     }
 
@@ -868,12 +868,16 @@ func dograhUIProxyContainerNeedsRecreate(data []byte, networkName string, stack 
 	cmd := strings.Join(dograhContainerCmdValue(data), "\n")
 	for _, want := range []string{
 		`return 200 '{"provider":"local"}';`,
+		"location /api/v1/",
 		"proxy_pass $dograh_api;",
 		"proxy_pass $dograh_ui;",
 	} {
 		if !strings.Contains(cmd, want) {
 			return true
 		}
+	}
+	if strings.Contains(cmd, "location /api/ {") {
+		return true
 	}
 	return false
 }

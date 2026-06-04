@@ -317,12 +317,16 @@ func TestBuildDograhUIProxyCreatePayloadPublishesUIAndShimsConfigRoutes(t *testi
 		`return 200 '{"provider":"local"}';`,
 		`return 200 '{"enabled":false,"dsn":"","environment":"production"}';`,
 		`return 200 '{"enabled":false,"key":"","host":"/ingest","uiHost":"https://us.posthog.com"}';`,
+		"location /api/v1/",
 		"proxy_pass $dograh_api;",
 		"proxy_pass $dograh_ui;",
 	} {
 		if !strings.Contains(cmd, want) {
 			t.Fatalf("proxy command missing %q:\n%s", want, cmd)
 		}
+	}
+	if strings.Contains(cmd, "location /api/ {") {
+		t.Fatalf("proxy command must not route all /api/* to Dograh API:\n%s", cmd)
 	}
 	bindings := payload.HostConfig.PortBindings["3010/tcp"]
 	if len(bindings) != 1 || bindings[0].HostIP != "127.0.0.1" || bindings[0].HostPort != "3010" {
@@ -582,6 +586,35 @@ func TestDograhUIProxyContainerNeedsRecreateWhenAuthConfigShimMissing(t *testing
 
 	if !dograhUIProxyContainerNeedsRecreate(inspect, sidecar.NetworkName, sidecar) {
 		t.Fatal("dograhUIProxyContainerNeedsRecreate() = false, want true when auth config shim is missing")
+	}
+}
+
+func TestDograhUIProxyContainerNeedsRecreateWhenAllAPIIsProxiedToBackend(t *testing.T) {
+	cfg := dograhTestConfig()
+	sidecar, err := ResolveDograhStackConfig(cfg, false)
+	if err != nil {
+		t.Fatalf("ResolveDograhStackConfig() error = %v", err)
+	}
+	cmd := strings.ReplaceAll(dograhUIProxyStartupScript(sidecar), "location /api/v1/", "location /api/")
+	inspect, err := json.Marshal(map[string]any{
+		"Config": map[string]any{
+			"Image":  dograhDefaultUIProxyImage,
+			"Cmd":    []string{"sh", "-c", cmd},
+			"Labels": map[string]string{dograhStackRevisionLabel: dograhStackRevision},
+		},
+		"HostConfig": map[string]any{
+			"PortBindings": map[string]any{
+				"3010/tcp": []map[string]string{{"HostIp": "127.0.0.1", "HostPort": "3010"}},
+			},
+		},
+		"NetworkSettings": map[string]any{"Networks": map[string]any{"aurago_dograh": map[string]any{}}},
+	})
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+
+	if !dograhUIProxyContainerNeedsRecreate(inspect, sidecar.NetworkName, sidecar) {
+		t.Fatal("dograhUIProxyContainerNeedsRecreate() = false, want true when all /api routes are proxied to backend")
 	}
 }
 
