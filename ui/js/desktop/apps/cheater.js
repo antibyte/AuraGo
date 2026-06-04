@@ -149,7 +149,18 @@
         bindGlobalShortcuts(state);
     }
 
-    function renderAgentBadge(state) { /* implemented in Task 26 */ }
+    function renderAgentBadge(state) {
+        const node = state.host.querySelector('[data-agent-badge]');
+        if (!node || !state.sheet) return;
+        const lastUsed = state.sheet.last_used_at;
+        if (!lastUsed) {
+            node.hidden = true;
+            return;
+        }
+        const t = state.t;
+        node.hidden = false;
+        node.textContent = '🤖 ' + t('cheater.agent_badge', 'vor {{time}} benutzt').replace('{{time}}', formatRelative(lastUsed, t));
+    }
 
     function markDirty(state) {
         state.dirty = true;

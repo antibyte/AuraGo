@@ -324,3 +324,20 @@ func TestDesktopCheaterCreateModal(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopCheaterAgentBadge(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/cheater.js")
+	for _, marker := range []string{
+		"function renderAgentBadge",
+		"data-agent-badge",
+		"state.sheet.last_used_at",
+		"agent_badge",
+		"🤖",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("cheater agent badge missing JS marker %q", marker)
+		}
+	}
+}
