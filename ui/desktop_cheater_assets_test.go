@@ -228,3 +228,44 @@ func TestDesktopCheaterSpotlightStyles(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopCheaterInlineRender(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/cheater.js")
+	for _, marker := range []string{
+		"function bindInlineRender",
+		"function renderBlock",
+		"function unrenderBlock",
+		"function splitIntoBlocks",
+		"function applyBlockStructure",
+		"data-md-block",
+		"window.marked",
+		"window.hljs",
+		"HOVER_DELAY_MS",
+		"block.dataset.pinned",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("cheater inline render missing JS marker %q", marker)
+		}
+	}
+
+	css := readAllDesktopAppCSS(t)
+	for _, marker := range []string{
+		".cheater-md-block",
+		".cheater-md-block.is-rendered",
+		".cheater-md-block pre",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("cheater inline render CSS missing marker %q", marker)
+		}
+	}
+
+	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
+	if !strings.Contains(loader, "marked.min.js") || !strings.Contains(loader, "highlight.min.js") {
+		t.Fatalf("cheater entry missing vendor libraries")
+	}
+	if !strings.Contains(loader, "hljs-github.min.css") {
+		t.Fatalf("cheater entry missing hljs CSS")
+	}
+}

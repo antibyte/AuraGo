@@ -3,6 +3,7 @@
 
     const instances = new Map();
     const SAVE_DEBOUNCE_MS = 500;
+    const HOVER_DELAY_MS = 300;
 
     function render(host, windowId, context) {
         if (!host) return;
@@ -264,7 +265,10 @@
                 if (charCount) charCount.textContent = String(source.textContent.length);
                 markDirty(state);
                 scheduleSave(state);
+                if (state._blockRebuildTimer) clearTimeout(state._blockRebuildTimer);
+                state._blockRebuildTimer = setTimeout(() => applyBlockStructure(state), 400);
             });
+            source.addEventListener('blur', () => applyBlockStructure(state));
         }
         state.host.addEventListener('keydown', (e) => {
             if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
@@ -272,6 +276,7 @@
                 flushSave(state);
             }
         });
+        applyBlockStructure(state);
     }
 
     function bindBackButton(state) {
@@ -288,6 +293,100 @@
         state.sheet = null;
         state.host.innerHTML = '';
         render(state.host, state.windowId, state);
+    }
+
+    function bindInlineRender(state) {
+        const source = state.host.querySelector('[data-source]');
+        if (!source) return;
+        source.addEventListener('mouseover', onHover);
+        source.addEventListener('mouseout', onLeave);
+        source.addEventListener('click', onClickPin);
+    }
+
+    function onHover(e) {
+        const block = e.target.closest('[data-md-block]');
+        if (!block || block.dataset.pinned === '1') return;
+        if (block._hoverTimer) return;
+        block._hoverTimer = setTimeout(() => renderBlock(block), HOVER_DELAY_MS);
+    }
+
+    function onLeave(e) {
+        const block = e.target.closest('[data-md-block]');
+        if (!block) return;
+        if (block._hoverTimer) {
+            clearTimeout(block._hoverTimer);
+            block._hoverTimer = null;
+        }
+    }
+
+    function onClickPin(e) {
+        const block = e.target.closest('[data-md-block]');
+        if (!block) return;
+        if (block.dataset.rendered !== '1') {
+            renderBlock(block);
+            block.dataset.pinned = '1';
+        } else {
+            unrenderBlock(block);
+        }
+    }
+
+    function renderBlock(block) {
+        if (block.dataset.rendered === '1') return;
+        const md = block.textContent;
+        try {
+            let html = window.marked ? window.marked.parse(md, { gfm: true, breaks: false }) : escHtml(md);
+            block.innerHTML = html;
+            if (window.hljs && window.hljs.highlightElement) {
+                block.querySelectorAll('pre code').forEach(c => window.hljs.highlightElement(c));
+            }
+            block.dataset.rendered = '1';
+            block.classList.add('is-rendered');
+        } catch (err) {
+            console.error('cheater markdown render failed', err);
+        }
+    }
+
+    function unrenderBlock(block) {
+        const text = block.textContent;
+        block.textContent = text;
+        delete block.dataset.rendered;
+        block.classList.remove('is-rendered');
+        if (block.dataset.pinned === '1') delete block.dataset.pinned;
+    }
+
+    function splitIntoBlocks(text) {
+        const lines = text.split('\n');
+        const blocks = [];
+        let buf = [];
+        let inCode = false;
+        for (const line of lines) {
+            if (line.trim().startsWith('```')) inCode = !inCode;
+            buf.push(line);
+            if (!inCode && line.trim() === '') {
+                blocks.push(buf.join('\n'));
+                buf = [];
+            }
+        }
+        if (buf.length) blocks.push(buf.join('\n'));
+        return blocks.filter(b => b.trim().length > 0);
+    }
+
+    function applyBlockStructure(state) {
+        const source = state.host.querySelector('[data-source]');
+        if (!source) return;
+        const text = source.textContent;
+        const blocks = splitIntoBlocks(text);
+        source.innerHTML = blocks.map(b => `<div class="cheater-md-block" data-md-block>${state.esc(b)}</div>`).join('');
+        bindInlineRender(state);
+    }
+
+    function escHtml(s) {
+        return String(s)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;');
     }
 
     window.CheaterApp = window.CheaterApp || {};
