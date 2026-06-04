@@ -29,7 +29,14 @@
             saveTimer: null,
             currentAbort: null,
             pollTimer: null,
-            searchIndex: []
+            searchIndex: [],
+            openSheet: (nextState, entry) => {
+                if (entry && entry.id) {
+                    loadSheet(nextState, entry.id);
+                    return;
+                }
+                openSheet(nextState, entry);
+            }
         };
         instances.set(windowId, state);
 

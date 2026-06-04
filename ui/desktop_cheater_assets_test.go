@@ -92,6 +92,27 @@ func TestDesktopCheaterEmptyStateStyles(t *testing.T) {
 	}
 }
 
+func TestDesktopCheaterStylesUseReadableDesktopScopedTokens(t *testing.T) {
+	t.Parallel()
+
+	css := readDesktopAssetText(t, "css/desktop-app-cheater.css")
+	for _, marker := range []string{
+		"--cheater-text: var(--ds-color-fg-primary",
+		"--cheater-muted: var(--ds-color-fg-muted",
+		"--cheater-surface: var(--ds-color-surface-1",
+		"--cheater-modal-surface: var(--ds-color-surface-3",
+		"background: var(--cheater-surface",
+		"color: var(--cheater-text",
+		".cheater-field input::placeholder",
+		".cheater-primary:disabled",
+		".cheater-secondary:hover",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("cheater CSS missing readable desktop token marker %q", marker)
+		}
+	}
+}
+
 func TestDesktopCheaterEditorRender(t *testing.T) {
 	t.Parallel()
 
@@ -206,6 +227,12 @@ func TestDesktopCheaterSpotlightWiring(t *testing.T) {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("cheater wiring missing JS marker %q", marker)
 		}
+	}
+	if !strings.Contains(source, "openSheet,") && !strings.Contains(source, "openSheet:") {
+		t.Fatalf("cheater state does not expose openSheet to spotlight selections")
+	}
+	if !strings.Contains(source, "loadSheet(nextState, entry.id)") {
+		t.Fatalf("cheater spotlight selections must load full sheets before opening the editor")
 	}
 }
 
