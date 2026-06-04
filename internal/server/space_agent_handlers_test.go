@@ -512,7 +512,7 @@ func TestHandleIntegrationWebhostsIncludesEnabledDograhUIURL(t *testing.T) {
 	}
 }
 
-func TestHandleIntegrationWebhostsDoesNotInventDograhURLForTailscaleLoopback(t *testing.T) {
+func TestHandleIntegrationWebhostsKeepsDograhLoopbackURLForTailscaleDrawer(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Dograh.Enabled = true
 	cfg.Dograh.Mode = "external"
@@ -538,8 +538,8 @@ func TestHandleIntegrationWebhostsDoesNotInventDograhURLForTailscaleLoopback(t *
 	if len(resp.Webhosts) != 1 || resp.Webhosts[0].ID != "dograh" {
 		t.Fatalf("webhosts = %#v, want one Dograh entry", resp.Webhosts)
 	}
-	if resp.Webhosts[0].URL != "" {
-		t.Fatalf("dograh url = %q, want empty URL instead of an unreachable Tailscale port", resp.Webhosts[0].URL)
+	if resp.Webhosts[0].URL != "http://127.0.0.1:3010" {
+		t.Fatalf("dograh url = %q, want configured loopback URL instead of an invented Tailscale port", resp.Webhosts[0].URL)
 	}
 }
 

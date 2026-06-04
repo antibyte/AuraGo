@@ -342,7 +342,7 @@ func dograhRewriteBrowserURLs(r *http.Request, payload map[string]interface{}) {
 
 func dograhURLWithRequestHost(rawURL string, r *http.Request) string {
 	if requestLooksTailscale(r) && dograhURLIsLoopback(rawURL) {
-		return ""
+		return strings.TrimSpace(rawURL)
 	}
 	return manifestURLWithRequestHost(rawURL, r)
 }
