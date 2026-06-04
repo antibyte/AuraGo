@@ -2,6 +2,25 @@
 
 Dieses Glossar erklärt alle Fachbegriffe, Abkürzungen und Konzepte von AuraGo.
 
+---
+
+## 📚 Inhaltsverzeichnis
+
+1. [Abkürzungen und Akronyme](#abkürzungen-und-akronyme)
+2. [Agent-Terminologie](#agent-terminologie)
+3. [Gedächtnis-System](#gedächtnis-system)
+4. [Tools und Aktionen](#tools-und-aktionen)
+5. [Konfigurationsbegriffe](#konfigurationsbegriffe)
+6. [Sicherheitsvokabular](#sicherheitsvokabular)
+7. [Integrationen](#integrationen)
+8. [Persönlichkeit und Verhalten](#persönlichkeit-und-verhalten)
+9. [Technische Architektur](#technische-architektur)
+10. [Daten-Speicherorte](#daten-speicherorte)
+11. [Cross-Referenzen](#cross-referenzen)
+12. [Aktuelle Begriffe](#ergänzte-aktuelle-begriffe)
+
+---
+
 ## Abkürzungen und Akronyme
 
 | Abkürzung | Bedeutung | Erklärung |
@@ -162,7 +181,7 @@ Dieses Glossar erklärt alle Fachbegriffe, Abkürzungen und Konzepte von AuraGo.
 - **Security** → siehe auch: Vault, AES, bcrypt, TOTP, Danger Zone
 - **Tools** → siehe auch: Action, Function Calling, Capability
 
-## Ergänzte aktuelle Begriffe
+## Aktuelle Begriffe
 
 | Begriff | Bedeutung |
 |---------|-----------|

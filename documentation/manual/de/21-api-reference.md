@@ -1,4 +1,4 @@
-# REST API Referenz
+# Kapitel 21: REST API Referenz
 
 AuraGo bietet eine umfassende REST API für den programmatischen Zugriff auf alle Funktionen. Die API folgt den REST-Prinzipien und verwendet JSON für die Datenübertragung.
 

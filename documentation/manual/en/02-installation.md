@@ -141,18 +141,25 @@ nano config.yaml   # or vim, code, notepad
 Minimal configuration:
 
 ```yaml
+providers:
+  - id: main
+    type: openrouter
+    name: "Main LLM"
+    base_url: https://openrouter.ai/api/v1
+    api_key: "sk-or-v1-YOUR-API-KEY"
+    model: "google/gemini-2.0-flash-001"
+
+llm:
+  provider: "main"
+
 server:
   host: "127.0.0.1"
   port: 8088
-
-llm:
-  provider: openrouter
-  base_url: "https://openrouter.ai/api/v1"
-  api_key: "sk-or-v1-YOUR-API-KEY"
-  model: "arcee-ai/trinity-large-preview:free"
 ```
 
 > 💡 **No API key?** Visit [openrouter.ai](https://openrouter.ai) – there are free models available.
+
+> ℹ️ **Note:** The provider system (using `providers:` list) is the recommended configuration method for AuraGo 2.x. The provider ID is then referenced in the `llm.provider` field.
 
 ### 2. Set Master Key
 

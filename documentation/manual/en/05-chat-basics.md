@@ -56,19 +56,19 @@ You: Write a Python function to calculate fibonacci numbers
 
 Share code for analysis or modification:
 
-<pre>
+```
 You: ```python
 def calculate_total(items):
     return sum(item['price'] for item in items)
 ```
 Can you add error handling to this function?
-</pre>
+```
 
 ### Structured Data
 
 Provide data in JSON, YAML, or Markdown:
 
-<pre>
+```
 You: ```json
 {
   "server": "192.168.1.100",
@@ -77,7 +77,7 @@ You: ```json
 }
 ```
 Generate a curl command from this config
-</pre>
+```
 
 ### Commands with Parameters
 
