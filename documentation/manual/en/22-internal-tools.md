@@ -83,6 +83,43 @@ Invoke a dynamic tool or skill directly by name.
 | `tool_name` | string | Name of the tool/skill |
 | `arguments` | object | Arguments as JSON object |
 
+### `list_agent_skills`
+List enabled Agent Skills packages.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `search` | string | Optional search term for Agent Skill name or description |
+
+### `activate_agent_skill`
+Load full SKILL.md instructions for an enabled Agent Skill package.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `skill` | string | Agent Skill name to activate |
+| `name` | string | Alias for skill |
+
+### `run_agent_skill_script`
+Run an approved Python script from an enabled Agent Skill package.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `skill` | string | Agent Skill name |
+| `name` | string | Alias for skill |
+| `script` | string | Script path under scripts/, e.g. scripts/analyze.py |
+| `args` | object | JSON arguments sent to the script on stdin |
+
+### `run_tool`
+Run a saved custom Python tool from the agent tools directory.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | string | Custom tool filename or registered manifest name to run |
+| `args` | array | Optional positional command-line arguments for the tool |
+| `params` | object | Optional structured parameters; forwarded to the tool as one JSON argument |
+| `background` | boolean | Run as background process (default false) |
+| `vault_keys` | array | List of vault secret key names to inject as environment variables |
+| `credential_ids` | array | List of credential UUIDs to inject as environment variables |
+
 ---
 
 ## Filesystem
@@ -189,6 +226,15 @@ Schedule an autonomous background task.
 
 ### `wait_for_event`
 Wait asynchronously for events (process exit, HTTP available, file change).
+
+### `package_manager`
+Detect, search, install, remove, update and inspect OS packages.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | detect, install, remove, update, upgrade, search, list_installed, info |
+| `package` | string | Package name. Required for install, remove, search, and info |
+| `manager` | string | Optional package manager override: apt, dnf, yum, pacman, zypper, apk, brew, winget, choco, or scoop |
 
 ---
 
@@ -353,17 +399,103 @@ Send a message or media via the configured Telegram bot.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `chat_id` | string | Target chat ID |
 | `message` | string | Message text |
-| `file_path` | string | Optional: file path to send |
+| `title` | string | Optional: title for the message |
+| `priority` | string | Optional: priority (normal, high, low) |
 
 ### `send_youtube_video`
-Search for and send a YouTube video to the user. Supports direct links or keyword search.
+Send a YouTube video as an embedded player or link to the user.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `query` | string | Search term or YouTube URL |
-| `max_results` | integer | Maximum number of results |
+| `url` | string | YouTube URL |
+| `title` | string | Optional: display title |
+| `start_seconds` | integer | Optional: start time in seconds |
+
+### `tts`
+Text-to-Speech: convert text to audio.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `text` | string | Text to synthesize into speech |
+| `language` | string | Language code for the speech (e.g. 'en', 'de', 'es', 'fr') |
+
+### `chromecast`
+Cast media to Chromecast devices.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | discover, play, speak, stop, volume, status |
+| `device_name` | string | Friendly device name (resolved via device registry) |
+| `device_addr` | string | IP address of the Chromecast device |
+| `device_port` | integer | Port of the Chromecast device (default: 8009) |
+| `url` | string | Media URL to cast (for 'play' operation) |
+| `local_path` | string | Local workspace file to cast (for 'play') |
+| `content_type` | string | MIME type of the media (for 'play', e.g. 'video/mp4') |
+| `text` | string | Text to speak aloud via TTS (for 'speak' operation) |
+| `language` | string | Language code for TTS speech (for 'speak') |
+| `volume` | number | Volume level 0.0–1.0 (for 'volume' operation) |
+
+### `jellyfin`
+Control Jellyfin media server.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | health, library_list, search, item_details, recent_items, sessions, playback_control, library_refresh, delete_item, activity_log |
+| `query` | string | Search query (for search) |
+| `media_type` | string | Filter by media type: movie, series, episode, music, album, artist |
+| `item_id` | string | Media item ID (for item_details, delete_item) |
+| `library_id` | string | Library ID (for library_refresh) |
+| `session_id` | string | Session ID (for playback_control) |
+| `command` | string | Playback command: play, pause, stop, next, previous |
+| `limit` | integer | Max results to return (default: 20) |
+
+### `agentmail`
+Manage AgentMail inboxes, messages, threads, drafts, labels, and replies.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | test_connection, list_inboxes, get_inbox, create_inbox, update_inbox, delete_inbox, list_messages, get_message, update_message_labels, delete_message, send_message, reply_message, reply_all_message, forward_message, get_raw_message, get_attachment, list_threads, get_thread, list_drafts, get_draft, create_draft, update_draft, delete_draft, send_draft |
+| `inbox_id` | string | AgentMail inbox ID |
+| `message_id` | string | AgentMail message ID |
+| `thread_id` | string | AgentMail thread ID |
+| `draft_id` | string | AgentMail draft ID |
+| `attachment_id` | string | AgentMail attachment ID |
+| `limit` | integer | Maximum number of records to return |
+| `cursor` | string | Pagination cursor |
+| `after` | string | Optional ISO timestamp filter for list_messages |
+| `labels` | array | Labels for list_messages filtering |
+| `add_labels` | array | Labels to add for update_message_labels |
+| `remove_labels` | array | Labels to remove for update_message_labels |
+| `to` | array | Recipient email addresses for send/forward |
+| `cc` | array | CC recipient addresses |
+| `bcc` | array | BCC recipient addresses |
+| `subject` | string | Email subject for send/draft operations |
+| `text` | string | Plain text body for send/reply/forward/draft operations |
+| `html` | string | HTML body for send/reply/forward/draft operations |
+| `attachments` | array | Attachments as workspace paths or base64 objects |
+| `username` | string | Inbox username for create_inbox |
+| `domain` | string | Inbox domain for create_inbox |
+| `display_name` | string | Inbox display name for create/update inbox |
+
+### `send_discord`
+Send messages to Discord channels.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `message` | string | Message text to send |
+| `channel_id` | string | Discord channel ID (uses default_channel_id from config if omitted) |
+
+### `fetch_discord`
+Read messages from Discord channels.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `channel_id` | string | Discord channel ID (uses default from config if omitted) |
+| `limit` | integer | Number of messages to fetch (default: 10) |
+
+### `list_discord_channels`
+List all text channels in the configured Discord server (guild).
 
 ---
 
@@ -380,7 +512,11 @@ Add new device to inventory.
 | `hostname` | string | Device name |
 | `device_type` | string | server, docker, vm, network_device |
 | `ip_address` | string | IP address |
-| `ssh_user` | string | SSH username |
+| `username` | string | SSH username |
+| `password` | string | Optional: SSH password |
+| `private_key_path` | string | Optional: path to SSH private key |
+| `port` | integer | Optional: SSH port (default: 22) |
+| `description` | string | Optional: description |
 | `tags` | string | Comma-separated tags |
 | `mac_address` | string | MAC address for WOL |
 
@@ -404,7 +540,6 @@ Execute command on remote SSH server.
 |-----------|------|-------------|
 | `server_id` | string | Server ID or hostname |
 | `command` | string | Command to execute |
-| `direction` | enum | upload, download (for file transfer) |
 
 ### `transfer_remote_file`
 Transfer files to/from a remote SSH server.
@@ -596,6 +731,116 @@ Run Ansible playbooks and ad-hoc commands.
 ### `meshcentral`
 Manage MeshCentral devices.
 
+### `koofr`
+Access Koofr cloud storage: list, read, download, upload, move, and copy files.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | list, read, download, write, upload, mkdir, delete, rename, move, copy |
+| `path` | string | File or directory path in Koofr |
+| `destination` | string | Destination path for rename/move/copy operations |
+| `content` | string | Non-empty text content to write (for 'write' operation only) |
+| `local_path` | string | Existing local file path to upload (for 'upload' operation) |
+
+### `yepapi_seo`
+SEO data via YepAPI: domain overviews, keywords, competitors, and backlinks.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | keywords, keyword_ideas, domain_overview, domain_keywords, competitors, backlinks, onpage, trends |
+| `keywords` | array | Array of keywords (for 'keywords' operation) |
+| `seed` | string | Seed keyword for suggestions (for 'keyword_ideas') |
+| `domain` | string | Domain name (for domain_* operations) |
+| `target` | string | Target domain or URL (for 'backlinks') |
+| `url` | string | Page URL to audit (for 'onpage') |
+
+### `yepapi_serp`
+Search engine results via YepAPI: Google, Google Maps, News, Images, and autocomplete.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | google, google_images, google_news, google_maps, google_datasets, google_autocomplete, google_ads, google_ai_mode, google_finance, yahoo, bing, baidu, youtube |
+| `query` | string | Search query (required) |
+| `depth` | integer | Number of results to return (default: 10) |
+| `location` | string | Country code for localised results |
+| `language` | string | Language code |
+| `limit` | integer | Max results for Google Maps (default: 10) |
+| `open_now` | boolean | Filter Google Maps for currently open places |
+
+### `yepapi_scrape`
+Scrape and extract web page content through YepAPI.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | scrape, js, stealth, screenshot, extract, ai_extract, search_google |
+| `url` | string | URL to scrape |
+| `query` | string | Google search query (for search_google operation) |
+| `selector` | string | CSS selector for extract operation |
+| `xpath` | string | XPath selector for extract operation |
+| `format` | string | Output format: 'markdown' or 'html' (default: markdown) |
+| `prompt` | string | Natural language extraction prompt (for ai_extract) |
+| `limit` | integer | Max results for search_google |
+
+### `yepapi_youtube`
+YouTube data via YepAPI: search, videos, transcripts, comments, channels, and playlists.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | search, video, video_info, metadata, transcript, subtitles, comments, channel, channel_videos, channel_shorts, channel_livestreams, channel_live, channel_playlists, channel_community, channel_about, channel_search, channel_channels, channel_store, playlist, playlist_info, trending, related, screenshot, shorts, shorts_info, suggest, hashtag, post, post_comments, home, hype, resolve |
+| `query` | string | Search query |
+| `video_id` | string | YouTube video ID |
+| `channel_id` | string | YouTube channel ID |
+| `playlist_id` | string | YouTube playlist ID |
+| `url` | string | YouTube URL (for resolve operation) |
+| `tag` | string | Hashtag/tag without # |
+| `post_id` | string | YouTube community post ID |
+| `country` | string | Optional country code for feed-style operations |
+| `language` | string | Optional language code for feed-style operations |
+| `limit` | integer | Max results to return (default: 10) |
+
+### `yepapi_tiktok`
+TikTok data via YepAPI: videos, users, posts, comments, music, and challenges.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | search, search_user, search_challenge, search_photo, video, user, user_posts, user_followers, user_following, user_favorites, user_reposts, user_story, comments, comment_replies, music, music_videos, challenge, challenge_videos |
+| `query` | string | Search query |
+| `url` | string | TikTok video or music URL |
+| `username` | string | TikTok username/unique_id |
+| `name` | string | Challenge name |
+| `comment_id` | string | TikTok comment ID |
+| `limit` | integer | Max results to return (default: 10) |
+
+### `yepapi_instagram`
+Instagram data via YepAPI: users, posts, reels, comments, hashtags, and places.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | search, user, userinfo, user_info, profile, user_profile, user_about, user_posts, user_reels, user_stories, user_highlights, user_tagged, user_followers, user_similar, post, post_comments, post_likers, hashtag, media_id |
+| `query` | string | Search query for search operation |
+| `search_query` | string | Search query for search operation |
+| `username` | string | Alias for username_or_url |
+| `username_or_url` | string | Instagram username or profile URL |
+| `shortcode` | string | Instagram post shortcode |
+| `tag` | string | Hashtag without # |
+| `limit` | integer | Max results to return (default: 10) |
+
+### `yepapi_amazon`
+Amazon data via YepAPI: products, reviews, offers, categories, and search.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | search, product, reviews, product_offers, products_by_category, categories, deals, best_sellers, influencer, seller, seller_reviews |
+| `query` | string | Search query (for search operation) |
+| `asin` | string | Amazon ASIN product ID |
+| `country` | string | Amazon marketplace country code (default: 'US') |
+| `category` | string | Category slug or browse node ID |
+| `handle` | string | Amazon influencer handle |
+| `seller_id` | string | Amazon seller ID |
+| `limit` | integer | Max results to return where supported |
+| `page` | integer | Page number for paginated operations |
+| `sort_by` | string | Review sort order: 'TOP_REVIEWS' or 'MOST_RECENT' |
+
 ---
 
 ## Network & Security
@@ -696,6 +941,34 @@ Complex browser automation via a sidecar instance (Chrome/Chromium). Supports na
 ### `site_monitor`
 Monitor websites for changes.
 
+### `ddg_search`
+Search the web with DuckDuckGo and return the top results.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `query` | string | Search query to submit to DuckDuckGo |
+| `max_results` | integer | Maximum number of results to return (default: 5) |
+| `search_query` | string | Optional focused question for summary mode |
+
+### `wikipedia_search`
+Look up encyclopedic topics on Wikipedia.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `query` | string | The Wikipedia search term or page title to look up |
+| `language` | string | Optional Wikipedia language code such as de, en, fr, or ja |
+| `search_query` | string | Optional focused question for summary mode |
+
+### `brave_search`
+Search the web with Brave Search.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `query` | string | The search query string (required) |
+| `count` | integer | Number of results to return (1-20, default: 10) |
+| `country` | string | Two-letter country code for localised results |
+| `lang` | string | Search language code |
+
 ---
 
 ## Documents & Media Processing
@@ -748,10 +1021,27 @@ Convert media files between different formats (video, audio, images). Uses FFmpe
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `input_path` | string | Input file |
-| `output_path` | string | Output file |
-| `output_format` | string | Target format |
-| `options` | object | Additional FFmpeg options |
+| `operation` | enum | convert, info, extract_audio, extract_video, thumbnail |
+| `file_path` | string | Input file |
+| `output_file` | string | Output file |
+| `output_format` | string | Target format (mp4, webm, mp3, wav, jpg, png) |
+| `video_codec` | string | Optional: video codec (h264, hevc, vp9) |
+| `audio_codec` | string | Optional: audio codec (aac, mp3, opus) |
+| `video_bitrate` | string | Optional: video bitrate (e.g. 2M) |
+| `audio_bitrate` | string | Optional: audio bitrate (e.g. 128k) |
+| `width` | integer | Optional: target width in pixels |
+| `height` | integer | Optional: target height in pixels |
+| `fps` | integer | Optional: frames per second |
+| `sample_rate` | integer | Optional: audio sample rate |
+| `quality_pct` | integer | Optional: quality (1-100) |
+
+### `pdf_extractor`
+Extract and optionally summarise text from PDF documents.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `filepath` | string | The path to the PDF file |
+| `search_query` | string | When summary mode is active, tell the summariser what information to extract |
 
 ---
 
@@ -864,22 +1154,86 @@ Query Grafana dashboards and data sources, create snapshots. Enables access to v
 | `panel_id` | integer | Panel ID |
 
 ### `space_agent`
-Manage and control Space Agents — specialized agent instances for distributed task processing.
+Send instructions to the configured Space Agent sidecar.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `operation` | enum | list, spawn, stop, status, send_task |
-| `agent_id` | string | Agent ID |
-| `task` | string | Task description |
+| `instruction` | string | Clear instruction for the Space Agent instance |
+| `information` | string | Optional: supporting context (no secrets) |
+| `session_id` | string | Optional: correlation/session identifier |
 
 ### `virtual_desktop`
-Control a virtual desktop environment (VNC/RDP). Enables remote access, screenshots, and input simulation on remote desktops.
+Control AuraGo's browser virtual desktop. Enables file operations, app installation, widgets, Office documents, and notifications.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `operation` | enum | connect, screenshot, click, type, disconnect |
-| `host` | string | Server address |
-| `port` | integer | Port |
+| `operation` | enum | status, bootstrap, list_files, read_file, search_file, read_file_excerpt, write_file, patch_file, delete, delete_file, delete_path, delete_app, read_document, write_document, patch_document, read_workbook, write_workbook, set_cell, set_range, evaluate_formula, export_file, install_app, upsert_widget, open_app, open_in_app, show_notification, list_apps, get_app, list_widgets, get_widget, diagnose_app, diagnose_widget |
+| `path` | string | Workspace-relative file or directory path |
+| `file_path` | string | Alias for path |
+| `content` | string | File content, document text, cell value, or notification text |
+| `allow_empty` | boolean | Only for intentionally empty non-app/non-widget files |
+| `query` | string | Search text for search_file |
+| `line_start` | integer | Line number for read_file_excerpt |
+| `line_count` | integer | Number of lines for read_file_excerpt (default: 80) |
+| `max_matches` | integer | Maximum matches for search_file (default: 8) |
+| `context_lines` | integer | Context lines around search_file matches (default: 2) |
+| `case_sensitive` | boolean | Case-sensitive matching for search_file |
+| `title` | string | Notification or widget title |
+| `html` | string | Optional: HTML representation for documents |
+| `document` | object | Document payload for write_document |
+| `workbook` | object | Workbook payload for write_workbook |
+
+### `truenas`
+Manage TrueNAS storage (pools, datasets, snapshots, shares).
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `action` | enum | truenas_health, truenas_pool_list, truenas_pool_scrub, truenas_dataset_list, truenas_dataset_create, truenas_dataset_delete, truenas_snapshot_list, truenas_snapshot_create, truenas_snapshot_delete, truenas_snapshot_rollback, truenas_smb_list, truenas_smb_create, truenas_smb_delete, truenas_fs_space |
+| `name` | string | Dataset, snapshot, or SMB share name |
+| `path` | string | SMB share local filesystem path (for truenas_smb_create) |
+| `query` | string | Pool name or dataset path for filtering |
+| `port` | integer | Numeric pool ID for truenas_pool_scrub, or SMB share ID for truenas_smb_delete |
+| `limit` | integer | Quota in GB for truenas_dataset_create, or snapshot retention days |
+| `content` | string | Compression type for truenas_dataset_create: lz4, zstd, gzip, off |
+| `recursive` | boolean | Enable recursive operation |
+| `force` | boolean | Force rollback |
+
+### `office_document`
+Create, read, patch, and export virtual desktop Writer documents.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | read, write, patch, export |
+| `path` | string | Workspace-relative document path |
+| `file_path` | string | Alias for path |
+| `output_path` | string | Workspace-relative target path for export |
+| `format` | string | Export format: docx, html, md, or txt |
+| `title` | string | Document title for write or patch |
+| `content` | string | Plain document text for write, or seed text for patch |
+| `text` | string | Alias for content |
+| `html` | string | Optional HTML representation for write |
+| `prepend_text` | string | Text to prepend during patch |
+| `append_text` | string | Text to append during patch |
+| `replacements` | array | Patch replacements, each item {find, replace} |
+| `document` | object | Complete document payload for write |
+
+### `office_workbook`
+Create, read, edit, evaluate, and export virtual desktop spreadsheets.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | read, write, set_cell, set_range, evaluate_formula, export |
+| `path` | string | Workspace-relative workbook path |
+| `file_path` | string | Alias for path |
+| `output_path` | string | Workspace-relative target path for export |
+| `format` | string | Export format: xlsx or csv |
+| `sheet` | string | Sheet name for workbook operations |
+| `cell` | string | A1-style cell reference for set_cell |
+| `start_cell` | string | A1-style top-left cell reference for set_range |
+| `value` | string | Cell value for set_cell |
+| `formula` | string | Cell formula for set_cell/evaluate_formula |
+| `values` | array | 2D array for set_range |
+| `workbook` | object | Workbook payload for write |
 
 ---
 
@@ -983,34 +1337,4 @@ Not all tools are available by default. Availability depends on **Tool Feature F
 
 ---
 
-## Additional Tools & Integrations
 
-### `tts`
-Text-to-Speech synthesis via configurable providers (ElevenLabs, Piper, MiniMax, Wyoming). Always available.
-
-### `chromecast`
-Discover and control Chromecast devices on the network (Play, TTS, Discover).
-
-### `brave_search`
-Web search via Brave Search API.
-
-### `ddg_search`
-Web search via DuckDuckGo (Instant Answers and HTML results).
-
-### `wikipedia_search`
-Search and read Wikipedia articles.
-
-### `scraper_summary`
-Automatically summarize and structure web scraping results.
-
-### `truenas`
-Manage TrueNAS SCALE storage (pools, datasets, shares, snapshots).
-
-### `jellyfin`
-Control Jellyfin Media Server (libraries, sessions, playback).
-
-### `koofr`
-Koofr cloud storage file operations (list, upload, download, links).
-
-### `pdf_extractor`
-Extract text and metadata from PDF files (including OCR support). Executed as a skill.

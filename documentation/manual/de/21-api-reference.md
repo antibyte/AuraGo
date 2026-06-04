@@ -14,16 +14,52 @@ AuraGo bietet eine umfassende REST API für den programmatischen Zugriff auf all
 3. [Memory API](#memory-api)
 4. [Dashboard API](#dashboard-api)
 5. [Config API](#config-api)
-6. [Vault API](#vault-api)
-7. [Geräte API](#geräte-api)
-8. [Mission Control API](#mission-control-api)
-9. [Container API](#container-api)
-10. [Skills API](#skills-api)
-11. [Webhook API](#webhook-api)
-12. [SSE Events](#sse-events)
-13. [Config Rules API](#config-rules-api)
-14. [Desktop API](#desktop-api)
-15. [Pixel Bildeditor API](#pixel-bildeditor-api)
+6. [Config Rules API](#config-rules-api)
+7. [Vault API](#vault-api)
+8. [Geräte API](#geräte-api)
+9. [Credentials API](#credentials-api)
+10. [Mission Control API](#mission-control-api)
+11. [Container API](#container-api)
+12. [Desktop API](#desktop-api)
+13. [Pixel Bildeditor API](#pixel-bildeditor-api)
+14. [Skills API](#skills-api)
+15. [Knowledge API](#knowledge-api)
+16. [Cheat Sheets API](#cheat-sheets-api)
+17. [Contacts API](#contacts-api)
+18. [SQL Connections API](#sql-connections-api)
+19. [Cron API](#cron-api)
+20. [Background Tasks API](#background-tasks-api)
+21. [Indexing API](#indexing-api)
+22. [Backup API](#backup-api)
+23. [Update API](#update-api)
+24. [Budget API](#budget-api)
+25. [Upload API](#upload-api)
+26. [Embeddings API](#embeddings-api)
+27. [A2A Protocol API](#a2a-protocol-api)
+28. [Invasion Control API](#invasion-control-api)
+29. [Music Generation API](#music-generation-api)
+30. [Video Generation API](#video-generation-api)
+31. [Document Creator API](#document-creator-api)
+32. [Knowledge Graph API](#knowledge-graph-api)
+33. [Planner API](#planner-api)
+34. [Helper LLM API](#helper-llm-api)
+35. [Notification API](#notification-api)
+36. [Push API](#push-api-pwa)
+37. [Webhook API](#webhook-api)
+38. [Token API](#token-api)
+39. [Provider API](#provider-api)
+40. [Ollama API](#ollama-api)
+41. [Security Proxy API](#security-proxy-api)
+42. [OpenRouter API](#openrouter-api)
+43. [Personality API](#personality-api)
+44. [Sandbox API](#sandbox-api)
+45. [Security API](#security-api)
+46. [System API](#system-api)
+47. [i18n API](#i18n-api)
+48. [Setup API](#setup-api)
+49. [Health Check](#health-check)
+50. [SSE Events](#sse-events)
+51. [Fehlerbehandlung](#fehlerbehandlung)
 
 ---
 
@@ -51,6 +87,14 @@ Content-Type: application/x-www-form-urlencoded
 password=geheim&totp_code=123456
 ```
 
+**Antwort:**
+```json
+{
+  "success": true,
+  "token": "eyJhbGciOiJIUzI1NiIs..."
+}
+```
+
 ### Logout
 ```http
 POST /api/auth/logout
@@ -70,6 +114,24 @@ Content-Type: application/json
     {"role": "user", "content": "Hallo AuraGo!"}
   ],
   "stream": true
+}
+```
+
+**Antwort:**
+```json
+{
+  "id": "chatcmpl-123",
+  "object": "chat.completion",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Hallo! Wie kann ich dir helfen?"
+      },
+      "finish_reason": "stop"
+    }
+  ]
 }
 ```
 
@@ -112,6 +174,14 @@ Content-Type: application/json
 {
   "session_id": "default",
   "before_message_id": 123
+}
+```
+
+**Antwort:**
+```json
+{
+  "success": true,
+  "archived": 5
 }
 ```
 
@@ -255,6 +325,14 @@ Content-Type: application/json
 }
 ```
 
+**Antwort:**
+```json
+{
+  "success": true,
+  "restart_required": false
+}
+```
+
 ### Konfigurations-Schema
 ```http
 GET /api/config/schema
@@ -351,6 +429,13 @@ DELETE /api/vault?key=secret_name
 GET /api/devices
 ```
 
+**Antwort:**
+```json
+{
+  "devices": []
+}
+```
+
 ### Gerät erstellen
 ```http
 POST /api/devices
@@ -363,6 +448,14 @@ Content-Type: application/json
   "ssh_port": 22,
   "ssh_user": "root",
   "tags": ["produktion", "web"]
+}
+```
+
+**Antwort:**
+```json
+{
+  "id": "dev-123",
+  "success": true
 }
 ```
 
@@ -455,6 +548,14 @@ Content-Type: application/json
 }
 ```
 
+**Antwort:**
+```json
+{
+  "id": "mission-456",
+  "status": "queued"
+}
+```
+
 ### Mission verwalten
 ```http
 GET /api/missions/v2/{id}
@@ -484,6 +585,13 @@ GET /api/missions/v2/dependencies
 ### Container auflisten
 ```http
 GET /api/containers
+```
+
+**Antwort:**
+```json
+{
+  "containers": []
+}
 ```
 
 ### Container-Aktionen
@@ -636,6 +744,13 @@ Relative Pfade werden unter dem konfigurierten Data-Workspace gespeichert.
 GET /api/skills
 ```
 
+**Antwort:**
+```json
+{
+  "skills": []
+}
+```
+
 ### Skill erstellen
 ```http
 POST /api/skills
@@ -645,6 +760,14 @@ Content-Type: application/json
   "name": "Mein Skill",
   "description": "Beschreibung",
   "code": "..."
+}
+```
+
+**Antwort:**
+```json
+{
+  "id": "skill-789",
+  "success": true
 }
 ```
 
@@ -810,6 +933,13 @@ GET /api/cheatsheets
 POST /api/cheatsheets
 ```
 
+**Antwort (GET):**
+```json
+{
+  "cheatsheets": []
+}
+```
+
 ### Cheat Sheet verwalten
 ```http
 GET /api/cheatsheets/{id}
@@ -825,6 +955,13 @@ DELETE /api/cheatsheets/{id}
 ```http
 GET /api/contacts
 POST /api/contacts
+```
+
+**Antwort (GET):**
+```json
+{
+  "contacts": []
+}
 ```
 
 ### Kontakt verwalten
@@ -857,6 +994,14 @@ Content-Type: application/json
 }
 ```
 
+**Antwort:**
+```json
+{
+  "id": "sql-001",
+  "success": true
+}
+```
+
 ### Verbindung testen
 ```http
 POST /api/sql-connections/{id}/test
@@ -879,6 +1024,13 @@ GET /api/cron
 POST /api/cron
 PUT /api/cron/{id}
 DELETE /api/cron/{id}
+```
+
+**Antwort (GET):**
+```json
+{
+  "jobs": []
+}
 ```
 
 ---
@@ -934,6 +1086,14 @@ Content-Type: application/json
 }
 ```
 
+**Antwort:**
+```json
+{
+  "id": "backup-001",
+  "status": "running"
+}
+```
+
 ### Backup importieren
 ```http
 POST /api/backup/import
@@ -968,6 +1128,14 @@ POST /api/restart
 ### Budget-Status
 ```http
 GET /api/budget
+```
+
+**Antwort:**
+```json
+{
+  "today_usd": 0.5,
+  "limit_usd": 5.0
+}
 ```
 
 ### OpenRouter Credits
@@ -1137,6 +1305,13 @@ Diese Endpunkte prüfen und warten den Hintergrunddienst File KG Sync, der Entit
 GET /api/plans
 ```
 
+**Antwort:**
+```json
+{
+  "plans": []
+}
+```
+
 ### Aktiven Plan abrufen
 ```http
 GET /api/plans/active
@@ -1211,6 +1386,13 @@ GET /api/push/status
 GET /api/webhooks
 ```
 
+**Antwort:**
+```json
+{
+  "webhooks": []
+}
+```
+
 ### Webhook erstellen
 ```http
 POST /api/webhooks
@@ -1220,6 +1402,14 @@ Content-Type: application/json
   "name": "GitHub Webhook",
   "url": "https://example.com/webhook",
   "events": ["push", "pull_request"]
+}
+```
+
+**Antwort:**
+```json
+{
+  "id": "wh-001",
+  "success": true
 }
 ```
 
@@ -1268,6 +1458,14 @@ Content-Type: application/json
 {
   "name": "API-Zugriff",
   "scopes": ["read", "write"]
+}
+```
+
+**Antwort:**
+```json
+{
+  "id": "token-001",
+  "token": "agt_xxxxxxxxxxxxxxxx"
 }
 ```
 
@@ -1355,6 +1553,13 @@ Content-Type: application/json
 
 {
   "core_personality": "tech"
+}
+```
+
+**Antwort:**
+```json
+{
+  "success": true
 }
 ```
 
@@ -1457,6 +1662,14 @@ Content-Type: application/json
 }
 ```
 
+**Antwort:**
+```json
+{
+  "success": true,
+  "restart_required": true
+}
+```
+
 ---
 
 ## Health Check
@@ -1470,6 +1683,66 @@ GET /api/health
 ```json
 {
   "status": "ok"
+}
+```
+
+---
+
+## 3D Printer API
+
+### Verbindung testen
+```http
+GET /api/3d-printers/test
+```
+
+### Drucker-Status abrufen
+```http
+GET /api/3d-printers/status
+```
+
+**Antwort:**
+```json
+{
+  "printers": [
+    {
+      "name": "elegoo",
+      "type": "elegoo_centauri_carbon",
+      "status": "printing",
+      "progress": 42.5
+    }
+  ]
+}
+```
+
+---
+
+## AgentMail API
+
+### Status abrufen
+```http
+GET /api/agentmail/status
+```
+
+**Antwort:**
+```json
+{
+  "enabled": true,
+  "inbox_id": "inbox_123",
+  "address": "aurago@agentmail.io",
+  "unread_count": 3
+}
+```
+
+### Verbindung testen
+```http
+POST /api/agentmail/test
+```
+
+**Antwort:**
+```json
+{
+  "success": true,
+  "message": "Connection successful"
 }
 ```
 

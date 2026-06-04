@@ -83,6 +83,43 @@ Ruft ein dynamisches Tool oder einen Skill direkt per Name auf.
 | `tool_name` | string | Name des Tools/Skills |
 | `arguments` | object | Argumente als JSON-Objekt |
 
+### `list_agent_skills`
+Listet aktivierte Agent Skills Pakete auf.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `search` | string | Optionaler Suchbegriff für Agent Skill Name oder Beschreibung |
+
+### `activate_agent_skill`
+Lädt die vollständigen SKILL.md-Anweisungen für ein aktiviertes Agent Skill Paket.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `skill` | string | Zu aktivierender Agent Skill Name |
+| `name` | string | Alias für skill |
+
+### `run_agent_skill_script`
+Führt ein genehmigtes Python-Skript aus einem aktivierten Agent Skill Paket mit JSON-Argumenten aus.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `skill` | string | Agent Skill Name |
+| `name` | string | Alias für skill |
+| `script` | string | Skriptpfad unter scripts/, z.B. scripts/analyze.py |
+| `args` | object | JSON-Argumente, die an das Skript über stdin gesendet werden |
+
+### `run_tool`
+Führt ein gespeichertes benutzerdefiniertes Python-Tool aus dem Agent-Tools-Verzeichnis aus.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `name` | string | Name des benutzerdefinierten Tools |
+| `args` | array | Optionale positionale Kommandozeilenargumente |
+| `params` | object | Optionale strukturierte Parameter |
+| `background` | boolean | Als Hintergrundprozess ausführen |
+| `vault_keys` | array | Vault-Secret-Keys für die Injektion |
+| `credential_ids` | array | Credential-UUIDs für die Injektion |
+
 ---
 
 ## Dateisystem
@@ -206,6 +243,15 @@ Autonome Hintergrundaufgabe planen.
 
 ### `wait_for_event`
 Asynchron auf Ereignisse warten (Prozess-Ende, HTTP verfügbar, Datei-Änderung).
+
+### `package_manager`
+Verwaltet Systempakete unter Linux, macOS und Windows. Erkennt apt, dnf, yum, pacman, zypper, apk, brew, winget, choco oder scoop automatisch.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | detect, install, remove, update, upgrade, search, list_installed, info |
+| `package` | string | Paketname (erforderlich für install, remove, search, info) |
+| `manager` | string | Optionaler Paketmanager-Override |
 
 ---
 
@@ -390,17 +436,53 @@ Sendet eine Nachricht oder ein Medium über den konfigurierten Telegram-Bot.
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
-| `chat_id` | string | Ziel-Chat-ID |
 | `message` | string | Nachrichtentext |
-| `file_path` | string | Optional: Dateipfad zum Versenden |
+| `title` | string | Optional: Titel für die Nachricht |
+| `priority` | string | Optional: Priorität (normal, high, low) |
 
 ### `send_youtube_video`
-Sucht und sendet ein YouTube-Video an den Benutzer. Unterstützt direkte Links oder Keyword-Suche.
+Sendet ein YouTube-Video als eingebetteten Player oder Link an den Benutzer.
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
-| `query` | string | Suchbegriff oder YouTube-URL |
-| `max_results` | integer | Maximale Anzahl Ergebnisse |
+| `url` | string | YouTube-URL |
+| `title` | string | Optional: Anzeigetitel |
+| `start_seconds` | integer | Optional: Startzeitpunkt in Sekunden |
+
+### `agentmail`
+Verwaltet AgentMail Postfächer, Nachrichten, Threads, Entwürfe und Labels über eine API-basierte E-Mail-Integration.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | test_connection, list_inboxes, get_inbox, create_inbox, update_inbox, delete_inbox, list_messages, get_message, update_message_labels, delete_message, send_message, reply_message, reply_all_message, forward_message, get_raw_message, get_attachment, list_threads, get_thread, list_drafts, get_draft, create_draft, update_draft, delete_draft, send_draft |
+| `inbox_id` | string | AgentMail Postfach-ID |
+| `message_id` | string | Nachrichten-ID |
+| `thread_id` | string | Thread-ID |
+| `draft_id` | string | Entwurfs-ID |
+| `limit` | integer | Maximale Anzahl der zurückgegebenen Datensätze |
+| `cursor` | string | Paginierungs-Cursor |
+| `subject` | string | E-Mail-Betreff |
+| `text` | string | Klartext-Body |
+| `html` | string | HTML-Body |
+
+### `send_discord`
+Sendet eine Nachricht an einen Discord-Kanal.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `message` | string | Nachrichtentext |
+| `channel_id` | string | Discord Kanal-ID |
+
+### `fetch_discord`
+Ruft aktuelle Nachrichten aus einem Discord-Kanal ab.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `channel_id` | string | Discord Kanal-ID |
+| `limit` | integer | Anzahl der abzurufenden Nachrichten (Standard: 10) |
+
+### `list_discord_channels`
+Listet alle Textkanäle im konfigurierten Discord-Server (Guild) auf.
 
 ---
 
@@ -417,7 +499,11 @@ Neues Gerät zum Inventar hinzufügen.
 | `hostname` | string | Gerätename |
 | `device_type` | string | server, docker, vm, network_device |
 | `ip_address` | string | IP-Adresse |
-| `ssh_user` | string | SSH-Benutzername |
+| `username` | string | SSH-Benutzername |
+| `password` | string | Optional: SSH-Passwort |
+| `private_key_path` | string | Optional: Pfad zum SSH-Private-Key |
+| `port` | integer | Optional: SSH-Port (Standard: 22) |
+| `description` | string | Optional: Beschreibung |
 | `tags` | string | Komma-getrennte Tags |
 | `mac_address` | string | MAC-Adresse für WOL |
 
@@ -441,7 +527,6 @@ Befehl auf entferntem SSH-Server ausführen.
 |-----------|-----|--------------|
 | `server_id` | string | Server-ID oder Hostname |
 | `command` | string | Auszuführender Befehl |
-| `direction` | enum | upload, download (für Datei-Transfer) |
 
 ### `transfer_remote_file`
 Datei zu/von einem entfernten SSH-Server übertragen.
@@ -646,6 +731,84 @@ Paperless-ngx Dokumentenverwaltung (Suche, Upload, Metadaten, Tags).
 | `query` | string | Suchbegriff |
 | `document_id` | integer | Dokument-ID |
 
+### `yepapi_seo`
+SEO-Analyse über YepAPI: Keyword-Recherche, Domain-Übersicht, Wettbewerbsanalyse, Backlink-Zusammenfassung und On-Page-Audits.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | keywords, keyword_ideas, domain_overview, domain_keywords, competitors, backlinks, onpage, trends |
+| `keywords` | array | Array von Keywords (für 'keywords') |
+| `seed` | string | Seed-Keyword für Vorschläge (für 'keyword_ideas') |
+| `domain` | string | Domain-Name (für domain_* Operationen) |
+
+### `yepapi_serp`
+Suchmaschinenergebnisse über YepAPI: Google, Bing, Yahoo, Baidu, YouTube SERP, Google Images, News, Maps und mehr.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | google, google_images, google_news, google_maps, google_datasets, google_autocomplete, google_ads, google_ai_mode, google_finance, yahoo, bing, baidu, youtube |
+| `query` | string | Suchanfrage |
+| `depth` | integer | Anzahl der Ergebnisse (Standard: 10) |
+| `location` | string | Ländercode für lokalisierte Ergebnisse |
+| `language` | string | Sprachcode |
+
+### `yepapi_scrape`
+Web-Scraping über YepAPI: Standard-Scrape, JavaScript-Rendering, Stealth-Anti-Bot, Screenshots und KI-gestützte Datenextraktion.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | scrape, js, stealth, screenshot, extract, ai_extract, search_google |
+| `url` | string | Zu scrapende URL |
+| `query` | string | Google-Suchanfrage (für search_google) |
+| `selector` | string | CSS-Selektor für extract |
+| `format` | string | Ausgabeformat: markdown oder html |
+
+### `yepapi_youtube`
+YouTube-Daten über YepAPI: Videos suchen, Details abrufen, Transkripte, Kommentare, Kanalinfos, Playlists und Trending-Videos.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | search, video, video_info, metadata, transcript, subtitles, comments, channel, channel_videos, channel_shorts, channel_livestreams, channel_live, channel_playlists, channel_community, channel_about, channel_search, channel_channels, channel_store, playlist, playlist_info, trending, related, screenshot, shorts, shorts_info, suggest, hashtag, post, post_comments, home, hype, resolve |
+| `query` | string | Suchanfrage |
+| `video_id` | string | YouTube Video-ID |
+| `channel_id` | string | YouTube Kanal-ID |
+| `playlist_id` | string | YouTube Playlist-ID |
+
+### `yepapi_tiktok`
+TikTok-Daten über YepAPI: Videos und Benutzer suchen, Video-Details, Profile, Posts, Kommentare, Musik und Challenges.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | search, search_user, search_challenge, search_photo, video, user, user_posts, user_followers, user_following, user_favorites, user_reposts, user_story, comments, comment_replies, music, music_videos, challenge, challenge_videos |
+| `query` | string | Suchanfrage |
+| `url` | string | TikTok Video- oder Musik-URL |
+| `username` | string | TikTok Benutzername |
+| `limit` | integer | Maximale Ergebnisse (Standard: 10) |
+
+### `yepapi_instagram`
+Instagram-Daten über YepAPI: Benutzer/Hashtags/Orte suchen, Profile, Posts, Reels, Kommentare und Hashtag-Posts abrufen.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | search, user, userinfo, user_info, profile, user_profile, user_about, user_posts, user_reels, user_stories, user_highlights, user_tagged, user_followers, user_similar, post, post_comments, post_likers, hashtag, media_id |
+| `query` | string | Suchanfrage |
+| `username_or_url` | string | Instagram Benutzername oder Profil-URL |
+| `shortcode` | string | Instagram Post Shortcode |
+| `tag` | string | Hashtag ohne # |
+| `limit` | integer | Maximale Ergebnisse (Standard: 10) |
+
+### `yepapi_amazon`
+Amazon-Produktdaten über YepAPI: Produkte suchen, Details per ASIN abrufen, Reviews lesen, Deals und Bestseller durchsuchen.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | search, product, reviews, product_offers, products_by_category, categories, deals, best_sellers, influencer, seller, seller_reviews |
+| `query` | string | Suchanfrage |
+| `asin` | string | Amazon ASIN Produkt-ID |
+| `country` | string | Amazon Marketplace Ländercode (Standard: US) |
+| `category` | string | Kategorie-Slug oder Browse Node ID |
+| `limit` | integer | Maximale Ergebnisse |
+
 ---
 
 ## Netzwerk & Sicherheit
@@ -798,10 +961,19 @@ Konvertiert Mediendateien zwischen verschiedenen Formaten (Video, Audio, Bilder)
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
-| `input_path` | string | Eingabedatei |
-| `output_path` | string | Ausgabedatei |
-| `output_format` | string | Zielformat |
-| `options` | object | Zusätzliche FFmpeg-Optionen |
+| `operation` | enum | convert, info, extract_audio, extract_video, thumbnail |
+| `file_path` | string | Eingabedatei |
+| `output_file` | string | Ausgabedatei |
+| `output_format` | string | Zielformat (mp4, webm, mp3, wav, jpg, png) |
+| `video_codec` | string | Optional: Video-Codec (h264, hevc, vp9) |
+| `audio_codec` | string | Optional: Audio-Codec (aac, mp3, opus) |
+| `video_bitrate` | string | Optional: Video-Bitrate (z. B. 2M) |
+| `audio_bitrate` | string | Optional: Audio-Bitrate (z. B. 128k) |
+| `width` | integer | Optional: Zielbreite in Pixeln |
+| `height` | integer | Optional: Zielhöhe in Pixeln |
+| `fps` | integer | Optional: Bilder pro Sekunde |
+| `sample_rate` | integer | Optional: Audio-Sample-Rate |
+| `quality_pct` | integer | Optional: Qualität (1-100) |
 
 ---
 
@@ -914,22 +1086,58 @@ Grafana-Dashboards und -Datenquellen abfragen sowie Snapshots erstellen. Ermögl
 | `panel_id` | integer | Panel-ID |
 
 ### `space_agent`
-Verwaltet und steuert Space-Agents — spezialisierte Agent-Instanzen für verteilte Aufgabenbearbeitung.
+Sendet Anweisungen an den konfigurierten Space-Agent-Sidecar.
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
-| `operation` | enum | list, spawn, stop, status, send_task |
-| `agent_id` | string | Agent-ID |
-| `task` | string | Aufgabenbeschreibung |
+| `instruction` | string | Klare Anweisung für die Space-Agent-Instanz |
+| `information` | string | Optional: Unterstützender Kontext (keine Secrets) |
+| `session_id` | string | Optional: Sitzungs-/Korrelations-ID |
 
 ### `virtual_desktop`
-Steuert eine virtuelle Desktop-Umgebung (VNC/RDP). Ermöglicht Fernzugriff, Screenshots und Eingabe-Simulation auf entfernten Desktops.
+Steuert den AuraGo Virtual Desktop (Browser-Desktop). Ermöglicht Datei-Operationen, App-Installation, Widgets, Office-Dokumente und Benachrichtigungen.
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
-| `operation` | enum | connect, screenshot, click, type, disconnect |
-| `host` | string | Server-Adresse |
-| `port` | integer | Port |
+| `operation` | enum | status, bootstrap, list_files, read_file, search_file, read_file_excerpt, write_file, patch_file, delete, delete_file, delete_path, delete_app, read_document, write_document, patch_document, read_workbook, write_workbook, set_cell, set_range, evaluate_formula, export_file, install_app, upsert_widget, open_app, open_in_app, show_notification, list_apps, get_app, list_widgets, get_widget, diagnose_app, diagnose_widget |
+| `path` | string | Arbeitsbereichs-relatives Datei-/Verzeichnis-Pfad |
+| `file_path` | string | Alias für path |
+| `content` | string | Datei-Inhalt, Dokumententext, Zellenwert oder Benachrichtigungstext |
+| `allow_empty` | boolean | Nur für absichtlich leere Nicht-App/Nicht-Widget-Dateien |
+| `query` | string | Suchtext für search_file |
+| `line_start` | integer | Zeilennummer für read_file_excerpt |
+| `line_count` | integer | Anzahl Zeilen für read_file_excerpt (Standard: 80) |
+| `max_matches` | integer | Maximale Treffer für search_file (Standard: 8) |
+| `context_lines` | integer | Kontextzeilen um search_file-Treffer (Standard: 2) |
+| `case_sensitive` | boolean | Groß-/Kleinschreibung bei search_file beachten |
+| `title` | string | Benachrichtigungs- oder Widget-Titel |
+| `html` | string | Optional: HTML-Repräsentation für Dokumente |
+| `document` | object | Dokumenten-Payload für write_document |
+| `workbook` | object | Workbook-Payload für write_workbook |
+
+### `office_document`
+Erstellt, liest, patcht und exportiert Writer-Dokumente im virtuellen Desktop-Arbeitsbereich.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | read, write, patch, export |
+| `path` | string | Arbeitsbereichs-relatives Dokumentenpfad |
+| `format` | string | Exportformat: docx, html, md oder txt |
+| `title` | string | Dokumenttitel für write oder patch |
+| `content` | string | Text für write oder Seed-Text für patch |
+
+### `office_workbook`
+Erstellt, liest, bearbeitet Zellbereiche, wertet Formeln aus und exportiert Tabellenkalkulationen im virtuellen Desktop-Arbeitsbereich.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | read, write, set_cell, set_range, evaluate_formula, export |
+| `path` | string | Arbeitsbereichs-relatives Pfad zur Tabelle |
+| `format` | string | Exportformat: xlsx oder csv |
+| `sheet` | string | Blattname |
+| `cell` | string | A1-Zellreferenz für set_cell |
+| `value` | string | Zellwert für set_cell |
+| `formula` | string | Zellformel |
 
 ---
 
@@ -1048,9 +1256,6 @@ Websuche über DuckDuckGo (Instant Answers und HTML-Ergebnisse).
 
 ### `wikipedia_search`
 Wikipedia-Artikel durchsuchen und auslesen.
-
-### `scraper_summary`
-Web-Scraping-Ergebnisse automatisch zusammenfassen und strukturieren.
 
 ### `truenas`
 TrueNAS SCALE Storage verwalten (Pools, Datasets, Shares, Snapshots).
