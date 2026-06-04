@@ -89,5 +89,7 @@
   "help.skill_manager.read_only": "Όταν ενεργοποιηθεί, αποτρέπει όλες τις τροποποιήσεις δεξιοτήτων (χωρίς μεταφόρτωση, διαγραφή ή εναλλαγή)",
   "help.skill_manager.require_sandbox": "Όταν ενεργοποιηθεί, οι δεξιότητες μπορούν να εκτελούνται μόνο μέσα στο περιβάλλον του sandboxed container. Αυτό αποτρέπει την άμεση πρόσβαση στο σύστημα.",
   "help.skill_manager.require_scan": "Εκτέλεση σάρωσης ασφαλείας στις μεταφορτωμένες δεξιότητες πριν την ενεργοποίησή τους",
-  "help.skill_manager.scan_with_guardian": "Χρήση του LLM Guardian για έλεγχο του κώδικα μεταφορτωμένων δεξιοτήτων"
+  "help.skill_manager.scan_with_guardian": "Χρήση του LLM Guardian για έλεγχο του κώδικα μεταφορτωμένων δεξιοτήτων",
+  "help.skill_manager.agent_skills_dir": "Φάκελος για πακέτα Agent Skills στη μορφή SKILL.md.",
+  "config.skill_manager.agent_skills_dir_label": "Φάκελος Agent Skills"
 }

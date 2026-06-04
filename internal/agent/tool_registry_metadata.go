@@ -24,14 +24,17 @@ type ToolRegistryMetadata struct {
 }
 
 var builtinToolMetadata = map[string]ToolRegistryMetadata{
-	"discover_tools": {Name: "discover_tools", Family: "tooling", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "agent"},
-	"invoke_tool":    {Name: "invoke_tool", Family: "tooling", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "agent"},
-	"execute_skill":  {Name: "execute_skill", Family: "skills", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "exec", RequiresWrite: true},
-	"run_tool":       {Name: "run_tool", Family: "custom_tools", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "exec", RequiresWrite: true},
-	"filesystem":     {Name: "filesystem", Family: "filesystem", VisibilityClass: ToolVisibilityCommon, Dispatcher: "exec"},
-	"file_editor":    {Name: "file_editor", Family: "filesystem", VisibilityClass: ToolVisibilityCommon, Dispatcher: "exec", RequiresWrite: true},
-	"docker":         {Name: "docker", Family: "infra", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "infra"},
-	"homepage":       {Name: "homepage", Family: "desktop", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "services", RequiresWrite: true},
+	"discover_tools":         {Name: "discover_tools", Family: "tooling", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "agent"},
+	"invoke_tool":            {Name: "invoke_tool", Family: "tooling", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "agent"},
+	"execute_skill":          {Name: "execute_skill", Family: "skills", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "exec", RequiresWrite: true},
+	"list_agent_skills":      {Name: "list_agent_skills", Family: "agent_skills", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "exec"},
+	"activate_agent_skill":   {Name: "activate_agent_skill", Family: "agent_skills", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "exec"},
+	"run_agent_skill_script": {Name: "run_agent_skill_script", Family: "agent_skills", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "exec", RequiresWrite: true},
+	"run_tool":               {Name: "run_tool", Family: "custom_tools", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "exec", RequiresWrite: true},
+	"filesystem":             {Name: "filesystem", Family: "filesystem", VisibilityClass: ToolVisibilityCommon, Dispatcher: "exec"},
+	"file_editor":            {Name: "file_editor", Family: "filesystem", VisibilityClass: ToolVisibilityCommon, Dispatcher: "exec", RequiresWrite: true},
+	"docker":                 {Name: "docker", Family: "infra", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "infra"},
+	"homepage":               {Name: "homepage", Family: "desktop", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "services", RequiresWrite: true},
 }
 
 func lookupToolMetadata(name string) (ToolRegistryMetadata, bool) {

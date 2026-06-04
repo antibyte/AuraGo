@@ -89,5 +89,7 @@
   "help.skill_manager.read_only": "Cuando está activado, impide todas las modificaciones de habilidades (sin subida, eliminación ni activación)",
   "help.skill_manager.require_sandbox": "Cuando está activado, las habilidades solo pueden ejecutarse dentro del entorno de contenedor sandboxed. Esto previene el acceso directo al sistema.",
   "help.skill_manager.require_scan": "Ejecutar un escaneo de seguridad en las habilidades subidas antes de activarlas",
-  "help.skill_manager.scan_with_guardian": "Usar el LLM Guardian para revisar el código de habilidades subidas"
+  "help.skill_manager.scan_with_guardian": "Usar el LLM Guardian para revisar el código de habilidades subidas",
+  "help.skill_manager.agent_skills_dir": "Directorio para paquetes Agent Skills con formato SKILL.md.",
+  "config.skill_manager.agent_skills_dir_label": "Directorio de Agent Skills"
 }

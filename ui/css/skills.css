@@ -14,6 +14,56 @@
     padding: 24px 20px 60px;
 }
 
+.sk-tabs {
+    display: inline-flex;
+    gap: 4px;
+    padding: 4px;
+    margin-bottom: 18px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    box-shadow: inset 0 1px 0 var(--surface-highlight);
+}
+
+.sk-tab {
+    min-height: 34px;
+    padding: 7px 16px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.sk-tab.active {
+    background: var(--accent);
+    color: #fff;
+}
+
+.sk-agent-editor {
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+    min-height: 360px;
+}
+
+.sk-resource-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.sk-resource-chip {
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 5px 9px;
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+    font-size: 0.78rem;
+}
+
 /* ── Status Bar ── */
 .sk-status-bar {
     display: flex;

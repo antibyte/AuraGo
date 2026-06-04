@@ -89,5 +89,7 @@
   "help.skill_manager.read_only": "Lorsqu'activé, empêche toute modification des compétences (pas de téléchargement, suppression ou basculement)",
   "help.skill_manager.require_sandbox": "Lorsqu'activé, les compétences ne peuvent être exécutées que dans l'environnement de conteneur sandbox. Cela empêche l'accès direct au système.",
   "help.skill_manager.require_scan": "Effectuer une analyse de sécurité sur les compétences téléchargées avant de les activer",
-  "help.skill_manager.scan_with_guardian": "Utiliser le LLM Guardian pour vérifier le code des compétences téléchargées"
+  "help.skill_manager.scan_with_guardian": "Utiliser le LLM Guardian pour vérifier le code des compétences téléchargées",
+  "help.skill_manager.agent_skills_dir": "Dossier des paquets Agent Skills au format SKILL.md.",
+  "config.skill_manager.agent_skills_dir_label": "Dossier Agent Skills"
 }

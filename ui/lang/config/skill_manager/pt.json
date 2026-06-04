@@ -89,5 +89,7 @@
   "help.skill_manager.read_only": "Quando ativado, impede todas as modificações nas habilidades (sem carregamento, exclusão ou alternância)",
   "help.skill_manager.require_sandbox": "Quando ativado, as habilidades só podem ser executadas dentro do ambiente de contentor sandboxed. Isto impede o acesso direto ao sistema.",
   "help.skill_manager.require_scan": "Executar uma verificação de segurança nas habilidades carregadas antes de ativá-las",
-  "help.skill_manager.scan_with_guardian": "Usar o LLM Guardian para verificar o código das habilidades carregadas"
+  "help.skill_manager.scan_with_guardian": "Usar o LLM Guardian para verificar o código das habilidades carregadas",
+  "help.skill_manager.agent_skills_dir": "Diretório para pacotes Agent Skills no formato SKILL.md.",
+  "config.skill_manager.agent_skills_dir_label": "Diretório de Agent Skills"
 }

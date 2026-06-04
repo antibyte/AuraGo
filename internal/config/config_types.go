@@ -455,12 +455,13 @@ type Config struct {
 		} `yaml:"anthropic_thinking"`
 	} `yaml:"llm"`
 	Directories struct {
-		DataDir      string `yaml:"data_dir"`
-		WorkspaceDir string `yaml:"workspace_dir"`
-		ToolsDir     string `yaml:"tools_dir"`
-		PromptsDir   string `yaml:"prompts_dir"`
-		SkillsDir    string `yaml:"skills_dir"`
-		VectorDBDir  string `yaml:"vectordb_dir"`
+		DataDir        string `yaml:"data_dir"`
+		WorkspaceDir   string `yaml:"workspace_dir"`
+		ToolsDir       string `yaml:"tools_dir"`
+		PromptsDir     string `yaml:"prompts_dir"`
+		SkillsDir      string `yaml:"skills_dir"`
+		AgentSkillsDir string `yaml:"agent_skills_dir"`
+		VectorDBDir    string `yaml:"vectordb_dir"`
 	} `yaml:"directories"`
 	SQLite struct {
 		ShortTermPath        string `yaml:"short_term_path"`

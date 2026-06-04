@@ -256,6 +256,24 @@ func TestBuildSystemPromptIncludesPlannerContext(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptIncludesAgentSkillsCatalogOnly(t *testing.T) {
+	flags := ContextFlags{
+		SystemLanguage:     "en",
+		AgentSkillsCatalog: "- `csv-helper`: Summarize CSV files.",
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+	if !strings.Contains(prompt, "# AGENT SKILLS CATALOG") {
+		t.Fatalf("prompt = %q, want Agent Skills catalog header", prompt)
+	}
+	if !strings.Contains(prompt, "- `csv-helper`: Summarize CSV files.") {
+		t.Fatalf("prompt = %q, want Agent Skills catalog content", prompt)
+	}
+	if strings.Contains(prompt, "<agent_skill") {
+		t.Fatalf("prompt = %q, catalog should not include activated SKILL.md bodies", prompt)
+	}
+}
+
 func TestBuildSystemPromptIncludesOperationalIssueReminder(t *testing.T) {
 	flags := ContextFlags{
 		SystemLanguage:           "en",

@@ -30,6 +30,7 @@ type systemPromptCacheKey struct {
 	InnerVoice               string   `json:"inner_voice"`
 	PredictedGuidesHash      string   `json:"predicted_guides_hash"`
 	HighPriorityNotes        string   `json:"high_priority_notes"`
+	AgentSkillsCatalog       string   `json:"agent_skills_catalog"`
 	PlannerContext           string   `json:"planner_context"`
 	DailyTodoReminder        string   `json:"daily_todo_reminder"`
 	OperationalIssueReminder string   `json:"operational_issue_reminder"`
@@ -93,6 +94,7 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		InnerVoice:               flags.InnerVoice,
 		PredictedGuidesHash:      predictedGuidesHash,
 		HighPriorityNotes:        flags.HighPriorityNotes,
+		AgentSkillsCatalog:       flags.AgentSkillsCatalog,
 		PlannerContext:           flags.PlannerContext,
 		DailyTodoReminder:        flags.DailyTodoReminder,
 		OperationalIssueReminder: flags.OperationalIssueReminder,

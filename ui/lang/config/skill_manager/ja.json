@@ -89,5 +89,7 @@
   "help.skill_manager.read_only": "有効にすると、スキルへのすべての変更が防止されます（アップロード、削除、切り替え不可）",
   "help.skill_manager.require_sandbox": "有効にすると、スキルはサンドボックス化されたコンテナ環境内でのみ実行できます。これによりシステムへの直接アクセスが防止されます。",
   "help.skill_manager.require_scan": "スキルを有効にする前にアップロードされたスキルのセキュリティスキャンを実行する",
-  "help.skill_manager.scan_with_guardian": "LLM Guardianを使用してアップロードされたスキルコードのセキュリティ問題を確認する"
+  "help.skill_manager.scan_with_guardian": "LLM Guardianを使用してアップロードされたスキルコードのセキュリティ問題を確認する",
+  "help.skill_manager.agent_skills_dir": "SKILL.md パッケージ形式の Agent Skills を置くディレクトリです。",
+  "config.skill_manager.agent_skills_dir_label": "Agent Skills ディレクトリ"
 }

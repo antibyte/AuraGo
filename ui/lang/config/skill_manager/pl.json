@@ -89,5 +89,7 @@
   "help.skill_manager.read_only": "Po włączeniu uniemożliwia wszystkie modyfikacje umiejętności (brak przesyłania, usuwania ani przełączania)",
   "help.skill_manager.require_sandbox": "Po włączeniu umiejętności mogą być uruchamiane tylko w środowisku kontenerowym sandbox. Zapobiega to bezpośredniemu dostępowi do systemu.",
   "help.skill_manager.require_scan": "Uruchom skanowanie bezpieczeństwa przesłanych umiejętności przed ich włączeniem",
-  "help.skill_manager.scan_with_guardian": "Użyj LLM Guardian do sprawdzenia przesłanego kodu umiejętności pod kątem problemów bezpieczeństwa"
+  "help.skill_manager.scan_with_guardian": "Użyj LLM Guardian do sprawdzenia przesłanego kodu umiejętności pod kątem problemów bezpieczeństwa",
+  "help.skill_manager.agent_skills_dir": "Katalog pakietów Agent Skills w formacie SKILL.md.",
+  "config.skill_manager.agent_skills_dir_label": "Katalog Agent Skills"
 }

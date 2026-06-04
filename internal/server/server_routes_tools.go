@@ -93,6 +93,38 @@ func (s *Server) registerToolAPIRoutes(mux *http.ServeMux) {
 			}
 		})
 
+		// ── Agent Skills API ──
+		mux.HandleFunc("/api/agent-skills/import", handleImportAgentSkill(s))
+		mux.HandleFunc("/api/agent-skills", func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet:
+				handleListAgentSkills(s)(w, r)
+			case http.MethodPost:
+				handleCreateAgentSkill(s)(w, r)
+			default:
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		})
+		mux.HandleFunc("/api/agent-skills/", func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasSuffix(r.URL.Path, "/verify") {
+				handleVerifyAgentSkill(s)(w, r)
+				return
+			}
+			if strings.HasSuffix(r.URL.Path, "/approve-warning") {
+				handleApproveAgentSkillWarning(s)(w, r)
+				return
+			}
+			if strings.HasSuffix(r.URL.Path, "/files") {
+				handleAgentSkillFile(s)(w, r)
+				return
+			}
+			if strings.HasSuffix(r.URL.Path, "/test") {
+				handleRunAgentSkillScript(s)(w, r)
+				return
+			}
+			handleAgentSkillItem(s)(w, r)
+		})
+
 		// ── Containers API ──
 		mux.HandleFunc("/api/containers", handleContainersList(s))
 		mux.HandleFunc("/api/containers/", handleContainerAction(s))

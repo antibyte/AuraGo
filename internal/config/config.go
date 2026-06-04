@@ -229,6 +229,7 @@ func Load(path string) (*Config, error) {
 	cfg.FritzBox.Telephony.Polling.MaxCallbacksPerHour = 20
 
 	runningInDocker := probeDockerContainer()
+	cfg.Directories.AgentSkillsDir = "./agent_workspace/agent_skills"
 
 	// Document Creator defaults: Maroto backend, Gotenberg sidecar URL.
 	// Use Docker-internal hostname when running inside a Docker container, otherwise localhost.
@@ -650,6 +651,7 @@ func Load(path string) (*Config, error) {
 	cfg.Directories.ToolsDir = resolvePath(configDir, cfg.Directories.ToolsDir)
 	cfg.Directories.PromptsDir = resolvePath(configDir, cfg.Directories.PromptsDir)
 	cfg.Directories.SkillsDir = resolvePath(configDir, cfg.Directories.SkillsDir)
+	cfg.Directories.AgentSkillsDir = resolvePath(configDir, cfg.Directories.AgentSkillsDir)
 	cfg.Directories.VectorDBDir = resolvePath(configDir, cfg.Directories.VectorDBDir)
 	cfg.SpaceAgent.CustomwarePath = resolvePath(configDir, cfg.SpaceAgent.CustomwarePath)
 	cfg.SpaceAgent.DataPath = resolvePath(configDir, cfg.SpaceAgent.DataPath)

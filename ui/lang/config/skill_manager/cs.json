@@ -89,5 +89,7 @@
   "help.skill_manager.read_only": "Když je povoleno, zabrání všem úpravám dovedností (žádné nahrávání, mazání ani přepínání)",
   "help.skill_manager.require_sandbox": "Když je povoleno, lze dovednosti spouštět pouze v sandboxovaném kontejnerovém prostředí. To zabraňuje přímému přístupu k systému.",
   "help.skill_manager.require_scan": "Spustit bezpečnostní sken nahraných dovedností před jejich povolením",
-  "help.skill_manager.scan_with_guardian": "Použít LLM Guardian ke kontrole nahraného kódu dovedností na bezpečnostní problémy"
+  "help.skill_manager.scan_with_guardian": "Použít LLM Guardian ke kontrole nahraného kódu dovedností na bezpečnostní problémy",
+  "help.skill_manager.agent_skills_dir": "Složka pro balíčky Agent Skills ve formátu SKILL.md.",
+  "config.skill_manager.agent_skills_dir_label": "Složka Agent Skills"
 }

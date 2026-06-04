@@ -89,5 +89,7 @@
   "help.skill_manager.read_only": "När aktiverad förhindras alla ändringar av färdigheter (ingen uppladdning, radering eller växling)",
   "help.skill_manager.require_sandbox": "När det är aktiverat kan färdigheter endast utföras i containermiljön med sandlåde. Detta förhindrar direkt åtkomst till systemet.",
   "help.skill_manager.require_scan": "Kör en säkerhetsskanning av uppladdade färdigheter innan de aktiveras",
-  "help.skill_manager.scan_with_guardian": "Använd LLM Guardian för att granska uppladdad färdighetskod för säkerhetsproblem"
+  "help.skill_manager.scan_with_guardian": "Använd LLM Guardian för att granska uppladdad färdighetskod för säkerhetsproblem",
+  "help.skill_manager.agent_skills_dir": "Katalog för Agent Skills-paket i SKILL.md-format.",
+  "config.skill_manager.agent_skills_dir_label": "Agent Skills-katalog"
 }

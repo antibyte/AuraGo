@@ -165,6 +165,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		SpecialistsSuggestion: buildSpecialistDelegationHint(cfg, initialUserMsg),
 	})
 	flags.Model = req.Model
+	flags.AgentSkillsCatalog = buildAgentSkillsPromptCatalog()
 	applyTaskRulePromptContext(&flags, buildTaskRulePromptContext(cfg, initialUserMsg, nil, nil, ""))
 	logger.Debug("[Agent] Context flags initialised",
 		"token_budget", flags.TokenBudget,

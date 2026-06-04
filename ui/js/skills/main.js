@@ -3,16 +3,20 @@
 'use strict';
 
 let allSkills = [];
+let allAgentSkills = [];
 let allTemplates = [];
 let daemonStates = {};  // skill_id -> daemon state object
 let daemonSystemEnabled = false;  // true when daemon_skills.enabled in config
 let currentTypeFilter = 'all';
 let currentSecFilter = 'all';
+let currentSkillMode = 'python';
 let currentDetailId = '';
+let currentAgentSkillId = '';
 let deleteTargetId = '';
 let skillDeleteInFlight = false;
 let selectedFile = null;
 let selectedImportFile = null;
+let selectedAgentImportFile = null;
 let codeEditorView = null;
 let codeEditorSkillId = '';
 let codeEditorDraft = null;
@@ -29,6 +33,7 @@ let codeMirrorModulePromise = null;
 document.addEventListener('DOMContentLoaded', async () => {
     await loadCredentialMap();
     loadSkills();
+    loadAgentSkills();
     loadTemplates();
     initDropzone();
     applyPlaceholders();
@@ -84,6 +89,30 @@ async function loadSkills() {
     }
 }
 
+async function loadAgentSkills() {
+    try {
+        const resp = await fetch('/api/agent-skills');
+        if (resp.status === 503) {
+            allAgentSkills = [];
+            if (currentSkillMode === 'agent') showDisabledState();
+            return;
+        }
+        const data = await resp.json();
+        if (data.status !== 'ok') {
+            allAgentSkills = [];
+            if (currentSkillMode === 'agent') showDisabledState();
+            return;
+        }
+        allAgentSkills = data.skills || [];
+        if (currentSkillMode === 'agent') {
+            updateAgentSkillStats();
+            renderAgentSkills();
+        }
+    } catch (e) {
+        console.error('Failed to load Agent Skills:', e);
+    }
+}
+
 async function loadTemplates() {
     try {
         const resp = await fetch('/api/skills/templates');
@@ -105,6 +134,7 @@ function showDisabledState() {
     document.getElementById('sk-disabled').style.display = '';
     document.getElementById('sk-status-bar').style.display = 'none';
     document.getElementById('sk-toolbar-actions').style.display = 'none';
+    document.getElementById('agent-toolbar-actions').style.display = 'none';
     document.getElementById('sk-security-filters').style.display = 'none';
 }
 
@@ -300,9 +330,46 @@ function showDisabledState() {
         document.getElementById('sk-pending').textContent = stats.pending || 0;
     }
 
+    function updateAgentSkillStats() {
+        const total = allAgentSkills.length;
+        const clean = allAgentSkills.filter(s => (s.security_status || '').toLowerCase() === 'clean').length;
+        const warning = allAgentSkills.filter(s => (s.security_status || '').toLowerCase() === 'warning').length;
+        const pending = allAgentSkills.filter(s => ['pending', 'error'].includes((s.security_status || '').toLowerCase())).length;
+        document.getElementById('sk-total').textContent = total;
+        document.getElementById('sk-agent').textContent = clean;
+        document.getElementById('sk-user').textContent = warning;
+        document.getElementById('sk-pending').textContent = pending;
+    }
+
     // ── Rendering ───────────────────────────────────────────────────────────────
 
+    // eslint-disable-next-line no-unused-vars
+    function switchSkillMode(mode) {
+        currentSkillMode = mode === 'agent' ? 'agent' : 'python';
+        document.getElementById('sk-tab-python').classList.toggle('active', currentSkillMode === 'python');
+        document.getElementById('sk-tab-agent').classList.toggle('active', currentSkillMode === 'agent');
+        document.getElementById('sk-tab-python').setAttribute('aria-selected', currentSkillMode === 'python' ? 'true' : 'false');
+        document.getElementById('sk-tab-agent').setAttribute('aria-selected', currentSkillMode === 'agent' ? 'true' : 'false');
+        document.getElementById('sk-toolbar-actions').style.display = currentSkillMode === 'python' ? '' : 'none';
+        document.getElementById('agent-toolbar-actions').style.display = currentSkillMode === 'agent' ? '' : 'none';
+        const typeFilter = document.querySelector('.sk-filter-group');
+        if (typeFilter) typeFilter.style.display = currentSkillMode === 'python' ? '' : 'none';
+        document.getElementById('sk-disabled').style.display = 'none';
+        document.getElementById('sk-status-bar').style.display = '';
+        document.getElementById('sk-security-filters').style.display = '';
+        if (currentSkillMode === 'agent') {
+            updateAgentSkillStats();
+            renderAgentSkills();
+        } else {
+            loadSkills();
+        }
+    }
+
     function renderSkills() {
+        if (currentSkillMode === 'agent') {
+            renderAgentSkills();
+            return;
+        }
         const grid = document.getElementById('sk-grid');
         const empty = document.getElementById('sk-empty');
         const disabled = document.getElementById('sk-disabled');
@@ -397,6 +464,64 @@ function showDisabledState() {
     </div>`;
     }
 
+    function renderAgentSkills() {
+        const grid = document.getElementById('sk-grid');
+        const empty = document.getElementById('sk-empty');
+        const disabled = document.getElementById('sk-disabled');
+        disabled.style.display = 'none';
+        const filtered = getFilteredAgentSkills();
+        if (filtered.length === 0) {
+            grid.style.display = 'none';
+            empty.style.display = '';
+            return;
+        }
+        empty.style.display = 'none';
+        grid.style.display = '';
+        grid.innerHTML = filtered.map(s => renderAgentSkillCard(s)).join('');
+        if (typeof applyI18n === 'function') applyI18n();
+    }
+
+    function renderAgentSkillCard(skill) {
+        const id = esc(skill.id || '');
+        const name = esc(skill.name || 'Unknown');
+        const desc = esc(skill.description || '');
+        const secStatus = (skill.security_status || 'pending').toLowerCase();
+        const enabled = !!skill.enabled;
+        const warningApproved = !!skill.warning_approved;
+        const scripts = skill.scripts || [];
+        const canEnable = secStatus === 'clean' || (secStatus === 'warning' && warningApproved);
+        const toggleDisabled = (!enabled && !canEnable) ? 'disabled' : '';
+        const toggleTitle = !enabled && !canEnable ? t('skills.agent_enable_blocked') : '';
+        const toggleLabel = enabled ? t('skills.btn_disable') : t('skills.btn_enable');
+        const scriptTags = scripts.length > 0
+            ? `<div class="sk-card-deps">${scripts.map(s => `<span class="sk-dep-tag">${esc(s.path || s.Path || '')}</span>`).join('')}</div>`
+            : '';
+        const approval = secStatus === 'warning' && !warningApproved
+            ? `<button class="btn btn-sm btn-warning" onclick="approveAgentSkillWarning('${id}')" data-i18n="skills.agent_btn_approve">${t('skills.agent_btn_approve')}</button>`
+            : '';
+        return `
+    <div class="sk-card ${enabled ? 'sk-enabled' : 'sk-disabled-card'}" data-id="${id}" data-sec="${secStatus}">
+        <div class="sk-card-header">
+            <div class="sk-card-name" title="${name}">${name}</div>
+            <div class="sk-card-badges">
+                <span class="sk-type-badge sk-type-agent" data-i18n="skills.tab_agent">Agent Skills</span>
+                ${renderSecurityBadge(secStatus)}
+            </div>
+        </div>
+        <div class="sk-card-desc">${desc || '<em>' + t('skills.no_description') + '</em>'}</div>
+        ${scriptTags}
+        <div class="sk-card-actions">
+            <button class="btn btn-sm btn-secondary" onclick="showAgentSkillDetail('${id}')" data-i18n="skills.btn_details">${t('skills.btn_details')}</button>
+            <button class="btn btn-sm btn-secondary" onclick="editAgentSkill('${id}')" data-i18n="skills.agent_btn_edit">${t('skills.agent_btn_edit')}</button>
+            <button class="btn btn-sm btn-secondary" onclick="verifyAgentSkill('${id}')" data-i18n="skills.btn_verify">${t('skills.btn_verify')}</button>
+            ${approval}
+            <button class="btn btn-sm ${enabled ? 'btn-secondary' : 'btn-primary'}" title="${esc(toggleTitle)}" onclick="toggleAgentSkill('${id}', ${!enabled})" ${toggleDisabled}>${toggleLabel}</button>
+            <button class="btn btn-sm btn-secondary" onclick="showAgentSkillTestModal('${id}')" data-i18n="skills.btn_test">${t('skills.btn_test')}</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteAgentSkill('${id}', '${name}')" data-i18n="skills.btn_delete">${t('skills.btn_delete')}</button>
+        </div>
+    </div>`;
+    }
+
     function renderSecurityBadge(status) {
         const labels = {
             clean: t('skills.sec_clean') || 'Clean',
@@ -428,10 +553,22 @@ function showDisabledState() {
         });
     }
 
+    function getFilteredAgentSkills() {
+        const search = (document.getElementById('sk-search').value || '').toLowerCase();
+        return allAgentSkills.filter(s => {
+            const sec = (s.security_status || 'pending').toLowerCase();
+            const name = (s.name || '').toLowerCase();
+            const desc = (s.description || '').toLowerCase();
+            if (currentSecFilter !== 'all' && sec !== currentSecFilter) return false;
+            if (search && !name.includes(search) && !desc.includes(search)) return false;
+            return true;
+        });
+    }
+
     // eslint-disable-next-line no-unused-vars
     function filterSkills() {
         window.clearTimeout(searchDebounceHandle);
-        searchDebounceHandle = window.setTimeout(() => renderSkills(), 120);
+        searchDebounceHandle = window.setTimeout(() => currentSkillMode === 'agent' ? renderAgentSkills() : renderSkills(), 120);
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -440,7 +577,7 @@ function showDisabledState() {
         document.querySelectorAll('.sk-filter-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.filter === filter);
         });
-        renderSkills();
+        if (currentSkillMode === 'agent') renderAgentSkills(); else renderSkills();
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -449,10 +586,310 @@ function showDisabledState() {
         document.querySelectorAll('.sk-pill').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.sec === filter);
         });
-        renderSkills();
+        if (currentSkillMode === 'agent') renderAgentSkills(); else renderSkills();
     }
 
     // ── Skill Actions ───────────────────────────────────────────────────────────
+
+    // eslint-disable-next-line no-unused-vars
+    async function toggleAgentSkill(id, enabled) {
+        try {
+            const resp = await fetch(`/api/agent-skills/${encodeURIComponent(id)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled })
+            });
+            const data = await resp.json();
+            if (data.status === 'ok') {
+                showToast(t('skills.toggle_success'), 'success');
+                await loadAgentSkills();
+            } else {
+                showToast(data.message || t('common.error'), 'error');
+            }
+        } catch (e) {
+            showToast(t('common.error'), 'error');
+        }
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function verifyAgentSkill(id) {
+        try {
+            const resp = await fetch(`/api/agent-skills/${encodeURIComponent(id)}/verify`, { method: 'POST' });
+            const data = await resp.json();
+            if (data.status === 'scanned') {
+                showToast(t('skills.scan_complete'), 'success');
+                await loadAgentSkills();
+            } else {
+                showToast(data.message || t('common.error'), 'error');
+            }
+        } catch (e) {
+            showToast(t('common.error'), 'error');
+        }
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function approveAgentSkillWarning(id) {
+        try {
+            const resp = await fetch(`/api/agent-skills/${encodeURIComponent(id)}/approve-warning`, { method: 'POST' });
+            const data = await resp.json();
+            if (data.status === 'approved') {
+                showToast(t('skills.agent_warning_approved'), 'success');
+                await loadAgentSkills();
+            } else {
+                showToast(data.message || t('common.error'), 'error');
+            }
+        } catch (e) {
+            showToast(t('common.error'), 'error');
+        }
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function showAgentSkillDetail(id) {
+        try {
+            const resp = await fetch(`/api/agent-skills/${encodeURIComponent(id)}?content=true`);
+            const data = await resp.json();
+            if (data.status !== 'ok') {
+                showToast(data.message || t('common.error'), 'error');
+                return;
+            }
+            const s = data.skill;
+            currentAgentSkillId = id;
+            currentDetailId = '';
+            const scripts = s.scripts || [];
+            const resources = s.resources || [];
+            document.getElementById('detail-modal-title').textContent = s.name || t('skills.tab_agent');
+            const actions = document.querySelector('#detail-modal .modal-actions');
+            if (actions) actions.style.display = 'none';
+            document.getElementById('detail-modal-body').innerHTML = `
+                <div class="sk-detail-grid">
+                    <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.agent_field_name')}:</span><code>${esc(s.name || '')}</code></div>
+                    <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.upload_description')}:</span><span>${esc(s.description || '')}</span></div>
+                    <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_security')}:</span>${renderSecurityBadge((s.security_status || 'pending').toLowerCase())}</div>
+                    <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.agent_warning_approved_label')}:</span><span>${s.warning_approved ? t('common.yes') : t('common.no')}</span></div>
+                </div>
+                <h4>${t('skills.agent_skill_md')}</h4>
+                <pre class="sk-code-preview">${esc(data.content || '')}</pre>
+                <h4>${t('skills.agent_resources')}</h4>
+                <div class="sk-card-deps">${resources.map(r => `<span class="sk-dep-tag">${esc(r.path || r.Path || '')}</span>`).join('') || '<em>' + t('skills.agent_no_resources') + '</em>'}</div>
+                <h4>${t('skills.agent_scripts')}</h4>
+                <div class="sk-card-deps">${scripts.map(r => `<span class="sk-dep-tag">${esc(r.path || r.Path || '')}</span>`).join('') || '<em>' + t('skills.agent_no_scripts') + '</em>'}</div>
+            `;
+            document.getElementById('detail-modal').classList.add('active');
+        } catch (e) {
+            showToast(t('common.error'), 'error');
+        }
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function editAgentSkill(id) {
+        currentAgentSkillId = id;
+        const resp = await fetch(`/api/agent-skills/${encodeURIComponent(id)}?content=true`);
+        const data = await resp.json();
+        if (data.status !== 'ok') {
+            showToast(data.message || t('common.error'), 'error');
+            return;
+        }
+        document.getElementById('agent-skill-modal-title').textContent = data.skill.name || t('skills.agent_edit_title');
+        document.getElementById('agent-create-fields').style.display = 'none';
+        document.getElementById('agent-skill-content').value = data.content || '';
+        document.getElementById('agent-resource-browser').style.display = '';
+        renderAgentResourceList(data.skill.resources || []);
+        document.getElementById('agent-skill-modal').classList.add('active');
+    }
+
+    function renderAgentResourceList(resources) {
+        const list = document.getElementById('agent-resource-list');
+        if (!list) return;
+        list.innerHTML = (resources || []).map(r => {
+            const p = r.path || r.Path || '';
+            return `<button class="sk-resource-chip" type="button" onclick="loadAgentSkillResource('${esc(p)}')">${esc(p)}</button>`;
+        }).join('');
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function loadAgentSkillResource(path) {
+        if (!currentAgentSkillId) return;
+        const resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}/files?path=${encodeURIComponent(path)}`);
+        const data = await resp.json();
+        if (data.status === 'ok') {
+            document.getElementById('agent-resource-path').value = path;
+            document.getElementById('agent-resource-content').value = data.content || '';
+        } else {
+            showToast(data.message || t('common.error'), 'error');
+        }
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function saveAgentSkillResource() {
+        if (!currentAgentSkillId) return;
+        const path = document.getElementById('agent-resource-path').value.trim();
+        const content = document.getElementById('agent-resource-content').value;
+        if (!path) {
+            showToast(t('skills.agent_resource_path_required'), 'error');
+            return;
+        }
+        const resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}/files?path=${encodeURIComponent(path)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        });
+        const data = await resp.json();
+        if (data.status === 'saved') {
+            showToast(t('skills.code_saved'), 'success');
+            renderAgentResourceList((data.skill && data.skill.resources) || []);
+            await loadAgentSkills();
+        } else {
+            showToast(data.message || t('common.error'), 'error');
+        }
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    function showAgentSkillCreateModal() {
+        currentAgentSkillId = '';
+        document.getElementById('agent-skill-modal-title').textContent = t('skills.agent_create_title');
+        document.getElementById('agent-create-fields').style.display = '';
+        document.getElementById('agent-resource-browser').style.display = 'none';
+        document.getElementById('agent-skill-name').value = '';
+        document.getElementById('agent-skill-description').value = '';
+        document.getElementById('agent-skill-content').value = '# Instructions\n\nUse this skill when the task matches the package description.\n';
+        document.getElementById('agent-skill-modal').classList.add('active');
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    function closeAgentSkillModal() {
+        document.getElementById('agent-skill-modal').classList.remove('active');
+        currentAgentSkillId = '';
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function saveAgentSkill() {
+        const content = document.getElementById('agent-skill-content').value;
+        try {
+            let resp;
+            if (currentAgentSkillId) {
+                resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content })
+                });
+            } else {
+                resp = await fetch('/api/agent-skills', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: document.getElementById('agent-skill-name').value.trim(),
+                        description: document.getElementById('agent-skill-description').value.trim(),
+                        body: content
+                    })
+                });
+            }
+            const data = await resp.json();
+            if (data.status === 'ok' || data.status === 'created') {
+                showToast(t('skills.create_success'), 'success');
+                closeAgentSkillModal();
+                await loadAgentSkills();
+            } else {
+                showToast(data.message || t('common.error'), 'error');
+            }
+        } catch (e) {
+            showToast(t('common.error'), 'error');
+        }
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    function showAgentSkillImportModal() {
+        selectedAgentImportFile = null;
+        document.getElementById('agent-import-file').value = '';
+        document.getElementById('agent-import-path').value = '';
+        document.getElementById('agent-import-file-name').textContent = t('skills.agent_import_zip_hint');
+        document.getElementById('agent-import-modal').classList.add('active');
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    function closeAgentSkillImportModal() {
+        document.getElementById('agent-import-modal').classList.remove('active');
+        selectedAgentImportFile = null;
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    function handleAgentImportFileSelect(event) {
+        selectedAgentImportFile = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+        document.getElementById('agent-import-file-name').textContent = selectedAgentImportFile ? selectedAgentImportFile.name : t('skills.agent_import_zip_hint');
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function submitAgentSkillImport() {
+        const sourcePath = document.getElementById('agent-import-path').value.trim();
+        try {
+            let resp;
+            if (selectedAgentImportFile) {
+                const form = new FormData();
+                form.append('file', selectedAgentImportFile);
+                resp = await fetch('/api/agent-skills/import', { method: 'POST', body: form });
+            } else {
+                resp = await fetch('/api/agent-skills/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source_path: sourcePath })
+                });
+            }
+            const data = await resp.json();
+            if (data.status === 'imported') {
+                showToast(t('skills.import_success'), 'success');
+                closeAgentSkillImportModal();
+                await loadAgentSkills();
+            } else {
+                showToast(data.message || t('common.error'), 'error');
+            }
+        } catch (e) {
+            showToast(e.message || t('common.error'), 'error');
+        }
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function showAgentSkillTestModal(id) {
+        currentAgentSkillId = id;
+        const skill = allAgentSkills.find(s => String(s.id) === String(id));
+        const scripts = (skill && skill.scripts) || [];
+        const select = document.getElementById('agent-test-script');
+        select.innerHTML = scripts.map(s => {
+            const p = s.path || s.Path || '';
+            return `<option value="${esc(p)}">${esc(p)}</option>`;
+        }).join('');
+        document.getElementById('agent-test-args').value = '{}';
+        document.getElementById('agent-test-output').textContent = '';
+        document.getElementById('agent-test-modal').classList.add('active');
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    function closeAgentSkillTestModal() {
+        document.getElementById('agent-test-modal').classList.remove('active');
+        currentAgentSkillId = '';
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function runAgentSkillTest() {
+        if (!currentAgentSkillId) return;
+        let args = {};
+        try {
+            args = JSON.parse(document.getElementById('agent-test-args').value || '{}');
+        } catch (e) {
+            showToast(t('skills.test_invalid_json'), 'error');
+            return;
+        }
+        const resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}/test`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ script: document.getElementById('agent-test-script').value, args })
+        });
+        const data = await resp.json();
+        document.getElementById('agent-test-output').textContent = data.output || data.message || '';
+        if (data.status === 'ok') {
+            showToast(t('skills.test_success'), 'success');
+        } else {
+            showToast(data.message || t('skills.test_failed'), 'error');
+        }
+    }
 
     // eslint-disable-next-line no-unused-vars
     async function toggleSkill(id, enabled) {
@@ -479,6 +916,9 @@ function showDisabledState() {
     // eslint-disable-next-line no-unused-vars
     async function showDetail(id) {
         currentDetailId = id;
+        currentAgentSkillId = '';
+        const actions = document.querySelector('#detail-modal .modal-actions');
+        if (actions) actions.style.display = '';
         const body = document.getElementById('detail-modal-body');
         body.innerHTML = `<p>${t('common.loading') || 'Loading...'}</p>`;
         document.getElementById('detail-modal').classList.add('active');
@@ -567,6 +1007,9 @@ function showDisabledState() {
     function closeDetailModal() {
         document.getElementById('detail-modal').classList.remove('active');
         currentDetailId = '';
+        currentAgentSkillId = '';
+        const actions = document.querySelector('#detail-modal .modal-actions');
+        if (actions) actions.style.display = '';
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -1022,6 +1465,16 @@ function showDisabledState() {
     }
 
     // eslint-disable-next-line no-unused-vars
+    function deleteAgentSkill(id, name) {
+        deleteTargetId = `agent:${id}`;
+        skillDeleteInFlight = false;
+        document.getElementById('delete-skill-name').textContent = name;
+        document.getElementById('delete-files-checkbox').checked = true;
+        setSkillDeleteBusy(false);
+        document.getElementById('delete-skill-modal').classList.add('active');
+    }
+
+    // eslint-disable-next-line no-unused-vars
     function closeDeleteSkillModal() {
         document.getElementById('delete-skill-modal').classList.remove('active');
         deleteTargetId = '';
@@ -1037,13 +1490,16 @@ function showDisabledState() {
         const deleteFiles = document.getElementById('delete-files-checkbox').checked;
 
         try {
-            const resp = await fetch(`/api/skills/${encodeURIComponent(deleteTargetId)}?delete_files=${deleteFiles}`, { method: 'DELETE' });
+            const isAgentSkillDelete = deleteTargetId.startsWith('agent:');
+            const rawID = isAgentSkillDelete ? deleteTargetId.slice(6) : deleteTargetId;
+            const apiPath = isAgentSkillDelete ? '/api/agent-skills/' : '/api/skills/';
+            const resp = await fetch(`${apiPath}${encodeURIComponent(rawID)}?delete_files=${deleteFiles}`, { method: 'DELETE' });
             const data = await resp.json();
             if (data.status === 'deleted') {
                 showToast(t('skills.delete_success') || 'Skill deleted', 'success');
                 closeDeleteSkillModal();
                 closeDetailModal();
-                await loadSkills();
+                if (isAgentSkillDelete) await loadAgentSkills(); else await loadSkills();
             } else {
                 showToast(data.message || t('common.error'), 'error');
             }

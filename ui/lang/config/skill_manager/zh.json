@@ -89,5 +89,7 @@
   "help.skill_manager.read_only": "启用后，阻止对技能的所有修改（无法上传、删除或切换）",
   "help.skill_manager.require_sandbox": "启用后，技能只能在内置沙盒容器环境中执行。这可以防止直接访问系统。",
   "help.skill_manager.require_scan": "在启用上传的技能之前运行安全扫描",
-  "help.skill_manager.scan_with_guardian": "使用 LLM Guardian 审查上传的技能代码是否存在安全问题"
+  "help.skill_manager.scan_with_guardian": "使用 LLM Guardian 审查上传的技能代码是否存在安全问题",
+  "help.skill_manager.agent_skills_dir": "存放 SKILL.md 包格式 Agent Skills 的目录。",
+  "config.skill_manager.agent_skills_dir_label": "Agent Skills 目录"
 }

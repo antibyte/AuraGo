@@ -89,5 +89,7 @@
   "help.skill_manager.read_only": "Wenn aktiviert, werden alle Änderungen an Fähigkeiten verhindert (kein Upload, Löschen oder Umschalten)",
   "help.skill_manager.require_sandbox": "Wenn aktiviert, können Fähigkeiten nur noch in der Sandbox-Containerumgebung ausgeführt werden. Dies verhindert direkten Systemzugriff.",
   "help.skill_manager.require_scan": "Sicherheitsscan für hochgeladene Fähigkeiten vor der Aktivierung durchführen",
-  "help.skill_manager.scan_with_guardian": "LLM Guardian verwenden, um hochgeladenen Fähigkeitscode auf Sicherheitsprobleme zu prüfen"
+  "help.skill_manager.scan_with_guardian": "LLM Guardian verwenden, um hochgeladenen Fähigkeitscode auf Sicherheitsprobleme zu prüfen",
+  "help.skill_manager.agent_skills_dir": "Verzeichnis für Agent-Skill-Pakete im SKILL.md-Paketformat.",
+  "config.skill_manager.agent_skills_dir_label": "Agent-Skills-Verzeichnis"
 }

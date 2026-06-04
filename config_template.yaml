@@ -214,6 +214,7 @@ directories:
     data_dir: ./data
     prompts_dir: ./prompts
     skills_dir: ./agent_workspace/skills
+    agent_skills_dir: ./agent_workspace/agent_skills
     tools_dir: ./agent_workspace/tools
     vectordb_dir: ./data/vectordb
     workspace_dir: ./agent_workspace/workdir

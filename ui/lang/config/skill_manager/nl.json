@@ -89,5 +89,7 @@
   "help.skill_manager.read_only": "Wanneer ingeschakeld, worden alle wijzigingen aan vaardigheden voorkomen (geen upload, verwijdering of schakeling)",
   "help.skill_manager.require_sandbox": "Wanneer ingeschakeld, kunnen vaardigheden alleen worden uitgevoerd in de sandboxed containeromgeving. Dit voorkomt directe toegang tot het systeem.",
   "help.skill_manager.require_scan": "Een beveiligingsscan uitvoeren op geüploade vaardigheden voordat ze worden ingeschakeld",
-  "help.skill_manager.scan_with_guardian": "LLM Guardian gebruiken om geüploade vaardigheidscode te controleren op beveiligingsproblemen"
+  "help.skill_manager.scan_with_guardian": "LLM Guardian gebruiken om geüploade vaardigheidscode te controleren op beveiligingsproblemen",
+  "help.skill_manager.agent_skills_dir": "Map voor Agent Skills-pakketten met het SKILL.md-formaat.",
+  "config.skill_manager.agent_skills_dir_label": "Map voor Agent Skills"
 }

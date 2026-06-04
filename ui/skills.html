@@ -42,6 +42,11 @@
     <div id="radialMenuAnchor"></div>
 
     <div class="sk-container">
+        <div class="sk-tabs" role="tablist" aria-label="Skill systems">
+            <button id="sk-tab-python" type="button" class="sk-tab active" role="tab" aria-selected="true" onclick="switchSkillMode('python')" data-i18n="skills.tab_python">Python Skills</button>
+            <button id="sk-tab-agent" type="button" class="sk-tab" role="tab" aria-selected="false" onclick="switchSkillMode('agent')" data-i18n="skills.tab_agent">Agent Skills</button>
+        </div>
+
         <!-- Status bar -->
         <div class="sk-status-bar" id="sk-status-bar">
             <div class="sk-stat">
@@ -79,6 +84,10 @@
                 <button class="btn btn-secondary btn-sm" onclick="showImportModal()" data-i18n="skills.btn_import">Import</button>
                 <button class="btn btn-secondary btn-sm" onclick="showGenerateModal()" data-i18n="skills.btn_generate">AI Draft</button>
             </div>
+            <div class="sk-toolbar-actions" id="agent-toolbar-actions" style="display:none;">
+                <button class="btn btn-primary btn-sm" onclick="showAgentSkillCreateModal()" data-i18n="skills.agent_btn_create">Create Agent Skill</button>
+                <button class="btn btn-secondary btn-sm" onclick="showAgentSkillImportModal()" data-i18n="skills.agent_btn_import">Import Package</button>
+            </div>
         </div>
 
         <!-- Security filter pills -->
@@ -105,6 +114,100 @@
             <div class="empty-icon">⚠️</div>
             <h3 data-i18n="skills.disabled_title">Skill Manager Not Enabled</h3>
             <p data-i18n="skills.disabled_desc">Enable Skill Manager in the configuration to manage skills.</p>
+        </div>
+    </div>
+
+    <!-- AGENT SKILL CREATE / EDIT MODAL -->
+    <div class="modal-overlay" id="agent-skill-modal">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <h2 id="agent-skill-modal-title" data-i18n="skills.agent_create_title">Create Agent Skill</h2>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeAgentSkillModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="sk-code-meta-grid" id="agent-create-fields">
+                    <div class="sk-form-group">
+                        <label data-i18n="skills.agent_field_name">Package name</label>
+                        <input type="text" id="agent-skill-name" class="sk-input" placeholder="csv-helper" data-i18n-placeholder="skills.agent_name_placeholder">
+                    </div>
+                    <div class="sk-form-group">
+                        <label data-i18n="skills.agent_field_description">Description</label>
+                        <input type="text" id="agent-skill-description" class="sk-input" data-i18n-placeholder="skills.agent_description_placeholder" placeholder="Use when summarizing CSV reports.">
+                    </div>
+                </div>
+                <div class="sk-form-group">
+                    <label data-i18n="skills.agent_skill_md">SKILL.md</label>
+                    <textarea id="agent-skill-content" class="sk-input sk-textarea sk-agent-editor" rows="18" spellcheck="false"></textarea>
+                </div>
+                <div class="sk-form-group" id="agent-resource-browser" style="display:none;">
+                    <label data-i18n="skills.agent_resources">Resources</label>
+                    <div id="agent-resource-list" class="sk-resource-list"></div>
+                    <div class="sk-code-meta-grid">
+                        <input type="text" id="agent-resource-path" class="sk-input" placeholder="scripts/run.py" data-i18n-placeholder="skills.agent_resource_path_placeholder">
+                        <button class="btn btn-secondary" type="button" onclick="saveAgentSkillResource()" data-i18n="skills.agent_btn_save_resource">Save File</button>
+                    </div>
+                    <textarea id="agent-resource-content" class="sk-input sk-textarea" rows="8" spellcheck="false"></textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeAgentSkillModal()" data-i18n="common.btn_cancel">Cancel</button>
+                <button class="btn btn-primary" onclick="saveAgentSkill()" data-i18n="common.btn_save">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AGENT SKILL IMPORT MODAL -->
+    <div class="modal-overlay" id="agent-import-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 data-i18n="skills.agent_import_title">Import Agent Skill</h2>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeAgentSkillImportModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="sk-upload-warning">
+                    <span data-i18n="skills.agent_import_warning">Packages are scanned before activation. New or changed Agent Skills stay disabled until approved by security status.</span>
+                </div>
+                <div class="sk-form-group">
+                    <label data-i18n="skills.agent_import_zip">ZIP package</label>
+                    <input type="file" id="agent-import-file" accept=".zip" onchange="handleAgentImportFileSelect(event)">
+                    <p id="agent-import-file-name" class="sk-inline-help" data-i18n="skills.agent_import_zip_hint">Choose a ZIP containing one folder with SKILL.md.</p>
+                </div>
+                <div class="sk-form-group">
+                    <label data-i18n="skills.agent_import_folder">Local folder path</label>
+                    <input type="text" id="agent-import-path" class="sk-input" data-i18n-placeholder="skills.agent_import_folder_placeholder" placeholder="C:\path\to\csv-helper">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeAgentSkillImportModal()" data-i18n="common.btn_cancel">Cancel</button>
+                <button class="btn btn-primary" onclick="submitAgentSkillImport()" data-i18n="skills.btn_import">Import</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AGENT SKILL TEST MODAL -->
+    <div class="modal-overlay" id="agent-test-modal">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <h2 data-i18n="skills.agent_test_title">Test Agent Skill Script</h2>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeAgentSkillTestModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="sk-code-meta-grid">
+                    <div class="sk-form-group">
+                        <label data-i18n="skills.agent_script_path">Script</label>
+                        <select id="agent-test-script" class="sk-select"></select>
+                    </div>
+                    <div class="sk-form-group">
+                        <label data-i18n="skills.test_args_label">JSON Input</label>
+                        <textarea id="agent-test-args" class="sk-input sk-textarea" rows="6">{}</textarea>
+                    </div>
+                </div>
+                <pre id="agent-test-output" class="sk-test-output"></pre>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeAgentSkillTestModal()" data-i18n="common.btn_cancel">Cancel</button>
+                <button class="btn btn-primary" onclick="runAgentSkillTest()" data-i18n="skills.btn_run_test">Run Test</button>
+            </div>
         </div>
     </div>
 

@@ -89,5 +89,7 @@
   "help.skill_manager.read_only": "When enabled, prevents all modifications to skills (no upload, delete, or toggle)",
   "help.skill_manager.require_sandbox": "When enabled, skills can only be executed inside the sandboxed container environment. This prevents direct access to the system.",
   "help.skill_manager.require_scan": "Run a security scan on uploaded skills before enabling them",
-  "help.skill_manager.scan_with_guardian": "Use the LLM Guardian to review uploaded skill code for security issues"
+  "help.skill_manager.scan_with_guardian": "Use the LLM Guardian to review uploaded skill code for security issues",
+  "help.skill_manager.agent_skills_dir": "Directory for Agent Skills packages using the SKILL.md package format.",
+  "config.skill_manager.agent_skills_dir_label": "Agent Skills Directory"
 }

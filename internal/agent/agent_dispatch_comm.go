@@ -466,6 +466,15 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			return fmt.Sprintf("Tool Output: Documentation for skill %q saved (%d bytes).", name, len(content))
 
+		case "list_agent_skills":
+			return dispatchListAgentSkills(tc, dc)
+
+		case "activate_agent_skill":
+			return dispatchActivateAgentSkill(tc, dc)
+
+		case "run_agent_skill_script":
+			return dispatchRunAgentSkillScript(ctx, tc, dc)
+
 		case "list_skills":
 			logger.Info("LLM requested to list skills")
 			skills, err := tools.ListSkills(cfg.Directories.SkillsDir)

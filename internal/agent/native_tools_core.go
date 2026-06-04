@@ -12,6 +12,28 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 			"Run a pre-built registered skill (e.g. web_search, ddg_search, pdf_extractor, wikipedia_search, virustotal_scan). Use for external data retrieval.",
 			schema(execSkillProps, "skill"),
 		),
+		tool("list_agent_skills",
+			"List enabled Agent Skills packages. Use this to discover package-first SKILL.md capabilities before activating one.",
+			schema(map[string]interface{}{
+				"search": prop("string", "Optional search term for Agent Skill name or description"),
+			}),
+		),
+		tool("activate_agent_skill",
+			"Load full SKILL.md instructions for an enabled Agent Skill package. Call this before following a listed Agent Skill's detailed workflow.",
+			schema(map[string]interface{}{
+				"skill": prop("string", "Agent Skill name to activate"),
+				"name":  prop("string", "Alias for skill"),
+			}, "skill"),
+		),
+		tool("run_agent_skill_script",
+			"Run an approved Python script from an enabled Agent Skill package with JSON arguments. Only scripts/*.py can be executed and no secrets are injected.",
+			schema(map[string]interface{}{
+				"skill":  prop("string", "Agent Skill name"),
+				"name":   prop("string", "Alias for skill"),
+				"script": prop("string", "Script path under scripts/, e.g. scripts/analyze.py"),
+				"args":   map[string]interface{}{"type": "object", "description": "JSON arguments sent to the script on stdin"},
+			}, "skill", "script"),
+		),
 		tool("run_tool",
 			"Run a saved custom Python tool from the agent tools directory. Requires agent.allow_python. Use name from discover_tools/list_tools and pass positional args as an array, or pass a params object that will be forwarded as one JSON argument.",
 			schema(map[string]interface{}{

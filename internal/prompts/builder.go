@@ -235,6 +235,7 @@ type ContextFlags struct {
 	MessageSource            string // origin channel: "web_chat", "telegram", "discord", "a2a", "sms", "mission"
 	ToolsDir                 string // absolute path to agent_workspace/tools/ for custom tool scripts
 	SkillsDir                string // absolute path to agent_workspace/skills/ for skill plugins
+	AgentSkillsCatalog       string // enabled Agent Skill names/descriptions; full SKILL.md loads via activate_agent_skill
 	UnifiedMemoryBlock       bool   // experimental: merge retrieval/activity/KG context into one prompt section
 	Model                    string // model identifier for token-counting accuracy
 	// SkipIntegrationTools lists tool names to exclude from the [ENABLED INTEGRATIONS]
@@ -842,6 +843,13 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 			parts = append(parts, "Skills: `"+flags.SkillsDir+"`")
 		}
 		finalPrompt.WriteString("> **Runtime Paths:** " + strings.Join(parts, " | ") + "\n")
+	}
+
+	if strings.TrimSpace(flags.AgentSkillsCatalog) != "" {
+		finalPrompt.WriteString("\n# AGENT SKILLS CATALOG\n")
+		finalPrompt.WriteString("Enabled Agent Skills are listed by name and description only. Use `activate_agent_skill` to load full SKILL.md instructions before applying one.\n")
+		finalPrompt.WriteString(strings.TrimSpace(flags.AgentSkillsCatalog))
+		finalPrompt.WriteString("\n")
 	}
 
 	// Additional custom instructions (always appended last, after NOW, for maximum LLM attention)

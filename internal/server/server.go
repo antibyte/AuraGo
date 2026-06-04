@@ -260,9 +260,10 @@ type Server struct {
 	A2AClientMgr       *a2apkg.ClientManager // A2A client manager (nil if disabled)
 	A2ABridge          *a2apkg.Bridge        // A2A co-agent bridge (nil if disabled)
 	SkillManager       *tools.SkillManager   // Skill Manager for registry and security scanning
-	SkillsDB           *sql.DB               // Skills registry database
-	PreparedMissionsDB *sql.DB               // Prepared missions SQLite database
-	MissionHistoryDB   *sql.DB               // Mission execution history SQLite database
+	AgentSkillManager  *tools.AgentSkillManager
+	SkillsDB           *sql.DB // Skills registry database
+	PreparedMissionsDB *sql.DB // Prepared missions SQLite database
+	MissionHistoryDB   *sql.DB // Mission execution history SQLite database
 	PreparationService *services.MissionPreparationService
 	WarningsRegistry   *warnings.Registry // Runtime warnings and health issues
 	DaemonSupervisor   *tools.DaemonSupervisor
@@ -456,6 +457,16 @@ func Start(opts StartOptions) error {
 			tools.SetDefaultSkillManager(s.SkillManager)
 			if err := s.SkillManager.SyncFromDisk(); err != nil {
 				logger.Warn("Failed to sync skills from disk", "error", err)
+			}
+			if err := tools.MigrateAgentSkillsDB(skillsDB); err != nil {
+				logger.Warn("Failed to initialize Agent Skills schema", "error", err)
+			} else {
+				s.AgentSkillManager = tools.NewAgentSkillManager(skillsDB, cfg.Directories.AgentSkillsDir, cfg.Directories.WorkspaceDir, logger)
+				tools.SetDefaultAgentSkillManager(s.AgentSkillManager)
+				if err := s.AgentSkillManager.SyncFromDisk(context.Background(), s.LLMGuardian, cfg.Tools.SkillManager.ScanWithGuardian); err != nil {
+					logger.Warn("Failed to sync Agent Skills from disk", "error", err)
+				}
+				logger.Info("Agent Skills initialized", "agent_skills_dir", cfg.Directories.AgentSkillsDir)
 			}
 			logger.Info("Skill Manager initialized", "skills_dir", cfg.Directories.SkillsDir)
 			if shouldSeedWelcomeContent(s.IsFirstStart) {

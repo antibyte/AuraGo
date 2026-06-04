@@ -89,5 +89,7 @@
   "help.skill_manager.read_only": "Når aktiveret, forhindres alle ændringer af færdigheder (ingen upload, sletning eller skift)",
   "help.skill_manager.require_sandbox": "Når det er aktiveret, kan færdigheder kun udføres i containermiljøet med sandkasse. Dette forhindrer direkte adgang til systemet.",
   "help.skill_manager.require_scan": "Kør en sikkerhedsscanning af uploadede færdigheder før aktivering",
-  "help.skill_manager.scan_with_guardian": "Brug LLM Guardian til at gennemgå uploadet færdighedskode for sikkerhedsproblemer"
+  "help.skill_manager.scan_with_guardian": "Brug LLM Guardian til at gennemgå uploadet færdighedskode for sikkerhedsproblemer",
+  "help.skill_manager.agent_skills_dir": "Mappe til Agent Skills-pakker i SKILL.md-format.",
+  "config.skill_manager.agent_skills_dir_label": "Agent Skills-mappe"
 }
