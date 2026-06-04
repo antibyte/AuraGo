@@ -4,6 +4,7 @@
     let canvas, renderer, scene, camera;
     let reflectionRenderTarget = null;
     let reflectionCamera = null;
+    let textureMatrix = null;
     let animationId = null;
     let active = false;
     let sceneGeneration = 0;
@@ -1433,12 +1434,25 @@
             mat.userData.shader = shader;
             
             shader.uniforms.tReflection = { value: null };
-            shader.uniforms.resolution = { value: new THREE.Vector2(window.innerWidth, window.innerHeight) };
+            shader.uniforms.textureMatrix = { value: textureMatrix };
             shader.uniforms.reflectionStrength = { value: 0.45 };
+
+            shader.vertexShader = `
+                uniform mat4 textureMatrix;
+                varying vec4 vUvReflection;
+            ` + shader.vertexShader;
+
+            shader.vertexShader = shader.vertexShader.replace(
+                '#include <project_vertex>',
+                `
+                #include <project_vertex>
+                vUvReflection = textureMatrix * modelMatrix * vec4(position, 1.0);
+                `
+            );
 
             shader.fragmentShader = `
                 uniform sampler2D tReflection;
-                uniform vec2 resolution;
+                varying vec4 vUvReflection;
                 uniform float reflectionStrength;
             ` + shader.fragmentShader;
 
@@ -1446,10 +1460,11 @@
                 '#include <dithering_fragment>',
                 `
                 #include <dithering_fragment>
-                vec2 refUv = gl_FragCoord.xy / resolution;
+                vec3 projCoords = vUvReflection.xyz / vUvReflection.w;
+                vec2 refUv = projCoords.xy;
                 refUv.x += vNormal.x * 0.035;
                 refUv.y += vNormal.y * 0.035;
-                refUv = clamp(refUv, 0.001, 0.999);
+                refUv = clamp(refUv, 0.002, 0.998);
                 vec4 refColor = texture2D(tReflection, refUv);
                 gl_FragColor.rgb = mix(gl_FragColor.rgb, refColor.rgb, reflectionStrength * opacity);
                 `
@@ -3407,6 +3422,9 @@
         if (!reflectionCamera) {
             reflectionCamera = new THREE.PerspectiveCamera(44, window.innerWidth / window.innerHeight, 0.1, 1000);
         }
+        if (!textureMatrix) {
+            textureMatrix = new THREE.Matrix4();
+        }
         
         return true;
     }
@@ -3436,6 +3454,17 @@
         renderer.setRenderTarget(currentRenderTarget);
         surface.visible = true;
         if (gridLines) gridLines.visible = true;
+
+        if (textureMatrix) {
+            textureMatrix.set(
+                0.5, 0.0, 0.0, 0.5,
+                0.0, 0.5, 0.0, 0.5,
+                0.0, 0.0, 0.5, 0.5,
+                0.0, 0.0, 0.0, 1.0
+            );
+            textureMatrix.multiply(reflectionCamera.projectionMatrix);
+            textureMatrix.multiply(reflectionCamera.matrixWorldInverse);
+        }
     }
 
     function resize() {
@@ -3452,9 +3481,6 @@
             reflectionCamera.updateProjectionMatrix();
         }
 
-        if (surface && surface.material && surface.material.userData.shader) {
-            surface.material.userData.shader.uniforms.resolution.value.set(width, height);
-        }
     }
 
     // Module-scoped scratch objects to avoid per-frame GC allocation
@@ -3617,7 +3643,6 @@
 
         if (surface && surface.material && surface.material.userData.shader) {
             surface.material.userData.shader.uniforms.tReflection.value = reflectionRenderTarget.texture;
-            surface.material.userData.shader.uniforms.resolution.value.set(window.innerWidth, window.innerHeight);
         }
 
         renderer.render(scene, camera);
