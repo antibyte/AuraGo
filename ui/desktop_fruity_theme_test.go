@@ -228,6 +228,41 @@ func TestDesktopFruityWindowControlsStayOnLeft(t *testing.T) {
 	}
 }
 
+func TestDesktopFruitySystemControlsSitOnCompactCard(t *testing.T) {
+	t.Parallel()
+
+	cssText := readAllDesktopCSS(t)
+	systemBody := cssRuleBodyInFruityThemeTest(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-taskbar-system")
+	for _, want := range []string{
+		"padding: 6px;",
+		"border: 1px solid rgba(78, 92, 118, 0.16);",
+		"border-radius: 18px;",
+		"background: rgba(255, 255, 255, 0.28);",
+		"box-shadow: 0 18px 42px rgba(52, 64, 84, 0.18);",
+		"backdrop-filter: blur(26px) saturate(1.22);",
+	} {
+		if !strings.Contains(systemBody, want) {
+			t.Fatalf("fruity taskbar system card missing %q in body %q", want, systemBody)
+		}
+	}
+
+	controlsBody := cssRuleBodyInFruityThemeTest(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-taskbar-system .vd-shortcuts-trigger,\n.desktop-body[data-theme=\"fruity\"] .vd-taskbar-system .vd-taskbar-widget-btn,\n.desktop-body[data-theme=\"fruity\"] .vd-taskbar-system .vd-show-desktop-btn")
+	for _, want := range []string{
+		"background: rgba(255, 255, 255, 0.54);",
+		"border-color: rgba(78, 92, 118, 0.16);",
+		"box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);",
+	} {
+		if !strings.Contains(controlsBody, want) {
+			t.Fatalf("fruity taskbar system controls missing %q in body %q", want, controlsBody)
+		}
+	}
+
+	showDesktopBody := desktopExactCSSRuleBody(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-taskbar-system > .vd-show-desktop-btn")
+	if !strings.Contains(showDesktopBody, "margin-right: 0;") {
+		t.Fatalf("fruity show-desktop handle must align inside the system card: %q", showDesktopBody)
+	}
+}
+
 func TestDesktopWindowContentPreservesRoundedCornersInAllThemes(t *testing.T) {
 	t.Parallel()
 

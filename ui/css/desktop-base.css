@@ -1170,7 +1170,26 @@
     right: max(10px, env(safe-area-inset-right));
     bottom: calc(18px + env(safe-area-inset-bottom));
     margin-left: 0;
-    gap: 8px;
+    gap: 6px;
+    padding: 6px;
+    border: 1px solid rgba(78, 92, 118, 0.16);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.28);
+    box-shadow: 0 18px 42px rgba(52, 64, 84, 0.18);
+    backdrop-filter: blur(26px) saturate(1.22);
+    -webkit-backdrop-filter: blur(26px) saturate(1.22);
+}
+
+.desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-shortcuts-trigger,
+.desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-taskbar-widget-btn,
+.desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-show-desktop-btn {
+    background: rgba(255, 255, 255, 0.54);
+    border-color: rgba(78, 92, 118, 0.16);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
+}
+
+.desktop-body[data-theme="fruity"] .vd-taskbar-system > .vd-show-desktop-btn {
+    margin-right: 0;
 }
 
 .desktop-body[data-theme="fruity"] .vd-status-dot,
@@ -1377,6 +1396,20 @@
         box-shadow:
             inset 0 0 0 1px rgba(255, 255, 255, 0.1),
             inset 0 0 0 2px rgba(0, 0, 0, 0.12);
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-taskbar-system {
+        background: rgba(24, 30, 42, 0.34);
+        border-color: rgba(255, 255, 255, 0.18);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-shortcuts-trigger,
+    .desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-taskbar-widget-btn,
+    .desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-show-desktop-btn {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.18);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
     }
 
     .desktop-body[data-theme="fruity"] .vd-dock-button.running::after {
