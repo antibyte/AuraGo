@@ -2,6 +2,7 @@
     'use strict';
 
     const instances = new Map();
+    const SAVE_DEBOUNCE_MS = 500;
 
     function render(host, windowId, context) {
         if (!host) return;
@@ -116,11 +117,101 @@
 
     function renderAgentBadge(state) { /* implemented in Task 26 */ }
 
-    function markDirty(state) { state.dirty = true; }
+    function markDirty(state) {
+        state.dirty = true;
+        renderSaveStatus(state, 'saving');
+    }
 
-    function scheduleSave(state) { /* implemented in Task 14 */ }
+    function scheduleSave(state) {
+        if (state.saveTimer) clearTimeout(state.saveTimer);
+        state.saveTimer = setTimeout(() => commitSave(state), SAVE_DEBOUNCE_MS);
+    }
 
-    async function flushSave(state) { /* implemented in Task 14 */ }
+    async function flushSave(state) {
+        if (state.saveTimer) {
+            clearTimeout(state.saveTimer);
+            state.saveTimer = null;
+        }
+        if (state.dirty) await commitSave(state);
+    }
+
+    async function commitSave(state) {
+        if (!state.sheet || !state.dirty) return;
+        const sheet = state.sheet;
+        const aborter = new AbortController();
+        state.currentAbort = aborter;
+        renderSaveStatus(state, 'saving');
+        try {
+            const body = {
+                name: sheet.name,
+                content: sheet.content
+            };
+            const updated = await state.api('/api/cheatsheets/' + encodeURIComponent(sheet.id), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+                signal: aborter.signal
+            });
+            if (state.currentAbort !== aborter) return; // stale
+            state.dirty = false;
+            state.lastSavedAt = updated.updated_at || new Date().toISOString();
+            state.sheet = Object.assign({}, sheet, updated);
+            renderSaveStatus(state, 'saved');
+            updateSearchIndexEntry(state, state.sheet);
+        } catch (err) {
+            if (err && err.name === 'AbortError') return;
+            renderSaveStatus(state, 'error');
+            state.notify('cheater.error.save_failed', 'error');
+            console.error('cheater save failed', err);
+        }
+    }
+
+    function renderSaveStatus(state, kind) {
+        const node = state.host.querySelector('[data-save]');
+        if (!node) return;
+        const t = state.t;
+        if (kind === 'saving') {
+            node.dataset.state = 'saving';
+            node.textContent = t('cheater.saving', 'Speichert…');
+        } else if (kind === 'error') {
+            node.dataset.state = 'error';
+            node.textContent = t('cheater.save_error', 'Fehler · Erneut versuchen');
+        } else {
+            delete node.dataset.state;
+            const last = state.lastSavedAt;
+            node.textContent = t('cheater.saved_ago', 'Gespeichert').replace('{{time}}', formatRelative(last, t));
+        }
+    }
+
+    function formatRelative(iso, t) {
+        if (!iso) return t('cheater.just_now', 'gerade eben');
+        const then = new Date(iso).getTime();
+        if (Number.isNaN(then)) return t('cheater.just_now', 'gerade eben');
+        const diff = Math.max(0, Date.now() - then);
+        const sec = Math.floor(diff / 1000);
+        if (sec < 60) return t('cheater.seconds_ago', 'vor {{n}}s').replace('{{n}}', String(sec));
+        const min = Math.floor(sec / 60);
+        if (min < 60) return t('cheater.minutes_ago', 'vor {{n}}m').replace('{{n}}', String(min));
+        const hr = Math.floor(min / 60);
+        if (hr < 24) return t('cheater.hours_ago', 'vor {{n}}h').replace('{{n}}', String(hr));
+        const day = Math.floor(hr / 24);
+        return t('cheater.days_ago', 'vor {{n}} Tagen').replace('{{n}}', String(day));
+    }
+
+    function updateSearchIndexEntry(state, sheet) {
+        if (!sheet) return;
+        const idx = state.searchIndex.findIndex(s => s.id === sheet.id);
+        const entry = {
+            id: sheet.id,
+            name: sheet.name,
+            abstract: sheet.abstract || '',
+            tags: sheet.tags || [],
+            content_excerpt: (sheet.content || '').slice(0, 200),
+            last_used_at: sheet.last_used_at || null
+        };
+        if (idx === -1) state.searchIndex.push(entry);
+        else state.searchIndex[idx] = entry;
+    }
 
     function bindEditorEvents(state) {
         const titleInput = state.host.querySelector('[data-title]');
@@ -142,6 +233,12 @@
                 scheduleSave(state);
             });
         }
+        state.host.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+                e.preventDefault();
+                flushSave(state);
+            }
+        });
     }
 
     function bindBackButton(state) {

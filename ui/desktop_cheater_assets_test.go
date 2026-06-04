@@ -137,3 +137,26 @@ func TestDesktopCheaterEditorStyles(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopCheaterAutoSave(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/cheater.js")
+	for _, marker := range []string{
+		"SAVE_DEBOUNCE_MS = 500",
+		"function commitSave",
+		"function scheduleSave",
+		"function flushSave",
+		"function renderSaveStatus",
+		"function formatRelative",
+		"function updateSearchIndexEntry",
+		"new AbortController",
+		"method: 'PUT'",
+		"e.key === 's'",
+		"e.preventDefault()",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("cheater auto-save missing JS marker %q", marker)
+		}
+	}
+}
