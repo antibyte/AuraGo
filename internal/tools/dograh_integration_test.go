@@ -314,11 +314,12 @@ func TestBuildDograhUIProxyCreatePayloadPublishesUIAndShimsConfigRoutes(t *testi
 		t.Fatalf("Image = %q, want UI proxy image", payload.Image)
 	}
 	for _, want := range []string{
-		`return 200 '{"provider":"local"}';`,
-		`return 200 '{"enabled":false,"dsn":"","environment":"production"}';`,
-		`return 200 '{"enabled":false,"key":"","host":"/ingest","uiHost":"https://us.posthog.com"}';`,
-		`return 200 '{"ui":"dev","api":"unknown","deploymentMode":"oss","authProvider":"local"`,
-		`return 200 '{"latest":null}';`,
+		"location ^~ /api/config/",
+		`"provider":"local"`,
+		`"enabled":false`,
+		`"ui":"dev"`,
+		`"latest":null`,
+		`X-AuraGo-Dograh-Proxy "config-prefix-shim"`,
 		`return 401 '{"error":"Not authenticated"}';`,
 		"[Dograh UI proxy] active nginx config:",
 		"location /api/v1/",

@@ -52,7 +52,7 @@ const (
 	dograhCoturnPort                   = 3478
 	dograhStatusSetupRequired          = "setup_required"
 	dograhHealthProbeTimeout           = 3 * time.Second
-	dograhStackRevision                = "20260604-ui-bootstrap-shims"
+	dograhStackRevision                = "20260604-ui-config-prefix-shim"
 	dograhStackRevisionLabel           = "org.aurago.dograh.stack-revision"
 )
 
@@ -584,39 +584,17 @@ server {
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
 
-    location = /api/config/auth {
+    location ^~ /api/config/ {
         default_type application/json;
-        add_header Cache-Control "no-store";
-        return 200 '{"provider":"local"}';
-    }
-
-    location = /api/config/sentry {
-        default_type application/json;
-        add_header Cache-Control "no-store";
-        return 200 '{"enabled":false,"dsn":"","environment":"production"}';
-    }
-
-    location = /api/config/posthog {
-        default_type application/json;
-        add_header Cache-Control "no-store";
-        return 200 '{"enabled":false,"key":"","host":"/ingest","uiHost":"https://us.posthog.com"}';
-    }
-
-    location = /api/config/version {
-        default_type application/json;
-        add_header Cache-Control "no-store";
-        return 200 '{"ui":"dev","api":"unknown","deploymentMode":"oss","authProvider":"local","turnEnabled":false,"forceTurnRelay":false,"backend":{"status":"reachable","url":"http://%s:%d","healthcheckUrl":"http://%s:%d/api/v1/health","message":null}}';
-    }
-
-    location = /api/config/latest-version {
-        default_type application/json;
-        add_header Cache-Control "no-store";
-        return 200 '{"latest":null}';
+        add_header Cache-Control "no-store" always;
+        add_header X-AuraGo-Dograh-Proxy "config-prefix-shim" always;
+        return 200 '{"provider":"local","enabled":false,"dsn":"","environment":"production","key":"","host":"/ingest","uiHost":"https://us.posthog.com","ui":"dev","api":"unknown","deploymentMode":"oss","authProvider":"local","turnEnabled":false,"forceTurnRelay":false,"latest":null,"backend":{"status":"reachable","url":"http://%s:%d","healthcheckUrl":"http://%s:%d/api/v1/health","message":null}}';
     }
 
     location = /api/auth/oss {
         default_type application/json;
-        add_header Cache-Control "no-store";
+        add_header Cache-Control "no-store" always;
+        add_header X-AuraGo-Dograh-Proxy "auth-oss-shim" always;
         return 401 '{"error":"Not authenticated"}';
     }
 
@@ -885,9 +863,12 @@ func dograhUIProxyContainerNeedsRecreate(data []byte, networkName string, stack 
 	}
 	cmd := strings.Join(dograhContainerCmdValue(data), "\n")
 	for _, want := range []string{
-		`return 200 '{"provider":"local"}';`,
-		`return 200 '{"ui":"dev","api":"unknown","deploymentMode":"oss","authProvider":"local"`,
-		`return 200 '{"latest":null}';`,
+		"location ^~ /api/config/",
+		`"provider":"local"`,
+		`"enabled":false`,
+		`"ui":"dev"`,
+		`"latest":null`,
+		`X-AuraGo-Dograh-Proxy "config-prefix-shim"`,
 		`return 401 '{"error":"Not authenticated"}';`,
 		"location /api/v1/",
 		"proxy_pass $dograh_api;",
