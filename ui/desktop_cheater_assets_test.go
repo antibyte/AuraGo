@@ -90,3 +90,50 @@ func TestDesktopCheaterEmptyStateStyles(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopCheaterEditorRender(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/cheater.js")
+	for _, marker := range []string{
+		"function renderEditor",
+		"function loadSheet",
+		"function openSheet",
+		"function bindEditorEvents",
+		"function bindBackButton",
+		"data-state=\"editor\"",
+		"cheater-header",
+		"cheater-content",
+		"cheater-footer",
+		"data-title",
+		"data-source",
+		"data-save",
+		"/api/cheatsheets/",
+		"window.CheaterApp.openSheet = openSheet",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("cheater editor missing JS marker %q", marker)
+		}
+	}
+}
+
+func TestDesktopCheaterEditorStyles(t *testing.T) {
+	t.Parallel()
+
+	css := readAllDesktopAppCSS(t)
+	for _, marker := range []string{
+		".cheater-header",
+		".cheater-title",
+		".cheater-content",
+		".cheater-source",
+		".cheater-footer",
+		".cheater-back",
+		".cheater-save",
+		".cheater-attach-btn",
+		"data-state=\"editor\"",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("cheater editor CSS missing marker %q", marker)
+		}
+	}
+}
