@@ -6,11 +6,13 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/desktop"
 	"aurago/internal/desktopstore"
 	"aurago/internal/tools"
@@ -557,6 +559,14 @@ func (s *Server) reconcileDesktopStoreTailscale(ctx context.Context) error {
 		return nil
 	}
 	specs, active := desktopStoreTailscaleProxySpecs(apps)
+	var cfgSnapshot *config.Config
+	s.CfgMu.RLock()
+	if s.Cfg != nil {
+		copy := *s.Cfg
+		cfgSnapshot = &copy
+	}
+	s.CfgMu.RUnlock()
+	specs = append(specs, dograhTailscaleProxySpecs(cfgSnapshot)...)
 	if err := s.TsNetManager.ReconcileStoreAppProxies(specs); err != nil {
 		return err
 	}
@@ -604,6 +614,71 @@ func desktopStoreTailscaleProxySpecs(apps []desktopstore.InstalledApp) ([]tsnetn
 		}
 	}
 	return specs, active
+}
+
+func dograhTailscaleProxySpecs(cfg *config.Config) []tsnetnode.StoreAppProxySpec {
+	if cfg == nil || !cfg.Dograh.Enabled || !dograhURLNeedsServerProxy(cfg.Dograh.UIURL) {
+		return nil
+	}
+	port := dograhURLPort(cfg.Dograh.UIURL)
+	if port <= 0 {
+		port = cfg.Dograh.UIHostPort
+	}
+	if port <= 0 {
+		port = cfg.Dograh.UIPort
+	}
+	if port <= 0 {
+		return nil
+	}
+	target := dograhProxyTargetURL(cfg.Dograh.UIURL, port)
+	if target == "" {
+		return nil
+	}
+	return []tsnetnode.StoreAppProxySpec{{
+		ID:        "dograh",
+		Port:      port,
+		TargetURL: target,
+		Enabled:   true,
+	}}
+}
+
+func dograhURLPort(rawURL string) int {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || parsed == nil || parsed.Port() == "" {
+		return 0
+	}
+	port, err := strconv.Atoi(parsed.Port())
+	if err != nil {
+		return 0
+	}
+	return port
+}
+
+func dograhProxyTargetURL(rawURL string, fallbackPort int) string {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || parsed == nil || parsed.Hostname() == "" {
+		return ""
+	}
+	if parsed.Scheme == "" {
+		parsed.Scheme = "http"
+	}
+	host := parsed.Hostname()
+	if strings.Trim(strings.ToLower(host), "[]") == "0.0.0.0" || strings.Trim(strings.ToLower(host), "[]") == "::" {
+		host = "127.0.0.1"
+	}
+	port := parsed.Port()
+	if port == "" && fallbackPort > 0 {
+		port = strconv.Itoa(fallbackPort)
+	}
+	if port != "" {
+		parsed.Host = net.JoinHostPort(host, port)
+	} else {
+		parsed.Host = host
+	}
+	if parsed.Path == "" {
+		parsed.Path = "/"
+	}
+	return parsed.String()
 }
 
 func fmtStoreLocalTarget(port int) string {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -341,8 +342,11 @@ func dograhRewriteBrowserURLs(r *http.Request, payload map[string]interface{}) {
 }
 
 func dograhURLWithRequestHost(rawURL string, r *http.Request) string {
-	if requestLooksTailscale(r) && dograhURLIsLoopback(rawURL) {
-		return strings.TrimSpace(rawURL)
+	if requestLooksTailscale(r) && dograhURLNeedsServerProxy(rawURL) {
+		if proxyURL := dograhTailscaleBrowserURL(rawURL, r); proxyURL != "" {
+			return proxyURL
+		}
+		return ""
 	}
 	return manifestURLWithRequestHost(rawURL, r)
 }
@@ -352,8 +356,42 @@ func dograhURLIsLoopback(rawURL string) bool {
 	if err != nil || parsed == nil {
 		return false
 	}
+	return dograhHostIsLoopback(parsed.Hostname())
+}
+
+func dograhURLNeedsServerProxy(rawURL string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || parsed == nil {
+		return false
+	}
 	host := strings.Trim(strings.ToLower(parsed.Hostname()), "[]")
+	if host == "" {
+		return false
+	}
+	if dograhHostIsLoopback(host) {
+		return true
+	}
+	return net.ParseIP(host) == nil && !strings.Contains(host, ".")
+}
+
+func dograhHostIsLoopback(host string) bool {
+	host = strings.Trim(strings.ToLower(strings.TrimSpace(host)), "[]")
 	return host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "0.0.0.0" || host == "::"
+}
+
+func dograhTailscaleBrowserURL(rawURL string, r *http.Request) string {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || parsed == nil || parsed.Port() == "" {
+		return ""
+	}
+	host := effectiveRequestHost(r)
+	if host == "" {
+		return ""
+	}
+	return (&url.URL{
+		Scheme: "https",
+		Host:   net.JoinHostPort(host, parsed.Port()),
+	}).String()
 }
 
 func applyDograhPatch(w http.ResponseWriter, r *http.Request, cfg *config.Config) bool {

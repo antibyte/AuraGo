@@ -207,6 +207,23 @@ func TestDesktopStoreTailscaleProxySpecsIncludeEveryPublishedPort(t *testing.T) 
 	}
 }
 
+func TestDograhTailscaleProxySpecsExposeInternalUI(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Dograh.Enabled = true
+	cfg.Dograh.UIURL = "http://127.0.0.1:3010"
+	cfg.Dograh.UIPort = 3010
+	cfg.Dograh.UIHostPort = 3010
+
+	specs := dograhTailscaleProxySpecs(cfg)
+
+	if len(specs) != 1 {
+		t.Fatalf("specs = %#v, want one Dograh proxy spec", specs)
+	}
+	if specs[0].ID != "dograh" || specs[0].Port != 3010 || specs[0].TargetURL != "http://127.0.0.1:3010/" || !specs[0].Enabled {
+		t.Fatalf("unexpected Dograh proxy spec: %#v", specs[0])
+	}
+}
+
 func testDesktopStorePolicyServer(t *testing.T, desktopReadOnly, dockerEnabled, dockerReadOnly bool) *Server {
 	t.Helper()
 	root := t.TempDir()
