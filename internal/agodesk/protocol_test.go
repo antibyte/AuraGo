@@ -103,6 +103,62 @@ func TestSessionStartPayloadCarriesFileAccessMetadata(t *testing.T) {
 	}
 }
 
+func TestDefaultCapabilitiesIncludeComputerUseFeatures(t *testing.T) {
+	for _, want := range []string{
+		"remote.desktop.capture",
+		"remote.desktop.permission_request",
+		"remote.desktop.input",
+		"remote.desktop.discovery",
+		"remote.desktop.ui_automation",
+		"remote.desktop.browser",
+	} {
+		if !containsAgodeskTestString(DefaultCapabilities, want) {
+			t.Fatalf("DefaultCapabilities missing %s: %v", want, DefaultCapabilities)
+		}
+	}
+}
+
+func TestSessionAcceptedPayloadCarriesAdvertisedCapabilities(t *testing.T) {
+	env, err := NewEnvelope(TypeSessionAccepted, SessionAcceptedPayload{
+		SessionID:              "agodesk:dev-1",
+		DeviceID:               "dev-1",
+		Approved:               true,
+		Capabilities:           []string{"chat.full_response", "remote.desktop.capture", "remote.desktop.discovery"},
+		AdvertisedCapabilities: []string{"remote.desktop.capture", "remote.desktop.discovery"},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope: %v", err)
+	}
+
+	var raw map[string]interface{}
+	if err := json.Unmarshal(env.Payload, &raw); err != nil {
+		t.Fatalf("unmarshal session.accepted payload: %v", err)
+	}
+	advertised, ok := raw["advertised_capabilities"].([]interface{})
+	if !ok {
+		t.Fatalf("advertised_capabilities missing from JSON payload: %#v", raw)
+	}
+	if len(advertised) != 2 || advertised[0] != "remote.desktop.capture" || advertised[1] != "remote.desktop.discovery" {
+		t.Fatalf("advertised_capabilities = %#v", advertised)
+	}
+}
+
+func TestNegotiateCapabilitiesIntersectsClientAndServerCapabilities(t *testing.T) {
+	got := NegotiateCapabilities(
+		[]string{"chat.full_response", "remote.desktop.capture", "remote.desktop.browser", "unknown.cap"},
+		[]string{"remote.desktop.capture", "chat.full_response", "persona.assets"},
+	)
+	want := []string{"chat.full_response", "remote.desktop.capture"}
+	if len(got) != len(want) {
+		t.Fatalf("negotiated capabilities = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("negotiated capabilities = %v, want %v", got, want)
+		}
+	}
+}
+
 func TestNewPersonaAssetsPayloadUsesCoreAvatarAndIcon(t *testing.T) {
 	payload := NewPersonaAssetsPayload("agodesk:dev:1", "friend", true, "Friendly and supportive.")
 
@@ -121,6 +177,15 @@ func TestNewPersonaAssetsPayloadUsesCoreAvatarAndIcon(t *testing.T) {
 	if payload.PersonaPrompt != "Friendly and supportive." {
 		t.Fatalf("persona_prompt = %q, want trimmed prompt", payload.PersonaPrompt)
 	}
+}
+
+func containsAgodeskTestString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func TestNewPersonaAssetsRequestBuildsClientEnvelope(t *testing.T) {

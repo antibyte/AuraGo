@@ -1024,12 +1024,18 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.RemoteControlEnabled {
 		tools = append(tools, tool("remote_control",
 			"Manage and interact with remote devices connected to this AuraGo instance. "+
-				"List devices, check status, execute commands, transfer files, edit files precisely, edit JSON/YAML/XML files, search files, read file sections, get system information, and use agodesk desktop screenshot/input operations when a desktop client is connected.",
+				"List devices, check status, execute commands, transfer files, edit files precisely, edit JSON/YAML/XML files, search files, read file sections, get system information, and use agodesk desktop screenshot, discovery, UI automation, browser, and input operations when a desktop client is connected.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"list_devices", "device_status", "execute_command", "read_file", "write_file", "list_files", "sysinfo", "revoke_device", "edit_file", "json_edit", "yaml_edit", "xml_edit", "file_search", "file_read_advanced", "desktop_screenshot", "desktop_permission_request", "desktop_input"},
+					"enum": []string{
+						"list_devices", "device_status", "execute_command", "read_file", "write_file", "list_files", "sysinfo", "revoke_device", "edit_file", "json_edit", "yaml_edit", "xml_edit", "file_search", "file_read_advanced",
+						"desktop_screenshot", "desktop_permission_request", "desktop_input",
+						"desktop_list_displays", "desktop_list_windows", "desktop_active_window", "desktop_host_info",
+						"desktop_ui_tree", "desktop_ui_action",
+						"desktop_browser_connect", "desktop_browser_snapshot", "desktop_browser_action", "desktop_browser_disconnect",
+					},
 				},
 				"device_id":   prop("string", "Device ID (for all device-specific operations)"),
 				"device_name": prop("string", "Device name — alternative to device_id for lookup"),
@@ -1038,7 +1044,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"root_id":     prop("string", "Agodesk file-access root id for read_file, write_file, or list_files. When set, path is relative to that root."),
 				"content":     prop("string", "File content to write (for write_file) or text to insert (for edit_file insert_after/insert_before/append/prepend)"),
 				"recursive":   map[string]interface{}{"type": "boolean", "description": "List directory recursively (for list_files, default: false)"},
-				"action":      prop("string", "Sub-operation. edit_file: str_replace, str_replace_all, insert_after, insert_before, append, prepend, delete_lines. json_edit/yaml_edit: get, set, delete, keys, validate, format. xml_edit: get, set_text, set_attribute, add_element, delete, validate, format. file_search: grep, grep_recursive, find. file_read_advanced: read_lines, head, tail, count_lines, search_context"),
+				"action":      prop("string", "Sub-operation. edit_file: str_replace, str_replace_all, insert_after, insert_before, append, prepend, delete_lines. json_edit/yaml_edit: get, set, delete, keys, validate, format. xml_edit: get, set_text, set_attribute, add_element, delete, validate, format. file_search: grep, grep_recursive, find. file_read_advanced: read_lines, head, tail, count_lines, search_context. desktop_ui_action: click, invoke, focus, set_value. desktop_browser_action: click, fill, type, select, press, or other Agodesk-supported CDP action."),
 				"old":         prop("string", "Text to find (for edit_file str_replace/str_replace_all)"),
 				"new":         prop("string", "Replacement text (for edit_file str_replace/str_replace_all)"),
 				"marker":      prop("string", "Anchor text (for edit_file insert_after/insert_before)"),
@@ -1052,7 +1058,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"output_mode": prop("string", "Output mode for file_search: content (default) or count"),
 				"line_count":  prop("integer", "Number of lines for file_read_advanced head/tail or context lines for search_context"),
 				"display_id":  prop("string", "agodesk desktop display id for desktop_screenshot, e.g. display-0. Omit for primary display."),
-				"window_id":   prop("string", "agodesk desktop window id for desktop_screenshot when capturing a single window."),
+				"window_id":   prop("string", "agodesk desktop window id for desktop_screenshot or desktop_ui_tree."),
 				"format":      prop("string", "Screenshot format for desktop_screenshot: png or jpeg."),
 				"quality":     prop("integer", "Screenshot quality 1-100 for jpeg/webp captures."),
 				"include_data_base64": map[string]interface{}{
@@ -1068,6 +1074,11 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"key":          prop("string", "Keyboard key for desktop_input key_down/key_up, e.g. enter."),
 				"code":         prop("integer", "Keyboard key code for desktop_input key_down/key_up."),
 				"text":         prop("string", "Text payload for desktop_input kind=text."),
+				"element_id":   prop("string", "agodesk UI automation element id for desktop_ui_action, e.g. elem-42."),
+				"endpoint":     prop("string", "Browser CDP endpoint for desktop_browser_connect, e.g. http://127.0.0.1:9222."),
+				"selector":     prop("string", "CSS selector for desktop_browser_snapshot or desktop_browser_action."),
+				"include_html": prop("boolean", "Include HTML in desktop_browser_snapshot when the client supports it."),
+				"value":        prop("string", "Value for desktop_ui_action set_value or desktop_browser_action fill/type/select."),
 			}, "operation"),
 		))
 	}

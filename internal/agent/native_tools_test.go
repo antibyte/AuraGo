@@ -363,12 +363,21 @@ func TestBuiltinToolSchemasExposeDesktopRemoteControlOperations(t *testing.T) {
 		if !ok {
 			t.Fatal("remote_control operation property missing")
 		}
-		for _, want := range []string{"desktop_screenshot", "desktop_permission_request", "desktop_input"} {
+		for _, want := range []string{
+			"desktop_screenshot", "desktop_permission_request", "desktop_input",
+			"desktop_list_displays", "desktop_list_windows", "desktop_active_window", "desktop_host_info",
+			"desktop_ui_tree", "desktop_ui_action",
+			"desktop_browser_connect", "desktop_browser_snapshot", "desktop_browser_action", "desktop_browser_disconnect",
+		} {
 			if !containsInterfaceString(opProp["enum"], want) {
 				t.Fatalf("remote_control operation enum missing %s: %#v", want, opProp["enum"])
 			}
 		}
-		for _, want := range []string{"display_id", "window_id", "format", "quality", "include_data_base64", "kind", "x", "y", "absolute", "button", "input_action", "key", "code", "text"} {
+		for _, want := range []string{
+			"display_id", "window_id", "format", "quality", "include_data_base64",
+			"kind", "x", "y", "absolute", "button", "input_action", "key", "code", "text",
+			"element_id", "selector", "endpoint", "include_html", "value",
+		} {
 			if _, ok := props[want]; !ok {
 				t.Fatalf("remote_control properties missing desktop field %s", want)
 			}

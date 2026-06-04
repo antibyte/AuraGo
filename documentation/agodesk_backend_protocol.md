@@ -42,11 +42,29 @@ AuraGo accepts AgoDesk WebSocket messages up to 16 MiB. Desktop screenshot resul
 - `chat.response.chunk`: reserved for streaming support.
 - `persona.assets.request`: client request for the currently active AuraGo persona's visual assets and prompt.
 - `persona.assets`: server response with the active persona name, asset key, avatar image URL, icon URL, and persona prompt.
-- `desktop.command` / `desktop.result`: server-to-client command transport for screenshots, permission requests, locally approved input, and locally approved file access.
+- `desktop.command` / `desktop.result`: server-to-client command transport for screenshots, discovery, UI automation, browser CDP, permission requests, locally approved input/actions, and locally approved file access.
 
 ## Client Capabilities
 
 Clients must include `payload.client_capabilities` in `session.start`. AuraGo treats `session.accepted.capabilities` as the server-side feature list, and `session.start.client_capabilities` as the client's advertised feature list for that WebSocket session.
+
+`session.accepted` also includes `advertised_capabilities`, the negotiated intersection of the client capabilities and AuraGo server policy. AgoDesk should use this field for UI registration and status display:
+
+```json
+{
+  "session_id": "agodesk:dev-abc123",
+  "device_id": "dev-abc123",
+  "approved": true,
+  "read_only": false,
+  "capabilities": ["chat.full_response", "remote.desktop.capture"],
+  "advertised_capabilities": [
+    "chat.full_response",
+    "remote.desktop.capture",
+    "remote.desktop.discovery",
+    "remote.desktop.ui_automation"
+  ]
+}
+```
 
 Desktop commands are dispatched only when the matching client capability is present:
 
@@ -54,6 +72,9 @@ Desktop commands are dispatched only when the matching client capability is pres
 - `remote.desktop.capture`: required for `desktop_screenshot`
 - `remote.desktop.permission_request`: required for `desktop_permission_request`
 - `remote.desktop.input`: required for `desktop_input`
+- `remote.desktop.discovery`: required for `desktop_list_displays`, `desktop_list_windows`, `desktop_active_window`, and `desktop_host_info`
+- `remote.desktop.ui_automation`: required for `desktop_ui_tree` and `desktop_ui_action`
+- `remote.desktop.browser`: required for `desktop_browser_connect`, `desktop_browser_snapshot`, `desktop_browser_action`, and `desktop_browser_disconnect`
 - `remote.files.read`: required for `file_list` and `file_read`
 - `remote.files.write`: required for `file_write`
 
@@ -258,7 +279,18 @@ For a concrete client-side implementation checklist, see [`agodesk_coding_agent_
 
 ## Desktop Control
 
-Screenshots do not require user approval. Input injection requires explicit local approval via the remote-control banner.
+Screenshots, discovery, UI tree reads, browser connect/snapshot/disconnect, and permission probes do not require local action approval. Input injection, UI actions, and browser actions require explicit local approval via the remote-control banner.
+
+AuraGo accepts both legacy `ok` and current `success/status` result fields:
+
+```json
+{
+  "command_id": "cmd-1",
+  "success": true,
+  "status": "ok",
+  "data": {}
+}
+```
 
 ### Screenshot request params (`desktop_screenshot`)
 
@@ -313,6 +345,65 @@ Window captures set `"source": "window"` and include `window_id`.
 | `text` | `{ "text": "Hello" }` |
 
 Input is blocked until the user approves remote control locally.
+
+### Discovery (`remote.desktop.discovery`)
+
+| Operation | Params | Result data |
+|---|---|---|
+| `desktop_list_displays` | `{}` | `{ "displays": [...] }` |
+| `desktop_list_windows` | `{}` | `{ "windows": [...] }` |
+| `desktop_active_window` | `{}` | active window object with id, title, process, bounds, and `display_id` |
+| `desktop_host_info` | `{}` | host/platform metadata |
+
+### UI automation (`remote.desktop.ui_automation`)
+
+`desktop_ui_tree` returns a normalized accessibility tree for the active/root window or for a supplied `window_id`.
+
+```json
+{
+  "command_id": "cmd-tree-1",
+  "operation": "desktop_ui_tree",
+  "params": { "window_id": "win-12345678" }
+}
+```
+
+`desktop_ui_action` requires local approval and at least an `action` value. Common actions are `click`, `invoke`, `focus`, and `set_value`.
+
+```json
+{
+  "command_id": "cmd-ui-1",
+  "operation": "desktop_ui_action",
+  "params": {
+    "element_id": "elem-42",
+    "action": "set_value",
+    "value": "Hello from AuraGo"
+  }
+}
+```
+
+### Browser CDP (`remote.desktop.browser`)
+
+Browser operations require `remote.desktop.browser`. `desktop_browser_action` requires local approval; connect, snapshot, and disconnect are read-only operations.
+
+```json
+{
+  "command_id": "cmd-browser-1",
+  "operation": "desktop_browser_connect",
+  "params": { "endpoint": "http://127.0.0.1:9222" }
+}
+```
+
+```json
+{
+  "command_id": "cmd-browser-2",
+  "operation": "desktop_browser_action",
+  "params": {
+    "action": "fill",
+    "selector": "#name",
+    "value": "Ada"
+  }
+}
+```
 
 ## File Access Commands
 
@@ -426,11 +517,21 @@ The existing RemoteHub command protocol supports these agodesk-capable operation
 - `desktop_screenshot`
 - `desktop_permission_request`
 - `desktop_input`
+- `desktop_list_displays`
+- `desktop_list_windows`
+- `desktop_active_window`
+- `desktop_host_info`
+- `desktop_ui_tree`
+- `desktop_ui_action`
+- `desktop_browser_connect`
+- `desktop_browser_snapshot`
+- `desktop_browser_action`
+- `desktop_browser_disconnect`
 - `file_list`
 - `file_read`
 - `file_write`
 
-Read-only policy permits screenshot, permission status requests, file listing, and file reading. It denies desktop input and file writing.
+Read-only policy permits screenshot, permission status requests, discovery, UI tree reads, browser connect/snapshot/disconnect, file listing, and file reading. It denies desktop input, `desktop_ui_action`, `desktop_browser_action`, and file writing before dispatch.
 
 `desktop_stream_start` and `desktop_stream_stop` remain reserved for a later backend version and are not available in v1.
 

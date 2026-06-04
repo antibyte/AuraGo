@@ -1,6 +1,6 @@
 # Remote Control (`remote_control`)
 
-Manage remote machines running the AuraGo Remote agent or a paired agodesk desktop client. Provides shell execution, file transfer, system information collection, device lifecycle management, and agodesk desktop screenshot/input operations over secure WebSocket connections.
+Manage remote machines running the AuraGo Remote agent or a paired agodesk desktop client. Provides shell execution, file transfer, system information collection, device lifecycle management, and agodesk desktop screenshot, discovery, UI automation, browser CDP, and input operations over secure WebSocket connections.
 
 ## Operations
 
@@ -17,8 +17,18 @@ Manage remote machines running the AuraGo Remote agent or a paired agodesk deskt
 | `desktop_screenshot` | Capture an agodesk display or window screenshot |
 | `desktop_permission_request` | Ask agodesk for desktop input permission/status |
 | `desktop_input` | Send mouse/keyboard/text input to agodesk after local approval |
+| `desktop_list_displays` | List agodesk displays/monitors |
+| `desktop_list_windows` | List visible agodesk windows |
+| `desktop_active_window` | Return the currently active agodesk window |
+| `desktop_host_info` | Return host/platform metadata from agodesk |
+| `desktop_ui_tree` | Read the accessibility tree for the active/root window or a supplied `window_id` |
+| `desktop_ui_action` | Perform an approved semantic UI action such as click/focus/set_value |
+| `desktop_browser_connect` | Connect agodesk to a local browser CDP endpoint |
+| `desktop_browser_snapshot` | Read a browser DOM/text snapshot through CDP |
+| `desktop_browser_action` | Perform an approved browser CDP action such as click/fill |
+| `desktop_browser_disconnect` | End the agodesk browser CDP session |
 
-AgoDesk desktop commands require the client to advertise matching `session.start.client_capabilities`: `remote.desktop.capture` for screenshots, `remote.desktop.permission_request` for permission checks, and `remote.desktop.input` for input. If a desktop command returns `UNSUPPORTED_CAPABILITY`, the WebSocket may still be alive for chat/heartbeat, but that client version or configuration is not remote-control capable.
+AgoDesk desktop commands require the client to advertise matching `session.start.client_capabilities`: `remote.desktop.capture` for screenshots, `remote.desktop.permission_request` for permission checks, `remote.desktop.input` for input, `remote.desktop.discovery` for display/window/host discovery, `remote.desktop.ui_automation` for UI tree/action, and `remote.desktop.browser` for browser CDP. If a desktop command returns `UNSUPPORTED_CAPABILITY`, the WebSocket may still be alive for chat/heartbeat, but that client version or configuration is not remote-control capable.
 
 ## Parameters
 
@@ -43,6 +53,12 @@ AgoDesk desktop commands require the client to advertise matching `session.start
 | `input_action` | string | optional for mouse_click | Preferred click action field, e.g. `click`, `down`, or `up`; forwarded to agodesk as protocol `action` |
 | `key`, `code` | string/integer | for key_down/key_up | Keyboard key name or numeric key code |
 | `text` | string | for text input | Text to type |
+| `element_id` | string | for desktop_ui_action | Element id from a prior `desktop_ui_tree` result |
+| `action` | string | for desktop_ui_action and desktop_browser_action | UI/browser action such as `click`, `focus`, `set_value`, or `fill` |
+| `endpoint` | string | optional for desktop_browser_connect | Browser CDP endpoint, e.g. `http://127.0.0.1:9222` |
+| `selector` | string | optional for browser operations | CSS selector for browser snapshot/action |
+| `include_html` | boolean | optional for desktop_browser_snapshot | Include HTML when supported by agodesk |
+| `value` | string | optional for UI/browser actions | Value for `set_value`, `fill`, `type`, or `select` |
 
 ## Examples
 
@@ -76,6 +92,29 @@ AgoDesk desktop commands require the client to advertise matching `session.start
 {"action": "remote_control", "operation": "desktop_screenshot", "device_name": "office-pc", "display_id": "display-0", "format": "png"}
 ```
 
+**Inspect active window and UI tree:**
+```json
+{"action": "remote_control", "operation": "desktop_active_window", "device_name": "office-pc"}
+```
+
+```json
+{"action": "remote_control", "operation": "desktop_ui_tree", "device_name": "office-pc", "window_id": "win-12345678"}
+```
+
+**Perform an approved UI action:**
+```json
+{"action": "remote_control", "operation": "desktop_ui_action", "device_name": "office-pc", "element_id": "elem-42", "action": "click"}
+```
+
+**Use browser CDP through agodesk:**
+```json
+{"action": "remote_control", "operation": "desktop_browser_connect", "device_name": "office-pc", "endpoint": "http://127.0.0.1:9222"}
+```
+
+```json
+{"action": "remote_control", "operation": "desktop_browser_snapshot", "device_name": "office-pc", "selector": "main"}
+```
+
 **Request local input approval:**
 ```json
 {"action": "remote_control", "operation": "desktop_permission_request", "device_name": "office-pc"}
@@ -96,9 +135,9 @@ AgoDesk desktop commands require the client to advertise matching `session.start
 ## Notes
 
 - **Timeouts**: Command execution has 60s timeout, file operations have 30s timeout, sysinfo has 15s timeout
-- **Read-only mode**: execute_command, write_file, revoke_device, edit operations, and desktop_input are blocked when read-only mode is enabled
+- **Read-only mode**: execute_command, write_file, revoke_device, edit operations, desktop_input, desktop_ui_action, and desktop_browser_action are blocked when read-only mode is enabled. Discovery, UI tree reads, browser connect/snapshot/disconnect, screenshots, and permission probes remain allowed.
 - **Path restrictions**: File operations only access paths within the device's configured `allowed_paths`
 - **Platform support**: Uses `sh -c` on Linux/macOS, `cmd /C` on Windows
 - **Connection route**: Personalized `aurago-remote` downloads can embed an automatic, Tailscale, or manual supervisor WebSocket URL via `remote_control.connection_mode`.
-- **agodesk desktop safety**: Screenshots do not require local approval. Desktop input requires explicit local approval in the agodesk remote-control banner; AuraGo cannot approve or bypass that from the backend.
+- **agodesk desktop safety**: Screenshots, discovery, UI tree reads, and browser snapshots do not require local approval. Desktop input, UI actions, and browser actions require explicit local approval in the agodesk remote-control banner; AuraGo cannot approve or bypass that from the backend.
 - **agodesk streaming**: Desktop streaming operations are reserved but not available in this backend version.

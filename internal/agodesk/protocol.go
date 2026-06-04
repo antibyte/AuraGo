@@ -55,6 +55,9 @@ var DefaultCapabilities = []string{
 	"remote.desktop.capture",
 	"remote.desktop.permission_request",
 	"remote.desktop.input",
+	"remote.desktop.discovery",
+	"remote.desktop.ui_automation",
+	"remote.desktop.browser",
 	"remote.files.read",
 	"remote.files.write",
 	"persona.assets",
@@ -132,12 +135,13 @@ type SharedKeyProof struct {
 }
 
 type SessionAcceptedPayload struct {
-	SessionID    string   `json:"session_id"`
-	DeviceID     string   `json:"device_id"`
-	Approved     bool     `json:"approved"`
-	ReadOnly     bool     `json:"read_only"`
-	Capabilities []string `json:"capabilities"`
-	SharedKey    string   `json:"shared_key,omitempty"`
+	SessionID              string   `json:"session_id"`
+	DeviceID               string   `json:"device_id"`
+	Approved               bool     `json:"approved"`
+	ReadOnly               bool     `json:"read_only"`
+	Capabilities           []string `json:"capabilities"`
+	AdvertisedCapabilities []string `json:"advertised_capabilities,omitempty"`
+	SharedKey              string   `json:"shared_key,omitempty"`
 }
 
 type ChatMessagePayload struct {
@@ -190,9 +194,54 @@ type DesktopCommandPayload struct {
 
 type DesktopResultPayload struct {
 	CommandID string                 `json:"command_id"`
-	OK        bool                   `json:"ok"`
+	OK        bool                   `json:"ok,omitempty"`
+	Success   *bool                  `json:"success,omitempty"`
+	Status    string                 `json:"status,omitempty"`
+	SessionID string                 `json:"session_id,omitempty"`
+	DeviceID  string                 `json:"device_id,omitempty"`
 	Data      map[string]interface{} `json:"data,omitempty"`
 	Error     string                 `json:"error,omitempty"`
+	ErrorCode string                 `json:"error_code,omitempty"`
+}
+
+func (p DesktopResultPayload) Succeeded() bool {
+	if p.Success != nil {
+		return *p.Success
+	}
+	if status := strings.TrimSpace(p.Status); status != "" {
+		return strings.EqualFold(status, "ok")
+	}
+	return p.OK
+}
+
+func NegotiateCapabilities(clientCapabilities, serverCapabilities []string) []string {
+	if len(clientCapabilities) == 0 || len(serverCapabilities) == 0 {
+		return nil
+	}
+	server := make(map[string]struct{}, len(serverCapabilities))
+	for _, capability := range serverCapabilities {
+		capability = strings.TrimSpace(capability)
+		if capability != "" {
+			server[capability] = struct{}{}
+		}
+	}
+	seen := make(map[string]struct{}, len(clientCapabilities))
+	negotiated := make([]string, 0, len(clientCapabilities))
+	for _, capability := range clientCapabilities {
+		capability = strings.TrimSpace(capability)
+		if capability == "" {
+			continue
+		}
+		if _, ok := server[capability]; !ok {
+			continue
+		}
+		if _, ok := seen[capability]; ok {
+			continue
+		}
+		seen[capability] = struct{}{}
+		negotiated = append(negotiated, capability)
+	}
+	return negotiated
 }
 
 func NewEnvelope(messageType MessageType, payload interface{}) (Envelope, error) {

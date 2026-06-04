@@ -388,6 +388,54 @@ func TestAgodeskSessionStartWithPairingTokenCreatesRemoteDevice(t *testing.T) {
 	}
 }
 
+func TestAgodeskSessionAcceptedAdvertisesNegotiatedClientCapabilities(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	token := "agodesk-advertised-capabilities-token"
+	if _, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
+		TokenHash:  hashSHA256(token),
+		DeviceName: "desktop-pc",
+		ExpiresAt:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+	}); err != nil {
+		t.Fatalf("CreateEnrollment: %v", err)
+	}
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws")
+	defer cleanup()
+	_ = readAgodeskTestEnvelope(t, conn)
+	start, err := agodesk.NewEnvelope(agodesk.TypeSessionStart, agodesk.SessionStartPayload{
+		ClientVersion: "0.1.0",
+		PairingToken:  token,
+		ClientCapabilities: []string{
+			"chat.full_response",
+			"remote.desktop.capture",
+			"remote.desktop.discovery",
+			"remote.desktop.browser",
+		},
+		Host: agodesk.SessionStartHost{Hostname: "DESKTOP-PC", OS: "windows", Arch: "amd64"},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope session.start: %v", err)
+	}
+	if err := conn.WriteJSON(start); err != nil {
+		t.Fatalf("write session.start: %v", err)
+	}
+
+	resp := readAgodeskTestEnvelope(t, conn)
+	var accepted agodesk.SessionAcceptedPayload
+	decodeAgodeskTestPayload(t, resp, &accepted)
+	for _, want := range []string{"chat.full_response", "remote.desktop.capture", "remote.desktop.discovery", "remote.desktop.browser"} {
+		if !agodeskTestContainsString(accepted.AdvertisedCapabilities, want) {
+			t.Fatalf("advertised_capabilities = %v, missing %s", accepted.AdvertisedCapabilities, want)
+		}
+	}
+	if agodeskTestContainsString(accepted.AdvertisedCapabilities, "remote.desktop.input") {
+		t.Fatalf("advertised_capabilities should not include omitted client capability: %v", accepted.AdvertisedCapabilities)
+	}
+	if len(accepted.Capabilities) == 0 {
+		t.Fatal("legacy capabilities should still be populated for old clients")
+	}
+}
+
 func TestAgodeskSessionStartReconnectRequiresSharedKeyProof(t *testing.T) {
 	s := newAgodeskPairingTestServer(t)
 	sharedKey := "0123456789abcdef0123456789abcdef"
@@ -725,7 +773,42 @@ func TestAgodeskFileCommandsRequireClientCapabilities(t *testing.T) {
 	}
 }
 
+func TestAgodeskComputerUseCommandsRequireClientCapabilities(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	conn, cleanup, accepted := pairAgodeskTestClient(t, s, "agodesk-computer-use-no-cap-token", []string{"chat.full_response"})
+	defer cleanup()
+	_ = conn
+
+	for _, tc := range []struct {
+		op      string
+		wantCap string
+	}{
+		{op: remote.OpDesktopListDisplays, wantCap: "remote.desktop.discovery"},
+		{op: remote.OpDesktopListWindows, wantCap: "remote.desktop.discovery"},
+		{op: remote.OpDesktopActiveWindow, wantCap: "remote.desktop.discovery"},
+		{op: remote.OpDesktopHostInfo, wantCap: "remote.desktop.discovery"},
+		{op: remote.OpDesktopUITree, wantCap: "remote.desktop.ui_automation"},
+		{op: remote.OpDesktopUIAction, wantCap: "remote.desktop.ui_automation"},
+		{op: remote.OpDesktopBrowserConnect, wantCap: "remote.desktop.browser"},
+		{op: remote.OpDesktopBrowserSnapshot, wantCap: "remote.desktop.browser"},
+		{op: remote.OpDesktopBrowserAction, wantCap: "remote.desktop.browser"},
+		{op: remote.OpDesktopBrowserDisconnect, wantCap: "remote.desktop.browser"},
+	} {
+		result, err := s.RemoteHub.SendCommand(accepted.DeviceID, remote.CommandPayload{
+			Operation: tc.op,
+			Args:      map[string]interface{}{"window_id": "win-1", "action": "click"},
+		}, 25*time.Millisecond)
+		if err != nil {
+			t.Fatalf("%s SendCommand returned transport error: %v", tc.op, err)
+		}
+		if result.Status != "error" || !strings.Contains(result.Error, agodesk.ErrorUnsupportedCapability) || !strings.Contains(result.Error, tc.wantCap) {
+			t.Fatalf("%s result = %+v, want unsupported capability %s", tc.op, result, tc.wantCap)
+		}
+	}
+}
+
 func TestAgodeskFileDesktopResultsNormalizeRemoteOutput(t *testing.T) {
+	success := true
 	read := agodeskDesktopResultToRemoteResult("read-1", agodesk.DesktopResultPayload{
 		CommandID: "read-1",
 		OK:        true,
@@ -749,6 +832,74 @@ func TestAgodeskFileDesktopResultsNormalizeRemoteOutput(t *testing.T) {
 	})
 	if list.Status != "ok" || !strings.Contains(list.Output, `"name":"main.go"`) || strings.Contains(list.Output, `"files"`) {
 		t.Fatalf("file_list normalized result = %+v", list)
+	}
+
+	activeWindow := agodeskDesktopResultToRemoteResult("active-1", agodesk.DesktopResultPayload{
+		CommandID: "active-1",
+		Success:   &success,
+		Status:    "ok",
+		Data: map[string]interface{}{
+			"id":           "win-1",
+			"title":        "Notepad",
+			"display_id":   "display-0",
+			"process_name": "notepad.exe",
+		},
+	})
+	if activeWindow.Status != "ok" || !strings.Contains(activeWindow.Output, `"id":"win-1"`) || !strings.Contains(activeWindow.Output, `"process_name":"notepad.exe"`) {
+		t.Fatalf("computer-use normalized result = %+v", activeWindow)
+	}
+}
+
+func TestAgodeskComputerUseDesktopResultAcceptsSuccessField(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	conn, cleanup, accepted := pairAgodeskTestClient(t, s, "agodesk-computer-use-success-token", []string{"remote.desktop.discovery"})
+	defer cleanup()
+
+	type commandResult struct {
+		result remote.ResultPayload
+		err    error
+	}
+	resultCh := make(chan commandResult, 1)
+	go func() {
+		result, err := s.RemoteHub.SendCommand(accepted.DeviceID, remote.CommandPayload{
+			Operation: remote.OpDesktopActiveWindow,
+		}, 2*time.Second)
+		resultCh <- commandResult{result: result, err: err}
+	}()
+
+	cmdEnvelope := readAgodeskTestEnvelope(t, conn)
+	if cmdEnvelope.Type != agodesk.TypeDesktopCommand {
+		t.Fatalf("command envelope type = %q, want %q", cmdEnvelope.Type, agodesk.TypeDesktopCommand)
+	}
+	var cmd agodesk.DesktopCommandPayload
+	decodeAgodeskTestPayload(t, cmdEnvelope, &cmd)
+	resultEnvelope, err := agodesk.NewEnvelope(agodesk.TypeDesktopResult, map[string]interface{}{
+		"command_id": cmd.CommandID,
+		"success":    true,
+		"status":     "ok",
+		"data": map[string]interface{}{
+			"id":           "win-123",
+			"title":        "Editor",
+			"process_name": "editor.exe",
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope desktop.result: %v", err)
+	}
+	if err := conn.WriteJSON(resultEnvelope); err != nil {
+		t.Fatalf("write desktop.result: %v", err)
+	}
+
+	select {
+	case got := <-resultCh:
+		if got.err != nil {
+			t.Fatalf("SendCommand returned error: %v", got.err)
+		}
+		if got.result.Status != "ok" || !strings.Contains(got.result.Output, `"id":"win-123"`) {
+			t.Fatalf("desktop command result = %+v", got.result)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for routed desktop result")
 	}
 }
 
@@ -939,6 +1090,41 @@ func newAgodeskPairingTestServer(t *testing.T) *Server {
 		Vault:     vault,
 		RemoteHub: hub,
 	}
+}
+
+func pairAgodeskTestClient(t *testing.T, s *Server, token string, clientCapabilities []string) (*websocket.Conn, func(), agodesk.SessionAcceptedPayload) {
+	t.Helper()
+	if _, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
+		TokenHash:  hashSHA256(token),
+		DeviceName: "agodesk-test-client",
+		ExpiresAt:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+	}); err != nil {
+		t.Fatalf("CreateEnrollment: %v", err)
+	}
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws")
+	_ = readAgodeskTestEnvelope(t, conn)
+	start, err := agodesk.NewEnvelope(agodesk.TypeSessionStart, agodesk.SessionStartPayload{
+		ClientVersion:      "0.1.0",
+		PairingToken:       token,
+		ClientCapabilities: clientCapabilities,
+		Host:               agodesk.SessionStartHost{Hostname: "AGODESK-PC", OS: "windows", Arch: "amd64"},
+	})
+	if err != nil {
+		cleanup()
+		t.Fatalf("NewEnvelope session.start: %v", err)
+	}
+	if err := conn.WriteJSON(start); err != nil {
+		cleanup()
+		t.Fatalf("write session.start: %v", err)
+	}
+	acceptedEnvelope := readAgodeskTestEnvelope(t, conn)
+	var accepted agodesk.SessionAcceptedPayload
+	decodeAgodeskTestPayload(t, acceptedEnvelope, &accepted)
+	if accepted.DeviceID == "" {
+		cleanup()
+		t.Fatalf("accepted payload missing device id: %+v", accepted)
+	}
+	return conn, cleanup, accepted
 }
 
 func dialAgodeskTestWebSocket(t *testing.T, s *Server, path string) (*websocket.Conn, func()) {

@@ -339,6 +339,150 @@ func TestRemoteDesktopInputBlockedByGlobalReadOnly(t *testing.T) {
 	}
 }
 
+func TestRemoteControlComputerUseReadOnlyPolicy(t *testing.T) {
+	t.Parallel()
+
+	db, err := remote.InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatalf("init remote db: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	deviceID, err := remote.CreateDevice(db, remote.DeviceRecord{
+		Name:   "agodesk",
+		Status: "approved",
+		Tags:   []string{"agodesk", "desktop-client"},
+	})
+	if err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	transport := &agentRecordingTransport{
+		connected: map[string]bool{deviceID: true},
+		output:    `{"window_id":"win-1","element_count":1}`,
+	}
+	hub := remote.NewRemoteHub(db, nil, slog.Default())
+	hub.RegisterCommandTransport("agodesk", transport)
+
+	cfg := &config.Config{}
+	cfg.RemoteControl.Enabled = true
+	cfg.RemoteControl.ReadOnly = true
+
+	for _, blocked := range []string{"desktop_ui_action", "desktop_browser_action"} {
+		out := handleRemoteControl(ToolCall{
+			Operation: blocked,
+			DeviceID:  deviceID,
+			Params: map[string]interface{}{
+				"action":     "click",
+				"element_id": "elem-1",
+				"selector":   "#submit",
+			},
+		}, cfg, hub, slog.Default())
+		if !strings.Contains(out, `"status":"error"`) || !strings.Contains(out, "read-only") {
+			t.Fatalf("%s expected read-only error, got %s", blocked, out)
+		}
+	}
+	if len(transport.calls) != 0 {
+		t.Fatalf("read-only action operations should not dispatch, calls = %#v", transport.calls)
+	}
+
+	out := handleRemoteControl(ToolCall{
+		Operation: "desktop_ui_tree",
+		DeviceID:  deviceID,
+		Params: map[string]interface{}{
+			"window_id": "win-1",
+		},
+	}, cfg, hub, slog.Default())
+	if !strings.Contains(out, `"status":"ok"`) {
+		t.Fatalf("desktop_ui_tree should be allowed in read-only mode, got %s", out)
+	}
+	if len(transport.calls) != 1 || transport.calls[0].Operation != remote.OpDesktopUITree {
+		t.Fatalf("read-only ui tree call = %#v", transport.calls)
+	}
+}
+
+func TestRemoteControlComputerUseActionOperationsRequireAction(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.RemoteControl.Enabled = true
+	hub := remote.NewRemoteHub(nil, nil, slog.Default())
+
+	for _, op := range []string{"desktop_ui_action", "desktop_browser_action"} {
+		out := handleRemoteControl(ToolCall{
+			Operation: op,
+			DeviceID:  "agodesk-1",
+			Params: map[string]interface{}{
+				"element_id": "elem-1",
+				"selector":   "#submit",
+			},
+		}, cfg, hub, slog.Default())
+		if !strings.Contains(out, `"status":"error"`) || !strings.Contains(out, "'action' is required") {
+			t.Fatalf("%s expected missing action error, got %s", op, out)
+		}
+	}
+}
+
+func TestRemoteControlComputerUseOperationsForwardParams(t *testing.T) {
+	t.Parallel()
+
+	db, err := remote.InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatalf("init remote db: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	deviceID, err := remote.CreateDevice(db, remote.DeviceRecord{
+		Name:   "agodesk",
+		Status: "approved",
+		Tags:   []string{"agodesk", "desktop-client"},
+	})
+	if err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	transport := &agentRecordingTransport{
+		connected: map[string]bool{deviceID: true},
+		output:    `{"accepted":true}`,
+	}
+	hub := remote.NewRemoteHub(db, nil, slog.Default())
+	hub.RegisterCommandTransport("agodesk", transport)
+
+	cfg := &config.Config{}
+	cfg.RemoteControl.Enabled = true
+
+	for _, tc := range []struct {
+		toolOperation string
+		remoteOp      string
+		params        map[string]interface{}
+	}{
+		{toolOperation: "desktop_list_displays", remoteOp: remote.OpDesktopListDisplays},
+		{toolOperation: "desktop_list_windows", remoteOp: remote.OpDesktopListWindows},
+		{toolOperation: "desktop_active_window", remoteOp: remote.OpDesktopActiveWindow},
+		{toolOperation: "desktop_host_info", remoteOp: remote.OpDesktopHostInfo},
+		{toolOperation: "desktop_ui_tree", remoteOp: remote.OpDesktopUITree, params: map[string]interface{}{"window_id": "win-1"}},
+		{toolOperation: "desktop_ui_action", remoteOp: remote.OpDesktopUIAction, params: map[string]interface{}{"element_id": "elem-1", "action": "focus"}},
+		{toolOperation: "desktop_browser_connect", remoteOp: remote.OpDesktopBrowserConnect, params: map[string]interface{}{"endpoint": "http://127.0.0.1:9222"}},
+		{toolOperation: "desktop_browser_snapshot", remoteOp: remote.OpDesktopBrowserSnapshot, params: map[string]interface{}{"selector": "#app", "include_html": true}},
+		{toolOperation: "desktop_browser_action", remoteOp: remote.OpDesktopBrowserAction, params: map[string]interface{}{"selector": "#name", "action": "fill", "value": "Ada"}},
+		{toolOperation: "desktop_browser_disconnect", remoteOp: remote.OpDesktopBrowserDisconnect},
+	} {
+		out := handleRemoteControl(ToolCall{
+			Operation: tc.toolOperation,
+			DeviceID:  deviceID,
+			Params:    tc.params,
+		}, cfg, hub, slog.Default())
+		if !strings.Contains(out, `"status":"ok"`) {
+			t.Fatalf("%s expected ok output, got %s", tc.toolOperation, out)
+		}
+		if got := transport.calls[len(transport.calls)-1].Operation; got != tc.remoteOp {
+			t.Fatalf("%s dispatched operation = %q, want %q", tc.toolOperation, got, tc.remoteOp)
+		}
+	}
+	last := transport.calls[len(transport.calls)-2]
+	if got := last.Args["value"]; got != "Ada" {
+		t.Fatalf("desktop_browser_action value arg = %#v, want Ada", got)
+	}
+}
+
 func TestRemoteFileOperationsForwardAgoDeskRootID(t *testing.T) {
 	t.Parallel()
 

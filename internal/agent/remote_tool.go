@@ -20,7 +20,7 @@ func handleRemoteControl(tc ToolCall, cfg *config.Config, hub *remote.RemoteHub,
 	}
 	if cfg.RemoteControl.ReadOnly {
 		switch tc.Operation {
-		case "execute_command", "write_file", "revoke_device", "edit_file", "json_edit", "yaml_edit", "xml_edit", "desktop_input":
+		case "execute_command", "write_file", "revoke_device", "edit_file", "json_edit", "yaml_edit", "xml_edit", "desktop_input", "desktop_ui_action", "desktop_browser_action":
 			return `Tool Output: {"status":"error","message":"Remote Control is in read-only mode. Disable remote_control.read_only to allow changes."}`
 		}
 	}
@@ -60,8 +60,28 @@ func handleRemoteControl(tc ToolCall, cfg *config.Config, hub *remote.RemoteHub,
 		return remoteDesktopPermissionRequest(hub, tc, logger)
 	case "desktop_input":
 		return remoteDesktopInput(hub, tc, logger)
+	case "desktop_list_displays":
+		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopListDisplays, 15*time.Second, false)
+	case "desktop_list_windows":
+		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopListWindows, 15*time.Second, false)
+	case "desktop_active_window":
+		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopActiveWindow, 15*time.Second, false)
+	case "desktop_host_info":
+		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopHostInfo, 15*time.Second, false)
+	case "desktop_ui_tree":
+		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopUITree, 30*time.Second, false)
+	case "desktop_ui_action":
+		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopUIAction, 15*time.Second, true)
+	case "desktop_browser_connect":
+		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopBrowserConnect, 30*time.Second, false)
+	case "desktop_browser_snapshot":
+		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopBrowserSnapshot, 30*time.Second, false)
+	case "desktop_browser_action":
+		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopBrowserAction, 15*time.Second, true)
+	case "desktop_browser_disconnect":
+		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopBrowserDisconnect, 15*time.Second, false)
 	default:
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown remote_control operation '%s'. Use: list_devices, device_status, execute_command, read_file, write_file, list_files, sysinfo, revoke_device, edit_file, json_edit, yaml_edit, xml_edit, file_search, file_read_advanced, desktop_screenshot, desktop_permission_request, desktop_input"}`, tc.Operation)
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown remote_control operation '%s'. Use: list_devices, device_status, execute_command, read_file, write_file, list_files, sysinfo, revoke_device, edit_file, json_edit, yaml_edit, xml_edit, file_search, file_read_advanced, desktop_screenshot, desktop_permission_request, desktop_input, desktop_list_displays, desktop_list_windows, desktop_active_window, desktop_host_info, desktop_ui_tree, desktop_ui_action, desktop_browser_connect, desktop_browser_snapshot, desktop_browser_action, desktop_browser_disconnect"}`, tc.Operation)
 	}
 }
 
@@ -424,6 +444,27 @@ func remoteDesktopInput(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger)
 		delete(args, "input_action")
 	}
 	result, err := remoteDesktopCommand(hub, tc, remote.OpDesktopInput, args, 10*time.Second)
+	if err != nil {
+		return remoteToolError(err.Error())
+	}
+	data, err := parseRemoteDesktopOutput(result.Output)
+	if err != nil {
+		return remoteToolError(err.Error())
+	}
+	data["status"] = "ok"
+	respData, _ := json.Marshal(data)
+	return "Tool Output: " + string(respData)
+}
+
+func remoteDesktopJSONCommand(hub *remote.RemoteHub, tc ToolCall, operation string, timeout time.Duration, requireAction bool) string {
+	args := copyRemoteDesktopParams(tc.Params)
+	if tc.Action != "" && strings.TrimSpace(toolArgString(args, "action")) == "" {
+		args["action"] = tc.Action
+	}
+	if requireAction && strings.TrimSpace(toolArgString(args, "action")) == "" {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"'action' is required for %s"}`, operation)
+	}
+	result, err := remoteDesktopCommand(hub, tc, operation, args, timeout)
 	if err != nil {
 		return remoteToolError(err.Error())
 	}

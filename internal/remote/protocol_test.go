@@ -8,13 +8,18 @@ import (
 // ── ReadOnlySafe ────────────────────────────────────────────────────────────
 
 func TestReadOnlySafe(t *testing.T) {
-	safe := []string{OpSysinfo, OpFileRead, OpFileList, OpDesktopScreenshot, OpDesktopStreamStart, OpDesktopStreamStop, OpDesktopPermissionRequest}
+	safe := []string{
+		OpSysinfo, OpFileRead, OpFileList,
+		OpDesktopScreenshot, OpDesktopStreamStart, OpDesktopStreamStop, OpDesktopPermissionRequest,
+		OpDesktopListDisplays, OpDesktopListWindows, OpDesktopActiveWindow, OpDesktopHostInfo,
+		OpDesktopUITree, OpDesktopBrowserConnect, OpDesktopBrowserSnapshot, OpDesktopBrowserDisconnect,
+	}
 	for _, op := range safe {
 		if !ReadOnlySafe(op) {
 			t.Errorf("ReadOnlySafe(%q) = false; want true", op)
 		}
 	}
-	unsafe := []string{OpFileWrite, OpFileDelete, OpShellExec, OpShellExecStream, OpDesktopInput}
+	unsafe := []string{OpFileWrite, OpFileDelete, OpShellExec, OpShellExecStream, OpDesktopInput, OpDesktopUIAction, OpDesktopBrowserAction}
 	for _, op := range unsafe {
 		if ReadOnlySafe(op) {
 			t.Errorf("ReadOnlySafe(%q) = true; want false", op)

@@ -50,6 +50,16 @@ const (
 	OpDesktopStreamStop        = "desktop_stream_stop"
 	OpDesktopInput             = "desktop_input"
 	OpDesktopPermissionRequest = "desktop_permission_request"
+	OpDesktopListDisplays      = "desktop_list_displays"
+	OpDesktopListWindows       = "desktop_list_windows"
+	OpDesktopActiveWindow      = "desktop_active_window"
+	OpDesktopHostInfo          = "desktop_host_info"
+	OpDesktopUITree            = "desktop_ui_tree"
+	OpDesktopUIAction          = "desktop_ui_action"
+	OpDesktopBrowserConnect    = "desktop_browser_connect"
+	OpDesktopBrowserSnapshot   = "desktop_browser_snapshot"
+	OpDesktopBrowserAction     = "desktop_browser_action"
+	OpDesktopBrowserDisconnect = "desktop_browser_disconnect"
 	OpAgoDeskChatMessage       = "agodesk_chat_message"
 )
 
@@ -58,6 +68,8 @@ func ReadOnlySafe(op string) bool {
 	switch op {
 	case OpSysinfo, OpFileRead, OpFileList, OpFileSearch, OpFileReadAdv,
 		OpDesktopScreenshot, OpDesktopStreamStart, OpDesktopStreamStop, OpDesktopPermissionRequest,
+		OpDesktopListDisplays, OpDesktopListWindows, OpDesktopActiveWindow, OpDesktopHostInfo,
+		OpDesktopUITree, OpDesktopBrowserConnect, OpDesktopBrowserSnapshot, OpDesktopBrowserDisconnect,
 		OpAgoDeskChatMessage:
 		return true
 	default:

@@ -144,7 +144,7 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 		state.readOnly = accepted.ReadOnly
 		state.paired = accepted.Approved
 		state.mu.Unlock()
-		registerAgodeskDesktopSession(s, conn, state, accepted, payload.ClientCapabilities)
+		registerAgodeskDesktopSession(s, conn, state, accepted)
 		_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeSessionAccepted, accepted)
 	case agodesk.TypeChatMessage:
 		payload, errPayload := decodeAgodeskPayload[agodesk.ChatMessagePayload](env)
@@ -354,12 +354,13 @@ func acceptAgodeskSessionStart(s *Server, r *http.Request, requestID string, pay
 	}
 	_ = remote.MarkEnrollmentUsed(s.RemoteHub.DB(), enrollment.ID, deviceID)
 	return agodesk.SessionAcceptedPayload{
-		SessionID:    "agodesk:" + deviceID,
-		DeviceID:     deviceID,
-		Approved:     true,
-		ReadOnly:     readOnly,
-		Capabilities: agodesk.DefaultCapabilities,
-		SharedKey:    sharedKey,
+		SessionID:              "agodesk:" + deviceID,
+		DeviceID:               deviceID,
+		Approved:               true,
+		ReadOnly:               readOnly,
+		Capabilities:           agodesk.DefaultCapabilities,
+		AdvertisedCapabilities: agodesk.NegotiateCapabilities(payload.ClientCapabilities, agodesk.DefaultCapabilities),
+		SharedKey:              sharedKey,
 	}, "", ""
 }
 
@@ -397,11 +398,12 @@ func acceptAgodeskDeviceReconnect(s *Server, requestID string, payload agodesk.S
 		s.Logger.Warn("Failed to update agodesk reconnect device metadata", "device_id", deviceID, "error", err)
 	}
 	return agodesk.SessionAcceptedPayload{
-		SessionID:    "agodesk:" + deviceID,
-		DeviceID:     deviceID,
-		Approved:     true,
-		ReadOnly:     device.ReadOnly,
-		Capabilities: agodesk.DefaultCapabilities,
+		SessionID:              "agodesk:" + deviceID,
+		DeviceID:               deviceID,
+		Approved:               true,
+		ReadOnly:               device.ReadOnly,
+		Capabilities:           agodesk.DefaultCapabilities,
+		AdvertisedCapabilities: agodesk.NegotiateCapabilities(payload.ClientCapabilities, agodesk.DefaultCapabilities),
 	}, "", ""
 }
 
@@ -446,9 +448,9 @@ func buildAgodeskAgentContext() string {
 	return strings.Join([]string{
 		"The user is chatting from agodesk, a paired desktop companion running on a remote PC.",
 		"When the user asks about that remote PC, prefer the remote_control tool for available device operations and respect read-only policy.",
-		"Desktop screenshots are available through remote_control desktop_screenshot when the agodesk client is connected.",
+		"Desktop screenshots, display/window discovery, active-window metadata, UI tree reads, and browser snapshots are available through remote_control when the agodesk client advertises the matching capabilities.",
 		"If desktop screenshot or permission requests return UNSUPPORTED_CAPABILITY, explain that the client is connected for chat but does not advertise remote-control support.",
-		"Desktop input requires local approval in the agodesk remote-control banner; the backend cannot approve or bypass that local control session.",
+		"Desktop input, UI actions, and browser actions require local approval in the agodesk remote-control banner; the backend cannot approve or bypass that local control session.",
 		"Desktop streaming is not available in this backend version.",
 	}, "\n")
 }
@@ -472,7 +474,7 @@ func ensureAgodeskDesktopBroker(s *Server) *agodeskDesktopBroker {
 	return broker
 }
 
-func registerAgodeskDesktopSession(s *Server, conn *websocket.Conn, state *agodeskConnectionState, accepted agodesk.SessionAcceptedPayload, clientCapabilities []string) {
+func registerAgodeskDesktopSession(s *Server, conn *websocket.Conn, state *agodeskConnectionState, accepted agodesk.SessionAcceptedPayload) {
 	if !accepted.Approved || strings.TrimSpace(accepted.DeviceID) == "" {
 		return
 	}
@@ -480,7 +482,7 @@ func registerAgodeskDesktopSession(s *Server, conn *websocket.Conn, state *agode
 	if broker == nil {
 		return
 	}
-	broker.RegisterSession(accepted.DeviceID, conn, state, clientCapabilities)
+	broker.RegisterSession(accepted.DeviceID, conn, state, accepted.AdvertisedCapabilities)
 	if s != nil && s.RemoteHub != nil && s.RemoteHub.DB() != nil {
 		_ = remote.UpdateDeviceStatus(s.RemoteHub.DB(), accepted.DeviceID, "connected")
 	}
@@ -698,6 +700,12 @@ func agodeskDesktopCapabilityForOperation(operation string) string {
 		return "remote.desktop.permission_request"
 	case remote.OpDesktopInput:
 		return "remote.desktop.input"
+	case remote.OpDesktopListDisplays, remote.OpDesktopListWindows, remote.OpDesktopActiveWindow, remote.OpDesktopHostInfo:
+		return "remote.desktop.discovery"
+	case remote.OpDesktopUITree, remote.OpDesktopUIAction:
+		return "remote.desktop.ui_automation"
+	case remote.OpDesktopBrowserConnect, remote.OpDesktopBrowserSnapshot, remote.OpDesktopBrowserAction, remote.OpDesktopBrowserDisconnect:
+		return "remote.desktop.browser"
 	case remote.OpFileRead, remote.OpFileList:
 		return "remote.files.read"
 	case remote.OpFileWrite:
@@ -745,7 +753,7 @@ func (s *agodeskDesktopSession) failPending(err error) {
 
 func agodeskDesktopResultToRemoteResult(commandID string, payload agodesk.DesktopResultPayload) remote.ResultPayload {
 	status := "ok"
-	if !payload.OK {
+	if !payload.Succeeded() {
 		status = "error"
 	}
 	output := ""
@@ -765,11 +773,15 @@ func agodeskDesktopResultToRemoteResult(commandID string, payload agodesk.Deskto
 	if payload.CommandID != "" {
 		commandID = payload.CommandID
 	}
+	errorMessage := payload.Error
+	if errorMessage == "" {
+		errorMessage = payload.ErrorCode
+	}
 	return remote.ResultPayload{
 		CommandID: commandID,
 		Status:    status,
 		Output:    output,
-		Error:     payload.Error,
+		Error:     errorMessage,
 	}
 }
 
