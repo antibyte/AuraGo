@@ -52,7 +52,7 @@ const (
 	dograhCoturnPort                   = 3478
 	dograhStatusSetupRequired          = "setup_required"
 	dograhHealthProbeTimeout           = 3 * time.Second
-	dograhStackRevision                = "20260604-ui-api-route-proxy"
+	dograhStackRevision                = "20260604-ui-bootstrap-shims"
 	dograhStackRevisionLabel           = "org.aurago.dograh.stack-revision"
 )
 
@@ -561,7 +561,7 @@ func buildDograhUIProxyCreatePayload(stack DograhStackConfig, networkName string
 }
 
 func dograhUIProxyStartupScript(stack DograhStackConfig) string {
-	return "cat >/etc/nginx/conf.d/default.conf <<'EOF'\n" + dograhUIProxyNginxConfig(stack) + "\nEOF\nexec nginx -g 'daemon off;'\n"
+	return "cat >/etc/nginx/conf.d/default.conf <<'EOF'\n" + dograhUIProxyNginxConfig(stack) + "\nEOF\necho '[Dograh UI proxy] active nginx config:'\ncat /etc/nginx/conf.d/default.conf\nexec nginx -g 'daemon off;'\n"
 }
 
 func dograhUIProxyNginxConfig(stack DograhStackConfig) string {
@@ -602,6 +602,24 @@ server {
         return 200 '{"enabled":false,"key":"","host":"/ingest","uiHost":"https://us.posthog.com"}';
     }
 
+    location = /api/config/version {
+        default_type application/json;
+        add_header Cache-Control "no-store";
+        return 200 '{"ui":"dev","api":"unknown","deploymentMode":"oss","authProvider":"local","turnEnabled":false,"forceTurnRelay":false,"backend":{"status":"reachable","url":"http://%s:%d","healthcheckUrl":"http://%s:%d/api/v1/health","message":null}}';
+    }
+
+    location = /api/config/latest-version {
+        default_type application/json;
+        add_header Cache-Control "no-store";
+        return 200 '{"latest":null}';
+    }
+
+    location = /api/auth/oss {
+        default_type application/json;
+        add_header Cache-Control "no-store";
+        return 401 '{"error":"Not authenticated"}';
+    }
+
     location /api/v1/ {
         proxy_pass $dograh_api;
     }
@@ -610,7 +628,7 @@ server {
         proxy_pass $dograh_ui;
     }
 }
-`, stack.UIPort, stack.APIAlias, stack.APIPort, stack.UIAlias, stack.UIPort)
+`, stack.UIPort, stack.APIAlias, stack.APIPort, stack.UIAlias, stack.UIPort, stack.APIAlias, stack.APIPort, stack.APIAlias, stack.APIPort)
 }
 
 func dograhStackLabels(service string) map[string]string {
@@ -868,6 +886,9 @@ func dograhUIProxyContainerNeedsRecreate(data []byte, networkName string, stack 
 	cmd := strings.Join(dograhContainerCmdValue(data), "\n")
 	for _, want := range []string{
 		`return 200 '{"provider":"local"}';`,
+		`return 200 '{"ui":"dev","api":"unknown","deploymentMode":"oss","authProvider":"local"`,
+		`return 200 '{"latest":null}';`,
+		`return 401 '{"error":"Not authenticated"}';`,
 		"location /api/v1/",
 		"proxy_pass $dograh_api;",
 		"proxy_pass $dograh_ui;",
