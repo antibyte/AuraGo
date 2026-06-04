@@ -696,5 +696,6 @@
   "dashboard.cronjobs_error_update": "Cronjob kunne ikke opdateres.",
   "dashboard.cronjobs_error_delete": "Cronjob kunne ikke slettes.",
   "dashboard.cron_edit_source_label": "Kilde",
-  "dashboard.cron_edit_status_label": "Status"
+  "dashboard.cron_edit_status_label": "Status",
+  "dashboard.integration_dograh": "Dograh"
 }

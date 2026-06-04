@@ -282,6 +282,58 @@ type ManifestConfig struct {
 	HealthPath            string `yaml:"health_path" json:"health_path"`                                            // optional explicit health path
 }
 
+// DograhConfig holds settings for the optional managed Dograh workflow automation stack.
+type DograhConfig struct {
+	Enabled                 bool     `yaml:"enabled" json:"enabled"`                                                    // enable Dograh integration
+	AutoStart               bool     `yaml:"auto_start" json:"auto_start"`                                              // create/start managed Docker stack on AuraGo startup
+	Mode                    string   `yaml:"mode" json:"mode"`                                                          // "managed" (default) or "external"
+	ReadOnly                bool     `yaml:"readonly" json:"readonly"`                                                  // block Dograh mutations from AuraGo helpers
+	AllowTestCalls          bool     `yaml:"allow_test_calls" json:"allow_test_calls"`                                  // allow Dograh test-call helpers
+	APIURL                  string   `yaml:"api_url" json:"api_url"`                                                    // Dograh API base URL used by AuraGo
+	UIURL                   string   `yaml:"ui_url" json:"ui_url"`                                                      // Dograh UI URL shown to users
+	Host                    string   `yaml:"host" json:"host"`                                                          // host interface for managed API/UI exposure
+	APIPort                 int      `yaml:"api_port" json:"api_port"`                                                  // Dograh API container port
+	APIHostPort             int      `yaml:"api_host_port" json:"api_host_port"`                                        // published host port for Dograh API
+	UIPort                  int      `yaml:"ui_port" json:"ui_port"`                                                    // Dograh UI container port
+	UIHostPort              int      `yaml:"ui_host_port" json:"ui_host_port"`                                          // published host port for Dograh UI
+	APIContainerName        string   `yaml:"api_container_name" json:"api_container_name"`                              // managed Dograh API container name
+	UIContainerName         string   `yaml:"ui_container_name" json:"ui_container_name"`                                // managed Dograh UI container name
+	PostgresContainerName   string   `yaml:"postgres_container_name" json:"postgres_container_name"`                    // managed Postgres container name
+	RedisContainerName      string   `yaml:"redis_container_name" json:"redis_container_name"`                          // managed Redis container name
+	MinioContainerName      string   `yaml:"minio_container_name" json:"minio_container_name"`                          // managed MinIO container name
+	CoturnContainerName     string   `yaml:"coturn_container_name" json:"coturn_container_name"`                        // optional managed coturn container name
+	NetworkName             string   `yaml:"network_name" json:"network_name"`                                          // Docker network shared by Dograh services
+	APIImage                string   `yaml:"api_image" json:"api_image"`                                                // Dograh API Docker image
+	UIImage                 string   `yaml:"ui_image" json:"ui_image"`                                                  // Dograh UI Docker image
+	PostgresImage           string   `yaml:"postgres_image" json:"postgres_image"`                                      // Postgres/pgvector Docker image
+	RedisImage              string   `yaml:"redis_image" json:"redis_image"`                                            // Redis Docker image
+	MinioImage              string   `yaml:"minio_image" json:"minio_image"`                                            // MinIO Docker image
+	CoturnImage             string   `yaml:"coturn_image" json:"coturn_image"`                                          // coturn Docker image
+	PostgresUser            string   `yaml:"postgres_user" json:"postgres_user"`                                        // Postgres user
+	PostgresDatabase        string   `yaml:"postgres_database" json:"postgres_database"`                                // Postgres database name
+	PostgresVolume          string   `yaml:"postgres_volume" json:"postgres_volume"`                                    // persistent Postgres named volume
+	RedisVolume             string   `yaml:"redis_volume" json:"redis_volume"`                                          // persistent Redis named volume
+	MinioVolume             string   `yaml:"minio_volume" json:"minio_volume"`                                          // persistent MinIO named volume
+	MinioRootUser           string   `yaml:"minio_root_user" json:"minio_root_user"`                                    // MinIO root user
+	MinioBucket             string   `yaml:"minio_bucket" json:"minio_bucket"`                                          // MinIO bucket used by Dograh
+	TelemetryEnabled        bool     `yaml:"telemetry_enabled" json:"telemetry_enabled"`                                // enable upstream Dograh telemetry
+	TurnEnabled             bool     `yaml:"turn_enabled" json:"turn_enabled"`                                          // start optional coturn container
+	HealthPath              string   `yaml:"health_path" json:"health_path"`                                            // Dograh API health path
+	MCPClientEnabled        bool     `yaml:"mcp_client_enabled" json:"mcp_client_enabled"`                              // connect AuraGo to Dograh MCP server
+	MCPServerToolEnabled    bool     `yaml:"mcp_server_tool_enabled" json:"mcp_server_tool_enabled"`                    // allow registering AuraGo /mcp as a Dograh MCP tool
+	AuraGoMCPToolName       string   `yaml:"aurago_mcp_tool_name" json:"aurago_mcp_tool_name"`                          // Dograh tool name for AuraGo MCP
+	AuraGoMCPCredentialUUID string   `yaml:"aurago_mcp_credential_uuid" json:"aurago_mcp_credential_uuid"`              // Dograh credential UUID created in Dograh UI
+	AuraGoMCPAllowedTools   []string `yaml:"aurago_mcp_allowed_tools" json:"aurago_mcp_allowed_tools"`                  // optional Dograh-side tools_filter
+	CallbackWebhookEnabled  bool     `yaml:"callback_webhook_enabled" json:"callback_webhook_enabled"`                  // provision AuraGo webhook preset for Dograh callbacks
+	CallbackWebhookSlug     string   `yaml:"callback_webhook_slug" json:"callback_webhook_slug"`                        // AuraGo webhook slug for Dograh callbacks
+	APIKey                  string   `yaml:"-" json:"api_key,omitempty" vault:"dograh_api_key"`                         // vault-only
+	OSSJWTSecret            string   `yaml:"-" json:"oss_jwt_secret,omitempty" vault:"dograh_oss_jwt_secret"`           // vault-only
+	PostgresPassword        string   `yaml:"-" json:"postgres_password,omitempty" vault:"dograh_postgres_password"`     // vault-only
+	RedisPassword           string   `yaml:"-" json:"redis_password,omitempty" vault:"dograh_redis_password"`           // vault-only
+	MinioRootPassword       string   `yaml:"-" json:"minio_root_password,omitempty" vault:"dograh_minio_root_password"` // vault-only
+	AuraGoMCPToken          string   `yaml:"-" json:"aurago_mcp_token,omitempty" vault:"dograh_aurago_mcp_token"`       // vault-only metadata copy
+}
+
 // VirtualDesktopConfig holds settings for AuraGo's browser-native virtual desktop.
 type VirtualDesktopConfig struct {
 	Enabled            bool             `yaml:"enabled" json:"enabled"`                           // enable the virtual desktop web UI and APIs
@@ -1260,6 +1312,7 @@ type Config struct {
 	BrowserAutomation BrowserAutomationConfig `yaml:"browser_automation"`
 	SpaceAgent        SpaceAgentConfig        `yaml:"space_agent"`
 	Manifest          ManifestConfig          `yaml:"manifest"`
+	Dograh            DograhConfig            `yaml:"dograh"`
 	VirtualDesktop    VirtualDesktopConfig    `yaml:"virtual_desktop"`
 	SecurityProxy     struct {
 		Enabled      bool   `yaml:"enabled"`

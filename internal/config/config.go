@@ -305,6 +305,47 @@ func Load(path string) (*Config, error) {
 	cfg.Manifest.PostgresDatabase = "manifest"
 	cfg.Manifest.PostgresVolume = "aurago_manifest_pgdata"
 
+	// Dograh defaults: disabled by default, managed Docker stack when enabled.
+	cfg.Dograh.AutoStart = true
+	cfg.Dograh.Mode = "managed"
+	cfg.Dograh.ReadOnly = true
+	cfg.Dograh.AllowTestCalls = false
+	cfg.Dograh.APIURL = defaultSidecarURL(runningInDocker, "dograh-api", 8000)
+	cfg.Dograh.UIURL = defaultSidecarURL(runningInDocker, "dograh-ui", 3010)
+	cfg.Dograh.Host = "127.0.0.1"
+	cfg.Dograh.APIPort = 8000
+	cfg.Dograh.APIHostPort = 8000
+	cfg.Dograh.UIPort = 3010
+	cfg.Dograh.UIHostPort = 3010
+	cfg.Dograh.APIContainerName = "aurago_dograh_api"
+	cfg.Dograh.UIContainerName = "aurago_dograh_ui"
+	cfg.Dograh.PostgresContainerName = "aurago_dograh_postgres"
+	cfg.Dograh.RedisContainerName = "aurago_dograh_redis"
+	cfg.Dograh.MinioContainerName = "aurago_dograh_minio"
+	cfg.Dograh.CoturnContainerName = "aurago_dograh_coturn"
+	cfg.Dograh.NetworkName = "aurago_dograh"
+	cfg.Dograh.APIImage = "dograhai/dograh-api:latest"
+	cfg.Dograh.UIImage = "dograhai/dograh-ui:latest"
+	cfg.Dograh.PostgresImage = "pgvector/pgvector:pg17"
+	cfg.Dograh.RedisImage = "redis:7"
+	cfg.Dograh.MinioImage = "minio/minio:latest"
+	cfg.Dograh.CoturnImage = "coturn/coturn:4.8.0"
+	cfg.Dograh.PostgresUser = "postgres"
+	cfg.Dograh.PostgresDatabase = "postgres"
+	cfg.Dograh.PostgresVolume = "aurago_dograh_pgdata"
+	cfg.Dograh.RedisVolume = "aurago_dograh_redisdata"
+	cfg.Dograh.MinioVolume = "aurago_dograh_minio"
+	cfg.Dograh.MinioRootUser = "minioadmin"
+	cfg.Dograh.MinioBucket = "dograh"
+	cfg.Dograh.TelemetryEnabled = false
+	cfg.Dograh.TurnEnabled = false
+	cfg.Dograh.HealthPath = "/api/v1/health"
+	cfg.Dograh.MCPClientEnabled = true
+	cfg.Dograh.MCPServerToolEnabled = true
+	cfg.Dograh.AuraGoMCPToolName = "AuraGo"
+	cfg.Dograh.CallbackWebhookEnabled = true
+	cfg.Dograh.CallbackWebhookSlug = "dograh-callback"
+
 	// Virtual Desktop defaults: disabled by default, first-party browser desktop
 	// with a project-local persistent workspace when explicitly enabled.
 	cfg.VirtualDesktop.WorkspaceDir = "agent_workspace/virtual_desktop"
@@ -538,6 +579,8 @@ func Load(path string) (*Config, error) {
 	cfg.BrowserAutomation.URL = NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)
 	cfg.SpaceAgent.PublicURL, cfg.SpaceAgent.Port = normalizeSpaceAgentURLAndPort(cfg.SpaceAgent.PublicURL, cfg.SpaceAgent.Port, runningInDocker)
 	cfg.Manifest.URL = NormalizeLegacySidecarURL(cfg.Manifest.URL, runningInDocker, "manifest", 2099)
+	cfg.Dograh.APIURL = NormalizeLegacySidecarURL(cfg.Dograh.APIURL, runningInDocker, "dograh-api", 8000)
+	cfg.Dograh.UIURL = NormalizeLegacySidecarURL(cfg.Dograh.UIURL, runningInDocker, "dograh-ui", 3010)
 	if strings.TrimSpace(cfg.SpaceAgent.RepoURL) == "" {
 		cfg.SpaceAgent.RepoURL = "https://github.com/agent0ai/space-agent"
 	}
@@ -612,6 +655,105 @@ func Load(path string) (*Config, error) {
 	}
 	if strings.TrimSpace(cfg.Manifest.PostgresVolume) == "" {
 		cfg.Manifest.PostgresVolume = "aurago_manifest_pgdata"
+	}
+	if strings.TrimSpace(cfg.Dograh.Mode) == "" {
+		cfg.Dograh.Mode = "managed"
+	}
+	switch strings.ToLower(strings.TrimSpace(cfg.Dograh.Mode)) {
+	case "external":
+		cfg.Dograh.Mode = "external"
+	default:
+		cfg.Dograh.Mode = "managed"
+	}
+	if strings.TrimSpace(cfg.Dograh.APIURL) == "" {
+		cfg.Dograh.APIURL = defaultSidecarURL(runningInDocker, "dograh-api", 8000)
+	}
+	if strings.TrimSpace(cfg.Dograh.UIURL) == "" {
+		cfg.Dograh.UIURL = defaultSidecarURL(runningInDocker, "dograh-ui", 3010)
+	}
+	if strings.TrimSpace(cfg.Dograh.Host) == "" {
+		cfg.Dograh.Host = "127.0.0.1"
+	}
+	if cfg.Dograh.APIPort <= 0 {
+		cfg.Dograh.APIPort = 8000
+	}
+	if cfg.Dograh.APIHostPort <= 0 {
+		cfg.Dograh.APIHostPort = cfg.Dograh.APIPort
+	}
+	if cfg.Dograh.UIPort <= 0 {
+		cfg.Dograh.UIPort = 3010
+	}
+	if cfg.Dograh.UIHostPort <= 0 {
+		cfg.Dograh.UIHostPort = cfg.Dograh.UIPort
+	}
+	if strings.TrimSpace(cfg.Dograh.APIContainerName) == "" {
+		cfg.Dograh.APIContainerName = "aurago_dograh_api"
+	}
+	if strings.TrimSpace(cfg.Dograh.UIContainerName) == "" {
+		cfg.Dograh.UIContainerName = "aurago_dograh_ui"
+	}
+	if strings.TrimSpace(cfg.Dograh.PostgresContainerName) == "" {
+		cfg.Dograh.PostgresContainerName = "aurago_dograh_postgres"
+	}
+	if strings.TrimSpace(cfg.Dograh.RedisContainerName) == "" {
+		cfg.Dograh.RedisContainerName = "aurago_dograh_redis"
+	}
+	if strings.TrimSpace(cfg.Dograh.MinioContainerName) == "" {
+		cfg.Dograh.MinioContainerName = "aurago_dograh_minio"
+	}
+	if strings.TrimSpace(cfg.Dograh.CoturnContainerName) == "" {
+		cfg.Dograh.CoturnContainerName = "aurago_dograh_coturn"
+	}
+	if strings.TrimSpace(cfg.Dograh.NetworkName) == "" {
+		cfg.Dograh.NetworkName = "aurago_dograh"
+	}
+	if strings.TrimSpace(cfg.Dograh.APIImage) == "" {
+		cfg.Dograh.APIImage = "dograhai/dograh-api:latest"
+	}
+	if strings.TrimSpace(cfg.Dograh.UIImage) == "" {
+		cfg.Dograh.UIImage = "dograhai/dograh-ui:latest"
+	}
+	if strings.TrimSpace(cfg.Dograh.PostgresImage) == "" {
+		cfg.Dograh.PostgresImage = "pgvector/pgvector:pg17"
+	}
+	if strings.TrimSpace(cfg.Dograh.RedisImage) == "" {
+		cfg.Dograh.RedisImage = "redis:7"
+	}
+	if strings.TrimSpace(cfg.Dograh.MinioImage) == "" {
+		cfg.Dograh.MinioImage = "minio/minio:latest"
+	}
+	if strings.TrimSpace(cfg.Dograh.CoturnImage) == "" {
+		cfg.Dograh.CoturnImage = "coturn/coturn:4.8.0"
+	}
+	if strings.TrimSpace(cfg.Dograh.PostgresUser) == "" {
+		cfg.Dograh.PostgresUser = "postgres"
+	}
+	if strings.TrimSpace(cfg.Dograh.PostgresDatabase) == "" {
+		cfg.Dograh.PostgresDatabase = "postgres"
+	}
+	if strings.TrimSpace(cfg.Dograh.PostgresVolume) == "" {
+		cfg.Dograh.PostgresVolume = "aurago_dograh_pgdata"
+	}
+	if strings.TrimSpace(cfg.Dograh.RedisVolume) == "" {
+		cfg.Dograh.RedisVolume = "aurago_dograh_redisdata"
+	}
+	if strings.TrimSpace(cfg.Dograh.MinioVolume) == "" {
+		cfg.Dograh.MinioVolume = "aurago_dograh_minio"
+	}
+	if strings.TrimSpace(cfg.Dograh.MinioRootUser) == "" {
+		cfg.Dograh.MinioRootUser = "minioadmin"
+	}
+	if strings.TrimSpace(cfg.Dograh.MinioBucket) == "" {
+		cfg.Dograh.MinioBucket = "dograh"
+	}
+	if strings.TrimSpace(cfg.Dograh.HealthPath) == "" {
+		cfg.Dograh.HealthPath = "/api/v1/health"
+	}
+	if strings.TrimSpace(cfg.Dograh.AuraGoMCPToolName) == "" {
+		cfg.Dograh.AuraGoMCPToolName = "AuraGo"
+	}
+	if strings.TrimSpace(cfg.Dograh.CallbackWebhookSlug) == "" {
+		cfg.Dograh.CallbackWebhookSlug = "dograh-callback"
 	}
 	if strings.TrimSpace(cfg.VirtualDesktop.WorkspaceDir) == "" {
 		cfg.VirtualDesktop.WorkspaceDir = "agent_workspace/virtual_desktop"

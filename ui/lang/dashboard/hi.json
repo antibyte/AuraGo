@@ -696,5 +696,6 @@
   "dashboard.cronjobs_error_update": "क्रॉन जॉब अपडेट नहीं हो सका।",
   "dashboard.cronjobs_error_delete": "क्रॉन जॉब हटाया नहीं जा सका।",
   "dashboard.cron_edit_source_label": "स्रोत",
-  "dashboard.cron_edit_status_label": "स्थिति"
+  "dashboard.cron_edit_status_label": "स्थिति",
+  "dashboard.integration_dograh": "Dograh"
 }

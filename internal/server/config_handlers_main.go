@@ -424,6 +424,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		restartFileIndexerAfterUnlock := false
 		fileIndexerEnabledAfterReload := false
 		restartAgentMailAfterUnlock := false
+		syncMCPAfterUnlock := false
 
 		if loadErr != nil {
 			s.Logger.Warn("[Config UI] Hot-reload failed, changes saved but require restart", "error", loadErr)
@@ -684,6 +685,45 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 					defer cancel()
 					if err := tools.StopManifestSidecars(ctx, oldCfg.Docker.Host, &oldCfg, s.Logger); err != nil {
 						s.Logger.Warn("[Config UI] Failed to stop Manifest sidecars", "error", err)
+					}
+				}()
+			}
+
+			dograhChanged := !reflect.DeepEqual(oldCfg.Dograh, newCfg.Dograh) || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker
+			oldDograhRuntime := oldCfg.Dograh
+			newDograhRuntime := newCfg.Dograh
+			oldDograhRuntime.APIKey = ""
+			oldDograhRuntime.AuraGoMCPToken = ""
+			newDograhRuntime.APIKey = ""
+			newDograhRuntime.AuraGoMCPToken = ""
+			dograhRuntimeChanged := !reflect.DeepEqual(oldDograhRuntime, newDograhRuntime) || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker
+			if dograhChanged {
+				syncMCPAfterUnlock = true
+			}
+			if dograhChanged && newCfg.Dograh.Enabled && newCfg.Dograh.AutoStart && strings.EqualFold(newCfg.Dograh.Mode, "managed") {
+				if err := s.ensureDograhSecrets(newCfg); err != nil {
+					s.Logger.Warn("[Config UI] Failed to ensure Dograh secrets", "error", err)
+				} else {
+					go func() {
+						ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+						defer cancel()
+						if dograhRuntimeChanged && oldCfg.Dograh.Enabled && strings.EqualFold(oldCfg.Dograh.Mode, "managed") {
+							if err := tools.StopDograhStack(ctx, oldCfg.Docker.Host, &oldCfg, s.Logger); err != nil {
+								s.Logger.Warn("[Config UI] Failed to recreate old Dograh stack", "error", err)
+							}
+						}
+						if err := tools.EnsureDograhStackRunning(ctx, newCfg.Docker.Host, newCfg, s.Logger); err != nil {
+							s.Logger.Warn("[Config UI] Failed to start Dograh stack", "error", err)
+						}
+					}()
+				}
+			}
+			if dograhChanged && (!newCfg.Dograh.Enabled || strings.EqualFold(newCfg.Dograh.Mode, "external")) && oldCfg.Dograh.Enabled && strings.EqualFold(oldCfg.Dograh.Mode, "managed") {
+				go func() {
+					ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+					defer cancel()
+					if err := tools.StopDograhStack(ctx, oldCfg.Docker.Host, &oldCfg, s.Logger); err != nil {
+						s.Logger.Warn("[Config UI] Failed to stop Dograh stack", "error", err)
 					}
 				}()
 			}
@@ -995,6 +1035,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		if loadErr == nil && restartAgentMailAfterUnlock && newCfg != nil {
 			s.configureAgentMailRelay(newCfg)
 			s.Logger.Info("[Config UI] AgentMail relay hot-reloaded", "enabled", newCfg.AgentMail.Enabled, "relay", newCfg.AgentMail.RelayToAgent)
+		}
+		if loadErr == nil && syncMCPAfterUnlock && newCfg != nil {
+			syncExternalMCPRuntime(newCfg, s.Vault, s.Logger)
 		}
 		if loadErr == nil && newCfg != nil && s.InventoryDB != nil {
 			created, updated, syncErr := services.SyncThreeDPrinterDevices(s.InventoryDB, newCfg.ThreeDPrinters)
@@ -1499,6 +1542,12 @@ var vaultKeyMap = map[string]string{
 	"manifest.api_key":                 "manifest_api_key",
 	"manifest.postgres_password":       "manifest_postgres_password",
 	"manifest.better_auth_secret":      "manifest_better_auth_secret",
+	"dograh.api_key":                   "dograh_api_key",
+	"dograh.oss_jwt_secret":            "dograh_oss_jwt_secret",
+	"dograh.postgres_password":         "dograh_postgres_password",
+	"dograh.redis_password":            "dograh_redis_password",
+	"dograh.minio_root_password":       "dograh_minio_root_password",
+	"dograh.aurago_mcp_token":          "dograh_aurago_mcp_token",
 }
 
 // extractSecretsToVault walks a JSON patch map and moves sensitive values into the vault.

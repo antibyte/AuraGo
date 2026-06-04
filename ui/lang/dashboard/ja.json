@@ -696,5 +696,6 @@
   "dashboard.cronjobs_error_update": "Cronジョブを更新できませんでした。",
   "dashboard.cronjobs_error_delete": "Cronジョブを削除できませんでした。",
   "dashboard.cron_edit_source_label": "ソース",
-  "dashboard.cron_edit_status_label": "ステータス"
+  "dashboard.cron_edit_status_label": "ステータス",
+  "dashboard.integration_dograh": "Dograh"
 }

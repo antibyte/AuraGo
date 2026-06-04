@@ -571,6 +571,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"s3":               cfg.S3.Enabled,
 			"mcp":              cfg.MCP.Enabled,
 			"mcp_server":       cfg.MCPServer.Enabled,
+			"dograh":           cfg.Dograh.Enabled,
 			"memory_analysis":  true,
 			"llm_guardian":     cfg.LLMGuardian.Enabled,
 			"security_proxy":   cfg.SecurityProxy.Enabled,

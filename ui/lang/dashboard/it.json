@@ -696,5 +696,6 @@
   "dashboard.cronjobs_error_update": "Impossibile aggiornare il cronjob.",
   "dashboard.cronjobs_error_delete": "Impossibile eliminare il cronjob.",
   "dashboard.cron_edit_source_label": "Fonte",
-  "dashboard.cron_edit_status_label": "Stato"
+  "dashboard.cron_edit_status_label": "Stato",
+  "dashboard.integration_dograh": "Dograh"
 }

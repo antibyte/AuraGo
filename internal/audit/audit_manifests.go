@@ -65,6 +65,7 @@ func HomeLabIntegrationMatrix() []HomeLabIntegration {
 	return []HomeLabIntegration{
 		{Name: "adguard", ConfigGate: "adguard.enabled", CredentialSource: "config/vault", AllowsLocalNetwork: true, HasTestEndpoint: true},
 		{Name: "chromecast", ConfigGate: "tools.chromecast.enabled", CredentialSource: "none", AllowsLocalNetwork: true},
+		{Name: "dograh", ConfigGate: "dograh.enabled", CredentialSource: "vault", AllowsLocalNetwork: true, ReadOnlyGate: "dograh.readonly", HasWriteOrDelete: true, HasTestEndpoint: true},
 		{Name: "docker", ConfigGate: "docker.enabled", CredentialSource: "docker socket", AllowsLocalNetwork: true, ReadOnlyGate: "docker.read_only", HasWriteOrDelete: true, HasTestEndpoint: true},
 		{Name: "fritzbox", ConfigGate: "fritzbox.*.enabled", CredentialSource: "config/vault", AllowsLocalNetwork: true, HasTestEndpoint: true},
 		{Name: "frigate", ConfigGate: "frigate.enabled", CredentialSource: "config/vault", AllowsLocalNetwork: true, ReadOnlyGate: "frigate.readonly", HasTestEndpoint: true},
@@ -130,6 +131,7 @@ func RouteContractManifest() []RouteContract {
 		{Pattern: "/api/desktop/", Methods: []string{"GET", "POST", "PUT"}, Auth: "session", Category: "desktop", ContentTypes: []string{"application/json", "websocket"}},
 		{Pattern: "/api/daemons", Methods: []string{"GET", "POST"}, Auth: "session", Category: "skills"},
 		{Pattern: "/api/sql-connections", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
+		{Pattern: "/api/dograh/", Methods: []string{"GET", "POST"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/mcp", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "mcp", ContentTypes: []string{"application/json"}},
 		{Pattern: "/mcp", Methods: []string{"POST"}, Auth: "bearer-token", Category: "mcp"},
 		{Pattern: "/api/", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "misc"},

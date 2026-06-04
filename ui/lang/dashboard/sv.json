@@ -696,5 +696,6 @@
   "dashboard.cronjobs_error_update": "Cronjobb kunde inte uppdateras.",
   "dashboard.cronjobs_error_delete": "Cronjobb kunde inte tas bort.",
   "dashboard.cron_edit_source_label": "Källa",
-  "dashboard.cron_edit_status_label": "Status"
+  "dashboard.cron_edit_status_label": "Status",
+  "dashboard.integration_dograh": "Dograh"
 }

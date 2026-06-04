@@ -977,6 +977,21 @@ func Start(opts StartOptions) error {
 		}
 	}
 
+	// Auto-start Dograh stack whenever the integration is active in managed mode and auto_start is enabled.
+	if cfg.Dograh.Enabled && cfg.Dograh.AutoStart && strings.EqualFold(cfg.Dograh.Mode, "managed") {
+		if err := s.ensureDograhSecrets(cfg); err != nil {
+			logger.Warn("[Dograh] Failed to ensure vault secrets", "error", err)
+		} else {
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+				defer cancel()
+				if err := tools.EnsureDograhStackRunning(ctx, cfg.Docker.Host, cfg, logger); err != nil {
+					logger.Warn("[Dograh] Failed to auto-start stack", "error", err)
+				}
+			}()
+		}
+	}
+
 	// Auto-start Ansible sidecar container if enabled in sidecar mode
 	if cfg.Ansible.Enabled && cfg.Ansible.Mode == "sidecar" {
 		inventoryDir := ""

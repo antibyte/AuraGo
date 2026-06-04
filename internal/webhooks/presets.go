@@ -81,6 +81,21 @@ func Presets() []Preset {
 			PromptHint: "[Alert: {{webhook_name}}]\nMonitor: {{field.monitor}}\nType: {{field.alert_type}}\nMessage: {{field.message}}",
 		},
 		{
+			Key:   "dograh",
+			Label: "Dograh",
+			Format: WebhookFormat{
+				AcceptedContentTypes: []string{"application/json"},
+				Fields: []FieldMapping{
+					{Source: "workflow_id", Alias: "workflow"},
+					{Source: "workflow.name", Alias: "workflow_name"},
+					{Source: "event", Alias: "event"},
+					{Source: "status", Alias: "status"},
+				},
+				Description: "Dograh workflow callback events.",
+			},
+			PromptHint: "[Dograh Event: {{webhook_name}}]\nWorkflow: {{field.workflow_name}}\nEvent: {{field.event}}\nStatus: {{field.status}}\nPayload:\n{{payload}}",
+		},
+		{
 			Key:   "plain_text",
 			Label: "Plain Text",
 			Format: WebhookFormat{

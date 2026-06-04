@@ -696,5 +696,6 @@
   "dashboard.cronjobs_error_update": "无法更新 Cron 任务。",
   "dashboard.cronjobs_error_delete": "无法删除 Cron 任务。",
   "dashboard.cron_edit_source_label": "来源",
-  "dashboard.cron_edit_status_label": "状态"
+  "dashboard.cron_edit_status_label": "状态",
+  "dashboard.integration_dograh": "Dograh"
 }

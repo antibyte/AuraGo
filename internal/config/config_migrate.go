@@ -849,6 +849,12 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("manifest_api_key", &c.Manifest.APIKey)
 	apply("manifest_postgres_password", &c.Manifest.PostgresPassword)
 	apply("manifest_better_auth_secret", &c.Manifest.BetterAuthSecret)
+	apply("dograh_api_key", &c.Dograh.APIKey)
+	apply("dograh_oss_jwt_secret", &c.Dograh.OSSJWTSecret)
+	apply("dograh_postgres_password", &c.Dograh.PostgresPassword)
+	apply("dograh_redis_password", &c.Dograh.RedisPassword)
+	apply("dograh_minio_root_password", &c.Dograh.MinioRootPassword)
+	apply("dograh_aurago_mcp_token", &c.Dograh.AuraGoMCPToken)
 
 	// ── FritzBox ──
 	apply("fritzbox_password", &c.FritzBox.Password)
@@ -1163,6 +1169,12 @@ var plaintextSecretVaultPaths = map[string]string{
 	"manifest.api_key":                 "manifest_api_key",
 	"manifest.postgres_password":       "manifest_postgres_password",
 	"manifest.better_auth_secret":      "manifest_better_auth_secret",
+	"dograh.api_key":                   "dograh_api_key",
+	"dograh.oss_jwt_secret":            "dograh_oss_jwt_secret",
+	"dograh.postgres_password":         "dograh_postgres_password",
+	"dograh.redis_password":            "dograh_redis_password",
+	"dograh.minio_root_password":       "dograh_minio_root_password",
+	"dograh.aurago_mcp_token":          "dograh_aurago_mcp_token",
 }
 
 func migrateNestedStringSecret(root map[string]interface{}, path []string, vaultKey string, vault SecretReadWriter, log *slog.Logger) bool {

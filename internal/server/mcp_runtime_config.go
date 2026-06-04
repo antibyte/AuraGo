@@ -107,7 +107,33 @@ func buildRuntimeMCPConfigs(cfg *config.Config, vault config.SecretReader, logge
 			Secrets:            mapsCloneStringString(secretValues),
 		})
 	}
+	if shouldAppendDograhMCPRuntime(cfg, runtimeConfigs) {
+		runtimeConfigs = append(runtimeConfigs, tools.MCPServerConfig{
+			Name:      "dograh",
+			Transport: "streamable_http",
+			URL:       tools.DograhMCPURL(cfg.Dograh.APIURL),
+			Headers: map[string]string{
+				"X-API-Key": strings.TrimSpace(cfg.Dograh.APIKey),
+			},
+			Enabled: true,
+		})
+	}
 	return runtimeConfigs
+}
+
+func shouldAppendDograhMCPRuntime(cfg *config.Config, existing []tools.MCPServerConfig) bool {
+	if cfg == nil || !cfg.Agent.AllowMCP || !cfg.MCP.Enabled || !cfg.Dograh.Enabled || !cfg.Dograh.MCPClientEnabled {
+		return false
+	}
+	if strings.TrimSpace(cfg.Dograh.APIKey) == "" || strings.TrimSpace(cfg.Dograh.APIURL) == "" {
+		return false
+	}
+	for _, srv := range existing {
+		if strings.EqualFold(strings.TrimSpace(srv.Name), "dograh") {
+			return false
+		}
+	}
+	return true
 }
 
 func buildMCPSecretStatuses(cfg *config.Config, vault config.SecretReader) []mcpSecretStatus {

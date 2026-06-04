@@ -696,5 +696,6 @@
   "dashboard.cronjobs_error_update": "Não foi possível atualizar o cronjob.",
   "dashboard.cronjobs_error_delete": "Não foi possível excluir o cronjob.",
   "dashboard.cron_edit_source_label": "Fonte",
-  "dashboard.cron_edit_status_label": "Estado"
+  "dashboard.cron_edit_status_label": "Estado",
+  "dashboard.integration_dograh": "Dograh"
 }

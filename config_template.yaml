@@ -698,6 +698,56 @@ manifest:
     # api_key: mnfst_...
     # postgres_password: generated/stored in vault
     # better_auth_secret: generated/stored in vault
+dograh:
+    enabled: false
+    auto_start: true                                      # starts managed Dograh stack when enabled
+    mode: managed                                         # managed or external
+    readonly: true                                        # blocks Dograh resource mutations from AuraGo helpers
+    allow_test_calls: false                               # reserved for Dograh voice/telephony test helpers
+    api_url: "http://dograh-api:8000"                     # managed API URL from inside AuraGo Docker; use http://127.0.0.1:8000 on bare metal
+    ui_url: "http://dograh-ui:3010"                       # managed UI URL from inside AuraGo Docker; use http://127.0.0.1:3010 on bare metal
+    host: "127.0.0.1"                                     # API/UI bind address for published Docker ports
+    api_port: 8000
+    api_host_port: 8000
+    ui_port: 3010
+    ui_host_port: 3010
+    api_container_name: aurago_dograh_api
+    ui_container_name: aurago_dograh_ui
+    postgres_container_name: aurago_dograh_postgres
+    redis_container_name: aurago_dograh_redis
+    minio_container_name: aurago_dograh_minio
+    coturn_container_name: aurago_dograh_coturn
+    network_name: aurago_dograh
+    api_image: dograhai/dograh-api:latest                 # official upstream image; override for forks/pins
+    ui_image: dograhai/dograh-ui:latest                   # official upstream image; override for forks/pins
+    postgres_image: pgvector/pgvector:pg17
+    redis_image: redis:7
+    minio_image: minio/minio:latest
+    coturn_image: coturn/coturn:4.8.0
+    postgres_user: postgres
+    postgres_database: postgres
+    postgres_volume: aurago_dograh_pgdata
+    redis_volume: aurago_dograh_redisdata
+    minio_volume: aurago_dograh_minio
+    minio_root_user: minioadmin
+    minio_bucket: dograh
+    telemetry_enabled: false                              # privacy default for home-lab deployments
+    turn_enabled: false                                   # starts optional coturn sidecar when true
+    health_path: /api/v1/health
+    mcp_client_enabled: true                              # AuraGo -> Dograh via Dograh /api/v1/mcp/
+    mcp_server_tool_enabled: true                         # Dograh -> AuraGo via AuraGo /mcp
+    aurago_mcp_tool_name: AuraGo
+    aurago_mcp_credential_uuid: ""                        # create in Dograh UI for Authorization: Bearer <AuraGo MCP token>
+    aurago_mcp_allowed_tools: []                           # optional Dograh tools_filter
+    callback_webhook_enabled: true
+    callback_webhook_slug: dograh-callback
+    # Vault-only fields saved via UI, never config.yaml:
+    # api_key: Dograh API key
+    # oss_jwt_secret: generated/stored in vault
+    # postgres_password: generated/stored in vault
+    # redis_password: generated/stored in vault
+    # minio_root_password: generated/stored in vault
+    # aurago_mcp_token: optional metadata copy, stored in vault
 virtual_desktop:
     enabled: false
     readonly: false

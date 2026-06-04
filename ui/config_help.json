@@ -1026,5 +1026,27 @@
       "title": "Manifest API Key",
       "description": "API key copied from the Manifest admin UI. It is stored only in the vault."
     }
+  },
+  "dograh": {
+    "enabled": {
+      "title": "Enable Dograh",
+      "description": "Enables Dograh as a managed or external workflow integration."
+    },
+    "mode": {
+      "title": "Mode",
+      "description": "Managed starts the AuraGo-managed Dograh Docker stack. External uses an existing Dograh endpoint."
+    },
+    "readonly": {
+      "title": "Read-only Mode",
+      "description": "Blocks AuraGo helper actions that would create or change Dograh resources."
+    },
+    "api_url": {
+      "title": "Dograh API URL",
+      "description": "Base URL AuraGo uses for Dograh API calls and the managed MCP endpoint."
+    },
+    "api_key": {
+      "title": "Dograh API Key",
+      "description": "API key copied from Dograh. It is stored only in the vault."
+    }
   }
 }

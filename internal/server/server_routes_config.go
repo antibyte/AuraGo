@@ -196,6 +196,13 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/manifest/test", handleManifestTest(s))
 	mux.HandleFunc("/api/manifest/start", handleManifestStart(s))
 	mux.HandleFunc("/api/manifest/stop", handleManifestStop(s))
+	mux.HandleFunc("/api/dograh/status", handleDograhStatus(s))
+	mux.HandleFunc("/api/dograh/test", handleDograhTest(s))
+	mux.HandleFunc("/api/dograh/start", handleDograhStart(s))
+	mux.HandleFunc("/api/dograh/stop", handleDograhStop(s))
+	mux.HandleFunc("/api/dograh/recreate", handleDograhRecreate(s))
+	mux.HandleFunc("/api/dograh/provision-webhook", handleDograhProvisionWebhook(s))
+	mux.HandleFunc("/api/dograh/register-aurago-mcp-tool", handleDograhRegisterAuraGoMCPTool(s))
 
 	// YepAPI integration endpoints
 	mux.HandleFunc("/api/yepapi/test", handleYepAPITest(s))
