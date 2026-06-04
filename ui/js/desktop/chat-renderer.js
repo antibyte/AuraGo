@@ -107,23 +107,20 @@
         },
 
         appendAvatar(chatLog, role, bubble, isContinuation) {
-            if (role === 'user') {
-                chatLog.appendChild(bubble);
-                return;
-            }
+            const isUser = role === 'user';
             const row = document.createElement('div');
-            row.className = 'vd-chat-message-row agent';
+            row.className = 'vd-chat-message-row ' + (isUser ? 'user' : 'agent');
             if (isContinuation) {
                 const spacer = document.createElement('div');
                 spacer.className = 'vd-chat-avatar-hidden';
                 row.appendChild(spacer);
             } else {
                 const avatar = document.createElement('div');
-                avatar.className = 'vd-chat-avatar';
+                avatar.className = 'vd-chat-avatar ' + (isUser ? 'user' : 'agent');
                 if (window.AuraChatCore && typeof window.AuraChatCore.personaAvatarMarkup === 'function') {
-                    avatar.innerHTML = window.AuraChatCore.personaAvatarMarkup('agent');
+                    avatar.innerHTML = window.AuraChatCore.personaAvatarMarkup(isUser ? 'user' : 'agent');
                 } else {
-                    avatar.textContent = '🤖';
+                    avatar.textContent = isUser ? 'U' : 'AI';
                 }
                 row.appendChild(avatar);
             }
@@ -151,12 +148,7 @@
             }
 
             this.appendMessageActions(bubble, role);
-
-            if (role === 'agent') {
-                this.appendAvatar(chatLog, role, bubble, isGroup);
-            } else {
-                chatLog.appendChild(bubble);
-            }
+            this.appendAvatar(chatLog, role, bubble, isGroup);
 
             const stamp = this.appendTimestamp(chatLog, role);
             (stamp || bubble).scrollIntoView({ block: 'end', behavior: 'smooth' });

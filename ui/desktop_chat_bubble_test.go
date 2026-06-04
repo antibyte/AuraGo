@@ -128,7 +128,7 @@ func TestDesktopChatSidebarToggleDoesNotOpenAsCollapsed(t *testing.T) {
 		t.Fatal("desktop chat sidebar must not mark the sidebar collapsed while opening the mobile overlay")
 	}
 
-	css := readDesktopAssetText(t, "css/desktop-app-chat.css")
+	css := readAllDesktopAppCSS(t)
 	for _, marker := range []string{
 		`.vd-chat[data-sidebar-compact="true"] {`,
 		`.vd-chat[data-sidebar-compact="true"] .vd-chat-sidebar {`,
@@ -139,6 +139,87 @@ func TestDesktopChatSidebarToggleDoesNotOpenAsCollapsed(t *testing.T) {
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("desktop chat compact sidebar CSS missing marker %q", marker)
+		}
+	}
+}
+
+func TestDesktopAgentChatComposerUsesReadableAlignedControls(t *testing.T) {
+	t.Parallel()
+
+	css := readAllDesktopAppCSS(t)
+	formBody := desktopExactCSSRuleBody(t, css, ".vd-chat-form")
+	if !strings.Contains(formBody, "align-items: stretch;") {
+		t.Fatal("desktop chat composer must stretch input and buttons to a shared row height")
+	}
+
+	inputBody := desktopExactCSSRuleBody(t, css, ".vd-chat-input")
+	for _, want := range []string{
+		"min-height: 46px;",
+		"background: rgba(10, 15, 26, 0.72);",
+		"color: #f5f7fb;",
+		"border-color: rgba(148, 163, 184, 0.28);",
+	} {
+		if !strings.Contains(inputBody, want) {
+			t.Fatalf("desktop chat input CSS missing readable control marker %q", want)
+		}
+	}
+	if strings.Contains(inputBody, "background: var(--ds-color-control-bg);") {
+		t.Fatal("desktop chat input must not use the light generic control background")
+	}
+
+	buttonsBody := desktopExactCSSRuleBody(t, css, ".vd-chat-form-buttons")
+	if !strings.Contains(buttonsBody, "align-items: stretch;") {
+		t.Fatal("desktop chat composer buttons must align with the input height")
+	}
+
+	voiceBody := desktopExactCSSRuleBody(t, css, ".vd-chat-voice")
+	sendBody := desktopExactCSSRuleBody(t, css, ".vd-chat-send")
+	for selector, body := range map[string]string{
+		".vd-chat-voice": voiceBody,
+		".vd-chat-send":  sendBody,
+	} {
+		if !strings.Contains(body, "min-height: 46px;") {
+			t.Fatalf("%s must share the chat input minimum height", selector)
+		}
+	}
+}
+
+func TestDesktopChatRendererKeepsPersonaAvatarsBesideBothRoles(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/chat-renderer.js")
+	appendAvatarBody := jsFunctionBodyInWindowMenuTest(t, source, "appendAvatar(chatLog, role, bubble, isContinuation)")
+	for _, want := range []string{
+		"const isUser = role === 'user';",
+		"row.className = 'vd-chat-message-row ' + (isUser ? 'user' : 'agent');",
+		"avatar.className = 'vd-chat-avatar ' + (isUser ? 'user' : 'agent');",
+		"window.AuraChatCore.personaAvatarMarkup(isUser ? 'user' : 'agent')",
+	} {
+		if !strings.Contains(appendAvatarBody, want) {
+			t.Fatalf("desktop chat avatar renderer missing marker %q", want)
+		}
+	}
+	if strings.Contains(appendAvatarBody, "role === 'user'") && strings.Contains(appendAvatarBody, "chatLog.appendChild(bubble);\n            return;") {
+		t.Fatal("desktop chat renderer must not append user bubbles without an avatar row")
+	}
+
+	appendRichBody := jsFunctionBodyInWindowMenuTest(t, source, "appendRichBubble(chatLog, role, text, prevRole)")
+	if !strings.Contains(appendRichBody, "this.appendAvatar(chatLog, role, bubble, isGroup);") {
+		t.Fatal("desktop chat rich bubble renderer must route both user and agent bubbles through appendAvatar")
+	}
+	if strings.Contains(appendRichBody, "if (role === 'agent')") {
+		t.Fatal("desktop chat rich bubble renderer must not special-case avatars to agent bubbles only")
+	}
+
+	chatSource := readDesktopAssetText(t, "js/desktop/apps/agent-chat.js")
+	personaBody := jsFunctionBodyInWindowMenuTest(t, chatSource, "function applyDesktopPersonaIconKey(previewKey)")
+	for _, want := range []string{
+		"window.AuraChatCore.personaImageUrl(key)",
+		"window._activePersonaImageUrl = src;",
+		".vd-chat-avatar.agent .persona-avatar-img, .vd-chat-welcome-avatar .persona-avatar-img",
+	} {
+		if !strings.Contains(personaBody, want) {
+			t.Fatalf("desktop chat persona image updater missing marker %q", want)
 		}
 	}
 }

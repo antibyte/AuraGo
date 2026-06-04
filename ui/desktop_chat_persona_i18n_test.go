@@ -82,8 +82,9 @@ func TestDesktopChatInitializesActivePersonaForAvatars(t *testing.T) {
 		"async function ensureDesktopChatPersona()",
 		"api('/api/personalities')",
 		"window._activePersonaIconKey = key;",
+		"window._activePersonaImageUrl = src;",
 		"new CustomEvent('aurago:persona-icon-change'",
-		".vd-chat-avatar .persona-avatar-img",
+		".vd-chat-avatar.agent .persona-avatar-img",
 		"ensureDesktopChatPersona().finally(() => loadDesktopChatHistory(host).finally(",
 	} {
 		if !strings.Contains(source, marker) {

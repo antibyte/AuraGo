@@ -229,6 +229,12 @@
     transform: scale(1.5);
 }
 
+.vd-start-button::after,
+.vd-agent-button::after {
+    content: none;
+    display: none;
+}
+
 .vd-window-button:active,
 .vd-button:active,
 .vd-start-button:active,

@@ -95,9 +95,10 @@
     function applyDesktopPersonaIconKey(previewKey) {
         const key = previewKey || DESKTOP_PERSONA_PREVIEW_FALLBACK;
         window._activePersonaIconKey = key;
-        if (window.AuraChatCore && typeof window.AuraChatCore.personaIconUrl === 'function') {
-            const src = window.AuraChatCore.personaIconUrl(key);
-            document.querySelectorAll('.vd-chat-avatar .persona-avatar-img, .vd-chat-welcome-avatar .persona-avatar-img').forEach(img => {
+        if (window.AuraChatCore && typeof window.AuraChatCore.personaImageUrl === 'function') {
+            const src = window.AuraChatCore.personaImageUrl(key);
+            window._activePersonaImageUrl = src;
+            document.querySelectorAll('.vd-chat-avatar.agent .persona-avatar-img, .vd-chat-welcome-avatar .persona-avatar-img').forEach(img => {
                 img.src = src;
                 img.dataset.personaIcon = key;
             });

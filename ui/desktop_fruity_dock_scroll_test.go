@@ -61,3 +61,18 @@ func TestFruityDockScrollLabelsAreTranslated(t *testing.T) {
 		}
 	}
 }
+
+func TestDockControlsSuppressGlobalHoverRippleFrame(t *testing.T) {
+	t.Parallel()
+
+	css := readDesktopAssetText(t, "css/desktop-taskbar.css")
+	body := desktopExactCSSRuleBody(t, css, ".vd-start-button::after,\n.vd-agent-button::after")
+	for _, want := range []string{
+		"content: none;",
+		"display: none;",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("dock controls must suppress the global button ripple frame, missing %q", want)
+		}
+	}
+}
