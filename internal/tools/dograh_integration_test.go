@@ -54,7 +54,7 @@ func TestBuildDograhAPICreatePayloadMatchesUpstreamContract(t *testing.T) {
 			env[key] = value
 		}
 	}
-	if payload.Image != "dograhai/dograh-api:latest" {
+	if payload.Image != "ghcr.io/dograh-hq/dograh-api:latest" {
 		t.Fatalf("Image = %q, want Dograh API image", payload.Image)
 	}
 	if env["DATABASE_URL"] != "postgresql+asyncpg://postgres:pg-secret@dograh-postgres:5432/postgres" {
@@ -120,7 +120,7 @@ func TestBuildDograhUICreatePayloadUsesOSSLocalAuthContract(t *testing.T) {
 			env[key] = value
 		}
 	}
-	if payload.Image != "dograhai/dograh-ui:latest" {
+	if payload.Image != "ghcr.io/dograh-hq/dograh-ui:latest" {
 		t.Fatalf("Image = %q, want Dograh UI image", payload.Image)
 	}
 	if env["BACKEND_URL"] != "http://dograh-api:8000" {
@@ -206,6 +206,45 @@ func TestDograhAPIContainerNeedsRecreateWhenMinioPublicEndpointMissing(t *testin
 	}
 }
 
+func TestDograhAPIContainerNeedsRecreateWhenLegacyDockerHubImageIsPresent(t *testing.T) {
+	cfg := dograhTestConfig()
+	sidecar, err := ResolveDograhStackConfig(cfg, false)
+	if err != nil {
+		t.Fatalf("ResolveDograhStackConfig() error = %v", err)
+	}
+	inspect := []byte(`{
+		"Config": {
+			"Image": "dograhai/dograh-api:latest",
+			"Env": [
+				"ENABLE_AWS_S3=false",
+				"MINIO_ENDPOINT=dograh-minio:9000",
+				"MINIO_PUBLIC_ENDPOINT=http://127.0.0.1:9000",
+				"MINIO_ACCESS_KEY=minioadmin",
+				"MINIO_SECRET_KEY=minio-secret",
+				"MINIO_BUCKET=dograh",
+				"MINIO_SECURE=false",
+				"OSS_JWT_SECRET=jwt-secret",
+				"BACKEND_API_ENDPOINT=http://127.0.0.1:8000",
+				"ENABLE_TELEMETRY=false",
+				"FASTAPI_WORKERS=1",
+				"DATABASE_URL=postgresql+asyncpg://postgres:pg-secret@dograh-postgres:5432/postgres",
+				"REDIS_URL=redis://:redis-secret@dograh-redis:6379",
+				"ENVIRONMENT=local",
+				"DEPLOYMENT_MODE=oss",
+				"AUTH_PROVIDER=local",
+				"LOG_LEVEL=INFO"
+			],
+			"Labels": {"org.aurago.dograh.stack-revision": "` + dograhStackRevision + `"}
+		},
+		"HostConfig": {"PortBindings": {"8000/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8000"}]}},
+		"NetworkSettings": {"Networks": {"aurago_dograh": {}}}
+	}`)
+
+	if !dograhAPIContainerNeedsRecreate(inspect, sidecar.NetworkName, sidecar) {
+		t.Fatal("dograhAPIContainerNeedsRecreate() = false, want true for legacy DockerHub image")
+	}
+}
+
 func TestDograhUIContainerNeedsRecreateWhenLegacyStackAuthContractIsPresent(t *testing.T) {
 	cfg := dograhTestConfig()
 	sidecar, err := ResolveDograhStackConfig(cfg, false)
@@ -235,6 +274,7 @@ func TestDograhUIContainerNeedsRecreateAcceptsCurrentOSSContract(t *testing.T) {
 	}
 	inspect := []byte(`{
 		"Config": {
+			"Image": "ghcr.io/dograh-hq/dograh-ui:latest",
 			"Env": [
 				"BACKEND_URL=http://dograh-api:8000",
 				"NODE_ENV=oss",
@@ -257,12 +297,40 @@ func TestDograhUIContainerNeedsRecreateAcceptsCurrentOSSContract(t *testing.T) {
 	}
 }
 
+func TestDograhUIContainerNeedsRecreateWhenLegacyDockerHubImageIsPresent(t *testing.T) {
+	cfg := dograhTestConfig()
+	sidecar, err := ResolveDograhStackConfig(cfg, false)
+	if err != nil {
+		t.Fatalf("ResolveDograhStackConfig() error = %v", err)
+	}
+	inspect := []byte(`{
+		"Config": {
+			"Image": "dograhai/dograh-ui:latest",
+			"Env": [
+				"BACKEND_URL=http://dograh-api:8000",
+				"NODE_ENV=oss",
+				"NEXT_PUBLIC_NODE_ENV=oss",
+				"DEPLOYMENT_MODE=oss",
+				"AUTH_PROVIDER=local",
+				"ENABLE_TELEMETRY=false"
+			],
+			"Labels": {"org.aurago.dograh.stack-revision": "` + dograhStackRevision + `"}
+		},
+		"HostConfig": {"PortBindings": {"3010/tcp": [{"HostIp": "127.0.0.1", "HostPort": "3010"}]}},
+		"NetworkSettings": {"Networks": {"aurago_dograh": {}}}
+	}`)
+
+	if !dograhUIContainerNeedsRecreate(inspect, sidecar.NetworkName, sidecar) {
+		t.Fatal("dograhUIContainerNeedsRecreate() = false, want true for legacy DockerHub image")
+	}
+}
+
 func TestDograhImageUsesFloatingTag(t *testing.T) {
 	tests := []struct {
 		image string
 		want  bool
 	}{
-		{"dograhai/dograh-ui:latest", true},
+		{"ghcr.io/dograh-hq/dograh-ui:latest", true},
 		{"dograhai/dograh-ui", true},
 		{"dograhai/dograh-ui:1.34.0", false},
 		{"dograhai/dograh-ui@sha256:abc123", false},
@@ -336,8 +404,8 @@ func dograhTestConfig() *config.Config {
 	cfg.Dograh.Mode = "managed"
 	cfg.Dograh.APIURL = "http://127.0.0.1:8000"
 	cfg.Dograh.UIURL = "http://127.0.0.1:3010"
-	cfg.Dograh.APIImage = "dograhai/dograh-api:latest"
-	cfg.Dograh.UIImage = "dograhai/dograh-ui:latest"
+	cfg.Dograh.APIImage = "ghcr.io/dograh-hq/dograh-api:latest"
+	cfg.Dograh.UIImage = "ghcr.io/dograh-hq/dograh-ui:latest"
 	cfg.Dograh.PostgresImage = "pgvector/pgvector:pg17"
 	cfg.Dograh.RedisImage = "redis:7"
 	cfg.Dograh.MinioImage = "minio/minio:latest"

@@ -754,6 +754,80 @@ func TestLoadManifestDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadDograhDefaultsUseOfficialGHCRImages(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Dograh.APIImage != "ghcr.io/dograh-hq/dograh-api:latest" {
+		t.Fatalf("dograh.api_image = %q, want official GHCR API image", cfg.Dograh.APIImage)
+	}
+	if cfg.Dograh.UIImage != "ghcr.io/dograh-hq/dograh-ui:latest" {
+		t.Fatalf("dograh.ui_image = %q, want official GHCR UI image", cfg.Dograh.UIImage)
+	}
+}
+
+func TestLoadDograhMigratesLegacyDockerHubDefaultImages(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	raw := []byte(`server:
+  ui_language: en
+dograh:
+  enabled: true
+  api_image: dograhai/dograh-api:latest
+  ui_image: dograhai/dograh-ui:latest
+`)
+	if err := os.WriteFile(configPath, raw, 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Dograh.APIImage != "ghcr.io/dograh-hq/dograh-api:latest" {
+		t.Fatalf("dograh.api_image = %q, want migrated GHCR API image", cfg.Dograh.APIImage)
+	}
+	if cfg.Dograh.UIImage != "ghcr.io/dograh-hq/dograh-ui:latest" {
+		t.Fatalf("dograh.ui_image = %q, want migrated GHCR UI image", cfg.Dograh.UIImage)
+	}
+}
+
+func TestLoadDograhKeepsExplicitPinnedImages(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	raw := []byte(`server:
+  ui_language: en
+dograh:
+  enabled: true
+  api_image: dograhai/dograh-api:1.30.1
+  ui_image: registry.example/dograh-ui:custom
+`)
+	if err := os.WriteFile(configPath, raw, 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Dograh.APIImage != "dograhai/dograh-api:1.30.1" {
+		t.Fatalf("dograh.api_image = %q, want explicit pinned API image preserved", cfg.Dograh.APIImage)
+	}
+	if cfg.Dograh.UIImage != "registry.example/dograh-ui:custom" {
+		t.Fatalf("dograh.ui_image = %q, want explicit custom UI image preserved", cfg.Dograh.UIImage)
+	}
+}
+
 func TestLoadSpaceAgentMigratesLegacyDefaultPortAwayFromGotenberg(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

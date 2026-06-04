@@ -87,8 +87,8 @@ function dograhEnsureData() {
     if (!data.host) data.host = '127.0.0.1';
     if (!data.api_host_port) data.api_host_port = 8000;
     if (!data.ui_host_port) data.ui_host_port = 3010;
-    if (!data.api_image) data.api_image = 'dograhai/dograh-api:latest';
-    if (!data.ui_image) data.ui_image = 'dograhai/dograh-ui:latest';
+    if (!data.api_image || data.api_image === 'dograhai/dograh-api:latest') data.api_image = 'ghcr.io/dograh-hq/dograh-api:latest';
+    if (!data.ui_image || data.ui_image === 'dograhai/dograh-ui:latest') data.ui_image = 'ghcr.io/dograh-hq/dograh-ui:latest';
     if (!data.postgres_image) data.postgres_image = 'pgvector/pgvector:pg17';
     if (!data.redis_image) data.redis_image = 'redis:7';
     if (!data.minio_image) data.minio_image = 'minio/minio:latest';

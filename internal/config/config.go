@@ -72,8 +72,12 @@ var legacyIndexingExtensions = []string{".txt", ".md", ".json", ".csv", ".log", 
 var configSaveMu sync.Mutex
 
 const (
-	defaultManifestTsNetPort = 443
-	legacyManifestTsNetPort  = 8444
+	defaultManifestTsNetPort      = 443
+	legacyManifestTsNetPort       = 8444
+	dograhDefaultAPIImage         = "ghcr.io/dograh-hq/dograh-api:latest"
+	dograhDefaultUIImage          = "ghcr.io/dograh-hq/dograh-ui:latest"
+	dograhLegacyDockerHubAPIImage = "dograhai/dograh-api:latest"
+	dograhLegacyDockerHubUIImage  = "dograhai/dograh-ui:latest"
 )
 
 func defaultSidecarURL(runningInDocker bool, service string, port int) string {
@@ -107,6 +111,14 @@ func NormalizeLegacySidecarURL(raw string, runningInDocker bool, service string,
 	}
 	parsed.Host = net.JoinHostPort("127.0.0.1", fmt.Sprintf("%d", port))
 	return parsed.String()
+}
+
+func normalizeDograhDefaultImage(raw, currentDefault, legacyDefault string) string {
+	image := strings.TrimSpace(raw)
+	if image == "" || strings.EqualFold(image, legacyDefault) {
+		return currentDefault
+	}
+	return image
 }
 
 func normalizeSpaceAgentURLAndPort(publicURL string, port int, runningInDocker bool) (string, int) {
@@ -324,8 +336,8 @@ func Load(path string) (*Config, error) {
 	cfg.Dograh.MinioContainerName = "aurago_dograh_minio"
 	cfg.Dograh.CoturnContainerName = "aurago_dograh_coturn"
 	cfg.Dograh.NetworkName = "aurago_dograh"
-	cfg.Dograh.APIImage = "dograhai/dograh-api:latest"
-	cfg.Dograh.UIImage = "dograhai/dograh-ui:latest"
+	cfg.Dograh.APIImage = dograhDefaultAPIImage
+	cfg.Dograh.UIImage = dograhDefaultUIImage
 	cfg.Dograh.PostgresImage = "pgvector/pgvector:pg17"
 	cfg.Dograh.RedisImage = "redis:7"
 	cfg.Dograh.MinioImage = "minio/minio:latest"
@@ -707,12 +719,8 @@ func Load(path string) (*Config, error) {
 	if strings.TrimSpace(cfg.Dograh.NetworkName) == "" {
 		cfg.Dograh.NetworkName = "aurago_dograh"
 	}
-	if strings.TrimSpace(cfg.Dograh.APIImage) == "" {
-		cfg.Dograh.APIImage = "dograhai/dograh-api:latest"
-	}
-	if strings.TrimSpace(cfg.Dograh.UIImage) == "" {
-		cfg.Dograh.UIImage = "dograhai/dograh-ui:latest"
-	}
+	cfg.Dograh.APIImage = normalizeDograhDefaultImage(cfg.Dograh.APIImage, dograhDefaultAPIImage, dograhLegacyDockerHubAPIImage)
+	cfg.Dograh.UIImage = normalizeDograhDefaultImage(cfg.Dograh.UIImage, dograhDefaultUIImage, dograhLegacyDockerHubUIImage)
 	if strings.TrimSpace(cfg.Dograh.PostgresImage) == "" {
 		cfg.Dograh.PostgresImage = "pgvector/pgvector:pg17"
 	}

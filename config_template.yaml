@@ -718,8 +718,8 @@ dograh:
     minio_container_name: aurago_dograh_minio
     coturn_container_name: aurago_dograh_coturn
     network_name: aurago_dograh
-    api_image: dograhai/dograh-api:latest                 # official upstream image; override for forks/pins
-    ui_image: dograhai/dograh-ui:latest                   # official upstream image; override for forks/pins
+    api_image: ghcr.io/dograh-hq/dograh-api:latest        # official upstream GHCR image; override for forks/pins
+    ui_image: ghcr.io/dograh-hq/dograh-ui:latest          # official upstream GHCR image; override for forks/pins
     postgres_image: pgvector/pgvector:pg17
     redis_image: redis:7
     minio_image: minio/minio:latest

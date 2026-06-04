@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	dograhDefaultAPIImage              = "dograhai/dograh-api:latest"
-	dograhDefaultUIImage               = "dograhai/dograh-ui:latest"
+	dograhDefaultAPIImage              = "ghcr.io/dograh-hq/dograh-api:latest"
+	dograhDefaultUIImage               = "ghcr.io/dograh-hq/dograh-ui:latest"
 	dograhDefaultPostgresImage         = "pgvector/pgvector:pg17"
 	dograhDefaultRedisImage            = "redis:7"
 	dograhDefaultMinioImage            = "minio/minio:latest"
@@ -47,7 +47,7 @@ const (
 	dograhCoturnPort                   = 3478
 	dograhStatusSetupRequired          = "setup_required"
 	dograhHealthProbeTimeout           = 3 * time.Second
-	dograhStackRevision                = "20260604-oss-local-auth"
+	dograhStackRevision                = "20260604-ghcr-images"
 	dograhStackRevisionLabel           = "org.aurago.dograh.stack-revision"
 )
 
@@ -686,6 +686,9 @@ func dograhAPIContainerNeedsRecreate(data []byte, networkName string, stack Dogr
 	if dograhPortContainerNeedsRecreate(data, networkName, stack.APIPort, stack.APIHostPort, stack.Host) {
 		return true
 	}
+	if dograhContainerImageNeedsRecreate(data, stack.APIImage) {
+		return true
+	}
 	if dograhContainerLabelValue(data, dograhStackRevisionLabel) != dograhStackRevision {
 		return true
 	}
@@ -720,6 +723,9 @@ func dograhUIContainerNeedsRecreate(data []byte, networkName string, stack Dogra
 	if dograhPortContainerNeedsRecreate(data, networkName, stack.UIPort, stack.UIHostPort, stack.Host) {
 		return true
 	}
+	if dograhContainerImageNeedsRecreate(data, stack.UIImage) {
+		return true
+	}
 	if dograhContainerLabelValue(data, dograhStackRevisionLabel) != dograhStackRevision {
 		return true
 	}
@@ -742,6 +748,24 @@ func dograhUIContainerNeedsRecreate(data []byte, networkName string, stack Dogra
 		}
 	}
 	return false
+}
+
+func dograhContainerImageNeedsRecreate(data []byte, expectedImage string) bool {
+	got := strings.TrimSpace(dograhContainerImageValue(data))
+	want := strings.TrimSpace(expectedImage)
+	return got != "" && want != "" && !strings.EqualFold(got, want)
+}
+
+func dograhContainerImageValue(data []byte) string {
+	var info struct {
+		Config struct {
+			Image string `json:"Image"`
+		} `json:"Config"`
+	}
+	if err := json.Unmarshal(data, &info); err != nil {
+		return ""
+	}
+	return info.Config.Image
 }
 
 func dograhContainerEnvValue(data []byte, key string) string {
