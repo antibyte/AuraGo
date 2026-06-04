@@ -47,6 +47,8 @@ const (
 	dograhCoturnPort                   = 3478
 	dograhStatusSetupRequired          = "setup_required"
 	dograhHealthProbeTimeout           = 3 * time.Second
+	dograhStackRevision                = "20260604-oss-local-auth"
+	dograhStackRevisionLabel           = "org.aurago.dograh.stack-revision"
 )
 
 // DograhStackConfig is the resolved runtime configuration for Dograh's managed stack.
@@ -457,8 +459,9 @@ func buildDograhAPICreatePayload(stack DograhStackConfig, networkName string) ([
 		"FASTAPI_WORKERS=1",
 	}
 	payload := map[string]interface{}{
-		"Image": stack.APIImage,
-		"Env":   env,
+		"Image":  stack.APIImage,
+		"Env":    env,
+		"Labels": dograhStackLabels("api"),
 		"ExposedPorts": map[string]interface{}{
 			containerPort: struct{}{},
 		},
@@ -490,8 +493,12 @@ func buildDograhUICreatePayload(stack DograhStackConfig, networkName string) ([]
 		"Env": []string{
 			"BACKEND_URL=http://" + stack.APIAlias + ":" + strconv.Itoa(stack.APIPort),
 			"NODE_ENV=oss",
+			"NEXT_PUBLIC_NODE_ENV=oss",
+			"DEPLOYMENT_MODE=oss",
+			"AUTH_PROVIDER=local",
 			"ENABLE_TELEMETRY=" + strconv.FormatBool(stack.TelemetryEnabled),
 		},
+		"Labels": dograhStackLabels("ui"),
 		"ExposedPorts": map[string]interface{}{
 			containerPort: struct{}{},
 		},
@@ -505,6 +512,16 @@ func buildDograhUICreatePayload(stack DograhStackConfig, networkName string) ([]
 		"NetworkingConfig": manifestNetworkingConfig(networkName, stack.UIAlias),
 	}
 	return json.Marshal(payload)
+}
+
+func dograhStackLabels(service string) map[string]string {
+	return map[string]string{
+		"org.aurago.integration":            "dograh",
+		"org.aurago.dograh.service":         service,
+		dograhStackRevisionLabel:            dograhStackRevision,
+		"org.aurago.dograh.auth-provider":   "local",
+		"org.aurago.dograh.deployment-mode": "oss",
+	}
 }
 
 func dograhPublishHost(host string) string {
@@ -553,7 +570,7 @@ func EnsureDograhStackRunning(ctx context.Context, dockerHost string, cfg *confi
 			return dograhAPIContainerNeedsRecreate(data, networkName, stack)
 		}},
 		{stack.UIContainerName, stack.UIImage, func() ([]byte, error) { return buildDograhUICreatePayload(stack, networkName) }, func(data []byte) bool {
-			return dograhPortContainerNeedsRecreate(data, networkName, stack.UIPort, stack.UIHostPort, stack.Host)
+			return dograhUIContainerNeedsRecreate(data, networkName, stack)
 		}},
 	}
 	if stack.TurnEnabled {
@@ -562,6 +579,11 @@ func EnsureDograhStackRunning(ctx context.Context, dockerHost string, cfg *confi
 				return dograhPortContainerNeedsRecreate(data, networkName, dograhCoturnPort, dograhCoturnPort, stack.Host)
 			}},
 		}, containers[3:]...)...)
+	}
+	for _, image := range []string{stack.APIImage, stack.UIImage} {
+		if err := dograhPullFloatingImage(ctx, dockerCfg, image, logger); err != nil {
+			return err
+		}
 	}
 	for _, container := range containers {
 		if err := ensureManifestContainerWithRecreate(ctx, dockerCfg, container.name, container.image, container.payload, container.needsRecreate); err != nil {
@@ -575,6 +597,36 @@ func EnsureDograhStackRunning(ctx context.Context, dockerHost string, cfg *confi
 		logger.Info("[Dograh] Stack is running", "api", stack.APIContainerName, "ui", stack.UIContainerName)
 	}
 	return nil
+}
+
+func dograhPullFloatingImage(ctx context.Context, dockerCfg DockerConfig, image string, logger interface {
+	Warn(string, ...any)
+}) error {
+	if !dograhImageUsesFloatingTag(image) {
+		return nil
+	}
+	if err := PullImageForce(ctx, dockerCfg, image, nil); err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if logger != nil {
+			logger.Warn("[Dograh] Failed to pull floating Docker image; using the local image if available", "image", image, "error", err)
+		}
+	}
+	return nil
+}
+
+func dograhImageUsesFloatingTag(image string) bool {
+	ref := strings.TrimSpace(image)
+	if ref == "" || strings.Contains(ref, "@sha256:") {
+		return false
+	}
+	lastSlash := strings.LastIndex(ref, "/")
+	lastColon := strings.LastIndex(ref, ":")
+	if lastColon <= lastSlash {
+		return true
+	}
+	return strings.EqualFold(ref[lastColon+1:], "latest")
 }
 
 func ensureDograhDockerNetwork(dockerCfg DockerConfig, stack DograhStackConfig) (string, error) {
@@ -634,6 +686,9 @@ func dograhAPIContainerNeedsRecreate(data []byte, networkName string, stack Dogr
 	if dograhPortContainerNeedsRecreate(data, networkName, stack.APIPort, stack.APIHostPort, stack.Host) {
 		return true
 	}
+	if dograhContainerLabelValue(data, dograhStackRevisionLabel) != dograhStackRevision {
+		return true
+	}
 	expected := map[string]string{
 		"ENABLE_AWS_S3":         "false",
 		"MINIO_ENDPOINT":        dograhMinioEndpoint(stack),
@@ -661,6 +716,34 @@ func dograhAPIContainerNeedsRecreate(data []byte, networkName string, stack Dogr
 	return false
 }
 
+func dograhUIContainerNeedsRecreate(data []byte, networkName string, stack DograhStackConfig) bool {
+	if dograhPortContainerNeedsRecreate(data, networkName, stack.UIPort, stack.UIHostPort, stack.Host) {
+		return true
+	}
+	if dograhContainerLabelValue(data, dograhStackRevisionLabel) != dograhStackRevision {
+		return true
+	}
+	expected := map[string]string{
+		"BACKEND_URL":          "http://" + stack.APIAlias + ":" + strconv.Itoa(stack.APIPort),
+		"NODE_ENV":             "oss",
+		"NEXT_PUBLIC_NODE_ENV": "oss",
+		"DEPLOYMENT_MODE":      "oss",
+		"AUTH_PROVIDER":        "local",
+		"ENABLE_TELEMETRY":     strconv.FormatBool(stack.TelemetryEnabled),
+	}
+	for key, want := range expected {
+		if got := dograhContainerEnvValue(data, key); got != want {
+			return true
+		}
+	}
+	for _, key := range []string{"NEXT_PUBLIC_STACK_PROJECT_ID", "NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY", "STACK_SECRET_SERVER_KEY", "SECRET_SERVER_KEY"} {
+		if dograhContainerEnvValue(data, key) != "" {
+			return true
+		}
+	}
+	return false
+}
+
 func dograhContainerEnvValue(data []byte, key string) string {
 	var info struct {
 		Config struct {
@@ -671,6 +754,18 @@ func dograhContainerEnvValue(data []byte, key string) string {
 		return ""
 	}
 	return manifestEnvValue(info.Config.Env, key)
+}
+
+func dograhContainerLabelValue(data []byte, key string) string {
+	var info struct {
+		Config struct {
+			Labels map[string]string `json:"Labels"`
+		} `json:"Config"`
+	}
+	if err := json.Unmarshal(data, &info); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(info.Config.Labels[key])
 }
 
 func dograhPortContainerNeedsRecreate(data []byte, networkName string, containerPort, hostPort int, host string) bool {

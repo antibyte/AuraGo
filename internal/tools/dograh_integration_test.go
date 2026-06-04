@@ -93,6 +93,61 @@ func TestBuildDograhAPICreatePayloadMatchesUpstreamContract(t *testing.T) {
 	}
 }
 
+func TestBuildDograhUICreatePayloadUsesOSSLocalAuthContract(t *testing.T) {
+	cfg := dograhTestConfig()
+	sidecar, err := ResolveDograhStackConfig(cfg, false)
+	if err != nil {
+		t.Fatalf("ResolveDograhStackConfig() error = %v", err)
+	}
+
+	raw, err := buildDograhUICreatePayload(sidecar, sidecar.NetworkName)
+	if err != nil {
+		t.Fatalf("buildDograhUICreatePayload() error = %v", err)
+	}
+	var payload struct {
+		Image  string            `json:"Image"`
+		Env    []string          `json:"Env"`
+		Labels map[string]string `json:"Labels"`
+	}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+
+	env := map[string]string{}
+	for _, item := range payload.Env {
+		key, value, ok := strings.Cut(item, "=")
+		if ok {
+			env[key] = value
+		}
+	}
+	if payload.Image != "dograhai/dograh-ui:latest" {
+		t.Fatalf("Image = %q, want Dograh UI image", payload.Image)
+	}
+	if env["BACKEND_URL"] != "http://dograh-api:8000" {
+		t.Fatalf("BACKEND_URL = %q", env["BACKEND_URL"])
+	}
+	if env["NODE_ENV"] != "oss" {
+		t.Fatalf("NODE_ENV = %q, want oss", env["NODE_ENV"])
+	}
+	if env["NEXT_PUBLIC_NODE_ENV"] != "oss" {
+		t.Fatalf("NEXT_PUBLIC_NODE_ENV = %q, want oss", env["NEXT_PUBLIC_NODE_ENV"])
+	}
+	if env["DEPLOYMENT_MODE"] != "oss" {
+		t.Fatalf("DEPLOYMENT_MODE = %q, want oss", env["DEPLOYMENT_MODE"])
+	}
+	if env["AUTH_PROVIDER"] != "local" {
+		t.Fatalf("AUTH_PROVIDER = %q, want local", env["AUTH_PROVIDER"])
+	}
+	for _, key := range []string{"NEXT_PUBLIC_STACK_PROJECT_ID", "NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY", "STACK_SECRET_SERVER_KEY", "SECRET_SERVER_KEY"} {
+		if got := env[key]; got != "" {
+			t.Fatalf("%s = %q, want empty/unset for OSS local auth", key, got)
+		}
+	}
+	if payload.Labels[dograhStackRevisionLabel] != dograhStackRevision {
+		t.Fatalf("stack revision label = %q, want %q", payload.Labels[dograhStackRevisionLabel], dograhStackRevision)
+	}
+}
+
 func TestBuildDograhMinioCreatePayloadExposesLocalS3Endpoint(t *testing.T) {
 	cfg := dograhTestConfig()
 	sidecar, err := ResolveDograhStackConfig(cfg, false)
@@ -148,6 +203,74 @@ func TestDograhAPIContainerNeedsRecreateWhenMinioPublicEndpointMissing(t *testin
 
 	if !dograhAPIContainerNeedsRecreate(inspect, sidecar.NetworkName, sidecar) {
 		t.Fatal("dograhAPIContainerNeedsRecreate() = false, want true for legacy MinIO env")
+	}
+}
+
+func TestDograhUIContainerNeedsRecreateWhenLegacyStackAuthContractIsPresent(t *testing.T) {
+	cfg := dograhTestConfig()
+	sidecar, err := ResolveDograhStackConfig(cfg, false)
+	if err != nil {
+		t.Fatalf("ResolveDograhStackConfig() error = %v", err)
+	}
+	inspect := []byte(`{
+		"Config": {"Env": [
+			"BACKEND_URL=http://dograh-api:8000",
+			"NODE_ENV=production",
+			"NEXT_PUBLIC_STACK_PROJECT_ID=stack-project"
+		]},
+		"HostConfig": {"PortBindings": {"3010/tcp": [{"HostIp": "127.0.0.1", "HostPort": "3010"}]}},
+		"NetworkSettings": {"Networks": {"aurago_dograh": {}}}
+	}`)
+
+	if !dograhUIContainerNeedsRecreate(inspect, sidecar.NetworkName, sidecar) {
+		t.Fatal("dograhUIContainerNeedsRecreate() = false, want true for stale Stack Auth UI contract")
+	}
+}
+
+func TestDograhUIContainerNeedsRecreateAcceptsCurrentOSSContract(t *testing.T) {
+	cfg := dograhTestConfig()
+	sidecar, err := ResolveDograhStackConfig(cfg, false)
+	if err != nil {
+		t.Fatalf("ResolveDograhStackConfig() error = %v", err)
+	}
+	inspect := []byte(`{
+		"Config": {
+			"Env": [
+				"BACKEND_URL=http://dograh-api:8000",
+				"NODE_ENV=oss",
+				"NEXT_PUBLIC_NODE_ENV=oss",
+				"DEPLOYMENT_MODE=oss",
+				"AUTH_PROVIDER=local",
+				"ENABLE_TELEMETRY=false"
+			],
+			"Labels": {
+				"org.aurago.integration": "dograh",
+				"org.aurago.dograh.stack-revision": "` + dograhStackRevision + `"
+			}
+		},
+		"HostConfig": {"PortBindings": {"3010/tcp": [{"HostIp": "127.0.0.1", "HostPort": "3010"}]}},
+		"NetworkSettings": {"Networks": {"aurago_dograh": {}}}
+	}`)
+
+	if dograhUIContainerNeedsRecreate(inspect, sidecar.NetworkName, sidecar) {
+		t.Fatal("dograhUIContainerNeedsRecreate() = true, want false for current OSS UI contract")
+	}
+}
+
+func TestDograhImageUsesFloatingTag(t *testing.T) {
+	tests := []struct {
+		image string
+		want  bool
+	}{
+		{"dograhai/dograh-ui:latest", true},
+		{"dograhai/dograh-ui", true},
+		{"dograhai/dograh-ui:1.34.0", false},
+		{"dograhai/dograh-ui@sha256:abc123", false},
+	}
+	for _, tt := range tests {
+		if got := dograhImageUsesFloatingTag(tt.image); got != tt.want {
+			t.Fatalf("dograhImageUsesFloatingTag(%q) = %v, want %v", tt.image, got, tt.want)
+		}
 	}
 }
 
