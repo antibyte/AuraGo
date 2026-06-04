@@ -154,6 +154,7 @@
                 '/js/vendor/marked.min.js',
                 '/js/vendor/highlight.min.js',
                 '/js/desktop/apps/cheater.js',
+                '/js/desktop/apps/cheater-templates.js',
                 '/js/desktop/apps/cheater-spotlight.js'
             ]
         }

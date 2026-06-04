@@ -269,3 +269,58 @@ func TestDesktopCheaterInlineRender(t *testing.T) {
 		t.Fatalf("cheater entry missing hljs CSS")
 	}
 }
+
+func TestDesktopCheaterCreateModal(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/cheater.js")
+	for _, marker := range []string{
+		"function openCreateModal",
+		"function collectTags",
+		"function addTag",
+		"function removeTag",
+		"data-template-id",
+		"data-action=\"submit\"",
+		"data-action=\"cancel\"",
+		"cheater-template-card",
+		"cheater-tag-chips",
+		"method: 'POST'",
+		"window.CheaterApp.openCreateModal",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("cheater create modal missing JS marker %q", marker)
+		}
+	}
+
+	templates := readDesktopAssetText(t, "js/desktop/apps/cheater-templates.js")
+	for _, marker := range []string{
+		"window.CheaterTemplates",
+		"function listTemplates",
+		"function templateById",
+		"'empty'",
+		"'deployment'",
+		"'debug'",
+		"'routine'",
+		"'api'",
+		"'backup'",
+	} {
+		if !strings.Contains(templates, marker) {
+			t.Fatalf("cheater templates missing marker %q", marker)
+		}
+	}
+
+	css := readAllDesktopAppCSS(t)
+	for _, marker := range []string{
+		".cheater-modal",
+		".cheater-modal-backdrop",
+		".cheater-modal-panel",
+		".cheater-field",
+		".cheater-template-grid",
+		".cheater-template-card.is-selected",
+		".cheater-secondary",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("cheater modal CSS missing marker %q", marker)
+		}
+	}
+}

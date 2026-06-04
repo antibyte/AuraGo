@@ -303,3 +303,65 @@
 .cheater-md-block h3 { font-size: 1.1rem;  margin: .8rem 0 .3rem; }
 .cheater-md-block ul, .cheater-md-block ol { margin: .5rem 0; padding-left: 1.5rem; }
 .cheater-md-block a { color: var(--accent, #4a90e2); }
+
+.cheater-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cheater-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+.cheater-modal-panel {
+    position: relative;
+    width: min(560px, 94vw);
+    max-height: 88vh;
+    overflow-y: auto;
+    background: var(--bg-surface, #fff);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 24px 60px rgba(0,0,0,.3);
+}
+
+.cheater-modal-title { margin: 0 0 1rem; font-size: 1.25rem; }
+
+.cheater-field { display: flex; flex-direction: column; gap: .375rem; margin-bottom: 1rem; }
+.cheater-field > span { font-size: .8125rem; color: var(--text-muted, #666); }
+.cheater-field input {
+    border: 1px solid var(--border-subtle, #e0e0e0);
+    background: var(--bg-input, var(--bg-surface, #fff));
+    color: var(--text-primary, #222);
+    border-radius: 6px;
+    padding: .5rem .75rem;
+    font-size: .9375rem;
+    outline: none;
+}
+.cheater-field input:focus { border-color: var(--accent, #4a90e2); }
+
+.cheater-tag-input { display: flex; flex-wrap: wrap; gap: .25rem; padding: .375rem; border: 1px solid var(--border-subtle, #e0e0e0); border-radius: 6px; }
+.cheater-tag-chips { display: contents; }
+.cheater-tag-input input { flex: 1; min-width: 8ch; border: 0; outline: none; background: transparent; color: var(--text-primary, #222); }
+.cheater-pill-remove { background: transparent; border: 0; cursor: pointer; color: inherit; font-size: 1rem; padding: 0 0 0 .25rem; }
+
+.cheater-template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .5rem; }
+.cheater-template-card {
+    display: flex; flex-direction: column; align-items: center; gap: .25rem;
+    padding: .75rem .5rem; border: 1px solid var(--border-subtle, #e0e0e0); border-radius: 8px;
+    background: var(--bg-surface, #fff); cursor: pointer; color: var(--text-primary, #222);
+}
+.cheater-template-card:hover { background: var(--bg-hover, rgba(0,0,0,.04)); }
+.cheater-template-card.is-selected { border-color: var(--accent, #4a90e2); background: var(--bg-tag, rgba(74,144,226,.08)); }
+.cheater-template-icon { font-size: 1.5rem; }
+.cheater-template-name { font-size: .8125rem; text-align: center; }
+
+.cheater-modal-footer { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
+.cheater-secondary { background: transparent; border: 1px solid var(--border-subtle, #e0e0e0); padding: .5rem 1rem; border-radius: 6px; color: var(--text-primary, #222); cursor: pointer; }

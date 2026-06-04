@@ -389,8 +389,176 @@
             .replaceAll("'", '&#39;');
     }
 
+    function openCreateModal(windowId, prefillTitle) {
+        const state = instances.get(windowId);
+        if (!state) return;
+        const t = state.t;
+        const esc = state.esc;
+
+        const modal = document.createElement('div');
+        modal.className = 'cheater-modal';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        modal.setAttribute('aria-label', t('cheater.create_title', 'Neues Cheat Sheet'));
+
+        const templates = (window.CheaterTemplates ? window.CheaterTemplates.list(t) : [{ id: 'empty', name: 'Leer', icon: '📄' }]);
+        const existingTags = collectTags(state.searchIndex);
+
+        modal.innerHTML = `
+            <div class="cheater-modal-backdrop" data-backdrop></div>
+            <div class="cheater-modal-panel">
+                <h2 class="cheater-modal-title">${esc(t('cheater.create_title', 'Neues Cheat Sheet'))}</h2>
+                <label class="cheater-field">
+                    <span>${esc(t('cheater.field_title', 'Titel'))} *</span>
+                    <input type="text" data-title required maxlength="120" value="${esc(prefillTitle || '')}" autofocus>
+                </label>
+                <label class="cheater-field">
+                    <span>${esc(t('cheater.field_description', 'Beschreibung'))}</span>
+                    <input type="text" data-abstract maxlength="200" placeholder="${esc(t('cheater.field_description_placeholder', 'Optional — 1-2 Zeilen'))}">
+                </label>
+                <div class="cheater-field">
+                    <span>${esc(t('cheater.field_tags', 'Tags'))}</span>
+                    <div class="cheater-tag-input">
+                        <div class="cheater-tag-chips" data-chips></div>
+                        <input type="text" data-tag-input placeholder="${esc(t('cheater.field_tags_placeholder', 'Tag hinzufügen...'))}">
+                        <datalist data-tag-suggestions>${existingTags.map(tag => `<option value="${esc(tag)}">`).join('')}</datalist>
+                    </div>
+                </div>
+                <div class="cheater-field">
+                    <span>${esc(t('cheater.field_template', 'Template'))}</span>
+                    <div class="cheater-template-grid" data-templates>
+                        ${templates.map(tpl => `<button type="button" class="cheater-template-card" data-template-id="${esc(tpl.id)}">
+                            <span class="cheater-template-icon">${esc(tpl.icon)}</span>
+                            <span class="cheater-template-name">${esc(tpl.name)}</span>
+                        </button>`).join('')}
+                    </div>
+                </div>
+                <div class="cheater-modal-footer">
+                    <button type="button" class="cheater-secondary" data-action="cancel">${esc(t('cheater.cancel', 'Abbrechen'))}</button>
+                    <button type="button" class="cheater-primary" data-action="submit" disabled>${esc(t('cheater.create_submit', 'Erstellen & öffnen'))}</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        const titleInput = modal.querySelector('[data-title]');
+        const abstractInput = modal.querySelector('[data-abstract]');
+        const tagInput = modal.querySelector('[data-tag-input]');
+        const chips = modal.querySelector('[data-chips]');
+        const templateGrid = modal.querySelector('[data-templates]');
+        const submitBtn = modal.querySelector('[data-action="submit"]');
+        const cancelBtn = modal.querySelector('[data-action="cancel"]');
+        const backdrop = modal.querySelector('[data-backdrop]');
+        const selectedTags = [];
+        let selectedTemplate = 'empty';
+
+        function refreshSubmit() {
+            submitBtn.disabled = !titleInput.value.trim();
+        }
+
+        function addTag(name) {
+            const trimmed = String(name || '').trim();
+            if (!trimmed) return;
+            if (selectedTags.includes(trimmed)) return;
+            selectedTags.push(trimmed);
+            renderChips();
+        }
+
+        function removeTag(name) {
+            const idx = selectedTags.indexOf(name);
+            if (idx === -1) return;
+            selectedTags.splice(idx, 1);
+            renderChips();
+        }
+
+        function renderChips() {
+            chips.innerHTML = selectedTags.map(tag =>
+                `<span class="cheater-pill">${esc(tag)} <button type="button" class="cheater-pill-remove" data-remove="${esc(tag)}" aria-label="${esc(t('cheater.remove_tag', 'Tag entfernen'))}">×</button></span>`
+            ).join('');
+            chips.querySelectorAll('[data-remove]').forEach(btn => {
+                btn.addEventListener('click', () => removeTag(btn.dataset.remove));
+            });
+        }
+
+        titleInput.addEventListener('input', refreshSubmit);
+        tagInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                addTag(tagInput.value);
+                tagInput.value = '';
+            }
+        });
+        templateGrid.querySelectorAll('[data-template-id]').forEach(card => {
+            card.addEventListener('click', () => {
+                templateGrid.querySelectorAll('.cheater-template-card').forEach(c => c.classList.remove('is-selected'));
+                card.classList.add('is-selected');
+                selectedTemplate = card.dataset.templateId;
+            });
+        });
+        templateGrid.querySelector('[data-template-id="empty"]').classList.add('is-selected');
+
+        submitBtn.addEventListener('click', submit);
+        cancelBtn.addEventListener('click', close);
+        backdrop.addEventListener('click', close);
+        modal.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') close();
+            else if (e.key === 'Enter' && !(e.target instanceof HTMLTextArea)) {
+                if (!submitBtn.disabled) submit();
+            }
+        });
+
+        setTimeout(() => titleInput.focus(), 0);
+
+        async function submit() {
+            const title = titleInput.value.trim();
+            if (!title) return;
+            const tpl = window.CheaterTemplates ? window.CheaterTemplates.byId(selectedTemplate) : { content: '# {{title}}\n\n' };
+            const content = (tpl.content || '# {{title}}\n\n').replace(/\{\{title\}\}/g, title);
+            submitBtn.disabled = true;
+            try {
+                const created = await state.api('/api/cheatsheets', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: title,
+                        content,
+                        abstract: abstractInput.value.trim(),
+                        tags: selectedTags
+                    })
+                });
+                if (created && created.id) {
+                    state.searchIndex.push({
+                        id: created.id,
+                        name: created.name,
+                        abstract: created.abstract || '',
+                        tags: created.tags || [],
+                        content_excerpt: (created.content || '').slice(0, 200),
+                        last_used_at: null
+                    });
+                }
+                close();
+                if (created) openSheet(state, created);
+            } catch (err) {
+                state.notify('cheater.error.create_failed', 'error');
+                console.error('cheater create failed', err);
+                submitBtn.disabled = false;
+            }
+        }
+
+        function close() {
+            modal.remove();
+        }
+    }
+
+    function collectTags(entries) {
+        const set = new Set();
+        entries.forEach(e => (e.tags || []).forEach(tag => set.add(tag)));
+        return Array.from(set).sort();
+    }
+
     window.CheaterApp = window.CheaterApp || {};
     window.CheaterApp.render = render;
     window.CheaterApp.dispose = dispose;
     window.CheaterApp.openSheet = openSheet;
+    window.CheaterApp.openCreateModal = openCreateModal;
 })();
