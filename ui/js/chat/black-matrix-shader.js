@@ -244,6 +244,10 @@
         if (active) stop();
     }
 
-    document.addEventListener('DOMContentLoaded', sync);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', sync);
+    } else {
+        sync();
+    }
     attachObservers();
 })();
