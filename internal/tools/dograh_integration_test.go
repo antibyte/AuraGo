@@ -63,8 +63,23 @@ func TestBuildDograhAPICreatePayloadMatchesUpstreamContract(t *testing.T) {
 	if env["REDIS_URL"] != "redis://:redis-secret@dograh-redis:6379" {
 		t.Fatalf("REDIS_URL = %q", env["REDIS_URL"])
 	}
-	if env["MINIO_ENDPOINT"] != "http://dograh-minio:9000" {
+	if env["ENABLE_AWS_S3"] != "false" {
+		t.Fatalf("ENABLE_AWS_S3 = %q, want false", env["ENABLE_AWS_S3"])
+	}
+	if env["MINIO_ENDPOINT"] != "dograh-minio:9000" {
 		t.Fatalf("MINIO_ENDPOINT = %q", env["MINIO_ENDPOINT"])
+	}
+	if env["MINIO_PUBLIC_ENDPOINT"] != "http://127.0.0.1:9000" {
+		t.Fatalf("MINIO_PUBLIC_ENDPOINT = %q", env["MINIO_PUBLIC_ENDPOINT"])
+	}
+	if env["MINIO_BUCKET"] != "dograh" {
+		t.Fatalf("MINIO_BUCKET = %q", env["MINIO_BUCKET"])
+	}
+	if _, ok := env["MINIO_BUCKET_NAME"]; ok {
+		t.Fatalf("MINIO_BUCKET_NAME should not be set for Dograh API payload")
+	}
+	if env["MINIO_SECURE"] != "false" {
+		t.Fatalf("MINIO_SECURE = %q, want false", env["MINIO_SECURE"])
 	}
 	if env["OSS_JWT_SECRET"] != "jwt-secret" {
 		t.Fatalf("OSS_JWT_SECRET = %q", env["OSS_JWT_SECRET"])
@@ -75,6 +90,64 @@ func TestBuildDograhAPICreatePayloadMatchesUpstreamContract(t *testing.T) {
 	bindings := payload.HostConfig.PortBindings["8000/tcp"]
 	if len(bindings) != 1 || bindings[0].HostPort != "8000" {
 		t.Fatalf("API port bindings = %#v, want host port 8000", bindings)
+	}
+}
+
+func TestBuildDograhMinioCreatePayloadExposesLocalS3Endpoint(t *testing.T) {
+	cfg := dograhTestConfig()
+	sidecar, err := ResolveDograhStackConfig(cfg, false)
+	if err != nil {
+		t.Fatalf("ResolveDograhStackConfig() error = %v", err)
+	}
+
+	raw, err := buildDograhMinioCreatePayload(sidecar, sidecar.NetworkName)
+	if err != nil {
+		t.Fatalf("buildDograhMinioCreatePayload() error = %v", err)
+	}
+	var payload struct {
+		Env          []string            `json:"Env"`
+		ExposedPorts map[string]struct{} `json:"ExposedPorts"`
+		HostConfig   struct {
+			PortBindings map[string][]struct {
+				HostIP   string `json:"HostIp"`
+				HostPort string `json:"HostPort"`
+			} `json:"PortBindings"`
+		} `json:"HostConfig"`
+	}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if !containsExactString(payload.Env, "MINIO_API_CORS_ALLOW_ORIGIN=*") {
+		t.Fatalf("Env = %#v, want MINIO CORS for browser access", payload.Env)
+	}
+	for _, port := range []string{"9000/tcp", "9001/tcp"} {
+		if _, ok := payload.ExposedPorts[port]; !ok {
+			t.Fatalf("ExposedPorts = %#v, want %s", payload.ExposedPorts, port)
+		}
+		bindings := payload.HostConfig.PortBindings[port]
+		if len(bindings) != 1 || bindings[0].HostIP != "127.0.0.1" || bindings[0].HostPort != strings.TrimSuffix(port, "/tcp") {
+			t.Fatalf("%s port bindings = %#v, want loopback binding", port, bindings)
+		}
+	}
+}
+
+func TestDograhAPIContainerNeedsRecreateWhenMinioPublicEndpointMissing(t *testing.T) {
+	cfg := dograhTestConfig()
+	sidecar, err := ResolveDograhStackConfig(cfg, false)
+	if err != nil {
+		t.Fatalf("ResolveDograhStackConfig() error = %v", err)
+	}
+	inspect := []byte(`{
+		"Config": {"Env": [
+			"MINIO_ENDPOINT=http://dograh-minio:9000",
+			"MINIO_BUCKET_NAME=dograh"
+		]},
+		"HostConfig": {"PortBindings": {"8000/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8000"}]}},
+		"NetworkSettings": {"Networks": {"aurago_dograh": {}}}
+	}`)
+
+	if !dograhAPIContainerNeedsRecreate(inspect, sidecar.NetworkName, sidecar) {
+		t.Fatal("dograhAPIContainerNeedsRecreate() = false, want true for legacy MinIO env")
 	}
 }
 

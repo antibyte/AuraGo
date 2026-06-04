@@ -42,6 +42,8 @@ const (
 	dograhPostgresDataPath             = "/var/lib/postgresql/data"
 	dograhRedisDataPath                = "/data"
 	dograhMinioDataPath                = "/data"
+	dograhMinioAPIPort                 = 9000
+	dograhMinioConsolePort             = 9001
 	dograhCoturnPort                   = 3478
 	dograhStatusSetupRequired          = "setup_required"
 	dograhHealthProbeTimeout           = 3 * time.Second
@@ -273,6 +275,26 @@ func dograhRedisURL(stack DograhStackConfig) string {
 	return fmt.Sprintf("redis://:%s@%s:6379", url.QueryEscape(stack.RedisPassword), stack.RedisAlias)
 }
 
+func dograhMinioEndpoint(stack DograhStackConfig) string {
+	return fmt.Sprintf("%s:%d", stack.MinioAlias, dograhMinioAPIPort)
+}
+
+func dograhMinioPublicEndpoint(stack DograhStackConfig) string {
+	host := dograhPublicURLHost(stack.Host)
+	return (&url.URL{
+		Scheme: "http",
+		Host:   net.JoinHostPort(host, strconv.Itoa(dograhMinioAPIPort)),
+	}).String()
+}
+
+func dograhPublicURLHost(host string) string {
+	host = strings.Trim(strings.TrimSpace(host), "[]")
+	if host == "" || strings.EqualFold(host, "localhost") || host == "0.0.0.0" || host == "::" || host == "::1" {
+		return "127.0.0.1"
+	}
+	return host
+}
+
 func buildDograhPostgresCreatePayload(stack DograhStackConfig, networkName string) ([]byte, error) {
 	if err := validateDockerName(stack.PostgresContainerName); err != nil {
 		return nil, err
@@ -338,12 +360,25 @@ func buildDograhMinioCreatePayload(stack DograhStackConfig, networkName string) 
 		"Env": []string{
 			"MINIO_ROOT_USER=" + stack.MinioRootUser,
 			"MINIO_ROOT_PASSWORD=" + stack.MinioRootPassword,
+			"MINIO_API_CORS_ALLOW_ORIGIN=*",
 		},
-		"Cmd": []string{"server", dograhMinioDataPath, "--console-address", ":9001"},
+		"Cmd": []string{"server", dograhMinioDataPath, "--console-address", fmt.Sprintf(":%d", dograhMinioConsolePort)},
+		"ExposedPorts": map[string]interface{}{
+			fmt.Sprintf("%d/tcp", dograhMinioAPIPort):     struct{}{},
+			fmt.Sprintf("%d/tcp", dograhMinioConsolePort): struct{}{},
+		},
 		"HostConfig": map[string]interface{}{
 			"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
 			"Binds":         []string{stack.MinioVolume + ":" + dograhMinioDataPath},
 			"NetworkMode":   networkName,
+			"PortBindings": map[string]interface{}{
+				fmt.Sprintf("%d/tcp", dograhMinioAPIPort): []map[string]string{
+					{"HostIp": dograhPublishHost(stack.Host), "HostPort": strconv.Itoa(dograhMinioAPIPort)},
+				},
+				fmt.Sprintf("%d/tcp", dograhMinioConsolePort): []map[string]string{
+					{"HostIp": dograhPublishHost(stack.Host), "HostPort": strconv.Itoa(dograhMinioConsolePort)},
+				},
+			},
 		},
 		"NetworkingConfig": manifestNetworkingConfig(networkName, stack.MinioAlias),
 	}
@@ -403,12 +438,19 @@ func buildDograhAPICreatePayload(stack DograhStackConfig, networkName string) ([
 	}
 	containerPort := fmt.Sprintf("%d/tcp", stack.APIPort)
 	env := []string{
+		"ENVIRONMENT=local",
+		"DEPLOYMENT_MODE=oss",
+		"AUTH_PROVIDER=local",
+		"LOG_LEVEL=INFO",
 		"DATABASE_URL=" + dograhDatabaseURL(stack),
 		"REDIS_URL=" + dograhRedisURL(stack),
-		"MINIO_ENDPOINT=http://" + stack.MinioAlias + ":9000",
+		"ENABLE_AWS_S3=false",
+		"MINIO_ENDPOINT=" + dograhMinioEndpoint(stack),
+		"MINIO_PUBLIC_ENDPOINT=" + dograhMinioPublicEndpoint(stack),
 		"MINIO_ACCESS_KEY=" + stack.MinioRootUser,
 		"MINIO_SECRET_KEY=" + stack.MinioRootPassword,
-		"MINIO_BUCKET_NAME=" + stack.MinioBucket,
+		"MINIO_BUCKET=" + stack.MinioBucket,
+		"MINIO_SECURE=false",
 		"OSS_JWT_SECRET=" + stack.OSSJWTSecret,
 		"BACKEND_API_ENDPOINT=" + stack.BrowserAPIURL,
 		"ENABLE_TELEMETRY=" + strconv.FormatBool(stack.TelemetryEnabled),
@@ -504,9 +546,11 @@ func EnsureDograhStackRunning(ctx context.Context, dockerHost string, cfg *confi
 	containers := []dograhContainerPlan{
 		{stack.PostgresContainerName, stack.PostgresImage, func() ([]byte, error) { return buildDograhPostgresCreatePayload(stack, networkName) }, func(data []byte) bool { return !dograhContainerAttached(data, networkName) }},
 		{stack.RedisContainerName, stack.RedisImage, func() ([]byte, error) { return buildDograhRedisCreatePayload(stack, networkName) }, func(data []byte) bool { return !dograhContainerAttached(data, networkName) }},
-		{stack.MinioContainerName, stack.MinioImage, func() ([]byte, error) { return buildDograhMinioCreatePayload(stack, networkName) }, func(data []byte) bool { return !dograhContainerAttached(data, networkName) }},
+		{stack.MinioContainerName, stack.MinioImage, func() ([]byte, error) { return buildDograhMinioCreatePayload(stack, networkName) }, func(data []byte) bool {
+			return dograhMinioContainerNeedsRecreate(data, networkName, stack)
+		}},
 		{stack.APIContainerName, stack.APIImage, func() ([]byte, error) { return buildDograhAPICreatePayload(stack, networkName) }, func(data []byte) bool {
-			return dograhPortContainerNeedsRecreate(data, networkName, stack.APIPort, stack.APIHostPort, stack.Host)
+			return dograhAPIContainerNeedsRecreate(data, networkName, stack)
 		}},
 		{stack.UIContainerName, stack.UIImage, func() ([]byte, error) { return buildDograhUICreatePayload(stack, networkName) }, func(data []byte) bool {
 			return dograhPortContainerNeedsRecreate(data, networkName, stack.UIPort, stack.UIHostPort, stack.Host)
@@ -574,6 +618,59 @@ func dograhContainerAttached(data []byte, networkName string) bool {
 		return true
 	}
 	return manifestContainerAttachedToNetwork(info.NetworkSettings.Networks, networkName)
+}
+
+func dograhMinioContainerNeedsRecreate(data []byte, networkName string, stack DograhStackConfig) bool {
+	if dograhPortContainerNeedsRecreate(data, networkName, dograhMinioAPIPort, dograhMinioAPIPort, stack.Host) {
+		return true
+	}
+	if dograhPortContainerNeedsRecreate(data, networkName, dograhMinioConsolePort, dograhMinioConsolePort, stack.Host) {
+		return true
+	}
+	return dograhContainerEnvValue(data, "MINIO_API_CORS_ALLOW_ORIGIN") != "*"
+}
+
+func dograhAPIContainerNeedsRecreate(data []byte, networkName string, stack DograhStackConfig) bool {
+	if dograhPortContainerNeedsRecreate(data, networkName, stack.APIPort, stack.APIHostPort, stack.Host) {
+		return true
+	}
+	expected := map[string]string{
+		"ENABLE_AWS_S3":         "false",
+		"MINIO_ENDPOINT":        dograhMinioEndpoint(stack),
+		"MINIO_PUBLIC_ENDPOINT": dograhMinioPublicEndpoint(stack),
+		"MINIO_ACCESS_KEY":      stack.MinioRootUser,
+		"MINIO_SECRET_KEY":      stack.MinioRootPassword,
+		"MINIO_BUCKET":          stack.MinioBucket,
+		"MINIO_SECURE":          "false",
+		"OSS_JWT_SECRET":        stack.OSSJWTSecret,
+		"BACKEND_API_ENDPOINT":  stack.BrowserAPIURL,
+		"ENABLE_TELEMETRY":      strconv.FormatBool(stack.TelemetryEnabled),
+		"FASTAPI_WORKERS":       "1",
+		"DATABASE_URL":          dograhDatabaseURL(stack),
+		"REDIS_URL":             dograhRedisURL(stack),
+		"ENVIRONMENT":           "local",
+		"DEPLOYMENT_MODE":       "oss",
+		"AUTH_PROVIDER":         "local",
+		"LOG_LEVEL":             "INFO",
+	}
+	for key, want := range expected {
+		if got := dograhContainerEnvValue(data, key); got != want {
+			return true
+		}
+	}
+	return false
+}
+
+func dograhContainerEnvValue(data []byte, key string) string {
+	var info struct {
+		Config struct {
+			Env []string `json:"Env"`
+		} `json:"Config"`
+	}
+	if err := json.Unmarshal(data, &info); err != nil {
+		return ""
+	}
+	return manifestEnvValue(info.Config.Env, key)
 }
 
 func dograhPortContainerNeedsRecreate(data []byte, networkName string, containerPort, hostPort int, host string) bool {
