@@ -19,6 +19,7 @@ import (
 const (
 	dograhDefaultAPIImage              = "ghcr.io/dograh-hq/dograh-api:latest"
 	dograhDefaultUIImage               = "ghcr.io/dograh-hq/dograh-ui:latest"
+	dograhDefaultUIProxyImage          = "nginx:1.27-alpine"
 	dograhLegacyDockerHubAPIImage      = "dograhai/dograh-api:latest"
 	dograhLegacyDockerHubUIImage       = "dograhai/dograh-ui:latest"
 	dograhDefaultPostgresImage         = "pgvector/pgvector:pg17"
@@ -27,6 +28,7 @@ const (
 	dograhDefaultCoturnImage           = "coturn/coturn:4.8.0"
 	dograhDefaultAPIContainerName      = "aurago_dograh_api"
 	dograhDefaultUIContainerName       = "aurago_dograh_ui"
+	dograhDefaultUIProxyContainerName  = "aurago_dograh_ui_proxy"
 	dograhDefaultPostgresContainerName = "aurago_dograh_postgres"
 	dograhDefaultRedisContainerName    = "aurago_dograh_redis"
 	dograhDefaultMinioContainerName    = "aurago_dograh_minio"
@@ -34,6 +36,7 @@ const (
 	dograhDefaultNetworkName           = "aurago_dograh"
 	dograhDefaultAPIAlias              = "dograh-api"
 	dograhDefaultUIAlias               = "dograh-ui"
+	dograhDefaultUIProxyAlias          = "dograh-ui-proxy"
 	dograhDefaultPostgresAlias         = "dograh-postgres"
 	dograhDefaultRedisAlias            = "dograh-redis"
 	dograhDefaultMinioAlias            = "dograh-minio"
@@ -49,7 +52,7 @@ const (
 	dograhCoturnPort                   = 3478
 	dograhStatusSetupRequired          = "setup_required"
 	dograhHealthProbeTimeout           = 3 * time.Second
-	dograhStackRevision                = "20260604-ghcr-images"
+	dograhStackRevision                = "20260604-ui-config-proxy"
 	dograhStackRevisionLabel           = "org.aurago.dograh.stack-revision"
 )
 
@@ -68,18 +71,21 @@ type DograhStackConfig struct {
 	NetworkName           string
 	APIContainerName      string
 	UIContainerName       string
+	UIProxyContainerName  string
 	PostgresContainerName string
 	RedisContainerName    string
 	MinioContainerName    string
 	CoturnContainerName   string
 	APIAlias              string
 	UIAlias               string
+	UIProxyAlias          string
 	PostgresAlias         string
 	RedisAlias            string
 	MinioAlias            string
 	CoturnAlias           string
 	APIImage              string
 	UIImage               string
+	UIProxyImage          string
 	PostgresImage         string
 	RedisImage            string
 	MinioImage            string
@@ -214,18 +220,21 @@ func ResolveDograhStackConfig(cfg *config.Config, runningInDocker bool) (DograhS
 		NetworkName:           defaultString(cfg.Dograh.NetworkName, dograhDefaultNetworkName),
 		APIContainerName:      defaultString(cfg.Dograh.APIContainerName, dograhDefaultAPIContainerName),
 		UIContainerName:       defaultString(cfg.Dograh.UIContainerName, dograhDefaultUIContainerName),
+		UIProxyContainerName:  dograhDefaultUIProxyContainerName,
 		PostgresContainerName: defaultString(cfg.Dograh.PostgresContainerName, dograhDefaultPostgresContainerName),
 		RedisContainerName:    defaultString(cfg.Dograh.RedisContainerName, dograhDefaultRedisContainerName),
 		MinioContainerName:    defaultString(cfg.Dograh.MinioContainerName, dograhDefaultMinioContainerName),
 		CoturnContainerName:   defaultString(cfg.Dograh.CoturnContainerName, dograhDefaultCoturnContainerName),
 		APIAlias:              dograhDefaultAPIAlias,
 		UIAlias:               dograhDefaultUIAlias,
+		UIProxyAlias:          dograhDefaultUIProxyAlias,
 		PostgresAlias:         dograhDefaultPostgresAlias,
 		RedisAlias:            dograhDefaultRedisAlias,
 		MinioAlias:            dograhDefaultMinioAlias,
 		CoturnAlias:           dograhDefaultCoturnAlias,
 		APIImage:              normalizeDograhManagedImage(cfg.Dograh.APIImage, dograhDefaultAPIImage, dograhLegacyDockerHubAPIImage),
 		UIImage:               normalizeDograhManagedImage(cfg.Dograh.UIImage, dograhDefaultUIImage, dograhLegacyDockerHubUIImage),
+		UIProxyImage:          dograhDefaultUIProxyImage,
 		PostgresImage:         defaultString(cfg.Dograh.PostgresImage, dograhDefaultPostgresImage),
 		RedisImage:            defaultString(cfg.Dograh.RedisImage, dograhDefaultRedisImage),
 		MinioImage:            defaultString(cfg.Dograh.MinioImage, dograhDefaultMinioImage),
@@ -515,13 +524,93 @@ func buildDograhUICreatePayload(stack DograhStackConfig, networkName string) ([]
 		"HostConfig": map[string]interface{}{
 			"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
 			"NetworkMode":   networkName,
-			"PortBindings": map[string]interface{}{
-				containerPort: []map[string]string{{"HostIp": dograhPublishHost(stack.Host), "HostPort": strconv.Itoa(stack.UIHostPort)}},
-			},
 		},
 		"NetworkingConfig": manifestNetworkingConfig(networkName, stack.UIAlias),
 	}
 	return json.Marshal(payload)
+}
+
+func buildDograhUIProxyCreatePayload(stack DograhStackConfig, networkName string) ([]byte, error) {
+	if err := validateDockerName(stack.UIProxyContainerName); err != nil {
+		return nil, err
+	}
+	if err := validateDockerName(stack.UIProxyImage); err != nil {
+		return nil, err
+	}
+	if networkName == "" {
+		networkName = stack.NetworkName
+	}
+	containerPort := fmt.Sprintf("%d/tcp", stack.UIPort)
+	payload := map[string]interface{}{
+		"Image":  stack.UIProxyImage,
+		"Cmd":    []string{"sh", "-c", dograhUIProxyStartupScript(stack)},
+		"Labels": dograhStackLabels("ui-proxy"),
+		"ExposedPorts": map[string]interface{}{
+			containerPort: struct{}{},
+		},
+		"HostConfig": map[string]interface{}{
+			"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
+			"NetworkMode":   networkName,
+			"PortBindings": map[string]interface{}{
+				containerPort: []map[string]string{{"HostIp": dograhPublishHost(stack.Host), "HostPort": strconv.Itoa(stack.UIHostPort)}},
+			},
+		},
+		"NetworkingConfig": manifestNetworkingConfig(networkName, stack.UIProxyAlias),
+	}
+	return json.Marshal(payload)
+}
+
+func dograhUIProxyStartupScript(stack DograhStackConfig) string {
+	return "cat >/etc/nginx/conf.d/default.conf <<'EOF'\n" + dograhUIProxyNginxConfig(stack) + "\nEOF\nexec nginx -g 'daemon off;'\n"
+}
+
+func dograhUIProxyNginxConfig(stack DograhStackConfig) string {
+	return fmt.Sprintf(`resolver 127.0.0.11 valid=10s ipv6=off;
+
+server {
+    listen %d;
+    server_name _;
+
+    set $dograh_api http://%s:%d;
+    set $dograh_ui http://%s:%d;
+
+    proxy_http_version 1.1;
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+
+    location = /api/config/auth {
+        default_type application/json;
+        add_header Cache-Control "no-store";
+        return 200 '{"provider":"local"}';
+    }
+
+    location = /api/config/sentry {
+        default_type application/json;
+        add_header Cache-Control "no-store";
+        return 200 '{"enabled":false,"dsn":"","environment":"production"}';
+    }
+
+    location = /api/config/posthog {
+        default_type application/json;
+        add_header Cache-Control "no-store";
+        return 200 '{"enabled":false,"key":"","host":"/ingest","uiHost":"https://us.posthog.com"}';
+    }
+
+    location /api/ {
+        proxy_pass $dograh_api;
+    }
+
+    location / {
+        proxy_pass $dograh_ui;
+    }
+}
+`, stack.UIPort, stack.APIAlias, stack.APIPort, stack.UIAlias, stack.UIPort)
 }
 
 func dograhStackLabels(service string) map[string]string {
@@ -582,6 +671,9 @@ func EnsureDograhStackRunning(ctx context.Context, dockerHost string, cfg *confi
 		{stack.UIContainerName, stack.UIImage, func() ([]byte, error) { return buildDograhUICreatePayload(stack, networkName) }, func(data []byte) bool {
 			return dograhUIContainerNeedsRecreate(data, networkName, stack)
 		}},
+		{stack.UIProxyContainerName, stack.UIProxyImage, func() ([]byte, error) { return buildDograhUIProxyCreatePayload(stack, networkName) }, func(data []byte) bool {
+			return dograhUIProxyContainerNeedsRecreate(data, networkName, stack)
+		}},
 	}
 	if stack.TurnEnabled {
 		containers = append(containers[:3], append([]dograhContainerPlan{
@@ -590,7 +682,7 @@ func EnsureDograhStackRunning(ctx context.Context, dockerHost string, cfg *confi
 			}},
 		}, containers[3:]...)...)
 	}
-	for _, image := range []string{stack.APIImage, stack.UIImage} {
+	for _, image := range []string{stack.APIImage, stack.UIImage, stack.UIProxyImage} {
 		if err := dograhPullFloatingImage(ctx, dockerCfg, image, logger); err != nil {
 			return err
 		}
@@ -730,7 +822,10 @@ func dograhAPIContainerNeedsRecreate(data []byte, networkName string, stack Dogr
 }
 
 func dograhUIContainerNeedsRecreate(data []byte, networkName string, stack DograhStackConfig) bool {
-	if dograhPortContainerNeedsRecreate(data, networkName, stack.UIPort, stack.UIHostPort, stack.Host) {
+	if !dograhContainerAttached(data, networkName) {
+		return true
+	}
+	if dograhContainerHasPublishedPort(data, stack.UIPort) {
 		return true
 	}
 	if dograhContainerImageNeedsRecreate(data, stack.UIImage) {
@@ -760,6 +855,29 @@ func dograhUIContainerNeedsRecreate(data []byte, networkName string, stack Dogra
 	return false
 }
 
+func dograhUIProxyContainerNeedsRecreate(data []byte, networkName string, stack DograhStackConfig) bool {
+	if dograhPortContainerNeedsRecreate(data, networkName, stack.UIPort, stack.UIHostPort, stack.Host) {
+		return true
+	}
+	if dograhContainerImageNeedsRecreate(data, stack.UIProxyImage) {
+		return true
+	}
+	if dograhContainerLabelValue(data, dograhStackRevisionLabel) != dograhStackRevision {
+		return true
+	}
+	cmd := strings.Join(dograhContainerCmdValue(data), "\n")
+	for _, want := range []string{
+		`return 200 '{"provider":"local"}';`,
+		"proxy_pass $dograh_api;",
+		"proxy_pass $dograh_ui;",
+	} {
+		if !strings.Contains(cmd, want) {
+			return true
+		}
+	}
+	return false
+}
+
 func dograhContainerImageNeedsRecreate(data []byte, expectedImage string) bool {
 	got := strings.TrimSpace(dograhContainerImageValue(data))
 	want := strings.TrimSpace(expectedImage)
@@ -778,6 +896,18 @@ func dograhContainerImageValue(data []byte) string {
 	return info.Config.Image
 }
 
+func dograhContainerCmdValue(data []byte) []string {
+	var info struct {
+		Config struct {
+			Cmd []string `json:"Cmd"`
+		} `json:"Config"`
+	}
+	if err := json.Unmarshal(data, &info); err != nil {
+		return nil
+	}
+	return info.Config.Cmd
+}
+
 func dograhContainerEnvValue(data []byte, key string) string {
 	var info struct {
 		Config struct {
@@ -788,6 +918,21 @@ func dograhContainerEnvValue(data []byte, key string) string {
 		return ""
 	}
 	return manifestEnvValue(info.Config.Env, key)
+}
+
+func dograhContainerHasPublishedPort(data []byte, containerPort int) bool {
+	var info struct {
+		HostConfig struct {
+			PortBindings map[string][]struct {
+				HostIP   string `json:"HostIp"`
+				HostPort string `json:"HostPort"`
+			} `json:"PortBindings"`
+		} `json:"HostConfig"`
+	}
+	if err := json.Unmarshal(data, &info); err != nil {
+		return false
+	}
+	return len(info.HostConfig.PortBindings[fmt.Sprintf("%d/tcp", containerPort)]) > 0
 }
 
 func dograhContainerLabelValue(data []byte, key string) string {
@@ -855,6 +1000,7 @@ func StopDograhStack(ctx context.Context, dockerHost string, cfg *config.Config,
 		return nil
 	}
 	names := []string{
+		dograhDefaultUIProxyContainerName,
 		defaultString(cfg.Dograh.UIContainerName, dograhDefaultUIContainerName),
 		defaultString(cfg.Dograh.APIContainerName, dograhDefaultAPIContainerName),
 		defaultString(cfg.Dograh.CoturnContainerName, dograhDefaultCoturnContainerName),
@@ -904,6 +1050,7 @@ func DograhStackStatus(ctx context.Context, dockerHost string, cfg *config.Confi
 		Containers: map[string]string{
 			"api":      stack.APIContainerName,
 			"ui":       stack.UIContainerName,
+			"ui_proxy": stack.UIProxyContainerName,
 			"postgres": stack.PostgresContainerName,
 			"redis":    stack.RedisContainerName,
 			"minio":    stack.MinioContainerName,

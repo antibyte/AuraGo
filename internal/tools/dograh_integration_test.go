@@ -118,6 +118,39 @@ func TestEnsureDograhStackRunningUsesCurrentImagesForLegacyRuntimeConfig(t *test
 	if createdImages[cfg.Dograh.UIContainerName] != dograhDefaultUIImage {
 		t.Fatalf("UI create image = %q, want %q", createdImages[cfg.Dograh.UIContainerName], dograhDefaultUIImage)
 	}
+	if createdImages[dograhDefaultUIProxyContainerName] != dograhDefaultUIProxyImage {
+		t.Fatalf("UI proxy create image = %q, want %q", createdImages[dograhDefaultUIProxyContainerName], dograhDefaultUIProxyImage)
+	}
+}
+
+func TestStopDograhStackRemovesUIProxyBeforeUI(t *testing.T) {
+	var calls []string
+	dockerAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, r.Method+" "+r.URL.String())
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer dockerAPI.Close()
+
+	cfg := dograhTestConfig()
+	dockerHost := "tcp://" + strings.TrimPrefix(dockerAPI.URL, "http://")
+	if err := StopDograhStack(context.Background(), dockerHost, cfg, nil); err != nil {
+		t.Fatalf("StopDograhStack() error = %v", err)
+	}
+
+	got := strings.Join(calls, "\n")
+	for _, want := range []string{
+		"POST /v1.45/containers/aurago_dograh_ui_proxy/stop?t=5",
+		"DELETE /v1.45/containers/aurago_dograh_ui_proxy?force=true",
+		"POST /v1.45/containers/aurago_dograh_ui/stop?t=5",
+		"DELETE /v1.45/containers/aurago_dograh_ui?force=true",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("Docker calls missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Index(got, "aurago_dograh_ui_proxy") > strings.Index(got, "aurago_dograh_ui/stop") {
+		t.Fatalf("UI proxy must be removed before UI:\n%s", got)
+	}
 }
 
 func TestBuildDograhAPICreatePayloadMatchesUpstreamContract(t *testing.T) {
@@ -203,9 +236,12 @@ func TestBuildDograhUICreatePayloadUsesOSSLocalAuthContract(t *testing.T) {
 		t.Fatalf("buildDograhUICreatePayload() error = %v", err)
 	}
 	var payload struct {
-		Image  string            `json:"Image"`
-		Env    []string          `json:"Env"`
-		Labels map[string]string `json:"Labels"`
+		Image      string            `json:"Image"`
+		Env        []string          `json:"Env"`
+		Labels     map[string]string `json:"Labels"`
+		HostConfig struct {
+			PortBindings map[string]interface{} `json:"PortBindings"`
+		} `json:"HostConfig"`
 	}
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		t.Fatalf("json.Unmarshal() error = %v", err)
@@ -243,6 +279,54 @@ func TestBuildDograhUICreatePayloadUsesOSSLocalAuthContract(t *testing.T) {
 	}
 	if payload.Labels[dograhStackRevisionLabel] != dograhStackRevision {
 		t.Fatalf("stack revision label = %q, want %q", payload.Labels[dograhStackRevisionLabel], dograhStackRevision)
+	}
+	if len(payload.HostConfig.PortBindings) != 0 {
+		t.Fatalf("UI container must stay internal; port bindings = %#v", payload.HostConfig.PortBindings)
+	}
+}
+
+func TestBuildDograhUIProxyCreatePayloadPublishesUIAndShimsConfigRoutes(t *testing.T) {
+	cfg := dograhTestConfig()
+	sidecar, err := ResolveDograhStackConfig(cfg, false)
+	if err != nil {
+		t.Fatalf("ResolveDograhStackConfig() error = %v", err)
+	}
+
+	raw, err := buildDograhUIProxyCreatePayload(sidecar, sidecar.NetworkName)
+	if err != nil {
+		t.Fatalf("buildDograhUIProxyCreatePayload() error = %v", err)
+	}
+	var payload struct {
+		Image      string   `json:"Image"`
+		Cmd        []string `json:"Cmd"`
+		HostConfig struct {
+			PortBindings map[string][]struct {
+				HostIP   string `json:"HostIp"`
+				HostPort string `json:"HostPort"`
+			} `json:"PortBindings"`
+		} `json:"HostConfig"`
+	}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	cmd := strings.Join(payload.Cmd, "\n")
+	if payload.Image != dograhDefaultUIProxyImage {
+		t.Fatalf("Image = %q, want UI proxy image", payload.Image)
+	}
+	for _, want := range []string{
+		`return 200 '{"provider":"local"}';`,
+		`return 200 '{"enabled":false,"dsn":"","environment":"production"}';`,
+		`return 200 '{"enabled":false,"key":"","host":"/ingest","uiHost":"https://us.posthog.com"}';`,
+		"proxy_pass $dograh_api;",
+		"proxy_pass $dograh_ui;",
+	} {
+		if !strings.Contains(cmd, want) {
+			t.Fatalf("proxy command missing %q:\n%s", want, cmd)
+		}
+	}
+	bindings := payload.HostConfig.PortBindings["3010/tcp"]
+	if len(bindings) != 1 || bindings[0].HostIP != "127.0.0.1" || bindings[0].HostPort != "3010" {
+		t.Fatalf("proxy port bindings = %#v, want host 127.0.0.1:3010", bindings)
 	}
 }
 
@@ -386,12 +470,40 @@ func TestDograhUIContainerNeedsRecreateAcceptsCurrentOSSContract(t *testing.T) {
 				"org.aurago.dograh.stack-revision": "` + dograhStackRevision + `"
 			}
 		},
-		"HostConfig": {"PortBindings": {"3010/tcp": [{"HostIp": "127.0.0.1", "HostPort": "3010"}]}},
+		"HostConfig": {},
 		"NetworkSettings": {"Networks": {"aurago_dograh": {}}}
 	}`)
 
 	if dograhUIContainerNeedsRecreate(inspect, sidecar.NetworkName, sidecar) {
 		t.Fatal("dograhUIContainerNeedsRecreate() = true, want false for current OSS UI contract")
+	}
+}
+
+func TestDograhUIContainerNeedsRecreateWhenUIStillPublishesHostPort(t *testing.T) {
+	cfg := dograhTestConfig()
+	sidecar, err := ResolveDograhStackConfig(cfg, false)
+	if err != nil {
+		t.Fatalf("ResolveDograhStackConfig() error = %v", err)
+	}
+	inspect := []byte(`{
+		"Config": {
+			"Image": "ghcr.io/dograh-hq/dograh-ui:latest",
+			"Env": [
+				"BACKEND_URL=http://dograh-api:8000",
+				"NODE_ENV=oss",
+				"NEXT_PUBLIC_NODE_ENV=oss",
+				"DEPLOYMENT_MODE=oss",
+				"AUTH_PROVIDER=local",
+				"ENABLE_TELEMETRY=false"
+			],
+			"Labels": {"org.aurago.dograh.stack-revision": "` + dograhStackRevision + `"}
+		},
+		"HostConfig": {"PortBindings": {"3010/tcp": [{"HostIp": "127.0.0.1", "HostPort": "3010"}]}},
+		"NetworkSettings": {"Networks": {"aurago_dograh": {}}}
+	}`)
+
+	if !dograhUIContainerNeedsRecreate(inspect, sidecar.NetworkName, sidecar) {
+		t.Fatal("dograhUIContainerNeedsRecreate() = false, want true for legacy UI host port")
 	}
 }
 
@@ -420,6 +532,56 @@ func TestDograhUIContainerNeedsRecreateWhenLegacyDockerHubImageIsPresent(t *test
 
 	if !dograhUIContainerNeedsRecreate(inspect, sidecar.NetworkName, sidecar) {
 		t.Fatal("dograhUIContainerNeedsRecreate() = false, want true for legacy DockerHub image")
+	}
+}
+
+func TestDograhUIProxyContainerNeedsRecreateAcceptsCurrentProxyConfig(t *testing.T) {
+	cfg := dograhTestConfig()
+	sidecar, err := ResolveDograhStackConfig(cfg, false)
+	if err != nil {
+		t.Fatalf("ResolveDograhStackConfig() error = %v", err)
+	}
+	cmd := dograhUIProxyStartupScript(sidecar)
+	inspect, err := json.Marshal(map[string]any{
+		"Config": map[string]any{
+			"Image":  dograhDefaultUIProxyImage,
+			"Cmd":    []string{"sh", "-c", cmd},
+			"Labels": map[string]string{dograhStackRevisionLabel: dograhStackRevision},
+		},
+		"HostConfig": map[string]any{
+			"PortBindings": map[string]any{
+				"3010/tcp": []map[string]string{{"HostIp": "127.0.0.1", "HostPort": "3010"}},
+			},
+		},
+		"NetworkSettings": map[string]any{"Networks": map[string]any{"aurago_dograh": map[string]any{}}},
+	})
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+
+	if dograhUIProxyContainerNeedsRecreate(inspect, sidecar.NetworkName, sidecar) {
+		t.Fatal("dograhUIProxyContainerNeedsRecreate() = true, want false for current proxy config")
+	}
+}
+
+func TestDograhUIProxyContainerNeedsRecreateWhenAuthConfigShimMissing(t *testing.T) {
+	cfg := dograhTestConfig()
+	sidecar, err := ResolveDograhStackConfig(cfg, false)
+	if err != nil {
+		t.Fatalf("ResolveDograhStackConfig() error = %v", err)
+	}
+	inspect := []byte(`{
+		"Config": {
+			"Image": "nginx:1.27-alpine",
+			"Cmd": ["sh", "-c", "proxy_pass $dograh_ui;"],
+			"Labels": {"org.aurago.dograh.stack-revision": "` + dograhStackRevision + `"}
+		},
+		"HostConfig": {"PortBindings": {"3010/tcp": [{"HostIp": "127.0.0.1", "HostPort": "3010"}]}},
+		"NetworkSettings": {"Networks": {"aurago_dograh": {}}}
+	}`)
+
+	if !dograhUIProxyContainerNeedsRecreate(inspect, sidecar.NetworkName, sidecar) {
+		t.Fatal("dograhUIProxyContainerNeedsRecreate() = false, want true when auth config shim is missing")
 	}
 }
 
