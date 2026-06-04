@@ -90,19 +90,34 @@
 }
 
 .vd-show-desktop-btn {
-    width: 6px;
+    width: 32px;
     height: 32px;
+    min-width: 32px;
     border: 1px solid var(--vd-border);
-    border-radius: var(--ds-radius-xs);
+    border-radius: var(--ds-radius-sm);
     background: rgba(255, 255, 255, 0.06);
+    color: var(--vd-muted);
     cursor: pointer;
+    display: inline-grid;
+    place-items: center;
+    font-size: 0;
     padding: 0;
     margin-right: 8px;
-    transition: background 0.15s;
+    transition: background 0.15s, color 0.15s;
 }
 
 .vd-show-desktop-btn:hover {
     background: rgba(255, 255, 255, 0.18);
+    color: var(--vd-text);
+}
+
+.vd-show-desktop-btn::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h6v2H8v2h8v-2h-2v-2h6a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H4Zm0 2h16v8H4V7Z'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h6v2H8v2h8v-2h-2v-2h6a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H4Zm0 2h16v8H4V7Z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .vd-brand {

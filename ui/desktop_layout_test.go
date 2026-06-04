@@ -28,6 +28,34 @@ func TestVirtualDesktopFooterOwnsSystemControls(t *testing.T) {
 	}
 }
 
+func TestVirtualDesktopShowDesktopButtonUsesDesktopIcon(t *testing.T) {
+	t.Parallel()
+
+	htmlBytes, err := Content.ReadFile("desktop.html")
+	if err != nil {
+		t.Fatalf("desktop template missing from embedded UI: %v", err)
+	}
+	html := string(htmlBytes)
+	if strings.Contains(html, `id="vd-show-desktop-btn" type="button" title="Show Desktop" aria-label="Show Desktop">&#9603;</button>`) {
+		t.Fatal("show desktop button should not render the legacy block glyph")
+	}
+
+	css := readAllDesktopCSS(t)
+	for _, marker := range []string{
+		".vd-show-desktop-btn {",
+		"width: 32px;",
+		"min-width: 32px;",
+		"display: inline-grid;",
+		"place-items: center;",
+		".vd-show-desktop-btn::before",
+		"viewBox='0 0 24 24'",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("show desktop button CSS is missing desktop icon marker %q", marker)
+		}
+	}
+}
+
 func TestVirtualDesktopMaximizeUsesFullWorkspace(t *testing.T) {
 	t.Parallel()
 
