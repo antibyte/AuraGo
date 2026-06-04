@@ -512,6 +512,37 @@ func TestHandleIntegrationWebhostsIncludesEnabledDograhUIURL(t *testing.T) {
 	}
 }
 
+func TestHandleIntegrationWebhostsDoesNotInventDograhURLForTailscaleLoopback(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Dograh.Enabled = true
+	cfg.Dograh.Mode = "external"
+	cfg.Dograh.APIURL = "http://127.0.0.1:8000"
+	cfg.Dograh.UIURL = "http://127.0.0.1:3010"
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/integrations/webhosts", nil)
+	req.Host = "aurago.taild1480.ts.net"
+	rec := httptest.NewRecorder()
+
+	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
+
+	var resp struct {
+		Webhosts []struct {
+			ID  string `json:"id"`
+			URL string `json:"url"`
+		} `json:"webhosts"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if len(resp.Webhosts) != 1 || resp.Webhosts[0].ID != "dograh" {
+		t.Fatalf("webhosts = %#v, want one Dograh entry", resp.Webhosts)
+	}
+	if resp.Webhosts[0].URL != "" {
+		t.Fatalf("dograh url = %q, want empty URL instead of an unreachable Tailscale port", resp.Webhosts[0].URL)
+	}
+}
+
 func TestHandleIntegrationWebhostsDoesNotInventManifestURLWhenTailscaleExposureDisabled(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Manifest.Enabled = true

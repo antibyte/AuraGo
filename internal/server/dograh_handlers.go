@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -335,8 +336,24 @@ func dograhRewriteBrowserURLs(r *http.Request, payload map[string]interface{}) {
 		if !ok || strings.TrimSpace(rawURL) == "" {
 			continue
 		}
-		payload[key] = manifestURLWithRequestHost(rawURL, r)
+		payload[key] = dograhURLWithRequestHost(rawURL, r)
 	}
+}
+
+func dograhURLWithRequestHost(rawURL string, r *http.Request) string {
+	if requestLooksTailscale(r) && dograhURLIsLoopback(rawURL) {
+		return ""
+	}
+	return manifestURLWithRequestHost(rawURL, r)
+}
+
+func dograhURLIsLoopback(rawURL string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || parsed == nil {
+		return false
+	}
+	host := strings.Trim(strings.ToLower(parsed.Hostname()), "[]")
+	return host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "0.0.0.0" || host == "::"
 }
 
 func applyDograhPatch(w http.ResponseWriter, r *http.Request, cfg *config.Config) bool {
