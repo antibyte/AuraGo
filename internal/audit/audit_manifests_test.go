@@ -780,6 +780,7 @@ func TestToolManualFilenamesAreKnownOrAllowlisted(t *testing.T) {
 		"brave_search":          "Python skill/manual",
 		"budget_status":         "legacy/manual alias",
 		"certificate_manager":   "server/config manual",
+		"cheater_app":           "virtual desktop cheat sheet app manual",
 		"code_analysis":         "Python skill/manual",
 		"core_memory":           "manual alias for manage_memory",
 		"detect_file_type":      "Python skill/manual",
