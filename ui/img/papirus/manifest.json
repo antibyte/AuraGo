@@ -105,7 +105,7 @@
     "terminal": "img/papirus/icons/terminal.svg",
     "text": "img/papirus/icons/text.svg",
     "tools": "img/papirus/icons/tools.svg",
-    "trash": "img/papirus/icons/trash.svg",
+    "trash": "img/papirus/icons/trash-empty.svg",
     "trash-empty": "img/papirus/icons/trash-empty.svg",
     "trash-full": "img/papirus/icons/trash-full.svg",
     "undo": "img/papirus/icons/undo.svg",

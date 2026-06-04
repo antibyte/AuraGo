@@ -3558,7 +3558,7 @@ function wireWindow(win, id) {
 /* ui/js/desktop/core/window-ai-context.js */
     function aiButtonMarkup(appId) {
         if (appId !== 'agent-chat') {
-            return `<button class="vd-window-button vd-window-ai-button" type="button" data-action="ai-context" title="${esc(t('desktop.window_ai_context'))}" aria-label="${esc(t('desktop.window_ai_context'))}">${iconMarkup('agent-chat', 'AI', 'vd-window-ai-button-icon', 14)}</button>`;
+            return `<button class="vd-window-button vd-window-ai-button" type="button" data-action="ai-context" title="${esc(t('desktop.window_ai_context'))}" aria-label="${esc(t('desktop.window_ai_context'))}">${iconMarkup('chat', 'AI', 'vd-window-ai-button-icon', 16)}</button>`;
         }
         return '';
     }
@@ -9096,7 +9096,7 @@ if (appId === 'pixel') {
             if (!contentEl(id)) return;
             if (shouldOpenStoreAppExternally(app)) {
                 navigateExternalStoreWindow(pendingExternalWindow, body.url);
-                host.innerHTML = `<div class="vd-store-frame-loading">${esc(appName(app))}</div>`;
+                closeWindow(id);
                 return;
             }
             const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');

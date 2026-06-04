@@ -50,6 +50,7 @@ func TestDesktopStoreAppFramesAllowInteractiveWebAppBrowserFeatures(t *testing.T
 		`if (storeAppId === 'uptime-kuma')`,
 		`const pendingExternalWindow = shouldOpenStoreAppExternally(app) ? openPendingExternalStoreWindow() : null;`,
 		`navigateExternalStoreWindow(pendingExternalWindow, body.url);`,
+		`closeWindow(id);`,
 		`function shouldOpenStoreAppExternally(app)`,
 		`app.metadata.open_external === 'true'`,
 		`app.metadata.store_app_id === 'romm'`,

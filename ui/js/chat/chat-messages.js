@@ -43,6 +43,13 @@ function personaIconUrl(key) {
     return `/img/persona-icons/${key}.png?v=${window.PERSONA_ASSET_VERSION}`;
 }
 
+function personaImageUrl(key) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.personaImageUrl === 'function') {
+        return window.AuraChatCore.personaImageUrl(key);
+    }
+    return `/img/personas/${key}.png?v=${window.PERSONA_ASSET_VERSION}`;
+}
+
 function containsLeakedToolMarkup(text) {
     if (window.AuraChatCore && typeof window.AuraChatCore.containsLeakedToolMarkup === 'function') {
         return window.AuraChatCore.containsLeakedToolMarkup(text);
@@ -99,7 +106,8 @@ function personaAvatarMarkup(role) {
         return `<img class="persona-avatar-img" src="${personaIconUrl('user')}" alt="" width="32" height="32" decoding="async">`;
     }
     const key = window._activePersonaIconKey || 'custom';
-    return `<img class="persona-avatar-img" data-persona-icon="${key}" src="${personaIconUrl(key)}" alt="" width="32" height="32" decoding="async">`;
+    const src = window._activePersonaImageUrl || personaImageUrl(key);
+    return `<img class="persona-avatar-img" data-persona-icon="${escapeAttr(key)}" src="${escapeAttr(src)}" alt="" width="32" height="32" decoding="async">`;
 }
 
 function normalizeChatTimestamp(timestamp) {

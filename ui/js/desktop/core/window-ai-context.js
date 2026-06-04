@@ -1,6 +1,6 @@
     function aiButtonMarkup(appId) {
         if (appId !== 'agent-chat') {
-            return `<button class="vd-window-button vd-window-ai-button" type="button" data-action="ai-context" title="${esc(t('desktop.window_ai_context'))}" aria-label="${esc(t('desktop.window_ai_context'))}">${iconMarkup('agent-chat', 'AI', 'vd-window-ai-button-icon', 14)}</button>`;
+            return `<button class="vd-window-button vd-window-ai-button" type="button" data-action="ai-context" title="${esc(t('desktop.window_ai_context'))}" aria-label="${esc(t('desktop.window_ai_context'))}">${iconMarkup('chat', 'AI', 'vd-window-ai-button-icon', 16)}</button>`;
         }
         return '';
     }

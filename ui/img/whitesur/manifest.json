@@ -103,7 +103,7 @@
                   "terminal":  "img/whitesur/icons/terminal.svg",
                   "text":  "img/whitesur/icons/text.svg",
                   "tools":  "img/whitesur/icons/tools.svg",
-                  "trash":  "img/whitesur/icons/trash.svg",
+                  "trash":  "img/whitesur/icons/trash-empty.svg",
                   "trash-empty":  "img/whitesur/icons/trash-empty.svg",
                   "trash-full":  "img/whitesur/icons/trash-full.svg",
                   "undo":  "img/whitesur/icons/undo.svg",

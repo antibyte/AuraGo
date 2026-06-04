@@ -778,7 +778,6 @@
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button-icon {
     display: block;
     color: #0b4f7a;
-    filter: brightness(0) saturate(100%) invert(15%) sepia(77%) saturate(1501%) hue-rotate(187deg) brightness(91%) contrast(99%);
     opacity: 1;
 }
 

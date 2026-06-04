@@ -30,7 +30,7 @@ func TestDesktopWindowAIContextAssets(t *testing.T) {
 
 	for _, marker := range []string{
 		`data-action="ai-context"`,
-		`iconMarkup('agent-chat', 'AI', 'vd-window-ai-button-icon', 14)`,
+		`iconMarkup('chat', 'AI', 'vd-window-ai-button-icon', 16)`,
 		"function aiButtonMarkup(",
 		"function buildWindowAIContext(",
 		"function oliveTinWindowAIContext(",
@@ -75,6 +75,10 @@ func TestDesktopWindowAIContextAssets(t *testing.T) {
 
 	if strings.Contains(css, ".vd-window-ai-button-icon.vd-papirus-icon,") {
 		t.Fatal("desktop window AI context icon must keep its semantic icon colors instead of inheriting the global tinted tool-icon filter")
+	}
+	body := desktopExactCSSRuleBody(t, css, `.desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button-icon`)
+	if strings.Contains(body, "filter:") {
+		t.Fatalf("fruity AI button icon must not flatten the semantic icon with a CSS filter: %q", body)
 	}
 }
 

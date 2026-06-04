@@ -1020,7 +1020,7 @@
             if (!contentEl(id)) return;
             if (shouldOpenStoreAppExternally(app)) {
                 navigateExternalStoreWindow(pendingExternalWindow, body.url);
-                host.innerHTML = `<div class="vd-store-frame-loading">${esc(appName(app))}</div>`;
+                closeWindow(id);
                 return;
             }
             const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');

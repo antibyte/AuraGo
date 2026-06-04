@@ -131,5 +131,8 @@ func TestDesktopBuiltInAppsUseFocusedThemeIconNames(t *testing.T) {
 		if manifest.Icons["trash-empty"] == manifest.Icons["trash-full"] {
 			t.Fatalf("%s theme must expose distinct empty and full trash icons", theme)
 		}
+		if manifest.Icons["trash"] != manifest.Icons["trash-empty"] {
+			t.Fatalf("%s theme trash alias path = %q, want empty trash path %q", theme, manifest.Icons["trash"], manifest.Icons["trash-empty"])
+		}
 	}
 }

@@ -31,12 +31,18 @@
         return `/img/persona-icons/${key}.png?v=${version}`;
     }
 
+    function personaImageUrl(key) {
+        const version = window.PERSONA_ASSET_VERSION || '20260502-persona-refresh';
+        return `/img/personas/${key}.png?v=${version}`;
+    }
+
     function personaAvatarMarkup(role) {
         if (role === 'user') {
             return `<img class="persona-avatar-img" src="${personaIconUrl('user')}" alt="" width="32" height="32" decoding="async">`;
         }
         const key = window._activePersonaIconKey || 'custom';
-        return `<img class="persona-avatar-img" data-persona-icon="${key}" src="${personaIconUrl(key)}" alt="" width="32" height="32" decoding="async">`;
+        const src = window._activePersonaImageUrl || personaImageUrl(key);
+        return `<img class="persona-avatar-img" data-persona-icon="${escapeAttr(key)}" src="${escapeAttr(src)}" alt="" width="32" height="32" decoding="async">`;
     }
 
     function escapeHtml(value) {
@@ -463,6 +469,7 @@
 
     window.AuraChatCore = {
         personaIconUrl,
+        personaImageUrl,
         personaAvatarMarkup,
         escapeHtml,
         escapeAttr,

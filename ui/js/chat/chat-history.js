@@ -108,10 +108,11 @@ function personaDescriptionKey(name, isCore) {
 function setActivePersonaIconKey(previewKey) {
     const key = previewKey || PERSONA_PREVIEW_FALLBACK;
     window._activePersonaIconKey = key;
+    window._activePersonaImageUrl = personaImageUrl(key);
     const currentIcon = document.getElementById('personality-current-icon');
     if (currentIcon) currentIcon.src = personaIconUrl(key);
     document.querySelectorAll('.avatar.bot .persona-avatar-img').forEach(img => {
-        img.src = personaIconUrl(key);
+        img.src = personaImageUrl(key);
         img.dataset.personaIcon = key;
     });
     if (window.ChatRobotMascot && typeof window.ChatRobotMascot.setPersonaKey === 'function') {

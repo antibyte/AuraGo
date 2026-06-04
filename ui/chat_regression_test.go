@@ -2496,7 +2496,7 @@ func TestChatPersonaIconAssetsRemainWired(t *testing.T) {
 		"function personaAvatarMarkup(role)",
 		"window._activePersonaIconKey",
 		"/img/persona-icons/user.png",
-		"/img/persona-icons/${key}.png",
+		"/img/personas/${key}.png",
 		"persona-avatar-img",
 	} {
 		if !strings.Contains(messagesJS, marker) {
@@ -2516,6 +2516,7 @@ func TestChatPersonaIconAssetsRemainWired(t *testing.T) {
 	for _, marker := range []string{
 		"function setActivePersonaIconKey(previewKey)",
 		"window._activePersonaIconKey = key;",
+		"window._activePersonaImageUrl = personaImageUrl(key);",
 		"personality-current-icon",
 		"persona-option-avatar",
 		"/img/persona-icons/${previewKey}.png",
@@ -2523,6 +2524,9 @@ func TestChatPersonaIconAssetsRemainWired(t *testing.T) {
 		if !strings.Contains(historyJS, marker) {
 			t.Fatalf("%s is missing persona dropdown icon JS marker %q", historyPath, marker)
 		}
+	}
+	if strings.Contains(historyJS, "img.src = personaIconUrl(key);") {
+		t.Fatalf("%s should update assistant bubble avatars with personaImageUrl(key), not the small persona icon", historyPath)
 	}
 
 	css := string(cssContent)
