@@ -256,6 +256,9 @@ func TestDesktopFruitySystemControlsSitOnCompactCard(t *testing.T) {
 
 	controlsBody := cssRuleBodyInFruityThemeTest(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-taskbar-system .vd-shortcuts-trigger,\n.desktop-body[data-theme=\"fruity\"] .vd-taskbar-system .vd-taskbar-widget-btn,\n.desktop-body[data-theme=\"fruity\"] .vd-taskbar-system .vd-show-desktop-btn")
 	for _, want := range []string{
+		"width: 36px;",
+		"height: 36px;",
+		"min-width: 36px;",
 		"background: rgba(255, 255, 255, 0.54);",
 		"border-color: rgba(78, 92, 118, 0.16);",
 		"box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);",
@@ -266,8 +269,44 @@ func TestDesktopFruitySystemControlsSitOnCompactCard(t *testing.T) {
 	}
 
 	showDesktopBody := desktopExactCSSRuleBody(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-taskbar-system > .vd-show-desktop-btn")
-	if !strings.Contains(showDesktopBody, "margin-right: 0;") {
-		t.Fatalf("fruity show-desktop handle must align inside the system card: %q", showDesktopBody)
+	for _, want := range []string{
+		"margin-right: 0;",
+		"font-size: 0;",
+		"color: rgba(32, 38, 53, 0.72);",
+		"display: inline-grid;",
+		"place-items: center;",
+	} {
+		if !strings.Contains(showDesktopBody, want) {
+			t.Fatalf("fruity show-desktop handle must align inside the system card, missing %q in body %q", want, showDesktopBody)
+		}
+	}
+
+	showDesktopIconBody := desktopExactCSSRuleBody(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-taskbar-system > .vd-show-desktop-btn::before")
+	for _, want := range []string{
+		"content: \"\";",
+		"width: 18px;",
+		"height: 18px;",
+		"background: currentColor;",
+		"-webkit-mask:",
+		"mask:",
+	} {
+		if !strings.Contains(showDesktopIconBody, want) {
+			t.Fatalf("fruity show-desktop icon must use a single masked desktop glyph, missing %q in body %q", want, showDesktopIconBody)
+		}
+	}
+
+	radialAnchorBody := cssRuleBodyInFruityThemeTest(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-taskbar-system .vd-radial-anchor")
+	for _, want := range []string{"width: 36px;", "height: 36px;", "flex-basis: 36px;"} {
+		if !strings.Contains(radialAnchorBody, want) {
+			t.Fatalf("fruity radial anchor must align with the system card controls, missing %q in body %q", want, radialAnchorBody)
+		}
+	}
+
+	radialMenuBody := desktopExactCSSRuleBody(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-radial-anchor .radial-menu")
+	for _, want := range []string{"position: static;", "inset: auto;", "width: 36px;", "height: 36px;"} {
+		if !strings.Contains(radialMenuBody, want) {
+			t.Fatalf("fruity radial menu must stay inside the system card flow, missing %q in body %q", want, radialMenuBody)
+		}
 	}
 }
 

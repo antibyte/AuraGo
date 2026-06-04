@@ -1187,6 +1187,12 @@
 .desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-shortcuts-trigger,
 .desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-taskbar-widget-btn,
 .desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-show-desktop-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0;
+    border-radius: 12px;
     background: rgba(255, 255, 255, 0.54);
     border-color: rgba(78, 92, 118, 0.16);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
@@ -1194,6 +1200,19 @@
 
 .desktop-body[data-theme="fruity"] .vd-taskbar-system > .vd-show-desktop-btn {
     margin-right: 0;
+    display: inline-grid;
+    place-items: center;
+    color: rgba(32, 38, 53, 0.72);
+    font-size: 0;
+}
+
+.desktop-body[data-theme="fruity"] .vd-taskbar-system > .vd-show-desktop-btn::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h6v2H8v2h8v-2h-2v-2h6a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H4Zm0 2h16v8H4V7Z'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h6v2H8v2h8v-2h-2v-2h6a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H4Zm0 2h16v8H4V7Z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .desktop-body[data-theme="fruity"] .vd-status-dot,
@@ -1212,14 +1231,20 @@
     flex-basis: 38px;
 }
 
+.desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-radial-anchor {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+    display: grid;
+    place-items: center;
+}
+
 .desktop-body[data-theme="fruity"] .vd-radial-anchor .radial-menu {
-    position: fixed;
-    top: auto;
-    right: max(10px, env(safe-area-inset-right));
-    bottom: calc(18px + env(safe-area-inset-bottom));
+    position: static;
+    inset: auto;
     z-index: var(--vd-z-context-menu);
-    width: 38px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
 }
 
 .desktop-body[data-theme="fruity"] .vd-radial-anchor .radial-menu.open {
@@ -1414,6 +1439,10 @@
         background: rgba(255, 255, 255, 0.1);
         border-color: rgba(255, 255, 255, 0.18);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-taskbar-system > .vd-show-desktop-btn {
+        color: rgba(246, 248, 251, 0.78);
     }
 
     .desktop-body[data-theme="fruity"] .vd-dock-button.running::after {
