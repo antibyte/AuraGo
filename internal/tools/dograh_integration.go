@@ -52,7 +52,7 @@ const (
 	dograhCoturnPort                   = 3478
 	dograhStatusSetupRequired          = "setup_required"
 	dograhHealthProbeTimeout           = 3 * time.Second
-	dograhStackRevision                = "20260604-ui-config-prefix-shim"
+	dograhStackRevision                = "20260604-ui-auth-routes"
 	dograhStackRevisionLabel           = "org.aurago.dograh.stack-revision"
 )
 
@@ -591,11 +591,9 @@ server {
         return 200 '{"provider":"local","enabled":false,"dsn":"","environment":"production","key":"","host":"/ingest","uiHost":"https://us.posthog.com","ui":"dev","api":"unknown","deploymentMode":"oss","authProvider":"local","turnEnabled":false,"forceTurnRelay":false,"latest":null,"backend":{"status":"reachable","url":"http://%s:%d","healthcheckUrl":"http://%s:%d/api/v1/health","message":null}}';
     }
 
-    location = /api/auth/oss {
-        default_type application/json;
-        add_header Cache-Control "no-store" always;
-        add_header X-AuraGo-Dograh-Proxy "auth-oss-shim" always;
-        return 401 '{"error":"Not authenticated"}';
+    location ^~ /api/auth/ {
+        add_header X-AuraGo-Dograh-Proxy "auth-ui-proxy" always;
+        proxy_pass $dograh_ui;
     }
 
     location /api/v1/ {
@@ -869,7 +867,8 @@ func dograhUIProxyContainerNeedsRecreate(data []byte, networkName string, stack 
 		`"ui":"dev"`,
 		`"latest":null`,
 		`X-AuraGo-Dograh-Proxy "config-prefix-shim"`,
-		`return 401 '{"error":"Not authenticated"}';`,
+		"location ^~ /api/auth/",
+		`X-AuraGo-Dograh-Proxy "auth-ui-proxy"`,
 		"location /api/v1/",
 		"proxy_pass $dograh_api;",
 		"proxy_pass $dograh_ui;",
@@ -879,6 +878,9 @@ func dograhUIProxyContainerNeedsRecreate(data []byte, networkName string, stack 
 		}
 	}
 	if strings.Contains(cmd, "location /api/ {") {
+		return true
+	}
+	if strings.Contains(cmd, "return 401") {
 		return true
 	}
 	return false

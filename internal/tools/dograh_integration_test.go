@@ -320,7 +320,8 @@ func TestBuildDograhUIProxyCreatePayloadPublishesUIAndShimsConfigRoutes(t *testi
 		`"ui":"dev"`,
 		`"latest":null`,
 		`X-AuraGo-Dograh-Proxy "config-prefix-shim"`,
-		`return 401 '{"error":"Not authenticated"}';`,
+		"location ^~ /api/auth/",
+		`X-AuraGo-Dograh-Proxy "auth-ui-proxy"`,
 		"[Dograh UI proxy] active nginx config:",
 		"location /api/v1/",
 		"proxy_pass $dograh_api;",
@@ -332,6 +333,9 @@ func TestBuildDograhUIProxyCreatePayloadPublishesUIAndShimsConfigRoutes(t *testi
 	}
 	if strings.Contains(cmd, "location /api/ {") {
 		t.Fatalf("proxy command must not route all /api/* to Dograh API:\n%s", cmd)
+	}
+	if strings.Contains(cmd, "return 401") {
+		t.Fatalf("proxy command must let Dograh UI serve OSS auth cookies, not hard-code 401:\n%s", cmd)
 	}
 	bindings := payload.HostConfig.PortBindings["3010/tcp"]
 	if len(bindings) != 1 || bindings[0].HostIP != "127.0.0.1" || bindings[0].HostPort != "3010" {
@@ -620,6 +624,37 @@ func TestDograhUIProxyContainerNeedsRecreateWhenAllAPIIsProxiedToBackend(t *test
 
 	if !dograhUIProxyContainerNeedsRecreate(inspect, sidecar.NetworkName, sidecar) {
 		t.Fatal("dograhUIProxyContainerNeedsRecreate() = false, want true when all /api routes are proxied to backend")
+	}
+}
+
+func TestDograhUIProxyContainerNeedsRecreateWhenOSSAuthIsHardCoded(t *testing.T) {
+	cfg := dograhTestConfig()
+	sidecar, err := ResolveDograhStackConfig(cfg, false)
+	if err != nil {
+		t.Fatalf("ResolveDograhStackConfig() error = %v", err)
+	}
+	cmd := strings.ReplaceAll(dograhUIProxyStartupScript(sidecar),
+		"location ^~ /api/auth/ {\n        add_header X-AuraGo-Dograh-Proxy \"auth-ui-proxy\" always;\n        proxy_pass $dograh_ui;\n    }",
+		"location = /api/auth/oss {\n        default_type application/json;\n        return 401 '{\"error\":\"Not authenticated\"}';\n    }")
+	inspect, err := json.Marshal(map[string]any{
+		"Config": map[string]any{
+			"Image":  dograhDefaultUIProxyImage,
+			"Cmd":    []string{"sh", "-c", cmd},
+			"Labels": map[string]string{dograhStackRevisionLabel: dograhStackRevision},
+		},
+		"HostConfig": map[string]any{
+			"PortBindings": map[string]any{
+				"3010/tcp": []map[string]string{{"HostIp": "127.0.0.1", "HostPort": "3010"}},
+			},
+		},
+		"NetworkSettings": map[string]any{"Networks": map[string]any{"aurago_dograh": map[string]any{}}},
+	})
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+
+	if !dograhUIProxyContainerNeedsRecreate(inspect, sidecar.NetworkName, sidecar) {
+		t.Fatal("dograhUIProxyContainerNeedsRecreate() = false, want true when OSS auth is hard-coded to 401")
 	}
 }
 
