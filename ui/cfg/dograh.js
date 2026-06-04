@@ -47,13 +47,22 @@ const dograhFallbackText = {
     'config.dograh.setup_required': 'Setup required',
     'config.dograh.admin_setup_required': 'Create an API key in Dograh, then store it here.',
     'config.dograh.webhook_token_hint': 'Webhook token created. Copy it into Dograh now; AuraGo will not show it again.',
+    'help.dograh.enabled': 'Shows Dograh in AuraGo and enables stack, MCP and webhook helpers.',
     'help.dograh.api_key': 'Dograh API key from the Dograh UI. AuraGo stores it only in the Vault and sends it as X-API-Key.',
-    'help.dograh.api_url': 'Base URL of the Dograh API. AuraGo appends /api/v1/mcp/ for the managed MCP client.',
-    'help.dograh.ui_url': 'Browser URL for the Dograh UI.',
-    'help.dograh.mode': 'Managed starts the official Dograh Docker stack. External connects to an existing Dograh API.',
+    'help.dograh.api_url': 'Base URL AuraGo uses for Dograh API calls and the /api/v1/mcp/ endpoint.',
+    'help.dograh.ui_url': 'Browser URL opened from the integrations drawer for the Dograh UI.',
+    'help.dograh.mode': 'Managed starts the Dograh Docker stack. External connects to an existing Dograh API.',
     'help.dograh.readonly': 'Blocks AuraGo helper actions that create or modify Dograh resources.',
+    'help.dograh.auto_start': 'Starts the managed Dograh stack automatically when AuraGo starts.',
+    'help.dograh.telemetry_enabled': 'Allows Dograh upstream telemetry. Keep disabled for private home-lab deployments.',
+    'help.dograh.mcp_client_enabled': 'Adds Dograh as a runtime MCP server so the agent can call Dograh tools.',
+    'help.dograh.mcp_server_tool_enabled': 'Allows AuraGo to register its own authenticated /mcp endpoint as a Dograh tool.',
     'help.dograh.credential_uuid': 'Credential UUID created in Dograh for the AuraGo MCP Bearer token.',
-    'help.dograh.allowed_tools': 'Optional comma-separated AuraGo MCP tools Dograh may call.'
+    'help.dograh.allowed_tools': 'Optional comma-separated AuraGo MCP tools Dograh may call.',
+    'help.dograh.webhook_slug': 'AuraGo webhook path used for callbacks sent from Dograh workflows.',
+    'help.dograh.host': 'Network interface for managed Dograh ports. 127.0.0.1 keeps them local.',
+    'help.dograh.api_host_port': 'Host port mapped to the managed Dograh API container.',
+    'help.dograh.ui_host_port': 'Host port mapped to the managed Dograh UI container.'
 };
 
 function dograhText(key, fallback) {
@@ -169,7 +178,10 @@ async function renderDograhSection(section) {
 }
 
 function dograhField(labelKey, helpKey, controlHTML) {
-    return '<div class="field-row"><label class="field-label">' + escapeHtml(dograhText(labelKey)) + dograhHelp(helpKey) + '</label>' + controlHTML + '</div>';
+    const helpText = dograhText(helpKey);
+    let html = '<div class="field-row"><label class="field-label">' + escapeHtml(dograhText(labelKey)) + dograhHelp(helpKey) + '</label>' + controlHTML;
+    if (helpText) html += '<div class="field-help">' + escapeHtml(helpText) + '</div>';
+    return html + '</div>';
 }
 
 function dograhInput(labelKey, helpKey, path, value) {

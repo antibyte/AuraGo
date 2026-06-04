@@ -49,6 +49,7 @@ func TestConfigFrontendDograhSectionAndI18nExist(t *testing.T) {
 		"/api/dograh/provision-webhook",
 		"/api/dograh/register-aurago-mcp-tool",
 		"dograh.api_key",
+		"class=\"field-help\"",
 	} {
 		if !strings.Contains(moduleJS, marker) {
 			t.Fatalf("%s missing Dograh module marker %q", modulePath, marker)
@@ -74,9 +75,25 @@ func TestConfigFrontendDograhSectionAndI18nExist(t *testing.T) {
 		"config.dograh.test_button",
 		"config.dograh.webhook_button",
 		"config.dograh.mcp_register_button",
+		"help.dograh.enabled",
 		"help.dograh.api_key",
+		"help.dograh.api_url",
+		"help.dograh.ui_url",
+		"help.dograh.mode",
+		"help.dograh.readonly",
+		"help.dograh.auto_start",
+		"help.dograh.telemetry_enabled",
+		"help.dograh.mcp_client_enabled",
+		"help.dograh.mcp_server_tool_enabled",
+		"help.dograh.credential_uuid",
+		"help.dograh.allowed_tools",
+		"help.dograh.webhook_slug",
+		"help.dograh.host",
+		"help.dograh.api_host_port",
+		"help.dograh.ui_host_port",
 	}
 	assertLangKeys(t, filepath.Join("lang", "config"), configKeys)
+	assertDograhHelpDescriptions(t, filepath.Join("lang", "config"))
 	assertLangKeys(t, filepath.Join("lang", "dashboard"), []string{"dashboard.integration_dograh"})
 }
 
@@ -109,6 +126,56 @@ func assertLangKeys(t *testing.T, dir string, keys []string) {
 			}
 			if text, ok := value.(string); !ok || strings.TrimSpace(text) == "" {
 				t.Fatalf("%s key %s must be a non-empty string", path, key)
+			}
+		}
+	}
+}
+
+func assertDograhHelpDescriptions(t *testing.T, dir string) {
+	t.Helper()
+	labelByHelpKey := map[string]string{
+		"help.dograh.enabled":                 "config.dograh.enabled_label",
+		"help.dograh.api_key":                 "config.dograh.api_key_label",
+		"help.dograh.api_url":                 "config.dograh.api_url_label",
+		"help.dograh.ui_url":                  "config.dograh.ui_url_label",
+		"help.dograh.mode":                    "config.dograh.mode_label",
+		"help.dograh.readonly":                "config.dograh.readonly_label",
+		"help.dograh.auto_start":              "config.dograh.auto_start_label",
+		"help.dograh.telemetry_enabled":       "config.dograh.telemetry_label",
+		"help.dograh.mcp_client_enabled":      "config.dograh.mcp_client_label",
+		"help.dograh.mcp_server_tool_enabled": "config.dograh.mcp_server_tool_label",
+		"help.dograh.credential_uuid":         "config.dograh.credential_uuid_label",
+		"help.dograh.allowed_tools":           "config.dograh.allowed_tools_label",
+		"help.dograh.webhook_slug":            "config.dograh.webhook_slug_label",
+		"help.dograh.host":                    "config.dograh.host_label",
+		"help.dograh.api_host_port":           "config.dograh.api_host_port_label",
+		"help.dograh.ui_host_port":            "config.dograh.ui_host_port_label",
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("ReadDir(%s): %v", dir, err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		path := filepath.Join(dir, entry.Name())
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var data map[string]interface{}
+		if err := json.Unmarshal(raw, &data); err != nil {
+			t.Fatalf("json.Unmarshal(%s): %v", path, err)
+		}
+		for helpKey, labelKey := range labelByHelpKey {
+			helpText := strings.TrimSpace(data[helpKey].(string))
+			labelText := strings.TrimSpace(data[labelKey].(string))
+			if helpText == labelText {
+				t.Fatalf("%s help key %s repeats label %s", path, helpKey, labelKey)
+			}
+			if len([]rune(helpText)) < 18 {
+				t.Fatalf("%s help key %s is too short to explain the field: %q", path, helpKey, helpText)
 			}
 		}
 	}

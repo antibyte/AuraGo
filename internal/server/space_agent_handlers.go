@@ -306,7 +306,7 @@ func handleIntegrationWebhosts(s *Server) http.HandlerFunc {
 			return
 		}
 		cfg := s.currentSpaceAgentConfig()
-		webhosts := make([]webhostIntegration, 0, 4)
+		webhosts := make([]webhostIntegration, 0, 5)
 		if cfg.SpaceAgent.Enabled {
 			status := "starting"
 			if payload := spaceAgentStatusPayload(s, &cfg); payload != nil {
@@ -365,6 +365,25 @@ func handleIntegrationWebhosts(s *Server) http.HandlerFunc {
 				Description: "Manifest.build gateway",
 				Status:      status,
 				URL:         browserURL,
+				Icon:        "link",
+			})
+		}
+		if cfg.Dograh.Enabled {
+			dograhPayload := dograhStatusForRequest(r.Context(), s, &cfg, r)
+			dograhURL := ""
+			if u, ok := dograhPayload["ui_url"].(string); ok {
+				dograhURL = u
+			}
+			status := "starting"
+			if raw, ok := dograhPayload["status"].(string); ok && raw != "" {
+				status = raw
+			}
+			webhosts = append(webhosts, webhostIntegration{
+				ID:          "dograh",
+				Name:        "Dograh",
+				Description: "Dograh workflow automation",
+				Status:      status,
+				URL:         dograhURL,
 				Icon:        "link",
 			})
 		}

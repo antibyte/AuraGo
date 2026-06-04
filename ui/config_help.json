@@ -1030,15 +1030,11 @@
   "dograh": {
     "enabled": {
       "title": "Enable Dograh",
-      "description": "Enables Dograh as a managed or external workflow integration."
+      "description": "Shows Dograh in AuraGo and enables stack, MCP and webhook helpers."
     },
     "mode": {
       "title": "Mode",
       "description": "Managed starts the AuraGo-managed Dograh Docker stack. External uses an existing Dograh endpoint."
-    },
-    "readonly": {
-      "title": "Read-only Mode",
-      "description": "Blocks AuraGo helper actions that would create or change Dograh resources."
     },
     "api_url": {
       "title": "Dograh API URL",
@@ -1047,6 +1043,54 @@
     "api_key": {
       "title": "Dograh API Key",
       "description": "API key copied from Dograh. It is stored only in the vault."
+    },
+    "readonly": {
+      "title": "Read-only Mode",
+      "description": "Blocks AuraGo helper actions that create or modify Dograh resources."
+    },
+    "auto_start": {
+      "title": "Auto-start",
+      "description": "Starts the managed Dograh stack automatically when AuraGo starts."
+    },
+    "telemetry_enabled": {
+      "title": "Dograh Telemetry",
+      "description": "Allows Dograh upstream telemetry. Keep disabled for private home-lab deployments."
+    },
+    "ui_url": {
+      "title": "Dograh UI URL",
+      "description": "Browser URL opened from the integrations drawer for the Dograh UI."
+    },
+    "host": {
+      "title": "Bind Host",
+      "description": "Network interface for managed Dograh ports. 127.0.0.1 keeps them local."
+    },
+    "api_host_port": {
+      "title": "API Host Port",
+      "description": "Host port mapped to the managed Dograh API container."
+    },
+    "ui_host_port": {
+      "title": "UI Host Port",
+      "description": "Host port mapped to the managed Dograh UI container."
+    },
+    "mcp_client_enabled": {
+      "title": "Dograh MCP Client",
+      "description": "Adds Dograh as a runtime MCP server so the agent can call Dograh tools."
+    },
+    "mcp_server_tool_enabled": {
+      "title": "AuraGo MCP Tool",
+      "description": "Allows AuraGo to register its own authenticated /mcp endpoint as a Dograh tool."
+    },
+    "aurago_mcp_credential_uuid": {
+      "title": "Dograh Credential UUID",
+      "description": "Credential UUID created in Dograh for the AuraGo MCP Bearer token."
+    },
+    "aurago_mcp_allowed_tools": {
+      "title": "Allowed AuraGo Tools",
+      "description": "Optional comma-separated AuraGo MCP tools Dograh may call."
+    },
+    "callback_webhook_slug": {
+      "title": "Webhook Slug",
+      "description": "AuraGo webhook path used for callbacks sent from Dograh workflows."
     }
   }
 }
