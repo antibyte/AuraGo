@@ -2,6 +2,8 @@
     'use strict';
 
     let canvas, renderer, scene, camera;
+    let reflectionRenderTarget = null;
+    let reflectionCamera = null;
     let animationId = null;
     let active = false;
     let sceneGeneration = 0;
@@ -563,6 +565,12 @@
         cameraShake = 0;
         previousMode = -1;
         currentMode = 0;
+
+        if (reflectionRenderTarget) {
+            reflectionRenderTarget.dispose();
+            reflectionRenderTarget = null;
+        }
+        reflectionCamera = null;
     }
 
     function disposeThreeDeeScene() {
@@ -1411,15 +1419,44 @@
     }
 
     function createSurfaceMaterial() {
-        return new THREE.MeshStandardMaterial({
+        const mat = new THREE.MeshStandardMaterial({
             color: 0xffffff,
-            roughness: 0.96,
-            metalness: 0.02,
+            roughness: 0.2,
+            metalness: 0.1,
             transparent: true,
-            opacity: 0.62,
+            opacity: 0.72,
             side: THREE.DoubleSide,
             vertexColors: true
         });
+
+        mat.onBeforeCompile = function (shader) {
+            mat.userData.shader = shader;
+            
+            shader.uniforms.tReflection = { value: null };
+            shader.uniforms.resolution = { value: new THREE.Vector2(window.innerWidth, window.innerHeight) };
+            shader.uniforms.reflectionStrength = { value: 0.45 };
+
+            shader.fragmentShader = `
+                uniform sampler2D tReflection;
+                uniform vec2 resolution;
+                uniform float reflectionStrength;
+            ` + shader.fragmentShader;
+
+            shader.fragmentShader = shader.fragmentShader.replace(
+                '#include <dithering_fragment>',
+                `
+                #include <dithering_fragment>
+                vec2 refUv = gl_FragCoord.xy / resolution;
+                refUv.x += vNormal.x * 0.035;
+                refUv.y += vNormal.y * 0.035;
+                refUv = clamp(refUv, 0.001, 0.999);
+                vec4 refColor = texture2D(tReflection, refUv);
+                gl_FragColor.rgb = mix(gl_FragColor.rgb, refColor.rgb, reflectionStrength * opacity);
+                `
+            );
+        };
+
+        return mat;
     }
 
     function createGridMaterial() {
@@ -3359,8 +3396,46 @@
                 });
             }
         }
+
+        if (!reflectionRenderTarget) {
+            reflectionRenderTarget = new THREE.WebGLRenderTarget(512, 512, {
+                minFilter: THREE.LinearFilter,
+                magFilter: THREE.LinearFilter,
+                format: THREE.RGBAFormat
+            });
+        }
+        if (!reflectionCamera) {
+            reflectionCamera = new THREE.PerspectiveCamera(44, window.innerWidth / window.innerHeight, 0.1, 1000);
+        }
         
         return true;
+    }
+
+    function updateReflection(t) {
+        if (!renderer || !scene || !camera || !surface || !reflectionRenderTarget || !reflectionCamera) return;
+
+        surface.visible = false;
+        if (gridLines) gridLines.visible = false;
+
+        const waterY = surface.position.y;
+        reflectionCamera.position.copy(camera.position);
+        reflectionCamera.position.y = 2 * waterY - camera.position.y;
+
+        const sway = Math.sin(t * 0.2) * 0.18;
+        const targetX = sway * 0.25;
+        const targetY = -2.0;
+        const targetZ = -5.7;
+        const mirroredTargetY = 2 * waterY - targetY;
+        
+        reflectionCamera.lookAt(targetX, mirroredTargetY, targetZ);
+
+        const currentRenderTarget = renderer.getRenderTarget();
+        renderer.setRenderTarget(reflectionRenderTarget);
+        renderer.render(scene, reflectionCamera);
+        
+        renderer.setRenderTarget(currentRenderTarget);
+        surface.visible = true;
+        if (gridLines) gridLines.visible = true;
     }
 
     function resize() {
@@ -3371,6 +3446,15 @@
         renderer.setSize(width, height, false);
         camera.aspect = width / height;
         camera.updateProjectionMatrix();
+
+        if (reflectionCamera) {
+            reflectionCamera.aspect = width / height;
+            reflectionCamera.updateProjectionMatrix();
+        }
+
+        if (surface && surface.material && surface.material.userData.shader) {
+            surface.material.userData.shader.uniforms.resolution.value.set(width, height);
+        }
     }
 
     // Module-scoped scratch objects to avoid per-frame GC allocation
@@ -3527,6 +3611,13 @@
             camera.lookAt(sway * 0.25, -2.0, -5.7);
             cameraShake *= 0.82;
             if (cameraShake < 0.003) cameraShake = 0;
+        }
+
+        updateReflection(t);
+
+        if (surface && surface.material && surface.material.userData.shader) {
+            surface.material.userData.shader.uniforms.tReflection.value = reflectionRenderTarget.texture;
+            surface.material.userData.shader.uniforms.resolution.value.set(window.innerWidth, window.innerHeight);
         }
 
         renderer.render(scene, camera);
