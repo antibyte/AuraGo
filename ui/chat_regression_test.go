@@ -2541,6 +2541,11 @@ func TestChatPersonaIconAssetsRemainWired(t *testing.T) {
 		"max-height: 24px;",
 		"width: 32px;",
 		"height: 32px;",
+		".avatar.bot .persona-avatar-img",
+		"width: 28px;",
+		"height: 28px;",
+		"border-radius: 9px;",
+		"object-fit: cover;",
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("%s is missing persona icon CSS marker %q", cssPath, marker)

@@ -1118,6 +1118,13 @@
             filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.32));
         }
 
+        .avatar.bot .persona-avatar-img {
+            width: 28px;
+            height: 28px;
+            border-radius: 9px;
+            object-fit: cover;
+        }
+
         .mood-emotion {
             margin: 0.45rem 0 0.7rem;
             padding: 0.6rem 0.75rem;
@@ -3897,6 +3904,12 @@
                 height: 28px;
                 font-size: 0.9rem;
                 border-radius: 10px;
+            }
+
+            .avatar.bot .persona-avatar-img {
+                width: 24px;
+                height: 24px;
+                border-radius: 8px;
             }
 
             #chat-content {
