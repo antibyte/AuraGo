@@ -147,6 +147,17 @@
         'mission-control': {
             styles: appStyles('/css/desktop-app-mission-control.css'),
             scripts: ['/js/desktop/apps/mission-control-modal.js', '/js/desktop/apps/mission-control.js']
+        },
+        'cheater': {
+            styles: appStyles('/css/desktop-app-cheater.css', '/css/hljs-github.min.css'),
+            scripts: [
+                '/js/vendor/marked.min.js',
+                '/js/vendor/highlight.min.js',
+                '/js/desktop/apps/cheater.js',
+                '/js/desktop/apps/cheater-templates.js',
+                '/js/desktop/apps/cheater-spotlight.js',
+                '/js/desktop/apps/cheater-attachments.js'
+            ]
         }
     };
 

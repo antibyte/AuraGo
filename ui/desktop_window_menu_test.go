@@ -486,6 +486,7 @@ func readAllDesktopAppCSS(t *testing.T) string {
 		"css/desktop-app-looper.css",
 		"css/desktop-app-viewer.css",
 		"css/desktop-app-software-store.css",
+		"css/desktop-app-cheater.css",
 	}
 	var buf strings.Builder
 	for _, f := range cssFiles {
