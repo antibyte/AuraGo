@@ -207,7 +207,7 @@ func TestDesktopStoreTailscaleProxySpecsIncludeEveryPublishedPort(t *testing.T) 
 	}
 }
 
-func TestDograhTailscaleProxySpecsExposeInternalUI(t *testing.T) {
+func TestDograhTailscaleProxySpecsExposeInternalUIProxy(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Dograh.Enabled = true
 	cfg.Dograh.APIURL = "http://127.0.0.1:8000"
@@ -222,7 +222,7 @@ func TestDograhTailscaleProxySpecsExposeInternalUI(t *testing.T) {
 	if len(specs) != 1 {
 		t.Fatalf("specs = %#v, want one Dograh proxy spec", specs)
 	}
-	if specs[0].ID != "dograh" || specs[0].Port != 3010 || specs[0].TargetURL != "http://127.0.0.1:3010/" || specs[0].APITargetURL != "http://127.0.0.1:8000/" || !specs[0].Enabled {
+	if specs[0].ID != "dograh" || specs[0].Port != 3010 || specs[0].TargetURL != "http://127.0.0.1:3010/" || specs[0].APITargetURL != "" || !specs[0].Enabled {
 		t.Fatalf("unexpected Dograh proxy spec: %#v", specs[0])
 	}
 }
