@@ -150,7 +150,7 @@
         },
         'cheater': {
             styles: appStyles('/css/desktop-app-cheater.css'),
-            scripts: ['/js/desktop/apps/cheater.js']
+            scripts: ['/js/desktop/apps/cheater.js', '/js/desktop/apps/cheater-spotlight.js']
         }
     };
 

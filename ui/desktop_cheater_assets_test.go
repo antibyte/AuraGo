@@ -160,3 +160,71 @@ func TestDesktopCheaterAutoSave(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopCheaterSpotlight(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/cheater-spotlight.js")
+	for _, marker := range []string{
+		"window.CheaterSpotlight",
+		"window.CheaterSpotlight.open = openSpotlight",
+		"function createSpotlight",
+		"function openSpotlight",
+		"function fuzzyFilter",
+		"function scoreEntry",
+		"setAttribute('role'",
+		"setAttribute('aria-modal'",
+		"data-backdrop",
+		"data-input",
+		"data-results",
+		"e.key === 'Escape'",
+		"e.key === 'ArrowDown'",
+		"e.key === 'Enter'",
+		"action === 'create'",
+		"action === 'open'",
+		"MAX_VISIBLE",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("cheater spotlight missing JS marker %q", marker)
+		}
+	}
+}
+
+func TestDesktopCheaterSpotlightWiring(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/cheater.js")
+	for _, marker := range []string{
+		"function bindGlobalShortcuts",
+		"e.key === 'k'",
+		"e.key === 'n'",
+		"window.CheaterSpotlight.open",
+		"window.CheaterApp.openCreateModal",
+		"/api/cheatsheets",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("cheater wiring missing JS marker %q", marker)
+		}
+	}
+}
+
+func TestDesktopCheaterSpotlightStyles(t *testing.T) {
+	t.Parallel()
+
+	css := readAllDesktopAppCSS(t)
+	for _, marker := range []string{
+		".cheater-spotlight",
+		".cheater-spotlight-backdrop",
+		".cheater-spotlight-panel",
+		".cheater-spotlight-input",
+		".cheater-spotlight-row",
+		".cheater-spotlight-row.is-selected",
+		".cheater-spotlight-hint",
+		".cheater-pill",
+		"backdrop-filter",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("cheater spotlight CSS missing marker %q", marker)
+		}
+	}
+}

@@ -161,3 +161,106 @@
     border-top: 1px solid var(--border-subtle, #e0e0e0);
     background: var(--bg-surface-elevated, var(--bg-surface, #fff));
 }
+
+.cheater-spotlight {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 12vh;
+}
+
+.cheater-spotlight-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: cheater-backdrop-fade 150ms ease-out;
+}
+
+.cheater-spotlight-panel {
+    position: relative;
+    width: min(640px, 92vw);
+    max-height: 70vh;
+    background: var(--bg-surface, #fff);
+    border: 1px solid var(--border-subtle, #e0e0e0);
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: cheater-panel-scale 150ms ease-out;
+}
+
+.cheater-spotlight-input {
+    width: 100%;
+    border: 0;
+    border-bottom: 1px solid var(--border-subtle, #e0e0e0);
+    padding: 1rem 1.25rem;
+    font-size: 1.125rem;
+    background: transparent;
+    color: var(--text-primary, #222);
+    outline: none;
+}
+
+.cheater-spotlight-results {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.cheater-spotlight-row {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    padding: .75rem 1.25rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-subtle, #e0e0e0);
+}
+
+.cheater-spotlight-row.is-selected {
+    background: var(--bg-hover, rgba(0,0,0,.05));
+}
+
+.cheater-spotlight-row-main strong { display: block; color: var(--text-primary, #222); }
+.cheater-spotlight-abstract { color: var(--text-muted, #666); font-size: .875rem; }
+.cheater-spotlight-row-meta { display: flex; gap: .25rem; align-items: center; flex-wrap: wrap; }
+.cheater-spotlight-empty { padding: 1rem 1.25rem; color: var(--text-muted, #666); }
+
+.cheater-spotlight-create { color: var(--accent, #4a90e2); font-weight: 500; }
+
+.cheater-spotlight-hint {
+    padding: .5rem 1.25rem;
+    border-top: 1px solid var(--border-subtle, #e0e0e0);
+    font-size: .75rem;
+    color: var(--text-muted, #666);
+    background: var(--bg-surface-elevated, var(--bg-surface, #fff));
+}
+
+.cheater-pill {
+    background: var(--bg-tag, rgba(74,144,226,.12));
+    color: var(--accent, #4a90e2);
+    padding: .125rem .5rem;
+    border-radius: 999px;
+    font-size: .75rem;
+}
+
+@keyframes cheater-backdrop-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes cheater-panel-scale {
+    from { opacity: 0; transform: scale(.96); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cheater-spotlight-backdrop,
+    .cheater-spotlight-panel { animation: none; }
+}

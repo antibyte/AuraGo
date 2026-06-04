@@ -52,6 +52,38 @@
         }
 
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
+        bindGlobalShortcuts(state);
+        if (state.searchIndex.length === 0) {
+            state.api('/api/cheatsheets')
+                .then(list => {
+                    const items = Array.isArray(list) ? list : (list.items || list.cheatsheets || []);
+                    state.searchIndex = items.map(s => ({
+                        id: s.id,
+                        name: s.name,
+                        abstract: s.abstract || '',
+                        tags: s.tags || [],
+                        content_excerpt: (s.content || '').slice(0, 200),
+                        last_used_at: s.last_used_at || null
+                    }));
+                })
+                .catch(err => console.warn('cheater search index load failed', err));
+        }
+    }
+
+    function bindGlobalShortcuts(state) {
+        state.host.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+                e.preventDefault();
+                if (window.CheaterSpotlight && typeof window.CheaterSpotlight.open === 'function') {
+                    window.CheaterSpotlight.open(state);
+                }
+            } else if ((e.ctrlKey || e.metaKey) && (e.key === 'n' || e.key === 'N')) {
+                e.preventDefault();
+                if (window.CheaterApp && typeof window.CheaterApp.openCreateModal === 'function') {
+                    window.CheaterApp.openCreateModal(state.windowId);
+                }
+            }
+        });
     }
 
     function renderEditor(state, sheet) {
@@ -113,6 +145,7 @@
         bindEditorEvents(state);
         renderAgentBadge(state);
         bindBackButton(state);
+        bindGlobalShortcuts(state);
     }
 
     function renderAgentBadge(state) { /* implemented in Task 26 */ }
