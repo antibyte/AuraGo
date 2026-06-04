@@ -205,6 +205,54 @@ func TestStoreAppProxyRequestDropsConditionalCacheHeaders(t *testing.T) {
 	}
 }
 
+func TestStoreAppProxyRoutesAPIPrefixToAPITarget(t *testing.T) {
+	uiBackend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("ui:" + r.URL.Path))
+	}))
+	defer uiBackend.Close()
+	apiBackend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("api:" + r.URL.Path))
+	}))
+	defer apiBackend.Close()
+
+	handler, err := newStoreAppProxyHandler(StoreAppProxySpec{
+		ID:           "dograh",
+		Port:         3010,
+		TargetURL:    uiBackend.URL + "/",
+		APITargetURL: apiBackend.URL + "/",
+		Enabled:      true,
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("newStoreAppProxyHandler() error = %v", err)
+	}
+
+	tests := []struct {
+		path string
+		want string
+	}{
+		{path: "/", want: "ui:/"},
+		{path: "/_next/static/app.js", want: "ui:/_next/static/app.js"},
+		{path: "/api/v1/ws/signaling/1/1", want: "api:/api/v1/ws/signaling/1/1"},
+		{path: "/api/v1/node-types", want: "api:/api/v1/node-types"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "https://dograh.tailnet.test"+tt.path, nil)
+			rec := httptest.NewRecorder()
+
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+			}
+			if got := rec.Body.String(); got != tt.want {
+				t.Fatalf("body = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 type blockingListener struct {
 	closed chan struct{}
 	addr   net.Addr

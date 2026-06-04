@@ -53,17 +53,19 @@ type Status struct {
 
 // StoreAppProxySpec describes one managed HTTPS proxy for a desktop store app.
 type StoreAppProxySpec struct {
-	ID        string `json:"id"`
-	Port      int    `json:"port"`
-	TargetURL string `json:"target_url"`
-	Enabled   bool   `json:"enabled"`
+	ID           string `json:"id"`
+	Port         int    `json:"port"`
+	TargetURL    string `json:"target_url"`
+	APITargetURL string `json:"api_target_url,omitempty"`
+	Enabled      bool   `json:"enabled"`
 }
 
 // StoreAppProxyStatus is the public status for one active store app proxy.
 type StoreAppProxyStatus struct {
-	ID        string `json:"id"`
-	Port      int    `json:"port"`
-	TargetURL string `json:"target_url"`
+	ID           string `json:"id"`
+	Port         int    `json:"port"`
+	TargetURL    string `json:"target_url"`
+	APITargetURL string `json:"api_target_url,omitempty"`
 }
 
 // Manager manages a tsnet embedded Tailscale node.
@@ -427,9 +429,10 @@ func (m *Manager) GetStatus() Status {
 	}
 	for _, spec := range m.storeProxySpecs {
 		st.StoreAppProxies = append(st.StoreAppProxies, StoreAppProxyStatus{
-			ID:        spec.ID,
-			Port:      spec.Port,
-			TargetURL: spec.TargetURL,
+			ID:           spec.ID,
+			Port:         spec.Port,
+			TargetURL:    spec.TargetURL,
+			APITargetURL: spec.APITargetURL,
 		})
 	}
 
@@ -624,10 +627,10 @@ func (m *Manager) ReconcileStoreAppProxies(specs []StoreAppProxySpec) error {
 	var toStop []StoreAppProxyStatus
 	for id, active := range m.storeProxySpecs {
 		desired, ok := want[id]
-		if ok && desired.Port == active.Port && desired.TargetURL == active.TargetURL {
+		if ok && desired.Port == active.Port && desired.TargetURL == active.TargetURL && desired.APITargetURL == active.APITargetURL {
 			continue
 		}
-		toStop = append(toStop, StoreAppProxyStatus{ID: id, Port: active.Port, TargetURL: active.TargetURL})
+		toStop = append(toStop, StoreAppProxyStatus{ID: id, Port: active.Port, TargetURL: active.TargetURL, APITargetURL: active.APITargetURL})
 	}
 	m.mu.Unlock()
 
@@ -654,37 +657,32 @@ func (m *Manager) ReconcileStoreAppProxies(specs []StoreAppProxySpec) error {
 func normalizeStoreProxySpec(spec StoreAppProxySpec) (StoreAppProxySpec, bool) {
 	spec.ID = strings.ToLower(strings.TrimSpace(spec.ID))
 	spec.TargetURL = strings.TrimSpace(spec.TargetURL)
+	spec.APITargetURL = strings.TrimSpace(spec.APITargetURL)
 	if !spec.Enabled || spec.ID == "" || spec.Port <= 0 || spec.TargetURL == "" {
 		return StoreAppProxySpec{}, false
 	}
 	if _, err := url.ParseRequestURI(spec.TargetURL); err != nil {
 		return StoreAppProxySpec{}, false
 	}
+	if spec.APITargetURL != "" {
+		if _, err := url.ParseRequestURI(spec.APITargetURL); err != nil {
+			return StoreAppProxySpec{}, false
+		}
+	}
 	return spec, true
 }
 
 func (m *Manager) startStoreAppProxy(srv *tsnet.Server, spec StoreAppProxySpec) error {
-	target, err := url.Parse(spec.TargetURL)
+	handler, err := newStoreAppProxyHandler(spec, m.logger)
 	if err != nil {
-		return fmt.Errorf("parse store app proxy target: %w", err)
+		return err
 	}
-	proxy := httputil.NewSingleHostReverseProxy(target)
-	originalDirector := proxy.Director
-	proxy.Director = func(req *http.Request) {
-		forwardedHost := req.Host
-		originalDirector(req)
-		req.Host = target.Host
-		req.Header.Set("X-Forwarded-Proto", "https")
-		req.Header.Set("X-Forwarded-Host", forwardedHost)
-		sanitizeStoreAppProxyRequest(req)
-	}
-	proxy.ModifyResponse = sanitizeStoreAppProxyResponse
 	ln, err := listenTLSWithTimeoutFn(srv, ":"+strconv.Itoa(spec.Port), tsnetTLSFallbackTimeout)
 	if err != nil {
 		return fmt.Errorf("start store app proxy %s: %w", spec.ID, err)
 	}
 	httpSrv := &http.Server{
-		Handler:      proxy,
+		Handler:      handler,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 5 * time.Minute,
 		IdleTimeout:  2 * time.Minute,
@@ -710,6 +708,54 @@ func (m *Manager) startStoreAppProxy(srv *tsnet.Server, spec StoreAppProxySpec) 
 	m.mu.Unlock()
 	m.logger.Info("[tsnet] store app proxy started", "app_id", spec.ID, "port", spec.Port, "target", spec.TargetURL)
 	return nil
+}
+
+func newStoreAppProxyHandler(spec StoreAppProxySpec, logger *slog.Logger) (http.Handler, error) {
+	target, err := url.Parse(spec.TargetURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse store app proxy target: %w", err)
+	}
+	uiProxy := newStoreAppReverseProxy(target, logger)
+	if spec.APITargetURL == "" {
+		return uiProxy, nil
+	}
+	apiTarget, err := url.Parse(spec.APITargetURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse store app API proxy target: %w", err)
+	}
+	apiProxy := newStoreAppReverseProxy(apiTarget, logger)
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if storeAppProxyUsesAPITarget(req.URL.Path) {
+			apiProxy.ServeHTTP(w, req)
+			return
+		}
+		uiProxy.ServeHTTP(w, req)
+	}), nil
+}
+
+func newStoreAppReverseProxy(target *url.URL, logger *slog.Logger) *httputil.ReverseProxy {
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	originalDirector := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		forwardedHost := req.Host
+		originalDirector(req)
+		req.Host = target.Host
+		req.Header.Set("X-Forwarded-Proto", "https")
+		req.Header.Set("X-Forwarded-Host", forwardedHost)
+		sanitizeStoreAppProxyRequest(req)
+	}
+	proxy.ModifyResponse = sanitizeStoreAppProxyResponse
+	proxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, err error) {
+		if logger != nil {
+			logger.Warn("[tsnet] store app proxy backend unavailable", "target", target.String(), "path", req.URL.Path, "error", err)
+		}
+		http.Error(w, "Store app backend unavailable", http.StatusBadGateway)
+	}
+	return proxy
+}
+
+func storeAppProxyUsesAPITarget(path string) bool {
+	return path == "/api" || strings.HasPrefix(path, "/api/")
 }
 
 func sanitizeStoreAppProxyRequest(req *http.Request) {

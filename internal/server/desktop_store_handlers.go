@@ -634,11 +634,23 @@ func dograhTailscaleProxySpecs(cfg *config.Config) []tsnetnode.StoreAppProxySpec
 	if target == "" {
 		return nil
 	}
+	apiPort := dograhURLPort(cfg.Dograh.APIURL)
+	if apiPort <= 0 {
+		apiPort = cfg.Dograh.APIHostPort
+	}
+	if apiPort <= 0 {
+		apiPort = cfg.Dograh.APIPort
+	}
+	apiTarget := ""
+	if apiPort > 0 {
+		apiTarget = dograhProxyTargetURL(cfg.Dograh.APIURL, apiPort)
+	}
 	return []tsnetnode.StoreAppProxySpec{{
-		ID:        "dograh",
-		Port:      port,
-		TargetURL: target,
-		Enabled:   true,
+		ID:           "dograh",
+		Port:         port,
+		TargetURL:    target,
+		APITargetURL: apiTarget,
+		Enabled:      true,
 	}}
 }
 
