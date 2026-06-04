@@ -1038,6 +1038,9 @@ if (appId === 'system-info') {
         if (appId === 'looper' && window.LooperApp && typeof window.LooperApp.render === 'function') {
             return window.LooperApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, updateWindowContext, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
         }
+        if (appId === 'cheater' && window.CheaterApp && typeof window.CheaterApp.render === 'function') {
+            return window.CheaterApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, openApp, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, updateWindowContext }));
+        }
         if (appId === 'camera') {
             if (!window.CameraApp) {
                 window.AuraDesktopModules.loadAppScript('camera').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

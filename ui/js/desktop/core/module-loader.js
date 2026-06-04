@@ -147,6 +147,10 @@
         'mission-control': {
             styles: appStyles('/css/desktop-app-mission-control.css'),
             scripts: ['/js/desktop/apps/mission-control-modal.js', '/js/desktop/apps/mission-control.js']
+        },
+        'cheater': {
+            styles: appStyles('/css/desktop-app-cheater.css'),
+            scripts: ['/js/desktop/apps/cheater.js']
         }
     };
 

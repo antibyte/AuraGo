@@ -104,6 +104,7 @@
         forms: 'forms',
         writer: 'writer',
         sheets: 'spreadsheet',
+        cheater: 'cheater',
         help: 'help',
         settings: 'settings',
         calendar: 'calendar',
