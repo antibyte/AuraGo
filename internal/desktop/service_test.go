@@ -122,6 +122,23 @@ func testFindApp(t *testing.T, apps []AppManifest, id string) AppManifest {
 	return AppManifest{}
 }
 
+func TestBuiltinAppsExposeCheaterAndMissionControlMetadata(t *testing.T) {
+	apps := BuiltinApps()
+
+	cheater := testFindApp(t, apps, "cheater")
+	if !cheater.Builtin || cheater.Deletable || !cheater.DockVisible || !cheater.StartVisible {
+		t.Fatalf("cheater visibility = builtin:%v deletable:%v dock:%v start:%v, want first-party visible app", cheater.Builtin, cheater.Deletable, cheater.DockVisible, cheater.StartVisible)
+	}
+	if cheater.Entry != "builtin://cheater" || cheater.Icon != "cheater" {
+		t.Fatalf("cheater manifest entry/icon = %q/%q, want builtin://cheater/cheater", cheater.Entry, cheater.Icon)
+	}
+
+	missionControl := testFindApp(t, apps, "mission-control")
+	if missionControl.Icon != "workflow" {
+		t.Fatalf("mission-control icon = %q, want workflow", missionControl.Icon)
+	}
+}
+
 func TestServiceMutationLockIsSharedAcrossServices(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "workspace")
 	dbPath := filepath.Join(t.TempDir(), "desktop.db")

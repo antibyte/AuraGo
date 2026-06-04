@@ -440,6 +440,7 @@ func TestDesktopCheaterTranslations(t *testing.T) {
 	t.Parallel()
 
 	required := []string{
+		"desktop.app_cheater",
 		"cheater.app_name",
 		"cheater.empty_subtitle",
 		"cheater.empty_cta",

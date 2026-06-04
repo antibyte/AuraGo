@@ -137,7 +137,8 @@
         zipper: 'zipper',
         pixel: 'pixel',
         'galaxa-deluxe': 'run',
-        people: 'users'
+        people: 'users',
+        'mission-control': 'workflow'
     };
     appIconKeys['code-studio'] = 'code-studio';
     const extensionIconKeys = {
@@ -296,9 +297,11 @@
             launchpad: 'LP',
             'software-store': 'SS',
             looper: 'Lp',
+            cheater: 'Ch',
             pixel: 'Px',
             'galaxa-deluxe': 'Gx',
-            people: 'Pp'
+            people: 'Pp',
+            'mission-control': 'MC'
         };
         return map[id] || ((app && app.name && app.name[0]) || 'D').toUpperCase();
     }
@@ -476,6 +479,7 @@
             pixel: 'PixelApp',
             'galaxa-deluxe': 'GalaxaDeluxe',
             people: 'PeopleApp',
+            cheater: 'CheaterApp',
             'mission-control': 'MissionControlApp'
         }[appId] || '';
     }

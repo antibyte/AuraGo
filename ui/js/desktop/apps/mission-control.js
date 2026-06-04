@@ -94,8 +94,9 @@
             if (window.AuraSSE && typeof window.AuraSSE.on === 'function') {
                 state.sseHandler = function (payload) {
                     if (!state.initialLoad || state.disposed) return;
-                    state.missions = (payload && payload.missions) || [];
-                    state.queue = (payload && payload.queue) || { items: [], running: '' };
+                    const normalized = normalizeMissionControlPayload(payload);
+                    state.missions = normalized.missions;
+                    state.queue = normalized.queue;
                     renderAll();
                 };
                 window.AuraSSE.on('mission_update', state.sseHandler);
@@ -158,8 +159,9 @@
         async function loadData() {
             try {
                 const data = await api('/api/missions/v2');
-                state.missions = data.missions || [];
-                state.queue = data.queue || { items: [], running: '' };
+                const normalized = normalizeMissionControlPayload(data);
+                state.missions = normalized.missions;
+                state.queue = normalized.queue;
                 state.initialLoad = true;
                 renderAll();
             } catch (err) {
@@ -172,6 +174,25 @@
                     if (retry) retry.addEventListener('click', () => { host.innerHTML = `<div class="${P}-loading">${esc(t('desktop.loading', 'Loading...'))}</div>`; loadData(); });
                 }
             }
+        }
+
+        function normalizeMissionControlPayload(data) {
+            data = data || {};
+            const missions = Array.isArray(data.missions)
+                ? data.missions
+                : (Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []));
+            return {
+                missions,
+                queue: normalizeMissionQueue(data.queue)
+            };
+        }
+
+        function normalizeMissionQueue(queue) {
+            queue = queue || {};
+            return {
+                items: Array.isArray(queue.items) ? queue.items : [],
+                running: typeof queue.running === 'string' ? queue.running : ''
+            };
         }
 
         function renderAll() {
