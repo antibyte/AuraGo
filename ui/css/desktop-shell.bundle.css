@@ -945,7 +945,7 @@
     position: relative;
     flex: 0 1 auto;
     width: fit-content;
-    max-width: calc(100vw - 170px);
+    max-width: calc(100vw - 300px);
     min-height: 78px;
     align-items: end;
     justify-content: center;
@@ -1468,7 +1468,7 @@
 
     .desktop-body[data-theme="fruity"] .vd-taskbar-apps {
         flex: 1 1 auto;
-        max-width: calc(100vw - 64px);
+        max-width: calc(100vw - 260px);
         justify-content: flex-start;
         min-height: 58px;
         padding: 8px 10px 10px;

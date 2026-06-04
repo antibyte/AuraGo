@@ -232,6 +232,14 @@ func TestDesktopFruitySystemControlsSitOnCompactCard(t *testing.T) {
 	t.Parallel()
 
 	cssText := readAllDesktopCSS(t)
+	dockBody := cssRuleBodyInFruityThemeTest(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-taskbar-apps")
+	if !strings.Contains(dockBody, "max-width: calc(100vw - 300px);") {
+		t.Fatalf("fruity dock must reserve horizontal space for the system card: %q", dockBody)
+	}
+	if !strings.Contains(cssText, "max-width: calc(100vw - 260px);") {
+		t.Fatal("fruity mobile dock must keep a reserved lane for the system card")
+	}
+
 	systemBody := cssRuleBodyInFruityThemeTest(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-taskbar-system")
 	for _, want := range []string{
 		"padding: 6px;",

@@ -32,7 +32,7 @@ func TestFruityDockShowsScrollButtonsWhenAppsOverflow(t *testing.T) {
 		".desktop-body[data-theme=\"fruity\"] .vd-dock-track",
 		".desktop-body[data-theme=\"fruity\"] .vd-dock-scroll-button",
 		".desktop-body[data-theme=\"fruity\"] .vd-taskbar-apps.vd-dock-overflowing .vd-dock-scroll-button",
-		"max-width: calc(100vw - 170px);",
+		"max-width: calc(100vw - 300px);",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("fruity dock overflow CSS missing marker %q", want)
