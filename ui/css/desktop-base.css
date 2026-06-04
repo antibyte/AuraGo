@@ -1482,6 +1482,18 @@
 }
 
 @media (max-width: 720px) {
+    .desktop-body[data-theme="fruity"] {
+        height: var(--vd-visual-height, 100dvh);
+        min-height: 0;
+        overflow-y: hidden;
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-shell {
+        height: var(--vd-visual-height, 100dvh);
+        min-height: 0;
+        overflow: hidden;
+    }
+
     .desktop-body[data-theme="fruity"] .vd-taskbar {
         justify-content: center;
         padding: 0 max(8px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
@@ -1493,7 +1505,7 @@
 
     .desktop-body[data-theme="fruity"] .vd-taskbar-apps {
         flex: 1 1 auto;
-        max-width: calc(100vw - 260px);
+        max-width: min(calc(100vw - 112px), calc(44px * 4 + 20px));
         justify-content: flex-start;
         min-height: 58px;
         padding: 8px 10px 10px;
