@@ -248,11 +248,9 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 		}
 	}
 
-	if guardian != nil {
-		if scan := guardian.ScanForInjection(inputText); scan.Level >= security.ThreatHigh {
-			logger.Warn("[RocketChat] Prompt injection detected in message",
-				"user", msg.User.Username, "level", scan.Level, "patterns", scan.Patterns)
-		}
+	if shouldBlockRocketChatPromptInjection(inputText, guardian, logger, msg.User.Username) {
+		_ = SendMessage(cfg, channelID, "Your message was blocked by the security guardian.")
+		return
 	}
 	inputText = security.IsolateExternalData(inputText)
 
@@ -318,4 +316,19 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 			}
 		}
 	}
+}
+
+func shouldBlockRocketChatPromptInjection(inputText string, guardian *security.Guardian, logger *slog.Logger, username string) bool {
+	if guardian == nil {
+		return false
+	}
+	scan := guardian.ScanForInjection(inputText)
+	if scan.Level < security.ThreatHigh {
+		return false
+	}
+	if logger != nil {
+		logger.Warn("[RocketChat] Prompt injection BLOCKED - message discarded",
+			"user", username, "level", scan.Level, "patterns", scan.Patterns)
+	}
+	return true
 }

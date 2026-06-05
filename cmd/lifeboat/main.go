@@ -61,7 +61,7 @@ func main() {
 
 	l := logger.Setup(*debug)
 	if cfg.Logging.EnableFileLog {
-		logPath := filepath.Join(cfg.Logging.LogDir, "lifeboat.log")
+		logPath := lifeboatLogPath(cfg)
 		if fl, err := logger.SetupWithFile(*debug, logPath, false); err == nil {
 			l = fl.Logger
 			defer fl.Close()
@@ -69,7 +69,7 @@ func main() {
 		}
 	}
 	slog.SetDefault(l)
-	tools.SetBusyFilePath(filepath.Join(cfg.Directories.DataDir, "maintenance.lock"))
+	tools.SetBusyFilePath(lifeboatBusyFilePath(cfg))
 	l.Info("Lifeboat (Sidecar) gestartet", "state", *statePath, "plan", *planPath, "lock", tools.GetBusyFilePath())
 
 	if *sidecar {
@@ -137,17 +137,7 @@ func runOperation(cfg *config.Config, statePath, planPath string, l *slog.Logger
 	l.Info("Lifeboat Operation gestartet", "state", statePath, "plan", planPath)
 
 	// 1. Dependencies initialisieren (Unified with Supervisor)
-	dirs := []string{
-		cfg.Directories.DataDir,
-		cfg.Directories.WorkspaceDir,
-		cfg.Directories.ToolsDir,
-		cfg.Directories.PromptsDir,
-		cfg.Directories.SkillsDir,
-		cfg.Directories.VectorDBDir,
-		cfg.Logging.LogDir,
-	}
-
-	for _, dir := range dirs {
+	for _, dir := range lifeboatRuntimeDirs(cfg) {
 		if dir != "" {
 			if err := os.MkdirAll(dir, 0755); err != nil {
 				l.Warn("Failed to create directory", "path", dir, "error", err)
@@ -393,10 +383,10 @@ func sendShutdownAndReload(l *slog.Logger) error {
 }
 
 func rebuildMainAgent(l *slog.Logger) error {
-	binPath := "aurago" + EXE_SUFFIX
-	l.Info("Führe Build aus", "command", fmt.Sprintf("go build -o %s ./cmd/aurago", binPath))
+	buildArgs := lifeboatBuildCommandArgs()
+	l.Info("Führe Build aus", "command", "go "+strings.Join(buildArgs, " "))
 
-	buildCmd := exec.Command("go", "build", "-o", binPath, "./cmd/aurago")
+	buildCmd := exec.Command("go", buildArgs...)
 	output, err := buildCmd.CombinedOutput()
 	if len(output) > 0 {
 		l.Info("Build Output", "content", string(output))
@@ -410,18 +400,11 @@ func rebuildMainAgent(l *slog.Logger) error {
 }
 
 func restartMainAgent(recoveryContext string, l *slog.Logger) error {
-	exeName := "aurago" + EXE_SUFFIX
-	exePath, err := filepath.Abs(exeName)
+	exePath, args, err := lifeboatRestartSpec(recoveryContext, filepath.Abs)
 	if err != nil {
 		l.Warn("Failed to resolve absolute path for restart", "error", err)
-		exePath = "./" + exeName // Fallback to explicitly relative
 	}
 	l.Info("Starte Main Agent neu", "path", exePath)
-
-	args := []string{}
-	if recoveryContext != "" {
-		args = append(args, "--recovery-context", recoveryContext)
-	}
 
 	cmd := prepareCommand(exePath, args...)
 
@@ -434,4 +417,45 @@ func restartMainAgent(recoveryContext string, l *slog.Logger) error {
 
 	l.Info("Main Agent wurde gestartet", "pid", cmd.Process.Pid)
 	return nil
+}
+
+func lifeboatLogPath(cfg *config.Config) string {
+	return filepath.Join(cfg.Logging.LogDir, "lifeboat.log")
+}
+
+func lifeboatBusyFilePath(cfg *config.Config) string {
+	return filepath.Join(cfg.Directories.DataDir, "maintenance.lock")
+}
+
+func lifeboatRuntimeDirs(cfg *config.Config) []string {
+	return []string{
+		cfg.Directories.DataDir,
+		cfg.Directories.WorkspaceDir,
+		cfg.Directories.ToolsDir,
+		cfg.Directories.PromptsDir,
+		cfg.Directories.SkillsDir,
+		cfg.Directories.VectorDBDir,
+		cfg.Logging.LogDir,
+	}
+}
+
+func lifeboatMainBinaryName() string {
+	return "aurago" + EXE_SUFFIX
+}
+
+func lifeboatBuildCommandArgs() []string {
+	return []string{"build", "-o", lifeboatMainBinaryName(), "./cmd/aurago"}
+}
+
+func lifeboatRestartSpec(recoveryContext string, absFn func(string) (string, error)) (string, []string, error) {
+	exeName := lifeboatMainBinaryName()
+	exePath, err := absFn(exeName)
+	if err != nil {
+		exePath = "./" + exeName
+	}
+	args := []string{}
+	if recoveryContext != "" {
+		args = append(args, "--recovery-context", recoveryContext)
+	}
+	return exePath, args, err
 }
