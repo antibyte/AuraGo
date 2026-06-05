@@ -469,5 +469,7 @@
   "config.section.optimizations.group.tool_context": "🔧 Contexte des outils",
   "config.section.optimizations.group.tool_visibility": "🔧 Visibilite des outils",
   "config.section.rules.label": "Règles",
-  "config.section.rules.desc": "Gérer les garde-fous de l agent par tâche"
+  "config.section.rules.desc": "Gérer les garde-fous de l agent par tâche",
+  "config.section.composio.label": "Composio",
+  "config.section.composio.desc": "Catalogue externe d integrations et source d outils pour l agent"
 }

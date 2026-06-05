@@ -469,5 +469,7 @@
   "config.section.optimizations.group.tool_context": "🔧 Contexto de herramientas",
   "config.section.optimizations.group.tool_visibility": "🔧 Visibilidad de herramientas",
   "config.section.rules.label": "Reglas",
-  "config.section.rules.desc": "Gestionar guías del agente por tarea"
+  "config.section.rules.desc": "Gestionar guías del agente por tarea",
+  "config.section.composio.label": "Composio",
+  "config.section.composio.desc": "Catalogo externo de integraciones y fuente de herramientas para el agente"
 }

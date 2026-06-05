@@ -19,8 +19,8 @@ func TestToolPermissionMatrixCoversHighRiskBuiltins(t *testing.T) {
 
 	highRisk := []string{
 		"api_request", "call_webhook", "chromecast", "docker", "execute_python",
-		"execute_shell", "execute_sudo", "file_editor", "filesystem", "home_assistant",
-		"homepage", "invasion_control", "json_editor", "manage_outgoing_webhooks",
+		"composio_call", "execute_shell", "execute_sudo", "file_editor", "filesystem",
+		"home_assistant", "homepage", "invasion_control", "json_editor", "manage_outgoing_webhooks",
 		"meshcentral", "netlify", "remote_execution", "secrets_vault",
 		"transfer_remote_file", "truenas", "vercel", "video_download", "virtual_desktop", "xml_editor", "yaml_editor",
 	}

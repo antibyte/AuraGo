@@ -469,5 +469,7 @@
   "config.section.optimizations.group.tool_context": "🔧 Verktøykontekst",
   "config.section.optimizations.group.tool_visibility": "🔧 Verktøysynlighet",
   "config.section.rules.label": "Regler",
-  "config.section.rules.desc": "Administrer oppgavespesifikke agentregler"
+  "config.section.rules.desc": "Administrer oppgavespesifikke agentregler",
+  "config.section.composio.label": "Composio",
+  "config.section.composio.desc": "Ekstern integrasjonskatalog og verktoykilde for agenten"
 }

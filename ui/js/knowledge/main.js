@@ -616,7 +616,7 @@ async function uploadFiles(input) {
     for (let i = 0; i < files.length; i++) {
         const form = new FormData();
         form.append('file', files[i]);
-        progressText.textContent = (t('knowledge.files_uploading') || 'Uploading') + ` ${files[i].name} (${i + 1}/${total})`;
+        progressText.textContent = t('knowledge.files_uploading') + ` ${files[i].name} (${i + 1}/${total})`;
 
         try {
             const resp = await fetch('/api/knowledge/upload', {

@@ -1179,6 +1179,27 @@ mcp:
     #   url: http://host.docker.internal:9100/mcp
     #   allowed_tools: []
     #   allow_destructive: false
+composio:
+    enabled: false                                      # exposes the native composio_call entry point when an API key is in the vault
+    base_url: https://backend.composio.dev/api/v3.1     # Composio REST API v3.1 base URL
+    user_id: aurago-default                             # Composio connected-account user identifier
+    read_only: true                                     # unknown or mutating tool slugs are blocked by default
+    allow_destructive: false                            # delete/remove/revoke/disable/purge/drop actions stay blocked until enabled
+    allow_natural_language_input: false                 # execute_tool accepts free-form text only when explicitly enabled
+    request_timeout_seconds: 60
+    cache_ttl_seconds: 300
+    max_result_bytes: 262144
+    toolkits: []
+    # Store the API key in the encrypted vault as composio_api_key, not in config.yaml.
+    # Example selected toolkit:
+    # - slug: github
+    #   enabled: true
+    #   preferred_connected_account_id: ""
+    #   read_only: true
+    #   allow_destructive: false
+    #   allow_natural_language_input: false
+    #   allowed_tool_slugs: []                           # optional allowlist; empty = policy classifier decides
+    #   blocked_tool_slugs: []                           # explicit denylist always wins
     preferred_capabilities:
         web_search:
             server: ""

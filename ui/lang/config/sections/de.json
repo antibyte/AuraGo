@@ -469,5 +469,7 @@
   "config.section.optimizations.group.tool_context": "🔧 Tool-Kontext",
   "config.section.optimizations.group.tool_visibility": "🔧 Tool-Sichtbarkeit",
   "config.section.rules.label": "Regeln",
-  "config.section.rules.desc": "Aufgabenbezogene Agent-Leitplanken verwalten"
+  "config.section.rules.desc": "Aufgabenbezogene Agent-Leitplanken verwalten",
+  "config.section.composio.label": "Composio",
+  "config.section.composio.desc": "Externer Integrationskatalog und Toolquelle fuer den Agenten"
 }

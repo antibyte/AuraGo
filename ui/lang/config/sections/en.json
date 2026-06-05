@@ -469,5 +469,7 @@
   "config.section.optimizations.group.tool_context": "🔧 Tool Context",
   "config.section.optimizations.group.tool_visibility": "🔧 Tool Visibility",
   "config.section.rules.label": "Rules",
-  "config.section.rules.desc": "Manage task-specific agent guardrails"
+  "config.section.rules.desc": "Manage task-specific agent guardrails",
+  "config.section.composio.label": "Composio",
+  "config.section.composio.desc": "External integration catalog and agent tool source"
 }

@@ -469,5 +469,7 @@
   "config.section.optimizations.group.tool_context": "🔧 Verktygskontext",
   "config.section.optimizations.group.tool_visibility": "🔧 Verktygssynlighet",
   "config.section.rules.label": "Regler",
-  "config.section.rules.desc": "Hantera uppgiftsspecifika agentregler"
+  "config.section.rules.desc": "Hantera uppgiftsspecifika agentregler",
+  "config.section.composio.label": "Composio",
+  "config.section.composio.desc": "Extern integrationskatalog och verktygskalla for agenten"
 }

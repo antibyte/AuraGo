@@ -469,5 +469,7 @@
   "config.section.optimizations.group.tool_context": "🔧 Vaerktoejskontekst",
   "config.section.optimizations.group.tool_visibility": "🔧 Vaerktoejs synlighed",
   "config.section.rules.label": "Regler",
-  "config.section.rules.desc": "Administrer opgavespecifikke agentregler"
+  "config.section.rules.desc": "Administrer opgavespecifikke agentregler",
+  "config.section.composio.label": "Composio",
+  "config.section.composio.desc": "Eksternt integrationskatalog og vaerktojskilde til agenten"
 }

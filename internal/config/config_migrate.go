@@ -846,6 +846,7 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("manifest_api_key", &c.Manifest.APIKey)
 	apply("manifest_postgres_password", &c.Manifest.PostgresPassword)
 	apply("manifest_better_auth_secret", &c.Manifest.BetterAuthSecret)
+	apply("composio_api_key", &c.Composio.APIKey)
 	apply("dograh_api_key", &c.Dograh.APIKey)
 	apply("dograh_oss_jwt_secret", &c.Dograh.OSSJWTSecret)
 	apply("dograh_postgres_password", &c.Dograh.PostgresPassword)

@@ -572,6 +572,28 @@ func TestBuildNativeToolSchemasCacheSeparatesTTSFlag(t *testing.T) {
 	}
 }
 
+func TestBuildNativeToolSchemasGatesComposioCall(t *testing.T) {
+	disabled := toolNames(BuildNativeToolSchemas(t.TempDir(), nil, ToolFeatureFlags{}, nil))
+	if containsName(disabled, "composio_call") {
+		t.Fatalf("did not expect composio_call schema when ComposioEnabled=false, got %v", disabled)
+	}
+
+	enabled := toolNames(BuildNativeToolSchemas(t.TempDir(), nil, ToolFeatureFlags{ComposioEnabled: true}, nil))
+	if !containsName(enabled, "composio_call") {
+		t.Fatalf("expected composio_call schema when ComposioEnabled=true, got %v", enabled)
+	}
+}
+
+func TestToolFeatureFlagsKeyIncludesComposioEnabled(t *testing.T) {
+	withoutComposio := ToolFeatureFlags{LDAPEnabled: true}
+	withComposio := withoutComposio
+	withComposio.ComposioEnabled = true
+
+	if withoutComposio.Key() == withComposio.Key() {
+		t.Fatal("expected ComposioEnabled to change the native tool schema cache key")
+	}
+}
+
 func TestAllBuiltinToolFeatureFlagsIncludesTTS(t *testing.T) {
 	names := builtinToolNames(allBuiltinToolFeatureFlags())
 	if !containsName(names, "tts") {

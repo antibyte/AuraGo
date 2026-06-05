@@ -469,5 +469,7 @@
   "config.section.optimizations.group.tool_context": "🔧 Contesto strumenti",
   "config.section.optimizations.group.tool_visibility": "🔧 Visibilita strumenti",
   "config.section.rules.label": "Regole",
-  "config.section.rules.desc": "Gestisci le linee guida agent per attività"
+  "config.section.rules.desc": "Gestisci le linee guida agent per attività",
+  "config.section.composio.label": "Composio",
+  "config.section.composio.desc": "Catalogo esterno di integrazioni e fonte di strumenti per l agente"
 }

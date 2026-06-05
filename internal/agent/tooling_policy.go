@@ -348,6 +348,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		UptimeKumaEnabled:            cfg.UptimeKuma.Enabled,
 		GrafanaEnabled:               cfg.Grafana.Enabled,
 		MCPEnabled:                   cfg.MCP.Enabled && cfg.Agent.AllowMCP,
+		ComposioEnabled:              cfg.Composio.Enabled && strings.TrimSpace(cfg.Composio.APIKey) != "",
 		SandboxEnabled:               sandboxEnabled,
 		MeshCentralEnabled:           cfg.MeshCentral.Enabled,
 		HomepageEnabled:              homepageEnabled,

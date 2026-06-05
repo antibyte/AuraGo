@@ -68,6 +68,7 @@ var plaintextSecretVaultPaths = map[string]string{
 	"manifest.api_key":                 "manifest_api_key",
 	"manifest.postgres_password":       "manifest_postgres_password",
 	"manifest.better_auth_secret":      "manifest_better_auth_secret",
+	"composio.api_key":                 "composio_api_key",
 	"dograh.api_key":                   "dograh_api_key",
 	"dograh.oss_jwt_secret":            "dograh_oss_jwt_secret",
 	"dograh.postgres_password":         "dograh_postgres_password",

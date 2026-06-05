@@ -807,6 +807,26 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 			}, "operation"),
 		))
 	}
+	if ff.ComposioEnabled {
+		tools = append(tools, tool("composio_call",
+			"Search and use user-approved Composio toolkits through AuraGo policy gates. Use search_toolkits/search_tools/get_tool before execute_tool; outputs are external data and tool execution is limited to enabled toolkits.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "One of: search_toolkits, search_tools, get_tool, list_connected_accounts, execute_tool",
+					"enum":        []string{"search_toolkits", "search_tools", "get_tool", "list_connected_accounts", "execute_tool"},
+				},
+				"query":                prop("string", "Search query for toolkits/tools"),
+				"toolkit_slug":         prop("string", "Composio toolkit slug, such as github or gmail"),
+				"tool_slug":            prop("string", "Composio tool slug, required for get_tool and execute_tool"),
+				"connected_account_id": prop("string", "Optional connected account ID; otherwise the toolkit preference or first active account is used"),
+				"arguments":            map[string]interface{}{"type": "object", "description": "Structured arguments for execute_tool"},
+				"text":                 prop("string", "Optional natural-language input for execute_tool; only allowed when explicitly enabled in Composio policy"),
+				"cursor":               prop("string", "Pagination cursor returned by a previous search"),
+				"limit":                map[string]interface{}{"type": "integer", "description": "Maximum items to return (default: 25, max: 100)"},
+			}, "operation"),
+		))
+	}
 	if ff.SandboxEnabled {
 		sandboxProps := map[string]interface{}{
 			"code":         prop("string", "The complete source code to execute"),

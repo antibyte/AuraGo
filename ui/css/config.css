@@ -7044,3 +7044,341 @@ select.cfg-input option {
         justify-content: flex-start;
     }
 }
+
+/* Composio external tool-source */
+.cmp-status-line {
+    margin: 1rem 0;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    background: rgba(15, 23, 42, 0.08);
+    font-size: 0.9rem;
+}
+
+.cmp-status-line.ok {
+    border-color: rgba(34, 197, 94, 0.35);
+    color: #15803d;
+}
+
+.cmp-status-line.warn {
+    border-color: rgba(245, 158, 11, 0.45);
+    color: #92400e;
+}
+
+.cmp-toolbar,
+.cmp-detail-actions,
+.cmp-policy-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.cmp-toolbar {
+    margin-bottom: 1.25rem;
+}
+
+.cmp-selected-pill,
+.cmp-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 0.65rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    background: var(--surface-muted);
+    font-size: 0.82rem;
+}
+
+.cmp-secret-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 38px auto;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.cmp-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.cmp-field,
+.cmp-policy-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.cmp-policy-row {
+    margin: 1.25rem 0;
+}
+
+.cmp-policy-item {
+    flex: 1 1 220px;
+    min-width: 220px;
+    padding: 0.85rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.05);
+}
+
+.cmp-selected-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    min-height: 42px;
+}
+
+.cmp-empty {
+    padding: 0.85rem;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+}
+
+.cmp-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.58);
+}
+
+.cmp-modal-overlay.active {
+    display: flex;
+}
+
+.cmp-modal {
+    width: 96vw;
+    height: 92vh;
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    overflow: hidden;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: var(--shadow-xl, 0 24px 80px rgba(15, 23, 42, 0.22));
+}
+
+.cmp-modal-head,
+.cmp-modal-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.15rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.cmp-modal-title {
+    color: var(--text-primary);
+    font-size: 1.05rem;
+    font-weight: 820;
+}
+
+.cmp-modal-subtitle {
+    margin-top: 0.2rem;
+    color: var(--text-secondary);
+    font-size: 0.84rem;
+}
+
+.cmp-icon-btn {
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: var(--surface-muted);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 1.25rem;
+}
+
+.cmp-modal-controls {
+    justify-content: flex-start;
+}
+
+.cmp-modal-controls .field-input {
+    max-width: 360px;
+}
+
+.cmp-modal-body {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(300px, 38%) minmax(0, 1fr);
+}
+
+.cmp-list-panel,
+.cmp-detail-panel {
+    min-height: 0;
+    overflow: auto;
+}
+
+.cmp-list-panel {
+    border-right: 1px solid var(--border-subtle);
+    background: rgba(15, 23, 42, 0.03);
+}
+
+.cmp-toolkit-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.cmp-toolkit-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: center;
+    min-height: 74px;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--border-subtle);
+    cursor: pointer;
+}
+
+.cmp-toolkit-row.active,
+.cmp-toolkit-row:hover {
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.cmp-toolkit-name {
+    color: var(--text-primary);
+    font-weight: 760;
+}
+
+.cmp-toolkit-desc {
+    margin-top: 0.25rem;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    line-height: 1.35;
+}
+
+.cmp-small-toggle {
+    min-width: 78px;
+    min-height: 32px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.cmp-small-toggle.on {
+    border-color: rgba(34, 197, 94, 0.4);
+    color: #15803d;
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.cmp-load-more {
+    width: calc(100% - 2rem);
+    margin: 1rem;
+}
+
+.cmp-detail-panel {
+    padding: 1.1rem;
+}
+
+.cmp-detail-head {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.cmp-detail-title {
+    color: var(--text-primary);
+    font-size: 1.15rem;
+    font-weight: 840;
+}
+
+.cmp-detail-slug,
+.cmp-detail-desc {
+    color: var(--text-secondary);
+}
+
+.cmp-detail-slug {
+    margin-top: 0.25rem;
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+    font-size: 0.82rem;
+}
+
+.cmp-detail-desc {
+    margin: 0.9rem 0;
+    line-height: 1.45;
+}
+
+.cmp-detail-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.cmp-mini-title {
+    margin-bottom: 0.55rem;
+    color: var(--text-primary);
+    font-weight: 780;
+}
+
+.cmp-account-row,
+.cmp-tool-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.8rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    font-size: 0.86rem;
+}
+
+.cmp-tool-row strong,
+.cmp-tool-row small {
+    display: block;
+}
+
+.cmp-tool-row strong {
+    color: var(--text-primary);
+    font-size: 0.84rem;
+}
+
+.cmp-tool-row small {
+    margin-top: 0.2rem;
+    line-height: 1.35;
+}
+
+@media (max-width: 860px) {
+    .cmp-grid,
+    .cmp-modal-body,
+    .cmp-detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .cmp-modal {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+    }
+
+    .cmp-modal-controls,
+    .cmp-modal-head,
+    .cmp-detail-head {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .cmp-list-panel {
+        max-height: 42vh;
+        border-right: 0;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .cmp-secret-row {
+        grid-template-columns: minmax(0, 1fr) 38px;
+    }
+
+    .cmp-secret-row .btn-save {
+        grid-column: 1 / -1;
+    }
+}

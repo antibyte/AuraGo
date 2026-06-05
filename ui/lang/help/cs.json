@@ -376,5 +376,15 @@
   "help.mqtt.availability_retain": "Pokud je zapnuto, broker uchová poslední stav dostupnosti pro nové odběratele.",
   "help.agent.adaptive_tools.max_total_tools": "Maximum finalnich nativnich schemat nastroju po zachovani povinnych nastroju.",
   "help.agent.adaptive_tools.provider_profiles_enabled": "Pouzije poskytovatelske stabilizacni profily pro limity nastroju a timeout hlavicek odpovedi.",
-  "help.agent.adaptive_tools.session_tool_retention_turns": "Kolik poslednich tahu ma zachovat jiz pouzite nastroje jako mekce vzdy zahrnute."
+  "help.agent.adaptive_tools.session_tool_retention_turns": "Kolik poslednich tahu ma zachovat jiz pouzite nastroje jako mekce vzdy zahrnute.",
+  "help.composio.enabled": "Externi katalog integraci a zdroj nastroju pro agenta. Enable this after storing the API key in the vault.",
+  "help.composio.api_key": "Store the Composio API key in the encrypted vault under composio_api_key. It is never written to config.yaml.",
+  "help.composio.base_url": "Composio REST API base URL. Default: https://backend.composio.dev/api/v3.1.",
+  "help.composio.user_id": "Composio user identifier used for connected-account link flows. Default: aurago-default.",
+  "help.composio.timeout": "Maximum wait time per Composio API request.",
+  "help.composio.cache_ttl": "How long toolkit and tool searches stay cached in memory.",
+  "help.composio.max_result": "Maximum response size returned from Composio before AuraGo stops reading.",
+  "help.composio.read_only": "Rezim pouze pro cteni. Unknown or mutating tool slugs are blocked.",
+  "help.composio.allow_destructive": "Povolit destruktivni nastroje. Keep disabled unless the selected toolkit action is intentional.",
+  "help.composio.allow_nl": "Povolit prirozeny jazyk. Natural-language tool input is blocked by default because it is less predictable than structured arguments."
 }

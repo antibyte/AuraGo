@@ -469,5 +469,7 @@
   "config.section.optimizations.group.tool_context": "🔧 टूल प्रसंग",
   "config.section.optimizations.group.tool_visibility": "🔧 उपकरण दृश्यता",
   "config.section.rules.label": "नियम",
-  "config.section.rules.desc": "कार्य-विशिष्ट एजेंट दिशानिर्देश प्रबंधित करें"
+  "config.section.rules.desc": "कार्य-विशिष्ट एजेंट दिशानिर्देश प्रबंधित करें",
+  "config.section.composio.label": "Composio",
+  "config.section.composio.desc": "Agent ke liye bahari integration catalog aur tool source"
 }

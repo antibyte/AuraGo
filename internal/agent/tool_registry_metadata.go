@@ -53,5 +53,8 @@ func hardAlwaysToolNames(cfg *config.Config) []string {
 	if cfg != nil && cfg.MCP.Enabled && cfg.Agent.AllowMCP {
 		hard = append(hard, "mcp_call")
 	}
+	if cfg != nil && cfg.Composio.Enabled && cfg.Composio.APIKey != "" {
+		hard = append(hard, "composio_call")
+	}
 	return hard
 }

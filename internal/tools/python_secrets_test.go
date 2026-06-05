@@ -68,6 +68,7 @@ func TestIsPythonAccessibleSecret_BlocksSystemVaultKeysAddedByIntegrations(t *te
 		"a2a_remote_main_bearer_secret",
 		"egg_shared_key",
 		"truenas_api_key",
+		"composio_api_key",
 	} {
 		if IsPythonAccessibleSecret(key) {
 			t.Errorf("expected system-managed key %q to be blocked, but it was allowed", key)

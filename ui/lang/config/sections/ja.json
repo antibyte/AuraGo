@@ -469,5 +469,7 @@
   "config.section.optimizations.group.tool_context": "🔧 ツールコンテキスト",
   "config.section.optimizations.group.tool_visibility": "🔧 ツール表示",
   "config.section.rules.label": "ルール",
-  "config.section.rules.desc": "タスク別のエージェント規則を管理"
+  "config.section.rules.desc": "タスク別のエージェント規則を管理",
+  "config.section.composio.label": "Composio",
+  "config.section.composio.desc": "Agent muke no gaibu renkei catalog to tool source"
 }

@@ -469,5 +469,7 @@
   "config.section.optimizations.group.tool_context": "🔧 Toolcontext",
   "config.section.optimizations.group.tool_visibility": "🔧 Toolzichtbaarheid",
   "config.section.rules.label": "Regels",
-  "config.section.rules.desc": "Taakspecifieke agentregels beheren"
+  "config.section.rules.desc": "Taakspecifieke agentregels beheren",
+  "config.section.composio.label": "Composio",
+  "config.section.composio.desc": "Externe integratiecatalogus en toolbron voor de agent"
 }

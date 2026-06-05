@@ -15,6 +15,10 @@ var discoverToolAliases = map[string]string{
 	"mcp server":             "mcp_call",
 	"mcp servers":            "mcp_call",
 	"model context protocol": "mcp_call",
+	"composio":               "composio_call",
+	"composio tools":         "composio_call",
+	"composio integrations":  "composio_call",
+	"integrations":           "composio_call",
 	"wikipedia":              "wikipedia_search",
 	"wiki":                   "wikipedia_search",
 	"duckduckgo":             "ddg_search",
@@ -204,6 +208,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"mcp_call", "Call tools on connected MCP (Model Context Protocol) servers"},
 	},
 	"data_apis": {
+		{"composio_call", "Search and call user-approved Composio integration tools"},
 		{"virustotal_scan", "Scan URLs, files, domains, and hashes with VirusTotal"},
 		{"yepapi_seo", "SEO data via YepAPI: domain overviews, keywords, competitors, and backlinks"},
 		{"yepapi_serp", "Search engine results via YepAPI: Google, Google Maps, News, Images, and autocomplete"},

@@ -469,5 +469,7 @@
   "config.section.optimizations.group.tool_context": "🔧 Kontekst narzedzi",
   "config.section.optimizations.group.tool_visibility": "🔧 Widocznosc narzedzi",
   "config.section.rules.label": "Reguły",
-  "config.section.rules.desc": "Zarządzaj zasadami agenta dla zadań"
+  "config.section.rules.desc": "Zarządzaj zasadami agenta dla zadań",
+  "config.section.composio.label": "Composio",
+  "config.section.composio.desc": "Zewnetrzny katalog integracji i zrodlo narzedzi dla agenta"
 }

@@ -15,7 +15,7 @@ func TestConfigRulesSectionContract(t *testing.T) {
 	for _, marker := range []string{
 		"config.section.rules.label",
 		"rules: { m: 'rules', fn: 'renderRulesSection' }",
-		"CONFIG_ASSET_VERSION = '20'",
+		"CONFIG_ASSET_VERSION = '21'",
 	} {
 		if !strings.Contains(mainJS, marker) {
 			t.Fatalf("config main JS missing rules marker %q", marker)
