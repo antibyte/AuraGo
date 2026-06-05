@@ -6,7 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"aurago/internal/i18n"
 	"aurago/internal/memory"
+	"aurago/ui"
 )
 
 func TestResetCommandDefaultsToDefaultSession(t *testing.T) {
@@ -87,6 +89,42 @@ func TestStopCommandInterruptsRequestedSession(t *testing.T) {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("commands source missing marker %q", marker)
 		}
+	}
+}
+
+func TestHelpCommandUsesContextLanguage(t *testing.T) {
+	i18n.Load(ui.Content, slog.Default())
+
+	out, handled, err := Handle("/help", Context{Lang: "en"})
+	if err != nil {
+		t.Fatalf("Handle(/help): %v", err)
+	}
+	if !handled {
+		t.Fatal("/help was not handled")
+	}
+	if !strings.Contains(out, "Available Commands") {
+		t.Fatalf("English help header missing: %s", out)
+	}
+	if !strings.Contains(out, "Deletes the current chat history") {
+		t.Fatalf("English reset help missing: %s", out)
+	}
+	if strings.Contains(out, "Loescht") || strings.Contains(out, "Löscht") {
+		t.Fatalf("help output still contains German reset help: %s", out)
+	}
+}
+
+func TestHelpCommandDefaultsToGerman(t *testing.T) {
+	i18n.Load(ui.Content, slog.Default())
+
+	out, handled, err := Handle("/help", Context{})
+	if err != nil {
+		t.Fatalf("Handle(/help): %v", err)
+	}
+	if !handled {
+		t.Fatal("/help was not handled")
+	}
+	if !strings.Contains(out, "Verfügbare Befehle") {
+		t.Fatalf("German fallback help header missing: %s", out)
 	}
 }
 

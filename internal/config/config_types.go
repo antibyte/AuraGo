@@ -336,16 +336,18 @@ type DograhConfig struct {
 
 // VirtualDesktopConfig holds settings for AuraGo's browser-native virtual desktop.
 type VirtualDesktopConfig struct {
-	Enabled            bool             `yaml:"enabled" json:"enabled"`                           // enable the virtual desktop web UI and APIs
-	ReadOnly           bool             `yaml:"readonly" json:"readonly"`                         // block writes while keeping the desktop browsable
-	AllowAgentControl  bool             `yaml:"allow_agent_control" json:"allow_agent_control"`   // expose the virtual_desktop tool to the agent
-	AllowGeneratedApps bool             `yaml:"allow_generated_apps" json:"allow_generated_apps"` // allow generated JS apps and widgets
-	AllowPythonJobs    bool             `yaml:"allow_python_jobs" json:"allow_python_jobs"`       // allow desktop apps to request backend Python jobs via the agent
-	WorkspaceDir       string           `yaml:"workspace_dir" json:"workspace_dir"`               // persistent desktop workspace root
-	MaxFileSizeMB      int              `yaml:"max_file_size_mb" json:"max_file_size_mb"`         // max text file read/write size
-	ControlLevel       string           `yaml:"control_level" json:"control_level"`               // "confirm_destructive" (default) or "trusted"
-	MaxWSClients       int              `yaml:"max_ws_clients" json:"max_ws_clients"`             // max concurrent desktop websocket clients
-	CodeStudio         CodeStudioConfig `yaml:"code_studio" json:"code_studio"`                   // built-in Code Studio development container
+	Enabled                  bool             `yaml:"enabled" json:"enabled"`                                         // enable the virtual desktop web UI and APIs
+	ReadOnly                 bool             `yaml:"readonly" json:"readonly"`                                       // block writes while keeping the desktop browsable
+	AllowAgentControl        bool             `yaml:"allow_agent_control" json:"allow_agent_control"`                 // expose the virtual_desktop tool to the agent
+	AllowGeneratedApps       bool             `yaml:"allow_generated_apps" json:"allow_generated_apps"`               // allow generated JS apps and widgets
+	AllowPythonJobs          bool             `yaml:"allow_python_jobs" json:"allow_python_jobs"`                     // allow desktop apps to request backend Python jobs via the agent
+	WorkspaceDir             string           `yaml:"workspace_dir" json:"workspace_dir"`                             // persistent desktop workspace root
+	MaxFileSizeMB            int              `yaml:"max_file_size_mb" json:"max_file_size_mb"`                       // max text file read/write size
+	ControlLevel             string           `yaml:"control_level" json:"control_level"`                             // "confirm_destructive" (default) or "trusted"
+	MaxWSClients             int              `yaml:"max_ws_clients" json:"max_ws_clients"`                           // max concurrent desktop websocket clients
+	RemoteMaxSessionMinutes  int              `yaml:"remote_max_session_minutes" json:"remote_max_session_minutes"`   // max SSH/VNC remote session duration
+	RemoteIdleTimeoutMinutes int              `yaml:"remote_idle_timeout_minutes" json:"remote_idle_timeout_minutes"` // idle timeout for SSH/VNC remote sessions
+	CodeStudio               CodeStudioConfig `yaml:"code_studio" json:"code_studio"`                                 // built-in Code Studio development container
 }
 
 // CodeStudioConfig holds settings for the lazy Code Studio dev container.
@@ -637,12 +639,30 @@ type Config struct {
 				MinSavingsPercent int  `yaml:"min_savings_percent"` // minimum net savings after table overhead (default: 10)
 				MaxRows           int  `yaml:"max_rows"`            // maximum homogeneous rows converted (default: 200)
 			} `yaml:"toon_json"`
+			SmartCrusher struct {
+				Enabled  bool `yaml:"enabled"`  // enable generic JSON array-of-objects compression (default: false)
+				MaxRows  int  `yaml:"max_rows"` // max rows to render before tail-truncation (default: 50)
+			} `yaml:"smart_crusher"`
+			Reversible struct {
+				Enabled     bool `yaml:"enabled"`      // enable reversible compression (archive originals) (default: false)
+				MaxAgeHours int  `yaml:"max_age_hours"` // max age of archived outputs in hours (default: 24)
+			} `yaml:"reversible"`
 		} `yaml:"output_compression"`
 
 		AnnouncementDetector struct {
 			Enabled    bool `yaml:"enabled"`     // enable structural text-only continuation recovery (default: true)
 			MaxRetries int  `yaml:"max_retries"` // max corrective retries per user turn (default: 2)
 		} `yaml:"announcement_detector"`
+
+		ImportanceScoring struct {
+			Enabled bool   `yaml:"enabled"` // enable importance-based history trimming (default: false)
+			Mode    string `yaml:"mode"`    // "log_only" (compute+log, don't trim) or "active" (trim)
+		} `yaml:"importance_scoring"`
+
+		AutoLearning struct {
+			Enabled bool   `yaml:"enabled"` // enable turn-based rule learning (default: false)
+			Mode    string `yaml:"mode"`    // "log_only" | "active"
+		} `yaml:"auto_learning"`
 
 		ReuseFirst struct {
 			AutoMaterialize        bool `yaml:"auto_materialize"`          // master toggle for automatic cheatsheet/skill creation after runs (default: true)

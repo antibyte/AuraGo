@@ -111,10 +111,9 @@ services:
       # Nur explizit gemountete Verzeichnisse sind zugänglich
       - ./data:/app/data
       - ./workspace:/app/workspace
+      - ./secrets:/run/optional-secrets:ro
     # Kein Zugriff auf Host-Docker (optional)
     # - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - AURAGO_MASTER_KEY=${MASTER_KEY}
     # Ressourcenlimits
     deploy:
       resources:
@@ -122,6 +121,8 @@ services:
           cpus: '2'
           memory: 4G
 ```
+
+Lege den Vault-Master-Key bevorzugt in `./secrets/aurago_master.key` ab oder nutze Docker Secrets.
 
 **Vorteile:**
 - Einfaches Backup (nur Volumes sichern)

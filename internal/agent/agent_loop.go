@@ -850,6 +850,21 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
+		// Learned Rules injection — only in active mode; log_only skips injection.
+		if cfg.Agent.AutoLearning.Enabled && cfg.Agent.AutoLearning.Mode == "active" &&
+			shortTermMem != nil && flags.Tier != "minimal" {
+			// Use adaptive filtering: only rules relevant to recently used tools.
+			recentTools := flags.RecentlyUsedTools
+			if len(recentTools) == 0 {
+				// Fallback: no tool filter, get top rules globally.
+				recentTools = nil
+			}
+			rules, lrErr := shortTermMem.GetLearnedRulesForTools(recentTools, 5)
+			if lrErr == nil && len(rules) > 0 {
+				flags.LearnedRulesContext = buildLearnedRulesContext(rules, 200)
+			}
+		}
+
 		// Phase D: Inject personality line before building system prompt
 		if !runCfg.IsMission && !isAutonomousRun && personalityEnabled && shortTermMem != nil {
 			if cfg.Personality.EngineV2 {
@@ -1081,24 +1096,52 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			broker.Send("thinking", "Trimming context window...")
 			s.currentLogger.Warn("[ContextGuard] Token limit exceeded before LLM call — trimming history",
 				"tokens", totalMsgTokens, "limit", maxHistoryTokens, "messages", len(req.Messages))
+			var droppedMessages []openai.ChatCompletionMessage
+			var mid []openai.ChatCompletionMessage
+
+			useImportance := s.runCfg.Config.Agent.ImportanceScoring.Enabled && s.runCfg.Config.Agent.ImportanceScoring.Mode == "active"
+			logOnly := s.runCfg.Config.Agent.ImportanceScoring.Enabled && s.runCfg.Config.Agent.ImportanceScoring.Mode == "log_only"
+
+			if useImportance {
+				originalMessages := make([]openai.ChatCompletionMessage, len(req.Messages))
+				copy(originalMessages, req.Messages)
+				var droppedIndices []int
+				req.Messages, droppedIndices, totalMsgTokens = TrimByImportance(req.Messages, maxHistoryTokens, req.Model, s.currentLogger)
+				for _, idx := range droppedIndices {
+					if idx < len(originalMessages) {
+						droppedMessages = append(droppedMessages, originalMessages[idx])
+					}
+				}
+				if len(req.Messages) >= 2 {
+					mid = req.Messages[1 : len(req.Messages)-1]
+				}
+			} else {
+				if logOnly {
+					_, droppedIndices, _ := TrimByImportance(req.Messages, maxHistoryTokens, req.Model, s.currentLogger)
+					s.currentLogger.Info("[ImportanceScoring] log_only mode — scores computed but not applied",
+						"would_drop_count", len(droppedIndices))
+				}
+				// Chronological trimming (oldest first).
+				// Always keep system (0), the latest message, and at least 4 recent messages.
+				const minPreservedMessages = 4
+				mid = req.Messages[1 : len(req.Messages)-1]
+				preserveFrom := len(mid)
+				if preserveFrom > minPreservedMessages {
+					preserveFrom = len(mid) - minPreservedMessages
+				}
+				for totalMsgTokens > maxHistoryTokens && len(mid) > preserveFrom {
+					dropped := mid[0]
+					droppedMessages = append(droppedMessages, dropped)
+					mid = mid[1:]
+					totalMsgTokens -= prompts.CountTokensForModel(messageText(dropped), req.Model) + 4
+				}
+				req.Messages = append([]openai.ChatCompletionMessage{req.Messages[0]}, append(mid, req.Messages[len(req.Messages)-1])...)
+			}
+
+			// Re-extract sysMsg/lastMsg after any trimming so they reflect the current state.
 			sysMsg := req.Messages[0]
 			lastMsg := req.Messages[len(req.Messages)-1]
-			var droppedMessages []openai.ChatCompletionMessage
-			// Drop messages from index 1 onward (oldest first) until we fit.
-			// Always keep system (0), the latest message, and at least 4 recent messages
-			// to preserve conversation context continuity.
-			const minPreservedMessages = 4
-			mid := req.Messages[1 : len(req.Messages)-1]
-			preserveFrom := len(mid)
-			if preserveFrom > minPreservedMessages {
-				preserveFrom = len(mid) - minPreservedMessages
-			}
-			for totalMsgTokens > maxHistoryTokens && len(mid) > preserveFrom {
-				dropped := mid[0]
-				droppedMessages = append(droppedMessages, dropped)
-				mid = mid[1:]
-				totalMsgTokens -= prompts.CountTokensForModel(messageText(dropped), req.Model) + 4
-			}
+
 			trimmedMessages := []openai.ChatCompletionMessage{sysMsg}
 			remainingRecapBudget := maxHistoryTokens - totalMsgTokens - 4
 			if recap := buildTrimmedContextRecap(droppedMessages, remainingRecapBudget); recap != "" {
@@ -1108,10 +1151,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				})
 				totalMsgTokens += prompts.CountTokensForModel(recap, req.Model) + 4
 			}
-			req.Messages = append(trimmedMessages, append(mid, lastMsg)...)
+			if useImportance {
+				req.Messages = append(trimmedMessages, mid...)
+				req.Messages = append(req.Messages, lastMsg)
+			} else {
+				req.Messages = append(trimmedMessages, append(mid, lastMsg)...)
+			}
 			req.Messages = trim422Messages(req.Messages)
 			s.currentLogger.Info("[ContextGuard] History trimmed",
-				"remaining_messages", len(req.Messages), "estimated_tokens", totalMsgTokens, "dropped_messages", len(droppedMessages))
+				"remaining_messages", len(req.Messages), "estimated_tokens", totalMsgTokens, "dropped_messages", len(droppedMessages), "mode", s.runCfg.Config.Agent.ImportanceScoring.Mode)
 		}
 
 		// Verbose Logging of LLM Request

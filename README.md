@@ -74,9 +74,10 @@ services:
     volumes:
       - ./data:/app/data
       - ./config.yaml:/app/config.yaml
-    environment:
-      - AURAGO_MASTER_KEY=${AURAGO_MASTER_KEY}
+      - ./secrets:/run/optional-secrets:ro
 ```
+
+Create `./secrets/aurago_master.key` with a 64-character hex key, or let AuraGo generate one into the persistent data volume on first start.
 
 ### Option C — Build from Source
 

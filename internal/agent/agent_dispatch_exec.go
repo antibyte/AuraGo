@@ -1052,6 +1052,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		case "yaml_editor":
 			return dispatchFilesystem(ctx, tc, dc)
 
+		case "toml_editor":
+			return dispatchFilesystem(ctx, tc, dc)
+
 		case "xml_editor":
 			return dispatchFilesystem(ctx, tc, dc)
 
@@ -1563,6 +1566,22 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			return res
 
+		case "certificate_manager":
+			req := decodeCertificateManagerArgs(tc)
+			op := strings.TrimSpace(strings.ToLower(req.Operation))
+			switch op {
+			case "check_remote":
+				if !cfg.Agent.AllowNetworkRequests {
+					return "Tool Output: [PERMISSION DENIED] certificate_manager check_remote is disabled in Danger Zone settings (agent.allow_network_requests: false)."
+				}
+			case "generate_self_signed":
+				if !cfg.Agent.AllowFilesystemWrite {
+					return "Tool Output: [PERMISSION DENIED] certificate_manager generate_self_signed is disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
+				}
+			}
+			logger.Info("LLM requested certificate_manager operation", "op", op, "host", req.Hostname, "file_path", req.FilePath)
+			return tools.ExecuteCertificateManager(op, req.FilePath, req.Hostname, req.Port, req.Domain, req.OutputDir, req.Days, cfg.Directories.WorkspaceDir)
+
 		case "yepapi_scrape":
 			if !cfg.YepAPI.Enabled || !cfg.YepAPI.Scraping.Enabled {
 				return `Tool Output: {"status":"error","message":"YepAPI Scraping is disabled. Enable it in Settings > YepAPI > Scraping."}`
@@ -1685,6 +1704,37 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				budgetTracker.RecordCostForCategory("yepapi", 0.015)
 			}
 			return res
+
+		case "retrieve_original_output":
+			toolCallID := stringValueFromMap(tc.Params, "tool_call_id")
+			reason := stringValueFromMap(tc.Params, "reason")
+			if toolCallID == "" {
+				return `Tool Output: {"status":"error","message":"tool_call_id is required"}`
+			}
+			if shortTermMem == nil {
+				return `Tool Output: {"status":"error","message":"Short-term memory is not available"}`
+			}
+			out, err := shortTermMem.RetrieveCompressedOutput(ctx, dc.SessionID, toolCallID)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+			}
+			_ = shortTermMem.MarkCompressedOutputAccessed(ctx, out.ID)
+			content := out.OriginalContent
+			const maxRetrievableOriginalChars = 32000
+			truncated := false
+			if len(content) > maxRetrievableOriginalChars {
+				content = content[:maxRetrievableOriginalChars] +
+					fmt.Sprintf("\n[TRUNCATED: original was %d chars, retrieved first %d]",
+						len(out.OriginalContent), maxRetrievableOriginalChars)
+				truncated = true
+			}
+			header := fmt.Sprintf("[ORIGINAL OUTPUT for %s — filter=%s ratio=%.2f%s]\n",
+				out.ToolName, out.FilterUsed, out.CompressionRatio,
+				map[bool]string{true: " retrieved_partially", false: ""}[truncated])
+			if reason != "" {
+				dc.Logger.Debug("CCR retrieval", "tool_call_id", toolCallID, "reason", reason, "filter", out.FilterUsed)
+			}
+			return header + content
 
 		default:
 			handled = false

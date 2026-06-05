@@ -38,6 +38,24 @@ func TestSecurityHeadersAllowEmbedsForYouTubeAndDesktopStoreApps(t *testing.T) {
 	}
 }
 
+func TestSecurityHeadersMainCSPDoesNotAllowUnsafeEval(t *testing.T) {
+	handler := securityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}), false, false)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	handler.ServeHTTP(rec, req)
+
+	csp := rec.Header().Get("Content-Security-Policy")
+	if strings.Contains(csp, "'unsafe-eval'") {
+		t.Fatalf("Content-Security-Policy must not allow unsafe-eval: %s", csp)
+	}
+	if !strings.Contains(csp, "script-src 'self' 'unsafe-inline'") {
+		t.Fatalf("Content-Security-Policy lost required script-src baseline: %s", csp)
+	}
+}
+
 func TestSecurityHeadersAllowFirstPartyDesktopWidgetConnectOrigins(t *testing.T) {
 	handler := securityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)

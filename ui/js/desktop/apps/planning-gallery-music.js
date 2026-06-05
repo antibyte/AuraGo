@@ -689,6 +689,11 @@
                 <div class="vd-qc-search">
                     <input type="search" autocomplete="off" spellcheck="false" data-i18n-placeholder="desktop.qc_search_placeholder">
                 </div>
+                <div class="vd-qc-filters" role="group" aria-label="${esc(t('desktop.qc_filter_protocol'))}">
+                    <button class="vd-qc-filter active" type="button" data-qc-filter="all">${iconMarkup('server', 'A', 'vd-qc-filter-icon', 13)}<span>${esc(t('desktop.qc_filter_all'))}</span></button>
+                    <button class="vd-qc-filter" type="button" data-qc-filter="ssh">${iconMarkup('terminal', 'T', 'vd-qc-filter-icon', 13)}<span>${esc(t('desktop.qc_protocol_ssh'))}</span></button>
+                    <button class="vd-qc-filter" type="button" data-qc-filter="vnc">${iconMarkup('monitor', 'V', 'vd-qc-filter-icon', 13)}<span>${esc(t('desktop.qc_protocol_vnc'))}</span></button>
+                </div>
                 <div class="vd-qc-device-list" data-device-list>${esc(t('desktop.loading'))}</div>
             </div>
             <div class="vd-qc-terminal-area" data-terminal-area>
@@ -712,6 +717,7 @@
         const terminalArea = host.querySelector('[data-terminal-area]');
         const tabContent = host.querySelector('[data-tab-content]');
         const qcTabs = host.querySelector('[data-qc-tabs]');
+        const filterButtons = Array.from(host.querySelectorAll('[data-qc-filter]'));
         let activeWS = null;
         let activeTerm = null;
         let activeFitAddon = null;
@@ -719,6 +725,7 @@
         let cachedDevices = null;
         let cachedCredentials = null;
         let activeTab = 'terminal';
+        let activeProtocolFilter = 'all';
         let connectedDeviceId = null;
         let connectedProtocol = null;
 
@@ -746,6 +753,13 @@
         loadAll();
 
         searchInput.addEventListener('input', () => filterDevices());
+        filterButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                activeProtocolFilter = btn.dataset.qcFilter || 'all';
+                filterButtons.forEach(item => item.classList.toggle('active', item === btn));
+                filterDevices();
+            });
+        });
 
         async function loadAll() {
             deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.loading'))}</div>`;
@@ -793,11 +807,11 @@
 
         function renderDeviceList(devices) {
             const query = searchInput.value.trim().toLowerCase();
-            const filtered = query ? devices.filter(d =>
+            const filtered = devices.filter(d => protocolMatchesFilter(d) && (!query ||
                 (d.name || '').toLowerCase().includes(query) ||
                 (d.ip_address || '').toLowerCase().includes(query) ||
                 (d.description || '').toLowerCase().includes(query)
-            ) : devices;
+            ));
             if (!filtered.length) {
                 deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.qc_no_devices'))}</div>`;
                 return;
@@ -831,6 +845,11 @@
                     if (dev) showDeviceContextMenu(e.clientX, e.clientY, dev);
                 });
             });
+        }
+
+        function protocolMatchesFilter(device) {
+            if (activeProtocolFilter === 'all') return true;
+            return String(device && device.protocol || 'ssh').toLowerCase() === activeProtocolFilter;
         }
 
         function filterDevices() {

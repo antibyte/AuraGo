@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -87,6 +88,7 @@ func toolCallForExecutionTracking(tc ToolCall) ToolCall {
 }
 
 func finalizeToolExecution(
+	ctx context.Context,
 	tc ToolCall,
 	rawContent string,
 	guardianBlocked bool,
@@ -134,9 +136,34 @@ func finalizeToolExecution(
 				MinSavingsPercent: cfg.Agent.OutputCompression.TOONJSON.MinSavingsPercent,
 				MaxRows:           cfg.Agent.OutputCompression.TOONJSON.MaxRows,
 			},
+			SmartCrusher: outputcompress.SmartCrusherConfig{
+				Enabled:  cfg.Agent.OutputCompression.SmartCrusher.Enabled,
+				MaxRows:  cfg.Agent.OutputCompression.SmartCrusher.MaxRows,
+				TailRows: 5,
+				MaxCols:  20,
+			},
 		}
+		originalContent := rawContent
 		var compStats outputcompress.CompressionStats
 		rawContent, compStats = outputcompress.Compress(trackingTC.Action, trackingTC.Command, rawContent, compCfg)
+
+		// CCR: archive original output when reversible compression is enabled,
+		// we are on the native tool path, and meaningful compression occurred.
+		if cfg.Agent.OutputCompression.Reversible.Enabled &&
+			tc.NativeCallID != "" &&
+			compStats.Ratio < 0.95 &&
+			shortTermMem != nil {
+			_ = shortTermMem.StoreCompressedOutput(ctx, &memory.CompressedToolOutput{
+				SessionID:         sessionID,
+				ToolCallID:        tc.NativeCallID,
+				ToolName:          trackingTC.Action,
+				OriginalContent:   originalContent,
+				CompressedContent: rawContent,
+				CompressionRatio:  compStats.Ratio,
+				FilterUsed:        compStats.FilterUsed,
+			})
+		}
+
 		if compStats.Ratio < 1.0 {
 			logger.Debug("output compressed",
 				"tool", trackingTC.Action,
@@ -232,10 +259,30 @@ func finalizeToolExecution(
 		if err := shortTermMem.RecordResolution(trackingTC.Action, resolutionErr, "Succeeded with adjusted parameters"); err != nil {
 			logToolMemoryWarning(logger, "Failed to persist tool resolution", trackingTC.Action, err)
 		}
+
+		// Trigger A: Recovery success → generate learned rule if this error has
+		// recurred at least twice (indicating a pattern worth remembering).
+		if cfg != nil && cfg.Agent.AutoLearning.Enabled {
+			count, _ := shortTermMem.GetErrorCountInSession(trackingTC.Action, resolutionErr)
+			if count >= 2 {
+				go GenerateLearnedRule(ctx, shortTermMem, trackingTC.Action, resolutionErr, "Succeeded with adjusted parameters", logger)
+			}
+		}
 	}
 
+	circuitBroken := false
 	if recoveryState != nil && req != nil {
-		_ = recoveryState.updateToolErrorState(trackingTC, resultContent, req, logger, scope, promptVersion, execTimeMs)
+		circuitBroken = recoveryState.updateToolErrorState(trackingTC, resultContent, req, logger, scope, promptVersion, execTimeMs)
+	}
+
+	// Trigger B: Circuit breaker triggered (≥3 identical consecutive errors) →
+	// generate a learned rule so the agent remembers how to avoid this loop.
+	if circuitBroken && cfg != nil && cfg.Agent.AutoLearning.Enabled && shortTermMem != nil {
+		errMsg := extractErrorMessage(recoveryState.LastToolError)
+		if errMsg == "" {
+			errMsg = recoveryState.LastToolError
+		}
+		go GenerateLearnedRule(ctx, shortTermMem, trackingTC.Action, errMsg, "", logger)
 	}
 
 	return toolExecutionResult{

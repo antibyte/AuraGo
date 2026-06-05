@@ -200,6 +200,31 @@ func (s *SQLiteMemory) GetErrorPatternsCount() (int, error) {
 	return count, nil
 }
 
+// GetErrorCountInSession returns how many times a specific error pattern has
+// been recorded for a given tool in the current session. Since error_patterns
+// does not store session_id per occurrence, this is a best-effort count based
+// on the occurrence_count field (which is global, not session-scoped).
+// For session-scoped tracking we would need a separate table; this function
+// returns the global occurrence count as a proxy.
+func (s *SQLiteMemory) GetErrorCountInSession(toolName, errorMsg string) (int, error) {
+	if toolName == "" || errorMsg == "" {
+		return 0, nil
+	}
+	errorMsg = normalizeErrorMsg(errorMsg)
+	var count int
+	err := s.db.QueryRow(
+		`SELECT occurrence_count FROM error_patterns WHERE tool_name = ? AND error_message = ?`,
+		toolName, errorMsg,
+	).Scan(&count)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("get error count: %w", err)
+	}
+	return count, nil
+}
+
 // CleanOldErrorPatterns deletes unresolved error patterns whose last_seen is
 // older than the given number of days. Resolved patterns are kept regardless
 // because they encode actionable knowledge. Returns the number of rows deleted.

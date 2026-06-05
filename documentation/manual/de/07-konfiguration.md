@@ -523,8 +523,11 @@ services:
     environment:
       - AURAGO_SERVER_HOST=0.0.0.0
       - LLM_API_KEY=${LLM_API_KEY}
-      - AURAGO_MASTER_KEY=${MASTER_KEY}
+    volumes:
+      - ./secrets:/run/optional-secrets:ro
 ```
+
+Lege den Vault-Master-Key bevorzugt in `./secrets/aurago_master.key` ab oder nutze Docker Secrets. Wenn kein Key gemountet ist, erzeugt AuraGo beim ersten Start einen Key im persistenten Datenvolume.
 
 ---
 

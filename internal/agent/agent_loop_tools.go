@@ -77,7 +77,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		toolAction = startAgentToolAction(currentLogger, actionLedger, toolAction)
 		pResultContent = DispatchToolCall(ctx, &ptc, dispatchCtx, lastUserMsg)
 	}
-	policyResult := finalizeToolExecution(ptc, pResultContent, ptc.GuardianBlocked, cfg, shortTermMem, sessionID,
+	policyResult := finalizeToolExecution(ctx, ptc, pResultContent, ptc.GuardianBlocked, cfg, shortTermMem, sessionID,
 		&s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(ptc.Action),
 		dispatchCtx.ExecutionTimeMs)
 	pResultContent = policyResult.Content
@@ -306,7 +306,7 @@ func executeAgentToolTurn(
 	dispatchCtx := s.makeDispatchContext(currentLogger)
 	toolAction = startAgentToolAction(currentLogger, actionLedger, toolAction)
 	resultContent := DispatchToolCall(ctx, &tc, dispatchCtx, lastUserMsg)
-	policyResult := finalizeToolExecution(tc, resultContent, tc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(tc.Action), dispatchCtx.ExecutionTimeMs)
+	policyResult := finalizeToolExecution(ctx, tc, resultContent, tc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(tc.Action), dispatchCtx.ExecutionTimeMs)
 	resultContent = policyResult.Content
 	if policyResult.Failed {
 		recordToolFailureOperationalIssue(s.runCfg, tc, resultContent, currentLogger)
@@ -516,7 +516,7 @@ func executeAgentToolTurn(
 				batchedAction = startAgentToolAction(currentLogger, batchedLedger, batchedAction)
 				bResult = DispatchToolCall(ctx, &btc, nativeDispatchCtx, lastUserMsg)
 			}
-			policyResult := finalizeToolExecution(btc, bResult, btc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(btc.Action), nativeDispatchCtx.ExecutionTimeMs)
+			policyResult := finalizeToolExecution(ctx, btc, bResult, btc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(btc.Action), nativeDispatchCtx.ExecutionTimeMs)
 			bResult = policyResult.Content
 			if policyResult.Failed {
 				recordToolFailureOperationalIssue(s.runCfg, btc, bResult, currentLogger)

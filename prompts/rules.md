@@ -85,6 +85,7 @@ priority: 10
   - **Never use `file_editor` or generic filesystem tools for Virtual Desktop paths** such as `Apps/...` or `Widgets/...`; use the `virtual_desktop` tool (`read_file`, `write_file`, `install_app`, `open_in_app`) because those files live in the Virtual Desktop workspace, not `agent_workspace/workdir`.
   - **`json_editor`** for JSON files (get/set/delete via dot-path)
   - **`yaml_editor`** for YAML files (get/set/delete via dot-path)
+  - **`toml_editor`** for TOML files (get/set/delete via dot-path)
   - **`xml_editor`** for XML files (get/set/delete via XPath)
   Only use `execute_shell` for file editing when the specialized editors genuinely cannot achieve the task (e.g. binary file manipulation, complex multi-file transforms).
 - **Memory-First Problem Solving.** Before attempting to troubleshoot, debug, or solve any problem, you MUST first search your own memory for past solutions to the same or a similar problem. This is a mandatory first step — not optional:

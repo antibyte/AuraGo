@@ -262,11 +262,11 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		}
 	}
 
-	if guardian != nil {
-		if scan := guardian.ScanForInjection(inputText); scan.Level >= security.ThreatHigh {
-			logger.Warn("[Telegram] Prompt injection detected in message",
-				"user_id", msg.From.ID, "level", scan.Level, "patterns", scan.Patterns)
+	if shouldBlockTelegramPromptInjection(inputText, guardian, logger, msg.From.ID) {
+		if err := sendTelegramMessage(bot, msg.From.ID, "Your message was blocked by the security guardian."); err != nil {
+			logger.Error("Failed to send Telegram security block notice", "error", err)
 		}
+		return
 	}
 	inputText = security.IsolateExternalData(inputText)
 
@@ -421,6 +421,21 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 			}
 		}
 	}
+}
+
+func shouldBlockTelegramPromptInjection(inputText string, guardian *security.Guardian, logger *slog.Logger, userID int64) bool {
+	if guardian == nil {
+		return false
+	}
+	scan := guardian.ScanForInjection(inputText)
+	if scan.Level < security.ThreatHigh {
+		return false
+	}
+	if logger != nil {
+		logger.Warn("[Telegram] Prompt injection BLOCKED - message discarded",
+			"user_id", userID, "level", scan.Level, "patterns", scan.Patterns)
+	}
+	return true
 }
 
 func sendTelegramMessage(bot *tgbotapi.BotAPI, chatID int64, text string) error {

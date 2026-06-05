@@ -54,7 +54,7 @@ func TestGenerateSharedKey_Unique(t *testing.T) {
 func TestExportVaultForEgg_EmptyVault(t *testing.T) {
 	vault, _ := testVault(t)
 
-	data, keyHex, err := ExportVaultForEgg(vault)
+	data, keyHex, err := ExportVaultForEgg(vault, nil)
 	if err != nil {
 		t.Fatalf("ExportVaultForEgg: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestExportVaultForEgg_EmptyVault(t *testing.T) {
 	}
 }
 
-func TestExportVaultForEgg_RoundTrip(t *testing.T) {
+func TestExportVaultForEgg_ExportsOnlyAllowedKeys(t *testing.T) {
 	vault, _ := testVault(t)
 
 	// Write some secrets
@@ -83,7 +83,7 @@ func TestExportVaultForEgg_RoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	data, keyHex, err := ExportVaultForEgg(vault)
+	data, keyHex, err := ExportVaultForEgg(vault, []string{"api_key"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,16 +92,16 @@ func TestExportVaultForEgg_RoundTrip(t *testing.T) {
 	if secrets["api_key"] != "sk-test-123" {
 		t.Errorf("api_key = %q", secrets["api_key"])
 	}
-	if secrets["db_password"] != "s3cret" {
-		t.Errorf("db_password = %q", secrets["db_password"])
+	if _, ok := secrets["db_password"]; ok {
+		t.Error("db_password must not be exported when it is not explicitly allowed")
 	}
 }
 
 func TestExportVaultForEgg_UniqueKeys(t *testing.T) {
 	vault, _ := testVault(t)
 
-	_, key1, _ := ExportVaultForEgg(vault)
-	_, key2, _ := ExportVaultForEgg(vault)
+	_, key1, _ := ExportVaultForEgg(vault, nil)
+	_, key2, _ := ExportVaultForEgg(vault, nil)
 
 	if key1 == key2 {
 		t.Error("each export should produce a unique key")
@@ -112,8 +112,8 @@ func TestExportVaultForEgg_EncryptionChanges(t *testing.T) {
 	vault, _ := testVault(t)
 	vault.WriteSecret("test", "value")
 
-	data1, _, _ := ExportVaultForEgg(vault)
-	data2, _, _ := ExportVaultForEgg(vault)
+	data1, _, _ := ExportVaultForEgg(vault, []string{"test"})
+	data2, _, _ := ExportVaultForEgg(vault, []string{"test"})
 
 	// Different keys + nonces → different ciphertext
 	if string(data1) == string(data2) {
@@ -125,7 +125,7 @@ func TestExportVaultForEgg_CanCreateEggVault(t *testing.T) {
 	vault, _ := testVault(t)
 	vault.WriteSecret("token", "abc123")
 
-	_, eggKeyHex, err := ExportVaultForEgg(vault)
+	_, eggKeyHex, err := ExportVaultForEgg(vault, []string{"token"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +186,7 @@ func TestExportVaultForEgg_NoFileLeak(t *testing.T) {
 	vault, dir := testVault(t)
 	vault.WriteSecret("secret", "value")
 
-	ExportVaultForEgg(vault)
+	ExportVaultForEgg(vault, []string{"secret"})
 
 	// No extra files should appear in temp dir (only vault.bin and vault.bin.lock)
 	entries, _ := os.ReadDir(dir)

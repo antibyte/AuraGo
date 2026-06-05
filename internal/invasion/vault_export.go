@@ -8,22 +8,27 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	"aurago/internal/security"
 )
 
-// ExportVaultForEgg reads all secrets from the master vault, serialises them
+// ExportVaultForEgg reads explicitly allowed secrets from the master vault, serialises them
 // to JSON, and encrypts the blob with a freshly generated AES-256 key.
 // Returns the encrypted data and the new key (hex-encoded).
 // The egg will use this key as its AURAGO_MASTER_KEY to open its own vault.
-func ExportVaultForEgg(vault *security.Vault) (encryptedData []byte, newKeyHex string, err error) {
-	keys, err := vault.ListKeys()
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to list vault keys: %w", err)
-	}
-
-	secrets := make(map[string]string, len(keys))
-	for _, k := range keys {
+func ExportVaultForEgg(vault *security.Vault, allowedKeys []string) (encryptedData []byte, newKeyHex string, err error) {
+	secrets := make(map[string]string, len(allowedKeys))
+	seen := make(map[string]struct{}, len(allowedKeys))
+	for _, k := range allowedKeys {
+		k = strings.TrimSpace(k)
+		if k == "" {
+			continue
+		}
+		if _, ok := seen[k]; ok {
+			continue
+		}
+		seen[k] = struct{}{}
 		val, err := vault.ReadSecret(k)
 		if err != nil {
 			return nil, "", fmt.Errorf("failed to read vault key %q: %w", k, err)

@@ -47,6 +47,7 @@ var blockedSecretPrefixes = []string{
 	"desktop_store_",
 	"oauth_",
 	"mcp_secret_",
+	"a2a_remote_",
 	"music_minimax_",
 	"music_google_lyria_",
 }
@@ -94,6 +95,10 @@ var blockedSecretExact = map[string]struct{}{
 	"onedrive_client_secret":      {},
 	"onedrive_device_code":        {},
 	"sudo_password":               {},
+	"a2a_api_key":                 {},
+	"a2a_bearer_secret":           {},
+	"egg_shared_key":              {},
+	"truenas_api_key":             {},
 }
 
 // IsPythonAccessibleSecret returns true only if the vault key is a user/agent-created

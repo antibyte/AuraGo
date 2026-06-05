@@ -243,6 +243,7 @@ func TestToolSchemaManualSync(t *testing.T) {
 		"wake_on_lan":                true, // simple WOL packet
 		"call_webhook":               true, // just triggers a named webhook
 		"manage_webhooks":            true, // covered by webhook docs
+		"retrieve_original_output":   true, // simple meta-tool for compressed output retrieval
 		"manage_outgoing_webhooks":   true, // covered by webhook docs
 		"query_inventory":            true, // simple query tool
 		"register_device":            true, // simple registration
@@ -875,6 +876,25 @@ func TestBuiltinToolSchemasFilesystemIncludesBatchOperations(t *testing.T) {
 	}
 
 	t.Fatal("filesystem schema not found")
+}
+
+func TestBuiltinToolSchemasIncludeTomlEditor(t *testing.T) {
+	fullSchemas := builtinToolSchemas(ToolFeatureFlags{AllowFilesystemWrite: true})
+	if !containsName(toolNames(fullSchemas), "toml_editor") {
+		t.Fatalf("writable schemas missing toml_editor: %v", toolNames(fullSchemas))
+	}
+
+	readOnlySchemas := builtinToolSchemas(ToolFeatureFlags{AllowFilesystemWrite: false})
+	if !containsName(toolNames(readOnlySchemas), "toml_editor") {
+		t.Fatalf("read-only schemas missing toml_editor: %v", toolNames(readOnlySchemas))
+	}
+}
+
+func TestBuiltinToolSchemasIncludeCertificateManager(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{})
+	if !containsName(toolNames(schemas), "certificate_manager") {
+		t.Fatalf("schemas missing certificate_manager: %v", toolNames(schemas))
+	}
 }
 
 func TestBuiltinToolSchemasHomepageUsesSubOperationField(t *testing.T) {

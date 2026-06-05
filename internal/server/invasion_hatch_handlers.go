@@ -23,7 +23,14 @@ import (
 
 func handleInvasionNestHatch(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if s.InvasionDB == nil || r.Method != http.MethodPost {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if invasionReadonlyMutationBlocked(s, w) {
+			return
+		}
+		if s.InvasionDB == nil {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
@@ -98,7 +105,7 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 	var vaultData []byte
 	var eggMasterKey string
 	if egg.IncludeVault {
-		vaultData, eggMasterKey, err = invasion.ExportVaultForEgg(s.Vault)
+		vaultData, eggMasterKey, err = invasion.ExportVaultForEgg(s.Vault, eggVaultExportKeys(egg, nest))
 		if err != nil {
 			return fmt.Errorf("failed to export vault: %w", err)
 		}
@@ -211,6 +218,33 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 	}
 
 	return nil
+}
+
+func eggVaultExportKeys(egg invasion.EggRecord, nest invasion.NestRecord) []string {
+	keys := make([]string, 0, 2)
+	seen := make(map[string]struct{}, 2)
+	add := func(key string) {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			return
+		}
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		keys = append(keys, key)
+	}
+	add(egg.APIKeyRef)
+	add(nest.VaultSecretID)
+	return keys
+}
+
+func invasionReadonlyMutationBlocked(s *Server, w http.ResponseWriter) bool {
+	if s != nil && s.Cfg != nil && s.Cfg.InvasionControl.ReadOnly {
+		jsonError(w, "Invasion Control is in read-only mode", http.StatusForbidden)
+		return true
+	}
+	return false
 }
 
 func (s *Server) storeEggSharedKey(nestID, sharedKey string) error {
@@ -336,7 +370,14 @@ func resolveBinaryPath(targetArch string) (string, error) {
 
 func handleInvasionNestStop(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if s.InvasionDB == nil || r.Method != http.MethodPost {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if invasionReadonlyMutationBlocked(s, w) {
+			return
+		}
+		if s.InvasionDB == nil {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
@@ -426,7 +467,14 @@ func handleInvasionNestHatchStatus(s *Server) http.HandlerFunc {
 
 func handleInvasionNestSendSecret(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if s.InvasionDB == nil || r.Method != http.MethodPost {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if invasionReadonlyMutationBlocked(s, w) {
+			return
+		}
+		if s.InvasionDB == nil {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
@@ -585,7 +633,14 @@ func handleInvasionWebSocket(s *Server) http.HandlerFunc {
 
 func handleInvasionNestSendTask(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if s.InvasionDB == nil || r.Method != http.MethodPost {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if invasionReadonlyMutationBlocked(s, w) {
+			return
+		}
+		if s.InvasionDB == nil {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
@@ -652,7 +707,14 @@ func handleInvasionNestSendTask(s *Server) http.HandlerFunc {
 
 func handleInvasionNestRotateKey(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if s.InvasionDB == nil || r.Method != http.MethodPost {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if invasionReadonlyMutationBlocked(s, w) {
+			return
+		}
+		if s.InvasionDB == nil {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
@@ -747,7 +809,14 @@ func handleInvasionTask(s *Server) http.HandlerFunc {
 
 func handleInvasionNestRollback(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if s.InvasionDB == nil || r.Method != http.MethodPost {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if invasionReadonlyMutationBlocked(s, w) {
+			return
+		}
+		if s.InvasionDB == nil {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
@@ -826,7 +895,14 @@ func handleInvasionNestDeployments(s *Server) http.HandlerFunc {
 // Body: SafeConfigPatch JSON
 func handleInvasionNestSafeReconfigure(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if s.InvasionDB == nil || r.Method != http.MethodPost {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if invasionReadonlyMutationBlocked(s, w) {
+			return
+		}
+		if s.InvasionDB == nil {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
@@ -990,7 +1066,14 @@ func handleInvasionNestConfigHistory(s *Server) http.HandlerFunc {
 // Body: {"revision_id": "..."}
 func handleInvasionNestConfigRollback(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if s.InvasionDB == nil || r.Method != http.MethodPost {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if invasionReadonlyMutationBlocked(s, w) {
+			return
+		}
+		if s.InvasionDB == nil {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}

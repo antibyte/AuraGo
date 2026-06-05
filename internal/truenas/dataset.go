@@ -199,12 +199,12 @@ func (c *Client) UpdateDatasetCompression(ctx context.Context, name, compression
 }
 
 // UpdateDatasetReadonly sets the readonly property.
-func (c *Client) UpdateDatasetReadonly(ctx context.Context, name string, readonly bool) {
+func (c *Client) UpdateDatasetReadonly(ctx context.Context, name string, readonly bool) error {
 	value := "off"
 	if readonly {
 		value = "on"
 	}
-	c.UpdateDataset(ctx, name, map[string]interface{}{
+	return c.UpdateDataset(ctx, name, map[string]interface{}{
 		"readonly": value,
 	})
 }

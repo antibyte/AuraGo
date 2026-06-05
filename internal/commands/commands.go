@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"database/sql"
 	"os"
 	"path/filepath"
@@ -33,7 +34,7 @@ type Context struct {
 // Command defines the interface for a slash command.
 type Command interface {
 	Execute(args []string, ctx Context) (string, error)
-	Help() string
+	Help(lang string) string
 }
 
 var registry = make(map[string]Command)
@@ -53,11 +54,8 @@ func Handle(input string, ctx Context) (string, bool, error) {
 	cmdName := parts[0][1:] // Remove leading slash
 	args := parts[1:]
 
-	// Default to German if no language set
-	lang := ctx.Lang
-	if lang == "" {
-		lang = "de"
-	}
+	lang := commandLang(ctx.Lang)
+	ctx.Lang = lang
 
 	cmd, exists := registry[cmdName]
 	if !exists {
@@ -66,6 +64,13 @@ func Handle(input string, ctx Context) (string, bool, error) {
 
 	result, err := cmd.Execute(args, ctx)
 	return result, true, err
+}
+
+func commandLang(lang string) string {
+	if strings.TrimSpace(lang) == "" {
+		return "de"
+	}
+	return lang
 }
 
 // ResetCommand clears the chat history.
@@ -86,6 +91,13 @@ func (c *ResetCommand) Execute(args []string, ctx Context) (string, error) {
 	if sessionID == "default" {
 		agent.ResetInnerVoiceState()
 	}
+
+	// Trigger C: On-Reset — run a lightweight session retrospective to generate
+	// learned rules from recurring errors that were resolved during the session.
+	if ctx.Cfg != nil && ctx.Cfg.Agent.AutoLearning.Enabled && ctx.STM != nil {
+		go agent.RunSessionRetro(context.Background(), ctx.STM, sessionID, nil)
+	}
+
 	return i18n.T(ctx.Lang, "backend.cmd_reset_success"), nil
 }
 
@@ -97,8 +109,8 @@ func commandSessionID(ctx Context) string {
 	return sessionID
 }
 
-func (c *ResetCommand) Help() string {
-	return i18n.T("de", "backend.cmd_reset_help")
+func (c *ResetCommand) Help(lang string) string {
+	return i18n.T(commandLang(lang), "backend.cmd_reset_help")
 }
 
 // HelpCommand lists all available commands.
@@ -108,13 +120,13 @@ func (c *HelpCommand) Execute(args []string, ctx Context) (string, error) {
 	var sb strings.Builder
 	sb.WriteString(i18n.T(ctx.Lang, "backend.cmd_help_header") + "\n\n")
 	for name, cmd := range registry {
-		sb.WriteString("• /" + name + ": " + cmd.Help() + "\n")
+		sb.WriteString("• /" + name + ": " + cmd.Help(ctx.Lang) + "\n")
 	}
 	return sb.String(), nil
 }
 
-func (c *HelpCommand) Help() string {
-	return i18n.T("de", "backend.cmd_help_help")
+func (c *HelpCommand) Help(lang string) string {
+	return i18n.T(commandLang(lang), "backend.cmd_help_help")
 }
 
 // StopCommand shuts down the agent.
@@ -125,8 +137,8 @@ func (c *StopCommand) Execute(args []string, ctx Context) (string, error) {
 	return i18n.T(ctx.Lang, "backend.cmd_stop_success"), nil
 }
 
-func (c *StopCommand) Help() string {
-	return i18n.T("de", "backend.cmd_stop_help")
+func (c *StopCommand) Help(lang string) string {
+	return i18n.T(commandLang(lang), "backend.cmd_stop_help")
 }
 
 // RestartCommand restarts the agent.
@@ -140,8 +152,8 @@ func (c *RestartCommand) Execute(args []string, ctx Context) (string, error) {
 	return i18n.T(ctx.Lang, "backend.cmd_restart_success"), nil
 }
 
-func (c *RestartCommand) Help() string {
-	return i18n.T("de", "backend.cmd_restart_help")
+func (c *RestartCommand) Help(lang string) string {
+	return i18n.T(commandLang(lang), "backend.cmd_restart_help")
 }
 
 // DebugCommand toggles the agent's debug mode (extra debug instructions in the system prompt).
@@ -171,8 +183,8 @@ func (c *DebugCommand) Execute(args []string, ctx Context) (string, error) {
 	return i18n.T(ctx.Lang, "backend.cmd_debug_disabled"), nil
 }
 
-func (c *DebugCommand) Help() string {
-	return i18n.T("de", "backend.cmd_debug_help")
+func (c *DebugCommand) Help(lang string) string {
+	return i18n.T(commandLang(lang), "backend.cmd_debug_help")
 }
 
 // PersonalityCommand manages the agent's core personality.
@@ -223,8 +235,8 @@ func (c *PersonalityCommand) Execute(args []string, ctx Context) (string, error)
 	return i18n.T(ctx.Lang, "backend.cmd_personality_changed", target), nil
 }
 
-func (c *PersonalityCommand) Help() string {
-	return i18n.T("de", "backend.cmd_personality_help")
+func (c *PersonalityCommand) Help(lang string) string {
+	return i18n.T(commandLang(lang), "backend.cmd_personality_help")
 }
 
 // VoiceCommand toggles voice output mode (TTS auto-play / voice notes).
@@ -253,8 +265,8 @@ func (c *VoiceCommand) Execute(args []string, ctx Context) (string, error) {
 	return i18n.T(ctx.Lang, "backend.cmd_voice_disabled"), nil
 }
 
-func (c *VoiceCommand) Help() string {
-	return i18n.T("de", "backend.cmd_voice_help")
+func (c *VoiceCommand) Help(lang string) string {
+	return i18n.T(commandLang(lang), "backend.cmd_voice_help")
 }
 
 func init() {

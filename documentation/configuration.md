@@ -291,7 +291,7 @@ Container management via the Docker Engine API.
 | `read_only` | `false` | When `true`, the agent can only list/inspect containers and images but cannot start, stop, create, or remove them. |
 | `host` | `""` | Docker socket/host. Empty = auto-detect (`/var/run/docker.sock` on Linux, `npipe:////./pipe/docker_engine` on Windows). |
 
-See [docker.md](docker.md) for details.
+See [docker_installation.md](docker_installation.md) and [manual/en/08-integrations.md#docker-integration](manual/en/08-integrations.md#docker-integration) for details.
 
 ---
 
@@ -311,7 +311,7 @@ Parallel sub-agent system — spawn independent LLM workers for complex sub-task
 | `circuit_breaker.timeout_seconds` | `300` | Max runtime per co-agent in seconds. |
 | `circuit_breaker.max_tokens` | `0` | Token budget per co-agent task. `0` = unlimited. |
 
-See [co_agent_concept.md](co_agent_concept.md) for details.
+See [manual/en/15-coagents.md](manual/en/15-coagents.md) for details.
 
 ---
 

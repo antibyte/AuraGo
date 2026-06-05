@@ -338,6 +338,13 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 				},
 			}, "tool_name", "arguments"),
 		),
+		tool("retrieve_original_output",
+			"Retrieves the original uncompressed output of a previous tool call that was compressed before reaching you. Use this when you suspect important details were lost during compression (e.g. specific IDs, paths, or values that look truncated).",
+			schema(map[string]interface{}{
+				"tool_call_id": prop("string", "The tool_call_id of the compressed tool result you want to expand"),
+				"reason":       prop("string", "Why you need the original output (helps improve compression filters)"),
+			}, "tool_call_id"),
+		),
 	}
 	if ff.SendYouTubeVideoEnabled {
 		tools = append(tools, tool("send_youtube_video",

@@ -8,6 +8,7 @@ import (
 	"image/png"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -26,6 +27,32 @@ const maxAttachmentSize = 100 << 20
 // maxDownloadSize is the maximum download size for temporary files (50 MB).
 const maxDownloadSize = 50 << 20
 
+func rejectOversizedResponse(resp *http.Response, limit int64, kind string) error {
+	if resp.ContentLength > limit {
+		return fmt.Errorf("%s exceeds maximum size of %d bytes", kind, limit)
+	}
+	return nil
+}
+
+func copyWithSizeLimit(dst io.Writer, src io.Reader, limit int64, kind string) error {
+	written, err := io.Copy(dst, io.LimitReader(src, limit+1))
+	if err != nil {
+		return err
+	}
+	if written > limit {
+		return fmt.Errorf("%s exceeds maximum size of %d bytes", kind, limit)
+	}
+	return nil
+}
+
+func extensionFromURLPath(rawURL string) string {
+	if parsed, err := url.Parse(rawURL); err == nil && parsed.Path != "" {
+		return strings.ToLower(filepath.Ext(parsed.Path))
+	}
+	cleaned := strings.Split(strings.Split(rawURL, "?")[0], "#")[0]
+	return strings.ToLower(filepath.Ext(cleaned))
+}
+
 func SaveAttachment(url, originalFilename, destDir string) (string, error) {
 	if err := os.MkdirAll(destDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create attachments dir: %w", err)
@@ -39,6 +66,9 @@ func SaveAttachment(url, originalFilename, destDir string) (string, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("download returned status %d", resp.StatusCode)
+	}
+	if err := rejectOversizedResponse(resp, maxAttachmentSize, "attachment"); err != nil {
+		return "", err
 	}
 
 	// Sanitize filename
@@ -60,7 +90,7 @@ func SaveAttachment(url, originalFilename, destDir string) (string, error) {
 	}
 	defer dst.Close()
 
-	if _, err := io.Copy(dst, io.LimitReader(resp.Body, maxAttachmentSize)); err != nil {
+	if err := copyWithSizeLimit(dst, resp.Body, maxAttachmentSize, "attachment"); err != nil {
 		os.Remove(destPath)
 		return "", fmt.Errorf("failed to write attachment: %w", err)
 	}
@@ -80,9 +110,12 @@ func DownloadFile(url string, prefix string) (string, error) {
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to download file: %s", resp.Status)
 	}
+	if err := rejectOversizedResponse(resp, maxDownloadSize, "download"); err != nil {
+		return "", err
+	}
 
 	// Detect extension from URL
-	ext := filepath.Ext(url)
+	ext := extensionFromURLPath(url)
 	if ext == "" {
 		ext = ".bin"
 	}
@@ -93,7 +126,7 @@ func DownloadFile(url string, prefix string) (string, error) {
 	}
 	defer tempFile.Close()
 
-	if _, err := io.Copy(tempFile, io.LimitReader(resp.Body, maxDownloadSize)); err != nil {
+	if err := copyWithSizeLimit(tempFile, resp.Body, maxDownloadSize, "download"); err != nil {
 		os.Remove(tempFile.Name())
 		return "", err
 	}
@@ -209,7 +242,10 @@ func SaveURLToDir(rawURL, destDir string) (string, error) {
 	if ct != "" && !strings.HasPrefix(ct, "image/") && !strings.HasPrefix(ct, "application/octet-stream") {
 		return "", fmt.Errorf("URL did not return an image (Content-Type: %s)", ct)
 	}
-	ext := strings.ToLower(filepath.Ext(strings.Split(rawURL, "?")[0]))
+	if err := rejectOversizedResponse(resp, maxAttachmentSize, "image"); err != nil {
+		return "", err
+	}
+	ext := extensionFromURLPath(rawURL)
 	if ext == "" {
 		switch {
 		case strings.Contains(ct, "jpeg"), strings.Contains(ct, "jpg"):
@@ -231,7 +267,7 @@ func SaveURLToDir(rawURL, destDir string) (string, error) {
 		return "", fmt.Errorf("failed to create image file: %w", err)
 	}
 	defer f.Close()
-	if _, err := io.Copy(f, io.LimitReader(resp.Body, maxAttachmentSize)); err != nil {
+	if err := copyWithSizeLimit(f, resp.Body, maxAttachmentSize, "image"); err != nil {
 		os.Remove(destPath)
 		return "", fmt.Errorf("failed to write image: %w", err)
 	}

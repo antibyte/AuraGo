@@ -75,6 +75,20 @@ func appendExecutionToolSchemas(tools []openai.Tool, ff ToolFeatureFlags, execut
 					"set_value": map[string]interface{}{"description": "Value to set (any type). Required for 'set'."},
 				}, "operation", "file_path"),
 			),
+			tool("toml_editor",
+				"Read, modify, and validate TOML files using dot-path notation. Get/set/delete values at any depth, list table keys, or validate syntax.",
+				schema(map[string]interface{}{
+					"operation": map[string]interface{}{
+						"type":        "string",
+						"description": "TOML operation to perform",
+						"enum":        []string{"get", "set", "delete", "keys", "validate"},
+					},
+					"file_path": prop("string", "Path to the TOML file"),
+					"json_path": prop("string", "Dot-separated path to the target value (alias for toml_path, e.g. 'server.port')"),
+					"toml_path": prop("string", "Dot-separated path to the target value (e.g. 'server.port')"),
+					"set_value": map[string]interface{}{"description": "Value to set (string, number, boolean, array, or table). Required for 'set'."},
+				}, "operation", "file_path"),
+			),
 			tool("xml_editor",
 				"Read, modify, and validate XML files using XPath. Get elements, set text/attributes, add/delete elements, validate, or format.",
 				schema(map[string]interface{}{
@@ -116,6 +130,19 @@ func appendExecutionToolSchemas(tools []openai.Tool, ff ToolFeatureFlags, execut
 					"json_path": prop("string", "Dot-separated path to the target value"),
 				}, "operation", "file_path"),
 			),
+			tool("toml_editor",
+				"Read and validate TOML files using dot-path notation. Get values at any depth, list table keys, or validate syntax (read-only — filesystem writes are disabled).",
+				schema(map[string]interface{}{
+					"operation": map[string]interface{}{
+						"type":        "string",
+						"description": "Read-only TOML operation to perform",
+						"enum":        []string{"get", "keys", "validate"},
+					},
+					"file_path": prop("string", "Path to the TOML file"),
+					"json_path": prop("string", "Dot-separated path to the target value (alias for toml_path)"),
+					"toml_path": prop("string", "Dot-separated path to the target value"),
+				}, "operation", "file_path"),
+			),
 			tool("xml_editor",
 				"Read and validate XML files using XPath. Get elements, validate, or format (read-only — filesystem writes are disabled).",
 				schema(map[string]interface{}{
@@ -130,6 +157,23 @@ func appendExecutionToolSchemas(tools []openai.Tool, ff ToolFeatureFlags, execut
 			),
 		)
 	}
+
+	tools = append(tools, tool("certificate_manager",
+		"Inspect PEM certificates, check HTTPS peer certificates, or generate local self-signed test certificates. check_remote requires network requests; generate_self_signed requires filesystem writes.",
+		schema(map[string]interface{}{
+			"operation": map[string]interface{}{
+				"type":        "string",
+				"description": "Certificate operation to perform",
+				"enum":        []string{"info", "check_remote", "generate_self_signed"},
+			},
+			"file_path":  prop("string", "Workspace-resolved PEM certificate path for info"),
+			"hostname":   prop("string", "Remote HTTPS hostname or IP address for check_remote"),
+			"port":       prop("integer", "Remote TLS port for check_remote; defaults to 443"),
+			"domain":     prop("string", "DNS name or IP address for generate_self_signed"),
+			"output_dir": prop("string", "Workspace-resolved directory where cert.pem and key.pem will be written"),
+			"days":       prop("integer", "Certificate validity in days for generate_self_signed; defaults to 365"),
+		}, "operation"),
+	))
 
 	if ff.AllowShell {
 		tools = append(tools, tool("execute_shell",

@@ -1095,7 +1095,9 @@ vercel:
 
 Headless-Browser-Automatisierung für Formulare, Screenshots und Web-Interaktionen.
 
-**Web-UI:** Config → Integrationen → Browser Automation → aktivieren und Headless-Modus konfigurieren.
+**Web-UI:** Config → Integrationen → Browser Automation → aktivieren, Headless-Modus und Screenshot-Verzeichnis konfigurieren.
+
+Der Browser-Automation-Sidecar verlangt standardmäßig `AURAGO_BROWSER_AUTOMATION_TOKEN`. AuraGo setzt es bei verwalteten Sidecars automatisch; bei manuell gestarteten Sidecars muss es explizit gesetzt werden. Nutze `AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH=1` nur für isolierte lokale Entwicklung.
 
 ### YAML-Referenz
 ```yaml

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,6 +33,39 @@ func clientCacheKey(baseURL, apiKey string) string {
 	return fmt.Sprintf("%s|%s", baseURL, apiKey)
 }
 
+func normalizeObsidianHost(host string) (string, error) {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	if strings.Contains(host, "://") {
+		return "", fmt.Errorf("Obsidian host must be a hostname or IP address, not a URL")
+	}
+	if strings.ContainsAny(host, "/?#") {
+		return "", fmt.Errorf("Obsidian host must not contain path, query, or fragment data")
+	}
+	if strings.HasPrefix(host, "[") || strings.HasSuffix(host, "]") {
+		if !strings.HasPrefix(host, "[") || !strings.HasSuffix(host, "]") {
+			return "", fmt.Errorf("invalid bracketed Obsidian host")
+		}
+		host = strings.TrimSuffix(strings.TrimPrefix(host, "["), "]")
+	}
+	if strings.Contains(host, ":") && net.ParseIP(host) == nil {
+		return "", fmt.Errorf("Obsidian host must not include a port; use the port setting instead")
+	}
+	if ip := net.ParseIP(host); ip != nil && obsidianBlockedHostIP(ip) {
+		return "", fmt.Errorf("Obsidian host %s is blocked (SSRF protection)", ip)
+	}
+	return host, nil
+}
+
+func obsidianBlockedHostIP(ip net.IP) bool {
+	if ipv4 := ip.To4(); ipv4 != nil {
+		ip = ipv4
+	}
+	return ip.IsUnspecified() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()
+}
+
 // NewClient creates a new Obsidian client from configuration.
 func NewClient(cfg config.ObsidianConfig, vault *security.Vault) (*Client, error) {
 	if !cfg.Enabled {
@@ -48,12 +82,12 @@ func NewClient(cfg config.ObsidianConfig, vault *security.Vault) (*Client, error
 		port = 27124
 	}
 
-	host := cfg.Host
-	if host == "" {
-		host = "127.0.0.1"
+	host, err := normalizeObsidianHost(cfg.Host)
+	if err != nil {
+		return nil, err
 	}
 
-	baseURL := fmt.Sprintf("%s://%s:%d", scheme, host, port)
+	baseURL := fmt.Sprintf("%s://%s", scheme, net.JoinHostPort(host, strconv.Itoa(port)))
 
 	apiKey := cfg.APIKey
 	if apiKey == "" && vault != nil {

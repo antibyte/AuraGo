@@ -2359,7 +2359,7 @@ func TestChatUIEmojiIconsAreImageAssets(t *testing.T) {
 		assertPNGIcon(t, iconPath, 128, 128)
 	}
 
-	css := string(cssContent)
+	css := normalizeAssetText(cssContent)
 	for _, marker := range []string{
 		".chat-ui-icon",
 		"--chat-ui-icon-url",
@@ -2627,7 +2627,7 @@ func TestChatComposerToolIconsKeepExplicitImageBox(t *testing.T) {
 		}
 	}
 
-	css := string(cssContent)
+	css := normalizeAssetText(cssContent)
 	if strings.Contains(css, ".composer-tool-btn .tool-icon {\n                width: auto;") ||
 		strings.Contains(css, ".composer-panel .composer-tool-btn .tool-icon {\n                font-size: 0.95rem;\n                width: auto;") {
 		t.Fatalf("%s lets composer image icons collapse to zero width with width:auto", cssPath)

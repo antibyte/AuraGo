@@ -7,6 +7,7 @@ require gopkg.in/yaml.v3 v3.0.1
 require github.com/sashabaranov/go-openai v1.41.2
 
 require (
+	github.com/BurntSushi/toml v1.5.0
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.0
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/a2aproject/a2a-go/v2 v2.0.0

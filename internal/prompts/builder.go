@@ -224,6 +224,7 @@ type ContextFlags struct {
 	OperationalIssueReminder string // Unresolved background problems to report on next user contact
 	KnowledgeContext         string // Relevant KG entities injected from SearchForContext
 	ErrorPatternContext      string // Known error patterns with resolutions for agent learning
+	LearnedRulesContext      string // Learned action rules from recurring errors/recovery
 	ReuseContext             string // Reuse-first lookup hints for non-trivial tasks
 	ChatChannelsContext      string // Reachable chat/notification channels for this runtime
 	TaskRules                string // Task-scoped markdown rules selected for the current request/tools
@@ -661,6 +662,13 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 	if flags.ErrorPatternContext != "" && tier != "minimal" {
 		finalPrompt.WriteString("# KNOWN ERROR PATTERNS\n")
 		finalPrompt.WriteString(security.IsolateExternalData(flags.ErrorPatternContext))
+		finalPrompt.WriteString("\n\n")
+	}
+	// Learned Rules — concrete action rules from recurring errors/recovery
+	if flags.LearnedRulesContext != "" && tier != "minimal" {
+		finalPrompt.WriteString("# LEARNED RULES\n")
+		finalPrompt.WriteString("Apply proactively if relevant to the current task.\n")
+		finalPrompt.WriteString(security.IsolateExternalData(flags.LearnedRulesContext))
 		finalPrompt.WriteString("\n\n")
 	}
 	if flags.ReuseContext != "" {

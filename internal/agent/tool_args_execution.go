@@ -222,6 +222,16 @@ type xmlEditorArgs struct {
 	SetValue  interface{}
 }
 
+type certificateManagerArgs struct {
+	Operation string
+	FilePath  string
+	Hostname  string
+	Port      int
+	Domain    string
+	OutputDir string
+	Days      int
+}
+
 type textDiffArgs struct {
 	Operation string
 	File1     string
@@ -819,6 +829,18 @@ func decodeXMLEditorArgs(tc ToolCall) xmlEditorArgs {
 		req.SetValue = value
 	}
 	return req
+}
+
+func decodeCertificateManagerArgs(tc ToolCall) certificateManagerArgs {
+	return certificateManagerArgs{
+		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		FilePath:  firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
+		Hostname:  firstNonEmptyToolString(tc.Hostname, tc.Host, toolArgString(tc.Params, "hostname", "host")),
+		Port:      firstNonEmptyInt(tc.Port, toolArgInt(tc.Params, 0, "port")),
+		Domain:    firstNonEmptyToolString(toolArgString(tc.Params, "domain", "common_name"), tc.Hostname, tc.Host),
+		OutputDir: firstNonEmptyToolString(tc.OutputDir, toolArgString(tc.Params, "output_dir")),
+		Days:      toolArgInt(tc.Params, 0, "days"),
+	}
 }
 
 func decodeTextDiffArgs(tc ToolCall) textDiffArgs {

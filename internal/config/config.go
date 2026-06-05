@@ -364,6 +364,8 @@ func Load(path string) (*Config, error) {
 	cfg.VirtualDesktop.MaxFileSizeMB = 50
 	cfg.VirtualDesktop.ControlLevel = "confirm_destructive"
 	cfg.VirtualDesktop.MaxWSClients = 8
+	cfg.VirtualDesktop.RemoteMaxSessionMinutes = 60
+	cfg.VirtualDesktop.RemoteIdleTimeoutMinutes = 5
 	cfg.VirtualDesktop.AllowGeneratedApps = true
 	cfg.VirtualDesktop.CodeStudio.Enabled = true
 	cfg.VirtualDesktop.CodeStudio.Image = "ghcr.io/antibyte/aurago-code-studio:latest"
@@ -775,6 +777,12 @@ func Load(path string) (*Config, error) {
 	if cfg.VirtualDesktop.MaxWSClients <= 0 {
 		cfg.VirtualDesktop.MaxWSClients = 8
 	}
+	if cfg.VirtualDesktop.RemoteMaxSessionMinutes <= 0 {
+		cfg.VirtualDesktop.RemoteMaxSessionMinutes = 60
+	}
+	if cfg.VirtualDesktop.RemoteIdleTimeoutMinutes <= 0 {
+		cfg.VirtualDesktop.RemoteIdleTimeoutMinutes = 5
+	}
 	if strings.TrimSpace(cfg.VirtualDesktop.CodeStudio.Image) == "" {
 		cfg.VirtualDesktop.CodeStudio.Image = "ghcr.io/antibyte/aurago-code-studio:latest"
 	}
@@ -1043,6 +1051,23 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Agent.OutputCompression.TOONJSON.MaxRows <= 0 {
 		cfg.Agent.OutputCompression.TOONJSON.MaxRows = 200
+	}
+	if cfg.Agent.OutputCompression.SmartCrusher.MaxRows <= 0 {
+		cfg.Agent.OutputCompression.SmartCrusher.MaxRows = 50
+	}
+	if cfg.Agent.OutputCompression.Reversible.MaxAgeHours <= 0 {
+		cfg.Agent.OutputCompression.Reversible.MaxAgeHours = 24
+	}
+	// Enable all headroom features by default — validated in production.
+	cfg.Agent.OutputCompression.SmartCrusher.Enabled = true
+	cfg.Agent.OutputCompression.Reversible.Enabled = true
+	cfg.Agent.ImportanceScoring.Enabled = true
+	cfg.Agent.AutoLearning.Enabled = true
+	if cfg.Agent.ImportanceScoring.Mode == "" {
+		cfg.Agent.ImportanceScoring.Mode = "active"
+	}
+	if cfg.Agent.AutoLearning.Mode == "" {
+		cfg.Agent.AutoLearning.Mode = "active"
 	}
 	// PreserveErrors defaults to true when not explicitly set (zero value = true)
 	// V2 requires V1 — automatically enable V1 when V2 is on.
@@ -1808,6 +1833,8 @@ func (c *Config) Save(path string) error {
 		{[]string{"virtual_desktop", "max_file_size_mb"}, c.VirtualDesktop.MaxFileSizeMB},
 		{[]string{"virtual_desktop", "control_level"}, c.VirtualDesktop.ControlLevel},
 		{[]string{"virtual_desktop", "max_ws_clients"}, c.VirtualDesktop.MaxWSClients},
+		{[]string{"virtual_desktop", "remote_max_session_minutes"}, c.VirtualDesktop.RemoteMaxSessionMinutes},
+		{[]string{"virtual_desktop", "remote_idle_timeout_minutes"}, c.VirtualDesktop.RemoteIdleTimeoutMinutes},
 		{[]string{"virtual_desktop", "code_studio", "enabled"}, c.VirtualDesktop.CodeStudio.Enabled},
 		{[]string{"virtual_desktop", "code_studio", "image"}, c.VirtualDesktop.CodeStudio.Image},
 		{[]string{"virtual_desktop", "code_studio", "auto_start"}, c.VirtualDesktop.CodeStudio.AutoStart},

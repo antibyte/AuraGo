@@ -217,12 +217,14 @@ var adaptiveToolNeighbors = map[string][]string{
 	"smart_file_read":      {"filesystem", "file_reader_advanced", "file_search"},
 	"file_search":          {"filesystem", "file_reader_advanced"},
 	"file_reader_advanced": {"filesystem", "file_search", "smart_file_read"},
-	"file_editor":          {"filesystem", "json_editor", "yaml_editor", "xml_editor"},
+	"file_editor":          {"filesystem", "json_editor", "yaml_editor", "toml_editor", "xml_editor"},
 	"json_editor":          {"filesystem", "file_editor"},
 	"yaml_editor":          {"filesystem", "file_editor"},
+	"toml_editor":          {"filesystem", "file_editor"},
 	"xml_editor":           {"filesystem", "file_editor"},
 
 	// Code & Execution
+	"certificate_manager":  {"filesystem", "api_request"},
 	"execute_shell":        {"filesystem", "file_editor", "file_search", "media_registry", "send_document", "document_creator"},
 	"execute_python":       {"filesystem", "execute_sandbox", "media_registry", "send_document", "document_creator"},
 	"execute_sandbox":      {"filesystem", "execute_python"},

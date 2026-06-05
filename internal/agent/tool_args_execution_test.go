@@ -344,6 +344,29 @@ func TestDispatchExecAPIRequestUsesConfiguredLocalOllamaAllow(t *testing.T) {
 	}
 }
 
+func TestDispatchExecCertificateManagerBlocksNetworkWhenDisabled(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.AllowNetworkRequests = false
+	cfg.Directories.WorkspaceDir = t.TempDir()
+
+	out, handled := dispatchExec(context.Background(), ToolCall{
+		Action: "certificate_manager",
+		Params: map[string]interface{}{
+			"operation": "check_remote",
+			"hostname":  "example.com",
+		},
+	}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if !handled {
+		t.Fatal("dispatchExec did not handle certificate_manager")
+	}
+	if !strings.Contains(out, "allow_network_requests: false") {
+		t.Fatalf("expected network permission denial, got: %s", out)
+	}
+}
+
 func TestDecodeFilesystemArgsUsesParamsFallback(t *testing.T) {
 	req := decodeFilesystemArgs(ToolCall{
 		Action: "filesystem",
@@ -424,6 +447,22 @@ func TestDecodeStructuredEditorArgsUseParamsFallback(t *testing.T) {
 		t.Fatalf("unexpected yaml set value: %#v", yamlReq.SetValue)
 	}
 
+	tomlReq := decodeTOMLEditorArgs(ToolCall{
+		Action: "toml_editor",
+		Params: map[string]interface{}{
+			"operation": "set",
+			"path":      "config.toml",
+			"toml_path": "server.port",
+			"set_value": float64(8088),
+		},
+	})
+	if tomlReq.Operation != "set" || tomlReq.FilePath != "config.toml" || tomlReq.TomlPath != "server.port" {
+		t.Fatalf("unexpected toml editor decode: %+v", tomlReq)
+	}
+	if tomlReq.SetValue != float64(8088) {
+		t.Fatalf("unexpected toml set value: %#v", tomlReq.SetValue)
+	}
+
 	xmlReq := decodeXMLEditorArgs(ToolCall{
 		Action: "xml_editor",
 		Params: map[string]interface{}{
@@ -435,6 +474,34 @@ func TestDecodeStructuredEditorArgsUseParamsFallback(t *testing.T) {
 	})
 	if xmlReq.Operation != "set_text" || xmlReq.FilePath != "doc.xml" || xmlReq.XPath != "/root/title" || xmlReq.SetValue != "AuraGo" {
 		t.Fatalf("unexpected xml editor decode: %+v", xmlReq)
+	}
+}
+
+func TestDecodeCertificateManagerArgsUsesParamsFallback(t *testing.T) {
+	req := decodeCertificateManagerArgs(ToolCall{
+		Action: "certificate_manager",
+		Params: map[string]interface{}{
+			"operation":  "generate_self_signed",
+			"domain":     "lab.local",
+			"output_dir": "certs",
+			"days":       float64(30),
+		},
+	})
+
+	if req.Operation != "generate_self_signed" || req.Domain != "lab.local" || req.OutputDir != "certs" || req.Days != 30 {
+		t.Fatalf("unexpected certificate manager decode: %+v", req)
+	}
+
+	remoteReq := decodeCertificateManagerArgs(ToolCall{
+		Action:   "certificate_manager",
+		Hostname: "nas.local",
+		Params: map[string]interface{}{
+			"operation": "check_remote",
+			"port":      float64(8443),
+		},
+	})
+	if remoteReq.Operation != "check_remote" || remoteReq.Hostname != "nas.local" || remoteReq.Port != 8443 {
+		t.Fatalf("unexpected certificate manager remote decode: %+v", remoteReq)
 	}
 }
 

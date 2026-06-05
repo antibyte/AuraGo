@@ -195,6 +195,25 @@ func dispatchFilesystem(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 		logger.Info("LLM requested yaml_editor operation", "op", op, "path", fpath)
 		return tools.ExecuteYamlEditor(op, fpath, req.JsonPath, req.SetValue, wsDir)
 
+	case "toml_editor":
+		req := decodeTOMLEditorArgs(tc)
+		fpath := req.FilePath
+		op := strings.TrimSpace(strings.ToLower(req.Operation))
+		wsDir := cfg.Directories.WorkspaceDir
+		if isProtectedSystemPath(fpath, wsDir, cfg) {
+			logger.Warn("LLM attempted toml_editor access to protected system file — blocked",
+				"op", op, "path", fpath)
+			return "Tool Output: [PERMISSION DENIED] Access to this file is not allowed. System configuration, database and credential files are off-limits."
+		}
+		switch op {
+		case "set", "delete":
+			if !cfg.Agent.AllowFilesystemWrite {
+				return "Tool Output: [PERMISSION DENIED] toml_editor write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
+			}
+		}
+		logger.Info("LLM requested toml_editor operation", "op", op, "path", fpath)
+		return tools.ExecuteTomlEditor(op, fpath, req.TomlPath, req.SetValue, wsDir)
+
 	case "xml_editor":
 		req := decodeXMLEditorArgs(tc)
 		fpath := req.FilePath

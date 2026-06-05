@@ -84,6 +84,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"context_memory", "Retrieve contextual memory for the current task"},
 		{"context_manager", "Manage compressed context and session state"},
 		{"remember", "Store durable facts, events, and learnings in the right memory layer"},
+		{"retrieve_original_output", "Retrieve the original uncompressed output of a previous compressed tool call"},
 		{"memory_reflect", "Reflect on recent memory and extract useful learnings"},
 		{"cheatsheet", "Create, update, search, and use reusable procedure notes"},
 		{"knowledge_graph", "Query and update structured entity relationships"},
@@ -96,6 +97,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"file_editor", "Edit files with find-and-replace, insert, delete operations"},
 		{"json_editor", "Query and modify JSON files using JSONPath"},
 		{"yaml_editor", "Query and modify YAML files"},
+		{"toml_editor", "Query and modify TOML files"},
 		{"xml_editor", "Query and modify XML files using XPath"},
 		{"text_diff", "Compare files or strings with unified diff"},
 		{"file_search", "Grep text patterns across files or find files by name"},
@@ -115,6 +117,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 	},
 	"network": {
 		{"api_request", "Make HTTP requests (GET, POST, PUT, DELETE, etc.)"},
+		{"certificate_manager", "Inspect local and remote TLS certificates"},
 		{"dns_lookup", "DNS resolution for any record type (A, AAAA, MX, TXT, etc.)"},
 		{"port_scanner", "Scan TCP ports on a host"},
 		{"network_ping", "Ping hosts to check availability and latency"},

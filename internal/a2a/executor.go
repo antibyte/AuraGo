@@ -65,12 +65,11 @@ func (e *Executor) Execute(ctx context.Context, execCtx *a2asrv.ExecutorContext)
 			return
 		}
 
-		// Scan for prompt injection in incoming A2A messages
-		if e.deps.Guardian != nil {
-			if scan := e.deps.Guardian.ScanForInjection(userText); scan.Level >= security.ThreatHigh {
-				logger.Warn("[A2A] Prompt injection detected in incoming message",
-					"task_id", execCtx.TaskID, "level", scan.Level, "patterns", scan.Patterns)
-			}
+		if shouldBlockA2APromptInjection(userText, e.deps.Guardian, logger, string(execCtx.TaskID)) {
+			msg := a2a.NewMessage(a2a.MessageRoleAgent, a2a.NewTextPart("Message blocked by the security guardian."))
+			evt := a2a.NewStatusUpdateEvent(execCtx, a2a.TaskStateFailed, msg)
+			yield(evt, nil)
+			return
 		}
 		userText = security.IsolateExternalData(userText)
 
@@ -200,6 +199,21 @@ func extractTextFromMessage(msg *a2a.Message) string {
 		}
 	}
 	return strings.Join(parts, "\n")
+}
+
+func shouldBlockA2APromptInjection(userText string, guardian *security.Guardian, logger *slog.Logger, taskID string) bool {
+	if guardian == nil {
+		return false
+	}
+	scan := guardian.ScanForInjection(userText)
+	if scan.Level < security.ThreatHigh {
+		return false
+	}
+	if logger != nil {
+		logger.Warn("[A2A] Prompt injection BLOCKED - message discarded",
+			"task_id", taskID, "level", scan.Level, "patterns", scan.Patterns)
+	}
+	return true
 }
 
 // buildA2ASystemPrompt creates a system prompt for A2A agent interactions.
