@@ -252,10 +252,12 @@ func stripAgodeskPersonaFrontMatter(data []byte) string {
 func handleAgodeskChatMessage(s *Server, r *http.Request, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.ChatMessagePayload) {
 	paired := false
 	stateSessionID := ""
+	deviceID := ""
 	if state != nil {
 		state.mu.RLock()
 		paired = state.paired
 		stateSessionID = state.sessionID
+		deviceID = state.deviceID
 		state.mu.RUnlock()
 	}
 	if !paired {
@@ -282,7 +284,7 @@ func handleAgodeskChatMessage(s *Server, r *http.Request, conn *websocket.Conn, 
 	unlockSession := lockSessionRequest(sessionID)
 	defer unlockSession()
 
-	answer, err := agodeskAgentChatRunner(s, r, sessionID, message)
+	answer, err := agodeskAgentChatRunner(s, r, sessionID, deviceID, message)
 	if err != nil {
 		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInternal, err.Error())
 		return
@@ -407,14 +409,14 @@ func acceptAgodeskDeviceReconnect(s *Server, requestID string, payload agodesk.S
 	}, "", ""
 }
 
-func runAgodeskAgentChat(s *Server, r *http.Request, sessionID, message string) (string, error) {
+func runAgodeskAgentChat(s *Server, r *http.Request, sessionID, deviceID, message string) (string, error) {
 	if s == nil {
 		return "", fmt.Errorf("server not configured")
 	}
 	turn, err := prepareDesktopAgentTurnWithOptions(r.Context(), s, message, desktopChatContext{}, false, desktopAgentTurnOptions{
 		SessionID:        sessionID,
 		MessageSource:    agodeskMessageSource,
-		AdditionalPrompt: buildAgodeskAgentContext(),
+		AdditionalPrompt: buildAgodeskAgentContext(deviceID),
 	})
 	if err != nil {
 		return "", err
@@ -444,15 +446,21 @@ func runAgodeskAgentChat(s *Server, r *http.Request, sessionID, message string) 
 	return security.StripThinkingTags(answer), nil
 }
 
-func buildAgodeskAgentContext() string {
-	return strings.Join([]string{
+func buildAgodeskAgentContext(deviceID string) string {
+	lines := []string{
 		"The user is chatting from agodesk, a paired desktop companion running on a remote PC.",
 		"When the user asks about that remote PC, prefer the remote_control tool for available device operations and respect read-only policy.",
 		"Desktop screenshots, display/window discovery, active-window metadata, UI tree reads, and browser snapshots are available through remote_control when the agodesk client advertises the matching capabilities.",
 		"If desktop screenshot or permission requests return UNSUPPORTED_CAPABILITY, explain that the client is connected for chat but does not advertise remote-control support.",
 		"Desktop input, UI actions, and browser actions require local approval in the agodesk remote-control banner; the backend cannot approve or bypass that local control session.",
 		"Desktop streaming is not available in this backend version.",
-	}, "\n")
+	}
+	if id := strings.TrimSpace(deviceID); id != "" {
+		lines = append(lines,
+			fmt.Sprintf("Paired agodesk remote_control device_id: %q. Always pass this device_id on remote_control operations for the user's PC.", id),
+		)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func ensureAgodeskDesktopBroker(s *Server) *agodeskDesktopBroker {
