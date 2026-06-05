@@ -43,3 +43,15 @@ func TestConfigComposioPickerUsesOpaqueModalSurfaces(t *testing.T) {
 		}
 	}
 }
+
+func TestConfigComposioInlineHandlersEscapeJSONStringArguments(t *testing.T) {
+	t.Parallel()
+
+	composioJS := readDesktopAssetText(t, "cfg/composio.js")
+	if !strings.Contains(composioJS, `return escapeAttr(JSON.stringify(String(value || '')));`) {
+		t.Fatal("composioJSArg must HTML-escape JSON strings before embedding them in double-quoted inline handlers")
+	}
+	if strings.Contains(composioJS, `return JSON.stringify(String(value || ''));`) {
+		t.Fatal("composioJSArg must not return raw JSON strings for inline HTML attributes")
+	}
+}

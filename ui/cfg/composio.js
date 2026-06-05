@@ -107,7 +107,7 @@ function composioSelectedSummary(toolkits) {
 }
 
 function composioJSArg(value) {
-    return JSON.stringify(String(value || ''));
+    return escapeAttr(JSON.stringify(String(value || '')));
 }
 
 async function composioRefreshStatus() {
