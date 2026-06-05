@@ -1096,8 +1096,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			broker.Send("thinking", "Trimming context window...")
 			s.currentLogger.Warn("[ContextGuard] Token limit exceeded before LLM call — trimming history",
 				"tokens", totalMsgTokens, "limit", maxHistoryTokens, "messages", len(req.Messages))
-			sysMsg := req.Messages[0]
-			lastMsg := req.Messages[len(req.Messages)-1]
 			var droppedMessages []openai.ChatCompletionMessage
 			var mid []openai.ChatCompletionMessage
 
@@ -1137,8 +1135,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					mid = mid[1:]
 					totalMsgTokens -= prompts.CountTokensForModel(messageText(dropped), req.Model) + 4
 				}
-				req.Messages = append([]openai.ChatCompletionMessage{sysMsg}, append(mid, lastMsg)...)
+				req.Messages = append([]openai.ChatCompletionMessage{req.Messages[0]}, append(mid, req.Messages[len(req.Messages)-1])...)
 			}
+
+			// Re-extract sysMsg/lastMsg after any trimming so they reflect the current state.
+			sysMsg := req.Messages[0]
+			lastMsg := req.Messages[len(req.Messages)-1]
 
 			trimmedMessages := []openai.ChatCompletionMessage{sysMsg}
 			remainingRecapBudget := maxHistoryTokens - totalMsgTokens - 4

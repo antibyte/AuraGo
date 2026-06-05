@@ -32,7 +32,8 @@ func (s *SQLiteMemory) InitLearnedRulesTable() error {
 		hits INTEGER DEFAULT 0,
 		misses INTEGER DEFAULT 0,
 		active BOOLEAN DEFAULT 1,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(tool_name, pattern)
 	);
 	CREATE INDEX IF NOT EXISTS idx_learned_tool ON learned_rules(tool_name);
 	CREATE INDEX IF NOT EXISTS idx_learned_active ON learned_rules(active);`
@@ -46,6 +47,7 @@ func (s *SQLiteMemory) InitLearnedRulesTable() error {
 // UpsertLearnedRule inserts a new rule or updates an existing one when the
 // same (tool_name, pattern) pair already exists. The rule text is updated
 // and confidence is bumped slightly on every re-occurrence.
+// Uses SQLite's native ON CONFLICT for atomic upsert.
 func (s *SQLiteMemory) UpsertLearnedRule(rule *LearnedRule) error {
 	if rule == nil || rule.ToolName == "" || rule.Pattern == "" || rule.Rule == "" {
 		return nil
@@ -61,27 +63,17 @@ func (s *SQLiteMemory) UpsertLearnedRule(rule *LearnedRule) error {
 
 	now := time.Now().UTC()
 
-	// Try update first — if a row exists, bump confidence and keep the newer rule text.
-	res, err := s.db.Exec(`
-		UPDATE learned_rules
-		SET rule = ?, confidence = min(confidence + 0.05, 0.95), hits = hits + 1, created_at = ?
-		WHERE tool_name = ? AND pattern = ?
-	`, rule.Rule, now, rule.ToolName, rule.Pattern)
-	if err != nil {
-		return fmt.Errorf("upsert learned rule update: %w", err)
-	}
-	affected, _ := res.RowsAffected()
-	if affected > 0 {
-		return nil
-	}
-
-	// Insert new rule.
-	_, err = s.db.Exec(`
+	_, err := s.db.Exec(`
 		INSERT INTO learned_rules (tool_name, pattern, rule, confidence, hits, misses, active, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(tool_name, pattern) DO UPDATE SET
+			rule = excluded.rule,
+			confidence = CASE WHEN learned_rules.confidence + 0.05 > 0.95 THEN 0.95 ELSE learned_rules.confidence + 0.05 END,
+			hits = learned_rules.hits + 1,
+			created_at = excluded.created_at
 	`, rule.ToolName, rule.Pattern, rule.Rule, rule.Confidence, rule.Hits, rule.Misses, rule.Active, now)
 	if err != nil {
-		return fmt.Errorf("upsert learned rule insert: %w", err)
+		return fmt.Errorf("upsert learned rule: %w", err)
 	}
 	return nil
 }
