@@ -86,17 +86,19 @@ func handleRemoteControl(tc ToolCall, cfg *config.Config, hub *remote.RemoteHub,
 }
 
 func resolveRemoteDevice(hub *remote.RemoteHub, tc ToolCall) (string, error) {
-	deviceID := tc.DeviceID
-	if deviceID == "" {
-		deviceID = tc.ID
-	}
-	if deviceID == "" {
-		deviceID = tc.Target
-	}
+	deviceID := strings.TrimSpace(firstNonEmptyToolString(
+		tc.DeviceID,
+		tc.ID,
+		tc.Target,
+		toolArgString(tc.Params, "device_id", "deviceId", "deviceID"),
+	))
 	if deviceID != "" {
 		return deviceID, nil
 	}
-	name := tc.DeviceName
+	name := strings.TrimSpace(firstNonEmptyToolString(
+		tc.DeviceName,
+		toolArgString(tc.Params, "device_name", "deviceName"),
+	))
 	if name == "" {
 		return "", fmt.Errorf("device_id or device_name is required")
 	}

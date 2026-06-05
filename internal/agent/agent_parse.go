@@ -1019,6 +1019,8 @@ func ParseToolCall(content string) ToolCall {
 				promoteString(&tc.RemotePath, "remote_path", "remotePath", "destination", "dest")
 				promoteString(&tc.Direction, "direction")
 				promoteString(&tc.Operation, "operation", "op")
+				promoteString(&tc.DeviceID, "device_id", "deviceId", "deviceID")
+				promoteString(&tc.DeviceName, "device_name", "deviceName")
 				promoteString(&tc.FilePath, "file_path", "path", "filepath", "filename", "file")
 				if tc.FilePath != "" && tc.Path == "" {
 					tc.Path = tc.FilePath

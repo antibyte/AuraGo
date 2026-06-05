@@ -120,7 +120,7 @@ func TestAgodeskWebSocketRequiresPairingForNormalChat(t *testing.T) {
 func TestAgodeskWebSocketAllowsExplicitLoopbackDevChat(t *testing.T) {
 	s := newAgodeskHandlerTestServer()
 	oldRunner := agodeskAgentChatRunner
-	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, sessionID, message string) (string, error) {
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, sessionID, deviceID, message string) (string, error) {
 		if !strings.HasPrefix(sessionID, "agodesk:dev:") {
 			t.Fatalf("sessionID = %q, want agodesk dev session", sessionID)
 		}
@@ -166,7 +166,7 @@ func TestAgodeskWebSocketRejectsMismatchedChatSessionID(t *testing.T) {
 	s := newAgodeskHandlerTestServer()
 	oldRunner := agodeskAgentChatRunner
 	runnerCalled := make(chan struct{}, 1)
-	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, sessionID, message string) (string, error) {
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, sessionID, deviceID, message string) (string, error) {
 		runnerCalled <- struct{}{}
 		return "runner should not run", nil
 	}
@@ -213,7 +213,7 @@ func TestAgodeskWebSocketPongsWhileChatMessageInFlight(t *testing.T) {
 	oldRunner := agodeskAgentChatRunner
 	runnerStarted := make(chan struct{})
 	releaseRunner := make(chan struct{})
-	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, sessionID, message string) (string, error) {
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, sessionID, deviceID, message string) (string, error) {
 		close(runnerStarted)
 		<-releaseRunner
 		return "slow answer", nil
