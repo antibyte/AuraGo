@@ -47,6 +47,24 @@ type vaultSecretJSON struct {
 	Value string `json:"value,omitempty"` // only populated on explicit single-get (never in list)
 }
 
+func canonicalVaultSecretKey(key string) string {
+	if vaultKey, ok := vaultKeyMap[key]; ok {
+		return vaultKey
+	}
+	return key
+}
+
+func vaultSecretDeleteKeys(key string) []string {
+	key = canonicalVaultSecretKey(key)
+	keys := []string{key}
+	for yamlPath, vaultKey := range vaultKeyMap {
+		if vaultKey == key && yamlPath != key {
+			keys = append(keys, yamlPath)
+		}
+	}
+	return keys
+}
+
 // handleVaultSecrets dispatches GET / POST / DELETE for /api/vault/secrets.
 func handleVaultSecrets(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -110,6 +128,7 @@ func handleSetVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "Secret key must not be empty", http.StatusBadRequest)
 		return
 	}
+	req.Key = canonicalVaultSecretKey(req.Key)
 	if req.Value == "" {
 		jsonError(w, "Secret value must not be empty", http.StatusBadRequest)
 		return
@@ -142,9 +161,11 @@ func handleDeleteVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := s.Vault.DeleteSecret(key); err != nil {
-		jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to delete secret", "[Vault] Failed to delete secret", err, "key", key)
-		return
+	for _, deleteKey := range vaultSecretDeleteKeys(key) {
+		if err := s.Vault.DeleteSecret(deleteKey); err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to delete secret", "[Vault] Failed to delete secret", err, "key", deleteKey)
+			return
+		}
 	}
 
 	s.Logger.Info("[Vault] Secret deleted via Web UI", "key", key)

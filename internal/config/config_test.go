@@ -1565,6 +1565,19 @@ func TestApplyVaultSecretsLoadsComposioAPIKey(t *testing.T) {
 	}
 }
 
+func TestApplyVaultSecretsLoadsLegacyComposioDottedAPIKey(t *testing.T) {
+	cfg := &Config{}
+	vault := &testSecretVault{data: map[string]string{
+		"composio.api_key": "cmp-legacy-secret",
+	}}
+
+	cfg.ApplyVaultSecrets(vault)
+
+	if cfg.Composio.APIKey != "cmp-legacy-secret" {
+		t.Fatalf("composio api key = %q, want legacy secret", cfg.Composio.APIKey)
+	}
+}
+
 func TestLoadAppliesComposioDefaults(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
