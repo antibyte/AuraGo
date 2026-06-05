@@ -1,6 +1,6 @@
 # SECURITY: This script handles sensitive data. Do not echo secrets.
 # make_release.ps1 — Build all release artifacts and publish to GitHub Releases
-# Requires: PowerShell 5.1+, Go 1.26.3+, GitHub CLI (gh), tar
+# Requires: PowerShell 5.1+, Go 1.26.4+, GitHub CLI (gh), tar
 
 param(
     [string]$Version
@@ -21,7 +21,7 @@ Write-Host "[0/5] Checking prerequisites..." -ForegroundColor Yellow
 
 # Go
 try {
-    $minGoVersion = [version]"1.26.3"
+    $minGoVersion = [version]"1.26.4"
     $rawGoVersion = ((go version) -split '\s+')[2]
     $goVersionText = $rawGoVersion -replace '^go', ''
     $goVersion = [version]$goVersionText
@@ -31,7 +31,7 @@ try {
     Write-Host "    Go: $rawGoVersion" -ForegroundColor Green
 } catch {
     Write-Host "[ERROR] $_" -ForegroundColor Red
-    Write-Host "        Install Go 1.26.3+ from https://go.dev/dl/" -ForegroundColor Yellow
+    Write-Host "        Install Go 1.26.4+ from https://go.dev/dl/" -ForegroundColor Yellow
     exit 1
 }
 
