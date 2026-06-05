@@ -13,6 +13,8 @@ function vdCfgEnsureData() {
     if (!data.max_file_size_mb) data.max_file_size_mb = 50;
     if (!data.control_level) data.control_level = 'confirm_destructive';
     if (!data.max_ws_clients) data.max_ws_clients = 8;
+    if (!data.remote_max_session_minutes) data.remote_max_session_minutes = 60;
+    if (!data.remote_idle_timeout_minutes) data.remote_idle_timeout_minutes = 5;
     if (typeof data.allow_generated_apps !== 'boolean') data.allow_generated_apps = true;
     if (typeof data.allow_agent_control === 'boolean') {
         configData.tools.virtual_desktop.enabled = data.allow_agent_control === true;
@@ -68,6 +70,13 @@ function renderVirtualDesktopSection(section) {
         '</select>');
     html += vdCfgField('config.virtual_desktop.max_ws_clients_label', 'help.virtual_desktop.max_ws_clients',
         '<input class="field-input" type="number" min="1" max="64" value="' + (data.max_ws_clients || 8) + '" data-path="virtual_desktop.max_ws_clients">');
+    html += '</div>';
+
+    html += '<div class="field-grid two-cols">';
+    html += vdCfgField('config.virtual_desktop.remote_max_session_label', 'help.virtual_desktop.remote_max_session_minutes',
+        '<input class="field-input" type="number" min="1" max="1440" value="' + (data.remote_max_session_minutes || 60) + '" data-path="virtual_desktop.remote_max_session_minutes">');
+    html += vdCfgField('config.virtual_desktop.remote_idle_timeout_label', 'help.virtual_desktop.remote_idle_timeout_minutes',
+        '<input class="field-input" type="number" min="1" max="120" value="' + (data.remote_idle_timeout_minutes || 5) + '" data-path="virtual_desktop.remote_idle_timeout_minutes">');
     html += '</div>';
 
     html += '<div class="field-group">';

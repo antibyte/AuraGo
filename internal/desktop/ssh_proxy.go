@@ -108,7 +108,8 @@ func sendError(conn *websocket.Conn, message string) {
 
 // HandleSSHProxy returns an http.HandlerFunc that upgrades to WebSocket
 // and proxies an interactive SSH session to the requested device.
-func HandleSSHProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger) http.HandlerFunc {
+func HandleSSHProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger, options ...RemoteProxyOptions) http.HandlerFunc {
+	proxyOptions := normalizeRemoteProxyOptions(options...)
 	return func(w http.ResponseWriter, r *http.Request) {
 		deviceID := strings.TrimSpace(r.URL.Query().Get("device_id"))
 		if deviceID == "" {
@@ -215,7 +216,7 @@ func HandleSSHProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			return
 		}
 
-		ctx, cancel := context.WithTimeout(r.Context(), remoteProxyMaxSessionDuration)
+		ctx, cancel := context.WithTimeout(r.Context(), proxyOptions.MaxSessionDuration)
 		defer cancel()
 
 		// Forward SSH stdout/stderr to WebSocket; cancel context when either ends.
@@ -239,7 +240,7 @@ func HandleSSHProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 		go func() {
 			defer close(msgCh)
 			for {
-				_ = conn.SetReadDeadline(time.Now().Add(remoteProxyIdleTimeout))
+				_ = conn.SetReadDeadline(time.Now().Add(proxyOptions.IdleTimeout))
 				mt, data, err := conn.ReadMessage()
 				select {
 				case <-ctx.Done():

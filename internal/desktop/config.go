@@ -11,9 +11,11 @@ import (
 func ConfigFromAuraConfig(cfg *config.Config) Config {
 	if cfg == nil {
 		return Config{
-			MaxFileSizeMB: 50,
-			ControlLevel:  ControlConfirmDestructive,
-			MaxWSClients:  8,
+			MaxFileSizeMB:            50,
+			ControlLevel:             ControlConfirmDestructive,
+			MaxWSClients:             8,
+			RemoteMaxSessionMinutes:  60,
+			RemoteIdleTimeoutMinutes: 5,
 		}
 	}
 	desktopCfg := cfg.VirtualDesktop
@@ -28,6 +30,14 @@ func ConfigFromAuraConfig(cfg *config.Config) Config {
 	maxWSClients := desktopCfg.MaxWSClients
 	if maxWSClients <= 0 {
 		maxWSClients = 8
+	}
+	remoteMaxSessionMinutes := desktopCfg.RemoteMaxSessionMinutes
+	if remoteMaxSessionMinutes <= 0 {
+		remoteMaxSessionMinutes = 60
+	}
+	remoteIdleTimeoutMinutes := desktopCfg.RemoteIdleTimeoutMinutes
+	if remoteIdleTimeoutMinutes <= 0 {
+		remoteIdleTimeoutMinutes = 5
 	}
 	workspaceDir := strings.TrimSpace(desktopCfg.WorkspaceDir)
 	if workspaceDir == "" {
@@ -46,21 +56,23 @@ func ConfigFromAuraConfig(cfg *config.Config) Config {
 		documentDir = filepath.Join(dataDir, "documents")
 	}
 	return Config{
-		Enabled:            desktopCfg.Enabled,
-		ReadOnly:           desktopCfg.ReadOnly,
-		AllowAgentControl:  desktopCfg.AllowAgentControl,
-		AllowGeneratedApps: desktopCfg.AllowGeneratedApps,
-		AllowPythonJobs:    desktopCfg.AllowPythonJobs,
-		WorkspaceDir:       workspaceDir,
-		DockerHost:         strings.TrimSpace(cfg.Docker.Host),
-		DBPath:             dbPath,
-		DataDir:            dataDir,
-		DocumentDir:        documentDir,
-		MediaRegistryPath:  strings.TrimSpace(cfg.SQLite.MediaRegistryPath),
-		ImageGalleryPath:   strings.TrimSpace(cfg.SQLite.ImageGalleryPath),
-		MaxFileSizeMB:      maxFileSizeMB,
-		ControlLevel:       controlLevel,
-		MaxWSClients:       maxWSClients,
+		Enabled:                  desktopCfg.Enabled,
+		ReadOnly:                 desktopCfg.ReadOnly,
+		AllowAgentControl:        desktopCfg.AllowAgentControl,
+		AllowGeneratedApps:       desktopCfg.AllowGeneratedApps,
+		AllowPythonJobs:          desktopCfg.AllowPythonJobs,
+		WorkspaceDir:             workspaceDir,
+		DockerHost:               strings.TrimSpace(cfg.Docker.Host),
+		DBPath:                   dbPath,
+		DataDir:                  dataDir,
+		DocumentDir:              documentDir,
+		MediaRegistryPath:        strings.TrimSpace(cfg.SQLite.MediaRegistryPath),
+		ImageGalleryPath:         strings.TrimSpace(cfg.SQLite.ImageGalleryPath),
+		MaxFileSizeMB:            maxFileSizeMB,
+		ControlLevel:             controlLevel,
+		MaxWSClients:             maxWSClients,
+		RemoteMaxSessionMinutes:  remoteMaxSessionMinutes,
+		RemoteIdleTimeoutMinutes: remoteIdleTimeoutMinutes,
 		CodeStudio: CodeStudioConfig{
 			Enabled:         desktopCfg.CodeStudio.Enabled,
 			Image:           strings.TrimSpace(desktopCfg.CodeStudio.Image),

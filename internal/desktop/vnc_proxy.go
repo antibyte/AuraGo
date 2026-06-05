@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -25,19 +26,61 @@ import (
 
 // vncUpgrader is the WebSocket upgrader for VNC connections.
 var vncUpgrader = websocket.Upgrader{
+	Subprotocols: []string{"binary"},
 	CheckOrigin: func(r *http.Request) bool {
 		return sameHostWebSocketOrigin(r)
 	},
 }
 
-func sendVNCError(conn *websocket.Conn, message string) {
-	data, _ := json.Marshal(sshStatusMessage{Type: "error", Message: message})
+func sendVNCError(conn *websocket.Conn, code, message string) {
+	data, _ := json.Marshal(sshStatusMessage{Type: "error", Code: code, Message: message})
 	_ = conn.WriteMessage(websocket.TextMessage, data)
+}
+
+func sendVNCClientError(conn *websocket.Conn, rfbClient bool, code, message string) {
+	if rfbClient {
+		sendVNCRFBSecurityFailure(conn, code, message, false)
+		return
+	}
+	sendVNCError(conn, code, message)
+}
+
+func vncClientWantsRFB(r *http.Request) bool {
+	for _, protocol := range websocket.Subprotocols(r) {
+		if strings.EqualFold(protocol, "binary") {
+			return true
+		}
+	}
+	return false
+}
+
+func sendVNCRFBSecurityFailure(conn *websocket.Conn, code, message string, browserReadyForSecurity bool) {
+	rfb := &wsRFBConn{conn: conn}
+	if !browserReadyForSecurity {
+		if _, err := rfb.Write([]byte("RFB 003.008\n")); err != nil {
+			return
+		}
+		_ = conn.SetReadDeadline(time.Now().Add(remoteProxyWriteTimeout))
+		if _, err := readRFBVersion(rfb); err != nil {
+			return
+		}
+	}
+	_, _ = rfb.Write(encodeVNCRFBSecurityFailure(code, message))
+}
+
+func encodeVNCRFBSecurityFailure(code, message string) []byte {
+	payload, _ := json.Marshal(sshStatusMessage{Type: "error", Code: code, Message: message})
+	buf := make([]byte, 5+len(payload))
+	buf[0] = 0
+	binary.BigEndian.PutUint32(buf[1:5], uint32(len(payload)))
+	copy(buf[5:], payload)
+	return buf
 }
 
 // HandleVNCProxy returns an http.HandlerFunc that upgrades to WebSocket
 // and proxies a raw VNC (RFB) session to the requested device.
-func HandleVNCProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger) http.HandlerFunc {
+func HandleVNCProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger, options ...RemoteProxyOptions) http.HandlerFunc {
+	proxyOptions := normalizeRemoteProxyOptions(options...)
 	return func(w http.ResponseWriter, r *http.Request) {
 		deviceID := strings.TrimSpace(r.URL.Query().Get("device_id"))
 		if deviceID == "" {
@@ -45,6 +88,7 @@ func HandleVNCProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			return
 		}
 
+		rfbClient := vncClientWantsRFB(r)
 		conn, err := vncUpgrader.Upgrade(w, r, nil)
 		if err != nil {
 			logger.Warn("VNC proxy WebSocket upgrade failed", "error", err)
@@ -55,25 +99,25 @@ func HandleVNCProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 
 		device, err := inventory.GetDeviceByID(inventoryDB, deviceID)
 		if err != nil {
-			sendVNCError(conn, fmt.Sprintf("Device not found: %v", err))
+			sendVNCClientError(conn, rfbClient, "device_not_found", fmt.Sprintf("Device not found: %v", err))
 			return
 		}
 
 		if device.Protocol != "vnc" {
-			sendVNCError(conn, fmt.Sprintf("Device protocol is %q, expected vnc", device.Protocol))
+			sendVNCClientError(conn, rfbClient, "protocol_mismatch", fmt.Sprintf("Device protocol is %q, expected vnc", device.Protocol))
 			return
 		}
 
 		host, port, password, err := resolveVNCAccess(device, inventoryDB, vault)
 		if err != nil {
-			sendVNCError(conn, fmt.Sprintf("Failed to resolve VNC access: %v", err))
+			sendVNCClientError(conn, rfbClient, "credential_unavailable", fmt.Sprintf("Failed to resolve VNC access: %v", err))
 			return
 		}
 
 		addr := vncDialAddress(host, port)
 		vncConn, err := net.Dial("tcp", addr)
 		if err != nil {
-			sendVNCError(conn, fmt.Sprintf("VNC connection failed: %v", err))
+			sendVNCClientError(conn, rfbClient, "dial_failed", fmt.Sprintf("VNC connection failed: %v", err))
 			return
 		}
 		defer vncConn.Close()
@@ -82,23 +126,35 @@ func HandleVNCProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 		_ = conn.SetReadDeadline(handshakeDeadline)
 
 		writer := &wsBinaryWriter{conn: conn}
-		if err := writer.writeText(sshStatusMessage{Type: "connected", Message: "VNC session established"}); err != nil {
-			logger.Warn("failed to send VNC connected status", "error", err)
-			return
+		if !rfbClient {
+			if err := writer.writeText(sshStatusMessage{Type: "connected", Message: "VNC session established"}); err != nil {
+				logger.Warn("failed to send VNC connected status", "error", err)
+				return
+			}
 		}
 		browserRFB := &wsRFBConn{conn: conn}
 		if err := performRFBHandshake(browserRFB, vncConn, password); err != nil {
-			sendVNCError(conn, fmt.Sprintf("VNC authentication failed: %v", err))
+			code := vncHandshakeErrorCode(err)
+			prefix := "VNC initialization failed"
+			if code == "auth_failed" {
+				prefix = "VNC authentication failed"
+			}
+			message := fmt.Sprintf("%s: %v", prefix, err)
+			if rfbClient {
+				sendVNCRFBSecurityFailure(conn, code, message, vncHandshakeBrowserReadyForSecurity(err))
+			} else {
+				sendVNCError(conn, code, message)
+			}
 			return
 		}
 		_ = conn.SetReadDeadline(time.Time{})
-		_ = vncConn.SetDeadline(time.Now().Add(remoteProxyMaxSessionDuration))
+		_ = vncConn.SetDeadline(time.Now().Add(proxyOptions.MaxSessionDuration))
 		if err := browserRFB.drainTo(vncConn); err != nil {
-			sendVNCError(conn, fmt.Sprintf("VNC client initialization failed: %v", err))
+			sendVNCError(conn, "init_failed", fmt.Sprintf("VNC client initialization failed: %v", err))
 			return
 		}
 
-		ctx, cancel := context.WithTimeout(r.Context(), remoteProxyMaxSessionDuration)
+		ctx, cancel := context.WithTimeout(r.Context(), proxyOptions.MaxSessionDuration)
 		defer cancel()
 
 		// Bidirectional copy between WebSocket and VNC TCP connection.
@@ -116,7 +172,7 @@ func HandleVNCProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 		go func() {
 			defer wg.Done()
 			for {
-				_ = conn.SetReadDeadline(time.Now().Add(remoteProxyIdleTimeout))
+				_ = conn.SetReadDeadline(time.Now().Add(proxyOptions.IdleTimeout))
 				mt, data, readErr := conn.ReadMessage()
 				if readErr != nil {
 					if websocket.IsUnexpectedCloseError(readErr, websocket.CloseGoingAway, websocket.CloseNormalClosure, websocket.CloseNoStatusReceived) {
@@ -202,33 +258,67 @@ type rfbVersion struct {
 	major, min int
 }
 
+var (
+	errVNCCredentialRequired   = errors.New("VNC password is required")
+	errVNCAuthenticationFailed = errors.New("authentication failed")
+)
+
+func vncHandshakeErrorCode(err error) string {
+	if errors.Is(err, errVNCCredentialRequired) || errors.Is(err, errVNCAuthenticationFailed) {
+		return "auth_failed"
+	}
+	return "init_failed"
+}
+
+type vncHandshakeError struct {
+	err                     error
+	browserReadyForSecurity bool
+}
+
+func (e *vncHandshakeError) Error() string {
+	return e.err.Error()
+}
+
+func (e *vncHandshakeError) Unwrap() error {
+	return e.err
+}
+
+func newVNCHandshakeError(err error, browserReadyForSecurity bool) error {
+	return &vncHandshakeError{err: err, browserReadyForSecurity: browserReadyForSecurity}
+}
+
+func vncHandshakeBrowserReadyForSecurity(err error) bool {
+	var handshakeErr *vncHandshakeError
+	return errors.As(err, &handshakeErr) && handshakeErr.browserReadyForSecurity
+}
+
 func performRFBHandshake(browser io.ReadWriter, server io.ReadWriter, password string) error {
 	serverVersion, err := readRFBVersion(server)
 	if err != nil {
-		return fmt.Errorf("read server version: %w", err)
+		return newVNCHandshakeError(fmt.Errorf("read server version: %w", err), false)
 	}
 	if err := writeRFB(browser, serverVersion.raw); err != nil {
-		return fmt.Errorf("send server version to browser: %w", err)
+		return newVNCHandshakeError(fmt.Errorf("send server version to browser: %w", err), false)
 	}
 	browserVersion, err := readRFBVersion(browser)
 	if err != nil {
-		return fmt.Errorf("read browser version: %w", err)
+		return newVNCHandshakeError(fmt.Errorf("read browser version: %w", err), false)
 	}
 	if err := writeRFB(server, browserVersion.raw); err != nil {
-		return fmt.Errorf("send browser version to server: %w", err)
+		return newVNCHandshakeError(fmt.Errorf("send browser version to server: %w", err), true)
 	}
 	if err := authenticateRemoteRFB(server, serverVersion, password); err != nil {
-		return err
+		return newVNCHandshakeError(err, true)
 	}
 	if err := offerBrowserNoAuth(browser, browserVersion); err != nil {
-		return err
+		return newVNCHandshakeError(err, false)
 	}
 	clientInit := make([]byte, 1)
 	if _, err := io.ReadFull(browser, clientInit); err != nil {
-		return fmt.Errorf("read browser client init: %w", err)
+		return newVNCHandshakeError(fmt.Errorf("read browser client init: %w", err), false)
 	}
 	if err := writeRFB(server, clientInit); err != nil {
-		return fmt.Errorf("send client init to server: %w", err)
+		return newVNCHandshakeError(fmt.Errorf("send client init to server: %w", err), false)
 	}
 	return nil
 }
@@ -283,7 +373,7 @@ func authenticateRemoteRFB(server io.ReadWriter, version rfbVersion, password st
 	} else if bytesContains(types, 1) {
 		choice = 1
 	} else if bytesContains(types, 2) {
-		return fmt.Errorf("VNC password is required")
+		return errVNCCredentialRequired
 	}
 	if choice == 0 {
 		return fmt.Errorf("unsupported RFB security types %v", types)
@@ -303,7 +393,7 @@ func authenticateRemoteRFB(server io.ReadWriter, version rfbVersion, password st
 
 func completeVNCPasswordAuth(server io.ReadWriter, version rfbVersion, password string) error {
 	if strings.TrimSpace(password) == "" {
-		return fmt.Errorf("VNC password is required")
+		return errVNCCredentialRequired
 	}
 	challenge := make([]byte, 16)
 	if _, err := io.ReadFull(server, challenge); err != nil {
@@ -355,9 +445,9 @@ func readRFBSecurityResult(r io.Reader, version rfbVersion) error {
 		reason = readRFBReason(r)
 	}
 	if reason == "" {
-		reason = "authentication failed"
+		return errVNCAuthenticationFailed
 	}
-	return fmt.Errorf("authentication failed: %s", reason)
+	return fmt.Errorf("%w: %s", errVNCAuthenticationFailed, reason)
 }
 
 func readRFBReason(r io.Reader) string {

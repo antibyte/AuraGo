@@ -23,22 +23,24 @@ const (
 
 // Config describes the runtime settings needed by the desktop service.
 type Config struct {
-	Enabled            bool
-	ReadOnly           bool
-	AllowAgentControl  bool
-	AllowGeneratedApps bool
-	AllowPythonJobs    bool
-	WorkspaceDir       string
-	DockerHost         string
-	DBPath             string
-	DataDir            string
-	DocumentDir        string
-	MediaRegistryPath  string
-	ImageGalleryPath   string
-	MaxFileSizeMB      int
-	ControlLevel       string
-	MaxWSClients       int
-	CodeStudio         CodeStudioConfig
+	Enabled                  bool
+	ReadOnly                 bool
+	AllowAgentControl        bool
+	AllowGeneratedApps       bool
+	AllowPythonJobs          bool
+	WorkspaceDir             string
+	DockerHost               string
+	DBPath                   string
+	DataDir                  string
+	DocumentDir              string
+	MediaRegistryPath        string
+	ImageGalleryPath         string
+	MaxFileSizeMB            int
+	ControlLevel             string
+	MaxWSClients             int
+	RemoteMaxSessionMinutes  int
+	RemoteIdleTimeoutMinutes int
+	CodeStudio               CodeStudioConfig
 }
 
 // CodeStudioConfig controls the lazy Code Studio development container.

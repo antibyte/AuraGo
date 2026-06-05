@@ -412,6 +412,7 @@ func TestDesktopFruityWindowContentPreservesRoundedCorners(t *testing.T) {
 
 func cssRuleBodyInFruityThemeTest(t *testing.T, source, selector string) string {
 	t.Helper()
+	source = strings.ReplaceAll(source, "\r\n", "\n")
 	start := strings.Index(source, selector)
 	if start < 0 {
 		t.Fatalf("missing CSS selector %q", selector)
