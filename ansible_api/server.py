@@ -29,6 +29,7 @@ from urllib.parse import parse_qs, urlparse
 # Configuration (via environment variables)
 # ──────────────────────────────────────────────────────────────────────────────
 TOKEN             = os.environ.get("ANSIBLE_API_TOKEN", "")
+ALLOW_UNAUTH      = os.environ.get("ANSIBLE_API_ALLOW_UNAUTH", "").lower() in {"1", "true", "yes"}
 PLAYBOOKS_DIR     = os.environ.get("PLAYBOOKS_DIR", "/playbooks")
 DEFAULT_INVENTORY = os.environ.get("DEFAULT_INVENTORY", "/inventory/hosts")
 ANSIBLE_TIMEOUT   = int(os.environ.get("ANSIBLE_TIMEOUT", "300"))
@@ -42,7 +43,7 @@ MAX_BODY_SIZE     = int(os.environ.get("MAX_BODY_SIZE", str(2 * 1024 * 1024)))  
 def check_auth(handler: "Handler") -> bool:
     """Return True if the request is authenticated (or no token is required)."""
     if not TOKEN:
-        return True
+        return ALLOW_UNAUTH
     auth = handler.headers.get("Authorization", "")
     return auth == f"Bearer {TOKEN}"
 
@@ -138,17 +139,18 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def read_json_body(self) -> dict:
+    def read_json_body(self) -> dict | None:
         length = int(self.headers.get("Content-Length", 0))
         if length <= 0:
             return {}
         if length > MAX_BODY_SIZE:
             self.send_json(413, {"status": "error", "message": f"Request body too large (max {MAX_BODY_SIZE} bytes)"})
-            return {}
+            return None
         try:
             return json.loads(self.rfile.read(length))
-        except Exception:
-            return {}
+        except Exception as exc:
+            self.send_json(400, {"status": "error", "message": f"Invalid JSON: {exc}"})
+            return None
 
     def require_auth(self) -> bool:
         """Send 401 and return False if auth fails."""
@@ -212,6 +214,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         path   = urlparse(self.path).path
         body   = self.read_json_body()
+        if body is None:
+            return
         routes = {
             "/run/ping":     self._handle_ping,
             "/run/adhoc":    self._handle_adhoc,
@@ -311,7 +315,10 @@ if __name__ == "__main__":
     print(f"[ansible-api] Inventory : {DEFAULT_INVENTORY}", flush=True)
     print(f"[ansible-api] Max body  : {MAX_BODY_SIZE} bytes", flush=True)
     if not TOKEN:
-        print("[ansible-api] WARNING: ANSIBLE_API_TOKEN not set — API is unauthenticated!", flush=True)
+        if not ALLOW_UNAUTH:
+            print("[ansible-api] ERROR: ANSIBLE_API_TOKEN is required unless ANSIBLE_API_ALLOW_UNAUTH=1 is set.", flush=True)
+            raise SystemExit(1)
+        print("[ansible-api] WARNING: ANSIBLE_API_ALLOW_UNAUTH=1 — API is unauthenticated!", flush=True)
 
     server = ThreadedHTTPServer(("0.0.0.0", PORT), Handler)
 

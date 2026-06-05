@@ -29,10 +29,9 @@ services:
       # Connect to Docker via the docker-proxy service (recommended).
       # If you prefer direct socket access (less secure), see the alternative below.
       - DOCKER_HOST=tcp://docker-proxy:2375
-      # Optional: provide the master key via environment or your stack manager's
-      # secret UI. If empty, AuraGo will try a mounted host secret file and then
-      # auto-generate a key on first start.
-      - AURAGO_MASTER_KEY=${AURAGO_MASTER_KEY:-}
+      # Master key: prefer ./secrets/aurago_master.key mounted below or your
+      # stack manager's Docker secret support. If no key exists, AuraGo
+      # auto-generates one on first start and stores it in the persistent volume.
 
     # --- Volumes ---
     volumes:
@@ -215,6 +214,11 @@ services:
       - ALLOW_FILE_UPLOADS=true
       - ALLOW_FILE_DOWNLOADS=true
       - READ_ONLY=false
+      # Required by default for manually started sidecars. Replace this token.
+      # Managed AuraGo sidecars receive their token automatically from the backend.
+      - AURAGO_BROWSER_AUTOMATION_TOKEN=${AURAGO_BROWSER_AUTOMATION_TOKEN:-change_me_please}
+      # Development-only opt-in for isolated local testing without a token:
+      # - AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH=1
       - SESSION_TTL_MINUTES=30
       - MAX_SESSIONS=3
       - VIEWPORT_WIDTH=1280
@@ -229,7 +233,7 @@ services:
     cap_drop:
       - ALL
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:7331/health || exit 1"]
+      test: ["CMD-SHELL", "wget -q --header=\"X-AuraGo-Sidecar-Token: $${AURAGO_BROWSER_AUTOMATION_TOKEN}\" --spider http://localhost:7331/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -267,8 +271,10 @@ services:
   #     dockerfile: Dockerfile.ansible
   #   container_name: ansible_sidecar
   #   environment:
-  #     # !! Change this token and set the same value in config.yaml ansible.token !!
+  #     # Required by default. Change this token and set the same value in config.yaml ansible.token.
   #     - ANSIBLE_API_TOKEN=change_me_please
+  #     # Development-only opt-in for isolated local testing without a token:
+  #     # - ANSIBLE_API_ALLOW_UNAUTH=1
   #     # Optional overrides:
   #     # - PLAYBOOKS_DIR=/playbooks
   #     # - DEFAULT_INVENTORY=/inventory/hosts

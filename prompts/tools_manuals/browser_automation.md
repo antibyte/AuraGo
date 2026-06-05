@@ -18,6 +18,8 @@ It is designed for tasks such as:
 
 **Requires:** both `browser_automation.enabled: true` and `tools.browser_automation.enabled: true`.
 
+The sidecar requires `AURAGO_BROWSER_AUTOMATION_TOKEN` by default. Managed sidecars receive it from AuraGo automatically; manual sidecars must set it explicitly. `AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH=1` is for isolated development only.
+
 **Stealth Features (when configured):**
 - Source-level fingerprint patches (canvas, WebGL, audio, fonts, GPU) make the browser indistinguishable from a real user.
 - `humanize` mode simulates human mouse curves, typing delays, and scroll patterns.

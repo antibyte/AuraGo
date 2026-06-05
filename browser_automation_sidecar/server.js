@@ -2,7 +2,6 @@ const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs/promises');
 const path = require('path');
-const { launch } = require('cloakbrowser');
 
 const PORT = parseInt(process.env.PORT || '7331', 10);
 const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT || '/workspace';
@@ -12,6 +11,7 @@ const ALLOW_FILE_UPLOADS = process.env.ALLOW_FILE_UPLOADS !== 'false';
 const ALLOW_FILE_DOWNLOADS = process.env.ALLOW_FILE_DOWNLOADS !== 'false';
 const READ_ONLY = process.env.READ_ONLY === 'true';
 const SIDECAR_TOKEN = String(process.env.AURAGO_BROWSER_AUTOMATION_TOKEN || '').trim();
+const ALLOW_UNAUTH = /^(1|true|yes)$/i.test(String(process.env.AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH || '').trim());
 const SESSION_TTL_MS = Math.max(1, parseInt(process.env.SESSION_TTL_MINUTES || '30', 10)) * 60 * 1000;
 const MAX_SESSIONS = Math.max(1, parseInt(process.env.MAX_SESSIONS || '3', 10));
 const VIEWPORT_WIDTH = Math.max(320, parseInt(process.env.VIEWPORT_WIDTH || '1280', 10));
@@ -29,6 +29,13 @@ const CLOAK_HUMAN_PRESET = String(process.env.CLOAK_HUMAN_PRESET || 'default').t
 const CLOAK_PROXY = String(process.env.CLOAK_PROXY || '').trim();
 const CLOAK_FINGERPRINT_SEED = String(process.env.CLOAK_FINGERPRINT_SEED || '').trim();
 
+if (!SIDECAR_TOKEN && !ALLOW_UNAUTH) {
+  console.error('AURAGO_BROWSER_AUTOMATION_TOKEN is required unless AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH=1 is set.');
+  process.exit(1);
+}
+
+const { launch } = require('cloakbrowser');
+
 const sessions = new Map();
 let browserPromise = null;
 let shuttingDown = false;
@@ -39,7 +46,7 @@ function json(res, statusCode, payload) {
 }
 
 function hasValidSidecarToken(req) {
-  if (!SIDECAR_TOKEN) return true;
+  if (!SIDECAR_TOKEN) return ALLOW_UNAUTH;
   const provided = typeof req.headers['x-aurago-sidecar-token'] === 'string'
     ? req.headers['x-aurago-sidecar-token'].trim()
     : '';

@@ -1543,6 +1543,8 @@ Headless browser automation for forms, screenshots, and web interactions.
 3. Configure **Headless Mode** and screenshot directory.
 4. Save and restart.
 
+The Browser Automation sidecar requires `AURAGO_BROWSER_AUTOMATION_TOKEN` by default. AuraGo injects it automatically for managed sidecars; set it explicitly when running the sidecar manually. Use `AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH=1` only for isolated local development.
+
 ### YAML Reference
 ```yaml
 browser_automation:

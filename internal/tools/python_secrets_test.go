@@ -62,6 +62,12 @@ func TestIsPythonAccessibleSecret_BlocksSystemVaultKeysAddedByIntegrations(t *te
 		"dograh_redis_password",
 		"dograh_minio_root_password",
 		"dograh_aurago_mcp_token",
+		"a2a_api_key",
+		"a2a_bearer_secret",
+		"a2a_remote_main_api_key",
+		"a2a_remote_main_bearer_secret",
+		"egg_shared_key",
+		"truenas_api_key",
 	} {
 		if IsPythonAccessibleSecret(key) {
 			t.Errorf("expected system-managed key %q to be blocked, but it was allowed", key)

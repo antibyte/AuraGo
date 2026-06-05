@@ -634,7 +634,6 @@ services:
     image: aurago:latest
     environment:
       - AURAGO_SERVER_HOST=0.0.0.0
-      - AURAGO_MASTER_KEY=${AURAGO_MASTER_KEY}
       - LLM_API_KEY=${LLM_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - TAILSCALE_API_KEY=${TAILSCALE_API_KEY}
@@ -642,9 +641,10 @@ services:
     volumes:
       - ./data:/app/data
       - ./config.yaml:/app/config.yaml
+      - ./secrets:/run/optional-secrets:ro
 ```
 
-> 💡 **Tip:** Use a `.env` file for local development to keep secrets out of version control.
+> 💡 **Tip:** Put the vault master key in `./secrets/aurago_master.key` or use your Docker secret manager. If no key is mounted, AuraGo generates one into the persistent data volume on first start.
 
 ---
 
