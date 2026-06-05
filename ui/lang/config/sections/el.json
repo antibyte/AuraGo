@@ -469,5 +469,7 @@
   "config.section.optimizations.group.tool_context": "🔧 Πλαισιο εργαλειων",
   "config.section.optimizations.group.tool_visibility": "🔧 Ορατοτητα εργαλειων",
   "config.section.rules.label": "Κανόνες",
-  "config.section.rules.desc": "Διαχείριση κανόνων πράκτορα ανά εργασία"
+  "config.section.rules.desc": "Διαχείριση κανόνων πράκτορα ανά εργασία",
+  "config.section.composio.label": "Composio",
+  "config.section.composio.desc": "Eksoterikos katalogos ensomatoseon kai pege ergaleion gia ton agent"
 }

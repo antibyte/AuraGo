@@ -376,5 +376,15 @@
   "help.mqtt.availability_retain": "Όταν είναι ενεργό, ο broker κρατά την τελευταία κατάσταση διαθεσιμότητας για νέους subscribers.",
   "help.agent.adaptive_tools.max_total_tools": "Μεγιστος τελικος αριθμος native schemas εργαλειων αφου διατηρηθουν τα απαιτουμενα εργαλεια.",
   "help.agent.adaptive_tools.provider_profiles_enabled": "Εφαρμοζει προφιλ σταθεροτητας ανα παροχο για ορια εργαλειων και timeouts κεφαλιδων αποκρισης.",
-  "help.agent.adaptive_tools.session_tool_retention_turns": "Ποσοι προσφατοι γυροι κρατουν τα χρησιμοποιημενα εργαλεια ορατα ως soft always-include."
+  "help.agent.adaptive_tools.session_tool_retention_turns": "Ποσοι προσφατοι γυροι κρατουν τα χρησιμοποιημενα εργαλεια ορατα ως soft always-include.",
+  "help.composio.enabled": "Eksoterikos katalogos ensomatoseon kai pege ergaleion gia ton agent. Enable this after storing the API key in the vault.",
+  "help.composio.api_key": "Store the Composio API key in the encrypted vault under composio_api_key. It is never written to config.yaml.",
+  "help.composio.base_url": "Composio REST API base URL. Default: https://backend.composio.dev/api/v3.1.",
+  "help.composio.user_id": "Composio user identifier used for connected-account link flows. Default: aurago-default.",
+  "help.composio.timeout": "Maximum wait time per Composio API request.",
+  "help.composio.cache_ttl": "How long toolkit and tool searches stay cached in memory.",
+  "help.composio.max_result": "Maximum response size returned from Composio before AuraGo stops reading.",
+  "help.composio.read_only": "Mono anagnosi. Unknown or mutating tool slugs are blocked.",
+  "help.composio.allow_destructive": "Epitrepsi katastrophikon ergaleion. Keep disabled unless the selected toolkit action is intentional.",
+  "help.composio.allow_nl": "Epitrepsi fysikis glossas. Natural-language tool input is blocked by default because it is less predictable than structured arguments."
 }

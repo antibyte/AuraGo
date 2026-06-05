@@ -105,6 +105,7 @@ type ToolFeatureFlags struct {
 	UptimeKumaEnabled       bool
 	GrafanaEnabled          bool
 	MCPEnabled              bool
+	ComposioEnabled         bool
 	SandboxEnabled          bool
 	MeshCentralEnabled      bool
 	HomepageEnabled         bool

@@ -376,5 +376,15 @@
   "help.mqtt.availability_retain": "Når aktivert beholder broker siste tilgjengelighetsstatus for nye abonnenter.",
   "help.agent.adaptive_tools.max_total_tools": "Maks endelig antall native verktøyskjemaer etter at påkrevde verktøy er beholdt.",
   "help.agent.adaptive_tools.provider_profiles_enabled": "Bruker leverandørspesifikke stabilitetsprofiler for verktøygrenser og svartopp-timeouter.",
-  "help.agent.adaptive_tools.session_tool_retention_turns": "Hvor mange nylige runder som holder brukte verktøy synlige som myke always-include verktøy."
+  "help.agent.adaptive_tools.session_tool_retention_turns": "Hvor mange nylige runder som holder brukte verktøy synlige som myke always-include verktøy.",
+  "help.composio.enabled": "Ekstern integrasjonskatalog og verktoykilde for agenten. Enable this after storing the API key in the vault.",
+  "help.composio.api_key": "Store the Composio API key in the encrypted vault under composio_api_key. It is never written to config.yaml.",
+  "help.composio.base_url": "Composio REST API base URL. Default: https://backend.composio.dev/api/v3.1.",
+  "help.composio.user_id": "Composio user identifier used for connected-account link flows. Default: aurago-default.",
+  "help.composio.timeout": "Maximum wait time per Composio API request.",
+  "help.composio.cache_ttl": "How long toolkit and tool searches stay cached in memory.",
+  "help.composio.max_result": "Maximum response size returned from Composio before AuraGo stops reading.",
+  "help.composio.read_only": "Kun lesing. Unknown or mutating tool slugs are blocked.",
+  "help.composio.allow_destructive": "Tillat destruktive verktoy. Keep disabled unless the selected toolkit action is intentional.",
+  "help.composio.allow_nl": "Tillat naturlig sprak. Natural-language tool input is blocked by default because it is less predictable than structured arguments."
 }

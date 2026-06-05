@@ -266,6 +266,12 @@ func TestResolveDiscoverToolNameAlias(t *testing.T) {
 	if got := resolveDiscoverToolName("mcp server"); got != "mcp_call" {
 		t.Fatalf("resolveDiscoverToolName(mcp server) = %q, want %q", got, "mcp_call")
 	}
+	if got := resolveDiscoverToolName("composio"); got != "composio_call" {
+		t.Fatalf("resolveDiscoverToolName(composio) = %q, want %q", got, "composio_call")
+	}
+	if got := resolveDiscoverToolName("integrations"); got != "composio_call" {
+		t.Fatalf("resolveDiscoverToolName(integrations) = %q, want %q", got, "composio_call")
+	}
 	if got := resolveDiscoverToolName("wikipedia"); got != "wikipedia_search" {
 		t.Fatalf("resolveDiscoverToolName(wikipedia) = %q, want %q", got, "wikipedia_search")
 	}

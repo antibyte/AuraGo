@@ -175,6 +175,18 @@ type mcpCallArgs struct {
 	Args      map[string]interface{}
 }
 
+type composioCallArgs struct {
+	Operation          string
+	Query              string
+	ToolkitSlug        string
+	ToolSlug           string
+	ConnectedAccountID string
+	Arguments          map[string]interface{}
+	Text               string
+	Cursor             string
+	Limit              int
+}
+
 type adGuardArgs struct {
 	Operation string
 	Query     string
@@ -807,6 +819,24 @@ func decodeMCPCallArgs(tc ToolCall) mcpCallArgs {
 	req.Args = toolArgInterfaceMap(tc.Params, "args", "mcp_args", "parameters")
 	if req.Args == nil {
 		req.Args = map[string]interface{}{}
+	}
+	return req
+}
+
+func decodeComposioCallArgs(tc ToolCall) composioCallArgs {
+	req := composioCallArgs{
+		Operation:          firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Query:              firstNonEmptyToolString(tc.Query, toolArgString(tc.Params, "query")),
+		ToolkitSlug:        toolArgString(tc.Params, "toolkit_slug", "toolkit"),
+		ToolSlug:           toolArgString(tc.Params, "tool_slug", "tool_name", "name"),
+		ConnectedAccountID: toolArgString(tc.Params, "connected_account_id", "account_id"),
+		Text:               firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "text")),
+		Cursor:             toolArgString(tc.Params, "cursor"),
+		Limit:              toolArgInt(tc.Params, 0, "limit"),
+	}
+	req.Arguments = toolArgInterfaceMap(tc.Params, "arguments", "args", "parameters", "tool_args")
+	if req.Arguments == nil {
+		req.Arguments = map[string]interface{}{}
 	}
 	return req
 }

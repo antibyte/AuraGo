@@ -469,5 +469,7 @@
   "config.section.optimizations.group.tool_context": "🔧 Contexto das ferramentas",
   "config.section.optimizations.group.tool_visibility": "🔧 Visibilidade das ferramentas",
   "config.section.rules.label": "Regras",
-  "config.section.rules.desc": "Gerir diretrizes do agente por tarefa"
+  "config.section.rules.desc": "Gerir diretrizes do agente por tarefa",
+  "config.section.composio.label": "Composio",
+  "config.section.composio.desc": "Catalogo externo de integracoes e fonte de ferramentas para o agente"
 }

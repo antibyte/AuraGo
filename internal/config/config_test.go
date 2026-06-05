@@ -1552,6 +1552,51 @@ func TestApplyVaultSecretsLoadsManifestSecrets(t *testing.T) {
 	}
 }
 
+func TestApplyVaultSecretsLoadsComposioAPIKey(t *testing.T) {
+	cfg := &Config{}
+	vault := &testSecretVault{data: map[string]string{
+		"composio_api_key": "cmp-secret",
+	}}
+
+	cfg.ApplyVaultSecrets(vault)
+
+	if cfg.Composio.APIKey != "cmp-secret" {
+		t.Fatalf("composio api key = %q, want cmp-secret", cfg.Composio.APIKey)
+	}
+}
+
+func TestLoadAppliesComposioDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("providers: []\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Composio.BaseURL != "https://backend.composio.dev/api/v3.1" {
+		t.Fatalf("Composio.BaseURL = %q", cfg.Composio.BaseURL)
+	}
+	if cfg.Composio.UserID != "aurago-default" {
+		t.Fatalf("Composio.UserID = %q", cfg.Composio.UserID)
+	}
+	if !cfg.Composio.ReadOnly {
+		t.Fatal("expected Composio.ReadOnly default true")
+	}
+	if cfg.Composio.AllowDestructive {
+		t.Fatal("expected Composio.AllowDestructive default false")
+	}
+	if cfg.Composio.AllowNaturalLanguageInput {
+		t.Fatal("expected Composio.AllowNaturalLanguageInput default false")
+	}
+	if cfg.Composio.RequestTimeoutSeconds <= 0 || cfg.Composio.CacheTTLSeconds <= 0 || cfg.Composio.MaxResultBytes <= 0 {
+		t.Fatalf("unexpected Composio timeout/cache/result defaults: %+v", cfg.Composio)
+	}
+}
+
 func TestManifestProviderManagedDefaultBaseURL(t *testing.T) {
 	cfg := &Config{}
 	cfg.Manifest.Mode = "managed"

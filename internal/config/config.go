@@ -539,6 +539,16 @@ func Load(path string) (*Config, error) {
 	cfg.SQLConnections.RateLimitWindowSec = 1 // per-connection rate limit: 1 second between accesses (0 = disabled)
 	cfg.SQLConnections.IdleTTLSec = 600       // idle TTL: 10 minutes before connection eviction
 
+	// Composio defaults: disabled by default, read-only once enabled.
+	cfg.Composio.BaseURL = "https://backend.composio.dev/api/v3.1"
+	cfg.Composio.UserID = "aurago-default"
+	cfg.Composio.ReadOnly = true
+	cfg.Composio.AllowDestructive = false
+	cfg.Composio.AllowNaturalLanguageInput = false
+	cfg.Composio.RequestTimeoutSeconds = 60
+	cfg.Composio.CacheTTLSeconds = 300
+	cfg.Composio.MaxResultBytes = 262144
+
 	// Remote control defaults: disabled by default, mutable operations allowed
 	// unless readonly is explicitly enabled, and audit logging stays on.
 	cfg.RemoteControl.ConnectionMode = "auto"
@@ -588,6 +598,22 @@ func Load(path string) (*Config, error) {
 		cfg.WebDAV.AuthType = "bearer"
 	default:
 		cfg.WebDAV.AuthType = "basic"
+	}
+	if strings.TrimSpace(cfg.Composio.BaseURL) == "" {
+		cfg.Composio.BaseURL = "https://backend.composio.dev/api/v3.1"
+	}
+	cfg.Composio.BaseURL = strings.TrimRight(strings.TrimSpace(cfg.Composio.BaseURL), "/")
+	if strings.TrimSpace(cfg.Composio.UserID) == "" {
+		cfg.Composio.UserID = "aurago-default"
+	}
+	if cfg.Composio.RequestTimeoutSeconds <= 0 {
+		cfg.Composio.RequestTimeoutSeconds = 60
+	}
+	if cfg.Composio.CacheTTLSeconds <= 0 {
+		cfg.Composio.CacheTTLSeconds = 300
+	}
+	if cfg.Composio.MaxResultBytes <= 0 {
+		cfg.Composio.MaxResultBytes = 262144
 	}
 
 	cfg.BrowserAutomation.URL = NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)

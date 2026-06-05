@@ -469,5 +469,7 @@
   "config.section.optimizations.group.tool_context": "🔧 Kontext nastroju",
   "config.section.optimizations.group.tool_visibility": "🔧 Viditelnost nastroju",
   "config.section.rules.label": "Pravidla",
-  "config.section.rules.desc": "Spravovat úkolová pravidla agenta"
+  "config.section.rules.desc": "Spravovat úkolová pravidla agenta",
+  "config.section.composio.label": "Composio",
+  "config.section.composio.desc": "Externi katalog integraci a zdroj nastroju pro agenta"
 }

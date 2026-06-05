@@ -376,5 +376,15 @@
   "help.mqtt.availability_retain": "有効にすると、broker は新しい subscriber 向けに最新の可用性状態を保持します。",
   "help.agent.adaptive_tools.max_total_tools": "必須ツールを保持した後の最終的なネイティブツールスキーマ数の上限です。",
   "help.agent.adaptive_tools.provider_profiles_enabled": "プロバイダー別の安定化プロファイルを適用し、ツール数と応答ヘッダー待ち時間を調整します。",
-  "help.agent.adaptive_tools.session_tool_retention_turns": "最近使ったツールをソフトな常時表示として保持する会話ターン数です。"
+  "help.agent.adaptive_tools.session_tool_retention_turns": "最近使ったツールをソフトな常時表示として保持する会話ターン数です。",
+  "help.composio.enabled": "Agent muke no gaibu renkei catalog to tool source. Enable this after storing the API key in the vault.",
+  "help.composio.api_key": "Store the Composio API key in the encrypted vault under composio_api_key. It is never written to config.yaml.",
+  "help.composio.base_url": "Composio REST API base URL. Default: https://backend.composio.dev/api/v3.1.",
+  "help.composio.user_id": "Composio user identifier used for connected-account link flows. Default: aurago-default.",
+  "help.composio.timeout": "Maximum wait time per Composio API request.",
+  "help.composio.cache_ttl": "How long toolkit and tool searches stay cached in memory.",
+  "help.composio.max_result": "Maximum response size returned from Composio before AuraGo stops reading.",
+  "help.composio.read_only": "Read-only mode. Unknown or mutating tool slugs are blocked.",
+  "help.composio.allow_destructive": "Destructive tools o kyoka. Keep disabled unless the selected toolkit action is intentional.",
+  "help.composio.allow_nl": "Shizen gengo input o kyoka. Natural-language tool input is blocked by default because it is less predictable than structured arguments."
 }

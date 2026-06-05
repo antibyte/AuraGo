@@ -5,7 +5,7 @@
 const EYE_OPEN_SVG = '<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 const EYE_CLOSED_SVG = '<svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 const cfgMaskedSecretFallback = '••••••••';
-const CONFIG_ASSET_VERSION = '20';
+const CONFIG_ASSET_VERSION = '21';
 
 if (typeof window.cfgIsMaskedSecret !== 'function') {
     window.cfgIsMaskedSecret = function (value) {
@@ -196,6 +196,7 @@ const SECTIONS = [
         group: t('config.group.external_ai'),
         items: [
             { key: 'ai_gateway', icon: '🌩️', label: t('config.section.ai_gateway.label'), desc: t('config.section.ai_gateway.desc') },
+            { key: 'composio', icon: '◇', label: t('config.section.composio.label'), desc: t('config.section.composio.desc') },
             { key: 'mcp', icon: '🔌', label: t('config.section.mcp.label'), desc: t('config.section.mcp.desc') },
             { key: 'mcp_server', icon: '🔗', label: t('config.section.mcp_server.label'), desc: t('config.section.mcp_server.desc') },
             { key: 'a2a', icon: '🔀', label: t('config.section.a2a.label'), desc: t('config.section.a2a.desc') },
@@ -1840,6 +1841,7 @@ const SECTION_MODULES = {
     github: { m: 'github', fn: 'renderGitHubSection' },
     google_workspace: { m: 'google_workspace', fn: 'renderGoogleWorkspaceSection' },
     ai_gateway: { m: 'ai_gateway', fn: 'renderAIGatewaySection' },
+    composio: { m: 'composio', fn: 'renderComposioSection' },
     cloudflare_tunnel: { m: 'cloudflare_tunnel', fn: 'renderCloudflareTunnelSection' },
     mcp_server: { m: 'mcp_server', fn: 'renderMCPServerSection' },
     image_generation: { m: 'image_generation', fn: 'renderImageGenerationSection' },

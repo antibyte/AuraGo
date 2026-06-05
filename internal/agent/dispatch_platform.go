@@ -858,6 +858,10 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "unknown mcp_call operation '%s'. Use list_servers, list_tools, or call_tool."}`, op)
 			}
 
+		case "composio_call":
+			req := decodeComposioCallArgs(tc)
+			return dispatchComposioCall(ctx, req, cfg)
+
 		case "truenas",
 			"truenas_health", "truenas_pool_list", "truenas_pool_scrub",
 			"truenas_dataset_list", "truenas_dataset_create", "truenas_dataset_delete",

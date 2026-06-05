@@ -454,6 +454,33 @@ type ThreeDPrintersConfig struct {
 	Klipper              KlipperConfig              `yaml:"klipper" json:"klipper"`
 }
 
+// ComposioToolkitConfig stores user approval and policy overrides for one Composio toolkit.
+type ComposioToolkitConfig struct {
+	Slug                        string   `yaml:"slug" json:"slug"`
+	Enabled                     bool     `yaml:"enabled" json:"enabled"`
+	PreferredConnectedAccountID string   `yaml:"preferred_connected_account_id" json:"preferred_connected_account_id"`
+	ReadOnly                    *bool    `yaml:"read_only,omitempty" json:"read_only,omitempty"`
+	AllowDestructive            *bool    `yaml:"allow_destructive,omitempty" json:"allow_destructive,omitempty"`
+	AllowNaturalLanguageInput   *bool    `yaml:"allow_natural_language_input,omitempty" json:"allow_natural_language_input,omitempty"`
+	AllowedToolSlugs            []string `yaml:"allowed_tool_slugs,omitempty" json:"allowed_tool_slugs,omitempty"`
+	BlockedToolSlugs            []string `yaml:"blocked_tool_slugs,omitempty" json:"blocked_tool_slugs,omitempty"`
+}
+
+// ComposioConfig controls the external Composio tool-source integration.
+type ComposioConfig struct {
+	Enabled                   bool                    `yaml:"enabled" json:"enabled"`
+	BaseURL                   string                  `yaml:"base_url" json:"base_url"`
+	UserID                    string                  `yaml:"user_id" json:"user_id"`
+	ReadOnly                  bool                    `yaml:"read_only" json:"read_only"`
+	AllowDestructive          bool                    `yaml:"allow_destructive" json:"allow_destructive"`
+	AllowNaturalLanguageInput bool                    `yaml:"allow_natural_language_input" json:"allow_natural_language_input"`
+	RequestTimeoutSeconds     int                     `yaml:"request_timeout_seconds" json:"request_timeout_seconds"`
+	CacheTTLSeconds           int                     `yaml:"cache_ttl_seconds" json:"cache_ttl_seconds"`
+	MaxResultBytes            int                     `yaml:"max_result_bytes" json:"max_result_bytes"`
+	Toolkits                  []ComposioToolkitConfig `yaml:"toolkits" json:"toolkits"`
+	APIKey                    string                  `yaml:"-" json:"-" vault:"composio_api_key"`
+}
+
 type Config struct {
 	ConfigPath    string          `yaml:"-"`          // runtime-only: absolute path to the config file
 	Runtime       Runtime         `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
@@ -640,11 +667,11 @@ type Config struct {
 				MaxRows           int  `yaml:"max_rows"`            // maximum homogeneous rows converted (default: 200)
 			} `yaml:"toon_json"`
 			SmartCrusher struct {
-				Enabled  bool `yaml:"enabled"`  // enable generic JSON array-of-objects compression (default: false)
-				MaxRows  int  `yaml:"max_rows"` // max rows to render before tail-truncation (default: 50)
+				Enabled bool `yaml:"enabled"`  // enable generic JSON array-of-objects compression (default: false)
+				MaxRows int  `yaml:"max_rows"` // max rows to render before tail-truncation (default: 50)
 			} `yaml:"smart_crusher"`
 			Reversible struct {
-				Enabled     bool `yaml:"enabled"`      // enable reversible compression (archive originals) (default: false)
+				Enabled     bool `yaml:"enabled"`       // enable reversible compression (archive originals) (default: false)
 				MaxAgeHours int  `yaml:"max_age_hours"` // max age of archived outputs in hours (default: 24)
 			} `yaml:"reversible"`
 		} `yaml:"output_compression"`
@@ -1639,6 +1666,7 @@ type Config struct {
 		GatewayID string `yaml:"gateway_id"`               // AI Gateway name/slug
 		Token     string `yaml:"-" vault:"token" json:"-"` // optional Cloudflare AI Gateway token (vault-only)
 	} `yaml:"ai_gateway"`
+	Composio  ComposioConfig `yaml:"composio" json:"composio"`
 	MCPServer struct {
 		Enabled           bool     `yaml:"enabled"`
 		AllowedTools      []string `yaml:"allowed_tools"`       // tool names to expose; empty = none

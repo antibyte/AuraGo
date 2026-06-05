@@ -12,7 +12,7 @@
 .kc-container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 24px 20px 60px;
+    padding: 32px 20px 60px;
     overflow-x: hidden;
 }
 
@@ -44,7 +44,7 @@
 
 .kc-tab.active {
     color: var(--accent);
-    border-bottom-color: var(--accent);
+    border-bottom-color: transparent;
     font-weight: 600;
 }
 
@@ -1840,8 +1840,8 @@
     box-shadow: inset 3px 0 0 var(--accent);
 }
 
-/* SVG icon button styling */
-.kc-actions .kc-icon-btn {
+/* SVG icon button styling – shared across tables, todos, appointments */
+.kc-icon-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1856,19 +1856,19 @@
     transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
-.kc-actions .kc-icon-btn:hover {
+.kc-icon-btn:hover {
     color: var(--accent);
     border-color: var(--accent-dim);
     background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
-.kc-actions .kc-icon-btn.kc-icon-btn-danger:hover {
+.kc-icon-btn.kc-icon-btn-danger:hover {
     color: #ef4444;
     border-color: rgba(239, 68, 68, 0.3);
     background: rgba(239, 68, 68, 0.08);
 }
 
-.kc-actions .kc-icon-btn svg {
+.kc-icon-btn svg {
     width: 14px;
     height: 14px;
     fill: none;
