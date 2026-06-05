@@ -24,6 +24,7 @@
     <script>
         const SYSTEM_LANG = "{{.Lang}}";
         (function () { var th = localStorage.getItem('aurago-theme'); if (th) document.documentElement.setAttribute('data-theme', th); })();
+        window.AURAGO_BUILD_VERSION = "{{.BuildVersion}}";
         const I18N = {{.I18N}};
         const I18N_META = {{.I18NMeta}};
     </script>
@@ -79,8 +80,8 @@
         <button class="btn-save" id="btnSave" onclick="saveConfig()" disabled data-i18n="config.save_bar.save_button"></button>
     </div>
 
-    <script src="/cfg/form-builder.js?v=21"></script>
-    <script src="/js/config/main.js?v=21"></script>
+    <script src="/cfg/form-builder.js?v={{.BuildVersion}}"></script>
+    <script src="/js/config/main.js?v={{.BuildVersion}}"></script>
 
     <!-- Vault delete confirmation modal -->
     <div id="vault-delete-overlay" class="modal-overlay">

@@ -55,3 +55,21 @@ func TestConfigComposioInlineHandlersEscapeJSONStringArguments(t *testing.T) {
 		t.Fatal("composioJSArg must not return raw JSON strings for inline HTML attributes")
 	}
 }
+
+func TestConfigComposioModuleUsesBuildVersionCacheBusting(t *testing.T) {
+	t.Parallel()
+
+	mainJS := readDesktopAssetText(t, "js/config/main.js")
+	pageHTML := readDesktopAssetText(t, "config.html")
+	if !strings.Contains(pageHTML, `window.AURAGO_BUILD_VERSION = "{{.BuildVersion}}"`) {
+		t.Fatal("config.html must expose BuildVersion for lazy config modules")
+	}
+	if !strings.Contains(mainJS, "window.AURAGO_BUILD_VERSION") {
+		t.Fatal("config main JS must use BuildVersion for lazy config module cache busting")
+	}
+	if strings.Contains(pageHTML, `/cfg/form-builder.js?v=21`) ||
+		strings.Contains(pageHTML, `/js/config/main.js?v=21`) ||
+		strings.Contains(mainJS, `CONFIG_ASSET_VERSION = '21'`) {
+		t.Fatal("config assets must not keep using the stale fixed v=21 cache key")
+	}
+}

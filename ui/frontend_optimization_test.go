@@ -727,8 +727,8 @@ func TestConfigFormBuilderAPIIsEmbeddedAndLoadedBeforeConfigMain(t *testing.T) {
 	t.Parallel()
 
 	html := readEmbeddedText(t, "config.html")
-	builderRef := `/cfg/form-builder.js?v=21`
-	mainRef := `/js/config/main.js?v=21`
+	builderRef := `/cfg/form-builder.js?v={{.BuildVersion}}`
+	mainRef := `/js/config/main.js?v={{.BuildVersion}}`
 	if !strings.Contains(html, builderRef) {
 		t.Fatal("config page must load the shared config form builder")
 	}
