@@ -43,7 +43,7 @@ async function renderComposioSection(section) {
     html += '<div class="field-label">' + t('config.composio.api_key') + '</div>';
     html += '<div class="field-help">' + t('help.composio.api_key') + '</div>';
     html += '<div class="password-wrap cmp-secret-row">';
-    html += '<input class="cfg-input" type="password" id="composio-api-key" value="" placeholder="' + escapeAttr(apiPlaceholder) + '" autocomplete="off">';
+    html += '<input class="cfg-input" type="password" id="composio-api-key" data-path="composio.api_key" value="" placeholder="' + escapeAttr(apiPlaceholder) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '<button type="button" class="btn-save cfg-save-btn-sm" onclick="composioSaveAPIKey()">' + t('config.composio.save_api_key') + '</button>';
     html += '</div></div>';
