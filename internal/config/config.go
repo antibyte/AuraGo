@@ -1053,6 +1053,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.ImportanceScoring.Mode == "" {
 		cfg.Agent.ImportanceScoring.Mode = "log_only"
 	}
+	if cfg.Agent.AutoLearning.Mode == "" {
+		cfg.Agent.AutoLearning.Mode = "log_only"
+	}
 	// PreserveErrors defaults to true when not explicitly set (zero value = true)
 	// V2 requires V1 — automatically enable V1 when V2 is on.
 	if cfg.Personality.EngineV2 && !cfg.Personality.Engine {

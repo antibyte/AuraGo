@@ -657,6 +657,11 @@ type Config struct {
 			Mode    string `yaml:"mode"`    // "log_only" (compute+log, don't trim) or "active" (trim)
 		} `yaml:"importance_scoring"`
 
+		AutoLearning struct {
+			Enabled bool   `yaml:"enabled"` // enable turn-based rule learning (default: false)
+			Mode    string `yaml:"mode"`    // "log_only" | "active"
+		} `yaml:"auto_learning"`
+
 		ReuseFirst struct {
 			AutoMaterialize        bool `yaml:"auto_materialize"`          // master toggle for automatic cheatsheet/skill creation after runs (default: true)
 			RequireSuccessSignal   bool `yaml:"require_success_signal"`    // only materialise when the run had no tool errors (default: true)

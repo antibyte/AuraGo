@@ -735,6 +735,11 @@ func Start(opts StartOptions) error {
 		logger.Warn("Failed to initialize error learning schema", "error", err)
 	}
 
+	// Initialize Learned Rules schema in SQLite
+	if err := shortTermMem.InitLearnedRulesTable(); err != nil {
+		logger.Warn("Failed to initialize learned rules schema", "error", err)
+	}
+
 	// Start File Indexer if enabled
 	if cfg.Indexing.Enabled {
 		s.FileIndexer = services.NewFileIndexer(cfg, &s.CfgMu, longTermMem, shortTermMem, logger)

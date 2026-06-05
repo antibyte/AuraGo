@@ -259,10 +259,30 @@ func finalizeToolExecution(
 		if err := shortTermMem.RecordResolution(trackingTC.Action, resolutionErr, "Succeeded with adjusted parameters"); err != nil {
 			logToolMemoryWarning(logger, "Failed to persist tool resolution", trackingTC.Action, err)
 		}
+
+		// Trigger A: Recovery success → generate learned rule if this error has
+		// recurred at least twice (indicating a pattern worth remembering).
+		if cfg != nil && cfg.Agent.AutoLearning.Enabled {
+			count, _ := shortTermMem.GetErrorCountInSession(trackingTC.Action, resolutionErr)
+			if count >= 2 {
+				go GenerateLearnedRule(ctx, shortTermMem, trackingTC.Action, resolutionErr, "Succeeded with adjusted parameters", logger)
+			}
+		}
 	}
 
+	circuitBroken := false
 	if recoveryState != nil && req != nil {
-		_ = recoveryState.updateToolErrorState(trackingTC, resultContent, req, logger, scope, promptVersion, execTimeMs)
+		circuitBroken = recoveryState.updateToolErrorState(trackingTC, resultContent, req, logger, scope, promptVersion, execTimeMs)
+	}
+
+	// Trigger B: Circuit breaker triggered (≥3 identical consecutive errors) →
+	// generate a learned rule so the agent remembers how to avoid this loop.
+	if circuitBroken && cfg != nil && cfg.Agent.AutoLearning.Enabled && shortTermMem != nil {
+		errMsg := extractErrorMessage(recoveryState.LastToolError)
+		if errMsg == "" {
+			errMsg = recoveryState.LastToolError
+		}
+		go GenerateLearnedRule(ctx, shortTermMem, trackingTC.Action, errMsg, "", logger)
 	}
 
 	return toolExecutionResult{

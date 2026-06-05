@@ -850,6 +850,21 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
+		// Learned Rules injection — only in active mode; log_only skips injection.
+		if cfg.Agent.AutoLearning.Enabled && cfg.Agent.AutoLearning.Mode == "active" &&
+			shortTermMem != nil && flags.Tier != "minimal" {
+			// Use adaptive filtering: only rules relevant to recently used tools.
+			recentTools := flags.RecentlyUsedTools
+			if len(recentTools) == 0 {
+				// Fallback: no tool filter, get top rules globally.
+				recentTools = nil
+			}
+			rules, lrErr := shortTermMem.GetLearnedRulesForTools(recentTools, 5)
+			if lrErr == nil && len(rules) > 0 {
+				flags.LearnedRulesContext = buildLearnedRulesContext(rules, 200)
+			}
+		}
+
 		// Phase D: Inject personality line before building system prompt
 		if !runCfg.IsMission && !isAutonomousRun && personalityEnabled && shortTermMem != nil {
 			if cfg.Personality.EngineV2 {

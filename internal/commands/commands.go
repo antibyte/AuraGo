@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"database/sql"
 	"os"
 	"path/filepath"
@@ -90,6 +91,13 @@ func (c *ResetCommand) Execute(args []string, ctx Context) (string, error) {
 	if sessionID == "default" {
 		agent.ResetInnerVoiceState()
 	}
+
+	// Trigger C: On-Reset — run a lightweight session retrospective to generate
+	// learned rules from recurring errors that were resolved during the session.
+	if ctx.Cfg != nil && ctx.Cfg.Agent.AutoLearning.Enabled && ctx.STM != nil {
+		go agent.RunSessionRetro(context.Background(), ctx.STM, sessionID, nil)
+	}
+
 	return i18n.T(ctx.Lang, "backend.cmd_reset_success"), nil
 }
 
