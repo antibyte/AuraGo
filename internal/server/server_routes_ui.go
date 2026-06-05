@@ -433,11 +433,8 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := map[string]interface{}{
-				"Lang":     lang,
-				"I18N":     getI18NJSON(lang),
-				"I18NMeta": getI18NMetaJSON(),
-			}
+			data := uiTemplateData(lang)
+			data["I18NMeta"] = getI18NMetaJSON()
 			if err := cfgTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute config template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
