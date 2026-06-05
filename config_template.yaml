@@ -758,6 +758,8 @@ virtual_desktop:
     max_file_size_mb: 50
     control_level: confirm_destructive                    # confirm_destructive or trusted
     max_ws_clients: 8
+    remote_max_session_minutes: 60                         # max SSH/VNC session duration
+    remote_idle_timeout_minutes: 5                          # close idle SSH/VNC sessions after this many minutes
     code_studio:
         enabled: true
         image: ghcr.io/antibyte/aurago-code-studio:latest

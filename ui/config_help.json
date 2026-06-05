@@ -977,6 +977,14 @@
     "max_ws_clients": {
       "title": "Max WebSocket Clients",
       "description": "Maximum number of browser desktop sessions connected at the same time."
+    },
+    "remote_max_session_minutes": {
+      "title": "Remote Session Limit",
+      "description": "Maximum SSH/VNC session duration before the proxy closes it."
+    },
+    "remote_idle_timeout_minutes": {
+      "title": "Remote Idle Timeout",
+      "description": "How long an inactive SSH/VNC session may stay open."
     }
   },
   "heartbeat": {

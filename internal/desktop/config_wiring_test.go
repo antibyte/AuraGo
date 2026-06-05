@@ -25,6 +25,8 @@ func TestConfigFromAuraConfigResolvesDesktopDefaults(t *testing.T) {
 	cfg.VirtualDesktop.CodeStudio.AutoStopMinutes = 15
 	cfg.VirtualDesktop.CodeStudio.MaxMemoryMB = 2048
 	cfg.VirtualDesktop.CodeStudio.MaxCPUCores = 1
+	cfg.VirtualDesktop.RemoteMaxSessionMinutes = 90
+	cfg.VirtualDesktop.RemoteIdleTimeoutMinutes = 7
 
 	got := ConfigFromAuraConfig(cfg)
 	if !got.Enabled || !got.AllowAgentControl {
@@ -62,5 +64,20 @@ func TestConfigFromAuraConfigResolvesDesktopDefaults(t *testing.T) {
 	}
 	if got.CodeStudio.AutoStopMinutes != 15 || got.CodeStudio.MaxMemoryMB != 2048 || got.CodeStudio.MaxCPUCores != 1 {
 		t.Fatalf("code studio config not preserved: %+v", got.CodeStudio)
+	}
+	if got.RemoteMaxSessionMinutes != 90 || got.RemoteIdleTimeoutMinutes != 7 {
+		t.Fatalf("remote proxy limits not preserved: max=%d idle=%d", got.RemoteMaxSessionMinutes, got.RemoteIdleTimeoutMinutes)
+	}
+}
+
+func TestConfigFromAuraConfigDefaultsRemoteProxyLimits(t *testing.T) {
+	t.Parallel()
+
+	got := ConfigFromAuraConfig(nil)
+	if got.RemoteMaxSessionMinutes != 60 {
+		t.Fatalf("remote max session minutes = %d, want 60", got.RemoteMaxSessionMinutes)
+	}
+	if got.RemoteIdleTimeoutMinutes != 5 {
+		t.Fatalf("remote idle timeout minutes = %d, want 5", got.RemoteIdleTimeoutMinutes)
 	}
 }

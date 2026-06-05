@@ -7910,6 +7910,11 @@ if (appId === 'pixel') {
                 <div class="vd-qc-search">
                     <input type="search" autocomplete="off" spellcheck="false" data-i18n-placeholder="desktop.qc_search_placeholder">
                 </div>
+                <div class="vd-qc-filters" role="group" aria-label="${esc(t('desktop.qc_filter_protocol'))}">
+                    <button class="vd-qc-filter active" type="button" data-qc-filter="all">${iconMarkup('server', 'A', 'vd-qc-filter-icon', 13)}<span>${esc(t('desktop.qc_filter_all'))}</span></button>
+                    <button class="vd-qc-filter" type="button" data-qc-filter="ssh">${iconMarkup('terminal', 'T', 'vd-qc-filter-icon', 13)}<span>${esc(t('desktop.qc_protocol_ssh'))}</span></button>
+                    <button class="vd-qc-filter" type="button" data-qc-filter="vnc">${iconMarkup('monitor', 'V', 'vd-qc-filter-icon', 13)}<span>${esc(t('desktop.qc_protocol_vnc'))}</span></button>
+                </div>
                 <div class="vd-qc-device-list" data-device-list>${esc(t('desktop.loading'))}</div>
             </div>
             <div class="vd-qc-terminal-area" data-terminal-area>
@@ -7933,6 +7938,7 @@ if (appId === 'pixel') {
         const terminalArea = host.querySelector('[data-terminal-area]');
         const tabContent = host.querySelector('[data-tab-content]');
         const qcTabs = host.querySelector('[data-qc-tabs]');
+        const filterButtons = Array.from(host.querySelectorAll('[data-qc-filter]'));
         let activeWS = null;
         let activeTerm = null;
         let activeFitAddon = null;
@@ -7940,6 +7946,7 @@ if (appId === 'pixel') {
         let cachedDevices = null;
         let cachedCredentials = null;
         let activeTab = 'terminal';
+        let activeProtocolFilter = 'all';
         let connectedDeviceId = null;
         let connectedProtocol = null;
 
@@ -7967,6 +7974,13 @@ if (appId === 'pixel') {
         loadAll();
 
         searchInput.addEventListener('input', () => filterDevices());
+        filterButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                activeProtocolFilter = btn.dataset.qcFilter || 'all';
+                filterButtons.forEach(item => item.classList.toggle('active', item === btn));
+                filterDevices();
+            });
+        });
 
         async function loadAll() {
             deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.loading'))}</div>`;
@@ -8014,11 +8028,11 @@ if (appId === 'pixel') {
 
         function renderDeviceList(devices) {
             const query = searchInput.value.trim().toLowerCase();
-            const filtered = query ? devices.filter(d =>
+            const filtered = devices.filter(d => protocolMatchesFilter(d) && (!query ||
                 (d.name || '').toLowerCase().includes(query) ||
                 (d.ip_address || '').toLowerCase().includes(query) ||
                 (d.description || '').toLowerCase().includes(query)
-            ) : devices;
+            ));
             if (!filtered.length) {
                 deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.qc_no_devices'))}</div>`;
                 return;
@@ -8052,6 +8066,11 @@ if (appId === 'pixel') {
                     if (dev) showDeviceContextMenu(e.clientX, e.clientY, dev);
                 });
             });
+        }
+
+        function protocolMatchesFilter(device) {
+            if (activeProtocolFilter === 'all') return true;
+            return String(device && device.protocol || 'ssh').toLowerCase() === activeProtocolFilter;
         }
 
         function filterDevices() {
@@ -8335,6 +8354,79 @@ if (appId === 'pixel') {
             </div>`;
         }
 
+        function renderVNCToolbar() {
+            return `<div class="vd-qc-vnc-toolbar" data-vnc-toolbar>
+                <span class="vd-qc-vnc-status" data-vnc-status data-state="connecting">${esc(t('desktop.qc_vnc_status_connecting'))}</span>
+                <div class="vd-qc-vnc-tools" role="group" aria-label="${esc(t('desktop.qc_vnc_toolbar_label'))}">
+                    <button class="vd-qc-btn vd-qc-btn-sm active" type="button" data-vnc-scale="fit" title="${esc(t('desktop.qc_vnc_scale_fit'))}">${iconMarkup('maximize', 'F', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_vnc_scale_fit'))}</span></button>
+                    <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-vnc-scale="native" title="${esc(t('desktop.qc_vnc_scale_native'))}">${iconMarkup('monitor', 'N', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_vnc_scale_native'))}</span></button>
+                    <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-vnc-action="view-only" aria-pressed="false" title="${esc(t('desktop.qc_vnc_view_only'))}">${iconMarkup('eye', 'V', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_vnc_view_only'))}</span></button>
+                    <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-vnc-action="ctrl-alt-del" title="${esc(t('desktop.qc_vnc_ctrl_alt_del'))}">${iconMarkup('keyboard', 'K', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_vnc_ctrl_alt_del'))}</span></button>
+                    <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-vnc-action="reconnect" title="${esc(t('desktop.qc_reconnect'))}">${iconMarkup('refresh', 'R', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_reconnect'))}</span></button>
+                </div>
+            </div>`;
+        }
+
+        function setVNCStatus(root, state, detail) {
+            const status = root && root.querySelector ? root.querySelector('[data-vnc-status]') : null;
+            if (!status) return;
+            const keys = {
+                connecting: 'desktop.qc_vnc_status_connecting',
+                connected: 'desktop.qc_vnc_status_connected',
+                disconnected: 'desktop.qc_vnc_status_disconnected',
+                error: 'desktop.qc_vnc_status_error'
+            };
+            status.dataset.state = state;
+            status.textContent = detail || t(keys[state] || keys.error);
+        }
+
+        function vncErrorText(code, fallback) {
+            const keys = {
+                device_not_found: 'desktop.qc_vnc_error_device_not_found',
+                protocol_mismatch: 'desktop.qc_vnc_error_protocol_mismatch',
+                credential_unavailable: 'desktop.qc_vnc_error_credential_unavailable',
+                dial_failed: 'desktop.qc_vnc_error_dial_failed',
+                auth_failed: 'desktop.qc_vnc_error_auth_failed',
+                init_failed: 'desktop.qc_vnc_error_init_failed'
+            };
+            const key = keys[code] || 'desktop.qc_vnc_connection_error';
+            const message = t(key);
+            return fallback ? `${message}: ${fallback}` : message;
+        }
+
+        function wireVNCToolbar(root, rfb, deviceId) {
+            root.querySelectorAll('[data-vnc-scale]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (!rfb) return;
+                    const mode = btn.dataset.vncScale;
+                    root.querySelectorAll('[data-vnc-scale]').forEach(item => item.classList.toggle('active', item === btn));
+                    rfb.scaleViewport = mode === 'fit';
+                    rfb.resizeSession = mode === 'fit';
+                });
+            });
+            const viewOnlyBtn = root.querySelector('[data-vnc-action="view-only"]');
+            if (viewOnlyBtn) {
+                viewOnlyBtn.addEventListener('click', () => {
+                    if (!rfb) return;
+                    const next = !rfb.viewOnly;
+                    rfb.viewOnly = next;
+                    viewOnlyBtn.classList.toggle('active', next);
+                    viewOnlyBtn.setAttribute('aria-pressed', next ? 'true' : 'false');
+                    showNotify(t(next ? 'desktop.qc_vnc_view_only' : 'desktop.qc_vnc_control_mode'));
+                });
+            }
+            const ctrlAltDelBtn = root.querySelector('[data-vnc-action="ctrl-alt-del"]');
+            if (ctrlAltDelBtn) {
+                ctrlAltDelBtn.addEventListener('click', () => {
+                    if (rfb && typeof rfb.sendCtrlAltDel === 'function') {
+                        rfb.sendCtrlAltDel();
+                    }
+                });
+            }
+            const reconnectBtn = root.querySelector('[data-vnc-action="reconnect"]');
+            if (reconnectBtn) reconnectBtn.addEventListener('click', () => connectVNC(deviceId));
+        }
+
         function connectSSH(deviceId) {
             deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
@@ -8474,9 +8566,11 @@ if (appId === 'pixel') {
             closeSFTPPanel(tabContent);
             tabContent.innerHTML = `<div class="vd-qc-placeholder vd-qc-connecting"><div class="vd-qc-spinner fm-spinner"></div><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_vnc_connecting'))}</span></div>`;
 
-            const vncContainer = document.createElement('div');
-            vncContainer.className = 'vd-qc-vnc-container';
-            tabContent.replaceChildren(vncContainer);
+            const sessionEl = document.createElement('div');
+            sessionEl.className = 'vd-qc-vnc-session';
+            sessionEl.innerHTML = `${renderVNCToolbar()}<div class="vd-qc-vnc-container"></div>`;
+            tabContent.replaceChildren(sessionEl);
+            const mountedVNCContainer = sessionEl.querySelector('.vd-qc-vnc-container');
             activeTerm = null;
             activeFitAddon = null;
 
@@ -8484,28 +8578,37 @@ if (appId === 'pixel') {
             const wsUrl = proto + '//' + location.host + '/api/desktop/vnc?device_id=' + encodeURIComponent(deviceId);
 
             if (!window.RFB) {
-                tabContent.innerHTML = `<div class="vd-qc-placeholder"><span class="vd-qc-placeholder-text">noVNC not loaded</span></div>`;
+                setVNCStatus(sessionEl, 'error');
+                wireVNCToolbar(sessionEl, null, deviceId);
+                mountedVNCContainer.innerHTML = `<div class="vd-qc-placeholder"><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_vnc_unavailable'))}</span></div>`;
                 return;
             }
 
-            const rfb = new window.RFB(vncContainer, wsUrl, {
+            const rfb = new window.RFB(mountedVNCContainer, wsUrl, {
                 wsProtocols: ['binary']
             });
             rfb.viewOnly = false;
             rfb.scaleViewport = true;
             rfb.resizeSession = true;
+            wireVNCToolbar(sessionEl, rfb, deviceId);
 
             rfb.addEventListener('connect', () => {
+                setVNCStatus(sessionEl, 'connected');
                 showNotify(t('desktop.qc_vnc_connected'));
             });
             rfb.addEventListener('disconnect', () => {
                 if (activeWS && activeWS.close) { activeWS = null; }
-                tabContent.innerHTML = disconnectPlaceholderHTML('desktop.qc_vnc_disconnected', deviceId, true);
-                const reconnectBtn = tabContent.querySelector('[data-action="reconnect"]');
+                setVNCStatus(sessionEl, 'disconnected');
+                mountedVNCContainer.innerHTML = disconnectPlaceholderHTML('desktop.qc_vnc_disconnected', deviceId, true);
+                const reconnectBtn = mountedVNCContainer.querySelector('[data-action="reconnect"]');
                 if (reconnectBtn) reconnectBtn.addEventListener('click', () => connectVNC(deviceId));
             });
             rfb.addEventListener('securityfailure', (e) => {
-                showNotify(t('desktop.qc_vnc_connection_error') + ': ' + (e.detail.reason || ''));
+                const reason = e && e.detail ? (e.detail.reason || e.detail.message || '') : '';
+                const code = e && e.detail ? (e.detail.code || '') : '';
+                const message = vncErrorText(code || 'auth_failed', reason);
+                setVNCStatus(sessionEl, 'error', message);
+                showNotify(message);
             });
 
             activeWS = { close: () => { try { rfb.disconnect(); } catch(_) {} } };

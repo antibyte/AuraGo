@@ -181,6 +181,24 @@ func TestVirtualDesktopConfigExposesOfficeToolToggles(t *testing.T) {
 	}
 }
 
+func TestVirtualDesktopConfigExposesRemoteSessionLimits(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopOfficeTestFile(t, filepath.Join("cfg", "virtual_desktop.js"))
+	for _, marker := range []string{
+		"remote_max_session_minutes",
+		"remote_idle_timeout_minutes",
+		"config.virtual_desktop.remote_max_session_label",
+		"config.virtual_desktop.remote_idle_timeout_label",
+		"help.virtual_desktop.remote_max_session_minutes",
+		"help.virtual_desktop.remote_idle_timeout_minutes",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("virtual_desktop config missing remote session marker %q", marker)
+		}
+	}
+}
+
 func TestDesktopSheetsDisplaysFormulaResultsWithoutLosingSourceFormula(t *testing.T) {
 	t.Parallel()
 
