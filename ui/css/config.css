@@ -7145,7 +7145,8 @@ select.cfg-input option {
     display: none;
     align-items: center;
     justify-content: center;
-    background: rgba(15, 23, 42, 0.58);
+    background: rgba(2, 6, 23, 0.86);
+    backdrop-filter: blur(8px);
 }
 
 .cmp-modal-overlay.active {
@@ -7160,7 +7161,7 @@ select.cfg-input option {
     overflow: hidden;
     border: 1px solid var(--border-subtle);
     border-radius: 8px;
-    background: var(--surface);
+    background: var(--bg-primary);
     box-shadow: var(--shadow-xl, 0 24px 80px rgba(15, 23, 42, 0.22));
 }
 
@@ -7219,7 +7220,7 @@ select.cfg-input option {
 
 .cmp-list-panel {
     border-right: 1px solid var(--border-subtle);
-    background: rgba(15, 23, 42, 0.03);
+    background: var(--bg-secondary);
 }
 
 .cmp-toolkit-list {
@@ -7278,6 +7279,7 @@ select.cfg-input option {
 
 .cmp-detail-panel {
     padding: 1.1rem;
+    background: var(--bg-primary);
 }
 
 .cmp-detail-head {
