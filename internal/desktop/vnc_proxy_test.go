@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -102,6 +103,37 @@ func TestHandleVNCProxyDeviceNotFound(t *testing.T) {
 	}
 }
 
+func TestHandleVNCProxyNoVNCDeviceErrorUsesRFBSecurityFailure(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	handler := HandleVNCProxy(db, &security.Vault{}, testLogger)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler(w, r)
+	}))
+	defer server.Close()
+
+	wsURL := strings.Replace(server.URL, "http", "ws", 1) + "?device_id=nonexistent"
+	dialer := websocket.Dialer{Subprotocols: []string{"binary"}}
+	ws, _, err := dialer.Dial(wsURL, http.Header{"Origin": []string{server.URL}})
+	if err != nil {
+		t.Fatalf("unexpected dial error: %v", err)
+	}
+	defer ws.Close()
+
+	version := readVNCBinaryMessage(t, ws)
+	if string(version) != "RFB 003.008\n" {
+		t.Fatalf("expected fake RFB version, got %q", string(version))
+	}
+	if err := ws.WriteMessage(websocket.BinaryMessage, version); err != nil {
+		t.Fatalf("write browser RFB version: %v", err)
+	}
+	status := readVNCSecurityFailure(t, ws)
+	if status.Code != "device_not_found" {
+		t.Fatalf("expected device_not_found code in RFB security failure, got %#v", status)
+	}
+}
+
 func TestHandleVNCProxyDialFailureSendsErrorCode(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
@@ -178,6 +210,85 @@ func TestHandleVNCProxyAuthFailureSendsErrorCode(t *testing.T) {
 	}
 }
 
+func TestHandleVNCProxyNoVNCAuthFailureUsesRFBSecurityFailure(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	host, port, closeServer := startFakeVNCServer(t, func(conn net.Conn) error {
+		return fakeRFBCredentialServer(t, conn, "test-pass")
+	})
+	defer closeServer()
+
+	err := inventory.AddDevice(db, inventory.DeviceRecord{ID: "auth-vnc", Name: "auth-vnc", Type: "server", Protocol: "vnc", IPAddress: host, Port: port, Tags: []string{}})
+	if err != nil {
+		t.Fatalf("failed to create device: %v", err)
+	}
+
+	handler := HandleVNCProxy(db, &security.Vault{}, testLogger)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler(w, r)
+	}))
+	defer server.Close()
+
+	wsURL := strings.Replace(server.URL, "http", "ws", 1) + "?device_id=auth-vnc"
+	dialer := websocket.Dialer{Subprotocols: []string{"binary"}}
+	ws, _, err := dialer.Dial(wsURL, http.Header{"Origin": []string{server.URL}})
+	if err != nil {
+		t.Fatalf("unexpected dial error: %v", err)
+	}
+	defer ws.Close()
+
+	version := readVNCBinaryMessage(t, ws)
+	if string(version) != "RFB 003.008\n" {
+		t.Fatalf("unexpected RFB version frame: %q", string(version))
+	}
+	if err := ws.WriteMessage(websocket.BinaryMessage, version); err != nil {
+		t.Fatalf("write browser RFB version: %v", err)
+	}
+	status := readVNCSecurityFailure(t, ws)
+	if status.Code != "auth_failed" {
+		t.Fatalf("expected auth_failed code in RFB security failure, got %#v", status)
+	}
+}
+
+func TestHandleVNCProxyInvalidRFBHandshakeSendsInitErrorCode(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	host, port, closeServer := startFakeVNCServer(t, func(conn net.Conn) error {
+		_, err := conn.Write([]byte("RFB BROKEN!\n"))
+		return err
+	})
+	defer closeServer()
+
+	err := inventory.AddDevice(db, inventory.DeviceRecord{ID: "broken-vnc", Name: "broken-vnc", Type: "server", Protocol: "vnc", IPAddress: host, Port: port, Tags: []string{}})
+	if err != nil {
+		t.Fatalf("failed to create device: %v", err)
+	}
+
+	handler := HandleVNCProxy(db, &security.Vault{}, testLogger)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler(w, r)
+	}))
+	defer server.Close()
+
+	wsURL := strings.Replace(server.URL, "http", "ws", 1) + "?device_id=broken-vnc"
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, http.Header{"Origin": []string{server.URL}})
+	if err != nil {
+		t.Fatalf("unexpected dial error: %v", err)
+	}
+	defer ws.Close()
+
+	connected := readVNCStatusMessage(t, ws)
+	if connected.Type != "connected" {
+		t.Fatalf("expected connected status before RFB handshake, got %#v", connected)
+	}
+	status := readVNCStatusMessage(t, ws)
+	if status.Code != "init_failed" {
+		t.Fatalf("expected init_failed code for invalid RFB handshake, got %#v", status)
+	}
+}
+
 func TestResolveVNCAccessDefaults(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
@@ -222,6 +333,40 @@ func readVNCStatusMessage(t *testing.T, ws *websocket.Conn) sshStatusMessage {
 		}
 		return decodeVNCStatusMessage(t, msg)
 	}
+}
+
+func readVNCBinaryMessage(t *testing.T, ws *websocket.Conn) []byte {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	if err := ws.SetReadDeadline(deadline); err != nil {
+		t.Fatalf("set websocket read deadline: %v", err)
+	}
+	for {
+		mt, msg, err := ws.ReadMessage()
+		if err != nil {
+			t.Fatalf("read VNC binary message: %v", err)
+		}
+		if mt != websocket.BinaryMessage {
+			continue
+		}
+		return msg
+	}
+}
+
+func readVNCSecurityFailure(t *testing.T, ws *websocket.Conn) sshStatusMessage {
+	t.Helper()
+	msg := readVNCBinaryMessage(t, ws)
+	if len(msg) < 5 {
+		t.Fatalf("RFB security failure frame too short: %q", string(msg))
+	}
+	if msg[0] != 0 {
+		t.Fatalf("expected RFB security type count 0, got %d in %q", msg[0], string(msg))
+	}
+	reasonLen := int(binary.BigEndian.Uint32(msg[1:5]))
+	if len(msg) != 5+reasonLen {
+		t.Fatalf("expected RFB security failure reason length %d, got frame length %d", reasonLen, len(msg))
+	}
+	return decodeVNCStatusMessage(t, msg[5:])
 }
 
 func decodeVNCStatusMessage(t *testing.T, msg []byte) sshStatusMessage {

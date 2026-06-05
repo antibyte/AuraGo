@@ -8345,11 +8345,11 @@ if (appId === 'pixel') {
             }
         }
 
-        function disconnectPlaceholderHTML(messageKey, deviceId, isVNC) {
+        function disconnectPlaceholderHTML(messageKey, deviceId, isVNC, messageText) {
             const reconnectBtn = `<button class="vd-qc-btn vd-qc-btn-primary vd-qc-reconnect-btn" type="button" data-action="reconnect">${iconMarkup('refresh', 'R', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_reconnect'))}</span></button>`;
             const newTermBtn = isVNC ? '' : `<button class="vd-qc-btn vd-qc-btn-secondary vd-qc-reconnect-btn" type="button" data-action="new-terminal">${iconMarkup('terminal', 'T', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_new_terminal'))}</span></button>`;
             return `<div class="vd-qc-placeholder vd-qc-disconnected">
-                <span class="vd-qc-placeholder-text">${esc(t(messageKey))}</span>
+                <span class="vd-qc-placeholder-text">${esc(messageText || t(messageKey))}</span>
                 <div class="vd-qc-reconnect-actions">${reconnectBtn}${newTermBtn}</div>
             </div>`;
         }
@@ -8584,6 +8584,7 @@ if (appId === 'pixel') {
                 return;
             }
 
+            let lastVNCError = null;
             const rfb = new window.RFB(mountedVNCContainer, wsUrl, {
                 wsProtocols: ['binary']
             });
@@ -8593,20 +8594,36 @@ if (appId === 'pixel') {
             wireVNCToolbar(sessionEl, rfb, deviceId);
 
             rfb.addEventListener('connect', () => {
+                lastVNCError = null;
                 setVNCStatus(sessionEl, 'connected');
                 showNotify(t('desktop.qc_vnc_connected'));
             });
             rfb.addEventListener('disconnect', () => {
                 if (activeWS && activeWS.close) { activeWS = null; }
-                setVNCStatus(sessionEl, 'disconnected');
-                mountedVNCContainer.innerHTML = disconnectPlaceholderHTML('desktop.qc_vnc_disconnected', deviceId, true);
+                if (lastVNCError) {
+                    setVNCStatus(sessionEl, 'error', lastVNCError);
+                    mountedVNCContainer.innerHTML = disconnectPlaceholderHTML('desktop.qc_vnc_connection_error', deviceId, true, lastVNCError);
+                } else {
+                    setVNCStatus(sessionEl, 'disconnected');
+                    mountedVNCContainer.innerHTML = disconnectPlaceholderHTML('desktop.qc_vnc_disconnected', deviceId, true);
+                }
                 const reconnectBtn = mountedVNCContainer.querySelector('[data-action="reconnect"]');
                 if (reconnectBtn) reconnectBtn.addEventListener('click', () => connectVNC(deviceId));
             });
             rfb.addEventListener('securityfailure', (e) => {
-                const reason = e && e.detail ? (e.detail.reason || e.detail.message || '') : '';
-                const code = e && e.detail ? (e.detail.code || '') : '';
+                let reason = e && e.detail ? (e.detail.reason || e.detail.message || '') : '';
+                let code = e && e.detail ? (e.detail.code || '') : '';
+                if (reason) {
+                    try {
+                        const parsed = JSON.parse(reason);
+                        if (parsed && parsed.type === 'error') {
+                            code = parsed.code || code;
+                            reason = parsed.message || '';
+                        }
+                    } catch(_) {}
+                }
                 const message = vncErrorText(code || 'auth_failed', reason);
+                lastVNCError = message;
                 setVNCStatus(sessionEl, 'error', message);
                 showNotify(message);
             });

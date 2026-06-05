@@ -99,3 +99,24 @@ func TestDesktopQuickConnectVNCErrorCodeCopyMarkers(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopQuickConnectVNCPreservesErrorOnDisconnectMarkers(t *testing.T) {
+	t.Parallel()
+
+	mainText := readDesktopAssetText(t, "js/desktop/main.js")
+	body := jsFunctionBodyInWindowMenuTest(t, mainText, "function renderQuickConnect(id)")
+	for _, marker := range []string{
+		"let lastVNCError = null",
+		"JSON.parse(reason)",
+		"parsed.code",
+		"parsed.message",
+		"lastVNCError = message",
+		"if (lastVNCError)",
+		"setVNCStatus(sessionEl, 'error', lastVNCError)",
+		"disconnectPlaceholderHTML('desktop.qc_vnc_connection_error', deviceId, true, lastVNCError)",
+	} {
+		if !strings.Contains(body, marker) {
+			t.Fatalf("quick connect missing VNC persistent error marker %q", marker)
+		}
+	}
+}
