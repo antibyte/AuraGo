@@ -36,6 +36,7 @@ type Config struct {
 	APICompression         bool                         // enable JSON compaction and null-field removal (default: true)
 	RepetitiveSubstitution RepetitiveSubstitutionConfig // optional dictionary substitution for repetitive log-like outputs
 	TOONJSON               TOONJSONConfig               // optional tabular JSON-array conversion for known API tools
+	SmartCrusher           SmartCrusherConfig           // optional generic JSON array-of-objects compressor
 }
 
 // RepetitiveSubstitutionConfig controls optional dictionary substitution.
@@ -80,6 +81,12 @@ func DefaultConfig() Config {
 			Enabled:           false,
 			MinSavingsPercent: 10,
 			MaxRows:           200,
+		},
+		SmartCrusher: SmartCrusherConfig{
+			Enabled:  false,
+			MaxRows:  50,
+			TailRows: 5,
+			MaxCols:  20,
 		},
 	}
 }
@@ -149,6 +156,18 @@ func Compress(toolName, command, output string, cfg Config) (string, Compression
 	default:
 		result = compressGeneric(output)
 		filter = "generic"
+	}
+
+	// SmartCrusher: generic JSON array-of-objects compressor.
+	// Runs after domain-specific filters so it can further compress large
+	// JSON outputs that the specialised compressors did not fully reduce.
+	if cfg.SmartCrusher.Enabled && len(result) >= smartCrusherMinInputChars && filter != "toon-json" {
+		if crushed, ok := smartCrushJSON(result, cfg.SmartCrusher); ok {
+			if len(crushed) < len(result) {
+				result = crushed
+				filter = "smart-crusher"
+			}
+		}
 	}
 
 	if cfg.RepetitiveSubstitution.Enabled {

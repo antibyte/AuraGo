@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -87,6 +88,7 @@ func toolCallForExecutionTracking(tc ToolCall) ToolCall {
 }
 
 func finalizeToolExecution(
+	ctx context.Context,
 	tc ToolCall,
 	rawContent string,
 	guardianBlocked bool,
@@ -134,9 +136,34 @@ func finalizeToolExecution(
 				MinSavingsPercent: cfg.Agent.OutputCompression.TOONJSON.MinSavingsPercent,
 				MaxRows:           cfg.Agent.OutputCompression.TOONJSON.MaxRows,
 			},
+			SmartCrusher: outputcompress.SmartCrusherConfig{
+				Enabled:  cfg.Agent.OutputCompression.SmartCrusher.Enabled,
+				MaxRows:  cfg.Agent.OutputCompression.SmartCrusher.MaxRows,
+				TailRows: 5,
+				MaxCols:  20,
+			},
 		}
+		originalContent := rawContent
 		var compStats outputcompress.CompressionStats
 		rawContent, compStats = outputcompress.Compress(trackingTC.Action, trackingTC.Command, rawContent, compCfg)
+
+		// CCR: archive original output when reversible compression is enabled,
+		// we are on the native tool path, and meaningful compression occurred.
+		if cfg.Agent.OutputCompression.Reversible.Enabled &&
+			tc.NativeCallID != "" &&
+			compStats.Ratio < 0.95 &&
+			shortTermMem != nil {
+			_ = shortTermMem.StoreCompressedOutput(ctx, &memory.CompressedToolOutput{
+				SessionID:         sessionID,
+				ToolCallID:        tc.NativeCallID,
+				ToolName:          trackingTC.Action,
+				OriginalContent:   originalContent,
+				CompressedContent: rawContent,
+				CompressionRatio:  compStats.Ratio,
+				FilterUsed:        compStats.FilterUsed,
+			})
+		}
+
 		if compStats.Ratio < 1.0 {
 			logger.Debug("output compressed",
 				"tool", trackingTC.Action,

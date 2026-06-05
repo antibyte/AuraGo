@@ -84,6 +84,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"context_memory", "Retrieve contextual memory for the current task"},
 		{"context_manager", "Manage compressed context and session state"},
 		{"remember", "Store durable facts, events, and learnings in the right memory layer"},
+		{"retrieve_original_output", "Retrieve the original uncompressed output of a previous compressed tool call"},
 		{"memory_reflect", "Reflect on recent memory and extract useful learnings"},
 		{"cheatsheet", "Create, update, search, and use reusable procedure notes"},
 		{"knowledge_graph", "Query and update structured entity relationships"},

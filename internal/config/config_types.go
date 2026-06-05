@@ -637,12 +637,25 @@ type Config struct {
 				MinSavingsPercent int  `yaml:"min_savings_percent"` // minimum net savings after table overhead (default: 10)
 				MaxRows           int  `yaml:"max_rows"`            // maximum homogeneous rows converted (default: 200)
 			} `yaml:"toon_json"`
+			SmartCrusher struct {
+				Enabled  bool `yaml:"enabled"`  // enable generic JSON array-of-objects compression (default: false)
+				MaxRows  int  `yaml:"max_rows"` // max rows to render before tail-truncation (default: 50)
+			} `yaml:"smart_crusher"`
+			Reversible struct {
+				Enabled     bool `yaml:"enabled"`      // enable reversible compression (archive originals) (default: false)
+				MaxAgeHours int  `yaml:"max_age_hours"` // max age of archived outputs in hours (default: 24)
+			} `yaml:"reversible"`
 		} `yaml:"output_compression"`
 
 		AnnouncementDetector struct {
 			Enabled    bool `yaml:"enabled"`     // enable structural text-only continuation recovery (default: true)
 			MaxRetries int  `yaml:"max_retries"` // max corrective retries per user turn (default: 2)
 		} `yaml:"announcement_detector"`
+
+		ImportanceScoring struct {
+			Enabled bool   `yaml:"enabled"` // enable importance-based history trimming (default: false)
+			Mode    string `yaml:"mode"`    // "log_only" (compute+log, don't trim) or "active" (trim)
+		} `yaml:"importance_scoring"`
 
 		ReuseFirst struct {
 			AutoMaterialize        bool `yaml:"auto_materialize"`          // master toggle for automatic cheatsheet/skill creation after runs (default: true)

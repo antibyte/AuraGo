@@ -243,6 +243,7 @@ func TestToolSchemaManualSync(t *testing.T) {
 		"wake_on_lan":                true, // simple WOL packet
 		"call_webhook":               true, // just triggers a named webhook
 		"manage_webhooks":            true, // covered by webhook docs
+		"retrieve_original_output":   true, // simple meta-tool for compressed output retrieval
 		"manage_outgoing_webhooks":   true, // covered by webhook docs
 		"query_inventory":            true, // simple query tool
 		"register_device":            true, // simple registration

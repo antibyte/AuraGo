@@ -1044,6 +1044,15 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.OutputCompression.TOONJSON.MaxRows <= 0 {
 		cfg.Agent.OutputCompression.TOONJSON.MaxRows = 200
 	}
+	if cfg.Agent.OutputCompression.SmartCrusher.MaxRows <= 0 {
+		cfg.Agent.OutputCompression.SmartCrusher.MaxRows = 50
+	}
+	if cfg.Agent.OutputCompression.Reversible.MaxAgeHours <= 0 {
+		cfg.Agent.OutputCompression.Reversible.MaxAgeHours = 24
+	}
+	if cfg.Agent.ImportanceScoring.Mode == "" {
+		cfg.Agent.ImportanceScoring.Mode = "log_only"
+	}
 	// PreserveErrors defaults to true when not explicitly set (zero value = true)
 	// V2 requires V1 — automatically enable V1 when V2 is on.
 	if cfg.Personality.EngineV2 && !cfg.Personality.Engine {
