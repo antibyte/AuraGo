@@ -1052,6 +1052,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		case "yaml_editor":
 			return dispatchFilesystem(ctx, tc, dc)
 
+		case "toml_editor":
+			return dispatchFilesystem(ctx, tc, dc)
+
 		case "xml_editor":
 			return dispatchFilesystem(ctx, tc, dc)
 
@@ -1562,6 +1565,22 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				budgetTracker.RecordCostForCategory("yepapi", 0.01)
 			}
 			return res
+
+		case "certificate_manager":
+			req := decodeCertificateManagerArgs(tc)
+			op := strings.TrimSpace(strings.ToLower(req.Operation))
+			switch op {
+			case "check_remote":
+				if !cfg.Agent.AllowNetworkRequests {
+					return "Tool Output: [PERMISSION DENIED] certificate_manager check_remote is disabled in Danger Zone settings (agent.allow_network_requests: false)."
+				}
+			case "generate_self_signed":
+				if !cfg.Agent.AllowFilesystemWrite {
+					return "Tool Output: [PERMISSION DENIED] certificate_manager generate_self_signed is disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
+				}
+			}
+			logger.Info("LLM requested certificate_manager operation", "op", op, "host", req.Hostname, "file_path", req.FilePath)
+			return tools.ExecuteCertificateManager(op, req.FilePath, req.Hostname, req.Port, req.Domain, req.OutputDir, req.Days, cfg.Directories.WorkspaceDir)
 
 		case "yepapi_scrape":
 			if !cfg.YepAPI.Enabled || !cfg.YepAPI.Scraping.Enabled {

@@ -107,3 +107,35 @@ func TestDispatchFilesystemRejectsVirtualDesktopPathsForFileEditor(t *testing.T)
 		t.Fatalf("desktop file_editor rejection should point to virtual_desktop and preserve path, got: %s", output)
 	}
 }
+
+func TestDispatchFilesystemRoutesTomlEditor(t *testing.T) {
+	tempRoot := t.TempDir()
+	workspaceDir := filepath.Join(tempRoot, "agent_workspace", "workdir")
+	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
+		t.Fatalf("create workspace: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workspaceDir, "config.toml"), []byte("[server]\nport = 8088\n"), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Agent.AllowFilesystemWrite = true
+	cfg.Directories.WorkspaceDir = workspaceDir
+	dc := &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	output := dispatchFilesystem(context.Background(), ToolCall{
+		Action:    "toml_editor",
+		Operation: "get",
+		FilePath:  "config.toml",
+		Params: map[string]interface{}{
+			"toml_path": "server.port",
+		},
+	}, dc)
+
+	if !strings.Contains(output, `"status":"success"`) || !strings.Contains(output, `"data":8088`) {
+		t.Fatalf("toml_editor dispatch returned unexpected output: %s", output)
+	}
+}

@@ -18,8 +18,8 @@ func (c *BudgetCommand) Execute(args []string, ctx Context) (string, error) {
 	return ctx.BudgetTracker.FormatStatusText(lang), nil
 }
 
-func (c *BudgetCommand) Help() string {
-	return i18n.T("de", "backend.budget_help")
+func (c *BudgetCommand) Help(lang string) string {
+	return i18n.T(commandLang(lang), "backend.budget_help")
 }
 
 func init() {

@@ -70,7 +70,7 @@ func HandleVNCProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			return
 		}
 
-		addr := fmt.Sprintf("%s:%d", host, port)
+		addr := vncDialAddress(host, port)
 		vncConn, err := net.Dial("tcp", addr)
 		if err != nil {
 			sendVNCError(conn, fmt.Sprintf("VNC connection failed: %v", err))
@@ -150,6 +150,10 @@ func HandleVNCProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 		}
 		_ = writer.writeText(sshStatusMessage{Type: "disconnected", Message: "VNC session closed"})
 	}
+}
+
+func vncDialAddress(host string, port int) string {
+	return net.JoinHostPort(host, fmt.Sprintf("%d", port))
 }
 
 type wsRFBConn struct {

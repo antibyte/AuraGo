@@ -42,8 +42,8 @@ func (c *WarningsCommand) Execute(args []string, ctx Context) (string, error) {
 	return sb.String(), nil
 }
 
-func (c *WarningsCommand) Help() string {
-	return i18n.T("de", "backend.warnings_help")
+func (c *WarningsCommand) Help(lang string) string {
+	return i18n.T(commandLang(lang), "backend.warnings_help")
 }
 
 func init() {

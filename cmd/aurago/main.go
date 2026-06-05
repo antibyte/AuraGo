@@ -67,7 +67,7 @@ func resolveInitialPassword(passwordFlag, passwordFile string) (string, error) {
 }
 
 func main() {
-	// â”€â”€ Sandbox helper mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+	// -- Sandbox helper mode ------------------------------------------------
 	// When invoked with --sandbox-exec, this process applies Landlock + rlimits
 	// and exec's the shell command. Must happen before ANY other initialization.
 	if len(os.Args) > 2 && os.Args[1] == "--sandbox-exec" {
@@ -112,8 +112,8 @@ func main() {
 	// Load secrets in priority order -- each step only sets vars not already present:
 	//   1. systemd EnvironmentFile (already in env before process starts)
 	//   2. Docker Compose secret  (/run/secrets/aurago_master_key)
-	//   3. System credential file (/etc/aurago/master.key)  â† manual starts post-migration
-	//   4. Local .env             ($configDir/.env)          â† dev / non-systemd installs
+	//   3. System credential file (/etc/aurago/master.key)  <- manual starts post-migration
+	//   4. Local .env             ($configDir/.env)          <- dev / non-systemd installs
 	loadDockerSecret("/run/secrets/aurago_master_key", "AURAGO_MASTER_KEY", appLog)
 	loadDotEnv("/etc/aurago/master.key", appLog)
 	loadDotEnv(filepath.Join(filepath.Dir(configFile), ".env"), appLog)
@@ -125,7 +125,7 @@ func main() {
 		initialPassword = resolved
 	}
 
-	// â”€â”€ Config-check mode: validate YAML and exit (used by Docker entrypoint) â”€
+	// -- Config-check mode: validate YAML and exit (used by Docker entrypoint)
 	if checkConfig {
 		if _, err := config.Load(configFile); err != nil {
 			fmt.Fprintf(os.Stderr, "CONFIG ERROR: %v\n", err)
@@ -135,7 +135,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	// â”€â”€ Early Config Load for Path Resolution â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+	// -- Early Config Load for Path Resolution -----------------------------
 	cfg, err := config.Load(configFile)
 	if err != nil && !runSetup {
 		if setup.NeedsSetup(installDir, configFile) {
@@ -153,11 +153,11 @@ func main() {
 		}
 		if err != nil {
 			// If we can't load config and we're not in setup, we can't safely proceed
-			log.Fatalf("âŒ CONFIG ERROR: %v", err)
+			log.Fatalf("CONFIG ERROR: %v", err)
 		}
 	}
 
-	// â”€â”€ Apply CLI flags for HTTPS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+	// -- Apply CLI flags for HTTPS -----------------------------------------
 	if enableHTTPS && cfg != nil {
 		saveNeeded := false
 		if !cfg.Server.HTTPS.Enabled {
@@ -184,7 +184,7 @@ func main() {
 		}
 	}
 
-	// â”€â”€ Apply initial password â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+	// -- Apply initial password --------------------------------------------
 	if initialPassword != "" && cfg != nil {
 		masterKey := os.Getenv("AURAGO_MASTER_KEY")
 		if masterKey != "" && len(masterKey) == 64 {
@@ -224,14 +224,14 @@ func main() {
 		}
 	}
 
-	// â”€â”€ Init-only mode: apply flags and exit without starting the server â”€â”€
+	// -- Init-only mode: apply flags and exit without starting the server --
 	// Used by the installer to set the initial password / HTTPS config.
 	if initOnly {
 		appLog.Info("Init-only mode: configuration applied, exiting.")
 		os.Exit(0)
 	}
 
-	// â”€â”€ Robust File Locking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+	// -- Robust File Locking ------------------------------------------------
 	var lockPath string
 	if cfg != nil && cfg.Directories.DataDir != "" {
 		lockPath = filepath.Join(cfg.Directories.DataDir, "aurago.lock")
@@ -248,13 +248,13 @@ func main() {
 	fileLock := flock.New(absLockPath)
 	locked, err := fileLock.TryLock()
 	if err != nil || !locked {
-		appLog.Error("âŒ BLOCKIERT: AuraGo lÃ¤uft bereits!", "lock_path", absLockPath)
+		appLog.Error("BLOCKIERT: AuraGo laeuft bereits!", "lock_path", absLockPath)
 		os.Exit(1)
 	}
 	defer fileLock.Unlock()
 	appLog.Info("Application lock acquired", "path", absLockPath)
 
-	// â”€â”€ Setup mode: extract resources and install service â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+	// -- Setup mode: extract resources and install service -----------------
 	if runSetup {
 		appLog.Info("Running AuraGo first-time setup ...")
 		if err := setup.Run(appLog); err != nil {
@@ -264,12 +264,12 @@ func main() {
 		os.Exit(0)
 	}
 
-	// â”€â”€ Runtime directories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+	// -- Runtime directories -----------------------------------------------
 	setup.EnsureDirectories(installDir, appLog)
 
 	appLog.Info("Starting AuraGo")
 
-	// â”€â”€ Bootstrap embedded prompt defaults if PromptsDir is empty â”€â”€â”€â”€â”€â”€â”€â”€
+	// -- Bootstrap embedded prompt defaults if PromptsDir is empty ---------
 	promptspkg.EnsurePromptsDir(cfg.Directories.PromptsDir, appLog)
 
 	// Configure execution timeouts from config
@@ -395,7 +395,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Migrate core_memory.md â†’ SQLite (no-op if already done); returns true on first start
+	// Migrate core_memory.md -> SQLite (no-op if already done); returns true on first start
 	isFirstStart := shortTermMem.MigrateCoreMemoryFromMarkdown(cfg.Directories.DataDir, appLog)
 
 	inventoryDB, err := inventory.InitDB(cfg.SQLite.InventoryPath)
@@ -862,7 +862,7 @@ func main() {
 		if err != nil {
 			appLog.Error("Failed to decode recovery context", "error", err)
 		} else {
-			msg := fmt.Sprintf("SYSTEM: Neustart nach Wartung abgeschlossen. Zusammenfassung der Ã„nderungen: %s. Setze deinen Plan fort.", string(decoded))
+			msg := fmt.Sprintf("SYSTEM: Neustart nach Wartung abgeschlossen. Zusammenfassung der Aenderungen: %s. Setze deinen Plan fort.", string(decoded))
 			mid, _ := shortTermMem.InsertMessage("default", "system", msg, false, false)
 			historyManager.Add("system", msg, mid, false, false)
 			appLog.Info("Recovery context injected into history")
@@ -874,7 +874,7 @@ func main() {
 		startLifeboatSidecar(appLog, cfg, loopbackToken)
 	}
 
-	// â”€â”€ Egg Mode: start WebSocket client to master â”€â”€
+	// -- Egg Mode: start WebSocket client to master ------------------------
 	var eggMissionResultSink func(result bridge.MissionResultPayload) error
 	if cfg.EggMode.Enabled {
 		appLog.Info("Egg mode enabled -- connecting to master", "master_url", cfg.EggMode.MasterURL)

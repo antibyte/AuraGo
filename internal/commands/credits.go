@@ -48,8 +48,8 @@ func (c *CreditsCommand) Execute(args []string, ctx Context) (string, error) {
 	return credits.FormatCreditsText(), nil
 }
 
-func (c *CreditsCommand) Help() string {
-	return i18n.T("de", "backend.credits_help")
+func (c *CreditsCommand) Help(lang string) string {
+	return i18n.T(commandLang(lang), "backend.credits_help")
 }
 
 func init() {

@@ -55,8 +55,8 @@ func (c *AddSSHCommand) Execute(args []string, ctx Context) (string, error) {
 	return i18n.T(ctx.Lang, "backend.addssh_success", host, id), nil
 }
 
-func (c *AddSSHCommand) Help() string {
-	return i18n.T("de", "backend.addssh_help")
+func (c *AddSSHCommand) Help(lang string) string {
+	return i18n.T(commandLang(lang), "backend.addssh_help")
 }
 
 func init() {

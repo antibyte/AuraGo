@@ -38,8 +38,8 @@ func (c *SudoPwdCommand) Execute(args []string, ctx Context) (string, error) {
 	return i18n.T(ctx.Lang, "backend.sudopwd_success") + hint, nil
 }
 
-func (c *SudoPwdCommand) Help() string {
-	return i18n.T("de", "backend.sudopwd_help")
+func (c *SudoPwdCommand) Help(lang string) string {
+	return i18n.T(commandLang(lang), "backend.sudopwd_help")
 }
 
 func init() {

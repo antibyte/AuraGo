@@ -877,6 +877,25 @@ func TestBuiltinToolSchemasFilesystemIncludesBatchOperations(t *testing.T) {
 	t.Fatal("filesystem schema not found")
 }
 
+func TestBuiltinToolSchemasIncludeTomlEditor(t *testing.T) {
+	fullSchemas := builtinToolSchemas(ToolFeatureFlags{AllowFilesystemWrite: true})
+	if !containsName(toolNames(fullSchemas), "toml_editor") {
+		t.Fatalf("writable schemas missing toml_editor: %v", toolNames(fullSchemas))
+	}
+
+	readOnlySchemas := builtinToolSchemas(ToolFeatureFlags{AllowFilesystemWrite: false})
+	if !containsName(toolNames(readOnlySchemas), "toml_editor") {
+		t.Fatalf("read-only schemas missing toml_editor: %v", toolNames(readOnlySchemas))
+	}
+}
+
+func TestBuiltinToolSchemasIncludeCertificateManager(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{})
+	if !containsName(toolNames(schemas), "certificate_manager") {
+		t.Fatalf("schemas missing certificate_manager: %v", toolNames(schemas))
+	}
+}
+
 func TestBuiltinToolSchemasHomepageUsesSubOperationField(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{HomepageEnabled: true, NetlifyEnabled: true})
 

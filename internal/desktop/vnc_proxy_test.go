@@ -127,6 +127,13 @@ func TestResolveVNCAccessDefaults(t *testing.T) {
 	}
 }
 
+func TestVNCDialAddressSupportsIPv6(t *testing.T) {
+	got := vncDialAddress("2001:db8::10", 5901)
+	if got != "[2001:db8::10]:5901" {
+		t.Fatalf("vncDialAddress() = %q, want [2001:db8::10]:5901", got)
+	}
+}
+
 func TestPerformRFBHandshakeNoAuth(t *testing.T) {
 	err := runRFBHandshakeTest(t, "", fakeRFBNoAuthServer, fakeNoAuthBrowser)
 	if err != nil {
