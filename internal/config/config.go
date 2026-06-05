@@ -1050,11 +1050,16 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.OutputCompression.Reversible.MaxAgeHours <= 0 {
 		cfg.Agent.OutputCompression.Reversible.MaxAgeHours = 24
 	}
+	// Enable all headroom features by default — validated in production.
+	cfg.Agent.OutputCompression.SmartCrusher.Enabled = true
+	cfg.Agent.OutputCompression.Reversible.Enabled = true
+	cfg.Agent.ImportanceScoring.Enabled = true
+	cfg.Agent.AutoLearning.Enabled = true
 	if cfg.Agent.ImportanceScoring.Mode == "" {
-		cfg.Agent.ImportanceScoring.Mode = "log_only"
+		cfg.Agent.ImportanceScoring.Mode = "active"
 	}
 	if cfg.Agent.AutoLearning.Mode == "" {
-		cfg.Agent.AutoLearning.Mode = "log_only"
+		cfg.Agent.AutoLearning.Mode = "active"
 	}
 	// PreserveErrors defaults to true when not explicitly set (zero value = true)
 	// V2 requires V1 — automatically enable V1 when V2 is on.
