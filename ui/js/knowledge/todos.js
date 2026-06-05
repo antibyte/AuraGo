@@ -23,6 +23,8 @@ async function loadTodos() {
         if (!response.ok) throw new Error(response.status + ' ' + response.statusText);
         allTodos = await response.json() || [];
         renderTodos();
+        if (typeof updateTabCount === 'function') updateTabCount('todos', allTodos.length);
+        if (typeof updateStatsBar === 'function') updateStatsBar();
     } catch (error) {
         console.error('Failed to load todos:', error);
         showToast(t('common.error') + ': ' + error.message, 'error');
@@ -122,8 +124,8 @@ function renderTodoCard(todo) {
                 ${reminderBadge}
                 <div class="kc-todo-actions">
                     ${!isDone && todo.status !== 'in_progress' ? `<button class="btn btn-sm btn-secondary" onclick='setTodoInProgress(${quoteJS(todo.id)})' title="${esc(t('knowledge.todos_start'))}">▶️</button>` : ''}
-                    <button class="btn btn-sm btn-secondary" onclick='editTodo(${quoteJS(todo.id)})' title="${esc(t('common.btn_edit'))}">✏️</button>
-                    <button class="btn btn-sm btn-danger" onclick='askDeleteTodo(${quoteJS(todo.id)}, ${quoteJS(todo.title)})' title="${esc(t('common.btn_delete'))}">🗑️</button>
+                    <button class="kc-icon-btn" onclick='editTodo(${quoteJS(todo.id)})' title="${esc(t('common.btn_edit'))}">${typeof svgIcon === 'function' ? svgIcon('edit') : '✏️'}</button>
+                    <button class="kc-icon-btn kc-icon-btn-danger" onclick='askDeleteTodo(${quoteJS(todo.id)}, ${quoteJS(todo.title)})' title="${esc(t('common.btn_delete'))}">${typeof svgIcon === 'function' ? svgIcon('delete') : '🗑️'}</button>
                 </div>
             </div>
             ${todo.description ? `<p class="kc-todo-desc">${esc(todo.description)}</p>` : ''}

@@ -235,5 +235,7 @@
   "knowledge.todos_summary_progress": "Average progress",
   "knowledge.todos_summary_total": "{count} tasks total",
   "knowledge.appointments_filter_overdue": "Overdue",
-  "knowledge.appointments_status_overdue": "Overdue"
+  "knowledge.appointments_status_overdue": "Overdue",
+  "knowledge.files_drop_here": "Drop files here to upload",
+  "knowledge.files_uploading": "Uploading"
 }

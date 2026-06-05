@@ -235,5 +235,7 @@
   "knowledge.todos_summary_progress": "Avanzamento medio",
   "knowledge.todos_summary_total": "{count} attività totali",
   "knowledge.appointments_filter_overdue": "Scaduto",
-  "knowledge.appointments_status_overdue": "Scaduto"
+  "knowledge.appointments_status_overdue": "Scaduto",
+  "knowledge.files_drop_here": "Trascina i file qui per caricarli",
+  "knowledge.files_uploading": "Caricamento"
 }

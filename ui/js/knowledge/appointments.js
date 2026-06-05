@@ -29,6 +29,8 @@ async function loadAppointments() {
         const resp = await r.json();
         allAppointments = resp || [];
         renderAppointments();
+        if (typeof updateTabCount === 'function') updateTabCount('appointments', allAppointments.length);
+        if (typeof updateStatsBar === 'function') updateStatsBar();
     } catch (e) {
         console.error('Failed to load appointments:', e);
         showToast(t('common.error') + ': ' + e.message, 'error');
@@ -56,7 +58,7 @@ function renderAppointments() {
         const isPast = new Date(a.date_time) < new Date();
 
         return `
-        <div class="kc-appointment-card ${isPast && a.status === 'upcoming' ? 'kc-appointment-past' : ''}">
+        <div class="kc-appointment-card ${isPast && a.status === 'upcoming' ? 'kc-appointment-past' : ''} ${a.status === 'overdue' ? 'kc-appointment-overdue-border' : ''}">
             <div class="kc-appointment-header">
                 <div class="kc-appointment-title-row">
                     <h3 class="kc-appointment-title">${esc(a.title)}</h3>
@@ -67,8 +69,8 @@ function renderAppointments() {
                         <button class="btn btn-sm btn-secondary" onclick="completeAppointment('${esc(a.id)}')" title="${t('knowledge.appointments_complete')}">✅</button>
                         <button class="btn btn-sm btn-secondary" onclick="cancelAppointment('${esc(a.id)}')" title="${t('knowledge.appointments_cancel')}">❌</button>
                     ` : ''}
-                    <button class="btn btn-sm btn-secondary" onclick="editAppointment('${esc(a.id)}')" title="${t('common.btn_edit')}">✏️</button>
-                    <button class="btn btn-sm btn-danger" onclick="askDeleteAppointment('${esc(a.id)}', '${esc(a.title)}')" title="${t('common.btn_delete')}">🗑️</button>
+                    <button class="kc-icon-btn" onclick="editAppointment('${esc(a.id)}')" title="${t('common.btn_edit')}">${typeof svgIcon === 'function' ? svgIcon('edit') : '✏️'}</button>
+                    <button class="kc-icon-btn kc-icon-btn-danger" onclick="askDeleteAppointment('${esc(a.id)}', '${esc(a.title)}')" title="${t('common.btn_delete')}">${typeof svgIcon === 'function' ? svgIcon('delete') : '🗑️'}</button>
                 </div>
             </div>
             ${a.description ? `<p class="kc-appointment-desc">${esc(a.description)}</p>` : ''}

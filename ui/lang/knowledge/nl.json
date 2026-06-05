@@ -235,5 +235,7 @@
   "knowledge.todos_summary_progress": "Gemiddelde voortgang",
   "knowledge.todos_summary_total": "{count} taken totaal",
   "knowledge.appointments_filter_overdue": "Achterstallig",
-  "knowledge.appointments_status_overdue": "Achterstallig"
+  "knowledge.appointments_status_overdue": "Achterstallig",
+  "knowledge.files_drop_here": "Sleep bestanden hier om te uploaden",
+  "knowledge.files_uploading": "Uploaden"
 }

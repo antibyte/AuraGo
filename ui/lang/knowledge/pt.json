@@ -235,5 +235,7 @@
   "knowledge.todos_summary_progress": "Progresso médio",
   "knowledge.todos_summary_total": "{count} tarefas no total",
   "knowledge.appointments_filter_overdue": "Atrasado",
-  "knowledge.appointments_status_overdue": "Atrasado"
+  "knowledge.appointments_status_overdue": "Atrasado",
+  "knowledge.files_drop_here": "Arraste arquivos aqui para enviar",
+  "knowledge.files_uploading": "Enviando"
 }

@@ -235,5 +235,7 @@
   "knowledge.todos_summary_progress": "Gennemsnitlig fremdrift",
   "knowledge.todos_summary_total": "{count} opgaver i alt",
   "knowledge.appointments_filter_overdue": "Overskredet",
-  "knowledge.appointments_status_overdue": "Overskredet"
+  "knowledge.appointments_status_overdue": "Overskredet",
+  "knowledge.files_drop_here": "Træk filer her for at uploade",
+  "knowledge.files_uploading": "Uploader"
 }

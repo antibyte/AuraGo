@@ -235,5 +235,7 @@
   "knowledge.todos_summary_progress": "Μέση πρόοδος",
   "knowledge.todos_summary_total": "{count} εργασίες συνολικά",
   "knowledge.appointments_filter_overdue": "Εκπρόθεσμο",
-  "knowledge.appointments_status_overdue": "Εκπρόθεσμο"
+  "knowledge.appointments_status_overdue": "Εκπρόθεσμο",
+  "knowledge.files_drop_here": "Σύρετε αρχεία εδώ για μεταφόρτωση",
+  "knowledge.files_uploading": "Μεταφόρτωση"
 }

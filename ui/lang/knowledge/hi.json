@@ -235,5 +235,7 @@
   "knowledge.todos_summary_progress": "औसत प्रगति",
   "knowledge.todos_summary_total": "कुल {count} कार्य",
   "knowledge.appointments_filter_overdue": "अतिदेय",
-  "knowledge.appointments_status_overdue": "अतिदेय"
+  "knowledge.appointments_status_overdue": "अतिदेय",
+  "knowledge.files_drop_here": "अपलोड करने के लिए फ़ाइलें यहाँ ड्रॉप करें",
+  "knowledge.files_uploading": "अपलोड हो रहा है"
 }

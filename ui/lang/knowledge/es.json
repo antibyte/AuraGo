@@ -235,5 +235,7 @@
   "knowledge.todos_summary_progress": "Progreso medio",
   "knowledge.todos_summary_total": "{count} tareas en total",
   "knowledge.appointments_filter_overdue": "Vencido",
-  "knowledge.appointments_status_overdue": "Vencido"
+  "knowledge.appointments_status_overdue": "Vencido",
+  "knowledge.files_drop_here": "Arrastra archivos aquí para subirlos",
+  "knowledge.files_uploading": "Subiendo"
 }

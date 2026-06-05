@@ -12,7 +12,14 @@ let contactSearchTimer = null;
 let previewResetTimer = null;
 let pendingCredentialCertificateText = '';
 let knowledgeDeleteInFlight = false;
-const knowledgeActiveTabKey = 'aurago-knowledge-active-tab';
+let lastFocusedTrigger = null;
+
+const sortState = {
+    contacts: { col: 'name', dir: 'asc' },
+    files: { col: 'name', dir: 'asc' },
+    devices: { col: 'name', dir: 'asc' },
+    credentials: { col: 'name', dir: 'asc' },
+};
 
 // PDF preview state
 let pdfDoc = null;
@@ -31,27 +38,46 @@ document.addEventListener('DOMContentLoaded', () => {
     loadDevices();
     loadCredentials();
     restoreKnowledgeTab();
+    initKeyboardNav();
+    initSortableHeaders();
+    initDropZone();
+    updateTabIndicator();
+    window.addEventListener('hashchange', onHashChange);
 });
 
 // ═══════════════════════════════════════════════════════════════
-// TAB SWITCHING
+// TAB SWITCHING & NAVIGATION
 // ═══════════════════════════════════════════════════════════════
+const validTabs = ['contacts', 'files', 'devices', 'credentials', 'secrets', 'appointments', 'todos'];
+
 function switchKCTab(tab) {
-    if (!tab) return;
+    if (!tab || !validTabs.includes(tab)) return;
     document.querySelectorAll('.kc-tab').forEach(t => {
         t.classList.remove('active');
         t.setAttribute('aria-selected', 'false');
+        t.setAttribute('tabindex', '-1');
     });
     document.querySelectorAll('.kc-panel').forEach(p => p.classList.remove('active'));
 
-    document.getElementById('tab-' + tab).classList.add('active');
-    document.getElementById('tab-' + tab).setAttribute('aria-selected', 'true');
-    document.getElementById('panel-' + tab).classList.add('active');
+    const tabBtn = document.getElementById('tab-' + tab);
+    const panel = document.getElementById('panel-' + tab);
+    if (!tabBtn || !panel) return;
+
+    tabBtn.classList.add('active');
+    tabBtn.setAttribute('aria-selected', 'true');
+    tabBtn.setAttribute('tabindex', '0');
+    panel.classList.add('active');
+
     try {
-        localStorage.setItem(knowledgeActiveTabKey, tab);
+        if (window.location.hash !== '#' + tab) {
+            history.replaceState(null, '', '#' + tab);
+        }
     } catch (error) {
-        console.debug('Failed to persist knowledge tab:', error);
+        console.debug('Failed to set hash:', error);
     }
+
+    updateTabIndicator();
+    updateTabFade();
 
     if (tab === 'appointments' && typeof loadAppointments === 'function') {
         loadAppointments();
@@ -83,18 +109,93 @@ function switchKCTab(tab) {
         }
     }
 }
+window.switchKCTab = switchKCTab;
 
 function restoreKnowledgeTab() {
     let tab = 'contacts';
     try {
-        const saved = localStorage.getItem(knowledgeActiveTabKey);
-        if (saved && document.getElementById('tab-' + saved) && document.getElementById('panel-' + saved)) {
-            tab = saved;
+        const hash = window.location.hash.slice(1);
+        if (hash && validTabs.includes(hash) && document.getElementById('tab-' + hash) && document.getElementById('panel-' + hash)) {
+            tab = hash;
         }
     } catch (error) {
         console.debug('Failed to restore knowledge tab:', error);
     }
     switchKCTab(tab);
+}
+
+function onHashChange() {
+    const hash = window.location.hash.slice(1);
+    if (hash && validTabs.includes(hash)) {
+        switchKCTab(hash);
+    }
+}
+
+function updateTabIndicator() {
+    const activeTab = document.querySelector('.kc-tab.active');
+    const indicator = document.getElementById('kc-tab-indicator');
+    if (!activeTab || !indicator) return;
+    const tabsContainer = activeTab.closest('.kc-tabs');
+    if (!tabsContainer) return;
+    const containerRect = tabsContainer.getBoundingClientRect();
+    const tabRect = activeTab.getBoundingClientRect();
+    indicator.style.left = (tabRect.left - containerRect.left + tabsContainer.scrollLeft) + 'px';
+    indicator.style.width = tabRect.width + 'px';
+}
+
+function updateTabFade() {
+    const wrap = document.querySelector('.kc-tabs-wrap');
+    const tabs = document.querySelector('.kc-tabs');
+    if (!wrap || !tabs) return;
+    const showStart = tabs.scrollLeft > 4;
+    const showEnd = tabs.scrollLeft < tabs.scrollWidth - tabs.clientWidth - 4;
+    wrap.classList.toggle('show-fade-start', showStart);
+    wrap.classList.toggle('show-fade-end', showEnd);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// KEYBOARD NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+function initKeyboardNav() {
+    document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+        if (e.key >= '1' && e.key <= '7') {
+            const idx = parseInt(e.key) - 1;
+            if (validTabs[idx]) {
+                e.preventDefault();
+                switchKCTab(validTabs[idx]);
+            }
+        }
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            const currentTab = document.querySelector('.kc-tab.active');
+            if (!currentTab || !currentTab.closest('.kc-tabs')?.contains(document.activeElement)) return;
+            e.preventDefault();
+            const idx = validTabs.indexOf(currentTab.id.replace('tab-', ''));
+            const next = e.key === 'ArrowRight'
+                ? (idx + 1) % validTabs.length
+                : (idx - 1 + validTabs.length) % validTabs.length;
+            switchKCTab(validTabs[next]);
+            document.getElementById('tab-' + validTabs[next])?.focus();
+        }
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TAB COUNT UPDATES
+// ═══════════════════════════════════════════════════════════════
+function updateTabCount(tab, count) {
+    const el = document.getElementById('count-' + tab);
+    if (el) el.textContent = count;
+}
+
+function updateAllTabCounts() {
+    updateTabCount('contacts', allContacts.length);
+    updateTabCount('files', allFiles.length);
+    updateTabCount('devices', allDevices.length);
+    updateTabCount('credentials', allCredentials.length);
+    updateTabCount('appointments', typeof allAppointments !== 'undefined' ? allAppointments.length : 0);
+    updateTabCount('todos', typeof allTodos !== 'undefined' ? allTodos.length : 0);
+    updateStatsBar();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -109,10 +210,13 @@ function debounceContactSearch() {
 async function loadContacts() {
     const q = (document.getElementById('contacts-search')?.value || '').trim();
     const url = q ? '/api/contacts?q=' + encodeURIComponent(q) : '/api/contacts';
+    showTableSkeleton('contacts-tbody', 5);
     try {
         const resp = await fetch(url).then(r => r.json());
         allContacts = resp || [];
         renderContacts();
+        updateTabCount('contacts', allContacts.length);
+        updateStatsBar();
     } catch (e) {
         console.error('Failed to load contacts:', e);
         showToast(t('common.error') + ': ' + e.message, 'error');
@@ -133,7 +237,8 @@ function renderContacts() {
     tableWrap.classList.remove('is-hidden');
     empty.classList.add('is-hidden');
 
-    tbody.innerHTML = allContacts.map(c => `
+    const sorted = sortArray(allContacts, sortState.contacts);
+    tbody.innerHTML = sorted.map(c => `
         <tr>
             <td class="kc-name">${esc(c.name)}</td>
             <td>${c.email ? '<a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : '—'}</td>
@@ -141,14 +246,15 @@ function renderContacts() {
             <td>${esc(c.mobile || '—')}</td>
             <td>${esc(c.relationship || '—')}</td>
             <td class="kc-actions">
-                <button class="btn btn-sm btn-secondary" onclick="editContact('${esc(c.id)}')" title="${t('common.btn_edit')}">✏️</button>
-                <button class="btn btn-sm btn-danger" onclick="askDeleteContact('${esc(c.id)}', '${esc(c.name)}')" title="${t('common.btn_delete')}">🗑️</button>
+                <button class="kc-icon-btn" onclick="editContact('${esc(c.id)}')" title="${t('common.btn_edit')}">${svgIcon('edit')}</button>
+                <button class="kc-icon-btn kc-icon-btn-danger" onclick="askDeleteContact('${esc(c.id)}', '${esc(c.name)}')" title="${t('common.btn_delete')}">${svgIcon('delete')}</button>
             </td>
         </tr>
     `).join('');
 }
 
 function openContactModal(contact) {
+    lastFocusedTrigger = document.activeElement;
     const modal = document.getElementById('contact-modal');
     const title = document.getElementById('contact-modal-title');
 
@@ -231,10 +337,13 @@ function askDeleteContact(id, name) {
 // ═══════════════════════════════════════════════════════════════
 
 async function loadFiles() {
+    showTableSkeleton('files-tbody', 3);
     try {
         const resp = await fetch('/api/knowledge').then(r => r.json());
         allFiles = resp || [];
         renderFiles();
+        updateTabCount('files', allFiles.length);
+        updateStatsBar();
     } catch (e) {
         console.error('Failed to load files:', e);
     }
@@ -261,8 +370,9 @@ function renderFiles() {
     tableWrap.classList.remove('is-hidden');
     empty.classList.add('is-hidden');
 
-    tbody.innerHTML = filtered.map(f => {
-        const icon = fileIcon(f.name);
+    const sorted = sortArray(filtered, sortState.files);
+    tbody.innerHTML = sorted.map(f => {
+        const icon = fileIconSvg(f.name);
         const previewName = escAttr(f.name);
         return `
         <tr>
@@ -274,9 +384,9 @@ function renderFiles() {
             <td class="kc-size">${formatSize(f.size)}</td>
             <td>${formatDate(f.modified)}</td>
             <td class="kc-actions">
-                <a class="btn btn-sm btn-secondary" href="#" onclick="openFilePreview('${previewName}'); return false;" title="${t('knowledge.files_preview')}">👁️</a>
-                <a class="btn btn-sm btn-secondary" href="/api/knowledge/${encodeURIComponent(f.name)}" target="_blank" title="${t('knowledge.files_download')}">⬇️</a>
-                <button class="btn btn-sm btn-danger" onclick="askDeleteFile('${esc(f.name)}')" title="${t('common.btn_delete')}">🗑️</button>
+                <button class="kc-icon-btn" onclick="openFilePreview('${previewName}')" title="${t('knowledge.files_preview')}">${svgIcon('eye')}</button>
+                <a class="kc-icon-btn" href="/api/knowledge/${encodeURIComponent(f.name)}" target="_blank" title="${t('knowledge.files_download')}">${svgIcon('download')}</a>
+                <button class="kc-icon-btn kc-icon-btn-danger" onclick="askDeleteFile('${esc(f.name)}')" title="${t('common.btn_delete')}">${svgIcon('delete')}</button>
             </td>
         </tr>`;
     }).join('');
@@ -490,29 +600,69 @@ function closeFilePreview() {
     modal.classList.remove('active');
 }
 
-async function uploadFile(input) {
-    const file = input.files[0];
-    if (!file) return;
+async function uploadFiles(input) {
+    const files = input.files;
+    if (!files || !files.length) return;
 
-    const form = new FormData();
-    form.append('file', file);
+    const progressWrap = document.querySelector('.kc-upload-progress') || createUploadProgress();
+    const progressFill = progressWrap.querySelector('.kc-upload-progress-fill');
+    const progressText = progressWrap.querySelector('.kc-upload-progress-text');
+    progressWrap.classList.add('is-active');
+    progressFill.style.width = '0%';
 
-    try {
-        const resp = await fetch('/api/knowledge/upload', {
-            method: 'POST',
-            body: form,
-        });
-        if (!resp.ok) {
-            const err = await resp.text();
-            throw new Error(err);
+    let uploaded = 0;
+    const total = files.length;
+
+    for (let i = 0; i < files.length; i++) {
+        const form = new FormData();
+        form.append('file', files[i]);
+        progressText.textContent = (t('knowledge.files_uploading') || 'Uploading') + ` ${files[i].name} (${i + 1}/${total})`;
+
+        try {
+            const resp = await fetch('/api/knowledge/upload', {
+                method: 'POST',
+                body: form,
+            });
+            if (!resp.ok) {
+                const err = await resp.text();
+                throw new Error(err);
+            }
+            uploaded++;
+            progressFill.style.width = Math.round((uploaded / total) * 100) + '%';
+        } catch (e) {
+            console.error('Upload failed:', e);
+            showToast(t('common.error') + ': ' + e.message, 'error');
         }
+    }
+
+    if (uploaded > 0) {
         showToast(t('knowledge.files_uploaded'), 'success');
         loadFiles();
-    } catch (e) {
-        console.error('Upload failed:', e);
-        showToast(t('common.error') + ': ' + e.message, 'error');
     }
+
+    setTimeout(() => {
+        progressWrap.classList.remove('is-active');
+    }, 1500);
     input.value = '';
+}
+
+function createUploadProgress() {
+    const existing = document.querySelector('.kc-upload-progress');
+    if (existing) return existing;
+    const div = document.createElement('div');
+    div.className = 'kc-upload-progress';
+    div.innerHTML = `
+        <div class="kc-upload-progress-bar"><div class="kc-upload-progress-fill"></div></div>
+        <div class="kc-upload-progress-text"></div>
+    `;
+    const panelHeader = document.querySelector('#panel-files .kc-panel-header');
+    if (panelHeader) panelHeader.after(div);
+    return div;
+}
+
+// Keep backward-compatible single-file function
+async function uploadFile(input) {
+    return uploadFiles(input);
 }
 
 function askDeleteFile(name) {
@@ -528,11 +678,14 @@ function askDeleteFile(name) {
 // ═══════════════════════════════════════════════════════════════
 
 async function loadDevices() {
+    showTableSkeleton('devices-tbody', 4);
     try {
         const resp = await fetch('/api/devices');
         if (!resp.ok) throw new Error(await resp.text());
         allDevices = await resp.json() || [];
         renderDevices();
+        updateTabCount('devices', allDevices.length);
+        updateStatsBar();
     } catch (e) {
         console.error('Failed to load devices:', e);
         showToast(t('common.error') + ': ' + e.message, 'error');
@@ -571,7 +724,8 @@ function renderDevices() {
     tableWrap.style.display = '';
     empty.style.display = 'none';
 
-    tbody.innerHTML = filtered.map(d => {
+    const sorted = sortArray(filtered, sortState.devices);
+    tbody.innerHTML = sorted.map(d => {
         const tags = (d.tags || []).map(tag =>
             '<span class="kc-tag">' + esc(tag) + '</span>'
         ).join('') || '—';
@@ -585,8 +739,8 @@ function renderDevices() {
             <td class="kc-mono kc-size">${esc(d.mac_address || '—')}</td>
             <td class="kc-tags-cell">${tags}</td>
             <td class="kc-actions">
-                <button class="btn btn-sm btn-secondary" onclick="editDevice('${esc(d.id)}')" title="${t('common.btn_edit')}">✏️</button>
-                <button class="btn btn-sm btn-danger" onclick="askDeleteDevice('${esc(d.id)}', '${esc(d.name)}')" title="${t('common.btn_delete')}">🗑️</button>
+                <button class="kc-icon-btn" onclick="editDevice('${esc(d.id)}')" title="${t('common.btn_edit')}">${svgIcon('edit')}</button>
+                <button class="kc-icon-btn kc-icon-btn-danger" onclick="askDeleteDevice('${esc(d.id)}', '${esc(d.name)}')" title="${t('common.btn_delete')}">${svgIcon('delete')}</button>
             </td>
         </tr>`;
     }).join('');
@@ -678,12 +832,15 @@ function askDeleteDevice(id, name) {
 // ═══════════════════════════════════════════════════════════════
 
 async function loadCredentials() {
+    showTableSkeleton('credentials-tbody', 3);
     try {
         const resp = await fetch('/api/credentials');
         if (!resp.ok) throw new Error(await resp.text());
         allCredentials = await resp.json() || [];
         renderCredentials();
         renderDevices();
+        updateTabCount('credentials', allCredentials.length);
+        updateStatsBar();
     } catch (e) {
         console.error('Failed to load credentials:', e);
         showToast(t('common.error') + ': ' + e.message, 'error');
@@ -755,7 +912,8 @@ function renderCredentials() {
     tableWrap.classList.remove('is-hidden');
     empty.classList.add('is-hidden');
 
-    tbody.innerHTML = filtered.map(c => `
+    const sorted = sortArray(filtered, sortState.credentials);
+    tbody.innerHTML = sorted.map(c => `
         <tr>
             <td class="kc-name">${esc(c.name)}</td>
             <td><span class="kc-type-badge">${esc((c.type || 'ssh').toUpperCase())}</span></td>
@@ -765,8 +923,8 @@ function renderCredentials() {
             <td>${c.has_certificate ? '<span class="kc-state-chip kc-state-ok">' + esc(t('knowledge.credentials_state_present')) + '</span>' : '<span class="kc-state-chip">' + esc(t('knowledge.credentials_state_missing')) + '</span>'}</td>
             <td>${c.allow_python ? '<span class="kc-state-chip kc-state-ok">✓</span>' : '<span class="kc-state-chip">—</span>'}</td>
             <td class="kc-actions">
-                <button class="btn btn-sm btn-secondary" onclick="editCredential('${esc(c.id)}')" title="${t('common.btn_edit')}">✏️</button>
-                <button class="btn btn-sm btn-danger" onclick="askDeleteCredential('${esc(c.id)}', '${esc(c.name)}')" title="${t('common.btn_delete')}">🗑️</button>
+                <button class="kc-icon-btn" onclick="editCredential('${esc(c.id)}')" title="${t('common.btn_edit')}">${svgIcon('edit')}</button>
+                <button class="kc-icon-btn kc-icon-btn-danger" onclick="askDeleteCredential('${esc(c.id)}', '${esc(c.name)}')" title="${t('common.btn_delete')}">${svgIcon('delete')}</button>
             </td>
         </tr>
     `).join('');
@@ -981,17 +1139,6 @@ function formatDate(iso) {
     } catch { return iso; }
 }
 
-function fileIcon(name) {
-    const ext = (name.split('.').pop() || '').toLowerCase();
-    const icons = {
-        md: '📝', txt: '📄', json: '📋', yaml: '⚙️', yml: '⚙️',
-        csv: '📊', log: '📃', pdf: '📕', xml: '📰', html: '🌐', htm: '🌐',
-        py: '🐍', go: '🔷', js: '🟨', ts: '🔷', sh: '🖥️', bat: '🖥️',
-        png: '🖼️', jpg: '🖼️', jpeg: '🖼️', gif: '🖼️', webp: '🖼️', svg: '🖼️',
-    };
-    return icons[ext] || '📄';
-}
-
 // Returns true for plain-text based formats that can be fetched and
 // displayed in a <pre> block regardless of MIME type.
 function isTextFile(ext) {
@@ -1021,4 +1168,266 @@ function escAttr(value) {
         .replace(/"/g, '&quot;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SVG ICONS
+// ═══════════════════════════════════════════════════════════════
+
+function svgIcon(name) {
+    const icons = {
+        edit: '<svg viewBox="0 0 16 16"><path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z"/></svg>',
+        delete: '<svg viewBox="0 0 16 16"><path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 011.34-1.34h2.66a1.33 1.33 0 011.34 1.34V4m2 0v9.33a1.33 1.33 0 01-1.34 1.34H4.67a1.33 1.33 0 01-1.34-1.34V4h9.34z"/></svg>',
+        eye: '<svg viewBox="0 0 16 16"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2"/></svg>',
+        download: '<svg viewBox="0 0 16 16"><path d="M8 1v10M4 7l4 4 4-4M2 13h12"/></svg>',
+        preview: '<svg viewBox="0 0 16 16"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2"/></svg>',
+    };
+    return icons[name] || '';
+}
+
+function fileIconSvg(name) {
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    const colorMap = {
+        md: '#8b5cf6', txt: '#6b7280', json: '#eab308', yaml: '#3b82f6', yml: '#3b82f6',
+        csv: '#22c55e', log: '#9ca3af', pdf: '#ef4444', xml: '#f97316', html: '#e11d48', htm: '#e11d48',
+        py: '#3b82f6', go: '#06b6d4', js: '#eab308', ts: '#3b82f6', sh: '#6b7280', bat: '#6b7280',
+        png: '#8b5cf6', jpg: '#8b5cf6', jpeg: '#8b5cf6', gif: '#8b5cf6', webp: '#8b5cf6', svg: '#8b5cf6',
+    };
+    const isCode = ['py', 'go', 'js', 'ts', 'sh', 'bat', 'css', 'html'].includes(ext);
+    const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'].includes(ext);
+    const isData = ['json', 'yaml', 'yml', 'csv', 'xml'].includes(ext);
+    const color = colorMap[ext] || '#6b7280';
+
+    if (isImage) {
+        return `<svg viewBox="0 0 16 16" style="color:${color}"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><circle cx="5.5" cy="6.5" r="1.5"/><path d="M14.5 10.5l-3.5-3.5L4 14"/></svg>`;
+    }
+    if (isCode) {
+        return `<svg viewBox="0 0 16 16" style="color:${color}"><path d="M5 4L1 8l4 4M11 4l4 4-4 4M9 2l-2 12"/></svg>`;
+    }
+    if (isData) {
+        return `<svg viewBox="0 0 16 16" style="color:${color}"><rect x="2" y="1.5" width="12" height="13" rx="2"/><path d="M5 5h6M5 8h6M5 11h4"/></svg>`;
+    }
+    if (ext === 'pdf') {
+        return `<svg viewBox="0 0 16 16" style="color:${color}"><rect x="2" y="1.5" width="12" height="13" rx="2"/><path d="M5 5h6M5 8h4"/></svg>`;
+    }
+    return `<svg viewBox="0 0 16 16" style="color:${color}"><rect x="2" y="1.5" width="12" height="13" rx="2"/><path d="M5 5h6M5 8h6M5 11h4"/></svg>`;
+}
+
+// Keep backward-compatible emoji icon function
+function fileIcon(name) {
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    const icons = {
+        md: '📝', txt: '📄', json: '📋', yaml: '⚙️', yml: '⚙️',
+        csv: '📊', log: '📃', pdf: '📕', xml: '📰', html: '🌐', htm: '🌐',
+        py: '🐍', go: '🔷', js: '🟨', ts: '🔷', sh: '🖥️', bat: '🖥️',
+        png: '🖼️', jpg: '🖼️', jpeg: '🖼️', gif: '🖼️', webp: '🖼️', svg: '🖼️',
+    };
+    return icons[ext] || '📄';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SORTING
+// ═══════════════════════════════════════════════════════════════
+
+function initSortableHeaders() {
+    document.querySelectorAll('th[data-sort-col]').forEach(th => {
+        th.addEventListener('click', () => {
+            const col = th.dataset.sortCol;
+            const table = th.closest('table');
+            const tbody = table.querySelector('tbody');
+            const tabId = getTabIdFromTable(table);
+            if (!tabId || !sortState[tabId]) return;
+
+            if (sortState[tabId].col === col) {
+                sortState[tabId].dir = sortState[tabId].dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortState[tabId].col = col;
+                sortState[tabId].dir = 'asc';
+            }
+
+            updateSortIndicators(table, tabId);
+            rerenderTab(tabId);
+        });
+    });
+}
+
+function getTabIdFromTable(table) {
+    const id = table.id;
+    if (id === 'contacts-table') return 'contacts';
+    if (id === 'files-table') return 'files';
+    if (id === 'devices-table') return 'devices';
+    if (id === 'credentials-table') return 'credentials';
+    return null;
+}
+
+function updateSortIndicators(table, tabId) {
+    table.querySelectorAll('th[data-sort-col]').forEach(th => {
+        th.classList.remove('kc-sort-active', 'kc-sort-asc', 'kc-sort-desc');
+        if (th.dataset.sortCol === sortState[tabId].col) {
+            th.classList.add('kc-sort-active', sortState[tabId].dir === 'asc' ? 'kc-sort-asc' : 'kc-sort-desc');
+            th.setAttribute('aria-sort', sortState[tabId].dir === 'asc' ? 'ascending' : 'descending');
+        } else {
+            th.removeAttribute('aria-sort');
+        }
+    });
+}
+
+function sortArray(arr, state) {
+    if (!state || !state.col) return arr;
+    const sorted = [...arr];
+    const dir = state.dir === 'asc' ? 1 : -1;
+    sorted.sort((a, b) => {
+        let va = a[state.col];
+        let vb = b[state.col];
+        if (va == null) va = '';
+        if (vb == null) vb = '';
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        if (va < vb) return -1 * dir;
+        if (va > vb) return 1 * dir;
+        return 0;
+    });
+    return sorted;
+}
+
+function rerenderTab(tabId) {
+    switch (tabId) {
+        case 'contacts': renderContacts(); break;
+        case 'files': renderFiles(); break;
+        case 'devices': renderDevices(); break;
+        case 'credentials': renderCredentials(); break;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SKELETON LOADING
+// ═══════════════════════════════════════════════════════════════
+
+function showTableSkeleton(tbodyId, cols) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    const widths = ['60%', '80%', '50%', '70%', '40%', '55%'];
+    let html = '';
+    for (let i = 0; i < 4; i++) {
+        html += '<tr class="kc-skeleton-row">';
+        for (let j = 0; j < cols; j++) {
+            html += `<td><span class="kc-skeleton-cell" style="width:${widths[(i + j) % widths.length]}"></span></td>`;
+        }
+        html += '</tr>';
+    }
+    tbody.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DRAG AND DROP
+// ═══════════════════════════════════════════════════════════════
+
+function initDropZone() {
+    const panel = document.getElementById('panel-files');
+    const dropZone = document.getElementById('files-drop-zone');
+    if (!panel || !dropZone) return;
+
+    let dragCounter = 0;
+
+    panel.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        dragCounter++;
+        dropZone.classList.add('kc-drop-active');
+    });
+
+    panel.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dragCounter--;
+        if (dragCounter <= 0) {
+            dragCounter = 0;
+            dropZone.classList.remove('kc-drop-active');
+        }
+    });
+
+    panel.addEventListener('dragover', (e) => {
+        e.preventDefault();
+    });
+
+    panel.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dragCounter = 0;
+        dropZone.classList.remove('kc-drop-active');
+        const files = e.dataTransfer?.files;
+        if (files && files.length) {
+            const input = document.getElementById('file-upload-input');
+            if (input) {
+                const dt = new DataTransfer();
+                for (let i = 0; i < files.length; i++) dt.items.add(files[i]);
+                input.files = dt.files;
+                uploadFiles(input);
+            }
+        }
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// QUICK STATS BAR
+// ═══════════════════════════════════════════════════════════════
+
+function updateStatsBar() {
+    const bar = document.getElementById('kc-stats-bar');
+    if (!bar) return;
+
+    const stats = [
+        { icon: '📇', label: t('knowledge.tab_contacts').replace(/📇\s*/, ''), value: allContacts.length, tab: 'contacts' },
+        { icon: '📂', label: t('knowledge.tab_files').replace(/📂\s*/, ''), value: allFiles.length, tab: 'files' },
+        { icon: '📱', label: t('knowledge.tab_devices').replace(/📱\s*/, ''), value: allDevices.length, tab: 'devices' },
+        { icon: '🔑', label: t('knowledge.tab_credentials').replace(/🔑\s*/, ''), value: allCredentials.length, tab: 'credentials' },
+    ];
+
+    if (typeof allAppointments !== 'undefined') {
+        stats.push({ icon: '📅', label: t('knowledge.tab_appointments').replace(/📅\s*/, ''), value: allAppointments.length, tab: 'appointments' });
+    }
+    if (typeof allTodos !== 'undefined') {
+        stats.push({ icon: '✅', label: t('knowledge.tab_todos').replace(/✅\s*/, ''), value: allTodos.length, tab: 'todos' });
+    }
+
+    bar.innerHTML = stats.map(s => `
+        <button type="button" class="kc-stat-chip" onclick="switchKCTab('${s.tab}')" title="${esc(s.label)}">
+            <span class="kc-stat-chip-icon">${s.icon}</span>
+            <span class="kc-stat-chip-value kc-count-anim" data-target="${s.value}">0</span>
+            <span>${esc(s.label)}</span>
+        </button>
+    `).join('');
+
+    bar.classList.add('is-active');
+    animateCountUp(bar);
+}
+
+function animateCountUp(container) {
+    const els = container.querySelectorAll('.kc-count-anim');
+    els.forEach(el => {
+        const target = parseInt(el.dataset.target) || 0;
+        if (target === 0) { el.textContent = '0'; return; }
+        const duration = 600;
+        const start = performance.now();
+        function step(now) {
+            const elapsed = now - start;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            el.textContent = Math.round(eased * target);
+            if (progress < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FOCUS MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+
+const _origCloseModal = typeof closeModal === 'function' ? closeModal : null;
+if (_origCloseModal) {
+    window.closeModal = function(id) {
+        _origCloseModal(id);
+        if (lastFocusedTrigger) {
+            lastFocusedTrigger.focus();
+            lastFocusedTrigger = null;
+        }
+    };
 }

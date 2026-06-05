@@ -235,5 +235,7 @@
   "knowledge.todos_summary_progress": "Genomsnittlig framsteg",
   "knowledge.todos_summary_total": "{count} uppgifter totalt",
   "knowledge.appointments_filter_overdue": "Förfallen",
-  "knowledge.appointments_status_overdue": "Förfallen"
+  "knowledge.appointments_status_overdue": "Förfallen",
+  "knowledge.files_drop_here": "Dra filer här för att ladda upp",
+  "knowledge.files_uploading": "Laddar upp"
 }

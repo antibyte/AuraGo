@@ -235,5 +235,7 @@
   "knowledge.todos_summary_progress": "Gjennomsnittlig fremdrift",
   "knowledge.todos_summary_total": "{count} oppgaver totalt",
   "knowledge.appointments_filter_overdue": "Forfalt",
-  "knowledge.appointments_status_overdue": "Forfalt"
+  "knowledge.appointments_status_overdue": "Forfalt",
+  "knowledge.files_drop_here": "Dra filer hit for å laste opp",
+  "knowledge.files_uploading": "Laster opp"
 }

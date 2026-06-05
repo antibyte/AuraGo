@@ -235,5 +235,7 @@
   "knowledge.todos_summary_progress": "Průměrný pokrok",
   "knowledge.todos_summary_total": "Celkem {count} úkolů",
   "knowledge.appointments_filter_overdue": "Po termínu",
-  "knowledge.appointments_status_overdue": "Po termínu"
+  "knowledge.appointments_status_overdue": "Po termínu",
+  "knowledge.files_drop_here": "Přetáhněte soubory sem pro nahrání",
+  "knowledge.files_uploading": "Nahrávání"
 }

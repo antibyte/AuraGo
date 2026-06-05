@@ -235,5 +235,7 @@
   "knowledge.todos_summary_progress": "Średni postęp",
   "knowledge.todos_summary_total": "Łącznie {count} zadań",
   "knowledge.appointments_filter_overdue": "Zaległy",
-  "knowledge.appointments_status_overdue": "Zaległy"
+  "knowledge.appointments_status_overdue": "Zaległy",
+  "knowledge.files_drop_here": "Przeciągnij pliki tutaj, aby przesłać",
+  "knowledge.files_uploading": "Przesyłanie"
 }

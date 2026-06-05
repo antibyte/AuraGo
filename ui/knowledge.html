@@ -23,7 +23,7 @@
     </script>
     <script>const I18N={{.I18N}};</script>
     <script src="/js/vendor/pdf.min.js"></script>
-    <link rel="stylesheet" href="/css/knowledge.css?v=20260430d">
+    <link rel="stylesheet" href="/css/knowledge.css?v=20260605a">
     <link rel="stylesheet" href="/css/enhancements.css?v=20260425a">
     <link href="/fonts/fonts.css" rel="stylesheet">
 </head>
@@ -45,29 +45,41 @@
 
     <div class="kc-container">
         <!-- Tab bar -->
-        <div class="kc-tabs" role="tablist" aria-label="Knowledge categories">
-            <button class="kc-tab active" id="tab-contacts" role="tab" aria-selected="true"
-                aria-controls="panel-contacts" tabindex="0"
-                onclick="switchKCTab('contacts')" data-i18n="knowledge.tab_contacts">📇 Address Book</button>
-            <button class="kc-tab" id="tab-files" role="tab" aria-selected="false"
-                aria-controls="panel-files" tabindex="-1"
-                onclick="switchKCTab('files')" data-i18n="knowledge.tab_files">📂 Knowledge Files</button>
-            <button class="kc-tab" id="tab-devices" role="tab" aria-selected="false"
-                aria-controls="panel-devices" tabindex="-1"
-                onclick="switchKCTab('devices')" data-i18n="knowledge.tab_devices">📱 Devices</button>
-            <button class="kc-tab" id="tab-credentials" role="tab" aria-selected="false"
-                aria-controls="panel-credentials" tabindex="-1"
-                onclick="switchKCTab('credentials')" data-i18n="knowledge.tab_credentials">🔑 Access Credentials</button>
-            <button class="kc-tab" id="tab-secrets" role="tab" aria-selected="false"
-                aria-controls="panel-secrets" tabindex="-1"
-                onclick="switchKCTab('secrets')" data-i18n="knowledge.tab_secrets">🔐 Secrets</button>
-            <button class="kc-tab" id="tab-appointments" role="tab" aria-selected="false"
-                aria-controls="panel-appointments" tabindex="-1"
-                onclick="switchKCTab('appointments')" data-i18n="knowledge.tab_appointments">📅 Appointments</button>
-            <button class="kc-tab" id="tab-todos" role="tab" aria-selected="false"
-                aria-controls="panel-todos" tabindex="-1"
-                onclick="switchKCTab('todos')" data-i18n="knowledge.tab_todos">✅ To-Dos</button>
+        <div class="kc-tabs-wrap">
+            <div class="kc-tabs" role="tablist" aria-label="Knowledge categories">
+                <button class="kc-tab active" id="tab-contacts" role="tab" aria-selected="true"
+                    aria-controls="panel-contacts" tabindex="0"
+                    onclick="switchKCTab('contacts')" data-i18n="knowledge.tab_contacts">📇 Address Book
+                    <span class="kc-tab-count" id="count-contacts">0</span></button>
+                <button class="kc-tab" id="tab-files" role="tab" aria-selected="false"
+                    aria-controls="panel-files" tabindex="-1"
+                    onclick="switchKCTab('files')" data-i18n="knowledge.tab_files">📂 Knowledge Files
+                    <span class="kc-tab-count" id="count-files">0</span></button>
+                <button class="kc-tab" id="tab-devices" role="tab" aria-selected="false"
+                    aria-controls="panel-devices" tabindex="-1"
+                    onclick="switchKCTab('devices')" data-i18n="knowledge.tab_devices">📱 Devices
+                    <span class="kc-tab-count" id="count-devices">0</span></button>
+                <button class="kc-tab" id="tab-credentials" role="tab" aria-selected="false"
+                    aria-controls="panel-credentials" tabindex="-1"
+                    onclick="switchKCTab('credentials')" data-i18n="knowledge.tab_credentials">🔑 Access Credentials
+                    <span class="kc-tab-count" id="count-credentials">0</span></button>
+                <button class="kc-tab" id="tab-secrets" role="tab" aria-selected="false"
+                    aria-controls="panel-secrets" tabindex="-1"
+                    onclick="switchKCTab('secrets')" data-i18n="knowledge.tab_secrets">🔐 Secrets</button>
+                <button class="kc-tab" id="tab-appointments" role="tab" aria-selected="false"
+                    aria-controls="panel-appointments" tabindex="-1"
+                    onclick="switchKCTab('appointments')" data-i18n="knowledge.tab_appointments">📅 Appointments
+                    <span class="kc-tab-count" id="count-appointments">0</span></button>
+                <button class="kc-tab" id="tab-todos" role="tab" aria-selected="false"
+                    aria-controls="panel-todos" tabindex="-1"
+                    onclick="switchKCTab('todos')" data-i18n="knowledge.tab_todos">✅ To-Dos
+                    <span class="kc-tab-count" id="count-todos">0</span></button>
+                <div class="kc-tab-indicator" id="kc-tab-indicator"></div>
+            </div>
         </div>
+
+        <!-- ═══════ QUICK STATS BAR ═══════ -->
+        <div class="kc-stats-bar" id="kc-stats-bar"></div>
 
         <!-- ═══════ CONTACTS PANEL ═══════ -->
         <div id="panel-contacts" class="kc-panel active" role="tabpanel" aria-labelledby="tab-contacts" tabindex="0">
@@ -85,11 +97,11 @@
                 <table class="kc-table" id="contacts-table">
                     <thead>
                         <tr>
-                            <th data-i18n="knowledge.col_name">Name</th>
-                            <th data-i18n="knowledge.col_email">Email</th>
-                            <th data-i18n="knowledge.col_phone">Phone</th>
-                            <th data-i18n="knowledge.col_mobile">Mobile</th>
-                            <th data-i18n="knowledge.col_relationship">Relationship</th>
+                            <th data-sort-col="name" data-sort-type="string" data-i18n="knowledge.col_name">Name</th>
+                            <th data-sort-col="email" data-sort-type="string" data-i18n="knowledge.col_email">Email</th>
+                            <th data-sort-col="phone" data-sort-type="string" data-i18n="knowledge.col_phone">Phone</th>
+                            <th data-sort-col="mobile" data-sort-type="string" data-i18n="knowledge.col_mobile">Mobile</th>
+                            <th data-sort-col="relationship" data-sort-type="string" data-i18n="knowledge.col_relationship">Relationship</th>
                             <th data-i18n="knowledge.col_actions">Actions</th>
                         </tr>
                     </thead>
@@ -100,6 +112,7 @@
                 <div class="empty-icon">📇</div>
                 <h3 data-i18n="knowledge.contacts_empty_title">No Contacts Yet</h3>
                 <p data-i18n="knowledge.contacts_empty_desc">Add contacts to your address book.</p>
+                <button class="btn btn-primary kc-empty-cta" onclick="openContactModal()" data-i18n="knowledge.contacts_add">Add Contact</button>
             </div>
         </div>
 
@@ -112,17 +125,23 @@
                         oninput="filterFiles()">
                     <label class="btn btn-primary kc-upload-btn">
                         <span>⬆</span> <span data-i18n="knowledge.files_upload">Upload File</span>
-                        <input type="file" id="file-upload-input" class="is-hidden" onchange="uploadFile(this)">
+                        <input type="file" id="file-upload-input" class="is-hidden" multiple onchange="uploadFiles(this)">
                     </label>
+                </div>
+            </div>
+            <div class="kc-drop-zone" id="files-drop-zone">
+                <div class="kc-drop-zone-content">
+                    <div class="kc-drop-zone-icon">⬆</div>
+                    <p data-i18n="knowledge.files_drop_here">Drop files here to upload</p>
                 </div>
             </div>
             <div class="kc-table-wrap">
                 <table class="kc-table" id="files-table">
                     <thead>
                         <tr>
-                            <th data-i18n="knowledge.col_filename">Filename</th>
-                            <th data-i18n="knowledge.col_size">Size</th>
-                            <th data-i18n="knowledge.col_modified">Modified</th>
+                            <th data-sort-col="name" data-sort-type="string" data-i18n="knowledge.col_filename">Filename</th>
+                            <th data-sort-col="size" data-sort-type="number" data-i18n="knowledge.col_size">Size</th>
+                            <th data-sort-col="modified" data-sort-type="date" data-i18n="knowledge.col_modified">Modified</th>
                             <th data-i18n="knowledge.col_actions">Actions</th>
                         </tr>
                     </thead>
@@ -133,6 +152,10 @@
                 <div class="empty-icon">📂</div>
                 <h3 data-i18n="knowledge.files_empty_title">No Knowledge Files</h3>
                 <p data-i18n="knowledge.files_empty_desc">Upload files to the knowledge directory.</p>
+                <label class="btn btn-primary kc-empty-cta">
+                    <span data-i18n="knowledge.files_upload">Upload File</span>
+                    <input type="file" id="file-upload-input-empty" class="is-hidden" multiple onchange="uploadFiles(this)">
+                </label>
             </div>
         </div>
 
@@ -152,12 +175,12 @@
                 <table class="kc-table" id="devices-table">
                     <thead>
                         <tr>
-                            <th data-i18n="knowledge.devices_col_name">Name</th>
-                            <th data-i18n="knowledge.devices_col_type">Type</th>
-                            <th data-i18n="knowledge.devices_col_ip">IP</th>
-                            <th data-i18n="knowledge.devices_col_port">Port</th>
-                            <th data-i18n="knowledge.devices_col_access">Access</th>
-                            <th data-i18n="knowledge.devices_col_mac">MAC</th>
+                            <th data-sort-col="name" data-sort-type="string" data-i18n="knowledge.devices_col_name">Name</th>
+                            <th data-sort-col="type" data-sort-type="string" data-i18n="knowledge.devices_col_type">Type</th>
+                            <th data-sort-col="ip_address" data-sort-type="string" data-i18n="knowledge.devices_col_ip">IP</th>
+                            <th data-sort-col="port" data-sort-type="number" data-i18n="knowledge.devices_col_port">Port</th>
+                            <th data-sort-col="access" data-sort-type="string" data-i18n="knowledge.devices_col_access">Access</th>
+                            <th data-sort-col="mac_address" data-sort-type="string" data-i18n="knowledge.devices_col_mac">MAC</th>
                             <th data-i18n="knowledge.devices_col_tags">Tags</th>
                             <th data-i18n="knowledge.col_actions">Actions</th>
                         </tr>
@@ -169,6 +192,7 @@
                 <div class="empty-icon">📱</div>
                 <h3 data-i18n="knowledge.devices_empty_title">No Devices Registered</h3>
                 <p data-i18n="knowledge.devices_empty_desc">Add devices to your device registry.</p>
+                <button class="btn btn-primary kc-empty-cta" onclick="openDeviceModal()" data-i18n="knowledge.devices_add">Add Device</button>
             </div>
         </div>
 
@@ -188,10 +212,10 @@
                 <table class="kc-table" id="credentials-table">
                     <thead>
                         <tr>
-                            <th data-i18n="knowledge.credentials_col_name">Name</th>
-                            <th data-i18n="knowledge.credentials_col_type">Type</th>
-                            <th data-i18n="knowledge.credentials_col_host">Host / IP</th>
-                            <th data-i18n="knowledge.credentials_col_username">Username</th>
+                            <th data-sort-col="name" data-sort-type="string" data-i18n="knowledge.credentials_col_name">Name</th>
+                            <th data-sort-col="type" data-sort-type="string" data-i18n="knowledge.credentials_col_type">Type</th>
+                            <th data-sort-col="host" data-sort-type="string" data-i18n="knowledge.credentials_col_host">Host / IP</th>
+                            <th data-sort-col="username" data-sort-type="string" data-i18n="knowledge.credentials_col_username">Username</th>
                             <th data-i18n="knowledge.credentials_col_password">Password</th>
                             <th data-i18n="knowledge.credentials_col_certificate">Certificate</th>
                             <th data-i18n="knowledge.credentials_col_python">Python</th>
@@ -205,6 +229,7 @@
                 <div class="empty-icon">🔑</div>
                 <h3 data-i18n="knowledge.credentials_empty_title">No Access Credentials Yet</h3>
                 <p data-i18n="knowledge.credentials_empty_desc">Store SSH access data with vault-backed secrets.</p>
+                <button class="btn btn-primary kc-empty-cta" onclick="openCredentialModal()" data-i18n="knowledge.credentials_add">Add Access Credential</button>
             </div>
         </div>
 
@@ -237,6 +262,7 @@
                 <div class="empty-icon">📅</div>
                 <h3 data-i18n="knowledge.appointments_empty_title">No Appointments</h3>
                 <p data-i18n="knowledge.appointments_empty_desc">Create your first appointment to get started.</p>
+                <button class="btn btn-primary kc-empty-cta" onclick="openAppointmentModal()" data-i18n="knowledge.appointments_add">New Appointment</button>
             </div>
         </div>
 
@@ -264,6 +290,7 @@
                 <div class="empty-icon">✅</div>
                 <h3 data-i18n="knowledge.todos_empty_title">No To-Dos</h3>
                 <p data-i18n="knowledge.todos_empty_desc">Create your first to-do to get started.</p>
+                <button class="btn btn-primary kc-empty-cta" onclick="openTodoModal()" data-i18n="knowledge.todos_add">New To-Do</button>
             </div>
         </div>
     </div>
@@ -502,10 +529,13 @@
                 </div>
             </div>
             <div class="form-group kc-wake-agent-section">
-                <label class="kc-toggle-label">
-                    <input type="checkbox" id="appointment-wake-agent" onchange="toggleAgentInstruction()">
-                    <span data-i18n="knowledge.appointments_wake_agent">Wake agent at notification time</span>
-                </label>
+                <div class="toggle-wrap">
+                    <label class="toggle">
+                        <input type="checkbox" id="appointment-wake-agent" onchange="toggleAgentInstruction()">
+                        <span class="slider"></span>
+                    </label>
+                    <span class="toggle-label" data-i18n="knowledge.appointments_wake_agent">Wake agent at notification time</span>
+                </div>
             </div>
             <div class="form-group" id="appointment-participants-section">
                 <label data-i18n="knowledge.appointments_participants_label">Participants</label>
@@ -567,10 +597,13 @@
                 </div>
             </div>
             <div class="form-group">
-                <label class="kc-toggle-label">
-                    <input type="checkbox" id="todo-remind-daily">
-                    <span data-i18n="knowledge.todos_remind_daily_label">Daily reminder by agent</span>
-                </label>
+                <div class="toggle-wrap">
+                    <label class="toggle">
+                        <input type="checkbox" id="todo-remind-daily">
+                        <span class="slider"></span>
+                    </label>
+                    <span class="toggle-label" data-i18n="knowledge.todos_remind_daily_label">Daily reminder by agent</span>
+                </div>
                 <small class="form-hint" data-i18n="knowledge.todos_remind_daily_hint">When enabled, the agent reminds you about open checklist points on the first contact of the day.</small>
             </div>
             <div class="form-group">
@@ -652,9 +685,9 @@
         </div>
     </div>
 
-    <script src="/js/knowledge/main.js?v=6"></script>
-    <script src="/js/knowledge/appointments.js?v=6"></script>
-    <script src="/js/knowledge/todos.js?v=6"></script>
+    <script src="/js/knowledge/main.js?v=7"></script>
+    <script src="/js/knowledge/appointments.js?v=7"></script>
+    <script src="/js/knowledge/todos.js?v=7"></script>
 </body>
 </html>
 
