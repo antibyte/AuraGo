@@ -12,6 +12,7 @@ import (
 
 	"aurago/internal/agodesk"
 	"aurago/internal/config"
+	"aurago/internal/memory"
 	"aurago/internal/remote"
 	"aurago/internal/security"
 
@@ -120,14 +121,17 @@ func TestAgodeskWebSocketRequiresPairingForNormalChat(t *testing.T) {
 func TestAgodeskWebSocketAllowsExplicitLoopbackDevChat(t *testing.T) {
 	s := newAgodeskHandlerTestServer()
 	oldRunner := agodeskAgentChatRunner
-	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, sessionID, deviceID, message string) (string, error) {
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, sessionID, deviceID, message string) (agodeskChatResult, error) {
 		if !strings.HasPrefix(sessionID, "agodesk:dev:") {
 			t.Fatalf("sessionID = %q, want agodesk dev session", sessionID)
+		}
+		if requestID == "" {
+			t.Fatal("requestID missing")
 		}
 		if message != "hello" {
 			t.Fatalf("message = %q, want hello", message)
 		}
-		return "agent says hello", nil
+		return agodeskChatResult{Answer: "agent says hello"}, nil
 	}
 	t.Cleanup(func() { agodeskAgentChatRunner = oldRunner })
 
@@ -162,13 +166,188 @@ func TestAgodeskWebSocketAllowsExplicitLoopbackDevChat(t *testing.T) {
 	}
 }
 
+func TestBuildAgodeskAgentMoodMetadataUsesSanitizedLatestEmotion(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	s.ShortTermMem = newAgodeskTestMemory(t)
+	if err := s.ShortTermMem.InsertEmotionStateHistory(memory.EmotionState{
+		Description:              "<think>hidden</think> I feel calm and ready to help.",
+		PrimaryMood:              memory.MoodFocused,
+		SecondaryMood:            "steady",
+		Valence:                  0.2,
+		Arousal:                  0.3,
+		Confidence:               0.8,
+		Cause:                    "private cause",
+		Source:                   "llm_structured",
+		RecommendedResponseStyle: "calm_and_precise",
+	}, "test trigger"); err != nil {
+		t.Fatalf("InsertEmotionStateHistory: %v", err)
+	}
+
+	metadata := buildAgodeskAgentMoodMetadata(s)
+	if metadata["mood"] != "focused" || metadata["primary_mood"] != "focused" {
+		t.Fatalf("mood metadata = %#v", metadata)
+	}
+	if metadata["secondary_mood"] != "steady" || metadata["recommended_response_style"] != "calm_and_precise" {
+		t.Fatalf("emotion nuance metadata = %#v", metadata)
+	}
+	if metadata["description"] != "I feel calm and ready to help." {
+		t.Fatalf("description = %q, want sanitized emotion", metadata["description"])
+	}
+	if _, ok := metadata["cause"]; ok {
+		t.Fatalf("agent_mood must not expose cause: %#v", metadata)
+	}
+	if metadata["source"] != "emotion_history" {
+		t.Fatalf("source = %q, want emotion_history", metadata["source"])
+	}
+}
+
+func TestAgodeskWebSocketChatResponseCarriesAgentMoodMetadata(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	oldRunner := agodeskAgentChatRunner
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, sessionID, deviceID, message string) (agodeskChatResult, error) {
+		return agodeskChatResult{
+			Answer: "mood answer",
+			Metadata: map[string]interface{}{
+				"agent_mood": map[string]interface{}{
+					"mood":         "focused",
+					"primary_mood": "focused",
+				},
+			},
+		}, nil
+	}
+	t.Cleanup(func() { agodeskAgentChatRunner = oldRunner })
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws?insecure_loopback=1")
+	defer cleanup()
+	connected := readAgodeskTestEnvelope(t, conn)
+	var connectedPayload agodesk.SystemConnectedPayload
+	decodeAgodeskTestPayload(t, connected, &connectedPayload)
+
+	msg, err := agodesk.NewEnvelope(agodesk.TypeChatMessage, agodesk.ChatMessagePayload{
+		SessionID: connectedPayload.SessionID,
+		Text:      "hello",
+		Role:      "user",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat: %v", err)
+	}
+	if err := conn.WriteJSON(msg); err != nil {
+		t.Fatalf("write chat: %v", err)
+	}
+	resp := readAgodeskTestEnvelope(t, conn)
+	var payload agodesk.ChatResponsePayload
+	decodeAgodeskTestPayload(t, resp, &payload)
+	mood, ok := payload.Metadata["agent_mood"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("agent_mood metadata missing: %#v", payload.Metadata)
+	}
+	if mood["mood"] != "focused" {
+		t.Fatalf("agent_mood = %#v", mood)
+	}
+}
+
+func TestAgodeskWebSocketSendsActivePlanUpdateWhenCapabilityAdvertised(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	s.ShortTermMem = newAgodeskTestMemory(t)
+	oldRunner := agodeskAgentChatRunner
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, sessionID, deviceID, message string) (agodeskChatResult, error) {
+		return agodeskChatResult{Answer: "plan answer"}, nil
+	}
+	t.Cleanup(func() { agodeskAgentChatRunner = oldRunner })
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws?insecure_loopback=1")
+	defer cleanup()
+	connected := readAgodeskTestEnvelope(t, conn)
+	var connectedPayload agodesk.SystemConnectedPayload
+	decodeAgodeskTestPayload(t, connected, &connectedPayload)
+	plan := createAgodeskActiveTestPlan(t, s.ShortTermMem, connectedPayload.SessionID)
+
+	msg, err := agodesk.NewEnvelope(agodesk.TypeChatMessage, agodesk.ChatMessagePayload{
+		SessionID: connectedPayload.SessionID,
+		Text:      "show plan",
+		Role:      "user",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat: %v", err)
+	}
+	if err := conn.WriteJSON(msg); err != nil {
+		t.Fatalf("write chat: %v", err)
+	}
+
+	update := readAgodeskTestEnvelope(t, conn)
+	if update.Type != agodesk.TypeChatPlanUpdate {
+		t.Fatalf("first response type = %q, want %q", update.Type, agodesk.TypeChatPlanUpdate)
+	}
+	var updatePayload agodesk.ChatPlanUpdatePayload
+	decodeAgodeskTestPayload(t, update, &updatePayload)
+	if updatePayload.RequestID != msg.ID || updatePayload.SessionID != connectedPayload.SessionID {
+		t.Fatalf("plan update payload ids = %+v", updatePayload)
+	}
+	var planPayload map[string]interface{}
+	if err := json.Unmarshal(updatePayload.Plan, &planPayload); err != nil {
+		t.Fatalf("unmarshal plan update plan: %v", err)
+	}
+	if planPayload["id"] != plan.ID || planPayload["title"] != "AgoDesk Plan" {
+		t.Fatalf("plan update plan = %#v", planPayload)
+	}
+
+	resp := readAgodeskTestEnvelope(t, conn)
+	if resp.Type != agodesk.TypeChatResponse {
+		t.Fatalf("final response type = %q, want %q", resp.Type, agodesk.TypeChatResponse)
+	}
+	var responsePayload agodesk.ChatResponsePayload
+	decodeAgodeskTestPayload(t, resp, &responsePayload)
+	if _, ok := responsePayload.Metadata["plan"].(map[string]interface{}); !ok {
+		t.Fatalf("final response metadata missing plan snapshot: %#v", responsePayload.Metadata)
+	}
+}
+
+func TestAgodeskWebSocketDoesNotSendPlanUpdateWithoutCapability(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	s.ShortTermMem = newAgodeskTestMemory(t)
+	oldRunner := agodeskAgentChatRunner
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, sessionID, deviceID, message string) (agodeskChatResult, error) {
+		return agodeskChatResult{Answer: "plain answer"}, nil
+	}
+	t.Cleanup(func() { agodeskAgentChatRunner = oldRunner })
+
+	conn, cleanup, accepted := pairAgodeskTestClient(t, s, "plan-token", []string{"chat.full_response"})
+	defer cleanup()
+	createAgodeskActiveTestPlan(t, s.ShortTermMem, accepted.SessionID)
+
+	msg, err := agodesk.NewEnvelope(agodesk.TypeChatMessage, agodesk.ChatMessagePayload{
+		SessionID: accepted.SessionID,
+		Text:      "show plan",
+		Role:      "user",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat: %v", err)
+	}
+	if err := conn.WriteJSON(msg); err != nil {
+		t.Fatalf("write chat: %v", err)
+	}
+
+	resp := readAgodeskTestEnvelope(t, conn)
+	if resp.Type == agodesk.TypeChatPlanUpdate {
+		t.Fatal("server sent chat.plan_update even though client did not advertise chat.plan_updates")
+	}
+	if resp.Type != agodesk.TypeChatResponse {
+		t.Fatalf("response type = %q, want %q", resp.Type, agodesk.TypeChatResponse)
+	}
+	var responsePayload agodesk.ChatResponsePayload
+	decodeAgodeskTestPayload(t, resp, &responsePayload)
+	if _, ok := responsePayload.Metadata["plan"]; ok {
+		t.Fatalf("final response should not include plan metadata without capability: %#v", responsePayload.Metadata)
+	}
+}
+
 func TestAgodeskWebSocketRejectsMismatchedChatSessionID(t *testing.T) {
 	s := newAgodeskHandlerTestServer()
 	oldRunner := agodeskAgentChatRunner
 	runnerCalled := make(chan struct{}, 1)
-	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, sessionID, deviceID, message string) (string, error) {
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, sessionID, deviceID, message string) (agodeskChatResult, error) {
 		runnerCalled <- struct{}{}
-		return "runner should not run", nil
+		return agodeskChatResult{Answer: "runner should not run"}, nil
 	}
 	t.Cleanup(func() { agodeskAgentChatRunner = oldRunner })
 
@@ -213,10 +392,10 @@ func TestAgodeskWebSocketPongsWhileChatMessageInFlight(t *testing.T) {
 	oldRunner := agodeskAgentChatRunner
 	runnerStarted := make(chan struct{})
 	releaseRunner := make(chan struct{})
-	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, sessionID, deviceID, message string) (string, error) {
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, sessionID, deviceID, message string) (agodeskChatResult, error) {
 		close(runnerStarted)
 		<-releaseRunner
-		return "slow answer", nil
+		return agodeskChatResult{Answer: "slow answer"}, nil
 	}
 	t.Cleanup(func() { agodeskAgentChatRunner = oldRunner })
 
@@ -1069,6 +1248,33 @@ func newAgodeskHandlerTestServer() *Server {
 		Cfg:    &config.Config{},
 		Logger: slog.Default(),
 	}
+}
+
+func newAgodeskTestMemory(t *testing.T) *memory.SQLiteMemory {
+	t.Helper()
+	stm, err := memory.NewSQLiteMemory(":memory:", slog.Default())
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = stm.Close()
+	})
+	return stm
+}
+
+func createAgodeskActiveTestPlan(t *testing.T, stm *memory.SQLiteMemory, sessionID string) *memory.Plan {
+	t.Helper()
+	plan, err := stm.CreatePlan(sessionID, "AgoDesk Plan", "desc", "request", 1, []memory.PlanTaskInput{
+		{Title: "First task", Description: "Do the first task", Kind: "manual"},
+	})
+	if err != nil {
+		t.Fatalf("CreatePlan: %v", err)
+	}
+	plan, err = stm.SetPlanStatus(plan.ID, memory.PlanStatusActive, "")
+	if err != nil {
+		t.Fatalf("SetPlanStatus active: %v", err)
+	}
+	return plan
 }
 
 func newAgodeskPairingTestServer(t *testing.T) *Server {

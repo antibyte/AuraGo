@@ -36,16 +36,22 @@ var agodeskUpgrader = websocket.Upgrader{
 	CheckOrigin:     sameOriginOrNoOrigin,
 }
 
+type agodeskChatResult struct {
+	Answer   string
+	Metadata map[string]interface{}
+}
+
 var agodeskAgentChatRunner = runAgodeskAgentChat
 
 type agodeskConnectionState struct {
-	sessionID string
-	deviceID  string
-	paired    bool
-	readOnly  bool
-	devMode   bool
-	mu        sync.RWMutex
-	writeMu   sync.Mutex
+	sessionID    string
+	deviceID     string
+	paired       bool
+	readOnly     bool
+	devMode      bool
+	capabilities map[string]struct{}
+	mu           sync.RWMutex
+	writeMu      sync.Mutex
 }
 
 type agodeskDesktopBroker struct {
@@ -82,13 +88,15 @@ func handleAgodeskWebSocket(s *Server) http.HandlerFunc {
 		conn.SetReadLimit(agodeskWebSocketReadLimitBytes)
 
 		state := agodeskConnectionState{
-			sessionID: "agodesk:temp:" + agodeskConnectionID(),
-			paired:    false,
-			devMode:   isExplicitAgodeskLoopbackDev(r),
+			sessionID:    "agodesk:temp:" + agodeskConnectionID(),
+			paired:       false,
+			devMode:      isExplicitAgodeskLoopbackDev(r),
+			capabilities: make(map[string]struct{}),
 		}
 		if state.devMode {
 			state.sessionID = "agodesk:dev:" + agodeskConnectionID()
 			state.paired = true
+			state.capabilities = normalizeAgodeskCapabilities(agodesk.DefaultCapabilities)
 		}
 		defer cleanupAgodeskConnection(s, &state)
 
@@ -143,6 +151,7 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 		state.deviceID = accepted.DeviceID
 		state.readOnly = accepted.ReadOnly
 		state.paired = accepted.Approved
+		state.capabilities = normalizeAgodeskCapabilities(accepted.AdvertisedCapabilities)
 		state.mu.Unlock()
 		registerAgodeskDesktopSession(s, conn, state, accepted)
 		_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeSessionAccepted, accepted)
@@ -284,20 +293,71 @@ func handleAgodeskChatMessage(s *Server, r *http.Request, conn *websocket.Conn, 
 	unlockSession := lockSessionRequest(sessionID)
 	defer unlockSession()
 
-	answer, err := agodeskAgentChatRunner(s, r, sessionID, deviceID, message)
+	initialPlan, hasInitialPlan := sendAgodeskCurrentPlanSnapshot(s, conn, state, requestID, sessionID)
+	result, err := agodeskAgentChatRunner(s, r, conn, state, requestID, sessionID, deviceID, message)
 	if err != nil {
 		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInternal, err.Error())
 		return
 	}
+	metadata := map[string]interface{}{
+		"source": agodeskMessageSource,
+	}
+	for key, value := range result.Metadata {
+		metadata[key] = value
+	}
+	if !agodeskStateHasCapability(state, "chat.agent_metadata") {
+		delete(metadata, "agent_mood")
+	}
+	if hasInitialPlan && agodeskStateHasCapability(state, "chat.plan_updates") {
+		if _, ok := metadata["plan"]; !ok {
+			metadata["plan"] = initialPlan
+		}
+	}
 	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeChatResponse, agodesk.ChatResponsePayload{
 		SessionID: sessionID,
 		RequestID: requestID,
-		Text:      strings.TrimSpace(answer),
+		Text:      strings.TrimSpace(result.Answer),
 		Role:      "assistant",
-		Metadata: map[string]interface{}{
-			"source": agodeskMessageSource,
-		},
+		Metadata:  metadata,
 	})
+}
+
+func sendAgodeskCurrentPlanSnapshot(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID, sessionID string) (interface{}, bool) {
+	if !agodeskStateHasCapability(state, "chat.plan_updates") || s == nil || s.ShortTermMem == nil {
+		return nil, false
+	}
+	plan, err := s.ShortTermMem.GetSessionPlan(sessionID)
+	if err != nil || plan == nil {
+		if err != nil && s.Logger != nil {
+			s.Logger.Warn("Failed to fetch agodesk session plan", "session_id", sessionID, "error", err)
+		}
+		return nil, false
+	}
+	raw, planValue, ok := agodeskPlanSnapshotPayload(plan)
+	if !ok {
+		return nil, false
+	}
+	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeChatPlanUpdate, agodesk.ChatPlanUpdatePayload{
+		SessionID: sessionID,
+		RequestID: requestID,
+		Plan:      raw,
+	})
+	return planValue, true
+}
+
+func agodeskPlanSnapshotPayload(plan interface{}) (json.RawMessage, interface{}, bool) {
+	raw, err := json.Marshal(plan)
+	if err != nil {
+		return nil, nil, false
+	}
+	if len(raw) == 0 {
+		raw = json.RawMessage(`null`)
+	}
+	var planValue interface{}
+	if err := json.Unmarshal(raw, &planValue); err != nil {
+		return nil, nil, false
+	}
+	return raw, planValue, true
 }
 
 func acceptAgodeskSessionStart(s *Server, r *http.Request, requestID string, payload agodesk.SessionStartPayload) (agodesk.SessionAcceptedPayload, string, string) {
@@ -409,9 +469,76 @@ func acceptAgodeskDeviceReconnect(s *Server, requestID string, payload agodesk.S
 	}, "", ""
 }
 
-func runAgodeskAgentChat(s *Server, r *http.Request, sessionID, deviceID, message string) (string, error) {
+type agodeskChatBroker struct {
+	agent.FeedbackBroker
+	conn      *websocket.Conn
+	state     *agodeskConnectionState
+	sessionID string
+	requestID string
+	logger    *slog.Logger
+
+	mu             sync.RWMutex
+	latestPlan     interface{}
+	latestPlanSeen bool
+}
+
+func (b *agodeskChatBroker) Send(event, message string) {
+	if event == "plan_update" {
+		b.capturePlanUpdate(message)
+	}
+	if b.FeedbackBroker != nil {
+		b.FeedbackBroker.Send(event, message)
+	}
+}
+
+func (b *agodeskChatBroker) capturePlanUpdate(message string) {
+	if b == nil {
+		return
+	}
+	var payload struct {
+		Plan json.RawMessage `json:"plan"`
+	}
+	if err := json.Unmarshal([]byte(message), &payload); err != nil {
+		if b.logger != nil {
+			b.logger.Warn("Failed to decode agodesk plan_update payload", "session_id", b.sessionID, "error", err)
+		}
+		return
+	}
+	if len(payload.Plan) == 0 {
+		payload.Plan = json.RawMessage(`null`)
+	}
+	var planValue interface{}
+	if err := json.Unmarshal(payload.Plan, &planValue); err != nil {
+		if b.logger != nil {
+			b.logger.Warn("Failed to decode agodesk plan snapshot", "session_id", b.sessionID, "error", err)
+		}
+		return
+	}
+	b.mu.Lock()
+	b.latestPlan = planValue
+	b.latestPlanSeen = true
+	b.mu.Unlock()
+	if agodeskStateHasCapability(b.state, "chat.plan_updates") {
+		_ = writeAgodeskEnvelopeLocked(b.conn, b.state, agodesk.TypeChatPlanUpdate, agodesk.ChatPlanUpdatePayload{
+			SessionID: b.sessionID,
+			RequestID: b.requestID,
+			Plan:      payload.Plan,
+		})
+	}
+}
+
+func (b *agodeskChatBroker) latestPlanSnapshot() (interface{}, bool) {
+	if b == nil {
+		return nil, false
+	}
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.latestPlan, b.latestPlanSeen
+}
+
+func runAgodeskAgentChat(s *Server, r *http.Request, conn *websocket.Conn, state *agodeskConnectionState, requestID, sessionID, deviceID, message string) (agodeskChatResult, error) {
 	if s == nil {
-		return "", fmt.Errorf("server not configured")
+		return agodeskChatResult{}, fmt.Errorf("server not configured")
 	}
 	turn, err := prepareDesktopAgentTurnWithOptions(r.Context(), s, message, desktopChatContext{}, false, desktopAgentTurnOptions{
 		SessionID:        sessionID,
@@ -419,9 +546,17 @@ func runAgodeskAgentChat(s *Server, r *http.Request, sessionID, deviceID, messag
 		AdditionalPrompt: buildAgodeskAgentContext(deviceID),
 	})
 	if err != nil {
-		return "", err
+		return agodeskChatResult{}, err
 	}
-	broker := &desktopReplyBroker{FeedbackBroker: NewSSEBrokerAdapterWithSession(s.SSE, sessionID)}
+	replyBroker := &desktopReplyBroker{FeedbackBroker: NewSSEBrokerAdapterWithSession(s.SSE, sessionID)}
+	broker := &agodeskChatBroker{
+		FeedbackBroker: replyBroker,
+		conn:           conn,
+		state:          state,
+		sessionID:      sessionID,
+		requestID:      requestID,
+		logger:         s.Logger,
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), desktopChatAgentTurnTimeout)
 	defer cancel()
 	var resp openai.ChatCompletionResponse
@@ -437,13 +572,63 @@ func runAgodeskAgentChat(s *Server, r *http.Request, sessionID, deviceID, messag
 	select {
 	case <-done:
 	case <-ctx.Done():
-		return "", fmt.Errorf("agent request timed out")
+		return agodeskChatResult{}, fmt.Errorf("agent request timed out")
 	}
-	answer := strings.TrimSpace(broker.finalResponse)
+	answer := strings.TrimSpace(replyBroker.finalResponse)
 	if answer == "" && len(resp.Choices) > 0 {
 		answer = strings.TrimSpace(resp.Choices[0].Message.Content)
 	}
-	return security.StripThinkingTags(answer), nil
+	metadata := make(map[string]interface{})
+	if agodeskStateHasCapability(state, "chat.agent_metadata") {
+		mood := buildAgodeskAgentMoodMetadata(s)
+		if len(mood) > 0 {
+			metadata["agent_mood"] = mood
+		}
+	}
+	if agodeskStateHasCapability(state, "chat.plan_updates") {
+		if plan, ok := broker.latestPlanSnapshot(); ok {
+			metadata["plan"] = plan
+		}
+	}
+	return agodeskChatResult{
+		Answer:   security.StripThinkingTags(answer),
+		Metadata: metadata,
+	}, nil
+}
+
+func buildAgodeskAgentMoodMetadata(s *Server) map[string]interface{} {
+	if s == nil || s.ShortTermMem == nil {
+		return nil
+	}
+	if latest, err := s.ShortTermMem.GetLatestEmotion(); err == nil && latest != nil {
+		mood := strings.TrimSpace(latest.PrimaryMood)
+		metadata := map[string]interface{}{
+			"mood":                       mood,
+			"primary_mood":               mood,
+			"valence":                    latest.Valence,
+			"arousal":                    latest.Arousal,
+			"confidence":                 latest.Confidence,
+			"recommended_response_style": strings.TrimSpace(latest.RecommendedResponseStyle),
+			"source":                     "emotion_history",
+			"timestamp":                  strings.TrimSpace(latest.Timestamp),
+		}
+		if secondary := strings.TrimSpace(latest.SecondaryMood); secondary != "" {
+			metadata["secondary_mood"] = secondary
+		}
+		if description := sanitizeEmotionPreview(latest.Description, 220); description != "" {
+			metadata["description"] = description
+		}
+		return metadata
+	}
+	mood := strings.TrimSpace(string(s.ShortTermMem.GetCurrentMood()))
+	if mood == "" {
+		return nil
+	}
+	return map[string]interface{}{
+		"mood":         mood,
+		"primary_mood": mood,
+		"source":       "mood_log",
+	}
 }
 
 func buildAgodeskAgentContext(deviceID string) string {
@@ -517,6 +702,16 @@ func agodeskStateDevice(state *agodeskConnectionState) (string, bool) {
 	state.mu.RLock()
 	defer state.mu.RUnlock()
 	return state.deviceID, state.paired
+}
+
+func agodeskStateHasCapability(state *agodeskConnectionState, capability string) bool {
+	if state == nil || strings.TrimSpace(capability) == "" {
+		return false
+	}
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+	_, ok := state.capabilities[capability]
+	return ok
 }
 
 func (b *agodeskDesktopBroker) RegisterSession(deviceID string, conn *websocket.Conn, state *agodeskConnectionState, clientCapabilities []string) {

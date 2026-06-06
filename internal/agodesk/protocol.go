@@ -25,6 +25,7 @@ const (
 	TypeChatResponse         MessageType = "chat.response"
 	TypeChatError            MessageType = "chat.error"
 	TypeChatChunk            MessageType = "chat.response.chunk"
+	TypeChatPlanUpdate       MessageType = "chat.plan_update"
 	TypeDesktopCommand       MessageType = "desktop.command"
 	TypeDesktopResult        MessageType = "desktop.result"
 	TypePersonaAssetsRequest MessageType = "persona.assets.request"
@@ -51,6 +52,8 @@ var DefaultCapabilities = []string{
 	"chat.full_response",
 	"chat.streaming",
 	"chat.server_push",
+	"chat.agent_metadata",
+	"chat.plan_updates",
 	"pairing.remotehub",
 	"remote.desktop.capture",
 	"remote.desktop.permission_request",
@@ -165,11 +168,18 @@ type ChatErrorPayload struct {
 }
 
 type ChatChunkPayload struct {
-	SessionID string `json:"session_id"`
-	RequestID string `json:"request_id"`
-	Delta     string `json:"delta"`
-	Done      bool   `json:"done"`
-	Sequence  int    `json:"sequence"`
+	SessionID string                 `json:"session_id"`
+	RequestID string                 `json:"request_id"`
+	Delta     string                 `json:"delta"`
+	Done      bool                   `json:"done"`
+	Sequence  int                    `json:"sequence"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+}
+
+type ChatPlanUpdatePayload struct {
+	SessionID string          `json:"session_id"`
+	RequestID string          `json:"request_id,omitempty"`
+	Plan      json.RawMessage `json:"plan"`
 }
 
 type PersonaAssetsRequestPayload struct {

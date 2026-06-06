@@ -105,6 +105,8 @@ func TestSessionStartPayloadCarriesFileAccessMetadata(t *testing.T) {
 
 func TestDefaultCapabilitiesIncludeComputerUseFeatures(t *testing.T) {
 	for _, want := range []string{
+		"chat.agent_metadata",
+		"chat.plan_updates",
 		"remote.desktop.capture",
 		"remote.desktop.permission_request",
 		"remote.desktop.input",
@@ -115,6 +117,74 @@ func TestDefaultCapabilitiesIncludeComputerUseFeatures(t *testing.T) {
 		if !containsAgodeskTestString(DefaultCapabilities, want) {
 			t.Fatalf("DefaultCapabilities missing %s: %v", want, DefaultCapabilities)
 		}
+	}
+}
+
+func TestChatPlanUpdatePayloadRoundTripsPlanAndNull(t *testing.T) {
+	env, err := NewEnvelope(TypeChatPlanUpdate, ChatPlanUpdatePayload{
+		SessionID: "agodesk:dev-1",
+		RequestID: "req-1",
+		Plan:      json.RawMessage(`{"title":"Deploy site","tasks":[{"title":"Build","status":"in_progress"}],"progress_pct":40}`),
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope plan update: %v", err)
+	}
+
+	var payload ChatPlanUpdatePayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		t.Fatalf("unmarshal chat plan update payload: %v", err)
+	}
+	if payload.SessionID != "agodesk:dev-1" || payload.RequestID != "req-1" {
+		t.Fatalf("payload ids = %+v", payload)
+	}
+	var plan map[string]interface{}
+	if err := json.Unmarshal(payload.Plan, &plan); err != nil {
+		t.Fatalf("unmarshal plan raw json: %v", err)
+	}
+	if plan["title"] != "Deploy site" {
+		t.Fatalf("plan title = %q, want Deploy site", plan["title"])
+	}
+
+	nullEnv, err := NewEnvelope(TypeChatPlanUpdate, ChatPlanUpdatePayload{
+		SessionID: "agodesk:dev-1",
+		RequestID: "req-2",
+		Plan:      json.RawMessage(`null`),
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope null plan update: %v", err)
+	}
+	var nullPayload ChatPlanUpdatePayload
+	if err := json.Unmarshal(nullEnv.Payload, &nullPayload); err != nil {
+		t.Fatalf("unmarshal null chat plan update payload: %v", err)
+	}
+	if string(nullPayload.Plan) != "null" {
+		t.Fatalf("null plan raw = %s, want null", string(nullPayload.Plan))
+	}
+}
+
+func TestChatChunkPayloadMetadataIsOptional(t *testing.T) {
+	env, err := NewEnvelope(TypeChatChunk, ChatChunkPayload{
+		SessionID: "agodesk:dev-1",
+		RequestID: "req-1",
+		Delta:     "hello",
+		Sequence:  1,
+		Metadata: map[string]interface{}{
+			"agent_mood": map[string]interface{}{"mood": "focused"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chunk: %v", err)
+	}
+
+	var payload ChatChunkPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		t.Fatalf("unmarshal chunk payload: %v", err)
+	}
+	if payload.Metadata == nil {
+		t.Fatal("chunk metadata missing")
+	}
+	if _, ok := payload.Metadata["agent_mood"].(map[string]interface{}); !ok {
+		t.Fatalf("agent_mood metadata = %#v", payload.Metadata["agent_mood"])
 	}
 }
 
