@@ -96,7 +96,7 @@ func TestConfigComposioPreviewRequestsPolicyPreviewAndSortsUsefulToolsFirst(t *t
 
 	composioJS := readDesktopAssetText(t, "cfg/composio.js")
 	for _, marker := range []string{
-		"'&limit=100&preview=1'",
+		"'&limit=25&preview=1'",
 		"function composioToolSortScore",
 		".sort((a, b) => composioToolSortScore(a) - composioToolSortScore(b))",
 		"decision.allowed === true",

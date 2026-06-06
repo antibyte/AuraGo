@@ -348,7 +348,7 @@ async function composioLoadToolkitDetail(slug) {
     if (!slug) return;
     try {
         const [toolsResp, accountsResp, authResp] = await Promise.all([
-            fetch('/api/composio/tools?toolkit_slug=' + encodeURIComponent(slug) + '&limit=100&preview=1'),
+            fetch('/api/composio/tools?toolkit_slug=' + encodeURIComponent(slug) + '&limit=25&preview=1'),
             fetch('/api/composio/connected-accounts?toolkit_slug=' + encodeURIComponent(slug)),
             fetch('/api/composio/auth-configs?toolkit_slug=' + encodeURIComponent(slug))
         ]);

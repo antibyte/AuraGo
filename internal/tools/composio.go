@@ -217,6 +217,14 @@ func (c *ComposioClient) ListTools(ctx context.Context, q ComposioToolQuery) (Co
 		values.Set("toolkit_slug", strings.TrimSpace(q.ToolkitSlug))
 	}
 	body, err := c.do(ctx, http.MethodGet, "/tools", values, nil)
+	if isComposioResponseTooLarge(err) && q.Limit > 25 {
+		q.Limit = 25
+		values = listQueryValues(q.ComposioListQuery)
+		if strings.TrimSpace(q.ToolkitSlug) != "" {
+			values.Set("toolkit_slug", strings.TrimSpace(q.ToolkitSlug))
+		}
+		body, err = c.do(ctx, http.MethodGet, "/tools", values, nil)
+	}
 	if err != nil {
 		return ComposioListPage[ComposioToolInfo]{}, err
 	}
@@ -443,6 +451,10 @@ func composioErrorPreview(body []byte) string {
 		preview = preview[:500]
 	}
 	return security.Scrub(preview)
+}
+
+func isComposioResponseTooLarge(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "exceeds composio result size limit")
 }
 
 func listQueryValues(q ComposioListQuery) url.Values {

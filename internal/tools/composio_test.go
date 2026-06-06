@@ -180,6 +180,47 @@ func TestComposioClientNormalizesAuthAndConnectedAccountToolkitMetadata(t *testi
 	}
 }
 
+func TestComposioClientListToolsRetriesSmallerPageWhenResponseIsTooLarge(t *testing.T) {
+	limits := []string{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/tools" {
+			t.Fatalf("path = %q, want /tools", r.URL.Path)
+		}
+		limit := r.URL.Query().Get("limit")
+		limits = append(limits, limit)
+		if limit == "100" {
+			_, _ = w.Write([]byte(`{"items":[{"slug":"GITHUB_GET_REPOSITORY","description":"` + strings.Repeat("x", 2048) + `"}]}`))
+			return
+		}
+		if limit != "25" {
+			t.Fatalf("retry limit = %q, want 25", limit)
+		}
+		_, _ = w.Write([]byte(`{"items":[{"slug":"GITHUB_GET_REPOSITORY","description":"Read repo","toolkit":{"slug":"github"}}]}`))
+	}))
+	defer server.Close()
+
+	client := NewComposioClient(ComposioClientConfig{
+		BaseURL:        server.URL,
+		APIKey:         "test-key",
+		Timeout:        time.Second,
+		MaxResultBytes: 512,
+	})
+
+	page, err := client.ListTools(context.Background(), ComposioToolQuery{
+		ComposioListQuery: ComposioListQuery{Limit: 100},
+		ToolkitSlug:       "github",
+	})
+	if err != nil {
+		t.Fatalf("ListTools() error = %v", err)
+	}
+	if strings.Join(limits, ",") != "100,25" {
+		t.Fatalf("limits = %v, want [100 25]", limits)
+	}
+	if len(page.Items) != 1 || page.Items[0].Description != "Read repo" || page.Items[0].ToolkitSlug != "github" {
+		t.Fatalf("unexpected page after retry: %+v", page)
+	}
+}
+
 func TestComposioClientNormalizesErrorsAndCapsResults(t *testing.T) {
 	t.Run("api_error", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
