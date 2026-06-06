@@ -2047,6 +2047,11 @@
     flex: 0 0 auto;
 }
 
+.vd-task-icon.vd-icon-letter {
+    width: 16px;
+    height: 16px;
+}
+
 .vd-task-label {
     min-width: 0;
     overflow: hidden;
