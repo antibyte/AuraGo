@@ -128,6 +128,9 @@ func handleComposioTools(s *Server) http.HandlerFunc {
 			return
 		}
 		policy := tools.ComposioPolicyFromConfig(cfg)
+		if isComposioPreviewRequest(r) {
+			policy = composioPreviewPolicy(policy, r.URL.Query().Get("toolkit_slug"))
+		}
 		items := make([]map[string]interface{}, 0, len(page.Items))
 		for _, item := range page.Items {
 			decision := tools.EvaluateComposioToolPolicy(policy, item)
@@ -142,6 +145,30 @@ func handleComposioTools(s *Server) http.HandlerFunc {
 			"total":       page.Total,
 		})
 	}
+}
+
+func isComposioPreviewRequest(r *http.Request) bool {
+	raw := strings.TrimSpace(r.URL.Query().Get("preview"))
+	return raw == "1" || strings.EqualFold(raw, "true")
+}
+
+func composioPreviewPolicy(policy tools.ComposioPolicyConfig, toolkitSlug string) tools.ComposioPolicyConfig {
+	toolkitSlug = strings.TrimSpace(toolkitSlug)
+	if toolkitSlug == "" {
+		return policy
+	}
+	policy.Enabled = true
+	for i := range policy.Toolkits {
+		if strings.EqualFold(policy.Toolkits[i].Slug, toolkitSlug) {
+			policy.Toolkits[i].Enabled = true
+			return policy
+		}
+	}
+	policy.Toolkits = append(policy.Toolkits, tools.ComposioToolkitPolicy{
+		Slug:    toolkitSlug,
+		Enabled: true,
+	})
+	return policy
 }
 
 func handleComposioAuthConfigs(s *Server) http.HandlerFunc {

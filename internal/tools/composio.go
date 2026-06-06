@@ -64,41 +64,67 @@ type ComposioListPage[T any] struct {
 	Raw        json.RawMessage
 }
 
+type composioToolkitCategory struct {
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+	ID   string `json:"id"`
+}
+
+type composioToolkitMeta struct {
+	Description string                    `json:"description,omitempty"`
+	Logo        string                    `json:"logo,omitempty"`
+	Categories  []composioToolkitCategory `json:"categories,omitempty"`
+}
+
+type composioToolkitRef struct {
+	Slug string `json:"slug"`
+	Name string `json:"name"`
+	Logo string `json:"logo,omitempty"`
+}
+
+type composioToolMeta struct {
+	Description string `json:"description,omitempty"`
+}
+
 type ComposioToolkit struct {
-	Slug        string `json:"slug"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Category    string `json:"category"`
-	Logo        string `json:"logo"`
+	Slug        string              `json:"slug"`
+	Name        string              `json:"name"`
+	Description string              `json:"description"`
+	Category    string              `json:"category"`
+	Logo        string              `json:"logo"`
+	Meta        composioToolkitMeta `json:"meta,omitempty"`
 }
 
 type ComposioToolInfo struct {
-	Slug        string `json:"slug"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	ToolkitSlug string `json:"toolkit_slug"`
-	Toolkit     struct {
-		Slug string `json:"slug"`
-		Name string `json:"name"`
-	} `json:"toolkit"`
-	InputParameters json.RawMessage `json:"input_parameters"`
+	Slug             string             `json:"slug"`
+	Name             string             `json:"name"`
+	DisplayName      string             `json:"display_name,omitempty"`
+	Description      string             `json:"description"`
+	HumanDescription string             `json:"human_description,omitempty"`
+	ToolkitSlug      string             `json:"toolkit_slug"`
+	Toolkit          composioToolkitRef `json:"toolkit"`
+	Meta             composioToolMeta   `json:"meta,omitempty"`
+	InputParameters  json.RawMessage    `json:"input_parameters"`
 }
 
 type ComposioAuthConfig struct {
-	ID                string `json:"id"`
-	ToolkitSlug       string `json:"toolkit_slug"`
-	Name              string `json:"name"`
-	Type              string `json:"type"`
-	Status            string `json:"status"`
-	Enabled           bool   `json:"enabled"`
-	IsComposioManaged bool   `json:"is_composio_managed"`
+	ID                string             `json:"id"`
+	UUID              string             `json:"uuid,omitempty"`
+	ToolkitSlug       string             `json:"toolkit_slug"`
+	Toolkit           composioToolkitRef `json:"toolkit"`
+	Name              string             `json:"name"`
+	Type              string             `json:"type"`
+	Status            string             `json:"status"`
+	Enabled           bool               `json:"enabled"`
+	IsComposioManaged bool               `json:"is_composio_managed"`
 }
 
 type ComposioConnectedAccount struct {
-	ID          string `json:"id"`
-	ToolkitSlug string `json:"toolkit_slug"`
-	UserID      string `json:"user_id"`
-	Status      string `json:"status"`
+	ID          string             `json:"id"`
+	ToolkitSlug string             `json:"toolkit_slug"`
+	Toolkit     composioToolkitRef `json:"toolkit"`
+	UserID      string             `json:"user_id"`
+	Status      string             `json:"status"`
 }
 
 type ComposioConnectLinkRequest struct {
@@ -175,7 +201,14 @@ func (c *ComposioClient) ListToolkits(ctx context.Context, q ComposioListQuery) 
 	if err != nil {
 		return ComposioListPage[ComposioToolkit]{}, err
 	}
-	return decodeComposioList[ComposioToolkit](body)
+	page, err := decodeComposioList[ComposioToolkit](body)
+	if err != nil {
+		return page, err
+	}
+	for i := range page.Items {
+		page.Items[i].normalize()
+	}
+	return page, nil
 }
 
 func (c *ComposioClient) ListTools(ctx context.Context, q ComposioToolQuery) (ComposioListPage[ComposioToolInfo], error) {
@@ -192,7 +225,7 @@ func (c *ComposioClient) ListTools(ctx context.Context, q ComposioToolQuery) (Co
 		return page, err
 	}
 	for i := range page.Items {
-		page.Items[i].normalizeToolkitSlug()
+		page.Items[i].normalize()
 	}
 	return page, nil
 }
@@ -210,7 +243,7 @@ func (c *ComposioClient) GetTool(ctx context.Context, slug string) (ComposioTool
 	if err != nil {
 		return ComposioToolInfo{}, err
 	}
-	toolInfo.normalizeToolkitSlug()
+	toolInfo.normalize()
 	return toolInfo, nil
 }
 
@@ -223,22 +256,36 @@ func (c *ComposioClient) ListAuthConfigs(ctx context.Context, toolkitSlug string
 	if err != nil {
 		return ComposioListPage[ComposioAuthConfig]{}, err
 	}
-	return decodeComposioList[ComposioAuthConfig](body)
+	page, err := decodeComposioList[ComposioAuthConfig](body)
+	if err != nil {
+		return page, err
+	}
+	for i := range page.Items {
+		page.Items[i].normalize()
+	}
+	return page, nil
 }
 
 func (c *ComposioClient) ListConnectedAccounts(ctx context.Context, toolkitSlug, userID string) (ComposioListPage[ComposioConnectedAccount], error) {
 	values := url.Values{}
 	if strings.TrimSpace(toolkitSlug) != "" {
-		values.Set("toolkit_slug", strings.TrimSpace(toolkitSlug))
+		values.Set("toolkit_slugs", strings.TrimSpace(toolkitSlug))
 	}
 	if strings.TrimSpace(userID) != "" {
-		values.Set("user_id", strings.TrimSpace(userID))
+		values.Set("user_ids", strings.TrimSpace(userID))
 	}
 	body, err := c.do(ctx, http.MethodGet, "/connected_accounts", values, nil)
 	if err != nil {
 		return ComposioListPage[ComposioConnectedAccount]{}, err
 	}
-	return decodeComposioList[ComposioConnectedAccount](body)
+	page, err := decodeComposioList[ComposioConnectedAccount](body)
+	if err != nil {
+		return page, err
+	}
+	for i := range page.Items {
+		page.Items[i].normalize()
+	}
+	return page, nil
 }
 
 func (c *ComposioClient) CreateConnectLink(ctx context.Context, req ComposioConnectLinkRequest) (ComposioConnectLink, error) {
@@ -503,11 +550,71 @@ func firstRawArray(candidates ...json.RawMessage) json.RawMessage {
 	return nil
 }
 
-func (t *ComposioToolInfo) normalizeToolkitSlug() {
-	if t == nil || strings.TrimSpace(t.ToolkitSlug) != "" {
+func (t *ComposioToolkit) normalize() {
+	if t == nil {
 		return
 	}
-	t.ToolkitSlug = strings.TrimSpace(t.Toolkit.Slug)
+	if strings.TrimSpace(t.Description) == "" {
+		t.Description = strings.TrimSpace(t.Meta.Description)
+	}
+	if strings.TrimSpace(t.Logo) == "" {
+		t.Logo = strings.TrimSpace(t.Meta.Logo)
+	}
+	if strings.TrimSpace(t.Category) == "" {
+		for _, category := range t.Meta.Categories {
+			if strings.TrimSpace(category.Name) != "" {
+				t.Category = strings.TrimSpace(category.Name)
+				return
+			}
+			if strings.TrimSpace(category.Slug) != "" {
+				t.Category = strings.TrimSpace(category.Slug)
+				return
+			}
+			if strings.TrimSpace(category.ID) != "" {
+				t.Category = strings.TrimSpace(category.ID)
+				return
+			}
+		}
+	}
+}
+
+func (t *ComposioToolInfo) normalize() {
+	if t == nil {
+		return
+	}
+	if strings.TrimSpace(t.ToolkitSlug) == "" {
+		t.ToolkitSlug = strings.TrimSpace(t.Toolkit.Slug)
+	}
+	if strings.TrimSpace(t.Description) == "" {
+		t.Description = strings.TrimSpace(firstNonEmptyComposioString(t.HumanDescription, t.Meta.Description))
+	}
+	if strings.TrimSpace(t.Name) == "" {
+		t.Name = strings.TrimSpace(t.DisplayName)
+	}
+}
+
+func (a *ComposioAuthConfig) normalize() {
+	if a == nil {
+		return
+	}
+	if strings.TrimSpace(a.ID) == "" {
+		a.ID = strings.TrimSpace(a.UUID)
+	}
+	if strings.TrimSpace(a.ToolkitSlug) == "" {
+		a.ToolkitSlug = strings.TrimSpace(a.Toolkit.Slug)
+	}
+	if !a.Enabled && strings.EqualFold(strings.TrimSpace(a.Status), "ENABLED") {
+		a.Enabled = true
+	}
+}
+
+func (a *ComposioConnectedAccount) normalize() {
+	if a == nil {
+		return
+	}
+	if strings.TrimSpace(a.ToolkitSlug) == "" {
+		a.ToolkitSlug = strings.TrimSpace(a.Toolkit.Slug)
+	}
 }
 
 type ComposioPolicyConfig struct {

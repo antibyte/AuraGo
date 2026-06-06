@@ -110,6 +110,53 @@ function composioJSArg(value) {
     return escapeAttr(JSON.stringify(String(value || '')));
 }
 
+function composioFirstText(...values) {
+    for (const value of values) {
+        const text = String(value || '').trim();
+        if (text) return text;
+    }
+    return '';
+}
+
+function composioToolkitCategory(tk) {
+    const categories = tk && tk.meta && Array.isArray(tk.meta.categories) ? tk.meta.categories : [];
+    for (const category of categories) {
+        const text = composioFirstText(category && category.name, category && category.slug, category && category.id);
+        if (text) return text;
+    }
+    return '';
+}
+
+function composioToolkitDescription(tk) {
+    return composioFirstText(
+        tk && tk.description,
+        tk && tk.meta && tk.meta.description,
+        tk && tk.category,
+        composioToolkitCategory(tk),
+        tk && tk.slug
+    );
+}
+
+function composioToolDescription(tool) {
+    return composioFirstText(
+        tool && tool.description,
+        tool && tool.human_description,
+        tool && tool.meta && tool.meta.description,
+        tool && tool.display_name
+    );
+}
+
+function composioAuthEnabled(auth) {
+    return auth && (auth.enabled === true || String(auth.status || '').toUpperCase() === 'ENABLED');
+}
+
+function composioToolSortScore(item) {
+    const decision = item && item.policy_decision;
+    if (decision && decision.allowed === true) return 0;
+    if (!decision || typeof decision.allowed !== 'boolean') return 1;
+    return 2;
+}
+
 async function composioRefreshStatus() {
     try {
         const resp = await fetch('/api/composio/status');
@@ -287,7 +334,7 @@ function composioToolkitRow(tk, selected) {
     const active = slug === composioState.selectedSlug ? ' active' : '';
     return '<div class="cmp-toolkit-row' + active + '" onclick="composioLoadToolkitDetail(' + composioJSArg(slug) + ')">' +
         '<div class="cmp-toolkit-main"><div class="cmp-toolkit-name">' + escapeAttr(tk.name || slug || '-') + '</div>' +
-        '<div class="cmp-toolkit-desc">' + escapeAttr(tk.description || tk.category || slug || '') + '</div></div>' +
+        '<div class="cmp-toolkit-desc">' + escapeAttr(composioToolkitDescription(tk)) + '</div></div>' +
         '<button class="cmp-small-toggle ' + (isSelected ? 'on' : '') + '" onclick="event.stopPropagation(); composioToggleToolkit(' + composioJSArg(slug) + ')">' + (isSelected ? t('config.composio.enabled_short') : t('config.composio.enable_short')) + '</button>' +
         '</div>';
 }
@@ -301,7 +348,7 @@ async function composioLoadToolkitDetail(slug) {
     if (!slug) return;
     try {
         const [toolsResp, accountsResp, authResp] = await Promise.all([
-            fetch('/api/composio/tools?toolkit_slug=' + encodeURIComponent(slug) + '&limit=20'),
+            fetch('/api/composio/tools?toolkit_slug=' + encodeURIComponent(slug) + '&limit=100&preview=1'),
             fetch('/api/composio/connected-accounts?toolkit_slug=' + encodeURIComponent(slug)),
             fetch('/api/composio/auth-configs?toolkit_slug=' + encodeURIComponent(slug))
         ]);
@@ -336,9 +383,10 @@ function composioRenderDetail() {
     const isSelected = !!selected[slug.toLowerCase()];
     const accounts = composioState.accounts || [];
     const tools = composioState.tools || [];
+    const description = composioToolkitDescription(tk);
     let html = '<div class="cmp-detail-head"><div><div class="cmp-detail-title">' + escapeAttr(tk.name || slug) + '</div><div class="cmp-detail-slug">' + escapeAttr(slug) + '</div></div>' +
         '<button class="btn-save cfg-save-btn-sm" onclick="composioToggleToolkit(' + composioJSArg(slug) + ')">' + (isSelected ? t('config.composio.disable_toolkit') : t('config.composio.enable_toolkit')) + '</button></div>';
-    html += '<div class="cmp-detail-desc">' + escapeAttr(tk.description || t('config.composio.no_description')) + '</div>';
+    html += '<div class="cmp-detail-desc">' + escapeAttr(description || t('config.composio.no_description')) + '</div>';
     html += '<div class="cmp-detail-actions"><button class="btn-secondary cfg-save-btn-sm" onclick="composioConnectToolkit(' + composioJSArg(slug) + ')">' + t('config.composio.connect') + '</button>' +
         '<button class="btn-secondary cfg-save-btn-sm" onclick="composioLoadToolkitDetail(' + composioJSArg(slug) + ')">' + t('config.composio.refresh') + '</button></div>';
     html += '<div class="cmp-detail-grid"><div><div class="cmp-mini-title">' + t('config.composio.accounts') + '</div>' + composioAccountsHTML(accounts) + '</div>' +
@@ -353,11 +401,12 @@ function composioAccountsHTML(accounts) {
 
 function composioToolsHTML(items) {
     if (!items || items.length === 0) return '<div class="cmp-empty">' + t('config.composio.no_tools') + '</div>';
-    return items.slice(0, 12).map(item => {
+    return items.slice().sort((a, b) => composioToolSortScore(a) - composioToolSortScore(b)).slice(0, 12).map(item => {
         const tool = item.tool || item;
-        const decision = item.policy_decision || {};
-        const status = decision.allowed ? t('config.composio.allowed') : t('config.composio.blocked');
-        return '<div class="cmp-tool-row"><div><strong>' + escapeAttr(tool.slug || tool.name || '-') + '</strong><small>' + escapeAttr(tool.description || '') + '</small></div><span>' + escapeAttr(status) + '</span></div>';
+        const decision = item.policy_decision;
+        const status = decision && decision.allowed === true ? t('config.composio.allowed') : (decision && decision.allowed === false ? t('config.composio.blocked') : '');
+        const title = decision && decision.reason ? ' title="' + escapeAttr(decision.reason) + '"' : '';
+        return '<div class="cmp-tool-row"' + title + '><div><strong>' + escapeAttr(tool.slug || tool.name || '-') + '</strong><small>' + escapeAttr(composioToolDescription(tool)) + '</small></div><span>' + escapeAttr(status) + '</span></div>';
     }).join('');
 }
 
@@ -416,13 +465,14 @@ async function composioSaveSelection(toast) {
 }
 
 async function composioConnectToolkit(slug) {
+    const auth = composioState.authConfigs || [];
+    const preferred = auth.find(a => composioAuthEnabled(a) && a.is_composio_managed) || auth.find(a => composioAuthEnabled(a)) || auth[0];
+    if (!preferred || !preferred.id) {
+        showToast(t('config.composio.no_auth_config'), 'warn');
+        return;
+    }
+    const popup = window.open('about:blank', '_blank');
     try {
-        const auth = composioState.authConfigs || [];
-        const preferred = auth.find(a => a.enabled && a.is_composio_managed) || auth.find(a => a.enabled) || auth[0];
-        if (!preferred || !preferred.id) {
-            showToast(t('config.composio.no_auth_config'), 'warn');
-            return;
-        }
         const resp = await fetch('/api/composio/connect-link', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -433,9 +483,12 @@ async function composioConnectToolkit(slug) {
         const link = data.link || {};
         const url = link.redirect_url || link.link;
         if (!url) throw new Error(t('config.composio.no_connect_url'));
-        window.open(url, '_blank', 'noopener');
+        if (!popup) throw new Error(t('config.composio.connect_failed'));
+        popup.opener = null;
+        popup.location.href = url;
         showToast(t('config.composio.connect_opened'), 'success');
     } catch (e) {
+        if (popup && !popup.closed) popup.close();
         showToast(t('config.composio.connect_failed') + ': ' + (e.message || t('config.common.error')), 'error');
     }
 }

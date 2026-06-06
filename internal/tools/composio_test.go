@@ -58,6 +58,128 @@ func TestComposioClientListToolkitsPaginatesAndSendsAPIKey(t *testing.T) {
 	}
 }
 
+func TestComposioClientNormalizesCatalogMetadata(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/toolkits":
+			_, _ = w.Write([]byte(`{"items":[{
+				"slug":"github",
+				"name":"GitHub",
+				"meta":{
+					"description":"Integrate with GitHub repositories, issues, pull requests, and more.",
+					"logo":"https://assets.example/github.png",
+					"categories":[{"name":"Developer Tools","slug":"developer-tools"}]
+				}
+			}]}`))
+		case "/tools":
+			_, _ = w.Write([]byte(`{"items":[{
+				"slug":"GITHUB_GET_REPOSITORY",
+				"name":"Get repository",
+				"human_description":"Fetch repository details",
+				"toolkit":{"slug":"github","name":"GitHub"}
+			}]}`))
+		default:
+			t.Fatalf("unexpected path %q", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client := NewComposioClient(ComposioClientConfig{
+		BaseURL:        server.URL,
+		APIKey:         "test-key",
+		Timeout:        time.Second,
+		MaxResultBytes: 32 * 1024,
+	})
+
+	toolkits, err := client.ListToolkits(context.Background(), ComposioListQuery{Limit: 1})
+	if err != nil {
+		t.Fatalf("ListToolkits() error = %v", err)
+	}
+	if len(toolkits.Items) != 1 {
+		t.Fatalf("toolkit count = %d, want 1", len(toolkits.Items))
+	}
+	if toolkits.Items[0].Description != "Integrate with GitHub repositories, issues, pull requests, and more." {
+		t.Fatalf("toolkit description = %q", toolkits.Items[0].Description)
+	}
+	if toolkits.Items[0].Logo != "https://assets.example/github.png" {
+		t.Fatalf("toolkit logo = %q", toolkits.Items[0].Logo)
+	}
+	if toolkits.Items[0].Category != "Developer Tools" {
+		t.Fatalf("toolkit category = %q", toolkits.Items[0].Category)
+	}
+
+	toolPage, err := client.ListTools(context.Background(), ComposioToolQuery{ToolkitSlug: "github"})
+	if err != nil {
+		t.Fatalf("ListTools() error = %v", err)
+	}
+	if len(toolPage.Items) != 1 {
+		t.Fatalf("tool count = %d, want 1", len(toolPage.Items))
+	}
+	if toolPage.Items[0].Description != "Fetch repository details" {
+		t.Fatalf("tool description = %q", toolPage.Items[0].Description)
+	}
+	if toolPage.Items[0].ToolkitSlug != "github" {
+		t.Fatalf("tool toolkit slug = %q", toolPage.Items[0].ToolkitSlug)
+	}
+}
+
+func TestComposioClientNormalizesAuthAndConnectedAccountToolkitMetadata(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/auth_configs":
+			_, _ = w.Write([]byte(`{"items":[{
+				"id":"auth_1",
+				"name":"GitHub OAuth",
+				"status":"ENABLED",
+				"is_composio_managed":true,
+				"toolkit":{"slug":"github","name":"GitHub"}
+			}]}`))
+		case "/connected_accounts":
+			_, _ = w.Write([]byte(`{"items":[{
+				"id":"acct_1",
+				"user_id":"aurago-default",
+				"status":"ACTIVE",
+				"toolkit":{"slug":"github"}
+			}]}`))
+		default:
+			t.Fatalf("unexpected path %q", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client := NewComposioClient(ComposioClientConfig{
+		BaseURL:        server.URL,
+		APIKey:         "test-key",
+		Timeout:        time.Second,
+		MaxResultBytes: 32 * 1024,
+	})
+
+	auth, err := client.ListAuthConfigs(context.Background(), "github")
+	if err != nil {
+		t.Fatalf("ListAuthConfigs() error = %v", err)
+	}
+	if len(auth.Items) != 1 {
+		t.Fatalf("auth config count = %d, want 1", len(auth.Items))
+	}
+	if auth.Items[0].ToolkitSlug != "github" {
+		t.Fatalf("auth toolkit slug = %q", auth.Items[0].ToolkitSlug)
+	}
+	if !auth.Items[0].Enabled {
+		t.Fatalf("auth config should be enabled from status: %+v", auth.Items[0])
+	}
+
+	accounts, err := client.ListConnectedAccounts(context.Background(), "github", "aurago-default")
+	if err != nil {
+		t.Fatalf("ListConnectedAccounts() error = %v", err)
+	}
+	if len(accounts.Items) != 1 {
+		t.Fatalf("connected account count = %d, want 1", len(accounts.Items))
+	}
+	if accounts.Items[0].ToolkitSlug != "github" {
+		t.Fatalf("connected account toolkit slug = %q", accounts.Items[0].ToolkitSlug)
+	}
+}
+
 func TestComposioClientNormalizesErrorsAndCapsResults(t *testing.T) {
 	t.Run("api_error", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

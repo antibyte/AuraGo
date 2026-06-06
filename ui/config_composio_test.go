@@ -73,3 +73,54 @@ func TestConfigComposioModuleUsesBuildVersionCacheBusting(t *testing.T) {
 		t.Fatal("config assets must not keep using the stale fixed v=21 cache key")
 	}
 }
+
+func TestConfigComposioUsesCatalogMetadataFallbacks(t *testing.T) {
+	t.Parallel()
+
+	composioJS := readDesktopAssetText(t, "cfg/composio.js")
+	for _, marker := range []string{
+		"function composioToolkitDescription",
+		"function composioToolDescription",
+		"tk.meta && tk.meta.description",
+		"tool.human_description",
+		"tool.meta && tool.meta.description",
+	} {
+		if !strings.Contains(composioJS, marker) {
+			t.Fatalf("composio config module missing metadata fallback marker %q", marker)
+		}
+	}
+}
+
+func TestConfigComposioPreviewRequestsPolicyPreviewAndSortsUsefulToolsFirst(t *testing.T) {
+	t.Parallel()
+
+	composioJS := readDesktopAssetText(t, "cfg/composio.js")
+	for _, marker := range []string{
+		"'&limit=100&preview=1'",
+		"function composioToolSortScore",
+		".sort((a, b) => composioToolSortScore(a) - composioToolSortScore(b))",
+		"decision.allowed === true",
+	} {
+		if !strings.Contains(composioJS, marker) {
+			t.Fatalf("composio config module missing preview marker %q", marker)
+		}
+	}
+}
+
+func TestConfigComposioConnectOpensPopupBeforeAwaitedFetch(t *testing.T) {
+	t.Parallel()
+
+	composioJS := readDesktopAssetText(t, "cfg/composio.js")
+	for _, marker := range []string{
+		"const popup = window.open('about:blank', '_blank');",
+		"popup.location.href = url;",
+		"if (popup && !popup.closed) popup.close();",
+	} {
+		if !strings.Contains(composioJS, marker) {
+			t.Fatalf("composio connect flow missing popup marker %q", marker)
+		}
+	}
+	if strings.Contains(composioJS, "window.open(url, '_blank', 'noopener');") {
+		t.Fatal("composio connect flow must not open the final URL only after the awaited fetch")
+	}
+}
