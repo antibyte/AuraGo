@@ -14,6 +14,8 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/desktopstore"
+
+	"github.com/gorilla/websocket"
 )
 
 func TestDesktopStoreOperationContextCancelsOnShutdown(t *testing.T) {
@@ -175,6 +177,79 @@ func TestDesktopStoreBeszelAgentConfigStoresSecretsAndCreatesCompanion(t *testin
 	}
 }
 
+func TestDesktopStoreTerminalUsesManagedContainerName(t *testing.T) {
+	svc, _, _ := testInstalledStoreApp(t, "commandcode", 18080)
+	s := testDesktopStoreServerWithService(t, svc)
+	session := newFakeContainerTerminalSession()
+	fake := &fakeContainerTerminalBackend{running: true, session: session}
+	restore := replaceContainerTerminalBackend(fake)
+	defer restore()
+
+	ts := httptest.NewServer(handleDesktopStoreAppRoute(s))
+	defer ts.Close()
+
+	wsURL := "ws" + ts.URL[len("http"):] + "/api/desktop/store/apps/commandcode/terminal"
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial store terminal websocket: %v", err)
+	}
+	defer conn.Close()
+
+	if fake.createCalls != 1 {
+		t.Fatalf("terminal create calls = %d, want 1", fake.createCalls)
+	}
+	if fake.lastContainerID != "aurago-store-commandcode" {
+		t.Fatalf("terminal container id = %q, want managed CommandCode container name", fake.lastContainerID)
+	}
+}
+
+func TestDesktopStoreTerminalRejectsAppsWithoutTerminalMetadata(t *testing.T) {
+	svc, _, _ := testInstalledStoreApp(t, "node-red", 1880)
+	s := testDesktopStoreServerWithService(t, svc)
+	fake := &fakeContainerTerminalBackend{running: true}
+	restore := replaceContainerTerminalBackend(fake)
+	defer restore()
+
+	rec := httptest.NewRecorder()
+	req := newContainerTerminalUpgradeRequest("/api/desktop/store/apps/node-red/terminal")
+
+	handleDesktopStoreAppRoute(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+	if fake.createCalls != 0 {
+		t.Fatalf("terminal session was created %d times for app without terminal metadata", fake.createCalls)
+	}
+}
+
+func TestDesktopStoreTerminalRejectsStoppedApps(t *testing.T) {
+	svc, _, _ := testInstalledStoreApp(t, "commandcode", 18080)
+	stopOp, err := svc.StartAppOperation(context.Background(), "commandcode", desktopstore.OperationStop, desktopstore.OperationRequest{})
+	if err != nil {
+		t.Fatalf("start stop operation: %v", err)
+	}
+	if err := svc.RunOperation(context.Background(), stopOp.ID); err != nil {
+		t.Fatalf("run stop operation: %v", err)
+	}
+	s := testDesktopStoreServerWithService(t, svc)
+	fake := &fakeContainerTerminalBackend{running: true}
+	restore := replaceContainerTerminalBackend(fake)
+	defer restore()
+
+	rec := httptest.NewRecorder()
+	req := newContainerTerminalUpgradeRequest("/api/desktop/store/apps/commandcode/terminal")
+
+	handleDesktopStoreAppRoute(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusConflict, rec.Body.String())
+	}
+	if fake.createCalls != 0 {
+		t.Fatalf("terminal session was created %d times for stopped store app", fake.createCalls)
+	}
+}
+
 func TestDesktopStoreTailscaleProxySpecsIncludeEveryPublishedPort(t *testing.T) {
 	apps := []desktopstore.InstalledApp{{
 		AppID:            "multiport-demo",
@@ -258,10 +333,12 @@ func testDesktopStoreServerWithService(t *testing.T, svc *desktopstore.Service) 
 
 func testInstalledStoreApp(t *testing.T, appID string, ports ...int) (*desktopstore.Service, *serverStoreSecretStore, *serverStoreDockerAdapter) {
 	t.Helper()
+	root := t.TempDir()
 	secrets := &serverStoreSecretStore{data: map[string]string{}}
 	docker := &serverStoreDockerAdapter{}
 	svc, err := desktopstore.NewService(desktopstore.Config{
-		DBPath:        filepath.Join(t.TempDir(), "desktop_store.db"),
+		DBPath:        filepath.Join(root, "desktop_store.db"),
+		WorkspaceDir:  filepath.Join(root, "workspace"),
 		Docker:        docker,
 		Secrets:       secrets,
 		PortAllocator: serverFixedPorts(ports...),

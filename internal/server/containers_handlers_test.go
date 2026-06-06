@@ -159,9 +159,10 @@ func replaceContainerTerminalBackend(next containerTerminalBackend) func() {
 }
 
 type fakeContainerTerminalBackend struct {
-	running     bool
-	session     *fakeContainerTerminalSession
-	createCalls int
+	running         bool
+	session         *fakeContainerTerminalSession
+	createCalls     int
+	lastContainerID string
 }
 
 func (f *fakeContainerTerminalBackend) ContainerRunning(ctx context.Context, cfg tools.DockerConfig, containerID string) (bool, error) {
@@ -170,6 +171,7 @@ func (f *fakeContainerTerminalBackend) ContainerRunning(ctx context.Context, cfg
 
 func (f *fakeContainerTerminalBackend) CreateSession(ctx context.Context, cfg tools.DockerConfig, containerID string, cols, rows int) (containerTerminalSession, error) {
 	f.createCalls++
+	f.lastContainerID = containerID
 	if f.session == nil {
 		f.session = newFakeContainerTerminalSession()
 	}

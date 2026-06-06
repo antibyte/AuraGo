@@ -39,6 +39,7 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		"dozzle":              {image: "ghcr.io/amir20/dozzle:latest", port: 8080, icon: "terminal"},
 		"code-server":         {image: "ghcr.io/linuxserver/code-server:latest", port: 8443, icon: "code"},
 		"termix":              {image: "ghcr.io/lukegus/termix:latest", port: 8080, icon: "terminal"},
+		"commandcode":         {image: "ghcr.io/antibyte/aurago-commandcode:latest", port: 80, icon: "terminal"},
 	}
 	if len(catalog) != len(expected) {
 		t.Fatalf("expected %d catalog apps, got %d", len(expected), len(catalog))
@@ -148,6 +149,25 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		if entry.ID == "termix" {
 			if entry.Metadata["open_external"] != "true" {
 				t.Fatalf("termix must open outside the desktop iframe because its app redirect requires a top-level tab: %#v", entry.Metadata)
+			}
+		}
+		if entry.ID == "commandcode" {
+			if len(entry.WorkspaceBinds) != 1 || entry.WorkspaceBinds[0].WorkspacePath != "Shared/CommandCode" || entry.WorkspaceBinds[0].ContainerPath != "/workspace" {
+				t.Fatalf("commandcode workspace bind = %#v, want Shared/CommandCode:/workspace", entry.WorkspaceBinds)
+			}
+			if len(entry.Volumes) != 1 || entry.Volumes[0].NameSuffix != "home" || entry.Volumes[0].ContainerPath != "/home/developer" {
+				t.Fatalf("commandcode home volume = %#v, want persistent /home/developer", entry.Volumes)
+			}
+			wantMetadata := map[string]string{
+				"store_ui":         "terminal-preview",
+				"terminal_enabled": "true",
+				"preview_port_id":  "web",
+				"open_maximized":   "true",
+			}
+			for key, value := range wantMetadata {
+				if entry.Metadata[key] != value {
+					t.Fatalf("commandcode metadata[%s] = %q, want %q in %#v", key, entry.Metadata[key], value, entry.Metadata)
+				}
 			}
 		}
 		delete(expected, entry.ID)

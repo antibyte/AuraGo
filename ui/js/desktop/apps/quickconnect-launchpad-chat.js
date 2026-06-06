@@ -1114,6 +1114,10 @@
             host.innerHTML = `<div class="vd-empty">${esc(t('desktop.app_missing'))}</div>`;
             return;
         }
+        if (app && app.metadata && app.metadata.store_ui === 'terminal-preview') {
+            renderStoreTerminalPreviewApp(id, app, storeAppId);
+            return;
+        }
         const pendingExternalWindow = shouldOpenStoreAppExternally(app) ? openPendingExternalStoreWindow() : null;
         host.innerHTML = `<div class="vd-store-frame-loading">${esc(t('desktop.loading'))}</div>`;
         try {
@@ -1147,6 +1151,200 @@
                 });
             }
         }
+    }
+
+    async function renderStoreTerminalPreviewApp(id, app, storeAppId) {
+        const host = contentEl(id);
+        if (!host) return;
+        cleanupExistingStoreTerminalPreview(host);
+        host.innerHTML = `<div class="vd-store-frame-loading">${esc(t('desktop.loading'))}</div>`;
+        try {
+            await ensureStoreTerminalPreviewAssets();
+            const previewPortID = (app && app.metadata && app.metadata.preview_port_id) || 'web';
+            const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url?port_id=' + encodeURIComponent(previewPortID));
+            if (!contentEl(id)) return;
+            host.innerHTML = `<div class="vd-store-terminal-preview">
+                <div class="vd-store-terminal-pane" data-store-terminal></div>
+                <div class="vd-store-preview-pane">
+                    <div class="vd-store-frame-loading" data-store-preview-loading>${esc(t('desktop.loading'))}</div>
+                </div>
+            </div>`;
+            const terminalHost = host.querySelector('[data-store-terminal]');
+            const previewHost = host.querySelector('.vd-store-preview-pane');
+            let terminal = null;
+            let terminalSocket = null;
+            let terminalFitAddon = null;
+            let terminalResizeObserver = null;
+            let terminalFitScheduled = false;
+            let disposed = false;
+            function cleanupStoreTerminalPreviewApp() {
+                if (disposed) return;
+                disposed = true;
+                if (terminalResizeObserver) {
+                    terminalResizeObserver.disconnect();
+                    terminalResizeObserver = null;
+                }
+                if (terminalSocket) {
+                    terminalSocket.onopen = null;
+                    terminalSocket.onmessage = null;
+                    terminalSocket.onerror = null;
+                    terminalSocket.onclose = null;
+                    if (terminalSocket.readyState === WebSocket.OPEN || terminalSocket.readyState === WebSocket.CONNECTING) {
+                        terminalSocket.close();
+                    }
+                    terminalSocket = null;
+                }
+                if (terminal) {
+                    terminal.dispose();
+                    terminal = null;
+                }
+                terminalFitAddon = null;
+                if (host.__storeTerminalPreviewCleanup === cleanupStoreTerminalPreviewApp) {
+                    host.__storeTerminalPreviewCleanup = null;
+                }
+            }
+            host.__storeTerminalPreviewCleanup = cleanupStoreTerminalPreviewApp;
+            registerWindowCleanup(id, cleanupStoreTerminalPreviewApp);
+            terminal = new window.Terminal({
+                cursorBlink: true,
+                convertEol: true,
+                fontFamily: "'Fira Code', 'Cascadia Code', Consolas, monospace",
+                fontSize: 13,
+                scrollback: 3000,
+                theme: {
+                    background: '#05070a',
+                    foreground: '#d7e1ec',
+                    cursor: '#8bd3ff'
+                }
+            });
+            if (window.FitAddon && window.FitAddon.FitAddon) {
+                terminalFitAddon = new window.FitAddon.FitAddon();
+                terminal.loadAddon(terminalFitAddon);
+            }
+            terminal.open(terminalHost);
+            terminal.focus();
+            const fitTerminal = () => {
+                if (disposed || !terminal) return;
+                if (terminalFitAddon) {
+                    try {
+                        terminalFitAddon.fit();
+                    } catch (err) {
+                        return;
+                    }
+                }
+                if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+                    terminalSocket.send(JSON.stringify({ type: 'resize', cols: terminal.cols, rows: terminal.rows }));
+                }
+            };
+            const scheduleTerminalFit = () => {
+                if (terminalFitScheduled) return;
+                terminalFitScheduled = true;
+                window.requestAnimationFrame(() => {
+                    terminalFitScheduled = false;
+                    fitTerminal();
+                });
+            };
+            scheduleTerminalFit();
+            if (window.ResizeObserver) {
+                terminalResizeObserver = new ResizeObserver(scheduleTerminalFit);
+                terminalResizeObserver.observe(terminalHost);
+            }
+            const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+            terminalSocket = new WebSocket(scheme + '://' + window.location.host + '/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/terminal');
+            terminalSocket.binaryType = 'arraybuffer';
+            terminal.onData(data => {
+                if (!terminalSocket || terminalSocket.readyState !== WebSocket.OPEN) return;
+                terminalSocket.send(new TextEncoder().encode(data));
+            });
+            terminalSocket.onopen = scheduleTerminalFit;
+            terminalSocket.onmessage = event => {
+                if (disposed || !terminal) return;
+                if (typeof event.data === 'string') {
+                    terminal.write(event.data);
+                    return;
+                }
+                terminal.write(new TextDecoder().decode(event.data));
+            };
+            terminalSocket.onerror = () => {
+                if (terminal) terminal.write('\r\n[' + esc(t('common.error', 'Error')) + ']\r\n');
+            };
+            terminalSocket.onclose = () => {};
+            const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');
+            const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true });
+            previewHost.replaceChildren(frame);
+        } catch (err) {
+            cleanupExistingStoreTerminalPreview(host);
+            if (!contentEl(id)) return;
+            host.innerHTML = `<div class="vd-store-frame-error">
+                <div class="vd-store-frame-error-title">${esc(appName(app))}</div>
+                <div class="vd-store-frame-error-msg">${esc(err.message)}</div>
+                <button type="button" class="vd-store-btn vd-store-primary" data-action="start">${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start', 'Start'))}</span></button>
+            </div>`;
+            const start = host.querySelector('[data-action="start"]');
+            if (start) {
+                start.addEventListener('click', async () => {
+                    try {
+                        await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/start', { method: 'POST' });
+                        setTimeout(() => renderStoreTerminalPreviewApp(id, app, storeAppId), 1200);
+                    } catch (startErr) {
+                        showDesktopNotification({ title: appName(app), message: startErr.message });
+                    }
+                });
+            }
+        }
+    }
+
+    function cleanupExistingStoreTerminalPreview(host) {
+        if (host && typeof host.__storeTerminalPreviewCleanup === 'function') {
+            host.__storeTerminalPreviewCleanup();
+        }
+    }
+
+    async function ensureStoreTerminalPreviewAssets() {
+        await Promise.all([loadStoreTerminalPreviewStyle('/css/xterm.css')]);
+        await loadStoreTerminalPreviewScript('/js/vendor/xterm.min.js');
+        await loadStoreTerminalPreviewScript('/js/vendor/xterm-addon-fit.min.js');
+        if (!window.Terminal) {
+            throw new Error(t('common.error', 'Error'));
+        }
+    }
+
+    function loadStoreTerminalPreviewStyle(href) {
+        if (window.AuraLazyAssets && typeof window.AuraLazyAssets.loadStyle === 'function') {
+            return window.AuraLazyAssets.loadStyle(href);
+        }
+        const existing = document.querySelector('link[data-store-terminal-href="' + href + '"],link[href="' + href + '"]');
+        if (existing) return Promise.resolve(existing);
+        return new Promise((resolve, reject) => {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.dataset.storeTerminalHref = href;
+            link.href = href;
+            link.onload = () => resolve(link);
+            link.onerror = () => reject(new Error('Failed to load stylesheet: ' + href));
+            document.head.appendChild(link);
+        });
+    }
+
+    function loadStoreTerminalPreviewScript(src) {
+        if (window.AuraLazyAssets && typeof window.AuraLazyAssets.loadScript === 'function') {
+            return window.AuraLazyAssets.loadScript(src);
+        }
+        const existing = document.querySelector('script[data-store-terminal-src="' + src + '"],script[src="' + src + '"]');
+        if (existing && existing.dataset.storeTerminalLoaded === '1') return Promise.resolve(existing);
+        return new Promise((resolve, reject) => {
+            const script = existing || document.createElement('script');
+            script.dataset.storeTerminalSrc = src;
+            script.onload = () => {
+                script.dataset.storeTerminalLoaded = '1';
+                resolve(script);
+            };
+            script.onerror = () => reject(new Error('Failed to load script: ' + src));
+            if (!existing) {
+                script.src = src;
+                document.head.appendChild(script);
+            }
+        });
     }
 
     function shouldOpenStoreAppExternally(app) {

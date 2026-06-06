@@ -177,6 +177,27 @@ func TestSoftwareStoreOpensExternalStoreAppsInBrowserTab(t *testing.T) {
 	}
 }
 
+func TestDesktopStoreSupportsTerminalPreviewApps(t *testing.T) {
+	t.Parallel()
+
+	mainText := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, want := range []string{
+		`app.metadata.store_ui === 'terminal-preview'`,
+		`renderStoreTerminalPreviewApp(id, app, storeAppId)`,
+		`function renderStoreTerminalPreviewApp(id, app, storeAppId)`,
+		`'/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/terminal'`,
+		`'/open-url?port_id=' + encodeURIComponent(previewPortID)`,
+		`new window.Terminal({`,
+		`new window.FitAddon.FitAddon()`,
+		`registerWindowCleanup(id, cleanupStoreTerminalPreviewApp)`,
+		`vd-store-terminal-preview`,
+	} {
+		if !strings.Contains(mainText, want) {
+			t.Fatalf("desktop store terminal preview missing marker %q", want)
+		}
+	}
+}
+
 func TestSoftwareStoreFiltersRetiredEmulatorJSEntries(t *testing.T) {
 	t.Parallel()
 

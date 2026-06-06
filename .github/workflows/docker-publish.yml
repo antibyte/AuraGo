@@ -10,6 +10,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   CODE_STUDIO_IMAGE_NAME: ${{ github.repository_owner }}/aurago-code-studio
+  COMMANDCODE_IMAGE_NAME: ${{ github.repository_owner }}/aurago-commandcode
 
 jobs:
   build-and-push:
@@ -40,6 +41,7 @@ jobs:
         run: |
           echo "IMAGE_LC=${IMAGE_NAME,,}" >> "$GITHUB_ENV"
           echo "CODE_STUDIO_IMAGE_LC=${CODE_STUDIO_IMAGE_NAME,,}" >> "$GITHUB_ENV"
+          echo "COMMANDCODE_IMAGE_LC=${COMMANDCODE_IMAGE_NAME,,}" >> "$GITHUB_ENV"
 
       # Needed for multi-platform (arm64) emulation
       - name: Set up QEMU
@@ -103,3 +105,25 @@ jobs:
           labels: ${{ steps.code-studio-meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.CODE_STUDIO_IMAGE_LC }}:buildcache
           cache-to:   type=registry,ref=${{ env.REGISTRY }}/${{ env.CODE_STUDIO_IMAGE_LC }}:buildcache,mode=max
+
+      - name: Extract CommandCode metadata (tags, labels)
+        id: commandcode-meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.COMMANDCODE_IMAGE_LC }}
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and push CommandCode image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/docker/Dockerfile.commandcode
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.commandcode-meta.outputs.tags }}
+          labels: ${{ steps.commandcode-meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.COMMANDCODE_IMAGE_LC }}:buildcache
+          cache-to:   type=registry,ref=${{ env.REGISTRY }}/${{ env.COMMANDCODE_IMAGE_LC }}:buildcache,mode=max

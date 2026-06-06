@@ -358,6 +358,28 @@ func DefaultCatalog() []CatalogEntry {
 				},
 			},
 		},
+		{
+			ID:          "commandcode",
+			Name:        "CommandCode",
+			Description: "Console-first development workspace with Command Code and full-stack toolchains preinstalled.",
+			Image:       "ghcr.io/antibyte/aurago-commandcode:latest",
+			Icon:        "terminal",
+			LogoSlug:    "command-line",
+			LogoURL:     logoURL("command-line"),
+			PrimaryPort: PortSpec{ID: "web", Name: "Preview", ContainerPort: 80, Protocol: "tcp"},
+			Volumes: []VolumeTemplate{
+				{NameSuffix: "home", ContainerPath: "/home/developer"},
+			},
+			WorkspaceBinds: []WorkspaceBind{
+				{WorkspacePath: "Shared/CommandCode", ContainerPath: "/workspace"},
+			},
+			Metadata: map[string]string{
+				"store_ui":         "terminal-preview",
+				"terminal_enabled": "true",
+				"preview_port_id":  "web",
+				"open_maximized":   "true",
+			},
+		},
 	}
 }
 

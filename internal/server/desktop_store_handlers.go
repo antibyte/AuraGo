@@ -225,6 +225,10 @@ func handleDesktopStoreAppRoute(s *Server) http.HandlerFunc {
 			handleDesktopStoreOpenURL(s, appID)(w, r)
 			return
 		}
+		if action == "terminal" {
+			handleDesktopStoreTerminal(s, appID)(w, r)
+			return
+		}
 		if action == "credentials" {
 			handleDesktopStoreCredentials(s, appID)(w, r)
 			return
@@ -297,6 +301,84 @@ func handleDesktopStoreOpenURL(s *Server, appID string) http.HandlerFunc {
 			"app":    app,
 		})
 	}
+}
+
+func handleDesktopStoreTerminal(s *Server, appID string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
+			return
+		}
+		cfg, dockerEnabled, dockerReadOnly := containerDockerConfig(s)
+		if !dockerEnabled {
+			containerJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "error", "message": "Docker is not enabled"})
+			return
+		}
+		if dockerReadOnly {
+			containerJSON(w, http.StatusForbidden, map[string]string{"status": "error", "message": "Docker is in read-only mode"})
+			return
+		}
+		if !sameOriginOrNoOrigin(r) {
+			containerJSON(w, http.StatusForbidden, map[string]string{"status": "error", "message": "forbidden websocket origin"})
+			return
+		}
+		store, err := s.getDesktopStoreService(r.Context())
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		app, ok, err := store.GetInstalled(r.Context(), appID)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if !ok {
+			jsonError(w, "store app is not installed", http.StatusNotFound)
+			return
+		}
+		if app.Status != desktopstore.AppStatusRunning {
+			containerJSON(w, http.StatusConflict, map[string]string{"status": "error", "message": "Store app is not running"})
+			return
+		}
+		entry, ok := desktopStoreCatalogEntry(store.Catalog(), app.AppID)
+		if !ok || entry.Metadata["terminal_enabled"] != "true" {
+			containerJSON(w, http.StatusForbidden, map[string]string{"status": "error", "message": "Store app does not allow terminal access"})
+			return
+		}
+		running, err := activeContainerTerminalBackend.ContainerRunning(r.Context(), cfg, app.ContainerName)
+		if err != nil {
+			containerJSON(w, http.StatusBadGateway, map[string]string{"status": "error", "message": err.Error()})
+			return
+		}
+		if !running {
+			containerJSON(w, http.StatusConflict, map[string]string{"status": "error", "message": "Container is not running"})
+			return
+		}
+		session, err := activeContainerTerminalBackend.CreateSession(r.Context(), cfg, app.ContainerName, 120, 30)
+		if err != nil {
+			containerJSON(w, http.StatusBadGateway, map[string]string{"status": "error", "message": err.Error()})
+			return
+		}
+		conn, err := containerTerminalUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			_ = session.Close()
+			return
+		}
+		defer conn.Close()
+		serveContainerTerminalSession(r.Context(), conn, session)
+	}
+}
+
+func desktopStoreCatalogEntry(catalog []desktopstore.CatalogEntry, appID string) (desktopstore.CatalogEntry, bool) {
+	for _, entry := range catalog {
+		if strings.EqualFold(entry.ID, appID) {
+			return entry, true
+		}
+	}
+	return desktopstore.CatalogEntry{}, false
 }
 
 func handleDesktopStoreCredentials(s *Server, appID string) http.HandlerFunc {
