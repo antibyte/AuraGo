@@ -388,6 +388,16 @@
     height: 16px;
 }
 
+.vd-task-icon.vd-app-logo-icon {
+    padding: 0;
+}
+
+.vd-task-icon.vd-app-logo-icon > img,
+.vd-task-icon.vd-app-logo-icon > :not(img):not([hidden]) {
+    width: 100%;
+    height: 100%;
+}
+
 .vd-task-label {
     min-width: 0;
     overflow: hidden;

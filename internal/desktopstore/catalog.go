@@ -364,8 +364,8 @@ func DefaultCatalog() []CatalogEntry {
 			Description: "Console-first development workspace with Command Code and full-stack toolchains preinstalled. Installation can take several minutes because AuraGo may build the image locally. Command Code requires login or an API key; browser auth shows a key you can paste into the terminal.",
 			Image:       "ghcr.io/antibyte/aurago-commandcode:latest",
 			Icon:        "terminal",
-			LogoSlug:    "command-line",
-			LogoURL:     logoURL("command-line"),
+			LogoSlug:    "terminal",
+			LogoURL:     logoURL("terminal"),
 			PrimaryPort: PortSpec{ID: "web", Name: "Preview", ContainerPort: 80, Protocol: "tcp"},
 			Volumes: []VolumeTemplate{
 				{NameSuffix: "home", ContainerPath: "/home/developer"},
