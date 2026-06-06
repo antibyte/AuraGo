@@ -72,11 +72,14 @@ func TestDesktopStoreTerminalPreviewSupportsResizableSplit(t *testing.T) {
 	source := readEmbeddedText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
 	for _, marker := range []string{
 		"data-store-terminal-resizer",
+		"const terminalPreview = host.querySelector('.vd-store-terminal-preview')",
 		"function setTerminalPaneWidthPct(widthPct)",
 		"function startTerminalPreviewResize(event)",
+		"terminalPreview.getBoundingClientRect()",
 		"window.addEventListener('pointermove', resizeMoveHandler)",
 		"window.removeEventListener('pointermove', resizeMoveHandler)",
-		"host.style.setProperty('--store-terminal-width'",
+		"terminalPreview.style.setProperty('--store-terminal-width'",
+		"resizer.setPointerCapture(event.pointerId)",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("store terminal preview missing resizable split marker %q", marker)

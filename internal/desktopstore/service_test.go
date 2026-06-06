@@ -236,6 +236,40 @@ func TestCommandCodeDockerfilesInstallJustOutsideBookwormApt(t *testing.T) {
 	}
 }
 
+func TestCommandCodePreviewGatewayAutoDiscoversAndRefreshesTargets(t *testing.T) {
+	t.Parallel()
+
+	_, embeddedFiles, err := commandCodeBuildContext()
+	if err != nil {
+		t.Fatalf("load embedded CommandCode build context: %v", err)
+	}
+	embeddedPreview, ok := embeddedFiles["commandcode-preview.js"]
+	if !ok {
+		t.Fatalf("embedded CommandCode build context missing commandcode-preview.js")
+	}
+	deployPreview, err := os.ReadFile(filepath.Join("..", "..", "deploy", "docker", "commandcode-preview.js"))
+	if err != nil {
+		t.Fatalf("load deploy CommandCode preview gateway: %v", err)
+	}
+	for name, source := range map[string][]byte{
+		"embedded": embeddedPreview,
+		"deploy":   deployPreview,
+	} {
+		text := string(source)
+		for _, marker := range []string{
+			"const candidatePorts",
+			"async function resolveTarget(forceDiscover)",
+			"function probeTarget(target)",
+			"fs.writeFileSync(targetFile, target.href)",
+			"setTimeout(() => window.location.reload(), 1500)",
+		} {
+			if !strings.Contains(text, marker) {
+				t.Fatalf("%s CommandCode preview gateway missing auto-discovery marker %q", name, marker)
+			}
+		}
+	}
+}
+
 func TestPrepareManagedWorkspaceBindsMakesWritableBindsContainerWritable(t *testing.T) {
 	svc := newTestService(t, &fakeDockerAdapter{}, nil, nil, fixedPorts(18080))
 	hostPath := filepath.Join(t.TempDir(), "CommandCode")

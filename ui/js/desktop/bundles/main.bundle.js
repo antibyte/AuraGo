@@ -9291,6 +9291,7 @@ if (appId === 'pixel') {
             const copyButton = host.querySelector('[data-store-terminal-copy]');
             const pasteButton = host.querySelector('[data-store-terminal-paste]');
             const resizer = host.querySelector('[data-store-terminal-resizer]');
+            const terminalPreview = host.querySelector('.vd-store-terminal-preview');
             const previewHost = host.querySelector('.vd-store-preview-pane');
             const terminalSessions = new Map();
             let activeTerminalSessionID = '';
@@ -9531,23 +9532,33 @@ if (appId === 'pixel') {
             }
             function setTerminalPaneWidthPct(widthPct) {
                 const clamped = Math.max(24, Math.min(72, widthPct));
-                host.style.setProperty('--store-terminal-width', clamped.toFixed(1) + '%');
+                if (terminalPreview) terminalPreview.style.setProperty('--store-terminal-width', clamped.toFixed(1) + '%');
                 terminalSessions.forEach(session => scheduleTerminalSessionFit(session));
             }
             function startTerminalPreviewResize(event) {
-                if (!resizer || event.button !== 0) return;
+                if (!resizer || !terminalPreview || event.button !== 0) return;
                 event.preventDefault();
+                if (typeof resizer.setPointerCapture === 'function') {
+                    try {
+                        resizer.setPointerCapture(event.pointerId);
+                    } catch (_) {}
+                }
                 if (resizeMoveHandler) window.removeEventListener('pointermove', resizeMoveHandler);
                 if (resizeUpHandler) {
                     window.removeEventListener('pointerup', resizeUpHandler);
                     window.removeEventListener('pointercancel', resizeUpHandler);
                 }
                 resizeMoveHandler = moveEvent => {
-                    const bounds = host.getBoundingClientRect();
+                    const bounds = terminalPreview.getBoundingClientRect();
                     if (!bounds.width) return;
                     setTerminalPaneWidthPct(((moveEvent.clientX - bounds.left) / bounds.width) * 100);
                 };
                 resizeUpHandler = () => {
+                    if (typeof resizer.releasePointerCapture === 'function') {
+                        try {
+                            resizer.releasePointerCapture(event.pointerId);
+                        } catch (_) {}
+                    }
                     if (resizeMoveHandler) {
                         window.removeEventListener('pointermove', resizeMoveHandler);
                         resizeMoveHandler = null;

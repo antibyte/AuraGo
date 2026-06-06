@@ -10,19 +10,73 @@ const bindHost = process.env.COMMANDCODE_PREVIEW_HOST || '0.0.0.0';
 const bindPort = Number(process.env.COMMANDCODE_PREVIEW_PORT || 80);
 const targetFile = process.env.COMMANDCODE_PREVIEW_TARGET_FILE || '/tmp/commandcode-preview-target';
 const defaultTarget = process.env.COMMANDCODE_PREVIEW_TARGET || 'http://127.0.0.1:5173';
+const candidatePorts = (process.env.COMMANDCODE_PREVIEW_CANDIDATE_PORTS || '5173,4173,3000,3001,5174,8080,8000')
+  .split(',')
+  .map(value => Number(value.trim()))
+  .filter(port => Number.isInteger(port) && port > 0 && port < 65536);
+
+function normalizeTarget(value) {
+  try {
+    return new URL(value);
+  } catch (_) {
+    return new URL(defaultTarget);
+  }
+}
 
 function currentTarget() {
   try {
     const value = fs.readFileSync(targetFile, 'utf8').trim();
-    return value || defaultTarget;
+    return normalizeTarget(value || defaultTarget);
   } catch (_) {
-    return defaultTarget;
+    return normalizeTarget(defaultTarget);
   }
 }
 
-function targetURL(reqURL) {
-  const target = new URL(currentTarget());
+function writeTarget(target) {
+  try {
+    fs.writeFileSync(targetFile, target.href);
+  } catch (_) {
+    // The gateway still works with an in-memory target when the file is not writable.
+  }
+}
+
+function targetURL(reqURL, target) {
   return new URL(reqURL, target);
+}
+
+function probeTarget(target) {
+  return new Promise(resolve => {
+    const req = http.request({
+      hostname: target.hostname,
+      port: Number(target.port || 80),
+      path: '/',
+      method: 'GET',
+      timeout: 450,
+      headers: { host: target.host }
+    }, res => {
+      res.resume();
+      resolve(true);
+    });
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(false);
+    });
+    req.end();
+  });
+}
+
+async function resolveTarget(forceDiscover) {
+  const configured = currentTarget();
+  if (!forceDiscover && await probeTarget(configured)) return configured;
+  for (const port of candidatePorts) {
+    const target = new URL(`http://127.0.0.1:${port}/`);
+    if (await probeTarget(target)) {
+      writeTarget(target);
+      return target;
+    }
+  }
+  return configured;
 }
 
 function placeholder(res) {
@@ -50,15 +104,16 @@ function placeholder(res) {
     <p><code>npm run dev -- --host 0.0.0.0</code></p>
     <p><code>preview-port 5173</code></p>
   </main>
+  <script>setTimeout(() => window.location.reload(), 1500);</script>
 </body>
 </html>`);
 }
 
-const server = http.createServer((req, res) => {
-  const upstream = targetURL(req.url || '/');
+function proxyHTTPRequest(req, res, target, allowRetry) {
+  const upstream = targetURL(req.url || '/', target);
   const proxyReq = http.request({
     hostname: upstream.hostname,
-    port: upstream.port || 80,
+    port: Number(upstream.port || 80),
     path: upstream.pathname + upstream.search,
     method: req.method,
     headers: Object.assign({}, req.headers, { host: upstream.host })
@@ -66,12 +121,26 @@ const server = http.createServer((req, res) => {
     res.writeHead(proxyRes.statusCode || 502, proxyRes.headers);
     proxyRes.pipe(res);
   });
-  proxyReq.on('error', () => placeholder(res));
+  proxyReq.on('error', async () => {
+    if (allowRetry && !res.headersSent && (req.method === 'GET' || req.method === 'HEAD')) {
+      const retryTarget = await resolveTarget(true);
+      if (retryTarget.href !== target.href) {
+        proxyHTTPRequest(req, res, retryTarget, false);
+        return;
+      }
+    }
+    if (!res.headersSent) placeholder(res);
+  });
   req.pipe(proxyReq);
+}
+
+const server = http.createServer(async (req, res) => {
+  const target = await resolveTarget(false);
+  proxyHTTPRequest(req, res, target, true);
 });
 
-server.on('upgrade', (req, socket, head) => {
-  const upstream = targetURL(req.url || '/');
+server.on('upgrade', async (req, socket, head) => {
+  const upstream = targetURL(req.url || '/', await resolveTarget(false));
   const upstreamSocket = net.connect(Number(upstream.port || 80), upstream.hostname, () => {
     upstreamSocket.write(`${req.method} ${upstream.pathname}${upstream.search} HTTP/${req.httpVersion}\r\n`);
     const headers = Object.assign({}, req.headers, { host: upstream.host });
@@ -86,5 +155,5 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 server.listen(bindPort, bindHost, () => {
-  console.log(`CommandCode preview listening on ${bindHost}:${bindPort}, target ${currentTarget()}`);
+  console.log(`CommandCode preview listening on ${bindHost}:${bindPort}, target ${currentTarget().href}`);
 });
