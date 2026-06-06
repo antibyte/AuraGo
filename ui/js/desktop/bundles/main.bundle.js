@@ -9327,6 +9327,15 @@ if (appId === 'pixel') {
             const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
             const terminalInputEncoder = new TextEncoder();
             const activeTerminalSession = () => terminalSessions.get(activeTerminalSessionID) || null;
+            function refocusActiveTerminalAfterPreviewLoad() {
+                if (disposed) return;
+                const session = activeTerminalSession();
+                if (!session || !session.terminal) return;
+                window.requestAnimationFrame(() => {
+                    if (disposed || activeTerminalSession() !== session || !session.terminal) return;
+                    session.terminal.focus();
+                });
+            }
             const writeTerminalInput = (session, text) => {
                 if (!session || !text || !session.socket || session.socket.readyState !== WebSocket.OPEN) return false;
                 session.socket.send(terminalInputEncoder.encode(text));
@@ -9577,8 +9586,10 @@ if (appId === 'pixel') {
             if (resizer) resizer.addEventListener('pointerdown', startTerminalPreviewResize);
             createTerminalSession();
             const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');
-            const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true });
+            const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true, disableAutoFocus: true });
+            frame.addEventListener('load', refocusActiveTerminalAfterPreviewLoad);
             previewHost.replaceChildren(frame);
+            refocusActiveTerminalAfterPreviewLoad();
         } catch (err) {
             cleanupExistingStoreTerminalPreview(host);
             if (!contentEl(id)) return;
@@ -9747,7 +9758,7 @@ if (appId === 'pixel') {
         if (options && options.allowFullscreen) iframe.setAttribute('allowfullscreen', '');
         iframe.tabIndex = 0;
         iframe.addEventListener('pointerdown', () => focusDesktopFrame(iframe));
-        iframe.addEventListener('load', () => focusDesktopFrame(iframe));
+        if (!(options && options.disableAutoFocus)) iframe.addEventListener('load', () => focusDesktopFrame(iframe));
         return iframe;
     }
 

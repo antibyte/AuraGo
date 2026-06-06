@@ -98,3 +98,20 @@ func TestDesktopStoreTerminalPreviewSupportsResizableSplit(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopStoreTerminalPreviewKeepsTerminalFocusWhenPreviewLoads(t *testing.T) {
+	t.Parallel()
+
+	source := readEmbeddedText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
+	for _, marker := range []string{
+		"function refocusActiveTerminalAfterPreviewLoad()",
+		"frame.addEventListener('load', refocusActiveTerminalAfterPreviewLoad)",
+		"disableAutoFocus: true",
+		"if (!(options && options.disableAutoFocus)) iframe.addEventListener('load', () => focusDesktopFrame(iframe));",
+		"session.terminal.focus();",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("store terminal preview missing preview focus retention marker %q", marker)
+		}
+	}
+}
