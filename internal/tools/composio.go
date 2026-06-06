@@ -215,6 +215,7 @@ func (c *ComposioClient) ListTools(ctx context.Context, q ComposioToolQuery) (Co
 	values := listQueryValues(q.ComposioListQuery)
 	if strings.TrimSpace(q.ToolkitSlug) != "" {
 		values.Set("toolkit_slug", strings.TrimSpace(q.ToolkitSlug))
+		values.Set("toolkit_versions", "latest")
 	}
 	body, err := c.do(ctx, http.MethodGet, "/tools", values, nil)
 	if isComposioResponseTooLarge(err) && q.Limit > 25 {
@@ -222,6 +223,7 @@ func (c *ComposioClient) ListTools(ctx context.Context, q ComposioToolQuery) (Co
 		values = listQueryValues(q.ComposioListQuery)
 		if strings.TrimSpace(q.ToolkitSlug) != "" {
 			values.Set("toolkit_slug", strings.TrimSpace(q.ToolkitSlug))
+			values.Set("toolkit_versions", "latest")
 		}
 		body, err = c.do(ctx, http.MethodGet, "/tools", values, nil)
 	}

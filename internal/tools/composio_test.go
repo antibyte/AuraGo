@@ -123,6 +123,37 @@ func TestComposioClientNormalizesCatalogMetadata(t *testing.T) {
 	}
 }
 
+func TestComposioClientListToolsRequestsLatestToolkitVersion(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/tools" {
+			t.Fatalf("path = %q, want /tools", r.URL.Path)
+		}
+		if r.URL.Query().Get("toolkit_slug") != "gmail" {
+			t.Fatalf("toolkit_slug = %q, want gmail", r.URL.Query().Get("toolkit_slug"))
+		}
+		if r.URL.Query().Get("toolkit_versions") != "latest" {
+			t.Fatalf("toolkit_versions = %q, want latest", r.URL.Query().Get("toolkit_versions"))
+		}
+		_, _ = w.Write([]byte(`{"items":[{"slug":"GMAIL_FETCH_EMAILS","description":"Fetch Gmail messages","toolkit":{"slug":"gmail"}}]}`))
+	}))
+	defer server.Close()
+
+	client := NewComposioClient(ComposioClientConfig{
+		BaseURL:        server.URL,
+		APIKey:         "test-key",
+		Timeout:        time.Second,
+		MaxResultBytes: 32 * 1024,
+	})
+
+	page, err := client.ListTools(context.Background(), ComposioToolQuery{ToolkitSlug: "gmail"})
+	if err != nil {
+		t.Fatalf("ListTools() error = %v", err)
+	}
+	if len(page.Items) != 1 || page.Items[0].ToolkitSlug != "gmail" {
+		t.Fatalf("unexpected tools page: %+v", page)
+	}
+}
+
 func TestComposioClientNormalizesAuthAndConnectedAccountToolkitMetadata(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
