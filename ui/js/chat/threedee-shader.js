@@ -18,7 +18,6 @@
     let nextImpulseAt = 0;
     const impulses = [];
     let heightCache = null;
-    let normalFrameToggle = 0;
     const _preImpulse = { ages: new Float64Array(64), fades: new Float64Array(64), strengths: new Float64Array(64), radii: new Float64Array(64), alive: 0 };
 
     let currentMode = 0;
@@ -252,9 +251,7 @@
 
     const IMPULSE_LIFETIME = 3.6;
     const MAX_IMPULSES = 48;
-    const FRAME_INTERVAL = 1000 / 60;
-    const FRAME_SKIP_TOLERANCE = 0.85;
-    const NORMAL_RECOMPUTE_INTERVAL = 4;
+    const DEFAULT_FRAME_INTERVAL = 1000 / 60;
     const IMPULSE_FADE_CUTOFF = 0.005;
 
     let colorLow;
@@ -566,7 +563,6 @@
         robotBounds = null;
         mouseActive = false;
         mouseDown = false;
-        normalFrameToggle = 0;
         cameraShake = 0;
         previousMode = -1;
         currentMode = 0;
@@ -3575,12 +3571,8 @@
 
         position.needsUpdate = true;
         color.needsUpdate = true;
-        // Throttle normal recomputation separately from visible wave cadence.
-        normalFrameToggle++;
-        if (normalFrameToggle % NORMAL_RECOMPUTE_INTERVAL === 0) {
-            surfaceGeometry.computeVertexNormals();
-            surfaceGeometry.attributes.normal.needsUpdate = true;
-        }
+        surfaceGeometry.computeVertexNormals();
+        surfaceGeometry.attributes.normal.needsUpdate = true;
 
         // Reuse cached surface heights for grid line vertices (Fix 2)
         // Grid vertices lie on the same grid as the surface mesh, so we
@@ -3614,11 +3606,9 @@
         if (!active) return;
         animationId = requestAnimationFrame(render);
 
-        if (lastFrame > 0 && time - lastFrame < FRAME_INTERVAL * FRAME_SKIP_TOLERANCE) return;
-
         // Use actual elapsed wall-clock time for smooth animation
         // regardless of monitor refresh rate
-        const elapsed = lastFrame > 0 ? (time - lastFrame) : FRAME_INTERVAL;
+        const elapsed = lastFrame > 0 ? (time - lastFrame) : DEFAULT_FRAME_INTERVAL;
         lastFrame = time;
 
         // Clamp to prevent physics explosion after tab-switch or stall

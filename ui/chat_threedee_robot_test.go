@@ -464,11 +464,10 @@ func TestThreeDeeWaveRenderingUsesSmoothFrameCadence(t *testing.T) {
 
 	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
 	for _, marker := range []string{
-		"const FRAME_INTERVAL = 1000 / 60;",
-		"const FRAME_SKIP_TOLERANCE = 0.85;",
-		"const NORMAL_RECOMPUTE_INTERVAL = 4;",
-		"time - lastFrame < FRAME_INTERVAL * FRAME_SKIP_TOLERANCE",
-		"normalFrameToggle % NORMAL_RECOMPUTE_INTERVAL === 0",
+		"const DEFAULT_FRAME_INTERVAL = 1000 / 60;",
+		"const elapsed = lastFrame > 0 ? (time - lastFrame) : DEFAULT_FRAME_INTERVAL;",
+		"surfaceGeometry.computeVertexNormals();",
+		"surfaceGeometry.attributes.normal.needsUpdate = true;",
 	} {
 		if !strings.Contains(shader, marker) {
 			t.Fatalf("threedee-shader.js missing smooth wave frame cadence marker %q", marker)
@@ -477,8 +476,11 @@ func TestThreeDeeWaveRenderingUsesSmoothFrameCadence(t *testing.T) {
 	if strings.Contains(shader, "const FRAME_INTERVAL = 1000 / 30;") {
 		t.Fatal("ThreeDee waves must not be capped to 30 FPS")
 	}
-	if strings.Contains(shader, "normalFrameToggle % 3 === 0") {
-		t.Fatal("normal recomputation interval should be named and tuned separately from render FPS")
+	if strings.Contains(shader, "time - lastFrame <") {
+		t.Fatal("ThreeDee waves should not manually skip requestAnimationFrame ticks")
+	}
+	if strings.Contains(shader, "NORMAL_RECOMPUTE_INTERVAL") || strings.Contains(shader, "normalFrameToggle %") {
+		t.Fatal("surface normals should update every visible wave frame to avoid lighting jumps")
 	}
 }
 
