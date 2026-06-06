@@ -126,6 +126,51 @@ func isTTSConfigured(cfg *config.Config) bool {
 	}
 }
 
+func userExplicitlyRequestedCoAgentStop(userContext string) bool {
+	text := strings.ToLower(strings.TrimSpace(userContext))
+	if text == "" {
+		return false
+	}
+	hasCoAgentTarget := strings.Contains(text, "co-agent") ||
+		strings.Contains(text, "co agent") ||
+		strings.Contains(text, "coagent") ||
+		strings.Contains(text, "sub-agent") ||
+		strings.Contains(text, "sub agent") ||
+		strings.Contains(text, "writer") ||
+		strings.Contains(text, "autor") ||
+		strings.Contains(text, "spezialist") ||
+		strings.Contains(text, "specialist")
+	if !hasCoAgentTarget {
+		return false
+	}
+	stopPhrases := []string{
+		"stoppe", "stoppen", "stopp ", "abbrechen", "brich", "beenden", "beende",
+		"cancel", "abort", "stop ", "kill", "terminate",
+	}
+	for _, phrase := range stopPhrases {
+		if strings.Contains(text, phrase) {
+			return true
+		}
+	}
+	return false
+}
+
+func blockedCoAgentStopOutput(registry *CoAgentRegistry, coID string) string {
+	payload := map[string]interface{}{
+		"status":             "blocked",
+		"message":            "Co-Agent cancellation requires an explicit user request. Do not stop a running co-agent just because it is still working; wait and use get_result again.",
+		"co_agent_id":        coID,
+		"poll_after_seconds": coAgentPollAfterSeconds,
+	}
+	if registry != nil && coID != "" {
+		if status, err := registry.GetStatus(coID); err == nil {
+			payload["co_agent_status"] = status
+		}
+	}
+	data, _ := json.Marshal(payload)
+	return "Tool Output: " + string(data)
+}
+
 func logThreeDPrinterOperation(logger *slog.Logger, req threeDPrinterArgs) {
 	if logger == nil {
 		return
@@ -351,6 +396,9 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if coID == "" {
 					return `Tool Output: {"status": "error", "message": "'co_agent_id' is required."}`
 				}
+				if !userExplicitlyRequestedCoAgentStop(dc.UserContext) {
+					return blockedCoAgentStopOutput(coAgentRegistry, coID)
+				}
 				if err := coAgentRegistry.Stop(coID); err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
@@ -358,6 +406,9 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return fmt.Sprintf(`Tool Output: {"status": "ok", "message": "Co-Agent '%s' stopped."}`, coID)
 
 			case "stop_all", "cancel_all":
+				if !userExplicitlyRequestedCoAgentStop(dc.UserContext) {
+					return blockedCoAgentStopOutput(coAgentRegistry, "")
+				}
 				n := coAgentRegistry.StopAll()
 
 				return fmt.Sprintf(`Tool Output: {"status": "ok", "message": "Stopped %d co-agent(s)."}`, n)

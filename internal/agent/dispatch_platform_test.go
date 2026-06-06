@@ -221,6 +221,169 @@ func TestDispatchThreeDPrinterShowLiveStreamEmitsInlineStream(t *testing.T) {
 	}
 }
 
+func TestDispatchCoAgentStopRequiresExplicitUserCancelRequest(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.CoAgents.Enabled = true
+	cfg.CoAgents.MaxConcurrent = 1
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	registry := NewCoAgentRegistry(1, logger)
+	id, _, err := registry.RegisterWithPriority("specialist-writer", "Write a story", func() {}, 2)
+	if err != nil {
+		t.Fatalf("RegisterWithPriority: %v", err)
+	}
+
+	out, ok := dispatchPlatform(context.Background(), ToolCall{
+		Action:    "co_agent",
+		Operation: "stop",
+		CoAgentID: id,
+	}, &DispatchContext{
+		Cfg:             cfg,
+		Logger:          logger,
+		CoAgentRegistry: registry,
+		UserContext:     "lasse den autor co agent eine scifi kurzgeschichte erstellen",
+	})
+	if !ok {
+		t.Fatal("expected dispatchPlatform to handle co_agent stop")
+	}
+	if !strings.Contains(out, `"status":"blocked"`) {
+		t.Fatalf("expected blocked stop without explicit user request, got: %s", out)
+	}
+
+	status, err := registry.GetStatus(id)
+	if err != nil {
+		t.Fatalf("GetStatus: %v", err)
+	}
+	if status["state"] != string(CoAgentRunning) {
+		t.Fatalf("co-agent state = %v, want running after blocked stop", status["state"])
+	}
+}
+
+func TestDispatchToolCallPropagatesUserContextToCoAgentStopGuard(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.CoAgents.Enabled = true
+	cfg.CoAgents.MaxConcurrent = 1
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	registry := NewCoAgentRegistry(1, logger)
+	id, _, err := registry.RegisterWithPriority("specialist-writer", "Write a story", func() {}, 2)
+	if err != nil {
+		t.Fatalf("RegisterWithPriority: %v", err)
+	}
+
+	tc := ToolCall{
+		Action:    "co_agent",
+		Operation: "stop",
+		CoAgentID: id,
+	}
+	out := DispatchToolCall(context.Background(), &tc, &DispatchContext{
+		Cfg:             cfg,
+		Logger:          logger,
+		CoAgentRegistry: registry,
+	}, "lasse den autor co agent eine scifi kurzgeschichte erstellen")
+	if !strings.Contains(out, `"status":"blocked"`) {
+		t.Fatalf("expected DispatchToolCall to propagate user context and block stop, got: %s", out)
+	}
+	status, err := registry.GetStatus(id)
+	if err != nil {
+		t.Fatalf("GetStatus: %v", err)
+	}
+	if status["state"] != string(CoAgentRunning) {
+		t.Fatalf("co-agent state = %v, want running after blocked stop", status["state"])
+	}
+}
+
+func TestDispatchCoAgentStopAllowsExplicitUserCancelRequest(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.CoAgents.Enabled = true
+	cfg.CoAgents.MaxConcurrent = 1
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	registry := NewCoAgentRegistry(1, logger)
+	id, _, err := registry.RegisterWithPriority("specialist-writer", "Write a story", func() {}, 2)
+	if err != nil {
+		t.Fatalf("RegisterWithPriority: %v", err)
+	}
+
+	out, ok := dispatchPlatform(context.Background(), ToolCall{
+		Action:    "co_agent",
+		Operation: "stop",
+		CoAgentID: id,
+	}, &DispatchContext{
+		Cfg:             cfg,
+		Logger:          logger,
+		CoAgentRegistry: registry,
+		UserContext:     "Bitte stoppe den Writer-Co-Agent jetzt.",
+	})
+	if !ok {
+		t.Fatal("expected dispatchPlatform to handle co_agent stop")
+	}
+	if !strings.Contains(out, `"status": "ok"`) {
+		t.Fatalf("expected explicit user stop to succeed, got: %s", out)
+	}
+
+	status, err := registry.GetStatus(id)
+	if err != nil {
+		t.Fatalf("GetStatus: %v", err)
+	}
+	if status["state"] != string(CoAgentCancelled) {
+		t.Fatalf("co-agent state = %v, want cancelled after explicit stop", status["state"])
+	}
+}
+
+func TestDispatchCoAgentStopAllRequiresExplicitUserCancelRequest(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.CoAgents.Enabled = true
+	cfg.CoAgents.MaxConcurrent = 2
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	registry := NewCoAgentRegistry(2, logger)
+	id, _, err := registry.RegisterWithPriority("specialist-writer", "Write a story", func() {}, 2)
+	if err != nil {
+		t.Fatalf("RegisterWithPriority: %v", err)
+	}
+
+	out, ok := dispatchPlatform(context.Background(), ToolCall{
+		Action:    "co_agent",
+		Operation: "stop_all",
+	}, &DispatchContext{
+		Cfg:             cfg,
+		Logger:          logger,
+		CoAgentRegistry: registry,
+		UserContext:     "schreib die Geschichte mit dem Writer-Co-Agent",
+	})
+	if !ok {
+		t.Fatal("expected dispatchPlatform to handle co_agent stop_all")
+	}
+	if !strings.Contains(out, `"status":"blocked"`) {
+		t.Fatalf("expected blocked stop_all without explicit user request, got: %s", out)
+	}
+
+	status, err := registry.GetStatus(id)
+	if err != nil {
+		t.Fatalf("GetStatus: %v", err)
+	}
+	if status["state"] != string(CoAgentRunning) {
+		t.Fatalf("co-agent state = %v, want running after blocked stop_all", status["state"])
+	}
+}
+
+func TestCoAgentStopIntentDetection(t *testing.T) {
+	cases := []struct {
+		text string
+		want bool
+	}{
+		{text: "Bitte stoppe den Writer-Co-Agent.", want: true},
+		{text: "brich alle co agents ab", want: true},
+		{text: "cancel the running co-agent", want: true},
+		{text: "lasse den autor co agent eine scifi kurzgeschichte erstellen", want: false},
+		{text: "der co-agent stoppt hoffentlich nicht", want: false},
+		{text: "ist der co-agent schon gestoppt?", want: false},
+	}
+
+	for _, tt := range cases {
+		if got := userExplicitlyRequestedCoAgentStop(tt.text); got != tt.want {
+			t.Fatalf("userExplicitlyRequestedCoAgentStop(%q) = %v, want %v", tt.text, got, tt.want)
+		}
+	}
+}
+
 func agentThreeDPrinterConfig(t *testing.T, wsURL string) *config.Config {
 	t.Helper()
 	cfg := &config.Config{}

@@ -17,8 +17,8 @@ Spawn and manage parallel co-agents that work on sub-tasks independently. Each c
 | `spawn_specialist` | Start a specialized expert co-agent |
 | `list` | Show all co-agents and their status |
 | `get_result` | Retrieve the result of a completed co-agent |
-| `stop` | Cancel a running co-agent |
-| `stop_all` | Cancel all running co-agents |
+| `stop` | Cancel a running co-agent only when the user explicitly requested cancellation |
+| `stop_all` | Cancel all running co-agents only when the user explicitly requested cancellation |
 
 ## Parameters
 
@@ -83,11 +83,13 @@ Queued entries also include queue position, retry count, and recent lifecycle ev
 ```json
 {"action": "co_agent", "operation": "stop", "co_agent_id": "specialist-coder-2"}
 ```
+Use this only when the user explicitly asks to cancel, stop, abort, or kill that co-agent. Do not stop a co-agent just because `get_result` says it is still running; wait and poll again.
 
 ### stop_all — Cancel all running co-agents
 ```json
 {"action": "co_agent", "operation": "stop_all"}
 ```
+Use this only when the user explicitly asks to cancel all co-agents.
 
 ## Workflow Pattern
 
@@ -96,6 +98,8 @@ Queued entries also include queue position, retry count, and recent lifecycle ev
 3. **Check status** with `list` periodically
 4. **Retrieve results** with `get_result` once completed
 5. **Integrate** results into your response
+
+If a co-agent is still running, keep waiting or continue with other work. Do not conclude it has failed unless its state is `failed`, `cancelled`, or it reaches its configured timeout.
 
 ## When to Use Specialists vs Generic Co-Agents
 

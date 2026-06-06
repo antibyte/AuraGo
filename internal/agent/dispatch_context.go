@@ -58,4 +58,5 @@ type DispatchContext struct {
 	ExecutionTimeMs     int64
 	MessageSource       string
 	Broker              FeedbackBroker
+	UserContext         string
 }

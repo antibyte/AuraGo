@@ -68,6 +68,7 @@ func DispatchToolCall(ctx context.Context, tc *ToolCall, dc *DispatchContext, us
 	logger := dc.Logger
 	guardian := dc.Guardian
 	llmGuardian := dc.LLMGuardian
+	dc.UserContext = userContext
 
 	// LLM Guardian: pre-execution security check
 	if llmGuardian != nil {
