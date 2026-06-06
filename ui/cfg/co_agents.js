@@ -134,9 +134,10 @@ function _renderSpecialistCard(role, spec) {
     html += '<div class="ca-section-divider"></div>';
     html += '<div class="ca-cb-title">' + t('config.co_agents.spec_extra_title') + '</div>';
 
+    var promptRows = role.key === 'writer' ? 10 : 3;
     html += '<label class="ca-spec-label">';
     html += '<span class="ca-spec-caption">' + t('config.co_agents.spec_additional_prompt_label') + '</span>';
-    html += '<textarea class="field-input ca-spec-textarea" rows="3" data-path="' + basePath + '.additional_prompt" placeholder="' + escapeAttr(t('config.co_agents.spec_additional_prompt_placeholder')) + '" oninput="setNestedValue(configData,\'' + basePath + '.additional_prompt\',this.value);setDirty(true)">' + escapeHtml(spec.additional_prompt || '') + '</textarea>';
+    html += '<textarea class="field-input ca-spec-textarea" rows="' + promptRows + '" data-path="' + basePath + '.additional_prompt" placeholder="' + escapeAttr(t('config.co_agents.spec_additional_prompt_placeholder')) + '" oninput="setNestedValue(configData,\'' + basePath + '.additional_prompt\',this.value);setDirty(true)">' + escapeHtml(spec.additional_prompt || '') + '</textarea>';
     html += '</label>';
 
     html += '<div class="ca-cheatsheet-field" id="ca-cs-' + role.key + '">';

@@ -96,6 +96,10 @@ co_agents:
 - `TimeoutSeconds`: 120
 - `MaxTokens`: 0 (unlimited)
 
+### Writer specialist default
+
+The `writer` specialist uses a multilingual natural-writing default in `co_agents.specialists.writer.additional_prompt`. It helps the author co-agent avoid generic AI wording, preserve the requested language and register, and keep rewrites honest without inventing facts. Set the field to `""` to disable this default, or replace it with your own writing rules.
+
 ---
 
 ## Spawning Co-Agents

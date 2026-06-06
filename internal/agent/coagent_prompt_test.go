@@ -57,9 +57,11 @@ func (f *coAgentContextVectorDB) StoreDocumentInCollection(concept, content, col
 func (f *coAgentContextVectorDB) StoreDocumentWithEmbeddingInCollection(concept, content string, embedding []float32, collection string) (string, error) {
 	return "", nil
 }
-func (f *coAgentContextVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error { return nil }
-func (f *coAgentContextVectorDB) DeleteCheatsheet(id string) error               { return nil }
-func (f *coAgentContextVectorDB) RegisterCollections(collections []string)       {}
+func (f *coAgentContextVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error {
+	return nil
+}
+func (f *coAgentContextVectorDB) DeleteCheatsheet(id string) error         { return nil }
+func (f *coAgentContextVectorDB) RegisterCollections(collections []string) {}
 
 func TestBuildContextSnapshotUsesMemoriesOnly(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -181,5 +183,46 @@ func TestBuildSpecialistSystemPromptInjectsLeanContext(t *testing.T) {
 	}
 	if !strings.Contains(prompt, "Task=Design a compact status card") {
 		t.Fatalf("prompt = %q, want task injected", prompt)
+	}
+}
+
+func TestBuildWriterSpecialistSystemPromptIncludesDefaultHumanizerPrompt(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\nagent:\n  system_language: de\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	promptsDir := t.TempDir()
+	templatesDir := filepath.Join(promptsDir, "templates")
+	if err := os.MkdirAll(templatesDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	template := "Language={{LANGUAGE}}\nTask={{TASK}}\n"
+	if err := os.WriteFile(filepath.Join(templatesDir, "specialist_writer.md"), []byte(template), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	cfg.Directories.PromptsDir = promptsDir
+
+	prompt := buildSpecialistSystemPrompt(cfg, "writer", CoAgentRequest{
+		Task:       "Schreibe einen natürlich klingenden Statusbericht.",
+		Specialist: "writer",
+	}, nil, nil, nil)
+
+	if !strings.Contains(prompt, "Language=de") {
+		t.Fatalf("prompt = %q, want system language injected", prompt)
+	}
+	for _, want := range []string{
+		"Task=Schreibe einen natürlich klingenden Statusbericht.",
+		"## Multilingual natural writing defaults",
+		"Preserve mixed-language passages unless translation is requested.",
+		"Remove translationese",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("writer prompt missing %q: %q", want, prompt)
+		}
 	}
 }

@@ -110,6 +110,10 @@ co_agents:
 | `timeout_seconds` | `300` | 5 Minuten Timeout |
 | `max_tokens` | `0` | Unbegrenzt |
 
+### Standardprompt für den Writer-Spezialisten
+
+Der `writer`-Spezialist nutzt standardmäßig einen mehrsprachigen Natural-Writing-Zusatzprompt in `co_agents.specialists.writer.additional_prompt`. Er hilft dem Autor-Co-Agenten, generische KI-Formulierungen zu vermeiden, Sprache und Register der Aufgabe zu erhalten und bei Umschreibungen keine Fakten zu erfinden. Setze das Feld auf `""`, um den Default zu deaktivieren, oder ersetze ihn durch eigene Schreibregeln.
+
 ### Modell-Auswahl
 
 > 💡 **Tipp:** Nutze für Co-Agenten ein kleineres, schnelleres Modell als den Main-Agenten:

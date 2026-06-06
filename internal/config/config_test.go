@@ -310,6 +310,72 @@ func TestValidSpecialistRoles(t *testing.T) {
 	}
 }
 
+func TestLoadDefaultsWriterSpecialistAdditionalPromptWhenMissing(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	got := cfg.CoAgents.Specialists.Writer.AdditionalPrompt
+	for _, want := range []string{
+		"## Multilingual natural writing defaults",
+		"You are the AuraGo Writer Specialist.",
+		"Do not use English-only rules blindly.",
+		"Do not claim text was written by a human",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("writer additional prompt missing %q: %q", want, got)
+		}
+	}
+}
+
+func TestLoadPreservesExplicitEmptyWriterSpecialistAdditionalPrompt(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	configContent := `
+co_agents:
+  specialists:
+    writer:
+      additional_prompt: ""
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.CoAgents.Specialists.Writer.AdditionalPrompt != "" {
+		t.Fatalf("writer additional prompt = %q, want explicit empty preserved", cfg.CoAgents.Specialists.Writer.AdditionalPrompt)
+	}
+}
+
+func TestLoadPreservesCustomWriterSpecialistAdditionalPrompt(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	configContent := `
+co_agents:
+  specialists:
+    writer:
+      additional_prompt: "Keep my own writer instructions."
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if got, want := cfg.CoAgents.Specialists.Writer.AdditionalPrompt, "Keep my own writer instructions."; got != want {
+		t.Fatalf("writer additional prompt = %q, want %q", got, want)
+	}
+}
+
 func TestLoadUpgradesLegacyIndexingExtensions(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "config_test")
 	if err != nil {
