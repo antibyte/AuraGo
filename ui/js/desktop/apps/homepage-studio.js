@@ -146,20 +146,14 @@
                 }
 
                 const webRunning = data && data.web_container && data.web_container.running;
-                statusDot.className = webRunning ? 'vd-hp-status-dot online' : 'vd-hp-status-dot offline';
-                statusDot.title = webRunning
+                const pythonRunning = data && data.python_server && data.python_server.running;
+                const serverRunning = webRunning || pythonRunning;
+                statusDot.className = serverRunning ? 'vd-hp-status-dot online' : 'vd-hp-status-dot offline';
+                statusDot.title = serverRunning
                     ? t('homepage_studio.status_online', 'Web server running')
                     : t('homepage_studio.status_offline', 'Web server not running');
 
-                if (webRunning) {
-                    const port = 8080;
-                    state.previewUrl = 'http://localhost:' + port;
-                    if (data.tunnel_url) {
-                        state.previewUrl = data.tunnel_url;
-                    }
-                } else {
-                    state.previewUrl = '';
-                }
+                state.previewUrl = homepageStatusPreviewURL(data);
                 updatePreviewUrl();
             } catch (_) {
                 statusDot.className = 'vd-hp-status-dot offline';
@@ -167,6 +161,22 @@
                 state.previewUrl = '';
                 updatePreviewUrl();
             }
+        }
+
+        function homepageStatusPreviewURL(data) {
+            if (!data) return '';
+            const webRunning = data.web_container && data.web_container.running;
+            const pythonRunning = data.python_server && data.python_server.running;
+            const serverRunning = webRunning || pythonRunning;
+            if (data.preview_url) return String(data.preview_url);
+            if (serverRunning && data.tunnel_url) return String(data.tunnel_url);
+            if (webRunning && data.web_container.browser_url) {
+                return String(data.web_container.browser_url);
+            }
+            if (pythonRunning && data.python_server.browser_url) {
+                return String(data.python_server.browser_url);
+            }
+            return '';
         }
 
         function updatePreviewUrl() {

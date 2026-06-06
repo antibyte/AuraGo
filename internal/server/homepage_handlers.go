@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"aurago/internal/tools"
@@ -23,6 +24,7 @@ func handleHomepageStatus(s *Server) http.HandlerFunc {
 		webServerDomain := s.Cfg.Homepage.WebServerDomain
 		allowLocalServer := s.Cfg.Homepage.AllowLocalServer
 		homepageEnabled := s.Cfg.Homepage.Enabled
+		webServerInternalOnly := s.Cfg.Homepage.WebServerInternalOnly
 		s.CfgMu.RUnlock()
 
 		if !homepageEnabled {
@@ -39,25 +41,85 @@ func handleHomepageStatus(s *Server) http.HandlerFunc {
 			WorkspacePath:         workspacePath,
 			WebServerPort:         webServerPort,
 			WebServerDomain:       webServerDomain,
-			WebServerInternalOnly: s.Cfg.Homepage.WebServerInternalOnly,
+			WebServerInternalOnly: webServerInternalOnly,
 			AllowLocalServer:      allowLocalServer,
 		}
 		result := tools.HomepageStatus(cfg, s.Logger)
 
-		// Inject tunnel URL when Cloudflare Tunnel is running
-		if tunnelURL := tools.GetTunnelURL(); tunnelURL != "" {
-			var parsed map[string]interface{}
-			if json.Unmarshal([]byte(result), &parsed) == nil {
+		var parsed map[string]interface{}
+		if json.Unmarshal([]byte(result), &parsed) == nil {
+			enrichHomepageStatusForRequest(parsed, webServerPort, webServerInternalOnly, r)
+
+			// Inject tunnel URL when Cloudflare Tunnel is running.
+			if tunnelURL := tools.GetTunnelURL(); tunnelURL != "" {
 				parsed["tunnel_url"] = tunnelURL
-				enriched, err := json.Marshal(parsed)
-				if err == nil {
-					result = string(enriched)
+				if homepageAnyServerRunning(parsed) {
+					parsed["preview_url"] = tunnelURL
 				}
+			}
+			enriched, err := json.Marshal(parsed)
+			if err == nil {
+				result = string(enriched)
 			}
 		}
 
 		w.Write([]byte(result))
 	}
+}
+
+func enrichHomepageStatusForRequest(payload map[string]interface{}, webServerPort int, internalOnly bool, r *http.Request) {
+	if payload == nil || internalOnly {
+		return
+	}
+	localURL := homepageBrowserURLForRequest(r, webServerPort)
+	if localURL == "" {
+		return
+	}
+
+	if webContainer, ok := homepageStatusObject(payload["web_container"]); ok && homepageStatusRunning(webContainer) {
+		webContainer["browser_url"] = localURL
+		payload["local_browser_url"] = localURL
+		if _, exists := payload["preview_url"]; !exists {
+			payload["preview_url"] = localURL
+		}
+	}
+	if pythonServer, ok := homepageStatusObject(payload["python_server"]); ok && homepageStatusRunning(pythonServer) {
+		pythonServer["browser_url"] = localURL
+		payload["local_browser_url"] = localURL
+		if _, exists := payload["preview_url"]; !exists {
+			payload["preview_url"] = localURL
+		}
+	}
+}
+
+func homepageBrowserURLForRequest(r *http.Request, webServerPort int) string {
+	if requestLooksTailscale(r) {
+		return ""
+	}
+	if webServerPort <= 0 {
+		webServerPort = 8080
+	}
+	return manifestURLWithRequestHost(fmt.Sprintf("http://127.0.0.1:%d", webServerPort), r)
+}
+
+func homepageStatusObject(value interface{}) (map[string]interface{}, bool) {
+	obj, ok := value.(map[string]interface{})
+	return obj, ok
+}
+
+func homepageStatusRunning(value map[string]interface{}) bool {
+	running, ok := value["running"].(bool)
+	return ok && running
+}
+
+func homepageAnyServerRunning(payload map[string]interface{}) bool {
+	if webContainer, ok := homepageStatusObject(payload["web_container"]); ok && homepageStatusRunning(webContainer) {
+		return true
+	}
+	if pythonServer, ok := homepageStatusObject(payload["python_server"]); ok && homepageStatusRunning(pythonServer) {
+		return true
+	}
+	return false
 }
 
 // handleHomepageDetectWorkspace inspects the running homepage dev container and returns
