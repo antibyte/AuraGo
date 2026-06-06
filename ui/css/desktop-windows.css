@@ -581,6 +581,12 @@
     min-height: 0;
 }
 
+.vd-store-terminal-preview .vd-store-preview-pane,
+.vd-store-terminal-preview .vd-store-app-frame {
+    background: #05070a;
+    color-scheme: dark;
+}
+
 .vd-store-terminal-pane {
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);

@@ -285,6 +285,11 @@
     background: #fff;
 }
 
+.vd-store-terminal-preview .vd-store-app-frame {
+    background: #05070a;
+    color-scheme: dark;
+}
+
 .vd-store-modal {
     max-width: 430px;
 }

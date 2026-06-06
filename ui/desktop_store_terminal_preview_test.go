@@ -92,6 +92,8 @@ func TestDesktopStoreTerminalPreviewSupportsResizableSplit(t *testing.T) {
 		"grid-template-columns: minmax(280px, var(--store-terminal-width)) 6px minmax(320px, 1fr)",
 		".vd-store-terminal-resizer",
 		"cursor: col-resize",
+		".vd-store-terminal-preview .vd-store-app-frame",
+		"background: #05070a",
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("store terminal preview CSS missing resizable split marker %q", marker)

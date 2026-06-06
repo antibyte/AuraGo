@@ -259,17 +259,23 @@ func TestCommandCodePreviewGatewayAutoDiscoversAndRefreshesTargets(t *testing.T)
 		for _, marker := range []string{
 			"const candidatePorts",
 			"const previewStatusPath",
+			"const previewReloadStorageKey",
 			"async function resolveTarget(forceDiscover)",
 			"async function resolveTargetStatus(forceDiscover)",
 			"function probeTarget(target)",
 			"fs.writeFileSync(targetFile, target.href)",
+			"function shouldReloadPreview(status)",
+			"function markPreviewNotReady()",
 			"async function pollPreviewStatus()",
 			"fetch('/__commandcode_preview_status'",
-			"if (status && status.ready) window.location.reload();",
+			"if (status && status.ready && shouldReloadPreview(status)) {",
 		} {
 			if !strings.Contains(text, marker) {
 				t.Fatalf("%s CommandCode preview gateway missing auto-discovery marker %q", name, marker)
 			}
+		}
+		if strings.Contains(text, "if (status && status.ready) window.location.reload();") {
+			t.Fatalf("%s CommandCode preview placeholder must not reload continuously without a target guard", name)
 		}
 		if strings.Contains(text, "setTimeout(() => window.location.reload(), 1500)") {
 			t.Fatalf("%s CommandCode preview placeholder must not reload on a fixed timer when no page is available", name)

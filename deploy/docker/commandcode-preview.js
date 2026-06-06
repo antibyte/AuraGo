@@ -118,11 +118,31 @@ function placeholder(res) {
     <p><code>preview-port 5173</code></p>
   </main>
   <script>
+    const previewReloadStorageKey = 'commandcode-preview-reload-target';
+    function shouldReloadPreview(status) {
+      const target = String((status && status.target) || 'default');
+      try {
+        if (window.sessionStorage.getItem(previewReloadStorageKey) === target) return false;
+        window.sessionStorage.setItem(previewReloadStorageKey, target);
+      } catch (_) {
+        return false;
+      }
+      return true;
+    }
+    function markPreviewNotReady() {
+      try {
+        window.sessionStorage.removeItem(previewReloadStorageKey);
+      } catch (_) {}
+    }
     async function pollPreviewStatus() {
       try {
         const response = await fetch('/__commandcode_preview_status', { cache: 'no-store' });
         const status = await response.json();
-        if (status && status.ready) window.location.reload();
+        if (status && status.ready && shouldReloadPreview(status)) {
+          window.location.reload();
+          return;
+        }
+        if (!status || !status.ready) markPreviewNotReady();
       } catch (_) {}
       setTimeout(pollPreviewStatus, 1500);
     }
