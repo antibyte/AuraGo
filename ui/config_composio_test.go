@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 	"testing"
@@ -41,6 +42,100 @@ func TestConfigComposioPickerUsesOpaqueModalSurfaces(t *testing.T) {
 	} {
 		if !strings.Contains(configCSS, marker) {
 			t.Fatalf("composio modal CSS missing opaque surface marker %q", marker)
+		}
+	}
+}
+
+func TestConfigComposioButtonStylesFitLocalizedLabels(t *testing.T) {
+	t.Parallel()
+
+	configCSS := strings.ReplaceAll(readDesktopAssetText(t, "css/config.css"), "\r\n", "\n")
+	for _, marker := range []string{
+		".cmp-toolbar .cfg-save-btn-sm,\n.cmp-modal-controls .cfg-save-btn-sm,\n.cmp-detail-head .cfg-save-btn-sm,\n.cmp-detail-actions .cfg-save-btn-sm",
+		".cmp-secret-row .cfg-save-btn-sm",
+		"min-width: max-content;",
+		"min-height: 36px;",
+		"line-height: 1.2;",
+		".cmp-small-toggle {\n    min-width: 96px;",
+	} {
+		if !strings.Contains(configCSS, marker) {
+			t.Fatalf("composio button CSS missing localized-label marker %q", marker)
+		}
+	}
+}
+
+func TestConfigComposioTranslationsUseNativeDiacritics(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]map[string]string{
+		"de": {
+			"config.composio.allow_nl":               "Natürliche Sprache erlauben",
+			"config.composio.api_key_saved":          "API-Schlüssel im Vault gespeichert",
+			"config.composio.close":                  "Schließen",
+			"config.composio.filter_selected":        "Ausgewählt",
+			"config.composio.status_missing_api_key": "API-Schlüssel fehlt",
+		},
+		"da": {
+			"config.composio.allow_destructive":  "Tillad destruktive værktøjer",
+			"config.composio.api_key_saved":      "API-nøgle gemt i vault",
+			"config.composio.no_tools":           "Ingen værktøjer",
+			"config.composio.search_placeholder": "Søg toolkits, f.eks. github eller gmail",
+			"config.composio.status_loading":     "Indlæser Composio-status...",
+		},
+		"sv": {
+			"config.composio.allow_nl":           "Tillåt naturligt språk",
+			"config.composio.close":              "Stäng",
+			"config.composio.modal_subtitle":     "Välj toolkits, anslut konton och styr riskpolicy.",
+			"config.composio.open_picker":        "Bläddra bland integrationer",
+			"config.composio.status_ready":       "Composio är redo",
+			"config.composio.search_placeholder": "Sök toolkits, t.ex. github eller gmail",
+		},
+		"no": {
+			"config.composio.allow_destructive":  "Tillat destruktive verktøy",
+			"config.composio.allow_nl":           "Tillat naturlig språk",
+			"config.composio.api_key_saved":      "API-nøkkel lagret i vault",
+			"config.composio.open_picker":        "Bla gjennom integrasjoner",
+			"config.composio.search_placeholder": "Søk toolkits, f.eks. github eller gmail",
+		},
+		"cs": {
+			"config.composio.accounts":               "Účty",
+			"config.composio.api_key_saved":          "API klíč uložen ve vaultu",
+			"config.composio.status_missing_api_key": "Chybí API klíč",
+			"config.composio.tools_preview":          "Náhled nástrojů",
+		},
+		"pl": {
+			"config.composio.allow_nl":       "Zezwól na język naturalny",
+			"config.composio.connect":        "Połącz",
+			"config.composio.no_results":     "Brak wyników",
+			"config.composio.status_loading": "Ładowanie statusu Composio...",
+			"config.composio.tools_preview":  "Podgląd narzędzi",
+		},
+		"fr": {
+			"config.composio.allowed":       "Autorisé",
+			"config.composio.api_key_saved": "Clé API enregistrée dans le vault",
+			"config.composio.modal_title":   "Intégrations Composio",
+			"config.composio.tools_preview": "Aperçu des outils",
+		},
+		"es": {
+			"config.composio.modal_subtitle":  "Elija toolkits, conecte cuentas y controle la política de riesgo.",
+			"config.composio.save_selection":  "Guardar selección",
+			"config.composio.status_ready":    "Composio está listo",
+			"config.composio.test_connection": "Probar conexión",
+		},
+		"pt": {
+			"config.composio.modal_title":     "Integrações Composio",
+			"config.composio.open_picker":     "Explorar integrações",
+			"config.composio.save_selection":  "Salvar seleção",
+			"config.composio.test_connection": "Testar conexão",
+		},
+	}
+
+	for lang, expected := range cases {
+		values := readComposioLangMap(t, lang)
+		for key, want := range expected {
+			if got := values[key]; got != want {
+				t.Fatalf("%s %s = %q, want %q", lang, key, got, want)
+			}
 		}
 	}
 }
@@ -222,4 +317,13 @@ func cssZIndex(t *testing.T, block string) int {
 		t.Fatalf("parse z-index %q: %v", rest, err)
 	}
 	return value
+}
+
+func readComposioLangMap(t *testing.T, lang string) map[string]string {
+	t.Helper()
+	var values map[string]string
+	if err := json.Unmarshal([]byte(readDesktopAssetText(t, "lang/config/composio/"+lang+".json")), &values); err != nil {
+		t.Fatalf("parse composio %s translations: %v", lang, err)
+	}
+	return values
 }

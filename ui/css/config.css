@@ -7079,6 +7079,18 @@ select.cfg-input option {
     margin-bottom: 1.25rem;
 }
 
+.cmp-toolbar .cfg-save-btn-sm,
+.cmp-modal-controls .cfg-save-btn-sm,
+.cmp-detail-head .cfg-save-btn-sm,
+.cmp-detail-actions .cfg-save-btn-sm,
+.cmp-secret-row .cfg-save-btn-sm {
+    min-width: max-content;
+    min-height: 36px;
+    padding: 0.55rem 1rem;
+    line-height: 1.2;
+    text-align: center;
+}
+
 .cmp-selected-pill,
 .cmp-chip {
     display: inline-flex;
@@ -7257,13 +7269,15 @@ select.cfg-input option {
 }
 
 .cmp-small-toggle {
-    min-width: 78px;
+    min-width: 96px;
     min-height: 32px;
+    padding: 0.35rem 0.75rem;
     border: 1px solid var(--border-subtle);
     border-radius: 8px;
     background: var(--surface);
     color: var(--text-secondary);
     cursor: pointer;
+    line-height: 1.2;
 }
 
 .cmp-small-toggle.on {
