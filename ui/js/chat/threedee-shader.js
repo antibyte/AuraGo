@@ -107,13 +107,15 @@
     function clearPools() {
         while (spritePool.length) {
             const s = spritePool.pop();
-            scene.remove(s);
-            s.material.dispose();
+            if (scene) scene.remove(s);
+            else if (s && s.parent) s.parent.remove(s);
+            if (s && s.material && typeof s.material.dispose === 'function') s.material.dispose();
         }
         while (shockwavePool.length) {
             const m = shockwavePool.pop();
-            scene.remove(m);
-            m.material.dispose();
+            if (scene) scene.remove(m);
+            else if (m && m.parent) m.parent.remove(m);
+            if (m && m.material && typeof m.material.dispose === 'function') m.material.dispose();
         }
     }
 

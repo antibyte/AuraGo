@@ -123,7 +123,7 @@ func TestDesktopWorkspaceCSPKeepsGeneratedAppsOriginIsolated(t *testing.T) {
 
 func TestDesktopWorkspaceCSPAllowsGeneratedAppCDNs(t *testing.T) {
 	for _, marker := range []string{
-		"script-src 'self' 'unsafe-inline'",
+		"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
 		"https://cdn.jsdelivr.net",
 		"https://cdnjs.cloudflare.com",
 		"https://unpkg.com",

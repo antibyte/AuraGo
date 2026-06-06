@@ -522,6 +522,11 @@ func TestThreeDeeThemeDisposesSceneWhenInactive(t *testing.T) {
 	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
 	for _, marker := range []string{
 		"let sceneGeneration = 0;",
+		"function clearPools()",
+		"if (scene) scene.remove(s);",
+		"if (s && s.material && typeof s.material.dispose === 'function') s.material.dispose();",
+		"if (scene) scene.remove(m);",
+		"if (m && m.material && typeof m.material.dispose === 'function') m.material.dispose();",
 		"function disposeThreeDeeScene()",
 		"disposeThreeObject(scene);",
 		"renderer.dispose();",
