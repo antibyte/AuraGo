@@ -1163,23 +1163,38 @@
             const previewPortID = (app && app.metadata && app.metadata.preview_port_id) || 'web';
             const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url?port_id=' + encodeURIComponent(previewPortID));
             if (!contentEl(id)) return;
+            const copyLabel = t('desktop.fm.copy', 'Copy');
+            const pasteLabel = t('desktop.fm.paste', 'Paste');
             host.innerHTML = `<div class="vd-store-terminal-preview">
-                <div class="vd-store-terminal-pane" data-store-terminal></div>
+                <div class="vd-store-terminal-pane">
+                    <div class="vd-store-terminal-toolbar">
+                        <button type="button" class="vd-store-terminal-action" data-store-terminal-copy title="${esc(copyLabel)}" aria-label="${esc(copyLabel)}">${iconMarkup('copy', 'C', 'vd-store-terminal-action-icon', 15)}</button>
+                        <button type="button" class="vd-store-terminal-action" data-store-terminal-paste title="${esc(pasteLabel)}" aria-label="${esc(pasteLabel)}">${iconMarkup('clipboard', 'P', 'vd-store-terminal-action-icon', 15)}</button>
+                    </div>
+                    <div class="vd-store-terminal-surface" data-store-terminal></div>
+                </div>
                 <div class="vd-store-preview-pane">
                     <div class="vd-store-frame-loading" data-store-preview-loading>${esc(t('desktop.loading'))}</div>
                 </div>
             </div>`;
             const terminalHost = host.querySelector('[data-store-terminal]');
+            const copyButton = host.querySelector('[data-store-terminal-copy]');
+            const pasteButton = host.querySelector('[data-store-terminal-paste]');
             const previewHost = host.querySelector('.vd-store-preview-pane');
             let terminal = null;
             let terminalSocket = null;
             let terminalFitAddon = null;
             let terminalResizeObserver = null;
+            let terminalPasteHandler = null;
             let terminalFitScheduled = false;
             let disposed = false;
             function cleanupStoreTerminalPreviewApp() {
                 if (disposed) return;
                 disposed = true;
+                if (terminalPasteHandler) {
+                    host.removeEventListener('paste', terminalPasteHandler, true);
+                    terminalPasteHandler = null;
+                }
                 if (terminalResizeObserver) {
                     terminalResizeObserver.disconnect();
                     terminalResizeObserver = null;
@@ -1252,10 +1267,60 @@
             const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
             terminalSocket = new WebSocket(scheme + '://' + window.location.host + '/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/terminal');
             terminalSocket.binaryType = 'arraybuffer';
+            const terminalInputEncoder = new TextEncoder();
+            const writeTerminalInput = text => {
+                if (!text || !terminalSocket || terminalSocket.readyState !== WebSocket.OPEN) return false;
+                terminalSocket.send(terminalInputEncoder.encode(text));
+                return true;
+            };
             terminal.onData(data => {
-                if (!terminalSocket || terminalSocket.readyState !== WebSocket.OPEN) return;
-                terminalSocket.send(new TextEncoder().encode(data));
+                writeTerminalInput(data);
             });
+            terminalPasteHandler = event => {
+                if (disposed) return;
+                const text = event.clipboardData && event.clipboardData.getData('text/plain');
+                if (!text) return;
+                if (writeTerminalInput(text)) {
+                    event.preventDefault();
+                    if (terminal) terminal.focus();
+                }
+            };
+            host.addEventListener('paste', terminalPasteHandler, true);
+            if (copyButton) {
+                copyButton.addEventListener('click', async () => {
+                    if (!terminal || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+                        if (terminal) terminal.focus();
+                        return;
+                    }
+                    const selection = terminal.getSelection ? terminal.getSelection() : '';
+                    if (selection) await navigator.clipboard.writeText(selection).catch(() => {});
+                    terminal.focus();
+                });
+            }
+            if (pasteButton) {
+                pasteButton.addEventListener('click', async () => {
+                    if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') {
+                        if (terminal) terminal.focus();
+                        return;
+                    }
+                    const text = await navigator.clipboard.readText().catch(() => '');
+                    if (writeTerminalInput(text) && terminal) terminal.focus();
+                });
+            }
+            terminalHost.addEventListener('keydown', event => {
+                if (!(event.ctrlKey || event.metaKey) || String(event.key || '').toLowerCase() !== 'v') return;
+                if (!terminalSocket || terminalSocket.readyState !== WebSocket.OPEN) return;
+                if (navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
+                    event.preventDefault();
+                    navigator.clipboard.readText()
+                        .then(text => {
+                            if (writeTerminalInput(text) && terminal) terminal.focus();
+                        })
+                        .catch(() => {
+                            if (terminal) terminal.focus();
+                        });
+                }
+            }, true);
             terminalSocket.onopen = scheduleTerminalFit;
             terminalSocket.onmessage = event => {
                 if (disposed || !terminal) return;

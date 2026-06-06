@@ -152,6 +152,9 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 			}
 		}
 		if entry.ID == "commandcode" {
+			if !strings.Contains(entry.Description, "several minutes") || !strings.Contains(entry.Description, "API key") || !strings.Contains(entry.Description, "paste into the terminal") {
+				t.Fatalf("commandcode description must mention install time and API key terminal paste flow: %q", entry.Description)
+			}
 			if len(entry.WorkspaceBinds) != 1 || entry.WorkspaceBinds[0].WorkspacePath != "Shared/CommandCode" || entry.WorkspaceBinds[0].ContainerPath != "/workspace" {
 				t.Fatalf("commandcode workspace bind = %#v, want Shared/CommandCode:/workspace", entry.WorkspaceBinds)
 			}
