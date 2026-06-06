@@ -9271,25 +9271,33 @@ if (appId === 'pixel') {
             host.innerHTML = `<div class="vd-store-terminal-preview">
                 <div class="vd-store-terminal-pane">
                     <div class="vd-store-terminal-toolbar">
-                        <button type="button" class="vd-store-terminal-action" data-store-terminal-copy title="${esc(copyLabel)}" aria-label="${esc(copyLabel)}">${iconMarkup('copy', 'C', 'vd-store-terminal-action-icon', 15)}</button>
-                        <button type="button" class="vd-store-terminal-action" data-store-terminal-paste title="${esc(pasteLabel)}" aria-label="${esc(pasteLabel)}">${iconMarkup('clipboard', 'P', 'vd-store-terminal-action-icon', 15)}</button>
+                        <div class="vd-store-terminal-tabs" data-store-terminal-tabs></div>
+                        <div class="vd-store-terminal-actions">
+                            <button type="button" class="vd-store-terminal-action" data-store-terminal-new title="New session" aria-label="New session">${iconMarkup('plus', '+', 'vd-store-terminal-action-icon', 15)}</button>
+                            <button type="button" class="vd-store-terminal-action" data-store-terminal-copy title="${esc(copyLabel)}" aria-label="${esc(copyLabel)}">${iconMarkup('copy', 'C', 'vd-store-terminal-action-icon', 15)}</button>
+                            <button type="button" class="vd-store-terminal-action" data-store-terminal-paste title="${esc(pasteLabel)}" aria-label="${esc(pasteLabel)}">${iconMarkup('clipboard', 'P', 'vd-store-terminal-action-icon', 15)}</button>
+                        </div>
                     </div>
                     <div class="vd-store-terminal-surface" data-store-terminal></div>
                 </div>
+                <div class="vd-store-terminal-resizer" data-store-terminal-resizer></div>
                 <div class="vd-store-preview-pane">
                     <div class="vd-store-frame-loading" data-store-preview-loading>${esc(t('desktop.loading'))}</div>
                 </div>
             </div>`;
-            const terminalHost = host.querySelector('[data-store-terminal]');
+            const terminalStack = host.querySelector('[data-store-terminal]');
+            const terminalTabs = host.querySelector('[data-store-terminal-tabs]');
+            const newButton = host.querySelector('[data-store-terminal-new]');
             const copyButton = host.querySelector('[data-store-terminal-copy]');
             const pasteButton = host.querySelector('[data-store-terminal-paste]');
+            const resizer = host.querySelector('[data-store-terminal-resizer]');
             const previewHost = host.querySelector('.vd-store-preview-pane');
-            let terminal = null;
-            let terminalSocket = null;
-            let terminalFitAddon = null;
-            let terminalResizeObserver = null;
+            const terminalSessions = new Map();
+            let activeTerminalSessionID = '';
+            let terminalSessionSequence = 0;
             let terminalPasteHandler = null;
-            let terminalFitScheduled = false;
+            let resizeMoveHandler = null;
+            let resizeUpHandler = null;
             let disposed = false;
             function cleanupStoreTerminalPreviewApp() {
                 if (disposed) return;
@@ -9298,145 +9306,265 @@ if (appId === 'pixel') {
                     host.removeEventListener('paste', terminalPasteHandler, true);
                     terminalPasteHandler = null;
                 }
-                if (terminalResizeObserver) {
-                    terminalResizeObserver.disconnect();
-                    terminalResizeObserver = null;
+                if (resizeMoveHandler) {
+                    window.removeEventListener('pointermove', resizeMoveHandler);
+                    resizeMoveHandler = null;
                 }
-                if (terminalSocket) {
-                    terminalSocket.onopen = null;
-                    terminalSocket.onmessage = null;
-                    terminalSocket.onerror = null;
-                    terminalSocket.onclose = null;
-                    if (terminalSocket.readyState === WebSocket.OPEN || terminalSocket.readyState === WebSocket.CONNECTING) {
-                        terminalSocket.close();
-                    }
-                    terminalSocket = null;
+                if (resizeUpHandler) {
+                    window.removeEventListener('pointerup', resizeUpHandler);
+                    window.removeEventListener('pointercancel', resizeUpHandler);
+                    resizeUpHandler = null;
                 }
-                if (terminal) {
-                    terminal.dispose();
-                    terminal = null;
-                }
-                terminalFitAddon = null;
+                terminalSessions.forEach(session => session.cleanup());
+                terminalSessions.clear();
                 if (host.__storeTerminalPreviewCleanup === cleanupStoreTerminalPreviewApp) {
                     host.__storeTerminalPreviewCleanup = null;
                 }
             }
             host.__storeTerminalPreviewCleanup = cleanupStoreTerminalPreviewApp;
             registerWindowCleanup(id, cleanupStoreTerminalPreviewApp);
-            terminal = new window.Terminal({
-                cursorBlink: true,
-                convertEol: true,
-                fontFamily: "'Fira Code', 'Cascadia Code', Consolas, monospace",
-                fontSize: 13,
-                scrollback: 3000,
-                theme: {
-                    background: '#05070a',
-                    foreground: '#d7e1ec',
-                    cursor: '#8bd3ff'
-                }
-            });
-            if (window.FitAddon && window.FitAddon.FitAddon) {
-                terminalFitAddon = new window.FitAddon.FitAddon();
-                terminal.loadAddon(terminalFitAddon);
-            }
-            terminal.open(terminalHost);
-            terminal.focus();
-            const fitTerminal = () => {
-                if (disposed || !terminal) return;
-                if (terminalFitAddon) {
-                    try {
-                        terminalFitAddon.fit();
-                    } catch (err) {
-                        return;
-                    }
-                }
-                if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
-                    terminalSocket.send(JSON.stringify({ type: 'resize', cols: terminal.cols, rows: terminal.rows }));
-                }
-            };
-            const scheduleTerminalFit = () => {
-                if (terminalFitScheduled) return;
-                terminalFitScheduled = true;
-                window.requestAnimationFrame(() => {
-                    terminalFitScheduled = false;
-                    fitTerminal();
-                });
-            };
-            scheduleTerminalFit();
-            if (window.ResizeObserver) {
-                terminalResizeObserver = new ResizeObserver(scheduleTerminalFit);
-                terminalResizeObserver.observe(terminalHost);
-            }
             const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-            terminalSocket = new WebSocket(scheme + '://' + window.location.host + '/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/terminal');
-            terminalSocket.binaryType = 'arraybuffer';
             const terminalInputEncoder = new TextEncoder();
-            const writeTerminalInput = text => {
-                if (!text || !terminalSocket || terminalSocket.readyState !== WebSocket.OPEN) return false;
-                terminalSocket.send(terminalInputEncoder.encode(text));
+            const activeTerminalSession = () => terminalSessions.get(activeTerminalSessionID) || null;
+            const writeTerminalInput = (session, text) => {
+                if (!session || !text || !session.socket || session.socket.readyState !== WebSocket.OPEN) return false;
+                session.socket.send(terminalInputEncoder.encode(text));
                 return true;
             };
-            terminal.onData(data => {
-                writeTerminalInput(data);
-            });
             terminalPasteHandler = event => {
                 if (disposed) return;
                 const text = event.clipboardData && event.clipboardData.getData('text/plain');
                 if (!text) return;
-                if (writeTerminalInput(text)) {
+                const session = activeTerminalSession();
+                if (writeTerminalInput(session, text)) {
                     event.preventDefault();
-                    if (terminal) terminal.focus();
+                    if (session.terminal) session.terminal.focus();
                 }
             };
             host.addEventListener('paste', terminalPasteHandler, true);
             if (copyButton) {
                 copyButton.addEventListener('click', async () => {
-                    if (!terminal || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
-                        if (terminal) terminal.focus();
+                    const session = activeTerminalSession();
+                    if (!session || !session.terminal || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+                        if (session && session.terminal) session.terminal.focus();
                         return;
                     }
-                    const selection = terminal.getSelection ? terminal.getSelection() : '';
+                    const selection = session.terminal.getSelection ? session.terminal.getSelection() : '';
                     if (selection) await navigator.clipboard.writeText(selection).catch(() => {});
-                    terminal.focus();
+                    session.terminal.focus();
                 });
             }
             if (pasteButton) {
                 pasteButton.addEventListener('click', async () => {
+                    const session = activeTerminalSession();
                     if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') {
-                        if (terminal) terminal.focus();
+                        if (session && session.terminal) session.terminal.focus();
                         return;
                     }
                     const text = await navigator.clipboard.readText().catch(() => '');
-                    if (writeTerminalInput(text) && terminal) terminal.focus();
+                    if (writeTerminalInput(session, text) && session.terminal) session.terminal.focus();
                 });
             }
-            terminalHost.addEventListener('keydown', event => {
+            terminalStack.addEventListener('keydown', event => {
                 if (!(event.ctrlKey || event.metaKey) || String(event.key || '').toLowerCase() !== 'v') return;
-                if (!terminalSocket || terminalSocket.readyState !== WebSocket.OPEN) return;
+                const session = activeTerminalSession();
+                if (!session || !session.socket || session.socket.readyState !== WebSocket.OPEN) return;
                 if (navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
                     event.preventDefault();
                     navigator.clipboard.readText()
                         .then(text => {
-                            if (writeTerminalInput(text) && terminal) terminal.focus();
+                            if (writeTerminalInput(session, text) && session.terminal) session.terminal.focus();
                         })
                         .catch(() => {
-                            if (terminal) terminal.focus();
+                            if (session.terminal) session.terminal.focus();
                         });
                 }
             }, true);
-            terminalSocket.onopen = scheduleTerminalFit;
-            terminalSocket.onmessage = event => {
-                if (disposed || !terminal) return;
-                if (typeof event.data === 'string') {
-                    terminal.write(event.data);
-                    return;
+            function fitTerminalSession(session) {
+                if (disposed || !session || session.disposed || !session.terminal) return;
+                if (session.fitAddon) {
+                    try {
+                        session.fitAddon.fit();
+                    } catch (err) {
+                        return;
+                    }
                 }
-                terminal.write(new TextDecoder().decode(event.data));
-            };
-            terminalSocket.onerror = () => {
-                if (terminal) terminal.write('\r\n[' + esc(t('common.error', 'Error')) + ']\r\n');
-            };
-            terminalSocket.onclose = () => {};
+                if (session.socket && session.socket.readyState === WebSocket.OPEN) {
+                    session.socket.send(JSON.stringify({ type: 'resize', cols: session.terminal.cols, rows: session.terminal.rows }));
+                }
+            }
+            function scheduleTerminalSessionFit(session) {
+                if (!session || session.fitScheduled) return;
+                session.fitScheduled = true;
+                window.requestAnimationFrame(() => {
+                    session.fitScheduled = false;
+                    fitTerminalSession(session);
+                });
+            }
+            function activateTerminalSession(sessionID) {
+                const session = terminalSessions.get(sessionID);
+                if (!session) return;
+                activeTerminalSessionID = sessionID;
+                terminalSessions.forEach(current => {
+                    const active = current.id === sessionID;
+                    current.tab.classList.toggle('is-active', active);
+                    current.tab.setAttribute('aria-selected', active ? 'true' : 'false');
+                    current.surface.hidden = !active;
+                });
+                scheduleTerminalSessionFit(session);
+                session.terminal.focus();
+            }
+            function closeTerminalSession(sessionID) {
+                const session = terminalSessions.get(sessionID);
+                if (!session) return;
+                const wasActive = activeTerminalSessionID === sessionID;
+                const remainingIDs = Array.from(terminalSessions.keys()).filter(currentID => currentID !== sessionID);
+                session.cleanup();
+                terminalSessions.delete(sessionID);
+                if (wasActive) {
+                    if (remainingIDs.length > 0) {
+                        activateTerminalSession(remainingIDs[Math.max(0, remainingIDs.length - 1)]);
+                    } else if (!disposed) {
+                        createTerminalSession();
+                    }
+                }
+            }
+            function createTerminalSession() {
+                terminalSessionSequence += 1;
+                const sessionID = 'terminal-session-' + terminalSessionSequence;
+                const surface = document.createElement('div');
+                surface.className = 'vd-store-terminal-session';
+                surface.hidden = true;
+                surface.dataset.storeTerminalSession = sessionID;
+                terminalStack.appendChild(surface);
+                const tab = document.createElement('button');
+                tab.type = 'button';
+                tab.className = 'vd-store-terminal-tab';
+                tab.dataset.storeTerminalTab = sessionID;
+                tab.setAttribute('role', 'tab');
+                tab.innerHTML = `<span>${terminalSessionSequence}</span><span class="vd-store-terminal-tab-close" data-store-terminal-close="${esc(sessionID)}">x</span>`;
+                terminalTabs.appendChild(tab);
+                const terminal = new window.Terminal({
+                    cursorBlink: true,
+                    convertEol: true,
+                    fontFamily: "'Fira Code', 'Cascadia Code', Consolas, monospace",
+                    fontSize: 13,
+                    scrollback: 3000,
+                    theme: {
+                        background: '#05070a',
+                        foreground: '#d7e1ec',
+                        cursor: '#8bd3ff'
+                    }
+                });
+                let fitAddon = null;
+                if (window.FitAddon && window.FitAddon.FitAddon) {
+                    fitAddon = new window.FitAddon.FitAddon();
+                    terminal.loadAddon(fitAddon);
+                }
+                const session = {
+                    id: sessionID,
+                    tab,
+                    surface,
+                    terminal,
+                    fitAddon,
+                    resizeObserver: null,
+                    socket: null,
+                    fitScheduled: false,
+                    disposed: false,
+                    cleanup() {
+                        if (session.disposed) return;
+                        session.disposed = true;
+                        if (session.resizeObserver) {
+                            session.resizeObserver.disconnect();
+                            session.resizeObserver = null;
+                        }
+                        if (session.socket) {
+                            session.socket.onopen = null;
+                            session.socket.onmessage = null;
+                            session.socket.onerror = null;
+                            session.socket.onclose = null;
+                            if (session.socket.readyState === WebSocket.OPEN || session.socket.readyState === WebSocket.CONNECTING) {
+                                session.socket.close();
+                            }
+                            session.socket = null;
+                        }
+                        session.terminal.dispose();
+                        session.tab.remove();
+                        session.surface.remove();
+                    }
+                };
+                terminalSessions.set(sessionID, session);
+                tab.addEventListener('click', event => {
+                    const closeTarget = event.target && event.target.closest && event.target.closest('[data-store-terminal-close]');
+                    if (closeTarget) {
+                        event.stopPropagation();
+                        closeTerminalSession(sessionID);
+                        return;
+                    }
+                    activateTerminalSession(sessionID);
+                });
+                session.terminal.open(session.surface);
+                session.socket = new WebSocket(scheme + '://' + window.location.host + '/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/terminal');
+                session.socket.binaryType = 'arraybuffer';
+                session.terminal.onData(data => {
+                    writeTerminalInput(session, data);
+                });
+                if (window.ResizeObserver) {
+                    session.resizeObserver = new ResizeObserver(() => scheduleTerminalSessionFit(session));
+                    session.resizeObserver.observe(session.surface);
+                }
+                session.socket.onopen = () => scheduleTerminalSessionFit(session);
+                session.socket.onmessage = event => {
+                    if (disposed || session.disposed || !session.terminal) return;
+                    if (typeof event.data === 'string') {
+                        session.terminal.write(event.data);
+                        return;
+                    }
+                    session.terminal.write(new TextDecoder().decode(event.data));
+                };
+                session.socket.onerror = () => {
+                    if (session.terminal) session.terminal.write('\r\n[' + esc(t('common.error', 'Error')) + ']\r\n');
+                };
+                session.socket.onclose = () => {};
+                activateTerminalSession(sessionID);
+                return session;
+            }
+            function setTerminalPaneWidthPct(widthPct) {
+                const clamped = Math.max(24, Math.min(72, widthPct));
+                host.style.setProperty('--store-terminal-width', clamped.toFixed(1) + '%');
+                terminalSessions.forEach(session => scheduleTerminalSessionFit(session));
+            }
+            function startTerminalPreviewResize(event) {
+                if (!resizer || event.button !== 0) return;
+                event.preventDefault();
+                if (resizeMoveHandler) window.removeEventListener('pointermove', resizeMoveHandler);
+                if (resizeUpHandler) {
+                    window.removeEventListener('pointerup', resizeUpHandler);
+                    window.removeEventListener('pointercancel', resizeUpHandler);
+                }
+                resizeMoveHandler = moveEvent => {
+                    const bounds = host.getBoundingClientRect();
+                    if (!bounds.width) return;
+                    setTerminalPaneWidthPct(((moveEvent.clientX - bounds.left) / bounds.width) * 100);
+                };
+                resizeUpHandler = () => {
+                    if (resizeMoveHandler) {
+                        window.removeEventListener('pointermove', resizeMoveHandler);
+                        resizeMoveHandler = null;
+                    }
+                    if (resizeUpHandler) {
+                        window.removeEventListener('pointerup', resizeUpHandler);
+                        window.removeEventListener('pointercancel', resizeUpHandler);
+                        resizeUpHandler = null;
+                    }
+                };
+                window.addEventListener('pointermove', resizeMoveHandler);
+                window.addEventListener('pointerup', resizeUpHandler);
+                window.addEventListener('pointercancel', resizeUpHandler);
+            }
+            if (newButton) newButton.addEventListener('click', () => createTerminalSession());
+            if (resizer) resizer.addEventListener('pointerdown', startTerminalPreviewResize);
+            createTerminalSession();
             const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');
             const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true });
             previewHost.replaceChildren(frame);
