@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"strings"
@@ -204,6 +205,58 @@ func TestCoAgentRegistryGetStatusIncludesPartialResultAndRetryHint(t *testing.T)
 	}
 	if !strings.Contains(strings.ToLower(hint), "wait") {
 		t.Fatalf("retry_hint = %q, want explicit wait/backoff guidance", hint)
+	}
+}
+
+func TestCoAgentRegistryWaitForResultReturnsCompletedStatus(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	registry := NewCoAgentRegistry(1, logger)
+	id, _, err := registry.RegisterWithPriority("coagent", "Write a short story", func() {}, 2)
+	if err != nil {
+		t.Fatalf("RegisterWithPriority: %v", err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		time.Sleep(10 * time.Millisecond)
+		registry.Complete(id, "Once upon a fast path.", 42, 0)
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	status, err := registry.WaitForResult(ctx, id)
+	if err != nil {
+		t.Fatalf("WaitForResult: %v", err)
+	}
+	<-done
+	if status["state"] != string(CoAgentCompleted) {
+		t.Fatalf("state = %v, want completed", status["state"])
+	}
+	if status["result"] != "Once upon a fast path." {
+		t.Fatalf("result = %v", status["result"])
+	}
+}
+
+func TestCoAgentRegistryWaitForResultRespectsContextDeadline(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	registry := NewCoAgentRegistry(1, logger)
+	id, _, err := registry.RegisterWithPriority("coagent", "Slow task", func() {}, 2)
+	if err != nil {
+		t.Fatalf("RegisterWithPriority: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	status, err := registry.WaitForResult(ctx, id)
+	if err == nil {
+		t.Fatal("expected context deadline error")
+	}
+	if status == nil {
+		t.Fatal("expected current status with deadline error")
+	}
+	if status["state"] != string(CoAgentRunning) {
+		t.Fatalf("state = %v, want running", status["state"])
 	}
 }
 

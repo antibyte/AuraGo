@@ -22,7 +22,10 @@ const (
 	CoAgentCancelled CoAgentState = "cancelled"
 )
 
-const coAgentPollAfterSeconds = 3
+const (
+	coAgentPollAfterSeconds     = 3
+	coAgentGetResultWaitSeconds = 90
+)
 
 // CoAgentEvent holds a small, user-visible lifecycle event for observability.
 type CoAgentEvent struct {
@@ -53,6 +56,8 @@ type CoAgentInfo struct {
 
 	startCh   chan struct{}
 	startOnce sync.Once
+	doneCh    chan struct{}
+	doneOnce  sync.Once
 	mu        sync.Mutex
 }
 
@@ -91,6 +96,14 @@ func (c *CoAgentInfo) signalStart() {
 	c.startOnce.Do(func() {
 		if c.startCh != nil {
 			close(c.startCh)
+		}
+	})
+}
+
+func (c *CoAgentInfo) signalDone() {
+	c.doneOnce.Do(func() {
+		if c.doneCh != nil {
+			close(c.doneCh)
 		}
 	})
 }
@@ -277,6 +290,7 @@ func (r *CoAgentRegistry) RegisterWithPriority(prefix, task string, cancel conte
 		Cancel:     cancel,
 		Priority:   normalizeCoAgentPriority(priority),
 		startCh:    make(chan struct{}),
+		doneCh:     make(chan struct{}),
 	}
 	if state == CoAgentRunning {
 		r.runningCount.Add(1)
@@ -389,6 +403,7 @@ func (r *CoAgentRegistry) Complete(id, result string, tokensUsed, toolCalls int)
 			r.runningCount.Add(-1)
 		}
 		a.recordEvent("completed")
+		a.signalDone()
 		r.promoteQueuedLocked()
 	}
 }
@@ -411,6 +426,7 @@ func (r *CoAgentRegistry) Fail(id, errMsg string, tokensUsed, toolCalls int) {
 		}
 		a.recordEvent("failed")
 		a.signalStart()
+		a.signalDone()
 		r.promoteQueuedLocked()
 	}
 }
@@ -441,6 +457,7 @@ func (r *CoAgentRegistry) Stop(id string) error {
 	}
 	a.signalStart()
 	a.recordEvent("cancelled")
+	a.signalDone()
 	r.promoteQueuedLocked()
 	r.logger.Info("Co-Agent stopped", "id", id)
 	return nil
@@ -466,6 +483,7 @@ func (r *CoAgentRegistry) StopAll() int {
 			}
 			a.signalStart()
 			a.recordEvent("cancelled")
+			a.signalDone()
 			count++
 		}
 	}
@@ -617,6 +635,43 @@ func (r *CoAgentRegistry) GetStatus(id string) (map[string]interface{}, error) {
 		status["recent_events"] = events
 	}
 	return status, nil
+}
+
+// WaitForResult blocks until the co-agent reaches a terminal state or ctx ends.
+func (r *CoAgentRegistry) WaitForResult(ctx context.Context, id string) (map[string]interface{}, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	r.mu.RLock()
+	a, ok := r.agents[id]
+	r.mu.RUnlock()
+	if !ok {
+		return nil, fmt.Errorf("co-agent '%s' not found", id)
+	}
+
+	a.mu.Lock()
+	state := a.State
+	doneCh := a.doneCh
+	a.mu.Unlock()
+
+	switch state {
+	case CoAgentCompleted, CoAgentFailed, CoAgentCancelled:
+		return r.GetStatus(id)
+	}
+	if doneCh == nil {
+		return r.GetStatus(id)
+	}
+
+	select {
+	case <-ctx.Done():
+		status, statusErr := r.GetStatus(id)
+		if statusErr != nil {
+			return nil, statusErr
+		}
+		return status, ctx.Err()
+	case <-doneCh:
+		return r.GetStatus(id)
+	}
 }
 
 func buildCoAgentRetryHint(state CoAgentState, retryCount int) string {

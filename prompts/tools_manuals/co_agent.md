@@ -16,7 +16,7 @@ Spawn and manage parallel co-agents that work on sub-tasks independently. Each c
 | `spawn` | Start a new generic co-agent with a task |
 | `spawn_specialist` | Start a specialized expert co-agent |
 | `list` | Show all co-agents and their status |
-| `get_result` | Retrieve the result of a completed co-agent |
+| `get_result` | Wait briefly for a running co-agent, then retrieve its result or current terminal status |
 | `stop` | Cancel a running co-agent only when the user explicitly requested cancellation |
 | `stop_all` | Cancel all running co-agents only when the user explicitly requested cancellation |
 
@@ -63,7 +63,7 @@ Spawn and manage parallel co-agents that work on sub-tasks independently. Each c
 | **coder** | Code writing, debugging, testing, architecture | Shell, Python, filesystem, git |
 | **designer** | Image generation, layouts, visual concepts | Image generation, filesystem |
 | **security** | Vulnerability audits, code review, system hardening | Shell (read), Python, filesystem (read) |
-| **writer** | Articles, docs, creative writing, communication | Memory/RAG, filesystem |
+| **writer** | Articles, docs, creative writing, communication | No runtime tools by default; optimized for fast text generation |
 
 ### list — Show all co-agents and their status
 ```json
@@ -72,12 +72,13 @@ Spawn and manage parallel co-agents that work on sub-tasks independently. Each c
 Returns: list of co-agents with ID, task, specialist role, state (queued/running/completed/failed/cancelled), timestamps, and available slots.
 Queued entries also include queue position, retry count, and recent lifecycle events.
 
-### get_result — Retrieve the result of a completed co-agent
+### get_result — Wait for and retrieve a co-agent result
 ```json
 {"action": "co_agent", "operation": "get_result", "co_agent_id": "specialist-researcher-1"}
 ```
-- Returns the final text output from the co-agent
-- Only works for completed co-agents (returns error if still running)
+- Waits server-side for a bounded interval if the co-agent is queued or running
+- Returns the final text output once completed, or the current state if it is still queued/running after the wait
+- A running co-agent is not failed just because no tokens are visible; non-streaming LLM calls may emit no partial tokens until the provider responds
 
 ### stop — Cancel a running co-agent
 ```json
@@ -96,7 +97,7 @@ Use this only when the user explicitly asks to cancel all co-agents.
 1. **Spawn** one or more co-agents/specialists with specific tasks
 2. **Continue** working on other things while they run
 3. **Check status** with `list` periodically
-4. **Retrieve results** with `get_result` once completed
+4. **Retrieve results** with `get_result`; it will wait briefly if the co-agent is still active
 5. **Integrate** results into your response
 
 If a co-agent is still running, keep waiting or continue with other work. Do not conclude it has failed unless its state is `failed`, `cancelled`, or it reaches its configured timeout.

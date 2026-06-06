@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"aurago/internal/budget"
 	"aurago/internal/config"
@@ -374,12 +375,27 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
 				state, _ := status["state"].(string)
+				if state == string(CoAgentQueued) || state == string(CoAgentRunning) {
+					waitCtx, cancel := context.WithTimeout(ctx, time.Duration(coAgentGetResultWaitSeconds)*time.Second)
+					waitedStatus, waitErr := coAgentRegistry.WaitForResult(waitCtx, coID)
+					cancel()
+					if waitedStatus != nil {
+						status = waitedStatus
+						state, _ = status["state"].(string)
+					}
+					if waitErr != nil {
+						status["wait_status"] = "timeout"
+						status["waited_seconds"] = coAgentGetResultWaitSeconds
+					} else {
+						status["wait_status"] = "completed"
+					}
+				}
 				status["status"] = "ok"
 				switch state {
 				case string(CoAgentQueued):
 					status["message"] = "Co-Agent is still queued."
 				case string(CoAgentRunning):
-					status["message"] = "Co-Agent is still running."
+					status["message"] = "Co-Agent is still running. This can be normal while its non-streaming LLM request is in flight; do not report it as failed before it reaches a terminal state."
 				case string(CoAgentCompleted):
 					status["message"] = "Co-Agent completed successfully."
 				case string(CoAgentFailed):

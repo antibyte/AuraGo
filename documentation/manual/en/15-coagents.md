@@ -98,7 +98,7 @@ co_agents:
 
 ### Writer specialist default
 
-The `writer` specialist uses a multilingual natural-writing default in `co_agents.specialists.writer.additional_prompt`. It helps the author co-agent avoid generic AI wording, preserve the requested language and register, and keep rewrites honest without inventing facts. Set the field to `""` to disable this default, or replace it with your own writing rules.
+The `writer` specialist uses a multilingual natural-writing default in `co_agents.specialists.writer.additional_prompt`. It helps the author co-agent avoid generic AI wording, preserve the requested language and register, and keep rewrites honest without inventing facts. Writer co-agents run without runtime tool schemas by default so short writing tasks do not pay the latency cost of unrelated tools. Set the field to `""` to disable this default, or replace it with your own writing rules.
 
 ---
 
@@ -123,7 +123,7 @@ The main agent spawns co-agents via the `co_agent` tool:
   "status": "ok",
   "co_agent_id": "coagent-1",
   "available_slots": 2,
-  "message": "Co-agent started. Use 'list' to check status and 'get_result' when done."
+  "message": "Co-agent started. Use 'list' to check quick status and 'get_result' to wait for the result."
 }
 ```
 
@@ -133,7 +133,7 @@ The main agent spawns co-agents via the `co_agent` tool:
 |-----------|------------|-------------|
 | `spawn` | `task`, `context_hints` | Start a new co-agent |
 | `list` | — | Show all co-agents with status |
-| `get_result` | `co_agent_id` | Get finished result |
+| `get_result` | `co_agent_id` | Wait briefly and get finished result or current terminal status |
 | `stop` | `co_agent_id` | Cancel running co-agent |
 | `stop_all` | — | Cancel all co-agents |
 
@@ -177,6 +177,8 @@ The main agent spawns co-agents via the `co_agent` tool:
 ```json
 {"action": "co_agent", "operation": "get_result", "co_agent_id": "coagent-1"}
 ```
+
+If the co-agent is still queued or running, `get_result` waits server-side for a bounded interval before returning. A running co-agent has not failed merely because no partial tokens are visible; non-streaming LLM calls may stay quiet until the provider responds.
 
 **Response:**
 ```json

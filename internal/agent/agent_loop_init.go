@@ -44,6 +44,14 @@ func reconcilePromptToolModeWithRequest(flags *prompts.ContextFlags, policy *Too
 	reconcileToolPromptModeWithSchemas(flags, policy, &useNativeFunctions, 0, logger)
 }
 
+func shouldSuppressCoAgentTools(runCfg RunConfig) bool {
+	if !runCfg.IsCoAgent && !isCoAgentSession(runCfg.SessionID) {
+		return false
+	}
+	role := strings.ToLower(strings.TrimSpace(runCfg.CoAgentSpecialist))
+	return role == "writer" || strings.HasPrefix(strings.ToLower(strings.TrimSpace(runCfg.SessionID)), "specialist-writer-")
+}
+
 // initAgentLoopState sets up all mutable state before the main agent loop begins.
 func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, broker FeedbackBroker) *agentLoopState {
 	s := &agentLoopState{
@@ -137,6 +145,13 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	operationalIssueReminder := operationalIssueReminderText(runCfg, initialUserMsg, isFirstTurn, logger)
 
 	toolingPolicy := buildToolingPolicy(cfg, initialUserMsg)
+	suppressCoAgentTools := shouldSuppressCoAgentTools(runCfg)
+	if suppressCoAgentTools {
+		toolingPolicy.UseNativeFunctions = false
+		toolingPolicy.AutoEnabledNativeFunctions = false
+		toolingPolicy.StructuredOutputsEnabled = false
+		toolingPolicy.ParallelToolCallsEnabled = false
+	}
 	telemetryScope := AgentTelemetryScope{
 		ProviderType: toolingPolicy.Capabilities.ProviderType,
 		Model:        toolingPolicy.Capabilities.Model,
@@ -293,6 +308,9 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	adaptiveFilteredTools := make([]string, 0)
 	ff := buildToolFeatureFlags(runCfg, toolingPolicy)
 	allSchemas := BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, logger)
+	if suppressCoAgentTools {
+		allSchemas = nil
+	}
 	enabledNativeTools := toolSchemaNames(allSchemas)
 	flags.EnabledNativeTools = enabledNativeTools
 

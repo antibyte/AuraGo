@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/budget"
 	"aurago/internal/config"
@@ -288,6 +289,42 @@ func TestDispatchToolCallPropagatesUserContextToCoAgentStopGuard(t *testing.T) {
 	}
 	if status["state"] != string(CoAgentRunning) {
 		t.Fatalf("co-agent state = %v, want running after blocked stop", status["state"])
+	}
+}
+
+func TestDispatchCoAgentGetResultWaitsForCompletion(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.CoAgents.Enabled = true
+	cfg.CoAgents.MaxConcurrent = 1
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	registry := NewCoAgentRegistry(1, logger)
+	id, _, err := registry.RegisterWithPriority("specialist-writer", "Write a story", func() {}, 2)
+	if err != nil {
+		t.Fatalf("RegisterWithPriority: %v", err)
+	}
+
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		registry.Complete(id, "A compact story.", 12, 0)
+	}()
+
+	out, ok := dispatchPlatform(context.Background(), ToolCall{
+		Action:    "co_agent",
+		Operation: "get_result",
+		CoAgentID: id,
+	}, &DispatchContext{
+		Cfg:             cfg,
+		Logger:          logger,
+		CoAgentRegistry: registry,
+	})
+	if !ok {
+		t.Fatal("expected dispatchPlatform to handle co_agent get_result")
+	}
+	if !strings.Contains(out, `"state":"completed"`) {
+		t.Fatalf("expected completed status, got: %s", out)
+	}
+	if !strings.Contains(out, `"result":"A compact story."`) {
+		t.Fatalf("expected result payload, got: %s", out)
 	}
 }
 

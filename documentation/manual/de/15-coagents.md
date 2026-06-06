@@ -112,7 +112,7 @@ co_agents:
 
 ### Standardprompt für den Writer-Spezialisten
 
-Der `writer`-Spezialist nutzt standardmäßig einen mehrsprachigen Natural-Writing-Zusatzprompt in `co_agents.specialists.writer.additional_prompt`. Er hilft dem Autor-Co-Agenten, generische KI-Formulierungen zu vermeiden, Sprache und Register der Aufgabe zu erhalten und bei Umschreibungen keine Fakten zu erfinden. Setze das Feld auf `""`, um den Default zu deaktivieren, oder ersetze ihn durch eigene Schreibregeln.
+Der `writer`-Spezialist nutzt standardmäßig einen mehrsprachigen Natural-Writing-Zusatzprompt in `co_agents.specialists.writer.additional_prompt`. Er hilft dem Autor-Co-Agenten, generische KI-Formulierungen zu vermeiden, Sprache und Register der Aufgabe zu erhalten und bei Umschreibungen keine Fakten zu erfinden. Writer-Co-Agenten laufen standardmäßig ohne Runtime-Tool-Schemas, damit kurze Schreibaufgaben nicht die Latenz unpassender Tools mitbezahlen. Setze das Feld auf `""`, um den Default zu deaktivieren, oder ersetze ihn durch eigene Schreibregeln.
 
 ### Modell-Auswahl
 
@@ -148,7 +148,7 @@ Der Main-Agent spawnnt Co-Agenten über das `co_agent`-Tool mit der Operation `s
   "status": "ok",
   "co_agent_id": "coagent-1",
   "available_slots": 2,
-  "message": "Co-Agent gestartet. Nutze 'list' um Status zu prüfen und 'get_result' sobald fertig."
+  "message": "Co-Agent gestartet. Nutze 'list' für schnellen Status und 'get_result', um auf das Ergebnis zu warten."
 }
 ```
 
@@ -195,6 +195,8 @@ Der Main-Agent spawnnt Co-Agenten über das `co_agent`-Tool mit der Operation `s
 }
 ```
 
+Wenn der Co-Agent noch queued oder running ist, wartet `get_result` serverseitig für ein begrenztes Intervall. Ein laufender Co-Agent ist nicht fehlgeschlagen, nur weil keine Teil-Tokens sichtbar sind; non-streaming LLM-Calls bleiben oft still, bis der Provider antwortet.
+
 **Antwort:**
 ```json
 {
@@ -214,7 +216,7 @@ Der Main-Agent spawnnt Co-Agenten über das `co_agent`-Tool mit der Operation `s
 |-----------|-----------|--------------|
 | `spawn` | `task`, `context_hints` | Startet neuen Co-Agenten |
 | `list` | — | Zeigt alle Co-Agenten mit Status |
-| `get_result` | `co_agent_id` | Holt Ergebnis eines abgeschlossenen Co-Agenten |
+| `get_result` | `co_agent_id` | Wartet kurz und holt Ergebnis oder aktuellen Terminal-Status |
 | `stop` | `co_agent_id` | Bricht laufenden Co-Agenten ab |
 | `stop_all` | — | Bricht ALLE Co-Agenten ab |
 
@@ -239,7 +241,7 @@ Der Main-Agent spawnnt Co-Agenten über das `co_agent`-Tool mit der Operation `s
 
 | Status | Bedeutung | Aktion möglich |
 |--------|-----------|----------------|
-| `running` | Läuft noch | `stop`, `list` |
+| `running` | Läuft noch | `list`, `get_result`, `stop` nur bei explizitem Abbruchwunsch |
 | `completed` | Erfolgreich beendet | `get_result` |
 | `failed` | Fehler aufgetreten | `get_result` (zeigt Fehler) |
 | `cancelled` | Manuell abgebrochen | `list` |
