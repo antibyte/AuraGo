@@ -2953,6 +2953,15 @@
     color-scheme: dark;
 }
 
+.vd-store-terminal-preview.is-preview-hidden {
+    grid-template-columns: minmax(0, 1fr) 0 0;
+}
+
+.vd-store-terminal-preview.is-preview-hidden .vd-store-terminal-resizer,
+.vd-store-terminal-preview.is-preview-hidden .vd-store-preview-pane {
+    display: none;
+}
+
 .vd-store-terminal-pane {
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
@@ -3069,6 +3078,70 @@
     background: #fff;
 }
 
+.vd-store-preview-placeholder {
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    min-height: 0;
+    padding: 28px;
+    background: radial-gradient(circle at 50% 0%, rgba(30, 41, 59, 0.72), rgba(5, 7, 10, 0.98) 58%);
+    color: #d7e1ec;
+}
+
+.vd-store-preview-placeholder-body {
+    display: grid;
+    gap: 14px;
+    width: min(460px, 100%);
+    line-height: 1.5;
+}
+
+.vd-store-preview-placeholder-title {
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.vd-store-preview-placeholder-body p {
+    margin: 0;
+    color: rgba(215, 225, 236, 0.78);
+}
+
+.vd-store-preview-placeholder-code {
+    display: grid;
+    gap: 8px;
+}
+
+.vd-store-preview-placeholder-code code {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    padding: 8px 10px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 6px;
+    background: rgba(2, 6, 23, 0.78);
+    color: #93c5fd;
+    white-space: nowrap;
+}
+
+.vd-store-preview-open {
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid rgba(139, 211, 255, 0.52);
+    border-radius: 6px;
+    color: #ffffff;
+    background: rgba(37, 99, 235, 0.72);
+    cursor: pointer;
+}
+
+.vd-store-preview-open:hover,
+.vd-store-preview-open:focus-visible {
+    background: rgba(37, 99, 235, 0.92);
+}
+
 .vd-store-terminal-resizer {
     width: 6px;
     min-width: 6px;
@@ -3105,6 +3178,10 @@
 
     .vd-store-terminal-resizer {
         display: none;
+    }
+
+    .vd-store-terminal-preview.is-preview-hidden {
+        grid-template-rows: minmax(0, 1fr) 0 0;
     }
 }
 

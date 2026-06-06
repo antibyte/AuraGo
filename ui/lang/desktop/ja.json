@@ -1223,5 +1223,11 @@
   "homepage_studio.status_online": "ウェブサーバー稼働中",
   "homepage_studio.status_offline": "ウェブサーバー停止中",
   "homepage_studio.status_error": "ステータスを確認できませんでした",
-  "homepage_studio.refresh": "更新"
+  "homepage_studio.refresh": "更新",
+  "desktop.store_terminal_new_session": "新しいセッション",
+  "desktop.store_terminal_show_preview": "プレビューを表示",
+  "desktop.store_terminal_hide_preview": "プレビューを隠す",
+  "desktop.store_terminal_open_preview": "プレビューを開く",
+  "desktop.store_terminal_preview_placeholder_title": "プレビューは待機中です",
+  "desktop.store_terminal_preview_placeholder_copy": "ターミナルで開発サーバーを起動してください。ページの準備ができたらプレビューを開きます。"
 }

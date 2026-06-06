@@ -1223,5 +1223,11 @@
   "homepage_studio.status_online": "Webový server běží",
   "homepage_studio.status_offline": "Webový server neběží",
   "homepage_studio.status_error": "Nelze zkontrolovat stav",
-  "homepage_studio.refresh": "Obnovit"
+  "homepage_studio.refresh": "Obnovit",
+  "desktop.store_terminal_new_session": "Nová relace",
+  "desktop.store_terminal_show_preview": "Zobrazit náhled",
+  "desktop.store_terminal_hide_preview": "Skrýt náhled",
+  "desktop.store_terminal_open_preview": "Otevřít náhled",
+  "desktop.store_terminal_preview_placeholder_title": "Náhled čeká",
+  "desktop.store_terminal_preview_placeholder_copy": "Spusť vývojový server v terminálu. Náhled otevři až ve chvíli, kdy je stránka připravená."
 }

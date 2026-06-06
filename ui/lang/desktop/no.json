@@ -1223,5 +1223,11 @@
   "homepage_studio.status_online": "Webserver kjører",
   "homepage_studio.status_offline": "Webserver kjører ikke",
   "homepage_studio.status_error": "Kunne ikke sjekke status",
-  "homepage_studio.refresh": "Oppdater"
+  "homepage_studio.refresh": "Oppdater",
+  "desktop.store_terminal_new_session": "Ny økt",
+  "desktop.store_terminal_show_preview": "Vis forhåndsvisning",
+  "desktop.store_terminal_hide_preview": "Skjul forhåndsvisning",
+  "desktop.store_terminal_open_preview": "Åpne forhåndsvisning",
+  "desktop.store_terminal_preview_placeholder_title": "Forhåndsvisningen venter",
+  "desktop.store_terminal_preview_placeholder_copy": "Start utviklingsserveren i terminalen. Åpne forhåndsvisningen når siden er klar."
 }

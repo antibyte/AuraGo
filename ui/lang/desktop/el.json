@@ -1223,5 +1223,11 @@
   "homepage_studio.status_online": "Ο διακομιστής ιστού λειτουργεί",
   "homepage_studio.status_offline": "Ο διακομιστής ιστού δεν λειτουργεί",
   "homepage_studio.status_error": "Αδυναμία ελέγχου κατάστασης",
-  "homepage_studio.refresh": "Ανανέωση"
+  "homepage_studio.refresh": "Ανανέωση",
+  "desktop.store_terminal_new_session": "Νέα συνεδρία",
+  "desktop.store_terminal_show_preview": "Εμφάνιση προεπισκόπησης",
+  "desktop.store_terminal_hide_preview": "Απόκρυψη προεπισκόπησης",
+  "desktop.store_terminal_open_preview": "Άνοιγμα προεπισκόπησης",
+  "desktop.store_terminal_preview_placeholder_title": "Η προεπισκόπηση περιμένει",
+  "desktop.store_terminal_preview_placeholder_copy": "Ξεκίνα τον development server στο τερματικό. Άνοιξε την προεπισκόπηση όταν η σελίδα είναι έτοιμη."
 }

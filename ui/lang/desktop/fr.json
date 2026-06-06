@@ -1223,5 +1223,11 @@
   "homepage_studio.status_online": "Serveur web en cours d'exécution",
   "homepage_studio.status_offline": "Serveur web non démarré",
   "homepage_studio.status_error": "Impossible de vérifier le statut",
-  "homepage_studio.refresh": "Actualiser"
+  "homepage_studio.refresh": "Actualiser",
+  "desktop.store_terminal_new_session": "Nouvelle session",
+  "desktop.store_terminal_show_preview": "Afficher l’aperçu",
+  "desktop.store_terminal_hide_preview": "Masquer l’aperçu",
+  "desktop.store_terminal_open_preview": "Ouvrir l’aperçu",
+  "desktop.store_terminal_preview_placeholder_title": "L’aperçu attend",
+  "desktop.store_terminal_preview_placeholder_copy": "Démarre ton serveur de développement dans le terminal. Ouvre l’aperçu quand ta page est prête."
 }

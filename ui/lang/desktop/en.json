@@ -1223,5 +1223,11 @@
   "homepage_studio.status_online": "Web server running",
   "homepage_studio.status_offline": "Web server not running",
   "homepage_studio.status_error": "Could not check status",
-  "homepage_studio.refresh": "Refresh"
+  "homepage_studio.refresh": "Refresh",
+  "desktop.store_terminal_new_session": "New session",
+  "desktop.store_terminal_show_preview": "Show preview",
+  "desktop.store_terminal_hide_preview": "Hide preview",
+  "desktop.store_terminal_open_preview": "Open preview",
+  "desktop.store_terminal_preview_placeholder_title": "Preview is idle",
+  "desktop.store_terminal_preview_placeholder_copy": "Start your development server in the terminal. Open the preview when your page is ready."
 }

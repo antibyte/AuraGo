@@ -1223,5 +1223,11 @@
   "homepage_studio.status_online": "Servidor web em execução",
   "homepage_studio.status_offline": "Servidor web não iniciado",
   "homepage_studio.status_error": "Não foi possível verificar o status",
-  "homepage_studio.refresh": "Atualizar"
+  "homepage_studio.refresh": "Atualizar",
+  "desktop.store_terminal_new_session": "Nova sessão",
+  "desktop.store_terminal_show_preview": "Mostrar pré-visualização",
+  "desktop.store_terminal_hide_preview": "Ocultar pré-visualização",
+  "desktop.store_terminal_open_preview": "Abrir pré-visualização",
+  "desktop.store_terminal_preview_placeholder_title": "A pré-visualização está à espera",
+  "desktop.store_terminal_preview_placeholder_copy": "Inicia o servidor de desenvolvimento no terminal. Abre a pré-visualização quando a página estiver pronta."
 }

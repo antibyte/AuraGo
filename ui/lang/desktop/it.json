@@ -1223,5 +1223,11 @@
   "homepage_studio.status_online": "Server web in esecuzione",
   "homepage_studio.status_offline": "Server web non avviato",
   "homepage_studio.status_error": "Impossibile verificare lo stato",
-  "homepage_studio.refresh": "Aggiorna"
+  "homepage_studio.refresh": "Aggiorna",
+  "desktop.store_terminal_new_session": "Nuova sessione",
+  "desktop.store_terminal_show_preview": "Mostra anteprima",
+  "desktop.store_terminal_hide_preview": "Nascondi anteprima",
+  "desktop.store_terminal_open_preview": "Apri anteprima",
+  "desktop.store_terminal_preview_placeholder_title": "L’anteprima è in attesa",
+  "desktop.store_terminal_preview_placeholder_copy": "Avvia il server di sviluppo nel terminale. Apri l’anteprima quando la pagina è pronta."
 }

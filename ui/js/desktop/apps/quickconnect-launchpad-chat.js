@@ -1163,16 +1163,20 @@
             const previewPortID = (app && app.metadata && app.metadata.preview_port_id) || 'web';
             const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url?port_id=' + encodeURIComponent(previewPortID));
             if (!contentEl(id)) return;
+            const newSessionLabel = t('desktop.store_terminal_new_session', 'New session');
             const copyLabel = t('desktop.fm.copy', 'Copy');
             const pasteLabel = t('desktop.fm.paste', 'Paste');
+            const showPreviewLabel = t('desktop.store_terminal_show_preview', 'Show preview');
+            const hidePreviewLabel = t('desktop.store_terminal_hide_preview', 'Hide preview');
             host.innerHTML = `<div class="vd-store-terminal-preview">
                 <div class="vd-store-terminal-pane">
                     <div class="vd-store-terminal-toolbar">
                         <div class="vd-store-terminal-tabs" data-store-terminal-tabs></div>
                         <div class="vd-store-terminal-actions">
-                            <button type="button" class="vd-store-terminal-action" data-store-terminal-new title="New session" aria-label="New session">${iconMarkup('plus', '+', 'vd-store-terminal-action-icon', 15)}</button>
+                            <button type="button" class="vd-store-terminal-action" data-store-terminal-new title="${esc(newSessionLabel)}" aria-label="${esc(newSessionLabel)}">${iconMarkup('plus', '+', 'vd-store-terminal-action-icon', 15)}</button>
                             <button type="button" class="vd-store-terminal-action" data-store-terminal-copy title="${esc(copyLabel)}" aria-label="${esc(copyLabel)}">${iconMarkup('copy', 'C', 'vd-store-terminal-action-icon', 15)}</button>
                             <button type="button" class="vd-store-terminal-action" data-store-terminal-paste title="${esc(pasteLabel)}" aria-label="${esc(pasteLabel)}">${iconMarkup('clipboard', 'P', 'vd-store-terminal-action-icon', 15)}</button>
+                            <button type="button" class="vd-store-terminal-action" data-store-preview-toggle title="${esc(hidePreviewLabel)}" aria-label="${esc(hidePreviewLabel)}" aria-pressed="true">${iconMarkup('eye-off', 'P', 'vd-store-terminal-action-icon', 15)}</button>
                         </div>
                     </div>
                     <div class="vd-store-terminal-surface" data-store-terminal></div>
@@ -1187,12 +1191,14 @@
             const newButton = host.querySelector('[data-store-terminal-new]');
             const copyButton = host.querySelector('[data-store-terminal-copy]');
             const pasteButton = host.querySelector('[data-store-terminal-paste]');
+            const previewToggleButton = host.querySelector('[data-store-preview-toggle]');
             const resizer = host.querySelector('[data-store-terminal-resizer]');
             const terminalPreview = host.querySelector('.vd-store-terminal-preview');
             const previewHost = host.querySelector('.vd-store-preview-pane');
             const terminalSessions = new Map();
             let activeTerminalSessionID = '';
             let terminalSessionSequence = 0;
+            let previewVisible = true;
             let terminalPasteHandler = null;
             let resizeMoveHandler = null;
             let resizeUpHandler = null;
@@ -1232,6 +1238,48 @@
                     if (disposed || activeTerminalSession() !== session || !session.terminal) return;
                     session.terminal.focus();
                 });
+            }
+            function renderPreviewPlaceholder() {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'vd-store-preview-placeholder';
+                placeholder.innerHTML = `<div class="vd-store-preview-placeholder-body">
+                    <div class="vd-store-preview-placeholder-title">${esc(t('desktop.store_terminal_preview_placeholder_title', 'Preview is idle'))}</div>
+                    <p>${esc(t('desktop.store_terminal_preview_placeholder_copy', 'Start your development server in the terminal. Open the preview when your page is ready.'))}</p>
+                    <div class="vd-store-preview-placeholder-code"><code>npm run dev -- --host 0.0.0.0</code><code>preview-port 5173</code></div>
+                    <button type="button" class="vd-store-preview-open" data-store-preview-open>${iconMarkup('monitor', 'P', 'vd-store-terminal-action-icon', 15)}<span>${esc(t('desktop.store_terminal_open_preview', 'Open preview'))}</span></button>
+                </div>`;
+                const openButton = placeholder.querySelector('[data-store-preview-open]');
+                if (openButton) openButton.addEventListener('click', openPreviewFrame);
+                return placeholder;
+            }
+            function updatePreviewToggleButton() {
+                if (!previewToggleButton) return;
+                const label = previewVisible ? hidePreviewLabel : showPreviewLabel;
+                previewToggleButton.setAttribute('title', label);
+                previewToggleButton.setAttribute('aria-label', label);
+                previewToggleButton.setAttribute('aria-pressed', previewVisible ? 'true' : 'false');
+                previewToggleButton.innerHTML = iconMarkup(previewVisible ? 'eye-off' : 'eye', 'P', 'vd-store-terminal-action-icon', 15);
+            }
+            function setPreviewVisible(visible) {
+                previewVisible = visible !== false;
+                if (terminalPreview) terminalPreview.classList.toggle('is-preview-hidden', !previewVisible);
+                if (!previewVisible) {
+                    previewHost.replaceChildren(renderPreviewPlaceholder());
+                } else if (!previewHost.firstElementChild) {
+                    previewHost.replaceChildren(renderPreviewPlaceholder());
+                }
+                updatePreviewToggleButton();
+                terminalSessions.forEach(session => scheduleTerminalSessionFit(session));
+                refocusActiveTerminalAfterPreviewLoad();
+            }
+            function openPreviewFrame() {
+                if (disposed) return;
+                if (!previewVisible) setPreviewVisible(true);
+                const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');
+                const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true, disableAutoFocus: true });
+                frame.addEventListener('load', refocusActiveTerminalAfterPreviewLoad);
+                previewHost.replaceChildren(frame);
+                refocusActiveTerminalAfterPreviewLoad();
             }
             const writeTerminalInput = (session, text) => {
                 if (!session || !text || !session.socket || session.socket.readyState !== WebSocket.OPEN) return false;
@@ -1480,12 +1528,10 @@
                 window.addEventListener('pointercancel', resizeUpHandler);
             }
             if (newButton) newButton.addEventListener('click', () => createTerminalSession());
+            if (previewToggleButton) previewToggleButton.addEventListener('click', () => setPreviewVisible(!previewVisible));
             if (resizer) resizer.addEventListener('pointerdown', startTerminalPreviewResize);
             createTerminalSession();
-            const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');
-            const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true, disableAutoFocus: true });
-            frame.addEventListener('load', refocusActiveTerminalAfterPreviewLoad);
-            previewHost.replaceChildren(frame);
+            previewHost.replaceChildren(renderPreviewPlaceholder());
             refocusActiveTerminalAfterPreviewLoad();
         } catch (err) {
             cleanupExistingStoreTerminalPreview(host);

@@ -117,3 +117,36 @@ func TestDesktopStoreTerminalPreviewKeepsTerminalFocusWhenPreviewLoads(t *testin
 		}
 	}
 }
+
+func TestDesktopStoreTerminalPreviewUsesStablePlaceholderAndToggle(t *testing.T) {
+	t.Parallel()
+
+	source := readEmbeddedText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
+	for _, marker := range []string{
+		"data-store-preview-toggle",
+		"data-store-preview-open",
+		"function renderPreviewPlaceholder()",
+		"function openPreviewFrame()",
+		"function setPreviewVisible(visible)",
+		"previewHost.replaceChildren(renderPreviewPlaceholder())",
+		"terminalPreview.classList.toggle('is-preview-hidden', !previewVisible)",
+		"previewToggleButton.addEventListener('click', () => setPreviewVisible(!previewVisible))",
+		"openButton.addEventListener('click', openPreviewFrame)",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("store terminal preview missing stable placeholder/toggle marker %q", marker)
+		}
+	}
+
+	css := readEmbeddedText(t, "css/desktop-windows.css")
+	for _, marker := range []string{
+		".vd-store-preview-placeholder",
+		".vd-store-terminal-preview.is-preview-hidden",
+		".vd-store-terminal-preview.is-preview-hidden .vd-store-preview-pane",
+		"grid-template-columns: minmax(0, 1fr) 0 0",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("store terminal preview CSS missing stable placeholder/toggle marker %q", marker)
+		}
+	}
+}

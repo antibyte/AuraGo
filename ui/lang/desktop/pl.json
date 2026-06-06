@@ -1223,5 +1223,11 @@
   "homepage_studio.status_online": "Serwer WWW działa",
   "homepage_studio.status_offline": "Serwer WWW nie działa",
   "homepage_studio.status_error": "Nie udało się sprawdzić statusu",
-  "homepage_studio.refresh": "Odśwież"
+  "homepage_studio.refresh": "Odśwież",
+  "desktop.store_terminal_new_session": "Nowa sesja",
+  "desktop.store_terminal_show_preview": "Pokaż podgląd",
+  "desktop.store_terminal_hide_preview": "Ukryj podgląd",
+  "desktop.store_terminal_open_preview": "Otwórz podgląd",
+  "desktop.store_terminal_preview_placeholder_title": "Podgląd czeka",
+  "desktop.store_terminal_preview_placeholder_copy": "Uruchom serwer deweloperski w terminalu. Otwórz podgląd, gdy strona będzie gotowa."
 }

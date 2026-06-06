@@ -1223,5 +1223,11 @@
   "homepage_studio.status_online": "Web服务器运行中",
   "homepage_studio.status_offline": "Web服务器未运行",
   "homepage_studio.status_error": "无法检查状态",
-  "homepage_studio.refresh": "刷新"
+  "homepage_studio.refresh": "刷新",
+  "desktop.store_terminal_new_session": "新会话",
+  "desktop.store_terminal_show_preview": "显示预览",
+  "desktop.store_terminal_hide_preview": "隐藏预览",
+  "desktop.store_terminal_open_preview": "打开预览",
+  "desktop.store_terminal_preview_placeholder_title": "预览正在等待",
+  "desktop.store_terminal_preview_placeholder_copy": "请先在终端中启动开发服务器。页面准备好后再打开预览。"
 }

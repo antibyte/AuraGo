@@ -1223,5 +1223,11 @@
   "homepage_studio.status_online": "Webbservern körs",
   "homepage_studio.status_offline": "Webbservern körs inte",
   "homepage_studio.status_error": "Kunde inte kontrollera status",
-  "homepage_studio.refresh": "Uppdatera"
+  "homepage_studio.refresh": "Uppdatera",
+  "desktop.store_terminal_new_session": "Ny session",
+  "desktop.store_terminal_show_preview": "Visa förhandsvisning",
+  "desktop.store_terminal_hide_preview": "Dölj förhandsvisning",
+  "desktop.store_terminal_open_preview": "Öppna förhandsvisning",
+  "desktop.store_terminal_preview_placeholder_title": "Förhandsvisningen väntar",
+  "desktop.store_terminal_preview_placeholder_copy": "Starta utvecklingsservern i terminalen. Öppna förhandsvisningen när sidan är klar."
 }

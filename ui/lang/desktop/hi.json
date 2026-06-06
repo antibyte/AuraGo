@@ -1223,5 +1223,11 @@
   "homepage_studio.status_online": "वेब सर्वर चल रहा है",
   "homepage_studio.status_offline": "वेब सर्वर नहीं चल रहा",
   "homepage_studio.status_error": "स्थिति जाँच नहीं सकी",
-  "homepage_studio.refresh": "रीफ्रेश"
+  "homepage_studio.refresh": "रीफ्रेश",
+  "desktop.store_terminal_new_session": "नया सत्र",
+  "desktop.store_terminal_show_preview": "प्रीव्यू दिखाएं",
+  "desktop.store_terminal_hide_preview": "प्रीव्यू छिपाएं",
+  "desktop.store_terminal_open_preview": "प्रीव्यू खोलें",
+  "desktop.store_terminal_preview_placeholder_title": "प्रीव्यू प्रतीक्षा कर रहा है",
+  "desktop.store_terminal_preview_placeholder_copy": "टर्मिनल में अपना डेवलपमेंट सर्वर शुरू करें। पेज तैयार होने पर प्रीव्यू खोलें."
 }

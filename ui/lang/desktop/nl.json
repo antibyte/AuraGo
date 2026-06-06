@@ -1223,5 +1223,11 @@
   "homepage_studio.status_online": "Webserver draait",
   "homepage_studio.status_offline": "Webserver draait niet",
   "homepage_studio.status_error": "Kon status niet controleren",
-  "homepage_studio.refresh": "Vernieuwen"
+  "homepage_studio.refresh": "Vernieuwen",
+  "desktop.store_terminal_new_session": "Nieuwe sessie",
+  "desktop.store_terminal_show_preview": "Voorbeeld tonen",
+  "desktop.store_terminal_hide_preview": "Voorbeeld verbergen",
+  "desktop.store_terminal_open_preview": "Voorbeeld openen",
+  "desktop.store_terminal_preview_placeholder_title": "Voorbeeld wacht",
+  "desktop.store_terminal_preview_placeholder_copy": "Start je ontwikkelserver in de terminal. Open het voorbeeld wanneer je pagina klaar is."
 }
