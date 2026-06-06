@@ -39,7 +39,8 @@ AuraGo accepts AgoDesk WebSocket messages up to 16 MiB. Desktop screenshot resul
 - `chat.message`: user prompt.
 - `chat.response`: full assistant response with `request_id`; may also be server-initiated when `metadata.server_push=true`.
 - `chat.error`: machine-readable error.
-- `chat.response.chunk`: reserved for streaming support.
+- `chat.response.chunk`: reserved for streaming support; may carry optional metadata when streaming is enabled.
+- `chat.plan_update`: active chat plan snapshot for clients that advertise `chat.plan_updates`.
 - `persona.assets.request`: client request for the currently active AuraGo persona's visual assets and prompt.
 - `persona.assets`: server response with the active persona name, asset key, avatar image URL, icon URL, and persona prompt.
 - `desktop.command` / `desktop.result`: server-to-client command transport for screenshots, discovery, UI automation, browser CDP, permission requests, locally approved input/actions, and locally approved file access.
@@ -69,6 +70,8 @@ Clients must include `payload.client_capabilities` in `session.start`. AuraGo tr
 Desktop commands are dispatched only when the matching client capability is present:
 
 - `chat.full_response`: required for server-initiated AgoChat messages.
+- `chat.agent_metadata`: enables `metadata.agent_mood` on chat responses for voice-model tone selection.
+- `chat.plan_updates`: enables live `chat.plan_update` frames and final `metadata.plan` snapshots.
 - `remote.desktop.capture`: required for `desktop_screenshot`
 - `remote.desktop.permission_request`: required for `desktop_permission_request`
 - `remote.desktop.input`: required for `desktop_input`
@@ -213,6 +216,51 @@ The backend emits a normal `chat.response` envelope without a preceding client `
 ```
 
 Coding agents should use the AuraGo `send_agodesk_chat` tool for proactive AgoChat messages. Use the `device_id` shown in the system prompt's `REACHABLE CHAT CHANNELS` section or discover connected clients through `remote_control` `list_devices`.
+
+## Agent Mood Metadata And Plan Updates
+
+Interactive AgoDesk chat responses can include optional metadata for local voice rendering and plan display. AgoDesk must advertise the matching capabilities in `session.start.client_capabilities` before AuraGo sends the richer payloads.
+
+When `chat.agent_metadata` is negotiated, `chat.response.payload.metadata.agent_mood` can include the current agent mood:
+
+```json
+{
+  "metadata": {
+    "source": "agodesk_chat",
+    "agent_mood": {
+      "mood": "focused",
+      "primary_mood": "focused",
+      "secondary_mood": "steady",
+      "description": "I feel calm and ready to help.",
+      "valence": 0.2,
+      "arousal": 0.3,
+      "confidence": 0.8,
+      "recommended_response_style": "calm_and_precise",
+      "source": "emotion_history",
+      "timestamp": "2026-06-06 12:34:56"
+    }
+  }
+}
+```
+
+AgoDesk should pass this object to its voice-model layer as style metadata. It must tolerate missing fields and ignore unknown fields.
+
+When `chat.plan_updates` is negotiated, AuraGo can send:
+
+```json
+{
+  "type": "chat.plan_update",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "request_id": "req-1",
+    "plan": null
+  }
+}
+```
+
+`plan` is either `null` or the same plan JSON shape used by AuraGo's web chat plan panel. `null` clears the local plan display. The final `chat.response.payload.metadata.plan` may include the latest snapshot for reconciliation.
+
+For the concrete AgoDesk client implementation checklist, see [`agodesk_coding_agent_mood_plan.md`](./agodesk_coding_agent_mood_plan.md).
 
 ## Active Persona Assets
 
