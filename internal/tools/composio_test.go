@@ -180,6 +180,42 @@ func TestComposioClientNormalizesAuthAndConnectedAccountToolkitMetadata(t *testi
 	}
 }
 
+func TestComposioClientCreateAuthConfigPostsToolkitSlug(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/auth_configs" {
+			t.Fatalf("path = %q, want /auth_configs", r.URL.Path)
+		}
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %q, want POST", r.Method)
+		}
+		var payload map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		toolkit, ok := payload["toolkit"].(map[string]interface{})
+		if !ok || toolkit["slug"] != "github" {
+			t.Fatalf("payload toolkit = %#v, want slug github", payload["toolkit"])
+		}
+		_, _ = w.Write([]byte(`{"id":"auth_1","status":"ENABLED","is_composio_managed":true,"toolkit":{"slug":"github"}}`))
+	}))
+	defer server.Close()
+
+	client := NewComposioClient(ComposioClientConfig{
+		BaseURL:        server.URL,
+		APIKey:         "test-key",
+		Timeout:        time.Second,
+		MaxResultBytes: 32 * 1024,
+	})
+
+	auth, err := client.CreateAuthConfig(context.Background(), "github")
+	if err != nil {
+		t.Fatalf("CreateAuthConfig() error = %v", err)
+	}
+	if auth.ID != "auth_1" || auth.ToolkitSlug != "github" || !auth.Enabled {
+		t.Fatalf("unexpected auth config: %+v", auth)
+	}
+}
+
 func TestComposioClientListToolsRetriesSmallerPageWhenResponseIsTooLarge(t *testing.T) {
 	limits := []string{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

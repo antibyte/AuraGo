@@ -274,6 +274,31 @@ func (c *ComposioClient) ListAuthConfigs(ctx context.Context, toolkitSlug string
 	return page, nil
 }
 
+func (c *ComposioClient) CreateAuthConfig(ctx context.Context, toolkitSlug string) (ComposioAuthConfig, error) {
+	toolkitSlug = strings.TrimSpace(toolkitSlug)
+	if toolkitSlug == "" {
+		return ComposioAuthConfig{}, fmt.Errorf("composio toolkit slug is required")
+	}
+	payload := map[string]interface{}{
+		"toolkit": map[string]string{
+			"slug": toolkitSlug,
+		},
+	}
+	body, err := c.do(ctx, http.MethodPost, "/auth_configs", nil, payload)
+	if err != nil {
+		return ComposioAuthConfig{}, err
+	}
+	authConfig, err := decodeComposioObject[ComposioAuthConfig](body)
+	if err != nil {
+		return ComposioAuthConfig{}, err
+	}
+	authConfig.normalize()
+	if strings.TrimSpace(authConfig.ToolkitSlug) == "" {
+		authConfig.ToolkitSlug = toolkitSlug
+	}
+	return authConfig, nil
+}
+
 func (c *ComposioClient) ListConnectedAccounts(ctx context.Context, toolkitSlug, userID string) (ComposioListPage[ComposioConnectedAccount], error) {
 	values := url.Values{}
 	if strings.TrimSpace(toolkitSlug) != "" {

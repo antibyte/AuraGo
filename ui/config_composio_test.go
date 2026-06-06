@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -123,4 +124,68 @@ func TestConfigComposioConnectOpensPopupBeforeAwaitedFetch(t *testing.T) {
 	if strings.Contains(composioJS, "window.open(url, '_blank', 'noopener');") {
 		t.Fatal("composio connect flow must not open the final URL only after the awaited fetch")
 	}
+}
+
+func TestConfigComposioConnectDoesNotDependOnPreloadedAuthConfigs(t *testing.T) {
+	t.Parallel()
+
+	composioJS := readDesktopAssetText(t, "cfg/composio.js")
+	for _, marker := range []string{
+		"function composioSetConnectStatus",
+		`id="composio-connect-status"`,
+		"const preferred = composioPreferredAuthConfig();",
+		"if (preferred && preferred.id) body.auth_config_id = preferred.id;",
+		"body: JSON.stringify(body)",
+	} {
+		if !strings.Contains(composioJS, marker) {
+			t.Fatalf("composio connect flow missing marker %q", marker)
+		}
+	}
+	if strings.Contains(composioJS, "if (!preferred || !preferred.id)") {
+		t.Fatal("composio connect flow must let the backend create an auth config when none is preloaded")
+	}
+}
+
+func TestConfigToastsRenderAboveComposioModal(t *testing.T) {
+	t.Parallel()
+
+	sharedCSS := strings.ReplaceAll(readDesktopAssetText(t, "shared-components.css"), "\r\n", "\n")
+	configCSS := strings.ReplaceAll(readDesktopAssetText(t, "css/config.css"), "\r\n", "\n")
+	toastZ := cssZIndex(t, cssBlock(t, sharedCSS, ".toast {"))
+	modalZ := cssZIndex(t, cssBlock(t, configCSS, ".cmp-modal-overlay {"))
+	if toastZ <= modalZ {
+		t.Fatalf("toast z-index = %d, composio modal z-index = %d; toast must render above modal", toastZ, modalZ)
+	}
+}
+
+func cssBlock(t *testing.T, css, selector string) string {
+	t.Helper()
+	start := strings.Index(css, selector)
+	if start < 0 {
+		t.Fatalf("missing CSS selector %q", selector)
+	}
+	end := strings.Index(css[start:], "}")
+	if end < 0 {
+		t.Fatalf("missing closing brace for selector %q", selector)
+	}
+	return css[start : start+end+1]
+}
+
+func cssZIndex(t *testing.T, block string) int {
+	t.Helper()
+	const key = "z-index:"
+	idx := strings.Index(block, key)
+	if idx < 0 {
+		t.Fatalf("missing z-index in CSS block: %s", block)
+	}
+	rest := strings.TrimSpace(block[idx+len(key):])
+	end := strings.Index(rest, ";")
+	if end >= 0 {
+		rest = rest[:end]
+	}
+	value, err := strconv.Atoi(strings.TrimSpace(rest))
+	if err != nil {
+		t.Fatalf("parse z-index %q: %v", rest, err)
+	}
+	return value
 }

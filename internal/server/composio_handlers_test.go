@@ -1,9 +1,11 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -138,5 +140,79 @@ func TestHandleComposioToolsPreviewEnablesViewedToolkitOnlyForPolicyPreview(t *t
 	}
 	if got.Items[1].PolicyDecision.Allowed || got.Items[1].PolicyDecision.Reason == "" {
 		t.Fatalf("write tool should stay blocked by read-only preview policy, got %+v", got.Items[1].PolicyDecision)
+	}
+}
+
+func TestHandleComposioConnectLinkCreatesAuthConfigWhenMissing(t *testing.T) {
+	seen := []string{}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = append(seen, r.Method+" "+r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/auth_configs":
+			if r.URL.Query().Get("toolkit_slug") != "github" {
+				t.Fatalf("toolkit_slug = %q, want github", r.URL.Query().Get("toolkit_slug"))
+			}
+			_, _ = w.Write([]byte(`{"items":[]}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/auth_configs":
+			var payload map[string]interface{}
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode auth config payload: %v", err)
+			}
+			toolkit, ok := payload["toolkit"].(map[string]interface{})
+			if !ok || toolkit["slug"] != "github" {
+				t.Fatalf("auth config payload toolkit = %#v", payload["toolkit"])
+			}
+			_, _ = w.Write([]byte(`{"id":"auth_1","status":"ENABLED","is_composio_managed":true,"toolkit":{"slug":"github"}}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/connected_accounts/link":
+			var payload map[string]interface{}
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode connect payload: %v", err)
+			}
+			if payload["auth_config_id"] != "auth_1" {
+				t.Fatalf("auth_config_id = %#v, want auth_1", payload["auth_config_id"])
+			}
+			if payload["user_id"] != "aurago-user" {
+				t.Fatalf("user_id = %#v, want aurago-user", payload["user_id"])
+			}
+			if payload["callback_url"] == "" {
+				t.Fatal("callback_url must be set")
+			}
+			_, _ = w.Write([]byte(`{"redirect_url":"https://auth.example/connect"}`))
+		default:
+			t.Fatalf("unexpected upstream request %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	s := &Server{Cfg: &config.Config{
+		Composio: config.ComposioConfig{
+			Enabled:               false,
+			APIKey:                "cmp-secret",
+			BaseURL:               upstream.URL,
+			UserID:                "aurago-user",
+			RequestTimeoutSeconds: 2,
+			MaxResultBytes:        4096,
+		},
+	}}
+
+	body := bytes.NewBufferString(`{"toolkit_slug":"github"}`)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/composio/connect-link", body)
+	handleComposioConnectLink(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status code = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	var got map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	link := got["link"].(map[string]interface{})
+	if link["redirect_url"] != "https://auth.example/connect" {
+		t.Fatalf("redirect_url = %#v", link["redirect_url"])
+	}
+	if strings.Join(seen, ",") != "GET /auth_configs,POST /auth_configs,POST /connected_accounts/link" {
+		t.Fatalf("upstream requests = %v", seen)
 	}
 }

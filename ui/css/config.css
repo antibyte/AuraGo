@@ -7311,6 +7311,37 @@ select.cfg-input option {
     line-height: 1.45;
 }
 
+.cmp-detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.cmp-connect-status {
+    min-height: 1.2rem;
+    margin-top: 0.45rem;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    line-height: 1.45;
+}
+
+.cmp-connect-status.loading {
+    color: var(--text-secondary);
+}
+
+.cmp-connect-status.ok {
+    color: var(--success);
+}
+
+.cmp-connect-status.warn {
+    color: #f59e0b;
+}
+
+.cmp-connect-status.error {
+    color: var(--danger);
+}
+
 .cmp-detail-grid {
     display: grid;
     grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);

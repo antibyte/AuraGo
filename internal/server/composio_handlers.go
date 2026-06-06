@@ -233,6 +233,22 @@ func handleComposioConnectLink(s *Server) http.HandlerFunc {
 		if strings.TrimSpace(req.CallbackURL) == "" {
 			req.CallbackURL = composioDefaultCallbackURL(r)
 		}
+		if strings.TrimSpace(req.AuthConfigID) == "" {
+			if strings.TrimSpace(req.ToolkitSlug) == "" {
+				jsonError(w, "Composio toolkit slug or auth config ID is required", http.StatusBadRequest)
+				return
+			}
+			authConfig, err := ensureComposioAuthConfig(r.Context(), client, req.ToolkitSlug)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusBadGateway)
+				return
+			}
+			req.AuthConfigID = authConfig.ID
+		}
+		if strings.TrimSpace(req.AuthConfigID) == "" {
+			jsonError(w, "Composio auth config ID is required", http.StatusBadGateway)
+			return
+		}
 		link, err := client.CreateConnectLink(r.Context(), req)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusBadGateway)
@@ -240,6 +256,47 @@ func handleComposioConnectLink(s *Server) http.HandlerFunc {
 		}
 		writeComposioJSON(w, map[string]interface{}{"status": "ok", "link": link})
 	}
+}
+
+func ensureComposioAuthConfig(ctx context.Context, client *tools.ComposioClient, toolkitSlug string) (tools.ComposioAuthConfig, error) {
+	toolkitSlug = strings.TrimSpace(toolkitSlug)
+	if toolkitSlug == "" {
+		return tools.ComposioAuthConfig{}, fmt.Errorf("composio toolkit slug is required")
+	}
+	page, err := client.ListAuthConfigs(ctx, toolkitSlug)
+	if err != nil {
+		return tools.ComposioAuthConfig{}, err
+	}
+	if authConfig, ok := preferredComposioAuthConfig(page.Items); ok {
+		return authConfig, nil
+	}
+	authConfig, err := client.CreateAuthConfig(ctx, toolkitSlug)
+	if err != nil {
+		return tools.ComposioAuthConfig{}, err
+	}
+	if strings.TrimSpace(authConfig.ID) == "" {
+		return tools.ComposioAuthConfig{}, fmt.Errorf("composio auth config creation returned no ID")
+	}
+	return authConfig, nil
+}
+
+func preferredComposioAuthConfig(items []tools.ComposioAuthConfig) (tools.ComposioAuthConfig, bool) {
+	for _, item := range items {
+		if item.Enabled && item.IsComposioManaged && strings.TrimSpace(item.ID) != "" {
+			return item, true
+		}
+	}
+	for _, item := range items {
+		if item.Enabled && strings.TrimSpace(item.ID) != "" {
+			return item, true
+		}
+	}
+	for _, item := range items {
+		if strings.TrimSpace(item.ID) != "" {
+			return item, true
+		}
+	}
+	return tools.ComposioAuthConfig{}, false
 }
 
 func handleComposioSelection(s *Server) http.HandlerFunc {

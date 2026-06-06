@@ -150,6 +150,18 @@ function composioAuthEnabled(auth) {
     return auth && (auth.enabled === true || String(auth.status || '').toUpperCase() === 'ENABLED');
 }
 
+function composioPreferredAuthConfig() {
+    const auth = composioState.authConfigs || [];
+    return auth.find(a => composioAuthEnabled(a) && a.is_composio_managed) || auth.find(a => composioAuthEnabled(a)) || auth[0] || null;
+}
+
+function composioSetConnectStatus(message, kind) {
+    const el = document.getElementById('composio-connect-status');
+    if (!el) return;
+    el.textContent = message || '';
+    el.className = 'cmp-connect-status' + (kind ? ' ' + kind : '');
+}
+
 function composioToolSortScore(item) {
     const decision = item && item.policy_decision;
     if (decision && decision.allowed === true) return 0;
@@ -387,8 +399,9 @@ function composioRenderDetail() {
     let html = '<div class="cmp-detail-head"><div><div class="cmp-detail-title">' + escapeAttr(tk.name || slug) + '</div><div class="cmp-detail-slug">' + escapeAttr(slug) + '</div></div>' +
         '<button class="btn-save cfg-save-btn-sm" onclick="composioToggleToolkit(' + composioJSArg(slug) + ')">' + (isSelected ? t('config.composio.disable_toolkit') : t('config.composio.enable_toolkit')) + '</button></div>';
     html += '<div class="cmp-detail-desc">' + escapeAttr(description || t('config.composio.no_description')) + '</div>';
-    html += '<div class="cmp-detail-actions"><button class="btn-secondary cfg-save-btn-sm" onclick="composioConnectToolkit(' + composioJSArg(slug) + ')">' + t('config.composio.connect') + '</button>' +
-        '<button class="btn-secondary cfg-save-btn-sm" onclick="composioLoadToolkitDetail(' + composioJSArg(slug) + ')">' + t('config.composio.refresh') + '</button></div>';
+    html += '<div class="cmp-detail-actions"><button id="composio-connect-btn" class="btn-secondary cfg-save-btn-sm" onclick="composioConnectToolkit(' + composioJSArg(slug) + ')">' + t('config.composio.connect') + '</button>' +
+        '<button class="btn-secondary cfg-save-btn-sm" onclick="composioLoadToolkitDetail(' + composioJSArg(slug) + ')">' + t('config.composio.refresh') + '</button></div>' +
+        '<div id="composio-connect-status" class="cmp-connect-status"></div>';
     html += '<div class="cmp-detail-grid"><div><div class="cmp-mini-title">' + t('config.composio.accounts') + '</div>' + composioAccountsHTML(accounts) + '</div>' +
         '<div><div class="cmp-mini-title">' + t('config.composio.tools_preview') + '</div>' + composioToolsHTML(tools) + '</div></div>';
     detail.innerHTML = html;
@@ -465,18 +478,21 @@ async function composioSaveSelection(toast) {
 }
 
 async function composioConnectToolkit(slug) {
-    const auth = composioState.authConfigs || [];
-    const preferred = auth.find(a => composioAuthEnabled(a) && a.is_composio_managed) || auth.find(a => composioAuthEnabled(a)) || auth[0];
-    if (!preferred || !preferred.id) {
-        showToast(t('config.composio.no_auth_config'), 'warn');
+    const normalized = String(slug || '').trim();
+    if (!normalized) {
+        composioSetConnectStatus(t('config.composio.no_auth_config'), 'warn');
         return;
     }
+    const preferred = composioPreferredAuthConfig();
     const popup = window.open('about:blank', '_blank');
+    composioSetConnectStatus(t('config.common.loading'), 'loading');
     try {
+        const body = { toolkit_slug: normalized };
+        if (preferred && preferred.id) body.auth_config_id = preferred.id;
         const resp = await fetch('/api/composio/connect-link', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ toolkit_slug: slug, auth_config_id: preferred.id })
+            body: JSON.stringify(body)
         });
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok) throw new Error(data.error || data.message || t('config.common.error'));
@@ -486,9 +502,12 @@ async function composioConnectToolkit(slug) {
         if (!popup) throw new Error(t('config.composio.connect_failed'));
         popup.opener = null;
         popup.location.href = url;
+        composioSetConnectStatus(t('config.composio.connect_opened'), 'ok');
         showToast(t('config.composio.connect_opened'), 'success');
     } catch (e) {
         if (popup && !popup.closed) popup.close();
-        showToast(t('config.composio.connect_failed') + ': ' + (e.message || t('config.common.error')), 'error');
+        const message = t('config.composio.connect_failed') + ': ' + (e.message || t('config.common.error'));
+        composioSetConnectStatus(message, 'error');
+        showToast(message, 'error');
     }
 }
