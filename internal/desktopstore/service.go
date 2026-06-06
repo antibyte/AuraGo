@@ -1455,11 +1455,22 @@ func (s *Service) prepareManagedWorkspaceBinds(app InstalledApp) error {
 		if !bind.Managed {
 			continue
 		}
-		if err := os.MkdirAll(bind.HostPath, 0o755); err != nil {
+		mode := managedWorkspaceBindMode(bind)
+		if err := os.MkdirAll(bind.HostPath, mode); err != nil {
 			return fmt.Errorf("create workspace bind %s: %w", bind.WorkspacePath, err)
+		}
+		if err := os.Chmod(bind.HostPath, mode); err != nil {
+			return fmt.Errorf("set workspace bind permissions %s: %w", bind.WorkspacePath, err)
 		}
 	}
 	return nil
+}
+
+func managedWorkspaceBindMode(bind HostBinding) os.FileMode {
+	if bind.ReadOnly {
+		return 0o755
+	}
+	return 0o777
 }
 
 func (s *Service) seedContainerFiles(ctx context.Context, entry CatalogEntry, app InstalledApp) error {

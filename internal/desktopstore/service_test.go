@@ -236,6 +236,47 @@ func TestCommandCodeDockerfilesInstallJustOutsideBookwormApt(t *testing.T) {
 	}
 }
 
+func TestPrepareManagedWorkspaceBindsMakesWritableBindsContainerWritable(t *testing.T) {
+	svc := newTestService(t, &fakeDockerAdapter{}, nil, nil, fixedPorts(18080))
+	hostPath := filepath.Join(t.TempDir(), "CommandCode")
+	app := InstalledApp{
+		AppID: "commandcode",
+		HostBinds: []HostBinding{{
+			HostPath:      hostPath,
+			ContainerPath: "/workspace",
+			Managed:       true,
+			WorkspacePath: "Shared/CommandCode",
+		}},
+	}
+
+	if err := svc.prepareManagedWorkspaceBinds(app); err != nil {
+		t.Fatalf("prepare workspace bind: %v", err)
+	}
+	info, err := os.Stat(hostPath)
+	if err != nil {
+		t.Fatalf("stat workspace bind: %v", err)
+	}
+	if got := info.Mode().Perm(); got&0o002 == 0 {
+		t.Fatalf("workspace bind mode = %o, want world-writable for container uid access", got)
+	}
+}
+
+func TestPrepareManagedWorkspaceBindsChmodsExistingDirectories(t *testing.T) {
+	source, err := os.ReadFile("service.go")
+	if err != nil {
+		t.Fatalf("read service.go: %v", err)
+	}
+	text := string(source)
+	for _, marker := range []string{
+		"managedWorkspaceBindMode(bind)",
+		"os.Chmod(bind.HostPath, mode)",
+	} {
+		if !strings.Contains(text, marker) {
+			t.Fatalf("prepareManagedWorkspaceBinds missing permission repair marker %q", marker)
+		}
+	}
+}
+
 func TestDockerCreatePayloadSupportsMultiPortHostBindsAndHostNetwork(t *testing.T) {
 	payload := dockerCreatePayload(ContainerSpec{
 		Name:  "aurago-store-demo",
