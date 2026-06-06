@@ -252,7 +252,9 @@
 
     const IMPULSE_LIFETIME = 3.6;
     const MAX_IMPULSES = 48;
-    const FRAME_INTERVAL = 1000 / 30;
+    const FRAME_INTERVAL = 1000 / 60;
+    const FRAME_SKIP_TOLERANCE = 0.85;
+    const NORMAL_RECOMPUTE_INTERVAL = 4;
     const IMPULSE_FADE_CUTOFF = 0.005;
 
     let colorLow;
@@ -3573,9 +3575,9 @@
 
         position.needsUpdate = true;
         color.needsUpdate = true;
-        // Throttle normal recomputation to every 3rd frame
+        // Throttle normal recomputation separately from visible wave cadence.
         normalFrameToggle++;
-        if (normalFrameToggle % 3 === 0) {
+        if (normalFrameToggle % NORMAL_RECOMPUTE_INTERVAL === 0) {
             surfaceGeometry.computeVertexNormals();
             surfaceGeometry.attributes.normal.needsUpdate = true;
         }
@@ -3612,7 +3614,7 @@
         if (!active) return;
         animationId = requestAnimationFrame(render);
 
-        if (lastFrame > 0 && time - lastFrame < FRAME_INTERVAL) return;
+        if (lastFrame > 0 && time - lastFrame < FRAME_INTERVAL * FRAME_SKIP_TOLERANCE) return;
 
         // Use actual elapsed wall-clock time for smooth animation
         // regardless of monitor refresh rate

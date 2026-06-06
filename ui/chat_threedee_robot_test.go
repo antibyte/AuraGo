@@ -459,6 +459,29 @@ func TestThreeDeeRobotThrustersUseUndersideOffsetsAndFadingRipples(t *testing.T)
 	}
 }
 
+func TestThreeDeeWaveRenderingUsesSmoothFrameCadence(t *testing.T) {
+	t.Parallel()
+
+	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
+	for _, marker := range []string{
+		"const FRAME_INTERVAL = 1000 / 60;",
+		"const FRAME_SKIP_TOLERANCE = 0.85;",
+		"const NORMAL_RECOMPUTE_INTERVAL = 4;",
+		"time - lastFrame < FRAME_INTERVAL * FRAME_SKIP_TOLERANCE",
+		"normalFrameToggle % NORMAL_RECOMPUTE_INTERVAL === 0",
+	} {
+		if !strings.Contains(shader, marker) {
+			t.Fatalf("threedee-shader.js missing smooth wave frame cadence marker %q", marker)
+		}
+	}
+	if strings.Contains(shader, "const FRAME_INTERVAL = 1000 / 30;") {
+		t.Fatal("ThreeDee waves must not be capped to 30 FPS")
+	}
+	if strings.Contains(shader, "normalFrameToggle % 3 === 0") {
+		t.Fatal("normal recomputation interval should be named and tuned separately from render FPS")
+	}
+}
+
 func TestThreeDeeRobotThrusterRipplesStaySparse(t *testing.T) {
 	t.Parallel()
 
