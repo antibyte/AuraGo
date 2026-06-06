@@ -855,7 +855,7 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 			return s.failInstall(ctx, record, err)
 		}
 	}
-	if err := s.requireDocker().PullImage(ctx, entry.Image); err != nil {
+	if err := s.ensureCatalogImage(ctx, entry); err != nil {
 		return s.failInstall(ctx, record, err)
 	}
 	if err := s.createAutoCompanions(ctx, &record); err != nil {
@@ -1013,7 +1013,7 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 		previous.Error = ""
 		return restorePrevious(runErr)
 	}
-	if err := s.requireDocker().PullImage(ctx, entry.Image); err != nil {
+	if err := s.ensureCatalogImage(ctx, entry); err != nil {
 		return restorePrevious(err)
 	}
 	if networkName := privateStoreNetworkName(entry); networkName != "" {

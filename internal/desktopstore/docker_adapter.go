@@ -36,6 +36,10 @@ func (a ToolsDockerAdapter) PullImage(ctx context.Context, image string) error {
 	return tools.PullImageForce(ctx, a.Config, image, a.Logger)
 }
 
+func (a ToolsDockerAdapter) BuildImage(ctx context.Context, image, dockerfileName string, dockerfile []byte, files map[string][]byte, buildArgs map[string]string) error {
+	return tools.BuildImageContextWait(ctx, a.Config, image, dockerfileName, dockerfile, files, buildArgs, a.Logger)
+}
+
 func (a ToolsDockerAdapter) CreateContainer(ctx context.Context, spec ContainerSpec) (string, error) {
 	payload := dockerCreatePayload(spec)
 	body, err := json.Marshal(payload)

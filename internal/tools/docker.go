@@ -14,6 +14,7 @@ import (
 	"net/url"
 	pathpkg "path"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -712,6 +713,13 @@ func PullImageForce(ctx context.Context, cfg DockerConfig, image string, logger 
 // containerized AuraGo installs where DOCKER_HOST points at a socket proxy and
 // the docker CLI is intentionally not installed.
 func BuildImageWait(ctx context.Context, cfg DockerConfig, image, dockerfileName string, dockerfile []byte, buildArgs map[string]string, logger *slog.Logger) error {
+	return BuildImageContextWait(ctx, cfg, image, dockerfileName, dockerfile, nil, buildArgs, logger)
+}
+
+// BuildImageContextWait builds a Docker image through the Docker Engine API
+// using an in-memory tar context. The Dockerfile is always written under
+// dockerfileName; additional files are written by their relative paths.
+func BuildImageContextWait(ctx context.Context, cfg DockerConfig, image, dockerfileName string, dockerfile []byte, files map[string][]byte, buildArgs map[string]string, logger *slog.Logger) error {
 	if err := requireDockerMutationPermission(); err != nil {
 		return err
 	}
@@ -730,11 +738,21 @@ func BuildImageWait(ctx context.Context, cfg DockerConfig, image, dockerfileName
 	}
 	var tarBuf bytes.Buffer
 	tw := tar.NewWriter(&tarBuf)
-	if err := tw.WriteHeader(&tar.Header{Name: dockerfileName, Mode: 0o644, Size: int64(len(dockerfile))}); err != nil {
-		return fmt.Errorf("write Dockerfile tar header: %w", err)
+	if err := writeDockerBuildContextFile(tw, dockerfileName, dockerfile, 0o644); err != nil {
+		return fmt.Errorf("write Dockerfile to build context: %w", err)
 	}
-	if _, err := tw.Write(dockerfile); err != nil {
-		return fmt.Errorf("write Dockerfile tar body: %w", err)
+	names := make([]string, 0, len(files))
+	for name := range files {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		if pathpkg.Clean(name) == dockerfileName {
+			return fmt.Errorf("additional build context file %q conflicts with Dockerfile", name)
+		}
+		if err := writeDockerBuildContextFile(tw, name, files[name], 0o755); err != nil {
+			return fmt.Errorf("write build context file %s: %w", name, err)
+		}
 	}
 	if err := tw.Close(); err != nil {
 		return fmt.Errorf("finalize Docker build context: %w", err)
@@ -782,6 +800,18 @@ func BuildImageWait(ctx context.Context, cfg DockerConfig, image, dockerfileName
 		logger.Info("Docker image built successfully", "image", image)
 	}
 	return nil
+}
+
+func writeDockerBuildContextFile(tw *tar.Writer, name string, content []byte, mode int64) error {
+	cleanName := pathpkg.Clean(strings.TrimSpace(name))
+	if cleanName == "." || strings.HasPrefix(cleanName, "../") || strings.HasPrefix(cleanName, "/") || strings.Contains(cleanName, "\\") {
+		return fmt.Errorf("invalid build context path %q", name)
+	}
+	if err := tw.WriteHeader(&tar.Header{Name: cleanName, Mode: mode, Size: int64(len(content))}); err != nil {
+		return err
+	}
+	_, err := tw.Write(content)
+	return err
 }
 
 func drainDockerBuildStream(r io.Reader) error {

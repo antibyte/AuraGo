@@ -186,6 +186,30 @@ func catalogSecretKey(secrets []GeneratedSecret, key string) bool {
 	return false
 }
 
+func TestCommandCodeInstallBuildsBundledImageWhenPullFails(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{pullErr: errors.New("pull image ghcr.io/antibyte/aurago-commandcode:latest: HTTP 500")}
+	svc := newTestService(t, docker, nil, nil, fixedPorts(18080))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "commandcode", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+
+	if len(docker.builtImages) != 1 || docker.builtImages[0] != "ghcr.io/antibyte/aurago-commandcode:latest" {
+		t.Fatalf("built images = %#v, want CommandCode image fallback build", docker.builtImages)
+	}
+	if len(docker.created) != 1 || docker.created[0].Image != "ghcr.io/antibyte/aurago-commandcode:latest" {
+		t.Fatalf("created containers = %#v, want CommandCode container after fallback build", docker.created)
+	}
+	if indexOfString(docker.events, "pull:ghcr.io/antibyte/aurago-commandcode:latest") > indexOfString(docker.events, "build:ghcr.io/antibyte/aurago-commandcode:latest") {
+		t.Fatalf("events = %#v, want pull attempted before fallback build", docker.events)
+	}
+}
+
 func TestDockerCreatePayloadSupportsMultiPortHostBindsAndHostNetwork(t *testing.T) {
 	payload := dockerCreatePayload(ContainerSpec{
 		Name:  "aurago-store-demo",
@@ -1741,6 +1765,8 @@ func fixedPorts(values ...int) PortAllocator {
 
 type fakeDockerAdapter struct {
 	pulled            []string
+	pullErr           error
+	builtImages       []string
 	created           []ContainerSpec
 	createdNetworks   []string
 	copiedFiles       map[string]map[string]string
@@ -1793,6 +1819,12 @@ func (f *fakeSecretStore) DeleteSecret(key string) error {
 func (f *fakeDockerAdapter) PullImage(_ context.Context, image string) error {
 	f.pulled = append(f.pulled, image)
 	f.events = append(f.events, "pull:"+image)
+	return f.pullErr
+}
+
+func (f *fakeDockerAdapter) BuildImage(_ context.Context, image, dockerfileName string, dockerfile []byte, files map[string][]byte, buildArgs map[string]string) error {
+	f.builtImages = append(f.builtImages, image)
+	f.events = append(f.events, "build:"+image)
 	return nil
 }
 

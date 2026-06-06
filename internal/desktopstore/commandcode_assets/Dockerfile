@@ -1,0 +1,116 @@
+FROM node:22-bookworm
+
+ARG TARGETARCH
+ARG GO_VERSION=1.26.4
+ARG ZIG_VERSION=0.16.0
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV WORKSPACE=/workspace
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV CARGO_HOME=/usr/local/cargo
+ENV PIPX_HOME=/opt/pipx
+ENV PIPX_BIN_DIR=/usr/local/bin
+ENV PATH=/usr/local/go/bin:/usr/local/zig:/usr/local/cargo/bin:/usr/local/bin:$PATH
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        bash \
+        build-essential \
+        ca-certificates \
+        clang \
+        cmake \
+        curl \
+        fd-find \
+        gdb \
+        git \
+        gnupg \
+        jq \
+        just \
+        less \
+        libcap2-bin \
+        lldb \
+        make \
+        nano \
+        openssh-client \
+        pkg-config \
+        postgresql-client \
+        pipx \
+        python3 \
+        python3-pip \
+        python3-venv \
+        redis-tools \
+        ripgrep \
+        shellcheck \
+        sqlite3 \
+        sudo \
+        tini \
+        unzip \
+        vim \
+        wget \
+        xz-utils \
+        zip \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+    && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends gh \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN set -eux; \
+    case "$TARGETARCH" in \
+        amd64) go_arch="amd64"; zig_arch="x86_64" ;; \
+        arm64) go_arch="arm64"; zig_arch="aarch64" ;; \
+        *) echo "unsupported TARGETARCH: $TARGETARCH" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${go_arch}.tar.gz" -o /tmp/go.tgz; \
+    rm -rf /usr/local/go; \
+    tar -C /usr/local -xzf /tmp/go.tgz; \
+    curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-${zig_arch}-linux-${ZIG_VERSION}.tar.xz" -o /tmp/zig.tar.xz; \
+    rm -rf /usr/local/zig; \
+    mkdir -p /usr/local/zig; \
+    tar -C /usr/local/zig --strip-components=1 -xJf /tmp/zig.tar.xz; \
+    rm -f /tmp/go.tgz /tmp/zig.tar.xz
+
+RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal \
+    && chmod -R a+rX "$RUSTUP_HOME" "$CARGO_HOME"
+
+RUN npm install -g --force \
+        command-code@latest \
+        http-server \
+        nodemon \
+        pnpm \
+        tsx \
+        typescript \
+        vite \
+        yarn \
+    && pipx install uv \
+    && ln -s /usr/bin/fdfind /usr/local/bin/fd \
+    && setcap 'cap_net_bind_service=+ep' "$(readlink -f "$(command -v node)")"
+
+COPY commandcode-preview.js /usr/local/bin/commandcode-preview.js
+COPY commandcode-entrypoint.sh /usr/local/bin/commandcode-entrypoint
+COPY preview-port.sh /usr/local/bin/preview-port
+
+RUN chmod 0755 /usr/local/bin/commandcode-preview.js /usr/local/bin/commandcode-entrypoint /usr/local/bin/preview-port \
+    && if getent passwd 1000 >/dev/null; then \
+        existing_user="$(getent passwd 1000 | cut -d: -f1)"; \
+        if [ "$existing_user" != "developer" ]; then usermod -l developer "$existing_user"; fi; \
+        existing_group="$(id -gn developer)"; \
+        if [ "$existing_group" != "developer" ] && ! getent group developer >/dev/null; then groupmod -n developer "$existing_group"; fi; \
+        usermod -d /home/developer -m -s /bin/bash developer; \
+    else \
+        groupadd -g 1000 developer; \
+        useradd -m -u 1000 -g developer -s /bin/bash developer; \
+    fi \
+    && mkdir -p "$WORKSPACE" /home/developer/.npm /home/developer/.cache /home/developer/.commandcode \
+    && chown -R developer:developer "$WORKSPACE" /home/developer \
+    && echo "developer ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/developer \
+    && chmod 0440 /etc/sudoers.d/developer
+
+USER developer
+WORKDIR /workspace
+EXPOSE 80
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/commandcode-entrypoint"]
+CMD ["sleep", "infinity"]

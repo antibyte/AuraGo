@@ -70,6 +70,56 @@ func TestBuildImageWaitUsesDockerAPIBuildEndpoint(t *testing.T) {
 	}
 }
 
+func TestBuildImageContextWaitIncludesAdditionalFiles(t *testing.T) {
+	var sawHelper bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tr := tar.NewReader(r.Body)
+		entries := map[string]string{}
+		for {
+			header, err := tr.Next()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Fatalf("read tar header: %v", err)
+			}
+			body, err := io.ReadAll(tr)
+			if err != nil {
+				t.Fatalf("read tar body: %v", err)
+			}
+			entries[header.Name] = string(body)
+		}
+		if entries["Dockerfile"] != "FROM alpine\nCOPY helper.sh /usr/local/bin/helper\n" {
+			t.Fatalf("Dockerfile entry = %q", entries["Dockerfile"])
+		}
+		if entries["helper.sh"] != "#!/bin/sh\necho helper\n" {
+			t.Fatalf("helper entry = %q", entries["helper.sh"])
+		}
+		sawHelper = true
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"stream":"ok"}` + "\n"))
+	}))
+	defer server.Close()
+
+	host := "tcp://" + strings.TrimPrefix(server.URL, "http://")
+	err := BuildImageContextWait(
+		context.Background(),
+		DockerConfig{Host: host},
+		"aurago/commandcode:latest",
+		"Dockerfile",
+		[]byte("FROM alpine\nCOPY helper.sh /usr/local/bin/helper\n"),
+		map[string][]byte{"helper.sh": []byte("#!/bin/sh\necho helper\n")},
+		nil,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("BuildImageContextWait returned error: %v", err)
+	}
+	if !sawHelper {
+		t.Fatal("fake Docker build endpoint did not receive helper file")
+	}
+}
+
 func TestBuildImageWaitReturnsDockerBuildStreamError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

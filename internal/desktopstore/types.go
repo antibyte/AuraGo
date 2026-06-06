@@ -278,6 +278,12 @@ type DockerAdapter interface {
 	InspectContainer(ctx context.Context, name string) (ContainerState, error)
 }
 
+// DockerImageBuilder is an optional DockerAdapter extension for catalog apps
+// that can be built from bundled assets when a registry pull is unavailable.
+type DockerImageBuilder interface {
+	BuildImage(ctx context.Context, image, dockerfileName string, dockerfile []byte, files map[string][]byte, buildArgs map[string]string) error
+}
+
 // DesktopAdapter isolates virtual desktop mutations.
 type DesktopAdapter interface {
 	InstallApp(ctx context.Context, manifest desktop.AppManifest, files map[string]string, source string) error
