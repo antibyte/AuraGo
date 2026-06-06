@@ -263,7 +263,33 @@ func isGenericToolSignature(tc ToolCall, toolSig string) bool {
 		len(tc.Items) == 0
 }
 
+func isCoAgentMonitoringToolCall(tc ToolCall) bool {
+	action := strings.ToLower(strings.TrimSpace(tc.Action))
+	if action != "co_agent" && action != "co_agents" {
+		return false
+	}
+	operation := strings.ToLower(strings.TrimSpace(firstNonEmptyToolString(
+		tc.Operation,
+		tc.SubOperation,
+		toolArgString(tc.Params, "operation", "op"),
+	)))
+	switch operation {
+	case "list", "status", "get_status", "get_result", "result":
+		return true
+	default:
+		return false
+	}
+}
+
 func (s *toolRecoveryState) handleDuplicateToolCall(tc ToolCall, req *openai.ChatCompletionRequest, logger *slog.Logger, scope AgentTelemetryScope) bool {
+	if isCoAgentMonitoringToolCall(tc) {
+		s.mu.Lock()
+		s.DuplicateToolCount = 0
+		s.LastToolCallSig = ""
+		s.mu.Unlock()
+		return false
+	}
+
 	toolSig := buildToolSignature(tc)
 	s.mu.Lock()
 	defer s.mu.Unlock()

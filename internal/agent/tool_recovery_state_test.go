@@ -125,6 +125,52 @@ func TestToolRecoveryStateHandleDuplicateToolCallAllowsDifferentLineRanges(t *te
 	}
 }
 
+func TestToolRecoveryStateAllowsRepeatedCoAgentMonitoringCalls(t *testing.T) {
+	state := newToolRecoveryState()
+	req := openai.ChatCompletionRequest{}
+
+	for _, tc := range []ToolCall{
+		{Action: "co_agent", Operation: "list"},
+		{Action: "co_agent", Operation: "status"},
+		{Action: "co_agent", Operation: "get_result", CoAgentID: "specialist-writer-1"},
+		{Action: "co_agents", Operation: "result", CoAgentID: "specialist-writer-1"},
+	} {
+		t.Run(tc.Action+"_"+tc.Operation, func(t *testing.T) {
+			for i := 0; i < 5; i++ {
+				if state.handleDuplicateToolCall(tc, &req, nil, AgentTelemetryScope{}) {
+					t.Fatalf("co-agent monitoring call %s/%s should remain pollable at attempt %d", tc.Action, tc.Operation, i+1)
+				}
+			}
+		})
+	}
+	if len(req.Messages) != 0 {
+		t.Fatalf("expected no circuit-breaker messages for co-agent monitoring, got %d", len(req.Messages))
+	}
+}
+
+func TestToolRecoveryStateStillBlocksRepeatedCoAgentSpawn(t *testing.T) {
+	state := newToolRecoveryState()
+	req := openai.ChatCompletionRequest{}
+	tc := ToolCall{
+		Action:    "co_agent",
+		Operation: "spawn_specialist",
+		Task:      "Write a short story",
+		Params: map[string]interface{}{
+			"specialist": "writer",
+		},
+	}
+
+	if state.handleDuplicateToolCall(tc, &req, nil, AgentTelemetryScope{}) {
+		t.Fatal("did not expect first co-agent spawn to trip circuit breaker")
+	}
+	if state.handleDuplicateToolCall(tc, &req, nil, AgentTelemetryScope{}) {
+		t.Fatal("did not expect second co-agent spawn to trip circuit breaker yet")
+	}
+	if !state.handleDuplicateToolCall(tc, &req, nil, AgentTelemetryScope{}) {
+		t.Fatal("expected repeated co-agent spawn to stay protected by circuit breaker")
+	}
+}
+
 func TestToolRecoveryStateUpdateToolErrorStateTriggersCircuitBreaker(t *testing.T) {
 	state := newToolRecoveryState()
 	req := openai.ChatCompletionRequest{}

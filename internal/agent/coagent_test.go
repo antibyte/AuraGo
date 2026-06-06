@@ -199,4 +199,56 @@ func TestCoAgentRegistryGetStatusIncludesPartialResultAndRetryHint(t *testing.T)
 	if !strings.Contains(hint, "already retried") {
 		t.Fatalf("retry_hint = %q, want running retry guidance", hint)
 	}
+	if status["poll_after_seconds"] != coAgentPollAfterSeconds {
+		t.Fatalf("poll_after_seconds = %v, want %d", status["poll_after_seconds"], coAgentPollAfterSeconds)
+	}
+	if !strings.Contains(strings.ToLower(hint), "wait") {
+		t.Fatalf("retry_hint = %q, want explicit wait/backoff guidance", hint)
+	}
+}
+
+func TestCoAgentRegistryListIncludesPollingBackoffForActiveAgents(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	registry := NewCoAgentRegistry(1, logger)
+	if _, _, err := registry.RegisterWithPriority("coagent", "First task", func() {}, 2); err != nil {
+		t.Fatalf("RegisterWithPriority first: %v", err)
+	}
+	if _, _, err := registry.RegisterWithPriority("coagent", "Queued task", func() {}, 2); err != nil {
+		t.Fatalf("RegisterWithPriority queued: %v", err)
+	}
+
+	entries := registry.List()
+	if len(entries) != 2 {
+		t.Fatalf("List length = %d, want 2", len(entries))
+	}
+	for _, entry := range entries {
+		if entry["state"] == string(CoAgentRunning) || entry["state"] == string(CoAgentQueued) {
+			if entry["poll_after_seconds"] != coAgentPollAfterSeconds {
+				t.Fatalf("active co-agent %v poll_after_seconds = %v, want %d", entry["id"], entry["poll_after_seconds"], coAgentPollAfterSeconds)
+			}
+		}
+	}
+}
+
+func TestCoAgentSystemPromptTokenBudgetUsesWriterFloor(t *testing.T) {
+	tests := []struct {
+		name            string
+		role            string
+		maxTokensBudget int
+		want            int
+	}{
+		{name: "generic default", role: "", maxTokensBudget: 0, want: defaultCoAgentSystemPromptTokenBudget},
+		{name: "writer default", role: "writer", maxTokensBudget: 0, want: writerCoAgentSystemPromptTokenBudget},
+		{name: "writer keeps floor over lower override", role: "writer", maxTokensBudget: 9000, want: writerCoAgentSystemPromptTokenBudget},
+		{name: "writer honors higher override", role: "writer", maxTokensBudget: 16000, want: 16000},
+		{name: "coder honors override", role: "coder", maxTokensBudget: 9000, want: 9000},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := coAgentSystemPromptTokenBudget(tt.role, tt.maxTokensBudget); got != tt.want {
+				t.Fatalf("coAgentSystemPromptTokenBudget(%q, %d) = %d, want %d", tt.role, tt.maxTokensBudget, got, tt.want)
+			}
+		})
+	}
 }

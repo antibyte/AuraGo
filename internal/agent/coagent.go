@@ -45,6 +45,11 @@ type coAgentLLMSelection struct {
 	Source  string
 }
 
+const (
+	defaultCoAgentSystemPromptTokenBudget = 6000
+	writerCoAgentSystemPromptTokenBudget  = 12000
+)
+
 type coAgentProgressBroadcaster func(payload map[string]interface{})
 
 type coAgentBroker struct {
@@ -255,10 +260,7 @@ func SpawnCoAgent(
 		coCfg.CircuitBreaker.MaxToolCalls = maxToolCalls
 		coCfg.Personality.Engine = false
 		coCfg.LLM.Model = coModel
-		coCfg.Agent.SystemPromptTokenBudget = 6000
-		if maxTokensBudget > 0 {
-			coCfg.Agent.SystemPromptTokenBudget = maxTokensBudget
-		}
+		coCfg.Agent.SystemPromptTokenBudget = coAgentSystemPromptTokenBudget(req.Specialist, maxTokensBudget)
 
 		llmReq := openai.ChatCompletionRequest{
 			Model: coModel,
@@ -713,6 +715,17 @@ func normalizeCoAgentRequest(cfg *config.Config, req CoAgentRequest) CoAgentRequ
 
 func reqPriority(req CoAgentRequest) int {
 	return normalizeCoAgentPriority(req.Priority)
+}
+
+func coAgentSystemPromptTokenBudget(role string, maxTokensBudget int) int {
+	budget := defaultCoAgentSystemPromptTokenBudget
+	if strings.EqualFold(strings.TrimSpace(role), "writer") {
+		budget = writerCoAgentSystemPromptTokenBudget
+	}
+	if maxTokensBudget > budget {
+		return maxTokensBudget
+	}
+	return budget
 }
 
 func isRetryableCoAgentError(cfg *config.Config, err error) bool {

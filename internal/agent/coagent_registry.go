@@ -22,6 +22,8 @@ const (
 	CoAgentCancelled CoAgentState = "cancelled"
 )
 
+const coAgentPollAfterSeconds = 3
+
 // CoAgentEvent holds a small, user-visible lifecycle event for observability.
 type CoAgentEvent struct {
 	At      time.Time `json:"at"`
@@ -505,6 +507,9 @@ func (r *CoAgentRegistry) List() []map[string]interface{} {
 		if a.PartialResult != "" && a.State != CoAgentCompleted {
 			entry["partial_result_preview"] = truncateStr(a.PartialResult, 240)
 		}
+		if a.State == CoAgentRunning || a.State == CoAgentQueued {
+			entry["poll_after_seconds"] = coAgentPollAfterSeconds
+		}
 		if len(a.Events) > 0 {
 			events := make([]map[string]string, 0, len(a.Events))
 			for _, ev := range a.Events {
@@ -595,6 +600,9 @@ func (r *CoAgentRegistry) GetStatus(id string) (map[string]interface{}, error) {
 	if a.PartialResult != "" && a.State != CoAgentCompleted {
 		status["partial_result"] = a.PartialResult
 	}
+	if a.State == CoAgentRunning || a.State == CoAgentQueued {
+		status["poll_after_seconds"] = coAgentPollAfterSeconds
+	}
 	if a.State == CoAgentCompleted {
 		status["result"] = a.Result
 	}
@@ -614,12 +622,12 @@ func (r *CoAgentRegistry) GetStatus(id string) (map[string]interface{}, error) {
 func buildCoAgentRetryHint(state CoAgentState, retryCount int) string {
 	switch state {
 	case CoAgentQueued:
-		return "Wait for a free slot or stop another co-agent first. Use list to monitor queue_position."
+		return "Wait at least a few seconds before polling again. Use list to monitor queue_position, or stop another co-agent if a slot is needed."
 	case CoAgentRunning:
 		if retryCount > 0 {
-			return "This co-agent already retried after a transient failure. Avoid spawning a duplicate until it finishes."
+			return "Wait at least a few seconds before polling again. This co-agent already retried after a transient failure; avoid spawning a duplicate until it finishes."
 		}
-		return "Let it continue running and inspect recent_events or partial_result before deciding to stop it."
+		return "Wait at least a few seconds before polling again. Let it continue running and inspect recent_events or partial_result before deciding to stop it."
 	case CoAgentFailed:
 		if retryCount > 0 {
 			return "Inspect last_error and partial_result before retrying. Repeating the same task unchanged will likely fail again."
