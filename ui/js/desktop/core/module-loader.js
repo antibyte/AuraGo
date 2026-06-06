@@ -158,6 +158,18 @@
                 '/js/desktop/apps/cheater-spotlight.js',
                 '/js/desktop/apps/cheater-attachments.js'
             ]
+        },
+        'homepage-studio': {
+            styles: appStyles('/css/desktop-app-homepage-studio.css', '/css/chat-modules.css', '/css/hljs-github-dark.min.css'),
+            scripts: [
+                '/js/vendor/markdown-it.min.js',
+                '/js/vendor/highlight.min.js',
+                '/js/shared/render-markdown.js',
+                '/js/shared/chat-core.js',
+                '/js/shared/chat-stream-parser.js',
+                '/js/desktop/chat-renderer.js',
+                '/js/desktop/apps/homepage-studio.js'
+            ]
         }
     };
 

@@ -646,6 +646,7 @@ func BuiltinApps() []AppManifest {
 		{ID: "people", Name: "People", Version: "1.0.0", Icon: "users", Entry: "builtin://people", Runtime: BuiltinRuntime, Description: "Address book with knowledge graph integration and birthdays."},
 		{ID: "galaxa-deluxe", Name: "Galaxa Deluxe", Version: "1.0.0", Icon: "run", Entry: "builtin://galaxa-deluxe", Runtime: BuiltinRuntime, Description: "Classic arcade space shooter — destroy enemy formations and beat the high score!"},
 		{ID: "mission-control", Name: "Mission Control", Version: "1.0.0", Icon: "workflow", Entry: "builtin://mission-control", Runtime: BuiltinRuntime, Description: "Create, plan, and manage agent missions with triggers and schedules.", Permissions: []string{"notifications"}},
+		{ID: "homepage-studio", Name: "Homepage Studio", Version: "1.0.0", Icon: "globe", Entry: "builtin://homepage-studio", Runtime: BuiltinRuntime, Description: "AI-powered website builder with live preview.", Permissions: []string{"notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
 		{ID: "viewer", Name: "Viewer", Version: "1.0.0", Icon: "eye", Entry: "builtin://viewer", Runtime: BuiltinRuntime, Description: "Read-only viewer for documents, spreadsheets, PDFs and markdown.", Permissions: []string{"files:read"}, Internal: true},
 	}
 	for i := range apps {

@@ -1,0 +1,442 @@
+/* desktop-app-homepage-studio.css — Homepage Studio split-pane UI */
+
+/* ============================================================
+   1. Root Layout — chat left + preview right
+   ============================================================ */
+.vd-hp-studio {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+    background: var(--ds-color-surface-0);
+}
+
+/* ============================================================
+   2. Chat Panel (left)
+   ============================================================ */
+.vd-hp-chat {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    border-right: 1px solid var(--ds-color-border-subtle);
+    background: var(--ds-color-surface-1);
+}
+
+.vd-hp-chat-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--ds-color-border-subtle);
+    flex-shrink: 0;
+}
+
+.vd-hp-chat-header-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--ds-color-fg-muted);
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.vd-hp-target-select {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 10px;
+    border: 1px solid var(--ds-color-border-subtle);
+    border-radius: var(--ds-radius-md);
+    background: var(--ds-color-control-bg);
+    color: var(--ds-color-fg-primary);
+    font-size: 0.82rem;
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 150ms;
+}
+
+.vd-hp-target-select:focus {
+    border-color: rgba(39, 199, 166, 0.5);
+}
+
+.vd-hp-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--ds-color-fg-muted);
+    transition: background 300ms;
+}
+
+.vd-hp-status-dot.online {
+    background: #10b981;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+}
+
+.vd-hp-status-dot.offline {
+    background: #ef4444;
+}
+
+.vd-hp-status-dot.loading {
+    background: #f59e0b;
+    animation: vd-hp-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes vd-hp-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* ============================================================
+   3. Chat Log
+   ============================================================ */
+.vd-hp-chat-log {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    scroll-behavior: smooth;
+}
+
+.vd-hp-chat-log > * {
+    flex: 0 0 auto;
+}
+
+.vd-hp-welcome {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-height: 0;
+    padding: 30px 16px;
+    text-align: center;
+    animation: vd-welcome-in 400ms ease-out;
+}
+
+.vd-hp-welcome-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(39, 199, 166, 0.1);
+    border: 1px solid rgba(39, 199, 166, 0.2);
+    margin-bottom: 14px;
+    font-size: 28px;
+}
+
+.vd-hp-welcome-heading {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--ds-color-fg-primary);
+    margin-bottom: 6px;
+}
+
+.vd-hp-welcome-sub {
+    font-size: 0.82rem;
+    color: var(--ds-color-fg-muted);
+    max-width: 280px;
+    line-height: 1.45;
+}
+
+/* ============================================================
+   4. Chat Input
+   ============================================================ */
+.vd-hp-chat-form {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--ds-color-border-subtle);
+    background: rgba(9, 13, 22, 0.72);
+    flex-shrink: 0;
+}
+
+.vd-hp-chat-input {
+    flex: 1;
+    min-width: 0;
+    min-height: 42px;
+    max-height: 120px;
+    padding: 9px 12px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: var(--ds-radius-md);
+    background: rgba(10, 15, 26, 0.72);
+    color: #f5f7fb;
+    font-size: 0.86rem;
+    font-family: inherit;
+    line-height: 1.4;
+    resize: none;
+    overflow-y: auto;
+    outline: none;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transition: border-color 150ms, background 150ms;
+    box-sizing: border-box;
+}
+
+.vd-hp-chat-input:focus {
+    border-color: rgba(39, 199, 166, 0.56);
+    background: rgba(7, 12, 23, 0.84);
+    box-shadow: 0 0 0 3px rgba(39, 199, 166, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.vd-hp-chat-input::placeholder {
+    color: rgba(226, 232, 240, 0.64);
+}
+
+.vd-hp-chat-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.vd-hp-send-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 42px;
+    padding: 8px 16px;
+    border: 1px solid rgba(39, 199, 166, 0.35);
+    border-radius: var(--ds-radius-md);
+    background: rgba(39, 199, 166, 0.15);
+    color: var(--vd-accent, #27c7a6);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 150ms, border-color 150ms, transform 100ms;
+    flex-shrink: 0;
+}
+
+.vd-hp-send-btn:hover {
+    background: rgba(39, 199, 166, 0.25);
+    border-color: rgba(39, 199, 166, 0.55);
+}
+
+.vd-hp-send-btn:active {
+    transform: scale(0.96);
+}
+
+.vd-hp-send-btn.is-stop {
+    background: rgba(248, 113, 113, 0.15);
+    border-color: rgba(248, 113, 113, 0.4);
+    color: #f87171;
+}
+
+.vd-hp-send-btn.is-stop:hover {
+    background: rgba(248, 113, 113, 0.25);
+}
+
+.vd-hp-send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.vd-hp-send-icon {
+    width: 15px;
+    height: 15px;
+}
+
+/* ============================================================
+   5. Preview Panel (right)
+   ============================================================ */
+.vd-hp-preview {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    background: var(--ds-color-surface-0);
+}
+
+.vd-hp-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--ds-color-border-subtle);
+    background: var(--ds-color-surface-1);
+    flex-shrink: 0;
+}
+
+.vd-hp-preview-url {
+    flex: 1;
+    min-width: 0;
+    padding: 5px 10px;
+    border: 1px solid var(--ds-color-border-subtle);
+    border-radius: var(--ds-radius-md);
+    background: var(--ds-color-control-bg);
+    color: var(--ds-color-fg-muted);
+    font-size: 0.78rem;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: text;
+    user-select: all;
+}
+
+.vd-hp-preview-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.vd-hp-preview-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border: 1px solid var(--ds-color-border-subtle);
+    border-radius: var(--ds-radius-md);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--ds-color-fg-primary);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: background 120ms, border-color 120ms;
+    white-space: nowrap;
+}
+
+.vd-hp-preview-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.22);
+}
+
+.vd-hp-preview-btn .vd-hp-btn-icon {
+    width: 14px;
+    height: 14px;
+}
+
+/* ============================================================
+   6. Preview Content
+   ============================================================ */
+.vd-hp-preview-body {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.vd-hp-preview-iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #fff;
+}
+
+.vd-hp-preview-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 12px;
+    color: var(--ds-color-fg-muted);
+    font-size: 0.88rem;
+    text-align: center;
+    padding: 40px;
+}
+
+.vd-hp-preview-placeholder-icon {
+    font-size: 48px;
+    opacity: 0.3;
+}
+
+.vd-hp-preview-placeholder-text {
+    max-width: 320px;
+    line-height: 1.5;
+}
+
+.vd-hp-preview-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 5;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms;
+}
+
+.vd-hp-preview-loading.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.vd-hp-preview-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(255, 255, 255, 0.15);
+    border-top-color: var(--vd-accent, #27c7a6);
+    border-radius: 50%;
+    animation: vd-hp-spin 0.8s linear infinite;
+}
+
+@keyframes vd-hp-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   7. Chat Bubble Overrides (reuse agent-chat styles)
+   ============================================================ */
+.vd-hp-chat-log .vd-chat-bubble {
+    max-width: 95%;
+}
+
+.vd-hp-chat-log .vd-chat-message-row {
+    max-width: 95%;
+}
+
+/* ============================================================
+   8. Responsive — stack below 800px
+   ============================================================ */
+@media (max-width: 800px) {
+    .vd-hp-studio {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr;
+    }
+
+    .vd-hp-chat {
+        border-right: none;
+        border-bottom: 1px solid var(--ds-color-border-subtle);
+    }
+}
+
+@media (max-width: 500px) {
+    .vd-hp-preview-header {
+        flex-wrap: wrap;
+    }
+
+    .vd-hp-preview-url {
+        font-size: 0.72rem;
+    }
+}
+
+/* ============================================================
+   9. Reduced Motion
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+    .vd-hp-status-dot.loading {
+        animation: none;
+    }
+
+    .vd-hp-preview-spinner {
+        animation: none;
+    }
+
+    .vd-hp-welcome {
+        animation: none;
+    }
+}

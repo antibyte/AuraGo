@@ -2601,7 +2601,8 @@
             pixel: { width: 1100, height: 750 },
             'galaxa-deluxe': { width: 600, height: 800 },
             people: { width: 1020, height: 700 },
-            'mission-control': { width: 1100, height: 750 }
+            'mission-control': { width: 1100, height: 750 },
+            'homepage-studio': { width: 1400, height: 900 }
         };
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();
@@ -6030,6 +6031,12 @@ if (appId === 'pixel') {
                 readonly: desktopReadonly(), loadBootstrap, updateWindowContext,
                 setWindowMenus, clearWindowMenus, wireContextMenuBoundary,
                 confirmDialog, promptDialog
+            }));
+        }
+        if (appId === 'homepage-studio' && window.HomepageStudioApp && typeof window.HomepageStudioApp.render === 'function') {
+            return window.HomepageStudioApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc, api, t, iconMarkup, notify: showDesktopNotification,
+                loadBootstrap, setWindowMenus, clearWindowMenus, wireContextMenuBoundary
             }));
         }
         return renderGeneratedApp(id, appId);
