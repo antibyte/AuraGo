@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"aurago/internal/config"
 	"aurago/internal/tools"
 )
 
@@ -18,16 +19,10 @@ func handleHomepageStatus(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		s.CfgMu.RLock()
-		dockerHost := s.Cfg.Docker.Host
-		workspacePath := s.Cfg.Homepage.WorkspacePath
-		webServerPort := s.Cfg.Homepage.WebServerPort
-		webServerDomain := s.Cfg.Homepage.WebServerDomain
-		allowLocalServer := s.Cfg.Homepage.AllowLocalServer
-		homepageEnabled := s.Cfg.Homepage.Enabled
-		webServerInternalOnly := s.Cfg.Homepage.WebServerInternalOnly
+		cfgSnapshot := *s.Cfg
 		s.CfgMu.RUnlock()
 
-		if !homepageEnabled {
+		if !cfgSnapshot.Homepage.Enabled {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":        "disabled",
 				"dev_container": map[string]interface{}{"running": false, "exists": false},
@@ -37,24 +32,26 @@ func handleHomepageStatus(s *Server) http.HandlerFunc {
 		}
 
 		cfg := tools.HomepageConfig{
-			DockerHost:            dockerHost,
-			WorkspacePath:         workspacePath,
-			WebServerPort:         webServerPort,
-			WebServerDomain:       webServerDomain,
-			WebServerInternalOnly: webServerInternalOnly,
-			AllowLocalServer:      allowLocalServer,
+			DockerHost:            cfgSnapshot.Docker.Host,
+			WorkspacePath:         cfgSnapshot.Homepage.WorkspacePath,
+			WebServerPort:         cfgSnapshot.Homepage.WebServerPort,
+			WebServerDomain:       cfgSnapshot.Homepage.WebServerDomain,
+			WebServerInternalOnly: cfgSnapshot.Homepage.WebServerInternalOnly,
+			AllowLocalServer:      cfgSnapshot.Homepage.AllowLocalServer,
 		}
 		result := tools.HomepageStatus(cfg, s.Logger)
 
 		var parsed map[string]interface{}
 		if json.Unmarshal([]byte(result), &parsed) == nil {
-			enrichHomepageStatusForRequest(parsed, webServerPort, webServerInternalOnly, r)
+			enrichHomepageStatusForRequest(parsed, homepageStatusBrowserURL(s, &cfgSnapshot, r))
 
 			// Inject tunnel URL when Cloudflare Tunnel is running.
 			if tunnelURL := tools.GetTunnelURL(); tunnelURL != "" {
 				parsed["tunnel_url"] = tunnelURL
 				if homepageAnyServerRunning(parsed) {
-					parsed["preview_url"] = tunnelURL
+					if _, exists := parsed["preview_url"]; !exists {
+						parsed["preview_url"] = tunnelURL
+					}
 				}
 			}
 			enriched, err := json.Marshal(parsed)
@@ -67,29 +64,53 @@ func handleHomepageStatus(s *Server) http.HandlerFunc {
 	}
 }
 
-func enrichHomepageStatusForRequest(payload map[string]interface{}, webServerPort int, internalOnly bool, r *http.Request) {
-	if payload == nil || internalOnly {
-		return
-	}
-	localURL := homepageBrowserURLForRequest(r, webServerPort)
-	if localURL == "" {
+func enrichHomepageStatusForRequest(payload map[string]interface{}, browserURL string) {
+	if payload == nil || browserURL == "" {
 		return
 	}
 
 	if webContainer, ok := homepageStatusObject(payload["web_container"]); ok && homepageStatusRunning(webContainer) {
-		webContainer["browser_url"] = localURL
-		payload["local_browser_url"] = localURL
+		webContainer["browser_url"] = browserURL
+		payload["local_browser_url"] = browserURL
 		if _, exists := payload["preview_url"]; !exists {
-			payload["preview_url"] = localURL
+			payload["preview_url"] = browserURL
 		}
 	}
 	if pythonServer, ok := homepageStatusObject(payload["python_server"]); ok && homepageStatusRunning(pythonServer) {
-		pythonServer["browser_url"] = localURL
-		payload["local_browser_url"] = localURL
+		pythonServer["browser_url"] = browserURL
+		payload["local_browser_url"] = browserURL
 		if _, exists := payload["preview_url"]; !exists {
-			payload["preview_url"] = localURL
+			payload["preview_url"] = browserURL
 		}
 	}
+}
+
+func homepageStatusBrowserURL(s *Server, cfg *config.Config, r *http.Request) string {
+	if cfg == nil {
+		return ""
+	}
+	if cfg.Tailscale.TsNet.Enabled && cfg.Tailscale.TsNet.ExposeHomepage {
+		if s != nil && s.TsNetManager != nil {
+			status := s.TsNetManager.GetStatus()
+			if status.HomepageServing {
+				if host := tsnetStatusHost(status.DNS, status.CertDNS); host != "" {
+					return fmt.Sprintf("https://%s:8443", host)
+				}
+			}
+		}
+		if requestLooksTailscale(r) {
+			if host := requestForwardedHost(r); host != "" {
+				return fmt.Sprintf("https://%s:8443", host)
+			}
+		}
+	}
+	if tunnelURL := tools.GetTunnelURL(); tunnelURL != "" {
+		return tunnelURL
+	}
+	if cfg.Homepage.WebServerInternalOnly || requestLooksTailscale(r) {
+		return ""
+	}
+	return homepageBrowserURLForRequest(r, cfg.Homepage.WebServerPort)
 }
 
 func homepageBrowserURLForRequest(r *http.Request, webServerPort int) string {
