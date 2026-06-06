@@ -25,7 +25,6 @@ RUN apt-get update \
         git \
         gnupg \
         jq \
-        just \
         less \
         libcap2-bin \
         lldb \
@@ -73,6 +72,7 @@ RUN set -eux; \
     rm -f /tmp/go.tgz /tmp/zig.tar.xz
 
 RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal \
+    && /usr/local/cargo/bin/cargo install just --locked \
     && chmod -R a+rX "$RUSTUP_HOME" "$CARGO_HOME"
 
 RUN npm install -g --force \

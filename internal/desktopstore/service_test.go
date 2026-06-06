@@ -210,6 +210,29 @@ func TestCommandCodeInstallBuildsBundledImageWhenPullFails(t *testing.T) {
 	}
 }
 
+func TestCommandCodeDockerfilesInstallJustOutsideBookwormApt(t *testing.T) {
+	embeddedDockerfile, _, err := commandCodeBuildContext()
+	if err != nil {
+		t.Fatalf("load embedded CommandCode Dockerfile: %v", err)
+	}
+	deployDockerfile, err := os.ReadFile(filepath.Join("..", "..", "deploy", "docker", "Dockerfile.commandcode"))
+	if err != nil {
+		t.Fatalf("load deploy CommandCode Dockerfile: %v", err)
+	}
+	for name, dockerfile := range map[string][]byte{
+		"embedded": embeddedDockerfile,
+		"deploy":   deployDockerfile,
+	} {
+		text := string(dockerfile)
+		if strings.Contains(text, "\n        just \\") {
+			t.Fatalf("%s Dockerfile installs just through Bookworm apt; install it after rustup instead", name)
+		}
+		if !strings.Contains(text, "cargo install just --locked") {
+			t.Fatalf("%s Dockerfile must install just through Cargo", name)
+		}
+	}
+}
+
 func TestDockerCreatePayloadSupportsMultiPortHostBindsAndHostNetwork(t *testing.T) {
 	payload := dockerCreatePayload(ContainerSpec{
 		Name:  "aurago-store-demo",
