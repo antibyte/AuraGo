@@ -1242,7 +1242,7 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 		// TODO: Replace unsafe-inline with nonce-based CSP after moving inline UI
 		// handlers/styles into bundled JS/CSS.
 		csp := "default-src 'self'; " +
-			"script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; " +
+			"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; " +
 			"style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; " +
 			"img-src 'self' data: blob: https:; " +
 			"font-src 'self' https://fonts.gstatic.com; " +

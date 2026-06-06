@@ -19,6 +19,7 @@ func TestSecurityHeadersAllowEmbedsForYouTubeAndDesktopStoreApps(t *testing.T) {
 	csp := rec.Header().Get("Content-Security-Policy")
 	for _, marker := range []string{
 		"default-src 'self'",
+		"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com",
 		"connect-src 'self' blob: ws: wss: https://api.open-meteo.com https://geocoding-api.open-meteo.com https://de1.api.radio-browser.info",
 		"img-src 'self' data: blob: https:",
 		"media-src 'self' data: blob: http: https:",
@@ -51,7 +52,7 @@ func TestSecurityHeadersMainCSPDoesNotAllowUnsafeEval(t *testing.T) {
 	if strings.Contains(csp, "'unsafe-eval'") {
 		t.Fatalf("Content-Security-Policy must not allow unsafe-eval: %s", csp)
 	}
-	if !strings.Contains(csp, "script-src 'self' 'unsafe-inline'") {
+	if !strings.Contains(csp, "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'") {
 		t.Fatalf("Content-Security-Policy lost required script-src baseline: %s", csp)
 	}
 }
