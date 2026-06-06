@@ -146,6 +146,40 @@ func TestConfigComposioConnectDoesNotDependOnPreloadedAuthConfigs(t *testing.T) 
 	}
 }
 
+func TestConfigComposioConnectRequiresActivePersistedToolkit(t *testing.T) {
+	t.Parallel()
+
+	composioJS := readDesktopAssetText(t, "cfg/composio.js")
+	for _, marker := range []string{
+		"const connectDisabled = isSelected ? '' : ' disabled aria-disabled=\"true\"';",
+		"' + connectDisabled + ' onclick=\"composioConnectToolkit('",
+		"async function composioToggleToolkit",
+		"await composioSaveSelection(false);",
+		"const selected = composioSelectedMap();",
+		"if (!selected[normalized.toLowerCase()])",
+	} {
+		if !strings.Contains(composioJS, marker) {
+			t.Fatalf("composio connect gating missing marker %q", marker)
+		}
+	}
+}
+
+func TestConfigComposioHandlesCallbackMessage(t *testing.T) {
+	t.Parallel()
+
+	composioJS := readDesktopAssetText(t, "cfg/composio.js")
+	for _, marker := range []string{
+		"function composioHandleConnectMessage",
+		"aurago:composio-connected",
+		"window.addEventListener('message', composioHandleConnectMessage);",
+		"composioLoadToolkitDetail(composioState.selectedSlug);",
+	} {
+		if !strings.Contains(composioJS, marker) {
+			t.Fatalf("composio callback message handling missing marker %q", marker)
+		}
+	}
+}
+
 func TestConfigToastsRenderAboveComposioModal(t *testing.T) {
 	t.Parallel()
 

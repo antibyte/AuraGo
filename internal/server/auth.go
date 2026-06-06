@@ -583,6 +583,7 @@ var authBypassPrefixes = []string{
 	"/api/security/status",
 	"/api/setup",
 	"/api/openrouter/models",
+	"/api/composio/callback",
 	"/api/oauth/callback",
 	"/api/ui-language",
 	"/api/remote/ws",       // Remote agent WebSocket — has its own key-based auth

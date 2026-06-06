@@ -465,6 +465,28 @@ func TestAuthMiddlewareAllowsLoginAssetsWithoutSession(t *testing.T) {
 	}
 }
 
+func TestAuthMiddlewareAllowsComposioCallbackWithoutSession(t *testing.T) {
+	t.Parallel()
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.SessionSecret = "0123456789abcdef0123456789abcdef"
+	s.Cfg.Auth.PasswordHash = "configured"
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler := authMiddleware(s, next)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/composio/callback?status=success&connected_account_id=ca_123", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("Composio callback status = %d, want %d; body=%s", rec.Code, http.StatusNoContent, rec.Body.String())
+	}
+}
+
 func TestAuthMiddlewareAllowsDesktopFileWithEmbedTokenWithoutSession(t *testing.T) {
 	t.Parallel()
 

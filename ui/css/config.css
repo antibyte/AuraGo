@@ -7318,6 +7318,11 @@ select.cfg-input option {
     align-items: center;
 }
 
+.cmp-detail-actions button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
 .cmp-connect-status {
     min-height: 1.2rem;
     margin-top: 0.45rem;

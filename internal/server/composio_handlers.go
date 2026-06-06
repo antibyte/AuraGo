@@ -258,6 +258,34 @@ func handleComposioConnectLink(s *Server) http.HandlerFunc {
 	}
 }
 
+func handleComposioCallback(_ *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		payload := map[string]string{
+			"status":               strings.TrimSpace(r.URL.Query().Get("status")),
+			"connected_account_id": strings.TrimSpace(r.URL.Query().Get("connected_account_id")),
+			"error":                strings.TrimSpace(r.URL.Query().Get("error")),
+		}
+		rawPayload, _ := json.Marshal(payload)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_, _ = fmt.Fprintf(w, `<!doctype html><html><head><meta charset="utf-8"><script>
+(function(){
+  var payload = %s;
+  try {
+    if (window.opener) {
+      window.opener.postMessage({ type: "aurago:composio-connected", payload: payload }, window.location.origin);
+    }
+  } catch (_) {}
+  setTimeout(function(){ window.close(); }, 300);
+})();
+</script></head><body></body></html>`, rawPayload)
+	}
+}
+
 func ensureComposioAuthConfig(ctx context.Context, client *tools.ComposioClient, toolkitSlug string) (tools.ComposioAuthConfig, error) {
 	toolkitSlug = strings.TrimSpace(toolkitSlug)
 	if toolkitSlug == "" {
@@ -530,7 +558,7 @@ func composioDefaultCallbackURL(r *http.Request) string {
 	if host == "" {
 		return ""
 	}
-	return proto + "://" + host + "/config.html?composio=connected"
+	return proto + "://" + host + "/api/composio/callback"
 }
 
 func writeComposioJSON(w http.ResponseWriter, payload interface{}) {

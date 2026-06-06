@@ -35,6 +35,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/composio/auth-configs", handleComposioAuthConfigs(s))
 	mux.HandleFunc("/api/composio/connected-accounts", handleComposioConnectedAccounts(s))
 	mux.HandleFunc("/api/composio/connect-link", handleComposioConnectLink(s))
+	mux.HandleFunc("/api/composio/callback", handleComposioCallback(s))
 	mux.HandleFunc("/api/composio/selection", handleComposioSelection(s))
 	mux.HandleFunc("/api/outgoing-webhooks", handleOutgoingWebhooks(s))
 	mux.HandleFunc("/api/sandbox/status", handleSandboxStatus(s))

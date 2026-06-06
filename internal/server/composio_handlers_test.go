@@ -216,3 +216,40 @@ func TestHandleComposioConnectLinkCreatesAuthConfigWhenMissing(t *testing.T) {
 		t.Fatalf("upstream requests = %v", seen)
 	}
 }
+
+func TestComposioDefaultCallbackURLUsesPublicCallbackRoute(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/api/composio/connect-link", nil)
+	req.Host = "aurago.taild1480.ts.net"
+	req.Header.Set("X-Forwarded-Proto", "https")
+
+	got := composioDefaultCallbackURL(req)
+	want := "https://aurago.taild1480.ts.net/api/composio/callback"
+	if got != want {
+		t.Fatalf("callback URL = %q, want %q", got, want)
+	}
+	if strings.Contains(got, "/config.html") || strings.Contains(got, "/auth/login") {
+		t.Fatalf("callback URL must not target authenticated config/login pages: %q", got)
+	}
+}
+
+func TestHandleComposioCallbackReturnsSelfClosingPage(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/composio/callback?status=success&connected_account_id=ca_123", nil)
+
+	handleComposioCallback(nil).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status code = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"aurago:composio-connected",
+		"connected_account_id",
+		"window.opener.postMessage",
+		"window.close()",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("callback page missing marker %q: %s", want, body)
+		}
+	}
+}

@@ -393,13 +393,14 @@ function composioRenderDetail() {
     }
     const selected = composioSelectedMap();
     const isSelected = !!selected[slug.toLowerCase()];
+    const connectDisabled = isSelected ? '' : ' disabled aria-disabled="true"';
     const accounts = composioState.accounts || [];
     const tools = composioState.tools || [];
     const description = composioToolkitDescription(tk);
     let html = '<div class="cmp-detail-head"><div><div class="cmp-detail-title">' + escapeAttr(tk.name || slug) + '</div><div class="cmp-detail-slug">' + escapeAttr(slug) + '</div></div>' +
         '<button class="btn-save cfg-save-btn-sm" onclick="composioToggleToolkit(' + composioJSArg(slug) + ')">' + (isSelected ? t('config.composio.disable_toolkit') : t('config.composio.enable_toolkit')) + '</button></div>';
     html += '<div class="cmp-detail-desc">' + escapeAttr(description || t('config.composio.no_description')) + '</div>';
-    html += '<div class="cmp-detail-actions"><button id="composio-connect-btn" class="btn-secondary cfg-save-btn-sm" onclick="composioConnectToolkit(' + composioJSArg(slug) + ')">' + t('config.composio.connect') + '</button>' +
+    html += '<div class="cmp-detail-actions"><button id="composio-connect-btn" class="btn-secondary cfg-save-btn-sm"' + connectDisabled + ' onclick="composioConnectToolkit(' + composioJSArg(slug) + ')">' + t('config.composio.connect') + '</button>' +
         '<button class="btn-secondary cfg-save-btn-sm" onclick="composioLoadToolkitDetail(' + composioJSArg(slug) + ')">' + t('config.composio.refresh') + '</button></div>' +
         '<div id="composio-connect-status" class="cmp-connect-status"></div>';
     html += '<div class="cmp-detail-grid"><div><div class="cmp-mini-title">' + t('config.composio.accounts') + '</div>' + composioAccountsHTML(accounts) + '</div>' +
@@ -432,7 +433,7 @@ function composioSelectedMap() {
     return map;
 }
 
-function composioToggleToolkit(slug) {
+async function composioToggleToolkit(slug) {
     const cfg = composioConfig();
     const normalized = (slug || '').trim();
     if (!normalized) return;
@@ -446,6 +447,8 @@ function composioToggleToolkit(slug) {
     composioRenderModal();
     const summary = document.getElementById('composio-selected-list');
     if (summary) summary.innerHTML = composioSelectedSummary(cfg.toolkits);
+    const saved = await composioSaveSelection(false);
+    if (saved) composioSetConnectStatus(t('config.composio.selection_saved'), 'ok');
 }
 
 async function composioSaveSelection(toast) {
@@ -472,8 +475,10 @@ async function composioSaveSelection(toast) {
         configData.composio = Object.assign(composioConfig(), data);
         if (toast) showToast(t('config.composio.selection_saved'), 'success');
         await composioRefreshStatus();
+        return true;
     } catch (e) {
         showToast(t('config.composio.selection_save_failed') + ': ' + (e.message || t('config.common.error')), 'error');
+        return false;
     }
 }
 
@@ -483,10 +488,21 @@ async function composioConnectToolkit(slug) {
         composioSetConnectStatus(t('config.composio.no_auth_config'), 'warn');
         return;
     }
+    const selected = composioSelectedMap();
+    if (!selected[normalized.toLowerCase()]) {
+        composioSetConnectStatus(t('config.composio.no_toolkits_selected'), 'warn');
+        return;
+    }
     const preferred = composioPreferredAuthConfig();
     const popup = window.open('about:blank', '_blank');
     composioSetConnectStatus(t('config.common.loading'), 'loading');
     try {
+        const saved = await composioSaveSelection(false);
+        if (!saved) {
+            if (popup && !popup.closed) popup.close();
+            composioSetConnectStatus(t('config.composio.selection_save_failed'), 'error');
+            return;
+        }
         const body = { toolkit_slug: normalized };
         if (preferred && preferred.id) body.auth_config_id = preferred.id;
         const resp = await fetch('/api/composio/connect-link', {
@@ -500,7 +516,6 @@ async function composioConnectToolkit(slug) {
         const url = link.redirect_url || link.link;
         if (!url) throw new Error(t('config.composio.no_connect_url'));
         if (!popup) throw new Error(t('config.composio.connect_failed'));
-        popup.opener = null;
         popup.location.href = url;
         composioSetConnectStatus(t('config.composio.connect_opened'), 'ok');
         showToast(t('config.composio.connect_opened'), 'success');
@@ -510,4 +525,22 @@ async function composioConnectToolkit(slug) {
         composioSetConnectStatus(message, 'error');
         showToast(message, 'error');
     }
+}
+
+function composioHandleConnectMessage(ev) {
+    if (!ev || ev.origin !== window.location.origin) return;
+    const msg = ev.data || {};
+    if (!msg || msg.type !== 'aurago:composio-connected') return;
+    const payload = msg.payload || {};
+    if (payload.error) {
+        composioSetConnectStatus(t('config.composio.connect_failed') + ': ' + payload.error, 'error');
+        return;
+    }
+    composioSetConnectStatus(t('config.composio.connect_opened'), 'ok');
+    if (composioState.selectedSlug) composioLoadToolkitDetail(composioState.selectedSlug);
+}
+
+if (!window.__auragoComposioMessageListener) {
+    window.__auragoComposioMessageListener = true;
+    window.addEventListener('message', composioHandleConnectMessage);
 }
