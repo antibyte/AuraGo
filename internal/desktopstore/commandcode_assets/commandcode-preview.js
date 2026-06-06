@@ -10,6 +10,7 @@ const bindHost = process.env.COMMANDCODE_PREVIEW_HOST || '0.0.0.0';
 const bindPort = Number(process.env.COMMANDCODE_PREVIEW_PORT || 80);
 const targetFile = process.env.COMMANDCODE_PREVIEW_TARGET_FILE || '/tmp/commandcode-preview-target';
 const defaultTarget = process.env.COMMANDCODE_PREVIEW_TARGET || 'http://127.0.0.1:5173';
+const previewStatusPath = '/__commandcode_preview_status';
 const candidatePorts = (process.env.COMMANDCODE_PREVIEW_CANDIDATE_PORTS || '5173,4173,3000,3001,5174,8080,8000')
   .split(',')
   .map(value => Number(value.trim()))
@@ -67,16 +68,28 @@ function probeTarget(target) {
 }
 
 async function resolveTarget(forceDiscover) {
+  return (await resolveTargetStatus(forceDiscover)).target;
+}
+
+async function resolveTargetStatus(forceDiscover) {
   const configured = currentTarget();
-  if (!forceDiscover && await probeTarget(configured)) return configured;
+  if (await probeTarget(configured)) return { target: configured, ready: true };
   for (const port of candidatePorts) {
     const target = new URL(`http://127.0.0.1:${port}/`);
     if (await probeTarget(target)) {
       writeTarget(target);
-      return target;
+      return { target, ready: true };
     }
   }
-  return configured;
+  return { target: configured, ready: false };
+}
+
+function writeJSON(res, statusCode, body) {
+  res.writeHead(statusCode, {
+    'content-type': 'application/json; charset=utf-8',
+    'cache-control': 'no-store'
+  });
+  res.end(JSON.stringify(body));
 }
 
 function placeholder(res) {
@@ -104,7 +117,17 @@ function placeholder(res) {
     <p><code>npm run dev -- --host 0.0.0.0</code></p>
     <p><code>preview-port 5173</code></p>
   </main>
-  <script>setTimeout(() => window.location.reload(), 1500);</script>
+  <script>
+    async function pollPreviewStatus() {
+      try {
+        const response = await fetch('/__commandcode_preview_status', { cache: 'no-store' });
+        const status = await response.json();
+        if (status && status.ready) window.location.reload();
+      } catch (_) {}
+      setTimeout(pollPreviewStatus, 1500);
+    }
+    setTimeout(pollPreviewStatus, 1500);
+  </script>
 </body>
 </html>`);
 }
@@ -135,6 +158,11 @@ function proxyHTTPRequest(req, res, target, allowRetry) {
 }
 
 const server = http.createServer(async (req, res) => {
+  if ((req.url || '').split('?')[0] === previewStatusPath) {
+    const status = await resolveTargetStatus(true);
+    writeJSON(res, 200, { ready: status.ready, target: status.target.href });
+    return;
+  }
   const target = await resolveTarget(false);
   proxyHTTPRequest(req, res, target, true);
 });
