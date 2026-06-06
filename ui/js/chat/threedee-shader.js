@@ -326,6 +326,10 @@
     const ROBOT_DAMAGE_MAX_DENT_OFFSET = 0.075;
     const ROBOT_DAMAGE_DECAL_OFFSET = 0.018;
     const ROBOT_DAMAGE_MAX_SCORCH_MARKS = 14;
+    const ROBOT_SUPER_DAMAGE_SMOKE_DURATION = 4.2;
+    const ROBOT_SUPER_DAMAGE_SMOKE_INTERVAL = 0.16;
+    const ROBOT_SUPER_DAMAGE_DEBRIS_MIN = 34;
+    const ROBOT_SUPER_DAMAGE_DEBRIS_EXTRA = 18;
     const ROBOT_FOOT_JET_UNDERSIDE_Y = -0.2;
     const ROBOT_THRUSTER_RIPPLE_LIFETIME = 2.8;
     const ROBOT_THRUSTER_RIPPLE_MIN_GAP = 3.05;
@@ -914,6 +918,11 @@
                         p.sprite.position.z = rz * (1 - dt * pull) + (surface ? surface.position.z : -5.3);
                         p.sprite.position.y += (p.vy - 0.95) * dt;
                     }
+                } else if (p.kind === 'robotDebrisShard') {
+                    p.vy -= dt * 4.8;
+                    p.sprite.position.x += p.vx * dt;
+                    p.sprite.position.y += p.vy * dt;
+                    p.sprite.position.z += p.vz * dt;
                 } else {
                     p.sprite.position.x += p.vx * dt;
                     p.sprite.position.y += (p.vy + 0.12) * dt;
@@ -1553,6 +1562,8 @@
                 evasionUntil: -999,
                 evasionVector: new THREE.Vector2(0, 0),
                 evasionThreat: null,
+                smokeUntil: -999,
+                lastDamageSmokeAt: -999,
                 px: options.x,
                 pz: options.z
             },
@@ -2683,8 +2694,78 @@
         applyRobotMeshDent(target, damage, isSuper);
         if (isSuper) {
             paintRobotDamageTexture(target, impactPosition, impactDirection, isSuper);
+            target.state.smokeUntil = Math.max(target.state.smokeUntil || -999, globalTime + ROBOT_SUPER_DAMAGE_SMOKE_DURATION);
+            target.state.lastDamageSmokeAt = Math.min(target.state.lastDamageSmokeAt || -999, globalTime - ROBOT_SUPER_DAMAGE_SMOKE_INTERVAL);
+            spawnRobotDamageDebris(target, damage);
         }
         spawnRobotScorchMarks(target, damage, isSuper);
+    }
+
+    function spawnRobotDamageDebris(target, damage) {
+        if (!target || !damage || !damage.position || !damage.normal || !scene) return;
+        const count = ROBOT_SUPER_DAMAGE_DEBRIS_MIN + Math.floor(Math.random() * ROBOT_SUPER_DAMAGE_DEBRIS_EXTRA);
+        const outward = damage.normal.clone().normalize();
+        const sideA = new THREE.Vector3(0, 1, 0).cross(outward);
+        if (sideA.lengthSq() < 0.001) sideA.set(1, 0, 0);
+        sideA.normalize();
+        const sideB = outward.clone().cross(sideA).normalize();
+
+        for (let i = 0; i < count; i++) {
+            const velocity = outward.clone().multiplyScalar(1.4 + Math.random() * 4.2)
+                .addScaledVector(sideA, (Math.random() - 0.5) * 1.6)
+                .addScaledVector(sideB, (Math.random() - 0.5) * 1.2);
+            velocity.y += 0.35 + Math.random() * 1.8;
+            const color = Math.random() < 0.45 ? 0xffb15a : (Math.random() < 0.5 ? 0xd7dee7 : 0x6b7280);
+            createSmokeSprite(
+                damage.position.x + outward.x * 0.08,
+                damage.position.y + 0.04 + Math.random() * 0.12,
+                damage.position.z + outward.z * 0.08,
+                color,
+                0.025 + Math.random() * 0.045,
+                0.7 + Math.random() * 0.65,
+                {
+                    vx: velocity.x,
+                    vy: velocity.y,
+                    vz: velocity.z,
+                    spin: (Math.random() - 0.5) * 16,
+                    opacity: 0.92,
+                    expansion: 0.08,
+                    fadePower: 1.65,
+                    blending: THREE.NormalBlending,
+                    kind: 'robotDebrisShard'
+                }
+            );
+        }
+    }
+
+    function updateRobotDamageSmoke(t) {
+        if (!robotFleet.length) return;
+        robotFleet.forEach(function (bot) {
+            if (!bot || !bot.state || !bot.group || !bot.group.position) return;
+            if (t > (bot.state.smokeUntil || -999)) return;
+            if (t - (bot.state.lastDamageSmokeAt || -999) < ROBOT_SUPER_DAMAGE_SMOKE_INTERVAL) return;
+            bot.state.lastDamageSmokeAt = t;
+            const source = bot.group.position;
+            createSmokeSprite(
+                source.x + (Math.random() - 0.5) * 0.48,
+                source.y + 0.55 + Math.random() * 0.32,
+                source.z + (Math.random() - 0.5) * 0.48,
+                Math.random() < 0.35 ? 0x9ca3af : 0x4b5563,
+                0.12 + Math.random() * 0.12,
+                1.6 + Math.random() * 0.8,
+                {
+                    vx: (Math.random() - 0.5) * 0.26,
+                    vy: 0.18 + Math.random() * 0.24,
+                    vz: (Math.random() - 0.5) * 0.26,
+                    spin: (Math.random() - 0.5) * 1.2,
+                    opacity: 0.24 + Math.random() * 0.12,
+                    expansion: 1.8,
+                    fadePower: 1.45,
+                    blending: THREE.NormalBlending,
+                    kind: 'robotDamageSmoke'
+                }
+            );
+        });
     }
 
     function applyRobotMeshDent(target, damage, isSuper) {
@@ -3271,6 +3352,7 @@
             updateRobotVisualsPhase(bot, dt, t, index);
         });
         updateRobotThrusterRipples(t);
+        updateRobotDamageSmoke(t);
         updateRobotDuel(dt, t);
         updateEnergyProjectiles(dt, t);
         aliasPrimaryRobot(robotFleet[0]);

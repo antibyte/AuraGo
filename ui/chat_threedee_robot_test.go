@@ -158,6 +158,31 @@ func TestThreeDeeRobotsRequireCloseRangeAndReactToHits(t *testing.T) {
 	}
 }
 
+func TestThreeDeeSuperweaponHitsSpawnRobotSmokeAndDebris(t *testing.T) {
+	t.Parallel()
+
+	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
+	for _, marker := range []string{
+		"const ROBOT_SUPER_DAMAGE_SMOKE_DURATION =",
+		"const ROBOT_SUPER_DAMAGE_SMOKE_INTERVAL =",
+		"const ROBOT_SUPER_DAMAGE_DEBRIS_MIN =",
+		"smokeUntil: -999",
+		"lastDamageSmokeAt: -999",
+		"function spawnRobotDamageDebris(target, damage)",
+		"kind: 'robotDebrisShard'",
+		"kind: 'robotDamageSmoke'",
+		"function updateRobotDamageSmoke(t)",
+		"target.state.smokeUntil = Math.max(target.state.smokeUntil || -999, globalTime + ROBOT_SUPER_DAMAGE_SMOKE_DURATION);",
+		"spawnRobotDamageDebris(target, damage);",
+		"if (isSuper) {",
+		"updateRobotDamageSmoke(t);",
+	} {
+		if !strings.Contains(shader, marker) {
+			t.Fatalf("threedee-shader.js missing superweapon smoke/debris marker %q", marker)
+		}
+	}
+}
+
 func TestThreeDeeRobotHitsCreateMeshDentsAndScorchMarks(t *testing.T) {
 	t.Parallel()
 
