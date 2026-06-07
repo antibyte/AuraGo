@@ -1,0 +1,38 @@
+{
+  "name": "list_users",
+  "description": "Retrieve users in the Linear workspace",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "limit": {
+        "default": 50,
+        "description": "Max results (default 50, max 250)",
+        "type": "number",
+        "maximum": 250
+      },
+      "cursor": {
+        "description": "Next page cursor",
+        "type": "string"
+      },
+      "orderBy": {
+        "default": "updatedAt",
+        "description": "Sort: createdAt | updatedAt",
+        "type": "string",
+        "enum": [
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "query": {
+        "description": "Filter by name or email",
+        "type": "string"
+      },
+      "team": {
+        "description": "Team name or ID",
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  }
+}

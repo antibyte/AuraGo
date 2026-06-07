@@ -1,0 +1,46 @@
+{
+  "name": "save_comment",
+  "description": "Create or update a comment on a Linear issue, project, initiative, document, or project milestone. If `id` is provided, updates the existing comment; otherwise creates a new one. To start a new thread, pass `body` and exactly one of `issueId`, `projectId`, `initiativeId`, `documentId`, or `milestoneId` — comments on issues/projects/initiatives become top-level discussion threads; comments on documents/milestones become description comments. To reply to an existing thread, pass `parentId` and `body`; the reply inherits the parent's thread type, so no entity reference is needed.",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "id": {
+        "description": "Comment ID. If provided, updates the existing comment",
+        "type": "string"
+      },
+      "issueId": {
+        "description": "Issue ID or identifier (e.g., LIN-123) (provide exactly one parent)",
+        "type": "string"
+      },
+      "projectId": {
+        "description": "Project name, ID, or slug (provide exactly one parent)",
+        "type": "string"
+      },
+      "initiativeId": {
+        "description": "Initiative name or ID (provide exactly one parent)",
+        "type": "string"
+      },
+      "documentId": {
+        "description": "Document ID or slug (provide exactly one parent)",
+        "type": "string"
+      },
+      "milestoneId": {
+        "description": "Milestone UUID (provide exactly one parent). Resolve milestone names via `list_milestones` first.",
+        "type": "string"
+      },
+      "parentId": {
+        "description": "Parent comment ID (for replies, only when creating)",
+        "type": "string"
+      },
+      "body": {
+        "type": "string",
+        "description": "Content as Markdown. Do not escape the string — use literal newlines and special characters, not escape sequences. To mention a user, use @displayName (e.g., @johndoe)"
+      }
+    },
+    "required": [
+      "body"
+    ],
+    "additionalProperties": false
+  }
+}

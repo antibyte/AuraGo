@@ -1,0 +1,23 @@
+{
+  "name": "search_documentation",
+  "description": "Search Linear's documentation to learn about features and usage",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Search query"
+      },
+      "page": {
+        "default": 0,
+        "description": "Page number",
+        "type": "number"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "additionalProperties": false
+  }
+}

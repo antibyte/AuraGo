@@ -1,0 +1,33 @@
+{
+  "name": "get_project",
+  "description": "Retrieve details of a specific project in Linear",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Project name, ID, or slug"
+      },
+      "includeMilestones": {
+        "default": false,
+        "description": "Include milestones",
+        "type": "boolean"
+      },
+      "includeMembers": {
+        "default": false,
+        "description": "Include project members",
+        "type": "boolean"
+      },
+      "includeResources": {
+        "default": false,
+        "description": "Include resources (documents, links, attachments)",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "additionalProperties": false
+  }
+}

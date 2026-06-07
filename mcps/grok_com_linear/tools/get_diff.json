@@ -1,0 +1,19 @@
+{
+  "name": "get_diff",
+  "description": "Exact lookup for a Linear diff. Use with review URLs, GitHub PR URLs, Linear full identifiers, UUIDs, or slugs.",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "urlOrId": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Linear review URL, diff slug, pull request ID, Linear full identifier, or GitHub PR URL"
+      }
+    },
+    "required": [
+      "urlOrId"
+    ],
+    "additionalProperties": false
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "name": "list_project_labels",
+  "description": "List available project labels in the Linear workspace",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "limit": {
+        "default": 50,
+        "description": "Max results (default 50, max 250)",
+        "type": "number",
+        "maximum": 250
+      },
+      "cursor": {
+        "description": "Next page cursor",
+        "type": "string"
+      },
+      "orderBy": {
+        "default": "updatedAt",
+        "description": "Sort: createdAt | updatedAt",
+        "type": "string",
+        "enum": [
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "name": {
+        "description": "Filter by name",
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  }
+}

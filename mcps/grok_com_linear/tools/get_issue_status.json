@@ -1,0 +1,28 @@
+{
+  "name": "get_issue_status",
+  "description": "Retrieve detailed information about an issue status in Linear by name or ID",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Status ID"
+      },
+      "name": {
+        "type": "string",
+        "description": "Status name"
+      },
+      "team": {
+        "type": "string",
+        "description": "Team name or ID"
+      }
+    },
+    "required": [
+      "id",
+      "name",
+      "team"
+    ],
+    "additionalProperties": false
+  }
+}

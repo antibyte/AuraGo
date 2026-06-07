@@ -1,0 +1,37 @@
+{
+  "name": "rename",
+  "description": "Multi-file coordinated rename using the knowledge graph + text search.\nFinds all references via graph (high confidence) and regex text search (lower confidence). Preview by default.\n\nWHEN TO USE: Renaming a function, class, method, or variable across the codebase. Safer than find-and-replace.\nAFTER THIS: Run detect_changes() to verify no unexpected side effects.\n\nEach edit is tagged with confidence:\n- \"graph\": found via knowledge graph relationships (high confidence, safe to accept)\n- \"text_search\": found via regex text search (lower confidence, review carefully)",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "symbol_name": {
+        "type": "string",
+        "description": "Current symbol name to rename"
+      },
+      "symbol_uid": {
+        "type": "string",
+        "description": "Direct symbol UID from prior tool results (zero-ambiguity)"
+      },
+      "new_name": {
+        "type": "string",
+        "description": "The new name for the symbol"
+      },
+      "file_path": {
+        "type": "string",
+        "description": "File path to disambiguate common names"
+      },
+      "dry_run": {
+        "type": "boolean",
+        "description": "Preview edits without modifying files (default: true)",
+        "default": true
+      },
+      "repo": {
+        "type": "string",
+        "description": "Repository name or path. Omit if only one repo is indexed."
+      }
+    },
+    "required": [
+      "new_name"
+    ]
+  }
+}

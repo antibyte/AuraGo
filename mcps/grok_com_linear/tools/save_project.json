@@ -1,0 +1,133 @@
+{
+  "name": "save_project",
+  "description": "Create or update a Linear project. If `id` is provided, updates the existing project; otherwise creates a new one. When creating, `name` and at least one team (via `addTeams` or `setTeams`) are required.",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "id": {
+        "description": "Project ID. If provided, updates the existing project",
+        "type": "string"
+      },
+      "name": {
+        "description": "Project name (required when creating)",
+        "type": "string"
+      },
+      "icon": {
+        "description": "Icon name or emoji code (e.g. \"Rocket\" or \":eagle:\"), not a raw Unicode emoji",
+        "type": "string"
+      },
+      "color": {
+        "description": "Hex color",
+        "type": "string"
+      },
+      "summary": {
+        "description": "Short summary (max 255 chars)",
+        "type": "string"
+      },
+      "description": {
+        "description": "Content as Markdown. Do not escape the string — use literal newlines and special characters, not escape sequences. To mention a user, use @displayName (e.g., @johndoe)",
+        "type": "string"
+      },
+      "state": {
+        "description": "Project state",
+        "type": "string"
+      },
+      "startDate": {
+        "description": "Start date (ISO format). Pair with startDateResolution to indicate precision (e.g. month, quarter)",
+        "type": "string"
+      },
+      "startDateResolution": {
+        "description": "Start date resolution",
+        "type": "string",
+        "enum": [
+          "halfYear",
+          "month",
+          "quarter",
+          "year"
+        ]
+      },
+      "targetDate": {
+        "description": "Target date (ISO format). Pair with targetDateResolution to indicate precision (e.g. month, quarter)",
+        "type": "string"
+      },
+      "targetDateResolution": {
+        "description": "Target date resolution",
+        "type": "string",
+        "enum": [
+          "halfYear",
+          "month",
+          "quarter",
+          "year"
+        ]
+      },
+      "priority": {
+        "description": "0=None, 1=Urgent, 2=High, 3=Medium, 4=Low",
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 4
+      },
+      "addTeams": {
+        "description": "Team name or ID to add",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "removeTeams": {
+        "description": "Team name or ID to remove",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "setTeams": {
+        "description": "Replace all teams with these. Cannot combine with addTeams/removeTeams",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "labels": {
+        "description": "Label names or IDs",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "lead": {
+        "description": "User ID, name, email, or \"me\". Null to remove",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "addInitiatives": {
+        "description": "Initiative names/IDs to add",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "removeInitiatives": {
+        "description": "Initiative names/IDs to remove",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "setInitiatives": {
+        "description": "Replace all initiatives with these. Cannot combine with addInitiatives/removeInitiatives",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": false
+  }
+}

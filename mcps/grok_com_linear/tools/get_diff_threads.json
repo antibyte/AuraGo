@@ -1,0 +1,36 @@
+{
+  "name": "get_diff_threads",
+  "description": "Exact lookup for diff threads. Use with review URLs, GitHub PR URLs, Linear full identifiers, UUIDs, or slugs.",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "urlOrId": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Linear review URL, diff slug, pull request ID, Linear full identifier, or GitHub PR URL"
+      },
+      "threadId": {
+        "description": "Optional top-level thread/comment ID to return",
+        "type": "string"
+      },
+      "resolved": {
+        "description": "Filter returned threads by resolved state",
+        "type": "boolean"
+      },
+      "orderBy": {
+        "default": "updatedAt",
+        "description": "Sort: createdAt | updatedAt",
+        "type": "string",
+        "enum": [
+          "createdAt",
+          "updatedAt"
+        ]
+      }
+    },
+    "required": [
+      "urlOrId"
+    ],
+    "additionalProperties": false
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "save_milestone",
+  "description": "Create or update a milestone in a Linear project. If `id` is provided, updates the existing milestone; otherwise creates a new one. When creating, `name` is required.",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "project": {
+        "type": "string",
+        "description": "Project name, ID, or slug"
+      },
+      "id": {
+        "description": "Milestone name or ID",
+        "type": "string"
+      },
+      "name": {
+        "description": "Milestone name (required when creating)",
+        "type": "string"
+      },
+      "description": {
+        "description": "Milestone description",
+        "type": "string"
+      },
+      "targetDate": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Target completion date (ISO format, null to remove)"
+      }
+    },
+    "required": [
+      "project"
+    ],
+    "additionalProperties": false
+  }
+}

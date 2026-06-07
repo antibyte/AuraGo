@@ -1,0 +1,33 @@
+{
+  "name": "get_issue",
+  "description": "Retrieve detailed information about an issue by ID, including attachments and git branch name",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Issue ID or identifier (e.g., LIN-123)"
+      },
+      "includeRelations": {
+        "default": false,
+        "description": "Include blocking/related/duplicate relations",
+        "type": "boolean"
+      },
+      "includeCustomerNeeds": {
+        "default": false,
+        "description": "Include associated customer needs",
+        "type": "boolean"
+      },
+      "includeReleases": {
+        "default": false,
+        "description": "Include associated releases",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "id"
+    ],
+    "additionalProperties": false
+  }
+}

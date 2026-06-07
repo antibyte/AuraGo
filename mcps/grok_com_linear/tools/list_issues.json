@@ -1,0 +1,90 @@
+{
+  "name": "list_issues",
+  "description": "List issues in the user's Linear workspace. For my issues, use \"me\" as the assignee. Use \"null\" for no assignee.",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "limit": {
+        "default": 50,
+        "description": "Max results (default 50, max 250)",
+        "type": "number",
+        "maximum": 250
+      },
+      "cursor": {
+        "description": "Next page cursor",
+        "type": "string"
+      },
+      "orderBy": {
+        "default": "updatedAt",
+        "description": "Sort: createdAt | updatedAt",
+        "type": "string",
+        "enum": [
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "query": {
+        "description": "Search issue title or description",
+        "type": "string"
+      },
+      "team": {
+        "description": "Team name or ID",
+        "type": "string"
+      },
+      "state": {
+        "description": "State type, name, or ID",
+        "type": "string"
+      },
+      "cycle": {
+        "description": "Cycle name, number, or ID",
+        "type": "string"
+      },
+      "label": {
+        "description": "Label name or ID",
+        "type": "string"
+      },
+      "assignee": {
+        "description": "User ID, name, email, or \"me\"",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "delegate": {
+        "description": "Agent name or ID. When the user asks to delegate to \"Linear\" or \"the Linear agent\", this refers to the \"Linear\" app user specifically",
+        "type": "string"
+      },
+      "project": {
+        "description": "Project name, ID, or slug",
+        "type": "string"
+      },
+      "priority": {
+        "description": "0=None, 1=Urgent, 2=High, 3=Medium, 4=Low",
+        "type": "number"
+      },
+      "parentId": {
+        "description": "Parent issue ID or identifier (e.g., LIN-123)",
+        "type": "string"
+      },
+      "createdAt": {
+        "description": "Created after: ISO-8601 date/duration (e.g., -P1D)",
+        "type": "string"
+      },
+      "updatedAt": {
+        "description": "Updated after: ISO-8601 date/duration (e.g., -P1D)",
+        "type": "string"
+      },
+      "includeArchived": {
+        "default": true,
+        "description": "Include archived items",
+        "type": "boolean"
+      }
+    },
+    "additionalProperties": false
+  }
+}

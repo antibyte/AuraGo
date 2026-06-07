@@ -1,0 +1,32 @@
+{
+  "name": "create_attachment_from_upload",
+  "description": "Link an already-uploaded Linear assetUrl to an existing issue as an attachment.\n\nUse this only after:\n1. prepare_attachment_upload returned an assetUrl and uploadRequest.\n2. The client successfully PUT raw file bytes to uploadRequest.url.\n\nThis tool does not upload file content. It only creates the Linear attachment row.\nIf the direct upload failed or the signed URL expired, rerun prepare_attachment_upload and upload again.",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "issue": {
+        "type": "string",
+        "description": "Issue ID or identifier (e.g., LIN-123)"
+      },
+      "assetUrl": {
+        "type": "string",
+        "format": "uri",
+        "description": "Linear upload assetUrl returned by prepare_attachment_upload"
+      },
+      "title": {
+        "description": "Attachment title. Defaults to filename or asset URL",
+        "type": "string"
+      },
+      "subtitle": {
+        "description": "Optional attachment subtitle",
+        "type": "string"
+      }
+    },
+    "required": [
+      "issue",
+      "assetUrl"
+    ],
+    "additionalProperties": false
+  }
+}

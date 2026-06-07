@@ -1,0 +1,39 @@
+{
+  "name": "create_issue_label",
+  "description": "Create a new Linear issue label",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Label name"
+      },
+      "description": {
+        "description": "Label description",
+        "type": "string"
+      },
+      "color": {
+        "description": "Hex color code",
+        "type": "string"
+      },
+      "teamId": {
+        "description": "Team UUID (omit for workspace label)",
+        "type": "string"
+      },
+      "parent": {
+        "description": "Parent label group name",
+        "type": "string"
+      },
+      "isGroup": {
+        "default": false,
+        "description": "Is label group (not directly applicable)",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "additionalProperties": false
+  }
+}

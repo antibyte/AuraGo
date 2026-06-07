@@ -1,0 +1,90 @@
+{
+  "name": "impact",
+  "description": "Analyze the blast radius of changing a code symbol.\nReturns affected symbols grouped by depth, plus risk assessment, affected execution flows, and affected modules.\n\nWHEN TO USE: Before making code changes — especially refactoring, renaming, or modifying shared code. Shows what would break.\nAFTER THIS: Review d=1 items (WILL BREAK). Use context() on high-risk symbols.\n\nOutput includes:\n- risk: LOW / MEDIUM / HIGH / CRITICAL\n- summary: direct callers, processes affected, modules affected\n- affected_processes: which execution flows break and at which step\n- affected_modules: which functional areas are hit (direct vs indirect)\n- byDepth: all affected symbols grouped by traversal depth\n\nDepth groups:\n- d=1: WILL BREAK (direct callers/importers)\n- d=2: LIKELY AFFECTED (indirect)\n- d=3: MAY NEED TESTING (transitive)\n\nTIP: Default traversal uses CALLS/IMPORTS/EXTENDS/IMPLEMENTS. For class members, include HAS_METHOD and HAS_PROPERTY in relationTypes. For field access analysis, include ACCESSES in relationTypes.\n\nHandles disambiguation: when multiple symbols share the target name, returns ranked candidates (each with a relevance score) instead of silently picking one. Use target_uid for zero-ambiguity lookup, or narrow with file_path and/or kind hints.\n\nEdgeType: CALLS, IMPORTS, EXTENDS, IMPLEMENTS, HAS_METHOD, HAS_PROPERTY, METHOD_OVERRIDES, METHOD_IMPLEMENTS, ACCESSES\nConfidence: 1.0 = certain, <0.8 = fuzzy match\n\nGROUP MODE: set \"repo\" to \"@<groupName>\" for cross-repo impact anchored at the default member (lexicographically first key in group.yaml \"repos\"), or \"@<groupName>/<groupRepoPath>\" to choose the member (same path keys as in group.yaml). Phase-1 walk runs in that member; cross-boundary fan-out uses the group bridge.\n\nSERVICE: optional monorepo path prefix (case-sensitive path segments). When \"repo\" starts with \"@\", scopes the local impact walk and cross-repo symbol paths to files under that prefix; ignored for a normal indexed repo name.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "target": {
+        "type": "string",
+        "description": "Name of function, class, or file to analyze"
+      },
+      "target_uid": {
+        "type": "string",
+        "description": "Direct symbol UID from prior tool results (zero-ambiguity lookup, skips target resolution)"
+      },
+      "direction": {
+        "type": "string",
+        "description": "upstream (what depends on this) or downstream (what this depends on)"
+      },
+      "file_path": {
+        "type": "string",
+        "description": "File path hint to disambiguate common names"
+      },
+      "kind": {
+        "type": "string",
+        "description": "Kind filter to disambiguate common names (e.g. 'Function', 'Class', 'Method', 'Interface', 'Constructor')"
+      },
+      "maxDepth": {
+        "type": "number",
+        "description": "Max relationship depth (default: 3, server clamps to 1–32)",
+        "default": 3,
+        "minimum": 1,
+        "maximum": 32
+      },
+      "crossDepth": {
+        "type": "number",
+        "description": "Cross-repository hop depth via contract bridge (default: 1; values above server maximum are clamped)",
+        "default": 1,
+        "minimum": 1,
+        "maximum": 32
+      },
+      "relationTypes": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Filter: CALLS, IMPORTS, EXTENDS, IMPLEMENTS, HAS_METHOD, HAS_PROPERTY, METHOD_OVERRIDES, METHOD_IMPLEMENTS, ACCESSES (default: usage-based, ACCESSES excluded by default)"
+      },
+      "includeTests": {
+        "type": "boolean",
+        "description": "Include test files (default: false)"
+      },
+      "minConfidence": {
+        "type": "number",
+        "description": "Minimum edge confidence 0–1 (default: 0 when omitted; server clamps to 0–1)",
+        "default": 0,
+        "minimum": 0,
+        "maximum": 1
+      },
+      "repo": {
+        "type": "string",
+        "description": "Indexed repository name or path, or group mode \"@<groupName>\" / \"@<groupName>/<memberPath>\". Omit if only one repo is indexed."
+      },
+      "service": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Optional monorepo service root (relative path). Applies when \"repo\" is group mode (@…); ignored for a normal repo name. Empty string is rejected server-side."
+      },
+      "subgroup": {
+        "type": "string",
+        "description": "Optional group subgroup prefix (member repo paths) limiting which repos participate in cross fan-out."
+      },
+      "timeoutMs": {
+        "type": "number",
+        "description": "Wall-clock budget in milliseconds for the Phase-1 local impact leg (default 30000)",
+        "minimum": 1,
+        "maximum": 3600000
+      },
+      "timeout": {
+        "type": "number",
+        "description": "Alias of timeoutMs (milliseconds) when timeoutMs is omitted",
+        "minimum": 1,
+        "maximum": 3600000
+      }
+    },
+    "required": [
+      "target",
+      "direction"
+    ]
+  }
+}

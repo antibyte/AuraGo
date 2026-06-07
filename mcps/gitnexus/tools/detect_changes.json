@@ -1,0 +1,29 @@
+{
+  "name": "detect_changes",
+  "description": "Analyze uncommitted git changes and find affected execution flows.\nMaps git diff hunks to indexed symbols, then traces which processes are impacted.\n\nWHEN TO USE: Before committing — to understand what your changes affect. Pre-commit review, PR preparation.\nAFTER THIS: Review affected processes. Use context() on high-risk symbols. READ gitnexus://repo/{name}/process/{name} for full traces.\n\nReturns: changed symbols, affected processes, and a risk summary.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "scope": {
+        "type": "string",
+        "description": "What to analyze: \"unstaged\" (default), \"staged\", \"all\", or \"compare\"",
+        "enum": [
+          "unstaged",
+          "staged",
+          "all",
+          "compare"
+        ],
+        "default": "unstaged"
+      },
+      "base_ref": {
+        "type": "string",
+        "description": "Branch/commit for \"compare\" scope (e.g., \"main\")"
+      },
+      "repo": {
+        "type": "string",
+        "description": "Repository name or path. Omit if only one repo is indexed."
+      }
+    },
+    "required": []
+  }
+}

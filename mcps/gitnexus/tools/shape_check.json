@@ -1,0 +1,18 @@
+{
+  "name": "shape_check",
+  "description": "Check response shapes for API routes against their consumers' property accesses.\n\nWHEN TO USE: Detecting mismatches between what an API route returns and what consumers expect. Finding shape drift. For pre-change analysis, prefer `api_impact` which combines this data with mismatch detection and risk assessment.\nREQUIRES: Route nodes with responseKeys (extracted from .json({...}) calls during indexing).\n\nReturns routes that have both detected response keys AND consumers. Shows top-level keys each endpoint returns (e.g., data, pagination, error) and what keys each consumer accesses. Reports MISMATCH status when a consumer accesses keys not present in the route's response shape.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "route": {
+        "type": "string",
+        "description": "Check a specific route (e.g., \"/api/grants\"). Omit to check all routes."
+      },
+      "repo": {
+        "type": "string",
+        "description": "Repository name or path. Omit if only one repo is indexed."
+      }
+    },
+    "required": []
+  }
+}

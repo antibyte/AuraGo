@@ -1,0 +1,41 @@
+{
+  "name": "create_attachment",
+  "description": "Deprecated fallback for tiny files only. Accepts base64 file content and uploads it through the MCP worker, which can consume large amounts of agent context. Prefer `prepare_attachment_upload` plus direct PUT plus `create_attachment_from_upload`.",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "issue": {
+        "type": "string",
+        "description": "Issue ID or identifier (e.g., LIN-123)"
+      },
+      "base64Content": {
+        "type": "string",
+        "description": "Deprecated base64-encoded file content to upload"
+      },
+      "filename": {
+        "type": "string",
+        "description": "Filename for the upload (e.g., 'screenshot.png')"
+      },
+      "contentType": {
+        "type": "string",
+        "description": "MIME type for the upload (e.g., 'image/png', 'application/pdf')"
+      },
+      "title": {
+        "description": "Optional title for the attachment",
+        "type": "string"
+      },
+      "subtitle": {
+        "description": "Optional subtitle for the attachment",
+        "type": "string"
+      }
+    },
+    "required": [
+      "issue",
+      "base64Content",
+      "filename",
+      "contentType"
+    ],
+    "additionalProperties": false
+  }
+}

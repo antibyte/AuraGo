@@ -1,0 +1,18 @@
+{
+  "name": "list_milestones",
+  "description": "List all milestones in a Linear project",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "project": {
+        "type": "string",
+        "description": "Project name, ID, or slug"
+      }
+    },
+    "required": [
+      "project"
+    ],
+    "additionalProperties": false
+  }
+}

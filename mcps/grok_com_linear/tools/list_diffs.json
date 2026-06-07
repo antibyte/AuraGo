@@ -1,0 +1,46 @@
+{
+  "name": "list_diffs",
+  "description": "List Linear diff pull requests visible to the authenticated user",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "limit": {
+        "default": 50,
+        "description": "Max results (default 50, max 250)",
+        "type": "number",
+        "maximum": 250
+      },
+      "cursor": {
+        "description": "Next page cursor",
+        "type": "string"
+      },
+      "orderBy": {
+        "default": "updatedAt",
+        "description": "Sort: createdAt | updatedAt",
+        "type": "string",
+        "enum": [
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "query": {
+        "description": "Broad search by title, branch, PR number, or bare slug",
+        "type": "string"
+      },
+      "owner": {
+        "description": "Filter returned diffs by repository owner",
+        "type": "string"
+      },
+      "repo": {
+        "description": "Filter returned diffs by repository name",
+        "type": "string"
+      },
+      "status": {
+        "description": "Filter returned diffs by pull request status",
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  }
+}

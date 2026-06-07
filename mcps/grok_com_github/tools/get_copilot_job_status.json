@@ -1,0 +1,26 @@
+{
+  "name": "get_copilot_job_status",
+  "description": "Get the status of a GitHub Copilot coding agent job. Use this to check if a previously submitted task has completed and to get the pull request URL once it's created. Provide the job ID (from create_pull_request_with_copilot) or pull request number (from assign_copilot_to_issue), or any pull request you want agent sessions for.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Job ID or pull request number"
+      },
+      "owner": {
+        "type": "string",
+        "description": "Repository owner"
+      },
+      "repo": {
+        "type": "string",
+        "description": "Repository name"
+      }
+    },
+    "required": [
+      "owner",
+      "repo",
+      "id"
+    ]
+  }
+}

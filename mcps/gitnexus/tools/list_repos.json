@@ -1,0 +1,9 @@
+{
+  "name": "list_repos",
+  "description": "List all indexed repositories available to GitNexus.\n\nReturns each repo's name, path, indexed date, last commit, and stats.\n\nWHEN TO USE: First step when multiple repos are indexed, or to discover available repos.\nAFTER THIS: READ gitnexus://repo/{name}/context for the repo you want to work with.\n\nWhen multiple repos are indexed, you MUST specify the \"repo\" parameter\non other tools (query, context, impact, etc.) to target the correct one.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
+}

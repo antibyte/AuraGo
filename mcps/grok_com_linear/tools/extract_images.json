@@ -1,0 +1,18 @@
+{
+  "name": "extract_images",
+  "description": "Extract and fetch images from markdown content. Use this to view screenshots, diagrams, or other images embedded in Linear issues, comments, or documents. Pass the markdown content (e.g., issue description) and receive the images as viewable data.",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "markdown": {
+        "type": "string",
+        "description": "Markdown content containing image references (e.g., issue description, comment body)"
+      }
+    },
+    "required": [
+      "markdown"
+    ],
+    "additionalProperties": false
+  }
+}

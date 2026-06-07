@@ -1,0 +1,176 @@
+{
+  "name": "save_issue",
+  "description": "Create or update a Linear issue. If `id` is provided, updates the existing issue; otherwise creates a new one. When creating, `title` and `team` are required. Note: use `assignee` (not `assigneeId`) to set the assignee — it accepts a user ID, name, email, or \"me\".",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "id": {
+        "description": "Only for updating an existing issue. Pass the issue ID or identifier (e.g., LIN-123). Do NOT pass this parameter when creating a new issue.",
+        "type": "string"
+      },
+      "title": {
+        "description": "Issue title (required when creating)",
+        "type": "string"
+      },
+      "description": {
+        "description": "Content as Markdown. Do not escape the string — use literal newlines and special characters, not escape sequences. To mention a user, use @displayName (e.g., @johndoe)",
+        "type": "string"
+      },
+      "team": {
+        "description": "Team name or ID (required when creating)",
+        "type": "string"
+      },
+      "cycle": {
+        "description": "Cycle name, number, or ID. Null to remove",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "milestone": {
+        "description": "Milestone name or ID",
+        "type": "string"
+      },
+      "priority": {
+        "description": "0=None, 1=Urgent, 2=High, 3=Medium, 4=Low",
+        "type": "number"
+      },
+      "project": {
+        "description": "Project name, ID, or slug",
+        "type": "string"
+      },
+      "state": {
+        "description": "State type, name, or ID",
+        "type": "string"
+      },
+      "assignee": {
+        "description": "User ID, name, email, or \"me\". Null to remove",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "delegate": {
+        "description": "Agent name or ID. When the user asks to delegate to \"Linear\" or \"the Linear agent\", this refers to the \"Linear\" app user specifically. Null to remove",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "labels": {
+        "description": "Label names or IDs",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "dueDate": {
+        "description": "Due date (ISO format)",
+        "type": "string"
+      },
+      "parentId": {
+        "description": "Parent issue ID or identifier (e.g., LIN-123). Null to remove",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "estimate": {
+        "description": "Issue estimate value",
+        "type": "number"
+      },
+      "links": {
+        "description": "Link attachments to add [{url, title}]. Append-only; existing links are never removed",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "url",
+            "title"
+          ]
+        }
+      },
+      "blocks": {
+        "description": "Issue IDs/identifiers this blocks. Append-only; existing relations are never removed",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "blockedBy": {
+        "description": "Issue IDs/identifiers blocking this. Append-only; existing relations are never removed",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "relatedTo": {
+        "description": "Related issue IDs/identifiers. Append-only; existing relations are never removed",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "duplicateOf": {
+        "description": "Duplicate of issue ID/identifier. Null to remove",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "removeBlocks": {
+        "description": "Issue IDs/identifiers to stop blocking",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "removeBlockedBy": {
+        "description": "Issue IDs/identifiers to remove as blockers of this issue",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "removeRelatedTo": {
+        "description": "Related issue IDs/identifiers to remove",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": false
+  }
+}

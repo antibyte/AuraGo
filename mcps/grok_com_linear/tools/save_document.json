@@ -1,0 +1,51 @@
+{
+  "name": "save_document",
+  "description": "Create or update a Linear document. If `id` is provided, updates the existing document; otherwise creates a new one. When creating, `title` is required and exactly one parent (`project`, `issue`, `initiative`, `cycle`, or `team`) must be specified. On update, passing a parent reparents the document.",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "id": {
+        "description": "Document ID or slug to update. Omit to create a new document.",
+        "type": "string"
+      },
+      "title": {
+        "description": "Document title (required when creating)",
+        "type": "string"
+      },
+      "content": {
+        "description": "Content as Markdown. Do not escape the string — use literal newlines and special characters, not escape sequences. To mention a user, use @displayName (e.g., @johndoe)",
+        "type": "string"
+      },
+      "project": {
+        "description": "Project name, ID, or slug",
+        "type": "string"
+      },
+      "issue": {
+        "description": "Issue ID or identifier (e.g., LIN-123)",
+        "type": "string"
+      },
+      "initiative": {
+        "description": "Initiative name or ID",
+        "type": "string"
+      },
+      "cycle": {
+        "description": "Cycle name, number, or ID. When passing a name or number, also pass `team` to disambiguate.",
+        "type": "string"
+      },
+      "team": {
+        "description": "Team name or ID. Attaches the document to the team, unless `cycle` is also passed, in which case it disambiguates the cycle.",
+        "type": "string"
+      },
+      "icon": {
+        "description": "Icon name or emoji code (e.g. \"Rocket\" or \":eagle:\"), not a raw Unicode emoji",
+        "type": "string"
+      },
+      "color": {
+        "description": "Hex color",
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  }
+}

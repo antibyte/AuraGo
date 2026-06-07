@@ -1,0 +1,63 @@
+{
+  "name": "list_documents",
+  "description": "List documents in the user's Linear workspace",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "limit": {
+        "default": 50,
+        "description": "Max results (default 50, max 250)",
+        "type": "number",
+        "maximum": 250
+      },
+      "cursor": {
+        "description": "Next page cursor",
+        "type": "string"
+      },
+      "orderBy": {
+        "default": "updatedAt",
+        "description": "Sort: createdAt | updatedAt",
+        "type": "string",
+        "enum": [
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "query": {
+        "description": "Search query",
+        "type": "string"
+      },
+      "projectId": {
+        "description": "Filter by project ID",
+        "type": "string"
+      },
+      "initiativeId": {
+        "description": "Filter by initiative ID",
+        "type": "string"
+      },
+      "teamId": {
+        "description": "Filter by team ID",
+        "type": "string"
+      },
+      "creatorId": {
+        "description": "Filter by creator ID",
+        "type": "string"
+      },
+      "createdAt": {
+        "description": "Created after: ISO-8601 date/duration (e.g., -P1D)",
+        "type": "string"
+      },
+      "updatedAt": {
+        "description": "Updated after: ISO-8601 date/duration (e.g., -P1D)",
+        "type": "string"
+      },
+      "includeArchived": {
+        "default": false,
+        "description": "Include archived items",
+        "type": "boolean"
+      }
+    },
+    "additionalProperties": false
+  }
+}
