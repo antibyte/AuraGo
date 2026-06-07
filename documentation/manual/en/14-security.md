@@ -66,8 +66,8 @@ AuraGo supports password protection with optional TOTP two-factor authentication
 ### Password Setup
 
 **Via Web UI:**
-1. Go to Configuration → Auth
-2. Enable "Authentication"
+1. Go to **Config → Web Config & Login**
+2. Enable **Authentication**
 3. Enter password
 4. Save and restart
 
@@ -77,8 +77,9 @@ AuraGo supports password protection with optional TOTP two-factor authentication
 python3 -c "import bcrypt; print(bcrypt.hashpw(b'your-password', bcrypt.gensalt(10)).decode())"
 ```
 
-**Storage:** Password hashes and TOTP secrets are stored in the **encrypted vault**, not in `config.yaml`. Set them via the Web UI (Configuration → Auth) or the API (`POST /api/auth/password`, `/api/auth/totp/setup`).
+**Storage:** Password hashes and TOTP secrets are stored in the **encrypted vault**, not in `config.yaml`. Set them via the Web UI (**Config → Web Config & Login**) or the API (`POST /api/auth/password`, `/api/auth/totp/setup`).
 
+### YAML Reference
 ```yaml
 auth:
   enabled: true

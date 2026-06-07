@@ -461,7 +461,7 @@ Sendet proaktiven Text an einen verbundenen **AgoDesk/AgoChat**-Desktop-Client.
 | `device_name` | string | Optional, falls `device_id` fehlt |
 | `message` | string | Nachrichtentext in AgoChat |
 
-**Voraussetzung:** AgoDesk gekoppelt über `/api/agodesk/ws`; `remote_control.enabled: true`. Siehe Kap. 08 **AgoDesk** und `documentation/agodesk_backend_protocol.md`.
+**Voraussetzung:** AgoDesk gekoppelt über `/api/agodesk/ws`; **Config → Integrationen → Fernsteuerung** (`remote_control.enabled: true`). Siehe Kap. 08 **Remote Control** und `documentation/agodesk_backend_protocol.md`.
 
 ### `send_notification` / `notification_center` / `send_push_notification` / `web_push`
 Push-Benachrichtigungen über konfigurierte Provider (ntfy, Pushover) oder Browser Web Push (PWA) senden. `notification_center` listet aktuelle Benachrichtigungen; `web_push` zielt auf abonnierte PWA-Clients per VAPID. Siehe Kap. 08 **Notifications** und **Web Push / PWA-Benachrichtigungen**.
@@ -1244,7 +1244,11 @@ Erstellt, liest, bearbeitet Zellbereiche, wertet Formeln aus und exportiert Tabe
 
 ## Berechtigungs-System
 
-Nicht alle Tools sind standardmäßig verfügbar. Die Verfügbarkeit hängt von den **Tool Feature Flags** ab:
+Nicht alle Tools sind standardmäßig verfügbar. Die Verfügbarkeit hängt von den **Tool Feature Flags** ab. Konfiguration primär über die Web-UI:
+
+- **Config → Gefahrenzone** — `allow_shell`, `allow_python`, `allow_filesystem_write`, `allow_network_requests`, `allow_remote_shell`, `allow_self_update`, `sudo_enabled`
+- **Config → Tools → Tool-Berechtigungen** — einzelne Tools aktivieren/deaktivieren
+- **Config → Integrationen → …** — Integrations-Toggles (`enabled`, `readonly`)
 
 ### Always Available (Immer verfügbar)
 - `filesystem` (read-only wenn `allow_filesystem_write=false`)

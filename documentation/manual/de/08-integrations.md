@@ -237,11 +237,9 @@ Beide Schalter müssen aktiv sein:
 2. `agent.allow_package_manager: true`
 
 ### Einrichtung in der Web-UI
-1. Öffne **Config → Integrationen → Package Manager**.
-2. Aktiviere die Integration.
-3. Konfiguriere **Read-only**, **Auto Detect** und Berechtigungen (install/remove/upgrade).
-4. Öffne **Config → Agent** und aktiviere **Allow Package Manager**.
-5. Speichern und AuraGo neu starten.
+1. Öffne **Config → Gefahrenzone** und aktiviere **Paketverwaltung (package_manager)**.
+2. Setze `package_manager.enabled` und Detail-Optionen (`readonly`, `allow_install`, …) in der `config.yaml` (kein eigener Config-Menüpunkt für den `package_manager`-Block).
+3. Speichern und AuraGo neu starten.
 
 ### YAML-Referenz
 ```yaml
@@ -402,6 +400,12 @@ github:
 
 ### Webhooks (separat)
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Webhooks**.
+2. Aktiviere Webhooks und konfiguriere Limits.
+3. Speichern.
+
+### YAML-Referenz
 ```yaml
 webhooks:
   enabled: true
@@ -596,6 +600,9 @@ Beim MCP-Client ist `allowed_tools` pro Server optional. Leer lassen oder weglas
 ### MCP-Server
 Stellt AuraGo-Tools für externe Clients bereit.
 
+**Web-UI:** **Config → Integrationen → MCP-Server** — aktivieren, Auth und `allowed_tools` setzen. Zusätzlich **Config → Gefahrenzone** → **MCP** für Client-Zugriff (`agent.allow_mcp`).
+
+### YAML-Referenz
 ```yaml
 mcp_server:
   enabled: true
@@ -606,7 +613,7 @@ mcp_server:
   vscode_debug_bridge: false
 ```
 
-> Der MCP-Server teilt sich den Haupt-HTTP-Server — es gibt kein separates `port`-Feld. MCP-Client-Zugriff erfordert zusätzlich `agent.allow_mcp: true`.
+> Der MCP-Server teilt sich den Haupt-HTTP-Server — es gibt kein separates `port`-Feld. MCP-Client-Zugriff erfordert zusätzlich **Config → Gefahrenzone** → MCP (`agent.allow_mcp: true`).
 
 `allowed_tools` ist eine explizite serverseitige Allowlist. Leer veröffentlicht keine AuraGo-Tools; `vscode_debug_bridge` nutzt ein eigenes begrenztes Debugging-Preset.
 
@@ -808,7 +815,7 @@ chromecast:
 
 Zentrale Verwaltung von Mediendateien mit Metadaten-Tracking.
 
-**Web-UI:** Config → Integrationen → Media Registry → aktivieren.
+**Web-UI:** `media_registry.enabled` primär per YAML (kein eigener Config-Menüpunkt). Verwaltung über **Galerie** (`/gallery`).
 
 ### YAML-Referenz
 ```yaml
@@ -1255,11 +1262,8 @@ security_proxy:
 Verbinde mehrere AuraGo-Instanzen zu einem verteilten Nest (Cluster). Einzelne Instanzen werden als „Eggs“ bezeichnet.
 
 ### Einrichtung in der Web-UI
-1. Öffne **Config → Integrationen → Egg Mode**.
-2. Aktiviere **Egg Mode**.
-3. Trage die **Master-URL** der Hauptinstanz ein.
-4. Optional: Vergebe **Egg ID** und **Nest ID**.
-5. Speichere und starte neu.
+1. Auf dem **Master:** **Invasion Control** (`/invasion`) — Nests/Eggs verwalten und hatch deployen (setzt `egg_mode` auf dem Worker automatisch).
+2. Auf einer **standalone Worker-Instanz:** `egg_mode` nur per YAML oder Umgebungsvariablen (`AURAGO_EGG_MODE`, `AURAGO_MASTER_URL`, …) — kein eigener Config-Menüpunkt.
 
 ### YAML-Referenz
 ```yaml
@@ -1743,7 +1747,7 @@ virtual_desktop:
 
 Linux-Landlock-basierte Sandbox für Shell-Befehle. Einschränkung von Dateisystemzugriffen, CPU-Zeit und Speicher für Shell-Operationen.
 
-**Web-UI:** Config → Integrationen → Shell Sandbox → aktivieren und Limits konfigurieren.
+**Web-UI:** **Config → Tools → Sandkasten** — Shell-Sandbox aktivieren und Limits konfigurieren (unterhalb der Docker-Sandbox-Einstellungen).
 
 > 💡 Nur auf Linux verfügbar. Bei Fehlschlag kann ein unsicherer Fallback erlaubt werden (`allow_unsafe_fallback`).
 
@@ -1834,7 +1838,7 @@ tools:
 
 Code-Qualitäts-Checks für Go-Code über golangci-lint.
 
-**Web-UI:** Config → Integrationen → GolangciLint → aktivieren.
+**Web-UI:** Kein eigener Config-Menüpunkt — `golangci_lint.enabled` nur per YAML.
 
 ### YAML-Referenz
 ```yaml
@@ -1855,6 +1859,10 @@ golangci_lint:
 3. Grüner Punkt = Verbindung OK.
 
 ### Debug-Logging
+
+**Web-UI:** **Config → Agent → KI-Agent** → Debug Mode aktivieren.
+
+### YAML-Referenz
 ```yaml
 agent:
   debug_mode: true

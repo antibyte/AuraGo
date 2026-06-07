@@ -33,6 +33,12 @@ Mission Control ist das Automatisierungszentrum von AuraGo. Hier definierst du w
 
 Mission Control erfordert die Aktivierung des Scheduler-Tools:
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Tools → Tool-Berechtigungen**.
+2. Aktiviere **Scheduler** (nicht auf Nur-Lesen, wenn Missionen erstellt werden sollen).
+3. Speichern.
+
+### YAML-Referenz
 ```yaml
 # config.yaml
 tools:
@@ -61,6 +67,12 @@ Eine **Mission** ist eine geplante Aufgabe, die der Agent zu festgelegten Zeiten
 
 Mit **Mission Preparation** kann der Agent vor der eigentlichen Ausführung eine Vorbereitungsphase durchlaufen, in der er relevante Tools, Pläne und Entscheidungspunkte analysiert.
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Tools → Missionsvorbereitung**.
+2. Aktiviere Mission Preparation und passe Timeout/Confidence an.
+3. Speichern.
+
+### YAML-Referenz
 ```yaml
 # config.yaml
 mission_preparation:
@@ -313,10 +325,16 @@ Erstelle eine Mission über die Web-UI mit folgenden Einstellungen:
 | Mission bleibt im Status "Running" | Hängender Prozess | Timeout prüfen, Mission manuell stoppen |
 | Cron wird nicht ausgelöst | Falscher Zeitpunkt | Cron-Ausdruck mit crontab.guru prüfen |
 | Berechtigungsfehler | Falsche Rechte | Nutzer/Gruppe prüfen |
-| "Scheduler tool disabled" | Tool nicht aktiviert | `tools.scheduler.enabled: true` |
+| "Scheduler tool disabled" | Tool nicht aktiviert | **Config → Tools → Tool-Berechtigungen** → Scheduler aktivieren |
 
 ### Debug-Logging
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Agent → KI-Agent**.
+2. Aktiviere **Debug Mode**.
+3. Speichern.
+
+### YAML-Referenz
 ```yaml
 # config.yaml
 agent:

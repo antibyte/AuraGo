@@ -90,6 +90,13 @@ Der LLM Guardian überwacht alle Aktionen des Agenten und schützt vor potenziel
 
 ### Konfiguration
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Sicherheit → LLM Wächter**.
+2. Aktiviere den Guardian, wähle Provider und Prüfstufe.
+3. Speichere API-Keys im Vault.
+4. Speichern und bei Bedarf neu starten.
+
+### YAML-Referenz
 ```yaml
 llm_guardian:
   enabled: false                     # Guardian aktivieren
@@ -161,8 +168,14 @@ AuraGo unterstützt die Ausführung von Befehlen mit erhöhten Rechten (sudo). D
 # Oder direkt im Vault unter dem Schlüssel "sudo_password"
 ```
 
-#### Schritt 2: Konfiguration in config.yaml
+#### Schritt 2: Sudo in der Web-UI aktivieren
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Gefahrenzone**.
+2. Aktiviere **Sudo Execution** und setze den Timeout.
+3. Speichern.
+
+### YAML-Referenz
 ```yaml
 agent:
   sudo_enabled: true           # Sudo-Execution erlauben
@@ -191,8 +204,9 @@ Agent: 🛠️ Shell: sudo apt install nginx -y
 
 ### Read-Only Modus
 
-Für besonders sensible Systeme kann Sudo komplett deaktiviert werden:
+Für besonders sensible Systeme kann Sudo komplett deaktiviert werden (**Config → Gefahrenzone**):
 
+### YAML-Referenz
 ```yaml
 agent:
   sudo_enabled: false          # Keine Sudo-Ausführung erlaubt
@@ -234,6 +248,13 @@ AuraGo bietet ein mehrschichtiges Authentifizierungssystem für die Web-Oberflä
 
 ### Schritt 1: Erstkonfiguration
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Server → Web-Konfiguration & Login**.
+2. Aktiviere Login-Schutz, Session-Timeout und Rate-Limiting.
+3. Setze Passwort und optional TOTP über `/auth/setup`.
+4. Speichern.
+
+### YAML-Referenz
 ```yaml
 # config.yaml
 auth:
@@ -244,7 +265,7 @@ auth:
     lockout_minutes: 15
 ```
 
-Passwort-Hash, TOTP-Secret und Session-Secret werden im **Vault** gespeichert (`auth_password_hash`, `auth_totp_secret`, `auth_session_secret`), nicht in der `config.yaml`. Setze sie über die Web-UI (Config → Auth) oder die API (`POST /api/auth/password`, `/api/auth/totp/setup`).
+Passwort-Hash, TOTP-Secret und Session-Secret werden im **Vault** gespeichert (`auth_password_hash`, `auth_totp_secret`, `auth_session_secret`), nicht in der `config.yaml`. Setze sie über die Web-UI (**Config → Server → Web-Konfiguration & Login** bzw. `/auth/setup`) oder die API (`POST /api/auth/password`, `/api/auth/totp/setup`).
 
 ### Schritt 2: Passwort über die Web-UI setzen
 
@@ -278,7 +299,7 @@ node -e "const bcrypt = require('bcrypt'); console.log(bcrypt.hashSync('dein-pas
 
 ### Einrichtung
 
-1. **In der Config aktivieren:**
+1. **In der Web-UI aktivieren:** **Config → Server → Web-Konfiguration & Login** → TOTP aktivieren, oder in der YAML-Referenz:
    ```yaml
    auth:
        totp_enabled: true
@@ -310,6 +331,12 @@ Die Danger Zone kontrolliert, welche potenziell gefährlichen Fähigkeiten der A
 
 ### Tool-spezifische Gates
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Tools → Tool-Berechtigungen**.
+2. Aktiviere Tools einzeln und setze bei Bedarf **Nur-Lesen**.
+3. Speichern.
+
+### YAML-Referenz
 ```yaml
 # tools: Sektion in config.yaml
 tools:
@@ -373,6 +400,9 @@ tools:
 
 ### Granulare Kontrolle
 
+Integrationen jeweils unter **Config → Integrationen → …** (Toggle **Nur-Lesen**):
+
+### YAML-Referenz
 ```yaml
 # Beispiel: Sichere Konfiguration für Monitoring
 docker:
@@ -433,6 +463,12 @@ Das integrierte Rate Limiting schützt vor Brute-Force-Angriffen auf den Login.
 
 ### Standard-Konfiguration
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Server → Web-Konfiguration & Login**.
+2. Setze **Max Login Attempts** und **Lockout Minutes**.
+3. Speichern.
+
+### YAML-Referenz
 ```yaml
 auth:
     max_login_attempts: 5          # Fehlversuche vor Lockout

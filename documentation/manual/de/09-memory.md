@@ -24,6 +24,12 @@ Das Kurzzeitgedächtnis speichert die unmittelbare Gesprächshistorie in einer S
 
 ### Konfiguration
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Server → SQLite**.
+2. Passe bei Bedarf den Pfad für die Kurzzeit-Datenbank an.
+3. Speichern.
+
+### YAML-Referenz
 ```yaml
 # config.yaml - STM-Konfiguration
 sqlite:
@@ -59,6 +65,12 @@ Agent: ✅ In Core Memory gespeichert
 
 ### Konfiguration
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Agent → Optimierungen** (Gruppe **Tool-Kontext**).
+2. Setze **Core Memory Max Entries** und **Cap Mode**.
+3. Speichern.
+
+### YAML-Referenz
 ```yaml
 # config.yaml
 agent:
@@ -81,6 +93,12 @@ Das Langzeitgedächtnis ermöglicht semantische Suche über vergangene Gespräch
 
 ### Konfiguration
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Agent → Embeddings**.
+2. Wähle einen Provider (`disabled`, `internal` oder Provider-ID).
+3. Speichern — ein Neustart kann erforderlich sein.
+
+### YAML-Referenz
 ```yaml
 # config.yaml - LTM/Embeddings-Konfiguration
 embeddings:
@@ -114,6 +132,12 @@ Um den Kontext effizient zu nutzen, komprimiert AuraGo ältere Konversationen au
 
 ### Konfiguration
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Agent → Optimierungen** (Gruppe **Token & Kontext**).
+2. Passe **Memory Compression Limit** an.
+3. Speichern.
+
+### YAML-Referenz
 ```yaml
 # config.yaml
 agent:
@@ -154,6 +178,12 @@ AuraGo kann lokale Dateien automatisch indexieren für schnellen Zugriff.
 
 ### Konfiguration
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Server → Indexierung**.
+2. Aktiviere die Indexierung, wähle Verzeichnisse und Dateitypen.
+3. Speichern.
+
+### YAML-Referenz
 ```yaml
 # config.yaml
 indexing:
@@ -207,7 +237,7 @@ Beziehungen können z. B. `runs_on`, `depends_on`, `owned_by`, `uses`, `related_
 | **Access Tracking** | Kürzlich genutzte Nodes für bessere Retrieval-Relevanz berücksichtigen |
 | **Semantische Indexierung** | Graph-Suche mit Embedding-gestützter Suche verbessern, wenn aktiviert |
 
-Die Web-UI und API stellen Suche, Statistiken, Qualitätsberichte, wichtige Nodes und Node-Schutz über `/api/knowledge-graph/*` bereit.
+Die Web-UI und API stellen Suche, Statistiken, Qualitätsberichte, wichtige Nodes und Node-Schutz über `/api/knowledge-graph/*` bereit. Aktivierung und Extraktion: **Config → Tools → Tool-Berechtigungen** (`knowledge_graph`) bzw. **Config → Integrationen → Knowledge Graph** (Auto-Extraktion, siehe Kapitel 8).
 
 ---
 
@@ -326,6 +356,13 @@ Helper LLM Statistiken
 
 ### Konfiguration
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Agent → LLM Einstellungen**.
+2. Aktiviere **Helper LLM** und wähle Provider/Modell.
+3. Optional: **Config → Agent → Gedächtnisanalyse** für Turn-Analyse und Extraktion.
+4. Speichern und bei Bedarf neu starten.
+
+### YAML-Referenz
 ```yaml
 llm:
   helper_enabled: true              # Helper LLM aktivieren (empfohlen)
@@ -345,7 +382,7 @@ llm:
 
 | Problem | Ursache | Lösung |
 |---------|---------|--------|
-| Helper LLM zeigt "deaktiviert" | Feature nicht aktiviert | Setze `helper_llm.enabled: true` |
+| Helper LLM zeigt "deaktiviert" | Feature nicht aktiviert | Aktiviere **Helper LLM** unter **Config → Agent → LLM Einstellungen** (`llm.helper_enabled: true`) |
 | Hohe Helper-LLM-Kosten | Zu häufige Operationen | Operationsfrequenz reduzieren |
 | Keine Turn-Analyse | Provider unterstützt keine Function Calls | Fähiges Modell verwenden |
 | Zu hohe Cache-Miss-Rate | Cache häufig geleert | Cache-Speichereinstellungen prüfen |
@@ -363,7 +400,7 @@ llm:
    Merke dir: Mein Server läuft auf Ubuntu 22.04 LTS
    ```
 
-2. **Embeddings aktivieren für komplexe Projekte**
+2. **Embeddings aktivieren für komplexe Projekte** (**Config → Agent → Embeddings**)
    ```yaml
    embeddings:
      provider: "internal"  # oder externer Provider

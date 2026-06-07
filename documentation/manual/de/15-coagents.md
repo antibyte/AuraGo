@@ -66,7 +66,13 @@ Co-Agenten sind eigenständige Helfer-Agenten, die der Haupt-Agent (Main Agent) 
 
 ## Konfiguration
 
-### config.yaml – Co-Agent Section
+### Einrichtung in der Web-UI
+1. Öffne **Config → Agent → Co-Agenten**.
+2. Aktiviere Co-Agenten und konfiguriere Parallelität, Budget und Spezialisten.
+3. Weise optional einen eigenen Provider für Co-Agenten zu.
+4. Speichern und bei Bedarf neu starten.
+
+### YAML-Referenz
 
 ```yaml
 # Co-Agent System (optionale parallele Helfer)
@@ -339,6 +345,9 @@ Co-Agenten können folgende Tools **NICHT** nutzen:
 
 ### Zeitliche Limits
 
+Unter **Config → Agent → Co-Agenten** → Circuit Breaker:
+
+### YAML-Referenz
 ```yaml
 # Default: 5 Minuten pro Co-Agent
 circuit_breaker:
@@ -368,6 +377,7 @@ circuit_breaker:
 
 ### Token-Budget
 
+### YAML-Referenz
 ```yaml
 # Optional: Token-Limit pro Co-Agent
 circuit_breaker:
@@ -516,7 +526,7 @@ Main-Agent                          Co-Agent Goroutine
 {"action": "co_agent", "operation": "stop_all"}
 ```
 
-**Prävention:** Erhöhe `max_concurrent` in der Config:
+**Prävention:** Erhöhe `max_concurrent` unter **Config → Agent → Co-Agenten**:
 ```yaml
 co_agents:
   max_concurrent: 5
@@ -532,7 +542,7 @@ co_agents:
 {"action": "co_agent", "operation": "stop", "co_agent_id": "coagent-X"}
 ```
 
-**Prävention:** Reduziere `timeout_seconds` oder `max_tool_calls`:
+**Prävention:** Reduziere `timeout_seconds` oder `max_tool_calls` unter **Config → Agent → Co-Agenten**:
 ```yaml
 circuit_breaker:
   timeout_seconds: 120

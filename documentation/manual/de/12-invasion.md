@@ -62,6 +62,13 @@ Ein **Egg** beschreibt, *wie* der deployte Worker arbeitet:
 
 ## Voraussetzungen
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Server → Web-Konfiguration & Login** und stelle sicher, dass die Web-UI aktiviert ist (`web_config.enabled`).
+2. Öffne **Invasion Control** unter `/invasion` (Radial-Menü) für Nests und Eggs.
+3. Für das Agent-Tool `invasion_control`: setze `invasion_control.enabled` in der `config.yaml` (kein eigener Config-Menüpunkt).
+4. Optional: **Config → Server → SQLite** → Pfad `invasion_path` anpassen.
+
+### YAML-Referenz
 ```yaml
 # config.yaml
 web_config:
@@ -394,8 +401,9 @@ Bei fehlgeschlagenem Health-Check nach Deploy versucht das System einen **automa
 
 ## Egg Mode (Worker-Konfiguration)
 
-Deployte Eggs laufen mit aktiviertem `egg_mode` in ihrer generierten `config.yaml`:
+Deployte Eggs laufen mit aktiviertem `egg_mode` in ihrer generierten `config.yaml`. Auf Worker-Instanzen: **Config → Integrationen → Egg Mode** (Master-URL, Egg-/Nest-ID) — auf dem Master wird Egg Mode beim Hatch automatisch gesetzt.
 
+### YAML-Referenz
 ```yaml
 egg_mode:
   enabled: true

@@ -380,8 +380,11 @@ User: "I'm flying to Paris next Tuesday for a conference"
 
 ## Memory Configuration
 
+> 🖥️ **Web UI:** Configure memory in **Config → Embeddings** (long-term memory), **Config → Agent** (compression and core-memory limits), **Config → Databases** (SQLite paths), **Config → Indexing** (knowledge-base indexing), and **Config → Memory Analysis** (Helper LLM analysis options).
+
 The actual configuration structure in `config.yaml`:
 
+### YAML Reference
 ```yaml
 # Embeddings configuration for LTM/RAG
 embeddings:
@@ -444,6 +447,13 @@ indexing:
 
 ### Reducing Memory Overhead
 
+### Web UI Setup
+1. Open **Config → Agent** and lower **Memory Compression Limit** and **Core Memory Max Entries**.
+2. Open **Config → Embeddings** and set provider to **disabled** if long-term memory is not needed.
+3. Open **Config → Indexing** and disable file indexing if unused.
+4. Save changes.
+
+### YAML Reference
 ```yaml
 # config.yaml - Memory optimization
 agent:
@@ -617,6 +627,9 @@ Helper LLM Statistics
 
 ### Configuration
 
+> 🖥️ **Web UI:** Enable the Helper LLM under **Config → LLM Settings** (`helper_enabled`, `helper_provider`, `helper_model`). Tune analysis behavior under **Config → Memory Analysis**.
+
+### YAML Reference
 ```yaml
 helper_llm:
   enabled: true                    # Enable Helper LLM

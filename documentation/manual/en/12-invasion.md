@@ -62,6 +62,13 @@ An **Egg** describes *how* the deployed worker behaves:
 
 ## Prerequisites
 
+### Web UI Setup
+1. Open **Config → Web Config & Login** and ensure the Web UI/API is enabled (`web_config.enabled`).
+2. Open **Config → Databases** and verify the invasion database path (`sqlite.invasion_path`).
+3. To expose the `invasion_control` agent tool, set `invasion_control.enabled: true` in YAML (no dedicated Config sidebar section yet).
+4. Manage nests and eggs at **Invasion Control** (`/invasion`) from the radial menu.
+
+### YAML Reference
 ```yaml
 # config.yaml
 web_config:

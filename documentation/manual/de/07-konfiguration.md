@@ -217,6 +217,12 @@ Diese Berechtigungen schalten potenziell kritische Aktionen frei:
 
 Komprimiert ausführliche Tool-Ausgaben **vor** der `tool_output_limit`-Kürzung. Standard: aktiv.
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Agent → Output-Kompression**.
+2. Aktiviere die Kompression und passe Schwellenwerte sowie Shell-/Python-/API-Filter an.
+3. Speichern.
+
+### YAML-Referenz
 ```yaml
 agent:
   output_compression:
@@ -284,7 +290,7 @@ tools:
 
 ## Skill Manager
 
-Der Skill Manager ist in der **Web-UI** unter *Config → Skills* erreichbar. Dort kannst du Python-Skills hochladen, aktivieren, deaktivieren und über den integrierten Sicherheits-Scan prüfen lassen.
+Der Skill Manager ist in der **Web-UI** unter *Config → Tools → Fähigkeiten-Manager* erreichbar. Dort kannst du Python-Skills hochladen, aktivieren, deaktivieren und über den integrierten Sicherheits-Scan prüfen lassen.
 
 ```yaml
 tools:
@@ -306,7 +312,7 @@ tools:
 
 ## Media Registry
 
-Die Media Registry wird in der **Web-UI** unter *Config → Media* aktiviert. Sie kümmert sich um das Katalogisieren von Bildern, Videos und Audiodateien inklusive EXIF-Metadaten und Duplikat-Erkennung.
+Die Media Registry wird primär über **`media_registry.enabled`** in der `config.yaml` aktiviert (kein eigener Config-Menüpunkt). Verwaltung generierter Medien erfolgt über die Seite **Galerie** (`/gallery`). Sie kümmert sich um das Katalogisieren von Bildern, Videos und Audiodateien inklusive EXIF-Metadaten und Duplikat-Erkennung.
 
 ```yaml
 media_registry:
@@ -317,7 +323,7 @@ media_registry:
 
 ## Background Tasks
 
-Hintergrund-Verarbeitung für Follow-ups, Cron-Jobs und Wait-Events. In der **Web-UI** unter *Config → Background Tasks* lassen sich Timeout- und Retry-Werte anpassen.
+Hintergrund-Verarbeitung für Follow-ups, Cron-Jobs und Wait-Events. In der **Web-UI** unter *Config → Agent → Optimierungen* (Gruppe **Hintergrundverarbeitung**) lassen sich Timeout- und Retry-Werte anpassen.
 
 ```yaml
 agent:
@@ -593,6 +599,9 @@ Diese Ergänzung synchronisiert die deutsche Referenz mit den aktuellen englisch
 
 ### Medien- und Generierungsfeatures
 
+In der Web-UI unter **Config → Integrationen → Bildgenerierung / Musikgenerierung / Videogenerierung** konfigurierbar. `media_registry` siehe Hinweis oben.
+
+### YAML-Referenz
 ```yaml
 image_generation:
   enabled: true

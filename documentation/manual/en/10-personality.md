@@ -26,6 +26,13 @@ AuraGo has two personality engines that can be activated independently:
 The V1 engine uses predefined prompt templates without additional LLM calls.
 
 **Configuration:**
+
+### Web UI Setup
+1. Open **Config → Personality**.
+2. Enable **Personality Engine V1** and select a **Core Personality** profile.
+3. Save and restart if prompted.
+
+### YAML Reference
 ```yaml
 # config.yaml
 personality:
@@ -43,6 +50,14 @@ The V2 engine provides:
 - User profiling (optional)
 
 **Configuration:**
+
+### Web UI Setup
+1. Open **Config → Personality** and enable **Personality Engine V2**.
+2. Open **Config → LLM Settings** and enable the **Helper LLM** (required for V2 mood analysis).
+3. Optionally enable **User Profiling**, **Emotion Synthesizer**, and **Inner Voice** on the Personality page.
+4. Save changes.
+
+### YAML Reference
 ```yaml
 # config.yaml
 personality:
@@ -69,6 +84,12 @@ personality:
 
 ### Disabling Both Engines
 
+### Web UI Setup
+1. Open **Config → Personality**.
+2. Disable **Personality Engine V1** and **Personality Engine V2**.
+3. Save changes.
+
+### YAML Reference
 ```yaml
 personality:
   engine: false
@@ -116,7 +137,13 @@ Default mood when no history exists: `curious`.
 
 ### Switching Personality
 
-#### Via Config
+#### Via Web UI (Recommended)
+
+1. Open **Config → Personality**.
+2. Select **Core Personality** from the dropdown (e.g. `professional`).
+3. Save and restart AuraGo.
+
+#### YAML Reference
 
 ```yaml
 personality:
@@ -125,19 +152,11 @@ personality:
 
 > 💡 Changes require a restart of AuraGo.
 
-#### Via Web UI
-
-1. Open the web interface
-2. Go to "Config"
-3. Search for `personality.core_personality`
-4. Select a personality from the dropdown
-5. Save and restart
-
 ---
 
 ## User Profiling (V2)
 
-When `personality.user_profiling: true` is set, AuraGo automatically learns:
+When `personality.user_profiling: true` is set (**Config → Personality**), AuraGo automatically learns:
 
 - Preferred level of detail (technical vs. general)
 - Programming languages and tools
@@ -174,6 +193,10 @@ The V2 engine can dynamically adjust the LLM temperature:
 | Conversation | Medium | Balance |
 
 **Configuration:**
+
+> 🖥️ **Web UI:** Set the base temperature under **Config → LLM Settings**.
+
+### YAML Reference
 ```yaml
 llm:
   temperature: 0.7  # Base temperature

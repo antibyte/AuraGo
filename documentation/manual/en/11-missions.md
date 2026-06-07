@@ -35,6 +35,12 @@ Mission Control is AuraGo's automation center. Define recurring tasks that the a
 
 Mission Control requires the scheduler tool:
 
+### Web UI Setup
+1. Open **Config → Tools** (Tool Permissions).
+2. Enable **Scheduler** and **Missions** (set **Read-only** to `false` if the agent should create or edit missions).
+3. Save changes.
+
+### YAML Reference
 ```yaml
 # config.yaml
 tools:
@@ -66,6 +72,12 @@ A **mission** is a scheduled or triggered **agent prompt**. The agent receives t
 
 With **Mission Preparation**, the agent can analyze required tools, risks, and steps before execution.
 
+### Web UI Setup
+1. Open **Config → Agent Tools → Mission Preparation**.
+2. Enable the feature and configure provider, timeout, and confidence thresholds.
+3. Save changes.
+
+### YAML Reference
 ```yaml
 # config.yaml
 mission_preparation:

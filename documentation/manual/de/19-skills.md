@@ -199,7 +199,7 @@ api_key = os.environ.get('AURAGO_SECRET_OPENWEATHER_API_KEY')
 - Secrets werden automatisch aus allen Outputs entfernt (Scrubbing)
 - Secrets sind nur während der Ausführung verfügbar
 - Der Prozess läuft in einer isolierten Umgebung (venv)
-- Erfordert `tools.python_secret_injection.enabled: true` in der `config.yaml`
+- Erfordert **Python Secret Injection** unter **Config → Tools → Tool-Berechtigungen** (`tools.python_secret_injection.enabled: true`)
 
 ---
 
@@ -567,7 +567,7 @@ AURAGO_SECRET_MEIN_KEY ist None
 ```
 
 **Lösung:**
-1. Prüfe dass `tools.python_secret_injection.enabled: true` in `config.yaml` ist
+1. Prüfe dass **Python Secret Injection** unter **Config → Tools → Tool-Berechtigungen** aktiviert ist
 2. Stelle sicher dass der Key im Vault existiert
 3. Verifiziere dass es ein user-erstellter Secret ist (nicht System-Secret)
 
@@ -716,4 +716,4 @@ Der Agent lädt sie über `activate_agent_skill` und `run_agent_skill_script`.
 
 - **[Kapitel 6: Werkzeuge](06-tools.md)** – Die eingebauten Tools kennenlernen
 - **[Kapitel 14: Sicherheit](14-sicherheit.md)** – Sicherheitsrichtlinien für Skills
-- **Web-UI** → Skills → Neue Skills entdecken
+- **Config → Tools → Fähigkeiten-Manager** bzw. Seite **Skills** (`/skills`) → Neue Skills entdecken

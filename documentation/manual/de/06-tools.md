@@ -45,8 +45,16 @@ Die aktuelle Version enthält mehrere leistungsstarke Erweiterungen:
 
 ## Konfiguration der wichtigsten Tools
 
+> 💡 **Tipp:** Die bevorzugte Konfiguration erfolgt über die **Web-UI**. Die YAML-Beispiele unten sind eine alternative Referenz für Docker-Deployments und Git-Ops.
+
 ### 1. Dateisystem & Shell
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Gefahrenzone**.
+2. Aktiviere bei Bedarf **Shell**, **Python** und **Dateisystem-Schreibzugriff**.
+3. Speichern — ein Neustart kann erforderlich sein.
+
+### YAML-Referenz
 ```yaml
 agent:
   allow_shell: true              # Shell-Befehle erlauben
@@ -56,6 +64,13 @@ agent:
 
 ### 2. Docker
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Docker**.
+2. Aktiviere die Integration und trage die Host-URL ein (z. B. `unix:///var/run/docker.sock`).
+3. Optional: **Nur-Lesen** für sicheres Monitoring aktivieren.
+4. Speichern und bei Bedarf neu starten.
+
+### YAML-Referenz
 ```yaml
 docker:
   enabled: true
@@ -66,6 +81,13 @@ docker:
 
 ### 3. Proxmox
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Proxmox**.
+2. Aktiviere die Integration, trage URL und Node-Name ein.
+3. Speichere Token-ID und Token-Secret im Vault.
+4. Speichern und bei Bedarf neu starten.
+
+### YAML-Referenz
 ```yaml
 proxmox:
   enabled: true
@@ -78,6 +100,14 @@ proxmox:
 
 ### 4. Home Assistant
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Home Assistant**.
+2. Aktiviere die Integration und trage die URL ein.
+3. Speichere den Long-Lived Access Token im Vault.
+4. Optional: **Nur-Lesen** aktivieren.
+5. Speichern und bei Bedarf neu starten.
+
+### YAML-Referenz
 ```yaml
 home_assistant:
   enabled: true
@@ -88,6 +118,13 @@ home_assistant:
 
 ### 5. Google Workspace (OAuth2)
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Google Workspace**.
+2. Aktiviere die gewünschten Dienste und trage die OAuth2-Client-ID ein.
+3. Starte die Authentifizierung über die Web-UI — das Token wird im Vault gespeichert.
+4. Speichern und bei Bedarf neu starten.
+
+### YAML-Referenz
 ```yaml
 google_workspace:
   enabled: true
@@ -97,6 +134,14 @@ Die Authentifizierung erfolgt über OAuth2 im Vault-Menü der Web-UI.
 
 ### 6. E-Mail
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → E-Mail**.
+2. Aktiviere die Integration und trage IMAP-/SMTP-Einstellungen ein.
+3. Speichere das Passwort im Vault (nicht in der Config!).
+4. Optional: **Watch Enabled** für Posteingangs-Überwachung aktivieren.
+5. Speichern und bei Bedarf neu starten.
+
+### YAML-Referenz
 ```yaml
 email:
   enabled: true
@@ -111,6 +156,12 @@ email:
 
 ### 7. Web-Suche
 
+### Einrichtung in der Web-UI
+1. DuckDuckGo ist standardmäßig aktiv (**Config → Tools → Informations-Tools**).
+2. Für Brave Search: **Config → Tools → Brave Suche** → API-Key im Vault speichern.
+3. Speichern.
+
+### YAML-Referenz
 ```yaml
 # DuckDuckGo (kein API-Key nötig)
 # Standardmäßig aktiviert
@@ -125,6 +176,13 @@ brave_search:
 
 ### 8. Medien-Generierung
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Bildgenerierung**, **Musikgenerierung** und **Videogenerierung**.
+2. Aktiviere die gewünschten Provider und setze Tageslimits.
+3. Speichere API-Keys im Vault.
+4. Speichern und bei Bedarf neu starten.
+
+### YAML-Referenz
 ```yaml
 image_generation:
   enabled: true
@@ -150,6 +208,12 @@ Die zugehörigen Tools sind `generate_image`, `generate_music` und `generate_vid
 
 **Spare Tokens, bleib fokussiert.** Das Adaptive Tools System filtert Tools basierend auf dem Gesprächskontext:
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Agent → Optimierungen**.
+2. Aktiviere **Adaptive Tools** und passe `max_tools` / `max_total_tools` an.
+3. Speichern.
+
+### YAML-Referenz
 ```yaml
 agent:
   adaptive_tools:
@@ -186,8 +250,9 @@ Das finale native Schema-Budget wird ueber `max_total_tools` gesteuert, wo es mo
 
 ## Read-Only vs. Read-Write
 
-Viele Tools unterstützen einen Read-Only-Modus:
+Viele Tools unterstützen einen Read-Only-Modus — jeweils in der jeweiligen Integrationssektion der Web-UI (**Config → Integrationen → …**):
 
+### YAML-Referenz
 ```yaml
 docker:
   enabled: true
@@ -204,6 +269,12 @@ home_assistant:
 
 Die Danger Zone kontrolliert potenziell gefährliche Operationen:
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Gefahrenzone** für Shell, Python, Netzwerk, MCP und Paketverwaltung.
+2. Öffne **Config → Tools → Web-Scraper** für Scraping (ersetzt `allow_web_scraper`).
+3. Speichern — ein Neustart kann erforderlich sein.
+
+### YAML-Referenz
 ```yaml
 agent:
   allow_shell: true              # Shell-Befehle
@@ -294,6 +365,12 @@ Diagnose-Tools für Netzwerk-Scanning und -Überwachung.
 
 ### Konfiguration
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Tools → Netzwerk-Tools**.
+2. Aktiviere **Ping**, **Port-Scanner**, **mDNS-Scan** und **UPnP-Scan** nach Bedarf.
+3. Speichern.
+
+### YAML-Referenz
 ```yaml
 tools:
   network_ping:
@@ -330,6 +407,12 @@ Screenshots, PDF-Generierung und Browser-Automatisierung.
 
 ### Konfiguration
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Tools → Netzwerk-Tools** und aktiviere **Web Capture**.
+2. Optional: **Form Automation** aktivieren (erfordert Web Capture).
+3. Speichern.
+
+### YAML-Referenz
 ```yaml
 tools:
   web_capture:
@@ -367,6 +450,12 @@ Text aus PDF-Dokumenten extrahieren mit optionaler LLM-Zusammenfassung.
 
 ### Konfiguration
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Tools → Informations-Tools**.
+2. Aktiviere **PDF Extractor** und optional **Summary Mode**.
+3. Speichern.
+
+### YAML-Referenz
 ```yaml
 tools:
   pdf_extractor:
@@ -395,6 +484,13 @@ Konvertierung von Audio-, Video- und Bilddateien sowie Video-Download von Plattf
 
 ### Konfiguration
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Medienkonvertierung** und **Video Download**.
+2. Konfiguriere FFmpeg-/ImageMagick-Pfade und Download-Modus.
+3. Optional: **Config → Integrationen → Send YouTube Video** aktivieren.
+4. Speichern.
+
+### YAML-Referenz
 ```yaml
 tools:
   media_conversion:
