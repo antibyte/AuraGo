@@ -72,7 +72,9 @@ function wireWindow(win, id) {
             scheduleWindowPointerFrame(drag, () => {
                 if (drag !== activeDrag) return;
                 const maxLeft = window.innerWidth - 80;
-                const maxTop = window.innerHeight - 120;
+                const taskbar = document.querySelector('.vd-taskbar');
+                const taskbarReserve = (!isFruityTheme() && taskbar) ? taskbar.offsetHeight : 0;
+                const maxTop = Math.max(0, window.innerHeight - taskbarReserve - win.offsetHeight);
                 const newLeft = Math.min(maxLeft, Math.max(0, activeDrag.left + activeDrag.clientX - activeDrag.x));
                 const newTop = Math.min(maxTop, Math.max(0, activeDrag.top + activeDrag.clientY - activeDrag.y));
                 win.style.left = newLeft + 'px';
@@ -155,7 +157,10 @@ function wireWindow(win, id) {
     function applyWindowSnap(win, zone) {
         const workspace = $('vd-workspace') || document.body;
         const ww = workspace.clientWidth;
-        const wh = workspace.clientHeight;
+        let wh = workspace.clientHeight;
+        const taskbar = document.querySelector('.vd-taskbar');
+        const taskbarReserve = (!isFruityTheme() && taskbar) ? taskbar.offsetHeight : 0;
+        wh = Math.max(1, wh - taskbarReserve);
         const positions = {
             'left-half': { left: 0, top: 0, width: ww / 2, height: wh },
             'right-half': { left: ww / 2, top: 0, width: ww / 2, height: wh },
