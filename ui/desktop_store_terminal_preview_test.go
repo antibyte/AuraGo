@@ -189,3 +189,25 @@ func TestDesktopStoreTerminalPreviewDelegatesFromQuickConnect(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopStoreTerminalPreviewRegistersAfterQuickConnectFragment(t *testing.T) {
+	t.Parallel()
+
+	bundle := readDesktopAssetText(t, "js/desktop/main.js")
+	quickConnectMarker := "/* ui/js/desktop/apps/quickconnect-launchpad-chat.js */"
+	previewMarker := "/* ui/js/desktop/apps/store-terminal-preview.js */"
+	registerMarker := "window.StoreTerminalPreviewApp.render = render"
+
+	quickConnectIdx := strings.Index(bundle, quickConnectMarker)
+	previewIdx := strings.Index(bundle, previewMarker)
+	registerIdx := strings.Index(bundle, registerMarker)
+	if quickConnectIdx < 0 || previewIdx < 0 || registerIdx < 0 {
+		t.Fatal("desktop main bundle missing quickconnect, preview module, or registration marker")
+	}
+	if previewIdx <= quickConnectIdx {
+		t.Fatal("store-terminal-preview must be bundled after quickconnect-launchpad-chat")
+	}
+	if registerIdx <= quickConnectIdx {
+		t.Fatal("StoreTerminalPreviewApp registration must occur after quickconnect fragment opens")
+	}
+}
