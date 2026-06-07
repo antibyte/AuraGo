@@ -220,11 +220,12 @@ func TestSoftwareStoreUsesInjectedThemeIconPath(t *testing.T) {
 		"function isDesktopStoreChangedEvent(event)",
 		"event.payload.operation === 'desktop_store_changed'",
 		"function showStoreError(err, fallbackKey, fallbackText)",
-		"function scheduleLoad(immediate)",
-		"function fetchCatalog()",
-		"let loadGeneration = 0;",
+		"function scheduleLoad(immediate, forceRefresh)",
+		"function fetchCatalog(forceRefresh)",
+		"let loadToken = 0;",
 		"let initialCatalogLoaded = false;",
 		"requestAnimationFrame(() => scheduleLoad(true))",
+		"scheduleLoad(true, true)",
 	} {
 		if !strings.Contains(storeJS, want) {
 			t.Fatalf("software store missing theme icon marker %q", want)
