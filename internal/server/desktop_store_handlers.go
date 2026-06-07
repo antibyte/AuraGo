@@ -15,7 +15,6 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/desktop"
 	"aurago/internal/desktopstore"
-	"aurago/internal/tools"
 	"aurago/internal/tsnetnode"
 )
 
@@ -96,11 +95,8 @@ func handleDesktopStoreCatalog(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		dockerAvailable := false
-		if desktopSvc, _, err := s.getDesktopService(r.Context()); err == nil {
-			dockerAvailable = tools.DockerPing(desktopSvc.Config().DockerHost) == nil
-		}
 		mutationDisabledReason := s.desktopStoreMutationDisabledReason()
+		dockerAvailable := s.desktopStoreDockerConfigured()
 		if !dockerAvailable && mutationDisabledReason == "" {
 			mutationDisabledReason = "docker_unavailable"
 		}
@@ -583,6 +579,15 @@ func (s *Server) desktopStoreMutationDisabledReason() string {
 	default:
 		return ""
 	}
+}
+
+func (s *Server) desktopStoreDockerConfigured() bool {
+	if s == nil || s.Cfg == nil {
+		return false
+	}
+	s.CfgMu.RLock()
+	defer s.CfgMu.RUnlock()
+	return s.Cfg.Docker.Enabled
 }
 
 func desktopStoreMutationDisabledMessage(reason string) string {

@@ -127,6 +127,32 @@ func TestDesktopStoreCatalogDisablesBrowserCachingAndUsesRomM(t *testing.T) {
 	}
 }
 
+func TestDesktopStoreCatalogDoesNotInitializeDesktopServiceForDockerStatus(t *testing.T) {
+	svc, _, _ := testInstalledStoreApp(t, "node-red", 1880)
+	s := testDesktopStoreServerWithService(t, svc)
+	req := httptest.NewRequest(http.MethodGet, "/api/desktop/store/catalog", nil)
+	rec := httptest.NewRecorder()
+
+	handleDesktopStoreCatalog(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	if s.DesktopService != nil {
+		t.Fatal("catalog initialized desktop service while only reporting store data")
+	}
+	var body struct {
+		DockerAvailable  bool `json:"docker_available"`
+		MutationsAllowed bool `json:"mutations_allowed"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !body.DockerAvailable || !body.MutationsAllowed {
+		t.Fatalf("docker/mutation flags = available:%v allowed:%v, want true/true", body.DockerAvailable, body.MutationsAllowed)
+	}
+}
+
 func TestDesktopStoreCredentialsReturnsOnlyExposedGeneratedSecrets(t *testing.T) {
 	svc, secrets, _ := testInstalledStoreApp(t, "code-server", 18443)
 	s := testDesktopStoreServerWithService(t, svc)
