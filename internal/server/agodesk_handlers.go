@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -45,6 +46,8 @@ type agodeskChatResult struct {
 }
 
 var agodeskAgentChatRunner = runAgodeskAgentChat
+
+var agodeskDoneTagPattern = regexp.MustCompile(`(?i)<\s*/?\s*done\s*/?\s*>`)
 
 type agodeskConnectionState struct {
 	sessionID             string
@@ -647,6 +650,12 @@ func stripAgodeskPersonaFrontMatter(data []byte) string {
 	return body
 }
 
+func sanitizeAgodeskChatResponseText(text string) string {
+	text = security.StripThinkingTags(text)
+	text = agodeskDoneTagPattern.ReplaceAllString(text, "")
+	return strings.TrimSpace(text)
+}
+
 func handleAgodeskChatMessage(s *Server, r *http.Request, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.ChatMessagePayload) {
 	deviceID := ""
 	if state != nil {
@@ -703,7 +712,7 @@ func handleAgodeskChatMessage(s *Server, r *http.Request, conn *websocket.Conn, 
 		SessionID:      transportSessionID,
 		ConversationID: conversationID,
 		RequestID:      requestID,
-		Text:           strings.TrimSpace(result.Answer),
+		Text:           sanitizeAgodeskChatResponseText(result.Answer),
 		Role:           "assistant",
 		Metadata:       metadata,
 	})
@@ -1073,7 +1082,7 @@ func runAgodeskAgentChat(s *Server, r *http.Request, conn *websocket.Conn, state
 		}
 	}
 	return agodeskChatResult{
-		Answer:   security.StripThinkingTags(answer),
+		Answer:   sanitizeAgodeskChatResponseText(answer),
 		Metadata: metadata,
 	}, nil
 }

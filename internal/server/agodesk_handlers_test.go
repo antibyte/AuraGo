@@ -171,6 +171,46 @@ func TestAgodeskWebSocketAllowsExplicitLoopbackDevChat(t *testing.T) {
 	}
 }
 
+func TestAgodeskWebSocketStripsDoneTagFromChatResponse(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	oldRunner := agodeskAgentChatRunner
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, transportSessionID, conversationID, deviceID, message string, voiceOutput bool) (agodeskChatResult, error) {
+		return agodeskChatResult{Answer: "TTS-Test erfolgreich abgeschlossen - Audio wurde generiert und ist abspielbereit. <done/>"}, nil
+	}
+	t.Cleanup(func() { agodeskAgentChatRunner = oldRunner })
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws?insecure_loopback=1")
+	defer cleanup()
+	connected := readAgodeskTestEnvelope(t, conn)
+	var connectedPayload agodesk.SystemConnectedPayload
+	decodeAgodeskTestPayload(t, connected, &connectedPayload)
+
+	msg, err := agodesk.NewEnvelope(agodesk.TypeChatMessage, agodesk.ChatMessagePayload{
+		SessionID: connectedPayload.SessionID,
+		Text:      "tts test",
+		Role:      "user",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat: %v", err)
+	}
+	if err := conn.WriteJSON(msg); err != nil {
+		t.Fatalf("write chat: %v", err)
+	}
+	resp := readAgodeskTestEnvelope(t, conn)
+	if resp.Type != agodesk.TypeChatResponse {
+		t.Fatalf("response type = %q, want %q", resp.Type, agodesk.TypeChatResponse)
+	}
+	var payload agodesk.ChatResponsePayload
+	decodeAgodeskTestPayload(t, resp, &payload)
+	if strings.Contains(strings.ToLower(payload.Text), "<done") {
+		t.Fatalf("chat response leaked done tag: %q", payload.Text)
+	}
+	want := "TTS-Test erfolgreich abgeschlossen - Audio wurde generiert und ist abspielbereit."
+	if payload.Text != want {
+		t.Fatalf("chat response text = %q, want %q", payload.Text, want)
+	}
+}
+
 func TestAgodeskWebSocketSessionCreateListAndLoadFiltersInternalMessages(t *testing.T) {
 	s := newAgodeskHandlerTestServer()
 	s.ShortTermMem = newAgodeskTestMemory(t)
