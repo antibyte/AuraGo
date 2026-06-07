@@ -969,8 +969,8 @@ themes: {
                         pushEnemy('sniper', 0, 4, sfx, FTOP, 1);
                     }
                 }
-                G.chalTot = G.enemies.length;
             }
+            G.chalTot = G.enemies.length;
             G.dTmr = (2000 - Math.min(G.stage * 100, 1200)) / diffMod('diveRate');
             G.fX = 0;
             mkNebula(); initBG();
@@ -978,6 +978,8 @@ themes: {
         }
 
         function startStage() {
+            G.enemies = [];
+            G.chal = isChal(G.stage);
             G.stageWipeT = 400;
             G.st = 'STAGE_INTRO'; G.sTmr = 2000; G.stageStartTime = performance.now ? performance.now() : Date.now();
             G.bul = []; G.ebul = []; G.exp = []; G.part = []; G.pendingBooms = []; G.levelSkipTimer = 0;
@@ -1465,13 +1467,10 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                             e.sTmr = 2000 + Math.random() * 1500;
                         }
                     }
-                    if (e.type === 'stalker' && G.freezeT <= 0) e.dTmr -= dtMs * 2;
-                    else e.dTmr -= dtMs;
-                    if (e.dTmr <= 0) {
-                        if (!G.chal && Math.random() < 0.008 * Math.min(G.stage, 10) * diffMod('diveRate') * (e.type === 'stalker' ? 3 : 1)) startDive(e);
-                        else if (G.chal) startChalDive(e);
-                        else e.dTmr = 400 + Math.random() * 800;
-                    }
+                    if (e.type === 'stalker' && G.freezeT <= 0) { e.dTmr -= dtMs * 2; }
+                    else if (!G.chal) { e.dTmr -= dtMs; }
+                    if (e.dTmr <= 0 && !G.chal && Math.random() < 0.008 * Math.min(G.stage, 10) * diffMod('diveRate') * (e.type === 'stalker' ? 3 : 1)) startDive(e);
+                    else { e.dTmr -= dtMs; if (e.dTmr <= 0) { if (G.chal) startChalDive(e); else startDive(e); } }
                 }
                 else if (e.st === 'DIVING') {
                     e.dTmr -= dtMs;
@@ -1516,7 +1515,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             G.dTmr -= dtMs;
             if (G.dTmr <= 0 && !G.chal) { const fe = G.enemies.filter(e => e.st === 'FORM'); if (fe.length) startDive(fe[Math.floor(Math.random() * fe.length)]); G.dTmr = Math.max(500, (2000 - G.stage * 100) / diffMod('diveRate')); }
             const alive = G.enemies.filter(e => e.st !== 'DEAD');
-            if (alive.length === 0 && G.levelSkipTimer <= 0) {
+            if (alive.length === 0 && G.levelSkipTimer <= 0 && G.st === 'PLAYING') {
                 if (G.st === 'GAME_OVER') return;
                 if (G.chal && G.chalHits === G.chalTot) { G.perfectT = 2000; addScore(5000, W / 2, H / 2 - 40, '#00ffcc'); SFX.perfect(); G.perfectCount++; if (G.perfectCount >= 3) unlockAchievement('perfectionist'); unlockAchievement('untouchable'); }
                 G.warpT = 1500; G.warpFlash = 50; G.stage++;
@@ -1632,7 +1631,13 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                 }
                 return;
             }
-            if (G.st === 'STAGE_INTRO') { G.sTmr -= dt * 1000; if (G.sTmr <= 0) { G.st = 'PLAYING'; mkFormation(); } return; }
+            if (G.st === 'STAGE_INTRO') {
+                G.sTmr -= dt * 1000;
+                updateP(dt, now);
+                updateExp(dt);
+                if (G.sTmr <= 0) { G.st = 'PLAYING'; mkFormation(); }
+                return;
+            }
             if (G.st === 'GAME_OVER') {
                 G.sTmr -= dt * 1000; updateExp(dt);
                 if (G.contTmr > 0) { G.contTmr -= dt; G.contCnt = Math.ceil(G.contTmr); }
@@ -1753,7 +1758,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                 c.fillStyle = 'rgba(255,136,255,' + _lsA + ')'; c.fillRect(0, 0, W, H);
             }
             if (G.st === 'TITLE' && !G.attract) renderTitle();
-            else if (G.st === 'STAGE_INTRO') renderStageIntro();
+            else if (G.st === 'STAGE_INTRO') { renderGame(); renderStageIntro(); }
             else if (G.st === 'SETTINGS') renderSettings();
             else if (G.st === 'PAUSED') { renderGame(); renderPause(); }
             else renderGame();
