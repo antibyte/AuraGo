@@ -45,7 +45,9 @@ Use `include_hashes: true` with `read_file` when you plan to edit the file with 
 - `lines_returned`: number of hashline lines emitted
 - `truncated`: whether the read was capped
 
-`HASH` is an 8-character content-only hash. It does not include the line number, so unchanged lines keep the same hash after inserts or deletes above them. If the response is truncated, only complete hashline lines are returned; use `file_reader_advanced` for targeted follow-up reads.
+`HASH` is an 8-character content-only hash. It does not include the line number, so unchanged lines keep the same hash after inserts or deletes above them. This allows **multiple edits in the same file without re-reading** — just adjust `anchor_line` for shifted lines while keeping the original `anchor_hash`.
+
+If the response is truncated, only complete hashline lines are returned; use `file_reader_advanced` for targeted follow-up reads.
 
 ### Common Pitfalls
 

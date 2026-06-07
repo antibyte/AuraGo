@@ -97,7 +97,7 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 							},
 						},
 						"preview":        prop("boolean", "If true, only return first 100 lines (for read_file)"),
-						"include_hashes": prop("boolean", "If true for read_file, return structured hashline output where each complete line is formatted as LINE#HASH:CONTENT. HASH is an 8-character content-only hash for stale-context validation with file_editor hashline operations."),
+						"include_hashes": prop("boolean", "If true for read_file, return structured hashline output where each complete line is formatted as LINE#HASH:CONTENT. HASH is an 8-character content-only hash for stale-context validation with file_editor hashline operations. Content-only hashes stay valid for unchanged lines even after inserts/deletes above them, enabling multiple edits without re-reading."),
 						"limit":          prop("integer", "Maximum number of entries to return for list_dir (default: 500, max: 1000)"),
 						"offset":         prop("integer", "Number of entries to skip for list_dir pagination (default: 0)"),
 					}, "operation"),

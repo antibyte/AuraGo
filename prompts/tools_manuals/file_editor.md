@@ -36,7 +36,14 @@ All operations require `file_path` (relative to `agent_workspace/workdir`). Proj
 
 ### Hashline Mode
 
-Hashline mode protects edits from stale context:
+Hashline mode protects edits from stale context by validating that the anchor line's content has not changed since you read it.
+
+**Key principle:** The hash is computed from the **line content only**, not the line number. This means:
+- If you insert/delete lines **above** a target line, the target's **line number shifts**, but its **content hash stays valid**.
+- You can perform **multiple edits in the same file without re-reading**, as long as you adjust `anchor_line` for shifted lines and the target content has not changed.
+- You only need to re-read if the **content of the target anchor line itself changed**.
+
+**Workflow:**
 
 1. Read the file with hashes:
 
@@ -50,7 +57,7 @@ Hashline mode protects edits from stale context:
 42#a1b2c3d4:func main() {
 ```
 
-`42` is the line number. `a1b2c3d4` is an 8-character hash of the line content only. The hash does not include the line number.
+`42` is the line number. `a1b2c3d4` is an 8-character hash of the line content only.
 
 3. Edit with a hashline operation:
 
@@ -58,14 +65,29 @@ Hashline mode protects edits from stale context:
 {"action": "file_editor", "operation": "hashline_replace", "file_path": "../../internal/tools/example.go", "old": "func main() {", "new": "func main() error {", "anchor_line": 42, "anchor_hash": "a1b2c3d4"}
 ```
 
-Rules:
+**Rules:**
 
 - Always provide `anchor_line` and `anchor_hash` from the hashline read.
-- `hashline_replace` replaces an `old` match that starts on the validated anchor line. Matches elsewhere in the file do not matter.
+- `hashline_replace` replaces an `old` match that **starts on the validated anchor line**. Matches elsewhere in the file do not matter.
 - `hashline_insert_after` and `hashline_insert_before` insert relative to the validated anchor line; `marker` must appear on that line.
 - `hashline_delete` requires `anchor_line` to be inside the deleted range.
-- If you insert or delete lines above a later anchor, adjust the later `anchor_line`; the old `anchor_hash` is still valid if that line's content did not change.
-- On `STALE CONTEXT`, re-read the file with `include_hashes: true` before retrying.
+- **Multi-edit without re-read is possible.** If you insert 2 lines above line 10, a later untouched line 15 becomes line 17 — use `anchor_line: 17` but keep the **original `anchor_hash`** from the read.
+- On `STALE CONTEXT`, the anchor line's content changed. Re-read the file with `include_hashes: true` and retry.
+
+**Multi-Edit Example (no re-read needed):**
+
+```json
+// Step 1: Read with hashes
+{"action": "filesystem", "operation": "read_file", "file_path": "main.go", "include_hashes": true}
+// → 1#aaa111:package main
+// → 3#ccc333:func main() {
+
+// Step 2: Insert after line 1
+{"action": "file_editor", "operation": "hashline_insert_after", "file_path": "main.go", "marker": "package main", "content": "import \"fmt\"", "anchor_line": 1, "anchor_hash": "aaa111"}
+
+// Step 3: Replace line 4 (was line 3 before insert) — same original hash!
+{"action": "file_editor", "operation": "hashline_replace", "file_path": "main.go", "old": "func main() {", "new": "func main() error {", "anchor_line": 4, "anchor_hash": "ccc333"}
+```
 
 ### Examples
 
