@@ -406,6 +406,10 @@ tools:
         enabled: true
     python_secret_injection:
         enabled: false
+    python_tool_bridge:
+        enabled: false               # allow Python skills to call native tools via HTTP bridge
+        allowed_tools: []            # explicit whitelist; empty = none
+        allowed_sql_connections: []  # SQL names for sql_query bridge; empty = block
     python_timeout_seconds: 30
     skill_timeout_seconds: 120
     background_timeout_seconds: 3600

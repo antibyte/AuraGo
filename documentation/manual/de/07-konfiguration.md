@@ -271,6 +271,10 @@ tools:
     enabled: false
     backend: maroto
     output_dir: data/documents
+  python_tool_bridge:
+    enabled: false
+    allowed_tools: []
+    allowed_sql_connections: []
   python_timeout_seconds: 30
   skill_timeout_seconds: 120
   background_timeout_seconds: 3600

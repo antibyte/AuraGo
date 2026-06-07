@@ -818,6 +818,33 @@ remote_control:
 
 `allowed_paths` is an explicit allowlist for remote file operations. Leave it empty to block remote file reads, writes, and directory listings.
 
+### AgoDesk / AgoChat Desktop Companion
+
+AuraGo can pair with the **AgoDesk** desktop client over WebSocket. When a device is connected, the agent can send proactive messages via `send_agodesk_chat` and execute remote desktop commands through the AgoDesk protocol.
+
+**Prerequisites:**
+- `remote_control.enabled: true`
+- AgoDesk client connected and paired (`/api/agodesk/ws`)
+
+**Setup:**
+1. Install and open the AgoDesk desktop client.
+2. Pair with AuraGo (one-time `pairing_token` or stored `device_id` + `shared_key_proof`).
+3. The connected device appears in the agent context as a **REACHABLE CHAT CHANNEL** with its `device_id`.
+
+**Agent tool:** `send_agodesk_chat` — send proactive text to a paired device.
+
+```json
+{
+  "action": "send_agodesk_chat",
+  "device_id": "dev-abc123",
+  "message": "Your backup finished successfully."
+}
+```
+
+> 📖 Full protocol reference: [`documentation/agodesk_backend_protocol.md`](../../agodesk_backend_protocol.md) (pairing flow, capabilities, desktop commands).
+
+**API:** `GET /api/remote/devices` lists connected RemoteHub/AgoDesk devices.
+
 ---
 
 ## Sandbox Integration
@@ -836,6 +863,32 @@ sandbox:
     enabled: true
     backend: docker
 ```
+
+---
+
+## Python Tool Bridge
+
+Allows **Python skills** to call selected native AuraGo tools over an internal HTTP bridge (`POST /api/internal/tool-bridge/`). Disabled by default for security.
+
+### Web UI Setup
+1. Open **Config → Tools → Python Tool Bridge**.
+2. Enable the bridge.
+3. Add tool names to the **allowed_tools** whitelist (empty = no tools callable).
+4. Optionally allow named SQL connections for `sql_query` via the bridge.
+5. Save and restart.
+
+### YAML Reference
+```yaml
+tools:
+    python_tool_bridge:
+        enabled: false
+        allowed_tools: []              # explicit whitelist required, e.g. ["api_request", "sql_query"]
+        allowed_sql_connections: []    # SQL connection names; empty = block SQL bridge calls
+```
+
+Skills declare bridge usage in their manifest via `internal_tools`. The agent does not call the bridge directly — skills invoke it at runtime.
+
+> ⚠️ **Security:** Only whitelist tools a skill truly needs. Never add `get_secret`, `execute_shell`, or vault tools unless you fully trust the skill code.
 
 ---
 
@@ -1772,6 +1825,50 @@ agent:
 
 ---
 
+## 3D Printer Integration
+
+Monitor and control 3D printers via the `three_d_printer` tool. Supports **Elegoo Centauri Carbon** (SDCP WebSocket) and **Klipper/Moonraker** (HTTP API).
+
+### Web UI Setup
+1. Open **Config → Integrations → 3D Printers**.
+2. Enable the integration.
+3. Add printers under **Elegoo Centauri Carbon** or **Klipper** with `id`, `name`, and `url`.
+4. Set `readonly: true` for monitoring-only access (blocks start/pause/cancel).
+5. Test: `GET /api/3d-printers/test`.
+
+### YAML Reference
+```yaml
+three_d_printers:
+    enabled: false
+    readonly: true
+    default_printer: ""
+    elegoo_centauri_carbon:
+        enabled: false
+        printers:
+          - id: "lab-printer"
+            name: "Elegoo Centauri Carbon"
+            url: "ws://192.168.1.50/websocket"
+            mainboard_id: ""
+            timeout_seconds: 10
+    klipper:
+        enabled: false
+        printers:
+          - id: "voron"
+            name: "Voron 2.4"
+            url: "http://192.168.1.60:7125"
+            api_key: ""
+            timeout_seconds: 10
+            webcam_name: ""
+```
+
+**Camera APIs:**
+- `GET /api/3d-printers/{printer_id}/camera/snapshot`
+- `GET /api/3d-printers/{printer_id}/camera/stream`
+
+**Agent tool:** `three_d_printer` — operations: `list_printers`, `status`, `files`, `camera_snapshot`, `show_live_stream`, `start_print`, `pause_print`, `resume_print`, `cancel_print` (write ops require `readonly: false`).
+
+---
+
 ## Frigate Integration
 
 Video surveillance and NVR management via Frigate.
@@ -1808,6 +1905,88 @@ grafana:
   insecure_ssl: false
   request_timeout: 30
 ```
+
+## Manifest Integration
+
+[Manifest](https://manifest.build) is an OpenAI-compatible LLM gateway with a managed dashboard. AuraGo can run Manifest as a **managed Docker sidecar** (Manifest + Postgres) or connect to an external hosted instance.
+
+### Web UI Setup
+1. Open **Config → Integrations → Manifest**.
+2. Enable the integration and choose **managed** or **external** mode.
+3. For managed mode: AuraGo starts `manifestdotbuild/manifest` and a Postgres container automatically.
+4. Store secrets in the Vault (never in `config.yaml`): `manifest_api_key`, `manifest_postgres_password`, `manifest_better_auth_secret`.
+5. Test via **Config → Integrations → Manifest → Test Connection** (`GET /api/manifest/test`).
+
+### Provider routing
+Add a provider entry with `type: manifest` to route LLM calls through Manifest:
+
+```yaml
+providers:
+  - id: manifest-main
+    type: manifest
+    name: Manifest Gateway
+    base_url: http://127.0.0.1:2099    # managed local URL
+    api_key: ""                         # vault: manifest_api_key
+    model: gpt-4o
+```
+
+### YAML Reference
+```yaml
+manifest:
+    enabled: false
+    auto_start: true
+    mode: managed                       # managed | external
+    url: "http://127.0.0.1:2099"        # managed dashboard/API URL
+    external_base_url: "https://app.manifest.build/v1"
+    host: "127.0.0.1"
+    port: 2099
+    host_port: 2099
+    image: manifestdotbuild/manifest:5
+    container_name: aurago_manifest
+    network_name: aurago_manifest
+    postgres_container_name: aurago_manifest_postgres
+    postgres_image: postgres:15-alpine
+    postgres_user: manifest
+    postgres_database: manifest
+```
+
+Manifest also appears in the Virtual Desktop **Software Store** catalog. Tailscale exposure: `tailscale.tsnet.expose_manifest`.
+
+---
+
+## Dograh Integration
+
+[Dograh](https://dograh.com) is a voice/telephony AI platform. AuraGo can deploy a **managed multi-container stack** (API, UI, Postgres, Redis, MinIO, optional coturn) and bridge it via MCP — there is no native `dograh` agent tool.
+
+### Web UI Setup
+1. Open **Config → Integrations → Dograh**.
+2. Enable the integration (`dograh.enabled: true`).
+3. AuraGo starts the managed stack when `auto_start: true`.
+4. Store API keys in the Vault: `dograh_api_key`, `dograh_super_api_key`, `dograh_encryption_key`, `dograh_postgres_password`, `dograh_minio_secret_key`.
+5. Test: `GET /api/dograh/test`, status: `GET /api/dograh/status`.
+
+### MCP bridge
+Dograh exposes MCP tools to AuraGo via the standard `mcp_call` tool when configured as an MCP server/client bridge. AuraGo can also accept inbound Dograh MCP connections on `/mcp` when `mcp_server.enabled: true`.
+
+### YAML Reference
+```yaml
+dograh:
+    enabled: false
+    auto_start: true
+    mode: managed
+    readonly: true                      # blocks resource mutations from AuraGo helpers
+    allow_test_calls: false
+    api_url: "http://127.0.0.1:8000"
+    ui_url: "http://127.0.0.1:3010"
+    api_port: 8000
+    ui_port: 3010
+    telemetry_enabled: false
+    turn_enabled: false                 # optional coturn sidecar for WebRTC
+```
+
+> 📖 See also `prompts/tools_manuals/manifest.md` for Manifest sidecar details.
+
+---
 
 ## Space Agent Integration
 

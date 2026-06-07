@@ -269,6 +269,16 @@ Core Memory verwalten (permanente Fakten).
 | `fact` | string | Faktischer Inhalt |
 | `id` | string | Fakt-ID |
 
+### `retrieve_original_output`
+Ruft die **ursprüngliche unkomprimierte Ausgabe** eines vorherigen Tool-Calls ab, wenn die Output-Kompression wichtige Details gekürzt hat.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `tool_call_id` | string | ID des komprimierten Tool-Ergebnisses |
+| `reason` | string | Warum die Originalausgabe benötigt wird |
+
+**Config:** `agent.output_compression` (Standard: aktiv). Siehe `documentation/output_compression.md`.
+
 ### `query_memory`
 Alle Memory-Quellen durchsuchen (Vektor-DB, Knowledge Graph, Journal, Notizen).
 
@@ -433,6 +443,17 @@ Stellt dem Benutzer eine gezielte Frage und wartet auf die Antwort. Nützlich be
 |-----------|-----|--------------|
 | `question` | string | Die Frage an den Benutzer |
 | `options` | array | Optionale Auswahlmöglichkeiten |
+
+### `send_agodesk_chat`
+Sendet proaktiven Text an einen verbundenen **AgoDesk/AgoChat**-Desktop-Client.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `device_id` | string | RemoteHub-Geräte-ID (aus REACHABLE CHAT CHANNELS) |
+| `device_name` | string | Optional, falls `device_id` fehlt |
+| `message` | string | Nachrichtentext in AgoChat |
+
+**Voraussetzung:** AgoDesk gekoppelt über `/api/agodesk/ws`; `remote_control.enabled: true`. Siehe Kap. 08 **AgoDesk** und `documentation/agodesk_backend_protocol.md`.
 
 ### `send_telegram`
 Sendet eine Nachricht oder ein Medium über den konfigurierten Telegram-Bot.
@@ -1010,7 +1031,16 @@ Externe Datenbank-Verbindungen verwalten.
 ## Infrastruktur
 
 ### `three_d_printer`
-Konfigurierte Elegoo Centauri Carbon- und Klipper/Moonraker-Drucker steuern (`three_d_printers.enabled`).
+Konfigurierte Elegoo Centauri Carbon- und Klipper/Moonraker-Drucker steuern.
+
+**Config:** `three_d_printers.enabled`; `readonly: true` blockiert Schreiboperationen.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | `list_printers`, `status`, `files`, `camera_snapshot`, `show_live_stream`, `start_print`, `pause_print`, `resume_print`, `cancel_print`, … |
+| `printer_id` | string | Drucker-ID aus der Config |
+| `filename` | string | G-Code-Pfad für `start_print` |
+| `prompt` | string | Vision-Prompt für `analyze_camera` |
 
 ### `composio_call`
 Composio-Toolkits/Tools suchen und freigegebene Aktionen ausführen (`composio.enabled` + Vault `composio_api_key`).

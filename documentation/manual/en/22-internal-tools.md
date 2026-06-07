@@ -261,6 +261,16 @@ Search all memory sources (Vector DB, Knowledge Graph, Journal, Notes).
 | `sources` | array | activity, vector_db, knowledge_graph, journal, notes, core_memory |
 | `limit` | integer | Max results |
 
+### `retrieve_original_output`
+Retrieve the **original uncompressed output** of a prior tool call when output compression truncated important details.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `tool_call_id` | string | ID of the compressed tool result to expand |
+| `reason` | string | Why the original is needed (improves compression filters) |
+
+**Config:** Works when `agent.output_compression` is enabled (default: true). See [Output Compression](../../output_compression.md) and ch. 08 Integrations.
+
 ### `context_memory`
 Context-aware memory query with time window.
 
@@ -405,6 +415,17 @@ Send a message or media via the configured Telegram bot.
 | `message` | string | Message text |
 | `title` | string | Optional: title for the message |
 | `priority` | string | Optional: priority (normal, high, low) |
+
+### `send_agodesk_chat`
+Send proactive text to a connected **AgoDesk/AgoChat** desktop client.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `device_id` | string | Connected RemoteHub device ID (from REACHABLE CHAT CHANNELS or `remote_control list_devices`) |
+| `device_name` | string | Optional device name if `device_id` is omitted |
+| `message` | string | Message body shown in AgoChat |
+
+**Prerequisites:** AgoDesk client paired via `/api/agodesk/ws`; `remote_control.enabled: true`. See ch. 08 **AgoDesk / AgoChat** and [`documentation/agodesk_backend_protocol.md`](../../agodesk_backend_protocol.md).
 
 ### `send_youtube_video`
 Send a YouTube video as an embedded player or link to the user.
@@ -1078,7 +1099,19 @@ Manage external database connections.
 ## Infrastructure
 
 ### `three_d_printer`
-Inspect and control configured Elegoo Centauri Carbon and Klipper/Moonraker printers (`three_d_printers.enabled`).
+Inspect and control configured Elegoo Centauri Carbon and Klipper/Moonraker printers.
+
+**Config:** `three_d_printers.enabled`; `three_d_printers.readonly: true` blocks write operations.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | `list_printers`, `status`, `attributes`, `files`, `history`, `camera_url`, `camera_snapshot`, `analyze_camera`, `show_live_stream`, `start_print`, `pause_print`, `resume_print`, `cancel_print`, `set_camera_light` |
+| `printer_id` | string | Printer ID from config (uses `default_printer` if omitted) |
+| `filename` | string | G-code path for `start_print` |
+| `prompt` | string | Vision prompt for `analyze_camera` |
+| `light_on` | boolean | Elegoo camera light (`set_camera_light`) |
+
+**API:** `GET /api/3d-printers/test`, camera snapshot/stream endpoints per printer ID.
 
 ### `composio_call`
 Search Composio toolkits/tools and execute user-approved Composio actions (`composio.enabled` + vault `composio_api_key`).

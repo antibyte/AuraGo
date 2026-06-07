@@ -830,6 +830,33 @@ remote_control:
 
 `allowed_paths` ist eine explizite Allowlist für Remote-Dateioperationen. Leer blockiert Remote-Dateilesen, -schreiben und Verzeichnislisten.
 
+### AgoDesk / AgoChat Desktop-Begleiter
+
+AuraGo kann sich mit dem **AgoDesk**-Desktop-Client per WebSocket koppeln. Bei verbundenem Gerät kann der Agent proaktive Nachrichten über `send_agodesk_chat` senden und Remote-Desktop-Befehle über das AgoDesk-Protokoll ausführen.
+
+**Voraussetzungen:**
+- `remote_control.enabled: true`
+- AgoDesk-Client verbunden und gekoppelt (`/api/agodesk/ws`)
+
+**Einrichtung:**
+1. AgoDesk-Desktop-Client installieren und öffnen.
+2. Mit AuraGo koppeln (`pairing_token` oder gespeichertes `device_id` + `shared_key_proof`).
+3. Das Gerät erscheint im Agent-Kontext als **REACHABLE CHAT CHANNEL** mit `device_id`.
+
+**Agent-Tool:** `send_agodesk_chat`
+
+```json
+{
+  "action": "send_agodesk_chat",
+  "device_id": "dev-abc123",
+  "message": "Dein Backup wurde erfolgreich abgeschlossen."
+}
+```
+
+> 📖 Vollständiges Protokoll: [`documentation/agodesk_backend_protocol.md`](../../agodesk_backend_protocol.md)
+
+**API:** `GET /api/remote/devices` listet verbundene RemoteHub/AgoDesk-Geräte.
+
 ## Sandbox
 
 Isolierte Ausführung von Python-Code und externen Befehlen.
@@ -842,6 +869,25 @@ sandbox:
   enabled: true
   backend: docker
 ```
+
+## Python Tool Bridge
+
+Erlaubt **Python-Skills**, ausgewählte native AuraGo-Tools über eine interne HTTP-Bridge (`POST /api/internal/tool-bridge/`) aufzurufen. Standard: deaktiviert.
+
+**Web-UI:** Config → Tools → Python Tool Bridge → aktivieren, `allowed_tools`-Whitelist pflegen.
+
+### YAML-Referenz
+```yaml
+tools:
+  python_tool_bridge:
+    enabled: false
+    allowed_tools: []              # explizite Whitelist, z. B. ["api_request", "sql_query"]
+    allowed_sql_connections: []    # SQL-Verbindungsnamen; leer = SQL-Bridge blockiert
+```
+
+Skills deklarieren Bridge-Nutzung im Manifest über `internal_tools`.
+
+> ⚠️ **Sicherheit:** Nur wirklich benötigte Tools whitelisten. Niemals `get_secret` oder `execute_shell` ohne volles Vertrauen in den Skill-Code.
 
 ## Skill Manager
 
@@ -1412,6 +1458,41 @@ tools:
 
 ---
 
+## 3D-Drucker-Integration
+
+Überwache und steuere 3D-Drucker mit dem `three_d_printer`-Tool. Unterstützt **Elegoo Centauri Carbon** (SDCP WebSocket) und **Klipper/Moonraker** (HTTP API).
+
+**Web-UI:** Config → Integrationen → 3D Printers → Drucker hinzufügen, `readonly: true` für Nur-Monitor.
+
+### YAML-Referenz
+```yaml
+three_d_printers:
+  enabled: false
+  readonly: true
+  default_printer: ""
+  elegoo_centauri_carbon:
+    enabled: false
+    printers:
+      - id: "lab-printer"
+        name: "Elegoo Centauri Carbon"
+        url: "ws://192.168.1.50/websocket"
+        timeout_seconds: 10
+  klipper:
+    enabled: false
+    printers:
+      - id: "voron"
+        name: "Voron 2.4"
+        url: "http://192.168.1.60:7125"
+        api_key: ""
+        timeout_seconds: 10
+```
+
+**API:** `GET /api/3d-printers/test`, Kamera-Snapshot/Stream pro `printer_id`.
+
+**Agent-Tool:** `three_d_printer` — u. a. `status`, `camera_snapshot`, `show_live_stream`, `start_print`, `pause_print` (Schreibzugriff erfordert `readonly: false`).
+
+---
+
 ## Frigate Integration
 
 Videoüberwachung und NVR-Management über Frigate.
@@ -1448,6 +1529,68 @@ grafana:
   insecure_ssl: false
   request_timeout: 30
 ```
+
+## Manifest-Integration
+
+[Manifest](https://manifest.build) ist ein OpenAI-kompatibles LLM-Gateway mit verwaltetem Dashboard. AuraGo kann Manifest als **managed Docker-Sidecar** (Manifest + Postgres) oder als externe Instanz betreiben.
+
+**Web-UI:** Config → Integrationen → Manifest → Modus wählen, Secrets im Vault speichern, Test: `GET /api/manifest/test`.
+
+### Provider-Routing
+```yaml
+providers:
+  - id: manifest-main
+    type: manifest
+    name: Manifest Gateway
+    base_url: http://127.0.0.1:2099
+    api_key: ""                    # Vault: manifest_api_key
+    model: gpt-4o
+```
+
+### YAML-Referenz
+```yaml
+manifest:
+  enabled: false
+  auto_start: true
+  mode: managed
+  url: "http://127.0.0.1:2099"
+  external_base_url: "https://app.manifest.build/v1"
+  host: "127.0.0.1"
+  port: 2099
+  host_port: 2099
+  image: manifestdotbuild/manifest:5
+  container_name: aurago_manifest
+  postgres_container_name: aurago_manifest_postgres
+  postgres_image: postgres:15-alpine
+```
+
+Vault-Keys: `manifest_api_key`, `manifest_postgres_password`, `manifest_better_auth_secret`. Tailscale: `tailscale.tsnet.expose_manifest`.
+
+---
+
+## Dograh-Integration
+
+[Dograh](https://dograh.com) ist eine Voice/Telephony-AI-Plattform. AuraGo deployt einen **managed Multi-Container-Stack** und verbindet ihn per MCP — es gibt kein natives `dograh`-Agent-Tool.
+
+**Web-UI:** Config → Integrationen → Dograh → aktivieren, Vault-Keys setzen, Test: `GET /api/dograh/test`.
+
+### YAML-Referenz
+```yaml
+dograh:
+  enabled: false
+  auto_start: true
+  mode: managed
+  readonly: true
+  allow_test_calls: false
+  api_url: "http://127.0.0.1:8000"
+  ui_url: "http://127.0.0.1:3010"
+  telemetry_enabled: false
+  turn_enabled: false
+```
+
+Vault-Keys: `dograh_api_key`, `dograh_super_api_key`, `dograh_encryption_key`, `dograh_postgres_password`, `dograh_minio_secret_key`. MCP-Bridge über `mcp_call` / `/mcp`.
+
+---
 
 ## Space Agent Integration
 
