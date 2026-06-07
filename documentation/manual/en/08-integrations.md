@@ -912,6 +912,42 @@ tools:
 
 ---
 
+## Daemon Skills
+
+Long-running Python skills that stay active in the background and can wake the agent on events (e.g. file watchers, polling loops). Managed via the `manage_daemon` tool and the dashboard **Daemon Skills** card.
+
+### Web UI Setup
+1. Open **Config → Tools → Daemon Skills**.
+2. Enable daemon skills (opt-in, disabled by default).
+3. Configure concurrency and wake-up cost limits.
+4. Upload or enable a skill with `daemon: true` in its manifest.
+5. Save and restart.
+
+### YAML Reference
+```yaml
+tools:
+    daemon_skills:
+        enabled: false
+        max_concurrent_daemons: 5
+        global_rate_limit_secs: 60
+        max_wakeups_per_hour: 6
+        max_budget_per_hour: 0.50
+```
+
+### Agent Tool: `manage_daemon`
+
+| Operation | Description |
+|-----------|-------------|
+| `list` | List all running daemons |
+| `status` | Get status for a specific daemon (`skill_id` required) |
+| `start` / `stop` | Start or stop a daemon by skill ID |
+| `reenable` | Re-enable an auto-disabled daemon |
+| `refresh` | Rescan skills from disk and reconcile running daemons |
+
+> ⚠️ **Cost control:** `max_wakeups_per_hour` and `max_budget_per_hour` act as circuit breakers to prevent runaway LLM costs from frequent daemon wake-ups.
+
+---
+
 ## AI Gateway Integration
 
 Route and monitor AI traffic through Cloudflare AI Gateway.
@@ -1294,14 +1330,43 @@ media_registry:
 
 ## GitHub Integration
 
-Interact with GitHub repositories and webhooks.
+Manage GitHub repositories, issues, pull requests, branches, files, commits, and workflow runs via the native `github` tool. Incoming GitHub webhooks are configured separately.
 
 ### Web UI Setup
-1. Open **Config → Integrations → Webhooks** to set up GitHub webhooks.
-2. For API access, store a personal access token in the Vault.
-3. Save and restart.
+1. Open **Config → Integrations → GitHub**.
+2. Enable the integration and enter the default **owner** (username or organisation).
+3. For GitHub Enterprise, set **base_url** (e.g. `https://github.example.com/api/v3`).
+4. Store a personal access token in the Vault (`github_token`).
+5. Optionally enable **read-only** mode to block create/update/delete operations.
+6. For incoming webhooks, open **Config → Integrations → Webhooks**.
+7. Save and restart.
 
 ### YAML Reference
+```yaml
+github:
+    enabled: false
+    readonly: false
+    owner: ""
+    default_private: false
+    base_url: ""                  # GitHub Enterprise API base URL (optional)
+```
+
+### Agent Tool: `github`
+
+| Operation | Description |
+|-----------|-------------|
+| `list_repos`, `search_repos` | List or search repositories |
+| `create_repo`, `delete_repo`, `get_repo` | Repository lifecycle |
+| `list_issues`, `create_issue`, `close_issue` | Issue management |
+| `list_pull_requests`, `list_branches` | PR and branch listing |
+| `get_file`, `create_or_update_file`, `list_commits` | File and commit access |
+| `list_workflow_runs` | CI/CD workflow runs |
+| `list_projects`, `track_project`, `untrack_project` | Local project tracking |
+
+> 💡 **Vault:** Store the token as `github_token`. Never put API tokens in `config.yaml`.
+
+### Webhooks (separate)
+
 ```yaml
 webhooks:
     enabled: true

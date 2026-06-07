@@ -285,6 +285,107 @@ Agent: ▶️ Video attached with an inline player
 
 ---
 
+## Network Tools
+
+Diagnostic tools for network scanning and monitoring.
+
+### Configuration
+
+```yaml
+tools:
+  network_ping:
+    enabled: true                 # ICMP ping and port scanner
+  network_scan:
+    enabled: true                 # mDNS/Bonjour discovery
+  upnp_scan:
+    enabled: true                 # UPnP/SSDP device discovery
+```
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `network_ping` | ICMP ping to a host |
+| `port_scanner` | TCP port scan on a host |
+| `mdns_scan` | Find mDNS/Bonjour devices on the LAN |
+| `upnp_scan` | Find UPnP/SSDP devices on the LAN |
+
+### Examples in Chat
+
+```
+Ping google.com
+Scan ports on 192.168.1.1
+Find all devices on the local network
+Which UPnP devices are available?
+```
+
+---
+
+## Web Capture & Form Automation
+
+Screenshots, PDF generation, and browser automation.
+
+### Configuration
+
+```yaml
+tools:
+  web_capture:
+    enabled: true                 # Screenshots and PDF from web pages
+  form_automation:
+    enabled: false                # Form automation (requires web_capture)
+```
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `web_capture` | Create a screenshot or PDF of a web page |
+| `web_performance_audit` | Measure Core Web Vitals (TTFB, FCP, LCP) |
+| `form_automation` | Fill and submit forms automatically |
+
+### Requirements
+
+- Headless Chromium (started automatically when needed)
+- More RAM for large pages
+
+### Examples in Chat
+
+```
+Take a screenshot of google.com
+Save the documentation as PDF
+Fill out the contact form on example.com
+```
+
+---
+
+## PDF Extractor
+
+Extract text from PDF documents with optional LLM summarization.
+
+### Configuration
+
+```yaml
+tools:
+  pdf_extractor:
+    enabled: true
+    summary_mode: false           # When true, summarise extracted text via LLM
+```
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `pdf_extractor` | Extract text and metadata from PDF files |
+
+### Examples in Chat
+
+```
+Extract the text from report.pdf
+Summarise the key points from invoice.pdf
+```
+
+---
+
 ## Media Conversion & Video Download
 
 Conversion of audio, video, and image files as well as video download from platforms like YouTube.

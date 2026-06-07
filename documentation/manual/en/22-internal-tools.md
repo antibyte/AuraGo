@@ -344,7 +344,16 @@ Manage Mission Control background tasks.
 | `cron_expr` | string | Cron expression |
 
 ### `manage_plan`
-Manage plans (create, update, delete, list).
+Create, inspect, and update structured work plans for complex multi-step tasks.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | create, list, get, update_task, advance, set_status, set_blocker, clear_blocker, append_note, attach_artifact, split_task, reorder_tasks, archive_completed, delete |
+| `id` | string | Plan ID |
+| `title` | string | Plan title (required for create) |
+| `task_id` | string | Task ID for task-level operations |
+| `items` | array | Tasks for create, split_task, or reorder_tasks |
+| `status` | enum | draft, active, paused, blocked, completed, cancelled, pending, in_progress, failed, skipped |
 
 ### `manage_appointments`
 Manage appointments (create, update, delete, list).
@@ -353,7 +362,12 @@ Manage appointments (create, update, delete, list).
 Manage to-dos (create, update, delete, list).
 
 ### `manage_daemon`
-Manage daemon skills (long-running background processes).
+Manage long-running daemon skills (`tools.daemon_skills.enabled`).
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | list, status, start, stop, reenable, refresh |
+| `skill_id` | string | Skill ID (required for status, start, stop, reenable) |
 
 ### `context_manager`
 Manage session contexts and switch between them.
@@ -629,13 +643,17 @@ NAS/Storage info, FTP server.
 Fritz!Box TV stations and streaming info.
 
 ### `frigate`
-Frigate NVR (Network Video Recorder) integration. Reads camera streams, events, and detections from the Frigate instance.
+Frigate NVR (Network Video Recorder) integration. Query camera status, object detection events, review summaries, snapshots, clips, recordings, and config.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `operation` | enum | get_cameras, get_events, get_config, get_stats, snapshot |
+| `operation` | enum | status, health, cameras, events, event, event_snapshot, event_clip, reviews, review_summary, review_activity, latest_frame, recordings_summary, export_recording, config, config_raw |
 | `camera` | string | Camera name |
 | `event_id` | string | Event ID |
+| `label` | string | Object label filter (person, car, dog, etc.) |
+| `zone` | string | Zone name filter |
+| `after` / `before` | integer | Unix timestamp range |
+| `limit` / `offset` | integer | Pagination for events and reviews |
 
 ---
 
@@ -652,14 +670,16 @@ HTTP request to external APIs.
 | `body` | string | Request body |
 
 ### `github`
-Manage GitHub repositories, issues, PRs, commits.
+Manage GitHub repositories, issues, PRs, branches, files, commits, workflow runs, and local project tracking (`github.enabled`).
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `operation` | enum | list_repos, create_repo, get_repo, list_issues, create_issue, close_issue, list_pull_requests, list_branches, get_file, create_or_update_file, list_commits |
-| `name` | string | Repository name |
-| `owner` | string | GitHub owner/org |
+| `operation` | enum | list_repos, create_repo, delete_repo, get_repo, list_issues, create_issue, close_issue, list_pull_requests, list_branches, get_file, create_or_update_file, list_commits, list_workflow_runs, search_repos, list_projects, track_project, untrack_project |
+| `name` | string | Repository or project name |
+| `owner` | string | GitHub owner/org (defaults to configured owner) |
 | `title` | string | Issue title |
+| `path` | string | File path within the repository |
+| `query` | string | Search query or branch name |
 
 ### `google_workspace`
 Gmail, Calendar, Drive, Docs, Sheets.
@@ -953,14 +973,17 @@ Automatically fill/submit web forms.
 | `selector` | string | CSS selector for click |
 
 ### `browser_automation`
-Complex browser automation via a sidecar instance (Chrome/Chromium). Supports navigation, clicks, form input, screenshots, and JavaScript execution on remote pages.
+Full browser session automation via the optional browser automation sidecar (CloakBrowser stealth Chromium). Supports multi-step navigation, UI inspection, clicks, typing, file uploads, screenshots, and downloads.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `operation` | enum | navigate, click, type, screenshot, evaluate, get_text, wait |
-| `url` | string | Target URL |
-| `selector` | string | CSS selector |
-| `text` | string | Input text |
+| `operation` | enum | create_session, close_session, navigate, click, type, select, press, wait_for, extract, screenshot, upload_file, list_downloads, get_download, current_state |
+| `session_id` | string | Browser session ID (required except for create_session) |
+| `url` | string | Target URL for create_session or navigate |
+| `selector` | string | CSS selector for click, type, select, upload_file, wait_for |
+| `text` | string | Text for the type operation |
+| `file_path` | string | Workspace-relative path for upload_file |
+| `wait_for` | enum | visible, hidden, attached, detached, load, networkidle |
 
 ### `site_monitor`
 Monitor websites for changes.
@@ -1117,10 +1140,25 @@ Inspect and control configured Elegoo Centauri Carbon and Klipper/Moonraker prin
 Search Composio toolkits/tools and execute user-approved Composio actions (`composio.enabled` + vault `composio_api_key`).
 
 ### `webdav`
-List, read, write, move, and delete files on a configured WebDAV endpoint (`webdav.enabled`).
+List, read, write, move, and delete files on a configured WebDAV endpoint (`webdav.enabled`). Respects `webdav.readonly`.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | list, read, write, mkdir, delete, move, info |
+| `path` | string | Remote path relative to the configured base URL |
+| `destination` | string | Target path for move |
+| `content` | string | File content for write |
 
 ### `certificate_manager`
-Inspect local TLS certificates and check remote HTTPS endpoints.
+Inspect PEM certificates, check remote HTTPS endpoints, or generate local self-signed test certificates.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | info, check_remote, generate_self_signed |
+| `file_path` | string | Workspace-resolved PEM path for info |
+| `hostname` | string | Remote HTTPS hostname or IP for check_remote |
+| `domain` | string | DNS name for generate_self_signed |
+| `output_dir` | string | Output directory for cert.pem and key.pem |
 
 ### `invasion_control`
 Manage Invasion Control (remote deployment).
@@ -1193,13 +1231,15 @@ Call external MCP (Model Context Protocol) servers.
 | `mcp_args` | object | Arguments |
 
 ### `grafana`
-Query Grafana dashboards and data sources, create snapshots. Enables access to visualized metrics and panel data.
+Read Grafana observability data: health, dashboards, datasources, queries, alerts, and org info (`grafana.enabled`).
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `operation` | enum | search_dashboards, get_dashboard, get_panel_data, create_snapshot |
-| `dashboard_uid` | string | Dashboard UID |
-| `panel_id` | integer | Panel ID |
+| `operation` | enum | health, list_dashboards, get_dashboard, list_datasources, query, list_alerts, get_org |
+| `uid` | string | Dashboard UID for get_dashboard |
+| `query` | string | Search query for list_dashboards or read expression for query |
+| `datasource_uid` | string | Datasource UID for query |
+| `datasource_type` | string | prometheus, mimir, cortex, loki, or elasticsearch |
 
 ### `space_agent`
 Send instructions to the configured Space Agent sidecar.

@@ -361,16 +361,24 @@ Mission Control Hintergrund-Aufgaben verwalten.
 | `cron_expr` | string | Cron-Ausdruck |
 
 ### `manage_daemon`
-Daemon-Skills (langlaufende Hintergrundprozesse) verwalten.
-
-### `manage_plan`
-Pläne erstellen und verwalten (Mehrschrittige Aufgabenplanung).
+Langlaufende Daemon-Skills verwalten (`tools.daemon_skills.enabled`).
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
-| `operation` | enum | create, list, get, update_step, delete |
-| `title` | string | Plan-Titel |
-| `steps` | array | List von {title, description}-Schritten |
+| `operation` | enum | list, status, start, stop, reenable, refresh |
+| `skill_id` | string | Skill-ID (erforderlich für status, start, stop, reenable) |
+
+### `manage_plan`
+Strukturierte Arbeitspläne für komplexe Mehrschritt-Aufgaben erstellen, einsehen und aktualisieren.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | create, list, get, update_task, advance, set_status, set_blocker, clear_blocker, append_note, attach_artifact, split_task, reorder_tasks, archive_completed, delete |
+| `id` | string | Plan-ID |
+| `title` | string | Plan-Titel (erforderlich für create) |
+| `task_id` | string | Task-ID für Task-Operationen |
+| `items` | array | Tasks für create, split_task oder reorder_tasks |
+| `status` | enum | draft, active, paused, blocked, completed, cancelled, pending, in_progress, failed, skipped |
 
 ### `manage_appointments`
 Termine und Kalenderereignisse verwalten (erfordert `planner_enabled`).
@@ -616,13 +624,17 @@ NAS/Storage Info, FTP-Server.
 Fritz!Box TV-Stationen und Streaming-Info.
 
 ### `frigate`
-Frigate NVR (Network Video Recorder) Integration. Liest Kamera-Streams, Ereignisse und Erkennungen aus der Frigate-Instanz aus.
+Frigate NVR (Network Video Recorder) Integration. Kamerastatus, Objekterkennungs-Events, Review-Zusammenfassungen, Snapshots, Clips, Aufnahmen und Konfiguration abfragen.
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
-| `operation` | enum | get_cameras, get_events, get_config, get_stats, snapshot |
+| `operation` | enum | status, health, cameras, events, event, event_snapshot, event_clip, reviews, review_summary, review_activity, latest_frame, recordings_summary, export_recording, config, config_raw |
 | `camera` | string | Kamera-Name |
 | `event_id` | string | Ereignis-ID |
+| `label` | string | Objekt-Label-Filter (person, car, dog, etc.) |
+| `zone` | string | Zonen-Filter |
+| `after` / `before` | integer | Unix-Zeitstempel-Bereich |
+| `limit` / `offset` | integer | Paginierung für Events und Reviews |
 
 ---
 
@@ -639,14 +651,16 @@ HTTP-Request an externe APIs.
 | `body` | string | Request-Body |
 
 ### `github`
-GitHub Repositories, Issues, PRs, Commits verwalten.
+GitHub Repositories, Issues, PRs, Branches, Dateien, Commits, Workflow-Runs und lokales Projekt-Tracking verwalten (`github.enabled`).
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
-| `operation` | enum | list_repos, create_repo, get_repo, list_issues, create_issue, close_issue, list_pull_requests, list_branches, get_file, create_or_update_file, list_commits |
-| `name` | string | Repository-Name |
-| `owner` | string | GitHub Owner/Org |
+| `operation` | enum | list_repos, create_repo, delete_repo, get_repo, list_issues, create_issue, close_issue, list_pull_requests, list_branches, get_file, create_or_update_file, list_commits, list_workflow_runs, search_repos, list_projects, track_project, untrack_project |
+| `name` | string | Repository- oder Projektname |
+| `owner` | string | GitHub Owner/Org (Standard: konfigurierter Owner) |
 | `title` | string | Issue-Titel |
+| `path` | string | Dateipfad im Repository |
+| `query` | string | Suchanfrage oder Branch-Name |
 
 ### `google_workspace`
 Gmail, Calendar, Drive, Docs, Sheets.
@@ -921,14 +935,17 @@ Web-Formulare automatisch ausfüllen/absenden.
 | `selector` | string | CSS-Selektor für Click |
 
 ### `browser_automation`
-Komplexe Browser-Automatisierung über eine Sidecar-Instanz (Chrome/Chromium). Unterstützt Navigation, Klicks, Formulareingaben, Screenshots und JavaScript-Ausführung auf entfernten Seiten.
+Vollständige Browser-Session-Automatisierung über den optionalen Browser-Automation-Sidecar (CloakBrowser Stealth Chromium). Unterstützt mehrstufige Navigation, UI-Inspektion, Klicks, Eingaben, Datei-Uploads, Screenshots und Downloads.
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
-| `operation` | enum | navigate, click, type, screenshot, evaluate, get_text, wait |
-| `url` | string | Ziel-URL |
-| `selector` | string | CSS-Selektor |
-| `text` | string | Eingabetext |
+| `operation` | enum | create_session, close_session, navigate, click, type, select, press, wait_for, extract, screenshot, upload_file, list_downloads, get_download, current_state |
+| `session_id` | string | Browser-Session-ID (außer bei create_session erforderlich) |
+| `url` | string | Ziel-URL für create_session oder navigate |
+| `selector` | string | CSS-Selektor für click, type, select, upload_file, wait_for |
+| `text` | string | Text für die type-Operation |
+| `file_path` | string | Workspace-relativer Pfad für upload_file |
+| `wait_for` | enum | visible, hidden, attached, detached, load, networkidle |
 
 ### `site_monitor`
 Webseiten auf Änderungen überwachen.
@@ -1046,10 +1063,25 @@ Konfigurierte Elegoo Centauri Carbon- und Klipper/Moonraker-Drucker steuern.
 Composio-Toolkits/Tools suchen und freigegebene Aktionen ausführen (`composio.enabled` + Vault `composio_api_key`).
 
 ### `webdav`
-Dateien auf einem WebDAV-Endpunkt listen, lesen, schreiben, verschieben und löschen (`webdav.enabled`).
+Dateien auf einem WebDAV-Endpunkt listen, lesen, schreiben, verschieben und löschen (`webdav.enabled`). Respektiert `webdav.readonly`.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | list, read, write, mkdir, delete, move, info |
+| `path` | string | Remote-Pfad relativ zur konfigurierten Basis-URL |
+| `destination` | string | Zielpfad für move |
+| `content` | string | Dateiinhalt für write |
 
 ### `certificate_manager`
-Lokale TLS-Zertifikate prüfen und Remote-HTTPS-Endpunkte testen.
+PEM-Zertifikate prüfen, Remote-HTTPS-Endpunkte testen oder lokale Self-Signed-Testzertifikate erzeugen.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | info, check_remote, generate_self_signed |
+| `file_path` | string | Workspace-aufgelöster PEM-Pfad für info |
+| `hostname` | string | Remote-HTTPS-Hostname oder IP für check_remote |
+| `domain` | string | DNS-Name für generate_self_signed |
+| `output_dir` | string | Ausgabeverzeichnis für cert.pem und key.pem |
 
 ### `invasion_control`
 Invasion Control (Remote Deployment) verwalten.
@@ -1122,13 +1154,15 @@ Externe MCP (Model Context Protocol) Server aufrufen.
 | `mcp_args` | object | Argumente |
 
 ### `grafana`
-Grafana-Dashboards und -Datenquellen abfragen sowie Snapshots erstellen. Ermöglicht den Zugriff auf visualisierte Metriken und Panel-Daten.
+Grafana-Observability-Daten lesen: Health, Dashboards, Datasources, Queries, Alerts und Org-Info (`grafana.enabled`).
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
-| `operation` | enum | search_dashboards, get_dashboard, get_panel_data, create_snapshot |
-| `dashboard_uid` | string | Dashboard-UID |
-| `panel_id` | integer | Panel-ID |
+| `operation` | enum | health, list_dashboards, get_dashboard, list_datasources, query, list_alerts, get_org |
+| `uid` | string | Dashboard-UID für get_dashboard |
+| `query` | string | Suchanfrage für list_dashboards oder Read-Expression für query |
+| `datasource_uid` | string | Datasource-UID für query |
+| `datasource_type` | string | prometheus, mimir, cortex, loki oder elasticsearch |
 
 ### `space_agent`
 Sendet Anweisungen an den konfigurierten Space-Agent-Sidecar.

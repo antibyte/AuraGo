@@ -361,6 +361,34 @@ Fülle das Kontaktformular auf example.com aus
 
 ---
 
+## PDF Extractor
+
+Text aus PDF-Dokumenten extrahieren mit optionaler LLM-Zusammenfassung.
+
+### Konfiguration
+
+```yaml
+tools:
+  pdf_extractor:
+    enabled: true
+    summary_mode: false           # Bei true: extrahierten Text per LLM zusammenfassen
+```
+
+### Verfügbare Tools
+
+| Tool | Beschreibung |
+|------|--------------|
+| `pdf_extractor` | Text und Metadaten aus PDF-Dateien extrahieren |
+
+### Beispiele im Chat
+
+```
+Extrahiere den Text aus report.pdf
+Fasse die wichtigsten Punkte aus invoice.pdf zusammen
+```
+
+---
+
 ## Medien-Konvertierung & Video-Download
 
 Konvertierung von Audio-, Video- und Bilddateien sowie Video-Download von Plattformen wie YouTube.

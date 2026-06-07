@@ -353,15 +353,46 @@ brave_search:
 
 ## GitHub Integration
 
-Repository- und Issue-Verwaltung.
+GitHub-Repositories, Issues, Pull Requests, Branches, Dateien, Commits und Workflow-Runs über das native Tool `github` verwalten. Eingehende GitHub-Webhooks werden separat konfiguriert.
 
-**Web-UI:** Config → Integrationen → GitHub → Username und optional GitHub Enterprise Base-URL eingeben.
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → GitHub**.
+2. Aktiviere die Integration und trage den Standard-**owner** (Benutzername oder Organisation) ein.
+3. Für GitHub Enterprise: **base_url** setzen (z. B. `https://github.example.com/api/v3`).
+4. Personal Access Token im Vault speichern (`github_token`).
+5. Optional **read-only** aktivieren, um Schreiboperationen zu blockieren.
+6. Für eingehende Webhooks: **Config → Integrationen → Webhooks**.
+7. Speichern und neu starten.
 
 ### YAML-Referenz
 ```yaml
 github:
+  enabled: false
+  readonly: false
+  owner: ""
+  default_private: false
+  base_url: ""                  # GitHub Enterprise API-Basis-URL (optional)
+```
+
+### Agent-Tool: `github`
+
+| Operation | Beschreibung |
+|-----------|--------------|
+| `list_repos`, `search_repos` | Repositories auflisten oder suchen |
+| `create_repo`, `delete_repo`, `get_repo` | Repository-Lifecycle |
+| `list_issues`, `create_issue`, `close_issue` | Issue-Verwaltung |
+| `list_pull_requests`, `list_branches` | PR- und Branch-Listen |
+| `get_file`, `create_or_update_file`, `list_commits` | Datei- und Commit-Zugriff |
+| `list_workflow_runs` | CI/CD-Workflow-Runs |
+| `list_projects`, `track_project`, `untrack_project` | Lokales Projekt-Tracking |
+
+> 💡 **Vault:** Token als `github_token` speichern. API-Tokens nie in `config.yaml` ablegen.
+
+### Webhooks (separat)
+
+```yaml
+webhooks:
   enabled: true
-  owner: "username"
 ```
 
 ## Ollama Integration
@@ -902,6 +933,40 @@ tools:
     enabled: true
     allow_uploads: true
 ```
+
+## Daemon Skills
+
+Langlaufende Python-Skills, die im Hintergrund aktiv bleiben und den Agent bei Ereignissen wecken können (z. B. Datei-Watcher, Polling-Schleifen). Verwaltung über das Tool `manage_daemon` und die Dashboard-Karte **Daemon Skills**.
+
+### Einrichtung in der Web-UI
+1. Öffne **Config → Tools → Daemon Skills**.
+2. Daemon Skills aktivieren (Opt-in, standardmäßig deaktiviert).
+3. Parallelität und Wake-up-Kostenlimits konfigurieren.
+4. Skill mit `daemon: true` im Manifest hochladen oder aktivieren.
+5. Speichern und neu starten.
+
+### YAML-Referenz
+```yaml
+tools:
+  daemon_skills:
+    enabled: false
+    max_concurrent_daemons: 5
+    global_rate_limit_secs: 60
+    max_wakeups_per_hour: 6
+    max_budget_per_hour: 0.50
+```
+
+### Agent-Tool: `manage_daemon`
+
+| Operation | Beschreibung |
+|-----------|--------------|
+| `list` | Alle laufenden Daemons auflisten |
+| `status` | Status eines Daemons abfragen (`skill_id` erforderlich) |
+| `start` / `stop` | Daemon per Skill-ID starten oder stoppen |
+| `reenable` | Auto-deaktivierten Daemon wieder aktivieren |
+| `refresh` | Skills von der Festplatte neu scannen und Daemons abgleichen |
+
+> ⚠️ **Kostenkontrolle:** `max_wakeups_per_hour` und `max_budget_per_hour` wirken als Circuit Breaker gegen unkontrollierte LLM-Kosten durch häufige Daemon-Wake-ups.
 
 ## Jellyfin Integration
 
