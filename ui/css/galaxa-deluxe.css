@@ -191,6 +191,18 @@
     filter: saturate(0.6) contrast(1.1);
 }
 
+/* Screen desaturation on death */
+.galaxa-desaturate .galaxa-canvas {
+    filter: saturate(0.1) brightness(0.7);
+    transition: filter 0.15s ease-out;
+}
+
+/* Lightning flash */
+.galaxa-lightning .galaxa-canvas {
+    filter: brightness(1.3);
+    transition: filter 0.05s ease-out;
+}
+
 .galaxa-overlay {
     position: absolute;
     top: 0;
