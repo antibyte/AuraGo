@@ -924,7 +924,7 @@ sandbox:
 
 Erlaubt **Python-Skills**, ausgewählte native AuraGo-Tools über eine interne HTTP-Bridge (`POST /api/internal/tool-bridge/`) aufzurufen. Standard: deaktiviert.
 
-**Web-UI:** Config → Tools → Python Tool Bridge → aktivieren, `allowed_tools`-Whitelist pflegen.
+**Web-UI:** **Config → Tools → Fähigkeiten-Manager** — Python Tool Bridge aktivieren und `allowed_tools`-Whitelist pflegen.
 
 ### YAML-Referenz
 ```yaml
@@ -943,7 +943,7 @@ Skills deklarieren Bridge-Nutzung im Manifest über `internal_tools`.
 
 Verwalte hochgeladene Python-Skills.
 
-**Web-UI:** Config → Integrationen → Skill Manager → Uploads erlauben und Guardian-Scan aktivieren.
+**Web-UI:** **Config → Tools → Fähigkeiten-Manager** → Uploads erlauben und Guardian-Scan aktivieren.
 
 ### YAML-Referenz
 ```yaml
