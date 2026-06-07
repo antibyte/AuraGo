@@ -50,16 +50,12 @@ const PU_TYPES = ['rapid', 'spread', 'shield', 'bomb', 'speed', 'magnet', 'laser
         const wrapEl = host.querySelector('.galaxa-canvas-wrap');
         const c = canvas.getContext('2d');
         c.imageSmoothingEnabled = false;
-        const DT_HISTORY_LEN = 6;
-        let scale = 1, tick = 0, rafId = 0, lastT = 0, dtHistory = [];
-        function frameDelta(now) {
-            const raw = lastT ? (now - lastT) / 1000 : (1 / 60);
-            const clamped = Math.min(Math.max(raw, 0.001), 0.05);
-            dtHistory.push(clamped);
-            if (dtHistory.length > DT_HISTORY_LEN) dtHistory.shift();
-            let sum = 0;
-            for (let i = 0; i < dtHistory.length; i++) sum += dtHistory[i];
-            return sum / dtHistory.length;
+        let scale = 1, tick = 0, rafId = 0, clockT = 0, resizeRaf = 0;
+        function frameDelta() {
+            const now = performance.now();
+            const raw = clockT ? (now - clockT) / 1000 : (1 / 60);
+            clockT = now;
+            return Math.min(Math.max(raw, 0.001), 0.05);
         }
 
         function loadSettings() {
@@ -646,12 +642,14 @@ themes: {
 
         function drawPixelSprite(ctx, pixels, x, y, scale) {
             const sz = (scale && scale > 1) ? scale : 1;
-            const ox = Math.round(x), oy = Math.round(y);
+            ctx.save();
+            ctx.translate(x, y);
             for (let i = 0, n = pixels.length; i < n; i++) {
                 const px = pixels[i];
                 ctx.fillStyle = px.color;
-                ctx.fillRect(ox + px.x, oy + px.y, sz, sz);
+                ctx.fillRect(px.x, px.y, sz, sz);
             }
+            ctx.restore();
         }
 
         function drawSp(cv, sp, cols, x, y, flash) {
@@ -666,45 +664,74 @@ themes: {
             _rcTick = tick;
             return _rcCache;
         }
-        function drawStars(cv, dt) {
+        function updateBackground(dt) {
             const warp = G.warpT > 0 ? 10 : 1;
             for (const s of STARS) {
                 const lm = s.layer === 0 ? 0.3 : s.layer === 1 ? 0.6 : s.layer === 2 ? 1 : 1.4;
                 s.y += s.sp * dt * warp * lm;
                 if (s.y > H) { s.y = 0; s.x = Math.random() * W; s.col = STAR_COLS[Math.floor(Math.random() * STAR_COLS.length)]; }
-                let brightness = s.br * (0.6 + 0.4 * Math.sin(tick * 0.02 + s.x));
-                if (s.layer === 3) { s.twinkle += dt * 3; brightness *= 0.5 + 0.5 * Math.sin(s.twinkle); }
-                const colBase = s.col || '#ffffff';
-                const r = parseInt(colBase.slice(1, 3), 16), g = parseInt(colBase.slice(3, 5), 16), b = parseInt(colBase.slice(5, 7), 16);
-                cv.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + brightness + ')';
-                const stretch = warp > 1 && s.layer >= 2 ? s.sz + 4 : s.sz;
-                cv.fillRect(Math.floor(s.x), Math.floor(s.y), s.sz, stretch);
-                if (s.layer >= 2 && brightness > 0.6) {
-                    cv.globalAlpha = brightness * 0.3;
-                    cv.fillRect(Math.floor(s.x - 1), Math.floor(s.y - 1), s.sz + 2, stretch + 2);
-                    cv.globalAlpha = 1;
-                }
+                if (s.layer === 3) s.twinkle += dt * 3;
             }
-            // Shooting stars
             if (Math.random() < 0.003 && warp <= 1) {
                 shootingStars.push({ x: Math.random() * W, y: -5, vx: -40 - Math.random() * 80, vy: 120 + Math.random() * 100, life: 1.5, t: 0, col: '#ffffff' });
             }
             let sslen = 0;
             for (let i = 0; i < shootingStars.length; i++) {
-                const ss = shootingStars[i]; ss.x += ss.vx * dt; ss.y += ss.vy * dt; ss.t += dt;
-                if (ss.t < ss.life && ss.y < H + 10 && ss.x > -50) {
-                    const alpha = Math.max(0, 1 - ss.t / ss.life);
-                    cv.globalAlpha = alpha;
-                    cv.strokeStyle = ss.col; cv.lineWidth = 1;
-                    cv.shadowBlur = 6; cv.shadowColor = ss.col;
-                    cv.beginPath();
-                    cv.moveTo(ss.x, ss.y); cv.lineTo(ss.x - ss.vx * dt * 3, ss.y - ss.vy * dt * 3);
-                    cv.stroke();
-                    cv.shadowBlur = 0;
-                    shootingStars[sslen++] = ss;
+                const ss = shootingStars[i];
+                ss.prevX = ss.x; ss.prevY = ss.y;
+                ss.x += ss.vx * dt; ss.y += ss.vy * dt; ss.t += dt;
+                if (ss.t < ss.life && ss.y < H + 10 && ss.x > -50) shootingStars[sslen++] = ss;
+            }
+            shootingStars.length = sslen;
+            for (const p of bgPlanets) {
+                if (p.type === 'blackhole') p.rotSp = (p.rotSp || 0) + dt;
+                else if (p.type === 'debris') p.orbit += p.orbitSp * dt;
+                else if (p.type === 'asteroid') { p.y += p.sp * dt * warp * 0.3; if (p.y > H + p.r) { p.y = -p.r; p.x = Math.random() * W; } }
+                else if (p.type === 'planet') { p.y += p.sp * dt * warp * 0.15; if (p.y > H + p.r * 2) { p.y = -p.r * 2; p.x = Math.random() * W; } }
+                else if (p.type === 'crystal') { p.y += p.sp * dt * warp * 0.2; if (p.y > H + p.r * 2) { p.y = -p.r * 2; p.x = Math.random() * W; } }
+            }
+            if (Math.random() < 0.004) {
+                bgComets.push({ x: Math.random() * W, y: 0, vx: -30 - Math.random() * 70, vy: 160 + Math.random() * 140, life: 600, t: 0, size: 2 + Math.random() * 2 });
+            }
+            let cmlen = 0;
+            for (let i = 0; i < bgComets.length; i++) {
+                const cm = bgComets[i];
+                cm.prevX = cm.x; cm.prevY = cm.y;
+                cm.x += cm.vx * dt; cm.y += cm.vy * dt; cm.t += dt * 1000;
+                if (cm.t < cm.life && cm.y <= H) bgComets[cmlen++] = cm;
+            }
+            bgComets.length = cmlen;
+            if (G.bgTheme === 'storm' && Math.random() < 0.005) { G.lightningT = 150; G.lightningX = Math.random() * W; }
+            if (G.lightningT > 0) G.lightningT -= dt * 1000;
+        }
+
+        function drawStars(cv) {
+            const warp = G.warpT > 0 ? 10 : 1;
+            for (const s of STARS) {
+                let brightness = s.br * (0.6 + 0.4 * Math.sin(tick * 0.02 + s.x));
+                if (s.layer === 3) brightness *= 0.5 + 0.5 * Math.sin(s.twinkle);
+                const colBase = s.col || '#ffffff';
+                const r = parseInt(colBase.slice(1, 3), 16), g = parseInt(colBase.slice(3, 5), 16), b = parseInt(colBase.slice(5, 7), 16);
+                cv.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + brightness + ')';
+                const stretch = warp > 1 && s.layer >= 2 ? s.sz + 4 : s.sz;
+                cv.fillRect(s.x, s.y, s.sz, stretch);
+                if (s.layer >= 2 && brightness > 0.6) {
+                    cv.globalAlpha = brightness * 0.3;
+                    cv.fillRect(s.x - 1, s.y - 1, s.sz + 2, stretch + 2);
+                    cv.globalAlpha = 1;
                 }
             }
-            shootingStars.length = sslen; cv.globalAlpha = 1;
+            for (let i = 0; i < shootingStars.length; i++) {
+                const ss = shootingStars[i];
+                const alpha = Math.max(0, 1 - ss.t / ss.life);
+                cv.globalAlpha = alpha;
+                cv.strokeStyle = ss.col; cv.lineWidth = 1;
+                cv.beginPath();
+                cv.moveTo(ss.x, ss.y);
+                cv.lineTo(ss.prevX != null ? ss.prevX : ss.x - ss.vx * 0.05, ss.prevY != null ? ss.prevY : ss.y - ss.vy * 0.05);
+                cv.stroke();
+            }
+            cv.globalAlpha = 1;
 
             if (G.warpT > 0) {
                 const warpAlpha = Math.min(1, G.warpT / 500);
@@ -738,13 +765,12 @@ themes: {
                 cv.stroke();
                 cv.restore();
             }
-            drawBG(cv, dt);
+            drawBG(cv);
         }
-        function drawBG(cv, dt) {
-            const warp = G.warpT > 0 ? 10 : 1;
+        function drawBG(cv) {
             for (const p of bgPlanets) {
                 if (p.type === 'blackhole') {
-                    p.rotSp += dt; const rr = p.r + Math.sin(tick * 0.02) * 3;
+                    const rr = p.r + Math.sin(tick * 0.02) * 3;
                     cv.save(); cv.globalAlpha = 0.5;
                     const gr = cachedRadialGradient(cv, 'blackhole', p.x, p.y, 0, p.r + 8, [[0, '#000'], [0.4, '#110033'], [0.7, '#220044'], [1, 'transparent']]);
                     cv.fillStyle = gr; cv.fillRect(p.x - rr - 8, p.y - rr - 8, (rr + 8) * 2, (rr + 8) * 2);
@@ -756,13 +782,11 @@ themes: {
                     cv.fillRect(Math.floor(p.x + dx), Math.floor(p.y + dy), p.r * 2, p.r * 2);
                     cv.globalAlpha = 1;
                 } else if (p.type === 'asteroid') {
-                    p.y += p.sp * dt * warp * 0.3; if (p.y > H + p.r) { p.y = -p.r; p.x = Math.random() * W; }
                     cv.save(); cv.globalAlpha = 0.3; cv.translate(p.x, p.y); if (p.rot) cv.rotate(p.rot);
                     cv.fillStyle = p.col;
                     cv.fillRect(Math.floor(-p.r / 2), Math.floor(-p.r / 2), p.r, p.r);
                     cv.restore();
                 } else if (p.type === 'planet') {
-                    p.y += p.sp * dt * warp * 0.15; if (p.y > H + p.r * 2) { p.y = -p.r * 2; p.x = Math.random() * W; }
                     cv.save(); cv.globalAlpha = 0.35;
                     cv.beginPath(); cv.arc(p.x, p.y, p.r, 0, Math.PI * 2); cv.fillStyle = p.col; cv.fill();
                     if (p.atmoCol) { cv.beginPath(); cv.arc(p.x, p.y, p.r + 5, 0, Math.PI * 2); cv.fillStyle = p.atmoCol; cv.fill(); }
@@ -780,7 +804,6 @@ themes: {
                     }
                     cv.restore();
                 } else if (p.type === 'crystal') {
-                    p.y += p.sp * dt * warp * 0.2; if (p.y > H + p.r * 2) { p.y = -p.r * 2; p.x = Math.random() * W; }
                     cv.save(); cv.globalAlpha = 0.4; cv.translate(p.x, p.y); cv.rotate(tick * 0.01);
                     cv.fillStyle = p.col;
                     cv.beginPath();
@@ -798,30 +821,18 @@ themes: {
                     cv.restore();
                 }
             }
-            if (Math.random() < 0.004) {
-                bgComets.push({ x: Math.random() * W, y: 0, vx: -30 - Math.random() * 70, vy: 160 + Math.random() * 140, life: 600, t: 0, size: 2 + Math.random() * 2 });
-            }
-            let cmlen = 0;
             for (let i = 0; i < bgComets.length; i++) {
-                const cm = bgComets[i]; cm.x += cm.vx * dt; cm.y += cm.vy * dt; cm.t += dt * 1000;
-                if (cm.t < cm.life && cm.y <= H) {
-                    const alpha = Math.max(0, 1 - cm.t / cm.life);
-                    cv.globalAlpha = alpha * 0.7;
-                    cv.strokeStyle = '#aaccff'; cv.lineWidth = cm.size; cv.beginPath();
-                    cv.moveTo(cm.x, cm.y); cv.lineTo(cm.x - cm.vx * dt * 2.5, cm.y - cm.vy * dt * 2.5);
-                    cv.stroke();
-                    cv.fillStyle = '#ddeeff';
-                    cv.fillRect(Math.floor(cm.x - 1), Math.floor(cm.y - 1), 2, 2);
-                    bgComets[cmlen++] = cm;
-                }
-            }
-            bgComets.length = cmlen;
-            if (G.bgTheme === 'storm' && Math.random() < 0.005) {
-                G.lightningT = 150;
-                G.lightningX = Math.random() * W;
+                const cm = bgComets[i];
+                const alpha = Math.max(0, 1 - cm.t / cm.life);
+                cv.globalAlpha = alpha * 0.7;
+                cv.strokeStyle = '#aaccff'; cv.lineWidth = cm.size; cv.beginPath();
+                cv.moveTo(cm.x, cm.y);
+                cv.lineTo(cm.prevX != null ? cm.prevX : cm.x - cm.vx * 0.05, cm.prevY != null ? cm.prevY : cm.y - cm.vy * 0.05);
+                cv.stroke();
+                cv.fillStyle = '#ddeeff';
+                cv.fillRect(cm.x - 1, cm.y - 1, 2, 2);
             }
             if (G.lightningT > 0) {
-                G.lightningT -= 16;
                 const la = G.lightningT / 150;
                 cv.globalAlpha = la * 0.3;
                 cv.fillStyle = '#ffffff';
@@ -848,8 +859,8 @@ themes: {
             if (!nebulaCv) return;
             const pulse = 0.25 + 0.1 * Math.sin(G.fTmr * 0.3);
             cv.globalAlpha = pulse * (G.chal ? 1.3 : 1);
-            const ny = (G.fTmr * 15) % H;
-            cv.drawImage(nebulaCv, 0, ny - H); cv.drawImage(nebulaCv, 0, ny);
+            const y0 = -((G.fTmr * 15) % H);
+            cv.drawImage(nebulaCv, 0, y0); cv.drawImage(nebulaCv, 0, y0 + H);
             if (G.chal) {
                 cv.globalAlpha = Math.max(0, 0.08 + 0.05 * Math.sin(G.fTmr * 1.5));
                 cv.fillStyle = '#ff440015'; cv.fillRect(0, 0, W, H);
@@ -1454,10 +1465,13 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                             e.sTmr = 2000 + Math.random() * 1500;
                         }
                     }
-                    if (e.type === 'stalker' && G.freezeT <= 0) { e.dTmr -= dtMs * 2; }
-                    else if (!G.chal) { e.dTmr -= dtMs; }
-                    if (e.dTmr <= 0 && !G.chal && Math.random() < 0.008 * Math.min(G.stage, 10) * diffMod('diveRate') * (e.type === 'stalker' ? 3 : 1)) startDive(e);
-                    else { e.dTmr -= dtMs; if (e.dTmr <= 0) startChalDive(e); }
+                    if (e.type === 'stalker' && G.freezeT <= 0) e.dTmr -= dtMs * 2;
+                    else e.dTmr -= dtMs;
+                    if (e.dTmr <= 0) {
+                        if (!G.chal && Math.random() < 0.008 * Math.min(G.stage, 10) * diffMod('diveRate') * (e.type === 'stalker' ? 3 : 1)) startDive(e);
+                        else if (G.chal) startChalDive(e);
+                        else e.dTmr = 400 + Math.random() * 800;
+                    }
                 }
                 else if (e.st === 'DIVING') {
                     e.dTmr -= dtMs;
@@ -1465,7 +1479,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                     else {
                         e.y += DIVE_SPD * (e.type === 'stalker' ? 1.5 : 1) * eDt;
                         if (e.type === 'stalker' && G.p.alive) { e.x += (G.p.x - e.x) * eDt * 2.5; }
-                        else if (e.dPath) { e.dPath.ph += eDt * 3; e.x += Math.sin(e.dPath.ph) * e.dPath.amp * eDt * 2 + e.dPath.vx * eDt; }
+                        else if (e.dPath) { e.dPath.ph += eDt * 3; e.x += e.dPath.vx * eDt + Math.cos(e.dPath.ph) * e.dPath.amp * 3 * eDt; }
                         if (G.beam && G.beam.owner === e) { G.beam.x = e.x; G.beam.y = e.y + 16; }
                         e.sTmr -= dtMs;
                         if (e.sTmr <= 0 && !G.chal) {
@@ -1599,6 +1613,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
         function update(dt, now) {
             if (dt > 0.1) dt = 0.1;
             const dtMs = dt * 1000;
+            updateBackground(dt);
             updateCombo(dtMs);
             if (G.inp.p && !G.inp.pp) {
                 if (G.st === 'PAUSED') { G.st = G._prevSt; } else if (G.st === 'PLAYING') { G._prevSt = G.st; G.st = 'PAUSED'; G.pauseSel = 0; }
@@ -1703,7 +1718,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             c.save(); c.setTransform(scale, 0, 0, scale, 0, 0);
             let sx = 0, sy = 0; if (G.shkT > 0) { sx = (Math.random() - 0.5) * G.shkM; sy = (Math.random() - 0.5) * G.shkM; }
             c.translate(sx, sy); c.fillStyle = '#000'; c.fillRect(-5, -5, W + 10, H + 10);
-            drawNebula(c); drawStars(c, dt || (1 / 60));
+            drawNebula(c); drawStars(c);
             if (G.chromAb > 0) {
                 const ca = G.chromAb / 300;
                 c.globalAlpha = ca * 0.12;
@@ -1847,14 +1862,12 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                 if (p.alive) {
                     const eg = 0.5 + Math.sin(tick * 0.15) * 0.3;
                     const flameGlowCol = G.activePU && PU_COL[G.activePU.type] ? PU_COL[G.activePU.type] : '#ff6600';
-                    c.shadowBlur = 8; c.shadowColor = flameGlowCol;
                     renderFlame(c, p.x - 6, p.y + 11, eg, tick);
                     renderFlame(c, p.x + 3, p.y + 11, eg, tick);
                     if (p.dual) {
                         renderFlame(c, p.x + 28, p.y + 11, eg, tick);
                         renderFlame(c, p.x + 34, p.y + 11, eg, tick);
                     }
-                    c.shadowBlur = 0;
                 }
                 c.restore();
             }
@@ -2446,12 +2459,11 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
 
         function savePrev() { G.inp.fp = G.inp.f; G.inp.sp = G.inp.s; G.inp.pp = G.inp.p; G.inp.lp = G.inp.l; G.inp.rp = G.inp.r; G.inp.up = G.inp.u; G.inp.dp = G.inp.d; }
 
-        function loop(now) {
+        function loop() {
             if (state.disposed) return;
-            const dt = frameDelta(now);
-            lastT = now;
+            const dt = frameDelta();
             savePrev(); pollGP(); mergeInput();
-            update(dt, now);
+            update(dt, performance.now());
             tick++;
             renderFrame(dt);
             rafId = requestAnimationFrame(loop);
@@ -2459,7 +2471,11 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
 
         document.addEventListener('keydown', onKey);
         document.addEventListener('keyup', onKeyUp);
-        const ro = new ResizeObserver(() => { if (!state.disposed) resize(); });
+        const ro = new ResizeObserver(() => {
+            if (state.disposed) return;
+            cancelAnimationFrame(resizeRaf);
+            resizeRaf = requestAnimationFrame(() => { if (!state.disposed) resize(); });
+        });
         ro.observe(host); resize();
         loadHS().then(() => { showTitle(); rafId = requestAnimationFrame(loop); });
 
