@@ -779,6 +779,8 @@
   "desktop.store.docker_disabled": "Docker integration is disabled. Store actions are disabled.",
   "desktop.store.docker_readonly": "Docker is in read-only mode. Store actions are disabled.",
   "desktop.store.empty": "No apps available.",
+  "desktop.store.load_failed": "Could not load the software store.",
+  "desktop.store.render_failed": "Could not render the software store.",
   "desktop.store.not_installed": "Not installed",
   "desktop.store.open": "Open",
   "desktop.store.start": "Start",

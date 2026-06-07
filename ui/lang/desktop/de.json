@@ -779,6 +779,8 @@
   "desktop.store.docker_disabled": "Die Docker-Integration ist deaktiviert. Store-Aktionen sind deaktiviert.",
   "desktop.store.docker_readonly": "Docker ist im schreibgeschützten Modus. Store-Aktionen sind deaktiviert.",
   "desktop.store.empty": "Keine Apps verfügbar.",
+  "desktop.store.load_failed": "Der Software Store konnte nicht geladen werden.",
+  "desktop.store.render_failed": "Der Software Store konnte nicht angezeigt werden.",
   "desktop.store.not_installed": "Nicht installiert",
   "desktop.store.open": "Öffnen",
   "desktop.store.start": "Starten",

@@ -18,7 +18,7 @@
         const t = deps.t || ((key, fallback) => fallback || key);
         const api = deps.api;
         const iconMarkup = deps.iconMarkup || ((key, fallback) => '<span>' + esc(fallback || key || '') + '</span>');
-        const themeIconPath = deps.themeIconPath || (() => '');
+        const themeIconPath = typeof deps.themeIconPath === 'function' ? deps.themeIconPath : (() => '');
         const notify = deps.notify || function () {};
         const openApp = deps.openApp || function () {};
         const loadBootstrap = deps.loadBootstrap || function () {};
@@ -33,6 +33,7 @@
         let dockerAvailable = true;
         let mutationsAllowed = true;
         let mutationDisabledReason = '';
+        let loadGeneration = 0;
         instances.set(windowId, instance);
 
         host.innerHTML = `
@@ -52,10 +53,41 @@
         const warning = host.querySelector('.vd-store-warning');
         host.querySelector('[data-action="refresh"]').addEventListener('click', load);
 
+        function storeGridReady() {
+            return !instance.disposed && grid && grid.isConnected;
+        }
+
+        function showStoreError(err, fallbackKey, fallbackText) {
+            if (!storeGridReady()) return;
+            const message = err && err.message ? err.message : t(fallbackKey, fallbackText);
+            grid.innerHTML = `<div class="vd-store-empty">${esc(message || t('desktop.store.load_failed', 'Could not load the software store.'))}</div>`;
+        }
+
+        function storeEntryUsesThemeIcon(entry) {
+            const iconKey = String(entry && entry.icon || '').trim();
+            if (!iconKey) return false;
+            try {
+                return !!themeIconPath(iconKey);
+            } catch (_) {
+                return false;
+            }
+        }
+
+        function isDesktopStoreChangedEvent(event) {
+            if (!event) return false;
+            if (event.operation === 'desktop_store_changed') return true;
+            return event.type === 'desktop_changed'
+                && event.payload
+                && event.payload.operation === 'desktop_store_changed';
+        }
+
         async function load() {
+            const generation = ++loadGeneration;
+            if (!storeGridReady()) return;
             grid.innerHTML = `<div class="vd-store-loading">${esc(t('desktop.loading', 'Loading...'))}</div>`;
             try {
                 const body = await api('/api/desktop/store/catalog');
+                if (generation !== loadGeneration || !storeGridReady()) return;
                 catalog = activeStoreCatalogEntries(body.catalog || []);
                 installed = activeInstalledStoreApps(body.installed || []);
                 dockerAvailable = body.docker_available !== false;
@@ -68,7 +100,9 @@
                 renderCards();
                 resumeActiveOperationPolling();
             } catch (err) {
-                grid.innerHTML = `<div class="vd-store-empty">${esc(err.message)}</div>`;
+                if (generation !== loadGeneration) return;
+                console.error('Software store catalog load failed', err);
+                showStoreError(err, 'desktop.store.load_failed', 'Could not load the software store.');
             }
         }
 
@@ -122,11 +156,13 @@
         }
 
         function renderCards() {
-            if (!catalog.length) {
-                grid.innerHTML = `<div class="vd-store-empty">${esc(t('desktop.store.empty', 'No apps available.'))}</div>`;
-                return;
-            }
-            grid.innerHTML = catalog.map(entry => {
+            if (!storeGridReady()) return;
+            try {
+                if (!catalog.length) {
+                    grid.innerHTML = `<div class="vd-store-empty">${esc(t('desktop.store.empty', 'No apps available.'))}</div>`;
+                    return;
+                }
+                grid.innerHTML = catalog.map(entry => {
                 const app = installedFor(entry.id);
                 const operation = busy.get(entry.id) || activeOperationForApp(app);
                 const status = operation && operation.type === 'install' && operation.status !== 'succeeded' && operation.status !== 'failed'
@@ -136,7 +172,7 @@
                 const stopped = app && app.status === 'stopped';
                 const mutationDisabled = mutationsAllowed ? '' : mutationDisabledText();
                 const actionDisabled = operation ? statusLabel(status, operation) : mutationDisabled;
-                const themedStoreIcon = entry.icon && themeIconPath(entry.icon);
+                const themedStoreIcon = storeEntryUsesThemeIcon(entry);
                 const logo = !themedStoreIcon && entry.logo_url ? `<img class="vd-store-logo" src="${esc(entry.logo_url)}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">` : '';
                 const fallback = `<div class="vd-store-logo-fallback"${!themedStoreIcon && entry.logo_url ? ' hidden' : ''}>${iconMarkup(entry.icon || 'package', entry.name || 'A', 'vd-store-logo-icon', 30)}</div>`;
                 const access = app ? accessLabel(app) : t('desktop.store.not_installed', 'Not installed');
@@ -167,14 +203,18 @@
                             <button type="button" class="vd-store-btn vd-store-danger" data-action="uninstall" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('trash', 'X', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.uninstall', 'Uninstall'))}</span></button>` : `<button type="button" class="vd-store-btn vd-store-primary" data-action="install" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('download', 'I', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.install', 'Install'))}</span></button>`}
                     </div>
                 </article>`;
-            }).join('');
+                }).join('');
 
-            grid.querySelectorAll('.vd-store-card').forEach(card => {
-                const appId = card.dataset.appId;
-                card.querySelectorAll('[data-action]').forEach(button => {
-                    button.addEventListener('click', () => handleAction(appId, button.dataset.action, button.dataset.portId));
+                grid.querySelectorAll('.vd-store-card').forEach(card => {
+                    const appId = card.dataset.appId;
+                    card.querySelectorAll('[data-action]').forEach(button => {
+                        button.addEventListener('click', () => handleAction(appId, button.dataset.action, button.dataset.portId));
+                    });
                 });
-            });
+            } catch (err) {
+                console.error('Software store render failed', err);
+                showStoreError(err, 'desktop.store.render_failed', 'Could not render the software store.');
+            }
         }
 
         function hostAccessWarning(entry) {
@@ -450,8 +490,8 @@
             return new Promise(resolve => setTimeout(resolve, ms));
         }
 
-        instance.onDesktopEvent = payload => {
-            if (payload && payload.operation === 'desktop_store_changed') {
+        instance.onDesktopEvent = event => {
+            if (isDesktopStoreChangedEvent(event)) {
                 load();
             }
         };

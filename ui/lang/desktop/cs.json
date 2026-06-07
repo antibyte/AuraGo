@@ -774,6 +774,8 @@
   "desktop.store.docker_disabled": "Integrace Dockeru je deaktivovaná. Akce obchodu jsou deaktivované.",
   "desktop.store.docker_readonly": "Docker je v režimu pouze pro čtení. Akce obchodu jsou deaktivované.",
   "desktop.store.empty": "Nejsou dostupné žádné aplikace.",
+  "desktop.store.load_failed": "Software Store se nepodařilo načíst.",
+  "desktop.store.render_failed": "Software Store se nepodařilo zobrazit.",
   "desktop.store.not_installed": "Není nainstalováno",
   "desktop.store.open": "Otevřít",
   "desktop.store.start": "Spustit",

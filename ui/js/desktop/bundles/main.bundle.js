@@ -5997,7 +5997,16 @@ if (appId === 'system-info') {
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
             return window.CodeStudio.render(contentEl(id), id, withDesktopFileDialogs(context, { iconMarkup, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
         }
-        if (appId === 'launchpad') return renderLaunchpad(id); if (appId === 'software-store' && window.SoftwareStoreApp && typeof window.SoftwareStoreApp.render === 'function') return window.SoftwareStoreApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, themeIconPath, notify: showDesktopNotification, loadBootstrap, openApp, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
+        if (appId === 'launchpad') return renderLaunchpad(id);
+        if (appId === 'software-store') {
+            if (!window.SoftwareStoreApp) {
+                window.AuraDesktopModules.loadAppScript('software-store').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.SoftwareStoreApp.render === 'function') {
+                return window.SoftwareStoreApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, themeIconPath, notify: showDesktopNotification, loadBootstrap, openApp, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
+            }
+        }
         if (appId === 'looper' && window.LooperApp && typeof window.LooperApp.render === 'function') {
             return window.LooperApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, updateWindowContext, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
         }

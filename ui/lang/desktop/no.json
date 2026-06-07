@@ -774,6 +774,8 @@
   "desktop.store.docker_disabled": "Docker-integrasjonen er deaktivert. Store-handlinger er deaktivert.",
   "desktop.store.docker_readonly": "Docker er skrivebeskyttet. Store-handlinger er deaktivert.",
   "desktop.store.empty": "Ingen apper tilgjengelige.",
+  "desktop.store.load_failed": "Software Store kunne ikke lastes.",
+  "desktop.store.render_failed": "Software Store kunne ikke vises.",
   "desktop.store.not_installed": "Ikke installert",
   "desktop.store.open": "Åpne",
   "desktop.store.start": "Start",

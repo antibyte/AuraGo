@@ -774,6 +774,8 @@
   "desktop.store.docker_disabled": "De Docker-integratie is uitgeschakeld. Store-acties zijn uitgeschakeld.",
   "desktop.store.docker_readonly": "Docker is alleen-lezen. Store-acties zijn uitgeschakeld.",
   "desktop.store.empty": "Geen apps beschikbaar.",
+  "desktop.store.load_failed": "De softwarewinkel kon niet worden geladen.",
+  "desktop.store.render_failed": "De softwarewinkel kon niet worden weergegeven.",
   "desktop.store.not_installed": "Niet geïnstalleerd",
   "desktop.store.open": "Openen",
   "desktop.store.start": "Starten",

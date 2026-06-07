@@ -774,6 +774,8 @@
   "desktop.store.docker_disabled": "Docker 連携は無効です。ストア操作は無効です。",
   "desktop.store.docker_readonly": "Docker は読み取り専用モードです。ストア操作は無効です。",
   "desktop.store.empty": "利用できるアプリはありません。",
+  "desktop.store.load_failed": "ソフトウェアストアを読み込めませんでした。",
+  "desktop.store.render_failed": "ソフトウェアストアを表示できませんでした。",
   "desktop.store.not_installed": "未インストール",
   "desktop.store.open": "開く",
   "desktop.store.start": "開始",

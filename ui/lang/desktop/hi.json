@@ -774,6 +774,8 @@
   "desktop.store.docker_disabled": "Docker एकीकरण बंद है। Store क्रियाएँ बंद हैं।",
   "desktop.store.docker_readonly": "Docker read-only मोड में है। Store क्रियाएँ बंद हैं।",
   "desktop.store.empty": "कोई ऐप उपलब्ध नहीं है।",
+  "desktop.store.load_failed": "सॉफ़्टवेयर स्टोर लोड नहीं हो सका।",
+  "desktop.store.render_failed": "सॉफ़्टवेयर स्टोर दिखाया नहीं जा सका।",
   "desktop.store.not_installed": "इंस्टॉल नहीं है",
   "desktop.store.open": "खोलें",
   "desktop.store.start": "शुरू करें",

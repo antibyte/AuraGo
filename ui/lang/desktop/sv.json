@@ -774,6 +774,8 @@
   "desktop.store.docker_disabled": "Docker-integrationen är inaktiverad. Store-åtgärder är inaktiverade.",
   "desktop.store.docker_readonly": "Docker är skrivskyddat. Store-åtgärder är inaktiverade.",
   "desktop.store.empty": "Inga appar tillgängliga.",
+  "desktop.store.load_failed": "Software Store kunde inte laddas.",
+  "desktop.store.render_failed": "Software Store kunde inte visas.",
   "desktop.store.not_installed": "Inte installerad",
   "desktop.store.open": "Öppna",
   "desktop.store.start": "Starta",

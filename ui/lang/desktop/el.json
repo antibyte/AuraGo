@@ -774,6 +774,8 @@
   "desktop.store.docker_disabled": "Η ενσωμάτωση Docker είναι απενεργοποιημένη. Οι ενέργειες του Store είναι απενεργοποιημένες.",
   "desktop.store.docker_readonly": "Το Docker είναι σε λειτουργία μόνο για ανάγνωση. Οι ενέργειες του Store είναι απενεργοποιημένες.",
   "desktop.store.empty": "Δεν υπάρχουν διαθέσιμες εφαρμογές.",
+  "desktop.store.load_failed": "Δεν ήταν δυνατή η φόρτωση του Software Store.",
+  "desktop.store.render_failed": "Δεν ήταν δυνατή η εμφάνιση του Software Store.",
   "desktop.store.not_installed": "Δεν έχει εγκατασταθεί",
   "desktop.store.open": "Άνοιγμα",
   "desktop.store.start": "Εκκίνηση",

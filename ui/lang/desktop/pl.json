@@ -774,6 +774,8 @@
   "desktop.store.docker_disabled": "Integracja Docker jest wyłączona. Akcje sklepu są wyłączone.",
   "desktop.store.docker_readonly": "Docker jest w trybie tylko do odczytu. Akcje sklepu są wyłączone.",
   "desktop.store.empty": "Brak dostępnych aplikacji.",
+  "desktop.store.load_failed": "Nie udało się wczytać sklepu z oprogramowaniem.",
+  "desktop.store.render_failed": "Nie udało się wyświetlić sklepu z oprogramowaniem.",
   "desktop.store.not_installed": "Nie zainstalowano",
   "desktop.store.open": "Otwórz",
   "desktop.store.start": "Uruchom",

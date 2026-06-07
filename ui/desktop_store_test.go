@@ -120,8 +120,9 @@ func TestSoftwareStoreResumesAndRefreshesActiveOperations(t *testing.T) {
 		"const pollingOperations = new Set();",
 		"resumeActiveOperationPolling();",
 		"if (pollingOperations.has(operationId)) return;",
-		"instance.onDesktopEvent = payload =>",
-		"payload.operation === 'desktop_store_changed'",
+		"instance.onDesktopEvent = event =>",
+		"function isDesktopStoreChangedEvent(event)",
+		"event.payload.operation === 'desktop_store_changed'",
 		"window.AuraSSE.on('virtual_desktop_event', instance.onDesktopEvent)",
 		"window.AuraSSE.off('virtual_desktop_event', instance.onDesktopEvent)",
 		"window.SoftwareStoreApp = { render, dispose };",
@@ -214,15 +215,24 @@ func TestSoftwareStoreUsesInjectedThemeIconPath(t *testing.T) {
 	storeJS := readDesktopAssetText(t, "js/desktop/apps/software-store.js")
 	routingJS := readDesktopAssetText(t, "js/desktop/core/menus-and-routing.js")
 	for _, want := range []string{
-		"const themeIconPath = deps.themeIconPath || (() => '');",
-		"const themedStoreIcon = entry.icon && themeIconPath(entry.icon);",
+		"typeof deps.themeIconPath === 'function' ? deps.themeIconPath : (() => '');",
+		"function storeEntryUsesThemeIcon(entry)",
+		"function isDesktopStoreChangedEvent(event)",
+		"event.payload.operation === 'desktop_store_changed'",
+		"function showStoreError(err, fallbackKey, fallbackText)",
+		"let loadGeneration = 0;",
 	} {
 		if !strings.Contains(storeJS, want) {
 			t.Fatalf("software store missing theme icon marker %q", want)
 		}
 	}
-	if !strings.Contains(routingJS, "themeIconPath, notify: showDesktopNotification") {
-		t.Fatal("software store render call must inject themeIconPath from desktop shell")
+	for _, want := range []string{
+		"themeIconPath, notify: showDesktopNotification",
+		"loadAppScript('software-store')",
+	} {
+		if !strings.Contains(routingJS, want) {
+			t.Fatalf("software store routing missing marker %q", want)
+		}
 	}
 }
 
@@ -309,6 +319,8 @@ func TestSoftwareStoreExpandedCapabilityTranslations(t *testing.T) {
 		"desktop.store.agent_configured",
 		"desktop.store.open_commandcode",
 		"desktop.store.badge_terminal_preview",
+		"desktop.store.load_failed",
+		"desktop.store.render_failed",
 		"desktop.store_terminal_restart_session",
 		"desktop.store_terminal_header_title",
 		"desktop.store_terminal_onboarding_cmd",
