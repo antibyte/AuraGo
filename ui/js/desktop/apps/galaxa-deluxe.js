@@ -50,7 +50,15 @@ const PU_TYPES = ['rapid', 'spread', 'shield', 'bomb', 'speed', 'magnet', 'laser
         const wrapEl = host.querySelector('.galaxa-canvas-wrap');
         const c = canvas.getContext('2d');
         c.imageSmoothingEnabled = false;
-        let scale = 1, tick = 0, rafId = 0, lastT = 0;
+        const FIXED_DT = 1 / 120;
+        const MAX_PHYSICS_STEPS = 8;
+        let scale = 1, tick = 0, rafId = 0, lastT = 0, physicsAccum = 0, frameDt = FIXED_DT;
+        function renderX(o) { return o.px == null ? o.x : o.x * G.renderAlpha + o.px * (1 - G.renderAlpha); }
+        function renderY(o) { return o.py == null ? o.y : o.y * G.renderAlpha + o.py * (1 - G.renderAlpha); }
+        function snapshotMotion() {
+            G.p.px = G.p.x; G.p.py = G.p.y;
+            for (const e of G.enemies) { if (e.st !== 'DEAD') { e.px = e.x; e.py = e.y; } }
+        }
 
         function loadSettings() {
             try { const s = JSON.parse(localStorage.getItem('galaxa_settings') || '{}'); return { vol: s.vol || 30, diff: s.diff || 'normal', mute: s.mute || false, ship: s.ship || 'classic', mode: s.mode || 'classic' }; } catch (e) { return { vol: 30, diff: 'normal', mute: false, ship: 'classic', mode: 'classic' }; }
@@ -86,7 +94,8 @@ const PU_TYPES = ['rapid', 'spread', 'shield', 'bomb', 'speed', 'magnet', 'laser
 
         const G = {
             st: 'TITLE', score: 0, lives: 3, stage: 1, hi: 10000, hiScores: [],
-            p: { x: W / 2, y: H - 50, alive: true, inv: 0, dual: false, cap: null, reviveTimer: 0 },
+            p: { x: W / 2, y: H - 50, px: W / 2, py: H - 50, alive: true, inv: 0, dual: false, cap: null, reviveTimer: 0 },
+            renderAlpha: 0,
             bul: [], ebul: [], enemies: [], exp: [], part: [],
             fX: 0, fTmr: 0, dTmr: 0, sTmr: 0, tIdle: 0,
             attract: false, aTmr: 0, ne: { ch: [65, 65, 65], pos: 0, done: false },
@@ -636,10 +645,12 @@ themes: {
 
         function drawPixelSprite(ctx, pixels, x, y, scale) {
             const sz = (scale && scale > 1) ? scale : 1;
+            const bx = Math.floor(x), by = Math.floor(y);
+            const fx = x - bx, fy = y - by;
             for (let i = 0, n = pixels.length; i < n; i++) {
                 const px = pixels[i];
                 ctx.fillStyle = px.color;
-                ctx.fillRect(Math.round(x + px.x), Math.round(y + px.y), sz, sz);
+                ctx.fillRect(bx + px.x + fx, by + px.y + fy, sz, sz);
             }
         }
 
@@ -868,7 +879,8 @@ themes: {
             function pushEnemy(type, r, col, fx, fy, hp) {
                 const side = idx % 2 === 0 ? -1 : 1;
                 const diveDelay = G.chal ? (800 + idx * 200) : (1000 + Math.random() * 3000 + idx * 50);
-                G.enemies.push({ type, r, col, x: W / 2 + side * (120 + Math.random() * 80), y: -30 - (idx % 8) * 20,
+                const sx = W / 2 + side * (120 + Math.random() * 80), sy = -30 - (idx % 8) * 20;
+                G.enemies.push({ type, r, col, x: sx, y: sy, px: sx, py: sy,
                     fx, fy, hp, maxHp: hp, st: 'ENTER', eTmr: 500 + idx * 80 + r * 100,
                     fr: 0, frT: 0, dTmr: diveDelay / diffMod('diveRate'), dPath: null, sTmr: 0, hasCap: false, hitF: 0 });
                 idx++;
@@ -965,7 +977,7 @@ themes: {
             G.trails = []; G.timeScale = 1; G.timeSlowTimer = 0; G.freezeT = 0; G.damageVignetteT = 0;
             G.bossWarningT = 0; G.bossWarningShown = false;
             G.weaponLv = Math.max(1, G.weaponLv); G.puUpgrade = null; G.upgradeBanner = null; G.killCount = 0; G.slowMoT = 0;
-            G.p.x = W / 2; G.p.alive = true; G.p.inv = 2000; G.p.cap = null; G.p.dual = false; G.p.reviveTimer = 0;
+            G.p.x = W / 2; G.p.px = G.p.x; G.p.py = G.p.y; G.p.alive = true; G.p.inv = 2000; G.p.cap = null; G.p.dual = false; G.p.reviveTimer = 0;
             setPUClass(null);
             G.chal ? SFX.challenge() : SFX.stageClear();
             MusicEngine.setTempo(1 + G.stage * 0.05);
@@ -1247,7 +1259,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             if (!G.p.alive) {
                 if (G.p.reviveTimer > 0 && G.st === 'PLAYING') {
                     G.p.reviveTimer -= dt * 1000;
-                    if (G.p.reviveTimer <= 0) { G.p.x = W / 2; G.p.alive = true; G.p.inv = 3000; G.p.reviveTimer = 0; SFX.respawn(); }
+                    if (G.p.reviveTimer <= 0) { G.p.x = W / 2; G.p.px = G.p.x; G.p.py = G.p.y; G.p.alive = true; G.p.inv = 3000; G.p.reviveTimer = 0; SFX.respawn(); }
                 }
                 return;
             }
@@ -1586,7 +1598,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
         }
 
         function update(dt, now) {
-            if (dt > 0.1) dt = 0.1; tick++;
+            if (dt > 0.1) dt = 0.1;
             const dtMs = dt * 1000;
             updateCombo(dtMs);
             if (G.inp.p && !G.inp.pp) {
@@ -1597,7 +1609,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             if (G.st === 'SETTINGS') { updateSettingsMenu(); return; }
             if (G.st === 'TITLE') {
                 G.tIdle += dt * 1000;
-                if (G.tIdle > TITLE_IDLE && !G.attract) { G.attract = true; G.aTmr = 0; G.score = 0; G.lives = diffMod('lives'); G.stage = 1; G.p.x = W / 2; G.p.alive = true; G.p.inv = 0; G.bul = []; G.ebul = []; G.exp = []; G.part = []; G.trails = []; mkFormation(); MusicEngine.play('title'); }
+                if (G.tIdle > TITLE_IDLE && !G.attract) { G.attract = true; G.aTmr = 0; G.score = 0; G.lives = diffMod('lives'); G.stage = 1; G.p.x = W / 2; G.p.px = G.p.x; G.p.py = G.p.y; G.p.alive = true; G.p.inv = 0; G.bul = []; G.ebul = []; G.exp = []; G.part = []; G.trails = []; mkFormation(); MusicEngine.play('title'); }
                 if (G.attract) { updateAttract(dt); updateP(dt, now); updateBul(dt); updateE(dt); updateExp(dt); if (G.inp.s && !G.inp.sp) { G.attract = false; G.tIdle = 0; G.score = 0; G.lives = diffMod('lives'); G.stage = 1; G.p.dual = false; G.p.cap = null; G.weaponLv = 1; G.killCount = 0; G.displayScore = 0; G.deathParts = []; startStage(); MusicEngine.play('gameplay'); } }
                 else if (G.inp.s && !G.inp.sp) { SFX.coinInsert(); G.titleParts = []; G.score = 0; G.lives = diffMod('lives'); G.stage = 1; G.p.dual = false; G.p.cap = null; G.weaponLv = 1; G.killCount = 0; G.displayScore = 0; G.deathParts = []; G.collectedPU = new Set(); G.perfectCount = 0; G.bossKillTotal = 0; startStage(); MusicEngine.play('gameplay'); }
                 if (!G.attract) {
@@ -1610,7 +1622,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             if (G.st === 'GAME_OVER') {
                 G.sTmr -= dt * 1000; updateExp(dt);
                 if (G.contTmr > 0) { G.contTmr -= dt; G.contCnt = Math.ceil(G.contTmr); }
-                if (G.contTmr > 0 && G.inp.s && !G.inp.sp) { G.lives = diffMod('lives'); G.st = 'PLAYING'; G.p.alive = true; G.p.x = W / 2; G.p.inv = 3000; G.activePU = null; G.shieldHits = 0; G.powerups = []; G.timeScale = 1; G.freezeT = 0; G.damageVignetteT = 0; G.combo = 0; G.comboMult = 1; mkFormation(); MusicEngine.play('gameplay'); }
+                if (G.contTmr > 0 && G.inp.s && !G.inp.sp) { G.lives = diffMod('lives'); G.st = 'PLAYING'; G.p.alive = true; G.p.x = W / 2; G.p.px = G.p.x; G.p.py = G.p.y; G.p.inv = 3000; G.activePU = null; G.shieldHits = 0; G.powerups = []; G.timeScale = 1; G.freezeT = 0; G.damageVignetteT = 0; G.combo = 0; G.comboMult = 1; mkFormation(); MusicEngine.play('gameplay'); }
                 if (G.sTmr <= 0 && G.contTmr <= 0) {
                     if (G.score > 0 && isHS(G.score)) { G.st = 'HIGH_SCORE'; G.ne = { ch: [65, 65, 65], pos: 0, done: false }; showHSOverlay(); }
                     else { G.st = 'TITLE'; G.tIdle = 0; showTitle(); MusicEngine.play('title'); }
@@ -1688,11 +1700,11 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             cv.fillRect(Math.floor(fx + 0.5), Math.floor(fy + 11), 1, 1 + Math.ceil(f3 * 0.5));
         }
 
-        function renderFrame() {
+        function renderFrame(dt) {
             c.save(); c.setTransform(scale, 0, 0, scale, 0, 0);
             let sx = 0, sy = 0; if (G.shkT > 0) { sx = (Math.random() - 0.5) * G.shkM; sy = (Math.random() - 0.5) * G.shkM; }
             c.translate(sx, sy); c.fillStyle = '#000'; c.fillRect(-5, -5, W + 10, H + 10);
-            drawNebula(c); drawStars(c, 1 / 60);
+            drawNebula(c); drawStars(c, dt || FIXED_DT);
             if (G.chromAb > 0) {
                 const ca = G.chromAb / 300;
                 c.globalAlpha = ca * 0.12;
@@ -1775,6 +1787,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
 
         function renderGame() {
             const p = G.p;
+            const prx = renderX(p), pry = renderY(p);
 
             // Beat-synced background pulse
             if (G.beatPhase > 0.88 && nebulaCv) {
@@ -1818,30 +1831,30 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             if (G.muzzleT > 0 && p.alive) {
                 c.globalAlpha = G.muzzleT / 50;
                 c.fillStyle = '#ffff88';
-                c.fillRect(Math.floor(p.x - 2), Math.floor(p.y - 14), 4, 4);
-                c.fillRect(Math.floor(p.x - 1), Math.floor(p.y - 16), 2, 2);
+                c.fillRect(Math.floor(prx - 2), Math.floor(pry - 14), 4, 4);
+                c.fillRect(Math.floor(prx - 1), Math.floor(pry - 16), 2, 2);
                 c.globalAlpha = 1;
             }
 
             if (p.alive) {
-                c.save(); c.translate(p.x, p.y); c.rotate(G.shipTilt); c.translate(-p.x, -p.y);
+                c.save(); c.translate(prx, pry); c.rotate(G.shipTilt); c.translate(-prx, -pry);
                 if (p.inv > 0) {
                     const rpc = rainbowPC();
-                    drawSp(c, SP.player, rpc, p.x - 12, p.y - 12, false);
-                    if (p.dual) drawSp(c, SP.player, rpc, p.x + 28, p.y - 12, false);
+                    drawSp(c, SP.player, rpc, prx - 12, pry - 12, false);
+                    if (p.dual) drawSp(c, SP.player, rpc, prx + 28, pry - 12, false);
                 } else {
-                    drawSp(c, SP.player, SP.pC, p.x - 12, p.y - 12, false);
-                    if (p.dual) drawSp(c, SP.player, SP.pC, p.x + 28, p.y - 12, false);
+                    drawSp(c, SP.player, SP.pC, prx - 12, pry - 12, false);
+                    if (p.dual) drawSp(c, SP.player, SP.pC, prx + 28, pry - 12, false);
                 }
                 if (p.alive) {
                     const eg = 0.5 + Math.sin(tick * 0.15) * 0.3;
                     const flameGlowCol = G.activePU && PU_COL[G.activePU.type] ? PU_COL[G.activePU.type] : '#ff6600';
                     c.shadowBlur = 8; c.shadowColor = flameGlowCol;
-                    renderFlame(c, p.x - 6, p.y + 11, eg, tick);
-                    renderFlame(c, p.x + 3, p.y + 11, eg, tick);
+                    renderFlame(c, prx - 6, pry + 11, eg, tick);
+                    renderFlame(c, prx + 3, pry + 11, eg, tick);
                     if (p.dual) {
-                        renderFlame(c, p.x + 28, p.y + 11, eg, tick);
-                        renderFlame(c, p.x + 34, p.y + 11, eg, tick);
+                        renderFlame(c, prx + 28, pry + 11, eg, tick);
+                        renderFlame(c, prx + 34, pry + 11, eg, tick);
                     }
                     c.shadowBlur = 0;
                 }
@@ -1851,10 +1864,10 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             if (G.shieldHits > 0 && p.alive) {
                 c.strokeStyle = '#4488ff'; c.lineWidth = 1.5; c.globalAlpha = 0.5 + Math.sin(tick * 0.1) * 0.2;
                 c.shadowBlur = 10; c.shadowColor = '#4488ff';
-                c.beginPath(); c.arc(p.x, p.y, 18, 0, Math.PI * 2); c.stroke(); c.shadowBlur = 0; c.globalAlpha = 1;
+                c.beginPath(); c.arc(prx, pry, 18, 0, Math.PI * 2); c.stroke(); c.shadowBlur = 0; c.globalAlpha = 1;
                 for (let i = 0; i < G.shieldHits; i++) {
                     const a = tick * 0.05 + i * 2.1;
-                    c.fillStyle = '#4488ff'; c.fillRect(Math.floor(p.x + Math.cos(a) * 18 - 1), Math.floor(p.y + Math.sin(a) * 18 - 1), 3, 3);
+                    c.fillStyle = '#4488ff'; c.fillRect(Math.floor(prx + Math.cos(a) * 18 - 1), Math.floor(pry + Math.sin(a) * 18 - 1), 3, 3);
                 }
             }
             if (G.activePU && G.activePU.type !== 'shield' && p.alive) {
@@ -1862,7 +1875,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                 const auraPulse = 0.15 + Math.sin(tick * 0.08) * 0.1;
                 c.shadowBlur = 12; c.shadowColor = auraCol;
                 c.strokeStyle = auraCol; c.lineWidth = 1; c.globalAlpha = auraPulse;
-                c.beginPath(); c.arc(p.x, p.y, 20 + Math.sin(tick * 0.12) * 3, 0, Math.PI * 2); c.stroke();
+                c.beginPath(); c.arc(prx, pry, 20 + Math.sin(tick * 0.12) * 3, 0, Math.PI * 2); c.stroke();
                 c.shadowBlur = 0; c.globalAlpha = 1;
             }
 
@@ -1953,21 +1966,22 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
 
             for (const e of G.enemies) {
                 if (e.st === 'DEAD') continue;
+                const ex = renderX(e), ey = renderY(e);
                 if (e.st === 'DIVING') {
                     c.globalAlpha = 0.12;
                     let sp, cols;
                     const _bossVar = (G.stage - 1) % 3;
                     const _bossCols = _bossVar === 1 ? SP.bossRedC : _bossVar === 2 ? SP.bossBlueC : SP.bossC;
                     if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === 'butterfly') { sp = SP.bf[e.fr]; cols = SP.bfC; } else if (e.type === 'stalker') { sp = SP.stalker[e.fr]; cols = SP.stalkerC; } else if (e.type === 'sniper') { sp = SP.sniper[e.fr]; cols = SP.sniperC; } else if (e.type === 'miniboss') { sp = e.hp <= 1 ? SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? SP.bossHit : SP.boss; cols = _bossCols; } else { sp = e.hp <= 1 ? SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? SP.bossHit : SP.boss; cols = _bossCols; }
-                    drawSp(c, sp, cols, e.x - 12, e.y - 18, false);
-                    drawSp(c, sp, cols, e.x - 12, e.y - 10, false);
+                    drawSp(c, sp, cols, ex - 12, ey - 18, false);
+                    drawSp(c, sp, cols, ex - 12, ey - 10, false);
                     c.globalAlpha = 1;
                 }
                 const fl = e.hitF > 0; let sp, cols;
                 const bossVariant = (G.stage - 1) % 3;
                 const bossCols = bossVariant === 1 ? SP.bossRedC : bossVariant === 2 ? SP.bossBlueC : SP.bossC;
                 if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === 'butterfly') { sp = SP.bf[e.fr]; cols = SP.bfC; } else if (e.type === 'stalker') { sp = SP.stalker[e.fr]; cols = SP.stalkerC; } else if (e.type === 'sniper') { sp = SP.sniper[e.fr]; cols = SP.sniperC; } else if (e.type === 'miniboss') { sp = e.hp <= 1 ? SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? SP.bossHit : SP.boss; cols = bossCols; } else { sp = e.hp <= 1 ? SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? SP.bossHit : SP.boss; cols = bossCols; }
-                drawSp(c, sp, cols, e.x - 12, e.y - 12, fl);
+                drawSp(c, sp, cols, ex - 12, ey - 12, fl);
                 if (!fl && G.beatPhase > 0.82 && (e.type === 'bee' || e.type === 'butterfly')) {
                     // beat glow drawn in batched pass below to avoid per-enemy shadowBlur changes
                 }
@@ -1980,22 +1994,22 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                 c.shadowBlur = 5; c.shadowColor = '#8899ff';
                 for (const e of G.enemies) {
                     if (e.st === 'DEAD' || e.hitF > 0 || e.type !== 'bee') continue;
-                    drawSp(c, SP.bee[e.fr], SP.bC, e.x - 12, e.y - 12, false);
+                    drawSp(c, SP.bee[e.fr], SP.bC, renderX(e) - 12, renderY(e) - 12, false);
                 }
                 c.shadowColor = '#88ffaa';
                 for (const e of G.enemies) {
                     if (e.st === 'DEAD' || e.hitF > 0 || e.type !== 'butterfly') continue;
-                    drawSp(c, SP.bf[e.fr], SP.bfC, e.x - 12, e.y - 12, false);
+                    drawSp(c, SP.bf[e.fr], SP.bfC, renderX(e) - 12, renderY(e) - 12, false);
                 }
                 c.shadowColor = '#aa66ee';
                 for (const e of G.enemies) {
                     if (e.st === 'DEAD' || e.hitF > 0 || e.type !== 'stalker') continue;
-                    drawSp(c, SP.stalker[e.fr], SP.stalkerC, e.x - 12, e.y - 12, false);
+                    drawSp(c, SP.stalker[e.fr], SP.stalkerC, renderX(e) - 12, renderY(e) - 12, false);
                 }
                 c.shadowColor = '#ffff44';
                 for (const e of G.enemies) {
                     if (e.st === 'DEAD' || e.hitF > 0 || e.type !== 'sniper') continue;
-                    drawSp(c, SP.sniper[e.fr], SP.sniperC, e.x - 12, e.y - 12, false);
+                    drawSp(c, SP.sniper[e.fr], SP.sniperC, renderX(e) - 12, renderY(e) - 12, false);
                 }
                 c.shadowBlur = 0; c.globalAlpha = 1;
             }
@@ -2003,7 +2017,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             // Enemy HP bars
             for (const _he of G.enemies) {
                 if (_he.st === 'DEAD' || _he.maxHp <= 1) continue;
-                const _bw = 20, _bh = 2, _bx = _he.x - 10, _by = _he.y - 18;
+                const _bw = 20, _bh = 2, _bx = renderX(_he) - 10, _by = renderY(_he) - 18;
                 c.fillStyle = '#111'; c.fillRect(_bx - 1, _by - 1, _bw + 2, _bh + 2);
                 c.fillStyle = '#333'; c.fillRect(_bx, _by, _bw, _bh);
                 const _hr = _he.hp / _he.maxHp;
@@ -2437,11 +2451,20 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
 
         function loop(now) {
             if (state.disposed) return;
-            const dt = lastT ? Math.min((now - lastT) / 1000, 0.05) : 1 / 60;
+            frameDt = lastT ? Math.min((now - lastT) / 1000, 0.1) : FIXED_DT;
             lastT = now;
+            physicsAccum += frameDt;
             savePrev(); pollGP(); mergeInput();
-            update(dt, now);
-            renderFrame();
+            let steps = 0;
+            while (physicsAccum >= FIXED_DT && steps < MAX_PHYSICS_STEPS) {
+                snapshotMotion();
+                update(FIXED_DT, now);
+                physicsAccum -= FIXED_DT;
+                steps++;
+            }
+            G.renderAlpha = physicsAccum / FIXED_DT;
+            tick++;
+            renderFrame(frameDt);
             rafId = requestAnimationFrame(loop);
         }
 
