@@ -1229,5 +1229,20 @@
   "desktop.store_terminal_hide_preview": "Masquer l’aperçu",
   "desktop.store_terminal_open_preview": "Ouvrir l’aperçu",
   "desktop.store_terminal_preview_placeholder_title": "L’aperçu attend",
-  "desktop.store_terminal_preview_placeholder_copy": "Démarre ton serveur de développement dans le terminal. Ouvre l’aperçu quand ta page est prête."
+  "desktop.store_terminal_preview_placeholder_copy": "Démarre ton serveur de développement dans le terminal. Ouvre l’aperçu quand ta page est prête.",
+  "desktop.store_terminal_restart_session": "Redémarrer la session",
+  "desktop.store_terminal_header_title": "CommandCode",
+  "desktop.store_terminal_header_subtitle": "Console d'abord",
+  "desktop.store_terminal_status_starting": "Démarrage",
+  "desktop.store_terminal_status_connected": "Connecté",
+  "desktop.store_terminal_status_preview_waiting": "Aperçu en attente",
+  "desktop.store_terminal_status_preview_ready": "Aperçu prêt",
+  "desktop.store_terminal_onboarding_cmd": "CommandCode démarre automatiquement dans le terminal.",
+  "desktop.store_terminal_onboarding_api_key": "Colle ta clé API depuis l'auth du navigateur avec le bouton coller.",
+  "desktop.store_terminal_onboarding_dev_server": "Démarre ton serveur de dev et pointe l'aperçu vers lui.",
+  "desktop.store_terminal_copy_command": "Copier",
+  "desktop.store_terminal_preview_ready_toast": "Serveur de développement détecté. Ouverture de l'aperçu.",
+  "desktop.store_terminal_session_label": "Session",
+  "desktop.store.open_commandcode": "Ouvrir CommandCode",
+  "desktop.store.badge_terminal_preview": "Console + aperçu"
 }

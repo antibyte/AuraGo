@@ -1229,5 +1229,20 @@
   "desktop.store_terminal_hide_preview": "隐藏预览",
   "desktop.store_terminal_open_preview": "打开预览",
   "desktop.store_terminal_preview_placeholder_title": "预览正在等待",
-  "desktop.store_terminal_preview_placeholder_copy": "请先在终端中启动开发服务器。页面准备好后再打开预览。"
+  "desktop.store_terminal_preview_placeholder_copy": "请先在终端中启动开发服务器。页面准备好后再打开预览。",
+  "desktop.store_terminal_restart_session": "重启会话",
+  "desktop.store_terminal_header_title": "CommandCode",
+  "desktop.store_terminal_header_subtitle": "控制台优先",
+  "desktop.store_terminal_status_starting": "正在启动",
+  "desktop.store_terminal_status_connected": "已连接",
+  "desktop.store_terminal_status_preview_waiting": "预览等待中",
+  "desktop.store_terminal_status_preview_ready": "预览就绪",
+  "desktop.store_terminal_onboarding_cmd": "CommandCode 会在终端中自动启动。",
+  "desktop.store_terminal_onboarding_api_key": "使用粘贴按钮粘贴浏览器认证中的 API 密钥。",
+  "desktop.store_terminal_onboarding_dev_server": "启动开发服务器并将预览指向它。",
+  "desktop.store_terminal_copy_command": "复制",
+  "desktop.store_terminal_preview_ready_toast": "检测到开发服务器，正在打开预览。",
+  "desktop.store_terminal_session_label": "会话",
+  "desktop.store.open_commandcode": "打开 CommandCode",
+  "desktop.store.badge_terminal_preview": "控制台 + 预览"
 }

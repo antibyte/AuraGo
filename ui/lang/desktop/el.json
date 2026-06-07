@@ -1229,5 +1229,20 @@
   "desktop.store_terminal_hide_preview": "Απόκρυψη προεπισκόπησης",
   "desktop.store_terminal_open_preview": "Άνοιγμα προεπισκόπησης",
   "desktop.store_terminal_preview_placeholder_title": "Η προεπισκόπηση περιμένει",
-  "desktop.store_terminal_preview_placeholder_copy": "Ξεκίνα τον development server στο τερματικό. Άνοιξε την προεπισκόπηση όταν η σελίδα είναι έτοιμη."
+  "desktop.store_terminal_preview_placeholder_copy": "Ξεκίνα τον development server στο τερματικό. Άνοιξε την προεπισκόπηση όταν η σελίδα είναι έτοιμη.",
+  "desktop.store_terminal_restart_session": "Επανεκκίνηση συνεδρίας",
+  "desktop.store_terminal_header_title": "CommandCode",
+  "desktop.store_terminal_header_subtitle": "Κονσόλα πρώτα",
+  "desktop.store_terminal_status_starting": "Εκκίνηση",
+  "desktop.store_terminal_status_connected": "Συνδεδεμένο",
+  "desktop.store_terminal_status_preview_waiting": "Η προεπισκόπηση περιμένει",
+  "desktop.store_terminal_status_preview_ready": "Η προεπισκόπηση έτοιμη",
+  "desktop.store_terminal_onboarding_cmd": "Το CommandCode ξεκινά αυτόματα στο τερματικό.",
+  "desktop.store_terminal_onboarding_api_key": "Επικόλλησε το API key από την αυθεντικοποίηση του browser με το κουμπί επικόλλησης.",
+  "desktop.store_terminal_onboarding_dev_server": "Ξεκίνα τον dev server και στόχευσε την προεπισκόπηση σε αυτόν.",
+  "desktop.store_terminal_copy_command": "Αντιγραφή",
+  "desktop.store_terminal_preview_ready_toast": "Εντοπίστηκε development server. Άνοιγμα προεπισκόπησης.",
+  "desktop.store_terminal_session_label": "Συνεδρία",
+  "desktop.store.open_commandcode": "Άνοιγμα CommandCode",
+  "desktop.store.badge_terminal_preview": "Κονσόλα + προεπισκόπηση"
 }

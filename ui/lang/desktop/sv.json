@@ -1229,5 +1229,20 @@
   "desktop.store_terminal_hide_preview": "Dölj förhandsvisning",
   "desktop.store_terminal_open_preview": "Öppna förhandsvisning",
   "desktop.store_terminal_preview_placeholder_title": "Förhandsvisningen väntar",
-  "desktop.store_terminal_preview_placeholder_copy": "Starta utvecklingsservern i terminalen. Öppna förhandsvisningen när sidan är klar."
+  "desktop.store_terminal_preview_placeholder_copy": "Starta utvecklingsservern i terminalen. Öppna förhandsvisningen när sidan är klar.",
+  "desktop.store_terminal_restart_session": "Starta om session",
+  "desktop.store_terminal_header_title": "CommandCode",
+  "desktop.store_terminal_header_subtitle": "Konsol först",
+  "desktop.store_terminal_status_starting": "Startar",
+  "desktop.store_terminal_status_connected": "Ansluten",
+  "desktop.store_terminal_status_preview_waiting": "Förhandsvisning väntar",
+  "desktop.store_terminal_status_preview_ready": "Förhandsvisning klar",
+  "desktop.store_terminal_onboarding_cmd": "CommandCode startar automatiskt i terminalen.",
+  "desktop.store_terminal_onboarding_api_key": "Klistra in din API-nyckel från webbläsarauth med klistra in-knappen.",
+  "desktop.store_terminal_onboarding_dev_server": "Starta din dev-server och rikta förhandsvisningen mot den.",
+  "desktop.store_terminal_copy_command": "Kopiera",
+  "desktop.store_terminal_preview_ready_toast": "Utvecklingsserver upptäckt. Öppnar förhandsvisning.",
+  "desktop.store_terminal_session_label": "Session",
+  "desktop.store.open_commandcode": "Öppna CommandCode",
+  "desktop.store.badge_terminal_preview": "Konsol + förhandsvisning"
 }

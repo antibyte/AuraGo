@@ -105,6 +105,21 @@
     min-width: 0;
 }
 
+.vd-store-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
+    height: 18px;
+    padding: 0 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(139, 211, 255, 0.34);
+    background: rgba(37, 99, 235, 0.18);
+    color: #bfdbfe;
+    font-size: 10px;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
 .vd-store-card-title {
     font-weight: 800;
     overflow: hidden;

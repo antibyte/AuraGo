@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -22,7 +23,21 @@ import (
 
 type containerTerminalBackend interface {
 	ContainerRunning(ctx context.Context, cfg tools.DockerConfig, containerID string) (bool, error)
-	CreateSession(ctx context.Context, cfg tools.DockerConfig, containerID string, cols, rows int) (containerTerminalSession, error)
+	CreateSession(ctx context.Context, cfg tools.DockerConfig, containerID string, cols, rows int, execCmd []string) (containerTerminalSession, error)
+}
+
+var storeTerminalCommandPattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
+
+func defaultContainerTerminalCommand() []string {
+	return []string{"/bin/sh"}
+}
+
+func storeTerminalExecCommand(metadata map[string]string) []string {
+	cmd := strings.TrimSpace(metadata["terminal_command"])
+	if cmd == "" || !storeTerminalCommandPattern.MatchString(cmd) {
+		return defaultContainerTerminalCommand()
+	}
+	return []string{"/bin/bash", "-lc", "exec " + cmd}
 }
 
 type containerTerminalSession interface {
@@ -52,7 +67,7 @@ func handleContainerTerminal(s *Server, cfg tools.DockerConfig, containerID stri
 		return
 	}
 
-	session, err := activeContainerTerminalBackend.CreateSession(r.Context(), cfg, containerID, 120, 30)
+	session, err := activeContainerTerminalBackend.CreateSession(r.Context(), cfg, containerID, 120, 30, nil)
 	if err != nil {
 		containerJSON(w, http.StatusBadGateway, map[string]string{"status": "error", "message": err.Error()})
 		return
@@ -149,12 +164,16 @@ func (dockerContainerTerminalBackend) ContainerRunning(ctx context.Context, cfg 
 	return resp.State.Running || strings.EqualFold(resp.State.Status, "running"), nil
 }
 
-func (dockerContainerTerminalBackend) CreateSession(ctx context.Context, cfg tools.DockerConfig, containerID string, cols, rows int) (containerTerminalSession, error) {
+func (dockerContainerTerminalBackend) CreateSession(ctx context.Context, cfg tools.DockerConfig, containerID string, cols, rows int, execCmd []string) (containerTerminalSession, error) {
+	cmd := execCmd
+	if len(cmd) == 0 {
+		cmd = defaultContainerTerminalCommand()
+	}
 	payload := map[string]interface{}{
 		"AttachStdin":  true,
 		"AttachStdout": true,
 		"AttachStderr": true,
-		"Cmd":          []string{"/bin/sh"},
+		"Cmd":          cmd,
 		"Env":          []string{"TERM=xterm-256color"},
 		"Tty":          true,
 	}

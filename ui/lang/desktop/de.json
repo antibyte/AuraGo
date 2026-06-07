@@ -1229,5 +1229,20 @@
   "desktop.store_terminal_hide_preview": "Vorschau ausblenden",
   "desktop.store_terminal_open_preview": "Vorschau öffnen",
   "desktop.store_terminal_preview_placeholder_title": "Vorschau wartet",
-  "desktop.store_terminal_preview_placeholder_copy": "Starte deinen Dev-Server im Terminal. Öffne die Vorschau erst, wenn deine Seite bereit ist."
+  "desktop.store_terminal_preview_placeholder_copy": "Starte deinen Dev-Server im Terminal. Öffne die Vorschau erst, wenn deine Seite bereit ist.",
+  "desktop.store_terminal_restart_session": "Sitzung neu starten",
+  "desktop.store_terminal_header_title": "CommandCode",
+  "desktop.store_terminal_header_subtitle": "Konsole zuerst",
+  "desktop.store_terminal_status_starting": "Startet",
+  "desktop.store_terminal_status_connected": "Verbunden",
+  "desktop.store_terminal_status_preview_waiting": "Vorschau wartet",
+  "desktop.store_terminal_status_preview_ready": "Vorschau bereit",
+  "desktop.store_terminal_onboarding_cmd": "CommandCode startet automatisch im Terminal.",
+  "desktop.store_terminal_onboarding_api_key": "Füge deinen API-Schlüssel aus der Browser-Auth über die Einfügen-Taste ein.",
+  "desktop.store_terminal_onboarding_dev_server": "Starte deinen Dev-Server und richte die Vorschau darauf aus.",
+  "desktop.store_terminal_copy_command": "Kopieren",
+  "desktop.store_terminal_preview_ready_toast": "Entwicklungsserver erkannt. Vorschau wird geöffnet.",
+  "desktop.store_terminal_session_label": "Sitzung",
+  "desktop.store.open_commandcode": "CommandCode öffnen",
+  "desktop.store.badge_terminal_preview": "Konsole + Vorschau"
 }

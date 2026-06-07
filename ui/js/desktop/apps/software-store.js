@@ -106,6 +106,20 @@
             renderCards();
         }
 
+        function storeOpenLabel(entry) {
+            if (entry && entry.id === 'commandcode') {
+                return t('desktop.store.open_commandcode', 'Open CommandCode');
+            }
+            return t('desktop.store.open', 'Open');
+        }
+
+        function storeUiBadge(entry) {
+            if (entry && entry.metadata && entry.metadata.store_ui === 'terminal-preview') {
+                return `<span class="vd-store-badge">${esc(t('desktop.store.badge_terminal_preview', 'Console + Preview'))}</span>`;
+            }
+            return '';
+        }
+
         function renderCards() {
             if (!catalog.length) {
                 grid.innerHTML = `<div class="vd-store-empty">${esc(t('desktop.store.empty', 'No apps available.'))}</div>`;
@@ -129,7 +143,7 @@
                     <div class="vd-store-card-head">
                         <div class="vd-store-logo-wrap">${logo}${fallback}</div>
                         <div class="vd-store-card-title-wrap">
-                            <div class="vd-store-card-title">${esc(entry.name)}</div>
+                            <div class="vd-store-card-title">${esc(entry.name)}${storeUiBadge(entry)}</div>
                             <div class="vd-store-card-image">${esc(entry.image)}</div>
                         </div>
                     </div>
@@ -141,7 +155,7 @@
                     </div>
                     ${operation ? `<div class="vd-store-progress">${esc(statusLabel(operation.status, operation))}</div>` : ''}
                     <div class="vd-store-actions">
-                        ${app ? `<button type="button" class="vd-store-btn vd-store-primary" data-action="open">${iconMarkup('browser', 'O', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.open', 'Open'))}</span></button>` : ''}
+                        ${app ? `<button type="button" class="vd-store-btn vd-store-primary" data-action="open">${iconMarkup('browser', 'O', 'vd-store-btn-icon', 15)}<span>${esc(storeOpenLabel(entry))}</span></button>` : ''}
                         ${extraPortButtons(entry, app, actionDisabled)}
                         ${app && stopped ? `<button type="button" class="vd-store-btn" data-action="start" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start', 'Start'))}</span></button>` : ''}
                         ${app && running ? `<button type="button" class="vd-store-btn" data-action="stop" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('stop', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.stop', 'Stop'))}</span></button>` : ''}

@@ -1229,5 +1229,20 @@
   "desktop.store_terminal_hide_preview": "Ocultar vista previa",
   "desktop.store_terminal_open_preview": "Abrir vista previa",
   "desktop.store_terminal_preview_placeholder_title": "La vista previa está esperando",
-  "desktop.store_terminal_preview_placeholder_copy": "Inicia tu servidor de desarrollo en la terminal. Abre la vista previa cuando la página esté lista."
+  "desktop.store_terminal_preview_placeholder_copy": "Inicia tu servidor de desarrollo en la terminal. Abre la vista previa cuando la página esté lista.",
+  "desktop.store_terminal_restart_session": "Reiniciar sesión",
+  "desktop.store_terminal_header_title": "CommandCode",
+  "desktop.store_terminal_header_subtitle": "Consola primero",
+  "desktop.store_terminal_status_starting": "Iniciando",
+  "desktop.store_terminal_status_connected": "Conectado",
+  "desktop.store_terminal_status_preview_waiting": "Vista previa en espera",
+  "desktop.store_terminal_status_preview_ready": "Vista previa lista",
+  "desktop.store_terminal_onboarding_cmd": "CommandCode se inicia automáticamente en la terminal.",
+  "desktop.store_terminal_onboarding_api_key": "Pega tu clave API de la autenticación del navegador con el botón pegar.",
+  "desktop.store_terminal_onboarding_dev_server": "Inicia tu servidor de desarrollo y apunta la vista previa a él.",
+  "desktop.store_terminal_copy_command": "Copiar",
+  "desktop.store_terminal_preview_ready_toast": "Servidor de desarrollo detectado. Abriendo vista previa.",
+  "desktop.store_terminal_session_label": "Sesión",
+  "desktop.store.open_commandcode": "Abrir CommandCode",
+  "desktop.store.badge_terminal_preview": "Consola + vista previa"
 }

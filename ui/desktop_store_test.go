@@ -185,15 +185,43 @@ func TestDesktopStoreSupportsTerminalPreviewApps(t *testing.T) {
 		`app.metadata.store_ui === 'terminal-preview'`,
 		`renderStoreTerminalPreviewApp(id, app, storeAppId)`,
 		`function renderStoreTerminalPreviewApp(id, app, storeAppId)`,
+		`window.StoreTerminalPreviewApp.render`,
+	} {
+		if !strings.Contains(mainText, want) {
+			t.Fatalf("desktop store terminal preview missing main bundle marker %q", want)
+		}
+	}
+
+	previewText := readEmbeddedText(t, "js/desktop/apps/store-terminal-preview.js")
+	for _, want := range []string{
 		`'/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/terminal'`,
 		`'/open-url?port_id=' + encodeURIComponent(previewPortID)`,
 		`new window.Terminal({`,
 		`new window.FitAddon.FitAddon()`,
-		`registerWindowCleanup(id, cleanupStoreTerminalPreviewApp)`,
+		`registerWindowCleanup(id, cleanupApp)`,
 		`vd-store-terminal-preview`,
+		`vd-store-terminal-shell`,
 	} {
-		if !strings.Contains(mainText, want) {
-			t.Fatalf("desktop store terminal preview missing marker %q", want)
+		if !strings.Contains(previewText, want) {
+			t.Fatalf("desktop store terminal preview module missing marker %q", want)
+		}
+	}
+}
+
+func TestSoftwareStoreShowsCommandCodeOpenLabelAndBadge(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/software-store.js")
+	for _, want := range []string{
+		"function storeOpenLabel(entry)",
+		"function storeUiBadge(entry)",
+		"desktop.store.open_commandcode",
+		"desktop.store.badge_terminal_preview",
+		"vd-store-badge",
+		"entry.metadata.store_ui === 'terminal-preview'",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("software store missing commandcode open/badge marker %q", want)
 		}
 	}
 }
@@ -261,6 +289,12 @@ func TestSoftwareStoreExpandedCapabilityTranslations(t *testing.T) {
 		"desktop.store.beszel_key",
 		"desktop.store.beszel_token",
 		"desktop.store.agent_configured",
+		"desktop.store.open_commandcode",
+		"desktop.store.badge_terminal_preview",
+		"desktop.store_terminal_restart_session",
+		"desktop.store_terminal_header_title",
+		"desktop.store_terminal_onboarding_cmd",
+		"desktop.store_terminal_preview_ready_toast",
 	}
 	entries, err := Content.ReadDir("lang/desktop")
 	if err != nil {

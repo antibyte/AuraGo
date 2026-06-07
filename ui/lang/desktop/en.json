@@ -1229,5 +1229,20 @@
   "desktop.store_terminal_hide_preview": "Hide preview",
   "desktop.store_terminal_open_preview": "Open preview",
   "desktop.store_terminal_preview_placeholder_title": "Preview is idle",
-  "desktop.store_terminal_preview_placeholder_copy": "Start your development server in the terminal. Open the preview when your page is ready."
+  "desktop.store_terminal_preview_placeholder_copy": "Start your development server in the terminal. Open the preview when your page is ready.",
+  "desktop.store_terminal_restart_session": "Restart session",
+  "desktop.store_terminal_header_title": "CommandCode",
+  "desktop.store_terminal_header_subtitle": "Console-first workspace",
+  "desktop.store_terminal_status_starting": "Starting",
+  "desktop.store_terminal_status_connected": "Connected",
+  "desktop.store_terminal_status_preview_waiting": "Preview waiting",
+  "desktop.store_terminal_status_preview_ready": "Preview ready",
+  "desktop.store_terminal_onboarding_cmd": "CommandCode starts automatically in the terminal.",
+  "desktop.store_terminal_onboarding_api_key": "Paste your API key from browser auth using the paste button.",
+  "desktop.store_terminal_onboarding_dev_server": "Start your dev server and point the preview to it.",
+  "desktop.store_terminal_copy_command": "Copy",
+  "desktop.store_terminal_preview_ready_toast": "Development server detected. Opening preview.",
+  "desktop.store_terminal_session_label": "Session",
+  "desktop.store.open_commandcode": "Open CommandCode",
+  "desktop.store.badge_terminal_preview": "Console + Preview"
 }

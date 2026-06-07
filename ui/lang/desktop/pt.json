@@ -1229,5 +1229,20 @@
   "desktop.store_terminal_hide_preview": "Ocultar pré-visualização",
   "desktop.store_terminal_open_preview": "Abrir pré-visualização",
   "desktop.store_terminal_preview_placeholder_title": "A pré-visualização está à espera",
-  "desktop.store_terminal_preview_placeholder_copy": "Inicia o servidor de desenvolvimento no terminal. Abre a pré-visualização quando a página estiver pronta."
+  "desktop.store_terminal_preview_placeholder_copy": "Inicia o servidor de desenvolvimento no terminal. Abre a pré-visualização quando a página estiver pronta.",
+  "desktop.store_terminal_restart_session": "Reiniciar sessão",
+  "desktop.store_terminal_header_title": "CommandCode",
+  "desktop.store_terminal_header_subtitle": "Consola primeiro",
+  "desktop.store_terminal_status_starting": "A iniciar",
+  "desktop.store_terminal_status_connected": "Ligado",
+  "desktop.store_terminal_status_preview_waiting": "Pré-visualização à espera",
+  "desktop.store_terminal_status_preview_ready": "Pré-visualização pronta",
+  "desktop.store_terminal_onboarding_cmd": "O CommandCode inicia automaticamente no terminal.",
+  "desktop.store_terminal_onboarding_api_key": "Cola a tua chave API da autenticação do browser com o botão colar.",
+  "desktop.store_terminal_onboarding_dev_server": "Inicia o servidor de desenvolvimento e aponta a pré-visualização para ele.",
+  "desktop.store_terminal_copy_command": "Copiar",
+  "desktop.store_terminal_preview_ready_toast": "Servidor de desenvolvimento detetado. A abrir pré-visualização.",
+  "desktop.store_terminal_session_label": "Sessão",
+  "desktop.store.open_commandcode": "Abrir CommandCode",
+  "desktop.store.badge_terminal_preview": "Consola + pré-visualização"
 }

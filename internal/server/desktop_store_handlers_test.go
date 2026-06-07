@@ -201,6 +201,15 @@ func TestDesktopStoreTerminalUsesManagedContainerName(t *testing.T) {
 	if fake.lastContainerID != "aurago-store-commandcode" {
 		t.Fatalf("terminal container id = %q, want managed CommandCode container name", fake.lastContainerID)
 	}
+	wantExec := []string{"/bin/bash", "-lc", "exec cmd"}
+	if len(fake.lastExecCmd) != len(wantExec) {
+		t.Fatalf("terminal exec cmd = %#v, want %#v", fake.lastExecCmd, wantExec)
+	}
+	for i := range wantExec {
+		if fake.lastExecCmd[i] != wantExec[i] {
+			t.Fatalf("terminal exec cmd[%d] = %q, want %q in %#v", i, fake.lastExecCmd[i], wantExec[i], fake.lastExecCmd)
+		}
+	}
 }
 
 func TestDesktopStoreTerminalRejectsAppsWithoutTerminalMetadata(t *testing.T) {

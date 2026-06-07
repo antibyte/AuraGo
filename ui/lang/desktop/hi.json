@@ -1229,5 +1229,20 @@
   "desktop.store_terminal_hide_preview": "प्रीव्यू छिपाएं",
   "desktop.store_terminal_open_preview": "प्रीव्यू खोलें",
   "desktop.store_terminal_preview_placeholder_title": "प्रीव्यू प्रतीक्षा कर रहा है",
-  "desktop.store_terminal_preview_placeholder_copy": "टर्मिनल में अपना डेवलपमेंट सर्वर शुरू करें। पेज तैयार होने पर प्रीव्यू खोलें."
+  "desktop.store_terminal_preview_placeholder_copy": "टर्मिनल में अपना डेवलपमेंट सर्वर शुरू करें। पेज तैयार होने पर प्रीव्यू खोलें.",
+  "desktop.store_terminal_restart_session": "सत्र पुनः आरंभ करें",
+  "desktop.store_terminal_header_title": "CommandCode",
+  "desktop.store_terminal_header_subtitle": "कंसोल पहले",
+  "desktop.store_terminal_status_starting": "शुरू हो रहा है",
+  "desktop.store_terminal_status_connected": "कनेक्टेड",
+  "desktop.store_terminal_status_preview_waiting": "प्रीव्यू प्रतीक्षा में",
+  "desktop.store_terminal_status_preview_ready": "प्रीव्यू तैयार",
+  "desktop.store_terminal_onboarding_cmd": "CommandCode टर्मिनल में अपने आप शुरू होता है।",
+  "desktop.store_terminal_onboarding_api_key": "पेस्ट बटन से ब्राउज़र ऑथ से अपनी API कुंजी पेस्ट करें।",
+  "desktop.store_terminal_onboarding_dev_server": "अपना डेव सर्वर शुरू करें और प्रीव्यू को उस पर इंगित करें।",
+  "desktop.store_terminal_copy_command": "कॉपी करें",
+  "desktop.store_terminal_preview_ready_toast": "डेवलपमेंट सर्वर मिला। प्रीव्यू खोला जा रहा है।",
+  "desktop.store_terminal_session_label": "सत्र",
+  "desktop.store.open_commandcode": "CommandCode खोलें",
+  "desktop.store.badge_terminal_preview": "कंसोल + प्रीव्यू"
 }

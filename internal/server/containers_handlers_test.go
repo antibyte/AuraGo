@@ -163,15 +163,17 @@ type fakeContainerTerminalBackend struct {
 	session         *fakeContainerTerminalSession
 	createCalls     int
 	lastContainerID string
+	lastExecCmd     []string
 }
 
 func (f *fakeContainerTerminalBackend) ContainerRunning(ctx context.Context, cfg tools.DockerConfig, containerID string) (bool, error) {
 	return f.running, nil
 }
 
-func (f *fakeContainerTerminalBackend) CreateSession(ctx context.Context, cfg tools.DockerConfig, containerID string, cols, rows int) (containerTerminalSession, error) {
+func (f *fakeContainerTerminalBackend) CreateSession(ctx context.Context, cfg tools.DockerConfig, containerID string, cols, rows int, execCmd []string) (containerTerminalSession, error) {
 	f.createCalls++
 	f.lastContainerID = containerID
+	f.lastExecCmd = append([]string(nil), execCmd...)
 	if f.session == nil {
 		f.session = newFakeContainerTerminalSession()
 	}

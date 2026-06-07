@@ -374,10 +374,12 @@ func DefaultCatalog() []CatalogEntry {
 				{WorkspacePath: "Shared/CommandCode", ContainerPath: "/workspace"},
 			},
 			Metadata: map[string]string{
-				"store_ui":         "terminal-preview",
-				"terminal_enabled": "true",
-				"preview_port_id":  "web",
-				"open_maximized":   "true",
+				"store_ui":           "terminal-preview",
+				"terminal_enabled":   "true",
+				"terminal_command":   "cmd",
+				"preview_port_id":    "web",
+				"open_maximized":     "true",
+				"workspace_path":     "Shared/CommandCode",
 			},
 		},
 	}

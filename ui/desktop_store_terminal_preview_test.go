@@ -5,10 +5,15 @@ import (
 	"testing"
 )
 
+func storeTerminalPreviewSource(t *testing.T) string {
+	t.Helper()
+	return readEmbeddedText(t, "js/desktop/apps/store-terminal-preview.js")
+}
+
 func TestDesktopStoreTerminalPreviewSupportsClipboardPaste(t *testing.T) {
 	t.Parallel()
 
-	source := readEmbeddedText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
+	source := storeTerminalPreviewSource(t)
 	for _, marker := range []string{
 		"data-store-terminal-copy",
 		"data-store-terminal-paste",
@@ -33,6 +38,8 @@ func TestDesktopStoreTerminalPreviewHasPasteToolbarStyles(t *testing.T) {
 
 	css := readEmbeddedText(t, "css/desktop-windows.css")
 	for _, marker := range []string{
+		".vd-store-terminal-shell",
+		".vd-store-terminal-header",
 		".vd-store-terminal-toolbar",
 		".vd-store-terminal-action",
 		".vd-store-terminal-surface",
@@ -47,7 +54,7 @@ func TestDesktopStoreTerminalPreviewHasPasteToolbarStyles(t *testing.T) {
 func TestDesktopStoreTerminalPreviewSupportsMultipleSessions(t *testing.T) {
 	t.Parallel()
 
-	source := readEmbeddedText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
+	source := storeTerminalPreviewSource(t)
 	for _, marker := range []string{
 		"const terminalSessions = new Map()",
 		"let activeTerminalSessionID = ''",
@@ -69,7 +76,7 @@ func TestDesktopStoreTerminalPreviewSupportsMultipleSessions(t *testing.T) {
 func TestDesktopStoreTerminalPreviewSupportsResizableSplit(t *testing.T) {
 	t.Parallel()
 
-	source := readEmbeddedText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
+	source := storeTerminalPreviewSource(t)
 	for _, marker := range []string{
 		"data-store-terminal-resizer",
 		"const terminalPreview = host.querySelector('.vd-store-terminal-preview')",
@@ -104,12 +111,11 @@ func TestDesktopStoreTerminalPreviewSupportsResizableSplit(t *testing.T) {
 func TestDesktopStoreTerminalPreviewKeepsTerminalFocusWhenPreviewLoads(t *testing.T) {
 	t.Parallel()
 
-	source := readEmbeddedText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
+	source := storeTerminalPreviewSource(t)
 	for _, marker := range []string{
 		"function refocusActiveTerminalAfterPreviewLoad()",
 		"frame.addEventListener('load', refocusActiveTerminalAfterPreviewLoad)",
 		"disableAutoFocus: true",
-		"if (!(options && options.disableAutoFocus)) iframe.addEventListener('load', () => focusDesktopFrame(iframe));",
 		"session.terminal.focus();",
 	} {
 		if !strings.Contains(source, marker) {
@@ -121,7 +127,7 @@ func TestDesktopStoreTerminalPreviewKeepsTerminalFocusWhenPreviewLoads(t *testin
 func TestDesktopStoreTerminalPreviewUsesStablePlaceholderAndToggle(t *testing.T) {
 	t.Parallel()
 
-	source := readEmbeddedText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
+	source := storeTerminalPreviewSource(t)
 	for _, marker := range []string{
 		"data-store-preview-toggle",
 		"data-store-preview-open",
@@ -147,6 +153,39 @@ func TestDesktopStoreTerminalPreviewUsesStablePlaceholderAndToggle(t *testing.T)
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("store terminal preview CSS missing stable placeholder/toggle marker %q", marker)
+		}
+	}
+}
+
+func TestDesktopStoreTerminalPreviewSupportsRestartAndPolling(t *testing.T) {
+	t.Parallel()
+
+	source := storeTerminalPreviewSource(t)
+	for _, marker := range []string{
+		"data-store-terminal-restart",
+		"function restartActiveTerminalSession()",
+		"async function pollPreviewStatus()",
+		"/__commandcode_preview_status",
+		"desktop.store_terminal_preview_ready_toast",
+		"window.StoreTerminalPreviewApp.render = render",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("store terminal preview missing restart/polling marker %q", marker)
+		}
+	}
+}
+
+func TestDesktopStoreTerminalPreviewDelegatesFromQuickConnect(t *testing.T) {
+	t.Parallel()
+
+	source := readEmbeddedText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
+	for _, marker := range []string{
+		"window.StoreTerminalPreviewApp.render",
+		"function renderStoreTerminalPreviewApp(id, app, storeAppId)",
+		"storeTerminalPreviewDeps()",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("quickconnect missing store terminal preview delegation marker %q", marker)
 		}
 	}
 }

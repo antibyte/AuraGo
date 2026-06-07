@@ -162,10 +162,12 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 				t.Fatalf("commandcode home volume = %#v, want persistent /home/developer", entry.Volumes)
 			}
 			wantMetadata := map[string]string{
-				"store_ui":         "terminal-preview",
-				"terminal_enabled": "true",
-				"preview_port_id":  "web",
-				"open_maximized":   "true",
+				"store_ui":           "terminal-preview",
+				"terminal_enabled":   "true",
+				"terminal_command":   "cmd",
+				"preview_port_id":    "web",
+				"open_maximized":     "true",
+				"workspace_path":     "Shared/CommandCode",
 			}
 			for key, value := range wantMetadata {
 				if entry.Metadata[key] != value {

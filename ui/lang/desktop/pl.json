@@ -1229,5 +1229,20 @@
   "desktop.store_terminal_hide_preview": "Ukryj podgląd",
   "desktop.store_terminal_open_preview": "Otwórz podgląd",
   "desktop.store_terminal_preview_placeholder_title": "Podgląd czeka",
-  "desktop.store_terminal_preview_placeholder_copy": "Uruchom serwer deweloperski w terminalu. Otwórz podgląd, gdy strona będzie gotowa."
+  "desktop.store_terminal_preview_placeholder_copy": "Uruchom serwer deweloperski w terminalu. Otwórz podgląd, gdy strona będzie gotowa.",
+  "desktop.store_terminal_restart_session": "Uruchom sesję ponownie",
+  "desktop.store_terminal_header_title": "CommandCode",
+  "desktop.store_terminal_header_subtitle": "Konsola na pierwszym miejscu",
+  "desktop.store_terminal_status_starting": "Uruchamianie",
+  "desktop.store_terminal_status_connected": "Połączono",
+  "desktop.store_terminal_status_preview_waiting": "Podgląd czeka",
+  "desktop.store_terminal_status_preview_ready": "Podgląd gotowy",
+  "desktop.store_terminal_onboarding_cmd": "CommandCode uruchamia się automatycznie w terminalu.",
+  "desktop.store_terminal_onboarding_api_key": "Wklej klucz API z autoryzacji przeglądarki przyciskiem wklej.",
+  "desktop.store_terminal_onboarding_dev_server": "Uruchom serwer deweloperski i skieruj na niego podgląd.",
+  "desktop.store_terminal_copy_command": "Kopiuj",
+  "desktop.store_terminal_preview_ready_toast": "Wykryto serwer deweloperski. Otwieram podgląd.",
+  "desktop.store_terminal_session_label": "Sesja",
+  "desktop.store.open_commandcode": "Otwórz CommandCode",
+  "desktop.store.badge_terminal_preview": "Konsola + podgląd"
 }

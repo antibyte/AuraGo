@@ -1229,5 +1229,20 @@
   "desktop.store_terminal_hide_preview": "Skjul forhåndsvisning",
   "desktop.store_terminal_open_preview": "Åbn forhåndsvisning",
   "desktop.store_terminal_preview_placeholder_title": "Forhåndsvisningen venter",
-  "desktop.store_terminal_preview_placeholder_copy": "Start din udviklingsserver i terminalen. Åbn først forhåndsvisningen, når siden er klar."
+  "desktop.store_terminal_preview_placeholder_copy": "Start din udviklingsserver i terminalen. Åbn først forhåndsvisningen, når siden er klar.",
+  "desktop.store_terminal_restart_session": "Genstart session",
+  "desktop.store_terminal_header_title": "CommandCode",
+  "desktop.store_terminal_header_subtitle": "Konsol først",
+  "desktop.store_terminal_status_starting": "Starter",
+  "desktop.store_terminal_status_connected": "Forbundet",
+  "desktop.store_terminal_status_preview_waiting": "Forhåndsvisning venter",
+  "desktop.store_terminal_status_preview_ready": "Forhåndsvisning klar",
+  "desktop.store_terminal_onboarding_cmd": "CommandCode starter automatisk i terminalen.",
+  "desktop.store_terminal_onboarding_api_key": "Indsæt din API-nøgle fra browser-auth med indsæt-knappen.",
+  "desktop.store_terminal_onboarding_dev_server": "Start din dev-server og peg forhåndsvisningen på den.",
+  "desktop.store_terminal_copy_command": "Kopier",
+  "desktop.store_terminal_preview_ready_toast": "Udviklingsserver fundet. Åbner forhåndsvisning.",
+  "desktop.store_terminal_session_label": "Session",
+  "desktop.store.open_commandcode": "Åbn CommandCode",
+  "desktop.store.badge_terminal_preview": "Konsol + forhåndsvisning"
 }
