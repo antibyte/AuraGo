@@ -851,6 +851,63 @@ func TestParseToolResponsePromotesBareDiagnosticShellCommand(t *testing.T) {
 	}
 }
 
+func TestParseToolResponseMarkdownPythonFenceIsNotRawCode(t *testing.T) {
+	content := "Hier kommt ein Markdown-Test:\n\n# Überschrift\n\n" +
+		"```python\nprint(\"nur ein Beispiel\")\n```\n\n" +
+		"Und danach normaler Text."
+	resp := openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{{
+			Message: openai.ChatCompletionMessage{Content: content},
+		}},
+	}
+
+	parsed := parseToolResponse(resp, nil, AgentTelemetryScope{})
+	if parsed.ToolCall.RawCodeDetected {
+		t.Fatal("markdown demo with python fence must not trigger raw-code recovery")
+	}
+	if parsed.ToolCall.IsTool {
+		t.Fatalf("markdown demo should not parse as tool call: %+v", parsed.ToolCall)
+	}
+	if parsed.SanitizedContent != content {
+		t.Fatalf("sanitized content changed unexpectedly:\n%s", parsed.SanitizedContent)
+	}
+}
+
+func TestParseToolResponseMarkdownHeadingIsNotRawCode(t *testing.T) {
+	resp := openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{{
+			Message: openai.ChatCompletionMessage{Content: "# Überschrift\n\nNormaler Markdown-Text."},
+		}},
+	}
+
+	parsed := parseToolResponse(resp, nil, AgentTelemetryScope{})
+	if parsed.ToolCall.RawCodeDetected {
+		t.Fatal("markdown heading must not trigger raw-code recovery")
+	}
+}
+
+func TestParseToolResponseStandalonePythonStillTriggersRawCode(t *testing.T) {
+	tests := []string{
+		"import os\nprint(os.getcwd())",
+		"```python\nprint(\"raw\")\n```",
+		"# helper\nprint(\"raw\")",
+	}
+	for _, content := range tests {
+		t.Run(content, func(t *testing.T) {
+			resp := openai.ChatCompletionResponse{
+				Choices: []openai.ChatCompletionChoice{{
+					Message: openai.ChatCompletionMessage{Content: content},
+				}},
+			}
+
+			parsed := parseToolResponse(resp, nil, AgentTelemetryScope{})
+			if !parsed.ToolCall.RawCodeDetected {
+				t.Fatalf("expected raw-code recovery for %q", content)
+			}
+		})
+	}
+}
+
 func TestParseToolCallDoesNotPromoteDestructiveBareShellCommand(t *testing.T) {
 	parsed := ParseToolCall("docker rm -f aurago")
 	if parsed.IsTool {

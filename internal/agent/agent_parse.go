@@ -1155,15 +1155,74 @@ func ParseToolCall(content string) ToolCall {
 		}
 	}
 
-	if strings.HasPrefix(lowerContent, "import ") ||
-		strings.HasPrefix(lowerContent, "def ") ||
-		strings.HasPrefix(lowerContent, "print(") ||
-		strings.HasPrefix(lowerContent, "# ") ||
-		strings.Contains(lowerContent, "```python") {
+	if looksLikeRawPythonResponse(content) {
 		return ToolCall{RawCodeDetected: true}
 	}
 
 	return ToolCall{}
+}
+
+func looksLikeRawPythonResponse(content string) bool {
+	trimmed := strings.TrimSpace(strings.ReplaceAll(content, "\r\n", "\n"))
+	if trimmed == "" {
+		return false
+	}
+	if isStandalonePythonFence(trimmed) {
+		return true
+	}
+	lines := strings.Split(trimmed, "\n")
+	firstLine := strings.ToLower(strings.TrimSpace(lines[0]))
+	if isPythonCodeStart(firstLine) {
+		return true
+	}
+	if strings.HasPrefix(firstLine, "#") {
+		return hasPythonCodeLine(lines[1:])
+	}
+	return false
+}
+
+func isStandalonePythonFence(content string) bool {
+	firstBreak := strings.Index(content, "\n")
+	if firstBreak == -1 {
+		return false
+	}
+	opening := strings.ToLower(strings.TrimSpace(content[:firstBreak]))
+	if opening != "```python" && opening != "```py" {
+		return false
+	}
+	rest := content[firstBreak+1:]
+	closing := strings.LastIndex(rest, "```")
+	if closing == -1 {
+		return false
+	}
+	return strings.TrimSpace(rest[closing+3:]) == ""
+}
+
+func hasPythonCodeLine(lines []string) bool {
+	inFence := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+			inFence = !inFence
+			continue
+		}
+		if inFence || trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if isPythonCodeStart(strings.ToLower(trimmed)) {
+			return true
+		}
+		return false
+	}
+	return false
+}
+
+func isPythonCodeStart(line string) bool {
+	return strings.HasPrefix(line, "import ") ||
+		(strings.HasPrefix(line, "from ") && strings.Contains(line, " import ")) ||
+		strings.HasPrefix(line, "def ") ||
+		strings.HasPrefix(line, "class ") ||
+		strings.HasPrefix(line, "print(")
 }
 
 func parseBareDiagnosticShellCommand(content string) (string, bool) {
