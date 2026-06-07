@@ -1130,12 +1130,7 @@ func TestInitRecoversInterruptedInstallingOperation(t *testing.T) {
 	if _, ok, err := recoveredSvc.GetInstalled(ctx, "node-red"); err != nil || ok {
 		t.Fatalf("installing record should be removed on startup recovery: ok=%v err=%v", ok, err)
 	}
-	if recoveryDocker.removedContainers["aurago-store-node-red"] == 0 {
-		t.Fatalf("startup recovery did not clean container: %#v", recoveryDocker.removedContainers)
-	}
-	if len(recoveryDocker.removedVolumes) == 0 {
-		t.Fatal("startup recovery did not clean volumes")
-	}
+	waitForAsyncDockerCleanup(t, recoveryDocker, "aurago-store-node-red", 2*time.Second)
 }
 
 func TestInitDoesNotBlockOnInterruptedInstallDockerCleanup(t *testing.T) {
@@ -1821,6 +1816,18 @@ func TestDefaultPortAllocatorUsesDynamicHostPortInsteadOfAppDefault(t *testing.T
 	if port <= 0 {
 		t.Fatalf("allocated invalid port %d", port)
 	}
+}
+
+func waitForAsyncDockerCleanup(t *testing.T, docker *fakeDockerAdapter, container string, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if docker.removedContainers != nil && docker.removedContainers[container] > 0 && len(docker.removedVolumes) > 0 {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for async docker cleanup of %s: containers=%#v volumes=%#v", container, docker.removedContainers, docker.removedVolumes)
 }
 
 func newTestService(t *testing.T, docker DockerAdapter, desktopAdapter DesktopAdapter, launchpad LaunchpadAdapter, ports PortAllocator) *Service {
