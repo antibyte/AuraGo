@@ -22,8 +22,9 @@ import (
 )
 
 const (
-	defaultManifestTsNetPort = 443
-	legacyManifestTsNetPort  = 8444
+	defaultManifestTsNetPort    = 443
+	legacyManifestTsNetPort     = 8444
+	storeAppProxyBackendTimeout = 5 * time.Second
 )
 
 var tcpDialTimeout = net.DialTimeout
@@ -735,6 +736,16 @@ func newStoreAppProxyHandler(spec StoreAppProxySpec, logger *slog.Logger) (http.
 
 func newStoreAppReverseProxy(target *url.URL, logger *slog.Logger) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(target)
+	proxy.Transport = &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           (&net.Dialer{Timeout: storeAppProxyBackendTimeout, KeepAlive: 30 * time.Second}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   storeAppProxyBackendTimeout,
+		ResponseHeaderTimeout: storeAppProxyBackendTimeout,
+		ExpectContinueTimeout: time.Second,
+	}
 	originalDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
 		forwardedHost := req.Host

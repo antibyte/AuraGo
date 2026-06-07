@@ -1241,12 +1241,13 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 		// as prebuilt static assets and must not require runtime eval.
 		// TODO: Replace unsafe-inline with nonce-based CSP after moving inline UI
 		// handlers/styles into bundled JS/CSS.
+		connectSrc := "connect-src 'self' blob: ws: wss: https://api.open-meteo.com https://geocoding-api.open-meteo.com https://de1.api.radio-browser.info" + desktopStoreProxyConnectSources(r) + "; "
 		csp := "default-src 'self'; " +
 			"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; " +
 			"style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; " +
 			"img-src 'self' data: blob: https:; " +
 			"font-src 'self' https://fonts.gstatic.com; " +
-			"connect-src 'self' blob: ws: wss: https://api.open-meteo.com https://geocoding-api.open-meteo.com https://de1.api.radio-browser.info; " +
+			connectSrc +
 			"media-src 'self' data: blob: http: https:; " +
 			"worker-src 'self' blob:; " +
 			"object-src 'none'; " +
@@ -1286,6 +1287,40 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func desktopStoreProxyConnectSources(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	host := strings.TrimSpace(r.Host)
+	if host == "" {
+		return ""
+	}
+	if splitHost, _, err := net.SplitHostPort(host); err == nil {
+		host = splitHost
+	}
+	host = strings.Trim(strings.ToLower(host), ".")
+	if host == "" || strings.ContainsAny(host, " \t\r\n;/\\") {
+		return ""
+	}
+	if ip := net.ParseIP(strings.Trim(host, "[]")); ip != nil {
+		if ip.To4() == nil {
+			host = "[" + strings.Trim(host, "[]") + "]"
+		}
+	} else {
+		for _, label := range strings.Split(host, ".") {
+			if label == "" {
+				return ""
+			}
+			for _, ch := range label {
+				if (ch < 'a' || ch > 'z') && (ch < '0' || ch > '9') && ch != '-' {
+					return ""
+				}
+			}
+		}
+	}
+	return " http://" + host + ":* https://" + host + ":* ws://" + host + ":* wss://" + host + ":*"
 }
 
 // statusRecorder wraps http.ResponseWriter to capture the HTTP status code written

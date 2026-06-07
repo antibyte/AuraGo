@@ -78,6 +78,42 @@ func TestSecurityHeadersAllowFirstPartyDesktopWidgetConnectOrigins(t *testing.T)
 	}
 }
 
+func TestSecurityHeadersAllowSameHostDesktopStoreProxyPorts(t *testing.T) {
+	handler := securityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}), true, false)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "https://aurago.taild1480.ts.net/desktop", nil)
+	handler.ServeHTTP(rec, req)
+
+	csp := rec.Header().Get("Content-Security-Policy")
+	for _, marker := range []string{
+		"https://aurago.taild1480.ts.net:*",
+		"wss://aurago.taild1480.ts.net:*",
+	} {
+		if !strings.Contains(csp, marker) {
+			t.Fatalf("Content-Security-Policy missing same-host desktop store proxy source %q: %s", marker, csp)
+		}
+	}
+	connectSrc := cspDirective(csp, "connect-src")
+	for _, token := range strings.Fields(connectSrc) {
+		if token == "https:" || strings.HasPrefix(token, "https://*:") {
+			t.Fatalf("connect-src must not allow arbitrary HTTPS connects: %s", connectSrc)
+		}
+	}
+}
+
+func cspDirective(csp, name string) string {
+	for _, directive := range strings.Split(csp, ";") {
+		directive = strings.TrimSpace(directive)
+		if strings.HasPrefix(directive, name+" ") || directive == name {
+			return directive
+		}
+	}
+	return ""
+}
+
 func TestSecurityHeadersSetStrictTransportSecurityForHTTPS(t *testing.T) {
 	handler := securityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)

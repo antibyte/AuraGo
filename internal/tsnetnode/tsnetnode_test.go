@@ -253,6 +253,56 @@ func TestStoreAppProxyRoutesAPIPrefixToAPITarget(t *testing.T) {
 	}
 }
 
+func TestStoreAppProxyReturnsQuicklyWhenBackendAcceptsButDoesNotRespond(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer listener.Close()
+
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		conn, err := listener.Accept()
+		if err == nil {
+			accepted <- conn
+		}
+	}()
+
+	handler, err := newStoreAppProxyHandler(StoreAppProxySpec{
+		ID:        "slow-app",
+		Port:      18080,
+		TargetURL: "http://" + listener.Addr().String() + "/",
+		Enabled:   true,
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("newStoreAppProxyHandler() error = %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "https://slow-app.tailnet.test/", nil)
+	rec := httptest.NewRecorder()
+	done := make(chan struct{})
+	go func() {
+		handler.ServeHTTP(rec, req)
+		close(done)
+	}()
+
+	select {
+	case conn := <-accepted:
+		defer conn.Close()
+	case <-time.After(time.Second):
+		t.Fatal("proxy did not connect to slow backend")
+	}
+
+	select {
+	case <-done:
+		if rec.Code != http.StatusBadGateway {
+			t.Fatalf("status = %d, want 502", rec.Code)
+		}
+	case <-time.After(storeAppProxyBackendTimeout + time.Second):
+		t.Fatal("proxy request stayed blocked after backend response timeout")
+	}
+}
+
 type blockingListener struct {
 	closed chan struct{}
 	addr   net.Addr
