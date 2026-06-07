@@ -107,6 +107,7 @@ const PU_TYPES = ['rapid', 'spread', 'shield', 'bomb', 'speed', 'magnet', 'laser
             bossWarningT: 0, bossWarningShown: false,
             weaponLv: 1, killCount: 0, puUpgrade: null, upgradeBanner: null,
             slowMoT: 0, chromAb: 0, displayScore: 0, shipTilt: 0, muzzleT: 0, deathParts: [], pendingBooms: [], levelSkipTimer: 0, stageWipeT: 0,
+            introTmr: 0, stageEmptyT: 0, stageClearLock: 0,
             beatPhase: 0, beatT: 0, plasmaRings: [], titleParts: [], drones: [], droneTimer: 0,
             blackhole: null,
             inp: { l: false, r: false, f: false, fp: false, s: false, sp: false, p: false, pp: false, u: false, d: false, rp: false, lp: false, up: false, dp: false },
@@ -1094,11 +1095,31 @@ themes: {
             if (isMini) SFX.miniBossWarning();
         }
 
+        function advanceToNextStage(fromSkip) {
+            if (G.stageClearLock > 0 || G.st === 'STAGE_INTRO' || G.st === 'GAME_OVER') return;
+            G.stageClearLock = 600;
+            G.stageEmptyT = 0;
+            G.warpT = 1500; G.warpFlash = 50;
+            G.stage++;
+            if (G.stage >= 10) unlockAchievement('survivor');
+            if (G.stage >= 20) unlockAchievement('legend');
+            const stageTime = (performance.now ? performance.now() : Date.now()) - G.stageStartTime;
+            if (stageTime < 30000 && G.stage > 2) unlockAchievement('speed_demon');
+            SFX.warpJump();
+            if (!G.chal && !fromSkip) {
+                MusicEngine.play('victory');
+                setTimeout(() => { if (!state.disposed && MusicEngine.playing === 'victory') MusicEngine.play('gameplay'); }, 3500);
+            }
+            startStage();
+        }
+
         function startStage() {
             G.enemies = [];
             G.chal = isChal(G.stage);
             G.stageWipeT = 400;
-            G.st = 'STAGE_INTRO'; G.sTmr = 2000; G.stageStartTime = performance.now ? performance.now() : Date.now();
+            G.st = 'STAGE_INTRO';
+            G.introTmr = 1200;
+            G.stageStartTime = performance.now ? performance.now() : Date.now();
             G.bul = []; G.ebul = []; G.exp = []; G.part = []; G.pendingBooms = []; G.levelSkipTimer = 0;
             G.beam = null; G.powerups = []; G.activePU = null; G.puTimer = 0; G.shieldHits = 0;
             G.scorePopups = []; G.warpT = 0; G.warpFlash = 0; G.perfectT = 0;
@@ -1107,10 +1128,12 @@ themes: {
             G.bossWarningT = 0; G.bossWarningShown = false;
             G.weaponLv = Math.max(1, G.weaponLv); G.puUpgrade = null; G.upgradeBanner = null; G.killCount = 0; G.slowMoT = 0;
             G.p.x = W / 2; G.p.alive = true; G.p.inv = 2000; G.p.cap = null; G.p.dual = false; G.p.reviveTimer = 0;
+            G.stageEmptyT = 0;
             setPUClass(null);
             G.chal ? SFX.challenge() : SFX.stageClear();
             MusicEngine.setTempo(1 + G.stage * 0.05);
             MusicEngine.play(G.chal ? 'challenge' : 'gameplay');
+            mkFormation();
         }
 
         let lastFireT = 0;
@@ -1398,7 +1421,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             if (inp.l) G.p.x -= spd * dt; if (inp.r) G.p.x += spd * dt;
             G.p.x = Math.max(10, Math.min(W - 10, G.p.x));
             if (G.p.inv > 0) G.p.inv -= dt * 1000;
-            if (inp.f) fire(now);
+            if (inp.f && G.st === 'PLAYING') fire(now);
             if (G.beam && G.beam.active && G.p.x > G.beam.x - 20 && G.p.x < G.beam.x + 20 && G.p.y > G.beam.y) {
                 if (G.p.alive) { killP(); G.beam.cap = true; G.beam.capT = 0; SFX.beam(); }
             }
@@ -1568,7 +1591,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
         }
 
         function enemyFire(e) {
-            if (G.chal) return;
+            if (G.chal || G.st !== 'PLAYING') return;
             const spd = EB_SPEED * diffMod('ebSpd');
             const px = e.x, py = e.y + 8;
             switch (e.type) {
@@ -1664,8 +1687,8 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                     }
                     if ((e.type === 'stalker' || e.type === 'hunter') && G.freezeT <= 0) { e.dTmr -= dtMs * 2; }
                     else if (!G.chal) { e.dTmr -= dtMs; }
-                    if (e.dTmr <= 0 && !G.chal && Math.random() < 0.008 * Math.min(G.stage, 10) * diffMod('diveRate') * diveRateMult(e)) startDive(e);
-                    else { e.dTmr -= dtMs; if (e.dTmr <= 0) { if (G.chal) startChalDive(e); else startDive(e); } }
+                    if (G.st === 'PLAYING' && e.dTmr <= 0 && !G.chal && Math.random() < 0.008 * Math.min(G.stage, 10) * diffMod('diveRate') * diveRateMult(e)) startDive(e);
+                    else { e.dTmr -= dtMs; if (e.dTmr <= 0) { if (G.chal && G.st === 'PLAYING') startChalDive(e); else if (G.st === 'PLAYING') startDive(e); } }
                 }
                 else if (e.st === 'DIVING') {
                     e.dTmr -= dtMs;
@@ -1696,7 +1719,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             }
             if (G.beam && G.beam.active) { G.beam.t += dtMs; G.beam.h = Math.min(200, G.beam.h + eDt * 300); if (G.beam.t > 3000) { G.beam.active = false; if (G.beam.cap && G.p.cap) { G.beam.owner.hasCap = true; G.p.cap = null; } } }
             G.dTmr -= dtMs;
-            if (G.dTmr <= 0 && !G.chal) {
+            if (G.dTmr <= 0 && !G.chal && G.st === 'PLAYING') {
                 const fe = G.enemies.filter(e => e.st === 'FORM');
                 if (fe.length) {
                     const hunters = fe.filter(e => e.type === 'hunter' || e.type === 'stalker');
@@ -1706,16 +1729,9 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                 G.dTmr = Math.max(500, (2000 - G.stage * 100) / diffMod('diveRate'));
             }
             const alive = G.enemies.filter(e => e.st !== 'DEAD');
-            if (alive.length === 0 && G.levelSkipTimer <= 0 && G.st === 'PLAYING') {
-                if (G.st === 'GAME_OVER') return;
+            if (alive.length === 0 && G.levelSkipTimer <= 0 && G.st === 'PLAYING' && G.stageClearLock <= 0) {
                 if (G.chal && G.chalHits === G.chalTot) { G.perfectT = 2000; addScore(5000, W / 2, H / 2 - 40, '#00ffcc'); SFX.perfect(); G.perfectCount++; if (G.perfectCount >= 3) unlockAchievement('perfectionist'); unlockAchievement('untouchable'); }
-                G.warpT = 1500; G.warpFlash = 50; G.stage++;
-                if (G.stage >= 10) unlockAchievement('survivor');
-                if (G.stage >= 20) unlockAchievement('legend');
-                const stageTime = (performance.now ? performance.now() : Date.now()) - G.stageStartTime;
-                if (stageTime < 30000 && G.stage > 2) unlockAchievement('speed_demon');
-                SFX.warpJump(); if (!G.chal) { MusicEngine.play('victory'); setTimeout(() => { if (!state.disposed && MusicEngine.playing === 'victory') MusicEngine.play('gameplay'); }, 3500); }
-                startStage();
+                advanceToNextStage(false);
             }
         }
 
@@ -1772,17 +1788,12 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                 if (bm.delay <= 0) { boom(bm.x, bm.y, bm.isBoss); } else { G.pendingBooms[bmlen++] = bm; }
             }
             G.pendingBooms.length = bmlen;
+            if (G.stageClearLock > 0) G.stageClearLock -= dtMs;
             if (G.levelSkipTimer > 0) {
                 G.levelSkipTimer -= dtMs;
-                if (G.levelSkipTimer <= 0 && G.st === 'PLAYING') {
+                if (G.levelSkipTimer <= 0 && G.st === 'PLAYING' && G.stageClearLock <= 0) {
                     G.levelSkipTimer = 0;
-                    G.warpT = 1500; G.warpFlash = 50; G.stage++;
-                    if (G.stage >= 10) unlockAchievement('survivor');
-                    if (G.stage >= 20) unlockAchievement('legend');
-                    const stageTime = (performance.now ? performance.now() : Date.now()) - G.stageStartTime;
-                    if (stageTime < 30000 && G.stage > 2) unlockAchievement('speed_demon');
-                    SFX.warpJump(); if (!G.chal) { MusicEngine.play('victory'); setTimeout(() => { if (!state.disposed && MusicEngine.playing === 'victory') MusicEngine.play('gameplay'); }, 3500); }
-                    startStage();
+                    advanceToNextStage(true);
                 }
             }
             const inp2 = G.inp;
@@ -1823,10 +1834,12 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                 return;
             }
             if (G.st === 'STAGE_INTRO') {
-                G.sTmr -= dt * 1000;
+                G.introTmr -= dt * 1000;
                 updateP(dt, now);
+                updateBul(dt);
+                updateE(dt);
                 updateExp(dt);
-                if (G.sTmr <= 0) { G.st = 'PLAYING'; mkFormation(); }
+                if (G.introTmr <= 0) { G.st = 'PLAYING'; G.introTmr = 0; }
                 return;
             }
             if (G.st === 'GAME_OVER') {
@@ -1846,6 +1859,18 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                 if (G.p.cap) { G.p.cap.y -= 100 * dt; if (G.p.cap.y < G.p.y - 20) { G.p.dual = true; G.p.cap = null; SFX.rescue(); unlockAchievement('dual_wielder'); } }
                 let bossAlive = false, minibossAlive = false, _aliveN = 0;
                 for (let _ai = 0; _ai < G.enemies.length; _ai++) { const _ae = G.enemies[_ai]; if (_ae.st === 'DEAD') continue; _aliveN++; if (_ae.type === 'boss') bossAlive = true; else if (_ae.type === 'miniboss') { bossAlive = true; minibossAlive = true; } }
+                if (_aliveN === 0 && G.levelSkipTimer <= 0 && G.stageClearLock <= 0) {
+                    G.stageEmptyT += dtMs;
+                    if (G.stageEmptyT > 350) {
+                        G.stageEmptyT = 0;
+                        mkFormation();
+                        let _recovered = 0;
+                        for (let _ri = 0; _ri < G.enemies.length; _ri++) { if (G.enemies[_ri].st !== 'DEAD') _recovered++; }
+                        if (_recovered === 0) advanceToNextStage(false);
+                    }
+                } else {
+                    G.stageEmptyT = 0;
+                }
                 const baseTheme = G.chal ? 'challenge' : 'gameplay';
                 const bossTheme = minibossAlive ? 'miniboss' : 'boss';
                 const effectiveBossTheme = G.stage >= 15 ? 'deep_boss' : bossTheme;
@@ -1986,7 +2011,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
 
         function renderStageIntro() {
             c.textAlign = 'center';
-            const sc = Math.max(1, 3 - (G.sTmr / 2000) * 2);
+            const sc = Math.max(1, 3 - (G.introTmr / 1200) * 2);
             c.save(); c.translate(W / 2, H / 2 - 20); c.scale(sc, sc);
             c.shadowBlur = 12; c.shadowColor = '#ffcc00';
             c.fillStyle = '#ffcc00'; c.font = 'bold 24px "Courier New",monospace';
