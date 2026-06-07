@@ -26,6 +26,14 @@ const (
 	TypeChatError            MessageType = "chat.error"
 	TypeChatChunk            MessageType = "chat.response.chunk"
 	TypeChatPlanUpdate       MessageType = "chat.plan_update"
+	TypeChatSessionsList     MessageType = "chat.sessions.list"
+	TypeChatSessions         MessageType = "chat.sessions"
+	TypeChatSessionCreate    MessageType = "chat.session.create"
+	TypeChatSessionLoad      MessageType = "chat.session.load"
+	TypeChatSession          MessageType = "chat.session"
+	TypeChatCancel           MessageType = "chat.cancel"
+	TypeChatCancelled        MessageType = "chat.cancelled"
+	TypeChatAudio            MessageType = "chat.audio"
 	TypeDesktopCommand       MessageType = "desktop.command"
 	TypeDesktopResult        MessageType = "desktop.result"
 	TypePersonaAssetsRequest MessageType = "persona.assets.request"
@@ -54,6 +62,9 @@ var DefaultCapabilities = []string{
 	"chat.server_push",
 	"chat.agent_metadata",
 	"chat.plan_updates",
+	"chat.sessions",
+	"chat.cancel",
+	"chat.audio_events",
 	"pairing.remotehub",
 	"remote.desktop.capture",
 	"remote.desktop.permission_request",
@@ -148,17 +159,20 @@ type SessionAcceptedPayload struct {
 }
 
 type ChatMessagePayload struct {
-	SessionID string `json:"session_id"`
-	Text      string `json:"text"`
-	Role      string `json:"role"`
+	SessionID      string `json:"session_id"`
+	ConversationID string `json:"conversation_id,omitempty"`
+	Text           string `json:"text"`
+	Role           string `json:"role"`
+	VoiceOutput    bool   `json:"voice_output,omitempty"`
 }
 
 type ChatResponsePayload struct {
-	SessionID string                 `json:"session_id"`
-	RequestID string                 `json:"request_id"`
-	Text      string                 `json:"text"`
-	Role      string                 `json:"role"`
-	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	SessionID      string                 `json:"session_id"`
+	ConversationID string                 `json:"conversation_id,omitempty"`
+	RequestID      string                 `json:"request_id"`
+	Text           string                 `json:"text"`
+	Role           string                 `json:"role"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type ChatErrorPayload struct {
@@ -168,18 +182,84 @@ type ChatErrorPayload struct {
 }
 
 type ChatChunkPayload struct {
-	SessionID string                 `json:"session_id"`
-	RequestID string                 `json:"request_id"`
-	Delta     string                 `json:"delta"`
-	Done      bool                   `json:"done"`
-	Sequence  int                    `json:"sequence"`
-	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	SessionID      string                 `json:"session_id"`
+	ConversationID string                 `json:"conversation_id,omitempty"`
+	RequestID      string                 `json:"request_id"`
+	Delta          string                 `json:"delta"`
+	Done           bool                   `json:"done"`
+	Sequence       int                    `json:"sequence"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type ChatPlanUpdatePayload struct {
-	SessionID string          `json:"session_id"`
-	RequestID string          `json:"request_id,omitempty"`
-	Plan      json.RawMessage `json:"plan"`
+	SessionID      string          `json:"session_id"`
+	ConversationID string          `json:"conversation_id,omitempty"`
+	RequestID      string          `json:"request_id,omitempty"`
+	Plan           json.RawMessage `json:"plan"`
+}
+
+type ChatSessionSummary struct {
+	ID           string `json:"id"`
+	Preview      string `json:"preview"`
+	CreatedAt    string `json:"created_at"`
+	LastActiveAt string `json:"last_active_at"`
+	MessageCount int    `json:"message_count"`
+}
+
+type ChatHistoryMessagePayload struct {
+	Role      string `json:"role"`
+	Content   string `json:"content"`
+	Timestamp string `json:"timestamp,omitempty"`
+}
+
+type ChatSessionsListPayload struct {
+	SessionID string `json:"session_id"`
+	Limit     int    `json:"limit,omitempty"`
+}
+
+type ChatSessionsPayload struct {
+	SessionID string               `json:"session_id"`
+	Sessions  []ChatSessionSummary `json:"sessions"`
+}
+
+type ChatSessionCreatePayload struct {
+	SessionID string `json:"session_id"`
+}
+
+type ChatSessionLoadPayload struct {
+	SessionID      string `json:"session_id"`
+	ConversationID string `json:"conversation_id"`
+}
+
+type ChatSessionPayload struct {
+	SessionID      string                      `json:"session_id"`
+	ConversationID string                      `json:"conversation_id"`
+	Session        ChatSessionSummary          `json:"session"`
+	Messages       []ChatHistoryMessagePayload `json:"messages,omitempty"`
+}
+
+type ChatCancelPayload struct {
+	SessionID      string `json:"session_id"`
+	ConversationID string `json:"conversation_id,omitempty"`
+	RequestID      string `json:"request_id,omitempty"`
+}
+
+type ChatCancelledPayload struct {
+	SessionID      string `json:"session_id"`
+	ConversationID string `json:"conversation_id,omitempty"`
+	RequestID      string `json:"request_id,omitempty"`
+	Status         string `json:"status,omitempty"`
+}
+
+type ChatAudioPayload struct {
+	SessionID      string                 `json:"session_id"`
+	ConversationID string                 `json:"conversation_id,omitempty"`
+	RequestID      string                 `json:"request_id,omitempty"`
+	Path           string                 `json:"path,omitempty"`
+	Title          string                 `json:"title,omitempty"`
+	MimeType       string                 `json:"mime_type,omitempty"`
+	Filename       string                 `json:"filename,omitempty"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type PersonaAssetsRequestPayload struct {

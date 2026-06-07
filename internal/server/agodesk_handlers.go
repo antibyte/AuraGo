@@ -9,12 +9,15 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"aurago/internal/agent"
 	"aurago/internal/agodesk"
+	"aurago/internal/config"
+	"aurago/internal/memory"
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	promptsembed "aurago/prompts"
@@ -44,14 +47,22 @@ type agodeskChatResult struct {
 var agodeskAgentChatRunner = runAgodeskAgentChat
 
 type agodeskConnectionState struct {
-	sessionID    string
-	deviceID     string
-	paired       bool
-	readOnly     bool
-	devMode      bool
-	capabilities map[string]struct{}
-	mu           sync.RWMutex
-	writeMu      sync.Mutex
+	sessionID             string
+	deviceID              string
+	paired                bool
+	readOnly              bool
+	devMode               bool
+	capabilities          map[string]struct{}
+	activeRuns            map[string]agodeskActiveChatRun
+	latestActiveRequestID string
+	mu                    sync.RWMutex
+	writeMu               sync.Mutex
+	activeMu              sync.Mutex
+}
+
+type agodeskActiveChatRun struct {
+	conversationID string
+	cancel         context.CancelFunc
 }
 
 type agodeskDesktopBroker struct {
@@ -87,16 +98,18 @@ func handleAgodeskWebSocket(s *Server) http.HandlerFunc {
 		defer conn.Close()
 		conn.SetReadLimit(agodeskWebSocketReadLimitBytes)
 
+		serverCapabilities := agodeskServerCapabilities(s)
 		state := agodeskConnectionState{
 			sessionID:    "agodesk:temp:" + agodeskConnectionID(),
 			paired:       false,
 			devMode:      isExplicitAgodeskLoopbackDev(r),
 			capabilities: make(map[string]struct{}),
+			activeRuns:   make(map[string]agodeskActiveChatRun),
 		}
 		if state.devMode {
 			state.sessionID = "agodesk:dev:" + agodeskConnectionID()
 			state.paired = true
-			state.capabilities = normalizeAgodeskCapabilities(agodesk.DefaultCapabilities)
+			state.capabilities = normalizeAgodeskCapabilities(serverCapabilities)
 		}
 		defer cleanupAgodeskConnection(s, &state)
 
@@ -106,7 +119,7 @@ func handleAgodeskWebSocket(s *Server) http.HandlerFunc {
 			SessionID:       state.sessionID,
 			AuthRequired:    !state.devMode,
 			PairingRequired: !state.devMode,
-			Capabilities:    agodesk.DefaultCapabilities,
+			Capabilities:    serverCapabilities,
 		}); err != nil {
 			return
 		}
@@ -162,6 +175,34 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 			return true
 		}
 		go handleAgodeskChatMessage(s, r, conn, state, env.ID, payload)
+	case agodesk.TypeChatSessionsList:
+		payload, errPayload := decodeAgodeskPayload[agodesk.ChatSessionsListPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskChatSessionsList(s, conn, state, env.ID, payload)
+	case agodesk.TypeChatSessionCreate:
+		payload, errPayload := decodeAgodeskPayload[agodesk.ChatSessionCreatePayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskChatSessionCreate(s, conn, state, env.ID, payload)
+	case agodesk.TypeChatSessionLoad:
+		payload, errPayload := decodeAgodeskPayload[agodesk.ChatSessionLoadPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskChatSessionLoad(s, conn, state, env.ID, payload)
+	case agodesk.TypeChatCancel:
+		payload, errPayload := decodeAgodeskPayload[agodesk.ChatCancelPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskChatCancel(s, conn, state, env.ID, payload)
 	case agodesk.TypePersonaAssetsRequest:
 		payload, errPayload := decodeAgodeskPayload[agodesk.PersonaAssetsRequestPayload](env)
 		if errPayload != nil {
@@ -191,6 +232,306 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 		return true
 	}
 	return true
+}
+
+func handleAgodeskChatSessionsList(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.ChatSessionsListPayload) {
+	sessionID, ok := validateAgodeskTransportSession(s, conn, state, requestID, payload.SessionID, "chat.sessions.list")
+	if !ok {
+		return
+	}
+	if s == nil || s.ShortTermMem == nil {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInternal, "short-term memory is not configured")
+		return
+	}
+	limit := payload.Limit
+	if limit <= 0 {
+		limit = agodeskChatSessionLimit(s)
+	}
+	sessions, err := s.ShortTermMem.ListChatSessionsWithLimit(limit)
+	if err != nil {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInternal, err.Error())
+		return
+	}
+	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeChatSessions, agodesk.ChatSessionsPayload{
+		SessionID: sessionID,
+		Sessions:  agodeskChatSessionSummaries(sessions),
+	})
+}
+
+func handleAgodeskChatSessionCreate(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.ChatSessionCreatePayload) {
+	sessionID, ok := validateAgodeskTransportSession(s, conn, state, requestID, payload.SessionID, "chat.session.create")
+	if !ok {
+		return
+	}
+	if s == nil || s.ShortTermMem == nil {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInternal, "short-term memory is not configured")
+		return
+	}
+	session, err := s.ShortTermMem.CreateChatSessionWithLimit(agodeskChatSessionLimit(s))
+	if err != nil {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInternal, err.Error())
+		return
+	}
+	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeChatSession, agodesk.ChatSessionPayload{
+		SessionID:      sessionID,
+		ConversationID: session.ID,
+		Session:        agodeskChatSessionSummary(*session),
+	})
+}
+
+func handleAgodeskChatSessionLoad(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.ChatSessionLoadPayload) {
+	sessionID, ok := validateAgodeskTransportSession(s, conn, state, requestID, payload.SessionID, "chat.session.load")
+	if !ok {
+		return
+	}
+	conversationID := strings.TrimSpace(payload.ConversationID)
+	if conversationID == "" {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorSessionNotFound, "chat.session.load conversation_id is required")
+		return
+	}
+	if s == nil || s.ShortTermMem == nil {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInternal, "short-term memory is not configured")
+		return
+	}
+	session, err := s.ShortTermMem.GetChatSession(conversationID)
+	if err != nil {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInternal, err.Error())
+		return
+	}
+	if session == nil {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorSessionNotFound, "chat.session.load conversation_id was not found")
+		return
+	}
+	messages, err := s.ShortTermMem.GetSessionMessages(conversationID)
+	if err != nil {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInternal, err.Error())
+		return
+	}
+	_ = s.ShortTermMem.TouchChatSession(conversationID)
+	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeChatSession, agodesk.ChatSessionPayload{
+		SessionID:      sessionID,
+		ConversationID: conversationID,
+		Session:        agodeskChatSessionSummary(*session),
+		Messages:       agodeskHistoryMessages(messages),
+	})
+}
+
+func handleAgodeskChatCancel(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.ChatCancelPayload) {
+	sessionID, ok := validateAgodeskTransportSession(s, conn, state, requestID, payload.SessionID, "chat.cancel")
+	if !ok {
+		return
+	}
+	conversationID := strings.TrimSpace(payload.ConversationID)
+	activeRequestID := strings.TrimSpace(payload.RequestID)
+	run, activeRequestID, found := agodeskFindActiveRun(state, activeRequestID, conversationID)
+	if found {
+		if conversationID == "" {
+			conversationID = run.conversationID
+		}
+		if run.cancel != nil {
+			run.cancel()
+		}
+	}
+	if found && conversationID != "" {
+		agent.InterruptSession(conversationID)
+	}
+	status := "not_active"
+	if found {
+		status = "cancelled"
+	}
+	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeChatCancelled, agodesk.ChatCancelledPayload{
+		SessionID:      sessionID,
+		ConversationID: conversationID,
+		RequestID:      activeRequestID,
+		Status:         status,
+	})
+}
+
+func validateAgodeskTransportSession(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID, payloadSessionID, messageName string) (string, bool) {
+	paired := false
+	stateSessionID := ""
+	if state != nil {
+		state.mu.RLock()
+		paired = state.paired
+		stateSessionID = state.sessionID
+		state.mu.RUnlock()
+	}
+	if !paired {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorPairingRequired, "Pairing is required before "+messageName+" is accepted.")
+		return "", false
+	}
+	sessionID := strings.TrimSpace(payloadSessionID)
+	if sessionID == "" {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorSessionNotFound, messageName+" session_id is required")
+		return "", false
+	}
+	if sessionID != stateSessionID {
+		if s != nil && s.Logger != nil {
+			s.Logger.Warn("agodesk transport session mismatch", "request_id", requestID, "message_type", messageName, "payload_session_id", sessionID, "active_session_id", stateSessionID)
+		}
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorSessionNotFound, messageName+" session_id does not match the active agodesk session")
+		return "", false
+	}
+	return sessionID, true
+}
+
+func registerAgodeskActiveRun(state *agodeskConnectionState, requestID, conversationID string, cancel context.CancelFunc) {
+	if state == nil || strings.TrimSpace(requestID) == "" {
+		return
+	}
+	state.activeMu.Lock()
+	defer state.activeMu.Unlock()
+	if state.activeRuns == nil {
+		state.activeRuns = make(map[string]agodeskActiveChatRun)
+	}
+	state.activeRuns[requestID] = agodeskActiveChatRun{
+		conversationID: strings.TrimSpace(conversationID),
+		cancel:         cancel,
+	}
+	state.latestActiveRequestID = requestID
+}
+
+func unregisterAgodeskActiveRun(state *agodeskConnectionState, requestID string) {
+	if state == nil || strings.TrimSpace(requestID) == "" {
+		return
+	}
+	state.activeMu.Lock()
+	defer state.activeMu.Unlock()
+	delete(state.activeRuns, requestID)
+	if state.latestActiveRequestID == requestID {
+		state.latestActiveRequestID = ""
+		for id := range state.activeRuns {
+			state.latestActiveRequestID = id
+			break
+		}
+	}
+}
+
+func agodeskFindActiveRun(state *agodeskConnectionState, requestID, conversationID string) (agodeskActiveChatRun, string, bool) {
+	if state == nil {
+		return agodeskActiveChatRun{}, "", false
+	}
+	requestID = strings.TrimSpace(requestID)
+	conversationID = strings.TrimSpace(conversationID)
+	state.activeMu.Lock()
+	defer state.activeMu.Unlock()
+	if requestID != "" {
+		run, ok := state.activeRuns[requestID]
+		if ok && (conversationID == "" || conversationID == run.conversationID) {
+			return run, requestID, true
+		}
+		return agodeskActiveChatRun{}, requestID, false
+	}
+	if conversationID != "" {
+		for id, run := range state.activeRuns {
+			if run.conversationID == conversationID {
+				return run, id, true
+			}
+		}
+		return agodeskActiveChatRun{}, "", false
+	}
+	if state.latestActiveRequestID != "" {
+		run, ok := state.activeRuns[state.latestActiveRequestID]
+		if ok {
+			return run, state.latestActiveRequestID, true
+		}
+	}
+	return agodeskActiveChatRun{}, "", false
+}
+
+func agodeskChatSessionLimit(s *Server) int {
+	if s == nil || s.Cfg == nil {
+		return memory.MaxChatSessions
+	}
+	s.CfgMu.RLock()
+	limit := s.Cfg.Consolidation.ChatSessionLimit
+	s.CfgMu.RUnlock()
+	if limit <= 0 {
+		return memory.MaxChatSessions
+	}
+	return limit
+}
+
+func agodeskChatSessionSummaries(sessions []memory.ChatSession) []agodesk.ChatSessionSummary {
+	sort.SliceStable(sessions, func(i, j int) bool {
+		if sessions[i].LastActiveAt != sessions[j].LastActiveAt {
+			return sessions[i].LastActiveAt > sessions[j].LastActiveAt
+		}
+		if sessions[i].CreatedAt != sessions[j].CreatedAt {
+			return sessions[i].CreatedAt > sessions[j].CreatedAt
+		}
+		return sessions[i].ID > sessions[j].ID
+	})
+	summaries := make([]agodesk.ChatSessionSummary, 0, len(sessions))
+	for _, session := range sessions {
+		summaries = append(summaries, agodeskChatSessionSummary(session))
+	}
+	return summaries
+}
+
+func agodeskChatSessionSummary(session memory.ChatSession) agodesk.ChatSessionSummary {
+	return agodesk.ChatSessionSummary{
+		ID:           strings.TrimSpace(session.ID),
+		Preview:      strings.TrimSpace(session.Preview),
+		CreatedAt:    strings.TrimSpace(session.CreatedAt),
+		LastActiveAt: strings.TrimSpace(session.LastActiveAt),
+		MessageCount: session.MessageCount,
+	}
+}
+
+func agodeskHistoryMessages(messages []memory.HistoryMessage) []agodesk.ChatHistoryMessagePayload {
+	out := make([]agodesk.ChatHistoryMessagePayload, 0, len(messages))
+	for _, msg := range messages {
+		if msg.IsInternal {
+			continue
+		}
+		out = append(out, agodesk.ChatHistoryMessagePayload{
+			Role:      strings.TrimSpace(msg.Role),
+			Content:   strings.TrimSpace(msg.Content),
+			Timestamp: strings.TrimSpace(msg.Timestamp),
+		})
+	}
+	return out
+}
+
+func agodeskServerCapabilities(s *Server) []string {
+	capabilities := append([]string(nil), agodesk.DefaultCapabilities...)
+	if agodeskServerTTSConfigured(s) {
+		capabilities = append(capabilities, "chat.voice_output")
+	}
+	return capabilities
+}
+
+func agodeskServerTTSConfigured(s *Server) bool {
+	if s == nil || s.Cfg == nil {
+		return false
+	}
+	s.CfgMu.RLock()
+	cfg := *s.Cfg
+	s.CfgMu.RUnlock()
+	return agodeskTTSConfigured(&cfg)
+}
+
+func agodeskTTSConfigured(cfg *config.Config) bool {
+	if cfg == nil {
+		return false
+	}
+	provider := strings.ToLower(strings.TrimSpace(cfg.TTS.Provider))
+	if provider == "" && cfg.TTS.Piper.Enabled {
+		provider = "piper"
+	}
+	switch provider {
+	case "google":
+		return true
+	case "elevenlabs":
+		return strings.TrimSpace(cfg.TTS.ElevenLabs.APIKey) != ""
+	case "minimax":
+		return strings.TrimSpace(cfg.TTS.MiniMax.APIKey) != ""
+	case "piper":
+		return cfg.TTS.Piper.Enabled
+	default:
+		return false
+	}
 }
 
 func handleAgodeskPersonaAssetsRequest(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.PersonaAssetsRequestPayload) {
@@ -259,43 +600,40 @@ func stripAgodeskPersonaFrontMatter(data []byte) string {
 }
 
 func handleAgodeskChatMessage(s *Server, r *http.Request, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.ChatMessagePayload) {
-	paired := false
-	stateSessionID := ""
 	deviceID := ""
 	if state != nil {
 		state.mu.RLock()
-		paired = state.paired
-		stateSessionID = state.sessionID
 		deviceID = state.deviceID
 		state.mu.RUnlock()
-	}
-	if !paired {
-		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorPairingRequired, "Pairing is required before chat messages are accepted.")
-		return
 	}
 	message := strings.TrimSpace(payload.Text)
 	if message == "" {
 		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInvalidMessage, "chat.message text is required")
 		return
 	}
-	sessionID := strings.TrimSpace(payload.SessionID)
-	if sessionID == "" {
-		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorSessionNotFound, "chat.message session_id is required")
+	transportSessionID, ok := validateAgodeskTransportSession(s, conn, state, requestID, payload.SessionID, "chat.message")
+	if !ok {
 		return
 	}
-	if sessionID != stateSessionID {
-		if s != nil && s.Logger != nil {
-			s.Logger.Warn("agodesk chat session mismatch", "request_id", requestID, "payload_session_id", sessionID, "active_session_id", stateSessionID)
-		}
-		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorSessionNotFound, "chat.message session_id does not match the active agodesk session")
+	conversationID, ok := resolveAgodeskConversationID(s, conn, state, requestID, transportSessionID, strings.TrimSpace(payload.ConversationID))
+	if !ok {
 		return
 	}
-	unlockSession := lockSessionRequest(sessionID)
+	unlockSession := lockSessionRequest(conversationID)
 	defer unlockSession()
 
-	initialPlan, hasInitialPlan := sendAgodeskCurrentPlanSnapshot(s, conn, state, requestID, sessionID)
-	result, err := agodeskAgentChatRunner(s, r, conn, state, requestID, sessionID, deviceID, message)
+	chatCtx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+	registerAgodeskActiveRun(state, requestID, conversationID, cancel)
+	defer unregisterAgodeskActiveRun(state, requestID)
+
+	initialPlan, hasInitialPlan := sendAgodeskCurrentPlanSnapshot(s, conn, state, requestID, transportSessionID, conversationID)
+	voiceOutput := payload.VoiceOutput && agodeskStateHasCapability(state, "chat.voice_output")
+	result, err := agodeskAgentChatRunner(s, r.WithContext(chatCtx), conn, state, requestID, transportSessionID, conversationID, deviceID, message, voiceOutput)
 	if err != nil {
+		if chatCtx.Err() != nil {
+			return
+		}
 		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInternal, err.Error())
 		return
 	}
@@ -314,22 +652,64 @@ func handleAgodeskChatMessage(s *Server, r *http.Request, conn *websocket.Conn, 
 		}
 	}
 	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeChatResponse, agodesk.ChatResponsePayload{
-		SessionID: sessionID,
-		RequestID: requestID,
-		Text:      strings.TrimSpace(result.Answer),
-		Role:      "assistant",
-		Metadata:  metadata,
+		SessionID:      transportSessionID,
+		ConversationID: conversationID,
+		RequestID:      requestID,
+		Text:           strings.TrimSpace(result.Answer),
+		Role:           "assistant",
+		Metadata:       metadata,
 	})
 }
 
-func sendAgodeskCurrentPlanSnapshot(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID, sessionID string) (interface{}, bool) {
+func resolveAgodeskConversationID(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID, transportSessionID, conversationID string) (string, bool) {
+	conversationID = strings.TrimSpace(conversationID)
+	if conversationID == "" {
+		if agodeskStateHasCapability(state, "chat.sessions") && !agodeskStateIsDevMode(state) {
+			if s == nil || s.ShortTermMem == nil {
+				_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInternal, "short-term memory is not configured")
+				return "", false
+			}
+			session, err := s.ShortTermMem.CreateChatSessionWithLimit(agodeskChatSessionLimit(s))
+			if err != nil {
+				_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInternal, err.Error())
+				return "", false
+			}
+			return session.ID, true
+		}
+		return strings.TrimSpace(transportSessionID), true
+	}
+	if s == nil || s.ShortTermMem == nil {
+		return conversationID, true
+	}
+	session, err := s.ShortTermMem.GetChatSession(conversationID)
+	if err != nil {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInternal, err.Error())
+		return "", false
+	}
+	if session == nil {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorSessionNotFound, "chat.message conversation_id was not found")
+		return "", false
+	}
+	return conversationID, true
+}
+
+func agodeskStateIsDevMode(state *agodeskConnectionState) bool {
+	if state == nil {
+		return false
+	}
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+	return state.devMode
+}
+
+func sendAgodeskCurrentPlanSnapshot(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID, sessionID, conversationID string) (interface{}, bool) {
 	if !agodeskStateHasCapability(state, "chat.plan_updates") || s == nil || s.ShortTermMem == nil {
 		return nil, false
 	}
-	plan, err := s.ShortTermMem.GetSessionPlan(sessionID)
+	plan, err := s.ShortTermMem.GetSessionPlan(conversationID)
 	if err != nil || plan == nil {
 		if err != nil && s.Logger != nil {
-			s.Logger.Warn("Failed to fetch agodesk session plan", "session_id", sessionID, "error", err)
+			s.Logger.Warn("Failed to fetch agodesk session plan", "session_id", conversationID, "error", err)
 		}
 		return nil, false
 	}
@@ -338,9 +718,10 @@ func sendAgodeskCurrentPlanSnapshot(s *Server, conn *websocket.Conn, state *agod
 		return nil, false
 	}
 	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeChatPlanUpdate, agodesk.ChatPlanUpdatePayload{
-		SessionID: sessionID,
-		RequestID: requestID,
-		Plan:      raw,
+		SessionID:      sessionID,
+		ConversationID: conversationID,
+		RequestID:      requestID,
+		Plan:           raw,
 	})
 	return planValue, true
 }
@@ -387,6 +768,7 @@ func acceptAgodeskSessionStart(s *Server, r *http.Request, requestID string, pay
 	if err != nil {
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorInternal, "failed to generate shared key"
 	}
+	serverCapabilities := agodeskServerCapabilities(s)
 	name := strings.TrimSpace(enrollment.DeviceName)
 	if name == "" {
 		name = strings.TrimSpace(payload.Host.Hostname)
@@ -420,8 +802,8 @@ func acceptAgodeskSessionStart(s *Server, r *http.Request, requestID string, pay
 		DeviceID:               deviceID,
 		Approved:               true,
 		ReadOnly:               readOnly,
-		Capabilities:           agodesk.DefaultCapabilities,
-		AdvertisedCapabilities: agodesk.NegotiateCapabilities(payload.ClientCapabilities, agodesk.DefaultCapabilities),
+		Capabilities:           serverCapabilities,
+		AdvertisedCapabilities: agodesk.NegotiateCapabilities(payload.ClientCapabilities, serverCapabilities),
 		SharedKey:              sharedKey,
 	}, "", ""
 }
@@ -453,6 +835,7 @@ func acceptAgodeskDeviceReconnect(s *Server, requestID string, payload agodesk.S
 	if !agodesk.VerifySharedKeyProof(sharedKey, requestID, deviceID, *payload.SharedKeyProof, time.Now().UTC(), 5*time.Minute) {
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorAuthFailed, "invalid shared key proof"
 	}
+	serverCapabilities := agodeskServerCapabilities(s)
 	device.Hostname = strings.TrimSpace(payload.Host.Hostname)
 	device.OS = strings.TrimSpace(payload.Host.OS)
 	device.Arch = strings.TrimSpace(payload.Host.Arch)
@@ -464,18 +847,19 @@ func acceptAgodeskDeviceReconnect(s *Server, requestID string, payload agodesk.S
 		DeviceID:               deviceID,
 		Approved:               true,
 		ReadOnly:               device.ReadOnly,
-		Capabilities:           agodesk.DefaultCapabilities,
-		AdvertisedCapabilities: agodesk.NegotiateCapabilities(payload.ClientCapabilities, agodesk.DefaultCapabilities),
+		Capabilities:           serverCapabilities,
+		AdvertisedCapabilities: agodesk.NegotiateCapabilities(payload.ClientCapabilities, serverCapabilities),
 	}, "", ""
 }
 
 type agodeskChatBroker struct {
 	agent.FeedbackBroker
-	conn      *websocket.Conn
-	state     *agodeskConnectionState
-	sessionID string
-	requestID string
-	logger    *slog.Logger
+	conn           *websocket.Conn
+	state          *agodeskConnectionState
+	sessionID      string
+	conversationID string
+	requestID      string
+	logger         *slog.Logger
 
 	mu             sync.RWMutex
 	latestPlan     interface{}
@@ -485,6 +869,9 @@ type agodeskChatBroker struct {
 func (b *agodeskChatBroker) Send(event, message string) {
 	if event == "plan_update" {
 		b.capturePlanUpdate(message)
+	}
+	if event == "audio" {
+		b.emitAudio(message)
 	}
 	if b.FeedbackBroker != nil {
 		b.FeedbackBroker.Send(event, message)
@@ -520,11 +907,55 @@ func (b *agodeskChatBroker) capturePlanUpdate(message string) {
 	b.mu.Unlock()
 	if agodeskStateHasCapability(b.state, "chat.plan_updates") {
 		_ = writeAgodeskEnvelopeLocked(b.conn, b.state, agodesk.TypeChatPlanUpdate, agodesk.ChatPlanUpdatePayload{
-			SessionID: b.sessionID,
-			RequestID: b.requestID,
-			Plan:      payload.Plan,
+			SessionID:      b.sessionID,
+			ConversationID: b.conversationID,
+			RequestID:      b.requestID,
+			Plan:           payload.Plan,
 		})
 	}
+}
+
+func (b *agodeskChatBroker) emitAudio(message string) {
+	if b == nil || !agodeskStateHasCapability(b.state, "chat.audio_events") {
+		return
+	}
+	var raw map[string]interface{}
+	if err := json.Unmarshal([]byte(message), &raw); err != nil {
+		if b.logger != nil {
+			b.logger.Warn("Failed to decode agodesk audio payload", "session_id", b.conversationID, "error", err)
+		}
+		return
+	}
+	payload := agodesk.ChatAudioPayload{
+		SessionID:      strings.TrimSpace(b.sessionID),
+		ConversationID: strings.TrimSpace(b.conversationID),
+		RequestID:      strings.TrimSpace(b.requestID),
+		Path:           agodeskStringField(raw, "path", "url"),
+		Title:          agodeskStringField(raw, "title"),
+		MimeType:       agodeskStringField(raw, "mime_type", "content_type"),
+		Filename:       agodeskStringField(raw, "filename", "file_name"),
+	}
+	if metadata, ok := raw["metadata"].(map[string]interface{}); ok {
+		payload.Metadata = metadata
+	}
+	if payload.Path == "" && payload.Filename == "" {
+		return
+	}
+	_ = writeAgodeskEnvelopeLocked(b.conn, b.state, agodesk.TypeChatAudio, payload)
+}
+
+func agodeskStringField(raw map[string]interface{}, names ...string) string {
+	for _, name := range names {
+		value, ok := raw[name]
+		if !ok {
+			continue
+		}
+		text := strings.TrimSpace(fmt.Sprint(value))
+		if text != "" && text != "<nil>" {
+			return text
+		}
+	}
+	return ""
 }
 
 func (b *agodeskChatBroker) latestPlanSnapshot() (interface{}, bool) {
@@ -536,24 +967,26 @@ func (b *agodeskChatBroker) latestPlanSnapshot() (interface{}, bool) {
 	return b.latestPlan, b.latestPlanSeen
 }
 
-func runAgodeskAgentChat(s *Server, r *http.Request, conn *websocket.Conn, state *agodeskConnectionState, requestID, sessionID, deviceID, message string) (agodeskChatResult, error) {
+func runAgodeskAgentChat(s *Server, r *http.Request, conn *websocket.Conn, state *agodeskConnectionState, requestID, transportSessionID, conversationID, deviceID, message string, voiceOutput bool) (agodeskChatResult, error) {
 	if s == nil {
 		return agodeskChatResult{}, fmt.Errorf("server not configured")
 	}
 	turn, err := prepareDesktopAgentTurnWithOptions(r.Context(), s, message, desktopChatContext{}, false, desktopAgentTurnOptions{
-		SessionID:        sessionID,
-		MessageSource:    agodeskMessageSource,
-		AdditionalPrompt: buildAgodeskAgentContext(deviceID),
+		SessionID:         conversationID,
+		MessageSource:     agodeskMessageSource,
+		AdditionalPrompt:  buildAgodeskAgentContext(deviceID),
+		VoiceOutputActive: voiceOutput,
 	})
 	if err != nil {
 		return agodeskChatResult{}, err
 	}
-	replyBroker := &desktopReplyBroker{FeedbackBroker: NewSSEBrokerAdapterWithSession(s.SSE, sessionID)}
+	replyBroker := &desktopReplyBroker{FeedbackBroker: NewSSEBrokerAdapterWithSession(s.SSE, conversationID)}
 	broker := &agodeskChatBroker{
 		FeedbackBroker: replyBroker,
 		conn:           conn,
 		state:          state,
-		sessionID:      sessionID,
+		sessionID:      transportSessionID,
+		conversationID: conversationID,
 		requestID:      requestID,
 		logger:         s.Logger,
 	}
@@ -578,6 +1011,7 @@ func runAgodeskAgentChat(s *Server, r *http.Request, conn *websocket.Conn, state
 	if answer == "" && len(resp.Choices) > 0 {
 		answer = strings.TrimSpace(resp.Choices[0].Message.Content)
 	}
+	touchDesktopChatSessionMetadata(s, conversationID)
 	metadata := make(map[string]interface{})
 	if agodeskStateHasCapability(state, "chat.agent_metadata") {
 		mood := buildAgodeskAgentMoodMetadata(s)

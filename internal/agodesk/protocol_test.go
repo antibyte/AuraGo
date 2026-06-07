@@ -107,6 +107,9 @@ func TestDefaultCapabilitiesIncludeComputerUseFeatures(t *testing.T) {
 	for _, want := range []string{
 		"chat.agent_metadata",
 		"chat.plan_updates",
+		"chat.sessions",
+		"chat.cancel",
+		"chat.audio_events",
 		"remote.desktop.capture",
 		"remote.desktop.permission_request",
 		"remote.desktop.input",
@@ -120,11 +123,126 @@ func TestDefaultCapabilitiesIncludeComputerUseFeatures(t *testing.T) {
 	}
 }
 
+func TestChatSessionProtocolPayloadsCarryConversationID(t *testing.T) {
+	msg, err := NewEnvelope(TypeChatMessage, ChatMessagePayload{
+		SessionID:      "agodesk:dev-1",
+		ConversationID: "sess-1",
+		Text:           "hello",
+		Role:           "user",
+		VoiceOutput:    true,
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat.message: %v", err)
+	}
+	var msgPayload ChatMessagePayload
+	if err := json.Unmarshal(msg.Payload, &msgPayload); err != nil {
+		t.Fatalf("unmarshal chat.message: %v", err)
+	}
+	if msgPayload.SessionID != "agodesk:dev-1" || msgPayload.ConversationID != "sess-1" || !msgPayload.VoiceOutput {
+		t.Fatalf("chat.message payload = %+v", msgPayload)
+	}
+
+	resp, err := NewEnvelope(TypeChatResponse, ChatResponsePayload{
+		SessionID:      "agodesk:dev-1",
+		ConversationID: "sess-1",
+		RequestID:      "req-1",
+		Text:           "hi",
+		Role:           "assistant",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat.response: %v", err)
+	}
+	var respPayload ChatResponsePayload
+	if err := json.Unmarshal(resp.Payload, &respPayload); err != nil {
+		t.Fatalf("unmarshal chat.response: %v", err)
+	}
+	if respPayload.ConversationID != "sess-1" {
+		t.Fatalf("response conversation_id = %q, want sess-1", respPayload.ConversationID)
+	}
+}
+
+func TestChatSessionManagementPayloadsRoundTrip(t *testing.T) {
+	list, err := NewEnvelope(TypeChatSessionsList, ChatSessionsListPayload{SessionID: "agodesk:dev-1"})
+	if err != nil {
+		t.Fatalf("NewEnvelope sessions.list: %v", err)
+	}
+	if list.Type != TypeChatSessionsList {
+		t.Fatalf("list type = %q", list.Type)
+	}
+
+	session := ChatSessionSummary{
+		ID:           "sess-1",
+		Preview:      "Hello",
+		CreatedAt:    "2026-06-07T10:00:00Z",
+		LastActiveAt: "2026-06-07T10:01:00Z",
+		MessageCount: 2,
+	}
+	loaded, err := NewEnvelope(TypeChatSession, ChatSessionPayload{
+		SessionID:      "agodesk:dev-1",
+		ConversationID: "sess-1",
+		Session:        session,
+		Messages: []ChatHistoryMessagePayload{
+			{Role: "user", Content: "Hello", Timestamp: "2026-06-07T10:00:00Z"},
+			{Role: "assistant", Content: "Hi", Timestamp: "2026-06-07T10:01:00Z"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat.session: %v", err)
+	}
+	var payload ChatSessionPayload
+	if err := json.Unmarshal(loaded.Payload, &payload); err != nil {
+		t.Fatalf("unmarshal chat.session: %v", err)
+	}
+	if payload.ConversationID != "sess-1" || payload.Session.ID != "sess-1" || len(payload.Messages) != 2 {
+		t.Fatalf("chat.session payload = %+v", payload)
+	}
+}
+
+func TestChatCancelAndAudioPayloadsRoundTrip(t *testing.T) {
+	cancelled, err := NewEnvelope(TypeChatCancelled, ChatCancelledPayload{
+		SessionID:      "agodesk:dev-1",
+		ConversationID: "sess-1",
+		RequestID:      "req-1",
+		Status:         "cancelled",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat.cancelled: %v", err)
+	}
+	var cancelPayload ChatCancelledPayload
+	if err := json.Unmarshal(cancelled.Payload, &cancelPayload); err != nil {
+		t.Fatalf("unmarshal chat.cancelled: %v", err)
+	}
+	if cancelPayload.ConversationID != "sess-1" || cancelPayload.RequestID != "req-1" || cancelPayload.Status != "cancelled" {
+		t.Fatalf("cancelled payload = %+v", cancelPayload)
+	}
+
+	audio, err := NewEnvelope(TypeChatAudio, ChatAudioPayload{
+		SessionID:      "agodesk:dev-1",
+		ConversationID: "sess-1",
+		RequestID:      "req-1",
+		Path:           "/tts/answer.mp3",
+		Title:          "TTS Audio",
+		MimeType:       "audio/mpeg",
+		Filename:       "answer.mp3",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat.audio: %v", err)
+	}
+	var audioPayload ChatAudioPayload
+	if err := json.Unmarshal(audio.Payload, &audioPayload); err != nil {
+		t.Fatalf("unmarshal chat.audio: %v", err)
+	}
+	if audioPayload.Path != "/tts/answer.mp3" || audioPayload.ConversationID != "sess-1" {
+		t.Fatalf("audio payload = %+v", audioPayload)
+	}
+}
+
 func TestChatPlanUpdatePayloadRoundTripsPlanAndNull(t *testing.T) {
 	env, err := NewEnvelope(TypeChatPlanUpdate, ChatPlanUpdatePayload{
-		SessionID: "agodesk:dev-1",
-		RequestID: "req-1",
-		Plan:      json.RawMessage(`{"title":"Deploy site","tasks":[{"title":"Build","status":"in_progress"}],"progress_pct":40}`),
+		SessionID:      "agodesk:dev-1",
+		ConversationID: "sess-1",
+		RequestID:      "req-1",
+		Plan:           json.RawMessage(`{"title":"Deploy site","tasks":[{"title":"Build","status":"in_progress"}],"progress_pct":40}`),
 	})
 	if err != nil {
 		t.Fatalf("NewEnvelope plan update: %v", err)
@@ -134,7 +252,7 @@ func TestChatPlanUpdatePayloadRoundTripsPlanAndNull(t *testing.T) {
 	if err := json.Unmarshal(env.Payload, &payload); err != nil {
 		t.Fatalf("unmarshal chat plan update payload: %v", err)
 	}
-	if payload.SessionID != "agodesk:dev-1" || payload.RequestID != "req-1" {
+	if payload.SessionID != "agodesk:dev-1" || payload.ConversationID != "sess-1" || payload.RequestID != "req-1" {
 		t.Fatalf("payload ids = %+v", payload)
 	}
 	var plan map[string]interface{}
@@ -164,10 +282,11 @@ func TestChatPlanUpdatePayloadRoundTripsPlanAndNull(t *testing.T) {
 
 func TestChatChunkPayloadMetadataIsOptional(t *testing.T) {
 	env, err := NewEnvelope(TypeChatChunk, ChatChunkPayload{
-		SessionID: "agodesk:dev-1",
-		RequestID: "req-1",
-		Delta:     "hello",
-		Sequence:  1,
+		SessionID:      "agodesk:dev-1",
+		ConversationID: "sess-1",
+		RequestID:      "req-1",
+		Delta:          "hello",
+		Sequence:       1,
 		Metadata: map[string]interface{}{
 			"agent_mood": map[string]interface{}{"mood": "focused"},
 		},
@@ -182,6 +301,9 @@ func TestChatChunkPayloadMetadataIsOptional(t *testing.T) {
 	}
 	if payload.Metadata == nil {
 		t.Fatal("chunk metadata missing")
+	}
+	if payload.ConversationID != "sess-1" {
+		t.Fatalf("chunk conversation_id = %q, want sess-1", payload.ConversationID)
 	}
 	if _, ok := payload.Metadata["agent_mood"].(map[string]interface{}); !ok {
 		t.Fatalf("agent_mood metadata = %#v", payload.Metadata["agent_mood"])

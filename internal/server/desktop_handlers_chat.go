@@ -508,9 +508,10 @@ type preparedDesktopAgentTurn struct {
 }
 
 type desktopAgentTurnOptions struct {
-	SessionID        string
-	MessageSource    string
-	AdditionalPrompt string
+	SessionID         string
+	MessageSource     string
+	AdditionalPrompt  string
+	VoiceOutputActive bool
 }
 
 func prepareDesktopAgentTurn(ctx context.Context, s *Server, message string, chatContext desktopChatContext, stream bool) (preparedDesktopAgentTurn, error) {
@@ -566,6 +567,7 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 	if _, err := s.ShortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, persistedPrompt, false, false); err != nil {
 		return turn, fmt.Errorf("insert desktop user message: %w", err)
 	}
+	touchDesktopChatSessionMetadata(s, sessionID)
 	agent.NoteInnerVoiceUserTurn(sessionID)
 
 	sessionMessages, err := s.ShortTermMem.GetSessionMessages(sessionID)
@@ -614,7 +616,18 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 		Stream:   stream,
 	}
 	turn.runCfg = buildDesktopRunConfigForSession(s, &cfg, llmClient, sessionID, messageSource)
+	if opts.VoiceOutputActive {
+		turn.runCfg.VoiceOutputActive = true
+	}
 	return turn, nil
+}
+
+func touchDesktopChatSessionMetadata(s *Server, sessionID string) {
+	if s == nil || s.ShortTermMem == nil || strings.TrimSpace(sessionID) == "" {
+		return
+	}
+	_ = s.ShortTermMem.UpdateChatSessionPreview(sessionID)
+	_ = s.ShortTermMem.TouchChatSession(sessionID)
 }
 
 func replaceDesktopCurrentRequestMessage(messages []openai.ChatCompletionMessage, persistedPrompt string, requestMessage openai.ChatCompletionMessage) []openai.ChatCompletionMessage {

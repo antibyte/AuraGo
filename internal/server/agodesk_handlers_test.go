@@ -121,9 +121,12 @@ func TestAgodeskWebSocketRequiresPairingForNormalChat(t *testing.T) {
 func TestAgodeskWebSocketAllowsExplicitLoopbackDevChat(t *testing.T) {
 	s := newAgodeskHandlerTestServer()
 	oldRunner := agodeskAgentChatRunner
-	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, sessionID, deviceID, message string) (agodeskChatResult, error) {
-		if !strings.HasPrefix(sessionID, "agodesk:dev:") {
-			t.Fatalf("sessionID = %q, want agodesk dev session", sessionID)
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, transportSessionID, conversationID, deviceID, message string, voiceOutput bool) (agodeskChatResult, error) {
+		if !strings.HasPrefix(transportSessionID, "agodesk:dev:") {
+			t.Fatalf("transportSessionID = %q, want agodesk dev session", transportSessionID)
+		}
+		if conversationID != transportSessionID {
+			t.Fatalf("conversationID = %q, want old-client fallback %q", conversationID, transportSessionID)
 		}
 		if requestID == "" {
 			t.Fatal("requestID missing")
@@ -166,6 +169,260 @@ func TestAgodeskWebSocketAllowsExplicitLoopbackDevChat(t *testing.T) {
 	}
 }
 
+func TestAgodeskWebSocketSessionCreateListAndLoadFiltersInternalMessages(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	s.ShortTermMem = newAgodeskTestMemory(t)
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws?insecure_loopback=1")
+	defer cleanup()
+	connected := readAgodeskTestEnvelope(t, conn)
+	var connectedPayload agodesk.SystemConnectedPayload
+	decodeAgodeskTestPayload(t, connected, &connectedPayload)
+
+	createReq, err := agodesk.NewEnvelope(agodesk.TypeChatSessionCreate, agodesk.ChatSessionCreatePayload{
+		SessionID: connectedPayload.SessionID,
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat.session.create: %v", err)
+	}
+	if err := conn.WriteJSON(createReq); err != nil {
+		t.Fatalf("write create session: %v", err)
+	}
+	created := readAgodeskTestEnvelope(t, conn)
+	if created.Type != agodesk.TypeChatSession {
+		t.Fatalf("created type = %q, want %q", created.Type, agodesk.TypeChatSession)
+	}
+	var createdPayload agodesk.ChatSessionPayload
+	decodeAgodeskTestPayload(t, created, &createdPayload)
+	if createdPayload.ConversationID == "" || !strings.HasPrefix(createdPayload.ConversationID, "sess-") {
+		t.Fatalf("created conversation_id = %q", createdPayload.ConversationID)
+	}
+
+	if _, err := s.ShortTermMem.InsertMessage(createdPayload.ConversationID, "user", "visible user", false, false); err != nil {
+		t.Fatalf("insert visible user: %v", err)
+	}
+	if _, err := s.ShortTermMem.InsertMessage(createdPayload.ConversationID, "assistant", "visible assistant", false, false); err != nil {
+		t.Fatalf("insert visible assistant: %v", err)
+	}
+	if _, err := s.ShortTermMem.InsertMessage(createdPayload.ConversationID, "assistant", "hidden tool result", false, true); err != nil {
+		t.Fatalf("insert internal assistant: %v", err)
+	}
+	if err := s.ShortTermMem.UpdateChatSessionPreview(createdPayload.ConversationID); err != nil {
+		t.Fatalf("UpdateChatSessionPreview: %v", err)
+	}
+
+	listReq, err := agodesk.NewEnvelope(agodesk.TypeChatSessionsList, agodesk.ChatSessionsListPayload{
+		SessionID: connectedPayload.SessionID,
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat.sessions.list: %v", err)
+	}
+	if err := conn.WriteJSON(listReq); err != nil {
+		t.Fatalf("write list sessions: %v", err)
+	}
+	listed := readAgodeskTestEnvelope(t, conn)
+	if listed.Type != agodesk.TypeChatSessions {
+		t.Fatalf("listed type = %q, want %q", listed.Type, agodesk.TypeChatSessions)
+	}
+	var listedPayload agodesk.ChatSessionsPayload
+	decodeAgodeskTestPayload(t, listed, &listedPayload)
+	if len(listedPayload.Sessions) == 0 || listedPayload.Sessions[0].ID != createdPayload.ConversationID {
+		t.Fatalf("listed sessions = %+v, want created session first", listedPayload.Sessions)
+	}
+
+	loadReq, err := agodesk.NewEnvelope(agodesk.TypeChatSessionLoad, agodesk.ChatSessionLoadPayload{
+		SessionID:      connectedPayload.SessionID,
+		ConversationID: createdPayload.ConversationID,
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat.session.load: %v", err)
+	}
+	if err := conn.WriteJSON(loadReq); err != nil {
+		t.Fatalf("write load session: %v", err)
+	}
+	loaded := readAgodeskTestEnvelope(t, conn)
+	if loaded.Type != agodesk.TypeChatSession {
+		t.Fatalf("loaded type = %q, want %q", loaded.Type, agodesk.TypeChatSession)
+	}
+	var loadedPayload agodesk.ChatSessionPayload
+	decodeAgodeskTestPayload(t, loaded, &loadedPayload)
+	if loadedPayload.ConversationID != createdPayload.ConversationID || len(loadedPayload.Messages) != 2 {
+		t.Fatalf("loaded payload = %+v, want two visible messages", loadedPayload)
+	}
+	for _, msg := range loadedPayload.Messages {
+		if strings.Contains(msg.Content, "hidden") {
+			t.Fatalf("loaded internal message: %+v", loadedPayload.Messages)
+		}
+	}
+}
+
+func TestAgodeskChatMessageUsesConversationIDAndVoiceOutput(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	s.ShortTermMem = newAgodeskTestMemory(t)
+	s.Cfg.TTS.Provider = "google"
+	sess, err := s.ShortTermMem.CreateChatSession()
+	if err != nil {
+		t.Fatalf("CreateChatSession: %v", err)
+	}
+	oldRunner := agodeskAgentChatRunner
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, transportSessionID, conversationID, deviceID, message string, voiceOutput bool) (agodeskChatResult, error) {
+		if conversationID != sess.ID {
+			t.Fatalf("conversationID = %q, want %q", conversationID, sess.ID)
+		}
+		if !strings.HasPrefix(transportSessionID, "agodesk:dev:") {
+			t.Fatalf("transportSessionID = %q, want agodesk dev session", transportSessionID)
+		}
+		if !voiceOutput {
+			t.Fatal("voiceOutput = false, want true")
+		}
+		return agodeskChatResult{Answer: "conversation answer"}, nil
+	}
+	t.Cleanup(func() { agodeskAgentChatRunner = oldRunner })
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws?insecure_loopback=1")
+	defer cleanup()
+	connected := readAgodeskTestEnvelope(t, conn)
+	var connectedPayload agodesk.SystemConnectedPayload
+	decodeAgodeskTestPayload(t, connected, &connectedPayload)
+
+	msg, err := agodesk.NewEnvelope(agodesk.TypeChatMessage, agodesk.ChatMessagePayload{
+		SessionID:      connectedPayload.SessionID,
+		ConversationID: sess.ID,
+		Text:           "hello from session",
+		Role:           "user",
+		VoiceOutput:    true,
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat: %v", err)
+	}
+	if err := conn.WriteJSON(msg); err != nil {
+		t.Fatalf("write chat: %v", err)
+	}
+	resp := readAgodeskTestEnvelope(t, conn)
+	if resp.Type != agodesk.TypeChatResponse {
+		t.Fatalf("response type = %q, want %q", resp.Type, agodesk.TypeChatResponse)
+	}
+	var payload agodesk.ChatResponsePayload
+	decodeAgodeskTestPayload(t, resp, &payload)
+	if payload.SessionID != connectedPayload.SessionID || payload.ConversationID != sess.ID || payload.Text != "conversation answer" {
+		t.Fatalf("chat response payload = %+v", payload)
+	}
+}
+
+func TestAgodeskChatCancelCancelsActiveConversationRun(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	s.ShortTermMem = newAgodeskTestMemory(t)
+	sess, err := s.ShortTermMem.CreateChatSession()
+	if err != nil {
+		t.Fatalf("CreateChatSession: %v", err)
+	}
+	started := make(chan struct{}, 1)
+	cancelled := make(chan string, 1)
+	oldRunner := agodeskAgentChatRunner
+	agodeskAgentChatRunner = func(_ *Server, r *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, transportSessionID, conversationID, deviceID, message string, voiceOutput bool) (agodeskChatResult, error) {
+		started <- struct{}{}
+		<-r.Context().Done()
+		cancelled <- conversationID
+		return agodeskChatResult{}, r.Context().Err()
+	}
+	t.Cleanup(func() { agodeskAgentChatRunner = oldRunner })
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws?insecure_loopback=1")
+	defer cleanup()
+	connected := readAgodeskTestEnvelope(t, conn)
+	var connectedPayload agodesk.SystemConnectedPayload
+	decodeAgodeskTestPayload(t, connected, &connectedPayload)
+
+	msg, err := agodesk.NewEnvelope(agodesk.TypeChatMessage, agodesk.ChatMessagePayload{
+		SessionID:      connectedPayload.SessionID,
+		ConversationID: sess.ID,
+		Text:           "long run",
+		Role:           "user",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat: %v", err)
+	}
+	if err := conn.WriteJSON(msg); err != nil {
+		t.Fatalf("write chat: %v", err)
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("agodesk runner did not start")
+	}
+
+	badCancel, err := agodesk.NewEnvelope(agodesk.TypeChatCancel, agodesk.ChatCancelPayload{
+		SessionID:      connectedPayload.SessionID + "-stale",
+		ConversationID: sess.ID,
+		RequestID:      msg.ID,
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope bad cancel: %v", err)
+	}
+	if err := conn.WriteJSON(badCancel); err != nil {
+		t.Fatalf("write bad cancel: %v", err)
+	}
+	badResp := readAgodeskTestEnvelope(t, conn)
+	if badResp.Type != agodesk.TypeChatError {
+		t.Fatalf("bad cancel response = %q, want %q", badResp.Type, agodesk.TypeChatError)
+	}
+
+	cancelReq, err := agodesk.NewEnvelope(agodesk.TypeChatCancel, agodesk.ChatCancelPayload{
+		SessionID:      connectedPayload.SessionID,
+		ConversationID: sess.ID,
+		RequestID:      msg.ID,
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope cancel: %v", err)
+	}
+	if err := conn.WriteJSON(cancelReq); err != nil {
+		t.Fatalf("write cancel: %v", err)
+	}
+	cancelResp := readAgodeskTestEnvelope(t, conn)
+	if cancelResp.Type != agodesk.TypeChatCancelled {
+		t.Fatalf("cancel response = %q, want %q", cancelResp.Type, agodesk.TypeChatCancelled)
+	}
+	var cancelPayload agodesk.ChatCancelledPayload
+	decodeAgodeskTestPayload(t, cancelResp, &cancelPayload)
+	if cancelPayload.SessionID != connectedPayload.SessionID || cancelPayload.ConversationID != sess.ID || cancelPayload.RequestID != msg.ID {
+		t.Fatalf("cancel payload = %+v", cancelPayload)
+	}
+	select {
+	case got := <-cancelled:
+		if got != sess.ID {
+			t.Fatalf("cancelled conversation = %q, want %q", got, sess.ID)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("runner context was not cancelled")
+	}
+}
+
+func TestAgodeskChatBrokerEmitsAudioOnlyWithCapability(t *testing.T) {
+	withAudioState := &agodeskConnectionState{
+		sessionID:    "agodesk:dev-1",
+		paired:       true,
+		capabilities: normalizeAgodeskCapabilities([]string{"chat.audio_events"}),
+	}
+	audioEnv := readAgodeskBrokerAudioEnvelope(t, withAudioState)
+	if audioEnv.Type != agodesk.TypeChatAudio {
+		t.Fatalf("audio envelope type = %q, want %q", audioEnv.Type, agodesk.TypeChatAudio)
+	}
+	var audioPayload agodesk.ChatAudioPayload
+	decodeAgodeskTestPayload(t, audioEnv, &audioPayload)
+	if audioPayload.SessionID != "agodesk:dev-1" || audioPayload.ConversationID != "sess-1" || audioPayload.RequestID != "req-1" || audioPayload.Path != "/tts/a.mp3" {
+		t.Fatalf("audio payload = %+v", audioPayload)
+	}
+
+	withoutAudioState := &agodeskConnectionState{
+		sessionID:    "agodesk:dev-1",
+		paired:       true,
+		capabilities: normalizeAgodeskCapabilities([]string{"chat.full_response"}),
+	}
+	if env := readAgodeskBrokerAudioEnvelope(t, withoutAudioState); env.Type != "" {
+		t.Fatalf("unexpected audio envelope without capability: %+v", env)
+	}
+}
+
 func TestBuildAgodeskAgentMoodMetadataUsesSanitizedLatestEmotion(t *testing.T) {
 	s := newAgodeskHandlerTestServer()
 	s.ShortTermMem = newAgodeskTestMemory(t)
@@ -204,7 +461,7 @@ func TestBuildAgodeskAgentMoodMetadataUsesSanitizedLatestEmotion(t *testing.T) {
 func TestAgodeskWebSocketChatResponseCarriesAgentMoodMetadata(t *testing.T) {
 	s := newAgodeskHandlerTestServer()
 	oldRunner := agodeskAgentChatRunner
-	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, sessionID, deviceID, message string) (agodeskChatResult, error) {
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, transportSessionID, conversationID, deviceID, message string, voiceOutput bool) (agodeskChatResult, error) {
 		return agodeskChatResult{
 			Answer: "mood answer",
 			Metadata: map[string]interface{}{
@@ -250,7 +507,7 @@ func TestAgodeskWebSocketSendsActivePlanUpdateWhenCapabilityAdvertised(t *testin
 	s := newAgodeskHandlerTestServer()
 	s.ShortTermMem = newAgodeskTestMemory(t)
 	oldRunner := agodeskAgentChatRunner
-	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, sessionID, deviceID, message string) (agodeskChatResult, error) {
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, transportSessionID, conversationID, deviceID, message string, voiceOutput bool) (agodeskChatResult, error) {
 		return agodeskChatResult{Answer: "plan answer"}, nil
 	}
 	t.Cleanup(func() { agodeskAgentChatRunner = oldRunner })
@@ -306,7 +563,7 @@ func TestAgodeskWebSocketDoesNotSendPlanUpdateWithoutCapability(t *testing.T) {
 	s := newAgodeskPairingTestServer(t)
 	s.ShortTermMem = newAgodeskTestMemory(t)
 	oldRunner := agodeskAgentChatRunner
-	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, sessionID, deviceID, message string) (agodeskChatResult, error) {
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, transportSessionID, conversationID, deviceID, message string, voiceOutput bool) (agodeskChatResult, error) {
 		return agodeskChatResult{Answer: "plain answer"}, nil
 	}
 	t.Cleanup(func() { agodeskAgentChatRunner = oldRunner })
@@ -345,7 +602,7 @@ func TestAgodeskWebSocketRejectsMismatchedChatSessionID(t *testing.T) {
 	s := newAgodeskHandlerTestServer()
 	oldRunner := agodeskAgentChatRunner
 	runnerCalled := make(chan struct{}, 1)
-	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, sessionID, deviceID, message string) (agodeskChatResult, error) {
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, transportSessionID, conversationID, deviceID, message string, voiceOutput bool) (agodeskChatResult, error) {
 		runnerCalled <- struct{}{}
 		return agodeskChatResult{Answer: "runner should not run"}, nil
 	}
@@ -392,7 +649,7 @@ func TestAgodeskWebSocketPongsWhileChatMessageInFlight(t *testing.T) {
 	oldRunner := agodeskAgentChatRunner
 	runnerStarted := make(chan struct{})
 	releaseRunner := make(chan struct{})
-	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, sessionID, deviceID, message string) (agodeskChatResult, error) {
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, transportSessionID, conversationID, deviceID, message string, voiceOutput bool) (agodeskChatResult, error) {
 		close(runnerStarted)
 		<-releaseRunner
 		return agodeskChatResult{Answer: "slow answer"}, nil
@@ -1346,6 +1603,47 @@ func dialAgodeskTestWebSocket(t *testing.T, s *Server, path string) (*websocket.
 		_ = conn.Close()
 		srv.Close()
 	}
+}
+
+func readAgodeskBrokerAudioEnvelope(t *testing.T, state *agodeskConnectionState) agodesk.Envelope {
+	t.Helper()
+	ready := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := agodeskUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade broker websocket: %v", err)
+			return
+		}
+		defer conn.Close()
+		close(ready)
+		broker := &agodeskChatBroker{
+			conn:           conn,
+			state:          state,
+			sessionID:      "agodesk:dev-1",
+			conversationID: "sess-1",
+			requestID:      "req-1",
+			logger:         slog.Default(),
+		}
+		broker.Send("audio", `{"path":"/tts/a.mp3","title":"TTS Audio","mime_type":"audio/mpeg","filename":"a.mp3"}`)
+	}))
+	defer srv.Close()
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial broker websocket: %v", err)
+	}
+	defer conn.Close()
+	select {
+	case <-ready:
+	case <-time.After(time.Second):
+		t.Fatal("broker websocket did not become ready")
+	}
+	_ = conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+	var env agodesk.Envelope
+	if err := conn.ReadJSON(&env); err != nil {
+		return agodesk.Envelope{}
+	}
+	return env
 }
 
 func readAgodeskTestEnvelope(t *testing.T, conn *websocket.Conn) agodesk.Envelope {

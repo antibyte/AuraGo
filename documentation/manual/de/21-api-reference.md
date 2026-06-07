@@ -710,6 +710,19 @@ GET /api/desktop/ws
 GET /api/agodesk/ws
 ```
 
+`/api/agodesk/ws` nutzt das AgoDesk-JSON-Envelope-Protokoll. Produktionsclients koppeln sich mit `session.start`; lokale Entwicklung kann `?insecure_loopback=1` verwenden. Nach `session.accepted` speichert AgoDesk `advertised_capabilities` und nutzt die akzeptierte `session_id` als Transport-Session.
+
+AgoDesk-Chat kann dieselben AuraGo-Webchat-Sessions nutzen, wenn `chat.sessions` ausgehandelt ist:
+
+- `chat.sessions.list` liefert die letzten `sess-*`-Konversationen.
+- `chat.session.create` startet New Chat und liefert `chat.session`.
+- `chat.session.load` lädt eine Konversation und sichtbare, nicht-interne Nachrichten.
+- `chat.message` sollte die AgoDesk-`session_id` und die aktive `conversation_id` senden.
+- `chat.cancel` stoppt den aktiven Request und liefert `chat.cancelled`.
+- `chat.audio` wird nur gesendet, wenn `chat.audio_events` ausgehandelt ist. `chat.voice_output` wird nur angeboten, wenn AuraGo-TTS konfiguriert ist.
+
+Details zu Payloads und Client-Checkliste stehen im [AgoDesk Backend Protocol](../../agodesk_backend_protocol.md).
+
 ### Remote-Desktop-Proxys
 ```http
 GET /api/desktop/ssh

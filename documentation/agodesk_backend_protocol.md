@@ -41,6 +41,11 @@ AuraGo accepts AgoDesk WebSocket messages up to 16 MiB. Desktop screenshot resul
 - `chat.error`: machine-readable error.
 - `chat.response.chunk`: reserved for streaming support; may carry optional metadata when streaming is enabled.
 - `chat.plan_update`: active chat plan snapshot for clients that advertise `chat.plan_updates`.
+- `chat.sessions.list` / `chat.sessions`: list AuraGo chat conversations available to AgoDesk.
+- `chat.session.create` / `chat.session`: create or load a shared AuraGo chat conversation.
+- `chat.session.load`: load a shared AuraGo chat conversation with visible messages.
+- `chat.cancel` / `chat.cancelled`: stop the active agent turn for a conversation.
+- `chat.audio`: server-generated TTS audio event for clients that negotiate `chat.audio_events`.
 - `persona.assets.request`: client request for the currently active AuraGo persona's visual assets and prompt.
 - `persona.assets`: server response with the active persona name, asset key, avatar image URL, icon URL, and persona prompt.
 - `desktop.command` / `desktop.result`: server-to-client command transport for screenshots, discovery, UI automation, browser CDP, permission requests, locally approved input/actions, and locally approved file access.
@@ -72,6 +77,10 @@ Desktop commands are dispatched only when the matching client capability is pres
 - `chat.full_response`: required for server-initiated AgoChat messages.
 - `chat.agent_metadata`: enables `metadata.agent_mood` on chat responses for voice-model tone selection.
 - `chat.plan_updates`: enables live `chat.plan_update` frames and final `metadata.plan` snapshots.
+- `chat.sessions`: enables shared AuraGo chat history, New Chat, and loading old conversations.
+- `chat.cancel`: enables Stop for active AgoDesk agent turns.
+- `chat.audio_events`: enables `chat.audio` frames for server-generated TTS playback.
+- `chat.voice_output`: server-offered only when AuraGo TTS is configured; lets AgoDesk request server-side voice output with `chat.message.payload.voice_output=true`.
 - `remote.desktop.capture`: required for `desktop_screenshot`
 - `remote.desktop.permission_request`: required for `desktop_permission_request`
 - `remote.desktop.input`: required for `desktop_input`
@@ -179,6 +188,9 @@ hmac = hex(HMAC_SHA256(shared_key_bytes, material))
 - Send `session.start` automatically after `system.connected` when paired.
 - Block chat input until `session.accepted` in production mode.
 - After `session.accepted`, send `persona.assets.request` and cache the returned `persona.assets` values for chat/avatar UI. Re-request after reconnect or when the server sends/your UI observes a persona change.
+- After `session.accepted`, store `advertised_capabilities`. If `chat.sessions` is negotiated, send `chat.sessions.list`, pick the last local `conversation_id`, or send `chat.session.create`.
+- Send every `chat.message` with the accepted AgoDesk `session_id` and the active AuraGo `conversation_id`. Older clients may omit `conversation_id`; AuraGo then keeps the legacy transport-session behavior.
+- Show Stop only while a request is active. Stop sends `chat.cancel` with `session_id`, `conversation_id`, and `request_id`, and must also stop local TTS/audio immediately.
 - Implement native Tauri commands for desktop control:
   - `collect_host_info()`
   - `list_displays()`
@@ -261,6 +273,189 @@ When `chat.plan_updates` is negotiated, AuraGo can send:
 `plan` is either `null` or the same plan JSON shape used by AuraGo's web chat plan panel. `null` clears the local plan display. The final `chat.response.payload.metadata.plan` may include the latest snapshot for reconciliation.
 
 For the concrete AgoDesk client implementation checklist, see [`agodesk_coding_agent_mood_plan.md`](./agodesk_coding_agent_mood_plan.md).
+
+## Chat Sessions, Stop, And TTS
+
+AgoDesk chat now uses the same AuraGo chat sessions as the Web UI. The WebSocket session id (`agodesk:<device>`) remains the transport/auth session. The active chat conversation is a shared AuraGo session id such as `sess-...`, carried as `conversation_id`.
+
+### List sessions
+
+```json
+{
+  "id": "sessions-1",
+  "type": "chat.sessions.list",
+  "timestamp": "2026-06-07T12:00:00Z",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "limit": 20
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "type": "chat.sessions",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "sessions": [
+      {
+        "id": "sess-abc",
+        "preview": "Fix the dashboard widget",
+        "created_at": "2026-06-07T10:00:00Z",
+        "last_active_at": "2026-06-07T11:00:00Z",
+        "message_count": 4
+      }
+    ]
+  }
+}
+```
+
+### Create or load a conversation
+
+New Chat:
+
+```json
+{
+  "type": "chat.session.create",
+  "payload": {
+    "session_id": "agodesk:device-123"
+  }
+}
+```
+
+Load history:
+
+```json
+{
+  "type": "chat.session.load",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "conversation_id": "sess-abc"
+  }
+}
+```
+
+Both return `chat.session`. A load response includes visible, non-internal messages only:
+
+```json
+{
+  "type": "chat.session",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "conversation_id": "sess-abc",
+    "session": {
+      "id": "sess-abc",
+      "preview": "Fix the dashboard widget",
+      "created_at": "2026-06-07T10:00:00Z",
+      "last_active_at": "2026-06-07T11:00:00Z",
+      "message_count": 4
+    },
+    "messages": [
+      {
+        "role": "user",
+        "content": "Can you fix the widget?",
+        "timestamp": "2026-06-07T10:00:00Z"
+      }
+    ]
+  }
+}
+```
+
+### Send a chat message
+
+```json
+{
+  "type": "chat.message",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "conversation_id": "sess-abc",
+    "text": "Continue here.",
+    "role": "user",
+    "voice_output": true
+  }
+}
+```
+
+`voice_output` is optional. Send it only when the local TTS mode wants AuraGo voice output and `chat.voice_output` was offered by the server.
+
+Assistant responses, chunks, and plan updates echo `conversation_id` when a conversation is active:
+
+```json
+{
+  "type": "chat.response",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "conversation_id": "sess-abc",
+    "request_id": "req-1",
+    "text": "Done.",
+    "role": "assistant",
+    "metadata": {
+      "source": "agodesk_chat"
+    }
+  }
+}
+```
+
+### Stop active work
+
+```json
+{
+  "type": "chat.cancel",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "conversation_id": "sess-abc",
+    "request_id": "req-1"
+  }
+}
+```
+
+AuraGo cancels the request context, interrupts the agent session for that `conversation_id`, and replies:
+
+```json
+{
+  "type": "chat.cancelled",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "conversation_id": "sess-abc",
+    "request_id": "req-1",
+    "status": "cancelled"
+  }
+}
+```
+
+If nothing is active, `status` is `not_active`. A wrong `session_id` returns `chat.error` with `SESSION_NOT_FOUND`.
+
+### Voice output and audio events
+
+TTS mode should default to `Auto` in AgoDesk:
+
+- `Auto`: if `chat.voice_output` and `chat.audio_events` are negotiated, send `voice_output:true` and play `chat.audio`; otherwise use frontend/native TTS for the final assistant text.
+- `AuraGo`: require `chat.voice_output` and `chat.audio_events`; otherwise show a quiet unavailable state and do not fall back silently.
+- `Frontend`: speak the final assistant text locally.
+- `Off`: do not request or play TTS.
+
+When `chat.audio_events` is negotiated, AuraGo may emit:
+
+```json
+{
+  "type": "chat.audio",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "conversation_id": "sess-abc",
+    "request_id": "req-1",
+    "path": "/tts/response.mp3",
+    "title": "TTS Audio",
+    "mime_type": "audio/mpeg",
+    "filename": "response.mp3"
+  }
+}
+```
+
+Clients must queue audio in request order and resolve relative `path` values against the AuraGo origin. Stop must clear this queue and cancel native/frontend speech immediately. Do not log shared keys, session tokens, or local TTS file paths. Render server text as sanitized Markdown or plain text, never raw HTML.
+
+For the concrete AgoDesk client implementation checklist, see [`agodesk_coding_agent_chat_controls.md`](./agodesk_coding_agent_chat_controls.md).
 
 ## Active Persona Assets
 
