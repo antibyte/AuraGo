@@ -189,13 +189,13 @@ Das finale native Schema-Budget wird ueber `max_total_tools` gesteuert, wo es mo
 Viele Tools unterstützen einen Read-Only-Modus:
 
 ```yaml
-tools:
-  docker:
-    enabled: true
-    readonly: true        # Nur Listen/Logs, kein Start/Stop
-  home_assistant:
-    enabled: true
-    readonly: true        # Nur Status abfragen, nicht steuern
+docker:
+  enabled: true
+  readonly: true        # nur Listen/Inspect/Logs
+
+home_assistant:
+  enabled: true
+  readonly: true        # nur Status lesen; blockiert call_service
 ```
 
 ---
@@ -212,8 +212,12 @@ agent:
   allow_network_requests: true   # HTTP-Anfragen
   allow_remote_shell: true       # SSH auf Remote-Geräte
   allow_self_update: true        # Selbst-Updates
-  allow_mcp: true                # MCP-Protokoll
-  allow_web_scraper: true        # Web-Scraping
+  allow_mcp: true                # MCP-Protokoll (zusätzlich mcp.enabled)
+  allow_package_manager: false   # erfordert zusätzlich package_manager.enabled
+
+tools:
+  web_scraper:
+    enabled: true                # ersetzt veraltetes allow_web_scraper
 ```
 
 > ⚠️ **Tipp:** In Produktionsumgebungen nur das aktivieren, was wirklich benötigt wird.

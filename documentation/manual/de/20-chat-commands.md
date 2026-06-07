@@ -50,6 +50,10 @@ Zeigt eine Liste aller registrierten Commands mit ihren Kurzbeschreibungen an.
 ### `/reset`
 Löscht den aktuellen Chat-Verlauf und das Kurzzeitgedächtnis (Short-Term Memory). Dies ist nützlich, um einen "frischen Start" zu machen, ohne die Langzeitspeicher oder andere Daten zu beeinflussen.
 
+> **Session-Umfang:** In Multi-Session-Chats löscht `/reset` nur das STM der aktiven Session. Der globale History-Manager wird nur bei Session `default` geleert.
+>
+> **Auto-Learning:** Bei `agent.auto_learning.enabled: true` startet `/reset` eine leichte Session-Retrospektive (`RunSessionRetro`).
+
 **Beispiel:**
 ```
 /reset

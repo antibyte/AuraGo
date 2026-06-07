@@ -210,8 +210,29 @@ Diese Berechtigungen schalten potenziell kritische Aktionen frei:
 - `allow_remote_shell` – SSH-Remote-Shell
 - `allow_self_update` – Auto-Update
 - `allow_mcp` – MCP-Server
-- `allow_web_scraper` – Web-Scraping
+- `tools.web_scraper.enabled` – Web-Scraping (ersetzt `allow_web_scraper`)
 - `sudo_enabled` – Sudo-Befehle (Passwort im Vault)
+
+### Output Compression
+
+Komprimiert ausführliche Tool-Ausgaben **vor** der `tool_output_limit`-Kürzung. Standard: aktiv.
+
+```yaml
+agent:
+  output_compression:
+    enabled: true
+    min_chars: 500
+    preserve_errors: true
+    shell_compression: true
+    python_compression: true
+    api_compression: true
+    repetitive_substitution:
+      enabled: false
+    toon_json:
+      enabled: false
+```
+
+Details: `documentation/output_compression.md`
 
 ---
 
@@ -354,36 +375,46 @@ Aktiviere spezialisierte Co-Agents für komplexe Aufgaben unter *Config → Co-A
 co_agents:
   enabled: false
   max_concurrent: 3
-  budget_quota_percent: 0
-  max_result_bytes: 50000
-  queue_when_busy: false
+  budget_quota_percent: 25
+  max_context_hints: 6
+  max_context_hint_chars: 180
+  max_result_bytes: 100000
+  queue_when_busy: true
   llm:
     provider: ""
   circuit_breaker:
-    max_tool_calls: 50
-    timeout_seconds: 120
+    max_tool_calls: 12
+    timeout_seconds: 300
+    max_tokens: 0
   retry_policy:
     max_retries: 1
     retry_delay_seconds: 5
   specialists:
     researcher:
-      enabled: true
+      enabled: false
+      additional_prompt: ""
     coder:
-      enabled: true
+      enabled: false
+      additional_prompt: ""
     designer:
-      enabled: true
+      enabled: false
+      additional_prompt: ""
     security:
-      enabled: true
+      enabled: false
+      additional_prompt: ""
     writer:
-      enabled: true
+      enabled: false
+      additional_prompt: ""
 ```
 
 | Parameter | Standard | Beschreibung |
 |-----------|----------|--------------|
 | `enabled` | `false` | Co-Agents aktivieren |
 | `max_concurrent` | `3` | Maximale parallele Co-Agents |
-| `budget_quota_percent` | `0` | Tagesbudget-Reserve für Co-Agents |
-| `queue_when_busy` | `false` | Warteschlange statt Ablehnung bei voller Auslastung |
+| `budget_quota_percent` | `25` | Tagesbudget-Reserve (`0` = deaktiviert) |
+| `queue_when_busy` | `true` | Warteschlange bei voller Auslastung |
+| `circuit_breaker.timeout_seconds` | `300` | Maximale Laufzeit pro Co-Agent |
+| `specialists.*.additional_prompt` | `""` | Zusätzliche Anweisungen pro Spezialist |
 | `retry_policy.max_retries` | `1` | Wiederholungen bei temporären Fehlern |
 
 ---

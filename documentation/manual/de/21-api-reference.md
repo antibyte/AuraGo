@@ -1695,12 +1695,13 @@ GET /api/health
 GET /api/3d-printers/test
 ```
 
-### Drucker-Status abrufen
+### Kamera-Snapshot / Stream
 ```http
-GET /api/3d-printers/status
+GET /api/3d-printers/{printer_id}/camera/snapshot
+GET /api/3d-printers/{printer_id}/camera/stream
 ```
 
-**Antwort:**
+**Test-Antwort-Beispiel:**
 ```json
 {
   "printers": [

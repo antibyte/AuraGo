@@ -53,12 +53,13 @@ The manifest describes the skill for the agent:
     "type": "object",
     "description": "Temperature, humidity and weather description"
   },
-  "entry_point": "weather_query.py",
-  "function": "main",
+  "executable": "weather_query.py",
   "dependencies": ["requests"],
   "vault_keys": ["openweather_api_key"]
 }
 ```
+
+> **Note:** `parameters` may be a full JSON Schema (`type`, `properties`, `required`) or a simplified key→description map (as above).
 
 **Fields explained:**
 
@@ -66,13 +67,15 @@ The manifest describes the skill for the agent:
 |-------|-------------|----------|
 | `name` | Unique name of the skill | Yes |
 | `description` | What the skill does (visible to the agent) | Yes |
-| `parameters` | JSON schema of input parameters | Yes |
+| `parameters` | JSON schema or simplified parameter map | Yes |
 | `returns` | Description of return values | No |
-| `entry_point` | Python file to execute | Yes |
-| `function` | Function name in Python script (usually `main`) | Yes |
+| `executable` | Python file to execute (relative filename) | Yes |
 | `dependencies` | List of pip packages | No |
 | `vault_keys` | List of vault secret names | No |
-| `credential_ids` | List of credential IDs | No |
+| `internal_tools` | Native AuraGo tools callable via Python Tool Bridge | No |
+| `daemon` | Background daemon configuration | No |
+| `category`, `tags` | Metadata for Skill Manager | No |
+| `cheatsheet_ids` | Linked cheat sheet IDs | No |
 
 ### The Python Code
 
@@ -237,7 +240,7 @@ api_key = os.environ.get('AURAGO_SECRET_OPENWEATHER_API_KEY')
     },
     "required": ["filepath"]
   },
-  "entry_point": "file_analyzer.py",
+  "executable": "file_analyzer.py",
   "function": "main"
 }
 ```
@@ -316,7 +319,7 @@ Agent: 🛠️ Skill: file_analyzer
     },
     "required": ["owner", "repo"]
   },
-  "entry_point": "github_repo.py",
+  "executable": "github_repo.py",
   "function": "main",
   "dependencies": ["requests"],
   "vault_keys": ["gh_access_token"]
@@ -399,7 +402,7 @@ if __name__ == "__main__":
     },
     "required": ["data", "from_format", "to_format"]
   },
-  "entry_point": "data_converter.py",
+  "executable": "data_converter.py",
   "function": "main",
   "dependencies": ["pyyaml", "pandas"]
 }
@@ -747,6 +750,23 @@ Ask the agent: "What is the weather in Berlin?"
 - Requires the vault secret `openweather_api_key`
 - Rate-limited to 60 calls per minute on the free tier
 ```
+
+---
+
+## Agent Skills (Markdown Packages)
+
+Separate from Python skills in `agent_workspace/skills/`, **Agent Skills** are Markdown-first packages managed by the Agent Skill Manager.
+
+### API
+
+- `GET/POST /api/agent-skills`
+- `GET/PUT/DELETE /api/agent-skills/{id}`
+- `POST /api/agent-skills/{id}/files`
+- `POST /api/agent-skills/{id}/verify`
+- `POST /api/agent-skills/{id}/approve-warning`
+- `POST /api/agent-skills/import`
+
+The agent loads them via `activate_agent_skill` and `run_agent_skill_script` tools.
 
 ---
 

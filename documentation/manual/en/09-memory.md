@@ -33,7 +33,7 @@ Short-term memory stores the immediate conversation context, allowing AuraGo to 
 ### How STM Works
 
 - **Storage**: SQLite database (configured via `sqlite.short_term_path`, default: `./data/short_term.db`)
-- **Retention**: Last N messages (configurable, default: 20)
+- **Retention**: Context-window driven; messages are compressed when `memory_compression_char_limit` is exceeded
 - **Structure**: Message history with timestamps, roles, and metadata
 
 ### STM in Action
@@ -424,7 +424,7 @@ indexing:
 |-----------|---------|-------------|
 | `embeddings.provider` | `"disabled"` | Embedding provider: `"disabled"` (no LTM), `"internal"` (use main LLM), or a provider ID |
 | `embeddings.internal_model` | `"qwen/qwen3-embedding-8b"` | Model for internal embedding generation |
-| `agent.memory_compression_char_limit` | `50000` | Characters before STM compression triggers |
+| `agent.memory_compression_char_limit` | `100000` | Characters before STM compression triggers |
 | `agent.core_memory_max_entries` | `80` | Maximum core memory entries |
 | `agent.core_memory_cap_mode` | `"hard"` | How to handle overflow: `"hard"` rejects, `"soft"` warns |
 | `sqlite.short_term_path` | `"./data/short_term.db"` | Path to STM SQLite database |
@@ -530,31 +530,11 @@ User: "Clear my todo list"
    └── Update Core Memory if needed
 ```
 
-### Memory Commands Quick Reference
+### Managing Memory
 
-```
-Core Memory:
-  /core add [fact]          - Add to core memory
-  /core show                - Display core memory
-  /core remove [key]        - Remove entry
+Memory is managed via **natural language** and **agent tools** (`remember`, `manage_memory`, `manage_notes`, `manage_todos`, `query_memory`, etc.). There are no dedicated `/core`, `/note`, `/todo`, or `/memory` slash commands.
 
-Notes:
-  /note add [text]          - Create note
-  /note list                - List all notes
-  /note search [query]      - Search notes
-  /note delete [id]         - Delete note
-
-To-Dos:
-  /todo add [task]          - Create todo
-  /todo list                - Show pending todos
-  /todo done [id]           - Mark complete
-  /todo priority [id] [p]   - Set priority
-
-LTM:
-  /memory search [query]    - Search long-term memory
-  /memory forget [query]    - Remove matching memories
-  /memory stats             - Show memory statistics
-```
+Use `/reset` to clear short-term chat history (see [Chat Commands](20-chat-commands.md)).
 
 ## Helper LLM — Automated Maintenance
 

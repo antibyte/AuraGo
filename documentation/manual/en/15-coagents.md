@@ -84,17 +84,21 @@ co_agents:
   
   # Own limits per co-agent
   circuit_breaker:
-    max_tool_calls: 10        # Max tool calls per task
-    timeout_seconds: 120      # Max runtime per co-agent
-    max_tokens: 8000          # Token budget (0 = unlimited)
+    max_tool_calls: 10        # Max tool calls per task (default: 10)
+    timeout_seconds: 300      # Max runtime per co-agent (default: 5 min)
+    max_tokens: 0             # Token budget (0 = unlimited)
+  queue_when_busy: true       # Queue when all slots are busy
+  budget_quota_percent: 0     # Daily budget share (0 = disabled)
 ```
 
 ### Defaults
 
-- `MaxConcurrent`: 3
-- `MaxToolCalls`: 10
-- `TimeoutSeconds`: 120
-- `MaxTokens`: 0 (unlimited)
+- `max_concurrent`: 3
+- `max_tool_calls`: 10
+- `timeout_seconds`: 300
+- `max_tokens`: 0 (unlimited)
+- `queue_when_busy`: true
+- `budget_quota_percent`: 0
 
 ### Writer specialist default
 
@@ -131,7 +135,8 @@ The main agent spawns co-agents via the `co_agent` tool:
 
 | Operation | Parameters | Description |
 |-----------|------------|-------------|
-| `spawn` | `task`, `context_hints` | Start a new co-agent |
+| `spawn` | `task`, `context_hints`, `priority`, `output_schema` | Start a generic co-agent |
+| `spawn_specialist` | `task`, `specialist`, `context_hints`, `priority`, `output_schema` | Start a specialist (`researcher`, `coder`, `designer`, `security`, `writer`) |
 | `list` | — | Show all co-agents with status |
 | `get_result` | `co_agent_id` | Wait briefly and get finished result or current terminal status |
 | `stop` | `co_agent_id` | Cancel running co-agent |
@@ -335,12 +340,15 @@ Dashboard → Co-Agents tab shows:
 
 ### API
 
-```bash
-# Get status
-curl http://localhost:8088/api/co-agents
+Co-agents have **no** dedicated `/api/co-agents` routes. Monitor them via:
 
-# Get specific result
-curl http://localhost:8088/api/co-agents/coagent-1/result
+```bash
+# Dashboard activity (includes coagents array)
+curl http://localhost:8088/api/dashboard/activity
+
+# Or via the co_agent tool:
+# {"action":"co_agent","operation":"list"}
+# {"action":"co_agent","operation":"get_result","co_agent_id":"coagent-1"}
 ```
 
 ### Logging

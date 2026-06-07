@@ -238,14 +238,13 @@ AuraGo bietet ein mehrschichtiges Authentifizierungssystem für die Web-Oberflä
 # config.yaml
 auth:
     enabled: true
-    password_hash: ""              # Wird beim ersten Login gesetzt
-    session_secret: ""             # Wird automatisch generiert
     session_timeout_hours: 24
-    totp_secret: ""
     totp_enabled: false
     max_login_attempts: 5
     lockout_minutes: 15
 ```
+
+Passwort-Hash, TOTP-Secret und Session-Secret werden im **Vault** gespeichert (`auth_password_hash`, `auth_totp_secret`, `auth_session_secret`), nicht in der `config.yaml`. Setze sie über die Web-UI (Config → Auth) oder die API (`POST /api/auth/password`, `/api/auth/totp/setup`).
 
 ### Schritt 2: Passwort über die Web-UI setzen
 

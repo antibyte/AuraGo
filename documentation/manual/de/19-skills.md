@@ -695,6 +695,23 @@ Frage den Agenten: „Wie ist das Wetter in Berlin?"
 
 ---
 
+## Agent Skills (Markdown-Pakete)
+
+Getrennt von Python-Skills in `agent_workspace/skills/`: **Agent Skills** sind Markdown-Pakete im Agent Skill Manager.
+
+### API
+
+- `GET/POST /api/agent-skills`
+- `GET/PUT/DELETE /api/agent-skills/{id}`
+- `POST /api/agent-skills/{id}/files`
+- `POST /api/agent-skills/{id}/verify`
+- `POST /api/agent-skills/{id}/approve-warning`
+- `POST /api/agent-skills/import`
+
+Der Agent lädt sie über `activate_agent_skill` und `run_agent_skill_script`.
+
+---
+
 **Nächste Schritte**
 
 - **[Kapitel 6: Werkzeuge](06-tools.md)** – Die eingebauten Tools kennenlernen

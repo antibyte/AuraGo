@@ -179,6 +179,9 @@ JSON-Dateien lesen/modifizieren (get, set, delete, validate).
 ### `yaml_editor`
 YAML-Dateien lesen/modifizieren.
 
+### `toml_editor`
+TOML-Dateien lesen und ändern (get, set, delete, validate).
+
 ### `xml_editor`
 XML-Dateien mit XPath bearbeiten.
 
@@ -1005,6 +1008,18 @@ Externe Datenbank-Verbindungen verwalten.
 ---
 
 ## Infrastruktur
+
+### `three_d_printer`
+Konfigurierte Elegoo Centauri Carbon- und Klipper/Moonraker-Drucker steuern (`three_d_printers.enabled`).
+
+### `composio_call`
+Composio-Toolkits/Tools suchen und freigegebene Aktionen ausführen (`composio.enabled` + Vault `composio_api_key`).
+
+### `webdav`
+Dateien auf einem WebDAV-Endpunkt listen, lesen, schreiben, verschieben und löschen (`webdav.enabled`).
+
+### `certificate_manager`
+Lokale TLS-Zertifikate prüfen und Remote-HTTPS-Endpunkte testen.
 
 ### `invasion_control`
 Invasion Control (Remote Deployment) verwalten.

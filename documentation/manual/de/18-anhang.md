@@ -247,7 +247,7 @@ web_config:
 | PUT | `/api/config` | Konfiguration aktualisieren |
 | GET | `/api/memory` | Speicher abfragen |
 | GET | `/api/budget` | Budget-Status |
-| GET | `/api/co-agents` | Co-Agenten auflisten |
+| GET | `/api/dashboard/activity` | Dashboard-Aktivität (inkl. `coagents`) |
 
 ### WebSocket / SSE
 

@@ -41,7 +41,7 @@ AuraGo folgt einem **Schichtenmodell** mit vier Ebenen:
 ```mermaid
 flowchart TB
     subgraph Presentation["🖥️ Presentation Layer"]
-        WEB["Web UI<br/>embedded SPA"]
+        WEB["Web UI<br/>eingebettete Mehrseiten-UI"]
         TG["Telegram Bot"]
         DC["Discord Bot"]
         RC["Rocket.Chat"]
@@ -157,7 +157,7 @@ Alle SQLite-Datenbanken werden über [`internal/dbutil`](../../../internal/dbuti
 
 | Datenbank | Zweck |
 |-----------|-------|
-| `data/aurago.db` | Short-Term Memory, History, Emotionen, Traits |
+| `data/short_term.db` | Short-Term Memory, Konversationsverlauf |
 | `data/inventory.db` | SSH-Geräte-Inventar |
 | `data/invasion.db` | Invasion-Control-Knoten |
 | `data/cheatsheets.db` | Cheatsheet-Speicher |

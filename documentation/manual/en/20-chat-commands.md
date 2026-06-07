@@ -50,6 +50,10 @@ Displays a list of all registered commands with their short descriptions.
 ### `/reset`
 Clears the current chat history and short-term memory (STM). This is useful for a "fresh start" without affecting long-term storage or other data.
 
+> **Session scope:** In multi-session chat, `/reset` clears only the targeted session's STM. The global history manager is cleared only for the `default` session.
+>
+> **Auto-learning:** If `agent.auto_learning.enabled` is true, `/reset` triggers a lightweight session retrospective (`RunSessionRetro`) to extract learned rules from resolved errors.
+
 **Example:**
 ```
 /reset

@@ -4,7 +4,7 @@ The web interface is your control center for AuraGo. This chapter explains all e
 
 ## Overview
 
-The Web UI is built as a Single-Page Application (SPA) – fluid navigation without page reloads.
+The Web UI is a **multi-page embedded application** — each major area (Chat, Config, Dashboard, Missions, etc.) has its own HTML page. Navigation between areas triggers a full page load. Most pages require `web_config.enabled: true`.
 
 ```
 ┌────────────────────────────────────────────────────────────┐

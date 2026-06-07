@@ -481,11 +481,14 @@ Exposes AuraGo tools to external clients.
 ```yaml
 mcp_server:
     enabled: true
-    port: 8089
+    require_auth: true
     allowed_tools:
         - "execute_shell"
         - "filesystem"
+    vscode_debug_bridge: false
 ```
+
+> The MCP server shares the main HTTP server — there is no separate `port` setting. MCP client access also requires `agent.allow_mcp: true`.
 
 `allowed_tools` is an explicit server-side allowlist. Leave it empty to expose no AuraGo tools; `vscode_debug_bridge` applies its own limited debugging preset.
 
@@ -1481,14 +1484,17 @@ Connect AuraGo to your Obsidian vault for notes and knowledge management.
 ### Web UI Setup
 1. Open **Config → Integrations → Obsidian**.
 2. Enable the integration.
-3. Enter the **Vault Path** and synchronization mode.
+3. Enter the **Local REST API** host/port and store `obsidian_api_key` in the Vault.
 4. Save and restart.
 
 ### YAML Reference
 ```yaml
 obsidian:
     enabled: true
-    vault_path: "/home/user/obsidian-vault"
+    host: "127.0.0.1"
+    port: 27124
+    use_https: true
+    readonly: false
 ```
 
 ---
@@ -1500,7 +1506,7 @@ Monitor service availability with Uptime Kuma.
 ### Web UI Setup
 1. Open **Config → Integrations → Uptime Kuma**.
 2. Enable the integration.
-3. Enter the **URL**.
+3. Enter the **Base URL**.
 4. Store the API key in the Vault.
 5. Save and restart.
 
@@ -1508,7 +1514,7 @@ Monitor service availability with Uptime Kuma.
 ```yaml
 uptime_kuma:
     enabled: true
-    url: "https://uptime-kuma.example.com"
+    base_url: "https://uptime-kuma.example.com:3001"
 ```
 
 ---

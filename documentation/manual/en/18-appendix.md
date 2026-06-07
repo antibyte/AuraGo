@@ -380,8 +380,7 @@ sqlite:
 | POST | `/api/tools/execute` | Execute tool | Yes* |
 | GET | `/api/vault/status` | Vault status | Yes* |
 | POST | `/api/vault/rotate` | Rotate master key | Yes* |
-| GET | `/api/co-agents` | List co-agents | Yes* |
-| GET | `/api/co-agents/:id/result` | Co-agent result | Yes* |
+| GET | `/api/dashboard/activity` | Dashboard activity (includes `coagents`) | Yes* |
 | POST | `/api/webhook/:token` | Incoming webhook | Token |
 
 *If auth is enabled

@@ -186,13 +186,13 @@ The final native schema budget is controlled by `max_total_tools` where it can b
 Many tools support a read-only mode:
 
 ```yaml
-tools:
-  docker:
-    enabled: true
-    readonly: true        # List/logs only, no start/stop
-  home_assistant:
-    enabled: true
-    readonly: true        # Query status only, no control
+docker:
+  enabled: true
+  readonly: true        # list/inspect/logs only
+
+home_assistant:
+  enabled: true
+  readonly: true        # get_states only; blocks call_service
 ```
 
 ---
@@ -209,8 +209,12 @@ agent:
   allow_network_requests: true   # HTTP requests
   allow_remote_shell: true       # SSH to remote devices
   allow_self_update: true        # Self-updates
-  allow_mcp: true                # MCP protocol
-  allow_web_scraper: true        # Web scraping
+  allow_mcp: true                # MCP protocol (also requires mcp.enabled)
+  allow_package_manager: false   # also requires package_manager.enabled
+
+tools:
+  web_scraper:
+    enabled: true                # replaces deprecated allow_web_scraper
 ```
 
 > ⚠️ **Tip:** In production environments, only enable what you really need.

@@ -45,4 +45,4 @@
 
 ---
 
-> 💡 **Hinweis:** Die Handbücher werden fortlaufend aktualisiert und erweitert, um neue Funktionen und Integrationen abzubilden.
+> 💡 **Hinweis:** Die Handbücher werden fortlaufend aktualisiert und erweitert, um neue Funktionen und Integrationen abzubilden. Zuletzt abgeglichen mit dem Code: Juni 2026.

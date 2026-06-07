@@ -4,7 +4,7 @@ Die Web-Oberfläche ist dein Kontrollzentrum für AuraGo. Dieses Kapitel erklär
 
 ## Übersicht
 
-Die Web-UI ist als Single-Page Application (SPA) aufgebaut – flüssige Navigation ohne Seiten-Neuladung.
+Die Web-UI ist eine **mehrseitige eingebettete Anwendung** — jeder Bereich (Chat, Config, Dashboard, Missions, …) hat eine eigene HTML-Seite. Navigation zwischen Bereichen lädt die Seite neu. Die meisten Seiten erfordern `web_config.enabled: true`.
 
 ```
 ┌────────────────────────────────────────────────────────────┐

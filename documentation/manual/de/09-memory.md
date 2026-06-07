@@ -408,7 +408,7 @@ cp -r data/vectordb backup/  # Falls Embeddings aktiviert
 | **Kernspeicher** | `agent.core_memory_*` | Aktiviert |
 | **Langzeitgedächtnis** | `embeddings.provider` | Deaktiviert |
 | **Datei-Indexierung** | `indexing.enabled` | Aktiviert |
-| **Kompression** | `agent.memory_compression_char_limit` | 50000 Zeichen |
+| **Kompression** | `agent.memory_compression_char_limit` | 100000 Zeichen |
 
 > 💡 **Profi-Tipp:** Für die meisten Anwendungsfälle reichen Kurzzeitgedächtnis und Core Memory. Aktiviere Embeddings nur, wenn du eine große Menge historischer Konversationen durchsuchen musst.
 

@@ -1,537 +1,280 @@
 # Chapter 11: Mission Control
 
-> ⚠️ **Important:** Mission Control is available via **Web-UI** and **REST API** only. CLI commands for mission management are not implemented.
+> ⚠️ **Important:** Mission Control is available via **Web UI** and **REST API** only. CLI commands for mission management are not implemented.
 
-Automate recurring tasks with AuraGo's Mission Control system. From backups to monitoring to scheduled reports – missions let you run tasks on autopilot.
+Mission Control is AuraGo's automation center. Define recurring tasks that the agent executes on its own — from simple backups to complex monitoring routines.
+
+> **Note:** Nests and Eggs belong to [Invasion Control](12-invasion.md), not Mission Control. Missions are **prompt-based agent tasks**, not shell/script templates.
+
+---
 
 ## What are Missions?
 
-**Missions** are automated, scheduled tasks that AuraGo executes based on:
-- **Time schedules** (Cron expressions)
-- **Manual triggers** (Run on demand)
-- **System events** (Startup, specific conditions)
+**Missions** are automated agent tasks that run on a schedule, on demand, or when a trigger fires. Each mission contains:
 
-Think of missions as your personal cron jobs with built-in intelligence – they can execute shell commands, Python scripts, API calls, and even trigger other missions.
-
-### Use Cases
-
-| Use Case | Description |
-|----------|-------------|
-| **Backups** | Automated database dumps, file backups, cloud sync |
-| **Monitoring** | Health checks, disk space alerts, service status |
-| **Reports** | Daily summaries, weekly analytics, system status emails |
-| **Maintenance** | Log rotation, temp file cleanup, index rebuilding |
-| **Integration** | Sync with external APIs, data imports/exports |
-
-## Concepts: Nests & Eggs
-
-AuraGo's mission system uses two key concepts:
-
-### Nests
-
-A **Nest** is a target location where missions run. This can be:
-- **Local** – The AuraGo host itself
-- **Remote SSH** – Any server accessible via SSH
-- **Docker** – Containers managed by AuraGo
-
-> 🔍 **Deep Dive:** Nests are shared between Mission Control and Invasion Control. A Nest configured for remote deployment can also run missions. See [Chapter 12: Invasion Control](12-invasion.md) for details.
-
-### Eggs
-
-An **Egg** is a reusable configuration template that defines:
-- What command/script to run
-- Environment variables
-- Working directory
-- Timeout settings
-- Retry policies
+- **Prompt** — What the agent should do
+- **Schedule or trigger** — When it runs
+- **Execution type** — Manual, scheduled, or event-triggered
+- **Optional dependencies** — Wait for other missions to finish first
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Egg (Template)                                         │
-│  ├─ Command: backup.sh                                  │
-│  ├─ Environment: DB_HOST, DB_PASS                       │
-│  ├─ Working Dir: /opt/backups                           │
-│  └─ Timeout: 3600s                                      │
-└─────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│  Mission (Instance)                                     │
-│  ├─ Egg: backup-egg                                     │
-│  ├─ Nest: production-server                             │
-│  ├─ Schedule: 0 2 * * * (daily at 2 AM)                 │
-│  └─ Status: Active                                      │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  Mission: "Daily Backup"                                    │
+│  ├─ Prompt: Create a database backup and report status      │
+│  ├─ Schedule: Daily at 02:00 (cron)                         │
+│  ├─ Execution: scheduled                                    │
+│  └─ Result: success / error                                 │
+└─────────────────────────────────────────────────────────────┘
 ```
+
+> 💡 Missions run in the background and do not block normal chat.
+
+---
+
+## Prerequisites
+
+Mission Control requires the scheduler tool:
+
+```yaml
+# config.yaml
+tools:
+  scheduler:
+    enabled: true
+    readonly: false   # false = allow create/edit
+  missions:
+    enabled: true
+    readonly: false
+```
+
+The Web UI is available at `/missions/v2` (`/missions` redirects there).
+
+---
+
+## Mission Control Concepts
+
+### Missions (V2)
+
+A **mission** is a scheduled or triggered **agent prompt**. The agent receives the prompt and uses its tools to complete the task — it does not run raw shell commands directly.
+
+| Execution type | Description | Use case |
+|----------------|-------------|----------|
+| `manual` | Run on demand only | Ad-hoc tasks |
+| `scheduled` | Cron-based | Backups, reports |
+| `triggered` | Event-driven | Webhooks, email, MQTT, HA state changes |
+
+### Mission Preparation (Optional)
+
+With **Mission Preparation**, the agent can analyze required tools, risks, and steps before execution.
+
+```yaml
+# config.yaml
+mission_preparation:
+  enabled: false
+  provider: ""                    # Provider ID; empty = main LLM
+  timeout_seconds: 120
+  max_essential_tools: 5
+  cache_expiry_hours: 24
+  min_confidence: 0.5
+  auto_prepare_scheduled: true
+```
+
+> 💡 Mission Preparation is advisory only — it never blocks execution.
+
+### Dependencies and Queue
+
+- **Dependencies:** Mission B starts only after Mission A completes
+- **Queue:** Missions run sequentially when resources are limited
+- **Remote execution:** Missions can run on invasion nests via `runner_type: remote`
+
+---
 
 ## Creating Missions
 
-### Step 1: Create an Egg (Template)
+### Via Web UI (Recommended)
 
-Navigate to **Mission Control → Eggs → New Egg**:
+1. Open **Mission Control** from the radial menu (🚀) at `/missions/v2`
+2. Click **New Mission**
+3. Configure name, **prompt**, schedule or trigger
+4. Save the mission
 
-```yaml
-Name: database-backup
-Description: Daily PostgreSQL backup
-Type: shell
+### Via REST API
 
-Command: |
-  pg_dump -h $DB_HOST -U $DB_USER $DB_NAME > backup_$(date +%Y%m%d).sql
-  gzip backup_$(date +%Y%m%d).sql
+Use session cookies (`credentials: 'same-origin'`) when calling from the browser. Admin API tokens work for automation.
 
-Environment Variables:
-  DB_HOST: localhost
-  DB_USER: postgres
-  DB_NAME: myapp
+```bash
+# Create mission (v2 API)
+curl -X POST http://localhost:8088/api/missions/v2 \
+  -H "Content-Type: application/json" \
+  -b "session=YOUR_SESSION" \
+  -d '{
+    "name": "daily-backup",
+    "prompt": "Create a database backup and report the result.",
+    "execution_type": "scheduled",
+    "schedule": "0 2 * * *",
+    "enabled": true
+  }'
 
-Working Directory: /var/backups/postgres
-Timeout: 1800
-Max Retries: 3
-Retry Delay: 300
+# List all missions
+curl http://localhost:8088/api/missions/v2
+
+# Run mission manually
+curl -X POST http://localhost:8088/api/missions/v2/{mission-id}/run
+
+# View queue
+curl http://localhost:8088/api/missions/v2/queue
+
+# Execution history
+curl http://localhost:8088/api/missions/v2/history?limit=10
+
+# Dependencies
+curl http://localhost:8088/api/missions/v2/dependencies
+
+# Remote targets
+curl http://localhost:8088/api/missions/v2/remote-targets
 ```
 
-### Step 2: Create a Mission
-
-Navigate to **Mission Control → Missions → New Mission**:
-
-```yaml
-Name: nightly-db-backup
-Egg: database-backup
-Nest: local
-Schedule: 0 2 * * *
-Enabled: true
-Notifications:
-  On Failure: email
-  On Success: none
-```
-
-> 💡 **Tip:** Use descriptive names that include the schedule and purpose, like `daily-backup-2am` or `weekly-report-monday`.
-
-### Mission Configuration Options
-
-| Option | Description | Example |
-|--------|-------------|---------|
-| `Name` | Unique mission identifier | `cleanup-temp-files` |
-| `Egg` | Template to use | `cleanup-egg` |
-| `Nest` | Where to run | `local`, `web-server-01` |
-| `Schedule` | Cron expression | `0 */6 * * *` (every 6 hours) |
-| `Enabled` | Active/inactive | `true` / `false` |
-| `Timeout` | Max execution time (seconds) | `3600` |
-| `Max Retries` | Retry attempts on failure | `3` |
-| `Retry Delay` | Seconds between retries | `300` |
+---
 
 ## Scheduling with Cron
 
-AuraGo uses standard **Cron expressions** for scheduling. The format is:
+AuraGo uses standard **cron expressions** for scheduled missions:
 
 ```
-┌───────────── Minute (0-59)
-│ ┌───────────── Hour (0-23)
-│ │ ┌───────────── Day of month (1-31)
-│ │ │ ┌───────────── Month (1-12)
-│ │ │ │ ┌───────────── Day of week (0-7, both 0 and 7 = Sunday)
+┌───────────── minute (0 - 59)
+│ ┌───────────── hour (0 - 23)
+│ │ ┌───────────── day of month (1 - 31)
+│ │ │ ┌───────────── month (1 - 12)
+│ │ │ │ ┌───────────── weekday (0 - 6, Sunday = 0)
 │ │ │ │ │
 * * * * *
 ```
 
-### Common Patterns
+### Common Cron Patterns
 
-| Schedule | Cron Expression | Description |
-|----------|-----------------|-------------|
-| Every minute | `* * * * *` | Continuous execution |
-| Every 5 minutes | `*/5 * * * *` | Frequent checks |
-| Every hour | `0 * * * *` | Top of the hour |
-| Every 6 hours | `0 */6 * * *` | Four times daily |
-| Daily at 2 AM | `0 2 * * *` | Nightly maintenance |
-| Weekdays at 9 AM | `0 9 * * 1-5` | Business hours only |
-| Weekly on Sunday | `0 0 * * 0` | Weekly reports |
-| Monthly 1st at midnight | `0 0 1 * *` | Monthly cleanup |
+| Expression | Meaning |
+|------------|---------|
+| `0 2 * * *` | Daily at 02:00 |
+| `0 */6 * * *` | Every 6 hours |
+| `0 0 * * 0` | Every Sunday at midnight |
+| `0 9-17 * * 1-5` | Hourly 9–17, Mon–Fri |
+| `*/15 * * * *` | Every 15 minutes |
+| `0 0 1 * *` | First day of each month |
 
-### Advanced Cron Examples
+> 💡 Use [crontab.guru](https://crontab.guru) to test cron expressions.
 
-```
-# Every 30 minutes during business hours
-*/30 9-17 * * 1-5
+---
 
-# Every 2 hours on weekends
-0 */2 * * 0,6
+## Event Triggers
 
-# First Monday of each month
-0 0 1-7 * 1
+Set `execution_type: triggered` and choose a `trigger_type`:
 
-# Every 15 minutes, but not at night (9 PM - 6 AM)
-*/15 6-21 * * *
-```
+| Trigger | Description |
+|---------|-------------|
+| `mission_completed` | Another mission finished |
+| `email_received` | Incoming email |
+| `webhook` | Incoming webhook |
+| `mqtt_message` | MQTT message |
+| `system_startup` | AuraGo startup |
+| `home_assistant_state` | HA entity state change |
+| `fritzbox_call` | Fritz!Box call/voicemail |
+| `budget_warning` / `budget_exceeded` | Budget thresholds |
+| `device_connected` / `device_disconnected` | Remote device events |
+| `planner_appointment_due` / `planner_todo_overdue` | Planner reminders |
+| `egg_hatched` / `nest_cleared` | Invasion events |
 
-> ⚠️ **Warning:** Be careful with `* * * * *` (every minute). It can overwhelm your system if the task takes longer than a minute to execute.
+Configure filters in `trigger_config` (e.g. email subject, MQTT topic, HA entity).
+
+---
 
 ## Manual Execution
 
-Sometimes you need to run a mission immediately:
-
-### Via Web UI
-
-1. Navigate to **Mission Control → Missions**
-2. Find your mission in the list
-3. Click the **▶️ Run** button
-4. Monitor execution in real-time
-
-### Via REST API
+Missions can be started at any time regardless of schedule.
 
 ```bash
-# Run a mission
-curl -X POST http://localhost:8088/api/missions/nightly-db-backup/run \
-  -H "Authorization: Bearer YOUR_TOKEN"
-
-# List all missions
-curl -X GET http://localhost:8088/api/missions \
-  -H "Authorization: Bearer YOUR_TOKEN"
-
-# Get mission details
-curl -X GET http://localhost:8088/api/missions/nightly-db-backup \
-  -H "Authorization: Bearer YOUR_TOKEN"
-
-# Get mission execution history
-curl -X GET http://localhost:8088/api/missions/nightly-db-backup/history \
-  -H "Authorization: Bearer YOUR_TOKEN"
+curl -X POST http://localhost:8088/api/missions/v2/{mission-id}/run
 ```
 
-## Monitoring Missions
+---
 
-### Mission Dashboard
+## Monitoring
 
-The **Mission Control** dashboard provides:
+### Status Values
 
-| Metric | Description |
-|--------|-------------|
-| **Status Overview** | Active, paused, failed missions |
-| **Last Run** | Timestamp of most recent execution |
-| **Next Run** | Scheduled time for next execution |
-| **Success Rate** | Percentage of successful runs (last 30 days) |
-| **Average Duration** | Mean execution time |
-
-### Execution History
-
-Each mission maintains a detailed log:
-
-```
-┌─────────────────────────────────────────────────────────┐
-│ Mission: nightly-db-backup                              │
-├─────────────────────────────────────────────────────────┤
-│ Run #1245 - 2024-01-15 02:00:03                         │
-│ Status: ✅ SUCCESS                                      │
-│ Duration: 45.2s                                         │
-│ Output: backup_20240115.sql.gz (2.3 MB)                 │
-├─────────────────────────────────────────────────────────┤
-│ Run #1244 - 2024-01-14 02:00:01                         │
-│ Status: ✅ SUCCESS                                      │
-│ Duration: 44.8s                                         │
-├─────────────────────────────────────────────────────────┤
-│ Run #1243 - 2024-01-13 02:00:02                         │
-│ Status: ❌ FAILED                                       │
-│ Duration: 1800.0s (timeout)                             │
-│ Error: Connection timeout to database                   │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Real-time Logs
-
-Click on any execution to see detailed logs:
-
-```
-[2024-01-15 02:00:03] INFO: Starting mission nightly-db-backup
-[2024-01-15 02:00:03] INFO: Connecting to nest 'local'
-[2024-01-15 02:00:03] INFO: Executing egg 'database-backup'
-[2024-01-15 02:00:03] INFO: pg_dump started
-[2024-01-15 02:00:45] INFO: pg_dump completed (42s)
-[2024-01-15 02:00:47] INFO: Compression completed
-[2024-01-15 02:00:48] INFO: Backup size: 2.3 MB
-[2024-01-15 02:00:48] INFO: Mission completed successfully
-```
-
-## Mission Statuses and Lifecycle
-
-### Status Flow
-
-```
-┌─────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
-│ PENDING │───▶│ RUNNING  │───▶│ SUCCESS  │    │          │
-└─────────┘    └──────────┘    └──────────┘    │          │
-                    │                          │          │
-                    ▼                          │          │
-              ┌──────────┐    ┌──────────┐    │  FINAL   │
-              │ RETRYING │───▶│  FAILED  │───▶│  STATES  │
-              └──────────┘    └──────────┘    │          │
-                                              │          │
-┌─────────┐                                   │          │
-│ PAUSED  │──────────────────────────────────▶│          │
-└─────────┘                                   └──────────┘
-```
-
-### Status Descriptions
-
-| Status | Description | Action Required |
-|--------|-------------|-----------------|
-| **Pending** | Waiting for scheduled time | None |
-| **Running** | Currently executing | Monitor progress |
-| **Success** | Completed without errors | None |
-| **Failed** | Error occurred, retries exhausted | Check logs |
-| **Retrying** | Failed but will retry | Monitor retries |
-| **Paused** | Manually disabled | Resume when ready |
-| **Timeout** | Exceeded max execution time | Review timeout setting |
-
-## Best Practices for Automation
-
-### 1. Start Simple
-
-Begin with infrequent, low-risk missions:
-```
-# Weekly instead of every minute
-0 0 * * 0  # Weekly on Sunday
-```
-
-### 2. Use Appropriate Timeouts
-
-```yaml
-# Short tasks: 5 minutes
-Timeout: 300
-
-# Database backups: 30 minutes
-Timeout: 1800
-
-# Large data processing: 2 hours
-Timeout: 7200
-```
-
-### 3. Implement Retry Logic
-
-```yaml
-Max Retries: 3
-Retry Delay: 300  # 5 minutes between retries
-```
-
-### 4. Set Up Notifications
-
-```yaml
-Notifications:
-  On Failure: telegram  # Immediate alert
-  On Success: none      # Silent on success (or log only)
-```
-
-### 5. Monitor Disk Space
-
-> ⚠️ **Warning:** Log files and mission outputs can accumulate quickly. Always include cleanup in your missions or create separate cleanup missions.
-
-### 6. Test Before Scheduling
-
-Always run missions manually first via the Web UI or REST API:
-
-```bash
-# Test via API
-curl -X POST http://localhost:8088/api/missions/test-backup/run \
-  -H "Authorization: Bearer YOUR_TOKEN"
-```
-
-### 7. Use Meaningful Names
-
-| ❌ Bad | ✅ Good |
+| Status | Meaning |
 |--------|---------|
-| `backup` | `postgres-daily-backup-2am` |
-| `check` | `disk-space-check-6am` |
-| `report` | `weekly-analytics-report-monday` |
+| `idle` | Not running, waiting for next trigger |
+| `queued` | Waiting in execution queue |
+| `running` | Currently executing |
+| `waiting` | Waiting for a dependency mission |
 
-## Examples: Backup, Monitoring, Reports
+Results are `success` or `error` in `last_result`.
 
-### Example 1: Database Backup
+### API
 
-**Egg: postgres-backup**
-```yaml
-Type: shell
-Command: |
-  #!/bin/bash
-  BACKUP_DIR="/var/backups/postgres"
-  DATE=$(date +%Y%m%d_%H%M%S)
-  FILENAME="postgres_${DATE}.sql"
-  
-  # Create backup
-  pg_dump -h localhost -U postgres mydb > "$BACKUP_DIR/$FILENAME"
-  
-  # Compress
-  gzip "$BACKUP_DIR/$FILENAME"
-  
-  # Keep only last 7 days
-  find "$BACKUP_DIR" -name "postgres_*.sql.gz" -mtime +7 -delete
-  
-  echo "Backup completed: ${FILENAME}.gz"
-
-Environment:
-  PGPASSWORD: ${vault.postgres.password}
-
-Timeout: 3600
+```bash
+curl http://localhost:8088/api/missions/v2/{mission-id}
+curl http://localhost:8088/api/missions/v2/history?mission_id={mission-id}
 ```
 
-**Mission: daily-postgres-backup**
+Dashboard history: `GET /api/dashboard/mission-history`
+
+---
+
+## Examples
+
+### Daily System Check
+
+- **Name:** `daily-system-check`
+- **Prompt:** `Check disk space, CPU usage, and running Docker containers. Create a short report.`
+- **Execution type:** `scheduled`
+- **Schedule:** `0 8 * * *`
+- **Enabled:** `true`
+
+### Weekly Report
+
+- **Name:** `weekly-report`
+- **Prompt:** `Summarize important events from the last week using logs and memory.`
+- **Schedule:** `0 9 * * 1`
+
+### API Health Check
+
+- **Name:** `api-health-check`
+- **Prompt:** `Check if these APIs are reachable: https://api.example.com/health. Report failures.`
+- **Schedule:** `*/15 * * * *`
+
+---
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Mission stuck in `running` | Hung agent loop | Check logs, stop via API if needed |
+| Cron not firing | Wrong expression | Validate with crontab.guru |
+| "Scheduler tool disabled" | Tool off | `tools.scheduler.enabled: true` |
+| "Missions tool disabled" | Tool off | `tools.missions.enabled: true` |
+
 ```yaml
-Egg: postgres-backup
-Nest: local
-Schedule: 0 2 * * *  # Daily at 2 AM
-Notifications:
-  On Failure: email
-```
-
-### Example 2: System Monitoring
-
-**Egg: health-check**
-```yaml
-Type: python
-Command: |
-  import psutil
-  import requests
-  
-  # Check disk space
-  disk = psutil.disk_usage('/')
-  disk_percent = disk.percent
-  
-  # Check memory
-  memory = psutil.virtual_memory()
-  memory_percent = memory.percent
-  
-  # Check load
-  load = psutil.getloadavg()[0]
-  
-  alerts = []
-  
-  if disk_percent > 90:
-      alerts.append(f"🚨 Disk usage critical: {disk_percent}%")
-  elif disk_percent > 80:
-      alerts.append(f"⚠️ Disk usage high: {disk_percent}%")
-  
-  if memory_percent > 95:
-      alerts.append(f"🚨 Memory usage critical: {memory_percent}%")
-  
-  if alerts:
-      message = "System Health Check\\n\\n" + "\\n".join(alerts)
-      # Send notification via AuraGo's notify tool
-      print(f"ALERT: {message}")
-      exit(1)
-  else:
-      print(f"✅ All systems healthy")
-      print(f"   Disk: {disk_percent}%")
-      print(f"   Memory: {memory_percent}%")
-      print(f"   Load: {load}")
-
-Timeout: 60
-```
-
-**Mission: system-health-monitor**
-```yaml
-Egg: health-check
-Nest: local
-Schedule: */15 * * * *  # Every 15 minutes
-Notifications:
-  On Failure: telegram
-```
-
-### Example 3: Weekly Report
-
-**Egg: weekly-analytics**
-```yaml
-Type: shell
-Command: |
-  #!/bin/bash
-  REPORT_DATE=$(date +"%Y-%m-%d")
-  REPORT_FILE="/tmp/weekly_report_${REPORT_DATE}.txt"
-  
-  echo "Weekly System Report - ${REPORT_DATE}" > "$REPORT_FILE"
-  echo "======================================" >> "$REPORT_FILE"
-  echo "" >> "$REPORT_FILE"
-  
-  # System uptime
-  echo "Uptime:" >> "$REPORT_FILE"
-  uptime >> "$REPORT_FILE"
-  echo "" >> "$REPORT_FILE"
-  
-  # Disk usage
-  echo "Disk Usage:" >> "$REPORT_FILE"
-  df -h >> "$REPORT_FILE"
-  echo "" >> "$REPORT_FILE"
-  
-  # Memory usage
-  echo "Memory Usage:" >> "$REPORT_FILE"
-  free -h >> "$REPORT_FILE"
-  echo "" >> "$REPORT_FILE"
-  
-  # Docker container status
-  echo "Docker Containers:" >> "$REPORT_FILE"
-  docker ps --format "table {{.Names}}\\t{{.Status}}" >> "$REPORT_FILE"
-  
-  # Email the report (if email tool configured)
-  echo "Report generated at: $REPORT_FILE"
-
-Timeout: 300
-```
-
-**Mission: weekly-system-report**
-```yaml
-Egg: weekly-analytics
-Nest: local
-Schedule: 0 9 * * 1  # Mondays at 9 AM
-Notifications:
-  On Success: email
-  On Failure: email
-```
-
-### Example 4: API Data Sync
-
-**Egg: sync-external-api**
-```yaml
-Type: python
-Command: |
-  import json
-  import urllib.request
-  from datetime import datetime
-  
-  API_URL = "https://api.example.com/data"
-  OUTPUT_FILE = f"/data/sync_{datetime.now().strftime('%Y%m%d')}.json"
-  
-  try:
-      with urllib.request.urlopen(API_URL, timeout=30) as response:
-          data = json.loads(response.read())
-          
-      with open(OUTPUT_FILE, 'w') as f:
-          json.dump(data, f, indent=2)
-          
-      print(f"✅ Synced {len(data)} records to {OUTPUT_FILE}")
-      
-  except Exception as e:
-      print(f"❌ Sync failed: {e}")
-      exit(1)
-
-Environment:
-  API_KEY: ${vault.api.key}
-
-Timeout: 120
-Max Retries: 3
-Retry Delay: 60
-```
-
-**Mission: hourly-api-sync**
-```yaml
-Egg: sync-external-api
-Nest: local
-Schedule: 0 * * * *  # Every hour
+agent:
+  debug_mode: true
 ```
 
 ---
 
-> 💡 **Tip:** Combine multiple missions for complex workflows. Mission A can trigger Mission B via the `mission_run` tool, creating powerful automation chains.
+## Summary
 
-> 🔍 **Deep Dive:** For advanced mission orchestration, see [Chapter 15: Co-Agents](15-coagents.md) to learn how parallel agents can coordinate complex multi-step missions.
+| Feature | Availability |
+|---------|--------------|
+| **Web UI** | ✅ Full (`/missions/v2`) |
+| **REST API** | ✅ Full (`/api/missions/v2/*`) |
+| **CLI commands** | ❌ Not implemented |
+| **Cron scheduling** | ✅ Supported |
+| **Event triggers** | ✅ Supported |
+| **Manual execution** | ✅ Web UI / API |
+| **Remote execution** | ✅ Via invasion nests |
+
+> 💡 For complex automation use the Web UI. For external integrations use the REST API with session auth.
 
 ---
 
-## Next Steps
-
-- **[Chapter 12: Invasion Control](12-invasion.md)** – Deploy missions to remote servers
-- **[Chapter 13: Dashboard](13-dashboard.md)** – Monitor mission metrics
-- **[Chapter 15: Co-Agents](15-coagents.md)** – Advanced mission orchestration
+**Previous:** [Chapter 10: Personality](10-personality.md)  
+**Next:** [Chapter 12: Invasion Control](12-invasion.md)

@@ -238,7 +238,7 @@ agent:
     tool_output_limit: 50000    # max characters of a single tool result fed into context (0 = unlimited)
 
     # System prompt
-    system_prompt_token_budget: 12288
+    system_prompt_token_budget: 0    # 0 = automatic
     adaptive_system_prompt_token_budget: true
     workflow_feedback: true
     max_tool_guides: 5          # max tool guide documents injected into prompt
@@ -297,10 +297,31 @@ agent:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `system_prompt_token_budget` | `12288` | Maximum tokens reserved for the system prompt |
+| `system_prompt_token_budget` | `0` | Maximum tokens for system prompt (`0` = automatic) |
 | `adaptive_system_prompt_token_budget` | `true` | Automatically adjust system prompt token budget |
 | `max_tool_guides` | `5` | Max tool guide documents injected into prompt |
 | `workflow_feedback` | `true` | Provide workflow feedback in responses |
+
+### Output Compression
+
+Reduces token usage by compressing verbose tool outputs **before** `tool_output_limit` truncation. Enabled by default.
+
+```yaml
+agent:
+    output_compression:
+        enabled: true
+        min_chars: 500
+        preserve_errors: true
+        shell_compression: true
+        python_compression: true
+        api_compression: true
+        repetitive_substitution:
+            enabled: false
+        toon_json:
+            enabled: false
+```
+
+> See `documentation/output_compression.md` for details.
 
 > 🔍 **Deep Dive: Context Window**
 > The `context_window` should match your LLM model's actual limit. Common values:
@@ -366,11 +387,11 @@ tools:
         enabled: true
         readonly: false
     daemon_skills:
-        enabled: true
-        max_concurrent_daemons: 3
+        enabled: false               # opt-in
+        max_concurrent_daemons: 5
         global_rate_limit_secs: 60
-        max_wakeups_per_hour: 10
-        max_budget_per_hour_usd: 1.0
+        max_wakeups_per_hour: 6
+        max_budget_per_hour: 0.50
     web_capture:
         enabled: true
     network_ping:
@@ -518,19 +539,19 @@ The `co_agents` section configures parallel sub-agents (specialists) that AuraGo
 co_agents:
     enabled: false
     max_concurrent: 3
-    budget_quota_percent: 0            # daily budget share reserved for co-agents (0 = disabled)
-    max_context_hints: 5
-    max_context_hint_chars: 500
-    max_result_bytes: 50000
-    queue_when_busy: false
+    budget_quota_percent: 25           # daily budget share (0 = no reserved quota)
+    max_context_hints: 6
+    max_context_hint_chars: 180
+    max_result_bytes: 100000
+    queue_when_busy: true
     cleanup_interval_minutes: 10
     cleanup_max_age_minutes: 30
     llm:
-        provider: ""                   # provider ID for co-agent LLM calls
+        provider: ""                   # provider ID; empty = inherit main LLM
     circuit_breaker:
-        max_tool_calls: 50
-        timeout_seconds: 120
-        max_tokens: 100000
+        max_tool_calls: 12             # 0/unset falls back to 10 at runtime
+        timeout_seconds: 300
+        max_tokens: 0                  # 0 = unlimited
     retry_policy:
         max_retries: 1
         retry_delay_seconds: 5
@@ -540,20 +561,21 @@ co_agents:
             - "temporary"
     specialists:
         researcher:
-            enabled: true
-            system_prompt: ""
+            enabled: false
+            additional_prompt: ""
+            cheatsheet_id: ""
         coder:
-            enabled: true
-            system_prompt: ""
+            enabled: false
+            additional_prompt: ""
         designer:
-            enabled: true
-            system_prompt: ""
+            enabled: false
+            additional_prompt: ""
         security:
-            enabled: true
-            system_prompt: ""
+            enabled: false
+            additional_prompt: ""
         writer:
-            enabled: true
-            system_prompt: ""
+            enabled: false
+            additional_prompt: ""      # empty = built-in multilingual writing defaults
 ```
 
 ### Co-Agents Options Explained
@@ -562,12 +584,14 @@ co_agents:
 |---------|---------|-------------|
 | `enabled` | `false` | Enable parallel co-agent execution |
 | `max_concurrent` | `3` | Maximum simultaneous co-agents |
-| `budget_quota_percent` | `0` | Daily budget percentage reserved for co-agents |
-| `max_result_bytes` | `50000` | Truncate co-agent results after this many bytes |
-| `queue_when_busy` | `false` | Queue requests instead of rejecting when at capacity |
-| `circuit_breaker.max_tool_calls` | `50` | Maximum tool calls before aborting a co-agent |
+| `budget_quota_percent` | `25` | Daily budget percentage reserved for co-agents (`0` = disabled) |
+| `max_result_bytes` | `100000` | Truncate co-agent results after this many bytes |
+| `queue_when_busy` | `true` | Queue requests when all slots are busy |
+| `circuit_breaker.max_tool_calls` | `12` | Maximum tool calls before aborting a co-agent |
+| `circuit_breaker.timeout_seconds` | `300` | Maximum runtime per co-agent (seconds) |
 | `retry_policy.max_retries` | `1` | Retries for transient LLM failures |
-| `specialists.*.enabled` | `true` | Enable individual specialist types |
+| `specialists.*.enabled` | `false` | Enable individual specialist types |
+| `specialists.*.additional_prompt` | `""` | Extra instructions for the specialist |
 
 ---
 

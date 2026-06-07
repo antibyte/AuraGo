@@ -102,7 +102,8 @@ curl -X POST http://localhost:8088/api/missions/v2 \
   -H "Content-Type: application/json" \
   -d '{
     "name": "tägliches-backup",
-    "instructions": "Erstelle ein Backup der Datenbank",
+    "prompt": "Erstelle ein Backup der Datenbank",
+    "execution_type": "scheduled",
     "schedule": "0 2 * * *",
     "enabled": true
   }'
@@ -123,14 +124,15 @@ curl http://localhost:8088/api/missions/v2/history?limit=10
 curl http://localhost:8088/api/missions/v2/dependencies
 ```
 
-### Mission-Typen
+### Ausführungstypen
 
-| Typ | Beschreibung | Beispiel |
-|-----|--------------|----------|
-| `shell` | Shell-Befehl ausführen | `ls -la`, `pg_dump` |
-| `script` | Skript-Datei ausführen | Python, Bash, etc. |
-| `http` | HTTP-Request senden | API-Aufruf, Webhook |
-| `agent` | Agent-Aktion ausführen | KI-gestützte Aufgabe |
+| `execution_type` | Beschreibung | Beispiel |
+|------------------|--------------|----------|
+| `manual` | Nur manuell | Ad-hoc-Aufgaben |
+| `scheduled` | Cron-Zeitplan | Backups, Reports |
+| `triggered` | Ereignisgesteuert | Webhook, E-Mail, MQTT, HA |
+
+Missionen sind **Agent-Prompts** — der Agent nutzt seine Tools, um die Aufgabe zu erledigen. Es gibt keine separaten `shell`- oder `script`-Missionstypen.
 
 ---
 
@@ -162,21 +164,9 @@ AuraGo verwendet **Cron-Ausdrücke** für die Zeitplanung. Das Format ist:
 
 > 💡 Nutze [crontab.guru](https://crontab.guru) zum Testen deiner Cron-Ausdrücke.
 
-### Spezielle Scheduler
+### Ereignis-Trigger
 
-```yaml
-# Einmalig zu einem bestimmten Zeitpunkt
-schedule: "once:2024-12-25T10:00:00"
-
-# Intervall-basiert (alle 30 Minuten)
-schedule: "interval:30m"
-
-# Bei Systemstart
-schedule: "@startup"
-
-# Manuelle Auslösung nur
-trigger: "manual"
-```
+Für ereignisgesteuerte Missionen setze `execution_type: triggered` und wähle einen `trigger_type` (z. B. `webhook`, `email_received`, `mqtt_message`, `home_assistant_state`, `budget_warning`, `mission_completed`). Filter konfigurierst du in `trigger_config`.
 
 ---
 

@@ -434,12 +434,15 @@ Das Dashboard zeigt aktive Co-Agenten an:
 
 ### Über die API
 
-```bash
-# Status abfragen
-curl http://localhost:8088/api/co-agents
+Co-Agenten haben **keine** eigenen `/api/co-agents`-Routen. Überwache sie so:
 
-# Einzelnen Co-Agenten abfragen
-curl http://localhost:8088/api/co-agents/coagent-1/result
+```bash
+# Dashboard-Aktivität (Feld coagents)
+curl http://localhost:8088/api/dashboard/activity
+
+# Oder per co_agent-Tool:
+# {"action":"co_agent","operation":"list"}
+# {"action":"co_agent","operation":"get_result","co_agent_id":"coagent-1"}
 ```
 
 ### Logging

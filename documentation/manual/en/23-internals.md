@@ -41,7 +41,7 @@ AuraGo follows a **layered architecture** with four tiers:
 ```mermaid
 flowchart TB
     subgraph Presentation["🖥️ Presentation Layer"]
-        WEB["Web UI<br/>embedded SPA"]
+        WEB["Web UI<br/>embedded multi-page UI"]
         TG["Telegram Bot"]
         DC["Discord Bot"]
         RC["Rocket.Chat"]
@@ -157,7 +157,7 @@ All SQLite databases are opened and migrated via [`internal/dbutil`](../../../in
 
 | Database | Purpose |
 |----------|---------|
-| `data/aurago.db` | Short-term memory, history, emotions, traits |
+| `data/short_term.db` | Short-term memory, conversation history |
 | `data/inventory.db` | SSH device inventory |
 | `data/invasion.db` | Invasion control nodes |
 | `data/cheatsheets.db` | Cheatsheet storage |
@@ -631,7 +631,7 @@ The sandbox in [`internal/sandbox/`](../../../internal/sandbox/) isolates code e
 
 The server is implemented in [`internal/server/server.go`](../../../internal/server/server.go) (~1040 lines):
 
-- **Standard Library**: `net/http` with Gorilla mux patterns
+- **Standard Library**: `net/http` with `http.ServeMux` routing
 - **Embedded UI**: Web UI via `go:embed` directly into the binary
 - **TLS/HTTPS**: Automatic Let's Encrypt via `golang.org/x/crypto/acme`
 - **Loopback URL**: `InternalAPIURL()` – unified internal API URL

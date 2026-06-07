@@ -77,28 +77,25 @@ AuraGo supports password protection with optional TOTP two-factor authentication
 python3 -c "import bcrypt; print(bcrypt.hashpw(b'your-password', bcrypt.gensalt(10)).decode())"
 ```
 
-**Config:**
+**Storage:** Password hashes and TOTP secrets are stored in the **encrypted vault**, not in `config.yaml`. Set them via the Web UI (Configuration → Auth) or the API (`POST /api/auth/password`, `/api/auth/totp/setup`).
+
 ```yaml
 auth:
   enabled: true
-  password_hash: "$2a$10$..."  # bcrypt hash
   session_timeout_hours: 24
+  totp_enabled: false
 ```
+
+Vault keys: `auth_password_hash`, `auth_totp_secret`, `auth_session_secret`.
 
 ### Two-Factor Authentication (2FA)
 
-**Setup:**
-1. Enable TOTP in config:
-```yaml
-auth:
-  totp_enabled: true
-  totp_secret: ""  # Will be generated on first start
-```
-
-2. Start AuraGo – secret will be generated
-3. Check logs or use API to get QR code
-4. Scan with authenticator app (Google Authenticator, Authy, Aegis)
-5. Enter 6-digit code to verify
+**Setup via Web UI:**
+1. Enable authentication in Configuration → Auth
+2. Set password and save
+3. Enable TOTP and follow the QR code setup
+4. Confirm with a 6-digit code (`POST /api/auth/totp/confirm`)
+5. Scan with an authenticator app (Google Authenticator, Authy, Aegis)
 
 > ⚠️ **Warning:** Store the TOTP secret safely! If you lose your authenticator app, you'll need the secret to recover access.
 
@@ -106,18 +103,36 @@ auth:
 
 The Danger Zone allows granular control over what the agent can do.
 
-### Tool Capabilities
+### Agent Capability Gates
+
+Danger Zone toggles live under `agent.allow_*`:
 
 ```yaml
+agent:
+  allow_shell: false
+  allow_python: false
+  allow_filesystem_write: false
+  allow_network_requests: false
+  allow_remote_shell: false
+  allow_self_update: false
+  allow_mcp: false
+  allow_package_manager: false   # also requires package_manager.enabled
+  sudo_enabled: false
+  sudo_unrestricted: false
+```
+
+Per-integration read-only mode uses top-level `readonly` flags, e.g.:
+
+```yaml
+docker:
+  enabled: true
+  readonly: true     # list/inspect only
+home_assistant:
+  enabled: true
+  readonly: true     # get_states only
 tools:
-  memory:
-    enabled: true
-    read_only: false
-  execute_shell:
-    enabled: false      # Disable shell execution
-  docker:
-    enabled: true
-    read_only: true     # Only view, don't modify
+  web_scraper:
+    enabled: true    # replaces deprecated agent.allow_web_scraper
 ```
 
 ### Integration Capabilities
