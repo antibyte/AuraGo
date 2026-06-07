@@ -38,7 +38,7 @@ Different buttons appear depending on the page:
 
 **In Config:**
 - `Save` – Save changes
-- `Reset` – Reset to defaults
+- `Restart` – Restart AuraGo
 
 ### Right: Global Controls
 
