@@ -1245,5 +1245,6 @@
   "desktop.store_terminal_session_label": "Sessão",
   "desktop.store.open_commandcode": "Abrir CommandCode",
   "desktop.store.badge_terminal_preview": "Consola + pré-visualização",
-  "desktop.store_terminal_module_unavailable": "O módulo de pré-visualização do terminal não está disponível."
+  "desktop.store_terminal_module_unavailable": "O módulo de pré-visualização do terminal não está disponível.",
+  "desktop.store_terminal_bootstrap_session": "CommandCode"
 }

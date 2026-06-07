@@ -1245,5 +1245,6 @@
   "desktop.store_terminal_session_label": "सत्र",
   "desktop.store.open_commandcode": "CommandCode खोलें",
   "desktop.store.badge_terminal_preview": "कंसोल + प्रीव्यू",
-  "desktop.store_terminal_module_unavailable": "टर्मिनल प्रीव्यू मॉड्यूल उपलब्ध नहीं है।"
+  "desktop.store_terminal_module_unavailable": "टर्मिनल प्रीव्यू मॉड्यूल उपलब्ध नहीं है।",
+  "desktop.store_terminal_bootstrap_session": "CommandCode"
 }

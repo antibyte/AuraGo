@@ -387,23 +387,23 @@
             }
             function closeTerminalSession(sessionID) {
                 const session = terminalSessions.get(sessionID);
-                if (!session) return;
+                if (!session || session.bootstrap) return;
                 const wasActive = activeTerminalSessionID === sessionID;
                 const remainingIDs = Array.from(terminalSessions.keys()).filter(currentID => currentID !== sessionID);
                 session.cleanup();
                 terminalSessions.delete(sessionID);
-                if (wasActive) {
-                    if (remainingIDs.length > 0) {
-                        activateTerminalSession(remainingIDs[Math.max(0, remainingIDs.length - 1)]);
-                    } else if (!disposed) {
-                        createTerminalSession();
-                    }
+                if (wasActive && remainingIDs.length > 0) {
+                    activateTerminalSession(remainingIDs[Math.max(0, remainingIDs.length - 1)]);
                 }
             }
-            function createTerminalSession() {
+            function createTerminalSession(options) {
+                const opts = options || {};
+                const bootstrap = opts.bootstrap === true;
                 terminalSessionSequence += 1;
                 const sessionID = 'terminal-session-' + terminalSessionSequence;
-                const sessionLabel = t('desktop.store_terminal_session_label', 'Session') + ' ' + terminalSessionSequence;
+                const sessionLabel = bootstrap
+                    ? t('desktop.store_terminal_bootstrap_session', 'CommandCode')
+                    : t('desktop.store_terminal_session_label', 'Session') + ' ' + terminalSessionSequence;
                 const surface = document.createElement('div');
                 surface.className = 'vd-store-terminal-session';
                 surface.hidden = true;
@@ -414,7 +414,10 @@
                 tab.className = 'vd-store-terminal-tab';
                 tab.dataset.storeTerminalTab = sessionID;
                 tab.setAttribute('role', 'tab');
-                tab.innerHTML = `<span class="vd-store-terminal-tab-label">${esc(sessionLabel)}</span><span class="vd-store-terminal-tab-close" data-store-terminal-close="${esc(sessionID)}" aria-hidden="true">${iconMarkup('x', 'X', 'vd-store-terminal-tab-close-icon', 12)}</span>`;
+                const closeMarkup = bootstrap
+                    ? ''
+                    : `<span class="vd-store-terminal-tab-close" data-store-terminal-close="${esc(sessionID)}" aria-hidden="true">${iconMarkup('x', 'X', 'vd-store-terminal-tab-close-icon', 12)}</span>`;
+                tab.innerHTML = `<span class="vd-store-terminal-tab-label">${esc(sessionLabel)}</span>${closeMarkup}`;
                 terminalTabs.appendChild(tab);
                 const terminal = new window.Terminal({
                     cursorBlink: true,
@@ -431,6 +434,7 @@
                 }
                 const session = {
                     id: sessionID,
+                    bootstrap,
                     tab,
                     surface,
                     terminal,
@@ -472,7 +476,8 @@
                     activateTerminalSession(sessionID);
                 });
                 session.terminal.open(session.surface);
-                session.socket = new WebSocket(scheme + '://' + window.location.host + '/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/terminal');
+                const terminalPath = '/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/terminal' + (bootstrap ? '?bootstrap=1' : '');
+                session.socket = new WebSocket(scheme + '://' + window.location.host + terminalPath);
                 session.socket.binaryType = 'arraybuffer';
                 session.terminal.onData(data => writeTerminalInput(session, data));
                 if (window.ResizeObserver) {
@@ -502,10 +507,16 @@
             function restartActiveTerminalSession() {
                 const sessionID = activeTerminalSessionID;
                 if (!sessionID) {
-                    createTerminalSession();
+                    createTerminalSession({ bootstrap: true });
                     return;
                 }
-                closeTerminalSession(sessionID);
+                const session = terminalSessions.get(sessionID);
+                const bootstrap = !!(session && session.bootstrap);
+                if (session) {
+                    session.cleanup();
+                    terminalSessions.delete(sessionID);
+                }
+                createTerminalSession({ bootstrap });
             }
             function setTerminalPaneWidthPct(widthPct) {
                 const clamped = Math.max(24, Math.min(72, widthPct));
@@ -547,11 +558,11 @@
                 window.addEventListener('pointercancel', resizeUpHandler);
             }
 
-            if (newButton) newButton.addEventListener('click', () => createTerminalSession());
+            if (newButton) newButton.addEventListener('click', () => createTerminalSession({ bootstrap: false }));
             if (restartButton) restartButton.addEventListener('click', restartActiveTerminalSession);
             if (previewToggleButton) previewToggleButton.addEventListener('click', () => setPreviewVisible(!previewVisible));
             if (resizer) resizer.addEventListener('pointerdown', startTerminalPreviewResize);
-            createTerminalSession();
+            createTerminalSession({ bootstrap: true });
             previewHost.replaceChildren(renderPreviewPlaceholder());
             refocusActiveTerminalAfterPreviewLoad();
             pollPreviewStatus();

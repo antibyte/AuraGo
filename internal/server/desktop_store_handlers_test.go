@@ -188,7 +188,7 @@ func TestDesktopStoreTerminalUsesManagedContainerName(t *testing.T) {
 	ts := httptest.NewServer(handleDesktopStoreAppRoute(s))
 	defer ts.Close()
 
-	wsURL := "ws" + ts.URL[len("http"):] + "/api/desktop/store/apps/commandcode/terminal"
+	wsURL := "ws" + ts.URL[len("http"):] + "/api/desktop/store/apps/commandcode/terminal?bootstrap=1"
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		t.Fatalf("dial store terminal websocket: %v", err)
@@ -209,6 +209,30 @@ func TestDesktopStoreTerminalUsesManagedContainerName(t *testing.T) {
 		if fake.lastExecCmd[i] != wantExec[i] {
 			t.Fatalf("terminal exec cmd[%d] = %q, want %q in %#v", i, fake.lastExecCmd[i], wantExec[i], fake.lastExecCmd)
 		}
+	}
+}
+
+func TestDesktopStoreTerminalUsesPlainShellWithoutBootstrap(t *testing.T) {
+	svc, _, _ := testInstalledStoreApp(t, "commandcode", 18080)
+	s := testDesktopStoreServerWithService(t, svc)
+	session := newFakeContainerTerminalSession()
+	fake := &fakeContainerTerminalBackend{running: true, session: session}
+	restore := replaceContainerTerminalBackend(fake)
+	defer restore()
+
+	ts := httptest.NewServer(handleDesktopStoreAppRoute(s))
+	defer ts.Close()
+
+	wsURL := "ws" + ts.URL[len("http"):] + "/api/desktop/store/apps/commandcode/terminal"
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial store terminal websocket: %v", err)
+	}
+	defer conn.Close()
+
+	wantExec := []string{"/bin/sh"}
+	if len(fake.lastExecCmd) != len(wantExec) || fake.lastExecCmd[0] != wantExec[0] {
+		t.Fatalf("terminal exec cmd = %#v, want %#v", fake.lastExecCmd, wantExec)
 	}
 }
 

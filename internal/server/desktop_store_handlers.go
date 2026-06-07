@@ -357,7 +357,8 @@ func handleDesktopStoreTerminal(s *Server, appID string) http.HandlerFunc {
 			containerJSON(w, http.StatusConflict, map[string]string{"status": "error", "message": "Container is not running"})
 			return
 		}
-		execCmd := storeTerminalExecCommand(entry.Metadata)
+		bootstrap := strings.TrimSpace(r.URL.Query().Get("bootstrap")) == "1"
+		execCmd := storeTerminalExecCommand(entry.Metadata, bootstrap)
 		session, err := activeContainerTerminalBackend.CreateSession(r.Context(), cfg, app.ContainerName, 120, 30, execCmd)
 		if err != nil {
 			containerJSON(w, http.StatusBadGateway, map[string]string{"status": "error", "message": err.Error()})

@@ -32,7 +32,10 @@ func defaultContainerTerminalCommand() []string {
 	return []string{"/bin/sh"}
 }
 
-func storeTerminalExecCommand(metadata map[string]string) []string {
+func storeTerminalExecCommand(metadata map[string]string, bootstrap bool) []string {
+	if !bootstrap {
+		return defaultContainerTerminalCommand()
+	}
 	cmd := strings.TrimSpace(metadata["terminal_command"])
 	if cmd == "" || !storeTerminalCommandPattern.MatchString(cmd) {
 		return defaultContainerTerminalCommand()

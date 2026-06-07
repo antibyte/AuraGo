@@ -1245,5 +1245,6 @@
   "desktop.store_terminal_session_label": "Session",
   "desktop.store.open_commandcode": "Åbn CommandCode",
   "desktop.store.badge_terminal_preview": "Konsol + forhåndsvisning",
-  "desktop.store_terminal_module_unavailable": "Terminal-forhåndsvisningsmodulet er ikke tilgængeligt."
+  "desktop.store_terminal_module_unavailable": "Terminal-forhåndsvisningsmodulet er ikke tilgængeligt.",
+  "desktop.store_terminal_bootstrap_session": "CommandCode"
 }

@@ -296,6 +296,7 @@ func TestSoftwareStoreExpandedCapabilityTranslations(t *testing.T) {
 		"desktop.store_terminal_onboarding_cmd",
 		"desktop.store_terminal_preview_ready_toast",
 		"desktop.store_terminal_module_unavailable",
+		"desktop.store_terminal_bootstrap_session",
 	}
 	entries, err := Content.ReadDir("lang/desktop")
 	if err != nil {

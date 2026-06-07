@@ -1245,5 +1245,6 @@
   "desktop.store_terminal_session_label": "Session",
   "desktop.store.open_commandcode": "Open CommandCode",
   "desktop.store.badge_terminal_preview": "Console + Preview",
-  "desktop.store_terminal_module_unavailable": "Terminal preview module is unavailable."
+  "desktop.store_terminal_module_unavailable": "Terminal preview module is unavailable.",
+  "desktop.store_terminal_bootstrap_session": "CommandCode"
 }

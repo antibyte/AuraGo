@@ -1245,5 +1245,6 @@
   "desktop.store_terminal_session_label": "Sesja",
   "desktop.store.open_commandcode": "Otwórz CommandCode",
   "desktop.store.badge_terminal_preview": "Konsola + podgląd",
-  "desktop.store_terminal_module_unavailable": "Moduł podglądu terminala jest niedostępny."
+  "desktop.store_terminal_module_unavailable": "Moduł podglądu terminala jest niedostępny.",
+  "desktop.store_terminal_bootstrap_session": "CommandCode"
 }
