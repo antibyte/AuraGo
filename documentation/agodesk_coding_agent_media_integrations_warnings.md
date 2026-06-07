@@ -47,10 +47,11 @@ Supported `kind` values:
 Asset rules:
 
 1. Resolve relative `path` and `preview_url` values against the AuraGo origin.
-2. Use `/api/agodesk/media/...` paths exactly as provided.
-3. Do not rewrite these paths back to `/files/...`; `/files/...` requires a Web UI login cookie.
-4. Stop should stop active audio/video playback for the current request.
-5. Render titles, captions, filenames, and descriptions as text or sanitized Markdown only.
+2. Use `/api/agodesk/media/...` paths exactly as provided, including `agodesk_exp`, `agodesk_sig`, and any preview parameters.
+3. Treat these paths as short-lived signed URLs. Do not persist them beyond the active chat/history render cache; on HTTP `401`, reload the conversation or request fresh media metadata.
+4. Do not rewrite these paths back to `/files/...`; `/files/...` requires a Web UI login cookie.
+5. Stop should stop active audio/video playback for the current request.
+6. Render titles, captions, filenames, and descriptions as text or sanitized Markdown only.
 
 ## Integration Webhosts
 

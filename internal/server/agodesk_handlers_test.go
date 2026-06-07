@@ -604,6 +604,25 @@ func TestAgodeskChatBrokerKeepsTTSAudioSeparateFromMedia(t *testing.T) {
 	}
 }
 
+func TestAgodeskChatBrokerForwardsNonTTSAudioWithoutMediaCapability(t *testing.T) {
+	state := &agodeskConnectionState{
+		sessionID:    "agodesk:dev-1",
+		paired:       true,
+		capabilities: normalizeAgodeskCapabilities([]string{"chat.audio_events"}),
+	}
+	forwarded := &agodeskForwardCaptureBroker{}
+	envs := readAgodeskBrokerEventEnvelopes(t, state, forwarded, agodeskBrokerTestEvent{
+		event:   "audio",
+		message: `{"path":"/files/audio/song.mp3","title":"Song","mime_type":"audio/mpeg","filename":"song.mp3"}`,
+	})
+	if len(envs) != 0 {
+		t.Fatalf("unexpected websocket envelopes without media capability: %+v", envs)
+	}
+	if len(forwarded.events) != 1 || forwarded.events[0] != "audio" {
+		t.Fatalf("forwarded events = %v, want [audio]", forwarded.events)
+	}
+}
+
 func TestAgodeskTTSAssetBypassesSessionAuthAndServesCachedAudio(t *testing.T) {
 	dataDir := t.TempDir()
 	ttsDir := filepath.Join(dataDir, "tts")
@@ -636,7 +655,7 @@ func TestAgodeskTTSAssetBypassesSessionAuthAndServesCachedAudio(t *testing.T) {
 	}
 }
 
-func TestAgodeskMediaAssetBypassesSessionAuthForAllowedFiles(t *testing.T) {
+func TestAgodeskMediaAssetRequiresSignedURLForAllowedFiles(t *testing.T) {
 	dataDir := t.TempDir()
 	audioDir := filepath.Join(dataDir, "audio")
 	if err := os.MkdirAll(audioDir, 0o755); err != nil {
@@ -657,8 +676,17 @@ func TestAgodeskMediaAssetBypassesSessionAuthForAllowedFiles(t *testing.T) {
 	rec := httptest.NewRecorder()
 	authMiddleware(s, mux).ServeHTTP(rec, req)
 
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("unsigned status = %d, body = %q; want 401", rec.Code, rec.Body.String())
+	}
+
+	signedPath := signAgodeskMediaAssetPath(s, "/api/agodesk/media/audio/song.mp3", time.Now())
+	req = httptest.NewRequest(http.MethodGet, signedPath, nil)
+	rec = httptest.NewRecorder()
+	authMiddleware(s, mux).ServeHTTP(rec, req)
+
 	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, body = %q; want 200 without web session", rec.Code, rec.Body.String())
+		t.Fatalf("signed status = %d, body = %q; want 200 without web session", rec.Code, rec.Body.String())
 	}
 	if got := rec.Body.String(); got != "song-data" {
 		t.Fatalf("body = %q, want song-data", got)
@@ -670,8 +698,30 @@ func TestAgodeskMediaAssetBypassesSessionAuthForAllowedFiles(t *testing.T) {
 	traversalReq := httptest.NewRequest(http.MethodGet, "/api/agodesk/media/audio/%2e%2e/secret.txt", nil)
 	traversalRec := httptest.NewRecorder()
 	authMiddleware(s, mux).ServeHTTP(traversalRec, traversalReq)
-	if traversalRec.Code != http.StatusNotFound {
-		t.Fatalf("traversal status = %d, want 404", traversalRec.Code)
+	if traversalRec.Code != http.StatusUnauthorized {
+		t.Fatalf("unsigned traversal status = %d, want 401", traversalRec.Code)
+	}
+}
+
+func TestAgodeskChatMediaPayloadSignsRewrittenAssetPaths(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	s.Cfg.Auth.SessionSecret = "test-secret"
+	payload, ok := agodeskChatMediaPayload(s, "document", `{"path":"/files/documents/report.pdf","preview_url":"/files/documents/report.pdf?inline=1","title":"Report"}`, "agodesk:dev-1", "sess-1", "req-1", slog.Default())
+	if !ok {
+		t.Fatal("agodeskChatMediaPayload returned ok=false")
+	}
+	if !strings.HasPrefix(payload.Path, "/api/agodesk/media/documents/report.pdf?") {
+		t.Fatalf("signed path = %q, want agodesk media path with query", payload.Path)
+	}
+	if !strings.Contains(payload.Path, agodeskMediaAssetExpParam+"=") || !strings.Contains(payload.Path, agodeskMediaAssetSigParam+"=") {
+		t.Fatalf("signed path missing token params: %q", payload.Path)
+	}
+	req := httptest.NewRequest(http.MethodGet, payload.PreviewURL, nil)
+	if !verifyAgodeskMediaAssetSignature(s, req, time.Now()) {
+		t.Fatalf("preview_url signature did not verify: %q", payload.PreviewURL)
+	}
+	if req.URL.Query().Get("inline") != "1" {
+		t.Fatalf("preview_url lost inline query: %q", payload.PreviewURL)
 	}
 }
 
@@ -785,6 +835,43 @@ func TestAgodeskWebSocketListsAndAcknowledgesSystemWarnings(t *testing.T) {
 	decodeAgodeskTestPayload(t, badResp, &errPayload)
 	if errPayload.Code != agodesk.ErrorSessionNotFound {
 		t.Fatalf("bad session error = %+v", errPayload)
+	}
+}
+
+func TestAgodeskWebSocketWarningAcknowledgeDoesNotEchoBroadcastToRequester(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	s.WarningsRegistry = warnings.NewRegistry()
+	s.WarningsRegistry.Add(warnings.Warning{
+		ID:          "warn-1",
+		Severity:    warnings.SeverityWarning,
+		Title:       "Test warning",
+		Description: "Something needs attention",
+		Category:    warnings.CategorySystem,
+	})
+
+	conn, cleanup, accepted := pairAgodeskTestClient(t, s, "warnings-token", []string{"system.warnings"})
+	defer cleanup()
+	ackReq, err := agodesk.NewEnvelope(agodesk.TypeSystemWarningAcknowledge, agodesk.SystemWarningAcknowledgePayload{
+		SessionID: accepted.SessionID,
+		ID:        "warn-1",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope warnings ack: %v", err)
+	}
+	if err := conn.WriteJSON(ackReq); err != nil {
+		t.Fatalf("write warnings ack: %v", err)
+	}
+	ackResp := readAgodeskTestEnvelope(t, conn)
+	if ackResp.Type != agodesk.TypeSystemWarnings {
+		t.Fatalf("ack response type = %q, want %q", ackResp.Type, agodesk.TypeSystemWarnings)
+	}
+	if err := conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond)); err != nil {
+		t.Fatalf("set read deadline: %v", err)
+	}
+	defer conn.SetReadDeadline(time.Time{})
+	var duplicate agodesk.Envelope
+	if err := conn.ReadJSON(&duplicate); err == nil {
+		t.Fatalf("unexpected duplicate warning snapshot after ack: %+v", duplicate)
 	}
 }
 

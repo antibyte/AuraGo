@@ -2,6 +2,9 @@ package server
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -14,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -37,6 +41,9 @@ const (
 	agodeskControlMessageMaxBytes  = 256 * 1024
 	agodeskDesktopResultMaxBytes   = 16 * 1024 * 1024
 	agodeskWebSocketReadLimitBytes = agodeskDesktopResultMaxBytes
+	agodeskMediaAssetTokenTTL      = 15 * time.Minute
+	agodeskMediaAssetExpParam      = "agodesk_exp"
+	agodeskMediaAssetSigParam      = "agodesk_sig"
 )
 
 var agodeskUpgrader = websocket.Upgrader{
@@ -460,7 +467,7 @@ func handleAgodeskSystemWarningAcknowledge(s *Server, conn *websocket.Conn, stat
 		return
 	}
 	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeSystemWarnings, agodeskSystemWarningsPayload(s, sessionID))
-	broadcastAgodeskSystemWarnings(s)
+	broadcastAgodeskSystemWarningsExcept(s, state)
 	if s != nil && s.SSE != nil {
 		total, unack := s.WarningsRegistry.Count()
 		s.SSE.BroadcastType(EventSystemWarning, map[string]interface{}{
@@ -681,11 +688,18 @@ func agodeskSystemWarningPayload(warning warnings.Warning) agodesk.SystemWarning
 }
 
 func broadcastAgodeskSystemWarnings(s *Server) {
+	broadcastAgodeskSystemWarningsExcept(s, nil)
+}
+
+func broadcastAgodeskSystemWarningsExcept(s *Server, skipState *agodeskConnectionState) {
 	broker := currentAgodeskDesktopBroker(s)
 	if broker == nil {
 		return
 	}
 	for _, session := range broker.sessionsWithCapability("system.warnings") {
+		if skipState != nil && session != nil && session.state == skipState {
+			continue
+		}
 		sessionID := agodeskSessionTransportID(session)
 		_ = writeAgodeskEnvelopeLocked(session.conn, session.state, agodesk.TypeSystemWarnings, agodeskSystemWarningsPayload(s, sessionID))
 	}
@@ -914,6 +928,10 @@ func handleAgodeskMediaAsset(s *Server) http.HandlerFunc {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		if !verifyAgodeskMediaAssetSignature(s, r, time.Now()) {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
 		bucket, relPath, ok := agodeskMediaAssetRequestPath(r)
 		if !ok {
 			http.NotFound(w, r)
@@ -933,7 +951,7 @@ func handleAgodeskMediaAsset(s *Server) http.HandlerFunc {
 			w.Header().Set("Content-Type", contentType)
 		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Header().Set("Cache-Control", "private, max-age=900")
 		if bucket == "documents" {
 			filename := filepath.Base(target)
 			disposition := "attachment"
@@ -944,6 +962,68 @@ func handleAgodeskMediaAsset(s *Server) http.HandlerFunc {
 		}
 		http.ServeFile(w, r, target)
 	}
+}
+
+func verifyAgodeskMediaAssetSignature(s *Server, r *http.Request, now time.Time) bool {
+	secret := agodeskMediaAssetSigningSecret(s)
+	if secret == "" || r == nil || r.URL == nil {
+		return false
+	}
+	q := r.URL.Query()
+	expRaw := strings.TrimSpace(q.Get(agodeskMediaAssetExpParam))
+	sig := strings.TrimSpace(q.Get(agodeskMediaAssetSigParam))
+	if expRaw == "" || sig == "" {
+		return false
+	}
+	expires, err := strconv.ParseInt(expRaw, 10, 64)
+	if err != nil || expires <= 0 || now.Unix() > expires {
+		return false
+	}
+	q.Del(agodeskMediaAssetSigParam)
+	expected := agodeskMediaAssetSignature(secret, agodeskMediaAssetSignatureMaterial(r.URL.EscapedPath(), q))
+	return hmac.Equal([]byte(strings.ToLower(sig)), []byte(expected))
+}
+
+func signAgodeskMediaAssetPath(s *Server, pathValue string, now time.Time) string {
+	pathValue = strings.TrimSpace(pathValue)
+	if pathValue == "" || !strings.HasPrefix(pathValue, "/api/agodesk/media/") {
+		return pathValue
+	}
+	secret := agodeskMediaAssetSigningSecret(s)
+	if secret == "" {
+		return pathValue
+	}
+	parsed, err := url.Parse(pathValue)
+	if err != nil || parsed.Path == "" {
+		return pathValue
+	}
+	q := parsed.Query()
+	q.Set(agodeskMediaAssetExpParam, strconv.FormatInt(now.Add(agodeskMediaAssetTokenTTL).Unix(), 10))
+	q.Del(agodeskMediaAssetSigParam)
+	sig := agodeskMediaAssetSignature(secret, agodeskMediaAssetSignatureMaterial(parsed.EscapedPath(), q))
+	q.Set(agodeskMediaAssetSigParam, sig)
+	parsed.RawQuery = q.Encode()
+	return parsed.String()
+}
+
+func agodeskMediaAssetSigningSecret(s *Server) string {
+	if s == nil || s.Cfg == nil {
+		return ""
+	}
+	s.CfgMu.RLock()
+	secret := strings.TrimSpace(s.Cfg.Auth.SessionSecret)
+	s.CfgMu.RUnlock()
+	return secret
+}
+
+func agodeskMediaAssetSignature(secret, material string) string {
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(material))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func agodeskMediaAssetSignatureMaterial(escapedPath string, q url.Values) string {
+	return escapedPath + "\n" + q.Encode()
 }
 
 func agodeskMediaAssetRequestPath(r *http.Request) (string, string, bool) {
@@ -1234,6 +1314,7 @@ func acceptAgodeskDeviceReconnect(s *Server, requestID string, payload agodesk.S
 
 type agodeskChatBroker struct {
 	agent.FeedbackBroker
+	server         *Server
 	conn           *websocket.Conn
 	state          *agodeskConnectionState
 	sessionID      string
@@ -1258,6 +1339,9 @@ func (b *agodeskChatBroker) Send(event, message string) {
 		}
 		if b.emitMedia(event, message) {
 			return
+		}
+		if b.FeedbackBroker != nil {
+			b.FeedbackBroker.Send(event, message)
 		}
 		return
 	}
@@ -1344,7 +1428,7 @@ func (b *agodeskChatBroker) emitMedia(event, message string) bool {
 	if b == nil || !agodeskStateHasCapability(b.state, "chat.media_events") {
 		return false
 	}
-	payload, ok := agodeskChatMediaPayload(event, message, b.sessionID, b.conversationID, b.requestID, b.logger)
+	payload, ok := agodeskChatMediaPayload(b.server, event, message, b.sessionID, b.conversationID, b.requestID, b.logger)
 	if !ok {
 		return false
 	}
@@ -1366,7 +1450,7 @@ func agodeskAudioMessageIsTTS(message string) bool {
 	return pathValue == "" && isSafeAgodeskTTSFilename(filename) && strings.Contains(title, "tts")
 }
 
-func agodeskChatMediaPayload(event, message, sessionID, conversationID, requestID string, logger *slog.Logger) (agodesk.ChatMediaPayload, bool) {
+func agodeskChatMediaPayload(s *Server, event, message, sessionID, conversationID, requestID string, logger *slog.Logger) (agodesk.ChatMediaPayload, bool) {
 	kind := agodeskMediaKindForEvent(event)
 	if kind == "" {
 		return agodesk.ChatMediaPayload{}, false
@@ -1383,8 +1467,8 @@ func agodeskChatMediaPayload(event, message, sessionID, conversationID, requestI
 		ConversationID: strings.TrimSpace(conversationID),
 		RequestID:      strings.TrimSpace(requestID),
 		Kind:           kind,
-		Path:           agodeskRewriteMediaPath(agodeskStringField(raw, "path", "web_path")),
-		PreviewURL:     agodeskRewriteMediaPath(agodeskStringField(raw, "preview_url")),
+		Path:           agodeskRewriteMediaPath(s, agodeskStringField(raw, "path", "web_path")),
+		PreviewURL:     agodeskRewriteMediaPath(s, agodeskStringField(raw, "preview_url")),
 		URL:            agodeskStringField(raw, "url"),
 		EmbedURL:       agodeskStringField(raw, "embed_url"),
 		VideoID:        agodeskStringField(raw, "video_id"),
@@ -1450,7 +1534,7 @@ func agodeskMediaOpenMode(payload agodesk.ChatMediaPayload) string {
 	}
 }
 
-func agodeskRewriteMediaPath(pathValue string) string {
+func agodeskRewriteMediaPath(s *Server, pathValue string) string {
 	pathValue = strings.TrimSpace(pathValue)
 	if pathValue == "" {
 		return ""
@@ -1468,7 +1552,7 @@ func agodeskRewriteMediaPath(pathValue string) string {
 	if parsed.RawQuery != "" {
 		rewritten += "?" + parsed.RawQuery
 	}
-	return rewritten
+	return signAgodeskMediaAssetPath(s, rewritten, time.Now())
 }
 
 func agodeskMediaBucketAllowed(bucket string) bool {
@@ -1594,6 +1678,7 @@ func runAgodeskAgentChat(s *Server, r *http.Request, conn *websocket.Conn, state
 	replyBroker := &desktopReplyBroker{FeedbackBroker: NewSSEBrokerAdapterWithSession(s.SSE, conversationID)}
 	broker := &agodeskChatBroker{
 		FeedbackBroker: replyBroker,
+		server:         s,
 		conn:           conn,
 		state:          state,
 		sessionID:      transportSessionID,
