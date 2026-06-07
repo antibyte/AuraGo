@@ -441,6 +441,27 @@ Send proactive text to a connected **AgoDesk/AgoChat** desktop client.
 
 **Prerequisites:** AgoDesk client paired via `/api/agodesk/ws`; `remote_control.enabled: true`. See ch. 08 **AgoDesk / AgoChat** and [`documentation/agodesk_backend_protocol.md`](../../agodesk_backend_protocol.md).
 
+### `send_notification` / `notification_center` / `send_push_notification` / `web_push`
+Deliver push notifications through configured providers (ntfy, Pushover) or browser Web Push (PWA). `notification_center` lists recent notifications; `web_push` targets subscribed PWA clients via VAPID. See ch. 08 **Notifications** and **Web Push / PWA Notifications**.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `title` | string | Notification title |
+| `message` | string | Notification body |
+| `priority` | string | normal, high, low (provider-dependent) |
+| `url` | string | Optional click-through URL (Web Push) |
+
+### `pin_message`
+Pin or unpin a chat message in the Web UI history.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | string | Message ID to pin or unpin |
+| `pinned` | boolean | true to pin, false to unpin |
+
+### `ask_aurago`
+Bridge tool for external editors (e.g. VS Code) to ask the agent a question and receive a structured response. Not intended for normal chat use.
+
 ### `send_youtube_video`
 Send a YouTube video as an embedded player or link to the user.
 
@@ -612,17 +633,18 @@ Control Home Assistant smart home devices.
 | `domain` | string | light, switch, climate, scene |
 | `service` | string | turn_on, turn_off, toggle |
 
-### `mqtt_publish`
-Publish MQTT message.
+### MQTT Tool Family (`mqtt.enabled`)
 
-### `mqtt_subscribe`
-Subscribe to MQTT topic.
+Four native tools share one broker connection and message buffer. Full examples live in `prompts/tools_manuals/mqtt.md`. Integration setup: ch. 08 **MQTT Integration**.
 
-### `mqtt_unsubscribe`
-Unsubscribe from MQTT topic.
+| Tool | Description | Key parameters |
+|------|-------------|----------------|
+| `mqtt_publish` | Publish a message to a topic | `topic`, `payload`, `qos` (0–2), `retain` |
+| `mqtt_subscribe` | Subscribe to a topic or wildcard (`home/#`) | `topic`, `qos` |
+| `mqtt_unsubscribe` | Stop receiving messages for a topic | `topic` |
+| `mqtt_get_messages` | Read buffered inbound messages | `topic` (empty or `#` for all), `limit` (default 20) |
 
-### `mqtt_get_messages`
-Retrieve received MQTT messages.
+> 💡 **Workflow:** Subscribe or rely on configured `mqtt.topics`, wait for messages (or use `relay_to_agent`), then call `mqtt_get_messages`. Publish with `mqtt_publish` for outbound control.
 
 ### `fritzbox_system`
 Fritz!Box system info, logs, reboot.
@@ -1412,6 +1434,45 @@ Not all tools are available by default. Availability depends on **Tool Feature F
 | `ldap_enabled` | `ldap` |
 | `paperless_ngx_enabled` | `paperless_ngx` |
 | `python_secret_injection_enabled` | Vault secret injection into Python skills |
+
+---
+
+## Tool Manual Index (RAG)
+
+AuraGo indexes `prompts/tools_manuals/*.md` (~165 files) for adaptive tool retrieval. At runtime the agent can call `discover_tools` with `get_tool_info` to load the matching manual.
+
+### Native tool → manual file
+
+Most tools use `{tool_name}.md`. Exceptions and grouped manuals:
+
+| Native tool(s) | Manual file | Notes |
+|----------------|-------------|-------|
+| `mqtt_publish`, `mqtt_subscribe`, `mqtt_unsubscribe`, `mqtt_get_messages` | `mqtt.md` | MQTT tool family |
+| `mcp_call` | `mcp.md` | MCP client operations |
+| `execute_sandbox` | `sandbox.md` | Sandboxed execution |
+| `fetch_email`, `send_email`, `list_email_accounts` | `email.md` | Email account tools |
+| `send_discord`, `fetch_discord`, `list_discord_channels` | `discord.md` | Discord messaging |
+| `call_webhook`, `manage_webhooks`, `manage_outgoing_webhooks` | `manage_webhooks.md` | Webhook management |
+| `list_skills`, `get_skill_documentation`, `set_skill_documentation` | `skills_engine.md` | Skill runtime |
+| `list_skill_templates`, `create_skill_from_template` | `skill_templates.md` | Skill authoring |
+| `transfer_remote_file` | `remote_execution.md` | SFTP transfers |
+| `manage_memory` | `context_memory.md`, `core_memory.md` | Memory layers |
+| `yepapi_*` (7 tools) | `yepapi.md` | Shared YepAPI reference |
+
+### Legacy / meta manuals (no 1:1 native tool name)
+
+| Manual file | Purpose |
+|-------------|---------|
+| `homeassistant.md` | Legacy alias; native tool is `home_assistant` |
+| `paperless.md` | Legacy alias; native tool is `paperless_ngx` |
+| `invoke_tool.md` | Invoke hidden tools filtered by adaptive tooling |
+| `run_tool.md` | Execute saved custom Python tools |
+| `optimize_memory.md` | Nightly memory maintenance workflow |
+| `budget_status.md` | Budget and cost status display |
+| `ssh_key_manager.md` | SSH key helper (inventory workflows) |
+| `skill_manifest_spec.md` | Skill manifest authoring reference |
+
+> 📖 Source of truth for parameters and examples: `prompts/tools_manuals/` and `config_template.yaml`. This handbook chapter summarizes gates and operations; manuals contain call patterns.
 
 ---
 

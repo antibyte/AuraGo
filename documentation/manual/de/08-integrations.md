@@ -16,6 +16,18 @@ Die bevorzugte Art, Integrationen zu konfigurieren, ist die Web-UI:
 
 > 💡 **Tipp:** Für fast alle Integrationen gibt es zusätzlich einen `readonly`-Modus. Aktiviere diesen zuerst, um die Verbindung zu testen, bevor du Schreibzugriffe erlaubst.
 
+### Konfigurations-Referenz (Kapitel 7)
+
+Dieses Kapitel beschreibt Einrichtung, Anwendungsfälle und Web-UI-Workflows. Für YAML-Schlüssel, Defaults und plattformweite Blöcke siehe **[Kapitel 7: Konfiguration](07-konfiguration.md)**:
+
+| Thema | Abschnitt in Kapitel 7 |
+|-------|------------------------|
+| Provider-System, LLM, Embeddings, Agent-Verhalten | [Das Provider-System](07-konfiguration.md#das-provider-system), [Agent-Verhalten](07-konfiguration.md#agent-verhalten) |
+| Tool-Berechtigungen, Skill Manager, Media Registry, Daemon Skills | [Tool-Konfiguration](07-konfiguration.md#tool-konfiguration), [Skill Manager](07-konfiguration.md#skill-manager) |
+| Co-Agents, Personality, Logging, Umgebungsvariablen | [Co-Agents](07-konfiguration.md#co-agents--parallele-sub-agenten), [Personality](07-konfiguration.md#personality--persönlichkeit), [Umgebungsvariablen](07-konfiguration.md#umgebungsvariablen) |
+| Erweiterte Integrations-YAML-Blöcke | [Weitere Konfigurationsblöcke](07-konfiguration.md#weitere-konfigurationsblöcke-übersicht), [Erweiterte Konfigurationsblöcke](07-konfiguration.md#erweiterte-konfigurationsblöcke) |
+| Vollständige Parameterliste | `config_template.yaml` im Projektverzeichnis |
+
 ---
 
 ## Telegram Bot Setup

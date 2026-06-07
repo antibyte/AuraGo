@@ -16,6 +16,18 @@ The easiest and recommended way to configure integrations is through the AuraGo 
 
 > 💡 **Tip:** Most integrations support a **Read-only** toggle. Enable it first to test safely.
 
+### Configuration Reference (Chapter 7)
+
+This chapter covers setup, use cases, and Web UI workflows. For YAML keys, defaults, and platform-wide blocks, cross-reference **[Chapter 7: Configuration](07-configuration.md)**:
+
+| Topic | Chapter 7 section |
+|-------|-------------------|
+| Provider system, LLM, embeddings, agent behavior | [Provider System](07-configuration.md#provider-system), [Agent Behavior Settings](07-configuration.md#agent-behavior-settings) |
+| Tool permissions, Skill Manager, Media Registry, daemon skills | [Tool Configuration](07-configuration.md#tool-configuration-skill-manager--media-registry) |
+| Co-Agents, personality, logging, environment variables | [Co-Agents Configuration](07-configuration.md#co-agents-configuration), [Personality Settings](07-configuration.md#personality-settings), [Environment Variables](07-configuration.md#environment-variables) |
+| Advanced integration YAML blocks | [Compact YAML Reference](07-configuration.md#compact-yaml-reference) |
+| Full parameter list | `config_template.yaml` in the project root |
+
 ---
 
 ## Telegram Bot Setup
