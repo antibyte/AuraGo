@@ -110,7 +110,10 @@ func TestDefaultCapabilitiesIncludeComputerUseFeatures(t *testing.T) {
 		"chat.sessions",
 		"chat.cancel",
 		"chat.audio_events",
+		"chat.media_events",
 		"chat.voice_output_status",
+		"integrations.webhosts",
+		"system.warnings",
 		"remote.desktop.capture",
 		"remote.desktop.permission_request",
 		"remote.desktop.input",
@@ -121,6 +124,79 @@ func TestDefaultCapabilitiesIncludeComputerUseFeatures(t *testing.T) {
 		if !containsAgodeskTestString(DefaultCapabilities, want) {
 			t.Fatalf("DefaultCapabilities missing %s: %v", want, DefaultCapabilities)
 		}
+	}
+}
+
+func TestMediaIntegrationsAndWarningsProtocolPayloadsRoundTrip(t *testing.T) {
+	media, err := NewEnvelope(TypeChatMedia, ChatMediaPayload{
+		SessionID:      "agodesk:dev-1",
+		ConversationID: "sess-1",
+		RequestID:      "req-1",
+		Kind:           "youtube_video",
+		URL:            "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+		EmbedURL:       "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+		VideoID:        "dQw4w9WgXcQ",
+		Title:          "Demo",
+		Provider:       "youtube",
+		StartSeconds:   12,
+		OpenMode:       "inline",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat.media: %v", err)
+	}
+	var mediaPayload ChatMediaPayload
+	if err := json.Unmarshal(media.Payload, &mediaPayload); err != nil {
+		t.Fatalf("unmarshal chat.media: %v", err)
+	}
+	if mediaPayload.Kind != "youtube_video" || mediaPayload.VideoID != "dQw4w9WgXcQ" || mediaPayload.StartSeconds != 12 || mediaPayload.OpenMode != "inline" {
+		t.Fatalf("media payload = %+v", mediaPayload)
+	}
+
+	webhosts, err := NewEnvelope(TypeIntegrationsWebhosts, IntegrationsWebhostsPayload{
+		SessionID: "agodesk:dev-1",
+		Status:    "ok",
+		Webhosts: []WebhostIntegrationPayload{{
+			ID:          "virtual_desktop",
+			Name:        "Virtual Desktop",
+			Description: "Browser-based virtual desktop",
+			Status:      "running",
+			URL:         "/desktop",
+			Icon:        "expand",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope integrations.webhosts: %v", err)
+	}
+	var webhostsPayload IntegrationsWebhostsPayload
+	if err := json.Unmarshal(webhosts.Payload, &webhostsPayload); err != nil {
+		t.Fatalf("unmarshal integrations.webhosts: %v", err)
+	}
+	if webhostsPayload.SessionID != "agodesk:dev-1" || webhostsPayload.Status != "ok" || len(webhostsPayload.Webhosts) != 1 || webhostsPayload.Webhosts[0].ID != "virtual_desktop" {
+		t.Fatalf("webhosts payload = %+v", webhostsPayload)
+	}
+
+	warnings, err := NewEnvelope(TypeSystemWarnings, SystemWarningsPayload{
+		SessionID: "agodesk:dev-1",
+		Warnings: []SystemWarningPayload{{
+			ID:          "warn-1",
+			Severity:    "warning",
+			Title:       "Test warning",
+			Description: "Something needs attention",
+			Category:    "system",
+			Timestamp:   "2026-06-07T12:00:00Z",
+		}},
+		Total:          1,
+		Unacknowledged: 1,
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope system.warnings: %v", err)
+	}
+	var warningsPayload SystemWarningsPayload
+	if err := json.Unmarshal(warnings.Payload, &warningsPayload); err != nil {
+		t.Fatalf("unmarshal system.warnings: %v", err)
+	}
+	if warningsPayload.Total != 1 || warningsPayload.Unacknowledged != 1 || warningsPayload.Warnings[0].ID != "warn-1" {
+		t.Fatalf("warnings payload = %+v", warningsPayload)
 	}
 }
 

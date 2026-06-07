@@ -305,90 +305,97 @@ func handleIntegrationWebhosts(s *Server) http.HandlerFunc {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		cfg := s.currentSpaceAgentConfig()
-		webhosts := make([]webhostIntegration, 0, 5)
-		if cfg.SpaceAgent.Enabled {
-			status := "starting"
-			if payload := spaceAgentStatusPayload(s, &cfg); payload != nil {
-				if raw, ok := payload["status"].(string); ok && raw != "" && raw != "disabled" && raw != "stopped" {
-					status = raw
-				}
-			}
-			if status == "running" || status == "starting" {
-				webhosts = append(webhosts, webhostIntegration{
-					ID:          "space_agent",
-					Name:        "Space Agent",
-					Description: "Managed Space Agent workspace",
-					Status:      status,
-					URL:         spaceAgentBrowserURL(s, &cfg, r),
-					Icon:        "space_agent",
-				})
-			}
-		}
-		if cfg.VirtualDesktop.Enabled {
-			webhosts = append(webhosts, webhostIntegration{
-				ID:          "virtual_desktop",
-				Name:        "Virtual Desktop",
-				Description: "Browser-based virtual desktop",
-				Status:      "running",
-				URL:         "/desktop",
-				Icon:        "expand",
-			})
-		}
-		if cfg.Homepage.Enabled {
-			homepageURL := homepageBrowserURL(s, &cfg, r)
-			if homepageURL != "" {
-				webhosts = append(webhosts, webhostIntegration{
-					ID:          "homepage",
-					Name:        "Homepage",
-					Description: "Homepage web preview",
-					Status:      "running",
-					URL:         homepageURL,
-					Icon:        "web",
-				})
-			}
-		}
-		if cfg.Manifest.Enabled {
-			manifestPayload := manifestStatus(r.Context(), s, &cfg)
-			manifestURL := ""
-			if u, ok := manifestPayload["url"].(string); ok {
-				manifestURL = u
-			}
-			browserURL := manifestBrowserURL(s, &cfg, r, manifestURL)
-			status := "starting"
-			if raw, ok := manifestPayload["status"].(string); ok && raw != "" {
-				status = raw
-			}
-			webhosts = append(webhosts, webhostIntegration{
-				ID:          "manifest",
-				Name:        "Manifest",
-				Description: "Manifest.build gateway",
-				Status:      status,
-				URL:         browserURL,
-				Icon:        "link",
-			})
-		}
-		if cfg.Dograh.Enabled {
-			dograhPayload := dograhStatusForRequest(r.Context(), s, &cfg, r)
-			dograhURL := ""
-			if u, ok := dograhPayload["ui_url"].(string); ok {
-				dograhURL = u
-			}
-			status := "starting"
-			if raw, ok := dograhPayload["status"].(string); ok && raw != "" {
-				status = raw
-			}
-			webhosts = append(webhosts, webhostIntegration{
-				ID:          "dograh",
-				Name:        "Dograh",
-				Description: "Dograh workflow automation",
-				Status:      status,
-				URL:         dograhURL,
-				Icon:        "link",
-			})
-		}
-		writeSpaceAgentJSON(w, map[string]interface{}{"status": "ok", "webhosts": webhosts})
+		writeSpaceAgentJSON(w, map[string]interface{}{"status": "ok", "webhosts": integrationWebhostsForRequest(s, r)})
 	}
+}
+
+func integrationWebhostsForRequest(s *Server, r *http.Request) []webhostIntegration {
+	if s == nil {
+		return []webhostIntegration{}
+	}
+	cfg := s.currentSpaceAgentConfig()
+	webhosts := make([]webhostIntegration, 0, 5)
+	if cfg.SpaceAgent.Enabled {
+		status := "starting"
+		if payload := spaceAgentStatusPayload(s, &cfg); payload != nil {
+			if raw, ok := payload["status"].(string); ok && raw != "" && raw != "disabled" && raw != "stopped" {
+				status = raw
+			}
+		}
+		if status == "running" || status == "starting" {
+			webhosts = append(webhosts, webhostIntegration{
+				ID:          "space_agent",
+				Name:        "Space Agent",
+				Description: "Managed Space Agent workspace",
+				Status:      status,
+				URL:         spaceAgentBrowserURL(s, &cfg, r),
+				Icon:        "space_agent",
+			})
+		}
+	}
+	if cfg.VirtualDesktop.Enabled {
+		webhosts = append(webhosts, webhostIntegration{
+			ID:          "virtual_desktop",
+			Name:        "Virtual Desktop",
+			Description: "Browser-based virtual desktop",
+			Status:      "running",
+			URL:         "/desktop",
+			Icon:        "expand",
+		})
+	}
+	if cfg.Homepage.Enabled {
+		homepageURL := homepageBrowserURL(s, &cfg, r)
+		if homepageURL != "" {
+			webhosts = append(webhosts, webhostIntegration{
+				ID:          "homepage",
+				Name:        "Homepage",
+				Description: "Homepage web preview",
+				Status:      "running",
+				URL:         homepageURL,
+				Icon:        "web",
+			})
+		}
+	}
+	if cfg.Manifest.Enabled {
+		manifestPayload := manifestStatus(r.Context(), s, &cfg)
+		manifestURL := ""
+		if u, ok := manifestPayload["url"].(string); ok {
+			manifestURL = u
+		}
+		browserURL := manifestBrowserURL(s, &cfg, r, manifestURL)
+		status := "starting"
+		if raw, ok := manifestPayload["status"].(string); ok && raw != "" {
+			status = raw
+		}
+		webhosts = append(webhosts, webhostIntegration{
+			ID:          "manifest",
+			Name:        "Manifest",
+			Description: "Manifest.build gateway",
+			Status:      status,
+			URL:         browserURL,
+			Icon:        "link",
+		})
+	}
+	if cfg.Dograh.Enabled {
+		dograhPayload := dograhStatusForRequest(r.Context(), s, &cfg, r)
+		dograhURL := ""
+		if u, ok := dograhPayload["ui_url"].(string); ok {
+			dograhURL = u
+		}
+		status := "starting"
+		if raw, ok := dograhPayload["status"].(string); ok && raw != "" {
+			status = raw
+		}
+		webhosts = append(webhosts, webhostIntegration{
+			ID:          "dograh",
+			Name:        "Dograh",
+			Description: "Dograh workflow automation",
+			Status:      status,
+			URL:         dograhURL,
+			Icon:        "link",
+		})
+	}
+	return webhosts
 }
 
 func handleSpaceAgentLegacyRedirect(s *Server) http.HandlerFunc {

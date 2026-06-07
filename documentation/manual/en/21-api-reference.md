@@ -715,6 +715,7 @@ POST /api/desktop/chat
 GET /api/desktop/chat/stream
 GET /api/desktop/ws
 GET /api/agodesk/ws
+GET /api/agodesk/media/{bucket}/{path}
 ```
 
 `/api/agodesk/ws` uses the AgoDesk JSON envelope protocol. Production clients must pair with `session.start`; loopback development may use `?insecure_loopback=1`. After `session.accepted`, store `advertised_capabilities` and use the accepted `session_id` as the transport session.
@@ -727,7 +728,10 @@ AgoDesk chat can share AuraGo Web Chat sessions when `chat.sessions` is negotiat
 - `chat.message` should include both the AgoDesk `session_id` and active `conversation_id`.
 - `chat.cancel` stops the active request and returns `chat.cancelled`.
 - `chat.audio` is emitted only when `chat.audio_events` is negotiated. AuraGo-generated TTS paths use `/api/agodesk/tts/<filename>` so AgoDesk can fetch audio without a Web UI login cookie. `chat.voice_output` is offered only when AuraGo TTS is configured.
+- `chat.media` is emitted when `chat.media_events` is negotiated for non-TTS images, audio/music, documents, videos, STL, links, and YouTube embeds. Protected `/files/...` assets are rewritten to `/api/agodesk/media/...`.
 - `chat.voice_output.status` lets AgoDesk report the same `speaker_mode` preference used by Web Chat when speech output is enabled or disabled.
+- `integrations.webhosts.list` returns the same integration webhost list used by the Web Chat integrations drawer when `integrations.webhosts` is negotiated.
+- `system.warnings.list` and `system.warning.acknowledge` provide the Web Chat system warning snapshot and acknowledgement flow when `system.warnings` is negotiated.
 
 See [AgoDesk backend protocol](../../agodesk_backend_protocol.md) for payload shapes and the client implementation checklist.
 

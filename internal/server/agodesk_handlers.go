@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"mime"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -22,6 +25,7 @@ import (
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/tools"
+	"aurago/internal/warnings"
 	promptsembed "aurago/prompts"
 
 	"github.com/gorilla/websocket"
@@ -216,6 +220,27 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 			return true
 		}
 		handleAgodeskVoiceOutputStatus(s, conn, state, env.ID, payload)
+	case agodesk.TypeIntegrationsWebhostsList:
+		payload, errPayload := decodeAgodeskPayload[agodesk.IntegrationsWebhostsListPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskIntegrationsWebhostsList(s, r, conn, state, env.ID, payload)
+	case agodesk.TypeSystemWarningsList:
+		payload, errPayload := decodeAgodeskPayload[agodesk.SystemWarningsListPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskSystemWarningsList(s, conn, state, env.ID, payload)
+	case agodesk.TypeSystemWarningAcknowledge:
+		payload, errPayload := decodeAgodeskPayload[agodesk.SystemWarningAcknowledgePayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskSystemWarningAcknowledge(s, conn, state, env.ID, payload)
 	case agodesk.TypePersonaAssetsRequest:
 		payload, errPayload := decodeAgodeskPayload[agodesk.PersonaAssetsRequestPayload](env)
 		if errPayload != nil {
@@ -394,6 +419,65 @@ func handleAgodeskVoiceOutputStatus(s *Server, conn *websocket.Conn, state *agod
 	})
 }
 
+func handleAgodeskIntegrationsWebhostsList(s *Server, r *http.Request, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.IntegrationsWebhostsListPayload) {
+	sessionID, ok := validateAgodeskTransportSession(s, conn, state, requestID, payload.SessionID, "integrations.webhosts.list")
+	if !ok || !validateAgodeskCapability(conn, state, requestID, "integrations.webhosts", "integrations.webhosts.list") {
+		return
+	}
+	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeIntegrationsWebhosts, agodesk.IntegrationsWebhostsPayload{
+		SessionID: sessionID,
+		Status:    "ok",
+		Webhosts:  agodeskWebhostIntegrationPayloads(integrationWebhostsForRequest(s, r)),
+	})
+}
+
+func handleAgodeskSystemWarningsList(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.SystemWarningsListPayload) {
+	sessionID, ok := validateAgodeskTransportSession(s, conn, state, requestID, payload.SessionID, "system.warnings.list")
+	if !ok || !validateAgodeskCapability(conn, state, requestID, "system.warnings", "system.warnings.list") {
+		return
+	}
+	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeSystemWarnings, agodeskSystemWarningsPayload(s, sessionID))
+}
+
+func handleAgodeskSystemWarningAcknowledge(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.SystemWarningAcknowledgePayload) {
+	sessionID, ok := validateAgodeskTransportSession(s, conn, state, requestID, payload.SessionID, "system.warning.acknowledge")
+	if !ok || !validateAgodeskCapability(conn, state, requestID, "system.warnings", "system.warning.acknowledge") {
+		return
+	}
+	if s == nil || s.WarningsRegistry == nil {
+		_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeSystemWarnings, agodeskSystemWarningsPayload(s, sessionID))
+		return
+	}
+	if payload.All {
+		s.WarningsRegistry.AcknowledgeAll()
+	} else if id := strings.TrimSpace(payload.ID); id != "" {
+		if !s.WarningsRegistry.Acknowledge(id) {
+			_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInvalidMessage, "system.warning.acknowledge id was not found")
+			return
+		}
+	} else {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInvalidMessage, "system.warning.acknowledge requires id or all:true")
+		return
+	}
+	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeSystemWarnings, agodeskSystemWarningsPayload(s, sessionID))
+	broadcastAgodeskSystemWarnings(s)
+	if s != nil && s.SSE != nil {
+		total, unack := s.WarningsRegistry.Count()
+		s.SSE.BroadcastType(EventSystemWarning, map[string]interface{}{
+			"total":          total,
+			"unacknowledged": unack,
+		})
+	}
+}
+
+func validateAgodeskCapability(conn *websocket.Conn, state *agodeskConnectionState, requestID, capability, messageName string) bool {
+	if agodeskStateHasCapability(state, capability) {
+		return true
+	}
+	_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorUnsupportedCapability, messageName+" requires "+capability)
+	return false
+}
+
 func validateAgodeskTransportSession(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID, payloadSessionID, messageName string) (string, bool) {
 	paired := false
 	stateSessionID := ""
@@ -544,6 +628,76 @@ func agodeskHistoryMessages(messages []memory.HistoryMessage) []agodesk.ChatHist
 		})
 	}
 	return out
+}
+
+func agodeskWebhostIntegrationPayloads(webhosts []webhostIntegration) []agodesk.WebhostIntegrationPayload {
+	out := make([]agodesk.WebhostIntegrationPayload, 0, len(webhosts))
+	for _, item := range webhosts {
+		out = append(out, agodesk.WebhostIntegrationPayload{
+			ID:          strings.TrimSpace(item.ID),
+			Name:        strings.TrimSpace(item.Name),
+			Description: strings.TrimSpace(item.Description),
+			Status:      strings.TrimSpace(item.Status),
+			URL:         strings.TrimSpace(item.URL),
+			Icon:        strings.TrimSpace(item.Icon),
+		})
+	}
+	return out
+}
+
+func agodeskSystemWarningsPayload(s *Server, sessionID string) agodesk.SystemWarningsPayload {
+	payload := agodesk.SystemWarningsPayload{
+		SessionID: strings.TrimSpace(sessionID),
+		Warnings:  []agodesk.SystemWarningPayload{},
+	}
+	if s == nil || s.WarningsRegistry == nil {
+		return payload
+	}
+	all := s.WarningsRegistry.Warnings()
+	total, unack := s.WarningsRegistry.Count()
+	payload.Total = total
+	payload.Unacknowledged = unack
+	payload.Warnings = make([]agodesk.SystemWarningPayload, 0, len(all))
+	for _, warning := range all {
+		payload.Warnings = append(payload.Warnings, agodeskSystemWarningPayload(warning))
+	}
+	return payload
+}
+
+func agodeskSystemWarningPayload(warning warnings.Warning) agodesk.SystemWarningPayload {
+	timestamp := ""
+	if !warning.Timestamp.IsZero() {
+		timestamp = warning.Timestamp.UTC().Format(time.RFC3339)
+	}
+	return agodesk.SystemWarningPayload{
+		ID:           strings.TrimSpace(warning.ID),
+		Severity:     strings.TrimSpace(warning.Severity),
+		Title:        strings.TrimSpace(warning.Title),
+		Description:  strings.TrimSpace(warning.Description),
+		Category:     strings.TrimSpace(warning.Category),
+		Timestamp:    timestamp,
+		Acknowledged: warning.Acknowledged,
+	}
+}
+
+func broadcastAgodeskSystemWarnings(s *Server) {
+	broker := currentAgodeskDesktopBroker(s)
+	if broker == nil {
+		return
+	}
+	for _, session := range broker.sessionsWithCapability("system.warnings") {
+		sessionID := agodeskSessionTransportID(session)
+		_ = writeAgodeskEnvelopeLocked(session.conn, session.state, agodesk.TypeSystemWarnings, agodeskSystemWarningsPayload(s, sessionID))
+	}
+}
+
+func currentAgodeskDesktopBroker(s *Server) *agodeskDesktopBroker {
+	if s == nil {
+		return nil
+	}
+	s.agodeskDesktopMu.Lock()
+	defer s.agodeskDesktopMu.Unlock()
+	return s.agodeskDesktop
 }
 
 func agodeskServerCapabilities(s *Server) []string {
@@ -750,6 +904,113 @@ func handleAgodeskTTSAsset(s *Server) http.HandlerFunc {
 		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		http.ServeFile(w, r, target)
+	}
+}
+
+func handleAgodeskMediaAsset(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			w.Header().Set("Allow", "GET, HEAD")
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		bucket, relPath, ok := agodeskMediaAssetRequestPath(r)
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		root, ok := agodeskMediaAssetRoot(s, bucket)
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		target := filepath.Join(root, relPath)
+		if !pathStaysWithinDir(root, target) {
+			http.NotFound(w, r)
+			return
+		}
+		if contentType := mime.TypeByExtension(strings.ToLower(filepath.Ext(target))); contentType != "" {
+			w.Header().Set("Content-Type", contentType)
+		}
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		if bucket == "documents" {
+			filename := filepath.Base(target)
+			disposition := "attachment"
+			if r.URL.Query().Get("inline") == "1" {
+				disposition = "inline"
+			}
+			w.Header().Set("Content-Disposition", fmt.Sprintf(`%s; filename="%s"`, disposition, filename))
+		}
+		http.ServeFile(w, r, target)
+	}
+}
+
+func agodeskMediaAssetRequestPath(r *http.Request) (string, string, bool) {
+	if r == nil || r.URL == nil {
+		return "", "", false
+	}
+	rel := strings.TrimPrefix(r.URL.EscapedPath(), "/api/agodesk/media/")
+	if rel == "" || rel == r.URL.EscapedPath() {
+		return "", "", false
+	}
+	rel, err := url.PathUnescape(rel)
+	if err != nil {
+		return "", "", false
+	}
+	bucket, rest, ok := strings.Cut(rel, "/")
+	bucket = strings.TrimSpace(bucket)
+	if !ok || !agodeskMediaBucketAllowed(bucket) || strings.TrimSpace(rest) == "" {
+		return "", "", false
+	}
+	for _, segment := range strings.Split(rest, "/") {
+		if segment == ".." || strings.Contains(segment, "\x00") {
+			return "", "", false
+		}
+	}
+	clean := pathpkg.Clean("/" + rest)
+	if clean == "/" || strings.Contains(clean, "\x00") {
+		return "", "", false
+	}
+	clean = strings.TrimPrefix(clean, "/")
+	if strings.HasPrefix(clean, "../") || clean == ".." {
+		return "", "", false
+	}
+	return bucket, filepath.FromSlash(clean), true
+}
+
+func agodeskMediaAssetRoot(s *Server, bucket string) (string, bool) {
+	if s == nil || s.Cfg == nil {
+		return "", false
+	}
+	s.CfgMu.RLock()
+	cfg := *s.Cfg
+	s.CfgMu.RUnlock()
+	dataDir := strings.TrimSpace(cfg.Directories.DataDir)
+	if dataDir == "" {
+		return "", false
+	}
+	switch bucket {
+	case "generated_images":
+		return filepath.Join(dataDir, "generated_images"), true
+	case "generated_videos":
+		return filepath.Join(dataDir, "generated_videos"), true
+	case "audio":
+		return filepath.Join(dataDir, "audio"), true
+	case "documents":
+		docDir := strings.TrimSpace(cfg.Tools.DocumentCreator.OutputDir)
+		if docDir == "" {
+			docDir = filepath.Join(dataDir, "documents")
+		}
+		return docDir, true
+	case "downloads":
+		downloadDir, err := tools.ResolveVideoDownloadDir(&cfg)
+		if err != nil || strings.TrimSpace(downloadDir) == "" {
+			downloadDir = filepath.Join(dataDir, "downloads")
+		}
+		return downloadDir, true
+	default:
+		return "", false
 	}
 }
 
@@ -991,7 +1252,16 @@ func (b *agodeskChatBroker) Send(event, message string) {
 		b.capturePlanUpdate(message)
 	}
 	if event == "audio" {
-		b.emitAudio(message)
+		if agodeskAudioMessageIsTTS(message) {
+			b.emitAudio(message)
+			return
+		}
+		if b.emitMedia(event, message) {
+			return
+		}
+		return
+	}
+	if b.emitMedia(event, message) {
 		return
 	}
 	if b.FeedbackBroker != nil {
@@ -1068,6 +1338,177 @@ func (b *agodeskChatBroker) emitAudio(message string) {
 		return
 	}
 	_ = writeAgodeskEnvelopeLocked(b.conn, b.state, agodesk.TypeChatAudio, payload)
+}
+
+func (b *agodeskChatBroker) emitMedia(event, message string) bool {
+	if b == nil || !agodeskStateHasCapability(b.state, "chat.media_events") {
+		return false
+	}
+	payload, ok := agodeskChatMediaPayload(event, message, b.sessionID, b.conversationID, b.requestID, b.logger)
+	if !ok {
+		return false
+	}
+	_ = writeAgodeskEnvelopeLocked(b.conn, b.state, agodesk.TypeChatMedia, payload)
+	return true
+}
+
+func agodeskAudioMessageIsTTS(message string) bool {
+	var raw map[string]interface{}
+	if err := json.Unmarshal([]byte(message), &raw); err != nil {
+		return false
+	}
+	pathValue := agodeskStringField(raw, "path", "url")
+	if strings.HasPrefix(pathValue, "/tts/") || strings.HasPrefix(pathValue, "/api/agodesk/tts/") {
+		return true
+	}
+	title := strings.ToLower(agodeskStringField(raw, "title"))
+	filename := agodeskStringField(raw, "filename", "file_name")
+	return pathValue == "" && isSafeAgodeskTTSFilename(filename) && strings.Contains(title, "tts")
+}
+
+func agodeskChatMediaPayload(event, message, sessionID, conversationID, requestID string, logger *slog.Logger) (agodesk.ChatMediaPayload, bool) {
+	kind := agodeskMediaKindForEvent(event)
+	if kind == "" {
+		return agodesk.ChatMediaPayload{}, false
+	}
+	var raw map[string]interface{}
+	if err := json.Unmarshal([]byte(message), &raw); err != nil {
+		if logger != nil {
+			logger.Warn("Failed to decode agodesk media payload", "event", event, "session_id", conversationID, "error", err)
+		}
+		return agodesk.ChatMediaPayload{}, false
+	}
+	payload := agodesk.ChatMediaPayload{
+		SessionID:      strings.TrimSpace(sessionID),
+		ConversationID: strings.TrimSpace(conversationID),
+		RequestID:      strings.TrimSpace(requestID),
+		Kind:           kind,
+		Path:           agodeskRewriteMediaPath(agodeskStringField(raw, "path", "web_path")),
+		PreviewURL:     agodeskRewriteMediaPath(agodeskStringField(raw, "preview_url")),
+		URL:            agodeskStringField(raw, "url"),
+		EmbedURL:       agodeskStringField(raw, "embed_url"),
+		VideoID:        agodeskStringField(raw, "video_id"),
+		Title:          agodeskStringField(raw, "title"),
+		Caption:        agodeskStringField(raw, "caption"),
+		MimeType:       agodeskStringField(raw, "mime_type", "content_type"),
+		Filename:       agodeskStringField(raw, "filename", "file_name"),
+		Format:         agodeskStringField(raw, "format"),
+		Provider:       agodeskStringField(raw, "provider"),
+		StartSeconds:   agodeskIntField(raw, "start_seconds", "start"),
+		DurationMs:     agodeskInt64Field(raw, "duration_ms"),
+	}
+	if metadata, ok := raw["metadata"].(map[string]interface{}); ok {
+		payload.Metadata = metadata
+	}
+	if mediaType := agodeskStringField(raw, "media_type"); mediaType != "" {
+		if payload.Metadata == nil {
+			payload.Metadata = map[string]interface{}{}
+		}
+		payload.Metadata["media_type"] = mediaType
+	}
+	payload.OpenMode = agodeskMediaOpenMode(payload)
+	if payload.Path == "" && payload.PreviewURL == "" && payload.URL == "" && payload.EmbedURL == "" {
+		return agodesk.ChatMediaPayload{}, false
+	}
+	return payload, true
+}
+
+func agodeskMediaKindForEvent(event string) string {
+	switch strings.TrimSpace(event) {
+	case "image":
+		return "image"
+	case "audio":
+		return "audio"
+	case "video":
+		return "video"
+	case "document":
+		return "document"
+	case "stl":
+		return "stl"
+	case "live_stream":
+		return "live_stream"
+	case "youtube_video":
+		return "youtube_video"
+	case "link":
+		return "link"
+	default:
+		return ""
+	}
+}
+
+func agodeskMediaOpenMode(payload agodesk.ChatMediaPayload) string {
+	switch payload.Kind {
+	case "link":
+		return "external"
+	case "document":
+		if strings.TrimSpace(payload.PreviewURL) != "" {
+			return "inline"
+		}
+		return "folder"
+	default:
+		return "inline"
+	}
+}
+
+func agodeskRewriteMediaPath(pathValue string) string {
+	pathValue = strings.TrimSpace(pathValue)
+	if pathValue == "" {
+		return ""
+	}
+	parsed, err := url.Parse(pathValue)
+	if err != nil || !strings.HasPrefix(parsed.Path, "/files/") {
+		return pathValue
+	}
+	rel := strings.TrimPrefix(parsed.Path, "/files/")
+	bucket, rest, ok := strings.Cut(rel, "/")
+	if !ok || !agodeskMediaBucketAllowed(bucket) || strings.TrimSpace(rest) == "" {
+		return pathValue
+	}
+	rewritten := "/api/agodesk/media/" + bucket + "/" + rest
+	if parsed.RawQuery != "" {
+		rewritten += "?" + parsed.RawQuery
+	}
+	return rewritten
+}
+
+func agodeskMediaBucketAllowed(bucket string) bool {
+	switch strings.TrimSpace(bucket) {
+	case "generated_images", "generated_videos", "audio", "documents", "downloads":
+		return true
+	default:
+		return false
+	}
+}
+
+func agodeskIntField(raw map[string]interface{}, names ...string) int {
+	return int(agodeskInt64Field(raw, names...))
+}
+
+func agodeskInt64Field(raw map[string]interface{}, names ...string) int64 {
+	for _, name := range names {
+		value, ok := raw[name]
+		if !ok {
+			continue
+		}
+		switch v := value.(type) {
+		case int:
+			return int64(v)
+		case int64:
+			return v
+		case float64:
+			return int64(v)
+		case json.Number:
+			if n, err := v.Int64(); err == nil {
+				return n
+			}
+		default:
+			var out int64
+			if _, err := fmt.Sscanf(strings.TrimSpace(fmt.Sprint(value)), "%d", &out); err == nil {
+				return out
+			}
+		}
+	}
+	return 0
 }
 
 func (b *agodeskChatBroker) markAudioEmitted(key string) bool {
@@ -1447,6 +1888,30 @@ func (b *agodeskDesktopBroker) session(deviceID string) *agodeskDesktopSession {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	return b.sessions[deviceID]
+}
+
+func (b *agodeskDesktopBroker) sessionsWithCapability(capability string) []*agodeskDesktopSession {
+	if b == nil || strings.TrimSpace(capability) == "" {
+		return nil
+	}
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	sessions := make([]*agodeskDesktopSession, 0, len(b.sessions))
+	for _, session := range b.sessions {
+		if session != nil && session.hasCapability(capability) {
+			sessions = append(sessions, session)
+		}
+	}
+	return sessions
+}
+
+func agodeskSessionTransportID(session *agodeskDesktopSession) string {
+	if session == nil || session.state == nil {
+		return ""
+	}
+	session.state.mu.RLock()
+	defer session.state.mu.RUnlock()
+	return strings.TrimSpace(session.state.sessionID)
 }
 
 func (s *agodeskDesktopSession) sendChatMessage(cmd remote.CommandPayload) (remote.ResultPayload, error) {

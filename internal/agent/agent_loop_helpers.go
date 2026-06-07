@@ -1189,6 +1189,35 @@ func emitMediaSSEEvents(broker FeedbackBroker, action, resultContent string, dat
 			})
 			broker.Send("video", string(evtPayload))
 		}
+	case "generate_music":
+		var musicRes struct {
+			Status     string `json:"status"`
+			WebPath    string `json:"web_path"`
+			Filename   string `json:"filename"`
+			Title      string `json:"title"`
+			Format     string `json:"format"`
+			Provider   string `json:"provider"`
+			Model      string `json:"model"`
+			DurationMs int64  `json:"duration_ms"`
+		}
+		if json.Unmarshal([]byte(raw), &musicRes) == nil && musicRes.Status == "ok" {
+			title := strings.TrimSpace(musicRes.Title)
+			if title == "" {
+				title = strings.TrimSuffix(musicRes.Filename, filepath.Ext(musicRes.Filename))
+			}
+			evtPayload, _ := json.Marshal(map[string]interface{}{
+				"path":        musicRes.WebPath,
+				"title":       title,
+				"mime_type":   audioMIMEType(musicRes.Filename),
+				"filename":    musicRes.Filename,
+				"format":      musicRes.Format,
+				"provider":    musicRes.Provider,
+				"model":       musicRes.Model,
+				"duration_ms": musicRes.DurationMs,
+				"media_type":  "music",
+			})
+			broker.Send("audio", string(evtPayload))
+		}
 	case "tts":
 		var ttsRes struct {
 			Status string `json:"status"`

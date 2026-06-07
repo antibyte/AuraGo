@@ -590,6 +590,7 @@ var authBypassPrefixes = []string{
 	"/api/remote/download", // Personalized binary download — generates an enrollment token
 	"/api/agodesk/ws",      // agodesk WebSocket — performs pairing inside the socket protocol
 	"/api/agodesk/tts/",    // agodesk TTS assets — limited to cached TTS audio filenames
+	"/api/agodesk/media/",  // agodesk media assets — limited to explicit media buckets by the handler
 	"/api/invasion/ws",     // Egg WebSocket — has its own HMAC-based auth handshake
 	"/mcp",
 	"/api/space-agent/bridge/messages", // Space Agent bridge has its own Bearer token auth

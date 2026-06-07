@@ -77,6 +77,7 @@ func handleWarningsAcknowledge(s *Server) http.HandlerFunc {
 				"unacknowledged": unack,
 			})
 		}
+		broadcastAgodeskSystemWarnings(s)
 
 		writeJSON(w, map[string]interface{}{"ok": true})
 	}

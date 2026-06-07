@@ -16,29 +16,35 @@ const ProtocolVersion = "agodesk.v1"
 type MessageType string
 
 const (
-	TypeSystemConnected       MessageType = "system.connected"
-	TypeSystemPing            MessageType = "system.ping"
-	TypeSystemPong            MessageType = "system.pong"
-	TypeSessionStart          MessageType = "session.start"
-	TypeSessionAccepted       MessageType = "session.accepted"
-	TypeChatMessage           MessageType = "chat.message"
-	TypeChatResponse          MessageType = "chat.response"
-	TypeChatError             MessageType = "chat.error"
-	TypeChatChunk             MessageType = "chat.response.chunk"
-	TypeChatPlanUpdate        MessageType = "chat.plan_update"
-	TypeChatSessionsList      MessageType = "chat.sessions.list"
-	TypeChatSessions          MessageType = "chat.sessions"
-	TypeChatSessionCreate     MessageType = "chat.session.create"
-	TypeChatSessionLoad       MessageType = "chat.session.load"
-	TypeChatSession           MessageType = "chat.session"
-	TypeChatCancel            MessageType = "chat.cancel"
-	TypeChatCancelled         MessageType = "chat.cancelled"
-	TypeChatAudio             MessageType = "chat.audio"
-	TypeChatVoiceOutputStatus MessageType = "chat.voice_output.status"
-	TypeDesktopCommand        MessageType = "desktop.command"
-	TypeDesktopResult         MessageType = "desktop.result"
-	TypePersonaAssetsRequest  MessageType = "persona.assets.request"
-	TypePersonaAssets         MessageType = "persona.assets"
+	TypeSystemConnected          MessageType = "system.connected"
+	TypeSystemPing               MessageType = "system.ping"
+	TypeSystemPong               MessageType = "system.pong"
+	TypeSessionStart             MessageType = "session.start"
+	TypeSessionAccepted          MessageType = "session.accepted"
+	TypeChatMessage              MessageType = "chat.message"
+	TypeChatResponse             MessageType = "chat.response"
+	TypeChatError                MessageType = "chat.error"
+	TypeChatChunk                MessageType = "chat.response.chunk"
+	TypeChatPlanUpdate           MessageType = "chat.plan_update"
+	TypeChatSessionsList         MessageType = "chat.sessions.list"
+	TypeChatSessions             MessageType = "chat.sessions"
+	TypeChatSessionCreate        MessageType = "chat.session.create"
+	TypeChatSessionLoad          MessageType = "chat.session.load"
+	TypeChatSession              MessageType = "chat.session"
+	TypeChatCancel               MessageType = "chat.cancel"
+	TypeChatCancelled            MessageType = "chat.cancelled"
+	TypeChatAudio                MessageType = "chat.audio"
+	TypeChatMedia                MessageType = "chat.media"
+	TypeChatVoiceOutputStatus    MessageType = "chat.voice_output.status"
+	TypeIntegrationsWebhostsList MessageType = "integrations.webhosts.list"
+	TypeIntegrationsWebhosts     MessageType = "integrations.webhosts"
+	TypeSystemWarningsList       MessageType = "system.warnings.list"
+	TypeSystemWarnings           MessageType = "system.warnings"
+	TypeSystemWarningAcknowledge MessageType = "system.warning.acknowledge"
+	TypeDesktopCommand           MessageType = "desktop.command"
+	TypeDesktopResult            MessageType = "desktop.result"
+	TypePersonaAssetsRequest     MessageType = "persona.assets.request"
+	TypePersonaAssets            MessageType = "persona.assets"
 )
 
 const (
@@ -66,7 +72,10 @@ var DefaultCapabilities = []string{
 	"chat.sessions",
 	"chat.cancel",
 	"chat.audio_events",
+	"chat.media_events",
 	"chat.voice_output_status",
+	"integrations.webhosts",
+	"system.warnings",
 	"pairing.remotehub",
 	"remote.desktop.capture",
 	"remote.desktop.permission_request",
@@ -264,6 +273,28 @@ type ChatAudioPayload struct {
 	Metadata       map[string]interface{} `json:"metadata,omitempty"`
 }
 
+type ChatMediaPayload struct {
+	SessionID      string                 `json:"session_id"`
+	ConversationID string                 `json:"conversation_id,omitempty"`
+	RequestID      string                 `json:"request_id,omitempty"`
+	Kind           string                 `json:"kind"`
+	Path           string                 `json:"path,omitempty"`
+	PreviewURL     string                 `json:"preview_url,omitempty"`
+	URL            string                 `json:"url,omitempty"`
+	EmbedURL       string                 `json:"embed_url,omitempty"`
+	VideoID        string                 `json:"video_id,omitempty"`
+	Title          string                 `json:"title,omitempty"`
+	Caption        string                 `json:"caption,omitempty"`
+	MimeType       string                 `json:"mime_type,omitempty"`
+	Filename       string                 `json:"filename,omitempty"`
+	Format         string                 `json:"format,omitempty"`
+	Provider       string                 `json:"provider,omitempty"`
+	StartSeconds   int                    `json:"start_seconds,omitempty"`
+	DurationMs     int64                  `json:"duration_ms,omitempty"`
+	OpenMode       string                 `json:"open_mode,omitempty"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+}
+
 type ChatVoiceOutputStatusPayload struct {
 	SessionID      string `json:"session_id"`
 	ConversationID string `json:"conversation_id,omitempty"`
@@ -271,6 +302,52 @@ type ChatVoiceOutputStatusPayload struct {
 	Mode           string `json:"mode,omitempty"`
 	Reason         string `json:"reason,omitempty"`
 	Status         string `json:"status,omitempty"`
+}
+
+type WebhostIntegrationPayload struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Status      string `json:"status"`
+	URL         string `json:"url"`
+	Icon        string `json:"icon,omitempty"`
+}
+
+type IntegrationsWebhostsListPayload struct {
+	SessionID string `json:"session_id"`
+}
+
+type IntegrationsWebhostsPayload struct {
+	SessionID string                      `json:"session_id"`
+	Status    string                      `json:"status"`
+	Webhosts  []WebhostIntegrationPayload `json:"webhosts"`
+}
+
+type SystemWarningsListPayload struct {
+	SessionID string `json:"session_id"`
+}
+
+type SystemWarningPayload struct {
+	ID           string `json:"id"`
+	Severity     string `json:"severity"`
+	Title        string `json:"title"`
+	Description  string `json:"description"`
+	Category     string `json:"category"`
+	Timestamp    string `json:"timestamp"`
+	Acknowledged bool   `json:"acknowledged"`
+}
+
+type SystemWarningsPayload struct {
+	SessionID      string                 `json:"session_id"`
+	Warnings       []SystemWarningPayload `json:"warnings"`
+	Total          int                    `json:"total"`
+	Unacknowledged int                    `json:"unacknowledged"`
+}
+
+type SystemWarningAcknowledgePayload struct {
+	SessionID string `json:"session_id"`
+	ID        string `json:"id,omitempty"`
+	All       bool   `json:"all,omitempty"`
 }
 
 type PersonaAssetsRequestPayload struct {

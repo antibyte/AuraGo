@@ -122,6 +122,28 @@ func TestEmitMediaSSEEventsSendsGeneratedVideoEvent(t *testing.T) {
 	}
 }
 
+func TestEmitMediaSSEEventsSendsGeneratedMusicAsAudioEvent(t *testing.T) {
+	broker := &captureBroker{}
+	emitMediaSSEEvents(broker, "generate_music", `Tool Output: {"status":"ok","web_path":"/files/audio/music_123.mp3","filename":"music_123.mp3","title":"Synth test","format":"mp3","provider":"minimax","model":"music-01","duration_ms":12000}`, t.TempDir())
+
+	if len(broker.events) != 1 {
+		t.Fatalf("events = %d, want 1", len(broker.events))
+	}
+	if broker.events[0].event != "audio" {
+		t.Fatalf("event = %q, want audio", broker.events[0].event)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(broker.events[0].message), &payload); err != nil {
+		t.Fatalf("unmarshal event payload: %v", err)
+	}
+	if payload["path"] != "/files/audio/music_123.mp3" || payload["title"] != "Synth test" || payload["mime_type"] != "audio/mpeg" {
+		t.Fatalf("unexpected music payload: %+v", payload)
+	}
+	if payload["media_type"] != "music" || payload["duration_ms"].(float64) != 12000 {
+		t.Fatalf("music metadata = %+v", payload)
+	}
+}
+
 func TestEmitMediaSSEEventsSendsManualVideoEvent(t *testing.T) {
 	broker := &captureBroker{}
 	emitMediaSSEEvents(broker, "send_video", `Tool Output: {"status":"success","web_path":"/files/generated_videos/manual.webm","title":"Manual","mime_type":"video/webm","filename":"manual.webm","format":"webm"}`, t.TempDir())

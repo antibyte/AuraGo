@@ -46,7 +46,11 @@ AuraGo accepts AgoDesk WebSocket messages up to 16 MiB. Desktop screenshot resul
 - `chat.session.load`: load a shared AuraGo chat conversation with visible messages.
 - `chat.cancel` / `chat.cancelled`: stop the active agent turn for a conversation.
 - `chat.audio`: server-generated TTS audio event for clients that negotiate `chat.audio_events`.
+- `chat.media`: non-TTS chat artifacts for clients that negotiate `chat.media_events`.
 - `chat.voice_output.status`: client status update and server acknowledgement for the same `speaker_mode` preference used by AuraGo Web Chat.
+- `integrations.webhosts.list` / `integrations.webhosts`: list integrations with their own web UI, matching the Web Chat integrations drawer.
+- `system.warnings.list` / `system.warnings`: list current system warnings shown in Web Chat.
+- `system.warning.acknowledge`: acknowledge one warning or all warnings.
 - `persona.assets.request`: client request for the currently active AuraGo persona's visual assets and prompt.
 - `persona.assets`: server response with the active persona name, asset key, avatar image URL, icon URL, and persona prompt.
 - `desktop.command` / `desktop.result`: server-to-client command transport for screenshots, discovery, UI automation, browser CDP, permission requests, locally approved input/actions, and locally approved file access.
@@ -81,8 +85,11 @@ Desktop commands are dispatched only when the matching client capability is pres
 - `chat.sessions`: enables shared AuraGo chat history, New Chat, and loading old conversations.
 - `chat.cancel`: enables Stop for active AgoDesk agent turns.
 - `chat.audio_events`: enables `chat.audio` frames for server-generated TTS playback.
+- `chat.media_events`: enables `chat.media` frames for non-TTS images, audio/music, documents, videos, STL, links, and YouTube embeds.
 - `chat.voice_output`: server-offered only when AuraGo TTS is configured; lets AgoDesk request server-side voice output with `chat.message.payload.voice_output=true`.
 - `chat.voice_output_status`: enables AgoDesk to report the current chat speech-output state with `chat.voice_output.status`.
+- `integrations.webhosts`: enables the Web Chat integrations drawer list over WebSocket.
+- `system.warnings`: enables the Web Chat system warnings list and acknowledgement flow over WebSocket.
 - `remote.desktop.capture`: required for `desktop_screenshot`
 - `remote.desktop.permission_request`: required for `desktop_permission_request`
 - `remote.desktop.input`: required for `desktop_input`
@@ -191,6 +198,8 @@ hmac = hex(HMAC_SHA256(shared_key_bytes, material))
 - Block chat input until `session.accepted` in production mode.
 - After `session.accepted`, send `persona.assets.request` and cache the returned `persona.assets` values for chat/avatar UI. Re-request after reconnect or when the server sends/your UI observes a persona change.
 - After `session.accepted`, store `advertised_capabilities`. If `chat.sessions` is negotiated, send `chat.sessions.list`, pick the last local `conversation_id`, or send `chat.session.create`.
+- If `integrations.webhosts` is negotiated, send `integrations.webhosts.list` and render the returned webhost links.
+- If `system.warnings` is negotiated, send `system.warnings.list` and refresh the local warning UI whenever `system.warnings` arrives.
 - Send every `chat.message` with the accepted AgoDesk `session_id` and the active AuraGo `conversation_id`. Older clients may omit `conversation_id`; AuraGo then keeps the legacy transport-session behavior.
 - Show Stop only while a request is active. Stop sends `chat.cancel` with `session_id`, `conversation_id`, and `request_id`, and must also stop local TTS/audio immediately.
 - Implement native Tauri commands for desktop control:
@@ -487,6 +496,98 @@ When `chat.audio_events` is negotiated, AuraGo may emit:
 ```
 
 Clients must queue audio in request order and resolve relative `path` values against the AuraGo origin. For AuraGo-generated TTS, AgoDesk should use the provided `/api/agodesk/tts/<filename>` path directly; it is limited by the server to cached TTS audio files and does not require a Web UI login cookie. Stop must clear this queue and cancel native/frontend speech immediately. Do not log shared keys, session tokens, or local TTS file paths. Render server text as sanitized Markdown or plain text, never raw HTML.
+
+### Chat media events
+
+When `chat.media_events` is negotiated, AuraGo emits non-TTS artifacts with `chat.media`. `chat.audio` remains reserved for AuraGo TTS only. Audio/music files produced by tools such as `send_audio` or `generate_music` are sent as `chat.media` with `kind:"audio"`.
+
+```json
+{
+  "type": "chat.media",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "conversation_id": "sess-abc",
+    "request_id": "req-1",
+    "kind": "document",
+    "path": "/api/agodesk/media/documents/report.pdf",
+    "preview_url": "/api/agodesk/media/documents/report.pdf?inline=1",
+    "title": "Report",
+    "mime_type": "application/pdf",
+    "filename": "report.pdf",
+    "format": "pdf",
+    "open_mode": "inline"
+  }
+}
+```
+
+`kind` values include `image`, `audio`, `document`, `video`, `youtube_video`, `stl`, `live_stream`, and `link`. Local media paths are rewritten from protected Web Chat `/files/...` URLs to `/api/agodesk/media/<bucket>/<file>`. The server only serves explicit media buckets and rejects traversal. YouTube payloads use `url`, `embed_url`, `video_id`, `title`, `provider:"youtube"`, and optional `start_seconds`; no media asset fetch is needed.
+
+AgoDesk should render inline when practical, provide an "open in folder" or external-open action, and keep `open_mode` as a server suggestion rather than a hard requirement.
+
+### Integration webhosts
+
+When `integrations.webhosts` is negotiated, send:
+
+```json
+{
+  "type": "integrations.webhosts.list",
+  "payload": {
+    "session_id": "agodesk:device-123"
+  }
+}
+```
+
+AuraGo replies with the same list the Web Chat integrations drawer uses:
+
+```json
+{
+  "type": "integrations.webhosts",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "status": "ok",
+    "webhosts": [
+      {
+        "id": "virtual_desktop",
+        "name": "Virtual Desktop",
+        "description": "Browser-based virtual desktop",
+        "status": "running",
+        "url": "/desktop",
+        "icon": "expand"
+      }
+    ]
+  }
+}
+```
+
+Resolve relative URLs against the AuraGo origin. Treat external URLs as normal browser/WebView targets.
+
+### System warnings
+
+When `system.warnings` is negotiated, send `system.warnings.list` with the accepted `session_id`. AuraGo replies with:
+
+```json
+{
+  "type": "system.warnings",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "warnings": [
+      {
+        "id": "warn-1",
+        "severity": "warning",
+        "title": "Test warning",
+        "description": "Something needs attention",
+        "category": "system",
+        "timestamp": "2026-06-07T12:00:00Z",
+        "acknowledged": false
+      }
+    ],
+    "total": 1,
+    "unacknowledged": 1
+  }
+}
+```
+
+To acknowledge, send `system.warning.acknowledge` with either `id` or `all:true`. AuraGo responds with a fresh `system.warnings` snapshot and also broadcasts snapshots to connected AgoDesk clients that negotiated `system.warnings` when warnings change.
 
 For the concrete AgoDesk client implementation checklist, see [`agodesk_coding_agent_chat_controls.md`](./agodesk_coding_agent_chat_controls.md).
 
