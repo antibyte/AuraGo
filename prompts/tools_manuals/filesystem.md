@@ -8,7 +8,7 @@ Perform file system tasks. Your working directory is `agent_workspace/workdir`. 
 |---|---|---|
 | `list_dir` | List directory contents | — |
 | `create_dir` | Create a directory | — |
-| `read_file` | Read file contents | — |
+| `read_file` | Read file contents | `include_hashes` (boolean, optional) |
 | `write_file` | Write content to file | `content` (string) |
 | `delete` | Delete a file or directory | — |
 | `copy` | Copy a single file | `destination` (string) |
@@ -36,6 +36,17 @@ Batch operations require `items`.
   use `smart_file_read` for `analyze`, `sample`, `structure`, or `summarize`.
   use `file_reader_advanced` for `head`, `tail`, `read_lines`, or `search_context`.
 
+### Hashline Reads
+
+Use `include_hashes: true` with `read_file` when you plan to edit the file with `file_editor` hashline operations. The response data is structured:
+
+- `format`: `hashline`
+- `content`: complete lines formatted as `LINE#HASH:CONTENT`
+- `lines_returned`: number of hashline lines emitted
+- `truncated`: whether the read was capped
+
+`HASH` is an 8-character content-only hash. It does not include the line number, so unchanged lines keep the same hash after inserts or deletes above them. If the response is truncated, only complete hashline lines are returned; use `file_reader_advanced` for targeted follow-up reads.
+
 ### Common Pitfalls
 
 - Use the exact operation names `read_file` and `write_file`.
@@ -54,6 +65,10 @@ Batch operations require `items`.
 
 ```json
 {"action": "filesystem", "operation": "read_file", "file_path": "notes.txt"}
+```
+
+```json
+{"action": "filesystem", "operation": "read_file", "file_path": "notes.txt", "include_hashes": true}
 ```
 
 ```json

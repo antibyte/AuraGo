@@ -371,10 +371,11 @@ func TestDecodeFilesystemArgsUsesParamsFallback(t *testing.T) {
 	req := decodeFilesystemArgs(ToolCall{
 		Action: "filesystem",
 		Params: map[string]interface{}{
-			"operation": "copy_batch",
-			"path":      "source.txt",
-			"dest":      "dest.txt",
-			"content":   "payload",
+			"operation":      "copy_batch",
+			"path":           "source.txt",
+			"dest":           "dest.txt",
+			"content":        "payload",
+			"include_hashes": true,
 			"items": []interface{}{
 				map[string]interface{}{"path": "a.txt", "dest": "b.txt"},
 			},
@@ -383,6 +384,9 @@ func TestDecodeFilesystemArgsUsesParamsFallback(t *testing.T) {
 
 	if req.Operation != "copy_batch" || req.FilePath != "source.txt" || req.Destination != "dest.txt" || req.Content != "payload" {
 		t.Fatalf("unexpected filesystem decode: %+v", req)
+	}
+	if !req.IncludeHashes {
+		t.Fatalf("expected include_hashes to decode true: %+v", req)
 	}
 	if len(req.Items) != 1 || req.Items[0]["path"] != "a.txt" || req.Items[0]["dest"] != "b.txt" {
 		t.Fatalf("unexpected filesystem items: %+v", req.Items)
@@ -393,15 +397,17 @@ func TestDecodeFileEditorArgsUsesParamsFallback(t *testing.T) {
 	req := decodeFileEditorArgs(ToolCall{
 		Action: "file_editor",
 		Params: map[string]interface{}{
-			"operation":  "replace",
-			"path":       "notes.txt",
-			"old":        "before",
-			"new":        "after",
-			"marker":     "anchor",
-			"content":    "body",
-			"start_line": float64(2),
-			"end_line":   float64(5),
-			"line_count": float64(3),
+			"operation":   "replace",
+			"path":        "notes.txt",
+			"old":         "before",
+			"new":         "after",
+			"marker":      "anchor",
+			"content":     "body",
+			"start_line":  float64(2),
+			"end_line":    float64(5),
+			"line_count":  float64(3),
+			"anchor_line": float64(4),
+			"anchor_hash": "abcdef12",
 		},
 	})
 
@@ -410,6 +416,9 @@ func TestDecodeFileEditorArgsUsesParamsFallback(t *testing.T) {
 	}
 	if req.StartLine != 2 || req.EndLine != 5 || req.LineCount != 3 {
 		t.Fatalf("unexpected file editor decode: %+v", req)
+	}
+	if req.AnchorLine != 4 || req.AnchorHash != "abcdef12" {
+		t.Fatalf("unexpected hashline anchor decode: %+v", req)
 	}
 }
 

@@ -1692,6 +1692,70 @@ func TestFileEditorSchemaWarnsAgainstVirtualDesktopPaths(t *testing.T) {
 	}
 }
 
+func TestFilesystemSchemaIncludesHashlineReadOption(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		flags ToolFeatureFlags
+	}{
+		{name: "write-enabled", flags: ToolFeatureFlags{AllowFilesystemWrite: true}},
+		{name: "read-only", flags: ToolFeatureFlags{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			schemas := BuildNativeToolSchemas(t.TempDir(), nil, tc.flags, nil)
+			var params map[string]interface{}
+			for _, toolSchema := range schemas {
+				if toolSchema.Function != nil && toolSchema.Function.Name == "filesystem" {
+					params = toolSchema.Function.Parameters.(map[string]interface{})
+					break
+				}
+			}
+			if params == nil {
+				t.Fatal("filesystem schema not found")
+			}
+			props := params["properties"].(map[string]interface{})
+			if _, ok := props["include_hashes"]; !ok {
+				t.Fatalf("filesystem schema missing include_hashes: %#v", props)
+			}
+		})
+	}
+}
+
+func TestFileEditorSchemaIncludesHashlineOperationsAndAnchors(t *testing.T) {
+	schemas := BuildNativeToolSchemas(t.TempDir(), nil, ToolFeatureFlags{AllowFilesystemWrite: true}, nil)
+	var params map[string]interface{}
+	for _, toolSchema := range schemas {
+		if toolSchema.Function != nil && toolSchema.Function.Name == "file_editor" {
+			params = toolSchema.Function.Parameters.(map[string]interface{})
+			break
+		}
+	}
+	if params == nil {
+		t.Fatal("file_editor schema not found")
+	}
+
+	props := params["properties"].(map[string]interface{})
+	for _, want := range []string{"anchor_line", "anchor_hash"} {
+		if _, ok := props[want]; !ok {
+			t.Fatalf("file_editor schema missing %s: %#v", want, props)
+		}
+	}
+
+	operation := props["operation"].(map[string]interface{})
+	enum := operation["enum"].([]string)
+	for _, want := range []string{"hashline_replace", "hashline_insert_after", "hashline_insert_before", "hashline_delete"} {
+		found := false
+		for _, got := range enum {
+			if got == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("file_editor operation enum missing %s: %#v", want, enum)
+		}
+	}
+}
+
 func TestExecuteShellSchemaWarnsAgainstVirtualDesktopPaths(t *testing.T) {
 	schemas := BuildNativeToolSchemas(t.TempDir(), nil, ToolFeatureFlags{AllowShell: true}, nil)
 	var description string

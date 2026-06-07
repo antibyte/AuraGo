@@ -129,6 +129,9 @@ func dispatchFilesystem(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 			}
 		}
 		logger.Info("LLM requested filesystem operation", "op", op, "path", fpath, "dest", fdest)
+		if req.IncludeHashes {
+			return tools.ExecuteFilesystemWithOptions(op, fpath, fdest, req.Content, req.Items, cfg.Directories.WorkspaceDir, req.Limit, req.Offset, tools.FilesystemOptions{IncludeHashes: true})
+		}
 		return tools.ExecuteFilesystem(op, fpath, fdest, req.Content, req.Items, cfg.Directories.WorkspaceDir, req.Limit, req.Offset)
 
 	case "file_editor":
@@ -154,6 +157,21 @@ func dispatchFilesystem(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 			return formatToolPermissionDenied("file_editor", "runtime_permissions", "agent.allow_filesystem_write", "file_editor operations are disabled in Danger Zone settings")
 		}
 		logger.Info("LLM requested file_editor operation", "op", op, "path", fpath)
+		switch op {
+		case "hashline_replace", "hashline_insert_after", "hashline_insert_before", "hashline_delete":
+			return tools.ExecuteHashlineEditor(tools.HashlineEditorRequest{
+				Operation:  op,
+				FilePath:   fpath,
+				Old:        req.Old,
+				New:        req.New,
+				Marker:     req.Marker,
+				Content:    req.Content,
+				StartLine:  req.StartLine,
+				EndLine:    req.EndLine,
+				AnchorLine: req.AnchorLine,
+				AnchorHash: req.AnchorHash,
+			}, cfg.Directories.WorkspaceDir)
+		}
 		return tools.ExecuteFileEditor(op, fpath, req.Old, req.New, req.Marker, req.Content, req.StartLine, req.EndLine, req.LineCount, cfg.Directories.WorkspaceDir)
 
 	case "json_editor":

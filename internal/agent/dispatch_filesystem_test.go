@@ -2,6 +2,8 @@ package agent
 
 import (
 	"context"
+	"fmt"
+	"hash/fnv"
 	"io"
 	"log/slog"
 	"os"
@@ -11,6 +13,12 @@ import (
 
 	"aurago/internal/config"
 )
+
+func testHashlineContent(content string) string {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(content))
+	return fmt.Sprintf("%08x", h.Sum32())
+}
 
 func TestDispatchFilesystemRejectsOutsideHostWriteCanary(t *testing.T) {
 	t.Parallel()
@@ -70,6 +78,79 @@ func TestDispatchFilesystemRejectsOutsideHostWriteCanary(t *testing.T) {
 		if string(got) != original {
 			t.Fatalf("%s mutated outside-host file: got %q", tc.Action, string(got))
 		}
+	}
+}
+
+func TestDispatchFilesystemRoutesReadFileIncludeHashes(t *testing.T) {
+	tempRoot := t.TempDir()
+	workspaceDir := filepath.Join(tempRoot, "agent_workspace", "workdir")
+	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
+		t.Fatalf("create workspace: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workspaceDir, "notes.txt"), []byte("alpha\nbeta\n"), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = workspaceDir
+	dc := &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	output := dispatchFilesystem(context.Background(), ToolCall{
+		Action:    "filesystem",
+		Operation: "read_file",
+		FilePath:  "notes.txt",
+		Params: map[string]interface{}{
+			"include_hashes": true,
+		},
+	}, dc)
+
+	if !strings.Contains(output, `"format":"hashline"`) || !strings.Contains(output, "1#"+testHashlineContent("alpha")+":alpha") {
+		t.Fatalf("read_file include_hashes was not routed to hashline output: %s", output)
+	}
+}
+
+func TestDispatchFilesystemRoutesHashlineFileEditor(t *testing.T) {
+	tempRoot := t.TempDir()
+	workspaceDir := filepath.Join(tempRoot, "agent_workspace", "workdir")
+	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
+		t.Fatalf("create workspace: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workspaceDir, "notes.txt"), []byte("alpha\nbeta\n"), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Agent.AllowFilesystemWrite = true
+	cfg.Directories.WorkspaceDir = workspaceDir
+	dc := &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	output := dispatchFilesystem(context.Background(), ToolCall{
+		Action:    "file_editor",
+		Operation: "hashline_replace",
+		FilePath:  "notes.txt",
+		Params: map[string]interface{}{
+			"old":         "beta",
+			"new":         "changed",
+			"anchor_line": float64(2),
+			"anchor_hash": testHashlineContent("beta"),
+		},
+	}, dc)
+
+	if !strings.Contains(output, `"status":"success"`) {
+		t.Fatalf("hashline file_editor did not succeed: %s", output)
+	}
+	data, err := os.ReadFile(filepath.Join(workspaceDir, "notes.txt"))
+	if err != nil {
+		t.Fatalf("read updated file: %v", err)
+	}
+	if string(data) != "alpha\nchanged\n" {
+		t.Fatalf("file content = %q", string(data))
 	}
 }
 

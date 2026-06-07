@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -105,6 +106,12 @@ type FSResult struct {
 	Status  string      `json:"status"`
 	Message string      `json:"message,omitempty"`
 	Data    interface{} `json:"data,omitempty"`
+}
+
+// FilesystemOptions carries optional behavior for filesystem operations without
+// changing the legacy ExecuteFilesystem call signature.
+type FilesystemOptions struct {
+	IncludeHashes bool
 }
 
 // FileInfo represents a single directory entry for listing.
@@ -481,6 +488,10 @@ func filesystemBatchResult(operation string, items []map[string]interface{}, wor
 }
 
 func executeFilesystemResult(operation, path, destination, content string, items []map[string]interface{}, workspaceDir string, limit, offset int) FSResult {
+	return executeFilesystemResultWithOptions(operation, path, destination, content, items, workspaceDir, limit, offset, FilesystemOptions{})
+}
+
+func executeFilesystemResultWithOptions(operation, path, destination, content string, items []map[string]interface{}, workspaceDir string, limit, offset int, options FilesystemOptions) FSResult {
 	originalOperation := operation
 	operation = normalizeFilesystemOperation(operation)
 	if filesystemOperationWrites(operation) {
@@ -641,6 +652,9 @@ func executeFilesystemResult(operation, path, destination, content string, items
 			if looksLikeBinaryFile(path, data[:n]) {
 				return binaryReadResult(path, info.Size())
 			}
+			if options.IncludeHashes {
+				return hashlineReadFileResult(path, data[:n], info.Size(), true)
+			}
 			text := string(data[:n])
 			return FSResult{
 				Status: "success",
@@ -659,6 +673,9 @@ func executeFilesystemResult(operation, path, destination, content string, items
 		}
 		if looksLikeBinaryFile(path, data) {
 			return binaryReadResult(path, info.Size())
+		}
+		if options.IncludeHashes {
+			return hashlineReadFileResult(path, data, info.Size(), false)
 		}
 		return FSResult{Status: "success", Message: fmt.Sprintf("Read %d bytes", len(data)), Data: string(data)}
 
@@ -755,9 +772,61 @@ func filesystemOperationWrites(operation string) bool {
 	}
 }
 
+func hashlineReadFileResult(path string, data []byte, fileSize int64, byteTruncated bool) FSResult {
+	readBytes := len(data)
+	usable := data
+	if byteTruncated && len(usable) > 0 {
+		if usable[len(usable)-1] != '\n' {
+			lastNewline := bytes.LastIndexByte(usable, '\n')
+			if lastNewline < 0 {
+				usable = nil
+			} else {
+				usable = usable[:lastNewline+1]
+			}
+		}
+		if len(usable) > 0 && usable[len(usable)-1] == '\n' {
+			usable = usable[:len(usable)-1]
+		}
+	}
+
+	var entries []HashlineEntry
+	if !(byteTruncated && len(usable) == 0) {
+		entries = buildHashlineEntries(usable)
+	}
+	output, linesReturned, outputTruncated := formatHashlineOutputLimited(entries, maxHashlineReadChars)
+	truncated := byteTruncated || outputTruncated
+
+	message := fmt.Sprintf("Read %d bytes with hashline anchors", readBytes)
+	if truncated {
+		message = fmt.Sprintf("Read %d bytes with hashline anchors (truncated, file has %d bytes total). Use file_reader_advanced for targeted follow-up reads.", readBytes, fileSize)
+	}
+
+	return FSResult{
+		Status:  "success",
+		Message: message,
+		Data: map[string]interface{}{
+			"content":        output,
+			"format":         "hashline",
+			"lines_returned": linesReturned,
+			"truncated":      truncated,
+			"bytes_read":     readBytes,
+			"file_size":      fileSize,
+			"path":           path,
+		},
+	}
+}
+
 // ExecuteFilesystem handles all filesystem operations, sandboxed to workspaceDir.
 func ExecuteFilesystem(operation, path, destination, content string, items []map[string]interface{}, workspaceDir string, limit, offset int) string {
 	result := executeFilesystemResult(operation, path, destination, content, items, workspaceDir, limit, offset)
+	b, _ := json.Marshal(result)
+	return string(b)
+}
+
+// ExecuteFilesystemWithOptions handles filesystem operations with optional
+// behavior while preserving ExecuteFilesystem for existing callers.
+func ExecuteFilesystemWithOptions(operation, path, destination, content string, items []map[string]interface{}, workspaceDir string, limit, offset int, options FilesystemOptions) string {
+	result := executeFilesystemResultWithOptions(operation, path, destination, content, items, workspaceDir, limit, offset, options)
 	b, _ := json.Marshal(result)
 	return string(b)
 }

@@ -15,6 +15,10 @@ Precisely edit text files with targeted operations. Safer than `write_file` for 
 | `append` | Append content to end of file | `content` |
 | `prepend` | Prepend content to beginning of file | `content` |
 | `delete_lines` | Delete a range of lines (1-based, inclusive) | `start_line`, `end_line` |
+| `hashline_replace` | Replace text anchored to a hashed line | `old`, `new`, `anchor_line`, `anchor_hash` |
+| `hashline_insert_after` | Insert content after a hashed anchor line | `marker`, `content`, `anchor_line`, `anchor_hash` |
+| `hashline_insert_before` | Insert content before a hashed anchor line | `marker`, `content`, `anchor_line`, `anchor_hash` |
+| `hashline_delete` | Delete a line range anchored to a hashed line inside that range | `start_line`, `end_line`, `anchor_line`, `anchor_hash` |
 
 All operations require `file_path` (relative to `agent_workspace/workdir`). Project-root files are reachable via `../../`.
 
@@ -25,9 +29,43 @@ All operations require `file_path` (relative to `agent_workspace/workdir`). Proj
 - **`str_replace_glob`** replaces literal `old` with `new` in every file matching the glob. `file_path` is the glob (e.g. `"../../src/*.go"`). Reports count per file. Does NOT require unique matches. Skips files over 10 MB. Note: Go's stdlib glob does not support `**` — use explicit paths or `*.ext` patterns.
 - **`insert_after` / `insert_before`** fail if the `marker` text appears on 0 or more than 1 lines.
 - **`append`** creates the file if it doesn't exist.
+- **Hashline operations** require a recent `filesystem` `read_file` call with `include_hashes: true`; if the anchor content changed, they fail with `STALE CONTEXT` and you must re-read.
 - All writes are **atomic** (temp file + rename) to prevent data corruption.
 - Do not use `file_editor` for homepage projects; use the `homepage` tool's own edit operations instead.
 - Do not use `file_editor` for Virtual Desktop files such as `Apps/...` or `Widgets/...`; those live in `virtual_desktop.workspace_dir`, not `agent_workspace/workdir`. Use the `virtual_desktop` tool with `read_file`, `write_file`, or `open_in_app` instead.
+
+### Hashline Mode
+
+Hashline mode protects edits from stale context:
+
+1. Read the file with hashes:
+
+```json
+{"action": "filesystem", "operation": "read_file", "file_path": "../../internal/tools/example.go", "include_hashes": true}
+```
+
+2. Use the emitted `LINE#HASH:CONTENT` prefix as the edit anchor:
+
+```text
+42#a1b2c3d4:func main() {
+```
+
+`42` is the line number. `a1b2c3d4` is an 8-character hash of the line content only. The hash does not include the line number.
+
+3. Edit with a hashline operation:
+
+```json
+{"action": "file_editor", "operation": "hashline_replace", "file_path": "../../internal/tools/example.go", "old": "func main() {", "new": "func main() error {", "anchor_line": 42, "anchor_hash": "a1b2c3d4"}
+```
+
+Rules:
+
+- Always provide `anchor_line` and `anchor_hash` from the hashline read.
+- `hashline_replace` replaces an `old` match that starts on the validated anchor line. Matches elsewhere in the file do not matter.
+- `hashline_insert_after` and `hashline_insert_before` insert relative to the validated anchor line; `marker` must appear on that line.
+- `hashline_delete` requires `anchor_line` to be inside the deleted range.
+- If you insert or delete lines above a later anchor, adjust the later `anchor_line`; the old `anchor_hash` is still valid if that line's content did not change.
+- On `STALE CONTEXT`, re-read the file with `include_hashes: true` before retrying.
 
 ### Examples
 
@@ -53,6 +91,10 @@ All operations require `file_path` (relative to `agent_workspace/workdir`). Proj
 
 ```json
 {"action": "file_editor", "operation": "str_replace_glob", "file_path": "../../internal/tools/*.go", "old": "oldFunctionName", "new": "newFunctionName"}
+```
+
+```json
+{"action": "file_editor", "operation": "hashline_delete", "file_path": "data.csv", "start_line": 5, "end_line": 10, "anchor_line": 5, "anchor_hash": "a1b2c3d4"}
 ```
 
 ### Tips

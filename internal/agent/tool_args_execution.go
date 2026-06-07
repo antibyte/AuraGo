@@ -178,26 +178,29 @@ type apiRequestArgs struct {
 }
 
 type filesystemArgs struct {
-	Operation   string
-	FilePath    string
-	Destination string
-	Content     string
-	Items       []map[string]interface{}
-	Limit       int
-	Offset      int
+	Operation     string
+	FilePath      string
+	Destination   string
+	Content       string
+	Items         []map[string]interface{}
+	Limit         int
+	Offset        int
+	IncludeHashes bool
 }
 
 type fileEditorArgs struct {
-	Operation string
-	FilePath  string
-	Old       string
-	New       string
-	Marker    string
-	Content   string
-	StartLine int
-	EndLine   int
-	LineCount int
-	Pattern   string
+	Operation  string
+	FilePath   string
+	Old        string
+	New        string
+	Marker     string
+	Content    string
+	StartLine  int
+	EndLine    int
+	LineCount  int
+	Pattern    string
+	AnchorLine int
+	AnchorHash string
 }
 
 type jsonEditorArgs struct {
@@ -744,13 +747,15 @@ func decodeAPIRequestArgs(tc ToolCall) apiRequestArgs {
 }
 
 func decodeFilesystemArgs(tc ToolCall) filesystemArgs {
+	includeHashes, _ := toolArgBool(tc.Params, "include_hashes")
 	req := filesystemArgs{
-		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
-		FilePath:    firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
-		Destination: firstNonEmptyToolString(tc.Destination, tc.Dest, toolArgString(tc.Params, "destination", "dest")),
-		Content:     firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
-		Limit:       toolArgInt(tc.Params, 0, "limit"),
-		Offset:      toolArgInt(tc.Params, 0, "offset"),
+		Operation:     firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		FilePath:      firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
+		Destination:   firstNonEmptyToolString(tc.Destination, tc.Dest, toolArgString(tc.Params, "destination", "dest")),
+		Content:       firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
+		Limit:         toolArgInt(tc.Params, 0, "limit"),
+		Offset:        toolArgInt(tc.Params, 0, "offset"),
+		IncludeHashes: includeHashes,
 	}
 	if len(tc.Items) > 0 {
 		req.Items = append([]map[string]interface{}(nil), tc.Items...)
@@ -762,16 +767,18 @@ func decodeFilesystemArgs(tc ToolCall) filesystemArgs {
 
 func decodeFileEditorArgs(tc ToolCall) fileEditorArgs {
 	return fileEditorArgs{
-		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
-		FilePath:  firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
-		Old:       toolArgString(tc.Params, "old"),
-		New:       toolArgString(tc.Params, "new"),
-		Marker:    toolArgString(tc.Params, "marker"),
-		Content:   firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
-		StartLine: toolArgInt(tc.Params, 0, "start_line"),
-		EndLine:   toolArgInt(tc.Params, 0, "end_line"),
-		LineCount: toolArgInt(tc.Params, 0, "line_count"),
-		Pattern:   toolArgString(tc.Params, "pattern", "glob"),
+		Operation:  firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		FilePath:   firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
+		Old:        toolArgString(tc.Params, "old"),
+		New:        toolArgString(tc.Params, "new"),
+		Marker:     toolArgString(tc.Params, "marker"),
+		Content:    firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
+		StartLine:  toolArgInt(tc.Params, 0, "start_line"),
+		EndLine:    toolArgInt(tc.Params, 0, "end_line"),
+		LineCount:  toolArgInt(tc.Params, 0, "line_count"),
+		Pattern:    toolArgString(tc.Params, "pattern", "glob"),
+		AnchorLine: toolArgInt(tc.Params, 0, "anchor_line"),
+		AnchorHash: toolArgString(tc.Params, "anchor_hash"),
 	}
 }
 
