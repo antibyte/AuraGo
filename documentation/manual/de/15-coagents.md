@@ -377,6 +377,8 @@ circuit_breaker:
 
 ### Token-Budget
 
+> 🖥️ **Web-UI:** **Config → Agent → Co-Agenten** → Circuit Breaker → **Max Tokens**.
+
 ### YAML-Referenz
 ```yaml
 # Optional: Token-Limit pro Co-Agent

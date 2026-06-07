@@ -68,7 +68,17 @@ Co-agents are independent helper agents that the main agent can dynamically spaw
 
 ## Configuration
 
-### config.yaml Section
+> 💡 **Web UI first:** Open **Config → Co-Agents** to enable the system, set concurrency limits, assign a provider, and configure specialists. YAML below is for headless or advanced setups.
+
+### Web UI Setup
+1. Open **Config → Co-Agents**.
+2. Enable co-agents and set **Max Concurrent** agents.
+3. Configure the co-agent LLM provider (or leave empty to use the main provider).
+4. Tune circuit breaker limits and optional **Budget Quota Percent**.
+5. Enable or disable specialists (researcher, coder, designer, security, writer).
+6. Save changes.
+
+### YAML Reference
 
 ```yaml
 co_agents:
@@ -289,8 +299,11 @@ Each co-agent:
 
 ### Token Budget
 
-Set `max_tokens` to prevent cost explosion:
+Set `max_tokens` to prevent cost explosion.
 
+> 🖥️ **Web UI:** **Config → Co-Agents** → Circuit Breaker → **Max Tokens**.
+
+### YAML Reference
 ```yaml
 co_agents:
   circuit_breaker:

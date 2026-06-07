@@ -1,6 +1,8 @@
 # Chapter 7: Configuration
 
-AuraGo's behavior is controlled through a central configuration file (`config.yaml`) and environment variables. This chapter explains all configuration options and how to customize AuraGo for your needs.
+> 💡 **Web UI first:** AuraGo is fully configurable through **Menu → Config** in the Web UI. Use the sidebar to find providers, agent behavior, tools, integrations, and security settings. The `config.yaml` file and YAML snippets in this chapter are alternatives for headless servers, automation, and advanced setups.
+
+AuraGo's behavior is controlled through the Web UI, a central configuration file (`config.yaml`), and environment variables. This chapter explains all configuration options and how to customize AuraGo for your needs.
 
 ## Table of Contents
 

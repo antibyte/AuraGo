@@ -16,7 +16,7 @@ Du: Can you help me write a Python script?
 Du: Peux-tu m'aider à écrire un script Python?
 ```
 
-> 💡 **Tipp:** Die Sprache der Konfiguration (`system_language` in config.yaml) bestimmt die Standardsprache des Agents, aber du kannst jederzeit die Sprache wechseln.
+> 💡 **Tipp:** Die Standardsprache des Agents wird unter **Config → Agent → System Language** gesetzt (YAML: `agent.system_language`). Du kannst jederzeit die Sprache im Chat wechseln.
 
 ### Klare vs. komplexe Anfragen
 

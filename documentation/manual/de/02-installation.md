@@ -70,7 +70,7 @@ docker compose up -d
 
 > 💡 **Docker-Vorteil:** Vollständige Isolation, einfaches Backup, keine Python-Abhängigkeiten auf dem Host.
 
-> ⚠️ **Wichtig für Docker:** Setze in `config.yaml` den Host auf `0.0.0.0`:
+> ⚠️ **Wichtig für Docker:** Setze den Host auf `0.0.0.0` unter **Config → Server → Host** (YAML-Alternative in `config.yaml`):
 > ```yaml
 > server:
 >   host: "0.0.0.0"
@@ -130,7 +130,17 @@ make_deploy.bat   # Windows
 
 ## Erstkonfiguration
 
-### 1. API-Key konfigurieren
+> 💡 **Empfohlen:** Nach dem ersten Start die Web-UI öffnen (**Menü → Config → Provider**), LLM-Provider und API-Key eintragen. Zugangsdaten landen sicher im Vault. `config.yaml` direkt bearbeiten ist nur für Headless- oder Skript-Setups nötig.
+
+### 1. API-Key konfigurieren (Web-UI — empfohlen)
+
+1. Öffne `http://localhost:8088` (oder deine konfigurierte Adresse).
+2. Gehe zu **Menü → Config → Provider**.
+3. Lege einen Provider an (z. B. OpenRouter), trage den API-Key ein und wähle ein Modell.
+4. Unter **Config → LLM Settings** den **Provider** auf die neue Provider-ID setzen.
+5. Auf **Speichern** klicken.
+
+### 1b. API-Key konfigurieren (YAML — Alternative)
 
 Bearbeite `config.yaml`:
 
@@ -301,7 +311,7 @@ Remove-Item -Recurse -Force C:\Users\$env:USERNAME\aurago
 |---------|--------|
 | `resources.dat not found` | Datei muss im gleichen Verzeichnis wie `aurago` liegen |
 | `AURAGO_MASTER_KEY is missing` | `.env` laden: `export $(cat .env \| xargs)` |
-| Port bereits belegt | `server.port` in `config.yaml` ändern |
+| Port bereits belegt | Port unter **Config → Server** ändern (YAML: `server.port`) |
 | Python venv Fehler | Python 3.10+ installieren: `sudo apt install python3 python3-venv` |
 | Permission denied (Docker) | `sudo usermod -aG docker $USER` und neu einloggen |
 

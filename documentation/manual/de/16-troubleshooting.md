@@ -96,7 +96,8 @@ Fehler: 401 Unauthorized - Invalid API key
 curl -H "Authorization: Bearer DEIN-KEY" \
   https://openrouter.ai/api/v1/models
 
-# In config.yaml prüfen – Provider-API-Key verifizieren
+# Web-UI: Config → Provider → API-Key prüfen
+# YAML-Alternative:
 nano config.yaml
 # Der API-Key wird im providers-Block konfiguriert, nicht unter llm.api_key
 ```
@@ -108,9 +109,9 @@ Fehler: 429 Too Many Requests
 ```
 
 **Lösungen:**
-- `agent.step_delay_seconds` in config.yaml erhöhen
-- Anderes/fasteres Modell verwenden
-- Budget-Tracking aktivieren für Überblick
+- **Config → Agent** → `step_delay_seconds` erhöhen (YAML: `agent.step_delay_seconds`)
+- Anderes/schnelleres Modell unter **Config → LLM Settings** wählen
+- **Config → Budget** aktivieren für Kostenüberblick
 
 ### Modell nicht gefunden (404)
 
@@ -118,7 +119,7 @@ Fehler: 429 Too Many Requests
 Fehler: 404 Model not found
 ```
 
-**Lösung:** Modell-ID in `llm.model` prüfen. Bei OpenRouter: Im Dashboard verifizieren.
+**Lösung:** Modell-ID unter **Config → LLM Settings** prüfen (YAML: `llm.model`). Bei OpenRouter: Im Dashboard verifizieren.
 
 ## Gedächtnis- und Performance-Probleme
 
@@ -126,8 +127,8 @@ Fehler: 404 Model not found
 
 | Ursache | Lösung |
 |---------|--------|
-| Große Vektordatenbank | `embeddings.provider: disabled` testweise |
-| Langer Chat-Verlauf | `/reset` oder `memory_compression_char_limit` senken |
+| Große Vektordatenbank | **Config → Embeddings** → Provider deaktivieren |
+| Langer Chat-Verlauf | `/reset` oder **Config → Agent** → Memory Compression Limit senken |
 | Memory Leak | AuraGo neustarten, Bug reporten |
 
 ### Datenbank-Locks

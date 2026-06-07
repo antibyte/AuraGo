@@ -70,7 +70,7 @@ docker compose up -d
 
 > 💡 **Docker advantage:** Complete isolation, easy backup, no Python dependencies on host.
 
-> ⚠️ **Important for Docker:** Set host to `0.0.0.0` in `config.yaml`:
+> ⚠️ **Important for Docker:** Set host to `0.0.0.0` in **Config → Server → Host** (YAML alternative in `config.yaml`):
 > ```yaml
 > server:
 >   host: "0.0.0.0"
@@ -130,7 +130,17 @@ make_deploy.bat   # Windows
 
 ## Initial Configuration
 
-### 1. Configure API Key
+> 💡 **Recommended:** After the first start, open the Web UI (**Menu → Config → Providers**) to add your LLM provider and API key. Credentials are stored securely in the vault. Editing `config.yaml` directly is only needed for headless or scripted setups.
+
+### 1. Configure API Key (Web UI — recommended)
+
+1. Open `http://localhost:8088` (or your configured host/port).
+2. Go to **Menu → Config → Providers**.
+3. Add a provider (e.g. OpenRouter), paste your API key, and select a model.
+4. Under **Config → LLM Settings**, set **Provider** to your new provider ID.
+5. Click **Save**.
+
+### 1b. Configure API Key (YAML — alternative)
 
 Edit `config.yaml`:
 
@@ -307,7 +317,7 @@ Remove-Item -Recurse -Force C:\Users\$env:USERNAME\aurago
 |---------|----------|
 | `resources.dat not found` | File must be in same directory as `aurago` |
 | `AURAGO_MASTER_KEY is missing` | Load `.env`: `export $(cat .env \| xargs)` |
-| Port already in use | Change `server.port` in `config.yaml` |
+| Port already in use | Change port in **Config → Server** (YAML: `server.port`) |
 | Python venv error | Install Python 3.10+: `sudo apt install python3 python3-venv` |
 | Permission denied (Docker) | `sudo usermod -aG docker $USER` and re-login |
 

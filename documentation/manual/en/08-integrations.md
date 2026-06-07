@@ -2,6 +2,8 @@
 
 AuraGo connects with numerous external services to extend its capabilities. This chapter covers all available integrations and their configuration.
 
+> 💡 **Web UI first:** Every integration in this chapter is configured through **Menu → Config**. Use the sidebar search or browse groups such as **Messenger**, **Smart Home**, **Network & Remote**, **External AI**, and **Danger Zone**. YAML blocks are alternatives for headless or scripted setups.
+
 ## Setting Up Integrations via the Web UI
 
 The easiest and recommended way to configure integrations is through the AuraGo Web UI:
@@ -616,6 +618,13 @@ For MCP clients, `allowed_tools` is optional per server. Leave it empty or omit 
 ### MCP Server
 Exposes AuraGo tools to external clients.
 
+### Web UI Setup
+1. Open **Config → External AI → MCP Server**.
+2. Enable the server, set **Require Auth**, and choose **Allowed Tools**.
+3. Open **Config → Danger Zone** and enable **Allow MCP** (`agent.allow_mcp`).
+4. Save and restart if prompted.
+
+### YAML Reference
 ```yaml
 mcp_server:
     enabled: true

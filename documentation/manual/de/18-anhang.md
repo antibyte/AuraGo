@@ -4,6 +4,8 @@ Referenzmaterial, vollständige Konfigurationen und nützliche Ressourcen.
 
 ## Vollständige Konfigurationsreferenz
 
+> 💡 **Web-UI zuerst:** Änderungen im Alltag über **Menü → Config** vornehmen. Dieser Anhang dokumentiert die vollständige `config.yaml`-Struktur als Referenz für Automatisierung und Headless-Deployments.
+
 ### config.yaml Struktur
 
 ```yaml

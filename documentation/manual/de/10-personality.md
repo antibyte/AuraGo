@@ -26,6 +26,13 @@ AuraGo hat zwei Personality Engines, die unabhängig aktiviert werden können:
 Die V1-Engine verwendet vordefinierte Prompt-Templates ohne zusätzliche LLM-Aufrufe.
 
 **Konfiguration:**
+
+### Einrichtung in der Web-UI
+1. Öffne **Config → Personality**.
+2. Aktiviere **Personality Engine V1** und wähle ein **Core Personality**-Profil.
+3. Speichern und bei Bedarf neu starten.
+
+### YAML-Referenz
 ```yaml
 # config.yaml
 personality:
@@ -43,6 +50,14 @@ Die V2-Engine bietet:
 - Benutzer-Profiling (optional)
 
 **Konfiguration:**
+
+### Einrichtung in der Web-UI
+1. Öffne **Config → Personality** und aktiviere **Personality Engine V2**.
+2. Öffne **Config → LLM Settings** und aktiviere den **Helper LLM** (erforderlich für V2-Stimmungsanalyse).
+3. Aktiviere optional **User Profiling**, **Emotion Synthesizer** und **Inner Voice** auf der Personality-Seite.
+4. Speichern.
+
+### YAML-Referenz
 ```yaml
 # config.yaml
 personality:
@@ -69,6 +84,12 @@ personality:
 
 ### Beide Engines deaktivieren
 
+### Einrichtung in der Web-UI
+1. Öffne **Config → Personality**.
+2. Deaktiviere **Personality Engine V1** und **Personality Engine V2**.
+3. Speichern.
+
+### YAML-Referenz
 ```yaml
 personality:
   engine: false
@@ -116,22 +137,18 @@ Standardstimmung ohne Verlauf: `curious`.
 
 ### Persönlichkeit wechseln
 
-#### Über die Config
+#### Über die Web-UI (empfohlen)
+
+1. Öffne **Config → Personality**.
+2. Wähle **Core Personality** im Dropdown (z. B. `professional`).
+3. Speichere und starte AuraGo neu.
+
+#### YAML-Referenz (Alternative)
 
 ```yaml
 personality:
   core_personality: "professional"
 ```
-
-> 💡 Änderungen erfordern einen Neustart von AuraGo.
-
-#### Über die Web-UI
-
-1. Öffne die Web-Oberfläche
-2. Gehe zu "Config"
-3. Suche nach `personality.core_personality`
-4. Wähle eine Persönlichkeit aus dem Dropdown
-5. Speichere und starte neu
 
 ---
 
@@ -174,6 +191,10 @@ Die V2-Engine kann die LLM-Temperatur dynamisch anpassen:
 | Konversation | Mittel | Balance |
 
 **Konfiguration:**
+
+> 🖥️ **Web-UI:** Basistemperatur unter **Config → LLM Settings** setzen.
+
+### YAML-Referenz
 ```yaml
 llm:
   temperature: 0.7  # Basistemperatur

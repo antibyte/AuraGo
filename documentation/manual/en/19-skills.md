@@ -217,7 +217,7 @@ api_key = os.environ.get('AURAGO_SECRET_OPENWEATHER_API_KEY')
 - Secrets are automatically removed from all outputs (scrubbing)
 - Secrets are only available during execution
 - The process runs in an isolated environment (venv)
-- Requires `tools.python_secret_injection.enabled: true` in `config.yaml`
+- Requires **Config → Tools → Tool Permissions** → **Python Secret Injection** enabled (YAML: `tools.python_secret_injection.enabled: true`)
 
 ---
 
@@ -625,7 +625,7 @@ AURAGO_SECRET_MY_KEY is None
 ```
 
 **Solution:**
-1. Check that `tools.python_secret_injection.enabled: true` in `config.yaml`
+1. Enable **Config → Tools → Tool Permissions** → **Python Secret Injection** (YAML: `tools.python_secret_injection.enabled: true`)
 2. Ensure the key exists in the vault
 3. Verify it's a user-created secret (not a system secret)
 

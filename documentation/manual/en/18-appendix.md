@@ -21,6 +21,8 @@ Comprehensive reference material for AuraGo including complete configuration opt
 
 ## Complete Configuration Reference
 
+> 💡 **Web UI first:** Use **Menu → Config** for day-to-day changes. This appendix documents the full `config.yaml` structure for reference, automation, and headless deployments.
+
 ### Full config.yaml Structure
 
 ```yaml

@@ -323,7 +323,7 @@ Commands können auch programmatisch über die API ausgelöst werden:
 | Problem | Lösung |
 |---------|--------|
 | Command wird nicht erkannt | Stelle sicher, dass du mit `/` beginnst und keine Leerzeichen davor hast |
-| `/budget` zeigt keine Daten | Budget-Tracking muss in `config.yaml` aktiviert sein |
+| `/budget` zeigt keine Daten | **Config → Budget** aktivieren (YAML: `budget.enabled: true`) |
 | `/credits` funktioniert nicht | Nur bei OpenRouter als Provider verfügbar |
 | `/addssh` meldet Fehler | Prüfe, ob `host` und `user` angegeben sind, sowie `pass` oder `keypath` |
 

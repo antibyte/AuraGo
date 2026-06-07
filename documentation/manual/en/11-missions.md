@@ -262,13 +262,10 @@ Dashboard history: `GET /api/dashboard/mission-history`
 |---------|-------|----------|
 | Mission stuck in `running` | Hung agent loop | Check logs, stop via API if needed |
 | Cron not firing | Wrong expression | Validate with crontab.guru |
-| "Scheduler tool disabled" | Tool off | `tools.scheduler.enabled: true` |
-| "Missions tool disabled" | Tool off | `tools.missions.enabled: true` |
+| "Scheduler tool disabled" | Tool off | **Config → Tools** → enable **Scheduler** (YAML: `tools.scheduler.enabled: true`) |
+| "Missions tool disabled" | Tool off | **Config → Tools** → enable **Missions** (YAML: `tools.missions.enabled: true`) |
 
-```yaml
-agent:
-  debug_mode: true
-```
+> 🖥️ **Debug logging:** **Config → Agent** → **Debug Mode** (YAML: `agent.debug_mode: true`).
 
 ---
 

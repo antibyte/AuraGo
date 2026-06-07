@@ -2,6 +2,8 @@
 
 AuraGo lässt sich nahtlos in verschiedene Dienste und Plattformen integrieren.
 
+> 💡 **Web-UI zuerst:** Jede Integration in diesem Kapitel wird über **Menü → Config** konfiguriert. Nutze die Sidebar-Suche oder Gruppen wie **Messenger**, **Smart Home**, **Netzwerk & Remote**, **Externe KI** und **Gefahrenzone**. YAML-Blöcke sind Alternativen für Headless- oder Skript-Setups.
+
 ## Integrationen über die Web-UI einrichten
 
 Die bevorzugte Art, Integrationen zu konfigurieren, ist die Web-UI:
@@ -600,7 +602,7 @@ Beim MCP-Client ist `allowed_tools` pro Server optional. Leer lassen oder weglas
 ### MCP-Server
 Stellt AuraGo-Tools für externe Clients bereit.
 
-**Web-UI:** **Config → Integrationen → MCP-Server** — aktivieren, Auth und `allowed_tools` setzen. Zusätzlich **Config → Gefahrenzone** → **MCP** für Client-Zugriff (`agent.allow_mcp`).
+**Web-UI:** **Config → Externe KI → MCP-Server** — aktivieren, Auth und `allowed_tools` setzen. Zusätzlich **Config → Gefahrenzone** → **MCP** für Client-Zugriff (`agent.allow_mcp`).
 
 ### YAML-Referenz
 ```yaml

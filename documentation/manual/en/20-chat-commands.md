@@ -323,7 +323,7 @@ curl -X POST http://localhost:8088/v1/chat/completions \
 | Problem | Solution |
 |---------|----------|
 | Command not recognized | Make sure you start with `/` and have no leading spaces |
-| `/budget` shows no data | Budget tracking must be enabled in `config.yaml` |
+| `/budget` shows no data | Enable **Config → Budget** (YAML: `budget.enabled: true`) |
 | `/credits` not working | Only available when using OpenRouter as provider |
 | `/addssh` reports errors | Check if `host` and `user` are specified, plus `pass` or `keypath` |
 

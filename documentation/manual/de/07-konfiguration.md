@@ -305,7 +305,7 @@ tools:
 ```
 
 - Alle hochgeladenen Skills werden auf verdächtige Muster gescannt
-- `python_secret_injection` muss aktiviert sein, damit Skills Vault-Secrets nutzen können
+- **Python Secret Injection** unter **Config → Tools → Tool-Berechtigungen** muss aktiv sein, damit Skills Vault-Secrets nutzen können (YAML: `tools.python_secret_injection.enabled`)
 - Der Guardian kann optional Code-Reviews durchführen
 
 ---

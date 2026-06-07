@@ -25,7 +25,7 @@ This chapter helps you diagnose and resolve common issues with AuraGo. From inst
 When encountering issues, follow this systematic approach:
 
 1. **Check the logs** – Always start with `log/supervisor.log`
-2. **Verify configuration** – Ensure `config.yaml` is valid
+2. **Verify configuration** – Check settings in **Menu → Config** (or validate `config.yaml` on headless installs)
 3. **Test connectivity** – Check network and API access
 4. **Isolate the problem** – Disable integrations one by one
 5. **Enable debug mode** – Get detailed error information
@@ -133,7 +133,8 @@ sudo kill -9 <PID>
 netstat -ano | findstr :8088
 taskkill /PID <PID> /F
 
-# Or change port in config.yaml
+# Or change port in the Web UI: Config → Server → Port
+# YAML alternative:
 server:
   port: 8089  # Use different port
 ```
@@ -154,7 +155,7 @@ server:
 1. Verify bot token in Discord Developer Portal
 2. Check `gateway intents` are enabled (Server Members, Message Content)
 3. Ensure bot has `Send Messages` permission in channel
-4. Check `discord.enabled: true` in config.yaml
+4. Check **Config → Messenger → Discord** → **Enabled** (YAML: `discord.enabled: true`)
 
 ---
 
@@ -166,9 +167,9 @@ server:
 
 **Solutions:**
 
-1. **Verify API key is set:**
+1. **Verify API key is set** in **Config → Providers** (or check `config.yaml` on headless installs):
    ```bash
-   # Check config.yaml
+   # YAML alternative
    cat config.yaml | grep api_key
    
    # Test API key directly
@@ -191,8 +192,11 @@ server:
 
 **Solutions:**
 
+> 🖥️ **Web UI:** **Config → Agent** → **Step Delay Seconds**. For circuit breaker retries: **Config → Agent → Circuit Breaker**.
+
+### YAML Reference
 ```yaml
-# config.yaml - Add delay between calls
+# Add delay between calls
 agent:
   step_delay_seconds: 2  # Wait 2 seconds between tool calls
 ```
@@ -224,8 +228,11 @@ curl -H "Authorization: Bearer $API_KEY" \
 
 ### Fallback LLM Activation
 
-If your primary LLM fails repeatedly, enable fallback:
+If your primary LLM fails repeatedly, enable fallback.
 
+> 🖥️ **Web UI:** **Config → Fallback LLM**.
+
+### YAML Reference
 ```yaml
 fallback_llm:
   enabled: true
@@ -252,7 +259,9 @@ fallback_llm:
 | Memory leak in Python tools | Restart AuraGo, check tool code |
 | Unbounded chat history | Use `/reset` to clear |
 
-**Configuration adjustments:**
+**Configuration adjustments** (**Config → Agent** for limits; YAML below for headless setups):
+
+### YAML Reference
 ```yaml
 agent:
   context_window: 8192        # Reduce context window

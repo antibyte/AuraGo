@@ -106,8 +106,11 @@ The Danger Zone allows granular control over what the agent can do.
 
 ### Agent Capability Gates
 
+> 🖥️ **Web UI:** Open **Config → Danger Zone** for `agent.allow_*` capability gates. Per-integration **Read-only** toggles are on each integration's own Config page (e.g. **Config → Docker**, **Config → Home Assistant**).
+
 Danger Zone toggles live under `agent.allow_*`:
 
+### YAML Reference
 ```yaml
 agent:
   allow_shell: false
@@ -169,8 +172,11 @@ rm data/*.lock 2>/dev/null
 
 ## Rate Limiting
 
-Protects against brute force and overload:
+Protects against brute force and overload.
 
+> 🖥️ **Web UI:** **Config → Web Config & Login** → **Max Login Attempts** and **Lockout Minutes**.
+
+### YAML Reference
 ```yaml
 # Config (in auth section)
 auth:
