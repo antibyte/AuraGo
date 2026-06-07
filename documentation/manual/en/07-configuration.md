@@ -96,6 +96,9 @@ For advanced use cases or headless setups, you can edit `config.yaml` directly:
 
 Task rules are Markdown guardrails that AuraGo loads before matching workflows or tools. They live under `prompts/rules/<id>/rule.md`, can be edited in **Config → Rules**, and are matched by tool name, workflow tag, or keyword. Built-in rules are embedded in the binary, disk files override them, and the UI can restore the embedded version.
 
+> 🖥️ **Web UI:** Go to **Config → Rules** to enable rules and edit individual rule files.
+
+### YAML Reference
 ```yaml
 rules:
   enabled: true
@@ -306,6 +309,9 @@ agent:
 
 Reduces token usage by compressing verbose tool outputs **before** `tool_output_limit` truncation. Enabled by default.
 
+> 🖥️ **Web UI:** Go to **Config → Output Compression** to tune compression modes and thresholds.
+
+### YAML Reference
 ```yaml
 agent:
     output_compression:
@@ -333,6 +339,9 @@ agent:
 
 ### Danger Zone: Capability Controls
 
+> 🖥️ **Web UI:** Go to **Config → Danger Zone** to toggle `allow_shell`, `allow_python`, `allow_filesystem_write`, and other capability gates.
+
+### YAML Reference
 ```yaml
 agent:
     # Danger Zone — disabled by default for fresh installs
@@ -353,8 +362,9 @@ agent:
 
 ## Tool Configuration, Skill Manager & Media Registry
 
-Built-in tools, skill uploads, and media tracking can all be configured under `Config → Tools` in the Web UI.
+Built-in tools, skill uploads, and media tracking can all be configured under **Config → Tools** (Tool Permissions) in the Web UI. Related subsections include **Config → Agent Tools → Skill Manager**, **Daemon Skills**, **Information Tools**, **Network Tools**, and **Config → Media & Content → Media Registry**.
 
+### YAML Reference
 ```yaml
 tools:
     memory:
@@ -461,6 +471,9 @@ media_registry:
 
 Embeddings power AuraGo's long-term memory and semantic search.
 
+> 🖥️ **Web UI:** Go to **Config → Embeddings** to choose the provider, model, and multimodal options.
+
+### YAML Reference
 ```yaml
 embeddings:
     provider: internal           # Provider ID, "internal", or "disabled"
@@ -499,6 +512,9 @@ embeddings:
 
 The `personality` section controls AuraGo's personality engine, mood analysis, and user profiling.
 
+> 🖥️ **Web UI:** Go to **Config → Personality** to select the core profile, enable V2, and configure emotion synthesizer and inner voice.
+
+### YAML Reference
 ```yaml
 personality:
     core_personality: friend           # active personality profile: friend, professional, punk, neutral, terminator
@@ -539,6 +555,9 @@ personality:
 
 The `co_agents` section configures parallel sub-agents (specialists) that AuraGo can spawn for complex tasks.
 
+> 🖥️ **Web UI:** Go to **Config → Co-Agents** to enable the system, set concurrency limits, and configure specialists.
+
+### YAML Reference
 ```yaml
 co_agents:
     enabled: false
@@ -601,6 +620,9 @@ co_agents:
 
 ## Logging Configuration
 
+> 🖥️ **Web UI:** Go to **Config → Logging** to enable file logging and prompt logging.
+
+### YAML Reference
 ```yaml
 logging:
     enable_file_log: true

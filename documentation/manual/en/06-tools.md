@@ -45,8 +45,16 @@ The current version includes several powerful extensions:
 
 ## Configuration of Key Tools
 
+> 💡 **Web UI first:** Open **Menu → Config** and use the sidebar to configure tools and integrations. The YAML blocks below are for advanced or headless setups.
+
 ### 1. Filesystem & Shell
 
+### Web UI Setup
+1. Open **Config → Danger Zone**.
+2. Enable **Allow Shell Execution**, **Allow Python Execution**, and **Allow Filesystem Write** as needed.
+3. Save changes.
+
+### YAML Reference
 ```yaml
 agent:
   allow_shell: true              # Allow shell commands
@@ -56,6 +64,13 @@ agent:
 
 ### 2. Docker
 
+### Web UI Setup
+1. Open **Config → Integrations → Docker**.
+2. Enable the integration and set the Docker host.
+3. Optionally enable **Read-only** for safe testing.
+4. Save and restart if prompted.
+
+### YAML Reference
 ```yaml
 docker:
   enabled: true
@@ -66,6 +81,13 @@ docker:
 
 ### 3. Proxmox
 
+### Web UI Setup
+1. Open **Config → Integrations → Proxmox**.
+2. Enable the integration and enter URL, token ID, and node.
+3. Store the token secret in the **Vault**.
+4. Save and restart if prompted.
+
+### YAML Reference
 ```yaml
 proxmox:
   enabled: true
@@ -78,6 +100,14 @@ proxmox:
 
 ### 4. Home Assistant
 
+### Web UI Setup
+1. Open **Config → Integrations → Home Assistant**.
+2. Enable the integration and enter the instance URL.
+3. Store the access token in the **Vault**.
+4. Toggle **Read-only** if you only need state queries.
+5. Save and restart if prompted.
+
+### YAML Reference
 ```yaml
 home_assistant:
   enabled: true
@@ -88,6 +118,13 @@ home_assistant:
 
 ### 5. Google Workspace (OAuth2)
 
+### Web UI Setup
+1. Open **Config → Integrations → Google Workspace**.
+2. Enable the integration and complete OAuth2 in the Web UI.
+3. Select Gmail, Calendar, and Drive permissions as needed.
+4. Save changes.
+
+### YAML Reference
 ```yaml
 google_workspace:
   enabled: true
@@ -97,6 +134,14 @@ Authentication via OAuth2 in the Web UI vault menu.
 
 ### 6. Email
 
+### Web UI Setup
+1. Open **Config → Integrations → Email**.
+2. Enable the integration and enter IMAP/SMTP settings.
+3. Store credentials in the **Vault**.
+4. Enable **Inbox Watch** if you want automatic polling.
+5. Save and restart if prompted.
+
+### YAML Reference
 ```yaml
 email:
   enabled: true
@@ -111,6 +156,12 @@ email:
 
 ### 7. Web Search
 
+### Web UI Setup
+1. DuckDuckGo search is enabled by default (no API key required).
+2. For Brave Search, open **Config → Integrations → Brave Search**, enable it, and add your API key.
+3. Save changes.
+
+### YAML Reference
 ```yaml
 # DuckDuckGo (no API key required)
 # Enabled by default
@@ -127,6 +178,13 @@ brave_search:
 
 ### 8. Media Generation
 
+### Web UI Setup
+1. Open **Config → Media & Content → Image Generation** (and **Music Generation** / **Video Generation** as needed).
+2. Enable each generator and select the provider and model.
+3. Set daily limits if required.
+4. Save changes.
+
+### YAML Reference
 ```yaml
 image_generation:
   enabled: true
@@ -152,6 +210,12 @@ The related tools are `generate_image`, `generate_music`, and `generate_video`. 
 
 **Save tokens, stay focused.** The Adaptive Tools system filters tools based on conversation context:
 
+### Web UI Setup
+1. Open **Config → Optimizations**.
+2. Under **Tool Optimization**, enable **Adaptive Tools** and adjust `max_tools` / `max_total_tools`.
+3. Save changes.
+
+### YAML Reference
 ```yaml
 agent:
   adaptive_tools:
@@ -185,6 +249,12 @@ The final native schema budget is controlled by `max_total_tools` where it can b
 
 Many tools support a read-only mode:
 
+### Web UI Setup
+1. Open the integration in **Config** (e.g. **Config → Integrations → Docker**).
+2. Enable **Read-only** on that integration's form.
+3. Save changes.
+
+### YAML Reference
 ```yaml
 docker:
   enabled: true
@@ -201,6 +271,13 @@ home_assistant:
 
 The Danger Zone controls potentially dangerous operations:
 
+### Web UI Setup
+1. Open **Config → Danger Zone**.
+2. Toggle capability gates (`allow_shell`, `allow_python`, `allow_mcp`, etc.) as needed.
+3. For web scraping, open **Config → Agent Tools → Web Scraper** and enable it there.
+4. Save changes.
+
+### YAML Reference
 ```yaml
 agent:
   allow_shell: true              # Shell commands
@@ -210,11 +287,11 @@ agent:
   allow_remote_shell: true       # SSH to remote devices
   allow_self_update: true        # Self-updates
   allow_mcp: true                # MCP protocol (also requires mcp.enabled)
-  allow_package_manager: false   # also requires package_manager.enabled
+  allow_package_manager: false   # also requires package_manager.enabled (**Config → Danger Zone**)
 
 tools:
   web_scraper:
-    enabled: true                # replaces deprecated allow_web_scraper
+    enabled: true                # replaces deprecated allow_web_scraper (**Config → Agent Tools → Web Scraper**)
 ```
 
 > ⚠️ **Tip:** In production environments, only enable what you really need.
@@ -291,6 +368,12 @@ Diagnostic tools for network scanning and monitoring.
 
 ### Configuration
 
+### Web UI Setup
+1. Open **Config → Agent Tools → Network Tools**.
+2. Enable **Network Ping**, **Network Scan**, **UPnP Scan**, **Web Capture**, and **Form Automation** as needed.
+3. Save changes.
+
+### YAML Reference
 ```yaml
 tools:
   network_ping:
@@ -327,6 +410,12 @@ Screenshots, PDF generation, and browser automation.
 
 ### Configuration
 
+### Web UI Setup
+1. Open **Config → Agent Tools → Network Tools**.
+2. Enable **Web Capture** and optionally **Form Automation**.
+3. Save changes.
+
+### YAML Reference
 ```yaml
 tools:
   web_capture:
@@ -364,6 +453,12 @@ Extract text from PDF documents with optional LLM summarization.
 
 ### Configuration
 
+### Web UI Setup
+1. Open **Config → Agent Tools → Information Tools**.
+2. Configure **PDF Extractor** (enable summary mode if desired).
+3. Save changes.
+
+### YAML Reference
 ```yaml
 tools:
   pdf_extractor:
@@ -392,6 +487,13 @@ Conversion of audio, video, and image files as well as video download from platf
 
 ### Configuration
 
+### Web UI Setup
+1. Open **Config → Media & Content → Media Conversion** for FFmpeg/ImageMagick paths.
+2. Open **Config → Media & Content → Video Download** for download mode and transcription options.
+3. Enable **Send YouTube Video** under **Config → Tools** if needed.
+4. Save changes.
+
+### YAML Reference
 ```yaml
 tools:
   media_conversion:
