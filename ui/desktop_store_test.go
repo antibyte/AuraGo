@@ -208,6 +208,24 @@ func TestDesktopStoreSupportsTerminalPreviewApps(t *testing.T) {
 	}
 }
 
+func TestSoftwareStoreUsesInjectedThemeIconPath(t *testing.T) {
+	t.Parallel()
+
+	storeJS := readDesktopAssetText(t, "js/desktop/apps/software-store.js")
+	routingJS := readDesktopAssetText(t, "js/desktop/core/menus-and-routing.js")
+	for _, want := range []string{
+		"const themeIconPath = deps.themeIconPath || (() => '');",
+		"const themedStoreIcon = entry.icon && themeIconPath(entry.icon);",
+	} {
+		if !strings.Contains(storeJS, want) {
+			t.Fatalf("software store missing theme icon marker %q", want)
+		}
+	}
+	if !strings.Contains(routingJS, "themeIconPath, notify: showDesktopNotification") {
+		t.Fatal("software store render call must inject themeIconPath from desktop shell")
+	}
+}
+
 func TestSoftwareStoreShowsCommandCodeOpenLabelAndBadge(t *testing.T) {
 	t.Parallel()
 

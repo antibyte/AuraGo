@@ -18,6 +18,7 @@
         const t = deps.t || ((key, fallback) => fallback || key);
         const api = deps.api;
         const iconMarkup = deps.iconMarkup || ((key, fallback) => '<span>' + esc(fallback || key || '') + '</span>');
+        const themeIconPath = deps.themeIconPath || (() => '');
         const notify = deps.notify || function () {};
         const openApp = deps.openApp || function () {};
         const loadBootstrap = deps.loadBootstrap || function () {};
