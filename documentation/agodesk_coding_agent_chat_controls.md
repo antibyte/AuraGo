@@ -9,16 +9,11 @@ Implement Stop, New Chat, History, and TTS against the AuraGo WebSocket protocol
    - `chat.sessions`
    - `chat.cancel`
    - `chat.audio_events`
-   - `chat.media_events`
    - `chat.voice_output`
    - `chat.voice_output_status`
-   - `integrations.webhosts`
-   - `system.warnings`
 3. After `session.accepted`, store `advertised_capabilities` as the negotiated feature set.
 4. After `session.accepted`, send `persona.assets.request` as before.
 5. If `chat.sessions` is negotiated, send `chat.sessions.list`, then select the last locally stored `conversation_id` or send `chat.session.create`.
-6. If `integrations.webhosts` is negotiated, send `integrations.webhosts.list`.
-7. If `system.warnings` is negotiated, send `system.warnings.list`.
 
 ## Chat State
 
@@ -33,9 +28,6 @@ type AgoDeskChatState = {
   negotiatedCapabilities: Set<string>;
   sessions: ChatSessionSummary[];
   messagesByConversation: Map<string, ChatMessage[]>;
-  mediaByConversation: Map<string, ChatMediaItem[]>;
-  integrationWebhosts: WebhostIntegration[];
-  systemWarnings: SystemWarning[];
   ttsMode: "auto" | "aurago" | "frontend" | "off";
   speakerMode: boolean;
 };
@@ -132,51 +124,6 @@ Audio handling:
 5. Stop clears queued audio, stops active audio, and cancels frontend/native speech.
 6. Do not log local file paths or server audio URLs in normal logs.
 
-## Media Events
-
-Handle `chat.media` only when `chat.media_events` is negotiated. `chat.audio` is AuraGo TTS only; tool audio and generated music arrive as `chat.media` with `kind:"audio"`.
-
-Supported `kind` values:
-
-- `image`: render inline and offer an open-folder/file action.
-- `audio`: play in a local audio player or queue; use title/filename metadata and offer an open-folder/file action.
-- `document`: render `preview_url` inline when possible; otherwise show a file action.
-- `video` and `live_stream`: embed a player when WebView support allows it.
-- `youtube_video`: prefer `embed_url`; if WebView or CSP blocks embedding, open `url` externally.
-- `stl`: render inline only if the client has a viewer; otherwise show a file action.
-- `link`: open externally or in AgoDesk's integration/webview surface.
-
-Asset rules:
-
-1. Resolve relative `path` and `preview_url` values against the AuraGo origin.
-2. Use `/api/agodesk/media/...` paths exactly as provided.
-3. Do not rewrite these paths back to `/files/...`; `/files/...` requires a Web UI login cookie.
-4. Stop should stop active audio/video playback for the current request.
-5. Render titles, captions, and descriptions as text/sanitized Markdown only.
-
-## Integration Webhosts
-
-On `integrations.webhosts`, replace the local integrations list with `payload.webhosts`. Each item has `id`, `name`, `description`, `status`, `url`, and `icon`.
-
-Render the same conceptual drawer/list as Web Chat:
-
-- Show running/starting status.
-- Resolve relative URLs against the AuraGo origin.
-- Open integrations in an embedded WebView when possible; offer external-open fallback.
-- Refresh the list after reconnect and when the user opens the integrations surface.
-
-## System Warnings
-
-On `system.warnings`, replace the local warnings snapshot with `payload.warnings` and update badge counts from `total` and `unacknowledged`.
-
-Warning UI rules:
-
-1. Render severity, title, description, category, timestamp, and acknowledged state.
-2. Acknowledge one warning with `system.warning.acknowledge` and `id`.
-3. Acknowledge all warnings with `system.warning.acknowledge` and `all:true`.
-4. Treat any incoming `system.warnings` as authoritative, including broadcasts caused by Web Chat or another AgoDesk client.
-5. Never render warning descriptions as raw HTML.
-
 ## Acceptance Criteria
 
 - AgoDesk stores negotiated capabilities after `session.accepted`.
@@ -186,8 +133,5 @@ Warning UI rules:
 - Stop sends `chat.cancel`, updates the UI immediately, and handles `chat.cancelled`.
 - Speech-output changes send `chat.voice_output.status` with `speaker_mode`.
 - Auto TTS uses AuraGo audio when available and frontend/native TTS otherwise.
-- `chat.media` renders images, documents, audio/music, video, STL, links, and YouTube without requiring Web UI cookies.
-- Integrations show the same webhost list as the Web Chat integrations drawer.
-- System warnings show the same warning list/counts as Web Chat and can acknowledge one or all warnings.
 - Older AuraGo servers without these capabilities still allow basic chat.
 - Server text is sanitized Markdown/plain text only.

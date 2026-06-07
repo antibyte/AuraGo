@@ -589,7 +589,7 @@ When `system.warnings` is negotiated, send `system.warnings.list` with the accep
 
 To acknowledge, send `system.warning.acknowledge` with either `id` or `all:true`. AuraGo responds with a fresh `system.warnings` snapshot and also broadcasts snapshots to connected AgoDesk clients that negotiated `system.warnings` when warnings change.
 
-For the concrete AgoDesk client implementation checklist, see [`agodesk_coding_agent_chat_controls.md`](./agodesk_coding_agent_chat_controls.md).
+For concrete AgoDesk client implementation checklists, see [`agodesk_coding_agent_chat_controls.md`](./agodesk_coding_agent_chat_controls.md) for Stop/New Chat/History/TTS and [`agodesk_coding_agent_media_integrations_warnings.md`](./agodesk_coding_agent_media_integrations_warnings.md) for media artifacts, integration webhosts, and system warnings.
 
 ## Active Persona Assets
 
