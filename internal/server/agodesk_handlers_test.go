@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -1373,7 +1374,8 @@ func TestAgodeskChatMessageCommandSendsServerPushResponse(t *testing.T) {
 		CommandID: "chat-push-1",
 		Operation: "agodesk_chat_message",
 		Args: map[string]interface{}{
-			"message": "mission update",
+			"message":         "mission update",
+			"conversation_id": "sess-push",
 		},
 	}, time.Second)
 	if err != nil {
@@ -1391,6 +1393,9 @@ func TestAgodeskChatMessageCommandSendsServerPushResponse(t *testing.T) {
 	decodeAgodeskTestPayload(t, push, &payload)
 	if payload.SessionID != accepted.SessionID || payload.RequestID != "chat-push-1" || payload.Text != "mission update" || payload.Role != "assistant" {
 		t.Fatalf("push payload = %+v", payload)
+	}
+	if payload.ConversationID != "sess-push" {
+		t.Fatalf("conversation_id = %q, want sess-push", payload.ConversationID)
 	}
 	if payload.Metadata["server_push"] != true {
 		t.Fatalf("push metadata = %#v, want server_push=true", payload.Metadata)
@@ -1479,6 +1484,22 @@ func TestAgodeskDesktopResultAcceptsLargeScreenshotPayload(t *testing.T) {
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("timed out waiting for large desktop result")
+	}
+}
+
+func TestAgodeskActiveRunFallbackUsesMostRecentlyRegisteredRun(t *testing.T) {
+	state := &agodeskConnectionState{}
+	for i := 0; i < 100; i++ {
+		registerAgodeskActiveRun(state, fmt.Sprintf("req-%03d", i), fmt.Sprintf("sess-%03d", i), func() {})
+	}
+
+	unregisterAgodeskActiveRun(state, "req-099")
+	run, requestID, found := agodeskFindActiveRun(state, "", "")
+	if !found {
+		t.Fatal("fallback active run not found")
+	}
+	if requestID != "req-098" || run.conversationID != "sess-098" {
+		t.Fatalf("fallback active run = request %q conversation %q, want req-098/sess-098", requestID, run.conversationID)
 	}
 }
 

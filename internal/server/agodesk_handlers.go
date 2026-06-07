@@ -55,6 +55,7 @@ type agodeskConnectionState struct {
 	capabilities          map[string]struct{}
 	activeRuns            map[string]agodeskActiveChatRun
 	latestActiveRequestID string
+	nextActiveRunSequence uint64
 	mu                    sync.RWMutex
 	writeMu               sync.Mutex
 	activeMu              sync.Mutex
@@ -63,6 +64,7 @@ type agodeskConnectionState struct {
 type agodeskActiveChatRun struct {
 	conversationID string
 	cancel         context.CancelFunc
+	sequence       uint64
 }
 
 type agodeskDesktopBroker struct {
@@ -384,9 +386,11 @@ func registerAgodeskActiveRun(state *agodeskConnectionState, requestID, conversa
 	if state.activeRuns == nil {
 		state.activeRuns = make(map[string]agodeskActiveChatRun)
 	}
+	state.nextActiveRunSequence++
 	state.activeRuns[requestID] = agodeskActiveChatRun{
 		conversationID: strings.TrimSpace(conversationID),
 		cancel:         cancel,
+		sequence:       state.nextActiveRunSequence,
 	}
 	state.latestActiveRequestID = requestID
 }
@@ -400,9 +404,12 @@ func unregisterAgodeskActiveRun(state *agodeskConnectionState, requestID string)
 	delete(state.activeRuns, requestID)
 	if state.latestActiveRequestID == requestID {
 		state.latestActiveRequestID = ""
-		for id := range state.activeRuns {
-			state.latestActiveRequestID = id
-			break
+		var latestSeq uint64
+		for id, run := range state.activeRuns {
+			if run.sequence > latestSeq {
+				latestSeq = run.sequence
+				state.latestActiveRequestID = id
+			}
 		}
 	}
 }
@@ -1235,13 +1242,15 @@ func (b *agodeskDesktopBroker) SendCommand(deviceID string, cmd remote.CommandPa
 		return remote.ResultPayload{}, fmt.Errorf("send agodesk desktop command: %w", err)
 	}
 
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
 	select {
 	case result := <-resultCh:
 		if result.err != nil {
 			return remote.ResultPayload{CommandID: cmd.CommandID, Status: "error", Error: result.err.Error()}, nil
 		}
 		return agodeskDesktopResultToRemoteResult(cmd.CommandID, result.payload), nil
-	case <-time.After(timeout):
+	case <-timer.C:
 		return remote.ResultPayload{
 			CommandID: cmd.CommandID,
 			Status:    "timeout",
@@ -1302,11 +1311,16 @@ func (s *agodeskDesktopSession) sendChatMessage(cmd remote.CommandPayload) (remo
 	if sessionID == "" {
 		sessionID = "agodesk:" + s.deviceID
 	}
+	conversationID := strings.TrimSpace(fmt.Sprint(cmd.Args["conversation_id"]))
+	if conversationID == "<nil>" {
+		conversationID = ""
+	}
 	if err := writeAgodeskEnvelopeLocked(s.conn, s.state, agodesk.TypeChatResponse, agodesk.ChatResponsePayload{
-		SessionID: sessionID,
-		RequestID: cmd.CommandID,
-		Text:      message,
-		Role:      "assistant",
+		SessionID:      sessionID,
+		ConversationID: conversationID,
+		RequestID:      cmd.CommandID,
+		Text:           message,
+		Role:           "assistant",
 		Metadata: map[string]interface{}{
 			"source":      "aurago_agent",
 			"server_push": true,
