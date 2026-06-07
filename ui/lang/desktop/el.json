@@ -1244,5 +1244,6 @@
   "desktop.store_terminal_preview_ready_toast": "Εντοπίστηκε development server. Άνοιγμα προεπισκόπησης.",
   "desktop.store_terminal_session_label": "Συνεδρία",
   "desktop.store.open_commandcode": "Άνοιγμα CommandCode",
-  "desktop.store.badge_terminal_preview": "Κονσόλα + προεπισκόπηση"
+  "desktop.store.badge_terminal_preview": "Κονσόλα + προεπισκόπηση",
+  "desktop.store_terminal_module_unavailable": "Το module προεπισκόπησης τερματικού δεν είναι διαθέσιμο."
 }

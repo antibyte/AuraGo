@@ -1153,6 +1153,9 @@
         }
     }
 
+    const storeTerminalPreviewScriptSrc = '/js/desktop/apps/store-terminal-preview.js';
+    let storeTerminalPreviewLoadPromise = null;
+
     function storeTerminalPreviewDeps() {
         return {
             contentEl,
@@ -1169,13 +1172,59 @@
         };
     }
 
-    async function renderStoreTerminalPreviewApp(id, app, storeAppId) {
+    function loadStoreTerminalPreviewModule() {
         if (window.StoreTerminalPreviewApp && typeof window.StoreTerminalPreviewApp.render === 'function') {
-            return window.StoreTerminalPreviewApp.render(id, app, storeAppId, storeTerminalPreviewDeps());
+            return Promise.resolve();
         }
+        if (storeTerminalPreviewLoadPromise) return storeTerminalPreviewLoadPromise;
+        if (window.AuraLazyAssets && typeof window.AuraLazyAssets.loadScript === 'function') {
+            storeTerminalPreviewLoadPromise = window.AuraLazyAssets.loadScript(storeTerminalPreviewScriptSrc);
+            return storeTerminalPreviewLoadPromise;
+        }
+        storeTerminalPreviewLoadPromise = new Promise((resolve, reject) => {
+            const versioned = typeof cacheBustURL === 'function'
+                ? cacheBustURL(storeTerminalPreviewScriptSrc, 'aurago_store_terminal_preview')
+                : storeTerminalPreviewScriptSrc;
+            const existing = document.querySelector('script[data-store-terminal-preview-src="' + storeTerminalPreviewScriptSrc + '"]');
+            if (existing && existing.dataset.storeTerminalPreviewLoaded === '1') {
+                resolve();
+                return;
+            }
+            const script = existing || document.createElement('script');
+            script.dataset.storeTerminalPreviewSrc = storeTerminalPreviewScriptSrc;
+            script.onload = () => {
+                script.dataset.storeTerminalPreviewLoaded = '1';
+                resolve();
+            };
+            script.onerror = () => reject(new Error('Failed to load store terminal preview module'));
+            if (!existing) {
+                script.src = versioned;
+                document.head.appendChild(script);
+            }
+        });
+        return storeTerminalPreviewLoadPromise;
+    }
+
+    async function renderStoreTerminalPreviewApp(id, app, storeAppId) {
         const host = contentEl(id);
         if (!host) return;
-        host.innerHTML = `<div class="vd-store-frame-error"><div class="vd-store-frame-error-msg">${esc(t('common.error', 'Error'))}</div></div>`;
+        host.innerHTML = `<div class="vd-store-frame-loading">${esc(t('desktop.loading'))}</div>`;
+        try {
+            await loadStoreTerminalPreviewModule();
+            if (window.StoreTerminalPreviewApp && typeof window.StoreTerminalPreviewApp.render === 'function') {
+                return window.StoreTerminalPreviewApp.render(id, app, storeAppId, storeTerminalPreviewDeps());
+            }
+            throw new Error(t('desktop.store_terminal_module_unavailable', 'Terminal preview module is unavailable.'));
+        } catch (err) {
+            if (!contentEl(id)) return;
+            host.innerHTML = `<div class="vd-store-frame-error">
+                <div class="vd-store-frame-error-title">${esc(appName(app))}</div>
+                <div class="vd-store-frame-error-msg">${esc(err && err.message ? err.message : t('common.error', 'Error'))}</div>
+                <button type="button" class="vd-store-btn vd-store-primary" data-action="retry">${iconMarkup('refresh', 'R', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.retry', 'Retry'))}</span></button>
+            </div>`;
+            const retry = host.querySelector('[data-action="retry"]');
+            if (retry) retry.addEventListener('click', () => renderStoreTerminalPreviewApp(id, app, storeAppId));
+        }
     }
 
     function cleanupExistingStoreTerminalPreview(host) {

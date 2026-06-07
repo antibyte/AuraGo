@@ -1244,5 +1244,6 @@
   "desktop.store_terminal_preview_ready_toast": "检测到开发服务器，正在打开预览。",
   "desktop.store_terminal_session_label": "会话",
   "desktop.store.open_commandcode": "打开 CommandCode",
-  "desktop.store.badge_terminal_preview": "控制台 + 预览"
+  "desktop.store.badge_terminal_preview": "控制台 + 预览",
+  "desktop.store_terminal_module_unavailable": "终端预览模块不可用。"
 }

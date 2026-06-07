@@ -1244,5 +1244,6 @@
   "desktop.store_terminal_preview_ready_toast": "Servidor de desarrollo detectado. Abriendo vista previa.",
   "desktop.store_terminal_session_label": "Sesión",
   "desktop.store.open_commandcode": "Abrir CommandCode",
-  "desktop.store.badge_terminal_preview": "Consola + vista previa"
+  "desktop.store.badge_terminal_preview": "Consola + vista previa",
+  "desktop.store_terminal_module_unavailable": "El módulo de vista previa del terminal no está disponible."
 }

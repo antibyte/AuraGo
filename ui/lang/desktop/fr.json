@@ -1244,5 +1244,6 @@
   "desktop.store_terminal_preview_ready_toast": "Serveur de développement détecté. Ouverture de l'aperçu.",
   "desktop.store_terminal_session_label": "Session",
   "desktop.store.open_commandcode": "Ouvrir CommandCode",
-  "desktop.store.badge_terminal_preview": "Console + aperçu"
+  "desktop.store.badge_terminal_preview": "Console + aperçu",
+  "desktop.store_terminal_module_unavailable": "Le module d’aperçu du terminal n’est pas disponible."
 }

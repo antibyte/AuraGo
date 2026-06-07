@@ -1244,5 +1244,6 @@
   "desktop.store_terminal_preview_ready_toast": "開発サーバーを検出しました。プレビューを開きます。",
   "desktop.store_terminal_session_label": "セッション",
   "desktop.store.open_commandcode": "CommandCodeを開く",
-  "desktop.store.badge_terminal_preview": "コンソール + プレビュー"
+  "desktop.store.badge_terminal_preview": "コンソール + プレビュー",
+  "desktop.store_terminal_module_unavailable": "ターミナルプレビューモジュールを利用できません。"
 }

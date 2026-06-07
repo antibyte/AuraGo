@@ -1244,5 +1244,6 @@
   "desktop.store_terminal_preview_ready_toast": "Server di sviluppo rilevato. Apertura anteprima.",
   "desktop.store_terminal_session_label": "Sessione",
   "desktop.store.open_commandcode": "Apri CommandCode",
-  "desktop.store.badge_terminal_preview": "Console + anteprima"
+  "desktop.store.badge_terminal_preview": "Console + anteprima",
+  "desktop.store_terminal_module_unavailable": "Il modulo anteprima terminale non è disponibile."
 }

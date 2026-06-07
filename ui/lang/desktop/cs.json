@@ -1244,5 +1244,6 @@
   "desktop.store_terminal_preview_ready_toast": "Vývojový server detekován. Otevírám náhled.",
   "desktop.store_terminal_session_label": "Relace",
   "desktop.store.open_commandcode": "Otevřít CommandCode",
-  "desktop.store.badge_terminal_preview": "Konsole + náhled"
+  "desktop.store.badge_terminal_preview": "Konsole + náhled",
+  "desktop.store_terminal_module_unavailable": "Modul terminálové náhledu není k dispozici."
 }

@@ -180,9 +180,12 @@ func TestDesktopStoreTerminalPreviewDelegatesFromQuickConnect(t *testing.T) {
 
 	source := readEmbeddedText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
 	for _, marker := range []string{
+		"function loadStoreTerminalPreviewModule()",
+		"/js/desktop/apps/store-terminal-preview.js",
 		"window.StoreTerminalPreviewApp.render",
 		"function renderStoreTerminalPreviewApp(id, app, storeAppId)",
 		"storeTerminalPreviewDeps()",
+		"await loadStoreTerminalPreviewModule()",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("quickconnect missing store terminal preview delegation marker %q", marker)
@@ -190,24 +193,15 @@ func TestDesktopStoreTerminalPreviewDelegatesFromQuickConnect(t *testing.T) {
 	}
 }
 
-func TestDesktopStoreTerminalPreviewRegistersAfterQuickConnectFragment(t *testing.T) {
+func TestDesktopStoreTerminalPreviewLoadsAsStandaloneScript(t *testing.T) {
 	t.Parallel()
 
 	bundle := readDesktopAssetText(t, "js/desktop/main.js")
-	quickConnectMarker := "/* ui/js/desktop/apps/quickconnect-launchpad-chat.js */"
-	previewMarker := "/* ui/js/desktop/apps/store-terminal-preview.js */"
-	registerMarker := "window.StoreTerminalPreviewApp.render = render"
-
-	quickConnectIdx := strings.Index(bundle, quickConnectMarker)
-	previewIdx := strings.Index(bundle, previewMarker)
-	registerIdx := strings.Index(bundle, registerMarker)
-	if quickConnectIdx < 0 || previewIdx < 0 || registerIdx < 0 {
-		t.Fatal("desktop main bundle missing quickconnect, preview module, or registration marker")
+	if strings.Contains(bundle, "/* ui/js/desktop/apps/store-terminal-preview.js */") {
+		t.Fatal("store-terminal-preview must not be concatenated into main.bundle.js")
 	}
-	if previewIdx <= quickConnectIdx {
-		t.Fatal("store-terminal-preview must be bundled after quickconnect-launchpad-chat")
-	}
-	if registerIdx <= quickConnectIdx {
-		t.Fatal("StoreTerminalPreviewApp registration must occur after quickconnect fragment opens")
+	source := readEmbeddedText(t, "js/desktop/apps/store-terminal-preview.js")
+	if !strings.Contains(source, "window.StoreTerminalPreviewApp.render = render") {
+		t.Fatal("standalone store-terminal-preview module must register StoreTerminalPreviewApp")
 	}
 }
