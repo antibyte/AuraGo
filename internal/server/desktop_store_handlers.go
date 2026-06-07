@@ -71,6 +71,7 @@ func (s *Server) getDesktopStoreService(ctx context.Context) (*desktopstore.Serv
 		_ = store.Close()
 		return nil, err
 	}
+	store.ScheduleBrandingReconcile()
 	s.DesktopStore = store
 	return store, nil
 }

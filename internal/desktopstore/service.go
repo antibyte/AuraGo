@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/dbutil"
 	"aurago/internal/desktop"
 
 	_ "modernc.org/sqlite"
@@ -66,11 +67,13 @@ type Service struct {
 	mu            sync.Mutex
 	cfg           Config
 	db            *sql.DB
+	initialized   bool
 	catalog       []CatalogEntry
 	catalogByID   map[string]CatalogEntry
 	portAllocator PortAllocator
 	portProbe     PortProbe
 	closed        bool
+	brandingOnce  sync.Once
 }
 
 // NewService creates a desktop store service. Call Init before use.
@@ -180,13 +183,13 @@ func (s *Service) Init(ctx context.Context) error {
 	if s.closed {
 		return fmt.Errorf("desktop store service is closed")
 	}
-	if s.db != nil {
+	if s.initialized {
 		return nil
 	}
 	if err := ensureDir(filepath.Dir(s.cfg.DBPath)); err != nil {
 		return fmt.Errorf("create desktop store database directory: %w", err)
 	}
-	db, err := sql.Open("sqlite", s.cfg.DBPath)
+	db, err := dbutil.Open(s.cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("open desktop store database: %w", err)
 	}
@@ -201,11 +204,7 @@ func (s *Service) Init(ctx context.Context) error {
 		s.db = nil
 		return err
 	}
-	if err := s.reconcileStoreDesktopBrandingLocked(ctx); err != nil {
-		db.Close()
-		s.db = nil
-		return err
-	}
+	s.initialized = true
 	return nil
 }
 
@@ -219,6 +218,7 @@ func (s *Service) Close() error {
 	}
 	err := s.db.Close()
 	s.db = nil
+	s.initialized = false
 	return err
 }
 
@@ -1811,8 +1811,24 @@ func (s *Service) refreshDesktopAppManifest(ctx context.Context, entry CatalogEn
 	return nil
 }
 
-func (s *Service) reconcileStoreDesktopBrandingLocked(ctx context.Context) error {
-	if s.cfg.Desktop == nil || s.db == nil {
+// ScheduleBrandingReconcile refreshes store app icons and logo metadata after startup.
+// It runs asynchronously so Init and lifecycle operations are not blocked.
+func (s *Service) ScheduleBrandingReconcile() {
+	s.brandingOnce.Do(func() {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			_ = s.ReconcileDesktopBranding(ctx)
+		}()
+	})
+}
+
+// ReconcileDesktopBranding syncs catalog icons and logo paths into installed desktop apps.
+func (s *Service) ReconcileDesktopBranding(ctx context.Context) error {
+	if err := s.ensureReady(ctx); err != nil {
+		return err
+	}
+	if s.cfg.Desktop == nil {
 		return nil
 	}
 	rows, err := s.db.QueryContext(ctx, `SELECT app_id, desktop_app_id, launchpad_link_id, container_name, container_id, image,
@@ -1835,18 +1851,25 @@ func (s *Service) reconcileStoreDesktopBrandingLocked(ctx context.Context) error
 			continue
 		}
 		desiredLogo := strings.TrimSpace(entry.LogoURL)
-		logoChanged := app.LogoPath != desiredLogo
-		if logoChanged {
-			app.LogoPath = desiredLogo
-			if err := s.saveInstalled(ctx, app); err != nil {
+		if app.LogoPath != desiredLogo {
+			if err := s.updateLogoPath(ctx, app.AppID, desiredLogo); err != nil {
 				return err
 			}
+			app.LogoPath = desiredLogo
 		}
 		if err := s.refreshDesktopAppManifest(ctx, entry, app); err != nil {
 			return fmt.Errorf("reconcile desktop branding for %s: %w", app.AppID, err)
 		}
 	}
 	return rows.Err()
+}
+
+func (s *Service) updateLogoPath(ctx context.Context, appID, logoPath string) error {
+	return execWithSQLiteRetry(ctx, "update desktop store logo path", func() error {
+		_, err := s.db.ExecContext(ctx, `UPDATE desktop_store_apps SET logo_path = ?, updated_at = ? WHERE app_id = ?`,
+			logoPath, formatTime(time.Now().UTC()), normalizeAppID(appID))
+		return err
+	})
 }
 
 func (s *Service) installDesktopApp(ctx context.Context, entry CatalogEntry, app InstalledApp) error {
@@ -1903,7 +1926,8 @@ func (s *Service) saveInstalled(ctx context.Context, app InstalledApp) error {
 	extraHostsJSON, _ := json.Marshal(app.ExtraHosts)
 	secretRefsJSON, _ := json.Marshal(secretRefsForStorage(app.SecretRefs))
 	companionsJSON, _ := json.Marshal(app.Companions)
-	_, err := s.db.ExecContext(ctx, `INSERT INTO desktop_store_apps(app_id, desktop_app_id, launchpad_link_id,
+	return execWithSQLiteRetry(ctx, "save desktop store app", func() error {
+		_, err := s.db.ExecContext(ctx, `INSERT INTO desktop_store_apps(app_id, desktop_app_id, launchpad_link_id,
 		container_name, container_id, image, status, error, bind_mode, host_ip, host_port, container_port, protocol,
 		tailscale_enabled, tailscale_status, tailscale_port, logo_path, ports_json, volumes_json, host_binds_json,
 		env_json, extra_hosts_json, secret_refs_json, companions_json, created_at, updated_at,
@@ -1942,10 +1966,36 @@ func (s *Service) saveInstalled(ctx context.Context, app InstalledApp) error {
 		app.TailscalePort, app.LogoPath, string(portsJSON), string(volumesJSON), string(hostBindsJSON), string(envJSON),
 		string(extraHostsJSON), string(secretRefsJSON), string(companionsJSON), formatTime(app.CreatedAt), formatTime(app.UpdatedAt),
 		app.LastOperationID, app.LastOperationType, app.LastOperationState)
-	if err != nil {
-		return fmt.Errorf("save desktop store app: %w", err)
+		return err
+	})
+}
+
+func isSQLiteBusy(err error) bool {
+	if err == nil {
+		return false
 	}
-	return nil
+	msg := err.Error()
+	return strings.Contains(msg, "database is locked") || strings.Contains(msg, "SQLITE_BUSY")
+}
+
+func execWithSQLiteRetry(ctx context.Context, action string, fn func() error) error {
+	var err error
+	for attempt := 0; attempt < 6; attempt++ {
+		err = fn()
+		if err == nil {
+			return nil
+		}
+		if !isSQLiteBusy(err) || attempt == 5 {
+			break
+		}
+		wait := time.Duration(25*(attempt+1)) * time.Millisecond
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(wait):
+		}
+	}
+	return fmt.Errorf("%s: %w", action, err)
 }
 
 func (s *Service) failInstall(ctx context.Context, app InstalledApp, runErr error) error {
@@ -2130,7 +2180,7 @@ func (s *Service) requireDocker() DockerAdapter {
 
 func (s *Service) ensureReady(ctx context.Context) error {
 	s.mu.Lock()
-	ready := s.db != nil && !s.closed
+	ready := s.initialized && !s.closed
 	s.mu.Unlock()
 	if ready {
 		return nil
