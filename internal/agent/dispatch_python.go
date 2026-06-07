@@ -27,9 +27,12 @@ func dispatchPython(tc ToolCall, dc *DispatchContext) string {
 			return "Tool Output: [PERMISSION DENIED] execute_python is disabled in Danger Zone settings (agent.allow_python: false)."
 		}
 		req := decodePythonExecutionArgs(tc)
-		logger.Info("LLM requested python execution", "code_len", len(req.Code), "background", req.Background)
+		logger.Info("LLM requested python execution", "code_len", len(req.Code), "background", req.Background, "tool_bridge", req.EnableToolBridge)
 		if req.Code == "" {
 			return "Tool Output: [EXECUTION ERROR] 'code' field is empty. You MUST provide Python source code in the 'code' field. Do NOT use execute_python for SSH or remote tasks — use query_inventory / execute_remote_shell instead."
+		}
+		if req.Background && req.EnableToolBridge {
+			return "Tool Output: [EXECUTION ERROR] enable_tool_bridge is only supported for foreground execute_python runs. Set background=false or remove enable_tool_bridge."
 		}
 		// Resolve vault secrets
 		secrets, rejectedInfo := resolveVaultKeys(cfg, vault, req.VaultKeys, logger)
@@ -65,7 +68,29 @@ func dispatchPython(tc ToolCall, dc *DispatchContext) string {
 		logger.Info("LLM requested python execution", "code_len", len(req.Code))
 		var stdout, stderr string
 		var pyErr error
-		if hasSecrets {
+		if req.EnableToolBridge {
+			if !cfg.Tools.PythonToolBridge.Enabled {
+				return "Tool Output: [EXECUTION ERROR] Python tool bridge is disabled. Enable tools.python_tool_bridge.enabled and configure allowed_tools before using enable_tool_bridge."
+			}
+			if len(cfg.Tools.PythonToolBridge.AllowedTools) == 0 {
+				return "Tool Output: [EXECUTION ERROR] Python tool bridge allowed_tools is empty. Add at least one tool name before using enable_tool_bridge."
+			}
+			bridgeToken, _ := agentInternalToken.Load().(string)
+			if bridgeToken == "" {
+				return "Tool Output: [EXECUTION ERROR] Python tool bridge internal token is not initialized."
+			}
+			stdout, stderr, pyErr = tools.ExecutePythonWithOptions(tools.PythonExecutionOptions{
+				Code:                   req.Code,
+				WorkspaceDir:           cfg.Directories.WorkspaceDir,
+				ToolsDir:               cfg.Directories.ToolsDir,
+				Secrets:                secrets,
+				Credentials:            creds,
+				ToolBridgeURL:          toolBridgeURL(cfg),
+				ToolBridgeToken:        bridgeToken,
+				ToolBridgeAllowedTools: cfg.Tools.PythonToolBridge.AllowedTools,
+				ToolBridgeCallLimit:    req.ToolBridgeCallLimit,
+			})
+		} else if hasSecrets {
 			stdout, stderr, pyErr = tools.ExecutePythonWithSecrets(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
 		} else {
 			stdout, stderr, pyErr = tools.ExecutePython(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)

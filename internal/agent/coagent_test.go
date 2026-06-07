@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"os"
 	"strings"
@@ -235,6 +236,81 @@ func TestCoAgentRegistryWaitForResultReturnsCompletedStatus(t *testing.T) {
 	}
 	if status["result"] != "Once upon a fast path." {
 		t.Fatalf("result = %v", status["result"])
+	}
+}
+
+func TestCoAgentRegistryStatusIncludesStructuredResult(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	registry := NewCoAgentRegistry(1, logger)
+	id, _, err := registry.RegisterWithPriority("coagent", "Return JSON", func() {}, 2)
+	if err != nil {
+		t.Fatalf("RegisterWithPriority: %v", err)
+	}
+
+	registry.SetStructuredResult(id, CoAgentStructuredResult{
+		SchemaUsed: true,
+		Valid:      true,
+		Result:     json.RawMessage(`{"status":"ok"}`),
+	})
+	registry.Complete(id, `{"status":"ok"}`, 12, 0)
+
+	status, err := registry.GetStatus(id)
+	if err != nil {
+		t.Fatalf("GetStatus: %v", err)
+	}
+	if status["output_schema_used"] != true {
+		t.Fatalf("output_schema_used = %v, want true", status["output_schema_used"])
+	}
+	if status["structured_valid"] != true {
+		t.Fatalf("structured_valid = %v, want true", status["structured_valid"])
+	}
+	if string(status["structured_result"].(json.RawMessage)) != `{"status":"ok"}` {
+		t.Fatalf("structured_result = %v", status["structured_result"])
+	}
+}
+
+func TestCoAgentStructuredResultValidation(t *testing.T) {
+	schema := map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"status": map[string]interface{}{"type": "string"},
+		},
+		"required":             []interface{}{"status"},
+		"additionalProperties": false,
+	}
+	if _, err := sanitizeCoAgentOutputSchema(schema); err != nil {
+		t.Fatalf("sanitizeCoAgentOutputSchema: %v", err)
+	}
+
+	structured := evaluateCoAgentStructuredResult("Done:\n{\"status\":\"ok\"}", schema, 1024)
+	if !structured.Valid {
+		t.Fatalf("structured result invalid: %s", structured.Error)
+	}
+	if string(structured.Result) != `{"status":"ok"}` {
+		t.Fatalf("structured result = %s", structured.Result)
+	}
+
+	invalid := evaluateCoAgentStructuredResult(`{"status":3}`, schema, 1024)
+	if invalid.Valid {
+		t.Fatal("expected invalid structured result")
+	}
+	if !strings.Contains(invalid.Error, "does not match output_schema") {
+		t.Fatalf("invalid error = %q", invalid.Error)
+	}
+}
+
+func TestCoAgentOutputSchemaRejectsRefs(t *testing.T) {
+	_, err := sanitizeCoAgentOutputSchema(map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"item": map[string]interface{}{"$ref": "#/$defs/item"},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected $ref schema to be rejected")
+	}
+	if !strings.Contains(err.Error(), "$ref") {
+		t.Fatalf("error = %q, want $ref mention", err.Error())
 	}
 }
 

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sort"
@@ -35,24 +36,28 @@ type CoAgentEvent struct {
 
 // CoAgentInfo holds metadata for a running or finished co-agent.
 type CoAgentInfo struct {
-	ID            string
-	Task          string
-	Specialist    string // Specialist role ("researcher","coder", etc.) or empty for generic
-	State         CoAgentState
-	StartedAt     time.Time
-	CompletedAt   time.Time
-	Result        string
-	Error         string
-	TokensUsed    int
-	ToolCalls     int
-	Cancel        context.CancelFunc
-	Priority      int
-	RetryCount    int
-	QueuePosition int
-	LastEvent     string
-	LastError     string
-	PartialResult string
-	Events        []CoAgentEvent
+	ID               string
+	Task             string
+	Specialist       string // Specialist role ("researcher","coder", etc.) or empty for generic
+	State            CoAgentState
+	StartedAt        time.Time
+	CompletedAt      time.Time
+	Result           string
+	Error            string
+	TokensUsed       int
+	ToolCalls        int
+	Cancel           context.CancelFunc
+	Priority         int
+	RetryCount       int
+	QueuePosition    int
+	LastEvent        string
+	LastError        string
+	PartialResult    string
+	Events           []CoAgentEvent
+	OutputSchemaUsed bool
+	StructuredValid  bool
+	StructuredResult json.RawMessage
+	StructuredError  string
 
 	startCh   chan struct{}
 	startOnce sync.Once
@@ -386,6 +391,22 @@ func (r *CoAgentRegistry) RecordPartialResult(id, partial string) {
 	a.mu.Unlock()
 }
 
+// SetStructuredResult stores schema-validation metadata for a co-agent result.
+func (r *CoAgentRegistry) SetStructuredResult(id string, structured CoAgentStructuredResult) {
+	r.mu.RLock()
+	a := r.agents[id]
+	r.mu.RUnlock()
+	if a == nil {
+		return
+	}
+	a.mu.Lock()
+	a.OutputSchemaUsed = structured.SchemaUsed
+	a.StructuredValid = structured.Valid
+	a.StructuredResult = append(json.RawMessage(nil), structured.Result...)
+	a.StructuredError = strings.TrimSpace(structured.Error)
+	a.mu.Unlock()
+}
+
 // Complete marks a co-agent as successfully finished.
 func (r *CoAgentRegistry) Complete(id, result string, tokensUsed, toolCalls int) {
 	r.mu.Lock()
@@ -540,6 +561,13 @@ func (r *CoAgentRegistry) List() []map[string]interface{} {
 		}
 		if a.State == CoAgentCompleted {
 			entry["result_preview"] = truncateStr(a.Result, 200)
+			if a.OutputSchemaUsed {
+				entry["output_schema_used"] = true
+				entry["structured_valid"] = a.StructuredValid
+				if a.StructuredError != "" {
+					entry["structured_error"] = a.StructuredError
+				}
+			}
 		}
 		if a.State == CoAgentFailed {
 			entry["error"] = a.Error
@@ -623,6 +651,16 @@ func (r *CoAgentRegistry) GetStatus(id string) (map[string]interface{}, error) {
 	}
 	if a.State == CoAgentCompleted {
 		status["result"] = a.Result
+		if a.OutputSchemaUsed {
+			status["output_schema_used"] = true
+			status["structured_valid"] = a.StructuredValid
+			if a.StructuredValid && len(a.StructuredResult) > 0 {
+				status["structured_result"] = append(json.RawMessage(nil), a.StructuredResult...)
+			}
+			if a.StructuredError != "" {
+				status["structured_error"] = a.StructuredError
+			}
+		}
 	}
 	if len(a.Events) > 0 {
 		events := make([]map[string]string, 0, len(a.Events))

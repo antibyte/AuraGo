@@ -40,6 +40,7 @@ require (
 	github.com/tidwall/gjson v1.18.0
 	github.com/tidwall/sjson v1.2.5
 	github.com/vishen/go-chromecast v0.3.4
+	github.com/xeipuuv/gojsonschema v1.2.0
 	github.com/xuri/excelize/v2 v2.10.1
 	golang.org/x/crypto v0.52.0
 	golang.org/x/image v0.41.0
@@ -153,6 +154,8 @@ require (
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
+	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
+	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xuri/efp v0.0.1 // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
 	github.com/ysmood/fetchup v0.2.3 // indirect

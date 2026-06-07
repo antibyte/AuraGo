@@ -30,10 +30,12 @@ type sandboxExecutionArgs struct {
 }
 
 type pythonExecutionArgs struct {
-	Code          string
-	Background    bool
-	VaultKeys     []string
-	CredentialIDs []string
+	Code                string
+	Background          bool
+	VaultKeys           []string
+	CredentialIDs       []string
+	EnableToolBridge    bool
+	ToolBridgeCallLimit int
 }
 
 type shellExecutionArgs struct {
@@ -531,11 +533,18 @@ func decodeSandboxExecutionArgs(tc ToolCall) sandboxExecutionArgs {
 
 func decodePythonExecutionArgs(tc ToolCall) pythonExecutionArgs {
 	req := pythonExecutionArgs{
-		Code:       firstNonEmptyToolString(tc.Code, toolArgString(tc.Params, "code")),
-		Background: tc.Background,
+		Code:                firstNonEmptyToolString(tc.Code, toolArgString(tc.Params, "code")),
+		Background:          tc.Background,
+		EnableToolBridge:    tc.EnableToolBridge || tc.EnableSDK,
+		ToolBridgeCallLimit: firstNonEmptyInt(tc.ToolBridgeCallLimit, toolArgInt(tc.Params, 0, "tool_bridge_call_limit")),
 	}
 	if background, ok := toolArgBool(tc.Params, "background"); ok {
 		req.Background = background
+	}
+	if enableToolBridge, ok := toolArgBool(tc.Params, "enable_tool_bridge"); ok {
+		req.EnableToolBridge = enableToolBridge
+	} else if enableSDK, ok := toolArgBool(tc.Params, "enable_sdk"); ok {
+		req.EnableToolBridge = enableSDK
 	}
 	if len(tc.VaultKeys) > 0 {
 		req.VaultKeys = append([]string(nil), tc.VaultKeys...)

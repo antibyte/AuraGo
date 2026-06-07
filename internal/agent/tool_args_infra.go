@@ -29,6 +29,7 @@ type coAgentArgs struct {
 	Priority     int
 	Specialist   string
 	CoAgentID    string
+	OutputSchema map[string]interface{}
 }
 
 type netlifyArgs struct {
@@ -322,12 +323,54 @@ func decodeCoAgentArgs(tc ToolCall) coAgentArgs {
 		Specialist: firstNonEmptyToolString(tc.Specialist, toolArgString(tc.Params, "specialist")),
 		CoAgentID:  firstNonEmptyToolString(tc.CoAgentID, tc.ID, toolArgString(tc.Params, "co_agent_id", "id")),
 	}
+	if len(tc.OutputSchema) > 0 {
+		req.OutputSchema = cloneInterfaceMap(tc.OutputSchema)
+	} else {
+		req.OutputSchema = toolArgJSONInterfaceMap(tc.Params, "output_schema")
+	}
 	if len(tc.ContextHints) > 0 {
 		req.ContextHints = append([]string(nil), tc.ContextHints...)
 	} else {
 		req.ContextHints = toolArgStringSlice(tc.Params, "context_hints")
 	}
 	return req
+}
+
+func toolArgJSONInterfaceMap(args map[string]interface{}, keys ...string) map[string]interface{} {
+	for _, key := range keys {
+		raw, ok := args[key]
+		if !ok {
+			continue
+		}
+		if decoded := jsonInterfaceMapFromRaw(raw); decoded != nil {
+			return decoded
+		}
+	}
+	return nil
+}
+
+func jsonInterfaceMapFromRaw(raw interface{}) map[string]interface{} {
+	switch value := raw.(type) {
+	case map[string]interface{}:
+		return cloneInterfaceMap(value)
+	case string:
+		var decoded map[string]interface{}
+		if err := json.Unmarshal([]byte(strings.TrimSpace(value)), &decoded); err == nil && len(decoded) > 0 {
+			return decoded
+		}
+	}
+	return nil
+}
+
+func cloneInterfaceMap(values map[string]interface{}) map[string]interface{} {
+	if len(values) == 0 {
+		return nil
+	}
+	cloned := make(map[string]interface{}, len(values))
+	for key, value := range values {
+		cloned[key] = value
+	}
+	return cloned
 }
 
 func decodeMDNSScanArgs(tc ToolCall) mdnsScanArgs {

@@ -133,10 +133,12 @@ func TestDecodePythonExecutionArgsUsesParamsFallback(t *testing.T) {
 	tc := ToolCall{
 		Action: "execute_python",
 		Params: map[string]interface{}{
-			"code":           "print('hello')",
-			"background":     true,
-			"vault_keys":     []interface{}{"SECRET"},
-			"credential_ids": []interface{}{"cred-2"},
+			"code":                   "print('hello')",
+			"background":             true,
+			"vault_keys":             []interface{}{"SECRET"},
+			"credential_ids":         []interface{}{"cred-2"},
+			"enable_sdk":             true,
+			"tool_bridge_call_limit": float64(7),
 		},
 	}
 
@@ -144,11 +146,68 @@ func TestDecodePythonExecutionArgsUsesParamsFallback(t *testing.T) {
 	if req.Code != "print('hello')" || !req.Background {
 		t.Fatalf("unexpected python decode: %+v", req)
 	}
+	if !req.EnableToolBridge {
+		t.Fatal("expected EnableToolBridge from enable_sdk alias")
+	}
+	if req.ToolBridgeCallLimit != 7 {
+		t.Fatalf("ToolBridgeCallLimit = %d, want 7", req.ToolBridgeCallLimit)
+	}
 	if len(req.VaultKeys) != 1 || req.VaultKeys[0] != "SECRET" {
 		t.Fatalf("VaultKeys = %v, want [SECRET]", req.VaultKeys)
 	}
 	if len(req.CredentialIDs) != 1 || req.CredentialIDs[0] != "cred-2" {
 		t.Fatalf("CredentialIDs = %v, want [cred-2]", req.CredentialIDs)
+	}
+}
+
+func TestDecodePythonExecutionArgsEnableToolBridgePrecedence(t *testing.T) {
+	req := decodePythonExecutionArgs(ToolCall{
+		Action:           "execute_python",
+		Code:             "print('hello')",
+		EnableSDK:        true,
+		EnableToolBridge: true,
+		Params: map[string]interface{}{
+			"enable_tool_bridge": false,
+		},
+	})
+
+	if req.EnableToolBridge {
+		t.Fatal("expected explicit enable_tool_bridge=false param to override direct aliases")
+	}
+}
+
+func TestDispatchPythonRejectsBackgroundToolBridge(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.AllowPython = true
+	out := dispatchPython(ToolCall{
+		Action:           "execute_python",
+		Code:             "print('hello')",
+		Background:       true,
+		EnableToolBridge: true,
+	}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+
+	if !strings.Contains(out, "only supported for foreground") {
+		t.Fatalf("dispatchPython output = %q, want foreground-only error", out)
+	}
+}
+
+func TestDispatchPythonRejectsDisabledToolBridgeBeforeExecution(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.AllowPython = true
+	out := dispatchPython(ToolCall{
+		Action:           "execute_python",
+		Code:             "print('hello')",
+		EnableToolBridge: true,
+	}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+
+	if !strings.Contains(out, "Python tool bridge is disabled") {
+		t.Fatalf("dispatchPython output = %q, want disabled bridge error", out)
 	}
 }
 

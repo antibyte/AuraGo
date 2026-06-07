@@ -73,6 +73,33 @@ func TestWriteScript_AtMaxSize(t *testing.T) {
 	}
 }
 
+func TestBuildToolBridgeSDKPreludeRegistersAuragoModule(t *testing.T) {
+	prelude := BuildToolBridgeSDKPrelude(7)
+	for _, want := range []string{
+		`_call_limit = 7`,
+		`def call_tool(self, tool_name, parameters=None, timeout=60):`,
+		`_aurago_sys.modules["aurago"] = _AuraGoModule()`,
+		`AURAGO_TOOL_BRIDGE_URL`,
+		`X-Internal-Token`,
+	} {
+		if !strings.Contains(prelude, want) {
+			t.Fatalf("prelude missing %q:\n%s", want, prelude)
+		}
+	}
+}
+
+func TestNormalizeToolBridgeCallLimit(t *testing.T) {
+	if got := normalizeToolBridgeCallLimit(0); got != defaultToolBridgeCallLimit {
+		t.Fatalf("default limit = %d, want %d", got, defaultToolBridgeCallLimit)
+	}
+	if got := normalizeToolBridgeCallLimit(999); got != maxToolBridgeCallLimit {
+		t.Fatalf("clamped limit = %d, want %d", got, maxToolBridgeCallLimit)
+	}
+	if got := normalizeToolBridgeCallLimit(3); got != 3 {
+		t.Fatalf("explicit limit = %d, want 3", got)
+	}
+}
+
 func TestValidPackageNameAcceptsExtrasWithHyphen(t *testing.T) {
 	valid := []string{
 		"llm-sandbox[mcp-docker]",

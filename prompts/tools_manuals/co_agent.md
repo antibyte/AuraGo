@@ -29,6 +29,7 @@ Spawn and manage parallel co-agents that work on sub-tasks independently. Each c
 | `specialist` | string | for spawn_specialist | One of: researcher, coder, designer, security, writer |
 | `context_hints` | array | no | Keywords for RAG context injection |
 | `priority` | integer | no | Queue priority: 1=low, 2=normal, 3=high |
+| `output_schema` | object | no | Compact JSON Schema for a structured final result from `spawn` or `spawn_specialist` |
 | `co_agent_id` | string | for get_result, stop | ID of the co-agent |
 
 ### spawn — Start a new generic co-agent with a task
@@ -36,10 +37,12 @@ Spawn and manage parallel co-agents that work on sub-tasks independently. Each c
 {"action": "co_agent", "operation": "spawn", "task": "Research the current weather in Berlin and summarize it"}
 {"action": "co_agent", "operation": "spawn", "task": "Analyze the server logs for errors", "context_hints": ["server", "logs", "errors"]}
 {"action": "co_agent", "operation": "spawn", "task": "Review the refactor and report risks", "priority": 3}
+{"action": "co_agent", "operation": "spawn", "task": "Review these changes and return structured risk notes", "output_schema": {"type": "object", "properties": {"summary": {"type": "string"}, "risks": {"type": "array", "items": {"type": "string"}}}, "required": ["summary", "risks"], "additionalProperties": false}}
 ```
 - `task` (required): Natural language description of what the co-agent should do
 - `context_hints` (optional): Keywords for RAG context injection — helps the co-agent find relevant memories
 - `priority` (optional): Queue priority `1=low`, `2=normal`, `3=high`
+- `output_schema` (optional): JSON Schema for the final answer. Keep it compact; `$ref` is not supported.
 
 ### spawn_specialist — Start a specialized expert co-agent
 ```json
@@ -79,6 +82,28 @@ Queued entries also include queue position, retry count, and recent lifecycle ev
 - Waits server-side for a bounded interval if the co-agent is queued or running
 - Returns the final text output once completed, or the current state if it is still queued/running after the wait
 - A running co-agent is not failed just because no tokens are visible; non-streaming LLM calls may emit no partial tokens until the provider responds
+
+When `output_schema` was used, completed results also include:
+
+- `output_schema_used: true`
+- `structured_valid`: whether the final JSON matched the schema
+- `structured_result`: parsed JSON object/array when validation succeeded
+- `structured_error`: validation or extraction error when validation failed
+
+The raw `result` field is always preserved. If `structured_valid` is false, inspect `result` and decide whether to retry with a clearer task or handle the raw output manually.
+
+## Structured Output
+
+Use `output_schema` when a co-agent result will be consumed programmatically or merged into a multi-step workflow. The co-agent is instructed to return only one JSON object or JSON array, with no Markdown fence and no prose.
+
+Schema limits:
+- Maximum schema size: 16 KB
+- Maximum nesting depth: 10
+- Maximum schema nodes/properties: 200
+- `$ref`, `$dynamicRef`, and `$recursiveRef` are rejected
+- Regex `pattern` values must be short
+
+For multi-edit or multi-agent workflows, poll with `get_result` and trust `structured_result` only when `structured_valid` is true. Co-agent work should still be reviewed before you act on it.
 
 ### stop — Cancel a running co-agent
 ```json

@@ -26,10 +26,11 @@ import (
 
 // CoAgentRequest describes a task to be given to a co-agent.
 type CoAgentRequest struct {
-	Task         string   // Task description for the co-agent
-	ContextHints []string // Optional additional context strings
-	Specialist   string   // Specialist role ("researcher","coder","designer","security","writer") or empty for generic
-	Priority     int      // 1=low, 2=normal, 3=high
+	Task         string                 // Task description for the co-agent
+	ContextHints []string               // Optional additional context strings
+	Specialist   string                 // Specialist role ("researcher","coder","designer","security","writer") or empty for generic
+	Priority     int                    // 1=low, 2=normal, 3=high
+	OutputSchema map[string]interface{} // Optional JSON Schema for the final co-agent result
 }
 
 type coAgentPromptTemplate struct {
@@ -167,6 +168,13 @@ func SpawnCoAgent(
 	req = normalizeCoAgentRequest(cfg, req)
 	if strings.TrimSpace(req.Task) == "" {
 		return "", "", fmt.Errorf("'task' is required to spawn a co-agent")
+	}
+	if len(req.OutputSchema) > 0 {
+		normalizedSchema, err := sanitizeCoAgentOutputSchema(req.OutputSchema)
+		if err != nil {
+			return "", "", err
+		}
+		req.OutputSchema = normalizedSchema
 	}
 
 	// Validate and check specialist enablement
@@ -345,6 +353,7 @@ func SpawnCoAgent(
 
 		// Limit result size to prevent memory exhaustion from unexpectedly large LLM outputs.
 		maxCoAgentResultBytes := cfg.CoAgents.MaxResultBytes
+		structured := evaluateCoAgentStructuredResult(result, req.OutputSchema, maxCoAgentResultBytes)
 		if maxCoAgentResultBytes > 0 && len(result) > maxCoAgentResultBytes {
 			coLogger.Warn("Co-Agent result truncated", "original_len", len(result))
 			notice := fmt.Sprintf("\n\n[Result truncated — exceeded %d bytes]", maxCoAgentResultBytes)
@@ -357,6 +366,9 @@ func SpawnCoAgent(
 
 		if result != "" {
 			coRegistry.RecordPartialResult(coID, result)
+		}
+		if structured.SchemaUsed {
+			coRegistry.SetStructuredResult(coID, structured)
 		}
 		coLogger.Info("Co-Agent completed", "tokens", tokensUsed, "result_len", len(result))
 		coRegistry.Complete(coID, result, tokensUsed, 0)
@@ -752,7 +764,7 @@ func buildCoAgentSystemPrompt(cfg *config.Config, req CoAgentRequest, ltm memory
 	prompt := strings.ReplaceAll(tmpl, "{{LANGUAGE}}", cfg.Agent.SystemLanguage)
 	prompt = strings.ReplaceAll(prompt, "{{CONTEXT_SNAPSHOT}}", buildContextSnapshot(req, ltm, stm))
 	prompt = strings.ReplaceAll(prompt, "{{TASK}}", req.Task)
-	return prompt
+	return appendCoAgentOutputSchemaPrompt(prompt, req.OutputSchema)
 }
 
 // buildSpecialistSystemPrompt assembles the system prompt for a specialist co-agent.
@@ -799,7 +811,7 @@ func buildSpecialistSystemPrompt(cfg *config.Config, role string, req CoAgentReq
 	if extras.Len() > 0 {
 		prompt += extras.String()
 	}
-	return prompt
+	return appendCoAgentOutputSchemaPrompt(prompt, req.OutputSchema)
 }
 
 func specialistConfigByRole(cfg *config.Config, role string) *config.SpecialistConfig {

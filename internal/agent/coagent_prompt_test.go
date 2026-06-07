@@ -186,6 +186,33 @@ func TestBuildSpecialistSystemPromptInjectsLeanContext(t *testing.T) {
 	}
 }
 
+func TestBuildCoAgentSystemPromptAppendsOutputSchemaInstructions(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.SystemLanguage = "en"
+	cfg.Directories.PromptsDir = t.TempDir()
+
+	prompt := buildCoAgentSystemPrompt(cfg, CoAgentRequest{
+		Task: "Summarize findings",
+		OutputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"summary": map[string]interface{}{"type": "string"},
+			},
+			"required": []interface{}{"summary"},
+		},
+	}, nil, nil)
+
+	for _, want := range []string{
+		"## Required Structured Output",
+		"Return only one JSON object or JSON array",
+		`"summary"`,
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("prompt missing %q: %q", want, prompt)
+		}
+	}
+}
+
 func TestBuildWriterSpecialistSystemPromptIncludesDefaultHumanizerPrompt(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\nagent:\n  system_language: de\n"), 0o644); err != nil {

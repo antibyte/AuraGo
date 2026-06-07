@@ -465,6 +465,58 @@ func ExecutePython(code, workspaceDir, toolsDir string) (string, string, error) 
 	return runner.Run(context.Background())
 }
 
+// PythonExecutionOptions configures an explicit foreground Python execution.
+type PythonExecutionOptions struct {
+	Code                   string
+	WorkspaceDir           string
+	ToolsDir               string
+	Secrets                map[string]string
+	Credentials            []CredentialFields
+	ToolBridgeURL          string
+	ToolBridgeToken        string
+	ToolBridgeAllowedTools []string
+	ToolBridgeCallLimit    int
+}
+
+// ExecutePythonWithOptions is an additive foreground execution path for runs
+// that need optional secret injection or explicit tool-bridge reentry.
+func ExecutePythonWithOptions(opts PythonExecutionOptions) (string, string, error) {
+	if err := requirePythonPermission(); err != nil {
+		return "", "", err
+	}
+	code := opts.Code
+	toolBridgeEnabled := opts.ToolBridgeURL != "" && opts.ToolBridgeToken != ""
+	if toolBridgeEnabled {
+		code = BuildToolBridgeSDKPrelude(opts.ToolBridgeCallLimit) + "\n" + code
+	}
+
+	scriptPath, cleanup, err := writeScript(code, opts.ToolsDir)
+	if err != nil {
+		return "", "", err
+	}
+	defer cleanup()
+
+	pythonCmd := GetPythonBin(opts.WorkspaceDir)
+	cmd := exec.Command(pythonCmd, scriptPath)
+	cmd.Dir = getAbsWorkspace(opts.WorkspaceDir)
+	SetupCmd(cmd)
+	InjectSecretsEnv(cmd, opts.Secrets)
+	InjectCredentialEnv(cmd, opts.Credentials)
+	if toolBridgeEnabled {
+		InjectToolBridgeEnv(cmd, opts.ToolBridgeURL, opts.ToolBridgeToken, opts.ToolBridgeAllowedTools)
+	}
+
+	runner := NewForegroundRunner(cmd, ForegroundOptions{
+		Timeout:     GetForegroundTimeout(),
+		Graceful:    false,
+		ScrubOutput: len(opts.Secrets) > 0 || len(opts.Credentials) > 0 || toolBridgeEnabled,
+		KillWait:    10 * time.Second,
+		ErrMsg:      "TIMEOUT: script exceeded %s limit and was killed",
+	})
+
+	return runner.Run(context.Background())
+}
+
 // ExecutePythonWithSecrets is like ExecutePython but injects vault secrets and credential secrets
 // as environment variables and scrubs secrets from the output.
 func ExecutePythonWithSecrets(code, workspaceDir, toolsDir string, secrets map[string]string, creds []CredentialFields) (string, string, error) {

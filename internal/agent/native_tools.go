@@ -45,6 +45,7 @@ var nativeJSONStringObjectArgNames = map[string]struct{}{
 	"manifest":           {},
 	"metadata":           {},
 	"mcp_args":           {},
+	"output_schema":      {},
 	"parameters":         {},
 	"params":             {},
 	"ports":              {},

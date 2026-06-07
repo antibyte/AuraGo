@@ -142,7 +142,12 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"specialist":    prop("string", "Specialist role (required for 'spawn_specialist'). One of: researcher, coder, designer, security, writer"),
 				"co_agent_id":   prop("string", "Co-agent ID (required for 'get_result' and 'stop'; stop requires an explicit user cancellation request)"),
 				"context_hints": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional keywords or topics for RAG context injection (for 'spawn' and 'spawn_specialist'). Keep them short and specific."},
-				"priority":      prop("integer", "Optional queue priority: 1=low, 2=normal, 3=high. Higher priority queued co-agents start first."),
+				"output_schema": map[string]interface{}{
+					"type":                 "object",
+					"description":          "Optional JSON Schema object for the final result of 'spawn' and 'spawn_specialist'. Keep it compact; the co-agent must return only one JSON object or array matching this schema.",
+					"additionalProperties": true,
+				},
+				"priority": prop("integer", "Optional queue priority: 1=low, 2=normal, 3=high. Higher priority queued co-agents start first."),
 			}, "operation"),
 		))
 	}

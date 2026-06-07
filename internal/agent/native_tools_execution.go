@@ -33,7 +33,7 @@ func appendExecutionToolSchemas(tools []openai.Tool, ff ToolFeatureFlags, execut
 	if ff.AllowFilesystemWrite {
 		tools = append(tools,
 			tool("file_editor",
-				"Precisely edit text files in agent_workspace/workdir or project-root-relative paths: replace exact strings, insert lines relative to anchors, append/prepend content, delete line ranges, or use hashline operations after filesystem read_file with include_hashes=true for stale-context validation. Never use for Virtual Desktop paths such as Apps/ or Widgets/; use virtual_desktop read_file/write_file/open_in_app instead.",
+				"Precisely edit text files in agent_workspace/workdir or project-root-relative paths: replace exact strings, insert lines relative to anchors, append/prepend content, delete line ranges, or use hashline operations after filesystem read_file with include_hashes=true for stale-context validation. Hashline hashes are content-only (not line-number based), so you can perform multiple edits in the same file without re-reading — just adjust anchor_line for lines shifted by inserts/deletes above them. Never use for Virtual Desktop paths such as Apps/ or Widgets/; use virtual_desktop read_file/write_file/open_in_app instead.",
 				schema(map[string]interface{}{
 					"operation": map[string]interface{}{
 						"type":        "string",
@@ -192,6 +192,8 @@ func appendExecutionToolSchemas(tools []openai.Tool, ff ToolFeatureFlags, execut
 			"code":        prop("string", "The complete Python code to execute"),
 			"description": prop("string", "Brief description of what this script does"),
 			"background":  prop("boolean", "Run as background process (default false)"),
+			"enable_tool_bridge": prop("boolean", "Allow this foreground Python run to import aurago and call allowlisted AuraGo tools through aurago.call_tool. Requires tools.python_tool_bridge.enabled and allowed_tools in config. Not supported with background=true."),
+			"tool_bridge_call_limit": prop("integer", "Optional per-run limit for aurago.call_tool calls when enable_tool_bridge=true. Default 10, maximum 50."),
 		}
 		if ff.PythonSecretInjectionEnabled {
 			execPythonProps["vault_keys"] = map[string]interface{}{

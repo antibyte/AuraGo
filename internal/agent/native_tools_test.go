@@ -483,6 +483,36 @@ func TestNativeToolCallToToolCallInvasionControlEggName(t *testing.T) {
 	}
 }
 
+func TestBuildNativeToolSchemasCoAgentOutputSchemaUsesJSONStringField(t *testing.T) {
+	schemas := BuildNativeToolSchemas(t.TempDir(), nil, ToolFeatureFlags{CoAgentEnabled: true}, nil)
+	for _, toolSchema := range schemas {
+		if toolSchema.Function == nil || toolSchema.Function.Name != "co_agent" {
+			continue
+		}
+		params, ok := toolSchema.Function.Parameters.(map[string]interface{})
+		if !ok {
+			t.Fatalf("co_agent parameters type = %T", toolSchema.Function.Parameters)
+		}
+		props, ok := params["properties"].(map[string]interface{})
+		if !ok {
+			t.Fatal("co_agent properties missing")
+		}
+		outputSchema, ok := props["output_schema"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("output_schema property type = %T", props["output_schema"])
+		}
+		if outputSchema["type"] != "string" {
+			t.Fatalf("output_schema type = %v, want string after native schema normalization", outputSchema["type"])
+		}
+		desc, _ := outputSchema["description"].(string)
+		if !strings.Contains(strings.ToLower(desc), "json") {
+			t.Fatalf("output_schema description = %q, want JSON guidance", desc)
+		}
+		return
+	}
+	t.Fatal("co_agent schema not found")
+}
+
 func TestBuildNativeToolSchemasOmitsVirusTotalWhenDisabled(t *testing.T) {
 	skillsDir := t.TempDir()
 	skillManifest := `{

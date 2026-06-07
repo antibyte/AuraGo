@@ -313,6 +313,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					Task:         task,
 					ContextHints: req.ContextHints,
 					Priority:     req.Priority,
+					OutputSchema: req.OutputSchema,
 				}
 				id, state, err := SpawnCoAgent(cfg, ctx, logger, coAgentRegistry,
 					shortTermMem, longTermMem, vault, registry, manifest, kg, inventoryDB, dc.CheatsheetDB, coReq, budgetTracker, nil)
@@ -341,6 +342,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					ContextHints: req.ContextHints,
 					Specialist:   specialist,
 					Priority:     req.Priority,
+					OutputSchema: req.OutputSchema,
 				}
 				id, state, err := SpawnCoAgent(cfg, ctx, logger, coAgentRegistry,
 					shortTermMem, longTermMem, vault, registry, manifest, kg, inventoryDB, dc.CheatsheetDB, coReq, budgetTracker, nil)

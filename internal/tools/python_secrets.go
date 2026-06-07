@@ -342,3 +342,79 @@ func BuildToolBridgePrelude(bridgeURL, bridgeToken string, allowedTools []string
 	return fmt.Sprintf("import os as _aurago_tb\n_aurago_tb.environ['AURAGO_TOOL_BRIDGE_URL'] = '%s'\n_aurago_tb.environ['AURAGO_TOOL_BRIDGE_TOKEN'] = '%s'\n_aurago_tb.environ['AURAGO_TOOL_BRIDGE_TOOLS'] = '%s'\ndel _aurago_tb\n",
 		bridgeURL, escapedToken, strings.Join(allowedTools, ","))
 }
+
+const (
+	defaultToolBridgeCallLimit = 10
+	maxToolBridgeCallLimit     = 50
+)
+
+func normalizeToolBridgeCallLimit(limit int) int {
+	if limit <= 0 {
+		return defaultToolBridgeCallLimit
+	}
+	if limit > maxToolBridgeCallLimit {
+		return maxToolBridgeCallLimit
+	}
+	return limit
+}
+
+// BuildToolBridgeSDKPrelude registers a small in-memory aurago module for
+// foreground execute_python runs that explicitly opt in to tool reentry.
+func BuildToolBridgeSDKPrelude(callLimit int) string {
+	callLimit = normalizeToolBridgeCallLimit(callLimit)
+	return fmt.Sprintf(`
+import json as _aurago_json
+import os as _aurago_os
+import sys as _aurago_sys
+import types as _aurago_types
+import urllib.error as _aurago_urlerror
+import urllib.request as _aurago_urlrequest
+
+class _AuraGoModule(_aurago_types.ModuleType):
+    def __init__(self):
+        super().__init__("aurago")
+        self._call_count = 0
+        self._call_limit = %d
+
+    def call_tool(self, tool_name, parameters=None, timeout=60):
+        if not isinstance(tool_name, str) or not tool_name.strip():
+            raise ValueError("tool_name must be a non-empty string")
+        tool_name = tool_name.strip()
+        if parameters is None:
+            parameters = {}
+        if not isinstance(parameters, dict):
+            raise TypeError("parameters must be a dict")
+        if self._call_count >= self._call_limit:
+            raise RuntimeError("AuraGo tool bridge call limit exceeded")
+        allowed = [name.strip() for name in _aurago_os.environ.get("AURAGO_TOOL_BRIDGE_TOOLS", "").split(",") if name.strip()]
+        if allowed and tool_name not in allowed:
+            raise PermissionError("tool is not allowed via AuraGo tool bridge: " + tool_name)
+        bridge_url = _aurago_os.environ.get("AURAGO_TOOL_BRIDGE_URL", "").rstrip("/")
+        bridge_token = _aurago_os.environ.get("AURAGO_TOOL_BRIDGE_TOKEN", "")
+        if not bridge_url or not bridge_token:
+            raise RuntimeError("AuraGo tool bridge is not configured for this Python run")
+        timeout = int(timeout or 60)
+        body = _aurago_json.dumps({"parameters": parameters, "timeout": timeout}).encode("utf-8")
+        request = _aurago_urlrequest.Request(
+            bridge_url + "/" + tool_name,
+            data=body,
+            headers={"Content-Type": "application/json", "X-Internal-Token": bridge_token},
+            method="POST",
+        )
+        self._call_count += 1
+        try:
+            with _aurago_urlrequest.urlopen(request, timeout=timeout + 5) as response:
+                payload = _aurago_json.loads(response.read().decode("utf-8"))
+        except _aurago_urlerror.HTTPError as exc:
+            try:
+                payload = _aurago_json.loads(exc.read().decode("utf-8"))
+            except Exception:
+                payload = {"status": "error", "result": str(exc)}
+        if payload.get("status") == "error":
+            raise RuntimeError(str(payload.get("result", "AuraGo tool bridge call failed")))
+        return payload
+
+_aurago_sys.modules["aurago"] = _AuraGoModule()
+del _AuraGoModule
+`, callLimit)
+}

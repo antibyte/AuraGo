@@ -494,10 +494,11 @@ type ToolCall struct {
 	User        string            `json:"user"`
 	File        string            `json:"file"`
 	// Co-Agent fields
-	CoAgentID    string   `json:"co_agent_id"`
-	Task         string   `json:"task"`
-	ContextHints []string `json:"context_hints"`
-	Specialist   string   `json:"specialist"` // specialist role for spawn_specialist
+	CoAgentID    string                 `json:"co_agent_id"`
+	Task         string                 `json:"task"`
+	ContextHints []string               `json:"context_hints"`
+	Specialist   string                 `json:"specialist"` // specialist role for spawn_specialist
+	OutputSchema map[string]interface{} `json:"output_schema,omitempty"`
 	// TTS / Chromecast fields
 	Text        string  `json:"text"`
 	DeviceAddr  string  `json:"device_addr"`
@@ -565,8 +566,11 @@ type ToolCall struct {
 	SandboxLang string   `json:"sandbox_lang"` // language for execute_sandbox (python, javascript, go, etc.)
 	Libraries   []string `json:"libraries"`    // optional packages to install before running sandbox code
 	// Vault secret injection for Python tools
-	VaultKeys     []string `json:"vault_keys,omitempty"`     // vault secret keys to inject as AURAGO_SECRET_<KEY> env vars
-	CredentialIDs []string `json:"credential_ids,omitempty"` // credential UUIDs to inject as AURAGO_CRED_<NAME>_* env vars
+	VaultKeys           []string `json:"vault_keys,omitempty"`             // vault secret keys to inject as AURAGO_SECRET_<KEY> env vars
+	CredentialIDs       []string `json:"credential_ids,omitempty"`         // credential UUIDs to inject as AURAGO_CRED_<NAME>_* env vars
+	EnableToolBridge    bool     `json:"enable_tool_bridge,omitempty"`     // allow this foreground Python run to call allowlisted AuraGo tools
+	EnableSDK           bool     `json:"enable_sdk,omitempty"`             // legacy alias for enable_tool_bridge
+	ToolBridgeCallLimit int      `json:"tool_bridge_call_limit,omitempty"` // per-run Python bridge call limit
 	// Homepage fields
 	Framework  string   `json:"framework"`   // web framework: next, vite, astro, svelte, vue, html
 	Viewport   string   `json:"viewport"`    // screenshot viewport: "1280x720"

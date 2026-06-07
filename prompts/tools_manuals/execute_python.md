@@ -11,6 +11,8 @@ Execute Python scripts in AuraGo's isolated Python virtual environment. This is 
 | `background` | No | Run as background process (default: false) |
 | `vault_keys` | No | List of vault secret key names to inject as environment variables (requires `tools.python_secret_injection.enabled: true`) |
 | `credential_ids` | No | List of credential UUIDs to inject as environment variables (requires `tools.python_secret_injection.enabled: true` and per-credential `allow_python` flag) |
+| `enable_tool_bridge` | No | Allow this foreground Python run to call allowlisted AuraGo tools through `import aurago` |
+| `tool_bridge_call_limit` | No | Per-run limit for `aurago.call_tool` calls. Default: 10. Maximum: 50 |
 
 ## Vault Secret Injection
 
@@ -48,6 +50,44 @@ When `tools.python_secret_injection.enabled` is set to `true`, you can also inje
 ```
 
 This also works with `execute_sandbox`, `execute_skill`, and `run_tool` (or skill manifests with `vault_keys` in the JSON).
+
+## Tool Bridge Reentry
+
+Use `enable_tool_bridge: true` only when a foreground Python script needs to call AuraGo tools as part of a data-processing workflow. It is not available for `background: true`.
+
+Prerequisites in config:
+
+```yaml
+tools:
+  python_tool_bridge:
+    enabled: true
+    allowed_tools:
+      - filesystem
+      - web_scraper
+```
+
+Only tools in `allowed_tools` can be called. The bridge uses the internal loopback API and the same tool dispatch rules as normal AuraGo tool calls.
+
+Inside Python:
+
+```python
+import aurago
+
+resp = aurago.call_tool("filesystem", {
+    "operation": "read_file",
+    "path": "README.md"
+})
+print(resp["status"])
+print(resp["result"])
+```
+
+Example tool call:
+
+```json
+{"action": "execute_python", "enable_tool_bridge": true, "tool_bridge_call_limit": 5, "code": "import aurago\nresp = aurago.call_tool('filesystem', {'operation': 'read_file', 'path': 'README.md'})\nprint(resp['result'][:500])"}
+```
+
+`aurago.call_tool(tool_name, parameters=None, timeout=60)` returns a dictionary with `status` and `result`. It raises an exception when the bridge is disabled, the tool is not allowlisted, the per-run call limit is exceeded, or the tool returns an error.
 
 ## Environment
 - Python 3.10+ with isolated venv in `agent_workspace/workdir/venv`

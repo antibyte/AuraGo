@@ -57,6 +57,10 @@ func TestDecodeCoAgentArgsUsesFallbacks(t *testing.T) {
 			"priority":      float64(2),
 			"co_agent_id":   "co-123",
 			"context_hints": []interface{}{"ci", "tests"},
+			"output_schema": map[string]interface{}{
+				"type":     "object",
+				"required": []interface{}{"summary"},
+			},
 		},
 	}
 
@@ -75,6 +79,28 @@ func TestDecodeCoAgentArgsUsesFallbacks(t *testing.T) {
 	}
 	if len(req.ContextHints) != 2 || req.ContextHints[0] != "ci" || req.ContextHints[1] != "tests" {
 		t.Fatalf("ContextHints = %#v, want [ci tests]", req.ContextHints)
+	}
+	if req.OutputSchema["type"] != "object" {
+		t.Fatalf("OutputSchema = %#v, want decoded schema", req.OutputSchema)
+	}
+}
+
+func TestDecodeCoAgentArgsDecodesJSONStringOutputSchema(t *testing.T) {
+	req := decodeCoAgentArgs(ToolCall{
+		Action: "co_agent",
+		Params: map[string]interface{}{
+			"operation":     "spawn",
+			"task":          "return structured result",
+			"output_schema": `{"type":"object","properties":{"status":{"type":"string"}},"required":["status"]}`,
+		},
+	})
+
+	props, ok := req.OutputSchema["properties"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("OutputSchema properties = %#v, want map", req.OutputSchema["properties"])
+	}
+	if _, ok := props["status"].(map[string]interface{}); !ok {
+		t.Fatalf("OutputSchema status property = %#v, want map", props["status"])
 	}
 }
 
