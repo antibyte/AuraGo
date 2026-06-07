@@ -428,6 +428,7 @@
     user-select: none;
     touch-action: manipulation;
     border: 1px solid transparent;
+    font-size: 0.82rem;
     transition: background 120ms ease, border-color 120ms ease;
     content-visibility: auto;
     contain-intrinsic-size: auto 36px;
