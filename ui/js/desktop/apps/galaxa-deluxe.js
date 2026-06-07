@@ -639,7 +639,7 @@ themes: {
             for (let i = 0, n = pixels.length; i < n; i++) {
                 const px = pixels[i];
                 ctx.fillStyle = px.color;
-                ctx.fillRect(x + px.x | 0, y + px.y | 0, sz, sz);
+                ctx.fillRect(Math.round(x + px.x), Math.round(y + px.y), sz, sz);
             }
         }
 
@@ -869,7 +869,7 @@ themes: {
                 const side = idx % 2 === 0 ? -1 : 1;
                 const diveDelay = G.chal ? (800 + idx * 200) : (1000 + Math.random() * 3000 + idx * 50);
                 G.enemies.push({ type, r, col, x: W / 2 + side * (120 + Math.random() * 80), y: -30 - (idx % 8) * 20,
-                    fx, fy, hp, maxHp: hp, st: 'ENTER', eTmr: 500 + idx * 80 + r * 100, eProg: 0,
+                    fx, fy, hp, maxHp: hp, st: 'ENTER', eTmr: 500 + idx * 80 + r * 100,
                     fr: 0, frT: 0, dTmr: diveDelay / diffMod('diveRate'), dPath: null, sTmr: 0, hasCap: false, hitF: 0 });
                 idx++;
             }
@@ -1418,7 +1418,19 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                 if (e.st === 'DEAD') continue; e.frT += dtMs; if (e.frT > 300) { e.fr = 1 - e.fr; e.frT = 0; } if (e.hitF > 0) e.hitF -= dtMs;
                 if (G.freezeT > 0 && e.st !== 'ENTER') continue;
                 if (e.st === 'ENTER') {
-                    e.eTmr -= dtMs; if (e.eTmr <= 0) { e.eProg += eDt * 1.5; const tm = Math.min(e.eProg, 1); e.x += (e.fx - e.x) * tm * 0.05; e.y += (e.fy - e.y) * tm * 0.05; if (tm >= 1 && Math.abs(e.x - e.fx) < 2 && Math.abs(e.y - e.fy) < 2) { e.x = e.fx; e.y = e.fy; e.st = 'FORM'; for (let _ei = 0; _ei < 2; _ei++) { const _ea = Math.random() * Math.PI * 2; G.part.push({ x: e.x, y: e.y, vx: Math.cos(_ea)*25, vy: Math.sin(_ea)*25, life: 200, t: 0, col: e.type === 'bee' ? '#ffcc00' : e.type === 'butterfly' ? '#ff3366' : '#44cc44', size: 1, spark: true }); } if ((e.type === 'boss' || e.type === 'miniboss') && !G.bossWarningShown) { G.bossWarningT = 2000; G.bossWarningShown = true; if (e.type === 'miniboss') SFX.miniBossWarning(); else SFX.bossWarning(); } } }
+                    e.eTmr -= dtMs;
+                    if (e.eTmr <= 0) {
+                        const enterK = Math.min(1, eDt * 5);
+                        e.x += (e.fx - e.x) * enterK;
+                        e.y += (e.fy - e.y) * enterK;
+                        if (Math.abs(e.x - e.fx) < 2 && Math.abs(e.y - e.fy) < 2) {
+                            e.x = e.fx + G.fX;
+                            e.y = e.fy + Math.sin(G.fTmr * 2 + e.col * 0.5) * 3;
+                            e.st = 'FORM';
+                            for (let _ei = 0; _ei < 2; _ei++) { const _ea = Math.random() * Math.PI * 2; G.part.push({ x: e.x, y: e.y, vx: Math.cos(_ea)*25, vy: Math.sin(_ea)*25, life: 200, t: 0, col: e.type === 'bee' ? '#ffcc00' : e.type === 'butterfly' ? '#ff3366' : '#44cc44', size: 1, spark: true }); }
+                            if ((e.type === 'boss' || e.type === 'miniboss') && !G.bossWarningShown) { G.bossWarningT = 2000; G.bossWarningShown = true; if (e.type === 'miniboss') SFX.miniBossWarning(); else SFX.bossWarning(); }
+                        }
+                    }
                 }
                 else if (e.st === 'FORM') {
                     e.x = e.fx + G.fX; e.y = e.fy + Math.sin(G.fTmr * 2 + e.col * 0.5) * 3;
