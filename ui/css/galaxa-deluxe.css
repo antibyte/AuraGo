@@ -70,12 +70,12 @@
             transparent 3px
         );
     opacity: 0.45;
-    animation: galaxa-crt-flicker 0.06s infinite alternate;
+    animation: galaxa-crt-flicker 4s ease-in-out infinite alternate;
 }
 
 @keyframes galaxa-crt-flicker {
-    from { opacity: 0.40; }
-    to { opacity: 0.48; }
+    from { opacity: 0.42; }
+    to { opacity: 0.46; }
 }
 
 .galaxa-powerup-active .galaxa-canvas {
