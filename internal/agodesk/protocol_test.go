@@ -110,6 +110,7 @@ func TestDefaultCapabilitiesIncludeComputerUseFeatures(t *testing.T) {
 		"chat.sessions",
 		"chat.cancel",
 		"chat.audio_events",
+		"chat.voice_output_status",
 		"remote.desktop.capture",
 		"remote.desktop.permission_request",
 		"remote.desktop.input",
@@ -234,6 +235,27 @@ func TestChatCancelAndAudioPayloadsRoundTrip(t *testing.T) {
 	}
 	if audioPayload.Path != "/tts/answer.mp3" || audioPayload.ConversationID != "sess-1" {
 		t.Fatalf("audio payload = %+v", audioPayload)
+	}
+}
+
+func TestChatVoiceOutputStatusPayloadRoundTrip(t *testing.T) {
+	env, err := NewEnvelope(TypeChatVoiceOutputStatus, ChatVoiceOutputStatusPayload{
+		SessionID:      "agodesk:dev-1",
+		ConversationID: "sess-1",
+		SpeakerMode:    false,
+		Mode:           "off",
+		Reason:         "user_disabled",
+		Status:         "ok",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat.voice_output.status: %v", err)
+	}
+	var payload ChatVoiceOutputStatusPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		t.Fatalf("unmarshal chat.voice_output.status: %v", err)
+	}
+	if payload.SessionID != "agodesk:dev-1" || payload.ConversationID != "sess-1" || payload.SpeakerMode || payload.Mode != "off" || payload.Reason != "user_disabled" || payload.Status != "ok" {
+		t.Fatalf("voice output status payload = %+v", payload)
 	}
 }
 

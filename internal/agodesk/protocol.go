@@ -16,28 +16,29 @@ const ProtocolVersion = "agodesk.v1"
 type MessageType string
 
 const (
-	TypeSystemConnected      MessageType = "system.connected"
-	TypeSystemPing           MessageType = "system.ping"
-	TypeSystemPong           MessageType = "system.pong"
-	TypeSessionStart         MessageType = "session.start"
-	TypeSessionAccepted      MessageType = "session.accepted"
-	TypeChatMessage          MessageType = "chat.message"
-	TypeChatResponse         MessageType = "chat.response"
-	TypeChatError            MessageType = "chat.error"
-	TypeChatChunk            MessageType = "chat.response.chunk"
-	TypeChatPlanUpdate       MessageType = "chat.plan_update"
-	TypeChatSessionsList     MessageType = "chat.sessions.list"
-	TypeChatSessions         MessageType = "chat.sessions"
-	TypeChatSessionCreate    MessageType = "chat.session.create"
-	TypeChatSessionLoad      MessageType = "chat.session.load"
-	TypeChatSession          MessageType = "chat.session"
-	TypeChatCancel           MessageType = "chat.cancel"
-	TypeChatCancelled        MessageType = "chat.cancelled"
-	TypeChatAudio            MessageType = "chat.audio"
-	TypeDesktopCommand       MessageType = "desktop.command"
-	TypeDesktopResult        MessageType = "desktop.result"
-	TypePersonaAssetsRequest MessageType = "persona.assets.request"
-	TypePersonaAssets        MessageType = "persona.assets"
+	TypeSystemConnected       MessageType = "system.connected"
+	TypeSystemPing            MessageType = "system.ping"
+	TypeSystemPong            MessageType = "system.pong"
+	TypeSessionStart          MessageType = "session.start"
+	TypeSessionAccepted       MessageType = "session.accepted"
+	TypeChatMessage           MessageType = "chat.message"
+	TypeChatResponse          MessageType = "chat.response"
+	TypeChatError             MessageType = "chat.error"
+	TypeChatChunk             MessageType = "chat.response.chunk"
+	TypeChatPlanUpdate        MessageType = "chat.plan_update"
+	TypeChatSessionsList      MessageType = "chat.sessions.list"
+	TypeChatSessions          MessageType = "chat.sessions"
+	TypeChatSessionCreate     MessageType = "chat.session.create"
+	TypeChatSessionLoad       MessageType = "chat.session.load"
+	TypeChatSession           MessageType = "chat.session"
+	TypeChatCancel            MessageType = "chat.cancel"
+	TypeChatCancelled         MessageType = "chat.cancelled"
+	TypeChatAudio             MessageType = "chat.audio"
+	TypeChatVoiceOutputStatus MessageType = "chat.voice_output.status"
+	TypeDesktopCommand        MessageType = "desktop.command"
+	TypeDesktopResult         MessageType = "desktop.result"
+	TypePersonaAssetsRequest  MessageType = "persona.assets.request"
+	TypePersonaAssets         MessageType = "persona.assets"
 )
 
 const (
@@ -65,6 +66,7 @@ var DefaultCapabilities = []string{
 	"chat.sessions",
 	"chat.cancel",
 	"chat.audio_events",
+	"chat.voice_output_status",
 	"pairing.remotehub",
 	"remote.desktop.capture",
 	"remote.desktop.permission_request",
@@ -260,6 +262,15 @@ type ChatAudioPayload struct {
 	MimeType       string                 `json:"mime_type,omitempty"`
 	Filename       string                 `json:"filename,omitempty"`
 	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+}
+
+type ChatVoiceOutputStatusPayload struct {
+	SessionID      string `json:"session_id"`
+	ConversationID string `json:"conversation_id,omitempty"`
+	SpeakerMode    bool   `json:"speaker_mode"`
+	Mode           string `json:"mode,omitempty"`
+	Reason         string `json:"reason,omitempty"`
+	Status         string `json:"status,omitempty"`
 }
 
 type PersonaAssetsRequestPayload struct {

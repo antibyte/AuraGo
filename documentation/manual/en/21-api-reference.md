@@ -727,6 +727,7 @@ AgoDesk chat can share AuraGo Web Chat sessions when `chat.sessions` is negotiat
 - `chat.message` should include both the AgoDesk `session_id` and active `conversation_id`.
 - `chat.cancel` stops the active request and returns `chat.cancelled`.
 - `chat.audio` is emitted only when `chat.audio_events` is negotiated. `chat.voice_output` is offered only when AuraGo TTS is configured.
+- `chat.voice_output.status` lets AgoDesk report the same `speaker_mode` preference used by Web Chat when speech output is enabled or disabled.
 
 See [AgoDesk backend protocol](../../agodesk_backend_protocol.md) for payload shapes and the client implementation checklist.
 

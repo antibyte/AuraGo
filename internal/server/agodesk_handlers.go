@@ -205,6 +205,13 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 			return true
 		}
 		handleAgodeskChatCancel(s, conn, state, env.ID, payload)
+	case agodesk.TypeChatVoiceOutputStatus:
+		payload, errPayload := decodeAgodeskPayload[agodesk.ChatVoiceOutputStatusPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskVoiceOutputStatus(s, conn, state, env.ID, payload)
 	case agodesk.TypePersonaAssetsRequest:
 		payload, errPayload := decodeAgodeskPayload[agodesk.PersonaAssetsRequestPayload](env)
 		if errPayload != nil {
@@ -346,6 +353,40 @@ func handleAgodeskChatCancel(s *Server, conn *websocket.Conn, state *agodeskConn
 		ConversationID: conversationID,
 		RequestID:      activeRequestID,
 		Status:         status,
+	})
+}
+
+func handleAgodeskVoiceOutputStatus(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.ChatVoiceOutputStatusPayload) {
+	sessionID, ok := validateAgodeskTransportSession(s, conn, state, requestID, payload.SessionID, "chat.voice_output.status")
+	if !ok {
+		return
+	}
+	speakerMode := payload.SpeakerMode
+	mode := strings.ToLower(strings.TrimSpace(payload.Mode))
+	switch mode {
+	case "on", "enabled", "speaker":
+		speakerMode = true
+	case "off", "disabled", "muted":
+		speakerMode = false
+	}
+	agent.SetVoiceMode(speakerMode)
+	if s != nil && s.Logger != nil {
+		s.Logger.Info("AgoDesk voice output status updated", "speaker_mode", speakerMode)
+	}
+	if mode == "" {
+		if speakerMode {
+			mode = "on"
+		} else {
+			mode = "off"
+		}
+	}
+	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeChatVoiceOutputStatus, agodesk.ChatVoiceOutputStatusPayload{
+		SessionID:      sessionID,
+		ConversationID: strings.TrimSpace(payload.ConversationID),
+		SpeakerMode:    speakerMode,
+		Mode:           mode,
+		Reason:         strings.TrimSpace(payload.Reason),
+		Status:         "ok",
 	})
 }
 

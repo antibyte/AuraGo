@@ -46,6 +46,7 @@ AuraGo accepts AgoDesk WebSocket messages up to 16 MiB. Desktop screenshot resul
 - `chat.session.load`: load a shared AuraGo chat conversation with visible messages.
 - `chat.cancel` / `chat.cancelled`: stop the active agent turn for a conversation.
 - `chat.audio`: server-generated TTS audio event for clients that negotiate `chat.audio_events`.
+- `chat.voice_output.status`: client status update and server acknowledgement for the same `speaker_mode` preference used by AuraGo Web Chat.
 - `persona.assets.request`: client request for the currently active AuraGo persona's visual assets and prompt.
 - `persona.assets`: server response with the active persona name, asset key, avatar image URL, icon URL, and persona prompt.
 - `desktop.command` / `desktop.result`: server-to-client command transport for screenshots, discovery, UI automation, browser CDP, permission requests, locally approved input/actions, and locally approved file access.
@@ -81,6 +82,7 @@ Desktop commands are dispatched only when the matching client capability is pres
 - `chat.cancel`: enables Stop for active AgoDesk agent turns.
 - `chat.audio_events`: enables `chat.audio` frames for server-generated TTS playback.
 - `chat.voice_output`: server-offered only when AuraGo TTS is configured; lets AgoDesk request server-side voice output with `chat.message.payload.voice_output=true`.
+- `chat.voice_output_status`: enables AgoDesk to report the current chat speech-output state with `chat.voice_output.status`.
 - `remote.desktop.capture`: required for `desktop_screenshot`
 - `remote.desktop.permission_request`: required for `desktop_permission_request`
 - `remote.desktop.input`: required for `desktop_input`
@@ -435,6 +437,37 @@ TTS mode should default to `Auto` in AgoDesk:
 - `AuraGo`: require `chat.voice_output` and `chat.audio_events`; otherwise show a quiet unavailable state and do not fall back silently.
 - `Frontend`: speak the final assistant text locally.
 - `Off`: do not request or play TTS.
+
+Whenever the user changes speech output in AgoDesk, send the same preference state as the Web Chat speaker toggle:
+
+```json
+{
+  "type": "chat.voice_output.status",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "conversation_id": "sess-abc",
+    "speaker_mode": false,
+    "mode": "off",
+    "reason": "user_disabled"
+  }
+}
+```
+
+`speaker_mode` is canonical and maps to AuraGo's `/api/preferences` `speaker_mode`. `mode` is optional UI metadata; accepted values include `on` and `off`. AuraGo updates the shared voice-mode preference and acknowledges with the same message type:
+
+```json
+{
+  "type": "chat.voice_output.status",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "conversation_id": "sess-abc",
+    "speaker_mode": false,
+    "mode": "off",
+    "reason": "user_disabled",
+    "status": "ok"
+  }
+}
+```
 
 When `chat.audio_events` is negotiated, AuraGo may emit:
 

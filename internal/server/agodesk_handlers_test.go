@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/agent"
 	"aurago/internal/agodesk"
 	"aurago/internal/config"
 	"aurago/internal/memory"
@@ -395,6 +396,44 @@ func TestAgodeskChatCancelCancelsActiveConversationRun(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("runner context was not cancelled")
+	}
+}
+
+func TestAgodeskVoiceOutputStatusUpdatesSpeakerMode(t *testing.T) {
+	oldVoiceMode := agent.GetVoiceMode()
+	agent.SetVoiceMode(true)
+	t.Cleanup(func() { agent.SetVoiceMode(oldVoiceMode) })
+
+	s := newAgodeskHandlerTestServer()
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws?insecure_loopback=1")
+	defer cleanup()
+	connected := readAgodeskTestEnvelope(t, conn)
+	var connectedPayload agodesk.SystemConnectedPayload
+	decodeAgodeskTestPayload(t, connected, &connectedPayload)
+
+	msg, err := agodesk.NewEnvelope(agodesk.TypeChatVoiceOutputStatus, agodesk.ChatVoiceOutputStatusPayload{
+		SessionID:   connectedPayload.SessionID,
+		SpeakerMode: false,
+		Mode:        "off",
+		Reason:      "user_disabled",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope voice status: %v", err)
+	}
+	if err := conn.WriteJSON(msg); err != nil {
+		t.Fatalf("write voice status: %v", err)
+	}
+	resp := readAgodeskTestEnvelope(t, conn)
+	if resp.Type != agodesk.TypeChatVoiceOutputStatus {
+		t.Fatalf("response type = %q, want %q", resp.Type, agodesk.TypeChatVoiceOutputStatus)
+	}
+	var payload agodesk.ChatVoiceOutputStatusPayload
+	decodeAgodeskTestPayload(t, resp, &payload)
+	if payload.SessionID != connectedPayload.SessionID || payload.SpeakerMode || payload.Mode != "off" || payload.Status != "ok" {
+		t.Fatalf("voice status ack payload = %+v", payload)
+	}
+	if agent.GetVoiceMode() {
+		t.Fatal("voice mode remained enabled after AgoDesk status update")
 	}
 }
 
