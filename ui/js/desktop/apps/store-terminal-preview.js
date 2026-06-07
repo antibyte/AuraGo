@@ -93,32 +93,21 @@
             const pasteLabel = t('desktop.fm.paste', 'Paste');
             const showPreviewLabel = t('desktop.store_terminal_show_preview', 'Show preview');
             const hidePreviewLabel = t('desktop.store_terminal_hide_preview', 'Hide preview');
-            const headerTitle = t('desktop.store_terminal_header_title', 'CommandCode');
-            const headerSubtitle = t('desktop.store_terminal_header_subtitle', 'Console-first workspace');
             const statusStarting = t('desktop.store_terminal_status_starting', 'Starting');
             const statusConnected = t('desktop.store_terminal_status_connected', 'Connected');
             const statusPreviewWaiting = t('desktop.store_terminal_status_preview_waiting', 'Preview waiting');
             const statusPreviewReady = t('desktop.store_terminal_status_preview_ready', 'Preview ready');
 
             host.innerHTML = `<div class="vd-store-terminal-shell">
-                <header class="vd-store-terminal-header">
-                    <div class="vd-store-terminal-brand">
-                        ${iconMarkup('terminal', 'C', 'vd-store-terminal-brand-icon', 18)}
-                        <div>
-                            <div class="vd-store-terminal-brand-title">${esc(headerTitle)}</div>
-                            <div class="vd-store-terminal-brand-subtitle">${esc(headerSubtitle)}</div>
-                        </div>
-                    </div>
-                    <div class="vd-store-terminal-status-row">
-                        <span class="vd-store-terminal-chip" data-store-terminal-connection data-state="starting">${esc(statusStarting)}</span>
-                        <span class="vd-store-terminal-chip" data-store-terminal-preview-status data-state="waiting">${esc(statusPreviewWaiting)}</span>
-                        <span class="vd-store-terminal-workspace" title="${esc(workspacePath)}">${esc(workspacePath)}</span>
-                    </div>
-                </header>
                 <div class="vd-store-terminal-preview">
                     <div class="vd-store-terminal-pane">
                         <div class="vd-store-terminal-toolbar">
                             <div class="vd-store-terminal-tabs" data-store-terminal-tabs></div>
+                            <div class="vd-store-terminal-meta">
+                                <span class="vd-store-terminal-chip" data-store-terminal-connection data-state="starting">${esc(statusStarting)}</span>
+                                <span class="vd-store-terminal-chip" data-store-terminal-preview-status data-state="waiting">${esc(statusPreviewWaiting)}</span>
+                                <span class="vd-store-terminal-workspace" title="${esc(workspacePath)}">${esc(workspacePath)}</span>
+                            </div>
                             <div class="vd-store-terminal-actions">
                                 <button type="button" class="vd-store-terminal-action" data-store-terminal-new title="${esc(newSessionLabel)}" aria-label="${esc(newSessionLabel)}">${iconMarkup('plus', '+', 'vd-store-terminal-action-icon', 15)}</button>
                                 <button type="button" class="vd-store-terminal-action" data-store-terminal-restart title="${esc(restartLabel)}" aria-label="${esc(restartLabel)}">${iconMarkup('refresh', 'R', 'vd-store-terminal-action-icon', 15)}</button>

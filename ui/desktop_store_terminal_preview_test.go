@@ -39,7 +39,7 @@ func TestDesktopStoreTerminalPreviewHasPasteToolbarStyles(t *testing.T) {
 	css := readEmbeddedText(t, "css/desktop-windows.css")
 	for _, marker := range []string{
 		".vd-store-terminal-shell",
-		".vd-store-terminal-header",
+		".vd-store-terminal-meta",
 		".vd-store-terminal-toolbar",
 		".vd-store-terminal-action",
 		".vd-store-terminal-surface",
