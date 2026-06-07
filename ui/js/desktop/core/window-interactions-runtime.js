@@ -244,7 +244,9 @@ function wireWindow(win, id) {
         const taskbar = document.querySelector('.vd-taskbar');
         const width = (layer && layer.clientWidth) || window.innerWidth;
         let height = (layer && layer.clientHeight) || window.innerHeight;
-        if (isCompactViewport() && window.visualViewport) {
+        if (!isFruityTheme() && taskbar) {
+            height = Math.max(1, height - taskbar.offsetHeight);
+        } else if (isCompactViewport() && window.visualViewport) {
             height = Math.min(height, Math.max(1, window.visualViewport.height - ((taskbar && taskbar.offsetHeight) || 0)));
         }
         return { width, height };

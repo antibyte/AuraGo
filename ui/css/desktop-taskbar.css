@@ -20,13 +20,13 @@
 /* Floating pill taskbar */
 .vd-taskbar {
     position: fixed;
-    bottom: var(--vd-taskbar-offset, 12px);
-    left: 16px;
-    right: 16px;
+    bottom: 0;
+    left: 0;
+    right: 0;
     height: var(--vd-taskbar-height, 54px);
     padding: 0 14px 0 10px;
     gap: 10px;
-    border-radius: var(--ds-radius-lg);
+    border-radius: 0;
     border: 1px solid var(--ds-color-border-subtle);
     background: var(--ds-color-surface-1);
     backdrop-filter: var(--ds-blur-fine);

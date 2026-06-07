@@ -32,9 +32,9 @@
     --vd-start-button-size: 52px;
     --vd-start-recess-size: 64px;
     --vd-taskbar-height: 54px;
-    --vd-taskbar-offset: 12px;
-    --vd-taskbar-gap: 80px;
-    --vd-mobile-taskbar-reserve: calc(var(--vd-taskbar-height, 54px) + var(--vd-taskbar-offset, 12px) + env(safe-area-inset-bottom, 0px));
+    --vd-taskbar-offset: 0px;
+    --vd-taskbar-gap: calc(var(--vd-taskbar-height, 54px) + var(--vd-taskbar-offset, 0px));
+    --vd-mobile-taskbar-reserve: calc(var(--vd-taskbar-height, 54px) + var(--vd-taskbar-offset, 0px) + env(safe-area-inset-bottom, 0px));
     --vd-window-radius: 12px;
     --vd-z-desktop: 0;
     --vd-z-widget: 10;
@@ -1565,7 +1565,7 @@
 
 .desktop-body[data-density="compact"] {
     --vd-taskbar-height: 48px;
-    --vd-taskbar-gap: 72px;
+    --vd-taskbar-gap: calc(var(--vd-taskbar-height, 48px) + var(--vd-taskbar-offset, 0px));
 }
 
 .desktop-body[data-density="compact"] .vd-shell {

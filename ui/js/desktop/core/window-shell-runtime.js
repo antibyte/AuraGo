@@ -773,9 +773,11 @@
         const workspace = $('vd-workspace') || document.body;
         const workspaceRect = workspace.getBoundingClientRect();
         const margin = 16;
+        const taskbar = document.querySelector('.vd-taskbar');
+        const taskbarReserve = (!isFruityTheme() && taskbar) ? taskbar.offsetHeight : 0;
         return {
             width: Math.min(size.width, Math.max(1, workspaceRect.width - margin * 2)),
-            height: Math.min(size.height, Math.max(1, workspaceRect.height - margin * 2))
+            height: Math.min(size.height, Math.max(1, workspaceRect.height - taskbarReserve - margin * 2))
         };
     }
 
@@ -786,8 +788,10 @@
         const topStart = 72;
         const stepX = 28;
         const stepY = 24;
+        const taskbar = document.querySelector('.vd-taskbar');
+        const taskbarReserve = (!isFruityTheme() && taskbar) ? taskbar.offsetHeight : 0;
         const maxLeft = Math.max(margin, workspaceRect.width - size.width - margin);
-        const maxTop = Math.max(margin, workspaceRect.height - size.height - margin);
+        const maxTop = Math.max(margin, workspaceRect.height - taskbarReserve - size.height - margin);
         const slotsX = Math.max(1, Math.floor((maxLeft - margin) / stepX) + 1);
         const slotsY = Math.max(1, Math.floor((maxTop - topStart) / stepY) + 1);
         const index = state.windows.size;
