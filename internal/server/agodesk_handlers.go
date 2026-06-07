@@ -983,6 +983,7 @@ type agodeskChatBroker struct {
 	mu             sync.RWMutex
 	latestPlan     interface{}
 	latestPlanSeen bool
+	emittedAudio   map[string]struct{}
 }
 
 func (b *agodeskChatBroker) Send(event, message string) {
@@ -991,6 +992,7 @@ func (b *agodeskChatBroker) Send(event, message string) {
 	}
 	if event == "audio" {
 		b.emitAudio(message)
+		return
 	}
 	if b.FeedbackBroker != nil {
 		b.FeedbackBroker.Send(event, message)
@@ -1062,7 +1064,40 @@ func (b *agodeskChatBroker) emitAudio(message string) {
 	if payload.Path == "" && payload.Filename == "" {
 		return
 	}
+	if !b.markAudioEmitted(agodeskChatAudioDedupeKey(payload)) {
+		return
+	}
 	_ = writeAgodeskEnvelopeLocked(b.conn, b.state, agodesk.TypeChatAudio, payload)
+}
+
+func (b *agodeskChatBroker) markAudioEmitted(key string) bool {
+	if b == nil || key == "" {
+		return true
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.emittedAudio == nil {
+		b.emittedAudio = make(map[string]struct{})
+	}
+	if _, exists := b.emittedAudio[key]; exists {
+		return false
+	}
+	b.emittedAudio[key] = struct{}{}
+	return true
+}
+
+func agodeskChatAudioDedupeKey(payload agodesk.ChatAudioPayload) string {
+	pathValue := strings.TrimSpace(payload.Path)
+	filename := strings.TrimSpace(payload.Filename)
+	if pathValue == "" && filename == "" {
+		return ""
+	}
+	return strings.Join([]string{
+		strings.TrimSpace(payload.ConversationID),
+		strings.TrimSpace(payload.RequestID),
+		pathValue,
+		filename,
+	}, "\x00")
 }
 
 func agodeskChatAudioPath(pathValue, filename string) string {

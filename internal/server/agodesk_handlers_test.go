@@ -504,6 +504,23 @@ func TestAgodeskChatBrokerEmitsAudioOnlyWithCapability(t *testing.T) {
 	}
 }
 
+func TestAgodeskChatBrokerDeduplicatesAudioAndDoesNotForwardToSSE(t *testing.T) {
+	state := &agodeskConnectionState{
+		sessionID:    "agodesk:dev-1",
+		paired:       true,
+		capabilities: normalizeAgodeskCapabilities([]string{"chat.audio_events"}),
+	}
+	forwarded := &agodeskForwardCaptureBroker{}
+	payload := `{"path":"/tts/a.mp3","title":"TTS Audio","mime_type":"audio/mpeg","filename":"a.mp3"}`
+	envs := readAgodeskBrokerAudioEnvelopes(t, state, forwarded, payload, payload)
+	if len(envs) != 1 {
+		t.Fatalf("audio envelope count = %d, want 1", len(envs))
+	}
+	if len(forwarded.events) != 0 {
+		t.Fatalf("audio should not be forwarded to SSE broker, got events %v", forwarded.events)
+	}
+}
+
 func TestAgodeskTTSAssetBypassesSessionAuthAndServesCachedAudio(t *testing.T) {
 	dataDir := t.TempDir()
 	ttsDir := filepath.Join(dataDir, "tts")
@@ -1740,6 +1757,15 @@ func dialAgodeskTestWebSocket(t *testing.T, s *Server, path string) (*websocket.
 
 func readAgodeskBrokerAudioEnvelope(t *testing.T, state *agodeskConnectionState) agodesk.Envelope {
 	t.Helper()
+	envs := readAgodeskBrokerAudioEnvelopes(t, state, nil, `{"path":"/tts/a.mp3","title":"TTS Audio","mime_type":"audio/mpeg","filename":"a.mp3"}`)
+	if len(envs) == 0 {
+		return agodesk.Envelope{}
+	}
+	return envs[0]
+}
+
+func readAgodeskBrokerAudioEnvelopes(t *testing.T, state *agodeskConnectionState, feedback agent.FeedbackBroker, messages ...string) []agodesk.Envelope {
+	t.Helper()
 	ready := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := agodeskUpgrader.Upgrade(w, r, nil)
@@ -1756,8 +1782,11 @@ func readAgodeskBrokerAudioEnvelope(t *testing.T, state *agodeskConnectionState)
 			conversationID: "sess-1",
 			requestID:      "req-1",
 			logger:         slog.Default(),
+			FeedbackBroker: feedback,
 		}
-		broker.Send("audio", `{"path":"/tts/a.mp3","title":"TTS Audio","mime_type":"audio/mpeg","filename":"a.mp3"}`)
+		for _, message := range messages {
+			broker.Send("audio", message)
+		}
 	}))
 	defer srv.Close()
 	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
@@ -1771,13 +1800,36 @@ func readAgodeskBrokerAudioEnvelope(t *testing.T, state *agodeskConnectionState)
 	case <-time.After(time.Second):
 		t.Fatal("broker websocket did not become ready")
 	}
-	_ = conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
-	var env agodesk.Envelope
-	if err := conn.ReadJSON(&env); err != nil {
-		return agodesk.Envelope{}
+	var envs []agodesk.Envelope
+	for {
+		_ = conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+		var env agodesk.Envelope
+		if err := conn.ReadJSON(&env); err != nil {
+			return envs
+		}
+		envs = append(envs, env)
 	}
-	return env
 }
+
+type agodeskForwardCaptureBroker struct {
+	events []string
+}
+
+func (b *agodeskForwardCaptureBroker) Send(event, message string) {
+	b.events = append(b.events, event)
+}
+
+func (b *agodeskForwardCaptureBroker) SendJSON(string) {}
+
+func (b *agodeskForwardCaptureBroker) SendLLMStreamDelta(string, string, string, int, string) {}
+
+func (b *agodeskForwardCaptureBroker) SendLLMStreamDone(string) {}
+
+func (b *agodeskForwardCaptureBroker) SendTokenUpdate(int, int, int, int, int, bool, bool, string) {}
+
+func (b *agodeskForwardCaptureBroker) SendThinkingBlock(string, string, string) {}
+
+func (b *agodeskForwardCaptureBroker) Scrub(s string) string { return s }
 
 func readAgodeskTestEnvelope(t *testing.T, conn *websocket.Conn) agodesk.Envelope {
 	t.Helper()
