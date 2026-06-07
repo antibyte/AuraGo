@@ -364,7 +364,7 @@ func (s *Service) recoverInterruptedOperationsLocked(ctx context.Context) error 
 	for _, app := range apps {
 		switch app.Status {
 		case AppStatusInstalling:
-			if err := s.cleanupInstallArtifacts(ctx, app); err != nil {
+			if err := s.recoverInterruptedInstall(ctx, app); err != nil {
 				return fmt.Errorf("recover interrupted install for %s: %w", app.AppID, err)
 			}
 		case AppStatusUpdating:
@@ -377,6 +377,32 @@ func (s *Service) recoverInterruptedOperationsLocked(ctx context.Context) error 
 		}
 	}
 	return nil
+}
+
+func (s *Service) recoverInterruptedInstall(ctx context.Context, app InstalledApp) error {
+	if err := s.deleteStoreArtifacts(ctx, app); err != nil {
+		return err
+	}
+	if err := s.deleteStoreSecrets(ctx, app); err != nil {
+		return err
+	}
+	if err := s.removeManagedWorkspaceBinds(app); err != nil {
+		return err
+	}
+	_, err := s.db.ExecContext(ctx, `DELETE FROM desktop_store_apps WHERE app_id = ?`, app.AppID)
+	if err != nil {
+		return fmt.Errorf("delete interrupted desktop store app record: %w", err)
+	}
+	s.scheduleInterruptedInstallDockerCleanup(app)
+	return nil
+}
+
+func (s *Service) scheduleInterruptedInstallDockerCleanup(app InstalledApp) {
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		s.cleanupInstallDockerResources(ctx, app)
+	}()
 }
 
 // StartInstall persists a pending install operation. The caller may run it in a
@@ -1961,11 +1987,11 @@ func (s *Service) saveInstalled(ctx context.Context, app InstalledApp) error {
 			last_operation_id = excluded.last_operation_id,
 			last_operation_type = excluded.last_operation_type,
 			last_operation_state = excluded.last_operation_state`,
-		app.AppID, app.DesktopAppID, app.LaunchpadLinkID, app.ContainerName, app.ContainerID, app.Image, app.Status, app.Error,
-		app.BindMode, app.HostIP, app.HostPort, app.ContainerPort, app.Protocol, boolToInt(app.TailscaleEnabled), app.TailscaleStatus,
-		app.TailscalePort, app.LogoPath, string(portsJSON), string(volumesJSON), string(hostBindsJSON), string(envJSON),
-		string(extraHostsJSON), string(secretRefsJSON), string(companionsJSON), formatTime(app.CreatedAt), formatTime(app.UpdatedAt),
-		app.LastOperationID, app.LastOperationType, app.LastOperationState)
+			app.AppID, app.DesktopAppID, app.LaunchpadLinkID, app.ContainerName, app.ContainerID, app.Image, app.Status, app.Error,
+			app.BindMode, app.HostIP, app.HostPort, app.ContainerPort, app.Protocol, boolToInt(app.TailscaleEnabled), app.TailscaleStatus,
+			app.TailscalePort, app.LogoPath, string(portsJSON), string(volumesJSON), string(hostBindsJSON), string(envJSON),
+			string(extraHostsJSON), string(secretRefsJSON), string(companionsJSON), formatTime(app.CreatedAt), formatTime(app.UpdatedAt),
+			app.LastOperationID, app.LastOperationType, app.LastOperationState)
 		return err
 	})
 }
@@ -2004,6 +2030,20 @@ func (s *Service) failInstall(ctx context.Context, app InstalledApp, runErr erro
 }
 
 func (s *Service) cleanupInstallArtifacts(ctx context.Context, app InstalledApp) error {
+	s.cleanupInstallDockerResources(ctx, app)
+	_ = s.deleteStoreSecrets(ctx, app)
+	_ = s.removeManagedWorkspaceBinds(app)
+	if err := s.deleteStoreArtifacts(ctx, app); err != nil {
+		return err
+	}
+	_, err := s.db.ExecContext(ctx, `DELETE FROM desktop_store_apps WHERE app_id = ?`, app.AppID)
+	if err != nil {
+		return fmt.Errorf("delete desktop store app record: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) cleanupInstallDockerResources(ctx context.Context, app InstalledApp) {
 	for _, companion := range app.Companions {
 		_ = s.requireDocker().StopContainer(ctx, companion.ContainerName)
 		_ = s.requireDocker().RemoveContainer(ctx, companion.ContainerName, true)
@@ -2019,16 +2059,6 @@ func (s *Service) cleanupInstallArtifacts(ctx context.Context, app InstalledApp)
 		}
 	}
 	_ = s.removePrivateStoreNetworks(ctx, app)
-	_ = s.deleteStoreSecrets(ctx, app)
-	_ = s.removeManagedWorkspaceBinds(app)
-	if err := s.deleteStoreArtifacts(ctx, app); err != nil {
-		return err
-	}
-	_, err := s.db.ExecContext(ctx, `DELETE FROM desktop_store_apps WHERE app_id = ?`, app.AppID)
-	if err != nil {
-		return fmt.Errorf("delete desktop store app record: %w", err)
-	}
-	return nil
 }
 
 func (s *Service) deleteStoreArtifacts(ctx context.Context, app InstalledApp) error {

@@ -162,12 +162,12 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 				t.Fatalf("commandcode home volume = %#v, want persistent /home/developer", entry.Volumes)
 			}
 			wantMetadata := map[string]string{
-				"store_ui":           "terminal-preview",
-				"terminal_enabled":   "true",
-				"terminal_command":   "cmd",
-				"preview_port_id":    "web",
-				"open_maximized":     "true",
-				"workspace_path":     "Shared/CommandCode",
+				"store_ui":         "terminal-preview",
+				"terminal_enabled": "true",
+				"terminal_command": "cmd",
+				"preview_port_id":  "web",
+				"open_maximized":   "true",
+				"workspace_path":   "Shared/CommandCode",
 			}
 			for key, value := range wantMetadata {
 				if entry.Metadata[key] != value {
@@ -1138,6 +1138,65 @@ func TestInitRecoversInterruptedInstallingOperation(t *testing.T) {
 	}
 }
 
+func TestInitDoesNotBlockOnInterruptedInstallDockerCleanup(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
+	svc := newTestServiceAtPath(t, dbPath, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19187), nil)
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "node-red", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.updateOperation(ctx, op.ID, OperationRunning, "running", ""); err != nil {
+		t.Fatalf("mark operation running: %v", err)
+	}
+	record := svc.buildInstallRecord(svc.catalogByID["node-red"], op, BindModeLocal, "127.0.0.1", 19187, false)
+	if err := svc.saveInstalled(ctx, record); err != nil {
+		t.Fatalf("seed installing record: %v", err)
+	}
+	if err := svc.Close(); err != nil {
+		t.Fatalf("close first service: %v", err)
+	}
+
+	removeStarted := make(chan string, 1)
+	releaseRemove := make(chan struct{})
+	recoveryDocker := &fakeDockerAdapter{
+		removeContainerStarted: removeStarted,
+		removeContainerBlock:   releaseRemove,
+	}
+	recoveredSvc, err := NewService(Config{
+		DBPath:        dbPath,
+		WorkspaceDir:  filepath.Join(t.TempDir(), "workspace"),
+		Docker:        recoveryDocker,
+		Desktop:       &fakeDesktopAdapter{},
+		Launchpad:     &fakeLaunchpadAdapter{},
+		PortAllocator: fixedPorts(19188),
+		PortProbe:     func(context.Context, string, int) bool { return true },
+	})
+	if err != nil {
+		t.Fatalf("new recovery service: %v", err)
+	}
+	defer func() {
+		close(releaseRemove)
+		_ = recoveredSvc.Close()
+	}()
+
+	initDone := make(chan error, 1)
+	go func() {
+		initDone <- recoveredSvc.Init(ctx)
+	}()
+	select {
+	case err := <-initDone:
+		if err != nil {
+			t.Fatalf("recovery init failed: %v", err)
+		}
+	case name := <-removeStarted:
+		t.Fatalf("Init started Docker cleanup synchronously for %s", name)
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("Init blocked while recovering interrupted install")
+	}
+}
+
 func TestInitClearsStaleActiveOperationMarkerForRunningApp(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
@@ -1880,25 +1939,27 @@ func fixedPorts(values ...int) PortAllocator {
 }
 
 type fakeDockerAdapter struct {
-	pulled            []string
-	pullErr           error
-	builtImages       []string
-	created           []ContainerSpec
-	createdNetworks   []string
-	copiedFiles       map[string]map[string]string
-	events            []string
-	started           []string
-	stopped           []string
-	restarted         []string
-	removedContainers map[string]int
-	removedVolumes    []string
-	removedNetworks   []string
-	createErr         error
-	createErrors      []error
-	startErrors       []error
-	inspectCalls      int
-	inspectState      ContainerState
-	inspectErr        error
+	pulled                 []string
+	pullErr                error
+	builtImages            []string
+	created                []ContainerSpec
+	createdNetworks        []string
+	copiedFiles            map[string]map[string]string
+	events                 []string
+	started                []string
+	stopped                []string
+	restarted              []string
+	removedContainers      map[string]int
+	removedVolumes         []string
+	removedNetworks        []string
+	createErr              error
+	createErrors           []error
+	startErrors            []error
+	inspectCalls           int
+	inspectState           ContainerState
+	inspectErr             error
+	removeContainerStarted chan string
+	removeContainerBlock   <-chan struct{}
 }
 
 type fakeSecretStore struct {
@@ -1995,6 +2056,15 @@ func (f *fakeDockerAdapter) RestartContainer(_ context.Context, name string) err
 }
 
 func (f *fakeDockerAdapter) RemoveContainer(_ context.Context, name string, _ bool) error {
+	if f.removeContainerStarted != nil {
+		select {
+		case f.removeContainerStarted <- name:
+		default:
+		}
+	}
+	if f.removeContainerBlock != nil {
+		<-f.removeContainerBlock
+	}
 	if f.removedContainers == nil {
 		f.removedContainers = map[string]int{}
 	}
