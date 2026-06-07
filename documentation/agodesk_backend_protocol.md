@@ -478,7 +478,7 @@ When `chat.audio_events` is negotiated, AuraGo may emit:
     "session_id": "agodesk:device-123",
     "conversation_id": "sess-abc",
     "request_id": "req-1",
-    "path": "/tts/response.mp3",
+    "path": "/api/agodesk/tts/response.mp3",
     "title": "TTS Audio",
     "mime_type": "audio/mpeg",
     "filename": "response.mp3"
@@ -486,7 +486,7 @@ When `chat.audio_events` is negotiated, AuraGo may emit:
 }
 ```
 
-Clients must queue audio in request order and resolve relative `path` values against the AuraGo origin. Stop must clear this queue and cancel native/frontend speech immediately. Do not log shared keys, session tokens, or local TTS file paths. Render server text as sanitized Markdown or plain text, never raw HTML.
+Clients must queue audio in request order and resolve relative `path` values against the AuraGo origin. For AuraGo-generated TTS, AgoDesk should use the provided `/api/agodesk/tts/<filename>` path directly; it is limited by the server to cached TTS audio files and does not require a Web UI login cookie. Stop must clear this queue and cancel native/frontend speech immediately. Do not log shared keys, session tokens, or local TTS file paths. Render server text as sanitized Markdown or plain text, never raw HTML.
 
 For the concrete AgoDesk client implementation checklist, see [`agodesk_coding_agent_chat_controls.md`](./agodesk_coding_agent_chat_controls.md).
 

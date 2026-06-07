@@ -719,7 +719,7 @@ AgoDesk-Chat kann dieselben AuraGo-Webchat-Sessions nutzen, wenn `chat.sessions`
 - `chat.session.load` lädt eine Konversation und sichtbare, nicht-interne Nachrichten.
 - `chat.message` sollte die AgoDesk-`session_id` und die aktive `conversation_id` senden.
 - `chat.cancel` stoppt den aktiven Request und liefert `chat.cancelled`.
-- `chat.audio` wird nur gesendet, wenn `chat.audio_events` ausgehandelt ist. `chat.voice_output` wird nur angeboten, wenn AuraGo-TTS konfiguriert ist.
+- `chat.audio` wird nur gesendet, wenn `chat.audio_events` ausgehandelt ist. AuraGo-generierte TTS-Pfade nutzen `/api/agodesk/tts/<filename>`, damit AgoDesk Audio ohne Web-UI-Login-Cookie abrufen kann. `chat.voice_output` wird nur angeboten, wenn AuraGo-TTS konfiguriert ist.
 - `chat.voice_output.status` erlaubt AgoDesk, dieselbe `speaker_mode`-Präferenz wie der Webchat zu melden, wenn Sprachausgabe aktiviert oder deaktiviert wird.
 
 Details zu Payloads und Client-Checkliste stehen im [AgoDesk Backend Protocol](../../agodesk_backend_protocol.md).

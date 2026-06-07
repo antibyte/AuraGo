@@ -21,6 +21,7 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/remote"
 	"aurago/internal/security"
+	"aurago/internal/tools"
 	promptsembed "aurago/prompts"
 
 	"github.com/gorilla/websocket"
@@ -718,6 +719,67 @@ func handleAgodeskChatMessage(s *Server, r *http.Request, conn *websocket.Conn, 
 	})
 }
 
+func handleAgodeskTTSAsset(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			w.Header().Set("Allow", "GET, HEAD")
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		filename := strings.TrimSpace(strings.TrimPrefix(r.URL.Path, "/api/agodesk/tts/"))
+		if !isSafeAgodeskTTSFilename(filename) {
+			http.NotFound(w, r)
+			return
+		}
+		dataDir := ""
+		if s != nil && s.Cfg != nil {
+			s.CfgMu.RLock()
+			dataDir = s.Cfg.Directories.DataDir
+			s.CfgMu.RUnlock()
+		}
+		ttsDir := tools.TTSAudioDir(dataDir)
+		target := filepath.Join(ttsDir, filename)
+		if !pathStaysWithinDir(ttsDir, target) {
+			http.NotFound(w, r)
+			return
+		}
+		if strings.HasSuffix(strings.ToLower(filename), ".wav") {
+			w.Header().Set("Content-Type", "audio/wav")
+		} else {
+			w.Header().Set("Content-Type", "audio/mpeg")
+		}
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		http.ServeFile(w, r, target)
+	}
+}
+
+func isSafeAgodeskTTSFilename(filename string) bool {
+	if filename == "" || filename != filepath.Base(filename) {
+		return false
+	}
+	if strings.Contains(filename, "/") || strings.Contains(filename, `\`) || strings.Contains(filename, "..") {
+		return false
+	}
+	ext := strings.ToLower(filepath.Ext(filename))
+	return ext == ".mp3" || ext == ".wav"
+}
+
+func pathStaysWithinDir(root, target string) bool {
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return false
+	}
+	absTarget, err := filepath.Abs(target)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(absRoot, absTarget)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel))
+}
+
 func resolveAgodeskConversationID(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID, transportSessionID, conversationID string) (string, bool) {
 	conversationID = strings.TrimSpace(conversationID)
 	if conversationID == "" {
@@ -983,14 +1045,16 @@ func (b *agodeskChatBroker) emitAudio(message string) {
 		}
 		return
 	}
+	audioPath := agodeskStringField(raw, "path", "url")
+	filename := agodeskStringField(raw, "filename", "file_name")
 	payload := agodesk.ChatAudioPayload{
 		SessionID:      strings.TrimSpace(b.sessionID),
 		ConversationID: strings.TrimSpace(b.conversationID),
 		RequestID:      strings.TrimSpace(b.requestID),
-		Path:           agodeskStringField(raw, "path", "url"),
+		Path:           agodeskChatAudioPath(audioPath, filename),
 		Title:          agodeskStringField(raw, "title"),
 		MimeType:       agodeskStringField(raw, "mime_type", "content_type"),
-		Filename:       agodeskStringField(raw, "filename", "file_name"),
+		Filename:       filename,
 	}
 	if metadata, ok := raw["metadata"].(map[string]interface{}); ok {
 		payload.Metadata = metadata
@@ -999,6 +1063,20 @@ func (b *agodeskChatBroker) emitAudio(message string) {
 		return
 	}
 	_ = writeAgodeskEnvelopeLocked(b.conn, b.state, agodesk.TypeChatAudio, payload)
+}
+
+func agodeskChatAudioPath(pathValue, filename string) string {
+	pathValue = strings.TrimSpace(pathValue)
+	filename = strings.TrimSpace(filename)
+	if strings.HasPrefix(pathValue, "/tts/") {
+		if name := strings.TrimPrefix(pathValue, "/tts/"); isSafeAgodeskTTSFilename(name) {
+			return "/api/agodesk/tts/" + name
+		}
+	}
+	if pathValue == "" && isSafeAgodeskTTSFilename(filename) {
+		return "/api/agodesk/tts/" + filename
+	}
+	return pathValue
 }
 
 func agodeskStringField(raw map[string]interface{}, names ...string) string {

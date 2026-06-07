@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -489,7 +490,7 @@ func TestAgodeskChatBrokerEmitsAudioOnlyWithCapability(t *testing.T) {
 	}
 	var audioPayload agodesk.ChatAudioPayload
 	decodeAgodeskTestPayload(t, audioEnv, &audioPayload)
-	if audioPayload.SessionID != "agodesk:dev-1" || audioPayload.ConversationID != "sess-1" || audioPayload.RequestID != "req-1" || audioPayload.Path != "/tts/a.mp3" {
+	if audioPayload.SessionID != "agodesk:dev-1" || audioPayload.ConversationID != "sess-1" || audioPayload.RequestID != "req-1" || audioPayload.Path != "/api/agodesk/tts/a.mp3" {
 		t.Fatalf("audio payload = %+v", audioPayload)
 	}
 
@@ -500,6 +501,38 @@ func TestAgodeskChatBrokerEmitsAudioOnlyWithCapability(t *testing.T) {
 	}
 	if env := readAgodeskBrokerAudioEnvelope(t, withoutAudioState); env.Type != "" {
 		t.Fatalf("unexpected audio envelope without capability: %+v", env)
+	}
+}
+
+func TestAgodeskTTSAssetBypassesSessionAuthAndServesCachedAudio(t *testing.T) {
+	dataDir := t.TempDir()
+	ttsDir := filepath.Join(dataDir, "tts")
+	if err := os.MkdirAll(ttsDir, 0o755); err != nil {
+		t.Fatalf("mkdir tts dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(ttsDir, "voice.mp3"), []byte("mp3-data"), 0o644); err != nil {
+		t.Fatalf("write tts file: %v", err)
+	}
+	s := newAgodeskHandlerTestServer()
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.PasswordHash = "configured"
+	s.Cfg.Auth.SessionSecret = "test-secret"
+	s.Cfg.Directories.DataDir = dataDir
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/agodesk/tts/", handleAgodeskTTSAsset(s))
+	req := httptest.NewRequest(http.MethodGet, "/api/agodesk/tts/voice.mp3", nil)
+	rec := httptest.NewRecorder()
+	authMiddleware(s, mux).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %q; want 200 without web session", rec.Code, rec.Body.String())
+	}
+	if got := rec.Body.String(); got != "mp3-data" {
+		t.Fatalf("body = %q, want mp3-data", got)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "audio/mpeg") {
+		t.Fatalf("Content-Type = %q, want audio/mpeg", ct)
 	}
 }
 

@@ -119,9 +119,10 @@ Audio handling:
 
 1. Queue `chat.audio` by `request_id`.
 2. Resolve relative `path` values against the AuraGo origin.
-3. Play only while the matching request/conversation is still active.
-4. Stop clears queued audio, stops active audio, and cancels frontend/native speech.
-5. Do not log local file paths or server audio URLs in normal logs.
+3. Use AuraGo-provided `/api/agodesk/tts/<filename>` paths directly for server TTS; do not rewrite them to `/tts/` because `/tts/` follows Web UI session auth.
+4. Play only while the matching request/conversation is still active.
+5. Stop clears queued audio, stops active audio, and cancels frontend/native speech.
+6. Do not log local file paths or server audio URLs in normal logs.
 
 ## Acceptance Criteria
 
