@@ -1,806 +1,585 @@
 # Chapter 12: Invasion Control
 
-> ⚠️ **Important:** Invasion Control is available exclusively via **Web-UI** and **REST API**. CLI commands for Invasion Control are not implemented.
+> ⚠️ **Important:** Invasion Control is available via **Web UI** and **REST API** only. Dedicated CLI commands for nest/egg management are not implemented. The agent can also use the `invasion_control` tool when enabled.
 
-Deploy and manage AuraGo agents across your infrastructure with Invasion Control. From single-server setups to multi-cloud deployments, manage remote execution with ease.
+Invasion Control deploys **AuraGo sub-agents** (Eggs) to remote or local targets (Nests). The master pushes a worker binary plus generated `config.yaml`, the Egg starts in **egg mode**, and connects back to the master over WebSocket.
 
-## Concept: Nests & Eggs
+> **Note:** Eggs are **LLM sub-agent configuration templates**, not shell scripts, cron jobs, or Docker image definitions. Nests and Eggs are stored in the invasion SQLite database, not in `config.yaml`.
 
-Invasion Control shares the **Nests** and **Eggs** concept with Mission Control but focuses on **deployment and lifecycle management** rather than scheduling.
+---
 
-### Nests (Target Servers)
+## Concepts: Nests & Eggs
 
-A **Nest** represents a target server or environment where you deploy agents or run missions:
+### Nests (deployment targets)
 
-| Nest Type | Description | Use Case |
-|-----------|-------------|----------|
-| **Local** | The AuraGo host itself | Local development, testing |
-| **SSH** | Remote servers via SSH | Production servers, VMs |
-| **Docker** | Docker containers | Containerized applications |
-| **Docker API** | Remote Docker daemon | Docker Swarm, remote hosts |
+A **Nest** describes *where* an Egg is deployed:
 
-### Eggs (Configurations)
+| Field | Values | Description |
+|-------|--------|-------------|
+| `access_type` | `ssh`, `docker`, `local` | How the master reaches the target |
+| `deploy_method` | `ssh`, `docker_remote`, `docker_local` | How the Egg binary is deployed |
+| `route` | `direct`, `ssh_tunnel`, `tailscale`, `wireguard`, `custom` | How the Egg reaches the master WebSocket |
+| `target_arch` | `linux/amd64`, `linux/arm64` | Binary architecture to deploy |
+| `egg_id` | UUID | Assigned Egg template (required for hatch) |
+| `hatch_status` | see below | Current deployment state |
 
-An **Egg** in Invasion Control is a deployment configuration that defines:
-- **Connection parameters** (SSH keys, API endpoints)
-- **Environment setup** (dependencies, configs)
-- **Deployment scripts** (install, update, remove)
-- **Agent configuration** (what the remote agent should do)
+Supported access types are **SSH**, **Docker API**, and **Local** only. Kubernetes is not implemented.
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  Nest Registry                                          │
-│  ├─ 🏠 local (localhost)                                │
-│  ├─ 🖥️ web-server-01 (SSH: 192.168.1.10)               │
-│  ├─ 🐳 db-container (Docker: postgres)                 │
-│  └─ ☁️ cloud-worker (Tailscale: 100.x.x.x)             │
-└─────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│  Egg Templates                                          │
-│  ├─ 📦 standard-agent (full AuraGo binary)             │
-│  ├─ 📦 minimal-agent (lightweight version)             │
-│  ├─ 📦 monitoring-only (metrics collector)             │
-│  └─ 📦 custom-worker (specialized tasks)               │
-└─────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│  Deployment (Hatch)                                     │
-│  ├─ Nest: web-server-01                                 │
-│  ├─ Egg: standard-agent                                 │
-│  ├─ Status: ✅ Healthy                                  │
-│  └─ Last Ping: 2 seconds ago                            │
-└─────────────────────────────────────────────────────────┘
-```
+### Eggs (sub-agent templates)
 
-## SSH Connections Setup
+An **Egg** describes *how* the deployed worker behaves:
 
-SSH is the most common way to connect to remote Nests. AuraGo supports multiple authentication methods.
-
-### Authentication Methods
-
-| Method | Security | Use Case |
-|--------|----------|----------|
-| **SSH Key** | ⭐⭐⭐ High | Production servers, automated deployments |
-| **Password** | ⭐⭐ Medium | Quick testing, legacy systems |
-| **SSH Agent** | ⭐⭐⭐ High | Desktop environments with ssh-agent |
-| **Vault Reference** | ⭐⭐⭐ High | Storing credentials in encrypted vault |
-
-### Setting Up SSH Key Authentication
-
-**Step 1: Generate SSH Key Pair**
-
-```bash
-# On your AuraGo host
-ssh-keygen -t ed25519 -C "aurago-deployment" -f ~/.ssh/aurago_deploy
-```
-
-**Step 2: Add Public Key to Target Server**
-
-```bash
-# Copy public key to remote server
-ssh-copy-id -i ~/.ssh/aurago_deploy.pub user@remote-server
-
-# Or manually add to ~/.ssh/authorized_keys on remote
-```
-
-**Step 3: Configure Nest in AuraGo**
-
-Navigate to **Invasion Control → Nests → New Nest**:
-
-```yaml
-Name: production-web-01
-Type: SSH
-Host: 192.168.1.10
-Port: 22
-Username: aurago
-Authentication: SSH Key
-SSH Key Path: /home/aurago/.ssh/aurago_deploy
-# Or use vault: ${vault.ssh.production_key}
-
-Advanced Options:
-  Timeout: 30
-  Keep Alive: true
-  Strict Host Key Checking: yes
-```
-
-> 💡 **Tip:** Use different SSH keys for different environments (dev, staging, production) to limit blast radius if a key is compromised.
-
-### Testing SSH Connection
-
-Use the Web-UI or REST API to test the connection:
-
-**Web-UI:** Navigate to **Invasion Control → Nests → production-web-01 → Test Connection**
-
-**REST API:**
-```bash
-curl -X POST http://localhost:8088/api/invasion/nests/production-web-01/validate \
-  -H "Authorization: Bearer ${API_TOKEN}"
-```
-
-Expected response:
-```json
-{
-  "success": true,
-  "host": "192.168.1.10",
-  "response_time_ms": 45,
-  "os": "Ubuntu 22.04 LTS",
-  "architecture": "x86_64"
-}
-```
-
-## Docker Deployment
-
-Deploy agents as Docker containers for maximum isolation and portability.
-
-### Local Docker (Daemon Socket)
-
-For Docker on the AuraGo host:
-
-```yaml
-Name: local-docker
-Type: Docker
-Connection: unix:///var/run/docker.sock
-
-Authentication: None (local socket)
-```
-
-> ⚠️ **Warning:** Mounting the Docker socket gives full container access. Use only for trusted local deployments.
-
-### Remote Docker (TCP/TLS)
-
-For remote Docker daemons:
-
-```yaml
-Name: remote-docker-host
-Type: Docker API
-Host: tcp://docker-worker-01:2376
-TLS: true
-CA Certificate: /certs/ca.pem
-Client Certificate: /certs/client-cert.pem
-Client Key: /certs/client-key.pem
-```
-
-### Creating a Docker Egg
-
-Navigate to **Invasion Control → Eggs → New Egg**:
-
-```yaml
-Name: containerized-agent
-Type: docker
-
-Image: aurago/agent:latest
-Pull Policy: Always
-
-Container Configuration:
-  Name: aurago-agent-${nest.name}
-  Restart Policy: unless-stopped
-  
-Environment Variables:
-  AURAGO_MODE: remote
-  AURAGO_MASTER: ${aurago.host}
-  AURAGO_TOKEN: ${vault.agent.token}
-  
-Volumes:
-  - /var/run/docker.sock:/var/run/docker.sock:ro
-  - agent_data:/data
-  
-Network: bridge
-Ports:
-  - "8080:8080"
-  
-Resources:
-  CPU Limit: 1.0
-  Memory Limit: 512M
-```
-
-### Deploying to Docker via REST API
-
-```bash
-# Deploy containerized-agent to local-docker
-curl -X POST http://localhost:8088/api/invasion/nests/local-docker/hatch \
-  -H "Authorization: Bearer ${API_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "egg": "containerized-agent",
-    "nest": "local-docker",
-    "name": "web-agent-01"
-  }'
-```
-
-Expected response:
-```json
-{
-  "deployment_id": "hatch-001",
-  "status": "pending",
-  "steps": [
-    {"step": "pull_image", "status": "completed"},
-    {"step": "create_container", "status": "completed"},
-    {"step": "start_container", "status": "completed"},
-    {"step": "health_check", "status": "completed"}
-  ],
-  "result": "success"
-}
-```
-
-## Deploying Remote Agents
-
-Remote agents extend AuraGo's capabilities to other servers, forming a distributed agent network.
-
-### Deployment Process
+| Field | Description |
+|-------|-------------|
+| `name`, `description` | Human-readable labels |
+| `model`, `provider`, `base_url` | LLM settings (used when `inherit_llm` is false) |
+| `api_key_ref` | Vault reference for the Egg's API key |
+| `inherit_llm` | Use the master's LLM config instead of Egg-specific fields (default: true) |
+| `allowed_tools` | JSON array of tool IDs, e.g. `["shell","python"]` (empty = shell + python) |
+| `egg_port` | HTTP port on the target (default: `8099`) |
+| `permanent` | Install as systemd service (`true`) or run once (`false`) |
+| `include_vault` | Ship an encrypted vault export to the target (use only on trusted hosts) |
+| `active` | Whether the Egg can be assigned |
 
 ```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  AuraGo      │────▶│  Target Nest │────▶│  Remote      │
-│  Master      │ SSH │  (Server)    │     │  Agent       │
-└──────────────┘     └──────────────┘     └──────────────┘
-      │                                               │
-      │◀──────────────────────────────────────────────┘
-      │              Heartbeat & Status
-```
-
-### Standard Agent Deployment
-
-**Egg: standard-remote-agent**
-
-Navigate to **Invasion Control → Eggs → New Egg**:
-
-```yaml
-Name: standard-remote-agent
-Type: deployment
-
-Prerequisites:
-  Commands:
-    - "which curl || apt-get install -y curl"
-    - "which docker || echo 'Docker not found - will use binary'"
-
-Installation:
-  Method: binary
-  Source: https://releases.aurago.io/agent/latest
-  Destination: /opt/aurago/agent
-  
-Configuration:
-  Config File: /opt/aurago/config.yaml
-  Template: |
-    server:
-      port: 8080
-      bind: 0.0.0.0
-    
-    agent:
-      mode: remote
-      master_url: ${aurago.master_url}
-      api_token: ${vault.agent.token}
-      
-    capabilities:
-      allowed_tools:
-        - filesystem
-        - shell
-        - docker
-      
-Service Setup:
-  Systemd: true
-  Service Name: aurago-agent
-  Auto Start: true
-  Restart: always
-```
-
-### Deployment via Web-UI
-
-Navigate to **Invasion Control → Deployments → New Deployment**:
-
-1. Select an **Egg** (deployment template)
-2. Select a **Nest** (target server)
-3. Configure deployment name
-4. Click **Deploy**
-
-### Deployment via REST API
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/invasion/nests` | GET | List all nests |
-| `/api/invasion/nests` | POST | Create a new nest |
-| `/api/invasion/nests/{id}` | GET | Get nest details |
-| `/api/invasion/nests/{id}` | PUT | Update nest |
-| `/api/invasion/nests/{id}` | DELETE | Delete nest |
-| `/api/invasion/nests/{id}/toggle` | POST | Enable/disable nest |
-| `/api/invasion/nests/{id}/validate` | POST | Test nest connection |
-| `/api/invasion/eggs` | GET | List all eggs |
-| `/api/invasion/eggs` | POST | Create a new egg |
-| `/api/invasion/eggs/{id}` | GET/PUT/DELETE | Manage egg |
-| `/api/invasion/eggs/{id}/toggle` | POST | Enable/disable egg |
-| `/api/invasion/nests/{id}/hatch` | POST | Deploy (hatch) egg on nest |
-| `/api/invasion/ws` | WS | WebSocket for real-time events |
-
-**Example: Deploy via REST API**
-
-```bash
-curl -X POST http://localhost:8088/api/invasion/nests/production-web-01/hatch \
-  -H "Authorization: Bearer ${API_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "egg": "standard-remote-agent",
-    "nest": "production-web-01",
-    "name": "web-agent-01"
-  }'
-```
-
-Expected response:
-```json
-{
-  "deployment_id": "hatch-001",
-  "name": "web-agent-01",
-  "egg": "standard-remote-agent",
-  "nest": "production-web-01",
-  "status": "healthy",
-  "phases": [
-    {"phase": "connection_check", "status": "completed"},
-    {"phase": "prerequisites", "status": "completed"},
-    {"phase": "installation", "status": "completed"},
-    {"phase": "service_setup", "status": "completed"},
-    {"phase": "verification", "status": "completed"}
-  ],
-  "agent_version": "1.4.2",
-  "created_at": "2024-01-15T10:23:45Z"
-}
-```
-
-## Lifecycle Management
-
-### Deployment States
-
-```
-┌─────────┐    ┌──────────┐    ┌──────────┐
-│ PENDING │───▶│ INSTALL  │───▶│ STARTING │
-└─────────┘    └──────────┘    └──────────┘
-                                    │
-     ┌──────────────────────────────┘
-     ▼
-┌──────────┐    ┌──────────┐    ┌──────────┐
-│ UPDATING │◀───│ HEALTHY  │───▶│ DEGRADED │
-└──────────┘    └──────────┘    └──────────┘
-                     │
-     ┌───────────────┼───────────────┐
-     ▼               ▼               ▼
-┌──────────┐    ┌──────────┐    ┌──────────┐
-│ STOPPED  │    │  ERROR   │    │ REMOVING │
-└──────────┘    └──────────┘    └──────────┘
-```
-
-### Managing Deployments via Web-UI
-
-**View All Deployments:**
-
-Navigate to **Invasion Control → Deployments**
-
-The dashboard shows:
-
-| Deployment | Nest | Status | Version |
-|------------|------|--------|---------|
-| web-agent-01 | web-server | ✅ Healthy | 1.4.2 |
-| db-monitor | db-server | ✅ Healthy | 1.4.2 |
-| backup-worker | backup-nas | ⚠️ Degraded | 1.4.1 |
-| cloud-proxy | aws-instance | ✅ Healthy | 1.4.2 |
-
-**Updating an Agent:**
-
-Navigate to **Invasion Control → Deployments → web-agent-01 → Update**
-
-Or use REST API:
-```bash
-curl -X PUT http://localhost:8088/api/invasion/eggs/web-agent-01 \
-  -H "Authorization: Bearer ${API_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "action": "update",
-    "target_version": "1.4.2"
-  }'
-```
-
-**Removing a Deployment:**
-
-Navigate to **Invasion Control → Deployments → web-agent-01 → Remove**
-
-Or use REST API:
-```bash
-curl -X DELETE http://localhost:8088/api/invasion/eggs/backup-worker \
-  -H "Authorization: Bearer ${API_TOKEN}"
-```
-
-## Connection Types
-
-### SSH (Secure Shell)
-
-Most versatile connection type for Linux/Unix servers.
-
-Configure via Web-UI at **Invasion Control → Nests → New Nest**:
-
-```yaml
-Type: SSH
-Host: 192.168.1.10
-Port: 22
-Username: deploy
-Auth: SSH Key
-Key Path: ~/.ssh/id_ed25519
-
-Jump Host:
-  Enabled: false
-  # For bastion host setups:
-  # Host: bastion.company.com
-  # User: jumphost
-```
-
-### Docker API
-
-Connect to Docker daemon directly for container management.
-
-```yaml
-Type: Docker API
-Host: tcp://192.168.1.20:2376
-TLS: true
-
-# Certificates for TLS verification
-CA: /certs/ca.pem
-Cert: /certs/client.pem
-Key: /certs/client-key.pem
-
-Context: default  # Docker context name (optional)
-```
-
-### Local
-
-The AuraGo host itself.
-
-```yaml
-Type: Local
-Path: /var/lib/aurago/local-agents
-
-# No authentication needed
-# Direct filesystem access
-```
-
-### Kubernetes (Optional)
-
-For deploying to K8s clusters:
-
-```yaml
-Type: Kubernetes
-Context: production-cluster
-Namespace: aurago-agents
-
-Authentication:
-  Method: kubeconfig
-  Path: ~/.kube/config
-  # Or use service account token
-```
-
-## Routing Options
-
-Control how AuraGo connects to remote Nests.
-
-### Direct
-
-Direct network connection – fastest, but requires network accessibility.
-
-```
-AuraGo ──────▶ Remote Server
-        (Direct)
-```
-
-Configure via Web-UI:
-
-```yaml
-Routing: Direct
-Host: 192.168.1.10
-Port: 22
-```
-
-**Requirements:**
-- Remote server must be directly reachable
-- Firewall must allow the connection
-- Static IP or DNS name recommended
-
-### SSH Tunnel
-
-Route traffic through an intermediate SSH server (bastion/jump host).
-
-```
-AuraGo ──────▶ Bastion Host ──────▶ Remote Server
-        (SSH)              (SSH)
-```
-
-Configure via Web-UI:
-
-```yaml
-Routing: SSH Tunnel
-Target:
-  Host: 10.0.1.50  # Internal IP, not directly reachable
-  Port: 22
-
-Jump Host:
-  Host: bastion.company.com
-  Port: 22
-  User: jumphost
-  Key: ~/.ssh/bastion_key
-
-Local Port Forwarding:
-  - "8080:localhost:8080"  # Access remote service locally
-```
-
-> 💡 **Tip:** SSH tunnels are excellent for accessing internal servers without VPN. All traffic is encrypted end-to-end.
-
-### Tailscale
-
-Zero-config VPN using Tailscale mesh networking.
-
-```
-AuraGo ──────▶ Tailscale Mesh ──────▶ Remote Server
-        (Encrypted WireGuard)
-```
-
-Configure via Web-UI:
-
-```yaml
-Routing: Tailscale
-Tailscale IP: 100.x.x.x
-
-# Tailscale authentication
-# (handled by Tailscale daemon)
-Auth Key: ${vault.tailscale.auth_key}
-
-# Optional: Use Tailscale SSH
-Tailscale SSH: true
-```
-
-**Advantages:**
-- Works across NAT and firewalls
-- Automatic encryption (WireGuard)
-- No port forwarding needed
-- Works anywhere with internet
-
-### Routing Comparison
-
-| Method | Setup | Security | Speed | Best For |
-|--------|-------|----------|-------|----------|
-| **Direct** | Easy | Depends on network | ⭐⭐⭐ Fastest | Same network, static IPs |
-| **SSH Tunnel** | Medium | ⭐⭐⭐ Excellent | ⭐⭐ Good | Bastion setups, secure access |
-| **Tailscale** | Easy | ⭐⭐⭐ Excellent | ⭐⭐⭐ Fast | Remote workers, dynamic IPs |
-| **VPN** | Complex | ⭐⭐⭐ Excellent | ⭐⭐ Good | Enterprise, complex networks |
-
-## Hatch Status Monitoring
-
-Monitor the health and status of all your deployments.
-
-### Health Metrics
-
-| Metric | Description | Warning Threshold |
-|--------|-------------|-------------------|
-| **Status** | Current state (Healthy/Degraded/Error) | - |
-| **Last Ping** | Time since last heartbeat | > 60 seconds |
-| **CPU Usage** | Remote agent CPU consumption | > 80% |
-| **Memory Usage** | Remote agent RAM usage | > 90% |
-| **Disk Space** | Available space on remote | < 10% |
-| **Version** | Running agent version | Mismatch with master |
-
-### Dashboard View
-
-Navigate to **Invasion Control → Dashboard** to view:
-
-```
-┌─────────────────────────────────────────────────────────┐
-│ 🥚 Invasion Control Dashboard                           │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  Overall Health: 4/5 Healthy                            │
-│                                                         │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │ web-agent-01                                    │   │
-│  │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ✅ Healthy     │   │
-│  │ Nest: web-server │ Version: 1.4.2 │ Uptime: 15d │   │
-│  │ Last Ping: 2s ago │ CPU: 12% │ RAM: 256MB       │   │
-│  └─────────────────────────────────────────────────┘   │
-│                                                         │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │ backup-worker                                   │   │
-│  │ ━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━ ⚠️ Degraded     │   │
-│  │ Nest: backup-nas │ Version: 1.4.1 (outdated)    │   │
-│  │ Warning: High disk usage (92%)                  │   │
-│  └─────────────────────────────────────────────────┘   │
-│                                                         │
-│  [View Logs] [Update] [Restart] [Remove]               │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Alert Configuration
-
-Navigate to **Invasion Control → Settings → Alerts**:
-
-```yaml
-Monitoring:
-  Health Check Interval: 30s
-  
-  Alerts:
-    Agent Offline:
-      Condition: last_ping > 2m
-      Action: notify.telegram
-      
-    High Resource Usage:
-      Condition: cpu > 80% OR memory > 90%
-      Action: notify.email
-      
-    Version Mismatch:
-      Condition: version != master.version
-      Action: notify.webui
-```
-
-Or via REST API:
-```bash
-curl -X PUT http://localhost:8088/api/invasion/nests/production-web-01 \
-  -H "Authorization: Bearer ${API_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "health_check_interval": "30s",
-    "alerts": [
-      {
-        "name": "Agent Offline",
-        "condition": "last_ping > 2m",
-        "action": "notify.telegram"
-      }
-    ]
-  }'
-```
-
-## Troubleshooting Deployments
-
-### Common Issues
-
-#### Connection Refused
-
-```
-❌ Error: Connection refused (port 22)
-```
-
-**Solutions:**
-1. Verify target server is running
-2. Check firewall rules: `sudo ufw allow 22`
-3. Verify SSH service: `sudo systemctl status sshd`
-4. Check port number (may not be default 22)
-
-#### Authentication Failed
-
-```
-❌ Error: Authentication failed for user 'deploy'
-```
-
-**Solutions:**
-1. Verify username is correct
-2. Check SSH key permissions (should be 600)
-3. Ensure public key is in `~/.ssh/authorized_keys` on target
-4. Try manual SSH: `ssh -i key user@host`
-
-#### Permission Denied (Installation)
-
-```
-❌ Error: Cannot write to /opt/aurago
-```
-
-**Solutions:**
-1. Ensure user has sudo privileges
-2. Create directory with correct permissions first:
-   ```bash
-   sudo mkdir -p /opt/aurago
-   sudo chown deploy:deploy /opt/aurago
-   ```
-3. Or choose different install path (e.g., `~/aurago`)
-
-#### Agent Won't Start
-
-```
-❌ Error: Service failed to start
-```
-
-**Solutions:**
-1. Check logs: `journalctl -u aurago-agent -n 50`
-2. Verify config file syntax
-3. Check port conflicts: `netstat -tlnp | grep 8080`
-4. Ensure binary has execute permission: `chmod +x aurago-agent`
-
-### Diagnostic via REST API
-
-```bash
-curl -X POST http://localhost:8088/api/invasion/nests/web-agent-01/validate \
-  -H "Authorization: Bearer ${API_TOKEN}"
-```
-
-Expected response:
-```json
-{
-  "deployment": "web-agent-01",
-  "checks": {
-    "connection": {
-      "status": "passed",
-      "response_time_ms": 45,
-      "message": "SSH reachable"
-    },
-    "authentication": {
-      "status": "passed",
-      "message": "Authentication successful"
-    },
-    "installation": {
-      "status": "passed",
-      "message": "Binary exists, config readable"
-    },
-    "service": {
-      "status": "failed",
-      "message": "Port 8080 already in use"
-    }
-  },
-  "recommendation": "Port 8080 is occupied. Options: 1) Change agent port, 2) Stop other service, 3) Use Docker deployment"
-}
-```
-
-### Log Access via REST API
-
-View remote agent logs:
-
-```bash
-curl "http://localhost:8088/api/invasion/nests/web-agent-01" \
-  -H "Authorization: Bearer ${API_TOKEN}"
-```
-
-Expected response:
-```json
-{
-  "deployment": "web-agent-01",
-  "lines": [
-    "[2024-01-15 10:23:45] INFO: Agent starting (v1.4.2)",
-    "[2024-01-15 10:23:45] INFO: Connecting to master...",
-    "[2024-01-15 10:23:46] INFO: Connected successfully",
-    "[2024-01-15 10:23:46] INFO: Health server listening on :8080",
-    "[2024-01-15 10:24:15] INFO: Heartbeat sent"
-  ]
-}
-```
-
-### Emergency Recovery via REST API
-
-If a deployment becomes unresponsive:
-
-```bash
-curl -X POST http://localhost:8088/api/invasion/nests/web-agent-01/hatch \
-  -H "Authorization: Bearer ${API_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "force": true
-  }'
-```
-
-Expected response:
-```json
-{
-  "deployment": "web-agent-01",
-  "action": "force_restart",
-  "steps": [
-    {"step": "ssh_connect", "status": "completed"},
-    {"step": "kill_process", "status": "completed"},
-    {"step": "start_fresh", "status": "completed"},
-    {"step": "verify", "status": "completed"}
-  ],
-  "result": "success"
-}
+┌─────────────────────────────────────────────────────────────┐
+│  AuraGo Master (HQ)                                         │
+│                                                             │
+│  Eggs (templates)          Nests (targets)                  │
+│  ├─ analytics-agent        ├─ prod-server (SSH)             │
+│  ├─ edge-worker            ├─ docker-host (Docker API)      │
+│  └─ inherit-llm-default   └─ local-docker (local)          │
+│           │                         │                       │
+│           └──────── Hatch ──────────┘                       │
+│                     │                                       │
+│                     ▼                                       │
+│            Deployed Egg (egg_mode worker)                   │
+│            connects via WS → /api/invasion/ws               │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-> 💡 **Tip:** Always test deployments on a staging environment before deploying to production. Use the same Egg configuration to ensure consistency.
+## Prerequisites
 
-> ⚠️ **Warning:** Keep SSH keys and API tokens secure. Use AuraGo's vault system to store sensitive credentials instead of hardcoding them in configurations.
+```yaml
+# config.yaml
+web_config:
+  enabled: true          # required for /api/invasion/* REST endpoints
+
+invasion_control:
+  enabled: false         # exposes the invasion_control agent tool (default: false)
+  readonly: false        # true = block hatch/stop/send_task/send_secret and other mutations
+
+sqlite:
+  invasion_path: ./data/invasion.db   # nests, eggs, tasks, deployment history
+```
+
+The Web UI page is always registered at `/invasion`. REST API routes are available when `web_config.enabled` is true and the invasion database initialized successfully.
+
+When `invasion_control.readonly` is `true`, mutating API calls (hatch, stop, send-task, send-secret, safe-reconfigure, rollback, rotate-key, etc.) return HTTP 403.
+
+---
+
+## Web UI
+
+Open **Invasion Control** at `/invasion` (also reachable from the radial menu).
+
+The UI has **two tabs only**:
+
+| Tab | Purpose |
+|-----|---------|
+| **Nests** | Manage deployment targets, assign Eggs, hatch, stop, reconfigure |
+| **Eggs** | Manage sub-agent LLM configuration templates |
+
+There is **no Deployments tab**. Deployment history is available via the REST API (`/api/invasion/nests/{id}/deployments`).
+
+### Nest card actions
+
+- **Edit** — connection settings, assigned Egg, deploy method, route
+- **Hatch** — deploy the assigned Egg (when status is `idle`, `failed`, or `stopped`)
+- **Stop** — stop the running Egg
+- **Safe Reconfigure** — apply a whitelisted config patch without full redeploy
+- **Config History** — view and roll back safe config revisions
+- **Activate / Deactivate** — toggle `active`
+- **Delete** — requires typing the exact nest name
+
+### Egg card actions
+
+- **Edit** — LLM settings, tools, port, permanent/vault/inherit flags
+- **Activate / Deactivate**
+- **Delete** — requires typing the exact egg name
+
+---
+
+## Creating a Nest
+
+### Via Web UI
+
+1. Open the **Nests** tab → **Create New**
+2. Fill in the form:
+
+| Field | Notes |
+|-------|-------|
+| Name | Required |
+| Notes | Optional |
+| Access Type | `SSH`, `Docker API`, or `Local` |
+| Host / Port / Username | Required for SSH and Docker; hidden for Local |
+| Secret | SSH key or password; stored in vault (not returned by API) |
+| Assign Egg | Select an Egg or leave empty |
+| Deploy Method | `SSH`, `Docker (Remote)`, or `Docker (Local)` |
+| Target Architecture | `linux/amd64` or `linux/arm64` |
+| Route | How the Egg reaches the master WebSocket |
+| Route Config | JSON, e.g. `{"tunnel_port":8443}` or a full WebSocket URL for `custom` |
+
+3. Save, then use **Test Connection** (edit mode only) to validate reachability
+
+### Via REST API
+
+```bash
+curl -X POST http://localhost:8088/api/invasion/nests \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "production-server-01",
+    "access_type": "ssh",
+    "host": "192.168.1.10",
+    "port": 22,
+    "username": "deploy",
+    "secret": "-----BEGIN OPENSSH PRIVATE KEY-----\n...",
+    "deploy_method": "ssh",
+    "target_arch": "linux/amd64",
+    "route": "direct",
+    "active": true
+  }'
+```
+
+Test the connection:
+
+```bash
+curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/validate
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Connection successful (45ms)",
+  "time_ms": 45
+}
+```
+
+> 💡 **Tip:** Store SSH keys and passwords in the vault via the UI/API at creation time. Secrets are never included in list/get responses (`has_secret: true` indicates a stored credential).
+
+---
+
+## Creating an Egg
+
+### Via Web UI
+
+1. Open the **Eggs** tab → **Create New**
+2. Configure:
+
+| Field | Notes |
+|-------|-------|
+| Name | Required |
+| Description | What this sub-agent does |
+| Provider / Model / Base URL | Used when **Inherit LLM** is off |
+| API Key | Stored in vault (`has_api_key` in API responses) |
+| Egg Port | Default `8099` |
+| Allowed Tools | JSON array, e.g. `["shell","python"]` |
+| Permanent | Systemd service vs. one-shot run |
+| Include Vault | Export master vault to target (security-sensitive) |
+| Inherit LLM | Use master's LLM settings (default: on) |
+
+### Via REST API
+
+```bash
+curl -X POST http://localhost:8088/api/invasion/eggs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "edge-analytics",
+    "description": "Lightweight analytics sub-agent",
+    "inherit_llm": true,
+    "egg_port": 8099,
+    "allowed_tools": "[\"shell\",\"python\"]",
+    "permanent": true,
+    "active": true
+  }'
+```
+
+Assign the Egg to a Nest (via UI dropdown or API):
+
+```bash
+curl -X PUT http://localhost:8088/api/invasion/nests/{nest-id} \
+  -H "Content-Type: application/json" \
+  -d '{"egg_id": "{egg-id}", "name": "production-server-01", ...}'
+```
+
+---
+
+## Hatching (Deploying an Egg)
+
+**Hatch** deploys the assigned Egg to the Nest:
+
+1. Master generates a shared HMAC key and Egg `config.yaml` (with `egg_mode` enabled)
+2. Binary (`linux/amd64` or `linux/arm64`), `resources.dat`, and config are transferred
+3. Egg process starts on the target (systemd if `permanent`, otherwise one-shot)
+4. Egg connects to `ws[s]://<master>/api/invasion/ws` and authenticates
+5. Master marks the nest `running` when the WebSocket connects
+
+### Via Web UI
+
+1. Ensure the Nest has an Egg assigned and is **active**
+2. Click **Hatch** on the Nest card
+3. Status updates automatically (`hatching` → `running` or `failed`)
+
+### Via REST API
+
+```bash
+curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/hatch
+```
+
+Response:
+
+```json
+{
+  "status": "hatching",
+  "nest_id": "...",
+  "egg_id": "..."
+}
+```
+
+Poll status:
+
+```bash
+curl http://localhost:8088/api/invasion/nests/{nest-id}/status
+```
+
+```json
+{
+  "nest_id": "...",
+  "hatch_status": "running",
+  "last_hatch_at": "2026-06-07T10:23:45Z",
+  "hatch_error": "",
+  "ws_connected": true,
+  "telemetry": { "cpu_percent": 12, "mem_percent": 34, "uptime_seconds": 86400 }
+}
+```
+
+Stop a running Egg:
+
+```bash
+curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/stop
+```
+
+---
+
+## Hatch Status & Lifecycle
+
+### Nest `hatch_status` values
+
+| Status | Meaning |
+|--------|---------|
+| `idle` | No active deployment (initial state) |
+| `hatching` | Deployment in progress |
+| `running` | Egg deployed; WebSocket connected (or recently connected) |
+| `failed` | Deployment or heartbeat failure (`hatch_error` has details) |
+| `stopped` | Egg was stopped manually or lost connection |
+
+Status transitions:
+
+```
+idle ──Hatch──► hatching ──success──► running
+                  │                      │
+                  │ failure              ├── disconnect / stop ──► stopped
+                  ▼                      │
+               failed ◄── heartbeat timeout
+                  │
+                  └── Hatch again (from idle/failed/stopped)
+```
+
+The UI also shows:
+
+- **WebSocket connected / disconnected** badge
+- **Config drift / synced** badge (`desired_config_rev` vs `applied_config_rev`)
+- **Telemetry** (CPU, memory, uptime) when connected
+
+Heartbeat monitor: checks every 30 seconds; marks `failed` with `heartbeat timeout` after 90 seconds without a heartbeat.
+
+---
+
+## Routing Options
+
+The `route` field controls how the deployed Egg reaches the master WebSocket (`/api/invasion/ws`):
+
+| Route | Behavior |
+|-------|----------|
+| `direct` | Egg connects to nest `host` (or master host as fallback) |
+| `ssh_tunnel` | Egg uses localhost; tunnel configured via `route_config` |
+| `tailscale` | Egg connects via Tailscale IP/hostname |
+| `wireguard` | Egg connects via WireGuard endpoint |
+| `custom` | Full WebSocket URL in `route_config` |
+
+For `docker_local` deployments, the master uses `host.docker.internal` so the container can reach the host.
+
+Example `route_config` for SSH tunnel:
+
+```json
+{"tunnel_port": 8443}
+```
+
+Example `route_config` for custom route:
+
+```
+wss://aurago.example.com/api/invasion/ws
+```
+
+---
+
+## Tasks, Artifacts & Messages
+
+Once an Egg is connected (`ws_connected: true`), the master can interact with it:
+
+### Send a task
+
+```bash
+curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/send-task \
+  -H "Content-Type: application/json" \
+  -d '{"description": "Check disk usage and summarize", "timeout": 120}'
+```
+
+Task statuses: `pending` → `sent` → `acked` → `completed` / `failed` / `timeout`
+
+```bash
+curl http://localhost:8088/api/invasion/nests/{nest-id}/tasks
+curl http://localhost:8088/api/invasion/tasks/{task-id}
+```
+
+### Send a runtime secret
+
+```bash
+curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/send-secret \
+  -H "Content-Type: application/json" \
+  -d '{"key": "openrouter_api_key", "value": "sk-..."}'
+```
+
+Secrets are encrypted with the nest's shared key before transmission.
+
+### Artifacts
+
+Eggs can offer files back to the master:
+
+- `POST /api/invasion/artifacts/offer` — Egg initiates upload (HMAC-signed)
+- `POST /api/invasion/artifacts/upload/{token}` — Upload payload
+- `GET /api/invasion/artifacts/{id}` — Download artifact
+
+### Egg messages
+
+- `POST /api/invasion/messages` — Egg sends alerts/notifications to the master
+
+Pending tasks are automatically re-sent after an Egg reconnects.
+
+---
+
+## Safe Reconfigure & Config History
+
+**Safe Reconfigure** applies whitelisted changes to a running Egg without a full redeploy. Available in the Web UI (🔧 button) or via API:
+
+```bash
+curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/safe-reconfigure \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4o-mini",
+    "allowed_tools": ["shell", "python"],
+    "allow_filesystem_write": true,
+    "allow_network_requests": true
+  }'
+```
+
+Allowed patch fields:
+
+| Field | Description |
+|-------|-------------|
+| `provider`, `base_url`, `model` | LLM settings (not combinable with `inherit_llm: true`) |
+| `allowed_tools` | `shell`, `execute_shell_command`, `python`, `python_execute` |
+| `allow_filesystem_write` | Agent filesystem write permission |
+| `allow_network_requests` | Agent network access |
+| `allow_remote_shell` | Remote shell permission |
+| `allow_self_update` | Self-update permission |
+
+> ⚠️ The Egg is restarted after applying changes.
+
+View revision history:
+
+```bash
+curl "http://localhost:8088/api/invasion/nests/{nest-id}/config-history?limit=20"
+```
+
+Roll back an applied revision:
+
+```bash
+curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/config-rollback \
+  -H "Content-Type: application/json" \
+  -d '{"revision_id": "{revision-id}"}'
+```
+
+Revision statuses: `pending`, `applying`, `applied`, `failed`, `rolled_back`
+
+---
+
+## Deployment Rollback & History
+
+Deployment history is tracked per nest (API only, no UI tab):
+
+```bash
+curl http://localhost:8088/api/invasion/nests/{nest-id}/deployments
+```
+
+Deployment record statuses: `started`, `deployed`, `verified`, `failed`, `rolled_back`
+
+Manual rollback to the previous deployment backup:
+
+```bash
+curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/rollback
+```
+
+Rotate the master↔egg shared key on a connected nest:
+
+```bash
+curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/rotate-key
+```
+
+If a health check fails after deploy, the system attempts **automatic rollback**.
+
+---
+
+## Egg Mode (Worker Configuration)
+
+Deployed Eggs run with `egg_mode` enabled in their generated `config.yaml`:
+
+```yaml
+egg_mode:
+  enabled: true
+  master_url: "wss://aurago.example.com/api/invasion/ws"
+  shared_key: ""         # hex-encoded AES-256 key (set at deploy time)
+  egg_id: ""
+  nest_id: ""
+  tls_skip_verify: false # set true for self-signed master TLS
+```
+
+The master generates this configuration during hatch. You do not edit `egg_mode` manually for managed Eggs.
+
+---
+
+## Agent Tool: `invasion_control`
+
+When `invasion_control.enabled` is true, the agent can manage nests and eggs programmatically:
+
+| Operation | Description |
+|-----------|-------------|
+| `list_nests`, `list_eggs` | List all records (no secrets) |
+| `nest_status`, `egg_status` | Status lookup |
+| `assign_egg` | Assign an Egg to a Nest |
+| `hatch_egg`, `stop_egg` | Deploy or stop |
+| `send_task`, `task_status`, `get_result` | Task management |
+| `send_secret` | Send runtime secret to connected Egg |
+| `list_artifacts`, `get_artifact`, `read_artifact` | Artifact access |
+| `list_egg_messages`, `ack_egg_message` | Egg notifications |
+| `upload_artifact`, `send_host_message` | Host → Egg communication |
+
+See [Chapter 22: Internal Tools](22-internal-tools.md) for full parameter details.
+
+---
+
+## REST API Reference
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/invasion/nests` | GET, POST | List / create nests |
+| `/api/invasion/nests/{id}` | GET, PUT, DELETE | Get / update / delete nest |
+| `/api/invasion/nests/{id}/toggle` | POST | Enable/disable nest |
+| `/api/invasion/nests/{id}/validate` | POST | Test connection |
+| `/api/invasion/nests/{id}/hatch` | POST | Deploy assigned Egg |
+| `/api/invasion/nests/{id}/stop` | POST | Stop running Egg |
+| `/api/invasion/nests/{id}/status` | GET | Hatch status + telemetry |
+| `/api/invasion/nests/{id}/send-task` | POST | Send task to connected Egg |
+| `/api/invasion/nests/{id}/send-secret` | POST | Send encrypted secret |
+| `/api/invasion/nests/{id}/tasks` | GET | Task history |
+| `/api/invasion/nests/{id}/rotate-key` | POST | Rotate shared key |
+| `/api/invasion/nests/{id}/rollback` | POST | Roll back deployment |
+| `/api/invasion/nests/{id}/deployments` | GET | Deployment history |
+| `/api/invasion/nests/{id}/safe-reconfigure` | POST | Apply safe config patch |
+| `/api/invasion/nests/{id}/config-history` | GET | Config revision history |
+| `/api/invasion/nests/{id}/config-rollback` | POST | Roll back config revision |
+| `/api/invasion/eggs` | GET, POST | List / create eggs |
+| `/api/invasion/eggs/{id}` | GET, PUT, DELETE | Get / update / delete egg |
+| `/api/invasion/eggs/{id}/toggle` | POST | Enable/disable egg |
+| `/api/invasion/tasks/{id}` | GET | Get task by ID |
+| `/api/invasion/artifacts/offer` | POST | Egg artifact offer |
+| `/api/invasion/artifacts/upload/{token}` | POST | Upload artifact |
+| `/api/invasion/artifacts/{id}` | GET | Download artifact |
+| `/api/invasion/messages` | POST | Egg message ingestion |
+| `/api/invasion/ws` | WS | Egg ↔ master bridge |
+
+---
+
+## Troubleshooting
+
+### Connection refused / timeout
+
+1. Verify the target is reachable (`ping`, `ssh`)
+2. Check firewall rules and correct port (22 for SSH, 2375 for Docker API)
+3. Run **Test Connection** or `POST .../validate`
+4. For SSH nests, ensure a secret is configured
+
+### Authentication failed
+
+1. Verify username and SSH key/password
+2. Check key permissions locally (`chmod 600`)
+3. Confirm `authorized_keys` on the target
+
+### Hatch failed
+
+1. Check `hatch_error` on the nest (UI or `GET /api/invasion/nests/{id}`)
+2. Ensure the correct `target_arch` binary exists on the master
+3. For Docker deployments, verify daemon access and `deploy_method`
+4. Review server logs for deployment details
+
+### Egg not connecting (stuck at `running` but `ws_connected: false`)
+
+1. Verify `route` and `route_config` — the Egg must reach the master WebSocket
+2. For `docker_local`, ensure the container can reach `host.docker.internal`
+3. For HTTPS masters, check TLS/`tls_skip_verify` settings
+4. Check firewall rules on the master port
+
+### Heartbeat timeout → `failed`
+
+The Egg lost its WebSocket connection or stopped responding. Re-hatch or investigate the remote process.
+
+| Error | Likely cause | Fix |
+|-------|--------------|-----|
+| `No egg assigned` | Missing `egg_id` | Assign an Egg before hatching |
+| `Hatch already in progress` | Concurrent hatch | Wait for current hatch to finish |
+| `No active WebSocket connection` | Egg offline | Re-hatch or check remote process |
+| `Shared key not found` | Missing deploy state | Re-hatch the nest |
+
+---
+
+## Security Notes
+
+> ⚠️ **Important:**
+> - Store SSH keys, passwords, and API keys in the vault — never in chat logs or plain config
+> - `include_vault` ships encrypted vault data to the target; use only on trusted hosts
+> - `inherit_llm` copies the master's API key into the Egg config — the Egg host must be trusted
+> - Use `invasion_control.readonly: true` for monitoring-only setups
+> - Rotate shared keys with `/rotate-key` if compromise is suspected
 
 ---
 
 ## Next Steps
 
-- **[Chapter 11: Mission Control](11-missions.md)** – Run scheduled tasks on remote Nests
-- **[Chapter 13: Dashboard](13-dashboard.md)** – Monitor all deployments
-- **[Chapter 14: Security](14-security.md)** – Secure your agent deployments
+- **[Chapter 11: Mission Control](11-missions.md)** — Schedule agent tasks; remote missions can target connected Eggs
+- **[Chapter 13: Dashboard](13-dashboard.md)** — Overview of system health
+- **[Chapter 21: API Reference](21-api-reference.md)** — Full API listing
+- **[Chapter 22: Internal Tools](22-internal-tools.md)** — `invasion_control` tool details

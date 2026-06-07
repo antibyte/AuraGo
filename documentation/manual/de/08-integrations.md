@@ -117,6 +117,41 @@ email:
   username: "dein.email@gmail.com"
 ```
 
+## AgentMail Integration
+
+API-basierte E-Mail-Postfächer über [AgentMail](https://agentmail.to). Getrennt von der Legacy-IMAP/SMTP-`email`-Integration — bestehende `fetch_email`- und `send_email`-Tools behalten ihr bisheriges Verhalten.
+
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → AgentMail**.
+2. Aktiviere die Integration.
+3. Trage die **Inbox-ID** ein oder aktiviere **Auto Create Inbox**.
+4. Optional: Aktiviere **Relay to Agent**, um AuraGo bei neuen Nachrichten zu wecken.
+5. Speichere den API-Key im Vault (`agentmail_api_key`).
+6. Speichern und AuraGo neu starten.
+
+### YAML-Referenz
+```yaml
+agentmail:
+  enabled: true
+  readonly: false
+  inbox_id: ""
+  auto_create_inbox: false
+  username: ""
+  domain: ""
+  display_name: ""
+  use_websocket: true
+  poll_interval_seconds: 120
+  relay_to_agent: false
+  relay_cheatsheet_id: ""
+  max_attachment_mb: 10
+  base_url: https://api.agentmail.to
+  websocket_url: wss://ws.agentmail.to/v0
+```
+
+> 🔒 Der API-Key wird im Vault als `agentmail_api_key` gespeichert, nicht in der `config.yaml`.
+
+Nutze das Tool `agentmail` im Chat für Postfachverwaltung, Nachrichten, Entwürfe, Labels und Antworten.
+
 ## Home Assistant Integration
 
 Steuere Smart-Home-Geräte über AuraGo.
@@ -175,6 +210,43 @@ docker:
   enabled: true
   host: "unix:///var/run/docker.sock"
 ```
+
+## Package Manager Integration
+
+Strukturierte OS-Paketverwaltung über das Tool `package_manager`. Unterstützt apt, dnf, yum, pacman, zypper, apk, brew, winget, choco und scoop.
+
+> ⚠️ **Sicherheit:** Paketverwaltung ermöglicht erheblichen Systemzugriff. Nur aktivieren, wenn nötig, und `readonly` für reine Überwachung bevorzugen.
+
+### Voraussetzungen
+
+Beide Schalter müssen aktiv sein:
+
+1. `package_manager.enabled: true`
+2. `agent.allow_package_manager: true`
+
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Package Manager**.
+2. Aktiviere die Integration.
+3. Konfiguriere **Read-only**, **Auto Detect** und Berechtigungen (install/remove/upgrade).
+4. Öffne **Config → Agent** und aktiviere **Allow Package Manager**.
+5. Speichern und AuraGo neu starten.
+
+### YAML-Referenz
+```yaml
+package_manager:
+  enabled: true
+  readonly: false
+  auto_detect: true
+  override: ""
+  allow_install: true
+  allow_remove: true
+  allow_upgrade: true
+
+agent:
+  allow_package_manager: true
+```
+
+`override` erzwingt einen bestimmten Paketmanager (z. B. `apt`, `brew`, `winget`); leer lassen für Auto-Erkennung über PATH.
 
 ## Proxmox Integration
 
@@ -494,6 +566,44 @@ mcp_server:
 > Der MCP-Server teilt sich den Haupt-HTTP-Server — es gibt kein separates `port`-Feld. MCP-Client-Zugriff erfordert zusätzlich `agent.allow_mcp: true`.
 
 `allowed_tools` ist eine explizite serverseitige Allowlist. Leer veröffentlicht keine AuraGo-Tools; `vscode_debug_bridge` nutzt ein eigenes begrenztes Debugging-Preset.
+
+## Composio Integration
+
+Verbinde AuraGo mit [Composio](https://composio.dev)-Toolkits (GitHub, Slack, Gmail und Hunderte weitere) über das native Tool `composio_call`.
+
+### Einrichtung in der Web-UI
+1. Registriere dich bei [Composio](https://composio.dev) und erstelle einen API-Key.
+2. Öffne **Config → Integrationen → Composio**.
+3. Aktiviere die Integration.
+4. Setze die **User ID** und konfiguriere Toolkit-Richtlinien.
+5. Speichere den API-Key im Vault (`composio_api_key`).
+6. Verbinde Konten im Composio-Dashboard für die konfigurierten Toolkits.
+7. Speichern und AuraGo neu starten.
+
+### YAML-Referenz
+```yaml
+composio:
+  enabled: true
+  base_url: https://backend.composio.dev/api/v3.1
+  user_id: aurago-default
+  read_only: true
+  allow_destructive: false
+  allow_natural_language_input: false
+  request_timeout_seconds: 60
+  cache_ttl_seconds: 300
+  max_result_bytes: 262144
+  toolkits: []
+  # - slug: github
+  #   enabled: true
+  #   read_only: true
+  #   allow_destructive: false
+  #   allowed_tool_slugs: []
+  #   blocked_tool_slugs: []
+```
+
+> 🔒 Der API-Key wird im Vault als `composio_api_key` gespeichert, nicht in der `config.yaml`.
+
+Standardmäßig blockiert `read_only: true` mutierende Aktionen. Setze `allow_destructive: true` nur, wenn Delete/Remove/Revoke-Operationen explizit benötigt werden. Pro Toolkit steuern `allowed_tool_slugs` und `blocked_tool_slugs` die Feingranularität.
 
 ## SQL Connections – Externe Datenbanken
 

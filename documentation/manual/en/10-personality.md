@@ -48,17 +48,24 @@ The V2 engine provides:
 personality:
   engine: true
   engine_v2: true
-  v2_provider: ""
+  v2_provider: ""                    # deprecated – V2 now uses llm.helper_*
   user_profiling: false
-  user_profiling_threshold: 3
-  v2_timeout_secs: 30
+  user_profiling_threshold: 2
   emotion_synthesizer:
-    enabled: true
+    enabled: false
     min_interval_seconds: 60
     max_history_entries: 100
     trigger_on_mood_change: true
     trigger_always: false
+  inner_voice:
+    enabled: false                   # requires emotion_synthesizer + engine_v2
+    min_interval_secs: 60
+    max_per_session: 20
+    decay_turns: 3
+    error_streak_min: 2
 ```
+
+> ⚠️ **Note:** `v2_provider` is deprecated. The V2 engine now uses the Helper LLM configuration (`llm.helper_enabled`, `llm.helper_provider`, `llm.helper_model`). See [Chapter 9: Helper LLM](./09-memory.md#helper-llm--automated-maintenance).
 
 ### Disabling Both Engines
 
@@ -67,6 +74,26 @@ personality:
   engine: false
   engine_v2: false
 ```
+
+---
+
+## Mood States (V1/V2)
+
+The personality engine tracks the agent's current mood. V1 uses heuristic keyword/emoji detection; V2 can refine mood via the Helper LLM.
+
+| Mood | Typical Trigger | Behavioral Effect |
+|------|-------------------|-------------------|
+| `curious` | Questions, exploration requests | Neutral temperature; encourages follow-up |
+| `focused` | Positive feedback, working state | Slightly lower temperature; decisive |
+| `creative` | Brainstorming, design requests | Higher temperature; unconventional ideas |
+| `analytical` | "Why?", comparisons, deep dives | Lower temperature; thorough analysis |
+| `cautious` | Tool errors, negative feedback | Lower temperature; double-checks actions |
+| `playful` | Humor, jokes, casual banter | Higher temperature; light tone |
+| `frustrated` | Repeated failures, user frustration | Lower temperature; asks for clarification |
+| `concerned` | Risk, worry, uncertainty | Careful, explicit about concerns |
+| `relaxed` | Low-pressure, satisfied interactions | Slightly higher temperature; conversational |
+
+Default mood when no history exists: `curious`.
 
 ---
 
@@ -79,8 +106,13 @@ personality:
 | `professional` | Polite, efficient, formal | Business contexts, formal communication |
 | `punk` | Rebellious, direct, unconventional | Creative projects, brainstorming |
 | `terminator` | Extremely short, direct, no fluff | Quick information, command-line mode |
-| `psycho` | Chaotic, unpredictable | Experiments, entertainment |
-| `mcp` | Focus on Model Context Protocol | MCP server interactions |
+| `psycho` | Chaotic, unpredictable, neurotic | Experiments, entertainment |
+| `mcp` | Master Control Program (TRON-style), cold, imperious | System monitoring, authoritative mode |
+| `secretary` | Efficient, proactive, organized | Task management, scheduling |
+| `servant` | Extremely submissive, obedient | Roleplay, entertainment |
+| `thinker` | Analytical, philosophical, questioning | Deep analysis, complex problems |
+| `evil` | Megalomaniac, theatrical, domineering | Humorous interactions, roleplay |
+| `mistress` | Dominant, strict, uncompromising | Roleplay, disciplined interactions |
 
 ### Switching Personality
 
@@ -147,7 +179,39 @@ llm:
   temperature: 0.7  # Base temperature
 ```
 
-The V2 engine modulates around this base value based on context. If the Emotion Synthesizer is enabled, AuraGo also stores a short natural-language emotion note and exposes it in the chat widget and dashboard.
+The V2 engine modulates around this base value based on context.
+
+---
+
+## Emotion Synthesizer (V2)
+
+When `personality.emotion_synthesizer.enabled: true`, the Helper LLM generates a structured emotion state after mood changes (or every turn with `trigger_always: true`). AuraGo stores a short natural-language emotion note and exposes it in the chat widget and dashboard.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `enabled` | `false` | Enable emotion synthesis |
+| `min_interval_seconds` | `60` | Minimum interval between synthesis runs |
+| `max_history_entries` | `100` | Maximum emotion history entries to keep |
+| `trigger_on_mood_change` | `true` | Synthesize when V2 detects a mood change |
+| `trigger_always` | `false` | Synthesize on every message |
+
+**Requirements:** `personality.engine_v2: true` and Helper LLM enabled (`llm.helper_enabled: true`).
+
+---
+
+## Inner Voice (V2)
+
+The inner voice is a subconscious nudge engine that injects brief, private agent thoughts into the system prompt. It adds subtle behavioral hints without extra user-visible messages.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `enabled` | `false` | Enable inner voice generation |
+| `min_interval_secs` | `60` | Minimum seconds between inner voice thoughts |
+| `max_per_session` | `20` | Maximum inner voice thoughts per session |
+| `decay_turns` | `3` | Thought expires after N conversation turns |
+| `error_streak_min` | `2` | Minimum consecutive errors before error-streak trigger |
+
+**Requirements:** `personality.engine_v2: true`, `personality.emotion_synthesizer.enabled: true`, and Helper LLM enabled. Inner voice is explicit opt-in and is not auto-enabled with the emotion synthesizer.
 
 ---
 
@@ -206,8 +270,10 @@ Quick Info         → terminator
 | **V2 Engine** | `personality.engine_v2: true` | Dynamic adaptation |
 | **Base Personality** | `personality.core_personality` | Style selection |
 | **User Profiling** | `personality.user_profiling: true` | Personalization |
+| **Emotion Synthesizer** | `personality.emotion_synthesizer.enabled: true` | Natural-language emotion notes |
+| **Inner Voice** | `personality.inner_voice.enabled: true` | Subconscious behavioral nudges |
 
-> 💡 **Pro Tip:** Start with V1 and `personality.core_personality: friend` or `professional`. Enable V2 only when you need dynamic adaptation and have the additional API budget.
+> 💡 **Pro Tip:** Start with V1 and `personality.core_personality: friend` or `professional`. Enable V2 only when you need dynamic adaptation and have the additional API budget. Configure a cost-efficient Helper LLM before enabling V2, emotion synthesis, or inner voice.
 
 ---
 

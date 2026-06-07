@@ -2,7 +2,7 @@
 
 AuraGo provides a comprehensive REST API for programmatic access to all features. The API follows REST principles and uses JSON for data transfer.
 
-> 📅 **Updated:** May 27, 2026
+> 📅 **Updated:** June 7, 2026
 > 🔌 **Base URL:** `http://localhost:8088` (default)
 
 ---
@@ -58,8 +58,17 @@ AuraGo provides a comprehensive REST API for programmatic access to all features
 47. [i18n API](#i18n-api)
 48. [Setup API](#setup-api)
 49. [Health Check](#health-check)
-50. [SSE Events](#sse-events)
-51. [Error Handling](#error-handling)
+50. [Agent Skills API](#agent-skills-api)
+51. [Daemon Skills API](#daemon-skills-api)
+52. [Agent Questions API](#agent-questions-api)
+53. [People API](#people-api)
+54. [Appointments API](#appointments-api)
+55. [Todos API](#todos-api)
+56. [Preferences API](#preferences-api)
+57. [Space Agent API](#space-agent-api)
+58. [Warnings API](#warnings-api)
+59. [SSE Events](#sse-events)
+60. [Error Handling](#error-handling)
 
 ---
 
@@ -74,10 +83,50 @@ GET /api/auth/status
 ```json
 {
   "enabled": true,
-  "configured": true,
-  "totp_enabled": false
+  "password_set": true,
+  "totp_enabled": false,
+  "authenticated": true
 }
 ```
+
+### Set Password
+```http
+POST /api/auth/password
+Content-Type: application/json
+
+{
+  "password": "new-secret",
+  "current_password": "old-secret"
+}
+```
+
+Sets or changes the login password. Allowed without authentication only when no password is set yet (first-time setup); otherwise requires an active session.
+
+### TOTP Setup
+```http
+GET /api/auth/totp/setup
+```
+
+Generates a new TOTP secret and returns the `otpauth` URI. Requires authentication. Does not activate 2FA until confirmed.
+
+### TOTP Confirm
+```http
+POST /api/auth/totp/confirm
+Content-Type: application/json
+
+{
+  "code": "123456"
+}
+```
+
+Verifies the first TOTP code and activates two-factor authentication.
+
+### Disable TOTP
+```http
+DELETE /api/auth/totp
+```
+
+Disables TOTP authentication. Requires authentication.
 
 ### Login
 ```http
@@ -160,6 +209,32 @@ DELETE /clear
 ### Interrupt Current Action
 ```http
 POST /api/admin/stop
+```
+
+### List Chat Sessions
+```http
+GET /api/chat/sessions
+```
+
+Returns recent chat sessions from short-term memory.
+
+### Create Chat Session
+```http
+POST /api/chat/sessions
+```
+
+Creates a new chat session and returns its metadata.
+
+### Get Chat Session
+```http
+GET /api/chat/sessions/{id}
+```
+
+Returns session metadata and visible messages for the session.
+
+### Delete Chat Session
+```http
+DELETE /api/chat/sessions/{id}
 ```
 
 ---
@@ -254,6 +329,8 @@ PUT /api/dashboard/profile/entry
 ```http
 GET /api/dashboard/activity
 ```
+
+Returns runtime activity including cron jobs, processes, webhooks, background tasks, and active **co-agents** (`coagents` field).
 
 ### GitHub Repositories
 ```http
@@ -912,6 +989,14 @@ Accepts `.md`, `.markdown`, and `.txt` files. Maximum size: 64 KB.
 | `400`  | Wrong file extension |
 | `403`  | Read-only mode or uploads disabled (`allow_uploads: false`) |
 | `413`  | File exceeds 64 KB limit |
+
+### Daemon Skill Settings
+```http
+GET /api/skills/{id}/daemon
+PUT /api/skills/{id}/daemon
+```
+
+Reads or updates daemon-specific manifest settings (`wake_agent`, `trigger_mission_id`, `cheatsheet_id`) for daemon skills.
 
 ---
 
@@ -1651,6 +1736,28 @@ GET /api/i18n?lang=en
 GET /api/setup/status
 ```
 
+### Setup Profiles
+```http
+GET /api/setup/profiles
+```
+
+Returns pre-configured provider profiles for the setup wizard plan selection step.
+
+### Test Provider Connection
+```http
+POST /api/setup/test
+Content-Type: application/json
+
+{
+  "provider_type": "openrouter",
+  "base_url": "https://openrouter.ai/api/v1",
+  "api_key": "sk-or-...",
+  "model": "openai/gpt-4o"
+}
+```
+
+Performs a lightweight LLM connectivity test before saving setup. Only available while setup is incomplete.
+
 ### Save Setup
 ```http
 POST /api/setup
@@ -1670,6 +1777,8 @@ Content-Type: application/json
 }
 ```
 
+Requires the CSRF token issued by `GET /api/setup/status`.
+
 ---
 
 ## Health Check
@@ -1684,6 +1793,269 @@ GET /api/health
 {
   "status": "ok"
 }
+```
+
+### Readiness
+```http
+GET /api/ready
+```
+
+Returns `200` with `{"status":"ready"}` when initialization is complete, or `503` with `{"status":"initializing"}` while the server is still starting. Used by Docker health checks and load balancers.
+
+---
+
+## Agent Skills API
+
+Agent Skills are filesystem-based skills managed separately from the classic Skill Manager.
+
+### List Agent Skills
+```http
+GET /api/agent-skills
+GET /api/agent-skills?enabled=true&search=keyword
+```
+
+### Create Agent Skill
+```http
+POST /api/agent-skills
+Content-Type: application/json
+
+{
+  "name": "my_skill",
+  "description": "Does useful things",
+  "body": "# SKILL.md content"
+}
+```
+
+### Import Agent Skill
+```http
+POST /api/agent-skills/import
+Content-Type: multipart/form-data
+```
+
+### Manage Agent Skill
+```http
+GET /api/agent-skills/{id}
+GET /api/agent-skills/{id}?content=true
+PUT /api/agent-skills/{id}
+DELETE /api/agent-skills/{id}
+```
+
+### Verify / Approve / Test
+```http
+POST /api/agent-skills/{id}/verify
+POST /api/agent-skills/{id}/approve-warning
+POST /api/agent-skills/{id}/test
+```
+
+### Agent Skill Files
+```http
+GET /api/agent-skills/{id}/files?path=scripts/run.py
+PUT /api/agent-skills/{id}/files
+POST /api/agent-skills/{id}/files
+```
+
+---
+
+## Daemon Skills API
+
+Long-running daemon skills supervised by the daemon subsystem.
+
+### List Daemons
+```http
+GET /api/daemons
+```
+
+### Refresh Daemon List
+```http
+POST /api/daemons/refresh
+```
+
+Rescans skills from disk and reconciles running daemons.
+
+### Daemon Status / Actions
+```http
+GET /api/daemons/{id}
+POST /api/daemons/{id}/start
+POST /api/daemons/{id}/stop
+POST /api/daemons/{id}/reenable
+```
+
+---
+
+## Agent Questions API
+
+Interactive question prompts shown in the Web UI while the agent waits for user input.
+
+### Question Status
+```http
+GET /api/agent/question-status?session=default
+```
+
+Returns `{"status":"none"}` or `{"status":"pending","question":{...}}`.
+
+### Submit Answer
+```http
+POST /api/agent/question-response
+Content-Type: application/json
+
+{
+  "session_id": "default",
+  "selected_value": "option_a",
+  "free_text": ""
+}
+```
+
+---
+
+## People API
+
+Knowledge-graph and contacts helpers for person-centric views.
+
+### Person Lookup
+```http
+GET /api/people/lookup?q=name&mode=fts
+```
+
+Searches the knowledge graph for person nodes and related edges.
+
+### KG Persons
+```http
+GET /api/people/kg-persons?limit=100
+```
+
+Returns person nodes from the knowledge graph.
+
+### Upcoming Birthdays
+```http
+GET /api/people/upcoming?days=30
+```
+
+Returns upcoming birthdays from the contacts database.
+
+---
+
+## Appointments API
+
+### List / Create Appointments
+```http
+GET /api/appointments?q=search&status=scheduled
+POST /api/appointments
+```
+
+### Manage Appointment
+```http
+GET /api/appointments/{id}
+PUT /api/appointments/{id}
+DELETE /api/appointments/{id}
+```
+
+---
+
+## Todos API
+
+### List / Create Todos
+```http
+GET /api/todos?q=search&status=open
+POST /api/todos
+```
+
+### Manage Todo
+```http
+GET /api/todos/{id}
+PUT /api/todos/{id}
+DELETE /api/todos/{id}
+POST /api/todos/{id}/complete
+```
+
+### Todo Items
+```http
+POST /api/todos/{id}/items
+PUT /api/todos/{id}/items/{item_id}
+DELETE /api/todos/{id}/items/{item_id}
+POST /api/todos/{id}/items/reorder
+```
+
+---
+
+## Preferences API
+
+Per-session UI preferences that influence agent behavior.
+
+### Get Preferences
+```http
+GET /api/preferences
+```
+
+**Response:**
+```json
+{
+  "speaker_mode": false
+}
+```
+
+### Update Preferences
+```http
+POST /api/preferences
+Content-Type: application/json
+
+{
+  "speaker_mode": true
+}
+```
+
+---
+
+## Space Agent API
+
+Space Agent sidecar integration for external messaging bridges.
+
+### Status
+```http
+GET /api/space-agent/status
+```
+
+### Recreate Sidecar
+```http
+POST /api/space-agent/recreate
+```
+
+### Send Message
+```http
+POST /api/space-agent/send
+```
+
+### Bridge Messages
+```http
+POST /api/space-agent/bridge/messages
+```
+
+Inbound bridge endpoint with its own Bearer token authentication.
+
+---
+
+## Warnings API
+
+Runtime health warnings surfaced in the Web UI.
+
+### List Warnings
+```http
+GET /api/warnings
+```
+
+Returns all warnings plus `total` and `unacknowledged` counts.
+
+### Acknowledge Warnings
+```http
+POST /api/warnings/acknowledge
+Content-Type: application/json
+
+{"id": "warning_id"}
+```
+
+Or acknowledge all:
+
+```json
+{"all": true}
 ```
 
 ---

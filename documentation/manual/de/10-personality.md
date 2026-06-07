@@ -62,6 +62,7 @@ personality:
     min_interval_secs: 60
     max_per_session: 20
     decay_turns: 3
+    error_streak_min: 2
 ```
 
 > ⚠️ **Hinweis:** `v2_provider` ist veraltet. Die V2-Engine nutzt jetzt die Helper-LLM-Konfiguration (`llm.helper_enabled`, `llm.helper_provider`, `llm.helper_model`). Siehe [Kapitel 9: Helper LLM](./09-memory.md#helper-llm--automatisierte-wartung).
@@ -73,6 +74,26 @@ personality:
   engine: false
   engine_v2: false
 ```
+
+---
+
+## Stimmungszustände (V1/V2)
+
+Die Personality Engine verfolgt die aktuelle Stimmung des Agenten. V1 nutzt heuristische Keyword-/Emoji-Erkennung; V2 kann die Stimmung über den Helper LLM verfeinern.
+
+| Stimmung | Typischer Auslöser | Verhaltenseffekt |
+|----------|-------------------|------------------|
+| `curious` | Fragen, Erkundungsanfragen | Neutrale Temperatur; fördert Nachfragen |
+| `focused` | Positives Feedback, Arbeitsmodus | Leicht niedrigere Temperatur; entschlossen |
+| `creative` | Brainstorming, Design-Anfragen | Höhere Temperatur; unkonventionelle Ideen |
+| `analytical` | „Warum?“, Vergleiche, Tiefenanalysen | Niedrigere Temperatur; gründliche Analyse |
+| `cautious` | Tool-Fehler, negatives Feedback | Niedrigere Temperatur; doppelte Prüfung |
+| `playful` | Humor, Witze, lockerer Ton | Höhere Temperatur; leichter Stil |
+| `frustrated` | Wiederholte Fehler, Benutzerfrustration | Niedrigere Temperatur; bittet um Klärung |
+| `concerned` | Risiko, Sorge, Unsicherheit | Vorsichtig, macht Bedenken explizit |
+| `relaxed` | Entspannte, zufriedene Interaktionen | Leicht höhere Temperatur; gesprächig |
+
+Standardstimmung ohne Verlauf: `curious`.
 
 ---
 
@@ -158,7 +179,39 @@ llm:
   temperature: 0.7  # Basistemperatur
 ```
 
-Die V2-Engine moduliert um diesen Basiswert basierend auf Kontext. Wenn der Emotion Synthesizer aktiv ist, speichert AuraGo zusätzlich kurze natürlichsprachliche Emotionsnotizen und zeigt sie im Chat-Widget und Dashboard an.
+Die V2-Engine moduliert um diesen Basiswert basierend auf Kontext.
+
+---
+
+## Emotion Synthesizer (V2)
+
+Wenn `personality.emotion_synthesizer.enabled: true` gesetzt ist, erzeugt der Helper LLM nach Stimmungswechseln (oder bei jedem Turn mit `trigger_always: true`) einen strukturierten Emotionszustand. AuraGo speichert kurze natürlichsprachliche Emotionsnotizen und zeigt sie im Chat-Widget und Dashboard an.
+
+| Einstellung | Standard | Beschreibung |
+|-------------|----------|--------------|
+| `enabled` | `false` | Emotionssynthese aktivieren |
+| `min_interval_seconds` | `60` | Mindestabstand zwischen Synthese-Läufen |
+| `max_history_entries` | `100` | Maximale Anzahl gespeicherter Emotions-Einträge |
+| `trigger_on_mood_change` | `true` | Synthese bei erkanntem Stimmungswechsel |
+| `trigger_always` | `false` | Synthese bei jeder Nachricht |
+
+**Voraussetzungen:** `personality.engine_v2: true` und Helper LLM aktiviert (`llm.helper_enabled: true`).
+
+---
+
+## Inner Voice (V2)
+
+Die Inner Voice ist eine Unterbewusstseins-Engine, die kurze, private Agentengedanken in den System-Prompt injiziert. Sie liefert subtile Verhaltenshinweise ohne zusätzliche sichtbare Benutzernachrichten.
+
+| Einstellung | Standard | Beschreibung |
+|-------------|----------|--------------|
+| `enabled` | `false` | Inner-Voice-Generierung aktivieren |
+| `min_interval_secs` | `60` | Mindestabstand zwischen Inner-Voice-Gedanken |
+| `max_per_session` | `20` | Maximale Inner-Voice-Gedanken pro Session |
+| `decay_turns` | `3` | Gedanke verfällt nach N Gesprächsrunden |
+| `error_streak_min` | `2` | Mindestanzahl aufeinanderfolgender Fehler für Error-Streak-Trigger |
+
+**Voraussetzungen:** `personality.engine_v2: true`, `personality.emotion_synthesizer.enabled: true` und Helper LLM aktiviert. Inner Voice ist explizit opt-in und wird nicht automatisch mit dem Emotion Synthesizer aktiviert.
 
 ---
 
@@ -217,8 +270,10 @@ Schnelle Infos  → terminator
 | **V2 Engine** | `personality.engine_v2: true` | Dynamische Anpassung |
 | **Basispersönlichkeit** | `personality.core_personality` | Auswahl des Stils |
 | **User Profiling** | `personality.user_profiling: true` | Personalisierung |
+| **Emotion Synthesizer** | `personality.emotion_synthesizer.enabled: true` | Natürlichsprachliche Emotionsnotizen |
+| **Inner Voice** | `personality.inner_voice.enabled: true` | Unterbewusste Verhaltenshinweise |
 
-> 💡 **Profi-Tipp:** Starte mit V1 und `personality.core_personality: friend` oder `professional`. Aktiviere V2 erst, wenn du dynamische Anpassungen benötigst und das zusätzliche API-Budget hast.
+> 💡 **Profi-Tipp:** Starte mit V1 und `personality.core_personality: friend` oder `professional`. Aktiviere V2 erst, wenn du dynamische Anpassungen benötigst und das zusätzliche API-Budget hast. Konfiguriere zuerst ein kostengünstiges Helper-LLM, bevor du V2, Emotion Synthesizer oder Inner Voice aktivierst.
 
 ---
 

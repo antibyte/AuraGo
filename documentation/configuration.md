@@ -2,6 +2,8 @@
 
 All settings live in a single `config.yaml` file in the project root directory. Copy `config.yaml`, fill in your values, and start AuraGo.
 
+> **Authoritative defaults:** When this document and your running `config.yaml` disagree, treat **`config_template.yaml`** in the repository root as the source of truth for default values and available keys.
+
 > **Minimal required:** At least one `providers` entry with `api_key`, and `llm.provider` referencing it — everything else has sensible defaults.
 
 ---
@@ -86,10 +88,16 @@ Core agent behaviour settings.
 
 | Key | Default | Description |
 |---|---|---|
-| `system_language` | `"German"` | Language for system prompts and agent responses. Any natural language name works (e.g. `"English"`, `"French"`). |
-| `max_tool_calls` | `12` | Maximum consecutive tool calls the agent can make per user request before aborting. Prevents runaway loops. |
+| `system_language` | `"English"` | Language for system prompts and agent responses. Any natural language name works (e.g. `"German"`, `"French"`). |
+| `max_tool_calls` | `15` | Maximum consecutive tool calls the agent can make per user request before aborting. Prevents runaway loops. |
 | `step_delay_seconds` | `0` | Pause (seconds) between tool calls. Useful to avoid rate-limiting (HTTP 429) errors with slow providers. |
-| `memory_compression_char_limit` | `50000` | Character threshold at which the agent compresses older messages in the prompt. Roughly 50% of the model's context window in tokens. |
+| `memory_compression_char_limit` | `60000` | Character threshold at which the agent compresses older messages in the prompt. |
+| `tool_output_limit` | `50000` | Max characters of a single tool result fed into context (`0` = unlimited). |
+| `context_window` | `0` | Model context window size in tokens. `0` = auto-detect from provider API at startup. |
+| `system_prompt_token_budget` | `0` | Soft cap on system prompt tokens (`0` = automatic). |
+| `adaptive_system_prompt_token_budget` | `true` | Automatically adjust system prompt token budget. |
+| `show_tool_results` | `false` | Show tool call results in the Web UI by default. Can be toggled live with `/debug on\|off`. |
+| `debug_mode` | `false` | Inject debug instructions into the system prompt so the agent reports internal errors with helpful details. |
 | `adaptive_tools.enabled` | `false` | Enable adaptive tool filtering to reduce token usage. |
 | `adaptive_tools.max_tools` | `16` | Maximum adaptive/preferred tool schemas. Required and always-include tools may be added on top. |
 | `adaptive_tools.max_total_tools` | `32` | Maximum final native tool schemas after hard-required tools are kept. |
@@ -97,6 +105,23 @@ Core agent behaviour settings.
 | `adaptive_tools.session_tool_retention_turns` | `8` | Keep tools used in recent turns visible as soft always-include tools. |
 | `recovery.max_provider_422_recoveries` | `3` | Automatic retries after provider 422 errors. |
 | `background_tasks.enabled` | `true` | Enable persistent background task execution. |
+
+### Output Compression
+
+Reduces token usage by compressing verbose tool outputs **before** `tool_output_limit` truncation. Enabled by default.
+
+```yaml
+agent:
+    output_compression:
+        enabled: true
+        min_chars: 500
+        preserve_errors: true
+        shell_compression: true
+        python_compression: true
+        api_compression: true
+```
+
+> See [output_compression.md](output_compression.md) for details.
 
 ## `personality`
 
@@ -108,13 +133,9 @@ Core agent behaviour settings.
 | `engine_v2` | `true` | Enable LLM-based mood analysis. |
 | `core_personality` | `"friend"` | Base personality template. |
 | `user_profiling` | `false` | Auto-detect user preferences from conversation. |
+| `user_profiling_threshold` | `2` | Confirmations needed before injecting a detected trait into the prompt. |
 | `emotion_synthesizer.enabled` | `false` | Enable emotion synthesis. |
-| `inner_voice.enabled` | `false` | Enable subconscious nudge engine. |
-| `system_prompt_token_budget` | `8192` | Soft cap on system prompt tokens. Auto-adjusted upward if the model's context window is detected and large enough. |
-| `context_window` | `0` | Model context window size in tokens. `0` = auto-detect from provider API at startup. Override if auto-detect fails. |
-| `use_native_functions` | `false` | `true` = send tool schemas via the OpenAI function-calling API. `false` = inject tools as text in the system prompt (more compatible with open-weight models). |
-| `show_tool_results` | `false` | Show tool call results in the Web UI by default. Can be toggled live with `/debug on\|off`. |
-| `debug_mode` | `true` | Inject debug instructions into the system prompt so the agent reports internal errors with helpful details. |
+| `inner_voice.enabled` | `false` | Enable subconscious nudge engine (requires `emotion_synthesizer` + `engine_v2`). |
 
 ---
 
@@ -177,7 +198,7 @@ Scheduled nightly agent run for housekeeping. The agent loads `agent_workspace/p
 | `enabled` | `true` | Enable the nightly maintenance loop. |
 | `time` | `"04:00"` | Time to run in `HH:MM` (24h, local system time). |
 | `lifeboat_enabled` | `true` | Allow the agent to trigger self-modification (code surgery) via the lifeboat binary. **Use with caution.** |
-| `lifeboat_port` | `8090` | Internal TCP port used for lifeboat ↔ aurago communication. |
+| `lifeboat_port` | `8091` | Internal TCP port used for lifeboat ↔ aurago communication. |
 
 ---
 
@@ -203,7 +224,7 @@ Safeguards against infinite loops, hangs, and runaway tool calls.
 | Key | Default | Description |
 |---|---|---|
 | `max_tool_calls` | `20` | Hard limit on tool calls per request (overrides `agent.max_tool_calls` if lower). |
-| `llm_timeout_seconds` | `180` | Timeout for a single LLM API call. |
+| `llm_timeout_seconds` | `600` | Timeout for a single LLM API call. |
 | `maintenance_timeout_minutes` | `10` | Maximum duration for a nightly maintenance run. |
 | `retry_intervals` | `["10s","2m","10m"]` | Backoff intervals for LLM API errors before giving up. |
 
@@ -303,13 +324,23 @@ Parallel sub-agent system — spawn independent LLM workers for complex sub-task
 |---|---|---|
 | `enabled` | `false` | Enable the co-agent system. |
 | `max_concurrent` | `3` | Maximum number of simultaneously running co-agents. |
-| `llm.provider` | `"openrouter"` | Co-agent LLM provider (informational). |
-| `llm.base_url` | `""` | Falls back to `llm.base_url` if empty. Use a faster/cheaper model here. |
-| `llm.api_key` | `""` | Falls back to `llm.api_key` if empty. |
-| `llm.model` | `""` | Falls back to `llm.model` if empty. Recommended: a smaller, faster model. |
-| `circuit_breaker.max_tool_calls` | `10` | Tool call limit per co-agent task. |
+| `budget_quota_percent` | `25` | Daily budget percentage reserved for co-agents (`0` = disabled). |
+| `max_result_bytes` | `100000` | Truncate co-agent results after this many bytes. |
+| `queue_when_busy` | `true` | Queue requests when all co-agent slots are busy. |
+| `cleanup_interval_minutes` | `10` | Interval for stale co-agent cleanup. |
+| `cleanup_max_age_minutes` | `30` | Max age before a finished co-agent entry is removed. |
+| `max_context_hints` | `6` | Max context hints passed into co-agent prompts. |
+| `max_context_hint_chars` | `180` | Max characters per context hint. |
+| `llm.provider` | `""` | Provider ID for co-agents; empty inherits the main LLM provider. |
+| `llm.base_url` | `""` | Falls back to main provider `base_url` if empty. |
+| `llm.api_key` | `""` | Falls back to main provider `api_key` if empty. |
+| `llm.model` | `""` | Falls back to main provider `model` if empty. Recommended: a smaller, faster model. |
+| `circuit_breaker.max_tool_calls` | `12` | Tool call limit per co-agent task. |
 | `circuit_breaker.timeout_seconds` | `300` | Max runtime per co-agent in seconds. |
 | `circuit_breaker.max_tokens` | `0` | Token budget per co-agent task. `0` = unlimited. |
+| `retry_policy.max_retries` | `1` | Retries for transient LLM failures. |
+| `retry_policy.retry_delay_seconds` | `5` | Delay between co-agent retries. |
+| `specialists.*.enabled` | `false` | Enable individual specialist types (`researcher`, `coder`, `designer`, `security`, `writer`). |
 
 See [manual/en/15-coagents.md](manual/en/15-coagents.md) for details.
 

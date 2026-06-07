@@ -117,6 +117,43 @@ email:
 
 ---
 
+## AgentMail Integration
+
+API-based email inboxes via [AgentMail](https://agentmail.to). Separate from the legacy IMAP/SMTP `email` integration — existing `fetch_email` and `send_email` tools keep their current behavior.
+
+### Web UI Setup
+1. Open **Config → Integrations → AgentMail**.
+2. Enable the integration.
+3. Enter your **Inbox ID** or enable **Auto Create Inbox**.
+4. Optionally enable **Relay to Agent** to wake AuraGo on new messages.
+5. Store the API key in the Vault (`agentmail_api_key`).
+6. Save and restart.
+
+### YAML Reference
+```yaml
+agentmail:
+    enabled: true
+    readonly: false
+    inbox_id: ""
+    auto_create_inbox: false
+    username: ""
+    domain: ""
+    display_name: ""
+    use_websocket: true
+    poll_interval_seconds: 120
+    relay_to_agent: false
+    relay_cheatsheet_id: ""
+    max_attachment_mb: 10
+    base_url: https://api.agentmail.to
+    websocket_url: wss://ws.agentmail.to/v0
+```
+
+> 🔒 The API key is stored in the Vault as `agentmail_api_key`, not in `config.yaml`.
+
+Use the `agentmail` tool in chat for inbox management, messages, drafts, labels, and replies.
+
+---
+
 ## Home Assistant Integration
 
 Control your smart home devices through AuraGo.
@@ -148,6 +185,56 @@ home_assistant:
 
 ---
 
+## MQTT Integration
+
+Connect to an MQTT broker for IoT devices and smart-home automation. AuraGo can subscribe to topics, buffer messages, relay events to the agent, and publish availability status via Last Will and Testament (LWT).
+
+### Web UI Setup
+1. Open **Config → Integrations → MQTT**.
+2. Enable the integration.
+3. Enter the **Broker URL** (e.g., `tcp://localhost:1883` or `mqtts://broker:8883`).
+4. Add **Topics** to subscribe to.
+5. Optionally enable **Relay to Agent** or **Availability** publishing.
+6. Store credentials in the Vault if needed.
+7. Save and restart.
+
+### YAML Reference
+```yaml
+mqtt:
+    enabled: true
+    broker: "tcp://localhost:1883"
+    client_id: aurago
+    username: ""
+    topics:
+      - "home/+/sensors"
+    qos: 0
+    relay_to_agent: false
+    connect_timeout: 15
+    clean_session: true
+    trigger_min_interval_seconds: 0
+    tls:
+        enabled: false
+        ca_file: ""
+        cert_file: ""
+        key_file: ""
+        insecure_skip_verify: false
+    buffer:
+        max_messages: 500
+        max_age_hours: 0
+        max_payload_bytes: 262144
+    availability:
+        enabled: false
+        topic: aurago/status
+        online_payload: online
+        offline_payload: offline
+        qos: 1
+        retain: true
+```
+
+`trigger_min_interval_seconds` limits how often MQTT events can start missions (0 = disabled).
+
+---
+
 ## Docker Integration
 
 Manage Docker containers, images, and networks.
@@ -166,6 +253,45 @@ docker:
     enabled: true
     host: "unix:///var/run/docker.sock"
 ```
+
+---
+
+## Package Manager Integration
+
+Structured OS package management via the `package_manager` tool. Supports apt, dnf, yum, pacman, zypper, apk, brew, winget, choco, and scoop.
+
+> ⚠️ **Security:** Package management grants significant system access. Enable only when needed and prefer `readonly` for monitoring.
+
+### Requirements
+
+Both toggles must be enabled:
+
+1. `package_manager.enabled: true`
+2. `agent.allow_package_manager: true`
+
+### Web UI Setup
+1. Open **Config → Integrations → Package Manager**.
+2. Enable the integration.
+3. Configure **Read-only**, **Auto Detect**, and operation permissions (install/remove/upgrade).
+4. Open **Config → Agent** and enable **Allow Package Manager**.
+5. Save and restart.
+
+### YAML Reference
+```yaml
+package_manager:
+    enabled: true
+    readonly: false
+    auto_detect: true
+    override: ""
+    allow_install: true
+    allow_remove: true
+    allow_upgrade: true
+
+agent:
+    allow_package_manager: true
+```
+
+`override` forces a specific manager (e.g., `apt`, `brew`, `winget`); leave empty for auto-detection from PATH.
 
 ---
 
@@ -491,6 +617,46 @@ mcp_server:
 > The MCP server shares the main HTTP server — there is no separate `port` setting. MCP client access also requires `agent.allow_mcp: true`.
 
 `allowed_tools` is an explicit server-side allowlist. Leave it empty to expose no AuraGo tools; `vscode_debug_bridge` applies its own limited debugging preset.
+
+---
+
+## Composio Integration
+
+Connect AuraGo to [Composio](https://composio.dev) toolkits (GitHub, Slack, Gmail, and hundreds more) via the native `composio_call` tool.
+
+### Web UI Setup
+1. Sign up at [Composio](https://composio.dev) and create an API key.
+2. Open **Config → Integrations → Composio**.
+3. Enable the integration.
+4. Set **User ID** and configure toolkit policies.
+5. Store the API key in the Vault (`composio_api_key`).
+6. Connect accounts in the Composio dashboard for the configured toolkits.
+7. Save and restart.
+
+### YAML Reference
+```yaml
+composio:
+    enabled: true
+    base_url: https://backend.composio.dev/api/v3.1
+    user_id: aurago-default
+    read_only: true
+    allow_destructive: false
+    allow_natural_language_input: false
+    request_timeout_seconds: 60
+    cache_ttl_seconds: 300
+    max_result_bytes: 262144
+    toolkits: []
+    # - slug: github
+    #   enabled: true
+    #   read_only: true
+    #   allow_destructive: false
+    #   allowed_tool_slugs: []
+    #   blocked_tool_slugs: []
+```
+
+> 🔒 The API key is stored in the Vault as `composio_api_key`, not in `config.yaml`.
+
+By default, `read_only: true` blocks mutating actions. Set `allow_destructive: true` only when delete/remove/revoke operations are explicitly required. Per-toolkit `allowed_tool_slugs` and `blocked_tool_slugs` provide fine-grained control.
 
 ---
 
