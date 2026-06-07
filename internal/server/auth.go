@@ -604,6 +604,7 @@ var authBypassPrefixes = []string{
 	"/shared.js",
 	"/js/setup/",
 	"/js/login/",
+	"/js/shared/",
 	"/js/vendor/",
 	"/cfg/",
 	// Static media files (audio, images, documents) require authentication.
