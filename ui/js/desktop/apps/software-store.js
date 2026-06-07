@@ -29,11 +29,13 @@
         let installed = [];
         let busy = new Map();
         const pollingOperations = new Set();
-        const instance = { disposed: false, onDesktopEvent: null, pollingOperations };
+        const instance = { disposed: false, onDesktopEvent: null, pollingOperations, loadDebounceTimer: null };
         let dockerAvailable = true;
         let mutationsAllowed = true;
         let mutationDisabledReason = '';
         let loadGeneration = 0;
+        let pendingCatalogRequest = null;
+        let initialCatalogLoaded = false;
         instances.set(windowId, instance);
 
         host.innerHTML = `
@@ -51,7 +53,7 @@
 
         const grid = host.querySelector('.vd-store-grid');
         const warning = host.querySelector('.vd-store-warning');
-        host.querySelector('[data-action="refresh"]').addEventListener('click', load);
+        host.querySelector('[data-action="refresh"]').addEventListener('click', () => scheduleLoad(true));
 
         function storeGridReady() {
             return !instance.disposed && grid && grid.isConnected;
@@ -81,13 +83,42 @@
                 && event.payload.operation === 'desktop_store_changed';
         }
 
-        async function load() {
+        function fetchCatalog() {
+            if (!pendingCatalogRequest) {
+                pendingCatalogRequest = api('/api/desktop/store/catalog').finally(() => {
+                    pendingCatalogRequest = null;
+                });
+            }
+            return pendingCatalogRequest;
+        }
+
+        function scheduleLoad(immediate) {
+            if (instance.disposed) return;
+            if (instance.loadDebounceTimer) {
+                clearTimeout(instance.loadDebounceTimer);
+                instance.loadDebounceTimer = null;
+            }
+            if (immediate) {
+                void loadCatalog();
+                return;
+            }
+            instance.loadDebounceTimer = setTimeout(() => {
+                instance.loadDebounceTimer = null;
+                void loadCatalog();
+            }, 120);
+        }
+
+        async function loadCatalog() {
             const generation = ++loadGeneration;
             if (!storeGridReady()) return;
             grid.innerHTML = `<div class="vd-store-loading">${esc(t('desktop.loading', 'Loading...'))}</div>`;
             try {
-                const body = await api('/api/desktop/store/catalog');
-                if (generation !== loadGeneration || !storeGridReady()) return;
+                const body = await fetchCatalog();
+                if (!storeGridReady()) return;
+                if (generation !== loadGeneration) {
+                    if (!initialCatalogLoaded) scheduleLoad(true);
+                    return;
+                }
                 catalog = activeStoreCatalogEntries(body.catalog || []);
                 installed = activeInstalledStoreApps(body.installed || []);
                 dockerAvailable = body.docker_available !== false;
@@ -99,8 +130,12 @@
                 }
                 renderCards();
                 resumeActiveOperationPolling();
+                initialCatalogLoaded = true;
             } catch (err) {
-                if (generation !== loadGeneration) return;
+                if (generation !== loadGeneration) {
+                    if (!initialCatalogLoaded) scheduleLoad(true);
+                    return;
+                }
                 console.error('Software store catalog load failed', err);
                 showStoreError(err, 'desktop.store.load_failed', 'Could not load the software store.');
             }
@@ -433,7 +468,7 @@
                         })
                     });
                     overlay.remove();
-                    await load();
+                    scheduleLoad(true);
                     notify({ title: t('desktop.store.title', 'Software Store'), message: t('desktop.store.agent_configured', 'Agent configured.') });
                 } catch (err) {
                     notify({ title: t('desktop.store.title', 'Software Store'), message: err.message });
@@ -472,7 +507,7 @@
                     renderCards();
                     if (!op || op.status === 'succeeded' || op.status === 'failed') {
                         busy.delete(appId);
-                        await load();
+                        scheduleLoad(true);
                         await loadBootstrap();
                         if (op && op.status === 'failed') notify({ title: t('desktop.store.title', 'Software Store'), message: op.error || t('desktop.store.operation_failed', 'Operation failed') });
                         return;
@@ -480,7 +515,7 @@
                 }
             } catch (err) {
                 busy.delete(appId);
-                if (!instance.disposed) await load();
+                if (!instance.disposed) scheduleLoad(true);
             } finally {
                 pollingOperations.delete(operationId);
             }
@@ -491,21 +526,28 @@
         }
 
         instance.onDesktopEvent = event => {
-            if (isDesktopStoreChangedEvent(event)) {
-                load();
-            }
+            if (!initialCatalogLoaded) return;
+            if (isDesktopStoreChangedEvent(event)) scheduleLoad(false);
         };
         if (window.AuraSSE && typeof window.AuraSSE.on === 'function') {
             window.AuraSSE.on('virtual_desktop_event', instance.onDesktopEvent);
         }
 
-        load();
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => scheduleLoad(true));
+        } else {
+            scheduleLoad(true);
+        }
     }
 
     function dispose(windowId) {
         const instance = instances.get(windowId);
         if (!instance) return;
         instance.disposed = true;
+        if (instance.loadDebounceTimer) {
+            clearTimeout(instance.loadDebounceTimer);
+            instance.loadDebounceTimer = null;
+        }
         if (window.AuraSSE && typeof window.AuraSSE.off === 'function' && instance.onDesktopEvent) {
             window.AuraSSE.off('virtual_desktop_event', instance.onDesktopEvent);
         }
