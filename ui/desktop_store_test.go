@@ -241,6 +241,21 @@ func TestSoftwareStoreUsesInjectedThemeIconPath(t *testing.T) {
 	}
 }
 
+func TestSoftwareStoreRecoversFromSupersededInitialLoad(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/software-store.js")
+	for _, want := range []string{
+		"const allowSupersededInitialRender = token !== loadToken && !initialCatalogLoaded;",
+		"token !== loadToken && !allowSupersededInitialRender",
+		"// The first successful catalog response is good enough to replace the loading state.",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("software store missing superseded initial-load recovery marker %q", want)
+		}
+	}
+}
+
 func TestSoftwareStoreShowsCommandCodeOpenLabelAndBadge(t *testing.T) {
 	t.Parallel()
 

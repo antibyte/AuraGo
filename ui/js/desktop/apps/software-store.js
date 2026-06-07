@@ -118,7 +118,9 @@
             grid.innerHTML = `<div class="vd-store-loading">${esc(t('desktop.loading', 'Loading...'))}</div>`;
             try {
                 const body = await fetchCatalog(forceRefresh);
-                if (token !== loadToken || !storeGridReady()) return;
+                const allowSupersededInitialRender = token !== loadToken && !initialCatalogLoaded;
+                // The first successful catalog response is good enough to replace the loading state.
+                if ((token !== loadToken && !allowSupersededInitialRender) || !storeGridReady()) return;
                 catalog = activeStoreCatalogEntries(body.catalog || []);
                 installed = activeInstalledStoreApps(body.installed || []);
                 dockerAvailable = body.docker_available !== false;
