@@ -2,6 +2,8 @@
 
 Erstelle wiederverwendbare Python-Skills zur Erweiterung von AuraGos Fähigkeiten.
 
+> 💡 **Skill Manager:** Uploads, Aktivierung und Sicherheits-Scan über **Config → Tools → Fähigkeiten-Manager** oder die Seite **Skills** (`/skills`).
+
 ---
 
 ## Was sind Skills?
@@ -193,7 +195,7 @@ api_key = os.environ.get('AURAGO_SECRET_OPENWEATHER_API_KEY')
 > 
 > **Empfehlung:**
 > - Verwende dedizierte, eingeschränkte API-Keys für Skills (nicht deine Haupt-Keys)
-> - Aktiviere `tools.python_secret_injection.enabled` nur wenn nötig
+> - Aktiviere **Python Secret Injection** unter **Config → Tools → Tool-Berechtigungen** nur wenn nötig
 > - Überprüfe den Code von Skills aus unbekannten Quellen vor der Ausführung
 
 - Secrets werden automatisch aus allen Outputs entfernt (Scrubbing)
