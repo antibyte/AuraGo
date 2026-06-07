@@ -255,6 +255,7 @@ var desktopPreferredIconNames = []string{
 	"cloud",
 	"code",
 	"code-studio",
+	"commandcode",
 	"copy",
 	"css",
 	"database",

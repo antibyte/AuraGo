@@ -132,6 +132,7 @@
         browser: 'browser', viewer: 'eye',
         launchpad: 'launchpad',
         'software-store': 'software-store',
+        'store-commandcode': 'commandcode',
         looper: 'looper',
         'system-info': 'monitor',
         zipper: 'zipper',
