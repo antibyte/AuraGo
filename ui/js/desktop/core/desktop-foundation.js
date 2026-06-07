@@ -137,7 +137,8 @@
         'system-info': 'monitor',
         zipper: 'zipper',
         pixel: 'pixel',
-        'galaxa-deluxe': 'run',
+        'galaxa-deluxe': 'galaxa-deluxe',
+        'store-quakejs-rootless': 'quakejs',
         people: 'users',
         'mission-control': 'workflow'
     };
@@ -310,8 +311,8 @@
     async function loadIconManifest() {
         const [spriteManifest, defaultThemeManifest, whitesurThemeManifest] = await Promise.all([
             api('/img/desktop-icons-sprite.json').catch(() => null),
-            api('/img/papirus/manifest.json?v=3').catch(() => null),
-            api('/img/whitesur/manifest.json?v=2').catch(() => null)
+            api('/img/papirus/manifest.json?v=4').catch(() => null),
+            api('/img/whitesur/manifest.json?v=3').catch(() => null)
         ]);
         state.iconManifest = spriteManifest;
         state.iconMap = new Map(((spriteManifest && spriteManifest.icons) || []).map(icon => [icon.name, icon]));
@@ -410,8 +411,21 @@
         return spriteMarkup(source.key || key, fallback, className, size);
     }
     function refreshThemeIconElements(root) { (root || document).querySelectorAll('.vd-theme-icon[data-vd-icon-key], .vd-papirus-icon[data-vd-icon-key]').forEach(icon => { const path = themeIconPath(icon.dataset.vdIconKey || ''); if (path) icon.style.setProperty('--vd-theme-icon-url', iconUrlStyle(path)); }); }
-    function iconForApp(app) { return app ? (appLogoIconKey(app) || appIconKeys[app.id] || app.icon || 'apps') : 'apps'; }
+    function themeBackedAppIconKey(app) {
+        if (!app) return '';
+        for (const key of [appIconKeys[app.id], app.icon]) {
+            const candidate = String(key || '').trim();
+            if (candidate && themeIconPath(candidate)) return candidate;
+        }
+        return '';
+    }
+    function iconForApp(app) {
+        if (!app) return 'apps';
+        return themeBackedAppIconKey(app) || appLogoIconKey(app) || appIconKeys[app.id] || app.icon || 'apps';
+    }
     function shortcutIconForApp(shortcut, app) {
+        const themed = themeBackedAppIconKey(app);
+        if (themed) return themed;
         const appLogo = appLogoIconKey(app);
         if (appLogo) return appLogo;
         if (!shortcut) shortcut = {};

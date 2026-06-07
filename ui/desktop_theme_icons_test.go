@@ -24,6 +24,8 @@ func TestDesktopBuiltInAppsUseDedicatedThemeAppIcons(t *testing.T) {
 		"Trash: 'trash-empty'",
 		"launchpad: 'launchpad'",
 		"appIconKeys['code-studio'] = 'code-studio'",
+		"function themeBackedAppIconKey(app)",
+		"'galaxa-deluxe': 'galaxa-deluxe'",
 		"function shortcutIconForApp(shortcut, app)",
 		"return appIconKeys[app.id] || shortcut.icon || app.icon || '';",
 	} {
@@ -50,7 +52,7 @@ func TestDesktopBuiltInAppsUseDedicatedThemeAppIcons(t *testing.T) {
 	}
 	for _, theme := range []string{"papirus", "whitesur"} {
 		manifest := rawDesktopAssetText(t, "img/"+theme+"/manifest.json")
-		for _, key := range []string{"agent-chat", "code-studio", "gallery", "launchpad", "looper", "pixel", "radio", "software-store", "trash", "trash-empty", "trash-full", "zipper"} {
+		for _, key := range []string{"agent-chat", "code-studio", "commandcode", "galaxa-deluxe", "gallery", "launchpad", "looper", "pixel", "quakejs", "radio", "software-store", "trash", "trash-empty", "trash-full", "zipper"} {
 			if !strings.Contains(manifest, `"`+key+`"`) {
 				t.Fatalf("%s theme manifest missing %q", theme, key)
 			}

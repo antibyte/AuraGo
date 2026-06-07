@@ -33,7 +33,7 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		"it-tools":            {image: "ghcr.io/corentinth/it-tools:latest", port: 80, icon: "tools"},
 		"filebrowser-quantum": {image: "ghcr.io/gtsteffaniak/filebrowser:stable", port: 80, icon: "folder"},
 		"stirling-pdf":        {image: "ghcr.io/stirling-tools/stirling-pdf:latest", port: 8080, icon: "pdf"},
-		"quakejs-rootless":    {image: "docker.io/awakenedpower/quakejs-rootless:latest", port: 8080, icon: "run"},
+		"quakejs-rootless":    {image: "docker.io/awakenedpower/quakejs-rootless:latest", port: 8080, icon: "quakejs"},
 		"romm":                {image: "ghcr.io/rommapp/romm:latest", port: 8080, icon: "run"},
 		"beszel":              {image: "ghcr.io/henrygd/beszel/beszel:latest", port: 8090, icon: "monitor"},
 		"dozzle":              {image: "ghcr.io/amir20/dozzle:latest", port: 8080, icon: "terminal"},

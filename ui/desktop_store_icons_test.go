@@ -14,7 +14,8 @@ func TestDesktopStoreAppsPreferCatalogLogos(t *testing.T) {
 		"metadata.logo_path",
 		"'logo:' + path",
 		"vd-app-logo-icon",
-		"function iconForApp(app) { return app ? (appLogoIconKey(app)",
+		"function themeBackedAppIconKey(app)",
+		"return themeBackedAppIconKey(app) || appLogoIconKey(app)",
 	} {
 		if !strings.Contains(mainText, want) {
 			t.Fatalf("desktop app logo rendering missing marker %q", want)

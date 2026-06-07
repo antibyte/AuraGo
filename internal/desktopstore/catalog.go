@@ -193,9 +193,9 @@ func DefaultCatalog() []CatalogEntry {
 			Name:        "QuakeJS Rootless",
 			Description: "Browser-playable QuakeJS server packaged for rootless container deployments.",
 			Image:       "docker.io/awakenedpower/quakejs-rootless:latest",
-			Icon:        "run",
+			Icon:        "quakejs",
 			LogoSlug:    "quakejs",
-			LogoURL:     logoURL("quakejs"),
+			LogoURL:     "",
 			PrimaryPort: PortSpec{ID: "web", Name: "Game", ContainerPort: 8080, Protocol: "tcp"},
 			Metadata: map[string]string{
 				"open_maximized": "true",

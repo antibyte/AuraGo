@@ -135,8 +135,9 @@
                 const stopped = app && app.status === 'stopped';
                 const mutationDisabled = mutationsAllowed ? '' : mutationDisabledText();
                 const actionDisabled = operation ? statusLabel(status, operation) : mutationDisabled;
-                const logo = entry.logo_url ? `<img class="vd-store-logo" src="${esc(entry.logo_url)}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">` : '';
-                const fallback = `<div class="vd-store-logo-fallback"${entry.logo_url ? ' hidden' : ''}>${iconMarkup(entry.icon || 'package', entry.name || 'A', 'vd-store-logo-icon', 30)}</div>`;
+                const themedStoreIcon = entry.icon && themeIconPath(entry.icon);
+                const logo = !themedStoreIcon && entry.logo_url ? `<img class="vd-store-logo" src="${esc(entry.logo_url)}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">` : '';
+                const fallback = `<div class="vd-store-logo-fallback"${!themedStoreIcon && entry.logo_url ? ' hidden' : ''}>${iconMarkup(entry.icon || 'package', entry.name || 'A', 'vd-store-logo-icon', 30)}</div>`;
                 const access = app ? accessLabel(app) : t('desktop.store.not_installed', 'Not installed');
                 const warningText = hostAccessWarning(entry);
                 return `<article class="vd-store-card" data-app-id="${esc(entry.id)}">

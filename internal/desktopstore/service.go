@@ -201,6 +201,11 @@ func (s *Service) Init(ctx context.Context) error {
 		s.db = nil
 		return err
 	}
+	if err := s.reconcileStoreDesktopBrandingLocked(ctx); err != nil {
+		db.Close()
+		s.db = nil
+		return err
+	}
 	return nil
 }
 
@@ -1769,10 +1774,7 @@ func appendEnvValue(env []string, key, value string) []string {
 	return append(env, prefix+value)
 }
 
-func (s *Service) installDesktopApp(ctx context.Context, entry CatalogEntry, app InstalledApp) error {
-	if s.cfg.Desktop == nil {
-		return nil
-	}
+func (s *Service) desktopAppManifest(entry CatalogEntry, app InstalledApp) desktop.AppManifest {
 	manifest := desktop.AppManifest{
 		ID:          app.DesktopAppID,
 		Name:        entry.Name,
@@ -1793,11 +1795,66 @@ func (s *Service) installDesktopApp(ctx context.Context, entry CatalogEntry, app
 		}
 		manifest.Metadata[key] = value
 	}
+	return manifest
+}
+
+func (s *Service) refreshDesktopAppManifest(ctx context.Context, entry CatalogEntry, app InstalledApp) error {
+	if s.cfg.Desktop == nil {
+		return nil
+	}
 	files := map[string]string{
 		"index.html": `<!doctype html><meta charset="utf-8"><title>` + entry.Name + `</title><p>` + entry.Name + ` is managed by AuraGo Software Store.</p>`,
 	}
-	if err := s.cfg.Desktop.InstallApp(ctx, manifest, files, storeSource); err != nil {
-		return fmt.Errorf("install desktop app: %w", err)
+	if err := s.cfg.Desktop.InstallApp(ctx, s.desktopAppManifest(entry, app), files, storeSource); err != nil {
+		return fmt.Errorf("refresh desktop app manifest: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) reconcileStoreDesktopBrandingLocked(ctx context.Context) error {
+	if s.cfg.Desktop == nil || s.db == nil {
+		return nil
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT app_id, desktop_app_id, launchpad_link_id, container_name, container_id, image,
+		status, error, bind_mode, host_ip, host_port, container_port, protocol, tailscale_enabled, tailscale_status,
+		tailscale_port, logo_path, ports_json, volumes_json, host_binds_json, env_json, extra_hosts_json,
+		secret_refs_json, companions_json, created_at, updated_at,
+		last_operation_id, last_operation_type, last_operation_state
+		FROM desktop_store_apps`)
+	if err != nil {
+		return fmt.Errorf("list desktop store apps for branding reconcile: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		app, err := scanInstalledApp(rows)
+		if err != nil {
+			return err
+		}
+		entry, ok := s.catalogByID[app.AppID]
+		if !ok {
+			continue
+		}
+		desiredLogo := strings.TrimSpace(entry.LogoURL)
+		logoChanged := app.LogoPath != desiredLogo
+		if logoChanged {
+			app.LogoPath = desiredLogo
+			if err := s.saveInstalled(ctx, app); err != nil {
+				return err
+			}
+		}
+		if err := s.refreshDesktopAppManifest(ctx, entry, app); err != nil {
+			return fmt.Errorf("reconcile desktop branding for %s: %w", app.AppID, err)
+		}
+	}
+	return rows.Err()
+}
+
+func (s *Service) installDesktopApp(ctx context.Context, entry CatalogEntry, app InstalledApp) error {
+	if s.cfg.Desktop == nil {
+		return nil
+	}
+	if err := s.refreshDesktopAppManifest(ctx, entry, app); err != nil {
+		return err
 	}
 	dockVisible := true
 	startVisible := true
