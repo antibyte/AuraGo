@@ -13,7 +13,7 @@ func TestDesktopWindowPlacementIsClamped(t *testing.T) {
 		"workspaceRect.width",
 		"workspaceRect.height",
 		"workspaceRect.width - margin * 2",
-		"workspaceRect.height - margin * 2",
+		"workspaceRect.height - taskbarReserve - margin * 2",
 		"Math.min(maxLeft",
 		"Math.min(maxTop",
 		"const requestedSize = appWindowSize(appId)",
