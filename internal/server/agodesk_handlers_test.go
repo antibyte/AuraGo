@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -627,8 +628,9 @@ func TestAgodeskChatBrokerDeduplicatesAudioAndDoesNotForwardToSSE(t *testing.T) 
 	if len(envs) != 1 {
 		t.Fatalf("audio envelope count = %d, want 1", len(envs))
 	}
-	if len(forwarded.events) != 0 {
-		t.Fatalf("audio should not be forwarded to SSE broker, got events %v", forwarded.events)
+	forwardedEvents := forwarded.Events()
+	if len(forwardedEvents) != 0 {
+		t.Fatalf("audio should not be forwarded to SSE broker, got events %v", forwardedEvents)
 	}
 }
 
@@ -728,8 +730,9 @@ func TestAgodeskChatBrokerForwardsNonTTSAudioWithoutMediaCapability(t *testing.T
 	if len(envs) != 0 {
 		t.Fatalf("unexpected websocket envelopes without media capability: %+v", envs)
 	}
-	if len(forwarded.events) != 1 || forwarded.events[0] != "audio" {
-		t.Fatalf("forwarded events = %v, want [audio]", forwarded.events)
+	forwardedEvents := forwarded.Events()
+	if len(forwardedEvents) != 1 || forwardedEvents[0] != "audio" {
+		t.Fatalf("forwarded events = %v, want [audio]", forwardedEvents)
 	}
 }
 
@@ -2416,11 +2419,20 @@ func readAgodeskBrokerEventEnvelopes(t *testing.T, state *agodeskConnectionState
 }
 
 type agodeskForwardCaptureBroker struct {
+	mu     sync.Mutex
 	events []string
 }
 
 func (b *agodeskForwardCaptureBroker) Send(event, message string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	b.events = append(b.events, event)
+}
+
+func (b *agodeskForwardCaptureBroker) Events() []string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return append([]string(nil), b.events...)
 }
 
 func (b *agodeskForwardCaptureBroker) SendJSON(string) {}
