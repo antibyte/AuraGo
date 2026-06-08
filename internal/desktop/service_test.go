@@ -145,6 +145,9 @@ func TestBuiltinAppsExposeCheaterAndMissionControlMetadata(t *testing.T) {
 	if nasscad.Metadata["open_maximized"] != "true" {
 		t.Fatalf("nasscad must open maximized for CAD workspace: %#v", nasscad.Metadata)
 	}
+	if nasscad.Metadata["workspace_entry"] != "Apps/nasscad/index.html" {
+		t.Fatalf("nasscad workspace entry = %q, want Apps/nasscad/index.html", nasscad.Metadata["workspace_entry"])
+	}
 }
 
 func TestServiceMutationLockIsSharedAcrossServices(t *testing.T) {

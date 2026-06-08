@@ -6061,7 +6061,15 @@ if (appId === 'pixel') {
                 window.AuraDesktopModules.loadAppScript('nasscad').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            if (typeof window.NasscadApp.render === 'function') return window.NasscadApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t }));
+            if (typeof window.NasscadApp.render === 'function') {
+                return window.NasscadApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                    esc,
+                    t,
+                    desktopEmbedURL,
+                    ensureDesktopEmbedHasContent,
+                    makeSandboxedFrame
+                }));
+            }
         }
         if (appId === 'people') {
             if (!window.PeopleApp) {

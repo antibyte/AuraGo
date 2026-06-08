@@ -415,6 +415,9 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 	if err := s.seedBuiltinWidgetsLocked(ctx); err != nil {
 		return err
 	}
+	if err := s.seedBundledBuiltinAppsLocked(ctx); err != nil {
+		return err
+	}
 	if err := s.seedDesktopShortcutsLocked(ctx); err != nil {
 		return err
 	}
