@@ -27,6 +27,7 @@ const desktopAppKeyBridgeMarker = "data-aurago-app-key-bridge"
 
 var desktopPrinterCameraProxyPattern = regexp.MustCompile(`/api/3d-printers/[^"'<>\\\s)]+/camera/stream(?:\?[^"'<>\\\s)]*)?`)
 var desktopAppResourceAttrPattern = regexp.MustCompile(`\b(src|href)=(["'])([^"']+)(["'])`)
+var desktopAppExternalScriptPattern = regexp.MustCompile(`(?is)<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>\s*</script>`)
 
 // uiBuildVersion is set once at server start and used as a cache-busting
 // query parameter for all embedded static assets. Formatted as a compact
@@ -367,6 +368,7 @@ func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopD
 		http.NotFound(w, r)
 		return true
 	}
+	content = inlineDesktopAppSiblingScripts(content, fullAbs)
 	embedToken := r.URL.Query().Get(desktopEmbedTokenParam)
 	content = prepareDesktopHTMLContentForEmbed(content, cfg, embedToken)
 	content = rewriteDesktopAppResourceURLs(content, info.ModTime(), embedToken)
@@ -375,6 +377,63 @@ func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopD
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Content-Security-Policy", desktopAppWorkspaceCSPForRequest(r))
 	http.ServeContent(w, r, filepath.Base(fullAbs), info.ModTime(), bytes.NewReader(injectDesktopAppKeyBridgeHTML(content)))
+	return true
+}
+
+func inlineDesktopAppSiblingScripts(content []byte, indexFilePath string) []byte {
+	if len(content) == 0 || !bytes.Contains(content, []byte(`<script`)) {
+		return content
+	}
+	indexDir := filepath.Dir(indexFilePath)
+	indexDirAbs, err := filepath.Abs(indexDir)
+	if err != nil {
+		return content
+	}
+	return desktopAppExternalScriptPattern.ReplaceAllFunc(content, func(match []byte) []byte {
+		parts := desktopAppExternalScriptPattern.FindSubmatch(match)
+		if len(parts) != 2 {
+			return match
+		}
+		src := strings.TrimSpace(string(parts[1]))
+		if !shouldInlineDesktopAppSiblingAsset(src) {
+			return match
+		}
+		assetPath := filepath.Join(indexDir, filepath.FromSlash(src))
+		assetAbs, err := filepath.Abs(assetPath)
+		if err != nil || !desktopPathWithinRoot(indexDirAbs, assetAbs) {
+			return match
+		}
+		data, err := os.ReadFile(assetAbs)
+		if err != nil || len(data) == 0 {
+			return match
+		}
+		out := make([]byte, 0, len(data)+16)
+		out = append(out, "<script>\n"...)
+		out = append(out, data...)
+		out = append(out, "\n</script>"...)
+		return out
+	})
+}
+
+func shouldInlineDesktopAppSiblingAsset(src string) bool {
+	if src == "" || strings.Contains(src, "://") || strings.HasPrefix(src, "//") || strings.HasPrefix(src, "/") {
+		return false
+	}
+	if strings.Contains(src, "..") || strings.Contains(src, `\`) {
+		return false
+	}
+	ext := strings.ToLower(filepath.Ext(src))
+	return ext == ".js" || ext == ".mjs"
+}
+
+func desktopPathWithinRoot(rootAbs, candidateAbs string) bool {
+	rel, err := filepath.Rel(rootAbs, candidateAbs)
+	if err != nil {
+		return false
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || filepath.IsAbs(rel) {
+		return false
+	}
 	return true
 }
 

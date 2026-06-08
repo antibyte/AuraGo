@@ -13,7 +13,7 @@ import (
 	"aurago/internal/config"
 )
 
-func TestServeDesktopExactIndexFileInjectsEmbedTokenIntoSiblingAssets(t *testing.T) {
+func TestServeDesktopExactIndexFileInlinesSiblingScripts(t *testing.T) {
 	t.Parallel()
 
 	desktopDir := t.TempDir()
@@ -22,6 +22,36 @@ func TestServeDesktopExactIndexFileInjectsEmbedTokenIntoSiblingAssets(t *testing
 		t.Fatalf("MkdirAll: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(appDir, "index.html"), []byte("<!doctype html><html><head><script src=\"three.js\"></script></head><body>OK</body></html>"), 0o644); err != nil {
+		t.Fatalf("WriteFile index: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(appDir, "three.js"), []byte("window.THREE={REVISION:'test'};"), 0o644); err != nil {
+		t.Fatalf("WriteFile three.js: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Apps/nasscad/index.html", nil)
+	req.Host = ""
+	rec := httptest.NewRecorder()
+	if !serveDesktopExactIndexFile(rec, req, desktopDir, nil) {
+		t.Fatal("expected exact desktop index file to be served")
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, `src="three.js"`) {
+		t.Fatalf("served app still references external three.js: %q", body)
+	}
+	if !strings.Contains(body, "THREE={REVISION:'test'}") {
+		t.Fatalf("served app did not inline three.js: %q", body)
+	}
+}
+
+func TestServeDesktopExactIndexFileInjectsEmbedTokenIntoSiblingAssets(t *testing.T) {
+	t.Parallel()
+
+	desktopDir := t.TempDir()
+	appDir := filepath.Join(desktopDir, "Apps", "nasscad")
+	if err := os.MkdirAll(appDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(appDir, "index.html"), []byte("<!doctype html><html><head><link rel=\"stylesheet\" href=\"app.css\"></head><body>OK</body></html>"), 0o644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
@@ -38,11 +68,11 @@ func TestServeDesktopExactIndexFileInjectsEmbedTokenIntoSiblingAssets(t *testing
 		t.Fatal("expected exact desktop index file to be served")
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, `src="three.js?desktop_v=`) {
-		t.Fatalf("three.js URL was not cache-busted: %q", body)
+	if !strings.Contains(body, `href="app.css?desktop_v=`) {
+		t.Fatalf("app.css URL was not cache-busted: %q", body)
 	}
 	if !strings.Contains(body, "desktop_token=") {
-		t.Fatalf("three.js URL did not inherit desktop embed token: %q", body)
+		t.Fatalf("app.css URL did not inherit desktop embed token: %q", body)
 	}
 	csp := rec.Header().Get("Content-Security-Policy")
 	if !strings.Contains(csp, "script-src https://aurago.example.test") {
