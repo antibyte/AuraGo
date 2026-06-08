@@ -59,12 +59,21 @@ func TestNasscadDesktopAppAssets(t *testing.T) {
 		}
 	}
 
-	bundledPath := filepath.Join("..", "internal", "desktop", "bundled_apps", "nasscad", "index.html")
-	bundled, err := os.ReadFile(bundledPath)
+	bundledDir := filepath.Join("..", "internal", "desktop", "bundled_apps", "nasscad")
+	for _, name := range []string{"index.html", "three.js", "nasscad_logs.js", "manifold.js"} {
+		bundled, err := os.ReadFile(filepath.Join(bundledDir, name))
+		if err != nil {
+			t.Fatalf("read bundled nasscad asset %s: %v", name, err)
+		}
+		if len(bundled) == 0 {
+			t.Fatalf("bundled nasscad asset %s is empty", name)
+		}
+	}
+	bundledHTML, err := os.ReadFile(filepath.Join(bundledDir, "index.html"))
 	if err != nil {
 		t.Fatalf("read bundled nasscad html: %v", err)
 	}
-	if len(bundled) < 100000 {
-		t.Fatalf("bundled nasscad html looks too small: %d bytes", len(bundled))
+	if len(bundledHTML) < 100000 {
+		t.Fatalf("bundled nasscad html looks too small: %d bytes", len(bundledHTML))
 	}
 }

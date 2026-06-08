@@ -5,15 +5,16 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-//go:embed bundled_apps/nasscad/index.html
+//go:embed bundled_apps/nasscad/*
 var bundledAppAssets embed.FS
 
-const nasscadBundledVersion = "4.2.7"
+const nasscadBundledVersion = "4.2.7.1"
 
 func (s *Service) seedBundledBuiltinAppsLocked(ctx context.Context) error {
 	if err := s.seedNasscadAppLocked(ctx); err != nil {
@@ -31,16 +32,33 @@ func (s *Service) seedNasscadAppLocked(ctx context.Context) error {
 	}
 	if seededVersion == nasscadBundledVersion {
 		if _, err := os.Stat(filepath.Join(s.cfg.WorkspaceDir, "Apps", "nasscad", "index.html")); err == nil {
-			return nil
+			if _, err := os.Stat(filepath.Join(s.cfg.WorkspaceDir, "Apps", "nasscad", "three.js")); err == nil {
+				if _, err := os.Stat(filepath.Join(s.cfg.WorkspaceDir, "Apps", "nasscad", "nasscad_logs.js")); err == nil {
+					return nil
+				}
+			}
 		}
 	}
 
-	content, err := bundledAppAssets.ReadFile("bundled_apps/nasscad/index.html")
-	if err != nil {
-		return fmt.Errorf("read bundled nasscad app: %w", err)
-	}
-	if err := s.seedWorkspaceFileLocked("Apps/nasscad/index.html", content); err != nil {
-		return fmt.Errorf("seed nasscad app: %w", err)
+	if err := fs.WalkDir(bundledAppAssets, "bundled_apps/nasscad", func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() {
+			return nil
+		}
+		content, err := bundledAppAssets.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read bundled nasscad asset %s: %w", path, err)
+		}
+		rel := strings.TrimPrefix(path, "bundled_apps/nasscad/")
+		workspacePath := filepath.ToSlash(filepath.Join("Apps", "nasscad", rel))
+		if err := s.seedWorkspaceFileLocked(workspacePath, content); err != nil {
+			return fmt.Errorf("seed nasscad asset %s: %w", workspacePath, err)
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 
 	if _, err := s.db.ExecContext(ctx, `INSERT INTO desktop_meta(key, value) VALUES(?, ?)
