@@ -31,6 +31,8 @@ AuraGo may then send:
 - `file_read`: requires `remote.files.read`
 - `file_write`: requires `remote.files.write`
 
+AuraGo stores the sanitized `file_access` session metadata and adds the reported roots and inline byte limits to the agent context. It also caps outgoing `file_read` / `file_write` command limits to 8 MiB or the smaller negotiated value and rejects known disabled or denied `root_id` cases before forwarding to AgoDesk. AgoDesk still remains responsible for canonical local path validation because AuraGo never receives the real local root paths.
+
 Do not implement delete, rename, shell execution, advanced edits, or chunked file transfer for this v1 protocol.
 
 ## Required AgoDesk Changes

@@ -1890,6 +1890,116 @@ func TestAgodeskFileDesktopResultsNormalizeRemoteOutput(t *testing.T) {
 	}
 }
 
+func TestAgodeskFileAccessSessionStateFeedsAgentContext(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	fileAccess := &agodesk.FileAccessPayload{
+		Enabled:       true,
+		MaxReadBytes:  4096,
+		MaxWriteBytes: 2048,
+		Roots: []agodesk.FileAccessRoot{
+			{
+				RootID:      "workspace",
+				Label:       "Workspace",
+				PathDisplay: "C:\\Users\\Andi\\Workspace",
+				Permissions: []string{"read", "write", "execute", "read"},
+			},
+		},
+	}
+	_, cleanup, accepted := pairAgodeskTestClientWithFileAccess(t, s, "agodesk-file-access-token", []string{"remote.files.read", "remote.files.write"}, fileAccess)
+	defer cleanup()
+
+	session := ensureAgodeskDesktopBroker(s).session(accepted.DeviceID)
+	if session == nil {
+		t.Fatal("agodesk session was not registered")
+	}
+	stored := agodeskStateFileAccess(session.state)
+	if stored == nil || !stored.Enabled {
+		t.Fatalf("stored file_access = %+v, want enabled payload", stored)
+	}
+	if stored.MaxReadBytes != 4096 || stored.MaxWriteBytes != 2048 {
+		t.Fatalf("stored file_access limits = %+v", stored)
+	}
+	if len(stored.Roots) != 1 || stored.Roots[0].RootID != "workspace" {
+		t.Fatalf("stored file_access roots = %+v", stored.Roots)
+	}
+	if fmt.Sprint(stored.Roots[0].Permissions) != "[read write]" {
+		t.Fatalf("stored permissions = %+v, want read/write only once", stored.Roots[0].Permissions)
+	}
+	contextText := buildAgodeskAgentContext(accepted.DeviceID, stored)
+	for _, want := range []string{
+		`root_id="workspace"`,
+		`max_read_bytes=4096`,
+		`max_write_bytes=2048`,
+		`permissions="read,write"`,
+	} {
+		if !strings.Contains(contextText, want) {
+			t.Fatalf("agent context missing %q in:\n%s", want, contextText)
+		}
+	}
+}
+
+func TestAgodeskFileAccessLimitsApplyToFileCommands(t *testing.T) {
+	state := &agodeskConnectionState{
+		fileAccess: normalizeAgodeskFileAccessPayload(&agodesk.FileAccessPayload{
+			Enabled:       true,
+			MaxReadBytes:  1024,
+			MaxWriteBytes: 5,
+			Roots: []agodesk.FileAccessRoot{
+				{RootID: "workspace", Permissions: []string{"read", "write"}},
+				{RootID: "readonly", Permissions: []string{"read"}},
+			},
+		}),
+	}
+
+	read, denied := applyAgodeskFileAccessLimits(state, remote.CommandPayload{
+		CommandID: "read-1",
+		Operation: remote.OpFileRead,
+		Args: map[string]interface{}{
+			"path":      "notes.txt",
+			"root_id":   "workspace",
+			"max_bytes": int64(4096),
+		},
+	})
+	if denied != nil {
+		t.Fatalf("read denied: %+v", denied)
+	}
+	if got := read.Args["max_bytes"]; got != int64(1024) {
+		t.Fatalf("read max_bytes = %#v, want 1024", got)
+	}
+
+	_, denied = applyAgodeskFileAccessLimits(state, remote.CommandPayload{
+		CommandID: "write-1",
+		Operation: remote.OpFileWrite,
+		Args: map[string]interface{}{
+			"path":    "notes.txt",
+			"root_id": "readonly",
+			"content": "ok",
+		},
+	})
+	if denied == nil || denied.ErrorCode != "FILE_ACCESS_DENIED" {
+		t.Fatalf("readonly write denied = %+v, want FILE_ACCESS_DENIED", denied)
+	}
+
+	_, denied = applyAgodeskFileAccessLimits(state, remote.CommandPayload{
+		CommandID: "write-2",
+		Operation: remote.OpFileWrite,
+		Args: map[string]interface{}{
+			"path":    "notes.txt",
+			"root_id": "workspace",
+			"content": "too large",
+		},
+	})
+	if denied == nil || denied.ErrorCode != "FILE_TOO_LARGE" {
+		t.Fatalf("large write denied = %+v, want FILE_TOO_LARGE", denied)
+	}
+
+	disabledState := &agodeskConnectionState{fileAccess: &agodesk.FileAccessPayload{Enabled: false}}
+	_, denied = applyAgodeskFileAccessLimits(disabledState, remote.CommandPayload{CommandID: "list-1", Operation: remote.OpFileList, Args: map[string]interface{}{"path": "."}})
+	if denied == nil || denied.ErrorCode != "FILE_ACCESS_DISABLED" {
+		t.Fatalf("disabled file access denied = %+v, want FILE_ACCESS_DISABLED", denied)
+	}
+}
+
 func TestAgodeskComputerUseDesktopResultAcceptsSuccessField(t *testing.T) {
 	s := newAgodeskPairingTestServer(t)
 	conn, cleanup, accepted := pairAgodeskTestClient(t, s, "agodesk-computer-use-success-token", []string{"remote.desktop.discovery"})
@@ -2181,6 +2291,11 @@ func newAgodeskPairingTestServer(t *testing.T) *Server {
 
 func pairAgodeskTestClient(t *testing.T, s *Server, token string, clientCapabilities []string) (*websocket.Conn, func(), agodesk.SessionAcceptedPayload) {
 	t.Helper()
+	return pairAgodeskTestClientWithFileAccess(t, s, token, clientCapabilities, nil)
+}
+
+func pairAgodeskTestClientWithFileAccess(t *testing.T, s *Server, token string, clientCapabilities []string, fileAccess *agodesk.FileAccessPayload) (*websocket.Conn, func(), agodesk.SessionAcceptedPayload) {
+	t.Helper()
 	if _, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
 		TokenHash:  hashSHA256(token),
 		DeviceName: "agodesk-test-client",
@@ -2194,6 +2309,7 @@ func pairAgodeskTestClient(t *testing.T, s *Server, token string, clientCapabili
 		ClientVersion:      "0.1.0",
 		PairingToken:       token,
 		ClientCapabilities: clientCapabilities,
+		FileAccess:         fileAccess,
 		Host:               agodesk.SessionStartHost{Hostname: "AGODESK-PC", OS: "windows", Arch: "amd64"},
 	})
 	if err != nil {

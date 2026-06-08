@@ -39,6 +39,7 @@ AgoDesk desktop commands require the client to advertise matching `session.start
 | `device_id` | string | for most operations | Alternative to device_name |
 | `command` | string | for execute_command | Shell command to execute |
 | `path` | string | for read_file, write_file, list_files | File/directory path |
+| `root_id` | string | optional for AgoDesk file access | Stable AgoDesk file-access root id; when set, `path` is relative to that root |
 | `content` | string | for write_file | File content to write |
 | `recursive` | boolean | for list_files | List recursively (default: false) |
 | `display_id` | string | optional for desktop_screenshot | Monitor id such as `display-0`; omitted captures the primary display |
@@ -136,7 +137,7 @@ AgoDesk desktop commands require the client to advertise matching `session.start
 
 - **Timeouts**: Command execution has 60s timeout, file operations have 30s timeout, sysinfo has 15s timeout
 - **Read-only mode**: execute_command, write_file, revoke_device, edit operations, desktop_input, desktop_ui_action, and desktop_browser_action are blocked when read-only mode is enabled. Discovery, UI tree reads, browser connect/snapshot/disconnect, screenshots, and permission probes remain allowed.
-- **Path restrictions**: File operations only access paths within the device's configured `allowed_paths`
+- **Path restrictions**: Classic remote-agent file operations only access paths within the device's configured `allowed_paths`. AgoDesk file operations should use the `root_id`s reported in the active AgoDesk chat context; AuraGo forwards only known roots and AgoDesk enforces canonical local path boundaries.
 - **Platform support**: Uses `sh -c` on Linux/macOS, `cmd /C` on Windows
 - **Connection route**: Personalized `aurago-remote` downloads can embed an automatic, Tailscale, or manual supervisor WebSocket URL via `remote_control.connection_mode`.
 - **agodesk desktop safety**: Screenshots, discovery, UI tree reads, and browser snapshots do not require local approval. Desktop input, UI actions, and browser actions require explicit local approval in the agodesk remote-control banner; AuraGo cannot approve or bypass that from the backend.

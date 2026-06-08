@@ -136,7 +136,8 @@ Rules:
 - `enabled=false` means AgoDesk should not advertise `remote.files.read` or `remote.files.write`.
 - `root_id` is stable for the local AgoDesk configuration and is used in later commands.
 - `path_display` is UI/debug metadata. AuraGo must not treat it as an authorization boundary.
-- AuraGo may display/cache this metadata, but AgoDesk must enforce canonical path checks and permissions locally for every command.
+- AuraGo stores only sanitized session metadata from `file_access` and includes available `root_id`, display labels, permissions, and inline byte limits in the AgoDesk agent context.
+- AuraGo caps `file_read` / `file_write` inline command limits to 8 MiB or the smaller negotiated `max_read_bytes` / `max_write_bytes`, rejects known disabled or denied `root_id` cases, and still requires AgoDesk to enforce canonical path checks and permissions locally for every command.
 
 ## Pairing
 

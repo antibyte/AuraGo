@@ -45,6 +45,7 @@ const (
 	agodeskMediaAssetTokenTTL      = 15 * time.Minute
 	agodeskMediaAssetExpParam      = "agodesk_exp"
 	agodeskMediaAssetSigParam      = "agodesk_sig"
+	agodeskFileAccessInlineLimit   = 8 * 1024 * 1024
 )
 
 var agodeskUpgrader = websocket.Upgrader{
@@ -71,6 +72,7 @@ type agodeskConnectionState struct {
 	readOnly              bool
 	devMode               bool
 	capabilities          map[string]struct{}
+	fileAccess            *agodesk.FileAccessPayload
 	activeRuns            map[string]agodeskActiveChatRun
 	latestActiveRequestID string
 	nextActiveRunSequence uint64
@@ -185,6 +187,7 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 		state.readOnly = accepted.ReadOnly
 		state.paired = accepted.Approved
 		state.capabilities = normalizeAgodeskCapabilities(accepted.AdvertisedCapabilities)
+		state.fileAccess = normalizeAgodeskFileAccessPayload(payload.FileAccess)
 		state.mu.Unlock()
 		registerAgodeskDesktopSession(s, conn, state, accepted)
 		_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeSessionAccepted, accepted)
@@ -1685,7 +1688,7 @@ func runAgodeskAgentChat(s *Server, r *http.Request, conn *websocket.Conn, state
 	turn, err := prepareDesktopAgentTurnWithOptions(r.Context(), s, message, desktopChatContext{}, false, desktopAgentTurnOptions{
 		SessionID:         conversationID,
 		MessageSource:     agodeskMessageSource,
-		AdditionalPrompt:  buildAgodeskAgentContext(deviceID),
+		AdditionalPrompt:  buildAgodeskAgentContext(deviceID, agodeskStateFileAccess(state)),
 		VoiceOutputActive: voiceOutput,
 	})
 	if err != nil {
@@ -1777,7 +1780,7 @@ func buildAgodeskAgentMoodMetadata(s *Server) map[string]interface{} {
 	}
 }
 
-func buildAgodeskAgentContext(deviceID string) string {
+func buildAgodeskAgentContext(deviceID string, fileAccess *agodesk.FileAccessPayload) string {
 	lines := []string{
 		"The user is chatting from agodesk, a paired desktop companion running on a remote PC.",
 		"When the user asks about that remote PC, prefer the remote_control tool for available device operations and respect read-only policy.",
@@ -1791,6 +1794,7 @@ func buildAgodeskAgentContext(deviceID string) string {
 			fmt.Sprintf("Paired agodesk remote_control device_id: %q. Always pass this device_id on remote_control operations for the user's PC.", id),
 		)
 	}
+	lines = append(lines, agodeskFileAccessAgentContextLines(fileAccess)...)
 	return strings.Join(lines, "\n")
 }
 
@@ -1858,6 +1862,122 @@ func agodeskStateHasCapability(state *agodeskConnectionState, capability string)
 	defer state.mu.RUnlock()
 	_, ok := state.capabilities[capability]
 	return ok
+}
+
+func agodeskStateFileAccess(state *agodeskConnectionState) *agodesk.FileAccessPayload {
+	if state == nil {
+		return nil
+	}
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+	return copyAgodeskFileAccessPayload(state.fileAccess)
+}
+
+func normalizeAgodeskFileAccessPayload(payload *agodesk.FileAccessPayload) *agodesk.FileAccessPayload {
+	if payload == nil {
+		return nil
+	}
+	out := &agodesk.FileAccessPayload{
+		Enabled:       payload.Enabled,
+		MaxReadBytes:  normalizeAgodeskFileAccessLimit(payload.MaxReadBytes),
+		MaxWriteBytes: normalizeAgodeskFileAccessLimit(payload.MaxWriteBytes),
+	}
+	for _, root := range payload.Roots {
+		rootID := strings.TrimSpace(root.RootID)
+		if rootID == "" {
+			continue
+		}
+		out.Roots = append(out.Roots, agodesk.FileAccessRoot{
+			RootID:      rootID,
+			Label:       strings.TrimSpace(root.Label),
+			PathDisplay: strings.TrimSpace(root.PathDisplay),
+			Permissions: normalizeAgodeskFileAccessPermissions(root.Permissions),
+		})
+		if len(out.Roots) >= 32 {
+			break
+		}
+	}
+	return out
+}
+
+func copyAgodeskFileAccessPayload(payload *agodesk.FileAccessPayload) *agodesk.FileAccessPayload {
+	if payload == nil {
+		return nil
+	}
+	out := *payload
+	if payload.Roots != nil {
+		out.Roots = make([]agodesk.FileAccessRoot, len(payload.Roots))
+		for i, root := range payload.Roots {
+			out.Roots[i] = root
+			if root.Permissions != nil {
+				out.Roots[i].Permissions = append([]string(nil), root.Permissions...)
+			}
+		}
+	}
+	return &out
+}
+
+func normalizeAgodeskFileAccessLimit(limit int64) int64 {
+	if limit <= 0 || limit > agodeskFileAccessInlineLimit {
+		return agodeskFileAccessInlineLimit
+	}
+	return limit
+}
+
+func normalizeAgodeskFileAccessPermissions(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.ToLower(strings.TrimSpace(value))
+		switch value {
+		case "read", "write":
+		default:
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
+}
+
+func agodeskFileAccessAgentContextLines(fileAccess *agodesk.FileAccessPayload) []string {
+	if fileAccess == nil {
+		return nil
+	}
+	if !fileAccess.Enabled {
+		return []string{"AgoDesk local file access is disabled for this client session."}
+	}
+	lines := []string{
+		fmt.Sprintf("AgoDesk local file access is enabled. Inline read/write payload limits are max_read_bytes=%d and max_write_bytes=%d.", fileAccess.MaxReadBytes, fileAccess.MaxWriteBytes),
+		"Use remote_control read_file, list_files, and write_file with root_id when the user asks to access files on the paired PC.",
+	}
+	if len(fileAccess.Roots) == 0 {
+		lines = append(lines, "The client did not report named file-access roots; ask the user to configure AgoDesk file-access roots before using root_id-based file commands.")
+		return lines
+	}
+	lines = append(lines, "Available AgoDesk file-access roots:")
+	for _, root := range fileAccess.Roots {
+		permissions := strings.Join(root.Permissions, ",")
+		if permissions == "" {
+			permissions = "none"
+		}
+		label := root.Label
+		if label == "" {
+			label = root.RootID
+		}
+		pathDisplay := root.PathDisplay
+		if pathDisplay == "" {
+			pathDisplay = "(path hidden by client)"
+		}
+		lines = append(lines, fmt.Sprintf("- root_id=%q label=%q path_display=%q permissions=%q", root.RootID, label, pathDisplay, permissions))
+	}
+	return lines
 }
 
 func (b *agodeskDesktopBroker) RegisterSession(deviceID string, conn *websocket.Conn, state *agodeskConnectionState, clientCapabilities []string) {
@@ -1933,6 +2053,11 @@ func (b *agodeskDesktopBroker) SendCommand(deviceID string, cmd remote.CommandPa
 			Error:     fmt.Sprintf("%s: agodesk client does not advertise %s for %s", agodesk.ErrorUnsupportedCapability, requiredCapability, cmd.Operation),
 		}, nil
 	}
+	if limitedCmd, denied := applyAgodeskFileAccessLimits(session.state, cmd); denied != nil {
+		return *denied, nil
+	} else {
+		cmd = limitedCmd
+	}
 	resultCh := make(chan agodeskDesktopCommandResult, 1)
 	session.pendingMu.Lock()
 	session.pending[cmd.CommandID] = resultCh
@@ -1962,6 +2087,107 @@ func (b *agodeskDesktopBroker) SendCommand(deviceID string, cmd remote.CommandPa
 			Error:     fmt.Sprintf("command timed out after %v", timeout),
 		}, nil
 	}
+}
+
+func applyAgodeskFileAccessLimits(state *agodeskConnectionState, cmd remote.CommandPayload) (remote.CommandPayload, *remote.ResultPayload) {
+	switch cmd.Operation {
+	case remote.OpFileRead, remote.OpFileList, remote.OpFileWrite:
+	default:
+		return cmd, nil
+	}
+	fileAccess := agodeskStateFileAccess(state)
+	if fileAccess == nil {
+		return cmd, nil
+	}
+	if !fileAccess.Enabled {
+		return cmd, &remote.ResultPayload{
+			CommandID: cmd.CommandID,
+			Status:    "error",
+			Error:     "FILE_ACCESS_DISABLED: agodesk local file access is disabled",
+			ErrorCode: "FILE_ACCESS_DISABLED",
+		}
+	}
+	if denied := validateAgodeskFileAccessRoot(cmd, fileAccess); denied != nil {
+		return cmd, denied
+	}
+	limited := cmd
+	limited.Args = copyRemoteCommandArgs(cmd.Args)
+	switch cmd.Operation {
+	case remote.OpFileRead:
+		applyAgodeskCommandByteLimit(limited.Args, fileAccess.MaxReadBytes)
+	case remote.OpFileWrite:
+		applyAgodeskCommandByteLimit(limited.Args, fileAccess.MaxWriteBytes)
+		if exceedsAgodeskWriteLimit(limited.Args["content"], fileAccess.MaxWriteBytes) {
+			return cmd, &remote.ResultPayload{
+				CommandID: cmd.CommandID,
+				Status:    "error",
+				Error:     "FILE_TOO_LARGE: content exceeds agodesk file_access.max_write_bytes",
+				ErrorCode: "FILE_TOO_LARGE",
+			}
+		}
+	}
+	return limited, nil
+}
+
+func validateAgodeskFileAccessRoot(cmd remote.CommandPayload, fileAccess *agodesk.FileAccessPayload) *remote.ResultPayload {
+	rootID := strings.TrimSpace(fmt.Sprint(cmd.Args["root_id"]))
+	if rootID == "" || rootID == "<nil>" {
+		return nil
+	}
+	wantPermission := "read"
+	if cmd.Operation == remote.OpFileWrite {
+		wantPermission = "write"
+	}
+	for _, root := range fileAccess.Roots {
+		if root.RootID != rootID {
+			continue
+		}
+		for _, permission := range root.Permissions {
+			if permission == wantPermission {
+				return nil
+			}
+		}
+		return &remote.ResultPayload{
+			CommandID: cmd.CommandID,
+			Status:    "error",
+			Error:     fmt.Sprintf("FILE_ACCESS_DENIED: root_id %q does not allow %s", rootID, wantPermission),
+			ErrorCode: "FILE_ACCESS_DENIED",
+		}
+	}
+	return &remote.ResultPayload{
+		CommandID: cmd.CommandID,
+		Status:    "error",
+		Error:     fmt.Sprintf("FILE_ACCESS_DENIED: unknown agodesk file-access root_id %q", rootID),
+		ErrorCode: "FILE_ACCESS_DENIED",
+	}
+}
+
+func copyRemoteCommandArgs(args map[string]interface{}) map[string]interface{} {
+	if args == nil {
+		return map[string]interface{}{}
+	}
+	out := make(map[string]interface{}, len(args)+1)
+	for key, value := range args {
+		out[key] = value
+	}
+	return out
+}
+
+func applyAgodeskCommandByteLimit(args map[string]interface{}, limit int64) {
+	if limit <= 0 {
+		return
+	}
+	current := agodeskInt64Field(args, "max_bytes", "max_read_bytes", "max_write_bytes")
+	if current <= 0 || current > limit {
+		args["max_bytes"] = limit
+	}
+}
+
+func exceedsAgodeskWriteLimit(content interface{}, limit int64) bool {
+	if limit <= 0 || content == nil {
+		return false
+	}
+	return int64(len([]byte(fmt.Sprint(content)))) > limit
 }
 
 func (b *agodeskDesktopBroker) HandleResult(deviceID string, payload agodesk.DesktopResultPayload) bool {
