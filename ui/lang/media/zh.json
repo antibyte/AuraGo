@@ -25,5 +25,6 @@
   "media.bulk_select_item": "选择项目",
   "media.bulk_confirm_delete": "删除选中的 {count} 项？",
   "media.bulk_deleted": "已删除 {count} 项",
-  "media.bulk_partial_deleted": "已删除 {count} 项，{failed} 项失败"
+  "media.bulk_partial_deleted": "已删除 {count} 项，{failed} 项失败",
+  "media.subtitle_description": "浏览、搜索并管理您生成的媒体。"
 }

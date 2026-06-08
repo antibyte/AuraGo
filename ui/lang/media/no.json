@@ -25,5 +25,6 @@
   "media.bulk_select_item": "Velg element",
   "media.bulk_confirm_delete": "Slette {count} valgte elementer?",
   "media.bulk_deleted": "Slettet {count} elementer",
-  "media.bulk_partial_deleted": "Slettet {count}, {failed} feilet"
+  "media.bulk_partial_deleted": "Slettet {count}, {failed} feilet",
+  "media.subtitle_description": "Bla gjennom, søk i og administrer genererte medier."
 }

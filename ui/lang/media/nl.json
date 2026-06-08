@@ -25,5 +25,6 @@
   "media.bulk_select_item": "Item selecteren",
   "media.bulk_confirm_delete": "{count} geselecteerde items verwijderen?",
   "media.bulk_deleted": "{count} items verwijderd",
-  "media.bulk_partial_deleted": "{count} verwijderd, {failed} mislukt"
+  "media.bulk_partial_deleted": "{count} verwijderd, {failed} mislukt",
+  "media.subtitle_description": "Blader door, zoek in en beheer je gegenereerde media."
 }

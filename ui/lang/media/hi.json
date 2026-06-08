@@ -25,5 +25,6 @@
   "media.bulk_select_item": "आइटम चुनें",
   "media.bulk_confirm_delete": "{count} चुने हुए आइटम हटाएं?",
   "media.bulk_deleted": "{count} आइटम हटाए गए",
-  "media.bulk_partial_deleted": "{count} हटाए गए, {failed} विफल"
+  "media.bulk_partial_deleted": "{count} हटाए गए, {failed} विफल",
+  "media.subtitle_description": "अपने जेनरेट किए गए मीडिया को ब्राउज़ करें, खोजें और प्रबंधित करें।"
 }

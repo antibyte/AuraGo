@@ -25,5 +25,6 @@
   "media.bulk_select_item": "Välj objekt",
   "media.bulk_confirm_delete": "Ta bort {count} valda objekt?",
   "media.bulk_deleted": "Tog bort {count} objekt",
-  "media.bulk_partial_deleted": "Tog bort {count}, {failed} misslyckades"
+  "media.bulk_partial_deleted": "Tog bort {count}, {failed} misslyckades",
+  "media.subtitle_description": "Bläddra, sök och hantera dina genererade medier."
 }

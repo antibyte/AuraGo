@@ -25,5 +25,6 @@
   "media.bulk_select_item": "項目を選択",
   "media.bulk_confirm_delete": "選択した {count} 件を削除しますか？",
   "media.bulk_deleted": "{count} 件を削除しました",
-  "media.bulk_partial_deleted": "{count} 件削除、{failed} 件失敗"
+  "media.bulk_partial_deleted": "{count} 件削除、{failed} 件失敗",
+  "media.subtitle_description": "生成されたメディアを閲覧、検索、管理します。"
 }
