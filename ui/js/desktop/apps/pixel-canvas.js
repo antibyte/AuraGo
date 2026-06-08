@@ -455,7 +455,7 @@
                                 if (!this.canvas.width) return;
                                 this.cropState = { active: true, startX: 0, startY: 0, endX: 0, endY: 0 };
                                 this.cropOverlay.hidden = false;
-                                this.cropOverlay.innerHTML = '<div class="pixel-crop-this.selection" data-crop-sel></div>';
+                                this.cropOverlay.innerHTML = '<div class="pixel-crop-selection" data-crop-sel></div>';
                                 this.host.querySelector('[data-crop-actions]').hidden = false;
                                 this.setStatus(this.t('pixel.crop_hint', 'Drag to select crop area'));
             }),

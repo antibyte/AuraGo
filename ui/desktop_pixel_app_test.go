@@ -283,6 +283,8 @@ func TestPixelModulesHaveValidTransformedSyntaxMarkers(t *testing.T) {
 		"this.canvas:",
 		"createElement('this.canvas')",
 		"data-section=\"this.layers\"",
+		"data-action=\"clear-this.selection\"",
+		"pixel-crop-this.selection",
 		"merge-this.layers",
 		"flatten-this.layers",
 		"iconMarkup('this.redo'",
@@ -290,6 +292,24 @@ func TestPixelModulesHaveValidTransformedSyntaxMarkers(t *testing.T) {
 	} {
 		if strings.Contains(js, forbidden) {
 			t.Fatalf("pixel scripts contain invalid bindRuntime transform artifact %q", forbidden)
+		}
+	}
+}
+
+func TestPixelWiredActionsExistInMarkup(t *testing.T) {
+	shell := readDesktopAssetText(t, "js/desktop/apps/pixel.js")
+	markup := readPixelAppScripts(t)
+	actionRe := regexp.MustCompile(`\[data-action="([^"]+)"\]`)
+	seen := make(map[string]bool)
+	for _, match := range actionRe.FindAllStringSubmatch(shell, -1) {
+		action := match[1]
+		if seen[action] {
+			continue
+		}
+		seen[action] = true
+		needle := `data-action="` + action + `"`
+		if !strings.Contains(markup, needle) {
+			t.Fatalf("pixel markup is missing wired action %q", action)
 		}
 	}
 }

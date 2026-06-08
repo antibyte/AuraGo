@@ -350,38 +350,42 @@
         layers = [{ canvas: null, name: t('pixel.layer_background', 'Background'), visible: true, opacity: 1 }];
         activeLayerIdx = 0;
 
+        function wireClick(selector, handler) {
+            host.querySelectorAll(selector).forEach(el => el.addEventListener('click', handler));
+        }
+
         // Event wiring
-        host.querySelector('[data-action="open"]').addEventListener('click', openFile);
-        host.querySelector('[data-action="save"]').addEventListener('click', saveFile);
-        host.querySelector('[data-action="export"]').addEventListener('click', exportFile);
-        host.querySelector('[data-action="undo"]').addEventListener('click', undo);
-        host.querySelector('[data-action="redo"]').addEventListener('click', redo);
-        host.querySelector('[data-action="zoom-in"]').addEventListener('click', () => zoomTo(zoom * 1.25));
-        host.querySelector('[data-action="zoom-out"]').addEventListener('click', () => zoomTo(zoom / 1.25));
-        host.querySelector('[data-action="zoom-fit"]').addEventListener('click', zoomFit);
+        wireClick('[data-action="open"]', openFile);
+        wireClick('[data-action="save"]', saveFile);
+        wireClick('[data-action="export"]', exportFile);
+        wireClick('[data-action="undo"]', undo);
+        wireClick('[data-action="redo"]', redo);
+        wireClick('[data-action="zoom-in"]', () => zoomTo(zoom * 1.25));
+        wireClick('[data-action="zoom-out"]', () => zoomTo(zoom / 1.25));
+        wireClick('[data-action="zoom-fit"]', zoomFit);
         host.querySelectorAll('.pixel-tab').forEach(b => b.addEventListener('click', () => showPanel(b.dataset.panel)));
-        host.querySelector('[data-action="apply-adjust"]').addEventListener('click', applyAdjustments);
-        host.querySelector('[data-action="reset-adjust"]').addEventListener('click', resetAdjustments);
-        host.querySelector('[data-action="compare-toggle"]').addEventListener('click', toggleCompare);
+        wireClick('[data-action="apply-adjust"]', applyAdjustments);
+        wireClick('[data-action="reset-adjust"]', resetAdjustments);
+        wireClick('[data-action="compare-toggle"]', toggleCompare);
         host.querySelectorAll('[data-filter]').forEach(b => b.addEventListener('click', () => applyFilterPreview(b.dataset.filter)));
-        host.querySelector('[data-action="rotate-cw"]').addEventListener('click', () => rotateCanvas(90));
-        host.querySelector('[data-action="rotate-ccw"]').addEventListener('click', () => rotateCanvas(-90));
-        host.querySelector('[data-action="flip-h"]').addEventListener('click', () => flipCanvas(true));
-        host.querySelector('[data-action="flip-v"]').addEventListener('click', () => flipCanvas(false));
-        host.querySelector('[data-action="crop"]').addEventListener('click', startCrop);
-        host.querySelector('[data-action="apply-crop"]').addEventListener('click', applyCrop);
-        host.querySelector('[data-action="cancel-crop"]').addEventListener('click', cancelCrop);
-        host.querySelector('[data-action="resize"]').addEventListener('click', resizeImage);
-        host.querySelector('[data-action="ai-generate"]').addEventListener('click', aiGenerate);
-        host.querySelector('[data-action="ai-enhance"]').addEventListener('click', aiEnhance);
-        host.querySelector('[data-action="new-image"]').addEventListener('click', showNewImageDialog);
-        host.querySelector('[data-action="swap-colors"]').addEventListener('click', swapColors);
-        host.querySelector('[data-action="clear-selection"]').addEventListener('click', deselect);
-        host.querySelector('[data-action="add-layer"]').addEventListener('click', addLayer);
-        host.querySelector('[data-action="delete-layer"]').addEventListener('click', deleteLayer);
-        host.querySelector('[data-action="duplicate-layer"]').addEventListener('click', duplicateLayer);
-        host.querySelector('[data-action="merge-layers"]').addEventListener('click', mergeDown);
-        host.querySelector('[data-action="flatten-layers"]').addEventListener('click', flattenLayers);
+        wireClick('[data-action="rotate-cw"]', () => rotateCanvas(90));
+        wireClick('[data-action="rotate-ccw"]', () => rotateCanvas(-90));
+        wireClick('[data-action="flip-h"]', () => flipCanvas(true));
+        wireClick('[data-action="flip-v"]', () => flipCanvas(false));
+        wireClick('[data-action="crop"]', startCrop);
+        wireClick('[data-action="apply-crop"]', applyCrop);
+        wireClick('[data-action="cancel-crop"]', cancelCrop);
+        wireClick('[data-action="resize"]', resizeImage);
+        wireClick('[data-action="ai-generate"]', aiGenerate);
+        wireClick('[data-action="ai-enhance"]', aiEnhance);
+        wireClick('[data-action="new-image"]', showNewImageDialog);
+        wireClick('[data-action="swap-colors"]', swapColors);
+        wireClick('[data-action="clear-selection"]', deselect);
+        wireClick('[data-action="add-layer"]', addLayer);
+        wireClick('[data-action="delete-layer"]', deleteLayer);
+        wireClick('[data-action="duplicate-layer"]', duplicateLayer);
+        wireClick('[data-action="merge-layers"]', mergeDown);
+        wireClick('[data-action="flatten-layers"]', flattenLayers);
 
         host.querySelectorAll('[data-template]').forEach(btn => {
             btn.addEventListener('click', () => {

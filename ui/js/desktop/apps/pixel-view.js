@@ -57,7 +57,7 @@
                                     </div>
                                     <hr class="pixel-divider">
                                     <div class="pixel-panel-actions">
-                                        <button class="pixel-btn" type="button" data-action="clear-this.selection">${this.esc(this.t('pixel.clear_selection', 'Clear Selection'))}</button>
+                                        <button class="pixel-btn" type="button" data-action="clear-selection">${this.esc(this.t('pixel.clear_selection', 'Clear Selection'))}</button>
                                     </div>
                                 </div>`;
             }),
