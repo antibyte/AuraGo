@@ -138,6 +138,7 @@
         zipper: 'zipper',
         pixel: 'pixel',
         'galaxa-deluxe': 'galaxa-deluxe',
+        nasscad: 'nasscad',
         'store-quakejs-rootless': 'quakejs',
         people: 'users',
         'mission-control': 'workflow'
@@ -302,6 +303,7 @@
             cheater: 'Ch',
             pixel: 'Px',
             'galaxa-deluxe': 'Gx',
+            nasscad: 'NC',
             people: 'Pp',
             'mission-control': 'MC'
         };
@@ -493,6 +495,7 @@
             zipper: 'ZipperApp',
             pixel: 'PixelApp',
             'galaxa-deluxe': 'GalaxaDeluxe',
+            nasscad: 'NasscadApp',
             people: 'PeopleApp',
             cheater: 'CheaterApp',
             'mission-control': 'MissionControlApp'
@@ -606,7 +609,7 @@
         // These apps are intentionally wide and should keep horizontal scrolling
         const wideAppsOnMobile = [
             'files', 'writer', 'sheets', 'code-studio',
-            'viewer', 'viewer-3d', 'mission-control', 'launchpad'
+            'viewer', 'viewer-3d', 'nasscad', 'mission-control', 'launchpad'
         ];
 
         return !wideAppsOnMobile.includes(appId);

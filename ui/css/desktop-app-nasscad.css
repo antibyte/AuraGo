@@ -1,0 +1,32 @@
+.vd-nasscad {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    background: var(--vd-window-bg, #1a1d24);
+}
+
+.vd-nasscad-frame {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    border: 0;
+    background: #111318;
+}
+
+.vd-nasscad-loading,
+.vd-nasscad-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 auto;
+    padding: 24px;
+    color: var(--vd-text-muted, #9aa3b2);
+    text-align: center;
+}
+
+.vd-nasscad-error {
+    color: var(--vd-danger, #f87171);
+}

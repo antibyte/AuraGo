@@ -1222,6 +1222,8 @@
   "desktop.mc_view_grid": "ग्रिड दृश्य",
   "desktop.mc_view_list": "सूची दृश्य",
   "desktop.app_homepage_studio": "होमपेज स्टूडियो",
+  "desktop.app_nasscad": "NASSCAD",
+  "desktop.nasscad_load_failed": "NASSCAD लोड नहीं हो सका।",
   "homepage_studio.target_label": "लक्ष्य",
   "homepage_studio.target_local": "स्थानीय सर्वर",
   "homepage_studio.target_vercel": "Vercel",

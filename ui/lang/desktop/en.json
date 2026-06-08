@@ -1222,6 +1222,8 @@
   "desktop.mc_view_grid": "Grid view",
   "desktop.mc_view_list": "List view",
   "desktop.app_homepage_studio": "Homepage Studio",
+  "desktop.app_nasscad": "NASSCAD",
+  "desktop.nasscad_load_failed": "Could not load NASSCAD.",
   "homepage_studio.target_label": "Target",
   "homepage_studio.target_local": "Local Server",
   "homepage_studio.target_vercel": "Vercel",

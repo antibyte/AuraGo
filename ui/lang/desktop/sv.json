@@ -1222,6 +1222,8 @@
   "desktop.mc_view_grid": "Rutnätsvy",
   "desktop.mc_view_list": "Listvy",
   "desktop.app_homepage_studio": "Homepage Studio",
+  "desktop.app_nasscad": "NASSCAD",
+  "desktop.nasscad_load_failed": "NASSCAD kunde inte laddas.",
   "homepage_studio.target_label": "Mål",
   "homepage_studio.target_local": "Lokal server",
   "homepage_studio.target_vercel": "Vercel",

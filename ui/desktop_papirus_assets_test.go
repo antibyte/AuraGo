@@ -56,7 +56,7 @@ func TestDesktopPapirusAssetsAreEmbedded(t *testing.T) {
 
 	for _, key := range []string{
 		"analytics", "apps", "archive", "audio", "audio-player", "backup", "book", "browser", "calendar",
-		"agent-chat", "calculator", "camera", "chat", "cloud", "code", "code-studio", "commandcode", "css", "database", "desktop", "galaxa-deluxe", "quakejs",
+		"agent-chat", "calculator", "camera", "chat", "cloud", "code", "code-studio", "commandcode", "css", "database", "desktop", "galaxa-deluxe", "nasscad", "quakejs",
 		"documents", "downloads", "editor", "eye", "folder", "forms", "globe", "go", "heart", "help",
 		"gallery", "home", "html", "image", "javascript", "json", "key", "mail", "markdown",
 		"map", "maximize", "minus", "monitor", "network", "notes", "package", "pdf", "phone", "printer",

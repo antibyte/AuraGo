@@ -665,6 +665,7 @@ func TestDesktopAppAssetsRegistryCoversHeavyApps(t *testing.T) {
 		"'zipper'",
 		"'pixel'",
 		"'galaxa-deluxe'",
+		"'nasscad'",
 		"'viewer-3d'",
 		"'system-info'",
 		"/js/vendor/xterm.min.js",

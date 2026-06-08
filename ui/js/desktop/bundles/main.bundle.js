@@ -143,6 +143,7 @@
         zipper: 'zipper',
         pixel: 'pixel',
         'galaxa-deluxe': 'galaxa-deluxe',
+        nasscad: 'nasscad',
         'store-quakejs-rootless': 'quakejs',
         people: 'users',
         'mission-control': 'workflow'
@@ -307,6 +308,7 @@
             cheater: 'Ch',
             pixel: 'Px',
             'galaxa-deluxe': 'Gx',
+            nasscad: 'NC',
             people: 'Pp',
             'mission-control': 'MC'
         };
@@ -498,6 +500,7 @@
             zipper: 'ZipperApp',
             pixel: 'PixelApp',
             'galaxa-deluxe': 'GalaxaDeluxe',
+            nasscad: 'NasscadApp',
             people: 'PeopleApp',
             cheater: 'CheaterApp',
             'mission-control': 'MissionControlApp'
@@ -611,7 +614,7 @@
         // These apps are intentionally wide and should keep horizontal scrolling
         const wideAppsOnMobile = [
             'files', 'writer', 'sheets', 'code-studio',
-            'viewer', 'viewer-3d', 'mission-control', 'launchpad'
+            'viewer', 'viewer-3d', 'nasscad', 'mission-control', 'launchpad'
         ];
 
         return !wideAppsOnMobile.includes(appId);
@@ -2615,6 +2618,7 @@
             'viewer-3d': { width: 900, height: 700 },
             pixel: { width: 1100, height: 750 },
             'galaxa-deluxe': { width: 600, height: 800 },
+            nasscad: { width: 1280, height: 850 },
             people: { width: 1020, height: 700 },
             'mission-control': { width: 1100, height: 750 }
         };
@@ -2622,7 +2626,7 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, gallery: true, calendar: true, 'quick-connect': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, 'mission-control': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, gallery: true, calendar: true, 'quick-connect': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, nasscad: true, 'mission-control': true }[appId]; }
 
     function appWindowMinSize(appId) {
         const mins = { 'system-info': { width: 560, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 } };
@@ -6051,6 +6055,13 @@ if (appId === 'pixel') {
                 return;
             }
             if (typeof window.GalaxaDeluxe.render === 'function') return window.GalaxaDeluxe.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
+        }
+        if (appId === 'nasscad') {
+            if (!window.NasscadApp) {
+                window.AuraDesktopModules.loadAppScript('nasscad').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.NasscadApp.render === 'function') return window.NasscadApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t }));
         }
         if (appId === 'people') {
             if (!window.PeopleApp) {

@@ -1222,6 +1222,8 @@
   "desktop.mc_view_grid": "Widok siatki",
   "desktop.mc_view_list": "Widok listy",
   "desktop.app_homepage_studio": "Studio Homepage",
+  "desktop.app_nasscad": "NASSCAD",
+  "desktop.nasscad_load_failed": "Nie udalo sie zaladowac NASSCAD.",
   "homepage_studio.target_label": "Cel",
   "homepage_studio.target_local": "Serwer lokalny",
   "homepage_studio.target_vercel": "Vercel",

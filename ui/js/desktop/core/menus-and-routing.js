@@ -1089,6 +1089,13 @@ if (appId === 'pixel') {
             }
             if (typeof window.GalaxaDeluxe.render === 'function') return window.GalaxaDeluxe.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
         }
+        if (appId === 'nasscad') {
+            if (!window.NasscadApp) {
+                window.AuraDesktopModules.loadAppScript('nasscad').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.NasscadApp.render === 'function') return window.NasscadApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t }));
+        }
         if (appId === 'people') {
             if (!window.PeopleApp) {
                 window.AuraDesktopModules.loadAppScript('people').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

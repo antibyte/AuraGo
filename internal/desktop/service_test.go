@@ -137,6 +137,14 @@ func TestBuiltinAppsExposeCheaterAndMissionControlMetadata(t *testing.T) {
 	if missionControl.Icon != "workflow" {
 		t.Fatalf("mission-control icon = %q, want workflow", missionControl.Icon)
 	}
+
+	nasscad := testFindApp(t, apps, "nasscad")
+	if nasscad.Entry != "builtin://nasscad" || nasscad.Icon != "nasscad" {
+		t.Fatalf("nasscad manifest entry/icon = %q/%q, want builtin://nasscad/nasscad", nasscad.Entry, nasscad.Icon)
+	}
+	if nasscad.Metadata["open_maximized"] != "true" {
+		t.Fatalf("nasscad must open maximized for CAD workspace: %#v", nasscad.Metadata)
+	}
 }
 
 func TestServiceMutationLockIsSharedAcrossServices(t *testing.T) {

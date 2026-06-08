@@ -1222,6 +1222,8 @@
   "desktop.mc_view_grid": "Mřížka",
   "desktop.mc_view_list": "Seznam",
   "desktop.app_homepage_studio": "Homepage Studio",
+  "desktop.app_nasscad": "NASSCAD",
+  "desktop.nasscad_load_failed": "NASSCAD se nepodarilo nacist.",
   "homepage_studio.target_label": "Cíl",
   "homepage_studio.target_local": "Lokální server",
   "homepage_studio.target_vercel": "Vercel",

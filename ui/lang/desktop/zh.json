@@ -1222,6 +1222,8 @@
   "desktop.mc_view_grid": "网格视图",
   "desktop.mc_view_list": "列表视图",
   "desktop.app_homepage_studio": "主页工作室",
+  "desktop.app_nasscad": "NASSCAD",
+  "desktop.nasscad_load_failed": "无法加载 NASSCAD。",
   "homepage_studio.target_label": "目标",
   "homepage_studio.target_local": "本地服务器",
   "homepage_studio.target_vercel": "Vercel",

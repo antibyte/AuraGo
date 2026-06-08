@@ -1222,6 +1222,8 @@
   "desktop.mc_view_grid": "Vista cuadrícula",
   "desktop.mc_view_list": "Vista lista",
   "desktop.app_homepage_studio": "Estudio de Homepage",
+  "desktop.app_nasscad": "NASSCAD",
+  "desktop.nasscad_load_failed": "No se pudo cargar NASSCAD.",
   "homepage_studio.target_label": "Objetivo",
   "homepage_studio.target_local": "Servidor local",
   "homepage_studio.target_vercel": "Vercel",

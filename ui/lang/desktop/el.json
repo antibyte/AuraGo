@@ -1222,6 +1222,8 @@
   "desktop.mc_view_grid": "Πλέγμα",
   "desktop.mc_view_list": "Λίστα",
   "desktop.app_homepage_studio": "Studio Homepage",
+  "desktop.app_nasscad": "NASSCAD",
+  "desktop.nasscad_load_failed": "Δεν ήταν δυνατή η φόρτωση του NASSCAD.",
   "homepage_studio.target_label": "Στόχος",
   "homepage_studio.target_local": "Τοπικός διακομιστής",
   "homepage_studio.target_vercel": "Vercel",

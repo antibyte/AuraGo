@@ -112,6 +112,10 @@
             styles: appStyles('/css/galaxa-deluxe.css'),
             scripts: ['/js/desktop/apps/galaxa-deluxe.js']
         },
+        'nasscad': {
+            styles: appStyles('/css/desktop-app-nasscad.css'),
+            scripts: ['/js/desktop/apps/nasscad.js']
+        },
         'viewer-3d': {
             styles: appStyles('/css/stl-viewer.css'),
             scripts: [

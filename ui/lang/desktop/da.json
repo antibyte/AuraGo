@@ -1222,6 +1222,8 @@
   "desktop.mc_view_grid": "Gittervisning",
   "desktop.mc_view_list": "Listevisning",
   "desktop.app_homepage_studio": "Homepage Studio",
+  "desktop.app_nasscad": "NASSCAD",
+  "desktop.nasscad_load_failed": "NASSCAD kunne ikke indlaeses.",
   "homepage_studio.target_label": "Mål",
   "homepage_studio.target_local": "Lokal server",
   "homepage_studio.target_vercel": "Vercel",
