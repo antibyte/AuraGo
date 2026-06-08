@@ -497,6 +497,7 @@
             'galaxa-deluxe': 'GalaxaDeluxe',
             nasscad: 'NasscadApp',
             people: 'PeopleApp',
+            'homepage-studio': 'HomepageStudioApp',
             cheater: 'CheaterApp',
             'mission-control': 'MissionControlApp'
         }[appId] || '';

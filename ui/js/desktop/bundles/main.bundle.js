@@ -502,6 +502,7 @@
             'galaxa-deluxe': 'GalaxaDeluxe',
             nasscad: 'NasscadApp',
             people: 'PeopleApp',
+            'homepage-studio': 'HomepageStudioApp',
             cheater: 'CheaterApp',
             'mission-control': 'MissionControlApp'
         }[appId] || '';
@@ -6077,6 +6078,13 @@ if (appId === 'pixel') {
                 return;
             }
             if (typeof window.PeopleApp.render === 'function') return window.PeopleApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
+        }
+        if (appId === 'homepage-studio') {
+            if (!window.HomepageStudioApp) {
+                window.AuraDesktopModules.loadAppScript('homepage-studio').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.HomepageStudioApp.render === 'function') return window.HomepageStudioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
         }
         if (appId === 'mission-control' && window.MissionControlApp && typeof window.MissionControlApp.render === 'function') {
             return window.MissionControlApp.render(contentEl(id), id, Object.assign({}, context || {}, {

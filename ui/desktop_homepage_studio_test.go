@@ -6,6 +6,26 @@ import (
 	"testing"
 )
 
+func TestDesktopHomepageStudioRouting(t *testing.T) {
+	t.Parallel()
+
+	routing := readDesktopAssetText(t, "js/desktop/core/menus-and-routing.js")
+	for _, want := range []string{
+		"appId === 'homepage-studio'",
+		"loadAppScript('homepage-studio')",
+		"window.HomepageStudioApp.render",
+	} {
+		if !strings.Contains(routing, want) {
+			t.Fatalf("menus-and-routing missing homepage studio marker %q", want)
+		}
+	}
+
+	foundation := readDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
+	if !strings.Contains(foundation, "'homepage-studio': 'HomepageStudioApp'") {
+		t.Fatalf("desktop-foundation missing homepage-studio dispose mapping")
+	}
+}
+
 func TestHomepageStudioUsesStatusPreviewURL(t *testing.T) {
 	t.Parallel()
 
