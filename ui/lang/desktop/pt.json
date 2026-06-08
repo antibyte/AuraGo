@@ -2,7 +2,7 @@
   "cheater.app_name": "Cheater",
   "cheater.empty_subtitle": "Your cheat sheet collection",
   "cheater.empty_cta": "Create first sheet",
-  "cheater.empty_hint": "Press Cmd/Ctrl + K anywhere to search or create",
+  "cheater.empty_hint": "Cria a tua primeira folha com o botão acima.",
   "cheater.back": "Back to search",
   "cheater.attachments": "Attachments",
   "cheater.chars": "characters",
@@ -22,7 +22,7 @@
   "cheater.spotlight_title": "Browse cheat sheets",
   "cheater.spotlight_placeholder": "Search or create...",
   "cheater.spotlight_input_label": "Search",
-  "cheater.spotlight_hint": "↑↓ navigate · ↵ open · ⌘N new · Esc close",
+  "cheater.spotlight_hint": "↑↓ navegar · ↵ abrir · Ctrl+N nova · Ctrl+Shift+K paleta · Esc fechar",
   "cheater.spotlight_empty": "No matches — Enter creates a new sheet",
   "cheater.create_title": "New cheat sheet",
   "cheater.field_title": "Title",
@@ -1267,5 +1267,11 @@
   "desktop.store.open_commandcode": "Abrir CommandCode",
   "desktop.store.badge_terminal_preview": "Consola + pré-visualização",
   "desktop.store_terminal_module_unavailable": "O módulo de pré-visualização do terminal não está disponível.",
-  "desktop.store_terminal_bootstrap_session": "CommandCode"
+  "desktop.store_terminal_bootstrap_session": "CommandCode",
+  "cheater.library_loading": "A carregar folhas...",
+  "cheater.library_search_placeholder": "Filtrar folhas de referência...",
+  "cheater.library_count": "{{count}} folhas",
+  "cheater.library_no_results": "Nenhuma folha corresponde a este filtro",
+  "cheater.library_open_spotlight": "Paleta de comandos",
+  "cheater.untitled_sheet": "Folha sem título"
 }

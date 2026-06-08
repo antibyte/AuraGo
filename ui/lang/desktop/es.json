@@ -2,7 +2,7 @@
   "cheater.app_name": "Cheater",
   "cheater.empty_subtitle": "Your cheat sheet collection",
   "cheater.empty_cta": "Create first sheet",
-  "cheater.empty_hint": "Press Cmd/Ctrl + K anywhere to search or create",
+  "cheater.empty_hint": "Crea tu primera hoja de referencia con el botón de arriba.",
   "cheater.back": "Back to search",
   "cheater.attachments": "Attachments",
   "cheater.chars": "characters",
@@ -22,7 +22,7 @@
   "cheater.spotlight_title": "Browse cheat sheets",
   "cheater.spotlight_placeholder": "Search or create...",
   "cheater.spotlight_input_label": "Search",
-  "cheater.spotlight_hint": "↑↓ navigate · ↵ open · ⌘N new · Esc close",
+  "cheater.spotlight_hint": "↑↓ navegar · ↵ abrir · Ctrl+N nueva · Ctrl+Shift+K paleta · Esc cerrar",
   "cheater.spotlight_empty": "No matches — Enter creates a new sheet",
   "cheater.create_title": "New cheat sheet",
   "cheater.field_title": "Title",
@@ -1267,5 +1267,11 @@
   "desktop.store.open_commandcode": "Abrir CommandCode",
   "desktop.store.badge_terminal_preview": "Consola + vista previa",
   "desktop.store_terminal_module_unavailable": "El módulo de vista previa del terminal no está disponible.",
-  "desktop.store_terminal_bootstrap_session": "CommandCode"
+  "desktop.store_terminal_bootstrap_session": "CommandCode",
+  "cheater.library_loading": "Cargando hojas...",
+  "cheater.library_search_placeholder": "Filtrar hojas de referencia...",
+  "cheater.library_count": "{{count}} hojas",
+  "cheater.library_no_results": "Ninguna hoja coincide con este filtro",
+  "cheater.library_open_spotlight": "Paleta de comandos",
+  "cheater.untitled_sheet": "Hoja sin título"
 }

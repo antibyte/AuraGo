@@ -4,7 +4,7 @@ The Cheater app is the virtual desktop window for managing cheat sheets. The age
 
 ## What the user can do
 
-- Browse all cheat sheets via `Cmd/Ctrl + K` (Spotlight overlay)
+- Browse all cheat sheets in the library view or via `Ctrl+Shift+K` (Spotlight overlay, only while Cheater is focused)
 - Edit any sheet inline (Markdown is rendered on hover or click)
 - Create new sheets via `Cmd/Ctrl + N` or the empty-state CTA
 - Attach text files to a sheet, preview them, delete them (with 5s undo)

@@ -5,6 +5,36 @@
     const SAVE_DEBOUNCE_MS = 500;
     const HOVER_DELAY_MS = 300;
     const POLL_INTERVAL_MS = 30000;
+    const SPOTLIGHT_KEY = 'k';
+
+    function normalizeSheetEntries(list) {
+        const items = Array.isArray(list) ? list : (list && (list.items || list.cheatsheets)) || [];
+        return items.map(s => ({
+            id: s.id,
+            name: s.name,
+            abstract: s.abstract || '',
+            tags: s.tags || [],
+            content_excerpt: (s.content || '').slice(0, 200),
+            last_used_at: s.last_used_at || null,
+            updated_at: s.updated_at || null
+        })).sort((a, b) => {
+            const aTime = Date.parse(a.updated_at || a.last_used_at || 0) || 0;
+            const bTime = Date.parse(b.updated_at || b.last_used_at || 0) || 0;
+            return bTime - aTime;
+        });
+    }
+
+    function filterEntries(entries, query) {
+        const q = String(query || '').trim().toLowerCase();
+        if (!q) return entries;
+        return entries.filter(entry => {
+            const name = (entry.name || '').toLowerCase();
+            const abstract = (entry.abstract || '').toLowerCase();
+            const tags = (entry.tags || []).join(' ').toLowerCase();
+            const content = (entry.content_excerpt || '').toLowerCase();
+            return name.includes(q) || abstract.includes(q) || tags.includes(q) || content.includes(q);
+        });
+    }
 
     function render(host, windowId, context) {
         if (!host) return;
@@ -36,63 +66,182 @@
                     return;
                 }
                 openSheet(nextState, entry);
-            }
+            },
+            refreshHome: () => refreshHome(state)
         };
         instances.set(windowId, state);
 
-        host.innerHTML = `<section class="cheater-app" data-cheater="${esc(windowId)}" data-state="empty">
+        if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
+        bindGlobalShortcuts(state);
+        renderLoading(state);
+        loadSearchIndex(state);
+    }
+
+    function renderLoading(state) {
+        const { host, windowId, esc, t } = state;
+        host.innerHTML = `<section class="cheater-app" data-cheater="${esc(windowId)}" data-state="loading" tabindex="-1">
+            <div class="cheater-loading" aria-busy="true">
+                <div class="cheater-loading-grid" aria-hidden="true">
+                    <div class="cheater-loading-card"></div>
+                    <div class="cheater-loading-card"></div>
+                    <div class="cheater-loading-card"></div>
+                </div>
+                <p class="cheater-loading-label">${esc(t('cheater.library_loading', 'Loading sheets...'))}</p>
+            </div>
+        </section>`;
+        focusAppSurface(host);
+    }
+
+    function renderEmpty(state) {
+        const { host, windowId, esc, t, iconMarkup } = state;
+        const icon = iconMarkup ? iconMarkup('cheater', '🗂️') : '🗂️';
+        host.innerHTML = `<section class="cheater-app" data-cheater="${esc(windowId)}" data-state="empty" tabindex="-1">
             <div class="cheater-empty" data-empty>
-                <div class="cheater-empty-icon" aria-hidden="true">${ctx.iconMarkup ? ctx.iconMarkup('cheater', '🗂️') : '🗂️'}</div>
+                <div class="cheater-empty-icon" aria-hidden="true">${icon}</div>
                 <h1 class="cheater-empty-title">${esc(t('cheater.app_name', 'Cheater'))}</h1>
                 <p class="cheater-empty-subtitle">${esc(t('cheater.empty_subtitle', 'Deine Cheat-Sheet-Sammlung'))}</p>
                 <button type="button" class="cheater-primary" data-action="create">${esc(t('cheater.empty_cta', 'Erstes Sheet anlegen'))}</button>
-                <p class="cheater-empty-hint">${esc(t('cheater.empty_hint', "Tippe irgendwo und drücke Cmd/Ctrl + K, um zu suchen oder zu erstellen"))}</p>
+                <p class="cheater-empty-hint">${esc(t('cheater.empty_hint', 'Create your first cheat sheet with the button above.'))}</p>
             </div>
         </section>`;
+        bindCreateButton(state);
+        focusAppSurface(host);
+    }
 
-        const section = host.querySelector('[data-cheater]');
-        const createBtn = host.querySelector('[data-action="create"]');
-        if (createBtn) {
-            createBtn.addEventListener('click', () => {
-                if (typeof window.CheaterApp.openCreateModal === 'function') {
-                    window.CheaterApp.openCreateModal(windowId);
-                }
+    function renderLibrary(state) {
+        const { host, windowId, esc, t } = state;
+        const countLabel = t('cheater.library_count', '{{count}} sheets').replace('{{count}}', String(state.searchIndex.length));
+        host.innerHTML = `<section class="cheater-app" data-cheater="${esc(windowId)}" data-state="library" tabindex="-1">
+            <header class="cheater-library-header">
+                <div class="cheater-library-intro">
+                    <h1 class="cheater-library-title">${esc(t('cheater.app_name', 'Cheater'))}</h1>
+                    <p class="cheater-library-subtitle">${esc(t('cheater.empty_subtitle', 'Deine Cheat-Sheet-Sammlung'))}</p>
+                </div>
+                <div class="cheater-library-actions">
+                    <button type="button" class="cheater-secondary" data-action="spotlight" title="${esc(t('cheater.library_open_spotlight', 'Command palette'))}">
+                        ${esc(t('cheater.library_open_spotlight', 'Command palette'))}
+                        <kbd class="cheater-kbd">Ctrl+Shift+K</kbd>
+                    </button>
+                    <button type="button" class="cheater-primary" data-action="create">${esc(t('cheater.create_title', 'Neues Cheat Sheet'))}</button>
+                </div>
+            </header>
+            <div class="cheater-library-toolbar">
+                <label class="cheater-library-search">
+                    <span class="cheater-library-search-label">${esc(t('cheater.spotlight_input_label', 'Suche'))}</span>
+                    <input type="search" data-library-filter placeholder="${esc(t('cheater.library_search_placeholder', 'Filter cheat sheets...'))}" autocomplete="off" spellcheck="false">
+                </label>
+                <span class="cheater-library-count" data-library-count>${esc(countLabel)}</span>
+            </div>
+            <ul class="cheater-library-list" data-library-list role="list"></ul>
+        </section>`;
+        state.libraryFilter = '';
+        renderLibraryList(state, state.searchIndex);
+        bindLibraryEvents(state);
+        bindCreateButton(state);
+        const filterInput = host.querySelector('[data-library-filter]');
+        if (filterInput) filterInput.focus();
+    }
+
+    function renderLibraryList(state, entries) {
+        const list = state.host.querySelector('[data-library-list]');
+        const countNode = state.host.querySelector('[data-library-count]');
+        if (!list) return;
+        const { esc, t } = state;
+        if (countNode) {
+            countNode.textContent = t('cheater.library_count', '{{count}} sheets').replace('{{count}}', String(entries.length));
+        }
+        if (!entries.length) {
+            list.innerHTML = `<li class="cheater-library-empty">${esc(t('cheater.library_no_results', 'No sheets match this filter'))}</li>`;
+            return;
+        }
+        list.innerHTML = entries.map(entry => {
+            const tags = (entry.tags || []).slice(0, 4).map(tag => `<span class="cheater-pill">${esc(tag)}</span>`).join('');
+            const meta = entry.last_used_at
+                ? `<span class="cheater-library-meta">🤖 ${esc(formatRelative(entry.last_used_at, t))}</span>`
+                : (entry.updated_at ? `<span class="cheater-library-meta">${esc(formatRelative(entry.updated_at, t))}</span>` : '');
+            return `<li class="cheater-library-card" role="listitem">
+                <button type="button" class="cheater-library-card-btn" data-sheet-id="${esc(entry.id)}">
+                    <span class="cheater-library-card-title">${esc(entry.name || t('cheater.untitled_sheet', 'Untitled sheet'))}</span>
+                    ${entry.abstract ? `<span class="cheater-library-card-abstract">${esc(entry.abstract)}</span>` : ''}
+                    <span class="cheater-library-card-footer">${tags}${meta}</span>
+                </button>
+            </li>`;
+        }).join('');
+        list.querySelectorAll('[data-sheet-id]').forEach(btn => {
+            btn.addEventListener('click', () => loadSheet(state, btn.dataset.sheetId));
+        });
+    }
+
+    function bindLibraryEvents(state) {
+        const filterInput = state.host.querySelector('[data-library-filter]');
+        const spotlightBtn = state.host.querySelector('[data-action="spotlight"]');
+        if (filterInput) {
+            filterInput.addEventListener('input', () => {
+                state.libraryFilter = filterInput.value;
+                renderLibraryList(state, filterEntries(state.searchIndex, state.libraryFilter));
             });
         }
+        if (spotlightBtn) {
+            spotlightBtn.addEventListener('click', () => openSpotlight(state));
+        }
+    }
 
-        if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
+    function bindCreateButton(state) {
+        const createBtn = state.host.querySelector('[data-action="create"]');
+        if (!createBtn) return;
+        createBtn.addEventListener('click', () => {
+            if (typeof window.CheaterApp.openCreateModal === 'function') {
+                window.CheaterApp.openCreateModal(state.windowId);
+            }
+        });
+    }
+
+    function focusAppSurface(host) {
+        const surface = host.querySelector('[data-cheater]');
+        if (surface && typeof surface.focus === 'function') surface.focus();
+    }
+
+    async function loadSearchIndex(state) {
+        try {
+            const list = await state.api('/api/cheatsheets');
+            state.searchIndex = normalizeSheetEntries(list);
+        } catch (err) {
+            console.warn('cheater search index load failed', err);
+            state.searchIndex = [];
+        }
+        if (!state.sheet) refreshHome(state);
+    }
+
+    function refreshHome(state) {
+        if (state.sheet) return;
+        stopPolling(state);
+        if (!state.searchIndex.length) renderEmpty(state);
+        else renderLibrary(state);
         bindGlobalShortcuts(state);
-        if (state.searchIndex.length === 0) {
-            state.api('/api/cheatsheets')
-                .then(list => {
-                    const items = Array.isArray(list) ? list : (list.items || list.cheatsheets || []);
-                    state.searchIndex = items.map(s => ({
-                        id: s.id,
-                        name: s.name,
-                        abstract: s.abstract || '',
-                        tags: s.tags || [],
-                        content_excerpt: (s.content || '').slice(0, 200),
-                        last_used_at: s.last_used_at || null
-                    }));
-                })
-                .catch(err => console.warn('cheater search index load failed', err));
+    }
+
+    function openSpotlight(state) {
+        if (window.CheaterSpotlight && typeof window.CheaterSpotlight.open === 'function') {
+            window.CheaterSpotlight.open(state);
         }
     }
 
     function bindGlobalShortcuts(state) {
-        state.host.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        if (state._shortcutHandler) {
+            state.host.removeEventListener('keydown', state._shortcutHandler);
+        }
+        state._shortcutHandler = (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === SPOTLIGHT_KEY || e.key === SPOTLIGHT_KEY.toUpperCase())) {
                 e.preventDefault();
-                if (window.CheaterSpotlight && typeof window.CheaterSpotlight.open === 'function') {
-                    window.CheaterSpotlight.open(state);
-                }
-            } else if ((e.ctrlKey || e.metaKey) && (e.key === 'n' || e.key === 'N')) {
+                openSpotlight(state);
+            } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'n' || e.key === 'N')) {
                 e.preventDefault();
                 if (window.CheaterApp && typeof window.CheaterApp.openCreateModal === 'function') {
                     window.CheaterApp.openCreateModal(state.windowId);
                 }
             }
-        });
+        };
+        state.host.addEventListener('keydown', state._shortcutHandler);
     }
 
     function renderEditor(state, sheet) {
@@ -165,6 +314,9 @@
             if (state.saveTimer) clearTimeout(state.saveTimer);
             if (state.pollTimer) clearInterval(state.pollTimer);
             if (state.currentAbort) state.currentAbort.abort();
+            if (state._shortcutHandler && state.host) {
+                state.host.removeEventListener('keydown', state._shortcutHandler);
+            }
         }
         instances.delete(windowId);
     }
@@ -188,8 +340,8 @@
 
     function openSheet(state, sheet) {
         if (!sheet) {
-            state.host.innerHTML = '';
-            render(state.host, state.windowId, state);
+            state.sheet = null;
+            refreshHome(state);
             return;
         }
         renderEditor(state, sheet);
@@ -360,10 +512,8 @@
 
     function goBackToEmpty(state) {
         if (state.saveTimer) clearTimeout(state.saveTimer);
-        if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
         state.sheet = null;
-        state.host.innerHTML = '';
-        render(state.host, state.windowId, state);
+        refreshHome(state);
     }
 
     function bindInlineRender(state) {

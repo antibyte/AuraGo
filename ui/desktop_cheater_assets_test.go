@@ -21,7 +21,10 @@ func TestDesktopCheaterAppRegistration(t *testing.T) {
 		"data-empty",
 		"cheater-empty-title",
 		"data-action=\"create\"",
-		"Cmd/Ctrl + K",
+		"Ctrl+Shift+K",
+		"data-state=\"library\"",
+		"renderLibrary",
+		"loadSearchIndex",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("cheater app missing JS marker %q", marker)
@@ -71,6 +74,23 @@ func TestDesktopCheaterIconAsset(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "<svg") {
 		t.Fatalf("cheater icon is not a valid svg")
+	}
+}
+
+func TestDesktopCheaterLibraryStyles(t *testing.T) {
+	t.Parallel()
+
+	css := readDesktopAssetText(t, "css/desktop-app-cheater.css")
+	for _, marker := range []string{
+		".cheater-library-list",
+		".cheater-library-card-btn",
+		".cheater-library-search input:focus-visible",
+		".cheater-loading-card",
+		"data-state=\"library\"",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("cheater library CSS missing marker %q", marker)
+		}
 	}
 }
 
@@ -218,7 +238,8 @@ func TestDesktopCheaterSpotlightWiring(t *testing.T) {
 	source := readDesktopAssetText(t, "js/desktop/apps/cheater.js")
 	for _, marker := range []string{
 		"function bindGlobalShortcuts",
-		"e.key === 'k'",
+		"e.shiftKey",
+		"SPOTLIGHT_KEY",
 		"e.key === 'n'",
 		"window.CheaterSpotlight.open",
 		"window.CheaterApp.openCreateModal",
@@ -472,6 +493,12 @@ func TestDesktopCheaterTranslations(t *testing.T) {
 		"cheater.empty_subtitle",
 		"cheater.empty_cta",
 		"cheater.empty_hint",
+		"cheater.library_loading",
+		"cheater.library_search_placeholder",
+		"cheater.library_count",
+		"cheater.library_no_results",
+		"cheater.library_open_spotlight",
+		"cheater.untitled_sheet",
 		"cheater.back",
 		"cheater.attachments",
 		"cheater.chars",

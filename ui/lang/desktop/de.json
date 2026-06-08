@@ -2,7 +2,7 @@
   "cheater.app_name": "Cheater",
   "cheater.empty_subtitle": "Deine Cheat-Sheet-Sammlung",
   "cheater.empty_cta": "Erstes Sheet anlegen",
-  "cheater.empty_hint": "Tippe irgendwo und drücke Cmd/Ctrl + K, um zu suchen oder zu erstellen",
+  "cheater.empty_hint": "Lege dein erstes Cheat Sheet mit dem Button oben an.",
   "cheater.back": "Zurück zur Suche",
   "cheater.attachments": "Anhänge",
   "cheater.chars": "Zeichen",
@@ -22,7 +22,7 @@
   "cheater.spotlight_title": "Cheat Sheets durchsuchen",
   "cheater.spotlight_placeholder": "Suche oder erstelle...",
   "cheater.spotlight_input_label": "Suche",
-  "cheater.spotlight_hint": "↑↓ navigieren · ↵ öffnen · ⌘N neu erstellen · Esc schließen",
+  "cheater.spotlight_hint": "↑↓ navigieren · ↵ öffnen · Strg+N neu · Strg+Umschalt+K Palette · Esc schließen",
   "cheater.spotlight_empty": "Keine Treffer — Enter erstellt ein neues Sheet",
   "cheater.create_title": "Neues Cheat Sheet",
   "cheater.field_title": "Titel",
@@ -1267,5 +1267,11 @@
   "desktop.store.open_commandcode": "CommandCode öffnen",
   "desktop.store.badge_terminal_preview": "Konsole + Vorschau",
   "desktop.store_terminal_module_unavailable": "Terminal-Vorschau-Modul ist nicht verfügbar.",
-  "desktop.store_terminal_bootstrap_session": "CommandCode"
+  "desktop.store_terminal_bootstrap_session": "CommandCode",
+  "cheater.library_loading": "Sheets werden geladen...",
+  "cheater.library_search_placeholder": "Cheat Sheets filtern...",
+  "cheater.library_count": "{{count}} Sheets",
+  "cheater.library_no_results": "Keine Sheets passen zu diesem Filter",
+  "cheater.library_open_spotlight": "Befehlspalette",
+  "cheater.untitled_sheet": "Sheet ohne Titel"
 }

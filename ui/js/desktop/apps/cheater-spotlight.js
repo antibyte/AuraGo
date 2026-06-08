@@ -161,6 +161,7 @@
                 try {
                     await state.api('/api/cheatsheets/' + encodeURIComponent(entry.id), { method: 'DELETE' });
                     state.searchIndex = state.searchIndex.filter(e => e.id !== entry.id);
+                    if (typeof state.refreshHome === 'function') state.refreshHome();
                     runSearch();
                 } catch (err) {
                     state.notify('cheater.error.delete_failed', 'error');

@@ -2,7 +2,7 @@
   "cheater.app_name": "Cheater",
   "cheater.empty_subtitle": "Your cheat sheet collection",
   "cheater.empty_cta": "Create first sheet",
-  "cheater.empty_hint": "Press Cmd/Ctrl + K anywhere to search or create",
+  "cheater.empty_hint": "Opprett ditt første cheat sheet med knappen over.",
   "cheater.back": "Back to search",
   "cheater.attachments": "Attachments",
   "cheater.chars": "characters",
@@ -22,7 +22,7 @@
   "cheater.spotlight_title": "Browse cheat sheets",
   "cheater.spotlight_placeholder": "Search or create...",
   "cheater.spotlight_input_label": "Search",
-  "cheater.spotlight_hint": "↑↓ navigate · ↵ open · ⌘N new · Esc close",
+  "cheater.spotlight_hint": "↑↓ naviger · ↵ åpne · Ctrl+N ny · Ctrl+Shift+K palett · Esc lukk",
   "cheater.spotlight_empty": "No matches — Enter creates a new sheet",
   "cheater.create_title": "New cheat sheet",
   "cheater.field_title": "Title",
@@ -1267,5 +1267,11 @@
   "desktop.store.open_commandcode": "Åpne CommandCode",
   "desktop.store.badge_terminal_preview": "Konsoll + forhåndsvisning",
   "desktop.store_terminal_module_unavailable": "Terminalforhåndsvisningsmodulen er ikke tilgjengelig.",
-  "desktop.store_terminal_bootstrap_session": "CommandCode"
+  "desktop.store_terminal_bootstrap_session": "CommandCode",
+  "cheater.library_loading": "Laster ark...",
+  "cheater.library_search_placeholder": "Filtrer cheat sheets...",
+  "cheater.library_count": "{{count}} ark",
+  "cheater.library_no_results": "Ingen ark matcher dette filteret",
+  "cheater.library_open_spotlight": "Kommandopalett",
+  "cheater.untitled_sheet": "Ark uten tittel"
 }
