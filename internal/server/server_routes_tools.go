@@ -180,6 +180,7 @@ func (s *Server) registerToolAPIRoutes(mux *http.ServeMux) {
 		})
 		mux.HandleFunc("/api/launchpad/categories", handleListLaunchpadCategories(s))
 		mux.HandleFunc("/api/launchpad/icons/search", handleSearchLaunchpadIcons(s))
+		mux.HandleFunc("/api/launchpad/icons/asset", handleServeLaunchpadCatalogIcon(s))
 		mux.HandleFunc("/api/launchpad/icons/download", handleDownloadLaunchpadIcon(s))
 
 		// ── SQL Connections API ──

@@ -1,9 +1,5 @@
 package desktopstore
 
-import "fmt"
-
-const dashboardIconPNGBase = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png"
-
 // DefaultCatalog returns the fixed allowlist of Docker web apps that the store
 // is allowed to install.
 func DefaultCatalog() []CatalogEntry {
@@ -391,5 +387,5 @@ const oliveTinDefaultConfig = `actions:
 `
 
 func logoURL(slug string) string {
-	return fmt.Sprintf("%s/%s.png", dashboardIconPNGBase, slug)
+	return StoreLogoURL(slug)
 }

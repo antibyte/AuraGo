@@ -1243,10 +1243,10 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 		// handlers/styles into bundled JS/CSS.
 		connectSrc := "connect-src 'self' blob: ws: wss: https://api.open-meteo.com https://geocoding-api.open-meteo.com https://de1.api.radio-browser.info" + desktopStoreProxyConnectSources(r) + "; "
 		csp := "default-src 'self'; " +
-			"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; " +
-			"style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; " +
+			"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; " +
+			"style-src 'self' 'unsafe-inline'; " +
 			"img-src 'self' data: blob: https:; " +
-			"font-src 'self' https://fonts.gstatic.com; " +
+			"font-src 'self' data:; " +
 			connectSrc +
 			"media-src 'self' data: blob: http: https:; " +
 			"worker-src 'self' blob:; " +

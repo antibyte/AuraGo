@@ -11,12 +11,9 @@ import (
 )
 
 const (
-	metadataURL     = "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/metadata.json"
-	iconCDNBaseSVG  = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg"
-	iconCDNBasePNG  = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png"
-	iconCDNBaseWEBP = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/webp"
-	cacheMaxAge     = 24 * time.Hour
-	httpTimeout     = 30 * time.Second
+	metadataURL = "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/metadata.json"
+	cacheMaxAge = 24 * time.Hour
+	httpTimeout = 30 * time.Second
 )
 
 // IconSearchResult represents a single icon match from the Homarr database.
@@ -65,13 +62,13 @@ func SearchIcons(db *sql.DB, query string) ([]IconSearchResult, error) {
 		}
 		r := IconSearchResult{Name: name}
 		if hasSVG == 1 {
-			r.URLSVG = fmt.Sprintf("%s/%s.svg", iconCDNBaseSVG, name)
+			r.URLSVG = CatalogIconAssetURL(name, "svg")
 		}
 		if hasPNG == 1 {
-			r.URLPNG = fmt.Sprintf("%s/%s.png", iconCDNBasePNG, name)
+			r.URLPNG = CatalogIconAssetURL(name, "png")
 		}
 		if hasWEBP == 1 {
-			r.URLWEBP = fmt.Sprintf("%s/%s.webp", iconCDNBaseWEBP, name)
+			r.URLWEBP = CatalogIconAssetURL(name, "webp")
 		}
 		results = append(results, r)
 	}

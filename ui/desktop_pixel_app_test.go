@@ -255,7 +255,7 @@ func TestPixelCompareModeClearsWhenLeavingAdjustPanel(t *testing.T) {
 	if !strings.Contains(canvas, "exitCompareMode: Pixel.bindRuntime(runtime, function exitCompareMode(") {
 		t.Fatalf("Pixel needs a shared exitCompareMode helper so panel changes can leave compare mode cleanly")
 	}
-	if !strings.Contains(showPanelBody, "if (name !== 'adjust' && compareMode) exitCompareMode({ preservePreview: true });") {
+	if !strings.Contains(showPanelBody, "if (name !== 'adjust' && this.compareMode) this.exitCompareMode({ preservePreview: true });") {
 		t.Fatalf("Pixel showPanel should disable compare mode when leaving adjustments so drawing is not blocked: %s", showPanelBody)
 	}
 }
@@ -269,11 +269,23 @@ func TestPixelAddLayerPreservesCurrentCanvasAsBackground(t *testing.T) {
 	if strings.Contains(migrateBody, "layers.length <= 1") {
 		t.Fatalf("ensureBackgroundMigrated must also copy the single-layer canvas before a new layer is added: %s", migrateBody)
 	}
-	if !strings.Contains(migrateBody, "bgCanvas.getContext('2d').drawImage(canvas, 0, 0);") {
+	if !strings.Contains(migrateBody, "bgCanvas.getContext('2d').drawImage(this.canvas, 0, 0);") {
 		t.Fatalf("ensureBackgroundMigrated should preserve the current visible canvas as the background layer: %s", migrateBody)
 	}
 	if strings.Index(addLayerBody, "ensureBackgroundMigrated();") < 0 || strings.Index(addLayerBody, "ensureBackgroundMigrated();") > strings.Index(addLayerBody, "layers.push(") {
 		t.Fatalf("addLayer should migrate the background before inserting a blank layer: %s", addLayerBody)
+	}
+}
+
+func TestPixelBindRuntimeDoesNotUseEval(t *testing.T) {
+	state := readDesktopAssetText(t, "js/desktop/apps/pixel-state.js")
+	for _, forbidden := range []string{"eval(", "new Function(", "Function('runtime'"} {
+		if strings.Contains(state, forbidden) {
+			t.Fatalf("pixel-state.js must not use runtime code evaluation (%s)", forbidden)
+		}
+	}
+	if !strings.Contains(state, "fn.apply(runtime, args)") {
+		t.Fatal("pixel bindRuntime should bind methods with fn.apply(runtime, args)")
 	}
 }
 

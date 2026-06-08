@@ -19,7 +19,7 @@ func TestSecurityHeadersAllowEmbedsForYouTubeAndDesktopStoreApps(t *testing.T) {
 	csp := rec.Header().Get("Content-Security-Policy")
 	for _, marker := range []string{
 		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com",
+		"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
 		"connect-src 'self' blob: ws: wss: https://api.open-meteo.com https://geocoding-api.open-meteo.com https://de1.api.radio-browser.info",
 		"img-src 'self' data: blob: https:",
 		"media-src 'self' data: blob: http: https:",
@@ -150,31 +150,36 @@ func TestDesktopWorkspaceCSPKeepsGeneratedAppsOriginIsolated(t *testing.T) {
 	if strings.Contains(desktopAppWorkspaceCSP, "allow-same-origin") {
 		t.Fatalf("generated app CSP must keep an opaque sandbox origin: %s", desktopAppWorkspaceCSP)
 	}
-	if strings.Contains(desktopAppWorkspaceCSP, "connect-src 'self'") {
-		t.Fatalf("generated app CSP must not allow direct fetches to AuraGo APIs: %s", desktopAppWorkspaceCSP)
-	}
+	// connect-src 'self' is allowed for same-sandbox fetches only; without
+	// allow-same-origin the iframe keeps an opaque origin isolated from AuraGo APIs.
 	if strings.Contains(desktopWidgetWorkspaceCSP, "allow-same-origin") {
 		t.Fatalf("widget CSP must keep stronger origin isolation: %s", desktopWidgetWorkspaceCSP)
 	}
 }
 
-func TestDesktopWorkspaceCSPAllowsGeneratedAppCDNs(t *testing.T) {
+func TestDesktopWorkspaceCSPUsesLocalAssetsOnly(t *testing.T) {
 	for _, marker := range []string{
 		"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
-		"https://cdn.jsdelivr.net",
-		"https://cdnjs.cloudflare.com",
-		"https://unpkg.com",
-		"https://esm.sh",
-		"https://cdn.skypack.dev",
-		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-		"font-src 'self' data: https://fonts.gstatic.com",
+		"style-src 'self' 'unsafe-inline'",
+		"font-src 'self' data:",
+		"connect-src 'self'",
 		"img-src 'self' data: blob: https:",
 	} {
 		if !strings.Contains(desktopAppWorkspaceCSP, marker) {
 			t.Fatalf("generated app CSP missing %q: %s", marker, desktopAppWorkspaceCSP)
 		}
 	}
-	for _, forbidden := range []string{"'unsafe-eval'", "new Function"} {
+	for _, forbidden := range []string{
+		"'unsafe-eval'",
+		"new Function",
+		"https://cdn.jsdelivr.net",
+		"https://cdnjs.cloudflare.com",
+		"https://unpkg.com",
+		"https://esm.sh",
+		"https://cdn.skypack.dev",
+		"https://fonts.googleapis.com",
+		"https://fonts.gstatic.com",
+	} {
 		if strings.Contains(desktopAppWorkspaceCSP, forbidden) {
 			t.Fatalf("generated app CSP must not allow %q: %s", forbidden, desktopAppWorkspaceCSP)
 		}
@@ -185,7 +190,7 @@ func TestDesktopWorkspaceCSPAllowsGeneratedAppCDNs(t *testing.T) {
 		}
 	}
 	if strings.Contains(desktopWidgetWorkspaceCSP, "https://cdn.jsdelivr.net") {
-		t.Fatalf("widget CSP should remain narrower than generated app CSP: %s", desktopWidgetWorkspaceCSP)
+		t.Fatalf("widget CSP must not allow external CDNs: %s", desktopWidgetWorkspaceCSP)
 	}
 }
 

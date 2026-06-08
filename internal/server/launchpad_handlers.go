@@ -210,6 +210,36 @@ func handleSearchLaunchpadIcons(s *Server) http.HandlerFunc {
 	}
 }
 
+func handleServeLaunchpadCatalogIcon(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		name := strings.TrimSpace(r.URL.Query().Get("name"))
+		format := strings.TrimSpace(r.URL.Query().Get("format"))
+		if name == "" {
+			http.Error(w, `{"error":"name is required"}`, http.StatusBadRequest)
+			return
+		}
+		cachedPath, err := launchpad.EnsureCatalogIconCached(s.Cfg.Directories.DataDir, name, format)
+		if err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusBadGateway, "failed to load icon", "launchpad catalog icon cache failed", err)
+			return
+		}
+		switch launchpad.NormalizeCatalogIconFormat(format) {
+		case "svg":
+			w.Header().Set("Content-Type", "image/svg+xml")
+		case "webp":
+			w.Header().Set("Content-Type", "image/webp")
+		default:
+			w.Header().Set("Content-Type", "image/png")
+		}
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		http.ServeFile(w, r, cachedPath)
+	}
+}
+
 func handleDownloadLaunchpadIcon(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

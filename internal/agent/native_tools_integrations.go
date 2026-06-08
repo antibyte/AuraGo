@@ -1267,7 +1267,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 			"Control AuraGo's first-party browser virtual desktop. Use this to create or update desktop files, install generated JavaScript apps, pin widgets, open apps, and notify the user inside the desktop. "+
 				"Generated apps should use the Aura Desktop SDK runtime and choose semantic icons from status.icon_catalog.categories, status.icon_catalog.preferred, or status.icon_catalog.aliases; the active desktop theme resolves them through Papirus or WhiteSur assets. If icon is omitted, AuraGo infers one from id/name/title when possible. Emoji icons and unknown custom names are rejected. Use sprite:<name> only for deliberate legacy sprite fallback. "+
 				"To create a simple standalone widget, write non-empty HTML directly to Widgets/<widget_id>.html or Widgets/<widget_id>/index.html; the desktop registers and pins it automatically. "+
-				"Generated apps may use common static library CDNs such as cdn.jsdelivr.net, cdnjs.cloudflare.com, unpkg.com, esm.sh, and cdn.skypack.dev; widgets remain stricter and should not fetch arbitrary third-party APIs directly. "+
+				"Generated apps and widgets must bundle assets locally inside the desktop workspace; do not rely on external CDNs. Widgets remain stricter and should not fetch arbitrary third-party APIs directly. "+
 				"All file paths are constrained to the virtual desktop workspace. Do not include secrets in generated app files.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{

@@ -60,7 +60,9 @@
     };
 
     function bindRuntime(runtime, fn) {
-        return Function('runtime', 'source', 'with (runtime) { return eval("(" + source + ")"); }')(runtime, fn.toString());
+        return function boundRuntimeFunction(...args) {
+            return fn.apply(runtime, args);
+        };
     }
 
     Object.assign(Pixel, {

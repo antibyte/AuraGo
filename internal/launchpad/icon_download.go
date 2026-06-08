@@ -31,6 +31,10 @@ func DownloadIcon(dataDir, imageURL, linkID string) (*DownloadIconResult, error)
 		return nil, fmt.Errorf("image URL is required")
 	}
 
+	if name, format, ok := ParseCatalogIconAssetURL(imageURL); ok {
+		return copyCatalogIconToLink(dataDir, name, format, linkID)
+	}
+
 	parsed, err := url.Parse(imageURL)
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return nil, fmt.Errorf("invalid image URL")
@@ -109,6 +113,38 @@ func DeleteIcon(dataDir, relPath string) error {
 		return fmt.Errorf("invalid icon path")
 	}
 	return os.Remove(fullPath)
+}
+
+func copyCatalogIconToLink(dataDir, name, format, linkID string) (*DownloadIconResult, error) {
+	cachedPath, err := EnsureCatalogIconCached(dataDir, name, format)
+	if err != nil {
+		return nil, err
+	}
+	body, err := os.ReadFile(cachedPath)
+	if err != nil {
+		return nil, fmt.Errorf("read cached catalog icon: %w", err)
+	}
+	ext := "." + normalizeCatalogIconFormat(format)
+	safeLinkID := strings.ReplaceAll(linkID, "..", "")
+	safeLinkID = filepath.Base(safeLinkID)
+	if safeLinkID == "" {
+		safeLinkID = "icon"
+	}
+	destDir := filepath.Join(dataDir, iconDir)
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create icon directory: %w", err)
+	}
+	timestamp := time.Now().UTC().Format("20060102_150405")
+	fileName := fmt.Sprintf("%s_%s%s", safeLinkID, timestamp, ext)
+	destPath := filepath.Join(destDir, fileName)
+	if err := os.WriteFile(destPath, body, 0644); err != nil {
+		return nil, fmt.Errorf("failed to write icon file: %w", err)
+	}
+	relPath := filepath.Join(iconDir, fileName)
+	return &DownloadIconResult{
+		LocalPath: relPath,
+		FileName:  fileName,
+	}, nil
 }
 
 func extFromContentType(ct string) string {

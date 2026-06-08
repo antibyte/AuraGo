@@ -20,10 +20,34 @@ import (
 
 func registerDesktopStoreRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/desktop/store/catalog", handleDesktopStoreCatalog(s))
+	mux.HandleFunc("/api/desktop/store/logos/", handleDesktopStoreLogoAsset(s))
 	mux.HandleFunc("/api/desktop/store/apps", handleDesktopStoreApps(s))
 	mux.HandleFunc("/api/desktop/store/install", handleDesktopStoreInstall(s))
 	mux.HandleFunc("/api/desktop/store/operations/", handleDesktopStoreOperation(s))
 	mux.HandleFunc("/api/desktop/store/apps/", handleDesktopStoreAppRoute(s))
+}
+
+func handleDesktopStoreLogoAsset(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		slug := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api/desktop/store/logos/"), ".png")
+		slug = strings.Trim(slug, "/")
+		if slug == "" {
+			http.Error(w, `{"error":"logo slug is required"}`, http.StatusBadRequest)
+			return
+		}
+		cachedPath, err := desktopstore.EnsureStoreLogoCached(s.Cfg.Directories.DataDir, slug)
+		if err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusBadGateway, "failed to load logo", "desktop store logo cache failed", err)
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		http.ServeFile(w, r, cachedPath)
+	}
 }
 
 func (s *Server) getDesktopStoreService(ctx context.Context) (*desktopstore.Service, error) {
