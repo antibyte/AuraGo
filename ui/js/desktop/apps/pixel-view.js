@@ -101,14 +101,14 @@
                                     </div>`;
                                 }).reverse().join('');
 
-                                return `<div class="pixel-panel-section pixel-panel-this.layers" data-section="this.layers" hidden>
+                                return `<div class="pixel-panel-section pixel-panel-layers" data-section="layers" hidden>
                                     <div class="pixel-layer-list" data-layer-list>${layerItems}</div>
                                     <div class="pixel-layer-actions">
                                         <button class="pixel-btn-icon" type="button" data-action="add-layer" title="${this.esc(this.t('pixel.new_layer', 'Add Layer'))}">+</button>
                                         <button class="pixel-btn-icon" type="button" data-action="delete-layer" title="${this.esc(this.t('pixel.delete_layer', 'Delete Layer'))}">−</button>
                                         <button class="pixel-btn-icon" type="button" data-action="duplicate-layer" title="${this.esc(this.t('pixel.duplicate_layer', 'Duplicate'))}">⧉</button>
-                                        <button class="pixel-btn-icon" type="button" data-action="merge-this.layers" title="${this.esc(this.t('pixel.merge_layers', 'Merge Down'))}">⤓</button>
-                                        <button class="pixel-btn-icon" type="button" data-action="flatten-this.layers" title="${this.esc(this.t('pixel.flatten', 'Flatten'))}">▭</button>
+                                        <button class="pixel-btn-icon" type="button" data-action="merge-layers" title="${this.esc(this.t('pixel.merge_layers', 'Merge Down'))}">⤓</button>
+                                        <button class="pixel-btn-icon" type="button" data-action="flatten-layers" title="${this.esc(this.t('pixel.flatten', 'Flatten'))}">▭</button>
                                     </div>
                                 </div>`;
             }),
@@ -139,7 +139,7 @@
                                     </div>
                                 </div>
                                 <div class="pixel-panel-section pixel-panel-transform" data-section="transform" hidden>
-                                    <div class="pixel-btn-group"><button class="pixel-btn" type="button" data-action="rotate-cw">${this.iconMarkup('this.redo', 'CW')} ${this.esc(this.t('pixel.rotate_cw', 'Rotate CW'))}</button><button class="pixel-btn" type="button" data-action="rotate-ccw">${this.iconMarkup('this.undo', 'CCW')} ${this.esc(this.t('pixel.rotate_ccw', 'Rotate CCW'))}</button></div>
+                                    <div class="pixel-btn-group"><button class="pixel-btn" type="button" data-action="rotate-cw">${this.iconMarkup('redo', 'CW')} ${this.esc(this.t('pixel.rotate_cw', 'Rotate CW'))}</button><button class="pixel-btn" type="button" data-action="rotate-ccw">${this.iconMarkup('undo', 'CCW')} ${this.esc(this.t('pixel.rotate_ccw', 'Rotate CCW'))}</button></div>
                                     <div class="pixel-btn-group"><button class="pixel-btn" type="button" data-action="flip-h">${this.iconMarkup('sort', 'H')} ${this.esc(this.t('pixel.flip_h', 'Flip H'))}</button><button class="pixel-btn" type="button" data-action="flip-v">${this.iconMarkup('sort', 'V')} ${this.esc(this.t('pixel.flip_v', 'Flip V'))}</button></div>
                                     <hr class="pixel-divider">
                                     <button class="pixel-btn" type="button" data-action="crop">${this.iconMarkup('scissors', 'C')} ${this.esc(this.t('pixel.crop', 'Crop'))}</button>

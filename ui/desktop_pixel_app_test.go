@@ -277,6 +277,23 @@ func TestPixelAddLayerPreservesCurrentCanvasAsBackground(t *testing.T) {
 	}
 }
 
+func TestPixelModulesHaveValidTransformedSyntaxMarkers(t *testing.T) {
+	js := readPixelAppScripts(t)
+	for _, forbidden := range []string{
+		"this.canvas:",
+		"createElement('this.canvas')",
+		"data-section=\"this.layers\"",
+		"merge-this.layers",
+		"flatten-this.layers",
+		"iconMarkup('this.redo'",
+		"iconMarkup('this.undo'",
+	} {
+		if strings.Contains(js, forbidden) {
+			t.Fatalf("pixel scripts contain invalid bindRuntime transform artifact %q", forbidden)
+		}
+	}
+}
+
 func TestPixelBindRuntimeDoesNotUseEval(t *testing.T) {
 	state := readDesktopAssetText(t, "js/desktop/apps/pixel-state.js")
 	for _, forbidden := range []string{"eval(", "new Function(", "Function('runtime'"} {

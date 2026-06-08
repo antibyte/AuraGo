@@ -10,10 +10,10 @@
                                 this.host.querySelectorAll('[data-section]').forEach(s => { s.hidden = s.dataset.section !== name; });
                                 if (name !== 'transform' && this.cropState) this.cancelCrop();
                                 if (name === 'draw' && !this.activeTool) this.setActiveTool('brush');
-                                if (name === 'this.layers') this.refreshLayerPanel();
+                                if (name === 'layers') this.refreshLayerPanel();
             }),
             refreshLayerPanel: Pixel.bindRuntime(runtime, function refreshLayerPanel() {
-                                const section = this.host.querySelector('[data-section="this.layers"]');
+                                const section = this.host.querySelector('[data-section="layers"]');
                                 if (!section) return;
                                 const list = section.querySelector('[data-layer-list]');
                                 if (!list) return;
@@ -334,12 +334,12 @@
                                 this.pushHistory('text');
             }),
             addLayer: Pixel.bindRuntime(runtime, function addLayer() {
-                                if (this.layers.length >= 10) { this.notify({ type: 'error', message: this.t('pixel.max_layers', 'Maximum 10 this.layers') }); return; }
+                                if (this.layers.length >= 10) { this.notify({ type: 'error', message: this.t('pixel.max_layers', 'Maximum 10 layers') }); return; }
                                 this.ensureBackgroundMigrated();
-                                const c = document.createElement('this.canvas');
+                                const c = document.createElement('canvas');
                                 c.width = this.imgWidth;
                                 c.height = this.imgHeight;
-                                this.layers.push({ this.canvas: c, name: this.t('pixel.layer', 'Layer') + ' ' + (this.layers.length + 1), visible: true, opacity: 1 });
+                                this.layers.push({ canvas: c, name: this.t('pixel.layer', 'Layer') + ' ' + (this.layers.length + 1), visible: true, opacity: 1 });
                                 this.activeLayerIdx = this.layers.length - 1;
                                 this.compositeLayers();
                                 this.refreshLayerPanel();
@@ -361,12 +361,12 @@
             duplicateLayer: Pixel.bindRuntime(runtime, function duplicateLayer() {
                                 if (this.layers.length >= 10) return;
                                 const src = this.layers[this.activeLayerIdx];
-                                const c = document.createElement('this.canvas');
+                                const c = document.createElement('canvas');
                                 c.width = this.imgWidth;
                                 c.height = this.imgHeight;
                                 if (src.canvas) c.getContext('2d').drawImage(src.canvas, 0, 0);
                                 else c.getContext('2d').drawImage(this.canvas, 0, 0);
-                                this.layers.splice(this.activeLayerIdx + 1, 0, { this.canvas: c, name: src.name + ' copy', visible: true, opacity: src.opacity });
+                                this.layers.splice(this.activeLayerIdx + 1, 0, { canvas: c, name: src.name + ' copy', visible: true, opacity: src.opacity });
                                 this.activeLayerIdx = this.activeLayerIdx + 1;
                                 this.compositeLayers();
                                 this.refreshLayerPanel();
@@ -376,7 +376,7 @@
                                 if (this.activeLayerIdx <= 0 || this.layers.length < 2) return;
                                 const upper = this.layers[this.activeLayerIdx];
                                 const lower = this.layers[this.activeLayerIdx - 1];
-                                const targetCanvas = lower.canvas || (() => { lower.canvas = document.createElement('this.canvas'); lower.canvas.width = this.imgWidth; lower.canvas.height = this.imgHeight; lower.canvas.getContext('2d').drawImage(this.canvas, 0, 0); return lower.canvas; })();
+                                const targetCanvas = lower.canvas || (() => { lower.canvas = document.createElement('canvas'); lower.canvas.width = this.imgWidth; lower.canvas.height = this.imgHeight; lower.canvas.getContext('2d').drawImage(this.canvas, 0, 0); return lower.canvas; })();
                                 const tx = targetCanvas.getContext('2d');
                                 tx.globalAlpha = upper.opacity;
                                 if (upper.canvas) tx.drawImage(upper.canvas, 0, 0);
@@ -390,7 +390,7 @@
             flattenLayers: Pixel.bindRuntime(runtime, function flattenLayers() {
                                 if (this.layers.length <= 1) return;
                                 this.compositeLayers();
-                                this.layers = [{ this.canvas: null, name: this.t('pixel.layer_background', 'Background'), visible: true, opacity: 1 }];
+                                this.layers = [{ canvas: null, name: this.t('pixel.layer_background', 'Background'), visible: true, opacity: 1 }];
                                 this.activeLayerIdx = 0;
                                 this.refreshLayerPanel();
                                 this.pushHistory('flatten');

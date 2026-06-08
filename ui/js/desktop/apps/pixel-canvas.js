@@ -73,7 +73,7 @@
                                 this.overlayCanvas.width = entry.width;
                                 this.overlayCanvas.height = entry.height;
                                 this.layers = entry.layerMeta.map((meta, i) => ({
-                                    this.canvas: entry.layerStates[i] ? (() => { const tc = this.acquireTempCanvas(entry.width, entry.height); tc.getContext('2d').drawImage(entry.layerStates[i], 0, 0); return tc; })() : null,
+                                    canvas: entry.layerStates[i] ? (() => { const tc = this.acquireTempCanvas(entry.width, entry.height); tc.getContext('2d').drawImage(entry.layerStates[i], 0, 0); return tc; })() : null,
                                     name: meta.name,
                                     visible: meta.visible,
                                     opacity: meta.opacity
@@ -136,7 +136,7 @@
                                 this.cctx.drawImage(img, 0, 0);
                                 this.imgWidth = img.naturalWidth;
                                 this.imgHeight = img.naturalHeight;
-                                this.layers = [{ this.canvas: null, name: this.t('pixel.layer_background', 'Background'), visible: true, opacity: 1 }];
+                                this.layers = [{ canvas: null, name: this.t('pixel.layer_background', 'Background'), visible: true, opacity: 1 }];
                                 this.activeLayerIdx = 0;
                                 this.history = [];
                                 this.historyIdx = -1;
@@ -158,7 +158,7 @@
                                 this.cctx.fillRect(0, 0, w, h);
                                 this.imgWidth = w;
                                 this.imgHeight = h;
-                                this.layers = [{ this.canvas: null, name: this.t('pixel.layer_background', 'Background'), visible: true, opacity: 1 }];
+                                this.layers = [{ canvas: null, name: this.t('pixel.layer_background', 'Background'), visible: true, opacity: 1 }];
                                 this.activeLayerIdx = 0;
                                 this.history = [];
                                 this.historyIdx = -1;
@@ -292,7 +292,7 @@
                                 else this.applyAdjustmentsPreview();
                                 const dataURL = this.canvas.toDataURL();
                                 const img = new Image();
-                                img.onload = function () { this.originalImage = img; };
+                                img.onload = () => { this.originalImage = img; };
                                 img.src = dataURL;
                                 this.pushHistory('adjust');
                                 this.resetAdjustmentControls();
