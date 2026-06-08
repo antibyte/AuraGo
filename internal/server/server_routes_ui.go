@@ -265,11 +265,59 @@ func desktopWorkspaceCSPForPath(requestPath string) string {
 	return desktopWidgetWorkspaceCSP
 }
 
-func setDesktopFileResponseHeaders(w http.ResponseWriter, requestPath string) {
+func desktopRequestOrigin(r *http.Request) string {
+	if r == nil || r.URL == nil {
+		return ""
+	}
+	host := strings.TrimSpace(r.Host)
+	if host == "" {
+		return ""
+	}
+	scheme := "https"
+	if r.TLS == nil {
+		if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); forwarded != "" {
+			scheme = strings.ToLower(strings.TrimSpace(strings.Split(forwarded, ",")[0]))
+		} else if strings.EqualFold(r.URL.Scheme, "http") {
+			scheme = "http"
+		}
+	}
+	return scheme + "://" + host
+}
+
+func desktopAppWorkspaceCSPForRequest(r *http.Request) string {
+	origin := desktopRequestOrigin(r)
+	if origin == "" {
+		return desktopAppWorkspaceCSP
+	}
+	csp := desktopAppWorkspaceCSP
+	for _, directive := range []string{"script-src", "style-src", "font-src", "worker-src"} {
+		csp = strings.Replace(csp, directive+" ", directive+" "+origin+" ", 1)
+	}
+	return csp
+}
+
+func desktopWorkspaceCSPForRequest(r *http.Request) string {
+	if r == nil {
+		return desktopWidgetWorkspaceCSP
+	}
+	requestPath := r.URL.Path
+	rel := strings.TrimPrefix(requestPath, "/files/desktop/")
+	rel = strings.TrimPrefix(filepath.ToSlash(rel), "/")
+	if strings.HasPrefix(rel, "Apps/") {
+		return desktopAppWorkspaceCSPForRequest(r)
+	}
+	return desktopWidgetWorkspaceCSP
+}
+
+func setDesktopFileResponseHeaders(w http.ResponseWriter, r *http.Request) {
+	requestPath := ""
+	if r != nil && r.URL != nil {
+		requestPath = r.URL.Path
+	}
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
 	w.Header().Set("Pragma", "no-cache")
-	w.Header().Set("Content-Security-Policy", desktopWorkspaceCSPForPath(requestPath))
+	w.Header().Set("Content-Security-Policy", desktopWorkspaceCSPForRequest(r))
 	if !shouldServeDesktopFileInline(requestPath) {
 		filename := filepath.Base(strings.TrimPrefix(requestPath, "/files/desktop/"))
 		if filename == "." || filename == string(filepath.Separator) || strings.TrimSpace(filename) == "" {
@@ -319,21 +367,23 @@ func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopD
 		http.NotFound(w, r)
 		return true
 	}
-	content = prepareDesktopHTMLContentForEmbed(content, cfg, r.URL.Query().Get(desktopEmbedTokenParam))
-	content = cacheBustDesktopAppResourceURLs(content, info.ModTime())
+	embedToken := r.URL.Query().Get(desktopEmbedTokenParam)
+	content = prepareDesktopHTMLContentForEmbed(content, cfg, embedToken)
+	content = rewriteDesktopAppResourceURLs(content, info.ModTime(), embedToken)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
 	w.Header().Set("Pragma", "no-cache")
-	w.Header().Set("Content-Security-Policy", desktopAppWorkspaceCSP)
+	w.Header().Set("Content-Security-Policy", desktopAppWorkspaceCSPForRequest(r))
 	http.ServeContent(w, r, filepath.Base(fullAbs), info.ModTime(), bytes.NewReader(injectDesktopAppKeyBridgeHTML(content)))
 	return true
 }
 
-func cacheBustDesktopAppResourceURLs(content []byte, modTime time.Time) []byte {
+func rewriteDesktopAppResourceURLs(content []byte, modTime time.Time, embedToken string) []byte {
 	if len(content) == 0 {
 		return content
 	}
 	version := fmt.Sprintf("%d", modTime.UnixNano())
+	embedToken = strings.TrimSpace(embedToken)
 	rewritten := desktopAppResourceAttrPattern.ReplaceAllStringFunc(string(content), func(match string) string {
 		parts := desktopAppResourceAttrPattern.FindStringSubmatch(match)
 		if len(parts) != 5 {
@@ -347,7 +397,11 @@ func cacheBustDesktopAppResourceURLs(content []byte, modTime time.Time) []byte {
 		if strings.Contains(value, "?") {
 			separator = "&"
 		}
-		return parts[1] + "=" + parts[2] + value + separator + "desktop_v=" + url.QueryEscape(version) + parts[4]
+		value = value + separator + "desktop_v=" + url.QueryEscape(version)
+		if embedToken != "" {
+			value += "&desktop_token=" + url.QueryEscape(embedToken)
+		}
+		return parts[1] + "=" + parts[2] + value + parts[4]
 	})
 	return []byte(rewritten)
 }
@@ -860,7 +914,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			http.Error(w, fmt.Sprintf("desktop asset integrity check failed: %s", reason), http.StatusConflict)
 			return
 		}
-		setDesktopFileResponseHeaders(w, r.URL.Path)
+		setDesktopFileResponseHeaders(w, r)
 		if serveDesktopWidgetAutoResizeHTML(w, r, desktopDir, s.Cfg) {
 			return
 		}

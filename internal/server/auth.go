@@ -228,6 +228,47 @@ func validDesktopEmbedToken(r *http.Request, secret string, now time.Time) bool 
 	return payload.Path == requestPath
 }
 
+func validDesktopEmbedAppSiblingToken(r *http.Request, secret string, now time.Time) bool {
+	if r == nil || !strings.HasPrefix(r.URL.Path, "/files/desktop/") {
+		return false
+	}
+	payload, ok := parseDesktopEmbedToken(r.URL.Query().Get(desktopEmbedTokenParam), secret, now)
+	if !ok {
+		return false
+	}
+	embedPath, err := normalizeDesktopEmbedPath(payload.Path)
+	if err != nil || !strings.HasPrefix(embedPath, "Apps/") {
+		return false
+	}
+	embedBase := strings.ToLower(pathpkg.Base(embedPath))
+	if embedBase != "index.html" && embedBase != "index.htm" {
+		return false
+	}
+	appDir := pathpkg.Dir(embedPath)
+	requestPath, err := normalizeDesktopEmbedPath(strings.TrimPrefix(r.URL.Path, "/files/desktop/"))
+	if err != nil {
+		return false
+	}
+	if requestPath == embedPath {
+		return true
+	}
+	if !strings.HasPrefix(requestPath, appDir+"/") {
+		return false
+	}
+	return isDesktopEmbedSiblingAssetPath(requestPath)
+}
+
+func isDesktopEmbedSiblingAssetPath(requestPath string) bool {
+	ext := strings.ToLower(pathpkg.Ext(strings.TrimSpace(requestPath)))
+	switch ext {
+	case ".js", ".mjs", ".css", ".wasm", ".woff", ".woff2", ".ttf", ".otf", ".json",
+		".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".ico", ".svg", ".glb":
+		return true
+	default:
+		return false
+	}
+}
+
 func validDesktopEmbedResourceToken(r *http.Request, secret string, now time.Time) bool {
 	if r == nil || !isSafeMethod(r.Method) || !isDesktopEmbedResourcePath(r.URL.Path) {
 		return false
@@ -755,7 +796,7 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 		}
 
 		now := time.Now()
-		if validDesktopEmbedToken(r, secret, now) || validDesktopEmbedResourceToken(r, secret, now) {
+		if validDesktopEmbedToken(r, secret, now) || validDesktopEmbedAppSiblingToken(r, secret, now) || validDesktopEmbedResourceToken(r, secret, now) {
 			next.ServeHTTP(w, r)
 			return
 		}

@@ -595,6 +595,58 @@ func TestAuthMiddlewareRejectsDesktopEmbedTokenForOtherAPIs(t *testing.T) {
 	}
 }
 
+func TestAuthMiddlewareAllowsDesktopAppSiblingAssetWithEmbedToken(t *testing.T) {
+	t.Parallel()
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.SessionSecret = "0123456789abcdef0123456789abcdef"
+	s.Cfg.Auth.PasswordHash = "configured"
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler := authMiddleware(s, next)
+
+	token, err := issueDesktopEmbedToken(s.Cfg.Auth.SessionSecret, "Apps/nasscad/index.html", time.Now())
+	if err != nil {
+		t.Fatalf("issueDesktopEmbedToken: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Apps/nasscad/three.js?desktop_token="+url.QueryEscape(token), nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("desktop app sibling asset with embed token status = %d, want 204", rec.Code)
+	}
+}
+
+func TestAuthMiddlewareRejectsDesktopAppSiblingAssetOutsideAppDir(t *testing.T) {
+	t.Parallel()
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.SessionSecret = "0123456789abcdef0123456789abcdef"
+	s.Cfg.Auth.PasswordHash = "configured"
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler := authMiddleware(s, next)
+
+	token, err := issueDesktopEmbedToken(s.Cfg.Auth.SessionSecret, "Apps/nasscad/index.html", time.Now())
+	if err != nil {
+		t.Fatalf("issueDesktopEmbedToken: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Apps/other-app/three.js?desktop_token="+url.QueryEscape(token), nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("desktop app sibling asset outside app dir status = %d, want 307", rec.Code)
+	}
+}
+
 func TestAuthMiddlewareRejectsDesktopFileWithWrongEmbedTokenPath(t *testing.T) {
 	t.Parallel()
 

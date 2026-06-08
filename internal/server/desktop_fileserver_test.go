@@ -1,15 +1,54 @@
 package server
 
 import (
+	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 )
+
+func TestServeDesktopExactIndexFileInjectsEmbedTokenIntoSiblingAssets(t *testing.T) {
+	t.Parallel()
+
+	desktopDir := t.TempDir()
+	appDir := filepath.Join(desktopDir, "Apps", "nasscad")
+	if err := os.MkdirAll(appDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(appDir, "index.html"), []byte("<!doctype html><html><head><script src=\"three.js\"></script></head><body>OK</body></html>"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	token, err := issueDesktopEmbedToken("0123456789abcdef0123456789abcdef", "Apps/nasscad/index.html", time.Now())
+	if err != nil {
+		t.Fatalf("issueDesktopEmbedToken: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Apps/nasscad/index.html?desktop_token="+token, nil)
+	req.Host = "aurago.example.test"
+	req.TLS = &tls.ConnectionState{}
+	rec := httptest.NewRecorder()
+	if !serveDesktopExactIndexFile(rec, req, desktopDir, nil) {
+		t.Fatal("expected exact desktop index file to be served")
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `src="three.js?desktop_v=`) {
+		t.Fatalf("three.js URL was not cache-busted: %q", body)
+	}
+	if !strings.Contains(body, "desktop_token=") {
+		t.Fatalf("three.js URL did not inherit desktop embed token: %q", body)
+	}
+	csp := rec.Header().Get("Content-Security-Policy")
+	if !strings.Contains(csp, "script-src https://aurago.example.test") {
+		t.Fatalf("app CSP did not include request origin for sandboxed sibling scripts: %q", csp)
+	}
+}
 
 func TestServeDesktopExactIndexFileAvoidsFileServerRedirect(t *testing.T) {
 	t.Parallel()
@@ -23,7 +62,8 @@ func TestServeDesktopExactIndexFileAvoidsFileServerRedirect(t *testing.T) {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Apps/space-invaders/index.html?desktop_token=test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Apps/space-invaders/index.html", nil)
+	req.Host = ""
 	rec := httptest.NewRecorder()
 
 	if !serveDesktopExactIndexFile(rec, req, desktopDir, nil) {
@@ -46,6 +86,9 @@ func TestServeDesktopExactIndexFileAvoidsFileServerRedirect(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), `src="game.js?desktop_v=`) {
 		t.Fatalf("app resource URL was not cache-busted: %q", rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "desktop_token=") {
+		t.Fatalf("app resource URL should not inject desktop_token when request lacks one: %q", rec.Body.String())
 	}
 	for _, want := range []string{
 		desktopAppKeyBridgeMarker,
@@ -109,7 +152,7 @@ func TestSetDesktopFileResponseHeadersForcesAttachmentForUntrustedExtensions(t *
 	t.Parallel()
 
 	rec := httptest.NewRecorder()
-	setDesktopFileResponseHeaders(rec, "/files/desktop/Notes/readme.txt")
+	setDesktopFileResponseHeaders(rec, httptest.NewRequest(http.MethodGet, "/files/desktop/Notes/readme.txt", nil))
 
 	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
 		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
@@ -128,7 +171,7 @@ func TestSetDesktopFileResponseHeadersAllowsAppAssetsInline(t *testing.T) {
 		"/files/desktop/Apps/game/sprite.png",
 	} {
 		rec := httptest.NewRecorder()
-		setDesktopFileResponseHeaders(rec, path)
+		setDesktopFileResponseHeaders(rec, httptest.NewRequest(http.MethodGet, path, nil))
 		if got := rec.Header().Get("Content-Disposition"); got != "" {
 			t.Fatalf("Content-Disposition for %s = %q, want empty", path, got)
 		}
