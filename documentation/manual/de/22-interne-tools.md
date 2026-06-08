@@ -459,6 +459,7 @@ Sendet proaktiven Text an einen verbundenen **AgoDesk/AgoChat**-Desktop-Client.
 |-----------|-----|--------------|
 | `device_id` | string | RemoteHub-Geräte-ID (aus REACHABLE CHAT CHANNELS) |
 | `device_name` | string | Optional, falls `device_id` fehlt |
+| `conversation_id` | string | Optionale geteilte AuraGo-Chat-Konversation (`sess-...`) für gezielte proaktive Antworten |
 | `message` | string | Nachrichtentext in AgoChat |
 
 **Voraussetzung:** AgoDesk gekoppelt über `/api/agodesk/ws`; **Config → Integrationen → Fernsteuerung** (`remote_control.enabled: true`). Siehe Kap. 08 **Remote Control** und `documentation/agodesk_backend_protocol.md`.

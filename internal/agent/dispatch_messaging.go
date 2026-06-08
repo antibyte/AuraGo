@@ -213,11 +213,15 @@ func sendAgoDeskChatMessage(dc *DispatchContext, req agoDeskChatArgs) string {
 		}
 		deviceID = resolved
 	}
+	args := map[string]interface{}{
+		"message": message,
+	}
+	if conversationID := strings.TrimSpace(req.ConversationID); conversationID != "" {
+		args["conversation_id"] = conversationID
+	}
 	result, err := dc.RemoteHub.SendCommand(deviceID, remote.CommandPayload{
 		Operation: remote.OpAgoDeskChatMessage,
-		Args: map[string]interface{}{
-			"message": message,
-		},
+		Args:      args,
 	}, 10*time.Second)
 	if err != nil {
 		return encode(map[string]interface{}{"status": "error", "message": "AgoChat send failed: " + err.Error()})

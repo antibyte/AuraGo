@@ -437,6 +437,7 @@ Send proactive text to a connected **AgoDesk/AgoChat** desktop client.
 |-----------|------|-------------|
 | `device_id` | string | Connected RemoteHub device ID (from REACHABLE CHAT CHANNELS or `remote_control list_devices`) |
 | `device_name` | string | Optional device name if `device_id` is omitted |
+| `conversation_id` | string | Optional shared AuraGo chat conversation ID (`sess-...`) for targeted proactive responses |
 | `message` | string | Message body shown in AgoChat |
 
 **Prerequisites:** AgoDesk client paired via `/api/agodesk/ws`; `remote_control.enabled: true`. See ch. 08 **AgoDesk / AgoChat** and [`documentation/agodesk_backend_protocol.md`](../../agodesk_backend_protocol.md).
@@ -1485,5 +1486,4 @@ Most tools use `{tool_name}.md`. Exceptions and grouped manuals:
 
 
 ---
-
 

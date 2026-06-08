@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"mime"
@@ -60,6 +61,8 @@ type agodeskChatResult struct {
 var agodeskAgentChatRunner = runAgodeskAgentChat
 
 var agodeskDoneTagPattern = regexp.MustCompile(`(?i)<\s*/?\s*done\s*/?\s*>`)
+
+var errAgodeskAgentTimeout = errors.New("agent request timed out")
 
 type agodeskConnectionState struct {
 	sessionID             string
@@ -281,7 +284,7 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 
 func handleAgodeskChatSessionsList(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.ChatSessionsListPayload) {
 	sessionID, ok := validateAgodeskTransportSession(s, conn, state, requestID, payload.SessionID, "chat.sessions.list")
-	if !ok {
+	if !ok || !validateAgodeskCapability(conn, state, requestID, "chat.sessions", "chat.sessions.list") {
 		return
 	}
 	if s == nil || s.ShortTermMem == nil {
@@ -305,7 +308,7 @@ func handleAgodeskChatSessionsList(s *Server, conn *websocket.Conn, state *agode
 
 func handleAgodeskChatSessionCreate(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.ChatSessionCreatePayload) {
 	sessionID, ok := validateAgodeskTransportSession(s, conn, state, requestID, payload.SessionID, "chat.session.create")
-	if !ok {
+	if !ok || !validateAgodeskCapability(conn, state, requestID, "chat.sessions", "chat.session.create") {
 		return
 	}
 	if s == nil || s.ShortTermMem == nil {
@@ -326,7 +329,7 @@ func handleAgodeskChatSessionCreate(s *Server, conn *websocket.Conn, state *agod
 
 func handleAgodeskChatSessionLoad(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.ChatSessionLoadPayload) {
 	sessionID, ok := validateAgodeskTransportSession(s, conn, state, requestID, payload.SessionID, "chat.session.load")
-	if !ok {
+	if !ok || !validateAgodeskCapability(conn, state, requestID, "chat.sessions", "chat.session.load") {
 		return
 	}
 	conversationID := strings.TrimSpace(payload.ConversationID)
@@ -363,7 +366,7 @@ func handleAgodeskChatSessionLoad(s *Server, conn *websocket.Conn, state *agodes
 
 func handleAgodeskChatCancel(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.ChatCancelPayload) {
 	sessionID, ok := validateAgodeskTransportSession(s, conn, state, requestID, payload.SessionID, "chat.cancel")
-	if !ok {
+	if !ok || !validateAgodeskCapability(conn, state, requestID, "chat.cancel", "chat.cancel") {
 		return
 	}
 	conversationID := strings.TrimSpace(payload.ConversationID)
@@ -394,7 +397,7 @@ func handleAgodeskChatCancel(s *Server, conn *websocket.Conn, state *agodeskConn
 
 func handleAgodeskVoiceOutputStatus(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.ChatVoiceOutputStatusPayload) {
 	sessionID, ok := validateAgodeskTransportSession(s, conn, state, requestID, payload.SessionID, "chat.voice_output.status")
-	if !ok {
+	if !ok || !validateAgodeskCapability(conn, state, requestID, "chat.voice_output_status", "chat.voice_output.status") {
 		return
 	}
 	speakerMode := payload.SpeakerMode
@@ -776,6 +779,9 @@ func handleAgodeskPersonaAssetsRequest(s *Server, conn *websocket.Conn, state *a
 		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorSessionNotFound, "persona.assets.request session_id does not match the active agodesk session")
 		return
 	}
+	if !validateAgodeskCapability(conn, state, requestID, "persona.assets", "persona.assets.request") {
+		return
+	}
 	persona := "custom"
 	promptsDir := ""
 	if s != nil && s.Cfg != nil {
@@ -860,7 +866,11 @@ func handleAgodeskChatMessage(s *Server, r *http.Request, conn *websocket.Conn, 
 		if chatCtx.Err() != nil {
 			return
 		}
-		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInternal, err.Error())
+		code := agodesk.ErrorInternal
+		if errors.Is(err, errAgodeskAgentTimeout) {
+			code = agodesk.ErrorAgentTimeout
+		}
+		_ = writeAgodeskErrorLocked(conn, state, requestID, code, err.Error())
 		return
 	}
 	metadata := map[string]interface{}{
@@ -1251,10 +1261,16 @@ func acceptAgodeskSessionStart(s *Server, r *http.Request, requestID string, pay
 	if err != nil {
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorInternal, "failed to register agodesk device"
 	}
-	if s.Vault != nil {
-		if err := s.Vault.WriteSecret("remote_shared_key_"+deviceID, sharedKey); err != nil && s.Logger != nil {
+	if s.Vault == nil {
+		_ = remote.DeleteDevice(s.RemoteHub.DB(), deviceID)
+		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorInternal, "failed to store agodesk shared key"
+	}
+	if err := s.Vault.WriteSecret("remote_shared_key_"+deviceID, sharedKey); err != nil {
+		if s.Logger != nil {
 			s.Logger.Error("Failed to store agodesk shared key", "device_id", deviceID, "error", err)
 		}
+		_ = remote.DeleteDevice(s.RemoteHub.DB(), deviceID)
+		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorInternal, "failed to store agodesk shared key"
 	}
 	_ = remote.MarkEnrollmentUsed(s.RemoteHub.DB(), enrollment.ID, deviceID)
 	return agodesk.SessionAcceptedPayload{
@@ -1701,7 +1717,7 @@ func runAgodeskAgentChat(s *Server, r *http.Request, conn *websocket.Conn, state
 	select {
 	case <-done:
 	case <-ctx.Done():
-		return agodeskChatResult{}, fmt.Errorf("agent request timed out")
+		return agodeskChatResult{}, errAgodeskAgentTimeout
 	}
 	answer := strings.TrimSpace(replyBroker.finalResponse)
 	if answer == "" && len(resp.Choices) > 0 {

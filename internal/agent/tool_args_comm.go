@@ -116,9 +116,10 @@ type telnyxManageArgs struct {
 }
 
 type agoDeskChatArgs struct {
-	DeviceID   string
-	DeviceName string
-	Message    string
+	DeviceID       string
+	DeviceName     string
+	ConversationID string
+	Message        string
 }
 
 type addressBookArgs struct {
@@ -347,9 +348,10 @@ func decodeTelnyxManageArgs(tc ToolCall) telnyxManageArgs {
 
 func decodeAgoDeskChatArgs(tc ToolCall) agoDeskChatArgs {
 	return agoDeskChatArgs{
-		DeviceID:   firstNonEmptyToolString(tc.DeviceID, toolArgString(tc.Params, "device_id")),
-		DeviceName: firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "device_name", "name")),
-		Message:    firstNonEmptyToolString(tc.Message, tc.Text, tc.Content, toolArgString(tc.Params, "message", "text", "content")),
+		DeviceID:       firstNonEmptyToolString(tc.DeviceID, toolArgString(tc.Params, "device_id")),
+		DeviceName:     firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "device_name", "name")),
+		ConversationID: firstNonEmptyToolString(toolArgString(tc.Params, "conversation_id")),
+		Message:        firstNonEmptyToolString(tc.Message, tc.Text, tc.Content, toolArgString(tc.Params, "message", "text", "content")),
 	}
 }
 

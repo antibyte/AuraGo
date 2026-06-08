@@ -319,6 +319,50 @@ func TestSendAgoDeskChatRoutesThroughRemoteHubTransport(t *testing.T) {
 	}
 }
 
+func TestSendAgoDeskChatForwardsConversationID(t *testing.T) {
+	t.Parallel()
+
+	db, err := remote.InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatalf("remote InitDB: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	deviceID, err := remote.CreateDevice(db, remote.DeviceRecord{
+		Name:   "agodesk",
+		Status: "approved",
+		Tags:   []string{"agodesk"},
+	})
+	if err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	transport := &agentRecordingTransport{connected: map[string]bool{deviceID: true}}
+	hub := remote.NewRemoteHub(db, nil, slog.Default())
+	hub.RegisterCommandTransport("agodesk", transport)
+
+	out, handled := dispatchMessagingCases(context.Background(), ToolCall{
+		Action: "send_agodesk_chat",
+		Params: map[string]interface{}{
+			"device_id":       deviceID,
+			"message":         "mission update",
+			"conversation_id": "sess-push",
+		},
+	}, &DispatchContext{
+		Cfg:       &config.Config{},
+		Logger:    slog.Default(),
+		RemoteHub: hub,
+	})
+	if !handled || !strings.Contains(out, `"status":"success"`) {
+		t.Fatalf("send_agodesk_chat output = %s, handled=%v", out, handled)
+	}
+	if len(transport.calls) != 1 {
+		t.Fatalf("transport calls = %d, want 1", len(transport.calls))
+	}
+	if got := transport.calls[0].Args["conversation_id"]; got != "sess-push" {
+		t.Fatalf("conversation_id arg = %#v, want sess-push", got)
+	}
+}
+
 func TestRemoteDesktopInputBlockedByGlobalReadOnly(t *testing.T) {
 	t.Parallel()
 

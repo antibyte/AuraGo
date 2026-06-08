@@ -142,6 +142,7 @@ type ResultPayload struct {
 	CommandID  string `json:"cmd_id"`
 	Status     string `json:"status"` // "ok", "error", "denied", "timeout"
 	Output     string `json:"output"`
+	ErrorCode  string `json:"error_code,omitempty"`
 	Error      string `json:"error,omitempty"`
 	DurationMs int64  `json:"duration_ms"`
 }

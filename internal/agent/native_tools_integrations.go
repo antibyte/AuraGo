@@ -634,9 +634,10 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		tools = append(tools, tool("send_agodesk_chat",
 			"Send a proactive text message to a connected AgoChat/AgoDesk desktop companion.",
 			schema(map[string]interface{}{
-				"device_id":   prop("string", "Connected agodesk RemoteHub device ID. Use the ID shown in REACHABLE CHAT CHANNELS or remote_control list_devices."),
-				"device_name": prop("string", "Optional agodesk device name if device_id is omitted."),
-				"message":     prop("string", "Message body to show in AgoChat."),
+				"device_id":       prop("string", "Connected agodesk RemoteHub device ID. Use the ID shown in REACHABLE CHAT CHANNELS or remote_control list_devices."),
+				"device_name":     prop("string", "Optional agodesk device name if device_id is omitted."),
+				"conversation_id": prop("string", "Optional AuraGo chat conversation ID (sess-...) for proactive messages that should appear in a specific shared chat."),
+				"message":         prop("string", "Message body to show in AgoChat."),
 			}, "message"),
 		))
 	}

@@ -104,6 +104,9 @@ func TestSessionStartPayloadCarriesFileAccessMetadata(t *testing.T) {
 }
 
 func TestDefaultCapabilitiesIncludeComputerUseFeatures(t *testing.T) {
+	if containsAgodeskTestString(DefaultCapabilities, "chat.streaming") {
+		t.Fatalf("DefaultCapabilities must not advertise unimplemented chat.streaming: %v", DefaultCapabilities)
+	}
 	for _, want := range []string{
 		"chat.agent_metadata",
 		"chat.plan_updates",

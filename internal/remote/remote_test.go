@@ -157,7 +157,7 @@ func TestRemoteHubExternalTransportRespectsReadOnlyPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SendCommand desktop input: %v", err)
 	}
-	if denied.Status != "denied" || !strings.Contains(denied.Error, "read-only") {
+	if denied.Status != "denied" || !strings.Contains(denied.Error, "read-only") || denied.ErrorCode != "REMOTE_READ_ONLY" {
 		t.Fatalf("desktop input result = %+v, want read-only denial", denied)
 	}
 	if len(transport.calls) != 0 {

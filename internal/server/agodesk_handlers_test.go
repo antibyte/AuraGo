@@ -479,6 +479,116 @@ func TestAgodeskVoiceOutputStatusUpdatesSpeakerMode(t *testing.T) {
 	}
 }
 
+func TestAgodeskWebSocketRejectsFeatureMessagesWithoutCapability(t *testing.T) {
+	tests := []struct {
+		name    string
+		msgType agodesk.MessageType
+		payload func(sessionID string) interface{}
+	}{
+		{
+			name:    "sessions_list",
+			msgType: agodesk.TypeChatSessionsList,
+			payload: func(sessionID string) interface{} {
+				return agodesk.ChatSessionsListPayload{SessionID: sessionID}
+			},
+		},
+		{
+			name:    "session_create",
+			msgType: agodesk.TypeChatSessionCreate,
+			payload: func(sessionID string) interface{} {
+				return agodesk.ChatSessionCreatePayload{SessionID: sessionID}
+			},
+		},
+		{
+			name:    "session_load",
+			msgType: agodesk.TypeChatSessionLoad,
+			payload: func(sessionID string) interface{} {
+				return agodesk.ChatSessionLoadPayload{SessionID: sessionID, ConversationID: "sess-test"}
+			},
+		},
+		{
+			name:    "cancel",
+			msgType: agodesk.TypeChatCancel,
+			payload: func(sessionID string) interface{} {
+				return agodesk.ChatCancelPayload{SessionID: sessionID, RequestID: "req-test"}
+			},
+		},
+		{
+			name:    "voice_output_status",
+			msgType: agodesk.TypeChatVoiceOutputStatus,
+			payload: func(sessionID string) interface{} {
+				return agodesk.ChatVoiceOutputStatusPayload{SessionID: sessionID, Mode: "off"}
+			},
+		},
+		{
+			name:    "persona_assets",
+			msgType: agodesk.TypePersonaAssetsRequest,
+			payload: func(sessionID string) interface{} {
+				return agodesk.PersonaAssetsRequestPayload{SessionID: sessionID}
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newAgodeskPairingTestServer(t)
+			s.ShortTermMem = newAgodeskTestMemory(t)
+			conn, cleanup, accepted := pairAgodeskTestClient(t, s, "capability-"+tt.name, []string{"chat.full_response"})
+			defer cleanup()
+			env, err := agodesk.NewEnvelope(tt.msgType, tt.payload(accepted.SessionID))
+			if err != nil {
+				t.Fatalf("NewEnvelope %s: %v", tt.msgType, err)
+			}
+			if err := conn.WriteJSON(env); err != nil {
+				t.Fatalf("write %s: %v", tt.msgType, err)
+			}
+			resp := readAgodeskTestEnvelope(t, conn)
+			if resp.Type != agodesk.TypeChatError {
+				t.Fatalf("response type = %q, want chat.error", resp.Type)
+			}
+			var payload agodesk.ChatErrorPayload
+			decodeAgodeskTestPayload(t, resp, &payload)
+			if payload.Code != agodesk.ErrorUnsupportedCapability {
+				t.Fatalf("error payload = %+v, want unsupported capability", payload)
+			}
+		})
+	}
+}
+
+func TestAgodeskWebSocketChatTimeoutUsesAgentTimeoutCode(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	oldRunner := agodeskAgentChatRunner
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, transportSessionID, conversationID, deviceID, message string, voiceOutput bool) (agodeskChatResult, error) {
+		return agodeskChatResult{}, errAgodeskAgentTimeout
+	}
+	t.Cleanup(func() { agodeskAgentChatRunner = oldRunner })
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws?insecure_loopback=1")
+	defer cleanup()
+	connected := readAgodeskTestEnvelope(t, conn)
+	var connectedPayload agodesk.SystemConnectedPayload
+	decodeAgodeskTestPayload(t, connected, &connectedPayload)
+	msg, err := agodesk.NewEnvelope(agodesk.TypeChatMessage, agodesk.ChatMessagePayload{
+		SessionID: connectedPayload.SessionID,
+		Text:      "timeout",
+		Role:      "user",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat: %v", err)
+	}
+	if err := conn.WriteJSON(msg); err != nil {
+		t.Fatalf("write chat: %v", err)
+	}
+	resp := readAgodeskTestEnvelope(t, conn)
+	if resp.Type != agodesk.TypeChatError {
+		t.Fatalf("response type = %q, want chat.error", resp.Type)
+	}
+	var payload agodesk.ChatErrorPayload
+	decodeAgodeskTestPayload(t, resp, &payload)
+	if payload.Code != agodesk.ErrorAgentTimeout {
+		t.Fatalf("error payload = %+v, want AGENT_TIMEOUT", payload)
+	}
+}
+
 func TestAgodeskChatBrokerEmitsAudioOnlyWithCapability(t *testing.T) {
 	withAudioState := &agodeskConnectionState{
 		sessionID:    "agodesk:dev-1",
@@ -1273,6 +1383,48 @@ func TestAgodeskSessionStartWithPairingTokenCreatesRemoteDevice(t *testing.T) {
 	}
 	if !enrollment.Used || enrollment.UsedByDevice != accepted.DeviceID || enrollment.ID != enrollID {
 		t.Fatalf("enrollment after pairing = %+v", enrollment)
+	}
+}
+
+func TestAgodeskSessionStartFailsWhenSharedKeyCannotBeStored(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	s.Vault = nil
+	if _, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
+		TokenHash:  hashSHA256("vault-fail-token"),
+		DeviceName: "agodesk-vault-fail",
+		ExpiresAt:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+	}); err != nil {
+		t.Fatalf("CreateEnrollment: %v", err)
+	}
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws")
+	defer cleanup()
+	_ = readAgodeskTestEnvelope(t, conn)
+	start, err := agodesk.NewEnvelope(agodesk.TypeSessionStart, agodesk.SessionStartPayload{
+		ClientVersion: "0.1.0",
+		PairingToken:  "vault-fail-token",
+		Host:          agodesk.SessionStartHost{Hostname: "AGODESK-PC", OS: "windows", Arch: "amd64"},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope session.start: %v", err)
+	}
+	if err := conn.WriteJSON(start); err != nil {
+		t.Fatalf("write session.start: %v", err)
+	}
+	resp := readAgodeskTestEnvelope(t, conn)
+	if resp.Type != agodesk.TypeChatError {
+		t.Fatalf("response type = %q, want chat.error", resp.Type)
+	}
+	var payload agodesk.ChatErrorPayload
+	decodeAgodeskTestPayload(t, resp, &payload)
+	if payload.Code != agodesk.ErrorInternal {
+		t.Fatalf("error payload = %+v, want INTERNAL_ERROR", payload)
+	}
+	devices, err := remote.ListDevices(s.RemoteHub.DB())
+	if err != nil {
+		t.Fatalf("ListDevices: %v", err)
+	}
+	if len(devices) != 0 {
+		t.Fatalf("vault failure left registered devices behind: %+v", devices)
 	}
 }
 

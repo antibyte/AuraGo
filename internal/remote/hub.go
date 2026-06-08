@@ -286,6 +286,7 @@ func (h *RemoteHub) SendCommand(deviceID string, cmd CommandPayload, timeout tim
 		return ResultPayload{
 			CommandID: cmd.CommandID,
 			Status:    "denied",
+			ErrorCode: "REMOTE_READ_ONLY",
 			Error:     "device is in read-only mode",
 		}, nil
 	}
