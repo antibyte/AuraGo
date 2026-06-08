@@ -19,7 +19,6 @@ import (
 	"aurago/internal/llm"
 	"aurago/internal/media"
 	"aurago/internal/memory"
-	"aurago/internal/prompts"
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/telegram"
@@ -28,6 +27,23 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/sashabaranov/go-openai"
 )
+
+func buildDiscordAgentMessages(historyManager *memory.HistoryManager) []openai.ChatCompletionMessage {
+	finalMessages := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem},
+	}
+	if historyManager == nil {
+		return finalMessages
+	}
+	currentSummary := historyManager.GetSummary()
+	if currentSummary != "" {
+		finalMessages = append(finalMessages, openai.ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: "[CONTEXT_RECAP]: The following is a summary of previous relevant discussions for context. DO NOT echo or repeat this recap in your response:\n" + currentSummary,
+		})
+	}
+	return append(finalMessages, historyManager.Get()...)
+}
 
 // session holds the active Discord session so tools can send messages.
 var (
@@ -683,32 +699,8 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 		VoiceOutputActive:  agent.GetVoiceMode(),
 	}
 
-	// Build context flags via central factory
-	toolingPolicy := agent.BuildToolingPolicy(cfg, inputText)
-	flags := agent.BuildPromptContextFlags(runCfg, toolingPolicy, agent.PromptContextOptions{
-		IsMaintenanceMode:     tools.IsBusy(),
-		ActiveProcesses:       agent.GetActiveProcessStatus(registry),
-		SpecialistsAvailable:  agent.BuildSpecialistsAvailable(cfg),
-		SpecialistsStatus:     agent.BuildSpecialistsStatus(cfg),
-		SpecialistsSuggestion: agent.BuildSpecialistDelegationHint(cfg, inputText),
-	})
-	coreMem := shortTermMem.ReadCoreMemory()
-
-	sysPrompt, _ := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, &flags, coreMem, logger)
-
 	// Assemble final messages for LLM
-	finalMessages := []openai.ChatCompletionMessage{
-		{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
-	}
-
-	currentSummary := historyManager.GetSummary()
-	if currentSummary != "" {
-		finalMessages = append(finalMessages, openai.ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: "[CONTEXT_RECAP]: The following is a summary of previous relevant discussions for context. DO NOT echo or repeat this recap in your response:\n" + currentSummary,
-		})
-	}
-	finalMessages = append(finalMessages, historyManager.Get()...)
+	finalMessages := buildDiscordAgentMessages(historyManager)
 
 	req := openai.ChatCompletionRequest{
 		Model:    cfg.LLM.Model,

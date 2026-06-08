@@ -20,7 +20,6 @@ import (
 	"aurago/internal/llm"
 	"aurago/internal/media"
 	"aurago/internal/memory"
-	"aurago/internal/prompts"
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/tools"
@@ -28,6 +27,23 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/sashabaranov/go-openai"
 )
+
+func buildTelegramAgentMessages(historyManager *memory.HistoryManager) []openai.ChatCompletionMessage {
+	finalMessages := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem},
+	}
+	if historyManager == nil {
+		return finalMessages
+	}
+	currentSummary := historyManager.GetSummary()
+	if currentSummary != "" {
+		finalMessages = append(finalMessages, openai.ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: "[CONTEXT_RECAP]: The following is a summary of previous relevant discussions for context. DO NOT echo or repeat this recap in your response:\n" + currentSummary,
+		})
+	}
+	return append(finalMessages, historyManager.Get()...)
+}
 
 // StartLongPolling initializes the Telegram bot in Long Polling mode.
 // It runs in a background goroutine and processes incoming messages.
@@ -304,32 +320,8 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		VoiceOutputActive:  agent.GetVoiceMode(),
 	}
 
-	// 2. Build context flags via central factory (keeps flags in sync with agent_loop)
-	toolingPolicy := agent.BuildToolingPolicy(cfg, inputText)
-	flags := agent.BuildPromptContextFlags(runCfg, toolingPolicy, agent.PromptContextOptions{
-		IsMaintenanceMode:     tools.IsBusy(),
-		ActiveProcesses:       agent.GetActiveProcessStatus(registry),
-		SpecialistsAvailable:  agent.BuildSpecialistsAvailable(cfg),
-		SpecialistsStatus:     agent.BuildSpecialistsStatus(cfg),
-		SpecialistsSuggestion: agent.BuildSpecialistDelegationHint(cfg, inputText),
-	})
-	coreMem := shortTermMem.ReadCoreMemory()
-
-	sysPrompt, _ := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, &flags, coreMem, logger)
-
 	// 2. Assemble final messages for LLM
-	finalMessages := []openai.ChatCompletionMessage{
-		{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
-	}
-
-	currentSummary := historyManager.GetSummary()
-	if currentSummary != "" {
-		finalMessages = append(finalMessages, openai.ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: "[CONTEXT_RECAP]: The following is a summary of previous relevant discussions for context. DO NOT echo or repeat this recap in your response:\n" + currentSummary,
-		})
-	}
-	finalMessages = append(finalMessages, historyManager.Get()...)
+	finalMessages := buildTelegramAgentMessages(historyManager)
 
 	req := openai.ChatCompletionRequest{
 		Model:    cfg.LLM.Model,

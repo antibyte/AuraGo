@@ -7,7 +7,6 @@ import (
 	"aurago/internal/i18n"
 	"aurago/internal/memory"
 	"aurago/internal/planner"
-	"aurago/internal/prompts"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 
@@ -170,20 +169,9 @@ func LoopbackContext(ctx context.Context, runCfg RunConfig, message string, brok
 		historyManager.Add(openai.ChatMessageRoleUser, safeMessage, mid, false, false)
 	}
 
-	policy := buildToolingPolicy(cfg, "")
-	flags := buildPromptContextFlags(runCfg, policy, promptContextOptions{
-		ActiveProcesses:       GetActiveProcessStatus(runCfg.Registry),
-		IsMaintenanceMode:     tools.IsBusy(),
-		SpecialistsAvailable:  specialistsAvailable(runCfg.Config),
-		SpecialistsStatus:     buildSpecialistsStatus(runCfg.Config),
-		SpecialistsSuggestion: buildSpecialistDelegationHint(runCfg.Config, safeMessage),
-	})
-	coreMem := shortTermMem.ReadCoreMemory()
-	sysPrompt, _ := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, &flags, coreMem, logger)
-
 	// Assemble messages
 	finalMessages := []openai.ChatCompletionMessage{
-		{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
+		{Role: openai.ChatMessageRoleSystem},
 	}
 	includeGlobalHistory := shouldPersistLoopbackHistory(sessionID) && !isInternalMessage
 	if includeGlobalHistory || isInternalMessage {

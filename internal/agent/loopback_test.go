@@ -1,10 +1,16 @@
 package agent
 
 import (
+	"context"
+	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/tools"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -163,4 +169,124 @@ func TestBuildLoopbackSessionConversationMessagesLimitsLongDesktopContext(t *tes
 			t.Fatal("expected old desktop transcript to be trimmed")
 		}
 	}
+}
+
+func TestAlternateChannelsDoNotBuildSystemPromptBeforeAgentLoop(t *testing.T) {
+	files := []string{
+		filepath.Join("..", "telegram", "bot.go"),
+		filepath.Join("..", "discord", "bot.go"),
+		"loopback.go",
+		"vscode_bridge.go",
+	}
+	for _, file := range files {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatalf("read %s: %v", file, err)
+		}
+		if strings.Contains(string(content), "BuildSystemPrompt(") {
+			t.Fatalf("%s still builds a system prompt before ExecuteAgentLoop", file)
+		}
+	}
+}
+
+func TestLoopbackContextUsesAgentLoopSystemPromptAndDoesNotDuplicateCurrentMessage(t *testing.T) {
+	runCfg, client, cleanup := newPromptPipelineTestRunConfig(t, "default", "sms")
+	defer cleanup()
+
+	LoopbackContext(context.Background(), runCfg, "current SMS prompt", NoopBroker{})
+
+	if client.calls != 1 {
+		t.Fatalf("LLM calls = %d, want 1", client.calls)
+	}
+	if len(client.lastReq.Messages) < 2 {
+		t.Fatalf("messages = %#v, want system prompt and user message", client.lastReq.Messages)
+	}
+	if client.lastReq.Messages[0].Role != openai.ChatMessageRoleSystem || strings.TrimSpace(client.lastReq.Messages[0].Content) == "" {
+		t.Fatalf("first message = (%q, %q), want generated system prompt", client.lastReq.Messages[0].Role, client.lastReq.Messages[0].Content)
+	}
+	countCurrent := 0
+	for _, msg := range client.lastReq.Messages {
+		if msg.Role == openai.ChatMessageRoleUser && strings.Contains(msg.Content, "current SMS prompt") {
+			countCurrent++
+			if !strings.Contains(msg.Content, "<external_data>") {
+				t.Fatalf("loopback user message lost external_data isolation: %q", msg.Content)
+			}
+		}
+	}
+	if countCurrent != 1 {
+		t.Fatalf("current prompt count = %d, want 1: %#v", countCurrent, client.lastReq.Messages)
+	}
+}
+
+func TestAskAuraGoBridgeUsesAgentLoopSystemPromptAndPreservesBridgeHistory(t *testing.T) {
+	runCfg, client, cleanup := newPromptPipelineTestRunConfig(t, vscodeDebugBridgeSessionID, "")
+	defer cleanup()
+	if _, err := runCfg.ShortTermMem.InsertMessage(vscodeDebugBridgeSessionID, openai.ChatMessageRoleAssistant, "prior bridge answer", false, false); err != nil {
+		t.Fatalf("insert prior bridge message: %v", err)
+	}
+
+	answer, err := AskAuraGoBridge(context.Background(), runCfg, "inspect failing test")
+	if err != nil {
+		t.Fatalf("AskAuraGoBridge: %v", err)
+	}
+	if answer != "pipeline ok" {
+		t.Fatalf("answer = %q, want pipeline ok", answer)
+	}
+	if len(client.lastReq.Messages) < 3 {
+		t.Fatalf("messages = %#v, want system prompt, prior history and current prompt", client.lastReq.Messages)
+	}
+	if client.lastReq.Messages[0].Role != openai.ChatMessageRoleSystem || strings.TrimSpace(client.lastReq.Messages[0].Content) == "" {
+		t.Fatalf("first message = (%q, %q), want generated system prompt", client.lastReq.Messages[0].Role, client.lastReq.Messages[0].Content)
+	}
+	if !containsMessage(client.lastReq.Messages, openai.ChatMessageRoleAssistant, "prior bridge answer") {
+		t.Fatalf("bridge history was not preserved: %#v", client.lastReq.Messages)
+	}
+	if !containsMessage(client.lastReq.Messages, openai.ChatMessageRoleUser, "inspect failing test") {
+		t.Fatalf("current bridge prompt was not preserved: %#v", client.lastReq.Messages)
+	}
+}
+
+func newPromptPipelineTestRunConfig(t *testing.T, sessionID, messageSource string) (RunConfig, *mockChatClient, func()) {
+	t.Helper()
+	promptsDir, err := filepath.Abs("../../prompts")
+	if err != nil {
+		t.Fatalf("resolve prompts dir: %v", err)
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	historyManager := memory.NewEphemeralHistoryManager()
+	client := &mockChatClient{response: "pipeline ok"}
+	cfg := &config.Config{}
+	cfg.LLM.Model = "gpt-4o-mini"
+	cfg.Agent.SystemLanguage = "English"
+	cfg.Server.UILanguage = "en"
+	cfg.Directories.PromptsDir = promptsDir
+	cfg.Directories.SkillsDir = t.TempDir()
+	cfg.Agent.ContextWindow = 32768
+	runCfg := RunConfig{
+		Config:         cfg,
+		Logger:         logger,
+		LLMClient:      client,
+		ShortTermMem:   stm,
+		HistoryManager: historyManager,
+		Registry:       tools.NewProcessRegistry(logger),
+		SessionID:      sessionID,
+		MessageSource:  messageSource,
+	}
+	return runCfg, client, func() {
+		historyManager.Close()
+		stm.Close()
+	}
+}
+
+func containsMessage(messages []openai.ChatCompletionMessage, role, contentSubstring string) bool {
+	for _, msg := range messages {
+		if msg.Role == role && strings.Contains(msg.Content, contentSubstring) {
+			return true
+		}
+	}
+	return false
 }

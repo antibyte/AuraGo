@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"aurago/internal/memory"
-	"aurago/internal/prompts"
 	"aurago/internal/tools"
 
 	"github.com/sashabaranov/go-openai"
@@ -53,19 +52,8 @@ func AskAuraGoBridge(ctx context.Context, runCfg RunConfig, message string) (str
 	NoteInnerVoiceUserTurn(sessionID)
 	_ = historyManager.Add(openai.ChatMessageRoleUser, message, msgID, false, false)
 
-	policy := buildToolingPolicy(cfg, message)
-	flags := buildPromptContextFlags(runCfg, policy, promptContextOptions{
-		ActiveProcesses:       GetActiveProcessStatus(runCfg.Registry),
-		IsMaintenanceMode:     tools.IsBusy(),
-		SpecialistsAvailable:  specialistsAvailable(runCfg.Config),
-		SpecialistsStatus:     buildSpecialistsStatus(runCfg.Config),
-		SpecialistsSuggestion: buildSpecialistDelegationHint(runCfg.Config, message),
-	})
-	coreMem := shortTermMem.ReadCoreMemory()
-	sysPrompt, _ := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, &flags, coreMem, logger)
-
 	finalMessages := []openai.ChatCompletionMessage{
-		{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
+		{Role: openai.ChatMessageRoleSystem},
 	}
 	if summary := historyManager.GetSummary(); summary != "" {
 		finalMessages = append(finalMessages, openai.ChatCompletionMessage{
