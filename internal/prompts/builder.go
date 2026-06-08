@@ -5,6 +5,7 @@ import (
 	"aurago/internal/security"
 	promptsembed "aurago/prompts"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -328,33 +329,58 @@ type PromptModule struct {
 // unexpectedly slow file I/O or token counting cannot block the agent loop
 // indefinitely.  On timeout a minimal fallback prompt is returned.
 func BuildSystemPrompt(promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int) {
-	type result struct {
-		prompt string
-		tokens int
-	}
-	ch := make(chan result, 1)
-	go func() {
-		p, t := buildSystemPromptInner(promptsDir, flags, coreMemory, logger)
-		ch <- result{prompt: p, tokens: t}
-	}()
+	return BuildSystemPromptContext(context.Background(), promptsDir, flags, coreMemory, logger)
+}
 
-	select {
-	case r := <-ch:
-		return r.prompt, r.tokens
-	case <-time.After(buildPromptTimeout):
-		logger.Warn("[Prompt] BuildSystemPrompt timed out, using fallback",
-			"timeout", buildPromptTimeout)
-		return fallbackSystemPrompt(promptsDir, flags, coreMemory, logger)
+func BuildSystemPromptContext(ctx context.Context, promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int) {
+	ctx = normalizePromptContext(ctx)
+	ctx, cancel := context.WithTimeout(ctx, buildPromptTimeout)
+	defer cancel()
+	if err := promptContextErr(ctx); err != nil {
+		if logger != nil {
+			logger.Warn("[Prompt] BuildSystemPrompt cancelled before build, using fallback", "error", err)
+		}
+		return fallbackSystemPromptContext(ctx, promptsDir, flags, coreMemory, logger)
 	}
+
+	prompt, tokens, err := buildSystemPromptInnerContext(ctx, promptsDir, flags, coreMemory, logger)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("[Prompt] BuildSystemPrompt cancelled, using fallback", "error", err)
+		}
+		return fallbackSystemPromptContext(ctx, promptsDir, flags, coreMemory, logger)
+	}
+	return prompt, tokens
 }
 
 // buildPromptTimeout is the maximum time BuildSystemPrompt may take before
 // falling back to a minimal prompt.
 const buildPromptTimeout = 30 * time.Second
 
+func normalizePromptContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
+func promptContextErr(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		return nil
+	}
+}
+
 // fallbackSystemPrompt returns a minimal system prompt when the full build
 // times out or fails catastrophically.
 func fallbackSystemPrompt(promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int) {
+	return fallbackSystemPromptContext(context.Background(), promptsDir, flags, coreMemory, logger)
+}
+
+func fallbackSystemPromptContext(ctx context.Context, promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int) {
+	ctx = normalizePromptContext(ctx)
 	var sb strings.Builder
 	sb.WriteString("Respond in " + flags.SystemLanguage + ".\n")
 	if instruction := antiChineseLanguageDriftInstruction(flags.SystemLanguage); instruction != "" {
@@ -379,7 +405,7 @@ func fallbackSystemPrompt(promptsDir string, flags *ContextFlags, coreMemory str
 		sb.WriteString("\nCore Memory:\n" + coreMemory + "\n")
 	}
 	prompt := sb.String()
-	return prompt, countTokensWithModel(prompt, flags.Model)
+	return prompt, countTokensWithModelContext(ctx, prompt, flags.Model)
 }
 
 func fallbackIdentityModule(flags *ContextFlags) string {
@@ -437,6 +463,15 @@ func writeActionLedgerReminder(finalPrompt *strings.Builder) {
 // buildSystemPromptInner contains the actual prompt-building logic, extracted
 // from BuildSystemPrompt so it can run in a goroutine with a timeout.
 func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int) {
+	prompt, tokens, _ := buildSystemPromptInnerContext(context.Background(), promptsDir, flags, coreMemory, logger)
+	return prompt, tokens
+}
+
+func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int, error) {
+	ctx = normalizePromptContext(ctx)
+	if err := promptContextErr(ctx); err != nil {
+		return "", 0, err
+	}
 	var finalPrompt strings.Builder
 	finalPrompt.Grow(32768) // Pre-allocate ~32KB to reduce reallocs
 
@@ -450,11 +485,17 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 
 	// 1. Load and parse all prompt modules
 	modules := loadPromptModules(promptsDir, logger)
+	if err := promptContextErr(ctx); err != nil {
+		return "", 0, err
+	}
 
 	// 1b. Load core personality profile content (injected later in dynamic section for prominence)
 	corePersonalityContent := ""
 	if flags.CorePersonality != "" {
 		corePersonalityContent = loadCorePersonalityContent(promptsDir, flags.CorePersonality, logger)
+	}
+	if err := promptContextErr(ctx); err != nil {
+		return "", 0, err
 	}
 
 	// 2. Filter modules based on flags
@@ -479,6 +520,9 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 
 	// 4. Assemble modules
 	for _, mod := range selectedModules {
+		if err := promptContextErr(ctx); err != nil {
+			return "", 0, err
+		}
 		content := mod.Content
 		if flags.NativeToolsEnabled {
 			content = stripTextJSONToolProtocolForNative(content)
@@ -717,11 +761,17 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 	// Dynamic Tool Guides — only in full tier
 	posBeforeGuides := finalPrompt.Len()
 	if len(flags.PredictedGuides) > 0 && tier == "full" {
+		if err := promptContextErr(ctx); err != nil {
+			return "", 0, err
+		}
 		finalPrompt.WriteString("# TOOL GUIDES\n")
 		if flags.NativeToolsEnabled {
 			finalPrompt.WriteString("These manuals may include older examples from non-native tool modes. Treat any raw JSON, XML, tag-based, or markdown tool-call examples as legacy syntax. In this session, translate the tool name and parameters into native function calls instead.\n\n")
 		}
 		for _, guide := range flags.PredictedGuides {
+			if err := promptContextErr(ctx); err != nil {
+				return "", 0, err
+			}
 			if flags.NativeToolsEnabled {
 				guide = sanitizeDynamicToolGuideForNative(guide)
 			}
@@ -893,7 +943,11 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 	var shedSections []string
 	budgetShedTriggered := false
 	if flags.TokenBudget > 0 {
-		rawPrompt, shedSections = budgetShed(rawPrompt, flags, corePersonalityContent, coreMemory, now, logger)
+		var err error
+		rawPrompt, shedSections, err = budgetShedContext(ctx, rawPrompt, flags, corePersonalityContent, coreMemory, now, logger)
+		if err != nil {
+			return "", 0, err
+		}
 		budgetShedTriggered = len(shedSections) > 0
 		shedSavings = rawLen - len(rawPrompt)
 		if shedSavings < 0 {
@@ -903,7 +957,10 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 
 	// 7. Optimize after shedding — only minify what remains
 	optimized, saved := OptimizePrompt(rawPrompt)
-	finalTokens := countTokensWithModel(optimized, flags.Model)
+	if err := promptContextErr(ctx); err != nil {
+		return "", 0, err
+	}
+	finalTokens := countTokensWithModelContext(ctx, optimized, flags.Model)
 
 	// 7b. Post-shed verification: warn if prompt still exceeds budget after all shedding.
 	if flags.TokenBudget > 0 && finalTokens > flags.TokenBudget {
@@ -940,7 +997,7 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 		},
 	})
 
-	return optimized, finalTokens
+	return optimized, finalTokens, nil
 }
 
 func antiChineseLanguageDriftInstruction(systemLanguage string) string {
@@ -1194,9 +1251,18 @@ func hardTruncateText(text string, maxChars int) string {
 // Shedding order (lowest value first):
 // 1. Tool Guides, 2. Predicted Memories, 3. User Profile, 4. Retrieved Memories (per-entry trim), 5. Personality self-awareness, 6. Personality profile
 func budgetShed(prompt string, flags *ContextFlags, personalityContent, coreMemory string, now time.Time, logger *slog.Logger) (string, []string) {
-	tokens := countTokensWithModel(prompt, flags.Model)
+	result, shedList, _ := budgetShedContext(context.Background(), prompt, flags, personalityContent, coreMemory, now, logger)
+	return result, shedList
+}
+
+func budgetShedContext(ctx context.Context, prompt string, flags *ContextFlags, personalityContent, coreMemory string, now time.Time, logger *slog.Logger) (string, []string, error) {
+	ctx = normalizePromptContext(ctx)
+	if err := promptContextErr(ctx); err != nil {
+		return "", nil, err
+	}
+	tokens := countTokensWithModelContext(ctx, prompt, flags.Model)
 	if tokens <= flags.TokenBudget {
-		return prompt, nil
+		return prompt, nil, nil
 	}
 
 	logger.Info("[Budget] Token budget exceeded, shedding content", "tokens", tokens, "budget", flags.TokenBudget)
@@ -1250,6 +1316,9 @@ func budgetShed(prompt string, flags *ContextFlags, personalityContent, coreMemo
 	)
 
 	for _, target := range shedTargets {
+		if err := promptContextErr(ctx); err != nil {
+			return "", nil, err
+		}
 		if tokens <= flags.TokenBudget {
 			break
 		}
@@ -1276,13 +1345,17 @@ func budgetShed(prompt string, flags *ContextFlags, personalityContent, coreMemo
 	}
 
 	// Accurate re-count after all section shedding (single O(n) pass).
-	tokens = countTokensWithModel(result, flags.Model)
+	tokens = countTokensWithModelContext(ctx, result, flags.Model)
 
 	// Token-aware Retrieved Memories trim: progressively remove individual entries (lowest ranked first)
 	// instead of dropping the entire section at once.
 	if tokens > flags.TokenBudget && !flags.UnifiedMemoryBlock {
 		var trimmed bool
-		result, trimmed, tokens = trimRetrievedMemoriesSection(result, flags.TokenBudget, flags.Model, logger)
+		var err error
+		result, trimmed, tokens, err = trimRetrievedMemoriesSectionContext(ctx, result, flags.TokenBudget, flags.Model, logger)
+		if err != nil {
+			return "", nil, err
+		}
 		if trimmed {
 			shedList = append(shedList, "# RETRIEVED MEMORIES (partial)")
 		}
@@ -1295,12 +1368,16 @@ func budgetShed(prompt string, flags *ContextFlags, personalityContent, coreMemo
 	if tokens > flags.TokenBudget {
 		logger.Warn("[Budget] Hard-truncating prompt (mandatory content exceeds budget)",
 			"tokens", tokens, "budget", flags.TokenBudget)
-		result = hardTruncateToBudget(result, flags.TokenBudget, flags.Model)
-		tokens = countTokensWithModel(result, flags.Model)
+		var err error
+		result, err = hardTruncateToBudgetContext(ctx, result, flags.TokenBudget, flags.Model)
+		if err != nil {
+			return "", nil, err
+		}
+		tokens = countTokensWithModelContext(ctx, result, flags.Model)
 		shedList = append(shedList, "HARD_TRUNCATE")
 	}
 
-	return result, shedList
+	return result, shedList, nil
 }
 
 // trimRetrievedMemoriesSection progressively removes individual memory entries (separated by \n---\n)
@@ -1309,12 +1386,21 @@ func budgetShed(prompt string, flags *ContextFlags, personalityContent, coreMemo
 // header is also removed. Returns the (possibly trimmed) prompt, whether any trimming occurred, and
 // the token count after trimming.
 func trimRetrievedMemoriesSection(prompt string, budget int, model string, logger *slog.Logger) (string, bool, int) {
+	result, trimmed, tokens, _ := trimRetrievedMemoriesSectionContext(context.Background(), prompt, budget, model, logger)
+	return result, trimmed, tokens
+}
+
+func trimRetrievedMemoriesSectionContext(ctx context.Context, prompt string, budget int, model string, logger *slog.Logger) (string, bool, int, error) {
+	ctx = normalizePromptContext(ctx)
+	if err := promptContextErr(ctx); err != nil {
+		return "", false, 0, err
+	}
 	const header = "# RETRIEVED MEMORIES"
 	const sep = "\n---\n"
 
 	idx := strings.Index(prompt, header)
 	if idx < 0 {
-		return prompt, false, countTokensWithModel(prompt, model)
+		return prompt, false, countTokensWithModelContext(ctx, prompt, model), nil
 	}
 
 	// Locate the section boundaries (same logic as removeSection)
@@ -1354,13 +1440,16 @@ func trimRetrievedMemoriesSection(prompt string, budget int, model string, logge
 	entries = nonEmpty
 
 	trimmed := false
-	baseTokens := countTokensWithModel(before+afterSection, model) + countTokensWithModel(header, model) + countTokensWithModel("\n\n", model)
-	sepTokens := countTokensWithModel(sep, model)
+	baseTokens := countTokensWithModelContext(ctx, before+afterSection, model) + countTokensWithModelContext(ctx, header, model) + countTokensWithModelContext(ctx, "\n\n", model)
+	sepTokens := countTokensWithModelContext(ctx, sep, model)
 	var entryTokens []int
 	// Compute total content tokens with a running sum (O(n) instead of O(n²))
 	totalContentTokens := 0
 	for i, e := range entries {
-		t := countTokensWithModel(e, model)
+		if err := promptContextErr(ctx); err != nil {
+			return "", false, 0, err
+		}
+		t := countTokensWithModelContext(ctx, e, model)
 		entryTokens = append(entryTokens, t)
 		if i > 0 {
 			totalContentTokens += sepTokens
@@ -1369,6 +1458,9 @@ func trimRetrievedMemoriesSection(prompt string, budget int, model string, logge
 	}
 	currentEntryCount := len(entries)
 	for currentEntryCount > 0 {
+		if err := promptContextErr(ctx); err != nil {
+			return "", false, 0, err
+		}
 		tokens := baseTokens + totalContentTokens
 		if tokens <= budget {
 			if trimmed {
@@ -1378,7 +1470,7 @@ func trimRetrievedMemoriesSection(prompt string, budget int, model string, logge
 			content := header + "\n" + strings.Join(keptEntries, sep) + "\n\n"
 			candidate := before + content + afterSection
 			// Use the pre-computed running sum instead of re-counting the entire candidate.
-			return candidate, trimmed, tokens
+			return candidate, trimmed, tokens, nil
 		}
 		// Subtract the last entry (and its separator) from the running total
 		totalContentTokens -= entryTokens[currentEntryCount-1]
@@ -1392,15 +1484,24 @@ func trimRetrievedMemoriesSection(prompt string, budget int, model string, logge
 	// All entries removed — strip the section header too
 	finalPrompt := strings.TrimRight(before, "\n ") + "\n\n" + afterSection
 	logger.Debug("[Budget] Removed all retrieved memories entries")
-	return finalPrompt, true, countTokensWithModel(finalPrompt, model)
+	return finalPrompt, true, countTokensWithModelContext(ctx, finalPrompt, model), nil
 }
 
 func hardTruncateToBudget(prompt string, budget int, model string) string {
-	if budget <= 0 || prompt == "" {
-		return ""
+	result, _ := hardTruncateToBudgetContext(context.Background(), prompt, budget, model)
+	return result
+}
+
+func hardTruncateToBudgetContext(ctx context.Context, prompt string, budget int, model string) (string, error) {
+	ctx = normalizePromptContext(ctx)
+	if err := promptContextErr(ctx); err != nil {
+		return "", err
 	}
-	if countTokensWithModel(prompt, model) <= budget {
-		return prompt
+	if budget <= 0 || prompt == "" {
+		return "", nil
+	}
+	if countTokensWithModelContext(ctx, prompt, model) <= budget {
+		return prompt, nil
 	}
 
 	// Work on byte level rather than rune level. BPE tokenizers operate on
@@ -1410,34 +1511,52 @@ func hardTruncateToBudget(prompt string, budget int, model string) string {
 	bytes := []byte(prompt)
 	marker := "\n\n[BUDGET TRUNCATED]"
 
-	bestWithMarker, ok := longestBytePrefixWithinBudget(bytes, marker, budget, model)
+	bestWithMarker, ok, err := longestBytePrefixWithinBudgetContext(ctx, bytes, marker, budget, model)
+	if err != nil {
+		return "", err
+	}
 	if ok {
-		return bestWithMarker
+		return bestWithMarker, nil
 	}
 
-	bestWithoutMarker, ok := longestBytePrefixWithinBudget(bytes, "", budget, model)
+	bestWithoutMarker, ok, err := longestBytePrefixWithinBudgetContext(ctx, bytes, "", budget, model)
+	if err != nil {
+		return "", err
+	}
 	if ok {
-		return bestWithoutMarker
+		return bestWithoutMarker, nil
 	}
 
-	if countTokensWithModel(marker, model) <= budget {
-		return marker
+	if countTokensWithModelContext(ctx, marker, model) <= budget {
+		return marker, nil
 	}
-	return ""
+	return "", nil
 }
 
 // longestBytePrefixWithinBudget performs a binary search over byte-sliced
 // prefixes of data, appending suffix, and returns the longest candidate whose
 // token count fits within budget.
 func longestBytePrefixWithinBudget(data []byte, suffix string, budget int, model string) (string, bool) {
+	result, ok, _ := longestBytePrefixWithinBudgetContext(context.Background(), data, suffix, budget, model)
+	return result, ok
+}
+
+func longestBytePrefixWithinBudgetContext(ctx context.Context, data []byte, suffix string, budget int, model string) (string, bool, error) {
+	ctx = normalizePromptContext(ctx)
+	if err := promptContextErr(ctx); err != nil {
+		return "", false, err
+	}
 	lo, hi := 0, len(data)
 	best := ""
 	found := false
 
 	for lo <= hi {
+		if err := promptContextErr(ctx); err != nil {
+			return "", false, err
+		}
 		mid := (lo + hi) / 2
 		candidate := string(data[:mid]) + suffix
-		if countTokensWithModel(candidate, model) <= budget {
+		if countTokensWithModelContext(ctx, candidate, model) <= budget {
 			best = candidate
 			found = true
 			lo = mid + 1
@@ -1446,7 +1565,7 @@ func longestBytePrefixWithinBudget(data []byte, suffix string, budget int, model
 		hi = mid - 1
 	}
 
-	return best, found
+	return best, found, nil
 }
 
 func buildUnifiedMemoryContextBlock(tier string, flags *ContextFlags) string {
@@ -1776,15 +1895,24 @@ func loadCorePersonalityContent(promptsDir, profile string, logger *slog.Logger)
 // Falls back to a char/4 heuristic if the encoder is unavailable
 // when tiktoken-go cannot download the BPE vocabulary from the network.
 func CountTokens(text string) int {
+	return CountTokensContext(context.Background(), text)
+}
+
+func CountTokensContext(ctx context.Context, text string) int {
+	ctx = normalizePromptContext(ctx)
 	if text == "" {
 		return 0
 	}
-	if enc := ensureTokenEncoder(); enc != nil {
+	if enc := ensureTokenEncoderContext(ctx); enc != nil {
 		return len(enc.Encode(text, nil, nil))
 	}
 	tiktokenWarnOnce.Do(func() {
 		slog.Warn("[TokenCount] tiktoken encoder unavailable, using char/4 fallback")
 	})
+	return estimateTokensByChars(text)
+}
+
+func estimateTokensByChars(text string) int {
 	chars := len(text)
 	newlines := strings.Count(text, "\n")
 	tokens := (chars + 3) / 4
@@ -1796,6 +1924,14 @@ func CountTokens(text string) int {
 }
 
 func ensureTokenEncoder() tokenEncoder {
+	return ensureTokenEncoderContext(context.Background())
+}
+
+func ensureTokenEncoderContext(ctx context.Context) tokenEncoder {
+	ctx = normalizePromptContext(ctx)
+	if err := promptContextErr(ctx); err != nil {
+		return nil
+	}
 	tiktokenMu.Lock()
 	if tiktokenEnc != nil {
 		enc := tiktokenEnc
@@ -1846,6 +1982,15 @@ func ensureTokenEncoder() tokenEncoder {
 		enc := tiktokenEnc
 		tiktokenMu.Unlock()
 		return enc
+	case <-ctx.Done():
+		tiktokenMu.Lock()
+		if tiktokenEnc == nil {
+			tiktokenNextRetry = time.Now().Add(tiktokenRetryBackoff)
+		}
+		tiktokenMu.Unlock()
+		slog.Warn("[TokenCount] tiktoken init cancelled, using char/4 fallback",
+			"error", ctx.Err(), "retry_after", tiktokenRetryBackoff)
+		return nil
 	case <-timer.C:
 		tiktokenMu.Lock()
 		if tiktokenEnc == nil {
@@ -1882,7 +2027,11 @@ func tokenMultiplier(model string) float64 {
 // For models that use different tokenizers than cl100k_base (Anthropic, Gemini),
 // a correction multiplier is applied.
 func CountTokensForModel(text string, model string) int {
-	base := CountTokens(text)
+	return CountTokensForModelContext(context.Background(), text, model)
+}
+
+func CountTokensForModelContext(ctx context.Context, text string, model string) int {
+	base := CountTokensContext(ctx, text)
 	mult := tokenMultiplier(model)
 	if mult == 1.0 {
 		return base
@@ -1893,10 +2042,14 @@ func CountTokensForModel(text string, model string) int {
 // countTokensWithModel returns CountTokensForModel when model is set,
 // otherwise falls back to the generic CountTokens.
 func countTokensWithModel(text, model string) int {
+	return countTokensWithModelContext(context.Background(), text, model)
+}
+
+func countTokensWithModelContext(ctx context.Context, text, model string) int {
 	if model != "" {
-		return CountTokensForModel(text, model)
+		return CountTokensForModelContext(ctx, text, model)
 	}
-	return CountTokens(text)
+	return CountTokensContext(ctx, text)
 }
 
 // buildEnabledToolsOverview returns a compact one-liner listing enabled tools

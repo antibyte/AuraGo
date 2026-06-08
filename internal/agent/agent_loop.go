@@ -997,7 +997,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			sysPrompt = refreshCachedSystemPromptNow(cachedSysPrompt, time.Now())
 			sysPromptTokens = cachedSysPromptTokens
 		} else {
-			sysPrompt, sysPromptTokens = prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, &flags, coreMemCache, s.currentLogger)
+			sysPrompt, sysPromptTokens = prompts.BuildSystemPromptContext(ctx, cfg.Directories.PromptsDir, &flags, coreMemCache, s.currentLogger)
 			if budgetHint != "" {
 				sysPrompt += "\n\n" + budgetHint
 				sysPromptTokens += prompts.CountTokensForModel(budgetHint, req.Model) + 2

@@ -2,6 +2,7 @@ package prompts
 
 import (
 	promptsembed "aurago/prompts"
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -989,6 +990,80 @@ func TestFallbackSystemPromptAddsChineseDriftGuardForNonChineseLanguage(t *testi
 
 	if !strings.Contains(prompt, "do not insert Chinese words") {
 		t.Fatalf("expected anti-Chinese language drift guard in fallback prompt")
+	}
+}
+
+func TestBuildSystemPromptContextCancelledReturnsFallback(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	flags := ContextFlags{
+		SystemLanguage:   "en",
+		Tier:             "full",
+		AdditionalPrompt: strings.Repeat("this should only appear in the full build ", 20),
+	}
+
+	prompt, tokens := BuildSystemPromptContext(ctx, "", &flags, "Remember this", slog.Default())
+	if tokens <= 0 {
+		t.Fatalf("expected fallback token count to be positive, got %d", tokens)
+	}
+	if !strings.Contains(prompt, "# CORE IDENTITY") {
+		t.Fatalf("expected fallback identity, got:\n%s", prompt)
+	}
+	if !strings.Contains(prompt, "Remember this") {
+		t.Fatalf("expected fallback core memory, got:\n%s", prompt)
+	}
+	if strings.Contains(prompt, "this should only appear in the full build") {
+		t.Fatalf("cancelled build should not include full-build additional prompt:\n%s", prompt)
+	}
+}
+
+func TestCountTokensContextCancelledDoesNotWaitForEncoderInit(t *testing.T) {
+	block := make(chan struct{})
+	defer close(block)
+
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		<-block
+		return stubTokenEncoder{tokensPerCall: 9}, nil
+	}, time.Second, time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	got := CountTokensContext(ctx, "fallback quickly")
+	elapsed := time.Since(start)
+
+	if got <= 0 {
+		t.Fatalf("expected fallback token count to be positive, got %d", got)
+	}
+	if elapsed > 200*time.Millisecond {
+		t.Fatalf("CountTokensContext waited too long after context deadline: %s", elapsed)
+	}
+}
+
+func TestBudgetShedContextReturnsCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	flags := ContextFlags{
+		Tier:        "full",
+		TokenBudget: 10,
+	}
+
+	_, _, err := budgetShedContext(ctx, strings.Repeat("word ", 100), &flags, "", "", time.Now(), slog.Default())
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+}
+
+func TestHardTruncateToBudgetContextReturnsCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := hardTruncateToBudgetContext(ctx, strings.Repeat("word ", 100), 10, "")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
 	}
 }
 
