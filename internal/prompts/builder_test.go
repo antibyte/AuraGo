@@ -199,6 +199,58 @@ func TestBudgetShed_HardTruncateWhenCoreExceedsBudget(t *testing.T) {
 	}
 }
 
+func TestBudgetShedRemovesVolatileTurnSectionsBeforeHardTruncate(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return charRatioEncoder{}, nil
+	}, time.Second, time.Second)
+
+	largeContext := strings.Repeat("learned operational context ", 80)
+	prompt := `# SYSTEM IDENTITY
+You are AuraGo.
+
+# LEARNED RULES
+` + largeContext + `
+
+# TASK RULES
+` + largeContext + `
+
+# ADDITIONAL INSTRUCTIONS
+Keep the user's explicit instruction.
+
+> **VOICE MODE ACTIVE (SPEAKER ON):** Speak short conversational replies.
+
+> **NATIVE TOOL MODE REMINDER:** Use native function calling.`
+
+	flags := ContextFlags{
+		Tier:               "full",
+		TokenBudget:        80,
+		NativeToolsEnabled: true,
+		VoiceOutputActive:  true,
+	}
+
+	result, shedSections := budgetShed(prompt, &flags, "", "", time.Now(), slog.Default())
+	if strings.Contains(result, "# LEARNED RULES") {
+		t.Fatalf("expected # LEARNED RULES to be shed:\n%s", result)
+	}
+	if strings.Contains(result, "# TASK RULES") {
+		t.Fatalf("expected # TASK RULES to be shed:\n%s", result)
+	}
+	if !strings.Contains(result, "# ADDITIONAL INSTRUCTIONS") {
+		t.Fatalf("expected additional instructions to survive shedding:\n%s", result)
+	}
+	if !strings.Contains(result, "VOICE MODE ACTIVE") {
+		t.Fatalf("expected voice mode reminder to survive shedding:\n%s", result)
+	}
+	if !strings.Contains(result, "NATIVE TOOL MODE REMINDER") {
+		t.Fatalf("expected native tool reminder to survive shedding:\n%s", result)
+	}
+	for _, section := range shedSections {
+		if section == "HARD_TRUNCATE" {
+			t.Fatalf("expected section shedding to avoid hard truncate, got %v", shedSections)
+		}
+	}
+}
+
 func TestBudgetShed_UnifiedMemoryRemovesUserProfile(t *testing.T) {
 	// Test with UnifiedMemoryBlock enabled
 	prompt := `# SYSTEM IDENTITY
@@ -238,6 +290,37 @@ some activity`
 	// Verify the section is actually removed
 	if strings.Contains(result, "## USER PROFILING") {
 		t.Errorf("expected ## USER PROFILING to be removed from result")
+	}
+}
+
+func TestUnifiedMemoryUsesAdaptiveTierWhenFlagTierUnset(t *testing.T) {
+	flags := ContextFlags{
+		MessageCount:           30,
+		SystemLanguage:         "en",
+		UnifiedMemoryBlock:     true,
+		RecentActivityOverview: "recent activity should be shed by minimal tier",
+		RetrievedMemories:      "retrieved memory should be shed by minimal tier",
+		PredictedMemories:      "predicted memory should be shed by minimal tier",
+		KnowledgeContext:       "knowledge should be shed by minimal tier",
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+	if strings.Contains(prompt, "# UNIFIED MEMORY CONTEXT") {
+		t.Fatalf("expected adaptive minimal tier to omit unified memory context when flags.Tier is unset:\n%s", prompt)
+	}
+}
+
+func TestGetCorePersonalityMetaFallsBackToEmbeddedProfile(t *testing.T) {
+	meta := GetCorePersonalityMeta(t.TempDir(), "punk")
+
+	if meta.Volatility != 1.8 {
+		t.Fatalf("Volatility = %v, want embedded punk metadata", meta.Volatility)
+	}
+	if meta.EmpathyBias != 0.2 {
+		t.Fatalf("EmpathyBias = %v, want embedded punk metadata", meta.EmpathyBias)
+	}
+	if meta.ConflictResponse != "assertive" {
+		t.Fatalf("ConflictResponse = %q, want assertive", meta.ConflictResponse)
 	}
 }
 

@@ -1,7 +1,9 @@
 package agent
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/prompts"
 )
@@ -50,6 +52,49 @@ func TestBuildSystemPromptCacheKey_DifferentFlags(t *testing.T) {
 		{
 			name:       "InnerVoice changes cache key",
 			modify:     func(f *prompts.ContextFlags) { f.InnerVoice = "think carefully" },
+			wantNewKey: true,
+		},
+		{
+			name:       "LearnedRulesContext changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.LearnedRulesContext = "avoid stale docker state" },
+			wantNewKey: true,
+		},
+		{
+			name:       "SurgeryPlan changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.IsMaintenanceMode = true; f.SurgeryPlan = "restart service safely" },
+			wantNewKey: true,
+		},
+		{
+			name:       "SpecialistsSuggestion changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.SpecialistsSuggestion = "Delegate frontend audit" },
+			wantNewKey: true,
+		},
+		{
+			name:       "IsCoAgent changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.IsCoAgent = true },
+			wantNewKey: true,
+		},
+		{
+			name:       "IsEgg changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.IsEgg = true },
+			wantNewKey: true,
+		},
+		{
+			name: "SpaceAgentPublicURL changes cache key",
+			modify: func(f *prompts.ContextFlags) {
+				f.SpaceAgentEnabled = true
+				f.SpaceAgentPublicURL = "https://space.example/"
+			},
+			wantNewKey: true,
+		},
+		{
+			name:       "ToolsDir changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.ToolsDir = "/workspace/tools" },
+			wantNewKey: true,
+		},
+		{
+			name:       "SkillsDir changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.SkillsDir = "/workspace/skills" },
 			wantNewKey: true,
 		},
 		{
@@ -175,5 +220,20 @@ func TestBuildSystemPromptCacheKey_TaskRuleIDsOrderInsensitive(t *testing.T) {
 	}
 	if keyA != keyB {
 		t.Fatalf("expected TaskRuleIDs order-insensitive cache key")
+	}
+}
+
+func TestRefreshCachedSystemPromptNowUpdatesNowLine(t *testing.T) {
+	prompt := "# SYSTEM\nstable\n\n# NOW\n2026-06-08 10:11\n> **Channel:** Web Chat\n"
+	got := refreshCachedSystemPromptNow(prompt, time.Date(2026, 6, 8, 12, 34, 56, 0, time.UTC))
+
+	if got == prompt {
+		t.Fatal("expected # NOW line to be refreshed")
+	}
+	if want := "# NOW\n2026-06-08 12:34\n"; !strings.Contains(got, want) {
+		t.Fatalf("refreshed prompt missing %q:\n%s", want, got)
+	}
+	if !strings.Contains(got, "> **Channel:** Web Chat") {
+		t.Fatalf("refresh dropped content after # NOW:\n%s", got)
 	}
 }

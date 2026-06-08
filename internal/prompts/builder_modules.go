@@ -1041,11 +1041,30 @@ func GetCorePersonalityMeta(promptsDir, corePersonality string) memory.Personali
 		if err == nil && !info.ModTime().After(cached.mtime) {
 			return cached.meta
 		}
+		if err != nil && cached.fromEmbed {
+			return cached.meta
+		}
 	}
 
 	data, err := os.ReadFile(profilePath)
 	if err != nil {
-		return defaultMeta
+		data, err = fs.ReadFile(promptsembed.FS, "personalities/"+corePersonality+".md")
+		if err != nil {
+			return defaultMeta
+		}
+		mod, err := parsePromptModule(string(data))
+		if err != nil {
+			return defaultMeta
+		}
+		m := mod.Metadata.Meta.Normalized()
+		if err := mod.Metadata.Meta.Validate(); err != nil {
+			slog.Warn("[Personality] Invalid embedded personality metadata detected",
+				"profile", corePersonality, "error", err)
+		}
+		metaCacheMu.Lock()
+		metaCache[profilePath] = metaCacheEntry{meta: m, fromEmbed: true}
+		metaCacheMu.Unlock()
+		return m
 	}
 
 	mod, err := parsePromptModule(string(data))

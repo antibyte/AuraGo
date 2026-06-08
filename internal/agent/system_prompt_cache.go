@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"sort"
+	"strings"
+	"time"
 
 	"aurago/internal/prompts"
 )
@@ -22,12 +24,15 @@ type systemPromptCacheKey struct {
 	Tier                     string   `json:"tier"`
 	TokenBudget              int      `json:"token_budget"`
 	IsMission                bool     `json:"is_mission"`
+	IsCoAgent                bool     `json:"is_co_agent"`
+	IsEgg                    bool     `json:"is_egg"`
 	IsErrorState             bool     `json:"is_error_state"`
 	RequiresCoding           bool     `json:"requires_coding"`
 	SystemLanguage           string   `json:"system_language"`
 	CorePersonality          string   `json:"core_personality"`
 	AdditionalPrompt         string   `json:"additional_prompt"`
 	InnerVoice               string   `json:"inner_voice"`
+	SurgeryPlan              string   `json:"surgery_plan"`
 	PredictedGuidesHash      string   `json:"predicted_guides_hash"`
 	HighPriorityNotes        string   `json:"high_priority_notes"`
 	AgentSkillsCatalog       string   `json:"agent_skills_catalog"`
@@ -42,8 +47,10 @@ type systemPromptCacheKey struct {
 	ActiveProcesses          string   `json:"active_processes"`
 	IsVoiceMode              bool     `json:"is_voice_mode"`
 	SpecialistsStatus        string   `json:"specialists_status"`
+	SpecialistsSuggestion    string   `json:"specialists_suggestion"`
 	KnowledgeContext         string   `json:"knowledge_context"`
 	ErrorPatternContext      string   `json:"error_pattern_context"`
+	LearnedRulesContext      string   `json:"learned_rules_context"`
 	ReuseContext             string   `json:"reuse_context"`
 	ChatChannelsContext      string   `json:"chat_channels_context"`
 	TaskRulesHash            string   `json:"task_rules_hash"`
@@ -52,6 +59,9 @@ type systemPromptCacheKey struct {
 	EmotionDescription       string   `json:"emotion_description"`
 	UserProfileSummary       string   `json:"user_profile_summary"`
 	MessageSource            string   `json:"message_source"`
+	SpaceAgentPublicURL      string   `json:"space_agent_public_url"`
+	ToolsDir                 string   `json:"tools_dir"`
+	SkillsDir                string   `json:"skills_dir"`
 	Model                    string   `json:"model"`
 	IsTextModeModel          bool     `json:"is_text_mode_model"`
 	PersonalityLine          string   `json:"personality_line"`
@@ -86,12 +96,15 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		Tier:                     flags.Tier,
 		TokenBudget:              flags.TokenBudget,
 		IsMission:                flags.IsMission,
+		IsCoAgent:                flags.IsCoAgent,
+		IsEgg:                    flags.IsEgg,
 		IsErrorState:             flags.IsErrorState,
 		RequiresCoding:           flags.RequiresCoding,
 		SystemLanguage:           flags.SystemLanguage,
 		CorePersonality:          flags.CorePersonality,
 		AdditionalPrompt:         flags.AdditionalPrompt,
 		InnerVoice:               flags.InnerVoice,
+		SurgeryPlan:              flags.SurgeryPlan,
 		PredictedGuidesHash:      predictedGuidesHash,
 		HighPriorityNotes:        flags.HighPriorityNotes,
 		AgentSkillsCatalog:       flags.AgentSkillsCatalog,
@@ -106,8 +119,10 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		ActiveProcesses:          flags.ActiveProcesses,
 		IsVoiceMode:              flags.IsVoiceMode,
 		SpecialistsStatus:        flags.SpecialistsStatus,
+		SpecialistsSuggestion:    flags.SpecialistsSuggestion,
 		KnowledgeContext:         flags.KnowledgeContext,
 		ErrorPatternContext:      flags.ErrorPatternContext,
+		LearnedRulesContext:      flags.LearnedRulesContext,
 		ReuseContext:             flags.ReuseContext,
 		ChatChannelsContext:      flags.ChatChannelsContext,
 		TaskRulesHash:            taskRulesHash,
@@ -116,6 +131,9 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		EmotionDescription:       flags.EmotionDescription,
 		UserProfileSummary:       flags.UserProfileSummary,
 		MessageSource:            flags.MessageSource,
+		SpaceAgentPublicURL:      flags.SpaceAgentPublicURL,
+		ToolsDir:                 flags.ToolsDir,
+		SkillsDir:                flags.SkillsDir,
 		Model:                    flags.Model,
 		IsTextModeModel:          flags.IsTextModeModel,
 		PersonalityLine:          flags.PersonalityLine,
@@ -126,6 +144,22 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 	}
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+func refreshCachedSystemPromptNow(prompt string, now time.Time) string {
+	const marker = "# NOW\n"
+	idx := strings.Index(prompt, marker)
+	if idx < 0 {
+		return prompt
+	}
+	valueStart := idx + len(marker)
+	valueEnd := valueStart
+	if relEnd := strings.IndexByte(prompt[valueStart:], '\n'); relEnd >= 0 {
+		valueEnd = valueStart + relEnd
+	} else {
+		valueEnd = len(prompt)
+	}
+	return prompt[:valueStart] + now.Format("2006-01-02 15:04") + prompt[valueEnd:]
 }
 
 func hashStringForPromptCache(value string) string {
@@ -163,6 +197,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	}
 	if flags.TelegramEnabled {
 		tools = append(tools, "telegram")
+	}
+	if flags.ObsidianEnabled {
+		tools = append(tools, "obsidian")
 	}
 	if flags.EmailEnabled {
 		tools = append(tools, "email")
@@ -223,6 +260,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	}
 	if flags.VercelEnabled {
 		tools = append(tools, "vercel")
+	}
+	if flags.CloudflareTunnelEnabled {
+		tools = append(tools, "cloudflaretunnel")
 	}
 	if flags.GoogleWorkspaceEnabled {
 		tools = append(tools, "googleworkspace")

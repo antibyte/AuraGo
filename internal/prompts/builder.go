@@ -62,8 +62,9 @@ var (
 )
 
 type metaCacheEntry struct {
-	meta  memory.PersonalityMeta
-	mtime time.Time
+	meta      memory.PersonalityMeta
+	mtime     time.Time
+	fromEmbed bool
 }
 
 // personalityContentCache caches loaded personality profile text keyed by profile name.
@@ -621,7 +622,7 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 	}
 
 	if flags.UnifiedMemoryBlock {
-		if unifiedBlock := buildUnifiedMemoryContextBlock(flags); unifiedBlock != "" {
+		if unifiedBlock := buildUnifiedMemoryContextBlock(tier, flags); unifiedBlock != "" {
 			finalPrompt.WriteString(unifiedBlock)
 			finalPrompt.WriteString("\n\n")
 		}
@@ -1203,61 +1204,49 @@ func budgetShed(prompt string, flags *ContextFlags, personalityContent, coreMemo
 	var shedList []string
 	result := prompt
 
+	type shedTarget struct {
+		header string
+		isLine bool
+	}
+
 	// Shed sections in fixed priority order. Re-count tokens only when a section
 	// was actually removed. This avoids the expensive double token-counting that
 	// the previous size-sorting approach required.
-	shedTargets := []struct {
-		header string
-		isLine bool
-	}{
+	shedTargets := []shedTarget{
 		{"# TOOL GUIDES", false},
 	}
 
 	if flags.UnifiedMemoryBlock {
 		shedTargets = append(shedTargets,
-			struct {
-				header string
-				isLine bool
-			}{"## USER PROFILING", false},
-			struct {
-				header string
-				isLine bool
-			}{"# UNIFIED MEMORY CONTEXT", false},
+			shedTarget{"## USER PROFILING", false},
+			shedTarget{"# UNIFIED MEMORY CONTEXT", false},
 		)
 	} else {
 		shedTargets = append(shedTargets,
-			struct {
-				header string
-				isLine bool
-			}{"# PREDICTED CONTEXT", false},
-			struct {
-				header string
-				isLine bool
-			}{"# LAST 7 DAYS OVERVIEW", false},
-			struct {
-				header string
-				isLine bool
-			}{"## USER PROFILING", false},
+			shedTarget{"# PREDICTED CONTEXT", false},
+			shedTarget{"# LAST 7 DAYS OVERVIEW", false},
+			shedTarget{"## USER PROFILING", false},
 		)
 	}
 
 	shedTargets = append(shedTargets,
-		struct {
-			header string
-			isLine bool
-		}{"### INNER VOICE", false},
-		struct {
-			header string
-			isLine bool
-		}{"[Self:", true},
-		struct {
-			header string
-			isLine bool
-		}{"[SYSTEM DIRECTIVE - CURRENT STATE]", false},
-		struct {
-			header string
-			isLine bool
-		}{"# YOUR PERSONALITY", false},
+		shedTarget{"# RELEVANT KNOWLEDGE", false},
+		shedTarget{"# KNOWN ERROR PATTERNS", false},
+		shedTarget{"# LEARNED RULES", false},
+		shedTarget{"# REUSE-FIRST CONTEXT", false},
+		shedTarget{"### ACTIVE REMINDERS", false},
+		shedTarget{"### PLANNER CONTEXT", false},
+		shedTarget{"### DAILY TODO REMINDER", false},
+		shedTarget{"### OPERATIONAL ISSUE REMINDER", false},
+		shedTarget{"### ACTIVE TASK LIST", false},
+		shedTarget{"# OUTGOING WEBHOOKS", false},
+		shedTarget{"# TASK RULES", false},
+		shedTarget{"# HOMEPAGE DESIGN SYSTEM", false},
+		shedTarget{"# AGENT SKILLS CATALOG", false},
+		shedTarget{"### INNER VOICE", false},
+		shedTarget{"[Self:", true},
+		shedTarget{"[SYSTEM DIRECTIVE - CURRENT STATE]", false},
+		shedTarget{"# YOUR PERSONALITY", false},
 	)
 
 	for _, target := range shedTargets {
@@ -1460,16 +1449,16 @@ func longestBytePrefixWithinBudget(data []byte, suffix string, budget int, model
 	return best, found
 }
 
-func buildUnifiedMemoryContextBlock(flags *ContextFlags) string {
+func buildUnifiedMemoryContextBlock(tier string, flags *ContextFlags) string {
 	sections := make([]string, 0, 4)
 
-	if flags.RecentActivityOverview != "" && flags.Tier != "minimal" {
+	if flags.RecentActivityOverview != "" && tier != "minimal" {
 		sections = append(sections,
 			"## Recent Activity\n"+security.IsolateExternalData(flags.RecentActivityOverview),
 		)
 	}
 
-	if flags.RetrievedMemories != "" && flags.Tier != "minimal" {
+	if flags.RetrievedMemories != "" && tier != "minimal" {
 		sections = append(sections,
 			"## Retrieved Memories\n**Critical**: Memories are snapshots of past observations and ARE FREQUENTLY OUTDATED. "+
 				"**Priority rule: fresh tool output always overrides memory.** "+
@@ -1487,13 +1476,13 @@ func buildUnifiedMemoryContextBlock(flags *ContextFlags) string {
 		)
 	}
 
-	if flags.PredictedMemories != "" && flags.Tier == "full" {
+	if flags.PredictedMemories != "" && tier == "full" {
 		sections = append(sections,
 			"## Predicted Context\n"+security.IsolateExternalData(flags.PredictedMemories),
 		)
 	}
 
-	if flags.KnowledgeContext != "" && flags.Tier != "minimal" {
+	if flags.KnowledgeContext != "" && tier != "minimal" {
 		sections = append(sections,
 			"## Relevant Knowledge\n"+security.IsolateExternalData(flags.KnowledgeContext),
 		)
