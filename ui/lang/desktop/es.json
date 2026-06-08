@@ -1232,6 +1232,7 @@
   "homepage_studio.select_target": "Seleccionar objetivo...",
   "homepage_studio.chat_placeholder": "Describe los cambios en tu sitio web...",
   "homepage_studio.preview_loading": "Cargando vista previa...",
+  "homepage_studio.preview_empty_title": "Aún no hay vista previa en vivo",
   "homepage_studio.preview_unavailable": "Vista previa no disponible — inicia primero el contenedor de homepage",
   "homepage_studio.refresh_preview": "Actualizar vista previa",
   "homepage_studio.open_external": "Abrir en nueva pestaña",

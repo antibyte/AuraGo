@@ -1232,6 +1232,7 @@
   "homepage_studio.select_target": "Επιλέξτε στόχο...",
   "homepage_studio.chat_placeholder": "Περιγράψτε τις αλλαγές στην ιστοσελίδα σας...",
   "homepage_studio.preview_loading": "Φόρτωση προεπισκόπησης...",
+  "homepage_studio.preview_empty_title": "Δεν υπάρχει ακόμη ζωντανή προεπισκόπηση",
   "homepage_studio.preview_unavailable": "Η προεπισκόπηση δεν είναι διαθέσιμη — ξεκινήστε πρώτα τον container homepage",
   "homepage_studio.refresh_preview": "Ανανέωση προεπισκόπησης",
   "homepage_studio.open_external": "Άνοιγμα σε νέα καρτέλα",

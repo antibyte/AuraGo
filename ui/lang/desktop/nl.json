@@ -1232,6 +1232,7 @@
   "homepage_studio.select_target": "Selecteer doel...",
   "homepage_studio.chat_placeholder": "Beschrijf je website-wijzigingen...",
   "homepage_studio.preview_loading": "Voorbeeld laden...",
+  "homepage_studio.preview_empty_title": "Nog geen live voorbeeld",
   "homepage_studio.preview_unavailable": "Voorbeeld niet beschikbaar — start eerst de homepage-container",
   "homepage_studio.refresh_preview": "Voorbeeld vernieuwen",
   "homepage_studio.open_external": "Openen in nieuw tabblad",

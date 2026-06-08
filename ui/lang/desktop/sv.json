@@ -1232,6 +1232,7 @@
   "homepage_studio.select_target": "Välj mål...",
   "homepage_studio.chat_placeholder": "Beskriv dina webbplatsändringar...",
   "homepage_studio.preview_loading": "Laddar förhandsvisning...",
+  "homepage_studio.preview_empty_title": "Ingen live-förhandsvisning ännu",
   "homepage_studio.preview_unavailable": "Förhandsvisning inte tillgänglig — starta först homepage-container",
   "homepage_studio.refresh_preview": "Uppdatera förhandsvisning",
   "homepage_studio.open_external": "Öppna i ny flik",

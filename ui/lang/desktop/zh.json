@@ -1232,6 +1232,7 @@
   "homepage_studio.select_target": "选择目标...",
   "homepage_studio.chat_placeholder": "描述您的网站更改...",
   "homepage_studio.preview_loading": "加载预览中...",
+  "homepage_studio.preview_empty_title": "尚无实时预览",
   "homepage_studio.preview_unavailable": "预览不可用 — 请先启动主页容器",
   "homepage_studio.refresh_preview": "刷新预览",
   "homepage_studio.open_external": "在新标签页中打开",

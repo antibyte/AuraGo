@@ -1232,6 +1232,7 @@
   "homepage_studio.select_target": "Select target...",
   "homepage_studio.chat_placeholder": "Describe your website changes...",
   "homepage_studio.preview_loading": "Loading preview...",
+  "homepage_studio.preview_empty_title": "No live preview yet",
   "homepage_studio.preview_unavailable": "Preview unavailable — start the homepage container first",
   "homepage_studio.refresh_preview": "Refresh preview",
   "homepage_studio.open_external": "Open in new tab",

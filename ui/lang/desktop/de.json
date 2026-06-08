@@ -1232,6 +1232,7 @@
   "homepage_studio.select_target": "Ziel auswählen...",
   "homepage_studio.chat_placeholder": "Beschreibe deine Website-Änderungen...",
   "homepage_studio.preview_loading": "Vorschau wird geladen...",
+  "homepage_studio.preview_empty_title": "Noch keine Live-Vorschau",
   "homepage_studio.preview_unavailable": "Vorschau nicht verfügbar — starte zuerst den Homepage-Container",
   "homepage_studio.refresh_preview": "Vorschau aktualisieren",
   "homepage_studio.open_external": "In neuem Tab öffnen",

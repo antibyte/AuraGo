@@ -1232,6 +1232,7 @@
   "homepage_studio.select_target": "Selecionar alvo...",
   "homepage_studio.chat_placeholder": "Descreva as alterações do seu site...",
   "homepage_studio.preview_loading": "Carregando pré-visualização...",
+  "homepage_studio.preview_empty_title": "Ainda sem pré-visualização ao vivo",
   "homepage_studio.preview_unavailable": "Pré-visualização indisponível — inicie primeiro o container homepage",
   "homepage_studio.refresh_preview": "Atualizar pré-visualização",
   "homepage_studio.open_external": "Abrir em nova aba",

@@ -1232,6 +1232,7 @@
   "homepage_studio.select_target": "Sélectionner une cible...",
   "homepage_studio.chat_placeholder": "Décrivez vos modifications de site...",
   "homepage_studio.preview_loading": "Chargement de l'aperçu...",
+  "homepage_studio.preview_empty_title": "Pas encore d'aperçu en direct",
   "homepage_studio.preview_unavailable": "Aperçu indisponible — démarrez d'abord le conteneur homepage",
   "homepage_studio.refresh_preview": "Actualiser l'aperçu",
   "homepage_studio.open_external": "Ouvrir dans un nouvel onglet",

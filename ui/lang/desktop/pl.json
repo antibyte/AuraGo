@@ -1232,6 +1232,7 @@
   "homepage_studio.select_target": "Wybierz cel...",
   "homepage_studio.chat_placeholder": "Opisz zmiany na swojej stronie...",
   "homepage_studio.preview_loading": "Ładowanie podglądu...",
+  "homepage_studio.preview_empty_title": "Brak podglądu na żywo",
   "homepage_studio.preview_unavailable": "Podgląd niedostępny — najpierw uruchom kontener homepage",
   "homepage_studio.refresh_preview": "Odśwież podgląd",
   "homepage_studio.open_external": "Otwórz w nowej karcie",

@@ -1232,6 +1232,7 @@
   "homepage_studio.select_target": "Vyberte cíl...",
   "homepage_studio.chat_placeholder": "Popište změny na svých stránkách...",
   "homepage_studio.preview_loading": "Načítání náhledu...",
+  "homepage_studio.preview_empty_title": "Zatím žádný živý náhled",
   "homepage_studio.preview_unavailable": "Náhled není k dispozici — nejprve spusťte kontejner homepage",
   "homepage_studio.refresh_preview": "Obnovit náhled",
   "homepage_studio.open_external": "Otevřít v nové kartě",

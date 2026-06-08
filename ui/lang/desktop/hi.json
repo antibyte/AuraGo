@@ -1232,6 +1232,7 @@
   "homepage_studio.select_target": "लक्ष्य चुनें...",
   "homepage_studio.chat_placeholder": "अपनी वेबसाइट के बदलावों का वर्णन करें...",
   "homepage_studio.preview_loading": "पूर्वावलोकन लोड हो रहा है...",
+  "homepage_studio.preview_empty_title": "अभी कोई लाइव पूर्वावलोकन नहीं",
   "homepage_studio.preview_unavailable": "पूर्वावलोकन उपलब्ध नहीं — पहले होमपेज कंटेनर शुरू करें",
   "homepage_studio.refresh_preview": "पूर्वावलोकन रीफ्रेश करें",
   "homepage_studio.open_external": "नए टैब में खोलें",

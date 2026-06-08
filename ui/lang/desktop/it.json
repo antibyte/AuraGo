@@ -1232,6 +1232,7 @@
   "homepage_studio.select_target": "Seleziona destinazione...",
   "homepage_studio.chat_placeholder": "Descrivi le modifiche al tuo sito web...",
   "homepage_studio.preview_loading": "Caricamento anteprima...",
+  "homepage_studio.preview_empty_title": "Nessuna anteprima live ancora",
   "homepage_studio.preview_unavailable": "Anteprima non disponibile — avvia prima il container homepage",
   "homepage_studio.refresh_preview": "Aggiorna anteprima",
   "homepage_studio.open_external": "Apri in nuova scheda",

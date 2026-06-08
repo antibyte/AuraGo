@@ -22,55 +22,61 @@
 
         container.innerHTML = `
             <div class="vd-hp-studio">
-                <div class="vd-hp-chat">
-                    <div class="vd-hp-chat-header">
-                        <span class="vd-hp-chat-header-label">${esc(t('homepage_studio.target_label', 'Target'))}</span>
-                        <select class="vd-hp-target-select" id="hp-target-${windowId}">
+                <aside class="vd-hp-chat" aria-label="${esc(t('homepage_studio.welcome_heading', 'Homepage Studio'))}">
+                    <header class="vd-hp-chat-header">
+                        <label class="vd-hp-chat-header-label" for="hp-target-${windowId}">${esc(t('homepage_studio.target_label', 'Target'))}</label>
+                        <select class="vd-hp-target-select" id="hp-target-${windowId}" aria-describedby="hp-status-${windowId}">
                             <option value="local">${esc(t('homepage_studio.target_local', 'Local Server'))}</option>
                             <option value="vercel">${esc(t('homepage_studio.target_vercel', 'Vercel'))}</option>
                             <option value="netlify">${esc(t('homepage_studio.target_netlify', 'Netlify'))}</option>
                             <option value="remote">${esc(t('homepage_studio.target_remote', 'Remote Server'))}</option>
                         </select>
-                        <span class="vd-hp-status-dot loading" id="hp-status-${windowId}" title="${esc(t('homepage_studio.checking_status', 'Checking status...'))}"></span>
-                    </div>
-                    <div class="vd-hp-chat-log" id="hp-log-${windowId}">
+                        <span class="vd-hp-status-dot loading" id="hp-status-${windowId}" role="status" aria-live="polite" title="${esc(t('homepage_studio.checking_status', 'Checking status...'))}"></span>
+                    </header>
+                    <section class="vd-hp-chat-log" id="hp-log-${windowId}" aria-live="polite">
                         <div class="vd-hp-welcome">
-                            <div class="vd-hp-welcome-icon">🌐</div>
-                            <div class="vd-hp-welcome-heading">${esc(t('homepage_studio.welcome_heading', 'Homepage Studio'))}</div>
-                            <div class="vd-hp-welcome-sub">${esc(t('homepage_studio.welcome', 'Welcome to Homepage Studio! Describe the website you want to build, and I\'ll create it for you.'))}</div>
+                            <div class="vd-hp-welcome-icon" aria-hidden="true">🌐</div>
+                            <h2 class="vd-hp-welcome-heading">${esc(t('homepage_studio.welcome_heading', 'Homepage Studio'))}</h2>
+                            <p class="vd-hp-welcome-sub">${esc(t('homepage_studio.welcome', 'Welcome to Homepage Studio! Describe the website you want to build, and I\'ll create it for you.'))}</p>
                         </div>
-                    </div>
+                    </section>
                     <form class="vd-hp-chat-form" id="hp-form-${windowId}">
-                        <textarea class="vd-hp-chat-input" id="hp-input-${windowId}" rows="1" placeholder="${esc(t('homepage_studio.chat_placeholder', 'Describe your website changes...'))}" autocomplete="off" enterkeyhint="send"></textarea>
+                        <textarea class="vd-hp-chat-input" id="hp-input-${windowId}" rows="1" placeholder="${esc(t('homepage_studio.chat_placeholder', 'Describe your website changes...'))}" autocomplete="off" enterkeyhint="send" aria-label="${esc(t('homepage_studio.chat_placeholder', 'Describe your website changes...'))}"></textarea>
                         <button type="submit" class="vd-hp-send-btn" id="hp-send-${windowId}">
                             ${iconMarkup('chat', 'S', 'vd-hp-send-icon', 15)}
                             <span id="hp-send-label-${windowId}">${esc(t('desktop.send', 'Send'))}</span>
                         </button>
                     </form>
-                </div>
-                <div class="vd-hp-preview">
-                    <div class="vd-hp-preview-header">
-                        <span class="vd-hp-preview-url" id="hp-url-${windowId}" title="${esc(t('homepage_studio.no_url', 'No preview URL available for this target'))}">—</span>
+                </aside>
+                <main class="vd-hp-preview">
+                    <header class="vd-hp-preview-header">
+                        <output class="vd-hp-preview-url" id="hp-url-${windowId}" title="${esc(t('homepage_studio.no_url', 'No preview URL available for this target'))}">—</output>
                         <div class="vd-hp-preview-actions">
                             <button type="button" class="vd-hp-preview-btn" id="hp-refresh-${windowId}" title="${esc(t('homepage_studio.refresh_preview', 'Refresh preview'))}">
                                 ${iconMarkup('refresh', '↻', 'vd-hp-btn-icon', 14)}
                                 <span>${esc(t('homepage_studio.refresh', 'Refresh'))}</span>
                             </button>
-                            <button type="button" class="vd-hp-preview-btn" id="hp-external-${windowId}" title="${esc(t('homepage_studio.open_external', 'Open in new tab'))}">
+                            <button type="button" class="vd-hp-preview-btn is-disabled" id="hp-external-${windowId}" disabled title="${esc(t('homepage_studio.open_external', 'Open in new tab'))}" aria-label="${esc(t('homepage_studio.open_external', 'Open in new tab'))}">
                                 ${iconMarkup('external', '↗', 'vd-hp-btn-icon', 14)}
                             </button>
                         </div>
-                    </div>
-                    <div class="vd-hp-preview-body" id="hp-preview-body-${windowId}">
+                    </header>
+                    <section class="vd-hp-preview-body" id="hp-preview-body-${windowId}">
                         <div class="vd-hp-preview-placeholder" id="hp-placeholder-${windowId}">
-                            <div class="vd-hp-preview-placeholder-icon">🌐</div>
-                            <div class="vd-hp-preview-placeholder-text">${esc(t('homepage_studio.preview_unavailable', 'Preview unavailable — start the homepage container first'))}</div>
+                            <div class="vd-hp-preview-placeholder-icon" aria-hidden="true">🌐</div>
+                            <h3 class="vd-hp-preview-placeholder-title">${esc(t('homepage_studio.preview_empty_title', 'No live preview yet'))}</h3>
+                            <p class="vd-hp-preview-placeholder-text">${esc(t('homepage_studio.preview_unavailable', 'Preview unavailable — start the homepage container first'))}</p>
                         </div>
-                        <div class="vd-hp-preview-loading" id="hp-loading-${windowId}">
-                            <div class="vd-hp-preview-spinner"></div>
+                        <div class="vd-hp-preview-loading" id="hp-loading-${windowId}" aria-hidden="true">
+                            <span class="vd-hp-preview-loading-label">${esc(t('homepage_studio.preview_loading', 'Loading preview...'))}</span>
+                            <div class="vd-hp-preview-skeleton" aria-hidden="true">
+                                <div class="vd-hp-skel-bar"></div>
+                                <div class="vd-hp-skel-hero"></div>
+                                <div class="vd-hp-skel-row"><span></span><span></span><span></span></div>
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    </section>
+                </main>
             </div>
         `;
 
@@ -180,7 +186,10 @@
         }
 
         function updatePreviewUrl() {
-            if (state.previewUrl) {
+            const hasUrl = !!state.previewUrl;
+            externalBtn.disabled = !hasUrl;
+            externalBtn.classList.toggle('is-disabled', !hasUrl);
+            if (hasUrl) {
                 previewUrl.textContent = state.previewUrl;
                 previewUrl.title = state.previewUrl;
                 showPreview(state.previewUrl);
@@ -202,8 +211,15 @@
             }
             if (iframe.src !== url) {
                 previewLoading.classList.add('active');
-                iframe.onload = () => previewLoading.classList.remove('active');
-                iframe.onerror = () => previewLoading.classList.remove('active');
+                previewLoading.setAttribute('aria-hidden', 'false');
+                iframe.onload = () => {
+                    previewLoading.classList.remove('active');
+                    previewLoading.setAttribute('aria-hidden', 'true');
+                };
+                iframe.onerror = () => {
+                    previewLoading.classList.remove('active');
+                    previewLoading.setAttribute('aria-hidden', 'true');
+                };
                 iframe.src = url;
             }
         }
@@ -220,9 +236,13 @@
                 return;
             }
             previewLoading.classList.add('active');
+            previewLoading.setAttribute('aria-hidden', 'false');
             const iframe = previewBody.querySelector('.vd-hp-preview-iframe');
             if (iframe) {
-                iframe.onload = () => previewLoading.classList.remove('active');
+                iframe.onload = () => {
+                    previewLoading.classList.remove('active');
+                    previewLoading.setAttribute('aria-hidden', 'true');
+                };
                 iframe.src = state.previewUrl;
             } else {
                 showPreview(state.previewUrl);

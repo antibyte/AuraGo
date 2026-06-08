@@ -1232,6 +1232,7 @@
   "homepage_studio.select_target": "ターゲットを選択...",
   "homepage_studio.chat_placeholder": "ウェブサイトの変更を説明してください...",
   "homepage_studio.preview_loading": "プレビューを読み込み中...",
+  "homepage_studio.preview_empty_title": "まだライブプレビューはありません",
   "homepage_studio.preview_unavailable": "プレビュー利用不可 — まずホームページコンテナを起動してください",
   "homepage_studio.refresh_preview": "プレビューを更新",
   "homepage_studio.open_external": "新しいタブで開く",

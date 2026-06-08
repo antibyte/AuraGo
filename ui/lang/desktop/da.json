@@ -1232,6 +1232,7 @@
   "homepage_studio.select_target": "Vælg mål...",
   "homepage_studio.chat_placeholder": "Beskriv dine hjemmesideændringer...",
   "homepage_studio.preview_loading": "Indlæser forhåndsvisning...",
+  "homepage_studio.preview_empty_title": "Ingen live-forhåndsvisning endnu",
   "homepage_studio.preview_unavailable": "Forhåndsvisning utilgængelig — start homepage-containeren først",
   "homepage_studio.refresh_preview": "Opdater forhåndsvisning",
   "homepage_studio.open_external": "Åbn i ny fane",

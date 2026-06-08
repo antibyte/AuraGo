@@ -26,6 +26,36 @@ func TestDesktopHomepageStudioRouting(t *testing.T) {
 	}
 }
 
+func TestHomepageStudioRedesignMarkers(t *testing.T) {
+	t.Parallel()
+
+	css := readDesktopAssetText(t, "css/desktop-app-homepage-studio.css")
+	for _, want := range []string{
+		"--hp-accent:",
+		"focus-visible",
+		"vd-hp-preview-skeleton",
+		"text-wrap: balance",
+		"prefers-reduced-motion",
+	} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("homepage studio css missing redesign marker %q", want)
+		}
+	}
+
+	source := readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js")
+	for _, want := range []string{
+		"<aside class=\"vd-hp-chat\"",
+		"<main class=\"vd-hp-preview\"",
+		"vd-hp-preview-skeleton",
+		"preview_empty_title",
+		"externalBtn.disabled",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("homepage studio js missing redesign marker %q", want)
+		}
+	}
+}
+
 func TestHomepageStudioUsesStatusPreviewURL(t *testing.T) {
 	t.Parallel()
 
@@ -61,9 +91,10 @@ func TestHomepageStudioGermanUsesInformalAddress(t *testing.T) {
 		t.Fatalf("parse German desktop translations: %v", err)
 	}
 	for key, want := range map[string]string{
-		"homepage_studio.chat_placeholder":    "Beschreibe deine Website-Änderungen...",
-		"homepage_studio.preview_unavailable": "Vorschau nicht verfügbar — starte zuerst den Homepage-Container",
-		"homepage_studio.welcome":             "Willkommen im Homepage-Studio! Beschreibe die Website, die du erstellen möchtest, und ich erstelle sie für dich.",
+		"homepage_studio.chat_placeholder":     "Beschreibe deine Website-Änderungen...",
+		"homepage_studio.preview_unavailable":  "Vorschau nicht verfügbar — starte zuerst den Homepage-Container",
+		"homepage_studio.preview_empty_title":  "Noch keine Live-Vorschau",
+		"homepage_studio.welcome":              "Willkommen im Homepage-Studio! Beschreibe die Website, die du erstellen möchtest, und ich erstelle sie für dich.",
 	} {
 		if values[key] != want {
 			t.Fatalf("%s = %q, want %q", key, values[key], want)
