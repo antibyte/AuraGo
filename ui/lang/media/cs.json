@@ -25,5 +25,6 @@
   "media.bulk_select_item": "Vybrat položku",
   "media.bulk_confirm_delete": "Smazat {count} vybraných položek?",
   "media.bulk_deleted": "Smazáno {count} položek",
-  "media.bulk_partial_deleted": "Smazáno {count}, {failed} se nezdařilo"
+  "media.bulk_partial_deleted": "Smazáno {count}, {failed} se nezdařilo",
+  "media.subtitle_description": "Procházejte, hledejte a spravujte vygenerovaná média."
 }

@@ -25,5 +25,6 @@
   "media.bulk_select_item": "Seleccionar elemento",
   "media.bulk_confirm_delete": "¿Eliminar {count} elementos seleccionados?",
   "media.bulk_deleted": "{count} elementos eliminados",
-  "media.bulk_partial_deleted": "{count} eliminados, {failed} fallidos"
+  "media.bulk_partial_deleted": "{count} eliminados, {failed} fallidos",
+  "media.subtitle_description": "Explora, busca y gestiona tus medios generados."
 }

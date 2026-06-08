@@ -44,7 +44,10 @@
 
     <div class="media-container">
         <div class="page-header media-header">
-            <h1 data-i18n="media.title">📁 Media View</h1>
+            <div class="media-header-text">
+                <h1 data-i18n="media.title">📁 Media View</h1>
+                <p class="media-header-subtitle" data-i18n="media.subtitle_description">Browse, search, and manage generated images, audio, videos, and documents.</p>
+            </div>
             <div class="media-controls">
                 <input type="text" id="media-search" class="gallery-search"
                     placeholder="Search..." data-i18n-placeholder="media.search_placeholder">
@@ -55,16 +58,28 @@
         <div class="media-tabs" role="tablist" aria-label="Media categories">
             <button class="media-tab active" id="tab-images" role="tab" aria-selected="true"
                 aria-controls="panel-images" tabindex="0"
-                onclick="switchTab('images')" data-i18n="media.tab_images">🖼️ Images</button>
+                onclick="switchTab('images')">
+                <span class="media-tab-icon" aria-hidden="true">🖼️</span>
+                <span data-i18n="media.tab_images">Images</span>
+            </button>
             <button class="media-tab" id="tab-audio" role="tab" aria-selected="false"
                 aria-controls="panel-audio" tabindex="-1"
-                onclick="switchTab('audio')" data-i18n="media.tab_audio">🎵 Audio</button>
+                onclick="switchTab('audio')">
+                <span class="media-tab-icon" aria-hidden="true">🎵</span>
+                <span data-i18n="media.tab_audio">Audio</span>
+            </button>
             <button class="media-tab" id="tab-videos" role="tab" aria-selected="false"
                 aria-controls="panel-videos" tabindex="-1"
-                onclick="switchTab('videos')" data-i18n="media.tab_videos">🎬 Videos</button>
+                onclick="switchTab('videos')">
+                <span class="media-tab-icon" aria-hidden="true">🎬</span>
+                <span data-i18n="media.tab_videos">Videos</span>
+            </button>
             <button class="media-tab" id="tab-documents" role="tab" aria-selected="false"
                 aria-controls="panel-documents" tabindex="-1"
-                onclick="switchTab('documents')" data-i18n="media.tab_documents">📄 Documents</button>
+                onclick="switchTab('documents')">
+                <span class="media-tab-icon" aria-hidden="true">📄</span>
+                <span data-i18n="media.tab_documents">Documents</span>
+            </button>
         </div>
 
         <div id="media-bulk-toolbar" class="media-bulk-toolbar" aria-live="polite">

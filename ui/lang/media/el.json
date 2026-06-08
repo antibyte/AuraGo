@@ -25,5 +25,6 @@
   "media.bulk_select_item": "Επιλογή στοιχείου",
   "media.bulk_confirm_delete": "Να διαγραφούν {count} επιλεγμένα στοιχεία;",
   "media.bulk_deleted": "Διαγράφηκαν {count} στοιχεία",
-  "media.bulk_partial_deleted": "Διαγράφηκαν {count}, απέτυχαν {failed}"
+  "media.bulk_partial_deleted": "Διαγράφηκαν {count}, απέτυχαν {failed}",
+  "media.subtitle_description": "Περιηγηθείτε, αναζητήστε και διαχειριστείτε τα μέσα σας."
 }

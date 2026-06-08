@@ -12,7 +12,7 @@
 .media-container {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 1.5rem;
+    padding: 1.75rem 1.5rem 2.5rem;
 }
 
 .media-header {
@@ -21,11 +21,28 @@
     align-items: flex-end;
     flex-wrap: wrap;
     gap: 1rem;
-    margin-bottom: 1.25rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--border-subtle);
 }
 
 .media-header h1 {
     margin: 0;
+    font-family: 'Darker Grotesque', var(--font-sans);
+    font-size: clamp(1.85rem, 2.6vw + 0.6rem, 2.4rem);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+    color: var(--text-primary);
+    text-wrap: balance;
+}
+
+.media-header-subtitle {
+    margin: 0.35rem 0 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    max-width: 60ch;
+    line-height: 1.5;
 }
 
 .media-controls {
@@ -38,8 +55,8 @@
 /* ── Tab Bar (standard tabs style from shared.css) ── */
 .media-tabs {
     display: flex;
-    gap: 4px;
-    margin-bottom: 20px;
+    gap: 0.25rem;
+    margin-bottom: 1.25rem;
     flex-wrap: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -48,56 +65,124 @@
     border-radius: 0;
     padding: 0 0 2px;
     border: none;
-    border-bottom: 2px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+    position: relative;
 }
 
 .media-tab {
+    position: relative;
     flex: 0 0 auto;
-    padding: 10px 18px;
+    padding: 0.7rem 1.1rem;
     border: none;
     background: transparent;
     color: var(--text-secondary);
-    font-size: 0.95rem;
+    font-family: 'Darker Grotesque', var(--font-sans);
+    font-size: 1.05rem;
     font-weight: 500;
+    letter-spacing: 0.005em;
     cursor: pointer;
     border-radius: 0;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    transition: color 0.2s, border-color 0.2s;
+    margin-bottom: -1px;
+    transition: color var(--transition-base), transform var(--transition-fast);
     text-align: center;
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.media-tab .media-tab-icon {
+    font-size: 1rem;
+    line-height: 1;
+    opacity: 0.85;
+    transition: transform var(--transition-base);
 }
 
 .media-tab:hover {
     color: var(--text-primary);
 }
 
+.media-tab:hover .media-tab-icon {
+    transform: scale(1.08);
+}
+
+.media-tab:active {
+    transform: translateY(1px);
+}
+
 .media-tab.active {
     background: none;
     color: var(--accent);
-    border-bottom-color: var(--accent);
-    box-shadow: none;
     font-weight: 600;
+}
+
+.media-tab.active::after {
+    content: '';
+    position: absolute;
+    left: 0.65rem;
+    right: 0.65rem;
+    bottom: -1px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 2px 2px 0 0;
+    box-shadow: 0 -1px 8px color-mix(in srgb, var(--accent) 35%, transparent);
+    animation: mediaTabUnderlineIn 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.media-tab:focus-visible {
+    outline: none;
+    box-shadow:
+        0 0 0 2px var(--bg-primary),
+        0 0 0 4px color-mix(in srgb, var(--accent) 60%, transparent);
+    border-radius: 6px;
 }
 
 .media-tabs::-webkit-scrollbar {
     display: none;
 }
 
+@keyframes mediaTabUnderlineIn {
+    from { transform: scaleX(0.4); opacity: 0; }
+    to   { transform: scaleX(1);   opacity: 1; }
+}
+
 .media-bulk-toolbar {
     display: flex;
     align-items: center;
-    gap: 0.55rem;
+    gap: 0.5rem;
     flex-wrap: wrap;
-    margin: -0.35rem 0 1rem;
-    padding: 0.65rem 0;
-    border-bottom: 1px solid var(--border-subtle);
+    margin: 0 0 1.25rem;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--border-subtle);
+    background: color-mix(in srgb, var(--bg-secondary) 70%, transparent);
+    border-radius: 12px;
+    box-shadow: inset 0 1px 0 var(--surface-highlight);
+}
+
+.media-bulk-toolbar .btn-gallery-nav {
+    transition: background var(--transition-base),
+                border-color var(--transition-base),
+                color var(--transition-base),
+                transform var(--transition-fast);
+}
+
+.media-bulk-toolbar .btn-gallery-nav:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.media-bulk-toolbar .btn-gallery-nav:active:not(:disabled) {
+    transform: translateY(0);
 }
 
 .media-bulk-toolbar .btn-gallery-nav.active {
     border-color: var(--accent);
     color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.media-bulk-toolbar .btn-gallery-nav:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 .media-selected-count {
@@ -174,7 +259,9 @@
     border: 1px solid var(--border-subtle);
     border-radius: 16px;
     padding: 1rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform var(--transition-base),
+                border-color var(--transition-base),
+                box-shadow var(--transition-base);
     backdrop-filter: blur(10px);
     min-width: 0;
     overflow: hidden;
@@ -185,7 +272,14 @@
 
 .media-audio-card:hover {
     border-color: var(--accent);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(45, 212, 191, 0.1);
+    transform: translateY(-2px);
+    box-shadow:
+        var(--shadow-md),
+        0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.media-audio-card:active {
+    transform: translateY(0);
 }
 
 .media-audio-card-actions {
@@ -241,7 +335,9 @@
     border: 1px solid var(--border-subtle);
     border-radius: 12px;
     padding: 1rem;
-    transition: all 0.25s ease;
+    transition: transform var(--transition-base),
+                border-color var(--transition-base),
+                box-shadow var(--transition-base);
     backdrop-filter: blur(10px);
     min-width: 0;
     overflow: hidden;
@@ -252,7 +348,14 @@
 
 .media-video-card:hover {
     border-color: var(--accent);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(45, 212, 191, 0.1);
+    transform: translateY(-2px);
+    box-shadow:
+        var(--shadow-md),
+        0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.media-video-card:active {
+    transform: translateY(0);
 }
 
 .media-video-card-title {
@@ -307,18 +410,26 @@
 .media-doc-row {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.85rem;
     background: var(--card-bg);
     border: 1px solid var(--border-subtle);
     border-radius: 12px;
-    padding: 0.7rem 1rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 0.75rem 1rem;
+    transition: transform var(--transition-base),
+                border-color var(--transition-base),
+                background-color var(--transition-base),
+                box-shadow var(--transition-base);
     box-shadow: inset 0 1px 0 var(--surface-highlight);
 }
 
 .media-doc-row:hover {
     border-color: var(--border-accent);
     background: var(--bg-glass);
+    transform: translateX(2px);
+}
+
+.media-doc-row:active {
+    transform: translateX(0);
 }
 
 .media-doc-row-icon {
@@ -740,18 +851,29 @@
 }
 
 [data-theme="light"] .media-tabs {
-    border-bottom-color: rgba(71, 85, 105, 0.12);
+    border-bottom-color: color-mix(in srgb, var(--border-subtle) 70%, transparent);
 }
 
 [data-theme="light"] .media-audio-card,
 [data-theme="light"] .media-video-card,
 [data-theme="light"] .media-doc-row,
 [data-theme="light"] .chat-audio-player {
-    border-color: rgba(71, 85, 105, 0.14);
+    border-color: color-mix(in srgb, var(--border-subtle) 80%, transparent);
+    box-shadow:
+        var(--surface-shadow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 [data-theme="light"] .media-doc-row:hover {
-    background: rgba(237, 245, 240, 0.78);
+    background: color-mix(in srgb, var(--accent) 6%, var(--bg-secondary));
+}
+
+[data-theme="light"] .media-bulk-toolbar {
+    background: color-mix(in srgb, var(--bg-secondary) 85%, transparent);
+}
+
+[data-theme="light"] .media-tab.active::after {
+    box-shadow: 0 -1px 8px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 .audio-error {
