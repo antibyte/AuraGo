@@ -9,13 +9,14 @@ import (
 
 // RegisterBuiltinProducers populates the registry with warnings that can be detected
 // immediately at startup. Call this after all subsystems have been initialised.
-func RegisterBuiltinProducers(reg *Registry, cfg *config.Config, logger *slog.Logger) {
+func RegisterBuiltinProducers(reg *Registry, cfg *config.Config, vdb VectorDBHealth, logger *slog.Logger) {
 	if reg == nil {
 		return
 	}
 
 	checkTokenBudgetFallback(reg, cfg, logger)
 	checkVectorDBDisabled(reg, cfg, logger)
+	NewVectorDBMonitor(reg, cfg, vdb, logger).Start()
 }
 
 // checkTokenBudgetFallback emits a warning when the token budget had to fall back
@@ -46,17 +47,20 @@ func checkTokenBudgetFallback(reg *Registry, cfg *config.Config, logger *slog.Lo
 	}
 }
 
-// checkVectorDBDisabled emits a warning when the vector database / long-term memory
-// is not available (embedding provider set to "disabled").
+// checkVectorDBDisabled emits a warning when long-term memory is intentionally
+// disabled via configuration (empty provider or provider=disabled).
 func checkVectorDBDisabled(reg *Registry, cfg *config.Config, logger *slog.Logger) {
-	if cfg.Embeddings.Provider == "disabled" || cfg.Embeddings.Provider == "" {
-		reg.Add(Warning{
-			ID:          "vectordb_disabled",
-			Severity:    SeverityInfo,
-			Title:       "Long-Term Memory Disabled",
-			Description: "The embedding provider is disabled. The agent will not be able to store or search long-term memory.",
-			Category:    CategorySystem,
-		})
-		logger.Info("Registered warning: vector DB / long-term memory disabled")
+	if embeddingsConfigured(cfg) {
+		return
+	}
+	reg.Add(Warning{
+		ID:          "vectordb_disabled",
+		Severity:    SeverityInfo,
+		Title:       "Long-Term Memory Disabled",
+		Description: "The embedding provider is disabled in configuration. The agent will not be able to store or search long-term memory.",
+		Category:    CategorySystem,
+	})
+	if logger != nil {
+		logger.Info("Registered warning: vector DB / long-term memory disabled by configuration")
 	}
 }

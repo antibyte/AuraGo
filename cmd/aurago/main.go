@@ -1041,7 +1041,7 @@ func main() {
 	}
 
 	// Register built-in warning producers (token budget fallback, vectordb, etc.).
-	warnings.RegisterBuiltinProducers(warningsRegistry, cfg, appLog)
+	warnings.RegisterBuiltinProducers(warningsRegistry, cfg, longTermMem, appLog)
 
 	if err := server.Start(server.StartOptions{
 		Cfg:                  cfg,

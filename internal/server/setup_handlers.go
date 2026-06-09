@@ -355,6 +355,9 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 					if cols, colsErr := s.ShortTermMem.GetIndexedCollections(); colsErr == nil {
 						s.LongTermMem.RegisterCollections(cols)
 					}
+					if s.WarningsRegistry != nil {
+						s.WarningsRegistry.Remove("vectordb_validation_failed")
+					}
 					s.Logger.Info("[Setup] VectorDB re-initialized with embedding provider",
 						"provider", newCfg.Embeddings.Provider)
 				} else {
