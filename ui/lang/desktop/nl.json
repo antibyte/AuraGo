@@ -725,6 +725,8 @@
   "desktop.camera_permission_denied": "Cameratoegang geweigerd",
   "desktop.camera_analyzing": "Afbeelding analyseren...",
   "desktop.camera_insecure": "Camera vereist HTTPS",
+  "desktop.camera_hint_capture": "vastleggen",
+  "desktop.camera_hint_retake": "opnieuw",
   "desktop.camera_analyze_prompt": "Analyseer deze foto alstublieft.",
   "desktop.camera_save_error": "Foto opslaan mislukt",
   "desktop.camera_send_error": "Verzenden naar agent mislukt",

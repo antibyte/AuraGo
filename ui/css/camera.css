@@ -1,8 +1,20 @@
+/* ───────────────────────────────────────────────────────────────
+ * Camera App — Virtual Desktop
+ * Typography: inherits --font-sans from tokens.css
+ * Accent:     single source — var(--vd-accent) / var(--accent)
+ * Motion:     respects prefers-reduced-motion
+ * ─────────────────────────────────────────────────────────────── */
+
 .camera-app {
     --cam-glass: rgba(9, 18, 32, 0.58);
     --cam-glass-strong: rgba(10, 24, 42, 0.82);
     --cam-line: rgba(255, 255, 255, 0.13);
     --cam-text-muted: rgba(232, 244, 255, 0.68);
+    --cam-accent: var(--vd-accent, var(--accent, #27c7a6));
+    --cam-accent-soft: rgba(39, 199, 166, 0.18);
+    --cam-accent-strong: rgba(39, 199, 166, 0.55);
+    --cam-shadow: 0 -10px 32px rgba(5, 13, 24, 0.42);
+    --cam-ring: rgba(239, 247, 255, 0.95);
     position: relative;
     display: flex;
     flex-direction: column;
@@ -11,6 +23,7 @@
     color: var(--vd-text, #eff7ff);
     background: linear-gradient(145deg, rgba(5, 13, 24, 0.35), rgba(5, 13, 24, 0.74));
     overflow: hidden;
+    font-variant-numeric: tabular-nums;
 }
 
 [data-theme="light"] .camera-app {
@@ -18,7 +31,13 @@
     --cam-glass-strong: rgba(200, 218, 212, 0.88);
     --cam-line: rgba(71, 85, 105, 0.18);
     --cam-text-muted: rgba(16, 32, 50, 0.6);
+    --cam-accent-soft: rgba(39, 199, 166, 0.14);
+    --cam-accent-strong: rgba(39, 199, 166, 0.45);
+    --cam-shadow: 0 -8px 24px rgba(83, 97, 122, 0.1);
+    --cam-ring: rgba(15, 23, 42, 0.92);
 }
+
+/* ── Error banner ────────────────────────────────────────────── */
 
 .camera-error {
     position: absolute;
@@ -33,6 +52,7 @@
     backdrop-filter: blur(18px);
     font-size: 0.88rem;
     text-align: center;
+    animation: cam-slide-down 220ms ease-out;
 }
 
 [data-theme="light"] .camera-error {
@@ -40,6 +60,8 @@
     background: rgba(254, 226, 226, 0.92);
     border-bottom-color: rgba(220, 38, 38, 0.25);
 }
+
+/* ── Viewport + capture flash ───────────────────────────────── */
 
 .camera-viewport {
     position: relative;
@@ -52,61 +74,172 @@
     background: #000;
 }
 
-.camera-video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
+.camera-video,
 .camera-preview {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
+    transition: opacity 280ms ease;
 }
+
+.camera-preview {
+    object-fit: contain;
+    opacity: 0;
+}
+
+.camera-app[data-state="preview"] .camera-preview {
+    opacity: 1;
+}
+
+.camera-app[data-state="preview"] .camera-video {
+    opacity: 0;
+}
+
+/* Capture flash: brief white overlay on snapshot */
+.camera-flash {
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 4;
+}
+
+.camera-app.is-flashing .camera-flash {
+    animation: cam-flash 320ms ease-out;
+}
+
+@keyframes cam-flash {
+    0%   { opacity: 0; }
+    18%  { opacity: 0.85; }
+    100% { opacity: 0; }
+}
+
+/* ── Subtle framing overlay (corner ticks) ──────────────────── */
 
 .camera-overlay {
     position: absolute;
     inset: 0;
     pointer-events: none;
     z-index: 2;
+    opacity: 0.5;
+    transition: opacity 200ms ease;
 }
 
-.camera-overlay-ring {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 72px;
-    height: 72px;
-    border: 2px solid rgba(255, 255, 255, 0.15);
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
+.camera-app[data-state="preview"] .camera-overlay {
+    opacity: 0;
 }
+
+.camera-overlay::before,
+.camera-overlay::after {
+    content: '';
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border-color: var(--cam-ring);
+    border-style: solid;
+    border-width: 0;
+}
+
+.camera-overlay::before {
+    top: 18px;
+    left: 18px;
+    border-top-width: 1.5px;
+    border-left-width: 1.5px;
+    border-top-left-radius: 4px;
+}
+
+.camera-overlay::after {
+    bottom: 18px;
+    right: 18px;
+    border-bottom-width: 1.5px;
+    border-right-width: 1.5px;
+    border-bottom-right-radius: 4px;
+}
+
+/* Legacy ring kept for tests, no longer rendered visually */
+.camera-overlay-ring {
+    display: none;
+}
+
+/* ── Toolbar ────────────────────────────────────────────────── */
 
 .camera-toolbar {
     flex: 0 0 auto;
     position: relative;
     z-index: 3;
-    display: flex;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
-    justify-content: center;
     gap: 14px;
     border-top: 1px solid var(--cam-line);
     padding: 16px 18px;
     background: var(--cam-glass-strong);
     backdrop-filter: blur(24px);
-    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.35);
+    box-shadow: var(--cam-shadow);
 }
 
-[data-theme="light"] .camera-toolbar {
-    box-shadow: 0 -8px 24px rgba(83, 97, 122, 0.1);
+.camera-toolbar-hint {
+    grid-column: 1 / -1;
+    order: 4;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    font-size: 0.72rem;
+    color: var(--cam-text-muted);
+    letter-spacing: 0.02em;
+    margin-top: -2px;
 }
+
+.camera-toolbar-hint kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    margin-right: 4px;
+    border: 1px solid var(--cam-line);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 0.68rem;
+    color: inherit;
+}
+
+[data-theme="light"] .camera-toolbar-hint kbd {
+    background: rgba(15, 23, 42, 0.04);
+}
+
+/* ── Action area (capture OR retake/save/send) ──────────────── */
 
 .camera-actions {
+    grid-column: 1 / -1;
+    order: 3;
     display: flex;
     gap: 10px;
     width: 100%;
     justify-content: center;
+    align-items: stretch;
+    animation: cam-fade-up 220ms ease-out;
 }
+
+.camera-app[data-state="live"] .camera-actions {
+    /* only the capture button visible — center it */
+    justify-content: center;
+}
+
+@keyframes cam-fade-up {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes cam-slide-down {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Buttons (base) ─────────────────────────────────────────── */
 
 .camera-btn {
     border: none;
@@ -117,12 +250,18 @@
     line-height: 1;
     color: inherit;
     background: transparent;
-    transition: transform 150ms ease, opacity 150ms ease;
+    transition: transform 150ms ease, opacity 150ms ease, box-shadow 200ms ease, background 200ms ease, border-color 200ms ease;
 }
 
 .camera-btn:disabled {
     opacity: 0.4;
     cursor: default;
+}
+
+.camera-btn:focus-visible {
+    outline: 2px solid var(--cam-accent);
+    outline-offset: 3px;
+    border-radius: 9999px;
 }
 
 .camera-btn:not(:disabled):hover {
@@ -133,19 +272,34 @@
     transform: scale(0.97);
 }
 
+/* ── Switch camera (top-left of toolbar) ────────────────────── */
+
 .camera-btn-switch {
-    position: absolute;
-    left: 18px;
+    grid-column: 1;
+    order: 1;
+    justify-self: start;
     display: grid;
     place-items: center;
     width: 40px;
     height: 40px;
     border: 1px solid var(--cam-line);
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--cam-text-muted);
 }
 
+.camera-btn-switch:not(:disabled):hover {
+    border-color: var(--cam-accent-strong);
+    color: var(--cam-ring);
+    background: var(--cam-accent-soft);
+}
+
+/* ── Capture button (center) ────────────────────────────────── */
+
 .camera-btn-capture {
+    grid-column: 2;
+    order: 2;
+    justify-self: center;
     display: grid;
     place-items: center;
     box-sizing: border-box;
@@ -155,6 +309,12 @@
     min-height: 62px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.12);
+    transition: background 200ms ease, transform 150ms ease, box-shadow 200ms ease;
+}
+
+.camera-btn-capture:not(:disabled):hover {
+    background: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 0 0 6px var(--cam-accent-soft);
 }
 
 .camera-capture-ring {
@@ -162,44 +322,56 @@
     box-sizing: border-box;
     width: 50px;
     height: 50px;
-    border: 3px solid #fff;
+    border: 3px solid var(--cam-ring);
     border-radius: 50%;
-    transition: transform 120ms ease, border-color 120ms ease;
+    transition: transform 160ms cubic-bezier(0.2, 0.7, 0.2, 1), border-color 160ms ease, background 160ms ease;
 }
 
 .camera-btn-capture:not(:disabled):hover .camera-capture-ring {
-    transform: scale(1.06);
-    border-color: var(--accent, #2dd4bf);
+    transform: scale(1.04);
+}
+
+.camera-btn-capture:not(:disabled):active {
+    transform: scale(0.94);
 }
 
 .camera-btn-capture:not(:disabled):active .camera-capture-ring {
-    transform: scale(0.94);
-    background: var(--accent, #2dd4bf);
+    transform: scale(0.88);
+    background: var(--cam-accent);
+    border-color: var(--cam-accent);
 }
+
+/* ── Right-side spacer (mirrors switch width) ───────────────── */
+
+.camera-toolbar-spacer {
+    grid-column: 3;
+    order: 2;
+    justify-self: end;
+    width: 40px;
+    height: 40px;
+}
+
+/* ── Action buttons (retake / save / send) ──────────────────── */
 
 .camera-btn-action {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 4px;
     padding: 10px 16px;
     border: 1px solid var(--cam-line);
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
     font-size: 0.78rem;
     color: var(--cam-text-muted);
-    transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+    transition: transform 150ms ease, border-color 200ms ease, background 200ms ease, color 200ms ease;
 }
 
 .camera-btn-action:not(:disabled):hover {
-    border-color: rgba(45, 212, 191, 0.45);
-    background: rgba(255, 255, 255, 0.12);
-    color: inherit;
-}
-
-.camera-btn-send:not(:disabled):hover {
-    border-color: rgba(45, 212, 191, 0.55);
-    background: linear-gradient(135deg, rgba(45, 212, 191, 0.15), rgba(59, 130, 246, 0.1));
+    border-color: var(--cam-accent-strong);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--cam-ring);
 }
 
 .camera-btn-icon {
@@ -213,25 +385,104 @@
     white-space: nowrap;
 }
 
+/* Loading spinner inside action button */
+.camera-btn-action .camera-btn-spinner {
+    display: none;
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: cam-spin 0.8s linear infinite;
+}
+
+.camera-btn-action.is-loading .camera-btn-icon {
+    display: none;
+}
+
+.camera-btn-action.is-loading .camera-btn-spinner {
+    display: block;
+}
+
+@keyframes cam-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Primary action (Send to Agent) — single-accent, clearly primary */
+.camera-btn-send {
+    background: var(--cam-accent-soft);
+    border-color: var(--cam-accent-strong);
+    color: var(--cam-ring);
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px rgba(39, 199, 166, 0.08);
+}
+
+.camera-btn-send:not(:disabled):hover {
+    background: rgba(39, 199, 166, 0.28);
+    border-color: var(--cam-accent);
+    color: var(--cam-ring);
+    box-shadow: 0 6px 18px -6px rgba(39, 199, 166, 0.55);
+}
+
+[data-theme="light"] .camera-btn-send:not(:disabled):hover {
+    box-shadow: 0 6px 18px -6px rgba(39, 199, 166, 0.35);
+}
+
+/* ── Reduced motion ─────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    .camera-video,
+    .camera-preview,
+    .camera-btn,
+    .camera-capture-ring,
+    .camera-btn-capture,
+    .camera-btn-action {
+        transition-duration: 0ms;
+    }
+
+    .camera-app.is-flashing .camera-flash {
+        animation: none;
+        opacity: 0.6;
+        transition: opacity 100ms ease;
+    }
+
+    .camera-actions,
+    .camera-error {
+        animation: none;
+    }
+}
+
+/* ── Narrow windows ─────────────────────────────────────────── */
+
 @media (max-width: 520px) {
     .camera-toolbar {
-        flex-wrap: wrap;
+        grid-template-columns: 1fr;
         gap: 10px;
         padding: 12px 12px;
     }
 
-    .camera-btn-switch {
-        position: static;
+    .camera-btn-switch,
+    .camera-toolbar-spacer {
+        display: none;
+    }
+
+    .camera-btn-capture {
+        grid-column: 1;
+        order: 1;
+        justify-self: center;
     }
 
     .camera-actions {
-        order: 3;
-        width: 100%;
+        order: 2;
     }
 
     .camera-btn-action {
         flex: 1 1 0;
         padding: 8px 6px;
         font-size: 0.72rem;
+    }
+
+    .camera-toolbar-hint {
+        order: 5;
     }
 }

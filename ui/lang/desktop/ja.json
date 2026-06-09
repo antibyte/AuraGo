@@ -725,6 +725,8 @@
   "desktop.camera_permission_denied": "カメラへのアクセスが拒否されました",
   "desktop.camera_analyzing": "画像を分析中...",
   "desktop.camera_insecure": "カメラにはHTTPSが必要です",
+  "desktop.camera_hint_capture": "撮影",
+  "desktop.camera_hint_retake": "撮り直し",
   "desktop.camera_analyze_prompt": "この写真を分析してください。",
   "desktop.camera_save_error": "写真の保存に失敗しました",
   "desktop.camera_send_error": "エージェントへの送信に失敗しました",

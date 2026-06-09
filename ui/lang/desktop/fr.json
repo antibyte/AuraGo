@@ -725,6 +725,8 @@
   "desktop.camera_permission_denied": "Accès à la caméra refusé",
   "desktop.camera_analyzing": "Analyse de l'image...",
   "desktop.camera_insecure": "La caméra nécessite HTTPS",
+  "desktop.camera_hint_capture": "capturer",
+  "desktop.camera_hint_retake": "reprendre",
   "desktop.camera_analyze_prompt": "Veuillez analyser cette photo.",
   "desktop.camera_save_error": "Échec de l'enregistrement de la photo",
   "desktop.camera_send_error": "Échec de l'envoi à l'agent",

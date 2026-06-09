@@ -725,6 +725,8 @@
   "desktop.camera_permission_denied": "相机访问被拒绝",
   "desktop.camera_analyzing": "正在分析图像...",
   "desktop.camera_insecure": "相机需要HTTPS",
+  "desktop.camera_hint_capture": "拍摄",
+  "desktop.camera_hint_retake": "重拍",
   "desktop.camera_analyze_prompt": "请分析这张照片。",
   "desktop.camera_save_error": "保存照片失败",
   "desktop.camera_send_error": "发送给代理失败",

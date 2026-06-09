@@ -725,6 +725,8 @@
   "desktop.camera_permission_denied": "Kameraadgang nægtet",
   "desktop.camera_analyzing": "Analyserer billede...",
   "desktop.camera_insecure": "Kamera kræver HTTPS",
+  "desktop.camera_hint_capture": "optag",
+  "desktop.camera_hint_retake": "tag om",
   "desktop.camera_analyze_prompt": "Analyser venligst dette foto.",
   "desktop.camera_save_error": "Kunne ikke gemme foto",
   "desktop.camera_send_error": "Kunne ikke sende til agent",

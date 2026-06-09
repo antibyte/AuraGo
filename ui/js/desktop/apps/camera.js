@@ -21,14 +21,13 @@
             hasMultipleCameras: false
         };
 
-        host.innerHTML = '<div class="camera-app" data-camera-app="' + esc(windowId) + '">' +
+        host.innerHTML = '<div class="camera-app" data-camera-app="' + esc(windowId) + '" data-state="live">' +
             '<div class="camera-error" data-error hidden></div>' +
             '<div class="camera-viewport" data-viewport>' +
                 '<video class="camera-video" data-video autoplay playsinline muted></video>' +
-                '<img class="camera-preview" data-preview hidden alt="">' +
-                '<div class="camera-overlay" data-overlay>' +
-                    '<div class="camera-overlay-ring"></div>' +
-                '</div>' +
+                '<img class="camera-preview" data-preview alt="">' +
+                '<div class="camera-flash" data-flash aria-hidden="true"></div>' +
+                '<div class="camera-overlay" data-overlay aria-hidden="true"></div>' +
             '</div>' +
             '<div class="camera-toolbar" data-toolbar>' +
                 '<button class="camera-btn camera-btn-switch" type="button" data-action="switch" hidden aria-label="' + esc(t('desktop.camera_switch', 'Switch Camera')) + '">' +
@@ -37,19 +36,27 @@
                 '<button class="camera-btn camera-btn-capture" type="button" data-action="capture" aria-label="' + esc(t('desktop.camera_capture', 'Capture')) + '">' +
                     '<span class="camera-capture-ring"></span>' +
                 '</button>' +
+                '<span class="camera-toolbar-spacer" aria-hidden="true"></span>' +
                 '<div class="camera-actions" data-actions hidden>' +
                     '<button class="camera-btn camera-btn-action" type="button" data-action="retake">' +
                         iconMarkup('refresh', 'R', 'camera-btn-icon', 16) +
+                        '<span class="camera-btn-spinner" aria-hidden="true"></span>' +
                         '<span>' + esc(t('desktop.camera_retake', 'Retake')) + '</span>' +
                     '</button>' +
                     '<button class="camera-btn camera-btn-action" type="button" data-action="save">' +
                         iconMarkup('save', 'S', 'camera-btn-icon', 16) +
+                        '<span class="camera-btn-spinner" aria-hidden="true"></span>' +
                         '<span>' + esc(t('desktop.camera_save', 'Save')) + '</span>' +
                     '</button>' +
                     '<button class="camera-btn camera-btn-action camera-btn-send" type="button" data-action="send">' +
                         iconMarkup('chat', 'A', 'camera-btn-icon', 16) +
+                        '<span class="camera-btn-spinner" aria-hidden="true"></span>' +
                         '<span>' + esc(t('desktop.camera_send_agent', 'Send to Agent')) + '</span>' +
                     '</button>' +
+                '</div>' +
+                '<div class="camera-toolbar-hint" data-hint aria-hidden="true">' +
+                    '<span><kbd>Space</kbd>' + esc(t('desktop.camera_hint_capture', 'capture')) + '</span>' +
+                    '<span><kbd>R</kbd>' + esc(t('desktop.camera_hint_retake', 'retake')) + '</span>' +
                 '</div>' +
             '</div>' +
         '</div>';
@@ -65,6 +72,11 @@
         var retakeBtn = host.querySelector('[data-action="retake"]');
         var saveBtn = host.querySelector('[data-action="save"]');
         var sendBtn = host.querySelector('[data-action="send"]');
+        var appRoot = host.querySelector('.camera-app');
+        var flashEl = host.querySelector('[data-flash]');
+        var hintEl = host.querySelector('[data-hint]');
+        var reduceMotion = typeof window.matchMedia === 'function'
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
         function showError(msg) {
             state.error = msg;
@@ -96,15 +108,32 @@
 
         function updateUI() {
             var captured = !!state.capturedDataURL;
-            video.hidden = captured;
-            preview.hidden = !captured;
+            appRoot.setAttribute('data-state', captured ? 'preview' : 'live');
             overlay.hidden = captured;
             captureBtn.hidden = captured;
             actions.hidden = !captured;
+            switchBtn.hidden = captured || !state.hasMultipleCameras;
             if (captured) {
                 preview.src = state.capturedDataURL;
             }
+            if (hintEl) {
+                hintEl.hidden = captured;
+            }
             setWindowMenus();
+        }
+
+        function triggerFlash() {
+            if (!flashEl || reduceMotion) return;
+            appRoot.classList.remove('is-flashing');
+            // Force reflow so the animation restarts on rapid captures.
+            void appRoot.offsetWidth;
+            appRoot.classList.add('is-flashing');
+        }
+
+        function setLoading(btn, loading) {
+            if (!btn) return;
+            btn.classList.toggle('is-loading', !!loading);
+            btn.disabled = !!loading;
         }
 
         function stopStream() {
@@ -166,6 +195,7 @@
 
         function capture() {
             if (!state.stream || !video.videoWidth) return;
+            triggerFlash();
             var canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
@@ -184,7 +214,7 @@
         function savePhoto() {
             if (!state.capturedDataURL || state.saving) return;
             state.saving = true;
-            saveBtn.disabled = true;
+            setLoading(saveBtn, true);
             var blob = dataURLtoBlob(state.capturedDataURL);
             var ts = new Date();
             var filename = 'photo_' + ts.getFullYear() +
@@ -202,7 +232,7 @@
             xhr.open('POST', '/api/desktop/upload');
             xhr.onload = function () {
                 state.saving = false;
-                saveBtn.disabled = false;
+                setLoading(saveBtn, false);
                 if (xhr.status >= 200 && xhr.status < 300) {
                     notify(t('desktop.camera_saved', 'Photo saved'));
                 } else {
@@ -211,7 +241,7 @@
             };
             xhr.onerror = function () {
                 state.saving = false;
-                saveBtn.disabled = false;
+                setLoading(saveBtn, false);
                 notify(t('desktop.camera_save_error', 'Failed to save photo'));
             };
             xhr.send(form);
@@ -220,7 +250,7 @@
         function sendToAgent() {
             if (!state.capturedDataURL || state.sending) return;
             state.sending = true;
-            sendBtn.disabled = true;
+            setLoading(sendBtn, true);
 
             var base64 = state.capturedDataURL.split(',')[1] || state.capturedDataURL;
             var body = JSON.stringify({
@@ -244,7 +274,7 @@
                 }
                 if (xhr.readyState === 4) {
                     state.sending = false;
-                    sendBtn.disabled = false;
+                    setLoading(sendBtn, false);
                     if (xhr.status >= 200 && xhr.status < 300) {
                         notify(t('desktop.camera_sent', 'Sent to agent'));
                     } else {

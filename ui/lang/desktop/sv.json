@@ -725,6 +725,8 @@
   "desktop.camera_permission_denied": "Kameraåtkomst nekad",
   "desktop.camera_analyzing": "Analyserar bild...",
   "desktop.camera_insecure": "Kamera kräver HTTPS",
+  "desktop.camera_hint_capture": "ta bild",
+  "desktop.camera_hint_retake": "ta om",
   "desktop.camera_analyze_prompt": "Vänligen analysera detta foto.",
   "desktop.camera_save_error": "Kunde inte spara foto",
   "desktop.camera_send_error": "Kunde inte skicka till agent",

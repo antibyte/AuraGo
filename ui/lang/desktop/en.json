@@ -727,6 +727,8 @@
   "desktop.camera_permission_denied": "Camera access denied",
   "desktop.camera_analyzing": "Analyzing image...",
   "desktop.camera_insecure": "Camera requires HTTPS",
+  "desktop.camera_hint_capture": "capture",
+  "desktop.camera_hint_retake": "retake",
   "desktop.camera_analyze_prompt": "Please analyze this photo.",
   "desktop.camera_save_error": "Failed to save photo",
   "desktop.camera_send_error": "Failed to send to agent",

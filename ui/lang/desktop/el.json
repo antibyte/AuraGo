@@ -725,6 +725,8 @@
   "desktop.camera_permission_denied": "Η πρόσβαση στην κάμερα απορρίφθηκε",
   "desktop.camera_analyzing": "Ανάλυση εικόνας...",
   "desktop.camera_insecure": "Η κάμερα απαιτεί HTTPS",
+  "desktop.camera_hint_capture": "λήψη",
+  "desktop.camera_hint_retake": "επανάληψη",
   "desktop.camera_analyze_prompt": "Παρακαλώ αναλύστε αυτή τη φωτογραφία.",
   "desktop.camera_save_error": "Η αποθήκευση της φωτογραφίας απέτυχε",
   "desktop.camera_send_error": "Η αποστολή στον πράκτορα απέτυχε",

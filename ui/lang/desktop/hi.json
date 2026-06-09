@@ -725,6 +725,8 @@
   "desktop.camera_permission_denied": "कैमरा एक्सेस अस्वीकृत",
   "desktop.camera_analyzing": "छवि का विश्लेषण हो रहा है...",
   "desktop.camera_insecure": "कैमरे के लिए HTTPS आवश्यक है",
+  "desktop.camera_hint_capture": "कैप्चर",
+  "desktop.camera_hint_retake": "फिर से लें",
   "desktop.camera_analyze_prompt": "कृपया इस फोटो का विश्लेषण करें।",
   "desktop.camera_save_error": "फोटो सहेजने में विफल",
   "desktop.camera_send_error": "एजेंट को भेजने में विफल",

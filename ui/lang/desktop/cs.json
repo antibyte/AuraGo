@@ -725,6 +725,8 @@
   "desktop.camera_permission_denied": "Přístup ke kameře odepřen",
   "desktop.camera_analyzing": "Analýza obrázku...",
   "desktop.camera_insecure": "Kamera vyžaduje HTTPS",
+  "desktop.camera_hint_capture": "vyfotit",
+  "desktop.camera_hint_retake": "opakovat",
   "desktop.camera_analyze_prompt": "Prosím analyzujte tuto fotografii.",
   "desktop.camera_save_error": "Uložení fotky selhalo",
   "desktop.camera_send_error": "Odeslání agentovi selhalo",

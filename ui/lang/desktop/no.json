@@ -725,6 +725,8 @@
   "desktop.camera_permission_denied": "Kameratilgang nektet",
   "desktop.camera_analyzing": "Analyserer bilde...",
   "desktop.camera_insecure": "Kamera krever HTTPS",
+  "desktop.camera_hint_capture": "ta bilde",
+  "desktop.camera_hint_retake": "ta på nytt",
   "desktop.camera_analyze_prompt": "Vennligst analyser dette bildet.",
   "desktop.camera_save_error": "Kunne ikke lagre bilde",
   "desktop.camera_send_error": "Kunne ikke sende til agent",
