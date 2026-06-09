@@ -16,6 +16,12 @@
 .section-sub-header  { font-size:0.95rem; font-weight:600; color:var(--accent); margin-top:1.2rem; margin-bottom:0.8rem; padding-bottom:0.4rem; border-bottom:1px solid var(--border-subtle); }
 .cfg-status-success  { background:color-mix(in srgb, #22c55e 8%, transparent); border:1px solid color-mix(in srgb, #22c55e 25%, transparent); color:var(--success); }
 .cfg-status-error    { background:color-mix(in srgb, #ef4444 8%, transparent); border:1px solid color-mix(in srgb, #ef4444 25%, transparent); color:var(--danger); }
+
+/* Vault delete modal */
+.vault-modal-icon { font-size:3rem; text-align:center; }
+.vault-modal-title { color:var(--danger); text-align:center; }
+.vault-modal-desc { color:var(--text-secondary); font-size:0.85rem; line-height:1.65; margin-bottom:1.25rem; text-align:center; }
+.vault-confirm-input { text-align:center; letter-spacing:0.12em; font-size:1rem; margin-top:12px; }
 .cfg-status-warning  { background:color-mix(in srgb, var(--warning) 8%, transparent); border:1px solid color-mix(in srgb, var(--warning) 25%, transparent); color:var(--warning); }
 .cfg-password-row    { display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; }
 .cfg-password-input  { flex:1; min-width:0; }
@@ -346,7 +352,7 @@ body {
 .sidebar-title {
     font-size: 0.70rem;
     font-weight: 700;
-    text-transform: uppercase;
+    font-variant: small-caps;
     letter-spacing: 0.12em;
     color: var(--text-secondary);
     padding: 0.8rem 1.25rem 0.4rem 1.25rem;
@@ -1934,7 +1940,7 @@ select.cfg-input option {
     padding: 0.7rem 1.25rem;
     font-size: 0.7rem;
     font-weight: 700;
-    text-transform: uppercase;
+    font-variant: small-caps;
     letter-spacing: 0.1em;
     color: var(--text-secondary);
     cursor: pointer;
@@ -1990,7 +1996,7 @@ select.cfg-input option {
     padding: 0.9rem 1.25rem 0.25rem;
     font-size: 0.62rem;
     font-weight: 800;
-    text-transform: uppercase;
+    font-variant: small-caps;
     letter-spacing: 0.12em;
     color: var(--accent);
     opacity: 0.7;
@@ -3443,7 +3449,7 @@ select.cfg-input option {
     font-size: 0.72rem;
     font-weight: 600;
     color: var(--text-secondary);
-    text-transform: uppercase;
+    font-variant: small-caps;
     letter-spacing: 0.06em;
 }
 
@@ -6782,7 +6788,7 @@ select.cfg-input option {
     color: var(--text-primary);
     font-size: 0.78rem;
     font-weight: 800;
-    text-transform: uppercase;
+    font-variant: small-caps;
     letter-spacing: 0.08em;
 }
 
@@ -6831,7 +6837,7 @@ select.cfg-input option {
     font-size: 0.66rem;
     font-weight: 800;
     letter-spacing: 0.04em;
-    text-transform: uppercase;
+    font-variant: small-caps;
 }
 
 .rules-card-status-on {
@@ -6911,7 +6917,7 @@ select.cfg-input option {
     font-size: 0.69rem;
     font-weight: 800;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
+    font-variant: small-caps;
 }
 
 .rules-editor-title {
@@ -7181,7 +7187,7 @@ select.cfg-input option {
 .cmp-modal-overlay {
     position: fixed;
     inset: 0;
-    z-index: 1200;
+    z-index: var(--z-modal, 1000);
     display: none;
     align-items: center;
     justify-content: center;

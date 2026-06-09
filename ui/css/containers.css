@@ -53,7 +53,7 @@
         var(--surface-shadow-strong),
         0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent),
         inset 0 1px 0 rgba(255,255,255,0.08),
-        0 16px 32px rgba(0,0,0,0.14);
+        0 16px 32px rgba(2,6,23,0.14);
 }
 
 .ct-stat:hover::before {
@@ -79,7 +79,7 @@
 .ct-stat-label {
     font-size: 0.72rem;
     color: var(--text-secondary);
-    text-transform: uppercase;
+    font-variant: small-caps;
     letter-spacing: 0.06em;
     margin-top: 6px;
     font-weight: 600;
@@ -220,7 +220,7 @@
         var(--surface-shadow-strong),
         0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent),
         inset 0 1px 0 rgba(255,255,255,0.06),
-        0 20px 40px rgba(0,0,0,0.16);
+        0 20px 40px rgba(2,6,23,0.16);
 }
 
 .ct-card:hover::before,
@@ -434,7 +434,7 @@
 .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.55);
+    background: rgba(2,6,23,0.55);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     display: flex;
@@ -457,7 +457,7 @@
     border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border-subtle));
     border-radius: 1.1rem;
     box-shadow:
-        0 28px 72px rgba(0,0,0,0.45),
+        0 28px 72px rgba(2,6,23,0.45),
         0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent),
         inset 0 1px 0 rgba(255,255,255,0.04);
     width: min(520px, 92vw);
@@ -665,7 +665,7 @@
     animation: ctSlideIn 0.35s cubic-bezier(0.22, 1, 0.36, 1), ctSlideOut 0.3s ease 2.7s;
     pointer-events: none;
     font-weight: 500;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    box-shadow: 0 8px 24px rgba(2,6,23,0.2);
 }
 
 .ct-toast.success {

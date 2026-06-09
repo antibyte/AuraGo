@@ -1221,8 +1221,8 @@
     --lollipop-panel: linear-gradient(180deg, rgba(248, 230, 240, 0.97), rgba(232, 205, 222, 0.97));
     --lollipop-pill: linear-gradient(180deg, rgba(235, 196, 219, 0.98), rgba(219, 204, 244, 0.98));
     --lollipop-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0) 38%);
-    --lollipop-font-display: 'Shadows Into Light Two', 'Inter', system-ui, sans-serif;
-    --lollipop-font-chat: 'Schoolbell', 'Shadows Into Light Two', 'Inter', system-ui, sans-serif;
+    --lollipop-font-display: 'Shadows Into Light Two', 'Geist', system-ui, sans-serif;
+    --lollipop-font-chat: 'Schoolbell', 'Shadows Into Light Two', 'Geist', system-ui, sans-serif;
 }
 
 [data-theme="lollipop"] body {
@@ -2143,7 +2143,7 @@
     --darksun-panel: linear-gradient(180deg, rgba(23, 13, 10, 0.98), rgba(8, 5, 4, 0.98));
     --darksun-matte: linear-gradient(180deg, rgba(27, 16, 12, 0.96), rgba(10, 6, 5, 0.98));
     --darksun-ember: rgba(255, 132, 48, 0.24);
-    --darksun-font-ui: 'Darker Grotesque', 'Inter', system-ui, sans-serif;
+    --darksun-font-ui: 'Darker Grotesque', 'Geist', system-ui, sans-serif;
 }
 
 [data-theme="dark-sun"] body {
@@ -4465,9 +4465,9 @@
     --papyrus-button: linear-gradient(180deg, rgba(253, 247, 234, 0.98), rgba(229, 211, 179, 0.98));
 
     /* Typography */
-    --papyrus-font-display: 'Special Elite', 'Darker Grotesque', 'Inter', system-ui, serif;
-    --papyrus-font-ui: 'Darker Grotesque', 'Inter', system-ui, sans-serif;
-    --papyrus-font-body: 'Inter', system-ui, sans-serif;
+    --papyrus-font-display: 'Special Elite', 'Darker Grotesque', 'Geist', system-ui, serif;
+    --papyrus-font-ui: 'Darker Grotesque', 'Geist', system-ui, sans-serif;
+    --papyrus-font-body: 'Geist', system-ui, sans-serif;
 
     /* App-wide tokens (consumed by core stylesheet) */
     --accent: #1e3f66;
@@ -6319,8 +6319,8 @@
     --page-orb-opacity: 1;
     --chat-image-opacity: 0.04;
     --bg-logo-filter: grayscale(1) contrast(1.18) brightness(0.7);
-    --matrix-font-ui: 'Exo 2', 'Inter', system-ui, sans-serif;
-    --matrix-font-copy: 'Exo 2', 'Inter', system-ui, sans-serif;
+    --matrix-font-ui: 'Exo 2', 'Geist', system-ui, sans-serif;
+    --matrix-font-copy: 'Exo 2', 'Geist', system-ui, sans-serif;
     --matrix-emboss:
         0 1px 0 rgba(255, 255, 255, 0.16),
         0 -1px 0 rgba(0, 0, 0, 0.8),

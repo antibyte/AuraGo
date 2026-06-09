@@ -1094,7 +1094,7 @@ func TestChatFrontend_LollipopUsesLocalSchoolbellForChatText(t *testing.T) {
 
 	lollipopCSS := readChatThemeSectionCSS(t, "chat-lollipop.css")
 	for _, marker := range []string{
-		`--lollipop-font-chat: 'Schoolbell', 'Shadows Into Light Two', 'Inter', system-ui, sans-serif;`,
+		`--lollipop-font-chat: 'Schoolbell', 'Shadows Into Light Two', 'Geist', system-ui, sans-serif;`,
 		`[data-theme="lollipop"] .bubble {`,
 		`[data-theme="lollipop"] .input-wrap textarea,`,
 		`font-family: var(--lollipop-font-chat);`,
@@ -2094,7 +2094,7 @@ func TestChatPapyrusThemeUsesRefinedManuscriptPalette(t *testing.T) {
 		"--papyrus-ink-blue: #1e3f66;",
 		"--papyrus-verdigris: #2f7f73;",
 		"--papyrus-wax: #9f3f35;",
-		"--papyrus-font-body: 'Inter', system-ui, sans-serif;",
+		"--papyrus-font-body: 'Geist', system-ui, sans-serif;",
 		"linear-gradient(135deg, rgba(30, 63, 102, 0.34) 0%, rgba(47, 127, 115, 0.2) 38%, rgba(159, 63, 53, 0.16) 72%, rgba(20, 35, 51, 0.98) 100%)",
 		"linear-gradient(135deg, rgba(30, 63, 102, 0.96), rgba(47, 127, 115, 0.92))",
 		"opacity: 0.38;",

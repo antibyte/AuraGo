@@ -86,12 +86,12 @@
     <!-- Vault delete confirmation modal -->
     <div id="vault-delete-overlay" class="modal-overlay">
         <div class="modal-card modal-card-danger">
-            <div class="modal-icon" style="font-size:3rem;text-align:center;">☠️</div>
-            <h2 id="modal-title" class="modal-title" style="color:#f87171;text-align:center;"></h2>
+            <div class="modal-icon vault-modal-icon">☠️</div>
+            <h2 id="modal-title" class="modal-title vault-modal-title"></h2>
             <div id="modal-message" class="modal-body">
-                <p id="vault-modal-desc" class="modal-desc" style="color:var(--text-secondary);font-size:0.85rem;line-height:1.65;margin-bottom:1.25rem;text-align:center;"></p>
+                <p id="vault-modal-desc" class="modal-desc vault-modal-desc"></p>
                 <input id="vault-confirm-input" type="text" class="field-input vault-confirm-input" oninput="vaultCheckWord()"
-                    autocomplete="off" style="text-align:center;letter-spacing:0.12em;font-size:1rem;margin-top:12px;">
+                    autocomplete="off">
                 <div id="vault-confirm-word" class="is-hidden"></div>
             </div>
             <div class="modal-actions">

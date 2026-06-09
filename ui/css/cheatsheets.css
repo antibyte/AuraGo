@@ -343,7 +343,7 @@
 .metadata-row span {
     color: var(--text-tertiary);
     font-size: 0.74rem;
-    text-transform: uppercase;
+    font-variant: small-caps;
     letter-spacing: 0.04em;
 }
 

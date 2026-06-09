@@ -245,7 +245,7 @@
         var(--surface-shadow-strong),
         0 0 0 1px color-mix(in srgb, var(--accent) 18%, var(--border-subtle)),
         inset 0 1px 0 rgba(255, 255, 255, 0.08),
-        0 24px 48px rgba(0, 0, 0, 0.16);
+        0 24px 48px rgba(2, 6, 23, 0.16);
 }
 
 .dash-card:hover::before,
@@ -543,19 +543,6 @@
             letter-spacing: 0.01em;
         }
 
-        .mood-badge::before {
-            content: '';
-            position: absolute;
-            top: 0; left: -100%;
-            width: 100%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
-            transition: left 0.6s ease;
-        }
-
-        .mood-badge:hover::before {
-            left: 100%;
-        }
-
         .mood-badge:hover {
             transform: translateY(-1px);
             box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 18%, transparent);
@@ -658,7 +645,8 @@
             font-weight: 600;
             color: var(--text-secondary);
             margin-bottom: 0.45rem;
-            text-transform: uppercase;
+            font-variant: small-caps;
+            letter-spacing: 0.04em;
             letter-spacing: 0.04em;
         }
 
@@ -676,6 +664,12 @@
             background: rgba(255,255,255,0.04);
             border: 1px solid var(--border-subtle);
             text-align: left;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .emotion-entry:hover {
+            background: rgba(255,255,255,0.07);
+            border-color: var(--border-accent);
         }
 
         .emotion-entry-top {
@@ -849,7 +843,8 @@
 
         .memory-health-strategy-label {
             font-size: var(--text-xs);
-            text-transform: uppercase;
+            font-variant: small-caps;
+            letter-spacing: 0.04em;
             letter-spacing: 0.06em;
             color: var(--text-secondary);
         }
@@ -864,7 +859,8 @@
             color: var(--text-primary);
             font-size: var(--text-xs);
             font-weight: 700;
-            text-transform: uppercase;
+            font-variant: small-caps;
+            letter-spacing: 0.04em;
             letter-spacing: 0.05em;
         }
 
@@ -992,7 +988,8 @@
         .memory-subsection-title {
             margin-bottom: 0.45rem;
             font-size: var(--text-xs);
-            text-transform: uppercase;
+            font-variant: small-caps;
+            letter-spacing: 0.04em;
             letter-spacing: 0.06em;
             color: var(--text-secondary);
         }
@@ -1315,6 +1312,12 @@
             border-radius: 0.4rem;
             margin-bottom: 0.3rem;
             font-size: var(--text-sm);
+            transition: background 0.2s;
+        }
+
+        .activity-item:hover {
+            background: rgba(255,255,255,0.07);
+        }
         }
 
         .activity-item-name {
@@ -1466,21 +1469,6 @@
             transition: all 0.3s;
             position: relative;
             overflow: hidden;
-        }
-        
-        .mood-badge::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.5s;
-        }
-        
-        .mood-badge:hover::before {
-            left: 100%;
         }
         
         /* Activity item slide in - defined in shared.css */
@@ -1676,7 +1664,8 @@
             font-size: var(--text-xs);
             font-weight: 600;
             color: var(--text-secondary);
-            text-transform: uppercase;
+            font-variant: small-caps;
+            letter-spacing: 0.04em;
             letter-spacing: 0.05em;
             margin: 0.5rem 0 0.25rem;
         }
@@ -2059,7 +2048,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 9000;
+            z-index: var(--z-modal-backdrop, 900);
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.35s ease;
@@ -2331,17 +2320,6 @@
             color: var(--danger);
             box-shadow: 0 4px 15px rgba(239, 68, 68, 0.18);
         }
-        .cf-add-btn::before {
-            content: '';
-            position: absolute;
-            top: 0; left: -100%;
-            width: 100%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.5s;
-        }
-        .cf-add-btn:hover::before {
-            left: 100%;
-        }
         @media (max-width: 640px) {
             .cf-add-bar,
             .cf-add-wrap {
@@ -2539,6 +2517,10 @@
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             backdrop-filter: blur(4px);
         }
+        .int-badge:hover {
+            border-color: var(--border-accent);
+            transform: scale(1.05);
+        }
         .int-badge.active {
             background: color-mix(in srgb, var(--success) 12%, transparent);
             border-color: color-mix(in srgb, var(--success) 28%, transparent);
@@ -2642,6 +2624,10 @@
             border: 1px solid transparent;
             backdrop-filter: blur(4px);
             transition: all 0.2s;
+        }
+        .budget-badge:hover {
+            transform: scale(1.05);
+            border-color: var(--border-accent);
         }
         .budget-badge.warning { 
             background: rgba(245,158,11,0.12); 
@@ -3554,7 +3540,7 @@
             stroke: color-mix(in srgb, var(--card-bg) 70%, white 30%);
             stroke-width: 2;
             transition: transform 0.15s ease, opacity 0.15s ease;
-            filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.18));
+            filter: drop-shadow(0 8px 16px rgba(2, 6, 23, 0.18));
         }
 
         .knowledge-visual-node:hover circle {
@@ -3729,7 +3715,7 @@
     text-align: center;
     padding: 6px 12px;
     font-size: 13px;
-    z-index: 9999;
+    z-index: var(--z-toast, 1100);
 }
 
 .prompt-kpi-dot-success { background: var(--success); }
@@ -3822,7 +3808,8 @@
     white-space: nowrap;
     font-size: 0.72rem;
     letter-spacing: 0.03em;
-    text-transform: uppercase;
+    font-variant: small-caps;
+            letter-spacing: 0.04em;
 }
 .kg-table td {
     padding: 0.45rem 0.55rem;
@@ -3945,7 +3932,8 @@
     white-space: nowrap;
     font-size: 0.72rem;
     letter-spacing: 0.03em;
-    text-transform: uppercase;
+    font-variant: small-caps;
+            letter-spacing: 0.04em;
 }
 .mh-table th:nth-child(1) { width: 30%; }
 .mh-table th:nth-child(2) { width: 18%; }
@@ -4101,7 +4089,8 @@
     white-space: nowrap;
     font-size: 0.72rem;
     letter-spacing: 0.03em;
-    text-transform: uppercase;
+    font-variant: small-caps;
+            letter-spacing: 0.04em;
 }
 .cronjobs-table th:nth-child(1) { width: 14%; }
 .cronjobs-table th:nth-child(2) { width: 10%; }
@@ -4337,7 +4326,8 @@
     font-weight: 600;
     white-space: nowrap;
     letter-spacing: 0.03em;
-    text-transform: uppercase;
+    font-variant: small-caps;
+            letter-spacing: 0.04em;
 }
 .audit-table td {
     padding: 0.65rem 0.7rem;
@@ -4665,6 +4655,10 @@
     padding: 6px 0;
     border-bottom: 1px solid var(--border-subtle);
     font-size: 0.88rem;
+    transition: background 0.2s;
+}
+.daemon-row:hover {
+    background: rgba(255,255,255,0.04);
 }
 .daemon-row:last-child { border-bottom: none; }
 .daemon-icon { flex-shrink: 0; }
@@ -4945,7 +4939,8 @@
     border-radius: 0.35rem;
     font-size: var(--text-xs, 0.7rem);
     font-weight: 600;
-    text-transform: uppercase;
+    font-variant: small-caps;
+            letter-spacing: 0.04em;
     letter-spacing: 0.03em;
     margin-left: 0.5rem;
 }

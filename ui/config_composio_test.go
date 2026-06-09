@@ -312,6 +312,14 @@ func cssZIndex(t *testing.T, block string) int {
 	if end >= 0 {
 		rest = rest[:end]
 	}
+	rest = strings.TrimSpace(rest)
+	// Handle CSS variable references: var(--name, fallback)
+	if strings.HasPrefix(rest, "var(") {
+		comma := strings.LastIndex(rest, ",")
+		if comma >= 0 {
+			rest = strings.TrimSpace(rest[comma+1 : len(rest)-1])
+		}
+	}
 	value, err := strconv.Atoi(strings.TrimSpace(rest))
 	if err != nil {
 		t.Fatalf("parse z-index %q: %v", rest, err)

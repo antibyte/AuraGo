@@ -130,7 +130,7 @@
             gap: 0.4rem;
             font-size: var(--text-xs);
             font-weight: 600;
-            text-transform: uppercase;
+            font-variant: small-caps;
             letter-spacing: 0.1em;
             padding: 0.3rem 0.7rem;
             border-radius: 999px;
@@ -1093,7 +1093,7 @@ body.has-https-warning {
     box-sizing: border-box;
     transform: rotate(45deg);
     letter-spacing: 0.05em;
-    text-transform: uppercase;
+    font-variant: small-caps;
     pointer-events: none;
     box-shadow: 0 2px 8px rgba(45, 212, 191, 0.4);
     text-align: center;

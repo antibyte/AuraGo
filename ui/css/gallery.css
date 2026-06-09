@@ -47,6 +47,17 @@
     font-size: 0.85rem;
     min-width: 200px;
     max-width: 100%;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.gallery-search:hover {
+    border-color: rgba(45, 212, 191, 0.4);
+}
+
+.gallery-search:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.15);
 }
 
 .gallery-filter {
@@ -56,6 +67,17 @@
     background: var(--bg-secondary);
     color: var(--text-primary);
     font-size: 0.85rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.gallery-filter:hover {
+    border-color: rgba(45, 212, 191, 0.4);
+}
+
+.gallery-filter:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.15);
 }
 
 /* Gallery Grid */
@@ -76,7 +98,7 @@
 
 .gallery-card:hover {
     border-color: var(--accent);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(45, 212, 191, 0.1);
+    box-shadow: 0 6px 20px rgba(2, 6, 23, 0.15), 0 0 0 1px rgba(45, 212, 191, 0.1);
     transform: translateY(-2px);
 }
 
@@ -160,7 +182,7 @@
     position: fixed;
     inset: 0;
     z-index: 1000;
-    background: rgba(0, 0, 0, 0.85);
+    background: rgba(2, 6, 23, 0.85);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -188,7 +210,7 @@
     position: absolute;
     top: 0.5rem;
     right: 0.6rem;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(2, 6, 23, 0.6);
     color: white;
     border: none;
     border-radius: 50%;
@@ -329,7 +351,7 @@
     position: fixed;
     inset: 0;
     z-index: 1000;
-    background: rgba(0, 0, 0, 0.85);
+    background: rgba(2, 6, 23, 0.85);
     display: flex;
     align-items: center;
     justify-content: center;

@@ -120,7 +120,7 @@
 
 .status-label {
     font-size: 0.7rem;
-    text-transform: uppercase;
+    font-variant: small-caps;
     letter-spacing: 0.06em;
     color: var(--text-secondary);
     opacity: 0.85;

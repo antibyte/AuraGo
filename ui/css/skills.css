@@ -123,7 +123,7 @@
         var(--surface-shadow-strong),
         0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent),
         inset 0 1px 0 rgba(255,255,255,0.08),
-        0 16px 32px rgba(0,0,0,0.14);
+        0 16px 32px rgba(2,6,23,0.14);
 }
 
 .sk-stat:hover::before {
@@ -145,7 +145,7 @@
 .sk-stat-label {
     font-size: 0.72rem;
     color: var(--text-secondary);
-    text-transform: uppercase;
+    font-variant: small-caps;
     letter-spacing: 0.06em;
     margin-top: 6px;
     font-weight: 600;
@@ -259,7 +259,7 @@
     border-color: color-mix(in srgb, var(--accent) 35%, var(--border-subtle));
     color: var(--text-primary);
     transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    box-shadow: 0 4px 10px rgba(2,6,23,0.08);
 }
 
 .sk-pill.active {
@@ -290,7 +290,7 @@
     padding: 2px 8px;
     border-radius: 999px;
     font-weight: 600;
-    text-transform: uppercase;
+    font-variant: small-caps;
     letter-spacing: 0.04em;
     backdrop-filter: blur(4px);
     border: 1px solid transparent;
@@ -370,7 +370,7 @@
         var(--surface-shadow-strong),
         0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent),
         inset 0 1px 0 rgba(255,255,255,0.06),
-        0 20px 40px rgba(0,0,0,0.16);
+        0 20px 40px rgba(2,6,23,0.16);
 }
 
 .sk-card:hover::before,
@@ -538,7 +538,7 @@
 .sk-vault-section-label {
     font-size: 0.68rem;
     font-weight: 600;
-    text-transform: uppercase;
+    font-variant: small-caps;
     letter-spacing: 0.06em;
     color: var(--text-secondary);
     margin: 4px 0 2px;
@@ -906,7 +906,7 @@
     border-color: color-mix(in srgb, var(--accent) 50%, var(--border-subtle));
     background: color-mix(in srgb, var(--accent) 5%, transparent);
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    box-shadow: 0 8px 20px rgba(2,6,23,0.1);
 }
 
 .sk-dropzone-icon {
@@ -1099,7 +1099,7 @@
     border-radius: 10px;
     font-size: 0.85rem;
     color: #fff;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    box-shadow: 0 8px 24px rgba(2,6,23,0.2);
     animation: skToastIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
     font-weight: 500;
 }
@@ -1221,7 +1221,7 @@
 
 /* ── Modal Overrides ── */
 .modal-overlay {
-    background: rgba(0,0,0,0.55);
+    background: rgba(2,6,23,0.55);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     transition: opacity 0.35s ease;
@@ -1237,7 +1237,7 @@
     border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border-subtle));
     border-radius: 1.1rem;
     box-shadow:
-        0 28px 72px rgba(0,0,0,0.45),
+        0 28px 72px rgba(2,6,23,0.45),
         0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent),
         inset 0 1px 0 rgba(255,255,255,0.04);
     transform: scale(0.96) translateY(12px);
