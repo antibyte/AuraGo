@@ -938,27 +938,29 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 			return
 		}
 		paths, err := chromemDB.SearchToolGuides(userQuery, 2)
-		if err == nil {
-			for _, p := range paths {
-				if len(guides) >= limit {
-					break
-				}
-				if isSkipped(extractToolName(p)) {
-					continue
-				}
-				cleanPath := strings.ToLower(filepath.Clean(p))
-				if !isToolPathSafe(cleanPath, toolsDir) {
-					continue
-				}
-				if !guideMap[cleanPath] {
-					if content, ok := readToolGuide(cleanPath); ok {
-						guides = append(guides, content)
-						guideMap[cleanPath] = true
-					}
+		if err != nil {
+			if logger != nil {
+				logger.Debug("[DynamicGuides] Semantic tool guide search unavailable", "error", err)
+			}
+			return
+		}
+		for _, p := range paths {
+			if len(guides) >= limit {
+				break
+			}
+			if isSkipped(extractToolName(p)) {
+				continue
+			}
+			cleanPath := strings.ToLower(filepath.Clean(p))
+			if !isToolPathSafe(cleanPath, toolsDir) {
+				continue
+			}
+			if !guideMap[cleanPath] {
+				if content, ok := readToolGuide(cleanPath); ok {
+					guides = append(guides, content)
+					guideMap[cleanPath] = true
 				}
 			}
-		} else if logger != nil {
-			logger.Warn("Failed semantic tool guide search", "error", err)
 		}
 	}
 

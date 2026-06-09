@@ -247,6 +247,39 @@ func TestSearchSimilarIncludesFileIndexerCollections(t *testing.T) {
 	}
 }
 
+func TestSearchToolGuides_DisabledReturnsError(t *testing.T) {
+	cv := &ChromemVectorDB{}
+	markTestVectorDBReady(cv)
+	cv.disabled.Store(true)
+
+	_, err := cv.SearchToolGuides("docker", 2)
+	if !errors.Is(err, ErrVectorDBDisabled) {
+		t.Fatalf("SearchToolGuides err = %v, want ErrVectorDBDisabled", err)
+	}
+}
+
+func TestSearchToolGuides_NotReadyReturnsError(t *testing.T) {
+	cv := &ChromemVectorDB{}
+
+	_, err := cv.SearchToolGuides("docker", 2)
+	if !errors.Is(err, ErrVectorDBNotReady) {
+		t.Fatalf("SearchToolGuides err = %v, want ErrVectorDBNotReady", err)
+	}
+}
+
+func TestSearchToolGuides_EmptyQueryReturnsNil(t *testing.T) {
+	cv := &ChromemVectorDB{}
+	markTestVectorDBReady(cv)
+
+	paths, err := cv.SearchToolGuides("", 2)
+	if err != nil {
+		t.Fatalf("SearchToolGuides empty query err = %v, want nil", err)
+	}
+	if paths != nil {
+		t.Fatalf("paths = %v, want nil", paths)
+	}
+}
+
 func TestSearchSimilarScored_DisabledReturnsError(t *testing.T) {
 	cv := &ChromemVectorDB{}
 	markTestVectorDBReady(cv)

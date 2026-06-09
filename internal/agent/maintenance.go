@@ -850,6 +850,10 @@ func finalizeConsolidationBatch(
 		_ = stm.MarkConsolidationFailure(item.messageIDs, reason)
 		return false, 0
 	}
+	if err := stm.MarkConsolidationSuccess(item.messageIDs); err != nil {
+		logger.Error("[Consolidation] Failed to mark batch as consolidated", "batch", batchIndex, "error", err)
+		return false, 0
+	}
 	recordConsolidationBatchEpisode(stm, item.messages, stored, skipped, len(facts), batchIndex, batchTotal)
 	return true, stored
 }
@@ -925,7 +929,7 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 	}
 
 	totalStored := 0
-	var allConsolidatedIDs []int64
+	messagesConsolidated := 0
 	helperManager := newHelperLLMManager(cfg, logger)
 	workItems := make([]consolidationWorkItem, 0, len(batches))
 	for i, batch := range batches {
@@ -947,7 +951,7 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 		}
 		if ok, storedCount := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, batchIndex, len(workItems)); ok {
 			totalStored += storedCount
-			allConsolidatedIDs = append(allConsolidatedIDs, item.messageIDs...)
+			messagesConsolidated += len(item.messageIDs)
 		}
 	}
 
@@ -999,17 +1003,10 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 			}
 			if ok, storedCount := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, i+offset+1, len(workItems)); ok {
 				totalStored += storedCount
-				allConsolidatedIDs = append(allConsolidatedIDs, item.messageIDs...)
+				messagesConsolidated += len(item.messageIDs)
 			}
 		}
 		i = end
-	}
-
-	// Mark all processed messages as consolidated
-	if len(allConsolidatedIDs) > 0 {
-		if err := stm.MarkConsolidationSuccess(allConsolidatedIDs); err != nil {
-			logger.Error("[Consolidation] Failed to mark messages as consolidated", "error", err)
-		}
 	}
 
 	// Clean up old archived messages
@@ -1033,13 +1030,13 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 		_, _ = stm.InsertJournalEntry(memory.JournalEntry{
 			EntryType: "system",
 			Title:     "Nightly STM→LTM Consolidation",
-			Content:   fmt.Sprintf("Consolidated %d archived messages into %d LTM facts.", len(allConsolidatedIDs), totalStored),
+			Content:   fmt.Sprintf("Consolidated %d archived messages into %d LTM facts.", messagesConsolidated, totalStored),
 			Tags:      []string{"consolidation", "maintenance", "memory"},
 		})
 	}
 
 	logger.Info("[Consolidation] STM→LTM consolidation complete",
-		"messages_processed", len(allConsolidatedIDs),
+		"messages_processed", messagesConsolidated,
 		"facts_stored", totalStored,
 		"batches", len(batches))
 }

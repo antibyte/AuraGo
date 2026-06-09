@@ -180,4 +180,12 @@ func TestFinalizeConsolidationBatchAcceptsDedupOnlyFacts(t *testing.T) {
 	if storedCount != 0 {
 		t.Fatalf("storedCount = %d, want 0", storedCount)
 	}
+
+	remaining, err := stm.GetUnconsolidatedMessages(100)
+	if err != nil {
+		t.Fatalf("GetUnconsolidatedMessages: %v", err)
+	}
+	if len(remaining) != 0 {
+		t.Fatalf("expected archived messages marked consolidated, still have %d unconsolidated", len(remaining))
+	}
 }

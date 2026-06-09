@@ -153,8 +153,11 @@ func buildToolGuideEmbeddingContent(description, body string) string {
 // SearchToolGuides finds relevant tool guides based on a query.
 // Uses the query embedding cache if the same query is reused.
 func (cv *ChromemVectorDB) SearchToolGuides(query string, topK int) ([]string, error) {
-	if cv.disabled.Load() || query == "" {
+	if query == "" {
 		return nil, nil
+	}
+	if err := cv.requireReadyForSearch(); err != nil {
+		return nil, err
 	}
 
 	cv.mu.RLock()
