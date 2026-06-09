@@ -34,7 +34,7 @@ func TestFinalizeToolExecutionRecordsErrorAndResolution(t *testing.T) {
 	state := newToolRecoveryState()
 	tc := ToolCall{Action: "homepage"}
 
-	first := finalizeToolExecution(context.Background(), tc, `{"status":"error","message":"connect failed"}`, false, cfg, stm, "default", &state, &req, logger, scope, "optim-db", 100)
+	first := finalizeToolExecution(context.Background(), tc, `{"status":"error","message":"connect failed"}`, false, cfg, stm, "default", &state, &req, logger, scope, "optim-db", 100, RunConfig{})
 	if !first.Failed {
 		t.Fatal("expected failing tool output to be marked as failed")
 	}
@@ -50,7 +50,7 @@ func TestFinalizeToolExecutionRecordsErrorAndResolution(t *testing.T) {
 		t.Fatalf("error pattern count = %d, want 1", count)
 	}
 
-	second := finalizeToolExecution(context.Background(), tc, `{"status":"success","message":"ok"}`, false, cfg, stm, "default", &state, &req, logger, scope, "optim-db", 100)
+	second := finalizeToolExecution(context.Background(), tc, `{"status":"success","message":"ok"}`, false, cfg, stm, "default", &state, &req, logger, scope, "optim-db", 100, RunConfig{})
 	if second.Failed {
 		t.Fatal("expected success output to be marked as successful")
 	}
@@ -80,7 +80,7 @@ func TestFinalizeToolExecutionGuardianBlockedSetsOutcome(t *testing.T) {
 	tc := ToolCall{Action: "execute_shell"}
 
 	guardianBlockedMsg := "[TOOL BLOCKED] Security check failed for execute_shell: remote code execution via curl pipe sh (risk: 85%)."
-	result := finalizeToolExecution(context.Background(), tc, guardianBlockedMsg, true, cfg, nil, "default", &state, &req, logger, scope, "v1", 100)
+	result := finalizeToolExecution(context.Background(), tc, guardianBlockedMsg, true, cfg, nil, "default", &state, &req, logger, scope, "v1", 100, RunConfig{})
 	if !result.Failed {
 		t.Fatal("expected guardian blocked to be marked as failed")
 	}
@@ -111,7 +111,7 @@ func TestFinalizeToolExecutionTracksInvokeToolAsUnderlyingTool(t *testing.T) {
 				"username":  "jopliness",
 			},
 		},
-	}, `{"status":"success","data":{}}`, false, cfg, stm, "default", &state, &req, logger, AgentTelemetryScope{}, "v1", 100)
+	}, `{"status":"success","data":{}}`, false, cfg, stm, "default", &state, &req, logger, AgentTelemetryScope{}, "v1", 100, RunConfig{})
 	if result.Failed {
 		t.Fatalf("expected success, got %+v", result)
 	}
@@ -125,7 +125,7 @@ func TestFinalizeToolExecutionTracksInvokeToolAsUnderlyingTool(t *testing.T) {
 				"username":  "jopliness",
 			},
 		},
-	}, `{"status":"success","data":{}}`, false, cfg, stm, "default", &state, &req, logger, AgentTelemetryScope{}, "v1", 100)
+	}, `{"status":"success","data":{}}`, false, cfg, stm, "default", &state, &req, logger, AgentTelemetryScope{}, "v1", 100, RunConfig{})
 	if result2.Failed {
 		t.Fatalf("expected success, got %+v", result2)
 	}
@@ -173,7 +173,7 @@ func TestFinalizeToolExecutionAppendsSuggestedNextStep(t *testing.T) {
 	state := newToolRecoveryState()
 	tc := ToolCall{Action: "filesystem"}
 
-	result := finalizeToolExecution(context.Background(), tc, `{"status":"error","message":"Unknown filesystem operation: 'read'"}`, false, cfg, nil, "default", &state, &req, logger, scope, "optim-db", 100)
+	result := finalizeToolExecution(context.Background(), tc, `{"status":"error","message":"Unknown filesystem operation: 'read'"}`, false, cfg, nil, "default", &state, &req, logger, scope, "optim-db", 100, RunConfig{})
 	if !result.Failed {
 		t.Fatal("expected tool failure")
 	}
@@ -208,7 +208,7 @@ func TestFinalizeToolExecutionWarnsWhenMemoryPersistenceFails(t *testing.T) {
 	state := newToolRecoveryState()
 	tc := ToolCall{Action: "homepage"}
 
-	result := finalizeToolExecution(context.Background(), tc, `{"status":"error","message":"connect failed"}`, false, cfg, stm, "default", &state, &req, logger, scope, "v1", 100)
+	result := finalizeToolExecution(context.Background(), tc, `{"status":"error","message":"connect failed"}`, false, cfg, stm, "default", &state, &req, logger, scope, "v1", 100, RunConfig{})
 	if !result.Failed {
 		t.Fatal("expected tool failure")
 	}

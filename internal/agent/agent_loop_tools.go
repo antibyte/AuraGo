@@ -77,13 +77,15 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	} else if s.recoveryState.handleDuplicateToolCall(ptc, &s.req, currentLogger, s.telemetryScope) {
 		pResultContent = blockedToolOutputFromRequest(&s.req)
 		actionBlocked = true
+	} else if precheckResult, prechecked := precheckMessagingToolArgs(ptc, s.runCfg, sessionID); prechecked {
+		pResultContent = precheckResult
 	} else {
 		toolAction = startAgentToolAction(currentLogger, actionLedger, toolAction)
 		pResultContent = DispatchToolCall(ctx, &ptc, dispatchCtx, lastUserMsg)
 	}
 	policyResult := finalizeToolExecution(ctx, ptc, pResultContent, ptc.GuardianBlocked, cfg, shortTermMem, sessionID,
 		&s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(ptc.Action),
-		dispatchCtx.ExecutionTimeMs)
+		dispatchCtx.ExecutionTimeMs, s.runCfg)
 	pResultContent = policyResult.Content
 	if policyResult.Failed {
 		recordToolFailureOperationalIssue(s.runCfg, ptc, pResultContent, currentLogger)
@@ -336,9 +338,14 @@ func executeAgentToolTurn(
 	}
 
 	dispatchCtx := s.makeDispatchContext(currentLogger)
-	toolAction = startAgentToolAction(currentLogger, actionLedger, toolAction)
-	resultContent := DispatchToolCall(ctx, &tc, dispatchCtx, lastUserMsg)
-	policyResult := finalizeToolExecution(ctx, tc, resultContent, tc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(tc.Action), dispatchCtx.ExecutionTimeMs)
+	var resultContent string
+	if precheckResult, prechecked := precheckMessagingToolArgs(tc, s.runCfg, sessionID); prechecked {
+		resultContent = precheckResult
+	} else {
+		toolAction = startAgentToolAction(currentLogger, actionLedger, toolAction)
+		resultContent = DispatchToolCall(ctx, &tc, dispatchCtx, lastUserMsg)
+	}
+	policyResult := finalizeToolExecution(ctx, tc, resultContent, tc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(tc.Action), dispatchCtx.ExecutionTimeMs, s.runCfg)
 	resultContent = policyResult.Content
 	if policyResult.Failed {
 		recordToolFailureOperationalIssue(s.runCfg, tc, resultContent, currentLogger)
@@ -544,11 +551,13 @@ func executeAgentToolTurn(
 			} else if s.recoveryState.handleDuplicateToolCall(btc, &s.req, currentLogger, s.telemetryScope) {
 				bResult = blockedToolOutputFromRequest(&s.req)
 				batchedBlocked = true
+			} else if precheckResult, prechecked := precheckMessagingToolArgs(btc, s.runCfg, sessionID); prechecked {
+				bResult = precheckResult
 			} else {
 				batchedAction = startAgentToolAction(currentLogger, batchedLedger, batchedAction)
 				bResult = DispatchToolCall(ctx, &btc, nativeDispatchCtx, lastUserMsg)
 			}
-			policyResult := finalizeToolExecution(ctx, btc, bResult, btc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(btc.Action), nativeDispatchCtx.ExecutionTimeMs)
+			policyResult := finalizeToolExecution(ctx, btc, bResult, btc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(btc.Action), nativeDispatchCtx.ExecutionTimeMs, s.runCfg)
 			bResult = policyResult.Content
 			if policyResult.Failed {
 				recordToolFailureOperationalIssue(s.runCfg, btc, bResult, currentLogger)

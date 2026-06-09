@@ -389,6 +389,25 @@ func (s *SQLiteMemory) InsertJournalEntry(entry JournalEntry) (int64, error) {
 	return res.LastInsertId()
 }
 
+// JournalErrorRecentlyLogged returns true when an identical error journal entry was
+// written within the given number of hours (default 24 when withinHours <= 0).
+func (s *SQLiteMemory) JournalErrorRecentlyLogged(entryType, title, content string, withinHours int) (bool, error) {
+	if withinHours <= 0 {
+		withinHours = 24
+	}
+	cutoff := time.Now().Add(-time.Duration(withinHours) * time.Hour).Format("2006-01-02 15:04:05")
+	var count int
+	err := s.db.QueryRow(
+		`SELECT COUNT(*) FROM journal_entries
+		 WHERE entry_type = ? AND title = ? AND content = ? AND created_at >= ?`,
+		entryType, title, content, cutoff,
+	).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 // JournalEntryExists returns true if a journal entry with the given type and exact title already exists.
 func (s *SQLiteMemory) JournalEntryExists(entryType, title string) (bool, error) {
 	var count int

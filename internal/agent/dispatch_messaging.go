@@ -22,6 +22,9 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 	switch tc.Action {
 	case "send_telegram":
 		req := decodeSendTelegramArgs(tc)
+		if strings.TrimSpace(req.Message) == "" {
+			return `Tool Output: {"status":"error","message":"message is required"}`, true
+		}
 		logger.Info("LLM requested telegram message", "title", req.Title)
 		return "Tool Output: " + tools.SendNotification(cfg, logger, "telegram", req.Title, req.Message, req.Priority, nil, nil), true
 

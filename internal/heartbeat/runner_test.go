@@ -12,6 +12,8 @@ func TestHeartbeatPromptPreventsAutonomousProjectChanges(t *testing.T) {
 	prompt := buildHeartbeatPrompt(config.HeartbeatConfig{CheckTasks: true}, time.Date(2026, 4, 26, 7, 27, 0, 0, time.UTC))
 
 	for _, required := range []string{
+		"Do not call send_telegram",
+		"skip notifications entirely",
 		"Do not edit homepage or project files",
 		"do not build or deploy websites",
 		"report the issue instead",

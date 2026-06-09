@@ -87,6 +87,22 @@ func toolCallForExecutionTracking(tc ToolCall) ToolCall {
 	return tracking
 }
 
+func shouldPersistToolErrorJournal(runCfg RunConfig, sessionID, toolAction, errMsg string, shortTermMem *memory.SQLiteMemory) bool {
+	if errMsg == "" {
+		return false
+	}
+	if isAutonomousAgentRun(runCfg, sessionID) {
+		return false
+	}
+	if shortTermMem != nil {
+		title := fmt.Sprintf("Error in %s", toolAction)
+		if logged, err := shortTermMem.JournalErrorRecentlyLogged("error_learned", title, errMsg, 24); err == nil && logged {
+			return false
+		}
+	}
+	return true
+}
+
 func finalizeToolExecution(
 	ctx context.Context,
 	tc ToolCall,
@@ -101,6 +117,7 @@ func finalizeToolExecution(
 	scope AgentTelemetryScope,
 	promptVersion string,
 	execTimeMs int64,
+	runCfg RunConfig,
 ) toolExecutionResult {
 	trackingTC := toolCallForExecutionTracking(tc)
 	limit := 0
@@ -212,7 +229,8 @@ func finalizeToolExecution(
 				logToolMemoryWarning(logger, "Failed to persist tool error pattern", trackingTC.Action, err)
 			}
 			if recoveryState != nil && recoveryState.shouldRecordFirstErrorInChain() &&
-				cfg != nil && cfg.Tools.Journal.Enabled && cfg.Journal.AutoEntries {
+				cfg != nil && cfg.Tools.Journal.Enabled && cfg.Journal.AutoEntries &&
+				shouldPersistToolErrorJournal(runCfg, sessionID, trackingTC.Action, errMsg, shortTermMem) {
 				if _, err := shortTermMem.InsertJournalEntry(memory.JournalEntry{
 					EntryType:     "error_learned",
 					Title:         fmt.Sprintf("Error in %s", trackingTC.Action),
