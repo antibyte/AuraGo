@@ -122,7 +122,7 @@ const maxCoreMemoryFactLen = 10_000
 // If an identical fact already exists, it updates the timestamp instead of creating a duplicate.
 func (s *SQLiteMemory) AddCoreMemoryFact(fact string) (int64, error) {
 	if len(fact) > maxCoreMemoryFactLen {
-		fact = fact[:maxCoreMemoryFactLen]
+		fact = truncateUTF8Bytes(fact, maxCoreMemoryFactLen)
 	}
 
 	var existingID int64

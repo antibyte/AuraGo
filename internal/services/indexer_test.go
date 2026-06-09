@@ -87,6 +87,7 @@ func (f *fakeIndexerVectorDB) DeleteDocumentFromCollection(id, collection string
 
 func (f *fakeIndexerVectorDB) Count() int       { return 0 }
 func (f *fakeIndexerVectorDB) IsDisabled() bool { return f.disabled }
+func (f *fakeIndexerVectorDB) IsReady() bool    { return true }
 func (f *fakeIndexerVectorDB) Close() error     { return nil }
 func (f *fakeIndexerVectorDB) EmbeddingFingerprint() string {
 	return f.fingerprint

@@ -60,6 +60,7 @@ func (v *knowledgeUploadVectorDB) DeleteDocumentFromCollection(id, collection st
 }
 func (v *knowledgeUploadVectorDB) Count() int       { return 0 }
 func (v *knowledgeUploadVectorDB) IsDisabled() bool { return false }
+func (v *knowledgeUploadVectorDB) IsReady() bool    { return true }
 func (v *knowledgeUploadVectorDB) Close() error     { return nil }
 func (v *knowledgeUploadVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error {
 	return nil

@@ -90,6 +90,7 @@ func (v *archiveFilterVectorDB) DeleteDocumentFromCollection(id, collection stri
 }
 func (v *archiveFilterVectorDB) Count() int       { return 0 }
 func (v *archiveFilterVectorDB) IsDisabled() bool { return false }
+func (v *archiveFilterVectorDB) IsReady() bool    { return true }
 func (v *archiveFilterVectorDB) Close() error     { return nil }
 func (v *archiveFilterVectorDB) StoreDocumentInCollection(concept, content, collection string) ([]string, error) {
 	return nil, nil

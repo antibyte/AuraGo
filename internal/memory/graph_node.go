@@ -174,7 +174,8 @@ func (kg *KnowledgeGraph) UpdateNode(id, label string, properties map[string]str
 
 	finalProps := existingProps
 	if properties != nil {
-		finalProps = sanitizeKnowledgeGraphNodeProperties(properties, existingProtected != 0)
+		finalProps = mergeKnowledgeGraphPropertiesOverwrite(existingProps, properties)
+		finalProps = sanitizeKnowledgeGraphNodeProperties(finalProps, existingProtected != 0)
 	}
 	finalProps = validateNodeSchema(finalProps)
 	propsJSON, err := json.Marshal(finalProps)

@@ -287,6 +287,7 @@ func TestApplyRetrievalFusion_DisabledVectorDB(t *testing.T) {
 type disabledVectorDB struct{}
 
 func (d *disabledVectorDB) IsDisabled() bool                            { return true }
+func (d *disabledVectorDB) IsReady() bool                               { return true }
 func (d *disabledVectorDB) StoreDocument(_, _ string) ([]string, error) { return nil, nil }
 func (d *disabledVectorDB) StoreDocumentWithEmbedding(_ string, _ string, _ []float32) (string, error) {
 	return "", nil

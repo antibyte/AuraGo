@@ -42,6 +42,7 @@ func (v *dedupConsolidationVectorDB) DeleteDocumentFromCollection(id, collection
 }
 func (v *dedupConsolidationVectorDB) Count() int       { return 0 }
 func (v *dedupConsolidationVectorDB) IsDisabled() bool { return false }
+func (v *dedupConsolidationVectorDB) IsReady() bool    { return true }
 func (v *dedupConsolidationVectorDB) Close() error     { return nil }
 func (v *dedupConsolidationVectorDB) StoreDocumentInCollection(concept, content, collection string) ([]string, error) {
 	return nil, nil

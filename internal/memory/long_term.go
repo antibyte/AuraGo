@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -54,6 +55,7 @@ type VectorDB interface {
 	DeleteDocumentFromCollection(id, collection string) error
 	Count() int
 	IsDisabled() bool
+	IsReady() bool
 	Close() error
 	// StoreCheatsheet stores a cheatsheet in the vector DB with cs_id metadata.
 	// The cheatsheet is stored with auto-chunking for large content and uses
@@ -79,6 +81,9 @@ type queryCacheEntry struct {
 	timestamp time.Time
 }
 
+// ErrVectorDBNotReady is returned when embedding validation is still running.
+var ErrVectorDBNotReady = errors.New("VectorDB is not ready (embedding validation in progress)")
+
 // ChromemVectorDB implements VectorDB using chromem-go with persistence.
 type ChromemVectorDB struct {
 	db                     *chromem.DB
@@ -89,6 +94,7 @@ type ChromemVectorDB struct {
 	conceptLocks           [64]sync.Mutex // Striped locks to serialise checks/stores per concept bucket
 	embeddingFunc          chromem.EmbeddingFunc
 	embeddingFingerprint   string
+	ready                  atomic.Bool  // Set once startup embedding validation reaches a final state
 	disabled               atomic.Bool  // Set when embedding pipeline fails; skips operations gracefully
 	idCounter              atomic.Int64 // Monotonic counter for collision-free document IDs
 	queryCache             map[string]queryCacheEntry
@@ -188,6 +194,28 @@ func (cv *ChromemVectorDB) Count() int {
 // are still persisted and countable.
 func (cv *ChromemVectorDB) IsDisabled() bool {
 	return cv.disabled.Load()
+}
+
+// IsReady reports whether startup embedding validation has completed.
+func (cv *ChromemVectorDB) IsReady() bool {
+	return cv.ready.Load()
+}
+
+func (cv *ChromemVectorDB) requireReadyForStore() error {
+	if !cv.ready.Load() {
+		return ErrVectorDBNotReady
+	}
+	if cv.disabled.Load() {
+		return fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
+	}
+	return nil
+}
+
+func (cv *ChromemVectorDB) requireReadyForSearch() error {
+	if !cv.ready.Load() {
+		return ErrVectorDBNotReady
+	}
+	return nil
 }
 
 func buildEmbeddingFingerprint(provider, baseURL, model string) string {
@@ -309,10 +337,12 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 	// to gracefully fail until the process is restarted.
 	if provider == "disabled" {
 		vdb.disabled.Store(true)
+		vdb.ready.Store(true)
 		logger.Info("VectorDB disabled by configuration, skipping embedding validation")
 	} else {
 		logger.Info("Validating embedding pipeline (async)...")
 		go func() {
+			defer vdb.ready.Store(true)
 			validationStart := time.Now()
 			vec, err := validateEmbeddingWithRetry(embeddingFunc, 3, logger)
 			if err != nil {
@@ -397,8 +427,8 @@ func (cv *ChromemVectorDB) getConceptMutex(concept string) *sync.Mutex {
 // for cross-domain learning (Phase C). The domain helps categorize knowledge.
 // Deduplication: skips storage if a very similar document already exists (similarity > 0.95).
 func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain string) ([]string, error) {
-	if cv.disabled.Load() {
-		return nil, fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
+	if err := cv.requireReadyForStore(); err != nil {
+		return nil, err
 	}
 
 	// Deduplication: serialise check+store per concept bucket so concurrent
@@ -421,7 +451,7 @@ func (cv *ChromemVectorDB) storeDocumentLocked(concept, content, domain string) 
 	const maxContentBytes = 500 * 1024 // 500 KB per document
 	if len(content) > maxContentBytes {
 		cv.logger.Warn("Document content exceeds 500 KB limit, truncating", "concept", concept, "bytes", len(content))
-		content = content[:maxContentBytes]
+		content = truncateUTF8Bytes(content, maxContentBytes)
 	}
 
 	cv.mu.Lock()
@@ -505,8 +535,8 @@ func (cv *ChromemVectorDB) StoreDocumentInCollection(concept, content, collectio
 
 // storeDocumentInCollectionWithDomain is the internal implementation for collection-aware storage.
 func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content, collection, domain string) ([]string, error) {
-	if cv.disabled.Load() {
-		return nil, fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
+	if err := cv.requireReadyForStore(); err != nil {
+		return nil, err
 	}
 	if collection == "" {
 		collection = "aurago_memories"
@@ -518,7 +548,7 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content,
 	const maxContentBytes = 500 * 1024
 	if len(content) > maxContentBytes {
 		cv.logger.Warn("Document content exceeds 500 KB limit, truncating", "concept", concept, "bytes", len(content))
-		content = content[:maxContentBytes]
+		content = truncateUTF8Bytes(content, maxContentBytes)
 	}
 
 	cv.mu.Lock()
@@ -607,8 +637,8 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content,
 // This bypasses the text embedding function, allowing multimodal content (images, audio)
 // to be stored with externally computed embeddings.
 func (cv *ChromemVectorDB) StoreDocumentWithEmbedding(concept, content string, embedding []float32) (string, error) {
-	if cv.disabled.Load() {
-		return "", fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
+	if err := cv.requireReadyForStore(); err != nil {
+		return "", err
 	}
 	if len(embedding) == 0 {
 		return "", fmt.Errorf("embedding vector is empty")
@@ -644,8 +674,8 @@ func (cv *ChromemVectorDB) StoreDocumentWithEmbedding(concept, content string, e
 // StoreDocumentWithEmbeddingInCollection stores a document with a pre-computed embedding vector
 // in a specific collection. This is used by the FileIndexer for multimodal content.
 func (cv *ChromemVectorDB) StoreDocumentWithEmbeddingInCollection(concept, content string, embedding []float32, collection string) (string, error) {
-	if cv.disabled.Load() {
-		return "", fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
+	if err := cv.requireReadyForStore(); err != nil {
+		return "", err
 	}
 	if len(embedding) == 0 {
 		return "", fmt.Errorf("embedding vector is empty")
@@ -696,8 +726,8 @@ func (cv *ChromemVectorDB) StoreDocumentWithEmbeddingInCollection(concept, conte
 // StoreCheatsheet again for the same ID will replace the existing document.
 // The cheatsheet is stored with cs_type="cheatsheet" metadata for filtering.
 func (cv *ChromemVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error {
-	if cv.disabled.Load() {
-		return fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
+	if err := cv.requireReadyForStore(); err != nil {
+		return err
 	}
 	if id == "" {
 		return fmt.Errorf("cheatsheet ID is required")
@@ -786,8 +816,8 @@ func (cv *ChromemVectorDB) StoreCheatsheet(id, name, content string, attachments
 // DeleteCheatsheet removes all vector entries associated with a cheatsheet ID
 // by using the cs_id metadata filter.
 func (cv *ChromemVectorDB) DeleteCheatsheet(id string) error {
-	if cv.disabled.Load() {
-		return fmt.Errorf("VectorDB is disabled")
+	if err := cv.requireReadyForStore(); err != nil {
+		return err
 	}
 	if id == "" {
 		return fmt.Errorf("cheatsheet ID is required")
@@ -879,8 +909,8 @@ func chunkText(text string, chunkSize, overlap int) []string {
 // and batch-embedded in a single parallel call; large texts are chunked individually.
 // Performs deduplication by skipping items whose concept is already stored (similarity > 0.95).
 func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
-	if cv.disabled.Load() {
-		return nil, fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
+	if err := cv.requireReadyForStore(); err != nil {
+		return nil, err
 	}
 
 	const maxBatchItemBytes = 500 * 1024 // 500 KB per item
@@ -963,6 +993,9 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 // SearchSimilarScored finds the topK most semantically similar documents across
 // all relevant collections and preserves their decayed similarity scores.
 func (cv *ChromemVectorDB) SearchSimilarScored(query string, topK int, excludeCollections ...string) ([]SearchResult, error) {
+	if err := cv.requireReadyForSearch(); err != nil {
+		return nil, err
+	}
 	if cv.disabled.Load() {
 		return nil, nil // Graceful degradation: return empty results
 	}
@@ -1128,6 +1161,9 @@ func (cv *ChromemVectorDB) SearchMemoriesOnly(query string, topK int) ([]string,
 
 // SearchMemoriesOnlyScored searches only aurago_memories and preserves scores.
 func (cv *ChromemVectorDB) SearchMemoriesOnlyScored(query string, topK int) ([]SearchResult, error) {
+	if err := cv.requireReadyForSearch(); err != nil {
+		return nil, err
+	}
 	if cv.disabled.Load() {
 		return nil, nil
 	}
@@ -1200,8 +1236,8 @@ func splitSearchResults(results []SearchResult) ([]string, []string) {
 // falls back to the file_index collection if not found in aurago_memories.
 // This maintains backward compatibility while supporting collection-aware FileIndexer lookups.
 func (cv *ChromemVectorDB) GetByID(id string) (string, error) {
-	if cv.disabled.Load() {
-		return "", fmt.Errorf("VectorDB is disabled")
+	if err := cv.requireReadyForStore(); err != nil {
+		return "", err
 	}
 	cv.mu.RLock()
 	defer cv.mu.RUnlock()
@@ -1265,8 +1301,8 @@ func (cv *ChromemVectorDB) RegisterCollections(collections []string) {
 
 // GetByIDFromCollection retrieves a document from a specific collection by its ID.
 func (cv *ChromemVectorDB) GetByIDFromCollection(id, collection string) (string, error) {
-	if cv.disabled.Load() {
-		return "", fmt.Errorf("VectorDB is disabled")
+	if err := cv.requireReadyForStore(); err != nil {
+		return "", err
 	}
 	cv.mu.RLock()
 	defer cv.mu.RUnlock()
@@ -1291,7 +1327,7 @@ func (cv *ChromemVectorDB) GetByIDFromCollection(id, collection string) (string,
 // of its operation. Callers may hold a concept lock, but must release this read lock before
 // taking the vector write lock for storage.
 func (cv *ChromemVectorDB) searchTopSimilarityScore(concept string) float32 {
-	if cv.disabled.Load() {
+	if !cv.ready.Load() || cv.disabled.Load() {
 		return 0
 	}
 	// Hold read lock for consistency with SearchSimilar/SearchMemoriesOnly,
@@ -1337,8 +1373,8 @@ func (cv *ChromemVectorDB) searchTopSimilarityScore(concept string) float32 {
 // It also cleans up associated tracking metadata (memory_meta, file_embedding_docs)
 // to prevent orphaned references in SQLite.
 func (cv *ChromemVectorDB) DeleteDocument(id string) error {
-	if cv.disabled.Load() {
-		return fmt.Errorf("VectorDB is disabled")
+	if err := cv.requireReadyForStore(); err != nil {
+		return err
 	}
 	cv.mu.Lock()
 	defer cv.mu.Unlock()
@@ -1359,8 +1395,8 @@ func (cv *ChromemVectorDB) DeleteDocumentWithCleanup(id string) error {
 
 // DeleteDocumentFromCollection removes a specific document from a named collection.
 func (cv *ChromemVectorDB) DeleteDocumentFromCollection(id, collection string) error {
-	if cv.disabled.Load() {
-		return fmt.Errorf("VectorDB is disabled")
+	if err := cv.requireReadyForStore(); err != nil {
+		return err
 	}
 	cv.mu.Lock()
 	defer cv.mu.Unlock()
@@ -1474,7 +1510,7 @@ func (cv *ChromemVectorDB) IsIndexing() bool {
 // This avoids cold-start latency where every new search requires an embedding API call.
 // Errors are logged but not returned — preloading is best-effort.
 func (cv *ChromemVectorDB) PreloadCache(queries []string) {
-	if cv.disabled.Load() || len(queries) == 0 {
+	if !cv.ready.Load() || cv.disabled.Load() || len(queries) == 0 {
 		return
 	}
 	for _, query := range queries {

@@ -328,6 +328,7 @@ func (v *lifecycleVectorDB) DeleteDocumentFromCollection(string, string) error {
 }
 func (v *lifecycleVectorDB) Count() int       { return len(v.docs) }
 func (v *lifecycleVectorDB) IsDisabled() bool { return false }
+func (v *lifecycleVectorDB) IsReady() bool    { return true }
 func (v *lifecycleVectorDB) Close() error     { return nil }
 func (v *lifecycleVectorDB) StoreCheatsheet(string, string, string, ...string) error {
 	return nil

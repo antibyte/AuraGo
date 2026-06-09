@@ -653,6 +653,32 @@ func TestKGBulkMergeExtractedEntitiesPrefersHigherConfidenceAutoProperties(t *te
 	}
 }
 
+func TestKGUpdateNodeMergesPartialProperties(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("server1", "Server", map[string]string{
+		"type": "device",
+		"ip":   "10.0.0.1",
+		"notes": "initial",
+	}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+
+	node, err := kg.UpdateNode("server1", "", map[string]string{"notes": "updated"})
+	if err != nil {
+		t.Fatalf("UpdateNode: %v", err)
+	}
+	if node == nil {
+		t.Fatal("expected updated node")
+	}
+	if node.Properties["ip"] != "10.0.0.1" {
+		t.Fatalf("ip = %q, want preserved 10.0.0.1", node.Properties["ip"])
+	}
+	if node.Properties["notes"] != "updated" {
+		t.Fatalf("notes = %q, want updated", node.Properties["notes"])
+	}
+}
+
 func TestKGUpdateNodePreservesProtectionAndProperties(t *testing.T) {
 	kg := newTestKG(t)
 

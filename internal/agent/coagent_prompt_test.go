@@ -50,6 +50,7 @@ func (f *coAgentContextVectorDB) DeleteDocumentFromCollection(id, collection str
 }
 func (f *coAgentContextVectorDB) Count() int       { return len(f.results) }
 func (f *coAgentContextVectorDB) IsDisabled() bool { return false }
+func (f *coAgentContextVectorDB) IsReady() bool    { return true }
 func (f *coAgentContextVectorDB) Close() error     { return nil }
 func (f *coAgentContextVectorDB) StoreDocumentInCollection(concept, content, collection string) ([]string, error) {
 	return nil, nil

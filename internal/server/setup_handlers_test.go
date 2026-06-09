@@ -58,6 +58,7 @@ func (panicVectorDB) DeleteDocumentFromCollection(id, collection string) error {
 }
 func (panicVectorDB) Count() int       { return 0 }
 func (panicVectorDB) IsDisabled() bool { panic("boom") }
+func (panicVectorDB) IsReady() bool    { return true }
 func (panicVectorDB) Close() error     { return nil }
 func (panicVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error {
 	return errors.New("not implemented")

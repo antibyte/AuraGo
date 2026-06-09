@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"strings"
@@ -12,6 +13,12 @@ import (
 
 	chromem "github.com/philippgille/chromem-go"
 )
+
+func markTestVectorDBReady(cv *ChromemVectorDB) {
+	if cv != nil {
+		cv.ready.Store(true)
+	}
+}
 
 func TestExtractSimilarityScore(t *testing.T) {
 	tests := []struct {
@@ -212,6 +219,7 @@ func TestSearchSimilarIncludesFileIndexerCollections(t *testing.T) {
 		queryCache:             make(map[string]queryCacheEntry),
 		queryCacheTTL:          time.Minute,
 	}
+	markTestVectorDBReady(cv)
 
 	fileCol, err := db.GetOrCreateCollection("file_index", nil, embeddingFunc)
 	if err != nil {
@@ -270,6 +278,7 @@ func TestStoreDocumentInCollectionPersistsCollectionMetadata(t *testing.T) {
 		fileIndexerCollections: make(map[string]struct{}),
 		logger:                 slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
+	markTestVectorDBReady(cv)
 
 	// Store a small document in a custom collection
 	ids, err := cv.StoreDocumentInCollection("test concept", "test content", "custom_collection")
@@ -320,6 +329,7 @@ func TestStoreDocumentWithEmbeddingInCollectionPersistsCollectionMetadata(t *tes
 		fileIndexerCollections: make(map[string]struct{}),
 		logger:                 slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
+	markTestVectorDBReady(cv)
 
 	id, err := cv.StoreDocumentWithEmbeddingInCollection("test concept", "test content", []float32{0.4, 0.5, 0.6}, "mm_custom_collection")
 	if err != nil {
@@ -342,5 +352,15 @@ func TestStoreDocumentWithEmbeddingInCollectionPersistsCollectionMetadata(t *tes
 	}
 	if got, want := doc.Metadata["multimodal"], "true"; got != want {
 		t.Errorf("metadata multimodal = %q, want %q", got, want)
+	}
+}
+
+func TestChromemVectorDBBlocksStoreBeforeReady(t *testing.T) {
+	cv := &ChromemVectorDB{
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	_, err := cv.StoreDocument("concept", "content")
+	if !errors.Is(err, ErrVectorDBNotReady) {
+		t.Fatalf("StoreDocument err = %v, want ErrVectorDBNotReady", err)
 	}
 }

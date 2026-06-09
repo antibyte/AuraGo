@@ -88,7 +88,7 @@ func searchRankedMemoriesOnly(
 	usedDocIDs map[string]int,
 	now time.Time,
 ) ([]rankedMemory, error) {
-	if vdb == nil || vdb.IsDisabled() {
+	if vdb == nil || !vdb.IsReady() || vdb.IsDisabled() {
 		return nil, nil
 	}
 	memories, docIDs, similarities, err := searchMemoriesOnlyWithScores(vdb, query, topK)

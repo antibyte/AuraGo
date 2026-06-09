@@ -76,6 +76,46 @@ func TestGetHoursSincePreviousUserMessageIgnoresCurrentTurn(t *testing.T) {
 	}
 }
 
+func TestGetRecentMessagesGroupedBySessionPreservesSessionOrder(t *testing.T) {
+	stm := newInMemorySQLiteMemory(t)
+
+	olderID, err := stm.InsertMessage("session-older", "user", "older-first", false, false)
+	if err != nil {
+		t.Fatalf("InsertMessage older-first: %v", err)
+	}
+	olderSecondID, err := stm.InsertMessage("session-older", "assistant", "older-second", false, false)
+	if err != nil {
+		t.Fatalf("InsertMessage older-second: %v", err)
+	}
+	newerID, err := stm.InsertMessage("session-newer", "user", "newer-only", false, false)
+	if err != nil {
+		t.Fatalf("InsertMessage newer-only: %v", err)
+	}
+
+	olderTS := time.Now().UTC().Add(-48 * time.Hour).Format("2006-01-02 15:04:05")
+	newerTS := time.Now().UTC().Format("2006-01-02 15:04:05")
+	if _, err := stm.db.Exec(`UPDATE messages SET timestamp = ? WHERE id IN (?, ?)`, olderTS, olderID, olderSecondID); err != nil {
+		t.Fatalf("backdate older session: %v", err)
+	}
+	if _, err := stm.db.Exec(`UPDATE messages SET timestamp = ? WHERE id = ?`, newerTS, newerID); err != nil {
+		t.Fatalf("set newer session timestamp: %v", err)
+	}
+
+	messages, err := stm.GetRecentMessagesGroupedBySession(10)
+	if err != nil {
+		t.Fatalf("GetRecentMessagesGroupedBySession: %v", err)
+	}
+	if len(messages) != 3 {
+		t.Fatalf("expected 3 messages, got %d (%#v)", len(messages), messages)
+	}
+	if messages[0].Content != "newer-only" {
+		t.Fatalf("first message = %q, want newer session first", messages[0].Content)
+	}
+	if messages[1].Content != "older-first" || messages[2].Content != "older-second" {
+		t.Fatalf("unexpected older session order: %#v", messages[1:])
+	}
+}
+
 func TestGetHoursSincePreviousUserMessageSingleUserMessage(t *testing.T) {
 	stm := newInMemorySQLiteMemory(t)
 	if _, err := stm.InsertMessage("session-a", "user", "first message", false, false); err != nil {

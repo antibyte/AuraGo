@@ -12,6 +12,11 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+// CompressHistory only mutates the in-flight req.Messages slice for the current agent
+// request. It intentionally does not persist compressed drops to SQLite or
+// HistoryManager; cross-turn compression for the default session is handled
+// separately in the HTTP handler via HistoryManager summarization.
+
 // compressionCooldown is the minimum number of messages between two compression runs
 // to avoid repeatedly compressing the same conversation window.
 const compressionCooldown = 5

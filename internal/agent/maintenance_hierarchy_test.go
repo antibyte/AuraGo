@@ -49,6 +49,7 @@ func (v *hierarchyVectorDB) DeleteDocumentFromCollection(id, collection string) 
 }
 func (v *hierarchyVectorDB) Count() int       { return v.count }
 func (v *hierarchyVectorDB) IsDisabled() bool { return false }
+func (v *hierarchyVectorDB) IsReady() bool    { return true }
 func (v *hierarchyVectorDB) Close() error     { return nil }
 func (v *hierarchyVectorDB) StoreDocumentInCollection(concept, content, collection string) ([]string, error) {
 	return nil, nil

@@ -225,7 +225,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	}
 
 	// STM→LTM Consolidation: extract knowledge from archived messages into VectorDB
-	if cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && !longTermMem.IsDisabled() {
+	if cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && longTermMem.IsReady() && !longTermMem.IsDisabled() {
 		consolidateSTMtoLTM(cfg, logger, client, shortTermMem, longTermMem, kg)
 		consolidateEpisodicHierarchy(logger, shortTermMem, longTermMem, kg)
 		detectMemoryConflictsAcrossLTM(logger, shortTermMem, longTermMem)
@@ -1365,7 +1365,11 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 				continue
 			}
 			_ = ltm.DeleteDocument(item.docID)
-			_ = stm.DeleteMemoryMeta(item.docID)
+			_ = stm.ApplyMemoryCurationAction(memory.MemoryCurationAction{
+				DocID:  item.docID,
+				Action: memory.MemoryCurationActionArchive,
+				Reason: "auto-optimize compressed into replacement memory",
+			}, "system", false)
 			for _, newID := range newIDs {
 				_ = stm.UpsertMemoryMeta(newID)
 			}
@@ -1376,6 +1380,9 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 	// Optimize Knowledge Graph
 	graphRemoved := 0
 	if kg != nil {
+		if dropped := kg.DroppedAccessHits(); dropped > 0 {
+			logger.Warn("[AutoOptimize] Dropped knowledge graph access hits under load", "dropped", dropped)
+		}
 		graphRemoved, _ = kg.OptimizeGraph(threshold)
 	}
 

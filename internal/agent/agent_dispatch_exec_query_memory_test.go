@@ -51,6 +51,7 @@ func (f *fakeVectorDB) DeleteDocument(id string) error                          
 func (f *fakeVectorDB) DeleteDocumentFromCollection(id, collection string) error    { return nil }
 func (f *fakeVectorDB) Count() int                                                  { return 1 }
 func (f *fakeVectorDB) IsDisabled() bool                                            { return false }
+func (f *fakeVectorDB) IsReady() bool                                               { return true }
 func (f *fakeVectorDB) Close() error                                                { return nil }
 func (f *fakeVectorDB) StoreDocumentInCollection(concept, content, collection string) ([]string, error) {
 	return nil, nil
