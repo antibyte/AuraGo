@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -54,6 +55,41 @@ func TestDeleteOldMessagesArchives(t *testing.T) {
 		if msg.Role == "system" {
 			t.Errorf("System messages should not be archived, got role=%q", msg.Role)
 		}
+	}
+}
+
+func TestDeleteOldMessagesArchivesToolMessages(t *testing.T) {
+	stm := newTestConsolidationDB(t)
+
+	for _, m := range []struct{ role, content string }{
+		{"tool", `{"status":"success","output":"disk usage 42%"}`},
+		{"user", "check disk"},
+		{"assistant", "Disk is 42% full."},
+		{"user", "thanks"},
+		{"assistant", "You're welcome."},
+	} {
+		if _, err := stm.InsertMessage("default", m.role, m.content, false, false); err != nil {
+			t.Fatalf("InsertMessage: %v", err)
+		}
+	}
+
+	if err := stm.DeleteOldMessages("default", 2); err != nil {
+		t.Fatalf("DeleteOldMessages: %v", err)
+	}
+
+	archived, err := stm.GetUnconsolidatedMessages(100)
+	if err != nil {
+		t.Fatalf("GetUnconsolidatedMessages: %v", err)
+	}
+
+	var toolArchived bool
+	for _, msg := range archived {
+		if msg.Role == "tool" {
+			toolArchived = true
+		}
+	}
+	if !toolArchived {
+		t.Fatalf("expected tool messages to be archived before deletion, got %+v", archived)
 	}
 }
 
@@ -362,5 +398,33 @@ func TestGetConsolidationCandidatesHonorsRetryWindow(t *testing.T) {
 	}
 	if seen["not ready failed"] {
 		t.Fatal("did not expect future retry message to be returned")
+	}
+}
+
+func TestReclaimStaleConsolidationClaims(t *testing.T) {
+	stm := newTestConsolidationDB(t)
+
+	_, err := stm.db.Exec(`
+		INSERT INTO archived_messages (session_id, role, content, consolidated, consolidation_status, consolidation_claimed_at)
+		VALUES ('s1', 'user', 'stale claim', 0, 'in_progress', datetime('now', '-2 hours'))
+	`)
+	if err != nil {
+		t.Fatalf("insert stale claim: %v", err)
+	}
+
+	reclaimed, err := stm.ReclaimStaleConsolidationClaims(30 * time.Minute)
+	if err != nil {
+		t.Fatalf("ReclaimStaleConsolidationClaims: %v", err)
+	}
+	if reclaimed != 1 {
+		t.Fatalf("reclaimed = %d, want 1", reclaimed)
+	}
+
+	var status string
+	if err := stm.db.QueryRow(`SELECT consolidation_status FROM archived_messages WHERE content = 'stale claim'`).Scan(&status); err != nil {
+		t.Fatalf("query status: %v", err)
+	}
+	if status != "pending" {
+		t.Fatalf("status = %q, want pending", status)
 	}
 }

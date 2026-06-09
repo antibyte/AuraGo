@@ -885,6 +885,12 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 		return
 	}
 
+	if reclaimed, reclaimErr := stm.ReclaimStaleConsolidationClaims(30 * time.Minute); reclaimErr != nil {
+		logger.Warn("[Consolidation] Failed to reclaim stale in_progress rows", "error", reclaimErr)
+	} else if reclaimed > 0 {
+		logger.Info("[Consolidation] Reclaimed stale in_progress rows", "count", reclaimed)
+	}
+
 	// Atomically claim rows so concurrent runs cannot process the same messages.
 	archived, err := stm.ClaimConsolidationCandidates(cfg.Consolidation.MaxBatchMessages, 3)
 	if err != nil {

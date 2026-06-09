@@ -329,7 +329,7 @@ func (s *SQLiteMemory) archiveAndDeleteChatSession(sessionID string) error {
 	INSERT INTO archived_messages (session_id, role, content, original_timestamp)
 	SELECT session_id, role, content, timestamp
 	FROM messages
-	WHERE session_id = ? AND role IN ('user', 'assistant')
+	WHERE session_id = ? AND role IN ('user', 'assistant', 'tool')
 	ORDER BY timestamp ASC, id ASC`
 	if _, err := tx.Exec(archiveQuery, sessionID); err != nil {
 		return fmt.Errorf("failed to archive session messages: %w", err)

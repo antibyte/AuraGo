@@ -287,7 +287,7 @@ func (s *SQLiteMemory) DeleteOldMessages(sessionID string, keepN int) error {
 	INSERT INTO archived_messages (session_id, role, content, original_timestamp)
 	SELECT session_id, role, content, timestamp
 	FROM messages
-	WHERE session_id = ? AND id < ? AND role IN ('user', 'assistant') AND is_pinned = 0
+	WHERE session_id = ? AND id < ? AND role IN ('user', 'assistant', 'tool') AND is_pinned = 0
 	ORDER BY timestamp ASC, id ASC`
 	archRes, err := tx.Exec(archiveQuery, sessionID, oldestKeepID)
 	if err != nil {
@@ -422,7 +422,7 @@ func (s *SQLiteMemory) ClaimConsolidationCandidates(limit int, maxRetries int) (
 		args[i] = id
 	}
 	claimQuery := fmt.Sprintf(
-		"UPDATE archived_messages SET consolidation_status = 'in_progress' WHERE id IN (%s)",
+		"UPDATE archived_messages SET consolidation_status = 'in_progress', consolidation_claimed_at = CURRENT_TIMESTAMP WHERE id IN (%s)",
 		strings.Join(placeholders, ","),
 	)
 	if _, err := tx.Exec(claimQuery, args...); err != nil {
@@ -480,7 +480,8 @@ func (s *SQLiteMemory) MarkConsolidationSuccess(ids []int64) error {
 	query := fmt.Sprintf(`UPDATE archived_messages
 		SET consolidated = 1,
 		    consolidation_status = 'done',
-		    consolidation_last_error = ''
+		    consolidation_last_error = '',
+		    consolidation_claimed_at = NULL
 		WHERE id IN (%s)`, strings.Join(placeholders, ","))
 	_, err := s.db.Exec(query, args...)
 	return err
@@ -505,6 +506,7 @@ func (s *SQLiteMemory) MarkConsolidationFailure(ids []int64, reason string) erro
 		SET consolidation_status = 'failed',
 		    consolidation_retries = consolidation_retries + 1,
 		    consolidation_last_error = ?,
+		    consolidation_claimed_at = NULL,
 		    next_retry_at = datetime('now', '+' || (CASE
 		    	WHEN consolidation_retries < 1 THEN 5
 		    	WHEN consolidation_retries < 2 THEN 30
@@ -513,6 +515,38 @@ func (s *SQLiteMemory) MarkConsolidationFailure(ids []int64, reason string) erro
 		WHERE id IN (%s)`, strings.Join(placeholders, ","))
 	_, err := s.db.Exec(query, args...)
 	return err
+}
+
+// ReclaimStaleConsolidationClaims resets long-running in_progress consolidation rows
+// back to pending so a crashed or interrupted maintenance run can retry them.
+func (s *SQLiteMemory) ReclaimStaleConsolidationClaims(maxAge time.Duration) (int64, error) {
+	if maxAge <= 0 {
+		maxAge = 30 * time.Minute
+	}
+	minutes := int(maxAge.Minutes())
+	if minutes < 1 {
+		minutes = 1
+	}
+	res, err := s.db.Exec(`
+		UPDATE archived_messages
+		SET consolidation_status = 'pending',
+		    consolidation_claimed_at = NULL,
+		    consolidation_last_error = CASE
+		    	WHEN TRIM(COALESCE(consolidation_last_error, '')) = '' THEN 'stale_in_progress_reclaimed'
+		    	ELSE consolidation_last_error
+		    END
+		WHERE consolidated = 0
+		  AND consolidation_status = 'in_progress'
+		  AND (
+		    consolidation_claimed_at IS NULL
+		    OR consolidation_claimed_at < datetime('now', ?)
+		  )`,
+		fmt.Sprintf("-%d minutes", minutes),
+	)
+	if err != nil {
+		return 0, fmt.Errorf("reclaim stale consolidation claims: %w", err)
+	}
+	return res.RowsAffected()
 }
 
 // CleanOldArchivedMessages removes archived messages older than the given number of days.

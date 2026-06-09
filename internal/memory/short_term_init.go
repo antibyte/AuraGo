@@ -430,6 +430,7 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "consolidation_retries", "INTEGER DEFAULT 0"))
 	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "consolidation_last_error", "TEXT DEFAULT ''"))
 	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "next_retry_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"))
+	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "consolidation_claimed_at", "DATETIME"))
 
 	// Reset stale in_progress rows back to pending (crash recovery from a previous
 	// consolidation run that was interrupted before completing).
