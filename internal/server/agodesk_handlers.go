@@ -1079,6 +1079,14 @@ func agodeskMediaAssetRoot(s *Server, bucket string) (string, bool) {
 	s.CfgMu.RLock()
 	cfg := *s.Cfg
 	s.CfgMu.RUnlock()
+	switch bucket {
+	case "images":
+		workspaceDir := strings.TrimSpace(cfg.Directories.WorkspaceDir)
+		if workspaceDir == "" {
+			return "", false
+		}
+		return filepath.Join(workspaceDir, "images"), true
+	}
 	dataDir := strings.TrimSpace(cfg.Directories.DataDir)
 	if dataDir == "" {
 		return "", false
@@ -1576,7 +1584,7 @@ func agodeskRewriteMediaPath(s *Server, pathValue string) string {
 
 func agodeskMediaBucketAllowed(bucket string) bool {
 	switch strings.TrimSpace(bucket) {
-	case "generated_images", "generated_videos", "audio", "documents", "downloads":
+	case "generated_images", "generated_videos", "audio", "documents", "downloads", "images":
 		return true
 	default:
 		return false

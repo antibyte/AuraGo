@@ -642,7 +642,7 @@ func TestAgodeskChatBrokerEmitsMediaOnlyWithCapabilityAndRewritesFiles(t *testin
 	}
 	envs := readAgodeskBrokerEventEnvelopes(t, state, nil, agodeskBrokerTestEvent{
 		event:   "image",
-		message: `{"path":"/files/generated_images/cat.png","caption":"Cat picture"}`,
+		message: `{"path":"/files/images/cat.png","caption":"Cat picture"}`,
 	})
 	if len(envs) != 1 {
 		t.Fatalf("media envelope count = %d, want 1", len(envs))
@@ -652,7 +652,7 @@ func TestAgodeskChatBrokerEmitsMediaOnlyWithCapabilityAndRewritesFiles(t *testin
 	}
 	var payload agodesk.ChatMediaPayload
 	decodeAgodeskTestPayload(t, envs[0], &payload)
-	if payload.Kind != "image" || payload.Path != "/api/agodesk/media/generated_images/cat.png" || payload.Caption != "Cat picture" || payload.OpenMode != "inline" {
+	if payload.Kind != "image" || payload.Path != "/api/agodesk/media/images/cat.png" || payload.Caption != "Cat picture" || payload.OpenMode != "inline" {
 		t.Fatalf("media payload = %+v", payload)
 	}
 
@@ -770,6 +770,7 @@ func TestAgodeskTTSAssetBypassesSessionAuthAndServesCachedAudio(t *testing.T) {
 
 func TestAgodeskMediaAssetRequiresSignedURLForAllowedFiles(t *testing.T) {
 	dataDir := t.TempDir()
+	workspaceDir := t.TempDir()
 	audioDir := filepath.Join(dataDir, "audio")
 	if err := os.MkdirAll(audioDir, 0o755); err != nil {
 		t.Fatalf("mkdir audio dir: %v", err)
@@ -777,11 +778,19 @@ func TestAgodeskMediaAssetRequiresSignedURLForAllowedFiles(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(audioDir, "song.mp3"), []byte("song-data"), 0o644); err != nil {
 		t.Fatalf("write audio file: %v", err)
 	}
+	imageDir := filepath.Join(workspaceDir, "images")
+	if err := os.MkdirAll(imageDir, 0o755); err != nil {
+		t.Fatalf("mkdir image dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(imageDir, "cat.jpeg"), []byte("image-data"), 0o644); err != nil {
+		t.Fatalf("write image file: %v", err)
+	}
 	s := newAgodeskHandlerTestServer()
 	s.Cfg.Auth.Enabled = true
 	s.Cfg.Auth.PasswordHash = "configured"
 	s.Cfg.Auth.SessionSecret = "test-secret"
 	s.Cfg.Directories.DataDir = dataDir
+	s.Cfg.Directories.WorkspaceDir = workspaceDir
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/agodesk/media/", handleAgodeskMediaAsset(s))
@@ -806,6 +815,21 @@ func TestAgodeskMediaAssetRequiresSignedURLForAllowedFiles(t *testing.T) {
 	}
 	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "audio/") {
 		t.Fatalf("Content-Type = %q, want audio type", ct)
+	}
+
+	signedPath = signAgodeskMediaAssetPath(s, "/api/agodesk/media/images/cat.jpeg", time.Now())
+	req = httptest.NewRequest(http.MethodGet, signedPath, nil)
+	rec = httptest.NewRecorder()
+	authMiddleware(s, mux).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("signed image status = %d, body = %q; want 200 without web session", rec.Code, rec.Body.String())
+	}
+	if got := rec.Body.String(); got != "image-data" {
+		t.Fatalf("image body = %q, want image-data", got)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "image/") {
+		t.Fatalf("image Content-Type = %q, want image type", ct)
 	}
 
 	traversalReq := httptest.NewRequest(http.MethodGet, "/api/agodesk/media/audio/%2e%2e/secret.txt", nil)
@@ -835,6 +859,18 @@ func TestAgodeskChatMediaPayloadSignsRewrittenAssetPaths(t *testing.T) {
 	}
 	if req.URL.Query().Get("inline") != "1" {
 		t.Fatalf("preview_url lost inline query: %q", payload.PreviewURL)
+	}
+
+	imagePayload, ok := agodeskChatMediaPayload(s, "image", `{"web_path":"/files/images/img_test.jpeg","caption":"Workspace image"}`, "agodesk:dev-1", "sess-1", "req-1", slog.Default())
+	if !ok {
+		t.Fatal("image agodeskChatMediaPayload returned ok=false")
+	}
+	if !strings.HasPrefix(imagePayload.Path, "/api/agodesk/media/images/img_test.jpeg?") {
+		t.Fatalf("signed image path = %q, want agodesk images media path with query", imagePayload.Path)
+	}
+	imageReq := httptest.NewRequest(http.MethodGet, imagePayload.Path, nil)
+	if !verifyAgodeskMediaAssetSignature(s, imageReq, time.Now()) {
+		t.Fatalf("image path signature did not verify: %q", imagePayload.Path)
 	}
 }
 

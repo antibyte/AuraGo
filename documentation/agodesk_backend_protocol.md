@@ -521,7 +521,7 @@ When `chat.media_events` is negotiated, AuraGo emits non-TTS artifacts with `cha
 }
 ```
 
-`kind` values include `image`, `audio`, `document`, `video`, `youtube_video`, `stl`, `live_stream`, and `link`. Local media paths are rewritten from protected Web Chat `/files/...` URLs to short-lived signed `/api/agodesk/media/<bucket>/<file>` URLs. The server only serves explicit media buckets, rejects traversal, and rejects missing, expired, or tampered signatures. Clients must use `path` and `preview_url` exactly as provided, including query parameters, and should request a fresh `chat.media` payload if an asset fetch returns `401`. YouTube payloads use `url`, `embed_url`, `video_id`, `title`, `provider:"youtube"`, and optional `start_seconds`; no media asset fetch is needed.
+`kind` values include `image`, `audio`, `document`, `video`, `youtube_video`, `stl`, `live_stream`, and `link`. Local media paths are rewritten from protected Web Chat `/files/...` URLs to short-lived signed `/api/agodesk/media/<bucket>/<file>` URLs. The server only serves explicit media buckets (`images`, `generated_images`, `generated_videos`, `audio`, `documents`, and `downloads`), rejects traversal, and rejects missing, expired, or tampered signatures. Clients must use `path` and `preview_url` exactly as provided, including query parameters, and should request a fresh `chat.media` payload if an asset fetch returns `401`. YouTube payloads use `url`, `embed_url`, `video_id`, `title`, `provider:"youtube"`, and optional `start_seconds`; no media asset fetch is needed.
 
 AgoDesk should render inline when practical, provide an "open in folder" or external-open action, and keep `open_mode` as a server suggestion rather than a hard requirement.
 
