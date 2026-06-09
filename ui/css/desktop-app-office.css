@@ -17,8 +17,21 @@
     border-radius: 0;
     border-width: 0;
     padding: 14px;
-    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-    line-height: 1.55;
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+    font-size: 0.92rem;
+    line-height: 1.65;
+    color: var(--vd-editor-text);
+    background: var(--vd-editor-bg);
+    caret-color: var(--vd-accent, #27c7a6);
+    font-variant-numeric: tabular-nums;
+}
+
+.vd-editor textarea::selection {
+    background: rgba(39, 199, 166, 0.22);
+}
+
+.vd-editor textarea:focus {
+    outline: none;
 }
 
 .office-app {
@@ -63,6 +76,31 @@
     color: var(--vd-text);
     padding: 0 10px;
     font: inherit;
+    transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+
+.office-writer .office-path-input,
+.office-writer .office-title-input {
+    transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+
+.office-path-input:hover,
+.office-title-input:hover {
+    border-color: var(--ds-color-border-default, rgba(255, 255, 255, 0.16));
+}
+
+.office-path-input:focus,
+.office-title-input:focus {
+    outline: none;
+    border-color: var(--vd-accent, #27c7a6);
+    box-shadow: 0 0 0 3px rgba(39, 199, 166, 0.14);
+    background: rgba(0, 0, 0, 0.32);
+}
+
+.office-writer .office-path-input:focus,
+.office-writer .office-title-input:focus {
+    box-shadow: 0 0 0 3px rgba(39, 199, 166, 0.18);
+    background: #ffffff;
 }
 
 .office-path-input {
@@ -71,6 +109,8 @@
 
 .office-title-input {
     flex: 0 1 180px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
 }
 
 .office-formula-bar {
@@ -78,9 +118,11 @@
     grid-template-columns: minmax(72px, auto) auto minmax(0, 1fr) auto;
     align-items: center;
     gap: 8px;
-    padding: 8px 10px;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--vd-border);
-    background: rgba(8, 12, 18, 0.5);
+    background: linear-gradient(180deg, rgba(8, 12, 18, 0.7) 0%, rgba(8, 12, 18, 0.45) 100%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 
 .office-range-name {
@@ -93,14 +135,23 @@
     border-radius: var(--ds-radius-sm);
     background: rgba(255, 255, 255, 0.06);
     color: var(--vd-text);
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     font-weight: 700;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    transition: background 150ms ease, border-color 150ms ease;
+}
+
+.office-range-name:hover {
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .office-formula-fx {
     color: var(--vd-muted);
     font-weight: 800;
     font-style: italic;
+    font-size: 0.95rem;
+    user-select: none;
 }
 
 .office-formula-input {
@@ -108,10 +159,29 @@
     height: 32px;
     border: 1px solid var(--vd-border);
     border-radius: var(--ds-radius-sm);
-    background: rgba(0, 0, 0, 0.22);
+    background: rgba(0, 0, 0, 0.32);
     color: var(--vd-text);
-    padding: 0 10px;
+    padding: 0 12px;
     font: inherit;
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+    font-size: 0.85rem;
+    transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+
+.office-formula-input::placeholder {
+    color: var(--vd-muted);
+    opacity: 0.7;
+}
+
+.office-formula-input:hover {
+    border-color: var(--ds-color-border-default, rgba(255, 255, 255, 0.16));
+}
+
+.office-formula-input:focus {
+    outline: none;
+    border-color: var(--vd-accent, #27c7a6);
+    background: rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 0 3px rgba(39, 199, 166, 0.14);
 }
 
 .office-formula-apply {
@@ -125,6 +195,20 @@
     color: var(--vd-editor-toolbar-text);
 }
 
+.office-writer [data-status][data-status-kind="save-error"] {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.office-writer [data-status][data-status-kind="saved"] {
+    color: #15803d;
+    font-weight: 500;
+}
+
+.office-writer [data-status]:empty {
+    display: none;
+}
+
 .office-writer .ql-toolbar.ql-snow,
 .office-writer .ql-container.ql-snow {
     border-color: var(--vd-editor-border);
@@ -132,28 +216,72 @@
 
 .office-writer .ql-toolbar.ql-snow {
     border-width: 0 0 1px 0;
+    padding: 8px 12px;
+    font-family: var(--font-sans, system-ui, sans-serif);
 }
 
 .office-writer .ql-container.ql-snow {
     border-width: 0;
+    font-family: var(--font-sans, system-ui, sans-serif);
 }
 
 .office-writer .ql-picker {
     color: var(--vd-editor-toolbar-text);
+    font-family: var(--font-sans, system-ui, sans-serif);
 }
 
 .office-writer .ql-stroke {
     stroke: var(--vd-editor-icon);
+    transition: stroke 150ms ease;
 }
 
 .office-writer .ql-fill {
     fill: var(--vd-editor-icon);
+    transition: fill 150ms ease;
 }
 
 .office-writer .ql-picker-options {
     background: var(--vd-editor-bg);
     border-color: var(--vd-editor-border);
     color: var(--vd-editor-text);
+    border-radius: var(--ds-radius-md, 8px);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08);
+    padding: 4px;
+}
+
+.office-writer .ql-picker-item {
+    border-radius: var(--ds-radius-sm, 6px);
+    padding: 4px 8px;
+}
+
+.office-writer .ql-picker-item:hover {
+    background: rgba(39, 199, 166, 0.12);
+    color: var(--vd-accent, #27c7a6);
+}
+
+.office-writer .ql-toolbar.ql-snow .ql-formats {
+    margin-right: 12px;
+}
+
+.office-writer .ql-snow .ql-active,
+.office-writer .ql-snow button:hover,
+.office-writer .ql-snow .ql-picker-label:hover,
+.office-writer .ql-snow .ql-picker-item:hover {
+    color: var(--vd-accent, #27c7a6);
+}
+
+.office-writer .ql-snow .ql-active .ql-stroke,
+.office-writer .ql-snow button:hover .ql-stroke,
+.office-writer .ql-snow .ql-picker-label:hover .ql-stroke,
+.office-writer .ql-snow .ql-picker-item:hover .ql-stroke {
+    stroke: var(--vd-accent, #27c7a6);
+}
+
+.office-writer .ql-snow .ql-active .ql-fill,
+.office-writer .ql-snow button:hover .ql-fill,
+.office-writer .ql-snow .ql-picker-label:hover .ql-fill,
+.office-writer .ql-snow .ql-picker-item:hover .ql-fill {
+    fill: var(--vd-accent, #27c7a6);
 }
 
 .office-writer-editor {
@@ -162,6 +290,7 @@
     overflow: auto;
     background: var(--vd-editor-bg);
     color: var(--vd-editor-text);
+    font-family: var(--font-sans, system-ui, sans-serif);
 }
 
 .office-writer-editor.ql-container,
@@ -170,16 +299,118 @@
     min-height: 0;
     background: var(--vd-editor-bg);
     color: var(--vd-editor-text);
+    font-family: var(--font-sans, system-ui, sans-serif);
 }
 
 .office-writer-editor .ql-editor {
-    height: 100%;
+    height: auto;
     min-height: 100%;
-    padding: 28px clamp(22px, 5vw, 64px);
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 32px clamp(22px, 5vw, 56px) 80px;
     background: var(--vd-editor-bg);
     color: var(--vd-editor-text);
-    line-height: 1.65;
+    line-height: 1.7;
     font-size: 1rem;
+    font-family: var(--font-sans, system-ui, sans-serif);
+    text-wrap: pretty;
+    caret-color: var(--vd-accent, #27c7a6);
+}
+
+.office-writer-editor .ql-editor h1,
+.office-writer-editor .ql-editor h2,
+.office-writer-editor .ql-editor h3 {
+    text-wrap: balance;
+    letter-spacing: -0.015em;
+    color: var(--vd-editor-text);
+}
+
+.office-writer-editor .ql-editor h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0 0 0.6em;
+}
+
+.office-writer-editor .ql-editor h2 {
+    font-size: 1.35rem;
+    font-weight: 600;
+    line-height: 1.25;
+    margin: 1.4em 0 0.5em;
+}
+
+.office-writer-editor .ql-editor h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 1.2em 0 0.4em;
+}
+
+.office-writer-editor .ql-editor p {
+    margin: 0 0 0.85em;
+}
+
+.office-writer-editor .ql-editor blockquote {
+    border-left: 3px solid var(--vd-accent, #27c7a6);
+    padding: 4px 0 4px 16px;
+    color: var(--vd-editor-muted, #334155);
+    font-style: italic;
+    margin: 1em 0;
+}
+
+.office-writer-editor .ql-editor code {
+    background: rgba(15, 23, 42, 0.06);
+    padding: 2px 6px;
+    border-radius: var(--ds-radius-xs, 4px);
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+    font-size: 0.9em;
+    color: #be185d;
+}
+
+.office-writer-editor .ql-editor pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 14px 16px;
+    border-radius: var(--ds-radius-md, 8px);
+    overflow-x: auto;
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+    font-size: 0.88em;
+    line-height: 1.55;
+    margin: 1em 0;
+}
+
+.office-writer-editor .ql-editor pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+}
+
+.office-writer-editor .ql-editor a {
+    color: var(--vd-accent, #27c7a6);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+    transition: text-decoration-thickness 150ms ease;
+}
+
+.office-writer-editor .ql-editor a:hover {
+    text-decoration-thickness: 2px;
+}
+
+.office-writer-editor .ql-editor ul,
+.office-writer-editor .ql-editor ol {
+    margin: 0 0 0.85em;
+    padding-left: 1.4em;
+}
+
+.office-writer-editor .ql-editor li {
+    margin: 0.25em 0;
+}
+
+.office-writer-editor .ql-editor::selection,
+.office-writer-editor .ql-editor *::selection {
+    background: rgba(39, 199, 166, 0.22);
 }
 
 .office-writer-fallback {
@@ -188,89 +419,160 @@
     resize: none;
     border: 0;
     border-radius: 0;
-    padding: 18px;
+    padding: 32px clamp(22px, 5vw, 56px) 80px;
     background: var(--vd-editor-bg);
     color: var(--vd-editor-text);
     font: inherit;
-    line-height: 1.6;
+    font-family: var(--font-sans, system-ui, sans-serif);
+    line-height: 1.7;
+    caret-color: var(--vd-accent, #27c7a6);
+    text-wrap: pretty;
+}
+
+.office-writer-fallback::selection {
+    background: rgba(39, 199, 166, 0.22);
 }
 
 .office-sheet-tabs {
     display: flex;
-    gap: 6px;
+    gap: 4px;
     align-items: center;
     min-width: 0;
     overflow-x: auto;
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--vd-border);
-    background: rgba(8, 12, 18, 0.36);
+    padding: 8px 10px 0;
+    border-top: 1px solid var(--vd-border);
+    background: linear-gradient(180deg, rgba(8, 12, 18, 0.55) 0%, rgba(8, 12, 18, 0.3) 100%);
+    scrollbar-width: thin;
+}
+
+.office-sheet-tabs::-webkit-scrollbar {
+    height: 4px;
+}
+
+.office-sheet-tabs::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 2px;
 }
 
 .office-sheet-tabs button {
-    min-width: 82px;
+    min-width: 92px;
+    max-width: 160px;
     height: 30px;
     border: 1px solid var(--vd-border);
-    border-radius: var(--ds-radius-sm);
-    background: rgba(255, 255, 255, 0.06);
+    border-bottom: none;
+    border-radius: var(--ds-radius-sm) var(--ds-radius-sm) 0 0;
+    background: rgba(255, 255, 255, 0.04);
     color: var(--vd-text);
     font: inherit;
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0 12px;
+    cursor: pointer;
+    position: relative;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.office-sheet-tabs button:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--vd-text);
 }
 
 .office-sheet-tabs button.active {
-    border-color: var(--vd-accent);
-    background: rgba(48, 213, 200, 0.16);
+    border-color: var(--vd-accent, #27c7a6);
+    background: var(--ds-color-bg-raised, #181f2c);
+    color: var(--vd-text);
+    font-weight: 600;
+}
+
+.office-sheet-tabs button.active::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background: var(--vd-accent, #27c7a6);
 }
 
 .office-sheet-grid-wrap {
     min-height: 0;
     overflow: auto;
-    background: rgba(245, 247, 251, 0.96);
+    background: var(--ds-color-bg-raised, #181f2c);
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+    background-size: 32px 32px;
 }
 
 .office-grid {
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     min-width: 900px;
     width: max-content;
-    color: #111827;
+    color: var(--ds-color-fg-primary, #f6f7fb);
     font-size: 0.86rem;
+    font-family: var(--font-sans, system-ui, sans-serif);
+    font-variant-numeric: tabular-nums;
 }
 
 .office-grid th,
 .office-grid td {
-    border: 1px solid #d7dde8;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .office-grid th {
     position: sticky;
     z-index: 2;
-    background: #e8edf5;
-    color: #334155;
+    background: var(--ds-color-bg-overlay, #1d2533);
+    color: var(--ds-color-fg-muted, #a8bbd0);
     min-width: 44px;
     height: 30px;
     font-weight: 600;
+    font-size: 0.74rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
 .office-grid thead th {
     top: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.office-grid thead th:first-child {
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+    z-index: 3;
 }
 
 .office-grid tbody th {
     left: 0;
+    z-index: 1;
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .office-grid td {
     min-width: 104px;
     height: 32px;
-    background: #ffffff;
+    background: rgba(0, 0, 0, 0.12);
+    transition: background 100ms ease;
+}
+
+.office-grid tbody tr:hover td {
+    background: rgba(255, 255, 255, 0.025);
 }
 
 .office-grid td.office-cell-selected {
-    background: #e7f6ff;
-    box-shadow: inset 0 0 0 1px rgba(0, 126, 188, 0.45);
+    background: rgba(39, 199, 166, 0.1);
+    box-shadow: inset 0 0 0 1px rgba(39, 199, 166, 0.35);
 }
 
 .office-grid td.office-cell-active {
-    box-shadow: inset 0 0 0 2px var(--vd-accent);
+    box-shadow: inset 0 0 0 2px var(--vd-accent, #27c7a6);
+    background: rgba(39, 199, 166, 0.08);
 }
 
 .office-grid input {
@@ -279,15 +581,20 @@
     border: 0;
     border-radius: 0;
     background: transparent;
-    color: #111827;
-    padding: 0 8px;
+    color: var(--ds-color-fg-primary, #f6f7fb);
+    padding: 0 10px;
     font: inherit;
+    caret-color: var(--vd-accent, #27c7a6);
+}
+
+.office-grid input::placeholder {
+    color: var(--ds-color-fg-muted, #a8bbd0);
+    opacity: 0.5;
 }
 
 .office-grid input:focus {
-    outline: 2px solid var(--vd-accent);
-    outline-offset: -2px;
-    background: #f8fbff;
+    outline: none;
+    background: rgba(39, 199, 166, 0.04);
 }
 
 .office-sheet-context-menu {
@@ -331,4 +638,40 @@
     width: 16px;
     height: 16px;
     flex: 0 0 16px;
+}
+
+/* === Office focus-visible ring (Phase 4 parity with chat) === */
+.office-app input:focus-visible,
+.office-app button:focus-visible,
+.office-app select:focus-visible,
+.office-app textarea:focus-visible,
+.office-app [role="button"]:focus-visible,
+.office-app a:focus-visible {
+    outline: var(--ds-focus-ring-width, 2px) solid var(--ds-color-border-focus, #27c7a6);
+    outline-offset: var(--ds-focus-ring-offset, 2px);
+}
+
+/* === Office path input status badges (subtle) === */
+.office-writer [data-status]:not(:empty) {
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.005em;
+    padding: 4px 10px;
+    border-radius: var(--ds-radius-full, 9999px);
+    background: rgba(0, 0, 0, 0.32);
+    border: 1px solid var(--vd-border);
+    color: var(--vd-muted);
+    transition: opacity 200ms ease;
+}
+
+.office-writer [data-status][data-status-kind="save-error"] {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.32);
+    color: #fca5a5;
+}
+
+.office-writer [data-status][data-status-kind="saved"] {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.28);
+    color: #86efac;
 }
