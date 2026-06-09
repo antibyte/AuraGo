@@ -62,7 +62,7 @@
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(45, 212, 191, 0.3), transparent);
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 30%, transparent), transparent);
     opacity: 0;
     transition: opacity 0.3s;
 }
@@ -71,7 +71,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at 50% 0%, rgba(45, 212, 191, 0.08), transparent 70%);
+    background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 70%);
     opacity: 0;
     transition: opacity 0.3s;
     pointer-events: none;
@@ -149,7 +149,7 @@
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(45, 212, 191, 0.3), transparent);
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 30%, transparent), transparent);
     opacity: 0;
     transition: opacity 0.3s;
 }
@@ -158,7 +158,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at 50% 0%, rgba(45, 212, 191, 0.05), transparent 70%);
+    background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 70%);
     opacity: 0;
     transition: opacity 0.3s;
     pointer-events: none;
@@ -303,7 +303,7 @@
 }
 
 [data-theme="light"] .tabs {
-    border-bottom-color: rgba(71, 85, 105, 0.12);
+    border-bottom-color: color-mix(in srgb, #475569 12%, transparent);
 }
 
 /* Mission Grid */
@@ -389,7 +389,7 @@
 
 .mission-card.running {
     border-color: var(--accent);
-    box-shadow: 0 0 20px rgba(45, 212, 191, 0.2);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .mission-card.queued {
@@ -596,40 +596,40 @@
 
 /* Priority Badges — extend .badge base class; colors use CSS vars */
 .badge-priority-low {
-    background: rgba(var(--success-rgb, 34, 197, 94), 0.12);
+    background: color-mix(in srgb, var(--success) 12%, transparent);
     color: var(--success);
-    border-color: rgba(var(--success-rgb, 34, 197, 94), 0.3);
+    border-color: color-mix(in srgb, var(--success) 30%, transparent);
 }
 
 .badge-priority-medium {
-    background: rgba(var(--warning-rgb, 245, 158, 11), 0.12);
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
     color: var(--warning);
-    border-color: rgba(var(--warning-rgb, 245, 158, 11), 0.3);
+    border-color: color-mix(in srgb, var(--warning) 30%, transparent);
 }
 
 .badge-priority-high {
-    background: rgba(var(--danger-rgb, 239, 68, 68), 0.12);
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
     color: var(--danger);
-    border-color: rgba(var(--danger-rgb, 239, 68, 68), 0.3);
+    border-color: color-mix(in srgb, var(--danger) 30%, transparent);
 }
 
 /* Type Badges — extend .badge base class; colors use CSS vars */
 .badge-type-manual {
-    background: rgba(99, 102, 241, 0.12);
+    background: color-mix(in srgb, #6366f1 12%, transparent);
     color: #818cf8;
-    border-color: rgba(99, 102, 241, 0.3);
+    border-color: color-mix(in srgb, #6366f1 30%, transparent);
 }
 
 .badge-type-scheduled {
-    background: rgba(var(--accent-rgb, 45, 212, 191), 0.12);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
     color: var(--accent);
-    border-color: rgba(var(--accent-rgb, 45, 212, 191), 0.3);
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .badge-type-triggered {
-    background: rgba(var(--warning-rgb, 251, 191, 36), 0.12);
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
     color: var(--warning);
-    border-color: rgba(var(--warning-rgb, 251, 191, 36), 0.3);
+    border-color: color-mix(in srgb, var(--warning) 30%, transparent);
 }
 
 .mission-badges .badge {
@@ -725,7 +725,7 @@
 }
 
 .mc-btn:hover:not(:disabled) {
-    background: rgba(148, 163, 184, 0.16);
+    background: color-mix(in srgb, #94a3b8 16%, transparent);
     color: var(--text-primary);
     border-color: var(--border-accent);
     transform: translateY(-1px);
@@ -742,7 +742,7 @@
 }
 
 .mc-btn.mc-btn-run:hover:not(:disabled) {
-    box-shadow: 0 4px 12px rgba(45, 212, 191, 0.4);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 40%, transparent);
     transform: translateY(-1px);
     color: white;
     background: linear-gradient(135deg, var(--accent), #0d9488);
@@ -751,7 +751,7 @@
 .mc-btn.mc-btn-danger:hover:not(:disabled) {
     border-color: var(--danger);
     color: var(--danger);
-    background: rgba(239, 68, 68, 0.1);
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
 }
 
 .mc-btn:disabled {
@@ -761,8 +761,8 @@
 }
 
 [data-theme="light"] .mc-btn {
-    border-color: rgba(71, 85, 105, 0.14);
-    background: rgba(234, 242, 237, 0.88);
+    border-color: color-mix(in srgb, #475569 14%, transparent);
+    background: color-mix(in srgb, #eaf2ed 88%, transparent);
 }
 
 [data-theme="light"] .mc-btn.mc-btn-run {
@@ -815,7 +815,7 @@
 
 .exec-type-option:has(input:checked) {
     border-color: var(--accent);
-    background: rgba(45, 212, 191, 0.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 #mission-prompt {
@@ -850,7 +850,7 @@
 .mission-runner-option:hover,
 .mission-runner-option.active {
     border-color: var(--accent);
-    background: rgba(45, 212, 191, 0.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .runner-label {
@@ -868,8 +868,8 @@
 }
 
 .badge-remote {
-    background: rgba(56, 189, 248, 0.14);
-    border-color: rgba(56, 189, 248, 0.24);
+    background: color-mix(in srgb, #38bdf8 14%, transparent);
+    border-color: color-mix(in srgb, #38bdf8 24%, transparent);
     color: #7dd3fc;
 }
 
@@ -906,7 +906,7 @@
 
 .trigger-type-btn.active {
     border-color: var(--accent);
-    background: rgba(45, 212, 191, 0.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
     color: var(--accent);
 }
 
@@ -968,7 +968,7 @@
 
 .mission-option:has(input:checked) {
     border-color: var(--accent);
-    background: rgba(45, 212, 191, 0.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 /* Cheatsheet Picker */
@@ -1016,7 +1016,7 @@
 
 .cheatsheet-picker-item:has(input:checked) {
     border-color: var(--accent);
-    background: rgba(45, 212, 191, 0.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 [data-theme="light"] .queue-item,
@@ -1024,11 +1024,11 @@
 [data-theme="light"] .trigger-type-btn,
 [data-theme="light"] .mission-option,
 [data-theme="light"] .cheatsheet-picker {
-    border-color: rgba(71, 85, 105, 0.14);
+    border-color: color-mix(in srgb, #475569 14%, transparent);
 }
 
 [data-theme="light"] .mission-card.running {
-    box-shadow: 0 0 0 1px rgba(15, 143, 132, 0.16), 0 12px 30px rgba(15, 143, 132, 0.12);
+    box-shadow: 0 0 0 1px color-mix(in srgb, #0f8f84 16%, transparent), 0 12px 30px color-mix(in srgb, #0f8f84 12%, transparent);
 }
 
 .cheatsheet-option {
@@ -1055,7 +1055,7 @@
 
 .cheatsheet-option:has(input:checked) {
     border-color: var(--accent);
-    background: rgba(45, 212, 191, 0.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 /* Form hints */
@@ -1186,35 +1186,35 @@
 
 /* ── Mission Preparation Badges ─────────────────────────────── */
 .badge-prep-preparing {
-    background: rgba(99, 102, 241, 0.12);
+    background: color-mix(in srgb, #6366f1 12%, transparent);
     color: #818cf8;
-    border-color: rgba(99, 102, 241, 0.3);
+    border-color: color-mix(in srgb, #6366f1 30%, transparent);
     animation: pulse-glow 2s ease-in-out infinite;
 }
 
 .badge-prep-prepared {
-    background: rgba(var(--success-rgb, 16, 185, 129), 0.12);
+    background: color-mix(in srgb, var(--success) 12%, transparent);
     color: var(--success);
-    border-color: rgba(var(--success-rgb, 16, 185, 129), 0.3);
-    box-shadow: 0 0 8px rgba(var(--success-rgb, 16, 185, 129), 0.15);
+    border-color: color-mix(in srgb, var(--success) 30%, transparent);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--success) 15%, transparent);
 }
 
 .badge-prep-stale {
-    background: rgba(var(--warning-rgb, 245, 158, 11), 0.12);
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
     color: var(--warning);
-    border-color: rgba(var(--warning-rgb, 245, 158, 11), 0.3);
+    border-color: color-mix(in srgb, var(--warning) 30%, transparent);
 }
 
 .badge-prep-error {
-    background: rgba(var(--danger-rgb, 239, 68, 68), 0.12);
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
     color: var(--danger);
-    border-color: rgba(var(--danger-rgb, 239, 68, 68), 0.3);
+    border-color: color-mix(in srgb, var(--danger) 30%, transparent);
 }
 
 .badge-prep-low_confidence {
-    background: rgba(var(--warning-rgb, 245, 158, 11), 0.12);
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
     color: var(--warning);
-    border-color: rgba(var(--warning-rgb, 245, 158, 11), 0.3);
+    border-color: color-mix(in srgb, var(--warning) 30%, transparent);
 }
 
 .prep-confidence {
@@ -1251,6 +1251,22 @@
     padding: 0;
     overflow: hidden;
     transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
+    background: var(--card-bg);
+    border-radius: 16px;
+    border: 1px solid var(--border-subtle);
+    backdrop-filter: blur(10px);
+    box-shadow:
+        var(--surface-shadow),
+        inset 0 1px 0 var(--surface-highlight);
+}
+
+.mc-card:hover {
+    border-color: var(--border-accent);
+    box-shadow:
+        var(--surface-shadow-strong),
+        0 0 0 1px var(--border-accent),
+        inset 0 1px 0 var(--surface-highlight);
+    transform: translateY(-2px);
 }
 
 /* Priority rail on left — replaces the old inconspicuous 3px border */
@@ -1260,7 +1276,7 @@
 
 .mc-card.running {
     border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent), 0 8px 24px rgba(45, 212, 191, .18);
+    box-shadow: 0 0 0 1px var(--accent), 0 8px 24px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .mc-card.queued  { border-color: var(--warning); }
@@ -1276,7 +1292,8 @@
     min-height: 44px;
     cursor: pointer;
     border-bottom: 1px solid var(--border-subtle);
-    background: linear-gradient(180deg, rgba(255,255,255,.02), transparent);
+    background: linear-gradient(180deg, color-mix(in srgb, #ffffff 2%, transparent), transparent);
+    backdrop-filter: blur(4px);
     user-select: none;
 }
 
@@ -1309,6 +1326,7 @@
 .mc-overflow-btn:hover {
     background: var(--bg-glass);
     color: var(--text-primary);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .mc-card.expanded .mc-overflow-btn {
@@ -1360,20 +1378,22 @@
     background: var(--text-secondary);
     flex-shrink: 0;
 }
-.mc-status-chip__priority[data-priority="high"]   { background: var(--danger); box-shadow: 0 0 6px rgba(239,68,68,.5); }
+.mc-status-chip__priority[data-priority="high"]   { background: var(--danger); box-shadow: 0 0 6px color-mix(in srgb, var(--danger) 50%, transparent); }
 .mc-status-chip__priority[data-priority="medium"] { background: var(--warning); }
 .mc-status-chip__priority[data-priority="low"]    { background: var(--success); }
 
 .mc-status-chip--running {
-    background: rgba(45, 212, 191, .14);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
     color: var(--accent);
-    border-color: rgba(45, 212, 191, .35);
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
     animation: mc-chip-pulse 2s ease-in-out infinite;
+    backdrop-filter: blur(4px);
 }
 .mc-status-chip--queued {
-    background: rgba(245, 158, 11, .12);
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
     color: var(--warning);
-    border-color: rgba(245, 158, 11, .3);
+    border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+    backdrop-filter: blur(4px);
 }
 .mc-status-chip--waiting {
     background: var(--bg-glass);
@@ -1381,24 +1401,27 @@
     border-color: var(--border-subtle);
 }
 .mc-status-chip--manual {
-    background: rgba(99, 102, 241, .12);
+    background: color-mix(in srgb, #6366f1 12%, transparent);
     color: #818cf8;
-    border-color: rgba(99, 102, 241, .3);
+    border-color: color-mix(in srgb, #6366f1 30%, transparent);
+    backdrop-filter: blur(4px);
 }
 .mc-status-chip--scheduled {
-    background: rgba(45, 212, 191, .1);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
     color: var(--accent);
-    border-color: rgba(45, 212, 191, .25);
+    border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+    backdrop-filter: blur(4px);
 }
 .mc-status-chip--triggered {
-    background: rgba(245, 158, 11, .1);
+    background: color-mix(in srgb, var(--warning) 10%, transparent);
     color: var(--warning);
-    border-color: rgba(245, 158, 11, .25);
+    border-color: color-mix(in srgb, var(--warning) 25%, transparent);
+    backdrop-filter: blur(4px);
 }
 
 @keyframes mc-chip-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(45, 212, 191, .35); }
-    50%      { box-shadow: 0 0 0 4px rgba(45, 212, 191, 0); }
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 35%, transparent); }
+    50%      { box-shadow: 0 0 0 4px transparent; }
 }
 
 /* Remote badge inside header — kept compact */
@@ -1458,8 +1481,8 @@
     align-self: flex-start;
     max-width: 100%;
     padding: 4px 10px;
-    background: rgba(245, 158, 11, .08);
-    border: 1px solid rgba(245, 158, 11, .2);
+    background: color-mix(in srgb, var(--warning) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--warning) 20%, transparent);
     border-radius: 999px;
     color: var(--warning);
     font-size: 0.72rem;
@@ -1549,7 +1572,7 @@
 
 .mc-cta-run:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(45, 212, 191, .35);
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 .mc-cta-run:active:not(:disabled) { transform: translateY(0); }
 .mc-cta-run:disabled { opacity: .45; cursor: not-allowed; }
@@ -1634,7 +1657,8 @@
     color: var(--text-secondary);
     white-space: pre-wrap;
     word-break: break-word;
-    background: rgba(0, 0, 0, .15);
+    background: color-mix(in srgb, #0a0e14 90%, transparent);
+    border-top: 1px solid var(--border-subtle);
 }
 
 .mc-actions-secondary {
