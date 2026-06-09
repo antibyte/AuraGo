@@ -150,6 +150,28 @@ func TestWatchVectorDBRecovery_KeepsWarningWhenValidationFails(t *testing.T) {
 	}
 }
 
+func TestVectorDBRecoveryCoordinatorStaleWatchIgnored(t *testing.T) {
+	reg := NewRegistry()
+	cfg := &config.Config{}
+	cfg.Embeddings.Provider = "openai"
+
+	coord := NewVectorDBRecoveryCoordinator()
+	vdb1 := &fakeVectorDBHealth{ready: false, disabled: true}
+	vdb2 := &fakeVectorDBHealth{ready: true, disabled: false}
+
+	coord.Watch(reg, cfg, vdb1, nil)
+	coord.Watch(reg, cfg, vdb2, nil)
+
+	vdb1.ready = true
+	time.Sleep(100 * time.Millisecond)
+
+	for _, w := range reg.Warnings() {
+		if w.ID == "vectordb_validation_failed" {
+			t.Fatal("stale recovery watch must not register warning for replaced VectorDB")
+		}
+	}
+}
+
 func TestCheckVectorDBDisabled_ConfigDisabled(t *testing.T) {
 	reg := NewRegistry()
 	cfg := &config.Config{}

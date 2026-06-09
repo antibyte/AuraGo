@@ -264,11 +264,25 @@ func (s *SQLiteMemory) RotateChatSessionsWithLimit(limit int) error {
 // GetSessionMessages returns all visible (non-internal) messages for a session,
 // ordered chronologically.
 func (s *SQLiteMemory) GetSessionMessages(sessionID string) ([]HistoryMessage, error) {
-	rows, err := s.db.Query(
-		`SELECT id, role, content, is_pinned, is_internal, timestamp FROM messages
-		 WHERE session_id = ? AND is_internal = 0
-		 ORDER BY timestamp ASC, id ASC`, sessionID,
-	)
+	return s.querySessionMessages(sessionID, false)
+}
+
+// GetSessionMessagesForBridge returns session messages with SQLite IDs for agent
+// context rebuilds (e.g. MCP debug bridge). Internal tool messages are included
+// so debugging turns retain tool-call context.
+func (s *SQLiteMemory) GetSessionMessagesForBridge(sessionID string) ([]HistoryMessage, error) {
+	return s.querySessionMessages(sessionID, true)
+}
+
+func (s *SQLiteMemory) querySessionMessages(sessionID string, includeInternal bool) ([]HistoryMessage, error) {
+	query := `SELECT id, role, content, is_pinned, is_internal, timestamp FROM messages
+		 WHERE session_id = ?`
+	if !includeInternal {
+		query += ` AND is_internal = 0`
+	}
+	query += ` ORDER BY timestamp ASC, id ASC`
+
+	rows, err := s.db.Query(query, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get session messages: %w", err)
 	}

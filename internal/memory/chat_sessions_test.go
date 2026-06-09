@@ -379,6 +379,36 @@ func TestGetSessionMessages(t *testing.T) {
 	}
 }
 
+func TestGetSessionMessagesForBridgeIncludesInternal(t *testing.T) {
+	stm := newTestSTM(t)
+
+	sess, _ := stm.CreateChatSession()
+	_, _ = stm.InsertMessage(sess.ID, "user", "hello", false, false)
+	_, _ = stm.InsertMessage(sess.ID, "tool", `{"status":"ok"}`, false, true)
+
+	visible, err := stm.GetSessionMessages(sess.ID)
+	if err != nil {
+		t.Fatalf("GetSessionMessages: %v", err)
+	}
+	if len(visible) != 1 {
+		t.Fatalf("visible messages = %d, want 1", len(visible))
+	}
+
+	bridge, err := stm.GetSessionMessagesForBridge(sess.ID)
+	if err != nil {
+		t.Fatalf("GetSessionMessagesForBridge: %v", err)
+	}
+	if len(bridge) != 2 {
+		t.Fatalf("bridge messages = %d, want 2", len(bridge))
+	}
+	if bridge[0].ID <= 0 || bridge[1].ID <= 0 {
+		t.Fatalf("expected SQLite IDs on bridge messages, got %#v", bridge)
+	}
+	if bridge[1].Role != "tool" || !bridge[1].IsInternal {
+		t.Fatalf("expected internal tool message last, got %#v", bridge[1])
+	}
+}
+
 func TestGetSessionMessagesHidesHeartbeatMessages(t *testing.T) {
 	stm := newTestSTM(t)
 

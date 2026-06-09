@@ -2,6 +2,7 @@ package warnings
 
 import (
 	"log/slog"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -70,19 +71,76 @@ func embeddingsConfigured(cfg *config.Config) bool {
 	return provider != "" && provider != "disabled"
 }
 
+// VectorDBRecoveryCoordinator deduplicates hot-reload recovery watchers so repeated
+// setup saves do not leave stale goroutines acting on replaced VectorDB instances.
+type VectorDBRecoveryCoordinator struct {
+	mu  sync.Mutex
+	gen uint64
+}
+
+// NewVectorDBRecoveryCoordinator creates a coordinator for VectorDB recovery watches.
+func NewVectorDBRecoveryCoordinator() *VectorDBRecoveryCoordinator {
+	return &VectorDBRecoveryCoordinator{}
+}
+
+var defaultVectorDBRecoveryCoordinator = NewVectorDBRecoveryCoordinator()
+
+func (c *VectorDBRecoveryCoordinator) nextGeneration() uint64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.gen++
+	return c.gen
+}
+
+func (c *VectorDBRecoveryCoordinator) isStale(gen uint64) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return gen != c.gen
+}
+
 // WatchVectorDBRecovery monitors a replacement VectorDB after hot-reload (e.g. setup
 // wizard). It starts the standard validation monitor and clears
 // vectordb_validation_failed only after validation completes successfully.
 func WatchVectorDBRecovery(reg *Registry, cfg *config.Config, vdb VectorDBHealth, logger *slog.Logger) {
-	if reg == nil || vdb == nil || !embeddingsConfigured(cfg) {
-		return
-	}
-	NewVectorDBMonitor(reg, cfg, vdb, logger).Start()
-	go watchVectorDBRecoveryClear(reg, vdb, logger)
+	defaultVectorDBRecoveryCoordinator.Watch(reg, cfg, vdb, logger)
 }
 
-func watchVectorDBRecoveryClear(reg *Registry, vdb VectorDBHealth, logger *slog.Logger) {
+// Watch starts recovery monitoring for the given VectorDB instance.
+func (c *VectorDBRecoveryCoordinator) Watch(reg *Registry, cfg *config.Config, vdb VectorDBHealth, logger *slog.Logger) {
+	if c == nil || reg == nil || vdb == nil || !embeddingsConfigured(cfg) {
+		return
+	}
+	gen := c.nextGeneration()
+	go c.watchValidation(reg, cfg, vdb, logger, gen)
+	go c.watchClear(reg, vdb, logger, gen)
+}
+
+func (c *VectorDBRecoveryCoordinator) watchValidation(reg *Registry, cfg *config.Config, vdb VectorDBHealth, logger *slog.Logger, gen uint64) {
 	waitUntilVectorDBReady(vdb)
+	if c.isStale(gen) {
+		return
+	}
+	if !vdb.IsDisabled() {
+		return
+	}
+	reg.Add(Warning{
+		ID:       "vectordb_validation_failed",
+		Severity: SeverityWarning,
+		Title:    "Long-Term Memory Unavailable",
+		Description: "Embedding validation failed at startup, so long-term memory search and storage are disabled until AuraGo is restarted with a working embedding provider. " +
+			"Check the application log for provider errors and verify your embeddings configuration in the Web UI.",
+		Category: CategorySystem,
+	})
+	if logger != nil {
+		logger.Warn("Registered warning: embedding pipeline validation failed after VectorDB recovery")
+	}
+}
+
+func (c *VectorDBRecoveryCoordinator) watchClear(reg *Registry, vdb VectorDBHealth, logger *slog.Logger, gen uint64) {
+	waitUntilVectorDBReady(vdb)
+	if c.isStale(gen) {
+		return
+	}
 	if vdb.IsDisabled() {
 		return
 	}
