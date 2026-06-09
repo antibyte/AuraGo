@@ -5779,7 +5779,7 @@ select.cfg-input option {
 .prov-section-actions .btn-save.prov-btn-sm {
     background: linear-gradient(135deg, #0f766e, #115e59);
     color: #f0fdfa;
-    border: 1px solid color-mix(in srgb, #5eead4 42%, transparent);
+    border: 1px solid rgba(94, 234, 212, 0.42);
     text-shadow: none;
     box-shadow: 0 10px 24px color-mix(in srgb, #0d9488 24%, transparent);
 }
@@ -5848,7 +5848,7 @@ select.cfg-input option {
 .prov-provider-pill {
     display: inline-block; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700;
     background: linear-gradient(135deg, #ccfbf1, #5eead4); color: #08312d; margin-left: 0.4rem;
-    border: 1px solid color-mix(in srgb, #14b8a6 42%, transparent);
+    border: 1px solid rgba(20, 184, 166, 0.42);
     text-shadow: none;
 }
 .prov-provider-pill-oauth {
@@ -7185,7 +7185,7 @@ select.cfg-input option {
     display: none;
     align-items: center;
     justify-content: center;
-    background: color-mix(in srgb, #020617 86%, transparent);
+    background: rgba(2, 6, 23, 0.86);
     backdrop-filter: blur(8px);
 }
 

@@ -163,6 +163,7 @@ func NetworkClientInventory() []NetworkClientUse {
 		{Path: "internal/a2a/", Classification: "configured-agent-endpoint", Credentialed: true},
 		{Path: "internal/agent/", Classification: "agent-managed-http-tools", RequiresSSRF: true, AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/agentmail/", Classification: "configured-agentmail-api", Credentialed: true},
+		{Path: "internal/desktopstore/", Classification: "allowlisted-catalog-logo-fetch", RequiresSSRF: true},
 		{Path: "internal/fritzbox/", Classification: "local-home-lab", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/invasion/", Classification: "managed-remote-nest", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/jellyfin/", Classification: "configured-media-server", AllowsLocalNet: true, Credentialed: true},
