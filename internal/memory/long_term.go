@@ -84,6 +84,9 @@ type queryCacheEntry struct {
 // ErrVectorDBNotReady is returned when embedding validation is still running.
 var ErrVectorDBNotReady = errors.New("VectorDB is not ready (embedding validation in progress)")
 
+// ErrVectorDBDisabled is returned when the embedding pipeline failed at startup.
+var ErrVectorDBDisabled = errors.New("VectorDB is disabled (embedding pipeline failed at startup)")
+
 // ChromemVectorDB implements VectorDB using chromem-go with persistence.
 type ChromemVectorDB struct {
 	db                     *chromem.DB
@@ -206,7 +209,7 @@ func (cv *ChromemVectorDB) requireReadyForStore() error {
 		return ErrVectorDBNotReady
 	}
 	if cv.disabled.Load() {
-		return fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
+		return ErrVectorDBDisabled
 	}
 	return nil
 }
@@ -214,6 +217,9 @@ func (cv *ChromemVectorDB) requireReadyForStore() error {
 func (cv *ChromemVectorDB) requireReadyForSearch() error {
 	if !cv.ready.Load() {
 		return ErrVectorDBNotReady
+	}
+	if cv.disabled.Load() {
+		return ErrVectorDBDisabled
 	}
 	return nil
 }
@@ -996,9 +1002,6 @@ func (cv *ChromemVectorDB) SearchSimilarScored(query string, topK int, excludeCo
 	if err := cv.requireReadyForSearch(); err != nil {
 		return nil, err
 	}
-	if cv.disabled.Load() {
-		return nil, nil // Graceful degradation: return empty results
-	}
 
 	cv.mu.RLock()
 	defer cv.mu.RUnlock()
@@ -1163,9 +1166,6 @@ func (cv *ChromemVectorDB) SearchMemoriesOnly(query string, topK int) ([]string,
 func (cv *ChromemVectorDB) SearchMemoriesOnlyScored(query string, topK int) ([]SearchResult, error) {
 	if err := cv.requireReadyForSearch(); err != nil {
 		return nil, err
-	}
-	if cv.disabled.Load() {
-		return nil, nil
 	}
 
 	cv.mu.RLock()

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // ── Core Memory CRUD ──────────────────────────────────────────────────────────
@@ -223,6 +224,30 @@ func TestCoreMemory_GetEmptyReturnsSlice(t *testing.T) {
 	// Must return non-nil empty slice (not nil) so callers can range safely.
 	if facts == nil {
 		t.Error("GetCoreMemoryFacts should return non-nil slice even when empty")
+	}
+}
+
+func TestGetCoreMemoryUpdatedAt_ParsesAsUTC(t *testing.T) {
+	stm := newTestProfileDB(t)
+
+	_, err := stm.db.Exec(
+		"INSERT INTO core_memory (fact, updated_at) VALUES (?, ?)",
+		"utc fact", "2026-01-15 10:30:00",
+	)
+	if err != nil {
+		t.Fatalf("insert core_memory: %v", err)
+	}
+
+	got, err := stm.GetCoreMemoryUpdatedAt()
+	if err != nil {
+		t.Fatalf("GetCoreMemoryUpdatedAt: %v", err)
+	}
+	want := time.Date(2026, 1, 15, 10, 30, 0, 0, time.UTC)
+	if !got.Equal(want) {
+		t.Fatalf("parsed time = %v, want %v", got, want)
+	}
+	if got.Location() != time.UTC {
+		t.Fatalf("location = %v, want UTC", got.Location())
 	}
 }
 

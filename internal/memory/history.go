@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sashabaranov/go-openai"
@@ -99,6 +100,7 @@ type HistoryManager struct {
 	saveChan       chan struct{}    // Notify background saver
 	doneChan       chan struct{}    // Signals backgroundSaver to exit
 	closeOnce      sync.Once        // Prevents double-close panic on doneChan
+	closed         atomic.Bool      // Set by Close(); blocks Add and triggerSave
 	isCompressing  bool             // Guard against concurrent compression
 	saverWg        sync.WaitGroup   // Used by Close() to wait for backgroundSaver to finish
 }
@@ -150,9 +152,12 @@ func (hm *HistoryManager) backgroundSaver() {
 // Close stops the background saver goroutine and performs a final save.
 func (hm *HistoryManager) Close() {
 	hm.closeOnce.Do(func() {
-		close(hm.doneChan)
-		hm.saverWg.Wait() // wait for backgroundSaver to drain before final save
-		hm.save()
+		hm.closed.Store(true)
+		close(hm.saveChan) // drain pending save notifications, then signal saver to exit
+		hm.saverWg.Wait()
+		if err := hm.save(); err != nil {
+			slog.Error("Failed to save history on close", "file", hm.file, "error", err)
+		}
 	})
 }
 
@@ -181,6 +186,9 @@ func (hm *HistoryManager) load() {
 }
 
 func (hm *HistoryManager) triggerSave() {
+	if hm.closed.Load() {
+		return
+	}
 	select {
 	case hm.saveChan <- struct{}{}:
 	default:
@@ -246,6 +254,9 @@ func (hm *HistoryManager) save() error {
 }
 
 func (hm *HistoryManager) Add(role, content string, id int64, pinned bool, isInternal bool) error {
+	if hm.closed.Load() {
+		return nil
+	}
 	hm.mu.Lock()
 	hm.Messages = append(hm.Messages, HistoryMessage{
 		ChatCompletionMessage: openai.ChatCompletionMessage{
@@ -269,6 +280,9 @@ func (hm *HistoryManager) Add(role, content string, id int64, pinned bool, isInt
 }
 
 func (hm *HistoryManager) AddMessage(msg openai.ChatCompletionMessage, id int64, pinned bool, isInternal bool) error {
+	if hm.closed.Load() {
+		return nil
+	}
 	hm.mu.Lock()
 	hm.Messages = append(hm.Messages, HistoryMessage{
 		ChatCompletionMessage: msg,

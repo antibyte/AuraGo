@@ -112,7 +112,7 @@ func (s *SQLiteMemory) GetCoreMemoryUpdatedAt() (time.Time, error) {
 	if !updatedAtStr.Valid || updatedAtStr.String == "" {
 		return time.Time{}, nil
 	}
-	return time.ParseInLocation("2006-01-02 15:04:05", updatedAtStr.String, time.Local)
+	return time.ParseInLocation("2006-01-02 15:04:05", updatedAtStr.String, time.UTC)
 }
 
 // maxCoreMemoryFactLen is the maximum byte length of a single core memory fact.

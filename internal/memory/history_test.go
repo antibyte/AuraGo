@@ -353,6 +353,34 @@ func TestEphemeralHistoryManager_PinnedMessagesSurviveTrim(t *testing.T) {
 
 // ── Concurrent safety ─────────────────────────────────────────────────────────
 
+func TestHistoryManager_CloseBlocksPostCloseAdd(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "history.json")
+
+	hm := NewHistoryManager(path)
+	if err := hm.Add("user", "before close", 1, false, false); err != nil {
+		t.Fatalf("Add before close: %v", err)
+	}
+	hm.Close()
+
+	if err := hm.Add("user", "after close", 2, false, false); err != nil {
+		t.Fatalf("Add after close: %v", err)
+	}
+	if got := len(hm.GetAll()); got != 1 {
+		t.Fatalf("post-close Add mutated in-memory history: got %d messages, want 1", got)
+	}
+
+	hm2 := NewHistoryManager(path)
+	defer hm2.Close()
+	all := hm2.GetAll()
+	if len(all) != 1 {
+		t.Fatalf("expected 1 persisted message after close, got %d", len(all))
+	}
+	if all[0].Content != "before close" {
+		t.Errorf("persisted content = %q, want %q", all[0].Content, "before close")
+	}
+}
+
 func TestHistoryManager_ConcurrentAdd(t *testing.T) {
 	hm := NewEphemeralHistoryManager()
 	defer hm.Close()

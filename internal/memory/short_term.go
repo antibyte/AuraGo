@@ -1200,6 +1200,9 @@ func (s *SQLiteMemory) LoadToolUsageAdaptive() ([]ToolUsageAdaptiveEntry, error)
 	for rows.Next() {
 		var e ToolUsageAdaptiveEntry
 		if err := rows.Scan(&e.ToolName, &e.TotalCount, &e.SuccessCount, &e.LastUsed); err != nil {
+			if s.logger != nil {
+				s.logger.Warn("Failed to scan tool_usage_adaptive row", "error", err)
+			}
 			continue
 		}
 		entries = append(entries, e)

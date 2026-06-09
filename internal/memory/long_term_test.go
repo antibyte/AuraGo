@@ -247,6 +247,22 @@ func TestSearchSimilarIncludesFileIndexerCollections(t *testing.T) {
 	}
 }
 
+func TestSearchSimilarScored_DisabledReturnsError(t *testing.T) {
+	cv := &ChromemVectorDB{}
+	markTestVectorDBReady(cv)
+	cv.disabled.Store(true)
+
+	_, err := cv.SearchSimilarScored("query", 3)
+	if !errors.Is(err, ErrVectorDBDisabled) {
+		t.Fatalf("SearchSimilarScored err = %v, want ErrVectorDBDisabled", err)
+	}
+
+	_, err = cv.SearchMemoriesOnlyScored("query", 3)
+	if !errors.Is(err, ErrVectorDBDisabled) {
+		t.Fatalf("SearchMemoriesOnlyScored err = %v, want ErrVectorDBDisabled", err)
+	}
+}
+
 // TestSearchTopSimilarityScoreDisabled verifies that searchTopSimilarityScore
 // returns 0 safely when the VectorDB is disabled (e.g. no embedding model configured).
 func TestSearchTopSimilarityScoreDisabled(t *testing.T) {
