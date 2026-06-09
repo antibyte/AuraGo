@@ -43,9 +43,12 @@
 }
 
 .kc-tab.active {
-    color: var(--accent);
+    color: #fff;
     border-bottom-color: transparent;
     font-weight: 600;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 85%, #0d9488), color-mix(in srgb, var(--accent) 70%, #0f766e));
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 /* Panels */
@@ -155,7 +158,7 @@
 }
 
 .kc-table tbody tr:hover {
-    background: var(--bg-hover, rgba(255,255,255,0.03));
+    background: var(--bg-hover, color-mix(in srgb, #ffffff 3%, transparent));
 }
 
 .kc-tab:focus-visible,
@@ -339,7 +342,7 @@
     border: 1px solid var(--border-subtle);
     border-radius: 14px;
     background:
-        linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0)),
+        linear-gradient(180deg, color-mix(in srgb, #ffffff 3%, transparent), color-mix(in srgb, #ffffff 0%, transparent)),
         var(--bg-tertiary, var(--bg-secondary));
     overflow: hidden;
 }
@@ -348,7 +351,7 @@
     width: 100%;
     min-height: 60vh;
     border: 0;
-    background: rgba(255, 255, 255, 0.02);
+    background: color-mix(in srgb, #ffffff 2%, transparent);
 }
 
 /* Text / code preview */
@@ -401,7 +404,7 @@
 
 .kc-preview-pdf-wrap canvas {
     border-radius: 6px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 20px color-mix(in srgb, #000000 40%, transparent);
     /* Canvas dimensions are set by JavaScript based on PDF viewport */
 }
 
@@ -435,7 +438,7 @@
     place-items: center;
     text-align: center;
     padding: 28px;
-    background: linear-gradient(180deg, rgba(5, 8, 12, 0.18), rgba(5, 8, 12, 0.06));
+    background: linear-gradient(180deg, color-mix(in srgb, #05080c 18%, transparent), color-mix(in srgb, #05080c 6%, transparent));
 }
 
 .kc-preview-fallback .empty-icon {
@@ -583,7 +586,7 @@
 
 .field-input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, #2dd4bf 15%, transparent);
 }
 
 .field-input::placeholder { color: var(--text-secondary); opacity: 0.5; }
@@ -618,7 +621,7 @@
     transition: color 0.2s, background 0.2s;
 }
 
-.password-toggle:hover { color: var(--accent); background: var(--accent-dim, rgba(45,212,191,0.1)); }
+.password-toggle:hover { color: var(--accent); background: var(--accent-dim, color-mix(in srgb, #2dd4bf 10%, transparent)); }
 
 .password-toggle svg {
     width: 16px;
@@ -644,7 +647,7 @@
     border-radius: 10px;
     cursor: pointer;
     transition: filter 0.2s, box-shadow 0.2s, transform 0.2s;
-    box-shadow: 0 2px 12px rgba(45, 212, 191, 0.25);
+    box-shadow: 0 2px 12px color-mix(in srgb, #2dd4bf 25%, transparent);
     white-space: nowrap;
 }
 
@@ -653,21 +656,21 @@
 .btn-save:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
 
 [data-theme="light"] .kc-tabs {
-    border-bottom-color: rgba(71, 85, 105, 0.12);
+    border-bottom-color: color-mix(in srgb, #475569 12%, transparent);
 }
 
 [data-theme="light"] .kc-search,
 [data-theme="light"] .kc-table-wrap,
 [data-theme="light"] .field-group {
-    border-color: rgba(71, 85, 105, 0.14);
+    border-color: color-mix(in srgb, #475569 14%, transparent);
 }
 
 [data-theme="light"] .kc-table thead {
-    background: rgba(220, 230, 224, 0.92);
+    background: color-mix(in srgb, #dce6e0 92%, transparent);
 }
 
 [data-theme="light"] .kc-table tbody tr:hover {
-    background: rgba(15, 143, 132, 0.05);
+    background: color-mix(in srgb, var(--accent) 5%, transparent);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -713,7 +716,7 @@
 
 .kc-appointment-card:hover {
     border-color: var(--accent-dim);
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 2px 12px color-mix(in srgb, #000000 12%, transparent);
 }
 
 .kc-appointment-past {
@@ -792,20 +795,24 @@
 }
 
 .kc-status-completed {
-    background: rgba(34, 197, 94, 0.12);
-    color: #22c55e;
-    border: 1px solid rgba(34, 197, 94, 0.3);
+    background: color-mix(in srgb, var(--success) 8%, transparent);
+    color: var(--success);
+    border: 1px solid color-mix(in srgb, var(--success) 20%, transparent);
+    backdrop-filter: blur(4px);
 }
 
 .kc-status-cancelled {
-    background: rgba(148, 163, 184, 0.12);
+    background: color-mix(in srgb, var(--text-secondary) 8%, transparent);
     color: var(--text-secondary);
+    border: 1px solid color-mix(in srgb, var(--text-secondary) 15%, transparent);
+    backdrop-filter: blur(4px);
 }
 
 .kc-status-overdue {
-    background: rgba(239, 68, 68, 0.12);
-    color: #ef4444;
-    border: 1px solid rgba(148, 163, 184, 0.3);
+    background: color-mix(in srgb, var(--error) 8%, transparent);
+    color: var(--error);
+    border: 1px solid color-mix(in srgb, var(--error) 20%, transparent);
+    backdrop-filter: blur(4px);
 }
 
 /* Wake agent toggle section */
@@ -1021,7 +1028,7 @@
     max-width: 280px;
     height: 6px;
     border-radius: 999px;
-    background: rgba(148, 163, 184, 0.16);
+    background: color-mix(in srgb, #94a3b8 16%, transparent);
     overflow: hidden;
 }
 
@@ -1030,7 +1037,7 @@
     inset: 0 auto 0 0;
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, rgba(15, 143, 132, 0.75), rgba(45, 212, 191, 0.95));
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 75%, transparent), color-mix(in srgb, #2dd4bf 95%, transparent));
     transition: width 0.3s ease;
 }
 
@@ -1064,7 +1071,7 @@
 }
 
 .kc-todo-subtasks summary:hover {
-    background: rgba(148, 163, 184, 0.08);
+    background: color-mix(in srgb, #94a3b8 8%, transparent);
 }
 
 .kc-todo-subtasks summary::-webkit-details-marker {
@@ -1101,14 +1108,14 @@
     gap: 10px;
     padding: 6px 10px;
     border-radius: 8px;
-    background: rgba(15, 23, 42, 0.18);
-    border: 1px solid rgba(148, 163, 184, 0.12);
+    background: color-mix(in srgb, #0f172a 18%, transparent);
+    border: 1px solid color-mix(in srgb, #94a3b8 12%, transparent);
     transition: background 0.15s, border-color 0.15s;
 }
 
 .kc-todo-subtask:hover {
-    background: rgba(15, 23, 42, 0.28);
-    border-color: rgba(148, 163, 184, 0.2);
+    background: color-mix(in srgb, #0f172a 28%, transparent);
+    border-color: color-mix(in srgb, #94a3b8 20%, transparent);
 }
 
 .kc-todo-subtask input[type="checkbox"] {
@@ -1165,7 +1172,7 @@
     padding: 12px;
     border: 1px solid var(--border-subtle);
     border-radius: 12px;
-    background: rgba(15, 23, 42, 0.16);
+    background: color-mix(in srgb, #0f172a 16%, transparent);
 }
 
 .kc-todo-editor-fields {
@@ -1230,28 +1237,32 @@
 }
 
 .kc-priority-high {
-    background: rgba(239, 68, 68, 0.14);
-    color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: color-mix(in srgb, var(--error) 8%, transparent);
+    color: var(--error);
+    border: 1px solid color-mix(in srgb, var(--error) 18%, transparent);
+    backdrop-filter: blur(4px);
 }
 
 .kc-priority-medium {
-    background: rgba(234, 179, 8, 0.14);
-    color: #eab308;
-    border: 1px solid rgba(234, 179, 8, 0.3);
+    background: color-mix(in srgb, var(--warning) 8%, transparent);
+    color: var(--warning);
+    border: 1px solid color-mix(in srgb, var(--warning) 18%, transparent);
+    backdrop-filter: blur(4px);
 }
 
 .kc-priority-low {
-    background: rgba(34, 197, 94, 0.14);
-    color: #22c55e;
-    border: 1px solid rgba(34, 197, 94, 0.3);
+    background: color-mix(in srgb, var(--success) 8%, transparent);
+    color: var(--success);
+    border: 1px solid color-mix(in srgb, var(--success) 18%, transparent);
+    backdrop-filter: blur(4px);
 }
 
 /* In-progress status pill */
 .kc-status-inprogress {
-    background: rgba(59, 130, 246, 0.14);
+    background: color-mix(in srgb, #3b82f6 8%, transparent);
     color: #3b82f6;
-    border: 1px solid rgba(59, 130, 246, 0.3);
+    border: 1px solid color-mix(in srgb, #3b82f6 18%, transparent);
+    backdrop-filter: blur(4px);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1306,20 +1317,20 @@
 /* Light theme additions */
 [data-theme="light"] .kc-appointment-card,
 [data-theme="light"] .kc-todo-item {
-    border-color: rgba(71, 85, 105, 0.14);
+    border-color: color-mix(in srgb, #475569 14%, transparent);
 }
 
 [data-theme="light"] .kc-todo-summary-card {
-    border-color: rgba(71, 85, 105, 0.14);
+    border-color: color-mix(in srgb, #475569 14%, transparent);
 }
 
 [data-theme="light"] .kc-appointment-card:hover,
 [data-theme="light"] .kc-todo-item:hover {
-    border-color: rgba(15, 143, 132, 0.3);
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 [data-theme="light"] .kc-filter-select {
-    border-color: rgba(71, 85, 105, 0.14);
+    border-color: color-mix(in srgb, #475569 14%, transparent);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1359,8 +1370,14 @@
     border: 1px solid var(--border-subtle);
     border-radius: 10px;
     margin-bottom: 16px;
-    box-shadow: var(--surface-shadow);
+    box-shadow: var(--surface-shadow), inset 0 1px 0 var(--surface-highlight);
     overflow: hidden;
+    backdrop-filter: blur(8px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.kc-sync-card:hover {
+    border-color: color-mix(in srgb, var(--accent) 20%, var(--border-subtle));
+    box-shadow: var(--surface-shadow-strong), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent), inset 0 1px 0 var(--surface-highlight);
 }
 
 .kc-sync-card-header {
@@ -1395,18 +1412,22 @@
 }
 
 .kc-sync-ok {
-    color: #10b981;
-    background: rgba(16, 185, 129, 0.12);
+    color: var(--success);
+    background: color-mix(in srgb, var(--success) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--success) 15%, transparent);
+    backdrop-filter: blur(4px);
 }
 
 .kc-sync-err {
     color: #ef4444;
-    background: rgba(239, 68, 68, 0.12);
+    background: color-mix(in srgb, #ef4444 12%, transparent);
 }
 
 .kc-sync-warn {
-    color: #f59e0b;
-    background: rgba(245, 158, 11, 0.12);
+    color: var(--warning);
+    background: color-mix(in srgb, var(--warning) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--warning) 15%, transparent);
+    backdrop-filter: blur(4px);
 }
 
 .kc-sync-card-body {
@@ -1491,8 +1512,8 @@
 }
 
 .kc-sync-chip-coll {
-    background: rgba(99, 102, 241, 0.08);
-    border-color: rgba(99, 102, 241, 0.2);
+    background: color-mix(in srgb, #6366f1 8%, transparent);
+    border-color: color-mix(in srgb, #6366f1 20%, transparent);
 }
 
 /* Loading / NA states */
@@ -1508,8 +1529,8 @@
 .kc-sync-errors {
     margin-top: 10px;
     padding: 10px 12px;
-    background: rgba(239, 68, 68, 0.06);
-    border: 1px solid rgba(239, 68, 68, 0.15);
+    background: color-mix(in srgb, #ef4444 6%, transparent);
+    border: 1px solid color-mix(in srgb, #ef4444 15%, transparent);
     border-radius: 8px;
 }
 
@@ -1543,11 +1564,11 @@
 
 /* Light theme overrides */
 [data-theme="light"] .kc-sync-chip-coll {
-    background: rgba(99, 102, 241, 0.06);
+    background: color-mix(in srgb, #6366f1 6%, transparent);
 }
 
 [data-theme="light"] .kc-sync-errors {
-    background: rgba(239, 68, 68, 0.04);
+    background: color-mix(in srgb, #ef4444 4%, transparent);
 }
 
 /* ── Appointment Participants Picker ─────────────────────────────────── */
@@ -1642,7 +1663,7 @@
     background: var(--bg-surface);
     border: 1px solid var(--border-default);
     border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px color-mix(in srgb, #000000 15%, transparent);
     max-height: 220px;
     overflow-y: auto;
     z-index: 100;
@@ -1782,7 +1803,7 @@
     background: var(--accent);
     border-radius: 1px;
     transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 0 8px var(--accent-glow, rgba(45, 212, 191, 0.4));
+    box-shadow: 0 0 8px var(--accent-glow, color-mix(in srgb, #2dd4bf 40%, transparent));
     pointer-events: none;
 }
 
@@ -1836,7 +1857,7 @@
 }
 
 .kc-table tbody tr:hover {
-    background: var(--bg-hover, rgba(255,255,255,0.03));
+    background: var(--bg-hover, color-mix(in srgb, #ffffff 3%, transparent));
     box-shadow: inset 3px 0 0 var(--accent);
 }
 
@@ -1864,8 +1885,8 @@
 
 .kc-icon-btn.kc-icon-btn-danger:hover {
     color: #ef4444;
-    border-color: rgba(239, 68, 68, 0.3);
-    background: rgba(239, 68, 68, 0.08);
+    border-color: color-mix(in srgb, #ef4444 30%, transparent);
+    background: color-mix(in srgb, #ef4444 8%, transparent);
 }
 
 .kc-icon-btn svg {
@@ -1901,7 +1922,7 @@
 
 .kc-drop-zone {
     display: none;
-    border: 2px dashed var(--accent-dim, rgba(45, 212, 191, 0.3));
+    border: 2px dashed var(--accent-dim, color-mix(in srgb, #2dd4bf 30%, transparent));
     border-radius: 12px;
     padding: 40px 20px;
     text-align: center;
@@ -1944,7 +1965,7 @@
 .kc-upload-progress-bar {
     height: 4px;
     border-radius: 999px;
-    background: rgba(148, 163, 184, 0.16);
+    background: color-mix(in srgb, #94a3b8 16%, transparent);
     overflow: hidden;
     margin-bottom: 6px;
 }
@@ -1986,7 +2007,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);
+    background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, #ffffff 6%, transparent) 50%, transparent 100%);
     animation: kcShimmer 1.5s infinite;
 }
 
@@ -1997,7 +2018,7 @@
 
 /* Glass container treatment */
 .kc-container {
-    background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0) 100%);
+    background: linear-gradient(180deg, color-mix(in srgb, #ffffff 2%, transparent) 0%, color-mix(in srgb, #ffffff 0%, transparent) 100%);
     border: 1px solid var(--border-subtle);
     border-radius: 16px;
     backdrop-filter: blur(8px);
@@ -2116,42 +2137,42 @@
 
 /* Light theme overrides for new elements */
 [data-theme="light"] .kc-tab-count {
-    background: rgba(71, 85, 105, 0.08);
-    border-color: rgba(71, 85, 105, 0.12);
+    background: color-mix(in srgb, #475569 8%, transparent);
+    border-color: color-mix(in srgb, #475569 12%, transparent);
 }
 
 [data-theme="light"] .kc-tab.active .kc-tab-count {
-    background: rgba(15, 143, 132, 0.1);
-    border-color: rgba(15, 143, 132, 0.25);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 [data-theme="light"] .kc-skeleton-cell {
-    background: rgba(71, 85, 105, 0.08);
+    background: color-mix(in srgb, #475569 8%, transparent);
 }
 
 [data-theme="light"] .kc-skeleton-cell::after {
-    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
+    background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, #ffffff 40%, transparent) 50%, transparent 100%);
 }
 
 [data-theme="light"] .kc-drop-zone {
-    border-color: rgba(15, 143, 132, 0.25);
-    background: rgba(15, 143, 132, 0.03);
+    border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+    background: color-mix(in srgb, var(--accent) 3%, transparent);
 }
 
 [data-theme="light"] .kc-stat-chip {
-    border-color: rgba(71, 85, 105, 0.14);
+    border-color: color-mix(in srgb, #475569 14%, transparent);
 }
 
 [data-theme="light"] .kc-stat-chip:hover {
-    border-color: rgba(15, 143, 132, 0.3);
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 [data-theme="light"] .kc-table tbody tr:hover {
-    box-shadow: inset 3px 0 0 rgba(15, 143, 132, 0.6);
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 [data-theme="light"] .kc-actions .kc-icon-btn {
-    border-color: rgba(71, 85, 105, 0.14);
+    border-color: color-mix(in srgb, #475569 14%, transparent);
 }
 
 /* Mobile refinements */
