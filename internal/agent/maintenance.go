@@ -852,6 +852,7 @@ func finalizeConsolidationBatch(
 	}
 	if err := stm.MarkConsolidationSuccess(item.messageIDs); err != nil {
 		logger.Error("[Consolidation] Failed to mark batch as consolidated", "batch", batchIndex, "error", err)
+		_ = stm.MarkConsolidationFailure(item.messageIDs, fmt.Sprintf("mark_success_failed: %v", err))
 		return false, 0
 	}
 	recordConsolidationBatchEpisode(stm, item.messages, stored, skipped, len(facts), batchIndex, batchTotal)

@@ -70,6 +70,64 @@ func TestVectorDBMonitor_SkipsWhenEmbeddingsDisabledInConfig(t *testing.T) {
 	}
 }
 
+func TestWatchVectorDBRecovery_ClearsWarningOnSuccess(t *testing.T) {
+	reg := NewRegistry()
+	reg.Add(Warning{
+		ID:       "vectordb_validation_failed",
+		Severity: SeverityWarning,
+		Title:    "stale",
+	})
+	cfg := &config.Config{}
+	cfg.Embeddings.Provider = "openai"
+
+	vdb := &fakeVectorDBHealth{ready: false, disabled: false}
+	WatchVectorDBRecovery(reg, cfg, vdb, nil)
+
+	time.Sleep(50 * time.Millisecond)
+	vdb.ready = true
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		found := false
+		for _, w := range reg.Warnings() {
+			if w.ID == "vectordb_validation_failed" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	for _, w := range reg.Warnings() {
+		if w.ID == "vectordb_validation_failed" {
+			t.Fatal("expected vectordb_validation_failed to be cleared after successful recovery")
+		}
+	}
+}
+
+func TestWatchVectorDBRecovery_KeepsWarningWhenValidationFails(t *testing.T) {
+	reg := NewRegistry()
+	cfg := &config.Config{}
+	cfg.Embeddings.Provider = "openai"
+	vdb := &fakeVectorDBHealth{ready: true, disabled: true}
+
+	WatchVectorDBRecovery(reg, cfg, vdb, nil)
+	time.Sleep(100 * time.Millisecond)
+
+	found := false
+	for _, w := range reg.Warnings() {
+		if w.ID == "vectordb_validation_failed" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected vectordb_validation_failed when recovery validation fails")
+	}
+}
+
 func TestCheckVectorDBDisabled_ConfigDisabled(t *testing.T) {
 	reg := NewRegistry()
 	cfg := &config.Config{}

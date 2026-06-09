@@ -258,8 +258,8 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 	sessionID := "default"
 
 	// Add message to history
-	mid, _ := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, inputText, false, false)
-	if sessionID == "default" {
+	mid, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, inputText, false, false)
+	if sessionID == "default" && historyManager != nil && agent.ShouldAppendHistoryMessage(mid, err) {
 		historyManager.Add(openai.ChatMessageRoleUser, inputText, mid, false, false)
 	}
 

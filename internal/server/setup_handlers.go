@@ -7,6 +7,7 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/security"
 	"aurago/internal/setup"
+	"aurago/internal/warnings"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -355,9 +356,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 					if cols, colsErr := s.ShortTermMem.GetIndexedCollections(); colsErr == nil {
 						s.LongTermMem.RegisterCollections(cols)
 					}
-					if s.WarningsRegistry != nil {
-						s.WarningsRegistry.Remove("vectordb_validation_failed")
-					}
+					warnings.WatchVectorDBRecovery(s.WarningsRegistry, newCfg, newVDB, s.Logger)
 					s.Logger.Info("[Setup] VectorDB re-initialized with embedding provider",
 						"provider", newCfg.Embeddings.Provider)
 				} else {

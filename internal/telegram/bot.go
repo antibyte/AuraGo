@@ -290,8 +290,8 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
 
 	// Add the message to history first
-	mid, _ := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, inputText, false, false)
-	if sessionID == "default" {
+	mid, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, inputText, false, false)
+	if sessionID == "default" && historyManager != nil && agent.ShouldAppendHistoryMessage(mid, err) {
 		historyManager.Add(openai.ChatMessageRoleUser, inputText, mid, false, false)
 	}
 

@@ -189,3 +189,30 @@ func TestFinalizeConsolidationBatchAcceptsDedupOnlyFacts(t *testing.T) {
 		t.Fatalf("expected archived messages marked consolidated, still have %d unconsolidated", len(remaining))
 	}
 }
+
+func TestFinalizeConsolidationBatchReturnsFalseWhenMarkSuccessFails(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	item := archiveConsolidationFixture(t, stm, "s1", []struct{ role, content string }{
+		{"user", "hello"},
+		{"assistant", "hi"},
+	})
+	facts := []helperConsolidationFact{{Concept: "greeting", Content: "User said hello."}}
+
+	if err := stm.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	ok, storedCount := finalizeConsolidationBatch(logger, stm, item, facts, 1, 0, nil, 1, 1)
+	if ok {
+		t.Fatal("expected finalize to fail when MarkConsolidationSuccess cannot run")
+	}
+	if storedCount != 0 {
+		t.Fatalf("storedCount = %d, want 0", storedCount)
+	}
+}

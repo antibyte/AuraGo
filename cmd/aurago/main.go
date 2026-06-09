@@ -22,6 +22,7 @@ import (
 	"syscall"
 	"time"
 
+	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/contacts"
 	"aurago/internal/credentials"
@@ -863,8 +864,10 @@ func main() {
 			appLog.Error("Failed to decode recovery context", "error", err)
 		} else {
 			msg := fmt.Sprintf("SYSTEM: Neustart nach Wartung abgeschlossen. Zusammenfassung der Aenderungen: %s. Setze deinen Plan fort.", string(decoded))
-			mid, _ := shortTermMem.InsertMessage("default", "system", msg, false, false)
-			historyManager.Add("system", msg, mid, false, false)
+			mid, err := shortTermMem.InsertMessage("default", "system", msg, false, false)
+			if agent.ShouldAppendHistoryMessage(mid, err) {
+				historyManager.Add("system", msg, mid, false, false)
+			}
 			appLog.Info("Recovery context injected into history")
 		}
 	}

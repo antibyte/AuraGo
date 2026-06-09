@@ -75,3 +75,34 @@ func embeddingsConfigured(cfg *config.Config) bool {
 	provider := cfg.Embeddings.Provider
 	return provider != "" && provider != "disabled"
 }
+
+// WatchVectorDBRecovery monitors a replacement VectorDB after hot-reload (e.g. setup
+// wizard). It starts the standard validation monitor and clears
+// vectordb_validation_failed only after validation completes successfully.
+func WatchVectorDBRecovery(reg *Registry, cfg *config.Config, vdb VectorDBHealth, logger *slog.Logger) {
+	if reg == nil || vdb == nil || !embeddingsConfigured(cfg) {
+		return
+	}
+	NewVectorDBMonitor(reg, cfg, vdb, logger).Start()
+	go watchVectorDBRecoveryClear(reg, vdb, logger)
+}
+
+func watchVectorDBRecoveryClear(reg *Registry, vdb VectorDBHealth, logger *slog.Logger) {
+	deadline := time.Now().Add(vectorDBValidationWatchTimeout)
+	for time.Now().Before(deadline) {
+		if vdb.IsReady() {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	if !vdb.IsReady() {
+		return
+	}
+	if vdb.IsDisabled() {
+		return
+	}
+	reg.Remove("vectordb_validation_failed")
+	if logger != nil {
+		logger.Info("Cleared vectordb_validation_failed after successful VectorDB recovery")
+	}
+}
