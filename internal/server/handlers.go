@@ -195,9 +195,7 @@ func isActiveContentExtension(filename string) bool {
 	}
 }
 
-func shouldAppendHistoryMessage(sqliteID int64, insertErr error) bool {
-	return insertErr == nil && sqliteID > 0
-}
+
 
 func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 	// Pre-create manifest once — it caches internally and auto-reloads on file changes
@@ -356,7 +354,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				s.Logger.Error("Failed to insert user message", "error", err)
 			}
 			agent.NoteInnerVoiceUserTurn(sessionID)
-			if sessionID == "default" && !isInternalRequestMessage && shouldAppendHistoryMessage(id, err) {
+			if sessionID == "default" && !isInternalRequestMessage && agent.ShouldAppendHistoryMessage(id, err) {
 				// Persist the raw text message (including attachment paths) so we
 				// don't bloat history.json with base64-encoded images. Multimodal
 				// promotion happens only when building the outgoing LLM request.
@@ -418,7 +416,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 					if err != nil {
 						s.Logger.Error("Failed to insert compression warning", "error", err)
 					}
-					if shouldAppendHistoryMessage(id, err) {
+					if agent.ShouldAppendHistoryMessage(id, err) {
 						s.HistoryManager.Add(openai.ChatMessageRoleSystem, warningMsg, id, false, false)
 					}
 				}

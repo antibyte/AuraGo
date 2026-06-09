@@ -41,7 +41,7 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 				if err != nil {
 					currentLogger.Error("Failed to persist workflow plan message", "error", err)
 				}
-				if sessionID == "default" {
+				if sessionID == "default" && ShouldAppendHistoryMessage(id, err) {
 					historyManager.Add(openai.ChatMessageRoleAssistant, strippedContent, id, false, false)
 				}
 				s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: strippedContent})
@@ -86,7 +86,7 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 			if err != nil {
 				currentLogger.Error("Failed to persist assistant message to SQLite", "error", err)
 			}
-			if sessionID == "default" {
+			if sessionID == "default" && ShouldAppendHistoryMessage(id, err) {
 				historyManager.Add(openai.ChatMessageRoleAssistant, displayContent, id, false, true)
 			}
 		}
@@ -110,7 +110,7 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 		if err != nil {
 			currentLogger.Error("Failed to persist XML feedback message to SQLite", "error", err)
 		}
-		if sessionID == "default" {
+		if sessionID == "default" && ShouldAppendHistoryMessage(id, err) {
 			historyManager.Add(openai.ChatMessageRoleUser, xmlFeedback, id, false, true)
 		}
 

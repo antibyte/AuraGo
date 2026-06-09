@@ -122,7 +122,7 @@ func (rss *RecoverySessionState) PersistRecoveryMessages(
 		if err != nil {
 			rss.logger.Error("Failed to persist assistant message to SQLite", "error", err)
 		}
-		if params.SessionID == "default" {
+		if params.SessionID == "default" && ShouldAppendHistoryMessage(id, err) {
 			historyManager.Add(openai.ChatMessageRoleAssistant, params.AssistantContent, id, false, true)
 		}
 		msgs = append(msgs, openai.ChatCompletionMessage{
@@ -136,7 +136,7 @@ func (rss *RecoverySessionState) PersistRecoveryMessages(
 	if err != nil {
 		rss.logger.Error("Failed to persist feedback message to SQLite", "error", err)
 	}
-	if params.SessionID == "default" {
+	if params.SessionID == "default" && ShouldAppendHistoryMessage(id, err) {
 		historyManager.Add(openai.ChatMessageRoleUser, params.FeedbackMsg, id, false, true)
 	}
 	msgs = append(msgs, openai.ChatCompletionMessage{

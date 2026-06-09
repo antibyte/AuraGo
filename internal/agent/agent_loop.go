@@ -298,8 +298,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			stopContent := "⏹ Stopped."
 			// Persist the stop event so the agent remembers it was stopped
 			if shortTermMem != nil {
-				msgID, _ := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, stopContent, false, false)
-				if sessionID == "default" && historyManager != nil {
+				msgID, stopErr := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, stopContent, false, false)
+				if stopErr != nil {
+					s.currentLogger.Error("Failed to persist stop message to SQLite", "error", stopErr)
+				}
+				if sessionID == "default" && historyManager != nil && ShouldAppendHistoryMessage(msgID, stopErr) {
 					historyManager.Add(openai.ChatMessageRoleAssistant, stopContent, msgID, false, false)
 				}
 			}
@@ -1540,7 +1543,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if err != nil {
 				s.currentLogger.Error("Failed to persist final-answer message to SQLite", "error", err)
 			}
-			if sessionID == "default" && !isInternalFinal {
+			if sessionID == "default" && !isInternalFinal && ShouldAppendHistoryMessage(id, err) {
 				historyManager.Add(resp.Choices[0].Message.Role, content, id, false, false)
 			}
 		} else {

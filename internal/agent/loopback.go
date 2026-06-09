@@ -165,7 +165,7 @@ func LoopbackContext(ctx context.Context, runCfg RunConfig, message string, brok
 		return
 	}
 	NoteInnerVoiceUserTurn(sessionID)
-	if shouldPersistLoopbackHistory(sessionID) && !isInternalMessage {
+	if shouldPersistLoopbackHistory(sessionID) && !isInternalMessage && ShouldAppendHistoryMessage(mid, err) {
 		historyManager.Add(openai.ChatMessageRoleUser, safeMessage, mid, false, false)
 	}
 

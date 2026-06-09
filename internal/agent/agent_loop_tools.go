@@ -50,7 +50,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	if idErr != nil {
 		currentLogger.Error("Failed to persist queued tool-call message", "error", idErr)
 	}
-	if sessionID == "default" {
+	if sessionID == "default" && ShouldAppendHistoryMessage(id, idErr) {
 		historyManager.Add(openai.ChatMessageRoleAssistant, ptcJSON, id, false, true)
 	}
 	broker.Send("tool_call", ptcJSON)
@@ -122,7 +122,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	if idErr != nil {
 		currentLogger.Error("Failed to persist queued tool-result message", "error", idErr)
 	}
-	if sessionID == "default" {
+	if sessionID == "default" && ShouldAppendHistoryMessage(id, idErr) {
 		historyManager.Add(openai.ChatMessageRoleUser, pResultContent, id, false, true)
 	}
 	voiceModeActive := (s.runCfg.VoiceOutputActive || GetVoiceMode()) && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) && !s.runCfg.IsMission
@@ -198,7 +198,7 @@ func executeAgentToolTurn(
 	if err != nil {
 		currentLogger.Error("Failed to persist tool-call message to SQLite", "error", err)
 	}
-	if sessionID == "default" {
+	if sessionID == "default" && ShouldAppendHistoryMessage(id, err) {
 		if useNativePath {
 			nativeMsg := nativeAssistantMsg
 			if nativeMsg.Role == "" {
@@ -236,8 +236,11 @@ func executeAgentToolTurn(
 				Content:    resultContent,
 				ToolCallID: tc.NativeCallID,
 			})
-			resultID, _ := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleTool, resultContent, false, true)
-			if sessionID == "default" {
+			resultID, resultErr := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleTool, resultContent, false, true)
+			if resultErr != nil {
+				currentLogger.Error("Failed to persist task-rule tool-result message", "error", resultErr)
+			}
+			if sessionID == "default" && ShouldAppendHistoryMessage(resultID, resultErr) {
 				historyManager.AddMessage(openai.ChatCompletionMessage{
 					Role:       openai.ChatMessageRoleTool,
 					Content:    resultContent,
@@ -249,7 +252,7 @@ func executeAgentToolTurn(
 			if resultErr != nil {
 				currentLogger.Error("Failed to persist task-rule preload message", "error", resultErr)
 			}
-			if sessionID == "default" {
+			if sessionID == "default" && ShouldAppendHistoryMessage(resultID, resultErr) {
 				historyManager.Add(openai.ChatMessageRoleUser, resultContent, resultID, false, true)
 			}
 			s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: histContent})
@@ -271,8 +274,11 @@ func executeAgentToolTurn(
 				Content:    syntheticResult,
 				ToolCallID: tc.NativeCallID,
 			})
-			resultID, _ := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleTool, syntheticResult, false, true)
-			if sessionID == "default" {
+			resultID, resultErr := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleTool, syntheticResult, false, true)
+			if resultErr != nil {
+				currentLogger.Error("Failed to persist duplicate-tool synthetic result", "error", resultErr)
+			}
+			if sessionID == "default" && ShouldAppendHistoryMessage(resultID, resultErr) {
 				historyManager.AddMessage(openai.ChatCompletionMessage{
 					Role:       openai.ChatMessageRoleTool,
 					Content:    syntheticResult,
@@ -443,7 +449,7 @@ func executeAgentToolTurn(
 	if err != nil {
 		currentLogger.Error("Failed to persist tool-result message to SQLite", "error", err)
 	}
-	if sessionID == "default" {
+	if sessionID == "default" && ShouldAppendHistoryMessage(id, err) {
 		if toolResultPersistRole == openai.ChatMessageRoleTool {
 			historyManager.AddMessage(openai.ChatCompletionMessage{
 				Role:       openai.ChatMessageRoleTool,
@@ -464,7 +470,7 @@ func executeAgentToolTurn(
 		if err != nil {
 			currentLogger.Error("Failed to persist handover message to SQLite", "error", err)
 		}
-		if sessionID == "default" {
+		if sessionID == "default" && ShouldAppendHistoryMessage(id, err) {
 			historyManager.Add(resp.Choices[0].Message.Role, content, id, false, false)
 		}
 		return resp, nil, false
@@ -561,7 +567,7 @@ func executeAgentToolTurn(
 			if bErr != nil {
 				currentLogger.Error("Failed to persist batched tool-result message", "error", bErr)
 			}
-			if sessionID == "default" {
+			if sessionID == "default" && ShouldAppendHistoryMessage(bID, bErr) {
 				historyManager.AddMessage(openai.ChatCompletionMessage{
 					Role:       openai.ChatMessageRoleTool,
 					Content:    bResult,

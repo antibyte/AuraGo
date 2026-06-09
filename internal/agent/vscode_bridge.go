@@ -50,7 +50,9 @@ func AskAuraGoBridge(ctx context.Context, runCfg RunConfig, message string) (str
 		return "", fmt.Errorf("failed to persist bridge message: %w", err)
 	}
 	NoteInnerVoiceUserTurn(sessionID)
-	_ = historyManager.Add(openai.ChatMessageRoleUser, message, msgID, false, false)
+	if ShouldAppendHistoryMessage(msgID, err) {
+		_ = historyManager.Add(openai.ChatMessageRoleUser, message, msgID, false, false)
+	}
 
 	finalMessages := []openai.ChatCompletionMessage{
 		{Role: openai.ChatMessageRoleSystem},
