@@ -37,7 +37,7 @@
         "items": {
           "type": "string"
         },
-        "description": "GitHub usernames to request reviews from"
+        "description": "GitHub usernames or ORG/team-slug team reviewers to request reviews from"
       },
       "state": {
         "type": "string",
