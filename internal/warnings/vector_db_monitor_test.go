@@ -70,6 +70,28 @@ func TestVectorDBMonitor_SkipsWhenEmbeddingsDisabledInConfig(t *testing.T) {
 	}
 }
 
+func TestWaitUntilVectorDBReady_BlocksUntilReady(t *testing.T) {
+	vdb := &fakeVectorDBHealth{ready: false}
+	done := make(chan struct{})
+	go func() {
+		waitUntilVectorDBReady(vdb)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		t.Fatal("waitUntilVectorDBReady returned before VectorDB became ready")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	vdb.ready = true
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("waitUntilVectorDBReady did not return after VectorDB became ready")
+	}
+}
+
 func TestWatchVectorDBRecovery_ClearsWarningOnSuccess(t *testing.T) {
 	reg := NewRegistry()
 	reg.Add(Warning{

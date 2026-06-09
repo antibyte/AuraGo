@@ -7,7 +7,7 @@ import (
 	"aurago/internal/config"
 )
 
-const vectorDBValidationWatchTimeout = 3 * time.Minute
+const vectorDBReadyPollInterval = 500 * time.Millisecond
 
 // VectorDBHealth exposes the runtime readiness state needed for warning producers.
 type VectorDBHealth interface {
@@ -44,14 +44,8 @@ func (m *VectorDBMonitor) Start() {
 }
 
 func (m *VectorDBMonitor) watch() {
-	deadline := time.Now().Add(vectorDBValidationWatchTimeout)
-	for time.Now().Before(deadline) {
-		if m.vdb.IsReady() {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-	if !m.vdb.IsReady() || !m.vdb.IsDisabled() {
+	waitUntilVectorDBReady(m.vdb)
+	if !m.vdb.IsDisabled() {
 		return
 	}
 
@@ -88,21 +82,21 @@ func WatchVectorDBRecovery(reg *Registry, cfg *config.Config, vdb VectorDBHealth
 }
 
 func watchVectorDBRecoveryClear(reg *Registry, vdb VectorDBHealth, logger *slog.Logger) {
-	deadline := time.Now().Add(vectorDBValidationWatchTimeout)
-	for time.Now().Before(deadline) {
-		if vdb.IsReady() {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-	if !vdb.IsReady() {
-		return
-	}
+	waitUntilVectorDBReady(vdb)
 	if vdb.IsDisabled() {
 		return
 	}
 	reg.Remove("vectordb_validation_failed")
 	if logger != nil {
 		logger.Info("Cleared vectordb_validation_failed after successful VectorDB recovery")
+	}
+}
+
+// waitUntilVectorDBReady blocks until startup embedding validation completes.
+// ChromemVectorDB always sets ready in its validation goroutine (including on failure),
+// so this loop terminates without a hard timeout.
+func waitUntilVectorDBReady(vdb VectorDBHealth) {
+	for !vdb.IsReady() {
+		time.Sleep(vectorDBReadyPollInterval)
 	}
 }

@@ -559,20 +559,23 @@ func executeAgentToolTurn(
 			}
 
 			bHistContent := fmt.Sprintf(`{"action": "%s"}`, btc.Action)
-			bID, bErr := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, bHistContent, false, true)
-			if bErr != nil {
-				currentLogger.Error("Failed to persist batched tool-call message", "error", bErr)
+			callID, callErr := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, bHistContent, false, true)
+			if callErr != nil {
+				currentLogger.Error("Failed to persist batched tool-call message", "error", callErr)
 			}
-			bID, bErr = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleTool, bResult, false, true)
-			if bErr != nil {
-				currentLogger.Error("Failed to persist batched tool-result message", "error", bErr)
+			if sessionID == "default" && ShouldAppendHistoryMessage(callID, callErr) {
+				historyManager.AddMessage(NativeToolCallHistoryMessage(btc, bHistContent), callID, false, true)
 			}
-			if sessionID == "default" && ShouldAppendHistoryMessage(bID, bErr) {
+			resultID, resultErr := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleTool, bResult, false, true)
+			if resultErr != nil {
+				currentLogger.Error("Failed to persist batched tool-result message", "error", resultErr)
+			}
+			if sessionID == "default" && ShouldAppendHistoryMessage(resultID, resultErr) {
 				historyManager.AddMessage(openai.ChatCompletionMessage{
 					Role:       openai.ChatMessageRoleTool,
 					Content:    bResult,
 					ToolCallID: btc.NativeCallID,
-				}, bID, false, true)
+				}, resultID, false, true)
 			}
 
 			s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{
