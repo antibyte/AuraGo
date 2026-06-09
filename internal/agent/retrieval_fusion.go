@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
+	"time"
 
 	"aurago/internal/memory"
 )
@@ -41,6 +42,7 @@ func applyRetrievalFusion(
 	topMemories []string,
 	kgContext string,
 	longTermMem memory.VectorDB,
+	stm *memory.SQLiteMemory,
 	kg *memory.KnowledgeGraph,
 	logger *slog.Logger,
 ) retrievalFusionResult {
@@ -59,15 +61,15 @@ func applyRetrievalFusion(
 		if len(labels) > 0 {
 			var extraMemories []string
 			for _, label := range labels {
-				mems, _, err := longTermMem.SearchMemoriesOnly(label, 1)
-				if err != nil || len(mems) == 0 {
+				ranked, err := searchRankedMemoriesOnly(longTermMem, stm, label, 1, nil, time.Now())
+				if err != nil || len(ranked) == 0 {
 					continue
 				}
 				// Deduplicate against existing top memories and already-found extras.
-				if containsString(topMemories, mems[0]) || containsString(extraMemories, mems[0]) {
+				if containsString(topMemories, ranked[0].text) || containsString(extraMemories, ranked[0].text) {
 					continue
 				}
-				compacted := compactMemoryForPrompt(mems[0], 200)
+				compacted := compactMemoryForPrompt(ranked[0].text, 200)
 				if compacted == "" {
 					continue
 				}

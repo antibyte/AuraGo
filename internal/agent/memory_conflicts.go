@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
+	"time"
 
 	"aurago/internal/memory"
 )
@@ -41,21 +42,21 @@ func detectMemoryConflictsForDocIDs(logger *slog.Logger, stm *memory.SQLiteMemor
 		}
 		signals := deriveConflictSignals(text)
 		for _, signal := range signals {
-			matches, matchIDs, err := ltm.SearchMemoriesOnly(signal.Key, 8)
+			ranked, err := searchRankedMemoriesOnly(ltm, stm, signal.Key, 8, nil, time.Now())
 			if err != nil {
 				continue
 			}
-			for idx, matchText := range matches {
-				if idx >= len(matchIDs) || matchIDs[idx] == "" || matchIDs[idx] == docID {
+			for _, match := range ranked {
+				if match.docID == "" || match.docID == docID {
 					continue
 				}
-				for _, other := range deriveConflictSignals(matchText) {
+				for _, other := range deriveConflictSignals(match.text) {
 					if other.Key != signal.Key || other.Value == "" || signal.Value == "" || other.Value == signal.Value {
 						continue
 					}
 					reason := fmt.Sprintf("conflicting values for %s", signal.Key)
-					if err := stm.RegisterMemoryConflict(docID, matchIDs[idx], signal.Key, signal.Value, other.Value, reason); err != nil && logger != nil {
-						logger.Warn("failed to register memory conflict", "doc_id", docID, "other_doc_id", matchIDs[idx], "error", err)
+					if err := stm.RegisterMemoryConflict(docID, match.docID, signal.Key, signal.Value, other.Value, reason); err != nil && logger != nil {
+						logger.Warn("failed to register memory conflict", "doc_id", docID, "other_doc_id", match.docID, "error", err)
 					}
 				}
 			}

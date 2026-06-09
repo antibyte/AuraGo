@@ -31,10 +31,10 @@ func rankMemoryCandidatesWithScores(memories []string, docIDs []string, similari
 	results := make([]rankedMemory, 0, len(memories))
 
 	for i, mem := range memories {
-		if i >= len(docIDs) {
-			break
+		docID := ""
+		if i < len(docIDs) {
+			docID = docIDs[i]
 		}
-		docID := docIDs[i]
 		sim := 0.0
 		if i < len(similarities) {
 			sim = similarities[i]
@@ -46,9 +46,14 @@ func rankMemoryCandidatesWithScores(memories []string, docIDs []string, similari
 			sim = 0.5
 		}
 
-		meta, hasMeta := metaMap[docID]
-		if hasMeta && memory.IsMemoryArchived(meta) {
-			continue
+		meta := memory.MemoryMeta{}
+		if docID != "" {
+			if storedMeta, hasMeta := metaMap[docID]; hasMeta {
+				if memory.IsMemoryArchived(storedMeta) {
+					continue
+				}
+				meta = storedMeta
+			}
 		}
 		finalScore := calculateMemoryRankingScore(sim, meta, usedDocIDs[docID], now)
 		results = append(results, rankedMemory{text: mem, docID: docID, score: finalScore})
@@ -71,6 +76,29 @@ func searchSimilarWithScores(vdb memory.VectorDB, query string, topK int, exclud
 	}
 	memories, docIDs, err := vdb.SearchSimilar(query, topK, excludeCollections...)
 	return memories, docIDs, nil, err
+}
+
+// searchRankedMemoriesOnly searches aurago_memories and applies the shared ranking
+// pipeline, including archived-memory filtering via memory_meta.
+func searchRankedMemoriesOnly(
+	vdb memory.VectorDB,
+	stm *memory.SQLiteMemory,
+	query string,
+	topK int,
+	usedDocIDs map[string]int,
+	now time.Time,
+) ([]rankedMemory, error) {
+	if vdb == nil || vdb.IsDisabled() {
+		return nil, nil
+	}
+	memories, docIDs, similarities, err := searchMemoriesOnlyWithScores(vdb, query, topK)
+	if err != nil {
+		return nil, err
+	}
+	if len(memories) == 0 {
+		return nil, nil
+	}
+	return rankMemoryCandidatesWithScores(memories, docIDs, similarities, stm, usedDocIDs, now), nil
 }
 
 func searchMemoriesOnlyWithScores(vdb memory.VectorDB, query string, topK int) ([]string, []string, []float64, error) {

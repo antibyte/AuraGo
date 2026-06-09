@@ -107,7 +107,7 @@ func TestStoreConsolidationFactsReportsStoreFailures(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = stm.Close() })
 
-	stored, err := storeConsolidationFacts(logger, stm, &hierarchyVectorDB{}, []helperConsolidationFact{
+	stored, skipped, err := storeConsolidationFacts(logger, stm, &hierarchyVectorDB{}, []helperConsolidationFact{
 		{Concept: "ok:backup", Content: "The backup target is the NAS."},
 		{Concept: "fail:backup", Content: "This store should fail."},
 	})
@@ -116,6 +116,9 @@ func TestStoreConsolidationFactsReportsStoreFailures(t *testing.T) {
 	}
 	if stored != 1 {
 		t.Fatalf("stored = %d, want 1", stored)
+	}
+	if skipped != 0 {
+		t.Fatalf("skipped = %d, want 0", skipped)
 	}
 }
 

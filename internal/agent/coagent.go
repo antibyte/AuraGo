@@ -653,10 +653,10 @@ func buildContextSnapshot(req CoAgentRequest, ltm memory.VectorDB, stm *memory.S
 
 	var ragItems []string
 	if ltm != nil && policy.maxRAGHits > 0 {
-		results, _, err := ltm.SearchMemoriesOnly(req.Task, policy.maxRAGHits)
+		ranked, err := searchRankedMemoriesOnly(ltm, stm, req.Task, policy.maxRAGHits, nil, time.Now())
 		if err == nil {
-			for _, result := range results {
-				result = truncatePromptBlock(result, policy.maxRAGChars)
+			for _, item := range ranked {
+				result := truncatePromptBlock(item.text, policy.maxRAGChars)
 				if result == "" {
 					continue
 				}

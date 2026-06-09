@@ -773,8 +773,30 @@ Conversation:
 	return extracted.Facts, nil
 }
 
-func storeConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, facts []helperConsolidationFact) (int, error) {
-	stored := 0
+func countValidConsolidationFacts(facts []helperConsolidationFact) int {
+	count := 0
+	for _, fact := range facts {
+		if strings.TrimSpace(fact.Concept) != "" && strings.TrimSpace(fact.Content) != "" {
+			count++
+		}
+	}
+	return count
+}
+
+func shouldMarkConsolidationSuccess(stored, skipped, factCount, validFacts int) (bool, string) {
+	if factCount == 0 {
+		return false, "no_facts_extracted"
+	}
+	if stored > 0 {
+		return true, ""
+	}
+	if validFacts > 0 && skipped == validFacts {
+		return true, ""
+	}
+	return false, "no_facts_stored"
+}
+
+func storeConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, facts []helperConsolidationFact) (stored int, skipped int, err error) {
 	var failed []string
 	for _, fact := range facts {
 		concept := strings.TrimSpace(fact.Concept)
@@ -782,10 +804,14 @@ func storeConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm 
 		if concept == "" || content == "" {
 			continue
 		}
-		ids, err := ltm.StoreDocument(concept, content)
-		if err != nil {
-			logger.Warn("[Consolidation] Failed to store fact in LTM", "concept", concept, "error", err)
+		ids, storeErr := ltm.StoreDocument(concept, content)
+		if storeErr != nil {
+			logger.Warn("[Consolidation] Failed to store fact in LTM", "concept", concept, "error", storeErr)
 			failed = append(failed, concept)
+			continue
+		}
+		if len(ids) == 0 {
+			skipped++
 			continue
 		}
 		for _, id := range ids {
@@ -800,12 +826,35 @@ func storeConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm 
 		stored++
 	}
 	if len(failed) > 0 {
-		return stored, fmt.Errorf("failed to store %d consolidation facts: %s", len(failed), strings.Join(failed, ", "))
+		return stored, skipped, fmt.Errorf("failed to store %d consolidation facts: %s", len(failed), strings.Join(failed, ", "))
 	}
-	return stored, nil
+	return stored, skipped, nil
 }
 
-func recordConsolidationBatchEpisode(stm *memory.SQLiteMemory, batch []memory.ArchivedMessage, factsCount, batchIndex, batchTotal int) {
+func finalizeConsolidationBatch(
+	logger *slog.Logger,
+	stm *memory.SQLiteMemory,
+	item consolidationWorkItem,
+	facts []helperConsolidationFact,
+	stored, skipped int,
+	storeErr error,
+	batchIndex, batchTotal int,
+) (success bool, storedCount int) {
+	if storeErr != nil {
+		return false, 0
+	}
+	validFacts := countValidConsolidationFacts(facts)
+	ok, reason := shouldMarkConsolidationSuccess(stored, skipped, len(facts), validFacts)
+	if !ok {
+		logger.Warn("[Consolidation] Batch not consolidated", "batch", batchIndex, "reason", reason, "stored", stored, "skipped", skipped, "facts", len(facts), "valid_facts", validFacts)
+		_ = stm.MarkConsolidationFailure(item.messageIDs, reason)
+		return false, 0
+	}
+	recordConsolidationBatchEpisode(stm, item.messages, stored, skipped, len(facts), batchIndex, batchTotal)
+	return true, stored
+}
+
+func recordConsolidationBatchEpisode(stm *memory.SQLiteMemory, batch []memory.ArchivedMessage, stored, skipped, factsCount, batchIndex, batchTotal int) {
 	if stm == nil || len(batch) == 0 {
 		return
 	}
@@ -814,7 +863,7 @@ func recordConsolidationBatchEpisode(stm *memory.SQLiteMemory, batch []memory.Ar
 		eventDate = batch[0].Timestamp[:10]
 	}
 	episodeTitle := "Consolidated conversation batch"
-	episodeSummary := fmt.Sprintf("%d messages, %d facts extracted", len(batch), factsCount)
+	episodeSummary := fmt.Sprintf("%d messages, %d facts extracted, %d stored, %d skipped", len(batch), factsCount, stored, skipped)
 	episodeDetails := map[string]string{
 		"session_id": batch[0].SessionID,
 		"batch":      fmt.Sprintf("%d/%d", batchIndex, batchTotal),
@@ -884,15 +933,16 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 			_ = stm.MarkConsolidationFailure(item.messageIDs, err.Error())
 			return
 		}
-		stored, storeErr := storeConsolidationFacts(logger, stm, ltm, facts)
-		totalStored += stored
+		stored, skipped, storeErr := storeConsolidationFacts(logger, stm, ltm, facts)
 		if storeErr != nil {
 			logger.Warn("[Consolidation] LTM storage failed for batch", "batch", batchIndex, "error", storeErr)
 			_ = stm.MarkConsolidationFailure(item.messageIDs, storeErr.Error())
 			return
 		}
-		recordConsolidationBatchEpisode(stm, item.messages, len(facts), batchIndex, len(workItems))
-		allConsolidatedIDs = append(allConsolidatedIDs, item.messageIDs...)
+		if ok, storedCount := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, batchIndex, len(workItems)); ok {
+			totalStored += storedCount
+			allConsolidatedIDs = append(allConsolidatedIDs, item.messageIDs...)
+		}
 	}
 
 	for i := 0; i < len(workItems); {
@@ -935,15 +985,16 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 		}
 		for offset, item := range group {
 			facts := byID[item.batchID]
-			stored, storeErr := storeConsolidationFacts(logger, stm, ltm, facts)
-			totalStored += stored
+			stored, skipped, storeErr := storeConsolidationFacts(logger, stm, ltm, facts)
 			if storeErr != nil {
 				logger.Warn("[Consolidation] LTM storage failed for helper batch", "batch_id", item.batchID, "error", storeErr)
 				_ = stm.MarkConsolidationFailure(item.messageIDs, storeErr.Error())
 				continue
 			}
-			recordConsolidationBatchEpisode(stm, item.messages, len(facts), i+offset+1, len(workItems))
-			allConsolidatedIDs = append(allConsolidatedIDs, item.messageIDs...)
+			if ok, storedCount := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, i+offset+1, len(workItems)); ok {
+				totalStored += storedCount
+				allConsolidatedIDs = append(allConsolidatedIDs, item.messageIDs...)
+			}
 		}
 		i = end
 	}

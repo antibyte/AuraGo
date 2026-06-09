@@ -667,18 +667,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					for i, pred := range predictions {
 						i, pred := i, pred
 						g.Go(func() error {
-							// Use SearchMemoriesOnly: predictive pre-fetch needs only user memories,
-							// not tool_guides/documentation — avoids 2 full extra search cycles per request.
-							pMem, pIDs, pErr := longTermMem.SearchMemoriesOnly(pred, 1)
+							ranked, pErr := searchRankedMemoriesOnly(longTermMem, shortTermMem, pred, 1, usedMemoryDocIDs, time.Now())
 							if pErr != nil {
 								fetches[i].err = pErr
 								return nil
 							}
-							if len(pMem) > 0 {
-								fetches[i].mem = pMem[0]
-								if len(pIDs) > 0 {
-									fetches[i].docID = pIDs[0]
-								}
+							if len(ranked) > 0 {
+								fetches[i].mem = ranked[0].text
+								fetches[i].docID = ranked[0].docID
 							}
 							return nil
 						})
@@ -804,7 +800,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if !runCfg.IsMission && !isAutonomousRun && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.RetrievalFusion &&
 			flags.RetrievedMemories != "" && flags.KnowledgeContext != "" &&
 			longTermMem != nil && kg != nil {
-			fusionResult := applyRetrievalFusion(topMemories, flags.KnowledgeContext, longTermMem, kg, s.currentLogger)
+			fusionResult := applyRetrievalFusion(topMemories, flags.KnowledgeContext, longTermMem, shortTermMem, kg, s.currentLogger)
 			if fusionResult.EnrichedMemories != "" {
 				flags.RetrievedMemories += "\n---\n" + fusionResult.EnrichedMemories
 			}
