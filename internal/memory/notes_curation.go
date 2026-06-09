@@ -115,6 +115,9 @@ func (s *SQLiteMemory) BuildNotesCurationPlan(opts NotesCurationOptions) (NotesC
 	if len(plan.AutoArchive) > maxActions {
 		plan.AutoArchive = plan.AutoArchive[:maxActions]
 	}
+	if len(plan.ReviewRequired) > maxActions {
+		plan.ReviewRequired = plan.ReviewRequired[:maxActions]
+	}
 	plan.AutoArchiveCount = len(plan.AutoArchive)
 	plan.ReviewRequiredCount = len(plan.ReviewRequired)
 	return plan, nil

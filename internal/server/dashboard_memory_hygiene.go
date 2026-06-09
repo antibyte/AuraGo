@@ -114,6 +114,10 @@ func handleDashboardMemoryHygieneApply(s *Server, w http.ResponseWriter, r *http
 	})
 	if err != nil {
 		s.Logger.Warn("Failed to consolidate journal duplicates during hygiene", "error", err)
+		plan.Journal = memory.JournalConsolidationReport{
+			GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+			DryRun:      false,
+		}
 	} else {
 		plan.Journal = journalReport
 	}
@@ -123,6 +127,10 @@ func handleDashboardMemoryHygieneApply(s *Server, w http.ResponseWriter, r *http
 	})
 	if err != nil {
 		s.Logger.Warn("Failed to repair canonical names during hygiene", "error", err)
+		plan.Canonical = memory.CanonicalRepairReport{
+			GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+			DryRun:      false,
+		}
 	} else {
 		plan.Canonical = canonicalReport
 	}

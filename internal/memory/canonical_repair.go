@@ -99,6 +99,8 @@ func (s *SQLiteMemory) RepairCanonicalMemoryNames(ltm VectorDB, opts CanonicalRe
 			continue
 		}
 		item.NewDocIDs = append([]string(nil), newIDs...)
+		upsertedIDs := make([]string, 0, len(newIDs))
+		var metaErr error
 		for _, newID := range newIDs {
 			if err := s.UpsertMemoryMetaWithDetails(newID, MemoryMetaUpdate{
 				ExtractionConfidence: meta.ExtractionConfidence,
@@ -106,9 +108,17 @@ func (s *SQLiteMemory) RepairCanonicalMemoryNames(ltm VectorDB, opts CanonicalRe
 				SourceType:           meta.SourceType,
 				SourceReliability:    meta.SourceReliability,
 			}); err != nil {
-				item.Error = err.Error()
-				continue
+				metaErr = err
+				break
 			}
+			upsertedIDs = append(upsertedIDs, newID)
+		}
+		if metaErr != nil {
+			item.Error = metaErr.Error()
+			rollbackCanonicalRepairArtifacts(s, ltm, newIDs, upsertedIDs, "canonical repair rollback after meta upsert failure", actor)
+			report.Items = append(report.Items, item)
+			report.SkippedCount++
+			continue
 		}
 		reason := "canonical name repair; replacement: " + strings.Join(newIDs, ",")
 		if err := s.ApplyMemoryCurationAction(MemoryCurationAction{
@@ -117,6 +127,7 @@ func (s *SQLiteMemory) RepairCanonicalMemoryNames(ltm VectorDB, opts CanonicalRe
 			Reason: reason,
 		}, actor, false); err != nil {
 			item.Error = err.Error()
+			rollbackCanonicalRepairArtifacts(s, ltm, newIDs, upsertedIDs, "canonical repair rollback after archive failure", actor)
 			report.Items = append(report.Items, item)
 			report.SkippedCount++
 			continue
@@ -128,4 +139,17 @@ func (s *SQLiteMemory) RepairCanonicalMemoryNames(ltm VectorDB, opts CanonicalRe
 		report.Items = append(report.Items, item)
 	}
 	return report, nil
+}
+
+func rollbackCanonicalRepairArtifacts(s *SQLiteMemory, ltm VectorDB, docIDs []string, metaDocIDs []string, reason string, actor string) {
+	for _, docID := range docIDs {
+		_ = ltm.DeleteDocument(docID)
+	}
+	for _, docID := range metaDocIDs {
+		_ = s.ApplyMemoryCurationAction(MemoryCurationAction{
+			DocID:  docID,
+			Action: MemoryCurationActionArchive,
+			Reason: reason,
+		}, actor, false)
+	}
 }

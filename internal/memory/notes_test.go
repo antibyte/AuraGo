@@ -151,6 +151,30 @@ func TestNotesCurationArchivesOnlySafeLowPriorityNotes(t *testing.T) {
 	}
 }
 
+func TestNotesCurationLimitsReviewRequiredNotes(t *testing.T) {
+	stm := newTestNotesDB(t)
+	now := time.Date(2026, 6, 9, 12, 0, 0, 0, time.UTC)
+	old := now.AddDate(0, 0, -120).Format(time.RFC3339)
+
+	for i := 0; i < 5; i++ {
+		id, err := stm.AddNote("ops", fmt.Sprintf("High priority stale %d", i), "", 3, "")
+		if err != nil {
+			t.Fatalf("AddNote high %d: %v", i, err)
+		}
+		if _, err := stm.db.Exec(`UPDATE notes SET updated_at = ?, created_at = ? WHERE id = ?`, old, old, id); err != nil {
+			t.Fatalf("backdate high note %d: %v", i, err)
+		}
+	}
+
+	plan, err := stm.BuildNotesCurationPlan(NotesCurationOptions{Now: now, MaxActions: 2})
+	if err != nil {
+		t.Fatalf("BuildNotesCurationPlan: %v", err)
+	}
+	if plan.ReviewRequiredCount != 2 || len(plan.ReviewRequired) != 2 {
+		t.Fatalf("review required = count %d len %d, want limit 2", plan.ReviewRequiredCount, len(plan.ReviewRequired))
+	}
+}
+
 func TestNormalizeCanonicalMemoryNamesUsesExactAliases(t *testing.T) {
 	got := NormalizeCanonicalMemoryNames("AuroraGo links to AuroraGopher and aurorago.")
 	want := "AuraGo links to AuroraGopher and aurorago."
@@ -209,11 +233,70 @@ func TestRepairCanonicalMemoryNamesRewritesTrackedMemoryMeta(t *testing.T) {
 	}
 }
 
+func TestRepairCanonicalMemoryNamesCleansNewVectorsWhenMetaUpsertFails(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	dbPath := fmt.Sprintf("%s%cstm.db", t.TempDir(), os.PathSeparator)
+	stm, err := NewSQLiteMemory(dbPath, logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	if err := stm.InitNotesTables(); err != nil {
+		t.Fatalf("InitNotesTables: %v", err)
+	}
+	if err := stm.UpsertMemoryMetaWithDetails("old-doc", MemoryMetaUpdate{
+		ExtractionConfidence: 0.88,
+		VerificationStatus:   "unverified",
+		SourceType:           "system",
+		SourceReliability:    0.77,
+	}); err != nil {
+		t.Fatalf("UpsertMemoryMetaWithDetails: %v", err)
+	}
+	fake := &fakeRepairVectorDB{docs: map[string]string{"old-doc": "Project AuroraGo deployment note"}}
+	fake.afterStore = func() {
+		_ = stm.Close()
+	}
+
+	report, err := stm.RepairCanonicalMemoryNames(fake, CanonicalRepairOptions{Limit: 10})
+	if err != nil {
+		t.Fatalf("RepairCanonicalMemoryNames: %v", err)
+	}
+	if report.RepairedCount != 0 || report.SkippedCount != 1 {
+		t.Fatalf("repair report = %+v, want skipped failed repair", report)
+	}
+	if len(fake.deleted) != 1 || fake.deleted[0] != "new-doc-1" {
+		t.Fatalf("deleted docs = %+v, want cleanup of new-doc-1 only", fake.deleted)
+	}
+	if _, ok := fake.docs["old-doc"]; !ok {
+		t.Fatal("old vector doc was deleted despite failed meta upsert")
+	}
+
+	reopened, err := NewSQLiteMemory(dbPath, logger)
+	if err != nil {
+		t.Fatalf("reopen stm: %v", err)
+	}
+	t.Cleanup(func() { _ = reopened.Close() })
+	metas, err := reopened.GetAllMemoryMeta(10, 0)
+	if err != nil {
+		t.Fatalf("GetAllMemoryMeta: %v", err)
+	}
+	statusByID := map[string]string{}
+	for _, meta := range metas {
+		statusByID[meta.DocID] = meta.VerificationStatus
+	}
+	if statusByID["old-doc"] == MemoryVerificationArchived {
+		t.Fatalf("old-doc status = %q, want original meta preserved", statusByID["old-doc"])
+	}
+	if _, ok := statusByID["new-doc-1"]; ok {
+		t.Fatal("new memory meta exists despite failed upsert")
+	}
+}
+
 type fakeRepairVectorDB struct {
-	docs    map[string]string
-	stored  []string
-	deleted []string
-	counter int
+	docs       map[string]string
+	stored     []string
+	deleted    []string
+	counter    int
+	afterStore func()
 }
 
 func (f *fakeRepairVectorDB) StoreDocument(concept, content string) ([]string, error) {
@@ -221,6 +304,9 @@ func (f *fakeRepairVectorDB) StoreDocument(concept, content string) ([]string, e
 	id := fmt.Sprintf("new-doc-%d", f.counter)
 	f.docs[id] = content
 	f.stored = append(f.stored, id)
+	if f.afterStore != nil {
+		f.afterStore()
+	}
 	return []string{id}, nil
 }
 

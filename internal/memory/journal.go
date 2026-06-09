@@ -564,15 +564,18 @@ func (s *SQLiteMemory) ConsolidateDuplicateAutoJournalErrors(opts JournalConsoli
 			LastSeen:     group.lastSeen,
 			Reason:       "exact duplicate autonomous error entry",
 		}
-		report.Items = append(report.Items, item)
-		report.Groups++
-		report.RemovedEntries += item.RemovedCount
 		if opts.DryRun {
+			report.Items = append(report.Items, item)
+			report.Groups++
+			report.RemovedEntries += item.RemovedCount
 			continue
 		}
 		if err := s.applyJournalConsolidationItem(item, actor); err != nil {
 			return report, err
 		}
+		report.Items = append(report.Items, item)
+		report.Groups++
+		report.RemovedEntries += item.RemovedCount
 	}
 	return report, nil
 }
