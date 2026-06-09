@@ -142,7 +142,8 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		}
 	}
 	if ptc.NativeCallID != "" {
-		s.req.Messages = append(s.req.Messages, NativeToolCallHistoryMessage(ptc, ptcJSON))
+		// Match batched native tool handling: the originating assistant message with
+		// all tool_calls is already in req.Messages from the first tool in the batch.
 		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{
 			Role:       openai.ChatMessageRoleTool,
 			Content:    pResultContent,
