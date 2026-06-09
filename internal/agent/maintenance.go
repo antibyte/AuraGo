@@ -798,6 +798,7 @@ func shouldMarkConsolidationSuccess(stored, skipped, factCount, validFacts int) 
 
 func storeConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, facts []helperConsolidationFact) (stored int, skipped int, err error) {
 	var failed []string
+	var storedDocIDs []string
 	for _, fact := range facts {
 		concept := strings.TrimSpace(fact.Concept)
 		content := strings.TrimSpace(fact.Content)
@@ -815,6 +816,7 @@ func storeConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm 
 			continue
 		}
 		for _, id := range ids {
+			storedDocIDs = append(storedDocIDs, id)
 			_ = stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
 				ExtractionConfidence: 0.82,
 				VerificationStatus:   "unverified",
@@ -826,9 +828,26 @@ func storeConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm 
 		stored++
 	}
 	if len(failed) > 0 {
-		return stored, skipped, fmt.Errorf("failed to store %d consolidation facts: %s", len(failed), strings.Join(failed, ", "))
+		rollbackStoredConsolidationFacts(logger, stm, ltm, storedDocIDs)
+		return 0, skipped, fmt.Errorf("failed to store %d consolidation facts: %s", len(failed), strings.Join(failed, ", "))
 	}
 	return stored, skipped, nil
+}
+
+func rollbackStoredConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, docIDs []string) {
+	if len(docIDs) == 0 {
+		return
+	}
+	for _, docID := range docIDs {
+		if ltm != nil {
+			if err := ltm.DeleteDocument(docID); err != nil {
+				logger.Warn("[Consolidation] Failed to rollback stored fact from LTM", "doc_id", docID, "error", err)
+			}
+		}
+		if stm != nil {
+			_ = stm.DeleteDocumentCleanup(docID)
+		}
+	}
 }
 
 func finalizeConsolidationBatch(

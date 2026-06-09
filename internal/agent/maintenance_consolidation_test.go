@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"io"
 	"log/slog"
 	"testing"
@@ -56,6 +57,57 @@ func (v *dedupConsolidationVectorDB) StoreCheatsheet(id, name, content string, a
 func (v *dedupConsolidationVectorDB) DeleteCheatsheet(id string) error         { return nil }
 func (v *dedupConsolidationVectorDB) RegisterCollections(collections []string) {}
 
+type partialFailConsolidationVectorDB struct {
+	attempts  int
+	stored    []string
+	rolledBack []string
+}
+
+func (v *partialFailConsolidationVectorDB) StoreDocument(concept, content string) ([]string, error) {
+	v.attempts++
+	if v.attempts >= 2 {
+		return nil, fmt.Errorf("simulated store failure for %s", concept)
+	}
+	v.stored = append(v.stored, concept)
+	return []string{concept}, nil
+}
+func (v *partialFailConsolidationVectorDB) StoreDocumentWithEmbedding(concept, content string, embedding []float32) (string, error) {
+	return concept, nil
+}
+func (v *partialFailConsolidationVectorDB) StoreBatch(items []memory.ArchiveItem) ([]string, error) { return nil, nil }
+func (v *partialFailConsolidationVectorDB) SearchSimilar(query string, topK int, excludeCollections ...string) ([]string, []string, error) {
+	return nil, nil, nil
+}
+func (v *partialFailConsolidationVectorDB) SearchMemoriesOnly(query string, topK int) ([]string, []string, error) {
+	return nil, nil, nil
+}
+func (v *partialFailConsolidationVectorDB) GetByID(id string) (string, error) { return "", nil }
+func (v *partialFailConsolidationVectorDB) GetByIDFromCollection(id, collection string) (string, error) {
+	return "", nil
+}
+func (v *partialFailConsolidationVectorDB) DeleteDocument(id string) error {
+	v.rolledBack = append(v.rolledBack, id)
+	return nil
+}
+func (v *partialFailConsolidationVectorDB) DeleteDocumentFromCollection(id, collection string) error {
+	return nil
+}
+func (v *partialFailConsolidationVectorDB) Count() int       { return 0 }
+func (v *partialFailConsolidationVectorDB) IsDisabled() bool { return false }
+func (v *partialFailConsolidationVectorDB) IsReady() bool    { return true }
+func (v *partialFailConsolidationVectorDB) Close() error     { return nil }
+func (v *partialFailConsolidationVectorDB) StoreDocumentInCollection(concept, content, collection string) ([]string, error) {
+	return nil, nil
+}
+func (v *partialFailConsolidationVectorDB) StoreDocumentWithEmbeddingInCollection(concept, content string, embedding []float32, collection string) (string, error) {
+	return "", nil
+}
+func (v *partialFailConsolidationVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error {
+	return nil
+}
+func (v *partialFailConsolidationVectorDB) DeleteCheatsheet(id string) error         { return nil }
+func (v *partialFailConsolidationVectorDB) RegisterCollections(collections []string) {}
+
 func TestShouldMarkConsolidationSuccess(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -81,6 +133,45 @@ func TestShouldMarkConsolidationSuccess(t *testing.T) {
 				t.Fatalf("reason = %q, want %q", reason, tc.wantReason)
 			}
 		})
+	}
+}
+
+func TestStoreConsolidationFactsRollsBackOnPartialFailure(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	vdb := &partialFailConsolidationVectorDB{}
+	facts := []helperConsolidationFact{
+		{Concept: "fact-one", Content: "First fact."},
+		{Concept: "fact-two", Content: "Second fact."},
+	}
+
+	stored, skipped, err := storeConsolidationFacts(logger, stm, vdb, facts)
+	if err == nil {
+		t.Fatal("expected partial store failure")
+	}
+	if stored != 0 {
+		t.Fatalf("stored = %d, want 0 after rollback", stored)
+	}
+	if skipped != 0 {
+		t.Fatalf("skipped = %d, want 0", skipped)
+	}
+	if len(vdb.rolledBack) != 1 || vdb.rolledBack[0] != "fact-one" {
+		t.Fatalf("rolledBack = %#v, want [fact-one]", vdb.rolledBack)
+	}
+
+	metas, err := stm.GetAllMemoryMeta(10, 0)
+	if err != nil {
+		t.Fatalf("GetAllMemoryMeta: %v", err)
+	}
+	for _, meta := range metas {
+		if meta.DocID == "fact-one" {
+			t.Fatalf("expected rolled-back memory_meta removed, still have %#v", meta)
+		}
 	}
 }
 

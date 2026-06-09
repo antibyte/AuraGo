@@ -108,18 +108,22 @@ func TestStoreConsolidationFactsReportsStoreFailures(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = stm.Close() })
 
-	stored, skipped, err := storeConsolidationFacts(logger, stm, &hierarchyVectorDB{}, []helperConsolidationFact{
+	vdb := &hierarchyVectorDB{}
+	stored, skipped, err := storeConsolidationFacts(logger, stm, vdb, []helperConsolidationFact{
 		{Concept: "ok:backup", Content: "The backup target is the NAS."},
 		{Concept: "fail:backup", Content: "This store should fail."},
 	})
 	if err == nil {
 		t.Fatal("expected store failure to be reported")
 	}
-	if stored != 1 {
-		t.Fatalf("stored = %d, want 1", stored)
+	if stored != 0 {
+		t.Fatalf("stored = %d, want 0 after rollback", stored)
 	}
 	if skipped != 0 {
 		t.Fatalf("skipped = %d, want 0", skipped)
+	}
+	if _, ok := vdb.stored["ok:backup"]; ok {
+		t.Fatal("expected partially stored fact to be rolled back from LTM")
 	}
 }
 

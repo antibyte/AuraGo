@@ -39,9 +39,15 @@ func AskAuraGoBridge(ctx context.Context, runCfg RunConfig, message string) (str
 	historyManager := memory.NewEphemeralHistoryManager()
 	runCfg.HistoryManager = historyManager
 
-	if recent, err := shortTermMem.GetRecentMessages(sessionID, 80); err == nil {
+	if recent, err := shortTermMem.GetSessionMessages(sessionID); err == nil {
+		if len(recent) > 80 {
+			recent = recent[len(recent)-80:]
+		}
 		for _, msg := range recent {
-			_ = historyManager.Add(msg.Role, msg.Content, 0, false, false)
+			if !ShouldAppendHistoryMessage(msg.ID, nil) {
+				continue
+			}
+			_ = historyManager.Add(msg.Role, msg.Content, msg.ID, msg.Pinned, msg.IsInternal)
 		}
 	}
 

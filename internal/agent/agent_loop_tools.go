@@ -51,7 +51,11 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		currentLogger.Error("Failed to persist queued tool-call message", "error", idErr)
 	}
 	if sessionID == "default" && ShouldAppendHistoryMessage(id, idErr) {
-		historyManager.Add(openai.ChatMessageRoleAssistant, ptcJSON, id, false, true)
+		if ptc.NativeCallID != "" {
+			historyManager.AddMessage(NativeToolCallHistoryMessage(ptc, ptcJSON), id, false, true)
+		} else {
+			historyManager.Add(openai.ChatMessageRoleAssistant, ptcJSON, id, false, true)
+		}
 	}
 	broker.Send("tool_call", ptcJSON)
 	broker.Send("tool_start", ptc.Action)
@@ -118,17 +122,38 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 			s.recentTools = s.recentTools[len(s.recentTools)-5:]
 		}
 	}
-	id, idErr = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, pResultContent, false, true)
+	toolResultRole := openai.ChatMessageRoleUser
+	if ptc.NativeCallID != "" {
+		toolResultRole = openai.ChatMessageRoleTool
+	}
+	id, idErr = shortTermMem.InsertMessage(sessionID, toolResultRole, pResultContent, false, true)
 	if idErr != nil {
 		currentLogger.Error("Failed to persist queued tool-result message", "error", idErr)
 	}
 	if sessionID == "default" && ShouldAppendHistoryMessage(id, idErr) {
-		historyManager.Add(openai.ChatMessageRoleUser, pResultContent, id, false, true)
+		if ptc.NativeCallID != "" {
+			historyManager.AddMessage(openai.ChatCompletionMessage{
+				Role:       openai.ChatMessageRoleTool,
+				Content:    pResultContent,
+				ToolCallID: ptc.NativeCallID,
+			}, id, false, true)
+		} else {
+			historyManager.Add(openai.ChatMessageRoleUser, pResultContent, id, false, true)
+		}
 	}
-	voiceModeActive := (s.runCfg.VoiceOutputActive || GetVoiceMode()) && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) && !s.runCfg.IsMission
-	followUpContent := toolResultFollowUpContent(ptc, pResultContent, voiceModeActive)
-	s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: ptcJSON})
-	s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: followUpContent})
+	if ptc.NativeCallID != "" {
+		s.req.Messages = append(s.req.Messages, NativeToolCallHistoryMessage(ptc, ptcJSON))
+		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{
+			Role:       openai.ChatMessageRoleTool,
+			Content:    pResultContent,
+			ToolCallID: ptc.NativeCallID,
+		})
+	} else {
+		voiceModeActive := (s.runCfg.VoiceOutputActive || GetVoiceMode()) && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) && !s.runCfg.IsMission
+		followUpContent := toolResultFollowUpContent(ptc, pResultContent, voiceModeActive)
+		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: ptcJSON})
+		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: followUpContent})
+	}
 	s.lastResponseWasTool = true
 	return true
 }
