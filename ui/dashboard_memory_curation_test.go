@@ -22,11 +22,18 @@ func TestDashboardMemoryCurationContract(t *testing.T) {
 	for _, marker := range []string{
 		"/api/dashboard/memory/curation/dry-run",
 		"/api/dashboard/memory/curation/apply",
+		"/api/dashboard/memory/hygiene/dry-run",
+		"/api/dashboard/memory/hygiene/apply",
 		"APPLY_MEMORY_CURATION",
+		"APPLY_MEMORY_HYGIENE",
 		"runMemoryCurationDryRun",
+		"runMemoryHygieneDryRun",
 		"applyMemoryCurationSafeActions",
+		"applyMemoryHygieneSafeActions",
 		"memory-curator-actionbar",
+		"memory-hygiene-panel",
 		"dashboard.memory_curator_archived",
+		"dashboard.memory_hygiene_title",
 	} {
 		if !strings.Contains(widgetsJS, marker) {
 			t.Fatalf("dashboard widgets JS missing memory curation marker %q", marker)

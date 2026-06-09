@@ -182,6 +182,9 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 			logger.Info("[Maintenance] Cleaned old done notes", "deleted", deleted)
 		}
 	}
+	if shortTermMem != nil {
+		runAutomaticMemoryHygiene(cfg, logger, shortTermMem, longTermMem)
+	}
 
 	// Knowledge Graph: Garbage collection
 	if kg != nil {
@@ -206,6 +209,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	}
 	if kg != nil && shortTermMem != nil {
 		SyncCoreMemoryToKnowledgeGraph(ctx, shortTermMem, kg, logger)
+		recordKnowledgeGraphSparseIssue(plannerDB, shortTermMem, kg, logger)
 	}
 
 	// Knowledge Graph: incremental file-based KG sync

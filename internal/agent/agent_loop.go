@@ -1840,7 +1840,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				go func() {
 					reflCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 					defer cancel()
-					_, err := generateMemoryReflection(reflCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, client, "recent")
+					_, err := generateMemoryReflection(reflCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, client, s.runCfg.PlannerDB, "recent")
 					if err != nil {
 						s.currentLogger.Warn("Weekly reflection failed", "error", err)
 					}

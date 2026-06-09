@@ -1246,6 +1246,13 @@
                     '<button type="button" class="mh-more-btn memory-curator-apply-btn" onclick="applyMemoryCurationSafeActions()">' + esc(t('dashboard.memory_curator_apply')) + '</button>' +
                     '<button type="button" class="mh-more-btn" onclick="runMemoryCurationDryRun(true)">' + esc(t('dashboard.memory_curator_show_archived')) + '</button>' +
                     '</div><div id="memory-curator-preview" class="memory-curator-preview"></div>' +
+                    '<div id="memory-hygiene-panel" class="memory-hygiene-panel">' +
+                    '<div class="memory-subsection-title">' + esc(t('dashboard.memory_hygiene_title')) + '</div>' +
+                    '<div class="memory-curator-actionbar">' +
+                    '<button type="button" class="mh-more-btn" onclick="runMemoryHygieneDryRun()">' + esc(t('dashboard.memory_hygiene_preview')) + '</button>' +
+                    '<button type="button" class="mh-more-btn memory-curator-apply-btn" onclick="applyMemoryHygieneSafeActions()">' + esc(t('dashboard.memory_hygiene_apply')) + '</button>' +
+                    '</div><div id="memory-hygiene-preview" class="memory-curator-preview"></div>' +
+                    '</div>' +
                     '<div class="memory-curator-grid">' +
                     '<div class="memory-curator-section"><div class="memory-curator-list">' + facts.map(item => `<div class="memory-curator-row">${esc(item)}</div>`).join('') + '</div></div>' +
                     '<div class="memory-curator-section"><div class="memory-curator-list">' +
@@ -2415,6 +2422,95 @@
                 if (typeof loadTabAgent === 'function') await loadTabAgent();
             } catch (e) {
                 if (typeof showToast === 'function') showToast(t('dashboard.memory_curator_error'), 'error', 5000);
+            }
+        }
+
+        function renderMemoryHygienePreview(plan) {
+            const el = document.getElementById('memory-hygiene-preview');
+            if (!el) return;
+            if (!plan) {
+                el.innerHTML = '';
+                return;
+            }
+            const totals = plan.totals || {};
+            const cards = [
+                { count: Number(totals.journal_removed || 0), label: t('dashboard.memory_hygiene_journal_removed') },
+                { count: Number(totals.notes_auto_archive || 0), label: t('dashboard.memory_hygiene_notes_archive') },
+                { count: Number(totals.canonical_repairs || 0), label: t('dashboard.memory_hygiene_canonical') },
+                { count: Number(totals.memory_auto_confirm || 0) + Number(totals.memory_auto_archive || 0), label: t('dashboard.memory_hygiene_vector') },
+                { count: Number(totals.notes_review || 0) + Number(totals.memory_review || 0), label: t('dashboard.memory_hygiene_review') },
+            ];
+            const samples = [];
+            const journalItems = plan.journal && Array.isArray(plan.journal.items) ? plan.journal.items : [];
+            journalItems.slice(0, 2).forEach(item => samples.push({
+                id: item.title || item.entry_type || '',
+                reason: item.reason || t('dashboard.memory_hygiene_journal_removed')
+            }));
+            const noteItems = plan.notes && Array.isArray(plan.notes.auto_archive) ? plan.notes.auto_archive : [];
+            noteItems.slice(0, 2).forEach(item => samples.push({
+                id: item.title || String(item.note_id || ''),
+                reason: item.reason || t('dashboard.memory_hygiene_notes_archive')
+            }));
+            const canonicalItems = plan.canonical && Array.isArray(plan.canonical.items) ? plan.canonical.items : [];
+            canonicalItems.slice(0, 2).forEach(item => samples.push({
+                id: item.old_doc_id || '',
+                reason: item.reason || t('dashboard.memory_hygiene_canonical')
+            }));
+            const renderCard = card => `
+                <div class="memory-curator-preview-card">
+                    <div class="memory-curator-preview-value">${esc(String(card.count))}</div>
+                    <div class="memory-curator-preview-label">${esc(card.label)}</div>
+                </div>`;
+            const sampleHtml = samples.length ? `
+                <div class="memory-curator-preview-samples">
+                    ${samples.map(item => `
+                        <div class="memory-curator-preview-row">
+                            <span class="mono">${esc(item.id)}</span>
+                            <span>${esc(item.reason)}</span>
+                        </div>`).join('')}
+                </div>` : `<div class="empty-state dash-empty-tight">${t('dashboard.memory_hygiene_empty')}</div>`;
+            el.innerHTML = `<div class="memory-curator-preview-grid">${cards.map(renderCard).join('')}</div>${sampleHtml}`;
+        }
+
+        async function runMemoryHygieneDryRun() {
+            try {
+                const resp = await fetch('/api/dashboard/memory/hygiene/dry-run', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ limit: 100 })
+                });
+                if (!resp.ok) throw new Error('memory hygiene dry-run failed');
+                const data = await resp.json();
+                renderMemoryHygienePreview(data.plan);
+                if (typeof showToast === 'function') showToast(t('dashboard.memory_hygiene_preview_ready'), 'success', 2500);
+            } catch (e) {
+                if (typeof showToast === 'function') showToast(t('dashboard.memory_hygiene_error'), 'error', 5000);
+            }
+        }
+
+        async function applyMemoryHygieneSafeActions() {
+            const confirmed = await showConfirm(
+                t('dashboard.memory_hygiene_apply_title'),
+                t('dashboard.memory_hygiene_apply_confirm')
+            );
+            if (!confirmed) return;
+            try {
+                const resp = await fetch('/api/dashboard/memory/hygiene/apply', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ limit: 100, confirm: 'APPLY_MEMORY_HYGIENE' })
+                });
+                if (!resp.ok) throw new Error('memory hygiene apply failed');
+                const data = await resp.json();
+                renderMemoryHygienePreview(data.plan);
+                const applied = data.applied || {};
+                const count = Number(applied.memory || 0) + Number(applied.journal || 0) + Number(applied.notes || 0) + Number(applied.canonical || 0);
+                if (typeof showToast === 'function') showToast(t('dashboard.memory_hygiene_applied', { count }), 'success', 3500);
+                if (typeof loadTabAgent === 'function') await loadTabAgent();
+            } catch (e) {
+                if (typeof showToast === 'function') showToast(t('dashboard.memory_hygiene_error'), 'error', 5000);
             }
         }
 

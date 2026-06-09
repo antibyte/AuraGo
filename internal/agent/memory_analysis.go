@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -979,6 +980,7 @@ func generateMemoryReflection(
 	kg *memory.KnowledgeGraph,
 	ltm memory.VectorDB,
 	mainClient llm.ChatClient,
+	plannerDB *sql.DB,
 	scope string,
 ) (interface{}, error) {
 	if cfg == nil {
@@ -1042,12 +1044,14 @@ func generateMemoryReflection(
 	}
 
 	var curatorPayload interface{}
+	var curatorDryRun memory.MemoryCuratorDryRun
 	if stm != nil {
 		usageStats, usageErr := stm.GetMemoryUsageStats(14, 5)
 		if usageErr == nil {
 			metas, metaErr := stm.GetAllMemoryMeta(50000, 0)
 			if metaErr == nil {
 				report := memory.BuildMemoryHealthReport(metas, usageStats)
+				curatorDryRun = report.Curator
 				if b, err := json.Marshal(report.Curator); err == nil {
 					curatorData = string(b)
 					curatorPayload = report.Curator
@@ -1120,6 +1124,9 @@ func generateMemoryReflection(
 
 	var result map[string]interface{}
 	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		if curatorPayload != nil {
+			recordMemoryReflectionReviewIssue(plannerDB, scopeKey, curatorDryRun, logger)
+		}
 		// If JSON parse fails, return as plain text
 		return map[string]interface{}{
 			"summary":         raw,
@@ -1127,6 +1134,9 @@ func generateMemoryReflection(
 		}, nil
 	}
 	result["curator_dry_run"] = curatorPayload
+	if curatorPayload != nil {
+		recordMemoryReflectionReviewIssue(plannerDB, scopeKey, curatorDryRun, logger)
+	}
 
 	// Store reflection as a journal entry for future reference
 	// Map internal scope names to human-readable labels

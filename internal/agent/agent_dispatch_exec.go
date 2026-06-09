@@ -288,7 +288,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				scope = "recent"
 			}
 			logger.Info("LLM requested memory reflection", "scope", scope)
-			result, err := generateMemoryReflection(ctx, cfg, logger, shortTermMem, kg, longTermMem, llmClient, scope)
+			result, err := generateMemoryReflection(ctx, cfg, logger, shortTermMem, kg, longTermMem, llmClient, plannerDB, scope)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Reflection failed: %v"}`, err)
 			}

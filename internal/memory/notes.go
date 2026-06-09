@@ -10,15 +10,26 @@ import (
 
 // Note represents a single note or to-do item.
 type Note struct {
-	ID        int64  `json:"id"`
-	Category  string `json:"category"`
-	Title     string `json:"title"`
-	Content   string `json:"content"`
-	Priority  int    `json:"priority"` // 1=low, 2=medium, 3=high
-	Done      bool   `json:"done"`
-	DueDate   string `json:"due_date,omitempty"` // RFC3339 or YYYY-MM-DD
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	ID             int64  `json:"id"`
+	Category       string `json:"category"`
+	Title          string `json:"title"`
+	Content        string `json:"content"`
+	Priority       int    `json:"priority"` // 1=low, 2=medium, 3=high
+	Done           bool   `json:"done"`
+	DueDate        string `json:"due_date,omitempty"` // RFC3339 or YYYY-MM-DD
+	Archived       bool   `json:"archived"`
+	ArchivedAt     string `json:"archived_at,omitempty"`
+	ArchivedReason string `json:"archived_reason,omitempty"`
+	LastReviewedAt string `json:"last_reviewed_at,omitempty"`
+	CreatedAt      string `json:"created_at"`
+	UpdatedAt      string `json:"updated_at"`
+}
+
+// NotesListOptions controls note listing without changing the legacy ListNotes signature.
+type NotesListOptions struct {
+	Category        string
+	DoneFilter      int // -1=all, 0=open, 1=done
+	IncludeArchived bool
 }
 
 // InitNotesTables creates the notes table if it does not exist.
@@ -32,12 +43,32 @@ func (s *SQLiteMemory) InitNotesTables() error {
 		priority INTEGER DEFAULT 2,
 		done BOOLEAN DEFAULT 0,
 		due_date TEXT DEFAULT '',
+		archived BOOLEAN DEFAULT 0,
+		archived_at DATETIME DEFAULT '',
+		archived_reason TEXT DEFAULT '',
+		last_reviewed_at DATETIME DEFAULT '',
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);`
 
 	if _, err := s.db.Exec(schema); err != nil {
 		return fmt.Errorf("notes schema: %w", err)
+	}
+	for _, column := range []struct {
+		Name    string
+		TypeDef string
+	}{
+		{Name: "archived", TypeDef: "BOOLEAN DEFAULT 0"},
+		{Name: "archived_at", TypeDef: "DATETIME DEFAULT ''"},
+		{Name: "archived_reason", TypeDef: "TEXT DEFAULT ''"},
+		{Name: "last_reviewed_at", TypeDef: "DATETIME DEFAULT ''"},
+	} {
+		if err := migrateAddColumn(s.db, s.logger, "notes", column.Name, column.TypeDef); err != nil {
+			return fmt.Errorf("notes migration %s: %w", column.Name, err)
+		}
+	}
+	if _, err := s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_notes_archived ON notes(archived, done, priority, updated_at)`); err != nil {
+		return fmt.Errorf("notes archived index: %w", err)
 	}
 	return nil
 }
@@ -79,24 +110,36 @@ func (s *SQLiteMemory) AddNote(category, title, content string, priority int, du
 // ListNotes returns notes filtered by optional category and/or done status.
 // If category is empty, all categories are returned. doneFilter: -1=all, 0=open, 1=done.
 func (s *SQLiteMemory) ListNotes(category string, doneFilter int) ([]Note, error) {
+	return s.ListNotesWithOptions(NotesListOptions{
+		Category:   category,
+		DoneFilter: doneFilter,
+	})
+}
+
+// ListNotesWithOptions returns notes with explicit archive handling.
+func (s *SQLiteMemory) ListNotesWithOptions(opts NotesListOptions) ([]Note, error) {
 	var conditions []string
 	var args []interface{}
 
+	category := strings.TrimSpace(opts.Category)
 	if category != "" {
 		conditions = append(conditions, "category = ?")
 		args = append(args, category)
 	}
-	if doneFilter == 0 {
+	if opts.DoneFilter == 0 {
 		conditions = append(conditions, "done = 0")
-	} else if doneFilter == 1 {
+	} else if opts.DoneFilter == 1 {
 		conditions = append(conditions, "done = 1")
 	}
+	if !opts.IncludeArchived {
+		conditions = append(conditions, "archived = 0")
+	}
 
-	query := "SELECT id, category, title, content, priority, done, due_date, created_at, updated_at FROM notes"
+	query := "SELECT id, category, title, content, priority, done, due_date, archived, COALESCE(archived_at, ''), COALESCE(archived_reason, ''), COALESCE(last_reviewed_at, ''), created_at, updated_at FROM notes"
 	if len(conditions) > 0 {
 		query += " WHERE " + strings.Join(conditions, " AND ")
 	}
-	query += " ORDER BY priority DESC, created_at DESC"
+	query += " ORDER BY archived ASC, priority DESC, created_at DESC"
 
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
@@ -107,7 +150,7 @@ func (s *SQLiteMemory) ListNotes(category string, doneFilter int) ([]Note, error
 	var notes []Note
 	for rows.Next() {
 		var n Note
-		if err := rows.Scan(&n.ID, &n.Category, &n.Title, &n.Content, &n.Priority, &n.Done, &n.DueDate, &n.CreatedAt, &n.UpdatedAt); err != nil {
+		if err := rows.Scan(&n.ID, &n.Category, &n.Title, &n.Content, &n.Priority, &n.Done, &n.DueDate, &n.Archived, &n.ArchivedAt, &n.ArchivedReason, &n.LastReviewedAt, &n.CreatedAt, &n.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan note: %w", err)
 		}
 		notes = append(notes, n)
@@ -129,9 +172,9 @@ func (s *SQLiteMemory) SearchNotes(query string, limit int) ([]Note, error) {
 
 	pattern := "%" + escapeLike(query) + "%"
 	rows, err := s.db.Query(
-		`SELECT id, category, title, content, priority, done, due_date, created_at, updated_at
+		`SELECT id, category, title, content, priority, done, due_date, archived, COALESCE(archived_at, ''), COALESCE(archived_reason, ''), COALESCE(last_reviewed_at, ''), created_at, updated_at
 		 FROM notes
-		 WHERE title LIKE ? ESCAPE '\' OR content LIKE ? ESCAPE '\'
+		 WHERE archived = 0 AND (title LIKE ? ESCAPE '\' OR content LIKE ? ESCAPE '\')
 		 ORDER BY priority DESC, created_at DESC
 		 LIMIT ?`,
 		pattern, pattern, limit,
@@ -144,7 +187,7 @@ func (s *SQLiteMemory) SearchNotes(query string, limit int) ([]Note, error) {
 	var notes []Note
 	for rows.Next() {
 		var n Note
-		if err := rows.Scan(&n.ID, &n.Category, &n.Title, &n.Content, &n.Priority, &n.Done, &n.DueDate, &n.CreatedAt, &n.UpdatedAt); err != nil {
+		if err := rows.Scan(&n.ID, &n.Category, &n.Title, &n.Content, &n.Priority, &n.Done, &n.DueDate, &n.Archived, &n.ArchivedAt, &n.ArchivedReason, &n.LastReviewedAt, &n.CreatedAt, &n.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan note: %w", err)
 		}
 		notes = append(notes, n)
@@ -244,8 +287,8 @@ func (s *SQLiteMemory) GetHighPriorityOpenNotes(limit int) ([]Note, error) {
 		limit = 5
 	}
 	rows, err := s.db.Query(
-		`SELECT id, category, title, content, priority, done, due_date, created_at, updated_at
-		 FROM notes WHERE done = 0 AND priority = 3
+		`SELECT id, category, title, content, priority, done, due_date, archived, COALESCE(archived_at, ''), COALESCE(archived_reason, ''), COALESCE(last_reviewed_at, ''), created_at, updated_at
+		 FROM notes WHERE done = 0 AND priority = 3 AND archived = 0
 		 ORDER BY CASE WHEN due_date != '' THEN 0 ELSE 1 END, due_date ASC, created_at DESC
 		 LIMIT ?`, limit)
 	if err != nil {
@@ -256,7 +299,7 @@ func (s *SQLiteMemory) GetHighPriorityOpenNotes(limit int) ([]Note, error) {
 	var notes []Note
 	for rows.Next() {
 		var n Note
-		if err := rows.Scan(&n.ID, &n.Category, &n.Title, &n.Content, &n.Priority, &n.Done, &n.DueDate, &n.CreatedAt, &n.UpdatedAt); err != nil {
+		if err := rows.Scan(&n.ID, &n.Category, &n.Title, &n.Content, &n.Priority, &n.Done, &n.DueDate, &n.Archived, &n.ArchivedAt, &n.ArchivedReason, &n.LastReviewedAt, &n.CreatedAt, &n.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan note: %w", err)
 		}
 		notes = append(notes, n)
@@ -275,6 +318,48 @@ func (s *SQLiteMemory) DeleteOldDoneNotes(daysOld int) (int64, error) {
 	return res.RowsAffected()
 }
 
+// ArchiveNote hides a note from normal lists without deleting its history.
+func (s *SQLiteMemory) ArchiveNote(id int64, reason string) error {
+	reason = strings.TrimSpace(reason)
+	if len(reason) > 500 {
+		reason = reason[:500]
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	res, err := s.db.Exec(
+		`UPDATE notes
+		 SET archived = 1, archived_at = ?, archived_reason = ?, last_reviewed_at = ?, updated_at = ?
+		 WHERE id = ?`,
+		now, reason, now, now, id,
+	)
+	if err != nil {
+		return fmt.Errorf("archive note: %w", err)
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("note with id %d not found", id)
+	}
+	return nil
+}
+
+// RestoreNote makes an archived note visible again.
+func (s *SQLiteMemory) RestoreNote(id int64) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	res, err := s.db.Exec(
+		`UPDATE notes
+		 SET archived = 0, archived_at = '', archived_reason = '', last_reviewed_at = ?, updated_at = ?
+		 WHERE id = ?`,
+		now, now, id,
+	)
+	if err != nil {
+		return fmt.Errorf("restore note: %w", err)
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("note with id %d not found", id)
+	}
+	return nil
+}
+
 // FormatNotesJSON returns the notes list as a JSON string for tool output.
 func FormatNotesJSON(notes []Note) string {
 	if notes == nil {
@@ -287,7 +372,7 @@ func FormatNotesJSON(notes []Note) string {
 // GetNotesCount returns the total number of notes.
 func (s *SQLiteMemory) GetNotesCount() (int, error) {
 	var count int
-	err := s.db.QueryRow(`SELECT COUNT(*) FROM notes`).Scan(&count)
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM notes WHERE archived = 0`).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("notes count: %w", err)
 	}
