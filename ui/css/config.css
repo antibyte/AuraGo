@@ -14,9 +14,9 @@
 .cfg-status-banner   { padding:0.7rem 1rem; border-radius:10px; margin-bottom:1rem; font-size:0.82rem; }
 .section-divider     { border:none; border-top:1px solid var(--border-subtle); margin:1.5rem 0; }
 .section-sub-header  { font-size:0.95rem; font-weight:600; color:var(--accent); margin-top:1.2rem; margin-bottom:0.8rem; padding-bottom:0.4rem; border-bottom:1px solid var(--border-subtle); }
-.cfg-status-success  { background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.25); color:var(--success); }
-.cfg-status-error    { background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); color:var(--danger); }
-.cfg-status-warning  { background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); color:var(--warning); }
+.cfg-status-success  { background:color-mix(in srgb, #22c55e 8%, transparent); border:1px solid color-mix(in srgb, #22c55e 25%, transparent); color:var(--success); }
+.cfg-status-error    { background:color-mix(in srgb, #ef4444 8%, transparent); border:1px solid color-mix(in srgb, #ef4444 25%, transparent); color:var(--danger); }
+.cfg-status-warning  { background:color-mix(in srgb, var(--warning) 8%, transparent); border:1px solid color-mix(in srgb, var(--warning) 25%, transparent); color:var(--warning); }
 .cfg-password-row    { display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; }
 .cfg-password-input  { flex:1; min-width:0; }
 .cfg-status-text     { margin-top:0.4rem; font-size:0.78rem; }
@@ -24,9 +24,9 @@
 /* Homepage */
 .hp-grid-2col { display:grid; grid-template-columns:1fr 1fr; gap:0.8rem 1.2rem; }
 .hp-lock-icon { font-size:0.65rem; color:var(--warning); }
-.hp-notice-danger { border-color:var(--danger) !important; background:rgba(239,68,68,0.08) !important; }
-.hp-notice-warning { border-color:var(--warning) !important; background:rgba(245,158,11,0.08) !important; }
-.hp-notice-success { border-color:var(--success) !important; background:rgba(34,197,94,0.08) !important; }
+.hp-notice-danger { border-color:var(--danger) !important; background:color-mix(in srgb, #ef4444 8%, transparent) !important; }
+.hp-notice-warning { border-color:var(--warning) !important; background:color-mix(in srgb, var(--warning) 8%, transparent) !important; }
+.hp-notice-success { border-color:var(--success) !important; background:color-mix(in srgb, #22c55e 8%, transparent) !important; }
 .hp-disabled { opacity:0.5; pointer-events:none; }
 .hp-pw-wrap-mt { margin-top:0.2rem; }
 .hp-w-full { width:100%; }
@@ -39,7 +39,7 @@
 .hp-flex-row { display:flex; gap:0.5rem; align-items:center; margin-top:0.2rem; }
 .hp-input-flex { flex:1; }
 .hp-btn-nowrap { white-space:nowrap; flex-shrink:0; }
-.hp-warning-box { background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-radius:12px; padding:0.7rem 0.9rem; margin-bottom:0.8rem; display:flex; align-items:flex-start; gap:0.6rem; overflow:hidden; }
+.hp-warning-box { background:color-mix(in srgb, var(--warning) 8%, transparent); border:1px solid color-mix(in srgb, var(--warning) 25%, transparent); border-radius:12px; padding:0.7rem 0.9rem; margin-bottom:0.8rem; display:flex; align-items:flex-start; gap:0.6rem; overflow:hidden; }
 .hp-warning-icon { font-size:1.1rem; flex-shrink:0; }
 .hp-warning-text { font-size:0.82rem; color:var(--text-primary); line-height:1.5; overflow-wrap:anywhere; min-width:0; }
 .hp-help-mb-sm { margin-bottom:0.55rem; }
@@ -106,9 +106,9 @@
 .gh-repo-item { display:flex; align-items:flex-start; gap:0.75rem; padding:0.65rem 1rem; border-bottom:1px solid var(--border-subtle); cursor:pointer; transition:background 0.15s; }
 .gh-repo-item:hover { background:var(--bg-tertiary); }
 .gh-badge { font-size:0.68rem; padding:0.1rem 0.4rem; border-radius:4px; }
-.gh-badge-private { background:rgba(239,68,68,0.15); color:#f87171; }
-.gh-badge-public { background:rgba(34,197,94,0.12); color:var(--success); }
-.gh-badge-agent { background:rgba(139,92,246,0.15); color:#a78bfa; }
+.gh-badge-private { background:color-mix(in srgb, #ef4444 15%, transparent); color:#f87171; }
+.gh-badge-public { background:color-mix(in srgb, #22c55e 12%, transparent); color:var(--success); }
+.gh-badge-agent { background:color-mix(in srgb, #8b5cf6 15%, transparent); color:#a78bfa; }
 .gh-badge-stars { font-size:0.75rem; color:var(--text-tertiary); }
 .gh-repo-name { font-size:0.84rem; font-weight:500; font-family:monospace; }
 .gh-repo-info { flex:1; min-width:0; }
@@ -131,9 +131,9 @@
 .cfg-section-desc { font-size:0.82rem; color:var(--text-secondary); line-height:1.6; margin-bottom:1rem; }
 
 /* Netlify */
-.nf-status-ok { border-color:var(--success) !important; background:rgba(34,197,94,0.08) !important; }
-.nf-status-warn { border-color:var(--warning) !important; background:rgba(245,158,11,0.08) !important; }
-.nf-status-error { border-color:var(--danger) !important; background:rgba(239,68,68,0.08) !important; }
+.nf-status-ok { border-color:var(--success) !important; background:color-mix(in srgb, #22c55e 8%, transparent) !important; }
+.nf-status-warn { border-color:var(--warning) !important; background:color-mix(in srgb, var(--warning) 8%, transparent) !important; }
+.nf-status-error { border-color:var(--danger) !important; background:color-mix(in srgb, #ef4444 8%, transparent) !important; }
 .nf-grid-2col { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0.6rem 1.2rem; }
 .nf-grid-2col > .cfg-toggle-row-compact { min-width: 0; }
 .nf-grid-2col-wide { display:grid; grid-template-columns:1fr 1fr; gap:0.8rem 1.2rem; }
@@ -204,7 +204,7 @@
 .a2a-add-btn-lg { padding:0.45rem 1rem; font-size:0.82rem; margin-top:0.5rem; }
 .a2a-status-text { font-size:0.78rem; margin-top:0.3rem; display:block; }
 .a2a-status-xs { font-size:0.75rem; }
-.a2a-warning-notice { border-color:var(--warning); background:rgba(234,179,8,0.06); }
+.a2a-warning-notice { border-color:var(--warning); background:color-mix(in srgb, #eab308 6%, transparent); }
 .a2a-input-xs { width:100px; }
 .a2a-input-sm { width:120px; }
 .a2a-input-md { width:200px; }
@@ -257,7 +257,7 @@ body {
     overflow-y: auto;
     padding: 1rem 0;
     flex-shrink: 0;
-    box-shadow: 14px 0 36px rgba(15, 23, 42, 0.05);
+    box-shadow: 14px 0 36px color-mix(in srgb, #0f172a 5%, transparent);
 }
 
 .cfg-sidebar-search {
@@ -286,7 +286,7 @@ body {
     padding: 0.55rem 2.25rem 0.55rem 2rem;
     border: 1px solid var(--border-subtle);
     border-radius: 999px;
-    background: rgba(15, 23, 42, 0.28);
+    background: color-mix(in srgb, #0f172a 28%, transparent);
     color: var(--text-primary);
     font-size: 0.82rem;
     outline: none;
@@ -300,8 +300,8 @@ body {
 
 .cfg-sidebar-search-input:focus {
     border-color: var(--accent);
-    background: rgba(15, 23, 42, 0.42);
-    box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.12);
+    background: color-mix(in srgb, #0f172a 42%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, #2dd4bf 12%, transparent);
 }
 
 .cfg-sidebar-search-clear {
@@ -313,7 +313,7 @@ body {
     justify-content: center;
     border: 0;
     border-radius: 999px;
-    background: rgba(148, 163, 184, 0.16);
+    background: color-mix(in srgb, #94a3b8 16%, transparent);
     color: var(--text-secondary);
     cursor: pointer;
     font-size: 0.76rem;
@@ -339,7 +339,7 @@ body {
 .cfg-search-match {
     padding: 0 0.08em;
     border-radius: 4px;
-    background: rgba(45, 212, 191, 0.22);
+    background: color-mix(in srgb, #2dd4bf 22%, transparent);
     color: var(--accent);
 }
 
@@ -405,9 +405,9 @@ body {
 }
 
 .sidebar-item.search-focused {
-    background: rgba(45, 212, 191, 0.16);
+    background: color-mix(in srgb, #2dd4bf 16%, transparent);
     color: var(--text-primary);
-    outline: 1px solid rgba(45, 212, 191, 0.32);
+    outline: 1px solid color-mix(in srgb, #2dd4bf 32%, transparent);
     outline-offset: -1px;
 }
 
@@ -538,14 +538,14 @@ body {
 .field-input:hover,
 .field-select:hover,
 .cfg-input:hover {
-    border-color: rgba(45, 212, 191, 0.4);
+    border-color: color-mix(in srgb, #2dd4bf 40%, transparent);
 }
 
 .field-input:focus,
 .field-select:focus,
 .cfg-input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.15), 0 0 20px rgba(45, 212, 191, 0.1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, #2dd4bf 15%, transparent), 0 0 20px color-mix(in srgb, #2dd4bf 10%, transparent);
     background: var(--bg-secondary);
 }
 
@@ -737,7 +737,7 @@ select.cfg-input option {
     border-radius: 10px;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 12px rgba(45, 212, 191, 0.25);
+    box-shadow: 0 2px 12px color-mix(in srgb, #2dd4bf 25%, transparent);
     white-space: nowrap;
     text-align: center;
 }
@@ -786,13 +786,15 @@ select.cfg-input option {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: var(--bg-primary);
+    background: var(--card-bg);
     border: 1px solid var(--border-subtle);
     border-radius: 14px;
     padding: 1.5rem;
     width: min(560px, 90vw);
     max-height: 85vh;
     overflow-y: auto;
+    backdrop-filter: blur(18px) saturate(130%);
+    box-shadow: var(--surface-shadow-strong), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent), inset 0 1px 0 var(--surface-highlight);
 }
 
 .sqlconn-modal-header {
@@ -872,7 +874,7 @@ select.cfg-input option {
 
 .btn-save:hover {
     filter: brightness(1.12);
-    box-shadow: 0 4px 18px rgba(45, 212, 191, 0.35);
+    box-shadow: 0 4px 18px color-mix(in srgb, #2dd4bf 35%, transparent);
     transform: translateY(-1px);
 }
 
@@ -895,10 +897,10 @@ select.cfg-input option {
     border-radius: 999px;
     background: var(--accent-dim);
     color: var(--accent);
-    border: 1px solid rgba(45, 212, 191, 0.4);
+    border: 1px solid color-mix(in srgb, #2dd4bf 40%, transparent);
     display: none;
     backdrop-filter: blur(4px);
-    box-shadow: 0 0 15px rgba(45, 212, 191, 0.15);
+    box-shadow: 0 0 15px color-mix(in srgb, #2dd4bf 15%, transparent);
     animation: pulse-glow 2s ease-in-out infinite;
 }
 
@@ -913,7 +915,7 @@ select.cfg-input option {
     position: fixed;
     inset: 0;
     inset-top: env(safe-area-inset-top, 0px);
-    background: rgba(0, 0, 0, 0.5);
+    background: color-mix(in srgb, #000000 50%, transparent);
     z-index: 19;
     animation: fadeIn 0.2s ease;
 }
@@ -1087,7 +1089,7 @@ select.cfg-input option {
 
 .cfg-restart-danger {
     color: var(--danger);
-    border-color: rgba(239, 68, 68, 0.3);
+    border-color: color-mix(in srgb, #ef4444 30%, transparent);
 }
 
 .cfg-loading-state {
@@ -1181,8 +1183,8 @@ select.cfg-input option {
     display: flex;
     gap: 0.75rem;
     align-items: flex-start;
-    background: rgba(var(--accent-rgb, 45, 212, 191), 0.08);
-    border: 1px solid rgba(var(--accent-rgb, 45, 212, 191), 0.2);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
     border-radius: 12px;
     padding: 1rem;
     margin-top: 0.5rem;
@@ -1196,8 +1198,8 @@ select.cfg-input option {
     display: flex;
     gap: 0.85rem;
     align-items: flex-start;
-    background: rgba(var(--accent-rgb, 45, 212, 191), 0.08);
-    border: 1px solid rgba(var(--accent-rgb, 45, 212, 191), 0.2);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
     border-radius: 12px;
     padding: 0.9rem 1rem;
     margin-bottom: 1.5rem;
@@ -1266,7 +1268,7 @@ select.cfg-input option {
     border-radius: 50%;
     background: var(--accent);
     cursor: pointer;
-    box-shadow: 0 0 6px rgba(var(--accent-rgb, 45, 212, 191), 0.4);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 .ma-threshold-value {
     font-size: 0.82rem;
@@ -1308,7 +1310,7 @@ select.cfg-input option {
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, #ffffff 10%, transparent), transparent);
     transition: left 0.5s;
 }
 
@@ -1325,7 +1327,7 @@ select.cfg-input option {
     color: white;
     border-bottom-color: var(--accent);
     background: linear-gradient(135deg, var(--accent), var(--accent-secondary, #0d9488));
-    box-shadow: 0 4px 15px rgba(45, 212, 191, 0.3);
+    box-shadow: 0 4px 15px color-mix(in srgb, #2dd4bf 30%, transparent);
 }
 
 .wh-panel {
@@ -1365,7 +1367,7 @@ select.cfg-input option {
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at 50% 50%, rgba(45, 212, 191, 0.05), transparent 70%);
+    background: radial-gradient(circle at 50% 50%, color-mix(in srgb, #2dd4bf 5%, transparent), transparent 70%);
     pointer-events: none;
 }
 
@@ -1395,7 +1397,7 @@ select.cfg-input option {
     height: 1px;
     background: linear-gradient(90deg,
             transparent,
-            rgba(45, 212, 191, 0.3),
+            color-mix(in srgb, #2dd4bf 30%, transparent),
             transparent);
     opacity: 0;
     transition: opacity 0.3s;
@@ -1405,7 +1407,7 @@ select.cfg-input option {
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at 50% 0%, rgba(45, 212, 191, 0.08), transparent 70%);
+    background: radial-gradient(circle at 50% 0%, color-mix(in srgb, #2dd4bf 8%, transparent), transparent 70%);
     opacity: 0;
     transition: opacity 0.3s;
     pointer-events: none;
@@ -1414,9 +1416,9 @@ select.cfg-input option {
 .wh-card:hover {
     border-color: var(--accent);
     box-shadow:
-        0 20px 40px rgba(0, 0, 0, 0.3),
-        0 0 0 1px rgba(45, 212, 191, 0.2),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        0 20px 40px color-mix(in srgb, #000000 30%, transparent),
+        0 0 0 1px color-mix(in srgb, #2dd4bf 20%, transparent),
+        inset 0 1px 0 color-mix(in srgb, #ffffff 5%, transparent);
     transform: translateY(-4px);
 }
 
@@ -1508,18 +1510,18 @@ select.cfg-input option {
 .wh-status-dot.active {
     background: var(--success);
     animation: pulse-glow-success 2s ease-in-out infinite;
-    box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
+    box-shadow: 0 0 10px color-mix(in srgb, #22c55e 40%, transparent);
 }
 
 @keyframes pulse-glow-success {
 
     0%,
     100% {
-        box-shadow: 0 0 5px rgba(34, 197, 94, 0.4);
+        box-shadow: 0 0 5px color-mix(in srgb, #22c55e 40%, transparent);
     }
 
     50% {
-        box-shadow: 0 0 15px rgba(34, 197, 94, 0.7);
+        box-shadow: 0 0 15px color-mix(in srgb, #22c55e 70%, transparent);
     }
 }
 
@@ -1571,7 +1573,7 @@ select.cfg-input option {
 }
 
 .wh-btn-danger:hover {
-    background: rgba(239, 68, 68, 0.15);
+    background: color-mix(in srgb, #ef4444 15%, transparent);
 }
 
 .wh-token-prefix {
@@ -1587,8 +1589,8 @@ select.cfg-input option {
 }
 
 .wh-token-alert {
-    background: rgba(245, 158, 11, 0.1);
-    border: 1px solid rgba(245, 158, 11, 0.3);
+    background: color-mix(in srgb, var(--warning) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
     border-radius: 10px;
     padding: 0.85rem 1rem;
 }
@@ -1634,9 +1636,9 @@ select.cfg-input option {
     margin-top: 1.5rem;
     overflow: hidden;
     box-shadow:
-        0 20px 60px rgba(0, 0, 0, 0.4),
-        0 0 0 1px rgba(45, 212, 191, 0.15),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        0 20px 60px color-mix(in srgb, #000000 40%, transparent),
+        0 0 0 1px color-mix(in srgb, #2dd4bf 15%, transparent),
+        inset 0 1px 0 color-mix(in srgb, #ffffff 5%, transparent);
     position: relative;
 }
 
@@ -1647,7 +1649,7 @@ select.cfg-input option {
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(45, 212, 191, 0.3), transparent);
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, #2dd4bf 30%, transparent), transparent);
     z-index: 1;
 }
 
@@ -1744,19 +1746,23 @@ select.cfg-input option {
 .wh-badge {
     display: inline-block;
     padding: 0.1rem 0.4rem;
-    border-radius: 4px;
+    border-radius: 6px;
     font-weight: 600;
     font-size: var(--text-xs);
+    backdrop-filter: blur(4px);
+    border: 1px solid transparent;
 }
 
 .wh-badge.success {
-    background: rgba(34, 197, 94, 0.15);
+    background: color-mix(in srgb, var(--success) 10%, transparent);
     color: var(--success);
+    border-color: color-mix(in srgb, var(--success) 20%, transparent);
 }
 
 .wh-badge.error {
-    background: rgba(239, 68, 68, 0.15);
+    background: color-mix(in srgb, var(--error) 10%, transparent);
     color: var(--danger);
+    border-color: color-mix(in srgb, var(--error) 20%, transparent);
 }
 
 /* Toast styles are in shared.css */
@@ -1799,7 +1805,7 @@ select.cfg-input option {
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, #ffffff 10%, transparent), transparent);
     transition: left 0.5s;
 }
 
@@ -1811,7 +1817,7 @@ select.cfg-input option {
     border-color: var(--accent);
     color: var(--accent);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px color-mix(in srgb, #000000 15%, transparent);
 }
 
 .pers-chip.pers-chip-active {
@@ -1819,7 +1825,7 @@ select.cfg-input option {
     border-color: var(--accent);
     color: var(--accent);
     font-weight: 600;
-    box-shadow: 0 0 15px rgba(45, 212, 191, 0.3);
+    box-shadow: 0 0 15px color-mix(in srgb, #2dd4bf 30%, transparent);
     animation: pulse-glow-subtle 2s ease-in-out infinite;
 }
 
@@ -1961,7 +1967,7 @@ select.cfg-input option {
 }
 
 .sidebar-group-header.danger-group:hover {
-    background: rgba(239, 68, 68, 0.08);
+    background: color-mix(in srgb, #ef4444 8%, transparent);
     color: #fca5a5;
 }
 
@@ -2017,20 +2023,20 @@ select.cfg-input option {
 }
 
 .sidebar-item.danger-item:hover {
-    background: rgba(239, 68, 68, 0.08);
+    background: color-mix(in srgb, #ef4444 8%, transparent);
     color: #fca5a5;
 }
 
 .sidebar-item.danger-item.active {
-    background: rgba(239, 68, 68, 0.12);
+    background: color-mix(in srgb, #ef4444 12%, transparent);
     color: #f87171;
     border-left-color: #ef4444;
 }
 
 /* Danger Zone content */
 .danger-banner {
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.35);
+    background: color-mix(in srgb, #ef4444 10%, transparent);
+    border: 1px solid color-mix(in srgb, #ef4444 35%, transparent);
     border-radius: 10px;
     padding: 1rem 1.25rem;
     margin-bottom: 1.5rem;
@@ -2050,7 +2056,7 @@ select.cfg-input option {
 .danger-card {
     background: var(--surface);
     backdrop-filter: blur(8px);
-    border: 1px solid rgba(239, 68, 68, 0.25);
+    border: 1px solid color-mix(in srgb, #ef4444 25%, transparent);
     border-radius: 10px;
     padding: 1.1rem 1.25rem;
     margin-bottom: 0.85rem;
@@ -2068,18 +2074,18 @@ select.cfg-input option {
     height: 1px;
     background: linear-gradient(90deg,
             transparent,
-            rgba(239, 68, 68, 0.4),
+            color-mix(in srgb, #ef4444 40%, transparent),
             transparent);
     opacity: 0;
     transition: opacity 0.3s;
 }
 
 .danger-card:hover {
-    border-color: rgba(239, 68, 68, 0.6);
+    border-color: color-mix(in srgb, #ef4444 60%, transparent);
     box-shadow:
-        0 20px 40px rgba(0, 0, 0, 0.3),
-        0 0 0 1px rgba(239, 68, 68, 0.2),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        0 20px 40px color-mix(in srgb, #000000 30%, transparent),
+        0 0 0 1px color-mix(in srgb, #ef4444 20%, transparent),
+        inset 0 1px 0 color-mix(in srgb, #ffffff 5%, transparent);
     transform: translateY(-2px);
 }
 
@@ -2132,9 +2138,9 @@ select.cfg-input option {
     font-size: 0.68rem;
     padding: 0.2rem 0.5rem;
     border-radius: 9999px;
-    background: rgba(239, 68, 68, 0.15);
+    background: color-mix(in srgb, #ef4444 15%, transparent);
     color: #f87171;
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    border: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
     white-space: nowrap;
 }
 
@@ -2144,7 +2150,7 @@ select.cfg-input option {
 .og-modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.65);
+    background: color-mix(in srgb, #000000 65%, transparent);
     backdrop-filter: blur(6px);
     z-index: 9999;
     display: none;
@@ -2163,9 +2169,9 @@ select.cfg-input option {
     max-height: 85vh;
     overflow-y: auto;
     box-shadow:
-        0 30px 80px rgba(0, 0, 0, 0.5),
-        0 0 0 1px rgba(45, 212, 191, 0.15),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        0 30px 80px color-mix(in srgb, #000000 50%, transparent),
+        0 0 0 1px color-mix(in srgb, #2dd4bf 15%, transparent),
+        inset 0 1px 0 color-mix(in srgb, #ffffff 5%, transparent);
     position: relative;
 }
 
@@ -2176,7 +2182,7 @@ select.cfg-input option {
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(45, 212, 191, 0.4), transparent);
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, #2dd4bf 40%, transparent), transparent);
     z-index: 1;
 }
 
@@ -2249,22 +2255,22 @@ select.cfg-input option {
 
 /* Method badge colors */
 .wh-badge.get {
-    background: rgba(59, 130, 246, 0.15);
+    background: color-mix(in srgb, #3b82f6 15%, transparent);
     color: #60a5fa;
 }
 
 .wh-badge.post {
-    background: rgba(34, 197, 94, 0.15);
+    background: color-mix(in srgb, #22c55e 15%, transparent);
     color: #4ade80;
 }
 
 .wh-badge.put {
-    background: rgba(245, 158, 11, 0.15);
+    background: color-mix(in srgb, var(--warning) 15%, transparent);
     color: #fbbf24;
 }
 
 .wh-badge.delete {
-    background: rgba(239, 68, 68, 0.15);
+    background: color-mix(in srgb, #ef4444 15%, transparent);
     color: #f87171;
 }
 
@@ -2276,8 +2282,8 @@ select.cfg-input option {
     margin-bottom: 1.2rem;
     padding: 0.7rem 1rem;
     border-radius: 10px;
-    background: rgba(251, 191, 36, 0.08);
-    border: 1px solid rgba(251, 191, 36, 0.28);
+    background: color-mix(in srgb, var(--warning) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--warning) 28%, transparent);
     font-size: 0.78rem;
     color: var(--text-secondary);
     line-height: 1.55;
@@ -2290,8 +2296,8 @@ select.cfg-input option {
 }
 
 .feature-unavailable-banner.fub-blocked {
-    background: rgba(239, 68, 68, 0.06);
-    border-color: rgba(239, 68, 68, 0.22);
+    background: color-mix(in srgb, #ef4444 6%, transparent);
+    border-color: color-mix(in srgb, #ef4444 22%, transparent);
 }
 
 .feature-unavailable-fields {
@@ -2391,22 +2397,22 @@ select.cfg-input option {
 }
 
 .cc-discovery-state-warn {
-    background: rgba(251, 191, 36, 0.08);
-    border: 1px solid rgba(251, 191, 36, 0.28);
+    background: color-mix(in srgb, var(--warning) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--warning) 28%, transparent);
     color: var(--text-secondary);
 }
 
 .cc-discovery-state-error {
-    background: rgba(239, 68, 68, 0.08);
-    border: 1px solid rgba(239, 68, 68, 0.25);
+    background: color-mix(in srgb, #ef4444 8%, transparent);
+    border: 1px solid color-mix(in srgb, #ef4444 25%, transparent);
     color: var(--danger);
 }
 
 .cc-discovery-list {
     padding: 0.8rem 1rem;
     border-radius: 9px;
-    border: 1px solid rgba(99, 179, 237, 0.22);
-    background: rgba(99, 179, 237, 0.08);
+    border: 1px solid color-mix(in srgb, #60a5fa 22%, transparent);
+    background: color-mix(in srgb, #60a5fa 8%, transparent);
     font-size: 0.82rem;
 }
 
@@ -2568,7 +2574,7 @@ select.cfg-input option {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.55);
+    background: color-mix(in srgb, #000000 55%, transparent);
     backdrop-filter: blur(4px);
     padding: 1rem;
 }
@@ -2581,7 +2587,9 @@ select.cfg-input option {
     padding: 1.5rem;
     border: 1px solid var(--border-subtle);
     border-radius: 14px;
-    background: var(--bg-primary);
+    background: var(--card-bg);
+    backdrop-filter: blur(18px) saturate(130%);
+    box-shadow: var(--surface-shadow-strong), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent), inset 0 1px 0 var(--surface-highlight);
 }
 
 .cc-modal-header {
@@ -2618,8 +2626,8 @@ select.cfg-input option {
     margin-top: 0.7rem;
     padding: 0.5rem 0.8rem;
     border-radius: 8px;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
+    background: color-mix(in srgb, #ef4444 10%, transparent);
     color: var(--danger);
     font-size: 0.8rem;
 }
@@ -2678,17 +2686,17 @@ select.cfg-input option {
 
 .updates-result-error {
     border: 1px solid var(--border-subtle);
-    background: rgba(239, 68, 68, 0.07);
+    background: color-mix(in srgb, #ef4444 7%, transparent);
 }
 
 .updates-result-warn {
-    border: 1px solid rgba(245, 158, 11, 0.35);
-    background: rgba(245, 158, 11, 0.07);
+    border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent);
+    background: color-mix(in srgb, var(--warning) 7%, transparent);
 }
 
 .updates-result-success {
-    border: 1px solid rgba(34, 197, 94, 0.3);
-    background: rgba(34, 197, 94, 0.07);
+    border: 1px solid color-mix(in srgb, #22c55e 30%, transparent);
+    background: color-mix(in srgb, #22c55e 7%, transparent);
 }
 
 .updates-result-title {
@@ -2838,7 +2846,7 @@ select.cfg-input option {
 }
 
 .rc-toggle-insecure.is-on {
-    background: rgba(255, 160, 0, 0.08);
+    background: color-mix(in srgb, var(--warning) 8%, transparent);
 }
 
 .rc-label-block {
@@ -3064,20 +3072,22 @@ select.cfg-input option {
 
 .devices-tag {
     display: inline-block;
-    background: var(--bg-secondary);
+    background: var(--bg-glass);
     border: 1px solid var(--border-subtle);
     border-radius: 6px;
     padding: 0.1rem 0.45rem;
     font-size: 0.72rem;
     margin-right: 0.25rem;
+    backdrop-filter: blur(4px);
 }
 
 .devices-type-pill {
-    background: var(--bg-secondary);
+    background: var(--bg-glass);
     border: 1px solid var(--border-subtle);
     border-radius: 6px;
     padding: 0.15rem 0.5rem;
     font-size: 0.75rem;
+    backdrop-filter: blur(4px);
 }
 
 .devices-empty,
@@ -3098,7 +3108,7 @@ select.cfg-input option {
 .devices-modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.55);
+    background: color-mix(in srgb, #000000 55%, transparent);
     z-index: 1000;
     backdrop-filter: blur(4px);
 }
@@ -3108,13 +3118,15 @@ select.cfg-input option {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: var(--bg-primary);
+    background: var(--card-bg);
     border: 1px solid var(--border-subtle);
     border-radius: 14px;
     padding: 1.5rem;
     width: min(520px, 90vw);
     max-height: 85vh;
     overflow-y: auto;
+    backdrop-filter: blur(18px) saturate(130%);
+    box-shadow: var(--surface-shadow-strong), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent), inset 0 1px 0 var(--surface-highlight);
 }
 
 .devices-modal-header {
@@ -3179,8 +3191,8 @@ select.cfg-input option {
 .devices-modal-error {
     margin-top: 0.7rem;
     padding: 0.5rem 0.8rem;
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: color-mix(in srgb, #ef4444 10%, transparent);
+    border: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
     border-radius: 8px;
     font-size: 0.8rem;
     color: var(--danger);
@@ -3254,27 +3266,27 @@ select.cfg-input option {
 }
 
 .devices-mac-ok {
-    background: rgba(34,197,94,0.12);
+    background: color-mix(in srgb, #22c55e 12%, transparent);
     color: #16a34a;
-    border: 1px solid rgba(34,197,94,0.25);
+    border: 1px solid color-mix(in srgb, #22c55e 25%, transparent);
 }
 
 .devices-mac-warn {
-    background: rgba(234,179,8,0.12);
+    background: color-mix(in srgb, #eab308 12%, transparent);
     color: #ca8a04;
-    border: 1px solid rgba(234,179,8,0.25);
+    border: 1px solid color-mix(in srgb, #eab308 25%, transparent);
 }
 
 .devices-mac-error {
-    background: rgba(239,68,68,0.1);
+    background: color-mix(in srgb, #ef4444 10%, transparent);
     color: var(--danger);
-    border: 1px solid rgba(239,68,68,0.25);
+    border: 1px solid color-mix(in srgb, #ef4444 25%, transparent);
 }
 
 .devices-mac-info {
-    background: rgba(99,102,241,0.1);
+    background: color-mix(in srgb, #6366f1 10%, transparent);
     color: var(--text-secondary);
-    border: 1px solid rgba(99,102,241,0.2);
+    border: 1px solid color-mix(in srgb, #6366f1 20%, transparent);
 }
 
 .auth-inline-msg {
@@ -3369,9 +3381,9 @@ select.cfg-input option {
 
 .auth-totp-disable-btn {
     padding: 0.35rem 0.75rem;
-    background: rgba(239, 68, 68, 0.1);
+    background: color-mix(in srgb, #ef4444 10%, transparent);
     color: #f87171;
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    border: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
     border-radius: 8px;
     font-size: 0.78rem;
     font-weight: 600;
@@ -3491,8 +3503,8 @@ select.cfg-input option {
     align-items: center;
     gap: 0.5rem;
     padding: 0.6rem 0.8rem;
-    background: rgba(45, 212, 191, 0.08);
-    border: 1px solid rgba(45, 212, 191, 0.25);
+    background: color-mix(in srgb, #2dd4bf 8%, transparent);
+    border: 1px solid color-mix(in srgb, #2dd4bf 25%, transparent);
     border-radius: 8px;
     font-size: 0.83rem;
     color: var(--success);
@@ -3520,18 +3532,18 @@ select.cfg-input option {
 }
 
 .auth-sec-hint-card.is-critical {
-    background: rgba(239, 68, 68, 0.08);
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: color-mix(in srgb, #ef4444 8%, transparent);
+    border: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
 }
 
 .auth-sec-hint-card.is-warning {
-    background: rgba(251, 191, 36, 0.08);
-    border: 1px solid rgba(251, 191, 36, 0.3);
+    background: color-mix(in srgb, var(--warning) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
 }
 
 .auth-sec-hint-card.is-info {
-    background: rgba(99, 179, 237, 0.08);
-    border: 1px solid rgba(99, 179, 237, 0.3);
+    background: color-mix(in srgb, #60a5fa 8%, transparent);
+    border: 1px solid color-mix(in srgb, #60a5fa 30%, transparent);
 }
 
 .auth-sec-hint-head {
@@ -3575,7 +3587,7 @@ select.cfg-input option {
 .auth-sec-fix-now-btn {
     margin-top: 0.5rem;
     padding: 0.3rem 0.7rem;
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, #ffffff 8%, transparent);
     color: var(--text-primary);
     border: 1px solid var(--border-accent);
     border-radius: 6px;
@@ -3649,15 +3661,15 @@ select.cfg-input option {
 }
 
 .hp-test-msg.is-success {
-    background: rgba(34, 197, 94, 0.12);
+    background: color-mix(in srgb, #22c55e 12%, transparent);
     color: var(--success, #22c55e);
-    border: 1px solid rgba(34, 197, 94, 0.3);
+    border: 1px solid color-mix(in srgb, #22c55e 30%, transparent);
 }
 
 .hp-test-msg.is-error {
-    background: rgba(239, 68, 68, 0.1);
+    background: color-mix(in srgb, #ef4444 10%, transparent);
     color: var(--danger, #ef4444);
-    border: 1px solid rgba(239, 68, 68, 0.25);
+    border: 1px solid color-mix(in srgb, #ef4444 25%, transparent);
 }
 
 /* ── Web scraper config section ────────────────────── */
@@ -3727,7 +3739,7 @@ select.cfg-input option {
 /* ── AI gateway config section ─────────────────────── */
 .ai-gw-info-notice {
     border-color: var(--accent);
-    background: rgba(99, 102, 241, 0.06);
+    background: color-mix(in srgb, #6366f1 6%, transparent);
 }
 
 .ai-gw-toggle-row {
@@ -3801,9 +3813,9 @@ select.cfg-input option {
 .fw-os-banner {
     margin-bottom: 1.2rem;
     padding: 0.65rem 0.9rem;
-    border: 1px solid rgba(239, 68, 68, 0.22);
+    border: 1px solid color-mix(in srgb, #ef4444 22%, transparent);
     border-radius: 9px;
-    background: rgba(239, 68, 68, 0.08);
+    background: color-mix(in srgb, #ef4444 8%, transparent);
     color: var(--danger);
     font-size: 0.78rem;
     line-height: 1.55;
@@ -3882,8 +3894,8 @@ select.cfg-input option {
     margin-top: 1rem;
     padding: 1rem;
     border-radius: 10px;
-    border: 1px solid rgba(99, 179, 237, 0.15);
-    background: rgba(99, 179, 237, 0.05);
+    border: 1px solid color-mix(in srgb, #60a5fa 15%, transparent);
+    background: color-mix(in srgb, #60a5fa 5%, transparent);
 }
 
 .dc-gotenberg-title {
@@ -3930,12 +3942,12 @@ select.cfg-input option {
 /* ── Cloudflare tunnel config section ──────────────── */
 .cft-notice-info {
     border-color: var(--accent);
-    background: rgba(99, 102, 241, 0.06);
+    background: color-mix(in srgb, #6366f1 6%, transparent);
 }
 
 .cft-notice-warn {
     border-color: var(--warning);
-    background: rgba(234, 179, 8, 0.06);
+    background: color-mix(in srgb, #eab308 6%, transparent);
 }
 
 .cft-toggle-row {
@@ -3991,12 +4003,12 @@ select.cfg-input option {
 /* ── MCP server config section ─────────────────────── */
 .mcp-srv-notice-info {
     border-color: var(--accent);
-    background: rgba(99, 102, 241, 0.06);
+    background: color-mix(in srgb, #6366f1 6%, transparent);
 }
 
 .mcp-srv-notice-warn {
     border-color: var(--warning);
-    background: rgba(234, 179, 8, 0.06);
+    background: color-mix(in srgb, #eab308 6%, transparent);
 }
 
 .mcp-srv-toggle-row {
@@ -4166,7 +4178,7 @@ select.cfg-input option {
     padding: 0.6rem 0.8rem;
     border-radius: 10px;
     font-size: 0.78rem;
-    background: rgba(255, 149, 0, 0.12);
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
     color: var(--warning, #ff9500);
 }
 
@@ -4211,22 +4223,24 @@ select.cfg-input option {
     padding: 0.8rem 1rem;
     border-radius: 10px;
     font-size: 0.84rem;
-    background: var(--bg-tertiary);
+    background: var(--bg-glass);
     color: var(--text-secondary);
+    border: 1px solid var(--border-subtle);
+    backdrop-filter: blur(4px);
 }
 
 .adg-status-banner.is-success {
-    background: rgba(52, 199, 89, 0.12);
+    background: color-mix(in srgb, var(--success) 12%, transparent);
     color: var(--success, #34c759);
 }
 
 .adg-status-banner.is-warning {
-    background: rgba(255, 149, 0, 0.12);
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
     color: var(--warning, #ff9500);
 }
 
 .adg-status-banner.is-danger {
-    background: rgba(255, 59, 48, 0.1);
+    background: color-mix(in srgb, var(--error) 10%, transparent);
     color: var(--error, #ff3b30);
 }
 
@@ -4311,7 +4325,7 @@ select.cfg-input option {
 
 .pers-delete-btn {
     color: #f87171;
-    border-color: rgba(239, 68, 68, 0.3);
+    border-color: color-mix(in srgb, #ef4444 30%, transparent);
 }
 
 .pers-core-readonly {
@@ -4578,7 +4592,7 @@ select.cfg-input option {
     height: 1px;
     background: linear-gradient(90deg,
             transparent,
-            rgba(45, 212, 191, 0.3),
+            color-mix(in srgb, #2dd4bf 30%, transparent),
             transparent);
     opacity: 0;
     transition: opacity 0.3s;
@@ -4588,7 +4602,7 @@ select.cfg-input option {
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at 50% 0%, rgba(45, 212, 191, 0.08), transparent 70%);
+    background: radial-gradient(circle at 50% 0%, color-mix(in srgb, #2dd4bf 8%, transparent), transparent 70%);
     opacity: 0;
     transition: opacity 0.3s;
     pointer-events: none;
@@ -4597,9 +4611,9 @@ select.cfg-input option {
 .bck-card:hover {
     border-color: var(--accent);
     box-shadow:
-        0 20px 40px rgba(0, 0, 0, 0.3),
-        0 0 0 1px rgba(45, 212, 191, 0.2),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        0 20px 40px color-mix(in srgb, #000000 30%, transparent),
+        0 0 0 1px color-mix(in srgb, #2dd4bf 20%, transparent),
+        inset 0 1px 0 color-mix(in srgb, #ffffff 5%, transparent);
     transform: translateY(-2px);
 }
 
@@ -4703,14 +4717,14 @@ select.cfg-input option {
 }
 
 .backup-vault-hint.is-warning {
-    border-color: rgba(245, 158, 11, 0.3);
-    background: rgba(245, 158, 11, 0.1);
+    border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+    background: color-mix(in srgb, var(--warning) 10%, transparent);
     color: var(--warning);
 }
 
 .backup-vault-hint.is-success {
-    border-color: rgba(34, 197, 94, 0.3);
-    background: rgba(34, 197, 94, 0.08);
+    border-color: color-mix(in srgb, #22c55e 30%, transparent);
+    background: color-mix(in srgb, #22c55e 8%, transparent);
     color: var(--success);
 }
 
@@ -4728,7 +4742,7 @@ select.cfg-input option {
 }
 
 .backup-import-btn {
-    box-shadow: 0 2px 12px rgba(var(--accent-rgb, 45, 212, 191), 0.25);
+    box-shadow: 0 2px 12px color-mix(in srgb, var(--accent) 25%, transparent);
     background: linear-gradient(135deg, var(--accent), var(--accent-secondary, #0d9488));
 }
 
@@ -4756,9 +4770,9 @@ select.cfg-input option {
 .backup-warning-box {
     margin-bottom: 1.25rem;
     padding: 1rem 1.25rem;
-    border: 1px solid rgba(245, 158, 11, 0.25);
+    border: 1px solid color-mix(in srgb, var(--warning) 25%, transparent);
     border-radius: 12px;
-    background: rgba(245, 158, 11, 0.08);
+    background: color-mix(in srgb, var(--warning) 8%, transparent);
     color: var(--warning);
     font-size: 0.82rem;
     line-height: 1.6;
@@ -4775,9 +4789,9 @@ select.cfg-input option {
 
 .backup-import-success-box {
     padding: 1rem 1.25rem;
-    border: 1px solid rgba(34, 197, 94, 0.3);
+    border: 1px solid color-mix(in srgb, #22c55e 30%, transparent);
     border-radius: 10px;
-    background: rgba(34, 197, 94, 0.1);
+    background: color-mix(in srgb, #22c55e 10%, transparent);
 }
 
 .backup-import-success-title {
@@ -4819,7 +4833,7 @@ select.cfg-input option {
     height: 1px;
     background: linear-gradient(90deg,
             transparent,
-            rgba(45, 212, 191, 0.3),
+            color-mix(in srgb, #2dd4bf 30%, transparent),
             transparent);
     opacity: 0;
     transition: opacity 0.3s;
@@ -4829,7 +4843,7 @@ select.cfg-input option {
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at 50% 0%, rgba(45, 212, 191, 0.08), transparent 70%);
+    background: radial-gradient(circle at 50% 0%, color-mix(in srgb, #2dd4bf 8%, transparent), transparent 70%);
     opacity: 0;
     transition: opacity 0.3s;
     pointer-events: none;
@@ -4838,9 +4852,9 @@ select.cfg-input option {
 .idx-card:hover {
     border-color: var(--accent);
     box-shadow:
-        0 20px 40px rgba(0, 0, 0, 0.3),
-        0 0 0 1px rgba(45, 212, 191, 0.2),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        0 20px 40px color-mix(in srgb, #000000 30%, transparent),
+        0 0 0 1px color-mix(in srgb, #2dd4bf 20%, transparent),
+        inset 0 1px 0 color-mix(in srgb, #ffffff 5%, transparent);
     transform: translateY(-2px);
 }
 
@@ -5074,12 +5088,12 @@ select.cfg-input option {
 }
 
 .idx-chip-doc {
-    background: rgba(59, 130, 246, 0.12);
+    background: color-mix(in srgb, #3b82f6 12%, transparent);
     color: #3b82f6;
 }
 
 .idx-chip-img {
-    background: rgba(168, 85, 247, 0.12);
+    background: color-mix(in srgb, #a855f7 12%, transparent);
     color: #a855f7;
 }
 
@@ -5100,7 +5114,7 @@ select.cfg-input option {
     font-weight: 600;
     background: var(--accent-subtle);
     color: var(--accent);
-    border: 1px solid rgba(45, 212, 191, 0.25);
+    border: 1px solid color-mix(in srgb, #2dd4bf 25%, transparent);
 }
 
 .cfg-chip-x {
@@ -5144,8 +5158,8 @@ select.cfg-input option {
     margin-top: 0.6rem;
     padding: 0.7rem 1rem;
     border-radius: 10px;
-    border: 1px solid rgba(234, 179, 8, 0.3);
-    background: rgba(234, 179, 8, 0.08);
+    border: 1px solid color-mix(in srgb, #eab308 30%, transparent);
+    background: color-mix(in srgb, #eab308 8%, transparent);
     display: flex;
     align-items: flex-start;
     gap: 0.5rem;
@@ -5190,13 +5204,13 @@ select.cfg-input option {
 }
 
 .cfg-note-banner-info {
-    background: rgba(99, 179, 237, 0.08);
-    border: 1px solid rgba(99, 179, 237, 0.22);
+    background: color-mix(in srgb, #60a5fa 8%, transparent);
+    border: 1px solid color-mix(in srgb, #60a5fa 22%, transparent);
 }
 
 .cfg-note-banner-warning {
-    background: rgba(251, 191, 36, 0.08);
-    border: 1px solid rgba(251, 191, 36, 0.28);
+    background: color-mix(in srgb, var(--warning) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--warning) 28%, transparent);
 }
 
 .cfg-advanced-panel {
@@ -5291,8 +5305,8 @@ select.cfg-input option {
 .cfg-budget-models-hint {
     padding: 0.6rem 0.8rem;
     border-radius: 8px;
-    background: rgba(72, 199, 142, 0.06);
-    border: 1px solid rgba(72, 199, 142, 0.18);
+    background: color-mix(in srgb, #48c78e 6%, transparent);
+    border: 1px solid color-mix(in srgb, #48c78e 18%, transparent);
     font-size: 0.78rem;
     color: var(--text-secondary);
 }
@@ -5317,18 +5331,19 @@ select.cfg-input option {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.55);
+    background: color-mix(in srgb, #000000 55%, transparent);
     backdrop-filter: blur(4px);
 }
 
 .sec-modal-panel {
-    background: var(--bg-panel);
-    border: 1px solid rgba(239, 68, 68, 0.4);
+    background: var(--card-bg);
+    border: 1px solid color-mix(in srgb, var(--error) 40%, transparent);
     border-radius: 14px;
     padding: 1.5rem 1.75rem;
     max-width: 440px;
     width: 90%;
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(18px) saturate(130%);
+    box-shadow: var(--surface-shadow-strong), 0 0 0 1px color-mix(in srgb, var(--error) 8%, transparent), inset 0 1px 0 var(--surface-highlight);
 }
 
 .sec-modal-title {
@@ -5382,7 +5397,7 @@ select.cfg-input option {
 }
 
 .emb-modal-panel {
-    border-color: rgba(var(--accent-rgb, 45, 212, 191), 0.38);
+    border-color: color-mix(in srgb, var(--accent) 38%, transparent);
 }
 
 .emb-modal-title {
@@ -5444,12 +5459,12 @@ select.cfg-input option {
     right: 1rem;
     z-index: 9999;
     background: var(--surface-elevated);
-    border: 1px solid rgba(239, 68, 68, 0.35);
+    border: 1px solid color-mix(in srgb, #ef4444 35%, transparent);
     border-radius: 10px;
     padding: 0.75rem 1.25rem;
     font-size: 0.85rem;
     color: #fca5a5;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 8px 30px color-mix(in srgb, #000000 30%, transparent);
     max-width: 420px;
 }
 
@@ -5482,8 +5497,8 @@ select.cfg-input option {
     padding: 0.6rem 1.2rem;
     border-radius: 10px;
     font-size: 0.8rem;
-    border: 1px solid rgba(72, 199, 142, 0.3);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    border: 1px solid color-mix(in srgb, #48c78e 30%, transparent);
+    box-shadow: 0 4px 16px color-mix(in srgb, #000000 30%, transparent);
     z-index: 1200;
     animation: fadeInUp 0.3s;
     transition: opacity 0.3s;
@@ -5503,7 +5518,7 @@ select.cfg-input option {
 .prov-or-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: color-mix(in srgb, #000000 60%, transparent);
     z-index: 1100;
     backdrop-filter: blur(4px);
     display: flex;
@@ -5512,7 +5527,7 @@ select.cfg-input option {
 }
 
 .prov-or-panel {
-    background: var(--bg-secondary);
+    background: var(--card-bg);
     border-radius: 16px;
     width: min(760px, 95vw);
     height: min(85vh, 720px);
@@ -5520,6 +5535,8 @@ select.cfg-input option {
     flex-direction: column;
     border: 1px solid var(--border-subtle);
     overflow: hidden;
+    backdrop-filter: blur(18px) saturate(130%);
+    box-shadow: var(--surface-shadow-strong), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent), inset 0 1px 0 var(--surface-highlight);
 }
 
 .prov-or-header {
@@ -5572,9 +5589,9 @@ select.cfg-input option {
 }
 
 .prov-or-free-btn.is-active {
-    background: rgba(72, 199, 142, 0.2);
+    background: color-mix(in srgb, #48c78e 20%, transparent);
     color: #48c78e;
-    border-color: rgba(72, 199, 142, 0.4);
+    border-color: color-mix(in srgb, #48c78e 40%, transparent);
 }
 
 .prov-or-count {
@@ -5674,7 +5691,7 @@ select.cfg-input option {
     font-size: 0.65rem;
     padding: 0.1rem 0.4rem;
     border-radius: 4px;
-    background: rgba(72, 199, 142, 0.15);
+    background: color-mix(in srgb, #48c78e 15%, transparent);
     color: #48c78e;
     font-weight: 600;
 }
@@ -5731,8 +5748,8 @@ select.cfg-input option {
 .prov-or-free-banner {
     padding: 0.4rem 0.6rem;
     border-radius: 7px;
-    background: rgba(72, 199, 142, 0.1);
-    border: 1px solid rgba(72, 199, 142, 0.2);
+    background: color-mix(in srgb, #48c78e 10%, transparent);
+    border: 1px solid color-mix(in srgb, #48c78e 20%, transparent);
     font-size: 0.72rem;
     color: #48c78e;
     margin-bottom: 0.8rem;
@@ -5762,14 +5779,14 @@ select.cfg-input option {
 .prov-section-actions .btn-save.prov-btn-sm {
     background: linear-gradient(135deg, #0f766e, #115e59);
     color: #f0fdfa;
-    border: 1px solid rgba(94, 234, 212, 0.42);
+    border: 1px solid color-mix(in srgb, #5eead4 42%, transparent);
     text-shadow: none;
-    box-shadow: 0 10px 24px rgba(13, 148, 136, 0.24);
+    box-shadow: 0 10px 24px color-mix(in srgb, #0d9488 24%, transparent);
 }
 .prov-section-actions .btn-save.prov-btn-sm:hover {
     background: linear-gradient(135deg, #14b8a6, #0f766e);
     color: #ffffff;
-    border-color: rgba(153, 246, 228, 0.58);
+    border-color: color-mix(in srgb, #99f6e4 58%, transparent);
 }
 .prov-btn-md { padding: 0.45rem 1.4rem; font-size: 0.82rem; }
 .prov-btn-muted { background: var(--bg-tertiary); color: var(--text-primary); }
@@ -5777,12 +5794,13 @@ select.cfg-input option {
 .prov-pricing-overlay {
     position: fixed; inset: 0; z-index: 9100; padding: 1rem;
     display: flex; align-items: center; justify-content: center;
-    background: rgba(0, 0, 0, 0.65);
+    background: color-mix(in srgb, #000000 65%, transparent);
 }
 .prov-pricing-panel {
     width: min(580px, 96vw); max-height: 84vh; display: flex; flex-direction: column;
-    background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 14px;
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+    background: var(--card-bg); border: 1px solid var(--border-subtle); border-radius: 14px;
+    backdrop-filter: blur(18px) saturate(130%);
+    box-shadow: var(--surface-shadow-strong), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent), inset 0 1px 0 var(--surface-highlight);
 }
 .prov-pricing-head { padding: 0.9rem 1.1rem 0.6rem; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; }
 .prov-pricing-title { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.55rem; }
@@ -5793,7 +5811,7 @@ select.cfg-input option {
 .prov-pricing-empty { padding: 2rem; text-align: center; color: var(--text-tertiary); font-size: 0.82rem; }
 .prov-pricing-row {
     display: flex; align-items: center; gap: 0.55rem; padding: 0.36rem 1rem; cursor: pointer;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid color-mix(in srgb, #ffffff 4%, transparent);
 }
 .prov-pricing-row:hover { background: var(--bg-tertiary); }
 .prov-pricing-checkbox { width: 14px; height: 14px; flex-shrink: 0; cursor: pointer; accent-color: var(--accent); }
@@ -5822,25 +5840,30 @@ select.cfg-input option {
 .prov-mc-spinner { font-size: 0.75rem; color: var(--text-secondary); }
 .prov-mc-result { margin-top: 0.8rem; }
 .prov-mc-msg { font-size: 0.82rem; padding: 0.45rem 0.7rem; border-radius: 7px; }
-.prov-mc-msg.is-success { background: rgba(34, 197, 94, 0.12); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.3); }
-.prov-mc-msg.is-error { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.25); }
+.prov-mc-msg.is-success { background: color-mix(in srgb, #22c55e 12%, transparent); color: var(--success); border: 1px solid color-mix(in srgb, #22c55e 30%, transparent); }
+.prov-mc-msg.is-error { background: color-mix(in srgb, #ef4444 10%, transparent); color: var(--danger); border: 1px solid color-mix(in srgb, #ef4444 25%, transparent); }
 
 .prov-section-actions { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
 .prov-empty-state { text-align: center; padding: 2rem; color: var(--text-tertiary); font-size: 0.85rem; }
 .prov-provider-pill {
     display: inline-block; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700;
     background: linear-gradient(135deg, #ccfbf1, #5eead4); color: #08312d; margin-left: 0.4rem;
-    border: 1px solid rgba(20, 184, 166, 0.42);
+    border: 1px solid color-mix(in srgb, #14b8a6 42%, transparent);
     text-shadow: none;
 }
 .prov-provider-pill-oauth {
     background: linear-gradient(135deg, #f3e8ff, #c084fc);
     color: #2e1065;
-    border-color: rgba(147, 51, 234, 0.38);
+    border-color: color-mix(in srgb, #9333ea 38%, transparent);
 }
 .prov-provider-card {
     border: 1px solid var(--border-subtle); border-radius: 12px; padding: 1rem 1.2rem; margin-bottom: 0.75rem;
-    background: var(--bg-secondary); transition: border-color 0.15s;
+    background: var(--card-bg); backdrop-filter: blur(8px); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.prov-provider-card:hover {
+    border-color: color-mix(in srgb, var(--accent) 25%, var(--border-subtle));
+    transform: translateY(-2px);
+    box-shadow: var(--surface-shadow-strong), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent);
 }
 .prov-provider-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; }
 .prov-provider-title { font-weight: 600; font-size: 0.9rem; }
@@ -5857,11 +5880,13 @@ select.cfg-input option {
 
 .prov-modal-overlay {
     position: fixed; inset: 0; z-index: 1000; backdrop-filter: blur(4px);
-    display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.55);
+    display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, #000000 55%, transparent);
 }
 .prov-modal-panel {
-    background: var(--bg-secondary); border-radius: 16px; padding: 1.5rem; width: min(520px, 92vw);
+    background: var(--card-bg); border-radius: 16px; padding: 1.5rem; width: min(520px, 92vw);
     max-height: 85vh; overflow-y: auto; border: 1px solid var(--border-subtle);
+    backdrop-filter: blur(18px) saturate(130%);
+    box-shadow: var(--surface-shadow-strong), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent), inset 0 1px 0 var(--surface-highlight);
 }
 .prov-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; }
 .prov-modal-title { font-weight: 700; font-size: 1rem; }
@@ -5871,11 +5896,11 @@ select.cfg-input option {
 .field-input.is-disabled { opacity: 0.55; cursor: not-allowed; }
 .prov-field-hint { font-size: 0.72rem; color: var(--text-tertiary); margin-top: 0.2rem; margin-bottom: 0.3rem; }
 .prov-provider-type-block { margin-top: 0; padding: 0.7rem 0.9rem; border-radius: 9px; }
-.prov-provider-type-block.is-ollama { background: rgba(99, 179, 237, 0.06); border: 1px solid rgba(99, 179, 237, 0.18); }
-.prov-provider-type-block.is-openrouter { background: rgba(72, 199, 142, 0.06); border: 1px solid rgba(72, 199, 142, 0.18); }
+.prov-provider-type-block.is-ollama { background: color-mix(in srgb, #60a5fa 6%, transparent); border: 1px solid color-mix(in srgb, #60a5fa 18%, transparent); }
+.prov-provider-type-block.is-openrouter { background: color-mix(in srgb, #48c78e 6%, transparent); border: 1px solid color-mix(in srgb, #48c78e 18%, transparent); }
 .prov-type-block-actions { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
 .prov-inline-muted { font-size: 0.72rem; color: var(--text-tertiary); }
-.prov-openrouter-btn { background: rgba(72, 199, 142, 0.15); color: #48c78e; border: 1px solid rgba(72, 199, 142, 0.3); }
+.prov-openrouter-btn { background: color-mix(in srgb, #48c78e 15%, transparent); color: #48c78e; border: 1px solid color-mix(in srgb, #48c78e 30%, transparent); }
 .prov-ollama-result { margin-top: 0.6rem; }
 .prov-ollama-label { font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.35rem; }
 .prov-ollama-models { display: flex; flex-wrap: wrap; gap: 0.35rem; }
@@ -5891,8 +5916,8 @@ select.cfg-input option {
 .prov-model-pricing-title { margin-bottom: 0; }
 .prov-model-pricing-actions { display: flex; gap: 0.4rem; }
 .prov-fetch-pricing-btn {
-    padding: 0.25rem 0.65rem; font-size: 0.72rem; background: rgba(72, 199, 142, 0.12);
-    color: #48c78e; border: 1px solid rgba(72, 199, 142, 0.25);
+    padding: 0.25rem 0.65rem; font-size: 0.72rem; background: color-mix(in srgb, #48c78e 12%, transparent);
+    color: #48c78e; border: 1px solid color-mix(in srgb, #48c78e 25%, transparent);
 }
 .prov-model-search-wrap { margin-bottom: 0.4rem; }
 .prov-model-search-input { width: 100%; font-size: 0.77rem; padding: 0.28rem 0.5rem; }
@@ -5995,7 +6020,7 @@ select.cfg-input option {
     height: 1px;
     background: linear-gradient(90deg,
             transparent,
-            rgba(45, 212, 191, 0.3),
+            color-mix(in srgb, #2dd4bf 30%, transparent),
             transparent);
     opacity: 0;
     transition: opacity 0.3s;
@@ -6005,7 +6030,7 @@ select.cfg-input option {
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at 50% 0%, rgba(45, 212, 191, 0.08), transparent 70%);
+    background: radial-gradient(circle at 50% 0%, color-mix(in srgb, #2dd4bf 8%, transparent), transparent 70%);
     opacity: 0;
     transition: opacity 0.3s;
     pointer-events: none;
@@ -6014,9 +6039,9 @@ select.cfg-input option {
 .sb-card:hover {
     border-color: var(--accent);
     box-shadow:
-        0 20px 40px rgba(0, 0, 0, 0.3),
-        0 0 0 1px rgba(45, 212, 191, 0.2),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        0 20px 40px color-mix(in srgb, #000000 30%, transparent),
+        0 0 0 1px color-mix(in srgb, #2dd4bf 20%, transparent),
+        inset 0 1px 0 color-mix(in srgb, #ffffff 5%, transparent);
     transform: translateY(-2px);
 }
 
@@ -6051,8 +6076,8 @@ select.cfg-input option {
     z-index: 1;
 }
 
-.sb-notice-success { border-color: var(--success); background: rgba(34, 197, 94, 0.08); }
-.sb-notice-warning { border-color: var(--warning); background: rgba(245, 158, 11, 0.08); }
+.sb-notice-success { border-color: var(--success); background: color-mix(in srgb, #22c55e 8%, transparent); }
+.sb-notice-warning { border-color: var(--warning); background: color-mix(in srgb, var(--warning) 8%, transparent); }
 .sb-grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem 1.2rem; margin-top: 1rem; }
 .sb-grid-toggle { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem 1.2rem; margin-top: 1rem; }
 .sb-grid-toggle > .cfg-toggle-row-compact { min-width: 0; }
@@ -6134,59 +6159,60 @@ select.cfg-input option {
 [data-theme="light"] .prov-or-overlay,
 [data-theme="light"] .prov-pricing-overlay,
 [data-theme="light"] .prov-modal-overlay {
-    background: rgba(30, 41, 59, 0.35);
+    background: color-mix(in srgb, #1e293b 35%, transparent);
 }
 
 [data-theme="light"] .cfg-sidebar {
-    background: rgba(224, 234, 228, 0.84);
-    border-right-color: rgba(71, 85, 105, 0.14);
+    background: color-mix(in srgb, #e0eae4 84%, transparent);
+    border-right-color: color-mix(in srgb, #475569 14%, transparent);
 }
 
 [data-theme="light"] .sidebar-item:hover {
-    background: rgba(15, 118, 110, 0.08);
+    background: color-mix(in srgb, #0f766e 8%, transparent);
 }
 
 [data-theme="light"] .sidebar-item.active {
-    background: rgba(15, 118, 110, 0.12);
+    background: color-mix(in srgb, #0f766e 12%, transparent);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.45),
-        0 10px 22px rgba(15, 118, 110, 0.1);
+        inset 0 1px 0 color-mix(in srgb, #ffffff 45%, transparent),
+        0 10px 22px color-mix(in srgb, #0f766e 10%, transparent);
 }
 
 [data-theme="light"] .field-group {
-    border-color: rgba(71, 85, 105, 0.14);
+    border-color: color-mix(in srgb, #475569 14%, transparent);
 }
 
 [data-theme="light"] .field-input,
 [data-theme="light"] .field-select,
 [data-theme="light"] .cfg-input {
-    background: rgba(229, 238, 233, 0.94);
+    background: color-mix(in srgb, #e5eee9 94%, transparent);
 }
 
 [data-theme="light"] .field-input:hover,
 [data-theme="light"] .field-select:hover,
 [data-theme="light"] .cfg-input:hover {
-    border-color: rgba(15, 118, 110, 0.22);
-    box-shadow: 0 8px 18px rgba(83, 97, 122, 0.1);
+    border-color: color-mix(in srgb, #0f766e 22%, transparent);
+    box-shadow: 0 8px 18px color-mix(in srgb, #53617a 10%, transparent);
 }
 
 [data-theme="light"] .field-input:focus,
 [data-theme="light"] .field-select:focus,
 [data-theme="light"] .cfg-input:focus {
-    background: rgba(239, 246, 242, 0.98);
+    background: color-mix(in srgb, #eff6f2 98%, transparent);
 }
 
 [data-theme="light"] .btn-save:hover {
-    box-shadow: 0 10px 24px rgba(15, 118, 110, 0.22);
+    box-shadow: 0 10px 24px color-mix(in srgb, #0f766e 22%, transparent);
 }
 
 /* SQL Connections */
-.sql-table-wrap { overflow-x: auto; background: var(--card-bg); border: 1px solid var(--border-subtle); border-radius: 12px; }
+.sql-table-wrap { overflow-x: auto; background: var(--card-bg); border: 1px solid var(--border-subtle); border-radius: 12px; backdrop-filter: blur(8px); }
 .sql-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
 .sql-table-head-row { border-bottom: 2px solid var(--border-subtle); text-align: left; }
 .sql-table-th { padding: 0.5rem 0.6rem; }
 .sql-table-th-actions { text-align: right; }
-.sql-table-row { border-bottom: 1px solid var(--border-subtle); }
+.sql-table-row { border-bottom: 1px solid var(--border-subtle); transition: background 0.15s ease; }
+.sql-table-row:hover { background: color-mix(in srgb, var(--accent) 3%, transparent); }
 .sql-td { padding: 0.5rem 0.6rem; }
 .sql-td-name { padding: 0.5rem 0.6rem; font-weight: 500; }
 .sql-td-host { padding: 0.5rem 0.6rem; font-family: monospace; font-size: 0.8rem; }
@@ -6198,11 +6224,11 @@ select.cfg-input option {
 .sql-empty-state { text-align: center; padding: 2rem; color: var(--text-tertiary); font-size: 0.85rem; background: var(--card-bg); border: 1px solid var(--border-subtle); border-radius: 12px; }
 .sql-loading-state { text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 0.85rem; background: var(--card-bg); border: 1px solid var(--border-subtle); border-radius: 12px; }
 .sql-perm-badge { display: inline-block; border-radius: 6px; padding: 0.1rem 0.4rem; font-size: 0.7rem; font-weight: 600; margin-right: 0.2rem; }
-.sql-perm-read { background: rgba(59,130,246,0.13); color: #3b82f6; border: 1px solid rgba(59,130,246,0.27); }
-.sql-perm-write { background: rgba(34,197,94,0.13); color: #22c55e; border: 1px solid rgba(34,197,94,0.27); }
-.sql-perm-change { background: rgba(245,158,11,0.13); color: #f59e0b; border: 1px solid rgba(245,158,11,0.27); }
-.sql-perm-delete { background: rgba(239,68,68,0.13); color: #ef4444; border: 1px solid rgba(239,68,68,0.27); }
-.sql-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 1000; backdrop-filter: blur(4px); }
+.sql-perm-read { background: color-mix(in srgb, #3b82f6 10%, transparent); color: #3b82f6; border: 1px solid color-mix(in srgb, #3b82f6 22%, transparent); backdrop-filter: blur(4px); }
+.sql-perm-write { background: color-mix(in srgb, var(--success) 10%, transparent); color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 22%, transparent); backdrop-filter: blur(4px); }
+.sql-perm-change { background: color-mix(in srgb, var(--warning) 13%, transparent); color: #f59e0b; border: 1px solid color-mix(in srgb, var(--warning) 27%, transparent); }
+.sql-perm-delete { background: color-mix(in srgb, var(--error) 10%, transparent); color: var(--error); border: 1px solid color-mix(in srgb, var(--error) 22%, transparent); backdrop-filter: blur(4px); }
+.sql-modal-overlay { position: fixed; inset: 0; background: color-mix(in srgb, #000000 55%, transparent); z-index: 1000; backdrop-filter: blur(4px); }
 .sql-modal-title { font-size: 1rem; font-weight: 600; }
 .sql-modal-close { background: none; border: none; color: var(--text-secondary); font-size: 1.2rem; cursor: pointer; }
 .sql-field-group { margin-bottom: 0.8rem; }
@@ -6210,8 +6236,8 @@ select.cfg-input option {
 .sql-select-compact { padding: 0.45rem 0.6rem; }
 .sql-perm-title { margin-bottom: 0.5rem; font-weight: 600; }
 .sql-perm-hint { margin-top: 0.4rem; font-size: 0.75rem; color: var(--text-tertiary); }
-.sql-modal-error { margin-top: 0.7rem; padding: 0.5rem 0.8rem; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; font-size: 0.8rem; color: var(--danger); }
-.sql-modal-success { margin-top: 0.7rem; padding: 0.5rem 0.8rem; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); border-radius: 8px; font-size: 0.8rem; color: var(--success); }
+.sql-modal-error { margin-top: 0.7rem; padding: 0.5rem 0.8rem; background: color-mix(in srgb, #ef4444 10%, transparent); border: 1px solid color-mix(in srgb, #ef4444 30%, transparent); border-radius: 8px; font-size: 0.8rem; color: var(--danger); }
+.sql-modal-success { margin-top: 0.7rem; padding: 0.5rem 0.8rem; background: color-mix(in srgb, #22c55e 10%, transparent); border: 1px solid color-mix(in srgb, #22c55e 30%, transparent); border-radius: 8px; font-size: 0.8rem; color: var(--success); }
 
 /* Image Generation */
 .ig-label { display: block; margin-bottom: 0.6rem; }
@@ -6250,7 +6276,8 @@ select.cfg-input option {
 .em-badge-warning { background:var(--warning); color:#000; }
 .em-pw-set { color:var(--success); }
 .em-pw-unset { color:var(--text-tertiary); }
-.em-card { border:1px solid var(--border-subtle); border-radius:12px; padding:1rem 1.2rem; margin-bottom:0.75rem; background:var(--bg-secondary); transition:border-color 0.15s; }
+.em-card { border:1px solid var(--border-subtle); border-radius:12px; padding:1rem 1.2rem; margin-bottom:0.75rem; background:var(--card-bg); backdrop-filter: blur(8px); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.em-card:hover { border-color: color-mix(in srgb, var(--accent) 25%, var(--border-subtle)); transform: translateY(-2px); box-shadow: var(--surface-shadow-strong), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent); }
 .em-card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem; }
 .em-card-title { font-weight:600; font-size:0.9rem; }
 .em-card-id { font-size:0.72rem; color:var(--text-tertiary); margin-left:0.5rem; }
@@ -6260,8 +6287,8 @@ select.cfg-input option {
 .em-card-btn-delete { color:var(--danger); }
 .em-card-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.3rem 1rem; font-size:0.78rem; }
 .em-grid-label { color:var(--text-tertiary); }
-.em-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1000; backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; }
-.em-modal-box { background:var(--bg-secondary); border-radius:16px; padding:1.5rem; width:min(520px,92vw); max-height:85vh; overflow-y:auto; border:1px solid var(--border-subtle); }
+.em-modal-overlay { position:fixed; inset:0; background:color-mix(in srgb, #000000 55%, transparent); z-index:1000; backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; }
+.em-modal-box { background:var(--card-bg); border-radius:16px; padding:1.5rem; width:min(520px,92vw); max-height:85vh; overflow-y:auto; border:1px solid var(--border-subtle); backdrop-filter: blur(18px) saturate(130%); box-shadow: var(--surface-shadow-strong), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent), inset 0 1px 0 var(--surface-highlight); }
 .em-modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem; }
 .em-modal-title { font-weight:700; font-size:1rem; }
 .em-modal-close { background:none; border:none; color:var(--text-secondary); font-size:1.2rem; cursor:pointer; }
@@ -6283,7 +6310,8 @@ select.cfg-input option {
 .mcp-badge { display:inline-block; padding:0.15rem 0.5rem; border-radius:6px; font-size:0.7rem; font-weight:600; margin-left:0.4rem; }
 .mcp-badge-active { background:var(--success); color:#fff; }
 .mcp-badge-inactive { background:var(--text-tertiary); color:#fff; }
-.mcp-card { border:1px solid var(--border-subtle); border-radius:12px; padding:1rem 1.2rem; margin-bottom:0.75rem; background:var(--bg-secondary); transition:border-color 0.15s; }
+.mcp-card { border:1px solid var(--border-subtle); border-radius:12px; padding:1rem 1.2rem; margin-bottom:0.75rem; background:var(--card-bg); backdrop-filter: blur(8px); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.mcp-card:hover { border-color: color-mix(in srgb, var(--accent) 25%, var(--border-subtle)); transform: translateY(-2px); box-shadow: var(--surface-shadow-strong), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent); }
 .mcp-card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem; }
 .mcp-card-title { font-weight:600; font-size:0.9rem; }
 .mcp-card-actions { display:flex; gap:0.4rem; }
@@ -6292,8 +6320,8 @@ select.cfg-input option {
 .mcp-card-btn-delete { color:var(--danger); }
 .mcp-card-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.3rem 1rem; font-size:0.78rem; }
 .mcp-grid-label { color:var(--text-tertiary); }
-.mcp-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.55); display:flex; align-items:center; justify-content:center; z-index:1000; }
-.mcp-modal-box { background:var(--bg-secondary); border-radius:16px; padding:1.5rem; width:min(480px,90vw); max-height:85vh; overflow-y:auto; border:1px solid var(--border-subtle); }
+.mcp-modal-overlay { position:fixed; inset:0; background:color-mix(in srgb, #000000 55%, transparent); display:flex; align-items:center; justify-content:center; z-index:1000; }
+.mcp-modal-box { background:var(--card-bg); border-radius:16px; padding:1.5rem; width:min(480px,90vw); max-height:85vh; overflow-y:auto; border:1px solid var(--border-subtle); backdrop-filter: blur(18px) saturate(130%); box-shadow: var(--surface-shadow-strong), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent), inset 0 1px 0 var(--surface-highlight); }
 .mcp-modal-title { font-weight:700; font-size:1rem; margin-bottom:1rem; }
 .mcp-modal-label { display:block; margin-bottom:0.8rem; }
 .mcp-modal-label-text { font-size:0.78rem; color:var(--text-secondary); }
@@ -6556,8 +6584,8 @@ select.cfg-input option {
     text-align: center;
     padding: 1rem;
     border-radius: var(--radius-md, 8px);
-    background: var(--surface-2, rgba(255,255,255,0.03));
-    border: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+    background: var(--surface-2, color-mix(in srgb, #ffffff 3%, transparent));
+    border: 1px solid var(--border-subtle, color-mix(in srgb, #ffffff 6%, transparent));
 }
 
 .hb-toggle-card .field-label {
@@ -6575,17 +6603,17 @@ select.cfg-input option {
 .hb-window-card {
     border-radius: var(--radius-md, 8px);
     padding: 1rem;
-    border: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+    border: 1px solid var(--border-subtle, color-mix(in srgb, #ffffff 6%, transparent));
 }
 
 .hb-day-card {
-    background: linear-gradient(135deg, rgba(251,191,36,0.08) 0%, rgba(245,158,11,0.04) 100%);
-    border-color: rgba(251,191,36,0.15);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--warning) 8%, transparent) 0%, color-mix(in srgb, var(--warning) 4%, transparent) 100%);
+    border-color: color-mix(in srgb, var(--warning) 15%, transparent);
 }
 
 .hb-night-card {
-    background: linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(79,70,229,0.04) 100%);
-    border-color: rgba(99,102,241,0.15);
+    background: linear-gradient(135deg, color-mix(in srgb, #6366f1 8%, transparent) 0%, color-mix(in srgb, #4f46e5 4%, transparent) 100%);
+    border-color: color-mix(in srgb, #6366f1 15%, transparent);
 }
 
 .hb-window-title {
@@ -6646,7 +6674,7 @@ select.cfg-input option {
     border: 1px solid var(--border-subtle);
     border-radius: 14px;
     background:
-        linear-gradient(135deg, rgba(45, 212, 191, 0.08), transparent 44%),
+        linear-gradient(135deg, color-mix(in srgb, #2dd4bf 8%, transparent), transparent 44%),
         color-mix(in srgb, var(--bg-secondary) 72%, transparent);
     box-shadow: var(--surface-shadow), inset 0 1px 0 var(--surface-highlight);
 }
@@ -6685,7 +6713,7 @@ select.cfg-input option {
     width: 0.56rem;
     height: 0.56rem;
     border-radius: 999px;
-    box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.10);
+    box-shadow: 0 0 0 4px color-mix(in srgb, #2dd4bf 10%, transparent);
 }
 
 .rules-status-dot-on {
@@ -6694,7 +6722,7 @@ select.cfg-input option {
 
 .rules-status-dot-off {
     background: var(--warning);
-    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.12);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--warning) 12%, transparent);
 }
 
 .rules-pill {
@@ -6704,7 +6732,7 @@ select.cfg-input option {
     padding: 0.18rem 0.55rem;
     border: 1px solid var(--border-subtle);
     border-radius: 999px;
-    background: rgba(148, 163, 184, 0.08);
+    background: color-mix(in srgb, #94a3b8 8%, transparent);
     color: var(--text-secondary);
     font-size: 0.72rem;
     font-weight: 650;
@@ -6713,14 +6741,14 @@ select.cfg-input option {
 }
 
 .rules-pill-ok {
-    border-color: rgba(45, 212, 191, 0.34);
-    background: rgba(45, 212, 191, 0.12);
+    border-color: color-mix(in srgb, #2dd4bf 34%, transparent);
+    background: color-mix(in srgb, #2dd4bf 12%, transparent);
     color: var(--accent);
 }
 
 .rules-pill-warning {
-    border-color: rgba(245, 158, 11, 0.34);
-    background: rgba(245, 158, 11, 0.12);
+    border-color: color-mix(in srgb, var(--warning) 34%, transparent);
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
     color: var(--warning);
 }
 
@@ -6782,14 +6810,14 @@ select.cfg-input option {
 }
 
 .rules-card:hover {
-    border-color: rgba(45, 212, 191, 0.24);
+    border-color: color-mix(in srgb, #2dd4bf 24%, transparent);
     background: color-mix(in srgb, var(--bg-secondary) 74%, transparent);
 }
 
 .rules-card-selected {
     border-color: var(--accent);
-    background: linear-gradient(135deg, rgba(45, 212, 191, 0.16), rgba(45, 212, 191, 0.04));
-    box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.08), inset 3px 0 0 var(--accent);
+    background: linear-gradient(135deg, color-mix(in srgb, #2dd4bf 16%, transparent), color-mix(in srgb, #2dd4bf 4%, transparent));
+    box-shadow: 0 0 0 1px color-mix(in srgb, #2dd4bf 8%, transparent), inset 3px 0 0 var(--accent);
 }
 
 .rules-card-disabled {
@@ -6807,12 +6835,12 @@ select.cfg-input option {
 }
 
 .rules-card-status-on {
-    background: rgba(34, 197, 94, 0.12);
+    background: color-mix(in srgb, #22c55e 12%, transparent);
     color: var(--success);
 }
 
 .rules-card-status-off {
-    background: rgba(148, 163, 184, 0.12);
+    background: color-mix(in srgb, #94a3b8 12%, transparent);
     color: var(--text-tertiary);
 }
 
@@ -6845,7 +6873,7 @@ select.cfg-input option {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     color: var(--text-secondary);
-    background: rgba(15, 23, 42, 0.14);
+    background: color-mix(in srgb, #0f172a 14%, transparent);
     font-size: 0.69rem;
     line-height: 1.25;
 }
@@ -6936,7 +6964,7 @@ select.cfg-input option {
     padding: 0.86rem;
     border: 1px solid var(--border-subtle);
     border-radius: 14px;
-    background: rgba(15, 23, 42, 0.12);
+    background: color-mix(in srgb, #0f172a 12%, transparent);
 }
 
 .rules-field-panel .field-group {
@@ -7006,7 +7034,7 @@ select.cfg-input option {
     padding: 0.9rem;
     border: 1px solid var(--border-subtle);
     border-radius: 14px;
-    background: rgba(15, 23, 42, 0.12);
+    background: color-mix(in srgb, #0f172a 12%, transparent);
 }
 
 .rules-design-panel summary {
@@ -7052,17 +7080,17 @@ select.cfg-input option {
     border: 1px solid var(--border-subtle);
     border-radius: 8px;
     color: var(--text-secondary);
-    background: rgba(15, 23, 42, 0.08);
+    background: color-mix(in srgb, #0f172a 8%, transparent);
     font-size: 0.9rem;
 }
 
 .cmp-status-line.ok {
-    border-color: rgba(34, 197, 94, 0.35);
+    border-color: color-mix(in srgb, #22c55e 35%, transparent);
     color: #15803d;
 }
 
 .cmp-status-line.warn {
-    border-color: rgba(245, 158, 11, 0.45);
+    border-color: color-mix(in srgb, var(--warning) 45%, transparent);
     color: #92400e;
 }
 
@@ -7134,7 +7162,7 @@ select.cfg-input option {
     padding: 0.85rem;
     border: 1px solid var(--border-subtle);
     border-radius: 8px;
-    background: rgba(15, 23, 42, 0.05);
+    background: color-mix(in srgb, #0f172a 5%, transparent);
 }
 
 .cmp-selected-list {
@@ -7157,7 +7185,7 @@ select.cfg-input option {
     display: none;
     align-items: center;
     justify-content: center;
-    background: rgba(2, 6, 23, 0.86);
+    background: color-mix(in srgb, #020617 86%, transparent);
     backdrop-filter: blur(8px);
 }
 
@@ -7174,7 +7202,7 @@ select.cfg-input option {
     border: 1px solid var(--border-subtle);
     border-radius: 8px;
     background: var(--bg-primary);
-    box-shadow: var(--shadow-xl, 0 24px 80px rgba(15, 23, 42, 0.22));
+    box-shadow: var(--shadow-xl, 0 24px 80px color-mix(in srgb, #0f172a 22%, transparent));
 }
 
 .cmp-modal-head,
@@ -7253,7 +7281,7 @@ select.cfg-input option {
 
 .cmp-toolkit-row.active,
 .cmp-toolkit-row:hover {
-    background: rgba(59, 130, 246, 0.08);
+    background: color-mix(in srgb, #3b82f6 8%, transparent);
 }
 
 .cmp-toolkit-name {
@@ -7281,9 +7309,9 @@ select.cfg-input option {
 }
 
 .cmp-small-toggle.on {
-    border-color: rgba(34, 197, 94, 0.4);
+    border-color: color-mix(in srgb, #22c55e 40%, transparent);
     color: #15803d;
-    background: rgba(34, 197, 94, 0.1);
+    background: color-mix(in srgb, #22c55e 10%, transparent);
 }
 
 .cmp-load-more {
