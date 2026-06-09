@@ -96,7 +96,7 @@ Desktop commands are dispatched only when the matching client capability is pres
 - `remote.desktop.discovery`: required for `desktop_list_displays`, `desktop_list_windows`, `desktop_active_window`, and `desktop_host_info`
 - `remote.desktop.ui_automation`: required for `desktop_ui_tree` and `desktop_ui_action`
 - `remote.desktop.browser`: required for `desktop_browser_connect`, `desktop_browser_snapshot`, `desktop_browser_action`, and `desktop_browser_disconnect`
-- `remote.files.read`: required for `file_list` and `file_read`
+- `remote.files.read`: required for `file_list`, `file_read`, and `file_search`
 - `remote.files.write`: required for `file_write`
 
 If a client omits these capabilities, pairing, heartbeat, persona assets, and chat can still work, but remote commands return `UNSUPPORTED_CAPABILITY` immediately instead of waiting for a `desktop.result` timeout. A client that sends keepalives but does not advertise the desktop or file capabilities is connected, but only capable of the features it advertised.
@@ -137,7 +137,7 @@ Rules:
 - `root_id` is stable for the local AgoDesk configuration and is used in later commands.
 - `path_display` is UI/debug metadata. AuraGo must not treat it as an authorization boundary.
 - AuraGo stores only sanitized session metadata from `file_access` and includes available `root_id`, display labels, permissions, and inline byte limits in the AgoDesk agent context.
-- AuraGo caps `file_read` / `file_write` inline command limits to 8 MiB or the smaller negotiated `max_read_bytes` / `max_write_bytes`, rejects known disabled or denied `root_id` cases, and still requires AgoDesk to enforce canonical path checks and permissions locally for every command.
+- AuraGo caps `file_read` / `file_write` inline command limits to 8 MiB or the smaller negotiated `max_read_bytes` / `max_write_bytes`, rejects known disabled or denied `root_id` cases for `file_list`, `file_read`, `file_search`, and `file_write`, and still requires AgoDesk to enforce canonical path checks and permissions locally for every command.
 
 ## Pairing
 
@@ -823,6 +823,40 @@ Successful result:
 }
 ```
 
+### Search files (`file_search`)
+
+Requires `remote.files.read`.
+
+Supported search operations are `grep`, `grep_recursive`, and `find`.
+
+```json
+{
+  "command_id": "cmd-search-1",
+  "operation": "file_search",
+  "params": {
+    "root_id": "workspace",
+    "operation": "grep_recursive",
+    "pattern": "TODO",
+    "glob": "**/*.go",
+    "output_mode": "content"
+  }
+}
+```
+
+Successful result:
+
+```json
+{
+  "command_id": "cmd-search-1",
+  "ok": true,
+  "data": {
+    "content": "{\"status\":\"success\",\"data\":[]}"
+  }
+}
+```
+
+AgoDesk should return AuraGo-compatible `FileSearchResult` JSON in `data.content`. Searches are scoped to the granted roots; AgoDesk enforces canonical path checks, index limits, result limits, file-size limits, pattern length limits, and sandbox post-filtering locally.
+
 ### Read file (`file_read`)
 
 Requires `remote.files.read`.
@@ -907,9 +941,10 @@ The existing RemoteHub command protocol supports these agodesk-capable operation
 - `desktop_browser_disconnect`
 - `file_list`
 - `file_read`
+- `file_search`
 - `file_write`
 
-Read-only policy permits screenshot, permission status requests, discovery, UI tree reads, browser connect/snapshot/disconnect, file listing, and file reading. It denies desktop input, `desktop_ui_action`, `desktop_browser_action`, and file writing before dispatch.
+Read-only policy permits screenshot, permission status requests, discovery, UI tree reads, browser connect/snapshot/disconnect, file listing, file reading, and file search. It denies desktop input, `desktop_ui_action`, `desktop_browser_action`, and file writing before dispatch.
 
 `desktop_stream_start` and `desktop_stream_stop` remain reserved for a later backend version and are not available in v1.
 

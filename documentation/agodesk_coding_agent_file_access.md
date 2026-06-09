@@ -29,9 +29,10 @@ AuraGo may then send:
 
 - `file_list`: requires `remote.files.read`
 - `file_read`: requires `remote.files.read`
+- `file_search`: requires `remote.files.read`
 - `file_write`: requires `remote.files.write`
 
-AuraGo stores the sanitized `file_access` session metadata and adds the reported roots and inline byte limits to the agent context. It also caps outgoing `file_read` / `file_write` command limits to 8 MiB or the smaller negotiated value and rejects known disabled or denied `root_id` cases before forwarding to AgoDesk. AgoDesk still remains responsible for canonical local path validation because AuraGo never receives the real local root paths.
+AuraGo stores the sanitized `file_access` session metadata and adds the reported roots and inline byte limits to the agent context. It also caps outgoing `file_read` / `file_write` command limits to 8 MiB or the smaller negotiated value and rejects known disabled or denied `root_id` cases for `file_list`, `file_read`, `file_search`, and `file_write` before forwarding to AgoDesk. AgoDesk still remains responsible for canonical local path validation because AuraGo never receives the real local root paths.
 
 Do not implement delete, rename, shell execution, advanced edits, or chunked file transfer for this v1 protocol.
 
@@ -40,7 +41,7 @@ Do not implement delete, rename, shell execution, advanced edits, or chunked fil
 1. Add a local file-access settings model with stable `root_id`, display label, canonical absolute path, and permissions.
 2. Include only enabled permissions in `session.start.client_capabilities`.
 3. Include `file_access.roots` in `session.start`, using `path_display` for UI/debug display and keeping the canonical path local.
-4. Handle `desktop.command.operation=file_list`, `file_read`, and `file_write`.
+4. Handle `desktop.command.operation=file_list`, `file_read`, `file_search`, and `file_write`.
 5. Return `desktop.result` with `ok=false` and a stable error code when access is disabled, denied, too large, or conflicts with a write guard.
 6. Never log file contents. Audit operation, root id, relative path, byte count, status, and command id only.
 
@@ -53,8 +54,19 @@ For every command:
 3. Reject `..` traversal, absolute paths under the wrong root, drive-prefix tricks, UNC escapes, and symlinks that resolve outside the root.
 4. Check the requested permission after canonicalization:
    - `file_list` and `file_read` need `read`.
+   - `file_search` needs `read`.
    - `file_write` needs `write`.
 5. Apply the inline size limit before sending or accepting content.
+
+## File Search
+
+For `file_search`:
+
+1. Require `remote.files.read` and a read-enabled root.
+2. Support `operation` values `grep`, `grep_recursive`, and `find`.
+3. Scope searches to the selected `root_id` or to a canonical path inside a configured root.
+4. Return AuraGo-compatible `FileSearchResult` JSON in `desktop.result.data.content`.
+5. Keep AgoDesk-side limits enforced: 500 `grep_recursive` matches, 1000 `find` files, 10 MB per file, and 256 characters per pattern.
 
 ## Atomic Writes
 
@@ -85,12 +97,22 @@ type FileCommandParams = {
   encoding?: "utf-8";
   content?: string;
 };
+
+type FileSearchParams = {
+  root_id?: string;
+  path?: string;
+  operation: "grep" | "grep_recursive" | "find";
+  pattern?: string;
+  glob?: string;
+  output_mode?: "content" | "count";
+};
 ```
 
 ## Acceptance Criteria
 
 - AgoDesk does not advertise file capabilities when local file access is disabled.
 - `file_read` and `file_list` work for read-enabled roots.
+- `file_search` works for read-enabled roots and returns `FileSearchResult` JSON.
 - `file_write` works only for write-enabled roots.
 - Paths outside all configured roots are denied.
 - Symlinks that escape a configured root are denied.

@@ -1964,6 +1964,7 @@ func agodeskFileAccessAgentContextLines(fileAccess *agodesk.FileAccessPayload) [
 	lines := []string{
 		fmt.Sprintf("AgoDesk local file access is enabled. Inline read/write payload limits are max_read_bytes=%d and max_write_bytes=%d.", fileAccess.MaxReadBytes, fileAccess.MaxWriteBytes),
 		"Use remote_control read_file, list_files, and write_file with root_id when the user asks to access files on the paired PC.",
+		"When searching files on the paired agodesk PC, use remote_control file_search (grep / grep_recursive / find) scoped to the granted roots; agodesk uses a fast local index (fff).",
 	}
 	if len(fileAccess.Roots) == 0 {
 		lines = append(lines, "The client did not report named file-access roots; ask the user to configure AgoDesk file-access roots before using root_id-based file commands.")
@@ -2099,7 +2100,7 @@ func (b *agodeskDesktopBroker) SendCommand(deviceID string, cmd remote.CommandPa
 
 func applyAgodeskFileAccessLimits(state *agodeskConnectionState, cmd remote.CommandPayload) (remote.CommandPayload, *remote.ResultPayload) {
 	switch cmd.Operation {
-	case remote.OpFileRead, remote.OpFileList, remote.OpFileWrite:
+	case remote.OpFileRead, remote.OpFileList, remote.OpFileWrite, remote.OpFileSearch:
 	default:
 		return cmd, nil
 	}
@@ -2320,7 +2321,7 @@ func agodeskDesktopCapabilityForOperation(operation string) string {
 		return "remote.desktop.ui_automation"
 	case remote.OpDesktopBrowserConnect, remote.OpDesktopBrowserSnapshot, remote.OpDesktopBrowserAction, remote.OpDesktopBrowserDisconnect:
 		return "remote.desktop.browser"
-	case remote.OpFileRead, remote.OpFileList:
+	case remote.OpFileRead, remote.OpFileList, remote.OpFileSearch:
 		return "remote.files.read"
 	case remote.OpFileWrite:
 		return "remote.files.write"

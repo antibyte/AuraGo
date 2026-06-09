@@ -1837,6 +1837,7 @@ func TestAgodeskFileCommandsRequireClientCapabilities(t *testing.T) {
 	}{
 		{op: remote.OpFileRead, wantCap: "remote.files.read", description: "file_read"},
 		{op: remote.OpFileList, wantCap: "remote.files.read", description: "file_list"},
+		{op: remote.OpFileSearch, wantCap: "remote.files.read", description: "file_search"},
 		{op: remote.OpFileWrite, wantCap: "remote.files.write", description: "file_write"},
 	} {
 		result, err := s.RemoteHub.SendCommand(accepted.DeviceID, remote.CommandPayload{
@@ -1970,6 +1971,8 @@ func TestAgodeskFileAccessSessionStateFeedsAgentContext(t *testing.T) {
 		`max_read_bytes=4096`,
 		`max_write_bytes=2048`,
 		`permissions="read,write"`,
+		`remote_control file_search`,
+		`grep_recursive`,
 	} {
 		if !strings.Contains(contextText, want) {
 			t.Fatalf("agent context missing %q in:\n%s", want, contextText)
@@ -1986,6 +1989,7 @@ func TestAgodeskFileAccessLimitsApplyToFileCommands(t *testing.T) {
 			Roots: []agodesk.FileAccessRoot{
 				{RootID: "workspace", Permissions: []string{"read", "write"}},
 				{RootID: "readonly", Permissions: []string{"read"}},
+				{RootID: "writeonly", Permissions: []string{"write"}},
 			},
 		}),
 	}
@@ -2004,6 +2008,50 @@ func TestAgodeskFileAccessLimitsApplyToFileCommands(t *testing.T) {
 	}
 	if got := read.Args["max_bytes"]; got != int64(1024) {
 		t.Fatalf("read max_bytes = %#v, want 1024", got)
+	}
+
+	search, denied := applyAgodeskFileAccessLimits(state, remote.CommandPayload{
+		CommandID: "search-1",
+		Operation: remote.OpFileSearch,
+		Args: map[string]interface{}{
+			"root_id":   "readonly",
+			"operation": "grep_recursive",
+			"pattern":   "TODO",
+			"glob":      "**/*.go",
+		},
+	})
+	if denied != nil {
+		t.Fatalf("search denied: %+v", denied)
+	}
+	if got := search.Args["root_id"]; got != "readonly" {
+		t.Fatalf("search root_id = %#v, want readonly", got)
+	}
+
+	_, denied = applyAgodeskFileAccessLimits(state, remote.CommandPayload{
+		CommandID: "search-2",
+		Operation: remote.OpFileSearch,
+		Args: map[string]interface{}{
+			"root_id":   "writeonly",
+			"operation": "find",
+			"glob":      "**/*.go",
+		},
+	})
+	if denied == nil || denied.ErrorCode != "FILE_ACCESS_DENIED" {
+		t.Fatalf("writeonly search denied = %+v, want FILE_ACCESS_DENIED", denied)
+	}
+
+	_, denied = applyAgodeskFileAccessLimits(state, remote.CommandPayload{
+		CommandID: "search-3",
+		Operation: remote.OpFileSearch,
+		Args: map[string]interface{}{
+			"root_id":   "missing",
+			"operation": "grep",
+			"pattern":   "TODO",
+			"path":      "main.go",
+		},
+	})
+	if denied == nil || denied.ErrorCode != "FILE_ACCESS_DENIED" {
+		t.Fatalf("unknown-root search denied = %+v, want FILE_ACCESS_DENIED", denied)
 	}
 
 	_, denied = applyAgodeskFileAccessLimits(state, remote.CommandPayload{
@@ -2036,6 +2084,15 @@ func TestAgodeskFileAccessLimitsApplyToFileCommands(t *testing.T) {
 	_, denied = applyAgodeskFileAccessLimits(disabledState, remote.CommandPayload{CommandID: "list-1", Operation: remote.OpFileList, Args: map[string]interface{}{"path": "."}})
 	if denied == nil || denied.ErrorCode != "FILE_ACCESS_DISABLED" {
 		t.Fatalf("disabled file access denied = %+v, want FILE_ACCESS_DISABLED", denied)
+	}
+
+	_, denied = applyAgodeskFileAccessLimits(disabledState, remote.CommandPayload{
+		CommandID: "search-disabled",
+		Operation: remote.OpFileSearch,
+		Args:      map[string]interface{}{"root_id": "workspace", "operation": "find", "glob": "**/*.go"},
+	})
+	if denied == nil || denied.ErrorCode != "FILE_ACCESS_DISABLED" {
+		t.Fatalf("disabled file search denied = %+v, want FILE_ACCESS_DISABLED", denied)
 	}
 }
 
