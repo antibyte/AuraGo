@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"aurago/internal/dbutil"
 )
 
 func (s *Service) resolveMediaMount(rawPath string) (mediaMount, string, string, bool, error) {
@@ -264,14 +266,8 @@ func (s *Service) mediaDB(ctx context.Context, dbPath string) (*sql.DB, error) {
 	if *slot != nil {
 		return *slot, nil
 	}
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := dbutil.Open(dbPath)
 	if err != nil {
-		return nil, err
-	}
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	if _, err := db.ExecContext(ctx, "PRAGMA busy_timeout = 5000"); err != nil {
-		_ = db.Close()
 		return nil, err
 	}
 	if err := db.PingContext(ctx); err != nil {

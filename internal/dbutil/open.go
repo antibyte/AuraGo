@@ -126,8 +126,7 @@ func applyPragmas(db *sql.DB, cfg config) error {
 func runIntegrityCheck(db *sql.DB) (bool, error) {
 	var result string
 	if err := db.QueryRow("PRAGMA integrity_check(1)").Scan(&result); err != nil {
-		// Log but don't fail on integrity check errors
-		return false, nil
+		return false, fmt.Errorf("integrity check query failed: %w", err)
 	}
 	return result != "ok", nil
 }

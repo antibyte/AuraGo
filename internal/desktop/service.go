@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/dbutil"
+
 	_ "modernc.org/sqlite"
 )
 
@@ -222,7 +224,7 @@ func (s *Service) Init(ctx context.Context) error {
 		}
 	}
 	if s.db == nil {
-		db, err := sql.Open("sqlite", s.cfg.DBPath)
+		db, err := dbutil.Open(s.cfg.DBPath)
 		if err != nil {
 			cleanup()
 			return fmt.Errorf("open desktop database: %w", err)

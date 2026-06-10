@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/dbutil"
+
 	_ "modernc.org/sqlite"
 )
 
@@ -28,7 +30,7 @@ var (
 func getGalaxaDB(dataDir string) (*sql.DB, error) {
 	galaxaDBOnce.Do(func() {
 		dbPath := filepath.Join(dataDir, "galaxa.db")
-		galaxaDBInst, galaxaDBErr = sql.Open("sqlite", dbPath+"?_pragma=journal_mode(wal)&_pragma=busy_timeout(5000)")
+		galaxaDBInst, galaxaDBErr = dbutil.Open(dbPath)
 		if galaxaDBErr != nil {
 			return
 		}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"aurago/internal/dbutil"
@@ -21,6 +22,8 @@ const (
 
 type systemTaskStore struct {
 	path string
+	db   *sql.DB
+	mu   sync.Mutex
 }
 
 func newSystemTaskStore(dataDir string) (*systemTaskStore, error) {
@@ -29,6 +32,7 @@ func newSystemTaskStore(dataDir string) (*systemTaskStore, error) {
 	}
 	store := &systemTaskStore{path: filepath.Join(dataDir, systemTaskStoreFile)}
 	if err := store.init(); err != nil {
+		_ = store.close()
 		return nil, err
 	}
 	return store, nil
@@ -38,11 +42,15 @@ func (s *systemTaskStore) init() error {
 	if s == nil || s.path == "" {
 		return nil
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.db != nil {
+		return nil
+	}
 	db, err := dbutil.Open(s.path)
 	if err != nil {
 		return fmt.Errorf("open system task store: %w", err)
 	}
-	defer db.Close()
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS system_tasks (
 			namespace TEXT PRIMARY KEY,
@@ -51,8 +59,10 @@ func (s *systemTaskStore) init() error {
 		)
 	`)
 	if err != nil {
+		_ = db.Close()
 		return fmt.Errorf("init system task store: %w", err)
 	}
+	s.db = db
 	return nil
 }
 
@@ -60,13 +70,13 @@ func (s *systemTaskStore) load(namespace string, dest interface{}) (bool, error)
 	if s == nil || s.path == "" {
 		return false, nil
 	}
-	db, err := dbutil.Open(s.path)
-	if err != nil {
-		return false, fmt.Errorf("open system task store: %w", err)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.db == nil {
+		return false, fmt.Errorf("system task store is not open")
 	}
-	defer db.Close()
 	var payload string
-	err = db.QueryRow(`SELECT payload_json FROM system_tasks WHERE namespace = ?`, namespace).Scan(&payload)
+	err := s.db.QueryRow(`SELECT payload_json FROM system_tasks WHERE namespace = ?`, namespace).Scan(&payload)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
@@ -83,16 +93,16 @@ func (s *systemTaskStore) save(namespace string, value interface{}) error {
 	if s == nil || s.path == "" {
 		return nil
 	}
-	db, err := dbutil.Open(s.path)
-	if err != nil {
-		return fmt.Errorf("open system task store: %w", err)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.db == nil {
+		return fmt.Errorf("system task store is not open")
 	}
-	defer db.Close()
 	data, err := json.Marshal(value)
 	if err != nil {
 		return fmt.Errorf("marshal %s for system task store: %w", namespace, err)
 	}
-	_, err = db.Exec(
+	_, err = s.db.Exec(
 		`INSERT INTO system_tasks (namespace, payload_json, updated_at) VALUES (?, ?, ?)
 		 ON CONFLICT(namespace) DO UPDATE SET payload_json = excluded.payload_json, updated_at = excluded.updated_at`,
 		namespace,
@@ -106,5 +116,15 @@ func (s *systemTaskStore) save(namespace string, value interface{}) error {
 }
 
 func (s *systemTaskStore) close() error {
-	return nil
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.db == nil {
+		return nil
+	}
+	err := s.db.Close()
+	s.db = nil
+	return err
 }

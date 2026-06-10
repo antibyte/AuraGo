@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/dbutil"
 	"aurago/internal/uid"
 )
 
@@ -48,19 +49,9 @@ type MissionHistoryPage struct {
 // InitMissionHistoryDB initializes the mission history SQLite database with
 // WAL journal mode, busy timeout and schema creation.
 func InitMissionHistoryDB(dbPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open mission history database: %w", err)
-	}
-
-	// SQLite hardening: WAL mode for concurrent read/write, busy timeout for lock contention
-	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to set WAL mode: %w", err)
-	}
-	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to set busy_timeout: %w", err)
 	}
 
 	schema := `
