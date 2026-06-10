@@ -1171,6 +1171,8 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 			tools.CloudflareTunnelStop(tunnelCfg, s.Registry, s.Logger)
 		}
 
+		s.closeRuntimeResources()
+
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 

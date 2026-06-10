@@ -2,7 +2,10 @@ package inventory
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
+
+	"aurago/internal/dbutil"
 )
 
 func TestInventory(t *testing.T) {
@@ -63,5 +66,35 @@ func TestInventory(t *testing.T) {
 	}
 	if len(devices) != 0 {
 		t.Errorf("Expected 0 devices with tag 'nonexistent', got %d", len(devices))
+	}
+}
+
+func TestInitDBCreatesQueryIndexes(t *testing.T) {
+	t.Parallel()
+
+	dbPath := filepath.Join(t.TempDir(), "inventory.db")
+	db, err := InitDB(dbPath)
+	if err != nil {
+		t.Fatalf("InitDB: %v", err)
+	}
+	defer db.Close()
+
+	var indexCount int
+	if err := db.QueryRow(`
+		SELECT count(*) FROM sqlite_master
+		WHERE type = 'index' AND tbl_name = 'devices' AND name IN ('idx_devices_type', 'idx_devices_name_ci')
+	`).Scan(&indexCount); err != nil {
+		t.Fatalf("count indexes: %v", err)
+	}
+	if indexCount != 2 {
+		t.Fatalf("index count = %d, want 2", indexCount)
+	}
+
+	version, err := dbutil.GetUserVersion(db)
+	if err != nil {
+		t.Fatalf("GetUserVersion: %v", err)
+	}
+	if version != 4 {
+		t.Fatalf("schema version = %d, want 4", version)
 	}
 }

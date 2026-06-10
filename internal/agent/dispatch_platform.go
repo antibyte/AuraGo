@@ -956,7 +956,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			// The unified "truenas" schema maps: name→tc.Name, path→tc.Path, query→pool/dataset,
 			// port→pool_id/share_id, limit→quota_gb/retention_days, content→compression,
 			// recursive→tc.Recursive, force→tc.Force.
-			return "Tool Output: " + tools.DispatchTrueNASTool(req.Action, req.params(), cfg, nil, logger)
+			return "Tool Output: " + tools.DispatchTrueNASTool(req.Action, req.params(), cfg, logger)
 
 		// ── Jellyfin Media Server ──
 		case "jellyfin":

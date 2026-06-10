@@ -85,10 +85,15 @@ func InitDB(dbPath string) (*sql.DB, error) {
 	}
 
 	// Check and set schema version - only migrate legacy servers table if version is below 1.
-	const inventorySchemaVersion = 3
+	const inventorySchemaVersion = 4
 	currentVer, err := dbutil.GetUserVersion(db)
 	if err != nil {
 		currentVer = 0
+	}
+
+	if err := ensureInventoryIndexes(db); err != nil {
+		db.Close()
+		return nil, err
 	}
 
 	if currentVer < 1 {
@@ -133,6 +138,19 @@ func InitDB(dbPath string) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+func ensureInventoryIndexes(db *sql.DB) error {
+	indexes := []string{
+		`CREATE INDEX IF NOT EXISTS idx_devices_type ON devices(type)`,
+		`CREATE INDEX IF NOT EXISTS idx_devices_name_ci ON devices(lower(name))`,
+	}
+	for _, stmt := range indexes {
+		if _, err := db.Exec(stmt); err != nil {
+			return fmt.Errorf("create inventory index: %w", err)
+		}
+	}
+	return nil
 }
 
 // CreateDevice generates a new UUID and adds a device record to the database.

@@ -1,0 +1,37 @@
+package server
+
+import (
+	"database/sql"
+	"log/slog"
+)
+
+// closeRuntimeResources releases server-owned runtime handles during graceful shutdown.
+func (s *Server) closeRuntimeResources() {
+	if s == nil {
+		return
+	}
+
+	if s.PreparationService != nil {
+		s.PreparationService.Stop()
+	}
+
+	if s.SQLConnectionPool != nil {
+		s.SQLConnectionPool.CloseAll()
+	}
+
+	closeSQLiteHandle(s.Logger, &s.SkillsDB, "skills")
+	closeSQLiteHandle(s.Logger, &s.MissionHistoryDB, "mission_history")
+	closeSQLiteHandle(s.Logger, &s.PreparedMissionsDB, "prepared_missions")
+
+	closeGalaxaDB(s.Logger)
+}
+
+func closeSQLiteHandle(logger *slog.Logger, db **sql.DB, name string) {
+	if db == nil || *db == nil {
+		return
+	}
+	if err := (*db).Close(); err != nil && logger != nil {
+		logger.Warn("Failed to close SQLite database", "db", name, "error", err)
+	}
+	*db = nil
+}

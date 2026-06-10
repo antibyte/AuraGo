@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -90,7 +89,7 @@ func TrueNASHealth(cfg config.TrueNASConfig, logger *slog.Logger) string {
 }
 
 // TrueNASPoolList returns all ZFS pools.
-func TrueNASPoolList(cfg config.TrueNASConfig, db *sql.DB, logger *slog.Logger) string {
+func TrueNASPoolList(cfg config.TrueNASConfig, logger *slog.Logger) string {
 	client, err := truenas.NewClient(cfg, nil)
 	if err != nil {
 		return errJSON("TrueNAS connection failed: %v", err)
@@ -541,7 +540,7 @@ func TrueNASFSSpace(cfg config.TrueNASConfig, dataset string, logger *slog.Logge
 }
 
 // DispatchTrueNASTool routes TrueNAS tool calls.
-func DispatchTrueNASTool(name string, params map[string]string, cfg *config.Config, db *sql.DB, logger *slog.Logger) string {
+func DispatchTrueNASTool(name string, params map[string]string, cfg *config.Config, logger *slog.Logger) string {
 	if !cfg.TrueNAS.Enabled {
 		return errJSON("TrueNAS integration is disabled")
 	}
@@ -551,7 +550,7 @@ func DispatchTrueNASTool(name string, params map[string]string, cfg *config.Conf
 		return TrueNASHealth(cfg.TrueNAS, logger)
 
 	case "truenas_pool_list":
-		return TrueNASPoolList(cfg.TrueNAS, db, logger)
+		return TrueNASPoolList(cfg.TrueNAS, logger)
 
 	case "truenas_pool_scrub":
 		poolID := getInt64(params, "pool_id")

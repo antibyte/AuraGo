@@ -3,6 +3,7 @@ package server
 import (
 	"database/sql"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -25,6 +26,7 @@ var (
 	galaxaDBOnce sync.Once
 	galaxaDBInst *sql.DB
 	galaxaDBErr  error
+	galaxaDBMu   sync.Mutex
 )
 
 func getGalaxaDB(dataDir string) (*sql.DB, error) {
@@ -53,6 +55,20 @@ func getGalaxaDB(dataDir string) (*sql.DB, error) {
 		}
 	})
 	return galaxaDBInst, galaxaDBErr
+}
+
+func closeGalaxaDB(logger *slog.Logger) {
+	galaxaDBMu.Lock()
+	defer galaxaDBMu.Unlock()
+	if galaxaDBInst == nil {
+		return
+	}
+	if err := galaxaDBInst.Close(); err != nil && logger != nil {
+		logger.Warn("Failed to close galaxa database", "error", err)
+	}
+	galaxaDBInst = nil
+	galaxaDBErr = nil
+	galaxaDBOnce = sync.Once{}
 }
 
 func handleGalaxaHighscoreGet(s *Server) http.HandlerFunc {
