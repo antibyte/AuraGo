@@ -2519,6 +2519,62 @@ directories:
 	}
 }
 
+func TestMaintenanceRetentionDefaultsWhenOmitted(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+directories:
+  data_dir: './data'
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Maintenance.Retention.PatternsDays != 90 {
+		t.Fatalf("patterns_days = %d, want 90", cfg.Maintenance.Retention.PatternsDays)
+	}
+	if cfg.Maintenance.Retention.ErrorPatternsDays != 7 {
+		t.Fatalf("error_patterns_days = %d, want 7", cfg.Maintenance.Retention.ErrorPatternsDays)
+	}
+	if cfg.Maintenance.Retention.OperationalIssuesDays != 30 {
+		t.Fatalf("operational_issues_days = %d, want 30", cfg.Maintenance.Retention.OperationalIssuesDays)
+	}
+}
+
+func TestMaintenanceRetentionRespectsExplicitValues(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+maintenance:
+  retention:
+    patterns_days: 14
+    done_notes_days: 2
+directories:
+  data_dir: './data'
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Maintenance.Retention.PatternsDays != 14 {
+		t.Fatalf("patterns_days = %d, want 14", cfg.Maintenance.Retention.PatternsDays)
+	}
+	if cfg.Maintenance.Retention.DoneNotesDays != 2 {
+		t.Fatalf("done_notes_days = %d, want 2", cfg.Maintenance.Retention.DoneNotesDays)
+	}
+	if cfg.Maintenance.Retention.MoodLogDays != 30 {
+		t.Fatalf("mood_log_days = %d, want default 30", cfg.Maintenance.Retention.MoodLogDays)
+	}
+}
+
 func TestMaintenanceEnabledRespectsExplicitFalse(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

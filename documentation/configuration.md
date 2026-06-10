@@ -200,6 +200,24 @@ Scheduled nightly agent run for housekeeping. The agent loads `agent_workspace/p
 | `lifeboat_enabled` | `true` | Allow the agent to trigger self-modification (code surgery) via the lifeboat binary. **Use with caution.** |
 | `lifeboat_port` | `8091` | Internal TCP port used for lifeboat ↔ aurago communication. |
 
+While nightly maintenance runs, user chats are briefly treated as maintenance via the global busy lock. The dashboard shows this as `busy`.
+
+### `maintenance.retention`
+
+Retention windows for deterministic nightly cleanups. Defaults match the previous hardcoded values.
+
+| Key | Default | Maps to |
+|---|---|---|
+| `patterns_days` | `90` | Old interaction patterns |
+| `archive_events_days` | `90` | Archive event log entries |
+| `mood_log_days` | `30` | Mood log entries |
+| `error_patterns_days` | `7` | Stale unresolved error patterns |
+| `profile_stale_days` | `30` | Low-confidence user profile entries |
+| `done_notes_days` | `7` | Completed notes marked done |
+| `operational_issues_days` | `30` | Planner operational issues |
+
+The 03:00 daily reflection loop skips its LLM pass when nightly maintenance recently produced a daily summary, avoiding duplicate work on the same archive data.
+
 ---
 
 ## `fallback_llm`

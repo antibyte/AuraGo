@@ -1044,6 +1044,27 @@ func Load(path string) (*Config, error) {
 	if !yamlHasPath(data, "maintenance", "enabled") {
 		cfg.Maintenance.Enabled = true
 	}
+	if cfg.Maintenance.Retention.PatternsDays <= 0 {
+		cfg.Maintenance.Retention.PatternsDays = 90
+	}
+	if cfg.Maintenance.Retention.ArchiveEventsDays <= 0 {
+		cfg.Maintenance.Retention.ArchiveEventsDays = 90
+	}
+	if cfg.Maintenance.Retention.MoodLogDays <= 0 {
+		cfg.Maintenance.Retention.MoodLogDays = 30
+	}
+	if cfg.Maintenance.Retention.ErrorPatternsDays <= 0 {
+		cfg.Maintenance.Retention.ErrorPatternsDays = 7
+	}
+	if cfg.Maintenance.Retention.ProfileStaleDays <= 0 {
+		cfg.Maintenance.Retention.ProfileStaleDays = 30
+	}
+	if cfg.Maintenance.Retention.DoneNotesDays <= 0 {
+		cfg.Maintenance.Retention.DoneNotesDays = 7
+	}
+	if cfg.Maintenance.Retention.OperationalIssuesDays <= 0 {
+		cfg.Maintenance.Retention.OperationalIssuesDays = 30
+	}
 	if cfg.Agent.MemoryCompressionCharLimit <= 0 {
 		cfg.Agent.MemoryCompressionCharLimit = 100000
 	}

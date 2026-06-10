@@ -800,6 +800,15 @@ type Config struct {
 		Time            string `yaml:"time"`
 		LifeboatEnabled bool   `yaml:"lifeboat_enabled"`
 		LifeboatPort    int    `yaml:"lifeboat_port"`
+		Retention       struct {
+			PatternsDays          int `yaml:"patterns_days"`           // interaction patterns (default 90)
+			ArchiveEventsDays     int `yaml:"archive_events_days"`     // archive events (default 90)
+			MoodLogDays           int `yaml:"mood_log_days"`             // mood log entries (default 30)
+			ErrorPatternsDays     int `yaml:"error_patterns_days"`       // stale unresolved error patterns (default 7)
+			ProfileStaleDays      int `yaml:"profile_stale_days"`        // low-confidence user profile entries (default 30)
+			DoneNotesDays         int `yaml:"done_notes_days"`           // completed notes (default 7)
+			OperationalIssuesDays int `yaml:"operational_issues_days"`   // planner operational issues (default 30)
+		} `yaml:"retention"`
 	} `yaml:"maintenance"`
 	Journal struct {
 		AutoEntries  bool `yaml:"auto_entries"`  // auto-create journal entries from tool chains (default true)

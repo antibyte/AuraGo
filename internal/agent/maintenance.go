@@ -80,26 +80,28 @@ func parseTime(t string) (int, int, error) {
 func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
 	tools.SetBusy(true)
 	defer tools.SetBusy(false)
+	defer memory.RecordMaintenanceRunCompleted(time.Now())
 
 	logger.Info("[Maintenance] Waking up to perform daily tasks")
+	retention := resolveMaintenanceRetention(cfg)
 
-	// Phase A5: Clean up old interaction patterns (>90 days)
+	// Phase A5: Clean up old interaction patterns
 	if shortTermMem != nil {
-		deleted, err := shortTermMem.CleanOldPatterns(90)
+		deleted, err := shortTermMem.CleanOldPatterns(retention.PatternsDays)
 		if err != nil {
 			logger.Error("[Maintenance] Failed to clean old patterns", "error", err)
 		} else if deleted > 0 {
 			logger.Info("[Maintenance] Cleaned old interaction patterns", "deleted", deleted)
 		}
 
-		deletedEvents, err := shortTermMem.CleanOldArchiveEvents(90)
+		deletedEvents, err := shortTermMem.CleanOldArchiveEvents(retention.ArchiveEventsDays)
 		if err != nil {
 			logger.Error("[Maintenance] Failed to clean old archive events", "error", err)
 		} else if deletedEvents > 0 {
 			logger.Info("[Maintenance] Cleaned old archive events", "deleted", deletedEvents)
 		}
 
-		deletedMoodLog, err := shortTermMem.CleanOldMoodLog(30)
+		deletedMoodLog, err := shortTermMem.CleanOldMoodLog(retention.MoodLogDays)
 		if err != nil {
 			logger.Error("[Maintenance] Failed to clean old mood log entries", "error", err)
 		} else if deletedMoodLog > 0 {
@@ -109,7 +111,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		// Stale error pattern eviction: unresolved errors older than 7 days are
 		// likely no longer relevant to current conditions and would otherwise
 		// bias the system prompt indefinitely. Resolved patterns are kept.
-		deletedErr, err := shortTermMem.CleanOldErrorPatterns(7)
+		deletedErr, err := shortTermMem.CleanOldErrorPatterns(retention.ErrorPatternsDays)
 		if err != nil {
 			logger.Error("[Maintenance] Failed to clean old error patterns", "error", err)
 		} else if deletedErr > 0 {
@@ -137,7 +139,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 
 	// User Profile cleanup: remove stale low-confidence entries
 	if cfg.Personality.UserProfiling && shortTermMem != nil {
-		removed, err := shortTermMem.CleanupStaleProfileEntries(30)
+		removed, err := shortTermMem.CleanupStaleProfileEntries(retention.ProfileStaleDays)
 		if err != nil {
 			logger.Error("[Maintenance] Failed to clean stale profile entries", "error", err)
 		} else if removed > 0 {
@@ -180,7 +182,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 
 	// Notes: clean up old completed notes (done for >7 days)
 	if cfg.Tools.Notes.Enabled && shortTermMem != nil {
-		deleted, err := shortTermMem.DeleteOldDoneNotes(7)
+		deleted, err := shortTermMem.DeleteOldDoneNotes(retention.DoneNotesDays)
 		if err != nil {
 			logger.Error("[Maintenance] Failed to clean old done notes", "error", err)
 		} else if deleted > 0 {
@@ -212,7 +214,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		SyncPlannerToKnowledgeGraph(ctx, plannerDB, kg, logger)
 	}
 	if plannerDB != nil {
-		if cleaned, err := planner.CleanupOperationalIssues(plannerDB, 30*24*time.Hour); err != nil {
+		if cleaned, err := planner.CleanupOperationalIssues(plannerDB, time.Duration(retention.OperationalIssuesDays)*24*time.Hour); err != nil {
 			logger.Warn("[Maintenance] Failed to clean up operational issues", "error", err)
 		} else if cleaned > 0 {
 			logger.Info("[Maintenance] Cleaned old operational issues", "deleted", cleaned)
@@ -242,9 +244,8 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	// STM→LTM Consolidation: extract knowledge from archived messages into VectorDB
 	if cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && longTermMem.IsReady() && !longTermMem.IsDisabled() {
 		totalStored, _ := consolidateSTMtoLTM(cfg, logger, client, shortTermMem, longTermMem, kg)
-		runPostConsolidationMemoryMaintenance(cfg, logger, client, shortTermMem, longTermMem, kg, totalStored)
+		runNightlyMemoryMaintenance(cfg, logger, client, shortTermMem, longTermMem, kg, totalStored)
 		consolidateEpisodicHierarchy(logger, shortTermMem, longTermMem, kg)
-		detectMemoryConflictsAcrossLTM(logger, shortTermMem, longTermMem)
 	}
 
 	// 1. Load Maintenance Prompt
@@ -959,11 +960,59 @@ func runMaintenanceCompressedOutputCleanup(ctx context.Context, cfg *config.Conf
 	}
 }
 
-func runPostConsolidationMemoryMaintenance(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph, totalStored int) {
-	if cfg.Consolidation.AutoOptimize && totalStored > 0 {
-		autoOptimizeMemory(cfg, logger, client, ltm, stm, kg)
+type maintenanceRetentionDays struct {
+	PatternsDays          int
+	ArchiveEventsDays     int
+	MoodLogDays           int
+	ErrorPatternsDays     int
+	ProfileStaleDays      int
+	DoneNotesDays         int
+	OperationalIssuesDays int
+}
+
+func resolveMaintenanceRetention(cfg *config.Config) maintenanceRetentionDays {
+	if cfg == nil {
+		return maintenanceRetentionDays{
+			PatternsDays:          90,
+			ArchiveEventsDays:     90,
+			MoodLogDays:           30,
+			ErrorPatternsDays:     7,
+			ProfileStaleDays:      30,
+			DoneNotesDays:         7,
+			OperationalIssuesDays: 30,
+		}
 	}
-	autoCurateMemory(cfg, logger, stm)
+	return maintenanceRetentionDays{
+		PatternsDays:          cfg.Maintenance.Retention.PatternsDays,
+		ArchiveEventsDays:     cfg.Maintenance.Retention.ArchiveEventsDays,
+		MoodLogDays:           cfg.Maintenance.Retention.MoodLogDays,
+		ErrorPatternsDays:     cfg.Maintenance.Retention.ErrorPatternsDays,
+		ProfileStaleDays:      cfg.Maintenance.Retention.ProfileStaleDays,
+		DoneNotesDays:         cfg.Maintenance.Retention.DoneNotesDays,
+		OperationalIssuesDays: cfg.Maintenance.Retention.OperationalIssuesDays,
+	}
+}
+
+const nightlyMemoryMetaFetchLimit = 50000
+const nightlyMemoryConflictScanLimit = 250
+
+func runNightlyMemoryMaintenance(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph, totalStored int) {
+	if stm == nil {
+		return
+	}
+	metas, err := stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
+	if err != nil {
+		logger.Warn("[Maintenance] Failed to fetch memory metadata for nightly memory maintenance", "error", err)
+	}
+	if cfg != nil && cfg.Consolidation.AutoOptimize && totalStored > 0 {
+		autoOptimizeMemory(cfg, logger, client, ltm, stm, kg, metas)
+	}
+	autoCurateMemory(cfg, logger, stm, metas)
+	detectMemoryConflictsAcrossLTM(logger, stm, ltm, metas)
+}
+
+func runPostConsolidationMemoryMaintenance(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph, totalStored int) {
+	runNightlyMemoryMaintenance(cfg, logger, client, stm, ltm, kg, totalStored)
 }
 
 func cleanConsolidationArchivedMessages(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory) {
@@ -1232,13 +1281,19 @@ func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory,
 	}
 }
 
-func detectMemoryConflictsAcrossLTM(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB) {
+func detectMemoryConflictsAcrossLTM(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, prefetchedMetas []memory.MemoryMeta) {
 	if stm == nil || ltm == nil || ltm.IsDisabled() {
 		return
 	}
-	metas, err := stm.GetAllMemoryMeta(250, 0)
-	if err != nil {
-		return
+	metas := prefetchedMetas
+	if metas == nil {
+		var err error
+		metas, err = stm.GetAllMemoryMeta(nightlyMemoryConflictScanLimit, 0)
+		if err != nil {
+			return
+		}
+	} else if len(metas) > nightlyMemoryConflictScanLimit {
+		metas = metas[:nightlyMemoryConflictScanLimit]
 	}
 	for _, meta := range metas {
 		detectMemoryConflictsForDocIDs(logger, stm, ltm, []string{meta.DocID}, "")
@@ -1294,13 +1349,17 @@ func truncateHierarchySummary(value string, maxLen int) string {
 }
 
 // autoOptimizeMemory runs priority-based forgetting on VectorDB and Knowledge Graph.
-func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, ltm memory.VectorDB, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph) {
+func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, ltm memory.VectorDB, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph, prefetchedMetas []memory.MemoryMeta) {
 	threshold := cfg.Consolidation.OptimizeThreshold
 
-	metas, err := stm.GetAllMemoryMeta(50000, 0)
-	if err != nil {
-		logger.Error("[AutoOptimize] Failed to fetch memory metadata", "error", err)
-		return
+	metas := prefetchedMetas
+	if metas == nil {
+		var err error
+		metas, err = stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
+		if err != nil {
+			logger.Error("[AutoOptimize] Failed to fetch memory metadata", "error", err)
+			return
+		}
 	}
 
 	var lowDocs, mediumDocs []string
@@ -1476,14 +1535,18 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 	}
 }
 
-func autoCurateMemory(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory) {
+func autoCurateMemory(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, prefetchedMetas []memory.MemoryMeta) {
 	if cfg == nil || stm == nil {
 		return
 	}
-	metas, err := stm.GetAllMemoryMeta(50000, 0)
-	if err != nil {
-		logger.Warn("[MemoryCurator] Failed to fetch memory metadata", "error", err)
-		return
+	metas := prefetchedMetas
+	if metas == nil {
+		var err error
+		metas, err = stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
+		if err != nil {
+			logger.Warn("[MemoryCurator] Failed to fetch memory metadata", "error", err)
+			return
+		}
 	}
 	usage, err := stm.GetMemoryUsageStats(30, 500)
 	if err != nil {

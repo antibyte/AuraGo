@@ -548,6 +548,14 @@ maintenance:
     lifeboat_enabled: true
     lifeboat_port: 8091
     time: "04:00"
+    retention:
+        patterns_days: 90
+        archive_events_days: 90
+        mood_log_days: 30
+        error_patterns_days: 7
+        profile_stale_days: 30
+        done_notes_days: 7
+        operational_issues_days: 30
 consolidation:
     enabled: true
     auto_optimize: true

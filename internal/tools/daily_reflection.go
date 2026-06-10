@@ -43,6 +43,11 @@ func StartDailyReflectionLoop(ctx context.Context, cfg *config.Config, logger *s
 func runDailyReflection(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, historyMgr *memory.HistoryManager, shortTermMem *memory.SQLiteMemory) {
 	logger.Info("[DailyReflection] Waking up to process daily summary")
 
+	if memory.ShouldSkipDailyReflectionBecauseMaintenance(shortTermMem) {
+		logger.Info("[DailyReflection] Skipping — nightly maintenance already produced a recent daily summary")
+		return
+	}
+
 	// 1. Gather Context
 	rollingSummary := historyMgr.GetSummary()
 	recentArchives, err := shortTermMem.GetRecentArchiveEvents(24)
