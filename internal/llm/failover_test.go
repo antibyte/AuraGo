@@ -41,6 +41,23 @@ func TestFailoverManagerActiveProviderAndModelTracksFallback(t *testing.T) {
 	}
 }
 
+func TestFailoverRecordErrorSkipsRateLimit(t *testing.T) {
+	fm := &FailoverManager{
+		logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
+		errorThreshold: 1,
+		errorCount:     0,
+	}
+
+	fm.recordError(&openai.APIError{HTTPStatusCode: http.StatusTooManyRequests, Message: "rate limited"})
+
+	if fm.errorCount != 0 {
+		t.Fatalf("errorCount = %d, want 0 for rate limit errors", fm.errorCount)
+	}
+	if fm.isOnFallback {
+		t.Fatal("rate limit error should not switch to fallback")
+	}
+}
+
 func TestFailoverRecordSuccessResetsFallbackErrorCounter(t *testing.T) {
 	fm := &FailoverManager{
 		logger:             slog.New(slog.NewTextHandler(io.Discard, nil)),

@@ -279,6 +279,11 @@ func (fm *FailoverManager) recordError(err error) {
 		return
 	}
 
+	if IsRateLimit(err) {
+		fm.logger.Debug("[LLM] Rate limit error, not counting towards failover", "error", err)
+		return
+	}
+
 	fm.mu.Lock()
 	defer fm.mu.Unlock()
 

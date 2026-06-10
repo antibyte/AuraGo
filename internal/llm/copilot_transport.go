@@ -81,10 +81,19 @@ type copilotRouteInfo struct {
 	stream         bool
 }
 
+func requestWantsStream(payload map[string]interface{}) bool {
+	streamRaw, ok := payload["stream"]
+	if !ok {
+		return false
+	}
+	stream, ok := streamRaw.(bool)
+	return ok && stream
+}
+
 // rewriteRequest handles Copilot-specific request rewriting:
 //   - Routes Codex models to /responses
 //   - Strips the "copilot/" prefix from model IDs
-//   - Forces streaming for /responses endpoint
+//   - Preserves the caller's stream preference while always streaming to /responses
 func (t *copilotTransport) rewriteRequest(req *http.Request) (copilotRouteInfo, error) {
 	info := copilotRouteInfo{}
 	isChatCompletion := req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/chat/completions")
@@ -124,11 +133,14 @@ func (t *copilotTransport) rewriteRequest(req *http.Request) (copilotRouteInfo, 
 
 	if CopilotResponsesOnlyRe.MatchString(model) {
 		req.URL.Path = strings.TrimSuffix(req.URL.Path, "/chat/completions") + "/responses"
-		payload["stream"] = true
 		info.responsesRoute = true
-		info.stream = true
+		info.stream = requestWantsStream(payload)
+		// Copilot's /responses endpoint requires streaming from the provider; when the
+		// caller requested a non-stream chat completion we still stream upstream and
+		// buffer the SSE into a single OpenAI JSON response in translateCopilotResponsesResponse.
+		payload["stream"] = true
 		req.Header.Set("Accept", "text/event-stream")
-		slog.Debug("[Copilot] Routed Codex model to /responses", "model", model)
+		slog.Debug("[Copilot] Routed Codex model to /responses", "model", model, "caller_stream", info.stream)
 	}
 
 	newBody, err := json.Marshal(payload)

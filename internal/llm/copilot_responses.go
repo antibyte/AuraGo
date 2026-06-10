@@ -41,10 +41,118 @@ func translateCopilotResponsesResponse(resp *http.Response, model string, stream
 	if resp.StatusCode >= http.StatusBadRequest {
 		return resp, nil
 	}
+	contentType := strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Type")))
 	if stream {
-		return translateCopilotResponsesStream(resp, model)
+		if strings.Contains(contentType, "text/event-stream") {
+			return translateCopilotResponsesStream(resp, model)
+		}
+		return translateCopilotResponsesJSON(resp, model)
+	}
+	if strings.Contains(contentType, "text/event-stream") {
+		return translateCopilotResponsesSSEToJSON(resp, model)
 	}
 	return translateCopilotResponsesJSON(resp, model)
+}
+
+func translateCopilotResponsesSSEToJSON(resp *http.Response, model string) (*http.Response, error) {
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return nil, fmt.Errorf("copilot responses: read sse body: %w", err)
+	}
+
+	respID, text, resolvedModel := collectCopilotResponsesStreamText(bytes.NewReader(body), model)
+	if resolvedModel != "" {
+		model = resolvedModel
+	}
+	if respID == "" {
+		respID = "resp-unknown"
+	}
+
+	oai := map[string]interface{}{
+		"id":      "chatcmpl-" + strings.TrimPrefix(respID, "resp_"),
+		"object":  "chat.completion",
+		"created": time.Now().Unix(),
+		"model":   model,
+		"choices": []map[string]interface{}{
+			{
+				"index": 0,
+				"message": map[string]interface{}{
+					"role":    "assistant",
+					"content": text,
+				},
+				"finish_reason": "stop",
+			},
+		},
+	}
+	oaiBody, err := json.Marshal(oai)
+	if err != nil {
+		return nil, fmt.Errorf("copilot responses: marshal buffered completion: %w", err)
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(oaiBody))
+	resp.ContentLength = int64(len(oaiBody))
+	resp.Header.Set("Content-Type", "application/json")
+	return resp, nil
+}
+
+func collectCopilotResponsesStreamText(reader io.Reader, model string) (respID, text, resolvedModel string) {
+	scanner := bufio.NewScanner(reader)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+
+	var currentEvent string
+	var b strings.Builder
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "event: ") {
+			currentEvent = strings.TrimPrefix(line, "event: ")
+			continue
+		}
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data: "))
+		if data == "" || data == "[DONE]" {
+			continue
+		}
+
+		var evt map[string]interface{}
+		if err := json.Unmarshal([]byte(data), &evt); err != nil {
+			continue
+		}
+		evtType, _ := evt["type"].(string)
+		if evtType == "" {
+			evtType = currentEvent
+		}
+
+		switch evtType {
+		case "response.created", "response.in_progress", "response.completed":
+			if response, ok := evt["response"].(map[string]interface{}); ok {
+				if id, _ := response["id"].(string); id != "" {
+					respID = id
+				}
+				if m, _ := response["model"].(string); m != "" {
+					resolvedModel = m
+				}
+				if evtType == "response.completed" && text == "" {
+					if extracted := extractResponsesOutputText(response); extracted != "" {
+						b.WriteString(extracted)
+					}
+				}
+			}
+		case "response.output_text.delta":
+			if delta, _ := evt["delta"].(string); delta != "" {
+				b.WriteString(delta)
+			}
+		case "error":
+			if errObj, ok := evt["error"].(map[string]interface{}); ok {
+				if msg, _ := errObj["message"].(string); msg != "" {
+					b.WriteString("[Copilot Error: " + msg + "]")
+				}
+			}
+		}
+	}
+	return respID, b.String(), resolvedModel
 }
 
 func translateCopilotResponsesJSON(resp *http.Response, model string) (*http.Response, error) {
