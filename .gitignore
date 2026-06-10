@@ -118,6 +118,7 @@ docs/*.*
 docs/superpowers/
 .superpowers/
 .playwright-mcp/
+/mcps/
 .worktrees/
 #Agent files
 .kilo/
