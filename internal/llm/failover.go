@@ -3,7 +3,6 @@ package llm
 import (
 	"context"
 	"log/slog"
-	"strings"
 	"sync"
 	"time"
 
@@ -19,8 +18,10 @@ type FailoverManager struct {
 	fallback      *openai.Client
 	primaryType   string
 	fallbackType  string
-	primaryModel  string
-	fallbackModel string
+	primaryModel   string
+	fallbackModel  string
+	primaryBaseURL string
+	primaryAPIKey  string
 
 	isOnFallback       bool
 	errorCount         int
@@ -35,11 +36,13 @@ type FailoverManager struct {
 }
 
 type failoverProbeSnapshot struct {
-	generation    int
-	onFallback    bool
-	primaryClient *openai.Client
-	primaryType   string
-	primaryModel  string
+	generation     int
+	onFallback     bool
+	primaryClient  *openai.Client
+	primaryType    string
+	primaryModel   string
+	primaryBaseURL string
+	primaryAPIKey  string
 }
 
 func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManager {
@@ -61,6 +64,8 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManage
 		primary:        primary,
 		primaryType:    cfg.LLM.ProviderType,
 		primaryModel:   cfg.LLM.Model,
+		primaryBaseURL: cfg.LLM.BaseURL,
+		primaryAPIKey:  cfg.LLM.APIKey,
 		errorThreshold: 3,
 		probeInterval:  60 * time.Second,
 		stopCh:         make(chan struct{}),
@@ -115,6 +120,8 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 	fm.primary = newPrimary
 	fm.primaryType = cfg.LLM.ProviderType
 	fm.primaryModel = cfg.LLM.Model
+	fm.primaryBaseURL = cfg.LLM.BaseURL
+	fm.primaryAPIKey = cfg.LLM.APIKey
 	fm.isOnFallback = false
 	fm.errorCount = 0
 	fm.fallbackErrorCount = 0
@@ -223,30 +230,43 @@ func (fm *FailoverManager) ActiveProviderAndModel() (string, string) {
 
 func (fm *FailoverManager) fallbackSupportsFeatures(req openai.ChatCompletionRequest) bool {
 	fm.mu.RLock()
-	defer fm.mu.RUnlock()
-	if fm.fallbackModel == "" {
+	fallbackType := fm.fallbackType
+	fallbackModel := fm.fallbackModel
+	fm.mu.RUnlock()
+
+	if fallbackModel == "" {
 		return false
 	}
-	lower := strings.ToLower(fm.fallbackModel)
+
+	hasImage := false
 	for _, m := range req.Messages {
 		for _, part := range m.MultiContent {
 			if part.Type == openai.ChatMessagePartTypeImageURL {
-				if strings.Contains(lower, "llama") || strings.Contains(lower, "mistral") ||
-					strings.Contains(lower, "qwen") || strings.Contains(lower, "phi-") ||
-					strings.Contains(lower, "gemma") || strings.Contains(lower, "falcon") ||
-					strings.Contains(lower, "vicuna") || strings.Contains(lower, "wizard") ||
-					strings.Contains(lower, "stablelm") || strings.Contains(lower, "tinyllama") ||
-					strings.Contains(lower, "starcoder") || strings.Contains(lower, "codellama") ||
-					strings.Contains(lower, "neural-chat") || strings.Contains(lower, "orca") ||
-					strings.Contains(lower, "yi") || strings.Contains(lower, "baichuan") ||
-					strings.Contains(lower, "chatglm") || strings.Contains(lower, " runes") ||
-					strings.Contains(lower, "mixtral") || strings.Contains(lower, "mistral") {
-					return false
-				}
+				hasImage = true
+				break
 			}
 		}
+		if hasImage {
+			break
+		}
 	}
-	return true
+	if !hasImage {
+		return true
+	}
+
+	if _, _, _, multimodal, ok := GetCapabilitiesFromRegistry(fallbackType, fallbackModel); ok {
+		return multimodal
+	}
+
+	caps := ResolveProviderCapabilities(config.ProviderEntry{
+		ID:    fallbackType,
+		Type:  fallbackType,
+		Model: fallbackModel,
+	}, CapabilityFallback{})
+	if caps.Known {
+		return caps.Multimodal
+	}
+	return false
 }
 
 func (fm *FailoverManager) recordError(err error) {
@@ -315,15 +335,9 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 			// references the original client and remains valid for the probe.
 			// The local copy is used (not fm.primary) for all HTTP calls.
 
-			// Prefer a lightweight health check that doesn't consume tokens.
-			// ListModels works for OpenAI, OpenRouter, and some custom providers.
-			// For providers that don't support it, we skip directly to the minimal
-			// completion probe to avoid wasting tokens on a failing ListModels call.
-			var err error
-			if snapshot.primaryType == "openai" || snapshot.primaryType == "openrouter" || snapshot.primaryType == "custom" {
-				_, err = snapshot.primaryClient.ListModels(ctx)
-			}
+			err := probePrimaryHealth(ctx, snapshot.primaryClient, snapshot.primaryType, snapshot.primaryBaseURL, snapshot.primaryAPIKey)
 			if err != nil {
+				fm.logger.Debug("LLM failover: token-free probe failed, trying minimal completion fallback", "error", err)
 				_, err = snapshot.primaryClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 					Model: snapshot.primaryModel,
 					Messages: []openai.ChatCompletionMessage{
@@ -352,11 +366,13 @@ func (fm *FailoverManager) primaryProbeSnapshot() failoverProbeSnapshot {
 	fm.mu.RLock()
 	defer fm.mu.RUnlock()
 	return failoverProbeSnapshot{
-		generation:    fm.generation,
-		onFallback:    fm.isOnFallback,
-		primaryClient: fm.primary,
-		primaryType:   fm.primaryType,
-		primaryModel:  fm.primaryModel,
+		generation:     fm.generation,
+		onFallback:     fm.isOnFallback,
+		primaryClient:  fm.primary,
+		primaryType:    fm.primaryType,
+		primaryModel:   fm.primaryModel,
+		primaryBaseURL: fm.primaryBaseURL,
+		primaryAPIKey:  fm.primaryAPIKey,
 	}
 }
 

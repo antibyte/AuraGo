@@ -60,75 +60,88 @@ func (t *copilotTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	clone.Header.Set("Accept", "application/json")
 
 	// 4. Rewrite URL if necessary (Codex → /responses, strip copilot/ prefix)
-	if err := t.rewriteRequest(clone); err != nil {
+	routeInfo, err := t.rewriteRequest(clone)
+	if err != nil {
 		return nil, err
 	}
 
-	return t.baseTransport().RoundTrip(clone)
+	resp, err := t.baseTransport().RoundTrip(clone)
+	if err != nil {
+		return nil, err
+	}
+	if routeInfo.responsesRoute {
+		return translateCopilotResponsesResponse(resp, routeInfo.model, routeInfo.stream)
+	}
+	return resp, nil
+}
+
+type copilotRouteInfo struct {
+	responsesRoute bool
+	model          string
+	stream         bool
 }
 
 // rewriteRequest handles Copilot-specific request rewriting:
 //   - Routes Codex models to /responses
 //   - Strips the "copilot/" prefix from model IDs
 //   - Forces streaming for /responses endpoint
-func (t *copilotTransport) rewriteRequest(req *http.Request) error {
-	// Only rewrite chat completion requests
+func (t *copilotTransport) rewriteRequest(req *http.Request) (copilotRouteInfo, error) {
+	info := copilotRouteInfo{}
 	isChatCompletion := req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/chat/completions")
-	if !isChatCompletion {
-		return nil
-	}
-
-	if req.Body == nil {
-		return nil
+	if !isChatCompletion || req.Body == nil {
+		return info, nil
 	}
 
 	body, err := io.ReadAll(req.Body)
 	req.Body.Close()
 	if err != nil {
-		return fmt.Errorf("copilot transport: read body: %w", err)
+		return info, fmt.Errorf("copilot transport: read body: %w", err)
 	}
 
 	var payload map[string]interface{}
 	if err := json.Unmarshal(body, &payload); err != nil {
-		// Not JSON — pass through unchanged
 		req.Body = io.NopCloser(bytes.NewReader(body))
-		return nil
+		return info, nil
 	}
 
 	modelRaw, ok := payload["model"]
 	if !ok {
 		req.Body = io.NopCloser(bytes.NewReader(body))
-		return nil
+		return info, nil
 	}
 	model, _ := modelRaw.(string)
 	if model == "" {
 		req.Body = io.NopCloser(bytes.NewReader(body))
-		return nil
+		return info, nil
 	}
 
-	// Strip copilot/ prefix if present
 	if strings.HasPrefix(model, "copilot/") {
 		model = model[len("copilot/"):]
 		payload["model"] = model
 		slog.Debug("[Copilot] Stripped model prefix", "model", model)
 	}
+	info.model = model
 
-	// Route Codex variants to /responses
 	if CopilotResponsesOnlyRe.MatchString(model) {
 		req.URL.Path = strings.TrimSuffix(req.URL.Path, "/chat/completions") + "/responses"
-		// Copilot responses endpoint requires streaming
 		payload["stream"] = true
+		info.responsesRoute = true
+		info.stream = true
+		req.Header.Set("Accept", "text/event-stream")
 		slog.Debug("[Copilot] Routed Codex model to /responses", "model", model)
 	}
 
 	newBody, err := json.Marshal(payload)
 	if err != nil {
 		req.Body = io.NopCloser(bytes.NewReader(body))
-		return nil
+		return info, nil
+	}
+	if info.responsesRoute {
+		newBody = chatCompletionToResponsesBody(newBody)
 	}
 	req.Body = io.NopCloser(bytes.NewReader(newBody))
 	req.ContentLength = int64(len(newBody))
-	return nil
+	return info, nil
 }
 
 func (t *copilotTransport) baseTransport() http.RoundTripper {

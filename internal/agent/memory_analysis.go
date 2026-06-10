@@ -194,11 +194,7 @@ func runMemoryAnalysis(
 		return
 	}
 
-	analysisClient := llm.NewClientFromProvider(
-		llmCfg.providerType,
-		llmCfg.baseURL,
-		llmCfg.apiKey,
-	)
+	analysisClient := llm.NewClientFromProviderWithConfig(cfg, llmCfg.providerType, llmCfg.baseURL, llmCfg.apiKey, "")
 
 	// Truncate for analysis (no need to send huge responses)
 	truncUser := userMsg
@@ -731,11 +727,7 @@ func expandQueryForRAG(ctx context.Context, cfg *config.Config, logger *slog.Log
 	expandCtx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
 	defer cancel()
 
-	client := llm.NewClientFromProvider(
-		llmCfg.providerType,
-		llmCfg.baseURL,
-		llmCfg.apiKey,
-	)
+	client := llm.NewClientFromProviderWithConfig(cfg, llmCfg.providerType, llmCfg.baseURL, llmCfg.apiKey, "")
 
 	model := llmCfg.model
 
@@ -808,11 +800,7 @@ func rerankWithLLM(ctx context.Context, cfg *config.Config, logger *slog.Logger,
 	rerankCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	client := llm.NewClientFromProvider(
-		llmCfg.providerType,
-		llmCfg.baseURL,
-		llmCfg.apiKey,
-	)
+	client := llm.NewClientFromProviderWithConfig(cfg, llmCfg.providerType, llmCfg.baseURL, llmCfg.apiKey, "")
 
 	model := llmCfg.model
 
@@ -1080,11 +1068,7 @@ func generateMemoryReflection(
 	analysisClient := mainClient
 	model := strings.TrimSpace(cfg.MemoryAnalysis.ResolvedModel)
 	if llmCfg.model != "" {
-		analysisClient = llm.NewClientFromProvider(
-			llmCfg.providerType,
-			llmCfg.baseURL,
-			llmCfg.apiKey,
-		)
+		analysisClient = llm.NewClientFromProviderWithConfig(cfg, llmCfg.providerType, llmCfg.baseURL, llmCfg.apiKey, "")
 		model = llmCfg.model
 	}
 

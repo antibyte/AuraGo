@@ -53,7 +53,7 @@ func IsHelperLLMAvailable(cfg *config.Config) bool {
 func ResolveHelperBackedClient(cfg *config.Config, fallbackClient ChatClient, fallbackModel string) (ChatClient, string) {
 	helperCfg := ResolveHelperLLM(cfg)
 	if IsHelperLLMAvailable(cfg) {
-		client := NewClientFromProviderDetails(helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey, helperCfg.AccountID)
+		client := NewClientFromProviderWithConfig(cfg, helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey, helperCfg.AccountID)
 		if client != nil {
 			return client, helperCfg.Model
 		}

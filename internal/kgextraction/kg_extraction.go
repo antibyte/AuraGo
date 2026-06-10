@@ -160,7 +160,7 @@ func resolveHelperBackedLLM(cfg *config.Config, fallbackClient llm.ChatClient, f
 		if manager != nil && manager.client != nil {
 			return manager.client, helperCfg.Model
 		}
-		helperClient := llm.NewClientFromProvider(helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey)
+		helperClient := llm.NewClientFromProviderWithConfig(cfg, helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey, helperCfg.AccountID)
 		if helperClient != nil {
 			return helperClient, helperCfg.Model
 		}
@@ -179,7 +179,7 @@ func getOrCreateHelperLLMManager(cfg *config.Config, logger *slog.Logger) *helpe
 	if !helperCfg.Enabled || helperCfg.Model == "" {
 		return nil
 	}
-	client := llm.NewClientFromProvider(helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey)
+	client := llm.NewClientFromProviderWithConfig(cfg, helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey, helperCfg.AccountID)
 	if client == nil {
 		return nil
 	}

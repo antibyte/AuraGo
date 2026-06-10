@@ -223,7 +223,7 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 		if req.ProviderID != "" {
 			for _, p := range cfg.Providers {
 				if p.ID == req.ProviderID {
-					client = llm.NewClientFromProviderDetails(p.Type, p.BaseURL, p.APIKey, p.AccountID)
+					client = llm.NewClientFromProviderWithConfig(cfg, p.Type, p.BaseURL, p.APIKey, p.AccountID)
 					if model == "" {
 						model = p.Model
 					}
@@ -415,7 +415,7 @@ func handleLooperResume(s *Server) http.HandlerFunc {
 		if req.ProviderID != "" {
 			for _, p := range cfg.Providers {
 				if p.ID == req.ProviderID {
-					client = llm.NewClientFromProviderDetails(p.Type, p.BaseURL, p.APIKey, p.AccountID)
+					client = llm.NewClientFromProviderWithConfig(cfg, p.Type, p.BaseURL, p.APIKey, p.AccountID)
 					if model == "" {
 						model = p.Model
 					}

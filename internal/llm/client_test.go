@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"aurago/internal/config"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -202,7 +204,14 @@ func TestMiniMaxConvertSystemMessages_NoUserMessage(t *testing.T) {
 		t.Fatalf("json.Unmarshal result failed: %v", err)
 	}
 	msgs := payload["messages"].([]interface{})
-	asstMsg := msgs[0].(map[string]interface{})
+	if len(msgs) != 2 {
+		t.Fatalf("len(messages) = %d, want synthetic user + assistant", len(msgs))
+	}
+	userMsg := msgs[0].(map[string]interface{})
+	if userMsg["role"] != "user" || userMsg["content"] != "System prompt" {
+		t.Fatalf("first message = %#v, want synthetic user with system prompt", userMsg)
+	}
+	asstMsg := msgs[1].(map[string]interface{})
 	if asstMsg["content"] != "I can help." {
 		t.Fatalf("assistant content = %q, want unchanged", asstMsg["content"])
 	}
@@ -527,6 +536,38 @@ func TestAIGatewaySegmentNewProviders(t *testing.T) {
 		if got := aiGatewaySegment(p); got != "openai" {
 			t.Fatalf("aiGatewaySegment(%q) = %q, want openai", p, got)
 		}
+	}
+}
+
+func TestNewClientFromProviderWithConfigAppliesAIGateway(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.ProviderType = "openrouter"
+	cfg.LLM.BaseURL = "https://openrouter.ai/api/v1"
+	cfg.AIGateway.Enabled = true
+	cfg.AIGateway.AccountID = "acct"
+	cfg.AIGateway.GatewayID = "gw"
+	cfg.AIGateway.Token = "gw-token"
+
+	client := NewClientFromProviderWithConfig(cfg, "openrouter", "https://openrouter.ai/api/v1", "provider-key", "")
+	if client == nil {
+		t.Fatal("expected client")
+	}
+	configValue := reflect.ValueOf(client).Elem().FieldByName("config")
+	if !configValue.IsValid() {
+		t.Fatal("expected openai client config field")
+	}
+	wantBase := "https://gateway.ai.cloudflare.com/v1/acct/gw/openai"
+	if got := configValue.FieldByName("BaseURL").String(); got != wantBase {
+		t.Fatalf("BaseURL = %q, want %q", got, wantBase)
+	}
+
+	mainClient := NewClient(cfg)
+	if mainClient == nil {
+		t.Fatal("expected main client")
+	}
+	mainConfig := reflect.ValueOf(mainClient).Elem().FieldByName("config")
+	if got := mainConfig.FieldByName("BaseURL").String(); got != wantBase {
+		t.Fatalf("main client BaseURL = %q, want %q", got, wantBase)
 	}
 }
 

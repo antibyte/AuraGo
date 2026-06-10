@@ -97,6 +97,8 @@ func classifyHTTPError(statusCode int, errMsg string) ErrorCategory {
 		return ErrCategoryAuthError
 	case statusCode == http.StatusTooManyRequests:
 		return ErrCategoryRateLimit
+	case statusCode == http.StatusNotFound, statusCode == http.StatusGone:
+		return ErrCategoryNonRetryableConfig
 	case statusCode == http.StatusBadRequest:
 		// 400 Bad Request is a structural error in the request payload (e.g. orphaned
 		// tool_call_id after history compression). Retrying the same payload is futile.

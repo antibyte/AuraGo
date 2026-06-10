@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"aurago/internal/config"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 func TestFailoverManagerActiveProviderAndModelTracksFallback(t *testing.T) {
@@ -54,6 +56,31 @@ func TestFailoverRecordSuccessResetsFallbackErrorCounter(t *testing.T) {
 	}
 	if fm.fallbackErrorCount != 0 {
 		t.Fatalf("fallbackErrorCount = %d, want 0", fm.fallbackErrorCount)
+	}
+}
+
+func TestFallbackSupportsFeaturesUsesRegistryMultimodal(t *testing.T) {
+	fm := &FailoverManager{
+		fallbackType:  "openai",
+		fallbackModel: "gpt-4o",
+	}
+	req := openai.ChatCompletionRequest{
+		Messages: []openai.ChatCompletionMessage{
+			{
+				Role: openai.ChatMessageRoleUser,
+				MultiContent: []openai.ChatMessagePart{
+					{Type: openai.ChatMessagePartTypeImageURL, ImageURL: &openai.ChatMessageImageURL{URL: "https://example.invalid/x.png"}},
+				},
+			},
+		},
+	}
+	if !fm.fallbackSupportsFeatures(req) {
+		t.Fatal("expected gpt-4o fallback to support image input")
+	}
+
+	fm.fallbackModel = "gpt-3.5-turbo"
+	if fm.fallbackSupportsFeatures(req) {
+		t.Fatal("expected gpt-3.5-turbo fallback to reject image input when registry says non-multimodal")
 	}
 }
 
@@ -146,6 +173,8 @@ func unwrapLLMTransport(rt http.RoundTripper) http.RoundTripper {
 		case *anthropicTransport:
 			rt = t.base
 		case *loggingTransport:
+			rt = t.base
+		case *rateLimitAwareTransport:
 			rt = t.base
 		default:
 			return rt

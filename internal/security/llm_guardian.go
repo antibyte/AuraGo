@@ -89,10 +89,12 @@ func NewLLMGuardian(cfg *config.Config, logger *slog.Logger) *LLMGuardian {
 			"Consider setting fail_safe to 'quarantine' or 'block' for stronger security.")
 	}
 
-	client := llm.NewClientFromProvider(
+	client := llm.NewClientFromProviderWithConfig(
+		cfg,
 		cfg.LLMGuardian.ProviderType,
 		cfg.LLMGuardian.BaseURL,
 		cfg.LLMGuardian.APIKey,
+		"",
 	)
 
 	// Rate limiter: buffer = max checks per minute

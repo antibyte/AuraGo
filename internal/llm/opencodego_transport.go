@@ -1,11 +1,9 @@
 package llm
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"strings"
 )
@@ -17,9 +15,8 @@ import (
 //   - Most models use OpenAI-compatible /v1/chat/completions (Bearer auth)
 //   - MiniMax models use Anthropic-compatible /v1/messages (x-api-key auth)
 //
-// This transport inspects the request body, determines the model, and routes
-// to the correct endpoint + auth scheme. The API key is read from the
-// incoming Authorization header (set by go-openai from the client config).
+// MiniMax requests are delegated to anthropicTransport for full bidirectional
+// translation (tools, vision, streaming, response mapping).
 type opencodeGoTransport struct {
 	base http.RoundTripper
 }
@@ -27,123 +24,52 @@ type opencodeGoTransport struct {
 const opencodeGoBaseURL = "https://opencode.ai/zen/go"
 
 func (t *opencodeGoTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	clone := req.Clone(req.Context())
-	clone.Header = req.Header.Clone()
+	isChatCompletion := req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/chat/completions")
+	if !isChatCompletion || req.Body == nil {
+		return t.baseTransport().RoundTrip(req)
+	}
 
-	// Extract API key from the Authorization header set by go-openai
+	body, err := io.ReadAll(req.Body)
+	req.Body.Close()
+	if err != nil {
+		return nil, fmt.Errorf("opencode-go transport: read body: %w", err)
+	}
+
+	model := extractRequestModel(body)
+	if !strings.HasPrefix(strings.ToLower(model), "minimax-") {
+		clone := req.Clone(req.Context())
+		clone.Header = req.Header.Clone()
+		clone.Body = io.NopCloser(strings.NewReader(string(body)))
+		clone.ContentLength = int64(len(body))
+		return t.baseTransport().RoundTrip(clone)
+	}
+
 	apiKey := ""
 	if auth := req.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
 		apiKey = auth[len("Bearer "):]
 	}
 
-	// Read body once so we can inspect the model and later rewrite it.
-	var body []byte
-	if req.Body != nil && req.Method == http.MethodPost {
-		var err error
-		body, err = io.ReadAll(req.Body)
-		if err != nil {
-			return nil, fmt.Errorf("opencode-go transport: read body: %w", err)
-		}
-		req.Body.Close()
-	}
+	clone := req.Clone(req.Context())
+	clone.Header = req.Header.Clone()
+	clone.Header.Set("x-api-key", apiKey)
+	clone.Header.Set("anthropic-version", anthropicAPIVersion)
+	clone.Header.Set("Content-Type", "application/json")
+	clone.Header.Del("Authorization")
+	clone.Body = io.NopCloser(strings.NewReader(string(body)))
+	clone.ContentLength = int64(len(body))
 
-	// Determine model from body
-	model := ""
-	if len(body) > 0 {
-		var payload struct {
-			Model string `json:"model"`
-		}
-		_ = json.Unmarshal(body, &payload)
-		model = payload.Model
-	}
-	isMiniMax := strings.HasPrefix(strings.ToLower(model), "minimax-")
-
-	if isMiniMax {
-		// Anthropic format: x-api-key + anthropic-version header
-		clone.Header.Set("x-api-key", apiKey)
-		clone.Header.Set("anthropic-version", "2023-06-01")
-		clone.Header.Set("Content-Type", "application/json")
-		// Remove Bearer header (not used by Anthropic endpoint)
-		clone.Header.Del("Authorization")
-
-		// Rewrite path to /v1/messages
-		if strings.HasSuffix(clone.URL.Path, "/chat/completions") {
-			clone.URL.Path = strings.TrimSuffix(clone.URL.Path, "/chat/completions") + "/messages"
-			slog.Debug("[OpenCode-Go] Routed MiniMax model to /v1/messages", "model", model)
-		}
-
-		// Rewrite body from OpenAI to Anthropic format
-		newBody := t.rewriteToAnthropic(body)
-		clone.Body = io.NopCloser(bytes.NewReader(newBody))
-		clone.ContentLength = int64(len(newBody))
-	} else {
-		// OpenAI format: standard Bearer auth (already present)
-		clone.Header.Set("Content-Type", "application/json")
-		if len(body) > 0 {
-			clone.Body = io.NopCloser(bytes.NewReader(body))
-			clone.ContentLength = int64(len(body))
-		}
-	}
-
-	return t.baseTransport().RoundTrip(clone)
+	at := &anthropicTransport{base: t.base}
+	return at.RoundTrip(clone)
 }
 
-// rewriteToAnthropic converts an OpenAI-format request body to Anthropic
-// Messages API format. This is a lightweight conversion; for full feature
-// parity (tools, vision, streaming) the anthropicTransport should be reused.
-func (t *opencodeGoTransport) rewriteToAnthropic(body []byte) []byte {
-	if len(body) == 0 {
-		return body
+func extractRequestModel(body []byte) string {
+	var payload struct {
+		Model string `json:"model"`
 	}
-
-	var openaiReq struct {
-		Model     string                   `json:"model"`
-		Messages  []map[string]interface{} `json:"messages"`
-		Stream    bool                     `json:"stream,omitempty"`
-		MaxTokens int                      `json:"max_tokens,omitempty"`
+	if len(body) > 0 {
+		_ = json.Unmarshal(body, &payload)
 	}
-	if err := json.Unmarshal(body, &openaiReq); err != nil {
-		// Not parseable — pass through unchanged
-		return body
-	}
-
-	// Build Anthropic-style request
-	anthropicReq := map[string]interface{}{
-		"model": openaiReq.Model,
-	}
-	if openaiReq.MaxTokens > 0 {
-		anthropicReq["max_tokens"] = openaiReq.MaxTokens
-	} else {
-		anthropicReq["max_tokens"] = 4096
-	}
-	if openaiReq.Stream {
-		anthropicReq["stream"] = true
-	}
-
-	// Convert messages: system → system string, rest → messages array
-	var systemParts []string
-	var messages []map[string]interface{}
-	for _, m := range openaiReq.Messages {
-		role, _ := m["role"].(string)
-		switch role {
-		case "system":
-			if content, ok := m["content"].(string); ok {
-				systemParts = append(systemParts, content)
-			}
-		case "user", "assistant":
-			messages = append(messages, m)
-		}
-	}
-	if len(systemParts) > 0 {
-		anthropicReq["system"] = strings.Join(systemParts, "\n\n")
-	}
-	anthropicReq["messages"] = messages
-
-	newBody, err := json.Marshal(anthropicReq)
-	if err != nil {
-		return body
-	}
-	return newBody
+	return payload.Model
 }
 
 func (t *opencodeGoTransport) baseTransport() http.RoundTripper {

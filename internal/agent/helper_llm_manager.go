@@ -448,7 +448,7 @@ func getOrCreateHelperLLMManager(cfg *config.Config, logger *slog.Logger) *helpe
 		return globalHelperInstance
 	}
 
-	client := llm.NewClientFromProvider(newInstCfg.ProviderType, newInstCfg.BaseURL, newInstCfg.APIKey)
+	client := llm.NewClientFromProviderWithConfig(cfg, newInstCfg.ProviderType, newInstCfg.BaseURL, newInstCfg.APIKey, "")
 	if client == nil {
 		return nil
 	}

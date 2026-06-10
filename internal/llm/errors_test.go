@@ -87,6 +87,23 @@ func TestClassifyError_ProviderValidation(t *testing.T) {
 	}
 }
 
+func TestClassifyError_NotFoundNonRetryable(t *testing.T) {
+	apiErr := &openai.APIError{HTTPStatusCode: http.StatusNotFound}
+	cat := ClassifyError(apiErr)
+	if cat != ErrCategoryNonRetryableConfig {
+		t.Errorf("ClassifyError(404) = %v, want %v", cat, ErrCategoryNonRetryableConfig)
+	}
+	if IsRetryable(apiErr) {
+		t.Error("IsRetryable(404) = true, want false")
+	}
+
+	apiErr = &openai.APIError{HTTPStatusCode: http.StatusGone}
+	cat = ClassifyError(apiErr)
+	if cat != ErrCategoryNonRetryableConfig {
+		t.Errorf("ClassifyError(410) = %v, want %v", cat, ErrCategoryNonRetryableConfig)
+	}
+}
+
 func TestClassifyError_BadRequestNonRetryable(t *testing.T) {
 	// HTTP 400 (tool_call_id not found, etc.) must NOT be retried — the agent loop
 	// handles recovery via recoverFrom422WithPolicy.

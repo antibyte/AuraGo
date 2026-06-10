@@ -122,69 +122,71 @@ func detectProviderURLMismatch(providerType, baseURL string) string {
 	return ""
 }
 
-// NewClient creates a new OpenAI compatible client based on the routing configuration.
-// Handles provider-specific quirks: Ollama doesn't require an API key but the
-// go-openai library still sends an Authorization header — we use a dummy value
-// so the SDK doesn't choke on an empty string.
-func NewClient(cfg *config.Config) *openai.Client {
-	apiKey := cfg.LLM.APIKey
-	providerType := strings.ToLower(cfg.LLM.ProviderType)
-	isOllama := providerType == "ollama"
-	isLocal := isOllama || providerType == "llamacpp" || providerType == "lmstudio"
+// resolvedProvider holds explicit provider connection details shared by the main
+// LLM, helper LLM, and subsystem clients.
+type resolvedProvider struct {
+	ProviderType string
+	BaseURL      string
+	APIKey       string
+	AccountID    string
+}
+
+func normalizeProviderBaseURL(providerType, baseURL string) string {
+	baseURL = strings.TrimSpace(baseURL)
+	if baseURL == "" {
+		return ""
+	}
+	u := providerutil.NormalizeBaseURL(baseURL)
+	pt := strings.ToLower(strings.TrimSpace(providerType))
+	if pt == "ollama" || pt == "llamacpp" || pt == "lmstudio" {
+		u = strings.TrimRight(u, "/")
+		if !strings.HasSuffix(u, "/v1") {
+			u = u + "/v1"
+		}
+	}
+	return u
+}
+
+func isLocalProviderType(providerType string) bool {
+	pt := strings.ToLower(strings.TrimSpace(providerType))
+	return pt == "ollama" || pt == "llamacpp" || pt == "lmstudio"
+}
+
+// buildOpenAIClientConfig assembles a go-openai client config from resolved
+// provider details. When cfg is non-nil, global options such as AI Gateway and
+// Anthropic thinking are applied consistently for main and helper providers.
+func buildOpenAIClientConfig(cfg *config.Config, p resolvedProvider) openai.ClientConfig {
+	providerType := strings.ToLower(strings.TrimSpace(p.ProviderType))
+	apiKey := strings.TrimSpace(p.APIKey)
+	baseURLRaw := strings.TrimSpace(p.BaseURL)
+	accountID := strings.TrimSpace(p.AccountID)
+	isLocal := isLocalProviderType(providerType)
 	aiGatewayToken := ""
 
-	// Local providers don't require an API key; use a dummy value so the SDK
-	// always sends a well-formed Authorization header.
 	if apiKey == "" && isLocal {
 		apiKey = providerType
 	}
 
 	clientConfig := openai.DefaultConfig(apiKey)
 
-	// Override the BaseURL if provided in the configuration (crucial for Ollama/OpenRouter)
-	if cfg.LLM.BaseURL != "" {
-		baseURL := providerutil.NormalizeBaseURL(cfg.LLM.BaseURL)
-
-		// Ollama's OpenAI-compatible endpoint lives under /v1.  The go-openai
-		// library appends "/chat/completions" to BaseURL, so BaseURL must end
-		// with "/v1".  Users commonly configure just "http://localhost:11434"
-		// which would produce a 404.  Auto-fix this.
-		if isOllama {
-			baseURL = strings.TrimRight(baseURL, "/")
-			if !strings.HasSuffix(baseURL, "/v1") {
-				baseURL = baseURL + "/v1"
-			}
-		}
-		if providerType == "llamacpp" || providerType == "lmstudio" {
-			baseURL = strings.TrimRight(baseURL, "/")
-			if !strings.HasSuffix(baseURL, "/v1") {
-				baseURL = baseURL + "/v1"
-			}
-		}
-
-		clientConfig.BaseURL = baseURL
+	if baseURLRaw != "" {
+		clientConfig.BaseURL = normalizeProviderBaseURL(providerType, baseURLRaw)
 	}
 
-	// Warn if provider type doesn't match known base URL patterns
-	if cfg.LLM.BaseURL != "" && cfg.LLM.APIKey != "" {
-		if mismatched := detectProviderURLMismatch(providerType, cfg.LLM.BaseURL); mismatched != "" {
-			slog.Warn("[LLM] Provider type may not match base URL", "provider", providerType, "base_url", cfg.LLM.BaseURL, "hint", mismatched)
+	if baseURLRaw != "" && apiKey != "" {
+		if mismatched := detectProviderURLMismatch(providerType, baseURLRaw); mismatched != "" {
+			slog.Warn("[LLM] Provider type may not match base URL", "provider", providerType, "base_url", baseURLRaw, "hint", mismatched)
 		}
 	}
 
-	// Workers AI: auto-build the OpenAI-compatible URL from the account ID.
-	// Overrides any manually-set BaseURL since the URL is deterministic.
-	if providerType == "workers-ai" && cfg.LLM.AccountID != "" {
+	if providerType == "workers-ai" && accountID != "" {
 		clientConfig.BaseURL = fmt.Sprintf(
 			"https://api.cloudflare.com/client/v4/accounts/%s/ai/v1",
-			cfg.LLM.AccountID,
+			accountID,
 		)
 	}
 
-	// AI Gateway: rewrite BaseURL to route through Cloudflare AI Gateway.
-	// Provides caching, rate-limiting, logging and fallback for any provider.
-	// Does not apply to local providers (Ollama, llama.cpp, LM Studio) — no point proxying localhost.
-	if cfg.AIGateway.Enabled && cfg.AIGateway.AccountID != "" && cfg.AIGateway.GatewayID != "" && !isLocal {
+	if cfg != nil && cfg.AIGateway.Enabled && cfg.AIGateway.AccountID != "" && cfg.AIGateway.GatewayID != "" && !isLocal {
 		segment := aiGatewaySegment(providerType)
 		if segment != "" {
 			clientConfig.BaseURL = fmt.Sprintf(
@@ -197,13 +199,30 @@ func NewClient(cfg *config.Config) *openai.Client {
 		}
 	}
 
-	if isLoopbackHTTPS(cfg.LLM.BaseURL) {
+	if isLoopbackHTTPS(baseURLRaw) {
 		clientConfig.HTTPClient = &http.Client{Transport: loopbackHTTPSTransport()}
 	} else if httpClient := buildLLMHTTPClient(cfg, providerType, aiGatewayToken, clientConfig.BaseURL); httpClient != nil {
 		clientConfig.HTTPClient = httpClient
 	}
 
-	return openai.NewClientWithConfig(clientConfig)
+	return clientConfig
+}
+
+// NewClient creates a new OpenAI compatible client based on the routing configuration.
+// Handles provider-specific quirks: Ollama doesn't require an API key but the
+// go-openai library still sends an Authorization header — we use a dummy value
+// so the SDK doesn't choke on an empty string.
+func NewClient(cfg *config.Config) *openai.Client {
+	if cfg == nil {
+		return openai.NewClientWithConfig(openai.DefaultConfig(""))
+	}
+	p := resolvedProvider{
+		ProviderType: cfg.LLM.ProviderType,
+		BaseURL:      cfg.LLM.BaseURL,
+		APIKey:       cfg.LLM.APIKey,
+		AccountID:    cfg.LLM.AccountID,
+	}
+	return openai.NewClientWithConfig(buildOpenAIClientConfig(cfg, p))
 }
 
 // isLoopbackHTTPS returns true when the URL targets https://127.0.0.1 or https://localhost.
@@ -241,54 +260,26 @@ func loopbackHTTPSTransport() *http.Transport {
 // details (type, base URL, API key). Used by subsystems that resolve their own
 // provider (memory analysis, personality engine, etc.) instead of using the main LLM.
 func NewClientFromProvider(providerType, baseURL, apiKey string) *openai.Client {
-	return NewClientFromProviderDetails(providerType, baseURL, apiKey, "")
+	return NewClientFromProviderWithConfig(nil, providerType, baseURL, apiKey, "")
 }
 
 // NewClientFromProviderDetails creates an OpenAI-compatible client from
 // explicit provider details. This variant also supports provider-specific
 // metadata such as a Cloudflare Workers AI account ID.
 func NewClientFromProviderDetails(providerType, baseURL, apiKey, accountID string) *openai.Client {
-	pt := strings.ToLower(providerType)
-	isOllama := pt == "ollama"
-	isLocal := isOllama || pt == "llamacpp" || pt == "lmstudio"
+	return NewClientFromProviderWithConfig(nil, providerType, baseURL, apiKey, accountID)
+}
 
-	if apiKey == "" && isLocal {
-		apiKey = pt
+// NewClientFromProviderWithConfig creates a client from explicit provider details
+// and applies global cfg options (AI Gateway, Anthropic thinking) when cfg is set.
+func NewClientFromProviderWithConfig(cfg *config.Config, providerType, baseURL, apiKey, accountID string) *openai.Client {
+	p := resolvedProvider{
+		ProviderType: providerType,
+		BaseURL:      baseURL,
+		APIKey:       apiKey,
+		AccountID:    accountID,
 	}
-
-	clientConfig := openai.DefaultConfig(apiKey)
-
-	if baseURL != "" {
-		u := providerutil.NormalizeBaseURL(baseURL)
-		if isOllama {
-			u = strings.TrimRight(u, "/")
-			if !strings.HasSuffix(u, "/v1") {
-				u = u + "/v1"
-			}
-		}
-		if pt == "llamacpp" || pt == "lmstudio" {
-			u = strings.TrimRight(u, "/")
-			if !strings.HasSuffix(u, "/v1") {
-				u = u + "/v1"
-			}
-		}
-		clientConfig.BaseURL = u
-	}
-
-	if pt == "workers-ai" && strings.TrimSpace(accountID) != "" {
-		clientConfig.BaseURL = fmt.Sprintf(
-			"https://api.cloudflare.com/client/v4/accounts/%s/ai/v1",
-			strings.TrimSpace(accountID),
-		)
-	}
-
-	if isLoopbackHTTPS(baseURL) {
-		clientConfig.HTTPClient = &http.Client{Transport: loopbackHTTPSTransport()}
-	} else if httpClient := buildLLMHTTPClient(nil, pt, "", clientConfig.BaseURL); httpClient != nil {
-		clientConfig.HTTPClient = httpClient
-	}
-
-	return openai.NewClientWithConfig(clientConfig)
+	return openai.NewClientWithConfig(buildOpenAIClientConfig(cfg, p))
 }
 
 func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseURL string) *http.Client {
@@ -345,6 +336,8 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 	// bare http.Client with no timeout, leading to invisible hangs until
 	// the context deadline killed the request.
 	client := &http.Client{Transport: transport, Timeout: 3 * time.Minute}
+
+	client.Transport = &rateLimitAwareTransport{base: client.Transport}
 
 	// Wrap the transport with instrumentation so we can pinpoint stalls
 	// (body write, TLS handshake, first byte) when Virtual Desktop hangs.
@@ -866,13 +859,21 @@ func miniMaxConvertSystemMessages(body []byte) []byte {
 	sysContent := sysBuilder.String()
 
 	// Prepend system content to the first user message, handling both string and structured content.
+	prepended := false
 	for _, m := range filtered {
 		if role, _ := m["role"].(string); role == "user" {
 			if err := prependToUserContent(m, sysContent); err != nil {
 				continue
 			}
+			prepended = true
 			break
 		}
+	}
+	if !prepended {
+		filtered = append([]map[string]interface{}{{
+			"role":    "user",
+			"content": sysContent,
+		}}, filtered...)
 	}
 
 	newMsgs, err := json.Marshal(filtered)
