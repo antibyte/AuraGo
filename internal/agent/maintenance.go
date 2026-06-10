@@ -78,9 +78,19 @@ func parseTime(t string) (int, int, error) {
 }
 
 func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
+	startedAt := time.Now()
+	ledger := newMaintenanceRunLedger()
 	tools.SetBusy(true)
-	defer tools.SetBusy(false)
-	defer memory.RecordMaintenanceRunCompleted(time.Now())
+	defer func() {
+		tools.SetBusy(false)
+		finishedAt := time.Now()
+		memory.RecordMaintenanceRunCompleted(finishedAt)
+		if shortTermMem != nil {
+			if err := shortTermMem.InsertMaintenanceRun(startedAt, finishedAt, ledger.status(), ledger.results()); err != nil {
+				logger.Warn("[Maintenance] Failed to persist maintenance run ledger", "error", err)
+			}
+		}
+	}()
 
 	logger.Info("[Maintenance] Waking up to perform daily tasks")
 	retention := resolveMaintenanceRetention(cfg)
@@ -129,7 +139,11 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 			logger.Info("[Maintenance] Cleaned stale tool transitions", "deleted", deletedTrans)
 		}
 
-		runMaintenanceCompressedOutputCleanup(ctx, cfg, logger, shortTermMem)
+		if deleted, err := runMaintenanceCompressedOutputCleanup(ctx, cfg, logger, shortTermMem); err != nil {
+			ledger.addError("compressed_output_cleanup: " + err.Error())
+		} else {
+			ledger.phaseResults.CompressedDeleted = int(deleted)
+		}
 	}
 
 	// Phase D8: Personality Engine maintenance — trait decay + journal
@@ -190,7 +204,9 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		}
 	}
 	if shortTermMem != nil {
-		runAutomaticMemoryHygiene(cfg, logger, shortTermMem, longTermMem)
+		hygieneStats := runAutomaticMemoryHygiene(cfg, logger, shortTermMem, longTermMem)
+		ledger.phaseResults.JournalRemoved = hygieneStats.JournalRemoved
+		ledger.phaseResults.NotesArchived = hygieneStats.NotesArchived
 	}
 
 	// Knowledge Graph: Garbage collection
@@ -203,6 +219,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	if kg != nil && inventoryDB != nil {
 		if err := kg.SyncExternalSources(inventoryDB, logger); err != nil {
 			logger.Warn("[Maintenance] Inventory KG sync failed", "error", err)
+			ledger.addError("inventory_kg_sync: " + err.Error())
 		}
 	}
 
@@ -233,7 +250,13 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 			Backfill: false,
 			MaxFiles: 50, // conservative nightly limit for first draft
 		}
-		logFileKGSyncResult(logger, syncer.SyncAll(opts))
+		kgResult := syncer.SyncAll(opts)
+		logFileKGSyncResult(logger, kgResult)
+		ledger.phaseResults.KGFilesProcessed = kgResult.FilesProcessed
+		ledger.phaseResults.KGNodesExtracted = kgResult.NodesExtracted
+		for _, syncErr := range kgResult.Errors {
+			ledger.addError("file_kg_sync: " + syncErr)
+		}
 	}
 
 	// Knowledge Graph: nightly batch entity extraction from recent conversations
@@ -244,6 +267,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	// STM→LTM Consolidation: extract knowledge from archived messages into VectorDB
 	if cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && longTermMem.IsReady() && !longTermMem.IsDisabled() {
 		totalStored, _ := consolidateSTMtoLTM(cfg, logger, client, shortTermMem, longTermMem, kg)
+		ledger.phaseResults.ConsolidationFacts = totalStored
 		runNightlyMemoryMaintenance(cfg, logger, client, shortTermMem, longTermMem, kg, totalStored)
 		consolidateEpisodicHierarchy(logger, shortTermMem, longTermMem, kg)
 	}
@@ -253,6 +277,8 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	maintenancePrompt, err := os.ReadFile(promptPath)
 	if err != nil {
 		logger.Error("[Maintenance] Failed to read maintenance prompt", "error", err)
+		ledger.markFailed()
+		ledger.addError("maintenance_prompt: " + err.Error())
 		recordOperationalIssue(RunConfig{PlannerDB: plannerDB, MessageSource: "maintenance", IsMaintenance: true}, planner.OperationalIssue{
 			Source:     "maintenance",
 			Title:      "Maintenance prompt could not be read",
@@ -308,6 +334,8 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	resp, err := ExecuteAgentLoop(agentCtx, req, runCfg, false, broker)
 	if err != nil {
 		logger.Error("[Maintenance] Agent loop failed", "error", err)
+		ledger.markFailed()
+		ledger.addError("agent_loop: " + err.Error())
 		recordOperationalIssue(runCfg, planner.OperationalIssue{
 			Source:     "maintenance",
 			Context:    sessionID,
@@ -324,6 +352,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		logger.Info("[Maintenance] Task completed successfully", "response_len", len(resp.Choices[0].Message.Content))
 	} else {
 		logger.Warn("[Maintenance] Agent returned no choices")
+		ledger.addError("agent_loop: no assistant choices returned")
 		recordOperationalIssue(runCfg, planner.OperationalIssue{
 			Source:     "maintenance",
 			Context:    sessionID,
@@ -942,9 +971,9 @@ func logFileKGSyncResult(logger *slog.Logger, result services.FileKGSyncResult) 
 	logger.Debug("[Maintenance] File KG sync: nothing to process")
 }
 
-func runMaintenanceCompressedOutputCleanup(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory) {
+func runMaintenanceCompressedOutputCleanup(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory) (int64, error) {
 	if cfg == nil || stm == nil || !cfg.Agent.OutputCompression.Reversible.Enabled {
-		return
+		return 0, nil
 	}
 	maxAge := time.Duration(cfg.Agent.OutputCompression.Reversible.MaxAgeHours) * time.Hour
 	if maxAge <= 0 {
@@ -953,11 +982,12 @@ func runMaintenanceCompressedOutputCleanup(ctx context.Context, cfg *config.Conf
 	deleted, err := stm.CleanupCompressedOutputs(ctx, maxAge)
 	if err != nil {
 		logger.Error("[Maintenance] Failed to clean compressed tool outputs", "error", err)
-		return
+		return 0, err
 	}
 	if deleted > 0 {
 		logger.Info("[Maintenance] Cleaned compressed tool outputs", "deleted", deleted)
 	}
+	return deleted, nil
 }
 
 type maintenanceRetentionDays struct {

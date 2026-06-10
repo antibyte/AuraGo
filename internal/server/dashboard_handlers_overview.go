@@ -793,6 +793,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 		}
 
 		plannerSummary := buildPlannerOverview(s)
+		maintenanceSummary := buildMaintenanceStatusSummary(s, cfg)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -812,6 +813,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"skills":              skillsSummary,
 			"daemons":             daemonsSummary,
 			"planner":             plannerSummary,
+			"maintenance":         maintenanceSummary,
 		})
 	}
 }

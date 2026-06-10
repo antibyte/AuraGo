@@ -8,6 +8,16 @@ conditions: ["maintenance"]
 
 You are performing scheduled daily maintenance. Review system state and ensure optimal performance.
 
+## AUTOMATED NIGHTLY WORK (already handled before this prompt)
+
+The deterministic maintenance pipeline already runs before you start. Do **not** repeat these steps manually:
+
+- **Compressed tool output retention** — reversible compressed outputs older than `agent.output_compression.reversible.max_age_hours` are deleted automatically.
+- **Inventory → Knowledge Graph sync** — SSH inventory devices are synced into the KG every night.
+- **Memory hygiene** — duplicate auto-generated journal errors, stale notes, and canonical vector names are processed automatically. Review-only or high-risk memory findings are **not** auto-deleted.
+
+For review-pending memory hygiene findings, point the user to **Dashboard → Memory hygiene** instead of deleting them here.
+
 ## TASKS
 
 1. **Cron Job Cleanup.** Call `manage_schedule` with operation `list` to review all active cron jobs.

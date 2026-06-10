@@ -711,5 +711,14 @@
   "dashboard.cronjobs_error_delete": "Cron úlohu se nepodařilo smazat.",
   "dashboard.cron_edit_source_label": "Zdroj",
   "dashboard.cron_edit_status_label": "Stav",
-  "dashboard.integration_dograh": "Dograh"
+  "dashboard.integration_dograh": "Dograh",
+  "dashboard.maintenance_nightly_title": "Noční údržba",
+  "dashboard.maintenance_last_run": "Poslední: {{time}}",
+  "dashboard.maintenance_next_run": "Další: {{time}}",
+  "dashboard.maintenance_status_completed": "dokončeno",
+  "dashboard.maintenance_status_partial": "částečné",
+  "dashboard.maintenance_status_failed": "selhalo",
+  "dashboard.maintenance_status_never": "zatím neproběhlo",
+  "dashboard.memory_hygiene_partial_failures": "{{count}} akcí selhalo",
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
 }

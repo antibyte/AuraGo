@@ -410,6 +410,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/github/repos", handleGitHubReposForUI(s))
 	mux.HandleFunc("/api/dashboard/logs", handleDashboardLogs(s))
 	mux.HandleFunc("/api/dashboard/overview", handleDashboardOverview(s))
+	mux.HandleFunc("/api/dashboard/maintenance/status", handleDashboardMaintenanceStatus(s))
 	mux.HandleFunc("/api/dashboard/notes", handleDashboardNotes(s))
 	mux.HandleFunc("/api/dashboard/optimization", optimizer.OptimizationDashboardHandler)
 	mux.HandleFunc("/api/memory/activity-overview", handleActivityOverview(s))

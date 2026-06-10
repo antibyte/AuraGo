@@ -711,5 +711,14 @@
   "dashboard.cronjobs_error_delete": "Cronjob could not be deleted.",
   "dashboard.cron_edit_source_label": "Source",
   "dashboard.cron_edit_status_label": "Status",
-  "dashboard.integration_dograh": "Dograh"
+  "dashboard.integration_dograh": "Dograh",
+  "dashboard.maintenance_nightly_title": "Nightly maintenance",
+  "dashboard.maintenance_last_run": "Last: {{time}}",
+  "dashboard.maintenance_next_run": "Next: {{time}}",
+  "dashboard.maintenance_status_completed": "completed",
+  "dashboard.maintenance_status_partial": "partial",
+  "dashboard.maintenance_status_failed": "failed",
+  "dashboard.maintenance_status_never": "no run yet",
+  "dashboard.memory_hygiene_partial_failures": "{{count}} actions failed",
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
 }

@@ -218,6 +218,8 @@ Retention windows for deterministic nightly cleanups. Defaults match the previou
 
 The 03:00 daily reflection loop skips its LLM pass when nightly maintenance recently produced a daily summary, avoiding duplicate work on the same archive data.
 
+Each nightly run is recorded in the `maintenance_runs` SQLite table (status, timestamps, phase results JSON). The dashboard overview and `/api/dashboard/maintenance/status` expose `last_run`, `last_status`, and `next_run`.
+
 ---
 
 ## `fallback_llm`

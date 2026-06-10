@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +16,13 @@ const memoryHygieneConfirmToken = "APPLY_MEMORY_HYGIENE"
 type dashboardMemoryHygieneRequest struct {
 	Limit   int    `json:"limit"`
 	Confirm string `json:"confirm"`
+}
+
+type dashboardHygieneFailure struct {
+	Domain string `json:"domain"`
+	Target string `json:"target"`
+	Action string `json:"action"`
+	Error  string `json:"error"`
 }
 
 type dashboardMemoryHygienePlan struct {
@@ -89,10 +97,17 @@ func handleDashboardMemoryHygieneApply(s *Server, w http.ResponseWriter, r *http
 		jsonError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
+	failedActions := make([]dashboardHygieneFailure, 0)
 	memoryApplied := 0
 	for _, action := range append(plan.Memory.AutoConfirm, plan.Memory.AutoArchive...) {
 		if err := s.ShortTermMem.ApplyMemoryCurationAction(action, "system", false); err != nil {
 			s.Logger.Warn("Failed to apply memory curation action during hygiene", "doc_id", action.DocID, "action", action.Action, "error", err)
+			failedActions = append(failedActions, dashboardHygieneFailure{
+				Domain: "memory",
+				Target: action.DocID,
+				Action: action.Action,
+				Error:  err.Error(),
+			})
 			continue
 		}
 		memoryApplied++
@@ -101,6 +116,12 @@ func handleDashboardMemoryHygieneApply(s *Server, w http.ResponseWriter, r *http
 	for _, action := range plan.Notes.AutoArchive {
 		if err := s.ShortTermMem.ApplyNoteCurationAction(action, "system", false); err != nil {
 			s.Logger.Warn("Failed to apply note curation action during hygiene", "note_id", action.NoteID, "error", err)
+			failedActions = append(failedActions, dashboardHygieneFailure{
+				Domain: "notes",
+				Target: strconv.FormatInt(action.NoteID, 10),
+				Action: action.Action,
+				Error:  err.Error(),
+			})
 			continue
 		}
 		noteApplied++
@@ -114,6 +135,11 @@ func handleDashboardMemoryHygieneApply(s *Server, w http.ResponseWriter, r *http
 	})
 	if err != nil {
 		s.Logger.Warn("Failed to consolidate journal duplicates during hygiene", "error", err)
+		failedActions = append(failedActions, dashboardHygieneFailure{
+			Domain: "journal",
+			Action: "consolidate_duplicates",
+			Error:  err.Error(),
+		})
 		plan.Journal = memory.JournalConsolidationReport{
 			GeneratedAt: time.Now().UTC().Format(time.RFC3339),
 			DryRun:      false,
@@ -127,6 +153,11 @@ func handleDashboardMemoryHygieneApply(s *Server, w http.ResponseWriter, r *http
 	})
 	if err != nil {
 		s.Logger.Warn("Failed to repair canonical names during hygiene", "error", err)
+		failedActions = append(failedActions, dashboardHygieneFailure{
+			Domain: "canonical",
+			Action: "repair_names",
+			Error:  err.Error(),
+		})
 		plan.Canonical = memory.CanonicalRepairReport{
 			GeneratedAt: time.Now().UTC().Format(time.RFC3339),
 			DryRun:      false,
@@ -138,7 +169,7 @@ func handleDashboardMemoryHygieneApply(s *Server, w http.ResponseWriter, r *http
 	if memoryApplied > 0 || plan.Canonical.RepairedCount > 0 {
 		agent.InvalidateMemoryMetaCache()
 	}
-	writeMemoryHygieneResponse(w, map[string]interface{}{
+	response := map[string]interface{}{
 		"status": "ok",
 		"applied": map[string]int{
 			"memory":    memoryApplied,
@@ -148,7 +179,16 @@ func handleDashboardMemoryHygieneApply(s *Server, w http.ResponseWriter, r *http
 		},
 		"plan":   plan,
 		"totals": plan.Totals,
-	})
+	}
+	if len(failedActions) > 0 {
+		response["failed_actions"] = failedActions
+		errors := make([]string, 0, len(failedActions))
+		for _, failure := range failedActions {
+			errors = append(errors, failure.Domain+": "+failure.Error)
+		}
+		response["errors"] = errors
+	}
+	writeMemoryHygieneResponse(w, response)
 }
 
 func buildDashboardMemoryHygienePlan(s *Server, limit int, dryRun bool) (dashboardMemoryHygienePlan, error) {

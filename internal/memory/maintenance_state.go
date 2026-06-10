@@ -36,8 +36,26 @@ func ResetMaintenanceRunMarker() {
 
 // ShouldSkipDailyReflectionBecauseMaintenance returns true when nightly maintenance recently
 // produced a daily summary, so the 03:00 reflection loop can avoid duplicate LLM work.
+func maintenanceRecentlyCompleted(stm *SQLiteMemory) bool {
+	if MaintenanceRunCompletedWithin(24 * time.Hour) {
+		return true
+	}
+	if stm == nil {
+		return false
+	}
+	record, err := stm.GetLatestMaintenanceRun()
+	if err != nil || record == nil || record.FinishedAt == "" {
+		return false
+	}
+	finishedAt, err := time.Parse(time.RFC3339, record.FinishedAt)
+	if err != nil {
+		return false
+	}
+	return time.Since(finishedAt) < 24*time.Hour
+}
+
 func ShouldSkipDailyReflectionBecauseMaintenance(stm *SQLiteMemory) bool {
-	if stm == nil || !MaintenanceRunCompletedWithin(24*time.Hour) {
+	if stm == nil || !maintenanceRecentlyCompleted(stm) {
 		return false
 	}
 	today := time.Now().Format("2006-01-02")

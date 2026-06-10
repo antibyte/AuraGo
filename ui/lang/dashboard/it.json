@@ -711,5 +711,14 @@
   "dashboard.cronjobs_error_delete": "Impossibile eliminare il cronjob.",
   "dashboard.cron_edit_source_label": "Fonte",
   "dashboard.cron_edit_status_label": "Stato",
-  "dashboard.integration_dograh": "Dograh"
+  "dashboard.integration_dograh": "Dograh",
+  "dashboard.maintenance_nightly_title": "Manutenzione notturna",
+  "dashboard.maintenance_last_run": "Ultima: {{time}}",
+  "dashboard.maintenance_next_run": "Prossima: {{time}}",
+  "dashboard.maintenance_status_completed": "completata",
+  "dashboard.maintenance_status_partial": "parziale",
+  "dashboard.maintenance_status_failed": "fallita",
+  "dashboard.maintenance_status_never": "nessuna esecuzione",
+  "dashboard.memory_hygiene_partial_failures": "{{count}} azioni fallite",
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
 }

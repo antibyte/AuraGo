@@ -711,5 +711,14 @@
   "dashboard.cronjobs_error_delete": "Δεν ήταν δυνατή η διαγραφή του cronjob.",
   "dashboard.cron_edit_source_label": "Πηγή",
   "dashboard.cron_edit_status_label": "Κατάσταση",
-  "dashboard.integration_dograh": "Dograh"
+  "dashboard.integration_dograh": "Dograh",
+  "dashboard.maintenance_nightly_title": "Νυχτερινή συντήρηση",
+  "dashboard.maintenance_last_run": "Τελευταία: {{time}}",
+  "dashboard.maintenance_next_run": "Επόμενη: {{time}}",
+  "dashboard.maintenance_status_completed": "ολοκληρώθηκε",
+  "dashboard.maintenance_status_partial": "μερική",
+  "dashboard.maintenance_status_failed": "απέτυχε",
+  "dashboard.maintenance_status_never": "χωρίς εκτέλεση",
+  "dashboard.memory_hygiene_partial_failures": "{{count}} ενέργειες απέτυχαν",
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
 }

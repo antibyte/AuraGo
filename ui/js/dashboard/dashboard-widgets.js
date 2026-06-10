@@ -2309,6 +2309,23 @@
                 else if (h >= 24) actEl.innerHTML = '💬 <span>' + t('dashboard.agent_banner_days_ago', {n: Math.round(h / 24)}) + '</span>';
                 else actEl.innerHTML = '💬 <span>' + t('dashboard.agent_banner_no_activity') + '</span>';
             }
+
+            const maintEl = document.getElementById('ab-maintenance');
+            if (maintEl) {
+                const m = overview.maintenance || {};
+                const statusKey = 'dashboard.maintenance_status_' + (m.last_status || 'never');
+                const statusLabel = t(statusKey);
+                const lastRun = m.last_run ? formatDashboardTimestamp(m.last_run) : t('dashboard.maintenance_status_never');
+                const nextRun = m.next_run ? formatDashboardTimestamp(m.next_run) : '—';
+                maintEl.innerHTML = '🛠 <span>' + esc(t('dashboard.maintenance_nightly_title')) + ': ' + esc(statusLabel) + ' · ' + esc(t('dashboard.maintenance_last_run', { time: lastRun })) + ' · ' + esc(t('dashboard.maintenance_next_run', { time: nextRun })) + '</span>';
+            }
+        }
+
+        function formatDashboardTimestamp(value) {
+            if (!value) return '—';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return String(value);
+            return date.toLocaleString();
         }
 
         // ══════════════════════════════════════════════════════════════════════════════
@@ -2425,13 +2442,14 @@
             }
         }
 
-        function renderMemoryHygienePreview(plan) {
+        function renderMemoryHygienePreview(plan, failedActions) {
             const el = document.getElementById('memory-hygiene-preview');
             if (!el) return;
             if (!plan) {
                 el.innerHTML = '';
                 return;
             }
+            const failures = Array.isArray(failedActions) ? failedActions : [];
             const totals = plan.totals || {};
             const cards = [
                 { count: Number(totals.journal_removed || 0), label: t('dashboard.memory_hygiene_journal_removed') },
@@ -2469,7 +2487,15 @@
                             <span>${esc(item.reason)}</span>
                         </div>`).join('')}
                 </div>` : `<div class="empty-state dash-empty-tight">${t('dashboard.memory_hygiene_empty')}</div>`;
-            el.innerHTML = `<div class="memory-curator-preview-grid">${cards.map(renderCard).join('')}</div>${sampleHtml}`;
+            const failureHtml = failures.length ? `
+                <div class="memory-curator-preview-samples memory-hygiene-failures">
+                    <div class="memory-subsection-title">${esc(t('dashboard.memory_hygiene_partial_failures', { count: failures.length }))}</div>
+                    ${failures.map(item => `
+                        <div class="memory-curator-preview-row">
+                            <span class="mono">${esc(t('dashboard.memory_hygiene_failed_action', { domain: item.domain || '', target: item.target || '', error: item.error || '' }))}</span>
+                        </div>`).join('')}
+                </div>` : '';
+            el.innerHTML = `<div class="memory-curator-preview-grid">${cards.map(renderCard).join('')}</div>${sampleHtml}${failureHtml}`;
         }
 
         async function runMemoryHygieneDryRun() {
@@ -2482,7 +2508,7 @@
                 });
                 if (!resp.ok) throw new Error('memory hygiene dry-run failed');
                 const data = await resp.json();
-                renderMemoryHygienePreview(data.plan);
+                renderMemoryHygienePreview(data.plan, data.failed_actions || []);
                 if (typeof showToast === 'function') showToast(t('dashboard.memory_hygiene_preview_ready'), 'success', 2500);
             } catch (e) {
                 if (typeof showToast === 'function') showToast(t('dashboard.memory_hygiene_error'), 'error', 5000);
@@ -2504,10 +2530,15 @@
                 });
                 if (!resp.ok) throw new Error('memory hygiene apply failed');
                 const data = await resp.json();
-                renderMemoryHygienePreview(data.plan);
+                renderMemoryHygienePreview(data.plan, data.failed_actions || []);
                 const applied = data.applied || {};
                 const count = Number(applied.memory || 0) + Number(applied.journal || 0) + Number(applied.notes || 0) + Number(applied.canonical || 0);
-                if (typeof showToast === 'function') showToast(t('dashboard.memory_hygiene_applied', { count }), 'success', 3500);
+                const failed = Array.isArray(data.failed_actions) ? data.failed_actions.length : 0;
+                if (failed > 0 && typeof showToast === 'function') {
+                    showToast(t('dashboard.memory_hygiene_partial_failures', { count: failed }), 'warning', 5000);
+                } else if (typeof showToast === 'function') {
+                    showToast(t('dashboard.memory_hygiene_applied', { count }), 'success', 3500);
+                }
                 if (typeof loadTabAgent === 'function') await loadTabAgent();
             } catch (e) {
                 if (typeof showToast === 'function') showToast(t('dashboard.memory_hygiene_error'), 'error', 5000);

@@ -711,5 +711,14 @@
   "dashboard.cronjobs_error_delete": "Cronjob kon niet worden verwijderd.",
   "dashboard.cron_edit_source_label": "Bron",
   "dashboard.cron_edit_status_label": "Status",
-  "dashboard.integration_dograh": "Dograh"
+  "dashboard.integration_dograh": "Dograh",
+  "dashboard.maintenance_nightly_title": "Nachtelijk onderhoud",
+  "dashboard.maintenance_last_run": "Laatste: {{time}}",
+  "dashboard.maintenance_next_run": "Volgende: {{time}}",
+  "dashboard.maintenance_status_completed": "voltooid",
+  "dashboard.maintenance_status_partial": "gedeeltelijk",
+  "dashboard.maintenance_status_failed": "mislukt",
+  "dashboard.maintenance_status_never": "nog niet uitgevoerd",
+  "dashboard.memory_hygiene_partial_failures": "{{count}} acties mislukt",
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
 }

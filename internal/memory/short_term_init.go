@@ -287,6 +287,9 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	if err := stm.InitCompressedOutputTable(); err != nil {
 		logger.Warn("Failed to initialize compressed output table", "error", err)
 	}
+	if err := stm.InitMaintenanceRunsTable(); err != nil {
+		logger.Warn("Failed to initialize maintenance runs table", "error", err)
+	}
 
 	// Ensure at least a default chat session exists (backward compatibility)
 	if err := stm.EnsureDefaultSession(); err != nil {

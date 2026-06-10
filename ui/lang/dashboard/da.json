@@ -711,5 +711,14 @@
   "dashboard.cronjobs_error_delete": "Cronjob kunne ikke slettes.",
   "dashboard.cron_edit_source_label": "Kilde",
   "dashboard.cron_edit_status_label": "Status",
-  "dashboard.integration_dograh": "Dograh"
+  "dashboard.integration_dograh": "Dograh",
+  "dashboard.maintenance_nightly_title": "Natlig vedligeholdelse",
+  "dashboard.maintenance_last_run": "Seneste: {{time}}",
+  "dashboard.maintenance_next_run": "Næste: {{time}}",
+  "dashboard.maintenance_status_completed": "fuldført",
+  "dashboard.maintenance_status_partial": "delvis",
+  "dashboard.maintenance_status_failed": "mislykkedes",
+  "dashboard.maintenance_status_never": "ingen kørsel endnu",
+  "dashboard.memory_hygiene_partial_failures": "{{count}} handlinger mislykkedes",
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
 }
