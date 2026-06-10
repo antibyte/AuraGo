@@ -100,8 +100,10 @@ func TestSyncExternalSourcesRemovesStaleInventoryDevices(t *testing.T) {
 	if err := kg.SyncExternalSources(inventoryDB, logger); err != nil {
 		t.Fatalf("initial SyncExternalSources: %v", err)
 	}
-	if _, err := kg.GetNode("dev_old-pc"); err != nil {
+	if node, err := kg.GetNode("dev_old-pc"); err != nil {
 		t.Fatalf("expected dev_old-pc before removal: %v", err)
+	} else if node == nil {
+		t.Fatal("expected dev_old-pc before removal")
 	}
 
 	if _, err := inventoryDB.Exec(`DELETE FROM devices WHERE id = 'old-pc'`); err != nil {
@@ -111,11 +113,15 @@ func TestSyncExternalSourcesRemovesStaleInventoryDevices(t *testing.T) {
 		t.Fatalf("second SyncExternalSources: %v", err)
 	}
 
-	if _, err := kg.GetNode("dev_old-pc"); err == nil {
+	if node, err := kg.GetNode("dev_old-pc"); err != nil {
+		t.Fatalf("GetNode(dev_old-pc): %v", err)
+	} else if node != nil {
 		t.Fatal("expected dev_old-pc to be removed from knowledge graph")
 	}
-	if _, err := kg.GetNode("dev_nas-1"); err != nil {
-		t.Fatalf("expected dev_nas-1 to remain: %v", err)
+	if node, err := kg.GetNode("dev_nas-1"); err != nil {
+		t.Fatalf("GetNode(dev_nas-1): %v", err)
+	} else if node == nil {
+		t.Fatal("expected dev_nas-1 to remain")
 	}
 }
 
@@ -162,7 +168,9 @@ func TestSyncExternalSourcesPreservesNonInventoryDevNodes(t *testing.T) {
 	if err := kg.SyncExternalSources(inventoryDB, logger); err != nil {
 		t.Fatalf("SyncExternalSources: %v", err)
 	}
-	if _, err := kg.GetNode("dev_manual"); err != nil {
-		t.Fatalf("manual dev_ node should be preserved: %v", err)
+	if node, err := kg.GetNode("dev_manual"); err != nil {
+		t.Fatalf("GetNode(dev_manual): %v", err)
+	} else if node == nil {
+		t.Fatal("manual dev_ node should be preserved")
 	}
 }
