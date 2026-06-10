@@ -73,6 +73,7 @@
         menu.className = 'vd-context-menu';
         menu.setAttribute('role', 'menu');
         menu.innerHTML = renderItems(items, []);
+        menu.querySelectorAll('.vd-context-item').forEach((btn, idx) => btn.style.setProperty('--context-item-index', String(idx)));
         document.body.appendChild(menu);
         const usableBottom = contextMenuUsableBottom();
         const maxMenuHeight = Math.max(160, usableBottom - 8);

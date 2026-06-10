@@ -180,21 +180,74 @@
 .vd-disabled[hidden],
 .vd-start-menu[hidden] {
     display: none;
-}@media (max-width: 820px) {
-.vd-start-menu {
+}
+
+/* Backdrop dim for mobile start menu sheet */
+.vd-start-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: calc(var(--vd-z-menu) - 1);
+    opacity: 0;
+    transition: opacity 240ms cubic-bezier(0.32, 0.72, 0, 1);
+    pointer-events: none;
+}
+
+.vd-start-menu-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.vd-start-sheet-handle {
+    display: none;
+}
+
+@media (max-width: 820px) and (hover: none), (max-width: 820px) and (pointer: coarse) {
+    .vd-start-sheet-handle {
+        display: block;
+        width: 100%;
+        height: 20px;
+        flex-shrink: 0;
+        display: grid;
+        place-items: center;
+        cursor: grab;
+        touch-action: none;
+    }
+
+    .vd-start-sheet-handle::after {
+        content: '';
+        width: 36px;
+        height: 4px;
+        border-radius: var(--ds-radius-full);
+        background: var(--ds-color-border-default);
+    }
+
+    .vd-start-menu {
         left: 0 !important;
         right: 0 !important;
         bottom: var(--vd-mobile-taskbar-reserve, calc(54px + env(safe-area-inset-bottom, 0px))) !important;
         width: 100vw !important;
         max-height: min(70dvh, calc(var(--vd-visual-height, 100dvh) - var(--vd-mobile-taskbar-reserve, calc(54px + env(safe-area-inset-bottom, 0px))) - 8px));
-        border-radius: 16px 16px 0 0;
-        animation: vd-start-sheet-in 180ms ease-out;
+        border-radius: 20px 20px 0 0;
+        animation: vd-start-sheet-in 320ms cubic-bezier(0.32, 0.72, 0, 1) both;
+        display: flex;
+        flex-direction: column;
     }
-.vd-start-apps {
+
+    .vd-start-apps {
         max-height: min(calc(70dvh - 64px), calc(var(--vd-visual-height, 100dvh) - var(--vd-mobile-taskbar-reserve, calc(54px + env(safe-area-inset-bottom, 0px))) - 72px));
     }
-}
 
+    .desktop-body:not([data-animations="false"]) .vd-start-menu-closing {
+        animation: vd-start-sheet-out 200ms cubic-bezier(0.3, 0, 0, 1) both;
+    }
+
+    .desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-start-menu-closing {
+        animation: vd-start-sheet-out 220ms cubic-bezier(0.16, 1.18, 0.28, 1) both;
+    }
+}
 
 @keyframes vd-start-sheet-in {
     from {
@@ -202,5 +255,14 @@
     }
     to {
         transform: translateY(0);
+    }
+}
+
+@keyframes vd-start-sheet-out {
+    from {
+        transform: translateY(0);
+    }
+    to {
+        transform: translateY(100%);
     }
 }

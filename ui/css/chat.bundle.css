@@ -44,7 +44,7 @@
    * ─────────────────────────────────────────────────────────────── */
 
   --font-sans: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', ui-monospace, monospace;
+  --font-mono: 'Geist Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', ui-monospace, monospace;
 
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
@@ -76,6 +76,8 @@
   --radius-lg: 8px;
   --radius-xl: 12px;
   --radius-2xl: 16px;
+  --radius-3xl: 20px;
+  --radius-4xl: 24px;
   --radius-full: 9999px;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -4816,7 +4818,7 @@
     --crt-amber:    rgba(255, 158, 64, 0.2);
     --crt-glass:    rgba(223, 255, 214, 0.05);
     --crt-shadow:   rgba(0, 0, 0, 0.62);
-    --crt-font-ui:  'Datatype', 'Geist', system-ui, sans-serif;
+    --crt-font-ui:  'Datatype', 'Inter', system-ui, sans-serif;
     --chat-copy-font-size: 0.9rem;
     --chat-input-font-size: 0.9rem;
 

@@ -212,7 +212,7 @@
     cursor: pointer;
     font: inherit;
     touch-action: manipulation;
-    transition: transform 0.3s cubic-bezier(0.2, 1, 0.22, 1), box-shadow 0.3s ease, background 0.3s ease;
+    transition: transform 0.3s cubic-bezier(0.2, 1, 0.22, 1), box-shadow 0.3s var(--ds-motion-ease-standard), background 0.3s var(--ds-motion-ease-standard);
     position: relative;
     overflow: hidden;
 }
@@ -369,7 +369,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 0.8rem;
-    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: background 0.15s var(--ds-motion-ease-standard), border-color 0.15s var(--ds-motion-ease-standard), box-shadow 0.15s var(--ds-motion-ease-standard);
 }
 
 .vd-task-button:hover {
@@ -408,6 +408,14 @@
     border-color: rgba(39, 199, 166, 0.5);
     background: rgba(39, 199, 166, 0.12);
     box-shadow: 0 0 12px rgba(39, 199, 166, 0.1), inset 0 1px 0 rgba(39, 199, 166, 0.12);
+}
+
+.vd-task-button:active,
+.vd-start-button:active,
+.vd-agent-button:active {
+    transform: scale(0.94);
+    filter: brightness(0.92);
+    transition: transform 80ms cubic-bezier(0.32, 0.72, 0, 1), filter 80ms var(--ds-motion-ease-standard);
 }
 
 .vd-agent-dot {
@@ -465,9 +473,9 @@
     .vd-taskbar {
         min-height: 52px;
         /* Full safe area support (bottom + sides for landscape notched devices) */
-        padding: 6px 
-                 max(8px, env(safe-area-inset-right)) 
-                 calc(6px + env(safe-area-inset-bottom)) 
+        padding: 6px
+                 max(8px, env(safe-area-inset-right))
+                 calc(6px + env(safe-area-inset-bottom))
                  max(8px, env(safe-area-inset-left));
         gap: 6px;
     }
@@ -503,5 +511,46 @@
     .vd-start-button {
         min-width: 42px;
         height: 40px;
+    }
+}
+
+/* Premium floating island taskbar on touch-like compact devices */
+@media (max-width: 820px) and (hover: none), (max-width: 820px) and (pointer: coarse) {
+    .vd-taskbar {
+        position: fixed;
+        left: 50%;
+        right: auto;
+        bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+        transform: translateX(-50%);
+        width: max-content;
+        max-width: calc(100vw - 28px);
+        min-height: 48px;
+        padding: 5px 10px calc(5px + env(safe-area-inset-bottom, 0px)) 10px;
+        gap: 6px;
+        border-radius: var(--ds-radius-full);
+        border: 1px solid var(--ds-color-border-subtle);
+        background: var(--ds-color-surface-2);
+        backdrop-filter: var(--ds-blur-fine);
+        -webkit-backdrop-filter: var(--ds-blur-fine);
+        box-shadow:
+            var(--ds-elevation-3),
+            0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+            0 8px 32px rgba(0, 0, 0, 0.38);
+        overflow: hidden;
+    }
+
+    .vd-taskbar::before {
+        left: 10px;
+        right: 10px;
+    }
+
+    .vd-taskbar-apps {
+        overflow-x: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .vd-taskbar-apps::-webkit-scrollbar {
+        display: none;
     }
 }

@@ -910,7 +910,7 @@
         const context = { path: normalizedPath, widgetId: safeWidgetId, standaloneWidget: true };
         state.windows.set(id, { id, appId: 'widget:' + safeWidgetId, title, element: win, maximized: false, restoreBounds: null, context, icon, iconGlyph: '' });
         wireWindow(win, id);
-        animateThen(win, 'vd-window-opening', isFruityTheme() ? 240 : 150);
+        animateThen(win, 'vd-window-opening', 240);
         focusWindow(id);
         renderStandaloneWidgetContent(id, normalizedPath, safeWidgetId, title);
         renderTaskbar();
@@ -1032,7 +1032,7 @@
         if (windowContext.path != null) windowContext.path = normalizeDesktopPath(windowContext.path);
         state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext });
         wireWindow(win, id);
-        animateThen(win, 'vd-window-opening', isFruityTheme() ? 240 : 150);
+        animateThen(win, 'vd-window-opening', 240);
         if (shouldOpenMaximized(app)) toggleMaximizeWindow(id);
         focusWindow(id);
         renderAppContent(id, appId, windowContext);

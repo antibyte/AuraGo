@@ -1090,6 +1090,7 @@
         renderWidgets();
         renderStartApps();
         renderTaskbar();
+        if (!state._startMenuDragWired) { state._startMenuDragWired = true; wireStartMenuDrag(); }
     }
 
     function renderStartButtonIcon() {
@@ -1103,14 +1104,65 @@
 
     function toggleStartMenu() { const menu = $('vd-start-menu'); if (menu.hidden || menu.classList.contains('vd-start-menu-closing')) openStartMenu(); else closeStartMenu(); }
 
-    function openStartMenu() {
-        const menu = $('vd-start-menu'); if (!menu) return;
-        menu.dataset.motionState = 'open'; menu.classList.remove('vd-start-menu-closing'); menu.hidden = false;
-        runStartMenuMotion(menu, 'vd-start-menu-opening', isFruityTheme() ? 190 : 130);
-        if (!isCompactViewport()) $('vd-start-search').focus();
+    function ensureStartMenuBackdrop() {
+        let backdrop = document.querySelector('.vd-start-menu-backdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.className = 'vd-start-menu-backdrop';
+            backdrop.addEventListener('click', closeStartMenu);
+            document.body.appendChild(backdrop);
+        }
+        return backdrop;
     }
 
-    function closeStartMenu() { const menu = $('vd-start-menu'); if (!menu || menu.hidden) return; menu.dataset.motionState = 'closing'; runStartMenuMotion(menu, 'vd-start-menu-closing', isFruityTheme() ? 170 : 120, () => { if (menu.dataset.motionState === 'closing') menu.hidden = true; }); }
+    function openStartMenu() {
+        const menu = $('vd-start-menu'); if (!menu) return;
+        menu.dataset.motionState = 'open'; menu.classList.remove('vd-start-menu-closing'); menu.hidden = false; menu.style.transform = '';
+        runStartMenuMotion(menu, 'vd-start-menu-opening', isFruityTheme() ? 190 : 130);
+        if (!isCompactViewport()) $('vd-start-search').focus();
+        if (isCompactViewport()) { const bd = ensureStartMenuBackdrop(); requestAnimationFrame(() => bd.classList.add('active')); }
+    }
+
+    function closeStartMenu() {
+        const menu = $('vd-start-menu'); if (!menu || menu.hidden) return; menu.dataset.motionState = 'closing';
+        menu.style.transition = ''; menu.style.transform = '';
+        const bd = document.querySelector('.vd-start-menu-backdrop'); if (bd) bd.classList.remove('active');
+        runStartMenuMotion(menu, 'vd-start-menu-closing', isFruityTheme() ? 170 : 120, () => { if (menu.dataset.motionState === 'closing') menu.hidden = true; });
+    }
+
+    function wireStartMenuDrag() {
+        const menu = $('vd-start-menu'); const handle = menu && menu.querySelector('.vd-start-sheet-handle'); if (!handle) return;
+        let drag = null;
+        handle.addEventListener('pointerdown', event => {
+            if (event.button !== 0) return;
+            drag = { pointerId: event.pointerId, y: event.clientY, startY: event.clientY, time: performance.now() };
+            handle.setPointerCapture(event.pointerId);
+            menu.style.transition = 'none';
+        });
+        handle.addEventListener('pointermove', event => {
+            if (!drag || drag.pointerId !== event.pointerId) return;
+            const dy = event.clientY - drag.startY;
+            if (dy > 0) menu.style.transform = 'translateY(' + dy + 'px)';
+        });
+        handle.addEventListener('pointerup', event => {
+            if (!drag || drag.pointerId !== event.pointerId) return;
+            const dy = event.clientY - drag.startY;
+            const elapsed = Math.max(1, performance.now() - drag.time);
+            const velocity = dy / elapsed;
+            drag = null;
+            handle.releasePointerCapture(event.pointerId);
+            menu.style.transition = '';
+            if (dy > 120 || (dy > 40 && velocity > 0.6)) {
+                closeStartMenu();
+            } else {
+                menu.style.transform = 'translateY(0)';
+                window.setTimeout(() => { menu.style.transition = ''; menu.style.transform = ''; }, 240);
+            }
+        });
+        handle.addEventListener('pointercancel', event => {
+            if (drag && drag.pointerId === event.pointerId) { drag = null; handle.releasePointerCapture(event.pointerId); menu.style.transition = ''; menu.style.transform = ''; }
+        });
+    }
 
     function renderIcons() {
         const items = desktopShortcutItems();
@@ -1205,6 +1257,7 @@
             let btn = icons.querySelector(`.vd-icon[data-id="${cssSel(item.id)}"]`);
             if (!btn) {
                 btn = document.createElement('button');
+                btn.style.setProperty('--icon-index', String(index));
                 icons.insertBefore(btn, icons.children[index] || null);
                 updateDesktopIconButton(btn, item, pos);
                 bindDesktopIconButton(btn);
@@ -2778,7 +2831,7 @@
         const context = { path: normalizedPath, widgetId: safeWidgetId, standaloneWidget: true };
         state.windows.set(id, { id, appId: 'widget:' + safeWidgetId, title, element: win, maximized: false, restoreBounds: null, context, icon, iconGlyph: '' });
         wireWindow(win, id);
-        animateThen(win, 'vd-window-opening', isFruityTheme() ? 240 : 150);
+        animateThen(win, 'vd-window-opening', 240);
         focusWindow(id);
         renderStandaloneWidgetContent(id, normalizedPath, safeWidgetId, title);
         renderTaskbar();
@@ -2900,7 +2953,7 @@
         if (windowContext.path != null) windowContext.path = normalizeDesktopPath(windowContext.path);
         state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext });
         wireWindow(win, id);
-        animateThen(win, 'vd-window-opening', isFruityTheme() ? 240 : 150);
+        animateThen(win, 'vd-window-opening', 240);
         if (shouldOpenMaximized(app)) toggleMaximizeWindow(id);
         focusWindow(id);
         renderAppContent(id, appId, windowContext);
@@ -5041,6 +5094,7 @@ function updateTaskbarSystemButtonsForMobile() {
         menu.className = 'vd-context-menu';
         menu.setAttribute('role', 'menu');
         menu.innerHTML = renderItems(items, []);
+        menu.querySelectorAll('.vd-context-item').forEach((btn, idx) => btn.style.setProperty('--context-item-index', String(idx)));
         document.body.appendChild(menu);
         const usableBottom = contextMenuUsableBottom();
         const maxMenuHeight = Math.max(160, usableBottom - 8);
