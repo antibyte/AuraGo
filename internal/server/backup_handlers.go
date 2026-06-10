@@ -574,27 +574,7 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		contents = append(contents, "data/ (runtime files)")
 
 		// 4. SQLite databases + sidecars
-		sqlitePaths := []string{
-			s.Cfg.SQLite.ShortTermPath,
-			s.Cfg.SQLite.LongTermPath,
-			s.Cfg.SQLite.InventoryPath,
-			s.Cfg.SQLite.InvasionPath,
-			s.Cfg.SQLite.CheatsheetPath,
-			s.Cfg.SQLite.ImageGalleryPath,
-			s.Cfg.SQLite.RemoteControlPath,
-			s.Cfg.SQLite.MediaRegistryPath,
-			s.Cfg.SQLite.HomepageRegistryPath,
-			s.Cfg.SQLite.ContactsPath,
-			s.Cfg.SQLite.PlannerPath,
-			s.Cfg.SQLite.SiteMonitorPath,
-			s.Cfg.SQLite.SQLConnectionsPath,
-			s.Cfg.SQLite.SkillsPath,
-			s.Cfg.SQLite.KnowledgeGraphPath,
-			s.Cfg.SQLite.OptimizationPath,
-			s.Cfg.SQLite.PreparedMissionsPath,
-			s.Cfg.SQLite.MissionHistoryPath,
-			s.Cfg.SQLite.PushPath,
-		}
+		sqlitePaths := config.SQLiteDatabasePaths(s.Cfg)
 		sqliteStagingDir, err := os.MkdirTemp("", "aurago-sqlite-backup-*")
 		if err != nil {
 			jsonError(w, "Failed to prepare SQLite backup staging area", http.StatusInternalServerError)

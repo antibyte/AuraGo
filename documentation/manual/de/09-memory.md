@@ -119,10 +119,10 @@ embeddings:
 ### Speicherort
 
 ```
-data/vectordb/       # Vektordatenbank (chromem-go)
-sqlite:
-  long_term_path: "./data/long_term.db"  # Langzeit-Speicher
+data/vectordb/       # Vektordatenbank (chromem-go) — Langzeit-Speicher (LTM)
 ```
+
+`sqlite.long_term_path` ist veraltet und wird nur noch für ältere Installationen mit einer bestehenden `long_term.db` berücksichtigt.
 
 ---
 

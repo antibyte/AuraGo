@@ -546,7 +546,7 @@ type Config struct {
 	} `yaml:"directories"`
 	SQLite struct {
 		ShortTermPath        string `yaml:"short_term_path"`
-		LongTermPath         string `yaml:"long_term_path"`
+		LongTermPath         string `yaml:"long_term_path"` // deprecated: LTM uses directories.vectordb_dir
 		InventoryPath        string `yaml:"inventory_path"`
 		InvasionPath         string `yaml:"invasion_path"`
 		CheatsheetPath       string `yaml:"cheatsheet_path"`

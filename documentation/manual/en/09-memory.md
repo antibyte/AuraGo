@@ -403,7 +403,10 @@ agent:
 # SQLite database paths
 sqlite:
   short_term_path: "./data/short_term.db"  # STM database location
-  long_term_path: "./data/long_term.db"    # LTM database location
+
+# Long-term memory (LTM) uses the embedded vector store:
+directories:
+  vectordb_dir: "./data/vectordb"
 
 # Knowledge indexing configuration
 indexing:
@@ -477,8 +480,8 @@ indexing:
 
 **Optimizing LTM:**
 ```bash
-# LTM is stored in SQLite at sqlite.long_term_path
-# Run VACUUM periodically to reclaim space
+# LTM is stored in directories.vectordb_dir (chromem)
+# Include vectordb in backups when migrating or restoring long-term memory
 ```
 
 ### Memory Compression Strategies

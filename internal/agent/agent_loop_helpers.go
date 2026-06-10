@@ -371,7 +371,7 @@ func isSystemSecret(key string) bool {
 // file that the agent must never read or write via the filesystem tool:
 //   - The active config.yaml
 //   - The vault file (vault.bin) and its lock
-//   - All SQLite database files (short-term, long-term, inventory, invasion) + WAL/SHM journals
+//   - All configured SQLite database files + WAL/SHM journals
 //   - Any file named .env or ending in .env
 //
 // rawPath may be absolute or relative; relative paths are resolved against workspaceDir.
@@ -396,23 +396,11 @@ func isProtectedSystemPath(rawPath, workspaceDir string, cfg *config.Config) boo
 
 	// Build list of protected absolute paths from config
 	vaultBase := filepath.Join(cfg.Directories.DataDir, "vault.bin")
-	protected := []string{
+	protected := append([]string{
 		cfg.ConfigPath,
 		vaultBase,
 		vaultBase + ".lock",
-		cfg.SQLite.ShortTermPath,
-		cfg.SQLite.ShortTermPath + "-wal",
-		cfg.SQLite.ShortTermPath + "-shm",
-		cfg.SQLite.LongTermPath,
-		cfg.SQLite.LongTermPath + "-wal",
-		cfg.SQLite.LongTermPath + "-shm",
-		cfg.SQLite.InventoryPath,
-		cfg.SQLite.InventoryPath + "-wal",
-		cfg.SQLite.InventoryPath + "-shm",
-		cfg.SQLite.InvasionPath,
-		cfg.SQLite.InvasionPath + "-wal",
-		cfg.SQLite.InvasionPath + "-shm",
-	}
+	}, config.SQLiteProtectedPaths(cfg)...)
 
 	for _, p := range protected {
 		if p == "" {

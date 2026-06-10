@@ -557,6 +557,14 @@ func TestHandleBackupCreateIncludesRuntimeFilesAndConsistentSQLiteSnapshots(t *t
 	}
 	missionHistoryPath := filepath.Join(dataDir, "mission_history.db")
 	writeTestSQLiteDB(t, missionHistoryPath)
+	launchpadPath := filepath.Join(dataDir, "launchpad.db")
+	writeTestSQLiteDB(t, launchpadPath)
+	systemTasksPath := filepath.Join(dataDir, config.SystemTasksDBFilename)
+	writeTestSQLiteDB(t, systemTasksPath)
+	galaxaPath := filepath.Join(dataDir, config.GalaxaDBFilename)
+	writeTestSQLiteDB(t, galaxaPath)
+	desktopStorePath := filepath.Join(dataDir, config.DesktopStoreDBFilename)
+	writeTestSQLiteDB(t, desktopStorePath)
 
 	cfg := &config.Config{
 		ConfigPath: configPath,
@@ -568,6 +576,7 @@ func TestHandleBackupCreateIncludesRuntimeFilesAndConsistentSQLiteSnapshots(t *t
 	cfg.Directories.WorkspaceDir = workdir
 	cfg.SQLite.ShortTermPath = shortTermPath
 	cfg.SQLite.MissionHistoryPath = missionHistoryPath
+	cfg.SQLite.LaunchpadPath = launchpadPath
 
 	s := &Server{Cfg: cfg, Logger: slog.Default()}
 
@@ -599,6 +608,10 @@ func TestHandleBackupCreateIncludesRuntimeFilesAndConsistentSQLiteSnapshots(t *t
 		"data/background_tasks.json",
 		"data/short_term.db",
 		"data/mission_history.db",
+		"data/launchpad.db",
+		"data/system_tasks.db",
+		"data/galaxa.db",
+		"data/desktop_store.db",
 		"manifest.json",
 	} {
 		if !entries[want] {

@@ -202,8 +202,9 @@ directories:
 
 sqlite:
   short_term_path: "./data/short_term.db"
-  long_term_path: "./data/long_term.db"
   inventory_path: "./data/inventory.db"
+  launchpad_path: "./data/launchpad.db"
+  # LTM nutzt directories.vectordb_dir (nicht sqlite.long_term_path)
 
 tools:
   memory:

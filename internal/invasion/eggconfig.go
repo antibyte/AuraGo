@@ -87,9 +87,9 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 	// ── SQLite ──
 	cfg["sqlite"] = map[string]interface{}{
 		"short_term_path": "./data/short_term.db",
-		"long_term_path":  "./data/long_term.db",
 		"inventory_path":  "./data/inventory.db",
 		"invasion_path":   "./data/invasion.db",
+		"launchpad_path":  "./data/launchpad.db",
 	}
 
 	// ── Agent — worker mode, no personality ──

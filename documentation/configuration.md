@@ -412,13 +412,33 @@ Manage rules in **Config → Rules**. Homepage tasks also receive the global hom
 
 ## `sqlite`
 
-Paths for the three SQLite databases.
+Paths for AuraGo's SQLite databases. Long-term semantic memory is **not** stored here — it lives in `directories.vectordb_dir` (chromem). Back up the vector store separately with `include_vectordb` in backup settings.
 
-| Key | Default |
-|---|---|
-| `short_term_path` | `"./data/short_term.db"` |
-| `long_term_path` | `"./data/long_term.db"` |
-| `inventory_path` | `"./data/inventory.db"` |
+| Key | Default | Notes |
+|---|---|---|
+| `short_term_path` | `"./data/short_term.db"` | Conversation short-term memory |
+| `long_term_path` | `"./data/long_term.db"` | **Deprecated** — legacy SQLite LTM; included in backups only when the file still exists |
+| `inventory_path` | `"./data/inventory.db"` | SSH device inventory |
+| `invasion_path` | `"./data/invasion.db"` | Invasion Control |
+| `cheatsheet_path` | `"./data/cheatsheets.db"` | Cheatsheets |
+| `image_gallery_path` | `"./data/image_gallery.db"` | Image gallery metadata |
+| `remote_control_path` | `"./data/remote_control.db"` | Remote control sessions |
+| `media_registry_path` | `"./data/media_registry.db"` | Media registry |
+| `homepage_registry_path` | `"./data/homepage_registry.db"` | Homepage projects |
+| `contacts_path` | `"./data/contacts.db"` | Address book |
+| `planner_path` | `"./data/planner.db"` | Planner |
+| `virtual_desktop_path` | `"./data/virtual_desktop.db"` | Virtual desktop state |
+| `site_monitor_path` | `"./data/site_monitor.db"` | Site monitoring |
+| `sql_connections_path` | `"./data/sql_connections.db"` | External SQL connection configs |
+| `skills_path` | `"./data/skills.db"` | Skills registry |
+| `knowledge_graph_path` | `"./data/knowledge_graph.db"` | Knowledge graph |
+| `optimization_path` | `"./data/optimization.db"` | Optimizer state |
+| `prepared_missions_path` | `"./data/prepared_missions.db"` | Prepared missions |
+| `mission_history_path` | `"./data/mission_history.db"` | Mission history |
+| `push_path` | `"./data/push.db"` | Push notifications |
+| `launchpad_path` | `"./data/launchpad.db"` | Launchpad apps |
+
+Additional SQLite files under `directories.data_dir` are also backed up when present: `system_tasks.db`, `galaxa.db`, and `desktop_store.db`.
 
 ---
 
