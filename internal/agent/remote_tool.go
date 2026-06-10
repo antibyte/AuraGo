@@ -834,23 +834,24 @@ func remoteFileSearch(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) s
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
 	}
 
-	op := tc.Action
-	if op == "" {
-		op = "grep"
-	}
+	params := nestedRemoteToolParams(tc.Params)
+	op := remoteFileSearchOperation(tc, params)
 
 	args := map[string]interface{}{
 		"operation": op,
-		"pattern":   toolArgString(tc.Params, "pattern"),
+		"pattern":   toolArgString(params, "pattern"),
 	}
-	path := firstNonEmptyToolString(toolArgString(tc.Params, "path", "file_path"), tc.Path, tc.FilePath)
+	path := firstNonEmptyToolString(toolArgString(params, "path", "file_path"), tc.Path, tc.FilePath)
 	if path != "" {
 		args["path"] = path
 	}
-	if glob := toolArgString(tc.Params, "glob"); glob != "" {
+	if rootID := strings.TrimSpace(toolArgString(params, "root_id")); rootID != "" {
+		args["root_id"] = rootID
+	}
+	if glob := toolArgString(params, "glob"); glob != "" {
 		args["glob"] = glob
 	}
-	if outputMode := toolArgString(tc.Params, "output_mode"); outputMode != "" {
+	if outputMode := toolArgString(params, "output_mode"); outputMode != "" {
 		args["output_mode"] = outputMode
 	}
 
@@ -870,6 +871,51 @@ func remoteFileSearch(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) s
 		"result": cmdResult.Output,
 	})
 	return "Tool Output: " + string(respData)
+}
+
+func nestedRemoteToolParams(params map[string]interface{}) map[string]interface{} {
+	nested, ok := params["params"].(map[string]interface{})
+	if !ok || len(nested) == 0 {
+		return params
+	}
+	merged := make(map[string]interface{}, len(params)+len(nested))
+	for key, value := range params {
+		if key == "params" {
+			continue
+		}
+		merged[key] = value
+	}
+	for key, value := range nested {
+		merged[key] = value
+	}
+	return merged
+}
+
+func remoteFileSearchOperation(tc ToolCall, params map[string]interface{}) string {
+	for _, candidate := range []string{
+		toolArgString(params, "operation"),
+		tc.SubOperation,
+		toolArgString(params, "action"),
+		tc.Action,
+	} {
+		if isRemoteFileSearchOperation(candidate) {
+			return strings.TrimSpace(candidate)
+		}
+	}
+	rawOp := strings.TrimSpace(toolArgString(params, "operation"))
+	if rawOp != "" && rawOp != remote.OpFileSearch && rawOp != "remote_control" {
+		return rawOp
+	}
+	return "grep"
+}
+
+func isRemoteFileSearchOperation(op string) bool {
+	switch strings.TrimSpace(op) {
+	case "grep", "grep_recursive", "find":
+		return true
+	default:
+		return false
+	}
 }
 
 func remoteFileReadAdvanced(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {

@@ -38,7 +38,7 @@ AgoDesk desktop commands require the client to advertise matching `session.start
 | `device_name` | string | for most operations | Name of the remote device |
 | `device_id` | string | for most operations | Alternative to device_name |
 | `command` | string | for execute_command | Shell command to execute |
-| `path` | string | for read_file, write_file, list_files | File/directory path |
+| `path` | string | for read_file, write_file, list_files, file_search | File/directory path |
 | `root_id` | string | optional for AgoDesk file access | Stable AgoDesk file-access root id; when set, `path` is relative to that root |
 | `content` | string | for write_file | File content to write |
 | `recursive` | boolean | for list_files | List recursively (default: false) |
@@ -55,7 +55,7 @@ AgoDesk desktop commands require the client to advertise matching `session.start
 | `key`, `code` | string/integer | for key_down/key_up | Keyboard key name or numeric key code |
 | `text` | string | for text input | Text to type |
 | `element_id` | string | for desktop_ui_action | Element id from a prior `desktop_ui_tree` result |
-| `action` | string | for desktop_ui_action and desktop_browser_action | UI/browser action such as `click`, `focus`, `set_value`, or `fill` |
+| `action` / `sub_operation` | string | for file_search, file_read_advanced, desktop_ui_action, and desktop_browser_action | `file_search`: `grep`, `grep_recursive`, or `find`; UI/browser action such as `click`, `focus`, `set_value`, or `fill`. Use `sub_operation` in raw JSON fallback calls where `action` is already the tool name. |
 | `endpoint` | string | optional for desktop_browser_connect | Browser CDP endpoint, e.g. `http://127.0.0.1:9222` |
 | `selector` | string | optional for browser operations | CSS selector for browser snapshot/action |
 | `include_html` | boolean | optional for desktop_browser_snapshot | Include HTML when supported by agodesk |
@@ -124,6 +124,11 @@ AgoDesk desktop commands require the client to advertise matching `session.start
 **Send approved desktop input:**
 ```json
 {"action": "remote_control", "operation": "desktop_input", "device_name": "office-pc", "kind": "mouse_click", "x": 100, "y": 200, "button": "left", "input_action": "click"}
+```
+
+**Search files through AgoDesk file access:**
+```json
+{"action": "remote_control", "operation": "file_search", "device_name": "office-pc", "root_id": "workspace", "path": ".", "sub_operation": "grep_recursive", "pattern": "TODO"}
 ```
 
 ## Architecture

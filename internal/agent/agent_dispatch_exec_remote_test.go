@@ -573,6 +573,71 @@ func TestRemoteFileOperationsForwardAgoDeskRootID(t *testing.T) {
 	}
 }
 
+func TestRemoteFileSearchUsesNestedAgoDeskSearchOperation(t *testing.T) {
+	t.Parallel()
+
+	db, err := remote.InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatalf("init remote db: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	deviceID, err := remote.CreateDevice(db, remote.DeviceRecord{
+		Name:   "agodesk",
+		Status: "approved",
+		Tags:   []string{"agodesk", "desktop-client"},
+	})
+	if err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	transport := &agentRecordingTransport{
+		connected: map[string]bool{deviceID: true},
+		output:    `{"matches":[]}`,
+	}
+	hub := remote.NewRemoteHub(db, nil, slog.Default())
+	hub.RegisterCommandTransport("agodesk", transport)
+
+	cfg := &config.Config{}
+	cfg.RemoteControl.Enabled = true
+
+	out := handleRemoteControl(ToolCall{
+		Action:    "remote_control",
+		Operation: "file_search",
+		DeviceID:  deviceID,
+		Params: map[string]interface{}{
+			"operation": "file_search",
+			"params": map[string]interface{}{
+				"root_id":   "baf-g-872e1d24",
+				"path":      ".",
+				"operation": "grep_recursive",
+				"pattern":   "Johannes",
+			},
+		},
+	}, cfg, hub, slog.Default())
+	if !strings.Contains(out, `"status":"ok"`) {
+		t.Fatalf("expected ok output, got %s", out)
+	}
+	if len(transport.calls) != 1 {
+		t.Fatalf("transport calls = %d, want 1", len(transport.calls))
+	}
+	call := transport.calls[0]
+	if got := call.Operation; got != remote.OpFileSearch {
+		t.Fatalf("operation = %q, want %q", got, remote.OpFileSearch)
+	}
+	if got := call.Args["operation"]; got != "grep_recursive" {
+		t.Fatalf("file_search operation arg = %#v, want grep_recursive", got)
+	}
+	if got := call.Args["root_id"]; got != "baf-g-872e1d24" {
+		t.Fatalf("root_id arg = %#v, want baf-g-872e1d24", got)
+	}
+	if got := call.Args["path"]; got != "." {
+		t.Fatalf("path arg = %#v, want .", got)
+	}
+	if got := call.Args["pattern"]; got != "Johannes" {
+		t.Fatalf("pattern arg = %#v, want Johannes", got)
+	}
+}
+
 type agentRecordingTransport struct {
 	connected map[string]bool
 	output    string
