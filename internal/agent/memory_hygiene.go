@@ -12,13 +12,32 @@ import (
 	"aurago/internal/planner"
 )
 
+const maxJournalHygieneIterations = 5
+
+func runJournalDuplicateConsolidation(stm *memory.SQLiteMemory, opts memory.JournalConsolidationOptions) (int, error) {
+	totalRemoved := 0
+	var lastErr error
+	for range maxJournalHygieneIterations {
+		report, err := stm.ConsolidateDuplicateAutoJournalErrors(opts)
+		if err != nil {
+			return totalRemoved, err
+		}
+		totalRemoved += report.RemovedEntries
+		if report.RemovedEntries == 0 {
+			break
+		}
+		lastErr = nil
+	}
+	return totalRemoved, lastErr
+}
+
 func runAutomaticMemoryHygiene(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB) {
 	if cfg == nil || stm == nil {
 		return
 	}
 	journalRemoved := 0
 	if cfg.Tools.Journal.Enabled {
-		report, err := stm.ConsolidateDuplicateAutoJournalErrors(memory.JournalConsolidationOptions{
+		removed, err := runJournalDuplicateConsolidation(stm, memory.JournalConsolidationOptions{
 			Now:           time.Now().UTC(),
 			OlderThan:     24 * time.Hour,
 			MinDuplicates: 2,
@@ -28,7 +47,7 @@ func runAutomaticMemoryHygiene(cfg *config.Config, logger *slog.Logger, stm *mem
 		if err != nil {
 			logger.Warn("[MemoryHygiene] Failed to consolidate duplicate journal errors", "error", err)
 		} else {
-			journalRemoved = report.RemovedEntries
+			journalRemoved = removed
 		}
 	}
 

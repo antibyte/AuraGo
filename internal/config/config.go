@@ -1041,6 +1041,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Maintenance.LifeboatPort <= 0 {
 		cfg.Maintenance.LifeboatPort = 8091
 	}
+	if !yamlHasPath(data, "maintenance", "enabled") {
+		cfg.Maintenance.Enabled = true
+	}
 	if cfg.Agent.MemoryCompressionCharLimit <= 0 {
 		cfg.Agent.MemoryCompressionCharLimit = 100000
 	}

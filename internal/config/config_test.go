@@ -2498,3 +2498,45 @@ obsidian:
 		t.Fatal("expected canonical obsidian.readonly to take precedence over legacy read_only")
 	}
 }
+
+func TestMaintenanceEnabledDefaultsTrueWhenOmitted(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+directories:
+  data_dir: './data'
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !cfg.Maintenance.Enabled {
+		t.Fatal("expected maintenance.enabled to default to true when omitted")
+	}
+}
+
+func TestMaintenanceEnabledRespectsExplicitFalse(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+maintenance:
+  enabled: false
+directories:
+  data_dir: './data'
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Maintenance.Enabled {
+		t.Fatal("expected explicit maintenance.enabled=false to be preserved")
+	}
+}

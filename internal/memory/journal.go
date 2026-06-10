@@ -454,6 +454,18 @@ func (s *SQLiteMemory) InsertJournalEntry(entry JournalEntry) (int64, error) {
 	return res.LastInsertId()
 }
 
+// SetJournalEntryCreatedAt updates created_at for a journal entry (used by tests and fixtures).
+func (s *SQLiteMemory) SetJournalEntryCreatedAt(id int64, createdAt string) error {
+	if id <= 0 {
+		return nil
+	}
+	_, err := s.db.Exec(`UPDATE journal_entries SET created_at = ? WHERE id = ?`, createdAt, id)
+	if err != nil {
+		return fmt.Errorf("set journal entry created_at: %w", err)
+	}
+	return nil
+}
+
 // JournalErrorRecentlyLogged returns true when an identical error journal entry was
 // written within the given number of hours (default 24 when withinHours <= 0).
 func (s *SQLiteMemory) JournalErrorRecentlyLogged(entryType, title, content string, withinHours int) (bool, error) {

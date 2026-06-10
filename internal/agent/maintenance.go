@@ -198,6 +198,12 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		}
 	}
 
+	if kg != nil && inventoryDB != nil {
+		if err := kg.SyncExternalSources(inventoryDB, logger); err != nil {
+			logger.Warn("[Maintenance] Inventory KG sync failed", "error", err)
+		}
+	}
+
 	// Sync contacts and core memory
 	if kg != nil {
 		SyncContactsToKnowledgeGraph(ctx, contactsDB, kg, logger)
@@ -225,7 +231,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 			Backfill: false,
 			MaxFiles: 50, // conservative nightly limit for first draft
 		}
-		_ = syncer.SyncAll(opts)
+		logFileKGSyncResult(logger, syncer.SyncAll(opts))
 	}
 
 	// Knowledge Graph: nightly batch entity extraction from recent conversations
@@ -268,7 +274,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	sessionID := "maintenance"
 
 	// 3. Execute reasoning loop
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.CircuitBreaker.MaintenanceTimeoutMinutes)*time.Minute)
+	agentCtx, cancel := context.WithTimeout(ctx, time.Duration(cfg.CircuitBreaker.MaintenanceTimeoutMinutes)*time.Minute)
 	defer cancel()
 
 	// Use NoopBroker for silent background reasoning
@@ -298,7 +304,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		SurgeryPlan:      "",
 	}
 
-	resp, err := ExecuteAgentLoop(ctx, req, runCfg, false, broker)
+	resp, err := ExecuteAgentLoop(agentCtx, req, runCfg, false, broker)
 	if err != nil {
 		logger.Error("[Maintenance] Agent loop failed", "error", err)
 		recordOperationalIssue(runCfg, planner.OperationalIssue{
@@ -908,6 +914,31 @@ func recordConsolidationBatchEpisode(stm *memory.SQLiteMemory, batch []memory.Ar
 		Participants:     []string{"user", "agent"},
 		EmotionalValence: 0,
 	})
+}
+
+func logFileKGSyncResult(logger *slog.Logger, result services.FileKGSyncResult) {
+	if logger == nil {
+		return
+	}
+	if len(result.Errors) > 0 {
+		logger.Warn("[Maintenance] File KG sync completed with errors",
+			"processed", result.FilesProcessed,
+			"skipped", result.FilesSkipped,
+			"nodes", result.NodesExtracted,
+			"edges", result.EdgesExtracted,
+			"error_count", len(result.Errors),
+			"errors", result.Errors)
+		return
+	}
+	if result.FilesProcessed > 0 || result.NodesExtracted > 0 || result.EdgesExtracted > 0 {
+		logger.Info("[Maintenance] File KG sync complete",
+			"processed", result.FilesProcessed,
+			"skipped", result.FilesSkipped,
+			"nodes", result.NodesExtracted,
+			"edges", result.EdgesExtracted)
+		return
+	}
+	logger.Debug("[Maintenance] File KG sync: nothing to process")
 }
 
 func runMaintenanceCompressedOutputCleanup(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory) {

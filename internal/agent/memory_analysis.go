@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -925,6 +926,38 @@ func applyHelperRAGScores(logger *slog.Logger, candidates []rankedMemory, result
 		logger.Debug("[RAG Helper Batch] Re-ranked candidates", "count", len(candidates), "applied_scores", applied)
 	}
 	return candidates
+}
+
+var weeklyReflectionClaim struct {
+	sync.Mutex
+	date string
+}
+
+// tryClaimWeeklyReflection ensures only one weekly reflection run starts per day in this process.
+func tryClaimWeeklyReflection(stm *memory.SQLiteMemory) bool {
+	weeklyReflectionClaim.Lock()
+	defer weeklyReflectionClaim.Unlock()
+
+	today := time.Now().Format("2006-01-02")
+	if weeklyReflectionClaim.date == today {
+		return false
+	}
+	if stm != nil {
+		existing, _ := stm.GetJournalEntries(today, today, []string{"reflection"}, 1)
+		if len(existing) > 0 {
+			weeklyReflectionClaim.date = today
+			return false
+		}
+	}
+	weeklyReflectionClaim.date = today
+	return true
+}
+
+// releaseWeeklyReflectionClaim allows a retry after a failed reflection run.
+func releaseWeeklyReflectionClaim() {
+	weeklyReflectionClaim.Lock()
+	defer weeklyReflectionClaim.Unlock()
+	weeklyReflectionClaim.date = ""
 }
 
 // weeklyReflectionDue checks if the weekly reflection should run today.

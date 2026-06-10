@@ -1831,17 +1831,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
-		// Weekly reflection: async trigger if configured and due
-		// Guard: only run once per day by checking if a reflection entry already exists today.
+		// Weekly reflection: async trigger if configured and due.
 		if memAnalysis.Enabled && memAnalysis.WeeklyReflection && runTurnSideEffects && weeklyReflectionDue(cfg, shortTermMem) && shortTermMem != nil {
-			today := time.Now().Format("2006-01-02")
-			existing, _ := shortTermMem.GetJournalEntries(today, today, []string{"reflection"}, 1)
-			if len(existing) == 0 {
+			if tryClaimWeeklyReflection(shortTermMem) {
 				go func() {
 					reflCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 					defer cancel()
 					_, err := generateMemoryReflection(reflCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, client, s.runCfg.PlannerDB, "recent")
 					if err != nil {
+						releaseWeeklyReflectionClaim()
 						s.currentLogger.Warn("Weekly reflection failed", "error", err)
 					}
 				}()
