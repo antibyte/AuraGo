@@ -6,6 +6,12 @@ import (
 	"log/slog"
 )
 
+const (
+	inventoryDeviceNodePrefix = "dev_"
+	inventorySyncSource       = "inventory_sync"
+	inventoryDeviceSyncLimit  = 10000
+)
+
 // SyncExternalSources pulls container and SSH device data from Inventory DB
 // into the Knowledge Graph (using simple nodes/edges).
 func (kg *KnowledgeGraph) SyncExternalSources(inventoryDB *sql.DB, logger *slog.Logger) error {
@@ -20,7 +26,8 @@ func (kg *KnowledgeGraph) SyncExternalSources(inventoryDB *sql.DB, logger *slog.
 	}
 	defer rows.Close()
 
-	var inserted int
+	expected := make(map[string]struct{})
+	var synced int
 	for rows.Next() {
 		var id, name, devType, ip, desc, tags string
 		if err := rows.Scan(&id, &name, &devType, &ip, &desc, &tags); err != nil {
@@ -34,17 +41,60 @@ func (kg *KnowledgeGraph) SyncExternalSources(inventoryDB *sql.DB, logger *slog.
 			"ip":          ip,
 			"description": desc,
 			"tags":        tags,
-			"source":      "inventory_sync",
+			"source":      inventorySyncSource,
 		}
 
-		nodeID := "dev_" + id
+		nodeID := inventoryDeviceNodePrefix + id
+		expected[nodeID] = struct{}{}
 		if err := kg.AddNode(nodeID, name, props); err != nil {
 			logger.Warn("Failed to sync inventory device to knowledge graph", "id", nodeID, "error", err)
 		} else {
-			inserted++
+			synced++
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate inventory devices: %w", err)
+	}
 
-	logger.Info("External sources sync complete", "devices_synced", inserted)
+	removed := kg.removeStaleInventoryDeviceNodes(expected, logger)
+
+	logger.Info("External sources sync complete", "devices_synced", synced, "stale_devices_removed", removed)
 	return nil
+}
+
+func (kg *KnowledgeGraph) removeStaleInventoryDeviceNodes(expected map[string]struct{}, logger *slog.Logger) int {
+	if kg == nil {
+		return 0
+	}
+	nodes, err := kg.ListNodesByIDPrefix(inventoryDeviceNodePrefix, inventoryDeviceSyncLimit)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("Failed to list inventory KG nodes for stale cleanup", "error", err)
+		}
+		return 0
+	}
+
+	removed := 0
+	for _, node := range nodes {
+		if node.Properties["source"] != inventorySyncSource {
+			continue
+		}
+		if _, ok := expected[node.ID]; ok {
+			continue
+		}
+		if node.Protected {
+			if logger != nil {
+				logger.Debug("Skipping protected stale inventory device node", "node_id", node.ID)
+			}
+			continue
+		}
+		if err := kg.DeleteNode(node.ID); err != nil {
+			if logger != nil {
+				logger.Warn("Failed to delete stale inventory device node", "node_id", node.ID, "error", err)
+			}
+			continue
+		}
+		removed++
+	}
+	return removed
 }
