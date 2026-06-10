@@ -347,6 +347,34 @@ func TestChatFrontend_IntegrationsDrawerRemainsWired(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_MainScrollerKeepsChatBoxId(t *testing.T) {
+	t.Parallel()
+
+	indexContent, err := os.ReadFile("index.html")
+	if err != nil {
+		t.Fatalf("read index.html: %v", err)
+	}
+	indexHTML := string(indexContent)
+
+	for _, marker := range []string{
+		`<main id="chat-box"`,
+		`href="#chat-box"`,
+		`tabindex="-1"`,
+	} {
+		if !strings.Contains(indexHTML, marker) {
+			t.Fatalf("index.html missing chat scroller marker %q", marker)
+		}
+	}
+
+	chatCSS, err := os.ReadFile(filepath.Join("css", "chat.css"))
+	if err != nil {
+		t.Fatalf("read css/chat.css: %v", err)
+	}
+	if !strings.Contains(string(chatCSS), "#chat-box {\n            flex: 1;\n            min-height: 0;") {
+		t.Fatal("css/chat.css must keep #chat-box flex scroller rules for mobile layout")
+	}
+}
+
 func TestChatFrontend_MobileHeaderControlsRemainTappable(t *testing.T) {
 	t.Parallel()
 
