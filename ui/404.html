@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="{{.Lang}}" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="AuraGo" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>AuraGo – 404</title>
+    <meta name="description" content="AuraGo - Autonomous AI agent for home lab environments">
+    <meta property="og:title" content="AuraGo – Page Not Found">
+    <meta property="og:description" content="The page you are looking for does not exist">
+    <meta property="og:image" content="/aurago_logo_dark.png">
+    <meta property="og:type" content="website">
+    <link href="/fonts/fonts.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/tailwind-compat.css">
+    <link rel="stylesheet" href="/shared-variables.css">
+    <link rel="stylesheet" href="/shared-utilities.css">
+    <link rel="stylesheet" href="/shared-components.css">
+    <link rel="stylesheet" href="/shared-animations.css">
+    <script>
+        (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
+        const I18N = {{.I18N}};
+    </script>
+    <link rel="stylesheet" href="/css/tokens.css">
+    <style>
+        .not-found-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            min-height: 100dvh;
+            padding: 2rem;
+            text-align: center;
+            position: relative;
+            isolation: isolate;
+        }
+
+        .not-found-code {
+            font-size: clamp(5rem, 12vw, 9rem);
+            font-weight: 700;
+            letter-spacing: -0.04em;
+            line-height: 1;
+            background: linear-gradient(135deg, var(--accent), #0d9488);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .not-found-title {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.75rem;
+            text-wrap: balance;
+        }
+
+        .not-found-desc {
+            font-size: var(--text-sm, 0.875rem);
+            color: var(--text-secondary);
+            max-width: 40ch;
+            margin-bottom: 2rem;
+            text-wrap: pretty;
+        }
+
+        .not-found-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .not-found-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.65rem 1.4rem;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .not-found-link-primary {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        .not-found-link-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px var(--accent-glow);
+        }
+
+        .not-found-link-secondary {
+            background: var(--bg-glass);
+            color: var(--text-primary);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .not-found-link-secondary:hover {
+            border-color: var(--border-accent);
+            transform: translateY(-2px);
+        }
+
+        .not-found-logo {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            text-decoration: none;
+            color: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .not-found-logo .logo-wordmark-accent {
+            color: var(--accent);
+        }
+
+        .not-found-logo .logo-wordmark-base {
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+
+<body>
+    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content">Skip to content</a>
+
+    <a href="/" class="not-found-logo">
+        <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
+    </a>
+
+    <main id="main-content" class="not-found-page">
+        <div class="not-found-code">404</div>
+        <h1 class="not-found-title" data-i18n="notfound.title">Page not found</h1>
+        <p class="not-found-desc" data-i18n="notfound.description">The page you are looking for does not exist or has been moved.</p>
+        <div class="not-found-actions">
+            <a href="/" class="not-found-link not-found-link-primary" data-i18n="notfound.go_home">Go to Chat</a>
+            <a href="/dashboard" class="not-found-link not-found-link-secondary" data-i18n="notfound.go_dashboard">Dashboard</a>
+        </div>
+    </main>
+
+    <script>
+        if (typeof I18N !== 'undefined' && I18N) {
+            document.querySelectorAll('[data-i18n]').forEach(function (el) {
+                var key = el.getAttribute('data-i18n');
+                if (I18N[key]) el.textContent = I18N[key];
+            });
+        }
+    </script>
+</body>
+
+</html>

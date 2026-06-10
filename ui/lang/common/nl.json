@@ -70,5 +70,10 @@
   "chat.aria_system_warnings": "Systeemwaarschuwingen",
   "chat.aria_toggle_speaker": "Luidspreker in-/uitschakelen",
   "chat.aria_upload": "Bestand upload",
-  "chat.aria_voice_input": "Spraakinvoer"
+  "chat.aria_voice_input": "Spraakinvoer",
+  "common.skip_to_content": "Naar inhoud springen",
+  "notfound.title": "Pagina niet gevonden",
+  "notfound.description": "De pagina die je zoekt bestaat niet of is verplaatst.",
+  "notfound.go_home": "Ga naar chat",
+  "notfound.go_dashboard": "Dashboard"
 }

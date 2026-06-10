@@ -11,6 +11,11 @@
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title id="page-title">AuraGo – Quick Setup</title>
+    <meta name="description" content="First-time setup wizard for AuraGo">
+    <meta property="og:title" content="AuraGo Setup">
+    <meta property="og:description" content="First-time setup wizard for AuraGo">
+    <meta property="og:image" content="/aurago_logo_dark.png">
+    <meta property="og:type" content="website">
     <link href="/fonts/fonts.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/tailwind-compat.css">
     <link rel="stylesheet" href="/shared-variables.css">
@@ -30,6 +35,7 @@
 </head>
 
 <body>
+    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content">Skip to content</a>
     <!-- ── Header ─────────────────────────────────── -->
     <header class="cfg-header setup-header">
         <div class="logo">
@@ -58,7 +64,7 @@
     </div>
 
     <!-- ── Main Setup Card ─────────────────────── -->
-    <div class="setup-container">
+    <div class="setup-container" id="main-content">
         <div class="setup-card">
 
             <!-- Step Indicator — rebuilt dynamically by JS based on flow -->

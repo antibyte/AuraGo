@@ -70,5 +70,10 @@
   "chat.aria_system_warnings": "Systemadvarsler",
   "chat.aria_toggle_speaker": "Slå højttaler til/fra",
   "chat.aria_upload": "Upload fil",
-  "chat.aria_voice_input": "Stemmeinput"
+  "chat.aria_voice_input": "Stemmeinput",
+  "common.skip_to_content": "Spring til indhold",
+  "notfound.title": "Side ikke fundet",
+  "notfound.description": "Siden du leder efter findes ikke eller er blevet flyttet.",
+  "notfound.go_home": "Gå til chat",
+  "notfound.go_dashboard": "Dashboard"
 }

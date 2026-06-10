@@ -51,6 +51,29 @@ func uiTemplateData(lang string) map[string]interface{} {
 	}
 }
 
+// notFoundResponseWriter wraps http.ResponseWriter to detect 404 responses
+// from the static file server so we can serve a branded 404 page instead.
+type notFoundResponseWriter struct {
+	http.ResponseWriter
+	path     string
+	notFound bool
+}
+
+func (w *notFoundResponseWriter) WriteHeader(code int) {
+	if code == http.StatusNotFound {
+		w.notFound = true
+		return
+	}
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *notFoundResponseWriter) Write(b []byte) (int, error) {
+	if w.notFound {
+		return len(b), nil
+	}
+	return w.ResponseWriter.Write(b)
+}
+
 const desktopWidgetAutoResizeScript = `<script data-aurago-widget-auto-resize>(function(){
 if(window.__auragoWidgetAutoResize)return;
 window.__auragoWidgetAutoResize=true;
@@ -815,6 +838,12 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	})
 	mux.HandleFunc("/auth/logout", handleAuthLogout(s))
 
+	// 404 page template
+	notFoundTmpl, notFoundErr := template.ParseFS(uiFS, "404.html")
+	if notFoundErr != nil {
+		s.Logger.Error("Failed to parse 404 UI template", "error", notFoundErr)
+	}
+
 	staticHandler := http.FileServer(http.FS(uiFS))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
@@ -844,8 +873,24 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			}
 			return
 		}
-		// Serve static assets from embedded UI FS (logos, etc.)
-		staticHandler.ServeHTTP(w, r)
+		// Serve static assets from embedded UI FS, fall through to 404 for HTML requests
+		nfw := &notFoundResponseWriter{ResponseWriter: w, path: r.URL.Path}
+		staticHandler.ServeHTTP(nfw, r)
+		if nfw.notFound {
+			// Static file not found — serve branded 404 page for HTML requests
+			accept := r.Header.Get("Accept")
+			if strings.Contains(accept, "text/html") && notFoundTmpl != nil {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.WriteHeader(http.StatusNotFound)
+				lang := normalizeLang(s.Cfg.Server.UILanguage)
+				data := uiTemplateData(lang)
+				if err := notFoundTmpl.Execute(w, data); err != nil {
+					s.Logger.Error("Failed to execute 404 template", "error", err)
+				}
+			} else {
+				http.NotFound(w, r)
+			}
+		}
 	})
 
 	// Serve generated documents from the document_creator output directory

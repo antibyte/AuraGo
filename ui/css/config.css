@@ -1099,18 +1099,24 @@ select.cfg-input option {
 }
 
 .cfg-loading-state {
-    text-align: center;
-    padding: 4rem 1rem;
-    color: var(--text-secondary);
+    padding: 2rem 1.5rem;
+    max-width: 720px;
 }
 
-.cfg-loading-icon {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
+.cfg-skeleton-header {
+    margin-bottom: 2rem;
 }
 
-.cfg-loading-text {
-    font-size: 1rem;
+.cfg-skeleton-section {
+    margin-bottom: 1.75rem;
+    padding-bottom: 1.75rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.cfg-skeleton-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
 }
 
 /* vault-confirm-input: centered DELETE word input (still used by vault modal) */

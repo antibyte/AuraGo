@@ -70,5 +70,10 @@
   "chat.aria_system_warnings": "系统警告",
   "chat.aria_toggle_speaker": "切换扬声器",
   "chat.aria_upload": "上传文件",
-  "chat.aria_voice_input": "语音输入"
+  "chat.aria_voice_input": "语音输入",
+  "common.skip_to_content": "跳转到内容",
+  "notfound.title": "页面未找到",
+  "notfound.description": "您查找的页面不存在或已被移动。",
+  "notfound.go_home": "前往聊天",
+  "notfound.go_dashboard": "仪表板"
 }

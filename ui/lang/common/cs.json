@@ -70,5 +70,10 @@
   "chat.aria_system_warnings": "Systémová varování",
   "chat.aria_toggle_speaker": "Přepnout reproduktor",
   "chat.aria_upload": "Nahrát soubor",
-  "chat.aria_voice_input": "Hlasový vstup"
+  "chat.aria_voice_input": "Hlasový vstup",
+  "common.skip_to_content": "Přeskočit na obsah",
+  "notfound.title": "Stránka nenalezena",
+  "notfound.description": "Stránka, kterou hledáte, neexistuje nebo byla přesunuta.",
+  "notfound.go_home": "Přejít na chat",
+  "notfound.go_dashboard": "Nástěnka"
 }

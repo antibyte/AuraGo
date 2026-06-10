@@ -70,5 +70,10 @@
   "chat.aria_system_warnings": "Ostrzeżenia systemowe",
   "chat.aria_toggle_speaker": "Przełącz głośnik",
   "chat.aria_upload": "Prześlij plik",
-  "chat.aria_voice_input": "Wprowadzenie głosowe"
+  "chat.aria_voice_input": "Wprowadzenie głosowe",
+  "common.skip_to_content": "Przejdź do treści",
+  "notfound.title": "Strona nie znaleziona",
+  "notfound.description": "Strona, której szukasz, nie istnieje lub została przeniesiona.",
+  "notfound.go_home": "Przejdź do czatu",
+  "notfound.go_dashboard": "Panel"
 }

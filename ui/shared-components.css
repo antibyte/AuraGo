@@ -6,6 +6,28 @@
    page CSS (see Override Rules section above).
    ══════════════════════════════════════════════════════════════ */
 
+/* ── Skip-to-Content Link (a11y) ───────────────────────────── */
+.skip-link {
+    position: absolute;
+    top: -100%;
+    left: 1rem;
+    z-index: calc(var(--z-max, 9999) + 10);
+    padding: 0.75rem 1.25rem;
+    background: var(--accent);
+    color: var(--bg-primary);
+    font-weight: 600;
+    font-size: 0.875rem;
+    border-radius: 0 0 8px 8px;
+    text-decoration: none;
+    transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+    top: 0;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
 /* ── Page Header with Compact Accent Rail ─────────────────── */
 .page-header,
 .media-header,
@@ -159,18 +181,6 @@
     transform: scale(1.05);
 }
 
-@keyframes logoPulse {
-
-    0%,
-    100% {
-        box-shadow: 0 0 16px var(--accent-glow);
-    }
-
-    50% {
-        box-shadow: 0 0 24px var(--accent-glow), 0 0 32px rgba(45, 212, 191, 0.2);
-    }
-}
-
 /* Logo as link */
 a.logo {
     text-decoration: none;
@@ -192,7 +202,7 @@ a.logo {
     top: 0;
     left: 0;
     right: 0;
-    z-index: 99999;
+    z-index: calc(var(--z-max, 9999) + 1);
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -727,6 +737,7 @@ a.logo {
     font-size: 1.1rem;
     font-weight: 600;
     color: var(--text-primary);
+    text-wrap: balance;
 }
 
 /* ── Badges with Glow ──────────────────────────────────────── */
@@ -784,18 +795,6 @@ a.logo {
     color: var(--accent);
     border-color: rgba(45, 212, 191, 0.3);
     box-shadow: 0 0 6px rgba(45, 212, 191, 0.12);
-}
-
-@keyframes pulse-glow {
-
-    0%,
-    100% {
-        box-shadow: 0 0 10px currentColor;
-    }
-
-    50% {
-        box-shadow: 0 0 20px currentColor;
-    }
 }
 
 /* ── Pill badges ───────────────────────────────────────────── */
@@ -869,63 +868,6 @@ a.logo {
     border-color: rgba(245, 158, 11, 0.45);
     color: rgb(245, 158, 11);
     animation: pill-blink 1.4s ease-in-out infinite;
-}
-
-/* Animations for connected state */
-@keyframes pill-pulse-green {
-    0%, 100% { 
-        box-shadow: 0 0 5px rgba(16, 185, 129, 0.3), inset 0 0 10px rgba(16, 185, 129, 0.05);
-    }
-    50% { 
-        box-shadow: 0 0 15px rgba(16, 185, 129, 0.5), inset 0 0 15px rgba(16, 185, 129, 0.1);
-    }
-}
-
-@keyframes dot-pulse-green {
-    0%, 100% { 
-        transform: scale(1);
-        opacity: 1;
-        box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
-    }
-    50% { 
-        transform: scale(1.3);
-        opacity: 0.9;
-        box-shadow: 0 0 12px rgba(16, 185, 129, 1), 0 0 20px rgba(16, 185, 129, 0.4);
-    }
-}
-
-/* Animations for disconnected state */
-@keyframes pill-shake-red {
-    0%, 100% { transform: translateX(0); }
-    10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
-    20%, 40%, 60%, 80% { transform: translateX(2px); }
-}
-
-@keyframes pill-glow-red {
-    0%, 100% { 
-        box-shadow: 0 0 5px rgba(239, 68, 68, 0.4), inset 0 0 8px rgba(239, 68, 68, 0.1);
-    }
-    50% { 
-        box-shadow: 0 0 20px rgba(239, 68, 68, 0.7), 0 0 30px rgba(239, 68, 68, 0.3), inset 0 0 12px rgba(239, 68, 68, 0.15);
-    }
-}
-
-@keyframes dot-blink-red {
-    0%, 100% { 
-        opacity: 1;
-        transform: scale(1);
-        box-shadow: 0 0 10px rgba(239, 68, 68, 1);
-    }
-    50% { 
-        opacity: 0.4;
-        transform: scale(0.8);
-        box-shadow: 0 0 5px rgba(239, 68, 68, 0.5);
-    }
-}
-
-@keyframes pill-blink {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.55; }
 }
 
 /* ── Tabs ──────────────────────────────────────────────────── */
@@ -1772,25 +1714,6 @@ div.toggle.toggle-sm.on::before {
     animation: toastOut 0.3s ease forwards;
 }
 
-@keyframes toastIn {
-    from {
-        opacity: 0;
-        transform: translateX(40px) scale(0.9);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateX(0) scale(1);
-    }
-}
-
-@keyframes toastOut {
-    to {
-        opacity: 0;
-        transform: translateX(40px) scale(0.9);
-    }
-}
-
 /* ── Empty State ───────────────────────────────────────────── */
 .empty-state {
     text-align: center;
@@ -1882,18 +1805,6 @@ div.toggle.toggle-sm.on::before {
     display: flex;
 }
 
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-8px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
 /* ── Collapsible Sections ──────────────────────────────────── */
 .collapsible-group {
     border: 1px solid var(--border-subtle);
@@ -1982,22 +1893,6 @@ div.toggle.toggle-sm.on::before {
     animation: bgFloat 20s ease-in-out infinite;
 }
 
-@keyframes bgFloat {
-
-    0%,
-    100% {
-        transform: translate(0, 0) rotate(0deg);
-    }
-
-    33% {
-        transform: translate(2%, 2%) rotate(1deg);
-    }
-
-    66% {
-        transform: translate(-1%, 1%) rotate(-1deg);
-    }
-}
-
 /* ── Glowing Border Effect ────────────────────────────────── */
 .glow-border {
     position: relative;
@@ -2055,7 +1950,7 @@ div.toggle.toggle-sm.on::before {
     position: fixed;
     top: 0.65rem;
     right: 1rem;
-    z-index: 9999;
+    z-index: var(--z-max, 9999);
     pointer-events: none;
     --radial-item-surface: var(--modal-surface, #1e293b);
     --radial-item-glass: var(--bg-glass, rgba(255, 255, 255, 0.06));
@@ -2484,19 +2379,6 @@ div.toggle.toggle-sm.on::before {
     transition-delay: var(--radial-close-delay, 0s);
 }
 
-/* Glow ring on trigger when menu is open */
-@keyframes radialGlow {
-
-    0%,
-    100% {
-        box-shadow: 0 0 16px var(--accent-glow), 0 4px 20px rgba(0, 0, 0, 0.15);
-    }
-
-    50% {
-        box-shadow: 0 0 28px var(--accent-glow), 0 0 48px rgba(45, 212, 191, 0.15), 0 4px 20px rgba(0, 0, 0, 0.15);
-    }
-}
-
 .radial-menu.open .radial-trigger {
     animation: radialGlow 2s ease-in-out infinite;
 }
@@ -2808,18 +2690,12 @@ div.toggle.toggle-sm.on::before {
     animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
 
 .ui-lang-switcher {
     position: fixed;
     bottom: 20px;
     left: 20px;
-    z-index: 9999;
+    z-index: var(--z-max, 9999);
 }
 
 .ui-lang-btn {

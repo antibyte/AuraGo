@@ -70,5 +70,10 @@
   "chat.aria_system_warnings": "Systemwarnungen",
   "chat.aria_toggle_speaker": "Lautsprecher umschalten",
   "chat.aria_upload": "Datei hochladen",
-  "chat.aria_voice_input": "Spracheingabe"
+  "chat.aria_voice_input": "Spracheingabe",
+  "common.skip_to_content": "Zum Inhalt springen",
+  "notfound.title": "Seite nicht gefunden",
+  "notfound.description": "Die gesuchte Seite existiert nicht oder wurde verschoben.",
+  "notfound.go_home": "Zum Chat",
+  "notfound.go_dashboard": "Dashboard"
 }

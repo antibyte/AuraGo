@@ -154,8 +154,8 @@
     --success: #059669;
     --warning: #d97706;
     --danger: #dc2626;
-    --surface-shadow: 0 16px 36px rgba(83, 97, 122, 0.16);
-    --surface-shadow-strong: 0 22px 52px rgba(83, 97, 122, 0.22);
+    --surface-shadow: 0 16px 36px color-mix(in srgb, var(--accent) 10%, rgba(71, 85, 105, 0.16));
+    --surface-shadow-strong: 0 22px 52px color-mix(in srgb, var(--accent) 10%, rgba(71, 85, 105, 0.22));
     --surface-highlight: rgba(255, 255, 255, 0.46);
     --page-orb-1: rgba(15, 118, 110, 0.12);
     --page-orb-2: rgba(14, 165, 233, 0.09);
@@ -184,6 +184,7 @@ body {
     overflow-x: hidden;
     transition: background 0.3s, color 0.3s;
     font-variant-numeric: tabular-nums;
+    text-wrap: pretty;
 }
 
 body::before,

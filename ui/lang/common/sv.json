@@ -70,5 +70,10 @@
   "chat.aria_system_warnings": "Systemvarningar",
   "chat.aria_toggle_speaker": "Växla högtalare",
   "chat.aria_upload": "Ladda upp fil",
-  "chat.aria_voice_input": "Röstindata"
+  "chat.aria_voice_input": "Röstindata",
+  "common.skip_to_content": "Hoppa till innehåll",
+  "notfound.title": "Sidan hittades inte",
+  "notfound.description": "Sidan du letar efter finns inte eller har flyttats.",
+  "notfound.go_home": "Gå till chatten",
+  "notfound.go_dashboard": "Instrumentpanel"
 }

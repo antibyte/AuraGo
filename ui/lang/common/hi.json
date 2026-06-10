@@ -70,5 +70,10 @@
   "chat.aria_system_warnings": "सिस्टम चेतावनी",
   "chat.aria_toggle_speaker": "स्पीकर टॉगल",
   "chat.aria_upload": "फ़ाइल अपलोड",
-  "chat.aria_voice_input": "ध्वनि इनपुट"
+  "chat.aria_voice_input": "ध्वनि इनपुट",
+  "common.skip_to_content": "सामग्री पर जाएं",
+  "notfound.title": "पृष्ठ नहीं मिला",
+  "notfound.description": "आप जो पृष्ठ खोज रहे हैं वह मौजूद नहीं है या स्थानांतरित कर दिया गया है।",
+  "notfound.go_home": "चैट पर जाएं",
+  "notfound.go_dashboard": "डैशबोर्ड"
 }

@@ -10,6 +10,11 @@
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title id="page-title">AuraGo - Skills</title>
+    <meta name="description" content="AuraGo - Autonomous AI agent for home lab environments">
+    <meta property="og:title" content="AuraGo">
+    <meta property="og:description" content="Autonomous AI agent for home lab environments">
+    <meta property="og:image" content="/aurago_logo_dark.png">
+    <meta property="og:type" content="website">
     <link rel="stylesheet" href="/shared-variables.css">
     <link rel="stylesheet" href="/shared-utilities.css">
     <link rel="stylesheet" href="/shared-components.css?v=20260425a">
@@ -26,6 +31,7 @@
     <link href="/fonts/fonts.css" rel="stylesheet">
 </head>
 <body>
+    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content">Skip to content</a>
     <header class="app-header">
         <div class="header-left">
             <a href="/" class="logo">
@@ -41,7 +47,7 @@
 
     <div id="radialMenuAnchor"></div>
 
-    <div class="sk-container">
+    <div class="sk-container" id="main-content">
         <div class="sk-tabs" role="tablist" aria-label="Skill systems">
             <button id="sk-tab-python" type="button" class="sk-tab active" role="tab" aria-selected="true" onclick="switchSkillMode('python')" data-i18n="skills.tab_python">Python Skills</button>
             <button id="sk-tab-agent" type="button" class="sk-tab" role="tab" aria-selected="false" onclick="switchSkillMode('agent')" data-i18n="skills.tab_agent">Agent Skills</button>

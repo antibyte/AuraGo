@@ -10,6 +10,11 @@
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>TrueNAS - AuraGo</title>
+    <meta name="description" content="AuraGo - Autonomous AI agent for home lab environments">
+    <meta property="og:title" content="AuraGo">
+    <meta property="og:description" content="Autonomous AI agent for home lab environments">
+    <meta property="og:image" content="/aurago_logo_dark.png">
+    <meta property="og:type" content="website">
     <link rel="stylesheet" href="/shared-variables.css">
     <link rel="stylesheet" href="/shared-utilities.css">
     <link rel="stylesheet" href="/shared-components.css?v=20260425a">
@@ -24,6 +29,7 @@
     <link href="/fonts/fonts.css" rel="stylesheet">
 </head>
 <body>
+    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content">Skip to content</a>
     <header class="app-header">
         <div class="header-left">
             <a href="/" class="logo">
@@ -55,7 +61,7 @@
         </nav>
 
         <!-- Content -->
-        <main class="truenas-content">
+        <main class="truenas-content" id="main-content">
             <!-- Overview Tab -->
             <div id="tab-overview" class="tab-content active">
                 <div id="overview-error"></div>

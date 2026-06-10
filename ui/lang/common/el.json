@@ -70,5 +70,10 @@
   "chat.aria_system_warnings": "Προειδοποιήσεις συστήματος",
   "chat.aria_toggle_speaker": "Εναλλαγή ηχείου",
   "chat.aria_upload": "Μεταφόρτωση αρχείου",
-  "chat.aria_voice_input": "Φωνητική είσοδος"
+  "chat.aria_voice_input": "Φωνητική είσοδος",
+  "common.skip_to_content": "Μετάβαση στο περιεχόμενο",
+  "notfound.title": "Η σελίδα δεν βρέθηκε",
+  "notfound.description": "Η σελίδα που αναζητάτε δεν υπάρχει ή έχει μεταφερθεί.",
+  "notfound.go_home": "Μετάβαση στη συνομιλία",
+  "notfound.go_dashboard": "Ταμπλό"
 }

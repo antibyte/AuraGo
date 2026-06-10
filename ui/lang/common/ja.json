@@ -70,5 +70,10 @@
   "chat.aria_system_warnings": "システム警告",
   "chat.aria_toggle_speaker": "スピーカー切り替え",
   "chat.aria_upload": "ファイルアップロード",
-  "chat.aria_voice_input": "音声入力"
+  "chat.aria_voice_input": "音声入力",
+  "common.skip_to_content": "コンテンツへスキップ",
+  "notfound.title": "ページが見つかりません",
+  "notfound.description": "お探しのページは存在しないか、移動された可能性があります。",
+  "notfound.go_home": "チャットへ",
+  "notfound.go_dashboard": "ダッシュボード"
 }

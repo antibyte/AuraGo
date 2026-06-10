@@ -11,6 +11,11 @@
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>AuraGo – Login</title>
+    <meta name="description" content="Sign in to AuraGo">
+    <meta property="og:title" content="AuraGo Login">
+    <meta property="og:description" content="Sign in to AuraGo">
+    <meta property="og:image" content="/aurago_logo_dark.png">
+    <meta property="og:type" content="website">
     <link href="/fonts/fonts.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/tailwind-compat.css">
     <link rel="stylesheet" href="/shared-variables.css">
@@ -33,6 +38,7 @@
 </head>
 
 <body>
+    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content">Skip to content</a>
     <!-- Epic Background -->
     <canvas id="bg-canvas" class="is-hidden"></canvas>
     
@@ -54,7 +60,7 @@
     <button id="theme-toggle" type="button" class="btn-theme corner-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
 
     <!-- Login Card -->
-    <div class="login-card">
+    <div class="login-card" id="main-content">
         <!-- Logo -->
         <div class="login-logo">
             <div class="login-logo-icon">✦</div>
