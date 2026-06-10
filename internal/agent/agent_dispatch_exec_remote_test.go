@@ -573,6 +573,125 @@ func TestRemoteFileOperationsForwardAgoDeskRootID(t *testing.T) {
 	}
 }
 
+func TestRemoteReadFileUsesNestedAgoDeskFileParams(t *testing.T) {
+	t.Parallel()
+
+	db, err := remote.InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatalf("init remote db: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	deviceID, err := remote.CreateDevice(db, remote.DeviceRecord{
+		Name:   "agodesk",
+		Status: "approved",
+		Tags:   []string{"agodesk", "desktop-client"},
+	})
+	if err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	transport := &agentRecordingTransport{
+		connected: map[string]bool{deviceID: true},
+		output:    "pdf-bytes",
+	}
+	hub := remote.NewRemoteHub(db, nil, slog.Default())
+	hub.RegisterCommandTransport("agodesk", transport)
+
+	cfg := &config.Config{}
+	cfg.RemoteControl.Enabled = true
+
+	remotePath := "Baf\u00f6g_Johannes_08.2019/01_Baf\u00f6g_Bewilligungsbescheid.pdf"
+	out := handleRemoteControl(ToolCall{
+		Action:    "remote_control",
+		Operation: "read_file",
+		DeviceID:  deviceID,
+		Params: map[string]interface{}{
+			"operation": "read_file",
+			"params": map[string]interface{}{
+				"root_id": "baf-g-872e1d24",
+				"path":    remotePath,
+			},
+		},
+	}, cfg, hub, slog.Default())
+	if !strings.Contains(out, `"status":"ok"`) {
+		t.Fatalf("expected ok output, got %s", out)
+	}
+	if len(transport.calls) != 1 {
+		t.Fatalf("transport calls = %d, want 1", len(transport.calls))
+	}
+	call := transport.calls[0]
+	if got := call.Operation; got != remote.OpFileRead {
+		t.Fatalf("operation = %q, want %q", got, remote.OpFileRead)
+	}
+	if got := call.Args["root_id"]; got != "baf-g-872e1d24" {
+		t.Fatalf("root_id arg = %#v, want baf-g-872e1d24", got)
+	}
+	if got := call.Args["path"]; got != remotePath {
+		t.Fatalf("path arg = %#v, want %s", got, remotePath)
+	}
+}
+
+func TestRemoteListFilesUsesNestedAgoDeskFileParams(t *testing.T) {
+	t.Parallel()
+
+	db, err := remote.InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatalf("init remote db: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	deviceID, err := remote.CreateDevice(db, remote.DeviceRecord{
+		Name:   "agodesk",
+		Status: "approved",
+		Tags:   []string{"agodesk", "desktop-client"},
+	})
+	if err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	transport := &agentRecordingTransport{
+		connected: map[string]bool{deviceID: true},
+		output:    `{"files":[]}`,
+	}
+	hub := remote.NewRemoteHub(db, nil, slog.Default())
+	hub.RegisterCommandTransport("agodesk", transport)
+
+	cfg := &config.Config{}
+	cfg.RemoteControl.Enabled = true
+
+	out := handleRemoteControl(ToolCall{
+		Action:    "remote_control",
+		Operation: "list_files",
+		DeviceID:  deviceID,
+		Params: map[string]interface{}{
+			"operation": "list_files",
+			"params": map[string]interface{}{
+				"root_id":   "baf-g-872e1d24",
+				"path":      ".",
+				"recursive": true,
+			},
+		},
+	}, cfg, hub, slog.Default())
+	if !strings.Contains(out, `"status":"ok"`) {
+		t.Fatalf("expected ok output, got %s", out)
+	}
+	if len(transport.calls) != 1 {
+		t.Fatalf("transport calls = %d, want 1", len(transport.calls))
+	}
+	call := transport.calls[0]
+	if got := call.Operation; got != remote.OpFileList {
+		t.Fatalf("operation = %q, want %q", got, remote.OpFileList)
+	}
+	if got := call.Args["root_id"]; got != "baf-g-872e1d24" {
+		t.Fatalf("root_id arg = %#v, want baf-g-872e1d24", got)
+	}
+	if got := call.Args["path"]; got != "." {
+		t.Fatalf("path arg = %#v, want .", got)
+	}
+	if got := call.Args["recursive"]; got != true {
+		t.Fatalf("recursive arg = %#v, want true", got)
+	}
+}
+
 func TestRemoteFileSearchUsesNestedAgoDeskSearchOperation(t *testing.T) {
 	t.Parallel()
 

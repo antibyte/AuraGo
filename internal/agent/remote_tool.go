@@ -235,13 +235,14 @@ func remoteReadFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 	if !hub.IsConnected(deviceID) {
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
 	}
-	path := tc.Path
+	params := nestedRemoteToolParams(tc.Params)
+	path := firstNonEmptyToolString(toolArgString(params, "path", "file_path"), tc.Path, tc.FilePath)
 	if path == "" {
 		return `Tool Output: {"status":"error","message":"'path' is required for read_file"}`
 	}
 
 	args := map[string]interface{}{"path": path}
-	if rootID := strings.TrimSpace(toolArgString(tc.Params, "root_id")); rootID != "" {
+	if rootID := strings.TrimSpace(toolArgString(params, "root_id")); rootID != "" {
 		args["root_id"] = rootID
 	}
 
@@ -330,16 +331,19 @@ func remoteListFiles(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) st
 	if !hub.IsConnected(deviceID) {
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
 	}
-	path := tc.Path
+	params := nestedRemoteToolParams(tc.Params)
+	path := firstNonEmptyToolString(toolArgString(params, "path", "file_path"), tc.Path, tc.FilePath)
 	if path == "" {
 		return `Tool Output: {"status":"error","message":"'path' is required for list_files"}`
 	}
 
 	args := map[string]interface{}{"path": path}
-	if rootID := strings.TrimSpace(toolArgString(tc.Params, "root_id")); rootID != "" {
+	if rootID := strings.TrimSpace(toolArgString(params, "root_id")); rootID != "" {
 		args["root_id"] = rootID
 	}
-	if tc.Recursive {
+	if recursive, ok := toolArgBool(params, "recursive"); ok {
+		args["recursive"] = recursive
+	} else if tc.Recursive {
 		args["recursive"] = true
 	}
 
