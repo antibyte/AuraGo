@@ -172,7 +172,7 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 		SQLConnectionPool:   s.runCfg.SQLConnectionPool,
 		RemoteHub:           s.runCfg.RemoteHub,
 		HistoryMgr:          s.runCfg.HistoryManager,
-		IsMaintenance:       tools.IsBusy(),
+		IsMaintenance:       s.runCfg.IsMaintenance || tools.IsBusy(),
 		SurgeryPlan:         s.runCfg.SurgeryPlan,
 		Guardian:            s.guardian,
 		LLMGuardian:         s.llmGuardian,

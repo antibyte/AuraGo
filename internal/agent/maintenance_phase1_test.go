@@ -88,7 +88,7 @@ func TestRunMaintenanceCompressedOutputCleanupRemovesExpiredOutputs(t *testing.T
 	}
 }
 
-func TestRunMaintenanceTaskClearsMaintenanceLock(t *testing.T) {
+func TestRunMaintenanceTaskDoesNotSetGlobalMaintenanceLock(t *testing.T) {
 	lockPath := filepath.Join(t.TempDir(), "maintenance.lock")
 	tools.SetBusyFilePath(lockPath)
 	tools.SetBusy(false)
@@ -106,10 +106,10 @@ func TestRunMaintenanceTaskClearsMaintenanceLock(t *testing.T) {
 	runMaintenanceTask(context.Background(), cfg, logger, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	if tools.IsBusy() {
-		t.Fatal("maintenance busy flag still set after runMaintenanceTask")
+		t.Fatal("nightly maintenance must not set the global maintenance busy flag")
 	}
 	if _, err := os.Stat(lockPath); !os.IsNotExist(err) {
-		t.Fatalf("maintenance lock file still present: %v", err)
+		t.Fatalf("nightly maintenance must not write maintenance lock file: %v", err)
 	}
 }
 

@@ -80,9 +80,7 @@ func parseTime(t string) (int, int, error) {
 func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
 	startedAt := time.Now()
 	ledger := newMaintenanceRunLedger()
-	tools.SetBusy(true)
 	defer func() {
-		tools.SetBusy(false)
 		finishedAt := time.Now()
 		memory.RecordMaintenanceRunCompleted(finishedAt)
 		if shortTermMem != nil {
@@ -1001,26 +999,41 @@ type maintenanceRetentionDays struct {
 }
 
 func resolveMaintenanceRetention(cfg *config.Config) maintenanceRetentionDays {
+	defaults := maintenanceRetentionDays{
+		PatternsDays:          90,
+		ArchiveEventsDays:     90,
+		MoodLogDays:           30,
+		ErrorPatternsDays:     7,
+		ProfileStaleDays:      30,
+		DoneNotesDays:         7,
+		OperationalIssuesDays: 30,
+	}
 	if cfg == nil {
-		return maintenanceRetentionDays{
-			PatternsDays:          90,
-			ArchiveEventsDays:     90,
-			MoodLogDays:           30,
-			ErrorPatternsDays:     7,
-			ProfileStaleDays:      30,
-			DoneNotesDays:         7,
-			OperationalIssuesDays: 30,
-		}
+		return defaults
 	}
-	return maintenanceRetentionDays{
-		PatternsDays:          cfg.Maintenance.Retention.PatternsDays,
-		ArchiveEventsDays:     cfg.Maintenance.Retention.ArchiveEventsDays,
-		MoodLogDays:           cfg.Maintenance.Retention.MoodLogDays,
-		ErrorPatternsDays:     cfg.Maintenance.Retention.ErrorPatternsDays,
-		ProfileStaleDays:      cfg.Maintenance.Retention.ProfileStaleDays,
-		DoneNotesDays:         cfg.Maintenance.Retention.DoneNotesDays,
-		OperationalIssuesDays: cfg.Maintenance.Retention.OperationalIssuesDays,
+	retention := cfg.Maintenance.Retention
+	if retention.PatternsDays > 0 {
+		defaults.PatternsDays = retention.PatternsDays
 	}
+	if retention.ArchiveEventsDays > 0 {
+		defaults.ArchiveEventsDays = retention.ArchiveEventsDays
+	}
+	if retention.MoodLogDays > 0 {
+		defaults.MoodLogDays = retention.MoodLogDays
+	}
+	if retention.ErrorPatternsDays > 0 {
+		defaults.ErrorPatternsDays = retention.ErrorPatternsDays
+	}
+	if retention.ProfileStaleDays > 0 {
+		defaults.ProfileStaleDays = retention.ProfileStaleDays
+	}
+	if retention.DoneNotesDays > 0 {
+		defaults.DoneNotesDays = retention.DoneNotesDays
+	}
+	if retention.OperationalIssuesDays > 0 {
+		defaults.OperationalIssuesDays = retention.OperationalIssuesDays
+	}
+	return defaults
 }
 
 const nightlyMemoryMetaFetchLimit = 50000

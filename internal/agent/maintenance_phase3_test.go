@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
@@ -86,6 +87,9 @@ func TestRunNightlyMemoryMaintenanceUsesPrefetchedMetasForCuration(t *testing.T)
 		SourceReliability:    0.50,
 	}); err != nil {
 		t.Fatalf("UpsertMemoryMetaWithDetails: %v", err)
+	}
+	if err := stm.SetMemoryMetaLastAccessed("doc-weak", time.Now().UTC().Add(-60*24*time.Hour)); err != nil {
+		t.Fatalf("SetMemoryMetaLastAccessed: %v", err)
 	}
 
 	metas, err := stm.GetAllMemoryMeta(10, 0)
