@@ -78,6 +78,9 @@ func parseTime(t string) (int, int, error) {
 }
 
 func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
+	tools.SetBusy(true)
+	defer tools.SetBusy(false)
+
 	logger.Info("[Maintenance] Waking up to perform daily tasks")
 
 	// Phase A5: Clean up old interaction patterns (>90 days)
@@ -123,6 +126,8 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		} else if deletedTrans > 0 {
 			logger.Info("[Maintenance] Cleaned stale tool transitions", "deleted", deletedTrans)
 		}
+
+		runMaintenanceCompressedOutputCleanup(ctx, cfg, logger, shortTermMem)
 	}
 
 	// Phase D8: Personality Engine maintenance — trait decay + journal
@@ -230,7 +235,8 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 
 	// STM→LTM Consolidation: extract knowledge from archived messages into VectorDB
 	if cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && longTermMem.IsReady() && !longTermMem.IsDisabled() {
-		consolidateSTMtoLTM(cfg, logger, client, shortTermMem, longTermMem, kg)
+		totalStored, _ := consolidateSTMtoLTM(cfg, logger, client, shortTermMem, longTermMem, kg)
+		runPostConsolidationMemoryMaintenance(cfg, logger, client, shortTermMem, longTermMem, kg, totalStored)
 		consolidateEpisodicHierarchy(logger, shortTermMem, longTermMem, kg)
 		detectMemoryConflictsAcrossLTM(logger, shortTermMem, longTermMem)
 	}
@@ -904,13 +910,54 @@ func recordConsolidationBatchEpisode(stm *memory.SQLiteMemory, batch []memory.Ar
 	})
 }
 
+func runMaintenanceCompressedOutputCleanup(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory) {
+	if cfg == nil || stm == nil || !cfg.Agent.OutputCompression.Reversible.Enabled {
+		return
+	}
+	maxAge := time.Duration(cfg.Agent.OutputCompression.Reversible.MaxAgeHours) * time.Hour
+	if maxAge <= 0 {
+		maxAge = 24 * time.Hour
+	}
+	deleted, err := stm.CleanupCompressedOutputs(ctx, maxAge)
+	if err != nil {
+		logger.Error("[Maintenance] Failed to clean compressed tool outputs", "error", err)
+		return
+	}
+	if deleted > 0 {
+		logger.Info("[Maintenance] Cleaned compressed tool outputs", "deleted", deleted)
+	}
+}
+
+func runPostConsolidationMemoryMaintenance(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph, totalStored int) {
+	if cfg.Consolidation.AutoOptimize && totalStored > 0 {
+		autoOptimizeMemory(cfg, logger, client, ltm, stm, kg)
+	}
+	autoCurateMemory(cfg, logger, stm)
+}
+
+func cleanConsolidationArchivedMessages(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory) {
+	if cfg == nil || stm == nil || cfg.Consolidation.ArchiveRetainDays <= 0 {
+		return
+	}
+	cleaned, err := stm.CleanOldArchivedMessages(cfg.Consolidation.ArchiveRetainDays)
+	if err != nil {
+		logger.Error("[Consolidation] Failed to clean old archived messages", "error", err)
+		return
+	}
+	if cleaned > 0 {
+		logger.Info("[Consolidation] Cleaned old archived messages", "deleted", cleaned)
+	}
+}
+
 // consolidateSTMtoLTM extracts knowledge from archived STM messages and stores it in the VectorDB.
 // This bridges the gap between the sliding-window short-term memory and the persistent long-term memory.
-func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) {
+func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) (totalStored int, messagesConsolidated int) {
+	defer cleanConsolidationArchivedMessages(cfg, logger, stm)
+
 	consolidationClient, consolidationModel := resolveHelperBackedLLM(cfg, client, resolveConsolidationModel(cfg))
 	if consolidationClient == nil || consolidationModel == "" {
 		logger.Warn("[Consolidation] STM->LTM consolidation skipped: no helper/main LLM available")
-		return
+		return 0, 0
 	}
 
 	if reclaimed, reclaimErr := stm.ReclaimStaleConsolidationClaims(30 * time.Minute); reclaimErr != nil {
@@ -923,11 +970,11 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 	archived, err := stm.ClaimConsolidationCandidates(cfg.Consolidation.MaxBatchMessages, 3)
 	if err != nil {
 		logger.Error("[Consolidation] Failed to fetch unconsolidated messages", "error", err)
-		return
+		return 0, 0
 	}
 	if len(archived) == 0 {
 		logger.Debug("[Consolidation] No unconsolidated archived messages")
-		return
+		return 0, 0
 	}
 
 	logger.Info("[Consolidation] Starting STM→LTM consolidation", "messages", len(archived))
@@ -952,8 +999,6 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 		batches = append(batches, currentBatch)
 	}
 
-	totalStored := 0
-	messagesConsolidated := 0
 	helperManager := newHelperLLMManager(cfg, logger)
 	workItems := make([]consolidationWorkItem, 0, len(batches))
 	for i, batch := range batches {
@@ -1033,22 +1078,6 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 		i = end
 	}
 
-	// Clean up old archived messages
-	if cfg.Consolidation.ArchiveRetainDays > 0 {
-		cleaned, err := stm.CleanOldArchivedMessages(cfg.Consolidation.ArchiveRetainDays)
-		if err != nil {
-			logger.Error("[Consolidation] Failed to clean old archived messages", "error", err)
-		} else if cleaned > 0 {
-			logger.Info("[Consolidation] Cleaned old archived messages", "deleted", cleaned)
-		}
-	}
-
-	// Auto-optimize: run priority-based forgetting on VectorDB + KG
-	if cfg.Consolidation.AutoOptimize && totalStored > 0 {
-		autoOptimizeMemory(cfg, logger, client, ltm, stm, kg)
-	}
-	autoCurateMemory(cfg, logger, stm)
-
 	// Create journal entry for the consolidation run
 	if cfg.Tools.Journal.Enabled && totalStored > 0 {
 		_, _ = stm.InsertJournalEntry(memory.JournalEntry{
@@ -1063,6 +1092,7 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 		"messages_processed", messagesConsolidated,
 		"facts_stored", totalStored,
 		"batches", len(batches))
+	return totalStored, messagesConsolidated
 }
 
 func resolveConsolidationModel(cfg *config.Config) string {

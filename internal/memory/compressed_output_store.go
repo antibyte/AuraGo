@@ -137,6 +137,17 @@ func (s *SQLiteMemory) HasCompressedOutputsForSession(ctx context.Context, sessi
 	return count > 0, nil
 }
 
+// SetCompressedOutputCreatedAt updates created_at for an archived tool output.
+func (s *SQLiteMemory) SetCompressedOutputCreatedAt(ctx context.Context, sessionID, toolCallID string, createdAt time.Time) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE compressed_tool_outputs SET created_at = ? WHERE session_id = ? AND tool_call_id = ?`,
+		createdAt.UTC(), sessionID, toolCallID)
+	if err != nil {
+		return fmt.Errorf("set compressed output created_at: %w", err)
+	}
+	return nil
+}
+
 // CleanupCompressedOutputs removes archived outputs older than maxAge.
 func (s *SQLiteMemory) CleanupCompressedOutputs(ctx context.Context, maxAge time.Duration) (int64, error) {
 	cutoff := time.Now().UTC().Add(-maxAge)

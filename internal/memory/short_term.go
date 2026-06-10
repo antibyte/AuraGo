@@ -802,6 +802,15 @@ func (s *SQLiteMemory) UpsertMemoryMetaWithDetails(docID string, details MemoryM
 	return err
 }
 
+// SetMemoryMetaLastAccessed updates the last_accessed timestamp for a memory_meta row.
+func (s *SQLiteMemory) SetMemoryMetaLastAccessed(docID string, lastAccessed time.Time) error {
+	if docID == "" {
+		return nil
+	}
+	_, err := s.db.Exec(`UPDATE memory_meta SET last_accessed = ? WHERE doc_id = ?`, lastAccessed.UTC().Format("2006-01-02 15:04:05"), docID)
+	return err
+}
+
 // UpdateMemoryAccess increments the access count and touches the last_accessed timestamp.
 func (s *SQLiteMemory) UpdateMemoryAccess(docID string) error {
 	stmt := `
