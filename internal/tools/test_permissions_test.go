@@ -21,5 +21,7 @@ func defaultRuntimePermissionsForTests() RuntimePermissions {
 
 func TestMain(m *testing.M) {
 	ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
-	os.Exit(m.Run())
+	code := m.Run()
+	closeAllSystemTaskStores()
+	os.Exit(code)
 }

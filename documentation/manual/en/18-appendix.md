@@ -930,10 +930,10 @@ AuraGo/
 │       └── venv/             # Python virtual env
 ├── data/
 │   ├── short_term.db         # Short-term memory (SQLite)
-│   ├── long_term.db          # Long-term metadata (SQLite)
 │   ├── inventory.db          # Device inventory (SQLite)
 │   ├── invasion.db           # Remote deployment (SQLite)
-│   ├── vectordb/             # Vector database
+│   ├── system_tasks.db       # Cron + background task persistence (SQLite)
+│   ├── vectordb/             # Long-term memory (chromem vector store)
 │   │   └── ...
 │   ├── vault.bin             # Encrypted secrets (AES-256-GCM)
 │   ├── core_memory.md        # Permanent memory

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/robfig/cron/v3"
@@ -30,6 +31,7 @@ type CronManager struct {
 	cronEntryIDs map[string]cron.EntryID
 	callback     func(prompt string)
 	runners      map[string]func(jobID, prompt string)
+	started      atomic.Bool
 }
 
 func NewCronManager(dataDir string) *CronManager {
@@ -67,6 +69,7 @@ func (m *CronManager) Start(callback func(prompt string)) error {
 	}
 
 	m.engine.Start()
+	m.started.Store(true)
 	return nil
 }
 
@@ -114,12 +117,18 @@ func (m *CronManager) Stop() {
 }
 
 func (m *CronManager) Close() error {
+	if m.started.Load() {
+		m.Stop()
+		m.started.Store(false)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.store == nil {
 		return nil
 	}
-	return m.store.close()
+	store := m.store
+	m.store = nil
+	return store.release()
 }
 
 func (m *CronManager) save() error {

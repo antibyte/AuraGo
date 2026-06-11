@@ -826,7 +826,12 @@ func main() {
 	shutdownCh := setupGracefulShutdown(appLog, registry, llmClient)
 	go func() {
 		<-shutdownCh
-		backgroundTaskManager.Stop()
+		if cronManager != nil {
+			_ = cronManager.Close()
+		}
+		if backgroundTaskManager != nil {
+			_ = backgroundTaskManager.Close()
+		}
 	}()
 
 	// History Manager for persistent conversational memory array

@@ -477,8 +477,8 @@ $env:AURAGO_MASTER_KEY = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Rand
 ├── data/
 │   ├── vault.bin             # Verschlüsselter Vault (AES-256-GCM)
 │   ├── short_term.db         # SQLite STM
-│   ├── long_term.db          # SQLite LTM
-│   └── vectordb/             # ChromaDB
+│   ├── system_tasks.db       # Cron + Hintergrundtasks (SQLite)
+│   └── vectordb/             # Langzeit-Speicher (chromem)
 └── log/
     └── supervisor.log        # Haupt-Log
 ```

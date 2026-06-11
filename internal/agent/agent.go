@@ -72,7 +72,7 @@ func (a *Agent) Shutdown() error {
 	a.Logger.Info("Agent shutdown initiated...")
 
 	if a.CronManager != nil {
-		a.CronManager.Stop()
+		_ = a.CronManager.Close()
 	}
 
 	if a.ShortTermMem != nil {

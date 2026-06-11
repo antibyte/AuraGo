@@ -19,6 +19,15 @@ func (s *Server) closeRuntimeResources() {
 		s.SQLConnectionPool.CloseAll()
 	}
 
+	if s.CronManager != nil {
+		_ = s.CronManager.Close()
+		s.CronManager = nil
+	}
+	if s.BackgroundTasks != nil {
+		_ = s.BackgroundTasks.Close()
+		s.BackgroundTasks = nil
+	}
+
 	closeSQLiteHandle(s.Logger, &s.SkillsDB, "skills")
 	closeSQLiteHandle(s.Logger, &s.MissionHistoryDB, "mission_history")
 	closeSQLiteHandle(s.Logger, &s.PreparedMissionsDB, "prepared_missions")

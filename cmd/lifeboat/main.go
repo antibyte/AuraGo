@@ -187,6 +187,7 @@ func runOperation(cfg *config.Config, statePath, planPath string, l *slog.Logger
 	llmClient := llm.NewClient(cfg)
 	registry := tools.NewProcessRegistry(l)
 	cronManager := tools.NewCronManager(cfg.Directories.DataDir)
+	defer func() { _ = cronManager.Close() }()
 	historyManager := memory.NewHistoryManager(filepath.Join(cfg.Directories.DataDir, "chat_history.json"))
 	defer historyManager.Close()
 	kg, err := memory.NewKnowledgeGraph(

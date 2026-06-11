@@ -202,7 +202,9 @@ func (m *BackgroundTaskManager) Close() error {
 	if m.store == nil {
 		return nil
 	}
-	return m.store.close()
+	store := m.store
+	m.store = nil
+	return store.release()
 }
 
 func (m *BackgroundTaskManager) ScheduleFollowUp(prompt string, opts BackgroundTaskScheduleOptions) (*BackgroundTask, error) {
