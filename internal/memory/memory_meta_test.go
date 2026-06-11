@@ -120,6 +120,54 @@ func TestRecordMemoryEffectivenessPersistsCounters(t *testing.T) {
 	}
 }
 
+func TestCleanupDeletedVectorDocumentReferencesPreservesMemoryMeta(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	docID := "doc-cleanup"
+	if err := stm.UpsertMemoryMeta(docID); err != nil {
+		t.Fatalf("UpsertMemoryMeta: %v", err)
+	}
+	if _, err := stm.db.Exec(`INSERT INTO file_embedding_docs (file_path, collection, doc_id) VALUES (?, ?, ?)`, "notes.md", "docs", docID); err != nil {
+		t.Fatalf("insert file_embedding_docs: %v", err)
+	}
+	if _, err := stm.db.Exec(`INSERT INTO memory_conflicts (doc_id_left, doc_id_right, conflict_key, status) VALUES (?, ?, ?, ?)`, docID, "other-doc", "duplicate", "open"); err != nil {
+		t.Fatalf("insert memory_conflicts: %v", err)
+	}
+
+	if err := stm.CleanupDeletedVectorDocumentReferences(docID); err != nil {
+		t.Fatalf("CleanupDeletedVectorDocumentReferences: %v", err)
+	}
+
+	var metaCount int
+	if err := stm.db.QueryRow(`SELECT COUNT(*) FROM memory_meta WHERE doc_id = ?`, docID).Scan(&metaCount); err != nil {
+		t.Fatalf("count memory_meta: %v", err)
+	}
+	if metaCount != 1 {
+		t.Fatalf("memory_meta rows = %d, want preserved row", metaCount)
+	}
+
+	var fileRows int
+	if err := stm.db.QueryRow(`SELECT COUNT(*) FROM file_embedding_docs WHERE doc_id = ?`, docID).Scan(&fileRows); err != nil {
+		t.Fatalf("count file_embedding_docs: %v", err)
+	}
+	if fileRows != 0 {
+		t.Fatalf("file_embedding_docs rows = %d, want 0", fileRows)
+	}
+
+	var conflictRows int
+	if err := stm.db.QueryRow(`SELECT COUNT(*) FROM memory_conflicts WHERE doc_id_left = ? OR doc_id_right = ?`, docID, docID).Scan(&conflictRows); err != nil {
+		t.Fatalf("count memory_conflicts: %v", err)
+	}
+	if conflictRows != 0 {
+		t.Fatalf("memory_conflicts rows = %d, want 0", conflictRows)
+	}
+}
+
 func TestUpsertMemoryMetaConcurrentSameDocID(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := NewSQLiteMemory(":memory:", logger)

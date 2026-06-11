@@ -227,7 +227,9 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 	if !req.Preview {
 		// 1. Process VectorDB Low Priority
 		for _, docID := range lowDocs {
-			_ = longTermMem.DeleteDocument(docID)
+			if err := longTermMem.DeleteDocument(docID); err == nil {
+				_ = shortTermMem.CleanupDeletedVectorDocumentReferences(docID)
+			}
 			_ = shortTermMem.ApplyMemoryCurationAction(memory.MemoryCurationAction{
 				DocID:  docID,
 				Action: memory.MemoryCurationActionArchive,
@@ -274,7 +276,9 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 
 				newIDs, err2 := longTermMem.StoreDocument(concept, compressed)
 				if err2 == nil {
-					_ = longTermMem.DeleteDocument(docID)
+					if err := longTermMem.DeleteDocument(docID); err == nil {
+						_ = shortTermMem.CleanupDeletedVectorDocumentReferences(docID)
+					}
 					_ = shortTermMem.ApplyMemoryCurationAction(memory.MemoryCurationAction{
 						DocID:  docID,
 						Action: memory.MemoryCurationActionArchive,

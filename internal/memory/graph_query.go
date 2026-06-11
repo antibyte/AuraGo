@@ -536,96 +536,128 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 	}
 	defer tx.Rollback()
 
-	tx.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&report.Nodes)
-	tx.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&report.Edges)
-	tx.QueryRow("SELECT COUNT(*) FROM kg_nodes WHERE protected != 0").Scan(&report.ProtectedNodes)
+	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&report.Nodes); err != nil {
+		return nil, fmt.Errorf("count knowledge graph nodes: %w", err)
+	}
+	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&report.Edges); err != nil {
+		return nil, fmt.Errorf("count knowledge graph edges: %w", err)
+	}
+	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_nodes WHERE protected != 0").Scan(&report.ProtectedNodes); err != nil {
+		return nil, fmt.Errorf("count protected knowledge graph nodes: %w", err)
+	}
 
-	tx.QueryRow(`SELECT COUNT(*) FROM kg_nodes n WHERE NOT EXISTS (SELECT 1 FROM kg_edges e WHERE e.source = n.id OR e.target = n.id)`).Scan(&report.IsolatedNodes)
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM kg_nodes n WHERE NOT EXISTS (SELECT 1 FROM kg_edges e WHERE e.source = n.id OR e.target = n.id)`).Scan(&report.IsolatedNodes); err != nil {
+		return nil, fmt.Errorf("count isolated knowledge graph nodes: %w", err)
+	}
 
-	isolatedRows, _ := tx.Query(`
+	isolatedRows, err := tx.Query(`
 		SELECT id, label, properties, protected FROM kg_nodes n 
 		WHERE NOT EXISTS (SELECT 1 FROM kg_edges e WHERE e.source = n.id OR e.target = n.id)
 		LIMIT ?`, sampleLimit)
-	if isolatedRows != nil {
-		defer isolatedRows.Close()
-		for isolatedRows.Next() {
-			var n Node
-			var propsJSON string
-			var protected int
-			if err := isolatedRows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
-				n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "QualityReport", n.ID, propsJSON, protected)
-				n.Protected = protected != 0
-				report.IsolatedSample = append(report.IsolatedSample, n)
-			}
+	if err != nil {
+		return nil, fmt.Errorf("query isolated knowledge graph sample: %w", err)
+	}
+	defer isolatedRows.Close()
+	for isolatedRows.Next() {
+		var n Node
+		var propsJSON string
+		var protected int
+		if err := isolatedRows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+			return nil, fmt.Errorf("scan isolated knowledge graph sample: %w", err)
 		}
+		n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "QualityReport", n.ID, propsJSON, protected)
+		n.Protected = protected != 0
+		report.IsolatedSample = append(report.IsolatedSample, n)
+	}
+	if err := isolatedRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate isolated knowledge graph sample: %w", err)
 	}
 
-	tx.QueryRow(`
+	if err := tx.QueryRow(`
 		SELECT COUNT(*) FROM kg_nodes n 
 		WHERE json_extract(properties, '$.type') IS NULL OR json_extract(properties, '$.type') = ''
-	`).Scan(&report.UntypedNodes)
+	`).Scan(&report.UntypedNodes); err != nil {
+		return nil, fmt.Errorf("count untyped knowledge graph nodes: %w", err)
+	}
 
-	untypedRows, _ := tx.Query(`
+	untypedRows, err := tx.Query(`
 		SELECT id, label, properties, protected FROM kg_nodes n 
 		WHERE json_extract(properties, '$.type') IS NULL OR json_extract(properties, '$.type') = ''
 		LIMIT ?`, sampleLimit)
-	if untypedRows != nil {
-		defer untypedRows.Close()
-		for untypedRows.Next() {
-			var n Node
-			var propsJSON string
-			var protected int
-			if err := untypedRows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
-				n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "QualityReport", n.ID, propsJSON, protected)
-				n.Protected = protected != 0
-				report.UntypedSample = append(report.UntypedSample, n)
-			}
+	if err != nil {
+		return nil, fmt.Errorf("query untyped knowledge graph sample: %w", err)
+	}
+	defer untypedRows.Close()
+	for untypedRows.Next() {
+		var n Node
+		var propsJSON string
+		var protected int
+		if err := untypedRows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+			return nil, fmt.Errorf("scan untyped knowledge graph sample: %w", err)
 		}
+		n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "QualityReport", n.ID, propsJSON, protected)
+		n.Protected = protected != 0
+		report.UntypedSample = append(report.UntypedSample, n)
+	}
+	if err := untypedRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate untyped knowledge graph sample: %w", err)
 	}
 
-	dupGroupRows, _ := tx.Query(`
+	dupGroupRows, err := tx.Query(`
 		SELECT LOWER(TRIM(label)), COUNT(*) 
 		FROM kg_nodes 
 		WHERE label != ''
 		GROUP BY LOWER(TRIM(label)) 
 		HAVING COUNT(*) > 1
 	`)
-	if dupGroupRows != nil {
-		defer dupGroupRows.Close()
-		var labels []string
-		for dupGroupRows.Next() {
-			var label string
-			var count int
-			if err := dupGroupRows.Scan(&label, &count); err == nil {
-				report.DuplicateGroups++
-				report.DuplicateNodes += count
-				if len(labels) < sampleLimit {
-					labels = append(labels, label)
-				}
-			}
+	if err != nil {
+		return nil, fmt.Errorf("query duplicate knowledge graph groups: %w", err)
+	}
+	defer dupGroupRows.Close()
+	var labels []string
+	for dupGroupRows.Next() {
+		var label string
+		var count int
+		if err := dupGroupRows.Scan(&label, &count); err != nil {
+			return nil, fmt.Errorf("scan duplicate knowledge graph group: %w", err)
 		}
+		report.DuplicateGroups++
+		report.DuplicateNodes += count
+		if len(labels) < sampleLimit {
+			labels = append(labels, label)
+		}
+	}
+	if err := dupGroupRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate duplicate knowledge graph groups: %w", err)
+	}
 
-		for _, l := range labels {
-			cand := KnowledgeGraphDuplicateCandidate{
-				Label:           l,
-				NormalizedLabel: l,
-				Count:           0,
-			}
-			nodesRows, _ := tx.Query(`SELECT id, label, properties, protected FROM kg_nodes WHERE LOWER(TRIM(label)) = ?`, l)
-			if nodesRows != nil {
-				for nodesRows.Next() {
-					var n Node
-					var propsJSON string
-					var protected int
-					if err := nodesRows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
-						cand.IDs = append(cand.IDs, n.ID)
-						cand.Count++
-					}
-				}
-				nodesRows.Close()
-			}
-			report.DuplicateCandidates = append(report.DuplicateCandidates, cand)
+	for _, l := range labels {
+		cand := KnowledgeGraphDuplicateCandidate{
+			Label:           l,
+			NormalizedLabel: l,
+			Count:           0,
 		}
+		nodesRows, err := tx.Query(`SELECT id, label, properties, protected FROM kg_nodes WHERE LOWER(TRIM(label)) = ?`, l)
+		if err != nil {
+			return nil, fmt.Errorf("query duplicate knowledge graph nodes for %q: %w", l, err)
+		}
+		for nodesRows.Next() {
+			var n Node
+			var propsJSON string
+			var protected int
+			if err := nodesRows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+				nodesRows.Close()
+				return nil, fmt.Errorf("scan duplicate knowledge graph node for %q: %w", l, err)
+			}
+			cand.IDs = append(cand.IDs, n.ID)
+			cand.Count++
+		}
+		if err := nodesRows.Err(); err != nil {
+			nodesRows.Close()
+			return nil, fmt.Errorf("iterate duplicate knowledge graph nodes for %q: %w", l, err)
+		}
+		nodesRows.Close()
+		report.DuplicateCandidates = append(report.DuplicateCandidates, cand)
 	}
 
 	return report, nil

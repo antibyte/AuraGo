@@ -6,8 +6,10 @@ import (
 	"io"
 	"log/slog"
 	"strings"
+	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/config"
 
@@ -93,6 +95,57 @@ func TestQueryCacheEntry(t *testing.T) {
 
 	if time.Since(entry.timestamp) > time.Second {
 		t.Error("timestamp should be recent")
+	}
+}
+
+func TestWaitForWaitGroupTimeoutDoesNotBlockUntilWorkerFinishes(t *testing.T) {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	defer wg.Done()
+
+	start := time.Now()
+	if waitForWaitGroup(&wg, 20*time.Millisecond) {
+		t.Fatal("waitForWaitGroup returned true for an unfinished worker")
+	}
+	if elapsed := time.Since(start); elapsed > 200*time.Millisecond {
+		t.Fatalf("waitForWaitGroup blocked for %v, want a bounded timeout", elapsed)
+	}
+}
+
+func TestChromemVectorDBCloseReturnsTimeoutAndDisablesStoreWhenWorkersHang(t *testing.T) {
+	oldWait := vectorDBCloseWait
+	vectorDBCloseWait = 20 * time.Millisecond
+	t.Cleanup(func() { vectorDBCloseWait = oldWait })
+
+	var cv ChromemVectorDB
+	cv.ready.Store(true)
+	cv.indexingWg.Add(1)
+
+	if err := cv.Close(); err == nil {
+		t.Fatal("Close() error = nil, want timeout error")
+	}
+	if err := cv.requireReadyForStore(); !errors.Is(err, ErrVectorDBClosed) {
+		t.Fatalf("requireReadyForStore() error = %v, want ErrVectorDBClosed after Close", err)
+	}
+	if cv.IsDisabled() {
+		t.Fatal("IsDisabled() = true after Close, want embedding-disabled state unchanged")
+	}
+
+	cv.indexingWg.Done()
+}
+
+func TestStoreBatchTruncatesContentWithoutSplittingUTF8(t *testing.T) {
+	value := strings.Repeat("a", maxBatchItemBytes-1) + "ä" + "tail"
+	got := truncateArchiveItemContent(value)
+
+	if len(got) > maxBatchItemBytes {
+		t.Fatalf("truncated length = %d, want <= %d", len(got), maxBatchItemBytes)
+	}
+	if !utf8.ValidString(got) {
+		t.Fatalf("truncated content is not valid UTF-8")
+	}
+	if strings.HasSuffix(got, "\xc3") {
+		t.Fatalf("truncated content ended with partial UTF-8 byte")
 	}
 }
 

@@ -977,6 +977,30 @@ func (s *SQLiteMemory) DeleteDocumentCleanup(docID string) error {
 	return tx.Commit()
 }
 
+// CleanupDeletedVectorDocumentReferences removes SQLite references that point at
+// a vector document which no longer exists while preserving memory_meta for
+// archived-memory review and curation history.
+func (s *SQLiteMemory) CleanupDeletedVectorDocumentReferences(docID string) error {
+	docID = strings.TrimSpace(docID)
+	if s == nil || docID == "" {
+		return nil
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DELETE FROM file_embedding_docs WHERE doc_id = ?`, docID); err != nil {
+		return fmt.Errorf("cleanup file_embedding_docs: %w", err)
+	}
+	if _, err := tx.Exec(`DELETE FROM memory_conflicts WHERE doc_id_left = ? OR doc_id_right = ?`, docID, docID); err != nil {
+		return fmt.Errorf("cleanup memory_conflicts: %w", err)
+	}
+
+	return tx.Commit()
+}
+
 // GetUniversallyUsefulMemories returns memory IDs that were cited across multiple sessions,
 // indicating they are broadly useful regardless of context.
 func (s *SQLiteMemory) GetUniversallyUsefulMemories(minSessions int, limit int) ([]string, error) {

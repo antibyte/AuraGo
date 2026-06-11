@@ -1422,7 +1422,9 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 
 	// Remove low-priority documents
 	for _, docID := range lowDocs {
-		_ = ltm.DeleteDocument(docID)
+		if err := ltm.DeleteDocument(docID); err == nil {
+			_ = stm.CleanupDeletedVectorDocumentReferences(docID)
+		}
 		_ = stm.ApplyMemoryCurationAction(memory.MemoryCurationAction{
 			DocID:  docID,
 			Action: memory.MemoryCurationActionArchive,
@@ -1489,7 +1491,9 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 		}
 		newIDs, err2 := ltm.StoreDocument(item.concept, compressed)
 		if err2 == nil {
-			_ = ltm.DeleteDocument(item.docID)
+			if err := ltm.DeleteDocument(item.docID); err == nil {
+				_ = stm.CleanupDeletedVectorDocumentReferences(item.docID)
+			}
 			_ = stm.ApplyMemoryCurationAction(memory.MemoryCurationAction{
 				DocID:  item.docID,
 				Action: memory.MemoryCurationActionArchive,
@@ -1550,7 +1554,9 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 				logger.Warn("[AutoOptimize] Failed to store compressed memory", "doc_id", item.docID, "error", err)
 				continue
 			}
-			_ = ltm.DeleteDocument(item.docID)
+			if err := ltm.DeleteDocument(item.docID); err == nil {
+				_ = stm.CleanupDeletedVectorDocumentReferences(item.docID)
+			}
 			_ = stm.ApplyMemoryCurationAction(memory.MemoryCurationAction{
 				DocID:  item.docID,
 				Action: memory.MemoryCurationActionArchive,

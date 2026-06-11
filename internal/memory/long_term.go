@@ -87,6 +87,13 @@ var ErrVectorDBNotReady = errors.New("VectorDB is not ready (embedding validatio
 // ErrVectorDBDisabled is returned when the embedding pipeline failed at startup.
 var ErrVectorDBDisabled = errors.New("VectorDB is disabled (embedding pipeline failed at startup)")
 
+// ErrVectorDBClosed is returned after Close starts shutting the vector DB down.
+var ErrVectorDBClosed = errors.New("VectorDB is closed")
+
+const maxBatchItemBytes = 500 * 1024 // 500 KB per batch item
+
+var vectorDBCloseWait = 10 * time.Second
+
 // ChromemVectorDB implements VectorDB using chromem-go with persistence.
 type ChromemVectorDB struct {
 	db                     *chromem.DB
@@ -99,12 +106,14 @@ type ChromemVectorDB struct {
 	embeddingFingerprint   string
 	ready                  atomic.Bool  // Set once startup embedding validation reaches a final state
 	disabled               atomic.Bool  // Set when embedding pipeline fails; skips operations gracefully
+	closed                 atomic.Bool  // Set once Close begins; rejects new store/search operations.
 	idCounter              atomic.Int64 // Monotonic counter for collision-free document IDs
 	queryCache             map[string]queryCacheEntry
 	queryCacheMu           sync.RWMutex
 	queryCacheTTL          time.Duration
 	indexing               atomic.Int32       // Counter: >0 while async indexing is in progress
 	indexingWg             sync.WaitGroup     // Tracks in-flight async indexing goroutines
+	validationWg           sync.WaitGroup     // Tracks startup embedding validation.
 	dedupSem               chan struct{}      // semaphore to limit concurrent dedup checks
 	batchWg                sync.WaitGroup     // Tracks in-flight StoreBatch goroutines
 	sfGroup                singleflight.Group // deduplicates concurrent embedding API calls for the same query
@@ -113,26 +122,48 @@ type ChromemVectorDB struct {
 }
 
 func (cv *ChromemVectorDB) Close() error {
+	cv.closed.Store(true)
+	cv.ready.Store(true)
 	if cv.logger != nil {
-		cv.logger.Debug("Closing VectorDB, waiting for in-flight indexing and batch operations...")
+		cv.logger.Debug("Closing VectorDB, waiting for in-flight validation, indexing, and batch operations...")
 	}
-	done := make(chan struct{})
-	go func() {
+	done := waitForAsync(func() {
+		cv.validationWg.Wait()
 		cv.indexingWg.Wait()
 		cv.batchWg.Wait()
-		close(done)
-	}()
+	})
 	select {
 	case <-done:
 		if cv.logger != nil {
 			cv.logger.Debug("All in-flight VectorDB operations completed")
 		}
-	case <-time.After(10 * time.Second):
+	case <-time.After(vectorDBCloseWait):
+		err := fmt.Errorf("close vector db: timed out waiting for in-flight operations")
 		if cv.logger != nil {
-			cv.logger.Warn("Close timed out waiting for in-flight VectorDB operations")
+			cv.logger.Warn("Close timed out waiting for in-flight VectorDB operations", "error", err)
 		}
+		return err
 	}
 	return nil
+}
+
+func waitForWaitGroup(wg *sync.WaitGroup, timeout time.Duration) bool {
+	done := waitForAsync(wg.Wait)
+	select {
+	case <-done:
+		return true
+	case <-time.After(timeout):
+		return false
+	}
+}
+
+func waitForAsync(wait func()) chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		wait()
+		close(done)
+	}()
+	return done
 }
 
 // GetDB returns the underlying chromem.DB so other subsystems (e.g. KnowledgeGraph
@@ -205,6 +236,9 @@ func (cv *ChromemVectorDB) IsReady() bool {
 }
 
 func (cv *ChromemVectorDB) requireReadyForStore() error {
+	if cv.closed.Load() {
+		return ErrVectorDBClosed
+	}
 	if !cv.ready.Load() {
 		return ErrVectorDBNotReady
 	}
@@ -215,6 +249,9 @@ func (cv *ChromemVectorDB) requireReadyForStore() error {
 }
 
 func (cv *ChromemVectorDB) requireReadyForSearch() error {
+	if cv.closed.Load() {
+		return ErrVectorDBClosed
+	}
 	if !cv.ready.Load() {
 		return ErrVectorDBNotReady
 	}
@@ -347,7 +384,9 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 		logger.Info("VectorDB disabled by configuration, skipping embedding validation")
 	} else {
 		logger.Info("Validating embedding pipeline (async)...")
+		vdb.validationWg.Add(1)
 		go func() {
+			defer vdb.validationWg.Done()
 			defer vdb.ready.Store(true)
 			validationStart := time.Now()
 			vec, err := validateEmbeddingWithRetry(embeddingFunc, 3, logger)
@@ -919,8 +958,6 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 		return nil, err
 	}
 
-	const maxBatchItemBytes = 500 * 1024 // 500 KB per item
-
 	type batchResult struct {
 		idx int
 		ids []string
@@ -932,7 +969,7 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 	for i, item := range items {
 		if len(item.Content) > maxBatchItemBytes {
 			cv.logger.Warn("StoreBatch: item content exceeds 500 KB limit, truncating", "concept", item.Concept, "bytes", len(item.Content))
-			item.Content = item.Content[:maxBatchItemBytes]
+			item.Content = truncateArchiveItemContent(item.Content)
 		}
 		i, item := i, item // capture
 		go func() {
@@ -1134,9 +1171,9 @@ func (cv *ChromemVectorDB) SearchSimilarScored(query string, topK int, excludeCo
 	}
 
 finalizeResults:
-	// Wait for all in-flight goroutines to complete before returning.
-	// This prevents goroutine leaks when context is cancelled.
-	wg.Wait()
+	if !waitForWaitGroup(&wg, 100*time.Millisecond) {
+		cv.logger.Warn("SearchSimilar: returning before all collection queries completed", "collected", len(allResults))
+	}
 
 	// Sort by similarity descending and enforce global topK limit
 	sort.Slice(allResults, func(i, j int) bool {
@@ -1370,8 +1407,8 @@ func (cv *ChromemVectorDB) searchTopSimilarityScore(concept string) float32 {
 }
 
 // DeleteDocument removes a specific document from the VectorDB by its ID.
-// It also cleans up associated tracking metadata (memory_meta, file_embedding_docs)
-// to prevent orphaned references in SQLite.
+// SQLite tracking cleanup is owned by SQLiteMemory so callers can decide whether
+// to preserve memory_meta rows for archived-memory review workflows.
 func (cv *ChromemVectorDB) DeleteDocument(id string) error {
 	if err := cv.requireReadyForStore(); err != nil {
 		return err
@@ -1499,6 +1536,10 @@ func calculateBatchTimeout(docCount int) time.Duration {
 		return 5 * time.Minute
 	}
 	return timeout
+}
+
+func truncateArchiveItemContent(content string) string {
+	return truncateUTF8Bytes(content, maxBatchItemBytes)
 }
 
 // IsIndexing reports whether async indexing is currently in progress.

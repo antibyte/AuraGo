@@ -402,6 +402,18 @@ func TestKGQualityReport(t *testing.T) {
 	}
 }
 
+func TestKGQualityReportReturnsQueryErrors(t *testing.T) {
+	kg := newTestKG(t)
+
+	if _, err := kg.db.Exec("DROP TABLE kg_nodes"); err != nil {
+		t.Fatalf("drop kg_nodes: %v", err)
+	}
+
+	if _, err := kg.QualityReport(10); err == nil {
+		t.Fatal("QualityReport() error = nil, want schema query error")
+	}
+}
+
 func TestKGOptimizeGraph(t *testing.T) {
 	kg := newTestKG(t)
 
@@ -657,8 +669,8 @@ func TestKGUpdateNodeMergesPartialProperties(t *testing.T) {
 	kg := newTestKG(t)
 
 	if err := kg.AddNode("server1", "Server", map[string]string{
-		"type": "device",
-		"ip":   "10.0.0.1",
+		"type":  "device",
+		"ip":    "10.0.0.1",
 		"notes": "initial",
 	}); err != nil {
 		t.Fatalf("AddNode: %v", err)

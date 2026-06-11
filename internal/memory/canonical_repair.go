@@ -134,6 +134,8 @@ func (s *SQLiteMemory) RepairCanonicalMemoryNames(ltm VectorDB, opts CanonicalRe
 		}
 		if err := ltm.DeleteDocument(meta.DocID); err != nil {
 			item.Error = "delete old vector doc: " + err.Error()
+		} else if err := s.CleanupDeletedVectorDocumentReferences(meta.DocID); err != nil {
+			item.Error = "cleanup old vector doc references: " + err.Error()
 		}
 		report.RepairedCount++
 		report.Items = append(report.Items, item)
@@ -143,7 +145,9 @@ func (s *SQLiteMemory) RepairCanonicalMemoryNames(ltm VectorDB, opts CanonicalRe
 
 func rollbackCanonicalRepairArtifacts(s *SQLiteMemory, ltm VectorDB, docIDs []string, metaDocIDs []string, reason string, actor string) {
 	for _, docID := range docIDs {
-		_ = ltm.DeleteDocument(docID)
+		if err := ltm.DeleteDocument(docID); err == nil {
+			_ = s.CleanupDeletedVectorDocumentReferences(docID)
+		}
 	}
 	for _, docID := range metaDocIDs {
 		_ = s.ApplyMemoryCurationAction(MemoryCurationAction{
