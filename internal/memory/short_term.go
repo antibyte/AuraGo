@@ -28,7 +28,7 @@ func (s *SQLiteMemory) InsertMessage(sessionID string, role string, content stri
 	res, err := s.db.Exec(stmt, sessionID, role, content, pinned, isInternal)
 	if err != nil {
 		s.logger.Error("Failed to insert message into memory", "error", err)
-		return -1, err // -1 indicates failure (not a valid SQLite rowid)
+		return 0, err
 	}
 	id, err := res.LastInsertId()
 	if err != nil {
@@ -640,9 +640,10 @@ func (s *SQLiteMemory) GetRecentArchiveEvents(hours int) ([]string, error) {
 	var concepts []string
 	for rows.Next() {
 		var concept string
-		if err := rows.Scan(&concept); err == nil {
-			concepts = append(concepts, concept)
+		if err := rows.Scan(&concept); err != nil {
+			return nil, fmt.Errorf("scan archive event: %w", err)
 		}
+		concepts = append(concepts, concept)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("rows iteration: %w", err)
@@ -673,9 +674,10 @@ func (s *SQLiteMemory) GetUnreadNotifications() ([]string, error) {
 	var notes []string
 	for rows.Next() {
 		var content string
-		if err := rows.Scan(&content); err == nil {
-			notes = append(notes, content)
+		if err := rows.Scan(&content); err != nil {
+			return nil, fmt.Errorf("scan notification: %w", err)
 		}
+		notes = append(notes, content)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("rows iteration: %w", err)
@@ -1027,9 +1029,10 @@ func (s *SQLiteMemory) GetUniversallyUsefulMemories(minSessions int, limit int) 
 	var ids []string
 	for rows.Next() {
 		var id string
-		if err := rows.Scan(&id); err == nil {
-			ids = append(ids, id)
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan universally useful memory: %w", err)
 		}
+		ids = append(ids, id)
 	}
 	return ids, rows.Err()
 }
@@ -1245,10 +1248,7 @@ func (s *SQLiteMemory) LoadToolUsageAdaptive() ([]ToolUsageAdaptiveEntry, error)
 	for rows.Next() {
 		var e ToolUsageAdaptiveEntry
 		if err := rows.Scan(&e.ToolName, &e.TotalCount, &e.SuccessCount, &e.LastUsed); err != nil {
-			if s.logger != nil {
-				s.logger.Warn("Failed to scan tool_usage_adaptive row", "error", err)
-			}
-			continue
+			return nil, fmt.Errorf("scan tool usage adaptive row: %w", err)
 		}
 		entries = append(entries, e)
 	}
@@ -1297,9 +1297,10 @@ func (s *SQLiteMemory) GetTopPatterns(hour, weekday, limit int) ([]string, error
 	var topics []string
 	for rows.Next() {
 		var t string
-		if err := rows.Scan(&t); err == nil {
-			topics = append(topics, t)
+		if err := rows.Scan(&t); err != nil {
+			return nil, fmt.Errorf("scan interaction pattern: %w", err)
 		}
+		topics = append(topics, t)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("rows iteration: %w", err)
@@ -1397,9 +1398,10 @@ func (s *SQLiteMemory) GetIndexedCollections() ([]string, error) {
 	var cols []string
 	for rows.Next() {
 		var col string
-		if err := rows.Scan(&col); err == nil {
-			cols = append(cols, col)
+		if err := rows.Scan(&col); err != nil {
+			return nil, fmt.Errorf("scan indexed collection: %w", err)
 		}
+		cols = append(cols, col)
 	}
 	return cols, rows.Err()
 }

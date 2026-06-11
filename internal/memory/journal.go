@@ -38,16 +38,17 @@ type JournalConsolidationOptions struct {
 }
 
 type JournalConsolidationItem struct {
-	EntryType    string   `json:"entry_type"`
-	Title        string   `json:"title"`
-	ContentHash  string   `json:"content_hash"`
-	Tags         []string `json:"tags"`
-	KeptEntryID  int64    `json:"kept_entry_id"`
-	RemovedIDs   []int64  `json:"removed_ids"`
-	RemovedCount int      `json:"removed_count"`
-	FirstSeen    string   `json:"first_seen"`
-	LastSeen     string   `json:"last_seen"`
-	Reason       string   `json:"reason"`
+	EntryType      string   `json:"entry_type"`
+	Title          string   `json:"title"`
+	ContentHash    string   `json:"content_hash"`
+	Tags           []string `json:"tags"`
+	DuplicateCount int      `json:"duplicate_count"`
+	KeptEntryID    int64    `json:"kept_entry_id"`
+	RemovedIDs     []int64  `json:"removed_ids"`
+	RemovedCount   int      `json:"removed_count"`
+	FirstSeen      string   `json:"first_seen"`
+	LastSeen       string   `json:"last_seen"`
+	Reason         string   `json:"reason"`
 }
 
 type JournalConsolidationReport struct {
@@ -543,18 +544,18 @@ func (s *SQLiteMemory) ConsolidateDuplicateAutoJournalErrors(opts JournalConsoli
 	defer rows.Close()
 
 	type duplicateGroup struct {
-		entryType string
-		title     string
-		content   string
-		tagsJSON  string
-		firstSeen string
-		lastSeen  string
+		entryType      string
+		title          string
+		content        string
+		tagsJSON       string
+		duplicateCount int
+		firstSeen      string
+		lastSeen       string
 	}
 	groups := make([]duplicateGroup, 0, limit)
 	for rows.Next() {
 		var group duplicateGroup
-		var count int
-		if err := rows.Scan(&group.entryType, &group.title, &group.content, &group.tagsJSON, &count, &group.firstSeen, &group.lastSeen); err != nil {
+		if err := rows.Scan(&group.entryType, &group.title, &group.content, &group.tagsJSON, &group.duplicateCount, &group.firstSeen, &group.lastSeen); err != nil {
 			return report, fmt.Errorf("scan duplicate journal group: %w", err)
 		}
 		groups = append(groups, group)
@@ -574,16 +575,17 @@ func (s *SQLiteMemory) ConsolidateDuplicateAutoJournalErrors(opts JournalConsoli
 		var tags []string
 		_ = json.Unmarshal([]byte(group.tagsJSON), &tags)
 		item := JournalConsolidationItem{
-			EntryType:    group.entryType,
-			Title:        group.title,
-			ContentHash:  journalContentHash(group.content),
-			Tags:         tags,
-			KeptEntryID:  ids[0],
-			RemovedIDs:   append([]int64(nil), ids[1:]...),
-			RemovedCount: len(ids) - 1,
-			FirstSeen:    group.firstSeen,
-			LastSeen:     group.lastSeen,
-			Reason:       "exact duplicate autonomous error entry",
+			EntryType:      group.entryType,
+			Title:          group.title,
+			ContentHash:    journalContentHash(group.content),
+			Tags:           tags,
+			DuplicateCount: group.duplicateCount,
+			KeptEntryID:    ids[0],
+			RemovedIDs:     append([]int64(nil), ids[1:]...),
+			RemovedCount:   len(ids) - 1,
+			FirstSeen:      group.firstSeen,
+			LastSeen:       group.lastSeen,
+			Reason:         "exact duplicate autonomous error entry",
 		}
 		if opts.DryRun {
 			report.Items = append(report.Items, item)
@@ -749,7 +751,8 @@ func (s *SQLiteMemory) GetJournalEntries(from, to string, types []string, limit 
 	}
 	query += " ORDER BY date DESC, created_at DESC"
 	if limit > 0 {
-		query += fmt.Sprintf(" LIMIT %d", limit)
+		query += " LIMIT ?"
+		args = append(args, limit)
 	}
 
 	rows, err := s.db.Query(query, args...)
@@ -1050,6 +1053,9 @@ func (s *SQLiteMemory) GetEpisodicMemoryStats(hoursWindow int, recentLimit int) 
 		}
 		bySource[source] = count
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate episodic source stats: %w", err)
+	}
 
 	recentCards, err := s.GetRecentEpisodicMemoryCards(hoursWindow, recentLimit)
 	if err != nil {
@@ -1089,7 +1095,10 @@ func (s *SQLiteMemory) DeleteJournalEntry(id int64) error {
 	if err != nil {
 		return fmt.Errorf("delete journal entry: %w", err)
 	}
-	n, _ := res.RowsAffected()
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("delete journal entry rows affected: %w", err)
+	}
 	if n == 0 {
 		return fmt.Errorf("journal entry %d not found", id)
 	}

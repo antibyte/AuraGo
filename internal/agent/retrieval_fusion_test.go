@@ -283,6 +283,25 @@ func TestApplyRetrievalFusion_DisabledVectorDB(t *testing.T) {
 	}
 }
 
+func TestApplyRetrievalFusionDeduplicatesCanonicalMemoryText(t *testing.T) {
+	logger := slog.Default()
+	topMemories := []string{
+		"[Similarity: 0.88] Docker backup policy should keep seven daily snapshots and verify restores weekly.",
+	}
+	kgContext := "- [docker] Docker | type: software\n"
+	vdb := &fusionVectorDB{
+		memories: []string{
+			"Docker backup policy should keep seven daily snapshots and verify restores weekly.",
+		},
+		docIDs: []string{"doc-duplicate"},
+	}
+
+	result := applyRetrievalFusion(topMemories, kgContext, vdb, nil, nil, logger)
+	if result.EnrichedMemories != "" {
+		t.Fatalf("EnrichedMemories = %q, want duplicate to be suppressed", result.EnrichedMemories)
+	}
+}
+
 // disabledVectorDB is a minimal mock that reports itself as disabled.
 type disabledVectorDB struct{}
 
@@ -311,6 +330,18 @@ func (d *disabledVectorDB) DeleteDocument(_ string) error                     { 
 func (d *disabledVectorDB) DeleteDocumentFromCollection(_, _ string) error    { return nil }
 func (d *disabledVectorDB) Count() int                                        { return 0 }
 func (d *disabledVectorDB) Close() error                                      { return nil }
-func (d *disabledVectorDB) StoreCheatsheet(_, _, _ string, _ ...string) error   { return nil }
+func (d *disabledVectorDB) StoreCheatsheet(_, _, _ string, _ ...string) error { return nil }
 func (d *disabledVectorDB) DeleteCheatsheet(_ string) error                   { return nil }
 func (d *disabledVectorDB) RegisterCollections(_ []string)                    {}
+
+type fusionVectorDB struct {
+	disabledVectorDB
+	memories []string
+	docIDs   []string
+}
+
+func (f *fusionVectorDB) IsDisabled() bool { return false }
+func (f *fusionVectorDB) IsReady() bool    { return true }
+func (f *fusionVectorDB) SearchMemoriesOnly(_ string, _ int) ([]string, []string, error) {
+	return f.memories, f.docIDs, nil
+}

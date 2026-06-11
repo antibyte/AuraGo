@@ -30,6 +30,8 @@ const (
 
 // entityLinePattern matches KG context lines like "- [entity_id] label | prop: val".
 var entityLinePattern = regexp.MustCompile(`^-\s+\[([^\]]+)\]\s*(.*)`)
+var memorySimilarityPrefixPattern = regexp.MustCompile(`(?i)^\s*\[similarity:\s*[0-9.]+\]\s*`)
+var memoryMetadataPrefixPattern = regexp.MustCompile(`(?i)^\s*\[(domain:\s*[^\]]+|tool_guides|documentation|file_index)\]\s*`)
 
 // applyRetrievalFusion enriches RAG and KG context by cross-referencing results from
 // both subsystems. When strong RAG hits exist, related KG entities are loaded (RAG→KG).
@@ -66,7 +68,7 @@ func applyRetrievalFusion(
 					continue
 				}
 				// Deduplicate against existing top memories and already-found extras.
-				if containsString(topMemories, ranked[0].text) || containsString(extraMemories, ranked[0].text) {
+				if containsEquivalentMemory(topMemories, ranked[0].text) || containsEquivalentMemory(extraMemories, ranked[0].text) {
 					continue
 				}
 				compacted := compactMemoryForPrompt(ranked[0].text, 200)
@@ -185,6 +187,46 @@ func containsString(slice []string, s string) bool {
 		}
 	}
 	return false
+}
+
+func containsEquivalentMemory(slice []string, s string) bool {
+	key := retrievalMemoryDedupKey(s)
+	if key == "" {
+		return containsString(slice, s)
+	}
+	for _, item := range slice {
+		if retrievalMemoryDedupKey(item) == key {
+			return true
+		}
+	}
+	return false
+}
+
+func retrievalMemoryDedupKey(text string) string {
+	text = sanitizeMemoryForPrompt(text)
+	for {
+		trimmed := strings.TrimSpace(text)
+		trimmed = memorySimilarityPrefixPattern.ReplaceAllString(trimmed, "")
+		next := memoryMetadataPrefixPattern.ReplaceAllString(trimmed, "")
+		if next == text {
+			text = next
+			break
+		}
+		text = next
+	}
+	text = strings.ToLower(strings.TrimSpace(text))
+	text = strings.TrimSuffix(text, "...")
+	text = strings.TrimSuffix(text, "…")
+	fields := strings.Fields(text)
+	if len(fields) == 0 {
+		return ""
+	}
+	key := strings.Join(fields, " ")
+	runes := []rune(key)
+	if len(runes) > 180 {
+		key = string(runes[:180])
+	}
+	return key
 }
 
 // truncateUTF8SafeAgent truncates a string to at most maxLen runes, breaking at

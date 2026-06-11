@@ -67,6 +67,15 @@ func TestClassifyMemoryTargetDefaultsAmbiguousContentToEvent(t *testing.T) {
 	}
 }
 
+func TestNormalizeHeuristicTextPreservesNonWesternLettersAndDigits(t *testing.T) {
+	got := normalizeHeuristicText("服务器 运行 Docker 版本二 ٢")
+	for _, want := range []string{"服务器", "运行", "版本二", "٢"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("normalizeHeuristicText = %q, want to preserve %q", got, want)
+		}
+	}
+}
+
 func TestRememberAmbiguousContentUsesJournal(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)

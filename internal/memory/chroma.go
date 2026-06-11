@@ -151,9 +151,6 @@ func buildToolGuideEmbeddingContent(description, body string) string {
 	case description != "":
 		return description
 	case body != "":
-		if utf8.RuneCountInString(body) > 4000 {
-			return string([]rune(body)[:4000])
-		}
 		return body
 	default:
 		return ""
@@ -370,6 +367,7 @@ func loadToolGuideFiles(toolsDir string) ([]toolGuideFile, error) {
 	files, err := os.ReadDir(toolsDir)
 	if err == nil {
 		guides := make([]toolGuideFile, 0, len(files))
+		var readErrs []error
 		for _, file := range files {
 			if file.IsDir() || !strings.HasSuffix(file.Name(), ".md") {
 				continue
@@ -377,6 +375,7 @@ func loadToolGuideFiles(toolsDir string) ([]toolGuideFile, error) {
 			path := filepath.Join(toolsDir, file.Name())
 			data, readErr := os.ReadFile(path)
 			if readErr != nil {
+				readErrs = append(readErrs, fmt.Errorf("read tool guide %s: %w", path, readErr))
 				continue
 			}
 			guides = append(guides, toolGuideFile{
@@ -385,7 +384,7 @@ func loadToolGuideFiles(toolsDir string) ([]toolGuideFile, error) {
 				Data: data,
 			})
 		}
-		return guides, nil
+		return guides, errors.Join(readErrs...)
 	}
 
 	embedEntries, embedErr := fs.ReadDir(promptsembed.FS, "tools_manuals")
@@ -393,6 +392,7 @@ func loadToolGuideFiles(toolsDir string) ([]toolGuideFile, error) {
 		return nil, fmt.Errorf("failed to read tools directory: %w", err)
 	}
 	guides := make([]toolGuideFile, 0, len(embedEntries))
+	var readErrs []error
 	for _, entry := range embedEntries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
 			continue
@@ -400,6 +400,7 @@ func loadToolGuideFiles(toolsDir string) ([]toolGuideFile, error) {
 		embedPath := filepath.ToSlash(filepath.Join("tools_manuals", entry.Name()))
 		data, readErr := fs.ReadFile(promptsembed.FS, embedPath)
 		if readErr != nil {
+			readErrs = append(readErrs, fmt.Errorf("read embedded tool guide %s: %w", embedPath, readErr))
 			continue
 		}
 		guides = append(guides, toolGuideFile{
@@ -408,7 +409,7 @@ func loadToolGuideFiles(toolsDir string) ([]toolGuideFile, error) {
 			Data: data,
 		})
 	}
-	return guides, nil
+	return guides, errors.Join(readErrs...)
 }
 
 // splitFrontmatter splits a YAML frontmatter document (---\n...\n---\n...) into

@@ -117,7 +117,10 @@ func (s *SQLiteMemory) RepairCanonicalMemoryNames(ltm VectorDB, opts CanonicalRe
 		}
 		if metaErr != nil {
 			item.Error = metaErr.Error()
-			rollbackCanonicalRepairArtifacts(s, ltm, newIDs, upsertedIDs, "canonical repair rollback after meta upsert failure", actor)
+			if rollbackErr := rollbackCanonicalRepairArtifacts(s, ltm, newIDs, upsertedIDs, "canonical repair rollback after meta upsert failure", actor); rollbackErr != nil {
+				wrapped := fmt.Errorf("rollback canonical repair artifacts: %w", rollbackErr)
+				item.Error = errors.Join(metaErr, wrapped).Error()
+			}
 			report.Items = append(report.Items, item)
 			report.SkippedCount++
 			continue
@@ -131,7 +134,11 @@ func (s *SQLiteMemory) RepairCanonicalMemoryNames(ltm VectorDB, opts CanonicalRe
 			wrapped := fmt.Errorf("archive old memory meta %s: %w", meta.DocID, err)
 			item.Error = wrapped.Error()
 			joinedErr = errors.Join(joinedErr, wrapped)
-			rollbackCanonicalRepairArtifacts(s, ltm, newIDs, upsertedIDs, "canonical repair rollback after archive failure", actor)
+			if rollbackErr := rollbackCanonicalRepairArtifacts(s, ltm, newIDs, upsertedIDs, "canonical repair rollback after archive failure", actor); rollbackErr != nil {
+				rollbackWrapped := fmt.Errorf("rollback canonical repair artifacts: %w", rollbackErr)
+				item.Error = errors.Join(wrapped, rollbackWrapped).Error()
+				joinedErr = errors.Join(joinedErr, rollbackWrapped)
+			}
 			report.Items = append(report.Items, item)
 			report.SkippedCount++
 			continue
@@ -154,17 +161,25 @@ func (s *SQLiteMemory) RepairCanonicalMemoryNames(ltm VectorDB, opts CanonicalRe
 	return report, joinedErr
 }
 
-func rollbackCanonicalRepairArtifacts(s *SQLiteMemory, ltm VectorDB, docIDs []string, metaDocIDs []string, reason string, actor string) {
+func rollbackCanonicalRepairArtifacts(s *SQLiteMemory, ltm VectorDB, docIDs []string, metaDocIDs []string, reason string, actor string) error {
+	var joinedErr error
 	for _, docID := range docIDs {
-		if err := ltm.DeleteDocument(docID); err == nil {
-			_ = s.CleanupDeletedVectorDocumentReferences(docID)
+		if err := ltm.DeleteDocument(docID); err != nil {
+			joinedErr = errors.Join(joinedErr, fmt.Errorf("delete rollback vector doc %s: %w", docID, err))
+			continue
+		}
+		if err := s.CleanupDeletedVectorDocumentReferences(docID); err != nil {
+			joinedErr = errors.Join(joinedErr, fmt.Errorf("cleanup rollback vector doc references %s: %w", docID, err))
 		}
 	}
 	for _, docID := range metaDocIDs {
-		_ = s.ApplyMemoryCurationAction(MemoryCurationAction{
+		if err := s.ApplyMemoryCurationAction(MemoryCurationAction{
 			DocID:  docID,
 			Action: MemoryCurationActionArchive,
 			Reason: reason,
-		}, actor, false)
+		}, actor, false); err != nil {
+			joinedErr = errors.Join(joinedErr, fmt.Errorf("archive rollback meta %s: %w", docID, err))
+		}
 	}
+	return joinedErr
 }

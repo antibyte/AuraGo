@@ -151,6 +151,57 @@ func TestNotesCurationArchivesOnlySafeLowPriorityNotes(t *testing.T) {
 	}
 }
 
+func TestNotesCurationSkipsProtectedAndKeepForeverNotes(t *testing.T) {
+	stm := newTestNotesDB(t)
+	now := time.Date(2026, 6, 9, 12, 0, 0, 0, time.UTC)
+	old := now.AddDate(0, 0, -120).Format(time.RFC3339)
+
+	protectedID, err := stm.AddNote("ops", "Protected old task", "", 1, "")
+	if err != nil {
+		t.Fatalf("AddNote protected: %v", err)
+	}
+	keepForeverID, err := stm.AddNote("ops", "Permanent old task", "", 1, "")
+	if err != nil {
+		t.Fatalf("AddNote keep forever: %v", err)
+	}
+	archiveID, err := stm.AddNote("ops", "Archive candidate", "", 1, "")
+	if err != nil {
+		t.Fatalf("AddNote archive candidate: %v", err)
+	}
+	if _, err := stm.db.Exec(`
+		UPDATE notes
+		SET updated_at = ?, created_at = ?,
+		    protected = CASE WHEN id = ? THEN 1 ELSE 0 END,
+		    keep_forever = CASE WHEN id = ? THEN 1 ELSE 0 END
+		WHERE id IN (?, ?, ?)`,
+		old, old, protectedID, keepForeverID, protectedID, keepForeverID, archiveID); err != nil {
+		t.Fatalf("backdate and protect notes: %v", err)
+	}
+
+	plan, err := stm.BuildNotesCurationPlan(NotesCurationOptions{Now: now, MaxActions: 10})
+	if err != nil {
+		t.Fatalf("BuildNotesCurationPlan: %v", err)
+	}
+	if plan.AutoArchiveCount != 1 || plan.AutoArchive[0].NoteID != archiveID {
+		t.Fatalf("auto archive = %+v, want only unprotected candidate %d", plan.AutoArchive, archiveID)
+	}
+
+	all, err := stm.ListNotesWithOptions(NotesListOptions{Category: "ops", DoneFilter: -1, IncludeArchived: true})
+	if err != nil {
+		t.Fatalf("ListNotesWithOptions: %v", err)
+	}
+	flagsByID := map[int64]Note{}
+	for _, note := range all {
+		flagsByID[note.ID] = note
+	}
+	if !flagsByID[protectedID].Protected {
+		t.Fatalf("protected note = %+v, want Protected=true", flagsByID[protectedID])
+	}
+	if !flagsByID[keepForeverID].KeepForever {
+		t.Fatalf("keep forever note = %+v, want KeepForever=true", flagsByID[keepForeverID])
+	}
+}
+
 func TestNotesCurationLimitsReviewRequiredNotes(t *testing.T) {
 	stm := newTestNotesDB(t)
 	now := time.Date(2026, 6, 9, 12, 0, 0, 0, time.UTC)
@@ -291,6 +342,34 @@ func TestRepairCanonicalMemoryNamesCleansNewVectorsWhenMetaUpsertFails(t *testin
 	}
 }
 
+func TestRepairCanonicalMemoryNamesReportsRollbackFailure(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	dbPath := fmt.Sprintf("%s%cstm.db", t.TempDir(), os.PathSeparator)
+	stm, err := NewSQLiteMemory(dbPath, logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	if err := stm.InitNotesTables(); err != nil {
+		t.Fatalf("InitNotesTables: %v", err)
+	}
+	if err := stm.UpsertMemoryMetaWithDetails("old-doc", MemoryMetaUpdate{VerificationStatus: "unverified"}); err != nil {
+		t.Fatalf("UpsertMemoryMetaWithDetails: %v", err)
+	}
+	fake := &fakeRepairVectorDB{docs: map[string]string{"old-doc": "Project AuroraGo deployment note"}}
+	fake.afterStore = func() {
+		fake.deleteErr = map[string]error{"new-doc-1": fmt.Errorf("delete failed")}
+		_ = stm.Close()
+	}
+
+	report, err := stm.RepairCanonicalMemoryNames(fake, CanonicalRepairOptions{Limit: 10})
+	if err != nil {
+		t.Fatalf("RepairCanonicalMemoryNames: %v", err)
+	}
+	if len(report.Items) != 1 || !strings.Contains(report.Items[0].Error, "rollback canonical repair artifacts") {
+		t.Fatalf("report item = %+v, want rollback failure context", report.Items)
+	}
+}
+
 func TestRepairCanonicalMemoryNamesReportsCleanupFailureAfterOldVectorDelete(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	dbPath := fmt.Sprintf("%s%cstm.db", t.TempDir(), os.PathSeparator)
@@ -333,6 +412,7 @@ type fakeRepairVectorDB struct {
 	counter     int
 	afterStore  func()
 	afterDelete func()
+	deleteErr   map[string]error
 }
 
 func (f *fakeRepairVectorDB) StoreDocument(concept, content string) ([]string, error) {
@@ -377,6 +457,9 @@ func (f *fakeRepairVectorDB) GetByID(id string) (string, error) {
 }
 func (f *fakeRepairVectorDB) DeleteDocument(id string) error {
 	f.deleted = append(f.deleted, id)
+	if err := f.deleteErr[id]; err != nil {
+		return err
+	}
 	delete(f.docs, id)
 	if f.afterDelete != nil {
 		f.afterDelete()

@@ -455,6 +455,37 @@ func TestCountIncludesFileIndexerCollections(t *testing.T) {
 	}
 }
 
+func TestCountDoesNotCreateMissingCollections(t *testing.T) {
+	embeddingFunc := func(_ context.Context, _ string) ([]float32, error) {
+		return []float32{0.1, 0.2, 0.3}, nil
+	}
+	db := chromem.NewDB()
+	collection, err := db.GetOrCreateCollection("aurago_memories", nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection: %v", err)
+	}
+	cv := &ChromemVectorDB{
+		db:                     db,
+		collection:             collection,
+		embeddingFunc:          embeddingFunc,
+		fileIndexerCollections: map[string]struct{}{"custom_docs": {}},
+		logger:                 slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	if err := collection.AddDocument(context.Background(), chromem.Document{ID: "mem-1", Content: "test memory"}); err != nil {
+		t.Fatalf("add doc: %v", err)
+	}
+
+	if got := cv.Count(); got != 1 {
+		t.Fatalf("Count() = %d, want only existing default collection", got)
+	}
+	collections := db.ListCollections()
+	for _, name := range []string{"tool_guides", "documentation", "file_index", "custom_docs"} {
+		if _, ok := collections[name]; ok {
+			t.Fatalf("Count() created missing collection %q", name)
+		}
+	}
+}
+
 func TestSearchSimilarIncludesFileIndexerCollections(t *testing.T) {
 	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
 		if strings.Contains(strings.ToLower(text), "krankenkasse") {

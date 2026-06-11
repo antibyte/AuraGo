@@ -25,16 +25,18 @@ type NotesCurationOptions struct {
 }
 
 type NoteCurationAction struct {
-	NoteID          int64  `json:"note_id"`
-	Action          string `json:"action"`
-	Reason          string `json:"reason"`
-	Title           string `json:"title"`
-	Category        string `json:"category"`
-	Priority        int    `json:"priority"`
-	DaysSinceUpdate int    `json:"days_since_update"`
-	DaysOverdue     int    `json:"days_overdue"`
-	CurrentDone     bool   `json:"current_done"`
-	CurrentArchived bool   `json:"current_archived"`
+	NoteID             int64  `json:"note_id"`
+	Action             string `json:"action"`
+	Reason             string `json:"reason"`
+	Title              string `json:"title"`
+	Category           string `json:"category"`
+	Priority           int    `json:"priority"`
+	DaysSinceUpdate    int    `json:"days_since_update"`
+	DaysOverdue        int    `json:"days_overdue"`
+	CurrentDone        bool   `json:"current_done"`
+	CurrentArchived    bool   `json:"current_archived"`
+	CurrentProtected   bool   `json:"current_protected"`
+	CurrentKeepForever bool   `json:"current_keep_forever"`
 }
 
 type NotesCurationPlan struct {
@@ -64,7 +66,7 @@ func (s *SQLiteMemory) BuildNotesCurationPlan(opts NotesCurationOptions) (NotesC
 	}
 	plan := NotesCurationPlan{GeneratedAt: now.Format(time.RFC3339)}
 	for _, note := range notes {
-		if note.Done || note.Archived {
+		if note.Done || note.Archived || note.Protected || note.KeepForever {
 			continue
 		}
 		updatedAt := parseMemoryMetaTime(note.UpdatedAt)
@@ -80,14 +82,16 @@ func (s *SQLiteMemory) BuildNotesCurationPlan(opts NotesCurationOptions) (NotesC
 		}
 		daysOverdue := noteDaysOverdue(note.DueDate, now)
 		action := NoteCurationAction{
-			NoteID:          note.ID,
-			Title:           note.Title,
-			Category:        note.Category,
-			Priority:        note.Priority,
-			DaysSinceUpdate: daysSinceUpdate,
-			DaysOverdue:     daysOverdue,
-			CurrentDone:     note.Done,
-			CurrentArchived: note.Archived,
+			NoteID:             note.ID,
+			Title:              note.Title,
+			Category:           note.Category,
+			Priority:           note.Priority,
+			DaysSinceUpdate:    daysSinceUpdate,
+			DaysOverdue:        daysOverdue,
+			CurrentDone:        note.Done,
+			CurrentArchived:    note.Archived,
+			CurrentProtected:   note.Protected,
+			CurrentKeepForever: note.KeepForever,
 		}
 
 		staleOpen := note.DueDate == "" && time.Duration(daysSinceUpdate)*24*time.Hour >= defaultNotesStaleOpenAge

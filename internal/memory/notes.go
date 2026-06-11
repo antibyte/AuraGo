@@ -17,6 +17,8 @@ type Note struct {
 	Priority       int    `json:"priority"` // 1=low, 2=medium, 3=high
 	Done           bool   `json:"done"`
 	DueDate        string `json:"due_date,omitempty"` // RFC3339 or YYYY-MM-DD
+	Protected      bool   `json:"protected"`
+	KeepForever    bool   `json:"keep_forever"`
 	Archived       bool   `json:"archived"`
 	ArchivedAt     string `json:"archived_at,omitempty"`
 	ArchivedReason string `json:"archived_reason,omitempty"`
@@ -43,6 +45,8 @@ func (s *SQLiteMemory) InitNotesTables() error {
 		priority INTEGER DEFAULT 2,
 		done BOOLEAN DEFAULT 0,
 		due_date TEXT DEFAULT '',
+		protected BOOLEAN DEFAULT 0,
+		keep_forever BOOLEAN DEFAULT 0,
 		archived BOOLEAN DEFAULT 0,
 		archived_at DATETIME DEFAULT '',
 		archived_reason TEXT DEFAULT '',
@@ -62,6 +66,8 @@ func (s *SQLiteMemory) InitNotesTables() error {
 		{Name: "archived_at", TypeDef: "DATETIME DEFAULT ''"},
 		{Name: "archived_reason", TypeDef: "TEXT DEFAULT ''"},
 		{Name: "last_reviewed_at", TypeDef: "DATETIME DEFAULT ''"},
+		{Name: "protected", TypeDef: "BOOLEAN DEFAULT 0"},
+		{Name: "keep_forever", TypeDef: "BOOLEAN DEFAULT 0"},
 	} {
 		if err := migrateAddColumn(s.db, s.logger, "notes", column.Name, column.TypeDef); err != nil {
 			return fmt.Errorf("notes migration %s: %w", column.Name, err)
@@ -135,7 +141,7 @@ func (s *SQLiteMemory) ListNotesWithOptions(opts NotesListOptions) ([]Note, erro
 		conditions = append(conditions, "archived = 0")
 	}
 
-	query := "SELECT id, category, title, content, priority, done, due_date, archived, COALESCE(archived_at, ''), COALESCE(archived_reason, ''), COALESCE(last_reviewed_at, ''), created_at, updated_at FROM notes"
+	query := "SELECT id, category, title, content, priority, done, due_date, COALESCE(protected, 0), COALESCE(keep_forever, 0), archived, COALESCE(archived_at, ''), COALESCE(archived_reason, ''), COALESCE(last_reviewed_at, ''), created_at, updated_at FROM notes"
 	if len(conditions) > 0 {
 		query += " WHERE " + strings.Join(conditions, " AND ")
 	}
@@ -150,7 +156,7 @@ func (s *SQLiteMemory) ListNotesWithOptions(opts NotesListOptions) ([]Note, erro
 	var notes []Note
 	for rows.Next() {
 		var n Note
-		if err := rows.Scan(&n.ID, &n.Category, &n.Title, &n.Content, &n.Priority, &n.Done, &n.DueDate, &n.Archived, &n.ArchivedAt, &n.ArchivedReason, &n.LastReviewedAt, &n.CreatedAt, &n.UpdatedAt); err != nil {
+		if err := rows.Scan(&n.ID, &n.Category, &n.Title, &n.Content, &n.Priority, &n.Done, &n.DueDate, &n.Protected, &n.KeepForever, &n.Archived, &n.ArchivedAt, &n.ArchivedReason, &n.LastReviewedAt, &n.CreatedAt, &n.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan note: %w", err)
 		}
 		notes = append(notes, n)
@@ -172,7 +178,7 @@ func (s *SQLiteMemory) SearchNotes(query string, limit int) ([]Note, error) {
 
 	pattern := "%" + escapeLike(query) + "%"
 	rows, err := s.db.Query(
-		`SELECT id, category, title, content, priority, done, due_date, archived, COALESCE(archived_at, ''), COALESCE(archived_reason, ''), COALESCE(last_reviewed_at, ''), created_at, updated_at
+		`SELECT id, category, title, content, priority, done, due_date, COALESCE(protected, 0), COALESCE(keep_forever, 0), archived, COALESCE(archived_at, ''), COALESCE(archived_reason, ''), COALESCE(last_reviewed_at, ''), created_at, updated_at
 		 FROM notes
 		 WHERE archived = 0 AND (title LIKE ? ESCAPE '\' OR content LIKE ? ESCAPE '\')
 		 ORDER BY priority DESC, created_at DESC
@@ -187,7 +193,7 @@ func (s *SQLiteMemory) SearchNotes(query string, limit int) ([]Note, error) {
 	var notes []Note
 	for rows.Next() {
 		var n Note
-		if err := rows.Scan(&n.ID, &n.Category, &n.Title, &n.Content, &n.Priority, &n.Done, &n.DueDate, &n.Archived, &n.ArchivedAt, &n.ArchivedReason, &n.LastReviewedAt, &n.CreatedAt, &n.UpdatedAt); err != nil {
+		if err := rows.Scan(&n.ID, &n.Category, &n.Title, &n.Content, &n.Priority, &n.Done, &n.DueDate, &n.Protected, &n.KeepForever, &n.Archived, &n.ArchivedAt, &n.ArchivedReason, &n.LastReviewedAt, &n.CreatedAt, &n.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan note: %w", err)
 		}
 		notes = append(notes, n)
@@ -239,7 +245,10 @@ func (s *SQLiteMemory) UpdateNote(id int64, title, content, category string, pri
 	if err != nil {
 		return fmt.Errorf("update note: %w", err)
 	}
-	rows, _ := res.RowsAffected()
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update note rows affected: %w", err)
+	}
 	if rows == 0 {
 		return fmt.Errorf("note with id %d not found", id)
 	}
@@ -255,7 +264,10 @@ func (s *SQLiteMemory) ToggleNoteDone(id int64) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("toggle note: %w", err)
 	}
-	rows, _ := res.RowsAffected()
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("toggle note rows affected: %w", err)
+	}
 	if rows == 0 {
 		return false, fmt.Errorf("note with id %d not found", id)
 	}
@@ -274,7 +286,10 @@ func (s *SQLiteMemory) DeleteNote(id int64) error {
 	if err != nil {
 		return fmt.Errorf("delete note: %w", err)
 	}
-	rows, _ := res.RowsAffected()
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("delete note rows affected: %w", err)
+	}
 	if rows == 0 {
 		return fmt.Errorf("note with id %d not found", id)
 	}
@@ -287,7 +302,7 @@ func (s *SQLiteMemory) GetHighPriorityOpenNotes(limit int) ([]Note, error) {
 		limit = 5
 	}
 	rows, err := s.db.Query(
-		`SELECT id, category, title, content, priority, done, due_date, archived, COALESCE(archived_at, ''), COALESCE(archived_reason, ''), COALESCE(last_reviewed_at, ''), created_at, updated_at
+		`SELECT id, category, title, content, priority, done, due_date, COALESCE(protected, 0), COALESCE(keep_forever, 0), archived, COALESCE(archived_at, ''), COALESCE(archived_reason, ''), COALESCE(last_reviewed_at, ''), created_at, updated_at
 		 FROM notes WHERE done = 0 AND priority = 3 AND archived = 0
 		 ORDER BY CASE WHEN due_date != '' THEN 0 ELSE 1 END, due_date ASC, created_at DESC
 		 LIMIT ?`, limit)
@@ -299,7 +314,7 @@ func (s *SQLiteMemory) GetHighPriorityOpenNotes(limit int) ([]Note, error) {
 	var notes []Note
 	for rows.Next() {
 		var n Note
-		if err := rows.Scan(&n.ID, &n.Category, &n.Title, &n.Content, &n.Priority, &n.Done, &n.DueDate, &n.Archived, &n.ArchivedAt, &n.ArchivedReason, &n.LastReviewedAt, &n.CreatedAt, &n.UpdatedAt); err != nil {
+		if err := rows.Scan(&n.ID, &n.Category, &n.Title, &n.Content, &n.Priority, &n.Done, &n.DueDate, &n.Protected, &n.KeepForever, &n.Archived, &n.ArchivedAt, &n.ArchivedReason, &n.LastReviewedAt, &n.CreatedAt, &n.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan note: %w", err)
 		}
 		notes = append(notes, n)
@@ -334,7 +349,10 @@ func (s *SQLiteMemory) ArchiveNote(id int64, reason string) error {
 	if err != nil {
 		return fmt.Errorf("archive note: %w", err)
 	}
-	rows, _ := res.RowsAffected()
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("archive note rows affected: %w", err)
+	}
 	if rows == 0 {
 		return fmt.Errorf("note with id %d not found", id)
 	}
@@ -353,7 +371,10 @@ func (s *SQLiteMemory) RestoreNote(id int64) error {
 	if err != nil {
 		return fmt.Errorf("restore note: %w", err)
 	}
-	rows, _ := res.RowsAffected()
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("restore note rows affected: %w", err)
+	}
 	if rows == 0 {
 		return fmt.Errorf("note with id %d not found", id)
 	}

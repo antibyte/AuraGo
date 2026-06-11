@@ -64,11 +64,13 @@ func (kg *KnowledgeGraph) initTables() error {
 			continue
 		}
 		var exists bool
-		kg.db.QueryRow(fmt.Sprintf("SELECT count(*)>0 FROM pragma_table_info('%s') WHERE name=?", cm.table), cm.column).Scan(&exists)
+		if err := kg.db.QueryRow(fmt.Sprintf("SELECT count(*)>0 FROM pragma_table_info('%s') WHERE name=?", cm.table), cm.column).Scan(&exists); err != nil {
+			return fmt.Errorf("KG migration inspect %s.%s: %w", cm.table, cm.column, err)
+		}
 		if exists {
 			continue
 		}
-		stmt := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", cm.table, cm.column, cm.def)
+		stmt := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", quoteIdentifier(cm.table), quoteIdentifier(cm.column), cm.def)
 		if _, err := kg.db.Exec(stmt); err != nil {
 			kg.logger.Warn("KG migration: add column failed", "table", cm.table, "column", cm.column, "error", err)
 		} else {

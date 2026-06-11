@@ -179,6 +179,9 @@ func foldHeuristicRune(r rune) rune {
 	case 'ç':
 		return 'c'
 	default:
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsSpace(r) {
+			return r
+		}
 		return ' '
 	}
 }
@@ -282,6 +285,6 @@ func rememberAsGraphEdge(content string, tc ToolCall, kg *memory.KnowledgeGraph,
 		}
 		return fmt.Sprintf(`Tool Output: {"status":"success","stored_as":"knowledge_graph","message":"Relationship stored: %s -[%s]-> %s"}`, tc.Source, tc.Relation, tc.Target)
 	}
-	// Fallback: store as core memory fact if no structured relationship provided
+	// Reject graph writes without a structured edge; callers can omit category to auto-classify instead.
 	return `Tool Output: {"status":"error","message":"For knowledge graph storage, provide 'source', 'target', and 'relation' fields. Or omit 'category' to auto-classify."}`
 }

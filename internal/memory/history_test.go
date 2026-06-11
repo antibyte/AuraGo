@@ -143,6 +143,31 @@ func TestHistoryManager_PersistAndLoad_MultiContent(t *testing.T) {
 	}
 }
 
+func TestHistoryManagerCloseAndAddRaceDoesNotPanic(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "history.json")
+	hm := NewHistoryManager(path)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 64; i++ {
+		wg.Add(1)
+		go func(id int64) {
+			defer wg.Done()
+			_ = hm.Add("user", "message", id, false, false)
+		}(int64(i + 1))
+	}
+	hm.Close()
+	wg.Wait()
+
+	before := len(hm.GetAll())
+	if err := hm.Add("user", "after close", 99, false, false); err != nil {
+		t.Fatalf("Add after Close: %v", err)
+	}
+	if after := len(hm.GetAll()); after != before {
+		t.Fatalf("Add after Close mutated history: got %d messages, want %d", after, before)
+	}
+}
+
 func TestHistoryManager_EmptyFileStartsFresh(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "history.json")

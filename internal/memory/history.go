@@ -138,10 +138,7 @@ func (hm *HistoryManager) backgroundSaver() {
 		select {
 		case <-hm.doneChan:
 			return
-		case _, ok := <-hm.saveChan:
-			if !ok {
-				return
-			}
+		case <-hm.saveChan:
 			if err := hm.save(); err != nil {
 				slog.Error("Failed to save history to disk", "error", err)
 			}
@@ -152,8 +149,10 @@ func (hm *HistoryManager) backgroundSaver() {
 // Close stops the background saver goroutine and performs a final save.
 func (hm *HistoryManager) Close() {
 	hm.closeOnce.Do(func() {
+		hm.mu.Lock()
 		hm.closed.Store(true)
-		close(hm.saveChan) // drain pending save notifications, then signal saver to exit
+		hm.mu.Unlock()
+		close(hm.doneChan)
 		hm.saverWg.Wait()
 		if err := hm.save(); err != nil {
 			slog.Error("Failed to save history on close", "file", hm.file, "error", err)
@@ -190,6 +189,8 @@ func (hm *HistoryManager) triggerSave() {
 		return
 	}
 	select {
+	case <-hm.doneChan:
+		return
 	case hm.saveChan <- struct{}{}:
 	default:
 		// Save already pending
@@ -254,10 +255,11 @@ func (hm *HistoryManager) save() error {
 }
 
 func (hm *HistoryManager) Add(role, content string, id int64, pinned bool, isInternal bool) error {
+	hm.mu.Lock()
 	if hm.closed.Load() {
+		hm.mu.Unlock()
 		return nil
 	}
-	hm.mu.Lock()
 	hm.Messages = append(hm.Messages, HistoryMessage{
 		ChatCompletionMessage: openai.ChatCompletionMessage{
 			Role:    role,
@@ -280,10 +282,11 @@ func (hm *HistoryManager) Add(role, content string, id int64, pinned bool, isInt
 }
 
 func (hm *HistoryManager) AddMessage(msg openai.ChatCompletionMessage, id int64, pinned bool, isInternal bool) error {
+	hm.mu.Lock()
 	if hm.closed.Load() {
+		hm.mu.Unlock()
 		return nil
 	}
-	hm.mu.Lock()
 	hm.Messages = append(hm.Messages, HistoryMessage{
 		ChatCompletionMessage: msg,
 		ID:                    id,

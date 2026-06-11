@@ -208,14 +208,24 @@ func (cv *ChromemVectorDB) EmbeddingFingerprint() string {
 // because counting does not require embeddings.
 func (cv *ChromemVectorDB) Count() int {
 	cv.mu.RLock()
-	defer cv.mu.RUnlock()
-	total := cv.collection.Count() // aurago_memories
+	db := cv.db
+	primary := cv.collection
+	logger := cv.logger
+	cv.mu.RUnlock()
+
+	if db == nil || primary == nil {
+		return 0
+	}
+
+	total := primary.Count() // aurago_memories
+	collections := db.ListCollections()
 
 	// Include secondary collections that were indexed at startup
 	for _, name := range []string{"tool_guides", "documentation"} {
-		col, err := cv.db.GetOrCreateCollection(name, nil, cv.embeddingFunc)
-		if err == nil {
+		if col, ok := collections[name]; ok && col != nil {
 			total += col.Count()
+		} else if logger != nil {
+			logger.Debug("Expected VectorDB collection missing during count", "collection", name)
 		}
 	}
 
@@ -231,9 +241,10 @@ func (cv *ChromemVectorDB) Count() int {
 	cv.fiColMu.RUnlock()
 
 	for _, name := range fiCollections {
-		col, err := cv.db.GetOrCreateCollection(name, nil, cv.embeddingFunc)
-		if err == nil {
+		if col, ok := collections[name]; ok && col != nil {
 			total += col.Count()
+		} else if logger != nil {
+			logger.Debug("Expected VectorDB collection missing during count", "collection", name)
 		}
 	}
 
@@ -504,12 +515,12 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 	mu := cv.getConceptMutex(concept)
 	mu.Lock()
 	if docID, sim := cv.searchTopSimilarMemory(concept); sim > 0.95 {
-		mu.Unlock()
-		cv.logger.Debug("Skipping duplicate concept (similarity > 0.95)", "concept", concept, "similarity", sim, "doc_id", docID)
 		if docID != "" {
+			mu.Unlock()
+			cv.logger.Debug("Skipping duplicate concept (similarity > 0.95)", "concept", concept, "similarity", sim, "doc_id", docID)
 			return []string{docID}, nil
 		}
-		return nil, nil
+		cv.logger.Warn("Duplicate search returned high similarity without doc ID; storing new document", "concept", concept, "similarity", sim)
 	}
 	defer mu.Unlock()
 	return cv.storeDocumentLocked(concept, content, domain)
@@ -797,6 +808,12 @@ func (cv *ChromemVectorDB) StoreDocumentWithEmbeddingInCollection(concept, conte
 // StoreCheatsheet again for the same ID will replace the existing document.
 // The cheatsheet is stored with cs_type="cheatsheet" metadata for filtering.
 func (cv *ChromemVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error {
+	doneStore, err := cv.beginTrackedOperation(&cv.storeWg)
+	if err != nil {
+		return err
+	}
+	defer doneStore()
+
 	if err := cv.requireReadyForStore(); err != nil {
 		return err
 	}
@@ -813,7 +830,7 @@ func (cv *ChromemVectorDB) StoreCheatsheet(id, name, content string, attachments
 	// First delete any existing cheatsheet docs with this ID (upsert semantics)
 	if err := cv.collection.Delete(ctx, map[string]string{"cs_type": "cheatsheet", "cs_id": id}, nil); err != nil {
 		cv.logger.Warn("Failed to delete existing cheatsheet docs before store", "cs_id", id, "error", err)
-		// Continue anyway - we'll just add without deleting first
+		return fmt.Errorf("delete existing cheatsheet docs %s: %w", id, err)
 	}
 
 	fullContent := buildContentString(name, content)
@@ -1029,9 +1046,12 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 					var ids []string
 					var err error
 					if docID, sim := cv.searchTopSimilarMemory(item.Concept); sim > 0.95 {
-						cv.logger.Debug("StoreBatch: skipping duplicate concept", "concept", item.Concept, "similarity", sim, "doc_id", docID)
 						if docID != "" {
+							cv.logger.Debug("StoreBatch: skipping duplicate concept", "concept", item.Concept, "similarity", sim, "doc_id", docID)
 							ids = []string{docID}
+						} else {
+							cv.logger.Warn("StoreBatch: duplicate search returned high similarity without doc ID; storing new document", "concept", item.Concept, "similarity", sim)
+							ids, err = cv.storeDocumentLocked(item.Concept, item.Content, item.Domain)
 						}
 					} else {
 						ids, err = cv.storeDocumentLocked(item.Concept, item.Content, item.Domain)

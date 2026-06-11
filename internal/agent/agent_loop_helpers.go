@@ -1317,6 +1317,26 @@ func wantsDetailedMemory(query string) bool {
 	return false
 }
 
+func selectServedRAGMemories(ranked []rankedMemory, topK int, logger *slog.Logger) []rankedMemory {
+	if topK <= 0 || len(ranked) == 0 {
+		return nil
+	}
+	served := make([]rankedMemory, 0, topK)
+	for _, item := range ranked {
+		if !shouldServeRAGMemory(item.text) {
+			if logger != nil {
+				logger.Debug("[RAG] Dropped stale transient memory", "preview", Truncate(item.text, 80))
+			}
+			continue
+		}
+		served = append(served, item)
+		if len(served) >= topK {
+			break
+		}
+	}
+	return served
+}
+
 func trim422Messages(msgs []openai.ChatCompletionMessage) []openai.ChatCompletionMessage {
 	toolResponseIDs := make(map[string]bool, len(msgs))
 	for _, m := range msgs {

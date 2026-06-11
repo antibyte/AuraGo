@@ -16,10 +16,31 @@ type semanticEdgeIdentity struct {
 	relation string
 }
 
+type knowledgeGraphQueryer interface {
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+}
+
+func (kg *KnowledgeGraph) beginReadTx(operation string) (*sql.Tx, error) {
+	tx, err := kg.db.BeginTx(context.Background(), &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		if kg.logger != nil {
+			kg.logger.Warn(operation+": begin read transaction failed", "error", err)
+		}
+		return nil, err
+	}
+	return tx, nil
+}
+
 func (kg *KnowledgeGraph) Search(query string) string {
 	if query == "" {
 		return "[]"
 	}
+
+	tx, err := kg.beginReadTx("Search")
+	if err != nil {
+		return "[]"
+	}
+	defer tx.Rollback()
 
 	var matchedNodes []Node
 	var matchedEdges []Edge
@@ -29,7 +50,7 @@ func (kg *KnowledgeGraph) Search(query string) string {
 	ftsQuery := escapeFTS5(query)
 	escapedLike := strings.NewReplacer("%", `\%`, "_", `\_`).Replace(query)
 	likePattern := "%" + escapedLike + "%"
-	rows, err := kg.db.Query(`
+	rows, err := tx.Query(`
 		SELECT id, label, properties, protected FROM kg_nodes
 		WHERE rowid IN (SELECT rowid FROM kg_nodes_fts WHERE kg_nodes_fts MATCH ?)
 		UNION
@@ -40,24 +61,32 @@ func (kg *KnowledgeGraph) Search(query string) string {
 	if err != nil {
 		kg.logger.Warn("Search: node query failed", "error", err)
 	} else {
-		defer rows.Close()
 		for rows.Next() {
 			var n Node
 			var propsJSON string
 			var protected int
-			if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
-				n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "Search", n.ID, propsJSON, protected)
-				n.Protected = protected != 0
-				matchedNodes = append(matchedNodes, n)
-				matchedNodeIDs = append(matchedNodeIDs, n.ID)
+			if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+				rows.Close()
+				kg.logger.Warn("Search: scan node failed", "error", err)
+				return "[]"
 			}
+			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "Search", n.ID, propsJSON, protected)
+			n.Protected = protected != 0
+			matchedNodes = append(matchedNodes, n)
+			matchedNodeIDs = append(matchedNodeIDs, n.ID)
 		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			kg.logger.Warn("Search: iterate nodes failed", "error", err)
+			return "[]"
+		}
+		rows.Close()
 	}
 
 	escapedLikeEdge := strings.NewReplacer("%", `\%`, "_", `\_`).Replace(strings.ToLower(query))
 	likeQ := "%" + escapedLikeEdge + "%"
 	edgeFTSQuery := escapeFTS5(query)
-	edgeRows, err := kg.db.Query(`
+	edgeRows, err := tx.Query(`
 		SELECT source, target, relation, properties FROM kg_edges
 		WHERE id IN (SELECT rowid FROM kg_edges_fts WHERE kg_edges_fts MATCH ?)
 		UNION
@@ -68,28 +97,40 @@ func (kg *KnowledgeGraph) Search(query string) string {
 	if err != nil {
 		kg.logger.Warn("Search: edge query failed", "error", err)
 	} else {
-		defer edgeRows.Close()
 		for edgeRows.Next() {
 			var e Edge
 			var propsJSON string
-			if err := edgeRows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON); err == nil {
-				if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
-					kg.logger.Warn("Search: corrupt edge properties JSON", "source", e.Source, "target", e.Target, "error", err)
-				}
-				if e.Properties == nil {
-					e.Properties = make(map[string]string)
-				}
-				matchedEdges = append(matchedEdges, e)
-				matchedEdgeHits = append(matchedEdgeHits, knowledgeGraphAccessHit{
-					source:   e.Source,
-					target:   e.Target,
-					relation: e.Relation,
-				})
+			if err := edgeRows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON); err != nil {
+				edgeRows.Close()
+				kg.logger.Warn("Search: scan edge failed", "error", err)
+				return "[]"
 			}
+			if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
+				kg.logger.Warn("Search: corrupt edge properties JSON", "source", e.Source, "target", e.Target, "error", err)
+			}
+			if e.Properties == nil {
+				e.Properties = make(map[string]string)
+			}
+			matchedEdges = append(matchedEdges, e)
+			matchedEdgeHits = append(matchedEdgeHits, knowledgeGraphAccessHit{
+				source:   e.Source,
+				target:   e.Target,
+				relation: e.Relation,
+			})
 		}
+		if err := edgeRows.Err(); err != nil {
+			edgeRows.Close()
+			kg.logger.Warn("Search: iterate edges failed", "error", err)
+			return "[]"
+		}
+		edgeRows.Close()
 	}
 
 	if len(matchedNodes) == 0 && len(matchedEdges) == 0 {
+		return "[]"
+	}
+	if err := tx.Commit(); err != nil {
+		kg.logger.Warn("Search: commit read transaction failed", "error", err)
 		return "[]"
 	}
 
@@ -114,36 +155,69 @@ func (kg *KnowledgeGraph) GetNeighbors(nodeID string, limit int) ([]Node, []Edge
 		limit = 20
 	}
 
+	tx, err := kg.beginReadTx("GetNeighbors")
+	if err != nil {
+		return nil, nil
+	}
+	defer tx.Rollback()
+
+	nodes, edges, accessHits, err := kg.getNeighborsWithQueryer(tx, nodeID, limit)
+	if err != nil {
+		kg.logger.Warn("GetNeighbors: read failed", "node_id", nodeID, "error", err)
+		return nil, nil
+	}
+	if err := tx.Commit(); err != nil {
+		kg.logger.Warn("GetNeighbors: commit read transaction failed", "node_id", nodeID, "error", err)
+		return nil, nil
+	}
+	for _, hit := range accessHits {
+		kg.enqueueAccessHit(hit)
+	}
+
+	return nodes, edges
+}
+
+func (kg *KnowledgeGraph) getNeighborsWithQueryer(q knowledgeGraphQueryer, nodeID string, limit int) ([]Node, []Edge, []knowledgeGraphAccessHit, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+
 	var edges []Edge
-	rows, err := kg.db.Query(`
+	rows, err := q.Query(`
 		SELECT source, target, relation, properties FROM kg_edges
 		WHERE source = ? OR target = ?
 		LIMIT ?
 	`, nodeID, nodeID, limit)
 	if err != nil {
-		return nil, nil
+		return nil, nil, nil, err
 	}
 	defer rows.Close()
 
 	neighborIDs := make(map[string]bool)
+	accessHits := []knowledgeGraphAccessHit{{nodeID: nodeID}}
 	for rows.Next() {
 		var e Edge
 		var propsJSON string
-		if err := rows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON); err == nil {
-			if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
-				kg.logger.Warn("GetNeighbors: corrupt edge properties JSON", "source", e.Source, "target", e.Target, "error", err)
-			}
-			if e.Properties == nil {
-				e.Properties = make(map[string]string)
-			}
-			edges = append(edges, e)
-			if e.Source != nodeID {
-				neighborIDs[e.Source] = true
-			}
-			if e.Target != nodeID {
-				neighborIDs[e.Target] = true
-			}
+		if err := rows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON); err != nil {
+			return nil, nil, nil, fmt.Errorf("scan neighbor edge: %w", err)
 		}
+		if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
+			kg.logger.Warn("GetNeighbors: corrupt edge properties JSON", "source", e.Source, "target", e.Target, "error", err)
+		}
+		if e.Properties == nil {
+			e.Properties = make(map[string]string)
+		}
+		edges = append(edges, e)
+		accessHits = append(accessHits, knowledgeGraphAccessHit{source: e.Source, target: e.Target, relation: e.Relation})
+		if e.Source != nodeID {
+			neighborIDs[e.Source] = true
+		}
+		if e.Target != nodeID {
+			neighborIDs[e.Target] = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, nil, fmt.Errorf("iterate neighbor edges: %w", err)
 	}
 
 	var nodes []Node
@@ -156,30 +230,29 @@ func (kg *KnowledgeGraph) GetNeighbors(nodeID string, limit int) ([]Node, []Edge
 		}
 
 		query := "SELECT id, label, properties, protected FROM kg_nodes WHERE id IN (" + strings.Join(placeholders, ",") + ")"
-		rows, err := kg.db.Query(query, ids...)
+		rows, err := q.Query(query, ids...)
 		if err == nil {
 			defer rows.Close()
 			for rows.Next() {
 				var n Node
 				var propsJSON string
 				var protected int
-				if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
-					n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetNeighbors", n.ID, propsJSON, protected)
-					n.Protected = protected != 0
-					nodes = append(nodes, n)
+				if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+					return nil, nil, nil, fmt.Errorf("scan neighbor node: %w", err)
 				}
+				n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetNeighbors", n.ID, propsJSON, protected)
+				n.Protected = protected != 0
+				nodes = append(nodes, n)
+			}
+			if err := rows.Err(); err != nil {
+				return nil, nil, nil, fmt.Errorf("iterate neighbor nodes: %w", err)
 			}
 		} else {
-			kg.logger.Warn("GetNeighbors: batch node query failed", "error", err)
+			return nil, nil, nil, fmt.Errorf("query neighbor nodes: %w", err)
 		}
 	}
 
-	kg.enqueueAccessHit(knowledgeGraphAccessHit{nodeID: nodeID})
-	for _, e := range edges {
-		kg.enqueueAccessHit(knowledgeGraphAccessHit{source: e.Source, target: e.Target, relation: e.Relation})
-	}
-
-	return nodes, edges
+	return nodes, edges, accessHits, nil
 }
 
 func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars int) string {
@@ -202,8 +275,14 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 		hits[id] += score * 0.25
 	}
 
+	tx, err := kg.beginReadTx("SearchForContext")
+	if err != nil {
+		return ""
+	}
+	defer tx.Rollback()
+
 	ftsQuery := escapeFTS5(query)
-	rows, err := kg.db.Query(`
+	rows, err := tx.Query(`
 		SELECT n.id, n.access_count FROM kg_nodes_fts f
 		JOIN kg_nodes n ON n.rowid = f.rowid
 		WHERE kg_nodes_fts MATCH ?
@@ -215,31 +294,39 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 	if err != nil {
 		kg.logger.Warn("SearchForContext: FTS5 query failed", "error", err)
 	} else {
-		defer rows.Close()
 		for rows.Next() {
 			var id string
 			var ac sql.NullInt64
-			if rows.Scan(&id, &ac) == nil {
-				ftsScore := float32(0.4) - (float32(count) * 0.05)
-				if ftsScore < 0.1 {
-					ftsScore = 0.1
-				}
-				accessBoost := float32(0)
-				if ac.Valid && ac.Int64 > 0 {
-					accessBoost = float32(ac.Int64) / 100.0
-					if accessBoost > 0.1 {
-						accessBoost = 0.1
-					}
-				}
-				hits[id] += ftsScore + accessBoost
-				count++
+			if err := rows.Scan(&id, &ac); err != nil {
+				rows.Close()
+				kg.logger.Warn("SearchForContext: scan FTS hit failed", "error", err)
+				return ""
 			}
+			ftsScore := float32(0.4) - (float32(count) * 0.05)
+			if ftsScore < 0.1 {
+				ftsScore = 0.1
+			}
+			accessBoost := float32(0)
+			if ac.Valid && ac.Int64 > 0 {
+				accessBoost = float32(ac.Int64) / 100.0
+				if accessBoost > 0.1 {
+					accessBoost = 0.1
+				}
+			}
+			hits[id] += ftsScore + accessBoost
+			count++
 		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			kg.logger.Warn("SearchForContext: iterate FTS hits failed", "error", err)
+			return ""
+		}
+		rows.Close()
 	}
 
 	if count == 0 {
 		likeQ := "%" + dbutil.EscapeLike(query) + "%"
-		likeRows, err := kg.db.Query(`
+		likeRows, err := tx.Query(`
 			SELECT id, access_count FROM kg_nodes
 			WHERE id LIKE ? OR label LIKE ? OR properties LIKE ?
 			ORDER BY updated_at DESC, access_count DESC
@@ -248,19 +335,27 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 		if err != nil {
 			kg.logger.Warn("SearchForContext: LIKE fallback query failed", "error", err)
 		} else {
-			defer likeRows.Close()
 			for likeRows.Next() {
 				var id string
 				var ac sql.NullInt64
-				if likeRows.Scan(&id, &ac) == nil {
-					likeScore := float32(0.3) - (float32(count) * 0.05)
-					if likeScore < 0.1 {
-						likeScore = 0.1
-					}
-					hits[id] += likeScore
-					count++
+				if err := likeRows.Scan(&id, &ac); err != nil {
+					likeRows.Close()
+					kg.logger.Warn("SearchForContext: scan LIKE hit failed", "error", err)
+					return ""
 				}
+				likeScore := float32(0.3) - (float32(count) * 0.05)
+				if likeScore < 0.1 {
+					likeScore = 0.1
+				}
+				hits[id] += likeScore
+				count++
 			}
+			if err := likeRows.Err(); err != nil {
+				likeRows.Close()
+				kg.logger.Warn("SearchForContext: iterate LIKE hits failed", "error", err)
+				return ""
+			}
+			likeRows.Close()
 		}
 	}
 
@@ -284,7 +379,15 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 		return ""
 	}
 
-	nodesByID, edgesByNodeID, accessHits := kg.loadSearchContextData(nodeIDs)
+	nodesByID, edgesByNodeID, accessHits, err := kg.loadSearchContextData(tx, nodeIDs)
+	if err != nil {
+		kg.logger.Warn("SearchForContext: load context data failed", "error", err)
+		return ""
+	}
+	if err := tx.Commit(); err != nil {
+		kg.logger.Warn("SearchForContext: commit read transaction failed", "error", err)
+		return ""
+	}
 
 	var sb strings.Builder
 	for _, nid := range nodeIDs {
@@ -322,12 +425,12 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 	return result
 }
 
-func (kg *KnowledgeGraph) loadSearchContextData(nodeIDs []string) (map[string]Node, map[string][]Edge, []knowledgeGraphAccessHit) {
+func (kg *KnowledgeGraph) loadSearchContextData(q knowledgeGraphQueryer, nodeIDs []string) (map[string]Node, map[string][]Edge, []knowledgeGraphAccessHit, error) {
 	nodesByID := make(map[string]Node, len(nodeIDs))
 	edgesByNodeID := make(map[string][]Edge, len(nodeIDs))
 	accessHits := make([]knowledgeGraphAccessHit, 0, len(nodeIDs)*6)
 	if len(nodeIDs) == 0 {
-		return nodesByID, edgesByNodeID, accessHits
+		return nodesByID, edgesByNodeID, accessHits, nil
 	}
 
 	placeholders := make([]string, len(nodeIDs))
@@ -339,31 +442,35 @@ func (kg *KnowledgeGraph) loadSearchContextData(nodeIDs []string) (map[string]No
 		nodeIDSet[nodeID] = struct{}{}
 	}
 
-	nodeRows, err := kg.db.Query(
+	nodeRows, err := q.Query(
 		fmt.Sprintf("SELECT id, label, properties, protected FROM kg_nodes WHERE id IN (%s)", strings.Join(placeholders, ",")),
 		nodeArgs...,
 	)
 	if err != nil {
-		kg.logger.Warn("SearchForContext: batch node query failed", "error", err)
+		return nodesByID, edgesByNodeID, accessHits, fmt.Errorf("batch node query: %w", err)
 	} else {
 		defer nodeRows.Close()
 		for nodeRows.Next() {
 			var node Node
 			var propsJSON string
 			var protected int
-			if nodeRows.Scan(&node.ID, &node.Label, &propsJSON, &protected) == nil {
-				node.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "SearchForContext", node.ID, propsJSON, protected)
-				node.Protected = protected != 0
-				nodesByID[node.ID] = node
-				accessHits = append(accessHits, knowledgeGraphAccessHit{nodeID: node.ID})
+			if err := nodeRows.Scan(&node.ID, &node.Label, &propsJSON, &protected); err != nil {
+				return nodesByID, edgesByNodeID, accessHits, fmt.Errorf("scan context node: %w", err)
 			}
+			node.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "SearchForContext", node.ID, propsJSON, protected)
+			node.Protected = protected != 0
+			nodesByID[node.ID] = node
+			accessHits = append(accessHits, knowledgeGraphAccessHit{nodeID: node.ID})
+		}
+		if err := nodeRows.Err(); err != nil {
+			return nodesByID, edgesByNodeID, accessHits, fmt.Errorf("iterate context nodes: %w", err)
 		}
 	}
 
 	edgeArgs := make([]interface{}, 0, len(nodeIDs)*2)
 	edgeArgs = append(edgeArgs, nodeArgs...)
 	edgeArgs = append(edgeArgs, nodeArgs...)
-	edgeRows, err := kg.db.Query(
+	edgeRows, err := q.Query(
 		fmt.Sprintf(`
 			SELECT source, target, relation
 			FROM kg_edges
@@ -373,16 +480,15 @@ func (kg *KnowledgeGraph) loadSearchContextData(nodeIDs []string) (map[string]No
 		edgeArgs...,
 	)
 	if err != nil {
-		kg.logger.Warn("SearchForContext: batch edge query failed", "error", err)
-		return nodesByID, edgesByNodeID, accessHits
+		return nodesByID, edgesByNodeID, accessHits, fmt.Errorf("batch edge query: %w", err)
 	}
 	defer edgeRows.Close()
 
 	edgeCounts := make(map[string]int, len(nodeIDs))
 	for edgeRows.Next() {
 		var edge Edge
-		if edgeRows.Scan(&edge.Source, &edge.Target, &edge.Relation) != nil {
-			continue
+		if err := edgeRows.Scan(&edge.Source, &edge.Target, &edge.Relation); err != nil {
+			return nodesByID, edgesByNodeID, accessHits, fmt.Errorf("scan context edge: %w", err)
 		}
 		recorded := false
 		for _, nodeID := range []string{edge.Source, edge.Target} {
@@ -399,8 +505,11 @@ func (kg *KnowledgeGraph) loadSearchContextData(nodeIDs []string) (map[string]No
 			})
 		}
 	}
+	if err := edgeRows.Err(); err != nil {
+		return nodesByID, edgesByNodeID, accessHits, fmt.Errorf("iterate context edges: %w", err)
+	}
 
-	return nodesByID, edgesByNodeID, accessHits
+	return nodesByID, edgesByNodeID, accessHits, nil
 }
 
 func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node, []Edge) {

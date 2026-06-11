@@ -584,28 +584,22 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					ranked = filtered
 				}
 
-				if len(ranked) > 3 {
-					ranked = ranked[:3]
-				}
+				servedRanked := selectServedRAGMemories(ranked, 3, s.currentLogger)
 				if shortTermMem != nil {
-					for _, r := range ranked {
+					for _, r := range servedRanked {
 						_ = shortTermMem.UpdateMemoryAccess(r.docID)
 						_ = shortTermMem.RecordMemoryUsage(r.docID, "ltm_retrieved", sessionID, r.score, false)
 					}
 				}
-				markMemoryDocIDsUsed(usedMemoryDocIDs, ranked)
+				markMemoryDocIDsUsed(usedMemoryDocIDs, servedRanked)
 				wantsDeepDetails := wantsDetailedMemory(lastUserMsg)
-				for _, r := range ranked {
-					if !shouldServeRAGMemory(r.text) {
-						s.currentLogger.Debug("[RAG] Dropped stale transient memory", "preview", Truncate(r.text, 80))
-						continue
-					}
+				for _, r := range servedRanked {
 					compactText := compactMemoryForPrompt(r.text, 260)
 					topMemories = append(topMemories, compactText)
 					turnMemoryCandidates[r.docID] = compactText
 				}
 				if wantsDeepDetails {
-					for i, r := range ranked {
+					for i, r := range servedRanked {
 						if i >= 2 {
 							break
 						}
@@ -625,7 +619,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				} else {
 					RecordRetrievalEventForScope(telemetryScope, "rag_auto_filtered_out")
 				}
-				s.currentLogger.Debug("[Sync] RAG: Retrieved memories (recency-boosted)", "count", len(ranked))
+				s.currentLogger.Debug("[Sync] RAG: Retrieved memories (recency-boosted)", "count", len(servedRanked), "candidates", len(ranked))
 			} else {
 				RecordRetrievalEventForScope(telemetryScope, "rag_auto_miss")
 			}

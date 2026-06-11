@@ -255,11 +255,11 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		{"index_fingerprint", "TEXT NOT NULL DEFAULT ''"},
 	}
 	for _, migration := range fileIndexMigrations {
-		var exists bool
-		if err := db.QueryRow("SELECT count(*)>0 FROM pragma_table_info('file_indices') WHERE name=?", migration.column).Scan(&exists); err == nil && !exists {
-			if _, execErr := db.Exec(fmt.Sprintf("ALTER TABLE file_indices ADD COLUMN %s %s", migration.column, migration.def)); execErr != nil {
-				logger.Warn("Failed to migrate file_indices", "column", migration.column, "error", execErr)
+		if err := migrateAddColumn(db, logger, "file_indices", migration.column, migration.def); err != nil {
+			if closeErr := db.Close(); closeErr != nil {
+				logger.Warn("Failed to close SQLite after file_indices migration error", "error", closeErr)
 			}
+			return nil, fmt.Errorf("file_indices migration %s: %w", migration.column, err)
 		}
 	}
 
@@ -277,7 +277,10 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	}
 
 	if err := applySQLiteMemoryMigrations(db, logger); err != nil {
-		logger.Warn("SQLite memory migrations reported warnings", "error", err)
+		if closeErr := db.Close(); closeErr != nil {
+			logger.Warn("Failed to close SQLite after migration error", "error", closeErr)
+		}
+		return nil, fmt.Errorf("sqlite memory migrations: %w", err)
 	}
 
 	logger.Info("Initialized SQLite Short-Term Memory", "path", dbPath)
@@ -390,7 +393,7 @@ func migrateFileIndexToCollectionAware(db *sql.DB, logger *slog.Logger) error {
 	}
 
 	if _, err := tx.Exec("CREATE INDEX IF NOT EXISTS idx_file_embedding_docs_path ON file_embedding_docs(file_path, collection)"); err != nil {
-		logger.Warn("Failed to create idx_file_embedding_docs_path", "error", err)
+		return fmt.Errorf("create idx_file_embedding_docs_path: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -440,6 +443,7 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "consolidation_status", "TEXT DEFAULT 'pending'"))
 	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_archived_messages_retry ON archived_messages(consolidation_status, next_retry_at)"); err != nil {
 		logger.Warn("Failed to create idx_archived_messages_retry", "error", err)
+		errs = append(errs, err)
 	}
 	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "consolidation_retries", "INTEGER DEFAULT 0"))
 	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "consolidation_last_error", "TEXT DEFAULT ''"))
@@ -448,14 +452,17 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 
 	// Reset stale in_progress rows back to pending (crash recovery from a previous
 	// consolidation run that was interrupted before completing).
-	if _, err := db.Exec("UPDATE archived_messages SET consolidation_status = 'pending' WHERE consolidated = 0 AND consolidation_status = 'in_progress'"); err != nil {
+	if err := execChunkedArchivedMessagesUpdate(db, "reset stale in_progress consolidation rows", "consolidation_status = 'pending'", "consolidated = 0 AND consolidation_status = 'in_progress'"); err != nil {
 		logger.Warn("Failed to reset stale in_progress consolidation rows", "error", err)
+		errs = append(errs, err)
 	}
-	if _, err := db.Exec("UPDATE archived_messages SET consolidation_status = 'pending' WHERE consolidated = 0 AND (consolidation_status IS NULL OR consolidation_status = '' OR consolidation_status NOT IN ('pending', 'failed', 'in_progress', 'done'))"); err != nil {
+	if err := execChunkedArchivedMessagesUpdate(db, "normalize consolidation_status pending rows", "consolidation_status = 'pending'", "consolidated = 0 AND (consolidation_status IS NULL OR consolidation_status = '' OR consolidation_status NOT IN ('pending', 'failed', 'in_progress', 'done'))"); err != nil {
 		logger.Warn("Failed to normalize consolidation_status pending rows", "error", err)
+		errs = append(errs, err)
 	}
-	if _, err := db.Exec("UPDATE archived_messages SET consolidation_status = 'done' WHERE consolidated = 1 AND (consolidation_status IS NULL OR consolidation_status = '' OR consolidation_status != 'done')"); err != nil {
+	if err := execChunkedArchivedMessagesUpdate(db, "normalize consolidation_status done rows", "consolidation_status = 'done'", "consolidated = 1 AND (consolidation_status IS NULL OR consolidation_status = '' OR consolidation_status != 'done')"); err != nil {
 		logger.Warn("Failed to normalize consolidation_status done rows", "error", err)
+		errs = append(errs, err)
 	}
 
 	errs = append(errs, migrateAddColumn(db, logger, "tool_transitions", "last_updated", "DATETIME DEFAULT ''"))
@@ -482,7 +489,40 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 	return joinedErr
 }
 
+func execChunkedArchivedMessagesUpdate(db *sql.DB, label, setClause, whereClause string, args ...interface{}) error {
+	const batchSize = 1000
+	for {
+		query := fmt.Sprintf(`
+			UPDATE archived_messages
+			SET %s
+			WHERE rowid IN (
+				SELECT rowid FROM archived_messages
+				WHERE %s
+				LIMIT ?
+			)`, setClause, whereClause)
+		execArgs := append([]interface{}{}, args...)
+		execArgs = append(execArgs, batchSize)
+		res, err := db.Exec(query, execArgs...)
+		if err != nil {
+			return fmt.Errorf("%s: %w", label, err)
+		}
+		affected, err := res.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("%s rows affected: %w", label, err)
+		}
+		if affected < batchSize {
+			return nil
+		}
+	}
+}
+
 func migrateAddColumn(db *sql.DB, logger *slog.Logger, table, column, definition string) error {
+	if !validIdentifier(table) {
+		return fmt.Errorf("invalid table identifier %q", table)
+	}
+	if !validIdentifier(column) {
+		return fmt.Errorf("invalid column identifier %q", column)
+	}
 	query := fmt.Sprintf("SELECT count(*) > 0 FROM pragma_table_info('%s') WHERE name=?", table)
 	var hasColumn bool
 	if err := db.QueryRow(query, column).Scan(&hasColumn); err != nil {
@@ -494,7 +534,7 @@ func migrateAddColumn(db *sql.DB, logger *slog.Logger, table, column, definition
 		return nil
 	}
 	logger.Info("Migrating SQLite: adding column", "table", table, "column", column)
-	stmt := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, column, definition)
+	stmt := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", quoteIdentifier(table), quoteIdentifier(column), definition)
 	if _, err := db.Exec(stmt); err != nil {
 		logger.Error("Failed to add column", "table", table, "column", column, "error", err)
 		return fmt.Errorf("add column %s.%s: %w", table, column, err)

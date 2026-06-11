@@ -106,6 +106,27 @@ func TestCompactMemoryForPromptPreservesUTF8WhenTruncating(t *testing.T) {
 	}
 }
 
+func TestSelectServedRAGMemoriesBackfillsAfterServeFilter(t *testing.T) {
+	ranked := []rankedMemory{
+		{text: "[tool_availability] old transient claim", docID: "stale-1", score: 0.99},
+		{text: "servable memory one", docID: "good-1", score: 0.80},
+		{text: "This tool is not available in the current installation", docID: "stale-2", score: 0.79},
+		{text: "servable memory two", docID: "good-2", score: 0.78},
+		{text: "servable memory three", docID: "good-3", score: 0.77},
+	}
+
+	served := selectServedRAGMemories(ranked, 3, nil)
+	if len(served) != 3 {
+		t.Fatalf("served count = %d, want 3", len(served))
+	}
+	wantIDs := []string{"good-1", "good-2", "good-3"}
+	for i, want := range wantIDs {
+		if served[i].docID != want {
+			t.Fatalf("served[%d] docID = %q, want %q (served=%+v)", i, served[i].docID, want, served)
+		}
+	}
+}
+
 func TestCountMemoryPromptTelemetryTokensIncludesAllMemorySections(t *testing.T) {
 	flags := prompts.ContextFlags{
 		RetrievedMemories:   "[Recent Day Anchors]\n- 2026-06-11: deployment",

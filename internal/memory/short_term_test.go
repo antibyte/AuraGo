@@ -3,6 +3,7 @@ package memory
 import (
 	"log/slog"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -128,5 +129,40 @@ func TestGetHoursSincePreviousUserMessageSingleUserMessage(t *testing.T) {
 	}
 	if hours != 0 {
 		t.Fatalf("hours since previous user message = %.2f, want 0 for single message", hours)
+	}
+}
+
+func TestInsertMessageReturnsZeroOnInsertError(t *testing.T) {
+	stm := newInMemorySQLiteMemory(t)
+	if _, err := stm.db.Exec(`DROP TABLE messages`); err != nil {
+		t.Fatalf("drop messages: %v", err)
+	}
+
+	id, err := stm.InsertMessage("session-a", "user", "will fail", false, false)
+	if err == nil {
+		t.Fatal("InsertMessage error = nil, want insert error")
+	}
+	if id != 0 {
+		t.Fatalf("InsertMessage id = %d, want 0 on error", id)
+	}
+}
+
+func TestLoadToolUsageAdaptiveReturnsScanError(t *testing.T) {
+	stm := newInMemorySQLiteMemory(t)
+	if _, err := stm.db.Exec(`
+		INSERT INTO tool_usage_adaptive (tool_name, total_count, success_count, last_used)
+		VALUES (NULL, 1, 1, CURRENT_TIMESTAMP)`); err != nil {
+		t.Fatalf("insert corrupt tool usage: %v", err)
+	}
+
+	entries, err := stm.LoadToolUsageAdaptive()
+	if err == nil {
+		t.Fatal("LoadToolUsageAdaptive error = nil, want scan error")
+	}
+	if entries != nil {
+		t.Fatalf("LoadToolUsageAdaptive entries = %+v, want nil on scan error", entries)
+	}
+	if !strings.Contains(err.Error(), "scan tool usage") {
+		t.Fatalf("LoadToolUsageAdaptive error = %v, want scan context", err)
 	}
 }
