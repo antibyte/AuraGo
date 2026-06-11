@@ -340,9 +340,9 @@ type MemoryBudgetStats struct {
 
 // EnforceMemoryBudget returns doc IDs that should be evicted to stay within budget.
 // It respects keep_forever and protected flags, and prioritizes eviction by:
-// 1. Stale unverified memories (oldest first)
-// 2. Low effectiveness memories
-// 3. Low access count memories
+// 1. Low effectiveness memories
+// 2. Unverified low-access memories
+// 3. Oldest low-access memories
 // Returns the IDs to evict, or empty slice if within budget.
 func (s *SQLiteMemory) EnforceMemoryBudget(budget int) ([]string, error) {
 	if budget <= 0 {
@@ -350,7 +350,10 @@ func (s *SQLiteMemory) EnforceMemoryBudget(budget int) ([]string, error) {
 	}
 
 	var total int
-	if err := s.db.QueryRow("SELECT COUNT(*) FROM memory_meta").Scan(&total); err != nil {
+	if err := s.db.QueryRow(`
+		SELECT COUNT(*) FROM memory_meta
+		WHERE COALESCE(verification_status, 'unverified') != ?
+	`, MemoryVerificationArchived).Scan(&total); err != nil {
 		return nil, fmt.Errorf("count memory_meta: %w", err)
 	}
 
@@ -362,13 +365,14 @@ func (s *SQLiteMemory) EnforceMemoryBudget(budget int) ([]string, error) {
 	rows, err := s.db.Query(`
 		SELECT doc_id FROM memory_meta
 		WHERE keep_forever = 0 AND protected = 0
+		  AND COALESCE(verification_status, 'unverified') NOT IN (?, ?)
 		ORDER BY
-			CASE WHEN verification_status = 'contradicted' THEN 0 ELSE 1 END,
+			CASE WHEN useful_count + useless_count >= 3 AND useless_count >= useful_count + 2 THEN 0 ELSE 1 END,
 			CASE WHEN verification_status = 'unverified' THEN 0 ELSE 1 END,
 			access_count ASC,
 			last_accessed ASC
 		LIMIT ?
-	`, overBy)
+	`, MemoryVerificationArchived, MemoryVerificationContradicted, overBy)
 	if err != nil {
 		return nil, fmt.Errorf("query eviction candidates: %w", err)
 	}
@@ -426,9 +430,10 @@ func (s *SQLiteMemory) GetMemoryBudgetStats(budget int) (MemoryBudgetStats, erro
 			COUNT(*),
 			COALESCE(SUM(CASE WHEN keep_forever != 0 THEN 1 ELSE 0 END), 0),
 			COALESCE(SUM(CASE WHEN protected != 0 THEN 1 ELSE 0 END), 0),
-			COALESCE(SUM(CASE WHEN keep_forever = 0 AND protected = 0 THEN 1 ELSE 0 END), 0)
+			COALESCE(SUM(CASE WHEN keep_forever = 0 AND protected = 0 AND COALESCE(verification_status, 'unverified') != ? THEN 1 ELSE 0 END), 0)
 		FROM memory_meta
-	`).Scan(&stats.TotalTracked, &stats.KeepForever, &stats.Protected, &stats.Evictable)
+		WHERE COALESCE(verification_status, 'unverified') != ?
+	`, MemoryVerificationContradicted, MemoryVerificationArchived).Scan(&stats.TotalTracked, &stats.KeepForever, &stats.Protected, &stats.Evictable)
 	if err != nil {
 		return stats, fmt.Errorf("memory budget stats: %w", err)
 	}

@@ -144,4 +144,54 @@ func TestApplyMemoryBudgetEnforcementDeletesFromLTM(t *testing.T) {
 	if len(ltm.deleted) != 1 {
 		t.Fatalf("deleted docs = %v, want 1", ltm.deleted)
 	}
+
+	stats, err := stm.GetMemoryBudgetStats(2)
+	if err != nil {
+		t.Fatalf("GetMemoryBudgetStats: %v", err)
+	}
+	if stats.OverBudget {
+		t.Fatalf("OverBudget = true after enforcement, stats = %+v", stats)
+	}
+	toEvict, err := stm.EnforceMemoryBudget(2)
+	if err != nil {
+		t.Fatalf("EnforceMemoryBudget after enforcement: %v", err)
+	}
+	if len(toEvict) != 0 {
+		t.Fatalf("toEvict after enforcement = %v, want none", toEvict)
+	}
+}
+
+func TestEnforceMemoryBudgetDoesNotEvictContradictedReviewRows(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	if err := stm.UpsertMemoryMetaWithDetails("doc-review", MemoryMetaUpdate{
+		VerificationStatus: "contradicted",
+	}); err != nil {
+		t.Fatalf("UpsertMemoryMetaWithDetails review: %v", err)
+	}
+	if err := stm.UpsertMemoryMetaWithDetails("doc-low", MemoryMetaUpdate{
+		VerificationStatus: "unverified",
+	}); err != nil {
+		t.Fatalf("UpsertMemoryMetaWithDetails low: %v", err)
+	}
+
+	toEvict, err := stm.EnforceMemoryBudget(1)
+	if err != nil {
+		t.Fatalf("EnforceMemoryBudget: %v", err)
+	}
+	if len(toEvict) != 1 || toEvict[0] != "doc-low" {
+		t.Fatalf("toEvict = %v, want [doc-low]", toEvict)
+	}
+	stats, err := stm.GetMemoryBudgetStats(1)
+	if err != nil {
+		t.Fatalf("GetMemoryBudgetStats: %v", err)
+	}
+	if stats.Evictable != 1 {
+		t.Fatalf("Evictable = %d, want 1", stats.Evictable)
+	}
 }

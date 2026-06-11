@@ -1057,6 +1057,14 @@ func runNightlyMemoryMaintenance(cfg *config.Config, logger *slog.Logger, client
 			logger.Warn("[Maintenance] Memory meta budget enforcement failed", "error", err, "budget", cfg.Consolidation.MemoryMetaBudget)
 		} else if evicted > 0 {
 			logger.Info("[Maintenance] Memory meta budget enforced", "evicted", evicted, "budget", cfg.Consolidation.MemoryMetaBudget)
+			InvalidateMemoryMetaCache()
+			refreshed, refreshErr := stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
+			if refreshErr != nil {
+				logger.Warn("[Maintenance] Failed to refresh memory metadata after budget enforcement", "error", refreshErr)
+				metas = nil
+			} else {
+				metas = refreshed
+			}
 		}
 	}
 	if cfg != nil && cfg.Consolidation.AutoOptimize && totalStored > 0 {
