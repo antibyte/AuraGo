@@ -19,6 +19,7 @@ All prioritized database audit items (P0, P1, P2) are implemented, tested, and p
 | P0       | `2ff376370` | Complete SQLite backup list; deprecate `long_term_path`; shared `config.SQLiteDatabasePaths()` |
 | P1       | `1cccfd880` | Persistent `system_tasks` connection; `dbutil` integrity fail-closed; unify opens via `dbutil.Open` |
 | P2       | `b5e1122ec` | Server shutdown DB close; inventory indexes (schema v4); remove dead TrueNAS registry |
+| Follow-up | `ad7476d62` | `system_tasks` shutdown/test cleanup; audit manifest + appendix doc fixes |
 
 ---
 
@@ -59,6 +60,14 @@ All prioritized database audit items (P0, P1, P2) are implemented, tested, and p
 - `internal/dbutil/open_test.go`
 - `internal/tools/system_tasks_store_test.go`
 - Existing cron/background_tasks/mission_history/desktop tests pass.
+
+### Follow-up (`ad7476d62`)
+Post-audit review found incomplete shutdown/test hygiene after the persistent-connection change:
+- Ref-counted pool for `system_tasks.db` (cron + background share one handle per `dataDir`).
+- `CronManager.Close()` / `BackgroundTasks.Close()` on shutdown in server, main, agent, lifeboat.
+- `TestMain` pool cleanup in `internal/tools` for Windows file-lock safety.
+- Audit manifest: `truenas-registry` replaced with `system-tasks`.
+- Appendix EN/DE: LTM documented as `vectordb/`, not `long_term.db`.
 
 ---
 
@@ -107,11 +116,11 @@ All prioritized database audit items (P0, P1, P2) are implemented, tested, and p
 1. **Backup/restore:** Expect all SQLite files under `data/` listed in `documentation/configuration.md` sqlite section.
 2. **LTM migration:** New installs use `data/vectordb/`; legacy `long_term.db` is optional legacy artifact only.
 3. **Inventory:** Existing DBs auto-gain indexes on next startup (`InitDB`).
-4. **Shutdown:** Server-owned DB handles close cleanly before process exit (WAL checkpoint friendly).
+4. **Shutdown:** Server-owned DB handles and task stores (`system_tasks.db`) close cleanly before process exit (WAL checkpoint friendly).
 
 ---
 
 ## Status
 
-**Audit remediation: COMPLETE (P0–P2)**  
-Branch `main` synced with `origin/main` as of 2026-06-10.
+**Audit remediation: COMPLETE (P0–P2 + follow-up)**  
+Branch `main` synced with `origin/main` as of 2026-06-11.
