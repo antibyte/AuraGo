@@ -1554,6 +1554,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// during a long-running agent run).
 		broker.Send("done", i18n.T(cfg.Server.UILanguage, "backend.stream_done"))
 
+		EnforceSTMPRetentionIfConfigured(cfg, shortTermMem, sessionID, s.currentLogger)
+
 		memAnalysis := resolveMemoryAnalysisSettings(cfg, shortTermMem)
 		runTurnSideEffects := shouldRunTurnSideEffects(runCfg, sessionID, flags)
 		useBatchedTurnHelper := helperManager != nil && memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && shortTermMem != nil && runTurnSideEffects

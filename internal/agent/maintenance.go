@@ -93,6 +93,8 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	logger.Info("[Maintenance] Waking up to perform daily tasks")
 	retention := resolveMaintenanceRetention(cfg)
 
+	RunSTMPRetentionMaintenance(cfg, logger, shortTermMem)
+
 	// Phase A5: Clean up old interaction patterns
 	if shortTermMem != nil {
 		deleted, err := shortTermMem.CleanOldPatterns(retention.PatternsDays)

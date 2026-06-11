@@ -306,20 +306,30 @@ func (s *SQLiteMemory) querySessionMessages(sessionID string, includeInternal bo
 	return messages, rows.Err()
 }
 
-// ClearSession removes all messages for a specific session but keeps the session metadata.
+// ClearSession archives consolidatable messages, removes all session messages, and keeps session metadata.
 func (s *SQLiteMemory) ClearSession(sessionID string) error {
-	_, err := s.db.Exec(`DELETE FROM messages WHERE session_id = ?`, sessionID)
+	tx, err := s.db.Begin()
 	if err != nil {
-		return fmt.Errorf("failed to clear session messages: %w", err)
+		return fmt.Errorf("failed to begin clear session transaction: %w", err)
 	}
-	// Reset preview and count
-	_, err = s.db.Exec(
-		`UPDATE chat_sessions SET preview = '', message_count = 0 WHERE id = ?`, sessionID,
-	)
+	defer tx.Rollback()
+
+	archived, err := s.archiveMessagesInTx(tx, sessionID, "")
 	if err != nil {
+		return err
+	}
+	if _, err := s.deleteMessagesInTx(tx, sessionID, ""); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(
+		`UPDATE chat_sessions SET preview = '', message_count = 0 WHERE id = ?`, sessionID,
+	); err != nil {
 		return fmt.Errorf("failed to reset session metadata: %w", err)
 	}
-	s.logger.Info("Cleared session messages", "session_id", sessionID)
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit clear session transaction: %w", err)
+	}
+	s.logger.Info("Cleared session messages", "session_id", sessionID, "archived", archived)
 	return nil
 }
 
@@ -339,17 +349,11 @@ func (s *SQLiteMemory) archiveAndDeleteChatSession(sessionID string) error {
 	}
 	defer tx.Rollback()
 
-	archiveQuery := `
-	INSERT INTO archived_messages (session_id, role, content, original_timestamp)
-	SELECT session_id, role, content, timestamp
-	FROM messages
-	WHERE session_id = ? AND role IN ('user', 'assistant', 'tool')
-	ORDER BY timestamp ASC, id ASC`
-	if _, err := tx.Exec(archiveQuery, sessionID); err != nil {
-		return fmt.Errorf("failed to archive session messages: %w", err)
+	if _, err := s.archiveMessagesInTx(tx, sessionID, ""); err != nil {
+		return err
 	}
-	if _, err := tx.Exec(`DELETE FROM messages WHERE session_id = ?`, sessionID); err != nil {
-		return fmt.Errorf("failed to delete session messages: %w", err)
+	if _, err := s.deleteMessagesInTx(tx, sessionID, ""); err != nil {
+		return err
 	}
 	if _, err := tx.Exec(`DELETE FROM chat_sessions WHERE id = ?`, sessionID); err != nil {
 		return fmt.Errorf("failed to delete chat session: %w", err)

@@ -820,8 +820,9 @@ type Config struct {
 		ArchiveRetainDays int    `yaml:"archive_retain_days"` // keep archived messages for N days (default 30)
 		MaxBatchMessages  int    `yaml:"max_batch_messages"`  // max messages per consolidation batch (default 200)
 		OptimizeThreshold int    `yaml:"optimize_threshold"`  // priority threshold for auto-optimize (default 1)
-		ChatSessionLimit  int    `yaml:"chat_session_limit"`  // max chat sessions retained before archival rotation (default 10)
-		Model             string `yaml:"model"`               // optional model override for nightly consolidation (empty = main llm model)
+		ChatSessionLimit      int `yaml:"chat_session_limit"`       // max chat sessions retained before archival rotation (default 10)
+		StmRetentionMessages int `yaml:"stm_retention_messages"`    // max STM rows per session before archive+trim (default 500, 0 = disabled)
+		Model                 string `yaml:"model"`                   // optional model override for nightly consolidation (empty = main llm model)
 	} `yaml:"consolidation"`
 	MemoryAnalysis struct {
 		Enabled               bool    `yaml:"enabled"`                 // deprecated compatibility flag; memory analysis is now adaptive and always active

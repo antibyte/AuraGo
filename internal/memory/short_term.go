@@ -282,31 +282,20 @@ func (s *SQLiteMemory) DeleteOldMessages(sessionID string, keepN int) error {
 	}
 	defer tx.Rollback()
 
-	// Archive before deleting (exclude pinned messages — they must never be archived)
-	archiveQuery := `
-	INSERT INTO archived_messages (session_id, role, content, original_timestamp)
-	SELECT session_id, role, content, timestamp
-	FROM messages
-	WHERE session_id = ? AND id < ? AND role IN ('user', 'assistant', 'tool') AND is_pinned = 0
-	ORDER BY timestamp ASC, id ASC`
-	archRes, err := tx.Exec(archiveQuery, sessionID, oldestKeepID)
+	archived, err := s.archiveMessagesInTx(tx, sessionID, "AND id < ? AND is_pinned = 0", oldestKeepID)
 	if err != nil {
-		return fmt.Errorf("failed to archive old messages: %w", err)
+		return err
 	}
-	archived, _ := archRes.RowsAffected()
 
-	// Delete everything older than the cutoff, but never delete pinned messages
-	delQuery := `DELETE FROM messages WHERE session_id = ? AND id < ? AND is_pinned = 0`
-	res, err := tx.Exec(delQuery, sessionID, oldestKeepID)
+	rows, err := s.deleteMessagesInTx(tx, sessionID, "AND id < ? AND is_pinned = 0", oldestKeepID)
 	if err != nil {
-		return fmt.Errorf("failed to delete old messages: %w", err)
+		return err
 	}
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit cleanup transaction: %w", err)
 	}
 
-	rows, _ := res.RowsAffected()
 	s.logger.Info("Cleaned up SQLite short-term memory", "session_id", sessionID, "deleted_rows", rows, "archived", archived)
 	return nil
 }
@@ -568,35 +557,58 @@ func (s *SQLiteMemory) DeleteMessagesByID(sessionID string, ids []int64) error {
 		return nil
 	}
 
-	// Build parameterized placeholders: "?, ?, ?"
 	placeholders := make([]string, len(ids))
-	args := make([]interface{}, 0, len(ids)+1)
-	args = append(args, sessionID)
+	idArgs := make([]interface{}, len(ids))
 	for i, id := range ids {
 		placeholders[i] = "?"
-		args = append(args, id)
+		idArgs[i] = id
+	}
+	inClause := strings.Join(placeholders, ",")
+	extraWhere := fmt.Sprintf("AND id IN (%s) AND is_pinned = 0", inClause)
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin delete-by-id transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	archived, err := s.archiveMessagesInTx(tx, sessionID, extraWhere, idArgs...)
+	if err != nil {
+		return err
+	}
+	rows, err := s.deleteMessagesInTx(tx, sessionID, extraWhere, idArgs...)
+	if err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit delete-by-id transaction: %w", err)
 	}
 
-	query := fmt.Sprintf("DELETE FROM messages WHERE session_id = ? AND id IN (%s)", strings.Join(placeholders, ","))
-	res, err := s.db.Exec(query, args...)
-	if err != nil {
-		return fmt.Errorf("failed to delete messages by ID: %w", err)
-	}
-	rows, _ := res.RowsAffected()
-	s.logger.Info("Deleted specific messages from SQLite", "session_id", sessionID, "deleted_rows", rows)
+	s.logger.Info("Deleted specific messages from SQLite", "session_id", sessionID, "deleted_rows", rows, "archived", archived)
 	return nil
 }
 
-// Clear removes all messages for a given session.
+// Clear archives consolidatable messages, then removes all messages for a given session.
 func (s *SQLiteMemory) Clear(sessionID string) error {
-	delQuery := `DELETE FROM messages WHERE session_id = ?`
-	res, err := s.db.Exec(delQuery, sessionID)
+	tx, err := s.db.Begin()
 	if err != nil {
-		return fmt.Errorf("failed to clear messages: %w", err)
+		return fmt.Errorf("failed to begin clear transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	archived, err := s.archiveMessagesInTx(tx, sessionID, "")
+	if err != nil {
+		return err
+	}
+	rows, err := s.deleteMessagesInTx(tx, sessionID, "")
+	if err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit clear transaction: %w", err)
 	}
 
-	rows, _ := res.RowsAffected()
-	s.logger.Info("Cleared SQLite short-term memory", "session_id", sessionID, "deleted_rows", rows)
+	s.logger.Info("Cleared SQLite short-term memory", "session_id", sessionID, "deleted_rows", rows, "archived", archived)
 	return nil
 }
 

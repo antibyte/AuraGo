@@ -363,6 +363,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			// Update session preview and touch timestamp
 			_ = s.ShortTermMem.UpdateChatSessionPreview(sessionID)
 			_ = s.ShortTermMem.TouchChatSession(sessionID)
+			agent.EnforceSTMPRetentionIfConfigured(s.Cfg, s.ShortTermMem, sessionID, s.Logger)
 		}
 
 		// 2. Rebuild the Context

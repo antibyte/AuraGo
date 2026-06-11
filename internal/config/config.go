@@ -441,6 +441,7 @@ func Load(path string) (*Config, error) {
 	cfg.Consolidation.MaxBatchMessages = 200
 	cfg.Consolidation.OptimizeThreshold = 1
 	cfg.Consolidation.ChatSessionLimit = 10
+	cfg.Consolidation.StmRetentionMessages = 500
 
 	// Helper LLM defaults: disabled until explicitly configured.
 	cfg.LLM.HelperEnabled = false
