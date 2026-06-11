@@ -219,6 +219,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	budgetTracker := s.runCfg.BudgetTracker
 	sessionID := s.runCfg.SessionID
 	isAutonomousRun := isAutonomousAgentRun(runCfg, sessionID)
+	sideEffects := sideEffectsFromRunConfig(runCfg)
 
 	// Mutable state aliases from init
 	personalityEnabled := s.personalityEnabled
@@ -698,12 +699,16 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						if _, dup := retrievedSet[f.mem]; dup {
 							continue
 						}
-						predictedResults = append(predictedResults, f.mem)
+						servedMemory, ok := preparePredictiveMemoryForPrompt(f.mem)
+						if !ok {
+							continue
+						}
+						predictedResults = append(predictedResults, servedMemory)
 						retrievedSet[f.mem] = struct{}{} // prevent intra-prediction duplicates
 						if f.docID != "" && shortTermMem != nil {
 							usedMemoryDocIDs[f.docID]++
 							_ = shortTermMem.RecordMemoryUsage(f.docID, "ltm_predicted", sessionID, 0, false)
-							turnMemoryCandidates[f.docID] = compactMemoryForPrompt(f.mem, 260)
+							turnMemoryCandidates[f.docID] = compactMemoryForPrompt(servedMemory, 260)
 						}
 					}
 					RecordRetrievalEventForScope(telemetryScope, "rag_predictive_latency:"+retrievalLatencyBucket(time.Since(predictiveStart)))
@@ -957,6 +962,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// preserving trait-driven curiosity guidance.
 		flags.AdditionalPrompt = mergeEmotionBehaviorPrompt(baseAdditionalPrompt, emotionPolicy, flags.InnerVoice != "")
 		flags.TokenBudget = calculateEffectivePromptTokenBudget(cfg, ToolCall{}, homepageUsedInChain, s.currentLogger)
+		retrievalPromptTokens = countMemoryPromptTelemetryTokens(flags, req.Model)
 		recordRetrievalPromptTelemetry(telemetryScope, retrievalPromptTokens, flags.TokenBudget)
 		reconcilePromptToolModeWithRequest(&flags, &toolingPolicy, req.Tools, s.currentLogger)
 
@@ -1661,11 +1667,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					InnerVoiceHistory:  batchIVHistory,
 				}
 			}
-			go func(userMsg, aResp, sid string, toolNames, toolSummaries []string, personalityInput *helperTurnPersonalityInput, recentMsgs []openai.ChatCompletionMessage) {
-				analysisCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+			userMsg := lastUserMsg
+			aResp := content
+			sid := sessionID
+			recentMsgs := append([]openai.ChatCompletionMessage(nil), req.Messages...)
+			_ = sideEffects.Go(func(taskCtx context.Context) {
+				analysisCtx, cancel := context.WithTimeout(taskCtx, 60*time.Second)
 				defer cancel()
 
-				batchResult, err := helperManager.AnalyzeTurn(analysisCtx, userMsg, aResp, toolNames, toolSummaries, personalityInput)
+				batchResult, err := helperManager.AnalyzeTurn(analysisCtx, userMsg, aResp, activityToolNames, activityToolSummaries, turnPersonalityInput)
 				if err != nil {
 					helperManager.ObserveFallback("analyze_turn", err.Error())
 					s.currentLogger.Warn("[HelperLLM] Batched turn analysis failed, falling back", "error", err)
@@ -1703,8 +1713,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						runCfg.MessageSource,
 						userMsg,
 						aResp,
-						toolNames,
-						toolSummaries,
+						activityToolNames,
+						activityToolSummaries,
 						runCfg.IsMission || runCfg.MessageSource == "mission" || sid == "maintenance",
 						!isMaintenance && sid != "maintenance",
 					)
@@ -1764,40 +1774,48 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					sid,
 					runCfg.MessageSource,
 					userMsg,
-					toolNames,
+					activityToolNames,
 					runCfg.IsMission || runCfg.MessageSource == "mission" || sid == "maintenance",
 					!isMaintenance && sid != "maintenance",
 					batchResult.ActivityDigest,
 					"runtime_helper_batch",
 				)
-			}(lastUserMsg, content, sessionID, activityToolNames, activityToolSummaries, turnPersonalityInput, append([]openai.ChatCompletionMessage(nil), req.Messages...))
+			})
 		} else {
 			// Real-time memory analysis: async post-response extraction of memory-worthy content
 			if memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && runTurnSideEffects && shortTermMem != nil {
-				go func(userMsg, aResp, sid string) {
-					analysisCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+				userMsg := lastUserMsg
+				aResp := content
+				sid := sessionID
+				_ = sideEffects.Go(func(taskCtx context.Context) {
+					analysisCtx, cancel := context.WithTimeout(taskCtx, 60*time.Second)
 					defer cancel()
 					runMemoryAnalysis(analysisCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid)
-				}(lastUserMsg, content, sessionID)
+				})
 			}
 
 			if !isEmpty && runTurnSideEffects && shortTermMem != nil {
 				activityToolNames := append([]string(nil), turnToolNames...)
 				activityToolSummaries := append([]string(nil), turnToolSummaries...)
-				go captureActivityTurn(
-					cfg,
-					s.currentLogger,
-					shortTermMem,
-					kg,
-					sessionID,
-					runCfg.MessageSource,
-					lastUserMsg,
-					content,
-					activityToolNames,
-					activityToolSummaries,
-					runCfg.IsMission || runCfg.MessageSource == "mission" || sessionID == "maintenance",
-					!isMaintenance && sessionID != "maintenance",
-				)
+				userMsg := lastUserMsg
+				aResp := content
+				sid := sessionID
+				_ = sideEffects.Go(func(context.Context) {
+					captureActivityTurn(
+						cfg,
+						s.currentLogger,
+						shortTermMem,
+						kg,
+						sid,
+						runCfg.MessageSource,
+						userMsg,
+						aResp,
+						activityToolNames,
+						activityToolSummaries,
+						runCfg.IsMission || runCfg.MessageSource == "mission" || sid == "maintenance",
+						!isMaintenance && sid != "maintenance",
+					)
+				})
 			}
 		}
 
@@ -1836,15 +1854,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Weekly reflection: async trigger if configured and due.
 		if memAnalysis.Enabled && memAnalysis.WeeklyReflection && runTurnSideEffects && weeklyReflectionDue(cfg, shortTermMem) && shortTermMem != nil {
 			if tryClaimWeeklyReflection(shortTermMem) {
-				go func() {
-					reflCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+				_ = sideEffects.Go(func(taskCtx context.Context) {
+					reflCtx, cancel := context.WithTimeout(taskCtx, 120*time.Second)
 					defer cancel()
 					_, err := generateMemoryReflection(reflCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, client, s.runCfg.PlannerDB, "recent")
 					if err != nil {
 						releaseWeeklyReflectionClaim()
 						s.currentLogger.Warn("Weekly reflection failed", "error", err)
 					}
-				}()
+				})
 			}
 		}
 

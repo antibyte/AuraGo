@@ -263,7 +263,7 @@ func rememberAsNoteWithTitle(content, explicitTitle string, stm *memory.SQLiteMe
 	if len(title) > 120 {
 		title = title[:120] + "..."
 	}
-	id, err := stm.AddNote("general", title, "", 2, "")
+	id, err := stm.AddNote("general", title, content, 2, "")
 	if err != nil {
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 	}

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -13,6 +14,7 @@ import (
 )
 
 const maxJournalHygieneIterations = 5
+const maxNotesAutoArchivePerHygieneRun = 20
 
 func runJournalDuplicateConsolidation(stm *memory.SQLiteMemory, opts memory.JournalConsolidationOptions) (int, error) {
 	totalRemoved := 0
@@ -54,16 +56,23 @@ func runAutomaticMemoryHygiene(cfg *config.Config, logger *slog.Logger, stm *mem
 	notesArchived := 0
 	notesReview := 0
 	if cfg.Tools.Notes.Enabled {
-		plan, err := stm.BuildNotesCurationPlan(memory.NotesCurationOptions{Now: time.Now().UTC(), MaxActions: 100})
+		plan, err := stm.BuildNotesCurationPlan(memory.NotesCurationOptions{Now: time.Now().UTC(), MaxActions: maxNotesAutoArchivePerHygieneRun})
 		if err != nil {
 			logger.Warn("[MemoryHygiene] Failed to build notes curation plan", "error", err)
 		} else {
 			notesReview = plan.ReviewRequiredCount
 			for _, action := range plan.AutoArchive {
-				if err := stm.ApplyNoteCurationAction(action, "maintenance", false); err != nil {
-					logger.Warn("[MemoryHygiene] Failed to archive stale note", "note_id", action.NoteID, "error", err)
+				targetID := fmt.Sprintf("note:%d", action.NoteID)
+				if stm.ShouldSkipMemoryMaintenanceAction("note_archive", targetID, 3) {
+					logger.Warn("[MemoryHygiene] Skipping stale note archive after repeated failures", "note_id", action.NoteID)
 					continue
 				}
+				if err := stm.ApplyNoteCurationAction(action, "maintenance", false); err != nil {
+					logger.Warn("[MemoryHygiene] Failed to archive stale note", "note_id", action.NoteID, "error", err)
+					_ = stm.RecordMemoryMaintenanceFailure("note_archive", targetID, err)
+					continue
+				}
+				_ = stm.ClearMemoryMaintenanceFailure("note_archive", targetID)
 				notesArchived++
 			}
 		}
@@ -78,10 +87,25 @@ func runAutomaticMemoryHygiene(cfg *config.Config, logger *slog.Logger, stm *mem
 		})
 		if err != nil {
 			logger.Warn("[MemoryHygiene] Failed to repair canonical memory names", "error", err)
+			for _, item := range report.Items {
+				if strings.TrimSpace(item.Error) == "" {
+					continue
+				}
+				targetID := item.OldDocID
+				if targetID == "" {
+					targetID = strings.Join(item.NewDocIDs, ",")
+				}
+				_ = stm.RecordMemoryMaintenanceFailure("canonical_repair", targetID, errors.New(item.Error))
+			}
 		} else {
 			canonicalRepaired = report.RepairedCount
 			if canonicalRepaired > 0 {
 				InvalidateMemoryMetaCache()
+			}
+			for _, item := range report.Items {
+				if item.OldDocID != "" && strings.TrimSpace(item.Error) == "" {
+					_ = stm.ClearMemoryMaintenanceFailure("canonical_repair", item.OldDocID)
+				}
 			}
 		}
 	}

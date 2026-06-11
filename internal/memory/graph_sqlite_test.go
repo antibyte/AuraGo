@@ -104,6 +104,39 @@ func TestKGSearchFTS5(t *testing.T) {
 	}
 }
 
+func TestKGExploreFallsBackToFTSWhenSemanticReturnsNoNodes(t *testing.T) {
+	kg := newTestKG(t)
+
+	db := chromem.NewDB()
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		if strings.EqualFold(strings.TrimSpace(text), "backup") {
+			return []float32{1, 0}, nil
+		}
+		return []float32{0, 1}, nil
+	}
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+
+	if err := kg.AddNode("backup_server", "Backup Server", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+
+	var payload struct {
+		Nodes []Node `json:"nodes"`
+	}
+	result := kg.Explore("backup")
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("unmarshal explore result %q: %v", result, err)
+	}
+	for _, node := range payload.Nodes {
+		if node.ID == "backup_server" {
+			return
+		}
+	}
+	t.Fatalf("expected FTS fallback to include backup_server, got %q", result)
+}
+
 func TestKGEdgeFTS5Indexing(t *testing.T) {
 	kg := newTestKG(t)
 
@@ -170,6 +203,9 @@ func TestKnowledgeGraphRebuildsLegacyFTSSchema(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO kg_nodes (id, label, properties) VALUES ('legacy_node', 'Legacy Node', '{"type":"service"}')`); err != nil {
 		t.Fatalf("insert legacy node: %v", err)
 	}
+	if _, err := db.Exec(`INSERT INTO kg_nodes (id, label, properties) VALUES ('target', 'Target Node', '{"type":"service"}')`); err != nil {
+		t.Fatalf("insert legacy target node: %v", err)
+	}
 	if _, err := db.Exec(`INSERT INTO kg_edges (source, target, relation, properties) VALUES ('legacy_node', 'target', 'relates_to', '{"notes":"legacy edge"}')`); err != nil {
 		t.Fatalf("insert legacy edge: %v", err)
 	}
@@ -218,6 +254,29 @@ func TestKGDeleteNode(t *testing.T) {
 	}
 	if edges != 0 { // edge removed
 		t.Errorf("expected 0 edges after node delete, got %d", edges)
+	}
+}
+
+func TestKGEdgesCascadeWhenNodeDeletedDirectly(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("alice", "Alice", nil); err != nil {
+		t.Fatalf("AddNode alice: %v", err)
+	}
+	if err := kg.AddEdge("alice", "bob", "knows", nil); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	if _, err := kg.db.Exec("DELETE FROM kg_nodes WHERE id = ?", "alice"); err != nil {
+		t.Fatalf("delete kg_node directly: %v", err)
+	}
+
+	var edgeCount int
+	if err := kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges WHERE source = ? OR target = ?", "alice", "alice").Scan(&edgeCount); err != nil {
+		t.Fatalf("count cascaded edges: %v", err)
+	}
+	if edgeCount != 0 {
+		t.Fatalf("expected cascaded edges to be deleted, got %d", edgeCount)
 	}
 }
 

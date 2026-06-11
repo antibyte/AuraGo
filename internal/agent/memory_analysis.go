@@ -535,6 +535,13 @@ func shouldServeRAGMemory(text string) bool {
 	return true
 }
 
+func preparePredictiveMemoryForPrompt(text string) (string, bool) {
+	if !shouldServeRAGMemory(text) {
+		return "", false
+	}
+	return compactMemoryForPrompt(text, 700), true
+}
+
 func shouldStoreExtractedMemory(content, category string) bool {
 	text := strings.ToLower(strings.TrimSpace(content))
 	if text == "" {

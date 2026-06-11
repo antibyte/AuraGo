@@ -2,6 +2,7 @@ package memory
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 )
 
@@ -17,26 +18,15 @@ func (kg *KnowledgeGraph) Explore(query string) string {
 			nodesMap[n.ID] = n
 			matchedNodeIDs = append(matchedNodeIDs, n.ID)
 		}
-	} else {
-		// fallback to standard FTS search
-		ftsQuery := escapeFTS5(query)
-		likePattern := "%" + strings.ToLower(query) + "%"
-		rows, err := kg.db.Query(`SELECT id, label, properties, protected FROM kg_nodes WHERE rowid IN (SELECT rowid FROM kg_nodes_fts WHERE kg_nodes_fts MATCH ?) UNION SELECT id, label, properties, protected FROM kg_nodes WHERE id LIKE ? OR label LIKE ? OR properties LIKE ? LIMIT 5`, ftsQuery, likePattern, likePattern, likePattern)
+	}
+	if len(matchedNodeIDs) == 0 {
+		results, err := kg.exploreFTS(query, 5)
 		if err != nil {
 			kg.logger.Warn("Explore: fallback query failed", "error", err)
-		} else {
-			defer rows.Close()
-			for rows.Next() {
-				var n Node
-				var propsJSON string
-				var protected int
-				if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
-					n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "Explore", n.ID, propsJSON, protected)
-					n.Protected = protected != 0
-					nodesMap[n.ID] = n
-					matchedNodeIDs = append(matchedNodeIDs, n.ID)
-				}
-			}
+		}
+		for _, n := range results {
+			nodesMap[n.ID] = n
+			matchedNodeIDs = append(matchedNodeIDs, n.ID)
 		}
 	}
 
@@ -61,7 +51,60 @@ func (kg *KnowledgeGraph) Explore(query string) string {
 		"nodes": finalList,
 		"edges": edges,
 	}
-	data, _ := json.Marshal(result)
+	data, err := json.Marshal(result)
+	if err != nil {
+		return kg.jsonError("Explore", fmt.Errorf("marshal explore result: %w", err))
+	}
+	return string(data)
+}
+
+func (kg *KnowledgeGraph) exploreFTS(query string, limit int) ([]Node, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+	ftsQuery := escapeFTS5(query)
+	likePattern := "%" + strings.ToLower(query) + "%"
+	rows, err := kg.db.Query(`
+		SELECT id, label, properties, protected
+		FROM kg_nodes
+		WHERE rowid IN (SELECT rowid FROM kg_nodes_fts WHERE kg_nodes_fts MATCH ?)
+		UNION
+		SELECT id, label, properties, protected
+		FROM kg_nodes
+		WHERE id LIKE ? OR label LIKE ? OR properties LIKE ?
+		LIMIT ?
+	`, ftsQuery, likePattern, likePattern, likePattern, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	nodes := make([]Node, 0, limit)
+	for rows.Next() {
+		var n Node
+		var propsJSON string
+		var protected int
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+			return nil, fmt.Errorf("scan explore fallback node: %w", err)
+		}
+		n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "Explore", n.ID, propsJSON, protected)
+		n.Protected = protected != 0
+		nodes = append(nodes, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate explore fallback nodes: %w", err)
+	}
+	return nodes, nil
+}
+
+func (kg *KnowledgeGraph) jsonError(operation string, err error) string {
+	if kg.logger != nil {
+		kg.logger.Warn(operation+": JSON response failed", "error", err)
+	}
+	data, marshalErr := json.Marshal(map[string]string{"error": err.Error()})
+	if marshalErr != nil {
+		return `{"error":"json response failed"}`
+	}
 	return string(data)
 }
 

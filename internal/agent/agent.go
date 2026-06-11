@@ -75,6 +75,10 @@ func (a *Agent) Shutdown() error {
 		_ = a.CronManager.Close()
 	}
 
+	if err := shutdownDefaultSideEffects(defaultSideEffectShutdownTimeout); err != nil {
+		a.Logger.Warn("Timed out waiting for agent side effects", "error", err)
+	}
+
 	if a.ShortTermMem != nil {
 		if err := a.ShortTermMem.Close(); err != nil {
 			a.Logger.Error("Failed to close SQLite memory", "error", err)
@@ -1071,6 +1075,7 @@ type RunConfig struct {
 	DaemonSupervisor   *tools.DaemonSupervisor
 	LLMGuardian        *security.LLMGuardian
 	PreparationService *services.MissionPreparationService
+	SideEffects        *AsyncTaskGroup
 	SessionID          string
 	IsMaintenance      bool
 	IsCoAgent          bool

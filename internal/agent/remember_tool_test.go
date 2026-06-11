@@ -157,6 +157,9 @@ func TestRememberTaskUsesExplicitTitleForNote(t *testing.T) {
 	if notes[0].Title != "Review backup retention" {
 		t.Fatalf("note title = %q, want explicit title", notes[0].Title)
 	}
+	if notes[0].Content != "Check the backup retention policy tomorrow" {
+		t.Fatalf("note content = %q, want original remember content", notes[0].Content)
+	}
 }
 
 func TestRememberTaskRespectsDisabledNotesConfig(t *testing.T) {

@@ -93,9 +93,14 @@ func deriveConflictSignals(text string) []conflictSignal {
 
 func normalizeConflictText(text string) string {
 	text = strings.TrimSpace(text)
-	text = strings.TrimPrefix(text, "[")
-	if idx := strings.Index(text, "]"); idx >= 0 && idx < len(text)-1 {
-		text = text[idx+1:]
+	if strings.HasPrefix(text, "[") {
+		if idx := strings.Index(text, "]"); idx >= 0 && idx < len(text)-1 {
+			tag := strings.ToLower(strings.TrimSpace(text[1:idx]))
+			if strings.HasPrefix(tag, "similarity:") || strings.HasPrefix(tag, "domain:") ||
+				tag == "aurago_memories" || tag == "tool_guides" || tag == "documentation" || tag == "file_index" {
+				text = text[idx+1:]
+			}
+		}
 	}
 	text = strings.ReplaceAll(text, "\n", " ")
 	text = strings.Join(strings.Fields(text), " ")

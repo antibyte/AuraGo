@@ -5,8 +5,13 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -20,6 +25,28 @@ func markTestVectorDBReady(cv *ChromemVectorDB) {
 	if cv != nil {
 		cv.ready.Store(true)
 	}
+}
+
+func newTestChromemVectorDB(t *testing.T, embeddingFunc chromem.EmbeddingFunc) *ChromemVectorDB {
+	t.Helper()
+	db := chromem.NewDB()
+	collection, err := db.GetOrCreateCollection("aurago_memories", nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection: %v", err)
+	}
+	cv := &ChromemVectorDB{
+		db:                     db,
+		collection:             collection,
+		logger:                 slog.New(slog.NewTextHandler(io.Discard, nil)),
+		embeddingFunc:          embeddingFunc,
+		embeddingFingerprint:   "test|embedding|3",
+		queryCache:             make(map[string]queryCacheEntry),
+		queryCacheTTL:          5 * time.Minute,
+		dedupSem:               make(chan struct{}, 16),
+		fileIndexerCollections: make(map[string]struct{}),
+	}
+	markTestVectorDBReady(cv)
+	return cv
 }
 
 func TestExtractSimilarityScore(t *testing.T) {
@@ -157,6 +184,174 @@ func TestStoreBatchTruncatesContentWithoutSplittingUTF8(t *testing.T) {
 	}
 	if strings.HasSuffix(got, "\xc3") {
 		t.Fatalf("truncated content ended with partial UTF-8 byte")
+	}
+}
+
+func TestStoreDocumentWithDomainDuplicateReturnsExistingDocID(t *testing.T) {
+	cv := newTestChromemVectorDB(t, func(_ context.Context, text string) ([]float32, error) {
+		if strings.Contains(text, "backup") {
+			return []float32{1, 0, 0}, nil
+		}
+		return []float32{0, 1, 0}, nil
+	})
+
+	firstIDs, err := cv.StoreDocumentWithDomain("backup policy", "Use rsync for backups", "ops")
+	if err != nil {
+		t.Fatalf("StoreDocumentWithDomain first: %v", err)
+	}
+	if len(firstIDs) != 1 {
+		t.Fatalf("first ids = %v, want one id", firstIDs)
+	}
+
+	secondIDs, err := cv.StoreDocumentWithDomain("backup policy", "Use rsync for backups", "ops")
+	if err != nil {
+		t.Fatalf("StoreDocumentWithDomain duplicate: %v", err)
+	}
+	if len(secondIDs) != 1 || secondIDs[0] != firstIDs[0] {
+		t.Fatalf("duplicate ids = %v, want existing id %q", secondIDs, firstIDs[0])
+	}
+}
+
+func TestGetQueryEmbeddingReturnsCanceledCallerWithoutWaitingForSingleflight(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	var calls atomic.Int32
+	cv := newTestChromemVectorDB(t, func(ctx context.Context, _ string) ([]float32, error) {
+		calls.Add(1)
+		select {
+		case <-started:
+		default:
+			close(started)
+		}
+		select {
+		case <-release:
+			return []float32{1, 0, 0}, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	})
+
+	firstDone := make(chan error, 1)
+	go func() {
+		_, err := cv.getQueryEmbedding(context.Background(), "same query")
+		firstDone <- err
+	}()
+	<-started
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	canceledDone := make(chan error, 1)
+	go func() {
+		_, err := cv.getQueryEmbedding(ctx, "same query")
+		canceledDone <- err
+	}()
+
+	select {
+	case err := <-canceledDone:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("canceled caller err = %v, want context.Canceled", err)
+		}
+	case <-time.After(100 * time.Millisecond):
+		close(release)
+		t.Fatal("canceled caller waited for in-flight singleflight request")
+	}
+
+	close(release)
+	if err := <-firstDone; err != nil {
+		t.Fatalf("first getQueryEmbedding: %v", err)
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("embedding calls = %d, want one shared in-flight request", got)
+	}
+}
+
+func TestStoreBatchDoesNotSpawnOneGoroutinePerItem(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	var active atomic.Int32
+	cv := newTestChromemVectorDB(t, func(ctx context.Context, text string) ([]float32, error) {
+		if strings.Contains(text, "concept") {
+			select {
+			case <-started:
+			default:
+				close(started)
+			}
+			active.Add(1)
+			defer active.Add(-1)
+			select {
+			case <-release:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+		return []float32{1, 0, 0}, nil
+	})
+
+	items := make([]ArchiveItem, 96)
+	for i := range items {
+		items[i] = ArchiveItem{Concept: "concept-" + strconv.Itoa(i), Content: "content-" + strconv.Itoa(i)}
+	}
+
+	before := runtime.NumGoroutine()
+	done := make(chan error, 1)
+	go func() {
+		_, err := cv.StoreBatch(items)
+		done <- err
+	}()
+	<-started
+	time.Sleep(50 * time.Millisecond)
+	during := runtime.NumGoroutine()
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatalf("StoreBatch: %v", err)
+	}
+
+	if delta := during - before; delta > 40 {
+		t.Fatalf("StoreBatch spawned too many goroutines: delta=%d, want <= 40", delta)
+	}
+}
+
+func TestIndexDirectoryReportsFileIndexReadError(t *testing.T) {
+	cv := newTestChromemVectorDB(t, func(_ context.Context, _ string) ([]float32, error) {
+		return []float32{0.1, 0.2, 0.3}, nil
+	})
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "guide.md"), []byte("hello index"), 0o644); err != nil {
+		t.Fatalf("write guide: %v", err)
+	}
+
+	stm, err := NewSQLiteMemory(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	if err := stm.Close(); err != nil {
+		t.Fatalf("Close stm: %v", err)
+	}
+
+	err = cv.IndexDirectory(dir, "docs", stm, false)
+	if err == nil {
+		t.Fatal("expected file index read error")
+	}
+	if !strings.Contains(err.Error(), "get file index") {
+		t.Fatalf("error = %v, want get file index context", err)
+	}
+}
+
+func TestIndexDirectoryAfterCloseReturnsVectorDBClosed(t *testing.T) {
+	cv := newTestChromemVectorDB(t, func(_ context.Context, _ string) ([]float32, error) {
+		return []float32{0.1, 0.2, 0.3}, nil
+	})
+	dir := t.TempDir()
+	if err := cv.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	err := cv.IndexDirectory(dir, "docs", nil, false)
+	if !errors.Is(err, ErrVectorDBClosed) {
+		t.Fatalf("IndexDirectory err = %v, want ErrVectorDBClosed", err)
+	}
+	if cv.IsReady() {
+		t.Fatal("VectorDB should not report ready after Close")
 	}
 }
 

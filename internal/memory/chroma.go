@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -26,6 +27,12 @@ type ToolGuideMeta struct {
 // It skips indexing if tool guides are already present, unless force is true.
 // Uses parallel batch indexing for speed.
 func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
+	doneIndex, err := cv.beginTrackedOperation(&cv.indexingWg)
+	if err != nil {
+		return err
+	}
+	defer doneIndex()
+
 	if cv.disabled.Load() {
 		cv.logger.Warn("VectorDB disabled, skipping tool guide indexing")
 		return nil
@@ -123,7 +130,10 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 	// Persist the content hash so subsequent startups can skip re-indexing.
 	newHash := cv.computeToolGuidesHash(toolsDir)
 	hashFile := filepath.Join(cv.dataDir, ".tool_guides_hash")
-	_ = os.WriteFile(hashFile, []byte(newHash), 0o644)
+	if err := os.WriteFile(hashFile, []byte(newHash), 0o644); err != nil {
+		cv.logger.Warn("Failed to write tool guides content hash", "path", hashFile, "error", err)
+		return fmt.Errorf("write tool guides content hash: %w", err)
+	}
 
 	cv.logger.Info("Tool guides indexing completed", "count", collection.Count())
 	return nil
@@ -199,6 +209,12 @@ func (cv *ChromemVectorDB) SearchToolGuides(query string, topK int) ([]string, e
 
 // IndexDirectory scans a directory for markdown files and indexes them if they've changed.
 func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLiteMemory, force bool) error {
+	doneIndex, err := cv.beginTrackedOperation(&cv.indexingWg)
+	if err != nil {
+		return err
+	}
+	defer doneIndex()
+
 	if cv.disabled.Load() {
 		cv.logger.Warn("VectorDB disabled, skipping directory indexing", "dir", dir)
 		return nil
@@ -243,7 +259,10 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 
 		// 3. Change detection
 		if !force && stm != nil {
-			lastIndexed, _ := stm.GetFileIndex(path, collectionName)
+			lastIndexed, err := stm.GetFileIndex(path, collectionName)
+			if err != nil {
+				return fmt.Errorf("get file index for %s in %s: %w", path, collectionName, err)
+			}
 			if !info.ModTime().After(lastIndexed) && collection.Count() > 0 {
 				cv.logger.Debug("File unchanged, skipping RAG indexing", "path", path)
 				continue
@@ -310,8 +329,14 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 
 	// 7. Success! Update SQLite only for files that were actually indexed
 	if stm != nil {
+		var updateErr error
 		for _, f := range indexedFiles {
-			_ = stm.UpdateFileIndex(f.path, collectionName, f.modTime)
+			if err := stm.UpdateFileIndex(f.path, collectionName, f.modTime); err != nil {
+				updateErr = errors.Join(updateErr, fmt.Errorf("update file index for %s in %s: %w", f.path, collectionName, err))
+			}
+		}
+		if updateErr != nil {
+			return updateErr
 		}
 	}
 
@@ -410,10 +435,8 @@ func splitFrontmatter(raw string) (string, string) {
 // Returns immediately. Use IsIndexing() to check progress.
 func (cv *ChromemVectorDB) IndexToolGuidesAsync(toolsDir string, force bool) {
 	cv.indexing.Add(1)
-	cv.indexingWg.Add(1)
 	go func() {
 		defer cv.indexing.Add(-1)
-		defer cv.indexingWg.Done()
 		if err := cv.IndexToolGuides(toolsDir, force); err != nil {
 			cv.logger.Error("Async tool guide indexing failed", "error", err)
 		}
@@ -424,10 +447,8 @@ func (cv *ChromemVectorDB) IndexToolGuidesAsync(toolsDir string, force bool) {
 // Returns immediately. Use IsIndexing() to check progress.
 func (cv *ChromemVectorDB) IndexDirectoryAsync(dir, collectionName string, stm *SQLiteMemory, force bool) {
 	cv.indexing.Add(1)
-	cv.indexingWg.Add(1)
 	go func() {
 		defer cv.indexing.Add(-1)
-		defer cv.indexingWg.Done()
 		if err := cv.IndexDirectory(dir, collectionName, stm, force); err != nil {
 			cv.logger.Error("Async directory indexing failed", "dir", dir, "error", err)
 		}

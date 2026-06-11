@@ -103,3 +103,20 @@ func TestRankMemoryCandidatesIntegratesReusePenalty(t *testing.T) {
 		t.Fatalf("top docID = %q, want doc-fresh after integrated reuse penalty", ranked[0].docID)
 	}
 }
+
+func TestMemoryDaysSinceParsesRFC3339AndSQLiteTimestamps(t *testing.T) {
+	now := time.Date(2026, 6, 11, 12, 0, 0, 0, time.UTC)
+
+	tests := map[string]string{
+		"rfc3339": "2026-06-09T12:00:00Z",
+		"sqlite":  "2026-06-09 12:00:00",
+	}
+
+	for name, value := range tests {
+		t.Run(name, func(t *testing.T) {
+			if got := memoryDaysSince(value, now); got != 2 {
+				t.Fatalf("memoryDaysSince(%q) = %d, want 2", value, got)
+			}
+		})
+	}
+}

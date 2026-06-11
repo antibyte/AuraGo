@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -63,6 +64,7 @@ func (s *SQLiteMemory) RepairCanonicalMemoryNames(ltm VectorDB, opts CanonicalRe
 	if err != nil {
 		return report, fmt.Errorf("load memory meta for canonical repair: %w", err)
 	}
+	var joinedErr error
 	for _, meta := range metas {
 		if IsMemoryArchived(meta) || meta.Protected || meta.KeepForever {
 			continue
@@ -126,21 +128,30 @@ func (s *SQLiteMemory) RepairCanonicalMemoryNames(ltm VectorDB, opts CanonicalRe
 			Action: MemoryCurationActionArchive,
 			Reason: reason,
 		}, actor, false); err != nil {
-			item.Error = err.Error()
+			wrapped := fmt.Errorf("archive old memory meta %s: %w", meta.DocID, err)
+			item.Error = wrapped.Error()
+			joinedErr = errors.Join(joinedErr, wrapped)
 			rollbackCanonicalRepairArtifacts(s, ltm, newIDs, upsertedIDs, "canonical repair rollback after archive failure", actor)
 			report.Items = append(report.Items, item)
 			report.SkippedCount++
 			continue
 		}
 		if err := ltm.DeleteDocument(meta.DocID); err != nil {
-			item.Error = "delete old vector doc: " + err.Error()
+			wrapped := fmt.Errorf("delete old vector doc %s: %w", meta.DocID, err)
+			item.Error = wrapped.Error()
+			joinedErr = errors.Join(joinedErr, wrapped)
 		} else if err := s.CleanupDeletedVectorDocumentReferences(meta.DocID); err != nil {
-			item.Error = "cleanup old vector doc references: " + err.Error()
+			wrapped := fmt.Errorf("cleanup old vector doc references %s: %w", meta.DocID, err)
+			item.Error = wrapped.Error()
+			joinedErr = errors.Join(joinedErr, wrapped)
+			report.Items = append(report.Items, item)
+			report.SkippedCount++
+			continue
 		}
 		report.RepairedCount++
 		report.Items = append(report.Items, item)
 	}
-	return report, nil
+	return report, joinedErr
 }
 
 func rollbackCanonicalRepairArtifacts(s *SQLiteMemory, ltm VectorDB, docIDs []string, metaDocIDs []string, reason string, actor string) {

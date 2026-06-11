@@ -54,5 +54,5 @@ func buildEmbeddingFuncFromConfig(cfg *config.Config, logger *slog.Logger) (chro
 		}
 	}
 
-	return chromem.NewEmbeddingFuncOpenAICompat(embedURL, embedKey, embedModel, nil), provider, false
+	return withEmbeddingRetry(chromem.NewEmbeddingFuncOpenAICompat(embedURL, embedKey, embedModel, nil), logger), provider, false
 }

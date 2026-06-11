@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/prompts"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 
@@ -36,6 +37,24 @@ func ShouldReloadCoreMemory(dirty bool, loadedAt time.Time, dbUpdatedAt, cachedU
 		return true
 	}
 	return false
+}
+
+func countMemoryPromptTelemetryTokens(flags prompts.ContextFlags, model string) int {
+	sections := []string{
+		flags.RetrievedMemories,
+		flags.PredictedMemories,
+		flags.KnowledgeContext,
+		flags.ErrorPatternContext,
+		flags.LearnedRulesContext,
+	}
+	total := 0
+	for _, section := range sections {
+		if strings.TrimSpace(section) == "" {
+			continue
+		}
+		total += prompts.CountTokensForModel(section, model)
+	}
+	return total
 }
 
 func mergeStreamToolCallChunk(streamToolCalls map[int]*openai.ToolCall, tc openai.ToolCall) {
@@ -1258,7 +1277,17 @@ func compactMemoryForPrompt(text string, maxLen int) string {
 	if maxLen <= 0 || len(text) <= maxLen {
 		return text
 	}
-	return strings.TrimSpace(text[:maxLen]) + "…"
+	runes := []rune(text)
+	maxRunes := 0
+	for byteLen, idx := 0, 0; idx < len(runes); idx++ {
+		nextLen := byteLen + len(string(runes[idx]))
+		if nextLen > maxLen {
+			break
+		}
+		byteLen = nextLen
+		maxRunes = idx + 1
+	}
+	return strings.TrimSpace(string(runes[:maxRunes])) + "…"
 }
 
 func sanitizeMemoryForPrompt(text string) string {

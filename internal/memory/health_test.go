@@ -161,6 +161,36 @@ func TestApplyMemoryBudgetEnforcementDeletesFromLTM(t *testing.T) {
 	}
 }
 
+func TestApplyMemoryBudgetEnforcementReportsSQLiteCleanupFailureAfterVectorDelete(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+
+	ltm := &fakeRepairVectorDB{docs: map[string]string{
+		"doc-a": "alpha",
+		"doc-b": "beta",
+		"doc-c": "gamma",
+	}}
+	ltm.afterDelete = func() {
+		_ = stm.db.Close()
+	}
+	for _, docID := range []string{"doc-a", "doc-b", "doc-c"} {
+		if err := stm.UpsertMemoryMeta(docID); err != nil {
+			t.Fatalf("UpsertMemoryMeta(%s): %v", docID, err)
+		}
+	}
+
+	evicted, err := stm.ApplyMemoryBudgetEnforcement(2, ltm)
+	if err == nil {
+		t.Fatal("ApplyMemoryBudgetEnforcement error = nil, want SQLite cleanup/archive error")
+	}
+	if evicted != 0 {
+		t.Fatalf("evicted = %d, want 0 when SQLite cleanup failed", evicted)
+	}
+}
+
 func TestEnforceMemoryBudgetDoesNotEvictContradictedReviewRows(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := NewSQLiteMemory(":memory:", logger)

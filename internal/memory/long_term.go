@@ -101,6 +101,7 @@ type ChromemVectorDB struct {
 	collection             *chromem.Collection
 	logger                 *slog.Logger
 	mu                     sync.RWMutex   // Protects indexing operations; reads use RLock
+	lifecycleMu            sync.Mutex     // Serializes operation registration with Close.
 	conceptLocks           [64]sync.Mutex // Striped locks to serialise checks/stores per concept bucket
 	embeddingFunc          chromem.EmbeddingFunc
 	embeddingFingerprint   string
@@ -115,22 +116,28 @@ type ChromemVectorDB struct {
 	indexingWg             sync.WaitGroup     // Tracks in-flight async indexing goroutines
 	validationWg           sync.WaitGroup     // Tracks startup embedding validation.
 	dedupSem               chan struct{}      // semaphore to limit concurrent dedup checks
+	storeWg                sync.WaitGroup     // Tracks in-flight single-document store operations
 	batchWg                sync.WaitGroup     // Tracks in-flight StoreBatch goroutines
+	searchWg               sync.WaitGroup     // Tracks in-flight parallel search goroutines
 	sfGroup                singleflight.Group // deduplicates concurrent embedding API calls for the same query
 	fileIndexerCollections map[string]struct{}
 	fiColMu                sync.RWMutex
 }
 
 func (cv *ChromemVectorDB) Close() error {
+	cv.lifecycleMu.Lock()
 	cv.closed.Store(true)
-	cv.ready.Store(true)
+	cv.ready.Store(false)
+	cv.lifecycleMu.Unlock()
 	if cv.logger != nil {
 		cv.logger.Debug("Closing VectorDB, waiting for in-flight validation, indexing, and batch operations...")
 	}
 	done := waitForAsync(func() {
 		cv.validationWg.Wait()
+		cv.storeWg.Wait()
 		cv.indexingWg.Wait()
 		cv.batchWg.Wait()
+		cv.searchWg.Wait()
 	})
 	select {
 	case <-done:
@@ -145,6 +152,16 @@ func (cv *ChromemVectorDB) Close() error {
 		return err
 	}
 	return nil
+}
+
+func (cv *ChromemVectorDB) beginTrackedOperation(wg *sync.WaitGroup) (func(), error) {
+	cv.lifecycleMu.Lock()
+	defer cv.lifecycleMu.Unlock()
+	if cv.closed.Load() {
+		return nil, ErrVectorDBClosed
+	}
+	wg.Add(1)
+	return wg.Done, nil
 }
 
 func waitForWaitGroup(wg *sync.WaitGroup, timeout time.Duration) bool {
@@ -346,12 +363,12 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 				"hint", "Re-enter the API key via Config UI → Providers → "+provider)
 		}
 
-		embeddingFunc = chromem.NewEmbeddingFuncOpenAICompat(
+		embeddingFunc = withEmbeddingRetry(chromem.NewEmbeddingFuncOpenAICompat(
 			embedURL,
 			embedKey,
 			embedModel,
 			nil, // Auto-detect normalization
-		)
+		), logger)
 		logger.Info("VectorDB using embeddings provider", "provider", provider, "url", embedURL, "model", embedModel)
 	}
 
@@ -472,6 +489,12 @@ func (cv *ChromemVectorDB) getConceptMutex(concept string) *sync.Mutex {
 // for cross-domain learning (Phase C). The domain helps categorize knowledge.
 // Deduplication: skips storage if a very similar document already exists (similarity > 0.95).
 func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain string) ([]string, error) {
+	doneStore, err := cv.beginTrackedOperation(&cv.storeWg)
+	if err != nil {
+		return nil, err
+	}
+	defer doneStore()
+
 	if err := cv.requireReadyForStore(); err != nil {
 		return nil, err
 	}
@@ -480,9 +503,12 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 	// calls for the same concept cannot both pass the similarity gate.
 	mu := cv.getConceptMutex(concept)
 	mu.Lock()
-	if sim := cv.searchTopSimilarityScore(concept); sim > 0.95 {
+	if docID, sim := cv.searchTopSimilarMemory(concept); sim > 0.95 {
 		mu.Unlock()
-		cv.logger.Debug("Skipping duplicate concept (similarity > 0.95)", "concept", concept, "similarity", sim)
+		cv.logger.Debug("Skipping duplicate concept (similarity > 0.95)", "concept", concept, "similarity", sim, "doc_id", docID)
+		if docID != "" {
+			return []string{docID}, nil
+		}
 		return nil, nil
 	}
 	defer mu.Unlock()
@@ -957,6 +983,14 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 	if err := cv.requireReadyForStore(); err != nil {
 		return nil, err
 	}
+	doneBatch, err := cv.beginTrackedOperation(&cv.batchWg)
+	if err != nil {
+		return nil, err
+	}
+	defer doneBatch()
+	if len(items) == 0 {
+		return nil, nil
+	}
 
 	type batchResult struct {
 		idx int
@@ -965,55 +999,71 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 	}
 
 	resultsCh := make(chan batchResult, len(items))
-	cv.batchWg.Add(len(items))
+	jobs := make(chan batchResult)
+	workerCount := cv.storeBatchConcurrency(len(items))
+	var workers sync.WaitGroup
+	workers.Add(workerCount)
+	for worker := 0; worker < workerCount; worker++ {
+		go func() {
+			defer workers.Done()
+			for job := range jobs {
+				i := job.idx
+				item := items[i]
+				sent := false
+				func() {
+					defer func() {
+						if rec := recover(); rec != nil {
+							cv.logger.Error("StoreBatch: goroutine panicked", "panic", rec)
+							if !sent {
+								resultsCh <- batchResult{idx: i, err: fmt.Errorf("panic: %v", rec)}
+							}
+						}
+					}()
+					cv.dedupSem <- struct{}{}
+					defer func() { <-cv.dedupSem }()
+
+					mu := cv.getConceptMutex(item.Concept)
+					mu.Lock()
+					defer mu.Unlock()
+
+					var ids []string
+					var err error
+					if docID, sim := cv.searchTopSimilarMemory(item.Concept); sim > 0.95 {
+						cv.logger.Debug("StoreBatch: skipping duplicate concept", "concept", item.Concept, "similarity", sim, "doc_id", docID)
+						if docID != "" {
+							ids = []string{docID}
+						}
+					} else {
+						ids, err = cv.storeDocumentLocked(item.Concept, item.Content, item.Domain)
+					}
+					resultsCh <- batchResult{idx: i, ids: ids, err: err}
+					sent = true
+				}()
+			}
+		}()
+	}
 	for i, item := range items {
 		if len(item.Content) > maxBatchItemBytes {
 			cv.logger.Warn("StoreBatch: item content exceeds 500 KB limit, truncating", "concept", item.Concept, "bytes", len(item.Content))
-			item.Content = truncateArchiveItemContent(item.Content)
+			items[i].Content = truncateArchiveItemContent(item.Content)
 		}
-		i, item := i, item // capture
-		go func() {
-			defer cv.batchWg.Done()
-			sent := false
-			defer func() {
-				if rec := recover(); rec != nil {
-					cv.logger.Error("StoreBatch: goroutine panicked", "panic", rec)
-					if !sent {
-						resultsCh <- batchResult{idx: i, err: fmt.Errorf("panic: %v", rec)}
-					}
-				}
-			}()
-			// Acquire semaphore to limit concurrent embedding calls
-			cv.dedupSem <- struct{}{}
-			defer func() { <-cv.dedupSem }()
-
-			mu := cv.getConceptMutex(item.Concept)
-			mu.Lock()
-			defer mu.Unlock()
-
-			keep := true
-			if sim := cv.searchTopSimilarityScore(item.Concept); sim > 0.95 {
-				cv.logger.Debug("StoreBatch: skipping duplicate concept", "concept", item.Concept, "similarity", sim)
-				keep = false
-			}
-			var ids []string
-			var err error
-			if keep {
-				ids, err = cv.storeDocumentLocked(item.Concept, item.Content, item.Domain)
-			}
-			resultsCh <- batchResult{idx: i, ids: ids, err: err}
-			sent = true
-		}()
+		jobs <- batchResult{idx: i}
 	}
+	close(jobs)
+	workers.Wait()
+	close(resultsCh)
 
-	var allIDs []string
+	byIndex := make([][]string, len(items))
 	var firstErr error
-	for range items {
-		r := <-resultsCh
+	for r := range resultsCh {
 		if r.err != nil && firstErr == nil {
 			firstErr = r.err
 		}
-		allIDs = append(allIDs, r.ids...)
+		byIndex[r.idx] = append(byIndex[r.idx], r.ids...)
+	}
+	var allIDs []string
+	for _, ids := range byIndex {
+		allIDs = append(allIDs, ids...)
 	}
 
 	if firstErr != nil {
@@ -1022,6 +1072,20 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 
 	cv.logger.Info("Stored batch in long-term memory", "count", len(items), "total_docs", len(allIDs))
 	return allIDs, nil
+}
+
+func (cv *ChromemVectorDB) storeBatchConcurrency(itemCount int) int {
+	if itemCount <= 0 {
+		return 0
+	}
+	limit := 16
+	if cv.dedupSem != nil && cap(cv.dedupSem) > 0 {
+		limit = cap(cv.dedupSem)
+	}
+	if itemCount < limit {
+		return itemCount
+	}
+	return limit
 }
 
 func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollections ...string) ([]string, []string, error) {
@@ -1110,6 +1174,12 @@ func (cv *ChromemVectorDB) SearchSimilarScored(query string, topK int, excludeCo
 		wg.Add(1)
 		go func(c *chromem.Collection, k int) {
 			defer wg.Done()
+			doneSearch, trackErr := cv.beginTrackedOperation(&cv.searchWg)
+			if trackErr != nil {
+				resultCh <- colResult{colName: colName, err: trackErr}
+				return
+			}
+			defer doneSearch()
 			res, qErr := c.QueryEmbedding(ctx, queryEmbedding, k, nil, nil)
 			resultCh <- colResult{colName: colName, results: res, err: qErr}
 		}(col, searchK)
@@ -1364,8 +1434,13 @@ func (cv *ChromemVectorDB) GetByIDFromCollection(id, collection string) (string,
 // of its operation. Callers may hold a concept lock, but must release this read lock before
 // taking the vector write lock for storage.
 func (cv *ChromemVectorDB) searchTopSimilarityScore(concept string) float32 {
+	_, sim := cv.searchTopSimilarMemory(concept)
+	return sim
+}
+
+func (cv *ChromemVectorDB) searchTopSimilarMemory(concept string) (string, float32) {
 	if !cv.ready.Load() || cv.disabled.Load() {
-		return 0
+		return "", 0
 	}
 	// Hold read lock for consistency with SearchSimilar/SearchMemoriesOnly,
 	// which both protect cv.db and cv.embeddingFunc accesses with cv.mu.RLock().
@@ -1374,7 +1449,7 @@ func (cv *ChromemVectorDB) searchTopSimilarityScore(concept string) float32 {
 
 	col, err := cv.db.GetOrCreateCollection("aurago_memories", nil, cv.embeddingFunc)
 	if err != nil || col.Count() == 0 {
-		return 0
+		return "", 0
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -1382,12 +1457,12 @@ func (cv *ChromemVectorDB) searchTopSimilarityScore(concept string) float32 {
 
 	queryEmbedding, err := cv.getQueryEmbedding(ctx, concept)
 	if err != nil {
-		return 0
+		return "", 0
 	}
 
 	results, err := col.QueryEmbedding(ctx, queryEmbedding, 1, nil, nil)
 	if err != nil || len(results) == 0 {
-		return 0
+		return "", 0
 	}
 
 	sim := results[0].Similarity
@@ -1403,7 +1478,7 @@ func (cv *ChromemVectorDB) searchTopSimilarityScore(concept string) float32 {
 			}
 		}
 	}
-	return sim
+	return results[0].ID, sim
 }
 
 // DeleteDocument removes a specific document from the VectorDB by its ID.
@@ -1457,9 +1532,20 @@ func (cv *ChromemVectorDB) getQueryEmbedding(ctx context.Context, query string) 
 	}
 	cv.queryCacheMu.RUnlock()
 
-	res, err, _ := cv.sfGroup.Do(query, func() (interface{}, error) {
-		return cv.embeddingFunc(ctx, query)
+	resultCh := cv.sfGroup.DoChan(query, func() (interface{}, error) {
+		internalCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		return cv.embeddingFunc(internalCtx, query)
 	})
+	var res interface{}
+	var err error
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case result := <-resultCh:
+		res = result.Val
+		err = result.Err
+	}
 	if err != nil {
 		return nil, err
 	}

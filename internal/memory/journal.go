@@ -279,9 +279,18 @@ func (s *SQLiteMemory) InsertEpisodicMemoryWithDetails(eventDate, title, summary
 	if source == "" {
 		source = "consolidation"
 	}
-	detailsJSON, _ := json.Marshal(details)
-	participantsJSON, _ := json.Marshal(uniqueSortedStrings(meta.Participants))
-	relatedDocIDsJSON, _ := json.Marshal(uniqueSortedStrings(meta.RelatedDocIDs))
+	detailsJSON, err := json.Marshal(details)
+	if err != nil {
+		return fmt.Errorf("marshal episodic memory details: %w", err)
+	}
+	participantsJSON, err := json.Marshal(uniqueSortedStrings(meta.Participants))
+	if err != nil {
+		return fmt.Errorf("marshal episodic memory participants: %w", err)
+	}
+	relatedDocIDsJSON, err := json.Marshal(uniqueSortedStrings(meta.RelatedDocIDs))
+	if err != nil {
+		return fmt.Errorf("marshal episodic memory related doc ids: %w", err)
+	}
 	hierarchyLevel := meta.HierarchyLevel
 	if hierarchyLevel <= 0 {
 		hierarchyLevel = 1
@@ -298,7 +307,7 @@ func (s *SQLiteMemory) InsertEpisodicMemoryWithDetails(eventDate, title, summary
 	if meta.EmotionalValence < -1 {
 		meta.EmotionalValence = -1
 	}
-	_, err := s.db.Exec(`
+	_, err = s.db.Exec(`
 		INSERT INTO episodic_memories (
 			event_date, title, summary, details_json, importance, source,
 			session_id, hierarchy_level, action_status, trigger_query, resolved_at,

@@ -5,8 +5,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/config"
+	"aurago/internal/prompts"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -88,6 +90,35 @@ func TestCompactMemoryForPromptStripsEscapedThinkingTags(t *testing.T) {
 	}
 	if !strings.Contains(got, "useful memory") {
 		t.Fatalf("expected useful memory to remain, got %q", got)
+	}
+}
+
+func TestCompactMemoryForPromptPreservesUTF8WhenTruncating(t *testing.T) {
+	input := "abcäxyz"
+
+	got := compactMemoryForPrompt(input, 4)
+
+	if !utf8.ValidString(got) {
+		t.Fatalf("compactMemoryForPrompt returned invalid UTF-8: %q", got)
+	}
+	if got != "abc…" {
+		t.Fatalf("compactMemoryForPrompt() = %q, want %q", got, "abc…")
+	}
+}
+
+func TestCountMemoryPromptTelemetryTokensIncludesAllMemorySections(t *testing.T) {
+	flags := prompts.ContextFlags{
+		RetrievedMemories:   "[Recent Day Anchors]\n- 2026-06-11: deployment",
+		PredictedMemories:   "NAS backup retention",
+		KnowledgeContext:    "KG: nas -> backup_server",
+		ErrorPatternContext: "Tool: deploy | Error: timeout",
+		LearnedRulesContext: "Rule: verify service health after restart",
+	}
+	got := countMemoryPromptTelemetryTokens(flags, "test-model")
+	withoutLearned := flags
+	withoutLearned.LearnedRulesContext = ""
+	if got <= countMemoryPromptTelemetryTokens(withoutLearned, "test-model") {
+		t.Fatalf("expected learned rules to add telemetry tokens, got %d", got)
 	}
 }
 

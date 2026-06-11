@@ -291,12 +291,48 @@ func TestRepairCanonicalMemoryNamesCleansNewVectorsWhenMetaUpsertFails(t *testin
 	}
 }
 
+func TestRepairCanonicalMemoryNamesReportsCleanupFailureAfterOldVectorDelete(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	dbPath := fmt.Sprintf("%s%cstm.db", t.TempDir(), os.PathSeparator)
+	stm, err := NewSQLiteMemory(dbPath, logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	if err := stm.InitNotesTables(); err != nil {
+		t.Fatalf("InitNotesTables: %v", err)
+	}
+	if err := stm.UpsertMemoryMetaWithDetails("old-doc", MemoryMetaUpdate{VerificationStatus: "unverified"}); err != nil {
+		t.Fatalf("UpsertMemoryMetaWithDetails: %v", err)
+	}
+	fake := &fakeRepairVectorDB{docs: map[string]string{"old-doc": "Project AuroraGo deployment note"}}
+	fake.afterDelete = func() {
+		if fake.deleted[len(fake.deleted)-1] == "old-doc" {
+			_ = stm.Close()
+		}
+	}
+
+	report, err := stm.RepairCanonicalMemoryNames(fake, CanonicalRepairOptions{Limit: 10})
+	if err == nil {
+		t.Fatal("expected cleanup failure to be returned")
+	}
+	if !strings.Contains(err.Error(), "cleanup old vector doc references") {
+		t.Fatalf("error = %v, want cleanup context", err)
+	}
+	if report.RepairedCount != 0 {
+		t.Fatalf("repaired count = %d, want 0 when cleanup fails", report.RepairedCount)
+	}
+	if len(report.Items) != 1 || !strings.Contains(report.Items[0].Error, "cleanup old vector doc references") {
+		t.Fatalf("report item = %+v, want cleanup error", report.Items)
+	}
+}
+
 type fakeRepairVectorDB struct {
-	docs       map[string]string
-	stored     []string
-	deleted    []string
-	counter    int
-	afterStore func()
+	docs        map[string]string
+	stored      []string
+	deleted     []string
+	counter     int
+	afterStore  func()
+	afterDelete func()
 }
 
 func (f *fakeRepairVectorDB) StoreDocument(concept, content string) ([]string, error) {
@@ -342,6 +378,9 @@ func (f *fakeRepairVectorDB) GetByID(id string) (string, error) {
 func (f *fakeRepairVectorDB) DeleteDocument(id string) error {
 	f.deleted = append(f.deleted, id)
 	delete(f.docs, id)
+	if f.afterDelete != nil {
+		f.afterDelete()
+	}
 	return nil
 }
 func (f *fakeRepairVectorDB) DeleteDocumentFromCollection(id, collection string) error { return nil }

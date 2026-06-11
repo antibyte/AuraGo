@@ -8,7 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"aurago/internal/testutil"
 )
@@ -264,6 +266,41 @@ func TestEmbedFile_APIError(t *testing.T) {
 	_, err := e.EmbedFile(context.Background(), tmpFile)
 	if err == nil {
 		t.Fatal("expected error for 400 response")
+	}
+}
+
+func TestEmbedFileRetriesTransientOpenAIError(t *testing.T) {
+	oldDelay := embeddingRetryDelay
+	embeddingRetryDelay = func(int) time.Duration { return 0 }
+	t.Cleanup(func() { embeddingRetryDelay = oldDelay })
+
+	var attempts atomic.Int32
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if attempts.Add(1) < 3 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte(`{"error":"try again"}`))
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"data": []map[string]interface{}{
+				{"embedding": []float32{1, 0, 0}},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	tmpFile := filepath.Join(t.TempDir(), "test.png")
+	if err := os.WriteFile(tmpFile, []byte("fake"), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	e := NewMultimodalEmbedder(srv.URL, "key", "model", "openai", "", nil)
+	got, err := e.EmbedFile(context.Background(), tmpFile)
+	if err != nil {
+		t.Fatalf("EmbedFile: %v", err)
+	}
+	if len(got) != 3 || attempts.Load() != 3 {
+		t.Fatalf("embedding len=%d attempts=%d, want len=3 attempts=3", len(got), attempts.Load())
 	}
 }
 

@@ -53,7 +53,9 @@ func (v *archiveFilterVectorDB) StoreDocument(concept, content string) ([]string
 func (v *archiveFilterVectorDB) StoreDocumentWithEmbedding(concept, content string, embedding []float32) (string, error) {
 	return "", nil
 }
-func (v *archiveFilterVectorDB) StoreBatch(items []memory.ArchiveItem) ([]string, error) { return nil, nil }
+func (v *archiveFilterVectorDB) StoreBatch(items []memory.ArchiveItem) ([]string, error) {
+	return nil, nil
+}
 func (v *archiveFilterVectorDB) SearchSimilar(query string, topK int, excludeCollections ...string) ([]string, []string, error) {
 	return nil, nil, nil
 }
@@ -131,6 +133,44 @@ func TestSearchRankedMemoriesOnlyFiltersArchivedMemories(t *testing.T) {
 	}}
 
 	ranked, err := searchRankedMemoriesOnly(vdb, stm, "nas backup", 2, nil, time.Date(2026, 5, 16, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("searchRankedMemoriesOnly: %v", err)
+	}
+	if len(ranked) != 1 {
+		t.Fatalf("ranked len = %d, want 1", len(ranked))
+	}
+	if ranked[0].docID != "doc-active" {
+		t.Fatalf("docID = %q, want doc-active", ranked[0].docID)
+	}
+}
+
+func TestSearchRankedMemoriesOnlyBackfillsArchivedTopHit(t *testing.T) {
+	resetMemoryMetaCacheForTests()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	if err := stm.UpsertMemoryMetaWithDetails("doc-archived", memory.MemoryMetaUpdate{VerificationStatus: "unverified"}); err != nil {
+		t.Fatalf("archived meta: %v", err)
+	}
+	if err := stm.ApplyMemoryCurationAction(memory.MemoryCurationAction{DocID: "doc-archived", Action: memory.MemoryCurationActionArchive, Reason: "test"}, "system", false); err != nil {
+		t.Fatalf("archive meta: %v", err)
+	}
+	if err := stm.UpsertMemoryMetaWithDetails("doc-active", memory.MemoryMetaUpdate{VerificationStatus: "confirmed"}); err != nil {
+		t.Fatalf("active meta: %v", err)
+	}
+
+	vdb := &archiveFilterVectorDB{byQuery: map[string][]memory.SearchResult{
+		"nas backup": {
+			{Text: "archived memory", DocID: "doc-archived", Similarity: 0.99},
+			{Text: "active memory", DocID: "doc-active", Similarity: 0.80},
+		},
+	}}
+
+	ranked, err := searchRankedMemoriesOnly(vdb, stm, "nas backup", 1, nil, time.Date(2026, 5, 16, 12, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("searchRankedMemoriesOnly: %v", err)
 	}

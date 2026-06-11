@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -399,23 +400,31 @@ func (s *SQLiteMemory) ApplyMemoryBudgetEnforcement(budget int, ltm VectorDB) (i
 		return 0, err
 	}
 	evicted := 0
+	var joinedErr error
 	for _, docID := range toEvict {
 		if err := ltm.DeleteDocument(docID); err != nil {
 			s.logger.Warn("Failed to evict memory from LTM for budget enforcement", "doc_id", docID, "error", err)
+			joinedErr = errors.Join(joinedErr, fmt.Errorf("delete vector doc %s: %w", docID, err))
 			continue
 		}
-		_ = s.CleanupDeletedVectorDocumentReferences(docID)
-		_ = s.ApplyMemoryCurationAction(MemoryCurationAction{
+		if err := s.CleanupDeletedVectorDocumentReferences(docID); err != nil {
+			joinedErr = errors.Join(joinedErr, fmt.Errorf("cleanup vector doc references %s: %w", docID, err))
+			continue
+		}
+		if err := s.ApplyMemoryCurationAction(MemoryCurationAction{
 			DocID:  docID,
 			Action: MemoryCurationActionArchive,
 			Reason: "memory_meta budget enforcement",
-		}, "system", false)
+		}, "system", false); err != nil {
+			joinedErr = errors.Join(joinedErr, fmt.Errorf("archive memory meta %s: %w", docID, err))
+			continue
+		}
 		evicted++
 	}
 	if evicted > 0 {
 		s.logger.Info("Enforced memory_meta budget", "budget", budget, "evicted", evicted)
 	}
-	return evicted, nil
+	return evicted, joinedErr
 }
 
 // GetMemoryBudgetStats returns current budget utilization statistics.

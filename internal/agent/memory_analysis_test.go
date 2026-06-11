@@ -253,6 +253,38 @@ func TestRankMemoryCandidatesUsesProvidedSimilarityScoresForRawResults(t *testin
 	}
 }
 
+func TestRankMemoryCandidatesDoesNotInflateZeroSimilarity(t *testing.T) {
+	now := time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC)
+	memories := []string{
+		"raw zero similarity memory",
+		"raw low similarity memory",
+	}
+	docIDs := []string{"doc-zero", "doc-low"}
+	similarities := []float64{0, 0.10}
+
+	ranked := rankMemoryCandidatesWithScores(memories, docIDs, similarities, nil, nil, now)
+	if len(ranked) != 2 {
+		t.Fatalf("len(ranked) = %d, want 2", len(ranked))
+	}
+	if ranked[0].docID != "doc-low" {
+		t.Fatalf("top ranked docID = %q, want doc-low; zero similarity must not be inflated", ranked[0].docID)
+	}
+}
+
+func TestPreparePredictiveMemoryForPromptUsesRAGServeFilter(t *testing.T) {
+	if got, ok := preparePredictiveMemoryForPrompt("[tool_availability] shell tool is not available"); ok || got != "" {
+		t.Fatalf("preparePredictiveMemoryForPrompt served transient memory: ok=%v got=%q", ok, got)
+	}
+
+	got, ok := preparePredictiveMemoryForPrompt("NAS backup retention is 30 days")
+	if !ok {
+		t.Fatal("expected normal predictive memory to be served")
+	}
+	if got != "NAS backup retention is 30 days" {
+		t.Fatalf("predictive memory = %q", got)
+	}
+}
+
 func TestApplyHelperRAGScoresReordersRankedCandidates(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 

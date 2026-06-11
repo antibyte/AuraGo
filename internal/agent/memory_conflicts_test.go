@@ -11,3 +11,23 @@ func TestDeriveConflictSignalsDetectsDifferentLanguageClaims(t *testing.T) {
 		t.Fatalf("unexpected signal: %+v", signals[0])
 	}
 }
+
+func TestNormalizeConflictTextKeepsLegitimateBracketContent(t *testing.T) {
+	input := `Alice prefers JSON ["home","lab"] backups`
+
+	got := normalizeConflictText(input)
+
+	if got != `Alice prefers JSON ["home","lab"] backups` {
+		t.Fatalf("normalizeConflictText() = %q, want original content preserved", got)
+	}
+}
+
+func TestNormalizeConflictTextStripsKnownSimilarityPrefix(t *testing.T) {
+	input := `[Similarity: 0.87] Alice prefers rsync backups`
+
+	got := normalizeConflictText(input)
+
+	if got != "Alice prefers rsync backups" {
+		t.Fatalf("normalizeConflictText() = %q, want prefix stripped", got)
+	}
+}

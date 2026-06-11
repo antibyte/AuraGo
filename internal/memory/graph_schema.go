@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 )
 
 const kgFTSSchemaVersion = "v1"
@@ -36,7 +37,9 @@ func (kg *KnowledgeGraph) initTables() error {
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		semantic_indexed_at DATETIME,
-		UNIQUE(source, target, relation)
+		UNIQUE(source, target, relation),
+		FOREIGN KEY(source) REFERENCES kg_nodes(id) ON DELETE CASCADE,
+		FOREIGN KEY(target) REFERENCES kg_nodes(id) ON DELETE CASCADE
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_kg_edges_source ON kg_edges(source);
@@ -77,7 +80,7 @@ func (kg *KnowledgeGraph) initTables() error {
 	}
 
 	var hasNodeType bool
-	kg.db.QueryRow("SELECT count(*)>0 FROM pragma_table_info('kg_nodes') WHERE name='node_type'").Scan(&hasNodeType)
+	kg.db.QueryRow("SELECT count(*)>0 FROM pragma_table_xinfo('kg_nodes') WHERE name='node_type'").Scan(&hasNodeType)
 	if !hasNodeType {
 		kg.logger.Info("KG migration: rebuilding kg_nodes to add generated columns")
 		rebuild := []string{
@@ -100,17 +103,21 @@ func (kg *KnowledgeGraph) initTables() error {
 				FROM kg_nodes_old`,
 			`DROP TABLE kg_nodes_old`,
 		}
-		for _, stmt := range rebuild {
-			if _, err := kg.db.Exec(stmt); err != nil {
-				return fmt.Errorf("KG migration rebuild kg_nodes: %w", err)
-			}
+		if err := kg.execKGMigrationTransaction(rebuild); err != nil {
+			return fmt.Errorf("KG migration rebuild kg_nodes: %w", err)
 		}
 		kg.logger.Info("KG migration: kg_nodes rebuilt with generated columns")
+	}
+
+	if err := kg.ensureKGEdgesCascade(); err != nil {
+		return err
 	}
 
 	idxStmts := []string{
 		`CREATE INDEX IF NOT EXISTS idx_kg_nodes_type ON kg_nodes(node_type)`,
 		`CREATE INDEX IF NOT EXISTS idx_kg_nodes_source ON kg_nodes(source_type)`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_edges_source ON kg_edges(source)`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_edges_target ON kg_edges(target)`,
 	}
 	for _, stmt := range idxStmts {
 		if _, err := kg.db.Exec(stmt); err != nil {
@@ -128,6 +135,103 @@ func (kg *KnowledgeGraph) initTables() error {
 	}
 
 	return nil
+}
+
+func (kg *KnowledgeGraph) execKGMigrationTransaction(statements []string) error {
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin kg migration transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	for _, stmt := range statements {
+		if _, err := tx.Exec(stmt); err != nil {
+			return err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit kg migration transaction: %w", err)
+	}
+	return nil
+}
+
+func (kg *KnowledgeGraph) ensureKGEdgesCascade() error {
+	hasCascade, err := kg.kgEdgesHaveCascadeFKs()
+	if err != nil {
+		return fmt.Errorf("inspect kg_edges foreign keys: %w", err)
+	}
+	if hasCascade {
+		return nil
+	}
+
+	kg.logger.Info("KG migration: rebuilding kg_edges with ON DELETE CASCADE")
+	statements := []string{
+		`DROP TRIGGER IF EXISTS kg_edges_ai`,
+		`DROP TRIGGER IF EXISTS kg_edges_ad`,
+		`DROP TRIGGER IF EXISTS kg_edges_au`,
+		`DROP TABLE IF EXISTS kg_edges_fts`,
+		`DELETE FROM kg_edges
+			WHERE NOT EXISTS (SELECT 1 FROM kg_nodes n WHERE n.id = kg_edges.source)
+			   OR NOT EXISTS (SELECT 1 FROM kg_nodes n WHERE n.id = kg_edges.target)`,
+		`ALTER TABLE kg_edges RENAME TO kg_edges_old`,
+		`CREATE TABLE kg_edges (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			source TEXT NOT NULL,
+			target TEXT NOT NULL,
+			relation TEXT NOT NULL,
+			properties TEXT NOT NULL DEFAULT '{}',
+			access_count INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			semantic_indexed_at DATETIME,
+			UNIQUE(source, target, relation),
+			FOREIGN KEY(source) REFERENCES kg_nodes(id) ON DELETE CASCADE,
+			FOREIGN KEY(target) REFERENCES kg_nodes(id) ON DELETE CASCADE
+		)`,
+		`INSERT INTO kg_edges (id, source, target, relation, properties, access_count, created_at, updated_at, semantic_indexed_at)
+			SELECT id, source, target, relation, properties, access_count,
+			       created_at,
+			       COALESCE(updated_at, created_at, CURRENT_TIMESTAMP),
+			       semantic_indexed_at
+			FROM kg_edges_old`,
+		`DROP TABLE kg_edges_old`,
+		`DELETE FROM kg_meta WHERE key = 'fts_schema_version'`,
+	}
+	if err := kg.execKGMigrationTransaction(statements); err != nil {
+		return fmt.Errorf("KG migration rebuild kg_edges cascade: %w", err)
+	}
+	kg.logger.Info("KG migration: kg_edges rebuilt with ON DELETE CASCADE")
+	return nil
+}
+
+func (kg *KnowledgeGraph) kgEdgesHaveCascadeFKs() (bool, error) {
+	rows, err := kg.db.Query(`PRAGMA foreign_key_list('kg_edges')`)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	var sourceCascade, targetCascade bool
+	for rows.Next() {
+		var id, seq int
+		var tableName, from, to, onUpdate, onDelete, match string
+		if err := rows.Scan(&id, &seq, &tableName, &from, &to, &onUpdate, &onDelete, &match); err != nil {
+			return false, err
+		}
+		if tableName != "kg_nodes" || to != "id" || !strings.EqualFold(onDelete, "CASCADE") {
+			continue
+		}
+		switch from {
+		case "source":
+			sourceCascade = true
+		case "target":
+			targetCascade = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return false, err
+	}
+	return sourceCascade && targetCascade, nil
 }
 
 func (kg *KnowledgeGraph) rebuildFTSIndexes() error {

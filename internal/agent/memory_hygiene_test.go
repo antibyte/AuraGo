@@ -1,10 +1,19 @@
 package agent
 
 import (
+	"database/sql"
+	"fmt"
+	"io"
+	"log/slog"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/memory"
+
+	_ "modernc.org/sqlite"
 )
 
 func TestBuildMemoryReflectionReviewIssueTriggersOnActionableCuratorCounts(t *testing.T) {
@@ -56,5 +65,40 @@ func TestBuildCoreMemoryReviewIssueFlagsTestFacts(t *testing.T) {
 	}
 	if !strings.Contains(issue.Detail, "test fact") {
 		t.Fatalf("issue detail = %q, want test fact detail", issue.Detail)
+	}
+}
+
+func TestRunAutomaticMemoryHygieneLimitsNoteAutoArchivePerRun(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "stm.db")
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(dbPath, logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	if err := stm.InitNotesTables(); err != nil {
+		t.Fatalf("InitNotesTables: %v", err)
+	}
+
+	for i := 0; i < maxNotesAutoArchivePerHygieneRun+5; i++ {
+		if _, err := stm.AddNote("general", fmt.Sprintf("old note %d", i), "stale", 1, ""); err != nil {
+			t.Fatalf("AddNote %d: %v", i, err)
+		}
+	}
+	rawDB, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	t.Cleanup(func() { _ = rawDB.Close() })
+	old := time.Now().UTC().Add(-120 * 24 * time.Hour).Format(time.RFC3339)
+	if _, err := rawDB.Exec(`UPDATE notes SET created_at = ?, updated_at = ?`, old, old); err != nil {
+		t.Fatalf("backdate notes: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Tools.Notes.Enabled = true
+	stats := runAutomaticMemoryHygiene(cfg, logger, stm, nil)
+	if stats.NotesArchived != maxNotesAutoArchivePerHygieneRun {
+		t.Fatalf("NotesArchived = %d, want cap %d", stats.NotesArchived, maxNotesAutoArchivePerHygieneRun)
 	}
 }

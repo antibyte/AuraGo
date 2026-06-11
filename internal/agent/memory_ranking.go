@@ -42,9 +42,6 @@ func rankMemoryCandidatesWithScores(memories []string, docIDs []string, similari
 		if sim <= 0 {
 			sim = memory.ExtractSimilarityScore(mem)
 		}
-		if sim == 0 {
-			sim = 0.5
-		}
 
 		meta := memory.MemoryMeta{}
 		if docID != "" {
@@ -91,14 +88,22 @@ func searchRankedMemoriesOnly(
 	if vdb == nil || !vdb.IsReady() || vdb.IsDisabled() {
 		return nil, nil
 	}
-	memories, docIDs, similarities, err := searchMemoriesOnlyWithScores(vdb, query, topK)
+	searchLimit := topK
+	if searchLimit > 0 {
+		searchLimit *= 3
+	}
+	memories, docIDs, similarities, err := searchMemoriesOnlyWithScores(vdb, query, searchLimit)
 	if err != nil {
 		return nil, err
 	}
 	if len(memories) == 0 {
 		return nil, nil
 	}
-	return rankMemoryCandidatesWithScores(memories, docIDs, similarities, stm, usedDocIDs, now), nil
+	ranked := rankMemoryCandidatesWithScores(memories, docIDs, similarities, stm, usedDocIDs, now)
+	if topK > 0 && len(ranked) > topK {
+		ranked = ranked[:topK]
+	}
+	return ranked, nil
 }
 
 func searchMemoriesOnlyWithScores(vdb memory.VectorDB, query string, topK int) ([]string, []string, []float64, error) {
