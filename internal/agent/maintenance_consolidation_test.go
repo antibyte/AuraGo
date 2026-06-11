@@ -120,7 +120,7 @@ func TestShouldMarkConsolidationSuccess(t *testing.T) {
 	}{
 		{name: "empty facts", factCount: 0, wantOK: false, wantReason: "no_facts_extracted"},
 		{name: "stored facts", stored: 2, factCount: 2, validFacts: 2, wantOK: true},
-		{name: "dedup only", skipped: 2, factCount: 2, validFacts: 2, wantOK: true},
+		{name: "dedup only", skipped: 2, factCount: 2, validFacts: 2, wantOK: true, wantReason: "all_duplicates"},
 		{name: "nothing stored", factCount: 2, validFacts: 2, wantOK: false, wantReason: "no_facts_stored"},
 	}
 	for _, tc := range tests {

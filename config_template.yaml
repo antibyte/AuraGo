@@ -564,6 +564,7 @@ consolidation:
     optimize_threshold: 1
     chat_session_limit: 10                               # max chat sessions retained before archival rotation
     stm_retention_messages: 500                          # max STM rows per session before archive+trim (0 = disabled)
+    memory_meta_budget: 0                                # max tracked LTM memory_meta rows before nightly eviction (0 = disabled)
     model: ""                                             # optional override; empty = use llm.model for nightly extraction
 memory_analysis:
     provider: ""                                          # deprecated compatibility field; helper-owned runtime now uses llm.helper_*

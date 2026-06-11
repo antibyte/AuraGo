@@ -384,6 +384,36 @@ func (s *SQLiteMemory) EnforceMemoryBudget(budget int) ([]string, error) {
 	return toEvict, rows.Err()
 }
 
+// ApplyMemoryBudgetEnforcement evicts lowest-priority tracked memories from LTM when over budget.
+// budget <= 0 disables enforcement. Protected and keep_forever rows are never evicted.
+func (s *SQLiteMemory) ApplyMemoryBudgetEnforcement(budget int, ltm VectorDB) (int, error) {
+	if budget <= 0 || ltm == nil {
+		return 0, nil
+	}
+	toEvict, err := s.EnforceMemoryBudget(budget)
+	if err != nil {
+		return 0, err
+	}
+	evicted := 0
+	for _, docID := range toEvict {
+		if err := ltm.DeleteDocument(docID); err != nil {
+			s.logger.Warn("Failed to evict memory from LTM for budget enforcement", "doc_id", docID, "error", err)
+			continue
+		}
+		_ = s.CleanupDeletedVectorDocumentReferences(docID)
+		_ = s.ApplyMemoryCurationAction(MemoryCurationAction{
+			DocID:  docID,
+			Action: MemoryCurationActionArchive,
+			Reason: "memory_meta budget enforcement",
+		}, "system", false)
+		evicted++
+	}
+	if evicted > 0 {
+		s.logger.Info("Enforced memory_meta budget", "budget", budget, "evicted", evicted)
+	}
+	return evicted, nil
+}
+
 // GetMemoryBudgetStats returns current budget utilization statistics.
 func (s *SQLiteMemory) GetMemoryBudgetStats(budget int) (MemoryBudgetStats, error) {
 	stats := MemoryBudgetStats{BudgetLimit: budget}

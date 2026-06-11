@@ -1,6 +1,10 @@
 package memory
 
-import "testing"
+import (
+	"io"
+	"log/slog"
+	"testing"
+)
 
 func TestBuildMemoryHealthReport(t *testing.T) {
 	metas := []MemoryMeta{
@@ -75,5 +79,69 @@ func TestBuildMemoryHealthReport(t *testing.T) {
 	}
 	if len(report.Curator.Suggestions) == 0 {
 		t.Fatal("expected curator suggestions")
+	}
+}
+
+func TestEnforceMemoryBudgetRespectsProtectedRows(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	for _, docID := range []string{"doc-a", "doc-b", "doc-c"} {
+		if err := stm.UpsertMemoryMeta(docID); err != nil {
+			t.Fatalf("UpsertMemoryMeta(%s): %v", docID, err)
+		}
+	}
+	if err := stm.ApplyMemoryCurationAction(MemoryCurationAction{
+		DocID:  "doc-c",
+		Action: MemoryCurationActionProtect,
+		Reason: "test protect",
+	}, "test", false); err != nil {
+		t.Fatalf("ApplyMemoryCurationAction protect: %v", err)
+	}
+
+	toEvict, err := stm.EnforceMemoryBudget(2)
+	if err != nil {
+		t.Fatalf("EnforceMemoryBudget: %v", err)
+	}
+	if len(toEvict) != 1 {
+		t.Fatalf("len(toEvict) = %d, want 1", len(toEvict))
+	}
+	if toEvict[0] == "doc-c" {
+		t.Fatalf("protected doc must not be evicted, got %q", toEvict[0])
+	}
+}
+
+func TestApplyMemoryBudgetEnforcementDeletesFromLTM(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	ltm := &fakeRepairVectorDB{docs: map[string]string{
+		"doc-a": "alpha",
+		"doc-b": "beta",
+		"doc-c": "gamma",
+	}}
+	for _, docID := range []string{"doc-a", "doc-b", "doc-c"} {
+		if err := stm.UpsertMemoryMeta(docID); err != nil {
+			t.Fatalf("UpsertMemoryMeta(%s): %v", docID, err)
+		}
+	}
+
+	evicted, err := stm.ApplyMemoryBudgetEnforcement(2, ltm)
+	if err != nil {
+		t.Fatalf("ApplyMemoryBudgetEnforcement: %v", err)
+	}
+	if evicted != 1 {
+		t.Fatalf("evicted = %d, want 1", evicted)
+	}
+	if len(ltm.deleted) != 1 {
+		t.Fatalf("deleted docs = %v, want 1", ltm.deleted)
 	}
 }

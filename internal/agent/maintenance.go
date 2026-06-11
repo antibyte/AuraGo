@@ -837,7 +837,7 @@ func shouldMarkConsolidationSuccess(stored, skipped, factCount, validFacts int) 
 		return true, ""
 	}
 	if validFacts > 0 && skipped == validFacts {
-		return true, ""
+		return true, "all_duplicates"
 	}
 	return false, "no_facts_stored"
 }
@@ -914,6 +914,9 @@ func finalizeConsolidationBatch(
 		logger.Warn("[Consolidation] Batch not consolidated", "batch", batchIndex, "reason", reason, "stored", stored, "skipped", skipped, "facts", len(facts), "valid_facts", validFacts)
 		_ = stm.MarkConsolidationFailure(item.messageIDs, reason)
 		return false, 0
+	}
+	if reason == "all_duplicates" {
+		logger.Info("[Consolidation] Batch consolidated with duplicate-only facts", "batch", batchIndex, "skipped", skipped, "facts", len(facts), "valid_facts", validFacts)
 	}
 	if err := stm.MarkConsolidationSuccess(item.messageIDs); err != nil {
 		logger.Error("[Consolidation] Failed to mark batch as consolidated", "batch", batchIndex, "error", err)
@@ -1048,6 +1051,13 @@ func runNightlyMemoryMaintenance(cfg *config.Config, logger *slog.Logger, client
 	metas, err := stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
 	if err != nil {
 		logger.Warn("[Maintenance] Failed to fetch memory metadata for nightly memory maintenance", "error", err)
+	}
+	if cfg != nil && cfg.Consolidation.MemoryMetaBudget > 0 && ltm != nil {
+		if evicted, err := stm.ApplyMemoryBudgetEnforcement(cfg.Consolidation.MemoryMetaBudget, ltm); err != nil {
+			logger.Warn("[Maintenance] Memory meta budget enforcement failed", "error", err, "budget", cfg.Consolidation.MemoryMetaBudget)
+		} else if evicted > 0 {
+			logger.Info("[Maintenance] Memory meta budget enforced", "evicted", evicted, "budget", cfg.Consolidation.MemoryMetaBudget)
+		}
 	}
 	if cfg != nil && cfg.Consolidation.AutoOptimize && totalStored > 0 {
 		autoOptimizeMemory(cfg, logger, client, ltm, stm, kg, metas)

@@ -51,6 +51,17 @@ func TestExtractSimilarityScore(t *testing.T) {
 	}
 }
 
+func TestTruncateArchiveItemContentPreservesUTF8(t *testing.T) {
+	value := "界" + string(make([]byte, 20))
+	got := truncateArchiveItemContent(value)
+	if !utf8.ValidString(got) {
+		t.Fatalf("invalid UTF-8: %q", got)
+	}
+	if len(got) > maxBatchItemBytes {
+		t.Fatalf("len = %d, want <= %d", len(got), maxBatchItemBytes)
+	}
+}
+
 func TestCalculateBatchTimeout(t *testing.T) {
 	tests := []struct {
 		name     string
