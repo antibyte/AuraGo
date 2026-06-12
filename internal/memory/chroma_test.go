@@ -1,13 +1,21 @@
 package memory
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 	"unicode/utf8"
+
+	chromem "github.com/philippgille/chromem-go"
 )
 
 // ── splitFrontmatter ──────────────────────────────────────────────────────────
@@ -302,6 +310,124 @@ func TestLoadToolGuideFilesFallsBackToEmbeddedGuides(t *testing.T) {
 	}
 	if !foundDocker {
 		t.Fatal("expected embedded docker.md guide to be available")
+	}
+}
+
+func TestIndexToolGuidesKeepsExistingCollectionWhenReindexAddFails(t *testing.T) {
+	var failEmbeddings atomic.Bool
+	embeddingFunc := func(_ context.Context, _ string) ([]float32, error) {
+		if failEmbeddings.Load() {
+			return nil, errors.New("embedding provider unavailable")
+		}
+		return []float32{1, 0, 0}, nil
+	}
+	db := chromem.NewDB()
+	collection, err := db.GetOrCreateCollection("aurago_memories", nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection aurago_memories: %v", err)
+	}
+	cv := &ChromemVectorDB{
+		db:                   db,
+		dataDir:              t.TempDir(),
+		collection:           collection,
+		logger:               slog.New(slog.NewTextHandler(io.Discard, nil)),
+		embeddingFunc:        embeddingFunc,
+		embeddingFingerprint: "test|tool-guides|3",
+		queryCache:           make(map[string]queryCacheEntry),
+		queryCacheTTL:        5 * time.Minute,
+	}
+	markTestVectorDBReady(cv)
+
+	toolsDir := t.TempDir()
+	guidePath := filepath.Join(toolsDir, "docker.md")
+	if err := os.WriteFile(guidePath, []byte("---\ndescription: Docker guide\n---\n\n# Docker\n\nUse containers."), 0o644); err != nil {
+		t.Fatalf("WriteFile initial guide: %v", err)
+	}
+	if err := cv.IndexToolGuides(toolsDir, true); err != nil {
+		t.Fatalf("IndexToolGuides initial: %v", err)
+	}
+	toolGuides, err := cv.db.GetOrCreateCollection("tool_guides", nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection tool_guides: %v", err)
+	}
+	if toolGuides.Count() != 1 {
+		t.Fatalf("initial tool guide count = %d, want 1", toolGuides.Count())
+	}
+
+	if err := os.WriteFile(guidePath, []byte("---\ndescription: Docker changed\n---\n\n# Docker\n\nUpdated body."), 0o644); err != nil {
+		t.Fatalf("WriteFile changed guide: %v", err)
+	}
+	failEmbeddings.Store(true)
+	if err := cv.IndexToolGuides(toolsDir, true); err == nil {
+		t.Fatal("IndexToolGuides reindex error = nil, want embedding failure")
+	}
+	toolGuides, err = cv.db.GetOrCreateCollection("tool_guides", nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection tool_guides after failure: %v", err)
+	}
+	if toolGuides.Count() != 1 {
+		t.Fatalf("tool guide count after failed reindex = %d, want old guide preserved", toolGuides.Count())
+	}
+	doc, err := toolGuides.GetByID(context.Background(), "tool_docker")
+	if err != nil {
+		t.Fatalf("old tool guide missing after failed reindex: %v", err)
+	}
+	if !strings.Contains(doc.Content, "Use containers.") {
+		t.Fatalf("tool guide content after failed reindex = %q, want previous content", doc.Content)
+	}
+}
+
+func TestIndexToolGuidesDeletesRemovedGuideAfterSuccessfulReindex(t *testing.T) {
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		if strings.Contains(text, "Docker") {
+			return []float32{1, 0, 0}, nil
+		}
+		return []float32{0, 1, 0}, nil
+	}
+	db := chromem.NewDB()
+	collection, err := db.GetOrCreateCollection("aurago_memories", nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection aurago_memories: %v", err)
+	}
+	cv := &ChromemVectorDB{
+		db:                   db,
+		dataDir:              t.TempDir(),
+		collection:           collection,
+		logger:               slog.New(slog.NewTextHandler(io.Discard, nil)),
+		embeddingFunc:        embeddingFunc,
+		embeddingFingerprint: "test|tool-guides|3",
+		queryCache:           make(map[string]queryCacheEntry),
+		queryCacheTTL:        5 * time.Minute,
+	}
+	markTestVectorDBReady(cv)
+
+	toolsDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(toolsDir, "docker.md"), []byte("# Docker\n\nUse containers."), 0o644); err != nil {
+		t.Fatalf("WriteFile docker: %v", err)
+	}
+	ansiblePath := filepath.Join(toolsDir, "ansible.md")
+	if err := os.WriteFile(ansiblePath, []byte("# Ansible\n\nUse playbooks."), 0o644); err != nil {
+		t.Fatalf("WriteFile ansible: %v", err)
+	}
+	if err := cv.IndexToolGuides(toolsDir, true); err != nil {
+		t.Fatalf("IndexToolGuides initial: %v", err)
+	}
+
+	if err := os.Remove(ansiblePath); err != nil {
+		t.Fatalf("Remove ansible: %v", err)
+	}
+	if err := cv.IndexToolGuides(toolsDir, true); err != nil {
+		t.Fatalf("IndexToolGuides reindex: %v", err)
+	}
+	toolGuides, err := cv.db.GetOrCreateCollection("tool_guides", nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection tool_guides: %v", err)
+	}
+	if _, err := toolGuides.GetByID(context.Background(), "tool_ansible"); err == nil {
+		t.Fatal("removed guide tool_ansible still exists after successful reindex")
+	}
+	if _, err := toolGuides.GetByID(context.Background(), "tool_docker"); err != nil {
+		t.Fatalf("remaining guide tool_docker missing after successful reindex: %v", err)
 	}
 }
 

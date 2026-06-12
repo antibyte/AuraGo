@@ -615,6 +615,50 @@ func TestFileIndexerCleanupDirectoryRemovesTrackedFiles(t *testing.T) {
 	}
 }
 
+func TestFileIndexerReindexesWhenFullContentChangesBeyondIndexedLimit(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "large.txt")
+	prefix := strings.Repeat("a", maxIndexedContentBytes+1024)
+	modTime := time.Now().UTC().Add(-time.Minute).Truncate(time.Second)
+	if err := os.WriteFile(path, []byte(prefix+"first-tail"), 0o644); err != nil {
+		t.Fatalf("WriteFile first version: %v", err)
+	}
+	if err := os.Chtimes(path, modTime, modTime); err != nil {
+		t.Fatalf("Chtimes first version: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+	cfgMu := &sync.RWMutex{}
+	vdb := &fakeIndexerVectorDB{}
+	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
+
+	_, indexed, errs := fi.scanDirectory(dir, IndexerCollection)
+	if indexed != 1 || len(errs) != 0 {
+		t.Fatalf("first scan indexed=%d errors=%v, want indexed=1 errors=[]", indexed, errs)
+	}
+
+	if err := os.WriteFile(path, []byte(prefix+"second-tail"), 0o644); err != nil {
+		t.Fatalf("WriteFile second version: %v", err)
+	}
+	if err := os.Chtimes(path, modTime, modTime); err != nil {
+		t.Fatalf("Chtimes second version: %v", err)
+	}
+
+	_, indexed, errs = fi.scanDirectory(dir, IndexerCollection)
+	if indexed != 1 || len(errs) != 0 {
+		t.Fatalf("second scan indexed=%d errors=%v, want indexed=1 errors=[] for full-content hash change", indexed, errs)
+	}
+}
+
 func TestFileIndexerSkipsDocumentWhenExtractionFails(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)

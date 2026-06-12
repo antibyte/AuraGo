@@ -75,6 +75,14 @@ type ScoredVectorDB interface {
 	SearchMemoriesOnlyScored(query string, topK int) ([]SearchResult, error)
 }
 
+// ContextScoredVectorDB is an optional extension for callers that already have
+// a request or shutdown context. VectorDB stays unchanged for compatibility.
+type ContextScoredVectorDB interface {
+	SearchSimilarScoredContext(ctx context.Context, query string, topK int, excludeCollections ...string) ([]SearchResult, error)
+	SearchMemoriesOnlyScoredContext(ctx context.Context, query string, topK int) ([]SearchResult, error)
+	SearchToolGuidesContext(ctx context.Context, query string, topK int) ([]string, error)
+}
+
 // queryCacheEntry stores a pre-computed query embedding with a timestamp for TTL expiry.
 type queryCacheEntry struct {
 	embedding []float32
@@ -115,6 +123,7 @@ type ChromemVectorDB struct {
 	indexing               atomic.Int32       // Counter: >0 while async indexing is in progress
 	indexingWg             sync.WaitGroup     // Tracks in-flight async indexing goroutines
 	validationWg           sync.WaitGroup     // Tracks startup embedding validation.
+	validationCancel       context.CancelFunc // Cancels startup embedding validation during Close.
 	dedupSem               chan struct{}      // semaphore to limit concurrent dedup checks
 	storeWg                sync.WaitGroup     // Tracks in-flight single-document store operations
 	batchWg                sync.WaitGroup     // Tracks in-flight StoreBatch goroutines
@@ -128,6 +137,9 @@ func (cv *ChromemVectorDB) Close() error {
 	cv.lifecycleMu.Lock()
 	cv.closed.Store(true)
 	cv.ready.Store(false)
+	if cv.validationCancel != nil {
+		cv.validationCancel()
+	}
 	cv.lifecycleMu.Unlock()
 	if cv.logger != nil {
 		cv.logger.Debug("Closing VectorDB, waiting for in-flight validation, indexing, and batch operations...")
@@ -328,77 +340,40 @@ func (cv *ChromemVectorDB) addEmbeddingMetadata(metadata map[string]string) map[
 //   - "internal": uses the main LLM provider's API (e.g., OpenRouter) for embeddings
 //   - "external": uses a dedicated embedding endpoint (e.g., local Ollama)
 func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVectorDB, error) {
-	db, err := chromem.NewPersistentDB(cfg.Directories.VectorDBDir, false)
+	if logger == nil {
+		logger = slog.Default()
+	}
+	runtime := buildEmbeddingRuntimeFromConfig(cfg, logger)
+	dataDir := ""
+	if cfg != nil {
+		dataDir = cfg.Directories.VectorDBDir
+	}
+
+	if runtime.Disabled {
+		vdb := &ChromemVectorDB{
+			dataDir:                dataDir,
+			logger:                 logger,
+			embeddingFunc:          runtime.EmbeddingFunc,
+			embeddingFingerprint:   runtime.Fingerprint,
+			queryCache:             make(map[string]queryCacheEntry),
+			queryCacheTTL:          5 * time.Minute,
+			dedupSem:               make(chan struct{}, 16),
+			fileIndexerCollections: make(map[string]struct{}),
+		}
+		vdb.disabled.Store(true)
+		vdb.ready.Store(true)
+		if logger != nil {
+			logger.Info("VectorDB disabled by configuration, skipping persistent DB open and embedding validation")
+		}
+		return vdb, nil
+	}
+
+	db, err := chromem.NewPersistentDB(dataDir, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create persistent vector DB: %w", err)
 	}
-	dataDir := cfg.Directories.VectorDBDir
 
-	// Dynamic embedding function factory using chromem-go's native constructors
-	var embeddingFunc chromem.EmbeddingFunc
-	embeddingFingerprint := ""
-	provider := cfg.Embeddings.Provider
-	localEmbeddingProvider := isLocalEmbeddingProvider(cfg)
-
-	if provider == "disabled" || provider == "" {
-		// Explicit opt-out via config — use a no-op func; disabled flag is set below.
-		embeddingFunc = func(_ context.Context, _ string) ([]float32, error) {
-			return nil, fmt.Errorf("embeddings are disabled")
-		}
-		logger.Info("VectorDB: embeddings disabled by configuration")
-		provider = "disabled" // normalise for the check below
-	} else {
-		// Provider entry resolved by config.ResolveProviders — use resolved fields directly.
-		// Fallback: if legacy "internal"/"external" values are still present (no migration),
-		// handle them for backward compat.
-		embedURL := cfg.Embeddings.BaseURL
-		embedKey := cfg.Embeddings.APIKey
-		embedModel := cfg.Embeddings.Model
-
-		// Legacy compat: "internal" always uses the main LLM endpoint + credentials.
-		// The embeddings.api_key field is irrelevant in this mode — always override
-		// so a stale/dummy key never blocks the embedding pipeline.
-		if provider == "internal" {
-			embedURL = cfg.LLM.BaseURL
-			embedKey = cfg.LLM.APIKey
-			if embedModel == "" {
-				embedModel = cfg.Embeddings.InternalModel
-			}
-		}
-		// Legacy compat: "external" uses dedicated fields
-		if provider == "external" {
-			if embedURL == "" {
-				embedURL = cfg.Embeddings.ExternalURL
-			}
-			if embedModel == "" {
-				embedModel = cfg.Embeddings.ExternalModel
-			}
-		}
-
-		if embedModel == "" {
-			embedModel = "text-embedding-3-small"
-		}
-		embeddingFingerprint = buildEmbeddingFingerprint(provider, embedURL, embedModel)
-
-		// Warn early if the API key is empty — the 401 from the provider would
-		// otherwise be the only hint and doesn't clearly say "key missing".
-		if embedKey == "" {
-			vaultKey := "provider_" + provider + "_api_key"
-			logger.Warn("[VectorDB] Embeddings API key is empty — check vault entry",
-				"provider", provider, "vault_key", vaultKey,
-				"hint", "Re-enter the API key via Config UI → Providers → "+provider)
-		}
-
-		embeddingFunc = withEmbeddingRetry(chromem.NewEmbeddingFuncOpenAICompat(
-			embedURL,
-			embedKey,
-			embedModel,
-			nil, // Auto-detect normalization
-		), logger)
-		logger.Info("VectorDB using embeddings provider", "provider", provider, "url", embedURL, "model", embedModel)
-	}
-
-	collection, err := db.GetOrCreateCollection("aurago_memories", nil, embeddingFunc)
+	collection, err := db.GetOrCreateCollection("aurago_memories", nil, runtime.EmbeddingFunc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get/create collection: %w", err)
 	}
@@ -408,8 +383,8 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 		dataDir:                dataDir,
 		collection:             collection,
 		logger:                 logger,
-		embeddingFunc:          embeddingFunc,
-		embeddingFingerprint:   embeddingFingerprint,
+		embeddingFunc:          runtime.EmbeddingFunc,
+		embeddingFingerprint:   runtime.Fingerprint,
 		queryCache:             make(map[string]queryCacheEntry),
 		queryCacheTTL:          5 * time.Minute,
 		dedupSem:               make(chan struct{}, 16),
@@ -421,30 +396,30 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 	// vdb.disabled starts as false (atomic.Bool zero value). If the background
 	// validation fails, it is set to true, causing subsequent VectorDB operations
 	// to gracefully fail until the process is restarted.
-	if provider == "disabled" {
-		vdb.disabled.Store(true)
-		vdb.ready.Store(true)
-		logger.Info("VectorDB disabled by configuration, skipping embedding validation")
-	} else {
-		logger.Info("Validating embedding pipeline (async)...")
-		vdb.validationWg.Add(1)
-		go func() {
-			defer vdb.validationWg.Done()
-			defer vdb.ready.Store(true)
-			validationStart := time.Now()
-			vec, err := validateEmbeddingWithRetry(embeddingFunc, 3, logger)
-			if err != nil {
-				logger.Warn("Embedding pipeline validation failed after retries. Long-term memory will be disabled.", "error", err)
-				vdb.disabled.Store(true)
-			} else {
-				latency := time.Since(validationStart)
-				logger.Info("Embedding pipeline validated", "vector_dimensions", len(vec), "provider", provider, "docs", collection.Count(), "latency", latency)
-				if localEmbeddingProvider && latency > 500*time.Millisecond {
-					logger.Warn("Local embeddings are slow. Consider enabling GPU passthrough (use_host_gpu) or using a cloud provider.", "latency", latency)
-				}
+	logger.Info("Validating embedding pipeline (async)...")
+	validationCtx, validationCancel := context.WithCancel(context.Background())
+	vdb.validationCancel = validationCancel
+	vdb.validationWg.Add(1)
+	go func() {
+		defer vdb.validationWg.Done()
+		defer vdb.ready.Store(true)
+		validationStart := time.Now()
+		vec, err := validateEmbeddingWithRetry(validationCtx, runtime.EmbeddingFunc, 3, logger)
+		if err != nil {
+			if errors.Is(err, context.Canceled) && vdb.closed.Load() {
+				logger.Debug("Embedding pipeline validation canceled during VectorDB close")
+				return
 			}
-		}()
-	}
+			logger.Warn("Embedding pipeline validation failed after retries. Long-term memory will be disabled.", "error", err)
+			vdb.disabled.Store(true)
+		} else {
+			latency := time.Since(validationStart)
+			logger.Info("Embedding pipeline validated", "vector_dimensions", len(vec), "provider", runtime.Provider, "docs", collection.Count(), "latency", latency)
+			if runtime.Local && latency > 500*time.Millisecond {
+				logger.Warn("Local embeddings are slow. Consider enabling GPU passthrough (use_host_gpu) or using a cloud provider.", "latency", latency)
+			}
+		}
+	}()
 
 	return vdb, nil
 }
@@ -475,24 +450,67 @@ func isLocalEmbeddingProvider(cfg *config.Config) bool {
 
 // validateEmbeddingWithRetry attempts to validate the embedding pipeline up to maxRetries times
 // with exponential backoff (1s, 4s, 9s). Returns the embedding vector on success.
-func validateEmbeddingWithRetry(ef chromem.EmbeddingFunc, maxRetries int, logger *slog.Logger) ([]float32, error) {
+func validateEmbeddingWithRetry(ctx context.Context, ef chromem.EmbeddingFunc, maxRetries int, logger *slog.Logger) ([]float32, error) {
 	var lastErr error
 	for i := 0; i < maxRetries; i++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if i > 0 {
 			backoff := time.Duration(i*i) * time.Second
-			logger.Info("Retrying embedding validation...", "attempt", i+1, "backoff", backoff)
-			time.Sleep(backoff)
+			if logger != nil {
+				logger.Info("Retrying embedding validation...", "attempt", i+1, "backoff", backoff)
+			}
+			timer := time.NewTimer(backoff)
+			select {
+			case <-ctx.Done():
+				if !timer.Stop() {
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+				return nil, ctx.Err()
+			case <-timer.C:
+			}
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		vec, err := ef(ctx, "startup validation test")
+		attemptCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+		vec, err := ef(attemptCtx, "startup validation test")
 		cancel()
 		if err == nil {
 			return vec, nil
 		}
 		lastErr = err
-		logger.Warn("Embedding validation attempt failed", "attempt", i+1, "error", err)
+		if logger != nil {
+			logger.Warn("Embedding validation attempt failed", "attempt", i+1, "error", err)
+		}
+		if isPermanentEmbeddingValidationError(err) {
+			return nil, fmt.Errorf("embedding validation failed with permanent error: %w", err)
+		}
 	}
 	return nil, fmt.Errorf("embedding validation failed after %d attempts: %w", maxRetries, lastErr)
+}
+
+func isPermanentEmbeddingValidationError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	permanentMarkers := []string{
+		"401",
+		"403",
+		"unauthorized",
+		"forbidden",
+		"invalid api key",
+		"api key invalid",
+		"missing api key",
+	}
+	for _, marker := range permanentMarkers {
+		if strings.Contains(msg, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 // StoreDocument stores a concept/content pair, auto-chunking large texts.
@@ -1159,6 +1177,14 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 // SearchSimilarScored finds the topK most semantically similar documents across
 // all relevant collections and preserves their decayed similarity scores.
 func (cv *ChromemVectorDB) SearchSimilarScored(query string, topK int, excludeCollections ...string) ([]SearchResult, error) {
+	return cv.SearchSimilarScoredContext(context.Background(), query, topK, excludeCollections...)
+}
+
+// SearchSimilarScoredContext finds similar documents and honors caller cancellation.
+func (cv *ChromemVectorDB) SearchSimilarScoredContext(ctx context.Context, query string, topK int, excludeCollections ...string) ([]SearchResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	doneSearch, err := cv.beginTrackedOperation(&cv.searchWg)
 	if err != nil {
 		return nil, err
@@ -1168,12 +1194,15 @@ func (cv *ChromemVectorDB) SearchSimilarScored(query string, topK int, excludeCo
 	if err := cv.requireReadyForSearch(); err != nil {
 		return nil, err
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
-	cv.mu.RLock()
-	defer cv.mu.RUnlock()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	// Compute query embedding once and reuse across all collections
 	queryEmbedding, err := cv.getQueryEmbedding(ctx, query)
@@ -1221,7 +1250,9 @@ func (cv *ChromemVectorDB) SearchSimilarScored(query string, topK int, excludeCo
 
 	for _, colName := range collections {
 		colName := colName // capture
+		cv.mu.RLock()
 		col, err := cv.db.GetOrCreateCollection(colName, nil, cv.embeddingFunc)
+		cv.mu.RUnlock()
 		if err != nil {
 			resultCh <- colResult{colName: colName, err: err}
 			continue
@@ -1335,6 +1366,14 @@ func (cv *ChromemVectorDB) SearchMemoriesOnly(query string, topK int) ([]string,
 
 // SearchMemoriesOnlyScored searches only aurago_memories and preserves scores.
 func (cv *ChromemVectorDB) SearchMemoriesOnlyScored(query string, topK int) ([]SearchResult, error) {
+	return cv.SearchMemoriesOnlyScoredContext(context.Background(), query, topK)
+}
+
+// SearchMemoriesOnlyScoredContext searches only aurago_memories and honors caller cancellation.
+func (cv *ChromemVectorDB) SearchMemoriesOnlyScoredContext(ctx context.Context, query string, topK int) ([]SearchResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	doneSearch, err := cv.beginTrackedOperation(&cv.searchWg)
 	if err != nil {
 		return nil, err
@@ -1344,14 +1383,19 @@ func (cv *ChromemVectorDB) SearchMemoriesOnlyScored(query string, topK int) ([]S
 	if err := cv.requireReadyForSearch(); err != nil {
 		return nil, err
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	cv.mu.RLock()
-	defer cv.mu.RUnlock()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
 	col, err := cv.db.GetOrCreateCollection("aurago_memories", nil, cv.embeddingFunc)
+	cv.mu.RUnlock()
 	if err != nil || col.Count() == 0 {
 		return nil, nil
 	}

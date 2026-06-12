@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -58,5 +59,24 @@ func TestFindLegacyVaultPathIgnoresCurrentVaultLocation(t *testing.T) {
 
 	if got := findLegacyVaultPath(configPath, currentDataDir); got != "" {
 		t.Fatalf("findLegacyVaultPath() = %q, want empty", got)
+	}
+}
+
+func TestLocalOllamaEmbeddingsStartBeforeVectorDBInitialization(t *testing.T) {
+	data, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatalf("ReadFile main.go: %v", err)
+	}
+	source := string(data)
+	ensureIdx := strings.Index(source, "tools.EnsureOllamaEmbeddingsRunning(cfg, appLog)")
+	if ensureIdx < 0 {
+		t.Fatal("main.go does not start local Ollama embeddings")
+	}
+	vdbIdx := strings.Index(source, "memory.NewChromemVectorDB(cfg, appLog)")
+	if vdbIdx < 0 {
+		t.Fatal("main.go does not initialize VectorDB")
+	}
+	if ensureIdx > vdbIdx {
+		t.Fatal("local Ollama embeddings must start before VectorDB initialization")
 	}
 }

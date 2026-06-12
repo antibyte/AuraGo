@@ -4,11 +4,14 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -38,14 +41,13 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 		return nil
 	}
 
-	cv.mu.Lock()
-	defer cv.mu.Unlock()
-
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	// Get or create collection for tool guides
+	cv.mu.Lock()
 	collection, err := cv.db.GetOrCreateCollection("tool_guides", nil, cv.embeddingFunc)
+	cv.mu.Unlock()
 	if err != nil {
 		return fmt.Errorf("failed to get/create tool_guides collection: %w", err)
 	}
@@ -67,7 +69,8 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 	}
 
 	var docs []chromem.Document
-	guideFiles, err := loadToolGuideFiles(toolsDir)
+	newDocIDs := make(map[string]struct{})
+	guideFiles, err := loadToolGuideFilesWithWarnings(toolsDir, cv.logger)
 	if err != nil {
 		return err
 	}
@@ -92,6 +95,7 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 		content := buildToolGuideEmbeddingContent(description, body)
 
 		docID := fmt.Sprintf("tool_%s", strings.TrimSuffix(guide.Name, ".md"))
+		newDocIDs[docID] = struct{}{}
 		docs = append(docs, chromem.Document{
 			ID: docID,
 			Metadata: map[string]string{
@@ -106,16 +110,6 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 		return nil
 	}
 
-	// Delete and recreate the collection to remove orphaned docs from deleted .md files.
-	if delErr := cv.db.DeleteCollection("tool_guides"); delErr != nil {
-		cv.logger.Warn("Failed to delete tool_guides collection for re-index", "error", delErr)
-	} else {
-		collection, err = cv.db.GetOrCreateCollection("tool_guides", nil, cv.embeddingFunc)
-		if err != nil {
-			return fmt.Errorf("failed to recreate tool_guides collection: %w", err)
-		}
-	}
-
 	// Use parallel AddDocuments (batch size 8 or length)
 	concurrency := 8
 	if len(docs) < 8 {
@@ -127,6 +121,16 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 		return fmt.Errorf("failed to batch index tool guides: %w", err)
 	}
 
+	previousDocIDs := cv.readToolGuidesDocManifest()
+	for _, oldID := range previousDocIDs {
+		if _, ok := newDocIDs[oldID]; ok {
+			continue
+		}
+		if err := collection.Delete(ctx, nil, nil, oldID); err != nil {
+			cv.logger.Warn("Failed to delete stale tool guide document", "doc_id", oldID, "error", err)
+		}
+	}
+
 	// Persist the content hash so subsequent startups can skip re-indexing.
 	newHash := cv.computeToolGuidesHash(toolsDir)
 	hashFile := filepath.Join(cv.dataDir, ".tool_guides_hash")
@@ -134,9 +138,22 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 		cv.logger.Warn("Failed to write tool guides content hash", "path", hashFile, "error", err)
 		return fmt.Errorf("write tool guides content hash: %w", err)
 	}
+	if err := cv.writeToolGuidesDocManifest(mapKeysSorted(newDocIDs)); err != nil {
+		cv.logger.Warn("Failed to write tool guides doc manifest", "error", err)
+		return fmt.Errorf("write tool guides doc manifest: %w", err)
+	}
 
 	cv.logger.Info("Tool guides indexing completed", "count", collection.Count())
 	return nil
+}
+
+func mapKeysSorted(values map[string]struct{}) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func buildToolGuideEmbeddingContent(description, body string) string {
@@ -160,8 +177,16 @@ func buildToolGuideEmbeddingContent(description, body string) string {
 // SearchToolGuides finds relevant tool guides based on a query.
 // Uses the query embedding cache if the same query is reused.
 func (cv *ChromemVectorDB) SearchToolGuides(query string, topK int) ([]string, error) {
+	return cv.SearchToolGuidesContext(context.Background(), query, topK)
+}
+
+// SearchToolGuidesContext finds relevant tool guides and honors caller cancellation.
+func (cv *ChromemVectorDB) SearchToolGuidesContext(ctx context.Context, query string, topK int) ([]string, error) {
 	if query == "" {
 		return nil, nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 	doneSearch, err := cv.beginTrackedOperation(&cv.searchWg)
 	if err != nil {
@@ -172,14 +197,19 @@ func (cv *ChromemVectorDB) SearchToolGuides(query string, topK int) ([]string, e
 	if err := cv.requireReadyForSearch(); err != nil {
 		return nil, err
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	cv.mu.RLock()
-	defer cv.mu.RUnlock()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	collection, err := cv.db.GetOrCreateCollection("tool_guides", nil, cv.embeddingFunc)
+	cv.mu.RUnlock()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tool_guides collection: %w", err)
 	}
@@ -223,14 +253,13 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 		return nil
 	}
 
-	cv.mu.Lock()
-	defer cv.mu.Unlock()
-
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	// 1. Get/Create collection
+	cv.mu.Lock()
 	collection, err := cv.db.GetOrCreateCollection(collectionName, nil, cv.embeddingFunc)
+	cv.mu.Unlock()
 	if err != nil {
 		return fmt.Errorf("failed to get/create %s collection: %w", collectionName, err)
 	}
@@ -431,6 +460,36 @@ func (cv *ChromemVectorDB) computeToolGuidesHash(toolsDir string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
+func (cv *ChromemVectorDB) toolGuidesDocManifestPath() string {
+	if cv.dataDir == "" {
+		return ".tool_guides_docs.json"
+	}
+	return filepath.Join(cv.dataDir, ".tool_guides_docs.json")
+}
+
+func (cv *ChromemVectorDB) readToolGuidesDocManifest() []string {
+	data, err := os.ReadFile(cv.toolGuidesDocManifestPath())
+	if err != nil {
+		return nil
+	}
+	var docIDs []string
+	if err := json.Unmarshal(data, &docIDs); err != nil {
+		if cv.logger != nil {
+			cv.logger.Warn("Failed to parse tool guides doc manifest", "error", err)
+		}
+		return nil
+	}
+	return docIDs
+}
+
+func (cv *ChromemVectorDB) writeToolGuidesDocManifest(docIDs []string) error {
+	data, err := json.MarshalIndent(docIDs, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(cv.toolGuidesDocManifestPath(), data, 0o644)
+}
+
 type toolGuideFile struct {
 	Name string
 	Path string
@@ -438,6 +497,10 @@ type toolGuideFile struct {
 }
 
 func loadToolGuideFiles(toolsDir string) ([]toolGuideFile, error) {
+	return loadToolGuideFilesWithWarnings(toolsDir, nil)
+}
+
+func loadToolGuideFilesWithWarnings(toolsDir string, logger *slog.Logger) ([]toolGuideFile, error) {
 	files, err := os.ReadDir(toolsDir)
 	if err == nil {
 		guides := make([]toolGuideFile, 0, len(files))
@@ -448,6 +511,9 @@ func loadToolGuideFiles(toolsDir string) ([]toolGuideFile, error) {
 			path := filepath.Join(toolsDir, file.Name())
 			data, readErr := os.ReadFile(path)
 			if readErr != nil {
+				if logger != nil {
+					logger.Warn("Skipping unreadable tool guide", "path", path, "error", readErr)
+				}
 				continue
 			}
 			guides = append(guides, toolGuideFile{
@@ -471,6 +537,9 @@ func loadToolGuideFiles(toolsDir string) ([]toolGuideFile, error) {
 		embedPath := filepath.ToSlash(filepath.Join("tools_manuals", entry.Name()))
 		data, readErr := fs.ReadFile(promptsembed.FS, embedPath)
 		if readErr != nil {
+			if logger != nil {
+				logger.Warn("Skipping unreadable embedded tool guide", "path", embedPath, "error", readErr)
+			}
 			continue
 		}
 		guides = append(guides, toolGuideFile{

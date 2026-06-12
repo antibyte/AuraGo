@@ -474,6 +474,7 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 		if len(content) == 0 && precomputedEmbedding == nil {
 			return nil
 		}
+		contentHash := hashIndexedFileContent(content, precomputedEmbedding, path)
 		if precomputedEmbedding == nil {
 			if limitedContent, truncated := limitIndexedContent(content); truncated {
 				fi.logger.Warn("[Indexer] Truncated extracted content before indexing", "path", path, "limit_bytes", maxIndexedContentBytes)
@@ -481,7 +482,6 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 			}
 		}
 
-		contentHash := hashIndexedFileContent(content, precomputedEmbedding, path)
 		indexFingerprint := fi.indexFingerprint()
 		indexState, _ := fi.stm.GetFileIndexState(path, collection)
 		if !shouldReindexFile(info.ModTime(), contentHash, indexFingerprint, indexState) {

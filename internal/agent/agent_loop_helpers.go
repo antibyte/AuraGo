@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"encoding/json"
 	"html"
 	"log/slog"
@@ -185,6 +186,10 @@ func (s *streamingAccountingState) recordProviderUsage(prompt, completion, cache
 
 type toolGuideSearcher interface {
 	SearchToolGuides(query string, topK int) ([]string, error)
+}
+
+type contextToolGuideSearcher interface {
+	SearchToolGuidesContext(ctx context.Context, query string, topK int) ([]string, error)
 }
 
 var nonAlphaNumPattern = regexp.MustCompile(`[^a-z0-9]+`)
@@ -700,12 +705,20 @@ func expandAdaptiveAlwaysIncludeAlias(name string) []string {
 // SearchToolGuides has a 30-second internal timeout, which can block the first
 // agent turn during cold-start embedding computation. This wrapper limits the
 // wait and falls back to intent/usage-based ordering on timeout.
-//
-// NOTE: On timeout the background goroutine continues until SearchToolGuides
-// returns. Under repeated cold-starts several goroutines may stack briefly.
-// A future improvement is to make toolGuideSearcher context-aware so the
-// underlying search can be cancelled.
 func searchToolGuidesWithTimeout(gs toolGuideSearcher, query string, limit int, timeout time.Duration, logger *slog.Logger) []string {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	if contextSearcher, ok := gs.(contextToolGuideSearcher); ok {
+		paths, err := contextSearcher.SearchToolGuidesContext(ctx, query, limit)
+		if err != nil {
+			if logger != nil {
+				logger.Debug("[AdaptiveTools] Semantic tool search unavailable", "error", err)
+			}
+			return nil
+		}
+		return paths
+	}
+
 	type result struct {
 		paths []string
 		err   error

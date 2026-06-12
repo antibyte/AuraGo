@@ -172,6 +172,147 @@ func TestChromemVectorDBCloseReturnsTimeoutAndDisablesStoreWhenWorkersHang(t *te
 	cv.indexingWg.Done()
 }
 
+func TestValidateEmbeddingWithRetryStopsOnPermanentAuthError(t *testing.T) {
+	var calls atomic.Int32
+	embeddingErr := errors.New("401 unauthorized: invalid api key")
+	_, err := validateEmbeddingWithRetry(context.Background(), func(_ context.Context, _ string) ([]float32, error) {
+		calls.Add(1)
+		return nil, embeddingErr
+	}, 3, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err == nil {
+		t.Fatal("validateEmbeddingWithRetry error = nil, want auth error")
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("embedding calls = %d, want 1 for permanent auth error", calls.Load())
+	}
+}
+
+func TestValidateEmbeddingWithRetryBackoffStopsOnContextCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var calls atomic.Int32
+	start := time.Now()
+	_, err := validateEmbeddingWithRetry(ctx, func(_ context.Context, _ string) ([]float32, error) {
+		if calls.Add(1) == 1 {
+			cancel()
+		}
+		return nil, errors.New("temporary embedding failure")
+	}, 3, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("validateEmbeddingWithRetry error = %v, want context.Canceled", err)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("embedding calls = %d, want 1 after cancellation", calls.Load())
+	}
+	if elapsed := time.Since(start); elapsed > 500*time.Millisecond {
+		t.Fatalf("canceled validation took %v, want no retry backoff wait", elapsed)
+	}
+}
+
+func TestNewChromemVectorDBDisabledDoesNotOpenPersistentDB(t *testing.T) {
+	vectorDir := filepath.Join(t.TempDir(), "vectordb")
+	cfg := &config.Config{}
+	cfg.Directories.VectorDBDir = vectorDir
+	cfg.Embeddings.Provider = "disabled"
+
+	cv, err := NewChromemVectorDB(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("NewChromemVectorDB disabled: %v", err)
+	}
+	defer cv.Close()
+
+	if !cv.IsDisabled() {
+		t.Fatal("disabled VectorDB IsDisabled() = false")
+	}
+	if !cv.IsReady() {
+		t.Fatal("disabled VectorDB IsReady() = false")
+	}
+	if cv.db != nil {
+		t.Fatal("disabled VectorDB opened a persistent chromem DB")
+	}
+	if _, statErr := os.Stat(vectorDir); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("disabled VectorDB vector dir stat err = %v, want os.ErrNotExist", statErr)
+	}
+}
+
+func TestBuildEmbeddingRuntimeFromConfigResolvesLegacyProviders(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Embeddings.Provider = "internal"
+	cfg.Embeddings.Model = ""
+	cfg.Embeddings.InternalModel = "internal-embedding"
+	cfg.LLM.BaseURL = "https://llm.example/v1/"
+	cfg.LLM.APIKey = "llm-key"
+
+	internalRuntime := buildEmbeddingRuntimeFromConfig(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if internalRuntime.Disabled {
+		t.Fatal("internal runtime disabled = true")
+	}
+	if internalRuntime.BaseURL != cfg.LLM.BaseURL {
+		t.Fatalf("internal BaseURL = %q, want %q", internalRuntime.BaseURL, cfg.LLM.BaseURL)
+	}
+	if internalRuntime.APIKey != cfg.LLM.APIKey {
+		t.Fatalf("internal APIKey = %q, want main LLM key", internalRuntime.APIKey)
+	}
+	if internalRuntime.Model != "internal-embedding" {
+		t.Fatalf("internal Model = %q, want internal-embedding", internalRuntime.Model)
+	}
+	if internalRuntime.Fingerprint != buildEmbeddingFingerprint("internal", cfg.LLM.BaseURL, "internal-embedding") {
+		t.Fatalf("internal Fingerprint = %q", internalRuntime.Fingerprint)
+	}
+
+	cfg.Embeddings.Provider = "external"
+	cfg.Embeddings.BaseURL = ""
+	cfg.Embeddings.ExternalURL = "http://ollama:11434/v1"
+	cfg.Embeddings.Model = ""
+	cfg.Embeddings.ExternalModel = "nomic-embed-text"
+	cfg.Embeddings.APIKey = "external-key"
+	externalRuntime := buildEmbeddingRuntimeFromConfig(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if externalRuntime.Disabled {
+		t.Fatal("external runtime disabled = true")
+	}
+	if externalRuntime.BaseURL != cfg.Embeddings.ExternalURL {
+		t.Fatalf("external BaseURL = %q, want %q", externalRuntime.BaseURL, cfg.Embeddings.ExternalURL)
+	}
+	if externalRuntime.Model != "nomic-embed-text" {
+		t.Fatalf("external Model = %q, want nomic-embed-text", externalRuntime.Model)
+	}
+	if externalRuntime.Fingerprint != buildEmbeddingFingerprint("external", cfg.Embeddings.ExternalURL, "nomic-embed-text") {
+		t.Fatalf("external Fingerprint = %q", externalRuntime.Fingerprint)
+	}
+}
+
+func TestBuildEmbeddingRuntimeFromConfigDisabled(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Embeddings.Provider = "disabled"
+	runtime := buildEmbeddingRuntimeFromConfig(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if !runtime.Disabled {
+		t.Fatal("disabled runtime Disabled = false")
+	}
+	if runtime.Provider != "disabled" {
+		t.Fatalf("disabled Provider = %q, want disabled", runtime.Provider)
+	}
+	if runtime.EmbeddingFunc == nil {
+		t.Fatal("disabled runtime EmbeddingFunc = nil")
+	}
+}
+
+func TestSearchSimilarScoredContextHonorsCanceledContext(t *testing.T) {
+	var calls atomic.Int32
+	cv := newTestChromemVectorDB(t, func(_ context.Context, _ string) ([]float32, error) {
+		calls.Add(1)
+		return []float32{1, 0, 0}, nil
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := cv.SearchSimilarScoredContext(ctx, "query", 3)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("SearchSimilarScoredContext error = %v, want context.Canceled", err)
+	}
+	if calls.Load() != 0 {
+		t.Fatalf("embedding calls = %d, want 0 for pre-canceled context", calls.Load())
+	}
+}
+
 func TestStoreBatchTruncatesContentWithoutSplittingUTF8(t *testing.T) {
 	value := strings.Repeat("a", maxBatchItemBytes-1) + "ä" + "tail"
 	got := truncateArchiveItemContent(value)
@@ -296,6 +437,30 @@ func TestGetQueryEmbeddingReturnsCacheCopies(t *testing.T) {
 	}
 	if third[1] != 2 {
 		t.Fatalf("cached embedding was mutated by second caller slice: got %v", third)
+	}
+}
+
+func TestPreloadCacheStoresCopyForFutureQueryHits(t *testing.T) {
+	source := []float32{0.2, 0.4, 0.6}
+	cv := newTestChromemVectorDB(t, func(_ context.Context, _ string) ([]float32, error) {
+		return source, nil
+	})
+
+	cv.PreloadCache([]string{"preloaded"})
+	source[0] = 99
+
+	first, err := cv.getQueryEmbedding(context.Background(), "preloaded")
+	if err != nil {
+		t.Fatalf("getQueryEmbedding first: %v", err)
+	}
+	first[1] = 88
+
+	second, err := cv.getQueryEmbedding(context.Background(), "preloaded")
+	if err != nil {
+		t.Fatalf("getQueryEmbedding second: %v", err)
+	}
+	if second[0] != 0.2 || second[1] != 0.4 || second[2] != 0.6 {
+		t.Fatalf("cached embedding = %v, want original preloaded values", second)
 	}
 }
 
