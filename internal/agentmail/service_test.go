@@ -30,8 +30,13 @@ func TestBuildNotificationPromptIsolatesExternalData(t *testing.T) {
 	if !strings.Contains(prompt, "<external_data") {
 		t.Fatalf("prompt should isolate external mail content, got: %s", prompt)
 	}
-	if !strings.Contains(prompt, "agentmail") {
-		t.Fatalf("prompt should direct agent to use the agentmail tool, got: %s", prompt)
+	for _, marker := range []string{"agentmail_messages", "get_message", "reply_message", "update_message_labels"} {
+		if !strings.Contains(prompt, marker) {
+			t.Fatalf("prompt should direct agent to focused AgentMail tool marker %q, got: %s", marker, prompt)
+		}
+	}
+	if strings.Contains(prompt, "Use the agentmail tool") {
+		t.Fatalf("prompt should prefer focused AgentMail tools, got: %s", prompt)
 	}
 }
 

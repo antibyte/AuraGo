@@ -489,6 +489,82 @@ func TestBuiltinToolSchemasExposeFocusedInvasionControlTools(t *testing.T) {
 	t.Fatal("invasion_tasks schema not found")
 }
 
+func TestFocusedInvasionSchemasExposeAllDispatchOperations(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{InvasionControlEnabled: true})
+	wantByTool := map[string][]string{
+		"invasion_nests": {
+			"list_nests", "list_eggs", "nest_status", "assign_egg", "hatch_egg", "stop_egg", "egg_status",
+		},
+		"invasion_tasks": {
+			"send_task", "task_status", "get_result", "list_egg_messages", "ack_egg_message", "send_host_message", "send_secret",
+		},
+		"invasion_artifacts": {
+			"list_artifacts", "get_artifact", "read_artifact", "upload_artifact",
+		},
+	}
+
+	for toolName, wantOps := range wantByTool {
+		enum := focusedToolOperationEnum(t, schemas, toolName)
+		for _, wantOp := range wantOps {
+			if !containsName(enum, wantOp) {
+				t.Fatalf("%s operation enum missing %s: %#v", toolName, wantOp, enum)
+			}
+		}
+	}
+}
+
+func TestFocusedHomepageSchemaPromptsMatchOperationEnums(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{HomepageEnabled: true, NetlifyEnabled: true})
+	deployOps := focusedToolOperationEnum(t, schemas, "homepage_deploy")
+	for _, wantOp := range []string{"build", "dev", "publish_local", "webserver_start", "webserver_stop", "webserver_status", "test_connection", "tunnel", "deploy", "deploy_netlify", "deploy_vercel"} {
+		if !containsName(deployOps, wantOp) {
+			t.Fatalf("homepage_deploy operation enum missing prompted operation %s: %#v", wantOp, deployOps)
+		}
+	}
+
+	qualityOps := focusedToolOperationEnum(t, schemas, "homepage_quality")
+	if !containsName(qualityOps, "optimize_images") {
+		t.Fatalf("homepage_quality operation enum missing prompted operation optimize_images: %#v", qualityOps)
+	}
+}
+
+func focusedToolOperationEnum(t *testing.T, schemas []openai.Tool, toolName string) []string {
+	t.Helper()
+	for _, s := range schemas {
+		if s.Function == nil || s.Function.Name != toolName {
+			continue
+		}
+		params, ok := s.Function.Parameters.(map[string]interface{})
+		if !ok {
+			t.Fatalf("%s parameters type = %T, want map[string]interface{}", toolName, s.Function.Parameters)
+		}
+		props, ok := params["properties"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("%s properties type = %T, want map[string]interface{}", toolName, params["properties"])
+		}
+		op, ok := props["operation"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("%s operation property type = %T, want map[string]interface{}", toolName, props["operation"])
+		}
+		switch enum := op["enum"].(type) {
+		case []string:
+			return enum
+		case []interface{}:
+			out := make([]string, 0, len(enum))
+			for _, raw := range enum {
+				if value, ok := raw.(string); ok {
+					out = append(out, value)
+				}
+			}
+			return out
+		default:
+			t.Fatalf("%s operation enum type = %T, want []string", toolName, op["enum"])
+		}
+	}
+	t.Fatalf("%s schema not found", toolName)
+	return nil
+}
+
 func TestNativeToolCallToToolCallInvasionControlEggName(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 

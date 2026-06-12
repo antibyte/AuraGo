@@ -398,7 +398,7 @@ func BuildNotificationPrompt(inboxID string, msg Message, relaySheets ...RelayCh
 	)
 	prompt := "[AGENTMAIL NOTIFICATION] A new AgentMail message arrived.\n\n" +
 		security.IsolateExternalData(summary) +
-		"\n\nUse the agentmail tool with operation \"get_message\" for full content, \"reply_message\" to answer, or \"update_message_labels\" to mark it."
+		"\n\nUse agentmail_messages with operation \"get_message\" for full content, \"reply_message\" to answer, or \"update_message_labels\" to mark it."
 	if len(relaySheets) > 0 {
 		prompt += formatRelayCheatsheet(relaySheets[0])
 	}
