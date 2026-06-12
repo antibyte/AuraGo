@@ -830,16 +830,7 @@ func main() {
 	}
 
 	// Graceful shutdown: kill all background processes on SIGINT/SIGTERM
-	shutdownCh := setupGracefulShutdown(appLog, registry, llmClient)
-	go func() {
-		<-shutdownCh
-		if cronManager != nil {
-			_ = cronManager.Close()
-		}
-		if backgroundTaskManager != nil {
-			_ = backgroundTaskManager.Close()
-		}
-	}()
+	shutdownCh := setupGracefulShutdown(appLog, registry, llmClient, cronManager, backgroundTaskManager)
 
 	// History Manager for persistent conversational memory array
 	historyManager := memory.NewHistoryManager(filepath.Join(cfg.Directories.DataDir, "chat_history.json"))
@@ -1092,6 +1083,15 @@ func main() {
 		appLog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}
+
+	// Server has stopped; ensure cron and background task stores are closed
+	// cleanly even when shutdown happened without an OS signal.
+	if cronManager != nil {
+		_ = cronManager.Close()
+	}
+	if backgroundTaskManager != nil {
+		_ = backgroundTaskManager.Close()
+	}
 }
 
 func waitForInternalAPIReady(ctx context.Context, cfg *config.Config, token string, client *http.Client) error {
@@ -1124,7 +1124,7 @@ func waitForInternalAPIReady(ctx context.Context, cfg *config.Config, token stri
 	}
 }
 
-func setupGracefulShutdown(log *slog.Logger, registry *tools.ProcessRegistry, llmClient llm.ChatClient) chan struct{} {
+func setupGracefulShutdown(log *slog.Logger, registry *tools.ProcessRegistry, llmClient llm.ChatClient, cronManager *tools.CronManager, backgroundTaskManager *tools.BackgroundTaskManager) chan struct{} {
 	done := make(chan struct{})
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -1140,6 +1140,15 @@ func setupGracefulShutdown(log *slog.Logger, registry *tools.ProcessRegistry, ll
 
 		// Close site monitor DB if initialized
 		_ = tools.CloseSiteMonitorDB()
+
+		// Close cron and background task managers so their SQLite handles are
+		// released before the process exits.
+		if cronManager != nil {
+			_ = cronManager.Close()
+		}
+		if backgroundTaskManager != nil {
+			_ = backgroundTaskManager.Close()
+		}
 
 		close(done)
 	}()

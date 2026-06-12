@@ -450,8 +450,16 @@ func (m *BackgroundTaskManager) executeWaitTask(task *BackgroundTask) {
 	}
 	pollInterval := time.Duration(maxInt(payload.PollIntervalSeconds, 5)) * time.Second
 	timeout := time.Duration(defaultIfZeroInt(payload.TimeoutSeconds, 600)) * time.Second
+	scheduledAtChanged := false
 	if payload.ScheduledAt.IsZero() {
 		payload.ScheduledAt = time.Now().UTC()
+		scheduledAtChanged = true
+	}
+	if scheduledAtChanged {
+		if err := m.persistWaitTaskPayload(task.ID, payload); err != nil {
+			m.failTask(task.ID, fmt.Sprintf("persist wait payload: %v", err), true)
+			return
+		}
 	}
 
 	met, details, err := m.checkWaitCondition(payload)
@@ -632,6 +640,24 @@ func (m *BackgroundTaskManager) rescheduleWaiting(id string, delay time.Duration
 	task.NextAttemptAt = now.Add(delay)
 	task.Result = details
 	_ = m.saveLocked()
+}
+
+// persistWaitTaskPayload updates the stored payload for a wait_for_event task.
+// It must be called when the decoded payload is mutated so that the change
+// survives subsequent poll cycles (e.g. the initial scheduled_at timestamp).
+func (m *BackgroundTaskManager) persistWaitTaskPayload(id string, payload WaitForEventTaskPayload) error {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	task, ok := m.tasks[id]
+	if !ok {
+		return nil
+	}
+	task.Payload = data
+	return m.saveLocked()
 }
 
 func (m *BackgroundTaskManager) newTask(taskType string, payload json.RawMessage, opts BackgroundTaskScheduleOptions) *BackgroundTask {

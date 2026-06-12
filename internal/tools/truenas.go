@@ -184,8 +184,8 @@ func TrueNASDatasetCreate(cfg config.TrueNASConfig, name, compression string, qu
 	}
 
 	// Security: validate dataset name
-	if strings.Contains(name, "..") || strings.HasPrefix(name, "/") {
-		return errJSON("Invalid dataset name: path traversal detected")
+	if err := validateTrueNASDatasetName(name); err != nil {
+		return errJSON("%s", err.Error())
 	}
 
 	// Validate name format (must include pool)
@@ -240,8 +240,8 @@ func TrueNASDatasetDelete(cfg config.TrueNASConfig, name string, recursive bool,
 	}
 
 	// Security validation
-	if strings.Contains(name, "..") {
-		return errJSON("Invalid dataset name: path traversal detected")
+	if err := validateTrueNASDatasetName(name); err != nil {
+		return errJSON("%s", err.Error())
 	}
 
 	client, err := truenas.NewClient(cfg, nil)
@@ -305,8 +305,8 @@ func TrueNASSnapshotCreate(cfg config.TrueNASConfig, dataset, name string, recur
 		return errJSON("Snapshot creation is disabled (readonly mode)")
 	}
 
-	if strings.Contains(dataset, "..") {
-		return errJSON("Invalid dataset name: path traversal detected")
+	if err := validateTrueNASDatasetName(dataset); err != nil {
+		return errJSON("%s", err.Error())
 	}
 
 	client, err := truenas.NewClient(cfg, nil)
@@ -353,8 +353,8 @@ func TrueNASSnapshotDelete(cfg config.TrueNASConfig, name string, logger *slog.L
 		return errJSON("Snapshot deletion is disabled (allow_destructive: false)")
 	}
 
-	if strings.Contains(name, "..") {
-		return errJSON("Invalid snapshot name: path traversal detected")
+	if err := validateTrueNASSnapshotName(name); err != nil {
+		return errJSON("%s", err.Error())
 	}
 
 	client, err := truenas.NewClient(cfg, nil)
@@ -382,8 +382,8 @@ func TrueNASSnapshotRollback(cfg config.TrueNASConfig, name string, force bool, 
 		return errJSON("Snapshot rollback is disabled (allow_destructive: false)")
 	}
 
-	if strings.Contains(name, "..") {
-		return errJSON("Invalid snapshot name: path traversal detected")
+	if err := validateTrueNASSnapshotName(name); err != nil {
+		return errJSON("%s", err.Error())
 	}
 
 	client, err := truenas.NewClient(cfg, nil)
@@ -428,8 +428,8 @@ func TrueNASSMBCreate(cfg config.TrueNASConfig, name, path string, guestOK, time
 		return errJSON("SMB share creation is disabled (readonly mode)")
 	}
 
-	if strings.Contains(path, "..") {
-		return errJSON("Invalid path: path traversal detected")
+	if err := validateTrueNASPath(path); err != nil {
+		return errJSON("%s", err.Error())
 	}
 
 	client, err := truenas.NewClient(cfg, nil)
@@ -612,6 +612,29 @@ func DispatchTrueNASTool(name string, params map[string]string, cfg *config.Conf
 	default:
 		return errJSON("Unknown TrueNAS tool: %s", name)
 	}
+}
+
+// Validation helpers
+
+func validateTrueNASDatasetName(name string) error {
+	if strings.Contains(name, "..") || strings.HasPrefix(name, "/") {
+		return fmt.Errorf("Invalid dataset name: path traversal detected")
+	}
+	return nil
+}
+
+func validateTrueNASSnapshotName(name string) error {
+	if strings.Contains(name, "..") || strings.HasPrefix(name, "/") {
+		return fmt.Errorf("Invalid snapshot name: path traversal detected")
+	}
+	return nil
+}
+
+func validateTrueNASPath(path string) error {
+	if strings.Contains(path, "..") {
+		return fmt.Errorf("Invalid path: path traversal detected")
+	}
+	return nil
 }
 
 // Helper functions

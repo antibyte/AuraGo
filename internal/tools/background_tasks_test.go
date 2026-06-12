@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"encoding/json"
 	"io"
 	"log/slog"
 	"os"
@@ -161,6 +162,62 @@ func TestBackgroundTaskManagerWaitForEventWithoutPromptCompletes(t *testing.T) {
 	}
 	if completed.Status != BackgroundTaskStatusCompleted {
 		t.Fatalf("final status = %q, want %q", completed.Status, BackgroundTaskStatusCompleted)
+	}
+}
+
+func TestBackgroundTaskManagerWaitForEventPersistsScheduledAt(t *testing.T) {
+	dir := tempSystemTaskDir(t)
+	mgr := NewBackgroundTaskManager(dir, testBackgroundTaskLogger())
+	t.Cleanup(func() { _ = mgr.Close() })
+
+	target := filepath.Join(dir, "watch-scheduled-at.txt")
+	if err := os.WriteFile(target, []byte("initial"), 0o644); err != nil {
+		t.Fatalf("write initial file: %v", err)
+	}
+
+	task, err := mgr.ScheduleWaitForEvent(WaitForEventTaskPayload{
+		EventType:      "file_changed",
+		TaskPrompt:     "handle change",
+		FilePath:       target,
+		TimeoutSeconds: 2,
+	}, BackgroundTaskScheduleOptions{Source: "wait_for_event"})
+	if err != nil {
+		t.Fatalf("ScheduleWaitForEvent: %v", err)
+	}
+
+	// Simulate a task that was created before ScheduledAt was persisted.
+	mgr.mu.Lock()
+	var payload WaitForEventTaskPayload
+	if err := json.Unmarshal(mgr.tasks[task.ID].Payload, &payload); err != nil {
+		mgr.mu.Unlock()
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	payload.ScheduledAt = time.Time{}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		mgr.mu.Unlock()
+		t.Fatalf("marshal payload: %v", err)
+	}
+	mgr.tasks[task.ID].Payload = data
+	mgr.mu.Unlock()
+
+	// First poll should detect the missing ScheduledAt and persist it.
+	mgr.processDueTasks()
+
+	mgr.mu.Lock()
+	updated := mgr.tasks[task.ID]
+	mgr.mu.Unlock()
+
+	if err := json.Unmarshal(updated.Payload, &payload); err != nil {
+		t.Fatalf("unmarshal updated payload: %v", err)
+	}
+	if payload.ScheduledAt.IsZero() {
+		t.Fatal("expected ScheduledAt to be persisted after first poll")
+	}
+
+	// The task should be waiting because the file has not changed yet.
+	if updated.Status != BackgroundTaskStatusWaiting {
+		t.Fatalf("status = %q, want %q", updated.Status, BackgroundTaskStatusWaiting)
 	}
 }
 

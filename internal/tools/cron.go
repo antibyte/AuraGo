@@ -132,6 +132,13 @@ func (m *CronManager) Close() error {
 }
 
 func (m *CronManager) save() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.saveLocked()
+}
+
+// saveLocked must be called with m.mu held.
+func (m *CronManager) saveLocked() error {
 	if m.store != nil {
 		return m.store.save(systemTaskNamespaceCron, m.jobs)
 	}
@@ -169,7 +176,7 @@ func (m *CronManager) loadLocked() (bool, error) {
 			return false, fmt.Errorf("failed to parse %s: %w", m.file, err)
 		}
 		if m.store != nil {
-			if err := m.store.save(systemTaskNamespaceCron, m.jobs); err != nil {
+			if err := m.saveLocked(); err != nil {
 				return false, err
 			}
 		}
@@ -248,7 +255,7 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 		}
 
 		m.jobs = append(m.jobs, job)
-		if err := m.save(); err != nil {
+		if err := m.saveLocked(); err != nil {
 			return "", err
 		}
 
@@ -279,7 +286,7 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 			return fmt.Sprintf(`{"status": "warning", "message": "%s"}`, i18n.T(lang, "tools.cron_job_not_found")), nil
 		}
 		m.jobs = filtered
-		if err := m.save(); err != nil {
+		if err := m.saveLocked(); err != nil {
 			return "", err
 		}
 
@@ -296,7 +303,7 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 					if err := m.scheduleInternal(m.jobs[i]); err != nil {
 						return "", err
 					}
-					if err := m.save(); err != nil {
+					if err := m.saveLocked(); err != nil {
 						return "", err
 					}
 					return fmt.Sprintf(`{"status": "success", "message": "%s"}`, i18n.T(lang, "tools.cron_enabled")), nil
@@ -318,7 +325,7 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 						m.engine.Remove(entryID)
 						delete(m.cronEntryIDs, id)
 					}
-					if err := m.save(); err != nil {
+					if err := m.saveLocked(); err != nil {
 						return "", err
 					}
 					return fmt.Sprintf(`{"status": "success", "message": "%s"}`, i18n.T(lang, "tools.cron_disabled")), nil
