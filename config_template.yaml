@@ -369,6 +369,9 @@ tools:
         max_prompt_nodes: 5                                  # max graph nodes injected per prompt
         max_prompt_chars: 800                                # max graph context chars injected per prompt
         retrieval_fusion: true                               # enrich RAG results with related graph context
+        min_semantic_similarity: 0.60                        # minimum similarity for KG semantic search
+        exclude_node_types: ["activity_entity", "unknown"]   # node types excluded from semantic/prompt context
+        semantic_reindex_interval: "5m"                      # minimum interval between dirty-node semantic reindexes
     secrets_vault:
         enabled: true
         readonly: false

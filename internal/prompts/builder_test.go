@@ -1708,9 +1708,13 @@ func TestUnifiedMemoryBlockIncludesOperationalContexts(t *testing.T) {
 }
 
 func TestBuildSystemPromptUnifiedMemoryDoesNotDuplicateOperationalContexts(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return charRatioEncoder{}, nil
+	}, time.Second, time.Second)
+
 	prompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), &ContextFlags{
 		Tier:                "full",
-		TokenBudget:         5000,
+		TokenBudget:         200000,
 		UnifiedMemoryBlock:  true,
 		ErrorPatternContext: "known error",
 		LearnedRulesContext: "learned rule",
@@ -1725,6 +1729,18 @@ func TestBuildSystemPromptUnifiedMemoryDoesNotDuplicateOperationalContexts(t *te
 		if got := strings.Count(prompt, marker); got != 1 {
 			t.Fatalf("%q appears %d times, want exactly once:\n%s", marker, got, prompt)
 		}
+	}
+	for _, legacyHeader := range []string{
+		"# KNOWN ERROR PATTERNS",
+		"# LEARNED RULES",
+		"# REUSE-FIRST CONTEXT",
+	} {
+		if strings.Contains(prompt, legacyHeader) {
+			t.Fatalf("legacy section %q should not appear when UnifiedMemoryBlock is enabled:\n%s", legacyHeader, prompt)
+		}
+	}
+	if !strings.Contains(prompt, "# UNIFIED MEMORY CONTEXT") {
+		t.Fatalf("expected unified memory block in prompt:\n%s", prompt)
 	}
 }
 

@@ -209,10 +209,15 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		ledger.phaseResults.NotesArchived = hygieneStats.NotesArchived
 	}
 
-	// Knowledge Graph: Garbage collection
+	// Knowledge Graph: Garbage collection and semantic reindex
 	if kg != nil {
 		if _, _, err := kg.CleanupStaleGraph(30); err != nil {
 			logger.Error("[Maintenance] Failed to clean up stale KG elements", "error", err)
+		}
+		if ran, err := kg.RunSemanticReindexIfDue(); err != nil {
+			logger.Warn("[Maintenance] Failed to reindex semantic knowledge graph", "error", err)
+		} else if ran {
+			logger.Debug("[Maintenance] Semantic knowledge graph reindex completed")
 		}
 	}
 

@@ -1491,13 +1491,16 @@ type Config struct {
 			ReadOnly bool `yaml:"readonly"` // true = only read/query, block store/delete/save_core/delete_core
 		} `yaml:"memory"`
 		KnowledgeGraph struct {
-			Enabled         bool `yaml:"enabled"`          // default true; disable to block knowledge_graph
-			ReadOnly        bool `yaml:"readonly"`         // true = only query/search, block add/delete
-			AutoExtraction  bool `yaml:"auto_extraction"`  // nightly batch entity extraction from conversations
-			PromptInjection bool `yaml:"prompt_injection"` // inject relevant KG context into system prompt
-			MaxPromptNodes  int  `yaml:"max_prompt_nodes"` // max nodes to inject into prompt (default 5)
-			MaxPromptChars  int  `yaml:"max_prompt_chars"` // max chars for KG context in prompt (default 800)
-			RetrievalFusion bool `yaml:"retrieval_fusion"` // cross-reference RAG↔KG for bidirectional enrichment (default true)
+			Enabled               bool     `yaml:"enabled"`                 // default true; disable to block knowledge_graph
+			ReadOnly              bool     `yaml:"readonly"`                // true = only query/search, block add/delete
+			AutoExtraction        bool     `yaml:"auto_extraction"`         // nightly batch entity extraction from conversations
+			PromptInjection       bool     `yaml:"prompt_injection"`        // inject relevant KG context into system prompt
+			MaxPromptNodes        int      `yaml:"max_prompt_nodes"`        // max nodes to inject into prompt (default 5)
+			MaxPromptChars        int      `yaml:"max_prompt_chars"`        // max chars for KG context in prompt (default 800)
+			RetrievalFusion       bool     `yaml:"retrieval_fusion"`        // cross-reference RAG↔KG for bidirectional enrichment (default true)
+			MinSemanticSimilarity   float64  `yaml:"min_semantic_similarity"`   // minimum similarity for KG semantic search (default 0.60)
+			ExcludeNodeTypes        []string `yaml:"exclude_node_types"`        // node types excluded from semantic/prompt context (default ["activity_entity", "unknown"])
+			SemanticReindexInterval string   `yaml:"semantic_reindex_interval"` // minimum interval between dirty-node semantic reindexes (default "5m")
 		} `yaml:"knowledge_graph"`
 		SecretsVault struct {
 			Enabled  bool `yaml:"enabled"`  // default true; disable to block secrets_vault

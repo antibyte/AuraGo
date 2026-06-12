@@ -61,14 +61,20 @@ type KnowledgeGraphQualityReport struct {
 }
 
 type KnowledgeGraph struct {
-	db          *sql.DB
-	logger      *slog.Logger
-	accessQueue chan knowledgeGraphAccessHit
-	doneChan    chan struct{}
-	closeOnce   sync.Once
-	wg          sync.WaitGroup
-	semantic    *knowledgeGraphSemanticIndex
-	droppedHits atomic.Int64 // count of access-queue hits dropped due to full channel
+	db                     *sql.DB
+	logger                 *slog.Logger
+	accessQueue            chan knowledgeGraphAccessHit
+	doneChan               chan struct{}
+	closeOnce              sync.Once
+	wg                     sync.WaitGroup
+	semantic               *knowledgeGraphSemanticIndex
+	droppedHits            atomic.Int64 // count of access-queue hits dropped due to full channel
+	minSemanticSimilarity   float32
+	excludedNodeTypes       map[string]bool
+	excludedNodeTypesMu     sync.RWMutex
+	semanticReindexInterval time.Duration
+	lastSemanticReindex     time.Time
+	lastSemanticReindexMu   sync.Mutex
 }
 
 const knowledgeGraphWriteTimeout = 5 * time.Second
@@ -132,10 +138,13 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 	}
 
 	kg := &KnowledgeGraph{
-		db:          db,
-		logger:      logger,
-		accessQueue: make(chan knowledgeGraphAccessHit, 1000),
-		doneChan:    make(chan struct{}),
+		db:                    db,
+		logger:                logger,
+		accessQueue:           make(chan knowledgeGraphAccessHit, 1000),
+		doneChan:              make(chan struct{}),
+		minSemanticSimilarity:   0.60,
+		excludedNodeTypes:       map[string]bool{"activity_entity": true, "unknown": true},
+		semanticReindexInterval: 5 * time.Minute,
 	}
 	kg.wg.Add(1)
 	go kg.accessCountWorker()
@@ -471,4 +480,64 @@ func boolToInt(v bool) int {
 		return 1
 	}
 	return 0
+}
+
+// SetMinSemanticSimilarity configures the minimum similarity threshold for KG
+// semantic search. Values outside [0,1] are clamped.
+func (kg *KnowledgeGraph) SetMinSemanticSimilarity(v float64) {
+	if v < 0 {
+		v = 0
+	}
+	if v > 1 {
+		v = 1
+	}
+	kg.minSemanticSimilarity = float32(v)
+}
+
+// SetExcludedNodeTypes configures which node types are filtered out of semantic
+// search and prompt context. An empty slice keeps the existing set.
+func (kg *KnowledgeGraph) SetExcludedNodeTypes(types []string) {
+	kg.excludedNodeTypesMu.Lock()
+	defer kg.excludedNodeTypesMu.Unlock()
+	if len(types) == 0 {
+		return
+	}
+	kg.excludedNodeTypes = make(map[string]bool, len(types))
+	for _, t := range types {
+		t = strings.ToLower(strings.TrimSpace(t))
+		if t != "" {
+			kg.excludedNodeTypes[t] = true
+		}
+	}
+}
+
+func (kg *KnowledgeGraph) isExcludedNodeType(nodeType string) bool {
+	kg.excludedNodeTypesMu.RLock()
+	defer kg.excludedNodeTypesMu.RUnlock()
+	return kg.excludedNodeTypes[strings.ToLower(strings.TrimSpace(nodeType))]
+}
+
+// SetSemanticReindexInterval configures how often RunSemanticReindexIfDue may
+// trigger a dirty-node reindex. Empty or invalid values keep the current default.
+func (kg *KnowledgeGraph) SetSemanticReindexInterval(raw string) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return
+	}
+	parsed, err := time.ParseDuration(raw)
+	if err != nil || parsed <= 0 {
+		if kg.logger != nil {
+			kg.logger.Warn("Invalid knowledge graph semantic_reindex_interval, keeping default", "value", raw, "error", err)
+		}
+		return
+	}
+	kg.lastSemanticReindexMu.Lock()
+	kg.semanticReindexInterval = parsed
+	kg.lastSemanticReindexMu.Unlock()
+}
+
+func (kg *KnowledgeGraph) markSemanticReindexComplete() {
+	kg.lastSemanticReindexMu.Lock()
+	kg.lastSemanticReindex = time.Now()
+	kg.lastSemanticReindexMu.Unlock()
 }

@@ -241,6 +241,9 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.KnowledgeGraph.MaxPromptNodes = 5
 	cfg.Tools.KnowledgeGraph.MaxPromptChars = 800
 	cfg.Tools.KnowledgeGraph.RetrievalFusion = true
+	cfg.Tools.KnowledgeGraph.MinSemanticSimilarity = 0.60
+	cfg.Tools.KnowledgeGraph.ExcludeNodeTypes = []string{"activity_entity", "unknown"}
+	cfg.Tools.KnowledgeGraph.SemanticReindexInterval = "5m"
 	cfg.Tools.SecretsVault.Enabled = true
 	cfg.Tools.Scheduler.Enabled = true
 	cfg.Tools.Notes.Enabled = true

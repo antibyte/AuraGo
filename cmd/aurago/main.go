@@ -389,6 +389,9 @@ func main() {
 		appLog.Error("Failed to initialize knowledge graph", "error", err)
 		os.Exit(1)
 	}
+	kg.SetMinSemanticSimilarity(cfg.Tools.KnowledgeGraph.MinSemanticSimilarity)
+	kg.SetExcludedNodeTypes(cfg.Tools.KnowledgeGraph.ExcludeNodeTypes)
+	kg.SetSemanticReindexInterval(cfg.Tools.KnowledgeGraph.SemanticReindexInterval)
 	defer kg.Close()
 
 	if _, err := server.ApplyPendingEmbeddingsReset(cfg, shortTermMem, kg, appLog); err != nil {

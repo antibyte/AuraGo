@@ -198,6 +198,9 @@ func runOperation(cfg *config.Config, statePath, planPath string, l *slog.Logger
 	if err != nil {
 		return fmt.Errorf("knowledge graph init failed: %w", err)
 	}
+	kg.SetMinSemanticSimilarity(cfg.Tools.KnowledgeGraph.MinSemanticSimilarity)
+	kg.SetExcludedNodeTypes(cfg.Tools.KnowledgeGraph.ExcludeNodeTypes)
+	kg.SetSemanticReindexInterval(cfg.Tools.KnowledgeGraph.SemanticReindexInterval)
 	if !longTermMem.IsDisabled() {
 		if err := kg.EnableSemanticSearchShared(longTermMem.GetDB(), longTermMem.GetEmbeddingFunc()); err != nil {
 			l.Warn("Failed to enable KG semantic search", "error", err)

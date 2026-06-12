@@ -260,3 +260,135 @@ func TestKGConsistencyCheckDetectsMissingIndexedNodeDocument(t *testing.T) {
 		t.Fatalf("NodesMissingFromIndex = %d, want 1", report.NodesMissingFromIndex)
 	}
 }
+
+func TestKGSemanticSearchAllowsShortEntityQueries(t *testing.T) {
+	cases := []struct {
+		query string
+		want  bool
+	}{
+		{"docker", false},
+		{"proxmox", false},
+		{"debian", false},
+		{"ansible", false},
+		{"grafana", false},
+		{"home_assistant", false},
+		{"S3", false},
+		{"NAS", false},
+		{"hi", true},
+		{"a", true},
+		{"status?", true},
+		{"", true},
+		{"*", true},
+	}
+	for _, tc := range cases {
+		got := shouldSkipKnowledgeGraphSemanticQuery(tc.query)
+		if got != tc.want {
+			t.Errorf("shouldSkipKnowledgeGraphSemanticQuery(%q) = %v, want %v", tc.query, got, tc.want)
+		}
+	}
+}
+
+func TestKGSemanticSearchFiltersActivityEntity(t *testing.T) {
+	kg := newTestKG(t)
+
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		lower := strings.ToLower(text)
+		switch {
+		case strings.Contains(lower, "docker"):
+			return []float32{1, 0}, nil
+		default:
+			return []float32{0, 1}, nil
+		}
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+
+	if err := kg.AddNode("docker", "Docker", map[string]string{"type": "software"}); err != nil {
+		t.Fatalf("AddNode docker: %v", err)
+	}
+	if err := kg.AddNode("chat_turn", "Chat Turn", map[string]string{"type": "activity_entity"}); err != nil {
+		t.Fatalf("AddNode activity_entity: %v", err)
+	}
+
+	nodes := kg.semanticSearchNodes("docker", 0.5, 5)
+	for _, n := range nodes {
+		if n.Properties["type"] == "activity_entity" {
+			t.Fatalf("semantic search returned activity_entity node: %+v", n)
+		}
+	}
+}
+
+func TestKGSearchForContextExcludesActivityEntity(t *testing.T) {
+	kg := newTestKG(t)
+
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		lower := strings.ToLower(text)
+		switch {
+		case strings.Contains(lower, "docker"):
+			return []float32{1, 0}, nil
+		default:
+			return []float32{0, 1}, nil
+		}
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+
+	if err := kg.AddNode("docker", "Docker", map[string]string{"type": "software"}); err != nil {
+		t.Fatalf("AddNode docker: %v", err)
+	}
+	if err := kg.AddNode("random_turn", "Random Turn", map[string]string{"type": "activity_entity"}); err != nil {
+		t.Fatalf("AddNode activity_entity: %v", err)
+	}
+
+	ctx := kg.SearchForContext("docker", 5, 800)
+	if !strings.Contains(ctx, "docker") {
+		t.Fatalf("expected context to contain docker, got %q", ctx)
+	}
+	if strings.Contains(ctx, "random_turn") {
+		t.Fatalf("expected context to exclude activity_entity node, got %q", ctx)
+	}
+}
+
+func TestKGRunSemanticReindexIfDueRespectsInterval(t *testing.T) {
+	kg := newTestKG(t)
+
+	embeddingFunc := func(_ context.Context, _ string) ([]float32, error) {
+		return []float32{1, 0}, nil
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+
+	kg.SetSemanticReindexInterval("1h")
+	ran, err := kg.RunSemanticReindexIfDue()
+	if err != nil {
+		t.Fatalf("RunSemanticReindexIfDue: %v", err)
+	}
+	if ran {
+		t.Fatal("expected semantic reindex to be skipped before interval elapsed")
+	}
+}
+
+func TestKGSearchForContextWildcardUsesImportantNodes(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("proxmox", "Proxmox Server", map[string]string{"type": "software"}); err != nil {
+		t.Fatalf("AddNode proxmox: %v", err)
+	}
+	if err := kg.AddNode("activity_xyz", "Activity XYZ", map[string]string{"type": "activity_entity"}); err != nil {
+		t.Fatalf("AddNode activity_xyz: %v", err)
+	}
+
+	ctx := kg.SearchForContext("*", 5, 800)
+	if !strings.Contains(ctx, "proxmox") {
+		t.Fatalf("expected wildcard context to contain important node proxmox, got %q", ctx)
+	}
+	if strings.Contains(ctx, "activity_xyz") {
+		t.Fatalf("expected wildcard context to exclude activity_entity, got %q", ctx)
+	}
+}
