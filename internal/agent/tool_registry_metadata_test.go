@@ -3,7 +3,7 @@ package agent
 import "testing"
 
 func TestHardAlwaysToolMetadataExists(t *testing.T) {
-	for _, name := range []string{"discover_tools", "invoke_tool", "execute_skill", "run_tool"} {
+	for _, name := range []string{"discover_tools", "activate_tools", "invoke_tool", "execute_skill", "run_tool"} {
 		meta, ok := lookupToolMetadata(name)
 		if !ok {
 			t.Fatalf("missing metadata for %s", name)

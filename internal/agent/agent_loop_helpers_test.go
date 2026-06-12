@@ -224,6 +224,20 @@ func makeTool(name string) openai.Tool {
 	}
 }
 
+func makeSizedTool(name, description string) openai.Tool {
+	return openai.Tool{
+		Type: openai.ToolTypeFunction,
+		Function: &openai.FunctionDefinition{
+			Name:        name,
+			Description: description,
+			Parameters: map[string]interface{}{
+				"type":       "object",
+				"properties": map[string]interface{}{},
+			},
+		},
+	}
+}
+
 // toolNames extracts function names from a tool slice.
 func toolNames(tools []openai.Tool) []string {
 	names := make([]string, 0, len(tools))
@@ -560,6 +574,77 @@ func TestFilterToolSchemasWithReport_RegularSessionRespectsTotalCap(t *testing.T
 		if !containsName(names, want) {
 			t.Fatalf("expected %q in result, got %v", want, names)
 		}
+	}
+}
+
+func TestFilterToolSchemasWithReport_HardToolsSurviveSchemaTokenBudget(t *testing.T) {
+	schemas := []openai.Tool{
+		makeSizedTool("discover_tools", strings.Repeat("hard ", 300)),
+		makeSizedTool("small_tool", "small focused helper"),
+	}
+
+	result := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
+		PreferredTools:   []string{"small_tool"},
+		HardAlwaysTools:  []string{"discover_tools"},
+		MaxAdaptiveTools: 1,
+		MaxSchemaTokens:  1,
+		MaxTotalTools:    2,
+	}, nil)
+
+	names := toolNames(result.Tools)
+	if !containsName(names, "discover_tools") {
+		t.Fatalf("hard tool was dropped under token budget: %v", names)
+	}
+	if result.Report.HardAlwaysExceededTokenCap != true {
+		t.Fatalf("expected hard-token-cap warning, got %+v", result.Report)
+	}
+}
+
+func TestFilterToolSchemasWithReport_TokenBudgetPrefersSmallerAdaptiveTool(t *testing.T) {
+	schemas := []openai.Tool{
+		makeSizedTool("discover_tools", "hard catalog"),
+		makeSizedTool("large_tool", strings.Repeat("large schema text ", 300)),
+		makeSizedTool("small_tool", "small schema"),
+	}
+
+	result := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
+		PreferredTools:   []string{"large_tool", "small_tool"},
+		HardAlwaysTools:  []string{"discover_tools"},
+		MaxAdaptiveTools: 2,
+		MaxSchemaTokens:  120,
+		MaxTotalTools:    3,
+	}, nil)
+
+	names := toolNames(result.Tools)
+	if !containsName(names, "small_tool") {
+		t.Fatalf("expected small adaptive tool under token budget, got %v", names)
+	}
+	if containsName(names, "large_tool") {
+		t.Fatalf("expected large adaptive tool to lose to smaller tool, got %v", names)
+	}
+}
+
+func TestFilterToolSchemasWithReport_ActivatedSoftToolPrecedesAdaptiveUnderTotalCap(t *testing.T) {
+	schemas := []openai.Tool{
+		makeSizedTool("discover_tools", "hard catalog"),
+		makeSizedTool("activated_tool", strings.Repeat("activated ", 150)),
+		makeSizedTool("small_adaptive", "small adaptive"),
+	}
+
+	result := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
+		PreferredTools:   []string{"small_adaptive"},
+		HardAlwaysTools:  []string{"discover_tools"},
+		SoftAlwaysTools:  []string{"activated_tool"},
+		MaxAdaptiveTools: 1,
+		MaxTotalTools:    2,
+	}, nil)
+
+	names := toolNames(result.Tools)
+	if !containsName(names, "activated_tool") {
+		t.Fatalf("expected activated soft tool to be kept, got %v", names)
+	}
+	if containsName(names, "small_adaptive") {
+		t.Fatalf("expected adaptive tool to be dropped after activated soft tool consumed cap, got %v", names)
 	}
 }
 

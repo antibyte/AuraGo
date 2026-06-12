@@ -157,6 +157,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: ptcJSON})
 		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: followUpContent})
 	}
+	refreshActivatedNativeToolSchemas(s)
 	s.lastResponseWasTool = true
 	return true
 }
@@ -632,6 +633,8 @@ func executeAgentToolTurn(
 		currentLogger.Info("[Sync] Early exit signal received, stopping loop.")
 		return resp, nil, false
 	}
+
+	refreshActivatedNativeToolSchemas(s)
 
 	select {
 	case <-time.After(time.Duration(cfg.Agent.StepDelaySeconds) * time.Second):

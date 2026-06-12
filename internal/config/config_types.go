@@ -620,6 +620,7 @@ type Config struct {
 			Enabled                   bool     `yaml:"enabled"`                      // enable adaptive tool filtering (default: false)
 			MaxTools                  int      `yaml:"max_tools"`                    // maximum adaptive/preferred tool schemas; always-include tools are added on top (0 = unlimited, default: 16)
 			MaxTotalTools             int      `yaml:"max_total_tools"`              // maximum final native tool schemas after required tools are kept (0 = unlimited, default: 32)
+			MaxSchemaTokens           int      `yaml:"max_schema_tokens"`            // optional schema-token budget for final native tool schemas (0 = unlimited)
 			ProviderProfilesEnabled   bool     `yaml:"provider_profiles_enabled"`    // apply provider-specific tool limits and transport stability defaults (default: true)
 			SessionToolRetentionTurns int      `yaml:"session_tool_retention_turns"` // turns to keep previously used tools visible as soft always-include tools (0 = current session, default: 8)
 			DecayHalfLifeDays         float64  `yaml:"decay_half_life_days"`         // usage score halves after this many days (default: 7)
@@ -627,6 +628,10 @@ type Config struct {
 			WeightSuccessRate         bool     `yaml:"weight_success_rate"`          // penalise tools with low success rate in scoring (default: true)
 			CleanTransitionsAfterDays int      `yaml:"clean_transitions_after_days"` // remove stale tool transitions after N days (default: 90)
 		} `yaml:"adaptive_tools"`
+		HistoryCompaction struct {
+			Enabled                  bool `yaml:"enabled"`                      // compact older tool rounds before LLM compression (default: true)
+			KeepRecentToolRoundsFull int  `yaml:"keep_recent_tool_rounds_full"` // keep this many recent tool rounds unmodified (default: 2)
+		} `yaml:"history_compaction"`
 		Recovery struct {
 			MaxProvider422Recoveries int `yaml:"max_provider_422_recoveries"`  // max automatic retries after provider 422 validation errors (default: 3)
 			MinMessagesForEmptyRetry int `yaml:"min_messages_for_empty_retry"` // minimum conversation messages required before retrying on empty LLM response (default: 5)
@@ -672,8 +677,10 @@ type Config struct {
 				MaxRows int  `yaml:"max_rows"` // max rows to render before tail-truncation (default: 50)
 			} `yaml:"smart_crusher"`
 			Reversible struct {
-				Enabled     bool `yaml:"enabled"`       // enable reversible compression (archive originals) (default: false)
-				MaxAgeHours int  `yaml:"max_age_hours"` // max age of archived outputs in hours (default: 24)
+				Enabled            bool `yaml:"enabled"`              // enable reversible compression (archive originals) (default: false)
+				MaxAgeHours        int  `yaml:"max_age_hours"`        // max age of archived outputs in hours (default: 24)
+				PrimaryOutputVault bool `yaml:"primary_output_vault"` // store large outputs in the output vault by default (default: true)
+				MaxInlineChars     int  `yaml:"max_inline_chars"`     // max chars inlined before vault view is preferred (default: 6000)
 			} `yaml:"reversible"`
 		} `yaml:"output_compression"`
 

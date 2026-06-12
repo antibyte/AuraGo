@@ -397,6 +397,114 @@ func TestConsumeDiscoverRequestedToolsIsOneShot(t *testing.T) {
 	}
 }
 
+func TestHandleActivateToolsClassifiesAndConsumesActivations(t *testing.T) {
+	t.Cleanup(func() {
+		discoverToolsState.mu.Lock()
+		discoverToolsState.snapshots = nil
+		discoverToolsState.requested = nil
+		discoverToolsState.activated = nil
+		discoverToolsState.mu.Unlock()
+	})
+
+	allSchemas := []openai.Tool{
+		{
+			Type: openai.ToolTypeFunction,
+			Function: &openai.FunctionDefinition{
+				Name:        "docker",
+				Description: "Manage Docker resources",
+				Parameters:  map[string]any{"type": "object"},
+			},
+		},
+		{
+			Type: openai.ToolTypeFunction,
+			Function: &openai.FunctionDefinition{
+				Name:        "chromecast",
+				Description: "Control Chromecast devices",
+				Parameters:  map[string]any{"type": "object"},
+			},
+		},
+		{
+			Type: openai.ToolTypeFunction,
+			Function: &openai.FunctionDefinition{
+				Name:        "skill__weather_check",
+				Description: "Check weather",
+				Parameters:  map[string]any{"type": "object"},
+			},
+		},
+	}
+	SetDiscoverToolsState("sess-activate", allSchemas, allSchemas[:1], "")
+
+	out := handleActivateTools(ToolCall{
+		Params: map[string]interface{}{
+			"names": []interface{}{"docker", "chromecast", "weather_check", "uptime_kuma", "no_such_tool"},
+		},
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)), "sess-activate")
+
+	var payload ActivateToolsResponse
+	decodeToolOutputJSON(t, out, &payload)
+	if payload.Status != "success" || !payload.NextRequest {
+		t.Fatalf("unexpected activate_tools response: %+v raw=%s", payload, out)
+	}
+	if !containsName(payload.AlreadyActive, "docker") {
+		t.Fatalf("already_active = %v, want docker", payload.AlreadyActive)
+	}
+	for _, want := range []string{"chromecast", "weather_check"} {
+		if !containsName(payload.Activated, want) {
+			t.Fatalf("activated = %v, want %s", payload.Activated, want)
+		}
+	}
+	if !containsName(payload.Disabled, "uptime_kuma") {
+		t.Fatalf("disabled = %v, want uptime_kuma", payload.Disabled)
+	}
+	if !containsName(payload.Unknown, "no_such_tool") {
+		t.Fatalf("unknown = %v, want no_such_tool", payload.Unknown)
+	}
+
+	first := ConsumeActivatedTools("sess-activate")
+	for _, want := range []string{"chromecast", "skill__weather_check"} {
+		if !containsName(first, want) {
+			t.Fatalf("consumed activations = %v, want %s", first, want)
+		}
+	}
+	if second := ConsumeActivatedTools("sess-activate"); len(second) != 0 {
+		t.Fatalf("second consume = %v, want empty", second)
+	}
+}
+
+func TestHandleActivateToolsRejectsMoreThanEightNames(t *testing.T) {
+	t.Cleanup(func() {
+		discoverToolsState.mu.Lock()
+		discoverToolsState.snapshots = nil
+		discoverToolsState.requested = nil
+		discoverToolsState.activated = nil
+		discoverToolsState.mu.Unlock()
+	})
+
+	SetDiscoverToolsState("sess-too-many", []openai.Tool{
+		{
+			Type: openai.ToolTypeFunction,
+			Function: &openai.FunctionDefinition{
+				Name:       "chromecast",
+				Parameters: map[string]any{"type": "object"},
+			},
+		},
+	}, nil, "")
+
+	out := handleActivateTools(ToolCall{
+		Params: map[string]interface{}{
+			"names": []interface{}{"a", "b", "c", "d", "e", "f", "g", "h", "i"},
+		},
+	}, nil, "sess-too-many")
+	var payload ActivateToolsResponse
+	decodeToolOutputJSON(t, out, &payload)
+	if payload.Status != "error" {
+		t.Fatalf("status = %q, want error: %s", payload.Status, out)
+	}
+	if got := ConsumeActivatedTools("sess-too-many"); len(got) != 0 {
+		t.Fatalf("unexpected activations after rejected call: %v", got)
+	}
+}
+
 func TestHandleDiscoverToolsAliasFallbacks(t *testing.T) {
 	t.Cleanup(func() {
 		discoverToolsState.mu.Lock()

@@ -369,6 +369,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 				SoftAlwaysTools:  alwaysInclude,
 				MaxAdaptiveTools: maxTools,
 				MaxTotalTools:    toolingPolicy.EffectiveMaxTotalTools,
+				MaxSchemaTokens:  cfg.Agent.AdaptiveTools.MaxSchemaTokens,
 			}, logger)
 			ntSchemas = filterResult.Tools
 			RecordToolFilterReport(filterResult.Report)
@@ -490,6 +491,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	s.toolGuidesDir = toolGuidesDir
 	s.useNativeFunctions = useNativeFunctions
 	s.adaptiveFilteredTools = adaptiveFilteredTools
+	s.nativeSchemaSnapshot = schemaSnapshot
 	s.isMaintenance = isMaintenance
 
 	// Suppress unused-variable warnings for values only consumed by makeDispatchContext

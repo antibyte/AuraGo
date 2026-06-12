@@ -1143,6 +1143,12 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.OutputCompression.Reversible.MaxAgeHours <= 0 {
 		cfg.Agent.OutputCompression.Reversible.MaxAgeHours = 24
 	}
+	if !yamlHasPath(data, "agent", "output_compression", "reversible", "primary_output_vault") {
+		cfg.Agent.OutputCompression.Reversible.PrimaryOutputVault = true
+	}
+	if cfg.Agent.OutputCompression.Reversible.MaxInlineChars <= 0 {
+		cfg.Agent.OutputCompression.Reversible.MaxInlineChars = 6000
+	}
 	// Enable all headroom features by default — validated in production.
 	cfg.Agent.OutputCompression.SmartCrusher.Enabled = true
 	cfg.Agent.OutputCompression.Reversible.Enabled = true
@@ -1227,6 +1233,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.AdaptiveTools.SessionToolRetentionTurns <= 0 && cfg.Agent.AdaptiveTools.Enabled {
 		cfg.Agent.AdaptiveTools.SessionToolRetentionTurns = 8
 	}
+	if cfg.Agent.AdaptiveTools.MaxSchemaTokens < 0 {
+		cfg.Agent.AdaptiveTools.MaxSchemaTokens = 0
+	}
 	if !cfg.Agent.AdaptiveTools.ProviderProfilesEnabled &&
 		!yamlHasPath(data, "agent", "adaptive_tools", "provider_profiles_enabled") {
 		cfg.Agent.AdaptiveTools.ProviderProfilesEnabled = true
@@ -1236,6 +1245,12 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Agent.AdaptiveTools.CleanTransitionsAfterDays <= 0 {
 		cfg.Agent.AdaptiveTools.CleanTransitionsAfterDays = 90
+	}
+	if !yamlHasPath(data, "agent", "history_compaction", "enabled") {
+		cfg.Agent.HistoryCompaction.Enabled = true
+	}
+	if cfg.Agent.HistoryCompaction.KeepRecentToolRoundsFull <= 0 {
+		cfg.Agent.HistoryCompaction.KeepRecentToolRoundsFull = 2
 	}
 	// WeightSuccessRate defaults to true when omitted, but must preserve an
 	// explicit user-provided false value from YAML.

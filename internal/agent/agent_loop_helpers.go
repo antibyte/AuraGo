@@ -883,6 +883,7 @@ type toolSchemaFilterOptions struct {
 	SoftAlwaysTools  []string
 	MaxAdaptiveTools int
 	MaxTotalTools    int
+	MaxSchemaTokens  int
 }
 
 type toolSchemaFilterReport struct {
@@ -899,8 +900,10 @@ type toolSchemaFilterReport struct {
 	Dropped                    int                   `json:"dropped"`
 	MaxAdaptive                int                   `json:"max_adaptive"`
 	MaxTotal                   int                   `json:"max_total"`
+	MaxSchemaTokens            int                   `json:"max_schema_tokens,omitempty"`
 	DroppedTools               []string              `json:"dropped_tools,omitempty"`
 	HardAlwaysExceededTotalCap bool                  `json:"hard_always_exceeded_total_cap,omitempty"`
+	HardAlwaysExceededTokenCap bool                  `json:"hard_always_exceeded_token_cap,omitempty"`
 }
 
 type toolSchemaSizeEntry struct {
@@ -939,6 +942,7 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 		LargestSchemas:       originalLargest,
 		MaxAdaptive:          opts.MaxAdaptiveTools,
 		MaxTotal:             opts.MaxTotalTools,
+		MaxSchemaTokens:      opts.MaxSchemaTokens,
 	}
 	hardSet := stringSet(opts.HardAlwaysTools)
 	softSet := stringSet(opts.SoftAlwaysTools)
@@ -958,10 +962,14 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 	schemaOrder := make([]string, 0, len(schemas))
 	var kept []openai.Tool
 	consumed := make(map[string]bool, len(schemas))
+	schemaTokens := make(map[string]int, len(schemas))
+	keptSchemaTokens := 0
 	add := func(schema openai.Tool, class string) bool {
+		tokens := estimateSingleToolSchemaTokens(schema)
 		if schema.Function == nil {
 			kept = append(kept, schema)
 			report.KeptHardAlways++
+			keptSchemaTokens += tokens
 			return true
 		}
 		name := schema.Function.Name
@@ -971,8 +979,12 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 		if class != "hard" && opts.MaxTotalTools > 0 && len(kept) >= opts.MaxTotalTools {
 			return false
 		}
+		if class != "hard" && opts.MaxSchemaTokens > 0 && keptSchemaTokens+tokens > opts.MaxSchemaTokens {
+			return false
+		}
 		consumed[name] = true
 		kept = append(kept, schema)
+		keptSchemaTokens += tokens
 		switch class {
 		case "hard":
 			report.KeptHardAlways++
@@ -992,6 +1004,7 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 		name := s.Function.Name
 		schemaByName[name] = s
 		schemaOrder = append(schemaOrder, name)
+		schemaTokens[name] = estimateSingleToolSchemaTokens(s)
 	}
 
 	for _, name := range schemaOrder {
@@ -1007,6 +1020,15 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 				"max_total", opts.MaxTotalTools)
 		}
 	}
+	if opts.MaxSchemaTokens > 0 && keptSchemaTokens > opts.MaxSchemaTokens {
+		report.HardAlwaysExceededTokenCap = true
+		if logger != nil {
+			logger.Warn("[AdaptiveTools] Hard-required tools exceed schema token budget",
+				"kept_hard_always", report.KeptHardAlways,
+				"schema_tokens", keptSchemaTokens,
+				"max_schema_tokens", opts.MaxSchemaTokens)
+		}
+	}
 	for _, name := range schemaOrder {
 		if softSet[name] && !hardSet[name] {
 			add(schemaByName[name], "soft")
@@ -1016,18 +1038,13 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 	canAddAdaptive := func() bool {
 		return opts.MaxAdaptiveTools <= 0 || report.KeptAdaptive < opts.MaxAdaptiveTools
 	}
-	for _, name := range preferredOrder {
+	adaptiveOrder := buildAdaptiveKnapsackOrder(schemaOrder, preferredOrder, consumed, hardSet, softSet, schemaTokens, opts.MaxSchemaTokens > 0)
+	for _, name := range adaptiveOrder {
 		schema, ok := schemaByName[name]
 		if !ok || consumed[name] || !canAddAdaptive() {
 			continue
 		}
 		add(schema, "adaptive")
-	}
-	for _, name := range schemaOrder {
-		if consumed[name] || hardSet[name] || softSet[name] || !canAddAdaptive() {
-			continue
-		}
-		add(schemaByName[name], "adaptive")
 	}
 
 	finalDropped := len(schemas) - len(kept)
@@ -1057,6 +1074,81 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 			"dropped_tools", strings.Join(report.DroppedTools, ", "))
 	}
 	return toolSchemaFilterResult{Tools: kept, Report: report}
+}
+
+func estimateSingleToolSchemaTokens(schema openai.Tool) int {
+	b, err := json.Marshal(schema)
+	if err != nil {
+		return 0
+	}
+	return roughTokenEstimate(len(b))
+}
+
+func buildAdaptiveKnapsackOrder(schemaOrder, preferredOrder []string, consumed map[string]bool, hardSet, softSet map[string]bool, schemaTokens map[string]int, tokenAware bool) []string {
+	preferredRank := make(map[string]int, len(preferredOrder))
+	for i, name := range preferredOrder {
+		preferredRank[name] = len(preferredOrder) - i
+	}
+	type candidate struct {
+		name         string
+		utility      int
+		tokens       int
+		originalRank int
+	}
+	candidates := make([]candidate, 0, len(schemaOrder))
+	for i, name := range schemaOrder {
+		if consumed[name] || hardSet[name] || softSet[name] {
+			continue
+		}
+		utility := preferredRank[name]
+		if utility <= 0 {
+			utility = 1
+		}
+		tokens := schemaTokens[name]
+		if tokens <= 0 {
+			tokens = 1
+		}
+		candidates = append(candidates, candidate{
+			name:         name,
+			utility:      utility,
+			tokens:       tokens,
+			originalRank: i,
+		})
+	}
+	if tokenAware {
+		sort.SliceStable(candidates, func(i, j int) bool {
+			left := candidates[i]
+			right := candidates[j]
+			leftScore := left.utility * right.tokens
+			rightScore := right.utility * left.tokens
+			if leftScore != rightScore {
+				return leftScore > rightScore
+			}
+			if left.utility != right.utility {
+				return left.utility > right.utility
+			}
+			return left.originalRank < right.originalRank
+		})
+	} else {
+		sort.SliceStable(candidates, func(i, j int) bool {
+			left := candidates[i]
+			right := candidates[j]
+			leftPreferred := preferredRank[left.name] > 0
+			rightPreferred := preferredRank[right.name] > 0
+			if leftPreferred != rightPreferred {
+				return leftPreferred
+			}
+			if leftPreferred && left.utility != right.utility {
+				return left.utility > right.utility
+			}
+			return left.originalRank < right.originalRank
+		})
+	}
+	out := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		out = append(out, candidate.name)
+	}
+	return out
 }
 
 func measureToolSchemaSizes(schemas []openai.Tool, limit int) (int, []toolSchemaSizeEntry) {

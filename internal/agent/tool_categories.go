@@ -49,6 +49,7 @@ type ToolCategoryEntry struct {
 var toolCategoryDef = map[string][]ToolCategoryEntry{
 	"system": {
 		{"discover_tools", "Browse active, hidden, and disabled tools with schemas and manuals"},
+		{"activate_tools", "Activate hidden enabled tools for the next LLM request"},
 		{"invoke_tool", "Invoke enabled native tools that are hidden by adaptive filtering"},
 		{"list_skills", "List registered Python skills"},
 		{"execute_skill", "Execute a registered Python skill"},

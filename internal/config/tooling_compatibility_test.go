@@ -245,6 +245,9 @@ agent:
 	if cfg.Agent.AdaptiveTools.SessionToolRetentionTurns != 8 {
 		t.Fatalf("session_tool_retention_turns = %d, want 8", cfg.Agent.AdaptiveTools.SessionToolRetentionTurns)
 	}
+	if cfg.Agent.AdaptiveTools.MaxSchemaTokens != 0 {
+		t.Fatalf("max_schema_tokens = %d, want 0", cfg.Agent.AdaptiveTools.MaxSchemaTokens)
+	}
 }
 
 func TestAdaptiveToolsNewFieldsPreserveExplicitValues(t *testing.T) {
@@ -253,6 +256,7 @@ agent:
   adaptive_tools:
     enabled: true
     max_total_tools: 24
+    max_schema_tokens: 2048
     provider_profiles_enabled: false
     session_tool_retention_turns: 3
 `)
@@ -265,6 +269,52 @@ agent:
 	}
 	if cfg.Agent.AdaptiveTools.SessionToolRetentionTurns != 3 {
 		t.Fatalf("session_tool_retention_turns = %d, want 3", cfg.Agent.AdaptiveTools.SessionToolRetentionTurns)
+	}
+	if cfg.Agent.AdaptiveTools.MaxSchemaTokens != 2048 {
+		t.Fatalf("max_schema_tokens = %d, want 2048", cfg.Agent.AdaptiveTools.MaxSchemaTokens)
+	}
+}
+
+func TestToolingArchitectureDefaults(t *testing.T) {
+	cfg := loadConfigFromTestYAML(t, `{}`)
+
+	if !cfg.Agent.HistoryCompaction.Enabled {
+		t.Fatal("history_compaction.enabled should default to true")
+	}
+	if cfg.Agent.HistoryCompaction.KeepRecentToolRoundsFull != 2 {
+		t.Fatalf("keep_recent_tool_rounds_full = %d, want 2", cfg.Agent.HistoryCompaction.KeepRecentToolRoundsFull)
+	}
+	if !cfg.Agent.OutputCompression.Reversible.PrimaryOutputVault {
+		t.Fatal("output_compression.reversible.primary_output_vault should default to true")
+	}
+	if cfg.Agent.OutputCompression.Reversible.MaxInlineChars != 6000 {
+		t.Fatalf("output_compression.reversible.max_inline_chars = %d, want 6000", cfg.Agent.OutputCompression.Reversible.MaxInlineChars)
+	}
+}
+
+func TestToolingArchitectureExplicitValues(t *testing.T) {
+	cfg := loadConfigFromTestYAML(t, `
+agent:
+  history_compaction:
+    enabled: false
+    keep_recent_tool_rounds_full: 4
+  output_compression:
+    reversible:
+      primary_output_vault: false
+      max_inline_chars: 2048
+`)
+
+	if cfg.Agent.HistoryCompaction.Enabled {
+		t.Fatal("expected explicit history_compaction.enabled=false to be preserved")
+	}
+	if cfg.Agent.HistoryCompaction.KeepRecentToolRoundsFull != 4 {
+		t.Fatalf("keep_recent_tool_rounds_full = %d, want 4", cfg.Agent.HistoryCompaction.KeepRecentToolRoundsFull)
+	}
+	if cfg.Agent.OutputCompression.Reversible.PrimaryOutputVault {
+		t.Fatal("expected explicit primary_output_vault=false to be preserved")
+	}
+	if cfg.Agent.OutputCompression.Reversible.MaxInlineChars != 2048 {
+		t.Fatalf("max_inline_chars = %d, want 2048", cfg.Agent.OutputCompression.Reversible.MaxInlineChars)
 	}
 }
 

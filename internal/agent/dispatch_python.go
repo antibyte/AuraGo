@@ -165,6 +165,9 @@ func dispatchPython(tc ToolCall, dc *DispatchContext) string {
 	case "discover_tools":
 		return handleDiscoverTools(tc, cfg, logger, dc.SessionID)
 
+	case "activate_tools":
+		return handleActivateTools(tc, logger, dc.SessionID)
+
 	case "run_tool":
 		if !cfg.Agent.AllowPython {
 			return "Tool Output: [PERMISSION DENIED] run_tool is disabled in Danger Zone settings (agent.allow_python: false)."

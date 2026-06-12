@@ -143,6 +143,7 @@ type agentLoopState struct {
 
 	useNativeFunctions    bool
 	adaptiveFilteredTools []string
+	nativeSchemaSnapshot  *nativeToolSchemaSnapshot
 }
 
 // makeDispatchContext builds a DispatchContext from the current loop state.
