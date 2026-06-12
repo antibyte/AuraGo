@@ -112,6 +112,7 @@ type BackgroundTaskManager struct {
 	trigger       chan struct{}
 	workerOnce    sync.Once
 	shutdownOnce  sync.Once
+	workerWg      sync.WaitGroup
 }
 
 var (
@@ -185,6 +186,7 @@ func (m *BackgroundTaskManager) SetNotifier(fn func(title, body string)) {
 
 func (m *BackgroundTaskManager) Start() {
 	m.workerOnce.Do(func() {
+		m.workerWg.Add(1)
 		go m.run()
 	})
 }
@@ -197,6 +199,9 @@ func (m *BackgroundTaskManager) Stop() {
 
 func (m *BackgroundTaskManager) Close() error {
 	m.Stop()
+	// Wait for the worker goroutine to exit before releasing the store so that
+	// no in-flight task can observe a nil store after Close returns.
+	m.workerWg.Wait()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.store == nil {
@@ -344,6 +349,7 @@ func (m *BackgroundTaskManager) Summary() BackgroundTaskSummary {
 }
 
 func (m *BackgroundTaskManager) run() {
+	defer m.workerWg.Done()
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 	for {
