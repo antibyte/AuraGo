@@ -780,6 +780,32 @@ func TestPrepareDynamicGuidesWithStrategyRespectsSudoManualCondition(t *testing.
 	}
 }
 
+func TestModuleConditionsAllowDeniesWhenFlagsNil(t *testing.T) {
+	mod := PromptModule{
+		Metadata: PromptMetadata{
+			Tags:       []string{"core"},
+			Conditions: []string{"docker_enabled"},
+		},
+		Content: "docker module",
+	}
+	if mod.ShouldInclude(nil) {
+		t.Fatal("conditioned module must not load when flags are nil")
+	}
+	if !mod.ShouldInclude(&ContextFlags{DockerEnabled: true}) {
+		t.Fatal("conditioned module should load when matching flag is set")
+	}
+}
+
+func TestGuideConditionsAllowSkipsEnforcementWhenFlagsNil(t *testing.T) {
+	conditions := []string{"allow_shell"}
+	if !guideConditionsAllow(conditions, nil) {
+		t.Fatal("guide conditions should be skipped for explicit lookups without flags")
+	}
+	if guideConditionsAllow(conditions, &ContextFlags{AllowShell: false}) {
+		t.Fatal("guide conditions should block when flags are set and condition does not match")
+	}
+}
+
 func TestNormalizePromptConditionMapsLegacyVideoDownloadKey(t *testing.T) {
 	if got := normalizePromptCondition("tools.video_download.enabled"); got != "video_download_enabled" {
 		t.Fatalf("normalizePromptCondition() = %q, want video_download_enabled", got)

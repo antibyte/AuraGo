@@ -2,7 +2,7 @@
 id: video_download
 tags: [media, integration]
 priority: 75
-conditions: ["tools.video_download.enabled"]
+conditions: ["video_download_enabled"]
 ---
 
 # Video Download (`video_download`)

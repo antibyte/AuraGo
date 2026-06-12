@@ -420,10 +420,25 @@ func matchPromptCondition(cond string, flags *ContextFlags) bool {
 	}
 }
 
-func conditionsMatchAny(conditions []string, flags *ContextFlags) bool {
+// guideConditionsAllow decides whether a tool manual may be injected dynamically.
+// Nil flags skips enforcement (explicit discover_tools lookups).
+func guideConditionsAllow(conditions []string, flags *ContextFlags) bool {
 	if len(conditions) == 0 || flags == nil {
 		return true
 	}
+	return anyPromptConditionMatches(conditions, flags)
+}
+
+// moduleConditionsAllow decides whether a static prompt module should load.
+// Nil flags always denies conditioned modules.
+func moduleConditionsAllow(conditions []string, flags *ContextFlags) bool {
+	if flags == nil {
+		return false
+	}
+	return anyPromptConditionMatches(conditions, flags)
+}
+
+func anyPromptConditionMatches(conditions []string, flags *ContextFlags) bool {
 	for _, cond := range conditions {
 		if matchPromptCondition(cond, flags) {
 			return true
@@ -450,7 +465,7 @@ func (m *PromptModule) ShouldInclude(flags *ContextFlags) bool {
 		return false
 	}
 
-	return conditionsMatchAny(m.Metadata.Conditions, flags)
+	return moduleConditionsAllow(m.Metadata.Conditions, flags)
 }
 
 func evictGuideCacheLocked() {
@@ -484,8 +499,11 @@ func readToolGuide(path string, flags *ContextFlags) (string, bool) {
 	const maxGuideTokens = 2048
 
 	if content, ok := activeToolGuideOverride(path); ok {
-		if flags != nil && !conditionsMatchAny(loadToolGuideConditions(path), flags) {
-			return "", false
+		if flags != nil {
+			conditions, sourceFound := loadToolGuideConditions(path)
+			if !sourceFound || !guideConditionsAllow(conditions, flags) {
+				return "", false
+			}
 		}
 		return truncateGuide(content, maxGuideTokens), true
 	}
@@ -497,7 +515,7 @@ func readToolGuide(path string, flags *ContextFlags) (string, bool) {
 	if ok {
 		info, err := os.Stat(path)
 		if err == nil && !info.ModTime().After(cached.mtime) {
-			if !conditionsMatchAny(cached.conditions, flags) {
+			if !guideConditionsAllow(cached.conditions, flags) {
 				return "", false
 			}
 			return cached.content, true
@@ -505,7 +523,7 @@ func readToolGuide(path string, flags *ContextFlags) (string, bool) {
 		// If the disk file disappeared but we have a cache entry from embed,
 		// the zero mtime sentinel means "from embed, always valid".
 		if cached.mtime.IsZero() {
-			if !conditionsMatchAny(cached.conditions, flags) {
+			if !guideConditionsAllow(cached.conditions, flags) {
 				return "", false
 			}
 			return cached.content, true
@@ -537,22 +555,22 @@ func readToolGuide(path string, flags *ContextFlags) (string, bool) {
 	guideCache[path] = entry
 	guideCacheMu.Unlock()
 
-	if !conditionsMatchAny(conditions, flags) {
+	if !guideConditionsAllow(conditions, flags) {
 		return "", false
 	}
 	return content, true
 }
 
-func loadToolGuideConditions(path string) []string {
+func loadToolGuideConditions(path string) (conditions []string, found bool) {
 	if data, err := os.ReadFile(path); err == nil {
-		_, conditions := parseToolGuideRaw(string(data))
-		return conditions
+		_, conditions = parseToolGuideRaw(string(data))
+		return conditions, true
 	}
 	if data, ok := readToolGuideEmbed(path); ok {
-		_, conditions := parseToolGuideRaw(string(data))
-		return conditions
+		_, conditions = parseToolGuideRaw(string(data))
+		return conditions, true
 	}
-	return nil
+	return nil, false
 }
 
 func activeToolGuideOverride(path string) (string, bool) {
