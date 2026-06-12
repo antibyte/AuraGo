@@ -35,6 +35,9 @@ const (
 	TypeChatCancelled            MessageType = "chat.cancelled"
 	TypeChatAudio                MessageType = "chat.audio"
 	TypeChatMedia                MessageType = "chat.media"
+	TypeChatAttachmentPrepare    MessageType = "chat.attachment.prepare"
+	TypeChatAttachmentPrepared   MessageType = "chat.attachment.prepared"
+	TypeChatAttachmentAccepted   MessageType = "chat.attachment.accepted"
 	TypeChatVoiceOutputStatus    MessageType = "chat.voice_output.status"
 	TypeIntegrationsWebhostsList MessageType = "integrations.webhosts.list"
 	TypeIntegrationsWebhosts     MessageType = "integrations.webhosts"
@@ -48,19 +51,25 @@ const (
 )
 
 const (
-	ErrorAgentTimeout           = "AGENT_TIMEOUT"
-	ErrorInvalidMessage         = "INVALID_MESSAGE"
-	ErrorSessionNotFound        = "SESSION_NOT_FOUND"
-	ErrorInternal               = "INTERNAL_ERROR"
-	ErrorAuthRequired           = "AUTH_REQUIRED"
-	ErrorAuthFailed             = "AUTH_FAILED"
-	ErrorPairingRequired        = "PAIRING_REQUIRED"
-	ErrorDeviceNotApproved      = "DEVICE_NOT_APPROVED"
-	ErrorRemoteReadOnly         = "REMOTE_READ_ONLY"
-	ErrorRemotePermissionDenied = "REMOTE_PERMISSION_DENIED"
-	ErrorRemoteUnavailable      = "REMOTE_UNAVAILABLE"
-	ErrorUnsupportedCapability  = "UNSUPPORTED_CAPABILITY"
-	ErrorControlSessionActive   = "CONTROL_SESSION_ACTIVE"
+	ErrorAgentTimeout             = "AGENT_TIMEOUT"
+	ErrorInvalidMessage           = "INVALID_MESSAGE"
+	ErrorSessionNotFound          = "SESSION_NOT_FOUND"
+	ErrorInternal                 = "INTERNAL_ERROR"
+	ErrorAuthRequired             = "AUTH_REQUIRED"
+	ErrorAuthFailed               = "AUTH_FAILED"
+	ErrorPairingRequired          = "PAIRING_REQUIRED"
+	ErrorDeviceNotApproved        = "DEVICE_NOT_APPROVED"
+	ErrorRemoteReadOnly           = "REMOTE_READ_ONLY"
+	ErrorRemotePermissionDenied   = "REMOTE_PERMISSION_DENIED"
+	ErrorRemoteUnavailable        = "REMOTE_UNAVAILABLE"
+	ErrorUnsupportedCapability    = "UNSUPPORTED_CAPABILITY"
+	ErrorControlSessionActive     = "CONTROL_SESSION_ACTIVE"
+	ErrorAttachmentRejected       = "ATTACHMENT_REJECTED"
+	ErrorAttachmentTooLarge       = "ATTACHMENT_TOO_LARGE"
+	ErrorAttachmentMimeNotAllowed = "ATTACHMENT_MIME_NOT_ALLOWED"
+	ErrorAttachmentNotFound       = "ATTACHMENT_NOT_FOUND"
+	ErrorAttachmentNotReady       = "ATTACHMENT_NOT_READY"
+	ErrorAttachmentExpired        = "ATTACHMENT_EXPIRED"
 )
 
 var DefaultCapabilities = []string{
@@ -159,21 +168,23 @@ type SharedKeyProof struct {
 }
 
 type SessionAcceptedPayload struct {
-	SessionID              string   `json:"session_id"`
-	DeviceID               string   `json:"device_id"`
-	Approved               bool     `json:"approved"`
-	ReadOnly               bool     `json:"read_only"`
-	Capabilities           []string `json:"capabilities"`
-	AdvertisedCapabilities []string `json:"advertised_capabilities,omitempty"`
-	SharedKey              string   `json:"shared_key,omitempty"`
+	SessionID              string                   `json:"session_id"`
+	DeviceID               string                   `json:"device_id"`
+	Approved               bool                     `json:"approved"`
+	ReadOnly               bool                     `json:"read_only"`
+	Capabilities           []string                 `json:"capabilities"`
+	AdvertisedCapabilities []string                 `json:"advertised_capabilities,omitempty"`
+	SharedKey              string                   `json:"shared_key,omitempty"`
+	AttachmentLimits       *AttachmentLimitsPayload `json:"attachment_limits,omitempty"`
 }
 
 type ChatMessagePayload struct {
-	SessionID      string `json:"session_id"`
-	ConversationID string `json:"conversation_id,omitempty"`
-	Text           string `json:"text"`
-	Role           string `json:"role"`
-	VoiceOutput    bool   `json:"voice_output,omitempty"`
+	SessionID      string               `json:"session_id"`
+	ConversationID string               `json:"conversation_id,omitempty"`
+	Text           string               `json:"text"`
+	Role           string               `json:"role"`
+	VoiceOutput    bool                 `json:"voice_output,omitempty"`
+	Attachments    []ChatAttachmentItem `json:"attachments,omitempty"`
 }
 
 type ChatResponsePayload struct {
@@ -217,9 +228,60 @@ type ChatSessionSummary struct {
 }
 
 type ChatHistoryMessagePayload struct {
-	Role      string `json:"role"`
-	Content   string `json:"content"`
-	Timestamp string `json:"timestamp,omitempty"`
+	Role        string               `json:"role"`
+	Content     string               `json:"content"`
+	Timestamp   string               `json:"timestamp,omitempty"`
+	Attachments []ChatAttachmentItem `json:"attachments,omitempty"`
+}
+
+type AttachmentLimitsPayload struct {
+	MaxFileBytes  int64    `json:"max_file_bytes"`
+	MaxFiles      int      `json:"max_files"`
+	MaxTotalBytes int64    `json:"max_total_bytes"`
+	AllowedMime   []string `json:"allowed_mime,omitempty"`
+}
+
+type ChatAttachmentPreparePayload struct {
+	SessionID      string `json:"session_id"`
+	ConversationID string `json:"conversation_id,omitempty"`
+	Filename       string `json:"filename"`
+	MimeType       string `json:"mime_type,omitempty"`
+	SizeBytes      int64  `json:"size_bytes"`
+	SHA256         string `json:"sha256,omitempty"`
+}
+
+type ChatAttachmentPreparedPayload struct {
+	SessionID      string `json:"session_id"`
+	ConversationID string `json:"conversation_id,omitempty"`
+	PrepareID      string `json:"prepare_id"`
+	AttachmentID   string `json:"attachment_id"`
+	UploadURL      string `json:"upload_url"`
+	Method         string `json:"method"`
+	UploadField    string `json:"upload_field"`
+	ExpiresAt      string `json:"expires_at"`
+	MaxBytes       int64  `json:"max_bytes"`
+}
+
+type ChatAttachmentAcceptedPayload struct {
+	SessionID      string               `json:"session_id"`
+	ConversationID string               `json:"conversation_id,omitempty"`
+	Attachments    []ChatAttachmentItem `json:"attachments,omitempty"`
+}
+
+type ChatAttachmentItem struct {
+	AttachmentID string                 `json:"attachment_id"`
+	Kind         string                 `json:"kind,omitempty"`
+	Path         string                 `json:"path,omitempty"`
+	PreviewURL   string                 `json:"preview_url,omitempty"`
+	URL          string                 `json:"url,omitempty"`
+	Title        string                 `json:"title,omitempty"`
+	Caption      string                 `json:"caption,omitempty"`
+	MimeType     string                 `json:"mime_type,omitempty"`
+	Filename     string                 `json:"filename,omitempty"`
+	SizeBytes    int64                  `json:"size_bytes,omitempty"`
+	SHA256       string                 `json:"sha256,omitempty"`
+	OpenMode     string                 `json:"open_mode,omitempty"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type ChatSessionsListPayload struct {

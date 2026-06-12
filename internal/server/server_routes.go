@@ -480,6 +480,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/ws", handleDesktopWS(s))
 	mux.HandleFunc("/api/agodesk/ws", handleAgodeskWebSocket(s))
 	mux.HandleFunc("/api/agodesk/tts/", handleAgodeskTTSAsset(s))
+	mux.HandleFunc("/api/agodesk/media/upload/", handleAgodeskAttachmentUpload(s))
 	mux.HandleFunc("/api/agodesk/media/", handleAgodeskMediaAsset(s))
 	registerDesktopStoreRoutes(mux, s)
 	remoteProxyOptions := desktop.RemoteProxyOptionsFromConfig(desktop.ConfigFromAuraConfig(s.Cfg))

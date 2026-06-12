@@ -10,6 +10,7 @@ import (
 	"image/png"
 	"log/slog"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -22,7 +23,7 @@ import (
 	"golang.org/x/image/draw"
 )
 
-var attachmentPathRe = regexp.MustCompile(`agent_workspace/workdir/attachments/([A-Za-z0-9._-]+)`)
+var attachmentPathRe = regexp.MustCompile(`agent_workspace/workdir/attachments/([A-Za-z0-9._/-]+)`)
 
 var analyzeImageForFallback = tools.AnalyzeImageWithPrompt
 
@@ -58,13 +59,20 @@ func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatComp
 		if len(m) < 2 {
 			continue
 		}
-		filename := m[1]
-		ext := strings.ToLower(filepath.Ext(filename))
+		relativeAttachmentPath := cleanMatchedAttachmentPath(m[1])
+		if relativeAttachmentPath == "" {
+			continue
+		}
+		ext := strings.ToLower(filepath.Ext(relativeAttachmentPath))
 		mime := imageMimeType(ext)
 		if mime == "" {
 			continue // not an image we can inline
 		}
-		fullPath := filepath.Join(workspaceDir, "attachments", filename)
+		attachmentsRoot := filepath.Join(workspaceDir, "attachments")
+		fullPath := filepath.Join(attachmentsRoot, filepath.FromSlash(relativeAttachmentPath))
+		if !pathStaysWithinDir(attachmentsRoot, fullPath) {
+			continue
+		}
 		info, err := os.Stat(fullPath)
 		if err != nil {
 			if logger != nil {
@@ -178,12 +186,15 @@ func fallbackVisionAnalysis(cfg *config.Config, msg openai.ChatCompletionMessage
 		if len(m) < 2 {
 			continue
 		}
-		filename := m[1]
-		ext := strings.ToLower(filepath.Ext(filename))
+		relativeAttachmentPath := cleanMatchedAttachmentPath(m[1])
+		if relativeAttachmentPath == "" {
+			continue
+		}
+		ext := strings.ToLower(filepath.Ext(relativeAttachmentPath))
 		if imageMimeType(ext) == "" {
 			continue
 		}
-		agentPath := "agent_workspace/workdir/attachments/" + filename
+		agentPath := "agent_workspace/workdir/attachments/" + relativeAttachmentPath
 		analysis, _, _, err := analyzeImageForFallback(agentPath, prompt, cfg)
 		if err != nil {
 			if logger != nil {
@@ -197,7 +208,7 @@ func fallbackVisionAnalysis(cfg *config.Config, msg openai.ChatCompletionMessage
 		}
 		added++
 		b.WriteString("- ")
-		b.WriteString(filename)
+		b.WriteString(relativeAttachmentPath)
 		b.WriteString(": ")
 		b.WriteString(analysis)
 		b.WriteString("\n")
@@ -355,4 +366,20 @@ func stripAttachmentPaths(s string) string {
 		keep = append(keep, strings.TrimRight(line, " \t"))
 	}
 	return strings.TrimSpace(strings.Join(keep, "\n"))
+}
+
+func cleanMatchedAttachmentPath(pathValue string) string {
+	pathValue = strings.TrimSpace(filepath.ToSlash(pathValue))
+	if pathValue == "" || strings.Contains(pathValue, "\x00") {
+		return ""
+	}
+	clean := pathpkg.Clean("/" + pathValue)
+	if clean == "/" {
+		return ""
+	}
+	clean = strings.TrimPrefix(clean, "/")
+	if clean == ".." || strings.HasPrefix(clean, "../") {
+		return ""
+	}
+	return clean
 }

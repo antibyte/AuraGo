@@ -210,6 +210,14 @@ func TestChatSessionProtocolPayloadsCarryConversationID(t *testing.T) {
 		Text:           "hello",
 		Role:           "user",
 		VoiceOutput:    true,
+		Attachments: []ChatAttachmentItem{{
+			AttachmentID: "att-1",
+			Filename:     "diagram.png",
+			MimeType:     "image/png",
+			SizeBytes:    1234,
+			Path:         "/api/agodesk/media/attachments/agodesk/sess-1/att-1/diagram.png",
+			Kind:         "image",
+		}},
 	})
 	if err != nil {
 		t.Fatalf("NewEnvelope chat.message: %v", err)
@@ -220,6 +228,9 @@ func TestChatSessionProtocolPayloadsCarryConversationID(t *testing.T) {
 	}
 	if msgPayload.SessionID != "agodesk:dev-1" || msgPayload.ConversationID != "sess-1" || !msgPayload.VoiceOutput {
 		t.Fatalf("chat.message payload = %+v", msgPayload)
+	}
+	if len(msgPayload.Attachments) != 1 || msgPayload.Attachments[0].AttachmentID != "att-1" || msgPayload.Attachments[0].Kind != "image" {
+		t.Fatalf("chat.message attachments = %+v", msgPayload.Attachments)
 	}
 
 	resp, err := NewEnvelope(TypeChatResponse, ChatResponsePayload{
@@ -262,7 +273,19 @@ func TestChatSessionManagementPayloadsRoundTrip(t *testing.T) {
 		ConversationID: "sess-1",
 		Session:        session,
 		Messages: []ChatHistoryMessagePayload{
-			{Role: "user", Content: "Hello", Timestamp: "2026-06-07T10:00:00Z"},
+			{
+				Role:      "user",
+				Content:   "Hello",
+				Timestamp: "2026-06-07T10:00:00Z",
+				Attachments: []ChatAttachmentItem{{
+					AttachmentID: "att-history",
+					Filename:     "notes.txt",
+					MimeType:     "text/plain",
+					SizeBytes:    42,
+					Path:         "/api/agodesk/media/attachments/agodesk/sess-1/att-history/notes.txt",
+					Kind:         "text",
+				}},
+			},
 			{Role: "assistant", Content: "Hi", Timestamp: "2026-06-07T10:01:00Z"},
 		},
 	})
@@ -275,6 +298,55 @@ func TestChatSessionManagementPayloadsRoundTrip(t *testing.T) {
 	}
 	if payload.ConversationID != "sess-1" || payload.Session.ID != "sess-1" || len(payload.Messages) != 2 {
 		t.Fatalf("chat.session payload = %+v", payload)
+	}
+	if len(payload.Messages[0].Attachments) != 1 || payload.Messages[0].Attachments[0].AttachmentID != "att-history" {
+		t.Fatalf("chat.session attachments = %+v", payload.Messages[0].Attachments)
+	}
+}
+
+func TestChatAttachmentProtocolPayloadsRoundTrip(t *testing.T) {
+	prepared, err := NewEnvelope(TypeChatAttachmentPrepared, ChatAttachmentPreparedPayload{
+		SessionID:    "agodesk:dev-1",
+		PrepareID:    "prep-1",
+		AttachmentID: "att-1",
+		UploadURL:    "/api/agodesk/media/upload/att-1?agodesk_exp=1&agodesk_sig=sig",
+		Method:       "POST",
+		UploadField:  "file",
+		ExpiresAt:    "2026-06-07T10:05:00Z",
+		MaxBytes:     8 * 1024 * 1024,
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope prepared: %v", err)
+	}
+	var preparedPayload ChatAttachmentPreparedPayload
+	if err := json.Unmarshal(prepared.Payload, &preparedPayload); err != nil {
+		t.Fatalf("unmarshal prepared: %v", err)
+	}
+	if preparedPayload.PrepareID != "prep-1" || preparedPayload.AttachmentID != "att-1" || preparedPayload.Method != "POST" || preparedPayload.UploadField != "file" {
+		t.Fatalf("prepared payload = %+v", preparedPayload)
+	}
+
+	accepted, err := NewEnvelope(TypeChatAttachmentAccepted, ChatAttachmentAcceptedPayload{
+		SessionID:      "agodesk:dev-1",
+		ConversationID: "sess-1",
+		Attachments: []ChatAttachmentItem{{
+			AttachmentID: "att-1",
+			Filename:     "diagram.png",
+			MimeType:     "image/png",
+			SizeBytes:    1234,
+			Path:         "/api/agodesk/media/attachments/agodesk/sess-1/att-1/diagram.png",
+			Kind:         "image",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope accepted: %v", err)
+	}
+	var acceptedPayload ChatAttachmentAcceptedPayload
+	if err := json.Unmarshal(accepted.Payload, &acceptedPayload); err != nil {
+		t.Fatalf("unmarshal accepted: %v", err)
+	}
+	if acceptedPayload.ConversationID != "sess-1" || len(acceptedPayload.Attachments) != 1 || acceptedPayload.Attachments[0].AttachmentID != "att-1" {
+		t.Fatalf("accepted payload = %+v", acceptedPayload)
 	}
 }
 
@@ -418,6 +490,12 @@ func TestSessionAcceptedPayloadCarriesAdvertisedCapabilities(t *testing.T) {
 		Approved:               true,
 		Capabilities:           []string{"chat.full_response", "remote.desktop.capture", "remote.desktop.discovery"},
 		AdvertisedCapabilities: []string{"remote.desktop.capture", "remote.desktop.discovery"},
+		AttachmentLimits: &AttachmentLimitsPayload{
+			MaxFileBytes:  8 * 1024 * 1024,
+			MaxFiles:      5,
+			MaxTotalBytes: 24 * 1024 * 1024,
+			AllowedMime:   []string{"image/*", "text/*", "application/pdf"},
+		},
 	})
 	if err != nil {
 		t.Fatalf("NewEnvelope: %v", err)
@@ -433,6 +511,13 @@ func TestSessionAcceptedPayloadCarriesAdvertisedCapabilities(t *testing.T) {
 	}
 	if len(advertised) != 2 || advertised[0] != "remote.desktop.capture" || advertised[1] != "remote.desktop.discovery" {
 		t.Fatalf("advertised_capabilities = %#v", advertised)
+	}
+	limits, ok := raw["attachment_limits"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("attachment_limits missing from JSON payload: %#v", raw)
+	}
+	if limits["max_files"] != float64(5) || limits["max_file_bytes"] != float64(8*1024*1024) {
+		t.Fatalf("attachment_limits = %#v", limits)
 	}
 }
 

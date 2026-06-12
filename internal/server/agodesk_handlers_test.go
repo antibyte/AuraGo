@@ -1,9 +1,14 @@
 package server
 
 import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -22,6 +27,7 @@ import (
 	"aurago/internal/warnings"
 
 	"github.com/gorilla/websocket"
+	"github.com/sashabaranov/go-openai"
 )
 
 func TestAgodeskWebSocketSendsConnectedAndPong(t *testing.T) {
@@ -211,6 +217,261 @@ func TestAgodeskWebSocketStripsDoneTagFromChatResponse(t *testing.T) {
 	want := "TTS-Test erfolgreich abgeschlossen - Audio wurde generiert und ist abspielbereit."
 	if payload.Text != want {
 		t.Fatalf("chat response text = %q, want %q", payload.Text, want)
+	}
+}
+
+func TestAgodeskAttachmentCapabilitiesRequireWorkspaceAndSigningSecret(t *testing.T) {
+	noUpload := agodeskServerCapabilities(&Server{
+		Cfg:    &config.Config{},
+		Logger: slog.Default(),
+	})
+	if agodeskTestContainsString(noUpload, "chat.media_upload") || agodeskTestContainsString(noUpload, "chat.attachments") {
+		t.Fatalf("attachment capabilities advertised without workspace/signing secret: %v", noUpload)
+	}
+
+	cfg := &config.Config{}
+	cfg.Auth.SessionSecret = "test-secret"
+	cfg.Directories.WorkspaceDir = t.TempDir()
+	enabled := agodeskServerCapabilities(&Server{
+		Cfg:    cfg,
+		Logger: slog.Default(),
+	})
+	for _, want := range []string{"chat.media_upload", "chat.attachments"} {
+		if !agodeskTestContainsString(enabled, want) {
+			t.Fatalf("capabilities missing %s: %v", want, enabled)
+		}
+	}
+}
+
+func TestAgodeskAttachmentPrepareUploadAndTextlessChatMessage(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	s.ShortTermMem = newAgodeskTestMemory(t)
+	s.Cfg.Auth.SessionSecret = "test-secret"
+	s.Cfg.Directories.WorkspaceDir = t.TempDir()
+	sess, err := s.ShortTermMem.CreateChatSession()
+	if err != nil {
+		t.Fatalf("CreateChatSession: %v", err)
+	}
+
+	capturedMessage := make(chan string, 1)
+	oldRunner := agodeskAgentChatRunner
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, transportSessionID, conversationID, deviceID, message string, voiceOutput bool) (agodeskChatResult, error) {
+		capturedMessage <- message
+		return agodeskChatResult{Answer: "saw attachment"}, nil
+	}
+	t.Cleanup(func() { agodeskAgentChatRunner = oldRunner })
+
+	httpSrv := httptest.NewServer(agodeskAttachmentTestMux(s))
+	defer httpSrv.Close()
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(httpSrv.URL, "http")+"/api/agodesk/ws?insecure_loopback=1", nil)
+	if err != nil {
+		t.Fatalf("dial agodesk websocket: %v", err)
+	}
+	defer conn.Close()
+	connected := readAgodeskTestEnvelope(t, conn)
+	var connectedPayload agodesk.SystemConnectedPayload
+	decodeAgodeskTestPayload(t, connected, &connectedPayload)
+	for _, want := range []string{"chat.media_upload", "chat.attachments"} {
+		if !agodeskTestContainsString(connectedPayload.Capabilities, want) {
+			t.Fatalf("system.connected capabilities missing %s: %v", want, connectedPayload.Capabilities)
+		}
+	}
+
+	body := []byte("hello attachment")
+	sum := sha256.Sum256(body)
+	prepareReq, err := agodesk.NewEnvelope(agodesk.TypeChatAttachmentPrepare, agodesk.ChatAttachmentPreparePayload{
+		SessionID:      connectedPayload.SessionID,
+		ConversationID: sess.ID,
+		Filename:       "note.txt",
+		MimeType:       "text/plain",
+		SizeBytes:      int64(len(body)),
+		SHA256:         hex.EncodeToString(sum[:]),
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope prepare: %v", err)
+	}
+	if err := conn.WriteJSON(prepareReq); err != nil {
+		t.Fatalf("write prepare: %v", err)
+	}
+	preparedEnv := readAgodeskTestEnvelope(t, conn)
+	if preparedEnv.Type != agodesk.TypeChatAttachmentPrepared {
+		t.Fatalf("prepared type = %q, want %q", preparedEnv.Type, agodesk.TypeChatAttachmentPrepared)
+	}
+	var prepared agodesk.ChatAttachmentPreparedPayload
+	decodeAgodeskTestPayload(t, preparedEnv, &prepared)
+	if prepared.AttachmentID == "" || prepared.UploadURL == "" || prepared.UploadField != "file" || prepared.MaxBytes != agodeskAttachmentMaxFileBytes {
+		t.Fatalf("prepared payload = %+v", prepared)
+	}
+
+	uploadStatus, uploadPayload := postAgodeskAttachmentTestUpload(t, httpSrv.URL+prepared.UploadURL, "file", "note.txt", body)
+	if uploadStatus != http.StatusCreated {
+		t.Fatalf("upload status = %d payload = %s", uploadStatus, uploadPayload)
+	}
+	if !strings.Contains(uploadPayload, `"attachment_id":"`+prepared.AttachmentID+`"`) || !strings.Contains(uploadPayload, `"status":"ready"`) {
+		t.Fatalf("upload payload = %s", uploadPayload)
+	}
+	var uploadResp agodeskAttachmentUploadResponse
+	if err := json.Unmarshal([]byte(uploadPayload), &uploadResp); err != nil {
+		t.Fatalf("unmarshal upload response: %v", err)
+	}
+	downloadResp, err := http.Get(httpSrv.URL + uploadResp.Path)
+	if err != nil {
+		t.Fatalf("download uploaded attachment: %v", err)
+	}
+	downloaded := new(bytes.Buffer)
+	_, _ = downloaded.ReadFrom(downloadResp.Body)
+	_ = downloadResp.Body.Close()
+	if downloadResp.StatusCode != http.StatusOK || downloaded.String() != string(body) {
+		t.Fatalf("download status/body = %d/%q, want 200/%q", downloadResp.StatusCode, downloaded.String(), string(body))
+	}
+
+	msgReq, err := agodesk.NewEnvelope(agodesk.TypeChatMessage, agodesk.ChatMessagePayload{
+		SessionID:      connectedPayload.SessionID,
+		ConversationID: sess.ID,
+		Role:           "user",
+		Attachments: []agodesk.ChatAttachmentItem{{
+			AttachmentID: prepared.AttachmentID,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat.message: %v", err)
+	}
+	if err := conn.WriteJSON(msgReq); err != nil {
+		t.Fatalf("write chat.message: %v", err)
+	}
+	acceptedEnv := readAgodeskTestEnvelope(t, conn)
+	if acceptedEnv.Type != agodesk.TypeChatAttachmentAccepted {
+		t.Fatalf("accepted type = %q, want %q", acceptedEnv.Type, agodesk.TypeChatAttachmentAccepted)
+	}
+	var accepted agodesk.ChatAttachmentAcceptedPayload
+	decodeAgodeskTestPayload(t, acceptedEnv, &accepted)
+	if len(accepted.Attachments) != 1 || accepted.Attachments[0].AttachmentID != prepared.AttachmentID || accepted.Attachments[0].Kind != "text" {
+		t.Fatalf("accepted payload = %+v", accepted)
+	}
+	resp := readAgodeskTestEnvelope(t, conn)
+	if resp.Type != agodesk.TypeChatResponse {
+		t.Fatalf("response type = %q, want %q", resp.Type, agodesk.TypeChatResponse)
+	}
+	select {
+	case got := <-capturedMessage:
+		for _, want := range []string{"note.txt", "agent_workspace/workdir/attachments/agodesk/", prepared.AttachmentID} {
+			if !strings.Contains(got, want) {
+				t.Fatalf("runner message missing %q in:\n%s", want, got)
+			}
+		}
+	case <-time.After(time.Second):
+		t.Fatal("runner did not receive attachment message")
+	}
+}
+
+func TestAgodeskChatMessageRejectsAttachmentsWithoutCapability(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	s.ShortTermMem = newAgodeskTestMemory(t)
+	sess, err := s.ShortTermMem.CreateChatSession()
+	if err != nil {
+		t.Fatalf("CreateChatSession: %v", err)
+	}
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws?insecure_loopback=1")
+	defer cleanup()
+	connected := readAgodeskTestEnvelope(t, conn)
+	var connectedPayload agodesk.SystemConnectedPayload
+	decodeAgodeskTestPayload(t, connected, &connectedPayload)
+
+	msgReq, err := agodesk.NewEnvelope(agodesk.TypeChatMessage, agodesk.ChatMessagePayload{
+		SessionID:      connectedPayload.SessionID,
+		ConversationID: sess.ID,
+		Role:           "user",
+		Attachments: []agodesk.ChatAttachmentItem{{
+			AttachmentID: "att-missing",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat.message: %v", err)
+	}
+	if err := conn.WriteJSON(msgReq); err != nil {
+		t.Fatalf("write chat.message: %v", err)
+	}
+	resp := readAgodeskTestEnvelope(t, conn)
+	if resp.Type != agodesk.TypeChatError {
+		t.Fatalf("response type = %q, want %q", resp.Type, agodesk.TypeChatError)
+	}
+	var payload agodesk.ChatErrorPayload
+	decodeAgodeskTestPayload(t, resp, &payload)
+	if payload.Code != agodesk.ErrorUnsupportedCapability {
+		t.Fatalf("error code = %q, want %q", payload.Code, agodesk.ErrorUnsupportedCapability)
+	}
+}
+
+func TestAgodeskHistoryMessagesAttachUploadedItemsAndStripInternalBlock(t *testing.T) {
+	msgs := []memory.HistoryMessage{{
+		ID:                    11,
+		ChatCompletionMessage: websocketTestChatMessage("user", "Please inspect.\n\n<agodesk_attachments>\n- note.txt | text/plain | 12 bytes | agent_workspace/workdir/attachments/agodesk/sess-1/att-1/note.txt\n</agodesk_attachments>"),
+	}}
+	attachments := map[int64][]agodesk.ChatAttachmentItem{
+		11: {{
+			AttachmentID: "att-1",
+			Filename:     "note.txt",
+			MimeType:     "text/plain",
+			SizeBytes:    12,
+			Path:         "/api/agodesk/media/attachments/agodesk/sess-1/att-1/note.txt",
+			Kind:         "text",
+		}},
+	}
+
+	out := agodeskHistoryMessages(msgs, attachments)
+	if len(out) != 1 {
+		t.Fatalf("history messages = %+v", out)
+	}
+	if out[0].Content != "Please inspect." {
+		t.Fatalf("content = %q, want stripped display text", out[0].Content)
+	}
+	if len(out[0].Attachments) != 1 || out[0].Attachments[0].AttachmentID != "att-1" {
+		t.Fatalf("attachments = %+v", out[0].Attachments)
+	}
+}
+
+func TestAgodeskAttachmentBindingContextBindsRecordsToInsertedMessage(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	s.ShortTermMem = newAgodeskTestMemory(t)
+	sess, err := s.ShortTermMem.CreateChatSession()
+	if err != nil {
+		t.Fatalf("CreateChatSession: %v", err)
+	}
+	record := memory.AgoDeskAttachmentRecord{
+		AttachmentID:       "att-bind",
+		TransportSessionID: "agodesk:dev-1",
+		ConversationID:     sess.ID,
+		Filename:           "note.txt",
+		MimeType:           "text/plain",
+		Kind:               "text",
+		DeclaredSizeBytes:  4,
+		ExpiresAt:          time.Now().Add(time.Minute),
+	}
+	if err := s.ShortTermMem.PrepareAgoDeskAttachment(record); err != nil {
+		t.Fatalf("PrepareAgoDeskAttachment: %v", err)
+	}
+	uploaded, err := s.ShortTermMem.MarkAgoDeskAttachmentUploaded(record.AttachmentID, 4, "sha", "attachments/agodesk/"+sess.ID+"/att-bind/note.txt", "text", "text/plain")
+	if err != nil {
+		t.Fatalf("MarkAgoDeskAttachmentUploaded: %v", err)
+	}
+	messageID, err := s.ShortTermMem.InsertMessage(sess.ID, "user", "with file", false, false)
+	if err != nil {
+		t.Fatalf("InsertMessage: %v", err)
+	}
+	ctx := contextWithAgodeskAttachmentBinding(context.Background(), s, sess.ID, []memory.AgoDeskAttachmentRecord{*uploaded})
+	callback := agodeskAttachmentBindingCallback(ctx)
+	if callback == nil {
+		t.Fatal("binding callback missing")
+	}
+	if err := callback(messageID); err != nil {
+		t.Fatalf("binding callback: %v", err)
+	}
+	byMessage, err := s.ShortTermMem.ListAgoDeskAttachmentsForMessages([]int64{messageID})
+	if err != nil {
+		t.Fatalf("ListAgoDeskAttachmentsForMessages: %v", err)
+	}
+	if len(byMessage[messageID]) != 1 || byMessage[messageID][0].Status != memory.AgoDeskAttachmentStatusAccepted {
+		t.Fatalf("bound attachments = %+v", byMessage)
 	}
 }
 
@@ -2439,6 +2700,47 @@ func dialAgodeskTestWebSocket(t *testing.T, s *Server, path string) (*websocket.
 		_ = conn.Close()
 		srv.Close()
 	}
+}
+
+func agodeskAttachmentTestMux(s *Server) http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/agodesk/ws", handleAgodeskWebSocket(s))
+	mux.HandleFunc("/api/agodesk/media/upload/", handleAgodeskAttachmentUpload(s))
+	mux.HandleFunc("/api/agodesk/media/", handleAgodeskMediaAsset(s))
+	return mux
+}
+
+func postAgodeskAttachmentTestUpload(t *testing.T, uploadURL, fieldName, filename string, data []byte) (int, string) {
+	t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile(fieldName, filename)
+	if err != nil {
+		t.Fatalf("CreateFormFile: %v", err)
+	}
+	if _, err := part.Write(data); err != nil {
+		t.Fatalf("write multipart body: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+	req, err := http.NewRequest(http.MethodPost, uploadURL, &body)
+	if err != nil {
+		t.Fatalf("NewRequest upload: %v", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("upload request: %v", err)
+	}
+	defer resp.Body.Close()
+	buf := new(bytes.Buffer)
+	_, _ = buf.ReadFrom(resp.Body)
+	return resp.StatusCode, buf.String()
+}
+
+func websocketTestChatMessage(role, content string) openai.ChatCompletionMessage {
+	return openai.ChatCompletionMessage{Role: role, Content: content}
 }
 
 func readAgodeskBrokerAudioEnvelope(t *testing.T, state *agodeskConnectionState) agodesk.Envelope {

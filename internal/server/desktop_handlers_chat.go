@@ -508,10 +508,11 @@ type preparedDesktopAgentTurn struct {
 }
 
 type desktopAgentTurnOptions struct {
-	SessionID         string
-	MessageSource     string
-	AdditionalPrompt  string
-	VoiceOutputActive bool
+	SessionID             string
+	MessageSource         string
+	AdditionalPrompt      string
+	VoiceOutputActive     bool
+	OnUserMessageInserted func(messageID int64) error
 }
 
 func prepareDesktopAgentTurn(ctx context.Context, s *Server, message string, chatContext desktopChatContext, stream bool) (preparedDesktopAgentTurn, error) {
@@ -564,8 +565,14 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 	if s.Guardian != nil {
 		s.Guardian.ScanUserInput(message)
 	}
-	if _, err := s.ShortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, persistedPrompt, false, false); err != nil {
+	messageID, err := s.ShortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, persistedPrompt, false, false)
+	if err != nil {
 		return turn, fmt.Errorf("insert desktop user message: %w", err)
+	}
+	if opts.OnUserMessageInserted != nil {
+		if err := opts.OnUserMessageInserted(messageID); err != nil {
+			return turn, fmt.Errorf("desktop user message callback: %w", err)
+		}
 	}
 	touchDesktopChatSessionMetadata(s, sessionID)
 	agent.NoteInnerVoiceUserTurn(sessionID)

@@ -304,6 +304,9 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	if err := stm.InitMaintenanceRunsTable(); err != nil {
 		logger.Warn("Failed to initialize maintenance runs table", "error", err)
 	}
+	if err := stm.InitAgoDeskAttachmentsTable(); err != nil {
+		logger.Warn("Failed to initialize agodesk attachments table", "error", err)
+	}
 
 	// Ensure at least a default chat session exists (backward compatibility)
 	if err := stm.EnsureDefaultSession(); err != nil {

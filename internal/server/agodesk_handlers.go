@@ -198,6 +198,13 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 			return true
 		}
 		go handleAgodeskChatMessage(s, r, conn, state, env.ID, payload)
+	case agodesk.TypeChatAttachmentPrepare:
+		payload, errPayload := decodeAgodeskPayload[agodesk.ChatAttachmentPreparePayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskAttachmentPrepare(s, conn, state, env.ID, payload)
 	case agodesk.TypeChatSessionsList:
 		payload, errPayload := decodeAgodeskPayload[agodesk.ChatSessionsListPayload](env)
 		if errPayload != nil {
@@ -363,7 +370,7 @@ func handleAgodeskChatSessionLoad(s *Server, conn *websocket.Conn, state *agodes
 		SessionID:      sessionID,
 		ConversationID: conversationID,
 		Session:        agodeskChatSessionSummary(*session),
-		Messages:       agodeskHistoryMessages(messages),
+		Messages:       agodeskHistoryMessages(messages, agodeskHistoryAttachmentMap(s, messages)),
 	})
 }
 
@@ -628,17 +635,50 @@ func agodeskChatSessionSummary(session memory.ChatSession) agodesk.ChatSessionSu
 	}
 }
 
-func agodeskHistoryMessages(messages []memory.HistoryMessage) []agodesk.ChatHistoryMessagePayload {
+func agodeskHistoryMessages(messages []memory.HistoryMessage, attachmentMaps ...map[int64][]agodesk.ChatAttachmentItem) []agodesk.ChatHistoryMessagePayload {
+	attachmentsByMessageID := map[int64][]agodesk.ChatAttachmentItem{}
+	if len(attachmentMaps) > 0 && attachmentMaps[0] != nil {
+		attachmentsByMessageID = attachmentMaps[0]
+	}
 	out := make([]agodesk.ChatHistoryMessagePayload, 0, len(messages))
 	for _, msg := range messages {
 		if msg.IsInternal {
 			continue
 		}
 		out = append(out, agodesk.ChatHistoryMessagePayload{
-			Role:      strings.TrimSpace(msg.Role),
-			Content:   strings.TrimSpace(msg.Content),
-			Timestamp: strings.TrimSpace(msg.Timestamp),
+			Role:        strings.TrimSpace(msg.Role),
+			Content:     stripAgodeskAttachmentBlock(strings.TrimSpace(msg.Content)),
+			Timestamp:   strings.TrimSpace(msg.Timestamp),
+			Attachments: append([]agodesk.ChatAttachmentItem(nil), attachmentsByMessageID[msg.ID]...),
 		})
+	}
+	return out
+}
+
+func agodeskHistoryAttachmentMap(s *Server, messages []memory.HistoryMessage) map[int64][]agodesk.ChatAttachmentItem {
+	out := map[int64][]agodesk.ChatAttachmentItem{}
+	if s == nil || s.ShortTermMem == nil || len(messages) == 0 {
+		return out
+	}
+	ids := make([]int64, 0, len(messages))
+	for _, msg := range messages {
+		if msg.ID > 0 && !msg.IsInternal {
+			ids = append(ids, msg.ID)
+		}
+	}
+	recordsByMessage, err := s.ShortTermMem.ListAgoDeskAttachmentsForMessages(ids)
+	if err != nil {
+		if s.Logger != nil {
+			s.Logger.Warn("Failed to load agodesk chat attachments for history", "error", err)
+		}
+		return out
+	}
+	for messageID, records := range recordsByMessage {
+		items := make([]agodesk.ChatAttachmentItem, 0, len(records))
+		for _, record := range records {
+			items = append(items, agodeskChatAttachmentItem(s, record))
+		}
+		out[messageID] = items
 	}
 	return out
 }
@@ -724,6 +764,9 @@ func agodeskServerCapabilities(s *Server) []string {
 	capabilities := append([]string(nil), agodesk.DefaultCapabilities...)
 	if agodeskServerTTSConfigured(s) {
 		capabilities = append(capabilities, "chat.voice_output")
+	}
+	if agodeskAttachmentUploadsEnabled(s) {
+		capabilities = append(capabilities, "chat.media_upload", "chat.attachments")
 	}
 	return capabilities
 }
@@ -842,28 +885,45 @@ func handleAgodeskChatMessage(s *Server, r *http.Request, conn *websocket.Conn, 
 		state.mu.RUnlock()
 	}
 	message := strings.TrimSpace(payload.Text)
-	if message == "" {
-		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInvalidMessage, "chat.message text is required")
+	if message == "" && len(payload.Attachments) == 0 {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInvalidMessage, "chat.message text or attachments are required")
 		return
 	}
 	transportSessionID, ok := validateAgodeskTransportSession(s, conn, state, requestID, payload.SessionID, "chat.message")
 	if !ok {
 		return
 	}
+	if len(payload.Attachments) > 0 && !validateAgodeskCapability(conn, state, requestID, "chat.attachments", "chat.message attachments") {
+		return
+	}
 	conversationID, ok := resolveAgodeskConversationID(s, conn, state, requestID, transportSessionID, strings.TrimSpace(payload.ConversationID))
 	if !ok {
 		return
 	}
+	attachmentRecords, attachmentItems, attachmentErrCode, attachmentErrMsg := agodeskResolveChatAttachments(s, state, transportSessionID, conversationID, payload.Attachments)
+	if attachmentErrCode != "" {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, attachmentErrCode, attachmentErrMsg)
+		return
+	}
+	message = buildAgodeskMessageWithAttachments(s, message, attachmentRecords)
 	unlockSession := lockSessionRequest(conversationID)
 	defer unlockSession()
 
 	chatCtx, cancel := context.WithCancel(r.Context())
+	chatCtx = contextWithAgodeskAttachmentBinding(chatCtx, s, conversationID, attachmentRecords)
 	defer cancel()
 	registerAgodeskActiveRun(state, requestID, conversationID, cancel)
 	defer unregisterAgodeskActiveRun(state, requestID)
 
 	initialPlan, hasInitialPlan := sendAgodeskCurrentPlanSnapshot(s, conn, state, requestID, transportSessionID, conversationID)
 	voiceOutput := payload.VoiceOutput && agodeskStateHasCapability(state, "chat.voice_output")
+	if len(attachmentItems) > 0 {
+		_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeChatAttachmentAccepted, agodesk.ChatAttachmentAcceptedPayload{
+			SessionID:      transportSessionID,
+			ConversationID: conversationID,
+			Attachments:    attachmentItems,
+		})
+	}
 	result, err := agodeskAgentChatRunner(s, r.WithContext(chatCtx), conn, state, requestID, transportSessionID, conversationID, deviceID, message, voiceOutput)
 	if err != nil {
 		if chatCtx.Err() != nil {
@@ -1086,6 +1146,12 @@ func agodeskMediaAssetRoot(s *Server, bucket string) (string, bool) {
 			return "", false
 		}
 		return filepath.Join(workspaceDir, "images"), true
+	case "attachments":
+		workspaceDir := strings.TrimSpace(cfg.Directories.WorkspaceDir)
+		if workspaceDir == "" {
+			return "", false
+		}
+		return filepath.Join(workspaceDir, "attachments"), true
 	}
 	dataDir := strings.TrimSpace(cfg.Directories.DataDir)
 	if dataDir == "" {
@@ -1284,14 +1350,16 @@ func acceptAgodeskSessionStart(s *Server, r *http.Request, requestID string, pay
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorInternal, "failed to store agodesk shared key"
 	}
 	_ = remote.MarkEnrollmentUsed(s.RemoteHub.DB(), enrollment.ID, deviceID)
+	advertised := agodesk.NegotiateCapabilities(payload.ClientCapabilities, serverCapabilities)
 	return agodesk.SessionAcceptedPayload{
 		SessionID:              "agodesk:" + deviceID,
 		DeviceID:               deviceID,
 		Approved:               true,
 		ReadOnly:               readOnly,
 		Capabilities:           serverCapabilities,
-		AdvertisedCapabilities: agodesk.NegotiateCapabilities(payload.ClientCapabilities, serverCapabilities),
+		AdvertisedCapabilities: advertised,
 		SharedKey:              sharedKey,
+		AttachmentLimits:       agodeskAttachmentLimitsForAccepted(s, advertised),
 	}, "", ""
 }
 
@@ -1329,13 +1397,15 @@ func acceptAgodeskDeviceReconnect(s *Server, requestID string, payload agodesk.S
 	if err := remote.UpdateDevice(s.RemoteHub.DB(), device); err != nil && s.Logger != nil {
 		s.Logger.Warn("Failed to update agodesk reconnect device metadata", "device_id", deviceID, "error", err)
 	}
+	advertised := agodesk.NegotiateCapabilities(payload.ClientCapabilities, serverCapabilities)
 	return agodesk.SessionAcceptedPayload{
 		SessionID:              "agodesk:" + deviceID,
 		DeviceID:               deviceID,
 		Approved:               true,
 		ReadOnly:               device.ReadOnly,
 		Capabilities:           serverCapabilities,
-		AdvertisedCapabilities: agodesk.NegotiateCapabilities(payload.ClientCapabilities, serverCapabilities),
+		AdvertisedCapabilities: advertised,
+		AttachmentLimits:       agodeskAttachmentLimitsForAccepted(s, advertised),
 	}, "", ""
 }
 
@@ -1584,7 +1654,7 @@ func agodeskRewriteMediaPath(s *Server, pathValue string) string {
 
 func agodeskMediaBucketAllowed(bucket string) bool {
 	switch strings.TrimSpace(bucket) {
-	case "generated_images", "generated_videos", "audio", "documents", "downloads", "images":
+	case "generated_images", "generated_videos", "audio", "documents", "downloads", "images", "attachments":
 		return true
 	default:
 		return false
@@ -1694,10 +1764,11 @@ func runAgodeskAgentChat(s *Server, r *http.Request, conn *websocket.Conn, state
 		return agodeskChatResult{}, fmt.Errorf("server not configured")
 	}
 	turn, err := prepareDesktopAgentTurnWithOptions(r.Context(), s, message, desktopChatContext{}, false, desktopAgentTurnOptions{
-		SessionID:         conversationID,
-		MessageSource:     agodeskMessageSource,
-		AdditionalPrompt:  buildAgodeskAgentContext(deviceID, agodeskStateFileAccess(state)),
-		VoiceOutputActive: voiceOutput,
+		SessionID:             conversationID,
+		MessageSource:         agodeskMessageSource,
+		AdditionalPrompt:      buildAgodeskAgentContext(deviceID, agodeskStateFileAccess(state)),
+		VoiceOutputActive:     voiceOutput,
+		OnUserMessageInserted: agodeskAttachmentBindingCallback(r.Context()),
 	})
 	if err != nil {
 		return agodeskChatResult{}, err
@@ -1796,6 +1867,7 @@ func buildAgodeskAgentContext(deviceID string, fileAccess *agodesk.FileAccessPay
 		"If desktop screenshot or permission requests return UNSUPPORTED_CAPABILITY, explain that the client is connected for chat but does not advertise remote-control support.",
 		"Desktop input, UI actions, and browser actions require local approval in the agodesk remote-control banner; the backend cannot approve or bypass that local control session.",
 		"Desktop streaming is not available in this backend version.",
+		"Explicit chat attachments uploaded by the user are listed inside <agodesk_attachments> in the current or prior user messages with agent_workspace/workdir/attachments/... paths. Use those local uploaded files directly; do not use remote.files or remote_control file operations for them unless the user separately asks to access files on the paired PC.",
 	}
 	if id := strings.TrimSpace(deviceID); id != "" {
 		lines = append(lines,

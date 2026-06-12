@@ -55,6 +55,41 @@ func TestPromoteUploadedImagesToMultiContent(t *testing.T) {
 	}
 }
 
+func TestPromoteUploadedImagesToMultiContentAllowsNestedAgoDeskAttachmentPaths(t *testing.T) {
+	dir := t.TempDir()
+	nestedDir := filepath.Join(dir, "attachments", "agodesk", "sess-1", "att-1")
+	if err := os.MkdirAll(nestedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(nestedDir, "diagram.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &config.Config{}
+	cfg.LLM.Multimodal = true
+	cfg.LLM.ProviderType = "openrouter"
+
+	agentPath := "agent_workspace/workdir/attachments/agodesk/sess-1/att-1/diagram.png"
+	in := openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: "Please inspect this attached image.\n" + agentPath,
+	}
+	out := promoteUploadedImagesToMultiContent(cfg, in, dir, nil)
+
+	if out.Content != "" {
+		t.Fatalf("expected Content to be empty, got %q", out.Content)
+	}
+	if len(out.MultiContent) != 2 {
+		t.Fatalf("expected 2 parts (text + image), got %d", len(out.MultiContent))
+	}
+	if strings.Contains(out.MultiContent[0].Text, agentPath) {
+		t.Fatalf("expected nested attachment path to be stripped, got %q", out.MultiContent[0].Text)
+	}
+	if out.MultiContent[1].ImageURL == nil || !strings.HasPrefix(out.MultiContent[1].ImageURL.URL, "data:image/png;base64,") {
+		t.Fatalf("expected data URI image_url, got %+v", out.MultiContent[1].ImageURL)
+	}
+}
+
 func TestPromoteUploadedImagesToMultiContent_Disabled(t *testing.T) {
 	dir := t.TempDir()
 	attachDir := filepath.Join(dir, "attachments")
