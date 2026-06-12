@@ -11,17 +11,19 @@ When asked to build a new tool, integration, or reusable capability:
 | What you need | Use this | Why |
 |---------------|---------|-----|
 | Reusable Python code (API client, data processing, scraper, etc.) | `create_skill_from_template` | Registered in skill system, vault injection, sandbox managed |
+| Reusable agent workflow or domain guidance (`SKILL.md`, agentskills.io-style package) | Agent Skill Manager/API/UI; discover with `list_agent_skills`, load with `activate_agent_skill` | Package-first guidance with progressive disclosure and security scanning |
 | One-off script for this task only | `execute_python` | No registration overhead |
 | Background automation with scheduling/triggers | `manage_missions` | Cron support, event triggers, persistence |
 | Long-running background process | `manage_daemon` | Survives conversation resets, IPC via `aurago_daemon` SDK |
 
 **Decision tree:**
 1. **Reusable Python capability** (API call, file conversion, data transform) -> `list_skill_templates` first, then `create_skill_from_template`.
-2. **If no specialized template fits** -> create a `minimal_skill`, edit the generated agent-owned `.py`/manifest deliberately, document it, then verify it with `execute_skill`.
-3. **Background automation with cron/triggers** -> `manage_missions`.
-4. **One-off analysis script** -> `execute_python`.
+2. **Reusable agent workflow or guidance** (checklist, review process, domain method, agentskills.io/Codex/Claude-style request) -> create or import an Agent Skill package through the available manager/API/UI path; do not write runtime folders by hand.
+3. **If no specialized Python template fits** -> create a `minimal_skill`, edit the generated agent-owned `.py`/manifest deliberately, document it, then verify it with `execute_skill`.
+4. **Background automation with cron/triggers** -> `manage_missions`.
+5. **One-off analysis script** -> `execute_python`.
 
-Before building any new reusable capability, first check whether a matching skill already exists with `list_skills`. Prefer updating or reusing an existing agent-owned skill instead of creating duplicates.
+Before building any new reusable capability, first check whether a matching Python skill exists with `list_skills` or a matching Agent Skill exists with `list_agent_skills`. Prefer updating or reusing an existing agent-owned skill instead of creating duplicates.
 
 ## Python Tool Bridge
 

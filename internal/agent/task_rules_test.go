@@ -134,6 +134,25 @@ func TestBuildTaskRulePromptContextSelectsSkillCreationRuleByKeyword(t *testing.
 	if !strings.Contains(ctx.TaskRules, "tools.python_tool_bridge.allowed_tools") {
 		t.Fatalf("skill creation rule should include tool bridge allowlist guidance:\n%s", ctx.TaskRules)
 	}
+	if !strings.Contains(ctx.TaskRules, "Choose The Skill Type First") || !strings.Contains(ctx.TaskRules, "Agent Skill Package Shape") {
+		t.Fatalf("skill creation rule should include Python vs Agent Skill guidance:\n%s", ctx.TaskRules)
+	}
+}
+
+func TestBuildTaskRulePromptContextSelectsSkillCreationRuleForAgentSkillKeyword(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Rules.Enabled = true
+	cfg.Directories.PromptsDir = t.TempDir()
+
+	ctx := buildTaskRulePromptContext(cfg, "erstelle einen Agent Skill nach agentskills.io mit SKILL.md", nil, nil, "")
+	if !strings.Contains(ctx.TaskRules, "Skill Creation Workflow") {
+		t.Fatalf("TaskRules missing skill creation rule for Agent Skill request:\n%s", ctx.TaskRules)
+	}
+	if !strings.Contains(ctx.TaskRules, "Agent Skill Package Shape") {
+		t.Fatalf("skill creation rule should include Agent Skill package guidance:\n%s", ctx.TaskRules)
+	}
 }
 
 func TestEnsureTaskRulesBeforeHomepageToolDoesNotDependOnIntentLanguage(t *testing.T) {
