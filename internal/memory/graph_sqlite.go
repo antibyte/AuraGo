@@ -495,13 +495,10 @@ func (kg *KnowledgeGraph) SetMinSemanticSimilarity(v float64) {
 }
 
 // SetExcludedNodeTypes configures which node types are filtered out of semantic
-// search and prompt context. An empty slice keeps the existing set.
+// search and prompt context. Pass an empty slice to allow all node types.
 func (kg *KnowledgeGraph) SetExcludedNodeTypes(types []string) {
 	kg.excludedNodeTypesMu.Lock()
 	defer kg.excludedNodeTypesMu.Unlock()
-	if len(types) == 0 {
-		return
-	}
 	kg.excludedNodeTypes = make(map[string]bool, len(types))
 	for _, t := range types {
 		t = strings.ToLower(strings.TrimSpace(t))
