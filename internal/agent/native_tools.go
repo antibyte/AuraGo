@@ -772,18 +772,8 @@ func decodeExecuteSkillNativeToolCall(base ToolCall, normalizedArgs string) (Too
 	return base, true
 }
 
-// BuildNativeToolSchemas returns the full tool list: built-ins + registered skills + custom tools.
-func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolFeatureFlags, logger *slog.Logger) []openai.Tool {
-	cacheKey := dynamicToolSchemaCacheKey{
-		Flags:               ff,
-		SkillsFingerprint:   nativeSkillsFingerprint(skillsDir),
-		ManifestFingerprint: nativeManifestFingerprint(manifest),
-	}
-	if cached, ok := dynamicToolSchemaCache.Load(cacheKey); ok {
-		return deepClone(cached.([]openai.Tool))
-	}
-
-	allTools := builtinToolSchemasCached(ff)
+func buildNativeToolSchemasUncached(skillsDir string, manifest *tools.Manifest, ff ToolFeatureFlags, logger *slog.Logger) []openai.Tool {
+	allTools := cloneToolSchemasForSnapshot(builtinToolSchemasCached(ff))
 	builtinNames := allBuiltinToolNameSet()
 	emittedNames := make(map[string]struct{}, len(allTools))
 	for _, toolSchema := range allTools {
@@ -942,8 +932,12 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 		logger.Info("[NativeTools] Built tool schemas", "count", len(allTools))
 	}
 
-	dynamicToolSchemaCache.Store(cacheKey, deepClone(allTools))
 	return allTools
+}
+
+// BuildNativeToolSchemas returns the full tool list: built-ins + registered skills + custom tools.
+func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolFeatureFlags, logger *slog.Logger) []openai.Tool {
+	return BuildNativeToolSchemaSnapshot(skillsDir, manifest, ff, logger).FullSchemas()
 }
 
 func nativeSkillsFingerprint(skillsDir string) string {

@@ -52,11 +52,14 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 }
 func builtinToolSchemasCached(ff ToolFeatureFlags) []openai.Tool {
 	if cached, ok := builtinToolSchemaCache.Load(ff); ok {
-		return deepClone(cached.([]openai.Tool))
+		if snapshot, ok := cached.(*nativeToolSchemaSnapshot); ok {
+			return snapshot.FullSchemas()
+		}
 	}
 	built := builtinToolSchemas(ff)
-	builtinToolSchemaCache.Store(ff, deepClone(built))
-	return built
+	snapshot := newNativeToolSchemaSnapshot(built)
+	builtinToolSchemaCache.Store(ff, snapshot)
+	return snapshot.FullSchemas()
 }
 
 // allBuiltinToolFeatureFlags returns a ToolFeatureFlags with every feature enabled.

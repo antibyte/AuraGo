@@ -653,35 +653,88 @@ func TestBuildNativeToolSchemasOmitsVirusTotalWhenDisabled(t *testing.T) {
 	}
 }
 
-func TestBuildNativeToolSchemasReturnsIsolatedCopiesWhenCached(t *testing.T) {
+func TestNativeToolSchemaSnapshotPrecomputesStrictVariant(t *testing.T) {
 	ff := ToolFeatureFlags{VirusTotalEnabled: true}
-	first := BuildNativeToolSchemas(t.TempDir(), nil, ff, nil)
-	second := BuildNativeToolSchemas(t.TempDir(), nil, ff, nil)
+	snapshot := BuildNativeToolSchemaSnapshot(t.TempDir(), nil, ff, nil)
+	full := snapshot.FullSchemas()
+	strict := snapshot.StrictSchemas()
 
-	if len(first) == 0 || len(second) == 0 {
+	if len(full) == 0 || len(strict) == 0 {
+		t.Fatal("expected built-in schemas to be present")
+	}
+	if len(full) != len(strict) {
+		t.Fatalf("strict schema count = %d, want %d", len(strict), len(full))
+	}
+	for i, schema := range strict {
+		if schema.Function == nil {
+			continue
+		}
+		if !schema.Function.Strict {
+			t.Fatalf("strict schema %d (%s) did not set Function.Strict", i, schema.Function.Name)
+		}
+		params, ok := schema.Function.Parameters.(map[string]interface{})
+		if !ok {
+			t.Fatalf("strict schema %s parameters type = %T, want map[string]interface{}", schema.Function.Name, schema.Function.Parameters)
+		}
+		var violations []string
+		collectStrictOpenAISchemaViolations(schema.Function.Name+".parameters", params, &violations)
+		if len(violations) > 0 {
+			t.Fatalf("strict schema %s has compatibility violations:\n%s", schema.Function.Name, strings.Join(violations, "\n"))
+		}
+	}
+}
+
+func TestNativeToolSchemaSnapshotStrictVariantDoesNotMutateFullVariant(t *testing.T) {
+	ff := ToolFeatureFlags{AllowShell: true}
+	snapshot := BuildNativeToolSchemaSnapshot(t.TempDir(), nil, ff, nil)
+	full := snapshot.FullSchemas()
+	strict := snapshot.StrictSchemas()
+
+	if len(full) == 0 || len(strict) == 0 {
 		t.Fatal("expected built-in schemas to be present")
 	}
 
-	params, ok := first[0].Function.Parameters.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected first tool params map")
+	fullByName := make(map[string]openai.Tool, len(full))
+	for _, schema := range full {
+		if schema.Function != nil {
+			fullByName[schema.Function.Name] = schema
+		}
 	}
-	props, ok := params["properties"].(map[string]interface{})
-	if !ok {
-		t.Fatal("expected first tool properties map")
+	var strictShell openai.Tool
+	for _, schema := range strict {
+		if schema.Function != nil && schema.Function.Name == "execute_shell" {
+			strictShell = schema
+			break
+		}
 	}
-	props["cache_probe"] = map[string]interface{}{"type": "string"}
+	fullShell, ok := fullByName["execute_shell"]
+	if !ok || strictShell.Function == nil {
+		t.Fatal("expected execute_shell in both full and strict variants")
+	}
+	if fullShell.Function.Strict {
+		t.Fatal("full schema variant should not set Function.Strict")
+	}
 
-	params2, ok := second[0].Function.Parameters.(map[string]interface{})
+	strictParams, ok := strictShell.Function.Parameters.(map[string]interface{})
 	if !ok {
-		t.Fatal("expected second tool params map")
+		t.Fatal("expected strict tool params map")
 	}
-	props2, ok := params2["properties"].(map[string]interface{})
+	strictProps, ok := strictParams["properties"].(map[string]interface{})
 	if !ok {
-		t.Fatal("expected second tool properties map")
+		t.Fatal("expected strict tool properties map")
 	}
-	if _, exists := props2["cache_probe"]; exists {
-		t.Fatal("expected cached schema copies to be isolated")
+	strictProps["strict_probe"] = map[string]interface{}{"type": "string"}
+
+	fullParams, ok := fullShell.Function.Parameters.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected full tool params map")
+	}
+	fullProps, ok := fullParams["properties"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected full tool properties map")
+	}
+	if _, exists := fullProps["strict_probe"]; exists {
+		t.Fatal("strict schema mutation leaked into full schema snapshot")
 	}
 }
 

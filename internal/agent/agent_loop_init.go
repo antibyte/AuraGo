@@ -308,7 +308,8 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 
 	adaptiveFilteredTools := make([]string, 0)
 	ff := buildToolFeatureFlags(runCfg, toolingPolicy)
-	allSchemas := BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, logger)
+	schemaSnapshot := BuildNativeToolSchemaSnapshot(cfg.Directories.SkillsDir, manifest, ff, logger)
+	allSchemas := schemaSnapshot.FullSchemas()
 	if suppressCoAgentTools {
 		allSchemas = nil
 	}
@@ -402,15 +403,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		// OpenAI-compatible chat completions API, so we skip it to avoid sending
 		// an unsupported field.
 		if useNativeFunctions && toolingPolicy.StructuredOutputsEnabled {
-			ntSchemas = deepClone(ntSchemas)
-			for i := range ntSchemas {
-				if ntSchemas[i].Function != nil {
-					if params, ok := ntSchemas[i].Function.Parameters.(map[string]interface{}); ok {
-						normalizeStrictSchemaRequiredRec(params)
-					}
-					ntSchemas[i].Function.Strict = true
-				}
-			}
+			ntSchemas = strictSchemasForActiveTools(schemaSnapshot, ntSchemas)
 			logger.Info("[NativeTools] Structured outputs enabled (strict mode)")
 		} else if useNativeFunctions && toolingPolicy.StructuredOutputsRequested && toolingPolicy.Capabilities.IsOllama {
 			logger.Warn("[NativeTools] Strict tool definitions not supported by Ollama, ignoring strict mode")
