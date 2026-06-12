@@ -482,13 +482,20 @@ func (kg *KnowledgeGraph) semanticSearchNodeIDs(query string, maxNodes int) []st
 		return nil
 	}
 
-	out := make([]string, 0, len(results))
+	candidateIDs := make([]string, 0, len(results))
 	for _, result := range results {
 		if result.Similarity < kg.minSemanticSimilarity {
 			continue
 		}
 		if !strings.HasPrefix(result.ID, "edge://") {
-			out = append(out, result.ID)
+			candidateIDs = append(candidateIDs, result.ID)
+		}
+	}
+	allowed := kg.filterExcludedKnowledgeGraphNodeTypes(candidateIDs)
+	out := make([]string, 0, len(allowed))
+	for _, id := range candidateIDs {
+		if _, ok := allowed[id]; ok {
+			out = append(out, id)
 		}
 	}
 	return out
