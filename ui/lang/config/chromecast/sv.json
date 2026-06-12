@@ -37,5 +37,6 @@
   "config.chromecast.save": "Spara",
   "config.chromecast.tts_port_label": "TTS-port",
   "config.chromecast.unknown": "Okänd",
-  "config.chromecast.port_placeholder": "8009"
+  "config.chromecast.port_placeholder": "8009",
+  "config.chromecast.delete_confirm_title": "Ta bort Chromecast-enhet?"
 }

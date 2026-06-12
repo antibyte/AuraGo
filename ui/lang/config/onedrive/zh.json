@@ -74,5 +74,6 @@
   "config.updates.installing": "安装中…",
   "config.updates.running": "运行中…",
   "config.web_scraper.summary_mode": "摘要模式",
-  "config.webdav.secret_empty": "值为空"
+  "config.webdav.secret_empty": "值为空",
+  "config.onedrive.disconnect_confirm_title": "要断开 OneDrive 连接吗？"
 }

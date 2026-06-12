@@ -113,5 +113,6 @@
   "config.updates.running": "Uruchomiono…",
   "config.web_scraper.summary_mode": "Tryb podsumowania",
   "config.webdav.secret_empty": "Wartość jest pusta",
-  "shared.tsnet.login_banner_link": "Otwórz link logowania"
+  "shared.tsnet.login_banner_link": "Otwórz link logowania",
+  "config.tailscale.tsnet_status_starting": "Oczekiwanie na uwierzytelnienie…"
 }

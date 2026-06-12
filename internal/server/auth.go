@@ -752,6 +752,7 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 		enabled := s.Cfg.Auth.Enabled
 		secret := s.Cfg.Auth.SessionSecret
 		passwordHash := s.Cfg.Auth.PasswordHash
+		requireOriginHeader := s.Cfg.Auth.RequireOriginHeader
 		s.CfgMu.RUnlock()
 
 		// SECURITY: if auth is enabled but no password is set, the server is locked down.
@@ -829,7 +830,7 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 
 		if IsAuthenticated(r, secret) {
 			// CSRF: reject state-changing requests whose Origin does not match our host.
-			if !isSafeMethod(r.Method) && !checkCSRFOrigin(r) {
+			if !isSafeMethod(r.Method) && !checkCSRFOriginWithPolicy(r, requireOriginHeader) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusForbidden)
 				w.Write([]byte(`{"error":"csrf_check_failed","message":"Request origin does not match server host."}`))
@@ -900,8 +901,15 @@ func isSafeMethod(method string) bool {
 // the primary protection. For high-security deployments, consider requiring the Origin
 // header and rejecting requests without it.
 func checkCSRFOrigin(r *http.Request) bool {
+	return checkCSRFOriginWithPolicy(r, false)
+}
+
+func checkCSRFOriginWithPolicy(r *http.Request, requireOriginHeader bool) bool {
 	originHeader := r.Header.Get("Origin")
 	if originHeader == "" {
+		if requireOriginHeader {
+			return false
+		}
 		referer := r.Header.Get("Referer")
 		if referer == "" {
 			return false

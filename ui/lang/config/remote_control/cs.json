@@ -97,5 +97,6 @@
   "config.remote_control.pairing_token_failed": "Token se nepodařilo vytvořit",
   "config.remote_control.pairing_token_ready": "Párovací token je připraven",
   "config.remote_control.pairing_token_expires": "Vyprší:",
-  "config.remote_control.pairing_token_hint": "Token platí jednu hodinu a lze jej použít pouze jednou."
+  "config.remote_control.pairing_token_hint": "Token platí jednu hodinu a lze jej použít pouze jednou.",
+  "config.remote_control.error_prefix": "Chyba:"
 }

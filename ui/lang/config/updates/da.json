@@ -68,5 +68,6 @@
   "config.updates.version": "Version",
   "config.updates.warning_banner": "Opdateringen erstatter binære filer, prompts og UI-filer. <strong>Din konfiguration og dine data bevares.</strong> AuraGo genstarter efter opdateringen.",
   "config.web_scraper.summary_mode": "Opsummeringstilstand",
-  "config.webdav.secret_empty": "Værdien er tom"
+  "config.webdav.secret_empty": "Værdien er tom",
+  "config.updates.confirm_install_title": "Installer opdatering?"
 }

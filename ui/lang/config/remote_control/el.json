@@ -97,5 +97,6 @@
   "config.remote_control.pairing_token_failed": "Αποτυχία δημιουργίας διακριτικού",
   "config.remote_control.pairing_token_ready": "Το διακριτικό σύζευξης είναι έτοιμο",
   "config.remote_control.pairing_token_expires": "Λήγει:",
-  "config.remote_control.pairing_token_hint": "Το διακριτικό ισχύει για μία ώρα και μπορεί να χρησιμοποιηθεί μόνο μία φορά."
+  "config.remote_control.pairing_token_hint": "Το διακριτικό ισχύει για μία ώρα και μπορεί να χρησιμοποιηθεί μόνο μία φορά.",
+  "config.remote_control.error_prefix": "Σφάλμα:"
 }

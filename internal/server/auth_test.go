@@ -465,6 +465,25 @@ func TestAuthMiddlewareAllowsLoginAssetsWithoutSession(t *testing.T) {
 	}
 }
 
+func TestAuthBypassRejectsUserGeneratedMediaPaths(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"/files/documents/report.pdf",
+		"/files/audio/song.mp3",
+		"/files/generated_images/image.png",
+		"/files/generated_videos/video.mp4",
+		"/files/launchpad_icons/icon.png",
+		"/files/frigate_media/snapshot.jpg",
+		"/files/3d_printer_media/camera.jpg",
+		"/files/downloads/archive.zip",
+	} {
+		if isAuthBypassed(path) {
+			t.Fatalf("user-generated media path %q must not bypass auth", path)
+		}
+	}
+}
+
 func TestAuthMiddlewareAllowsComposioCallbackWithoutSession(t *testing.T) {
 	t.Parallel()
 
@@ -866,6 +885,42 @@ func TestCheckCSRFOriginValidReferer(t *testing.T) {
 	req.Host = "example.com"
 	if !checkCSRFOrigin(req) {
 		t.Error("expected checkCSRFOrigin to return true for matching Referer")
+	}
+}
+
+func TestAuthMiddlewareStrictCSRFRequiresOriginHeader(t *testing.T) {
+	t.Parallel()
+
+	secret := "0123456789abcdef0123456789abcdef"
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.SessionSecret = secret
+	s.Cfg.Auth.PasswordHash = "configured"
+	s.Cfg.Auth.RequireOriginHeader = true
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler := authMiddleware(s, next)
+
+	req := httptest.NewRequest(http.MethodPost, "https://example.com/api/config", nil)
+	req.Host = "example.com"
+	req.Header.Set("Referer", "https://example.com/config")
+	req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: createSessionValue(secret, time.Now().Add(time.Hour))})
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("strict CSRF with only Referer status = %d, want 403", rec.Code)
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "https://example.com/api/config", nil)
+	req.Host = "example.com"
+	req.Header.Set("Origin", "https://example.com")
+	req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: createSessionValue(secret, time.Now().Add(time.Hour))})
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("strict CSRF with matching Origin status = %d, want 204", rec.Code)
 	}
 }
 

@@ -817,7 +817,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// Build a dynamic loopback handler: routes requests to either the Homepage caddy
 	// server or the Web UI depending on the current expose-target config, without
 	// requiring a cloudflared restart or port change.
-	webUILoopbackHandler := accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, false), false)
+	webUILoopbackHandler := panicRecoveryMiddleware(s.Logger, accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, false), false))
 	homepageProxy := &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
 			s.CfgMu.RLock()
@@ -873,7 +873,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// Always build and store the tsnet handler so it is available even when tsnet
 	// is enabled later via the config UI without a restart.
 	if s.TsNetManager != nil {
-		tsHandler := accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, false), false)
+		tsHandler := panicRecoveryMiddleware(s.Logger, accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, false), false))
 		s.tsNetHandler = tsHandler // stored for /api/tsnet/start (runtime start after hot-reload)
 		if s.Cfg.Tailscale.TsNet.Enabled {
 			go func() {

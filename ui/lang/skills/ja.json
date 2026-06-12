@@ -197,5 +197,6 @@
   "skills.agent_import_title": "Agent Skill をインポート",
   "skills.agent_import_folder": "ローカルフォルダーのパス",
   "skills.agent_resources": "リソース",
-  "skills.agent_test_title": "Agent Skill スクリプトをテスト"
+  "skills.agent_test_title": "Agent Skill スクリプトをテスト",
+  "skills.detail_security": "セキュリティ"
 }

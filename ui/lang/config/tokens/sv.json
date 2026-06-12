@@ -12,5 +12,6 @@
   "config.tokens.deleted": "Token borttaget",
   "config.tokens.scopes_label": "Omfattningar:",
   "config.tokens.toggle_disable": "Inaktivera",
-  "config.tokens.toggle_enable": "Aktivera"
+  "config.tokens.toggle_enable": "Aktivera",
+  "config.tokens.delete_confirm_title": "Ta bort token?"
 }

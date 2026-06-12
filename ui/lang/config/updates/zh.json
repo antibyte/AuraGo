@@ -68,5 +68,6 @@
   "config.updates.version": "版本",
   "config.updates.warning_banner": "更新将替换二进制文件、提示和 UI 文件。<strong>您的配置和数据将被保留。</strong>AuraGo 将在更新后重启。",
   "config.web_scraper.summary_mode": "摘要模式",
-  "config.webdav.secret_empty": "值为空"
+  "config.webdav.secret_empty": "值为空",
+  "config.updates.confirm_install_title": "要安装更新吗？"
 }

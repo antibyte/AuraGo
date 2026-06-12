@@ -97,5 +97,6 @@
   "config.remote_control.pairing_token_failed": "Impossible de créer le jeton",
   "config.remote_control.pairing_token_ready": "Le jeton d’appairage est prêt",
   "config.remote_control.pairing_token_expires": "Expire le :",
-  "config.remote_control.pairing_token_hint": "Le jeton est valable une heure et ne peut être utilisé qu’une seule fois."
+  "config.remote_control.pairing_token_hint": "Le jeton est valable une heure et ne peut être utilisé qu’une seule fois.",
+  "config.remote_control.error_prefix": "Erreur :"
 }

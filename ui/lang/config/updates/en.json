@@ -66,7 +66,8 @@
   "config.updates.started": "✅ Update started — AuraGo is restarting. Reload in 60s…",
   "config.updates.up_to_date": "Up to date",
   "config.updates.version": "Version",
-  "config.updates.warning_banner": "The update replaces binaries, prompts and UI files. \u003cstrong\u003eYour configuration and data are preserved.\u003c/strong\u003e AuraGo will restart after the update.",
+  "config.updates.warning_banner": "The update replaces binaries, prompts and UI files. <strong>Your configuration and data are preserved.</strong> AuraGo will restart after the update.",
   "config.web_scraper.summary_mode": "Summary Mode",
-  "config.webdav.secret_empty": "Value is empty"
+  "config.webdav.secret_empty": "Value is empty",
+  "config.updates.confirm_install_title": "Install update?"
 }

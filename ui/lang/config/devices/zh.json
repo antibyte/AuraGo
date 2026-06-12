@@ -55,5 +55,6 @@
   "config.devices.username_placeholder": "root",
   "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
   "config.devices.field_tags_label": "标签",
-  "config.devices.field_vault_secret_id_label": "保险库密钥 ID"
+  "config.devices.field_vault_secret_id_label": "保险库密钥 ID",
+  "config.devices.delete_confirm_title": "要删除设备吗？"
 }

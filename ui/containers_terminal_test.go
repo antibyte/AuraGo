@@ -31,7 +31,7 @@ func TestContainersScriptRendersRunningShellButtonAndCleansUpTerminal(t *testing
 
 	source := rawDesktopAssetText(t, "js/containers/main.js")
 	for _, marker := range []string{
-		"onclick=\"showTerminal('${c.id}'",
+		"onclick=\"showTerminal(${safeID}, ${terminalName})\"",
 		"data-i18n=\"containers.btn_shell\"",
 		"if (isRunning) {",
 		"function showTerminal(id, name)",
@@ -46,6 +46,37 @@ func TestContainersScriptRendersRunningShellButtonAndCleansUpTerminal(t *testing
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("containers script missing terminal marker %q", marker)
+		}
+	}
+}
+
+func TestContainersScriptEscapesInlineActionArguments(t *testing.T) {
+	t.Parallel()
+
+	source := rawDesktopAssetText(t, "js/containers/main.js")
+	for _, marker := range []string{
+		"function jsArg(value)",
+		"const safeID = jsArg(c.id || '')",
+		"onclick=\"containerAction(${safeID},'stop')\"",
+		"onclick=\"showTerminal(${safeID}, ${terminalName})\"",
+		"onclick=\"showUpdateModal(${safeID}, ${updateName})\"",
+		"onclick=\"showLogs(${safeID})\"",
+		"onclick=\"showInspect(${safeID})\"",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("containers script missing safe inline argument marker %q", marker)
+		}
+	}
+	for _, forbidden := range []string{
+		"onclick=\"containerAction('${c.id}'",
+		"onclick=\"showTerminal('${c.id}'",
+		"onclick=\"showUpdateModal('${c.id}'",
+		"onclick=\"showLogs('${c.id}'",
+		"onclick=\"showInspect('${c.id}'",
+		"data-id=\"${c.id}\"",
+	} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("containers script still embeds raw container data marker %q", forbidden)
 		}
 	}
 }
@@ -127,7 +158,7 @@ func TestContainersScriptIncludesUpdateActionWithConfirmation(t *testing.T) {
 
 	source := rawDesktopAssetText(t, "js/containers/main.js")
 	for _, marker := range []string{
-		"onclick=\"showUpdateModal('${c.id}'",
+		"onclick=\"showUpdateModal(${safeID}, ${updateName})\"",
 		"data-i18n=\"containers.btn_update\"",
 		"function showUpdateModal(id, name)",
 		"function confirmUpdate()",

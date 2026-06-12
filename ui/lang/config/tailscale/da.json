@@ -113,5 +113,6 @@
   "config.updates.running": "Kører…",
   "config.web_scraper.summary_mode": "Opsummeringstilstand",
   "config.webdav.secret_empty": "Værdien er tom",
-  "shared.tsnet.login_banner_link": "Åbn login-link"
+  "shared.tsnet.login_banner_link": "Åbn login-link",
+  "config.tailscale.tsnet_status_starting": "Venter på godkendelse…"
 }

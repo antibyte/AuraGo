@@ -197,5 +197,6 @@
   "skills.agent_import_title": "Importovat Agent Skill",
   "skills.agent_import_folder": "Cesta k místní složce",
   "skills.agent_resources": "Zdroje",
-  "skills.agent_test_title": "Test skriptu Agent Skill"
+  "skills.agent_test_title": "Test skriptu Agent Skill",
+  "skills.detail_security": "Zabezpečení"
 }

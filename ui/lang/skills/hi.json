@@ -197,5 +197,6 @@
   "skills.agent_import_title": "Agent Skill आयात करें",
   "skills.agent_import_folder": "स्थानीय फ़ोल्डर पथ",
   "skills.agent_resources": "संसाधन",
-  "skills.agent_test_title": "Agent Skill script जाँचें"
+  "skills.agent_test_title": "Agent Skill script जाँचें",
+  "skills.detail_security": "सुरक्षा"
 }

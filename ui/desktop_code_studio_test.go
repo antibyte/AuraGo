@@ -95,7 +95,7 @@ func TestCodeStudioScriptsUseBuildVersionCacheBusting(t *testing.T) {
 	t.Parallel()
 
 	desktopHTML := rawDesktopAssetText(t, "desktop.html")
-	if !strings.Contains(desktopHTML, `"buildVersion":"{{.BuildVersion}}"`) ||
+	if !strings.Contains(desktopHTML, `{{.TemplateDataJSON}}`) ||
 		!strings.Contains(desktopHTML, `/js/shared/template-data.js?v={{.BuildVersion}}`) {
 		t.Fatalf("desktop BUILD_VERSION must be exported through template-data for deferred module loaders")
 	}

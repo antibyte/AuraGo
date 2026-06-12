@@ -157,8 +157,9 @@ func TestConfigComposioModuleUsesBuildVersionCacheBusting(t *testing.T) {
 
 	mainJS := readDesktopAssetText(t, "js/config/main.js")
 	pageHTML := readDesktopAssetText(t, "config.html")
-	if !strings.Contains(pageHTML, `window.AURAGO_BUILD_VERSION = "{{.BuildVersion}}"`) {
-		t.Fatal("config.html must expose BuildVersion for lazy config modules")
+	if !strings.Contains(pageHTML, `{{.TemplateDataJSON}}`) ||
+		!strings.Contains(pageHTML, `/js/shared/template-data.js?v={{.BuildVersion}}`) {
+		t.Fatal("config.html must expose BuildVersion through shared template data for lazy config modules")
 	}
 	if !strings.Contains(mainJS, "window.AURAGO_BUILD_VERSION") {
 		t.Fatal("config main JS must use BuildVersion for lazy config module cache busting")

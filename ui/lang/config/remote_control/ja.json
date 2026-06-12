@@ -97,5 +97,6 @@
   "config.remote_control.pairing_token_failed": "トークンを作成できませんでした",
   "config.remote_control.pairing_token_ready": "ペアリングトークンの準備ができました",
   "config.remote_control.pairing_token_expires": "有効期限:",
-  "config.remote_control.pairing_token_hint": "トークンは1時間有効で、一度だけ使用できます。"
+  "config.remote_control.pairing_token_hint": "トークンは1時間有効で、一度だけ使用できます。",
+  "config.remote_control.error_prefix": "エラー:"
 }

@@ -197,5 +197,6 @@
   "skills.agent_import_title": "Agent Skill importeren",
   "skills.agent_import_folder": "Lokaal mappad",
   "skills.agent_resources": "Resources",
-  "skills.agent_test_title": "Agent Skill-script testen"
+  "skills.agent_test_title": "Agent Skill-script testen",
+  "skills.detail_security": "Beveiliging"
 }

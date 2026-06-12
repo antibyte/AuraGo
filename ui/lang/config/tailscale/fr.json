@@ -113,5 +113,6 @@
   "config.updates.running": "En cours…",
   "config.web_scraper.summary_mode": "Mode résumé",
   "config.webdav.secret_empty": "La valeur est vide",
-  "shared.tsnet.login_banner_link": "Ouvrir le lien de connexion"
+  "shared.tsnet.login_banner_link": "Ouvrir le lien de connexion",
+  "config.tailscale.tsnet_status_starting": "En attente d’authentification…"
 }

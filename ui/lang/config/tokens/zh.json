@@ -12,5 +12,6 @@
   "config.tokens.deleted": "Token 已删除",
   "config.tokens.scopes_label": "作用域：",
   "config.tokens.toggle_disable": "禁用",
-  "config.tokens.toggle_enable": "启用"
+  "config.tokens.toggle_enable": "启用",
+  "config.tokens.delete_confirm_title": "要删除令牌吗？"
 }

@@ -22,17 +22,13 @@
     <link rel="stylesheet" href="/shared-utilities.css">
     <link rel="stylesheet" href="/shared-components.css?v=20260430a">
     <link rel="stylesheet" href="/shared-animations.css">
+    <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}"></script>
+    <script type="application/json" id="aurago-template-data">{{.TemplateDataJSON}}</script>
+    <script src="/js/shared/template-data.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-core.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-chat.js?v={{.BuildVersion}}"></script>
     <!-- QR code generator for TOTP setup (auth section only) -->
     <script src="/js/vendor/qrcode.min.js" defer></script>
-    <script>
-        const SYSTEM_LANG = "{{.Lang}}";
-        (function () { var th = localStorage.getItem('aurago-theme'); if (th) document.documentElement.setAttribute('data-theme', th); })();
-        window.AURAGO_BUILD_VERSION = "{{.BuildVersion}}";
-        const I18N = {{.I18N}};
-        const I18N_META = {{.I18NMeta}};
-    </script>
     <link rel="stylesheet" href="/css/tokens.css">
     <link rel="stylesheet" href="/css/config.css?v=20260520a">
     <link rel="stylesheet" href="/css/enhancements.css?v=20260430a">

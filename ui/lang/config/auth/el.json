@@ -27,11 +27,12 @@
   "config.auth.totp_desc": "Πρόσθετη ασφάλεια μέσω εφαρμογών ελέγχου ταυτότητας (Google Authenticator, Authy κ.λπ.).",
   "config.auth.totp_disable": "Απενεργοποιήστε το TOTP",
   "config.auth.totp_disable_confirm": "Αλήθεια να απενεργοποιήσετε την προστασία TOTP;",
-  "config.auth.totp_instructions": "1. Σαρώστε τον κωδικό QR με την εφαρμογή ελέγχου ταυτότητας ή εισαγάγετε το κλειδί με μη αυτόματο τρόπο.\u003cbr\u003e2. Εισαγάγετε τον 6ψήφιο κωδικό για επιβεβαίωση.",
+  "config.auth.totp_instructions": "1. Σαρώστε τον κωδικό QR με την εφαρμογή ελέγχου ταυτότητας ή εισαγάγετε το κλειδί με μη αυτόματο τρόπο.<br>2. Εισαγάγετε τον 6ψήφιο κωδικό για επιβεβαίωση.",
   "config.auth.totp_not_active": "μη ενεργό",
   "config.auth.totp_setup": "Ρύθμιση TOTP →",
   "config.auth.totp_title": "Έλεγχος ταυτότητας δύο παραγόντων (TOTP)",
   "config.auth.update_password": "Ενημέρωση",
   "config.auth.web_config_title": "Διαμόρφωση Ιστού",
-  "config.auth.https_forces_auth": "Το HTTPS είναι ενεργό. Η σύνδεση δεν μπορεί να απενεργοποιηθεί."
+  "config.auth.https_forces_auth": "Το HTTPS είναι ενεργό. Η σύνδεση δεν μπορεί να απενεργοποιηθεί.",
+  "config.auth.totp_disable_confirm_title": "Απενεργοποίηση ελέγχου ταυτότητας δύο παραγόντων;"
 }

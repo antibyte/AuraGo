@@ -37,5 +37,6 @@
   "config.chromecast.save": "Uložit",
   "config.chromecast.tts_port_label": "Port TTS",
   "config.chromecast.unknown": "Neznámý",
-  "config.chromecast.port_placeholder": "8009"
+  "config.chromecast.port_placeholder": "8009",
+  "config.chromecast.delete_confirm_title": "Odebrat zařízení Chromecast?"
 }

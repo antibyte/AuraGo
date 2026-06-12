@@ -68,5 +68,6 @@
   "config.updates.version": "Versie",
   "config.updates.warning_banner": "De update vervangt binaries, prompts en UI-bestanden. <strong>Je configuratie en gegevens blijven behouden.</strong> AuraGo herstart na de update.",
   "config.web_scraper.summary_mode": "Samenvattingsmodus",
-  "config.webdav.secret_empty": "Waarde is leeg"
+  "config.webdav.secret_empty": "Waarde is leeg",
+  "config.updates.confirm_install_title": "Update installeren?"
 }

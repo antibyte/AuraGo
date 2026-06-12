@@ -37,5 +37,6 @@
   "config.chromecast.request_failed": "Request failed",
   "config.chromecast.save": "Save",
   "config.chromecast.tts_port_label": "TTS Port",
-  "config.chromecast.unknown": "Unknown"
+  "config.chromecast.unknown": "Unknown",
+  "config.chromecast.delete_confirm_title": "Remove Chromecast device?"
 }

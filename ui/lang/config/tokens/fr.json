@@ -12,5 +12,6 @@
   "config.tokens.deleted": "Token supprimé",
   "config.tokens.scopes_label": "Scopes :",
   "config.tokens.toggle_disable": "Désactiver",
-  "config.tokens.toggle_enable": "Activer"
+  "config.tokens.toggle_enable": "Activer",
+  "config.tokens.delete_confirm_title": "Supprimer le jeton ?"
 }

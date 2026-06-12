@@ -27,11 +27,12 @@
   "config.auth.totp_desc": "Dodatkowe bezpieczeństwo przez aplikacje uwierzytelniające (Google Authenticator, Authy, etc.).",
   "config.auth.totp_disable": "Wyłącz TOTP",
   "config.auth.totp_disable_confirm": "Na pewno wyłączyć ochronę TOTP?",
-  "config.auth.totp_instructions": "1. Zeskanuj kod QR swoją aplikacją uwierzytelniającą lub wpisz klucz ręcznie.\u003cbr\u003e2. Wprowadź 6-cyfrowy kod, aby potwierdzić.",
+  "config.auth.totp_instructions": "1. Zeskanuj kod QR swoją aplikacją uwierzytelniającą lub wpisz klucz ręcznie.<br>2. Wprowadź 6-cyfrowy kod, aby potwierdzić.",
   "config.auth.totp_not_active": "nieaktywny",
   "config.auth.totp_setup": "Skonfiguruj TOTP →",
   "config.auth.totp_title": "Uwierzytelnianie Dwuskładnikowe (TOTP)",
   "config.auth.update_password": "Aktualizuj",
   "config.auth.web_config_title": "Konfiguracja Web",
-  "config.auth.https_forces_auth": "HTTPS jest aktywne. Logowanie nie może zostać wyłączone."
+  "config.auth.https_forces_auth": "HTTPS jest aktywne. Logowanie nie może zostać wyłączone.",
+  "config.auth.totp_disable_confirm_title": "Wyłączyć uwierzytelnianie dwuskładnikowe?"
 }

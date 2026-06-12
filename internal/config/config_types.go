@@ -803,11 +803,11 @@ type Config struct {
 		Retention       struct {
 			PatternsDays          int `yaml:"patterns_days"`           // interaction patterns (default 90)
 			ArchiveEventsDays     int `yaml:"archive_events_days"`     // archive events (default 90)
-			MoodLogDays           int `yaml:"mood_log_days"`             // mood log entries (default 30)
-			ErrorPatternsDays     int `yaml:"error_patterns_days"`       // stale unresolved error patterns (default 7)
-			ProfileStaleDays      int `yaml:"profile_stale_days"`        // low-confidence user profile entries (default 30)
-			DoneNotesDays         int `yaml:"done_notes_days"`           // completed notes (default 7)
-			OperationalIssuesDays int `yaml:"operational_issues_days"`   // planner operational issues (default 30)
+			MoodLogDays           int `yaml:"mood_log_days"`           // mood log entries (default 30)
+			ErrorPatternsDays     int `yaml:"error_patterns_days"`     // stale unresolved error patterns (default 7)
+			ProfileStaleDays      int `yaml:"profile_stale_days"`      // low-confidence user profile entries (default 30)
+			DoneNotesDays         int `yaml:"done_notes_days"`         // completed notes (default 7)
+			OperationalIssuesDays int `yaml:"operational_issues_days"` // planner operational issues (default 30)
 		} `yaml:"retention"`
 	} `yaml:"maintenance"`
 	Journal struct {
@@ -815,15 +815,15 @@ type Config struct {
 		DailySummary bool `yaml:"daily_summary"` // generate daily summaries during maintenance (default true)
 	} `yaml:"journal"`
 	Consolidation struct {
-		Enabled           bool   `yaml:"enabled"`             // enable nightly STM→LTM consolidation (default true)
-		AutoOptimize      bool   `yaml:"auto_optimize"`       // run optimize_memory after consolidation (default true)
-		ArchiveRetainDays int    `yaml:"archive_retain_days"` // keep archived messages for N days (default 30)
-		MaxBatchMessages  int    `yaml:"max_batch_messages"`  // max messages per consolidation batch (default 200)
-		OptimizeThreshold int    `yaml:"optimize_threshold"`  // priority threshold for auto-optimize (default 1)
-		ChatSessionLimit      int `yaml:"chat_session_limit"`       // max chat sessions retained before archival rotation (default 10)
-		StmRetentionMessages int `yaml:"stm_retention_messages"` // max STM rows per session before archive+trim (default 500, 0 = disabled)
-		MemoryMetaBudget     int `yaml:"memory_meta_budget"`     // max tracked LTM memory_meta rows before nightly eviction (0 = disabled)
-		Model                string `yaml:"model"`                // optional model override for nightly consolidation (empty = main llm model)
+		Enabled              bool   `yaml:"enabled"`                // enable nightly STM→LTM consolidation (default true)
+		AutoOptimize         bool   `yaml:"auto_optimize"`          // run optimize_memory after consolidation (default true)
+		ArchiveRetainDays    int    `yaml:"archive_retain_days"`    // keep archived messages for N days (default 30)
+		MaxBatchMessages     int    `yaml:"max_batch_messages"`     // max messages per consolidation batch (default 200)
+		OptimizeThreshold    int    `yaml:"optimize_threshold"`     // priority threshold for auto-optimize (default 1)
+		ChatSessionLimit     int    `yaml:"chat_session_limit"`     // max chat sessions retained before archival rotation (default 10)
+		StmRetentionMessages int    `yaml:"stm_retention_messages"` // max STM rows per session before archive+trim (default 500, 0 = disabled)
+		MemoryMetaBudget     int    `yaml:"memory_meta_budget"`     // max tracked LTM memory_meta rows before nightly eviction (0 = disabled)
+		Model                string `yaml:"model"`                  // optional model override for nightly consolidation (empty = main llm model)
 	} `yaml:"consolidation"`
 	MemoryAnalysis struct {
 		Enabled               bool    `yaml:"enabled"`                 // deprecated compatibility flag; memory analysis is now adaptive and always active
@@ -1224,6 +1224,7 @@ type Config struct {
 		PasswordHash        string `yaml:"-" vault:"password_hash"`  // bcrypt hash (vault-only)
 		SessionSecret       string `yaml:"-" vault:"session_secret"` // HMAC key for session cookies (vault-only)
 		SessionTimeoutHours int    `yaml:"session_timeout_hours"`    // how long a session stays valid (default 24h)
+		RequireOriginHeader bool   `yaml:"require_origin_header"`    // require Origin on authenticated state-changing requests
 		TOTPSecret          string `yaml:"-" vault:"totp_secret"`    // base32 TOTP secret for 2FA (vault-only)
 		TOTPEnabled         bool   `yaml:"totp_enabled"`             // whether TOTP 2FA is active
 		MaxLoginAttempts    int    `yaml:"max_login_attempts"`       // failed attempts before lockout (default 5)

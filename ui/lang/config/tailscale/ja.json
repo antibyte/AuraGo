@@ -113,5 +113,6 @@
   "config.updates.running": "実行中…",
   "config.web_scraper.summary_mode": "サマリーモード",
   "config.webdav.secret_empty": "値が空です",
-  "shared.tsnet.login_banner_link": "ログインリンクを開く"
+  "shared.tsnet.login_banner_link": "ログインリンクを開く",
+  "config.tailscale.tsnet_status_starting": "認証を待機しています…"
 }

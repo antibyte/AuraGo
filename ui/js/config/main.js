@@ -212,7 +212,9 @@ const SECTIONS = [
     }
 ];
 
-const lang = SYSTEM_LANG === 'de' ? 'de' : 'en';
+const lang = (typeof SYSTEM_LANG === 'string' && SYSTEM_LANG.trim())
+    ? SYSTEM_LANG.trim().toLowerCase().split('-')[0]
+    : 'en';
 let configData = {};
 // helpTexts built from I18N — no separate fetch needed
 const helpTexts = new Proxy({}, {
@@ -221,8 +223,9 @@ const helpTexts = new Proxy({}, {
         const meta = I18N_META['help.' + key];
         if (!txt && !meta) return undefined;
         const obj = {};
-        if (txt) { obj[lang] = txt; obj.en = txt; }
+        if (txt) obj[lang] = txt;
         if (meta) Object.assign(obj, meta);
+        if (txt && !obj.en) obj.en = txt;
         return obj;
     }
 });

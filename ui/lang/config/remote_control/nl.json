@@ -97,5 +97,6 @@
   "config.remote_control.pairing_token_failed": "Token kon niet worden gemaakt",
   "config.remote_control.pairing_token_ready": "Koppelingstoken is klaar",
   "config.remote_control.pairing_token_expires": "Verloopt:",
-  "config.remote_control.pairing_token_hint": "De token is één uur geldig en kan maar één keer worden gebruikt."
+  "config.remote_control.pairing_token_hint": "De token is één uur geldig en kan maar één keer worden gebruikt.",
+  "config.remote_control.error_prefix": "Fout:"
 }

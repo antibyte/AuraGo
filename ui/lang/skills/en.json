@@ -197,5 +197,6 @@
   "skills.agent_import_title": "Import Agent Skill",
   "skills.agent_import_folder": "Local folder path",
   "skills.agent_resources": "Resources",
-  "skills.agent_test_title": "Test Agent Skill Script"
+  "skills.agent_test_title": "Test Agent Skill Script",
+  "skills.detail_security": "Security"
 }

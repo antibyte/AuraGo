@@ -74,5 +74,6 @@
   "config.updates.installing": "Installerer…",
   "config.updates.running": "Kjører…",
   "config.web_scraper.summary_mode": "Sammendragsmodus",
-  "config.webdav.secret_empty": "Verdien er tom"
+  "config.webdav.secret_empty": "Verdien er tom",
+  "config.onedrive.disconnect_confirm_title": "Koble fra OneDrive?"
 }

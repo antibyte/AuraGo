@@ -113,5 +113,6 @@
   "config.updates.running": "运行中…",
   "config.web_scraper.summary_mode": "摘要模式",
   "config.webdav.secret_empty": "值为空",
-  "shared.tsnet.login_banner_link": "打开登录链接"
+  "shared.tsnet.login_banner_link": "打开登录链接",
+  "config.tailscale.tsnet_status_starting": "正在等待身份验证…"
 }

@@ -197,5 +197,6 @@
   "skills.agent_import_title": "Importera Agent Skill",
   "skills.agent_import_folder": "Lokal mappsökväg",
   "skills.agent_resources": "Resurser",
-  "skills.agent_test_title": "Testa Agent Skill-skript"
+  "skills.agent_test_title": "Testa Agent Skill-skript",
+  "skills.detail_security": "Säkerhet"
 }

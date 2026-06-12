@@ -80,5 +80,6 @@
   "config.updates.installing": "Installeren…",
   "config.updates.running": "Draait…",
   "config.web_scraper.summary_mode": "Samenvattingsmodus",
-  "config.webdav.secret_empty": "Waarde is leeg"
+  "config.webdav.secret_empty": "Waarde is leeg",
+  "config.indexing.remove_confirm_title": "Geïndexeerd pad verwijderen?"
 }

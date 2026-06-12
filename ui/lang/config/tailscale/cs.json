@@ -113,5 +113,6 @@
   "config.updates.running": "Běží…",
   "config.web_scraper.summary_mode": "Režim shrnutí",
   "config.webdav.secret_empty": "Hodnota je prázdná",
-  "shared.tsnet.login_banner_link": "Otevřít přihlašovací odkaz"
+  "shared.tsnet.login_banner_link": "Otevřít přihlašovací odkaz",
+  "config.tailscale.tsnet_status_starting": "Čeká se na ověření…"
 }

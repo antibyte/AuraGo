@@ -113,5 +113,6 @@
   "config.updates.running": "Draait…",
   "config.web_scraper.summary_mode": "Samenvattingsmodus",
   "config.webdav.secret_empty": "Waarde is leeg",
-  "shared.tsnet.login_banner_link": "Open inloglink"
+  "shared.tsnet.login_banner_link": "Open inloglink",
+  "config.tailscale.tsnet_status_starting": "Wachten op authenticatie…"
 }

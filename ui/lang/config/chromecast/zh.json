@@ -37,5 +37,6 @@
   "config.chromecast.save": "节省",
   "config.chromecast.tts_port_label": "TTS 端口",
   "config.chromecast.unknown": "未知",
-  "config.chromecast.port_placeholder": "8009"
+  "config.chromecast.port_placeholder": "8009",
+  "config.chromecast.delete_confirm_title": "要移除 Chromecast 设备吗？"
 }

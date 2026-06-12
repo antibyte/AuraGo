@@ -80,5 +80,6 @@
   "config.updates.installing": "Installerar…",
   "config.updates.running": "Kör…",
   "config.web_scraper.summary_mode": "Sammanfattningsläge",
-  "config.webdav.secret_empty": "Värdet är tomt"
+  "config.webdav.secret_empty": "Värdet är tomt",
+  "config.indexing.remove_confirm_title": "Ta bort indexerad sökväg?"
 }

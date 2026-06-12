@@ -80,5 +80,6 @@
   "config.updates.installing": "Installation…",
   "config.updates.running": "En cours…",
   "config.web_scraper.summary_mode": "Mode résumé",
-  "config.webdav.secret_empty": "La valeur est vide"
+  "config.webdav.secret_empty": "La valeur est vide",
+  "config.indexing.remove_confirm_title": "Supprimer le chemin indexé ?"
 }

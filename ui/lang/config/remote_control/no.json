@@ -97,5 +97,6 @@
   "config.remote_control.pairing_token_failed": "Kunne ikke opprette token",
   "config.remote_control.pairing_token_ready": "Paringstoken er klar",
   "config.remote_control.pairing_token_expires": "Utløper:",
-  "config.remote_control.pairing_token_hint": "Tokenet er gyldig i én time og kan bare brukes én gang."
+  "config.remote_control.pairing_token_hint": "Tokenet er gyldig i én time og kan bare brukes én gang.",
+  "config.remote_control.error_prefix": "Feil:"
 }

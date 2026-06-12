@@ -74,5 +74,6 @@
   "config.updates.installing": "Installing…",
   "config.updates.running": "Running…",
   "config.web_scraper.summary_mode": "Summary Mode",
-  "config.webdav.secret_empty": "Value is empty"
+  "config.webdav.secret_empty": "Value is empty",
+  "config.onedrive.disconnect_confirm_title": "Disconnect OneDrive?"
 }

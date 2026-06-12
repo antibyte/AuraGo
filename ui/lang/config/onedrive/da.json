@@ -74,5 +74,6 @@
   "config.updates.installing": "Installerer…",
   "config.updates.running": "Kører…",
   "config.web_scraper.summary_mode": "Opsummeringstilstand",
-  "config.webdav.secret_empty": "Værdien er tom"
+  "config.webdav.secret_empty": "Værdien er tom",
+  "config.onedrive.disconnect_confirm_title": "Afbryd OneDrive?"
 }

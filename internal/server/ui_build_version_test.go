@@ -50,7 +50,7 @@ func TestConfigRouteInjectsBuildVersion(t *testing.T) {
 	body := rec.Body.String()
 	for _, want := range []string{
 		`/js/shared/shared-core.js?v=20260605T123456a`,
-		`window.AURAGO_BUILD_VERSION = "20260605T123456a"`,
+		`"buildVersion":"20260605T123456a"`,
 		`/cfg/form-builder.js?v=20260605T123456a`,
 		`/js/config/main.js?v=20260605T123456a`,
 	} {

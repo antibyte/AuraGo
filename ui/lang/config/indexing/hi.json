@@ -80,5 +80,6 @@
   "config.updates.installing": "इंस्टॉल हो रहा है…",
   "config.updates.running": "चल रहा है…",
   "config.web_scraper.summary_mode": "सारांश मोड",
-  "config.webdav.secret_empty": "मान खाली है"
+  "config.webdav.secret_empty": "मान खाली है",
+  "config.indexing.remove_confirm_title": "इंडेक्स किया गया पथ हटाएँ?"
 }

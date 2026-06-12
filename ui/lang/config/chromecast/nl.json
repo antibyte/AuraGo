@@ -37,5 +37,6 @@
   "config.chromecast.save": "Opslaan",
   "config.chromecast.tts_port_label": "TTS-poort",
   "config.chromecast.unknown": "Onbekend",
-  "config.chromecast.port_placeholder": "8009"
+  "config.chromecast.port_placeholder": "8009",
+  "config.chromecast.delete_confirm_title": "Chromecast-apparaat verwijderen?"
 }

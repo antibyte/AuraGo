@@ -68,5 +68,6 @@
   "config.updates.version": "Versjon",
   "config.updates.warning_banner": "Oppdateringen erstatter binærfiler, ledetekster og brukergrensesnittfiler. <strong>Din konfigurasjon og data er bevart.</strong> AuraGo vil starte på nytt etter oppdateringen.",
   "config.web_scraper.summary_mode": "Sammendragsmodus",
-  "config.webdav.secret_empty": "Verdien er tom"
+  "config.webdav.secret_empty": "Verdien er tom",
+  "config.updates.confirm_install_title": "Installere oppdatering?"
 }

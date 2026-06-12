@@ -12,5 +12,6 @@
   "config.tokens.deleted": "Token smazán",
   "config.tokens.scopes_label": "Rozsah:",
   "config.tokens.toggle_disable": "Zakázat",
-  "config.tokens.toggle_enable": "Umožnit"
+  "config.tokens.toggle_enable": "Umožnit",
+  "config.tokens.delete_confirm_title": "Smazat token?"
 }

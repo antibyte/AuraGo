@@ -27,11 +27,12 @@
   "config.auth.totp_desc": "Další zabezpečení pomocí ověřovacích aplikací (Google Authenticator, Authy atd.).",
   "config.auth.totp_disable": "Zakázat TOTP",
   "config.auth.totp_disable_confirm": "Opravdu vypnout ochranu TOTP?",
-  "config.auth.totp_instructions": "1. Naskenujte QR kód pomocí aplikace pro ověřování nebo zadejte klíč ručně.\u003cbr\u003e2. Pro potvrzení zadejte 6místný kód.",
+  "config.auth.totp_instructions": "1. Naskenujte QR kód pomocí aplikace pro ověřování nebo zadejte klíč ručně.<br>2. Pro potvrzení zadejte 6místný kód.",
   "config.auth.totp_not_active": "není aktivní",
   "config.auth.totp_setup": "Nastavit TOTP →",
   "config.auth.totp_title": "Dvoufaktorová autentizace (TOTP)",
   "config.auth.update_password": "Aktualizovat",
   "config.auth.web_config_title": "Webová konfigurace",
-  "config.auth.https_forces_auth": "HTTPS je aktivní. Přihlášení nelze deaktivovat."
+  "config.auth.https_forces_auth": "HTTPS je aktivní. Přihlášení nelze deaktivovat.",
+  "config.auth.totp_disable_confirm_title": "Vypnout dvoufázové ověření?"
 }

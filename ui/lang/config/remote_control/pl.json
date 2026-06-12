@@ -97,5 +97,6 @@
   "config.remote_control.pairing_token_failed": "Nie można utworzyć tokenu",
   "config.remote_control.pairing_token_ready": "Token parowania jest gotowy",
   "config.remote_control.pairing_token_expires": "Wygasa:",
-  "config.remote_control.pairing_token_hint": "Token jest ważny przez godzinę i może być użyty tylko raz."
+  "config.remote_control.pairing_token_hint": "Token jest ważny przez godzinę i może być użyty tylko raz.",
+  "config.remote_control.error_prefix": "Błąd:"
 }

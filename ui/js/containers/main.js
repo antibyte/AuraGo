@@ -78,6 +78,14 @@ function updateStats() {
 
 // ── Rendering ───────────────────────────────────────────────────────────────
 
+function jsArg(value) {
+    return JSON.stringify(String(value ?? ''))
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 function renderContainers() {
     const grid = document.getElementById('ct-grid');
     const empty = document.getElementById('ct-empty');
@@ -102,43 +110,45 @@ function renderContainers() {
 function renderCard(c) {
     const name = (c.names && c.names.length > 0) ? c.names[0].replace(/^\//, '') : c.id;
     const state = (c.state || 'unknown').toLowerCase();
+    const stateClass = /^[a-z0-9_-]+$/.test(state) ? state : 'unknown';
     const isRunning = state === 'running';
     const isPaused = state === 'paused';
-    const deleteId = JSON.stringify(c.id || '').replace(/"/g, '&quot;');
-    const deleteName = JSON.stringify(name).replace(/"/g, '&quot;');
-    const terminalName = JSON.stringify(name).replace(/"/g, '&quot;');
-    const updateName = JSON.stringify(name).replace(/"/g, '&quot;');
+    const safeID = jsArg(c.id || '');
+    const deleteId = safeID;
+    const deleteName = jsArg(name);
+    const terminalName = jsArg(name);
+    const updateName = jsArg(name);
 
     let actionBtns = '';
     if (isRunning) {
         actionBtns = `
-            <button class="btn btn-sm btn-secondary" onclick="containerAction('${c.id}','stop')" data-i18n="containers.btn_stop">⏹ Stop</button>
-            <button class="btn btn-sm btn-secondary" onclick="containerAction('${c.id}','restart')" data-i18n="containers.btn_restart">🔄 Restart</button>
-            <button class="btn btn-sm btn-primary" onclick="showTerminal('${c.id}', ${terminalName})" data-i18n="containers.btn_shell">⌨ Shell</button>`;
+            <button class="btn btn-sm btn-secondary" onclick="containerAction(${safeID},'stop')" data-i18n="containers.btn_stop">⏹ Stop</button>
+            <button class="btn btn-sm btn-secondary" onclick="containerAction(${safeID},'restart')" data-i18n="containers.btn_restart">🔄 Restart</button>
+            <button class="btn btn-sm btn-primary" onclick="showTerminal(${safeID}, ${terminalName})" data-i18n="containers.btn_shell">⌨ Shell</button>`;
     } else if (isPaused) {
         actionBtns = `
-            <button class="btn btn-sm btn-primary" onclick="containerAction('${c.id}','start')" data-i18n="containers.btn_unpause">▶ Resume</button>`;
+            <button class="btn btn-sm btn-primary" onclick="containerAction(${safeID},'start')" data-i18n="containers.btn_unpause">▶ Resume</button>`;
     } else {
         actionBtns = `
-            <button class="btn btn-sm btn-primary" onclick="containerAction('${c.id}','start')" data-i18n="containers.btn_start">▶ Start</button>`;
+            <button class="btn btn-sm btn-primary" onclick="containerAction(${safeID},'start')" data-i18n="containers.btn_start">▶ Start</button>`;
     }
 
     return `
-    <div class="ct-card" data-id="${c.id}" data-state="${state}">
+    <div class="ct-card" data-id="${esc(c.id || '')}" data-state="${esc(state)}">
         <div class="ct-card-header">
-            <div class="ct-card-status ${state}"></div>
+            <div class="ct-card-status ${stateClass}"></div>
             <div class="ct-card-name" title="${esc(name)}">${esc(name)}</div>
             <span class="ct-card-id">${esc(c.id)}</span>
         </div>
         <div class="ct-card-meta">
             <span><span class="ct-meta-icon">📦</span> ${esc(c.image)}</span>
-            <span><span class="ct-meta-icon">📋</span> <span class="ct-card-state ${state}">${esc(c.status)}</span></span>
+            <span><span class="ct-meta-icon">📋</span> <span class="ct-card-state ${stateClass}">${esc(c.status)}</span></span>
         </div>
         <div class="ct-card-actions">
             ${actionBtns}
-            <button class="btn btn-sm btn-secondary" onclick="showUpdateModal('${c.id}', ${updateName})" data-i18n="containers.btn_update">⬇ Update</button>
-            <button class="btn btn-sm btn-secondary" onclick="showLogs('${c.id}')" data-i18n="containers.btn_logs">📄 Logs</button>
-            <button class="btn btn-sm btn-secondary" onclick="showInspect('${c.id}')" data-i18n="containers.btn_inspect">🔍 Inspect</button>
+            <button class="btn btn-sm btn-secondary" onclick="showUpdateModal(${safeID}, ${updateName})" data-i18n="containers.btn_update">⬇ Update</button>
+            <button class="btn btn-sm btn-secondary" onclick="showLogs(${safeID})" data-i18n="containers.btn_logs">📄 Logs</button>
+            <button class="btn btn-sm btn-secondary" onclick="showInspect(${safeID})" data-i18n="containers.btn_inspect">🔍 Inspect</button>
             <button class="btn btn-sm btn-danger" onclick="showDeleteModal(${deleteId}, ${deleteName})" data-i18n="containers.btn_remove">🗑 Remove</button>
         </div>
     </div>`;

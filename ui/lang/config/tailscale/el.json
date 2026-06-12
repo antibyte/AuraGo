@@ -113,5 +113,6 @@
   "config.updates.running": "Εκτελείται…",
   "config.web_scraper.summary_mode": "Λειτουργία περίληψης",
   "config.webdav.secret_empty": "Η τιμή είναι κενή",
-  "shared.tsnet.login_banner_link": "Άνοιγμα συνδέσμου σύνδεσης"
+  "shared.tsnet.login_banner_link": "Άνοιγμα συνδέσμου σύνδεσης",
+  "config.tailscale.tsnet_status_starting": "Αναμονή για έλεγχο ταυτότητας…"
 }

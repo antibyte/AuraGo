@@ -37,5 +37,6 @@
   "config.chromecast.save": "Guardar",
   "config.chromecast.tts_port_label": "Puerto TTS",
   "config.chromecast.unknown": "Desconocido",
-  "config.chromecast.port_placeholder": "8009"
+  "config.chromecast.port_placeholder": "8009",
+  "config.chromecast.delete_confirm_title": "¿Eliminar dispositivo Chromecast?"
 }

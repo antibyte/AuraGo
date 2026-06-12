@@ -197,5 +197,6 @@
   "skills.agent_import_title": "Importer Agent Skill",
   "skills.agent_import_folder": "Lokal mappebane",
   "skills.agent_resources": "Ressurser",
-  "skills.agent_test_title": "Test Agent Skill-skript"
+  "skills.agent_test_title": "Test Agent Skill-skript",
+  "skills.detail_security": "Sikkerhet"
 }

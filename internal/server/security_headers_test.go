@@ -1,6 +1,8 @@
 package server
 
 import (
+	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -36,6 +38,50 @@ func TestSecurityHeadersAllowEmbedsForYouTubeAndDesktopStoreApps(t *testing.T) {
 	}
 	if got := rec.Header().Get("X-Frame-Options"); got != "DENY" {
 		t.Fatalf("X-Frame-Options = %q, want DENY", got)
+	}
+}
+
+func TestPanicRecoveryMiddlewareReturnsJSONForAPIPanics(t *testing.T) {
+	handler := panicRecoveryMiddleware(slog.Default(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		panic("boom")
+	}))
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/overview", nil)
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", rec.Code)
+	}
+	if got := rec.Header().Get("Content-Type"); !strings.Contains(got, "application/json") {
+		t.Fatalf("Content-Type = %q, want JSON", got)
+	}
+	var payload map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode JSON panic response: %v; body=%s", err, rec.Body.String())
+	}
+	if payload["error"] != "internal_server_error" {
+		t.Fatalf("error = %q, want internal_server_error", payload["error"])
+	}
+}
+
+func TestPanicRecoveryMiddlewareReturnsPlainBrowserError(t *testing.T) {
+	handler := panicRecoveryMiddleware(slog.Default(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		panic("boom")
+	}))
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", rec.Code)
+	}
+	if got := rec.Header().Get("Content-Type"); strings.Contains(got, "application/json") {
+		t.Fatalf("Content-Type = %q, want non-JSON browser response", got)
+	}
+	if !strings.Contains(rec.Body.String(), "Internal server error") {
+		t.Fatalf("browser panic response body = %q", rec.Body.String())
 	}
 }
 

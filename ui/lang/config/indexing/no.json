@@ -80,5 +80,6 @@
   "config.updates.installing": "Installerer…",
   "config.updates.running": "Kjører…",
   "config.web_scraper.summary_mode": "Sammendragsmodus",
-  "config.webdav.secret_empty": "Verdien er tom"
+  "config.webdav.secret_empty": "Verdien er tom",
+  "config.indexing.remove_confirm_title": "Fjerne indeksert sti?"
 }

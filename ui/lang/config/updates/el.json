@@ -68,5 +68,6 @@
   "config.updates.version": "Έκδοση",
   "config.updates.warning_banner": "Η ενημέρωση αντικαθιστά τα δυαδικά αρχεία, τις προτροπές και τα αρχεία διεπαφής χρήστη. <strong>Η διαμόρφωση και τα δεδομένα σας διατηρούνται.</strong> Το AuraGo θα επανεκκινήσει μετά την ενημέρωση.",
   "config.web_scraper.summary_mode": "Λειτουργία περίληψης",
-  "config.webdav.secret_empty": "Η τιμή είναι κενή"
+  "config.webdav.secret_empty": "Η τιμή είναι κενή",
+  "config.updates.confirm_install_title": "Εγκατάσταση ενημέρωσης;"
 }

@@ -27,11 +27,12 @@
   "config.auth.totp_desc": "Additional security via authenticator apps (Google Authenticator, Authy, etc.).",
   "config.auth.totp_disable": "Disable TOTP",
   "config.auth.totp_disable_confirm": "Really disable TOTP protection?",
-  "config.auth.totp_instructions": "1. Scan the QR code with your authenticator app or enter the key manually.\u003cbr\u003e2. Enter the 6-digit code to confirm.",
+  "config.auth.totp_instructions": "1. Scan the QR code with your authenticator app or enter the key manually.<br>2. Enter the 6-digit code to confirm.",
   "config.auth.totp_not_active": "not active",
   "config.auth.totp_setup": "Set up TOTP →",
   "config.auth.totp_title": "Two-Factor Authentication (TOTP)",
   "config.auth.update_password": "Update",
   "config.auth.web_config_title": "Web Configuration",
-  "config.auth.https_forces_auth": "HTTPS is active. Login cannot be disabled."
+  "config.auth.https_forces_auth": "HTTPS is active. Login cannot be disabled.",
+  "config.auth.totp_disable_confirm_title": "Disable two-factor authentication?"
 }

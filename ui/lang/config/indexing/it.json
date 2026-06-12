@@ -80,5 +80,6 @@
   "config.updates.installing": "Installazione…",
   "config.updates.running": "In esecuzione…",
   "config.web_scraper.summary_mode": "Modalità riepilogo",
-  "config.webdav.secret_empty": "Il valore è vuoto"
+  "config.webdav.secret_empty": "Il valore è vuoto",
+  "config.indexing.remove_confirm_title": "Rimuovere il percorso indicizzato?"
 }

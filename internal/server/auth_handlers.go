@@ -92,13 +92,11 @@ func handleAuthLoginPage(s *Server, uiFS fs.FS) http.HandlerFunc {
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.login_template_unavailable"), http.StatusInternalServerError)
 			return
 		}
-		data := map[string]interface{}{
-			"Lang":         lang,
-			"I18N":         getI18NJSON(lang),
-			"BuildVersion": uiBuildVersion,
-			"TOTPEnabled":  totpEnabled,
-			"Redirect":     r.URL.Query().Get("redirect"),
-		}
+		data := uiTemplateData(lang)
+		setTemplateDataJSON(data, map[string]any{
+			"totpEnabled": totpEnabled,
+			"redirectURL": r.URL.Query().Get("redirect"),
+		})
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if err := tmpl.Execute(w, data); err != nil {
 			s.Logger.Error("[Auth] Failed to render login page", "error", err)

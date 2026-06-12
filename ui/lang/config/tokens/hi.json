@@ -12,5 +12,6 @@
   "config.tokens.deleted": "टोकन हटा दिया गया",
   "config.tokens.scopes_label": "दायरा:",
   "config.tokens.toggle_disable": "अक्षम करें",
-  "config.tokens.toggle_enable": "सक्षम"
+  "config.tokens.toggle_enable": "सक्षम",
+  "config.tokens.delete_confirm_title": "टोकन हटाएँ?"
 }

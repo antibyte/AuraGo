@@ -371,6 +371,43 @@ func TestTranslations_MultimodalKeysAreTranslated(t *testing.T) {
 	}
 }
 
+func TestTranslations_WebUIReleaseFixKeysAreTranslated(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		relPath string
+		key     string
+	}{
+		{relPath: filepath.Join("lang", "config", "auth"), key: "config.auth.totp_disable_confirm_title"},
+		{relPath: filepath.Join("lang", "config", "chromecast"), key: "config.chromecast.delete_confirm_title"},
+		{relPath: filepath.Join("lang", "config", "devices"), key: "config.devices.delete_confirm_title"},
+		{relPath: filepath.Join("lang", "config", "indexing"), key: "config.indexing.remove_confirm_title"},
+		{relPath: filepath.Join("lang", "config", "onedrive"), key: "config.onedrive.disconnect_confirm_title"},
+		{relPath: filepath.Join("lang", "config", "remote_control"), key: "config.remote_control.error_prefix"},
+		{relPath: filepath.Join("lang", "config", "tailscale"), key: "config.tailscale.tsnet_status_starting"},
+		{relPath: filepath.Join("lang", "config", "tokens"), key: "config.tokens.delete_confirm_title"},
+		{relPath: filepath.Join("lang", "config", "updates"), key: "config.updates.confirm_install_title"},
+		{relPath: filepath.Join("lang", "skills"), key: "skills.detail_security"},
+	}
+	langs := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
+	for _, c := range cases {
+		for _, lang := range langs {
+			path := filepath.Join(c.relPath, lang+".json")
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("read %s: %v", path, err)
+			}
+			var values map[string]string
+			if err := json.Unmarshal(data, &values); err != nil {
+				t.Fatalf("parse %s: %v", path, err)
+			}
+			if strings.TrimSpace(values[c.key]) == "" {
+				t.Fatalf("%s missing non-empty translation for %s", path, c.key)
+			}
+		}
+	}
+}
+
 // TestTranslations_AllKeysPresentInAllLanguages verifies that all translation keys
 // present in en.json are also present in all other language files.
 func TestTranslations_AllKeysPresentInAllLanguages(t *testing.T) {

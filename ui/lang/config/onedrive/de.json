@@ -74,5 +74,6 @@
   "config.updates.installing": "Installiere…",
   "config.updates.running": "Läuft…",
   "config.web_scraper.summary_mode": "Zusammenfassungsmodus",
-  "config.webdav.secret_empty": "Wert ist leer"
+  "config.webdav.secret_empty": "Wert ist leer",
+  "config.onedrive.disconnect_confirm_title": "OneDrive trennen?"
 }

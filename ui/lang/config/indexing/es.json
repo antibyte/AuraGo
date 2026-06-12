@@ -80,5 +80,6 @@
   "config.updates.installing": "Instalando…",
   "config.updates.running": "Ejecutando…",
   "config.web_scraper.summary_mode": "Modo de resumen",
-  "config.webdav.secret_empty": "El valor está vacío"
+  "config.webdav.secret_empty": "El valor está vacío",
+  "config.indexing.remove_confirm_title": "¿Eliminar ruta indexada?"
 }

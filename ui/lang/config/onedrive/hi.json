@@ -74,5 +74,6 @@
   "config.updates.installing": "इंस्टॉल हो रहा है…",
   "config.updates.running": "चल रहा है…",
   "config.web_scraper.summary_mode": "सारांश मोड",
-  "config.webdav.secret_empty": "मान खाली है"
+  "config.webdav.secret_empty": "मान खाली है",
+  "config.onedrive.disconnect_confirm_title": "OneDrive डिस्कनेक्ट करें?"
 }

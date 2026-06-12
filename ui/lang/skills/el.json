@@ -197,5 +197,6 @@
   "skills.agent_import_title": "Εισαγωγή Agent Skill",
   "skills.agent_import_folder": "Τοπική διαδρομή φακέλου",
   "skills.agent_resources": "Πόροι",
-  "skills.agent_test_title": "Δοκιμή script Agent Skill"
+  "skills.agent_test_title": "Δοκιμή script Agent Skill",
+  "skills.detail_security": "Ασφάλεια"
 }

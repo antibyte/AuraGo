@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io/fs"
 	"log/slog"
 	"sort"
@@ -73,7 +72,16 @@ func (s *Store) load(uiFS fs.FS, logger *slog.Logger) {
 	// Read meta.json from root
 	metaData, err := fs.ReadFile(uiFS, "lang/meta.json")
 	if err == nil {
-		newMetaJSON = string(metaData)
+		var meta any
+		if err := json.Unmarshal(bytes.TrimPrefix(metaData, []byte("\xef\xbb\xbf")), &meta); err != nil {
+			logger.Warn("Failed to parse lang metadata", "file", "lang/meta.json", "error", err)
+			newMetaJSON = "{}"
+		} else if metaJSON, err := json.Marshal(meta); err != nil {
+			logger.Warn("Failed to marshal lang metadata", "file", "lang/meta.json", "error", err)
+			newMetaJSON = "{}"
+		} else {
+			newMetaJSON = string(metaJSON)
+		}
 	} else {
 		newMetaJSON = "{}"
 	}
@@ -195,33 +203,33 @@ func flattenTranslationValues(raw map[string]any) map[string]string {
 
 // GetJSON returns the JSON string for the given language, falling back to "en".
 // The result is suitable for injection into frontend templates as a JS object.
-func GetJSON(lang string) template.JS {
+func GetJSON(lang string) string {
 	return globalStore.GetJSON(lang)
 }
 
 // GetJSON returns the JSON string for the given language, falling back to "en".
-func (s *Store) GetJSON(lang string) template.JS {
+func (s *Store) GetJSON(lang string) string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if j, ok := s.langJSON[lang]; ok {
-		return template.JS(j)
+		return j
 	}
 	if j, ok := s.langJSON["en"]; ok {
-		return template.JS(j)
+		return j
 	}
-	return template.JS("{}")
+	return "{}"
 }
 
 // GetMetaJSON returns the _meta section JSON for config_help metadata.
-func GetMetaJSON() template.JS {
+func GetMetaJSON() string {
 	return globalStore.GetMetaJSON()
 }
 
 // GetMetaJSON returns the _meta section JSON for config_help metadata.
-func (s *Store) GetMetaJSON() template.JS {
+func (s *Store) GetMetaJSON() string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return template.JS(s.metaJSON)
+	return s.metaJSON
 }
 
 // NormalizeLang converts a human-readable language string to an ISO code

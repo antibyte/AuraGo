@@ -113,5 +113,6 @@
   "config.updates.running": "Kör…",
   "config.web_scraper.summary_mode": "Sammanfattningsläge",
   "config.webdav.secret_empty": "Värdet är tomt",
-  "shared.tsnet.login_banner_link": "Öppna inloggningslänk"
+  "shared.tsnet.login_banner_link": "Öppna inloggningslänk",
+  "config.tailscale.tsnet_status_starting": "Väntar på autentisering…"
 }

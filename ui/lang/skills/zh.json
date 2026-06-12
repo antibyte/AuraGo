@@ -197,5 +197,6 @@
   "skills.agent_import_title": "导入 Agent Skill",
   "skills.agent_import_folder": "本地文件夹路径",
   "skills.agent_resources": "资源",
-  "skills.agent_test_title": "测试 Agent Skill 脚本"
+  "skills.agent_test_title": "测试 Agent Skill 脚本",
+  "skills.detail_security": "安全"
 }

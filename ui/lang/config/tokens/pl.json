@@ -12,5 +12,6 @@
   "config.tokens.deleted": "Token usunięty",
   "config.tokens.scopes_label": "Zakresy:",
   "config.tokens.toggle_disable": "Wyłącz",
-  "config.tokens.toggle_enable": "Włącz"
+  "config.tokens.toggle_enable": "Włącz",
+  "config.tokens.delete_confirm_title": "Usunąć token?"
 }

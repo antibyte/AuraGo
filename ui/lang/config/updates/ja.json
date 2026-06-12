@@ -68,5 +68,6 @@
   "config.updates.version": "バージョン",
   "config.updates.warning_banner": "このアップデートにより、バイナリ、プロンプト、UI ファイルが置き換えられます。 <strong>設定とデータは保持されます。</strong> アップデート後に AuraGo が再起動します。",
   "config.web_scraper.summary_mode": "サマリーモード",
-  "config.webdav.secret_empty": "値が空です"
+  "config.webdav.secret_empty": "値が空です",
+  "config.updates.confirm_install_title": "更新をインストールしますか？"
 }

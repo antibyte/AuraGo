@@ -80,5 +80,6 @@
   "config.updates.installing": "Instalowanie…",
   "config.updates.running": "Uruchomiono…",
   "config.web_scraper.summary_mode": "Tryb podsumowania",
-  "config.webdav.secret_empty": "Wartość jest pusta"
+  "config.webdav.secret_empty": "Wartość jest pusta",
+  "config.indexing.remove_confirm_title": "Usunąć indeksowaną ścieżkę?"
 }

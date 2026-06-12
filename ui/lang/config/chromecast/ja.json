@@ -37,5 +37,6 @@
   "config.chromecast.save": "保存",
   "config.chromecast.tts_port_label": "TTSポート",
   "config.chromecast.unknown": "不明",
-  "config.chromecast.port_placeholder": "8009"
+  "config.chromecast.port_placeholder": "8009",
+  "config.chromecast.delete_confirm_title": "Chromecast デバイスを削除しますか？"
 }

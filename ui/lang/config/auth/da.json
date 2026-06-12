@@ -27,11 +27,12 @@
   "config.auth.totp_desc": "Yderligere sikkerhed via autentificeringsapps (Google Authenticator, Authy osv.).",
   "config.auth.totp_disable": "Deaktiver TOTP",
   "config.auth.totp_disable_confirm": "Virkelig deaktivere TOTP-beskyttelse?",
-  "config.auth.totp_instructions": "1. Scan QR-koden med din autentificeringsapp, eller indtast nøglen manuelt.\u003cbr\u003e2. Indtast den 6-cifrede kode for at bekræfte.",
+  "config.auth.totp_instructions": "1. Scan QR-koden med din autentificeringsapp, eller indtast nøglen manuelt.<br>2. Indtast den 6-cifrede kode for at bekræfte.",
   "config.auth.totp_not_active": "ikke aktiv",
   "config.auth.totp_setup": "Indstil TOTP →",
   "config.auth.totp_title": "To-faktor-godkendelse (TOTP)",
   "config.auth.update_password": "Opdater",
   "config.auth.web_config_title": "Web konfiguration",
-  "config.auth.https_forces_auth": "HTTPS er aktiv. Login kan ikke deaktiveres."
+  "config.auth.https_forces_auth": "HTTPS er aktiv. Login kan ikke deaktiveres.",
+  "config.auth.totp_disable_confirm_title": "Deaktivér tofaktorgodkendelse?"
 }

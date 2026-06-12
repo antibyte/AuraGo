@@ -27,11 +27,12 @@
   "config.auth.totp_desc": "प्रमाणक ऐप्स (Google प्रमाणक, ऑथी, आदि) के माध्यम से अतिरिक्त सुरक्षा।",
   "config.auth.totp_disable": "TOTP अक्षम करें",
   "config.auth.totp_disable_confirm": "क्या वास्तव में TOTP सुरक्षा अक्षम है?",
-  "config.auth.totp_instructions": "1. अपने प्रमाणक ऐप से क्यूआर कोड को स्कैन करें या मैन्युअल रूप से कुंजी दर्ज करें।\u003cbr\u003e2. पुष्टि करने के लिए 6 अंकों का कोड दर्ज करें।",
+  "config.auth.totp_instructions": "1. अपने प्रमाणक ऐप से क्यूआर कोड को स्कैन करें या मैन्युअल रूप से कुंजी दर्ज करें।<br>2. पुष्टि करने के लिए 6 अंकों का कोड दर्ज करें।",
   "config.auth.totp_not_active": "सक्रिय नहीं",
   "config.auth.totp_setup": "TOTP सेट करें →",
   "config.auth.totp_title": "दो-कारक प्रमाणीकरण (टीओटीपी)",
   "config.auth.update_password": "अद्यतन",
   "config.auth.web_config_title": "वेब कॉन्फ़िगरेशन",
-  "config.auth.https_forces_auth": "HTTPS सक्रिय है। लॉगिन अक्षम नहीं किया जा सकता।"
+  "config.auth.https_forces_auth": "HTTPS सक्रिय है। लॉगिन अक्षम नहीं किया जा सकता।",
+  "config.auth.totp_disable_confirm_title": "दो-कारक प्रमाणीकरण अक्षम करें?"
 }

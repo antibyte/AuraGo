@@ -80,5 +80,6 @@
   "config.updates.installing": "Instaluji…",
   "config.updates.running": "Běží…",
   "config.web_scraper.summary_mode": "Režim shrnutí",
-  "config.webdav.secret_empty": "Hodnota je prázdná"
+  "config.webdav.secret_empty": "Hodnota je prázdná",
+  "config.indexing.remove_confirm_title": "Odebrat indexovanou cestu?"
 }

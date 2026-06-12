@@ -27,11 +27,12 @@
   "config.auth.totp_desc": "Zusätzliche Sicherheit via Authenticator-Apps (Google Authenticator, Authy, etc.).",
   "config.auth.totp_disable": "TOTP deaktivieren",
   "config.auth.totp_disable_confirm": "TOTP-Schutz wirklich deaktivieren?",
-  "config.auth.totp_instructions": "1. Scanne den QR-Code mit deiner Authenticator-App oder gib den Schlüssel manuell ein.\u003cbr\u003e2. Gib den 6-stelligen Code zur Bestätigung ein.",
+  "config.auth.totp_instructions": "1. Scanne den QR-Code mit deiner Authenticator-App oder gib den Schlüssel manuell ein.<br>2. Gib den 6-stelligen Code zur Bestätigung ein.",
   "config.auth.totp_not_active": "nicht aktiviert",
   "config.auth.totp_setup": "TOTP einrichten →",
   "config.auth.totp_title": "Zwei-Faktor-Authentifizierung (TOTP)",
   "config.auth.update_password": "Ändern",
   "config.auth.web_config_title": "Web-Konfiguration",
-  "config.auth.https_forces_auth": "HTTPS ist aktiv. Anmeldung kann nicht deaktiviert werden."
+  "config.auth.https_forces_auth": "HTTPS ist aktiv. Anmeldung kann nicht deaktiviert werden.",
+  "config.auth.totp_disable_confirm_title": "Zwei-Faktor-Authentifizierung deaktivieren?"
 }

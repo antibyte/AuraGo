@@ -113,5 +113,6 @@
   "config.updates.running": "चल रहा है…",
   "config.web_scraper.summary_mode": "सारांश मोड",
   "config.webdav.secret_empty": "मान खाली है",
-  "shared.tsnet.login_banner_link": "लॉगिन लिंक खोलें"
+  "shared.tsnet.login_banner_link": "लॉगिन लिंक खोलें",
+  "config.tailscale.tsnet_status_starting": "प्रमाणीकरण की प्रतीक्षा हो रही है…"
 }

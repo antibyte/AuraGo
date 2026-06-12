@@ -197,5 +197,6 @@
   "skills.agent_import_title": "Importa Agent Skill",
   "skills.agent_import_folder": "Percorso cartella locale",
   "skills.agent_resources": "Risorse",
-  "skills.agent_test_title": "Test script Agent Skill"
+  "skills.agent_test_title": "Test script Agent Skill",
+  "skills.detail_security": "Sicurezza"
 }

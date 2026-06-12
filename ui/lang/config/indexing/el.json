@@ -80,5 +80,6 @@
   "config.updates.installing": "Εγκατάσταση…",
   "config.updates.running": "Εκτελείται…",
   "config.web_scraper.summary_mode": "Λειτουργία περίληψης",
-  "config.webdav.secret_empty": "Η τιμή είναι κενή"
+  "config.webdav.secret_empty": "Η τιμή είναι κενή",
+  "config.indexing.remove_confirm_title": "Κατάργηση ευρετηριασμένης διαδρομής;"
 }

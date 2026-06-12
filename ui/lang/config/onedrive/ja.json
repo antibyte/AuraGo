@@ -74,5 +74,6 @@
   "config.updates.installing": "インストール中…",
   "config.updates.running": "実行中…",
   "config.web_scraper.summary_mode": "サマリーモード",
-  "config.webdav.secret_empty": "値が空です"
+  "config.webdav.secret_empty": "値が空です",
+  "config.onedrive.disconnect_confirm_title": "OneDrive を切断しますか？"
 }

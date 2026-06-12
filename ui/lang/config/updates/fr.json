@@ -68,5 +68,6 @@
   "config.updates.version": "Version",
   "config.updates.warning_banner": "La mise à jour remplace les binaires, prompts et fichiers UI. <strong>Votre configuration et vos données sont préservées.</strong> AuraGo redémarrera après la mise à jour.",
   "config.web_scraper.summary_mode": "Mode résumé",
-  "config.webdav.secret_empty": "La valeur est vide"
+  "config.webdav.secret_empty": "La valeur est vide",
+  "config.updates.confirm_install_title": "Installer la mise à jour ?"
 }

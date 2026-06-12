@@ -27,11 +27,12 @@
   "config.auth.totp_desc": "認証アプリ (Google Authenticator、Authy など) による追加のセキュリティ。",
   "config.auth.totp_disable": "TOTPを無効にする",
   "config.auth.totp_disable_confirm": "本当に TOTP 保護を無効にしますか?",
-  "config.auth.totp_instructions": "1. 認証アプリで QR コードをスキャンするか、キーを手動で入力します。\u003cbr\u003e2.確認のため6桁のコードを入力してください。",
+  "config.auth.totp_instructions": "1. 認証アプリで QR コードをスキャンするか、キーを手動で入力します。<br>2.確認のため6桁のコードを入力してください。",
   "config.auth.totp_not_active": "アクティブではありません",
   "config.auth.totp_setup": "TOTPを設定する →",
   "config.auth.totp_title": "二要素認証 (TOTP)",
   "config.auth.update_password": "更新",
   "config.auth.web_config_title": "ウェブ設定",
-  "config.auth.https_forces_auth": "HTTPSが有効です。ログインを無効にすることはできません。"
+  "config.auth.https_forces_auth": "HTTPSが有効です。ログインを無効にすることはできません。",
+  "config.auth.totp_disable_confirm_title": "二要素認証を無効にしますか？"
 }

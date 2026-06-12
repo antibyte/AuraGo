@@ -97,5 +97,6 @@
   "config.remote_control.pairing_token_failed": "无法创建令牌",
   "config.remote_control.pairing_token_ready": "配对令牌已就绪",
   "config.remote_control.pairing_token_expires": "过期时间:",
-  "config.remote_control.pairing_token_hint": "令牌有效期为一小时且只能使用一次。"
+  "config.remote_control.pairing_token_hint": "令牌有效期为一小时且只能使用一次。",
+  "config.remote_control.error_prefix": "错误："
 }

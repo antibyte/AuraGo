@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -75,14 +74,38 @@ func loadI18N(uiFS fs.FS, logger *slog.Logger) {
 
 // getI18NJSON returns the JSON string for the given language, falling back to "en".
 // Deprecated: Use i18n.GetJSON instead. This wrapper exists for backward compatibility.
-func getI18NJSON(lang string) template.JS {
+func getI18NJSON(lang string) string {
 	return i18n.GetJSON(lang)
 }
 
 // getI18NMetaJSON returns the _meta section JSON for config_help metadata.
 // Deprecated: Use i18n.GetMetaJSON instead. This wrapper exists for backward compatibility.
-func getI18NMetaJSON() template.JS {
+func getI18NMetaJSON() string {
 	return i18n.GetMetaJSON()
+}
+
+func panicRecoveryMiddleware(logger *slog.Logger, next http.Handler) http.Handler {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				logger.Error("HTTP handler panic", "path", r.URL.Path, "method", r.Method, "panic", recovered)
+				if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/v1/") {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					_ = json.NewEncoder(w).Encode(map[string]string{
+						"error":   "internal_server_error",
+						"message": "Internal server error",
+					})
+					return
+				}
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 // Server holds the state and dependencies for the web server and socket bridge.
@@ -1085,7 +1108,7 @@ func (s *Server) runHTTP(mux *http.ServeMux, ttsServer *http.Server, shutdownCh 
 	s.Logger.Info("Starting HTTP server", "host", s.Cfg.Server.Host, "port", s.Cfg.Server.Port, "tls", false)
 
 	// Apply security headers (relaxed for HTTP, but still present)
-	handler := accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy)
+	handler := panicRecoveryMiddleware(s.Logger, accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy))
 
 	server := &http.Server{
 		Addr:         addr,
@@ -1104,7 +1127,7 @@ func (s *Server) runHTTPS(mux *http.ServeMux, ttsServer *http.Server, tlsCfg *TL
 	tlsCfg.HTTPPort = s.Cfg.Server.HTTPS.HTTPPort
 
 	// Apply security headers (strict for HTTPS)
-	handler := accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy)
+	handler := panicRecoveryMiddleware(s.Logger, accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy))
 
 	httpsServer, httpServer, err := SetupServers(tlsCfg, handler, s.Logger)
 	if err != nil {

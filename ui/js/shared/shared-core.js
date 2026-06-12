@@ -9,7 +9,7 @@
 
 /**
  * Translate a key using the page's I18N dictionary.
- * Each page must define `const I18N = ...` before loading shared.js.
+ * Pages expose translations through js/shared/template-data.js before loading shared.js.
  * Supports {{placeholder}} interpolation.
  * @param {string} k - The translation key
  * @param {Object} [p] - Optional placeholder map

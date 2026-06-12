@@ -225,10 +225,7 @@ func TestSetupTemplateI18NInsertion(t *testing.T) {
 	}
 
 	lang := i18n.NormalizeLang("de")
-	data := map[string]interface{}{
-		"Lang": lang,
-		"I18N": i18n.GetJSON(lang),
-	}
+	data := uiTemplateData(lang)
 
 	var buf strings.Builder
 	if err := tmpl.Execute(&buf, data); err != nil {
@@ -237,18 +234,11 @@ func TestSetupTemplateI18NInsertion(t *testing.T) {
 
 	html := buf.String()
 
-	// Check that the inline script block has a proper I18N assignment
-	if !strings.Contains(html, `let I18N = {`) {
-		// Find what I18N is set to
-		idx := strings.Index(html, "let I18N = ")
-		if idx == -1 {
-			t.Fatal("I18N assignment not found in rendered HTML")
-		}
-		snippet := html[idx:]
-		if len(snippet) > 200 {
-			snippet = snippet[:200]
-		}
-		t.Fatalf("I18N assignment looks wrong: %s", snippet)
+	if !strings.Contains(html, `type="application/json" id="aurago-template-data"`) {
+		t.Fatal("setup template must expose i18n through the non-executable template data script")
+	}
+	if !strings.Contains(html, `/js/shared/template-data.js?v=`) {
+		t.Fatal("setup template must load the shared template-data parser")
 	}
 
 	// Verify a known German key appears in the rendered HTML
@@ -262,13 +252,13 @@ func TestSetupTemplateI18NInsertion(t *testing.T) {
 
 	t.Logf("Rendered HTML size: %d bytes", len(html))
 
-	// Extract the inline I18N object size
-	startIdx := strings.Index(html, "let I18N = ")
+	// Extract the inert template-data object size.
+	startIdx := strings.Index(html, `id="aurago-template-data">`)
 	if startIdx != -1 {
-		endIdx := strings.Index(html[startIdx:], ";\n")
+		endIdx := strings.Index(html[startIdx:], "</script>")
 		if endIdx != -1 {
-			i18nLine := html[startIdx : startIdx+endIdx]
-			t.Logf("I18N assignment length: %d chars", len(i18nLine))
+			templateData := html[startIdx : startIdx+endIdx]
+			t.Logf("Template data length: %d chars", len(templateData))
 		}
 	}
 }

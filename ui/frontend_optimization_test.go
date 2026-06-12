@@ -12,7 +12,7 @@ func TestChatTemplateExposesBuildVersionForLazyAssets(t *testing.T) {
 
 	html := readEmbeddedText(t, "index.html")
 	for _, want := range []string{
-		`"buildVersion":"{{.BuildVersion}}"`,
+		`{{.TemplateDataJSON}}`,
 		`/js/shared/template-data.js?v={{.BuildVersion}}`,
 	} {
 		if !strings.Contains(html, want) {
@@ -789,6 +789,28 @@ func TestChatAndDesktopAvoidExecutableInlineScriptsForCSPPrep(t *testing.T) {
 		if strings.Contains(sharedCore, forbidden) {
 			t.Fatalf("shared radial logout markup must not contain inline handler %q", forbidden)
 		}
+	}
+}
+
+func TestTemplatesUseSafeJSONTemplateDataForI18N(t *testing.T) {
+	t.Parallel()
+
+	pages := []string{"404.html", "config.html", "desktop.html", "index.html", "login.html"}
+	for _, page := range pages {
+		page := page
+		t.Run(page, func(t *testing.T) {
+			t.Parallel()
+			html := readEmbeddedText(t, page)
+			if strings.Contains(html, `const I18N = {{.I18N}}`) || strings.Contains(html, `const I18N_META = {{.I18NMeta}}`) {
+				t.Fatalf("%s must not inject i18n JSON through executable script constants", page)
+			}
+			if !strings.Contains(html, `type="application/json" id="aurago-template-data"`) {
+				t.Fatalf("%s must expose template data through a non-executable JSON script", page)
+			}
+			if !strings.Contains(html, `/js/shared/template-data.js?v={{.BuildVersion}}`) {
+				t.Fatalf("%s must load shared template-data parser with BuildVersion cache busting", page)
+			}
+		})
 	}
 }
 

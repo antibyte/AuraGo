@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -44,11 +45,33 @@ func formatUIBuildVersion(now time.Time) string {
 
 // uiTemplateData returns the common template data map shared by all HTML pages.
 func uiTemplateData(lang string) map[string]interface{} {
-	return map[string]interface{}{
+	data := map[string]interface{}{
 		"Lang":         lang,
-		"I18N":         getI18NJSON(lang),
 		"BuildVersion": uiBuildVersion,
 	}
+	setTemplateDataJSON(data, nil)
+	return data
+}
+
+func setTemplateDataJSON(data map[string]interface{}, extra map[string]any) {
+	lang, _ := data["Lang"].(string)
+	payload := map[string]any{
+		"systemLang":   lang,
+		"buildVersion": uiBuildVersion,
+		"i18n":         json.RawMessage(getI18NJSON(lang)),
+	}
+	for key, value := range extra {
+		payload[key] = value
+	}
+	data["TemplateDataJSON"] = safeTemplateDataJSON(payload)
+}
+
+func safeTemplateDataJSON(payload map[string]any) template.JS {
+	out, err := json.Marshal(payload)
+	if err != nil {
+		return template.JS(`{}`)
+	}
+	return template.JS(out)
 }
 
 // notFoundResponseWriter wraps http.ResponseWriter to detect 404 responses
@@ -570,7 +593,9 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
 			data := uiTemplateData(lang)
-			data["I18NMeta"] = getI18NMetaJSON()
+			setTemplateDataJSON(data, map[string]any{
+				"i18nMeta": json.RawMessage(getI18NMetaJSON()),
+			})
 			if err := cfgTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute config template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -860,9 +885,11 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			if tmpl != nil {
 				lang := normalizeLang(s.Cfg.Server.UILanguage)
 				data := uiTemplateData(lang)
-				data["ShowToolResults"] = s.Cfg.Agent.ShowToolResults
-				data["DebugMode"] = agent.GetDebugMode()
-				data["PersonalityEnabled"] = s.Cfg.Personality.Engine
+				setTemplateDataJSON(data, map[string]any{
+					"showToolResults":    s.Cfg.Agent.ShowToolResults,
+					"debugMode":          agent.GetDebugMode(),
+					"personalityEnabled": s.Cfg.Personality.Engine,
+				})
 				if err := tmpl.Execute(w, data); err != nil {
 					s.Logger.Error("Failed to execute UI template", "error", err)
 					http.Error(w, "Template render error", http.StatusInternalServerError)

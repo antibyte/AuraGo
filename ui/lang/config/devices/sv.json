@@ -55,5 +55,6 @@
   "config.devices.username_placeholder": "root",
   "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
   "config.devices.field_tags_label": "Taggar",
-  "config.devices.field_vault_secret_id_label": "Vault-hemlighets-ID"
+  "config.devices.field_vault_secret_id_label": "Vault-hemlighets-ID",
+  "config.devices.delete_confirm_title": "Ta bort enhet?"
 }

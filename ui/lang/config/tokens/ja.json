@@ -12,5 +12,6 @@
   "config.tokens.deleted": "トークンが削除されました",
   "config.tokens.scopes_label": "範囲:",
   "config.tokens.toggle_disable": "無効にする",
-  "config.tokens.toggle_enable": "有効にする"
+  "config.tokens.toggle_enable": "有効にする",
+  "config.tokens.delete_confirm_title": "トークンを削除しますか？"
 }

@@ -37,5 +37,6 @@
   "config.chromecast.save": "सहेजें",
   "config.chromecast.tts_port_label": "TTS पोर्ट",
   "config.chromecast.unknown": "अज्ञात",
-  "config.chromecast.port_placeholder": "8009"
+  "config.chromecast.port_placeholder": "8009",
+  "config.chromecast.delete_confirm_title": "Chromecast डिवाइस हटाएँ?"
 }
