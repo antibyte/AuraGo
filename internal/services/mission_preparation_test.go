@@ -32,8 +32,7 @@ func TestMissionPreparationServiceLoadsTemplateFromPromptsDir(t *testing.T) {
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 	)
 
-	service.Start(context.Background())
-	service.Stop()
+	service.loadPromptTemplate()
 
 	if service.promptTpl != template {
 		t.Fatalf("promptTpl = %q, want %q", service.promptTpl, template)

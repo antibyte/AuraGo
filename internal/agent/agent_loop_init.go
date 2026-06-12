@@ -260,7 +260,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 
 	cachedSysPromptKey := ""
 	cachedSysPrompt := ""
-	cachedSysPromptTokens := 0
 	cachedSysPromptAt := time.Time{}
 
 	// Session-scoped todo list piggybacked on tool calls
@@ -487,7 +486,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	s.detectedCtxWindow = detectedCtxWindow
 	s.cachedSysPromptKey = cachedSysPromptKey
 	s.cachedSysPrompt = cachedSysPrompt
-	s.cachedSysPromptTokens = cachedSysPromptTokens
 	s.cachedSysPromptAt = cachedSysPromptAt
 	s.sessionTodoList = sessionTodoList
 	s.personalityEnabled = personalityEnabled

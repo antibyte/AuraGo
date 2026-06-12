@@ -63,7 +63,14 @@ func (s *MissionPreparationService) SetAvailableTools(names []string) {
 func (s *MissionPreparationService) Start(ctx context.Context) {
 	ctx, s.cancel = context.WithCancel(ctx)
 
-	// Load prompt template
+	s.loadPromptTemplate()
+
+	s.logger.Info("[MissionPrep] Mission preparation service started")
+
+	go s.loop(ctx)
+}
+
+func (s *MissionPreparationService) loadPromptTemplate() {
 	s.cfgMu.RLock()
 	promptsDir := s.cfg.Directories.PromptsDir
 	s.cfgMu.RUnlock()
@@ -78,10 +85,6 @@ func (s *MissionPreparationService) Start(ctx context.Context) {
 	} else {
 		s.promptTpl = string(tplData)
 	}
-
-	s.logger.Info("[MissionPrep] Mission preparation service started")
-
-	go s.loop(ctx)
 }
 
 // Stop cancels the background loop.

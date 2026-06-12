@@ -1707,6 +1707,27 @@ func TestUnifiedMemoryBlockIncludesOperationalContexts(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptUnifiedMemoryDoesNotDuplicateOperationalContexts(t *testing.T) {
+	prompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), &ContextFlags{
+		Tier:                "full",
+		TokenBudget:         5000,
+		UnifiedMemoryBlock:  true,
+		ErrorPatternContext: "known error",
+		LearnedRulesContext: "learned rule",
+		ReuseContext:        "reuse hint",
+	}, "", slog.Default())
+
+	for _, marker := range []string{
+		"known error",
+		"learned rule",
+		"reuse hint",
+	} {
+		if got := strings.Count(prompt, marker); got != 1 {
+			t.Fatalf("%q appears %d times, want exactly once:\n%s", marker, got, prompt)
+		}
+	}
+}
+
 func TestLoadCorePersonalityContentCacheIsScopedByPromptDir(t *testing.T) {
 	ClearPromptCache()
 	firstDir := t.TempDir()

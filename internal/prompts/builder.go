@@ -701,23 +701,25 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 		}
 	}
 
-	// Error Pattern Context — inject known error patterns during error recovery
-	if flags.ErrorPatternContext != "" && tier != "minimal" {
-		finalPrompt.WriteString("# KNOWN ERROR PATTERNS\n")
-		finalPrompt.WriteString(security.IsolateExternalData(flags.ErrorPatternContext))
-		finalPrompt.WriteString("\n\n")
-	}
-	// Learned Rules — concrete action rules from recurring errors/recovery
-	if flags.LearnedRulesContext != "" && tier != "minimal" {
-		finalPrompt.WriteString("# LEARNED RULES\n")
-		finalPrompt.WriteString("Apply proactively if relevant to the current task.\n")
-		finalPrompt.WriteString(security.IsolateExternalData(flags.LearnedRulesContext))
-		finalPrompt.WriteString("\n\n")
-	}
-	if flags.ReuseContext != "" {
-		finalPrompt.WriteString("# REUSE-FIRST CONTEXT\n")
-		finalPrompt.WriteString(security.IsolateExternalData(flags.ReuseContext))
-		finalPrompt.WriteString("\n\n")
+	if !flags.UnifiedMemoryBlock {
+		// Error Pattern Context — inject known error patterns during error recovery
+		if flags.ErrorPatternContext != "" && tier != "minimal" {
+			finalPrompt.WriteString("# KNOWN ERROR PATTERNS\n")
+			finalPrompt.WriteString(security.IsolateExternalData(flags.ErrorPatternContext))
+			finalPrompt.WriteString("\n\n")
+		}
+		// Learned Rules — concrete action rules from recurring errors/recovery
+		if flags.LearnedRulesContext != "" && tier != "minimal" {
+			finalPrompt.WriteString("# LEARNED RULES\n")
+			finalPrompt.WriteString("Apply proactively if relevant to the current task.\n")
+			finalPrompt.WriteString(security.IsolateExternalData(flags.LearnedRulesContext))
+			finalPrompt.WriteString("\n\n")
+		}
+		if flags.ReuseContext != "" {
+			finalPrompt.WriteString("# REUSE-FIRST CONTEXT\n")
+			finalPrompt.WriteString(security.IsolateExternalData(flags.ReuseContext))
+			finalPrompt.WriteString("\n\n")
+		}
 	}
 	sectionMemories := finalPrompt.Len() - posBeforeMemoryContext
 

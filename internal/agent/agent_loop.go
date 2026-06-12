@@ -126,10 +126,9 @@ type agentLoopState struct {
 	cachedCompressionClient llm.ChatClient
 	cachedCompressionModel  string
 
-	cachedSysPromptKey    string
-	cachedSysPrompt       string
-	cachedSysPromptTokens int
-	cachedSysPromptAt     time.Time
+	cachedSysPromptKey string
+	cachedSysPrompt    string
+	cachedSysPromptAt  time.Time
 
 	emotionSynthesizer *memory.EmotionSynthesizer
 	meta               memory.PersonalityMeta

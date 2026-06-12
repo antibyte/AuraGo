@@ -106,7 +106,6 @@ func ensureTaskRulesBeforeToolExecution(s *agentLoopState, tc ToolCall, lastUser
 	applyTaskRulePromptContext(&s.flags, ctx)
 	s.cachedSysPromptKey = ""
 	s.cachedSysPrompt = ""
-	s.cachedSysPromptTokens = 0
 	s.cachedSysPromptAt = time.Time{}
 	return fmt.Sprintf(`{"status":"blocked","message":"Required task rules have been loaded for %s. The tool was not executed yet. Re-read the TASK RULES section and retry only if the requested action still complies with those rules."}`, tc.Action), true
 }
