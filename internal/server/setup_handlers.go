@@ -20,6 +20,7 @@ import (
 	"net/netip"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -355,6 +356,12 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 					s.LongTermMem = newVDB
 					if cols, colsErr := s.ShortTermMem.GetIndexedCollections(); colsErr == nil {
 						s.LongTermMem.RegisterCollections(cols)
+					}
+					toolGuidesDir := filepath.Join(newCfg.Directories.PromptsDir, "tools_manuals")
+					newVDB.IndexToolGuidesAsync(toolGuidesDir, false)
+					docDir := filepath.Join(filepath.Dir(newCfg.ConfigPath), "documentation")
+					if _, statErr := os.Stat(docDir); statErr == nil {
+						newVDB.IndexDirectoryAsync(docDir, "documentation", s.ShortTermMem, false)
 					}
 					warnings.WatchVectorDBRecovery(s.WarningsRegistry, newCfg, newVDB, s.Logger)
 					s.Logger.Info("[Setup] VectorDB re-initialized with embedding provider",

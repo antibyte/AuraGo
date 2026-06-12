@@ -28,6 +28,7 @@ const fileIndexerFingerprint = "file-indexer-v2"
 const (
 	indexingRetryMaxAttempts = 3
 	indexingRetryBackoffBase = 250 * time.Millisecond
+	fileIndexerStopWait      = 10 * time.Second
 )
 
 // IndexerStatus holds runtime statistics for the file indexer.
@@ -49,6 +50,8 @@ type FileIndexer struct {
 	stm               *memory.SQLiteMemory
 	logger            *slog.Logger
 	cancel            context.CancelFunc
+	lifecycleMu       sync.Mutex
+	runWg             sync.WaitGroup
 	scanMu            sync.Mutex
 	mu                sync.RWMutex
 	status            IndexerStatus
@@ -76,7 +79,9 @@ func NewFileIndexer(cfg *config.Config, cfgMu *sync.RWMutex, vectorDB memory.Vec
 // Start begins the indexing loop. It performs an initial scan and then polls
 // at the configured interval.
 func (fi *FileIndexer) Start(ctx context.Context) {
+	fi.lifecycleMu.Lock()
 	ctx, fi.cancel = context.WithCancel(ctx)
+	fi.lifecycleMu.Unlock()
 
 	fi.logger.Info("[Indexer] Starting file indexer",
 		"directories", fi.cfg.Indexing.Directories,
@@ -92,11 +97,11 @@ func (fi *FileIndexer) Start(ctx context.Context) {
 	// Ensure all configured directories exist
 	fi.ensureDirectories()
 
-	// Initial scan
-	fi.scan()
-
-	// Poll loop
+	fi.runWg.Add(1)
 	go func() {
+		defer fi.runWg.Done()
+		fi.scan()
+
 		ticker := time.NewTicker(fi.pollInterval())
 		defer ticker.Stop()
 		for {
@@ -116,8 +121,23 @@ func (fi *FileIndexer) Start(ctx context.Context) {
 
 // Stop gracefully stops the indexer.
 func (fi *FileIndexer) Stop() {
-	if fi.cancel != nil {
-		fi.cancel()
+	fi.lifecycleMu.Lock()
+	cancel := fi.cancel
+	fi.lifecycleMu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
+
+	done := make(chan struct{})
+	go func() {
+		fi.runWg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(fileIndexerStopWait):
+		fi.logger.Warn("[Indexer] Timed out waiting for file indexer to stop", "timeout", fileIndexerStopWait)
 	}
 }
 
@@ -702,7 +722,8 @@ func (fi *FileIndexer) getMultimodalEmbedder() *memory.MultimodalEmbedder {
 		return nil
 	}
 
-	cacheKey := baseURL + "|" + model + "|" + format + "|" + provType
+	keyHash := sha256.Sum256([]byte(apiKey))
+	cacheKey := baseURL + "|" + model + "|" + format + "|" + provType + "|" + hex.EncodeToString(keyHash[:])
 	fi.embedderMu.Lock()
 	defer fi.embedderMu.Unlock()
 	if fi.cachedEmbedder != nil && fi.cachedEmbedderKey == cacheKey {

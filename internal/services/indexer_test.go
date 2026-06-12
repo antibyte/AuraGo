@@ -269,6 +269,35 @@ func TestFileIndexerReindexesWhenEmbeddingFingerprintChanges(t *testing.T) {
 	}
 }
 
+func TestFileIndexerMultimodalEmbedderCacheKeyIncludesAPIKey(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	cfg := &config.Config{}
+	cfg.Embeddings.BaseURL = "https://example.test/v1"
+	cfg.Embeddings.Model = "embed-model"
+	cfg.Embeddings.MultimodalFormat = "image"
+	cfg.Embeddings.ProviderType = "openai"
+	cfg.Embeddings.APIKey = "first-key"
+	cfgMu := &sync.RWMutex{}
+	fi := NewFileIndexer(cfg, cfgMu, &fakeIndexerVectorDB{}, nil, logger)
+
+	first := fi.getMultimodalEmbedder()
+	if first == nil {
+		t.Fatal("first embedder is nil")
+	}
+
+	cfgMu.Lock()
+	cfg.Embeddings.APIKey = "second-key"
+	cfgMu.Unlock()
+
+	second := fi.getMultimodalEmbedder()
+	if second == nil {
+		t.Fatal("second embedder is nil")
+	}
+	if first == second {
+		t.Fatal("expected API key rotation to create a new multimodal embedder")
+	}
+}
+
 func TestFileIndexerRemovesEmbeddingsForDeletedFiles(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)
@@ -422,6 +451,125 @@ func TestFileIndexerSkipsOverlappingScans(t *testing.T) {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("first scan did not finish")
+	}
+}
+
+func TestFileIndexerStartReturnsBeforeInitialScanCompletes(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "note.txt"), []byte("index me slowly"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+	cfg.Indexing.PollIntervalSeconds = 60
+	cfgMu := &sync.RWMutex{}
+	vdb := &fakeIndexerVectorDB{storeStarted: make(chan struct{}), releaseStore: make(chan struct{})}
+	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
+
+	startReturned := make(chan struct{})
+	go func() {
+		fi.Start(context.Background())
+		close(startReturned)
+	}()
+
+	select {
+	case <-startReturned:
+	case <-time.After(100 * time.Millisecond):
+		blocked := true
+		close(vdb.releaseStore)
+		select {
+		case <-startReturned:
+		case <-time.After(time.Second):
+			t.Fatal("Start did not return after releasing the blocked scan")
+		}
+		fi.Stop()
+		if blocked {
+			t.Fatal("Start blocked on the initial scan")
+		}
+	}
+
+	select {
+	case <-vdb.storeStarted:
+	case <-time.After(time.Second):
+		close(vdb.releaseStore)
+		t.Fatal("initial scan did not start asynchronously")
+	}
+	close(vdb.releaseStore)
+	fi.Stop()
+}
+
+func TestFileIndexerStopWaitsForInFlightScan(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "note.txt"), []byte("index me slowly"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+	cfg.Indexing.PollIntervalSeconds = 60
+	cfgMu := &sync.RWMutex{}
+	vdb := &fakeIndexerVectorDB{storeStarted: make(chan struct{}), releaseStore: make(chan struct{})}
+	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
+	startReturned := make(chan struct{})
+	go func() {
+		fi.Start(context.Background())
+		close(startReturned)
+	}()
+
+	select {
+	case <-vdb.storeStarted:
+	case <-time.After(time.Second):
+		close(vdb.releaseStore)
+		t.Fatal("initial scan did not start")
+	}
+
+	select {
+	case <-startReturned:
+	case <-time.After(100 * time.Millisecond):
+		close(vdb.releaseStore)
+		select {
+		case <-startReturned:
+		case <-time.After(time.Second):
+			t.Fatal("Start did not return after releasing the blocked scan")
+		}
+		t.Fatal("Start blocked on the initial scan")
+	}
+
+	stopReturned := make(chan struct{})
+	go func() {
+		fi.Stop()
+		close(stopReturned)
+	}()
+
+	select {
+	case <-stopReturned:
+		close(vdb.releaseStore)
+		t.Fatal("Stop returned before the in-flight scan completed")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(vdb.releaseStore)
+	select {
+	case <-stopReturned:
+	case <-time.After(time.Second):
+		t.Fatal("Stop did not return after the scan was released")
 	}
 }
 

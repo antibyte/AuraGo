@@ -1047,6 +1047,13 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				s.Logger.Info("[Config UI] Synced 3D printers into device registry", "created", created, "updated", updated)
 			}
 		}
+		if loadErr == nil && embeddingsChanged && newCfg != nil {
+			if err := WriteEmbeddingsResetMarker(newCfg, s.Logger, "config_ui_embedding_change"); err != nil {
+				s.Logger.Error("[Config UI] Failed to schedule embeddings reset", "error", err)
+				jsonError(w, "Embeddings reset could not be scheduled", http.StatusInternalServerError)
+				return
+			}
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		if needsRestart {

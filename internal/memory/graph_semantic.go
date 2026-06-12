@@ -538,7 +538,7 @@ func (kg *KnowledgeGraph) getSemanticQueryEmbedding(query string) ([]float32, er
 	// Fast path: check cache under read-lock
 	kg.semantic.mu.Lock()
 	if entry, ok := kg.semantic.queryCache[query]; ok && time.Since(entry.timestamp) < kg.semantic.queryCacheTTL {
-		embedding := entry.embedding
+		embedding := cloneFloat32Slice(entry.embedding)
 		kg.semantic.mu.Unlock()
 		return embedding, nil
 	}
@@ -556,9 +556,10 @@ func (kg *KnowledgeGraph) getSemanticQueryEmbedding(query string) ([]float32, er
 	kg.semantic.mu.Lock()
 	defer kg.semantic.mu.Unlock()
 	if existing, ok := kg.semantic.queryCache[query]; ok && time.Since(existing.timestamp) < kg.semantic.queryCacheTTL {
-		return existing.embedding, nil
+		return cloneFloat32Slice(existing.embedding), nil
 	}
-	kg.semantic.queryCache[query] = queryCacheEntry{embedding: embedding, timestamp: time.Now()}
+	cachedEmbedding := cloneFloat32Slice(embedding)
+	kg.semantic.queryCache[query] = queryCacheEntry{embedding: cachedEmbedding, timestamp: time.Now()}
 	if len(kg.semantic.queryCache) > knowledgeGraphSemanticQueryCacheMaxSize {
 		now := time.Now()
 		var toDelete []string
@@ -580,7 +581,7 @@ func (kg *KnowledgeGraph) getSemanticQueryEmbedding(query string) ([]float32, er
 			delete(kg.semantic.queryCache, oldestKey)
 		}
 	}
-	return embedding, nil
+	return cloneFloat32Slice(cachedEmbedding), nil
 }
 
 func buildKnowledgeGraphSemanticContent(node Node) string {

@@ -605,6 +605,10 @@ func main() {
 		appLog.Warn("Web Push manager initialization failed -- push notifications disabled", "error", err)
 	}
 
+	if cfg.Embeddings.LocalOllama.Enabled {
+		tools.EnsureOllamaEmbeddingsRunning(cfg, appLog)
+	}
+
 	// Initialize Long-Term memory (VectorDB) after vault secrets are applied
 	// so that the embedding provider API key is available.
 	longTermMem, err := memory.NewChromemVectorDB(cfg, appLog)

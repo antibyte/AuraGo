@@ -265,6 +265,40 @@ func TestGetQueryEmbeddingReturnsCanceledCallerWithoutWaitingForSingleflight(t *
 	}
 }
 
+func TestGetQueryEmbeddingReturnsCacheCopies(t *testing.T) {
+	var calls atomic.Int32
+	cv := newTestChromemVectorDB(t, func(_ context.Context, _ string) ([]float32, error) {
+		calls.Add(1)
+		return []float32{1, 2, 3}, nil
+	})
+
+	first, err := cv.getQueryEmbedding(context.Background(), "copy me")
+	if err != nil {
+		t.Fatalf("first getQueryEmbedding: %v", err)
+	}
+	first[0] = 99
+
+	second, err := cv.getQueryEmbedding(context.Background(), "copy me")
+	if err != nil {
+		t.Fatalf("second getQueryEmbedding: %v", err)
+	}
+	if second[0] != 1 {
+		t.Fatalf("cached embedding was mutated through caller slice: got %v", second)
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("embedding calls = %d, want cached second lookup", got)
+	}
+	second[1] = 88
+
+	third, err := cv.getQueryEmbedding(context.Background(), "copy me")
+	if err != nil {
+		t.Fatalf("third getQueryEmbedding: %v", err)
+	}
+	if third[1] != 2 {
+		t.Fatalf("cached embedding was mutated by second caller slice: got %v", third)
+	}
+}
+
 func TestStoreBatchDoesNotSpawnOneGoroutinePerItem(t *testing.T) {
 	started := make(chan struct{})
 	release := make(chan struct{})
@@ -334,6 +368,107 @@ func TestIndexDirectoryReportsFileIndexReadError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "get file index") {
 		t.Fatalf("error = %v, want get file index context", err)
+	}
+}
+
+func TestIndexDirectoryStoresTrackedDocIDs(t *testing.T) {
+	cv := newTestChromemVectorDB(t, func(_ context.Context, _ string) ([]float32, error) {
+		return []float32{0.1, 0.2, 0.3}, nil
+	})
+	dir := t.TempDir()
+	path := filepath.Join(dir, "guide.md")
+	if err := os.WriteFile(path, []byte("hello index"), 0o644); err != nil {
+		t.Fatalf("write guide: %v", err)
+	}
+
+	stm, err := NewSQLiteMemory(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	if err := cv.IndexDirectory(dir, "docs", stm, true); err != nil {
+		t.Fatalf("IndexDirectory: %v", err)
+	}
+
+	docIDs, err := stm.GetFileEmbeddingDocIDs(path, "docs")
+	if err != nil {
+		t.Fatalf("GetFileEmbeddingDocIDs: %v", err)
+	}
+	if len(docIDs) == 0 {
+		t.Fatal("expected IndexDirectory to persist generated document IDs")
+	}
+}
+
+func TestIndexDirectoryClearsTrackingAfterAddFailure(t *testing.T) {
+	cv := newTestChromemVectorDB(t, func(_ context.Context, _ string) ([]float32, error) {
+		return nil, errors.New("embedding failed")
+	})
+	dir := t.TempDir()
+	path := filepath.Join(dir, "guide.md")
+	if err := os.WriteFile(path, []byte("hello index"), 0o644); err != nil {
+		t.Fatalf("write guide: %v", err)
+	}
+	modTime := time.Now().UTC().Truncate(time.Second)
+	if err := os.Chtimes(path, modTime, modTime); err != nil {
+		t.Fatalf("Chtimes: %v", err)
+	}
+
+	stm, err := NewSQLiteMemory(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+	if err := stm.UpdateFileIndexWithDocs(path, "docs", modTime, []string{"old-doc"}); err != nil {
+		t.Fatalf("UpdateFileIndexWithDocs: %v", err)
+	}
+
+	err = cv.IndexDirectory(dir, "docs", stm, true)
+	if err == nil {
+		t.Fatal("expected IndexDirectory add failure")
+	}
+
+	lastIndexed, err := stm.GetFileIndex(path, "docs")
+	if err != nil {
+		t.Fatalf("GetFileIndex: %v", err)
+	}
+	if !lastIndexed.IsZero() {
+		t.Fatalf("expected failed file tracking to be cleared, got %v", lastIndexed)
+	}
+}
+
+func TestIndexDirectoryRemovesDeletedTrackedMarkdownFiles(t *testing.T) {
+	cv := newTestChromemVectorDB(t, func(_ context.Context, _ string) ([]float32, error) {
+		return []float32{0.1, 0.2, 0.3}, nil
+	})
+	dir := t.TempDir()
+	path := filepath.Join(dir, "guide.md")
+	if err := os.WriteFile(path, []byte("hello index"), 0o644); err != nil {
+		t.Fatalf("write guide: %v", err)
+	}
+
+	stm, err := NewSQLiteMemory(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	if err := cv.IndexDirectory(dir, "docs", stm, true); err != nil {
+		t.Fatalf("IndexDirectory initial: %v", err)
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+
+	if err := cv.IndexDirectory(dir, "docs", stm, false); err != nil {
+		t.Fatalf("IndexDirectory cleanup: %v", err)
+	}
+	paths, err := stm.ListIndexedFiles("docs")
+	if err != nil {
+		t.Fatalf("ListIndexedFiles: %v", err)
+	}
+	if len(paths) != 0 {
+		t.Fatalf("expected deleted file tracking to be removed, got %v", paths)
 	}
 }
 

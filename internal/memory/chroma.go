@@ -163,6 +163,12 @@ func (cv *ChromemVectorDB) SearchToolGuides(query string, topK int) ([]string, e
 	if query == "" {
 		return nil, nil
 	}
+	doneSearch, err := cv.beginTrackedOperation(&cv.searchWg)
+	if err != nil {
+		return nil, err
+	}
+	defer doneSearch()
+
 	if err := cv.requireReadyForSearch(); err != nil {
 		return nil, err
 	}
@@ -229,7 +235,7 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 		return fmt.Errorf("failed to get/create %s collection: %w", collectionName, err)
 	}
 
-	// 2. Scan directory
+	currentMarkdown := make(map[string]struct{})
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return fmt.Errorf("failed to read directory %s: %w", dir, err)
@@ -238,10 +244,13 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 	type indexedFile struct {
 		path    string
 		modTime time.Time
+		source  string
+		docs    []chromem.Document
+		docIDs  []string
 	}
 
-	var newDocs []chromem.Document
 	var indexedFiles []indexedFile
+	totalDocs := 0
 
 	for _, file := range files {
 		if file.IsDir() || !strings.HasSuffix(file.Name(), ".md") {
@@ -249,6 +258,7 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 		}
 
 		path := filepath.Join(dir, file.Name())
+		currentMarkdown[path] = struct{}{}
 		info, err := file.Info()
 		if err != nil {
 			continue
@@ -267,12 +277,6 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 		}
 		cv.logger.Info("File new or changed, indexing for RAG", "path", path, "collection", collectionName)
 
-		// Delete stale docs for this file before re-indexing (handles chunk count changes).
-		fileTitle := strings.TrimSuffix(file.Name(), ".md")
-		if delErr := collection.Delete(ctx, map[string]string{"source": fileTitle}, nil); delErr != nil {
-			cv.logger.Warn("Failed to delete stale docs for file", "source", fileTitle, "error", delErr)
-		}
-
 		// 4. Read and Chunk
 		data, err := os.ReadFile(path)
 		if err != nil {
@@ -282,22 +286,26 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 
 		content := string(data)
 		title := strings.TrimSuffix(file.Name(), ".md")
+		planned := indexedFile{path: path, modTime: info.ModTime(), source: title}
 
 		// Simple chunking for indexing (if too large)
-		if len(content) <= 4000 {
-			newDocs = append(newDocs, chromem.Document{
-				ID: fmt.Sprintf("%s_%s", collectionName, title),
+		if utf8.RuneCountInString(content) <= 4000 {
+			docID := fmt.Sprintf("%s_%s", collectionName, title)
+			planned.docs = append(planned.docs, chromem.Document{
+				ID: docID,
 				Metadata: map[string]string{
 					"path":   path,
 					"source": title,
 				},
 				Content: title + "\n\n" + content,
 			})
+			planned.docIDs = append(planned.docIDs, docID)
 		} else {
 			chunks := chunkText(content, 3500, 200)
 			for i, chunk := range chunks {
-				newDocs = append(newDocs, chromem.Document{
-					ID: fmt.Sprintf("%s_%s_chunk_%d", collectionName, title, i),
+				docID := fmt.Sprintf("%s_%s_chunk_%d", collectionName, title, i)
+				planned.docs = append(planned.docs, chromem.Document{
+					ID: docID,
 					Metadata: map[string]string{
 						"path":   path,
 						"source": title,
@@ -305,40 +313,106 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 					},
 					Content: title + " (" + fmt.Sprintf("%d/%d", i+1, len(chunks)) + ")\n\n" + chunk,
 				})
+				planned.docIDs = append(planned.docIDs, docID)
 			}
 		}
 
 		// Track this file for SQLite timestamp update after successful indexing
-		indexedFiles = append(indexedFiles, indexedFile{path: path, modTime: info.ModTime()})
+		if len(planned.docs) > 0 {
+			indexedFiles = append(indexedFiles, planned)
+			totalDocs += len(planned.docs)
+		}
 	}
 
-	if len(newDocs) == 0 {
+	if stm != nil {
+		trackedPaths, listErr := stm.ListIndexedFiles(collectionName)
+		if listErr != nil {
+			return fmt.Errorf("list indexed files for %s: %w", collectionName, listErr)
+		}
+		for _, trackedPath := range trackedPaths {
+			if !isPathWithinDirectory(trackedPath, dir) {
+				continue
+			}
+			if _, ok := currentMarkdown[trackedPath]; ok {
+				continue
+			}
+			docIDs, idsErr := stm.GetFileEmbeddingDocIDs(trackedPath, collectionName)
+			if idsErr != nil {
+				return fmt.Errorf("get tracked doc ids for %s in %s: %w", trackedPath, collectionName, idsErr)
+			}
+			source := strings.TrimSuffix(filepath.Base(trackedPath), ".md")
+			for _, docID := range docIDs {
+				if delErr := collection.Delete(ctx, nil, nil, docID); delErr != nil {
+					cv.logger.Warn("Failed to delete stale docs for removed file by id", "path", trackedPath, "doc_id", docID, "error", delErr)
+				}
+			}
+			if len(docIDs) == 0 {
+				if delErr := collection.Delete(ctx, map[string]string{"source": source}, nil); delErr != nil {
+					cv.logger.Warn("Failed to delete stale docs for removed file by source", "path", trackedPath, "source", source, "error", delErr)
+				}
+			}
+			if delErr := stm.DeleteFileIndex(trackedPath, collectionName); delErr != nil {
+				return fmt.Errorf("delete file index for removed file %s in %s: %w", trackedPath, collectionName, delErr)
+			}
+			cv.logger.Info("Removed stale RAG docs for deleted file", "path", trackedPath, "collection", collectionName)
+		}
+	}
+
+	if len(indexedFiles) == 0 {
 		cv.logger.Info("No new/changed documents to index", "dir", dir)
 		return nil
 	}
 
-	// 6. Batch Add
 	concurrency := 4
-	cv.logger.Info("Indexing directory...", "dir", dir, "total_docs", len(newDocs))
-	if err := collection.AddDocuments(ctx, newDocs, concurrency); err != nil {
-		return fmt.Errorf("failed to add documents: %w", err)
-	}
-
-	// 7. Success! Update SQLite only for files that were actually indexed
-	if stm != nil {
-		var updateErr error
-		for _, f := range indexedFiles {
-			if err := stm.UpdateFileIndex(f.path, collectionName, f.modTime); err != nil {
+	cv.logger.Info("Indexing directory...", "dir", dir, "total_docs", totalDocs)
+	var updateErr error
+	for _, f := range indexedFiles {
+		if delErr := collection.Delete(ctx, map[string]string{"source": f.source}, nil); delErr != nil {
+			cv.logger.Warn("Failed to delete stale docs for file", "source", f.source, "error", delErr)
+		}
+		fileConcurrency := concurrency
+		if len(f.docs) < fileConcurrency {
+			fileConcurrency = len(f.docs)
+		}
+		if fileConcurrency <= 0 {
+			fileConcurrency = 1
+		}
+		if err := collection.AddDocuments(ctx, f.docs, fileConcurrency); err != nil {
+			if stm != nil {
+				if delErr := stm.DeleteFileIndex(f.path, collectionName); delErr != nil {
+					updateErr = errors.Join(updateErr, fmt.Errorf("delete failed file index for %s in %s: %w", f.path, collectionName, delErr))
+				}
+			}
+			return errors.Join(updateErr, fmt.Errorf("failed to add documents for %s: %w", f.path, err))
+		}
+		if stm != nil {
+			if err := stm.UpdateFileIndexWithDocs(f.path, collectionName, f.modTime, f.docIDs); err != nil {
 				updateErr = errors.Join(updateErr, fmt.Errorf("update file index for %s in %s: %w", f.path, collectionName, err))
 			}
 		}
-		if updateErr != nil {
-			return updateErr
-		}
+	}
+	if updateErr != nil {
+		return updateErr
 	}
 
-	cv.logger.Info("Directory indexing completed", "dir", dir, "new_count", len(newDocs))
+	cv.logger.Info("Directory indexing completed", "dir", dir, "new_count", totalDocs)
 	return nil
+}
+
+func isPathWithinDirectory(path, dir string) bool {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		absPath = filepath.Clean(path)
+	}
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		absDir = filepath.Clean(dir)
+	}
+	rel, err := filepath.Rel(absDir, absPath)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)))
 }
 
 // computeToolGuidesHash computes a SHA-256 hash of all .md files in toolsDir,
@@ -367,7 +441,6 @@ func loadToolGuideFiles(toolsDir string) ([]toolGuideFile, error) {
 	files, err := os.ReadDir(toolsDir)
 	if err == nil {
 		guides := make([]toolGuideFile, 0, len(files))
-		var readErrs []error
 		for _, file := range files {
 			if file.IsDir() || !strings.HasSuffix(file.Name(), ".md") {
 				continue
@@ -375,7 +448,6 @@ func loadToolGuideFiles(toolsDir string) ([]toolGuideFile, error) {
 			path := filepath.Join(toolsDir, file.Name())
 			data, readErr := os.ReadFile(path)
 			if readErr != nil {
-				readErrs = append(readErrs, fmt.Errorf("read tool guide %s: %w", path, readErr))
 				continue
 			}
 			guides = append(guides, toolGuideFile{
@@ -384,7 +456,7 @@ func loadToolGuideFiles(toolsDir string) ([]toolGuideFile, error) {
 				Data: data,
 			})
 		}
-		return guides, errors.Join(readErrs...)
+		return guides, nil
 	}
 
 	embedEntries, embedErr := fs.ReadDir(promptsembed.FS, "tools_manuals")
@@ -392,7 +464,6 @@ func loadToolGuideFiles(toolsDir string) ([]toolGuideFile, error) {
 		return nil, fmt.Errorf("failed to read tools directory: %w", err)
 	}
 	guides := make([]toolGuideFile, 0, len(embedEntries))
-	var readErrs []error
 	for _, entry := range embedEntries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
 			continue
@@ -400,7 +471,6 @@ func loadToolGuideFiles(toolsDir string) ([]toolGuideFile, error) {
 		embedPath := filepath.ToSlash(filepath.Join("tools_manuals", entry.Name()))
 		data, readErr := fs.ReadFile(promptsembed.FS, embedPath)
 		if readErr != nil {
-			readErrs = append(readErrs, fmt.Errorf("read embedded tool guide %s: %w", embedPath, readErr))
 			continue
 		}
 		guides = append(guides, toolGuideFile{
@@ -409,7 +479,7 @@ func loadToolGuideFiles(toolsDir string) ([]toolGuideFile, error) {
 			Data: data,
 		})
 	}
-	return guides, errors.Join(readErrs...)
+	return guides, nil
 }
 
 // splitFrontmatter splits a YAML frontmatter document (---\n...\n---\n...) into

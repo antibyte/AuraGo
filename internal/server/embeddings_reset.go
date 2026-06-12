@@ -69,9 +69,9 @@ func ApplyPendingEmbeddingsReset(cfg *config.Config, stm *memory.SQLiteMemory, k
 		return false, fmt.Errorf("stat reset marker: %w", err)
 	}
 
-	vectorDir := cfg.Directories.VectorDBDir
-	if vectorDir == "" {
-		return false, fmt.Errorf("vector db dir is empty")
+	vectorDir, err := validateEmbeddingsVectorDir(cfg)
+	if err != nil {
+		return false, err
 	}
 	if err := os.RemoveAll(vectorDir); err != nil {
 		return false, fmt.Errorf("remove vector db dir: %w", err)
@@ -86,16 +86,72 @@ func ApplyPendingEmbeddingsReset(cfg *config.Config, stm *memory.SQLiteMemory, k
 		return false, fmt.Errorf("clear memory meta: %w", err)
 	}
 	resetKGFileSyncEntities(kg, logger)
+
+	if err := resetKGSemanticIndex(cfg, kg, logger); err != nil {
+		return false, fmt.Errorf("reset KG semantic index: %w", err)
+	}
 	if err := os.Remove(markerPath); err != nil {
 		return false, fmt.Errorf("remove reset marker: %w", err)
 	}
-
-	resetKGSemanticIndex(cfg, kg, logger)
 
 	if logger != nil {
 		logger.Warn("[Embeddings] Applied pending embeddings reset", "vector_dir", vectorDir)
 	}
 	return true, nil
+}
+
+func validateEmbeddingsVectorDir(cfg *config.Config) (string, error) {
+	if cfg == nil {
+		return "", fmt.Errorf("config is required")
+	}
+	vectorDir := strings.TrimSpace(cfg.Directories.VectorDBDir)
+	if vectorDir == "" {
+		return "", fmt.Errorf("vector db dir is empty")
+	}
+	absVectorDir, err := filepath.Abs(vectorDir)
+	if err != nil {
+		return "", fmt.Errorf("resolve vector db dir: %w", err)
+	}
+	absVectorDir = filepath.Clean(absVectorDir)
+	if isFilesystemRoot(absVectorDir) {
+		return "", fmt.Errorf("refusing to remove filesystem root as vector db dir: %s", absVectorDir)
+	}
+
+	var roots []string
+	if dataDir := strings.TrimSpace(cfg.Directories.DataDir); dataDir != "" {
+		if absDataDir, err := filepath.Abs(dataDir); err == nil {
+			roots = append(roots, filepath.Clean(absDataDir))
+		}
+	}
+	if configPath := strings.TrimSpace(cfg.ConfigPath); configPath != "" {
+		if absConfigPath, err := filepath.Abs(configPath); err == nil {
+			roots = append(roots, filepath.Dir(filepath.Clean(absConfigPath)))
+		}
+	}
+	for _, root := range roots {
+		if pathWithinRoot(absVectorDir, root) {
+			return absVectorDir, nil
+		}
+	}
+	if len(roots) == 0 {
+		return "", fmt.Errorf("cannot validate vector db dir without data dir or config path")
+	}
+	return "", fmt.Errorf("vector db dir %s is outside configured app roots", absVectorDir)
+}
+
+func isFilesystemRoot(path string) bool {
+	clean := filepath.Clean(path)
+	volume := filepath.VolumeName(clean)
+	root := volume + string(filepath.Separator)
+	return clean == root || clean == string(filepath.Separator)
+}
+
+func pathWithinRoot(path, root string) bool {
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
 
 func resetKGFileSyncEntities(kg *memory.KnowledgeGraph, logger *slog.Logger) {
@@ -165,25 +221,26 @@ func resetKGFileSyncEntities(kg *memory.KnowledgeGraph, logger *slog.Logger) {
 	}
 }
 
-func resetKGSemanticIndex(cfg *config.Config, kg *memory.KnowledgeGraph, logger *slog.Logger) {
+func resetKGSemanticIndex(cfg *config.Config, kg *memory.KnowledgeGraph, logger *slog.Logger) error {
 	// Use the provided KnowledgeGraph directly
 	if kg == nil {
 		if logger != nil {
 			logger.Warn("[Embeddings] KG not available for semantic reset")
 		}
-		return
+		return nil
 	}
 
 	if err := kg.ResetSemanticIndex(); err != nil {
 		if logger != nil {
 			logger.Warn("[Embeddings] Failed to reset KG semantic index", "error", err)
 		}
-		return
+		return err
 	}
 
 	if logger != nil {
 		logger.Info("[Embeddings] KG semantic index reset — will be rebuilt with new model")
 	}
+	return nil
 }
 
 func embeddingsConfigChanged(oldCfg, newCfg config.Config) bool {

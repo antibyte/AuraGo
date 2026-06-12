@@ -217,13 +217,19 @@ func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *
 	}
 
 	if bundle.SourceMap["ltm"] && longTermMem != nil && hasSemanticQuery {
-		results, docIDs, err := longTermMem.SearchSimilar(searchContent, perSourceLimit, "tool_guides", "documentation")
-		if err != nil {
-			bundle.Errors = append(bundle.Errors, fmt.Sprintf("%s: %v", labelFor("ltm"), err))
-		} else if len(results) > 0 {
-			results = filterArchivedMemoryResults(results, docIDs, shortTermMem)
-			if len(results) > 0 {
-				bundle.Results = append(bundle.Results, memorySourceResult{Source: labelFor("ltm"), Count: len(results), Data: results})
+		if !longTermMem.IsReady() || longTermMem.IsDisabled() {
+			// VectorDB can be unavailable during startup validation or after an
+			// embedding-provider failure. Skip it without surfacing internal
+			// readiness errors to the user-facing memory bundle.
+		} else {
+			results, docIDs, err := longTermMem.SearchSimilar(searchContent, perSourceLimit, "tool_guides", "documentation")
+			if err != nil {
+				bundle.Errors = append(bundle.Errors, fmt.Sprintf("%s: %v", labelFor("ltm"), err))
+			} else if len(results) > 0 {
+				results = filterArchivedMemoryResults(results, docIDs, shortTermMem)
+				if len(results) > 0 {
+					bundle.Results = append(bundle.Results, memorySourceResult{Source: labelFor("ltm"), Count: len(results), Data: results})
+				}
 			}
 		}
 	}

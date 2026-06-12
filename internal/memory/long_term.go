@@ -183,6 +183,15 @@ func waitForAsync(wait func()) chan struct{} {
 	return done
 }
 
+func cloneFloat32Slice(in []float32) []float32 {
+	if in == nil {
+		return nil
+	}
+	out := make([]float32, len(in))
+	copy(out, in)
+	return out
+}
+
 // GetDB returns the underlying chromem.DB so other subsystems (e.g. KnowledgeGraph
 // semantic index) can share the same open database handle instead of opening a second one.
 func (cv *ChromemVectorDB) GetDB() *chromem.DB {
@@ -207,6 +216,12 @@ func (cv *ChromemVectorDB) EmbeddingFingerprint() string {
 // Returns the persisted count even when the embedding pipeline is disabled,
 // because counting does not require embeddings.
 func (cv *ChromemVectorDB) Count() int {
+	doneCount, err := cv.beginTrackedOperation(&cv.searchWg)
+	if err != nil {
+		return 0
+	}
+	defer doneCount()
+
 	cv.mu.RLock()
 	db := cv.db
 	primary := cv.collection
@@ -612,6 +627,12 @@ func (cv *ChromemVectorDB) storeDocumentLocked(concept, content, domain string) 
 // StoreDocumentInCollection stores a document in a specific collection.
 // This is used by the FileIndexer to route documents to per-directory collections.
 func (cv *ChromemVectorDB) StoreDocumentInCollection(concept, content, collection string) ([]string, error) {
+	doneStore, err := cv.beginTrackedOperation(&cv.storeWg)
+	if err != nil {
+		return nil, err
+	}
+	defer doneStore()
+
 	return cv.storeDocumentInCollectionWithDomain(concept, content, collection, "")
 }
 
@@ -719,6 +740,12 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content,
 // This bypasses the text embedding function, allowing multimodal content (images, audio)
 // to be stored with externally computed embeddings.
 func (cv *ChromemVectorDB) StoreDocumentWithEmbedding(concept, content string, embedding []float32) (string, error) {
+	doneStore, err := cv.beginTrackedOperation(&cv.storeWg)
+	if err != nil {
+		return "", err
+	}
+	defer doneStore()
+
 	if err := cv.requireReadyForStore(); err != nil {
 		return "", err
 	}
@@ -756,6 +783,12 @@ func (cv *ChromemVectorDB) StoreDocumentWithEmbedding(concept, content string, e
 // StoreDocumentWithEmbeddingInCollection stores a document with a pre-computed embedding vector
 // in a specific collection. This is used by the FileIndexer for multimodal content.
 func (cv *ChromemVectorDB) StoreDocumentWithEmbeddingInCollection(concept, content string, embedding []float32, collection string) (string, error) {
+	doneStore, err := cv.beginTrackedOperation(&cv.storeWg)
+	if err != nil {
+		return "", err
+	}
+	defer doneStore()
+
 	if err := cv.requireReadyForStore(); err != nil {
 		return "", err
 	}
@@ -904,6 +937,12 @@ func (cv *ChromemVectorDB) StoreCheatsheet(id, name, content string, attachments
 // DeleteCheatsheet removes all vector entries associated with a cheatsheet ID
 // by using the cs_id metadata filter.
 func (cv *ChromemVectorDB) DeleteCheatsheet(id string) error {
+	doneStore, err := cv.beginTrackedOperation(&cv.storeWg)
+	if err != nil {
+		return err
+	}
+	defer doneStore()
+
 	if err := cv.requireReadyForStore(); err != nil {
 		return err
 	}
@@ -1120,6 +1159,12 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 // SearchSimilarScored finds the topK most semantically similar documents across
 // all relevant collections and preserves their decayed similarity scores.
 func (cv *ChromemVectorDB) SearchSimilarScored(query string, topK int, excludeCollections ...string) ([]SearchResult, error) {
+	doneSearch, err := cv.beginTrackedOperation(&cv.searchWg)
+	if err != nil {
+		return nil, err
+	}
+	defer doneSearch()
+
 	if err := cv.requireReadyForSearch(); err != nil {
 		return nil, err
 	}
@@ -1261,9 +1306,8 @@ func (cv *ChromemVectorDB) SearchSimilarScored(query string, topK int, excludeCo
 	}
 
 finalizeResults:
-	if !waitForWaitGroup(&wg, 100*time.Millisecond) {
-		cv.logger.Warn("SearchSimilar: returning before all collection queries completed", "collected", len(allResults))
-	}
+	cancel()
+	wg.Wait()
 
 	// Sort by similarity descending and enforce global topK limit
 	sort.Slice(allResults, func(i, j int) bool {
@@ -1291,6 +1335,12 @@ func (cv *ChromemVectorDB) SearchMemoriesOnly(query string, topK int) ([]string,
 
 // SearchMemoriesOnlyScored searches only aurago_memories and preserves scores.
 func (cv *ChromemVectorDB) SearchMemoriesOnlyScored(query string, topK int) ([]SearchResult, error) {
+	doneSearch, err := cv.beginTrackedOperation(&cv.searchWg)
+	if err != nil {
+		return nil, err
+	}
+	defer doneSearch()
+
 	if err := cv.requireReadyForSearch(); err != nil {
 		return nil, err
 	}
@@ -1363,6 +1413,12 @@ func splitSearchResults(results []SearchResult) ([]string, []string) {
 // falls back to the file_index collection if not found in aurago_memories.
 // This maintains backward compatibility while supporting collection-aware FileIndexer lookups.
 func (cv *ChromemVectorDB) GetByID(id string) (string, error) {
+	doneSearch, err := cv.beginTrackedOperation(&cv.searchWg)
+	if err != nil {
+		return "", err
+	}
+	defer doneSearch()
+
 	if err := cv.requireReadyForStore(); err != nil {
 		return "", err
 	}
@@ -1428,6 +1484,12 @@ func (cv *ChromemVectorDB) RegisterCollections(collections []string) {
 
 // GetByIDFromCollection retrieves a document from a specific collection by its ID.
 func (cv *ChromemVectorDB) GetByIDFromCollection(id, collection string) (string, error) {
+	doneSearch, err := cv.beginTrackedOperation(&cv.searchWg)
+	if err != nil {
+		return "", err
+	}
+	defer doneSearch()
+
 	if err := cv.requireReadyForStore(); err != nil {
 		return "", err
 	}
@@ -1505,6 +1567,12 @@ func (cv *ChromemVectorDB) searchTopSimilarMemory(concept string) (string, float
 // SQLite tracking cleanup is owned by SQLiteMemory so callers can decide whether
 // to preserve memory_meta rows for archived-memory review workflows.
 func (cv *ChromemVectorDB) DeleteDocument(id string) error {
+	doneStore, err := cv.beginTrackedOperation(&cv.storeWg)
+	if err != nil {
+		return err
+	}
+	defer doneStore()
+
 	if err := cv.requireReadyForStore(); err != nil {
 		return err
 	}
@@ -1527,6 +1595,12 @@ func (cv *ChromemVectorDB) DeleteDocumentWithCleanup(id string) error {
 
 // DeleteDocumentFromCollection removes a specific document from a named collection.
 func (cv *ChromemVectorDB) DeleteDocumentFromCollection(id, collection string) error {
+	doneStore, err := cv.beginTrackedOperation(&cv.storeWg)
+	if err != nil {
+		return err
+	}
+	defer doneStore()
+
 	if err := cv.requireReadyForStore(); err != nil {
 		return err
 	}
@@ -1547,13 +1621,14 @@ func (cv *ChromemVectorDB) DeleteDocumentFromCollection(id, collection string) e
 func (cv *ChromemVectorDB) getQueryEmbedding(ctx context.Context, query string) ([]float32, error) {
 	cv.queryCacheMu.RLock()
 	if entry, ok := cv.queryCache[query]; ok && time.Since(entry.timestamp) < cv.queryCacheTTL {
+		embedding := cloneFloat32Slice(entry.embedding)
 		cv.queryCacheMu.RUnlock()
-		return entry.embedding, nil
+		return embedding, nil
 	}
 	cv.queryCacheMu.RUnlock()
 
 	resultCh := cv.sfGroup.DoChan(query, func() (interface{}, error) {
-		internalCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		internalCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 		return cv.embeddingFunc(internalCtx, query)
 	})
@@ -1567,12 +1642,14 @@ func (cv *ChromemVectorDB) getQueryEmbedding(ctx context.Context, query string) 
 		err = result.Err
 	}
 	if err != nil {
+		cv.sfGroup.Forget(query)
 		return nil, err
 	}
 	embedding := res.([]float32)
+	cachedEmbedding := cloneFloat32Slice(embedding)
 
 	cv.queryCacheMu.Lock()
-	cv.queryCache[query] = queryCacheEntry{embedding: embedding, timestamp: time.Now()}
+	cv.queryCache[query] = queryCacheEntry{embedding: cachedEmbedding, timestamp: time.Now()}
 	// Evict old entries if cache grows too large (> 200 entries).
 	// First pass: remove expired entries. If none expired, remove the oldest entry
 	// to enforce a hard cap and prevent unbounded growth under unique-query load.
@@ -1601,7 +1678,7 @@ func (cv *ChromemVectorDB) getQueryEmbedding(ctx context.Context, query string) 
 	}
 	cv.queryCacheMu.Unlock()
 
-	return embedding, nil
+	return cloneFloat32Slice(cachedEmbedding), nil
 }
 
 // ExtractSimilarityScore extracts the similarity value from a formatted search result string.
@@ -1657,6 +1734,12 @@ func (cv *ChromemVectorDB) IsIndexing() bool {
 // This avoids cold-start latency where every new search requires an embedding API call.
 // Errors are logged but not returned — preloading is best-effort.
 func (cv *ChromemVectorDB) PreloadCache(queries []string) {
+	doneSearch, err := cv.beginTrackedOperation(&cv.searchWg)
+	if err != nil {
+		return
+	}
+	defer doneSearch()
+
 	if !cv.ready.Load() || cv.disabled.Load() || len(queries) == 0 {
 		return
 	}
@@ -1681,7 +1764,7 @@ func (cv *ChromemVectorDB) PreloadCache(queries []string) {
 		}
 
 		cv.queryCacheMu.Lock()
-		cv.queryCache[query] = queryCacheEntry{embedding: embedding, timestamp: time.Now()}
+		cv.queryCache[query] = queryCacheEntry{embedding: cloneFloat32Slice(embedding), timestamp: time.Now()}
 		cv.queryCacheMu.Unlock()
 	}
 	cv.logger.Info("Preloaded query embedding cache", "queries", len(queries))
