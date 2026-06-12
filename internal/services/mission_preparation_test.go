@@ -4,13 +4,44 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
 	"aurago/internal/config"
 	"aurago/internal/tools"
 )
+
+func TestMissionPreparationServiceLoadsTemplateFromPromptsDir(t *testing.T) {
+	promptsDir := t.TempDir()
+	template := "mission-prep-template {{.MaxEssentialTools}}"
+	if err := os.WriteFile(filepath.Join(promptsDir, "mission_preparation.md"), []byte(template), 0o644); err != nil {
+		t.Fatalf("write template: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.PromptsDir = promptsDir
+	var cfgMu sync.RWMutex
+	service := NewMissionPreparationService(
+		cfg,
+		&cfgMu,
+		nil,
+		nil,
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
+
+	service.Start(context.Background())
+	service.Stop()
+
+	if service.promptTpl != template {
+		t.Fatalf("promptTpl = %q, want %q", service.promptTpl, template)
+	}
+	if got := service.buildSystemPrompt(7); !strings.Contains(got, "mission-prep-template 7") {
+		t.Fatalf("buildSystemPrompt did not use loaded template: %q", got)
+	}
+}
 
 func TestAutoPrepareEligibleRequiresMissionOptInForScheduledMissions(t *testing.T) {
 	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{
