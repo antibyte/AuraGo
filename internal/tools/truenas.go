@@ -308,6 +308,11 @@ func TrueNASSnapshotCreate(cfg config.TrueNASConfig, dataset, name string, recur
 	if err := validateTrueNASDatasetName(dataset); err != nil {
 		return errJSON("%s", err.Error())
 	}
+	if name != "" {
+		if err := validateTrueNASSnapshotName(name); err != nil {
+			return errJSON("%s", err.Error())
+		}
+	}
 
 	client, err := truenas.NewClient(cfg, nil)
 	if err != nil {
@@ -428,6 +433,9 @@ func TrueNASSMBCreate(cfg config.TrueNASConfig, name, path string, guestOK, time
 		return errJSON("SMB share creation is disabled (readonly mode)")
 	}
 
+	if err := validateTrueNASShareName(name); err != nil {
+		return errJSON("%s", err.Error())
+	}
 	if err := validateTrueNASPath(path); err != nil {
 		return errJSON("%s", err.Error())
 	}
@@ -633,6 +641,13 @@ func validateTrueNASSnapshotName(name string) error {
 func validateTrueNASPath(path string) error {
 	if strings.Contains(path, "..") {
 		return fmt.Errorf("Invalid path: path traversal detected")
+	}
+	return nil
+}
+
+func validateTrueNASShareName(name string) error {
+	if strings.Contains(name, "..") || strings.Contains(name, "/") {
+		return fmt.Errorf("Invalid share name: path traversal detected")
 	}
 	return nil
 }
