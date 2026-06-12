@@ -59,6 +59,7 @@ func TestDeduplicateLines_Mixed(t *testing.T) {
 		t.Error("should collapse repeated middle section")
 	}
 }
+
 // ─── Whitespace Collapse Tests ──────────────────────────────────────────────
 
 func TestCollapseWhitespace_Empty(t *testing.T) {
@@ -88,6 +89,7 @@ func TestCollapseWhitespace_TrailingSpaces(t *testing.T) {
 		}
 	}
 }
+
 // ─── TailFocus Tests ────────────────────────────────────────────────────────
 
 func TestTailFocus_ShortInput(t *testing.T) {
@@ -113,6 +115,7 @@ func TestTailFocus_LongInput(t *testing.T) {
 		t.Error("should have fewer lines than input")
 	}
 }
+
 // ─── ANSI Stripping Tests ───────────────────────────────────────────────────
 
 func TestStripANSI_NoEscape(t *testing.T) {
@@ -133,6 +136,7 @@ func TestStripANSI_ColorCodes(t *testing.T) {
 		t.Errorf("expected 'green text normal', got %q", result)
 	}
 }
+
 // ─── Command Signature Tests ────────────────────────────────────────────────
 
 func TestCommandSignature(t *testing.T) {
@@ -156,6 +160,7 @@ func TestCommandSignature(t *testing.T) {
 		}
 	}
 }
+
 // ─── Tool Classification Tests ──────────────────────────────────────────────
 
 func TestIsShellTool(t *testing.T) {
@@ -196,7 +201,12 @@ func TestIsAPITool(t *testing.T) {
 	apiTools := []string{"docker", "docker_compose", "proxmox", "homeassistant", "home_assistant",
 		"kubernetes", "api_request", "github", "sql_query",
 		"filesystem", "filesystem_op", "file_reader_advanced", "smart_file_read",
-		"list_processes", "read_process_logs", "manage_daemon", "manage_plan"}
+		"list_processes", "read_process_logs", "manage_daemon", "manage_plan",
+		"homepage_project", "homepage_file", "homepage_quality", "homepage_deploy", "homepage_git",
+		"virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets",
+		"remote_control_devices", "remote_control_files", "remote_control_desktop",
+		"agentmail_inboxes", "agentmail_messages", "agentmail_threads", "agentmail_drafts",
+		"invasion_nests", "invasion_tasks", "invasion_artifacts"}
 	for _, tool := range apiTools {
 		if !isAPITool(tool) {
 			t.Errorf("%q should be an API tool", tool)
@@ -209,6 +219,7 @@ func TestIsAPITool(t *testing.T) {
 		}
 	}
 }
+
 // ─── Error Detection Tests ─────────────────────────────────────────────────
 
 func TestIsErrorOutput(t *testing.T) {
@@ -236,6 +247,7 @@ func TestIsErrorOutput(t *testing.T) {
 		}
 	}
 }
+
 // ─── Container ID Detection Tests ───────────────────────────────────────────
 
 func TestIsContainerID(t *testing.T) {
@@ -257,6 +269,7 @@ func TestIsContainerID(t *testing.T) {
 		}
 	}
 }
+
 // ─── CompressionStats Tests ─────────────────────────────────────────────────
 
 func TestCompressionStats_Ratio(t *testing.T) {
@@ -279,6 +292,7 @@ func TestCompressionStats_Ratio(t *testing.T) {
 		t.Errorf("ToolName = %q, want %q", stats.ToolName, "execute_shell")
 	}
 }
+
 // ─── JSON Compaction Tests ──────────────────────────────────────────────────
 
 func TestCompactJSON(t *testing.T) {
@@ -311,6 +325,7 @@ func TestCompactJSON(t *testing.T) {
 		t.Error("should remove empty string fields")
 	}
 }
+
 // ─── Timestamp Stripping Tests ──────────────────────────────────────────────
 
 func TestStripTimestamps_ISO(t *testing.T) {
@@ -331,6 +346,7 @@ func TestStripTimestamps_Bracketed(t *testing.T) {
 		t.Errorf("bracketed timestamps should be stripped, got %q", result)
 	}
 }
+
 // ─── Analytics Tests ─────────────────────────────────────────────────────────
 
 func TestAnalytics_RecordAndSnapshot(t *testing.T) {

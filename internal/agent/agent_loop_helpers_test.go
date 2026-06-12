@@ -743,7 +743,7 @@ func TestChannelAdaptiveAlwaysIncludeKeepsVirtualDesktopForDesktopChat(t *testin
 		[]string{"filesystem"},
 		ToolFeatureFlags{VirtualDesktopEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true},
 	)
-	for _, want := range []string{"virtual_desktop", "office_document", "office_workbook", "question_user"} {
+	for _, want := range []string{"virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets", "office_document", "office_workbook", "question_user"} {
 		if !containsName(got, want) {
 			t.Fatalf("expected desktop chat always-include to contain %q, got %v", want, got)
 		}
@@ -756,7 +756,7 @@ func TestChannelAdaptiveAlwaysIncludeDoesNotAdvertiseDisabledDesktopTools(t *tes
 		nil,
 		ToolFeatureFlags{},
 	)
-	for _, notWant := range []string{"virtual_desktop", "office_document", "office_workbook"} {
+	for _, notWant := range []string{"virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets", "office_document", "office_workbook"} {
 		if containsName(got, notWant) {
 			t.Fatalf("did not expect disabled desktop tool %q in always-include set, got %v", notWant, got)
 		}
@@ -816,7 +816,7 @@ func TestBuildAdaptiveToolPriorityPrefersIntentAndSemanticHits(t *testing.T) {
 	schemas := []openai.Tool{
 		makeTool("shell"),
 		makeTool("docker"),
-		makeTool("homepage"),
+		makeTool("homepage_deploy"),
 		makeTool("netlify"),
 	}
 
@@ -824,15 +824,15 @@ func TestBuildAdaptiveToolPriorityPrefersIntentAndSemanticHits(t *testing.T) {
 		schemas,
 		[]string{"shell", "docker"},
 		"please deploy the homepage to netlify",
-		fakeGuideSearcher{paths: []string{filepath.Join("tools_manuals", "homepage.md")}},
+		fakeGuideSearcher{paths: []string{filepath.Join("tools_manuals", "homepage_deploy.md")}},
 		nil,
 	)
 
 	if len(prioritized) < 3 {
 		t.Fatalf("expected at least 3 prioritized tools, got %v", prioritized)
 	}
-	if prioritized[0] != "homepage" {
-		t.Fatalf("expected homepage to be prioritized first, got %v", prioritized)
+	if prioritized[0] != "homepage_deploy" {
+		t.Fatalf("expected homepage_deploy to be prioritized first, got %v", prioritized)
 	}
 	if !containsName(prioritized, "netlify") {
 		t.Fatalf("expected netlify to be included from direct intent match, got %v", prioritized)
@@ -844,7 +844,8 @@ func TestBuildAdaptiveToolPriorityPrefersIntentAndSemanticHits(t *testing.T) {
 
 func TestBuildAdaptiveToolPriorityAddsCuratedDependencyNeighbors(t *testing.T) {
 	schemas := []openai.Tool{
-		makeTool("homepage"),
+		makeTool("homepage_deploy"),
+		makeTool("homepage_project"),
 		makeTool("netlify"),
 		makeTool("homepage_registry"),
 		makeTool("filesystem"),
@@ -862,8 +863,8 @@ func TestBuildAdaptiveToolPriorityAddsCuratedDependencyNeighbors(t *testing.T) {
 	if len(prioritized) < 3 {
 		t.Fatalf("expected at least 3 prioritized tools, got %v", prioritized)
 	}
-	if prioritized[0] != "homepage" {
-		t.Fatalf("expected homepage first, got %v", prioritized)
+	if prioritized[0] != "homepage_deploy" {
+		t.Fatalf("expected homepage_deploy first, got %v", prioritized)
 	}
 	if !containsName(prioritized, "netlify") {
 		t.Fatalf("expected curated homepage neighbor netlify, got %v", prioritized)
@@ -876,7 +877,8 @@ func TestBuildAdaptiveToolPriorityAddsCuratedDependencyNeighbors(t *testing.T) {
 func TestBuildAdaptiveToolPriorityPrefersHomepageForGermanWebsiteDeploy(t *testing.T) {
 	schemas := []openai.Tool{
 		makeTool("filesystem"),
-		makeTool("homepage"),
+		makeTool("homepage_deploy"),
+		makeTool("homepage_project"),
 		makeTool("homepage_registry"),
 		makeTool("netlify"),
 		makeTool("shell"),
@@ -893,8 +895,8 @@ func TestBuildAdaptiveToolPriorityPrefersHomepageForGermanWebsiteDeploy(t *testi
 	if len(prioritized) == 0 {
 		t.Fatal("expected homepage-oriented priority for German website deployment intent")
 	}
-	if prioritized[0] != "homepage" {
-		t.Fatalf("expected homepage first for German website deployment intent, got %v", prioritized)
+	if prioritized[0] != "homepage_deploy" {
+		t.Fatalf("expected homepage_deploy first for German website deployment intent, got %v", prioritized)
 	}
 	if !containsName(prioritized, "homepage_registry") {
 		t.Fatalf("expected homepage_registry to be included for website deployment intent, got %v", prioritized)
@@ -904,7 +906,8 @@ func TestBuildAdaptiveToolPriorityPrefersHomepageForGermanWebsiteDeploy(t *testi
 func TestCacheAwareAdaptiveAlwaysIncludeKeepsHomepageForGermanWebsiteDeploy(t *testing.T) {
 	schemas := []openai.Tool{
 		makeTool("filesystem"),
-		makeTool("homepage"),
+		makeTool("homepage_deploy"),
+		makeTool("homepage_project"),
 		makeTool("homepage_registry"),
 		makeTool("netlify"),
 		makeTool("shell"),
@@ -916,15 +919,15 @@ func TestCacheAwareAdaptiveAlwaysIncludeKeepsHomepageForGermanWebsiteDeploy(t *t
 		schemas,
 	)
 
-	for _, want := range []string{"homepage", "homepage_registry", "netlify"} {
+	for _, want := range []string{"homepage_deploy", "homepage_registry", "netlify"} {
 		if !containsName(alwaysInclude, want) {
 			t.Fatalf("expected %s to stay always-included for website deployment intent, got %v", want, alwaysInclude)
 		}
 	}
 
 	filtered := filterToolSchemas(schemas, []string{"shell"}, alwaysInclude, 1, nil)
-	if !containsName(toolNames(filtered), "homepage") {
-		t.Fatalf("expected filtered schemas to keep homepage even with maxTools=1, got %v", toolNames(filtered))
+	if !containsName(toolNames(filtered), "homepage_deploy") {
+		t.Fatalf("expected filtered schemas to keep homepage_deploy even with maxTools=1, got %v", toolNames(filtered))
 	}
 }
 

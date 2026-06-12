@@ -57,6 +57,20 @@ func TestNativeToolCallToToolCall_TruncatedJSON(t *testing.T) {
 			wantValue: "user preferences for docker",
 		},
 		{
+			name:      "truncated filesystem recovers path",
+			funcName:  "filesystem",
+			args:      `{"operation": "read_file", "path": "agent_workspace/workdir/report.md`,
+			wantField: "path",
+			wantValue: "agent_workspace/workdir/report.md",
+		},
+		{
+			name:      "truncated homepage recovers project_dir",
+			funcName:  "homepage_file",
+			args:      `{"operation": "read_file", "project_dir": "site-one`,
+			wantField: "project_dir",
+			wantValue: "site-one",
+		},
+		{
 			name:      "truncated with escaped quotes in prompt",
 			funcName:  "generate_image",
 			args:      `{"prompt": "A sign saying \"hello world\"", "size": "10`,
@@ -105,6 +119,10 @@ func TestNativeToolCallToToolCall_TruncatedJSON(t *testing.T) {
 				got = tc.Content
 			case "operation":
 				got = tc.Operation
+			case "path":
+				got = tc.Path
+			case "project_dir":
+				got = tc.ProjectDir
 			}
 
 			if got != tt.wantValue {
@@ -343,26 +361,38 @@ func TestBuiltinToolSchemasIncludeVercelWhenEnabled(t *testing.T) {
 	t.Fatal("expected vercel tool schema when VercelEnabled is true")
 }
 
-func TestBuiltinToolSchemasExposeDesktopRemoteControlOperations(t *testing.T) {
+func TestBuiltinToolSchemasExposeFocusedRemoteControlTools(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{RemoteControlEnabled: true})
+	names := toolNames(schemas)
+	for _, legacy := range []string{"remote_control"} {
+		if containsName(names, legacy) {
+			t.Fatalf("legacy %s mega-tool should no longer be emitted as a native schema", legacy)
+		}
+	}
+	for _, want := range []string{"remote_control_devices", "remote_control_shell", "remote_control_files", "remote_control_desktop"} {
+		if !containsName(names, want) {
+			t.Fatalf("%s schema missing from focused remote control set: %v", want, names)
+		}
+	}
+
 	for _, schema := range schemas {
-		if schema.Function == nil || schema.Function.Name != "remote_control" {
+		if schema.Function == nil || schema.Function.Name != "remote_control_desktop" {
 			continue
 		}
 		if !strings.Contains(strings.ToLower(schema.Function.Description), "screenshot") {
-			t.Fatalf("remote_control description should mention screenshots: %s", schema.Function.Description)
+			t.Fatalf("remote_control_desktop description should mention screenshots: %s", schema.Function.Description)
 		}
 		params, ok := schema.Function.Parameters.(map[string]interface{})
 		if !ok {
-			t.Fatalf("remote_control parameters type = %T, want map[string]interface{}", schema.Function.Parameters)
+			t.Fatalf("remote_control_desktop parameters type = %T, want map[string]interface{}", schema.Function.Parameters)
 		}
 		props, ok := params["properties"].(map[string]interface{})
 		if !ok {
-			t.Fatal("remote_control properties missing")
+			t.Fatal("remote_control_desktop properties missing")
 		}
 		opProp, ok := props["operation"].(map[string]interface{})
 		if !ok {
-			t.Fatal("remote_control operation property missing")
+			t.Fatal("remote_control_desktop operation property missing")
 		}
 		for _, want := range []string{
 			"desktop_screenshot", "desktop_permission_request", "desktop_input",
@@ -371,7 +401,7 @@ func TestBuiltinToolSchemasExposeDesktopRemoteControlOperations(t *testing.T) {
 			"desktop_browser_connect", "desktop_browser_snapshot", "desktop_browser_action", "desktop_browser_disconnect",
 		} {
 			if !containsInterfaceString(opProp["enum"], want) {
-				t.Fatalf("remote_control operation enum missing %s: %#v", want, opProp["enum"])
+				t.Fatalf("remote_control_desktop operation enum missing %s: %#v", want, opProp["enum"])
 			}
 		}
 		for _, want := range []string{
@@ -380,12 +410,12 @@ func TestBuiltinToolSchemasExposeDesktopRemoteControlOperations(t *testing.T) {
 			"element_id", "selector", "endpoint", "include_html", "value",
 		} {
 			if _, ok := props[want]; !ok {
-				t.Fatalf("remote_control properties missing desktop field %s", want)
+				t.Fatalf("remote_control_desktop properties missing desktop field %s", want)
 			}
 		}
 		return
 	}
-	t.Fatal("remote_control schema not found")
+	t.Fatal("remote_control_desktop schema not found")
 }
 
 func TestBuiltinToolSchemasExposeVercelDeleteProject(t *testing.T) {
@@ -420,40 +450,43 @@ func TestBuiltinToolSchemasExposeVercelDeleteProject(t *testing.T) {
 	t.Fatal("vercel schema not found")
 }
 
-func TestBuiltinToolSchemasInvasionControlSupportsEggName(t *testing.T) {
+func TestBuiltinToolSchemasExposeFocusedInvasionControlTools(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{InvasionControlEnabled: true})
+	names := toolNames(schemas)
+	if containsName(names, "invasion_control") {
+		t.Fatal("legacy invasion_control mega-tool should no longer be emitted as a native schema")
+	}
+	for _, want := range []string{"invasion_nests", "invasion_tasks", "invasion_artifacts"} {
+		if !containsName(names, want) {
+			t.Fatalf("%s schema missing from focused invasion set: %v", want, names)
+		}
+	}
 
 	for _, s := range schemas {
-		if s.Function == nil || s.Function.Name != "invasion_control" {
+		if s.Function == nil || s.Function.Name != "invasion_tasks" {
 			continue
 		}
 		if !strings.Contains(strings.ToLower(s.Function.Description), "egg names are not tool names") {
-			t.Fatalf("invasion_control description should warn about egg-name/tool-name collisions, got %q", s.Function.Description)
+			t.Fatalf("invasion_tasks description should warn about egg-name/tool-name collisions, got %q", s.Function.Description)
 		}
 		params, ok := s.Function.Parameters.(map[string]interface{})
 		if !ok {
-			t.Fatalf("invasion_control parameters type = %T, want map[string]interface{}", s.Function.Parameters)
+			t.Fatalf("invasion_tasks parameters type = %T, want map[string]interface{}", s.Function.Parameters)
 		}
 		props, ok := params["properties"].(map[string]interface{})
 		if !ok {
-			t.Fatalf("invasion_control properties type = %T", params["properties"])
+			t.Fatalf("invasion_tasks properties type = %T", params["properties"])
 		}
 		if _, ok := props["egg_name"]; !ok {
-			t.Fatal("invasion_control schema should expose egg_name")
+			t.Fatal("invasion_tasks schema should expose egg_name")
 		}
 		if _, ok := props["task_id"]; !ok {
-			t.Fatal("invasion_control schema should expose task_id")
-		}
-		if _, ok := props["artifact_id"]; !ok {
-			t.Fatal("invasion_control schema should expose artifact_id")
-		}
-		if _, ok := props["file_path"]; !ok {
-			t.Fatal("invasion_control schema should expose file_path")
+			t.Fatal("invasion_tasks schema should expose task_id")
 		}
 		return
 	}
 
-	t.Fatal("invasion_control schema not found")
+	t.Fatal("invasion_tasks schema not found")
 }
 
 func TestNativeToolCallToToolCallInvasionControlEggName(t *testing.T) {
@@ -949,44 +982,51 @@ func TestBuiltinToolSchemasIncludeCertificateManager(t *testing.T) {
 	}
 }
 
-func TestBuiltinToolSchemasHomepageUsesSubOperationField(t *testing.T) {
+func TestBuiltinToolSchemasHomepageUsesFocusedTools(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{HomepageEnabled: true, NetlifyEnabled: true})
+	names := toolNames(schemas)
+	if containsName(names, "homepage") {
+		t.Fatal("legacy homepage mega-tool should no longer be emitted as a native schema")
+	}
+	for _, want := range []string{"homepage_project", "homepage_file", "homepage_quality", "homepage_deploy", "homepage_git"} {
+		if !containsName(names, want) {
+			t.Fatalf("%s schema missing from focused homepage set: %v", want, names)
+		}
+	}
 
-	var homepageProps map[string]interface{}
-	homepageDescription := ""
+	var homepageFileProps map[string]interface{}
+	homepageFileDescription := ""
 	for _, s := range schemas {
-		if s.Function == nil || s.Function.Name != "homepage" {
+		if s.Function == nil || s.Function.Name != "homepage_file" {
 			continue
 		}
-		homepageDescription = s.Function.Description
+		homepageFileDescription = s.Function.Description
 		params, ok := s.Function.Parameters.(map[string]interface{})
 		if !ok {
-			t.Fatalf("homepage parameters type = %T, want map[string]interface{}", s.Function.Parameters)
+			t.Fatalf("homepage_file parameters type = %T, want map[string]interface{}", s.Function.Parameters)
 		}
 		props, ok := params["properties"].(map[string]interface{})
 		if !ok {
-			t.Fatal("homepage properties missing")
+			t.Fatal("homepage_file properties missing")
 		}
-		homepageProps = props
+		homepageFileProps = props
 		break
 	}
 
-	if homepageProps == nil {
-		t.Fatal("homepage schema not found")
+	if homepageFileProps == nil {
+		t.Fatal("homepage_file schema not found")
 	}
-	if _, ok := homepageProps["sub_operation"]; !ok {
-		t.Fatal("homepage schema missing sub_operation property")
+	if _, ok := homepageFileProps["sub_operation"]; !ok {
+		t.Fatal("homepage_file schema missing sub_operation property")
 	}
-	if _, ok := homepageProps["file_path"]; !ok {
-		t.Fatal("homepage schema missing file_path alias for path")
+	if _, ok := homepageFileProps["file_path"]; !ok {
+		t.Fatal("homepage_file schema missing file_path alias for path")
 	}
-	if _, ok := homepageProps["action"]; ok {
-		t.Fatal("homepage schema should not expose action as edit sub-operation field")
+	if _, ok := homepageFileProps["action"]; ok {
+		t.Fatal("homepage_file schema should not expose action as edit sub-operation field")
 	}
-	for _, marker := range []string{"Required task rule: homepage", "# TASK RULES", "# HOMEPAGE DESIGN SYSTEM"} {
-		if !strings.Contains(homepageDescription, marker) {
-			t.Fatalf("homepage description missing %q: %s", marker, homepageDescription)
-		}
+	if !strings.Contains(strings.ToLower(homepageFileDescription), "homepage workspace") {
+		t.Fatalf("homepage_file description should contain concise workspace guidance: %s", homepageFileDescription)
 	}
 }
 
@@ -1486,7 +1526,7 @@ func TestNormalizeProviderFragileObjectSchemasConvertsFreeObjectFields(t *testin
 	}
 }
 
-func TestNormalizeStrictSchemaRequiresEveryObjectProperty(t *testing.T) {
+func TestNormalizeStrictSchemaPreservesExplicitRequiredProperties(t *testing.T) {
 	schema := map[string]interface{}{
 		"type": "object",
 		"properties": map[string]interface{}{
@@ -1507,18 +1547,27 @@ func TestNormalizeStrictSchemaRequiresEveryObjectProperty(t *testing.T) {
 	normalizeStrictSchemaRequiredRec(schema)
 
 	required := schema["required"]
-	for _, want := range []string{"operation", "category", "nested"} {
-		if !containsRequiredValue(required, want) {
-			t.Fatalf("top-level required %#v missing %q", required, want)
+	if !containsRequiredValue(required, "operation") {
+		t.Fatalf("top-level required %#v missing operation", required)
+	}
+	for _, optional := range []string{"category", "nested"} {
+		if containsRequiredValue(required, optional) {
+			t.Fatalf("top-level required %#v should not add optional property %q", required, optional)
 		}
 	}
 	nested := schema["properties"].(map[string]interface{})["nested"].(map[string]interface{})
 	nestedRequired := nested["required"]
-	for _, want := range []string{"name", "limit"} {
-		if !containsRequiredValue(nestedRequired, want) {
-			t.Fatalf("nested required %#v missing %q", nestedRequired, want)
-		}
+	if !containsRequiredValue(nestedRequired, "name") {
+		t.Fatalf("nested required %#v missing name", nestedRequired)
 	}
+	if containsRequiredValue(nestedRequired, "limit") {
+		t.Fatalf("nested required %#v should not add optional limit", nestedRequired)
+	}
+}
+
+func TestNormalizeStrictSchemaHandlesNilSchemaMap(t *testing.T) {
+	normalizeStrictSchemaRequiredRec(nil)
+	injectAdditionalPropertiesRec(nil)
 }
 
 func TestNormalizeStrictSchemaAddsMissingArrayItems(t *testing.T) {
@@ -1593,16 +1642,27 @@ func collectStrictOpenAISchemaViolations(path string, node map[string]interface{
 	switch node["type"] {
 	case "object":
 		props, _ := node["properties"].(map[string]interface{})
-		if len(props) > 0 {
-			requiredRaw, exists := node["required"]
-			if !exists {
-				*violations = append(*violations, path+" object with properties is missing required")
-			} else {
-				for name := range props {
-					if !containsRequiredValue(requiredRaw, name) {
-						*violations = append(*violations, path+" required missing property "+name)
+		if requiredRaw, exists := node["required"]; exists {
+			switch typed := requiredRaw.(type) {
+			case []string:
+				for _, name := range typed {
+					if _, ok := props[name]; !ok {
+						*violations = append(*violations, path+" required references unknown property "+name)
 					}
 				}
+			case []interface{}:
+				for _, raw := range typed {
+					name, ok := raw.(string)
+					if !ok {
+						*violations = append(*violations, path+" required contains non-string value")
+						continue
+					}
+					if _, ok := props[name]; !ok {
+						*violations = append(*violations, path+" required references unknown property "+name)
+					}
+				}
+			default:
+				*violations = append(*violations, path+" required must be a string array when present")
 			}
 		}
 		if node["additionalProperties"] != false {
@@ -1697,6 +1757,9 @@ func TestBuildNativeToolSchemasInjectsTodoOnlyForBuiltinTools(t *testing.T) {
 	if _, ok := builtinProps["_todo"]; !ok {
 		t.Fatal("expected builtin tool schema to include _todo")
 	}
+	if containsRequiredValue(executeShellParams["required"], "_todo") {
+		t.Fatalf("_todo should remain optional, required=%#v", executeShellParams["required"])
+	}
 	customProps := customParams["properties"].(map[string]interface{})
 	if _, ok := customProps["_todo"]; ok {
 		t.Fatal("did not expect custom tool schema to include _todo")
@@ -1720,6 +1783,49 @@ func TestFileEditorSchemaWarnsAgainstVirtualDesktopPaths(t *testing.T) {
 			t.Fatalf("file_editor description missing %q: %s", want, description)
 		}
 	}
+}
+
+func TestBuiltinToolSchemasVirtualDesktopUsesFocusedTools(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{
+		VirtualDesktopEnabled: true,
+		OfficeDocumentEnabled: true,
+		OfficeWorkbookEnabled: true,
+	})
+	names := toolNames(schemas)
+	if containsName(names, "virtual_desktop") {
+		t.Fatal("legacy virtual_desktop mega-tool should no longer be emitted as a native schema")
+	}
+	for _, want := range []string{"virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets", "office_document", "office_workbook"} {
+		if !containsName(names, want) {
+			t.Fatalf("%s schema missing from focused virtual desktop set: %v", want, names)
+		}
+	}
+
+	for _, s := range schemas {
+		if s.Function == nil || s.Function.Name != "virtual_desktop_files" {
+			continue
+		}
+		params, ok := s.Function.Parameters.(map[string]interface{})
+		if !ok {
+			t.Fatalf("virtual_desktop_files parameters type = %T, want map[string]interface{}", s.Function.Parameters)
+		}
+		props, ok := params["properties"].(map[string]interface{})
+		if !ok {
+			t.Fatal("virtual_desktop_files properties missing")
+		}
+		opProp, ok := props["operation"].(map[string]interface{})
+		if !ok {
+			t.Fatal("virtual_desktop_files operation property missing")
+		}
+		enum := fmt.Sprint(opProp["enum"])
+		for _, forbidden := range []string{"read_document", "write_document", "read_workbook", "write_workbook"} {
+			if strings.Contains(enum, forbidden) {
+				t.Fatalf("virtual_desktop_files should route Office work to office tools, found %s in %v", forbidden, opProp["enum"])
+			}
+		}
+		return
+	}
+	t.Fatal("virtual_desktop_files schema not found")
 }
 
 func TestFilesystemSchemaIncludesHashlineReadOption(t *testing.T) {

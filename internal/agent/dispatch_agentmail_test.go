@@ -14,12 +14,18 @@ import (
 
 func TestAgentMailToolSchemaOnlyAppearsWhenEnabled(t *testing.T) {
 	if containsName(toolNames(builtinToolSchemas(ToolFeatureFlags{})), "agentmail") {
-		t.Fatal("agentmail tool should not be exposed when AgentMailEnabled is false")
+		t.Fatal("legacy agentmail tool should not be exposed when AgentMailEnabled is false")
 	}
 
 	schemas := builtinToolSchemas(ToolFeatureFlags{AgentMailEnabled: true})
-	if !containsName(toolNames(schemas), "agentmail") {
-		t.Fatal("agentmail tool should be exposed when AgentMailEnabled is true")
+	names := toolNames(schemas)
+	if containsName(names, "agentmail") {
+		t.Fatal("legacy agentmail mega-tool should no longer be emitted as a native schema")
+	}
+	for _, want := range []string{"agentmail_inboxes", "agentmail_messages", "agentmail_threads", "agentmail_drafts"} {
+		if !containsName(names, want) {
+			t.Fatalf("%s schema should be exposed when AgentMailEnabled is true; got %v", want, names)
+		}
 	}
 }
 
@@ -79,6 +85,18 @@ func TestDecodeAgentMailArgsAcceptsNativeArrayRecipients(t *testing.T) {
 	}
 	if got := strings.Join(req.BCC, ","); got != "hidden@example.com" {
 		t.Fatalf("BCC = %q", got)
+	}
+}
+
+func TestStringOrArrayEncodesNonStringItemsAsCompactJSON(t *testing.T) {
+	var value StringOrArray
+	if err := json.Unmarshal([]byte(`[{"kind":"todo","done":false},42,true]`), &value); err != nil {
+		t.Fatalf("StringOrArray.UnmarshalJSON: %v", err)
+	}
+
+	want := `{"done":false,"kind":"todo"}` + "\n42\ntrue"
+	if string(value) != want {
+		t.Fatalf("StringOrArray = %q, want %q", string(value), want)
 	}
 }
 

@@ -3,7 +3,7 @@ id: homepage
 title: Homepage Workflow
 enabled: true
 priority: 100
-tools: [homepage]
+tools: [homepage, homepage_project, homepage_file, homepage_quality, homepage_deploy, homepage_git]
 workflows: [homepage, website, landing_page, web_design]
 keywords:
   - homepage
@@ -21,7 +21,7 @@ This rule is the default operating guide for homepage, website, landing page, re
 
 ## AuraGo Homepage Workflow
 
-Use the `homepage` tool for homepage workspace projects. Do not inspect, create, edit, copy, move, delete, build, or deploy homepage project files with generic filesystem, file_editor, execute_shell, or execute_python tools.
+Use focused homepage tools for homepage workspace projects: `homepage_project` for workspace/project lifecycle and diagnostics, `homepage_file` for project files, `homepage_quality` for checks, `homepage_deploy` for preview/publish/deploy, and `homepage_git` for repository actions. Do not inspect, create, edit, copy, move, delete, build, or deploy homepage project files with generic filesystem, file_editor, execute_shell, or execute_python tools.
 
 When the task is to create, recreate, delete, rebuild, redesign, publish, or deploy a website/page/site, treat it as a homepage workflow even if the user says only "Seite" or "site". Load and follow the `HOMEPAGE DESIGN SYSTEM` section before choosing colors, layout, cards, spacing, typography, or visual effects.
 
@@ -38,9 +38,9 @@ When adding local images, videos, fonts, downloads, or other static files, place
 - Never use `C:\...`, `/workspace/...`, `data/homepage/...`, `agent_workspace/...`, or `file://...` in page markup; browsers cannot fetch those from the served site.
 - If importing assets from source code, keep the asset within the project and let the framework emit the served URL; verify the build or preview after moving or generating assets.
 
-Before editing an existing project, inspect it with homepage `list_files` and `read_file`. Prefer source edits through homepage `write_file` or `edit_file`; do not write directly into generated output directories such as `dist`, `build`, or `out`.
+Before editing an existing project, inspect it with `homepage_file` `list_files` and `read_file`. Prefer source edits through `homepage_file` `write_file` or `edit_file`; do not write directly into generated output directories such as `dist`, `build`, or `out`.
 
-For build and deploy work, use this sequence: inspect project, edit source, run homepage `build`, preview or publish locally when useful, verify the rendered page, then deploy through homepage `deploy_netlify`, `deploy_vercel`, or `deploy` as appropriate.
+For build and deploy work, use this sequence: inspect project, edit source, run `homepage_deploy` `build`, preview or publish locally when useful, verify the rendered page, then deploy through `homepage_deploy` `deploy_netlify`, `deploy_vercel`, or `deploy` as appropriate.
 
 For Netlify static exports, pass the directory that actually contains the deployable `index.html`. If a framework project cannot build but a sibling static export such as `my-site-static/` exists, deploy that static directory with `build_dir: "."` or rely on the Netlify fallback result when it reports `fallback_project_dir`.
 

@@ -241,6 +241,7 @@ agent:
     step_delay_seconds: 0
     show_tool_results: false
     tool_output_limit: 50000    # max characters of a single tool result fed into context (0 = unlimited)
+    discover_tools_snapshot_ttl_minutes: 5  # minutes to retain discover_tools snapshots
 
     # System prompt
     system_prompt_token_budget: 0    # 0 = automatic
@@ -259,7 +260,7 @@ agent:
         provider_profiles_enabled: true
         session_tool_retention_turns: 8
         decay_half_life_days: 7
-        always_include: [filesystem, file_editor, execute_shell, manage_memory, query_memory, execute_python, docker, api_request, ddg_search, virtual_desktop]
+        always_include: [filesystem, file_editor, execute_shell, manage_memory, query_memory, execute_python, docker, api_request, ddg_search, virtual_desktop_files, virtual_desktop_apps, virtual_desktop_widgets]
 
     # Recovery settings
     recovery:
@@ -297,6 +298,7 @@ agent:
 | `step_delay_seconds` | `0` | Delay between tool calls (for rate limiting) |
 | `show_tool_results` | `false` | Include tool results in user-visible output |
 | `tool_output_limit` | `50000` | Max characters of a single tool result fed into context (0 = unlimited) |
+| `discover_tools_snapshot_ttl_minutes` | `5` | Minutes to retain `discover_tools` snapshots; values `<=0` use the default |
 
 ### System Prompt
 
@@ -309,7 +311,7 @@ agent:
 
 ### Output Compression
 
-Reduces token usage by compressing verbose tool outputs **before** `tool_output_limit` truncation. Enabled by default.
+Reduces token usage by applying `tool_output_limit` truncation to oversized outputs first, then compressing the retained content. Enabled by default.
 
 > 🖥️ **Web UI:** Go to **Config → Output Compression** to tune compression modes and thresholds.
 

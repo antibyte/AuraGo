@@ -1,6 +1,6 @@
-# AgentMail Tool
+# AgentMail Legacy Compatibility
 
-Use `agentmail` for AgentMail API inboxes and messages. This is separate from the IMAP/SMTP tools `fetch_email`, `send_email`, and `list_email_accounts`.
+Prefer `agentmail_inboxes`, `agentmail_messages`, `agentmail_threads`, and `agentmail_drafts` when they are visible. The legacy `agentmail` action remains accepted for dispatch compatibility with older clients and prompts. This is separate from the IMAP/SMTP tools `fetch_email`, `send_email`, and `list_email_accounts`.
 
 Common operations:
 

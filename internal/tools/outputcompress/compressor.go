@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"aurago/internal/toolmeta"
 )
 
 const conservativeRollbackMinSavingsPercent = 5
@@ -209,35 +211,17 @@ func commandSignature(cmd string) string {
 
 // isShellTool returns true for tools that execute shell commands.
 func isShellTool(name string) bool {
-	switch name {
-	case "execute_shell", "execute_sudo", "execute_remote_shell",
-		"remote_execution", "ssh_exec", "service_manager":
-		return true
-	}
-	return false
+	return toolmeta.CompressionClassForTool(name) == toolmeta.CompressionClassShell
 }
 
 // isPythonTool returns true for Python execution tools.
 func isPythonTool(name string) bool {
-	switch name {
-	case "execute_python", "execute_sandbox":
-		return true
-	}
-	return false
+	return toolmeta.CompressionClassForTool(name) == toolmeta.CompressionClassPython
 }
 
 // isAPITool returns true for tools that return structured API responses.
 func isAPITool(name string) bool {
-	switch name {
-	case "docker", "docker_compose", "proxmox", "homeassistant", "home_assistant",
-		"kubernetes", "api_request", "github", "sql_query", "koofr", "koofr_api", "koofr_op",
-		"filesystem", "filesystem_op", "file_reader_advanced", "smart_file_read",
-		"list_processes", "read_process_logs",
-		"manage_daemon", "manage_plan",
-		"homepage", "netlify":
-		return true
-	}
-	return false
+	return toolmeta.CompressionClassForTool(name) == toolmeta.CompressionClassAPI
 }
 
 // isHATool returns true for Home Assistant tool names.

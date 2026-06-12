@@ -267,6 +267,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	reuseLookup := ReuseLookupResult{}
 	lastReuseLookupMsg := ""
 
+	loopStartedAt := time.Now()
 	loopIterationCount := 0
 	for {
 		const maxLoopIterations = 100
@@ -289,7 +290,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		xmlFallbackHandledThisTurn := false
 
 		// Check for user interrupt
-		if checkAndClearInterrupt(sessionID) {
+		if checkAndClearInterrupt(sessionID, loopStartedAt) {
 			s.currentLogger.Warn("[Sync] User interrupted the agent — stopping immediately")
 			broker.Send("thinking", i18n.T(cfg.Server.UILanguage, "backend.stream_thinking_stopped_by_user"))
 			stopContent := "⏹ Stopped."
@@ -1212,7 +1213,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Creative tool boost: raise temperature for homepage design and image generation
 		creativeDelta := 0.0
 		switch lastTool {
-		case "homepage", "homepage_tool":
+		case "homepage", "homepage_tool", "homepage_project", "homepage_file", "homepage_quality", "homepage_deploy", "homepage_git":
 			creativeDelta = 0.2
 		case "generate_image", "generate_video":
 			creativeDelta = 0.3

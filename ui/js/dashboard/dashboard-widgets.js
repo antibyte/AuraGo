@@ -1679,6 +1679,12 @@
             const maxTotalTools = data.max_total_tools || 0;
             const lastReport = data.last_tool_filter_report || {};
             const lastToolCount = lastReport.final_tool_count || 0;
+            const originalSchemaTokens = Number(lastReport.original_schema_tokens || 0);
+            const finalSchemaTokens = Number(lastReport.final_schema_tokens || 0);
+            const schemaReduction = originalSchemaTokens > 0
+                ? Math.max(0, Math.round(((originalSchemaTokens - finalSchemaTokens) / originalSchemaTokens) * 100))
+                : 0;
+            const largestSchemas = Array.isArray(lastReport.largest_schemas) ? lastReport.largest_schemas : [];
             const activeCount = maxTools > 0 ? Math.min(totalTracked, maxTools) : totalTracked;
             const totalCalls = data.total_calls || 0;
 
@@ -1691,6 +1697,8 @@
                     { val: maxTools || '∞', lbl: t('dashboard.adaptive_tools_adaptive_cap') },
                     { val: maxTotalTools || '∞', lbl: t('dashboard.adaptive_tools_total_cap') },
                     { val: lastToolCount || '-', lbl: t('dashboard.adaptive_tools_last_count') },
+                    { val: finalSchemaTokens ? finalSchemaTokens.toLocaleString() : '-', lbl: t('dashboard.adaptive_tools_schema_tokens') },
+                    { val: originalSchemaTokens ? schemaReduction + '%' : '-', lbl: t('dashboard.adaptive_tools_schema_reduction') },
                     { val: totalCalls.toLocaleString(), lbl: t('dashboard.adaptive_tools_total_calls') },
                 ];
                 kpis.innerHTML = kpiItems.map(k =>
@@ -1699,9 +1707,24 @@
             }
 
             const list = document.getElementById('adaptive-tools-list');
-            if (list && scores.length > 0) {
+            if (list) {
                 const maxScore = scores[0]?.score || 1;
-                list.innerHTML = `<div class="adaptive-tools-grid">` +
+                const maxSchemaTokens = Math.max(...largestSchemas.map(s => Number(s.rough_tokens || 0)), 1);
+                const schemaHtml = largestSchemas.length > 0
+                    ? `<div class="cfg-group-title cfg-group-title-underlined">${esc(t('dashboard.adaptive_tools_largest_schemas'))}</div>
+                        <div class="adaptive-tools-grid">` + largestSchemas.slice(0, 5).map(s => {
+                            const tokens = Number(s.rough_tokens || 0);
+                            const pct = Math.max(1, Math.round((tokens / maxSchemaTokens) * 100));
+                            return `<div class="adaptive-tool-row">
+                                <span class="adaptive-tool-name" title="${esc(s.name)}">${esc(s.name)}</span>
+                                <div class="adaptive-tool-bar-bg">
+                                    <div class="adaptive-tool-bar-fill w-pct-${pct}"></div>
+                                </div>
+                                <span class="adaptive-tool-count">${tokens.toLocaleString()}</span>
+                            </div>`;
+                        }).join('') + `</div>`
+                    : '';
+                const scoreHtml = scores.length > 0 ? `<div class="adaptive-tools-grid">` +
                     scores.slice(0, 30).map((s, i) => {
                         const pct = maxScore > 0 ? Math.round((s.score / maxScore) * 100) : 0;
                         const isActive = maxTools <= 0 || i < maxTools;
@@ -1712,7 +1735,8 @@
                             </div>
                             <span class="adaptive-tool-count">${s.count}×</span>
                         </div>`;
-                    }).join('') + `</div>`;
+                    }).join('') + `</div>` : '';
+                list.innerHTML = schemaHtml + scoreHtml;
             }
         }
 

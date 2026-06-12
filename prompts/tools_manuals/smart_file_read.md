@@ -26,7 +26,7 @@ Inspect large files intelligently without dumping the whole file into the prompt
 - `distributed` sampling reads representative sections from the beginning, middle, and end of a text file.
 - `semantic` currently falls back to `distributed`.
 - `summarize` reads the full file only when it fits comfortably; otherwise it summarizes representative samples.
-- Homepage projects should still use the `homepage` tool instead of the generic file tools.
+- Homepage projects should still use `homepage_file` instead of the generic file tools.
 - For binary files, use a specialized tool instead:
   - images → `analyze_image`
   - PDFs → `pdf_extractor`

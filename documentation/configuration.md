@@ -93,6 +93,7 @@ Core agent behaviour settings.
 | `step_delay_seconds` | `0` | Pause (seconds) between tool calls. Useful to avoid rate-limiting (HTTP 429) errors with slow providers. |
 | `memory_compression_char_limit` | `60000` | Character threshold at which the agent compresses older messages in the prompt. |
 | `tool_output_limit` | `50000` | Max characters of a single tool result fed into context (`0` = unlimited). |
+| `discover_tools_snapshot_ttl_minutes` | `5` | Minutes to retain `discover_tools` snapshots; values `<=0` fall back to `5`. |
 | `context_window` | `0` | Model context window size in tokens. `0` = auto-detect from provider API at startup. |
 | `system_prompt_token_budget` | `0` | Soft cap on system prompt tokens (`0` = automatic). |
 | `adaptive_system_prompt_token_budget` | `true` | Automatically adjust system prompt token budget. |
@@ -108,7 +109,7 @@ Core agent behaviour settings.
 
 ### Output Compression
 
-Reduces token usage by compressing verbose tool outputs **before** `tool_output_limit` truncation. Enabled by default.
+Reduces token usage by applying `tool_output_limit` truncation to oversized outputs first, then compressing the retained content. Enabled by default.
 
 ```yaml
 agent:
@@ -287,7 +288,7 @@ AgentMail API inboxes, messages, labels, drafts, attachments, and optional inbou
 
 | Key | Default | Description |
 |---|---|---|
-| `enabled` | `false` | Enable the AgentMail integration and expose the `agentmail` tool. |
+| `enabled` | `false` | Enable the AgentMail integration and expose focused `agentmail_*` tools. Legacy `agentmail` dispatch remains accepted. |
 | `readonly` | `false` | When `true`, the agent can list/read AgentMail data but cannot create, update, delete, send, reply, or forward. |
 | `api_key` | vault-only | Store via the UI or vault key `agentmail_api_key`; it is not written to `config.yaml`. |
 | `inbox_id` | `""` | Primary AgentMail inbox ID used by the UI, relay service, and tool defaults. |
@@ -299,7 +300,7 @@ AgentMail API inboxes, messages, labels, drafts, attachments, and optional inbou
 | `poll_interval_seconds` | `120` | Poll interval used as fallback or when WebSockets are disabled. |
 | `relay_to_agent` | `false` | Wake the agent when new messages arrive in `inbox_id`. Disabled in egg mode. |
 | `relay_cheatsheet_id` | `""` | Optional cheat sheet whose content is appended as instructions to each relayed new-mail prompt. |
-| `max_attachment_mb` | `10` | Maximum size for attachments sent through the `agentmail` tool. |
+| `max_attachment_mb` | `10` | Maximum size for attachments sent through AgentMail tools. |
 | `base_url` | `"https://api.agentmail.to"` | AgentMail REST API base URL. |
 | `websocket_url` | `"wss://ws.agentmail.to/v0"` | AgentMail WebSocket endpoint. |
 

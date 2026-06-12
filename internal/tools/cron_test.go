@@ -14,7 +14,7 @@ func TestCronManagerDeniesMutationWithoutRuntimePolicy(t *testing.T) {
 		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
 	})
 
-	mgr := NewCronManager(t.TempDir())
+	mgr := NewCronManager(tempSystemTaskDir(t))
 	t.Cleanup(func() { _ = mgr.Close() })
 
 	result, err := mgr.ManageSchedule("add", "job-1", "0 * * * *", "run cleanup", "en")
@@ -32,7 +32,7 @@ func TestCronManagerReadOnlyRuntimePolicyAllowsListOnly(t *testing.T) {
 		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
 	})
 
-	mgr := NewCronManager(t.TempDir())
+	mgr := NewCronManager(tempSystemTaskDir(t))
 	t.Cleanup(func() { _ = mgr.Close() })
 
 	listResult, err := mgr.ManageSchedule("list", "", "", "", "en")
@@ -53,7 +53,7 @@ func TestCronManagerReadOnlyRuntimePolicyAllowsListOnly(t *testing.T) {
 }
 
 func TestCronManagerPersistsToSQLiteStore(t *testing.T) {
-	dir := t.TempDir()
+	dir := tempSystemTaskDir(t)
 	mgr := NewCronManager(dir)
 	t.Cleanup(func() { _ = mgr.Close() })
 	mgr.callback = func(prompt string) {}
@@ -85,7 +85,7 @@ func TestCronManagerPersistsToSQLiteStore(t *testing.T) {
 }
 
 func TestCronManagerMigratesLegacyJSON(t *testing.T) {
-	dir := t.TempDir()
+	dir := tempSystemTaskDir(t)
 	legacy := filepath.Join(dir, "crontab.json")
 	if err := os.WriteFile(legacy, []byte(`[{"id":"legacy-job","cron_expr":"0 0 * * *","task_prompt":"legacy prompt"}]`), 0o644); err != nil {
 		t.Fatalf("write legacy cron json: %v", err)
@@ -116,7 +116,7 @@ func TestCronManagerMigratesLegacyJSON(t *testing.T) {
 }
 
 func TestCronManagerAcceptsSecondsFieldExpressions(t *testing.T) {
-	mgr := NewCronManager(t.TempDir())
+	mgr := NewCronManager(tempSystemTaskDir(t))
 	t.Cleanup(func() { _ = mgr.Close() })
 	mgr.callback = func(prompt string) {}
 	result, err := mgr.ManageSchedule("add", "job-seconds", "0 */15 * * * *", "run every fifteen minutes", "en")
@@ -134,7 +134,7 @@ func TestCronManagerRemovesDisabledJobs(t *testing.T) {
 		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
 	})
 
-	mgr := NewCronManager(t.TempDir())
+	mgr := NewCronManager(tempSystemTaskDir(t))
 	t.Cleanup(func() { _ = mgr.Close() })
 
 	if _, err := mgr.ManageSchedule("add", "disabled-job", "0 8 * * *", "run disabled job", "en"); err != nil {

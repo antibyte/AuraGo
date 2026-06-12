@@ -263,6 +263,7 @@ func TestDiscoverToolsCatalogIsSessionScoped(t *testing.T) {
 
 func TestSetDiscoverToolsStateExpiresOldSnapshots(t *testing.T) {
 	t.Cleanup(func() {
+		SetDiscoverToolsSnapshotTTL(5 * time.Minute)
 		discoverToolsState.mu.Lock()
 		discoverToolsState.snapshots = nil
 		discoverToolsState.requested = nil
@@ -311,8 +312,25 @@ func TestSetDiscoverToolsStateExpiresOldSnapshots(t *testing.T) {
 	}
 }
 
+func TestSetDiscoverToolsSnapshotTTLFallsBackToDefault(t *testing.T) {
+	t.Cleanup(func() {
+		SetDiscoverToolsSnapshotTTL(5 * time.Minute)
+	})
+
+	SetDiscoverToolsSnapshotTTL(12 * time.Minute)
+	if got := DiscoverToolsSnapshotTTL(); got != 12*time.Minute {
+		t.Fatalf("DiscoverToolsSnapshotTTL() = %v, want 12m", got)
+	}
+
+	SetDiscoverToolsSnapshotTTL(0)
+	if got := DiscoverToolsSnapshotTTL(); got != 5*time.Minute {
+		t.Fatalf("DiscoverToolsSnapshotTTL() after zero = %v, want default 5m", got)
+	}
+}
+
 func TestSetDiscoverToolsStateExpiresUninitializedSnapshots(t *testing.T) {
 	t.Cleanup(func() {
+		SetDiscoverToolsSnapshotTTL(5 * time.Minute)
 		discoverToolsState.mu.Lock()
 		discoverToolsState.snapshots = nil
 		discoverToolsState.requested = nil
@@ -454,4 +472,3 @@ func TestHandleDiscoverToolsAliasFallbacks(t *testing.T) {
 		t.Fatalf("get_tool_info fallback tool failed: status=%s, raw=%s", payload4.Status, out4)
 	}
 }
-

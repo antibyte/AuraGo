@@ -150,12 +150,17 @@ proceed:
 		}
 	}
 
-	// Prefix to clearly identify it as tool output
-	if !strings.HasPrefix(sanitized, "[TOOL ") && !strings.HasPrefix(sanitized, "[Tool ") {
-		sanitized = "[Tool Output]\n" + sanitized
-	}
+	return formatToolOutputForModel(*tc, sanitized)
+}
 
-	return sanitized
+func formatToolOutputForModel(tc ToolCall, sanitized string) string {
+	if strings.HasPrefix(sanitized, "[TOOL ") || strings.HasPrefix(sanitized, "[Tool ") {
+		return sanitized
+	}
+	if tc.NativeCallID != "" {
+		return sanitized
+	}
+	return "[Tool Output]\n" + sanitized
 }
 
 // getLocalIP returns a LAN-reachable IP address for the TTS audio server.
@@ -169,9 +174,11 @@ func getLocalIP(cfg *config.Config) string {
 		conn, err := localIPDial("udp", "8.8.8.8:80")
 		if err == nil {
 			defer conn.Close()
-			resolved := conn.LocalAddr().(*net.UDPAddr).IP.String()
-			localIPCache.Store(host, resolved)
-			return resolved
+			if udpAddr, ok := conn.LocalAddr().(*net.UDPAddr); ok && udpAddr.IP != nil {
+				resolved := udpAddr.IP.String()
+				localIPCache.Store(host, resolved)
+				return resolved
+			}
 		}
 		localIPCache.Store(host, "127.0.0.1")
 		return "127.0.0.1"

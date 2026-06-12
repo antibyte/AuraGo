@@ -136,7 +136,7 @@ func TestShouldAcceptParsedTextToolCallsInNativeMode_AcceptsKnownBuiltinOmittedB
 	ok := shouldAcceptParsedTextToolCallsInNativeMode(
 		currentTools,
 		ToolCallParseSourceReasoningCleanJSON,
-		ToolCall{IsTool: true, Action: "invasion_control"},
+		ToolCall{IsTool: true, Action: "invasion_tasks"},
 		nil,
 	)
 

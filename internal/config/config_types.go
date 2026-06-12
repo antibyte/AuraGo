@@ -599,11 +599,12 @@ type Config struct {
 		ShowToolResults                 bool   `yaml:"show_tool_results"`
 		WorkflowFeedback                bool   `yaml:"workflow_feedback"`
 		DebugMode                       bool   `yaml:"debug_mode"`
-		CoreMemoryMaxEntries            int    `yaml:"core_memory_max_entries"` // 0 = default 80
-		CoreMemoryCapMode               string `yaml:"core_memory_cap_mode"`    // "hard" (default) | "soft"
-		ToolOutputLimit                 int    `yaml:"tool_output_limit"`       // max characters of a single tool result added to context (0 = unlimited, default: 50000)
-		SudoEnabled                     bool   `yaml:"sudo_enabled"`            // allow execute_sudo tool (password must be stored in vault as "sudo_password")
-		SudoUnrestricted                bool   `yaml:"sudo_unrestricted"`       // allow sudo to write outside the install directory (requires removing ProtectSystem=strict from systemd unit)
+		CoreMemoryMaxEntries            int    `yaml:"core_memory_max_entries"`             // 0 = default 80
+		CoreMemoryCapMode               string `yaml:"core_memory_cap_mode"`                // "hard" (default) | "soft"
+		ToolOutputLimit                 int    `yaml:"tool_output_limit"`                   // max characters of a single tool result added to context (0 = unlimited, default: 50000)
+		DiscoverToolsSnapshotTTLMinutes int    `yaml:"discover_tools_snapshot_ttl_minutes"` // minutes to retain discover_tools snapshots (<=0 = default 5)
+		SudoEnabled                     bool   `yaml:"sudo_enabled"`                        // allow execute_sudo tool (password must be stored in vault as "sudo_password")
+		SudoUnrestricted                bool   `yaml:"sudo_unrestricted"`                   // allow sudo to write outside the install directory (requires removing ProtectSystem=strict from systemd unit)
 		// ── Danger Zone: tool capability gates (all default true) ──
 		AllowShell           bool   `yaml:"allow_shell"`            // allow execute_shell
 		AllowPython          bool   `yaml:"allow_python"`           // allow execute_python / save_tool / execute_skill
@@ -1491,13 +1492,13 @@ type Config struct {
 			ReadOnly bool `yaml:"readonly"` // true = only read/query, block store/delete/save_core/delete_core
 		} `yaml:"memory"`
 		KnowledgeGraph struct {
-			Enabled               bool     `yaml:"enabled"`                 // default true; disable to block knowledge_graph
-			ReadOnly              bool     `yaml:"readonly"`                // true = only query/search, block add/delete
-			AutoExtraction        bool     `yaml:"auto_extraction"`         // nightly batch entity extraction from conversations
-			PromptInjection       bool     `yaml:"prompt_injection"`        // inject relevant KG context into system prompt
-			MaxPromptNodes        int      `yaml:"max_prompt_nodes"`        // max nodes to inject into prompt (default 5)
-			MaxPromptChars        int      `yaml:"max_prompt_chars"`        // max chars for KG context in prompt (default 800)
-			RetrievalFusion       bool     `yaml:"retrieval_fusion"`        // cross-reference RAG↔KG for bidirectional enrichment (default true)
+			Enabled                 bool     `yaml:"enabled"`                   // default true; disable to block knowledge_graph
+			ReadOnly                bool     `yaml:"readonly"`                  // true = only query/search, block add/delete
+			AutoExtraction          bool     `yaml:"auto_extraction"`           // nightly batch entity extraction from conversations
+			PromptInjection         bool     `yaml:"prompt_injection"`          // inject relevant KG context into system prompt
+			MaxPromptNodes          int      `yaml:"max_prompt_nodes"`          // max nodes to inject into prompt (default 5)
+			MaxPromptChars          int      `yaml:"max_prompt_chars"`          // max chars for KG context in prompt (default 800)
+			RetrievalFusion         bool     `yaml:"retrieval_fusion"`          // cross-reference RAG↔KG for bidirectional enrichment (default true)
 			MinSemanticSimilarity   float64  `yaml:"min_semantic_similarity"`   // minimum similarity for KG semantic search (default 0.60)
 			ExcludeNodeTypes        []string `yaml:"exclude_node_types"`        // node types excluded from semantic/prompt context (default ["activity_entity", "unknown"])
 			SemanticReindexInterval string   `yaml:"semantic_reindex_interval"` // minimum interval between dirty-node semantic reindexes (default "5m")

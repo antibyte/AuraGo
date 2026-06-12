@@ -7,7 +7,9 @@ conditions: ["remote_control_enabled"]
 
 ## Remote Control Tool
 
-You can manage and interact with remote devices using the `remote_control` tool. This system allows you to connect to, monitor, and control remote machines running the AuraGo Remote agent.
+You can manage and interact with remote devices using focused remote-control tools. This system allows you to connect to, monitor, and control remote machines running the AuraGo Remote agent.
+
+Use `remote_control_devices` for inventory and status, `remote_control_shell` for remote commands, `remote_control_files` for remote file operations, and `remote_control_desktop` for remote desktop/session actions. The legacy `remote_control` action remains accepted for older clients.
 
 ### Concepts
 - **Device** = a remote machine running the AuraGo Remote agent binary
@@ -32,8 +34,8 @@ You can manage and interact with remote devices using the `remote_control` tool.
 1. Use `list_devices` to see all registered devices and their connection status
 2. Use `device_status` with `device_name` to get detailed info about a specific device
 3. Use `sysinfo` to collect system metrics from a connected device
-4. Use `execute_command` to run shell commands remotely
-5. Use `read_file` / `write_file` / `list_files` for file operations
+4. Use `remote_control_shell` `execute_command` to run shell commands remotely
+5. Use `remote_control_files` `read_file` / `write_file` / `list_files` for file operations
 6. Use `revoke_device` to disconnect and block a device
 
 ### Guidelines

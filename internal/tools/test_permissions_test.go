@@ -25,3 +25,10 @@ func TestMain(m *testing.M) {
 	closeAllSystemTaskStores()
 	os.Exit(code)
 }
+
+func tempSystemTaskDir(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	t.Cleanup(closeAllSystemTaskStores)
+	return dir
+}

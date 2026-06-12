@@ -101,5 +101,5 @@ vercel:
 - **Permission model**: `readonly` blocks all mutations. The `allow_*` flags further gate deployments, project changes, environment variables, and domains.
 - **Project deletion**: `delete_project` permanently deletes live Vercel projects. Keep `vercel.allow_project_management=false` or `vercel.readonly=true` if agents should not be able to delete projects.
 - **Scope handling**: Team-scoped API calls use `team_id` or `team_slug` when configured.
-- **Homepage publishing**: Use `homepage` → `deploy_vercel` for homepage workspace deployments instead of hand-assembling CLI calls through `exec`. It installs dependencies, validates the build, deploys framework projects from the project root, and verifies the public URL.
+- **Homepage publishing**: Use `homepage_deploy` `deploy_vercel` for homepage workspace deployments instead of hand-assembling CLI calls through `exec`. It installs dependencies, validates the build, deploys framework projects from the project root, and verifies the public URL.
 - **Destructive cleanup**: Project deletion is gated by `vercel.allow_project_management` and `vercel.readonly`.

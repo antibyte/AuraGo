@@ -1090,6 +1090,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.ToolOutputLimit <= 0 {
 		cfg.Agent.ToolOutputLimit = 50000
 	}
+	if cfg.Agent.DiscoverToolsSnapshotTTLMinutes <= 0 {
+		cfg.Agent.DiscoverToolsSnapshotTTLMinutes = 5
+	}
 	// Output compression defaults (enabled by default).
 	// Uses yamlHasPath to distinguish "not configured" from "explicitly disabled".
 	if !yamlHasPath(data, "agent", "output_compression", "enabled") {
@@ -1244,7 +1247,8 @@ func Load(path string) (*Config, error) {
 	if len(cfg.Agent.AdaptiveTools.AlwaysInclude) == 0 && cfg.Agent.AdaptiveTools.Enabled {
 		cfg.Agent.AdaptiveTools.AlwaysInclude = []string{
 			"filesystem", "file_editor", "execute_shell", "manage_memory", "query_memory",
-			"execute_python", "docker", "api_request", "ddg_search", "manage_missions", "virtual_desktop",
+			"execute_python", "docker", "api_request", "ddg_search", "manage_missions",
+			"virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets",
 		}
 	}
 	if cfg.Agent.MaxToolGuides <= 0 {

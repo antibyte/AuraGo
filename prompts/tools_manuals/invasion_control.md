@@ -1,10 +1,12 @@
-# Invasion Control (`invasion_control`)
+# Invasion Control Legacy Compatibility (`invasion_control`)
 
 Manage deployment nests (target servers/VMs/containers) and eggs (sub-agent configurations). List, inspect, assign, deploy (hatch), stop, monitor eggs, send tasks and secrets to running eggs, and inspect artifacts or messages produced by eggs.
 
+Prefer `invasion_nests`, `invasion_tasks`, and `invasion_artifacts` when they are visible. The legacy `invasion_control` action remains accepted for dispatch compatibility with older clients and prompts.
+
 Use this tool whenever the user asks to talk to, ask, reach, test, or send work to an Egg, a Nest, a remote agent, or a sub-agent.
 
-Egg names are not tool names. If an Egg is named `web scraper`, call `invasion_control` with `operation:"send_task"` and `egg_name:"web scraper"`. Do not call the `web_scraper` tool just because the Egg has that name.
+Egg names are not tool names. If an Egg is named `web scraper`, call `invasion_tasks` with `operation:"send_task"` and `egg_name:"web scraper"`. Do not call the `web_scraper` tool just because the Egg has that name.
 
 ## Operations
 

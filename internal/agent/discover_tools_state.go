@@ -7,7 +7,9 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
-const discoverToolsSnapshotTTL = 24 * time.Hour
+const defaultDiscoverToolsSnapshotTTL = 5 * time.Minute
+
+var discoverToolsSnapshotTTL = defaultDiscoverToolsSnapshotTTL
 
 type discoverToolsSnapshot struct {
 	allSchemas   []openai.Tool
@@ -62,6 +64,21 @@ func SetDiscoverToolsState(sessionID string, allSchemas []openai.Tool, activeSch
 		discoverToolsState.requested[sessionID] = make(map[string]int)
 	}
 	discoverToolsState.mu.Unlock()
+}
+
+func SetDiscoverToolsSnapshotTTL(ttl time.Duration) {
+	if ttl <= 0 {
+		ttl = defaultDiscoverToolsSnapshotTTL
+	}
+	discoverToolsState.mu.Lock()
+	discoverToolsSnapshotTTL = ttl
+	discoverToolsState.mu.Unlock()
+}
+
+func DiscoverToolsSnapshotTTL() time.Duration {
+	discoverToolsState.mu.RLock()
+	defer discoverToolsState.mu.RUnlock()
+	return discoverToolsSnapshotTTL
 }
 
 func pruneDiscoverToolsSnapshotsLocked(now time.Time) {

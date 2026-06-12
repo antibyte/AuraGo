@@ -164,7 +164,7 @@ agentmail:
 
 > 🔒 The API key is stored in the Vault as `agentmail_api_key`, not in `config.yaml`.
 
-Use the `agentmail` tool in chat for inbox management, messages, drafts, labels, and replies.
+Use the focused `agentmail_inboxes`, `agentmail_messages`, `agentmail_threads`, and `agentmail_drafts` tools in chat. The legacy `agentmail` name remains accepted as a compatibility alias.
 
 ---
 

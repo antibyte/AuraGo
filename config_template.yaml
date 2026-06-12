@@ -18,6 +18,7 @@ agent:
     max_tool_calls: 15
     memory_compression_char_limit: 60000
     tool_output_limit: 50000  # max characters of a single tool result fed into context (0 = unlimited)
+    discover_tools_snapshot_ttl_minutes: 5  # minutes to retain discover_tools snapshots (<=0 = default 5)
     show_tool_results: false
     step_delay_seconds: 0
     system_language: English
@@ -29,7 +30,7 @@ agent:
 
     # ── Output Compression ── reduces token consumption by filtering and
     #    deduplicating verbose tool outputs before they enter the LLM context.
-    #    Enabled by default.  Compression runs BEFORE tool_output_limit truncation.
+    #    Enabled by default.  tool_output_limit truncation runs BEFORE compression.
     #    See documentation/output_compression.md for details.
     output_compression:
         enabled: true                # master toggle (default: true)
@@ -71,7 +72,7 @@ agent:
         provider_profiles_enabled: true                             # apply provider-specific tool caps and response-header timeout defaults
         session_tool_retention_turns: 8                              # keep tools used in recent turns visible as soft always-include tools
         decay_half_life_days: 7                                     # usage score halves after this many days
-        always_include: [filesystem, file_editor, execute_shell, manage_memory, query_memory, execute_python, docker, api_request, ddg_search, virtual_desktop]
+        always_include: [filesystem, file_editor, execute_shell, manage_memory, query_memory, execute_python, docker, api_request, ddg_search, virtual_desktop_files, virtual_desktop_apps, virtual_desktop_widgets]
     recovery:
         max_provider_422_recoveries: 3                              # automatic retries after provider-side 422 validation errors
         min_messages_for_empty_retry: 5                             # retry empty LLM responses only when enough conversation context exists

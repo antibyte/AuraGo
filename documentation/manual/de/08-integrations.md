@@ -164,7 +164,7 @@ agentmail:
 
 > 🔒 Der API-Key wird im Vault als `agentmail_api_key` gespeichert, nicht in der `config.yaml`.
 
-Nutze das Tool `agentmail` im Chat für Postfachverwaltung, Nachrichten, Entwürfe, Labels und Antworten.
+Nutze die fokussierten Tools `agentmail_inboxes`, `agentmail_messages`, `agentmail_threads` und `agentmail_drafts` im Chat. Der alte Toolname `agentmail` bleibt als Kompatibilitätsalias akzeptiert.
 
 ## Home Assistant Integration
 
@@ -1708,7 +1708,7 @@ Workspace-basierter Browser-Desktop für lokale Apps, generierte Apps, Dateiarbe
 
 ### Zugehörige Tool-Toggles
 
-Das Tool `virtual_desktop` wird nur freigeschaltet, wenn sowohl `tools.virtual_desktop.enabled` als auch `virtual_desktop.allow_agent_control` aktiv sind. Office-Dokument- und Workbook-Tools benötigen ebenfalls den aktivierten Virtual Desktop.
+Die fokussierten Tools `virtual_desktop_files`, `virtual_desktop_apps` und `virtual_desktop_widgets` werden nur freigeschaltet, wenn sowohl `tools.virtual_desktop.enabled` als auch `virtual_desktop.allow_agent_control` aktiv sind. Office-Dokument- und Workbook-Tools benötigen ebenfalls den aktivierten Virtual Desktop.
 
 ### Desktop Software Store
 

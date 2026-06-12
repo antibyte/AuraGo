@@ -13,7 +13,7 @@ func testLogger() *slog.Logger {
 }
 
 func TestSeedWelcomeMissions(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	mm := NewMissionManagerV2(tmpDir, NewCronManager(tmpDir))
 	_ = mm.Start()
 	defer mm.Stop()
@@ -48,7 +48,7 @@ func TestSeedWelcomeMissions(t *testing.T) {
 }
 
 func TestSeedWelcomeMissionsDoesNotRecreateAfterPersistedStoreExists(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	mm := NewMissionManagerV2(tmpDir, NewCronManager(tmpDir))
 	_ = mm.Start()
 	defer mm.Stop()
@@ -68,13 +68,13 @@ func TestSeedWelcomeMissionsDoesNotRecreateAfterPersistedStoreExists(t *testing.
 }
 
 func TestSeedWelcomeCheatsheets(t *testing.T) {
-	db, err := InitCheatsheetDB(filepath.Join(t.TempDir(), "cheatsheets.db"))
+	db, err := InitCheatsheetDB(filepath.Join(tempSystemTaskDir(t), "cheatsheets.db"))
 	if err != nil {
 		t.Fatalf("failed to init cheatsheet db: %v", err)
 	}
 	defer db.Close()
 
-	assetsDir := filepath.Join(t.TempDir(), "assets", "cheatsheet_samples")
+	assetsDir := filepath.Join(tempSystemTaskDir(t), "assets", "cheatsheet_samples")
 	os.MkdirAll(assetsDir, 0o755)
 	manifest := `[
 		{"id": "test-cs-1", "name": "Test CS", "content": "Hello", "active": true, "created_by": "system"}
@@ -103,13 +103,13 @@ func TestSeedWelcomeCheatsheets(t *testing.T) {
 }
 
 func TestSeedWelcomeCheatsheetsDoesNotRecreateDeletedSeed(t *testing.T) {
-	db, err := InitCheatsheetDB(filepath.Join(t.TempDir(), "cheatsheets.db"))
+	db, err := InitCheatsheetDB(filepath.Join(tempSystemTaskDir(t), "cheatsheets.db"))
 	if err != nil {
 		t.Fatalf("failed to init cheatsheet db: %v", err)
 	}
 	defer db.Close()
 
-	installDir := t.TempDir()
+	installDir := tempSystemTaskDir(t)
 	assetsDir := filepath.Join(installDir, "assets", "cheatsheet_samples")
 	os.MkdirAll(assetsDir, 0o755)
 	manifest := `[
@@ -128,7 +128,7 @@ func TestSeedWelcomeCheatsheetsDoesNotRecreateDeletedSeed(t *testing.T) {
 }
 
 func TestSeedWelcomeSkills(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	skillsDir := filepath.Join(tmpDir, "skills")
 	os.MkdirAll(skillsDir, 0o755)
 
@@ -177,7 +177,7 @@ func TestSeedWelcomeSkills(t *testing.T) {
 }
 
 func TestSeedWelcomeSkillsWithExistingJSON(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	skillsDir := filepath.Join(tmpDir, "skills")
 	os.MkdirAll(skillsDir, 0o755)
 
@@ -205,7 +205,7 @@ func TestSeedWelcomeSkillsWithExistingJSON(t *testing.T) {
 }
 
 func TestSeedWelcomeSkillsSyncsWhenExecutableCopiedButJSONAlreadyExists(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	skillsDir := filepath.Join(tmpDir, "skills")
 	os.MkdirAll(skillsDir, 0o755)
 
@@ -241,7 +241,7 @@ func TestSeedWelcomeSkillsSyncsWhenExecutableCopiedButJSONAlreadyExists(t *testi
 }
 
 func TestSeedWelcomeSkillsMissingManifest(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	skillsDir := filepath.Join(tmpDir, "skills")
 	os.MkdirAll(skillsDir, 0o755)
 

@@ -53,7 +53,7 @@ If the response is truncated, only complete hashline lines are returned; use `fi
 
 - Use the exact operation names `read_file` and `write_file`.
 - Do not use shorthand names like `read` or `write` in tool calls.
-- If you need to work on homepage, website, page, landing-page, Netlify, or Vercel projects, do not use `filesystem` at all. Use the `homepage` tool's own `list_files` / `read_file` / `write_file` / `edit_file` operations so files end up in the homepage workspace and the required `homepage` task rule plus `HOMEPAGE DESIGN SYSTEM` can be injected before work starts.
+- If you need to work on homepage, website, page, landing-page, Netlify, or Vercel projects, do not use `filesystem` at all. Use `homepage_file` for project files so files end up in the homepage workspace and the required `homepage` task rule plus `HOMEPAGE DESIGN SYSTEM` can be injected before work starts.
 
 ### Examples
 

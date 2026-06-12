@@ -33,7 +33,7 @@ func TestLoadCatalogIncludesEmbeddedHomepageRuleAndDesign(t *testing.T) {
 	if !contains(rule.Workflows, "homepage") {
 		t.Fatalf("homepage rule workflows = %v, want homepage", rule.Workflows)
 	}
-	if !strings.Contains(rule.Body, "Use the `homepage` tool") {
+	if !strings.Contains(rule.Body, "Use focused homepage tools") || !strings.Contains(rule.Body, "`homepage_file`") {
 		t.Fatalf("homepage rule body missing tool guidance:\n%s", rule.Body)
 	}
 	for _, marker := range []string{"Web Interface Quality Bar", "aria-label", "prefers-reduced-motion", "transition: all", "homepage_registry", "generic dark purple/blue card UI", "Local Asset References", "/assets/hero.jpg"} {

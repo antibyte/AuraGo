@@ -47,7 +47,7 @@ conditions: ["netlify_enabled"]
 **Parameters:** `operation`, `site_id`, `site_name`, `custom_domain`, `deploy_id`, `env_key`, `env_value`, `env_context`, `form_id`, `hook_id`, `hook_type`, `hook_event`, `url`, `value`
 
 **Homepage → Netlify deployment (only supported method):**
-- Use `homepage` → `deploy_netlify` — handles dependency install, build, static output validation, ZIP upload, deploy polling, and live URL verification entirely server-side
+- Use `homepage_deploy` `deploy_netlify` — handles dependency install, build, static output validation, ZIP upload, deploy polling, and live URL verification entirely server-side
   - Params: `project_dir`, `site_id` (optional if default configured or site management may auto-create), `title`, `draft`
 
 ⚠️ ZIP-based deploy operations are intentionally not part of the agent flow.

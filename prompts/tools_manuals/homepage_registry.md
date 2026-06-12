@@ -1,7 +1,7 @@
 # Homepage Registry Tool
 
 Track homepage projects with their framework, URLs, deployment history, edits, and known problems.
-Projects are automatically registered and updated when you use `homepage` operations (init_project, build, deploy, lighthouse).
+Projects are automatically registered and updated when you use focused homepage operations (`homepage_project` init_project, `homepage_deploy` build/deploy, `homepage_quality` lighthouse).
 
 ## Prerequisites
 - `homepage.enabled: true` in config.yaml
@@ -77,7 +77,7 @@ Projects are automatically registered and updated when you use `homepage` operat
 ```
 
 ## Notes
-- Projects are auto-registered when you use `homepage` → `init_project`
+- Projects are auto-registered when you use `homepage_project` `init_project`
 - Builds auto-log edits, deploys auto-log deployments
 - Lighthouse scores are auto-stored when you run `homepage` → `lighthouse`
 - Use `log_problem` to track issues, `resolve_problem` to clear them

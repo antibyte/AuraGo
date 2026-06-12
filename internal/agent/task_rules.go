@@ -112,7 +112,7 @@ func ensureTaskRulesBeforeToolExecution(s *agentLoopState, tc ToolCall, lastUser
 
 func isHomepageRuleTool(action string) bool {
 	switch strings.ToLower(strings.TrimSpace(action)) {
-	case "homepage", "homepage_tool":
+	case "homepage", "homepage_tool", "homepage_project", "homepage_file", "homepage_quality", "homepage_deploy", "homepage_git":
 		return true
 	default:
 		return false
@@ -140,7 +140,7 @@ func inferRuleWorkflows(prompt string, tools []string) []string {
 	workflows := []string{}
 	for _, tool := range tools {
 		switch strings.ToLower(strings.TrimSpace(tool)) {
-		case "homepage", "homepage_tool":
+		case "homepage", "homepage_tool", "homepage_project", "homepage_file", "homepage_quality", "homepage_deploy", "homepage_git":
 			workflows = append(workflows, "homepage")
 		}
 	}

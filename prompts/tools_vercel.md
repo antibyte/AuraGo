@@ -37,7 +37,7 @@ Project deletion is intentionally not available to autonomous agent workflows be
 - `check_connection` — Test connectivity to the Vercel API and validate the stored token
 
 **Homepage → Vercel deployment:**
-- Use `homepage` → `deploy_vercel` for homepage workspace publishing. It installs dependencies, runs a local build check, deploys framework projects from the project root, and verifies the live URL.
+- Use `homepage_deploy` `deploy_vercel` for homepage workspace publishing. It installs dependencies, runs a local build check, deploys framework projects from the project root, and verifies the live URL.
 - Project deletion is available only when `vercel.allow_project_management=true` and readonly mode is off.
   - Params: `project_dir`, `project_id` (optional), `build_dir` (optional), `target`, `alias`, `domain`
 

@@ -125,9 +125,11 @@ func finalizeToolExecution(
 		limit = cfg.Agent.ToolOutputLimit
 	}
 
-	// Compress tool output before applying truncation policy.
-	// This reduces token consumption by filtering, deduplicating, and
-	// summarising verbose outputs while preserving semantic content.
+	policyResult := applyToolOutputPolicy(rawContent, limit, scope)
+	rawContent = policyResult.Content
+
+	// Apply compression after truncation so expensive filters only process the
+	// retained content that can actually be added to the model context.
 	// Config defaults are applied in config.go via yamlHasPath, so the
 	// zero-value heuristic is no longer needed here.
 	if !guardianBlocked && cfg != nil {
@@ -196,7 +198,23 @@ func finalizeToolExecution(
 		}
 	}
 
-	policyResult := applyToolOutputPolicy(rawContent, limit, scope)
+	if limit > 0 && len(rawContent) > limit {
+		postCompressionPolicy := applyToolOutputPolicy(rawContent, limit, scope)
+		postCompressionPolicy.Truncated = postCompressionPolicy.Truncated || policyResult.Truncated
+		if postCompressionPolicy.ErrorSummary == "" {
+			postCompressionPolicy.ErrorSummary = policyResult.ErrorSummary
+		}
+		if policyResult.WasError {
+			postCompressionPolicy.WasError = true
+		}
+		policyResult = postCompressionPolicy
+	} else {
+		policyResult.Content = rawContent
+		policyResult.WasError = isToolError(rawContent)
+		if summary := extractErrorMessage(rawContent); summary != "" {
+			policyResult.ErrorSummary = summary
+		}
+	}
 	resultContent := policyResult.Content
 	toolFailed := policyResult.WasError
 	outcome := ExecutionOutcomeSuccess
@@ -250,7 +268,7 @@ func finalizeToolExecution(
 		cfg != nil && cfg.Tools.Journal.Enabled && cfg.Journal.AutoEntries {
 		reason := resultContent
 		if len(reason) > 150 {
-			reason = truncateUTF8ToLimit(reason, 153, "...")
+			reason = truncateUTF8ToLimit(reason, 150, "...")
 		}
 		title := fmt.Sprintf("Tool blocked: %s", trackingTC.Action)
 		if strings.Contains(resultContent, "Guardian") {

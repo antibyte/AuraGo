@@ -3,7 +3,7 @@ id: virtual_desktop
 title: Virtual Desktop App And Widget Workflow
 enabled: true
 priority: 95
-tools: [virtual_desktop]
+tools: [virtual_desktop, virtual_desktop_files, virtual_desktop_apps, virtual_desktop_widgets, office_document, office_workbook]
 workflows: [virtual_desktop, desktop_app, desktop_widget, generated_app, generated_widget]
 keywords:
   - virtual desktop
@@ -24,7 +24,7 @@ This rule applies when creating, editing, diagnosing, or launching generated app
 
 ## Generated App And Widget Creation Workflow
 
-Treat virtual desktop apps and widgets as first-party desktop workspace artifacts, not as host filesystem files. Use the `virtual_desktop` tool for `Apps/...` and `Widgets/...` paths; do not use generic filesystem, shell, Python, or file editor tools for those workspace paths.
+Treat virtual desktop apps and widgets as first-party desktop workspace artifacts, not as host filesystem files. Use `virtual_desktop_files` for workspace files, `virtual_desktop_apps` for app install/open/diagnostics, and `virtual_desktop_widgets` for widgets and notifications. Route Office document and spreadsheet work to `office_document` or `office_workbook`. Do not use generic filesystem, shell, Python, or file editor tools for those workspace paths.
 
 Call `status` before creating or changing apps and widgets. Use it to inspect the desktop state, installed apps, pinned widgets, workspace folders, and `icon_catalog` before choosing IDs, icons, file paths, or layout.
 

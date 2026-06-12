@@ -447,51 +447,52 @@ func TestBuildNativeToolSchemasUsesSkillManifestParameters(t *testing.T) {
 
 func TestBuildNativeToolSchemasDocumentsVirtualDesktopPapirusIconCatalog(t *testing.T) {
 	schemas := BuildNativeToolSchemas("", nil, ToolFeatureFlags{VirtualDesktopEnabled: true}, nil)
-	var virtualDesktop *openai.FunctionDefinition
+	var appsSchema, widgetsSchema *openai.FunctionDefinition
 	for _, item := range schemas {
-		if item.Function != nil && item.Function.Name == "virtual_desktop" {
-			virtualDesktop = item.Function
-			break
+		if item.Function == nil {
+			continue
+		}
+		switch item.Function.Name {
+		case "virtual_desktop_apps":
+			appsSchema = item.Function
+		case "virtual_desktop_widgets":
+			widgetsSchema = item.Function
 		}
 	}
-	if virtualDesktop == nil {
-		t.Fatal("missing virtual_desktop schema")
+	if appsSchema == nil || widgetsSchema == nil {
+		t.Fatalf("missing focused virtual desktop schemas apps=%v widgets=%v", appsSchema != nil, widgetsSchema != nil)
 	}
-	for _, want := range []string{"icon_catalog", "semantic icons", "Emoji", "sprite:<name>"} {
-		if !strings.Contains(virtualDesktop.Description, want) {
-			t.Fatalf("virtual_desktop description missing %q: %s", want, virtualDesktop.Description)
-		}
-	}
-	params, _ := virtualDesktop.Parameters.(map[string]interface{})
+	params, _ := appsSchema.Parameters.(map[string]interface{})
 	props, _ := params["properties"].(map[string]interface{})
 	operation, _ := props["operation"].(map[string]interface{})
-	for _, wantOp := range []string{"open_in_app", "list_apps", "get_app", "list_widgets", "get_widget", "diagnose_app", "diagnose_widget"} {
+	for _, wantOp := range []string{"open_in_app", "list_apps", "get_app", "diagnose_app"} {
 		if !containsInterfaceString(operation["enum"], wantOp) {
-			t.Fatalf("virtual_desktop operation enum missing %s: %#v", wantOp, operation["enum"])
+			t.Fatalf("virtual_desktop_apps operation enum missing %s: %#v", wantOp, operation["enum"])
 		}
 	}
 	appID, _ := props["app_id"].(map[string]interface{})
 	appIDDescription, _ := appID["description"].(string)
-	if !strings.Contains(appIDDescription, "open_in_app") {
-		t.Fatalf("app_id description missing open_in_app guidance: %s", appIDDescription)
-	}
-	if !strings.Contains(appIDDescription, "editor") {
-		t.Fatalf("app_id description missing editor guidance: %s", appIDDescription)
+	if !strings.Contains(appIDDescription, "Desktop app ID") {
+		t.Fatalf("app_id description missing concise app guidance: %s", appIDDescription)
 	}
 	manifest, _ := props["manifest"].(map[string]interface{})
 	manifestDescription, _ := manifest["description"].(string)
-	for _, want := range []string{"icon_catalog.preferred", "icon_catalog.aliases", "icon_catalog.categories", "icon is optional", "runtime defaults to aura-desktop-sdk@1"} {
-		if !strings.Contains(manifestDescription, want) {
-			t.Fatalf("manifest description missing %q: %s", want, manifestDescription)
+	if !strings.Contains(manifestDescription, "App manifest") {
+		t.Fatalf("manifest description missing concise manifest guidance: %s", manifestDescription)
+	}
+
+	widgetParams, _ := widgetsSchema.Parameters.(map[string]interface{})
+	widgetProps, _ := widgetParams["properties"].(map[string]interface{})
+	widgetOperation, _ := widgetProps["operation"].(map[string]interface{})
+	for _, wantOp := range []string{"list_widgets", "get_widget", "diagnose_widget"} {
+		if !containsInterfaceString(widgetOperation["enum"], wantOp) {
+			t.Fatalf("virtual_desktop_widgets operation enum missing %s: %#v", wantOp, widgetOperation["enum"])
 		}
 	}
-	widget, _ := props["widget"].(map[string]interface{})
+	widget, _ := widgetProps["widget"].(map[string]interface{})
 	widgetDescription, _ := widget["description"].(string)
-	if !strings.Contains(widgetDescription, "icon_catalog") {
-		t.Fatalf("widget description missing icon_catalog guidance: %s", widgetDescription)
-	}
-	if !strings.Contains(widgetDescription, "inferred") {
-		t.Fatalf("widget description missing inferred icon guidance: %s", widgetDescription)
+	if !strings.Contains(widgetDescription, "Widget payload") {
+		t.Fatalf("widget description missing concise widget guidance: %s", widgetDescription)
 	}
 }
 
@@ -650,26 +651,26 @@ func TestDiscoverToolsReturnsOfficeToolManuals(t *testing.T) {
 
 func TestVirtualDesktopSchemaDocumentsPathRequirementsWithoutGlobalPathRequirement(t *testing.T) {
 	schemas := BuildNativeToolSchemas("", nil, ToolFeatureFlags{VirtualDesktopEnabled: true}, nil)
-	var virtualDesktop *openai.FunctionDefinition
+	var virtualDesktopFiles *openai.FunctionDefinition
 	for _, item := range schemas {
-		if item.Function != nil && item.Function.Name == "virtual_desktop" {
-			virtualDesktop = item.Function
+		if item.Function != nil && item.Function.Name == "virtual_desktop_files" {
+			virtualDesktopFiles = item.Function
 			break
 		}
 	}
-	if virtualDesktop == nil {
-		t.Fatal("missing virtual_desktop schema")
+	if virtualDesktopFiles == nil {
+		t.Fatal("missing virtual_desktop_files schema")
 	}
-	params, _ := virtualDesktop.Parameters.(map[string]interface{})
+	params, _ := virtualDesktopFiles.Parameters.(map[string]interface{})
 	if containsInterfaceString(params["required"], "path") {
-		t.Fatalf("virtual_desktop must not require path globally: %#v", params["required"])
+		t.Fatalf("virtual_desktop_files must not require path globally: %#v", params["required"])
 	}
 	props, _ := params["properties"].(map[string]interface{})
 	pathProp, _ := props["path"].(map[string]interface{})
 	description, _ := pathProp["description"].(string)
-	for _, want := range []string{"Required for file operations", "Office operations", "export_file"} {
+	for _, want := range []string{"Workspace-relative path"} {
 		if !strings.Contains(description, want) {
-			t.Fatalf("virtual_desktop path description missing %q: %s", want, description)
+			t.Fatalf("virtual_desktop_files path description missing %q: %s", want, description)
 		}
 	}
 }

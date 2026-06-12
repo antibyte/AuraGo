@@ -369,7 +369,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status": "error", "message": "Unknown docker operation. Use: list_containers, inspect, start, stop, restart, pause, unpause, remove, logs, create, run, list_images, pull, remove_image, list_networks, create_network, remove_network, connect, disconnect, list_volumes, create_volume, remove_volume, exec, stats, top, port, cp, compose, info"}`
 			}
 
-		case "homepage", "homepage_tool":
+		case "homepage", "homepage_tool", "homepage_project", "homepage_file", "homepage_quality", "homepage_deploy", "homepage_git":
 			if !cfg.Homepage.Enabled {
 				return `Tool Output: {"status": "error", "message": "Homepage tool is not enabled. Set homepage.enabled=true in config.yaml."}`
 			}

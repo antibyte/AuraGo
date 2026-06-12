@@ -18,7 +18,7 @@ func TestDaemonSupervisor_NewAndDefaults(t *testing.T) {
 		DaemonSupervisorConfig{Enabled: true},
 		nil,
 		nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		&mockBroadcaster{},
 		noopLogger(),
 	)
@@ -37,7 +37,7 @@ func TestDaemonSupervisor_DisabledStart(t *testing.T) {
 	sv := NewDaemonSupervisor(
 		DaemonSupervisorConfig{Enabled: false},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		nil,
 		noopLogger(),
 	)
@@ -50,7 +50,7 @@ func TestDaemonSupervisor_ListDaemonsEmpty(t *testing.T) {
 	sv := NewDaemonSupervisor(
 		DaemonSupervisorConfig{Enabled: true},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		nil,
 		noopLogger(),
 	)
@@ -64,7 +64,7 @@ func TestDaemonSupervisor_StopIdempotent(t *testing.T) {
 	sv := NewDaemonSupervisor(
 		DaemonSupervisorConfig{Enabled: true},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		nil,
 		noopLogger(),
 	)
@@ -77,7 +77,7 @@ func TestDaemonSupervisor_StopDaemonNotFound(t *testing.T) {
 	sv := NewDaemonSupervisor(
 		DaemonSupervisorConfig{Enabled: true},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		nil,
 		noopLogger(),
 	)
@@ -97,7 +97,7 @@ func TestDaemonSupervisor_GateAccess(t *testing.T) {
 			},
 		},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		nil,
 		noopLogger(),
 	)
@@ -120,7 +120,7 @@ func TestDaemonSupervisor_StartDaemonNotFound(t *testing.T) {
 	sv := NewDaemonSupervisor(
 		DaemonSupervisorConfig{Enabled: true},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		nil,
 		noopLogger(),
 	)
@@ -134,7 +134,7 @@ func TestDaemonSupervisor_ReenableDaemonNotFound(t *testing.T) {
 	sv := NewDaemonSupervisor(
 		DaemonSupervisorConfig{Enabled: true},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		nil,
 		noopLogger(),
 	)
@@ -148,7 +148,7 @@ func TestDaemonSupervisor_GetDaemonStateNotFound(t *testing.T) {
 	sv := NewDaemonSupervisor(
 		DaemonSupervisorConfig{Enabled: true},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		nil,
 		noopLogger(),
 	)
@@ -163,7 +163,7 @@ func TestDaemonSupervisor_BroadcastStatus(t *testing.T) {
 	sv := NewDaemonSupervisor(
 		DaemonSupervisorConfig{Enabled: true},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		bc,
 		noopLogger(),
 	)
@@ -197,7 +197,7 @@ func TestDaemonSupervisor_BroadcastStatusNilBroadcaster(t *testing.T) {
 	sv := NewDaemonSupervisor(
 		DaemonSupervisorConfig{Enabled: true},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		nil, // nil broadcaster
 		noopLogger(),
 	)
@@ -217,7 +217,7 @@ func TestDaemonSupervisor_BuildWakeUpPrompt(t *testing.T) {
 	sv := NewDaemonSupervisor(
 		DaemonSupervisorConfig{Enabled: true},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		nil,
 		noopLogger(),
 	)
@@ -252,7 +252,7 @@ func TestDaemonSupervisor_BuildWakeUpPromptWithData(t *testing.T) {
 	sv := NewDaemonSupervisor(
 		DaemonSupervisorConfig{Enabled: true},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		nil,
 		noopLogger(),
 	)
@@ -282,7 +282,7 @@ func TestDaemonSupervisor_BuildWakeUpPromptDefaultSeverity(t *testing.T) {
 	sv := NewDaemonSupervisor(
 		DaemonSupervisorConfig{Enabled: true},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		nil,
 		noopLogger(),
 	)
@@ -308,7 +308,7 @@ func TestDaemonSupervisor_AutoDisableDaemon(t *testing.T) {
 	sv := NewDaemonSupervisor(
 		DaemonSupervisorConfig{Enabled: true},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		bc,
 		noopLogger(),
 	)
@@ -350,7 +350,7 @@ func TestDaemonSupervisor_AutoDisableNonexistent(t *testing.T) {
 	sv := NewDaemonSupervisor(
 		DaemonSupervisorConfig{Enabled: true},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		nil,
 		noopLogger(),
 	)
@@ -360,7 +360,7 @@ func TestDaemonSupervisor_AutoDisableNonexistent(t *testing.T) {
 
 func TestDaemonSupervisor_HandleWakeUpAllowed(t *testing.T) {
 	bc := &mockBroadcaster{}
-	taskDir := t.TempDir()
+	taskDir := tempSystemTaskDir(t)
 	sv := NewDaemonSupervisor(
 		DaemonSupervisorConfig{
 			Enabled: true,
@@ -425,7 +425,7 @@ func TestDaemonSupervisor_HandleWakeUpDenied(t *testing.T) {
 			},
 		},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		bc,
 		noopLogger(),
 	)
@@ -477,7 +477,7 @@ func TestDaemonSupervisor_HandleWakeUpCircuitBreaker(t *testing.T) {
 			},
 		},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		bc,
 		noopLogger(),
 	)
@@ -539,7 +539,7 @@ func TestDaemonSupervisor_ConcurrentOperations(t *testing.T) {
 			},
 		},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		&mockBroadcaster{},
 		noopLogger(),
 	)
@@ -581,7 +581,7 @@ func TestDaemonSupervisor_RefreshSkillsDisabled(t *testing.T) {
 	sv := NewDaemonSupervisor(
 		DaemonSupervisorConfig{Enabled: false},
 		nil, nil,
-		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		NewBackgroundTaskManager(tempSystemTaskDir(t), noopLogger()),
 		nil,
 		noopLogger(),
 	)

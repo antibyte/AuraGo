@@ -193,11 +193,15 @@ func InterruptSession(sessionID string) {
 }
 
 // checkAndClearInterrupt returns true if the session was interrupted and clears the flag.
-func checkAndClearInterrupt(sessionID string) bool {
+// If notBefore is provided, older interrupts are treated as stale for this loop.
+func checkAndClearInterrupt(sessionID string, notBefore ...time.Time) bool {
 	muInterrupts.Lock()
 	defer muInterrupts.Unlock()
-	if _, ok := sessionInterrupts[sessionID]; ok {
+	if ts, ok := sessionInterrupts[sessionID]; ok {
 		delete(sessionInterrupts, sessionID)
+		if len(notBefore) > 0 && !notBefore[0].IsZero() && ts.Before(notBefore[0]) {
+			return false
+		}
 		return true
 	}
 	return false
@@ -282,6 +286,14 @@ func (s *StringOrArray) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &arr); err == nil {
 		parts := make([]string, 0, len(arr))
 		for _, v := range arr {
+			if str, ok := v.(string); ok {
+				parts = append(parts, str)
+				continue
+			}
+			if encoded, err := json.Marshal(v); err == nil {
+				parts = append(parts, string(encoded))
+				continue
+			}
 			parts = append(parts, fmt.Sprintf("%v", v))
 		}
 		*s = StringOrArray(strings.Join(parts, "\n"))
@@ -468,6 +480,9 @@ type ToolCall struct {
 	MaxResults   int             `json:"max_results"`
 	Append       bool            `json:"append"`
 	MessageID    string          `json:"message_id"`
+	InboxID      string          `json:"inbox_id"`
+	ThreadID     string          `json:"thread_id"`
+	DraftID      string          `json:"draft_id"`
 	AddLabels    []string        `json:"add_labels"`
 	RemoveLabels []string        `json:"remove_labels"`
 	EventID      string          `json:"event_id"`

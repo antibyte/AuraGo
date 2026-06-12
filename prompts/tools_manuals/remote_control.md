@@ -1,6 +1,8 @@
-# Remote Control (`remote_control`)
+# Remote Control Legacy Compatibility (`remote_control`)
 
 Manage remote machines running the AuraGo Remote agent or a paired agodesk desktop client. Provides shell execution, file transfer, system information collection, device lifecycle management, and agodesk desktop screenshot, discovery, UI automation, browser CDP, and input operations over secure WebSocket connections.
+
+Prefer `remote_control_devices`, `remote_control_shell`, `remote_control_files`, and `remote_control_desktop` when they are visible. The legacy `remote_control` action remains accepted for dispatch compatibility with older clients and prompts.
 
 ## Operations
 

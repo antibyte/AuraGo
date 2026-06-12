@@ -65,7 +65,7 @@ Ein **Egg** beschreibt, *wie* der deployte Worker arbeitet:
 ### Einrichtung in der Web-UI
 1. Öffne **Config → Server → Web-Konfiguration & Login** und stelle sicher, dass die Web-UI aktiviert ist (`web_config.enabled`).
 2. Öffne **Invasion Control** unter `/invasion` (Radial-Menü) für Nests und Eggs.
-3. Für das Agent-Tool `invasion_control`: setze `invasion_control.enabled` in der `config.yaml` (kein eigener Config-Menüpunkt).
+3. Für die Agent-Tools `invasion_nests`, `invasion_tasks` und `invasion_artifacts`: setze `invasion_control.enabled` in der `config.yaml` (kein eigener Config-Menüpunkt).
 4. Optional: **Config → Server → SQLite** → Pfad `invasion_path` anpassen.
 
 ### YAML-Referenz
@@ -75,7 +75,7 @@ web_config:
   enabled: true          # erforderlich für /api/invasion/* REST-Endpunkte
 
 invasion_control:
-  enabled: false         # aktiviert das invasion_control Agent-Tool (Standard: false)
+  enabled: false         # aktiviert die fokussierten Invasion-Control-Agent-Tools (Standard: false)
   readonly: false        # true = Hatch/Stop/send_task/send_secret und andere Mutationen blockieren
 
 sqlite:
@@ -418,9 +418,9 @@ Der Master generiert diese Konfiguration beim Hatch. Für verwaltete Eggs wird `
 
 ---
 
-## Agent-Tool: `invasion_control`
+## Agent-Tools: `invasion_nests`, `invasion_tasks`, `invasion_artifacts`
 
-Bei `invasion_control.enabled: true` kann der Agent Nests und Eggs programmatisch verwalten:
+Bei `invasion_control.enabled: true` kann der Agent Nests, Eggs, Tasks und Artefakte programmatisch verwalten. Die fokussierten Tools sind `invasion_nests`, `invasion_tasks` und `invasion_artifacts`; der alte Dispatch-Name `invasion_control` bleibt kompatibel.
 
 | Operation | Beschreibung |
 |-----------|--------------|

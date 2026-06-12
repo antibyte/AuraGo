@@ -7,7 +7,9 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log/slog"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
@@ -23,15 +25,33 @@ var nativeToolNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 var providerNativeToolNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.:-]{0,127}$`)
 
 var builtinToolSchemaCache sync.Map
+var dynamicToolSchemaCache sync.Map
+
+type dynamicToolSchemaCacheKey struct {
+	Flags               ToolFeatureFlags
+	SkillsFingerprint   string
+	ManifestFingerprint string
+}
 
 var nativeMalformedArgFieldPatterns = map[string]*regexp.Regexp{
-	"prompt":    regexp.MustCompile(`"prompt"\s*:\s*"((?:[^"\\]|\\.)*)`),
-	"content":   regexp.MustCompile(`"content"\s*:\s*"((?:[^"\\]|\\.)*)`),
-	"query":     regexp.MustCompile(`"query"\s*:\s*"((?:[^"\\]|\\.)*)`),
-	"operation": regexp.MustCompile(`"operation"\s*:\s*"((?:[^"\\]|\\.)*)`),
-	"command":   regexp.MustCompile(`"command"\s*:\s*"((?:[^"\\]|\\.)*)`),
-	"code":      regexp.MustCompile(`"code"\s*:\s*"((?:[^"\\]|\\.)*)`),
-	"skill":     regexp.MustCompile(`"skill"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"prompt":      regexp.MustCompile(`"prompt"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"content":     regexp.MustCompile(`"content"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"query":       regexp.MustCompile(`"query"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"operation":   regexp.MustCompile(`"operation"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"command":     regexp.MustCompile(`"command"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"code":        regexp.MustCompile(`"code"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"skill":       regexp.MustCompile(`"skill"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"path":        regexp.MustCompile(`"path"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"file_path":   regexp.MustCompile(`"file_path"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"project_dir": regexp.MustCompile(`"project_dir"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"name":        regexp.MustCompile(`"name"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"device_id":   regexp.MustCompile(`"device_id"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"task_id":     regexp.MustCompile(`"task_id"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"artifact_id": regexp.MustCompile(`"artifact_id"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"inbox_id":    regexp.MustCompile(`"inbox_id"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"message_id":  regexp.MustCompile(`"message_id"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"thread_id":   regexp.MustCompile(`"thread_id"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"draft_id":    regexp.MustCompile(`"draft_id"\s*:\s*"((?:[^"\\]|\\.)*)`),
 }
 
 var nativeJSONStringObjectArgNames = map[string]struct{}{
@@ -225,6 +245,9 @@ func injectAdditionalPropertiesRec(m map[string]interface{}) {
 }
 
 func injectAdditionalPropertiesRecWithVisited(m map[string]interface{}, visited map[uintptr]struct{}) {
+	if m == nil {
+		return
+	}
 	if len(m) == 0 {
 		return
 	}
@@ -270,6 +293,9 @@ func normalizeStrictSchemaRequiredRec(m map[string]interface{}) {
 }
 
 func normalizeStrictSchemaRequiredRecWithVisited(m map[string]interface{}, visited map[uintptr]struct{}) {
+	if m == nil {
+		return
+	}
 	if len(m) == 0 {
 		m["type"] = "string"
 		return
@@ -290,16 +316,7 @@ func normalizeStrictSchemaRequiredRecWithVisited(m map[string]interface{}, visit
 		}
 	}
 
-	if m["type"] == "object" {
-		if props, ok := m["properties"].(map[string]interface{}); ok && len(props) > 0 {
-			required := make([]string, 0, len(props))
-			for name := range props {
-				required = append(required, name)
-			}
-			sort.Strings(required)
-			m["required"] = required
-		}
-	}
+	normalizeExplicitRequiredList(m)
 	if m["type"] == "array" {
 		if _, ok := m["items"]; !ok {
 			m["items"] = map[string]interface{}{"type": "string"}
@@ -324,6 +341,58 @@ func normalizeStrictSchemaRequiredRecWithVisited(m map[string]interface{}, visit
 			}
 		}
 	}
+}
+
+func normalizeExplicitRequiredList(m map[string]interface{}) {
+	if m["type"] != "object" {
+		return
+	}
+	props, _ := m["properties"].(map[string]interface{})
+	if len(props) == 0 {
+		delete(m, "required")
+		return
+	}
+	requiredRaw, exists := m["required"]
+	if !exists {
+		return
+	}
+	seen := make(map[string]struct{})
+	required := make([]string, 0)
+	appendRequired := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return
+		}
+		if _, ok := props[name]; !ok {
+			return
+		}
+		if _, ok := seen[name]; ok {
+			return
+		}
+		seen[name] = struct{}{}
+		required = append(required, name)
+	}
+	switch typed := requiredRaw.(type) {
+	case []string:
+		for _, name := range typed {
+			appendRequired(name)
+		}
+	case []interface{}:
+		for _, raw := range typed {
+			if name, ok := raw.(string); ok {
+				appendRequired(name)
+			}
+		}
+	default:
+		delete(m, "required")
+		return
+	}
+	if len(required) == 0 {
+		delete(m, "required")
+		return
+	}
+	sort.Strings(required)
+	m["required"] = required
 }
 
 func hasSchemaCombinator(m map[string]interface{}) bool {
@@ -529,6 +598,39 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 		if tc.Code == "" {
 			tc.Code = extractMalformedJSONStringField(native.Function.Arguments, "code")
 		}
+		if tc.Path == "" {
+			tc.Path = extractMalformedJSONStringField(native.Function.Arguments, "path")
+		}
+		if tc.FilePath == "" {
+			tc.FilePath = extractMalformedJSONStringField(native.Function.Arguments, "file_path")
+		}
+		if tc.ProjectDir == "" {
+			tc.ProjectDir = extractMalformedJSONStringField(native.Function.Arguments, "project_dir")
+		}
+		if tc.Name == "" {
+			tc.Name = extractMalformedJSONStringField(native.Function.Arguments, "name")
+		}
+		if tc.DeviceID == "" {
+			tc.DeviceID = extractMalformedJSONStringField(native.Function.Arguments, "device_id")
+		}
+		if tc.TaskID == "" {
+			tc.TaskID = extractMalformedJSONStringField(native.Function.Arguments, "task_id")
+		}
+		if tc.ArtifactID == "" {
+			tc.ArtifactID = extractMalformedJSONStringField(native.Function.Arguments, "artifact_id")
+		}
+		if tc.InboxID == "" {
+			tc.InboxID = extractMalformedJSONStringField(native.Function.Arguments, "inbox_id")
+		}
+		if tc.MessageID == "" {
+			tc.MessageID = extractMalformedJSONStringField(native.Function.Arguments, "message_id")
+		}
+		if tc.ThreadID == "" {
+			tc.ThreadID = extractMalformedJSONStringField(native.Function.Arguments, "thread_id")
+		}
+		if tc.DraftID == "" {
+			tc.DraftID = extractMalformedJSONStringField(native.Function.Arguments, "draft_id")
+		}
 		if name == "execute_skill" && tc.Skill == "" {
 			tc.Skill = extractMalformedJSONStringField(native.Function.Arguments, "skill")
 		}
@@ -672,6 +774,15 @@ func decodeExecuteSkillNativeToolCall(base ToolCall, normalizedArgs string) (Too
 
 // BuildNativeToolSchemas returns the full tool list: built-ins + registered skills + custom tools.
 func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolFeatureFlags, logger *slog.Logger) []openai.Tool {
+	cacheKey := dynamicToolSchemaCacheKey{
+		Flags:               ff,
+		SkillsFingerprint:   nativeSkillsFingerprint(skillsDir),
+		ManifestFingerprint: nativeManifestFingerprint(manifest),
+	}
+	if cached, ok := dynamicToolSchemaCache.Load(cacheKey); ok {
+		return deepClone(cached.([]openai.Tool))
+	}
+
 	allTools := builtinToolSchemasCached(ff)
 	builtinNames := allBuiltinToolNameSet()
 	emittedNames := make(map[string]struct{}, len(allTools))
@@ -819,21 +930,6 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 		}
 		if _, injectTodo := builtinTodoNames[allTools[i].Function.Name]; injectTodo {
 			props["_todo"] = todoProperty
-			// Add _todo to "required" so strict-mode schemas remain valid.
-			// Tools that already declare a required array get _todo appended;
-			// tools without one get a new required array containing ["_todo"].
-			switch req := params["required"].(type) {
-			case []string:
-				if !containsRequiredString(req, "_todo") {
-					params["required"] = append(req, "_todo")
-				}
-			case []interface{}:
-				if !containsRequiredInterfaceString(req, "_todo") {
-					params["required"] = append(req, "_todo")
-				}
-			default:
-				params["required"] = []string{"_todo"}
-			}
 		}
 		// CHANGE LOG 2026-04-11: OpenAI strict mode requires additionalProperties: false
 		// on every object schema. The go-openai library does not auto-add this, so we
@@ -846,7 +942,53 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 		logger.Info("[NativeTools] Built tool schemas", "count", len(allTools))
 	}
 
+	dynamicToolSchemaCache.Store(cacheKey, deepClone(allTools))
 	return allTools
+}
+
+func nativeSkillsFingerprint(skillsDir string) string {
+	skillsDir = strings.TrimSpace(skillsDir)
+	if skillsDir == "" {
+		return ""
+	}
+	parts := make([]string, 0)
+	_ = filepath.WalkDir(skillsDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d == nil || d.IsDir() {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		rel, err := filepath.Rel(skillsDir, path)
+		if err != nil {
+			rel = path
+		}
+		parts = append(parts, fmt.Sprintf("%s:%d:%d", filepath.ToSlash(rel), info.Size(), info.ModTime().UnixNano()))
+		return nil
+	})
+	sort.Strings(parts)
+	return strings.Join(parts, "\n")
+}
+
+func nativeManifestFingerprint(manifest *tools.Manifest) string {
+	if manifest == nil {
+		return ""
+	}
+	entries, err := manifest.Load()
+	if err != nil || len(entries) == 0 {
+		return ""
+	}
+	names := make([]string, 0, len(entries))
+	for name := range entries {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	parts := make([]string, 0, len(names))
+	for _, name := range names {
+		parts = append(parts, name+"="+entries[name])
+	}
+	return strings.Join(parts, "\n")
 }
 
 func isProviderSafeNativeToolName(name string) bool {

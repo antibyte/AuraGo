@@ -14,7 +14,7 @@ func testBackgroundTaskLogger() *slog.Logger {
 }
 
 func TestBackgroundTaskManagerFollowUpExecutesAndPersists(t *testing.T) {
-	dir := t.TempDir()
+	dir := tempSystemTaskDir(t)
 	mgr := NewBackgroundTaskManager(dir, testBackgroundTaskLogger())
 	t.Cleanup(func() { _ = mgr.Close() })
 
@@ -65,7 +65,7 @@ func TestBackgroundTaskManagerFollowUpExecutesAndPersists(t *testing.T) {
 }
 
 func TestBackgroundTaskManagerWaitForEventFileChanged(t *testing.T) {
-	dir := t.TempDir()
+	dir := tempSystemTaskDir(t)
 	logger := testBackgroundTaskLogger()
 	mgr := NewBackgroundTaskManager(dir, logger)
 	t.Cleanup(func() { _ = mgr.Close() })
@@ -135,7 +135,7 @@ func TestBackgroundTaskManagerWaitForEventFileChanged(t *testing.T) {
 }
 
 func TestBackgroundTaskManagerWaitForEventWithoutPromptCompletes(t *testing.T) {
-	dir := t.TempDir()
+	dir := tempSystemTaskDir(t)
 	mgr := NewBackgroundTaskManager(dir, testBackgroundTaskLogger())
 	t.Cleanup(func() { _ = mgr.Close() })
 
@@ -165,7 +165,7 @@ func TestBackgroundTaskManagerWaitForEventWithoutPromptCompletes(t *testing.T) {
 }
 
 func TestBackgroundTaskManagerCheckWaitConditionReadsRegistryWithoutManagerLock(t *testing.T) {
-	mgr := NewBackgroundTaskManager(t.TempDir(), testBackgroundTaskLogger())
+	mgr := NewBackgroundTaskManager(tempSystemTaskDir(t), testBackgroundTaskLogger())
 	t.Cleanup(func() { _ = mgr.Close() })
 	registry := NewProcessRegistry(testBackgroundTaskLogger())
 	mgr.SetProcessRegistry(registry)

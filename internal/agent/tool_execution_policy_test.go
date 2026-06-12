@@ -1,8 +1,8 @@
 package agent
 
 import (
-	"context"
 	"bytes"
+	"context"
 	"io"
 	"log/slog"
 	"strings"
@@ -10,6 +10,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/tools/outputcompress"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -222,5 +223,46 @@ func TestFinalizeToolExecutionWarnsWhenMemoryPersistenceFails(t *testing.T) {
 		if !strings.Contains(logs, want) {
 			t.Fatalf("expected logs to contain %q, got %q", want, logs)
 		}
+	}
+}
+
+func TestFinalizeToolExecutionTruncatesBeforeCompression(t *testing.T) {
+	resetAgentTelemetryForTest()
+	outputcompress.ResetCompressionStats()
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	cfg := &config.Config{}
+	cfg.Agent.ToolOutputLimit = 500
+	cfg.Agent.OutputCompression.Enabled = true
+	cfg.Agent.OutputCompression.MinChars = 100
+	cfg.Agent.OutputCompression.ShellCompression = true
+	cfg.Agent.OutputCompression.PythonCompression = true
+	cfg.Agent.OutputCompression.APICompression = true
+	cfg.Agent.OutputCompression.RepetitiveSubstitution.Enabled = true
+	cfg.Agent.OutputCompression.RepetitiveSubstitution.LZWEnabled = true
+	cfg.Agent.OutputCompression.RepetitiveSubstitution.MinPhraseChars = 10
+	cfg.Agent.OutputCompression.RepetitiveSubstitution.MinOccurrences = 2
+	cfg.Agent.OutputCompression.RepetitiveSubstitution.MinSavingsPercent = 1
+	cfg.Agent.OutputCompression.RepetitiveSubstitution.MaxInputChars = 2000
+	cfg.Agent.OutputCompression.RepetitiveSubstitution.MaxDictionaryEntries = 8
+
+	raw := strings.Repeat("INFO backup job completed for dataset alpha with stable repeated payload\n", 100)
+	state := newToolRecoveryState()
+	result := finalizeToolExecution(context.Background(), ToolCall{
+		Action:       "execute_shell",
+		Command:      "docker logs backup",
+		NativeCallID: "call-compress",
+	}, raw, false, cfg, nil, "default", &state, &openai.ChatCompletionRequest{}, logger, AgentTelemetryScope{}, "v1", 100, RunConfig{})
+	if result.Content == "" {
+		t.Fatal("expected finalized content")
+	}
+
+	snap := outputcompress.GetCompressionSnapshot()
+	if len(snap.RecentCompressions) == 0 {
+		t.Fatal("expected compression stats to be recorded")
+	}
+	got := snap.RecentCompressions[len(snap.RecentCompressions)-1]
+	if got.RawChars > cfg.Agent.ToolOutputLimit {
+		t.Fatalf("compression saw %d raw chars, want <= truncation limit %d", got.RawChars, cfg.Agent.ToolOutputLimit)
 	}
 }

@@ -201,8 +201,10 @@ agent:
 	if cfg.Agent.CoreMemoryCapMode != "hard" {
 		t.Fatalf("core_memory_cap_mode = %q, want hard", cfg.Agent.CoreMemoryCapMode)
 	}
-	if !containsString(cfg.Agent.AdaptiveTools.AlwaysInclude, "virtual_desktop") {
-		t.Fatalf("adaptive always_include missing virtual_desktop: %#v", cfg.Agent.AdaptiveTools.AlwaysInclude)
+	for _, want := range []string{"virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets"} {
+		if !containsString(cfg.Agent.AdaptiveTools.AlwaysInclude, want) {
+			t.Fatalf("adaptive always_include missing %s: %#v", want, cfg.Agent.AdaptiveTools.AlwaysInclude)
+		}
 	}
 }
 

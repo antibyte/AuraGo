@@ -7,7 +7,9 @@ conditions: ["invasion_control_enabled"]
 
 ## Invasion Control Tool
 
-You can manage deployment nests (target servers/VMs/containers) and eggs (sub-agent configurations) using the `invasion_control` tool. This system allows you to deploy, monitor, and control remote AuraGo worker agents.
+You can manage deployment nests (target servers/VMs/containers), eggs (sub-agent configurations), tasks, and artifacts using focused Invasion Control tools. This system allows you to deploy, monitor, and control remote AuraGo worker agents.
+
+Use `invasion_nests` for nest and egg lifecycle/status, `invasion_tasks` for task/message/secret operations, and `invasion_artifacts` for output artifacts. The legacy `invasion_control` action remains accepted for older clients.
 
 ### Concepts
 - **Nest** = a deployment target (server, VM, Docker host) where an egg can be deployed

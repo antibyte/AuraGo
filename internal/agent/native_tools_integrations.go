@@ -2,6 +2,326 @@ package agent
 
 import openai "github.com/sashabaranov/go-openai"
 
+func replaceMegaToolSchemasWithFocused(toolSchemas []openai.Tool, ff ToolFeatureFlags) []openai.Tool {
+	skip := map[string]bool{}
+	if ff.HomepageEnabled {
+		skip["homepage"] = true
+	}
+	if ff.AgentMailEnabled {
+		skip["agentmail"] = true
+	}
+	if ff.InvasionControlEnabled {
+		skip["invasion_control"] = true
+	}
+	if ff.RemoteControlEnabled {
+		skip["remote_control"] = true
+	}
+	if ff.VirtualDesktopEnabled {
+		skip["virtual_desktop"] = true
+	}
+
+	out := make([]openai.Tool, 0, len(toolSchemas)+24)
+	for _, toolSchema := range toolSchemas {
+		if toolSchema.Function != nil && skip[toolSchema.Function.Name] {
+			continue
+		}
+		out = append(out, toolSchema)
+	}
+	if ff.HomepageEnabled {
+		out = appendHomepageFocusedSchemas(out, ff)
+	}
+	if ff.AgentMailEnabled {
+		out = appendAgentMailFocusedSchemas(out)
+	}
+	if ff.InvasionControlEnabled {
+		out = appendInvasionFocusedSchemas(out)
+	}
+	if ff.RemoteControlEnabled {
+		out = appendRemoteControlFocusedSchemas(out)
+	}
+	if ff.VirtualDesktopEnabled {
+		out = appendVirtualDesktopFocusedSchemas(out)
+	}
+	return out
+}
+
+func operationProperty(description string, ops []string) map[string]interface{} {
+	return map[string]interface{}{
+		"type":        "string",
+		"description": description,
+		"enum":        ops,
+	}
+}
+
+func appendHomepageFocusedSchemas(toolSchemas []openai.Tool, ff ToolFeatureFlags) []openai.Tool {
+	projectDesc := "Manage homepage project lifecycle in the homepage workspace."
+	if !ff.HomepageAllowLocalServer {
+		projectDesc += " Docker is required when local server fallback is disabled."
+	}
+	toolSchemas = append(toolSchemas,
+		tool("homepage_project", projectDesc, schema(map[string]interface{}{
+			"operation":   operationProperty("Project operation.", []string{"init", "start", "stop", "status", "rebuild", "destroy", "exec", "init_project", "build", "install_deps", "dev", "webserver_start", "webserver_stop", "webserver_status", "publish_local", "tunnel", "test_connection"}),
+			"command":     prop("string", "Shell command for exec inside the homepage container."),
+			"framework":   prop("string", "Framework for init_project: next, vite, astro, svelte, vue, html."),
+			"name":        prop("string", "Project name for init_project."),
+			"project_dir": prop("string", "Project subdirectory within /workspace."),
+			"build_dir":   prop("string", "Build output directory."),
+			"template":    prop("string", "Optional starter template."),
+			"auto_fix":    prop("boolean", "Retry common build fixes when true."),
+			"force":       prop("boolean", "Required true only for destructive destroy."),
+			"packages":    map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "NPM packages for install_deps."},
+			"port":        prop("integer", "Port for tunnel; defaults to 3000."),
+		}, "operation")),
+		tool("homepage_file", "Read, write, and edit files inside the homepage workspace. Use paths with the project directory prefix.", schema(map[string]interface{}{
+			"operation":     operationProperty("File operation.", []string{"list_files", "read_file", "write_file", "edit_file", "json_edit", "yaml_edit", "xml_edit", "optimize_images"}),
+			"path":          prop("string", "Homepage workspace path including project directory."),
+			"file_path":     prop("string", "Alias for path."),
+			"project_dir":   prop("string", "Project subdirectory for optimize_images."),
+			"content":       prop("string", "File content or inserted text."),
+			"sub_operation": prop("string", "Edit sub-operation for edit_file/json_edit/yaml_edit/xml_edit."),
+			"old":           prop("string", "Text to find."),
+			"new":           prop("string", "Replacement text."),
+			"marker":        prop("string", "Anchor text for insert operations."),
+			"start_line":    prop("integer", "First line for delete_lines."),
+			"end_line":      prop("integer", "Last line for delete_lines."),
+			"json_path":     prop("string", "Dot path for JSON/YAML edits."),
+			"xpath":         prop("string", "XPath for XML edits."),
+			"set_value":     map[string]interface{}{"description": "Value to set for structured edits."},
+		}, "operation")),
+		tool("homepage_quality", "Run homepage browser, JS, lint, and performance checks.", schema(map[string]interface{}{
+			"operation":   operationProperty("Quality operation.", []string{"lighthouse", "screenshot", "check_js", "lint"}),
+			"url":         prop("string", "URL for browser-based checks."),
+			"viewport":    prop("string", "Viewport size, e.g. 1280x720."),
+			"project_dir": prop("string", "Project subdirectory for lint."),
+		}, "operation")),
+		tool("homepage_deploy", "Deploy or publish homepage projects through configured deployment targets.", schema(map[string]interface{}{
+			"operation":   operationProperty("Deployment operation.", []string{"deploy", "deploy_netlify", "deploy_vercel"}),
+			"project_dir": prop("string", "Project subdirectory."),
+			"build_dir":   prop("string", "Build output directory."),
+			"site_id":     prop("string", "Netlify site ID."),
+			"draft":       prop("boolean", "Create Netlify draft deployment when true."),
+			"title":       prop("string", "Deploy message/title."),
+			"project_id":  prop("string", "Vercel project ID or name."),
+			"target":      prop("string", "Vercel target: preview or production."),
+			"alias":       prop("string", "Optional Vercel alias/domain."),
+			"domain":      prop("string", "Optional custom domain."),
+		}, "operation")),
+		tool("homepage_git", "Manage homepage project git and revision history.", schema(map[string]interface{}{
+			"operation":   operationProperty("Git/revision operation.", []string{"git_init", "git_commit", "git_status", "git_diff", "git_log", "git_rollback", "save_revision", "list_revisions", "get_revision", "diff_revision", "restore_revision", "revision_status"}),
+			"project_dir": prop("string", "Project subdirectory."),
+			"git_message": prop("string", "Commit message."),
+			"message":     prop("string", "Revision message."),
+			"reason":      prop("string", "Revision reason."),
+			"count":       prop("integer", "Log count or rollback steps."),
+			"revision_id": prop("integer", "Revision ID."),
+			"path":        prop("string", "Optional file path for revision diff/restore."),
+			"file_path":   prop("string", "Alias for path."),
+		}, "operation")),
+	)
+	return toolSchemas
+}
+
+func appendAgentMailFocusedSchemas(toolSchemas []openai.Tool) []openai.Tool {
+	common := map[string]interface{}{
+		"inbox_id": prop("string", "AgentMail inbox ID; defaults to config."),
+		"limit":    prop("integer", "Maximum number of records."),
+		"cursor":   prop("string", "Pagination cursor."),
+	}
+	toolSchemas = append(toolSchemas,
+		tool("agentmail_inboxes", "Manage AgentMail inboxes.", schema(map[string]interface{}{
+			"operation":    operationProperty("Inbox operation.", []string{"test_connection", "list_inboxes", "get_inbox", "create_inbox", "update_inbox", "delete_inbox"}),
+			"inbox_id":     common["inbox_id"],
+			"limit":        common["limit"],
+			"cursor":       common["cursor"],
+			"username":     prop("string", "Inbox username for create_inbox."),
+			"domain":       prop("string", "Inbox domain for create_inbox."),
+			"display_name": prop("string", "Inbox display name."),
+		}, "operation")),
+		tool("agentmail_messages", "Read and send AgentMail messages.", schema(map[string]interface{}{
+			"operation":     operationProperty("Message operation.", []string{"list_messages", "get_message", "update_message_labels", "delete_message", "send_message", "reply_message", "reply_all_message", "forward_message", "get_raw_message", "get_attachment"}),
+			"inbox_id":      common["inbox_id"],
+			"message_id":    prop("string", "Message ID."),
+			"thread_id":     prop("string", "Thread ID filter."),
+			"attachment_id": prop("string", "Attachment ID."),
+			"limit":         common["limit"],
+			"cursor":        common["cursor"],
+			"after":         prop("string", "ISO timestamp filter."),
+			"labels":        map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Labels for filtering."},
+			"add_labels":    map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Labels to add."},
+			"remove_labels": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Labels to remove."},
+			"to":            map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Recipients."},
+			"cc":            map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "CC recipients."},
+			"bcc":           map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "BCC recipients."},
+			"subject":       prop("string", "Message subject."),
+			"text":          prop("string", "Plain text body."),
+			"html":          prop("string", "HTML body."),
+			"attachments":   map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "object", "additionalProperties": true}, "description": "Attachment descriptors."},
+		}, "operation")),
+		tool("agentmail_threads", "List and read AgentMail threads.", schema(map[string]interface{}{
+			"operation": operationProperty("Thread operation.", []string{"list_threads", "get_thread"}),
+			"inbox_id":  common["inbox_id"],
+			"thread_id": prop("string", "Thread ID."),
+			"limit":     common["limit"],
+			"cursor":    common["cursor"],
+		}, "operation")),
+		tool("agentmail_drafts", "Create, update, send, and delete AgentMail drafts.", schema(map[string]interface{}{
+			"operation":   operationProperty("Draft operation.", []string{"list_drafts", "get_draft", "create_draft", "update_draft", "delete_draft", "send_draft"}),
+			"inbox_id":    common["inbox_id"],
+			"draft_id":    prop("string", "Draft ID."),
+			"limit":       common["limit"],
+			"cursor":      common["cursor"],
+			"to":          map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Recipients."},
+			"cc":          map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "CC recipients."},
+			"bcc":         map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "BCC recipients."},
+			"subject":     prop("string", "Draft subject."),
+			"text":        prop("string", "Plain text body."),
+			"html":        prop("string", "HTML body."),
+			"attachments": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "object", "additionalProperties": true}, "description": "Attachment descriptors."},
+		}, "operation")),
+	)
+	return toolSchemas
+}
+
+func appendInvasionFocusedSchemas(toolSchemas []openai.Tool) []openai.Tool {
+	toolSchemas = append(toolSchemas,
+		tool("invasion_nests", "Manage Invasion Control nests and assignments.", schema(map[string]interface{}{
+			"operation": operationProperty("Nest operation.", []string{"nest_status", "list_nests", "assign_egg", "egg_status"}),
+			"nest_id":   prop("string", "Nest ID."),
+			"nest_name": prop("string", "Nest name."),
+			"egg_id":    prop("string", "Egg ID."),
+			"egg_name":  prop("string", "Egg name; not a tool name."),
+		}, "operation")),
+		tool("invasion_tasks", "Send and inspect Invasion Control tasks. Egg names are not tool names.", schema(map[string]interface{}{
+			"operation": operationProperty("Task operation.", []string{"send_task", "task_status", "cancel_task", "list_tasks"}),
+			"egg_id":    prop("string", "Egg ID."),
+			"egg_name":  prop("string", "Egg name; not a tool name."),
+			"task_id":   prop("string", "Task ID."),
+			"task":      prop("string", "Task instruction."),
+			"content":   prop("string", "Task instruction alias."),
+		}, "operation")),
+		tool("invasion_artifacts", "Read and manage Invasion Control task artifacts.", schema(map[string]interface{}{
+			"operation":   operationProperty("Artifact operation.", []string{"list_artifacts", "get_artifact", "delete_artifact"}),
+			"task_id":     prop("string", "Task ID."),
+			"artifact_id": prop("string", "Artifact ID."),
+			"file_path":   prop("string", "Artifact file path."),
+		}, "operation")),
+	)
+	return toolSchemas
+}
+
+func appendRemoteControlFocusedSchemas(toolSchemas []openai.Tool) []openai.Tool {
+	deviceProps := map[string]interface{}{
+		"device_id":   prop("string", "Remote device ID."),
+		"device_name": prop("string", "Remote device name alias."),
+	}
+	toolSchemas = append(toolSchemas,
+		tool("remote_control_devices", "List and inspect connected remote devices.", schema(map[string]interface{}{
+			"operation":   operationProperty("Device operation.", []string{"list_devices", "device_status", "sysinfo", "revoke_device"}),
+			"device_id":   deviceProps["device_id"],
+			"device_name": deviceProps["device_name"],
+		}, "operation")),
+		tool("remote_control_shell", "Execute shell commands on connected remote devices.", schema(map[string]interface{}{
+			"operation":   operationProperty("Shell operation.", []string{"execute_command"}),
+			"device_id":   deviceProps["device_id"],
+			"device_name": deviceProps["device_name"],
+			"command":     prop("string", "Shell command to execute."),
+		}, "operation")),
+		tool("remote_control_files", "Read, write, edit, and search files on connected remote devices.", schema(map[string]interface{}{
+			"operation":   operationProperty("File operation.", []string{"read_file", "write_file", "list_files", "edit_file", "json_edit", "yaml_edit", "xml_edit", "file_search", "file_read_advanced"}),
+			"device_id":   deviceProps["device_id"],
+			"device_name": deviceProps["device_name"],
+			"path":        prop("string", "Remote file or directory path."),
+			"root_id":     prop("string", "Agodesk root id for file access."),
+			"content":     prop("string", "File content or inserted text."),
+			"recursive":   prop("boolean", "List recursively."),
+			"action":      prop("string", "Sub-operation for edits/search/read modes."),
+			"old":         prop("string", "Text to find."),
+			"new":         prop("string", "Replacement text."),
+			"marker":      prop("string", "Anchor text."),
+			"start_line":  prop("integer", "Start line."),
+			"end_line":    prop("integer", "End line."),
+			"json_path":   prop("string", "JSON/YAML path."),
+			"xpath":       prop("string", "XML XPath."),
+			"set_value":   map[string]interface{}{"description": "Value to set for structured edits."},
+			"pattern":     prop("string", "Search pattern."),
+			"glob":        prop("string", "File glob."),
+			"output_mode": prop("string", "Search output mode."),
+			"line_count":  prop("integer", "Line/context count."),
+		}, "operation")),
+		tool("remote_control_desktop", "Capture screenshots and automate connected AgoDesk desktops and browsers.", schema(map[string]interface{}{
+			"operation": operationProperty("Desktop operation.", []string{
+				"desktop_screenshot", "desktop_permission_request", "desktop_input",
+				"desktop_list_displays", "desktop_list_windows", "desktop_active_window", "desktop_host_info",
+				"desktop_ui_tree", "desktop_ui_action",
+				"desktop_browser_connect", "desktop_browser_snapshot", "desktop_browser_action", "desktop_browser_disconnect",
+			}),
+			"device_id":           deviceProps["device_id"],
+			"device_name":         deviceProps["device_name"],
+			"display_id":          prop("string", "Display ID."),
+			"window_id":           prop("string", "Window ID."),
+			"format":              prop("string", "Screenshot format."),
+			"quality":             prop("integer", "Screenshot quality 1-100."),
+			"include_data_base64": prop("boolean", "Return raw base64 when true."),
+			"kind":                prop("string", "Input event kind."),
+			"x":                   prop("integer", "X coordinate."),
+			"y":                   prop("integer", "Y coordinate."),
+			"absolute":            prop("boolean", "Use absolute coordinates."),
+			"button":              prop("string", "Mouse button."),
+			"input_action":        prop("string", "Mouse click action."),
+			"key":                 prop("string", "Keyboard key."),
+			"code":                prop("integer", "Keyboard code."),
+			"text":                prop("string", "Text payload."),
+			"element_id":          prop("string", "UI automation element ID."),
+			"endpoint":            prop("string", "Browser CDP endpoint."),
+			"selector":            prop("string", "CSS selector."),
+			"include_html":        prop("boolean", "Include HTML in browser snapshot."),
+			"value":               prop("string", "Value for UI/browser actions."),
+		}, "operation")),
+	)
+	return toolSchemas
+}
+
+func appendVirtualDesktopFocusedSchemas(toolSchemas []openai.Tool) []openai.Tool {
+	toolSchemas = append(toolSchemas,
+		tool("virtual_desktop_files", "Read, write, patch, search, and delete files in the virtual desktop workspace. Route Office files to office_document or office_workbook.", schema(map[string]interface{}{
+			"operation":      operationProperty("Workspace file operation.", []string{"status", "bootstrap", "list_files", "read_file", "search_file", "read_file_excerpt", "write_file", "patch_file", "delete", "delete_file", "delete_path", "export_file"}),
+			"path":           prop("string", "Workspace-relative path."),
+			"file_path":      prop("string", "Alias for path."),
+			"content":        prop("string", "File content."),
+			"allow_empty":    prop("boolean", "Allow intentionally empty non-app/non-widget writes."),
+			"query":          prop("string", "Search text."),
+			"line_start":     prop("integer", "1-based excerpt start line."),
+			"line_count":     prop("integer", "Excerpt line count."),
+			"max_matches":    prop("integer", "Maximum matches."),
+			"context_lines":  prop("integer", "Context lines around matches."),
+			"case_sensitive": prop("boolean", "Case-sensitive search."),
+			"replacements":   map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "object", "additionalProperties": true}, "description": "Patch replacements."},
+			"format":         prop("string", "Export format."),
+			"output_path":    prop("string", "Export output path."),
+		}, "operation")),
+		tool("virtual_desktop_apps", "Install, open, inspect, and diagnose virtual desktop apps.", schema(map[string]interface{}{
+			"operation": operationProperty("App operation.", []string{"install_app", "open_app", "open_in_app", "list_apps", "get_app", "diagnose_app"}),
+			"path":      prop("string", "Workspace-relative app path."),
+			"file_path": prop("string", "Alias for path."),
+			"app_id":    prop("string", "Desktop app ID."),
+			"manifest":  map[string]interface{}{"type": "object", "description": "App manifest.", "additionalProperties": true},
+			"files":     map[string]interface{}{"type": "object", "description": "Generated app files.", "additionalProperties": map[string]interface{}{"type": "string"}},
+			"title":     prop("string", "Optional app/window title."),
+		}, "operation")),
+		tool("virtual_desktop_widgets", "Create, pin, inspect, and diagnose virtual desktop widgets and notifications.", schema(map[string]interface{}{
+			"operation": operationProperty("Widget operation.", []string{"upsert_widget", "show_notification", "list_widgets", "get_widget", "diagnose_widget"}),
+			"path":      prop("string", "Workspace-relative widget path."),
+			"file_path": prop("string", "Alias for path."),
+			"content":   prop("string", "Widget HTML or notification message."),
+			"title":     prop("string", "Notification or widget title."),
+			"widget_id": prop("string", "Widget ID."),
+			"app_id":    prop("string", "Owning app ID."),
+			"widget":    map[string]interface{}{"type": "object", "description": "Widget payload.", "additionalProperties": true},
+		}, "operation")),
+	)
+	return toolSchemas
+}
+
 func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.Tool {
 	// ── Integration tools (conditionally included) ───────────────────────────
 

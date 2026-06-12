@@ -4,13 +4,13 @@ AuraGo can automatically compress verbose tool outputs before they enter the LLM
 
 ## How It Works
 
-Compression runs **before** the `tool_output_limit` truncation in the tool execution pipeline:
+For oversized outputs, `tool_output_limit` truncation runs before compression in the tool execution pipeline:
 
 ```
-Tool Output → Output Compression → tool_output_limit truncation → LLM Context
+Tool Output → tool_output_limit truncation → Output Compression → LLM Context
 ```
 
-This means compression can intelligently filter and deduplicate content, while truncation is a blunt last-resort cutoff.
+This keeps a hard safety cap on retained content first, then lets compression filter and deduplicate what will actually be passed back into context.
 
 ## Configuration
 
@@ -57,9 +57,9 @@ agent:
 
 ### Relationship to `tool_output_limit`
 
-- `tool_output_limit` (default: 50000) is a hard truncation — anything beyond it is cut off.
-- Output compression runs **before** truncation and is semantic — it filters, deduplicates, and summarises.
-- Recommended: keep `tool_output_limit` as a safety net, let compression handle the intelligence.
+- `tool_output_limit` (default: 50000) is a hard retention cap; oversized outputs are cut to this limit before compression.
+- Output compression is semantic — it filters, deduplicates, and summarises the retained content.
+- Recommended: keep `tool_output_limit` as a safety net, then let compression reduce the retained output further.
 
 ## Supported Filters
 

@@ -209,14 +209,14 @@ var adaptiveFamilySeedTools = map[string][]string{
 		"web_scraper", "site_crawler", "web_capture", "document_creator",
 	},
 	"deployment": {
-		"homepage", "homepage_registry", "netlify",
+		"homepage_deploy", "homepage_project", "homepage_file", "homepage_quality", "homepage_git", "homepage_registry", "netlify",
 	},
 	"network": {
 		"network_ping", "dns_lookup", "port_scanner", "mdns_scan", "upnp_scan",
 	},
 	"infra": {
 		"docker", "proxmox", "tailscale", "github", "ansible", "remote_execution",
-		"invasion_control", "execute_shell", "system_metrics", "process_analyzer",
+		"invasion_nests", "invasion_tasks", "invasion_artifacts", "execute_shell", "system_metrics", "process_analyzer",
 	},
 	"communication": {
 		"fetch_email", "send_email", "send_document", "send_audio", "send_video", "send_youtube_video",
@@ -232,9 +232,13 @@ var adaptiveFamilySeedTools = map[string][]string{
 
 var adaptiveToolNeighbors = map[string][]string{
 	// Web & Hosting
-	"homepage":          {"homepage_registry", "netlify"},
-	"netlify":           {"homepage", "homepage_registry"},
-	"homepage_registry": {"homepage", "netlify"},
+	"homepage_project":  {"homepage_file", "homepage_quality", "homepage_registry"},
+	"homepage_file":     {"homepage_project", "homepage_quality", "homepage_git"},
+	"homepage_quality":  {"homepage_file", "homepage_deploy"},
+	"homepage_deploy":   {"homepage_quality", "netlify", "homepage_registry"},
+	"homepage_git":      {"homepage_file", "homepage_registry"},
+	"netlify":           {"homepage_deploy", "homepage_registry"},
+	"homepage_registry": {"homepage_project", "homepage_deploy", "homepage_git"},
 
 	// File System & Editing
 	"filesystem":           {"file_search", "file_reader_advanced", "file_editor", "manage_memory"},
@@ -363,8 +367,10 @@ var adaptiveToolNeighbors = map[string][]string{
 	"save_tool":                  {"execute_skill", "filesystem"},
 
 	// Agents & Teams
-	"co_agent":         {"invasion_control", "follow_up"},
-	"invasion_control": {"co_agent", "register_device", "ssh_exec"},
+	"co_agent":           {"invasion_tasks", "follow_up"},
+	"invasion_nests":     {"invasion_tasks", "register_device"},
+	"invasion_tasks":     {"invasion_nests", "invasion_artifacts", "co_agent"},
+	"invasion_artifacts": {"invasion_tasks"},
 }
 
 // splitCSV splits a comma-separated value string into a trimmed, non-empty slice.
@@ -672,7 +678,7 @@ func channelAdaptiveAlwaysInclude(runCfg RunConfig, alwaysInclude []string, ff T
 	}
 	out = append(out, "question_user")
 	if ff.VirtualDesktopEnabled {
-		out = append(out, "virtual_desktop")
+		out = append(out, "virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets")
 	}
 	if ff.OfficeDocumentEnabled {
 		out = append(out, "office_document")
@@ -880,16 +886,27 @@ type toolSchemaFilterOptions struct {
 }
 
 type toolSchemaFilterReport struct {
-	OriginalToolCount          int      `json:"original_tool_count"`
-	FinalToolCount             int      `json:"final_tool_count"`
-	KeptHardAlways             int      `json:"kept_hard_always"`
-	KeptSoftAlways             int      `json:"kept_soft_always"`
-	KeptAdaptive               int      `json:"kept_adaptive"`
-	Dropped                    int      `json:"dropped"`
-	MaxAdaptive                int      `json:"max_adaptive"`
-	MaxTotal                   int      `json:"max_total"`
-	DroppedTools               []string `json:"dropped_tools,omitempty"`
-	HardAlwaysExceededTotalCap bool     `json:"hard_always_exceeded_total_cap,omitempty"`
+	OriginalToolCount          int                   `json:"original_tool_count"`
+	FinalToolCount             int                   `json:"final_tool_count"`
+	OriginalSchemaBytes        int                   `json:"original_schema_bytes"`
+	FinalSchemaBytes           int                   `json:"final_schema_bytes"`
+	OriginalSchemaTokens       int                   `json:"original_schema_tokens"`
+	FinalSchemaTokens          int                   `json:"final_schema_tokens"`
+	LargestSchemas             []toolSchemaSizeEntry `json:"largest_schemas,omitempty"`
+	KeptHardAlways             int                   `json:"kept_hard_always"`
+	KeptSoftAlways             int                   `json:"kept_soft_always"`
+	KeptAdaptive               int                   `json:"kept_adaptive"`
+	Dropped                    int                   `json:"dropped"`
+	MaxAdaptive                int                   `json:"max_adaptive"`
+	MaxTotal                   int                   `json:"max_total"`
+	DroppedTools               []string              `json:"dropped_tools,omitempty"`
+	HardAlwaysExceededTotalCap bool                  `json:"hard_always_exceeded_total_cap,omitempty"`
+}
+
+type toolSchemaSizeEntry struct {
+	Name        string `json:"name"`
+	Bytes       int    `json:"bytes"`
+	RoughTokens int    `json:"rough_tokens"`
 }
 
 type toolSchemaFilterResult struct {
@@ -914,10 +931,14 @@ func filterToolSchemas(schemas []openai.Tool, frequentTools, alwaysInclude []str
 }
 
 func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOptions, logger *slog.Logger) toolSchemaFilterResult {
+	originalBytes, originalLargest := measureToolSchemaSizes(schemas, 5)
 	report := toolSchemaFilterReport{
-		OriginalToolCount: len(schemas),
-		MaxAdaptive:       opts.MaxAdaptiveTools,
-		MaxTotal:          opts.MaxTotalTools,
+		OriginalToolCount:    len(schemas),
+		OriginalSchemaBytes:  originalBytes,
+		OriginalSchemaTokens: roughTokenEstimate(originalBytes),
+		LargestSchemas:       originalLargest,
+		MaxAdaptive:          opts.MaxAdaptiveTools,
+		MaxTotal:             opts.MaxTotalTools,
 	}
 	hardSet := stringSet(opts.HardAlwaysTools)
 	softSet := stringSet(opts.SoftAlwaysTools)
@@ -1011,6 +1032,8 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 
 	finalDropped := len(schemas) - len(kept)
 	report.FinalToolCount = len(kept)
+	report.FinalSchemaBytes, report.LargestSchemas = measureToolSchemaSizes(kept, 5)
+	report.FinalSchemaTokens = roughTokenEstimate(report.FinalSchemaBytes)
 	report.Dropped = finalDropped
 	keptSet := make(map[string]bool, len(kept))
 	for _, k := range kept {
@@ -1034,6 +1057,47 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 			"dropped_tools", strings.Join(report.DroppedTools, ", "))
 	}
 	return toolSchemaFilterResult{Tools: kept, Report: report}
+}
+
+func measureToolSchemaSizes(schemas []openai.Tool, limit int) (int, []toolSchemaSizeEntry) {
+	if limit <= 0 {
+		limit = 5
+	}
+	total := 0
+	entries := make([]toolSchemaSizeEntry, 0, len(schemas))
+	for _, schema := range schemas {
+		if schema.Function == nil {
+			continue
+		}
+		encoded, err := json.Marshal(schema)
+		if err != nil {
+			continue
+		}
+		size := len(encoded)
+		total += size
+		entries = append(entries, toolSchemaSizeEntry{
+			Name:        schema.Function.Name,
+			Bytes:       size,
+			RoughTokens: roughTokenEstimate(size),
+		})
+	}
+	sort.SliceStable(entries, func(i, j int) bool {
+		if entries[i].Bytes != entries[j].Bytes {
+			return entries[i].Bytes > entries[j].Bytes
+		}
+		return entries[i].Name < entries[j].Name
+	})
+	if len(entries) > limit {
+		entries = entries[:limit]
+	}
+	return total, entries
+}
+
+func roughTokenEstimate(bytes int) int {
+	if bytes <= 0 {
+		return 0
+	}
+	return (bytes + 3) / 4
 }
 
 func stringSet(values []string) map[string]bool {

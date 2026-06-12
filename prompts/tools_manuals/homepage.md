@@ -1,6 +1,8 @@
-# Homepage (`homepage`)
+# Homepage Legacy Compatibility (`homepage`)
 
 Design, develop, build, test and deploy professional websites using AuraGo's web workspace with Docker-based full mode and limited local fallback support.
+
+Prefer the focused native tools `homepage_project`, `homepage_file`, `homepage_quality`, `homepage_deploy`, and `homepage_git` when they are visible. The legacy `homepage` action remains accepted for dispatch compatibility with older clients and prompts.
 
 ## Required Task Rule
 
@@ -8,7 +10,7 @@ The `homepage` tool has a required active task rule: `homepage`.
 
 Before planning, deleting, creating, editing, building, previewing, publishing, or deploying a homepage/website/page project, read and follow the current `# TASK RULES` section for `Homepage Workflow` and the `# HOMEPAGE DESIGN SYSTEM` section when it is present. The design system is not optional styling advice; it is the default visual contract for homepage work unless the user or project supplies a more specific `DESIGN.md`.
 
-If those sections are not visible yet, do not improvise with generic filesystem, shell, or ad-hoc design choices. Use the `homepage` tool path; the runtime will pause the first matching tool call, inject the required rule/design context, and ask you to retry only after reading it. Intent matching is only a convenience fallback, not the authority.
+If those sections are not visible yet, do not improvise with generic filesystem, shell, or ad-hoc design choices. Use the focused homepage tool path; the runtime will pause the first matching tool call, inject the required rule/design context, and ask you to retry only after reading it. Intent matching is only a convenience fallback, not the authority.
 
 ## Prerequisites
 
@@ -65,7 +67,7 @@ When updating or publishing an existing homepage project, use this direct path:
 4. `homepage` → `publish_local` for browser checks, then `deploy_netlify` or `deploy_vercel`.
 4. Verify the returned deployment URL or the live page before reporting success.
 
-Do not use the generic `filesystem` tool to inspect, copy, or edit homepage project files. It writes to `agent_workspace/workdir/`, not the homepage workspace. Do not use generic `execute_shell` for `/workspace/...` commands either; `/workspace` is the homepage container path, so use `homepage` operations instead.
+Do not use the generic `filesystem` tool to inspect, copy, or edit homepage project files. It writes to `agent_workspace/workdir/`, not the homepage workspace. Do not use generic `execute_shell` for `/workspace/...` commands either; `/workspace` is the homepage container path, so use focused homepage operations instead.
 
 ## Runtime Modes
 
@@ -478,7 +480,7 @@ Starts a Cloudflare quick tunnel to expose a local port to the internet via a te
 - The Caddy web server can serve with automatic HTTPS if a domain is configured (Docker mode only)
 - Use compound operations (`init_project`, `build`, `publish_local`, `deploy_netlify`, `deploy_vercel`) to save tokens and keep the pipeline recoverable — avoid running many individual `exec` calls
 - Use the homepage workspace operations from the Required Task Rule for project files; do not fall back to generic workspace tools.
-- **NEVER use generic `execute_shell` for `/workspace/...` commands.** `/workspace` exists inside the homepage container; use `homepage` → `exec`, `list_files`, `read_file`, `write_file`, or `build`.
+- **NEVER use generic `execute_shell` for `/workspace/...` commands.** `/workspace` exists inside the homepage container; use `homepage_project` `exec`, `homepage_file`, or `homepage_deploy` `build`.
 - **Do not directly edit generated output** (`dist`, `build`, `out`) with shell redirection or copy commands. These directories are deployment artifacts; change source files and rebuild.
 
 ### Using Generated Images in Netlify Deployments

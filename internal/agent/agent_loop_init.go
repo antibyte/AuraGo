@@ -62,6 +62,9 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 
 	cfg := s.runCfg.Config
 	logger := s.runCfg.Logger
+	if cfg != nil {
+		SetDiscoverToolsSnapshotTTL(time.Duration(cfg.Agent.DiscoverToolsSnapshotTTLMinutes) * time.Minute)
+	}
 	client := s.runCfg.LLMClient
 	shortTermMem := s.runCfg.ShortTermMem
 	historyManager := s.runCfg.HistoryManager
@@ -399,6 +402,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		// OpenAI-compatible chat completions API, so we skip it to avoid sending
 		// an unsupported field.
 		if useNativeFunctions && toolingPolicy.StructuredOutputsEnabled {
+			ntSchemas = deepClone(ntSchemas)
 			for i := range ntSchemas {
 				if ntSchemas[i].Function != nil {
 					if params, ok := ntSchemas[i].Function.Parameters.(map[string]interface{}); ok {

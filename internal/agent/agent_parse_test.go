@@ -16,6 +16,12 @@ type stubLocalIPConn struct {
 	localAddr net.Addr
 }
 
+type stubAddr string
+
+func (a stubAddr) Network() string { return "stub" }
+
+func (a stubAddr) String() string { return string(a) }
+
 func (c *stubLocalIPConn) Read(_ []byte) (int, error) { return 0, nil }
 
 func (c *stubLocalIPConn) Write(_ []byte) (int, error) { return 0, nil }
@@ -107,5 +113,56 @@ func TestGetLocalIPCachesResolverResult(t *testing.T) {
 	}
 	if resolverCalls != 1 {
 		t.Fatalf("resolverCalls = %d, want 1", resolverCalls)
+	}
+}
+
+func TestGetLocalIPFallsBackForNonUDPAddr(t *testing.T) {
+	localIPCache = sync.Map{}
+	originalDial := localIPDial
+	defer func() {
+		localIPDial = originalDial
+		localIPCache = sync.Map{}
+	}()
+
+	localIPDial = func(network, address string) (net.Conn, error) {
+		return &stubLocalIPConn{localAddr: stubAddr("not-udp")}, nil
+	}
+
+	cfg := &config.Config{}
+	if got := getLocalIP(cfg); got != "127.0.0.1" {
+		t.Fatalf("getLocalIP() = %q, want fallback 127.0.0.1", got)
+	}
+}
+
+func TestFormatToolOutputForModelSkipsPrefixOnlyForNativeCalls(t *testing.T) {
+	if got := formatToolOutputForModel(ToolCall{Action: "execute_shell"}, "ok"); got != "[Tool Output]\nok" {
+		t.Fatalf("legacy output = %q, want prefixed output", got)
+	}
+	if got := formatToolOutputForModel(ToolCall{Action: "execute_shell", NativeCallID: "call-1"}, "ok"); got != "ok" {
+		t.Fatalf("native output = %q, want unprefixed output", got)
+	}
+	if got := formatToolOutputForModel(ToolCall{Action: "execute_shell", NativeCallID: "call-1"}, "[TOOL ERROR] nope"); got != "[TOOL ERROR] nope" {
+		t.Fatalf("marked output = %q, want unchanged marker", got)
+	}
+}
+
+func TestCheckAndClearInterruptIgnoresOlderInterrupts(t *testing.T) {
+	sessionID := "test-interrupt-timestamp"
+	loopStart := time.Now()
+
+	muInterrupts.Lock()
+	sessionInterrupts[sessionID] = loopStart.Add(-time.Minute)
+	muInterrupts.Unlock()
+
+	if checkAndClearInterrupt(sessionID, loopStart) {
+		t.Fatal("old interrupt should not stop a newer loop")
+	}
+
+	muInterrupts.Lock()
+	sessionInterrupts[sessionID] = loopStart.Add(time.Second)
+	muInterrupts.Unlock()
+
+	if !checkAndClearInterrupt(sessionID, loopStart) {
+		t.Fatal("new interrupt should stop the active loop")
 	}
 }

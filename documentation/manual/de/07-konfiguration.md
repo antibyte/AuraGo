@@ -183,6 +183,8 @@ agent:
   max_tool_calls: 15
   debug_mode: false
   memory_compression_char_limit: 60000
+  tool_output_limit: 50000
+  discover_tools_snapshot_ttl_minutes: 5
   system_prompt_token_budget: 0  # 0 = automatisch
   adaptive_system_prompt_token_budget: true
   workflow_feedback: true
@@ -215,7 +217,7 @@ Diese Berechtigungen schalten potenziell kritische Aktionen frei:
 
 ### Output Compression
 
-Komprimiert ausführliche Tool-Ausgaben **vor** der `tool_output_limit`-Kürzung. Standard: aktiv.
+Kürzt übergroße Tool-Ausgaben zuerst über `tool_output_limit` und komprimiert danach den behaltenen Inhalt. Standard: aktiv.
 
 ### Einrichtung in der Web-UI
 1. Öffne **Config → Agent → Output-Kompression**.
@@ -632,7 +634,7 @@ media_registry:
 | `indexing` | Dateien überwachen, chunking und RAG-Index aktualisieren |
 | `mission_preparation` | Missionen per LLM voranalysieren und Ergebnisse cachen |
 | `maintenance` | Nightly Maintenance, Konsolidierung und Speicherpflege |
-| `agent.output_compression` | Tool-Ausgaben vor dem LLM-Kontext komprimieren |
+| `agent.output_compression` | Behaltene Tool-Ausgaben vor dem LLM-Kontext komprimieren |
 | `co_agents` | Spezialisten-Agenten mit Budgets und Circuit Breakern konfigurieren |
 
 ### Externe Protokolle und Bridges

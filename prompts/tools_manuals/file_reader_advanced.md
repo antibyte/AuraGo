@@ -31,7 +31,7 @@ All operations require `file_path` (alias `path`). Paths are resolved from `agen
 - **`count_lines`** returns the total number of lines and file size in bytes.
 - **`search_context`** returns each match with `line_count` surrounding lines of context (default 3). Maximum 50 match groups.
 - All paths are sandboxed to the workspace directory rooted at `agent_workspace/workdir`.
-- For homepage projects, use the `homepage` tool instead of the generic file tools.
+- For homepage projects, use `homepage_file` instead of the generic file tools.
 
 ### Examples
 

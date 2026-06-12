@@ -45,16 +45,17 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 	tools = appendMemoryToolSchemas(tools, ff)
 	tools = appendPlannerToolSchemas(tools, ff)
 	tools = appendIntegrationToolSchemas(tools, ff)
+	tools = replaceMegaToolSchemasWithFocused(tools, ff)
 	tools = appendContentToolSchemas(tools, ff)
 	tools = appendEdgeToolSchemas(tools, ff)
 	return tools
 }
 func builtinToolSchemasCached(ff ToolFeatureFlags) []openai.Tool {
-	if cached, ok := builtinToolSchemaCache.Load(ff.Key()); ok {
+	if cached, ok := builtinToolSchemaCache.Load(ff); ok {
 		return deepClone(cached.([]openai.Tool))
 	}
 	built := builtinToolSchemas(ff)
-	builtinToolSchemaCache.Store(ff.Key(), deepClone(built))
+	builtinToolSchemaCache.Store(ff, deepClone(built))
 	return built
 }
 

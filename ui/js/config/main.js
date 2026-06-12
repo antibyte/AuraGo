@@ -710,7 +710,7 @@ function renderOptimizations() {
     // Group 2: Tool Context
     html += `<div class="cfg-group-title cfg-group-title-top">${t('config.section.optimizations.group.tool_context')}</div>`;
     html += renderFields(
-        agentF('tool_output_limit', 'max_tool_guides', 'core_memory_max_entries', 'core_memory_cap_mode'),
+        agentF('tool_output_limit', 'discover_tools_snapshot_ttl_minutes', 'max_tool_guides', 'core_memory_max_entries', 'core_memory_cap_mode'),
         agentData, 'agent'
     );
 
@@ -784,7 +784,7 @@ async function renderSection(key) {
         // → Optimierungen section
         'optimizer_enabled', 'system_prompt_token_budget', 'adaptive_system_prompt_token_budget',
         'context_window', 'memory_compression_char_limit',
-        'tool_output_limit', 'max_tool_guides',
+        'tool_output_limit', 'discover_tools_snapshot_ttl_minutes', 'max_tool_guides',
         'core_memory_max_entries', 'core_memory_cap_mode',
         'adaptive_tools', 'recovery', 'background_tasks',
         'output_compression'       // → Output Compression section

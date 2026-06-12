@@ -946,7 +946,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				SessionID:   req.SessionID,
 			})
 
-		case "virtual_desktop":
+		case "virtual_desktop", "virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets":
 			logger.Info("LLM requested virtual desktop operation",
 				"operation", tc.Operation,
 				"path", firstNonEmptyToolString(toolArgString(tc.Params, "path"), toolArgString(tc.Params, "file_path")),
@@ -1147,7 +1147,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			res, _ := dispatchEmailCases(ctx, tc, dc)
 			return res
 
-		case "agentmail":
+		case "agentmail", "agentmail_inboxes", "agentmail_messages", "agentmail_threads", "agentmail_drafts":
 			res, _ := dispatchAgentMailCases(ctx, tc, dc)
 			return res
 

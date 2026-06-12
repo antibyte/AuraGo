@@ -105,7 +105,7 @@ func TestMissionManagerDeniesMutationsWithoutRuntimePolicy(t *testing.T) {
 		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
 	})
 
-	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	mgr := NewMissionManagerV2(tempSystemTaskDir(t), nil)
 	mgr.missions["mission_existing"] = &MissionV2{
 		ID:            "mission_existing",
 		Name:          "Existing mission",
@@ -153,7 +153,7 @@ func TestMissionManagerReadOnlyRuntimePolicyAllowsReadsOnly(t *testing.T) {
 		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
 	})
 
-	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	mgr := NewMissionManagerV2(tempSystemTaskDir(t), nil)
 	mgr.missions["mission_existing"] = &MissionV2{
 		ID:            "mission_existing",
 		Name:          "Existing mission",
@@ -200,7 +200,7 @@ func TestMissionManagerReadOnlyRuntimePolicyAllowsReadsOnly(t *testing.T) {
 }
 
 func TestProcessNextWithoutCallbackCompletesMissionHistory(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	mgr := NewMissionManagerV2(tmpDir, nil)
 	historyDB, err := InitMissionHistoryDB(filepath.Join(tmpDir, "history.db"))
 	if err != nil {
@@ -293,7 +293,7 @@ func TestProcessNextWithoutCallbackCompletesMissionHistory(t *testing.T) {
 }
 
 func TestOnMissionCompleteClearsActiveRunIDWithoutHistoryDB(t *testing.T) {
-	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	mgr := NewMissionManagerV2(tempSystemTaskDir(t), nil)
 	mgr.missions["mission_active"] = &MissionV2{
 		ID:      "mission_active",
 		Name:    "Active",
@@ -314,7 +314,7 @@ func TestOnMissionCompleteClearsActiveRunIDWithoutHistoryDB(t *testing.T) {
 }
 
 func TestOnMissionCompleteIgnoresSecondCompletionWithoutPanic(t *testing.T) {
-	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	mgr := NewMissionManagerV2(tempSystemTaskDir(t), nil)
 	mgr.missions["mission_double"] = &MissionV2{
 		ID:      "mission_double",
 		Name:    "Double",
@@ -333,7 +333,7 @@ func TestOnMissionCompleteIgnoresSecondCompletionWithoutPanic(t *testing.T) {
 }
 
 func TestApplySyncedMissionPreservesMetadata(t *testing.T) {
-	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	mgr := NewMissionManagerV2(tempSystemTaskDir(t), nil)
 	createdAt := time.Date(2026, 4, 25, 18, 0, 0, 0, time.UTC)
 	mission := &MissionV2{
 		ID:               "mission_remote_1",
@@ -360,7 +360,7 @@ func TestApplySyncedMissionPreservesMetadata(t *testing.T) {
 }
 
 func TestDeleteSyncedMissionBypassesLock(t *testing.T) {
-	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	mgr := NewMissionManagerV2(tempSystemTaskDir(t), nil)
 	if err := mgr.ApplySyncedMission(&MissionV2{
 		ID:               "mission_locked_remote",
 		Name:             "Locked",
@@ -381,7 +381,7 @@ func TestDeleteSyncedMissionBypassesLock(t *testing.T) {
 }
 
 func TestApplySyncedScheduledMissionRegistersCron(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	cronMgr := NewCronManager(tmpDir)
 	if err := cronMgr.Start(func(string) {}); err != nil {
 		t.Fatalf("cron start: %v", err)
@@ -404,7 +404,7 @@ func TestApplySyncedScheduledMissionRegistersCron(t *testing.T) {
 }
 
 func TestRemoteMissionRequiresNestAndEgg(t *testing.T) {
-	mgr := NewMissionManagerV2(t.TempDir(), NewCronManager(t.TempDir()))
+	mgr := NewMissionManagerV2(tempSystemTaskDir(t), NewCronManager(tempSystemTaskDir(t)))
 
 	err := mgr.Create(&MissionV2{
 		Name:          "Remote missing target",
@@ -420,7 +420,7 @@ func TestRemoteMissionRequiresNestAndEgg(t *testing.T) {
 
 func TestRemoteMissionCreateStoresPendingWhenEggTemporarilyDisconnected(t *testing.T) {
 	client := &fakeRemoteMissionClient{syncErr: errors.New("remote nest nest-1 is not connected")}
-	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	mgr := NewMissionManagerV2(tempSystemTaskDir(t), nil)
 	mgr.SetRemoteMissionClient(client)
 
 	mission := &MissionV2{
@@ -446,7 +446,7 @@ func TestRemoteMissionCreateStoresPendingWhenEggTemporarilyDisconnected(t *testi
 
 func TestSyncRemoteMissionsForNestRetriesPendingMission(t *testing.T) {
 	client := &fakeRemoteMissionClient{syncErr: errors.New("remote nest nest-1 is not connected")}
-	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	mgr := NewMissionManagerV2(tempSystemTaskDir(t), nil)
 	mgr.SetRemoteMissionClient(client)
 
 	mission := &MissionV2{
@@ -477,7 +477,7 @@ func TestSyncRemoteMissionsForNestRetriesPendingMission(t *testing.T) {
 }
 
 func TestSyncRemoteMissionsForNestPersistsPendingAfterTemporaryError(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	client := &fakeRemoteMissionClient{}
 	mgr := NewMissionManagerV2(tmpDir, nil)
 	mgr.SetRemoteMissionClient(client)
@@ -514,7 +514,7 @@ func TestSyncRemoteMissionsForNestPersistsPendingAfterTemporaryError(t *testing.
 }
 
 func TestRemoteScheduledMissionDoesNotRegisterLocalCron(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	cronMgr := NewCronManager(tmpDir)
 	client := &fakeRemoteMissionClient{}
 	mgr := NewMissionManagerV2(tmpDir, cronMgr)
@@ -542,7 +542,7 @@ func TestRemoteScheduledMissionDoesNotRegisterLocalCron(t *testing.T) {
 }
 
 func TestRemoteMissionPromptSnapshotIncludesCheatsheetAttachments(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	client := &fakeRemoteMissionClient{}
 	mgr := NewMissionManagerV2(tmpDir, NewCronManager(tmpDir))
 	mgr.SetRemoteMissionClient(client)
@@ -587,7 +587,7 @@ func TestRemoteMissionPromptSnapshotIncludesCheatsheetAttachments(t *testing.T) 
 
 func TestForceDeleteRemoteMissionSkipsRemoteClient(t *testing.T) {
 	client := &fakeRemoteMissionClient{}
-	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	mgr := NewMissionManagerV2(tempSystemTaskDir(t), nil)
 	mgr.SetRemoteMissionClient(client)
 
 	mission := &MissionV2{
@@ -618,7 +618,7 @@ func TestForceDeleteRemoteMissionSkipsRemoteClient(t *testing.T) {
 
 func TestRemoteTargetSwitchAbortsWhenOldCleanupFails(t *testing.T) {
 	client := &fakeRemoteMissionClient{}
-	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	mgr := NewMissionManagerV2(tempSystemTaskDir(t), nil)
 	mgr.SetRemoteMissionClient(client)
 
 	mission := &MissionV2{
@@ -688,7 +688,7 @@ func TestMissionQueueTryStartNextIsAtomic(t *testing.T) {
 }
 
 func TestTriggeredMissionIsolatesTriggerDataInPrompt(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	mm := NewMissionManagerV2(tmpDir, nil)
 
 	promptCh := make(chan string, 1)
@@ -737,7 +737,7 @@ func TestTriggeredMissionIsolatesTriggerDataInPrompt(t *testing.T) {
 }
 
 func TestTriggeredMissionIncludesTriggerContextWithoutData(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	mm := NewMissionManagerV2(tmpDir, nil)
 
 	promptCh := make(chan string, 1)
@@ -797,7 +797,7 @@ func (f *fakeWebhookTriggerManager) Fire(webhookID string, payload []byte) {
 }
 
 func TestUpdatedWebhookTriggerIgnoresStaleRegistration(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	webhooks := &fakeWebhookTriggerManager{}
 	mm := NewMissionManagerV2(tmpDir, nil)
 	mm.SetWebhookManager(webhooks)
@@ -832,7 +832,7 @@ func TestUpdatedWebhookTriggerIgnoresStaleRegistration(t *testing.T) {
 }
 
 func TestWebhookTriggerRegistrationIsIdempotentForSameConfig(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	webhooks := &fakeWebhookTriggerManager{}
 	mm := NewMissionManagerV2(tmpDir, nil)
 	mm.SetWebhookManager(webhooks)
@@ -859,7 +859,7 @@ func TestWebhookTriggerRegistrationIsIdempotentForSameConfig(t *testing.T) {
 }
 
 func TestLateEmailWatcherRegistrationRescansExistingTriggers(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	mm := NewMissionManagerV2(tmpDir, nil)
 	if err := mm.Create(&MissionV2{
 		ID:            "email-late",
@@ -891,7 +891,7 @@ func TestLateEmailWatcherRegistrationRescansExistingTriggers(t *testing.T) {
 
 func TestMQTTGenericMinIntervalUsedWhenSpecificUnset(t *testing.T) {
 	mqttMgr := &fakeMQTTTriggerManager{}
-	mm := NewMissionManagerV2(t.TempDir(), nil)
+	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
 	mm.SetMQTTManager(mqttMgr)
 
 	if err := mm.Create(&MissionV2{
@@ -918,7 +918,7 @@ func TestMQTTGenericMinIntervalUsedWhenSpecificUnset(t *testing.T) {
 }
 
 func TestSystemStartupMissionQueuesOnStart(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	writer := NewMissionManagerV2(tmpDir, nil)
 	if err := writer.Create(&MissionV2{
 		ID:            "startup-mission",
@@ -945,7 +945,7 @@ func TestSystemStartupMissionQueuesOnStart(t *testing.T) {
 }
 
 func TestNotifyInvasionEventPersistsQueueForRestart(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	writer := NewMissionManagerV2(tmpDir, nil)
 	if err := writer.Create(&MissionV2{
 		ID:            "egg-trigger",
@@ -974,7 +974,7 @@ func TestNotifyInvasionEventPersistsQueueForRestart(t *testing.T) {
 }
 
 func TestRemoteMissionResultRequiresMatchingNest(t *testing.T) {
-	mm := NewMissionManagerV2(t.TempDir(), nil)
+	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
 	client := &fakeRemoteMissionClient{}
 	mm.SetRemoteMissionClient(client)
 	if err := mm.Create(&MissionV2{
@@ -1012,7 +1012,7 @@ func TestRemoteMissionRunTimeoutReleasesQueuedState(t *testing.T) {
 	remoteMissionResultTimeout = 20 * time.Millisecond
 	defer func() { remoteMissionResultTimeout = oldTimeout }()
 
-	mm := NewMissionManagerV2(t.TempDir(), nil)
+	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
 	mm.SetRemoteMissionClient(&fakeRemoteMissionClient{})
 	if err := mm.Create(&MissionV2{
 		ID:            "remote-timeout",
@@ -1044,7 +1044,7 @@ func TestRemoteMissionRunTimeoutReleasesQueuedState(t *testing.T) {
 }
 
 func TestCreateMissionStripsPreparedContextFromStoredPrompt(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	mm := NewMissionManagerV2(tmpDir, nil)
 
 	mission := &MissionV2{
@@ -1068,7 +1068,7 @@ func TestCreateMissionStripsPreparedContextFromStoredPrompt(t *testing.T) {
 }
 
 func TestScheduledMissionSurvivesRestart(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	cronMgr := NewCronManager(tmpDir)
 	if err := cronMgr.Start(func(prompt string) {}); err != nil {
 		t.Fatalf("failed to start cron manager: %v", err)
@@ -1125,7 +1125,7 @@ func TestScheduledMissionSurvivesRestart(t *testing.T) {
 }
 
 func TestScheduledMissionIdempotentRegistration(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	cronMgr := NewCronManager(tmpDir)
 	if err := cronMgr.Start(func(prompt string) {}); err != nil {
 		t.Fatalf("failed to start cron manager: %v", err)
@@ -1168,7 +1168,7 @@ func TestScheduledMissionIdempotentRegistration(t *testing.T) {
 }
 
 func TestCronManagerIdempotentAdd(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	cronMgr := NewCronManager(tmpDir)
 	if err := cronMgr.Start(func(prompt string) {}); err != nil {
 		t.Fatalf("failed to start cron manager: %v", err)
@@ -1197,7 +1197,7 @@ func TestCronManagerIdempotentAdd(t *testing.T) {
 }
 
 func TestCronManagerLoadsFromFile(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	cronMgr := NewCronManager(tmpDir)
 	if err := cronMgr.Start(func(prompt string) {}); err != nil {
 		t.Fatalf("failed to start cron manager: %v", err)
@@ -1239,7 +1239,7 @@ func TestCronManagerLoadsFromFile(t *testing.T) {
 }
 
 func TestMissionQueuePersistsAndRehydrates(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	mm := NewMissionManagerV2(tmpDir, nil)
 	mm.missions["mission_a"] = &MissionV2{ID: "mission_a", Name: "A", Priority: "low", Enabled: true, Status: MissionStatusQueued}
 	mm.missions["mission_b"] = &MissionV2{ID: "mission_b", Name: "B", Priority: "high", Enabled: true, Status: MissionStatusQueued}
@@ -1269,7 +1269,7 @@ func TestMissionQueuePersistsAndRehydrates(t *testing.T) {
 }
 
 func TestMissionQueueRequeuesRunningSnapshotAfterRestart(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	mm := NewMissionManagerV2(tmpDir, nil)
 	mm.missions["mission_running"] = &MissionV2{ID: "mission_running", Name: "Running", Priority: "medium", Enabled: true}
 	mm.queue.Restore(nil, "mission_running")
@@ -1292,7 +1292,7 @@ func TestMissionQueueRequeuesRunningSnapshotAfterRestart(t *testing.T) {
 }
 
 func TestStartPersistsRestoredQueuedMissionStatus(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	writer := NewMissionManagerV2(tmpDir, nil)
 	writer.missions["mission_restore"] = &MissionV2{
 		ID:       "mission_restore",
@@ -1331,7 +1331,7 @@ func TestStartPersistsRestoredQueuedMissionStatus(t *testing.T) {
 }
 
 func TestNotifyPlannerAppointmentDueFiltersAndPersistsQueue(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	mm := NewMissionManagerV2(tmpDir, nil)
 	mm.missions["planner_match"] = &MissionV2{
 		ID:            "planner_match",
@@ -1385,7 +1385,7 @@ func TestNotifyPlannerAppointmentDueFiltersAndPersistsQueue(t *testing.T) {
 }
 
 func TestNotifyPlannerAppointmentDueHonorsMinInterval(t *testing.T) {
-	mm := NewMissionManagerV2(t.TempDir(), nil)
+	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
 	mm.missions["planner"] = &MissionV2{
 		ID:            "planner",
 		Name:          "Planner",
@@ -1410,7 +1410,7 @@ func TestNotifyPlannerAppointmentDueHonorsMinInterval(t *testing.T) {
 }
 
 func TestNotifyPlannerTodoOverdueFiltersByTodoAndTitle(t *testing.T) {
-	mm := NewMissionManagerV2(t.TempDir(), nil)
+	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
 	mm.missions["todo_match"] = &MissionV2{
 		ID:            "todo_match",
 		Name:          "Todo match",
@@ -1447,7 +1447,7 @@ func TestNotifyPlannerTodoOverdueFiltersByTodoAndTitle(t *testing.T) {
 }
 
 func TestNotifyPlannerOperationalIssueFiltersBySourceSeverityAndTitle(t *testing.T) {
-	mm := NewMissionManagerV2(t.TempDir(), nil)
+	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
 	mm.missions["issue_match"] = &MissionV2{
 		ID:            "issue_match",
 		Name:          "Issue match",
@@ -1486,7 +1486,7 @@ func TestNotifyPlannerOperationalIssueFiltersBySourceSeverityAndTitle(t *testing
 }
 
 func TestScheduledMissionNotRegisteredWhenDisabled(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempSystemTaskDir(t)
 	cronMgr := NewCronManager(tmpDir)
 	if err := cronMgr.Start(func(prompt string) {}); err != nil {
 		t.Fatalf("failed to start cron manager: %v", err)
