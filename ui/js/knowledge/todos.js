@@ -24,7 +24,6 @@ async function loadTodos() {
         allTodos = await response.json() || [];
         renderTodos();
         if (typeof updateTabCount === 'function') updateTabCount('todos', allTodos.length);
-        if (typeof updateStatsBar === 'function') updateStatsBar();
     } catch (error) {
         console.error('Failed to load todos:', error);
         showToast(t('common.error') + ': ' + error.message, 'error');

@@ -30,7 +30,6 @@ async function loadAppointments() {
         allAppointments = resp || [];
         renderAppointments();
         if (typeof updateTabCount === 'function') updateTabCount('appointments', allAppointments.length);
-        if (typeof updateStatsBar === 'function') updateStatsBar();
     } catch (e) {
         console.error('Failed to load appointments:', e);
         showToast(t('common.error') + ': ' + e.message, 'error');

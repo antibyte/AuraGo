@@ -195,7 +195,6 @@ function updateAllTabCounts() {
     updateTabCount('credentials', allCredentials.length);
     updateTabCount('appointments', typeof allAppointments !== 'undefined' ? allAppointments.length : 0);
     updateTabCount('todos', typeof allTodos !== 'undefined' ? allTodos.length : 0);
-    updateStatsBar();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -216,7 +215,6 @@ async function loadContacts() {
         allContacts = resp || [];
         renderContacts();
         updateTabCount('contacts', allContacts.length);
-        updateStatsBar();
     } catch (e) {
         console.error('Failed to load contacts:', e);
         showToast(t('common.error') + ': ' + e.message, 'error');
@@ -343,7 +341,6 @@ async function loadFiles() {
         allFiles = resp || [];
         renderFiles();
         updateTabCount('files', allFiles.length);
-        updateStatsBar();
     } catch (e) {
         console.error('Failed to load files:', e);
     }
@@ -685,7 +682,6 @@ async function loadDevices() {
         allDevices = await resp.json() || [];
         renderDevices();
         updateTabCount('devices', allDevices.length);
-        updateStatsBar();
     } catch (e) {
         console.error('Failed to load devices:', e);
         showToast(t('common.error') + ': ' + e.message, 'error');
@@ -840,7 +836,6 @@ async function loadCredentials() {
         renderCredentials();
         renderDevices();
         updateTabCount('credentials', allCredentials.length);
-        updateStatsBar();
     } catch (e) {
         console.error('Failed to load credentials:', e);
         showToast(t('common.error') + ': ' + e.message, 'error');
@@ -1362,58 +1357,6 @@ function initDropZone() {
                 uploadFiles(input);
             }
         }
-    });
-}
-
-// ═══════════════════════════════════════════════════════════════
-// QUICK STATS BAR
-// ═══════════════════════════════════════════════════════════════
-
-function updateStatsBar() {
-    const bar = document.getElementById('kc-stats-bar');
-    if (!bar) return;
-
-    const stats = [
-        { icon: '📇', label: t('knowledge.tab_contacts').replace(/📇\s*/, ''), value: allContacts.length, tab: 'contacts' },
-        { icon: '📂', label: t('knowledge.tab_files').replace(/📂\s*/, ''), value: allFiles.length, tab: 'files' },
-        { icon: '📱', label: t('knowledge.tab_devices').replace(/📱\s*/, ''), value: allDevices.length, tab: 'devices' },
-        { icon: '🔑', label: t('knowledge.tab_credentials').replace(/🔑\s*/, ''), value: allCredentials.length, tab: 'credentials' },
-    ];
-
-    if (typeof allAppointments !== 'undefined') {
-        stats.push({ icon: '📅', label: t('knowledge.tab_appointments').replace(/📅\s*/, ''), value: allAppointments.length, tab: 'appointments' });
-    }
-    if (typeof allTodos !== 'undefined') {
-        stats.push({ icon: '✅', label: t('knowledge.tab_todos').replace(/✅\s*/, ''), value: allTodos.length, tab: 'todos' });
-    }
-
-    bar.innerHTML = stats.map(s => `
-        <button type="button" class="kc-stat-chip" onclick="switchKCTab('${s.tab}')" title="${esc(s.label)}">
-            <span class="kc-stat-chip-icon">${s.icon}</span>
-            <span class="kc-stat-chip-value kc-count-anim" data-target="${s.value}">0</span>
-            <span>${esc(s.label)}</span>
-        </button>
-    `).join('');
-
-    bar.classList.add('is-active');
-    animateCountUp(bar);
-}
-
-function animateCountUp(container) {
-    const els = container.querySelectorAll('.kc-count-anim');
-    els.forEach(el => {
-        const target = parseInt(el.dataset.target) || 0;
-        if (target === 0) { el.textContent = '0'; return; }
-        const duration = 600;
-        const start = performance.now();
-        function step(now) {
-            const elapsed = now - start;
-            const progress = Math.min(elapsed / duration, 1);
-            const eased = 1 - Math.pow(1 - progress, 3);
-            el.textContent = Math.round(eased * target);
-            if (progress < 1) requestAnimationFrame(step);
-        }
-        requestAnimationFrame(step);
     });
 }
 

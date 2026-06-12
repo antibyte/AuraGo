@@ -12,7 +12,7 @@
 .kc-container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 32px 20px 60px;
+    padding: 48px 20px 60px;
     overflow-x: hidden;
 }
 
@@ -21,7 +21,7 @@
     display: flex;
     gap: 4px;
     border-bottom: 2px solid var(--border-subtle);
-    margin-bottom: 20px;
+    margin-bottom: 28px;
     flex-wrap: nowrap;
 }
 
@@ -448,7 +448,7 @@
 /* Responsive */
 @media (max-width: 768px) {
     .kc-container {
-        padding: 16px 12px 60px;
+        padding: 28px 12px 60px;
         overflow-x: visible;
     }
 
@@ -2055,55 +2055,6 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PHASE 5: Quick Stats Overview Header
-   ══════════════════════════════════════════════════════════════ */
-
-.kc-stats-bar {
-    display: none;
-    gap: 8px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-}
-
-.kc-stats-bar.is-active {
-    display: flex;
-}
-
-.kc-stat-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 10px;
-    border: 1px solid var(--border-subtle);
-    background: var(--card-bg);
-    box-shadow: var(--surface-shadow), inset 0 1px 0 var(--surface-highlight);
-    font-size: 0.82rem;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: border-color 0.2s, transform 0.15s, background 0.15s;
-    white-space: nowrap;
-}
-
-.kc-stat-chip:hover {
-    border-color: var(--accent-dim);
-    transform: translateY(-1px);
-    background: color-mix(in srgb, var(--accent) 5%, var(--card-bg));
-}
-
-.kc-stat-chip-icon {
-    font-size: 0.95rem;
-}
-
-.kc-stat-chip-value {
-    font-weight: 700;
-    color: var(--text-primary);
-    font-size: 0.95rem;
-    min-width: 16px;
-    text-align: center;
-}
-
-/* ═══════════════════════════════════════════════════════════════
    PHASE 6: Responsive & Accessibility Refinements
    ══════════════════════════════════════════════════════════════ */
 
@@ -2159,14 +2110,6 @@
     background: color-mix(in srgb, var(--accent) 3%, transparent);
 }
 
-[data-theme="light"] .kc-stat-chip {
-    border-color: color-mix(in srgb, #475569 14%, transparent);
-}
-
-[data-theme="light"] .kc-stat-chip:hover {
-    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
-}
-
 [data-theme="light"] .kc-table tbody tr:hover {
     box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
 }
@@ -2176,17 +2119,6 @@
 }
 
 /* Mobile refinements */
-@media (max-width: 768px) {
-    .kc-stats-bar {
-        gap: 6px;
-    }
-
-    .kc-stat-chip {
-        padding: 5px 10px;
-        font-size: 0.78rem;
-    }
-}
-
 @media (max-width: 480px) {
     /* Hide tab text, show only icon + count */
     .kc-tab .kc-tab-label {
@@ -2207,10 +2139,5 @@
     .kc-actions .btn-sm {
         min-width: 44px;
         min-height: 44px;
-    }
-
-    .kc-stat-chip {
-        flex: 1 1 calc(50% - 6px);
-        justify-content: center;
     }
 }
