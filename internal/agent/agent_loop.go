@@ -260,7 +260,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	detectedCtxWindow := s.detectedCtxWindow
 	cachedSysPromptKey := s.cachedSysPromptKey
 	cachedSysPrompt := s.cachedSysPrompt
-	cachedSysPromptTokens := s.cachedSysPromptTokens
 	cachedSysPromptAt := s.cachedSysPromptAt
 	sessionTodoList := s.sessionTodoList
 	toolGuidesDir := s.toolGuidesDir
@@ -268,8 +267,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	adaptiveFilteredTools := s.adaptiveFilteredTools
 	reuseLookup := ReuseLookupResult{}
 	lastReuseLookupMsg := ""
-
-	const systemPromptCacheTTL = 30 * time.Second
 
 	loopIterationCount := 0
 	for {
@@ -994,8 +991,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		sysPrompt := ""
 		sysPromptTokens := 0
 		if cacheHit {
-			sysPrompt = refreshCachedSystemPromptNow(cachedSysPrompt, time.Now())
-			sysPromptTokens = cachedSysPromptTokens
+			sysPrompt, sysPromptTokens = refreshCachedSystemPromptNowAndCount(cachedSysPrompt, time.Now(), req.Model, tokenCache)
 		} else {
 			sysPrompt, sysPromptTokens = prompts.BuildSystemPromptContext(ctx, cfg.Directories.PromptsDir, &flags, coreMemCache, s.currentLogger)
 			if budgetHint != "" {
@@ -1006,12 +1002,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if cacheKeyErr == nil && cacheKey != "" {
 				cachedSysPromptKey = cacheKey
 				cachedSysPrompt = sysPrompt
-				cachedSysPromptTokens = sysPromptTokens
 				cachedSysPromptAt = time.Now()
 			} else {
 				cachedSysPromptKey = ""
 				cachedSysPrompt = ""
-				cachedSysPromptTokens = 0
 				cachedSysPromptAt = time.Time{}
 			}
 		}

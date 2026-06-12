@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -80,11 +82,28 @@ func TestBuildSystemPromptCacheKey_DifferentFlags(t *testing.T) {
 			wantNewKey: true,
 		},
 		{
+			name: "SpaceAgentEnabled changes cache key",
+			modify: func(f *prompts.ContextFlags) {
+				f.SpaceAgentEnabled = true
+			},
+			wantNewKey: true,
+		},
+		{
 			name: "SpaceAgentPublicURL changes cache key",
 			modify: func(f *prompts.ContextFlags) {
 				f.SpaceAgentEnabled = true
 				f.SpaceAgentPublicURL = "https://space.example/"
 			},
+			wantNewKey: true,
+		},
+		{
+			name:       "WebhooksEnabled changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.WebhooksEnabled = true },
+			wantNewKey: true,
+		},
+		{
+			name:       "VoiceOutputActive changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.VoiceOutputActive = true },
 			wantNewKey: true,
 		},
 		{
@@ -235,5 +254,54 @@ func TestRefreshCachedSystemPromptNowUpdatesNowLine(t *testing.T) {
 	}
 	if !strings.Contains(got, "> **Channel:** Web Chat") {
 		t.Fatalf("refresh dropped content after # NOW:\n%s", got)
+	}
+}
+
+func TestPromptSourceFingerprintChangesForRootPromptAndPersonality(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "personalities"), 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "identity.md"), []byte("identity one"), 0o644); err != nil {
+		t.Fatalf("write identity: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "personalities", "neutral.md"), []byte("neutral one"), 0o644); err != nil {
+		t.Fatalf("write personality: %v", err)
+	}
+
+	first := promptSourceFingerprint(dir, "neutral")
+	if first == "" {
+		t.Fatal("expected non-empty fingerprint")
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "identity.md"), []byte("identity two"), 0o644); err != nil {
+		t.Fatalf("rewrite identity: %v", err)
+	}
+	if got := promptSourceFingerprint(dir, "neutral"); got == first {
+		t.Fatal("expected root prompt edit to change fingerprint")
+	} else {
+		first = got
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "personalities", "neutral.md"), []byte("neutral two"), 0o644); err != nil {
+		t.Fatalf("rewrite personality: %v", err)
+	}
+	if got := promptSourceFingerprint(dir, "neutral"); got == first {
+		t.Fatal("expected selected personality edit to change fingerprint")
+	}
+}
+
+func TestRefreshCachedSystemPromptNowAndCountRecomputesTokens(t *testing.T) {
+	cache := newTokenCountCache(16)
+	prompt := "# NOW\nold\n\n# BODY\n" + strings.Repeat("token ", 80)
+	now := time.Date(2026, 6, 12, 14, 35, 0, 0, time.UTC)
+
+	refreshed, tokens := refreshCachedSystemPromptNowAndCount(prompt, now, "", cache)
+	if !strings.Contains(refreshed, "# NOW\n2026-06-12 14:35\n") {
+		t.Fatalf("prompt was not refreshed:\n%s", refreshed)
+	}
+	want := cache.Count(refreshed, "")
+	if tokens != want {
+		t.Fatalf("tokens = %d, want freshly recounted %d", tokens, want)
 	}
 }

@@ -258,7 +258,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	tokenCache := newTokenCountCache(4096)
 	detectedCtxWindow := 0
 
-	const systemPromptCacheTTL = 30 * time.Second
 	cachedSysPromptKey := ""
 	cachedSysPrompt := ""
 	cachedSysPromptTokens := 0

@@ -4,15 +4,22 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
 	"aurago/internal/prompts"
+	promptsembed "aurago/prompts"
 )
+
+const systemPromptCacheTTL = 30 * time.Second
 
 type systemPromptCacheKey struct {
 	PromptsDir               string   `json:"prompts_dir"`
+	PromptSourceFingerprint  string   `json:"prompt_source_fingerprint"`
 	CoreMemory               string   `json:"core_memory"`
 	BudgetHint               string   `json:"budget_hint"`
 	EnabledTools             []string `json:"enabled_tools"`
@@ -85,6 +92,7 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 
 	key := systemPromptCacheKey{
 		PromptsDir:               promptsDir,
+		PromptSourceFingerprint:  promptSourceFingerprint(promptsDir, flags.CorePersonality),
 		CoreMemory:               coreMemory,
 		BudgetHint:               budgetHint,
 		EnabledTools:             enabledTools,
@@ -160,6 +168,101 @@ func refreshCachedSystemPromptNow(prompt string, now time.Time) string {
 		valueEnd = len(prompt)
 	}
 	return prompt[:valueStart] + now.Format("2006-01-02 15:04") + prompt[valueEnd:]
+}
+
+func refreshCachedSystemPromptNowAndCount(prompt string, now time.Time, model string, tokenCache *tokenCountCache) (string, int) {
+	refreshed := refreshCachedSystemPromptNow(prompt, now)
+	if tokenCache != nil {
+		return refreshed, tokenCache.Count(refreshed, model)
+	}
+	return refreshed, prompts.CountTokensForModel(refreshed, model)
+}
+
+func promptSourceFingerprint(promptsDir, profile string) string {
+	h := sha256.New()
+	writePart := func(parts ...string) {
+		for _, part := range parts {
+			h.Write([]byte(part))
+			h.Write([]byte{0})
+		}
+	}
+	writeBytes := func(label string, data []byte) {
+		writePart(label)
+		sum := sha256.Sum256(data)
+		h.Write(sum[:])
+		h.Write([]byte{0})
+	}
+
+	cleanDir := strings.TrimSpace(promptsDir)
+	if cleanDir != "" {
+		cleanDir = filepath.Clean(cleanDir)
+	}
+	writePart("dir", cleanDir)
+
+	var embeddedRoots []string
+	_ = fs.WalkDir(promptsembed.FS, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || strings.Contains(path, "/") || !strings.HasSuffix(path, ".md") {
+			return nil
+		}
+		if isRootToolPromptCacheFile(path) {
+			return nil
+		}
+		embeddedRoots = append(embeddedRoots, path)
+		return nil
+	})
+	sort.Strings(embeddedRoots)
+	for _, path := range embeddedRoots {
+		if data, err := fs.ReadFile(promptsembed.FS, path); err == nil {
+			writeBytes("embed-root:"+path, data)
+		}
+	}
+
+	if cleanDir != "" {
+		entries, err := os.ReadDir(cleanDir)
+		if err != nil {
+			entries = nil
+		}
+		var rootFiles []string
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") || isRootToolPromptCacheFile(entry.Name()) {
+				continue
+			}
+			rootFiles = append(rootFiles, entry.Name())
+		}
+		sort.Strings(rootFiles)
+		for _, name := range rootFiles {
+			path := filepath.Join(cleanDir, name)
+			if data, err := os.ReadFile(path); err == nil {
+				writeBytes("disk-root:"+strings.ToLower(name), data)
+			}
+		}
+	}
+
+	profile = strings.TrimSpace(profile)
+	if profile != "" {
+		diskProfile := ""
+		if cleanDir != "" {
+			diskProfile = filepath.Join(cleanDir, "personalities", profile+".md")
+		}
+		if diskProfile != "" {
+			if data, err := os.ReadFile(diskProfile); err == nil {
+				writeBytes("disk-personality:"+profile, data)
+				return hex.EncodeToString(h.Sum(nil))
+			}
+		}
+		if data, err := fs.ReadFile(promptsembed.FS, "personalities/"+profile+".md"); err == nil {
+			writeBytes("embed-personality:"+profile, data)
+		} else {
+			writePart("missing-personality", profile)
+		}
+	}
+
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func isRootToolPromptCacheFile(name string) bool {
+	base := strings.ToLower(filepath.Base(name))
+	return strings.HasPrefix(base, "tools_") && strings.HasSuffix(base, ".md")
 }
 
 func hashStringForPromptCache(value string) string {
@@ -295,7 +398,7 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 		tools = append(tools, "golangcilint")
 	}
 	if flags.BraveSearchEnabled {
-		tools = append(tools, "bravsearch")
+		tools = append(tools, "brave_search")
 	}
 	if flags.ImageGenerationEnabled {
 		tools = append(tools, "imagegeneration")
@@ -410,6 +513,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	}
 	if flags.CoAgentEnabled {
 		tools = append(tools, "coagent")
+	}
+	if flags.SpaceAgentEnabled {
+		tools = append(tools, "space_agent")
 	}
 	sort.Strings(tools)
 	return tools
