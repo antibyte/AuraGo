@@ -20,7 +20,7 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 			tool("query_memory",
 				"Search across ALL memory sources at once: recent activity timeline, vector DB (long-term facts), knowledge graph (entities/relationships), journal (events/milestones), notes (tasks/todos), planner (structured tasks/appointments), core memory (permanent facts), and error patterns (learned failures). By default searches everything — use 'sources' only to narrow results.",
 				schema(map[string]interface{}{
-					"query": prop("string", "Natural language search query"),
+					"query": prop("string", "Natural language search query. Use '*' only for a diagnostic inventory/counts overview, not for semantic recall."),
 					"sources": map[string]interface{}{
 						"type":        "array",
 						"description": "Memory sources to search. Default: all available. Options: activity, vector_db, knowledge_graph, journal, notes, planner, core_memory, error_patterns",

@@ -23,6 +23,8 @@ Search **ALL** memory subsystems at once with a single natural-language query. T
 | `sources` | array | no | Limit to specific sources (default: searches all). Options: `activity`, `vector_db`, `knowledge_graph`, `journal`, `notes`, `planner`, `core_memory`, `error_patterns` |
 | `limit` | integer | no | Max results per source (default 5) |
 
+Use `query: "*"` only as a diagnostic inventory request. It returns counts and small samples for the selected memory sources instead of running semantic search.
+
 ### Examples
 
 **Search everything (recommended default):**
@@ -43,6 +45,11 @@ Search **ALL** memory subsystems at once with a single natural-language query. T
 **Planner overview:**
 ```json
 {"action": "query_memory", "query": "what is open", "sources": ["planner"]}
+```
+
+**Memory inventory/counts:**
+```json
+{"action": "query_memory", "query": "*", "sources": ["vector_db", "knowledge_graph", "core_memory"]}
 ```
 
 ### Tips

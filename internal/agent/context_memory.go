@@ -132,6 +132,10 @@ func appendPlannerResults(plannerDB *sql.DB, query, timeRange string, limit int,
 	*combined = append(*combined, memorySourceResult{Source: "planner", Count: count, Data: payload})
 }
 
+func isMemoryInventoryQuery(query string) bool {
+	return strings.TrimSpace(query) == "*"
+}
+
 func normalizeMemorySourceMap(sources []string, defaults map[string]bool) map[string]bool {
 	if len(sources) == 0 {
 		copied := make(map[string]bool, len(defaults))
@@ -173,6 +177,169 @@ func normalizeMemorySourceMap(sources []string, defaults map[string]bool) map[st
 		normalized[key] = true
 	}
 	return normalized
+}
+
+func gatherMemoryInventoryResults(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB, perSourceLimit int, defaults map[string]bool, sourceLabels map[string]string) memorySearchBundle {
+	bundle := memorySearchBundle{
+		Results:         make([]memorySourceResult, 0, 8),
+		Errors:          make([]string, 0, 4),
+		SourceMap:       normalizeMemorySourceMap(tc.Sources, defaults),
+		NormalizedQuery: strings.TrimSpace(firstMemoryQueryText(tc.Content, tc.Query)),
+	}
+
+	if perSourceLimit <= 0 || perSourceLimit > 20 {
+		perSourceLimit = 5
+	}
+
+	labelFor := func(source string) string {
+		if label, ok := sourceLabels[source]; ok && strings.TrimSpace(label) != "" {
+			return label
+		}
+		return source
+	}
+	appendResult := func(source string, count int, data interface{}) {
+		bundle.Results = append(bundle.Results, memorySourceResult{Source: labelFor(source), Count: count, Data: data})
+	}
+
+	if bundle.SourceMap["ltm"] && longTermMem != nil {
+		totalDocs := longTermMem.Count()
+		appendResult("ltm", totalDocs, map[string]interface{}{
+			"total_documents": totalDocs,
+			"ready":           longTermMem.IsReady(),
+			"disabled":        longTermMem.IsDisabled(),
+			"note":            "Inventory count across VectorDB collections; use a natural-language query to retrieve matching documents.",
+		})
+	}
+
+	if bundle.SourceMap["kg"] && kg != nil {
+		nodes, edges, err := kg.Stats()
+		if err != nil {
+			bundle.Errors = append(bundle.Errors, fmt.Sprintf("%s: %v", labelFor("kg"), err))
+		}
+		sample, sampleErr := kg.GetAllNodes(perSourceLimit)
+		if sampleErr != nil {
+			bundle.Errors = append(bundle.Errors, fmt.Sprintf("%s sample: %v", labelFor("kg"), sampleErr))
+		}
+		appendResult("kg", nodes+edges, map[string]interface{}{
+			"nodes":        nodes,
+			"edges":        edges,
+			"sample_nodes": sample,
+		})
+	}
+
+	if bundle.SourceMap["journal"] && shortTermMem != nil {
+		stats, err := shortTermMem.GetJournalStats("", "")
+		if err != nil {
+			bundle.Errors = append(bundle.Errors, fmt.Sprintf("journal: %v", err))
+		} else {
+			total := 0
+			for _, count := range stats {
+				total += count
+			}
+			entries, sampleErr := shortTermMem.GetJournalEntries("", "", nil, perSourceLimit)
+			if sampleErr != nil {
+				bundle.Errors = append(bundle.Errors, fmt.Sprintf("journal sample: %v", sampleErr))
+			}
+			appendResult("journal", total, map[string]interface{}{
+				"total_entries": total,
+				"by_type":       stats,
+				"sample":        entries,
+			})
+		}
+	}
+
+	if bundle.SourceMap["episodic"] && shortTermMem != nil {
+		entries, err := shortTermMem.SearchEpisodicMemoriesInRange("", "", "", perSourceLimit)
+		if err != nil {
+			bundle.Errors = append(bundle.Errors, fmt.Sprintf("episodic: %v", err))
+		} else {
+			appendResult("episodic", len(entries), entries)
+		}
+	}
+
+	if bundle.SourceMap["activity"] && shortTermMem != nil {
+		entries, err := shortTermMem.SearchActivityTurnsInRange("", "", "", perSourceLimit)
+		if err != nil {
+			bundle.Errors = append(bundle.Errors, fmt.Sprintf("activity: %v", err))
+		} else {
+			appendResult("activity", len(entries), entries)
+		}
+	}
+
+	if bundle.SourceMap["notes"] && shortTermMem != nil {
+		total, err := shortTermMem.GetNotesCount()
+		if err != nil {
+			bundle.Errors = append(bundle.Errors, fmt.Sprintf("notes: %v", err))
+		} else {
+			notes, sampleErr := shortTermMem.ListNotesWithOptions(memory.NotesListOptions{DoneFilter: -1})
+			if sampleErr != nil {
+				bundle.Errors = append(bundle.Errors, fmt.Sprintf("notes sample: %v", sampleErr))
+			}
+			if len(notes) > perSourceLimit {
+				notes = notes[:perSourceLimit]
+			}
+			appendResult("notes", total, notes)
+		}
+	}
+
+	if bundle.SourceMap["planner"] && plannerDB != nil {
+		appendPlannerResults(plannerDB, "", tc.TimeRange, perSourceLimit, &bundle.Results, &bundle.Errors)
+		if len(bundle.Results) > 0 {
+			lastIdx := len(bundle.Results) - 1
+			if bundle.Results[lastIdx].Source == "planner" {
+				bundle.Results[lastIdx].Source = labelFor("planner")
+			}
+		}
+	}
+
+	if bundle.SourceMap["cheatsheets"] && cheatsheetDB != nil {
+		total, active, agentCreated, err := tools.CheatsheetCount(cheatsheetDB)
+		if err != nil {
+			bundle.Errors = append(bundle.Errors, fmt.Sprintf("cheatsheets: %v", err))
+		} else {
+			sheets, sampleErr := tools.CheatsheetList(cheatsheetDB, false)
+			if sampleErr != nil {
+				bundle.Errors = append(bundle.Errors, fmt.Sprintf("cheatsheets sample: %v", sampleErr))
+			}
+			if len(sheets) > perSourceLimit {
+				sheets = sheets[:perSourceLimit]
+			}
+			appendResult("cheatsheets", total, map[string]interface{}{
+				"total":         total,
+				"active":        active,
+				"agent_created": agentCreated,
+				"sample":        sheets,
+			})
+		}
+	}
+
+	if bundle.SourceMap["core"] && shortTermMem != nil {
+		facts, err := shortTermMem.GetCoreMemoryFacts()
+		if err != nil {
+			bundle.Errors = append(bundle.Errors, fmt.Sprintf("%s: %v", labelFor("core"), err))
+		} else {
+			total := len(facts)
+			if len(facts) > perSourceLimit {
+				facts = facts[:perSourceLimit]
+			}
+			appendResult("core", total, facts)
+		}
+	}
+
+	if bundle.SourceMap["error_patterns"] && shortTermMem != nil {
+		total, err := shortTermMem.GetErrorPatternsCount()
+		if err != nil {
+			bundle.Errors = append(bundle.Errors, fmt.Sprintf("error_patterns: %v", err))
+		} else {
+			patterns, sampleErr := shortTermMem.GetRecentErrors(perSourceLimit)
+			if sampleErr != nil {
+				bundle.Errors = append(bundle.Errors, fmt.Sprintf("error_patterns sample: %v", sampleErr))
+			}
+			appendResult("error_patterns", total, patterns)
+		}
+	}
+
+	return bundle
 }
 
 func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB, perSourceLimit int, defaults map[string]bool, sourceLabels map[string]string, includeActivityRollups bool, explicitRange memory.TemporalQueryRange) memorySearchBundle {
@@ -338,6 +505,15 @@ func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *
 	return bundle
 }
 
+func firstMemoryQueryText(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
 func executeQueryMemory(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB) (string, error) {
 	searchContent := tc.Content
 	if searchContent == "" {
@@ -347,20 +523,29 @@ func executeQueryMemory(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTerm
 		return `Tool Output: {"status": "error", "message": "'content' or 'query' (search query) is required"}`, nil
 	}
 
-	bundle := gatherMemorySourceResults(
-		searchContent,
-		tc,
-		shortTermMem,
-		longTermMem,
-		kg,
-		plannerDB,
-		cheatsheetDB,
-		tc.Limit,
-		map[string]bool{"activity": true, "ltm": true, "kg": true, "journal": true, "episodic": true, "notes": true, "planner": true, "core": true, "cheatsheets": true, "error_patterns": true},
-		map[string]string{"activity": "activity", "ltm": "vector_db", "kg": "knowledge_graph", "journal": "journal", "episodic": "episodic", "notes": "notes", "planner": "planner", "core": "core_memory", "cheatsheets": "cheatsheets", "error_patterns": "error_patterns"},
-		true,
-		memory.TemporalQueryRange{},
-	)
+	defaults := map[string]bool{"activity": true, "ltm": true, "kg": true, "journal": true, "episodic": true, "notes": true, "planner": true, "core": true, "cheatsheets": true, "error_patterns": true}
+	sourceLabels := map[string]string{"activity": "activity", "ltm": "vector_db", "kg": "knowledge_graph", "journal": "journal", "episodic": "episodic", "notes": "notes", "planner": "planner", "core": "core_memory", "cheatsheets": "cheatsheets", "error_patterns": "error_patterns"}
+
+	inventoryMode := isMemoryInventoryQuery(searchContent)
+	var bundle memorySearchBundle
+	if inventoryMode {
+		bundle = gatherMemoryInventoryResults(tc, shortTermMem, longTermMem, kg, plannerDB, cheatsheetDB, tc.Limit, defaults, sourceLabels)
+	} else {
+		bundle = gatherMemorySourceResults(
+			searchContent,
+			tc,
+			shortTermMem,
+			longTermMem,
+			kg,
+			plannerDB,
+			cheatsheetDB,
+			tc.Limit,
+			defaults,
+			sourceLabels,
+			true,
+			memory.TemporalQueryRange{},
+		)
+	}
 
 	if len(bundle.Results) == 0 && len(bundle.Errors) == 0 {
 		return `Tool Output: {"status": "success", "message": "No matching memories found across any source."}`, nil
@@ -369,6 +554,10 @@ func executeQueryMemory(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTerm
 	response := map[string]interface{}{
 		"status":  "success",
 		"results": bundle.Results,
+	}
+	if inventoryMode {
+		response["mode"] = "inventory"
+		response["message"] = "Inventory counts for selected memory sources. Use a natural-language query to retrieve semantic matches."
 	}
 	if bundle.HasTemporalRange {
 		response["temporal_range"] = bundle.TemporalRange

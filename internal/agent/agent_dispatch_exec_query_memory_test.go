@@ -20,6 +20,7 @@ type fakeVectorDB struct {
 	searchSimilarCalled      bool
 	searchMemoriesOnlyCalled bool
 	excludeCollections       []string
+	totalCount               int
 }
 
 func (f *fakeVectorDB) StoreDocument(concept, content string) ([]string, error) {
@@ -49,10 +50,15 @@ func (f *fakeVectorDB) GetByID(id string) (string, error)                       
 func (f *fakeVectorDB) GetByIDFromCollection(id, collection string) (string, error) { return "", nil }
 func (f *fakeVectorDB) DeleteDocument(id string) error                              { return nil }
 func (f *fakeVectorDB) DeleteDocumentFromCollection(id, collection string) error    { return nil }
-func (f *fakeVectorDB) Count() int                                                  { return 1 }
-func (f *fakeVectorDB) IsDisabled() bool                                            { return false }
-func (f *fakeVectorDB) IsReady() bool                                               { return true }
-func (f *fakeVectorDB) Close() error                                                { return nil }
+func (f *fakeVectorDB) Count() int {
+	if f.totalCount > 0 {
+		return f.totalCount
+	}
+	return 1
+}
+func (f *fakeVectorDB) IsDisabled() bool { return false }
+func (f *fakeVectorDB) IsReady() bool    { return true }
+func (f *fakeVectorDB) Close() error     { return nil }
 func (f *fakeVectorDB) StoreDocumentInCollection(concept, content, collection string) ([]string, error) {
 	return nil, nil
 }
@@ -362,6 +368,118 @@ func TestDispatchExecQueryMemoryIncludesCheatsheetSource(t *testing.T) {
 	}
 	if !strings.Contains(out, "Docker Recovery Workflow") {
 		t.Fatalf("output = %q, want cheatsheet hit", out)
+	}
+}
+
+func TestDispatchExecQueryMemoryWildcardReturnsInventoryCounts(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	if err := stm.InitNotesTables(); err != nil {
+		t.Fatalf("InitNotesTables: %v", err)
+	}
+	if err := stm.InitErrorLearningTable(); err != nil {
+		t.Fatalf("InitErrorLearningTable: %v", err)
+	}
+	if _, err := stm.AddCoreMemoryFact("The user prefers German responses."); err != nil {
+		t.Fatalf("AddCoreMemoryFact: %v", err)
+	}
+	if _, err := stm.AddNote("todo", "Check backup retention", "", 3, ""); err != nil {
+		t.Fatalf("AddNote: %v", err)
+	}
+	if err := stm.RecordError("execute_shell", "exit status 1"); err != nil {
+		t.Fatalf("RecordError: %v", err)
+	}
+
+	kg, err := memory.NewKnowledgeGraph(filepath.Join(t.TempDir(), "kg.db"), "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	t.Cleanup(func() { _ = kg.Close() })
+	if err := kg.AddNode("andi", "Andi", map[string]string{"type": "person"}); err != nil {
+		t.Fatalf("AddNode andi: %v", err)
+	}
+	if err := kg.AddNode("nas", "NAS", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode nas: %v", err)
+	}
+	if err := kg.AddEdge("andi", "nas", "owns", nil); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	vdb := &fakeVectorDB{totalCount: 491}
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "query_memory", Query: "*", Sources: []string{"vector_db", "core_memory", "knowledge_graph", "notes", "error_patterns"}, Limit: 2},
+		&DispatchContext{Cfg: cfg, Logger: logger, ShortTermMem: stm, LongTermMem: vdb, KG: kg},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle query_memory")
+	}
+	if vdb.searchSimilarCalled {
+		t.Fatal("wildcard inventory query must not trigger semantic vector search")
+	}
+
+	raw := strings.TrimPrefix(out, "Tool Output: ")
+	var parsed struct {
+		Status  string `json:"status"`
+		Mode    string `json:"mode"`
+		Results []struct {
+			Source string          `json:"source"`
+			Count  int             `json:"count"`
+			Data   json.RawMessage `json:"data"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+		t.Fatalf("json.Unmarshal output: %v\n%s", err, out)
+	}
+	if parsed.Status != "success" || parsed.Mode != "inventory" {
+		t.Fatalf("status/mode = %q/%q, want success/inventory", parsed.Status, parsed.Mode)
+	}
+	bySource := make(map[string]struct {
+		Count int
+		Data  json.RawMessage
+	}, len(parsed.Results))
+	for _, result := range parsed.Results {
+		bySource[result.Source] = struct {
+			Count int
+			Data  json.RawMessage
+		}{Count: result.Count, Data: result.Data}
+	}
+
+	if got := bySource["vector_db"].Count; got != 491 {
+		t.Fatalf("vector_db count = %d, want 491", got)
+	}
+	if !strings.Contains(string(bySource["vector_db"].Data), `"total_documents":491`) {
+		t.Fatalf("vector_db data = %s, want total_documents", bySource["vector_db"].Data)
+	}
+	if got := bySource["knowledge_graph"].Count; got != 3 {
+		t.Fatalf("knowledge_graph count = %d, want nodes+edges = 3", got)
+	}
+	if !strings.Contains(string(bySource["knowledge_graph"].Data), `"nodes":2`) || !strings.Contains(string(bySource["knowledge_graph"].Data), `"edges":1`) {
+		t.Fatalf("knowledge_graph data = %s, want nodes/edges", bySource["knowledge_graph"].Data)
+	}
+	if got := bySource["core_memory"].Count; got != 1 {
+		t.Fatalf("core_memory count = %d, want 1", got)
+	}
+	if !strings.Contains(string(bySource["core_memory"].Data), "German responses") {
+		t.Fatalf("core_memory data = %s, want stored fact", bySource["core_memory"].Data)
+	}
+	if got := bySource["notes"].Count; got != 1 {
+		t.Fatalf("notes count = %d, want 1", got)
+	}
+	if !strings.Contains(string(bySource["notes"].Data), "Check backup retention") {
+		t.Fatalf("notes data = %s, want stored note", bySource["notes"].Data)
+	}
+	if got := bySource["error_patterns"].Count; got != 1 {
+		t.Fatalf("error_patterns count = %d, want 1", got)
+	}
+	if !strings.Contains(string(bySource["error_patterns"].Data), "execute_shell") {
+		t.Fatalf("error_patterns data = %s, want stored pattern", bySource["error_patterns"].Data)
 	}
 }
 
