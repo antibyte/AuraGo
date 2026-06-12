@@ -118,8 +118,15 @@ func (kg *KnowledgeGraph) initTables() error {
 	idxStmts := []string{
 		`CREATE INDEX IF NOT EXISTS idx_kg_nodes_type ON kg_nodes(node_type)`,
 		`CREATE INDEX IF NOT EXISTS idx_kg_nodes_source ON kg_nodes(source_type)`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_nodes_access_count ON kg_nodes(access_count)`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_nodes_updated_at ON kg_nodes(updated_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_nodes_semantic_indexed_at ON kg_nodes(semantic_indexed_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_kg_edges_source ON kg_edges(source)`,
 		`CREATE INDEX IF NOT EXISTS idx_kg_edges_target ON kg_edges(target)`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_edges_access_count ON kg_edges(access_count)`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_edges_semantic_indexed_at ON kg_edges(semantic_indexed_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_edges_relation ON kg_edges(relation)`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_edges_source_target ON kg_edges(source, target)`,
 	}
 	for _, stmt := range idxStmts {
 		if _, err := kg.db.Exec(stmt); err != nil {

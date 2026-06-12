@@ -263,6 +263,11 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 		maxChars = 2000
 	}
 
+	// Wildcard fallback: return important nodes instead of trying to FTS-match "*".
+	if strings.TrimSpace(query) == "*" {
+		return kg.searchForContextImportantNodes(maxNodes, maxChars)
+	}
+
 	var nodeIDs []string
 	type searchHit struct {
 		score float32
@@ -272,7 +277,7 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 
 	semScores := kg.semanticSearchNodeScores(query, maxNodes*2)
 	for id, score := range semScores {
-		hits[id] += score * 0.25
+		hits[id] += score * 0.5
 	}
 
 	tx, err := kg.beginReadTx("SearchForContext")
@@ -286,7 +291,7 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 		SELECT n.id, n.access_count FROM kg_nodes_fts f
 		JOIN kg_nodes n ON n.rowid = f.rowid
 		WHERE kg_nodes_fts MATCH ?
-		ORDER BY n.updated_at DESC
+		ORDER BY rank
 		LIMIT ?
 	`, ftsQuery, maxNodes)
 
@@ -395,6 +400,9 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 		if !ok {
 			continue
 		}
+		if kg.isExcludedNodeType(node.Properties["type"]) {
+			continue
+		}
 
 		sb.WriteString(fmt.Sprintf("- [%s] %s", nid, node.Label))
 		for k, v := range node.Properties {
@@ -406,6 +414,87 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 		sb.WriteString("\n")
 
 		for _, edge := range edgesByNodeID[nid] {
+			if edge.Relation == "co_mentioned_with" && edge.Properties["source"] != "activity_turn" {
+				continue
+			}
+			sb.WriteString(fmt.Sprintf("  - [%s] -[%s]-> [%s]\n", edge.Source, edge.Relation, edge.Target))
+		}
+
+		if sb.Len() > maxChars {
+			break
+		}
+	}
+
+	for _, hit := range accessHits {
+		kg.enqueueAccessHit(hit)
+	}
+
+	result := sb.String()
+	if len(result) > maxChars {
+		result = truncateUTF8Safe(result, maxChars)
+	}
+	return result
+}
+
+// searchForContextImportantNodes returns a formatted context string built from
+// the most important nodes. It is used as a fallback for wildcard queries.
+func (kg *KnowledgeGraph) searchForContextImportantNodes(maxNodes int, maxChars int) string {
+	if maxNodes <= 0 {
+		maxNodes = 20
+	}
+	if maxChars <= 0 {
+		maxChars = 2000
+	}
+
+	nodes, err := kg.GetImportantNodes(maxNodes, 15)
+	if err != nil || len(nodes) == 0 {
+		return ""
+	}
+
+	nodeIDs := make([]string, len(nodes))
+	for i, n := range nodes {
+		nodeIDs[i] = n.ID
+	}
+
+	tx, err := kg.beginReadTx("SearchForContextImportantNodes")
+	if err != nil {
+		return ""
+	}
+	defer tx.Rollback()
+
+	nodesByID, edgesByNodeID, accessHits, err := kg.loadSearchContextData(tx, nodeIDs)
+	if err != nil {
+		kg.logger.Warn("SearchForContext: load important nodes context data failed", "error", err)
+		return ""
+	}
+	if err := tx.Commit(); err != nil {
+		kg.logger.Warn("SearchForContext: commit important nodes read transaction failed", "error", err)
+		return ""
+	}
+
+	var sb strings.Builder
+	for _, n := range nodes {
+		node, ok := nodesByID[n.ID]
+		if !ok {
+			continue
+		}
+		if kg.isExcludedNodeType(node.Properties["type"]) {
+			continue
+		}
+
+		sb.WriteString(fmt.Sprintf("- [%s] %s", n.ID, node.Label))
+		for k, v := range node.Properties {
+			if k == "access_count" || k == "protected" || k == "source" || k == "extracted_at" {
+				continue
+			}
+			sb.WriteString(fmt.Sprintf(" | %s: %s", k, v))
+		}
+		sb.WriteString("\n")
+
+		for _, edge := range edgesByNodeID[n.ID] {
+			if edge.Relation == "co_mentioned_with" && edge.Properties["source"] != "activity_turn" {
+				continue
+			}
 			sb.WriteString(fmt.Sprintf("  - [%s] -[%s]-> [%s]\n", edge.Source, edge.Relation, edge.Target))
 		}
 

@@ -928,7 +928,17 @@ func TestKGPropertyValuesPreservedBeyondLegacyLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetAllNodes: %v", err)
 	}
-	if got := nodes[0].Properties["notes"]; got != longValue {
+	var device1 *Node
+	for i := range nodes {
+		if nodes[i].ID == "device_1" {
+			device1 = &nodes[i]
+			break
+		}
+	}
+	if device1 == nil {
+		t.Fatalf("device_1 node not found in %d nodes", len(nodes))
+	}
+	if got := device1.Properties["notes"]; got != longValue {
 		t.Fatalf("node property was unexpectedly truncated: got len %d want len %d", len(got), len(longValue))
 	}
 
