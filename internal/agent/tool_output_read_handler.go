@@ -21,6 +21,11 @@ type readToolOutputResponse struct {
 	Message          string  `json:"message,omitempty"`
 }
 
+const (
+	defaultReadToolOutputMaxChars = 6000
+	maxReadToolOutputChars        = 32000
+)
+
 func handleReadToolOutput(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
 	ref := firstNonEmptyToolString(
 		stringValueFromMap(tc.Params, "ref"),
@@ -46,6 +51,7 @@ func handleReadToolOutput(ctx context.Context, tc ToolCall, dc *DispatchContext)
 		MaxChars:  toolArgInt(tc.Params, 0, "max_chars"),
 		Reason:    stringValueFromMap(tc.Params, "reason"),
 	}
+	req = normalizeReadToolOutputViewRequest(req)
 	content, truncated, viewErr := renderToolOutputView(out, req)
 	if viewErr != nil {
 		return readToolOutputError(viewErr.Error())
@@ -70,6 +76,16 @@ func handleReadToolOutput(ctx context.Context, tc ToolCall, dc *DispatchContext)
 		return readToolOutputError(fmt.Sprintf("failed to encode response: %s", err))
 	}
 	return "Tool Output: " + string(b)
+}
+
+func normalizeReadToolOutputViewRequest(req toolOutputViewRequest) toolOutputViewRequest {
+	if req.MaxChars <= 0 {
+		req.MaxChars = defaultReadToolOutputMaxChars
+	}
+	if req.MaxChars > maxReadToolOutputChars {
+		req.MaxChars = maxReadToolOutputChars
+	}
+	return req
 }
 
 func handleRetrieveOriginalOutput(ctx context.Context, tc ToolCall, dc *DispatchContext) string {

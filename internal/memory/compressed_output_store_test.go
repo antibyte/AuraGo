@@ -2,8 +2,10 @@ package memory
 
 import (
 	"context"
+	"database/sql"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -165,6 +167,53 @@ func TestCompressedOutputStore_BackfillsOutputRefForLegacyRows(t *testing.T) {
 	}
 	if byRef.ToolCallID != "call-legacy" {
 		t.Fatalf("ToolCallID = %q, want call-legacy", byRef.ToolCallID)
+	}
+}
+
+func TestCompressedOutputStore_MigratesLegacyTableWithoutOutputRef(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	dbPath := filepath.Join(t.TempDir(), "legacy.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open legacy db: %v", err)
+	}
+	if _, err := db.Exec(`
+		CREATE TABLE compressed_tool_outputs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			session_id TEXT NOT NULL,
+			tool_call_id TEXT NOT NULL,
+			tool_name TEXT NOT NULL,
+			original_content TEXT NOT NULL,
+			compressed_content TEXT NOT NULL,
+			compression_ratio REAL,
+			filter_used TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			accessed_at DATETIME,
+			access_count INTEGER DEFAULT 0,
+			UNIQUE(session_id, tool_call_id)
+		);
+		INSERT INTO compressed_tool_outputs
+			(session_id, tool_call_id, tool_name, original_content, compressed_content, compression_ratio, filter_used)
+		VALUES ('sess-old', 'call-old', 'shell', 'original', 'compact', 0.5, 'smart-crusher');`); err != nil {
+		_ = db.Close()
+		t.Fatalf("create legacy table: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close legacy db: %v", err)
+	}
+
+	stm, err := NewSQLiteMemory(dbPath, logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory should migrate legacy compressed outputs table: %v", err)
+	}
+	defer stm.Close()
+
+	retrieved, err := stm.RetrieveCompressedOutput(context.Background(), "sess-old", "call-old")
+	if err != nil {
+		t.Fatalf("RetrieveCompressedOutput: %v", err)
+	}
+	if retrieved.OutputRef == "" {
+		t.Fatal("expected migrated row to expose an output_ref")
 	}
 }
 

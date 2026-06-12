@@ -69,3 +69,50 @@ func TestDispatchReadToolOutputViewsAndLegacyAlias(t *testing.T) {
 		t.Fatalf("legacy alias did not return full output: %s", legacy)
 	}
 }
+
+func TestDispatchReadToolOutputAppliesDefaultMaxChars(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	large := strings.Repeat("0123456789", 800)
+	ctx := context.Background()
+	if err := stm.StoreCompressedOutput(ctx, &memory.CompressedToolOutput{
+		SessionID:         "sess-large",
+		ToolCallID:        "call-large",
+		OutputRef:         "toolout_large",
+		ToolName:          "execute_shell",
+		OriginalContent:   large,
+		CompressedContent: "compact",
+		CompressionRatio:  0.25,
+		FilterUsed:        "vault",
+	}); err != nil {
+		t.Fatalf("StoreCompressedOutput: %v", err)
+	}
+	dc := &DispatchContext{
+		Cfg:          &config.Config{},
+		Logger:       logger,
+		ShortTermMem: stm,
+		SessionID:    "sess-large",
+	}
+
+	out, handled := dispatchExec(ctx, ToolCall{
+		Action: "read_tool_output",
+		Params: map[string]interface{}{
+			"ref":  "toolout_large",
+			"view": "full",
+		},
+	}, dc)
+	if !handled {
+		t.Fatal("read_tool_output was not handled")
+	}
+	if len(out) > defaultReadToolOutputMaxChars+1000 {
+		t.Fatalf("read_tool_output response appears uncapped: len=%d", len(out))
+	}
+	if !strings.Contains(out, `"truncated":true`) {
+		t.Fatalf("expected truncated response, got: %s", out)
+	}
+}

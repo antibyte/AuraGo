@@ -52,9 +52,7 @@ func (s *SQLiteMemory) InitCompressedOutputTable() error {
 		UNIQUE(session_id, tool_call_id)
 	);
 	CREATE INDEX IF NOT EXISTS idx_cto_session ON compressed_tool_outputs(session_id);
-	CREATE INDEX IF NOT EXISTS idx_cto_created ON compressed_tool_outputs(created_at);
-	CREATE UNIQUE INDEX IF NOT EXISTS idx_cto_session_output_ref ON compressed_tool_outputs(session_id, output_ref)
-		WHERE output_ref IS NOT NULL AND output_ref <> '';`
+	CREATE INDEX IF NOT EXISTS idx_cto_created ON compressed_tool_outputs(created_at);`
 	if _, err := s.db.Exec(schema); err != nil {
 		return fmt.Errorf("compressed_tool_outputs schema: %w", err)
 	}
