@@ -228,9 +228,9 @@ agent:
     # Always available (don't filter):
     always_include:
       - "filesystem"
-      - "execute_shell"
       - "query_memory"
-      - "ddg_search"
+      - "manage_memory"
+      - "execute_shell"
 ```
 
 | Aspect | Without Adaptive | With Adaptive |
@@ -239,7 +239,7 @@ agent:
 | **Cost** | Higher | Lower |
 | **Accuracy** | LLM overwhelmed | Precise tool selection |
 
-The `max_tools` setting caps adaptive/preferred tools only. AuraGo first keeps hard-required recovery tools, then soft always-include tools such as recent session tools, then adaptive tools.
+The `max_tools` setting caps adaptive/preferred tools only. AuraGo first keeps hard-required recovery tools, then the small soft always-include core and recent session tools, then adaptive tools. Tools such as `ddg_search`, `api_request`, `docker`, `execute_python`, `file_editor`, `manage_missions`, and Virtual Desktop helpers are normally pulled in by intent, channel, recent use, or `discover_tools`.
 
 The final native schema budget is controlled by `max_total_tools` where it can be applied. Provider profiles are only stability overlays; regular chat, bots, missions, background tasks, and desktop sessions all use the same budget path.
 

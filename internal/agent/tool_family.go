@@ -69,7 +69,7 @@ func inferToolFamilyFromQuery(query string) string {
 		return "coding"
 	case strings.Contains(q, "memory") || strings.Contains(q, "remember") || strings.Contains(q, "note") || strings.Contains(q, "journal") || strings.Contains(q, "knowledge"):
 		return "memory"
-	case strings.Contains(q, "scrape") || strings.Contains(q, "website audit") || strings.Contains(q, "web capture") || strings.Contains(q, "api") || strings.Contains(q, "form"):
+	case strings.Contains(q, "scrape") || strings.Contains(q, "search") || strings.Contains(q, "web search") || strings.Contains(q, "website audit") || strings.Contains(q, "web capture") || strings.Contains(q, "api") || strings.Contains(q, "form"):
 		return "web"
 	case strings.Contains(q, "network") || strings.Contains(q, "dns") || strings.Contains(q, "ping") || strings.Contains(q, "port") || strings.Contains(q, "scan") || strings.Contains(q, "fritz") || strings.Contains(q, "wake on lan"):
 		return "network"

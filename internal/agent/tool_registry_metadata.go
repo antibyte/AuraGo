@@ -30,9 +30,9 @@ var builtinToolMetadata = map[string]ToolRegistryMetadata{
 	"activate_tools":         {Name: "activate_tools", Family: "tooling", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "agent"},
 	"invoke_tool":            {Name: "invoke_tool", Family: "tooling", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "agent"},
 	"execute_skill":          {Name: "execute_skill", Family: "skills", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "exec", RequiresWrite: true},
-	"list_agent_skills":      {Name: "list_agent_skills", Family: "agent_skills", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "exec"},
-	"activate_agent_skill":   {Name: "activate_agent_skill", Family: "agent_skills", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "exec"},
-	"run_agent_skill_script": {Name: "run_agent_skill_script", Family: "agent_skills", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "exec", RequiresWrite: true},
+	"list_agent_skills":      {Name: "list_agent_skills", Family: "agent_skills", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "exec"},
+	"activate_agent_skill":   {Name: "activate_agent_skill", Family: "agent_skills", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "exec"},
+	"run_agent_skill_script": {Name: "run_agent_skill_script", Family: "agent_skills", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "exec", RequiresWrite: true},
 	"run_tool":               {Name: "run_tool", Family: "custom_tools", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "exec", RequiresWrite: true},
 	"filesystem":             {Name: "filesystem", Family: "filesystem", VisibilityClass: ToolVisibilityCommon, Dispatcher: "exec"},
 	"file_editor":            {Name: "file_editor", Family: "filesystem", VisibilityClass: ToolVisibilityCommon, Dispatcher: "exec", RequiresWrite: true},
@@ -59,18 +59,12 @@ func lookupToolMetadata(name string) (ToolRegistryMetadata, bool) {
 }
 
 func hardAlwaysToolNames(cfg *config.Config) []string {
-	hard := make([]string, 0, len(builtinToolMetadata)+1)
+	hard := make([]string, 0, len(builtinToolMetadata))
 	for name, meta := range builtinToolMetadata {
 		if meta.VisibilityClass == ToolVisibilityHardAlways {
 			hard = append(hard, name)
 		}
 	}
 	sort.Strings(hard)
-	if cfg != nil && cfg.MCP.Enabled && cfg.Agent.AllowMCP {
-		hard = append(hard, "mcp_call")
-	}
-	if cfg != nil && cfg.Composio.Enabled && cfg.Composio.APIKey != "" {
-		hard = append(hard, "composio_call")
-	}
 	return hard
 }

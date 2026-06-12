@@ -697,6 +697,75 @@ func TestAdaptiveFamilySeedsForQueryIncludesResourceAndContainerTools(t *testing
 	}
 }
 
+func TestAdaptiveFamilySeedsForQueryIncludesBalancedProgressiveTools(t *testing.T) {
+	tests := []struct {
+		name  string
+		query string
+		want  []string
+	}{
+		{
+			name:  "web search and API request",
+			query: "search the web and call an api endpoint",
+			want:  []string{"ddg_search", "api_request"},
+		},
+		{
+			name:  "mcp integration",
+			query: "use the MCP server integration",
+			want:  []string{"mcp_call"},
+		},
+		{
+			name:  "composio integration",
+			query: "use composio integrations",
+			want:  []string{"composio_call"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			seeds := adaptiveFamilySeedsForQuery(tt.query)
+			for _, want := range tt.want {
+				if !containsName(seeds, want) {
+					t.Fatalf("expected %s for query %q, got %v", want, tt.query, seeds)
+				}
+			}
+		})
+	}
+}
+
+func TestBuildAdaptiveToolPriorityKeepsBalancedProgressiveToolsReachable(t *testing.T) {
+	schemas := []openai.Tool{
+		makeTool("filesystem"),
+		makeTool("file_editor"),
+		makeTool("execute_python"),
+		makeTool("docker"),
+		makeTool("api_request"),
+		makeTool("ddg_search"),
+		makeTool("manage_missions"),
+	}
+
+	tests := []struct {
+		name  string
+		query string
+		want  string
+	}{
+		{name: "file editing", query: "edit this json file", want: "file_editor"},
+		{name: "python", query: "write a python script", want: "execute_python"},
+		{name: "docker", query: "inspect the docker containers", want: "docker"},
+		{name: "api", query: "call this api endpoint", want: "api_request"},
+		{name: "search", query: "search the web for recent news", want: "ddg_search"},
+		{name: "missions", query: "schedule a mission for tomorrow", want: "manage_missions"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildAdaptiveToolPriority(schemas, nil, tt.query, nil, nil)
+			if !containsName(got, tt.want) {
+				t.Fatalf("expected %s to be reachable for query %q, got %v", tt.want, tt.query, got)
+			}
+		})
+	}
+}
+
 func TestCacheAwareAdaptiveAlwaysIncludeAddsIntentFamilyBundle(t *testing.T) {
 	schemas := []openai.Tool{
 		makeTool("execute_shell"),
@@ -774,14 +843,27 @@ func TestSearchToolGuidesWithTimeoutFallsBackQuickly(t *testing.T) {
 	}
 }
 
-func TestExpandAdaptiveAlwaysIncludeAddsMCPCallWhenEnabled(t *testing.T) {
+func TestHardAlwaysToolNamesUsesBalancedKernel(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Agent.AllowMCP = true
 	cfg.MCP.Enabled = true
+	cfg.Composio.Enabled = true
+	cfg.Composio.APIKey = "configured"
 
-	got := expandAdaptiveAlwaysInclude(cfg, []string{"filesystem"})
-	if !containsName(got, "mcp_call") {
-		t.Fatalf("expected mcp_call in always-include set, got %v", got)
+	got := hardAlwaysToolNames(cfg)
+	want := []string{"activate_tools", "discover_tools", "execute_skill", "invoke_tool", "run_tool"}
+	if len(got) != len(want) {
+		t.Fatalf("hard always tools = %v, want %v", got, want)
+	}
+	for _, name := range want {
+		if !containsName(got, name) {
+			t.Fatalf("hard always tools missing %q: %v", name, got)
+		}
+	}
+	for _, notWant := range []string{"list_agent_skills", "activate_agent_skill", "run_agent_skill_script", "mcp_call", "composio_call"} {
+		if containsName(got, notWant) {
+			t.Fatalf("did not expect %q in hard always tools: %v", notWant, got)
+		}
 	}
 }
 
@@ -822,6 +904,21 @@ func TestExpandAdaptiveAlwaysIncludeSkipsMCPCallWhenDisabled(t *testing.T) {
 	}
 }
 
+func TestExpandAdaptiveAlwaysIncludeSkipsMCPAndComposioEvenWhenEnabled(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.AllowMCP = true
+	cfg.MCP.Enabled = true
+	cfg.Composio.Enabled = true
+	cfg.Composio.APIKey = "configured"
+
+	got := expandAdaptiveAlwaysInclude(cfg, []string{"filesystem"})
+	for _, notWant := range []string{"mcp_call", "composio_call"} {
+		if containsName(got, notWant) {
+			t.Fatalf("did not expect %s in always-include set, got %v", notWant, got)
+		}
+	}
+}
+
 func TestChannelAdaptiveAlwaysIncludeKeepsVirtualDesktopForDesktopChat(t *testing.T) {
 	got := channelAdaptiveAlwaysInclude(
 		RunConfig{MessageSource: "virtual_desktop_chat"},
@@ -848,6 +945,43 @@ func TestChannelAdaptiveAlwaysIncludeDoesNotAdvertiseDisabledDesktopTools(t *tes
 	}
 	if !containsName(got, "question_user") {
 		t.Fatalf("expected desktop chat to keep question_user even when optional desktop tools are disabled, got %v", got)
+	}
+}
+
+func TestOutputRefAdaptiveAlwaysIncludeAddsReadToolOutput(t *testing.T) {
+	messages := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleTool, Content: `Tool Output: {"status":"success","output_ref":"toolout_abc123"}`},
+	}
+
+	got := outputRefAdaptiveAlwaysInclude(messages, []string{"filesystem"})
+	if !containsName(got, "filesystem") {
+		t.Fatalf("expected existing always-include tool to remain, got %v", got)
+	}
+	if !containsName(got, "read_tool_output") {
+		t.Fatalf("expected read_tool_output for output_ref context, got %v", got)
+	}
+
+	got = outputRefAdaptiveAlwaysInclude(messages, []string{"read_tool_output"})
+	count := 0
+	for _, name := range got {
+		if name == "read_tool_output" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("expected read_tool_output once, got %v", got)
+	}
+}
+
+func TestOutputRefAdaptiveAlwaysIncludeIgnoresMessagesWithoutRefs(t *testing.T) {
+	messages := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleUser, Content: "please continue"},
+		{Role: openai.ChatMessageRoleAssistant, Content: "ok"},
+	}
+
+	got := outputRefAdaptiveAlwaysInclude(messages, []string{"filesystem"})
+	if containsName(got, "read_tool_output") {
+		t.Fatalf("did not expect read_tool_output without output refs, got %v", got)
 	}
 }
 

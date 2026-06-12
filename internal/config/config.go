@@ -1261,9 +1261,7 @@ func Load(path string) (*Config, error) {
 	}
 	if len(cfg.Agent.AdaptiveTools.AlwaysInclude) == 0 && cfg.Agent.AdaptiveTools.Enabled {
 		cfg.Agent.AdaptiveTools.AlwaysInclude = []string{
-			"filesystem", "file_editor", "execute_shell", "manage_memory", "query_memory",
-			"execute_python", "docker", "api_request", "ddg_search", "manage_missions",
-			"virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets",
+			"filesystem", "query_memory", "manage_memory", "execute_shell",
 		}
 	}
 	if cfg.Agent.MaxToolGuides <= 0 {

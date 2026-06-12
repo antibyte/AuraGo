@@ -350,6 +350,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			}
 			alwaysInclude = channelAdaptiveAlwaysInclude(runCfg, alwaysInclude, ff)
 			alwaysInclude = cacheAwareAdaptiveAlwaysInclude(adaptiveUserContext, alwaysInclude, ntSchemas)
+			alwaysInclude = outputRefAdaptiveAlwaysInclude(req.Messages, alwaysInclude)
 			// Re-include every tool that was actually called in this conversation so the
 			// model can continue using tools it already relied on (Option 3: session context).
 			for tool := range sessionUsedTools {

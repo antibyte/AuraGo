@@ -226,14 +226,9 @@ agent:
     # Immer verfügbar (nicht filtern):
     always_include:
       - "filesystem"
-      - "file_editor"
-      - "execute_shell"
-      - "manage_memory"
       - "query_memory"
-      - "execute_python"
-      - "ddg_search"
-      - "docker"
-      - "api_request"
+      - "manage_memory"
+      - "execute_shell"
 ```
 
 | Aspekt | Ohne Adaptive | Mit Adaptive |
@@ -242,7 +237,7 @@ agent:
 | **Kosten** | Höher | Niedriger |
 | **Genauigkeit** | LLM überfordert | Präzisere Tool-Wahl |
 
-Die Einstellung `max_tools` begrenzt nur adaptive beziehungsweise bevorzugte Tools. AuraGo behaelt zuerst hart benoetigte Recovery-Tools, danach weiche Always-Include-Tools wie zuletzt genutzte Session-Tools, dann adaptive Tools.
+Die Einstellung `max_tools` begrenzt nur adaptive beziehungsweise bevorzugte Tools. AuraGo behält zuerst hart benötigte Recovery-Tools, danach den kleinen weichen Always-Include-Kern und zuletzt genutzte Session-Tools, dann adaptive Tools. Tools wie `ddg_search`, `api_request`, `docker`, `execute_python`, `file_editor`, `manage_missions` und Virtual-Desktop-Helfer werden normalerweise über Intent, Kanal, letzte Nutzung oder `discover_tools` eingeblendet.
 
 Das finale native Schema-Budget wird ueber `max_total_tools` gesteuert, wo es moeglich ist. Providerprofile sind nur Stabilitaets-Overlays; normaler Chat, Bots, Missionen, Hintergrundaufgaben und Desktop-Sessions nutzen denselben Budgetpfad.
 

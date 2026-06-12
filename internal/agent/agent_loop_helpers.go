@@ -206,7 +206,7 @@ var adaptiveFamilySeedTools = map[string][]string{
 		"execute_python", "execute_sandbox", "execute_shell", "document_creator",
 	},
 	"web": {
-		"web_scraper", "site_crawler", "web_capture", "document_creator",
+		"ddg_search", "api_request", "web_scraper", "site_crawler", "web_capture", "document_creator",
 	},
 	"deployment": {
 		"homepage_deploy", "homepage_project", "homepage_file", "homepage_quality", "homepage_git", "homepage_registry", "netlify",
@@ -581,6 +581,12 @@ func adaptiveFamilySeedsForQuery(userQuery string) []string {
 		add("docker")
 		add("execute_shell")
 	}
+	if isMCPIntent(q) {
+		add("mcp_call")
+	}
+	if isComposioIntent(q) {
+		add("composio_call")
+	}
 
 	if len(out) == 0 {
 		return nil
@@ -619,6 +625,32 @@ func isContainerIntent(normalizedQuery string) bool {
 	return false
 }
 
+func isMCPIntent(normalizedQuery string) bool {
+	if normalizedQuery == "" {
+		return false
+	}
+	mcpTerms := []string{"mcp", "model context protocol"}
+	for _, term := range mcpTerms {
+		if strings.Contains(normalizedQuery, term) {
+			return true
+		}
+	}
+	return false
+}
+
+func isComposioIntent(normalizedQuery string) bool {
+	if normalizedQuery == "" {
+		return false
+	}
+	composioTerms := []string{"composio", "integration", "integrations"}
+	for _, term := range composioTerms {
+		if strings.Contains(normalizedQuery, term) {
+			return true
+		}
+	}
+	return false
+}
+
 func cacheAwareAdaptiveAlwaysInclude(userQuery string, alwaysInclude []string, schemas []openai.Tool) []string {
 	seeds := adaptiveFamilySeedsForQuery(userQuery)
 	if len(seeds) == 0 {
@@ -640,6 +672,24 @@ func cacheAwareAdaptiveAlwaysInclude(userQuery string, alwaysInclude []string, s
 		}
 	}
 	return out
+}
+
+func outputRefAdaptiveAlwaysInclude(messages []openai.ChatCompletionMessage, alwaysInclude []string) []string {
+	for _, name := range alwaysInclude {
+		if name == "read_tool_output" {
+			return alwaysInclude
+		}
+	}
+	for _, msg := range messages {
+		text := messageText(msg)
+		if strings.Contains(text, "output_ref") || strings.Contains(text, "toolout_") {
+			out := make([]string, 0, len(alwaysInclude)+1)
+			out = append(out, alwaysInclude...)
+			out = append(out, "read_tool_output")
+			return out
+		}
+	}
+	return alwaysInclude
 }
 
 func expandAdaptiveAlwaysInclude(cfg *config.Config, alwaysInclude []string) []string {

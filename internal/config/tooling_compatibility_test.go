@@ -201,22 +201,31 @@ agent:
 	if cfg.Agent.CoreMemoryCapMode != "hard" {
 		t.Fatalf("core_memory_cap_mode = %q, want hard", cfg.Agent.CoreMemoryCapMode)
 	}
-	for _, want := range []string{"virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets"} {
-		if !containsString(cfg.Agent.AdaptiveTools.AlwaysInclude, want) {
-			t.Fatalf("adaptive always_include missing %s: %#v", want, cfg.Agent.AdaptiveTools.AlwaysInclude)
-		}
-	}
 }
 
-func TestAdaptiveToolsDefaultAlwaysIncludeKeepsDDGSearch(t *testing.T) {
+func TestAdaptiveToolsDefaultAlwaysIncludeUsesBalancedCore(t *testing.T) {
 	cfg := loadConfigFromTestYAML(t, `
 agent:
   adaptive_tools:
     enabled: true
 `)
 
-	if !containsString(cfg.Agent.AdaptiveTools.AlwaysInclude, "ddg_search") {
-		t.Fatalf("adaptive always_include missing ddg_search: %#v", cfg.Agent.AdaptiveTools.AlwaysInclude)
+	want := []string{"filesystem", "query_memory", "manage_memory", "execute_shell"}
+	if len(cfg.Agent.AdaptiveTools.AlwaysInclude) != len(want) {
+		t.Fatalf("adaptive always_include = %#v, want %#v", cfg.Agent.AdaptiveTools.AlwaysInclude, want)
+	}
+	for i, name := range want {
+		if cfg.Agent.AdaptiveTools.AlwaysInclude[i] != name {
+			t.Fatalf("adaptive always_include = %#v, want %#v", cfg.Agent.AdaptiveTools.AlwaysInclude, want)
+		}
+	}
+	for _, notWant := range []string{
+		"file_editor", "execute_python", "docker", "api_request", "ddg_search",
+		"manage_missions", "virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets",
+	} {
+		if containsString(cfg.Agent.AdaptiveTools.AlwaysInclude, notWant) {
+			t.Fatalf("did not expect progressive tool %s in default always_include: %#v", notWant, cfg.Agent.AdaptiveTools.AlwaysInclude)
+		}
 	}
 }
 
