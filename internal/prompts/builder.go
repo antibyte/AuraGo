@@ -87,8 +87,9 @@ var (
 )
 
 type guideCacheEntry struct {
-	content string
-	mtime   time.Time
+	content    string
+	conditions []string
+	mtime      time.Time
 }
 
 // reHTMLComments matches HTML comments for removal during prompt optimization.
@@ -177,6 +178,8 @@ type ContextFlags struct {
 	AllowNetworkRequests bool
 	AllowRemoteShell     bool
 	AllowSelfUpdate      bool
+	SudoEnabled          bool
+	PackageManagerEnabled bool
 	// Native tool toggles
 	MemoryEnabled            bool
 	KnowledgeGraphEnabled    bool

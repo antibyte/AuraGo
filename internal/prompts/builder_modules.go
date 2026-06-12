@@ -240,6 +240,198 @@ func filterModules(modules []PromptModule, flags *ContextFlags) []PromptModule {
 	return filtered
 }
 
+func normalizePromptCondition(cond string) string {
+	cond = strings.TrimSpace(strings.ToLower(cond))
+	switch cond {
+	case "tools.video_download.enabled":
+		return "video_download_enabled"
+	default:
+		return cond
+	}
+}
+
+func matchPromptCondition(cond string, flags *ContextFlags) bool {
+	if flags == nil {
+		return false
+	}
+	switch normalizePromptCondition(cond) {
+	case "is_error":
+		return flags.IsErrorState
+	case "requires_coding":
+		return flags.RequiresCoding
+	case "lifeboat":
+		return flags.LifeboatEnabled
+	case "maintenance":
+		return flags.IsMaintenanceMode
+	case "coagent":
+		return flags.IsCoAgent
+	case "egg":
+		return flags.IsEgg
+	case "main_agent":
+		return !flags.IsCoAgent && !flags.IsEgg
+	case "discord_enabled":
+		return flags.DiscordEnabled
+	case "email_enabled":
+		return flags.EmailEnabled
+	case "docker_enabled":
+		return flags.DockerEnabled
+	case "home_assistant_enabled":
+		return flags.HomeAssistantEnabled
+	case "webdav_enabled":
+		return flags.WebDAVEnabled
+	case "koofr_enabled":
+		return flags.KoofrEnabled
+	case "paperless_ngx_enabled":
+		return flags.PaperlessNGXEnabled
+	case "chromecast_enabled":
+		return flags.ChromecastEnabled
+	case "coagent_enabled":
+		return flags.CoAgentEnabled
+	case "google_workspace_enabled":
+		return flags.GoogleWorkspaceEnabled
+	case "onedrive_enabled":
+		return flags.OneDriveEnabled
+	case "proxmox_enabled":
+		return flags.ProxmoxEnabled
+	case "frigate_enabled":
+		return flags.FrigateEnabled
+	case "three_d_printer_enabled":
+		return flags.ThreeDPrinterEnabled
+	case "ollama_enabled":
+		return flags.OllamaEnabled
+	case "tailscale_enabled":
+		return flags.TailscaleEnabled
+	case "cloudflare_tunnel_enabled":
+		return flags.CloudflareTunnelEnabled
+	case "ansible_enabled":
+		return flags.AnsibleEnabled
+	case "invasion_control_enabled":
+		return flags.InvasionControlEnabled
+	case "github_enabled":
+		return flags.GitHubEnabled
+	case "mqtt_enabled":
+		return flags.MQTTEnabled
+	case "mcp_enabled":
+		return flags.MCPEnabled
+	case "meshcentral_enabled":
+		return flags.MeshCentralEnabled
+	case "sandbox_enabled":
+		return flags.SandboxEnabled
+	case "memory_enabled":
+		return flags.MemoryEnabled
+	case "knowledge_graph_enabled":
+		return flags.KnowledgeGraphEnabled
+	case "secrets_vault_enabled":
+		return flags.SecretsVaultEnabled
+	case "scheduler_enabled":
+		return flags.SchedulerEnabled
+	case "notes_enabled":
+		return flags.NotesEnabled
+	case "missions_enabled":
+		return flags.MissionsEnabled
+	case "allow_shell":
+		return flags.AllowShell
+	case "allow_python":
+		return flags.AllowPython
+	case "allow_filesystem_write":
+		return flags.AllowFilesystemWrite
+	case "allow_network_requests":
+		return flags.AllowNetworkRequests
+	case "allow_remote_shell":
+		return flags.AllowRemoteShell
+	case "allow_self_update":
+		return flags.AllowSelfUpdate
+	case "sudo_enabled":
+		return flags.SudoEnabled
+	case "allow_package_manager":
+		return flags.PackageManagerEnabled
+	case "video_download_enabled":
+		return flags.VideoDownloadEnabled
+	case "wol_enabled":
+		return flags.WOLEnabled
+	case "virustotal_enabled":
+		return flags.VirusTotalEnabled
+	case "golangci_lint_enabled":
+		return flags.GolangciLintEnabled
+	case "brave_search_enabled":
+		return flags.BraveSearchEnabled
+	case "homepage_enabled":
+		return flags.HomepageEnabled
+	case "homepage_allow_local_server":
+		return flags.HomepageAllowLocalServer
+	case "netlify_enabled":
+		return flags.NetlifyEnabled
+	case "vercel_enabled":
+		return flags.VercelEnabled
+	case "image_generation_enabled":
+		return flags.ImageGenerationEnabled
+	case "video_generation_enabled":
+		return flags.VideoGenerationEnabled
+	case "is_docker":
+		return flags.IsDocker
+	case "media_registry_enabled":
+		return flags.MediaRegistryEnabled
+	case "homepage_registry_enabled":
+		return flags.HomepageRegistryEnabled
+	case "document_creator_enabled":
+		return flags.DocumentCreatorEnabled
+	case "media_conversion_enabled":
+		return flags.MediaConversionEnabled
+	case "s3_enabled":
+		return flags.S3Enabled
+	case "web_scraper_enabled":
+		return flags.WebScraperEnabled
+	case "form_automation_enabled":
+		return flags.FormAutomationEnabled
+	case "a2a_enabled":
+		return flags.A2AEnabled
+	case "fritzbox_system_enabled":
+		return flags.FritzBoxSystemEnabled
+	case "fritzbox_network_enabled":
+		return flags.FritzBoxNetworkEnabled
+	case "fritzbox_telephony_enabled":
+		return flags.FritzBoxTelephonyEnabled
+	case "fritzbox_smarthome_enabled":
+		return flags.FritzBoxSmartHomeEnabled
+	case "fritzbox_storage_enabled":
+		return flags.FritzBoxStorageEnabled
+	case "fritzbox_tv_enabled":
+		return flags.FritzBoxTVEnabled
+	case "adguard_enabled":
+		return flags.AdGuardEnabled
+	case "uptime_kuma_enabled":
+		return flags.UptimeKumaEnabled
+	case "grafana_enabled":
+		return flags.GrafanaEnabled
+	case "jellyfin_enabled":
+		return flags.JellyfinEnabled
+	case "truenas_enabled":
+		return flags.TrueNASEnabled
+	case "telnyx_enabled":
+		return flags.TelnyxEnabled
+	case "journal_enabled":
+		return flags.JournalEnabled
+	case "specialists_available":
+		return flags.SpecialistsAvailable
+	case "minimax_tts_enabled":
+		return flags.MiniMaxTTSEnabled
+	default:
+		return false
+	}
+}
+
+func conditionsMatchAny(conditions []string, flags *ContextFlags) bool {
+	if len(conditions) == 0 || flags == nil {
+		return true
+	}
+	for _, cond := range conditions {
+		if matchPromptCondition(cond, flags) {
+			return true
+		}
+	}
+	return false
+}
+
 func (m *PromptModule) ShouldInclude(flags *ContextFlags) bool {
 	// Mandatory tag always wins
 	for _, tag := range m.Metadata.Tags {
@@ -258,322 +450,7 @@ func (m *PromptModule) ShouldInclude(flags *ContextFlags) bool {
 		return false
 	}
 
-	// Check specific conditions
-	for _, cond := range m.Metadata.Conditions {
-		switch cond {
-		case "is_error":
-			if flags.IsErrorState {
-				return true
-			}
-		case "requires_coding":
-			if flags.RequiresCoding {
-				return true
-			}
-		case "lifeboat":
-			if flags.LifeboatEnabled {
-				return true
-			}
-		case "maintenance":
-			if flags.IsMaintenanceMode {
-				return true
-			}
-		case "coagent":
-			if flags.IsCoAgent {
-				return true
-			}
-		case "egg":
-			if flags.IsEgg {
-				return true
-			}
-		case "main_agent":
-			if !flags.IsCoAgent && !flags.IsEgg {
-				return true
-			}
-		// Feature-specific tool conditions
-		case "discord_enabled":
-			if flags.DiscordEnabled {
-				return true
-			}
-		case "email_enabled":
-			if flags.EmailEnabled {
-				return true
-			}
-		case "docker_enabled":
-			if flags.DockerEnabled {
-				return true
-			}
-		case "home_assistant_enabled":
-			if flags.HomeAssistantEnabled {
-				return true
-			}
-		case "webdav_enabled":
-			if flags.WebDAVEnabled {
-				return true
-			}
-		case "koofr_enabled":
-			if flags.KoofrEnabled {
-				return true
-			}
-		case "paperless_ngx_enabled":
-			if flags.PaperlessNGXEnabled {
-				return true
-			}
-		case "chromecast_enabled":
-			if flags.ChromecastEnabled {
-				return true
-			}
-		case "coagent_enabled":
-			if flags.CoAgentEnabled {
-				return true
-			}
-		case "google_workspace_enabled":
-			if flags.GoogleWorkspaceEnabled {
-				return true
-			}
-		case "onedrive_enabled":
-			if flags.OneDriveEnabled {
-				return true
-			}
-		case "proxmox_enabled":
-			if flags.ProxmoxEnabled {
-				return true
-			}
-		case "frigate_enabled":
-			if flags.FrigateEnabled {
-				return true
-			}
-		case "three_d_printer_enabled":
-			if flags.ThreeDPrinterEnabled {
-				return true
-			}
-		case "ollama_enabled":
-			if flags.OllamaEnabled {
-				return true
-			}
-		case "tailscale_enabled":
-			if flags.TailscaleEnabled {
-				return true
-			}
-		case "cloudflare_tunnel_enabled":
-			if flags.CloudflareTunnelEnabled {
-				return true
-			}
-		case "ansible_enabled":
-			if flags.AnsibleEnabled {
-				return true
-			}
-		case "invasion_control_enabled":
-			if flags.InvasionControlEnabled {
-				return true
-			}
-		case "github_enabled":
-			if flags.GitHubEnabled {
-				return true
-			}
-		case "mqtt_enabled":
-			if flags.MQTTEnabled {
-				return true
-			}
-		case "mcp_enabled":
-			if flags.MCPEnabled {
-				return true
-			}
-		case "meshcentral_enabled":
-			if flags.MeshCentralEnabled {
-				return true
-			}
-		case "sandbox_enabled":
-			if flags.SandboxEnabled {
-				return true
-			}
-		case "memory_enabled":
-			if flags.MemoryEnabled {
-				return true
-			}
-		case "knowledge_graph_enabled":
-			if flags.KnowledgeGraphEnabled {
-				return true
-			}
-		case "secrets_vault_enabled":
-			if flags.SecretsVaultEnabled {
-				return true
-			}
-		case "scheduler_enabled":
-			if flags.SchedulerEnabled {
-				return true
-			}
-		case "notes_enabled":
-			if flags.NotesEnabled {
-				return true
-			}
-		case "missions_enabled":
-			if flags.MissionsEnabled {
-				return true
-			}
-		case "allow_shell":
-			if flags.AllowShell {
-				return true
-			}
-		case "allow_python":
-			if flags.AllowPython {
-				return true
-			}
-		case "allow_filesystem_write":
-			if flags.AllowFilesystemWrite {
-				return true
-			}
-		case "allow_network_requests":
-			if flags.AllowNetworkRequests {
-				return true
-			}
-		case "allow_remote_shell":
-			if flags.AllowRemoteShell {
-				return true
-			}
-		case "allow_self_update":
-			if flags.AllowSelfUpdate {
-				return true
-			}
-		case "wol_enabled":
-			if flags.WOLEnabled {
-				return true
-			}
-		case "virustotal_enabled":
-			if flags.VirusTotalEnabled {
-				return true
-			}
-		case "golangci_lint_enabled":
-			if flags.GolangciLintEnabled {
-				return true
-			}
-		case "brave_search_enabled":
-			if flags.BraveSearchEnabled {
-				return true
-			}
-		case "homepage_enabled":
-			if flags.HomepageEnabled {
-				return true
-			}
-		case "homepage_allow_local_server":
-			if flags.HomepageAllowLocalServer {
-				return true
-			}
-		case "netlify_enabled":
-			if flags.NetlifyEnabled {
-				return true
-			}
-		case "vercel_enabled":
-			if flags.VercelEnabled {
-				return true
-			}
-		case "image_generation_enabled":
-			if flags.ImageGenerationEnabled {
-				return true
-			}
-		case "video_generation_enabled":
-			if flags.VideoGenerationEnabled {
-				return true
-			}
-		case "is_docker":
-			if flags.IsDocker {
-				return true
-			}
-		case "media_registry_enabled":
-			if flags.MediaRegistryEnabled {
-				return true
-			}
-		case "homepage_registry_enabled":
-			if flags.HomepageRegistryEnabled {
-				return true
-			}
-		case "document_creator_enabled":
-			if flags.DocumentCreatorEnabled {
-				return true
-			}
-		case "media_conversion_enabled":
-			if flags.MediaConversionEnabled {
-				return true
-			}
-		case "s3_enabled":
-			if flags.S3Enabled {
-				return true
-			}
-		case "web_scraper_enabled":
-			if flags.WebScraperEnabled {
-				return true
-			}
-		case "form_automation_enabled":
-			if flags.FormAutomationEnabled {
-				return true
-			}
-		case "a2a_enabled":
-			if flags.A2AEnabled {
-				return true
-			}
-		case "fritzbox_system_enabled":
-			if flags.FritzBoxSystemEnabled {
-				return true
-			}
-		case "fritzbox_network_enabled":
-			if flags.FritzBoxNetworkEnabled {
-				return true
-			}
-		case "fritzbox_telephony_enabled":
-			if flags.FritzBoxTelephonyEnabled {
-				return true
-			}
-		case "fritzbox_smarthome_enabled":
-			if flags.FritzBoxSmartHomeEnabled {
-				return true
-			}
-		case "fritzbox_storage_enabled":
-			if flags.FritzBoxStorageEnabled {
-				return true
-			}
-		case "fritzbox_tv_enabled":
-			if flags.FritzBoxTVEnabled {
-				return true
-			}
-		case "adguard_enabled":
-			if flags.AdGuardEnabled {
-				return true
-			}
-		case "uptime_kuma_enabled":
-			if flags.UptimeKumaEnabled {
-				return true
-			}
-		case "grafana_enabled":
-			if flags.GrafanaEnabled {
-				return true
-			}
-		case "jellyfin_enabled":
-			if flags.JellyfinEnabled {
-				return true
-			}
-		case "truenas_enabled":
-			if flags.TrueNASEnabled {
-				return true
-			}
-		case "telnyx_enabled":
-			if flags.TelnyxEnabled {
-				return true
-			}
-		case "journal_enabled":
-			if flags.JournalEnabled {
-				return true
-			}
-		case "specialists_available":
-			if flags.SpecialistsAvailable {
-				return true
-			}
-		case "minimax_tts_enabled":
-			if flags.MiniMaxTTSEnabled {
-				return true
-			}
-		}
-	}
-
-	return false
+	return conditionsMatchAny(m.Metadata.Conditions, flags)
 }
 
 func evictGuideCacheLocked() {
@@ -590,14 +467,26 @@ func evictGuideCacheLocked() {
 	}
 }
 
+func parseToolGuideRaw(raw string) (content string, conditions []string) {
+	mod, err := parsePromptModule(raw)
+	if err != nil {
+		return strings.TrimSpace(raw), nil
+	}
+	return mod.Content, mod.Metadata.Conditions
+}
+
 // readToolGuide reads a tool guide file with caching.
 // Guides exceeding the token limit are truncated to prevent prompt bloat.
 // It first tries the on-disk path (allowing user overrides), then falls back
-// to the embedded FS baked into the binary.
-func readToolGuide(path string) (string, bool) {
+// to the embedded FS baked into the binary. When flags is nil, frontmatter
+// conditions are not enforced (used by explicit discover_tools lookups).
+func readToolGuide(path string, flags *ContextFlags) (string, bool) {
 	const maxGuideTokens = 2048
 
 	if content, ok := activeToolGuideOverride(path); ok {
+		if flags != nil && !conditionsMatchAny(loadToolGuideConditions(path), flags) {
+			return "", false
+		}
 		return truncateGuide(content, maxGuideTokens), true
 	}
 
@@ -608,40 +497,62 @@ func readToolGuide(path string) (string, bool) {
 	if ok {
 		info, err := os.Stat(path)
 		if err == nil && !info.ModTime().After(cached.mtime) {
+			if !conditionsMatchAny(cached.conditions, flags) {
+				return "", false
+			}
 			return cached.content, true
 		}
 		// If the disk file disappeared but we have a cache entry from embed,
 		// the zero mtime sentinel means "from embed, always valid".
 		if cached.mtime.IsZero() {
+			if !conditionsMatchAny(cached.conditions, flags) {
+				return "", false
+			}
 			return cached.content, true
 		}
 	}
 
 	// 1. Try on-disk file first (user overrides)
 	data, err := os.ReadFile(path)
+	fromEmbed := false
 	if err != nil {
 		// 2. Fallback: extract relative embed path (e.g. "tools_manuals/docker.md")
 		data, ok = readToolGuideEmbed(path)
 		if !ok {
 			return "", false
 		}
-		content := truncateGuide(string(data), maxGuideTokens)
-		guideCacheMu.Lock()
-		evictGuideCacheLocked()
-		guideCache[path] = guideCacheEntry{content: content} // zero mtime = from embed
-		guideCacheMu.Unlock()
-		return content, true
+		fromEmbed = true
 	}
 
-	content := truncateGuide(string(data), maxGuideTokens)
-	info, err := os.Stat(path)
-	if err == nil {
-		guideCacheMu.Lock()
-		evictGuideCacheLocked()
-		guideCache[path] = guideCacheEntry{content: content, mtime: info.ModTime()}
-		guideCacheMu.Unlock()
+	body, conditions := parseToolGuideRaw(string(data))
+	content := truncateGuide(body, maxGuideTokens)
+	entry := guideCacheEntry{content: content, conditions: conditions}
+	if !fromEmbed {
+		if info, statErr := os.Stat(path); statErr == nil {
+			entry.mtime = info.ModTime()
+		}
+	}
+	guideCacheMu.Lock()
+	evictGuideCacheLocked()
+	guideCache[path] = entry
+	guideCacheMu.Unlock()
+
+	if !conditionsMatchAny(conditions, flags) {
+		return "", false
 	}
 	return content, true
+}
+
+func loadToolGuideConditions(path string) []string {
+	if data, err := os.ReadFile(path); err == nil {
+		_, conditions := parseToolGuideRaw(string(data))
+		return conditions
+	}
+	if data, ok := readToolGuideEmbed(path); ok {
+		_, conditions := parseToolGuideRaw(string(data))
+		return conditions
+	}
+	return nil
 }
 
 func activeToolGuideOverride(path string) (string, bool) {
@@ -728,9 +639,10 @@ func stripSingleMarkdownFence(content string) string {
 }
 
 // ReadToolGuide is the exported variant of readToolGuide.
-// It reads and caches a tool guide by its filesystem path.
+// It reads and caches a tool guide by its filesystem path without enforcing
+// frontmatter conditions so explicit discover_tools lookups still work.
 func ReadToolGuide(path string) (string, bool) {
-	return readToolGuide(path)
+	return readToolGuide(path, nil)
 }
 
 // readToolGuideEmbed tries to load a tool guide from the embedded FS.
@@ -841,6 +753,8 @@ type DynamicGuideStrategy struct {
 	// SkipTools is a list of tool names whose guides should be skipped
 	// (typically tools that already have native OpenAI function schemas).
 	SkipTools []string
+	// Flags supplies runtime feature toggles for tools_manuals frontmatter conditions.
+	Flags *ContextFlags
 }
 
 func PrepareDynamicGuides(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQuery, lastTool, toolsDir string, recentTools []string, explicitTools []string, maxTotalGuides int, logger *slog.Logger) []string {
@@ -898,7 +812,7 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 			continue
 		}
 		if !guideMap[cleanPath] {
-			if content, ok := readToolGuide(cleanPath); ok {
+			if content, ok := readToolGuide(cleanPath, strategy.Flags); ok {
 				guides = append(guides, content)
 				guideMap[cleanPath] = true
 			}
@@ -924,7 +838,7 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 				continue
 			}
 			if !guideMap[cleanPath] {
-				if content, ok := readToolGuide(cleanPath); ok {
+				if content, ok := readToolGuide(cleanPath, strategy.Flags); ok {
 					guides = append(guides, content)
 					guideMap[cleanPath] = true
 				}
@@ -956,7 +870,7 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 				continue
 			}
 			if !guideMap[cleanPath] {
-				if content, ok := readToolGuide(cleanPath); ok {
+				if content, ok := readToolGuide(cleanPath, strategy.Flags); ok {
 					guides = append(guides, content)
 					guideMap[cleanPath] = true
 				}
@@ -982,7 +896,7 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 		if err == nil && nextTool != "" && !isSkipped(nextTool) {
 			cleanPath := strings.ToLower(filepath.Clean(filepath.Join(toolsDir, nextTool+".md")))
 			if isToolPathSafe(cleanPath, toolsDir) && !guideMap[cleanPath] {
-				if content, ok := readToolGuide(cleanPath); ok {
+				if content, ok := readToolGuide(cleanPath, strategy.Flags); ok {
 					guides = append(guides, content)
 					guideMap[cleanPath] = true
 					if logger != nil {
@@ -1006,7 +920,7 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 			if !isToolPathSafe(cleanPath, toolsDir) || guideMap[cleanPath] {
 				continue
 			}
-			if content, ok := readToolGuide(cleanPath); ok {
+			if content, ok := readToolGuide(cleanPath, strategy.Flags); ok {
 				guides = append(guides, content)
 				guideMap[cleanPath] = true
 			}

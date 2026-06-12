@@ -550,6 +550,8 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		AllowNetworkRequests:     flags.AllowNetworkRequests,
 		AllowRemoteShell:         flags.AllowRemoteShell,
 		AllowSelfUpdate:          flags.AllowSelfUpdate,
+		SudoEnabled:              flags.SudoEnabled,
+		PackageManagerEnabled:    flags.PackageManagerEnabled,
 		IsEgg:                    cfg.EggMode.Enabled,
 		InternetExposed:          cfg.Server.HTTPS.Enabled,
 		IsDocker:                 cfg.Runtime.IsDocker,

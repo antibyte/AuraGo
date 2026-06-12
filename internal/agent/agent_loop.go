@@ -472,6 +472,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if len(flags.EnabledNativeTools) > 0 {
 				guideStrategy.AllowedTools = append([]string(nil), flags.EnabledNativeTools...)
 			}
+			guideStrategy.Flags = &flags
 			flags.PredictedGuides = prompts.PrepareDynamicGuidesWithStrategy(
 				longTermMem,
 				shortTermMem,

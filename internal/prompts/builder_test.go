@@ -718,6 +718,78 @@ func TestBuildSystemPromptNativeModeSanitizesDynamicToolGuides(t *testing.T) {
 	}
 }
 
+func TestPrepareDynamicGuidesWithStrategyRespectsManualConditions(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "tools_manuals")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	manual := "---\nconditions: [\"allow_shell\"]\n---\n# execute_shell\nUse shell only when enabled.\n"
+	if err := os.WriteFile(filepath.Join(dir, "execute_shell.md"), []byte(manual), 0o644); err != nil {
+		t.Fatalf("WriteFile execute_shell manual: %v", err)
+	}
+
+	disabled := ContextFlags{AllowShell: false}
+	guides := PrepareDynamicGuidesWithStrategy(
+		nil, nil, "", "", dir, nil, []string{"execute_shell"}, 5,
+		DynamicGuideStrategy{Flags: &disabled},
+		slog.Default(),
+	)
+	if len(guides) != 0 {
+		t.Fatalf("expected shell manual to be skipped when allow_shell is false, got %d guides", len(guides))
+	}
+
+	enabled := ContextFlags{AllowShell: true}
+	guides = PrepareDynamicGuidesWithStrategy(
+		nil, nil, "", "", dir, nil, []string{"execute_shell"}, 5,
+		DynamicGuideStrategy{Flags: &enabled},
+		slog.Default(),
+	)
+	if len(guides) != 1 || !strings.Contains(guides[0], "Use shell only when enabled.") {
+		t.Fatalf("expected shell manual when allow_shell is true, got %#v", guides)
+	}
+}
+
+func TestPrepareDynamicGuidesWithStrategyRespectsSudoManualCondition(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "tools_manuals")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	manual := "---\nconditions: [\"sudo_enabled\"]\n---\n# execute_sudo\nSudo manual.\n"
+	if err := os.WriteFile(filepath.Join(dir, "execute_sudo.md"), []byte(manual), 0o644); err != nil {
+		t.Fatalf("WriteFile execute_sudo manual: %v", err)
+	}
+
+	flags := ContextFlags{SudoEnabled: false}
+	guides := PrepareDynamicGuidesWithStrategy(
+		nil, nil, "", "", dir, nil, []string{"execute_sudo"}, 5,
+		DynamicGuideStrategy{Flags: &flags},
+		slog.Default(),
+	)
+	if len(guides) != 0 {
+		t.Fatalf("expected sudo manual to be skipped when sudo is disabled, got %d guides", len(guides))
+	}
+
+	flags.SudoEnabled = true
+	guides = PrepareDynamicGuidesWithStrategy(
+		nil, nil, "", "", dir, nil, []string{"execute_sudo"}, 5,
+		DynamicGuideStrategy{Flags: &flags},
+		slog.Default(),
+	)
+	if len(guides) != 1 {
+		t.Fatalf("expected sudo manual when sudo is enabled, got %#v", guides)
+	}
+}
+
+func TestNormalizePromptConditionMapsLegacyVideoDownloadKey(t *testing.T) {
+	if got := normalizePromptCondition("tools.video_download.enabled"); got != "video_download_enabled" {
+		t.Fatalf("normalizePromptCondition() = %q, want video_download_enabled", got)
+	}
+	flags := ContextFlags{VideoDownloadEnabled: true}
+	if !matchPromptCondition("tools.video_download.enabled", &flags) {
+		t.Fatal("expected legacy video download condition to match enabled flag")
+	}
+}
+
 func TestPrepareDynamicGuidesWithStrategySkipsToolsOutsideAllowedSet(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "tools_manuals")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
