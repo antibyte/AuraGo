@@ -102,8 +102,11 @@ Core agent behaviour settings.
 | `adaptive_tools.enabled` | `false` | Enable adaptive tool filtering to reduce token usage. |
 | `adaptive_tools.max_tools` | `16` | Maximum adaptive/preferred tool schemas. Required and always-include tools may be added on top. |
 | `adaptive_tools.max_total_tools` | `32` | Maximum final native tool schemas after hard-required tools are kept. |
+| `adaptive_tools.max_schema_tokens` | `0` | Optional schema-token cap for adaptive native tools. `0` keeps the existing count caps only. |
 | `adaptive_tools.provider_profiles_enabled` | `true` | Apply provider-specific stability overlays for tool budgets and response-header timeouts. |
 | `adaptive_tools.session_tool_retention_turns` | `8` | Keep tools used in recent turns visible as soft always-include tools. |
+| `history_compaction.enabled` | `true` | Compact older complete native tool-call rounds before LLM history compression. |
+| `history_compaction.keep_recent_tool_rounds_full` | `2` | Keep this many recent complete tool-call rounds unchanged. |
 | `recovery.max_provider_422_recoveries` | `3` | Automatic retries after provider 422 errors. |
 | `background_tasks.enabled` | `true` | Enable persistent background task execution. |
 
@@ -120,6 +123,10 @@ agent:
         shell_compression: true
         python_compression: true
         api_compression: true
+        reversible:
+            enabled: true
+            primary_output_vault: true
+            max_inline_chars: 6000
 ```
 
 > See [output_compression.md](output_compression.md) for details.

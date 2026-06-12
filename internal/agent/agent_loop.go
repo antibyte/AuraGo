@@ -1048,6 +1048,21 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if maxHistoryTokens < 4096 {
 			maxHistoryTokens = 4096
 		}
+		if cfg.Agent.HistoryCompaction.Enabled {
+			compactedMessages, historyCompaction := CompactHistoryToolRounds(req.Messages, HistoryCompactionOptions{
+				KeepRecentToolRoundsFull: cfg.Agent.HistoryCompaction.KeepRecentToolRoundsFull,
+			})
+			if historyCompaction.Compacted {
+				req.Messages = compactedMessages
+				if lastCompressionMsg > len(req.Messages) {
+					lastCompressionMsg = 0
+				}
+				s.currentLogger.Debug("[Compression] Tool history compacted",
+					"rounds", historyCompaction.RoundsCompacted,
+					"dropped_messages", historyCompaction.MessagesDropped,
+					"messages", len(req.Messages))
+			}
+		}
 		// Resolve compression client/model once per session, not per iteration.
 		if s.cachedCompressionClient == nil && s.cachedCompressionModel == "" {
 			s.cachedCompressionClient, s.cachedCompressionModel = resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)

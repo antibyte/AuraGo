@@ -677,7 +677,7 @@ type Config struct {
 				MaxRows int  `yaml:"max_rows"` // max rows to render before tail-truncation (default: 50)
 			} `yaml:"smart_crusher"`
 			Reversible struct {
-				Enabled            bool `yaml:"enabled"`              // enable reversible compression (archive originals) (default: false)
+				Enabled            bool `yaml:"enabled"`              // enable reversible compression (archive originals) (default: true)
 				MaxAgeHours        int  `yaml:"max_age_hours"`        // max age of archived outputs in hours (default: 24)
 				PrimaryOutputVault bool `yaml:"primary_output_vault"` // store large outputs in the output vault by default (default: true)
 				MaxInlineChars     int  `yaml:"max_inline_chars"`     // max chars inlined before vault view is preferred (default: 6000)

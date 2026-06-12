@@ -52,6 +52,17 @@ agent:
             enabled: false           # disabled by default; api_request/file reads are skipped
             min_savings_percent: 10
             max_rows: 200
+        reversible:
+            enabled: true                 # archive original outputs so compact views can be expanded later
+            max_age_hours: 24             # cleanup age for archived outputs
+            primary_output_vault: true    # store large native outputs as compact views plus output_ref
+            max_inline_chars: 6000        # inline outputs up to this size before preferring the vault view
+
+    # ── History Compaction ── compacts older native tool rounds in the live
+    #    request while preserving recent full tool-call groups.
+    history_compaction:
+        enabled: true
+        keep_recent_tool_rounds_full: 2
 
     # ── Danger Zone ── disabled by default for fresh installs
     allow_shell: false
@@ -69,6 +80,7 @@ agent:
         enabled: false                                              # enable adaptive filtering
         max_tools: 16                                               # max adaptive/preferred tool schemas; hard-required and soft always-include tools are added on top (0 = unlimited, default: 16)
         max_total_tools: 32                                         # max final native schemas after hard-required tools are kept (0 = unlimited, default: 32)
+        max_schema_tokens: 0                                        # optional schema token cap for adaptive tools (0 = no extra cap)
         provider_profiles_enabled: true                             # apply provider-specific tool caps and response-header timeout defaults
         session_tool_retention_turns: 8                              # keep tools used in recent turns visible as soft always-include tools
         decay_half_life_days: 7                                     # usage score halves after this many days

@@ -38,6 +38,11 @@ agent:
             enabled: false
             min_savings_percent: 10
             max_rows: 200
+        reversible:
+            enabled: true                 # archive originals for later retrieval
+            max_age_hours: 24
+            primary_output_vault: true    # use output_ref views for large native outputs
+            max_inline_chars: 6000
 ```
 
 ### Fields
@@ -54,6 +59,10 @@ agent:
 | `repetitive_substitution.lzw_enabled` | bool | `true` | Replace long repeated phrases when the parent toggle is enabled. |
 | `repetitive_substitution.ltsc_lite_enabled` | bool | `false` | Reserved for stricter LTSC-lite behavior; kept off by default. |
 | `toon_json.enabled` | bool | `false` | Enable TOON-style conversion for homogeneous arrays returned by known API tools. |
+| `reversible.enabled` | bool | `true` | Archive original outputs so compacted results can be expanded later. |
+| `reversible.max_age_hours` | int | `24` | Cleanup age for archived original outputs. |
+| `reversible.primary_output_vault` | bool | `true` | Store large native tool results as compact views plus `output_ref` by default. |
+| `reversible.max_inline_chars` | int | `6000` | Inline outputs up to this size before using the primary output vault view. |
 
 ### Relationship to `tool_output_limit`
 
