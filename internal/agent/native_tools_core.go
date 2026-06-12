@@ -316,9 +316,7 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 			}, "path"),
 		),
 		tool("discover_tools",
-			"Browse and search ALL available tools, including those hidden by adaptive filtering. "+
-				"Use this when you need a tool that is not in your current tool list. "+
-				"Operations: list_categories (browse by category), search (find tools by keyword), get_tool_info (get full parameter schema + guide for a specific tool so you can call it).",
+			"Search the tool catalog, including tools hidden by adaptive filtering; use get_tool_info for schema and manual details.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -331,7 +329,7 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 			}, "operation"),
 		),
 		tool("invoke_tool",
-			"Recovery-only invoker for enabled native tools hidden by adaptive filtering. Use ONLY after discover_tools returns status='hidden' with call_method='invoke_tool'. Prefer direct native tool calls whenever the tool is active; skills must use execute_skill.",
+			"Invoke an enabled native tool hidden by adaptive filtering after discover_tools returns call_method=invoke_tool.",
 			schema(map[string]interface{}{
 				"tool_name": prop("string", "Exact tool name returned by discover_tools"),
 				"arguments": map[string]interface{}{
@@ -341,7 +339,7 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 			}, "tool_name", "arguments"),
 		),
 		tool("retrieve_original_output",
-			"Retrieves the original uncompressed output of a previous tool call that was compressed before reaching you. Use this when you suspect important details were lost during compression (e.g. specific IDs, paths, or values that look truncated).",
+			"Return archived original output for a compressed native tool result when details appear missing.",
 			schema(map[string]interface{}{
 				"tool_call_id": prop("string", "The tool_call_id of the compressed tool result you want to expand"),
 				"reason":       prop("string", "Why you need the original output (helps improve compression filters)"),

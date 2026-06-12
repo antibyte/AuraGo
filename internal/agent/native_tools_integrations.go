@@ -634,7 +634,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.AllowSelfUpdate {
 		tools = append(tools, tool("manage_updates",
-			"Check for AuraGo updates on GitHub or install them. Use 'check' to see if a new version is available without installing. Use 'install' only after user approval.",
+			"Check for AuraGo updates or install after user approval.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -647,7 +647,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.SudoEnabled {
 		tools = append(tools, tool("execute_sudo",
-			"Run a shell command with sudo (root) privileges. Only available when explicitly enabled in config. Use ONLY when elevated privileges are strictly required — prefer execute_shell for normal tasks.",
+			"Run a sudo shell command only when elevated privileges are explicitly required.",
 			schema(map[string]interface{}{
 				"command": prop("string", "The shell command to run as root via sudo"),
 			}, "command"),
@@ -1444,8 +1444,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.MediaRegistryEnabled {
 		tools = append(tools, tool("media_registry",
-			"Search, browse, tag, and manage the media registry. Tracks all generated images, TTS audio, and other media files with metadata, tags, and descriptions. "+
-				"Operations: register (manual add; requires filename and file_path), search (full-text across description/prompt/tags), get (requires id), list (optionally filter by media_type), update (requires id), tag (requires id; modes add/remove/set), delete (requires id; soft-delete), stats (aggregate counts).",
+			"Search, register, update, tag, delete, and summarize generated or uploaded media registry entries.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -1468,8 +1467,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	}
 	if ff.HomepageRegistryEnabled {
 		tools = append(tools, tool("homepage_registry",
-			"Track and manage homepage/web projects. Records URL, framework, deploy history, edit reasons, and known problems. "+
-				"Operations: register, search, get (by id or name), list, update, delete, log_edit (record edit with reason), log_deploy (record deploy with URL), log_problem (add known issue), resolve_problem (mark issue resolved).",
+			"Track homepage/web projects, deploy history, edits, known problems, and project metadata.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -1496,11 +1494,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.DocumentCreatorEnabled {
 		tools = append(tools, tool("document_creator",
-			"Create PDF documents, convert files to PDF, merge PDFs, and take screenshots. "+
-				"Backend is configured in settings: 'maroto' (built-in, create_pdf only) or 'gotenberg' (Docker sidecar, all operations). "+
-				"Operations: create_pdf (structured document from sections), url_to_pdf (capture webpage), html_to_pdf (render HTML), "+
-				"markdown_to_pdf (render Markdown), convert_document (Office files to PDF via LibreOffice), merge_pdfs (combine multiple PDFs), "+
-				"screenshot_url (capture webpage as image), screenshot_html (render HTML to image), health (check Gotenberg status).",
+			"Create/convert PDFs, merge PDFs, or capture webpage screenshots/PDFs through the configured document backend.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -1521,10 +1515,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.WebCaptureEnabled {
 		tools = append(tools, tool("web_capture",
-			"Take a screenshot (PNG) or render a PDF of any URL using a headless Chromium browser. "+
-				"Does not require Gotenberg or any external service — uses the embedded go-rod browser. "+
-				"Operations: 'screenshot' saves a PNG image, 'pdf' saves a PDF. "+
-				"Optionally wait for a CSS selector before capture, and capture full scrollable page for screenshots.",
+			"Capture a URL as PNG screenshot or PDF with embedded Chromium.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -1539,10 +1530,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 
 		tools = append(tools, tool("web_performance_audit",
-			"Measure page load performance of any URL using a headless Chromium browser. "+
-				"Returns Core Web Vitals and related metrics: TTFB, First Contentful Paint, DOM Content Loaded, "+
-				"full Load time, DOM element count, resource count, total transfer size, JS heap usage, "+
-				"and the 5 largest resources by size. Useful for diagnosing slow pages or comparing performance.",
+			"Measure page load and resource metrics for a URL with headless Chromium.",
 			schema(map[string]interface{}{
 				"url":      prop("string", "Page URL to audit (http or https)"),
 				"viewport": prop("string", "Browser viewport size as 'WIDTHxHEIGHT' (default: '1280x720')"),
@@ -1552,10 +1540,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.BrowserAutomationEnabled {
 		tools = append(tools, tool("browser_automation",
-			"Control a full browser session through the optional browser automation sidecar (CloakBrowser stealth Chromium). "+
-				"Use it for multi-step website automation: navigate pages, inspect UI state, click buttons, type into fields, select options, upload files, take screenshots, and retrieve browser downloads. "+
-				"Work in a loop: create_session or navigate, extract/current_state, perform one action, wait_for if needed, then extract again. "+
-				"When stealth mode is enabled in config, the browser passes bot detection (reCAPTCHA, Cloudflare Turnstile) using source-level fingerprint patches and human-like behavior.",
+			"Automate a browser sidecar session: navigate, inspect state, interact with elements, screenshots, uploads, downloads.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",

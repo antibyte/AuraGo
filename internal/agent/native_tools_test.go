@@ -1460,6 +1460,54 @@ func TestBuildNativeToolSchemasReturnsGloballySortedTools(t *testing.T) {
 	}
 }
 
+func TestSelectedNativeToolDescriptionsStayCompact(t *testing.T) {
+	schemas := BuildNativeToolSchemas(t.TempDir(), nil, allBuiltinToolFeatureFlags(), nil)
+	descriptions := make(map[string]string, len(schemas))
+	for _, toolSchema := range schemas {
+		if toolSchema.Function == nil {
+			continue
+		}
+		descriptions[toolSchema.Function.Name] = toolSchema.Function.Description
+	}
+
+	tests := []struct {
+		name         string
+		requiredText []string
+	}{
+		{name: "discover_tools", requiredText: []string{"tool catalog", "get_tool_info"}},
+		{name: "invoke_tool", requiredText: []string{"discover_tools", "call_method=invoke_tool"}},
+		{name: "retrieve_original_output", requiredText: []string{"archived original output", "compressed"}},
+		{name: "document_creator", requiredText: []string{"PDF", "document backend"}},
+		{name: "media_registry", requiredText: []string{"Search", "media registry"}},
+		{name: "homepage_registry", requiredText: []string{"homepage/web", "deploy history"}},
+		{name: "web_capture", requiredText: []string{"PNG", "PDF", "Chromium"}},
+		{name: "web_performance_audit", requiredText: []string{"page load", "Chromium"}},
+		{name: "browser_automation", requiredText: []string{"browser sidecar", "screenshots"}},
+		{name: "manage_updates", requiredText: []string{"AuraGo updates", "user approval"}},
+		{name: "execute_sudo", requiredText: []string{"sudo", "elevated privileges"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			description, ok := descriptions[tt.name]
+			if !ok {
+				t.Fatalf("%s schema description not found", tt.name)
+			}
+			if description == "" {
+				t.Fatalf("%s description is empty", tt.name)
+			}
+			if len(description) > 180 {
+				t.Fatalf("%s description has %d chars, want <= 180: %q", tt.name, len(description), description)
+			}
+			for _, want := range tt.requiredText {
+				if !strings.Contains(description, want) {
+					t.Fatalf("%s description missing %q: %q", tt.name, want, description)
+				}
+			}
+		})
+	}
+}
+
 func TestBuildNativeToolSchemasDoesNotExposeFreeObjectArguments(t *testing.T) {
 	schemas := BuildNativeToolSchemas(t.TempDir(), nil, allBuiltinToolFeatureFlags(), nil)
 	var violations []string
