@@ -1249,7 +1249,9 @@ func hardTruncateText(text string, maxChars int) string {
 // budgetShed progressively removes content sections until the prompt fits within the token budget.
 // Returns the trimmed prompt and the list of section headers that were shed.
 // Shedding order (lowest value first):
-// 1. Tool Guides, 2. Predicted Memories, 3. User Profile, 4. Retrieved Memories (per-entry trim), 5. Personality self-awareness, 6. Personality profile
+// 1. Tool Guides, 2. Predicted/Unified memory, 3. User Profile, 4. KG/errors/rules,
+// 5. Planner/reminders, 6. Inner Voice, 7. Emotion & personality traits, 8. Core personality profile,
+// then per-entry Retrieved Memories trim, then hard truncate.
 func budgetShed(prompt string, flags *ContextFlags, personalityContent, coreMemory string, now time.Time, logger *slog.Logger) (string, []string) {
 	result, shedList, _ := budgetShedContext(context.Background(), prompt, flags, personalityContent, coreMemory, now, logger)
 	return result, shedList
@@ -1310,8 +1312,8 @@ func budgetShedContext(ctx context.Context, prompt string, flags *ContextFlags, 
 		shedTarget{"# HOMEPAGE DESIGN SYSTEM", false},
 		shedTarget{"# AGENT SKILLS CATALOG", false},
 		shedTarget{"### INNER VOICE", false},
-		shedTarget{"[Self:", true},
-		shedTarget{"[SYSTEM DIRECTIVE - CURRENT STATE]", false},
+		shedTarget{"### CURRENT EMOTIONAL STATE & MOOD", false},
+		shedTarget{"### CURRENT PERSONALITY TRAITS", false},
 		shedTarget{"# YOUR PERSONALITY", false},
 	)
 

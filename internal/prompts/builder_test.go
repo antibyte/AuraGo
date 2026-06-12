@@ -294,6 +294,63 @@ some activity`
 	}
 }
 
+func TestBudgetShed_RemovesEmotionAndPersonalityTraitSections(t *testing.T) {
+	prompt := `# SYSTEM IDENTITY
+You are AuraGo.
+
+### CURRENT EMOTIONAL STATE & MOOD
+You feel cautiously optimistic after recent successes.
+
+### CURRENT PERSONALITY TRAITS
+Let these current internal values organically influence your tone:
+### Current Personality State
+Your current mood is RELAXED. You are feeling highly confident; act decisively.
+
+# NOW
+2026-06-11 12:00`
+
+	flags := ContextFlags{
+		Tier:        "full",
+		TokenBudget: 5,
+	}
+
+	result, shedSections := budgetShed(prompt, &flags, "", "", time.Now(), slog.Default())
+
+	for _, header := range []string{
+		"### CURRENT EMOTIONAL STATE & MOOD",
+		"### CURRENT PERSONALITY TRAITS",
+	} {
+		found := false
+		for _, section := range shedSections {
+			if section == header {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("expected %q in shedSections, got: %v", header, shedSections)
+		}
+		if strings.Contains(result, header) {
+			t.Fatalf("expected %q to be removed from result:\n%s", header, result)
+		}
+	}
+
+	for _, legacy := range []string{"[Self:", "[SYSTEM DIRECTIVE - CURRENT STATE]"} {
+		for _, section := range shedSections {
+			if section == legacy {
+				t.Fatalf("legacy shed target %q should no longer be used", legacy)
+			}
+		}
+	}
+
+	if strings.Contains(result, "cautiously optimistic") {
+		t.Fatalf("expected emotion content to be removed:\n%s", result)
+	}
+	if strings.Contains(result, "Current Personality State") {
+		t.Fatalf("expected V2 personality trait content to be removed:\n%s", result)
+	}
+}
+
 func TestUnifiedMemoryUsesAdaptiveTierWhenFlagTierUnset(t *testing.T) {
 	flags := ContextFlags{
 		MessageCount:           30,
