@@ -349,6 +349,25 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 				},
 			}, "tool_name", "arguments"),
 		),
+		tool("read_tool_output",
+			"Read archived output by output_ref with summary, head, tail, range, grep, jsonpath, or full views.",
+			schema(map[string]interface{}{
+				"ref":   prop("string", "output_ref returned by a compact tool result"),
+				"view":  map[string]interface{}{"type": "string", "description": "Output view to return", "enum": []string{"summary", "head", "tail", "range", "grep", "jsonpath", "full"}},
+				"query": prop("string", "Search string for grep or JSONPath expression for jsonpath"),
+				"start_line": map[string]interface{}{
+					"type":        "integer",
+					"description": "First 1-based line for range view",
+				},
+				"end_line": map[string]interface{}{
+					"type":        "integer",
+					"description": "Last 1-based line for range view",
+				},
+				"max_lines": prop("integer", "Maximum lines for head or tail views"),
+				"max_chars": prop("integer", "Maximum characters to return"),
+				"reason":    prop("string", "Why this output view is needed"),
+			}, "ref"),
+		),
 		tool("retrieve_original_output",
 			"Return archived original output for a compressed native tool result when details appear missing.",
 			schema(map[string]interface{}{

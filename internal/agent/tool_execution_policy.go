@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -39,9 +40,21 @@ func (e ExecutionOutcome) String() string {
 }
 
 type toolExecutionResult struct {
-	Content string
-	Failed  bool
-	Outcome ExecutionOutcome
+	Content      string
+	EventContent string
+	OutputRef    string
+	Failed       bool
+	Outcome      ExecutionOutcome
+}
+
+type outputVaultPayload struct {
+	Status        string `json:"status"`
+	OutputRef     string `json:"output_ref"`
+	ToolName      string `json:"tool_name"`
+	Summary       string `json:"summary"`
+	View          string `json:"view"`
+	OriginalChars int    `json:"original_chars"`
+	Message       string `json:"message"`
 }
 
 func augmentToolFailureContent(tc ToolCall, content string, errorSummary string) string {
@@ -120,6 +133,7 @@ func finalizeToolExecution(
 	runCfg RunConfig,
 ) toolExecutionResult {
 	trackingTC := toolCallForExecutionTracking(tc)
+	eventContent := rawContent
 	limit := 0
 	if cfg != nil {
 		limit = cfg.Agent.ToolOutputLimit
@@ -229,6 +243,16 @@ func finalizeToolExecution(
 	if toolFailed {
 		resultContent = augmentToolFailureContent(trackingTC, resultContent, policyResult.ErrorSummary)
 	}
+	outputRef := ""
+	if !guardianBlocked {
+		if compactContent, ref, ok := maybeStorePrimaryToolOutputVault(ctx, tc, trackingTC, eventContent, resultContent, toolFailed, cfg, shortTermMem, sessionID, logger); ok {
+			resultContent = compactContent
+			outputRef = ref
+			if outcome == ExecutionOutcomeSuccess {
+				outcome = ExecutionOutcomeSanitized
+			}
+		}
+	}
 
 	prompts.RecordToolUsage(trackingTC.Action, trackingTC.Operation, !toolFailed)
 	prompts.RecordAdaptiveToolUsage(trackingTC.Action, !toolFailed)
@@ -322,10 +346,127 @@ func finalizeToolExecution(
 	}
 
 	return toolExecutionResult{
-		Content: resultContent,
-		Failed:  toolFailed,
-		Outcome: outcome,
+		Content:      resultContent,
+		EventContent: eventContent,
+		OutputRef:    outputRef,
+		Failed:       toolFailed,
+		Outcome:      outcome,
 	}
+}
+
+func maybeStorePrimaryToolOutputVault(
+	ctx context.Context,
+	tc ToolCall,
+	trackingTC ToolCall,
+	originalContent string,
+	contextContent string,
+	toolFailed bool,
+	cfg *config.Config,
+	shortTermMem *memory.SQLiteMemory,
+	sessionID string,
+	logger *slog.Logger,
+) (string, string, bool) {
+	if cfg == nil || shortTermMem == nil || toolFailed || tc.NativeCallID == "" {
+		return "", "", false
+	}
+	if !cfg.Agent.OutputCompression.Reversible.Enabled ||
+		!cfg.Agent.OutputCompression.Reversible.PrimaryOutputVault {
+		return "", "", false
+	}
+	if tc.Action == "read_tool_output" || tc.Action == "retrieve_original_output" {
+		return "", "", false
+	}
+	maxInline := cfg.Agent.OutputCompression.Reversible.MaxInlineChars
+	if maxInline <= 0 {
+		maxInline = 6000
+	}
+	if len(originalContent) <= maxInline {
+		return "", "", false
+	}
+
+	outputRef := memory.StableToolOutputRef(sessionID, tc.NativeCallID)
+	summary := summarizeToolOutputForVault(originalContent)
+	view := buildToolOutputVaultView(originalContent, maxInline)
+	ratio := 1.0
+	if len(originalContent) > 0 {
+		ratio = float64(len(view)) / float64(len(originalContent))
+	}
+	out := &memory.CompressedToolOutput{
+		SessionID:         sessionID,
+		ToolCallID:        tc.NativeCallID,
+		OutputRef:         outputRef,
+		ToolName:          trackingTC.Action,
+		OriginalContent:   originalContent,
+		CompressedContent: contextContent,
+		SummaryContent:    summary,
+		ViewContent:       view,
+		CompressionRatio:  ratio,
+		FilterUsed:        "output-vault",
+	}
+	if err := shortTermMem.StoreCompressedOutput(ctx, out); err != nil {
+		logToolMemoryWarning(logger, "Failed to store primary output vault entry", trackingTC.Action, err)
+		return "", "", false
+	}
+	payload := outputVaultPayload{
+		Status:        "success",
+		OutputRef:     out.OutputRef,
+		ToolName:      trackingTC.Action,
+		Summary:       summary,
+		View:          view,
+		OriginalChars: len(originalContent),
+		Message:       "Full output archived. Use read_tool_output with output_ref for more views.",
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		logToolMemoryWarning(logger, "Failed to encode primary output vault view", trackingTC.Action, err)
+		return "", "", false
+	}
+	return "Tool Output: " + string(b), out.OutputRef, true
+}
+
+func summarizeToolOutputForVault(content string) string {
+	lines := splitOutputLines(content)
+	var nonEmpty []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		nonEmpty = append(nonEmpty, line)
+		if len(nonEmpty) >= 5 {
+			break
+		}
+	}
+	prefix := fmt.Sprintf("%d chars", len(content))
+	if len(lines) > 0 {
+		prefix = fmt.Sprintf("%s, %d lines", prefix, len(lines))
+	}
+	if len(nonEmpty) == 0 {
+		return prefix
+	}
+	summary := prefix + ". First lines: " + strings.Join(nonEmpty, " | ")
+	if len(summary) > 800 {
+		summary = truncateUTF8ToLimit(summary, 800, "...")
+	}
+	return summary
+}
+
+func buildToolOutputVaultView(content string, maxInline int) string {
+	if maxInline <= 0 {
+		maxInline = 6000
+	}
+	viewLimit := maxInline
+	if viewLimit > 4000 {
+		viewLimit = 4000
+	}
+	view := selectHeadLines(content, 80)
+	if len(view) > viewLimit {
+		view = truncateUTF8ToLimit(view, viewLimit, "...")
+	}
+	if view == "" {
+		view = truncateUTF8ToLimit(content, viewLimit, "...")
+	}
+	return view
 }
 
 func logToolMemoryWarning(logger *slog.Logger, message string, action string, err error) {

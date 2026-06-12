@@ -1705,36 +1705,11 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			return res
 
+		case "read_tool_output":
+			return handleReadToolOutput(ctx, tc, dc)
+
 		case "retrieve_original_output":
-			toolCallID := stringValueFromMap(tc.Params, "tool_call_id")
-			reason := stringValueFromMap(tc.Params, "reason")
-			if toolCallID == "" {
-				return `Tool Output: {"status":"error","message":"tool_call_id is required"}`
-			}
-			if shortTermMem == nil {
-				return `Tool Output: {"status":"error","message":"Short-term memory is not available"}`
-			}
-			out, err := shortTermMem.RetrieveCompressedOutput(ctx, dc.SessionID, toolCallID)
-			if err != nil {
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
-			}
-			_ = shortTermMem.MarkCompressedOutputAccessed(ctx, out.ID)
-			content := out.OriginalContent
-			const maxRetrievableOriginalChars = 32000
-			truncated := false
-			if len(content) > maxRetrievableOriginalChars {
-				content = content[:maxRetrievableOriginalChars] +
-					fmt.Sprintf("\n[TRUNCATED: original was %d chars, retrieved first %d]",
-						len(out.OriginalContent), maxRetrievableOriginalChars)
-				truncated = true
-			}
-			header := fmt.Sprintf("[ORIGINAL OUTPUT for %s — filter=%s ratio=%.2f%s]\n",
-				out.ToolName, out.FilterUsed, out.CompressionRatio,
-				map[bool]string{true: " retrieved_partially", false: ""}[truncated])
-			if reason != "" {
-				dc.Logger.Debug("CCR retrieval", "tool_call_id", toolCallID, "reason", reason, "filter", out.FilterUsed)
-			}
-			return header + content
+			return handleRetrieveOriginalOutput(ctx, tc, dc)
 
 		default:
 			handled = false

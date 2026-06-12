@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"strings"
@@ -264,5 +265,65 @@ func TestFinalizeToolExecutionTruncatesBeforeCompression(t *testing.T) {
 	got := snap.RecentCompressions[len(snap.RecentCompressions)-1]
 	if got.RawChars > cfg.Agent.ToolOutputLimit {
 		t.Fatalf("compression saw %d raw chars, want <= truncation limit %d", got.RawChars, cfg.Agent.ToolOutputLimit)
+	}
+}
+
+func TestFinalizeToolExecutionUsesPrimaryOutputVaultForLargeNativeOutput(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	cfg := &config.Config{}
+	cfg.Agent.ToolOutputLimit = 50000
+	cfg.Agent.OutputCompression.Reversible.Enabled = true
+	cfg.Agent.OutputCompression.Reversible.PrimaryOutputVault = true
+	cfg.Agent.OutputCompression.Reversible.MaxInlineChars = 80
+
+	var rawLines []string
+	for i := 1; i <= 20; i++ {
+		rawLines = append(rawLines, fmt.Sprintf("line-%02d /srv/app/main.go:%d INFO task chunk complete", i, 10+i))
+	}
+	raw := strings.Join(rawLines, "\n")
+	tc := ToolCall{
+		Action:       "execute_shell",
+		Command:      "cat /srv/app/log.txt",
+		NativeCallID: "call_primary_vault",
+	}
+	state := newToolRecoveryState()
+	result := finalizeToolExecution(context.Background(), tc, raw, false, cfg, stm, "default",
+		&state, &openai.ChatCompletionRequest{}, logger, AgentTelemetryScope{}, "v1", 100, RunConfig{})
+
+	wantRef := memory.StableToolOutputRef("default", "call_primary_vault")
+	if result.OutputRef != wantRef {
+		t.Fatalf("OutputRef = %q, want %q", result.OutputRef, wantRef)
+	}
+	if result.EventContent != raw {
+		t.Fatalf("EventContent should preserve raw output for SSE/media parsing")
+	}
+	if !strings.Contains(result.Content, `"output_ref":"`+wantRef+`"`) {
+		t.Fatalf("compacted content should expose output_ref, got: %s", result.Content)
+	}
+	if strings.Contains(result.Content, "line-20") {
+		t.Fatalf("compacted content should not inline the whole raw output, got: %s", result.Content)
+	}
+	if result.Outcome != ExecutionOutcomeSanitized {
+		t.Fatalf("Outcome = %v, want sanitized for vaulted context output", result.Outcome)
+	}
+
+	archived, err := stm.RetrieveCompressedOutputByRef(context.Background(), "default", wantRef)
+	if err != nil {
+		t.Fatalf("RetrieveCompressedOutputByRef: %v", err)
+	}
+	if archived.OriginalContent != raw {
+		t.Fatalf("archived original mismatch\n got: %q\nwant: %q", archived.OriginalContent, raw)
+	}
+	if archived.FilterUsed != "output-vault" {
+		t.Fatalf("FilterUsed = %q, want output-vault", archived.FilterUsed)
+	}
+	if !strings.Contains(archived.SummaryContent, "/srv/app/main.go:11") {
+		t.Fatalf("summary should retain useful path/line details, got: %s", archived.SummaryContent)
 	}
 }
