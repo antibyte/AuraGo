@@ -190,6 +190,7 @@ func parsePromptModule(raw string) (*PromptModule, error) {
 	// Strip UTF-8 BOM (\xEF\xBB\xBF) and leading blank lines so files saved by
 	// Windows editors or tools that prepend a BOM are accepted without error.
 	raw = strings.TrimPrefix(raw, "\xEF\xBB\xBF")
+	raw = strings.ReplaceAll(raw, "\r\n", "\n")
 	raw = strings.TrimLeft(raw, "\r\n ")
 	if !strings.HasPrefix(raw, "---") {
 		return nil, fmt.Errorf("no frontmatter found")
@@ -201,20 +202,11 @@ func parsePromptModule(raw string) (*PromptModule, error) {
 	inner = strings.TrimLeft(inner, "\r\n")
 	idx := strings.Index(inner, "\n---\n")
 	if idx < 0 {
-		// Also try Windows line ending
-		idx = strings.Index(inner, "\n---\r\n")
-	}
-	if idx < 0 {
 		return nil, fmt.Errorf("invalid frontmatter format")
 	}
 
 	frontmatter := inner[:idx]
-	// Determine correct body offset: handle both LF and CRLF line endings
-	bodyOffset := idx + 4 // skip "\n---"
-	if idx+4 < len(inner) && inner[idx+4] == '\r' {
-		bodyOffset = idx + 5 // skip "\n---\r"
-	}
-	body := inner[bodyOffset:]
+	body := inner[idx+4:]
 	body = strings.TrimLeft(body, "\r\n")
 
 	var meta PromptMetadata
@@ -242,12 +234,12 @@ func filterModules(modules []PromptModule, flags *ContextFlags) []PromptModule {
 
 func normalizePromptCondition(cond string) string {
 	cond = strings.TrimSpace(strings.ToLower(cond))
-	switch cond {
-	case "tools.video_download.enabled":
-		return "video_download_enabled"
-	default:
-		return cond
+	if strings.HasPrefix(cond, "tools.") && strings.HasSuffix(cond, ".enabled") {
+		name := strings.TrimSuffix(strings.TrimPrefix(cond, "tools."), ".enabled")
+		name = strings.NewReplacer("-", "_", ".", "_").Replace(name)
+		return name + "_enabled"
 	}
+	return cond
 }
 
 func matchPromptCondition(cond string, flags *ContextFlags) bool {
@@ -271,6 +263,8 @@ func matchPromptCondition(cond string, flags *ContextFlags) bool {
 		return !flags.IsCoAgent && !flags.IsEgg
 	case "discord_enabled":
 		return flags.DiscordEnabled
+	case "telegram_enabled":
+		return flags.TelegramEnabled
 	case "email_enabled":
 		return flags.EmailEnabled
 	case "docker_enabled":
@@ -355,6 +349,8 @@ func matchPromptCondition(cond string, flags *ContextFlags) bool {
 		return flags.GolangciLintEnabled
 	case "brave_search_enabled":
 		return flags.BraveSearchEnabled
+	case "space_agent_enabled":
+		return flags.SpaceAgentEnabled
 	case "homepage_enabled":
 		return flags.HomepageEnabled
 	case "homepage_allow_local_server":
@@ -365,8 +361,12 @@ func matchPromptCondition(cond string, flags *ContextFlags) bool {
 		return flags.VercelEnabled
 	case "image_generation_enabled":
 		return flags.ImageGenerationEnabled
+	case "music_generation_enabled":
+		return flags.MusicGenerationEnabled
 	case "video_generation_enabled":
 		return flags.VideoGenerationEnabled
+	case "remote_control_enabled":
+		return flags.RemoteControlEnabled
 	case "is_docker":
 		return flags.IsDocker
 	case "media_registry_enabled":
@@ -377,8 +377,16 @@ func matchPromptCondition(cond string, flags *ContextFlags) bool {
 		return flags.DocumentCreatorEnabled
 	case "media_conversion_enabled":
 		return flags.MediaConversionEnabled
+	case "browser_automation_enabled":
+		return flags.BrowserAutomationEnabled
+	case "network_ping_enabled":
+		return flags.NetworkPingEnabled
 	case "s3_enabled":
 		return flags.S3Enabled
+	case "network_scan_enabled":
+		return flags.NetworkScanEnabled
+	case "upnp_scan_enabled":
+		return flags.UPnPScanEnabled
 	case "web_scraper_enabled":
 		return flags.WebScraperEnabled
 	case "form_automation_enabled":

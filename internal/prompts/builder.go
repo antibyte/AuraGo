@@ -172,13 +172,13 @@ type ContextFlags struct {
 	MiniMaxTTSEnabled        bool
 	VoiceOutputActive        bool // Speaker mode on — agent should use TTS for short replies
 	// Danger Zone toggles
-	AllowShell           bool
-	AllowPython          bool
-	AllowFilesystemWrite bool
-	AllowNetworkRequests bool
-	AllowRemoteShell     bool
-	AllowSelfUpdate      bool
-	SudoEnabled          bool
+	AllowShell            bool
+	AllowPython           bool
+	AllowFilesystemWrite  bool
+	AllowNetworkRequests  bool
+	AllowRemoteShell      bool
+	AllowSelfUpdate       bool
+	SudoEnabled           bool
 	PackageManagerEnabled bool
 	// Native tool toggles
 	MemoryEnabled            bool
@@ -530,13 +530,8 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 		if flags.NativeToolsEnabled {
 			content = stripTextJSONToolProtocolForNative(content)
 		}
-		// Replace specialist status placeholder in the awareness module
-		if flags.SpecialistsAvailable && flags.SpecialistsStatus != "" && strings.Contains(content, "{{SPECIALISTS_STATUS}}") {
-			content = strings.ReplaceAll(content, "{{SPECIALISTS_STATUS}}", flags.SpecialistsStatus)
-		}
-		if strings.Contains(content, "{{SPECIALISTS_SUGGESTION}}") {
-			content = strings.ReplaceAll(content, "{{SPECIALISTS_SUGGESTION}}", flags.SpecialistsSuggestion)
-		}
+		content = strings.ReplaceAll(content, "{{SPECIALISTS_STATUS}}", flags.SpecialistsStatus)
+		content = strings.ReplaceAll(content, "{{SPECIALISTS_SUGGESTION}}", flags.SpecialistsSuggestion)
 		finalPrompt.WriteString(content)
 		finalPrompt.WriteString("\n\n")
 	}
@@ -1296,6 +1291,7 @@ func budgetShedContext(ctx context.Context, prompt string, flags *ContextFlags, 
 		shedTargets = append(shedTargets,
 			shedTarget{"# PREDICTED CONTEXT", false},
 			shedTarget{"# LAST 7 DAYS OVERVIEW", false},
+			shedTarget{"# RETRIEVED MEMORIES", false},
 			shedTarget{"## USER PROFILING", false},
 		)
 	}
@@ -1334,18 +1330,9 @@ func budgetShedContext(ctx context.Context, prompt string, flags *ContextFlags, 
 			result = removeSection(result, target.header)
 		}
 		if len(result) < before {
-			// Estimate token savings from character reduction instead of
-			// re-counting the entire prompt on every iteration.  The average
-			// ratio is ~4 chars/token for English text; this avoids an
-			// O(n²) token-counting cascade across all shed steps.
-			charsSaved := before - len(result)
-			estimatedSaved := charsSaved / 4
-			if estimatedSaved < 1 {
-				estimatedSaved = 1
-			}
-			tokens -= estimatedSaved
+			tokens = countTokensWithModelContext(ctx, result, flags.Model)
 			shedList = append(shedList, target.header)
-			logger.Debug("[Budget] Shed section", "header", target.header, "chars_saved", charsSaved, "est_tokens_saved", estimatedSaved, "est_remaining_tokens", tokens)
+			logger.Debug("[Budget] Shed section", "header", target.header, "tokens", tokens)
 		}
 	}
 
@@ -1612,6 +1599,24 @@ func buildUnifiedMemoryContextBlock(tier string, flags *ContextFlags) string {
 		)
 	}
 
+	if flags.ErrorPatternContext != "" && tier != "minimal" {
+		sections = append(sections,
+			"## Known Error Patterns\n"+security.IsolateExternalData(flags.ErrorPatternContext),
+		)
+	}
+
+	if flags.LearnedRulesContext != "" && tier != "minimal" {
+		sections = append(sections,
+			"## Learned Rules\nApply proactively if relevant to the current task.\n"+security.IsolateExternalData(flags.LearnedRulesContext),
+		)
+	}
+
+	if flags.ReuseContext != "" {
+		sections = append(sections,
+			"## Reuse-First Context\n"+security.IsolateExternalData(flags.ReuseContext),
+		)
+	}
+
 	if len(sections) == 0 {
 		return ""
 	}
@@ -1626,7 +1631,7 @@ func removeLineByPrefix(text, prefix string) string {
 	var out []string
 	skipNext := false
 	inCodeBlock := false
-	for i, line := range lines {
+	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		// Track code-block boundaries (both ``` and ~~~)
 		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
@@ -1649,7 +1654,6 @@ func removeLineByPrefix(text, prefix string) string {
 			skipNext = true
 			continue
 		}
-		_ = i
 		out = append(out, line)
 	}
 	return strings.TrimSpace(strings.Join(out, "\n"))
@@ -1839,9 +1843,7 @@ func OptimizePrompt(raw string) (string, int) {
 	// Dump any unclosed buffer — re-insert the opening fence so the JSON
 	// remains readable as a code block even when the closing ``` was truncated.
 	if len(jsonBuffer) > 0 {
-		result = append(result, "```json")
 		result = append(result, jsonBuffer...)
-		result = append(result, "```")
 	}
 
 	optimized := strings.TrimSpace(strings.Join(result, "\n"))
@@ -1854,10 +1856,11 @@ func OptimizePrompt(raw string) (string, int) {
 // Checks disk first (user-overridden), then falls back to embedded defaults.
 func loadCorePersonalityContent(promptsDir, profile string, logger *slog.Logger) string {
 	profilePath := filepath.Join(promptsDir, "personalities", profile+".md")
+	cacheKey := filepath.Clean(promptsDir) + "\x00" + profile
 
 	// Check cache
 	personalityCacheMu.RLock()
-	cached, ok := personalityCache[profile]
+	cached, ok := personalityCache[cacheKey]
 	personalityCacheMu.RUnlock()
 
 	if ok {
@@ -1890,7 +1893,7 @@ func loadCorePersonalityContent(promptsDir, profile string, logger *slog.Logger)
 	}
 
 	personalityCacheMu.Lock()
-	personalityCache[profile] = personalityCacheEntry{content: content, mtime: mtime, fromEmbed: fromEmbed}
+	personalityCache[cacheKey] = personalityCacheEntry{content: content, mtime: mtime, fromEmbed: fromEmbed}
 	personalityCacheMu.Unlock()
 
 	return content
@@ -2008,9 +2011,9 @@ func ensureTokenEncoderContext(ctx context.Context) tokenEncoder {
 	}
 }
 
-// tokenMultiplier returns a model-specific multiplier for token counting accuracy.
+// tokenMultiplier returns a conservative model-specific safety margin.
 // Anthropic Claude and Google Gemini use different tokenizers than cl100k_base,
-// so applying a correction factor improves budget estimation accuracy.
+// so applying a small upward correction avoids underestimating prompt budget use.
 func tokenMultiplier(model string) float64 {
 	if model == "" {
 		return 1.0
@@ -2096,6 +2099,7 @@ func buildEnabledToolsOverview(flags *ContextFlags) string {
 	add("music_generation", flags.MusicGenerationEnabled)
 	add("video_generation", flags.VideoGenerationEnabled)
 	add("remote_control", flags.RemoteControlEnabled)
+	add("browser_automation", flags.BrowserAutomationEnabled)
 	add("webdav", flags.WebDAVEnabled)
 	add("koofr", flags.KoofrEnabled)
 	add("chromecast", flags.ChromecastEnabled)
@@ -2109,7 +2113,10 @@ func buildEnabledToolsOverview(flags *ContextFlags) string {
 	add("webhooks", flags.WebhooksEnabled)
 	add("web_scraper", flags.WebScraperEnabled)
 	add("s3", flags.S3Enabled)
+	add("network_ping", flags.NetworkPingEnabled)
 	add("network_scan", flags.NetworkScanEnabled)
+	add("upnp_scan", flags.UPnPScanEnabled)
+	add("form_automation", flags.FormAutomationEnabled)
 	add("wol", flags.WOLEnabled)
 	add("fritzbox", flags.FritzBoxSystemEnabled || flags.FritzBoxNetworkEnabled || flags.FritzBoxSmartHomeEnabled)
 	add("telnyx", flags.TelnyxEnabled)

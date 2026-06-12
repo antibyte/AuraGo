@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -35,6 +36,23 @@ func (charRatioEncoder) Encode(text string, _, _ []string) []int {
 		n = 1
 	}
 	return make([]int, n)
+}
+
+type markerAwareEncoder struct{}
+
+func (markerAwareEncoder) Encode(text string, _, _ []string) []int {
+	switch {
+	case strings.Contains(text, "BIG_GUIDE"):
+		return make([]int, 200)
+	case strings.Contains(text, "BIG_MEMORY"):
+		return make([]int, 180)
+	default:
+		n := len(strings.Fields(text))
+		if n < 1 {
+			n = 1
+		}
+		return make([]int, n)
+	}
 }
 
 func resetTokenEncoderStateForTest(tb testing.TB, loader func() (tokenEncoder, error), timeout, backoff time.Duration) {
@@ -1491,4 +1509,303 @@ func TestHardTruncateToBudget_WithEmoji(t *testing.T) {
 	if result == "" {
 		t.Fatal("hardTruncateToBudget should return non-empty result")
 	}
+}
+
+func TestPromptConditionsCoverEmbeddedFrontmatter(t *testing.T) {
+	flagForCondition := map[string]func() *ContextFlags{
+		"a2a_enabled":                func() *ContextFlags { return &ContextFlags{A2AEnabled: true} },
+		"adguard_enabled":            func() *ContextFlags { return &ContextFlags{AdGuardEnabled: true} },
+		"allow_network_requests":     func() *ContextFlags { return &ContextFlags{AllowNetworkRequests: true} },
+		"allow_package_manager":      func() *ContextFlags { return &ContextFlags{PackageManagerEnabled: true} },
+		"allow_python":               func() *ContextFlags { return &ContextFlags{AllowPython: true} },
+		"allow_remote_shell":         func() *ContextFlags { return &ContextFlags{AllowRemoteShell: true} },
+		"allow_shell":                func() *ContextFlags { return &ContextFlags{AllowShell: true} },
+		"ansible_enabled":            func() *ContextFlags { return &ContextFlags{AnsibleEnabled: true} },
+		"brave_search_enabled":       func() *ContextFlags { return &ContextFlags{BraveSearchEnabled: true} },
+		"chromecast_enabled":         func() *ContextFlags { return &ContextFlags{ChromecastEnabled: true} },
+		"cloudflare_tunnel_enabled":  func() *ContextFlags { return &ContextFlags{CloudflareTunnelEnabled: true} },
+		"coagent":                    func() *ContextFlags { return &ContextFlags{IsCoAgent: true} },
+		"coagent_enabled":            func() *ContextFlags { return &ContextFlags{CoAgentEnabled: true} },
+		"discord_enabled":            func() *ContextFlags { return &ContextFlags{DiscordEnabled: true} },
+		"docker_enabled":             func() *ContextFlags { return &ContextFlags{DockerEnabled: true} },
+		"document_creator_enabled":   func() *ContextFlags { return &ContextFlags{DocumentCreatorEnabled: true} },
+		"egg":                        func() *ContextFlags { return &ContextFlags{IsEgg: true} },
+		"email_enabled":              func() *ContextFlags { return &ContextFlags{EmailEnabled: true} },
+		"form_automation_enabled":    func() *ContextFlags { return &ContextFlags{FormAutomationEnabled: true} },
+		"frigate_enabled":            func() *ContextFlags { return &ContextFlags{FrigateEnabled: true} },
+		"fritzbox_network_enabled":   func() *ContextFlags { return &ContextFlags{FritzBoxNetworkEnabled: true} },
+		"fritzbox_smarthome_enabled": func() *ContextFlags { return &ContextFlags{FritzBoxSmartHomeEnabled: true} },
+		"fritzbox_storage_enabled":   func() *ContextFlags { return &ContextFlags{FritzBoxStorageEnabled: true} },
+		"fritzbox_system_enabled":    func() *ContextFlags { return &ContextFlags{FritzBoxSystemEnabled: true} },
+		"fritzbox_telephony_enabled": func() *ContextFlags { return &ContextFlags{FritzBoxTelephonyEnabled: true} },
+		"fritzbox_tv_enabled":        func() *ContextFlags { return &ContextFlags{FritzBoxTVEnabled: true} },
+		"github_enabled":             func() *ContextFlags { return &ContextFlags{GitHubEnabled: true} },
+		"golangci_lint_enabled":      func() *ContextFlags { return &ContextFlags{GolangciLintEnabled: true} },
+		"google_workspace_enabled":   func() *ContextFlags { return &ContextFlags{GoogleWorkspaceEnabled: true} },
+		"grafana_enabled":            func() *ContextFlags { return &ContextFlags{GrafanaEnabled: true} },
+		"home_assistant_enabled":     func() *ContextFlags { return &ContextFlags{HomeAssistantEnabled: true} },
+		"homepage_enabled":           func() *ContextFlags { return &ContextFlags{HomepageEnabled: true} },
+		"homepage_registry_enabled":  func() *ContextFlags { return &ContextFlags{HomepageRegistryEnabled: true} },
+		"image_generation_enabled":   func() *ContextFlags { return &ContextFlags{ImageGenerationEnabled: true} },
+		"invasion_control_enabled":   func() *ContextFlags { return &ContextFlags{InvasionControlEnabled: true} },
+		"is_docker":                  func() *ContextFlags { return &ContextFlags{IsDocker: true} },
+		"is_error":                   func() *ContextFlags { return &ContextFlags{IsErrorState: true} },
+		"koofr_enabled":              func() *ContextFlags { return &ContextFlags{KoofrEnabled: true} },
+		"lifeboat":                   func() *ContextFlags { return &ContextFlags{LifeboatEnabled: true} },
+		"main_agent":                 func() *ContextFlags { return &ContextFlags{} },
+		"maintenance":                func() *ContextFlags { return &ContextFlags{IsMaintenanceMode: true} },
+		"mcp_enabled":                func() *ContextFlags { return &ContextFlags{MCPEnabled: true} },
+		"media_registry_enabled":     func() *ContextFlags { return &ContextFlags{MediaRegistryEnabled: true} },
+		"meshcentral_enabled":        func() *ContextFlags { return &ContextFlags{MeshCentralEnabled: true} },
+		"minimax_tts_enabled":        func() *ContextFlags { return &ContextFlags{MiniMaxTTSEnabled: true} },
+		"mqtt_enabled":               func() *ContextFlags { return &ContextFlags{MQTTEnabled: true} },
+		"netlify_enabled":            func() *ContextFlags { return &ContextFlags{NetlifyEnabled: true} },
+		"ollama_enabled":             func() *ContextFlags { return &ContextFlags{OllamaEnabled: true} },
+		"paperless_ngx_enabled":      func() *ContextFlags { return &ContextFlags{PaperlessNGXEnabled: true} },
+		"proxmox_enabled":            func() *ContextFlags { return &ContextFlags{ProxmoxEnabled: true} },
+		"remote_control_enabled":     func() *ContextFlags { return &ContextFlags{RemoteControlEnabled: true} },
+		"requires_coding":            func() *ContextFlags { return &ContextFlags{RequiresCoding: true} },
+		"s3_enabled":                 func() *ContextFlags { return &ContextFlags{S3Enabled: true} },
+		"sandbox_enabled":            func() *ContextFlags { return &ContextFlags{SandboxEnabled: true} },
+		"specialists_available":      func() *ContextFlags { return &ContextFlags{SpecialistsAvailable: true} },
+		"sudo_enabled":               func() *ContextFlags { return &ContextFlags{SudoEnabled: true} },
+		"tailscale_enabled":          func() *ContextFlags { return &ContextFlags{TailscaleEnabled: true} },
+		"uptime_kuma_enabled":        func() *ContextFlags { return &ContextFlags{UptimeKumaEnabled: true} },
+		"vercel_enabled":             func() *ContextFlags { return &ContextFlags{VercelEnabled: true} },
+		"video_download_enabled":     func() *ContextFlags { return &ContextFlags{VideoDownloadEnabled: true} },
+		"virustotal_enabled":         func() *ContextFlags { return &ContextFlags{VirusTotalEnabled: true} },
+		"web_scraper_enabled":        func() *ContextFlags { return &ContextFlags{WebScraperEnabled: true} },
+		"webdav_enabled":             func() *ContextFlags { return &ContextFlags{WebDAVEnabled: true} },
+		"wol_enabled":                func() *ContextFlags { return &ContextFlags{WOLEnabled: true} },
+	}
+
+	seen := make(map[string]string)
+	err := fs.WalkDir(promptsembed.FS, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".md") {
+			return err
+		}
+		data, err := fs.ReadFile(promptsembed.FS, path)
+		if err != nil {
+			return err
+		}
+		mod, err := parsePromptModule(string(data))
+		if err != nil {
+			return nil
+		}
+		for _, cond := range mod.Metadata.Conditions {
+			seen[normalizePromptCondition(cond)] = path
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk embedded prompts: %v", err)
+	}
+
+	for cond, path := range seen {
+		buildFlags, ok := flagForCondition[cond]
+		if !ok {
+			t.Fatalf("condition %q from %s has no test mapper", cond, path)
+		}
+		if !matchPromptCondition(cond, buildFlags()) {
+			t.Fatalf("condition %q from %s did not match its enabled flag", cond, path)
+		}
+	}
+}
+
+func TestMatchPromptConditionCoversAuditToolToggles(t *testing.T) {
+	tests := []struct {
+		condition string
+		flags     *ContextFlags
+	}{
+		{"music_generation_enabled", &ContextFlags{MusicGenerationEnabled: true}},
+		{"browser_automation_enabled", &ContextFlags{BrowserAutomationEnabled: true}},
+		{"network_ping_enabled", &ContextFlags{NetworkPingEnabled: true}},
+		{"network_scan_enabled", &ContextFlags{NetworkScanEnabled: true}},
+		{"upnp_scan_enabled", &ContextFlags{UPnPScanEnabled: true}},
+		{"telegram_enabled", &ContextFlags{TelegramEnabled: true}},
+		{"space_agent_enabled", &ContextFlags{SpaceAgentEnabled: true}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.condition, func(t *testing.T) {
+			if !matchPromptCondition(tt.condition, tt.flags) {
+				t.Fatalf("expected %s to match", tt.condition)
+			}
+		})
+	}
+}
+
+func TestParsePromptModuleAcceptsCRLFClosingFrontmatter(t *testing.T) {
+	raw := "---\r\nid: crlf\r\ntags: [\"core\"]\r\n---\r\nBody"
+	mod, err := parsePromptModule(raw)
+	if err != nil {
+		t.Fatalf("parsePromptModule() error = %v", err)
+	}
+	if mod.Metadata.ID != "crlf" || mod.Content != "Body" {
+		t.Fatalf("unexpected module: %+v", mod)
+	}
+}
+
+func TestMissionPreparationTemplateIsNotIncludedInSystemPrompt(t *testing.T) {
+	prompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), &ContextFlags{
+		Tier:        "full",
+		TokenBudget: 5000,
+	}, "", slog.Default())
+	if strings.Contains(prompt, "mission preparation analyst") {
+		t.Fatalf("mission preparation template leaked into system prompt:\n%s", prompt)
+	}
+}
+
+func TestBudgetShedRecountsAfterEachShedAndKeepsLaterSections(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return markerAwareEncoder{}, nil
+	}, time.Second, time.Millisecond)
+
+	prompt := "# TOOL GUIDES\nBIG_GUIDE\n\n### INNER VOICE\nKeep this once guide is gone.\n\n# FINAL\nsmall"
+	flags := &ContextFlags{TokenBudget: 100}
+	result, shed, err := budgetShedContext(context.Background(), prompt, flags, "", "", time.Now(), slog.Default())
+	if err != nil {
+		t.Fatalf("budgetShedContext: %v", err)
+	}
+	if !strings.Contains(result, "### INNER VOICE") {
+		t.Fatalf("inner voice should be kept after accurate recount:\n%s", result)
+	}
+	if strings.Join(shed, ",") != "# TOOL GUIDES" {
+		t.Fatalf("shed = %v, want only tool guides", shed)
+	}
+}
+
+func TestBudgetShedCanDropRetrievedMemoriesAsWholeSection(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return markerAwareEncoder{}, nil
+	}, time.Second, time.Millisecond)
+
+	prompt := "# RETRIEVED MEMORIES\nBIG_MEMORY\n---\nsmall memory\n\n# FINAL\nsmall"
+	flags := &ContextFlags{TokenBudget: 50}
+	result, shed, err := budgetShedContext(context.Background(), prompt, flags, "", "", time.Now(), slog.Default())
+	if err != nil {
+		t.Fatalf("budgetShedContext: %v", err)
+	}
+	if strings.Contains(result, "# RETRIEVED MEMORIES") {
+		t.Fatalf("retrieved memories section should be dropped:\n%s", result)
+	}
+	if !containsString(shed, "# RETRIEVED MEMORIES") {
+		t.Fatalf("shed = %v, want full retrieved memories shed marker", shed)
+	}
+}
+
+func TestUnifiedMemoryBlockIncludesOperationalContexts(t *testing.T) {
+	block := buildUnifiedMemoryContextBlock("full", &ContextFlags{
+		ErrorPatternContext: "known error",
+		LearnedRulesContext: "learned rule",
+		ReuseContext:        "reuse hint",
+	})
+	for _, want := range []string{"## Known Error Patterns", "known error", "## Learned Rules", "learned rule", "## Reuse-First Context", "reuse hint"} {
+		if !strings.Contains(block, want) {
+			t.Fatalf("unified memory block missing %q:\n%s", want, block)
+		}
+	}
+}
+
+func TestLoadCorePersonalityContentCacheIsScopedByPromptDir(t *testing.T) {
+	ClearPromptCache()
+	firstDir := t.TempDir()
+	secondDir := t.TempDir()
+	for _, dir := range []string{firstDir, secondDir} {
+		if err := os.MkdirAll(filepath.Join(dir, "personalities"), 0o755); err != nil {
+			t.Fatalf("MkdirAll: %v", err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(firstDir, "personalities", "neutral.md"), []byte("first personality"), 0o644); err != nil {
+		t.Fatalf("write first: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(secondDir, "personalities", "neutral.md"), []byte("second personality"), 0o644); err != nil {
+		t.Fatalf("write second: %v", err)
+	}
+
+	if got := loadCorePersonalityContent(firstDir, "neutral", slog.Default()); got != "first personality" {
+		t.Fatalf("first content = %q", got)
+	}
+	if got := loadCorePersonalityContent(secondDir, "neutral", slog.Default()); got != "second personality" {
+		t.Fatalf("second content = %q", got)
+	}
+}
+
+func TestBuildEnabledToolsOverviewCoversAuditTogglesAndExactSkips(t *testing.T) {
+	flags := &ContextFlags{
+		MusicGenerationEnabled:   true,
+		BrowserAutomationEnabled: true,
+		NetworkPingEnabled:       true,
+		NetworkScanEnabled:       true,
+		UPnPScanEnabled:          true,
+		TelegramEnabled:          true,
+		SpaceAgentEnabled:        true,
+		SkipIntegrationTools:     []string{"network_ping"},
+	}
+	overview := buildEnabledToolsOverview(flags)
+	for _, want := range []string{"music_generation", "browser_automation", "network_scan", "upnp_scan", "telegram", "space_agent"} {
+		if !strings.Contains(overview, want) {
+			t.Fatalf("overview missing %q: %s", want, overview)
+		}
+	}
+	if strings.Contains(overview, "network_ping") {
+		t.Fatalf("overview should exactly skip network_ping: %s", overview)
+	}
+}
+
+func TestSpecialistPlaceholdersNeverLeak(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "specialists_awareness.md"), []byte(`---
+id: specialists_awareness
+tags: ["core"]
+priority: 1
+---
+Status={{SPECIALISTS_STATUS}}
+Suggestion={{SPECIALISTS_SUGGESTION}}`), 0o644); err != nil {
+		t.Fatalf("write prompt: %v", err)
+	}
+	prompt, _ := BuildSystemPromptContext(context.Background(), dir, &ContextFlags{
+		Tier:                 "full",
+		TokenBudget:          5000,
+		SpecialistsAvailable: true,
+		SpecialistsStatus:    "",
+	}, "", slog.Default())
+	if strings.Contains(prompt, "{{SPECIALISTS_STATUS}}") || strings.Contains(prompt, "{{SPECIALISTS_SUGGESTION}}") {
+		t.Fatalf("specialist placeholders leaked:\n%s", prompt)
+	}
+}
+
+func TestOptimizePromptDoesNotFabricateClosingFenceForIncompleteJSON(t *testing.T) {
+	input := "Before\n```json\n{\"a\":1"
+	got, _ := OptimizePrompt(input)
+	if strings.Count(got, "```") != 1 {
+		t.Fatalf("expected only original opening fence, got:\n%s", got)
+	}
+	if !strings.Contains(got, "{\"a\":1") {
+		t.Fatalf("expected JSON content to be preserved, got:\n%s", got)
+	}
+}
+
+func TestTokenMultiplierUsesConservativeModelMargins(t *testing.T) {
+	if tokenMultiplier("claude-3-5-sonnet") <= 1.0 {
+		t.Fatal("claude multiplier should be conservative")
+	}
+	if tokenMultiplier("gemini-2.0-flash") <= 1.0 {
+		t.Fatal("gemini multiplier should be conservative")
+	}
+	if tokenMultiplier("deepseek-chat") <= 1.0 {
+		t.Fatal("deepseek multiplier should be conservative")
+	}
+	if tokenMultiplier("gpt-4o") != 1.0 {
+		t.Fatal("gpt multiplier should stay at baseline")
+	}
+}
+
+func containsString(values []string, needle string) bool {
+	for _, value := range values {
+		if value == needle {
+			return true
+		}
+	}
+	return false
 }
