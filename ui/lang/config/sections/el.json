@@ -479,5 +479,9 @@
   "config.github.test_fail": "Η σύνδεση απέτυχε",
   "config.github.loading": "Δοκιμή…",
   "config.github.status_success": "✅",
-  "config.github.status_error": "❌"
+  "config.github.status_error": "❌",
+  "config.group_title.agent.announcement_detector": "Διόρθωση απάντησης",
+  "config.group_title.agent.importance_scoring": "Βαθμολόγηση σημαντικότητας",
+  "config.group_title.agent.auto_learning": "Αυτόματη μάθηση",
+  "config.group_title.agent.reuse_first": "Πρώτα επαναχρησιμοποίηση"
 }

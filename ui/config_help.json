@@ -169,6 +169,44 @@
         "description": "Tool names that stay visible whenever adaptive filtering is active. Default: filesystem, query_memory, manage_memory, execute_shell."
       }
     },
+    "importance_scoring": {
+      "enabled": {
+        "title": "Importance Scoring",
+        "description": "Scores conversation messages so context trimming keeps the most useful ones. Default: on."
+      },
+      "mode": {
+        "title": "Mode",
+        "description": "active applies importance-based trimming. log_only computes scores for diagnostics without changing context."
+      }
+    },
+    "auto_learning": {
+      "enabled": {
+        "title": "Auto Learning",
+        "description": "Learns small reusable rules from recurring tool/error patterns and successful recoveries. Default: on."
+      },
+      "mode": {
+        "title": "Mode",
+        "description": "active injects relevant learned rules into prompts. log_only keeps learned-rule context out of prompts."
+      }
+    },
+    "reuse_first": {
+      "auto_materialize": {
+        "title": "Auto Materialize",
+        "description": "Allows automatic cheatsheet/skill creation after substantial runs. Default: on."
+      },
+      "require_success_signal": {
+        "title": "Require Success Signal",
+        "description": "Only auto-create reuse artifacts when the turn completed without tool errors. Default: on."
+      },
+      "min_steps": {
+        "title": "Min Steps",
+        "description": "Minimum distinct tool steps before automatic materialization can run. Default: 3."
+      },
+      "max_artifacts_per_session": {
+        "title": "Max Artifacts Per Session",
+        "description": "Maximum automatic cheatsheets and skills per session. Default: 1 each."
+      }
+    },
     "allow_shell": {
       "title": "Allow Shell Execution",
       "description": "⚠️ Danger Zone: Allows the agent to execute shell commands.",

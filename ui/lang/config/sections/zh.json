@@ -479,5 +479,9 @@
   "config.github.test_fail": "连接失败",
   "config.github.loading": "测试中…",
   "config.github.status_success": "✅",
-  "config.github.status_error": "❌"
+  "config.github.status_error": "❌",
+  "config.group_title.agent.announcement_detector": "响应修正",
+  "config.group_title.agent.importance_scoring": "重要性评分",
+  "config.group_title.agent.auto_learning": "自动学习",
+  "config.group_title.agent.reuse_first": "优先复用"
 }

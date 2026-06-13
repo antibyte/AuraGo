@@ -388,5 +388,13 @@
   "help.composio.max_result": "Maximum response size returned from Composio before AuraGo stops reading.",
   "help.composio.read_only": "Tylko odczyt. Unknown or mutating tool slugs are blocked.",
   "help.composio.allow_destructive": "Zezwol na destrukcyjne narzedzia. Keep disabled unless the selected toolkit action is intentional.",
-  "help.composio.allow_nl": "Zezwol na jezyk naturalny. Natural-language tool input is blocked by default because it is less predictable than structured arguments."
+  "help.composio.allow_nl": "Zezwol na jezyk naturalny. Natural-language tool input is blocked by default because it is less predictable than structured arguments.",
+  "help.agent.importance_scoring.enabled": "Nadaje wiadomościom rozmowy ocenę, aby skracanie kontekstu zachowało najbardziej użyteczne. Domyślnie: włączone.",
+  "help.agent.importance_scoring.mode": "active stosuje skracanie według ważności. log_only tylko liczy diagnostyczne oceny bez zmiany kontekstu.",
+  "help.agent.auto_learning.enabled": "Uczy małych reguł wielokrotnego użycia z powtarzalnych wzorców narzędzi/błędów i udanych napraw. Domyślnie: włączone.",
+  "help.agent.auto_learning.mode": "active wstrzykuje pasujące learned rules do promptów. log_only trzyma ten kontekst poza promptami.",
+  "help.agent.reuse_first.auto_materialize": "Pozwala automatycznie tworzyć cheatsheety/skille po większych przebiegach. Domyślnie: włączone.",
+  "help.agent.reuse_first.require_success_signal": "Tworzy artefakty reuse automatycznie tylko gdy tura zakończyła się bez błędów narzędzi. Domyślnie: włączone.",
+  "help.agent.reuse_first.min_steps": "Minimalna liczba różnych kroków narzędzi przed automatyczną materializacją. Domyślnie: 3.",
+  "help.agent.reuse_first.max_artifacts_per_session": "Maksymalna liczba automatycznych cheatsheetów i skilli na sesję. Domyślnie: po 1."
 }

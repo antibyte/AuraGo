@@ -388,5 +388,13 @@
   "help.composio.max_result": "Maximum response size returned from Composio before AuraGo stops reading.",
   "help.composio.read_only": "Modo solo lectura. Unknown or mutating tool slugs are blocked.",
   "help.composio.allow_destructive": "Permitir herramientas destructivas. Keep disabled unless the selected toolkit action is intentional.",
-  "help.composio.allow_nl": "Permitir lenguaje natural. Natural-language tool input is blocked by default because it is less predictable than structured arguments."
+  "help.composio.allow_nl": "Permitir lenguaje natural. Natural-language tool input is blocked by default because it is less predictable than structured arguments.",
+  "help.agent.importance_scoring.enabled": "Puntúa mensajes de la conversación para que el recorte de contexto conserve los más útiles. Predeterminado: activado.",
+  "help.agent.importance_scoring.mode": "active aplica recorte por importancia. log_only solo calcula puntuaciones de diagnóstico sin cambiar el contexto.",
+  "help.agent.auto_learning.enabled": "Aprende reglas pequeñas reutilizables de patrones recurrentes de herramientas/errores y recuperaciones exitosas. Predeterminado: activado.",
+  "help.agent.auto_learning.mode": "active inserta reglas aprendidas relevantes en los prompts. log_only deja ese contexto fuera de los prompts.",
+  "help.agent.reuse_first.auto_materialize": "Permite crear automáticamente cheatsheets/skills tras ejecuciones sustanciales. Predeterminado: activado.",
+  "help.agent.reuse_first.require_success_signal": "Solo crea artefactos reutilizables automáticamente si el turno terminó sin errores de herramientas. Predeterminado: activado.",
+  "help.agent.reuse_first.min_steps": "Mínimo de pasos de herramientas distintos antes de permitir materialización automática. Predeterminado: 3.",
+  "help.agent.reuse_first.max_artifacts_per_session": "Máximo de cheatsheets y skills automáticos por sesión. Predeterminado: 1 de cada tipo."
 }

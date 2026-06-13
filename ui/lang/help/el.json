@@ -388,5 +388,13 @@
   "help.composio.max_result": "Maximum response size returned from Composio before AuraGo stops reading.",
   "help.composio.read_only": "Mono anagnosi. Unknown or mutating tool slugs are blocked.",
   "help.composio.allow_destructive": "Epitrepsi katastrophikon ergaleion. Keep disabled unless the selected toolkit action is intentional.",
-  "help.composio.allow_nl": "Epitrepsi fysikis glossas. Natural-language tool input is blocked by default because it is less predictable than structured arguments."
+  "help.composio.allow_nl": "Epitrepsi fysikis glossas. Natural-language tool input is blocked by default because it is less predictable than structured arguments.",
+  "help.agent.importance_scoring.enabled": "Βαθμολογεί μηνύματα συνομιλίας ώστε το trimming context να κρατά τα πιο χρήσιμα. Προεπιλογή: ενεργό.",
+  "help.agent.importance_scoring.mode": "active εφαρμόζει trimming με βάση τη σημαντικότητα. log_only υπολογίζει μόνο διαγνωστικά scores χωρίς αλλαγή context.",
+  "help.agent.auto_learning.enabled": "Μαθαίνει μικρούς επαναχρησιμοποιήσιμους κανόνες από επαναλαμβανόμενα μοτίβα εργαλείων/σφαλμάτων και επιτυχείς διορθώσεις. Προεπιλογή: ενεργό.",
+  "help.agent.auto_learning.mode": "active εισάγει σχετικά learned rules στα prompts. log_only κρατά το learned-rule context εκτός prompts.",
+  "help.agent.reuse_first.auto_materialize": "Επιτρέπει αυτόματη δημιουργία cheatsheet/skill μετά από ουσιαστικά runs. Προεπιλογή: ενεργό.",
+  "help.agent.reuse_first.require_success_signal": "Δημιουργεί αυτόματα reuse artifacts μόνο όταν ο γύρος ολοκληρώθηκε χωρίς tool errors. Προεπιλογή: ενεργό.",
+  "help.agent.reuse_first.min_steps": "Ελάχιστα διαφορετικά βήματα εργαλείων πριν επιτραπεί αυτόματη materialization. Προεπιλογή: 3.",
+  "help.agent.reuse_first.max_artifacts_per_session": "Μέγιστος αριθμός αυτόματων cheatsheets και skills ανά session. Προεπιλογή: 1 από κάθε είδος."
 }

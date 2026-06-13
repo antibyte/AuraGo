@@ -388,5 +388,13 @@
   "help.composio.max_result": "Maximum response size returned from Composio before AuraGo stops reading.",
   "help.composio.read_only": "Read-only mode. Unknown or mutating tool slugs are blocked.",
   "help.composio.allow_destructive": "Destructive tools o kyoka. Keep disabled unless the selected toolkit action is intentional.",
-  "help.composio.allow_nl": "Shizen gengo input o kyoka. Natural-language tool input is blocked by default because it is less predictable than structured arguments."
+  "help.composio.allow_nl": "Shizen gengo input o kyoka. Natural-language tool input is blocked by default because it is less predictable than structured arguments.",
+  "help.agent.importance_scoring.enabled": "会話メッセージに重要度を付け、コンテキスト圧縮時に有用なものを残します。既定: オン。",
+  "help.agent.importance_scoring.mode": "active は重要度に基づく圧縮を適用します。log_only はコンテキストを変えず診断用スコアだけ計算します。",
+  "help.agent.auto_learning.enabled": "繰り返し発生するツール/エラーパターンや成功した復旧から、小さな再利用ルールを学習します。既定: オン。",
+  "help.agent.auto_learning.mode": "active は関連する学習済みルールをプロンプトに入れます。log_only は learned-rule context をプロンプトに入れません。",
+  "help.agent.reuse_first.auto_materialize": "十分な作業後に cheatsheet/skill を自動作成できるようにします。既定: オン。",
+  "help.agent.reuse_first.require_success_signal": "ツールエラーなしで完了したターンだけ、自動で再利用アーティファクトを作成します。既定: オン。",
+  "help.agent.reuse_first.min_steps": "自動 materialization を許可する前に必要な異なるツール手順の最小数です。既定値: 3。",
+  "help.agent.reuse_first.max_artifacts_per_session": "1 セッションで自動作成できる cheatsheet と skill の上限です。既定: 各 1。"
 }

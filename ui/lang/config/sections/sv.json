@@ -479,5 +479,9 @@
   "config.github.test_fail": "Anslutningen misslyckades",
   "config.github.loading": "Testar…",
   "config.github.status_success": "✅",
-  "config.github.status_error": "❌"
+  "config.github.status_error": "❌",
+  "config.group_title.agent.announcement_detector": "Svarskorrigering",
+  "config.group_title.agent.importance_scoring": "Viktighetspoäng",
+  "config.group_title.agent.auto_learning": "Automatisk inlärning",
+  "config.group_title.agent.reuse_first": "Återanvänd först"
 }

@@ -388,5 +388,13 @@
   "help.composio.max_result": "Maximum response size returned from Composio before AuraGo stops reading.",
   "help.composio.read_only": "Rezim pouze pro cteni. Unknown or mutating tool slugs are blocked.",
   "help.composio.allow_destructive": "Povolit destruktivni nastroje. Keep disabled unless the selected toolkit action is intentional.",
-  "help.composio.allow_nl": "Povolit prirozeny jazyk. Natural-language tool input is blocked by default because it is less predictable than structured arguments."
+  "help.composio.allow_nl": "Povolit prirozeny jazyk. Natural-language tool input is blocked by default because it is less predictable than structured arguments.",
+  "help.agent.importance_scoring.enabled": "Hodnotí zprávy konverzace, aby při zkracování kontextu zůstaly ty nejužitečnější. Výchozí: zapnuto.",
+  "help.agent.importance_scoring.mode": "active použije důležitost pro zkracování. log_only jen počítá diagnostické skóre bez změny kontextu.",
+  "help.agent.auto_learning.enabled": "Učí malé opakovatelné pravidla z opakovaných vzorů nástrojů/chyb a úspěšných oprav. Výchozí: zapnuto.",
+  "help.agent.auto_learning.mode": "active vkládá relevantní naučená pravidla do promptů. log_only learned-rule kontext do promptů nevkládá.",
+  "help.agent.reuse_first.auto_materialize": "Povolí automatické vytvoření cheatsheetů/skillů po větších bězích. Výchozí: zapnuto.",
+  "help.agent.reuse_first.require_success_signal": "Automaticky vytvoří reuse artefakty jen pokud turn skončil bez chyb nástrojů. Výchozí: zapnuto.",
+  "help.agent.reuse_first.min_steps": "Minimum různých kroků nástrojů před automatickou materializací. Výchozí: 3.",
+  "help.agent.reuse_first.max_artifacts_per_session": "Maximum automatických cheatsheetů a skillů za session. Výchozí: 1 od každého."
 }

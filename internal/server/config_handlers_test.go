@@ -92,7 +92,37 @@ func TestOptimizationHelpKeysExistInAllLocales(t *testing.T) {
 		"help.agent.background_tasks.wait_default_timeout_secs",
 		"help.agent.background_tasks.wait_poll_interval_seconds",
 	}
-	localeDir := filepath.Join("..", "..", "ui", "lang", "help")
+	assertLocaleKeysExist(t, filepath.Join("..", "..", "ui", "lang", "help"), required)
+}
+
+func TestAgentBehaviorHelpKeysExistInAllLocales(t *testing.T) {
+	required := []string{
+		"help.agent.announcement_detector.enabled",
+		"help.agent.announcement_detector.max_retries",
+		"help.agent.importance_scoring.enabled",
+		"help.agent.importance_scoring.mode",
+		"help.agent.auto_learning.enabled",
+		"help.agent.auto_learning.mode",
+		"help.agent.reuse_first.auto_materialize",
+		"help.agent.reuse_first.require_success_signal",
+		"help.agent.reuse_first.min_steps",
+		"help.agent.reuse_first.max_artifacts_per_session",
+	}
+	assertLocaleKeysExist(t, filepath.Join("..", "..", "ui", "lang", "help"), required)
+}
+
+func TestAgentBehaviorGroupTitleKeysExistInAllLocales(t *testing.T) {
+	required := []string{
+		"config.group_title.agent.announcement_detector",
+		"config.group_title.agent.importance_scoring",
+		"config.group_title.agent.auto_learning",
+		"config.group_title.agent.reuse_first",
+	}
+	assertLocaleKeysExist(t, filepath.Join("..", "..", "ui", "lang", "config", "sections"), required)
+}
+
+func assertLocaleKeysExist(t *testing.T, localeDir string, required []string) {
+	t.Helper()
 	entries, err := os.ReadDir(localeDir)
 	if err != nil {
 		t.Fatalf("ReadDir(%s): %v", localeDir, err)

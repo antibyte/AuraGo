@@ -388,5 +388,13 @@
   "help.composio.max_result": "Maximum response size returned from Composio before AuraGo stops reading.",
   "help.composio.read_only": "Zhi du moshi. Unknown or mutating tool slugs are blocked.",
   "help.composio.allow_destructive": "Yunxu weixian gongju. Keep disabled unless the selected toolkit action is intentional.",
-  "help.composio.allow_nl": "Yunxu ziran yuyan. Natural-language tool input is blocked by default because it is less predictable than structured arguments."
+  "help.composio.allow_nl": "Yunxu ziran yuyan. Natural-language tool input is blocked by default because it is less predictable than structured arguments.",
+  "help.agent.importance_scoring.enabled": "为对话消息评分，让上下文裁剪保留最有用的内容。默认开启。",
+  "help.agent.importance_scoring.mode": "active 会按重要性裁剪上下文。log_only 只计算诊断评分，不改变上下文。",
+  "help.agent.auto_learning.enabled": "从反复出现的工具/错误模式和成功恢复中学习小型可复用规则。默认开启。",
+  "help.agent.auto_learning.mode": "active 会把相关 learned rules 注入提示词。log_only 不把 learned-rule context 放入提示词。",
+  "help.agent.reuse_first.auto_materialize": "允许在较完整的执行后自动创建 cheatsheet/skill。默认开启。",
+  "help.agent.reuse_first.require_success_signal": "只有当前轮次没有工具错误时才自动创建复用产物。默认开启。",
+  "help.agent.reuse_first.min_steps": "自动 materialization 运行前所需的不同工具步骤最少数量。默认：3。",
+  "help.agent.reuse_first.max_artifacts_per_session": "每个会话自动创建的 cheatsheet 和 skill 上限。默认各 1。"
 }

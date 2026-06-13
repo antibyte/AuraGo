@@ -388,5 +388,13 @@
   "help.composio.max_result": "Maximum response size returned from Composio before AuraGo stops reading.",
   "help.composio.read_only": "Kun laesning. Unknown or mutating tool slugs are blocked.",
   "help.composio.allow_destructive": "Tillad destruktive vaerktojer. Keep disabled unless the selected toolkit action is intentional.",
-  "help.composio.allow_nl": "Tillad naturligt sprog. Natural-language tool input is blocked by default because it is less predictable than structured arguments."
+  "help.composio.allow_nl": "Tillad naturligt sprog. Natural-language tool input is blocked by default because it is less predictable than structured arguments.",
+  "help.agent.importance_scoring.enabled": "Vurderer samtalebeskeder, så konteksttrimning beholder de mest nyttige. Standard: til.",
+  "help.agent.importance_scoring.mode": "active bruger vigtighedsscore til trimning. log_only beregner kun diagnostiske scorer uden at ændre konteksten.",
+  "help.agent.auto_learning.enabled": "Lærer små genbrugelige regler fra gentagne værktøjs-/fejlmønstre og vellykkede rettelser. Standard: til.",
+  "help.agent.auto_learning.mode": "active indsætter relevante lærte regler i prompts. log_only holder learned-rule kontekst ude af prompts.",
+  "help.agent.reuse_first.auto_materialize": "Tillader automatisk oprettelse af cheatsheets/skills efter større kørsler. Standard: til.",
+  "help.agent.reuse_first.require_success_signal": "Opretter kun genbrugsartefakter automatisk, når runden sluttede uden værktøjsfejl. Standard: til.",
+  "help.agent.reuse_first.min_steps": "Minimum antal forskellige værktøjstrin før automatisk materialisering kan køre. Standard: 3.",
+  "help.agent.reuse_first.max_artifacts_per_session": "Maksimalt antal automatiske cheatsheets og skills pr. session. Standard: 1 af hver."
 }

@@ -479,5 +479,9 @@
   "config.github.test_fail": "Verbindung fehlgeschlagen",
   "config.github.loading": "Teste…",
   "config.github.status_success": "✅",
-  "config.github.status_error": "❌"
+  "config.github.status_error": "❌",
+  "config.group_title.agent.announcement_detector": "Antwort-Korrektur",
+  "config.group_title.agent.importance_scoring": "Wichtigkeitsbewertung",
+  "config.group_title.agent.auto_learning": "Auto-Lernen",
+  "config.group_title.agent.reuse_first": "Wiederverwendung zuerst"
 }

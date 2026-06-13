@@ -388,5 +388,13 @@
   "help.composio.max_result": "Maximum response size returned from Composio before AuraGo stops reading.",
   "help.composio.read_only": "Alleen-lezen modus. Unknown or mutating tool slugs are blocked.",
   "help.composio.allow_destructive": "Destructieve tools toestaan. Keep disabled unless the selected toolkit action is intentional.",
-  "help.composio.allow_nl": "Natuurlijke taal toestaan. Natural-language tool input is blocked by default because it is less predictable than structured arguments."
+  "help.composio.allow_nl": "Natuurlijke taal toestaan. Natural-language tool input is blocked by default because it is less predictable than structured arguments.",
+  "help.agent.importance_scoring.enabled": "Geeft gespreksberichten een score zodat contexttrimmen de nuttigste bewaart. Standaard: aan.",
+  "help.agent.importance_scoring.mode": "active past trimming op basis van belang toe. log_only berekent alleen diagnostische scores zonder context te wijzigen.",
+  "help.agent.auto_learning.enabled": "Leert kleine herbruikbare regels uit terugkerende tool-/foutpatronen en geslaagde herstelacties. Standaard: aan.",
+  "help.agent.auto_learning.mode": "active voegt relevante geleerde regels toe aan prompts. log_only houdt learned-rule context uit prompts.",
+  "help.agent.reuse_first.auto_materialize": "Staat automatische cheatsheet-/skillcreatie toe na substantiële runs. Standaard: aan.",
+  "help.agent.reuse_first.require_success_signal": "Maakt reuse-artefacten alleen automatisch als de beurt zonder toolfouten eindigde. Standaard: aan.",
+  "help.agent.reuse_first.min_steps": "Minimaal aantal verschillende toolstappen voordat automatische materialisatie mag lopen. Standaard: 3.",
+  "help.agent.reuse_first.max_artifacts_per_session": "Maximum aantal automatische cheatsheets en skills per sessie. Standaard: elk 1."
 }

@@ -479,5 +479,9 @@
   "config.github.test_fail": "Connessione non riuscita",
   "config.github.loading": "Test in corso…",
   "config.github.status_success": "✅",
-  "config.github.status_error": "❌"
+  "config.github.status_error": "❌",
+  "config.group_title.agent.announcement_detector": "Correzione risposta",
+  "config.group_title.agent.importance_scoring": "Punteggio importanza",
+  "config.group_title.agent.auto_learning": "Apprendimento automatico",
+  "config.group_title.agent.reuse_first": "Riutilizzo prima"
 }

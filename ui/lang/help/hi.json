@@ -388,5 +388,13 @@
   "help.composio.max_result": "Maximum response size returned from Composio before AuraGo stops reading.",
   "help.composio.read_only": "Read-only mode. Unknown or mutating tool slugs are blocked.",
   "help.composio.allow_destructive": "Destructive tools allow kare. Keep disabled unless the selected toolkit action is intentional.",
-  "help.composio.allow_nl": "Natural language allow kare. Natural-language tool input is blocked by default because it is less predictable than structured arguments."
+  "help.composio.allow_nl": "Natural language allow kare. Natural-language tool input is blocked by default because it is less predictable than structured arguments.",
+  "help.agent.importance_scoring.enabled": "Conversation messages को score करता है ताकि context trimming सबसे उपयोगी messages रखे। Default: on.",
+  "help.agent.importance_scoring.mode": "active importance-based trimming लागू करता है। log_only context बदले बिना diagnostic scores निकालता है।",
+  "help.agent.auto_learning.enabled": "दोहराए गए tool/error patterns और successful recoveries से छोटे reusable rules सीखता है। Default: on.",
+  "help.agent.auto_learning.mode": "active relevant learned rules को prompts में inject करता है। log_only learned-rule context को prompts से बाहर रखता है।",
+  "help.agent.reuse_first.auto_materialize": "बड़े runs के बाद automatic cheatsheet/skill creation की अनुमति देता है। Default: on.",
+  "help.agent.reuse_first.require_success_signal": "Reuse artifacts तभी auto-create करता है जब turn tool errors के बिना पूरा हो। Default: on.",
+  "help.agent.reuse_first.min_steps": "Automatic materialization से पहले न्यूनतम अलग tool steps। Default: 3.",
+  "help.agent.reuse_first.max_artifacts_per_session": "प्रति session automatic cheatsheets और skills की अधिकतम संख्या। Default: प्रत्येक 1."
 }

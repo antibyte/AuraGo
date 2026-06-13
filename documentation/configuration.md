@@ -105,6 +105,14 @@ Core agent behaviour settings.
 | `adaptive_tools.max_schema_tokens` | `6500` | Optional schema-token cap for adaptive native tools. Explicit `0` disables the token cap. |
 | `adaptive_tools.provider_profiles_enabled` | `true` | Apply provider-specific stability overlays for tool budgets and response-header timeouts. |
 | `adaptive_tools.session_tool_retention_turns` | `8` | Keep tools used in recent turns visible as soft always-include tools. |
+| `importance_scoring.enabled` | `true` | Score messages so context trimming keeps the most useful conversation entries. |
+| `importance_scoring.mode` | `"active"` | `"active"` applies importance-based trimming; `"log_only"` records diagnostics only. |
+| `auto_learning.enabled` | `true` | Learn small reusable rules from recurring tool/error patterns and successful recoveries. |
+| `auto_learning.mode` | `"active"` | `"active"` injects relevant learned rules into prompts; `"log_only"` keeps them out of prompts. |
+| `reuse_first.auto_materialize` | `true` | Automatically create cheatsheets/skills after substantial reusable runs. |
+| `reuse_first.require_success_signal` | `true` | Only auto-create reuse artifacts when the turn completed without tool errors. |
+| `reuse_first.min_steps` | `3` | Minimum distinct tool steps before automatic reuse materialization can run. |
+| `reuse_first.max_artifacts_per_session` | `1` | Maximum automatic cheatsheets and skills per session. |
 | `history_compaction.enabled` | `true` | Compact older complete native tool-call rounds before LLM history compression. |
 | `history_compaction.keep_recent_tool_rounds_full` | `2` | Keep this many recent complete tool-call rounds unchanged. |
 | `recovery.max_provider_422_recoveries` | `3` | Automatic retries after provider 422 errors. |

@@ -388,5 +388,13 @@
   "help.composio.max_result": "Maximum response size returned from Composio before AuraGo stops reading.",
   "help.composio.read_only": "Read-only mode. Unknown or mutating tool slugs are blocked.",
   "help.composio.allow_destructive": "Allow destructive tools. Keep disabled unless the selected toolkit action is intentional.",
-  "help.composio.allow_nl": "Allow natural language input. Natural-language tool input is blocked by default because it is less predictable than structured arguments."
+  "help.composio.allow_nl": "Allow natural language input. Natural-language tool input is blocked by default because it is less predictable than structured arguments.",
+  "help.agent.importance_scoring.enabled": "Scores conversation messages so context trimming keeps the most useful ones. Default: on.",
+  "help.agent.importance_scoring.mode": "active applies importance-based trimming. log_only computes scores for diagnostics without changing context.",
+  "help.agent.auto_learning.enabled": "Learns small reusable rules from recurring tool/error patterns and successful recoveries. Default: on.",
+  "help.agent.auto_learning.mode": "active injects relevant learned rules into prompts. log_only keeps learned-rule context out of prompts.",
+  "help.agent.reuse_first.auto_materialize": "Allows automatic cheatsheet/skill creation after substantial runs. Default: on.",
+  "help.agent.reuse_first.require_success_signal": "Only auto-create reuse artifacts when the turn completed without tool errors. Default: on.",
+  "help.agent.reuse_first.min_steps": "Minimum distinct tool steps before automatic materialization can run. Default: 3.",
+  "help.agent.reuse_first.max_artifacts_per_session": "Maximum automatic cheatsheets and skills per session. Default: 1 each."
 }
