@@ -65,7 +65,7 @@ func dispatchActivateAgentSkill(tc ToolCall, dc *DispatchContext) string {
 	if err := ensureAgentSkillUsable(entry); err != nil {
 		return fmt.Sprintf("Tool Output: ERROR %v", err)
 	}
-	pkg, err := tools.ParseAgentSkillPackage(entry.Directory)
+	pkg, err := mgr.LoadCurrentAgentSkillPackage(entry, "agent")
 	if err != nil {
 		return fmt.Sprintf("Tool Output: ERROR reading Agent Skill package: %v", err)
 	}

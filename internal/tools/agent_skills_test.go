@@ -226,6 +226,59 @@ func TestAgentSkillManagerBlocksWarningUntilApprovedAndDangerousAlways(t *testin
 	}
 }
 
+func TestAgentSkillManagerRejectsStalePackageBeforeEnableAndRun(t *testing.T) {
+	tmp := t.TempDir()
+	db, err := InitAgentSkillsDB(filepath.Join(tmp, "agent_skills.db"))
+	if err != nil {
+		t.Fatalf("InitAgentSkillsDB: %v", err)
+	}
+	defer db.Close()
+	mgr := NewAgentSkillManager(db, filepath.Join(tmp, "agent_skills"), filepath.Join(tmp, "workspace"), slog.Default())
+
+	toEnable, err := mgr.CreateAgentSkill(context.Background(), "stale-enable", "Stale enable test. Use when testing stale packages.", "# Stale\nInitial body.", "user", nil, false)
+	if err != nil {
+		t.Fatalf("CreateAgentSkill: %v", err)
+	}
+	writeAgentSkillFile(t, toEnable.Directory, "SKILL.md", validAgentSkillMarkdown("stale-enable")+"\nChanged outside manager.\n")
+	if err := mgr.EnableAgentSkill(toEnable.ID, true, "user"); err == nil || !strings.Contains(err.Error(), "changed since last verification") {
+		t.Fatalf("EnableAgentSkill error = %v, want stale package error", err)
+	}
+	updated, err := mgr.GetAgentSkill(toEnable.ID)
+	if err != nil {
+		t.Fatalf("GetAgentSkill: %v", err)
+	}
+	if updated.Enabled || updated.WarningApproved || updated.SecurityStatus != SecurityPending {
+		t.Fatalf("stale skill state = enabled:%t approved:%t status:%s, want disabled pending unapproved", updated.Enabled, updated.WarningApproved, updated.SecurityStatus)
+	}
+
+	toRun, err := mgr.CreateAgentSkill(context.Background(), "stale-run", "Stale run test. Use when testing stale scripts.", "# Stale\nRun scripts/echo.py.", "user", nil, false)
+	if err != nil {
+		t.Fatalf("CreateAgentSkill: %v", err)
+	}
+	if err := mgr.WriteAgentSkillFile(context.Background(), toRun.ID, "scripts/echo.py", "print('original')\n", "user", nil, false); err != nil {
+		t.Fatalf("WriteAgentSkillFile: %v", err)
+	}
+	if err := mgr.EnableAgentSkill(toRun.ID, true, "user"); err != nil {
+		t.Fatalf("EnableAgentSkill: %v", err)
+	}
+	toRun, err = mgr.GetAgentSkill(toRun.ID)
+	if err != nil {
+		t.Fatalf("GetAgentSkill: %v", err)
+	}
+	writeAgentSkillFile(t, toRun.Directory, "scripts/echo.py", "print('mutated')\n")
+	out, err := mgr.RunAgentSkillScript(context.Background(), toRun.ID, "scripts/echo.py", nil)
+	if err == nil || !strings.Contains(err.Error(), "changed since last verification") {
+		t.Fatalf("RunAgentSkillScript output=%q error=%v, want stale package error", out, err)
+	}
+	updated, err = mgr.GetAgentSkill(toRun.ID)
+	if err != nil {
+		t.Fatalf("GetAgentSkill: %v", err)
+	}
+	if updated.Enabled || updated.WarningApproved || updated.SecurityStatus != SecurityPending {
+		t.Fatalf("stale script state = enabled:%t approved:%t status:%s, want disabled pending unapproved", updated.Enabled, updated.WarningApproved, updated.SecurityStatus)
+	}
+}
+
 func TestAgentSkillManagerRunScriptUsesSkillRootAndJSONInput(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		// The runner is cross-platform, but CI/dev machines can lack a PATH
@@ -268,5 +321,54 @@ print(json.dumps({"cwd": os.path.basename(os.getcwd()), "value": args.get("value
 	}
 	if !strings.Contains(out, `"value": "hello"`) && !strings.Contains(out, `"value":"hello"`) {
 		t.Fatalf("output missing JSON value: %s", out)
+	}
+}
+
+func TestAgentSkillManagerRunScriptFiltersSensitiveEnvironment(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		if findSystemPython() == "" {
+			t.Skip("system Python not available")
+		}
+	}
+
+	t.Setenv("AURAGO_MASTER_KEY", "must-not-pass")
+	t.Setenv("OPENAI_API_KEY", "must-not-pass")
+	t.Setenv("CUSTOM_PASSWORD", "must-not-pass")
+	t.Setenv("SAFE_SKILL_ENV_TEST", "visible")
+
+	tmp := t.TempDir()
+	db, err := InitAgentSkillsDB(filepath.Join(tmp, "agent_skills.db"))
+	if err != nil {
+		t.Fatalf("InitAgentSkillsDB: %v", err)
+	}
+	defer db.Close()
+	mgr := NewAgentSkillManager(db, filepath.Join(tmp, "agent_skills"), filepath.Join(tmp, "workspace"), slog.Default())
+
+	entry, err := mgr.CreateAgentSkill(context.Background(), "env-script", "Environment script test. Use when testing script env.", "# Env\nRun scripts/env.py.", "user", nil, false)
+	if err != nil {
+		t.Fatalf("CreateAgentSkill: %v", err)
+	}
+	if err := mgr.WriteAgentSkillFile(context.Background(), entry.ID, "scripts/env.py", `import json
+import os
+
+print(json.dumps({
+    "leaked": any(os.environ.get(k) for k in ["AURAGO_MASTER_KEY", "OPENAI_API_KEY", "CUSTOM_PASSWORD"]),
+    "safe": os.environ.get("SAFE_SKILL_ENV_TEST", ""),
+}))
+`, "user", nil, false); err != nil {
+		t.Fatalf("WriteAgentSkillFile: %v", err)
+	}
+	if err := mgr.EnableAgentSkill(entry.ID, true, "user"); err != nil {
+		t.Fatalf("EnableAgentSkill: %v", err)
+	}
+	out, err := mgr.RunAgentSkillScript(context.Background(), entry.ID, "scripts/env.py", nil)
+	if err != nil {
+		t.Fatalf("RunAgentSkillScript: %v output=%s", err, out)
+	}
+	if !strings.Contains(out, `"leaked": false`) && !strings.Contains(out, `"leaked":false`) {
+		t.Fatalf("script inherited sensitive environment: %s", out)
+	}
+	if !strings.Contains(out, `"safe": "visible"`) && !strings.Contains(out, `"safe":"visible"`) {
+		t.Fatalf("script did not inherit safe environment value: %s", out)
 	}
 }

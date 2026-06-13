@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -30,6 +31,57 @@ func setupDummySkill(t *testing.T) string {
 		t.Fatalf("write manifest: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "run.py"), []byte("pass\n"), 0644); err != nil {
+		t.Fatalf("write script: %v", err)
+	}
+	return dir
+}
+
+func setupEnvEchoSkill(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+
+	executable := "run.sh"
+	script := `#!/usr/bin/env bash
+set -euo pipefail
+if [[ -n "${AURAGO_MASTER_KEY:-}" || -n "${OPENAI_API_KEY:-}" || -n "${CUSTOM_PASSWORD:-}" ]]; then
+  echo leaked
+  exit 0
+fi
+if [[ "${SAFE_SKILL_ENV_TEST:-}" == "visible" ]]; then
+  echo safe_visible
+else
+  echo safe_missing
+fi
+`
+	if runtime.GOOS == "windows" {
+		executable = "run.ps1"
+		script = `if ($env:AURAGO_MASTER_KEY -or $env:OPENAI_API_KEY -or $env:CUSTOM_PASSWORD) {
+  Write-Output "leaked"
+  exit 0
+}
+if ($env:SAFE_SKILL_ENV_TEST -eq "visible") {
+  Write-Output "safe_visible"
+} else {
+  Write-Output "safe_missing"
+}
+`
+	} else if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("bash not available")
+	}
+
+	manifest := SkillManifest{
+		Name:       "env_echo",
+		Executable: executable,
+	}
+	data, _ := json.Marshal(manifest)
+	if err := os.WriteFile(filepath.Join(dir, "env_echo.json"), data, 0644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	mode := os.FileMode(0644)
+	if runtime.GOOS != "windows" {
+		mode = 0755
+	}
+	if err := os.WriteFile(filepath.Join(dir, executable), []byte(script), mode); err != nil {
 		t.Fatalf("write script: %v", err)
 	}
 	return dir
@@ -64,6 +116,44 @@ func TestExecuteSkillWithSecrets_RejectsOversizedArgs(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "too large") {
 		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestExecuteSkillFiltersSensitiveEnvironment(t *testing.T) {
+	t.Setenv("AURAGO_MASTER_KEY", "must-not-pass")
+	t.Setenv("OPENAI_API_KEY", "must-not-pass")
+	t.Setenv("CUSTOM_PASSWORD", "must-not-pass")
+	t.Setenv("SAFE_SKILL_ENV_TEST", "visible")
+
+	for _, tc := range []struct {
+		name string
+		run  func(context.Context, string, string) (string, error)
+	}{
+		{
+			name: "plain",
+			run: func(ctx context.Context, skillsDir, workspaceDir string) (string, error) {
+				return ExecuteSkill(ctx, skillsDir, workspaceDir, "env_echo", nil)
+			},
+		},
+		{
+			name: "with_empty_secret_options",
+			run: func(ctx context.Context, skillsDir, workspaceDir string) (string, error) {
+				return ExecuteSkillWithSecrets(ctx, skillsDir, workspaceDir, "env_echo", nil, nil, nil, "", "", nil)
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := tc.run(context.Background(), setupEnvEchoSkill(t), t.TempDir())
+			if err != nil {
+				t.Fatalf("ExecuteSkill returned error: %v output=%s", err, out)
+			}
+			if strings.Contains(out, "leaked") {
+				t.Fatalf("skill inherited sensitive environment: %s", out)
+			}
+			if strings.Contains(out, "safe_missing") || !strings.Contains(out, "safe_") {
+				t.Fatalf("skill did not inherit safe environment value: %s", out)
+			}
+		})
 	}
 }
 

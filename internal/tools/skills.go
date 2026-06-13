@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/sandbox"
 	"aurago/internal/security"
 )
 
@@ -335,6 +336,7 @@ func executePreparedSkill(ctx context.Context, workspaceDir, skillName string, m
 
 	cmd := buildSkillCommand(ctx, workspaceDir, manifest, absExecPath)
 	cmd.Dir = workspaceDir
+	cmd.Env = sandbox.FilterEnv(os.Environ())
 	SetSkillLimits(cmd, 1024, int(GetSkillTimeout().Seconds()))
 	if opts.injectEnv != nil {
 		opts.injectEnv(cmd)

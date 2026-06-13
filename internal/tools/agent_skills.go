@@ -23,6 +23,7 @@ import (
 	"unicode/utf8"
 
 	"aurago/internal/dbutil"
+	"aurago/internal/sandbox"
 	"aurago/internal/security"
 
 	"gopkg.in/yaml.v3"
@@ -809,13 +810,7 @@ func (m *AgentSkillManager) SyncFromDisk(ctx context.Context, guardian *security
 		if scanErr != nil && m.logger != nil {
 			m.logger.Warn("Agent Skill scan failed during sync", "name", pkg.Name, "error", scanErr)
 		}
-		enabled := false
-		warningApproved := false
-		if existing != nil && existing.PackageHash == pkg.PackageHash {
-			enabled = existing.Enabled
-			warningApproved = existing.WarningApproved
-		}
-		if _, err := m.upsertAgentSkillPackage(pkg, "system:sync", report, status, enabled, warningApproved); err != nil && m.logger != nil {
+		if _, err := m.upsertAgentSkillPackage(pkg, "system:sync", report, status, false, false); err != nil && m.logger != nil {
 			m.logger.Warn("Failed to sync Agent Skill", "name", pkg.Name, "error", err)
 		}
 	}
@@ -843,6 +838,33 @@ func (m *AgentSkillManager) VerifyAgentSkill(ctx context.Context, id, actor stri
 	}
 	m.audit(updated.ID, updated.Name, "verify", actor, fmt.Sprintf("hash_changed=%t", entry.PackageHash != pkg.PackageHash))
 	return updated, scanErr
+}
+
+// LoadCurrentAgentSkillPackage reparses a registry entry and verifies it still
+// matches the hash that was scanned before the package can be used.
+func (m *AgentSkillManager) LoadCurrentAgentSkillPackage(entry *AgentSkillRegistryEntry, actor string) (*AgentSkillPackage, error) {
+	if m == nil || entry == nil {
+		return nil, fmt.Errorf("agent skill is missing")
+	}
+	if actor == "" {
+		actor = "system"
+	}
+	pkg, err := ParseAgentSkillPackage(entry.Directory)
+	if err != nil {
+		_, _ = m.db.Exec(`UPDATE agent_skills_registry
+			SET enabled = 0, warning_approved = 0, security_status = ?, updated_at = CURRENT_TIMESTAMP
+			WHERE id = ?`, string(SecurityError), entry.ID)
+		m.audit(entry.ID, entry.Name, "package_invalid", actor, err.Error())
+		return nil, fmt.Errorf("agent skill package is invalid; verify before use: %w", err)
+	}
+	if pkg.PackageHash != entry.PackageHash {
+		_, _ = m.db.Exec(`UPDATE agent_skills_registry
+			SET enabled = 0, warning_approved = 0, security_status = ?, updated_at = CURRENT_TIMESTAMP
+			WHERE id = ?`, string(SecurityPending), entry.ID)
+		m.audit(entry.ID, entry.Name, "package_changed", actor, "hash changed since last verification")
+		return nil, fmt.Errorf("agent skill package changed since last verification; verify before use")
+	}
+	return pkg, nil
 }
 
 func (m *AgentSkillManager) upsertAgentSkillPackage(pkg *AgentSkillPackage, actor string, report *SecurityReport, status SecurityStatus, enabled, warningApproved bool) (*AgentSkillRegistryEntry, error) {
@@ -982,6 +1004,9 @@ func (m *AgentSkillManager) EnableAgentSkill(id string, enabled bool, actor stri
 		return err
 	}
 	if enabled {
+		if _, err := m.LoadCurrentAgentSkillPackage(entry, actor); err != nil {
+			return err
+		}
 		switch entry.SecurityStatus {
 		case SecurityClean:
 		case SecurityWarning:
@@ -1094,6 +1119,10 @@ func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptP
 	if entry.SecurityStatus == SecurityWarning && !entry.WarningApproved {
 		return "", fmt.Errorf("agent skill warning status requires approval")
 	}
+	pkg, err := m.LoadCurrentAgentSkillPackage(entry, "agent")
+	if err != nil {
+		return "", err
+	}
 	scriptPath, err = validateAgentSkillEditablePath(scriptPath)
 	if err != nil {
 		return "", err
@@ -1102,7 +1131,7 @@ func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptP
 		return "", fmt.Errorf("agent skill script path must be under scripts/")
 	}
 	found := false
-	for _, s := range entry.Scripts {
+	for _, s := range pkg.Scripts {
 		if s.Path == scriptPath {
 			found = true
 			break
@@ -1134,6 +1163,8 @@ func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptP
 	defer cancel()
 	cmd := exec.CommandContext(ctx, pythonBin, "-u", filepath.Join(entry.Directory, filepath.FromSlash(scriptPath)))
 	cmd.Dir = entry.Directory
+	cmd.Env = sandbox.FilterEnv(os.Environ())
+	SetSkillLimits(cmd, 1024, int(GetSkillTimeout().Seconds()))
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return "", err
@@ -1144,6 +1175,11 @@ func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptP
 	if err := cmd.Start(); err != nil {
 		return "", err
 	}
+	defer func() {
+		if cmd.Process != nil {
+			KillProcessTree(cmd.Process.Pid)
+		}
+	}()
 	if _, err := stdin.Write(input); err != nil {
 		_ = stdin.Close()
 		_ = cmd.Wait()

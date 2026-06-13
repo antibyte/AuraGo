@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -87,6 +88,46 @@ print(json.dumps({"value": args.get("value")}))
 	}
 	if !strings.Contains(out, `"value": "hello"`) && !strings.Contains(out, `"value":"hello"`) {
 		t.Fatalf("run_agent_skill_script output = %s", out)
+	}
+}
+
+func TestAgentSkillDispatchRejectsStalePackageActivation(t *testing.T) {
+	mgr, workspace := setupDispatchAgentSkillManager(t)
+	entry, err := mgr.CreateAgentSkill(context.Background(), "stale-demo", "Stale Agent Skill. Use when testing stale activation.", "# Demo\nOriginal body.", "test", nil, false)
+	if err != nil {
+		t.Fatalf("CreateAgentSkill: %v", err)
+	}
+	if err := mgr.EnableAgentSkill(entry.ID, true, "test"); err != nil {
+		t.Fatalf("EnableAgentSkill: %v", err)
+	}
+	staleBody := `---
+name: stale-demo
+description: Stale Agent Skill. Use when testing stale activation.
+---
+# Changed
+
+This changed outside the Agent Skill Manager.
+`
+	if err := os.WriteFile(filepath.Join(entry.Directory, "SKILL.md"), []byte(staleBody), 0644); err != nil {
+		t.Fatalf("mutate SKILL.md: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Agent.AllowPython = true
+	cfg.Directories.WorkspaceDir = workspace
+	dc := &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	out, ok := dispatchComm(context.Background(), ToolCall{Action: "activate_agent_skill", Skill: "stale-demo"}, dc)
+	if !ok {
+		t.Fatal("expected dispatchComm to handle activate_agent_skill")
+	}
+	if !strings.Contains(out, "changed since last verification") {
+		t.Fatalf("activate_agent_skill output = %s, want stale package error", out)
+	}
+	if strings.Contains(out, "# Changed") {
+		t.Fatalf("activate_agent_skill exposed stale SKILL.md body: %s", out)
 	}
 }
 
