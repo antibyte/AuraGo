@@ -448,6 +448,7 @@
 /* Responsive */
 @media (max-width: 768px) {
     .kc-container {
+        margin-top: 16px;
         padding: 28px 12px 60px;
         overflow-x: visible;
     }
@@ -2018,6 +2019,7 @@
 
 /* Glass container treatment */
 .kc-container {
+    margin-top: 24px;
     background: linear-gradient(180deg, color-mix(in srgb, #ffffff 2%, transparent) 0%, color-mix(in srgb, #ffffff 0%, transparent) 100%);
     border: 1px solid var(--border-subtle);
     border-radius: 16px;
