@@ -1767,8 +1767,12 @@ func runAgodeskAgentChat(s *Server, r *http.Request, conn *websocket.Conn, state
 		SessionID:             conversationID,
 		MessageSource:         agodeskMessageSource,
 		AdditionalPrompt:      buildAgodeskAgentContext(deviceID, agodeskStateFileAccess(state)),
+		PersistedMessage:      stripAgodeskAttachmentBlock(message),
 		VoiceOutputActive:     voiceOutput,
 		OnUserMessageInserted: agodeskAttachmentBindingCallback(r.Context()),
+		PrepareSessionMessages: func(messages []memory.HistoryMessage, currentMessageID int64) []memory.HistoryMessage {
+			return agodeskMessagesWithAttachmentContext(s, messages, currentMessageID)
+		},
 	})
 	if err != nil {
 		return agodeskChatResult{}, err

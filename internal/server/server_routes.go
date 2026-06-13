@@ -711,6 +711,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					filtered = append(filtered, m)
 				}
 			}
+			filtered = sanitizeVisibleChatHistoryMessages(filtered)
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(filtered)
 			return
@@ -726,6 +727,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				filtered = append(filtered, m)
 			}
 		}
+		filtered = sanitizeVisibleChatHistoryMessages(filtered)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(filtered)

@@ -475,6 +475,111 @@ func TestAgodeskAttachmentBindingContextBindsRecordsToInsertedMessage(t *testing
 	}
 }
 
+func TestAgodeskAttachmentTurnPersistsVisibleTextButKeepsLLMContext(t *testing.T) {
+	s := newTestDesktopChatServer(t)
+	sess, err := s.ShortTermMem.CreateChatSession()
+	if err != nil {
+		t.Fatalf("CreateChatSession: %v", err)
+	}
+	record := memory.AgoDeskAttachmentRecord{
+		AttachmentID:       "att-maja",
+		TransportSessionID: "agodesk:dev-1",
+		ConversationID:     sess.ID,
+		Filename:           "maja.png",
+		MimeType:           "image/png",
+		Kind:               "image",
+		DeclaredSizeBytes:  218432,
+		ExpiresAt:          time.Now().Add(time.Minute),
+	}
+	if err := s.ShortTermMem.PrepareAgoDeskAttachment(record); err != nil {
+		t.Fatalf("PrepareAgoDeskAttachment: %v", err)
+	}
+	uploaded, err := s.ShortTermMem.MarkAgoDeskAttachmentUploaded(record.AttachmentID, record.DeclaredSizeBytes, "sha", "attachments/agodesk/"+sess.ID+"/att-maja/maja.png", "image", "image/png")
+	if err != nil {
+		t.Fatalf("MarkAgoDeskAttachmentUploaded: %v", err)
+	}
+
+	visibleText := "konvertiere nach jpg und sende es"
+	agentPrompt := buildAgodeskMessageWithAttachments(s, visibleText, []memory.AgoDeskAttachmentRecord{*uploaded})
+	ctx := contextWithAgodeskAttachmentBinding(context.Background(), s, sess.ID, []memory.AgoDeskAttachmentRecord{*uploaded})
+	turn, err := prepareDesktopAgentTurnWithOptions(ctx, s, agentPrompt, desktopChatContext{}, false, desktopAgentTurnOptions{
+		SessionID:             sess.ID,
+		MessageSource:         agodeskMessageSource,
+		PersistedMessage:      stripAgodeskAttachmentBlock(agentPrompt),
+		OnUserMessageInserted: agodeskAttachmentBindingCallback(ctx),
+		PrepareSessionMessages: func(messages []memory.HistoryMessage, currentMessageID int64) []memory.HistoryMessage {
+			return agodeskMessagesWithAttachmentContext(s, messages, currentMessageID)
+		},
+	})
+	if err != nil {
+		t.Fatalf("prepareDesktopAgentTurnWithOptions first turn: %v", err)
+	}
+	history, err := s.ShortTermMem.GetSessionMessages(sess.ID)
+	if err != nil {
+		t.Fatalf("GetSessionMessages first turn: %v", err)
+	}
+	if len(history) != 1 || history[0].Content != visibleText {
+		t.Fatalf("visible history = %+v, want one clean user message %q", history, visibleText)
+	}
+	if strings.Contains(history[0].Content, "<agodesk_attachments>") || strings.Contains(history[0].Content, "agent_workspace/workdir/attachments") {
+		t.Fatalf("visible history leaked agodesk attachment context: %q", history[0].Content)
+	}
+	if len(turn.req.Messages) == 0 {
+		t.Fatal("prepared first request has no messages")
+	}
+	firstCurrent := turn.req.Messages[len(turn.req.Messages)-1]
+	if !strings.Contains(firstCurrent.Content, "<agodesk_attachments>") ||
+		!strings.Contains(firstCurrent.Content, "maja.png | image/png") ||
+		!strings.Contains(firstCurrent.Content, "agent_workspace/workdir/attachments/agodesk/") {
+		t.Fatalf("current LLM request missing agodesk attachment context: %q", firstCurrent.Content)
+	}
+	byMessage, err := s.ShortTermMem.ListAgoDeskAttachmentsForMessages([]int64{history[0].ID})
+	if err != nil {
+		t.Fatalf("ListAgoDeskAttachmentsForMessages: %v", err)
+	}
+	if len(byMessage[history[0].ID]) != 1 || byMessage[history[0].ID][0].Status != memory.AgoDeskAttachmentStatusAccepted {
+		t.Fatalf("bound attachments after first turn = %+v", byMessage)
+	}
+
+	secondPrompt := "sende es nochmal"
+	turn, err = prepareDesktopAgentTurnWithOptions(context.Background(), s, secondPrompt, desktopChatContext{}, false, desktopAgentTurnOptions{
+		SessionID:        sess.ID,
+		MessageSource:    agodeskMessageSource,
+		PersistedMessage: secondPrompt,
+		PrepareSessionMessages: func(messages []memory.HistoryMessage, currentMessageID int64) []memory.HistoryMessage {
+			return agodeskMessagesWithAttachmentContext(s, messages, currentMessageID)
+		},
+	})
+	if err != nil {
+		t.Fatalf("prepareDesktopAgentTurnWithOptions second turn: %v", err)
+	}
+	history, err = s.ShortTermMem.GetSessionMessages(sess.ID)
+	if err != nil {
+		t.Fatalf("GetSessionMessages second turn: %v", err)
+	}
+	if len(history) != 2 {
+		t.Fatalf("history length after second turn = %d, want 2", len(history))
+	}
+	for _, msg := range history {
+		if strings.Contains(msg.Content, "<agodesk_attachments>") || strings.Contains(msg.Content, "agent_workspace/workdir/attachments") {
+			t.Fatalf("visible history leaked agodesk attachment context after second turn: %+v", history)
+		}
+	}
+	var sawRehydratedPriorAttachment bool
+	for _, msg := range turn.req.Messages {
+		if strings.Contains(msg.Content, "<agodesk_attachments>") && strings.Contains(msg.Content, "maja.png | image/png") {
+			sawRehydratedPriorAttachment = true
+		}
+	}
+	if !sawRehydratedPriorAttachment {
+		t.Fatalf("second LLM request did not rehydrate prior agodesk attachment context: %+v", turn.req.Messages)
+	}
+	secondCurrent := turn.req.Messages[len(turn.req.Messages)-1]
+	if secondCurrent.Content != secondPrompt {
+		t.Fatalf("second current request = %q, want %q", secondCurrent.Content, secondPrompt)
+	}
+}
+
 func TestAgodeskWebSocketSessionCreateListAndLoadFiltersInternalMessages(t *testing.T) {
 	s := newAgodeskHandlerTestServer()
 	s.ShortTermMem = newAgodeskTestMemory(t)

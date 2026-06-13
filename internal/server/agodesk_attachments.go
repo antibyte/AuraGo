@@ -22,6 +22,7 @@ import (
 	"aurago/internal/uid"
 
 	"github.com/gorilla/websocket"
+	"github.com/sashabaranov/go-openai"
 )
 
 const (
@@ -431,6 +432,45 @@ func buildAgodeskMessageWithAttachments(s *Server, message string, records []mem
 	}
 	b.WriteString("</agodesk_attachments>")
 	return b.String()
+}
+
+func agodeskMessagesWithAttachmentContext(s *Server, messages []memory.HistoryMessage, skipMessageID int64) []memory.HistoryMessage {
+	if s == nil || s.ShortTermMem == nil || len(messages) == 0 {
+		return messages
+	}
+	ids := make([]int64, 0, len(messages))
+	for _, msg := range messages {
+		if msg.ID > 0 && msg.ID != skipMessageID && !msg.IsInternal && msg.Role == openai.ChatMessageRoleUser {
+			ids = append(ids, msg.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return messages
+	}
+	recordsByMessage, err := s.ShortTermMem.ListAgoDeskAttachmentsForMessages(ids)
+	if err != nil {
+		if s.Logger != nil {
+			s.Logger.Warn("Failed to load agodesk attachments for agent context", "error", err)
+		}
+		return messages
+	}
+	if len(recordsByMessage) == 0 {
+		return messages
+	}
+	out := append([]memory.HistoryMessage(nil), messages...)
+	for i := range out {
+		records := recordsByMessage[out[i].ID]
+		if len(records) == 0 {
+			continue
+		}
+		visible := stripAgodeskAttachmentBlock(out[i].Content)
+		content := buildAgodeskMessageWithAttachments(s, visible, records)
+		out[i].Content = content
+		out[i].MultiContent = nil
+		out[i].ChatCompletionMessage.Content = content
+		out[i].ChatCompletionMessage.MultiContent = nil
+	}
+	return out
 }
 
 func stripAgodeskAttachmentBlock(content string) string {

@@ -26,6 +26,7 @@ func handleListChatSessions(s *Server) http.HandlerFunc {
 		if sessions == nil {
 			sessions = []memory.ChatSession{}
 		}
+		sessions = sanitizeVisibleChatSessions(sessions)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":   "ok",
@@ -97,6 +98,7 @@ func handleGetChatSession(s *Server) http.HandlerFunc {
 		if messages == nil {
 			messages = []memory.HistoryMessage{}
 		}
+		messages = sanitizeVisibleChatHistoryMessages(messages)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -105,6 +107,35 @@ func handleGetChatSession(s *Server) http.HandlerFunc {
 			"messages": messages,
 		})
 	}
+}
+
+func sanitizeVisibleChatSessions(sessions []memory.ChatSession) []memory.ChatSession {
+	if len(sessions) == 0 {
+		return sessions
+	}
+	out := append([]memory.ChatSession(nil), sessions...)
+	for i := range out {
+		out[i].Preview = stripAgodeskAttachmentBlock(out[i].Preview)
+	}
+	return out
+}
+
+func sanitizeVisibleChatHistoryMessages(messages []memory.HistoryMessage) []memory.HistoryMessage {
+	if len(messages) == 0 {
+		return messages
+	}
+	out := append([]memory.HistoryMessage(nil), messages...)
+	for i := range out {
+		content := stripAgodeskAttachmentBlock(out[i].Content)
+		if content == out[i].Content {
+			continue
+		}
+		out[i].Content = content
+		out[i].MultiContent = nil
+		out[i].ChatCompletionMessage.Content = content
+		out[i].ChatCompletionMessage.MultiContent = nil
+	}
+	return out
 }
 
 // handleDeleteChatSession deletes a specific chat session.

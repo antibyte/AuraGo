@@ -508,11 +508,13 @@ type preparedDesktopAgentTurn struct {
 }
 
 type desktopAgentTurnOptions struct {
-	SessionID             string
-	MessageSource         string
-	AdditionalPrompt      string
-	VoiceOutputActive     bool
-	OnUserMessageInserted func(messageID int64) error
+	SessionID              string
+	MessageSource          string
+	AdditionalPrompt       string
+	PersistedMessage       string
+	VoiceOutputActive      bool
+	OnUserMessageInserted  func(messageID int64) error
+	PrepareSessionMessages func(messages []memory.HistoryMessage, currentMessageID int64) []memory.HistoryMessage
 }
 
 func prepareDesktopAgentTurn(ctx context.Context, s *Server, message string, chatContext desktopChatContext, stream bool) (preparedDesktopAgentTurn, error) {
@@ -553,6 +555,9 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 	cfg.Agent.AdditionalPrompt = appendDesktopAdditionalPrompt(cfg.Agent.AdditionalPrompt, desktopPromptContext)
 
 	persistedPrompt := message
+	if strings.TrimSpace(opts.PersistedMessage) != "" {
+		persistedPrompt = opts.PersistedMessage
+	}
 	requestPrompt := message
 	if strings.TrimSpace(chatContext.ImageBase64) != "" {
 		if mainProviderSupportsImageMultimodal(&cfg) {
@@ -580,6 +585,9 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 	sessionMessages, err := s.ShortTermMem.GetSessionMessages(sessionID)
 	if err != nil {
 		return turn, fmt.Errorf("load desktop session messages: %w", err)
+	}
+	if opts.PrepareSessionMessages != nil {
+		sessionMessages = opts.PrepareSessionMessages(sessionMessages, messageID)
 	}
 
 	currentRequestMessage := openai.ChatCompletionMessage{
