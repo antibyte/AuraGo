@@ -177,15 +177,74 @@ llm:
 	}
 }
 
-func TestAdaptiveToolsMaxToolsDefaultsToSixteenWhenEnabled(t *testing.T) {
+func TestAdaptiveToolsDefaultsAggressiveWhenOmitted(t *testing.T) {
+	cfg := loadConfigFromTestYAML(t, `{}`)
+
+	if !cfg.Agent.AdaptiveTools.Enabled {
+		t.Fatal("adaptive_tools.enabled should default to true when omitted")
+	}
+	if cfg.Agent.AdaptiveTools.MaxTools != 10 {
+		t.Fatalf("adaptive_tools.max_tools = %d, want 10", cfg.Agent.AdaptiveTools.MaxTools)
+	}
+	if cfg.Agent.AdaptiveTools.MaxTotalTools != 20 {
+		t.Fatalf("adaptive_tools.max_total_tools = %d, want 20", cfg.Agent.AdaptiveTools.MaxTotalTools)
+	}
+	if cfg.Agent.AdaptiveTools.MaxSchemaTokens != 6500 {
+		t.Fatalf("adaptive_tools.max_schema_tokens = %d, want 6500", cfg.Agent.AdaptiveTools.MaxSchemaTokens)
+	}
+	if cfg.Agent.MaxToolGuides != 3 {
+		t.Fatalf("agent.max_tool_guides = %d, want 3", cfg.Agent.MaxToolGuides)
+	}
+}
+
+func TestAdaptiveToolsExplicitDisabledPreservesZeroCaps(t *testing.T) {
+	cfg := loadConfigFromTestYAML(t, `
+agent:
+  adaptive_tools:
+    enabled: false
+`)
+
+	if cfg.Agent.AdaptiveTools.Enabled {
+		t.Fatal("expected explicit adaptive_tools.enabled=false to be preserved")
+	}
+	if cfg.Agent.AdaptiveTools.MaxTools != 0 || cfg.Agent.AdaptiveTools.MaxTotalTools != 0 || cfg.Agent.AdaptiveTools.MaxSchemaTokens != 0 {
+		t.Fatalf("disabled adaptive caps = (%d,%d,%d), want zeros",
+			cfg.Agent.AdaptiveTools.MaxTools,
+			cfg.Agent.AdaptiveTools.MaxTotalTools,
+			cfg.Agent.AdaptiveTools.MaxSchemaTokens)
+	}
+}
+
+func TestAdaptiveToolsExplicitEnabledZeroCapsArePreserved(t *testing.T) {
+	cfg := loadConfigFromTestYAML(t, `
+agent:
+  adaptive_tools:
+    enabled: true
+    max_tools: 0
+    max_total_tools: 0
+    max_schema_tokens: 0
+`)
+
+	if !cfg.Agent.AdaptiveTools.Enabled {
+		t.Fatal("expected adaptive filtering to remain enabled")
+	}
+	if cfg.Agent.AdaptiveTools.MaxTools != 0 || cfg.Agent.AdaptiveTools.MaxTotalTools != 0 || cfg.Agent.AdaptiveTools.MaxSchemaTokens != 0 {
+		t.Fatalf("explicit zero caps = (%d,%d,%d), want zeros",
+			cfg.Agent.AdaptiveTools.MaxTools,
+			cfg.Agent.AdaptiveTools.MaxTotalTools,
+			cfg.Agent.AdaptiveTools.MaxSchemaTokens)
+	}
+}
+
+func TestAdaptiveToolsMaxToolsDefaultsToTenWhenEnabled(t *testing.T) {
 	cfg := loadConfigFromTestYAML(t, `
 agent:
   adaptive_tools:
     enabled: true
 `)
 
-	if cfg.Agent.AdaptiveTools.MaxTools != 16 {
-		t.Fatalf("adaptive_tools.max_tools = %d, want 16", cfg.Agent.AdaptiveTools.MaxTools)
+	if cfg.Agent.AdaptiveTools.MaxTools != 10 {
+		t.Fatalf("adaptive_tools.max_tools = %d, want 10", cfg.Agent.AdaptiveTools.MaxTools)
 	}
 }
 
@@ -245,8 +304,8 @@ agent:
     enabled: true
 `)
 
-	if cfg.Agent.AdaptiveTools.MaxTotalTools != 32 {
-		t.Fatalf("adaptive_tools.max_total_tools = %d, want 32", cfg.Agent.AdaptiveTools.MaxTotalTools)
+	if cfg.Agent.AdaptiveTools.MaxTotalTools != 20 {
+		t.Fatalf("adaptive_tools.max_total_tools = %d, want 20", cfg.Agent.AdaptiveTools.MaxTotalTools)
 	}
 	if !cfg.Agent.AdaptiveTools.ProviderProfilesEnabled {
 		t.Fatal("expected provider_profiles_enabled to default to true")
@@ -254,8 +313,8 @@ agent:
 	if cfg.Agent.AdaptiveTools.SessionToolRetentionTurns != 8 {
 		t.Fatalf("session_tool_retention_turns = %d, want 8", cfg.Agent.AdaptiveTools.SessionToolRetentionTurns)
 	}
-	if cfg.Agent.AdaptiveTools.MaxSchemaTokens != 0 {
-		t.Fatalf("max_schema_tokens = %d, want 0", cfg.Agent.AdaptiveTools.MaxSchemaTokens)
+	if cfg.Agent.AdaptiveTools.MaxSchemaTokens != 6500 {
+		t.Fatalf("max_schema_tokens = %d, want 6500", cfg.Agent.AdaptiveTools.MaxSchemaTokens)
 	}
 }
 

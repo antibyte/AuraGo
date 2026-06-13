@@ -1219,22 +1219,32 @@ func Load(path string) (*Config, error) {
 	if !yamlHasPath(data, "agent", "optimizer_enabled") {
 		cfg.Agent.OptimizerEnabled = true
 	}
-	// Adaptive tools defaults
-	// CHANGE LOG 2026-04-11: Reduced default from 60 to 16 based on research showing
-	// function-calling accuracy degrades significantly beyond ~20 tools (OpenAI, Anthropic, Barres et al. 2025).
-	// 60 was too permissive; new users without explicit config would send 50-150 schemas.
-	// Existing configs with explicit values are preserved. MaxTools=0 disables the cap (not recommended).
-	if cfg.Agent.AdaptiveTools.MaxTools <= 0 && cfg.Agent.AdaptiveTools.Enabled {
-		cfg.Agent.AdaptiveTools.MaxTools = 16
+	// Adaptive tools defaults. Missing configs opt into progressive discovery so
+	// regular turns do not carry every native schema.
+	if !yamlHasPath(data, "agent", "adaptive_tools", "enabled") {
+		cfg.Agent.AdaptiveTools.Enabled = true
 	}
-	if cfg.Agent.AdaptiveTools.MaxTotalTools <= 0 && cfg.Agent.AdaptiveTools.Enabled {
-		cfg.Agent.AdaptiveTools.MaxTotalTools = 32
+	// Existing explicit values are preserved. Omitted caps get aggressive
+	// defaults when adaptive filtering is active.
+	if cfg.Agent.AdaptiveTools.MaxTools <= 0 &&
+		cfg.Agent.AdaptiveTools.Enabled &&
+		!yamlHasPath(data, "agent", "adaptive_tools", "max_tools") {
+		cfg.Agent.AdaptiveTools.MaxTools = 10
+	}
+	if cfg.Agent.AdaptiveTools.MaxTotalTools <= 0 &&
+		cfg.Agent.AdaptiveTools.Enabled &&
+		!yamlHasPath(data, "agent", "adaptive_tools", "max_total_tools") {
+		cfg.Agent.AdaptiveTools.MaxTotalTools = 20
 	}
 	if cfg.Agent.AdaptiveTools.SessionToolRetentionTurns <= 0 && cfg.Agent.AdaptiveTools.Enabled {
 		cfg.Agent.AdaptiveTools.SessionToolRetentionTurns = 8
 	}
 	if cfg.Agent.AdaptiveTools.MaxSchemaTokens < 0 {
 		cfg.Agent.AdaptiveTools.MaxSchemaTokens = 0
+	} else if cfg.Agent.AdaptiveTools.MaxSchemaTokens == 0 &&
+		cfg.Agent.AdaptiveTools.Enabled &&
+		!yamlHasPath(data, "agent", "adaptive_tools", "max_schema_tokens") {
+		cfg.Agent.AdaptiveTools.MaxSchemaTokens = 6500
 	}
 	if !cfg.Agent.AdaptiveTools.ProviderProfilesEnabled &&
 		!yamlHasPath(data, "agent", "adaptive_tools", "provider_profiles_enabled") {
@@ -1265,7 +1275,7 @@ func Load(path string) (*Config, error) {
 		}
 	}
 	if cfg.Agent.MaxToolGuides <= 0 {
-		cfg.Agent.MaxToolGuides = 5
+		cfg.Agent.MaxToolGuides = 3
 	}
 	// AnnouncementDetector defaults: structural text-only continuation recovery.
 	if cfg.Agent.AnnouncementDetector.MaxRetries <= 0 {

@@ -583,7 +583,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					ranked = filtered
 				}
 
-				servedRanked := selectServedRAGMemories(ranked, 3, s.currentLogger)
+				servedRanked := selectServedRAGMemories(ranked, 1, s.currentLogger)
 				if shortTermMem != nil {
 					for _, r := range servedRanked {
 						_ = shortTermMem.UpdateMemoryAccess(r.docID)
@@ -592,22 +592,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}
 				markMemoryDocIDsUsed(usedMemoryDocIDs, servedRanked)
 				wantsDeepDetails := wantsDetailedMemory(lastUserMsg)
-				for _, r := range servedRanked {
-					compactText := compactMemoryForPrompt(r.text, 260)
-					topMemories = append(topMemories, compactText)
-					turnMemoryCandidates[r.docID] = compactText
-				}
-				if wantsDeepDetails {
-					for i, r := range servedRanked {
-						if i >= 2 {
-							break
-						}
-						full, ferr := longTermMem.GetByID(r.docID)
-						if ferr == nil && full != "" && shouldServeRAGMemory(full) {
-							detailed := compactMemoryForPrompt(full, 700)
-							topMemories = append(topMemories, "[Detailed Memory]\n"+detailed)
-							turnMemoryCandidates[r.docID] = detailed
-						}
+				ragEntries := buildAggressiveRAGPromptEntries(servedRanked, wantsDeepDetails, func(docID string) (string, error) {
+					return longTermMem.GetByID(docID)
+				})
+				for _, entry := range ragEntries {
+					topMemories = append(topMemories, entry.text)
+					if entry.docID != "" {
+						turnMemoryCandidates[entry.docID] = entry.text
 					}
 				}
 				flags.RetrievedMemories = strings.Join(topMemories, "\n---\n")
@@ -636,9 +627,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			// Deduplicate against already-retrieved memories to avoid wasting tokens
 			if shortTermMem != nil {
 				now := time.Now()
-				temporalPredictions, err := shortTermMem.PredictNextQuery(lastTool, now.Hour(), int(now.Weekday()), 2)
+				temporalPredictions, err := shortTermMem.PredictNextQuery(lastTool, now.Hour(), int(now.Weekday()), 1)
 				if err == nil && len(temporalPredictions) > 0 {
-					predictions := buildPredictiveMemoryQueries(lastUserMsg, lastTool, temporalPredictions, 3)
+					predictions := buildPredictiveMemoryQueries(lastUserMsg, lastTool, temporalPredictions, 1)
 					if len(predictions) == 0 {
 						predictions = temporalPredictions
 					}
@@ -679,6 +670,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					_ = g.Wait()
 
 					for _, f := range fetches {
+						if len(predictedResults) >= 1 {
+							break
+						}
 						if f.err != nil {
 							hadPredictiveError = true
 							continue
@@ -696,12 +690,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						if !ok {
 							continue
 						}
+						servedMemory = compactMemoryForPrompt(servedMemory, aggressivePredictedMemoriesChars)
 						predictedResults = append(predictedResults, servedMemory)
 						retrievedSet[f.mem] = struct{}{} // prevent intra-prediction duplicates
 						if f.docID != "" && shortTermMem != nil {
 							usedMemoryDocIDs[f.docID]++
 							_ = shortTermMem.RecordMemoryUsage(f.docID, "ltm_predicted", sessionID, 0, false)
-							turnMemoryCandidates[f.docID] = compactMemoryForPrompt(servedMemory, 260)
+							turnMemoryCandidates[f.docID] = servedMemory
 						}
 					}
 					RecordRetrievalEventForScope(telemetryScope, "rag_predictive_latency:"+retrievalLatencyBucket(time.Since(predictiveStart)))
@@ -741,7 +736,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// long-term memory retrieval is unavailable/disabled.
 		shouldInjectRecentContext := shouldInjectRecentMemoryContext(lastUserMsg)
 		if !runCfg.IsMission && !isAutonomousRun && shouldInjectRecentContext && shortTermMem != nil {
-			pendingActions, pErr := shortTermMem.GetPendingEpisodicActionsForQuery(lastUserMsg, 2)
+			pendingActions, pErr := shortTermMem.GetPendingEpisodicActionsForQuery(lastUserMsg, 1)
 			if pErr == nil && len(pendingActions) > 0 {
 				turnPendingActions = append(turnPendingActions, pendingActions...)
 				lines := make([]string, 0, len(pendingActions))
@@ -752,25 +747,25 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					}
 					lines = append(lines, line)
 				}
-				prefix := "[Pending Follow-Ups]\n- " + strings.Join(lines, "\n- ")
+				prefix := compactMemoryForPrompt("[Pending Follow-Ups]\n- "+strings.Join(lines, "\n- "), 230)
 				if flags.RetrievedMemories == "" {
 					flags.RetrievedMemories = prefix
 				} else {
 					flags.RetrievedMemories += "\n---\n" + prefix
 				}
 			}
-			anchors, aErr := shortTermMem.GetRecentDayAnchors(2)
+			anchors, aErr := shortTermMem.GetRecentDayAnchors(1)
 			if aErr == nil && len(anchors) > 0 {
-				prefix := "[Recent Day Anchors]\n- " + strings.Join(anchors, "\n- ")
+				prefix := compactMemoryForPrompt("[Recent Day Anchors]\n- "+strings.Join(anchors, "\n- "), 230)
 				if flags.RetrievedMemories == "" {
 					flags.RetrievedMemories = prefix
 				} else {
 					flags.RetrievedMemories += "\n---\n" + prefix
 				}
 			}
-			episodic, eErr := shortTermMem.GetRecentEpisodicMemories(72, 2)
+			episodic, eErr := shortTermMem.GetRecentEpisodicMemories(72, 1)
 			if eErr == nil && len(episodic) > 0 {
-				prefix := "[Last 72h Episodes]\n- " + strings.Join(episodic, "\n- ")
+				prefix := compactMemoryForPrompt("[Last 72h Episodes]\n- "+strings.Join(episodic, "\n- "), 230)
 				if flags.RetrievedMemories == "" {
 					flags.RetrievedMemories = prefix
 				} else {
@@ -781,7 +776,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		if !runCfg.IsMission && !isAutonomousRun && shouldInjectRecentContext && shortTermMem != nil {
 			if overview, err := shortTermMem.BuildRecentActivityPromptOverview(3); err == nil {
-				flags.RecentActivityOverview = overview
+				flags.RecentActivityOverview = compactMemoryForPrompt(overview, aggressiveRecentOverviewChars)
 			}
 		}
 
@@ -789,6 +784,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if !runCfg.IsMission && !isAutonomousRun && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.PromptInjection && kg != nil && lastUserMsg != "" {
 			maxNodes := cfg.Tools.KnowledgeGraph.MaxPromptNodes
 			maxChars := cfg.Tools.KnowledgeGraph.MaxPromptChars
+			if maxNodes <= 0 || maxNodes > 3 {
+				maxNodes = 3
+			}
+			if maxChars <= 0 || maxChars > aggressiveKnowledgeContextChars {
+				maxChars = aggressiveKnowledgeContextChars
+			}
 			kgContext := kg.SearchForContext(lastUserMsg, maxNodes, maxChars)
 			if kgContext != "" {
 				flags.KnowledgeContext = kgContext
@@ -803,10 +804,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			longTermMem != nil && kg != nil {
 			fusionResult := applyRetrievalFusion(topMemories, flags.KnowledgeContext, longTermMem, shortTermMem, kg, s.currentLogger)
 			if fusionResult.EnrichedMemories != "" {
-				flags.RetrievedMemories += "\n---\n" + fusionResult.EnrichedMemories
+				flags.RetrievedMemories += "\n---\n" + compactMemoryForPrompt(fusionResult.EnrichedMemories, 400)
 			}
 			if fusionResult.EnrichedKGContext != "" {
-				flags.KnowledgeContext += "\n" + fusionResult.EnrichedKGContext
+				flags.KnowledgeContext += "\n" + compactMemoryForPrompt(fusionResult.EnrichedKGContext, 400)
 			}
 		}
 
@@ -814,7 +815,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Phase A1/A2: Drop stale entries (>24h old without resolution), tag freshness
 		// per entry, and reframe as hypotheses to re-test rather than constraints.
 		if flags.IsErrorState && shortTermMem != nil {
-			errPatterns, err := shortTermMem.GetRecentErrors(5)
+			errPatterns, err := shortTermMem.GetRecentErrors(3)
 			if err == nil && len(errPatterns) > 0 {
 				now := time.Now().UTC()
 				filtered := make([]memory.ErrorPattern, 0, len(errPatterns))
@@ -858,9 +859,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				// Fallback: no tool filter, get top rules globally.
 				recentTools = nil
 			}
-			rules, lrErr := shortTermMem.GetLearnedRulesForTools(recentTools, 5)
+			rules, lrErr := shortTermMem.GetLearnedRulesForTools(recentTools, 3)
 			if lrErr == nil && len(rules) > 0 {
-				flags.LearnedRulesContext = buildLearnedRulesContext(rules, 200)
+				flags.LearnedRulesContext = buildLearnedRulesContext(rules, 120)
 			}
 		}
 
@@ -924,6 +925,22 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		flags.IsDebugMode = cfg.Agent.DebugMode || GetDebugMode()                                           // re-check each iteration (toggleable at runtime)
 		flags.IsVoiceMode = GetVoiceMode() && !isAutonomousAgentRun(runCfg, sessionID) && !runCfg.IsMission // re-check each iteration (toggleable at runtime)
+		if shouldInjectSpecialistAwareness(lastUserMsg, "") {
+			flags.SpecialistsAvailable = specialistsAvailable(cfg)
+			flags.SpecialistsStatus = buildSpecialistsStatus(cfg)
+			flags.SpecialistsSuggestion = buildSpecialistDelegationHint(cfg, lastUserMsg)
+		} else {
+			flags.SpecialistsAvailable = false
+			flags.SpecialistsStatus = ""
+			flags.SpecialistsSuggestion = ""
+		}
+		if shouldExposeRuntimePaths(lastUserMsg, recentTools, s.sessionUsedTools) {
+			flags.ToolsDir = cfg.Directories.ToolsDir
+			flags.SkillsDir = cfg.Directories.SkillsDir
+		} else {
+			flags.ToolsDir = ""
+			flags.SkillsDir = ""
+		}
 
 		// Inject high-priority open notes as reminders
 		if cfg.Tools.Notes.Enabled && shortTermMem != nil {
@@ -955,6 +972,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// preserving trait-driven curiosity guidance.
 		flags.AdditionalPrompt = mergeEmotionBehaviorPrompt(baseAdditionalPrompt, emotionPolicy, flags.InnerVoice != "")
 		flags.TokenBudget = calculateEffectivePromptTokenBudget(cfg, ToolCall{}, homepageUsedInChain, s.currentLogger)
+		applyAggressivePromptContextBudgets(&flags)
 		retrievalPromptTokens = countMemoryPromptTelemetryTokens(flags, req.Model)
 		recordRetrievalPromptTelemetry(telemetryScope, retrievalPromptTokens, flags.TokenBudget)
 		reconcilePromptToolModeWithRequest(&flags, &toolingPolicy, req.Tools, s.currentLogger)

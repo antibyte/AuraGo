@@ -143,6 +143,100 @@ func TestCountMemoryPromptTelemetryTokensIncludesAllMemorySections(t *testing.T)
 	}
 }
 
+func TestBuildAggressiveRAGPromptEntriesKeepsOneCompactMemory(t *testing.T) {
+	served := []rankedMemory{
+		{text: strings.Repeat("primary memory detail ", 80), docID: "mem-1", score: 0.95},
+		{text: "secondary memory", docID: "mem-2", score: 0.90},
+	}
+
+	entries := buildAggressiveRAGPromptEntries(served, false, nil)
+	if len(entries) != 1 {
+		t.Fatalf("entries len = %d, want 1: %+v", len(entries), entries)
+	}
+	if entries[0].docID != "mem-1" {
+		t.Fatalf("entry docID = %q, want mem-1", entries[0].docID)
+	}
+	if len([]rune(entries[0].text)) > 321 {
+		t.Fatalf("entry text length = %d, want <= 321 including ellipsis", len([]rune(entries[0].text)))
+	}
+}
+
+func TestBuildAggressiveRAGPromptEntriesDetailedReplacesTopMemory(t *testing.T) {
+	served := []rankedMemory{
+		{text: "short", docID: "mem-1", score: 0.95},
+	}
+	entries := buildAggressiveRAGPromptEntries(served, true, func(id string) (string, error) {
+		if id != "mem-1" {
+			t.Fatalf("unexpected full memory id %q", id)
+		}
+		return strings.Repeat("full verified detail ", 80), nil
+	})
+
+	if len(entries) != 1 {
+		t.Fatalf("entries len = %d, want 1", len(entries))
+	}
+	if !strings.HasPrefix(entries[0].text, "[Detailed Memory]\n") {
+		t.Fatalf("detailed entry should replace top memory, got %q", entries[0].text)
+	}
+	if strings.Contains(entries[0].text, "short") {
+		t.Fatalf("detailed entry should replace, not append original short memory: %q", entries[0].text)
+	}
+}
+
+func TestApplyAggressivePromptContextBudgetsCapsDynamicSections(t *testing.T) {
+	flags := &prompts.ContextFlags{
+		RetrievedMemories:      strings.Repeat("retrieved ", 400),
+		PredictedMemories:      strings.Repeat("predicted ", 80),
+		RecentActivityOverview: strings.Repeat("recent ", 200),
+		KnowledgeContext:       strings.Repeat("kg ", 600),
+		ErrorPatternContext:    strings.Repeat("error ", 120),
+		LearnedRulesContext:    strings.Repeat("rule ", 120),
+		ReuseContext:           strings.Repeat("reuse ", 120),
+	}
+
+	applyAggressivePromptContextBudgets(flags)
+
+	if len([]rune(flags.RetrievedMemories)) > 1501 {
+		t.Fatalf("RetrievedMemories length = %d, want <= 1501", len([]rune(flags.RetrievedMemories)))
+	}
+	if len([]rune(flags.PredictedMemories)) > 261 {
+		t.Fatalf("PredictedMemories length = %d, want <= 261", len([]rune(flags.PredictedMemories)))
+	}
+	if len([]rune(flags.RecentActivityOverview)) > 701 {
+		t.Fatalf("RecentActivityOverview length = %d, want <= 701", len([]rune(flags.RecentActivityOverview)))
+	}
+	if len([]rune(flags.KnowledgeContext)) > 801 {
+		t.Fatalf("KnowledgeContext length = %d, want <= 801", len([]rune(flags.KnowledgeContext)))
+	}
+	if len([]rune(flags.ErrorPatternContext)) > 701 {
+		t.Fatalf("ErrorPatternContext length = %d, want <= 701", len([]rune(flags.ErrorPatternContext)))
+	}
+	if len([]rune(flags.LearnedRulesContext)) > 481 {
+		t.Fatalf("LearnedRulesContext length = %d, want <= 481", len([]rune(flags.LearnedRulesContext)))
+	}
+	if len([]rune(flags.ReuseContext)) > 701 {
+		t.Fatalf("ReuseContext length = %d, want <= 701", len([]rune(flags.ReuseContext)))
+	}
+}
+
+func TestLazySpecialistAndRuntimePathIntent(t *testing.T) {
+	if shouldInjectSpecialistAwareness("prüfe das bitte normal", "") {
+		t.Fatal("did not expect specialist awareness for ordinary request")
+	}
+	if !shouldInjectSpecialistAwareness("delegiere das an einen Security Spezialisten", "") {
+		t.Fatal("expected specialist awareness for explicit specialist delegation")
+	}
+	if shouldExposeRuntimePaths("prüfe das bitte normal", nil, nil) {
+		t.Fatal("did not expect runtime paths for ordinary request")
+	}
+	if !shouldExposeRuntimePaths("erstelle einen Python Skill für CSV Import", nil, nil) {
+		t.Fatal("expected runtime paths for skill creation intent")
+	}
+	if !shouldExposeRuntimePaths("weiter mit dem Tool", []string{"execute_skill"}, nil) {
+		t.Fatal("expected runtime paths after recent skill/tool usage")
+	}
+}
+
 func TestAssembleSortedStreamToolCallsHandlesSparseIndices(t *testing.T) {
 	streamToolCalls := map[int]*openai.ToolCall{}
 	mergeStreamToolCallChunk(streamToolCalls, openai.ToolCall{

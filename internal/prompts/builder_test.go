@@ -77,6 +77,95 @@ func TestBalancedCoreSystemPromptStaysUnderBudget(t *testing.T) {
 	}
 }
 
+func TestAggressiveCoreSystemPromptStaysUnderBudget(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return charRatioEncoder{}, nil
+	}, time.Second, time.Second)
+
+	prompt, tokens := BuildSystemPromptContext(context.Background(), t.TempDir(), &ContextFlags{
+		Tier:               "full",
+		SystemLanguage:     "en",
+		TokenBudget:        200000,
+		NativeToolsEnabled: true,
+	}, "", slog.Default())
+
+	if tokens > 3200 {
+		t.Fatalf("aggressive core system prompt tokens = %d, want <= 3200; prompt chars=%d", tokens, len(prompt))
+	}
+	if strings.Contains(prompt, "# PERSONALITY STATE") {
+		t.Fatalf("personality state module should not be auto-loaded in aggressive core prompt:\n%s", prompt)
+	}
+}
+
+func TestCorePersonalityPromptStripsFrontmatterAndCapsBody(t *testing.T) {
+	ClearPromptCache()
+	dir := t.TempDir()
+	personalityDir := filepath.Join(dir, "personalities")
+	if err := os.MkdirAll(personalityDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	longBody := "Direct and sharp. " + strings.Repeat("Keep the edge but obey evidence. ", 30)
+	raw := `---
+id: "punk"
+tags: ["core"]
+priority: 100
+meta:
+  volatility: 1.0
+---
+
+# Core Personality: Punk
+
+` + longBody
+	if err := os.WriteFile(filepath.Join(personalityDir, "punk.md"), []byte(raw), 0o644); err != nil {
+		t.Fatalf("write personality: %v", err)
+	}
+
+	got := loadCorePersonalityContent(dir, "punk", slog.Default())
+	if strings.Contains(got, "---") || strings.Contains(got, "volatility") || strings.Contains(got, "# Core Personality") {
+		t.Fatalf("personality prompt should strip YAML/header, got:\n%s", got)
+	}
+	if len([]rune(got)) > 451 {
+		t.Fatalf("personality prompt length = %d runes, want <= 451 including ellipsis", len([]rune(got)))
+	}
+	if !strings.HasPrefix(got, "Direct and sharp.") {
+		t.Fatalf("personality prompt body not preserved, got %q", got)
+	}
+}
+
+func TestBuildSystemPromptUsesCompactMetaFlags(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return charRatioEncoder{}, nil
+	}, time.Second, time.Second)
+
+	prompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), &ContextFlags{
+		Tier:               "full",
+		SystemLanguage:     "en",
+		TokenBudget:        200000,
+		NativeToolsEnabled: true,
+		IsDebugMode:        true,
+		IsVoiceMode:        true,
+		InternetExposed:    true,
+		ToolsDir:           "/workspace/tools",
+		SkillsDir:          "/workspace/skills",
+	}, "", slog.Default())
+
+	for _, forbidden := range []string{
+		"The user has enabled automatic voice playback",
+		"The system is in debugging mode. If you encounter an error",
+		"This system is probably reachable from the internet",
+		"The active tool protocol is native function calling. Do not output raw JSON action objects",
+	} {
+		if strings.Contains(prompt, forbidden) {
+			t.Fatalf("prompt still contains verbose meta flag wording %q:\n%s", forbidden, prompt)
+		}
+	}
+	for _, want := range []string{"[DEBUG]", "[VOICE]", "[INTERNET_EXPOSED]", "[RUNTIME_PATHS]", "[NATIVE_TOOLS]"} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("prompt missing compact meta flag %q:\n%s", want, prompt)
+		}
+	}
+}
+
 func TestBalancedRulesPromptKeepsCriticalMarkers(t *testing.T) {
 	raw, err := promptsembed.FS.ReadFile("rules.md")
 	if err != nil {
@@ -606,7 +695,7 @@ func TestBuildSystemPromptNativeModeOmitsRawJSONToolProtocol(t *testing.T) {
 	}
 
 	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
-	if !strings.Contains(prompt, "This session uses the **native function calling API**") {
+	if !strings.Contains(prompt, "[NATIVE_TOOLS] Use native function calls only") {
 		t.Fatalf("prompt missing native tool calling instructions")
 	}
 	if strings.Contains(prompt, "A Go supervisor parses your output. To invoke a tool, output a raw JSON object") {
@@ -778,7 +867,7 @@ func TestBuildSystemPromptNativeModeAppendsFinalProtocolReminder(t *testing.T) {
 	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
 
 	additionalIdx := strings.Index(prompt, "# ADDITIONAL INSTRUCTIONS")
-	voiceIdx := strings.Index(prompt, "VOICE MODE ACTIVE")
+	voiceIdx := strings.Index(prompt, "[VOICE]")
 	reminderIdx := strings.LastIndex(prompt, "NATIVE TOOL MODE REMINDER")
 
 	if additionalIdx < 0 {

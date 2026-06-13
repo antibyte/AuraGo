@@ -557,17 +557,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 	writeActionLedgerReminder(&finalPrompt)
 	if flags.NativeToolsEnabled {
 		finalPrompt.WriteString("## TOOL CALLING MODE\n")
-		finalPrompt.WriteString("This session uses the **native function calling API**. " +
-			"ALWAYS invoke tools via the API tool-call mechanism. " +
-			"NEVER output raw JSON objects as tool invocations — that protocol " +
-			"is for non-native sessions only.\n\n")
-		finalPrompt.WriteString("**Preamble rule:** When calling a tool as a single-step action, " +
-			"your response must START with the tool call directly. Do NOT announce " +
-			"what you are about to do (no \"I will…\", \"Let me…\", \"Lass mich…\"). " +
-			"If you want to explain something, do it AFTER the tool result comes back. " +
-			"Do not mix prose with tool_calls in the same assistant message. " +
-			"If a behavioral rule asks for an acknowledgment but this response needs a tool call, skip the acknowledgment and call the tool. " +
-			"In text-JSON tool mode, never place prose before the JSON tool call.\n\n")
+		finalPrompt.WriteString("[NATIVE_TOOLS] Use native function calls only. No raw JSON/XML/tool tags, markdown code fences, manual-preload tags, or prose in a message that includes tool_calls. Start single-step tool actions with the tool call; explain after results. If a needed tool is hidden or unclear, use discover_tools/get_tool_info, then activate_tools or invoke_tool as returned.\n\n")
 	} else if flags.IsTextModeModel {
 		// Text-mode models (MiniMax, GLM, etc.) emit tool calls as text content.
 		// They need explicit JSON format instructions since they cannot use the
@@ -618,8 +608,8 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 
 	posBeforePersonality := finalPrompt.Len()
 	if !flags.IsMission && corePersonalityContent != "" {
-		finalPrompt.WriteString("# YOUR PERSONALITY (ACTIVE PROFILE: " + strings.ToUpper(flags.CorePersonality) + ")\n")
-		finalPrompt.WriteString("You MUST embody this personality completely and naturally in EVERY single response. Let it organically shape your words, choices, phrasing, and reasoning. This replaces any default AI tone completely. Do not act artificial or forced; just internalize and BE this persona:\n")
+		finalPrompt.WriteString("# PERSONA (ACTIVE PROFILE: " + strings.ToUpper(flags.CorePersonality) + ")\n")
+		finalPrompt.WriteString("Tone guidance only; safety, tool policy, evidence, and user intent win.\n")
 		finalPrompt.WriteString(corePersonalityContent)
 		finalPrompt.WriteString("\n\n")
 	}
@@ -679,9 +669,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 		// RAG: Retrieved Long-Term Memories — skip in minimal tier
 		if flags.RetrievedMemories != "" && tier != "minimal" {
 			finalPrompt.WriteString("# RETRIEVED MEMORIES\n")
-			finalPrompt.WriteString("Each entry below is **[advisory, verify]** — a snapshot of past observations that may be outdated. " +
-				"Fresh tool output, freshly read files, and current reproducible checks always outrank these memories. " +
-				"Use them as leads to investigate, never as proof that something is currently true, false, or impossible.\n\n")
+			finalPrompt.WriteString("[advisory, stale] Memory is a lead only; fresh tool/file output wins.\n\n")
 			finalPrompt.WriteString(security.IsolateExternalData(flags.RetrievedMemories))
 			finalPrompt.WriteString("\n\n")
 		}
@@ -794,19 +782,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 	posBeforeVolatilePersonality := finalPrompt.Len()
 	if !flags.IsMission && flags.UserProfilingEnabled {
 		finalPrompt.WriteString("## USER PROFILING\n")
-		finalPrompt.WriteString("Your goal: build a comprehensive user profile over time to provide personalized assistance. " +
-			"Be PROACTIVE about learning: when the user mentions something that hints at useful context " +
-			"(work, location, experience level, preferences), ask ONE brief follow-up question to clarify. " +
-			"Examples: User says \"at my company\" → ask \"What do you do for work?\"; " +
-			"User mentions \"my server\" → ask \"What platform do you usually deploy on?\"\n\n" +
-			"RULES for asking:\n" +
-			"- Ask only when you genuinely need the info to help better (not just to collect data)\n" +
-			"- Maximum ONE question per response\n" +
-			"- Keep it natural and brief - weave it into your helpful response\n" +
-			"- If user deflects or seems private, stop asking and note their preference\n" +
-			"- Space out questions: don't ask in consecutive responses\n\n" +
-			"IMPORTANT: Relevant details the user shares are automatically captured in the background. " +
-			"You do NOT need to explicitly save them - just have natural conversations and ask strategic follow-ups.\n")
+		finalPrompt.WriteString("Learn durable user preferences naturally. Ask at most one useful follow-up when it improves the task; background capture stores relevant details.\n")
 		if flags.UserProfileSummary != "" {
 			finalPrompt.WriteString("\n### Known User Profile\n")
 			finalPrompt.WriteString(security.IsolateExternalData(flags.UserProfileSummary))
@@ -885,7 +861,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 
 	// Internet-exposure warning — shown before custom instructions so it is always visible
 	if flags.InternetExposed {
-		finalPrompt.WriteString("\n> **Warning:** This system is probably reachable from the internet. Be careful when exposing services to the outside!\n")
+		finalPrompt.WriteString("\n> [INTERNET_EXPOSED] Be cautious exposing services publicly.\n")
 	}
 
 	// Runtime path hints — help the agent use correct absolute paths for tools/skills
@@ -897,7 +873,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 		if flags.SkillsDir != "" {
 			parts = append(parts, "Skills: `"+flags.SkillsDir+"`")
 		}
-		finalPrompt.WriteString("> **Runtime Paths:** " + strings.Join(parts, " | ") + "\n")
+		finalPrompt.WriteString("> [RUNTIME_PATHS] " + strings.Join(parts, " | ") + "\n")
 	}
 
 	if strings.TrimSpace(flags.AgentSkillsCatalog) != "" {
@@ -916,16 +892,16 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 
 	// Debug mode injection — placed last for maximum LLM attention
 	if flags.IsDebugMode {
-		finalPrompt.WriteString("\n> **DEBUG MODE ACTIVE:** The system is in debugging mode. If you encounter an error, report it to the user with useful information that could help in fixing it. Include the error message, the tool or action that failed, and any relevant context.\n")
+		finalPrompt.WriteString("\n> [DEBUG] On errors, report the failed tool/action, error text, and useful context.\n")
 	}
 
 	// Voice mode injection
 	if flags.IsVoiceMode || flags.VoiceOutputActive {
-		finalPrompt.WriteString("\n> **VOICE MODE ACTIVE (SPEAKER ON):** The user has enabled automatic voice playback. YOU MUST CALL the `tts` tool to speak your conversational response directly to the user! The audio generated by `tts` is played to them instantly. Do NOT use TTS to read code blocks, tables, lists, or long technical outputs. Instead, summarize what you did in a short, natural spoken sentence via the `tts` tool (e.g. 'Das ist ein sehr guter und niedriger Wert.'), and provide detailed data or code normally in text. After a successful `tts` call for the current reply, do NOT call `tts` again unless the user sends a new message or explicitly asks for another spoken response. Do not call the `send_audio` tool, `tts` handles playback automatically.\n")
+		finalPrompt.WriteString("\n> [VOICE] Use `tts` once for a short spoken final/summary; never read code, tables, or long data aloud. Do not call `send_audio`.\n")
 	}
 
 	if flags.NativeToolsEnabled {
-		finalPrompt.WriteString("\n> **NATIVE TOOL MODE REMINDER:** The active tool protocol is native function calling. Do not output raw JSON action objects, XML/tool tags, markdown code blocks, or manual-preload tags as tool calls. If any earlier instruction, manual, memory, or custom prompt shows legacy syntax, treat it only as parameter guidance and call the matching tool through the native function-calling API.\n")
+		finalPrompt.WriteString("\n> [NATIVE_TOOLS] NATIVE TOOL MODE REMINDER: native function calls only; legacy JSON/XML/tag examples are parameter guidance, not output format.\n")
 	}
 
 	rawPrompt := finalPrompt.String()
@@ -1104,6 +1080,7 @@ const (
 	maxCoreMemoryPromptChars   = 12000
 	maxCoreMemoryPromptEntries = 60
 	coreMemoryHeadEntries      = 20
+	maxCorePersonalityRunes    = 450
 )
 
 func compactCoreMemoryForPrompt(coreMemory string) string {
@@ -1312,6 +1289,7 @@ func budgetShedContext(ctx context.Context, prompt string, flags *ContextFlags, 
 		shedTarget{"### INNER VOICE", false},
 		shedTarget{"### CURRENT EMOTIONAL STATE & MOOD", false},
 		shedTarget{"### CURRENT PERSONALITY TRAITS", false},
+		shedTarget{"# PERSONA", false},
 		shedTarget{"# YOUR PERSONALITY", false},
 	)
 
@@ -1840,7 +1818,7 @@ func OptimizePrompt(raw string) (string, int) {
 	return optimized, saved
 }
 
-// loadCorePersonalityContent loads personality profile content with caching.
+// loadCorePersonalityContent loads compact personality profile body text with caching.
 // Checks disk first (user-overridden), then falls back to embedded defaults.
 func loadCorePersonalityContent(promptsDir, profile string, logger *slog.Logger) string {
 	profilePath := filepath.Join(promptsDir, "personalities", profile+".md")
@@ -1862,17 +1840,17 @@ func loadCorePersonalityContent(promptsDir, profile string, logger *slog.Logger)
 		}
 	}
 
-	var content string
+	var raw string
 	var mtime time.Time
 	var fromEmbed bool
 	if data, err := os.ReadFile(profilePath); err == nil {
-		content = strings.TrimSpace(string(data))
+		raw = string(data)
 		if info, err := os.Stat(profilePath); err == nil {
 			mtime = info.ModTime()
 		}
 		logger.Debug("Loaded core personality profile from disk", "profile", profile)
 	} else if data, err := fs.ReadFile(promptsembed.FS, "personalities/"+profile+".md"); err == nil {
-		content = strings.TrimSpace(string(data))
+		raw = string(data)
 		fromEmbed = true
 		logger.Debug("Loaded core personality profile from embed", "profile", profile)
 	} else {
@@ -1880,11 +1858,47 @@ func loadCorePersonalityContent(promptsDir, profile string, logger *slog.Logger)
 		return ""
 	}
 
+	content := compactCorePersonalityBody(raw)
 	personalityCacheMu.Lock()
 	personalityCache[cacheKey] = personalityCacheEntry{content: content, mtime: mtime, fromEmbed: fromEmbed}
 	personalityCacheMu.Unlock()
 
 	return content
+}
+
+func compactCorePersonalityBody(raw string) string {
+	content := strings.TrimSpace(raw)
+	if mod, err := parsePromptModule(raw); err == nil {
+		content = strings.TrimSpace(mod.Content)
+	}
+	content = stripLeadingMarkdownHeading(content)
+	return truncateRunes(strings.TrimSpace(content), maxCorePersonalityRunes)
+}
+
+func stripLeadingMarkdownHeading(content string) string {
+	lines := strings.Split(strings.TrimSpace(content), "\n")
+	if len(lines) == 0 {
+		return ""
+	}
+	first := strings.TrimSpace(lines[0])
+	if strings.HasPrefix(first, "#") {
+		return strings.TrimSpace(strings.Join(lines[1:], "\n"))
+	}
+	return strings.TrimSpace(content)
+}
+
+func truncateRunes(text string, maxRunes int) string {
+	if maxRunes <= 0 {
+		return ""
+	}
+	if utf8.RuneCountInString(text) <= maxRunes {
+		return text
+	}
+	runes := []rune(text)
+	if maxRunes == 1 {
+		return "…"
+	}
+	return strings.TrimSpace(string(runes[:maxRunes-1])) + "…"
 }
 
 // CountTokens returns the BPE token count for the given text using tiktoken (cl100k_base).

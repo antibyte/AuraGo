@@ -1509,6 +1509,111 @@ func compactMemoryForPrompt(text string, maxLen int) string {
 	return strings.TrimSpace(string(runes[:maxRunes])) + "…"
 }
 
+const (
+	aggressiveRetrievedMemoriesChars = 1500
+	aggressiveAutoRAGMemoryChars     = 320
+	aggressiveDetailedRAGMemoryChars = 700
+	aggressivePredictedMemoriesChars = 260
+	aggressiveRecentOverviewChars    = 700
+	aggressiveKnowledgeContextChars  = 800
+	aggressiveErrorPatternChars      = 700
+	aggressiveLearnedRulesChars      = 480
+	aggressiveReuseContextChars      = 700
+)
+
+type promptMemoryEntry struct {
+	docID string
+	text  string
+}
+
+func buildAggressiveRAGPromptEntries(served []rankedMemory, wantsDeepDetails bool, getFull func(string) (string, error)) []promptMemoryEntry {
+	if len(served) == 0 {
+		return nil
+	}
+	top := served[0]
+	if wantsDeepDetails && getFull != nil && top.docID != "" {
+		if full, err := getFull(top.docID); err == nil && full != "" && shouldServeRAGMemory(full) {
+			return []promptMemoryEntry{{
+				docID: top.docID,
+				text:  "[Detailed Memory]\n" + compactMemoryForPrompt(full, aggressiveDetailedRAGMemoryChars),
+			}}
+		}
+	}
+	return []promptMemoryEntry{{
+		docID: top.docID,
+		text:  compactMemoryForPrompt(top.text, aggressiveAutoRAGMemoryChars),
+	}}
+}
+
+func applyAggressivePromptContextBudgets(flags *prompts.ContextFlags) {
+	if flags == nil {
+		return
+	}
+	flags.RetrievedMemories = compactMemoryForPrompt(flags.RetrievedMemories, aggressiveRetrievedMemoriesChars)
+	flags.PredictedMemories = compactMemoryForPrompt(flags.PredictedMemories, aggressivePredictedMemoriesChars)
+	flags.RecentActivityOverview = compactMemoryForPrompt(flags.RecentActivityOverview, aggressiveRecentOverviewChars)
+	flags.KnowledgeContext = compactMemoryForPrompt(flags.KnowledgeContext, aggressiveKnowledgeContextChars)
+	flags.ErrorPatternContext = compactMemoryForPrompt(flags.ErrorPatternContext, aggressiveErrorPatternChars)
+	flags.LearnedRulesContext = compactMemoryForPrompt(flags.LearnedRulesContext, aggressiveLearnedRulesChars)
+	flags.ReuseContext = compactMemoryForPrompt(flags.ReuseContext, aggressiveReuseContextChars)
+}
+
+func shouldInjectSpecialistAwareness(userText, suggestion string) bool {
+	text := normalizeAdaptiveIntentText(userText + " " + suggestion)
+	if text == "" {
+		return false
+	}
+	cues := []string{
+		"co agent", "coagent", "co agents", "specialist", "specialists",
+		"spezialist", "spezialisten", "delegier", "delegat", "parallel",
+		"subagent", "researcher", "reviewer", "security expert",
+		"expert agent", "worker agent",
+	}
+	for _, cue := range cues {
+		if strings.Contains(text, cue) {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldExposeRuntimePaths(userText string, recentTools []string, sessionUsed map[string]bool) bool {
+	text := normalizeAdaptiveIntentText(userText)
+	cues := []string{
+		"skill", "skills", "agent skill", "skill md", "agentskills",
+		"create skill", "python skill", "custom tool", "create tool",
+		"save tool", "run tool", "tool erstellen", "werkzeug erstellen",
+		"skript", "script", "tool bridge",
+	}
+	for _, cue := range cues {
+		if strings.Contains(text, cue) {
+			return true
+		}
+	}
+	for _, name := range recentTools {
+		if isRuntimePathTool(name) {
+			return true
+		}
+	}
+	for name := range sessionUsed {
+		if isRuntimePathTool(name) {
+			return true
+		}
+	}
+	return false
+}
+
+func isRuntimePathTool(name string) bool {
+	switch strings.TrimSpace(name) {
+	case "execute_skill", "run_tool", "create_skill_from_template", "save_tool",
+		"list_skills", "list_agent_skills", "activate_agent_skill", "run_agent_skill_script",
+		"execute_python", "file_editor":
+		return true
+	default:
+		return false
+	}
+}
+
 func sanitizeMemoryForPrompt(text string) string {
 	text = strings.TrimSpace(text)
 	for i := 0; i < 2; i++ {

@@ -77,10 +77,10 @@ agent:
     allow_web_scraper: false
     # ── Adaptive tool filtering (reduces token usage for tool schemas) ──
     adaptive_tools:
-        enabled: false                                              # enable adaptive filtering
-        max_tools: 16                                               # max adaptive/preferred tool schemas; hard-required and soft always-include tools are added on top (0 = unlimited, default: 16)
-        max_total_tools: 32                                         # max final native schemas after hard-required tools are kept (0 = unlimited, default: 32)
-        max_schema_tokens: 0                                        # optional schema token cap for adaptive tools (0 = no extra cap)
+        enabled: true                                               # enable adaptive filtering / progressive discovery (default: true)
+        max_tools: 10                                               # max adaptive/preferred tool schemas; hard-required and soft always-include tools are added on top (0 = unlimited, default: 10)
+        max_total_tools: 20                                         # max final native schemas after hard-required tools are kept (0 = unlimited, default: 20)
+        max_schema_tokens: 6500                                     # optional schema token cap for adaptive tools (0 = no extra cap; default: 6500)
         provider_profiles_enabled: true                             # apply provider-specific tool caps and response-header timeout defaults
         session_tool_retention_turns: 8                              # keep tools used in recent turns visible as soft always-include tools
         decay_half_life_days: 7                                     # usage score halves after this many days
@@ -112,7 +112,7 @@ agent:
         min_steps: 3                                                # minimum number of distinct tool steps required before materialising (default: 3)
         max_artifacts_per_session: 1                                # cap on auto-created cheatsheets+skills per session (default: 1 each)
     # ── Tool guide injection ──
-    max_tool_guides: 5                                              # max tool guide documents injected into prompt (default: 5)
+    max_tool_guides: 3                                              # max tool guide documents injected into prompt (default: 3)
     budget:
         daily_limit_usd: 5
         default_cost:
