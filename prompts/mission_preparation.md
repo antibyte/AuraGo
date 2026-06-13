@@ -63,6 +63,8 @@ Respond with a JSON object (no markdown, no explanation outside the JSON). The s
 - **If no suitable tool exists** for a step, set the tool field to "" and set confidence ≤ 0.3 with a note explaining what tool is missing.
 - **step_plan.actions** must be imperative commands ("List all containers", "Send email to X"), NOT descriptions ("This mission requires the agent to...").
 - **summary** must be brief and action-oriented (max 2 sentences), NOT a narrative description of the mission.
+- Do NOT invent provider endpoints, hostnames, ports, models, credentials, container names, file paths, or operational constraints. Mention specific values only when they are present in the Mission Prompt, Cheatsheet Content, or Available Tools.
+- The Mission Prompt is the source of truth. Your plan may organize it, but must not add new requirements or override explicit user instructions.
 - Maximum {{.MaxEssentialTools}} tools in essential_tools, ordered by execution sequence.
 - **estimated_steps**: Realistic count of agent turns (tool calls).
 - **confidence**: 0.0–1.0. Lower if the mission is vague or needs tools not in the available list.

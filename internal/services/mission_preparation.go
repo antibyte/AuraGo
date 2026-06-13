@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -375,25 +374,7 @@ func (s *MissionPreparationService) GetPreparedContext(missionID string) *tools.
 
 // computeChecksum returns a SHA256 hex digest of the mission prompt + cheatsheet IDs.
 func (s *MissionPreparationService) computeChecksum(mission *tools.MissionV2) string {
-	h := sha256.New()
-	h.Write([]byte(tools.StripMissionExecutionPlanAdvisory(mission.Prompt)))
-	cheatsheetDB := s.missionMgr.GetCheatsheetDB()
-	for _, id := range mission.CheatsheetIDs {
-		if cheatsheetDB != nil {
-			if cs, err := tools.CheatsheetGet(cheatsheetDB, id); err == nil && cs != nil {
-				h.Write([]byte(cs.ID))
-				h.Write([]byte(cs.Name))
-				h.Write([]byte(cs.Content))
-				for _, a := range cs.Attachments {
-					h.Write([]byte(a.Filename))
-					h.Write([]byte(a.Content))
-				}
-				continue
-			}
-		}
-		h.Write([]byte(id))
-	}
-	return fmt.Sprintf("%x", h.Sum(nil))
+	return tools.MissionPreparationSourceChecksum(mission, s.missionMgr.GetCheatsheetDB())
 }
 
 // buildSystemPrompt returns the system prompt with template values filled in.

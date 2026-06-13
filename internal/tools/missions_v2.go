@@ -742,6 +742,12 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 	missionID := mission.ID
 	missionName := mission.Name
 	cheatsheetIDs := mission.CheatsheetIDs
+	missionAutoPrepare := mission.AutoPrepare
+	missionForPreparation := &MissionV2{
+		ID:            mission.ID,
+		Prompt:        prompt,
+		CheatsheetIDs: append([]string(nil), mission.CheatsheetIDs...),
+	}
 	cheatsheetDB := m.cheatsheetDB
 	preparedDB := m.preparedDB
 	historyDB := m.historyDB
@@ -788,9 +794,14 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 	}
 
 	// Enhance prompt with prepared context (advisory)
-	if preparedDB != nil {
+	if preparedDB != nil && missionAutoPrepare {
 		if pm, err := GetPreparedMission(preparedDB, missionID); err == nil && pm != nil {
-			if advisory := pm.RenderPreparedContext(); advisory != "" {
+			expectedChecksum := MissionPreparationSourceChecksum(missionForPreparation, cheatsheetDB)
+			if pm.SourceChecksum != expectedChecksum {
+				if err := InvalidatePreparedMission(preparedDB, missionID); err != nil {
+					slog.Warn("[MissionV2] Failed to invalidate stale prepared mission context", "mission_id", missionID, "error", err)
+				}
+			} else if advisory := pm.RenderPreparedContext(); advisory != "" {
 				prompt += advisory
 			}
 		}

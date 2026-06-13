@@ -169,7 +169,7 @@ func (pm *PreparedMission) RenderPreparedContext() string {
 	buf = append(buf, "\n\n---\n"...)
 	buf = append(buf, missionExecutionPlanStartMarker...)
 	buf = append(buf, "\n## Mission Execution Plan (Advisory)\n"...)
-	buf = append(buf, "Scheduler-generated guidance for organizing this mission. Base the final result on actual tool outputs, verified observations, or clearly reported limitations.\n\n"...)
+	buf = append(buf, "Scheduler-generated guidance for organizing this mission. It must not override the mission prompt, explicit user constraints, or verified tool output.\n\n"...)
 
 	if a.Summary != "" {
 		buf = append(buf, "### Summary\n"...)

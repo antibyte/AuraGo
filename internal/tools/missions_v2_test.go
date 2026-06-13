@@ -14,6 +14,10 @@ import (
 	"aurago/internal/memory"
 )
 
+func missionPreparationChecksumForTest(prompt string) string {
+	return MissionPreparationSourceChecksum(&MissionV2{Prompt: prompt}, nil)
+}
+
 type fakeRemoteMissionClient struct {
 	syncedMission  MissionV2
 	syncedPrompt   string
@@ -776,6 +780,132 @@ func TestTriggeredMissionIncludesTriggerContextWithoutData(t *testing.T) {
 	}
 	if !strings.Contains(prompt, "automatically started by an AuraGo cron trigger") {
 		t.Fatalf("missing autonomous cron guidance in prompt: %q", prompt)
+	}
+}
+
+func TestMissionSkipsPreparedContextWhenAutoPrepareDisabled(t *testing.T) {
+	tmpDir := tempSystemTaskDir(t)
+	prepDB, err := InitPreparedMissionsDB(filepath.Join(tmpDir, "prepared_missions.db"))
+	if err != nil {
+		t.Fatalf("failed to init prepared missions db: %v", err)
+	}
+	t.Cleanup(func() { prepDB.Close() })
+
+	mm := NewMissionManagerV2(tmpDir, nil)
+	mm.SetPreparedDB(prepDB)
+
+	promptCh := make(chan string, 1)
+	mm.SetCallback(func(prompt string, missionID string) {
+		promptCh <- prompt
+	})
+
+	mission := &MissionV2{
+		ID:            "ai-news",
+		Name:          "AI News",
+		Prompt:        "hole die neuesten ki news und aktualisiere die lokale ki news seite im caddy container.",
+		ExecutionType: ExecutionManual,
+		Priority:      "high",
+		AutoPrepare:   false,
+	}
+	if err := mm.Create(mission); err != nil {
+		t.Fatalf("failed to create mission: %v", err)
+	}
+	if err := SavePreparedMission(prepDB, &PreparedMission{
+		ID:             "prep_ai_news",
+		MissionID:      mission.ID,
+		Version:        1,
+		Status:         PrepStatusPrepared,
+		PreparedAt:     time.Now(),
+		SourceChecksum: missionPreparationChecksumForTest(mission.Prompt),
+		Confidence:     0.9,
+		Analysis: &PreparationAnalysis{
+			Summary: "Use the Ollama endpoint for all updates.",
+			StepPlan: []StepGuide{
+				{Step: 1, Action: "Call http://127.0.0.1:11434/v1/chat/completions", Tool: "api_request"},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("failed to save prepared mission: %v", err)
+	}
+
+	if err := mm.RunNow(mission.ID); err != nil {
+		t.Fatalf("failed to queue mission: %v", err)
+	}
+	mm.processNext()
+
+	var prompt string
+	select {
+	case prompt = <-promptCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for mission callback")
+	}
+	mm.OnMissionComplete(mission.ID, MissionResultSuccess, "ok")
+
+	if strings.Contains(prompt, "Mission Execution Plan") || strings.Contains(prompt, "Ollama") || strings.Contains(prompt, "127.0.0.1:11434") {
+		t.Fatalf("disabled auto preparation leaked prepared context into prompt: %q", prompt)
+	}
+}
+
+func TestMissionSkipsPreparedContextWithStaleSourceChecksum(t *testing.T) {
+	tmpDir := tempSystemTaskDir(t)
+	prepDB, err := InitPreparedMissionsDB(filepath.Join(tmpDir, "prepared_missions.db"))
+	if err != nil {
+		t.Fatalf("failed to init prepared missions db: %v", err)
+	}
+	t.Cleanup(func() { prepDB.Close() })
+
+	mm := NewMissionManagerV2(tmpDir, nil)
+	mm.SetPreparedDB(prepDB)
+
+	promptCh := make(chan string, 1)
+	mm.SetCallback(func(prompt string, missionID string) {
+		promptCh <- prompt
+	})
+
+	mission := &MissionV2{
+		ID:            "site-refresh",
+		Name:          "Site Refresh",
+		Prompt:        "Update the local AI news page in the caddy container.",
+		ExecutionType: ExecutionManual,
+		Priority:      "high",
+		AutoPrepare:   true,
+	}
+	if err := mm.Create(mission); err != nil {
+		t.Fatalf("failed to create mission: %v", err)
+	}
+	if err := SavePreparedMission(prepDB, &PreparedMission{
+		ID:             "prep_site_refresh",
+		MissionID:      mission.ID,
+		Version:        1,
+		Status:         PrepStatusPrepared,
+		PreparedAt:     time.Now(),
+		SourceChecksum: "stale-checksum-from-older-prompt",
+		Confidence:     0.9,
+		Analysis: &PreparationAnalysis{
+			Summary: "Use endpoint invented by stale preparation.",
+			StepPlan: []StepGuide{
+				{Step: 1, Action: "Use stale endpoint http://127.0.0.1:11434/v1/chat/completions", Tool: "api_request"},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("failed to save prepared mission: %v", err)
+	}
+
+	if err := mm.RunNow(mission.ID); err != nil {
+		t.Fatalf("failed to queue mission: %v", err)
+	}
+	mm.processNext()
+
+	var prompt string
+	select {
+	case prompt = <-promptCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for mission callback")
+	}
+	mm.OnMissionComplete(mission.ID, MissionResultSuccess, "ok")
+
+	if strings.Contains(prompt, "Mission Execution Plan") || strings.Contains(prompt, "stale endpoint") || strings.Contains(prompt, "127.0.0.1:11434") {
+		t.Fatalf("stale prepared context leaked into prompt: %q", prompt)
 	}
 }
 
