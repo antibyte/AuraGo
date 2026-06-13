@@ -174,6 +174,68 @@ func TestDispatchMessagingSendYouTubeVideoHonorsDisabledConfig(t *testing.T) {
 	}
 }
 
+func TestDispatchMessagingBlocksGenericAttachmentImageInAgoDeskChat(t *testing.T) {
+	workspaceDir := t.TempDir()
+	genericImage := filepath.Join(workspaceDir, "attachments", "old_punk.jpg")
+	if err := os.MkdirAll(filepath.Dir(genericImage), 0o755); err != nil {
+		t.Fatalf("mkdir generic attachment dir: %v", err)
+	}
+	if err := os.WriteFile(genericImage, []byte("fake image"), 0o644); err != nil {
+		t.Fatalf("write generic attachment: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = workspaceDir
+	out, ok := dispatchMessagingCases(context.Background(), ToolCall{
+		Action: "send_image",
+		Params: map[string]interface{}{
+			"path":    "attachments/old_punk.jpg",
+			"caption": "wrong icon",
+		},
+	}, &DispatchContext{
+		Cfg:           cfg,
+		Logger:        slog.New(slog.NewTextHandler(io.Discard, nil)),
+		MessageSource: "agodesk_chat",
+	})
+	if !ok {
+		t.Fatal("expected dispatchMessagingCases to handle send_image")
+	}
+	if !strings.Contains(out, `"status":"error"`) || !strings.Contains(out, "agodesk") {
+		t.Fatalf("expected agodesk generic attachment guard error, got %s", out)
+	}
+}
+
+func TestDispatchMessagingAllowsAgoDeskAttachmentImageInAgoDeskChat(t *testing.T) {
+	workspaceDir := t.TempDir()
+	uploadedImage := filepath.Join(workspaceDir, "attachments", "agodesk", "sess-1", "att-1", "maja.jpg")
+	if err := os.MkdirAll(filepath.Dir(uploadedImage), 0o755); err != nil {
+		t.Fatalf("mkdir agodesk attachment dir: %v", err)
+	}
+	if err := os.WriteFile(uploadedImage, []byte("fake image"), 0o644); err != nil {
+		t.Fatalf("write agodesk attachment: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = workspaceDir
+	out, ok := dispatchMessagingCases(context.Background(), ToolCall{
+		Action: "send_image",
+		Params: map[string]interface{}{
+			"path":    "attachments/agodesk/sess-1/att-1/maja.jpg",
+			"caption": "maja",
+		},
+	}, &DispatchContext{
+		Cfg:           cfg,
+		Logger:        slog.New(slog.NewTextHandler(io.Discard, nil)),
+		MessageSource: "agodesk_chat",
+	})
+	if !ok {
+		t.Fatal("expected dispatchMessagingCases to handle send_image")
+	}
+	if !strings.Contains(out, `"status":"success"`) {
+		t.Fatalf("expected agodesk attachment send to succeed, got %s", out)
+	}
+}
+
 func TestFilterExecuteSkillArgsUsesManifestParameters(t *testing.T) {
 	skillsDir := t.TempDir()
 	manifest := `{

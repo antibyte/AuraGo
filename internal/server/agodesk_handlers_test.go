@@ -2376,6 +2376,7 @@ func TestAgodeskFileAccessSessionStateFeedsAgentContext(t *testing.T) {
 		`permissions="read,write"`,
 		`remote_control file_search`,
 		`grep_recursive`,
+		`Ignore generic files directly under agent_workspace/workdir/attachments/ unless they are listed inside <agodesk_attachments>`,
 	} {
 		if !strings.Contains(contextText, want) {
 			t.Fatalf("agent context missing %q in:\n%s", want, contextText)
