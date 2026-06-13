@@ -32,7 +32,7 @@ async function renderSecurityProxySection(section) {
         <div id="proxy-status-info" class="sp-status-info">
             ${t('config.security_proxy.status_loading')}
         </div>
-        <div class="cfg-field-row">
+        <div class="cfg-actions-row">
             <button class="btn btn-sm btn-primary" onclick="_proxyAction('start')" title="${t('config.security_proxy.btn_start')}">▶ ${t('config.security_proxy.btn_start')}</button>
             <button class="btn btn-sm btn-warning" onclick="_proxyAction('stop')" title="${t('config.security_proxy.btn_stop')}">⏹ ${t('config.security_proxy.btn_stop')}</button>
             <button class="btn btn-sm btn-secondary" onclick="_proxyAction('reload')" title="${t('config.security_proxy.btn_reload')}">🔄 ${t('config.security_proxy.btn_reload')}</button>
@@ -45,27 +45,23 @@ async function renderSecurityProxySection(section) {
         <div class="field-group-title">${t('config.security_proxy.tls_title')}</div>
         <div class="field-group-desc">${t('config.security_proxy.tls_desc')}</div>`;
 
-    html += `<label class="sp-label">
-        <span class="cfg-label">${t('config.security_proxy.domain_label')}</span>
-        <input type="text" class="cfg-input cfg-input-full" data-path="security_proxy.domain" value="${escapeAttr(cfg.domain || '')}"
-            placeholder="aurago.example.com">
-    </label>`;
-
-    html += `<label class="sp-label">
-        <span class="cfg-label">${t('config.security_proxy.email_label')}</span>
-        <input type="email" class="cfg-input cfg-input-full" data-path="security_proxy.email" value="${escapeAttr(cfg.email || '')}"
-            placeholder="admin@example.com">
-    </label>`;
-
-    html += `<div class="sp-port-row">
-        <label>
-            <span class="cfg-label">${t('config.security_proxy.https_port_label')}</span>
-            <input type="number" class="cfg-input cfg-input-full" data-path="security_proxy.https_port" value="${cfg.https_port || 443}" min="1" max="65535">
-        </label>
-        <label>
-            <span class="cfg-label">${t('config.security_proxy.http_port_label')}</span>
-            <input type="number" class="cfg-input cfg-input-full" data-path="security_proxy.http_port" value="${cfg.http_port || 80}" min="1" max="65535">
-        </label>
+    html += `<div class="field-grid two-cols">
+        <div class="field-group">
+            <div class="field-label">${t('config.security_proxy.domain_label')}</div>
+            <input type="text" class="field-input" data-path="security_proxy.domain" value="${escapeAttr(cfg.domain || '')}" placeholder="aurago.example.com">
+        </div>
+        <div class="field-group">
+            <div class="field-label">${t('config.security_proxy.email_label')}</div>
+            <input type="email" class="field-input" data-path="security_proxy.email" value="${escapeAttr(cfg.email || '')}" placeholder="admin@example.com">
+        </div>
+        <div class="field-group">
+            <div class="field-label">${t('config.security_proxy.https_port_label')}</div>
+            <input type="number" class="field-input" data-path="security_proxy.https_port" value="${cfg.https_port || 443}" min="1" max="65535">
+        </div>
+        <div class="field-group">
+            <div class="field-label">${t('config.security_proxy.http_port_label')}</div>
+            <input type="number" class="field-input" data-path="security_proxy.http_port" value="${cfg.http_port || 80}" min="1" max="65535">
+        </div>
     </div>`;
     html += `</div>`;
 
@@ -79,15 +75,15 @@ async function renderSecurityProxySection(section) {
         <div class="toggle ${rl.enabled ? 'on' : ''}" data-path="security_proxy.rate_limiting.enabled" onclick="toggleBool(this)"></div>
     </div>`;
 
-    html += `<div class="sp-port-row">
-        <label>
-            <span class="cfg-label">${t('config.security_proxy.rps_label')}</span>
-            <input type="number" class="cfg-input cfg-input-full" data-path="security_proxy.rate_limiting.requests_per_second" value="${rl.requests_per_second || 10}" min="1" max="10000">
-        </label>
-        <label>
-            <span class="cfg-label">${t('config.security_proxy.burst_label')}</span>
-            <input type="number" class="cfg-input cfg-input-full" data-path="security_proxy.rate_limiting.burst" value="${rl.burst || 50}" min="1" max="50000">
-        </label>
+    html += `<div class="field-grid two-cols">
+        <div class="field-group">
+            <div class="field-label">${t('config.security_proxy.rps_label')}</div>
+            <input type="number" class="field-input" data-path="security_proxy.rate_limiting.requests_per_second" value="${rl.requests_per_second || 10}" min="1" max="10000">
+        </div>
+        <div class="field-group">
+            <div class="field-label">${t('config.security_proxy.burst_label')}</div>
+            <input type="number" class="field-input" data-path="security_proxy.rate_limiting.burst" value="${rl.burst || 50}" min="1" max="50000">
+        </div>
     </div>`;
     html += `</div>`;
 
@@ -101,20 +97,20 @@ async function renderSecurityProxySection(section) {
         <div class="toggle ${ipf.enabled ? 'on' : ''}" data-path="security_proxy.ip_filter.enabled" onclick="toggleBool(this)"></div>
     </div>`;
 
-    html += `<label class="sp-label">
-        <span class="cfg-label">${t('config.security_proxy.ip_filter_mode_label')}</span>
-        <select class="cfg-input cfg-input-full" data-path="security_proxy.ip_filter.mode">
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.security_proxy.ip_filter_mode_label')}</div>
+        <select class="field-select" data-path="security_proxy.ip_filter.mode">
             <option value="blocklist" ${(ipf.mode||'blocklist')==='blocklist'?'selected':''}>${t('config.security_proxy.ip_filter_mode_blocklist')}</option>
             <option value="allowlist" ${ipf.mode==='allowlist'?'selected':''}>${t('config.security_proxy.ip_filter_mode_allowlist')}</option>
         </select>
-    </label>`;
+    </div>`;
 
     const curAddresses = (ipf.addresses || []).join('\n');
-    html += `<label class="sp-label">
-        <span class="cfg-label">${t('config.security_proxy.ip_filter_addresses_label')} <small style="color:var(--text-tertiary);">(${t('config.security_proxy.ip_filter_addresses_hint')})</small></span>
-        <textarea class="cfg-input cfg-input-full" data-path="security_proxy.ip_filter.addresses" data-type="array-lines" rows="3"
-            style="font-family:monospace;font-size:0.8rem;">${escapeHtml(curAddresses)}</textarea>
-    </label>`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.security_proxy.ip_filter_addresses_label')}</div>
+        <div class="field-help">${t('config.security_proxy.ip_filter_addresses_hint')}</div>
+        <textarea class="field-input sp-addresses-input" data-path="security_proxy.ip_filter.addresses" data-type="array-lines" rows="3">${escapeHtml(curAddresses)}</textarea>
+    </div>`;
     html += `</div>`;
 
     const ba = cfg.basic_auth || {};
@@ -158,11 +154,11 @@ async function renderSecurityProxySection(section) {
 
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.security_proxy.docker_title')}</div>
-        <label class="sp-label">
-            <span class="cfg-label">${t('config.security_proxy.docker_host_label')} <small style="color:var(--text-tertiary);">(${t('config.security_proxy.docker_host_hint')})</small></span>
-            <input type="text" class="cfg-input cfg-input-full" data-path="security_proxy.docker_host" value="${escapeAttr(cfg.docker_host || '')}"
-                placeholder="unix:///var/run/docker.sock">
-        </label>
+        <div class="field-group">
+            <div class="field-label">${t('config.security_proxy.docker_host_label')}</div>
+            <div class="field-help">${t('config.security_proxy.docker_host_hint')}</div>
+            <input type="text" class="field-input" data-path="security_proxy.docker_host" value="${escapeAttr(cfg.docker_host || '')}" placeholder="unix:///var/run/docker.sock">
+        </div>
     </div>`;
 
     html += `<div id="proxy-logs-area" class="is-hidden">
@@ -181,11 +177,11 @@ async function renderSecurityProxySection(section) {
 
 function _renderRouteRow(route, index) {
     return `<div class="sp-route-row" data-index="${index}">
-        <input type="text" class="cfg-input sp-route-input-1" placeholder="${t('config.security_proxy.route_name')}" value="${escapeAttr(route.name || '')}"
+        <input type="text" class="field-input sp-route-input-1" placeholder="${t('config.security_proxy.route_name')}" value="${escapeAttr(route.name || '')}"
             onchange="_updateProxyRoute(${index},'name',this.value)">
-        <input type="text" class="cfg-input sp-route-input-2" placeholder="${t('config.security_proxy.route_domain')}" value="${escapeAttr(route.domain || '')}"
+        <input type="text" class="field-input sp-route-input-2" placeholder="${t('config.security_proxy.route_domain')}" value="${escapeAttr(route.domain || '')}"
             onchange="_updateProxyRoute(${index},'domain',this.value)">
-        <input type="text" class="cfg-input sp-route-input-2" placeholder="${t('config.security_proxy.route_upstream')}" value="${escapeAttr(route.upstream || '')}"
+        <input type="text" class="field-input sp-route-input-2" placeholder="${t('config.security_proxy.route_upstream')}" value="${escapeAttr(route.upstream || '')}"
             onchange="_updateProxyRoute(${index},'upstream',this.value)">
         <button class="btn btn-sm btn-danger" onclick="_removeProxyRoute(${index})" title="Remove">✕</button>
     </div>`;

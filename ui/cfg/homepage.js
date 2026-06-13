@@ -2,11 +2,8 @@
 
 function hpSetStatusState(el, state, text) {
     if (!el) return;
-    el.classList.remove('is-success', 'is-error', 'is-warning', 'is-muted');
-    if (state === 'success') el.classList.add('is-success');
-    if (state === 'error') el.classList.add('is-error');
-    if (state === 'warning') el.classList.add('is-warning');
-    if (state === 'muted') el.classList.add('is-muted');
+    const cls = state === 'success' ? 'is-success' : (state === 'error' ? 'is-danger' : (state === 'warning' ? 'is-warning' : ''));
+    el.className = 'adg-test-result' + (cls ? ' ' + cls : '');
     el.textContent = text || '';
 }
 
@@ -199,83 +196,75 @@ async function renderHomepageSection(section) {
             <div class="field-group-title">🚀 ${t('config.homepage.deploy_title')}</div>
             <div class="field-group-desc">${t('config.homepage.deploy_desc')}</div>`;
 
-        html += `<div class="hp-grid-two hp-grid-wide">`;
+        html += `<div class="field-grid two-cols">`;
 
-        html += `<label class="hp-label-block">
-            <span class="hp-input-label">${t('config.homepage.deploy_host')}</span>
-            <input class="cfg-input hp-input-top" data-path="homepage.deploy_host" value="${escapeAttr(cfg.deploy_host || '')}" placeholder="webserver.example.com"
-                onchange="setNestedValue(configData,'homepage.deploy_host',this.value);setDirty(true)">
-        </label>`;
+        html += `<div class="field-group">
+            <div class="field-label">${t('config.homepage.deploy_host')}</div>
+            <input class="field-input" data-path="homepage.deploy_host" value="${escapeAttr(cfg.deploy_host || '')}" placeholder="webserver.example.com">
+        </div>`;
 
-        html += `<label class="hp-label-block">
-            <span class="hp-input-label">${t('config.homepage.deploy_port')}</span>
-            <input type="number" class="cfg-input hp-input-top" data-path="homepage.deploy_port" value="${cfg.deploy_port || 22}" min="1" max="65535"
-                onchange="setNestedValue(configData,'homepage.deploy_port',parseInt(this.value)||22);setDirty(true)">
-        </label>`;
+        html += `<div class="field-group">
+            <div class="field-label">${t('config.homepage.deploy_port')}</div>
+            <input type="number" class="field-input" data-path="homepage.deploy_port" value="${cfg.deploy_port || 22}" min="1" max="65535">
+        </div>`;
 
-        html += `<label class="hp-label-block">
-            <span class="hp-input-label">${t('config.homepage.deploy_user')}</span>
-            <input class="cfg-input hp-input-top" data-path="homepage.deploy_user" value="${escapeAttr(cfg.deploy_user || '')}" placeholder="deploy"
-                onchange="setNestedValue(configData,'homepage.deploy_user',this.value);setDirty(true)">
-        </label>`;
+        html += `<div class="field-group">
+            <div class="field-label">${t('config.homepage.deploy_user')}</div>
+            <input class="field-input" data-path="homepage.deploy_user" value="${escapeAttr(cfg.deploy_user || '')}" placeholder="deploy">
+        </div>`;
 
-        html += `<label class="hp-label-block">
-            <span class="hp-input-label">${t('config.homepage.deploy_method')}</span>
-            <select class="cfg-input hp-input-top" data-path="homepage.deploy_method" onchange="setNestedValue(configData,'homepage.deploy_method',this.value);setDirty(true)">
+        html += `<div class="field-group">
+            <div class="field-label">${t('config.homepage.deploy_method')}</div>
+            <select class="field-select" data-path="homepage.deploy_method">
                 <option value="sftp" ${(cfg.deploy_method || 'sftp') === 'sftp' ? 'selected' : ''}>${t('config.homepage.deploy_method_sftp')}</option>
                 <option value="scp" ${cfg.deploy_method === 'scp' ? 'selected' : ''}>${t('config.homepage.deploy_method_scp')}</option>
             </select>
-        </label>`;
+        </div>`;
+
+        html += `<div class="field-group">
+            <div class="field-label">${t('config.homepage.deploy_path')}</div>
+            <input class="field-input" data-path="homepage.deploy_path" value="${escapeAttr(cfg.deploy_path || '')}" placeholder="/var/www/html">
+        </div>`;
 
         html += `</div>`;
-        html += `<div class="hp-block-top">
-            <label class="hp-label-block">
-                <span class="hp-input-label">${t('config.homepage.deploy_path')}</span>
-                <input class="cfg-input hp-input-top" data-path="homepage.deploy_path" value="${escapeAttr(cfg.deploy_path || '')}" placeholder="/var/www/html"
-                    onchange="setNestedValue(configData,'homepage.deploy_path',this.value);setDirty(true)">
-            </label>
-        </div>`;
 
         html += `<div class="hp-credentials-box">`;
         html += `<div class="hp-credentials-title">🔑 ${t('config.homepage.credentials_title')}</div>`;
         html += `<div class="field-help hp-help-spaced">${t('config.homepage.credentials_desc')}</div>`;
 
-        html += `<div class="hp-grid-two hp-grid-wide">`;
+        html += `<div class="field-grid two-cols">`;
 
-        html += `<label class="hp-label-block">
-            <span class="hp-input-label">${t('config.homepage.deploy_password')}  <small class="hp-lock-icon">🔐 vault</small></span>
-            <div class="password-wrap hp-pw-wrap-mt">
-                <input class="field-input hp-w-full" type="password" id="hp-deploy-password" value="${escapeAttr(cfgSecretValue(cfg.deploy_password))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.deploy_password))}" autocomplete="off">
+        html += `<div class="field-group">
+            <div class="field-label">${t('config.homepage.deploy_password')} <small class="hp-lock-icon">🔐 vault</small></div>
+            <div class="password-wrap cfg-password-input">
+                <input class="field-input adg-password-input" type="password" id="hp-deploy-password" value="${escapeAttr(cfgSecretValue(cfg.deploy_password))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.deploy_password))}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
-        </label>`;
+        </div>`;
 
-        html += `<label class="hp-label-block">
-            <span class="hp-input-label">${t('config.homepage.deploy_key')}  <small class="hp-lock-icon">🔐 vault</small></span>
-            <div class="password-wrap hp-pw-wrap-mt">
-                <input class="field-input hp-w-full" type="password" id="hp-deploy-key" value="${escapeAttr(cfgSecretValue(cfg.deploy_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.deploy_key))}" autocomplete="off">
+        html += `<div class="field-group">
+            <div class="field-label">${t('config.homepage.deploy_key')} <small class="hp-lock-icon">🔐 vault</small></div>
+            <div class="password-wrap cfg-password-input">
+                <input class="field-input adg-password-input" type="password" id="hp-deploy-key" value="${escapeAttr(cfgSecretValue(cfg.deploy_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.deploy_key))}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
-        </label>`;
-
-        html += `</div>`;
-
-        html += `<div class="hp-credentials-actions">
-            <button class="btn-save hp-btn-small" onclick="hpSaveCredentials()">${t('config.homepage.save_credentials')}</button>
-            <span id="hp-cred-status" class="hp-cred-status hp-cred-status-inline is-muted"></span>
         </div>`;
 
         html += `</div>`;
 
-        html += `<div id="hp-test-block" class="hp-test-block">
-            <div class="hp-test-title">🔌 ${t('config.homepage.test_title')}</div>
-            <div class="hp-test-desc">${t('config.homepage.test_desc')}</div>
-            <div class="hp-test-row">
-                <button class="btn-save hp-btn-small" onclick="hpTestConnection()">${t('config.homepage.test_btn')}</button>
-                <span id="hp-test-spinner" class="hp-test-spinner is-hidden">⏳ ${t('config.homepage.connecting')}</span>
-            </div>
-            <div id="hp-test-result" class="hp-test-result is-hidden">
-                <div id="hp-test-msg" class="hp-test-msg"></div>
+        html += `<div class="cfg-actions-row">
+            <button class="btn-save adg-save-btn" onclick="hpSaveCredentials()">💾 ${t('config.homepage.save_credentials')}</button>
+            <span id="hp-cred-status" class="adg-test-result"></span>
+        </div>`;
+
+        html += `</div>`;
+
+        html += `<div class="field-group">
+            <div class="field-group-title">🔌 ${t('config.homepage.test_title')}</div>
+            <div class="field-group-desc">${t('config.homepage.test_desc')}</div>
+            <div class="cfg-actions-row">
+                <button class="btn-save adg-test-btn" id="hp-test-btn" onclick="hpTestConnection()">🔌 ${t('config.homepage.test_btn')}</button>
+                <span id="hp-test-result" class="adg-test-result"></span>
             </div>
         </div>`;
         html += `</div>`;
@@ -296,19 +285,18 @@ async function renderHomepageSection(section) {
             <div class="toggle ${cfg.webserver_internal_only ? 'on' : ''}" data-path="homepage.webserver_internal_only" onclick="toggleBool(this)"></div>
         </div>`;
 
-        html += `<div class="hp-grid-2col">`;
+        html += `<div class="field-grid two-cols">`;
 
-        html += `<label class="hp-label-block">
-            <span class="hp-input-label">${t('config.homepage.webserver_port')}</span>
-            <input type="number" class="cfg-input hp-input-top" data-path="homepage.webserver_port" value="${cfg.webserver_port || 8080}" min="1" max="65535"
-                onchange="setNestedValue(configData,'homepage.webserver_port',parseInt(this.value)||8080);setDirty(true)">
-        </label>`;
+        html += `<div class="field-group">
+            <div class="field-label">${t('config.homepage.webserver_port')}</div>
+            <input type="number" class="field-input" data-path="homepage.webserver_port" value="${cfg.webserver_port || 8080}" min="1" max="65535">
+        </div>`;
 
-        html += `<label class="hp-label-block">
-            <span class="hp-input-label">${t('config.homepage.webserver_domain')} <small class="hp-text-tertiary">(${t('config.homepage.optional')})</small></span>
-            <input class="cfg-input hp-input-top" data-path="homepage.webserver_domain" value="${escapeAttr(cfg.webserver_domain || '')}" placeholder="mysite.example.com"
-                onchange="setNestedValue(configData,'homepage.webserver_domain',this.value);setDirty(true)">
-        </label>`;
+        html += `<div class="field-group">
+            <div class="field-label">${t('config.homepage.webserver_domain')}</div>
+            <div class="field-help">${t('config.homepage.optional')}</div>
+            <input class="field-input" data-path="homepage.webserver_domain" value="${escapeAttr(cfg.webserver_domain || '')}" placeholder="mysite.example.com">
+        </div>`;
 
         html += `</div>`;
         html += `</div>`;
@@ -326,16 +314,15 @@ async function renderHomepageSection(section) {
             </div>`;
         }
 
-        html += `<label class="hp-label-mt">
-            <span class="hp-input-label">${t('config.homepage.workspace_path')}</span>
-            <div class="hp-flex-row">
-                <input id="hp-workspace-path-input" class="cfg-input hp-input-flex" data-path="homepage.workspace_path" value="${escapeAttr(cfg.workspace_path || '')}" placeholder="/home/aurago/aurago/agent_workspace/homepage"
-                    onchange="setNestedValue(configData,'homepage.workspace_path',this.value);setDirty(true)">
-                <button class="btn btn-secondary btn-sm hp-btn-nowrap" onclick="hpAutoDetectWorkspace()" title="${t('config.homepage.workspace_autodetect_title')}">
+        html += `<div class="field-group">
+            <div class="field-label">${t('config.homepage.workspace_path')}</div>
+            <div class="cfg-actions-row">
+                <input id="hp-workspace-path-input" class="field-input" data-path="homepage.workspace_path" value="${escapeAttr(cfg.workspace_path || '')}" placeholder="/home/aurago/aurago/agent_workspace/homepage">
+                <button class="btn-save btn-secondary" onclick="hpAutoDetectWorkspace()" title="${t('config.homepage.workspace_autodetect_title')}">
                     🔍 ${t('config.homepage.workspace_autodetect_btn')}
                 </button>
             </div>
-        </label>`;
+        </div>`;
         html += `<div class="field-help hp-help-mt-sm">${t('config.homepage.workspace_relative_hint')}</div>`;
         html += `</div>`;
     }
@@ -345,11 +332,10 @@ async function renderHomepageSection(section) {
             <div class="field-group-title">⚡ ${t('config.homepage.circuit_breaker_title')}</div>
             <div class="field-group-desc">${t('config.homepage.circuit_breaker_desc')}</div>`;
 
-        html += `<label class="hp-label-sm">
-            <span class="hp-input-label">${t('config.homepage.circuit_breaker_max_calls')}</span>
-            <input type="number" class="cfg-input hp-input-top" data-path="homepage.circuit_breaker_max_calls" value="${cfg.circuit_breaker_max_calls || 35}" min="1" max="100"
-                onchange="setNestedValue(configData,'homepage.circuit_breaker_max_calls',parseInt(this.value)||35);setDirty(true)">
-        </label>`;
+        html += `<div class="field-group">
+            <div class="field-label">${t('config.homepage.circuit_breaker_max_calls')}</div>
+            <input type="number" class="field-input" data-path="homepage.circuit_breaker_max_calls" value="${cfg.circuit_breaker_max_calls || 35}" min="1" max="100">
+        </div>`;
 
         html += `<div class="cfg-toggle-row-compact hp-toggle-mt">
             <span class="cfg-toggle-label">${t('config.homepage.allow_temporary_token_budget_overflow')}</span>
@@ -452,19 +438,20 @@ async function hpAutoDetectWorkspace() {
 }
 
 async function hpTestConnection() {
-    const spinner = document.getElementById('hp-test-spinner');
-    const resultDiv = document.getElementById('hp-test-result');
-    const msgDiv = document.getElementById('hp-test-msg');
-    if (!spinner) return;
-
-    setHidden(spinner, false);
-    setHidden(resultDiv, true);
+    const btn = document.getElementById('hp-test-btn');
+    const result = document.getElementById('hp-test-result');
 
     const getField = (path) => {
         const el = document.querySelector('[data-path="' + path + '"]');
         if (!el) return '';
         return el.value.trim();
     };
+
+    if (btn) btn.disabled = true;
+    if (result) {
+        result.className = 'adg-test-result';
+        result.textContent = t('config.homepage.connecting');
+    }
 
     const body = {
         host: getField('homepage.deploy_host'),
@@ -481,23 +468,20 @@ async function hpTestConnection() {
             body: JSON.stringify(body)
         });
         const json = await resp.json();
-
-        setHidden(resultDiv, false);
+        if (!result) return;
         if (json.status === 'ok') {
-            msgDiv.classList.remove('is-error');
-            msgDiv.classList.add('is-success');
-            msgDiv.textContent = '✅ ' + (json.message || t('config.homepage.test_success'));
+            result.className = 'adg-test-result is-success';
+            result.textContent = json.message || t('config.homepage.test_success');
         } else {
-            msgDiv.classList.remove('is-success');
-            msgDiv.classList.add('is-error');
-            msgDiv.textContent = '❌ ' + (json.message || t('config.homepage.test_failed'));
+            result.className = 'adg-test-result is-danger';
+            result.textContent = json.message || t('config.homepage.test_failed');
         }
     } catch (e) {
-        setHidden(resultDiv, false);
-        msgDiv.classList.remove('is-success');
-        msgDiv.classList.add('is-error');
-        msgDiv.textContent = '❌ ' + e.message;
+        if (result) {
+            result.className = 'adg-test-result is-danger';
+            result.textContent = e.message;
+        }
     } finally {
-        setHidden(spinner, true);
+        if (btn) btn.disabled = false;
     }
 }

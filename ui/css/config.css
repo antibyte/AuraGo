@@ -102,6 +102,7 @@
 .sp-route-row { display:flex; gap:0.5rem; margin-bottom:0.5rem; align-items:center; }
 .sp-route-input-1 { flex:1; }
 .sp-route-input-2 { flex:2; }
+.sp-addresses-input { font-family:monospace; font-size:0.8rem; }
 .sp-status-info { margin-bottom:0.8rem; padding:0.6rem 1rem; border-radius:8px; background:var(--bg-tertiary); font-size:0.85rem; color:var(--text-secondary); }
 .sp-logs-pre { max-height:300px; overflow:auto; padding:0.8rem; background:var(--bg-primary); border-radius:8px; font-size:0.75rem; white-space:pre-wrap; word-break:break-all; color:var(--text-secondary); }
 .sp-placeholder { opacity:0.5; }

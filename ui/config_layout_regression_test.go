@@ -486,6 +486,46 @@ func TestConfigPhase3ComposioEmailServer(t *testing.T) {
 	}
 }
 
+func TestConfigPhase3SecurityProxyHomepage(t *testing.T) {
+	t.Parallel()
+
+	securityProxyJS := normalizeAssetText(mustReadUIFile(t, "cfg/security_proxy.js"))
+	for _, marker := range []string{
+		"cfg-actions-row",
+		"field-grid two-cols",
+		"field-input",
+		"field-select",
+		"/api/proxy/status",
+	} {
+		if !strings.Contains(securityProxyJS, marker) {
+			t.Fatalf("security_proxy.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(securityProxyJS, "cfg-input") {
+		t.Fatal("security_proxy.js should use field-input/field-select instead of cfg-input")
+	}
+
+	homepageJS := normalizeAssetText(mustReadUIFile(t, "cfg/homepage.js"))
+	for _, marker := range []string{
+		"field-grid two-cols",
+		"field-input",
+		"field-select",
+		"adg-save-btn",
+		"adg-test-btn",
+		"adg-test-result",
+		"cfg-actions-row",
+		"/api/homepage/test-connection",
+		"hpTestConnection",
+	} {
+		if !strings.Contains(homepageJS, marker) {
+			t.Fatalf("homepage.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(homepageJS, "cfg-input") || strings.Contains(homepageJS, "hp-test-spinner") {
+		t.Fatal("homepage.js should use unified field-* and adg-test-* patterns")
+	}
+}
+
 func TestConfigManifestDograhAvoidEmbeddedFallbackTables(t *testing.T) {
 	t.Parallel()
 
