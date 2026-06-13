@@ -351,6 +351,9 @@ func TestAgodeskAttachmentPrepareUploadAndTextlessChatMessage(t *testing.T) {
 	if len(accepted.Attachments) != 1 || accepted.Attachments[0].AttachmentID != prepared.AttachmentID || accepted.Attachments[0].Kind != "text" {
 		t.Fatalf("accepted payload = %+v", accepted)
 	}
+	if accepted.Attachments[0].Metadata["storage_filename"] != "note.txt" {
+		t.Fatalf("accepted attachment metadata = %+v, want storage_filename note.txt", accepted.Attachments[0].Metadata)
+	}
 	resp := readAgodeskTestEnvelope(t, conn)
 	if resp.Type != agodesk.TypeChatResponse {
 		t.Fatalf("response type = %q, want %q", resp.Type, agodesk.TypeChatResponse)

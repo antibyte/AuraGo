@@ -505,10 +505,15 @@ func agodeskAttachmentInlineText(s *Server, relPath string) string {
 
 func agodeskChatAttachmentItem(s *Server, record memory.AgoDeskAttachmentRecord) agodesk.ChatAttachmentItem {
 	pathValue := ""
+	var metadata map[string]interface{}
 	if strings.TrimSpace(record.RelativePath) != "" {
-		mediaRel := strings.TrimPrefix(filepath.ToSlash(record.RelativePath), "attachments/")
+		relPath := filepath.ToSlash(record.RelativePath)
+		mediaRel := strings.TrimPrefix(relPath, "attachments/")
 		pathValue = "/api/agodesk/media/attachments/" + pathpkg.Join(mediaRel)
 		pathValue = signAgodeskMediaAssetPath(s, pathValue, time.Now())
+		if storageFilename := pathpkg.Base(relPath); storageFilename != "." && storageFilename != "/" {
+			metadata = map[string]interface{}{"storage_filename": storageFilename}
+		}
 	}
 	return agodesk.ChatAttachmentItem{
 		AttachmentID: strings.TrimSpace(record.AttachmentID),
@@ -518,6 +523,7 @@ func agodeskChatAttachmentItem(s *Server, record memory.AgoDeskAttachmentRecord)
 		Filename:     strings.TrimSpace(record.Filename),
 		SizeBytes:    record.SizeBytes,
 		SHA256:       strings.TrimSpace(record.SHA256),
+		Metadata:     metadata,
 	}
 }
 
