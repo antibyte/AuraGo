@@ -79,7 +79,7 @@ async function renderMemoryAnalysisSection(section) {
                     <label class="ma-label-block">
                         <span class="ma-label-text">${t('config.memory_analysis.threshold_label')}</span>
                         <div class="ma-threshold-row">
-                            <input type="range" class="cfg-input ma-threshold-slider" data-path="memory_analysis.auto_confirm_threshold"
+                            <input type="range" class="ma-threshold-slider" data-path="memory_analysis.auto_confirm_threshold"
                                 min="0" max="1" step="0.01" value="${cfg.auto_confirm_threshold != null ? cfg.auto_confirm_threshold : 0.92}"
                                 oninput="this.nextElementSibling.textContent=this.value">
                             <span class="ma-threshold-value">${cfg.auto_confirm_threshold != null ? cfg.auto_confirm_threshold : 0.92}</span>
@@ -105,8 +105,7 @@ async function renderMemoryAnalysisSection(section) {
                 <div class="ma-threshold-wrap">
                     <label class="ma-label-block">
                         <span class="ma-label-text">${t('config.memory_analysis.reflection_day_label')}</span>
-                        <select class="cfg-input ma-input-spaced" data-path="memory_analysis.reflection_day"
-                            onchange="setNestedValue(configData,'memory_analysis.reflection_day',this.value);setDirty(true)">
+                        <select class="field-select" data-path="memory_analysis.reflection_day">
                             ${['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].map(d =>
                                 `<option value="${d}" ${(cfg.reflection_day || 'sunday') === d ? 'selected' : ''}>${t('config.memory_analysis.day_' + d)}</option>`
                             ).join('')}

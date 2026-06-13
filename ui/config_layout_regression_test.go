@@ -426,8 +426,8 @@ func TestConfigPhase3MCPActionRows(t *testing.T) {
 			t.Fatalf("mcp.js missing marker %q", marker)
 		}
 	}
-	if strings.Contains(mcpJS, "cfg-save-btn-sm") {
-		t.Fatal("mcp.js add-server/secret buttons should use btn-secondary instead of cfg-save-btn-sm")
+	if strings.Contains(mcpJS, "cfg-save-btn-sm") || strings.Contains(mcpJS, "cfg-input-full") {
+		t.Fatal("mcp.js should use btn-secondary and field-input/field-select without cfg-input-full")
 	}
 }
 
@@ -609,6 +609,50 @@ func TestConfigManifestDograhAvoidEmbeddedFallbackTables(t *testing.T) {
 		}
 		if !strings.Contains(content, "function manifestText") && !strings.Contains(content, "function dograhText") {
 			t.Fatalf("%s should keep section text helper", spec.file)
+		}
+	}
+}
+
+func TestConfigLegacyPatternAudit(t *testing.T) {
+	t.Parallel()
+
+	entries, err := os.ReadDir("cfg")
+	if err != nil {
+		t.Fatalf("read cfg dir: %v", err)
+	}
+
+	forbidden := []string{
+		"cfg-input-full",
+		"cfg-save-btn-sm",
+		"cfg-status-banner",
+		"ig-test-status",
+		"ig-flex-row",
+		"cmp-status-line",
+		"ai-gw-grid",
+	}
+	// Match cfg-input on form controls only — not layout helpers like cfg-input-row.
+	cfgInputMarkers := []string{
+		`class="cfg-input"`,
+		`class="cfg-input `,
+		`class='cfg-input'`,
+		`class='cfg-input `,
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".js") {
+			continue
+		}
+		path := "cfg/" + entry.Name()
+		content := normalizeAssetText(mustReadUIFile(t, path))
+		for _, pattern := range forbidden {
+			if strings.Contains(content, pattern) {
+				t.Fatalf("%s still contains forbidden legacy pattern %q", path, pattern)
+			}
+		}
+		for _, marker := range cfgInputMarkers {
+			if strings.Contains(content, marker) {
+				t.Fatalf("%s still uses cfg-input on form controls; use field-input/field-select", path)
+			}
 		}
 	}
 }

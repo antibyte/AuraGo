@@ -253,14 +253,14 @@ async function mcpRenderRoutingCards() {
             <div class="mcp-card-grid">
                 <label>
                     <span class="mcp-grid-label">${t('config.mcp.mapping_server')}</span>
-                    <select class="field-input cfg-input-full" onchange="mcpPreferenceServerChanged('${capability.key}', this.value)">
+                    <select class="field-select" onchange="mcpPreferenceServerChanged('${capability.key}', this.value)">
                         <option value="">${t('config.mcp.mapping_builtin_option')}</option>
                         ${serverOptions}
                     </select>
                 </label>
                 <label>
                     <span class="mcp-grid-label">${t('config.mcp.mapping_tool')}</span>
-                    <select class="field-input cfg-input-full" ${pref.server ? '' : 'disabled'} onchange="mcpPreferenceToolChanged('${capability.key}', this.value)">
+                    <select class="field-select" ${pref.server ? '' : 'disabled'} onchange="mcpPreferenceToolChanged('${capability.key}', this.value)">
                         ${toolOptions}
                     </select>
                 </label>
@@ -372,11 +372,11 @@ function mcpServerShowModal(data, idx) {
         <div class="mcp-modal-title">${isEdit ? t('config.mcp.edit_server') : t('config.mcp.new_server')}</div>
         <label class="mcp-modal-label">
             <span class="mcp-modal-label-text">${t('config.mcp.field_name')}</span>
-            <input id="mcp-m-name" class="field-input cfg-input-full" value="${escapeAttr(data.name || '')}" placeholder="my-server">
+            <input id="mcp-m-name" class="field-input" value="${escapeAttr(data.name || '')}" placeholder="my-server">
         </label>
         <label class="mcp-modal-label">
             <span class="mcp-modal-label-text">${t('config.mcp.field_transport')}</span>
-            <select id="mcp-m-transport" class="field-input cfg-input-full">
+            <select id="mcp-m-transport" class="field-input">
                 <option value="stdio" ${transport === 'stdio' ? 'selected' : ''}>${t('config.mcp.transport_stdio')}</option>
                 <option value="streamable_http" ${transport === 'streamable_http' ? 'selected' : ''}>${t('config.mcp.transport_streamable_http')}</option>
                 <option value="sse" ${transport === 'sse' ? 'selected' : ''}>${t('config.mcp.transport_sse')}</option>
@@ -385,11 +385,11 @@ function mcpServerShowModal(data, idx) {
         </label>
         <label class="mcp-modal-label mcp-stdio-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_command')}</span>
-            <input id="mcp-m-command" class="field-input cfg-input-full" value="${escapeAttr(data.command || '')}" placeholder="npx">
+            <input id="mcp-m-command" class="field-input" value="${escapeAttr(data.command || '')}" placeholder="npx">
         </label>
         <label class="mcp-modal-label mcp-network-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_url')}</span>
-            <input id="mcp-m-url" class="field-input cfg-input-full" value="${escapeAttr(data.url || '')}" placeholder="https://example.com/mcp">
+            <input id="mcp-m-url" class="field-input" value="${escapeAttr(data.url || '')}" placeholder="https://example.com/mcp">
         </label>
         <label class="mcp-modal-label mcp-network-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_headers')} <small class="mcp-modal-hint">(KEY=VALUE, {{alias}})</small></span>
@@ -398,7 +398,7 @@ function mcpServerShowModal(data, idx) {
         </label>
         <label class="mcp-modal-label mcp-stdio-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_runtime')}</span>
-            <select id="mcp-m-runtime" class="field-input cfg-input-full">
+            <select id="mcp-m-runtime" class="field-input">
                 <option value="local" ${runtime === 'local' ? 'selected' : ''}>${t('config.mcp.runtime_local')}</option>
                 <option value="docker" ${runtime === 'docker' ? 'selected' : ''}>${t('config.mcp.runtime_docker')}</option>
             </select>
@@ -419,19 +419,19 @@ function mcpServerShowModal(data, idx) {
         </label>
         <label class="mcp-modal-label mcp-stdio-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_docker_image')}</span>
-            <input id="mcp-m-docker-image" class="field-input cfg-input-full" value="${escapeAttr(data.docker_image || '')}" placeholder="ghcr.io/astral-sh/uv:latest">
+            <input id="mcp-m-docker-image" class="field-input" value="${escapeAttr(data.docker_image || '')}" placeholder="ghcr.io/astral-sh/uv:latest">
         </label>
         <label class="mcp-modal-label mcp-stdio-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_docker_command')}</span>
-            <input id="mcp-m-docker-command" class="field-input cfg-input-full" value="${escapeAttr(data.docker_command || '')}" placeholder="uvx">
+            <input id="mcp-m-docker-command" class="field-input" value="${escapeAttr(data.docker_command || '')}" placeholder="uvx">
         </label>
         <label class="mcp-modal-label mcp-stdio-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_host_workdir')}</span>
-            <input id="mcp-m-host-workdir" class="field-input cfg-input-full" value="${escapeAttr(data.host_workdir || '')}" placeholder="agent_workspace/mcp/${escapeAttr(data.name || 'server')}">
+            <input id="mcp-m-host-workdir" class="field-input" value="${escapeAttr(data.host_workdir || '')}" placeholder="agent_workspace/mcp/${escapeAttr(data.name || 'server')}">
         </label>
         <label class="mcp-modal-label mcp-stdio-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_container_workdir')}</span>
-            <input id="mcp-m-container-workdir" class="field-input cfg-input-full" value="${escapeAttr(data.container_workdir || '/workspace')}" placeholder="/workspace">
+            <input id="mcp-m-container-workdir" class="field-input" value="${escapeAttr(data.container_workdir || '/workspace')}" placeholder="/workspace">
         </label>
         <label class="mcp-modal-check-row">
             <input id="mcp-m-enabled" type="checkbox" ${data.enabled ? 'checked' : ''}>
@@ -590,19 +590,19 @@ function mcpSecretShowModal(data, originalAlias) {
         <div class="mcp-modal-title">${originalAlias ? t('config.mcp.edit_secret') : t('config.mcp.new_secret')}</div>
         <label class="mcp-modal-label">
             <span class="mcp-modal-label-text">${t('config.mcp.secret_alias')}</span>
-            <input id="mcp-s-alias" class="field-input cfg-input-full" value="${escapeAttr(data.alias || '')}" placeholder="api-token">
+            <input id="mcp-s-alias" class="field-input" value="${escapeAttr(data.alias || '')}" placeholder="api-token">
         </label>
         <label class="mcp-modal-label">
             <span class="mcp-modal-label-text">${t('config.mcp.secret_label')}</span>
-            <input id="mcp-s-label" class="field-input cfg-input-full" value="${escapeAttr(data.label || '')}" placeholder="MiniMax API Token">
+            <input id="mcp-s-label" class="field-input" value="${escapeAttr(data.label || '')}" placeholder="MiniMax API Token">
         </label>
         <label class="mcp-modal-label">
             <span class="mcp-modal-label-text">${t('config.mcp.secret_description')}</span>
-            <input id="mcp-s-description" class="field-input cfg-input-full" value="${escapeAttr(data.description || '')}" placeholder="${t('config.mcp.secret_description_placeholder')}">
+            <input id="mcp-s-description" class="field-input" value="${escapeAttr(data.description || '')}" placeholder="${t('config.mcp.secret_description_placeholder')}">
         </label>
         <label class="mcp-modal-label">
             <span class="mcp-modal-label-text">${t('config.mcp.secret_value')}</span>
-            <input id="mcp-s-value" type="password" class="field-input cfg-input-full" value="" placeholder="${data.has_value ? t('config.mcp.secret_value_placeholder_set') : t('config.mcp.secret_value_placeholder_empty')}">
+            <input id="mcp-s-value" type="password" class="field-input" value="" placeholder="${data.has_value ? t('config.mcp.secret_value_placeholder_set') : t('config.mcp.secret_value_placeholder_empty')}">
         </label>
         <label class="mcp-modal-check-row">
             <input id="mcp-s-clear" type="checkbox">

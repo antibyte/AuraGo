@@ -100,7 +100,7 @@ async function renderMCPServerSection(section) {
             <label class="mcp-srv-field-label">
                 <span class="mcp-srv-caption">${t('config.mcp_server.endpoint_url')}</span>
                 <div class="mcp-srv-action-row">
-                    <input class="cfg-input mcp-srv-endpoint-input" value="${escapeAttr(endpointUrl)}" readonly id="mcp-endpoint-url">
+                    <input class="field-input mcp-srv-endpoint-input" value="${escapeAttr(endpointUrl)}" readonly id="mcp-endpoint-url">
                     <button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('mcp-endpoint-url').value).then(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copied'))}';setTimeout(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copy_url'))}'},1500)})">${t('config.mcp_server.copy_url')}</button>
                 </div>
             </label>
@@ -112,7 +112,7 @@ async function renderMCPServerSection(section) {
                 <label class="mcp-srv-field-label">
                     <span class="mcp-srv-caption">${t('config.mcp_server.token')}</span>
                     <div class="mcp-srv-action-row">
-                        <input class="cfg-input mcp-srv-token-input" id="mcp-token-value" value="" readonly placeholder="••••••••">
+                        <input class="field-input mcp-srv-token-input" id="mcp-token-value" value="" readonly placeholder="••••••••">
                         <button class="btn" id="mcp-gen-token" onclick="mcpGenerateToken()">${t('config.mcp_server.generate_token')}</button>
                         <button class="btn" id="mcp-copy-token" onclick="navigator.clipboard.writeText(document.getElementById('mcp-token-value').value).then(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copied'))}';setTimeout(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copy_token'))}'},1500)})">${t('config.mcp_server.copy_token')}</button>
                     </div>
@@ -139,7 +139,7 @@ async function renderMCPServerSection(section) {
     html += `<div class="field-group">
         <div class="field-group-title">🛠️ ${t('config.mcp_server.allowed_tools')}</div>
         <div class="field-group-desc">${t('config.mcp_server.allowed_tools_desc')}</div>
-        <textarea class="cfg-input is-hidden" id="mcp-allowed-tools-state" data-path="mcp_server.allowed_tools" data-type="json" style="display:none;">${escapeHtml(JSON.stringify(effectiveAllowedTools))}</textarea>
+        <textarea class="field-input is-hidden" id="mcp-allowed-tools-state" data-path="mcp_server.allowed_tools" data-type="json" style="display:none;">${escapeHtml(JSON.stringify(effectiveAllowedTools))}</textarea>
         <div id="mcp-tools-list" class="mcp-srv-tools-list"></div>
     </div>`;
 
@@ -291,7 +291,7 @@ async function mcpLoadVSCodeBridgeInfo() {
             <div class="mcp-srv-action-row" style="margin-bottom:.75rem; flex-wrap:wrap;">
                 ${clientOptions.map(client => `<button class="btn mcp-client-btn" data-client="${client.key}" onclick="mcpSelectClientConfig('${client.key}', this)">${esc(client.label)}</button>`).join('')}
             </div>
-            <textarea class="cfg-input mcp-srv-endpoint-input" id="mcp-vscode-config" readonly style="min-height: 220px; font-family: var(--font-mono, monospace); white-space: pre;"></textarea>
+            <textarea class="field-input mcp-srv-endpoint-input" id="mcp-vscode-config" readonly style="min-height: 220px; font-family: var(--font-mono, monospace); white-space: pre;"></textarea>
             <div class="mcp-srv-action-row" style="margin-top:.75rem;">
                 <button class="btn" onclick="mcpCopyVSCodeConfig(this)">${t('config.mcp_server.copy_vscode_config')}</button>
                 <button class="btn" id="mcp-client-link-btn" style="display:none;" onclick="mcpOpenClientInstallLink()">${t('config.mcp_server.open_client_link')}</button>

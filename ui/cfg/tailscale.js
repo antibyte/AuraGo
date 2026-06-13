@@ -60,26 +60,23 @@ async function renderTailscaleSection(section) {
     </div>`;
 
     if (tsEnabled) {
-        html += `<label class="ts-label-block">
-            <span class="ts-toggle-label">${t('config.tailscale.tsnet_hostname_label')}</span>
-            <input type="text" class="cfg-input cfg-input-full" data-path="tailscale.tsnet.hostname" value="${escapeAttr(tsnet.hostname || 'aurago')}"
-                placeholder="aurago">
-            <small class="ts-hint">${t('config.tailscale.tsnet_hostname_hint')}</small>
-        </label>`;
-
-        html += `<label class="ts-label-block">
-            <span class="ts-toggle-label">${t('config.tailscale.tsnet_space_agent_hostname_label')}</span>
-            <input type="text" class="cfg-input cfg-input-full" data-path="tailscale.tsnet.space_agent_hostname" value="${escapeAttr(tsnet.space_agent_hostname || ((tsnet.hostname || 'aurago') + '-space-agent'))}"
-                placeholder="aurago-space-agent">
-            <small class="ts-hint">${t('config.tailscale.tsnet_space_agent_hostname_hint')}</small>
-        </label>`;
-
-        html += `<label class="ts-label-block">
-            <span class="ts-toggle-label">${t('config.tailscale.tsnet_state_dir_label')}</span>
-            <input type="text" class="cfg-input cfg-input-full" data-path="tailscale.tsnet.state_dir" value="${escapeAttr(tsnet.state_dir || '')}"
-                placeholder="data/tsnet">
-            <small class="ts-hint">${t('config.tailscale.tsnet_state_dir_hint')}</small>
-        </label>`;
+        html += `<div class="field-grid two-cols">
+            <div class="field-group">
+                <div class="field-label">${t('config.tailscale.tsnet_hostname_label')}</div>
+                <div class="field-help">${t('config.tailscale.tsnet_hostname_hint')}</div>
+                <input type="text" class="field-input" data-path="tailscale.tsnet.hostname" value="${escapeAttr(tsnet.hostname || 'aurago')}" placeholder="aurago">
+            </div>
+            <div class="field-group">
+                <div class="field-label">${t('config.tailscale.tsnet_space_agent_hostname_label')}</div>
+                <div class="field-help">${t('config.tailscale.tsnet_space_agent_hostname_hint')}</div>
+                <input type="text" class="field-input" data-path="tailscale.tsnet.space_agent_hostname" value="${escapeAttr(tsnet.space_agent_hostname || ((tsnet.hostname || 'aurago') + '-space-agent'))}" placeholder="aurago-space-agent">
+            </div>
+            <div class="field-group">
+                <div class="field-label">${t('config.tailscale.tsnet_state_dir_label')}</div>
+                <div class="field-help">${t('config.tailscale.tsnet_state_dir_hint')}</div>
+                <input type="text" class="field-input" data-path="tailscale.tsnet.state_dir" value="${escapeAttr(tsnet.state_dir || '')}" placeholder="data/tsnet">
+            </div>
+        </div>`;
 
         const serveHTTP = tsnet.serve_http === true;
         const exposeHomepage = tsnet.expose_homepage === true;
@@ -112,11 +109,11 @@ async function renderTailscaleSection(section) {
             <small class="ts-hint-block">${t('config.tailscale.tsnet_expose_manifest_hint')}</small>
             ${manifestCfg.enabled ? '' : `<div class="ts-warning-box">${t('config.tailscale.tsnet_manifest_requires_enabled')}</div>`}
 
-            <label class="ts-label-block">
-                <span class="ts-toggle-label">${t('config.tailscale.tsnet_manifest_port_label')}</span>
-                <input type="number" min="1" max="65535" class="cfg-input cfg-input-full" data-path="tailscale.tsnet.manifest_port" value="${escapeAttr(tsnet.manifest_port || 443)}">
-                <small class="ts-hint">${t('config.tailscale.tsnet_manifest_port_hint')}</small>
-            </label>
+            <div class="field-group">
+                <div class="field-label">${t('config.tailscale.tsnet_manifest_port_label')}</div>
+                <div class="field-help">${t('config.tailscale.tsnet_manifest_port_hint')}</div>
+                <input type="number" min="1" max="65535" class="field-input" data-path="tailscale.tsnet.manifest_port" value="${escapeAttr(tsnet.manifest_port || 443)}">
+            </div>
 
             <div class="ts-exposure-row-mt">
                 <span class="ts-exposure-label">${t('config.tailscale.tsnet_expose_space_agent_label')}</span>

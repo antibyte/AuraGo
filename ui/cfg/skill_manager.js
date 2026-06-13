@@ -141,13 +141,13 @@ function renderPythonToolBridgeAllowedToolsPicker(currentAllowedTools) {
     return `
         <div class="ptb-tools-wrap">
             <div class="ptb-tools-toolbar">
-                <input id="ptb-tools-search" class="cfg-input ptb-tools-search" placeholder="${escapeAttr(t('config.skill_manager.tool_bridge_search') || 'Search…')}" oninput="ptbFilterCatalog()">
+                <input id="ptb-tools-search" class="field-input ptb-tools-search" placeholder="${escapeAttr(t('config.skill_manager.tool_bridge_search') || 'Search…')}" oninput="ptbFilterCatalog()">
                 <span id="ptb-selected-count" class="ptb-selected-count"></span>
                 <button class="btn btn-sm" onclick="ptbSelectAll(true)">${t('config.skill_manager.tool_bridge_select_all') || 'Select all'}</button>
                 <button class="btn btn-sm" onclick="ptbSelectAll(false)">${t('config.skill_manager.tool_bridge_select_none') || 'Select none'}</button>
             </div>
 
-            <textarea class="cfg-input is-hidden" id="ptb-allowed-tools-state"
+            <textarea class="field-input is-hidden" id="ptb-allowed-tools-state"
                 data-path="tools.python_tool_bridge.allowed_tools" data-type="json" style="display:none;">${allowedJSON}</textarea>
 
             <div id="ptb-tools-status" class="ptb-tools-status">${t('config.skill_manager.tool_bridge_loading') || 'Loading…'}</div>
@@ -171,7 +171,7 @@ function renderPythonToolBridgeSQLConnectionsPicker(currentAllowedSQL) {
                 </button>
                 <span id="ptb-sql-count" class="ptb-selected-count">${esc(countText)}</span>
             </div>
-            <textarea class="cfg-input is-hidden" id="ptb-allowed-sql-state"
+            <textarea class="field-input is-hidden" id="ptb-allowed-sql-state"
                 data-path="tools.python_tool_bridge.allowed_sql_connections" data-type="json" style="display:none;">${allowedJSON}</textarea>
         </div>
     `;
@@ -424,7 +424,7 @@ async function ptbOpenSQLConnectionsModal() {
         <div class="sec-modal-panel ptb-sql-modal-panel">
             <div class="sec-modal-title">🗄️ ${t('config.skill_manager.tool_bridge_sql_modal_title') || 'Allowed Databases'}</div>
             <div class="sec-modal-desc">${t('config.skill_manager.tool_bridge_sql_modal_desc') || 'Select which SQL connections Python skills may use via the tool bridge.'}</div>
-            <input id="ptb-sql-search" class="cfg-input ptb-tools-search" placeholder="${escapeAttr(t('config.skill_manager.tool_bridge_sql_search') || 'Search…')}" oninput="ptbFilterSQLModal()">
+            <input id="ptb-sql-search" class="field-input ptb-tools-search" placeholder="${escapeAttr(t('config.skill_manager.tool_bridge_sql_search') || 'Search…')}" oninput="ptbFilterSQLModal()">
             <div id="ptb-sql-list" class="mcp-srv-tools-list ptb-sql-list"></div>
             <div class="sec-modal-actions">
                 <button id="ptb-sql-cancel" class="sec-modal-btn sec-modal-btn-skip">${t('common.btn_cancel') || 'Cancel'}</button>
