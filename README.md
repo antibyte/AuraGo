@@ -12,6 +12,7 @@
 [![Go Version](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go)](https://go.dev)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](docker-compose.yml)
+[![Website](https://img.shields.io/badge/Website-aurago--web-blue?logo=githubpages)](https://antibyte.github.io/aurago-web/)
 
 > **🛠️ Work in Progress** — AuraGo is under active development. Expect occasional breaking changes and stuff that does not work yet.
 >

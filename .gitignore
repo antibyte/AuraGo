@@ -125,6 +125,7 @@ docs/superpowers/
 .kilocode/
 .planning/
 .claude/
+.serena/
 CLAUDE.md
 AGENTS.md
 .github/
