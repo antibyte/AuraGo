@@ -33,10 +33,10 @@ async function renderImageGenerationSection(section) {
         <div class="field-group-desc">${t('config.image_generation.provider_desc')}</div>`;
 
     const curProvider = cfg.provider || '';
-    html += `<label class="ig-label">
-        <span class="ig-label-text">${t('config.image_generation.provider_label')}</span>
-        <select class="cfg-input cfg-input-full" data-path="image_generation.provider"
-            onchange="setNestedValue(configData,'image_generation.provider',this.value);setDirty(true)">
+    html += `<div class="field-grid two-cols">`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.image_generation.provider_label')}</div>
+        <select class="field-select" data-path="image_generation.provider">
             <option value=""${!curProvider ? ' selected' : ''}>${t('config.image_generation.select_provider')}</option>`;
     providersCache.forEach(p => {
         const sel = (String(curProvider) === String(p.id)) ? ' selected' : '';
@@ -45,14 +45,15 @@ async function renderImageGenerationSection(section) {
         const model = p.model ? (' — ' + p.model) : '';
         html += `<option value="${escapeAttr(p.id)}"${sel}>${escapeAttr(name + badge + model)}</option>`;
     });
-    html += `</select></label>`;
+    html += `</select></div>`;
 
     const curModel = cfg.model || '';
-    html += `<label class="ig-label">
-        <span class="ig-label-text">${t('config.image_generation.model_label')} <small class="ig-hint">(${t('config.image_generation.model_hint')})</small></span>
-        <input type="text" class="cfg-input cfg-input-full" data-path="image_generation.model" value="${escapeAttr(curModel)}"
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.image_generation.model_label')}</div>
+        <div class="field-help">${t('config.image_generation.model_hint')}</div>
+        <input type="text" class="field-input" data-path="image_generation.model" value="${escapeAttr(curModel)}"
             placeholder="dall-e-3, stable-diffusion-3, imagen-3.0-generate-002...">
-    </label>`;
+    </div></div>`;
     html += `</div>`;
 
     html += `<div class="field-group">
@@ -61,39 +62,37 @@ async function renderImageGenerationSection(section) {
 
     const sizes = ['256x256', '512x512', '1024x1024', '1024x1792', '1792x1024'];
     const curSize = cfg.default_size || '1024x1024';
-    html += `<label class="ig-label">
-        <span class="ig-label-text">${t('config.image_generation.size_label')}</span>
-        <select class="cfg-input cfg-input-full" data-path="image_generation.default_size"
-            onchange="setNestedValue(configData,'image_generation.default_size',this.value);setDirty(true)">`;
+    html += `<div class="field-grid two-cols">`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.image_generation.size_label')}</div>
+        <select class="field-select" data-path="image_generation.default_size">`;
     sizes.forEach(s => {
         const sel = (curSize === s) ? ' selected' : '';
         html += `<option value="${s}"${sel}>${s}</option>`;
     });
-    html += `</select></label>`;
+    html += `</select></div>`;
 
     const qualities = ['standard', 'hd'];
     const curQuality = cfg.default_quality || 'standard';
-    html += `<label class="ig-label">
-        <span class="ig-label-text">${t('config.image_generation.quality_label')}</span>
-        <select class="cfg-input cfg-input-full" data-path="image_generation.default_quality"
-            onchange="setNestedValue(configData,'image_generation.default_quality',this.value);setDirty(true)">`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.image_generation.quality_label')}</div>
+        <select class="field-select" data-path="image_generation.default_quality">`;
     qualities.forEach(q => {
         const sel = (curQuality === q) ? ' selected' : '';
         html += `<option value="${q}"${sel}>${q}</option>`;
     });
-    html += `</select></label>`;
+    html += `</select></div>`;
 
     const styles = ['natural', 'vivid'];
     const curStyle = cfg.default_style || 'natural';
-    html += `<label class="ig-label">
-        <span class="ig-label-text">${t('config.image_generation.style_label')}</span>
-        <select class="cfg-input cfg-input-full" data-path="image_generation.default_style"
-            onchange="setNestedValue(configData,'image_generation.default_style',this.value);setDirty(true)">`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.image_generation.style_label')}</div>
+        <select class="field-select" data-path="image_generation.default_style">`;
     styles.forEach(st => {
         const sel = (curStyle === st) ? ' selected' : '';
         html += `<option value="${st}"${sel}>${st}</option>`;
     });
-    html += `</select></label>`;
+    html += `</select></div></div>`;
     html += `</div>`;
 
     html += `<div class="field-group">
@@ -107,29 +106,28 @@ async function renderImageGenerationSection(section) {
     </div>`;
 
     const curMax = cfg.max_monthly || 0;
-    html += `<label class="ig-label">
-        <span class="ig-label-text">${t('config.image_generation.max_monthly_label')} <small class="ig-hint">(${t('config.image_generation.max_monthly_hint')})</small></span>
-        <input type="number" class="cfg-input cfg-input-full" data-path="image_generation.max_monthly" value="${curMax}" min="0"
-            placeholder="0">
-    </label>`;
-
     const curMaxDaily = cfg.max_daily || 0;
-    html += `<label class="ig-label">
-        <span class="ig-label-text">${t('config.image_generation.max_daily_label')} <small class="ig-hint">(${t('config.image_generation.max_daily_hint')})</small></span>
-        <input type="number" class="cfg-input cfg-input-full" data-path="image_generation.max_daily" value="${curMaxDaily}" min="0"
-            placeholder="0">
-    </label>`;
+    html += `<div class="field-grid two-cols">`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.image_generation.max_monthly_label')}</div>
+        <div class="field-help">${t('config.image_generation.max_monthly_hint')}</div>
+        <input type="number" class="field-input" data-path="image_generation.max_monthly" value="${curMax}" min="0" placeholder="0">
+    </div>`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.image_generation.max_daily_label')}</div>
+        <div class="field-help">${t('config.image_generation.max_daily_hint')}</div>
+        <input type="number" class="field-input" data-path="image_generation.max_daily" value="${curMaxDaily}" min="0" placeholder="0">
+    </div></div>`;
     html += `</div>`;
 
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.image_generation.test_title')}</div>
         <div class="field-group-desc">${t('config.image_generation.test_desc')}</div>
-        <div class="ig-flex-row">
-            <button class="btn-save cfg-save-btn-sm" id="imggen-test-btn"
-                onclick="imggenTestConnection()">
+        <div class="cfg-actions-row">
+            <button class="btn-save adg-test-btn" id="imggen-test-btn" onclick="imggenTestConnection()">
                 🧪 ${t('config.image_generation.test_btn')}
             </button>
-            <span id="imggen-test-status" class="ig-test-status"></span>
+            <span id="imggen-test-result" class="adg-test-result"></span>
         </div>
         <div id="imggen-test-preview" class="ig-test-preview"></div>
     </div>`;
@@ -141,31 +139,34 @@ async function renderImageGenerationSection(section) {
 
 async function imggenTestConnection() {
     const btn = document.getElementById('imggen-test-btn');
-    const statusEl = document.getElementById('imggen-test-status');
+    const result = document.getElementById('imggen-test-result');
     const previewEl = document.getElementById('imggen-test-preview');
-    btn.disabled = true;
-    btn.textContent = '⏳ ' + t('config.image_generation.testing');
-    statusEl.textContent = '';
-    statusEl.classList.remove('ig-status-success', 'ig-status-error');
-    previewEl.innerHTML = '';
+    if (btn) btn.disabled = true;
+    if (result) {
+        result.className = 'adg-test-result';
+        result.textContent = t('config.image_generation.testing');
+    }
+    if (previewEl) previewEl.innerHTML = '';
     try {
         const resp = await fetch('/api/image-generation/test');
         const data = await resp.json();
+        if (!result) return;
         if (data.status === 'ok') {
-            statusEl.classList.add('ig-status-success');
-            statusEl.textContent = '✓ ' + (data.message || t('config.image_generation.test_success'));
-            if (data.web_path) {
+            result.className = 'adg-test-result is-success';
+            result.textContent = data.message || t('config.image_generation.test_success');
+            if (previewEl && data.web_path) {
                 previewEl.innerHTML = `<img src="${escapeAttr(data.web_path)}" class="ig-preview-img">`;
             }
         } else {
-            statusEl.classList.add('ig-status-error');
-            statusEl.textContent = '✗ ' + (data.message || t('config.image_generation.test_failed'));
+            result.className = 'adg-test-result is-danger';
+            result.textContent = data.message || t('config.image_generation.test_failed');
         }
     } catch (e) {
-        statusEl.classList.add('ig-status-error');
-        statusEl.textContent = '✗ ' + e.message;
+        if (result) {
+            result.className = 'adg-test-result is-danger';
+            result.textContent = e.message;
+        }
     } finally {
-        btn.disabled = false;
-        btn.textContent = '🧪 ' + t('config.image_generation.test_btn');
+        if (btn) btn.disabled = false;
     }
 }

@@ -43,9 +43,10 @@ async function renderYepAPISection(section) {
         }
     }
 
-    html += '<label class="ig-label">';
-    html += '<span class="ig-label-text">' + t('config.yepapi.provider_label') + '</span>';
-    html += '<select class="cfg-input cfg-input-full" data-path="yepapi.provider" onchange="setNestedValue(configData,\'yepapi.provider\',this.value);setDirty(true)">';
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.yepapi.provider_label') + '</div>';
+    html += '<div class="field-help">' + t('config.yepapi.provider_help') + '</div>';
+    html += '<select class="field-select" data-path="yepapi.provider">';
     html += '<option value=""' + (!currentProvider ? ' selected' : '') + '>' + t('config.yepapi.provider_none') + '</option>';
     if (typeof providersCache !== 'undefined' && providersCache) {
         providersCache.forEach(p => {
@@ -57,8 +58,7 @@ async function renderYepAPISection(section) {
             html += '<option value="' + escapeAttr(p.id) + '"' + sel + '>' + escapeAttr(name + badge + model) + '</option>';
         });
     }
-    html += '</select></label>';
-    html += '<div class="field-help" style="margin-top:0.4rem;font-size:0.82rem;color:var(--text-secondary);">' + t('config.yepapi.provider_help') + '</div>';
+    html += '</select></div>';
     html += '</div>';
 
     // ── Services ──
@@ -93,11 +93,11 @@ async function renderYepAPISection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-group-title">' + t('config.yepapi.test_title') + '</div>';
     html += '<div class="field-group-desc">' + t('config.yepapi.test_desc') + '</div>';
-    html += '<div class="ig-flex-row">';
-    html += '<button class="btn-save cfg-save-btn-sm" id="yepapi-test-btn" onclick="yepapiTestConnection()">';
+    html += '<div class="cfg-actions-row">';
+    html += '<button class="btn-save adg-test-btn" id="yepapi-test-btn" onclick="yepapiTestConnection()">';
     html += '🧪 ' + t('config.yepapi.test_btn');
     html += '</button>';
-    html += '<span id="yepapi-test-status" class="ig-test-status"></span>';
+    html += '<span id="yepapi-test-result" class="adg-test-result"></span>';
     html += '</div>';
     html += '</div>';
 
@@ -108,29 +108,32 @@ async function renderYepAPISection(section) {
 
 async function yepapiTestConnection() {
     const btn = document.getElementById('yepapi-test-btn');
-    const statusEl = document.getElementById('yepapi-test-status');
-    if (!btn || !statusEl) return;
+    const result = document.getElementById('yepapi-test-result');
+    if (!btn) return;
 
     btn.disabled = true;
-    btn.textContent = '⏳ ' + t('config.yepapi.testing');
-    statusEl.textContent = '';
-    statusEl.classList.remove('ig-status-success', 'ig-status-error');
+    if (result) {
+        result.className = 'adg-test-result';
+        result.textContent = t('config.yepapi.testing');
+    }
 
     try {
         const resp = await fetch('/api/yepapi/test');
         const data = await resp.json();
+        if (!result) return;
         if (data.status === 'ok') {
-            statusEl.classList.add('ig-status-success');
-            statusEl.textContent = '✓ ' + (data.message || t('config.yepapi.test_success'));
+            result.className = 'adg-test-result is-success';
+            result.textContent = data.message || t('config.yepapi.test_success');
         } else {
-            statusEl.classList.add('ig-status-error');
-            statusEl.textContent = '✗ ' + (data.message || t('config.yepapi.test_error'));
+            result.className = 'adg-test-result is-danger';
+            result.textContent = data.message || t('config.yepapi.test_error');
         }
     } catch (e) {
-        statusEl.classList.add('ig-status-error');
-        statusEl.textContent = '✗ ' + e.message;
+        if (result) {
+            result.className = 'adg-test-result is-danger';
+            result.textContent = e.message;
+        }
     } finally {
         btn.disabled = false;
-        btn.textContent = '🧪 ' + t('config.yepapi.test_btn');
     }
 }

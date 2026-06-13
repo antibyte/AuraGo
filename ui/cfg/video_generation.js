@@ -35,10 +35,10 @@ function renderVideoGenerationSection(section) {
         <div class="field-group-desc">${t('config.video_gen.provider_desc')}</div>`;
 
     const curProvider = cfg.provider || '';
-    html += `<label class="ig-label">
-        <span class="ig-label-text">${t('config.video_gen.provider_label')}</span>
-        <select class="cfg-input cfg-input-full" data-path="video_generation.provider"
-            onchange="setNestedValue(configData,'video_generation.provider',this.value);setDirty(true)">
+    html += `<div class="field-grid two-cols">`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.video_gen.provider_label')}</div>
+        <select class="field-select" data-path="video_generation.provider">
             <option value=""${!curProvider ? ' selected' : ''}>${t('config.video_gen.select_provider')}</option>`;
     providersCache.forEach(p => {
         const sel = (String(curProvider) === String(p.id)) ? ' selected' : '';
@@ -47,65 +47,66 @@ function renderVideoGenerationSection(section) {
         const model = p.model ? (' - ' + p.model) : '';
         html += `<option value="${escapeAttr(p.id)}"${sel}>${escapeAttr(name + badge + model)}</option>`;
     });
-    html += `</select></label>`;
+    html += `</select></div>`;
 
-    html += `<label class="ig-label">
-        <span class="ig-label-text">${t('config.video_gen.model_label')} <small class="ig-hint">(${t('config.video_gen.model_hint')})</small></span>
-        <input type="text" class="cfg-input cfg-input-full" data-path="video_generation.model" value="${escapeAttr(cfg.model || '')}"
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.video_gen.model_label')}</div>
+        <div class="field-help">${t('config.video_gen.model_hint')}</div>
+        <input type="text" class="field-input" data-path="video_generation.model" value="${escapeAttr(cfg.model || '')}"
             placeholder="MiniMax-Hailuo-2.3, veo-3.1-generate-preview...">
-    </label>`;
+    </div></div>`;
     html += `</div>`;
 
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.video_gen.defaults_title')}</div>
         <div class="field-group-desc">${t('config.video_gen.defaults_desc')}</div>
-        <div class="ig-grid-3">
-            <label class="ig-label">
-                <span class="ig-label-text">${t('config.video_gen.duration_label')}</span>
-                <input type="number" class="cfg-input cfg-input-full" data-path="video_generation.default_duration_seconds" value="${cfg.default_duration_seconds || 6}" min="1" max="30">
-            </label>
-            <label class="ig-label">
-                <span class="ig-label-text">${t('config.video_gen.resolution_label')}</span>
-                <select class="cfg-input cfg-input-full" data-path="video_generation.default_resolution">
+        <div class="field-grid two-cols">
+            <div class="field-group">
+                <div class="field-label">${t('config.video_gen.duration_label')}</div>
+                <input type="number" class="field-input" data-path="video_generation.default_duration_seconds" value="${cfg.default_duration_seconds || 6}" min="1" max="30">
+            </div>
+            <div class="field-group">
+                <div class="field-label">${t('config.video_gen.resolution_label')}</div>
+                <select class="field-select" data-path="video_generation.default_resolution">
                     ${['768P','1080P','720p','4k'].map(v => `<option value="${v}"${String(cfg.default_resolution || '768P') === v ? ' selected' : ''}>${v}</option>`).join('')}
                 </select>
-            </label>
-            <label class="ig-label">
-                <span class="ig-label-text">${t('config.video_gen.aspect_ratio_label')}</span>
-                <select class="cfg-input cfg-input-full" data-path="video_generation.default_aspect_ratio">
+            </div>
+            <div class="field-group">
+                <div class="field-label">${t('config.video_gen.aspect_ratio_label')}</div>
+                <select class="field-select" data-path="video_generation.default_aspect_ratio">
                     ${['16:9','9:16','1:1'].map(v => `<option value="${v}"${String(cfg.default_aspect_ratio || '16:9') === v ? ' selected' : ''}>${v}</option>`).join('')}
                 </select>
-            </label>
+            </div>
         </div>
     </div>`;
 
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.video_gen.limits_title')}</div>
         <div class="field-group-desc">${t('config.video_gen.limits_desc')}</div>
-        <div class="ig-grid-3">
-            <label class="ig-label">
-                <span class="ig-label-text">${t('config.video_gen.poll_interval_label')}</span>
-                <input type="number" class="cfg-input cfg-input-full" data-path="video_generation.poll_interval_seconds" value="${cfg.poll_interval_seconds || 10}" min="1" max="120">
-            </label>
-            <label class="ig-label">
-                <span class="ig-label-text">${t('config.video_gen.timeout_label')}</span>
-                <input type="number" class="cfg-input cfg-input-full" data-path="video_generation.timeout_seconds" value="${cfg.timeout_seconds || 600}" min="30" max="3600">
-            </label>
-            <label class="ig-label">
-                <span class="ig-label-text">${t('config.video_gen.max_daily_label')}</span>
-                <input type="number" class="cfg-input cfg-input-full" data-path="video_generation.max_daily" value="${cfg.max_daily || 0}" min="0" placeholder="0">
-            </label>
+        <div class="field-grid two-cols">
+            <div class="field-group">
+                <div class="field-label">${t('config.video_gen.poll_interval_label')}</div>
+                <input type="number" class="field-input" data-path="video_generation.poll_interval_seconds" value="${cfg.poll_interval_seconds || 10}" min="1" max="120">
+            </div>
+            <div class="field-group">
+                <div class="field-label">${t('config.video_gen.timeout_label')}</div>
+                <input type="number" class="field-input" data-path="video_generation.timeout_seconds" value="${cfg.timeout_seconds || 600}" min="30" max="3600">
+            </div>
+            <div class="field-group">
+                <div class="field-label">${t('config.video_gen.max_daily_label')}</div>
+                <input type="number" class="field-input" data-path="video_generation.max_daily" value="${cfg.max_daily || 0}" min="0" placeholder="0">
+            </div>
         </div>
     </div>`;
 
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.video_gen.test_title')}</div>
         <div class="field-group-desc">${t('config.video_gen.test_desc')}</div>
-        <div class="ig-flex-row">
-            <button class="btn-save cfg-save-btn-sm" id="video-test-btn" onclick="videoTestConnection()">
+        <div class="cfg-actions-row">
+            <button class="btn-save adg-test-btn" id="video-test-btn" onclick="videoTestConnection()">
                 🔌 ${t('config.video_gen.test_btn')}
             </button>
-            <span id="video-test-status" class="ig-test-status"></span>
+            <span id="video-test-result" class="adg-test-result"></span>
         </div>
     </div>`;
 
@@ -116,21 +117,30 @@ function renderVideoGenerationSection(section) {
 
 function videoTestConnection() {
     const btn = document.getElementById('video-test-btn');
-    const statusEl = document.getElementById('video-test-status');
+    const result = document.getElementById('video-test-result');
     if (btn) btn.disabled = true;
-    if (statusEl) { statusEl.textContent = '⏳ ' + t('config.video_gen.testing'); statusEl.className = 'ig-test-status'; }
+    if (result) {
+        result.className = 'adg-test-result';
+        result.textContent = t('config.video_gen.testing');
+    }
 
     fetch('/api/video-generation/test')
     .then(r => r.json())
     .then(res => {
+        if (!result) return;
         if (res.status === 'ok') {
-            if (statusEl) { statusEl.textContent = '✓ ' + (res.message || t('config.video_gen.test_success')); statusEl.classList.add('ig-status-success'); }
+            result.className = 'adg-test-result is-success';
+            result.textContent = res.message || t('config.video_gen.test_success');
         } else {
-            if (statusEl) { statusEl.textContent = '✗ ' + (res.message || t('config.video_gen.test_failed')); statusEl.classList.add('ig-status-error'); }
+            result.className = 'adg-test-result is-danger';
+            result.textContent = res.message || t('config.video_gen.test_failed');
         }
     })
     .catch(err => {
-        if (statusEl) { statusEl.textContent = '✗ ' + err.message; statusEl.classList.add('ig-status-error'); }
+        if (result) {
+            result.className = 'adg-test-result is-danger';
+            result.textContent = err.message;
+        }
     })
     .finally(() => { if (btn) btn.disabled = false; });
 }

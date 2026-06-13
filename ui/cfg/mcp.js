@@ -57,8 +57,8 @@ async function renderMCPSection(section) {
     html += `<div class="field-group" style="margin-top:1.5rem;">
         <div class="field-group-title">🔌 ${t('config.mcp.server_title')}</div>
         <div class="field-group-desc">${t('config.mcp.server_desc')}</div>
-        <div class="mcp-action-row">
-            <button class="btn-save cfg-save-btn-sm" onclick="mcpServerAdd()">
+        <div class="mcp-action-row cfg-actions-row">
+            <button class="btn-save btn-secondary" onclick="mcpServerAdd()">
                 ＋ ${t('config.mcp.new_server')}
             </button>
         </div>
@@ -70,8 +70,8 @@ async function renderMCPSection(section) {
     <div class="field-group" style="margin-top:1.5rem;">
         <div class="field-group-title">🔐 ${t('config.mcp.secrets_title')}</div>
         <div class="field-group-desc">${t('config.mcp.secrets_desc')}</div>
-        <div class="mcp-action-row">
-            <button class="btn-save cfg-save-btn-sm" onclick="mcpSecretAdd()">
+        <div class="mcp-action-row cfg-actions-row">
+            <button class="btn-save btn-secondary" onclick="mcpSecretAdd()">
                 ＋ ${t('config.mcp.new_secret')}
             </button>
         </div>

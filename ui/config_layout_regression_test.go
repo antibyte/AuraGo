@@ -369,6 +369,68 @@ func TestConfigPhase3TailscaleA2AVaultRows(t *testing.T) {
 	}
 }
 
+func TestConfigPhase3MediaGenerationModules(t *testing.T) {
+	t.Parallel()
+
+	specs := []struct {
+		file       string
+		testAPI    string
+		testFn     string
+		resultID   string
+		wantGrid   bool
+	}{
+		{"cfg/image_generation.js", "/api/image-generation/test", "imggenTestConnection", "imggen-test-result", true},
+		{"cfg/music_generation.js", "/api/music-generation/test", "musicTestConnection", "music-test-result", true},
+		{"cfg/video_generation.js", "/api/video-generation/test", "videoTestConnection", "video-test-result", true},
+		{"cfg/yepapi.js", "/api/yepapi/test", "yepapiTestConnection", "yepapi-test-result", false},
+	}
+	for _, spec := range specs {
+		content := normalizeAssetText(mustReadUIFile(t, spec.file))
+		markers := []string{
+			"cfg-actions-row",
+			"adg-test-btn",
+			"adg-test-result",
+			spec.resultID,
+			"field-select",
+			spec.testAPI,
+			spec.testFn,
+		}
+		if spec.wantGrid {
+			markers = append(markers, "field-grid two-cols", "field-input")
+		}
+		for _, marker := range markers {
+			if !strings.Contains(content, marker) {
+				t.Fatalf("%s missing marker %q", spec.file, marker)
+			}
+		}
+		if strings.Contains(content, "cfg-save-btn-sm") || strings.Contains(content, "ig-test-status") || strings.Contains(content, "ig-flex-row") {
+			t.Fatalf("%s should use unified cfg-actions-row/adg-test-* patterns", spec.file)
+		}
+		if spec.wantGrid && strings.Contains(content, "cfg-input cfg-input-full") {
+			t.Fatalf("%s should use field-input/field-select instead of cfg-input", spec.file)
+		}
+	}
+}
+
+func TestConfigPhase3MCPActionRows(t *testing.T) {
+	t.Parallel()
+
+	mcpJS := normalizeAssetText(mustReadUIFile(t, "cfg/mcp.js"))
+	for _, marker := range []string{
+		"cfg-actions-row",
+		"btn-save btn-secondary",
+		"mcpServerAdd",
+		"mcpSecretAdd",
+	} {
+		if !strings.Contains(mcpJS, marker) {
+			t.Fatalf("mcp.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(mcpJS, "cfg-save-btn-sm") {
+		t.Fatal("mcp.js add-server/secret buttons should use btn-secondary instead of cfg-save-btn-sm")
+	}
+}
+
 func TestConfigManifestDograhAvoidEmbeddedFallbackTables(t *testing.T) {
 	t.Parallel()
 
