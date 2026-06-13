@@ -14,8 +14,8 @@ async function renderEmailSection(section) {
 
     html += emailCheatsheetSelect(emailCfg.relay_cheatsheet_id || '');
 
-    html += `<div class="em-action-row">
-            <button class="btn-save cfg-save-btn-sm" onclick="emailAccountAdd()">
+    html += `<div class="cfg-actions-row">
+            <button class="btn-save btn-secondary" onclick="emailAccountAdd()">
                 ＋ ${t('config.email.new_account')}
             </button>
         </div>
@@ -25,6 +25,7 @@ async function renderEmailSection(section) {
         </div>
     </div>`;
     document.getElementById('content').innerHTML = html;
+    attachChangeListeners();
     emailLoadCheatsheets(emailCfg.relay_cheatsheet_id || '');
     emailAccountRenderCards();
 }
@@ -33,7 +34,7 @@ function emailCheatsheetSelect(selectedID) {
     let html = '<div class="field-group">';
     html += '<div class="field-label">' + t('config.email.relay_cheatsheet_label') + '</div>';
     html += '<div class="field-help">' + t('help.email.relay_cheatsheet_id') + '</div>';
-    html += '<select class="field-input" id="email-relay-cheatsheet" data-path="email.relay_cheatsheet_id" data-selected="' + escapeAttr(selectedID || '') + '" onchange="setNestedValue(configData,\'email.relay_cheatsheet_id\',this.value);setDirty(true)">';
+    html += '<select class="field-select" id="email-relay-cheatsheet" data-path="email.relay_cheatsheet_id" data-selected="' + escapeAttr(selectedID || '') + '">';
     html += '<option value="">' + escapeHtml(t('config.email.loading')) + '</option>';
     html += '</select>';
     html += '</div>';

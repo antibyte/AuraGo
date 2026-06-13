@@ -431,6 +431,61 @@ func TestConfigPhase3MCPActionRows(t *testing.T) {
 	}
 }
 
+func TestConfigPhase3ComposioEmailServer(t *testing.T) {
+	t.Parallel()
+
+	composioJS := normalizeAssetText(mustReadUIFile(t, "cfg/composio.js"))
+	for _, marker := range []string{
+		"adg-status-banner",
+		"composioSetBanner",
+		"cfg-actions-row",
+		"adg-test-btn",
+		"adg-test-result",
+		"adg-password-row",
+		"adg-save-btn",
+		"field-grid two-cols",
+		"/api/composio/test",
+	} {
+		if !strings.Contains(composioJS, marker) {
+			t.Fatalf("composio.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(composioJS, "cfg-save-btn-sm") || strings.Contains(composioJS, "cmp-status-line") {
+		t.Fatal("composio.js should use unified adg-* patterns")
+	}
+
+	emailJS := normalizeAssetText(mustReadUIFile(t, "cfg/email.js"))
+	for _, marker := range []string{
+		"cfg-actions-row",
+		"btn-save btn-secondary",
+		"field-select",
+		"attachChangeListeners",
+		"adg-test-btn",
+		"adg-test-result",
+	} {
+		if !strings.Contains(emailJS, marker) {
+			t.Fatalf("email.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(emailJS, "cfg-save-btn-sm") {
+		t.Fatal("email.js should not use cfg-save-btn-sm")
+	}
+
+	serverJS := normalizeAssetText(mustReadUIFile(t, "cfg/server.js"))
+	for _, marker := range []string{
+		"field-grid two-cols",
+		"field-input",
+		"field-select",
+	} {
+		if !strings.Contains(serverJS, marker) {
+			t.Fatalf("server.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(serverJS, "cfg-input cfg-input-full") {
+		t.Fatal("server.js should use field-input/field-select instead of cfg-input")
+	}
+}
+
 func TestConfigManifestDograhAvoidEmbeddedFallbackTables(t *testing.T) {
 	t.Parallel()
 

@@ -23,11 +23,12 @@ async function renderComposioSection(section) {
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
-    html += '<div id="composio-status" class="cmp-status-line">' + t('config.composio.status_loading') + '</div>';
+    html += '<div id="composio-status-banner" class="adg-status-banner">' + t('config.composio.status_loading') + '</div>';
 
-    html += '<div class="cmp-toolbar">';
-    html += '<button class="btn-save cfg-save-btn-sm" onclick="composioOpenModal()">' + t('config.composio.open_picker') + '</button>';
-    html += '<button class="btn-secondary cfg-save-btn-sm" onclick="composioTestConnection()">' + t('config.composio.test_connection') + '</button>';
+    html += '<div class="cfg-actions-row">';
+    html += '<button class="btn-save" onclick="composioOpenModal()">' + t('config.composio.open_picker') + '</button>';
+    html += '<button class="btn-save adg-test-btn" id="composio-test-btn" onclick="composioTestConnection()">' + t('config.composio.test_connection') + '</button>';
+    html += '<span id="composio-test-result" class="adg-test-result"></span>';
     html += '<span class="cmp-selected-pill">' + t('config.composio.selected_count', { count: selectedCount }) + '</span>';
     html += '</div>';
 
@@ -42,13 +43,17 @@ async function renderComposioSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.composio.api_key') + '</div>';
     html += '<div class="field-help">' + t('help.composio.api_key') + '</div>';
-    html += '<div class="password-wrap cmp-secret-row">';
-    html += '<input class="cfg-input" type="password" id="composio-api-key" data-path="composio.api_key" value="" placeholder="' + escapeAttr(apiPlaceholder) + '" autocomplete="off">';
+    html += '<div class="adg-password-row">';
+    html += '<div class="password-wrap cfg-password-input">';
+    html += '<input class="field-input adg-password-input" type="password" id="composio-api-key" data-path="composio.api_key" value="" placeholder="' + escapeAttr(apiPlaceholder) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
-    html += '<button type="button" class="btn-save cfg-save-btn-sm" onclick="composioSaveAPIKey()">' + t('config.composio.save_api_key') + '</button>';
-    html += '</div></div>';
+    html += '</div>';
+    html += '<button type="button" class="btn-save adg-save-btn" onclick="composioSaveAPIKey()">' + t('config.composio.save_api_key') + '</button>';
+    html += '</div>';
+    html += '<div id="composio-api-key-status" class="adg-test-result"></div>';
+    html += '</div>';
 
-    html += '<div class="cmp-grid">';
+    html += '<div class="field-grid two-cols">';
     html += composioInput('base_url', 'config.composio.base_url', 'help.composio.base_url', cmp.base_url || 'https://backend.composio.dev/api/v3.1', 'composio.base_url');
     html += composioInput('user_id', 'config.composio.user_id', 'help.composio.user_id', cmp.user_id || 'aurago-default', 'composio.user_id');
     html += composioInput('request_timeout_seconds', 'config.composio.timeout', 'help.composio.timeout', String(cmp.request_timeout_seconds || 60), 'composio.request_timeout_seconds', 'number');
@@ -88,9 +93,9 @@ function composioConfig() {
 }
 
 function composioInput(id, labelKey, helpKey, value, path, type = 'text') {
-    return '<label class="cmp-field"><span class="field-label">' + t(labelKey) + '</span>' +
-        '<span class="field-help">' + t(helpKey) + '</span>' +
-        '<input class="field-input" type="' + type + '" id="composio-' + id + '" data-path="' + path + '" value="' + escapeAttr(value) + '"></label>';
+    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div>' +
+        '<div class="field-help">' + t(helpKey) + '</div>' +
+        '<input class="field-input" type="' + type + '" id="composio-' + id + '" data-path="' + path + '" value="' + escapeAttr(value) + '"></div>';
 }
 
 function composioToggle(path, enabled, labelKey, helpKey) {
@@ -155,11 +160,19 @@ function composioPreferredAuthConfig() {
     return auth.find(a => composioAuthEnabled(a) && a.is_composio_managed) || auth.find(a => composioAuthEnabled(a)) || auth[0] || null;
 }
 
+function composioSetBanner(state, text) {
+    const banner = document.getElementById('composio-status-banner');
+    if (!banner) return;
+    banner.className = 'adg-status-banner' + (state ? ' is-' + state : '');
+    banner.textContent = text;
+}
+
 function composioSetConnectStatus(message, kind) {
     const el = document.getElementById('composio-connect-status');
     if (!el) return;
     el.textContent = message || '';
-    el.className = 'cmp-connect-status' + (kind ? ' ' + kind : '');
+    const state = kind === 'ok' || kind === 'success' ? 'is-success' : (kind === 'warn' || kind === 'warning' ? 'is-warning' : (kind === 'error' || kind === 'danger' ? 'is-danger' : ''));
+    el.className = 'adg-test-result' + (state ? ' ' + state : '');
 }
 
 function composioToolSortScore(item) {
@@ -174,28 +187,30 @@ async function composioRefreshStatus() {
         const resp = await fetch('/api/composio/status');
         const data = resp.ok ? await resp.json() : null;
         composioState.status = data;
-        const el = document.getElementById('composio-status');
-        if (!el || !data) return;
-        const cls = data.status === 'ready' ? 'ok' : (data.status === 'missing_api_key' ? 'warn' : 'muted');
-        el.className = 'cmp-status-line ' + cls;
-        el.textContent = t('config.composio.status_' + data.status);
+        if (!data) return;
+        const state = data.status === 'ready' ? 'success' : (data.status === 'missing_api_key' ? 'warning' : '');
+        composioSetBanner(state, t('config.composio.status_' + data.status));
         const cmp = composioConfig();
         cmp.configured = !!data.configured;
     } catch (_) {
-        const el = document.getElementById('composio-status');
-        if (el) {
-            el.className = 'cmp-status-line warn';
-            el.textContent = t('config.composio.status_error');
-        }
+        composioSetBanner('danger', t('config.composio.status_error'));
     }
 }
 
 async function composioSaveAPIKey() {
     const input = document.getElementById('composio-api-key');
+    const statusEl = document.getElementById('composio-api-key-status');
     const value = input ? input.value.trim() : '';
     if (!value) {
-        showToast(t('config.composio.api_key_empty'), 'warn');
+        if (statusEl) {
+            statusEl.className = 'adg-test-result is-danger';
+            statusEl.textContent = t('config.composio.api_key_empty');
+        }
         return;
+    }
+    if (statusEl) {
+        statusEl.className = 'adg-test-result';
+        statusEl.textContent = t('config.composio.saving') || t('config.common.saved');
     }
     try {
         const resp = await fetch('/api/vault/secrets', {
@@ -209,21 +224,43 @@ async function composioSaveAPIKey() {
         }
         cfgMarkSecretStored(input, 'composio.api_key');
         composioConfig().configured = true;
-        showToast(t('config.composio.api_key_saved'), 'success');
+        if (statusEl) {
+            statusEl.className = 'adg-test-result is-success';
+            statusEl.textContent = t('config.composio.api_key_saved');
+        }
         await composioRefreshStatus();
+        setTimeout(() => { if (statusEl) { statusEl.className = 'adg-test-result'; statusEl.textContent = ''; } }, 4000);
     } catch (e) {
-        showToast(e.message || t('config.composio.api_key_save_failed'), 'error');
+        if (statusEl) {
+            statusEl.className = 'adg-test-result is-danger';
+            statusEl.textContent = e.message || t('config.composio.api_key_save_failed');
+        }
     }
 }
 
 async function composioTestConnection() {
+    const btn = document.getElementById('composio-test-btn');
+    const result = document.getElementById('composio-test-result');
+    if (btn) btn.disabled = true;
+    if (result) {
+        result.className = 'adg-test-result';
+        result.textContent = t('config.composio.testing') || t('config.composio.status_loading');
+    }
     try {
         const resp = await fetch('/api/composio/test', { method: 'POST' });
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok || data.status === 'error') throw new Error(data.message || data.error || t('config.common.error'));
-        showToast(data.message || t('config.composio.test_ok'), 'success');
+        if (result) {
+            result.className = 'adg-test-result is-success';
+            result.textContent = data.message || t('config.composio.test_ok');
+        }
     } catch (e) {
-        showToast(t('config.composio.test_failed') + ': ' + (e.message || t('config.common.error')), 'error');
+        if (result) {
+            result.className = 'adg-test-result is-danger';
+            result.textContent = t('config.composio.test_failed') + ': ' + (e.message || t('config.common.error'));
+        }
+    } finally {
+        if (btn) btn.disabled = false;
     }
 }
 
@@ -251,10 +288,10 @@ function composioEnsureModal() {
         '<button class="cmp-icon-btn" onclick="composioCloseModal()" title="' + escapeAttr(t('config.composio.close')) + '">x</button></div>' +
         '<div class="cmp-modal-controls"><input id="composio-search" class="field-input" placeholder="' + escapeAttr(t('config.composio.search_placeholder')) + '" oninput="composioSearchChanged(this.value)">' +
         '<select id="composio-filter" class="field-input" onchange="composioFilterChanged(this.value)"><option value="all">' + t('config.composio.filter_all') + '</option><option value="selected">' + t('config.composio.filter_selected') + '</option><option value="connected">' + t('config.composio.filter_connected') + '</option></select>' +
-        '<button class="btn-secondary cfg-save-btn-sm" onclick="composioLoadToolkits(true)">' + t('config.composio.refresh') + '</button>' +
-        '<button class="btn-save cfg-save-btn-sm" onclick="composioSaveSelection(true)">' + t('config.composio.save_selection') + '</button>' +
+        '<button class="btn-save btn-secondary" onclick="composioLoadToolkits(true)">' + t('config.composio.refresh') + '</button>' +
+        '<button class="btn-save" onclick="composioSaveSelection(true)">' + t('config.composio.save_selection') + '</button>' +
         '<span id="composio-modal-count" class="cmp-selected-pill"></span></div>' +
-        '<div class="cmp-modal-body"><div class="cmp-list-panel"><div id="composio-toolkit-list" class="cmp-toolkit-list"></div><button id="composio-load-more" class="btn-secondary cfg-save-btn-sm cmp-load-more" onclick="composioLoadMore()">' + t('config.composio.load_more') + '</button></div>' +
+        '<div class="cmp-modal-body"><div class="cmp-list-panel"><div id="composio-toolkit-list" class="cmp-toolkit-list"></div><button id="composio-load-more" class="btn-save btn-secondary cmp-load-more" onclick="composioLoadMore()">' + t('config.composio.load_more') + '</button></div>' +
         '<div id="composio-detail" class="cmp-detail-panel"></div></div></div>';
     document.body.appendChild(wrap);
     wrap.addEventListener('click', function (ev) {
@@ -398,11 +435,11 @@ function composioRenderDetail() {
     const tools = composioState.tools || [];
     const description = composioToolkitDescription(tk);
     let html = '<div class="cmp-detail-head"><div><div class="cmp-detail-title">' + escapeAttr(tk.name || slug) + '</div><div class="cmp-detail-slug">' + escapeAttr(slug) + '</div></div>' +
-        '<button class="btn-save cfg-save-btn-sm" onclick="composioToggleToolkit(' + composioJSArg(slug) + ')">' + (isSelected ? t('config.composio.disable_toolkit') : t('config.composio.enable_toolkit')) + '</button></div>';
+        '<button class="btn-save" onclick="composioToggleToolkit(' + composioJSArg(slug) + ')">' + (isSelected ? t('config.composio.disable_toolkit') : t('config.composio.enable_toolkit')) + '</button></div>';
     html += '<div class="cmp-detail-desc">' + escapeAttr(description || t('config.composio.no_description')) + '</div>';
-    html += '<div class="cmp-detail-actions"><button id="composio-connect-btn" class="btn-secondary cfg-save-btn-sm"' + connectDisabled + ' onclick="composioConnectToolkit(' + composioJSArg(slug) + ')">' + t('config.composio.connect') + '</button>' +
-        '<button class="btn-secondary cfg-save-btn-sm" onclick="composioLoadToolkitDetail(' + composioJSArg(slug) + ')">' + t('config.composio.refresh') + '</button></div>' +
-        '<div id="composio-connect-status" class="cmp-connect-status"></div>';
+    html += '<div class="cmp-detail-actions cfg-actions-row"><button id="composio-connect-btn" class="btn-save btn-secondary"' + connectDisabled + ' onclick="composioConnectToolkit(' + composioJSArg(slug) + ')">' + t('config.composio.connect') + '</button>' +
+        '<button class="btn-save btn-secondary" onclick="composioLoadToolkitDetail(' + composioJSArg(slug) + ')">' + t('config.composio.refresh') + '</button></div>' +
+        '<div id="composio-connect-status" class="adg-test-result"></div>';
     html += '<div class="cmp-detail-grid"><div><div class="cmp-mini-title">' + t('config.composio.accounts') + '</div>' + composioAccountsHTML(accounts) + '</div>' +
         '<div><div class="cmp-mini-title">' + t('config.composio.tools_preview') + '</div>' + composioToolsHTML(tools) + '</div></div>';
     detail.innerHTML = html;

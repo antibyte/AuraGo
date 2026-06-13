@@ -14,45 +14,44 @@ async function renderServerSection(section) {
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.server.general_title')}</div>`;
 
-    html += `<label class="srv-label">
-        <span class="cfg-label">${t('config.server.host_label')}</span>
-        <input type="text" class="cfg-input cfg-input-full" data-path="server.host" value="${escapeAttr(cfg.host || '')}"
-            placeholder="0.0.0.0">
-    </label>`;
+    html += `<div class="field-grid two-cols">`;
 
-    html += `<label class="srv-label">
-        <span class="cfg-label">${t('config.server.port_label')}</span>
-        <input type="number" class="cfg-input cfg-input-full" data-path="server.port" value="${cfg.port || 3000}" min="1" max="65535">
-    </label>`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.server.host_label')}</div>
+        <input type="text" class="field-input" data-path="server.host" value="${escapeAttr(cfg.host || '')}" placeholder="0.0.0.0">
+    </div>`;
 
-    html += `<label class="srv-label">
-        <span class="cfg-label">${t('config.server.bridge_address_label')}</span>
-        <input type="text" class="cfg-input cfg-input-full" data-path="server.bridge_address" value="${escapeAttr(cfg.bridge_address || '')}"
-            placeholder="">
-        <small class="cfg-help">${t('config.server.bridge_address_hint')}</small>
-    </label>`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.server.port_label')}</div>
+        <input type="number" class="field-input" data-path="server.port" value="${cfg.port || 3000}" min="1" max="65535">
+    </div>`;
 
-    html += `<label class="srv-label">
-        <span class="cfg-label">${t('config.server.ui_language_label')}</span>
-        <select class="cfg-input cfg-input-full" data-path="server.ui_language">
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.server.bridge_address_label')}</div>
+        <div class="field-help">${t('config.server.bridge_address_hint')}</div>
+        <input type="text" class="field-input" data-path="server.bridge_address" value="${escapeAttr(cfg.bridge_address || '')}" placeholder="">
+    </div>`;
+
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.server.ui_language_label')}</div>
+        <select class="field-select" data-path="server.ui_language">
             ${['de','en','es','fr','it','pt','nl','pl','zh','ja','hi','da','sv','no','cs','el'].map(l =>
                 `<option value="${l}" ${(cfg.ui_language||'de')===l?'selected':''}>${l.toUpperCase()}</option>`
             ).join('')}
         </select>
-    </label>`;
+    </div>`;
 
-    html += `<label class="srv-label">
-        <span class="cfg-label">${t('config.server.oauth_redirect_label')}</span>
-        <input type="text" class="cfg-input cfg-input-full" data-path="server.oauth_redirect_base_url" value="${escapeAttr(cfg.oauth_redirect_base_url || '')}"
-            placeholder="https://aurago.example.com">
-        <small class="cfg-help">${t('config.server.oauth_redirect_hint')}</small>
-    </label>`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.server.oauth_redirect_label')}</div>
+        <div class="field-help">${t('config.server.oauth_redirect_hint')}</div>
+        <input type="text" class="field-input" data-path="server.oauth_redirect_base_url" value="${escapeAttr(cfg.oauth_redirect_base_url || '')}" placeholder="https://aurago.example.com">
+    </div>`;
 
-    html += `<label class="srv-label">
-        <span class="cfg-label">${t('config.server.max_body_bytes_label')}</span>
-        <input type="number" class="cfg-input cfg-input-full" data-path="server.max_body_bytes" value="${cfg.max_body_bytes || 0}" min="0">
-        <small class="cfg-help">${t('config.server.max_body_bytes_hint')}</small>
-    </label>`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.server.max_body_bytes_label')}</div>
+        <div class="field-help">${t('config.server.max_body_bytes_hint')}</div>
+        <input type="number" class="field-input" data-path="server.max_body_bytes" value="${cfg.max_body_bytes || 0}" min="0">
+    </div></div>`;
 
     html += `</div>`;
 
@@ -68,25 +67,25 @@ async function renderServerSection(section) {
 
     if (httpsEnabled) {
         const certMode = https.cert_mode || 'auto';
-        html += `<label class="srv-label">
-            <span class="cfg-label">${t('config.server.cert_mode_label')}</span>
-            <select class="cfg-input cfg-input-full" id="cert-mode-select" data-path="server.https.cert_mode"
+        html += `<div class="field-group">
+            <div class="field-label">${t('config.server.cert_mode_label')}</div>
+            <select class="field-select" id="cert-mode-select" data-path="server.https.cert_mode"
                 onchange="_srvChangeCertMode(this)">
                 <option value="auto" ${certMode==='auto'?'selected':''}>${t('config.server.cert_mode_auto')}</option>
                 <option value="custom" ${certMode==='custom'?'selected':''}>${t('config.server.cert_mode_custom')}</option>
                 <option value="selfsigned" ${certMode==='selfsigned'?'selected':''}>${t('config.server.cert_mode_selfsigned')}</option>
             </select>
-        </label>`;
+        </div>`;
 
-        html += `<div class="srv-port-row">
-            <label>
-                <span class="cfg-label">${t('config.server.https_port_label')}</span>
-                <input type="number" class="cfg-input cfg-input-full" data-path="server.https.https_port" value="${https.https_port || 443}" min="1" max="65535">
-            </label>
-            <label>
-                <span class="cfg-label">${t('config.server.http_port_label')}</span>
-                <input type="number" class="cfg-input cfg-input-full" data-path="server.https.http_port" value="${https.http_port || 80}" min="1" max="65535">
-            </label>
+        html += `<div class="field-grid two-cols">
+            <div class="field-group">
+                <div class="field-label">${t('config.server.https_port_label')}</div>
+                <input type="number" class="field-input" data-path="server.https.https_port" value="${https.https_port || 443}" min="1" max="65535">
+            </div>
+            <div class="field-group">
+                <div class="field-label">${t('config.server.http_port_label')}</div>
+                <input type="number" class="field-input" data-path="server.https.http_port" value="${https.http_port || 80}" min="1" max="65535">
+            </div>
         </div>`;
 
         html += `<div class="cfg-toggle-row">
@@ -100,17 +99,16 @@ async function renderServerSection(section) {
                 <div><small>${t('config.server.cert_auto_notice')}</small></div>
             </div>`;
 
-            html += `<label class="srv-label">
-                <span class="cfg-label">${t('config.server.domain_label')}</span>
-                <input type="text" class="cfg-input cfg-input-full" data-path="server.https.domain" value="${escapeAttr(https.domain || '')}"
-                    placeholder="aurago.example.com">
-            </label>`;
-
-            html += `<label class="srv-label">
-                <span class="cfg-label">${t('config.server.email_label')}</span>
-                <input type="email" class="cfg-input cfg-input-full" data-path="server.https.email" value="${escapeAttr(https.email || '')}"
-                    placeholder="admin@example.com">
-            </label>`;
+            html += `<div class="field-grid two-cols">
+                <div class="field-group">
+                    <div class="field-label">${t('config.server.domain_label')}</div>
+                    <input type="text" class="field-input" data-path="server.https.domain" value="${escapeAttr(https.domain || '')}" placeholder="aurago.example.com">
+                </div>
+                <div class="field-group">
+                    <div class="field-label">${t('config.server.email_label')}</div>
+                    <input type="email" class="field-input" data-path="server.https.email" value="${escapeAttr(https.email || '')}" placeholder="admin@example.com">
+                </div>
+            </div>`;
 
         } else if (certMode === 'custom') {
             html += `<div class="wh-notice">
@@ -118,17 +116,16 @@ async function renderServerSection(section) {
                 <div><small>${t('config.server.cert_custom_notice')}</small></div>
             </div>`;
 
-            html += `<label class="srv-label">
-                <span class="cfg-label">${t('config.server.cert_file_label')}</span>
-                <input type="text" class="cfg-input cfg-input-full" data-path="server.https.cert_file" value="${escapeAttr(https.cert_file || '')}"
-                    placeholder="data/certs/custom.crt">
-            </label>`;
-
-            html += `<label class="srv-label">
-                <span class="cfg-label">${t('config.server.key_file_label')}</span>
-                <input type="text" class="cfg-input cfg-input-full" data-path="server.https.key_file" value="${escapeAttr(https.key_file || '')}"
-                    placeholder="data/certs/custom.key">
-            </label>`;
+            html += `<div class="field-grid two-cols">
+                <div class="field-group">
+                    <div class="field-label">${t('config.server.cert_file_label')}</div>
+                    <input type="text" class="field-input" data-path="server.https.cert_file" value="${escapeAttr(https.cert_file || '')}" placeholder="data/certs/custom.crt">
+                </div>
+                <div class="field-group">
+                    <div class="field-label">${t('config.server.key_file_label')}</div>
+                    <input type="text" class="field-input" data-path="server.https.key_file" value="${escapeAttr(https.key_file || '')}" placeholder="data/certs/custom.key">
+                </div>
+            </div>`;
 
             html += `<div class="srv-upload-box">
                 <div class="srv-box-title">${t('config.server.cert_upload_title')}</div>
@@ -158,12 +155,11 @@ async function renderServerSection(section) {
                 </div>`;
             }
 
-            html += `<label class="srv-label">
-                <span class="cfg-label">${t('config.server.domain_label')}</span>
-                <input type="text" class="cfg-input cfg-input-full" data-path="server.https.domain" value="${escapeAttr(https.domain || '')}"
-                    placeholder="aurago.local">
-                <small class="cfg-help">${t('config.server.cert_selfsigned_domain_hint')}</small>
-            </label>`;
+            html += `<div class="field-group">
+                <div class="field-label">${t('config.server.domain_label')}</div>
+                <div class="field-help">${t('config.server.cert_selfsigned_domain_hint')}</div>
+                <input type="text" class="field-input" data-path="server.https.domain" value="${escapeAttr(https.domain || '')}" placeholder="aurago.local">
+            </div>`;
 
             html += `<button class="btn btn-sm btn-warning srv-regen-btn" onclick="_srvRegenCert()">🔄 ${t('config.server.cert_regen_btn')}</button>`;
         }
