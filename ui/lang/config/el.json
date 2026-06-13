@@ -198,5 +198,11 @@
   "help.dograh.ui_host_port": "Host port που αντιστοιχίζεται στο διαχειριζόμενο Dograh UI container.",
   "config.field.disabled_option": "απενεργοποιημένο",
   "config.field.other_custom_option": "Άλλο / Προσαρμοσμένο",
-  "config.dograh.webhook_section_title": "Webhook"
+  "config.dograh.webhook_section_title": "Webhook",
+  "config.dograh.vault_section_title": "Θηκή",
+  "config.dograh.mcp_section_title": "MCP",
+  "config.dograh.testing": "Έλεγχος Dograh...",
+  "config.dograh.starting": "Εκκίνηση Dograh...",
+  "config.dograh.stopping": "Διακοπή Dograh...",
+  "config.dograh.recreating": "Επαναδημιουργία Dograh..."
 }

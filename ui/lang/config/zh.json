@@ -198,5 +198,11 @@
   "help.dograh.ui_host_port": "映射到托管 Dograh UI container 的 host port。",
   "config.field.disabled_option": "已禁用",
   "config.field.other_custom_option": "其他 / 自定义",
-  "config.dograh.webhook_section_title": "Webhook"
+  "config.dograh.webhook_section_title": "Webhook",
+  "config.dograh.vault_section_title": "保险库",
+  "config.dograh.mcp_section_title": "MCP",
+  "config.dograh.testing": "正在测试 Dograh...",
+  "config.dograh.starting": "正在启动 Dograh...",
+  "config.dograh.stopping": "正在停止 Dograh...",
+  "config.dograh.recreating": "正在重建 Dograh..."
 }

@@ -50,6 +50,10 @@ func TestConfigFrontendDograhSectionAndI18nExist(t *testing.T) {
 		"/api/dograh/register-aurago-mcp-tool",
 		"dograh.api_key",
 		"class=\"field-help\"",
+		"class=\"field-group\"",
+		"dograh-test-result",
+		"adg-test-result",
+		"dograhSetBanner",
 	} {
 		if !strings.Contains(moduleJS, marker) {
 			t.Fatalf("%s missing Dograh module marker %q", modulePath, marker)
@@ -75,6 +79,12 @@ func TestConfigFrontendDograhSectionAndI18nExist(t *testing.T) {
 		"config.dograh.test_button",
 		"config.dograh.webhook_button",
 		"config.dograh.mcp_register_button",
+		"config.dograh.vault_section_title",
+		"config.dograh.mcp_section_title",
+		"config.dograh.testing",
+		"config.dograh.starting",
+		"config.dograh.stopping",
+		"config.dograh.recreating",
 		"help.dograh.enabled",
 		"help.dograh.api_key",
 		"help.dograh.api_url",

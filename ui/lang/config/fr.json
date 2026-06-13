@@ -198,5 +198,11 @@
   "help.dograh.ui_host_port": "Port hote mappe vers le conteneur UI Dograh gere.",
   "config.field.disabled_option": "désactivé",
   "config.field.other_custom_option": "Autre / Personnalisé",
-  "config.dograh.webhook_section_title": "Webhook"
+  "config.dograh.webhook_section_title": "Webhook",
+  "config.dograh.vault_section_title": "Coffre",
+  "config.dograh.mcp_section_title": "MCP",
+  "config.dograh.testing": "Test de Dograh...",
+  "config.dograh.starting": "Demarrage de Dograh...",
+  "config.dograh.stopping": "Arret de Dograh...",
+  "config.dograh.recreating": "Recreation de Dograh..."
 }

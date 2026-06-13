@@ -179,6 +179,42 @@ func TestConfigPhase2TTSAndGoogleWorkspaceAvoidInlineStyles(t *testing.T) {
 	}
 }
 
+func TestConfigPhase2cManifestDograhActionRows(t *testing.T) {
+	t.Parallel()
+
+	manifestJS := normalizeAssetText(mustReadUIFile(t, "cfg/manifest.js"))
+	for _, marker := range []string{
+		"adg-status-banner",
+		"adg-test-result",
+		"cfg-actions-row",
+		"CFG_OPTION_OTHER_CUSTOM",
+		"cfgFieldOptionLabel",
+		"manifestStatusState",
+	} {
+		if !strings.Contains(manifestJS, marker) {
+			t.Fatalf("manifest.js missing marker %q", marker)
+		}
+	}
+
+	dograhJS := normalizeAssetText(mustReadUIFile(t, "cfg/dograh.js"))
+	for _, marker := range []string{
+		"adg-status-banner",
+		"adg-test-result",
+		"cfg-actions-row",
+		"dograhSetBanner",
+		"dograh-test-result",
+		"config.dograh.vault_section_title",
+		"config.dograh.mcp_section_title",
+	} {
+		if !strings.Contains(dograhJS, marker) {
+			t.Fatalf("dograh.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(dograhJS, "field-row") {
+		t.Fatal("dograh.js should use field-group layout instead of field-row")
+	}
+}
+
 func TestConfigVirtualDesktopSectionLabelsInSectionsBundle(t *testing.T) {
 	t.Parallel()
 

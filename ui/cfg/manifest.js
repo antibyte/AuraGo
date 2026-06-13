@@ -224,7 +224,8 @@ function manifestSelectField(labelKey, helpKey, path, value, options) {
     const normalizedValue = String(value ?? '');
     const optionValues = options.map(opt => String(opt.value ?? ''));
     const isCustom = normalizedValue !== '' && !optionValues.includes(normalizedValue);
-    const customLabel = manifestText('config.field.custom_value_placeholder', 'Other / Custom');
+    const customOption = typeof CFG_OPTION_OTHER_CUSTOM === 'string' ? CFG_OPTION_OTHER_CUSTOM : 'Other / Custom';
+    const customLabel = typeof cfgFieldOptionLabel === 'function' ? cfgFieldOptionLabel(customOption) : manifestText('config.field.other_custom_option', customOption);
     let html = '<select class="field-select" data-path="' + escapeAttr(path) + '" onchange="manifestSelectChanged(this)">';
     options.forEach(opt => {
         const optValue = String(opt.value ?? '');
@@ -232,7 +233,7 @@ function manifestSelectField(labelKey, helpKey, path, value, options) {
         const label = opt.label !== undefined ? opt.label : optValue;
         html += '<option value="' + escapeAttr(optValue) + '"' + selected + '>' + escapeHtml(label) + '</option>';
     });
-    html += '<option value="Other / Custom"' + (isCustom ? ' selected' : '') + '>' + escapeHtml(customLabel) + '</option>';
+    html += '<option value="' + escapeAttr(customOption) + '"' + (isCustom ? ' selected' : '') + '>' + escapeHtml(customLabel) + '</option>';
     html += '</select>';
     html += '<input class="field-input cfg-custom-input' + (isCustom ? '' : ' is-hidden') + '" type="text" data-custom-for="' + escapeAttr(path) + '" value="' + escapeAttr(isCustom ? normalizedValue : '') + '" placeholder="' + escapeAttr(customLabel) + '" oninput="manifestCustomChanged(this)">';
     return manifestField(labelKey, helpKey, html);
@@ -260,8 +261,9 @@ function manifestPayload() {
 }
 
 function manifestSelectChanged(selectEl) {
-    cfgToggleCustomInput(selectEl);
-    if (selectEl.value !== 'Other / Custom') {
+    if (typeof cfgToggleCustomInput === 'function') cfgToggleCustomInput(selectEl);
+    const customOption = typeof CFG_OPTION_OTHER_CUSTOM === 'string' ? CFG_OPTION_OTHER_CUSTOM : 'Other / Custom';
+    if (selectEl.value !== customOption) {
         setNestedValue(configData, selectEl.dataset.path, selectEl.value);
     }
     markDirty();
@@ -273,14 +275,24 @@ function manifestCustomChanged(inputEl) {
     markDirty();
 }
 
+function manifestStatusState(body) {
+    const status = String(body && body.status ? body.status : '').toLowerCase();
+    if (body && body.admin_setup_required) return 'warning';
+    if (status === 'running' || status === 'ok' || status === 'connected') return 'success';
+    if (status === 'error' || status === 'failed' || status === 'stopped') return 'danger';
+    return '';
+}
+
 async function manifestRefreshStatus() {
     const panel = document.getElementById('manifest-status-panel');
     if (!panel) return;
     try {
         const resp = await fetch('/api/manifest/status');
         const body = await resp.json();
+        panel.className = 'adg-status-banner' + (manifestStatusState(body) ? ' is-' + manifestStatusState(body) : '');
         panel.innerHTML = manifestStatusHTML(body);
     } catch (e) {
+        panel.className = 'adg-status-banner is-danger';
         panel.textContent = manifestText('config.manifest.status_error') + ' ' + e.message;
     }
 }
@@ -327,7 +339,10 @@ async function manifestAction(url, buttonId, loadingText) {
             result.textContent = (body.message || body.status || '').toString();
         }
         const panel = document.getElementById('manifest-status-panel');
-        if (panel) panel.innerHTML = manifestStatusHTML(body);
+        if (panel) {
+            panel.className = 'adg-status-banner' + (manifestStatusState(body) ? ' is-' + manifestStatusState(body) : '');
+            panel.innerHTML = manifestStatusHTML(body);
+        }
     } catch (e) {
         if (result) {
             result.className = 'adg-test-result is-danger';

@@ -198,5 +198,11 @@
   "help.dograh.ui_host_port": "管理対象 Dograh UI container にマップされる host port です。",
   "config.field.disabled_option": "無効",
   "config.field.other_custom_option": "その他 / カスタム",
-  "config.dograh.webhook_section_title": "Webhook"
+  "config.dograh.webhook_section_title": "Webhook",
+  "config.dograh.vault_section_title": "Vault",
+  "config.dograh.mcp_section_title": "MCP",
+  "config.dograh.testing": "Dograhをテスト中...",
+  "config.dograh.starting": "Dograhを起動中...",
+  "config.dograh.stopping": "Dograhを停止中...",
+  "config.dograh.recreating": "Dograhを再作成中..."
 }

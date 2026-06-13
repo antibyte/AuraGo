@@ -198,5 +198,11 @@
   "help.dograh.ui_host_port": "Porta host mappata al container UI Dograh gestito.",
   "config.field.disabled_option": "disattivato",
   "config.field.other_custom_option": "Altro / Personalizzato",
-  "config.dograh.webhook_section_title": "Webhook"
+  "config.dograh.webhook_section_title": "Webhook",
+  "config.dograh.vault_section_title": "Cassaforte",
+  "config.dograh.mcp_section_title": "MCP",
+  "config.dograh.testing": "Test di Dograh...",
+  "config.dograh.starting": "Avvio di Dograh...",
+  "config.dograh.stopping": "Arresto di Dograh...",
+  "config.dograh.recreating": "Ricreazione di Dograh..."
 }

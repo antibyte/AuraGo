@@ -198,5 +198,11 @@
   "help.dograh.ui_host_port": "Host-port mappet til den administrerte Dograh UI-containeren.",
   "config.field.disabled_option": "deaktivert",
   "config.field.other_custom_option": "Annet / Egendefinert",
-  "config.dograh.webhook_section_title": "Webhook"
+  "config.dograh.webhook_section_title": "Webhook",
+  "config.dograh.vault_section_title": "Hvelv",
+  "config.dograh.mcp_section_title": "MCP",
+  "config.dograh.testing": "Tester Dograh...",
+  "config.dograh.starting": "Starter Dograh...",
+  "config.dograh.stopping": "Stopper Dograh...",
+  "config.dograh.recreating": "Gjenoppretter Dograh..."
 }

@@ -42,6 +42,13 @@ const dograhFallbackText = {
     'config.dograh.test_button': 'Test',
     'config.dograh.webhook_button': 'Provision webhook',
     'config.dograh.mcp_register_button': 'Register MCP tool',
+    'config.dograh.vault_section_title': 'Vault',
+    'config.dograh.mcp_section_title': 'MCP',
+    'config.dograh.webhook_section_title': 'Webhook',
+    'config.dograh.testing': 'Testing Dograh...',
+    'config.dograh.starting': 'Starting Dograh...',
+    'config.dograh.stopping': 'Stopping Dograh...',
+    'config.dograh.recreating': 'Recreating Dograh...',
     'config.dograh.status_prefix': 'Status:',
     'config.dograh.status_error': 'Dograh status unavailable:',
     'config.dograh.setup_required': 'Setup required',
@@ -117,12 +124,13 @@ async function renderDograhSection(section) {
     }
 
     html += '<div class="cfg-note-banner cfg-note-banner-info">▧ ' + dograhText('config.dograh.sidecar_note') + '</div>';
-    html += '<div id="dograh-status-box" class="adg-status-banner">' + dograhText('config.dograh.status_prefix') + ' ...</div>';
+    html += '<div id="dograh-status-box" class="adg-status-banner">' + escapeHtml(dograhText('config.dograh.status_prefix')) + ' ...</div>';
     html += '<div class="cfg-actions-row">';
     html += dograhActionButton('dograh-test-btn', 'config.dograh.test_button', 'dograhAction(\\'test\\')', 'adg-test-btn', '🔌 ');
     html += dograhActionButton('dograh-start-btn', 'config.dograh.start_button', 'dograhAction(\\'start\\')', 'btn-secondary', '▶ ');
     html += dograhActionButton('dograh-stop-btn', 'config.dograh.stop_button', 'dograhAction(\\'stop\\')', 'btn-secondary', '⏹ ');
     html += dograhActionButton('dograh-recreate-btn', 'config.dograh.recreate_button', 'dograhAction(\\'recreate\\')', 'btn-secondary', '🔄 ');
+    html += '<span id="dograh-test-result" class="adg-test-result"></span>';
     html += '</div>';
 
     html += '<div class="field-grid two-cols">';
@@ -150,12 +158,12 @@ async function renderDograhSection(section) {
     }
 
     html += '<div class="field-group">';
-    html += '<div class="field-group-title">Vault</div>';
+    html += '<div class="field-group-title">' + escapeHtml(dograhText('config.dograh.vault_section_title')) + '</div>';
     html += dograhSecretField('config.dograh.api_key_label', 'help.dograh.api_key', 'dograh-api-key-input', 'dograh.api_key', 'dg_••••••••');
     html += '</div>';
 
     html += '<div class="field-group">';
-    html += '<div class="field-group-title">MCP</div>';
+    html += '<div class="field-group-title">' + escapeHtml(dograhText('config.dograh.mcp_section_title')) + '</div>';
     html += '<div class="field-grid two-cols">';
     html += dograhToggleRow('config.dograh.mcp_client_label', 'help.dograh.mcp_client_enabled', data.mcp_client_enabled !== false, 'dograh.mcp_client_enabled');
     html += dograhToggleRow('config.dograh.mcp_server_tool_label', 'help.dograh.mcp_server_tool_enabled', data.mcp_server_tool_enabled !== false, 'dograh.mcp_server_tool_enabled');
@@ -166,7 +174,7 @@ async function renderDograhSection(section) {
     html += '</div></div>';
 
     html += '<div class="field-group">';
-    html += '<div class="field-group-title">' + dograhText('config.dograh.webhook_section_title', 'Webhook') + '</div>';
+    html += '<div class="field-group-title">' + escapeHtml(dograhText('config.dograh.webhook_section_title')) + '</div>';
     html += dograhInput('config.dograh.webhook_slug_label', 'help.dograh.webhook_slug', 'dograh.callback_webhook_slug', data.callback_webhook_slug || 'dograh-callback');
     html += '<div class="cfg-actions-row">' + dograhButton('dograh-webhook-btn', 'config.dograh.webhook_button', 'dograhAction(\\'provisionWebhook\\')') + '</div>';
     html += '</div>';
@@ -179,8 +187,10 @@ async function renderDograhSection(section) {
 
 function dograhField(labelKey, helpKey, controlHTML) {
     const helpText = dograhText(helpKey);
-    let html = '<div class="field-row"><label class="field-label">' + escapeHtml(dograhText(labelKey)) + dograhHelp(helpKey) + '</label>' + controlHTML;
+    let html = '<div class="field-group">';
+    html += '<div class="field-label">' + escapeHtml(dograhText(labelKey)) + '</div>';
     if (helpText) html += '<div class="field-help">' + escapeHtml(helpText) + '</div>';
+    html += controlHTML;
     return html + '</div>';
 }
 
@@ -214,10 +224,21 @@ function dograhActionButton(id, labelKey, onclick, btnClass, prefix) {
     return '<button type="button" id="' + id + '" class="btn-save ' + btnClass + '" onclick="' + onclick + '">' + prefix + escapeHtml(dograhText(labelKey)) + '</button>';
 }
 
-function dograhHelp(helpKey) {
-    const text = dograhText(helpKey);
-    if (!text) return '';
-    return '<span class="help-icon" title="' + escapeAttr(text) + '">?</span>';
+function dograhSetBanner(state, html) {
+    const box = document.getElementById('dograh-status-box');
+    if (!box) return;
+    box.className = 'adg-status-banner' + (state ? ' is-' + state : '');
+    box.innerHTML = html;
+}
+
+function dograhActionLoadingText(action) {
+    const map = {
+        test: 'config.dograh.testing',
+        start: 'config.dograh.starting',
+        stop: 'config.dograh.stopping',
+        recreate: 'config.dograh.recreating'
+    };
+    return dograhText(map[action] || 'config.dograh.status_prefix') || action;
 }
 
 function dograhToggleEnabled(currentlyOn) {
@@ -233,34 +254,55 @@ function dograhTogglePath(path, currentlyOn) {
 }
 
 async function dograhRefreshStatus() {
-    const box = document.getElementById('dograh-status-box');
-    if (!box) return;
+    if (!document.getElementById('dograh-status-box')) return;
     try {
         const res = await fetch(dograhEndpoints.status, { credentials: 'same-origin' });
         const body = await res.json();
         dograhRenderStatus(body);
     } catch (err) {
-        box.textContent = dograhText('config.dograh.status_error') + ' ' + err.message;
+        dograhSetBanner('danger', escapeHtml(dograhText('config.dograh.status_error') + ' ' + err.message));
     }
 }
 
+function dograhStatusState(body) {
+    const status = String(body && body.status ? body.status : '').toLowerCase();
+    if (body && body.admin_setup_required) return 'warning';
+    if (body && body.setup_required) return 'warning';
+    if (status === 'running' || status === 'ok' || status === 'connected') return 'success';
+    if (status === 'error' || status === 'failed' || status === 'stopped') return 'danger';
+    return '';
+}
+
 function dograhRenderStatus(body) {
-    const box = document.getElementById('dograh-status-box');
-    if (!box) return;
-    const parts = [dograhText('config.dograh.status_prefix') + ' ' + escapeHtml(body.status || 'unknown')];
-    if (body.admin_setup_required) parts.push(dograhText('config.dograh.admin_setup_required'));
-    if (body.setup_required && body.message) parts.push(escapeHtml(body.message));
-    if (body.api_url) parts.push('<a href="' + escapeAttr(body.api_url) + '" target="_blank" rel="noopener noreferrer">API</a>');
-    if (body.ui_url) parts.push('<a href="' + escapeAttr(body.ui_url) + '" target="_blank" rel="noopener noreferrer">UI</a>');
-    box.innerHTML = parts.join(' · ');
+    const parts = ['<strong>' + escapeHtml(dograhText('config.dograh.status_prefix')) + '</strong> ' + escapeHtml((body && body.status) || 'unknown')];
+    if (body && body.admin_setup_required) parts.push('<span>' + escapeHtml(dograhText('config.dograh.admin_setup_required')) + '</span>');
+    if (body && body.setup_required && body.message) parts.push('<span>' + escapeHtml(body.message) + '</span>');
+    if (body && body.api_url) parts.push('<a href="' + escapeAttr(body.api_url) + '" target="_blank" rel="noopener noreferrer">API</a>');
+    if (body && body.ui_url) parts.push('<a href="' + escapeAttr(body.ui_url) + '" target="_blank" rel="noopener noreferrer">UI</a>');
+    dograhSetBanner(dograhStatusState(body), parts.join('<br>'));
 }
 
 async function dograhAction(action) {
-    const box = document.getElementById('dograh-status-box');
-    if (box) box.textContent = dograhText('config.dograh.status_prefix') + ' ' + action + '...';
+    const result = document.getElementById('dograh-test-result');
+    const btn = document.getElementById('dograh-' + action + '-btn');
+    const loadingText = dograhActionLoadingText(action);
+    if (btn) btn.disabled = true;
+    if (action === 'test' && result) {
+        result.className = 'adg-test-result';
+        result.textContent = loadingText;
+    } else {
+        dograhSetBanner('', '<strong>' + escapeHtml(dograhText('config.dograh.status_prefix')) + '</strong> ' + escapeHtml(loadingText));
+    }
     const endpoint = dograhEndpoints[action];
     if (!endpoint) {
-        if (box) box.textContent = dograhText('config.dograh.status_error') + ' unknown action';
+        const msg = dograhText('config.dograh.status_error') + ' unknown action';
+        if (action === 'test' && result) {
+            result.className = 'adg-test-result is-danger';
+            result.textContent = msg;
+        } else {
+            dograhSetBanner('danger', escapeHtml(msg));
+        }
+        if (btn) btn.disabled = false;
         return;
     }
     try {
@@ -273,16 +315,34 @@ async function dograhAction(action) {
         const body = await res.json().catch(() => ({}));
         if (!res.ok) {
             const msg = body.error || body.message || res.statusText;
-            if (box) box.textContent = dograhText('config.dograh.status_error') + ' ' + msg;
+            if (action === 'test' && result) {
+                result.className = 'adg-test-result is-danger';
+                result.textContent = msg;
+            } else {
+                dograhSetBanner('danger', escapeHtml(dograhText('config.dograh.status_error') + ' ' + msg));
+            }
             return;
         }
-        if (body.token && box) {
-            box.innerHTML = dograhText('config.dograh.webhook_token_hint') + '<br><code>' + escapeHtml(body.token) + '</code>';
+        if (body.token) {
+            dograhSetBanner('warning', escapeHtml(dograhText('config.dograh.webhook_token_hint')) + '<br><code>' + escapeHtml(body.token) + '</code>');
             return;
+        }
+        if (action === 'test' && result) {
+            const ok = body.status !== 'error';
+            result.className = ok ? 'adg-test-result is-success' : 'adg-test-result is-danger';
+            result.textContent = (body.message || body.status || '').toString();
         }
         dograhRenderStatus(body);
         setTimeout(dograhRefreshStatus, 900);
     } catch (err) {
-        if (box) box.textContent = dograhText('config.dograh.status_error') + ' ' + err.message;
+        const msg = dograhText('config.dograh.status_error') + ' ' + err.message;
+        if (action === 'test' && result) {
+            result.className = 'adg-test-result is-danger';
+            result.textContent = msg;
+        } else {
+            dograhSetBanner('danger', escapeHtml(msg));
+        }
+    } finally {
+        if (btn) btn.disabled = false;
     }
 }

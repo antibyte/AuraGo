@@ -198,5 +198,11 @@
   "help.dograh.ui_host_port": "Port hosta mapowany do zarzadzanego kontenera Dograh UI.",
   "config.field.disabled_option": "wyłączone",
   "config.field.other_custom_option": "Inne / Własne",
-  "config.dograh.webhook_section_title": "Webhook"
+  "config.dograh.webhook_section_title": "Webhook",
+  "config.dograh.vault_section_title": "Skarbiec",
+  "config.dograh.mcp_section_title": "MCP",
+  "config.dograh.testing": "Testowanie Dograh...",
+  "config.dograh.starting": "Uruchamianie Dograh...",
+  "config.dograh.stopping": "Zatrzymywanie Dograh...",
+  "config.dograh.recreating": "Odtwarzanie Dograh..."
 }
