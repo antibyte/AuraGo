@@ -24,23 +24,22 @@ async function renderTailscaleSection(section) {
         <div class="toggle ${cfg.readonly ? 'on' : ''}" data-path="tailscale.readonly" onclick="toggleBool(this)"></div>
     </div>`;
 
-    html += `<label class="ts-label-block">
-        <span class="ts-toggle-label">${t('config.tailscale.tailnet_label')}</span>
-        <input type="text" class="cfg-input cfg-input-full" data-path="tailscale.tailnet" value="${escapeAttr(cfg.tailnet || '')}"
-            placeholder="example.com">
-    </label>`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.tailscale.tailnet_label')}</div>
+        <input class="field-input" type="text" data-path="tailscale.tailnet" value="${escapeAttr(cfg.tailnet || '')}" placeholder="example.com">
+    </div>`;
 
     html += `<div class="field-group ts-mt">
-        <div class="ts-key-label">🔑 ${t('config.tailscale.api_key_label')}</div>
-        <div class="cfg-secret-row">
-            <div class="password-wrap ts-pw-wrap">
-                <input class="field-input cfg-input" type="password" id="ts-api-key-input" value="${escapeAttr(cfgSecretValue(cfg.api_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.api_key, 'tskey-api-••••••••'))}" autocomplete="off">
+        <div class="field-label">🔑 ${t('config.tailscale.api_key_label')}</div>
+        <div class="field-help">${t('config.tailscale.api_key_hint')}</div>
+        <div class="adg-password-row">
+            <div class="password-wrap cfg-password-input">
+                <input class="field-input adg-password-input" type="password" id="ts-api-key-input" value="${escapeAttr(cfgSecretValue(cfg.api_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.api_key, 'tskey-api-••••••••'))}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
-            <button class="btn-save cfg-save-btn-sm" onclick="tsSaveApiKey()">💾 ${t('config.tailscale.save_vault')}</button>
+            <button class="btn-save adg-save-btn" onclick="tsSaveApiKey()">💾 ${t('config.tailscale.save_vault')}</button>
         </div>
-        <div id="ts-api-key-status" class="ts-key-status"></div>
-        <div class="ts-key-hint">${t('config.tailscale.api_key_hint')}</div>
+        <div id="ts-api-key-status" class="adg-test-result"></div>
     </div>`;
 
     html += `<div class="cfg-actions-row">
@@ -150,16 +149,16 @@ async function renderTailscaleSection(section) {
         </div>`;
 
         html += `<div class="field-group ts-mt">
-            <div class="ts-key-label">🔑 ${t('config.tailscale.tsnet_auth_key_label')}</div>
-            <div class="cfg-secret-row">
-                <div class="password-wrap ts-pw-wrap">
-                    <input class="field-input cfg-input" type="password" id="ts-auth-key-input" value="${escapeAttr(cfgSecretValue(tsnet.auth_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(tsnet.auth_key, 'tskey-auth-••••••••'))}" autocomplete="off">
+            <div class="field-label">🔑 ${t('config.tailscale.tsnet_auth_key_label')}</div>
+            <div class="field-help">${t('config.tailscale.tsnet_auth_key_hint')}</div>
+            <div class="adg-password-row">
+                <div class="password-wrap cfg-password-input">
+                    <input class="field-input adg-password-input" type="password" id="ts-auth-key-input" value="${escapeAttr(cfgSecretValue(tsnet.auth_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(tsnet.auth_key, 'tskey-auth-••••••••'))}" autocomplete="off">
                     <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                 </div>
-                <button class="btn-save cfg-save-btn-sm" onclick="tsSaveAuthKey()">💾 ${t('config.tailscale.save_vault')}</button>
+                <button class="btn-save adg-save-btn" onclick="tsSaveAuthKey()">💾 ${t('config.tailscale.save_vault')}</button>
             </div>
-            <div id="ts-auth-key-status" class="ts-key-status"></div>
-            <div class="ts-key-hint">${t('config.tailscale.tsnet_auth_key_hint')}</div>
+            <div id="ts-auth-key-status" class="adg-test-result"></div>
         </div>`;
 
         html += `<div id="tsnet-status-area" class="ts-status-area">
@@ -384,7 +383,10 @@ function tsSaveApiKey() {
     const statusEl = document.getElementById('ts-api-key-status');
     const key = input ? input.value.trim() : '';
     if (!key) {
-        if (statusEl) { statusEl.className = 'ts-key-status ts-color-error'; statusEl.textContent = t('config.tailscale.key_empty'); }
+        if (statusEl) {
+            statusEl.className = 'adg-test-result is-danger';
+            statusEl.textContent = t('config.tailscale.key_empty');
+        }
         return;
     }
     fetch('/api/vault/secrets', {
@@ -395,15 +397,22 @@ function tsSaveApiKey() {
     .then(r => r.json())
     .then(res => {
         if (res.status === 'ok' || res.success) {
-            if (statusEl) { statusEl.className = 'ts-key-status ts-color-success'; statusEl.textContent = '✓ ' + t('config.tailscale.key_saved'); }
+            if (statusEl) {
+                statusEl.className = 'adg-test-result is-success';
+                statusEl.textContent = t('config.tailscale.key_saved');
+            }
             cfgMarkSecretStored(input, 'tailscale.api_key');
-        } else {
-            if (statusEl) { statusEl.className = 'ts-key-status ts-color-error'; statusEl.textContent = '✗ ' + (res.message || t('config.tailscale.key_save_failed')); }
+        } else if (statusEl) {
+            statusEl.className = 'adg-test-result is-danger';
+            statusEl.textContent = res.message || t('config.tailscale.key_save_failed');
         }
-        setTimeout(() => { if (statusEl) { statusEl.className = 'ts-key-status'; statusEl.textContent = ''; } }, 4000);
+        setTimeout(() => { if (statusEl) { statusEl.className = 'adg-test-result'; statusEl.textContent = ''; } }, 4000);
     })
     .catch(() => {
-        if (statusEl) { statusEl.className = 'ts-key-status ts-color-error'; statusEl.textContent = '✗ ' + t('config.tailscale.key_save_failed'); }
+        if (statusEl) {
+            statusEl.className = 'adg-test-result is-danger';
+            statusEl.textContent = t('config.tailscale.key_save_failed');
+        }
     });
 }
 
@@ -412,7 +421,10 @@ function tsSaveAuthKey() {
     const statusEl = document.getElementById('ts-auth-key-status');
     const key = input ? input.value.trim() : '';
     if (!key) {
-        if (statusEl) { statusEl.className = 'ts-key-status ts-color-error'; statusEl.textContent = t('config.tailscale.key_empty'); }
+        if (statusEl) {
+            statusEl.className = 'adg-test-result is-danger';
+            statusEl.textContent = t('config.tailscale.key_empty');
+        }
         return;
     }
     fetch('/api/vault/secrets', {
@@ -423,14 +435,21 @@ function tsSaveAuthKey() {
     .then(r => r.json())
     .then(res => {
         if (res.status === 'ok' || res.success) {
-            if (statusEl) { statusEl.className = 'ts-key-status ts-color-success'; statusEl.textContent = '✓ ' + t('config.tailscale.key_saved'); }
+            if (statusEl) {
+                statusEl.className = 'adg-test-result is-success';
+                statusEl.textContent = t('config.tailscale.key_saved');
+            }
             cfgMarkSecretStored(input, 'tailscale.tsnet.auth_key');
-        } else {
-            if (statusEl) { statusEl.className = 'ts-key-status ts-color-error'; statusEl.textContent = '✗ ' + (res.message || t('config.tailscale.key_save_failed')); }
+        } else if (statusEl) {
+            statusEl.className = 'adg-test-result is-danger';
+            statusEl.textContent = res.message || t('config.tailscale.key_save_failed');
         }
-        setTimeout(() => { if (statusEl) { statusEl.className = 'ts-key-status'; statusEl.textContent = ''; } }, 4000);
+        setTimeout(() => { if (statusEl) { statusEl.className = 'adg-test-result'; statusEl.textContent = ''; } }, 4000);
     })
     .catch(() => {
-        if (statusEl) { statusEl.className = 'ts-key-status ts-color-error'; statusEl.textContent = '✗ ' + t('config.tailscale.key_save_failed'); }
+        if (statusEl) {
+            statusEl.className = 'adg-test-result is-danger';
+            statusEl.textContent = t('config.tailscale.key_save_failed');
+        }
     });
 }

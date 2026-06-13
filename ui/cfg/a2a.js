@@ -121,11 +121,14 @@ function renderA2ASection(section) {
     html += '<div class="toggle toggle-sm' + (auth.api_key_enabled ? ' on' : '') + '" data-path="a2a.auth.api_key_enabled" onclick="toggleBool(this)"></div>';
     html += '<span class="a2a-toggle-label-bold">' + t('config.a2a.api_key_auth') + '</span>';
     html += '</div>';
-    html += '<div class="a2a-field-row">';
-    html += '<input class="field-input a2a-input-flex" type="password" id="a2a-api-key" value="' + escapeAttr(cfgSecretValue(auth.api_key)) + '" placeholder="' + escapeAttr(authAPIKeyPlaceholder) + '">';
-    html += '<button class="btn-save cfg-save-btn-sm" onclick="a2aSaveVault(\'a2a_api_key\', \'a2a-api-key\')">💾 ' + t('config.a2a.save_vault') + '</button>';
+    html += '<div class="adg-password-row">';
+    html += '<div class="password-wrap cfg-password-input">';
+    html += '<input class="field-input adg-password-input" type="password" id="a2a-api-key" value="' + escapeAttr(cfgSecretValue(auth.api_key)) + '" placeholder="' + escapeAttr(authAPIKeyPlaceholder) + '" autocomplete="off">';
+    html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
-    html += '<span id="a2a-api-key-status" class="a2a-status-text"></span>';
+    html += '<button class="btn-save adg-save-btn" onclick="a2aSaveVault(\'a2a_api_key\', \'a2a-api-key\')">💾 ' + t('config.a2a.save_vault') + '</button>';
+    html += '</div>';
+    html += '<span id="a2a-api-key-status" class="adg-test-result"></span>';
     html += '</div>';
 
     html += '<div class="a2a-card">';
@@ -133,11 +136,14 @@ function renderA2ASection(section) {
     html += '<div class="toggle toggle-sm' + (auth.bearer_enabled ? ' on' : '') + '" data-path="a2a.auth.bearer_enabled" onclick="toggleBool(this)"></div>';
     html += '<span class="a2a-toggle-label-bold">' + t('config.a2a.bearer_auth') + '</span>';
     html += '</div>';
-    html += '<div class="a2a-field-row">';
-    html += '<input class="field-input a2a-input-flex" type="password" id="a2a-bearer-secret" value="' + escapeAttr(cfgSecretValue(auth.bearer_secret)) + '" placeholder="' + escapeAttr(authBearerPlaceholder) + '">';
-    html += '<button class="btn-save cfg-save-btn-sm" onclick="a2aSaveVault(\'a2a_bearer_secret\', \'a2a-bearer-secret\')">💾 ' + t('config.a2a.save_vault') + '</button>';
+    html += '<div class="adg-password-row">';
+    html += '<div class="password-wrap cfg-password-input">';
+    html += '<input class="field-input adg-password-input" type="password" id="a2a-bearer-secret" value="' + escapeAttr(cfgSecretValue(auth.bearer_secret)) + '" placeholder="' + escapeAttr(authBearerPlaceholder) + '" autocomplete="off">';
+    html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
-    html += '<span id="a2a-bearer-status" class="a2a-status-text"></span>';
+    html += '<button class="btn-save adg-save-btn" onclick="a2aSaveVault(\'a2a_bearer_secret\', \'a2a-bearer-secret\')">💾 ' + t('config.a2a.save_vault') + '</button>';
+    html += '</div>';
+    html += '<span id="a2a-bearer-secret-status" class="adg-test-result"></span>';
     html += '</div>';
 
     if (!auth.api_key_enabled && !auth.bearer_enabled) {
@@ -312,7 +318,10 @@ function a2aSaveVault(vaultKey, inputId) {
     var statusEl = document.getElementById(inputId + '-status');
     var value = input ? input.value.trim() : '';
     if (!value) {
-        if (statusEl) { statusEl.classList.remove('a2a-color-success'); statusEl.classList.add('a2a-color-error'); statusEl.textContent = t('config.a2a.value_empty'); }
+        if (statusEl) {
+            statusEl.className = 'adg-test-result is-danger';
+            statusEl.textContent = t('config.a2a.value_empty');
+        }
         return;
     }
     fetch('/api/vault/secrets', {
@@ -344,14 +353,21 @@ function a2aSaveVault(vaultKey, inputId) {
             } else {
                 cfgMarkSecretStored(input);
             }
-            if (statusEl) { statusEl.classList.remove('a2a-color-error'); statusEl.classList.add('a2a-color-success'); statusEl.textContent = '✓ ' + t('config.a2a.saved'); }
-        } else {
-            if (statusEl) { statusEl.classList.remove('a2a-color-success'); statusEl.classList.add('a2a-color-error'); statusEl.textContent = '✗ ' + (res.message || t('config.a2a.save_failed')); }
+            if (statusEl) {
+                statusEl.className = 'adg-test-result is-success';
+                statusEl.textContent = t('config.a2a.saved');
+            }
+        } else if (statusEl) {
+            statusEl.className = 'adg-test-result is-danger';
+            statusEl.textContent = res.message || t('config.a2a.save_failed');
         }
-        setTimeout(function() { if (statusEl) { statusEl.classList.remove('a2a-color-success', 'a2a-color-error'); statusEl.textContent = ''; } }, 4000);
+        setTimeout(function() { if (statusEl) { statusEl.className = 'adg-test-result'; statusEl.textContent = ''; } }, 4000);
     })
     .catch(function() {
-        if (statusEl) { statusEl.classList.remove('a2a-color-success'); statusEl.classList.add('a2a-color-error'); statusEl.textContent = '✗ ' + t('config.a2a.save_failed'); }
+        if (statusEl) {
+            statusEl.className = 'adg-test-result is-danger';
+            statusEl.textContent = t('config.a2a.save_failed');
+        }
     });
 }
 

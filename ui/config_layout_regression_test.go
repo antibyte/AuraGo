@@ -334,6 +334,41 @@ func TestConfigPhase3FritzboxGitHub(t *testing.T) {
 	}
 }
 
+func TestConfigPhase3TailscaleA2AVaultRows(t *testing.T) {
+	t.Parallel()
+
+	tailscaleJS := normalizeAssetText(mustReadUIFile(t, "cfg/tailscale.js"))
+	for _, marker := range []string{
+		"adg-password-row",
+		"adg-save-btn",
+		"adg-test-result",
+		"ts-api-key-status",
+		"ts-auth-key-status",
+	} {
+		if !strings.Contains(tailscaleJS, marker) {
+			t.Fatalf("tailscale.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(tailscaleJS, "cfg-save-btn-sm") || strings.Contains(tailscaleJS, "ts-key-status") {
+		t.Fatal("tailscale.js vault rows should use adg-password-row and adg-test-result")
+	}
+
+	a2aJS := normalizeAssetText(mustReadUIFile(t, "cfg/a2a.js"))
+	for _, marker := range []string{
+		"adg-password-row",
+		"adg-save-btn",
+		"adg-test-result",
+		"a2a-bearer-secret-status",
+	} {
+		if !strings.Contains(a2aJS, marker) {
+			t.Fatalf("a2a.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(a2aJS, "cfg-save-btn-sm") || strings.Contains(a2aJS, "a2a-status-text") {
+		t.Fatal("a2a.js auth vault rows should use unified adg-* patterns")
+	}
+}
+
 func TestConfigManifestDograhAvoidEmbeddedFallbackTables(t *testing.T) {
 	t.Parallel()
 
