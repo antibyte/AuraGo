@@ -1263,15 +1263,18 @@ div.toggle.toggle-sm.on::before {
     justify-content: center;
     z-index: var(--z-modal, 1000);
     opacity: 0;
+    pointer-events: none;
     transition: opacity 0.3s ease;
     overflow-y: auto;
     padding: 20px 0;
     backdrop-filter: blur(4px);
 }
 
-.modal-overlay.active {
+.modal-overlay.active,
+.modal-overlay.open {
     display: flex;
     opacity: 1;
+    pointer-events: all;
 }
 
 .modal {
@@ -1293,7 +1296,8 @@ div.toggle.toggle-sm.on::before {
     overflow: hidden;
 }
 
-.modal-overlay.active .modal {
+.modal-overlay.active .modal,
+.modal-overlay.open .modal {
     transform: scale(1) translateY(0);
     opacity: 1;
 }
@@ -1381,11 +1385,6 @@ div.toggle.toggle-sm.on::before {
 /* Danger variant for delete/confirmation modals */
 .modal-card-danger {
     border-color: rgba(239, 68, 68, 0.4);
-}
-
-.modal-overlay.open {
-    display: flex;
-    opacity: 1;
 }
 
 /* ═══════════════════════════════════════════════════════════════

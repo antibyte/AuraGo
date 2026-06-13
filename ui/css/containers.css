@@ -447,7 +447,8 @@
     padding: 20px;
 }
 
-.modal-overlay.open {
+.modal-overlay.open,
+.modal-overlay.active {
     opacity: 1;
     pointer-events: all;
 }
@@ -473,7 +474,8 @@
     -webkit-backdrop-filter: blur(24px) saturate(1.2);
 }
 
-.modal-overlay.open .modal {
+.modal-overlay.open .modal,
+.modal-overlay.active .modal {
     transform: scale(1) translateY(0);
     opacity: 1;
 }
