@@ -270,8 +270,19 @@ func TestRuntimePromptContextCapabilityDaemonAndInternetGates(t *testing.T) {
 	if shouldInjectCapabilityCreationPrompt("pruefe den prompt", nil, nil) {
 		t.Fatal("did not expect capability creation prompt for ordinary prompt review")
 	}
+	for _, text := range []string{
+		"zeige mir die aktuelle capability routing bewertung",
+		"pruefe das config template",
+	} {
+		if shouldInjectCapabilityCreationPrompt(text, nil, nil) {
+			t.Fatalf("did not expect capability creation prompt for generic text %q", text)
+		}
+	}
 	if !shouldInjectCapabilityCreationPrompt("erstelle einen Python Skill fuer CSV Import", nil, nil) {
 		t.Fatal("expected capability creation prompt for Python skill intent")
+	}
+	if !shouldInjectCapabilityCreationPrompt("create a reusable capability for CSV import", nil, nil) {
+		t.Fatal("expected capability creation prompt for reusable capability creation intent")
 	}
 	if !shouldInjectCapabilityCreationPrompt("weiter", []string{"create_skill_from_template"}, nil) {
 		t.Fatal("expected capability creation prompt after recent skill template usage")
@@ -296,6 +307,12 @@ func TestRuntimePromptContextCapabilityDaemonAndInternetGates(t *testing.T) {
 	}
 	if !shouldInjectInternetExposureWarning("weiter", []string{"network_scan"}, nil, flags) {
 		t.Fatal("expected internet warning after recent network tool usage")
+	}
+	if !shouldInjectInternetExposureWarning("weiter", nil, nil, &prompts.ContextFlags{
+		InternetExposed:   true,
+		ActiveNativeTools: []string{"docker"},
+	}) {
+		t.Fatal("expected internet warning when visible native tools include network/deployment tools")
 	}
 }
 

@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"log/slog"
@@ -180,6 +181,36 @@ func TestOperationalIssueReminderTextOnlyOnDirectFirstContact(t *testing.T) {
 	blocked := operationalIssueReminderText(RunConfig{PlannerDB: db, MessageSource: "mission", IsMission: true}, "hello", true, slog.Default())
 	if blocked != "" {
 		t.Fatalf("mission operational reminder = %q, want empty", blocked)
+	}
+}
+
+func TestOperationalIssueReminderTextLogsFirstTurnClaimFailure(t *testing.T) {
+	db := newPlannerTestDB(t)
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+
+	if _, err := planner.RecordOperationalIssue(db, planner.OperationalIssue{
+		Source:    "maintenance",
+		Context:   "maintenance",
+		Title:     "Maintenance agent loop failed",
+		Detail:    "budget exceeded",
+		Severity:  "error",
+		Reference: "daily_maintenance",
+	}); err != nil {
+		t.Fatalf("planner.RecordOperationalIssue() error = %v", err)
+	}
+	if _, err := db.Exec("PRAGMA query_only = ON"); err != nil {
+		t.Fatalf("enable query_only: %v", err)
+	}
+
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	reminder := operationalIssueReminderText(RunConfig{PlannerDB: db, MessageSource: "web_chat"}, "Hallo", true, logger)
+	if !strings.Contains(reminder, "Maintenance agent loop failed") {
+		t.Fatalf("operational reminder = %q, want issue despite claim failure", reminder)
+	}
+	if !strings.Contains(buf.String(), "Failed to claim operational issue reminder") {
+		t.Fatalf("log output = %q, want claim failure warning", buf.String())
 	}
 }
 

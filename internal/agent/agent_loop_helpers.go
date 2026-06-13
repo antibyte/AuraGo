@@ -1566,7 +1566,6 @@ type runtimePromptContextOptions struct {
 	RecentTools      []string
 	SessionUsedTools map[string]bool
 	ReuseLookup      ReuseLookupResult
-	DebugOrError     bool
 }
 
 func applyRuntimePromptContextPolicy(flags *prompts.ContextFlags, opts runtimePromptContextOptions) {
@@ -1604,7 +1603,7 @@ func shouldInjectCapabilityCreationPrompt(userText string, recentTools []string,
 		"create tool", "erstelle tool", "new tool", "neues tool", "tool bridge",
 		"internal_tools", "list_skill_templates", "create_skill_from_template",
 		"reusable capability", "wiederverwendbare f higkeit", "wiederverwendbare faehigkeit",
-		"capability", "template", "skill template",
+		"create capability", "new capability", "capability creation", "skill template", "tool template",
 	}
 	if containsAnyRuntimeCue(text, cues) {
 		return true
@@ -1689,6 +1688,13 @@ func shouldInjectInternetExposureWarning(userText string, recentTools []string, 
 	for tool := range sessionUsed {
 		if isInternetExposureTool(tool) {
 			return true
+		}
+	}
+	if flags != nil {
+		for _, tool := range flags.ActiveNativeTools {
+			if isInternetExposureTool(tool) {
+				return true
+			}
 		}
 	}
 	return false

@@ -115,7 +115,9 @@ func operationalIssueReminderText(runCfg RunConfig, initialUserMsg string, isFir
 		debugMode = true
 	}
 	if isFirstTurn {
-		_, _ = planner.ClaimOperationalIssueReminderForDay(runCfg.PlannerDB, time.Now())
+		if _, err := planner.ClaimOperationalIssueReminderForDay(runCfg.PlannerDB, time.Now()); err != nil && logger != nil {
+			logger.Warn("Failed to claim operational issue reminder", "error", err)
+		}
 		return reminder
 	}
 	if shouldInjectOperationalIssueReminderForTurn(initialUserMsg, reminder, debugMode) {

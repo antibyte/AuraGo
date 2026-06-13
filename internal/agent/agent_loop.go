@@ -997,7 +997,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			RecentTools:      recentTools,
 			SessionUsedTools: s.sessionUsedTools,
 			ReuseLookup:      reuseLookup,
-			DebugOrError:     flags.IsDebugMode || flags.IsErrorState || recoveryState.ConsecutiveErrorCount > 0,
 		})
 
 		budgetHint := ""
