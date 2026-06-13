@@ -261,10 +261,13 @@ async function renderMQTTSection(section) {
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
 
-    // Initial status check
-    if (enabled && data.broker) {
-        mqttCheckStatus();
-        mqttRefreshMessages();
+    if (enabled) {
+        if (data.broker) {
+            mqttCheckStatus();
+            mqttRefreshMessages();
+        } else {
+            mqttSetBanner('warning', '⚪ ' + t('config.mqtt.status_no_broker'));
+        }
     }
 }
 

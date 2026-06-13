@@ -210,10 +210,12 @@ function dograhSecretField(labelKey, helpKey, id, path, placeholder) {
 }
 
 function dograhToggleRow(labelKey, helpKey, enabled, path, onclick) {
-    const handler = onclick || "dograhTogglePath('" + path + "', this.classList.contains('on'))";
+    const handler = onclick || 'toggleBool(this)';
     return dograhField(labelKey, helpKey,
-        '<div class="toggle ' + (enabled ? 'on' : '') + '" onclick="' + handler + '"></div>' +
-        '<input type="hidden" data-path="' + escapeAttr(path) + '" value="' + (enabled ? 'true' : 'false') + '">');
+        '<div class="toggle-wrap">' +
+        '<div class="toggle ' + (enabled ? 'on' : '') + '" data-path="' + escapeAttr(path) + '" onclick="' + handler + '"></div>' +
+        '<span class="toggle-label">' + escapeHtml(enabled ? dograhText('config.toggle.active', 'Active') : dograhText('config.toggle.inactive', 'Inactive')) + '</span>' +
+        '</div>');
 }
 
 function dograhButton(id, labelKey, onclick) {
@@ -247,12 +249,6 @@ function dograhToggleEnabled(currentlyOn) {
     renderDograhSection(null);
 }
 
-function dograhTogglePath(path, currentlyOn) {
-    setNestedValue(configData, path, !currentlyOn);
-    setDirty(true);
-    renderDograhSection(null);
-}
-
 async function dograhRefreshStatus() {
     if (!document.getElementById('dograh-status-box')) return;
     try {
@@ -269,7 +265,8 @@ function dograhStatusState(body) {
     if (body && body.admin_setup_required) return 'warning';
     if (body && body.setup_required) return 'warning';
     if (status === 'running' || status === 'ok' || status === 'connected') return 'success';
-    if (status === 'error' || status === 'failed' || status === 'stopped') return 'danger';
+    if (status === 'error' || status === 'failed') return 'danger';
+    if (status === 'stopped' || status === 'stopping' || status === 'starting') return 'warning';
     return '';
 }
 

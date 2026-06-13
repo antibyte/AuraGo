@@ -279,7 +279,8 @@ function manifestStatusState(body) {
     const status = String(body && body.status ? body.status : '').toLowerCase();
     if (body && body.admin_setup_required) return 'warning';
     if (status === 'running' || status === 'ok' || status === 'connected') return 'success';
-    if (status === 'error' || status === 'failed' || status === 'stopped') return 'danger';
+    if (status === 'error' || status === 'failed') return 'danger';
+    if (status === 'stopped' || status === 'stopping' || status === 'starting') return 'warning';
     return '';
 }
 
