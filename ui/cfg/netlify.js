@@ -125,9 +125,9 @@ async function renderNetlifySection(section) {
         </div>
     </label>`;
 
-    html += `<div class="cfg-field-row">
-        <button class="btn-save cfg-save-btn-sm" onclick="nfSaveToken()">${t('config.netlify.save_token')}</button>
-        <span id="nf-token-status" class="cfg-status-text"></span>
+    html += `<div class="adg-password-row">
+        <button class="btn-save adg-save-btn" onclick="nfSaveToken()">💾 ${t('config.netlify.save_token')}</button>
+        <span id="nf-token-status" class="adg-test-result"></span>
     </div>`;
 
     html += `</div>`;
@@ -153,11 +153,17 @@ async function nfSaveToken() {
     const token = document.getElementById('nf-token').value;
 
     if (!token) {
-        if (statusEl) { statusEl.textContent = '⚠️ ' + t('config.netlify.token_empty'); statusEl.className = 'cfg-status-text cfg-status-warning'; }
+        if (statusEl) {
+            statusEl.textContent = t('config.netlify.token_empty');
+            statusEl.className = 'adg-test-result is-danger';
+        }
         return;
     }
 
-    if (statusEl) { statusEl.textContent = '⏳ ' + t('config.netlify.saving'); statusEl.className = 'cfg-status-text'; }
+    if (statusEl) {
+        statusEl.textContent = t('config.netlify.saving');
+        statusEl.className = 'adg-test-result';
+    }
 
     try {
         const resp = await fetch('/api/vault/secrets', {
@@ -167,14 +173,23 @@ async function nfSaveToken() {
         });
         if (!resp.ok) {
             const txt = await resp.text();
-            if (statusEl) { statusEl.textContent = '❌ ' + txt; statusEl.className = 'cfg-status-text cfg-status-error'; }
+            if (statusEl) {
+                statusEl.textContent = txt;
+                statusEl.className = 'adg-test-result is-danger';
+            }
         } else {
-            if (statusEl) { statusEl.textContent = '✅ ' + t('config.netlify.token_saved'); statusEl.className = 'cfg-status-text cfg-status-success'; }
+            if (statusEl) {
+                statusEl.textContent = t('config.netlify.token_saved');
+                statusEl.className = 'adg-test-result is-success';
+            }
             cfgMarkSecretStored(document.getElementById('nf-token'), 'netlify.token');
             nfStatusCache = null;
         }
     } catch (e) {
-        if (statusEl) { statusEl.textContent = '❌ ' + e.message; statusEl.className = 'cfg-status-text cfg-status-error'; }
+        if (statusEl) {
+            statusEl.textContent = e.message;
+            statusEl.className = 'adg-test-result is-danger';
+        }
     }
 }
 

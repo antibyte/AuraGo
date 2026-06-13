@@ -12,71 +12,11 @@ const dograhEndpoints = {
     registerMCP: '/api/dograh/register-aurago-mcp-tool'
 };
 
-const dograhFallbackText = {
-    'config.section.dograh.label': 'Dograh',
-    'config.section.dograh.desc': 'Managed Dograh workflow automation stack and MCP bridge',
-    'config.dograh.enabled_label': 'Enable Dograh',
-    'config.dograh.mode_label': 'Mode',
-    'config.dograh.mode_managed': 'Managed stack',
-    'config.dograh.mode_external': 'External Dograh',
-    'config.dograh.readonly_label': 'Read-only helpers',
-    'config.dograh.auto_start_label': 'Start automatically',
-    'config.dograh.api_url_label': 'Dograh API URL',
-    'config.dograh.ui_url_label': 'Dograh UI URL',
-    'config.dograh.api_key_label': 'Dograh API key',
-    'config.dograh.host_label': 'Bind host',
-    'config.dograh.api_host_port_label': 'API host port',
-    'config.dograh.ui_host_port_label': 'UI host port',
-    'config.dograh.telemetry_label': 'Enable Dograh telemetry',
-    'config.dograh.mcp_client_label': 'Connect AuraGo to Dograh MCP',
-    'config.dograh.mcp_server_tool_label': 'Allow Dograh to call AuraGo MCP',
-    'config.dograh.credential_uuid_label': 'Dograh credential UUID',
-    'config.dograh.allowed_tools_label': 'AuraGo tool filter',
-    'config.dograh.webhook_slug_label': 'Webhook slug',
-    'config.dograh.disabled_notice': 'Dograh is disabled',
-    'config.dograh.disabled_desc': 'Enable Dograh to manage the local stack or connect to an external Dograh API.',
-    'config.dograh.sidecar_note': 'Managed mode starts PostgreSQL, Redis, MinIO, Dograh API and Dograh UI containers.',
-    'config.dograh.start_button': 'Start',
-    'config.dograh.stop_button': 'Stop',
-    'config.dograh.recreate_button': 'Recreate',
-    'config.dograh.test_button': 'Test',
-    'config.dograh.webhook_button': 'Provision webhook',
-    'config.dograh.mcp_register_button': 'Register MCP tool',
-    'config.dograh.vault_section_title': 'Vault',
-    'config.dograh.mcp_section_title': 'MCP',
-    'config.dograh.webhook_section_title': 'Webhook',
-    'config.dograh.testing': 'Testing Dograh...',
-    'config.dograh.starting': 'Starting Dograh...',
-    'config.dograh.stopping': 'Stopping Dograh...',
-    'config.dograh.recreating': 'Recreating Dograh...',
-    'config.dograh.status_prefix': 'Status:',
-    'config.dograh.status_error': 'Dograh status unavailable:',
-    'config.dograh.setup_required': 'Setup required',
-    'config.dograh.admin_setup_required': 'Create an API key in Dograh, then store it here.',
-    'config.dograh.webhook_token_hint': 'Webhook token created. Copy it into Dograh now; AuraGo will not show it again.',
-    'help.dograh.enabled': 'Shows Dograh in AuraGo and enables stack, MCP and webhook helpers.',
-    'help.dograh.api_key': 'Dograh API key from the Dograh UI. AuraGo stores it only in the Vault and sends it as X-API-Key.',
-    'help.dograh.api_url': 'Base URL AuraGo uses for Dograh API calls and the /api/v1/mcp/ endpoint.',
-    'help.dograh.ui_url': 'Browser URL opened from the integrations drawer for the Dograh UI.',
-    'help.dograh.mode': 'Managed starts the Dograh Docker stack. External connects to an existing Dograh API.',
-    'help.dograh.readonly': 'Blocks AuraGo helper actions that create or modify Dograh resources.',
-    'help.dograh.auto_start': 'Starts the managed Dograh stack automatically when AuraGo starts.',
-    'help.dograh.telemetry_enabled': 'Allows Dograh upstream telemetry. Keep disabled for private home-lab deployments.',
-    'help.dograh.mcp_client_enabled': 'Adds Dograh as a runtime MCP server so the agent can call Dograh tools.',
-    'help.dograh.mcp_server_tool_enabled': 'Allows AuraGo to register its own authenticated /mcp endpoint as a Dograh tool.',
-    'help.dograh.credential_uuid': 'Credential UUID created in Dograh for the AuraGo MCP Bearer token.',
-    'help.dograh.allowed_tools': 'Optional comma-separated AuraGo MCP tools Dograh may call.',
-    'help.dograh.webhook_slug': 'AuraGo webhook path used for callbacks sent from Dograh workflows.',
-    'help.dograh.host': 'Network interface for managed Dograh ports. 127.0.0.1 keeps them local.',
-    'help.dograh.api_host_port': 'Host port mapped to the managed Dograh API container.',
-    'help.dograh.ui_host_port': 'Host port mapped to the managed Dograh UI container.'
-};
-
 function dograhText(key, fallback) {
-    let value = '';
-    if (typeof t === 'function') value = t(key);
-    if (typeof value === 'string' && value.trim() !== '' && value !== key) return value;
-    if (Object.prototype.hasOwnProperty.call(dograhFallbackText, key)) return dograhFallbackText[key];
+    if (typeof t === 'function') {
+        const value = t(key);
+        if (typeof value === 'string' && value.trim() !== '' && value !== key) return value;
+    }
     if (typeof fallback === 'string' && fallback.trim() !== '' && fallback !== key) return fallback;
     return '';
 }

@@ -2,69 +2,11 @@
 
 let _manifestSection = null;
 
-const manifestFallbackText = {
-    'config.section.manifest.label': 'Manifest gateway',
-    'config.section.manifest.desc': 'OpenAI-compatible routing through Manifest.build',
-    'config.manifest.admin_setup_required': 'Create the first admin user in Manifest, then add its API key here.',
-    'config.manifest.advanced_label': 'Advanced sidecar settings',
-    'config.manifest.api_key_label': 'Manifest API key',
-    'config.manifest.auto_start_label': 'Start Manifest automatically',
-    'config.manifest.better_auth_secret_label': 'Better Auth secret',
-    'config.manifest.container_name_label': 'Manifest container',
-    'config.manifest.disabled_desc': 'Enable Manifest to let AuraGo start a local Manifest sidecar or use an external Manifest endpoint.',
-    'config.manifest.disabled_notice': 'Manifest is disabled',
-    'config.manifest.enabled_label': 'Enable Manifest gateway',
-    'config.manifest.external_base_url_label': 'External base URL',
-    'config.manifest.health_path_label': 'Health path',
-    'config.manifest.host_label': 'Bind host',
-    'config.manifest.host_port_label': 'Host port',
-    'config.manifest.image_label': 'Manifest image',
-    'config.manifest.mode_external': 'External Manifest',
-    'config.manifest.mode_label': 'Mode',
-    'config.manifest.mode_managed': 'Managed sidecar',
-    'config.manifest.network_name_label': 'Docker network',
-    'config.manifest.port_label': 'Container port',
-    'config.manifest.postgres_container_name_label': 'Postgres container',
-    'config.manifest.postgres_image_label': 'Postgres image',
-    'config.manifest.postgres_password_label': 'Postgres password',
-    'config.manifest.postgres_volume_label': 'Postgres volume',
-    'config.manifest.secrets_desc': 'Secrets are stored in the encrypted AuraGo Vault. Leave generated values empty unless you need to rotate them.',
-    'config.manifest.secrets_title': 'Secrets',
-    'config.manifest.sidecar_note': 'Managed mode creates and supervises the Manifest and Postgres containers automatically.',
-    'config.manifest.start_button': 'Start sidecars',
-    'config.manifest.starting': 'Starting Manifest...',
-    'config.manifest.status_error': 'Manifest status unavailable:',
-    'config.manifest.status_prefix': 'Status:',
-    'config.manifest.stop_button': 'Stop sidecars',
-    'config.manifest.stopping': 'Stopping Manifest...',
-    'config.manifest.test_button': 'Test connection',
-    'config.manifest.testing': 'Testing Manifest...',
-    'config.manifest.url_label': 'Local provider URL',
-    'help.manifest.api_key': 'Manifest API key for AuraGo requests to the Manifest OpenAI-compatible gateway. Copy it from the Manifest admin dashboard after creating the first admin user. It usually starts with mnfst_.',
-    'help.manifest.auto_start': 'Starts the managed Manifest and Postgres containers automatically when AuraGo starts.',
-    'help.manifest.better_auth_secret': 'Long random Better Auth secret used by Manifest to protect cookies and user sessions. It is not a user password and must stay stable across restarts.',
-    'help.manifest.container_name': 'Docker container name for the managed Manifest service.',
-    'help.manifest.enabled': 'Turns the Manifest provider gateway integration on or off.',
-    'help.manifest.external_base_url': 'Base URL of an existing Manifest OpenAI-compatible endpoint, for example https://app.manifest.build/v1.',
-    'help.manifest.health_path': 'Optional health-check path. Leave empty to use the default Manifest status checks.',
-    'help.manifest.host': 'Interface AuraGo uses when exposing the managed Manifest sidecar locally.',
-    'help.manifest.host_port': 'Host port mapped to the Manifest container.',
-    'help.manifest.image': 'Docker image used for the managed Manifest container.',
-    'help.manifest.mode': 'Choose whether AuraGo manages local containers or connects to an existing Manifest service.',
-    'help.manifest.network_name': 'Docker network shared by Manifest and its managed Postgres database.',
-    'help.manifest.port': 'Port exposed inside the Manifest container.',
-    'help.manifest.postgres_container_name': 'Docker container name for the managed Postgres database.',
-    'help.manifest.postgres_image': 'Docker image used for the managed Postgres database.',
-    'help.manifest.postgres_password': 'Password for the managed Postgres database used by Manifest. It is not a Manifest login or AuraGo account password and is stored in the Vault.',
-    'help.manifest.postgres_volume': 'Docker volume that stores Manifest Postgres data.',
-    'help.manifest.url': 'Local OpenAI-compatible base URL AuraGo uses for the managed Manifest gateway.'
-};
-
 function manifestText(key, fallback) {
-    let value = '';
-    if (typeof t === 'function') value = t(key);
-    if (typeof value === 'string' && value.trim() !== '' && value !== key) return value;
-    if (Object.prototype.hasOwnProperty.call(manifestFallbackText, key)) return manifestFallbackText[key];
+    if (typeof t === 'function') {
+        const value = t(key);
+        if (typeof value === 'string' && value.trim() !== '' && value !== key) return value;
+    }
     if (typeof fallback === 'string' && fallback.trim() !== '' && fallback !== key) return fallback;
     return '';
 }

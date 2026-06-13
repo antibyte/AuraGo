@@ -107,6 +107,7 @@ func TestConfigPhase2TestConnectionMarkers(t *testing.T) {
 		"cfg/email.js":             {"/api/email-accounts/test", "emailAccountTestFromModal"},
 		"cfg/mqtt.js":              {"/api/mqtt/test", "mqttTestConnection"},
 		"cfg/netlify.js":           {"/api/netlify/test-connection", "nfTestConnection"},
+		"cfg/vercel.js":            {"/api/vercel/test-connection", "vercelTestConnection"},
 	}
 	for file, markers := range checks {
 		content := normalizeAssetText(mustReadUIFile(t, file))
@@ -257,6 +258,47 @@ func TestConfigPhase3MQTTAndNetlifyActionRows(t *testing.T) {
 	}
 	if strings.Contains(netlifyJS, "nf-test-spinner") || strings.Contains(netlifyJS, "nf-test-msg") {
 		t.Fatal("netlify.js should use unified adg-test-result instead of legacy spinner/msg blocks")
+	}
+}
+
+func TestConfigPhase3VercelActionRows(t *testing.T) {
+	t.Parallel()
+
+	vercelJS := normalizeAssetText(mustReadUIFile(t, "cfg/vercel.js"))
+	for _, marker := range []string{
+		"adg-test-btn",
+		"adg-test-result",
+		"cfg-actions-row",
+		"vercel-test-btn",
+		"/api/vercel/test-connection",
+		"adg-save-btn",
+	} {
+		if !strings.Contains(vercelJS, marker) {
+			t.Fatalf("vercel.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(vercelJS, "vercel-test-spinner") || strings.Contains(vercelJS, "vercel-test-msg") {
+		t.Fatal("vercel.js should use unified adg-test-result instead of legacy spinner/msg blocks")
+	}
+}
+
+func TestConfigManifestDograhAvoidEmbeddedFallbackTables(t *testing.T) {
+	t.Parallel()
+
+	for _, spec := range []struct {
+		file       string
+		forbidden  string
+	}{
+		{"cfg/manifest.js", "manifestFallbackText"},
+		{"cfg/dograh.js", "dograhFallbackText"},
+	} {
+		content := normalizeAssetText(mustReadUIFile(t, spec.file))
+		if strings.Contains(content, spec.forbidden) {
+			t.Fatalf("%s still embeds %s; use ui/lang translations via t()", spec.file, spec.forbidden)
+		}
+		if !strings.Contains(content, "function manifestText") && !strings.Contains(content, "function dograhText") {
+			t.Fatalf("%s should keep section text helper", spec.file)
+		}
 	}
 }
 

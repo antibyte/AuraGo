@@ -132,21 +132,18 @@ async function renderVercelSection(section) {
         </div>
     </label>`;
 
-    html += `<div class="cfg-field-row">
-        <button class="btn-save cfg-save-btn-sm" onclick="vercelSaveToken()">${t('config.vercel.save_token')}</button>
-        <span id="vercel-token-status" class="cfg-status-text"></span>
+    html += `<div class="adg-password-row">
+        <button class="btn-save adg-save-btn" onclick="vercelSaveToken()">💾 ${t('config.vercel.save_token')}</button>
+        <span id="vercel-token-status" class="adg-test-result"></span>
     </div>`;
     html += `</div>`;
 
     html += `<div class="field-group">
         <div class="field-group-title">🔌 ${t('config.vercel.test_title')}</div>
         <div class="field-group-desc">${t('config.vercel.test_desc')}</div>
-        <div class="cfg-field-row">
-            <button class="btn-save cfg-save-btn-sm" onclick="vercelTestConnection()">${t('config.vercel.test_btn')}</button>
-            <span id="vercel-test-spinner" class="is-hidden cfg-status-text">⏳ ${t('config.vercel.connecting')}</span>
-        </div>
-        <div id="vercel-test-result" class="is-hidden hp-help-mt-sm">
-            <div id="vercel-test-msg" class="nf-test-msg"></div>
+        <div class="cfg-actions-row">
+            <button class="btn-save adg-test-btn" id="vercel-test-btn" onclick="vercelTestConnection()">🔌 ${t('config.vercel.test_btn')}</button>
+            <span id="vercel-test-result" class="adg-test-result"></span>
         </div>
     </div>`;
 
@@ -160,11 +157,17 @@ async function vercelSaveToken() {
     const token = document.getElementById('vercel-token').value;
 
     if (!token) {
-        if (statusEl) { statusEl.textContent = '⚠️ ' + t('config.vercel.token_empty'); statusEl.className = 'cfg-status-text cfg-status-warning'; }
+        if (statusEl) {
+            statusEl.textContent = t('config.vercel.token_empty');
+            statusEl.className = 'adg-test-result is-danger';
+        }
         return;
     }
 
-    if (statusEl) { statusEl.textContent = '⏳ ' + t('config.vercel.saving'); statusEl.className = 'cfg-status-text'; }
+    if (statusEl) {
+        statusEl.textContent = t('config.vercel.saving');
+        statusEl.className = 'adg-test-result';
+    }
 
     try {
         const resp = await fetch('/api/vault/secrets', {
@@ -174,25 +177,34 @@ async function vercelSaveToken() {
         });
         if (!resp.ok) {
             const txt = await resp.text();
-            if (statusEl) { statusEl.textContent = '❌ ' + txt; statusEl.className = 'cfg-status-text cfg-status-error'; }
+            if (statusEl) {
+                statusEl.textContent = txt;
+                statusEl.className = 'adg-test-result is-danger';
+            }
         } else {
-            if (statusEl) { statusEl.textContent = '✅ ' + t('config.vercel.token_saved'); statusEl.className = 'cfg-status-text cfg-status-success'; }
+            if (statusEl) {
+                statusEl.textContent = t('config.vercel.token_saved');
+                statusEl.className = 'adg-test-result is-success';
+            }
             cfgMarkSecretStored(document.getElementById('vercel-token'), 'vercel.token');
             vercelStatusCache = null;
         }
     } catch (e) {
-        if (statusEl) { statusEl.textContent = '❌ ' + e.message; statusEl.className = 'cfg-status-text cfg-status-error'; }
+        if (statusEl) {
+            statusEl.textContent = e.message;
+            statusEl.className = 'adg-test-result is-danger';
+        }
     }
 }
 
 async function vercelTestConnection() {
-    const spinner = document.getElementById('vercel-test-spinner');
-    const resultDiv = document.getElementById('vercel-test-result');
-    const msgDiv = document.getElementById('vercel-test-msg');
-    if (!spinner) return;
-
-    setHidden(spinner, false);
-    setHidden(resultDiv, true);
+    const btn = document.getElementById('vercel-test-btn');
+    const result = document.getElementById('vercel-test-result');
+    if (btn) btn.disabled = true;
+    if (result) {
+        result.className = 'adg-test-result';
+        result.textContent = t('config.vercel.connecting');
+    }
 
     try {
         const resp = await fetch('/api/vercel/test-connection', {
@@ -201,24 +213,24 @@ async function vercelTestConnection() {
             body: '{}'
         });
         const json = await resp.json();
-
-        setHidden(resultDiv, false);
+        if (!result) return;
         if (json.status === 'ok') {
             let details = json.name || json.username || json.email || '';
             if (json.project_count !== undefined) {
                 details += (details ? ' · ' : '') + json.project_count + ' ' + t('config.vercel.projects');
             }
-            msgDiv.className = 'nf-test-msg cfg-status-success';
-            msgDiv.textContent = '✅ ' + (json.message || t('config.vercel.test_success')) + (details ? ' — ' + details : '');
+            result.className = 'adg-test-result is-success';
+            result.textContent = (json.message || t('config.vercel.test_success')) + (details ? ' — ' + details : '');
         } else {
-            msgDiv.className = 'nf-test-msg cfg-status-error';
-            msgDiv.textContent = '❌ ' + (json.message || t('config.vercel.test_failed'));
+            result.className = 'adg-test-result is-danger';
+            result.textContent = json.message || t('config.vercel.test_failed');
         }
     } catch (e) {
-        setHidden(resultDiv, false);
-        msgDiv.className = 'nf-test-msg cfg-status-error';
-        msgDiv.textContent = '❌ ' + e.message;
+        if (result) {
+            result.className = 'adg-test-result is-danger';
+            result.textContent = e.message;
+        }
     } finally {
-        setHidden(spinner, true);
+        if (btn) btn.disabled = false;
     }
 }
