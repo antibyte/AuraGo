@@ -354,9 +354,46 @@ func max(a, b int) int {
 }
 
 func stripAttachmentPaths(s string) string {
-	out := attachmentPathRe.ReplaceAllString(s, "")
+	if strings.Contains(s, "<agodesk_attachments>") {
+		return stripAttachmentPathsOutsideAgodeskBlocks(s)
+	}
+	return compactAttachmentPromptText(attachmentPathRe.ReplaceAllString(s, ""))
+}
+
+func stripAttachmentPathsOutsideAgodeskBlocks(s string) string {
+	matches := agodeskAttachmentBlockPattern.FindAllStringIndex(s, -1)
+	if len(matches) == 0 {
+		return compactAttachmentPromptText(attachmentPathRe.ReplaceAllString(s, ""))
+	}
+	var b strings.Builder
+	last := 0
+	for _, loc := range matches {
+		if loc[0] > last {
+			appendAttachmentPromptText(&b, attachmentPathRe.ReplaceAllString(s[last:loc[0]], ""))
+		}
+		appendAttachmentPromptText(&b, s[loc[0]:loc[1]])
+		last = loc[1]
+	}
+	if last < len(s) {
+		appendAttachmentPromptText(&b, attachmentPathRe.ReplaceAllString(s[last:], ""))
+	}
+	return compactAttachmentPromptText(b.String())
+}
+
+func appendAttachmentPromptText(b *strings.Builder, text string) {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return
+	}
+	if b.Len() > 0 {
+		b.WriteByte('\n')
+	}
+	b.WriteString(text)
+}
+
+func compactAttachmentPromptText(s string) string {
 	// Remove empty leftover lines and collapse spacing a bit to avoid spamming the prompt.
-	out = strings.ReplaceAll(out, "\r\n", "\n")
+	out := strings.ReplaceAll(s, "\r\n", "\n")
 	lines := strings.Split(out, "\n")
 	keep := make([]string, 0, len(lines))
 	for _, line := range lines {

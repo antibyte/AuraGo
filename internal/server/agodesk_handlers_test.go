@@ -7,6 +7,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"log/slog"
 	"mime/multipart"
 	"net/http"
@@ -477,6 +480,8 @@ func TestAgodeskAttachmentBindingContextBindsRecordsToInsertedMessage(t *testing
 
 func TestAgodeskAttachmentTurnPersistsVisibleTextButKeepsLLMContext(t *testing.T) {
 	s := newTestDesktopChatServer(t)
+	s.Cfg.LLM.ProviderType = "openrouter"
+	s.Cfg.LLM.Multimodal = true
 	sess, err := s.ShortTermMem.CreateChatSession()
 	if err != nil {
 		t.Fatalf("CreateChatSession: %v", err)
@@ -497,6 +502,23 @@ func TestAgodeskAttachmentTurnPersistsVisibleTextButKeepsLLMContext(t *testing.T
 	uploaded, err := s.ShortTermMem.MarkAgoDeskAttachmentUploaded(record.AttachmentID, record.DeclaredSizeBytes, "sha", "attachments/agodesk/"+sess.ID+"/att-maja/maja.png", "image", "image/png")
 	if err != nil {
 		t.Fatalf("MarkAgoDeskAttachmentUploaded: %v", err)
+	}
+	attachmentPath := filepath.Join(s.Cfg.Directories.WorkspaceDir, filepath.FromSlash(uploaded.RelativePath))
+	if err := os.MkdirAll(filepath.Dir(attachmentPath), 0o755); err != nil {
+		t.Fatalf("mkdir attachment dir: %v", err)
+	}
+	f, err := os.Create(attachmentPath)
+	if err != nil {
+		t.Fatalf("create attachment image: %v", err)
+	}
+	img := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	img.Set(0, 0, color.RGBA{R: 255, A: 255})
+	if err := png.Encode(f, img); err != nil {
+		_ = f.Close()
+		t.Fatalf("encode attachment image: %v", err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatalf("close attachment image: %v", err)
 	}
 
 	visibleText := "konvertiere nach jpg und sende es"
@@ -528,10 +550,16 @@ func TestAgodeskAttachmentTurnPersistsVisibleTextButKeepsLLMContext(t *testing.T
 		t.Fatal("prepared first request has no messages")
 	}
 	firstCurrent := turn.req.Messages[len(turn.req.Messages)-1]
-	if !strings.Contains(firstCurrent.Content, "<agodesk_attachments>") ||
-		!strings.Contains(firstCurrent.Content, "maja.png | image/png") ||
-		!strings.Contains(firstCurrent.Content, "agent_workspace/workdir/attachments/agodesk/") {
-		t.Fatalf("current LLM request missing agodesk attachment context: %q", firstCurrent.Content)
+	if len(firstCurrent.MultiContent) == 0 || firstCurrent.Content != "" {
+		t.Fatalf("current LLM request was not promoted to multimodal: %+v", firstCurrent)
+	}
+	firstText := firstCurrent.MultiContent[0].Text
+	if !strings.Contains(firstText, "<agodesk_attachments>") ||
+		!strings.Contains(firstText, "attachment_id: att-maja") ||
+		!strings.Contains(firstText, "filename: maja.png") ||
+		!strings.Contains(firstText, "agent_path: agent_workspace/workdir/attachments/agodesk/") ||
+		!strings.Contains(firstText, "Use agent_path for file operations") {
+		t.Fatalf("current LLM request missing agodesk attachment context: %q", firstText)
 	}
 	byMessage, err := s.ShortTermMem.ListAgoDeskAttachmentsForMessages([]int64{history[0].ID})
 	if err != nil {
@@ -567,7 +595,13 @@ func TestAgodeskAttachmentTurnPersistsVisibleTextButKeepsLLMContext(t *testing.T
 	}
 	var sawRehydratedPriorAttachment bool
 	for _, msg := range turn.req.Messages {
-		if strings.Contains(msg.Content, "<agodesk_attachments>") && strings.Contains(msg.Content, "maja.png | image/png") {
+		text := msg.Content
+		if text == "" && len(msg.MultiContent) > 0 {
+			text = msg.MultiContent[0].Text
+		}
+		if strings.Contains(text, "<agodesk_attachments>") &&
+			strings.Contains(text, "attachment_id: att-maja") &&
+			strings.Contains(text, "agent_path: agent_workspace/workdir/attachments/agodesk/") {
 			sawRehydratedPriorAttachment = true
 		}
 	}
