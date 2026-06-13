@@ -65,7 +65,7 @@ async function renderNetlifySection(section) {
     html += `<div class="field-group-title">🔐 ${t('config.netlify.permissions_title')}</div>`;
     html += `<div class="field-group-desc">${t('config.netlify.permissions_desc')}</div>`;
 
-    html += `<div class="nf-grid-2col">`;
+    html += `<div class="field-grid two-cols">`;
 
     html += `<div class="cfg-toggle-row-compact">
         <div class="toggle ${cfg.readonly ? 'on' : ''}" data-path="netlify.readonly" onclick="toggleBool(this)"></div>

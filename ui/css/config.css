@@ -7,6 +7,7 @@
 .cfg-field-row       { display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; }
 .field-grid          { display:grid; gap:1rem; }
 .field-grid.two-cols { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+.field-grid.two-cols > .cfg-toggle-row-compact { min-width:0; }
 .cfg-actions-row    { display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; }
 .secrets-modal-card { max-width:min(480px,90vw); width:100%; max-height:85vh; overflow-y:auto; }
 .email-modal-card { max-width:min(560px,92vw); width:100%; max-height:85vh; overflow-y:auto; }
@@ -6499,7 +6500,7 @@ select.cfg-input option {
         gap: 0.75rem;
     }
 
-    .nf-grid-2col {
+    .field-grid.two-cols {
         grid-template-columns: 1fr;
         gap: 0.75rem;
     }

@@ -175,16 +175,16 @@ async function renderHomepageSection(section) {
             <div class="field-group-title">🔐 ${t('config.homepage.permissions_title')}</div>
             <div class="field-group-desc">${t('config.homepage.permissions_desc')}</div>`;
 
-        html += `<div class="hp-grid-two hp-grid-tight">`;
+        html += `<div class="field-grid two-cols">`;
 
-        html += `<div class="hp-toggle-row">
+        html += `<div class="cfg-toggle-row-compact">
             <div class="toggle ${cfg.allow_deploy ? 'on' : ''}" data-path="homepage.allow_deploy" onclick="toggleBool(this)"></div>
-            <span class="hp-toggle-label">${t('config.homepage.allow_deploy')}</span>
+            <span class="cfg-toggle-label">${t('config.homepage.allow_deploy')}</span>
         </div>`;
 
-        html += `<div class="hp-toggle-row">
+        html += `<div class="cfg-toggle-row-compact">
             <div class="toggle ${cfg.allow_container_management ? 'on' : ''}" data-path="homepage.allow_container_management" onclick="toggleBool(this)"></div>
-            <span class="hp-toggle-label">${t('config.homepage.allow_container')}</span>
+            <span class="cfg-toggle-label">${t('config.homepage.allow_container')}</span>
         </div>`;
 
         html += `</div>`;

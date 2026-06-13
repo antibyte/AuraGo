@@ -263,6 +263,9 @@ func TestConfigPhase3MQTTAndNetlifyActionRows(t *testing.T) {
 	if strings.Contains(netlifyJS, "cfg-input cfg-input-full") {
 		t.Fatal("netlify.js site fields should use field-input inside field-grid")
 	}
+	if strings.Contains(netlifyJS, "nf-grid-2col") {
+		t.Fatal("netlify.js permission toggles should use field-grid two-cols instead of nf-grid-2col")
+	}
 }
 
 func TestConfigPhase3VercelActionRows(t *testing.T) {
@@ -287,6 +290,9 @@ func TestConfigPhase3VercelActionRows(t *testing.T) {
 	}
 	if strings.Contains(vercelJS, "cfg-input cfg-input-full") {
 		t.Fatal("vercel.js project fields should use field-input inside field-grid")
+	}
+	if strings.Contains(vercelJS, "nf-grid-2col") {
+		t.Fatal("vercel.js permission toggles should use field-grid two-cols instead of nf-grid-2col")
 	}
 }
 
@@ -524,6 +530,9 @@ func TestConfigPhase3SecurityProxyHomepage(t *testing.T) {
 	if strings.Contains(homepageJS, "cfg-input") || strings.Contains(homepageJS, "hp-test-spinner") {
 		t.Fatal("homepage.js should use unified field-* and adg-test-* patterns")
 	}
+	if strings.Contains(homepageJS, "hp-grid-two") || strings.Contains(homepageJS, "hp-toggle-row") {
+		t.Fatal("homepage.js permission toggles should use field-grid two-cols and cfg-toggle-row-compact")
+	}
 }
 
 func TestConfigPhase3RemoteControlLLMGuardian(t *testing.T) {
@@ -629,6 +638,8 @@ func TestConfigLegacyPatternAudit(t *testing.T) {
 		"ig-flex-row",
 		"cmp-status-line",
 		"ai-gw-grid",
+		"hp-grid-two",
+		"nf-grid-2col",
 	}
 	// Match cfg-input on form controls only — not layout helpers like cfg-input-row.
 	cfgInputMarkers := []string{

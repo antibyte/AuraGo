@@ -64,7 +64,7 @@ async function renderVercelSection(section) {
     html += `<div class="field-group">`;
     html += `<div class="field-group-title">🔐 ${t('config.vercel.permissions_title')}</div>`;
     html += `<div class="field-group-desc">${t('config.vercel.permissions_desc')}</div>`;
-    html += `<div class="nf-grid-2col">`;
+    html += `<div class="field-grid two-cols">`;
 
     html += `<div class="cfg-toggle-row-compact">
         <div class="toggle ${cfg.readonly ? 'on' : ''}" data-path="vercel.readonly" onclick="toggleBool(this)"></div>
