@@ -795,6 +795,9 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 	}
 	var guides []string
 	guideMap := make(map[string]bool)
+	guideMapKey := func(path string) string {
+		return strings.ToLower(filepath.ToSlash(filepath.Clean(path)))
+	}
 
 	// Build sets before any source contributes guides. Native sessions pass an
 	// allowlist of enabled tools; this prevents disabled manuals from entering
@@ -830,17 +833,18 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 		if isSkipped(tool) {
 			continue
 		}
-		cleanPath := strings.ToLower(filepath.Clean(filepath.Join(toolsDir, tool+".md")))
+		cleanPath := filepath.Clean(filepath.Join(toolsDir, tool+".md"))
 		if !isToolPathSafe(cleanPath, toolsDir) {
 			if logger != nil {
 				logger.Warn("[ToolGuides] Rejected unsafe explicit tool path", "tool", tool)
 			}
 			continue
 		}
-		if !guideMap[cleanPath] {
+		guideKey := guideMapKey(cleanPath)
+		if !guideMap[guideKey] {
 			if content, ok := readToolGuide(cleanPath, strategy.Flags); ok {
 				guides = append(guides, content)
-				guideMap[cleanPath] = true
+				guideMap[guideKey] = true
 			}
 		}
 	}
@@ -859,14 +863,15 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 			if isSkipped(tool) {
 				continue
 			}
-			cleanPath := strings.ToLower(filepath.Clean(filepath.Join(toolsDir, tool+".md")))
+			cleanPath := filepath.Clean(filepath.Join(toolsDir, tool+".md"))
 			if !isToolPathSafe(cleanPath, toolsDir) {
 				continue
 			}
-			if !guideMap[cleanPath] {
+			guideKey := guideMapKey(cleanPath)
+			if !guideMap[guideKey] {
 				if content, ok := readToolGuide(cleanPath, strategy.Flags); ok {
 					guides = append(guides, content)
-					guideMap[cleanPath] = true
+					guideMap[guideKey] = true
 				}
 			}
 		}
@@ -891,14 +896,15 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 			if isSkipped(extractToolName(p)) {
 				continue
 			}
-			cleanPath := strings.ToLower(filepath.Clean(p))
+			cleanPath := filepath.Clean(p)
 			if !isToolPathSafe(cleanPath, toolsDir) {
 				continue
 			}
-			if !guideMap[cleanPath] {
+			guideKey := guideMapKey(cleanPath)
+			if !guideMap[guideKey] {
 				if content, ok := readToolGuide(cleanPath, strategy.Flags); ok {
 					guides = append(guides, content)
-					guideMap[cleanPath] = true
+					guideMap[guideKey] = true
 				}
 			}
 		}
@@ -920,11 +926,12 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 	if !strategy.DisableStatisticalHeuristics && stm != nil && lastTool != "" && len(guides) < 3 {
 		nextTool, err := stm.GetTopTransition(lastTool)
 		if err == nil && nextTool != "" && !isSkipped(nextTool) {
-			cleanPath := strings.ToLower(filepath.Clean(filepath.Join(toolsDir, nextTool+".md")))
-			if isToolPathSafe(cleanPath, toolsDir) && !guideMap[cleanPath] {
+			cleanPath := filepath.Clean(filepath.Join(toolsDir, nextTool+".md"))
+			guideKey := guideMapKey(cleanPath)
+			if isToolPathSafe(cleanPath, toolsDir) && !guideMap[guideKey] {
 				if content, ok := readToolGuide(cleanPath, strategy.Flags); ok {
 					guides = append(guides, content)
-					guideMap[cleanPath] = true
+					guideMap[guideKey] = true
 					if logger != nil {
 						logger.Info("Statistically predicted next tool", "from", lastTool, "predicted", nextTool)
 					}
@@ -942,13 +949,14 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 			if isSkipped(tool) {
 				continue
 			}
-			cleanPath := strings.ToLower(filepath.Clean(filepath.Join(toolsDir, tool+".md")))
-			if !isToolPathSafe(cleanPath, toolsDir) || guideMap[cleanPath] {
+			cleanPath := filepath.Clean(filepath.Join(toolsDir, tool+".md"))
+			guideKey := guideMapKey(cleanPath)
+			if !isToolPathSafe(cleanPath, toolsDir) || guideMap[guideKey] {
 				continue
 			}
 			if content, ok := readToolGuide(cleanPath, strategy.Flags); ok {
 				guides = append(guides, content)
-				guideMap[cleanPath] = true
+				guideMap[guideKey] = true
 			}
 		}
 	}

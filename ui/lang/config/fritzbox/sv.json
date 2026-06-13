@@ -28,6 +28,7 @@
   "config.fritzbox.status_not_configured": "Ingen värd konfigurerad",
   "config.fritzbox.status_ok": "🟢 Ansluten",
   "config.fritzbox.test_btn": "Testa anslutning",
+  "config.fritzbox.testing": "Testar anslutning…",
   "config.fritzbox.test_fail": "Anslutning misslyckades",
   "config.fritzbox.test_ok": "Anslutning lyckades",
   "config.fritzbox.username_label": "Användarnamn",

@@ -28,6 +28,7 @@
   "config.fritzbox.status_not_configured": "Není nakonfigurován žádný hostitel",
   "config.fritzbox.status_ok": "🟢 Připojeno",
   "config.fritzbox.test_btn": "Otestovat připojení",
+  "config.fritzbox.testing": "Testuji připojení…",
   "config.fritzbox.test_fail": "Připojení selhalo",
   "config.fritzbox.test_ok": "Připojení úspěšné",
   "config.fritzbox.username_label": "Uživatelské jméno",

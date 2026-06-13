@@ -28,6 +28,7 @@
   "config.fritzbox.status_not_configured": "未配置主机",
   "config.fritzbox.status_ok": "🟢 已连接",
   "config.fritzbox.test_btn": "测试连接",
+  "config.fritzbox.testing": "正在测试连接…",
   "config.fritzbox.test_fail": "连接失败",
   "config.fritzbox.test_ok": "连接成功",
   "config.fritzbox.username_label": "用户名",

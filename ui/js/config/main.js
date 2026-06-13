@@ -1715,7 +1715,7 @@ function showSecurityModal(critFixable) {
     modal.querySelector('#sec-modal-apply').addEventListener('click', async () => {
         const applyBtn = modal.querySelector('#sec-modal-apply');
         applyBtn.disabled = true;
-        applyBtn.textContent = t('config.security.applying') || 'Applying…';
+        applyBtn.textContent = t('config.security.applying');
         try {
             const resp = await fetch('/api/security/harden', {
                 method: 'POST',

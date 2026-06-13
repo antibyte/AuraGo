@@ -28,6 +28,7 @@
   "config.fritzbox.status_not_configured": "Ingen vært konfigureret",
   "config.fritzbox.status_ok": "🟢 Tilsluttet",
   "config.fritzbox.test_btn": "Test forbindelse",
+  "config.fritzbox.testing": "Tester forbindelse…",
   "config.fritzbox.test_fail": "Forbindelse mislykkedes",
   "config.fritzbox.test_ok": "Forbindelse succesfuld",
   "config.fritzbox.username_label": "Brugernavn",

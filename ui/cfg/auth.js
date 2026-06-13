@@ -322,7 +322,7 @@ function renderSecurityAuditPanel(panel, hints) {
 
 async function securityHardenIds(ids) {
     const btn = document.getElementById('btn-fix-all');
-    if (btn) { btn.disabled = true; btn.textContent = t('config.security.applying') || 'Applying…'; }
+    if (btn) { btn.disabled = true; btn.textContent = t('config.security.applying'); }
     try {
         const resp = await fetch('/api/security/harden', {
             method: 'POST',

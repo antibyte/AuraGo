@@ -28,6 +28,7 @@
   "config.fritzbox.status_not_configured": "Δεν έχει διαμορφωθεί κεντρικός υπολογιστής",
   "config.fritzbox.status_ok": "🟢 Συνδεδεμένο",
   "config.fritzbox.test_btn": "Δοκιμή σύνδεσης",
+  "config.fritzbox.testing": "Δοκιμή σύνδεσης…",
   "config.fritzbox.test_fail": "Σύνδεση απέτυχε",
   "config.fritzbox.test_ok": "Σύνδεση επιτυχής",
   "config.fritzbox.username_label": "Όνομα χρήστη",

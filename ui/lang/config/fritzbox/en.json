@@ -28,6 +28,7 @@
   "config.fritzbox.status_not_configured": "No host configured",
   "config.fritzbox.status_ok": "🟢 Connected",
   "config.fritzbox.test_btn": "Test Connection",
+  "config.fritzbox.testing": "Testing connection…",
   "config.fritzbox.test_fail": "Connection failed",
   "config.fritzbox.test_ok": "Connection successful",
   "config.fritzbox.username_label": "Username",

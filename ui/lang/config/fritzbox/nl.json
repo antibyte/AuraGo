@@ -28,6 +28,7 @@
   "config.fritzbox.status_not_configured": "Geen host geconfigureerd",
   "config.fritzbox.status_ok": "🟢 Verbonden",
   "config.fritzbox.test_btn": "Verbinding testen",
+  "config.fritzbox.testing": "Verbinding testen…",
   "config.fritzbox.test_fail": "Verbinding mislukt",
   "config.fritzbox.test_ok": "Verbinding succesvol",
   "config.fritzbox.username_label": "Gebruikersnaam",

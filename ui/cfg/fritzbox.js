@@ -152,7 +152,7 @@ function fbTestConnection() {
     if (btn) btn.disabled = true;
     if (result) {
         result.className = 'adg-test-result';
-        result.textContent = t('config.fritzbox.testing') || '...';
+        result.textContent = t('config.fritzbox.testing');
     }
 
     fetch('/api/fritzbox/test', { method: 'POST' })

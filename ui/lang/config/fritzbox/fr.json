@@ -28,6 +28,7 @@
   "config.fritzbox.status_not_configured": "Aucun hôte configuré",
   "config.fritzbox.status_ok": "🟢 Connecté",
   "config.fritzbox.test_btn": "Tester la connexion",
+  "config.fritzbox.testing": "Test de la connexion…",
   "config.fritzbox.test_fail": "Connexion échouée",
   "config.fritzbox.test_ok": "Connexion réussie",
   "config.fritzbox.username_label": "Nom d'utilisateur",
