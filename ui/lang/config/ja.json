@@ -195,5 +195,8 @@
   "help.dograh.webhook_slug": "Dograh workflows からの callbacks を受ける AuraGo webhook path です。",
   "help.dograh.host": "管理対象 Dograh ports の network interface です。127.0.0.1 はローカル限定です。",
   "help.dograh.api_host_port": "管理対象 Dograh API container にマップされる host port です。",
-  "help.dograh.ui_host_port": "管理対象 Dograh UI container にマップされる host port です。"
+  "help.dograh.ui_host_port": "管理対象 Dograh UI container にマップされる host port です。",
+  "config.field.disabled_option": "無効",
+  "config.field.other_custom_option": "その他 / カスタム",
+  "config.dograh.webhook_section_title": "Webhook"
 }

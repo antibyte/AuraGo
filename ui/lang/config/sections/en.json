@@ -471,5 +471,7 @@
   "config.section.rules.label": "Rules",
   "config.section.rules.desc": "Manage task-specific agent guardrails",
   "config.section.composio.label": "Composio",
-  "config.section.composio.desc": "External integration catalog and agent tool source"
+  "config.section.composio.desc": "External integration catalog and agent tool source",
+  "config.section.virtual_desktop.label": "Virtual Desktop",
+  "config.section.virtual_desktop.desc": "Browser desktop workspace with agent-controlled apps, files, and widgets."
 }

@@ -471,5 +471,7 @@
   "config.section.rules.label": "Regler",
   "config.section.rules.desc": "Administrer opgavespecifikke agentregler",
   "config.section.composio.label": "Composio",
-  "config.section.composio.desc": "Eksternt integrationskatalog og vaerktojskilde til agenten"
+  "config.section.composio.desc": "Eksternt integrationskatalog og vaerktojskilde til agenten",
+  "config.section.virtual_desktop.label": "Virtuelt skrivebord",
+  "config.section.virtual_desktop.desc": "Browser-skrivebord med agentstyrede apps, filer og widgets."
 }

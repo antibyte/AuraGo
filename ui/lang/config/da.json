@@ -195,5 +195,8 @@
   "help.dograh.webhook_slug": "AuraGo webhook-sti til callbacks sendt fra Dograh-workflows.",
   "help.dograh.host": "Netvaerksinterface for administrerede Dograh-porte. 127.0.0.1 holder dem lokale.",
   "help.dograh.api_host_port": "Host-port der peger paa den administrerede Dograh API-container.",
-  "help.dograh.ui_host_port": "Host-port der peger paa den administrerede Dograh UI-container."
+  "help.dograh.ui_host_port": "Host-port der peger paa den administrerede Dograh UI-container.",
+  "config.field.disabled_option": "deaktiveret",
+  "config.field.other_custom_option": "Andet / Brugerdefineret",
+  "config.dograh.webhook_section_title": "Webhook"
 }

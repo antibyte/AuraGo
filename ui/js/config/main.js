@@ -1225,7 +1225,7 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
         html += '<option value=""' + emptySelected + '>' + emptyLabel + '</option>';
         if (help.allow_disabled) {
             const disSelected = (value === 'disabled') ? ' selected' : '';
-            html += '<option value="disabled"' + disSelected + '>🚫 disabled</option>';
+            html += '<option value="disabled"' + disSelected + '>' + escapeHtml(cfgFieldOptionLabel('disabled')) + '</option>';
         }
         providersCache.forEach(p => {
             const selected = (String(value) === String(p.id)) ? ' selected' : '';
@@ -1237,13 +1237,13 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
         html += '</select>';
     } else if (helpOptions && Array.isArray(helpOptions)) {
         // Dropdown for fields with predefined options
-        const hasCustom = helpOptions.includes('Other / Custom');
-        const isCustomVal = hasCustom && value && !helpOptions.includes(value) && value !== 'Other / Custom';
+        const hasCustom = helpOptions.includes(CFG_OPTION_OTHER_CUSTOM);
+        const isCustomVal = hasCustom && value && !helpOptions.includes(value) && value !== CFG_OPTION_OTHER_CUSTOM;
 
         html += '<select class="field-select" data-path="' + fullPath + '" onchange="cfgToggleCustomInput(this)">';
         helpOptions.forEach(opt => {
-            const selected = (String(value) === String(opt) || (opt === 'Other / Custom' && isCustomVal)) ? ' selected' : '';
-            html += '<option value="' + escapeAttr(opt) + '"' + selected + '>' + escapeAttr(opt) + '</option>';
+            const selected = (String(value) === String(opt) || (opt === CFG_OPTION_OTHER_CUSTOM && isCustomVal)) ? ' selected' : '';
+            html += '<option value="' + escapeAttr(opt) + '"' + selected + '>' + escapeAttr(cfgFieldOptionLabel(opt)) + '</option>';
         });
         html += '</select>';
 
@@ -1347,10 +1347,18 @@ function toggleBool(el) {
     markDirty();
 }
 
+const CFG_OPTION_OTHER_CUSTOM = 'Other / Custom';
+
+function cfgFieldOptionLabel(option) {
+    if (option === 'disabled') return '\u{1F6AB} ' + (t('config.field.disabled_option') || 'disabled');
+    if (option === CFG_OPTION_OTHER_CUSTOM) return t('config.field.other_custom_option') || CFG_OPTION_OTHER_CUSTOM;
+    return option;
+}
+
 function cfgToggleCustomInput(selectEl) {
     const customInput = selectEl.nextElementSibling;
     if (!customInput || !customInput.classList.contains('cfg-custom-input')) return;
-    const showCustom = selectEl.value === 'Other / Custom';
+    const showCustom = selectEl.value === CFG_OPTION_OTHER_CUSTOM;
     customInput.classList.toggle('is-hidden', !showCustom);
     if (showCustom) customInput.focus();
 }
@@ -1420,7 +1428,7 @@ function buildConfigPatchFromForm() {
             val = el.value.split('\n').map(s => s.trim()).filter(Boolean);
         } else if (el.dataset.type === 'json') {
             try { val = JSON.parse(el.value); } catch (e) { val = el.value; }
-        } else if (el.tagName === 'SELECT' && el.value === 'Other / Custom') {
+        } else if (el.tagName === 'SELECT' && el.value === CFG_OPTION_OTHER_CUSTOM) {
             const customInput = document.querySelector('[data-custom-for="' + path + '"]');
             val = customInput ? customInput.value.trim() : el.value;
         } else {

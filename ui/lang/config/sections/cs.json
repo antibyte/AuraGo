@@ -471,5 +471,7 @@
   "config.section.rules.label": "Pravidla",
   "config.section.rules.desc": "Spravovat úkolová pravidla agenta",
   "config.section.composio.label": "Composio",
-  "config.section.composio.desc": "Externi katalog integraci a zdroj nastroju pro agenta"
+  "config.section.composio.desc": "Externi katalog integraci a zdroj nastroju pro agenta",
+  "config.section.virtual_desktop.label": "Virtuální plocha",
+  "config.section.virtual_desktop.desc": "Pracovní plocha v prohlížeči s aplikacemi, soubory a widgety řízenými agentem."
 }

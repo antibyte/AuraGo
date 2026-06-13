@@ -5,6 +5,9 @@
 .cfg-label           { font-size:0.78rem; font-weight:600; color:var(--text-primary); margin-bottom:0.15rem; }
 .cfg-help            { font-size:0.72rem; color:var(--text-secondary); margin-bottom:0.5rem; line-height:1.4; }
 .cfg-field-row       { display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; }
+.field-grid          { display:grid; gap:1rem; }
+.field-grid.two-cols { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+.cfg-actions-row    { display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; }
 .cfg-input-row       { display:flex; gap:0.5rem; align-items:center; }
 .cfg-input-flex      { flex:1; min-width:0; }
 .cfg-section-hr      { border:none; border-top:1px solid var(--border-subtle); margin:1.5rem 0; }

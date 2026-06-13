@@ -19,6 +19,7 @@ window.renderHeartbeatSection = function (section) {
     // Enabled Toggle
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.heartbeat.enabled_label') + '</div>';
+    html += '<div class="field-help">' + t('help.heartbeat.enabled') + '</div>';
     html += '<div class="toggle-wrap">';
     html += '<div class="toggle' + (enabledOn ? ' on' : '') + '" id="hbEnabledToggle" data-path="heartbeat.enabled" onclick="if(!this.disabled){toggleBool(this);toggleHeartbeatOptions(this.classList.contains(\'on\'));}"></div>';
     html += '<span class="toggle-label" id="hbEnabledLabel">' + (enabledOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
@@ -31,6 +32,7 @@ window.renderHeartbeatSection = function (section) {
 
     html += '<div class="field-group hb-toggle-card">';
     html += '<div class="field-label">' + t('config.heartbeat.check_tasks_label') + '</div>';
+    html += '<div class="field-help">' + t('help.heartbeat.check_tasks') + '</div>';
     html += '<div class="toggle-wrap">';
     html += '<div class="toggle' + (checkTasksOn ? ' on' : '') + '" data-path="heartbeat.check_tasks" onclick="toggleBool(this)"></div>';
     html += '<span class="toggle-label">' + (checkTasksOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
@@ -38,6 +40,7 @@ window.renderHeartbeatSection = function (section) {
 
     html += '<div class="field-group hb-toggle-card">';
     html += '<div class="field-label">' + t('config.heartbeat.check_appointments_label') + '</div>';
+    html += '<div class="field-help">' + t('help.heartbeat.check_appointments') + '</div>';
     html += '<div class="toggle-wrap">';
     html += '<div class="toggle' + (checkAppointmentsOn ? ' on' : '') + '" data-path="heartbeat.check_appointments" onclick="toggleBool(this)"></div>';
     html += '<span class="toggle-label">' + (checkAppointmentsOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
@@ -45,6 +48,7 @@ window.renderHeartbeatSection = function (section) {
 
     html += '<div class="field-group hb-toggle-card">';
     html += '<div class="field-label">' + t('config.heartbeat.check_emails_label') + '</div>';
+    html += '<div class="field-help">' + t('help.heartbeat.check_emails') + '</div>';
     html += '<div class="toggle-wrap">';
     html += '<div class="toggle' + (checkEmailsOn ? ' on' : '') + '" data-path="heartbeat.check_emails" onclick="toggleBool(this)"></div>';
     html += '<span class="toggle-label">' + (checkEmailsOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
@@ -65,6 +69,7 @@ window.renderHeartbeatSection = function (section) {
     // Day window card
     html += '<div class="field-group hb-window-card hb-day-card">';
     html += '<div class="hb-window-title">☀️ ' + t('config.heartbeat.day_window_title') + '</div>';
+    html += '<div class="field-help">' + t('help.heartbeat.day_time_window') + '</div>';
 
     html += '<div class="hb-window-fields">';
     html += '<div class="hb-field">';
@@ -90,6 +95,7 @@ window.renderHeartbeatSection = function (section) {
     // Night window card
     html += '<div class="field-group hb-window-card hb-night-card">';
     html += '<div class="hb-window-title">🌙 ' + t('config.heartbeat.night_window_title') + '</div>';
+    html += '<div class="field-help">' + t('help.heartbeat.night_time_window') + '</div>';
 
     html += '<div class="hb-window-fields">';
     html += '<div class="hb-field">';

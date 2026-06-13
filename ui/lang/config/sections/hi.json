@@ -471,5 +471,7 @@
   "config.section.rules.label": "नियम",
   "config.section.rules.desc": "कार्य-विशिष्ट एजेंट दिशानिर्देश प्रबंधित करें",
   "config.section.composio.label": "Composio",
-  "config.section.composio.desc": "Agent ke liye bahari integration catalog aur tool source"
+  "config.section.composio.desc": "Agent ke liye bahari integration catalog aur tool source",
+  "config.section.virtual_desktop.label": "वर्चुअल डेस्कटॉप",
+  "config.section.virtual_desktop.desc": "एजेंट नियंत्रित ऐप, फ़ाइल और विजेट वाला ब्राउज़र डेस्कटॉप।"
 }

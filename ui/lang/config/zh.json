@@ -195,5 +195,8 @@
   "help.dograh.webhook_slug": "Dograh workflows 发送 callback 时使用的 AuraGo webhook path。",
   "help.dograh.host": "托管 Dograh ports 使用的网络接口。127.0.0.1 会保持本机访问。",
   "help.dograh.api_host_port": "映射到托管 Dograh API container 的 host port。",
-  "help.dograh.ui_host_port": "映射到托管 Dograh UI container 的 host port。"
+  "help.dograh.ui_host_port": "映射到托管 Dograh UI container 的 host port。",
+  "config.field.disabled_option": "已禁用",
+  "config.field.other_custom_option": "其他 / 自定义",
+  "config.dograh.webhook_section_title": "Webhook"
 }

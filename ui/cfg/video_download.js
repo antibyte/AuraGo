@@ -93,7 +93,7 @@ async function renderVideoDownloadSection(section) {
     html += vdField('config.video_download.default_format_label', 'help.video_download.default_format',
         '<input class="field-input" type="text" data-path="tools.video_download.default_format" value="' + escapeAttr(data.default_format || 'best') + '" placeholder="best">');
 
-    html += '<div class="field-grid two-col">';
+    html += '<div class="field-grid two-cols">';
     html += vdField('config.video_download.max_file_size_label', 'help.video_download.max_file_size_mb',
         '<input class="field-input" type="number" min="0" max="10000" data-path="tools.video_download.max_file_size_mb" value="' + (typeof data.max_file_size_mb === 'number' ? data.max_file_size_mb : 500) + '">');
     html += vdField('config.video_download.timeout_label', 'help.video_download.timeout_seconds',

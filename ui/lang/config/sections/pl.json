@@ -471,5 +471,7 @@
   "config.section.rules.label": "Reguły",
   "config.section.rules.desc": "Zarządzaj zasadami agenta dla zadań",
   "config.section.composio.label": "Composio",
-  "config.section.composio.desc": "Zewnetrzny katalog integracji i zrodlo narzedzi dla agenta"
+  "config.section.composio.desc": "Zewnetrzny katalog integracji i zrodlo narzedzi dla agenta",
+  "config.section.virtual_desktop.label": "Wirtualny pulpit",
+  "config.section.virtual_desktop.desc": "Pulpit w przeglądarce z aplikacjami, plikami i widżetami sterowanymi przez agenta."
 }

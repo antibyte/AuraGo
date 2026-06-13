@@ -166,7 +166,7 @@ async function renderDograhSection(section) {
     html += '</div></div>';
 
     html += '<div class="field-group">';
-    html += '<div class="field-group-title">Webhook</div>';
+    html += '<div class="field-group-title">' + dograhText('config.dograh.webhook_section_title', 'Webhook') + '</div>';
     html += dograhInput('config.dograh.webhook_slug_label', 'help.dograh.webhook_slug', 'dograh.callback_webhook_slug', data.callback_webhook_slug || 'dograh-callback');
     html += '<div class="cfg-actions-row">' + dograhButton('dograh-webhook-btn', 'config.dograh.webhook_button', 'dograhAction(\\'provisionWebhook\\')') + '</div>';
     html += '</div>';

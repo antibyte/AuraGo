@@ -471,5 +471,7 @@
   "config.section.rules.label": "Regels",
   "config.section.rules.desc": "Taakspecifieke agentregels beheren",
   "config.section.composio.label": "Composio",
-  "config.section.composio.desc": "Externe integratiecatalogus en toolbron voor de agent"
+  "config.section.composio.desc": "Externe integratiecatalogus en toolbron voor de agent",
+  "config.section.virtual_desktop.label": "Virtueel bureaublad",
+  "config.section.virtual_desktop.desc": "Browserbureaublad met agentgestuurde apps, bestanden en widgets."
 }

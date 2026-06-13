@@ -195,5 +195,8 @@
   "help.dograh.webhook_slug": "Cesta AuraGo webhooku pro callbacky odeslane z Dograh workflow.",
   "help.dograh.host": "Sitove rozhrani pro spravovane porty Dograh. 127.0.0.1 je ponecha lokalni.",
   "help.dograh.api_host_port": "Host port mapovany na spravovany Dograh API kontejner.",
-  "help.dograh.ui_host_port": "Host port mapovany na spravovany Dograh UI kontejner."
+  "help.dograh.ui_host_port": "Host port mapovany na spravovany Dograh UI kontejner.",
+  "config.field.disabled_option": "zakázáno",
+  "config.field.other_custom_option": "Jiné / Vlastní",
+  "config.dograh.webhook_section_title": "Webhook"
 }

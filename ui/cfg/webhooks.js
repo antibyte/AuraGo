@@ -93,6 +93,7 @@ function whRenderConfigSettings() {
                 <div class="field-group-title">${t('config.webhooks.settings_title')}</div>
                 <div class="field-group">
                     <div class="field-label">${t('config.webhooks.config_enabled_label')}</div>
+                    <div class="field-help">${t('help.webhooks.enabled')}</div>
                     <div class="toggle-wrap">
                         <div class="toggle ${wh.enabled ? 'on' : ''}" data-path="webhooks.enabled" onclick="toggleBool(this);markDirty()"></div>
                         <span class="toggle-label">${wh.enabled ? t('config.webhooks.toggle_active') : t('config.webhooks.toggle_inactive')}</span>
@@ -100,10 +101,12 @@ function whRenderConfigSettings() {
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.webhooks.max_payload_label')}</div>
+                    <div class="field-help">${t('help.webhooks.max_payload_size')}</div>
                     <input class="field-input" type="number" step="1" data-path="webhooks.max_payload_size" value="${wh.max_payload_size || 65536}" onchange="markDirty()">
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.webhooks.rate_limit_label')}</div>
+                    <div class="field-help">${t('help.webhooks.rate_limit')}</div>
                     <input class="field-input" type="number" step="1" data-path="webhooks.rate_limit" value="${wh.rate_limit || 0}" onchange="markDirty()">
                 </div>
                 <div class="field-group">

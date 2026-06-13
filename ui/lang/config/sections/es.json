@@ -471,5 +471,7 @@
   "config.section.rules.label": "Reglas",
   "config.section.rules.desc": "Gestionar guías del agente por tarea",
   "config.section.composio.label": "Composio",
-  "config.section.composio.desc": "Catalogo externo de integraciones y fuente de herramientas para el agente"
+  "config.section.composio.desc": "Catalogo externo de integraciones y fuente de herramientas para el agente",
+  "config.section.virtual_desktop.label": "Escritorio virtual",
+  "config.section.virtual_desktop.desc": "Escritorio en el navegador con apps, archivos y widgets controlados por el agente."
 }

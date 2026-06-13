@@ -195,5 +195,8 @@
   "help.dograh.webhook_slug": "Caminho webhook do AuraGo usado para callbacks enviados por workflows Dograh.",
   "help.dograh.host": "Interface de rede para portas Dograh gerenciadas. 127.0.0.1 mantem local.",
   "help.dograh.api_host_port": "Porta do host mapeada para o container Dograh API gerenciado.",
-  "help.dograh.ui_host_port": "Porta do host mapeada para o container Dograh UI gerenciado."
+  "help.dograh.ui_host_port": "Porta do host mapeada para o container Dograh UI gerenciado.",
+  "config.field.disabled_option": "desativado",
+  "config.field.other_custom_option": "Outro / Personalizado",
+  "config.dograh.webhook_section_title": "Webhook"
 }
