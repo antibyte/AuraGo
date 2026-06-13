@@ -97,25 +97,22 @@ async function renderVercelSection(section) {
     html += `<div class="field-group">`;
     html += `<div class="field-group-title">🌐 ${t('config.vercel.project_config_title')}</div>`;
     html += `<div class="field-group-desc">${t('config.vercel.project_config_desc')}</div>`;
-    html += `<div class="nf-grid-2col-wide">`;
+    html += `<div class="field-grid two-cols">`;
 
-    html += `<label>
-        <span class="cfg-label">${t('config.vercel.default_project_id')}</span>
-        <input class="cfg-input cfg-input-full" data-path="vercel.default_project_id" value="${escapeAttr(cfg.default_project_id || '')}" placeholder="prj_xxxxxxxxxxxxxxxxxxxxxxxxx"
-            onchange="setNestedValue(configData,'vercel.default_project_id',this.value);setDirty(true)">
-    </label>`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.vercel.default_project_id')}</div>
+        <input class="field-input" type="text" data-path="vercel.default_project_id" value="${escapeAttr(cfg.default_project_id || '')}" placeholder="prj_xxxxxxxxxxxxxxxxxxxxxxxxx">
+    </div>`;
 
-    html += `<label>
-        <span class="cfg-label">${t('config.vercel.team_id')}</span>
-        <input class="cfg-input cfg-input-full" data-path="vercel.team_id" value="${escapeAttr(cfg.team_id || '')}" placeholder="team_xxxxxxxxxxxxxxxxxxxxxxxxx"
-            onchange="setNestedValue(configData,'vercel.team_id',this.value);setDirty(true)">
-    </label>`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.vercel.team_id')}</div>
+        <input class="field-input" type="text" data-path="vercel.team_id" value="${escapeAttr(cfg.team_id || '')}" placeholder="team_xxxxxxxxxxxxxxxxxxxxxxxxx">
+    </div>`;
 
-    html += `<label>
-        <span class="cfg-label">${t('config.vercel.team_slug')}</span>
-        <input class="cfg-input cfg-input-full" data-path="vercel.team_slug" value="${escapeAttr(cfg.team_slug || '')}" placeholder="my-team"
-            onchange="setNestedValue(configData,'vercel.team_slug',this.value);setDirty(true)">
-    </label>`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.vercel.team_slug')}</div>
+        <input class="field-input" type="text" data-path="vercel.team_slug" value="${escapeAttr(cfg.team_slug || '')}" placeholder="my-team">
+    </div>`;
 
     html += `</div>`;
     html += `</div>`;

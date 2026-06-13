@@ -95,19 +95,17 @@ async function renderNetlifySection(section) {
     html += `<div class="field-group-title">🌐 ${t('config.netlify.site_config_title')}</div>`;
     html += `<div class="field-group-desc">${t('config.netlify.site_config_desc')}</div>`;
 
-    html += `<div class="nf-grid-2col-wide">`;
+    html += `<div class="field-grid two-cols">`;
 
-    html += `<label>
-        <span class="cfg-label">${t('config.netlify.default_site_id')}</span>
-        <input class="cfg-input cfg-input-full" data-path="netlify.default_site_id" value="${escapeAttr(cfg.default_site_id || '')}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-            onchange="setNestedValue(configData,'netlify.default_site_id',this.value);setDirty(true)">
-    </label>`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.netlify.default_site_id')}</div>
+        <input class="field-input" type="text" data-path="netlify.default_site_id" value="${escapeAttr(cfg.default_site_id || '')}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+    </div>`;
 
-    html += `<label>
-        <span class="cfg-label">${t('config.netlify.team_slug')}</span>
-        <input class="cfg-input cfg-input-full" data-path="netlify.team_slug" value="${escapeAttr(cfg.team_slug || '')}" placeholder="my-team"
-            onchange="setNestedValue(configData,'netlify.team_slug',this.value);setDirty(true)">
-    </label>`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.netlify.team_slug')}</div>
+        <input class="field-input" type="text" data-path="netlify.team_slug" value="${escapeAttr(cfg.team_slug || '')}" placeholder="my-team">
+    </div>`;
 
     html += `</div>`;
 

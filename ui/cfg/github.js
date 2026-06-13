@@ -39,14 +39,14 @@ async function renderGitHubSection(section) {
     html += `<div class="field-group">
         <div class="field-label">${t('config.github.token_label')} <span class="gh-lock-icon">🔒</span></div>
         <div class="field-help">${t('config.github.token_hint')}</div>
-        <div class="cfg-password-row">
+        <div class="adg-password-row">
             <div class="password-wrap cfg-password-input">
-                <input class="field-input" type="password" id="github-token-input" value="${escapeAttr(cfgSecretValue(data.token))}" placeholder="${escapeAttr(cfgSecretPlaceholder(data.token, 'ghp_••••••••••••••••••••'))}" autocomplete="off">
+                <input class="field-input adg-password-input" type="password" id="github-token-input" value="${escapeAttr(cfgSecretValue(data.token))}" placeholder="${escapeAttr(cfgSecretPlaceholder(data.token, 'ghp_••••••••••••••••••••'))}" autocomplete="off">
                     <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
-            <button class="btn-save cfg-save-btn-sm" onclick="githubSaveToken()">💾 ${t('config.github.save_vault')}</button>
+            <button class="btn-save adg-save-btn" onclick="githubSaveToken()">💾 ${t('config.github.save_vault')}</button>
         </div>
-        <div id="github-token-status" class="cfg-status-text"></div>
+        <div id="github-token-status" class="adg-test-result"></div>
     </div>`;
 
     html += `<div class="field-group">
@@ -80,10 +80,10 @@ async function renderGitHubSection(section) {
     html += `<div class="gh-actions-row cfg-actions-row">
         <button class="btn-save adg-test-btn" onclick="githubTestConnection()" id="github-test-btn">🔌 ${t('config.github.test_btn')}</button>
         <span id="github-test-result" class="adg-test-result"></span>
-        <button class="cfg-save-btn-sm" onclick="githubFetchRepos()" id="github-fetch-btn">
+        <button class="btn-save btn-secondary" onclick="githubFetchRepos()" id="github-fetch-btn">
             🔄 ${t('config.github.fetch_repos_btn')}
         </button>
-        <span id="github-fetch-status" class="gh-fetch-status"></span>
+        <span id="github-fetch-status" class="adg-test-result"></span>
         <span id="github-allowed-count" class="gh-count">${countLabel}</span>
     </div>`;
 
@@ -171,9 +171,9 @@ async function githubFetchRepos() {
         const data = resp.ok ? await resp.json() : { status: 'error', message: 'HTTP ' + resp.status };
 
         if (data.status === 'error') {
-            if (status) { 
-                status.className = 'cfg-status-banner cfg-status-error';
-                status.textContent = '✗ ' + (data.message || t('config.github.fetch_error')); 
+            if (status) {
+                status.className = 'adg-test-result is-danger';
+                status.textContent = data.message || t('config.github.fetch_error');
             }
             if (btn) { btn.disabled = false; btn.innerHTML = '🔄 ' + t('config.github.fetch_repos_btn'); }
             return;
@@ -187,14 +187,14 @@ async function githubFetchRepos() {
         if (listEl) listEl.innerHTML = githubBuildRepoList(_githubReposData, allowedArr);
 
         githubUpdateAllowedCount(_githubReposData.length, allowedArr.length);
-        if (status) { 
-            status.className = 'cfg-status-banner cfg-status-success';
-            status.textContent = '✓ ' + _githubReposData.length + ' ' + t('config.github.repos_loaded'); 
+        if (status) {
+            status.className = 'adg-test-result is-success';
+            status.textContent = _githubReposData.length + ' ' + t('config.github.repos_loaded');
         }
     } catch (e) {
-        if (status) { 
-            status.className = 'cfg-status-banner cfg-status-error';
-            status.textContent = '✗ ' + e.message; 
+        if (status) {
+            status.className = 'adg-test-result is-danger';
+            status.textContent = e.message;
         }
     } finally {
         if (btn) { btn.disabled = false; btn.innerHTML = '🔄 ' + t('config.github.fetch_repos_btn'); }
@@ -269,11 +269,16 @@ function githubSaveToken() {
     const statusEl = document.getElementById('github-token-status');
     const token = input ? input.value.trim() : '';
     if (!token) {
-        if (statusEl) { 
-            statusEl.className = 'cfg-status-banner cfg-status-error';
-            statusEl.textContent = t('config.github.token_empty'); 
+        if (statusEl) {
+            statusEl.className = 'adg-test-result is-danger';
+            statusEl.textContent = t('config.github.token_empty');
         }
         return;
+    }
+
+    if (statusEl) {
+        statusEl.className = 'adg-test-result';
+        statusEl.textContent = t('config.github.saving') || t('config.common.saved');
     }
 
     fetch('/api/vault/secrets', {
@@ -284,23 +289,21 @@ function githubSaveToken() {
     .then(r => r.json())
     .then(res => {
         if (res.status === 'ok' || res.success) {
-            if (statusEl) { 
-                statusEl.className = 'cfg-status-banner cfg-status-success';
-                statusEl.textContent = '✓ ' + t('config.github.token_saved'); 
+            if (statusEl) {
+                statusEl.className = 'adg-test-result is-success';
+                statusEl.textContent = t('config.github.token_saved');
             }
             cfgMarkSecretStored(input, 'github.token');
-        } else {
-            if (statusEl) { 
-                statusEl.className = 'cfg-status-banner cfg-status-error';
-                statusEl.textContent = '✗ ' + (res.message || t('config.github.token_save_failed')); 
-            }
+        } else if (statusEl) {
+            statusEl.className = 'adg-test-result is-danger';
+            statusEl.textContent = res.message || t('config.github.token_save_failed');
         }
         setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 4000);
     })
     .catch(() => {
-        if (statusEl) { 
-            statusEl.className = 'cfg-status-banner cfg-status-error';
-            statusEl.textContent = '✗ ' + t('config.github.token_save_failed'); 
+        if (statusEl) {
+            statusEl.className = 'adg-test-result is-danger';
+            statusEl.textContent = t('config.github.token_save_failed');
         }
     });
 }

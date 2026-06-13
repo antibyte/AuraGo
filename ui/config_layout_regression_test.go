@@ -251,6 +251,7 @@ func TestConfigPhase3MQTTAndNetlifyActionRows(t *testing.T) {
 		"cfg-actions-row",
 		"nf-test-btn",
 		"/api/netlify/test-connection",
+		"field-grid two-cols",
 	} {
 		if !strings.Contains(netlifyJS, marker) {
 			t.Fatalf("netlify.js missing marker %q", marker)
@@ -258,6 +259,9 @@ func TestConfigPhase3MQTTAndNetlifyActionRows(t *testing.T) {
 	}
 	if strings.Contains(netlifyJS, "nf-test-spinner") || strings.Contains(netlifyJS, "nf-test-msg") {
 		t.Fatal("netlify.js should use unified adg-test-result instead of legacy spinner/msg blocks")
+	}
+	if strings.Contains(netlifyJS, "cfg-input cfg-input-full") {
+		t.Fatal("netlify.js site fields should use field-input inside field-grid")
 	}
 }
 
@@ -272,6 +276,7 @@ func TestConfigPhase3VercelActionRows(t *testing.T) {
 		"vercel-test-btn",
 		"/api/vercel/test-connection",
 		"adg-save-btn",
+		"field-grid two-cols",
 	} {
 		if !strings.Contains(vercelJS, marker) {
 			t.Fatalf("vercel.js missing marker %q", marker)
@@ -279,6 +284,53 @@ func TestConfigPhase3VercelActionRows(t *testing.T) {
 	}
 	if strings.Contains(vercelJS, "vercel-test-spinner") || strings.Contains(vercelJS, "vercel-test-msg") {
 		t.Fatal("vercel.js should use unified adg-test-result instead of legacy spinner/msg blocks")
+	}
+	if strings.Contains(vercelJS, "cfg-input cfg-input-full") {
+		t.Fatal("vercel.js project fields should use field-input inside field-grid")
+	}
+}
+
+func TestConfigPhase3FritzboxGitHub(t *testing.T) {
+	t.Parallel()
+
+	fritzboxJS := normalizeAssetText(mustReadUIFile(t, "cfg/fritzbox.js"))
+	for _, marker := range []string{
+		"adg-status-banner",
+		"fbSetBanner",
+		"adg-password-row",
+		"adg-save-btn",
+		"cfg-actions-row",
+		"adg-test-btn",
+		"adg-test-result",
+		"attachChangeListeners",
+		"status_not_configured",
+		"/api/fritzbox/test",
+	} {
+		if !strings.Contains(fritzboxJS, marker) {
+			t.Fatalf("fritzbox.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(fritzboxJS, "cfg-status-banner") {
+		t.Fatal("fritzbox.js should use adg-status-banner instead of cfg-status-banner")
+	}
+
+	githubJS := normalizeAssetText(mustReadUIFile(t, "cfg/github.js"))
+	for _, marker := range []string{
+		"adg-password-row",
+		"adg-save-btn",
+		"adg-test-btn",
+		"adg-test-result",
+		"cfg-actions-row",
+		"github-token-status",
+		"github-fetch-status",
+		"btn-save btn-secondary",
+	} {
+		if !strings.Contains(githubJS, marker) {
+			t.Fatalf("github.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(githubJS, "cfg-save-btn-sm") || strings.Contains(githubJS, "cfg-status-banner") {
+		t.Fatal("github.js should use unified adg-* and btn-secondary patterns")
 	}
 }
 
