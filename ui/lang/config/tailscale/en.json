@@ -114,5 +114,16 @@
   "config.web_scraper.summary_mode": "Summary Mode",
   "config.webdav.secret_empty": "Value is empty",
   "shared.tsnet.login_banner_link": "Open login link",
-  "config.tailscale.tsnet_status_starting": "Waiting for authentication…"
+  "config.tailscale.tsnet_status_starting": "Waiting for authentication…",
+  "config.tailscale.checking": "Checking API connection…",
+  "config.tailscale.loading": "Testing…",
+  "config.tailscale.connection_failed": "API connection failed",
+  "config.tailscale.test_btn": "Test API Connection",
+  "config.tailscale.test_ok": "API connection successful",
+  "config.tailscale.test_fail": "API connection failed",
+  "config.tailscale.status_disabled": "Tailscale API integration is disabled",
+  "config.tailscale.status_no_credentials": "Tailscale API key missing",
+  "config.tailscale.status_ok": "Connected to Tailscale API",
+  "config.tailscale.status_success": "✅",
+  "config.tailscale.status_error": "❌"
 }

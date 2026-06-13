@@ -11,5 +11,16 @@
   "config.ai_gateway.token": "Token gatewaye",
   "config.ai_gateway.token_placeholder": "cf-aig-...",
   "config.ai_gateway.settings_title": "Nastavení připojení",
-  "config.ai_gateway.settings_desc": "Nakonfigurujte přihlašovací údaje pro Cloudflare AI Gateway."
+  "config.ai_gateway.settings_desc": "Nakonfigurujte přihlašovací údaje pro Cloudflare AI Gateway.",
+  "config.ai_gateway.checking": "Kontrola brány…",
+  "config.ai_gateway.loading": "Testování…",
+  "config.ai_gateway.connection_failed": "Připojení k bráně selhalo",
+  "config.ai_gateway.test_btn": "Otestovat bránu",
+  "config.ai_gateway.test_ok": "Připojení k bráně úspěšné",
+  "config.ai_gateway.test_fail": "Připojení k bráně selhalo",
+  "config.ai_gateway.status_disabled": "AI Gateway je vypnutý",
+  "config.ai_gateway.status_no_credentials": "Chybí ID účtu nebo ID brány",
+  "config.ai_gateway.status_ok": "Připojeno k AI Gateway",
+  "config.ai_gateway.status_success": "✅",
+  "config.ai_gateway.status_error": "❌"
 }

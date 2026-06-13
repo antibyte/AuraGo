@@ -463,6 +463,80 @@ func quoteIMAPString(s string) string {
 	return `"` + s + `"`
 }
 
+// TestIMAPConnection verifies IMAP login credentials without fetching mail.
+func TestIMAPConnection(host string, port int, username, password string) error {
+	if strings.TrimSpace(host) == "" {
+		return fmt.Errorf("IMAP host is required")
+	}
+	if port <= 0 {
+		port = 993
+	}
+	ic, err := imapDial(host, port)
+	if err != nil {
+		return err
+	}
+	defer ic.Close()
+	return ic.login(username, password)
+}
+
+// TestSMTPAuth verifies SMTP credentials without sending mail.
+func TestSMTPAuth(host string, port int, username, password string) error {
+	if strings.TrimSpace(host) == "" {
+		return fmt.Errorf("SMTP host is required")
+	}
+	if port <= 0 {
+		port = 587
+	}
+
+	addr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
+	if port == 465 {
+		tlsConn, err := tls.DialWithDialer(
+			&net.Dialer{Timeout: 15 * time.Second},
+			"tcp", addr,
+			&tls.Config{ServerName: host},
+		)
+		if err != nil {
+			return fmt.Errorf("SMTPS TLS dial failed: %w", err)
+		}
+		client, err := smtp.NewClient(tlsConn, host)
+		if err != nil {
+			tlsConn.Close()
+			return fmt.Errorf("SMTPS client creation failed: %w", err)
+		}
+		defer client.Close()
+		auth := smtp.PlainAuth("", username, password, host)
+		if err := client.Auth(auth); err != nil {
+			return fmt.Errorf("SMTPS auth failed: %w", err)
+		}
+		return nil
+	}
+
+	conn, err := net.DialTimeout("tcp", addr, 15*time.Second)
+	if err != nil {
+		return fmt.Errorf("SMTP connection failed: %w", err)
+	}
+	client, err := smtp.NewClient(conn, host)
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("SMTP client creation failed: %w", err)
+	}
+	defer client.Close()
+
+	if ok, _ := client.Extension("STARTTLS"); ok {
+		if err := client.StartTLS(&tls.Config{ServerName: host}); err != nil {
+			return fmt.Errorf("STARTTLS failed: %w", err)
+		}
+	} else {
+		return fmt.Errorf("SMTP server %s does not support STARTTLS (use port 465 with TLS instead)", host)
+	}
+
+	auth := smtp.PlainAuth("", username, password, host)
+	if err := client.Auth(auth); err != nil {
+		return fmt.Errorf("SMTP auth failed: %w", err)
+	}
+	return nil
+}
+
 // ── SMTP Send ───────────────────────────────────────────────────────────────
 
 // SendEmail sends an email via SMTP with STARTTLS.

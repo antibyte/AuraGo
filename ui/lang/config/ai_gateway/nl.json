@@ -11,5 +11,16 @@
   "config.ai_gateway.token": "Gateway-token",
   "config.ai_gateway.token_placeholder": "cf-aig-...",
   "config.ai_gateway.settings_title": "Verbindingsinstellingen",
-  "config.ai_gateway.settings_desc": "Configureer uw Cloudflare AI Gateway inloggegevens."
+  "config.ai_gateway.settings_desc": "Configureer uw Cloudflare AI Gateway inloggegevens.",
+  "config.ai_gateway.checking": "Gateway controleren…",
+  "config.ai_gateway.loading": "Testen…",
+  "config.ai_gateway.connection_failed": "Gateway-verbinding mislukt",
+  "config.ai_gateway.test_btn": "Gateway testen",
+  "config.ai_gateway.test_ok": "Gateway-verbinding geslaagd",
+  "config.ai_gateway.test_fail": "Gateway-verbinding mislukt",
+  "config.ai_gateway.status_disabled": "AI Gateway is uitgeschakeld",
+  "config.ai_gateway.status_no_credentials": "Account-ID of gateway-ID ontbreekt",
+  "config.ai_gateway.status_ok": "Verbonden met AI Gateway",
+  "config.ai_gateway.status_success": "✅",
+  "config.ai_gateway.status_error": "❌"
 }

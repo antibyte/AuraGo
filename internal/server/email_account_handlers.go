@@ -2,7 +2,9 @@ package server
 
 import (
 	"aurago/internal/config"
+	"aurago/internal/tools"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -39,6 +41,122 @@ func handleEmailAccounts(s *Server) http.HandlerFunc {
 		default:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
+	}
+}
+
+// handleEmailAccountsTest probes IMAP and/or SMTP credentials from the config UI.
+func handleEmailAccountsTest(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req emailAccountJSON
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+
+		password := strings.TrimSpace(req.Password)
+		if password == maskedKey || password == "" {
+			if req.ID != "" {
+				s.CfgMu.RLock()
+				for _, a := range s.Cfg.EmailAccounts {
+					if a.ID == req.ID {
+						password = a.Password
+						break
+					}
+				}
+				s.CfgMu.RUnlock()
+			}
+			if password == "" || password == maskedKey {
+				if s.Vault != nil && req.ID != "" {
+					if secret, err := s.Vault.ReadSecret("email_" + req.ID + "_password"); err == nil {
+						password = secret
+					}
+				}
+			}
+		}
+
+		if strings.TrimSpace(req.Username) == "" || password == "" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": "Username and password are required",
+			})
+			return
+		}
+
+		imapHost := strings.TrimSpace(req.IMAPHost)
+		smtpHost := strings.TrimSpace(req.SMTPHost)
+		if imapHost == "" && smtpHost == "" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": "At least one of IMAP or SMTP host is required",
+			})
+			return
+		}
+
+		result := map[string]interface{}{
+			"status": "ok",
+		}
+		var errors []string
+
+		if imapHost != "" {
+			port := req.IMAPPort
+			if port <= 0 {
+				port = 993
+			}
+			if err := tools.TestIMAPConnection(imapHost, port, req.Username, password); err != nil {
+				result["imap"] = "error"
+				errors = append(errors, "IMAP: "+err.Error())
+			} else {
+				result["imap"] = "ok"
+			}
+		} else {
+			result["imap"] = "skipped"
+		}
+
+		if smtpHost != "" {
+			port := req.SMTPPort
+			if port <= 0 {
+				port = 587
+			}
+			if err := tools.TestSMTPAuth(smtpHost, port, req.Username, password); err != nil {
+				result["smtp"] = "error"
+				errors = append(errors, "SMTP: "+err.Error())
+			} else {
+				result["smtp"] = "ok"
+			}
+		} else {
+			result["smtp"] = "skipped"
+		}
+
+		imapStatus, _ := result["imap"].(string)
+		smtpStatus, _ := result["smtp"].(string)
+		switch {
+		case len(errors) == 0:
+			result["status"] = "ok"
+			result["message"] = "Email connection successful"
+		case (imapStatus == "ok" && smtpStatus == "error") || (smtpStatus == "ok" && imapStatus == "error"):
+			result["status"] = "partial"
+			result["message"] = strings.Join(errors, "; ")
+		default:
+			result["status"] = "error"
+			result["message"] = strings.Join(errors, "; ")
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}
+
+		if imapStatus == "ok" && smtpStatus == "ok" {
+			result["message"] = fmt.Sprintf("IMAP and SMTP authentication successful")
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
 	}
 }
 

@@ -32,5 +32,16 @@
   "help.telnyx.allowed_numbers": "Kommagescheiden lijst van telefoonnummers (E.164) die met de agent mogen communiceren. Leeg laten om alles toe te staan.",
   "help.telnyx.call_timeout": "Maximale gespreksduur in seconden voor automatisch ophangen (30–3600).",
   "help.telnyx.record_calls": "Alle spraakoproepen automatisch opnemen. Opnames zijn toegankelijk voor de agent.",
-  "help.telnyx.relay_to_agent": "Inkomende SMS en gesprekstranscripties doorsturen naar de agent voor verwerking."
+  "help.telnyx.relay_to_agent": "Inkomende SMS en gesprekstranscripties doorsturen naar de agent voor verwerking.",
+  "config.telnyx.checking": "Verbinding controleren…",
+  "config.telnyx.loading": "Testen…",
+  "config.telnyx.connection_failed": "Verbinding mislukt",
+  "config.telnyx.test_btn": "Verbinding testen",
+  "config.telnyx.test_ok": "Verbinding geslaagd",
+  "config.telnyx.test_fail": "Verbinding mislukt",
+  "config.telnyx.status_disabled": "Telnyx-integratie is uitgeschakeld",
+  "config.telnyx.status_no_credentials": "Telnyx API-sleutel ontbreekt",
+  "config.telnyx.status_ok": "Verbonden met Telnyx",
+  "config.telnyx.status_success": "✅",
+  "config.telnyx.status_error": "❌"
 }

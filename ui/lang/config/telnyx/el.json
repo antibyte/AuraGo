@@ -32,5 +32,16 @@
   "help.telnyx.allowed_numbers": "Λίστα αριθμών χωρισμένων με κόμμα (E.164) που μπορούν να αλληλεπιδρούν με τον agent. Αφήστε κενό για να επιτρέψετε όλους.",
   "help.telnyx.call_timeout": "Μέγιστη διάρκεια κλήσης σε δευτερόλεπτα πριν τον αυτόματο τερματισμό (30–3600).",
   "help.telnyx.record_calls": "Αυτόματη εγγραφή όλων των φωνητικών κλήσεων. Οι εγγραφές είναι προσβάσιμες στον agent.",
-  "help.telnyx.relay_to_agent": "Προώθηση εισερχόμενων SMS και μεταγραφών κλήσεων στον agent για επεξεργασία."
+  "help.telnyx.relay_to_agent": "Προώθηση εισερχόμενων SMS και μεταγραφών κλήσεων στον agent για επεξεργασία.",
+  "config.telnyx.checking": "Έλεγχος σύνδεσης…",
+  "config.telnyx.loading": "Δοκιμή…",
+  "config.telnyx.connection_failed": "Η σύνδεση απέτυχε",
+  "config.telnyx.test_btn": "Δοκιμή σύνδεσης",
+  "config.telnyx.test_ok": "Επιτυχής σύνδεση",
+  "config.telnyx.test_fail": "Η σύνδεση απέτυχε",
+  "config.telnyx.status_disabled": "Η ενσωμάτωση Telnyx είναι απενεργοποιημένη",
+  "config.telnyx.status_no_credentials": "Λείπει το API κλειδί Telnyx",
+  "config.telnyx.status_ok": "Συνδέθηκε στο Telnyx",
+  "config.telnyx.status_success": "✅",
+  "config.telnyx.status_error": "❌"
 }

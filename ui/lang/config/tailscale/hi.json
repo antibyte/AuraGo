@@ -114,5 +114,16 @@
   "config.web_scraper.summary_mode": "सारांश मोड",
   "config.webdav.secret_empty": "मान खाली है",
   "shared.tsnet.login_banner_link": "लॉगिन लिंक खोलें",
-  "config.tailscale.tsnet_status_starting": "प्रमाणीकरण की प्रतीक्षा हो रही है…"
+  "config.tailscale.tsnet_status_starting": "प्रमाणीकरण की प्रतीक्षा हो रही है…",
+  "config.tailscale.checking": "API कनेक्शन जाँच…",
+  "config.tailscale.loading": "परीक्षण…",
+  "config.tailscale.connection_failed": "API कनेक्शन विफल",
+  "config.tailscale.test_btn": "API परीक्षण",
+  "config.tailscale.test_ok": "API कनेक्शन सफल",
+  "config.tailscale.test_fail": "API कनेक्शन विफल",
+  "config.tailscale.status_disabled": "Tailscale API एकीकरण अक्षम है",
+  "config.tailscale.status_no_credentials": "Tailscale API कुंजी गायब है",
+  "config.tailscale.status_ok": "Tailscale API से जुड़ा",
+  "config.tailscale.status_success": "✅",
+  "config.tailscale.status_error": "❌"
 }

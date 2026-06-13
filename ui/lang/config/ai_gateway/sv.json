@@ -11,5 +11,16 @@
   "config.ai_gateway.token": "Gateway-token",
   "config.ai_gateway.token_placeholder": "cf-aig-...",
   "config.ai_gateway.settings_title": "Anslutningsinställningar",
-  "config.ai_gateway.settings_desc": "Konfigurera dina Cloudflare AI Gateway-uppgifter."
+  "config.ai_gateway.settings_desc": "Konfigurera dina Cloudflare AI Gateway-uppgifter.",
+  "config.ai_gateway.checking": "Kontrollerar gateway…",
+  "config.ai_gateway.loading": "Testar…",
+  "config.ai_gateway.connection_failed": "Gateway-anslutning misslyckades",
+  "config.ai_gateway.test_btn": "Testa gateway",
+  "config.ai_gateway.test_ok": "Gateway-anslutning lyckades",
+  "config.ai_gateway.test_fail": "Gateway-anslutning misslyckades",
+  "config.ai_gateway.status_disabled": "AI Gateway är inaktiverad",
+  "config.ai_gateway.status_no_credentials": "Konto-ID eller gateway-ID saknas",
+  "config.ai_gateway.status_ok": "Ansluten till AI Gateway",
+  "config.ai_gateway.status_success": "✅",
+  "config.ai_gateway.status_error": "❌"
 }

@@ -50,5 +50,11 @@
   "config.email.relay_cheatsheet_none": "Inget cheatsheet",
   "config.email.relay_cheatsheet_empty": "Inga aktiva cheatsheets tillgängliga",
   "config.email.relay_cheatsheet_error": "Kunde inte läsa in cheatsheets",
-  "help.email.relay_cheatsheet_id": "Valfritt cheatsheet som läggs till som instruktioner när inkorgsövervakaren vidarebefordrar ny e-post till agenten."
+  "help.email.relay_cheatsheet_id": "Valfritt cheatsheet som läggs till som instruktioner när inkorgsövervakaren vidarebefordrar ny e-post till agenten.",
+  "config.email.test_btn": "Testa anslutning",
+  "config.email.test_ok": "Anslutning lyckades",
+  "config.email.test_fail": "Anslutning misslyckades",
+  "config.email.testing": "Testar…",
+  "config.email.test_partial": "Delvis framgång — kontrollera detaljer",
+  "config.email.test_credentials_required": "Användarnamn och lösenord krävs"
 }

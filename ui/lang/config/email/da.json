@@ -50,5 +50,11 @@
   "config.email.relay_cheatsheet_none": "Intet cheatsheet",
   "config.email.relay_cheatsheet_empty": "Ingen aktive cheatsheets tilgængelige",
   "config.email.relay_cheatsheet_error": "Kunne ikke indlæse cheatsheets",
-  "help.email.relay_cheatsheet_id": "Valgfrit cheatsheet, der vedhæftes som instruktioner, når indbakke-overvågningen videresender ny mail til agenten."
+  "help.email.relay_cheatsheet_id": "Valgfrit cheatsheet, der vedhæftes som instruktioner, når indbakke-overvågningen videresender ny mail til agenten.",
+  "config.email.test_btn": "Test forbindelse",
+  "config.email.test_ok": "Forbindelse lykkedes",
+  "config.email.test_fail": "Forbindelse mislykkedes",
+  "config.email.testing": "Tester…",
+  "config.email.test_partial": "Delvis succes — tjek detaljer",
+  "config.email.test_credentials_required": "Brugernavn og adgangskode er påkrævet"
 }

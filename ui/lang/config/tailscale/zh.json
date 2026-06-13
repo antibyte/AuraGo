@@ -114,5 +114,16 @@
   "config.web_scraper.summary_mode": "摘要模式",
   "config.webdav.secret_empty": "值为空",
   "shared.tsnet.login_banner_link": "打开登录链接",
-  "config.tailscale.tsnet_status_starting": "正在等待身份验证…"
+  "config.tailscale.tsnet_status_starting": "正在等待身份验证…",
+  "config.tailscale.checking": "正在检查 API 连接…",
+  "config.tailscale.loading": "测试中…",
+  "config.tailscale.connection_failed": "API 连接失败",
+  "config.tailscale.test_btn": "测试 API 连接",
+  "config.tailscale.test_ok": "API 连接成功",
+  "config.tailscale.test_fail": "API 连接失败",
+  "config.tailscale.status_disabled": "Tailscale API 集成已禁用",
+  "config.tailscale.status_no_credentials": "缺少 Tailscale API 密钥",
+  "config.tailscale.status_ok": "已连接到 Tailscale API",
+  "config.tailscale.status_success": "✅",
+  "config.tailscale.status_error": "❌"
 }

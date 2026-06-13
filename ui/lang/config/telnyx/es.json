@@ -32,5 +32,16 @@
   "help.telnyx.allowed_numbers": "Lista separada por comas de números (E.164) que pueden interactuar con el agente. Dejar vacío para permitir todos.",
   "help.telnyx.call_timeout": "Duración máxima de llamada en segundos antes de colgar automáticamente (30–3600).",
   "help.telnyx.record_calls": "Grabar automáticamente todas las llamadas de voz. Las grabaciones son accesibles para el agente.",
-  "help.telnyx.relay_to_agent": "Reenviar SMS entrantes y transcripciones de llamadas al agente para su procesamiento."
+  "help.telnyx.relay_to_agent": "Reenviar SMS entrantes y transcripciones de llamadas al agente para su procesamiento.",
+  "config.telnyx.checking": "Comprobando conexión…",
+  "config.telnyx.loading": "Probando…",
+  "config.telnyx.connection_failed": "Conexión fallida",
+  "config.telnyx.test_btn": "Probar conexión",
+  "config.telnyx.test_ok": "Conexión exitosa",
+  "config.telnyx.test_fail": "Conexión fallida",
+  "config.telnyx.status_disabled": "La integración Telnyx está desactivada",
+  "config.telnyx.status_no_credentials": "Falta la clave API de Telnyx",
+  "config.telnyx.status_ok": "Conectado a Telnyx",
+  "config.telnyx.status_success": "✅",
+  "config.telnyx.status_error": "❌"
 }

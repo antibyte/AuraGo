@@ -50,5 +50,11 @@
   "config.email.relay_cheatsheet_none": "Geen cheatsheet",
   "config.email.relay_cheatsheet_empty": "Geen actieve cheatsheets beschikbaar",
   "config.email.relay_cheatsheet_error": "Kon cheatsheets niet laden",
-  "help.email.relay_cheatsheet_id": "Optioneel cheatsheet dat als instructies wordt toegevoegd wanneer de inbox-watcher nieuwe mail naar de agent doorstuurt."
+  "help.email.relay_cheatsheet_id": "Optioneel cheatsheet dat als instructies wordt toegevoegd wanneer de inbox-watcher nieuwe mail naar de agent doorstuurt.",
+  "config.email.test_btn": "Verbinding testen",
+  "config.email.test_ok": "Verbinding geslaagd",
+  "config.email.test_fail": "Verbinding mislukt",
+  "config.email.testing": "Testen…",
+  "config.email.test_partial": "Gedeeltelijk geslaagd — controleer details",
+  "config.email.test_credentials_required": "Gebruikersnaam en wachtwoord zijn verplicht"
 }

@@ -32,5 +32,16 @@
   "help.telnyx.allowed_numbers": "エージェントと通信できる電話番号（E.164）のカンマ区切りリスト。すべて許可するには空のままにします。",
   "help.telnyx.call_timeout": "自動切断前の最大通話時間（秒）（30〜3600）。",
   "help.telnyx.record_calls": "すべての音声通話を自動的に録音します。録音はエージェントがアクセスできます。",
-  "help.telnyx.relay_to_agent": "着信SMSと通話記録をエージェントに転送して処理します。"
+  "help.telnyx.relay_to_agent": "着信SMSと通話記録をエージェントに転送して処理します。",
+  "config.telnyx.checking": "接続を確認中…",
+  "config.telnyx.loading": "テスト中…",
+  "config.telnyx.connection_failed": "接続に失敗しました",
+  "config.telnyx.test_btn": "接続をテスト",
+  "config.telnyx.test_ok": "接続に成功しました",
+  "config.telnyx.test_fail": "接続に失敗しました",
+  "config.telnyx.status_disabled": "Telnyx連携は無効です",
+  "config.telnyx.status_no_credentials": "Telnyx APIキーがありません",
+  "config.telnyx.status_ok": "Telnyxに接続済み",
+  "config.telnyx.status_success": "✅",
+  "config.telnyx.status_error": "❌"
 }

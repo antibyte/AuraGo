@@ -114,5 +114,16 @@
   "config.web_scraper.summary_mode": "サマリーモード",
   "config.webdav.secret_empty": "値が空です",
   "shared.tsnet.login_banner_link": "ログインリンクを開く",
-  "config.tailscale.tsnet_status_starting": "認証を待機しています…"
+  "config.tailscale.tsnet_status_starting": "認証を待機しています…",
+  "config.tailscale.checking": "API接続を確認中…",
+  "config.tailscale.loading": "テスト中…",
+  "config.tailscale.connection_failed": "API接続に失敗しました",
+  "config.tailscale.test_btn": "API接続をテスト",
+  "config.tailscale.test_ok": "API接続に成功しました",
+  "config.tailscale.test_fail": "API接続に失敗しました",
+  "config.tailscale.status_disabled": "Tailscale API連携は無効です",
+  "config.tailscale.status_no_credentials": "Tailscale APIキーがありません",
+  "config.tailscale.status_ok": "Tailscale APIに接続済み",
+  "config.tailscale.status_success": "✅",
+  "config.tailscale.status_error": "❌"
 }

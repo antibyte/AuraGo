@@ -50,5 +50,11 @@
   "config.email.relay_cheatsheet_none": "Nessun cheatsheet",
   "config.email.relay_cheatsheet_empty": "Nessun cheatsheet attivo disponibile",
   "config.email.relay_cheatsheet_error": "Impossibile caricare i cheatsheet",
-  "help.email.relay_cheatsheet_id": "Cheatsheet opzionale aggiunto come istruzioni quando il watcher della posta in arrivo inoltra nuove email all'agente."
+  "help.email.relay_cheatsheet_id": "Cheatsheet opzionale aggiunto come istruzioni quando il watcher della posta in arrivo inoltra nuove email all'agente.",
+  "config.email.test_btn": "Testa connessione",
+  "config.email.test_ok": "Connessione riuscita",
+  "config.email.test_fail": "Connessione fallita",
+  "config.email.testing": "Test in corso…",
+  "config.email.test_partial": "Successo parziale — controlla i dettagli",
+  "config.email.test_credentials_required": "Nome utente e password sono obbligatori"
 }

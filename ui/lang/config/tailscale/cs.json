@@ -114,5 +114,16 @@
   "config.web_scraper.summary_mode": "Režim shrnutí",
   "config.webdav.secret_empty": "Hodnota je prázdná",
   "shared.tsnet.login_banner_link": "Otevřít přihlašovací odkaz",
-  "config.tailscale.tsnet_status_starting": "Čeká se na ověření…"
+  "config.tailscale.tsnet_status_starting": "Čeká se na ověření…",
+  "config.tailscale.checking": "Kontrola API…",
+  "config.tailscale.loading": "Testování…",
+  "config.tailscale.connection_failed": "Připojení API selhalo",
+  "config.tailscale.test_btn": "Otestovat API",
+  "config.tailscale.test_ok": "Připojení API úspěšné",
+  "config.tailscale.test_fail": "Připojení API selhalo",
+  "config.tailscale.status_disabled": "Integrace API Tailscale je vypnutá",
+  "config.tailscale.status_no_credentials": "Chybí API klíč Tailscale",
+  "config.tailscale.status_ok": "Připojeno k API Tailscale",
+  "config.tailscale.status_success": "✅",
+  "config.tailscale.status_error": "❌"
 }

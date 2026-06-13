@@ -50,5 +50,11 @@
   "config.email.relay_cheatsheet_none": "No cheatsheet",
   "config.email.relay_cheatsheet_empty": "No active cheatsheets available",
   "config.email.relay_cheatsheet_error": "Could not load cheatsheets",
-  "help.email.relay_cheatsheet_id": "Optional cheatsheet appended as instructions when the inbox watcher forwards new mail to the agent."
+  "help.email.relay_cheatsheet_id": "Optional cheatsheet appended as instructions when the inbox watcher forwards new mail to the agent.",
+  "config.email.test_btn": "Test Connection",
+  "config.email.test_ok": "Connection successful",
+  "config.email.test_fail": "Connection failed",
+  "config.email.testing": "Testing…",
+  "config.email.test_partial": "Partial success — check details",
+  "config.email.test_credentials_required": "Username and password are required"
 }

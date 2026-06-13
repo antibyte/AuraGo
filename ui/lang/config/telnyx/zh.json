@@ -32,5 +32,16 @@
   "help.telnyx.allowed_numbers": "可以与代理交互的电话号码（E.164）逗号分隔列表。留空允许所有号码。",
   "help.telnyx.call_timeout": "自动挂断前的最大通话时长（秒）（30–3600）。",
   "help.telnyx.record_calls": "自动录制所有语音通话。录音可供代理访问。",
-  "help.telnyx.relay_to_agent": "将收到的短信和通话记录转发给代理处理。"
+  "help.telnyx.relay_to_agent": "将收到的短信和通话记录转发给代理处理。",
+  "config.telnyx.checking": "正在检查连接…",
+  "config.telnyx.loading": "测试中…",
+  "config.telnyx.connection_failed": "连接失败",
+  "config.telnyx.test_btn": "测试连接",
+  "config.telnyx.test_ok": "连接成功",
+  "config.telnyx.test_fail": "连接失败",
+  "config.telnyx.status_disabled": "Telnyx 集成已禁用",
+  "config.telnyx.status_no_credentials": "缺少 Telnyx API 密钥",
+  "config.telnyx.status_ok": "已连接到 Telnyx",
+  "config.telnyx.status_success": "✅",
+  "config.telnyx.status_error": "❌"
 }

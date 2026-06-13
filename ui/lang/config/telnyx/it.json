@@ -32,5 +32,16 @@
   "help.telnyx.allowed_numbers": "Lista di numeri separati da virgole (E.164) che possono interagire con l'agente. Lasciare vuoto per consentire tutti.",
   "help.telnyx.call_timeout": "Durata massima della chiamata in secondi prima del riaggancio automatico (30–3600).",
   "help.telnyx.record_calls": "Registra automaticamente tutte le chiamate vocali. Le registrazioni sono accessibili all'agente.",
-  "help.telnyx.relay_to_agent": "Inoltra SMS in arrivo e trascrizioni di chiamate all'agente per l'elaborazione."
+  "help.telnyx.relay_to_agent": "Inoltra SMS in arrivo e trascrizioni di chiamate all'agente per l'elaborazione.",
+  "config.telnyx.checking": "Verifica connessione…",
+  "config.telnyx.loading": "Test in corso…",
+  "config.telnyx.connection_failed": "Connessione fallita",
+  "config.telnyx.test_btn": "Testa connessione",
+  "config.telnyx.test_ok": "Connessione riuscita",
+  "config.telnyx.test_fail": "Connessione fallita",
+  "config.telnyx.status_disabled": "Integrazione Telnyx disattivata",
+  "config.telnyx.status_no_credentials": "Chiave API Telnyx mancante",
+  "config.telnyx.status_ok": "Connesso a Telnyx",
+  "config.telnyx.status_success": "✅",
+  "config.telnyx.status_error": "❌"
 }

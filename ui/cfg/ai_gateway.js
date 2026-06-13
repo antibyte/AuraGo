@@ -9,6 +9,8 @@ function renderAIGatewaySection(section) {
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
+    html += '<div id="ai-gw-status-banner" class="adg-status-banner">' + t('config.ai_gateway.checking') + '</div>';
+
     html += '<div class="wh-notice ai-gw-info-notice">';
     html += '<span>🌩️</span>';
     html += '<div><small>' + t('config.ai_gateway.info') + '</small></div>';
@@ -60,7 +62,81 @@ function renderAIGatewaySection(section) {
 
     html += '</div>';
     html += '</div>';
+
+    html += '<div class="cfg-actions-row">';
+    html += '<button class="btn-save adg-test-btn" onclick="aiGatewayTestConnection()" id="ai-gw-test-btn">🔌 ' + t('config.ai_gateway.test_btn') + '</button>';
+    html += '<span id="ai-gw-test-result" class="adg-test-result"></span>';
+    html += '</div>';
+
     html += '</div>';
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
+
+    if (enabled) {
+        aiGatewayCheckStatus();
+    } else {
+        aiGatewaySetBanner('neutral', '⚪ ' + t('config.ai_gateway.status_disabled'));
+    }
+}
+
+function aiGatewaySetBanner(state, text) {
+    const banner = document.getElementById('ai-gw-status-banner');
+    if (!banner) return;
+    banner.className = 'adg-status-banner';
+    if (state) banner.classList.add('is-' + state);
+    banner.textContent = text;
+}
+
+function aiGatewayCheckStatus() {
+    aiGatewaySetBanner('neutral', t('config.ai_gateway.checking'));
+    fetch('/api/ai-gateway/status')
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'disabled') {
+                aiGatewaySetBanner('neutral', '⚪ ' + t('config.ai_gateway.status_disabled'));
+                return;
+            }
+            if (res.status === 'no_credentials') {
+                aiGatewaySetBanner('warning', '🟡 ' + t('config.ai_gateway.status_no_credentials'));
+                return;
+            }
+            if (res.status === 'ok') {
+                aiGatewaySetBanner('success', '🟢 ' + t('config.ai_gateway.status_ok'));
+                return;
+            }
+            aiGatewaySetBanner('danger', '🔴 ' + (res.message || t('config.ai_gateway.connection_failed')));
+        })
+        .catch(() => aiGatewaySetBanner('danger', '🔴 ' + t('config.ai_gateway.connection_failed')));
+}
+
+function aiGatewayTestConnection() {
+    const btn = document.getElementById('ai-gw-test-btn');
+    const result = document.getElementById('ai-gw-test-result');
+    if (btn) btn.disabled = true;
+    if (result) {
+        result.textContent = t('config.ai_gateway.loading');
+        result.className = 'adg-test-result';
+    }
+
+    fetch('/api/ai-gateway/test', { method: 'POST' })
+        .then(r => r.json())
+        .then(res => {
+            if (btn) btn.disabled = false;
+            if (!result) return;
+            if (res.status === 'ok') {
+                result.className = 'adg-test-result is-success';
+                result.textContent = t('config.ai_gateway.status_success') + ' ' + t('config.ai_gateway.test_ok');
+                aiGatewayCheckStatus();
+            } else {
+                result.className = 'adg-test-result is-danger';
+                result.textContent = t('config.ai_gateway.status_error') + ' ' + (res.message || t('config.ai_gateway.test_fail'));
+            }
+        })
+        .catch(() => {
+            if (btn) btn.disabled = false;
+            if (result) {
+                result.className = 'adg-test-result is-danger';
+                result.textContent = t('config.ai_gateway.status_error') + ' ' + t('config.ai_gateway.test_fail');
+            }
+        });
 }

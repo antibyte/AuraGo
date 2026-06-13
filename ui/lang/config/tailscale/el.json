@@ -114,5 +114,16 @@
   "config.web_scraper.summary_mode": "Λειτουργία περίληψης",
   "config.webdav.secret_empty": "Η τιμή είναι κενή",
   "shared.tsnet.login_banner_link": "Άνοιγμα συνδέσμου σύνδεσης",
-  "config.tailscale.tsnet_status_starting": "Αναμονή για έλεγχο ταυτότητας…"
+  "config.tailscale.tsnet_status_starting": "Αναμονή για έλεγχο ταυτότητας…",
+  "config.tailscale.checking": "Έλεγχος API…",
+  "config.tailscale.loading": "Δοκιμή…",
+  "config.tailscale.connection_failed": "Η σύνδεση API απέτυχε",
+  "config.tailscale.test_btn": "Δοκιμή API",
+  "config.tailscale.test_ok": "Επιτυχής σύνδεση API",
+  "config.tailscale.test_fail": "Η σύνδεση API απέτυχε",
+  "config.tailscale.status_disabled": "Η ενσωμάτωση API Tailscale είναι απενεργοποιημένη",
+  "config.tailscale.status_no_credentials": "Λείπει το API κλειδί Tailscale",
+  "config.tailscale.status_ok": "Συνδέθηκε στο API Tailscale",
+  "config.tailscale.status_success": "✅",
+  "config.tailscale.status_error": "❌"
 }

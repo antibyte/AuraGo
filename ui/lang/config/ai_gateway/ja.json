@@ -11,5 +11,16 @@
   "config.ai_gateway.token": "ゲートウェイトークン",
   "config.ai_gateway.token_placeholder": "cf-aig-...",
   "config.ai_gateway.settings_title": "接続設定",
-  "config.ai_gateway.settings_desc": "Cloudflare AI Gatewayの認証情報を設定します。"
+  "config.ai_gateway.settings_desc": "Cloudflare AI Gatewayの認証情報を設定します。",
+  "config.ai_gateway.checking": "ゲートウェイを確認中…",
+  "config.ai_gateway.loading": "テスト中…",
+  "config.ai_gateway.connection_failed": "ゲートウェイ接続に失敗しました",
+  "config.ai_gateway.test_btn": "ゲートウェイをテスト",
+  "config.ai_gateway.test_ok": "ゲートウェイ接続に成功しました",
+  "config.ai_gateway.test_fail": "ゲートウェイ接続に失敗しました",
+  "config.ai_gateway.status_disabled": "AI Gatewayは無効です",
+  "config.ai_gateway.status_no_credentials": "アカウントIDまたはゲートウェイIDがありません",
+  "config.ai_gateway.status_ok": "AI Gatewayに接続済み",
+  "config.ai_gateway.status_success": "✅",
+  "config.ai_gateway.status_error": "❌"
 }

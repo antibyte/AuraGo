@@ -32,5 +32,16 @@
   "help.telnyx.allowed_numbers": "फ़ोन नंबरों की अल्पविराम-पृथक सूची (E.164) जो एजेंट से संवाद कर सकते हैं। सभी को अनुमति देने के लिए खाली छोड़ें।",
   "help.telnyx.call_timeout": "स्वचालित हैंगअप से पहले सेकंड में अधिकतम कॉल अवधि (30–3600)।",
   "help.telnyx.record_calls": "सभी वॉइस कॉल स्वचालित रूप से रिकॉर्ड करें। रिकॉर्डिंग एजेंट के लिए सुलभ हैं।",
-  "help.telnyx.relay_to_agent": "प्रोसेसिंग के लिए आने वाले SMS और कॉल ट्रांसक्रिप्शन को एजेंट को अग्रेषित करें।"
+  "help.telnyx.relay_to_agent": "प्रोसेसिंग के लिए आने वाले SMS और कॉल ट्रांसक्रिप्शन को एजेंट को अग्रेषित करें।",
+  "config.telnyx.checking": "कनेक्शन जाँच हो रहा है…",
+  "config.telnyx.loading": "परीक्षण…",
+  "config.telnyx.connection_failed": "कनेक्शन विफल",
+  "config.telnyx.test_btn": "कनेक्शन परीक्षण",
+  "config.telnyx.test_ok": "कनेक्शन सफल",
+  "config.telnyx.test_fail": "कनेक्शन विफल",
+  "config.telnyx.status_disabled": "Telnyx एकीकरण अक्षम है",
+  "config.telnyx.status_no_credentials": "Telnyx API कुंजी गायब है",
+  "config.telnyx.status_ok": "Telnyx से जुड़ा",
+  "config.telnyx.status_success": "✅",
+  "config.telnyx.status_error": "❌"
 }

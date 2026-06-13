@@ -11,7 +11,8 @@ async function renderTailscaleSection(section) {
 
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.tailscale.api_title')}</div>
-        <div class="field-group-desc">${t('config.tailscale.api_desc')}</div>`;
+        <div class="field-group-desc">${t('config.tailscale.api_desc')}</div>
+        <div id="ts-api-status-banner" class="adg-status-banner">${t('config.tailscale.checking')}</div>`;
 
     html += `<div class="ts-toggle-row">
         <span class="ts-toggle-label">${t('config.tailscale.enabled_label')}</span>
@@ -40,6 +41,11 @@ async function renderTailscaleSection(section) {
         </div>
         <div id="ts-api-key-status" class="ts-key-status"></div>
         <div class="ts-key-hint">${t('config.tailscale.api_key_hint')}</div>
+    </div>`;
+
+    html += `<div class="cfg-actions-row">
+        <button class="btn-save adg-test-btn" onclick="tsApiTestConnection()" id="ts-api-test-btn">🔌 ${t('config.tailscale.test_btn')}</button>
+        <span id="ts-api-test-result" class="adg-test-result"></span>
     </div>`;
 
     html += `</div>`;
@@ -184,9 +190,79 @@ async function renderTailscaleSection(section) {
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
 
+    if (cfg.enabled) {
+        tsApiCheckStatus();
+    } else {
+        tsApiSetBanner('neutral', '⚪ ' + t('config.tailscale.status_disabled'));
+    }
+
     if (tsEnabled) {
         _tsnetRefreshStatus();
     }
+}
+
+function tsApiSetBanner(state, text) {
+    const banner = document.getElementById('ts-api-status-banner');
+    if (!banner) return;
+    banner.className = 'adg-status-banner';
+    if (state) banner.classList.add('is-' + state);
+    banner.textContent = text;
+}
+
+function tsApiCheckStatus() {
+    tsApiSetBanner('neutral', t('config.tailscale.checking'));
+    fetch('/api/tailscale/status')
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'disabled') {
+                tsApiSetBanner('neutral', '⚪ ' + t('config.tailscale.status_disabled'));
+                return;
+            }
+            if (res.status === 'no_credentials') {
+                tsApiSetBanner('warning', '🟡 ' + t('config.tailscale.status_no_credentials'));
+                return;
+            }
+            if (res.status === 'ok') {
+                let text = '🟢 ' + t('config.tailscale.status_ok');
+                if (typeof res.count === 'number') text += ' (' + res.count + ')';
+                tsApiSetBanner('success', text);
+                return;
+            }
+            tsApiSetBanner('danger', '🔴 ' + (res.message || t('config.tailscale.connection_failed')));
+        })
+        .catch(() => tsApiSetBanner('danger', '🔴 ' + t('config.tailscale.connection_failed')));
+}
+
+function tsApiTestConnection() {
+    const btn = document.getElementById('ts-api-test-btn');
+    const result = document.getElementById('ts-api-test-result');
+    if (btn) btn.disabled = true;
+    if (result) {
+        result.textContent = t('config.tailscale.loading');
+        result.className = 'adg-test-result';
+    }
+
+    fetch('/api/tailscale/test', { method: 'POST' })
+        .then(r => r.json())
+        .then(res => {
+            if (btn) btn.disabled = false;
+            if (!result) return;
+            if (res.status === 'ok') {
+                result.className = 'adg-test-result is-success';
+                result.textContent = t('config.tailscale.status_success') + ' ' + t('config.tailscale.test_ok');
+                tsApiCheckStatus();
+            } else {
+                result.className = 'adg-test-result is-danger';
+                result.textContent = t('config.tailscale.status_error') + ' ' + (res.message || t('config.tailscale.test_fail'));
+            }
+        })
+        .catch(() => {
+            if (btn) btn.disabled = false;
+            if (result) {
+                result.className = 'adg-test-result is-danger';
+                result.textContent = t('config.tailscale.status_error') + ' ' + t('config.tailscale.test_fail');
+            }
+        });
 }
 
 async function _tsnetRefreshStatus() {

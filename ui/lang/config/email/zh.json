@@ -50,5 +50,11 @@
   "config.email.relay_cheatsheet_none": "无备忘单",
   "config.email.relay_cheatsheet_empty": "没有可用的活动备忘单",
   "config.email.relay_cheatsheet_error": "无法加载备忘单",
-  "help.email.relay_cheatsheet_id": "可选备忘单，当收件箱监视器将新邮件转发给代理时，其内容会作为说明附加。"
+  "help.email.relay_cheatsheet_id": "可选备忘单，当收件箱监视器将新邮件转发给代理时，其内容会作为说明附加。",
+  "config.email.test_btn": "测试连接",
+  "config.email.test_ok": "连接成功",
+  "config.email.test_fail": "连接失败",
+  "config.email.testing": "测试中…",
+  "config.email.test_partial": "部分成功 — 请查看详情",
+  "config.email.test_credentials_required": "需要用户名和密码"
 }

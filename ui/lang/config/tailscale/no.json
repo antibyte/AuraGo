@@ -114,5 +114,16 @@
   "config.web_scraper.summary_mode": "Sammendragsmodus",
   "config.webdav.secret_empty": "Verdien er tom",
   "shared.tsnet.login_banner_link": "Åpne påloggingslenke",
-  "config.tailscale.tsnet_status_starting": "Venter på autentisering…"
+  "config.tailscale.tsnet_status_starting": "Venter på autentisering…",
+  "config.tailscale.checking": "Sjekker API…",
+  "config.tailscale.loading": "Tester…",
+  "config.tailscale.connection_failed": "API-tilkobling mislyktes",
+  "config.tailscale.test_btn": "Test API",
+  "config.tailscale.test_ok": "API-tilkobling vellykket",
+  "config.tailscale.test_fail": "API-tilkobling mislyktes",
+  "config.tailscale.status_disabled": "Tailscale API-integrasjon er deaktivert",
+  "config.tailscale.status_no_credentials": "Tailscale API-nøkkel mangler",
+  "config.tailscale.status_ok": "Koblet til Tailscale API",
+  "config.tailscale.status_success": "✅",
+  "config.tailscale.status_error": "❌"
 }

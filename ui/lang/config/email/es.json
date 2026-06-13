@@ -50,5 +50,11 @@
   "config.email.relay_cheatsheet_none": "Sin cheatsheet",
   "config.email.relay_cheatsheet_empty": "No hay cheatsheets activos disponibles",
   "config.email.relay_cheatsheet_error": "No se pudieron cargar los cheatsheets",
-  "help.email.relay_cheatsheet_id": "Cheatsheet opcional que se añade como instrucciones cuando el vigilante de la bandeja reenvía correo nuevo al agente."
+  "help.email.relay_cheatsheet_id": "Cheatsheet opcional que se añade como instrucciones cuando el vigilante de la bandeja reenvía correo nuevo al agente.",
+  "config.email.test_btn": "Probar conexión",
+  "config.email.test_ok": "Conexión exitosa",
+  "config.email.test_fail": "Conexión fallida",
+  "config.email.testing": "Probando…",
+  "config.email.test_partial": "Éxito parcial — revisa los detalles",
+  "config.email.test_credentials_required": "Se requieren usuario y contraseña"
 }

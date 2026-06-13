@@ -50,5 +50,11 @@
   "config.email.relay_cheatsheet_none": "कोई चीटशीट नहीं",
   "config.email.relay_cheatsheet_empty": "कोई सक्रिय चीटशीट उपलब्ध नहीं",
   "config.email.relay_cheatsheet_error": "चीटशीट लोड नहीं हो सके",
-  "help.email.relay_cheatsheet_id": "वैकल्पिक चीटशीट जिसे इनबॉक्स वॉचर द्वारा नया मेल एजेंट को भेजते समय निर्देशों के रूप में जोड़ा जाता है."
+  "help.email.relay_cheatsheet_id": "वैकल्पिक चीटशीट जिसे इनबॉक्स वॉचर द्वारा नया मेल एजेंट को भेजते समय निर्देशों के रूप में जोड़ा जाता है.",
+  "config.email.test_btn": "कनेक्शन परीक्षण",
+  "config.email.test_ok": "कनेक्शन सफल",
+  "config.email.test_fail": "कनेक्शन विफल",
+  "config.email.testing": "परीक्षण…",
+  "config.email.test_partial": "आंशिक सफलता — विवरण जाँचें",
+  "config.email.test_credentials_required": "उपयोगकर्ता नाम और पासवर्ड आवश्यक हैं"
 }

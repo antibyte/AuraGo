@@ -11,5 +11,16 @@
   "config.ai_gateway.token": "गेटवे टोकन",
   "config.ai_gateway.token_placeholder": "cf-aig-...",
   "config.ai_gateway.settings_title": "कनेक्शन सेटिंग्स",
-  "config.ai_gateway.settings_desc": "अपनी Cloudflare AI Gateway क्रेडेंशियल कॉन्फ़िगर करें।"
+  "config.ai_gateway.settings_desc": "अपनी Cloudflare AI Gateway क्रेडेंशियल कॉन्फ़िगर करें।",
+  "config.ai_gateway.checking": "गेटवे जाँच…",
+  "config.ai_gateway.loading": "परीक्षण…",
+  "config.ai_gateway.connection_failed": "गेटवे कनेक्शन विफल",
+  "config.ai_gateway.test_btn": "गेटवे परीक्षण",
+  "config.ai_gateway.test_ok": "गेटवे कनेक्शन सफल",
+  "config.ai_gateway.test_fail": "गेटवे कनेक्शन विफल",
+  "config.ai_gateway.status_disabled": "AI Gateway अक्षम है",
+  "config.ai_gateway.status_no_credentials": "खाता ID या गेटवे ID गायब है",
+  "config.ai_gateway.status_ok": "AI Gateway से जुड़ा",
+  "config.ai_gateway.status_success": "✅",
+  "config.ai_gateway.status_error": "❌"
 }

@@ -11,5 +11,16 @@
   "config.ai_gateway.token": "Gateway-token",
   "config.ai_gateway.token_placeholder": "cf-aig-...",
   "config.ai_gateway.settings_title": "Tilkoblingsinnstillinger",
-  "config.ai_gateway.settings_desc": "Konfigurer Cloudflare AI Gateway-legitimasjonen din."
+  "config.ai_gateway.settings_desc": "Konfigurer Cloudflare AI Gateway-legitimasjonen din.",
+  "config.ai_gateway.checking": "Sjekker gateway…",
+  "config.ai_gateway.loading": "Tester…",
+  "config.ai_gateway.connection_failed": "Gateway-tilkobling mislyktes",
+  "config.ai_gateway.test_btn": "Test gateway",
+  "config.ai_gateway.test_ok": "Gateway-tilkobling vellykket",
+  "config.ai_gateway.test_fail": "Gateway-tilkobling mislyktes",
+  "config.ai_gateway.status_disabled": "AI Gateway er deaktivert",
+  "config.ai_gateway.status_no_credentials": "Konto-ID eller gateway-ID mangler",
+  "config.ai_gateway.status_ok": "Koblet til AI Gateway",
+  "config.ai_gateway.status_success": "✅",
+  "config.ai_gateway.status_error": "❌"
 }

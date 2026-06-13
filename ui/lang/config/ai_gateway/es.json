@@ -11,5 +11,16 @@
   "config.ai_gateway.token": "Token del gateway",
   "config.ai_gateway.token_placeholder": "cf-aig-...",
   "config.ai_gateway.settings_title": "Configuración de conexión",
-  "config.ai_gateway.settings_desc": "Configure las credenciales de Cloudflare AI Gateway."
+  "config.ai_gateway.settings_desc": "Configure las credenciales de Cloudflare AI Gateway.",
+  "config.ai_gateway.checking": "Comprobando gateway…",
+  "config.ai_gateway.loading": "Probando…",
+  "config.ai_gateway.connection_failed": "Conexión al gateway fallida",
+  "config.ai_gateway.test_btn": "Probar gateway",
+  "config.ai_gateway.test_ok": "Conexión al gateway exitosa",
+  "config.ai_gateway.test_fail": "Conexión al gateway fallida",
+  "config.ai_gateway.status_disabled": "AI Gateway está desactivado",
+  "config.ai_gateway.status_no_credentials": "Falta el ID de cuenta o el ID del gateway",
+  "config.ai_gateway.status_ok": "Conectado a AI Gateway",
+  "config.ai_gateway.status_success": "✅",
+  "config.ai_gateway.status_error": "❌"
 }

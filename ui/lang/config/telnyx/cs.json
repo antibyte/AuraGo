@@ -32,5 +32,16 @@
   "help.telnyx.allowed_numbers": "Čárkami oddělený seznam telefonních čísel (E.164), která mohou komunikovat s agentem. Nechte prázdné pro povolení všech.",
   "help.telnyx.call_timeout": "Maximální doba trvání hovoru v sekundách před automatickým zavěšením (30–3600).",
   "help.telnyx.record_calls": "Automaticky nahrávat všechny hlasové hovory. Nahrávky jsou přístupné agentovi.",
-  "help.telnyx.relay_to_agent": "Přeposílat příchozí SMS a přepisy hovorů agentovi ke zpracování."
+  "help.telnyx.relay_to_agent": "Přeposílat příchozí SMS a přepisy hovorů agentovi ke zpracování.",
+  "config.telnyx.checking": "Kontrola připojení…",
+  "config.telnyx.loading": "Testování…",
+  "config.telnyx.connection_failed": "Připojení selhalo",
+  "config.telnyx.test_btn": "Otestovat připojení",
+  "config.telnyx.test_ok": "Připojení úspěšné",
+  "config.telnyx.test_fail": "Připojení selhalo",
+  "config.telnyx.status_disabled": "Integrace Telnyx je vypnutá",
+  "config.telnyx.status_no_credentials": "Chybí API klíč Telnyx",
+  "config.telnyx.status_ok": "Připojeno k Telnyx",
+  "config.telnyx.status_success": "✅",
+  "config.telnyx.status_error": "❌"
 }

@@ -50,5 +50,11 @@
   "config.email.relay_cheatsheet_none": "Κανένα cheatsheet",
   "config.email.relay_cheatsheet_empty": "Δεν υπάρχουν διαθέσιμα ενεργά cheatsheets",
   "config.email.relay_cheatsheet_error": "Δεν ήταν δυνατή η φόρτωση των cheatsheets",
-  "help.email.relay_cheatsheet_id": "Προαιρετικό cheatsheet που προστίθεται ως οδηγίες όταν ο παρατηρητής εισερχομένων προωθεί νέα αλληλογραφία στον agent."
+  "help.email.relay_cheatsheet_id": "Προαιρετικό cheatsheet που προστίθεται ως οδηγίες όταν ο παρατηρητής εισερχομένων προωθεί νέα αλληλογραφία στον agent.",
+  "config.email.test_btn": "Δοκιμή σύνδεσης",
+  "config.email.test_ok": "Επιτυχής σύνδεση",
+  "config.email.test_fail": "Η σύνδεση απέτυχε",
+  "config.email.testing": "Δοκιμή…",
+  "config.email.test_partial": "Μερική επιτυχία — έλεγξε τις λεπτομέρειες",
+  "config.email.test_credentials_required": "Απαιτούνται όνομα χρήστη και κωδικός"
 }

@@ -96,10 +96,14 @@ func TestConfigPhase2TestConnectionMarkers(t *testing.T) {
 	t.Parallel()
 
 	checks := map[string][]string{
-		"cfg/koofr.js":              {"/api/koofr/test", "koofrTestConnection"},
-		"cfg/webdav.js":             {"/api/webdav/test", "webdavTestConnection"},
-		"cfg/github.js":             {"githubTestConnection", "config.github.test_btn"},
-		"cfg/cloudflare_tunnel.js":  {"cloudflareTunnelCheckStatus", "/api/cloudflare-tunnel/status"},
+		"cfg/koofr.js":             {"/api/koofr/test", "koofrTestConnection"},
+		"cfg/webdav.js":            {"/api/webdav/test", "webdavTestConnection"},
+		"cfg/github.js":            {"githubTestConnection", "config.github.test_btn"},
+		"cfg/cloudflare_tunnel.js": {"cloudflareTunnelCheckStatus", "/api/cloudflare-tunnel/status"},
+		"cfg/telnyx.js":            {"/api/telnyx/test", "telnyxTestConnection"},
+		"cfg/tailscale.js":         {"/api/tailscale/test", "tsApiTestConnection"},
+		"cfg/ai_gateway.js":        {"/api/ai-gateway/test", "aiGatewayTestConnection"},
+		"cfg/email.js":             {"/api/email-accounts/test", "emailAccountTestFromModal"},
 	}
 	for file, markers := range checks {
 		content := normalizeAssetText(mustReadUIFile(t, file))

@@ -50,5 +50,11 @@
   "config.email.relay_cheatsheet_none": "Brak ściągawki",
   "config.email.relay_cheatsheet_empty": "Brak aktywnych ściągawek",
   "config.email.relay_cheatsheet_error": "Nie udało się wczytać ściągawek",
-  "help.email.relay_cheatsheet_id": "Opcjonalna ściągawka dodawana jako instrukcje, gdy obserwator skrzynki przekazuje nową pocztę do agenta."
+  "help.email.relay_cheatsheet_id": "Opcjonalna ściągawka dodawana jako instrukcje, gdy obserwator skrzynki przekazuje nową pocztę do agenta.",
+  "config.email.test_btn": "Testuj połączenie",
+  "config.email.test_ok": "Połączenie udane",
+  "config.email.test_fail": "Połączenie nieudane",
+  "config.email.testing": "Testowanie…",
+  "config.email.test_partial": "Częściowy sukces — sprawdź szczegóły",
+  "config.email.test_credentials_required": "Wymagane są nazwa użytkownika i hasło"
 }

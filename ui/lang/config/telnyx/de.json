@@ -32,5 +32,16 @@
   "help.telnyx.allowed_numbers": "Kommagetrennte Liste von Telefonnummern (E.164), die mit dem Agenten interagieren dürfen. Leer lassen, um alle zuzulassen.",
   "help.telnyx.call_timeout": "Maximale Anrufdauer in Sekunden vor automatischem Auflegen (30–3600).",
   "help.telnyx.record_calls": "Alle Sprachanrufe automatisch aufzeichnen. Aufnahmen werden gespeichert und sind für den Agenten zugänglich.",
-  "help.telnyx.relay_to_agent": "Eingehende SMS und Anruftranskriptionen zur Verarbeitung an die Agent-Schleife weiterleiten."
+  "help.telnyx.relay_to_agent": "Eingehende SMS und Anruftranskriptionen zur Verarbeitung an die Agent-Schleife weiterleiten.",
+  "config.telnyx.checking": "Verbindung wird geprüft…",
+  "config.telnyx.loading": "Teste…",
+  "config.telnyx.connection_failed": "Verbindung fehlgeschlagen",
+  "config.telnyx.test_btn": "Verbindung testen",
+  "config.telnyx.test_ok": "Verbindung erfolgreich",
+  "config.telnyx.test_fail": "Verbindung fehlgeschlagen",
+  "config.telnyx.status_disabled": "Telnyx-Integration ist deaktiviert",
+  "config.telnyx.status_no_credentials": "Telnyx API-Schlüssel fehlt",
+  "config.telnyx.status_ok": "Mit Telnyx verbunden",
+  "config.telnyx.status_success": "✅",
+  "config.telnyx.status_error": "❌"
 }

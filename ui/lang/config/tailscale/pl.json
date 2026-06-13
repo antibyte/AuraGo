@@ -114,5 +114,16 @@
   "config.web_scraper.summary_mode": "Tryb podsumowania",
   "config.webdav.secret_empty": "Wartość jest pusta",
   "shared.tsnet.login_banner_link": "Otwórz link logowania",
-  "config.tailscale.tsnet_status_starting": "Oczekiwanie na uwierzytelnienie…"
+  "config.tailscale.tsnet_status_starting": "Oczekiwanie na uwierzytelnienie…",
+  "config.tailscale.checking": "Sprawdzanie API…",
+  "config.tailscale.loading": "Testowanie…",
+  "config.tailscale.connection_failed": "Połączenie API nieudane",
+  "config.tailscale.test_btn": "Testuj API",
+  "config.tailscale.test_ok": "Połączenie API udane",
+  "config.tailscale.test_fail": "Połączenie API nieudane",
+  "config.tailscale.status_disabled": "Integracja API Tailscale jest wyłączona",
+  "config.tailscale.status_no_credentials": "Brak klucza API Tailscale",
+  "config.tailscale.status_ok": "Połączono z API Tailscale",
+  "config.tailscale.status_success": "✅",
+  "config.tailscale.status_error": "❌"
 }

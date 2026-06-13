@@ -32,5 +32,16 @@
   "help.telnyx.allowed_numbers": "Comma-separated list of phone numbers (E.164) that may interact with the agent. Leave empty to allow all.",
   "help.telnyx.call_timeout": "Maximum call duration in seconds before automatic hangup (30–3600).",
   "help.telnyx.record_calls": "Automatically record all voice calls. Recordings are stored and accessible to the agent.",
-  "help.telnyx.relay_to_agent": "Forward incoming SMS and call transcriptions to the agent loop for processing."
+  "help.telnyx.relay_to_agent": "Forward incoming SMS and call transcriptions to the agent loop for processing.",
+  "config.telnyx.checking": "Checking connection…",
+  "config.telnyx.loading": "Testing…",
+  "config.telnyx.connection_failed": "Connection failed",
+  "config.telnyx.test_btn": "Test Connection",
+  "config.telnyx.test_ok": "Connection successful",
+  "config.telnyx.test_fail": "Connection failed",
+  "config.telnyx.status_disabled": "Telnyx integration is disabled",
+  "config.telnyx.status_no_credentials": "Telnyx API key missing",
+  "config.telnyx.status_ok": "Connected to Telnyx",
+  "config.telnyx.status_success": "✅",
+  "config.telnyx.status_error": "❌"
 }

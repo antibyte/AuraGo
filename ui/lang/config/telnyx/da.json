@@ -32,5 +32,16 @@
   "help.telnyx.allowed_numbers": "Kommasepareret liste over telefonnumre (E.164) der kan interagere med agenten. Efterlad tom for at tillade alle.",
   "help.telnyx.call_timeout": "Maksimal opkaldsvarighed i sekunder før automatisk ophæng (30–3600).",
   "help.telnyx.record_calls": "Optag automatisk alle taleopkald. Optagelser er tilgængelige for agenten.",
-  "help.telnyx.relay_to_agent": "Videresend indgående SMS og opkaldstransskriptioner til agenten til behandling."
+  "help.telnyx.relay_to_agent": "Videresend indgående SMS og opkaldstransskriptioner til agenten til behandling.",
+  "config.telnyx.checking": "Tjekker forbindelse…",
+  "config.telnyx.loading": "Tester…",
+  "config.telnyx.connection_failed": "Forbindelse mislykkedes",
+  "config.telnyx.test_btn": "Test forbindelse",
+  "config.telnyx.test_ok": "Forbindelse lykkedes",
+  "config.telnyx.test_fail": "Forbindelse mislykkedes",
+  "config.telnyx.status_disabled": "Telnyx-integration er deaktiveret",
+  "config.telnyx.status_no_credentials": "Telnyx API-nøgle mangler",
+  "config.telnyx.status_ok": "Forbundet til Telnyx",
+  "config.telnyx.status_success": "✅",
+  "config.telnyx.status_error": "❌"
 }

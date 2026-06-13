@@ -9,6 +9,7 @@ function renderTelnyxSection(section) {
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
+    html += '<div id="telnyx-status-banner" class="adg-status-banner">' + t('config.telnyx.checking') + '</div>';
 
     // ── Enabled toggle ──
     html += '<div class="field-group">';
@@ -134,8 +135,83 @@ function renderTelnyxSection(section) {
     html += '<span class="toggle-label">' + (relayOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
+    html += '<div class="cfg-actions-row">';
+    html += '<button class="btn-save adg-test-btn" onclick="telnyxTestConnection()" id="telnyx-test-btn">🔌 ' + t('config.telnyx.test_btn') + '</button>';
+    html += '<span id="telnyx-test-result" class="adg-test-result"></span>';
+    html += '</div>';
+
     html += '</div>'; // close cfg-section
     document.getElementById('content').innerHTML = html;
+
+    if (enabled) {
+        telnyxCheckStatus();
+    } else {
+        telnyxSetBanner('neutral', '⚪ ' + t('config.telnyx.status_disabled'));
+    }
+}
+
+function telnyxSetBanner(state, text) {
+    const banner = document.getElementById('telnyx-status-banner');
+    if (!banner) return;
+    banner.className = 'adg-status-banner';
+    if (state) banner.classList.add('is-' + state);
+    banner.textContent = text;
+}
+
+function telnyxCheckStatus() {
+    telnyxSetBanner('neutral', t('config.telnyx.checking'));
+    fetch('/api/telnyx/status')
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'disabled') {
+                telnyxSetBanner('neutral', '⚪ ' + t('config.telnyx.status_disabled'));
+                return;
+            }
+            if (res.status === 'no_credentials') {
+                telnyxSetBanner('warning', '🟡 ' + t('config.telnyx.status_no_credentials'));
+                return;
+            }
+            if (res.status === 'ok') {
+                let text = '🟢 ' + t('config.telnyx.status_ok');
+                if (res.balance) text += ' (' + res.balance + (res.currency ? ' ' + res.currency : '') + ')';
+                telnyxSetBanner('success', text);
+                return;
+            }
+            telnyxSetBanner('danger', '🔴 ' + (res.message || t('config.telnyx.connection_failed')));
+        })
+        .catch(() => telnyxSetBanner('danger', '🔴 ' + t('config.telnyx.connection_failed')));
+}
+
+function telnyxTestConnection() {
+    const btn = document.getElementById('telnyx-test-btn');
+    const result = document.getElementById('telnyx-test-result');
+    if (btn) btn.disabled = true;
+    if (result) {
+        result.textContent = t('config.telnyx.loading');
+        result.className = 'adg-test-result';
+    }
+
+    fetch('/api/telnyx/test', { method: 'POST' })
+        .then(r => r.json())
+        .then(res => {
+            if (btn) btn.disabled = false;
+            if (!result) return;
+            if (res.status === 'ok') {
+                result.className = 'adg-test-result is-success';
+                result.textContent = t('config.telnyx.status_success') + ' ' + t('config.telnyx.test_ok');
+                telnyxCheckStatus();
+            } else {
+                result.className = 'adg-test-result is-danger';
+                result.textContent = t('config.telnyx.status_error') + ' ' + (res.message || t('config.telnyx.test_fail'));
+            }
+        })
+        .catch(() => {
+            if (btn) btn.disabled = false;
+            if (result) {
+                result.className = 'adg-test-result is-danger';
+                result.textContent = t('config.telnyx.status_error') + ' ' + t('config.telnyx.test_fail');
+            }
+        });
 }
 
 function saveTelnyxVault(field) {

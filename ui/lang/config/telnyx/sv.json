@@ -32,5 +32,16 @@
   "help.telnyx.allowed_numbers": "Kommaseparerad lista över telefonnummer (E.164) som kan interagera med agenten. Lämna tomt för att tillåta alla.",
   "help.telnyx.call_timeout": "Maximal samtalslängd i sekunder före automatisk avslutning (30–3600).",
   "help.telnyx.record_calls": "Spela automatiskt in alla röstsamtal. Inspelningar är tillgängliga för agenten.",
-  "help.telnyx.relay_to_agent": "Vidarebefordra inkommande SMS och samtalstranskriptioner till agenten för bearbetning."
+  "help.telnyx.relay_to_agent": "Vidarebefordra inkommande SMS och samtalstranskriptioner till agenten för bearbetning.",
+  "config.telnyx.checking": "Kontrollerar anslutning…",
+  "config.telnyx.loading": "Testar…",
+  "config.telnyx.connection_failed": "Anslutning misslyckades",
+  "config.telnyx.test_btn": "Testa anslutning",
+  "config.telnyx.test_ok": "Anslutning lyckades",
+  "config.telnyx.test_fail": "Anslutning misslyckades",
+  "config.telnyx.status_disabled": "Telnyx-integrationen är inaktiverad",
+  "config.telnyx.status_no_credentials": "Telnyx API-nyckel saknas",
+  "config.telnyx.status_ok": "Ansluten till Telnyx",
+  "config.telnyx.status_success": "✅",
+  "config.telnyx.status_error": "❌"
 }

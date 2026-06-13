@@ -32,5 +32,16 @@
   "help.telnyx.allowed_numbers": "Lista numerów oddzielonych przecinkami (E.164), które mogą komunikować się z agentem. Pozostaw puste, aby zezwolić na wszystkie.",
   "help.telnyx.call_timeout": "Maksymalny czas trwania połączenia w sekundach przed automatycznym rozłączeniem (30–3600).",
   "help.telnyx.record_calls": "Automatycznie nagrywaj wszystkie połączenia głosowe. Nagrania są dostępne dla agenta.",
-  "help.telnyx.relay_to_agent": "Przekazuj przychodzące SMS i transkrypcje połączeń do agenta w celu przetworzenia."
+  "help.telnyx.relay_to_agent": "Przekazuj przychodzące SMS i transkrypcje połączeń do agenta w celu przetworzenia.",
+  "config.telnyx.checking": "Sprawdzanie połączenia…",
+  "config.telnyx.loading": "Testowanie…",
+  "config.telnyx.connection_failed": "Połączenie nieudane",
+  "config.telnyx.test_btn": "Testuj połączenie",
+  "config.telnyx.test_ok": "Połączenie udane",
+  "config.telnyx.test_fail": "Połączenie nieudane",
+  "config.telnyx.status_disabled": "Integracja Telnyx jest wyłączona",
+  "config.telnyx.status_no_credentials": "Brak klucza API Telnyx",
+  "config.telnyx.status_ok": "Połączono z Telnyx",
+  "config.telnyx.status_success": "✅",
+  "config.telnyx.status_error": "❌"
 }

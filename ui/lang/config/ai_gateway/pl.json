@@ -11,5 +11,16 @@
   "config.ai_gateway.token": "Token bramy",
   "config.ai_gateway.token_placeholder": "cf-aig-...",
   "config.ai_gateway.settings_title": "Ustawienia połączenia",
-  "config.ai_gateway.settings_desc": "Skonfiguruj dane uwierzytelniające Cloudflare AI Gateway."
+  "config.ai_gateway.settings_desc": "Skonfiguruj dane uwierzytelniające Cloudflare AI Gateway.",
+  "config.ai_gateway.checking": "Sprawdzanie bramy…",
+  "config.ai_gateway.loading": "Testowanie…",
+  "config.ai_gateway.connection_failed": "Połączenie z bramą nieudane",
+  "config.ai_gateway.test_btn": "Testuj bramę",
+  "config.ai_gateway.test_ok": "Połączenie z bramą udane",
+  "config.ai_gateway.test_fail": "Połączenie z bramą nieudane",
+  "config.ai_gateway.status_disabled": "AI Gateway jest wyłączony",
+  "config.ai_gateway.status_no_credentials": "Brak ID konta lub ID bramy",
+  "config.ai_gateway.status_ok": "Połączono z AI Gateway",
+  "config.ai_gateway.status_success": "✅",
+  "config.ai_gateway.status_error": "❌"
 }

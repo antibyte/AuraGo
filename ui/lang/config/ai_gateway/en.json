@@ -11,5 +11,16 @@
   "config.ai_gateway.disabled_desc": "Enable the toggle to route LLM requests through Cloudflare AI Gateway for caching, rate-limiting and analytics.",
   "config.ai_gateway.info": "Routes all LLM API requests through Cloudflare AI Gateway. Provides caching, rate-limiting, logging and fallback capabilities. Local providers (Ollama) are excluded.",
   "config.ai_gateway.settings_title": "Connection Settings",
-  "config.ai_gateway.settings_desc": "Configure your Cloudflare AI Gateway credentials."
+  "config.ai_gateway.settings_desc": "Configure your Cloudflare AI Gateway credentials.",
+  "config.ai_gateway.checking": "Checking gateway…",
+  "config.ai_gateway.loading": "Testing…",
+  "config.ai_gateway.connection_failed": "Gateway connection failed",
+  "config.ai_gateway.test_btn": "Test Gateway",
+  "config.ai_gateway.test_ok": "Gateway connection successful",
+  "config.ai_gateway.test_fail": "Gateway connection failed",
+  "config.ai_gateway.status_disabled": "AI Gateway is disabled",
+  "config.ai_gateway.status_no_credentials": "Account ID or gateway ID missing",
+  "config.ai_gateway.status_ok": "Connected to AI Gateway",
+  "config.ai_gateway.status_success": "✅",
+  "config.ai_gateway.status_error": "❌"
 }

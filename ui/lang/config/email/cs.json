@@ -50,5 +50,11 @@
   "config.email.relay_cheatsheet_none": "Žádný tahák",
   "config.email.relay_cheatsheet_empty": "Nejsou dostupné žádné aktivní taháky",
   "config.email.relay_cheatsheet_error": "Taháky se nepodařilo načíst",
-  "help.email.relay_cheatsheet_id": "Volitelný tahák připojený jako pokyny, když hlídač schránky předává novou poštu agentovi."
+  "help.email.relay_cheatsheet_id": "Volitelný tahák připojený jako pokyny, když hlídač schránky předává novou poštu agentovi.",
+  "config.email.test_btn": "Otestovat připojení",
+  "config.email.test_ok": "Připojení úspěšné",
+  "config.email.test_fail": "Připojení selhalo",
+  "config.email.testing": "Testování…",
+  "config.email.test_partial": "Částečný úspěch — zkontroluj podrobnosti",
+  "config.email.test_credentials_required": "Vyžadováno uživatelské jméno a heslo"
 }

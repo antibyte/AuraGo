@@ -11,5 +11,16 @@
   "config.ai_gateway.token": "Διακριτικό gateway",
   "config.ai_gateway.token_placeholder": "cf-aig-...",
   "config.ai_gateway.settings_title": "Ρυθμίσεις σύνδεσης",
-  "config.ai_gateway.settings_desc": "Διαμορφώστε τα διαπιστευτήρια του Cloudflare AI Gateway."
+  "config.ai_gateway.settings_desc": "Διαμορφώστε τα διαπιστευτήρια του Cloudflare AI Gateway.",
+  "config.ai_gateway.checking": "Έλεγχος πύλης…",
+  "config.ai_gateway.loading": "Δοκιμή…",
+  "config.ai_gateway.connection_failed": "Η σύνδεση πύλης απέτυχε",
+  "config.ai_gateway.test_btn": "Δοκιμή πύλης",
+  "config.ai_gateway.test_ok": "Επιτυχής σύνδεση πύλης",
+  "config.ai_gateway.test_fail": "Η σύνδεση πύλης απέτυχε",
+  "config.ai_gateway.status_disabled": "Το AI Gateway είναι απενεργοποιημένο",
+  "config.ai_gateway.status_no_credentials": "Λείπει το ID λογαριασμού ή το ID πύλης",
+  "config.ai_gateway.status_ok": "Συνδέθηκε στο AI Gateway",
+  "config.ai_gateway.status_success": "✅",
+  "config.ai_gateway.status_error": "❌"
 }

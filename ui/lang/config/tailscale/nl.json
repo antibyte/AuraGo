@@ -114,5 +114,16 @@
   "config.web_scraper.summary_mode": "Samenvattingsmodus",
   "config.webdav.secret_empty": "Waarde is leeg",
   "shared.tsnet.login_banner_link": "Open inloglink",
-  "config.tailscale.tsnet_status_starting": "Wachten op authenticatie…"
+  "config.tailscale.tsnet_status_starting": "Wachten op authenticatie…",
+  "config.tailscale.checking": "API-verbinding controleren…",
+  "config.tailscale.loading": "Testen…",
+  "config.tailscale.connection_failed": "API-verbinding mislukt",
+  "config.tailscale.test_btn": "API testen",
+  "config.tailscale.test_ok": "API-verbinding geslaagd",
+  "config.tailscale.test_fail": "API-verbinding mislukt",
+  "config.tailscale.status_disabled": "Tailscale API-integratie is uitgeschakeld",
+  "config.tailscale.status_no_credentials": "Tailscale API-sleutel ontbreekt",
+  "config.tailscale.status_ok": "Verbonden met Tailscale API",
+  "config.tailscale.status_success": "✅",
+  "config.tailscale.status_error": "❌"
 }

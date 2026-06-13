@@ -50,5 +50,11 @@
   "config.email.relay_cheatsheet_none": "Aucun aide-mémoire",
   "config.email.relay_cheatsheet_empty": "Aucun aide-mémoire actif disponible",
   "config.email.relay_cheatsheet_error": "Impossible de charger les aide-mémoires",
-  "help.email.relay_cheatsheet_id": "Aide-mémoire facultatif ajouté comme instructions lorsque le surveillant de boîte de réception transmet un nouveau mail à l'agent."
+  "help.email.relay_cheatsheet_id": "Aide-mémoire facultatif ajouté comme instructions lorsque le surveillant de boîte de réception transmet un nouveau mail à l'agent.",
+  "config.email.test_btn": "Tester la connexion",
+  "config.email.test_ok": "Connexion réussie",
+  "config.email.test_fail": "Échec de la connexion",
+  "config.email.testing": "Test en cours…",
+  "config.email.test_partial": "Succès partiel — vérifie les détails",
+  "config.email.test_credentials_required": "Nom d'utilisateur et mot de passe requis"
 }

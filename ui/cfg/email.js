@@ -236,9 +236,13 @@ function emailAccountShowModal(title, data, onSave) {
             <input class="field-input" id="ea-watch-interval" type="number" value="${data.watch_interval_seconds || 120}" placeholder="120">
         </div>
 
+        <div id="ea-test-result" class="adg-test-result em-test-result"></div>
         <div class="em-modal-footer">
             <button class="btn-save em-btn-cancel" onclick="document.getElementById('email-modal-overlay').remove()">
                 ${t('config.email.cancel')}
+            </button>
+            <button class="btn-save adg-test-btn" id="ea-test-btn" type="button">
+                🔌 ${t('config.email.test_btn')}
             </button>
             <button class="btn-save em-btn-save" id="ea-save-btn">
                 ${t('config.email.save')}
@@ -246,6 +250,8 @@ function emailAccountShowModal(title, data, onSave) {
         </div>
     </div>`;
     document.body.appendChild(overlay);
+
+    document.getElementById('ea-test-btn').onclick = () => emailAccountTestFromModal(data);
 
     document.getElementById('ea-save-btn').onclick = () => {
         const id = document.getElementById('ea-id').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
@@ -310,6 +316,67 @@ async function emailAccountDelete(idx) {
     if (!await showConfirm(t('config.email.delete_confirm', {name: a.name || a.id}))) return;
     emailAccountsCache.splice(idx, 1);
     await emailAccountSave();
+}
+
+function emailAccountCollectModalFields(data) {
+    const id = document.getElementById('ea-id').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const imap_host = document.getElementById('ea-imap-host').value.trim();
+    const imap_port = parseInt(document.getElementById('ea-imap-port').value, 10) || 993;
+    const smtp_host = document.getElementById('ea-smtp-host').value.trim();
+    const smtp_port = parseInt(document.getElementById('ea-smtp-port').value, 10) || 587;
+    const username = document.getElementById('ea-username').value.trim();
+    let password = document.getElementById('ea-password').value.trim();
+    if (!password && cfgIsMaskedSecret(data.password)) password = CFG_MASKED_SECRET;
+    return { id, imap_host, imap_port, smtp_host, smtp_port, username, password };
+}
+
+async function emailAccountTestFromModal(data) {
+    const fields = emailAccountCollectModalFields(data);
+    const result = document.getElementById('ea-test-result');
+    const btn = document.getElementById('ea-test-btn');
+
+    if (!fields.username) {
+        showToast(t('config.email.test_credentials_required'), 'warn');
+        return;
+    }
+    if (!fields.imap_host && !fields.smtp_host) {
+        showToast(t('config.email.host_required'), 'warn');
+        return;
+    }
+
+    if (btn) btn.disabled = true;
+    if (result) {
+        result.textContent = t('config.email.testing');
+        result.className = 'adg-test-result em-test-result';
+    }
+
+    try {
+        const resp = await fetch('/api/email-accounts/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(fields)
+        });
+        const res = await resp.json();
+        if (!result) return;
+
+        if (res.status === 'ok') {
+            result.className = 'adg-test-result em-test-result is-success';
+            result.textContent = '✅ ' + (res.message || t('config.email.test_ok'));
+        } else if (res.status === 'partial') {
+            result.className = 'adg-test-result em-test-result is-warning';
+            result.textContent = '⚠️ ' + (res.message || t('config.email.test_partial'));
+        } else {
+            result.className = 'adg-test-result em-test-result is-danger';
+            result.textContent = '❌ ' + (res.message || t('config.email.test_fail'));
+        }
+    } catch (e) {
+        if (result) {
+            result.className = 'adg-test-result em-test-result is-danger';
+            result.textContent = '❌ ' + (e.message || t('config.email.test_fail'));
+        }
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
 async function emailAccountSave() {

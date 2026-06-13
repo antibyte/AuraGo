@@ -11,5 +11,16 @@
   "config.ai_gateway.token": "Jeton de gateway",
   "config.ai_gateway.token_placeholder": "cf-aig-...",
   "config.ai_gateway.settings_title": "Paramètres de connexion",
-  "config.ai_gateway.settings_desc": "Configurez vos identifiants Cloudflare AI Gateway."
+  "config.ai_gateway.settings_desc": "Configurez vos identifiants Cloudflare AI Gateway.",
+  "config.ai_gateway.checking": "Vérification de la passerelle…",
+  "config.ai_gateway.loading": "Test en cours…",
+  "config.ai_gateway.connection_failed": "Échec de connexion à la passerelle",
+  "config.ai_gateway.test_btn": "Tester la passerelle",
+  "config.ai_gateway.test_ok": "Connexion à la passerelle réussie",
+  "config.ai_gateway.test_fail": "Échec de connexion à la passerelle",
+  "config.ai_gateway.status_disabled": "AI Gateway est désactivé",
+  "config.ai_gateway.status_no_credentials": "ID de compte ou ID de passerelle manquant",
+  "config.ai_gateway.status_ok": "Connecté à AI Gateway",
+  "config.ai_gateway.status_success": "✅",
+  "config.ai_gateway.status_error": "❌"
 }
