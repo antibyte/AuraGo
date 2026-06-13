@@ -1110,13 +1110,7 @@ func (s *Server) runHTTP(mux *http.ServeMux, ttsServer *http.Server, shutdownCh 
 	// Apply security headers (relaxed for HTTP, but still present)
 	handler := panicRecoveryMiddleware(s.Logger, accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy))
 
-	server := &http.Server{
-		Addr:         addr,
-		Handler:      handler,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 5 * time.Minute,
-		IdleTimeout:  2 * time.Minute,
-	}
+	server := newAgentHTTPServer(addr, handler)
 
 	return s.serveWithShutdown(server, nil, ttsServer, shutdownCh)
 }

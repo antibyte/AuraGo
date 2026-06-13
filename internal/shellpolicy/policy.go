@@ -53,7 +53,7 @@ func ValidateCommand(command string) error {
 func BlockedReason(command string) string {
 	normalized := strings.TrimSpace(command)
 	if normalized == "" {
-		return ""
+		return "empty shell command"
 	}
 
 	if reason := match(normalized, privilegeEscalationPatterns); reason != "" {

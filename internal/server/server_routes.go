@@ -855,12 +855,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			s.Logger.Warn("[Loopback] Could not bind internal HTTP listener", "addr", bindAddr, "error", err)
 		} else {
 			s.Logger.Info("[Loopback] Starting internal HTTP listener", "port", loopbackPort)
-			s.loopbackSrv = &http.Server{
-				Handler:      s.loopbackHandler,
-				ReadTimeout:  30 * time.Second,
-				WriteTimeout: 5 * time.Minute,
-				IdleTimeout:  2 * time.Minute,
-			}
+			s.loopbackSrv = newInternalLoopbackServer(s.loopbackHandler)
 			go func() {
 				if err := s.loopbackSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
 					s.Logger.Warn("[Loopback] Internal HTTP listener stopped", "error", err)

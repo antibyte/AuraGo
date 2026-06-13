@@ -79,6 +79,8 @@ func TestValidateShellCommandPolicyBlocksDangerousCommands(t *testing.T) {
 	t.Parallel()
 
 	cases := []string{
+		"",
+		"   ",
 		"rm -rf /",
 		"echo ok && rm -rf /tmp/test",
 		"sudo ls -la",

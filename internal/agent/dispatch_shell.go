@@ -92,6 +92,9 @@ func dispatchShell(tc ToolCall, dc *DispatchContext) string {
 			return formatToolPermissionDenied("execute_shell", "runtime_permissions", "agent.allow_shell", "execute_shell is disabled in Danger Zone settings")
 		}
 		req := decodeShellExecutionArgs(tc)
+		if strings.TrimSpace(req.Command) == "" {
+			return "Tool Output: [EXECUTION ERROR] 'command' is required for execute_shell."
+		}
 		if isDesktopChatSource(dc.MessageSource) {
 			if isVirtualDesktopWorkspaceShellCommand(req.Command) || isRelativeVirtualDesktopWorkspaceShellCommand(req.Command) || isCodeStudioWorkspaceShellCommand(req.Command) {
 				return "Tool Output: [PERMISSION DENIED] This command targets the virtual desktop workspace. Use the virtual_desktop tool instead, for example operation read_file, search_file, read_file_excerpt, patch_file, write_file, open_app, or open_in_app with the same Apps/ or Widgets/ path."

@@ -36,6 +36,31 @@ func TestNewInternalHTTPClientDisablesHTTP2AndKeepAlive(t *testing.T) {
 	}
 }
 
+func TestNewInternalLoopbackServerAllowsLongAgentRuns(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+	server := newAgentHTTPServer("127.0.0.1:0", handler)
+	if server.Addr != "127.0.0.1:0" {
+		t.Fatalf("Addr = %q, want 127.0.0.1:0", server.Addr)
+	}
+	if server.ReadTimeout != 30*time.Second {
+		t.Fatalf("ReadTimeout = %v, want 30s", server.ReadTimeout)
+	}
+	if server.WriteTimeout <= 35*time.Minute {
+		t.Fatalf("WriteTimeout = %v, want more than 35m mission client timeout", server.WriteTimeout)
+	}
+	if server.IdleTimeout != 2*time.Minute {
+		t.Fatalf("IdleTimeout = %v, want 2m", server.IdleTimeout)
+	}
+
+	loopback := newInternalLoopbackServer(handler)
+	if loopback.Addr != "" {
+		t.Fatalf("loopback Addr = %q, want empty", loopback.Addr)
+	}
+	if loopback.WriteTimeout != server.WriteTimeout {
+		t.Fatalf("loopback WriteTimeout = %v, want %v", loopback.WriteTimeout, server.WriteTimeout)
+	}
+}
+
 func TestInternalAPIURLUsesDedicatedHTTPWhenHTTPSEnabled(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Server.Port = 8088

@@ -14,6 +14,12 @@ import (
 	"aurago/internal/config"
 )
 
+const (
+	agentHTTPReadTimeout  = 30 * time.Second
+	agentHTTPWriteTimeout = 40 * time.Minute
+	agentHTTPIdleTimeout  = 2 * time.Minute
+)
+
 func DedicatedInternalLoopbackPort(cfg *config.Config) int {
 	if cfg == nil {
 		return 0
@@ -55,6 +61,20 @@ func InternalAPIURL(cfg *config.Config) string {
 		}
 	}
 	return fmt.Sprintf("%s://127.0.0.1:%d", scheme, port)
+}
+
+func newAgentHTTPServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:         addr,
+		Handler:      handler,
+		ReadTimeout:  agentHTTPReadTimeout,
+		WriteTimeout: agentHTTPWriteTimeout,
+		IdleTimeout:  agentHTTPIdleTimeout,
+	}
+}
+
+func newInternalLoopbackServer(handler http.Handler) *http.Server {
+	return newAgentHTTPServer("", handler)
 }
 
 // NewInternalHTTPClient returns an http.Client configured for internal loopback

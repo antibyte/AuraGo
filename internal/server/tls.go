@@ -182,14 +182,8 @@ func setupAutoTLS(tlsCfg *TLSConfig, handler http.Handler, logger Logger) (*http
 	tc := secureTLSConfig()
 	tc.GetCertificate = certManager.GetCertificate
 
-	httpsServer := &http.Server{
-		Addr:         fmt.Sprintf(":%d", tlsCfg.HTTPSPort),
-		Handler:      handler,
-		TLSConfig:    tc,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 5 * time.Minute,
-		IdleTimeout:  2 * time.Minute,
-	}
+	httpsServer := newAgentHTTPServer(fmt.Sprintf(":%d", tlsCfg.HTTPSPort), handler)
+	httpsServer.TLSConfig = tc
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%d", tlsCfg.HTTPPort),
@@ -215,14 +209,8 @@ func setupCustomTLS(tlsCfg *TLSConfig, handler http.Handler, logger Logger) (*ht
 	tc := secureTLSConfig()
 	tc.Certificates = []tls.Certificate{cert}
 
-	httpsServer := &http.Server{
-		Addr:         fmt.Sprintf(":%d", tlsCfg.HTTPSPort),
-		Handler:      handler,
-		TLSConfig:    tc,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 5 * time.Minute,
-		IdleTimeout:  2 * time.Minute,
-	}
+	httpsServer := newAgentHTTPServer(fmt.Sprintf(":%d", tlsCfg.HTTPSPort), handler)
+	httpsServer.TLSConfig = tc
 
 	// HTTP redirect server is optional for custom certs — skip if HTTPPort is 0.
 	if tlsCfg.HTTPPort <= 0 {
@@ -253,14 +241,8 @@ func setupSelfSignedTLS(tlsCfg *TLSConfig, handler http.Handler, logger Logger) 
 	tc := secureTLSConfig()
 	tc.Certificates = []tls.Certificate{cert}
 
-	httpsServer := &http.Server{
-		Addr:         fmt.Sprintf(":%d", tlsCfg.HTTPSPort),
-		Handler:      handler,
-		TLSConfig:    tc,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 5 * time.Minute,
-		IdleTimeout:  2 * time.Minute,
-	}
+	httpsServer := newAgentHTTPServer(fmt.Sprintf(":%d", tlsCfg.HTTPSPort), handler)
+	httpsServer.TLSConfig = tc
 
 	// HTTP redirect server is optional for self-signed certs — skip if HTTPPort is 0.
 	if tlsCfg.HTTPPort <= 0 {

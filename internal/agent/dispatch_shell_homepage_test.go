@@ -31,6 +31,28 @@ func TestDispatchShellRejectsHomepageWorkspacePath(t *testing.T) {
 	}
 }
 
+func TestDispatchShellRejectsEmptyCommand(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.AllowShell = true
+	cfg.Directories.WorkspaceDir = t.TempDir()
+
+	out := dispatchShell(ToolCall{
+		Action: "execute_shell",
+		Params: map[string]interface{}{
+			"command": "   ",
+		},
+	}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+
+	for _, want := range []string{"[EXECUTION ERROR]", "'command' is required", "execute_shell"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected empty command guidance to contain %q, got:\n%s", want, out)
+		}
+	}
+}
+
 func TestDispatchShellRejectsVirtualDesktopWorkspacePathInDesktopChat(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Agent.AllowShell = true

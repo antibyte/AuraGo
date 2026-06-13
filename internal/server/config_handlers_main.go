@@ -999,12 +999,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 							"addr", bindAddr, "error", bindErr)
 					} else {
 						s.Logger.Info("[Loopback] Hot-reload: internal HTTP listener started", "port", newPort)
-						s.loopbackSrv = &http.Server{
-							Handler:      s.loopbackHandler,
-							ReadTimeout:  30 * time.Second,
-							WriteTimeout: 5 * time.Minute,
-							IdleTimeout:  2 * time.Minute,
-						}
+						s.loopbackSrv = newInternalLoopbackServer(s.loopbackHandler)
 						go func() {
 							if serveErr := s.loopbackSrv.Serve(ln); serveErr != nil && serveErr != http.ErrServerClosed {
 								s.Logger.Warn("[Loopback] Hot-reload: internal listener stopped", "error", serveErr)
