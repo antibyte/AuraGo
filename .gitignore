@@ -112,9 +112,9 @@ agent_analysis/
 *.analysis.md
 log_analysis_*.md
 !documentation/**/*.md
-/docs
-docs
-docs/*.*
+# /docs
+# docs
+# docs/*.*
 docs/superpowers/
 .superpowers/
 .playwright-mcp/
