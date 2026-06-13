@@ -16,7 +16,7 @@ async function renderMQTTSection(section) {
         <div class="section-desc">${section.desc}</div>`;
 
     // Status banner
-    html += `<div id="mqtt-status-banner" class="cfg-status-banner">${t('config.mqtt.checking')}</div>`;
+    html += `<div id="mqtt-status-banner" class="adg-status-banner">${t('config.mqtt.checking')}</div>`;
 
     // Enable toggle
     html += `<div class="field-group">
@@ -53,12 +53,12 @@ async function renderMQTTSection(section) {
     html += `<div class="field-group">
         <div class="field-label">${t('config.mqtt.password_label')}</div>
         <div class="field-help">${t('help.mqtt.password_help')}</div>
-        <div class="cfg-field-row">
+        <div class="adg-password-row">
             <div class="password-wrap cfg-password-input">
-                <input class="field-input cfg-password-input" type="password" id="mqtt-password" value="${escapeAttr(cfgSecretValue(data.password))}" placeholder="${escapeAttr(passwordPlaceholder)}">
+                <input class="field-input adg-password-input" type="password" id="mqtt-password" value="${escapeAttr(cfgSecretValue(data.password))}" placeholder="${escapeAttr(passwordPlaceholder)}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
-            <button class="btn-save cfg-save-btn-sm" onclick="mqttSavePassword()">💾 ${t('config.mqtt.save_vault')}</button>
+            <button class="btn-save adg-save-btn" onclick="mqttSavePassword()">💾 ${t('config.mqtt.save_vault')}</button>
         </div>
     </div>`;
 
@@ -74,7 +74,7 @@ async function renderMQTTSection(section) {
     html += `<div class="field-group">
         <div class="field-label">${t('config.mqtt.qos_label')}</div>
         <div class="field-help">${t('help.mqtt.qos')}</div>
-        <select class="field-input" data-path="mqtt.qos">
+        <select class="field-select" data-path="mqtt.qos">
             <option value="0"${qos === 0 ? ' selected' : ''}>${t('config.mqtt.qos_0')}</option>
             <option value="1"${qos === 1 ? ' selected' : ''}>${t('config.mqtt.qos_1')}</option>
             <option value="2"${qos === 2 ? ' selected' : ''}>${t('config.mqtt.qos_2')}</option>
@@ -208,7 +208,7 @@ async function renderMQTTSection(section) {
             <input class="field-input" type="text" data-path="mqtt.availability.topic" value="${escapeAttr(availability.topic || 'aurago/status')}" placeholder="aurago/status">
         </div>`;
 
-        html += `<div class="form-row">
+        html += `<div class="field-grid two-cols">
             <div class="field-group">
                 <div class="field-label">${t('config.mqtt.availability_online_payload_label')}</div>
                 <div class="field-help">${t('help.mqtt.availability_payloads')}</div>
@@ -224,7 +224,7 @@ async function renderMQTTSection(section) {
         html += `<div class="field-group">
             <div class="field-label">${t('config.mqtt.availability_qos_label')}</div>
             <div class="field-help">${t('help.mqtt.availability_qos')}</div>
-            <select class="field-input" data-path="mqtt.availability.qos">
+            <select class="field-select" data-path="mqtt.availability.qos">
                 <option value="0"${availabilityQos === 0 ? ' selected' : ''}>${t('config.mqtt.qos_0')}</option>
                 <option value="1"${availabilityQos === 1 ? ' selected' : ''}>${t('config.mqtt.qos_1')}</option>
                 <option value="2"${availabilityQos === 2 ? ' selected' : ''}>${t('config.mqtt.qos_2')}</option>
@@ -241,11 +241,10 @@ async function renderMQTTSection(section) {
         </div>`;
     }
 
-    // Test Connection button
     html += `<hr class="cfg-section-hr">`;
-    html += `<div class="field-group">
-        <button class="btn-save cfg-save-btn-sm" onclick="mqttTestConnection()" id="mqtt-test-btn">🔌 ${t('config.mqtt.test_btn')}</button>
-        <span id="mqtt-test-result" class="cfg-status-text"></span>
+    html += `<div class="cfg-actions-row">
+        <button class="btn-save adg-test-btn" onclick="mqttTestConnection()" id="mqtt-test-btn">🔌 ${t('config.mqtt.test_btn')}</button>
+        <span id="mqtt-test-result" class="adg-test-result"></span>
     </div>`;
 
     // Messages preview
@@ -269,41 +268,39 @@ async function renderMQTTSection(section) {
     }
 }
 
-// Check MQTT connection status
-function mqttCheckStatus() {
+function mqttSetBanner(state, text) {
     const banner = document.getElementById('mqtt-status-banner');
     if (!banner) return;
-    banner.className = 'cfg-status-banner';
-    banner.textContent = t('config.mqtt.checking');
+    banner.className = 'adg-status-banner' + (state ? ' is-' + state : '');
+    banner.textContent = text;
+}
+
+// Check MQTT connection status
+function mqttCheckStatus() {
+    if (!document.getElementById('mqtt-status-banner')) return;
+    mqttSetBanner('', t('config.mqtt.checking'));
 
     fetch('/api/mqtt/status')
         .then(r => r.json())
         .then(res => {
             if (!res.status || res.status === 'disabled') {
-                banner.className = 'cfg-status-banner';
-                banner.textContent = '⚪ ' + t('config.mqtt.status_disabled');
+                mqttSetBanner('', '⚪ ' + t('config.mqtt.status_disabled'));
                 return;
             }
             if (res.status === 'no_broker') {
-                banner.className = 'cfg-status-banner';
-                banner.textContent = '⚪ ' + t('config.mqtt.status_no_broker');
+                mqttSetBanner('warning', '⚪ ' + t('config.mqtt.status_no_broker'));
                 return;
             }
             if (res.connected) {
-                banner.className = 'cfg-status-banner cfg-status-success';
                 const tlsInfo = res.tls_enabled ? ' (TLS)' : '';
                 const buffered = Number(res.buffer_len || 0);
-                banner.textContent = `🟢 ${t('config.mqtt.status_connected')} — ${escapeHtml(res.broker || '')}${tlsInfo} · ${buffered} ${t('config.mqtt.buffered_suffix')}`;
+                mqttSetBanner('success', `🟢 ${t('config.mqtt.status_connected')} — ${res.broker || ''}${tlsInfo} · ${buffered} ${t('config.mqtt.buffered_suffix')}`);
             } else {
-                banner.className = 'cfg-status-banner cfg-status-error';
-                const lastError = res.stats && res.stats.last_error ? ` — ${escapeHtml(res.stats.last_error)}` : '';
-                banner.textContent = '🔴 ' + t('config.mqtt.status_disconnected') + lastError;
+                const lastError = res.stats && res.stats.last_error ? ` — ${res.stats.last_error}` : '';
+                mqttSetBanner('danger', '🔴 ' + t('config.mqtt.status_disconnected') + lastError);
             }
         })
-        .catch(() => {
-            banner.className = 'cfg-status-banner cfg-status-error';
-            banner.textContent = '🔴 ' + t('config.mqtt.status_error');
-        });
+        .catch(() => mqttSetBanner('danger', '🔴 ' + t('config.mqtt.status_error')));
 }
 
 // Test connection
@@ -311,7 +308,10 @@ function mqttTestConnection() {
     const btn = document.getElementById('mqtt-test-btn');
     const result = document.getElementById('mqtt-test-result');
     if (btn) btn.disabled = true;
-    if (result) { result.textContent = t('config.mqtt.testing'); result.className = 'cfg-status-text'; }
+    if (result) {
+        result.className = 'adg-test-result';
+        result.textContent = t('config.mqtt.testing');
+    }
 
     fetch('/api/mqtt/test', { method: 'POST' })
         .then(r => r.json())
@@ -319,19 +319,19 @@ function mqttTestConnection() {
             if (btn) btn.disabled = false;
             if (!result) return;
             if (res.status === 'success') {
-                result.className = 'cfg-status-text cfg-status-success';
-                result.textContent = '✅ ' + t('config.mqtt.test_ok');
+                result.className = 'adg-test-result is-success';
+                result.textContent = t('config.mqtt.test_ok');
                 mqttCheckStatus();
             } else {
-                result.className = 'cfg-status-text cfg-status-error';
-                result.textContent = '❌ ' + (res.message || t('config.mqtt.test_fail'));
+                result.className = 'adg-test-result is-danger';
+                result.textContent = res.message || t('config.mqtt.test_fail');
             }
         })
         .catch(() => {
             if (btn) btn.disabled = false;
             if (result) {
-                result.className = 'cfg-status-text cfg-status-error';
-                result.textContent = '❌ ' + t('config.mqtt.test_fail');
+                result.className = 'adg-test-result is-danger';
+                result.textContent = t('config.mqtt.test_fail');
             }
         });
 }

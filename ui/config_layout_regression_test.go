@@ -105,6 +105,8 @@ func TestConfigPhase2TestConnectionMarkers(t *testing.T) {
 		"cfg/tailscale.js":         {"/api/tailscale/test", "tsApiTestConnection"},
 		"cfg/ai_gateway.js":        {"/api/ai-gateway/test", "aiGatewayTestConnection"},
 		"cfg/email.js":             {"/api/email-accounts/test", "emailAccountTestFromModal"},
+		"cfg/mqtt.js":              {"/api/mqtt/test", "mqttTestConnection"},
+		"cfg/netlify.js":           {"/api/netlify/test-connection", "nfTestConnection"},
 	}
 	for file, markers := range checks {
 		content := normalizeAssetText(mustReadUIFile(t, file))
@@ -212,6 +214,49 @@ func TestConfigPhase2cManifestDograhActionRows(t *testing.T) {
 	}
 	if strings.Contains(dograhJS, "field-row") {
 		t.Fatal("dograh.js should use field-group layout instead of field-row")
+	}
+}
+
+func TestConfigPhase3MQTTAndNetlifyActionRows(t *testing.T) {
+	t.Parallel()
+
+	mqttJS := normalizeAssetText(mustReadUIFile(t, "cfg/mqtt.js"))
+	for _, marker := range []string{
+		"adg-status-banner",
+		"adg-test-btn",
+		"adg-test-result",
+		"cfg-actions-row",
+		"field-select",
+		"field-grid two-cols",
+		"adg-password-row",
+		"mqttSetBanner",
+		"/api/mqtt/test",
+	} {
+		if !strings.Contains(mqttJS, marker) {
+			t.Fatalf("mqtt.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(mqttJS, "cfg-status-banner") {
+		t.Fatal("mqtt.js should use adg-status-banner instead of cfg-status-banner")
+	}
+	if strings.Contains(mqttJS, `class="field-input" data-path="mqtt.qos"`) {
+		t.Fatal("mqtt.js QoS select should use field-select")
+	}
+
+	netlifyJS := normalizeAssetText(mustReadUIFile(t, "cfg/netlify.js"))
+	for _, marker := range []string{
+		"adg-test-btn",
+		"adg-test-result",
+		"cfg-actions-row",
+		"nf-test-btn",
+		"/api/netlify/test-connection",
+	} {
+		if !strings.Contains(netlifyJS, marker) {
+			t.Fatalf("netlify.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(netlifyJS, "nf-test-spinner") || strings.Contains(netlifyJS, "nf-test-msg") {
+		t.Fatal("netlify.js should use unified adg-test-result instead of legacy spinner/msg blocks")
 	}
 }
 

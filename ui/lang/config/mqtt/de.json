@@ -108,7 +108,7 @@
   "help.mqtt.tls_key_file": "Pfad zur Client-Schlüsseldatei für gegenseitige TLS-Authentifizierung (optional).",
   "help.mqtt.topics": "Komma-getrennte Liste von Topics, die beim Start automatisch abonniert werden (z.B. 'home/#, sensors/temperature').",
   "help.mqtt.username": "Benutzername für die MQTT-Authentifizierung (optional, je nach Broker-Konfiguration).",
-  "config.mqtt.clean_session_label": "Clean Session",
+  "config.mqtt.clean_session_label": "Saubere Session",
   "config.mqtt.trigger_min_interval_label": "Trigger-Limit",
   "config.mqtt.buffer_max_age_hours_label": "Maximales Nachrichtenalter",
   "config.mqtt.buffer_max_payload_bytes_label": "Maximale Payload-Größe",

@@ -137,12 +137,9 @@ async function renderNetlifySection(section) {
     html += `<div class="field-group">
         <div class="field-group-title">🔌 ${t('config.netlify.test_title')}</div>
         <div class="field-group-desc">${t('config.netlify.test_desc')}</div>
-        <div class="cfg-field-row">
-            <button class="btn-save cfg-save-btn-sm" onclick="nfTestConnection()">${t('config.netlify.test_btn')}</button>
-            <span id="nf-test-spinner" class="is-hidden cfg-status-text">⏳ ${t('config.netlify.connecting')}</span>
-        </div>
-        <div id="nf-test-result" class="is-hidden hp-help-mt-sm">
-            <div id="nf-test-msg" class="nf-test-msg"></div>
+        <div class="cfg-actions-row">
+            <button class="btn-save adg-test-btn" id="nf-test-btn" onclick="nfTestConnection()">🔌 ${t('config.netlify.test_btn')}</button>
+            <span id="nf-test-result" class="adg-test-result"></span>
         </div>
     </div>`;
 
@@ -182,13 +179,13 @@ async function nfSaveToken() {
 }
 
 async function nfTestConnection() {
-    const spinner = document.getElementById('nf-test-spinner');
-    const resultDiv = document.getElementById('nf-test-result');
-    const msgDiv = document.getElementById('nf-test-msg');
-    if (!spinner) return;
-
-    setHidden(spinner, false);
-    setHidden(resultDiv, true);
+    const btn = document.getElementById('nf-test-btn');
+    const result = document.getElementById('nf-test-result');
+    if (btn) btn.disabled = true;
+    if (result) {
+        result.className = 'adg-test-result';
+        result.textContent = t('config.netlify.connecting');
+    }
 
     try {
         const resp = await fetch('/api/netlify/test-connection', {
@@ -197,24 +194,24 @@ async function nfTestConnection() {
             body: '{}'
         });
         const json = await resp.json();
-
-        setHidden(resultDiv, false);
+        if (!result) return;
         if (json.status === 'ok') {
             let details = json.full_name || json.email || '';
             if (json.site_count !== undefined) {
                 details += (details ? ' · ' : '') + json.site_count + ' ' + t('config.netlify.sites');
             }
-            msgDiv.className = 'nf-test-msg cfg-status-success';
-            msgDiv.textContent = '✅ ' + (json.message || t('config.netlify.test_success')) + (details ? ' — ' + details : '');
+            result.className = 'adg-test-result is-success';
+            result.textContent = (json.message || t('config.netlify.test_success')) + (details ? ' — ' + details : '');
         } else {
-            msgDiv.className = 'nf-test-msg cfg-status-error';
-            msgDiv.textContent = '❌ ' + (json.message || t('config.netlify.test_failed'));
+            result.className = 'adg-test-result is-danger';
+            result.textContent = json.message || t('config.netlify.test_failed');
         }
     } catch (e) {
-        setHidden(resultDiv, false);
-        msgDiv.className = 'nf-test-msg cfg-status-error';
-        msgDiv.textContent = '❌ ' + e.message;
+        if (result) {
+            result.className = 'adg-test-result is-danger';
+            result.textContent = e.message;
+        }
     } finally {
-        setHidden(spinner, true);
+        if (btn) btn.disabled = false;
     }
 }
