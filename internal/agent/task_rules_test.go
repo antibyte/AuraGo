@@ -153,6 +153,9 @@ func TestBuildTaskRulePromptContextSelectsSkillCreationRuleForAgentSkillKeyword(
 	if !strings.Contains(ctx.TaskRules, "Agent Skill Package Shape") {
 		t.Fatalf("skill creation rule should include Agent Skill package guidance:\n%s", ctx.TaskRules)
 	}
+	if !strings.Contains(ctx.TaskRules, "Agent Skill Manager Workflow") || !strings.Contains(ctx.TaskRules, "POST /api/agent-skills/import") {
+		t.Fatalf("skill creation rule should include concrete Agent Skill Manager workflow guidance:\n%s", ctx.TaskRules)
+	}
 }
 
 func TestEnsureTaskRulesBeforeHomepageToolDoesNotDependOnIntentLanguage(t *testing.T) {

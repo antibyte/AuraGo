@@ -18,12 +18,14 @@ When asked to build a new tool, integration, or reusable capability:
 
 **Decision tree:**
 1. **Reusable Python capability** (API call, file conversion, data transform) -> `list_skill_templates` first, then `create_skill_from_template`.
-2. **Reusable agent workflow or guidance** (checklist, review process, domain method, agentskills.io/Codex/Claude-style request) -> create or import an Agent Skill package through the available manager/API/UI path; do not write runtime folders by hand.
+2. **Reusable agent workflow or guidance** (checklist, review process, domain method, agentskills.io/Codex/Claude-style request) -> create or import an Agent Skill package through the available manager/API/UI path, then verify and enable it only after a clean or warning-approved scan. Do not write runtime folders by hand.
 3. **If no specialized Python template fits** -> create a `minimal_skill`, edit the generated agent-owned `.py`/manifest deliberately, document it, then verify it with `execute_skill`.
 4. **Background automation with cron/triggers** -> `manage_missions`.
 5. **One-off analysis script** -> `execute_python`.
 
 Before building any new reusable capability, first check whether a matching Python skill exists with `list_skills` or a matching Agent Skill exists with `list_agent_skills`. Prefer updating or reusing an existing agent-owned skill instead of creating duplicates.
+
+For Agent Skills, the safe lifecycle is: package (`SKILL.md` plus optional `scripts/`, `references/`, `assets/`) -> Manager/API/UI create or import -> verify -> approve warning if required -> enable -> confirm with `list_agent_skills` and `activate_agent_skill`. If no safe Manager/API/UI path is available, prepare the package contents for the user instead of writing into `agent_workspace/agent_skills` directly.
 
 ## Python Tool Bridge
 

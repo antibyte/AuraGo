@@ -56,6 +56,14 @@ Keep the `SKILL.md` body concise and imperative. Use progressive disclosure: put
 
 Do not silently write Agent Skill packages into runtime directories. Create, import, edit, verify, and enable Agent Skills only through the available Agent Skill Manager/API/UI path so security scanning, warning approval, registry metadata, and normal activation rules remain intact.
 
+## Agent Skill Manager Workflow
+
+When you need to create or change an Agent Skill, use the Agent Skill Manager path instead of raw filesystem writes. If an authenticated AuraGo admin/API path is available, create a simple package with `POST /api/agent-skills` using `name`, `description`, and `body` or `skill_md`; import a prepared package with `POST /api/agent-skills/import`; add or update resource files with `POST /api/agent-skills/{id}/files` or `PUT /api/agent-skills/{id}/files`.
+
+After every Agent Skill create, import, or file edit, call `POST /api/agent-skills/{id}/verify` before enabling it. If the scan returns a warning, do not enable the skill until an admin explicitly approves it with `POST /api/agent-skills/{id}/approve-warning`. Only enable the skill after verification is clean or warning-approved; then use `list_agent_skills` and `activate_agent_skill` to confirm it is discoverable and readable. When a helper script is needed, run it only through `run_agent_skill_script`.
+
+If no safe Manager/API/UI path is available in the current session, do not imitate it with `filesystem`, `execute_shell`, or direct writes into `agent_workspace/agent_skills`. Instead, provide the user with the complete `SKILL.md` and resource contents, explain that the package must be imported through the Agent Skill Manager/UI, and state that it is not installed or enabled yet.
+
 Use `list_skill_templates` before creating a new skill. Prefer `create_skill_from_template` with the most specific template that fits. Use `minimal_skill` only when no specialized template matches. Do not create reusable Python code with `execute_python`, shell writes, manual file copies, or unregistered files; those bypass manifest registration, managed dependencies, vault injection, Skill Manager scanning, and normal `execute_skill` execution.
 
 Before creating or editing a skill, check the problems the agent could stumble over:
