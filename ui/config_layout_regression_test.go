@@ -526,6 +526,45 @@ func TestConfigPhase3SecurityProxyHomepage(t *testing.T) {
 	}
 }
 
+func TestConfigPhase3RemoteControlLLMGuardian(t *testing.T) {
+	t.Parallel()
+
+	remoteControlJS := normalizeAssetText(mustReadUIFile(t, "cfg/remote_control.js"))
+	for _, marker := range []string{
+		"field-grid two-cols",
+		"field-input",
+		"field-select",
+		"cfg-actions-row",
+		"adg-test-result",
+		"/api/remote/enroll",
+		"rcCreateEnrollmentToken",
+	} {
+		if !strings.Contains(remoteControlJS, marker) {
+			t.Fatalf("remote_control.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(remoteControlJS, "cfg-input") {
+		t.Fatal("remote_control.js should use field-input/field-select instead of cfg-input")
+	}
+
+	llmGuardianJS := normalizeAssetText(mustReadUIFile(t, "cfg/llm_guardian.js"))
+	for _, marker := range []string{
+		"field-grid two-cols",
+		"field-input",
+		"field-select",
+		"llm_guardian.provider",
+		"llm_guardian.default_level",
+		"llm_guardian.fail_safe",
+	} {
+		if !strings.Contains(llmGuardianJS, marker) {
+			t.Fatalf("llm_guardian.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(llmGuardianJS, "cfg-input-full") {
+		t.Fatal("llm_guardian.js should use field-input/field-select without cfg-input-full")
+	}
+}
+
 func TestConfigManifestDograhAvoidEmbeddedFallbackTables(t *testing.T) {
 	t.Parallel()
 

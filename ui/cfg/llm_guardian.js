@@ -33,10 +33,10 @@ async function renderLLMGuardianSection(section) {
         <div class="field-group-desc">${t('config.llm_guardian.provider_desc')}</div>`;
 
     const curProvider = cfg.provider || '';
-    html += `<label class="lg-field-label">
-        <span class="lg-label-text">${t('config.llm_guardian.provider_label')}</span>
-        <select class="field-input cfg-input-full" data-path="llm_guardian.provider"
-            onchange="setNestedValue(configData,'llm_guardian.provider',this.value);setDirty(true)">
+    html += `<div class="field-grid two-cols">`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.llm_guardian.provider_label')}</div>
+        <select class="field-select" data-path="llm_guardian.provider">
             <option value=""${!curProvider ? ' selected' : ''}>${t('config.llm_guardian.select_provider')}</option>`;
     providersCache.forEach(p => {
         const sel = (String(curProvider) === String(p.id)) ? ' selected' : '';
@@ -45,67 +45,61 @@ async function renderLLMGuardianSection(section) {
         const model = p.model ? (' — ' + p.model) : '';
         html += `<option value="${escapeAttr(p.id)}"${sel}>${escapeAttr(name + badge + model)}</option>`;
     });
-    html += `</select></label>`;
+    html += `</select></div>`;
 
     const curModel = cfg.model || '';
-    html += `<label class="lg-field-label">
-        <span class="lg-label-text">${t('config.llm_guardian.model_label')} <small class="lg-hint-text">(${t('config.llm_guardian.model_hint')})</small></span>
-        <input type="text" class="field-input cfg-input-full" data-path="llm_guardian.model" value="${escapeAttr(curModel)}"
-            placeholder="gemini-2.0-flash, gpt-4o-mini...">
-    </label>`;
-    html += `</div>`;
-
     html += `<div class="field-group">
-        <div class="field-group-title">${t('config.llm_guardian.level_title')}</div>
-        <div class="field-group-desc">${t('config.llm_guardian.level_desc')}</div>`;
+        <div class="field-label">${t('config.llm_guardian.model_label')}</div>
+        <div class="field-help">${t('config.llm_guardian.model_hint')}</div>
+        <input type="text" class="field-input" data-path="llm_guardian.model" value="${escapeAttr(curModel)}"
+            placeholder="gemini-2.0-flash, gpt-4o-mini...">
+    </div></div>`;
+    html += `</div>`;
 
     const curLevel = cfg.default_level || 'medium';
     const levels = ['off', 'low', 'medium', 'high'];
-    html += `<label class="lg-field-label">
-        <span class="lg-label-text">${t('config.llm_guardian.level_label')}</span>
-        <select class="field-input cfg-input-full" data-path="llm_guardian.default_level"
-            onchange="setNestedValue(configData,'llm_guardian.default_level',this.value);setDirty(true)">`;
+    html += `<div class="field-group">
+        <div class="field-group-title">${t('config.llm_guardian.level_title')}</div>
+        <div class="field-group-desc">${t('config.llm_guardian.level_desc')}</div>
+        <div class="field-group">
+            <div class="field-label">${t('config.llm_guardian.level_label')}</div>
+            <select class="field-select" data-path="llm_guardian.default_level">`;
     levels.forEach(lv => {
         const sel = (curLevel === lv) ? ' selected' : '';
         html += `<option value="${lv}"${sel}>${t('config.llm_guardian.level_' + lv)}</option>`;
     });
-    html += `</select></label>`;
-    html += `</div>`;
-
-    html += `<div class="field-group">
-        <div class="field-group-title">${t('config.llm_guardian.failsafe_title')}</div>
-        <div class="field-group-desc">${t('config.llm_guardian.failsafe_desc')}</div>`;
+    html += `</select></div></div>`;
 
     const curFailSafe = cfg.fail_safe || 'quarantine';
     const failSafes = ['block', 'quarantine', 'allow'];
-    html += `<label class="lg-field-label">
-        <span class="lg-label-text">${t('config.llm_guardian.failsafe_label')}</span>
-        <select class="field-input cfg-input-full" data-path="llm_guardian.fail_safe"
-            onchange="setNestedValue(configData,'llm_guardian.fail_safe',this.value);setDirty(true)">`;
+    html += `<div class="field-group">
+        <div class="field-group-title">${t('config.llm_guardian.failsafe_title')}</div>
+        <div class="field-group-desc">${t('config.llm_guardian.failsafe_desc')}</div>
+        <div class="field-group">
+            <div class="field-label">${t('config.llm_guardian.failsafe_label')}</div>
+            <select class="field-select" data-path="llm_guardian.fail_safe">`;
     failSafes.forEach(fs => {
         const sel = (curFailSafe === fs) ? ' selected' : '';
         html += `<option value="${fs}"${sel}>${t('config.llm_guardian.failsafe_' + fs)}</option>`;
     });
-    html += `</select></label>`;
-    html += `</div>`;
+    html += `</select></div></div>`;
 
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.llm_guardian.perf_title')}</div>
         <div class="field-group-desc">${t('config.llm_guardian.perf_desc')}</div>`;
 
     const curTTL = cfg.cache_ttl != null ? cfg.cache_ttl : 300;
-    html += `<label class="lg-field-label">
-        <span class="lg-label-text">${t('config.llm_guardian.cache_ttl_label')}</span>
-        <input type="number" class="field-input cfg-input-full" data-path="llm_guardian.cache_ttl" value="${curTTL}"
-            min="0" max="3600" step="30">
-    </label>`;
-
     const curRate = cfg.max_checks_per_minute != null ? cfg.max_checks_per_minute : 60;
-    html += `<label class="lg-field-label">
-        <span class="lg-label-text">${t('config.llm_guardian.rate_limit_label')}</span>
-        <input type="number" class="field-input cfg-input-full" data-path="llm_guardian.max_checks_per_minute" value="${curRate}"
-            min="1" max="300" step="1">
-    </label>`;
+    html += `<div class="field-grid two-cols">
+        <div class="field-group">
+            <div class="field-label">${t('config.llm_guardian.cache_ttl_label')}</div>
+            <input type="number" class="field-input" data-path="llm_guardian.cache_ttl" value="${curTTL}" min="0" max="3600" step="30">
+        </div>
+        <div class="field-group">
+            <div class="field-label">${t('config.llm_guardian.rate_limit_label')}</div>
+            <input type="number" class="field-input" data-path="llm_guardian.max_checks_per_minute" value="${curRate}" min="1" max="300" step="1">
+        </div>
+    </div>`;
     html += `</div>`;
 
     html += `<div class="field-group">
@@ -151,7 +145,7 @@ async function renderLLMGuardianSection(section) {
             const riskIcon = _guardianHighRiskTools.has(toolName) ? '🔴' : (_guardianRiskyTools.has(toolName) ? '🟡' : '⚪');
             html += `<div class="lg-override-row">
                 <span class="lg-override-name" title="${escapeAttr(desc ? toolName + ' — ' + desc : toolName)}">${riskIcon} <strong>${escapeAttr(toolName)}</strong>${desc ? ' <span class="lg-override-desc">— ' + escapeAttr(desc) + '</span>' : ''}</span>
-                <select class="field-input lg-select-sm"
+                <select class="field-select lg-select-sm"
                     onchange="guardianSetOverride('${escapeAttr(toolName)}',this.value)">`;
             levels.forEach(lv => {
                 const sel = (toolLevel === lv) ? ' selected' : '';
@@ -180,7 +174,7 @@ async function renderLLMGuardianSection(section) {
         });
     }
     html += `</datalist>
-        <select id="guardian-new-level" class="field-input lg-select-sm">`;
+        <select id="guardian-new-level" class="field-select lg-select-sm">`;
     levels.forEach(lv => {
         const sel = (lv === 'high') ? ' selected' : '';
         html += `<option value="${lv}"${sel}>${t('config.llm_guardian.level_' + lv)}</option>`;

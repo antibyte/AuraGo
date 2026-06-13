@@ -44,41 +44,41 @@ async function renderRemoteControlSection(section) {
         <div class="field-group-desc">${t('config.remote_control.network_desc')}</div>`;
 
     const connectionMode = cfg.connection_mode || 'auto';
-    html += `<label class="rc-label-block">
-        <span class="rc-label-text">${t('config.remote_control.connection_mode_label')}</span>
-        <select class="cfg-input cfg-input-full rc-input-spaced" data-path="remote_control.connection_mode"
+    html += `<div class="field-grid two-cols">`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.remote_control.connection_mode_label')}</div>
+        <div class="field-help">${t('config.remote_control.connection_mode_hint')}</div>
+        <select class="field-select" data-path="remote_control.connection_mode"
             onchange="setNestedValue(configData,'remote_control.connection_mode',this.value);setDirty(true);renderRemoteControlSection(null)">
             <option value="auto" ${connectionMode === 'auto' ? 'selected' : ''}>${t('config.remote_control.connection_mode_auto')}</option>
             <option value="tailscale" ${connectionMode === 'tailscale' ? 'selected' : ''}>${t('config.remote_control.connection_mode_tailscale')}</option>
             <option value="manual" ${connectionMode === 'manual' ? 'selected' : ''}>${t('config.remote_control.connection_mode_manual')}</option>
         </select>
-        <small class="cfg-help">${t('config.remote_control.connection_mode_hint')}</small>
-    </label>`;
+    </div>`;
 
     if (connectionMode === 'tailscale') {
-        html += `<label class="rc-label-block">
-            <span class="rc-label-text">${t('config.remote_control.tailscale_address_label')}</span>
-            <input type="text" class="cfg-input cfg-input-full rc-input-spaced" data-path="remote_control.tailscale_address"
+        html += `<div class="field-group">
+            <div class="field-label">${t('config.remote_control.tailscale_address_label')}</div>
+            <div class="field-help">${t('config.remote_control.tailscale_address_hint')}</div>
+            <input type="text" class="field-input" data-path="remote_control.tailscale_address"
                 value="${escapeAttr(cfg.tailscale_address || '')}" placeholder="aurago.tailnet.ts.net">
-            <small class="cfg-help">${t('config.remote_control.tailscale_address_hint')}</small>
-        </label>`;
+        </div>`;
     }
 
     if (connectionMode === 'manual') {
-        html += `<label class="rc-label-block">
-            <span class="rc-label-text">${t('config.remote_control.supervisor_url_label')}</span>
-            <input type="text" class="cfg-input cfg-input-full rc-input-spaced" data-path="remote_control.supervisor_url"
+        html += `<div class="field-group">
+            <div class="field-label">${t('config.remote_control.supervisor_url_label')}</div>
+            <div class="field-help">${t('config.remote_control.supervisor_url_hint')}</div>
+            <input type="text" class="field-input" data-path="remote_control.supervisor_url"
                 value="${escapeAttr(cfg.supervisor_url || '')}" placeholder="wss://aurago.example.com/api/remote/ws">
-            <small class="cfg-help">${t('config.remote_control.supervisor_url_hint')}</small>
-        </label>`;
+        </div>`;
     }
 
-    // Discovery Port
     const curPort = cfg.discovery_port || 8092;
-    html += `<label class="rc-label-block">
-        <span class="rc-label-text">${t('config.remote_control.discovery_port_label')}</span>
-        <input type="number" class="cfg-input rc-input-spaced" data-path="remote_control.discovery_port" value="${curPort}" min="1024" max="65535">
-    </label>`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.remote_control.discovery_port_label')}</div>
+        <input type="number" class="field-input" data-path="remote_control.discovery_port" value="${curPort}" min="1024" max="65535">
+    </div></div>`;
     html += `</div>`;
 
     // ── Security ──
@@ -115,34 +115,33 @@ async function renderRemoteControlSection(section) {
 
     // Max File Size MB
     const curMaxFile = cfg.max_file_size_mb || 50;
-    html += `<label class="rc-label-block">
-        <span class="rc-label-text">${t('config.remote_control.max_file_size_label')}</span>
-        <input type="number" class="cfg-input rc-input-spaced" data-path="remote_control.max_file_size_mb" value="${curMaxFile}" min="1" max="500">
-    </label>`;
-
-    // Allowed Paths
     const curPaths = (cfg.allowed_paths || []).join('\n');
-    html += `<label class="rc-label-block">
-        <span class="rc-label-text">${t('config.remote_control.allowed_paths_label')} <small class="rc-label-hint">(${t('config.remote_control.allowed_paths_hint')})</small></span>
-        <textarea class="cfg-input rc-input-spaced rc-paths-textarea" data-path="remote_control.allowed_paths" data-type="array-lines" rows="3"
-            onchange="setNestedValue(configData,'remote_control.allowed_paths',this.value.split('\\n').filter(l=>l.trim()));setDirty(true)">${escapeAttr(curPaths)}</textarea>
-    </label>`;
+    html += `<div class="field-grid two-cols">
+        <div class="field-group">
+            <div class="field-label">${t('config.remote_control.max_file_size_label')}</div>
+            <input type="number" class="field-input" data-path="remote_control.max_file_size_mb" value="${curMaxFile}" min="1" max="500">
+        </div>
+        <div class="field-group">
+            <div class="field-label">${t('config.remote_control.allowed_paths_label')}</div>
+            <div class="field-help">${t('config.remote_control.allowed_paths_hint')}</div>
+            <textarea class="field-input rc-paths-textarea" data-path="remote_control.allowed_paths" data-type="array-lines" rows="3">${escapeAttr(curPaths)}</textarea>
+        </div>
+    </div>`;
     html += `</div>`;
 
     // ── Pairing Token ──
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.remote_control.pairing_token_title')}</div>
         <div class="field-group-desc">${t('config.remote_control.pairing_token_desc')}</div>
-        <div class="rc-download-name-wrap">
-            <label class="rc-download-name-label">
-                <span class="rc-label-text">${t('config.remote_control.download_name_label')}</span>
-                <input type="text" id="rc-enrollment-device-name" class="cfg-input rc-input-spaced" placeholder="${t('config.remote_control.download_name_placeholder')}">
-            </label>
+        <div class="field-group">
+            <div class="field-label">${t('config.remote_control.download_name_label')}</div>
+            <input type="text" id="rc-enrollment-device-name" class="field-input" placeholder="${t('config.remote_control.download_name_placeholder')}">
         </div>
-        <div class="rc-platform-grid">
-            <button id="rc-token-generate-btn" class="btn-save rc-platform-btn" onclick="rcCreateEnrollmentToken()">
+        <div class="cfg-actions-row">
+            <button id="rc-token-generate-btn" class="btn-save" onclick="rcCreateEnrollmentToken()">
                 ${t('config.remote_control.pairing_token_generate')}
             </button>
+            <span id="rc-token-status" class="adg-test-result"></span>
         </div>
         <div id="rc-token-result" class="rc-token-result"></div>
         <small class="cfg-help">${t('config.remote_control.pairing_token_hint')}</small>
@@ -152,11 +151,9 @@ async function renderRemoteControlSection(section) {
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.remote_control.download_title')}</div>
         <div class="field-group-desc">${t('config.remote_control.download_desc')}</div>
-        <div class="rc-download-name-wrap">
-            <label class="rc-download-name-label">
-                <span class="rc-label-text">${t('config.remote_control.download_name_label')}</span>
-                <input type="text" id="rc-device-name" class="cfg-input rc-input-spaced" placeholder="${t('config.remote_control.download_name_placeholder')}">
-            </label>
+        <div class="field-group">
+            <div class="field-label">${t('config.remote_control.download_name_label')}</div>
+            <input type="text" id="rc-device-name" class="field-input" placeholder="${t('config.remote_control.download_name_placeholder')}">
         </div>
         <div id="rc-platform-list" class="rc-platform-list">
             <span class="rc-muted-text">${t('config.remote_control.loading_platforms')}</span>
@@ -224,12 +221,15 @@ function rcDownload(os, arch) {
 async function rcCreateEnrollmentToken() {
     const btn = document.getElementById('rc-token-generate-btn');
     const result = document.getElementById('rc-token-result');
+    const status = document.getElementById('rc-token-status');
     const nameEl = document.getElementById('rc-enrollment-device-name');
     if (!btn || !result) return;
 
-    const original = btn.textContent;
     btn.disabled = true;
-    btn.textContent = t('config.remote_control.pairing_token_generating');
+    if (status) {
+        status.className = 'adg-test-result';
+        status.textContent = t('config.remote_control.pairing_token_generating');
+    }
     result.innerHTML = '';
 
     try {
@@ -242,21 +242,26 @@ async function rcCreateEnrollmentToken() {
         if (!resp.ok || !data.token) {
             throw new Error(data.error || data.message || t('config.remote_control.pairing_token_failed'));
         }
+        if (status) {
+            status.className = 'adg-test-result is-success';
+            status.textContent = t('config.remote_control.pairing_token_ready');
+        }
         const expires = data.expires_at ? new Date(data.expires_at).toLocaleString() : '';
         result.innerHTML = `<div class="rc-token-card">
-            <div class="rc-token-ready">${t('config.remote_control.pairing_token_ready')}</div>
             <code id="rc-token-value" class="rc-token-value">${escapeAttr(data.token)}</code>
-            <div class="rc-token-actions">
-                <button class="btn-save rc-platform-btn" onclick="rcCopyEnrollmentToken()">${t('config.remote_control.pairing_token_copy')}</button>
-                <span id="rc-token-copy-state" class="rc-muted-text"></span>
+            <div class="cfg-actions-row">
+                <button class="btn-save btn-secondary" onclick="rcCopyEnrollmentToken()">${t('config.remote_control.pairing_token_copy')}</button>
+                <span id="rc-token-copy-state" class="adg-test-result"></span>
             </div>
-            <div class="rc-muted-text">${t('config.remote_control.pairing_token_expires')} ${escapeAttr(expires)}</div>
+            <div class="field-help">${t('config.remote_control.pairing_token_expires')} ${escapeAttr(expires)}</div>
         </div>`;
     } catch (e) {
-        result.innerHTML = `<span class="rc-error-text">${escapeAttr(t('config.remote_control.pairing_token_failed'))}: ${escapeAttr(e && e.message ? e.message : String(e))}</span>`;
+        if (status) {
+            status.className = 'adg-test-result is-danger';
+            status.textContent = (e && e.message ? e.message : t('config.remote_control.pairing_token_failed'));
+        }
     } finally {
         btn.disabled = false;
-        btn.textContent = original;
     }
 }
 
@@ -267,9 +272,15 @@ async function rcCopyEnrollmentToken() {
     if (!token) return;
     try {
         await navigator.clipboard.writeText(token);
-        if (stateEl) stateEl.textContent = t('config.remote_control.pairing_token_copied');
+        if (stateEl) {
+            stateEl.className = 'adg-test-result is-success';
+            stateEl.textContent = t('config.remote_control.pairing_token_copied');
+        }
     } catch (e) {
-        if (stateEl) stateEl.textContent = t('config.remote_control.pairing_token_failed');
+        if (stateEl) {
+            stateEl.className = 'adg-test-result is-danger';
+            stateEl.textContent = t('config.remote_control.pairing_token_failed');
+        }
     }
 }
 
