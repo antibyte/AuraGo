@@ -127,14 +127,14 @@ function emailAccountShowModal(title, data, onSave) {
 
     const overlay = document.createElement('div');
     overlay.id = 'email-modal-overlay';
-    overlay.className = 'em-modal-overlay';
+    overlay.className = 'modal-overlay open active';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
     overlay.innerHTML = `
-    <div class="em-modal-box" onclick="event.stopPropagation()">
-        <div class="em-modal-header">
-            <div class="em-modal-title">${title}</div>
-            <button onclick="document.getElementById('email-modal-overlay').remove()" class="em-modal-close">✕</button>
+    <div class="modal-card email-modal-card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h2>${title}</h2>
+            <button type="button" class="modal-close" onclick="document.getElementById('email-modal-overlay').remove()" aria-label="${t('config.email.cancel')}">&times;</button>
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.email.field_id')}</div>
@@ -237,14 +237,14 @@ function emailAccountShowModal(title, data, onSave) {
         </div>
 
         <div id="ea-test-result" class="adg-test-result em-test-result"></div>
-        <div class="em-modal-footer">
-            <button class="btn-save em-btn-cancel" onclick="document.getElementById('email-modal-overlay').remove()">
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('email-modal-overlay').remove()">
                 ${t('config.email.cancel')}
             </button>
-            <button class="btn-save adg-test-btn" id="ea-test-btn" type="button">
+            <button type="button" class="btn-save adg-test-btn" id="ea-test-btn">
                 🔌 ${t('config.email.test_btn')}
             </button>
-            <button class="btn-save em-btn-save" id="ea-save-btn">
+            <button type="button" class="btn-save" id="ea-save-btn">
                 ${t('config.email.save')}
             </button>
         </div>

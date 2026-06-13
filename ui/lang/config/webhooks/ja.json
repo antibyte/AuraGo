@@ -27,7 +27,7 @@
   "config.webhooks.field_alias_placeholder": "エイリアス (例: repo)",
   "config.webhooks.field_mappings_label": "フィールドマッピング",
   "config.webhooks.field_source_placeholder": "ソース (例: repository.full_name)",
-  "config.webhooks.format_section": "フォーマット",
+  "config.webhooks.format_section": "形式",
   "config.webhooks.loading": "Webhook読み込み中...",
   "config.webhooks.log_col_delivered": "配信済",
   "config.webhooks.log_col_ip": "IP",

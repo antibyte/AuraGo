@@ -184,15 +184,15 @@ async function renderManifestSection(section) {
     }
     html += '</div>';
 
-    html += '<div class="field-group">';
-    html += '<button class="btn-save dc-test-btn" onclick="manifestTestConnection()" id="manifest-test-btn">' + manifestText('config.manifest.test_button') + '</button>';
+    html += '<div class="cfg-actions-row">';
+    html += '<button class="btn-save adg-test-btn" onclick="manifestTestConnection()" id="manifest-test-btn">🔌 ' + manifestText('config.manifest.test_button') + '</button>';
     if (managed) {
-        html += '<button class="btn-save dc-test-btn" onclick="manifestStartSidecars()" id="manifest-start-btn">' + manifestText('config.manifest.start_button') + '</button>';
-        html += '<button class="btn-save dc-test-btn" onclick="manifestStopSidecars()" id="manifest-stop-btn">' + manifestText('config.manifest.stop_button') + '</button>';
+        html += '<button class="btn-save btn-secondary" onclick="manifestStartSidecars()" id="manifest-start-btn">▶ ' + manifestText('config.manifest.start_button') + '</button>';
+        html += '<button class="btn-save btn-secondary" onclick="manifestStopSidecars()" id="manifest-stop-btn">⏹ ' + manifestText('config.manifest.stop_button') + '</button>';
     }
-    html += '<span id="manifest-result" class="dc-test-result"></span>';
+    html += '<span id="manifest-result" class="adg-test-result"></span>';
     html += '</div>';
-    html += '<div id="manifest-status-panel" class="cfg-note-banner cfg-note-banner-info"></div>';
+    html += '<div id="manifest-status-panel" class="adg-status-banner"></div>';
     html += '</div>';
 
     document.getElementById('content').innerHTML = html;
@@ -312,7 +312,7 @@ async function manifestAction(url, buttonId, loadingText) {
     const btn = document.getElementById(buttonId);
     if (btn) btn.disabled = true;
     if (result) {
-        result.className = 'dc-test-result';
+        result.className = 'adg-test-result';
         result.textContent = loadingText;
     }
     try {
@@ -323,14 +323,14 @@ async function manifestAction(url, buttonId, loadingText) {
         });
         const body = await resp.json();
         if (result) {
-            result.className = resp.ok && body.status !== 'error' ? 'dc-test-result is-success' : 'dc-test-result is-danger';
+            result.className = resp.ok && body.status !== 'error' ? 'adg-test-result is-success' : 'adg-test-result is-danger';
             result.textContent = (body.message || body.status || '').toString();
         }
         const panel = document.getElementById('manifest-status-panel');
         if (panel) panel.innerHTML = manifestStatusHTML(body);
     } catch (e) {
         if (result) {
-            result.className = 'dc-test-result is-danger';
+            result.className = 'adg-test-result is-danger';
             result.textContent = manifestText('config.manifest.status_error') + ' ' + e.message;
         }
     } finally {

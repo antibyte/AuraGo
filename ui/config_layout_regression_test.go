@@ -79,6 +79,7 @@ func TestConfigPhase2AuraConfigFormRollout(t *testing.T) {
 		{"cfg/adguard.js", "form.renderSpec"},
 		{"cfg/koofr.js", "form.renderSpec"},
 		{"cfg/webdav.js", "form.renderSpec"},
+		{"cfg/agentmail.js", "form.renderSpec"},
 	} {
 		content := normalizeAssetText(mustReadUIFile(t, spec.file))
 		if !strings.Contains(content, spec.marker) {
@@ -112,6 +113,25 @@ func TestConfigPhase2TestConnectionMarkers(t *testing.T) {
 				t.Fatalf("%s missing marker %q", file, marker)
 			}
 		}
+	}
+}
+
+func TestConfigPhase2EmailModalUsesSharedOverlay(t *testing.T) {
+	t.Parallel()
+
+	emailJS := normalizeAssetText(mustReadUIFile(t, "cfg/email.js"))
+	for _, marker := range []string{
+		"modal-overlay open active",
+		"modal-card email-modal-card",
+		"modal-actions",
+		"btn btn-secondary",
+	} {
+		if !strings.Contains(emailJS, marker) {
+			t.Fatalf("email.js missing modal marker %q", marker)
+		}
+	}
+	if strings.Contains(emailJS, "em-modal-overlay") {
+		t.Fatal("email.js should not use em-modal-overlay")
 	}
 }
 

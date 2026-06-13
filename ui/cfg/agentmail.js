@@ -6,85 +6,57 @@ function renderAgentMailSection(section) {
     const readonlyOn = data.readonly === true;
     const relayOn = data.relay_to_agent === true;
     const wsOn = data.use_websocket !== false;
+    const form = window.AuraConfigForm;
     const apiKeyPlaceholder = cfgSecretPlaceholder(data.api_key, t('config.agentmail.api_key_placeholder'));
 
-    let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
-    html += '<div class="section-desc">' + section.desc + '</div>';
-    html += '<div id="agentmail-status-banner" class="adg-status-banner">' + t('config.agentmail.checking') + '</div>';
-
-    html += agentMailToggle('agentmail.enabled', enabledOn, t('config.agentmail.enabled_label'), t('help.agentmail.enabled'));
-    html += agentMailToggle('agentmail.readonly', readonlyOn, t('config.agentmail.readonly_label'), t('help.agentmail.readonly'));
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.agentmail.api_key_label') + '</div>';
-    html += '<div class="field-help">' + t('help.agentmail.api_key') + '</div>';
-    html += '<div class="adg-password-row">';
-    html += '<div class="password-wrap" style="flex:1;">';
-    html += '<input class="field-input adg-password-input" type="password" id="agentmail-api-key" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '" autocomplete="off">';
-    html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
-    html += '</div>';
-    html += '<button class="btn-save adg-save-btn" onclick="agentMailSaveAPIKey()">' + t('config.agentmail.save_icon') + ' ' + t('config.agentmail.save_vault') + '</button>';
-    html += '</div></div>';
-
-    html += agentMailInput('agentmail.inbox_id', data.inbox_id || '', t('config.agentmail.inbox_id_label'), t('help.agentmail.inbox_id'), 'text', 'inbox_...');
-    html += agentMailToggle('agentmail.auto_create_inbox', data.auto_create_inbox === true, t('config.agentmail.auto_create_label'), t('help.agentmail.auto_create_inbox'));
-    html += agentMailInput('agentmail.username', data.username || '', t('config.agentmail.username_label'), t('help.agentmail.username'), 'text', 'aurago');
-    html += agentMailInput('agentmail.domain', data.domain || '', t('config.agentmail.domain_label'), t('help.agentmail.domain'), 'text', 'agentmail.to');
-    html += agentMailInput('agentmail.display_name', data.display_name || '', t('config.agentmail.display_name_label'), t('help.agentmail.display_name'), 'text', 'AuraGo');
-
-    html += agentMailToggle('agentmail.relay_to_agent', relayOn, t('config.agentmail.relay_label'), t('help.agentmail.relay_to_agent'));
-    html += agentMailCheatsheetSelect(data.relay_cheatsheet_id || '');
-    html += agentMailToggle('agentmail.use_websocket', wsOn, t('config.agentmail.websocket_label'), t('help.agentmail.use_websocket'));
-    html += agentMailInput('agentmail.poll_interval_seconds', String(data.poll_interval_seconds || 120), t('config.agentmail.poll_interval_label'), t('help.agentmail.poll_interval_seconds'), 'number', '120', '30', '1');
-    html += agentMailInput('agentmail.max_attachment_mb', String(data.max_attachment_mb || 10), t('config.agentmail.max_attachment_label'), t('help.agentmail.max_attachment_mb'), 'number', '10', '0', '1');
-    html += agentMailInput('agentmail.base_url', data.base_url || 'https://api.agentmail.to', t('config.agentmail.base_url_label'), t('help.agentmail.base_url'), 'text', 'https://api.agentmail.to');
-    html += agentMailInput('agentmail.websocket_url', data.websocket_url || 'wss://ws.agentmail.to/v0', t('config.agentmail.websocket_url_label'), t('help.agentmail.websocket_url'), 'text', 'wss://ws.agentmail.to/v0');
-
-    html += '<div class="field-group">';
-    html += '<button class="btn-save adg-test-btn" onclick="agentMailTestConnection()" id="agentmail-test-btn">🔌 ' + t('config.agentmail.test_btn') + '</button>';
-    html += '<span id="agentmail-test-result" class="adg-test-result"></span>';
-    html += '</div>';
-
-    html += '<div id="agentmail-summary" class="adg-quick-stats is-hidden">';
-    html += '<div class="adg-stats-title">' + t('config.agentmail.summary_title') + '</div>';
-    html += '<div id="agentmail-summary-content" class="adg-stats-grid"></div>';
-    html += '</div>';
-    html += '</div>';
+    const html = form.renderSpec({
+        icon: section.icon,
+        label: section.label,
+        desc: section.desc,
+        beforeHTML: '<div id="agentmail-status-banner" class="adg-status-banner">' + t('config.agentmail.checking') + '</div>',
+        fields: [
+            form.toggle({ label: t('config.agentmail.enabled_label'), help: t('help.agentmail.enabled'), path: 'agentmail.enabled', value: enabledOn }),
+            form.toggle({ label: t('config.agentmail.readonly_label'), help: t('help.agentmail.readonly'), path: 'agentmail.readonly', value: readonlyOn }),
+            form.password({
+                label: t('config.agentmail.api_key_label'),
+                help: t('help.agentmail.api_key'),
+                id: 'agentmail-api-key',
+                value: data.api_key,
+                placeholder: apiKeyPlaceholder,
+                actionHTML: '<button class="btn-save adg-save-btn" onclick="agentMailSaveAPIKey()">' + t('config.agentmail.save_icon') + ' ' + t('config.agentmail.save_vault') + '</button>'
+            }),
+            form.field({ label: t('config.agentmail.inbox_id_label'), help: t('help.agentmail.inbox_id'), path: 'agentmail.inbox_id', value: data.inbox_id || '', placeholder: 'inbox_...' }),
+            form.toggle({ label: t('config.agentmail.auto_create_label'), help: t('help.agentmail.auto_create_inbox'), path: 'agentmail.auto_create_inbox', value: data.auto_create_inbox === true }),
+            form.field({ label: t('config.agentmail.username_label'), help: t('help.agentmail.username'), path: 'agentmail.username', value: data.username || '', placeholder: 'aurago' }),
+            form.field({ label: t('config.agentmail.domain_label'), help: t('help.agentmail.domain'), path: 'agentmail.domain', value: data.domain || '', placeholder: 'agentmail.to' }),
+            form.field({ label: t('config.agentmail.display_name_label'), help: t('help.agentmail.display_name'), path: 'agentmail.display_name', value: data.display_name || '', placeholder: 'AuraGo' }),
+            form.toggle({ label: t('config.agentmail.relay_label'), help: t('help.agentmail.relay_to_agent'), path: 'agentmail.relay_to_agent', value: relayOn }),
+            agentMailCheatsheetSelect(data.relay_cheatsheet_id || ''),
+            form.toggle({ label: t('config.agentmail.websocket_label'), help: t('help.agentmail.use_websocket'), path: 'agentmail.use_websocket', value: wsOn }),
+            form.number({ label: t('config.agentmail.poll_interval_label'), help: t('help.agentmail.poll_interval_seconds'), path: 'agentmail.poll_interval_seconds', value: String(data.poll_interval_seconds || 120), min: 30, step: 1 }),
+            form.number({ label: t('config.agentmail.max_attachment_label'), help: t('help.agentmail.max_attachment_mb'), path: 'agentmail.max_attachment_mb', value: String(data.max_attachment_mb || 10), min: 0, step: 1 }),
+            form.field({ label: t('config.agentmail.base_url_label'), help: t('help.agentmail.base_url'), path: 'agentmail.base_url', value: data.base_url || 'https://api.agentmail.to', placeholder: 'https://api.agentmail.to' }),
+            form.field({ label: t('config.agentmail.websocket_url_label'), help: t('help.agentmail.websocket_url'), path: 'agentmail.websocket_url', value: data.websocket_url || 'wss://ws.agentmail.to/v0', placeholder: 'wss://ws.agentmail.to/v0' })
+        ],
+        afterHTML: form.actions([
+            { html: '<button class="btn-save adg-test-btn" onclick="agentMailTestConnection()" id="agentmail-test-btn">🔌 ' + t('config.agentmail.test_btn') + '</button>' },
+            { html: '<span id="agentmail-test-result" class="adg-test-result"></span>' }
+        ]) + '<div id="agentmail-summary" class="adg-quick-stats is-hidden">'
+            + '<div class="adg-stats-title">' + t('config.agentmail.summary_title') + '</div>'
+            + '<div id="agentmail-summary-content" class="adg-stats-grid"></div>'
+            + '</div>'
+    });
 
     document.getElementById('content').innerHTML = html;
     agentMailLoadCheatsheets(data.relay_cheatsheet_id || '');
     agentMailCheckStatus();
 }
 
-function agentMailToggle(path, on, label, help) {
-    let html = '<div class="field-group">';
-    html += '<div class="field-label">' + label + '</div>';
-    html += '<div class="field-help">' + help + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (on ? ' on' : '') + '" data-path="' + path + '" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (on ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-    return html;
-}
-
-function agentMailInput(path, value, label, help, type, placeholder, min, step) {
-    let html = '<div class="field-group">';
-    html += '<div class="field-label">' + label + '</div>';
-    html += '<div class="field-help">' + help + '</div>';
-    html += '<input class="field-input" type="' + (type || 'text') + '" data-path="' + path + '" value="' + escapeAttr(value || '') + '" placeholder="' + escapeAttr(placeholder || '') + '"';
-    if (min !== undefined) html += ' min="' + escapeAttr(String(min)) + '"';
-    if (step !== undefined) html += ' step="' + escapeAttr(String(step)) + '"';
-    html += '>';
-    html += '</div>';
-    return html;
-}
-
 function agentMailCheatsheetSelect(selectedID) {
     let html = '<div class="field-group">';
     html += '<div class="field-label">' + t('config.agentmail.relay_cheatsheet_label') + '</div>';
     html += '<div class="field-help">' + t('help.agentmail.relay_cheatsheet_id') + '</div>';
-    html += '<select class="field-input" id="agentmail-relay-cheatsheet" data-path="agentmail.relay_cheatsheet_id" data-selected="' + escapeAttr(selectedID || '') + '" onchange="setNestedValue(configData,\'agentmail.relay_cheatsheet_id\',this.value);setDirty(true)">';
+    html += '<select class="field-select" id="agentmail-relay-cheatsheet" data-path="agentmail.relay_cheatsheet_id" data-selected="' + escapeAttr(selectedID || '') + '" onchange="setNestedValue(configData,\'agentmail.relay_cheatsheet_id\',this.value);setDirty(true)">';
     html += '<option value="">' + escapeHtml(t('config.agentmail.loading')) + '</option>';
     html += '</select>';
     html += '</div>';

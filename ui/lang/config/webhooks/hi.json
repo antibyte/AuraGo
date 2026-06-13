@@ -108,7 +108,7 @@
   "config.webhooks.settings_title": "वेबहुक सेटिंग्स",
   "config.webhooks.sig_none": "कोई नहीं",
   "config.webhooks.sig_plain": "plain",
-  "config.webhooks.sig_secret_placeholder": "HMAC सीक्रेट",
+  "config.webhooks.sig_secret_placeholder": "HMAC गुप्त",
   "config.webhooks.sig_sha1": "sha1",
   "config.webhooks.sig_sha256": "sha256",
   "config.webhooks.sighdr_placeholder": "जैसे X-Hub-Signature-256",

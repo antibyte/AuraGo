@@ -117,12 +117,12 @@ async function renderDograhSection(section) {
     }
 
     html += '<div class="cfg-note-banner cfg-note-banner-info">▧ ' + dograhText('config.dograh.sidecar_note') + '</div>';
-    html += '<div id="dograh-status-box" class="cfg-note-banner cfg-note-banner-neutral">' + dograhText('config.dograh.status_prefix') + ' ...</div>';
+    html += '<div id="dograh-status-box" class="adg-status-banner">' + dograhText('config.dograh.status_prefix') + ' ...</div>';
     html += '<div class="cfg-actions-row">';
-    html += dograhButton('dograh-test-btn', 'config.dograh.test_button', 'dograhAction(\\'test\\')');
-    html += dograhButton('dograh-start-btn', 'config.dograh.start_button', 'dograhAction(\\'start\\')');
-    html += dograhButton('dograh-stop-btn', 'config.dograh.stop_button', 'dograhAction(\\'stop\\')');
-    html += dograhButton('dograh-recreate-btn', 'config.dograh.recreate_button', 'dograhAction(\\'recreate\\')');
+    html += dograhActionButton('dograh-test-btn', 'config.dograh.test_button', 'dograhAction(\\'test\\')', 'adg-test-btn', '🔌 ');
+    html += dograhActionButton('dograh-start-btn', 'config.dograh.start_button', 'dograhAction(\\'start\\')', 'btn-secondary', '▶ ');
+    html += dograhActionButton('dograh-stop-btn', 'config.dograh.stop_button', 'dograhAction(\\'stop\\')', 'btn-secondary', '⏹ ');
+    html += dograhActionButton('dograh-recreate-btn', 'config.dograh.recreate_button', 'dograhAction(\\'recreate\\')', 'btn-secondary', '🔄 ');
     html += '</div>';
 
     html += '<div class="field-grid two-cols">';
@@ -207,7 +207,11 @@ function dograhToggleRow(labelKey, helpKey, enabled, path, onclick) {
 }
 
 function dograhButton(id, labelKey, onclick) {
-    return '<button type="button" id="' + id + '" class="btn btn-secondary" onclick="' + onclick + '">' + escapeHtml(dograhText(labelKey)) + '</button>';
+    return dograhActionButton(id, labelKey, onclick, 'btn-secondary', '');
+}
+
+function dograhActionButton(id, labelKey, onclick, btnClass, prefix) {
+    return '<button type="button" id="' + id + '" class="btn-save ' + btnClass + '" onclick="' + onclick + '">' + prefix + escapeHtml(dograhText(labelKey)) + '</button>';
 }
 
 function dograhHelp(helpKey) {
