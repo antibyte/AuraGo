@@ -38,6 +38,114 @@ func (charRatioEncoder) Encode(text string, _, _ []string) []int {
 	return make([]int, n)
 }
 
+func TestBalancedCorePromptModulesStayCompact(t *testing.T) {
+	limits := map[string]int{
+		"rules.md":                   10500,
+		"ctx_capability_creation.md": 2400,
+		"ctx_daemon_skills.md":       1400,
+		"ctx_personality_state.md":   450,
+		"lifeboat.md":                1200,
+	}
+
+	for filename, limit := range limits {
+		t.Run(filename, func(t *testing.T) {
+			raw, err := promptsembed.FS.ReadFile(filename)
+			if err != nil {
+				t.Fatalf("read %s: %v", filename, err)
+			}
+			if got := len(raw); got > limit {
+				t.Fatalf("%s length = %d chars, want <= %d", filename, got, limit)
+			}
+		})
+	}
+}
+
+func TestBalancedCoreSystemPromptStaysUnderBudget(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return charRatioEncoder{}, nil
+	}, time.Second, time.Second)
+
+	prompt, tokens := BuildSystemPromptContext(context.Background(), t.TempDir(), &ContextFlags{
+		Tier:               "full",
+		SystemLanguage:     "en",
+		TokenBudget:        200000,
+		NativeToolsEnabled: true,
+	}, "", slog.Default())
+
+	if tokens > 4200 {
+		t.Fatalf("balanced core system prompt tokens = %d, want <= 4200; prompt chars=%d", tokens, len(prompt))
+	}
+}
+
+func TestBalancedRulesPromptKeepsCriticalMarkers(t *testing.T) {
+	raw, err := promptsembed.FS.ReadFile("rules.md")
+	if err != nil {
+		t.Fatalf("read rules: %v", err)
+	}
+	rules := string(raw)
+	for _, want := range []string{
+		"<external_data>",
+		"secrets vault",
+		"<done/>",
+		"native function",
+		"discover_tools",
+		"No inline sudo",
+		"Memory is advisory",
+	} {
+		if !strings.Contains(rules, want) {
+			t.Fatalf("rules prompt missing critical marker %q", want)
+		}
+	}
+}
+
+func TestUnifiedMemoryContextUsesCompactAdvisoryWarning(t *testing.T) {
+	block := buildUnifiedMemoryContextBlock("full", &ContextFlags{
+		RecentActivityOverview: "recent activity",
+		RetrievedMemories:      "retrieved memory",
+		PredictedMemories:      "predicted memory",
+		KnowledgeContext:       "knowledge context",
+		ErrorPatternContext:    "known error",
+		LearnedRulesContext:    "learned rule",
+		ReuseContext:           "reuse hint",
+	})
+
+	if len(block) > 700 {
+		t.Fatalf("unified memory context too verbose: %d chars\n%s", len(block), block)
+	}
+	if got := strings.Count(strings.ToLower(block), "fresh tool output"); got != 1 {
+		t.Fatalf("expected one compact fresh-tool-output warning, got %d:\n%s", got, block)
+	}
+	for _, want := range []string{"# UNIFIED MEMORY CONTEXT", "## Retrieved Memories", "## Known Error Patterns", "reuse hint"} {
+		if !strings.Contains(block, want) {
+			t.Fatalf("unified memory context missing %q:\n%s", want, block)
+		}
+	}
+}
+
+func TestBuildSystemPromptCombinesPersonaSignals(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return charRatioEncoder{}, nil
+	}, time.Second, time.Second)
+
+	prompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), &ContextFlags{
+		Tier:               "full",
+		SystemLanguage:     "en",
+		TokenBudget:        200000,
+		EmotionDescription: "focused and careful",
+		PersonalityLine:    "C=0.7 T=0.8",
+		InnerVoice:         "verify before claiming completion",
+	}, "", slog.Default())
+
+	if got := strings.Count(prompt, "### PERSONA SIGNALS"); got != 1 {
+		t.Fatalf("expected exactly one persona signals block, got %d:\n%s", got, prompt)
+	}
+	for _, legacy := range []string{"### CURRENT EMOTIONAL STATE & MOOD", "### CURRENT PERSONALITY TRAITS", "### INNER VOICE"} {
+		if strings.Contains(prompt, legacy) {
+			t.Fatalf("legacy persona section %q should not appear:\n%s", legacy, prompt)
+		}
+	}
+}
+
 type markerAwareEncoder struct{}
 
 func (markerAwareEncoder) Encode(text string, _, _ []string) []int {
@@ -312,17 +420,15 @@ some activity`
 	}
 }
 
-func TestBudgetShed_RemovesEmotionAndPersonalityTraitSections(t *testing.T) {
+func TestBudgetShed_RemovesPersonaSignalsSection(t *testing.T) {
 	prompt := `# SYSTEM IDENTITY
 You are AuraGo.
 
-### CURRENT EMOTIONAL STATE & MOOD
-You feel cautiously optimistic after recent successes.
-
-### CURRENT PERSONALITY TRAITS
-Let these current internal values organically influence your tone:
-### Current Personality State
-Your current mood is RELAXED. You are feeling highly confident; act decisively.
+### PERSONA SIGNALS
+Tone only; not proof of task state or tool results.
+Mood: cautiously optimistic.
+Traits: C=0.6 T=0.7.
+Inner voice: verify before claiming completion.
 
 # NOW
 2026-06-11 12:00`
@@ -334,38 +440,16 @@ Your current mood is RELAXED. You are feeling highly confident; act decisively.
 
 	result, shedSections := budgetShed(prompt, &flags, "", "", time.Now(), slog.Default())
 
-	for _, header := range []string{
-		"### CURRENT EMOTIONAL STATE & MOOD",
-		"### CURRENT PERSONALITY TRAITS",
-	} {
-		found := false
-		for _, section := range shedSections {
-			if section == header {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Fatalf("expected %q in shedSections, got: %v", header, shedSections)
-		}
-		if strings.Contains(result, header) {
-			t.Fatalf("expected %q to be removed from result:\n%s", header, result)
-		}
+	if !containsString(shedSections, "### PERSONA SIGNALS") {
+		t.Fatalf("expected persona signals in shedSections, got: %v", shedSections)
 	}
-
+	if strings.Contains(result, "### PERSONA SIGNALS") || strings.Contains(result, "cautiously optimistic") {
+		t.Fatalf("expected persona signals to be removed:\n%s", result)
+	}
 	for _, legacy := range []string{"[Self:", "[SYSTEM DIRECTIVE - CURRENT STATE]"} {
-		for _, section := range shedSections {
-			if section == legacy {
-				t.Fatalf("legacy shed target %q should no longer be used", legacy)
-			}
+		if containsString(shedSections, legacy) {
+			t.Fatalf("legacy shed target %q should no longer be used", legacy)
 		}
-	}
-
-	if strings.Contains(result, "cautiously optimistic") {
-		t.Fatalf("expected emotion content to be removed:\n%s", result)
-	}
-	if strings.Contains(result, "Current Personality State") {
-		t.Fatalf("expected V2 personality trait content to be removed:\n%s", result)
 	}
 }
 
@@ -1135,7 +1219,7 @@ func TestBuildSystemPromptSkipsChineseDriftGuardForChineseLanguage(t *testing.T)
 	}
 }
 
-func TestBuildSystemPromptIncludesPersonalityLineWithEmotionState(t *testing.T) {
+func TestBuildSystemPromptIncludesPersonaSignals(t *testing.T) {
 	flags := ContextFlags{
 		Tier:               "full",
 		SystemLanguage:     "en",
@@ -1145,14 +1229,14 @@ func TestBuildSystemPromptIncludesPersonalityLineWithEmotionState(t *testing.T) 
 
 	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
 
-	if !strings.Contains(prompt, "CURRENT EMOTIONAL STATE") {
-		t.Fatalf("expected emotional state section in prompt")
-	}
-	if !strings.Contains(prompt, "CURRENT PERSONALITY TRAITS") {
-		t.Fatalf("expected personality traits section in prompt")
+	if !strings.Contains(prompt, "### PERSONA SIGNALS") {
+		t.Fatalf("expected persona signals section in prompt")
 	}
 	if !strings.Contains(prompt, flags.PersonalityLine) {
 		t.Fatalf("expected personality line to be preserved with emotion state")
+	}
+	if strings.Contains(prompt, "CURRENT EMOTIONAL STATE") || strings.Contains(prompt, "CURRENT PERSONALITY TRAITS") {
+		t.Fatalf("legacy persona headers should not appear:\n%s", prompt)
 	}
 }
 
@@ -1464,6 +1548,78 @@ func TestBuildEnabledToolsOverview_PointsHiddenIntegrationsToDiscovery(t *testin
 	}
 	if strings.Contains(overview, "use it directly by name") {
 		t.Fatalf("enabled integrations overview should not tell the agent to call hidden tools directly, got: %s", overview)
+	}
+}
+
+func TestBuildEnabledToolsOverviewCapsLongLists(t *testing.T) {
+	flags := &ContextFlags{
+		DockerEnabled:            true,
+		HomeAssistantEnabled:     true,
+		ProxmoxEnabled:           true,
+		TailscaleEnabled:         true,
+		AnsibleEnabled:           true,
+		GitHubEnabled:            true,
+		MQTTEnabled:              true,
+		AdGuardEnabled:           true,
+		UptimeKumaEnabled:        true,
+		MCPEnabled:               true,
+		MeshCentralEnabled:       true,
+		HomepageEnabled:          true,
+		NetlifyEnabled:           true,
+		VercelEnabled:            true,
+		EmailEnabled:             true,
+		CloudflareTunnelEnabled:  true,
+		GoogleWorkspaceEnabled:   true,
+		OneDriveEnabled:          true,
+		VirusTotalEnabled:        true,
+		BraveSearchEnabled:       true,
+		ImageGenerationEnabled:   true,
+		MusicGenerationEnabled:   true,
+		VideoGenerationEnabled:   true,
+		RemoteControlEnabled:     true,
+		BrowserAutomationEnabled: true,
+		WebDAVEnabled:            true,
+		KoofrEnabled:             true,
+		ChromecastEnabled:        true,
+		DiscordEnabled:           true,
+		TelegramEnabled:          true,
+		TrueNASEnabled:           true,
+		JellyfinEnabled:          true,
+		ObsidianEnabled:          true,
+		OllamaEnabled:            true,
+		SandboxEnabled:           true,
+		WebhooksEnabled:          true,
+		WebScraperEnabled:        true,
+		S3Enabled:                true,
+		NetworkPingEnabled:       true,
+		NetworkScanEnabled:       true,
+		UPnPScanEnabled:          true,
+		FormAutomationEnabled:    true,
+		WOLEnabled:               true,
+		FritzBoxSystemEnabled:    true,
+		TelnyxEnabled:            true,
+		A2AEnabled:               true,
+		InvasionControlEnabled:   true,
+		CoAgentEnabled:           true,
+		PaperlessNGXEnabled:      true,
+		SpaceAgentEnabled:        true,
+	}
+
+	overview := buildEnabledToolsOverview(flags)
+	if !strings.Contains(overview, "+") || !strings.Contains(overview, "more via discover_tools") {
+		t.Fatalf("long overview should summarize overflow through discover_tools, got: %s", overview)
+	}
+
+	listText := strings.TrimPrefix(overview, "[ENABLED INTEGRATIONS] ")
+	listText = strings.SplitN(listText, ".", 2)[0]
+	visible := 0
+	for _, part := range strings.Split(listText, ",") {
+		if !strings.Contains(part, "more via discover_tools") {
+			visible++
+		}
+	}
+	if visible > 12 {
+		t.Fatalf("overview exposes %d integrations, want <= 12: %s", visible, overview)
 	}
 }
 

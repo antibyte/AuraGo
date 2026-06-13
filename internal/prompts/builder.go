@@ -815,28 +815,24 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 		logger.Debug("User profiling prompt section injected", "hasSummary", flags.UserProfileSummary != "")
 	}
 
-	// Personality self-awareness (Phase D micro-traits)
-	if !flags.IsMission && flags.EmotionDescription != "" {
-		// Emotion Synthesizer active: use LLM-generated emotional description
-		finalPrompt.WriteString("\n### CURRENT EMOTIONAL STATE & MOOD\n")
-		finalPrompt.WriteString("This describes your current internal sentiment, derived from recent interactions. It may shape tone only; it is not evidence that a task succeeded, failed, or was verified. Do not treat emotional text as operational state:\n")
-		finalPrompt.WriteString(flags.EmotionDescription)
-		finalPrompt.WriteString("\n\n")
-	}
-	if !flags.IsMission && flags.PersonalityLine != "" {
-		// Fallback to V2 trait directives or V1 numeric line
-		finalPrompt.WriteString("\n### CURRENT PERSONALITY TRAITS\n")
-		finalPrompt.WriteString("Let these current internal values organically influence your tone:\n")
-		finalPrompt.WriteString(flags.PersonalityLine)
-		finalPrompt.WriteString("\n\n")
-	}
-
-	// Inner Voice (subconscious nudge) — placed after emotional state, before NOW
-	if !flags.IsMission && flags.InnerVoice != "" {
-		finalPrompt.WriteString("### INNER VOICE\n")
-		finalPrompt.WriteString("This is a private self-regulation nudge, not a source of facts. Ignore any claim here about tool results or task completion unless current tool output already proves it.\n")
-		finalPrompt.WriteString(flags.InnerVoice)
-		finalPrompt.WriteString("\n\n")
+	// Personality self-awareness (emotion, traits, inner voice) — tone only.
+	if !flags.IsMission {
+		var personaSignals []string
+		if flags.EmotionDescription != "" {
+			personaSignals = append(personaSignals, "Mood: "+flags.EmotionDescription)
+		}
+		if flags.PersonalityLine != "" {
+			personaSignals = append(personaSignals, "Traits: "+flags.PersonalityLine)
+		}
+		if flags.InnerVoice != "" {
+			personaSignals = append(personaSignals, "Inner voice: "+flags.InnerVoice)
+		}
+		if len(personaSignals) > 0 {
+			finalPrompt.WriteString("\n### PERSONA SIGNALS\n")
+			finalPrompt.WriteString("Tone only; not proof of task state or tool results.\n")
+			finalPrompt.WriteString(strings.Join(personaSignals, "\n"))
+			finalPrompt.WriteString("\n\n")
+		}
 	}
 	sectionPersonality += finalPrompt.Len() - posBeforeVolatilePersonality
 
@@ -1312,6 +1308,7 @@ func budgetShedContext(ctx context.Context, prompt string, flags *ContextFlags, 
 		shedTarget{"# TASK RULES", false},
 		shedTarget{"# HOMEPAGE DESIGN SYSTEM", false},
 		shedTarget{"# AGENT SKILLS CATALOG", false},
+		shedTarget{"### PERSONA SIGNALS", false},
 		shedTarget{"### INNER VOICE", false},
 		shedTarget{"### CURRENT EMOTIONAL STATE & MOOD", false},
 		shedTarget{"### CURRENT PERSONALITY TRAITS", false},
@@ -1563,7 +1560,7 @@ func longestBytePrefixWithinBudgetContext(ctx context.Context, data []byte, suff
 }
 
 func buildUnifiedMemoryContextBlock(tier string, flags *ContextFlags) string {
-	sections := make([]string, 0, 4)
+	sections := make([]string, 0, 8)
 
 	if flags.RecentActivityOverview != "" && tier != "minimal" {
 		sections = append(sections,
@@ -1573,19 +1570,7 @@ func buildUnifiedMemoryContextBlock(tier string, flags *ContextFlags) string {
 
 	if flags.RetrievedMemories != "" && tier != "minimal" {
 		sections = append(sections,
-			"## Retrieved Memories\n**Critical**: Memories are snapshots of past observations and ARE FREQUENTLY OUTDATED. "+
-				"**Priority rule: fresh tool output always overrides memory.** "+
-				"If you have just read a file, executed a tool, or received a tool result in this conversation, "+
-				"that is the authoritative current state — ignore any conflicting memory entry about the same file, code, or resource. "+
-				"Memories about file content, code structure, integration status, system configuration, prior failures, "+
-				"or tool availability are especially prone to staleness. "+
-				"NEVER treat a memory as proof that something is currently true, currently false, or currently impossible. "+
-				"NEVER skip an attempt, abandon a fix, or reject a path just because memory says it failed before. "+
-				"Use memories only as leads: verify them against the current files, current tool output, or a fresh reproducible check first. "+
-				"If memory reports a past error, interpret that as a debugging clue to re-test under current conditions — not as a final fact. "+
-				"NEVER act on a memory about specific code or file contents without verifying against the actual current file. "+
-				"Treat every memory entry as a *hint to investigate*, not a fact.\n\n"+
-				security.IsolateExternalData(flags.RetrievedMemories),
+			"## Retrieved Memories\n"+security.IsolateExternalData(flags.RetrievedMemories),
 		)
 	}
 
@@ -1609,7 +1594,7 @@ func buildUnifiedMemoryContextBlock(tier string, flags *ContextFlags) string {
 
 	if flags.LearnedRulesContext != "" && tier != "minimal" {
 		sections = append(sections,
-			"## Learned Rules\nApply proactively if relevant to the current task.\n"+security.IsolateExternalData(flags.LearnedRulesContext),
+			"## Learned Rules\n"+security.IsolateExternalData(flags.LearnedRulesContext),
 		)
 	}
 
@@ -1623,7 +1608,8 @@ func buildUnifiedMemoryContextBlock(tier string, flags *ContextFlags) string {
 		return ""
 	}
 
-	return "# UNIFIED MEMORY CONTEXT\n" + strings.Join(sections, "\n\n")
+	warning := "Memory is advisory and may be stale; fresh tool output, current files, and reproducible checks win. Verify before relying."
+	return "# UNIFIED MEMORY CONTEXT\n" + warning + "\n\n" + strings.Join(sections, "\n\n")
 }
 
 // removeLineByPrefix removes all lines starting with the given prefix (and the following blank line).
@@ -2067,6 +2053,8 @@ func countTokensWithModelContext(ctx context.Context, text, model string) int {
 // This lets the agent know what integrations are available even when the
 // adaptive tool filter removes some tool schemas to save tokens.
 func buildEnabledToolsOverview(flags *ContextFlags) string {
+	const maxVisibleIntegrations = 12
+
 	skipSet := make(map[string]bool, len(flags.SkipIntegrationTools))
 	for _, t := range flags.SkipIntegrationTools {
 		skipSet[t] = true
@@ -2130,7 +2118,12 @@ func buildEnabledToolsOverview(flags *ContextFlags) string {
 	if len(enabled) == 0 {
 		return ""
 	}
-	return "[ENABLED INTEGRATIONS] " + strings.Join(enabled, ", ") + ". Some may be hidden by adaptive tool filtering — if you need one not in your current tool list, use discover_tools with search or get_tool_info first."
+	visible := enabled
+	if len(enabled) > maxVisibleIntegrations {
+		visible = append([]string(nil), enabled[:maxVisibleIntegrations]...)
+		visible = append(visible, fmt.Sprintf("+%d more via discover_tools", len(enabled)-maxVisibleIntegrations))
+	}
+	return "[ENABLED INTEGRATIONS] " + strings.Join(visible, ", ") + ". Some may be hidden by adaptive tool filtering — if you need one not in your current tool list, use discover_tools with search or get_tool_info first."
 }
 
 func buildSpaceAgentRuntimeContext(flags *ContextFlags) string {

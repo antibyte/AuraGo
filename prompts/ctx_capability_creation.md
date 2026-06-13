@@ -6,41 +6,17 @@ conditions: []
 ---
 # CREATING NEW CAPABILITIES
 
-When asked to build a new tool, integration, or reusable capability:
+Choose the smallest durable capability:
+- Reusable deterministic code, API clients, parsers, scrapers, file/data transforms, structured automation, Vault or Tool Bridge access -> check `list_skills` and `list_skill_templates`, then use `create_skill_from_template`.
+- Reusable agent workflow, checklist, review/debug method, domain guidance, references, templates, or agentskills.io/Codex/Claude-style `SKILL.md` package -> use the Agent Skill Manager/API/UI path; discover with `list_agent_skills`, load with `activate_agent_skill`, run helper scripts with `run_agent_skill_script`.
+- One-off script -> `execute_python`.
+- Scheduled or triggered background work -> `manage_missions`.
+- Long-running process -> `manage_daemon`.
 
-| What you need | Use this | Why |
-|---------------|---------|-----|
-| Reusable Python code (API client, data processing, scraper, etc.) | `create_skill_from_template` | Registered in skill system, vault injection, sandbox managed |
-| Reusable agent workflow or domain guidance (`SKILL.md`, agentskills.io-style package) | Agent Skill Manager/API/UI; discover with `list_agent_skills`, load with `activate_agent_skill` | Package-first guidance with progressive disclosure and security scanning |
-| One-off script for this task only | `execute_python` | No registration overhead |
-| Background automation with scheduling/triggers | `manage_missions` | Cron support, event triggers, persistence |
-| Long-running background process | `manage_daemon` | Survives conversation resets, IPC via `aurago_daemon` SDK |
+Python skills: prefer an existing template; otherwise create `minimal_skill`, edit the generated agent-owned files deliberately, document the change, and verify with `execute_skill`. Do not save reusable Python manually through `execute_python`; it will not be registered or receive vault injection.
 
-**Decision tree:**
-1. **Reusable Python capability** (API call, file conversion, data transform) -> `list_skill_templates` first, then `create_skill_from_template`.
-2. **Reusable agent workflow or guidance** (checklist, review process, domain method, agentskills.io/Codex/Claude-style request) -> create or import an Agent Skill package through the available manager/API/UI path, then verify and enable it only after a clean or warning-approved scan. Do not write runtime folders by hand.
-3. **If no specialized Python template fits** -> create a `minimal_skill`, edit the generated agent-owned `.py`/manifest deliberately, document it, then verify it with `execute_skill`.
-4. **Background automation with cron/triggers** -> `manage_missions`.
-5. **One-off analysis script** -> `execute_python`.
+Agent Skills: package `skill-name/SKILL.md` plus optional `scripts/`, `references/`, `assets/`, and optional `agents/openai.yaml`. `SKILL.md` needs frontmatter `name` and `description`; keep the body short and put long details in `references/`. Create/import through the manager/API/UI, then verify, approve warnings if needed, enable, confirm with `list_agent_skills`, and activate before use. Do not write runtime Agent Skill folders by hand.
 
-Before building any new reusable capability, first check whether a matching Python skill exists with `list_skills` or a matching Agent Skill exists with `list_agent_skills`. Prefer updating or reusing an existing agent-owned skill instead of creating duplicates.
+Tool Bridge: if a Python skill calls AuraGo native tools, declare `internal_tools` in the skill manifest and tell the user to enable `tools.python_tool_bridge.enabled`, whitelist `allowed_tools`, and approve the skill's internal tools in the Web UI. In code, use `AuraGoTools.is_available()`, catch `AuraGoToolError`, and call `tools.call("tool_name", {"param": "value"})`.
 
-For Agent Skills, the safe lifecycle is: package (`SKILL.md` plus optional `scripts/`, `references/`, `assets/`) -> Manager/API/UI create or import -> verify -> approve warning if required -> enable -> confirm with `list_agent_skills` and `activate_agent_skill`. If no safe Manager/API/UI path is available, prepare the package contents for the user instead of writing into `agent_workspace/agent_skills` directly.
-
-## Python Tool Bridge
-
-When a skill needs to invoke native AuraGo tools (e.g. `proxmox`, `docker`, `home_assistant`, `api_request`), you MUST declare `internal_tools` in the skill's `.json` manifest. After creating the skill from a template, edit its manifest and add `"internal_tools": ["tool_name1", "tool_name2"]`. Then inform the user they must:
-
-1. Enable the bridge in config: `tools.python_tool_bridge.enabled: true`.
-2. Whitelist the tools in config: `tools.python_tool_bridge.allowed_tools: [tool_name1, tool_name2]`.
-3. Approve the internal tools for this skill in the Web UI (Skills -> select skill -> Internal Tools).
-
-Inside the skill Python code, use `AuraGoTools.is_available()` before constructing the client, catch `AuraGoToolError`, and call tools as `tools.call("tool_name", {"param": "value"})`.
-
-For full details, read the `skills_engine`, `skill_templates`, and `skill_manifest_spec` manuals via `discover_tools` -> `get_tool_info`.
-
-## What To Never Do
-
-- Write reusable Python via `execute_python` and save it manually to disk; it will not be registered and will not get vault injection. Use `create_skill_from_template` plus deliberate edits to the generated agent-owned skill instead.
-- Create a `mission` for something that should be a reusable skill; missions are for automation, not for code you want to call repeatedly.
-- Bypass `list_skills`/`list_skill_templates` and write custom code from scratch when a template exists.
+For details, use `discover_tools` -> `get_tool_info` for `skills_engine`, `skill_templates`, and `skill_manifest_spec`.
