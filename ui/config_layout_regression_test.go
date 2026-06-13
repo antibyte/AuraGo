@@ -565,6 +565,34 @@ func TestConfigPhase3RemoteControlLLMGuardian(t *testing.T) {
 	}
 }
 
+func TestConfigPhase3AIGateway(t *testing.T) {
+	t.Parallel()
+
+	aiGatewayJS := normalizeAssetText(mustReadUIFile(t, "cfg/ai_gateway.js"))
+	for _, marker := range []string{
+		"adg-status-banner",
+		"aiGatewaySetBanner",
+		"field-grid two-cols",
+		"field-input",
+		"adg-password-input",
+		"cfg-actions-row",
+		"adg-test-btn",
+		"adg-test-result",
+		"/api/ai-gateway/test",
+		"aiGatewayTestConnection",
+	} {
+		if !strings.Contains(aiGatewayJS, marker) {
+			t.Fatalf("ai_gateway.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(aiGatewayJS, "cfg-input") || strings.Contains(aiGatewayJS, "ai-gw-grid") {
+		t.Fatal("ai_gateway.js should use field-grid and field-input instead of legacy ai-gw patterns")
+	}
+	if strings.Contains(aiGatewayJS, "is-neutral") {
+		t.Fatal("ai_gateway.js should not use nonexistent is-neutral banner state")
+	}
+}
+
 func TestConfigManifestDograhAvoidEmbeddedFallbackTables(t *testing.T) {
 	t.Parallel()
 

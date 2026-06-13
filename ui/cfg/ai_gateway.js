@@ -37,28 +37,28 @@ function renderAIGatewaySection(section) {
     html += '<div class="field-group-title">⚙️ ' + t('config.ai_gateway.settings_title') + '</div>';
     html += '<div class="field-group-desc">' + t('config.ai_gateway.settings_desc') + '</div>';
 
-    html += '<div class="ai-gw-grid">';
+    html += '<div class="field-grid two-cols">';
 
-    html += '<label class="ai-gw-label">';
-    html += '<span class="ai-gw-label-text">' + t('config.ai_gateway.account_id') + '</span>';
-    html += '<span class="field-help">' + t('help.ai_gateway.account_id') + '</span>';
-    html += '<input class="cfg-input ai-gw-input-spaced" data-path="ai_gateway.account_id" value="' + escapeAttr(gw.account_id || '') + '" placeholder="' + escapeAttr(t('config.ai_gateway.account_id_placeholder')) + '">';
-    html += '</label>';
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.ai_gateway.account_id') + '</div>';
+    html += '<div class="field-help">' + t('help.ai_gateway.account_id') + '</div>';
+    html += '<input class="field-input" data-path="ai_gateway.account_id" value="' + escapeAttr(gw.account_id || '') + '" placeholder="' + escapeAttr(t('config.ai_gateway.account_id_placeholder')) + '">';
+    html += '</div>';
 
-    html += '<label class="ai-gw-label">';
-    html += '<span class="ai-gw-label-text">' + t('config.ai_gateway.gateway_id') + '</span>';
-    html += '<span class="field-help">' + t('help.ai_gateway.gateway_id') + '</span>';
-    html += '<input class="cfg-input ai-gw-input-spaced" data-path="ai_gateway.gateway_id" value="' + escapeAttr(gw.gateway_id || '') + '" placeholder="' + escapeAttr(t('config.ai_gateway.gateway_id_placeholder')) + '">';
-    html += '</label>';
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.ai_gateway.gateway_id') + '</div>';
+    html += '<div class="field-help">' + t('help.ai_gateway.gateway_id') + '</div>';
+    html += '<input class="field-input" data-path="ai_gateway.gateway_id" value="' + escapeAttr(gw.gateway_id || '') + '" placeholder="' + escapeAttr(t('config.ai_gateway.gateway_id_placeholder')) + '">';
+    html += '</div>';
 
-    html += '<label class="ai-gw-label">';
-    html += '<span class="ai-gw-label-text">' + t('config.ai_gateway.token') + '</span>';
-    html += '<span class="field-help">' + t('help.ai_gateway.token') + '</span>';
-    html += '<div class="password-wrap">';
-    html += '<input class="cfg-input ai-gw-input-spaced" type="password" data-path="ai_gateway.token" value="' + escapeAttr(cfgSecretValue(gw.token)) + '" placeholder="' + escapeAttr(tokenPlaceholder) + '" autocomplete="off">';
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.ai_gateway.token') + '</div>';
+    html += '<div class="field-help">' + t('help.ai_gateway.token') + '</div>';
+    html += '<div class="password-wrap cfg-password-input">';
+    html += '<input class="field-input adg-password-input" type="password" data-path="ai_gateway.token" value="' + escapeAttr(cfgSecretValue(gw.token)) + '" placeholder="' + escapeAttr(tokenPlaceholder) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
-    html += '</label>';
+    html += '</div>';
 
     html += '</div>';
     html += '</div>';
@@ -75,25 +75,24 @@ function renderAIGatewaySection(section) {
     if (enabled) {
         aiGatewayCheckStatus();
     } else {
-        aiGatewaySetBanner('neutral', '⚪ ' + t('config.ai_gateway.status_disabled'));
+        aiGatewaySetBanner('', '⚪ ' + t('config.ai_gateway.status_disabled'));
     }
 }
 
 function aiGatewaySetBanner(state, text) {
     const banner = document.getElementById('ai-gw-status-banner');
     if (!banner) return;
-    banner.className = 'adg-status-banner';
-    if (state) banner.classList.add('is-' + state);
+    banner.className = 'adg-status-banner' + (state ? ' is-' + state : '');
     banner.textContent = text;
 }
 
 function aiGatewayCheckStatus() {
-    aiGatewaySetBanner('neutral', t('config.ai_gateway.checking'));
+    aiGatewaySetBanner('', t('config.ai_gateway.checking'));
     fetch('/api/ai-gateway/status')
         .then(r => r.json())
         .then(res => {
             if (res.status === 'disabled') {
-                aiGatewaySetBanner('neutral', '⚪ ' + t('config.ai_gateway.status_disabled'));
+                aiGatewaySetBanner('', '⚪ ' + t('config.ai_gateway.status_disabled'));
                 return;
             }
             if (res.status === 'no_credentials') {
