@@ -69,6 +69,9 @@ type systemPromptCacheKey struct {
 	SpaceAgentPublicURL      string   `json:"space_agent_public_url"`
 	ToolsDir                 string   `json:"tools_dir"`
 	SkillsDir                string   `json:"skills_dir"`
+	CapabilityCreationIntent bool     `json:"capability_creation_intent"`
+	DaemonSkillsIntent       bool     `json:"daemon_skills_intent"`
+	LifeboatIntent           bool     `json:"lifeboat_intent"`
 	Model                    string   `json:"model"`
 	IsTextModeModel          bool     `json:"is_text_mode_model"`
 	PersonalityLine          string   `json:"personality_line"`
@@ -142,6 +145,9 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		SpaceAgentPublicURL:      flags.SpaceAgentPublicURL,
 		ToolsDir:                 flags.ToolsDir,
 		SkillsDir:                flags.SkillsDir,
+		CapabilityCreationIntent: flags.CapabilityCreationIntent,
+		DaemonSkillsIntent:       flags.DaemonSkillsIntent,
+		LifeboatIntent:           flags.LifeboatIntent,
 		Model:                    flags.Model,
 		IsTextModeModel:          flags.IsTextModeModel,
 		PersonalityLine:          flags.PersonalityLine,
@@ -561,6 +567,15 @@ func collectFeatureToggles(flags *prompts.ContextFlags) []string {
 	}
 	if flags.LifeboatEnabled {
 		toggles = append(toggles, "lifeboat")
+	}
+	if flags.LifeboatIntent {
+		toggles = append(toggles, "lifeboat_intent")
+	}
+	if flags.CapabilityCreationIntent {
+		toggles = append(toggles, "capability_creation_intent")
+	}
+	if flags.DaemonSkillsIntent {
+		toggles = append(toggles, "daemon_skills_intent")
 	}
 	if flags.MemoryEnabled {
 		toggles = append(toggles, "memory")

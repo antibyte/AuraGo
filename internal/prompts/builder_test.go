@@ -97,6 +97,53 @@ func TestAggressiveCoreSystemPromptStaysUnderBudget(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptGatesCapabilityDaemonAndLifeboatModules(t *testing.T) {
+	basePrompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), &ContextFlags{
+		Tier:               "full",
+		SystemLanguage:     "en",
+		TokenBudget:        200000,
+		NativeToolsEnabled: true,
+	}, "", slog.Default())
+	for _, blocked := range []string{"# CREATING NEW CAPABILITIES", "# DAEMON SKILLS", "# LIFEBOAT HANDOVER"} {
+		if strings.Contains(basePrompt, blocked) {
+			t.Fatalf("base prompt unexpectedly contains %s", blocked)
+		}
+	}
+
+	capabilityPrompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), &ContextFlags{
+		Tier:                     "full",
+		SystemLanguage:           "en",
+		TokenBudget:              200000,
+		NativeToolsEnabled:       true,
+		CapabilityCreationIntent: true,
+	}, "", slog.Default())
+	if !strings.Contains(capabilityPrompt, "# CREATING NEW CAPABILITIES") {
+		t.Fatal("capability creation intent did not load capability module")
+	}
+
+	daemonPrompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), &ContextFlags{
+		Tier:               "full",
+		SystemLanguage:     "en",
+		TokenBudget:        200000,
+		NativeToolsEnabled: true,
+		DaemonSkillsIntent: true,
+	}, "", slog.Default())
+	if !strings.Contains(daemonPrompt, "# DAEMON SKILLS") {
+		t.Fatal("daemon skills intent did not load daemon module")
+	}
+
+	lifeboatPrompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), &ContextFlags{
+		Tier:               "full",
+		SystemLanguage:     "en",
+		TokenBudget:        200000,
+		NativeToolsEnabled: true,
+		IsMaintenanceMode:  true,
+	}, "", slog.Default())
+	if !strings.Contains(lifeboatPrompt, "# LIFEBOAT HANDOVER") {
+		t.Fatal("maintenance mode did not load lifeboat module")
+	}
+}
+
 func TestCorePersonalityPromptStripsFrontmatterAndCapsBody(t *testing.T) {
 	ClearPromptCache()
 	dir := t.TempDir()
@@ -1905,6 +1952,9 @@ func TestPromptConditionsCoverEmbeddedFrontmatter(t *testing.T) {
 		"is_error":                   func() *ContextFlags { return &ContextFlags{IsErrorState: true} },
 		"koofr_enabled":              func() *ContextFlags { return &ContextFlags{KoofrEnabled: true} },
 		"lifeboat":                   func() *ContextFlags { return &ContextFlags{LifeboatEnabled: true} },
+		"lifeboat_intent":            func() *ContextFlags { return &ContextFlags{LifeboatIntent: true} },
+		"capability_creation_intent": func() *ContextFlags { return &ContextFlags{CapabilityCreationIntent: true} },
+		"daemon_skills_intent":       func() *ContextFlags { return &ContextFlags{DaemonSkillsIntent: true} },
 		"main_agent":                 func() *ContextFlags { return &ContextFlags{} },
 		"maintenance":                func() *ContextFlags { return &ContextFlags{IsMaintenanceMode: true} },
 		"mcp_enabled":                func() *ContextFlags { return &ContextFlags{MCPEnabled: true} },

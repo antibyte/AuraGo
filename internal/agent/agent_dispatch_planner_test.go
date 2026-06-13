@@ -167,6 +167,16 @@ func TestOperationalIssueReminderTextOnlyOnDirectFirstContact(t *testing.T) {
 		t.Fatalf("repeated operational reminder = %q, want empty after first turn", repeated)
 	}
 
+	newSession := operationalIssueReminderText(runCfg, "Neue Sitzung", true, slog.Default())
+	if !strings.Contains(newSession, "Maintenance agent loop failed") {
+		t.Fatalf("new session operational reminder = %q, want issue despite daily claim", newSession)
+	}
+
+	relevant := operationalIssueReminderText(runCfg, "debug maintenance failed", false, slog.Default())
+	if !strings.Contains(relevant, "Maintenance agent loop failed") {
+		t.Fatalf("relevant operational reminder = %q, want issue despite repeated contact", relevant)
+	}
+
 	blocked := operationalIssueReminderText(RunConfig{PlannerDB: db, MessageSource: "mission", IsMission: true}, "hello", true, slog.Default())
 	if blocked != "" {
 		t.Fatalf("mission operational reminder = %q, want empty", blocked)

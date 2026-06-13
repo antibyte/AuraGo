@@ -242,6 +242,9 @@ type ContextFlags struct {
 	ToolsDir                 string // absolute path to agent_workspace/tools/ for custom tool scripts
 	SkillsDir                string // absolute path to agent_workspace/skills/ for skill plugins
 	AgentSkillsCatalog       string // enabled Agent Skill names/descriptions; full SKILL.md loads via activate_agent_skill
+	CapabilityCreationIntent bool   // current turn needs capability/skill/tool creation guidance
+	DaemonSkillsIntent       bool   // current turn needs daemon skill guidance
+	LifeboatIntent           bool   // current turn needs lifeboat handover guidance outside maintenance mode
 	UnifiedMemoryBlock       bool   // experimental: merge retrieval/activity/KG context into one prompt section
 	Model                    string // model identifier for token-counting accuracy
 	// SkipIntegrationTools lists tool names to exclude from the [ENABLED INTEGRATIONS]

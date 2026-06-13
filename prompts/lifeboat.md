@@ -2,7 +2,7 @@
 id: "lifeboat_instructions"
 tags: ["conditional"]
 priority: 40
-conditions: ["lifeboat"]
+conditions: ["maintenance", "lifeboat_intent"]
 ---
 # LIFEBOAT HANDOVER
 

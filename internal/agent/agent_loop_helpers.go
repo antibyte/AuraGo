@@ -1573,6 +1573,12 @@ func applyRuntimePromptContextPolicy(flags *prompts.ContextFlags, opts runtimePr
 	if flags == nil {
 		return
 	}
+	flags.CapabilityCreationIntent = flags.CapabilityCreationIntent || shouldInjectCapabilityCreationPrompt(opts.UserText, opts.RecentTools, opts.SessionUsedTools)
+	flags.DaemonSkillsIntent = flags.DaemonSkillsIntent || shouldInjectDaemonSkillsPrompt(opts.UserText, opts.RecentTools, opts.SessionUsedTools)
+	flags.LifeboatIntent = flags.LifeboatIntent || flags.IsMaintenanceMode || (flags.LifeboatEnabled && shouldInjectLifeboatPrompt(opts.UserText, opts.RecentTools, opts.SessionUsedTools))
+	if flags.InternetExposed && !shouldInjectInternetExposureWarning(opts.UserText, opts.RecentTools, opts.SessionUsedTools, flags) {
+		flags.InternetExposed = false
+	}
 	if !shouldInjectReachableChatChannelsContext(opts.UserText, opts.MessageSource, opts.RecentTools, opts.SessionUsedTools) {
 		flags.ChatChannelsContext = ""
 	}
@@ -1587,10 +1593,105 @@ func applyRuntimePromptContextPolicy(flags *prompts.ContextFlags, opts runtimePr
 	if !shouldInjectReuseLookupPrompt(opts.UserText, opts.ReuseLookup) {
 		flags.ReuseContext = ""
 	}
-	if !shouldInjectOperationalIssueReminderForTurn(opts.UserText, flags.OperationalIssueReminder, opts.DebugOrError) {
-		flags.OperationalIssueReminder = ""
-	}
 	applyRuntimePromptContextBudgets(flags)
+}
+
+func shouldInjectCapabilityCreationPrompt(userText string, recentTools []string, sessionUsed map[string]bool) bool {
+	text := normalizeAdaptiveIntentText(userText)
+	cues := []string{
+		"create skill", "erstelle skill", "python skill", "agent skill", "agent-skill",
+		"skill.md", "skill md", "agentskills", "agentskills io", "codex skill", "claude skill", "skill package",
+		"create tool", "erstelle tool", "new tool", "neues tool", "tool bridge",
+		"internal_tools", "list_skill_templates", "create_skill_from_template",
+		"reusable capability", "wiederverwendbare f higkeit", "wiederverwendbare faehigkeit",
+		"capability", "template", "skill template",
+	}
+	if containsAnyRuntimeCue(text, cues) {
+		return true
+	}
+	for _, tool := range recentTools {
+		if isCapabilityCreationTool(tool) {
+			return true
+		}
+	}
+	for tool := range sessionUsed {
+		if isCapabilityCreationTool(tool) {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldInjectDaemonSkillsPrompt(userText string, recentTools []string, sessionUsed map[string]bool) bool {
+	text := normalizeAdaptiveIntentText(userText)
+	cues := []string{
+		"daemon", "daemon skill", "daemon skills", "manage_daemon", "long-running",
+		"long running", "background watcher", "background listener", "background monitor",
+		"watcher", "listener", "monitor daemon", "dauerhaft", "hintergrunddienst",
+		"hintergrund watcher", "hintergrund monitor", "wake_agent",
+	}
+	if containsAnyRuntimeCue(text, cues) {
+		return true
+	}
+	for _, tool := range recentTools {
+		if isDaemonSkillTool(tool) {
+			return true
+		}
+	}
+	for tool := range sessionUsed {
+		if isDaemonSkillTool(tool) {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldInjectLifeboatPrompt(userText string, recentTools []string, sessionUsed map[string]bool) bool {
+	text := normalizeAdaptiveIntentText(userText)
+	cues := []string{
+		"lifeboat", "life boat", "rettungsboot", "maintenance handover",
+		"initiate_handover", "execute_surgery", "exit_lifeboat", "self update",
+		"self-update", "supervisor rebuild", "rebuild supervisor", "wartungsmodus",
+	}
+	if containsAnyRuntimeCue(text, cues) {
+		return true
+	}
+	for _, tool := range recentTools {
+		if isLifeboatTool(tool) {
+			return true
+		}
+	}
+	for tool := range sessionUsed {
+		if isLifeboatTool(tool) {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldInjectInternetExposureWarning(userText string, recentTools []string, sessionUsed map[string]bool, flags *prompts.ContextFlags) bool {
+	text := normalizeAdaptiveIntentText(userText)
+	cues := []string{
+		"homepage", "web deploy", "website", "deploy", "deployment", "caddy",
+		"reverse proxy", "reverse-proxy", "public url", "publicly", "internet",
+		"expose", "exposed", "domain", "https", "tls", "port", "ports",
+		"docker", "container", "network", "netzwerk", "tailscale", "cloudflare",
+		"tunnel", "web capture", "screenshot url", "scrape", "crawler",
+	}
+	if containsAnyRuntimeCue(text, cues) {
+		return true
+	}
+	for _, tool := range recentTools {
+		if isInternetExposureTool(tool) {
+			return true
+		}
+	}
+	for tool := range sessionUsed {
+		if isInternetExposureTool(tool) {
+			return true
+		}
+	}
+	return false
 }
 
 func applyRuntimePromptContextBudgets(flags *prompts.ContextFlags) {
@@ -1691,6 +1792,50 @@ func isChatChannelTool(name string) bool {
 	cues := []string{
 		"telegram", "discord", "ntfy", "pushover", "sms", "rocketchat", "rocket_chat",
 		"send_notification", "send_message", "send_sms", "send_image", "send_video",
+	}
+	return containsAnyRuntimeCue(name, cues)
+}
+
+func isCapabilityCreationTool(name string) bool {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		return false
+	}
+	cues := []string{
+		"create_skill_from_template", "list_skill_templates", "skills_engine",
+		"execute_skill", "list_agent_skills", "activate_agent_skill",
+		"run_agent_skill_script", "run_tool", "tool_bridge",
+	}
+	return containsAnyRuntimeCue(name, cues)
+}
+
+func isDaemonSkillTool(name string) bool {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		return false
+	}
+	return strings.Contains(name, "daemon") || strings.EqualFold(name, "manage_daemon")
+}
+
+func isLifeboatTool(name string) bool {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		return false
+	}
+	cues := []string{"lifeboat", "initiate_handover", "execute_surgery", "exit_lifeboat", "optimize_memory"}
+	return containsAnyRuntimeCue(name, cues)
+}
+
+func isInternetExposureTool(name string) bool {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		return false
+	}
+	cues := []string{
+		"homepage", "docker", "container", "network", "network_ping", "network_scan",
+		"upnp", "fritzbox", "tailscale", "cloudflare", "tunnel", "web_capture",
+		"web_scraper", "browser_automation", "api_request", "http", "netlify",
+		"vercel", "s3", "caddy",
 	}
 	return containsAnyRuntimeCue(name, cues)
 }

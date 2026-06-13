@@ -30,3 +30,30 @@ func TestMessageText_MultiContentTextAndImage(t *testing.T) {
 		t.Fatalf("expected %q, got %q", "hello\n[image]", got)
 	}
 }
+
+func TestMessageText_DoesNotMergeReasoningIntoContent(t *testing.T) {
+	msg := openai.ChatCompletionMessage{
+		Role:             openai.ChatMessageRoleAssistant,
+		Content:          "visible answer",
+		ReasoningContent: "hidden chain",
+	}
+	if got := messageText(msg); got != "visible answer" {
+		t.Fatalf("messageText = %q, want content only", got)
+	}
+	if got := messageTextWithReasoningForAccounting(msg); got != "visible answer\nhidden chain" {
+		t.Fatalf("messageTextWithReasoningForAccounting = %q, want content plus reasoning", got)
+	}
+}
+
+func TestMessageText_ReasoningOnlyIsNotVisibleContent(t *testing.T) {
+	msg := openai.ChatCompletionMessage{
+		Role:             openai.ChatMessageRoleAssistant,
+		ReasoningContent: "hidden chain",
+	}
+	if got := messageText(msg); got != "" {
+		t.Fatalf("messageText = %q, want empty for reasoning-only message", got)
+	}
+	if got := messageTextWithReasoningForAccounting(msg); got != "hidden chain" {
+		t.Fatalf("messageTextWithReasoningForAccounting = %q, want reasoning for accounting", got)
+	}
+}

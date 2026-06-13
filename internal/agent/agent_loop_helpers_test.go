@@ -266,6 +266,88 @@ func TestRuntimePromptContextIntentGates(t *testing.T) {
 	}
 }
 
+func TestRuntimePromptContextCapabilityDaemonAndInternetGates(t *testing.T) {
+	if shouldInjectCapabilityCreationPrompt("pruefe den prompt", nil, nil) {
+		t.Fatal("did not expect capability creation prompt for ordinary prompt review")
+	}
+	if !shouldInjectCapabilityCreationPrompt("erstelle einen Python Skill fuer CSV Import", nil, nil) {
+		t.Fatal("expected capability creation prompt for Python skill intent")
+	}
+	if !shouldInjectCapabilityCreationPrompt("weiter", []string{"create_skill_from_template"}, nil) {
+		t.Fatal("expected capability creation prompt after recent skill template usage")
+	}
+
+	if shouldInjectDaemonSkillsPrompt("analysiere den log", nil, nil) {
+		t.Fatal("did not expect daemon skills prompt for ordinary log analysis")
+	}
+	if !shouldInjectDaemonSkillsPrompt("erstelle einen background watcher daemon", nil, nil) {
+		t.Fatal("expected daemon skills prompt for daemon watcher intent")
+	}
+	if !shouldInjectDaemonSkillsPrompt("status", []string{"manage_daemon"}, nil) {
+		t.Fatal("expected daemon skills prompt after recent daemon tool usage")
+	}
+
+	flags := &prompts.ContextFlags{InternetExposed: true}
+	if shouldInjectInternetExposureWarning("bewerte den prompt", nil, nil, flags) {
+		t.Fatal("did not expect internet warning for ordinary prompt review")
+	}
+	if !shouldInjectInternetExposureWarning("deploy die homepage im caddy container", nil, nil, flags) {
+		t.Fatal("expected internet warning for deployment/network intent")
+	}
+	if !shouldInjectInternetExposureWarning("weiter", []string{"network_scan"}, nil, flags) {
+		t.Fatal("expected internet warning after recent network tool usage")
+	}
+}
+
+func TestRuntimePromptContextIgnoresReasoningForIntentGates(t *testing.T) {
+	messages := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleUser, Content: "bitte normal pruefen"},
+		{Role: openai.ChatMessageRoleAssistant, ReasoningContent: "maybe create a daemon skill and expose public https"},
+	}
+	userText := collectRecentUserIntentText(messages, 4, 800)
+	if strings.Contains(userText, "daemon") || strings.Contains(userText, "https") {
+		t.Fatalf("recent user intent leaked reasoning content: %q", userText)
+	}
+	if shouldInjectDaemonSkillsPrompt(userText, nil, nil) {
+		t.Fatal("reasoning-only daemon text must not trigger daemon prompt")
+	}
+	if shouldInjectInternetExposureWarning(userText, nil, nil, &prompts.ContextFlags{InternetExposed: true}) {
+		t.Fatal("reasoning-only https text must not trigger internet warning")
+	}
+}
+
+func TestApplyRuntimePromptContextPolicySetsIntentFlagsAndGatesInternetWarning(t *testing.T) {
+	flags := &prompts.ContextFlags{
+		InternetExposed: true,
+		LifeboatEnabled: true,
+	}
+	applyRuntimePromptContextPolicy(flags, runtimePromptContextOptions{
+		UserText: "erstelle einen Python Skill",
+	})
+	if !flags.CapabilityCreationIntent {
+		t.Fatal("expected capability creation intent flag")
+	}
+	if flags.InternetExposed {
+		t.Fatal("ordinary skill creation should clear internet exposure warning")
+	}
+
+	flags = &prompts.ContextFlags{InternetExposed: true}
+	applyRuntimePromptContextPolicy(flags, runtimePromptContextOptions{
+		UserText: "deploy die homepage im docker container",
+	})
+	if !flags.InternetExposed {
+		t.Fatal("network/deployment intent should keep internet exposure warning")
+	}
+
+	flags = &prompts.ContextFlags{LifeboatEnabled: true}
+	applyRuntimePromptContextPolicy(flags, runtimePromptContextOptions{
+		UserText: "initiate lifeboat handover",
+	})
+	if !flags.LifeboatIntent {
+		t.Fatal("expected lifeboat intent flag")
+	}
+}
+
 func TestApplyRuntimePromptContextBudgetsCapsOperationalAndTaskRules(t *testing.T) {
 	flags := &prompts.ContextFlags{
 		OperationalIssueReminder: strings.Repeat("issue ", 300),

@@ -1100,7 +1100,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			// before the potentially slow synchronous LLM call inside CompressHistory.
 			compressionTokens := 0
 			for _, m := range req.Messages {
-				compressionTokens += tokenCache.Count(messageText(m), req.Model) + 4
+				compressionTokens += tokenCache.Count(messageTextWithReasoningForAccounting(m), req.Model) + 4
 			}
 			compressionThreshold := int(float64(maxHistoryTokens) * compressionThresholdPct)
 			if compressionTokens > compressionThreshold {
@@ -1120,7 +1120,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		totalMsgTokens := compRes.TotalTokens
 		if totalMsgTokens == 0 && len(req.Messages) > 1 {
 			for _, m := range req.Messages {
-				totalMsgTokens += prompts.CountTokensForModel(messageText(m), req.Model) + 4
+				totalMsgTokens += prompts.CountTokensForModel(messageTextWithReasoningForAccounting(m), req.Model) + 4
 			}
 		} else {
 			// compRes.TotalTokens excludes system prompt — add it back
@@ -1171,7 +1171,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					dropped := mid[0]
 					droppedMessages = append(droppedMessages, dropped)
 					mid = mid[1:]
-					totalMsgTokens -= prompts.CountTokensForModel(messageText(dropped), req.Model) + 4
+					totalMsgTokens -= prompts.CountTokensForModel(messageTextWithReasoningForAccounting(dropped), req.Model) + 4
 				}
 				req.Messages = append([]openai.ChatCompletionMessage{req.Messages[0]}, append(mid, req.Messages[len(req.Messages)-1])...)
 			}

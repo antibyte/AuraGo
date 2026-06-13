@@ -581,6 +581,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		ChatChannelsContext:      buildReachableChatChannelsContext(runCfg),
 		ToolsDir:                 "",
 		SkillsDir:                "",
+		LifeboatIntent:           opts.IsMaintenanceMode,
 		UnifiedMemoryBlock:       state.UnifiedMemoryBlock,
 		SpecialistsAvailable:     false,
 		SpecialistsStatus:        "",

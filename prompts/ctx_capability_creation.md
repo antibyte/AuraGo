@@ -1,8 +1,8 @@
 ---
 id: "capability_creation"
-tags: ["core", "mandatory"]
+tags: ["conditional"]
 priority: 11
-conditions: []
+conditions: ["capability_creation_intent"]
 ---
 # CREATING NEW CAPABILITIES
 
