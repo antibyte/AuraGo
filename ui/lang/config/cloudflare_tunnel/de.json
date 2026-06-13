@@ -43,5 +43,10 @@
   "config.cloudflare_tunnel.general_title": "Allgemein",
   "config.cloudflare_tunnel.general_desc": "Aktivieren Sie den Tunnel und konfigurieren Sie die Grundeinstellungen.",
   "config.cloudflare_tunnel.connection_title": "Verbindung",
-  "config.cloudflare_tunnel.connection_desc": "Tunnel-Verbindungs- und Authentifizierungseinstellungen konfigurieren."
+  "config.cloudflare_tunnel.connection_desc": "Tunnel-Verbindungs- und Authentifizierungseinstellungen konfigurieren.",
+  "config.cloudflare_tunnel.checking": "Verbindung wird geprüft…",
+  "config.cloudflare_tunnel.status_disabled": "Cloudflare Tunnel ist deaktiviert",
+  "config.cloudflare_tunnel.status_running": "Tunnel läuft",
+  "config.cloudflare_tunnel.status_stopped": "Tunnel läuft nicht",
+  "config.cloudflare_tunnel.status_error": "Tunnelstatus konnte nicht geladen werden"
 }

@@ -75,5 +75,17 @@
   "config.webdav.token_save_failed": "Impossible d’enregistrer le jeton Bearer WebDAV dans le Vault.",
   "config.webdav.token_saved": "Le jeton Bearer WebDAV a été enregistré dans le Vault.",
   "config.webdav.url_label": "URL WebDAV",
-  "config.webdav.username_label": "Nom d’utilisateur"
+  "config.webdav.username_label": "Nom d’utilisateur",
+  "config.webdav.checking": "Vérification de la connexion…",
+  "config.webdav.loading": "Test en cours…",
+  "config.webdav.connection_failed": "Échec de la connexion",
+  "config.webdav.test_btn": "Tester la connexion",
+  "config.webdav.test_ok": "Connexion réussie",
+  "config.webdav.test_fail": "Échec de la connexion",
+  "config.webdav.status_disabled": "L'intégration WebDAV est désactivée",
+  "config.webdav.status_no_url": "Aucune URL WebDAV configurée",
+  "config.webdav.status_no_credentials": "Identifiants WebDAV manquants",
+  "config.webdav.status_ok": "Connecté à WebDAV",
+  "config.webdav.status_success": "✅",
+  "config.webdav.status_error": "❌"
 }

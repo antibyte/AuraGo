@@ -473,5 +473,11 @@
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Catalogo externo de integraciones y fuente de herramientas para el agente",
   "config.section.virtual_desktop.label": "Escritorio virtual",
-  "config.section.virtual_desktop.desc": "Escritorio en el navegador con apps, archivos y widgets controlados por el agente."
+  "config.section.virtual_desktop.desc": "Escritorio en el navegador con apps, archivos y widgets controlados por el agente.",
+  "config.github.test_btn": "Probar conexión",
+  "config.github.test_ok": "Conexión correcta",
+  "config.github.test_fail": "Conexión fallida",
+  "config.github.loading": "Probando…",
+  "config.github.status_success": "✅",
+  "config.github.status_error": "❌"
 }

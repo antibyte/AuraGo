@@ -473,5 +473,11 @@
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Agent muke no gaibu renkei catalog to tool source",
   "config.section.virtual_desktop.label": "仮想デスクトップ",
-  "config.section.virtual_desktop.desc": "エージェントがアプリ、ファイル、ウィジェットを制御できるブラウザーデスクトップ。"
+  "config.section.virtual_desktop.desc": "エージェントがアプリ、ファイル、ウィジェットを制御できるブラウザーデスクトップ。",
+  "config.github.test_btn": "接続をテスト",
+  "config.github.test_ok": "接続に成功しました",
+  "config.github.test_fail": "接続に失敗しました",
+  "config.github.loading": "テスト中…",
+  "config.github.status_success": "✅",
+  "config.github.status_error": "❌"
 }

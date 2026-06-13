@@ -9,7 +9,8 @@ async function renderCloudflareTunnelSection(section) {
 
     let html = `<div class="cfg-section active">
         <div class="section-header">${section.icon} ${section.label}</div>
-        <div class="section-desc">${section.desc}</div>`;
+        <div class="section-desc">${section.desc}</div>
+        <div id="cf-tunnel-status-banner" class="adg-status-banner">${t('config.cloudflare_tunnel.checking')}</div>`;
 
     html += `<div class="wh-notice cft-notice-info">
         <span>🔒</span>
@@ -176,6 +177,38 @@ async function renderCloudflareTunnelSection(section) {
 
     html += `</div>`;
     document.getElementById('content').innerHTML = html;
+    cloudflareTunnelCheckStatus();
+}
+
+function cloudflareTunnelSetBanner(state, text) {
+    const banner = document.getElementById('cf-tunnel-status-banner');
+    if (!banner) return;
+    banner.className = 'adg-status-banner';
+    if (state) banner.classList.add('is-' + state);
+    banner.textContent = text;
+}
+
+function cloudflareTunnelCheckStatus() {
+    cloudflareTunnelSetBanner('neutral', t('config.cloudflare_tunnel.checking'));
+    fetch('/api/cloudflare-tunnel/status')
+        .then(r => r.json())
+        .then(res => {
+            if (!res.enabled) {
+                cloudflareTunnelSetBanner('neutral', '⚪ ' + t('config.cloudflare_tunnel.status_disabled'));
+                return;
+            }
+            let tunnel = res.tunnel || {};
+            if (typeof tunnel === 'string') {
+                try { tunnel = JSON.parse(tunnel); } catch (_) { tunnel = {}; }
+            }
+            const running = tunnel.running === true;
+            if (running) {
+                cloudflareTunnelSetBanner('success', '🟢 ' + t('config.cloudflare_tunnel.status_running'));
+                return;
+            }
+            cloudflareTunnelSetBanner('warning', '🟡 ' + (tunnel.message || t('config.cloudflare_tunnel.status_stopped')));
+        })
+        .catch(() => cloudflareTunnelSetBanner('danger', '🔴 ' + t('config.cloudflare_tunnel.status_error')));
 }
 
 function cloudflareTunnelToggleLoopback(el) {

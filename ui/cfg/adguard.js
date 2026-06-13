@@ -5,80 +5,38 @@ function renderAdGuardSection(section) {
     const enabledOn = data.enabled === true;
     const readonlyOn = data.readonly === true;
     const passwordPlaceholder = cfgSecretPlaceholder(data.password, t('config.adguard.password_placeholder'));
+    const form = window.AuraConfigForm;
 
-    let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
-    html += '<div class="section-desc">' + section.desc + '</div>';
-
-    // ── Connection status banner ──
-    html += '<div id="adg-status-banner" class="adg-status-banner">' + t('config.adguard.checking') + '</div>';
-
-    // ── Enabled toggle ──
-    const helpEnabled = t('help.adguard.enabled');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.adguard.enabled_label') + '</div>';
-    if (helpEnabled) html += '<div class="field-help">' + helpEnabled + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (enabledOn ? ' on' : '') + '" data-path="adguard.enabled" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (enabledOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    // ── Read-only toggle ──
-    const helpReadonly = t('help.adguard.readonly');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.adguard.readonly_label') + '</div>';
-    if (helpReadonly) html += '<div class="field-help">' + helpReadonly + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (readonlyOn ? ' on' : '') + '" data-path="adguard.readonly" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (readonlyOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    // ── URL ──
-    const helpURL = t('help.adguard.url');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.adguard.url_label') + '</div>';
-    if (helpURL) html += '<div class="field-help">' + helpURL + '</div>';
-    html += '<input class="field-input" type="text" data-path="adguard.url" value="' + escapeAttr(data.url || '') + '" placeholder="http://192.168.1.1:3000">';
-    html += '</div>';
-
-    // ── Username ──
-    const helpUser = t('help.adguard.username');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.adguard.username_label') + '</div>';
-    if (helpUser) html += '<div class="field-help">' + helpUser + '</div>';
-    html += '<input class="field-input" type="text" data-path="adguard.username" value="' + escapeAttr(data.username || '') + '" placeholder="admin">';
-    html += '</div>';
-
-    // ── Password (vault) ──
-    const helpPass = t('help.adguard.password');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.adguard.password_label') + '</div>';
-    if (helpPass) html += '<div class="field-help">' + helpPass + '</div>';
-    html += '<div class="adg-password-row">';
-        html += '<div class="password-wrap" style="flex:1;">';
-        html += '<input class="field-input adg-password-input" type="password" id="adg-password" value="' + escapeAttr(cfgSecretValue(data.password)) + '" placeholder="' + escapeAttr(passwordPlaceholder) + '">';
-        html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
-        html += '</div>';
-    html += '<button class="btn-save adg-save-btn" onclick="adgSavePassword()">' + t('config.adguard.save_icon') + ' ' + t('config.adguard.save_vault') + '</button>';
-    html += '</div></div>';
-
-    // ── Test connection button ──
-    html += '<div class="field-group">';
-    html += '<button class="btn-save adg-test-btn" onclick="adgTestConnection()" id="adg-test-btn">🔌 ' + t('config.adguard.test_btn') + '</button>';
-    html += '<span id="adg-test-result" class="adg-test-result"></span>';
-    html += '</div>';
-
-    // ── Quick stats (populated when connected) ──
-    html += '<div id="adg-quick-stats" class="adg-quick-stats is-hidden">';
-    html += '<div class="adg-stats-title">📊 ' + t('config.adguard.stats_title') + '</div>';
-    html += '<div id="adg-stats-content" class="adg-stats-grid"></div>';
-    html += '</div>';
-
-    html += '</div>';
+    const html = form.renderSpec({
+        icon: section.icon,
+        label: section.label,
+        desc: section.desc,
+        beforeHTML: '<div id="adg-status-banner" class="adg-status-banner">' + t('config.adguard.checking') + '</div>',
+        fields: [
+            form.toggle({ label: t('config.adguard.enabled_label'), help: t('help.adguard.enabled'), path: 'adguard.enabled', value: enabledOn }),
+            form.toggle({ label: t('config.adguard.readonly_label'), help: t('help.adguard.readonly'), path: 'adguard.readonly', value: readonlyOn }),
+            form.field({ label: t('config.adguard.url_label'), help: t('help.adguard.url'), path: 'adguard.url', value: data.url || '', placeholder: 'http://192.168.1.1:3000' }),
+            form.field({ label: t('config.adguard.username_label'), help: t('help.adguard.username'), path: 'adguard.username', value: data.username || '', placeholder: 'admin' }),
+            form.password({
+                label: t('config.adguard.password_label'),
+                help: t('help.adguard.password'),
+                id: 'adg-password',
+                value: data.password,
+                placeholder: passwordPlaceholder,
+                actionHTML: '<button class="btn-save adg-save-btn" onclick="adgSavePassword()">' + t('config.adguard.save_icon') + ' ' + t('config.adguard.save_vault') + '</button>'
+            })
+        ],
+        afterHTML: form.actions([
+            { html: '<button class="btn-save adg-test-btn" onclick="adgTestConnection()" id="adg-test-btn">🔌 ' + t('config.adguard.test_btn') + '</button>' },
+            { html: '<span id="adg-test-result" class="adg-test-result"></span>' }
+        ]) + '<div id="adg-quick-stats" class="adg-quick-stats is-hidden">'
+            + '<div class="adg-stats-title">📊 ' + t('config.adguard.stats_title') + '</div>'
+            + '<div id="adg-stats-content" class="adg-stats-grid"></div>'
+            + '</div>'
+    });
 
     document.getElementById('content').innerHTML = html;
 
-    // Auto-check status on load
     if (enabledOn && data.url) {
         adgCheckStatus();
     }
@@ -116,8 +74,6 @@ function adgCheckStatus() {
                     running ? 'success' : 'warning',
                     (running ? '🟢' : '🟡') + ' AdGuard Home v' + version + ' — ' + (running ? t('config.adguard.running') : t('config.adguard.not_running'))
                 );
-
-                // Load quick stats
                 adgLoadQuickStats();
                 return;
             }
@@ -129,7 +85,6 @@ function adgCheckStatus() {
 }
 
 function adgLoadQuickStats() {
-    // We reuse the status endpoint — stats require a separate call via tool
     const wrap = document.getElementById('adg-quick-stats');
     const content = document.getElementById('adg-stats-content');
     if (!wrap || !content) return;

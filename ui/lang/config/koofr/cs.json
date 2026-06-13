@@ -8,5 +8,16 @@
   "config.koofr.save_vault": "Uložit do Vaultu",
   "config.koofr.app_password_empty": "Nejprve zadejte app heslo.",
   "config.koofr.app_password_saved": "Koofr app heslo bylo uloženo do Vaultu.",
-  "config.koofr.app_password_save_failed": "Koofr app heslo se nepodařilo uložit do Vaultu."
+  "config.koofr.app_password_save_failed": "Koofr app heslo se nepodařilo uložit do Vaultu.",
+  "config.koofr.checking": "Kontrola připojení…",
+  "config.koofr.loading": "Testování…",
+  "config.koofr.connection_failed": "Připojení selhalo",
+  "config.koofr.test_btn": "Otestovat připojení",
+  "config.koofr.test_ok": "Připojení úspěšné",
+  "config.koofr.test_fail": "Připojení selhalo",
+  "config.koofr.status_disabled": "Integrace Koofr je zakázána",
+  "config.koofr.status_no_credentials": "Chybí uživatelské jméno nebo heslo aplikace",
+  "config.koofr.status_ok": "Připojeno ke Koofr",
+  "config.koofr.status_success": "✅",
+  "config.koofr.status_error": "❌"
 }

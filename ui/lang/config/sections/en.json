@@ -473,5 +473,11 @@
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "External integration catalog and agent tool source",
   "config.section.virtual_desktop.label": "Virtual Desktop",
-  "config.section.virtual_desktop.desc": "Browser desktop workspace with agent-controlled apps, files, and widgets."
+  "config.section.virtual_desktop.desc": "Browser desktop workspace with agent-controlled apps, files, and widgets.",
+  "config.github.test_btn": "Test Connection",
+  "config.github.test_ok": "Connection successful",
+  "config.github.test_fail": "Connection failed",
+  "config.github.loading": "Testing…",
+  "config.github.status_success": "✅",
+  "config.github.status_error": "❌"
 }

@@ -63,8 +63,9 @@
             const value = option.value != null ? String(option.value) : '';
             return '<option value="' + attr(value) + '"' + (value === selected ? ' selected' : '') + '>' + html(option.label) + '</option>';
         }).join('');
+        const onChange = options.onchange ? ' onchange="' + attr(options.onchange) + '"' : '';
         return fieldShell(options,
-            '<select class="field-input" data-path="' + attr(options.path || '') + '">' + rendered + '</select>');
+            '<select class="field-select" data-path="' + attr(options.path || '') + '"' + onChange + '>' + rendered + '</select>');
     }
 
     function textarea(options) {
@@ -82,7 +83,7 @@
         const id = options.id ? ' id="' + attr(options.id) + '"' : '';
         return fieldShell(options,
             '<div class="adg-password-row">'
-            + '<div class="password-wrap" style="flex:1;">'
+            + '<div class="password-wrap cfg-password-input">'
             + '<input class="field-input adg-password-input" type="password"' + id + ' value="' + attr(value) + '" placeholder="' + attr(placeholder) + '" autocomplete="off">'
             + '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + (typeof EYE_OPEN_SVG !== 'undefined' ? EYE_OPEN_SVG : '') + '</button>'
             + '</div>'
@@ -108,7 +109,8 @@
     }
 
     function actions(items) {
-        return '<div class="field-group">' + (items || []).map(item => item.html || '').join('') + '</div>';
+        const row = (items || []).map(item => item.html || '').join('');
+        return '<div class="field-group cfg-actions-row">' + row + '</div>';
     }
 
     function section(spec) {

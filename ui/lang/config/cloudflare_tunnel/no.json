@@ -43,5 +43,10 @@
   "config.cloudflare_tunnel.general_title": "Generelt",
   "config.cloudflare_tunnel.general_desc": "Aktiver tunnelen og konfigurer grunnleggende innstillinger.",
   "config.cloudflare_tunnel.connection_title": "Tilkobling",
-  "config.cloudflare_tunnel.connection_desc": "Konfigurer tunneltilkobling og autentiseringsinnstillinger."
+  "config.cloudflare_tunnel.connection_desc": "Konfigurer tunneltilkobling og autentiseringsinnstillinger.",
+  "config.cloudflare_tunnel.checking": "Sjekker tilkobling…",
+  "config.cloudflare_tunnel.status_disabled": "Cloudflare Tunnel er deaktivert",
+  "config.cloudflare_tunnel.status_running": "Tunnelen kjører",
+  "config.cloudflare_tunnel.status_stopped": "Tunnelen kjører ikke",
+  "config.cloudflare_tunnel.status_error": "Kunne ikke laste tunnelstatus"
 }

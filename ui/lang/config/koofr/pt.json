@@ -8,5 +8,16 @@
   "config.koofr.save_vault": "Salvar no Vault",
   "config.koofr.app_password_empty": "Digite uma senha de app primeiro.",
   "config.koofr.app_password_saved": "A senha de app do Koofr foi salva no Vault.",
-  "config.koofr.app_password_save_failed": "Falha ao salvar a senha de app do Koofr no Vault."
+  "config.koofr.app_password_save_failed": "Falha ao salvar a senha de app do Koofr no Vault.",
+  "config.koofr.checking": "Verificando conexão…",
+  "config.koofr.loading": "Testando…",
+  "config.koofr.connection_failed": "Falha na conexão",
+  "config.koofr.test_btn": "Testar conexão",
+  "config.koofr.test_ok": "Conexão bem-sucedida",
+  "config.koofr.test_fail": "Falha na conexão",
+  "config.koofr.status_disabled": "Integração Koofr desativada",
+  "config.koofr.status_no_credentials": "Usuário ou senha de app ausente",
+  "config.koofr.status_ok": "Conectado ao Koofr",
+  "config.koofr.status_success": "✅",
+  "config.koofr.status_error": "❌"
 }

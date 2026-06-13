@@ -473,5 +473,11 @@
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Ekstern integrasjonskatalog og verktoykilde for agenten",
   "config.section.virtual_desktop.label": "Virtuelt skrivebord",
-  "config.section.virtual_desktop.desc": "Nettleserskrivebord med agentstyrte apper, filer og widgeter."
+  "config.section.virtual_desktop.desc": "Nettleserskrivebord med agentstyrte apper, filer og widgeter.",
+  "config.github.test_btn": "Test tilkobling",
+  "config.github.test_ok": "Tilkobling vellykket",
+  "config.github.test_fail": "Tilkobling mislyktes",
+  "config.github.loading": "Tester…",
+  "config.github.status_success": "✅",
+  "config.github.status_error": "❌"
 }

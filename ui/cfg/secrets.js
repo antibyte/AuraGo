@@ -137,19 +137,19 @@
 
             const overlay = document.createElement('div');
             overlay.id = 'secrets-modal-overlay';
-            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;';
+            overlay.className = 'modal-overlay open active';
             overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
             overlay.innerHTML = `
-            <div style="background:var(--bg-secondary);border-radius:16px;padding:1.5rem;width:min(480px,90vw);max-height:85vh;overflow-y:auto;border:1px solid var(--border-subtle);" onclick="event.stopPropagation()">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
-                    <div style="font-weight:700;font-size:1rem;">${title}</div>
-                    <button onclick="document.getElementById('secrets-modal-overlay').remove()" style="background:none;border:none;color:var(--text-secondary);font-size:1.2rem;cursor:pointer;">✕</button>
+            <div class="modal-card secrets-modal-card" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <h2>${title}</h2>
+                    <button type="button" class="modal-close" onclick="document.getElementById('secrets-modal-overlay').remove()" aria-label="${t('config.secrets.cancel')}">&times;</button>
                 </div>
                 <div class="field-group">
                     <div class="field-label">Key</div>
                     <div class="field-help">${t('config.secrets.key_help')}</div>
-                    <input class="field-input" id="secret-key" value="${escapeAttr(keyVal)}" placeholder="my_secret_key" ${keyEditable ? '' : 'disabled style="opacity:0.55;cursor:not-allowed;"'}>
+                    <input class="field-input" id="secret-key" value="${escapeAttr(keyVal)}" placeholder="my_secret_key" ${keyEditable ? '' : 'disabled class="field-input is-readonly"'}>
                 </div>
                 <div class="field-group">
                     <div class="field-label">Value</div>
@@ -159,11 +159,11 @@
                         <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                     </div>
                 </div>
-                <div style="display:flex;justify-content:flex-end;gap:0.6rem;margin-top:1.2rem;">
-                    <button class="btn-save" style="padding:0.45rem 1.4rem;font-size:0.82rem;background:var(--bg-tertiary);color:var(--text-primary);" onclick="document.getElementById('secrets-modal-overlay').remove()">
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('secrets-modal-overlay').remove()">
                         ${t('config.secrets.cancel')}
                     </button>
-                    <button class="btn-save" style="padding:0.45rem 1.4rem;font-size:0.82rem;" id="secret-save-btn">
+                    <button type="button" class="btn-save" id="secret-save-btn">
                         ${t('config.secrets.save')}
                     </button>
                 </div>

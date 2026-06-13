@@ -43,5 +43,10 @@
   "config.cloudflare_tunnel.general_title": "一般",
   "config.cloudflare_tunnel.general_desc": "トンネルを有効にして基本設定を構成します。",
   "config.cloudflare_tunnel.connection_title": "接続",
-  "config.cloudflare_tunnel.connection_desc": "トンネル接続と認証設定を構成します。"
+  "config.cloudflare_tunnel.connection_desc": "トンネル接続と認証設定を構成します。",
+  "config.cloudflare_tunnel.checking": "接続を確認中…",
+  "config.cloudflare_tunnel.status_disabled": "Cloudflare Tunnelは無効です",
+  "config.cloudflare_tunnel.status_running": "トンネルは稼働中です",
+  "config.cloudflare_tunnel.status_stopped": "トンネルは停止中です",
+  "config.cloudflare_tunnel.status_error": "トンネル状態の読み込みに失敗しました"
 }

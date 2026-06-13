@@ -473,5 +473,11 @@
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Eksoterikos katalogos ensomatoseon kai pege ergaleion gia ton agent",
   "config.section.virtual_desktop.label": "Εικονική επιφάνεια εργασίας",
-  "config.section.virtual_desktop.desc": "Επιφάνεια εργασίας στο πρόγραμμα περιήγησης με εφαρμογές, αρχεία και widget που ελέγχει ο agent."
+  "config.section.virtual_desktop.desc": "Επιφάνεια εργασίας στο πρόγραμμα περιήγησης με εφαρμογές, αρχεία και widget που ελέγχει ο agent.",
+  "config.github.test_btn": "Δοκιμή σύνδεσης",
+  "config.github.test_ok": "Επιτυχής σύνδεση",
+  "config.github.test_fail": "Η σύνδεση απέτυχε",
+  "config.github.loading": "Δοκιμή…",
+  "config.github.status_success": "✅",
+  "config.github.status_error": "❌"
 }

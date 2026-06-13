@@ -43,5 +43,10 @@
   "config.cloudflare_tunnel.general_title": "General",
   "config.cloudflare_tunnel.general_desc": "Enable the tunnel and configure basic settings.",
   "config.cloudflare_tunnel.connection_title": "Connection",
-  "config.cloudflare_tunnel.connection_desc": "Configure tunnel connection and authentication settings."
+  "config.cloudflare_tunnel.connection_desc": "Configure tunnel connection and authentication settings.",
+  "config.cloudflare_tunnel.checking": "Checking connection…",
+  "config.cloudflare_tunnel.status_disabled": "Cloudflare Tunnel is disabled",
+  "config.cloudflare_tunnel.status_running": "Tunnel is running",
+  "config.cloudflare_tunnel.status_stopped": "Tunnel is not running",
+  "config.cloudflare_tunnel.status_error": "Failed to load tunnel status"
 }

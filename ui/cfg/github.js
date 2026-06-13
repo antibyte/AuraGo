@@ -23,7 +23,7 @@ async function renderGitHubSection(section) {
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.github.readonly_label')}</div>
-        <div class="field-hint">${t('config.github.readonly_hint')}</div>
+        <div class="field-help">${t('config.github.readonly_hint')}</div>
         <div class="toggle-wrap">
             <div class="toggle${readonlyOn ? ' on' : ''}" data-path="github.readonly" onclick="toggleBool(this)"></div>
             <span class="toggle-label">${readonlyOn ? t('config.toggle.active') : t('config.toggle.inactive')}</span>
@@ -32,13 +32,13 @@ async function renderGitHubSection(section) {
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.github.owner_label')}</div>
-        <div class="field-hint">${t('config.github.owner_hint')}</div>
+        <div class="field-help">${t('config.github.owner_hint')}</div>
         <input class="field-input" type="text" data-path="github.owner" value="${escapeAttr(data.owner || '')}" placeholder="your-github-username">
     </div>`;
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.github.token_label')} <span class="gh-lock-icon">🔒</span></div>
-        <div class="field-hint">${t('config.github.token_hint')}</div>
+        <div class="field-help">${t('config.github.token_hint')}</div>
         <div class="cfg-password-row">
             <div class="password-wrap cfg-password-input">
                 <input class="field-input" type="password" id="github-token-input" value="${escapeAttr(cfgSecretValue(data.token))}" placeholder="${escapeAttr(cfgSecretPlaceholder(data.token, 'ghp_••••••••••••••••••••'))}" autocomplete="off">
@@ -51,13 +51,13 @@ async function renderGitHubSection(section) {
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.github.base_url_label')}</div>
-        <div class="field-hint">${t('config.github.base_url_hint')}</div>
+        <div class="field-help">${t('config.github.base_url_hint')}</div>
         <input class="field-input" type="text" data-path="github.base_url" value="${escapeAttr(data.base_url || '')}" placeholder="https://api.github.com">
     </div>`;
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.github.default_private_label')}</div>
-        <div class="field-hint">${t('config.github.default_private_hint')}</div>
+        <div class="field-help">${t('config.github.default_private_hint')}</div>
         <div class="toggle-wrap">
             <div class="toggle${defaultPrivOn ? ' on' : ''}" data-path="github.default_private" onclick="toggleBool(this)"></div>
             <span class="toggle-label">${defaultPrivOn ? t('config.toggle.active') : t('config.toggle.inactive')}</span>
@@ -77,7 +77,9 @@ async function renderGitHubSection(section) {
         ? `<span class="gh-count-empty">${t('config.github.no_repos_selected')}</span>`
         : `<span class="gh-count-active">${allowedRepos.length} ${t('config.github.repos_selected_count')}</span>`;
 
-    html += `<div class="gh-actions-row">
+    html += `<div class="gh-actions-row cfg-actions-row">
+        <button class="btn-save adg-test-btn" onclick="githubTestConnection()" id="github-test-btn">🔌 ${t('config.github.test_btn')}</button>
+        <span id="github-test-result" class="adg-test-result"></span>
         <button class="cfg-save-btn-sm" onclick="githubFetchRepos()" id="github-fetch-btn">
             🔄 ${t('config.github.fetch_repos_btn')}
         </button>
@@ -229,6 +231,36 @@ function githubUpdateAllowedCount(total, allowedCount) {
         countEl.innerHTML = `<span class="gh-count-empty">${t('config.github.no_repos_selected')}</span>`;
     } else {
         countEl.innerHTML = `<span class="gh-count-active">${allowedCount} / ${total} ${t('config.github.repos_selected_count')}</span>`;
+    }
+}
+
+async function githubTestConnection() {
+    const btn = document.getElementById('github-test-btn');
+    const result = document.getElementById('github-test-result');
+    if (btn) btn.disabled = true;
+    if (result) {
+        result.textContent = t('config.github.loading');
+        result.className = 'adg-test-result';
+    }
+
+    try {
+        const resp = await fetch('/api/github/repos');
+        const data = resp.ok ? await resp.json() : { status: 'error', message: 'HTTP ' + resp.status };
+        if (btn) btn.disabled = false;
+        if (!result) return;
+        if (data.status === 'error') {
+            result.className = 'adg-test-result is-danger';
+            result.textContent = t('config.github.status_error') + ' ' + (data.message || t('config.github.test_fail'));
+            return;
+        }
+        result.className = 'adg-test-result is-success';
+        result.textContent = t('config.github.status_success') + ' ' + t('config.github.test_ok');
+    } catch (_) {
+        if (btn) btn.disabled = false;
+        if (result) {
+            result.className = 'adg-test-result is-danger';
+            result.textContent = t('config.github.status_error') + ' ' + t('config.github.test_fail');
+        }
     }
 }
 

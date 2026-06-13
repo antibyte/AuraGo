@@ -8,5 +8,16 @@
   "config.koofr.save_vault": "Zapisz w Vault",
   "config.koofr.app_password_empty": "Najpierw wprowadź hasło aplikacji.",
   "config.koofr.app_password_saved": "Hasło aplikacji Koofr zapisano w Vault.",
-  "config.koofr.app_password_save_failed": "Nie udało się zapisać hasła aplikacji Koofr w Vault."
+  "config.koofr.app_password_save_failed": "Nie udało się zapisać hasła aplikacji Koofr w Vault.",
+  "config.koofr.checking": "Sprawdzanie połączenia…",
+  "config.koofr.loading": "Testowanie…",
+  "config.koofr.connection_failed": "Połączenie nieudane",
+  "config.koofr.test_btn": "Testuj połączenie",
+  "config.koofr.test_ok": "Połączenie udane",
+  "config.koofr.test_fail": "Połączenie nieudane",
+  "config.koofr.status_disabled": "Integracja Koofr jest wyłączona",
+  "config.koofr.status_no_credentials": "Brak nazwy użytkownika lub hasła aplikacji",
+  "config.koofr.status_ok": "Połączono z Koofr",
+  "config.koofr.status_success": "✅",
+  "config.koofr.status_error": "❌"
 }

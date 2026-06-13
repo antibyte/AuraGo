@@ -8,5 +8,16 @@
   "config.koofr.save_vault": "Enregistrer dans le Vault",
   "config.koofr.app_password_empty": "Veuillez d’abord saisir un mot de passe applicatif.",
   "config.koofr.app_password_saved": "Le mot de passe applicatif Koofr a été enregistré dans le Vault.",
-  "config.koofr.app_password_save_failed": "Impossible d’enregistrer le mot de passe applicatif Koofr dans le Vault."
+  "config.koofr.app_password_save_failed": "Impossible d’enregistrer le mot de passe applicatif Koofr dans le Vault.",
+  "config.koofr.checking": "Vérification de la connexion…",
+  "config.koofr.loading": "Test en cours…",
+  "config.koofr.connection_failed": "Échec de la connexion",
+  "config.koofr.test_btn": "Tester la connexion",
+  "config.koofr.test_ok": "Connexion réussie",
+  "config.koofr.test_fail": "Échec de la connexion",
+  "config.koofr.status_disabled": "L'intégration Koofr est désactivée",
+  "config.koofr.status_no_credentials": "Nom d'utilisateur ou mot de passe d'application manquant",
+  "config.koofr.status_ok": "Connecté à Koofr",
+  "config.koofr.status_success": "✅",
+  "config.koofr.status_error": "❌"
 }

@@ -75,5 +75,17 @@
   "config.webdav.token_save_failed": "WebDAV Bearer トークンを Vault に保存できませんでした。",
   "config.webdav.token_saved": "WebDAV Bearer トークンを Vault に保存しました。",
   "config.webdav.url_label": "WebDAV URL",
-  "config.webdav.username_label": "ユーザー名"
+  "config.webdav.username_label": "ユーザー名",
+  "config.webdav.checking": "接続を確認中…",
+  "config.webdav.loading": "テスト中…",
+  "config.webdav.connection_failed": "接続に失敗しました",
+  "config.webdav.test_btn": "接続をテスト",
+  "config.webdav.test_ok": "接続に成功しました",
+  "config.webdav.test_fail": "接続に失敗しました",
+  "config.webdav.status_disabled": "WebDAV連携は無効です",
+  "config.webdav.status_no_url": "WebDAV URLが設定されていません",
+  "config.webdav.status_no_credentials": "WebDAV認証情報がありません",
+  "config.webdav.status_ok": "WebDAVに接続済み",
+  "config.webdav.status_success": "✅",
+  "config.webdav.status_error": "❌"
 }

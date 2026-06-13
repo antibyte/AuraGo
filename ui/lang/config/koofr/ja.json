@@ -8,5 +8,16 @@
   "config.koofr.save_vault": "Vault に保存",
   "config.koofr.app_password_empty": "先にアプリパスワードを入力してください。",
   "config.koofr.app_password_saved": "Koofr アプリパスワードを Vault に保存しました。",
-  "config.koofr.app_password_save_failed": "Koofr アプリパスワードを Vault に保存できませんでした。"
+  "config.koofr.app_password_save_failed": "Koofr アプリパスワードを Vault に保存できませんでした。",
+  "config.koofr.checking": "接続を確認中…",
+  "config.koofr.loading": "テスト中…",
+  "config.koofr.connection_failed": "接続に失敗しました",
+  "config.koofr.test_btn": "接続をテスト",
+  "config.koofr.test_ok": "接続に成功しました",
+  "config.koofr.test_fail": "接続に失敗しました",
+  "config.koofr.status_disabled": "Koofr連携は無効です",
+  "config.koofr.status_no_credentials": "ユーザー名またはアプリパスワードがありません",
+  "config.koofr.status_ok": "Koofrに接続済み",
+  "config.koofr.status_success": "✅",
+  "config.koofr.status_error": "❌"
 }

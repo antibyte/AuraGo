@@ -75,5 +75,17 @@
   "config.webdav.token_save_failed": "Αποτυχία αποθήκευσης του bearer token WebDAV στο Vault.",
   "config.webdav.token_saved": "Το bearer token WebDAV αποθηκεύτηκε στο Vault.",
   "config.webdav.url_label": "WebDAV URL",
-  "config.webdav.username_label": "Όνομα χρήστη"
+  "config.webdav.username_label": "Όνομα χρήστη",
+  "config.webdav.checking": "Έλεγχος σύνδεσης…",
+  "config.webdav.loading": "Δοκιμή…",
+  "config.webdav.connection_failed": "Η σύνδεση απέτυχε",
+  "config.webdav.test_btn": "Δοκιμή σύνδεσης",
+  "config.webdav.test_ok": "Επιτυχής σύνδεση",
+  "config.webdav.test_fail": "Η σύνδεση απέτυχε",
+  "config.webdav.status_disabled": "Η ενσωμάτωση WebDAV είναι απενεργοποιημένη",
+  "config.webdav.status_no_url": "Δεν έχει ρυθμιστεί URL WebDAV",
+  "config.webdav.status_no_credentials": "Λείπουν διαπιστευτήρια WebDAV",
+  "config.webdav.status_ok": "Συνδέθηκε στο WebDAV",
+  "config.webdav.status_success": "✅",
+  "config.webdav.status_error": "❌"
 }

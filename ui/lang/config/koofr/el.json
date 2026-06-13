@@ -8,5 +8,16 @@
   "config.koofr.save_vault": "Αποθήκευση στο Vault",
   "config.koofr.app_password_empty": "Εισαγάγετε πρώτα κωδικό εφαρμογής.",
   "config.koofr.app_password_saved": "Ο κωδικός εφαρμογής Koofr αποθηκεύτηκε στο Vault.",
-  "config.koofr.app_password_save_failed": "Αποτυχία αποθήκευσης κωδικού εφαρμογής Koofr στο Vault."
+  "config.koofr.app_password_save_failed": "Αποτυχία αποθήκευσης κωδικού εφαρμογής Koofr στο Vault.",
+  "config.koofr.checking": "Έλεγχος σύνδεσης…",
+  "config.koofr.loading": "Δοκιμή…",
+  "config.koofr.connection_failed": "Η σύνδεση απέτυχε",
+  "config.koofr.test_btn": "Δοκιμή σύνδεσης",
+  "config.koofr.test_ok": "Επιτυχής σύνδεση",
+  "config.koofr.test_fail": "Η σύνδεση απέτυχε",
+  "config.koofr.status_disabled": "Η ενσωμάτωση Koofr είναι απενεργοποιημένη",
+  "config.koofr.status_no_credentials": "Λείπει όνομα χρήστη ή κωδικός εφαρμογής",
+  "config.koofr.status_ok": "Συνδέθηκε στο Koofr",
+  "config.koofr.status_success": "✅",
+  "config.koofr.status_error": "❌"
 }

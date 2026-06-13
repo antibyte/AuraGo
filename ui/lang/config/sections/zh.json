@@ -473,5 +473,11 @@
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Mianxiang daili de waibu jicheng mulu he gongju laiyuan",
   "config.section.virtual_desktop.label": "虚拟桌面",
-  "config.section.virtual_desktop.desc": "由智能体控制应用、文件和小组件的浏览器桌面。"
+  "config.section.virtual_desktop.desc": "由智能体控制应用、文件和小组件的浏览器桌面。",
+  "config.github.test_btn": "测试连接",
+  "config.github.test_ok": "连接成功",
+  "config.github.test_fail": "连接失败",
+  "config.github.loading": "测试中…",
+  "config.github.status_success": "✅",
+  "config.github.status_error": "❌"
 }

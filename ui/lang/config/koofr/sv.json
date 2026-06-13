@@ -8,5 +8,16 @@
   "config.koofr.save_vault": "Spara i Vault",
   "config.koofr.app_password_empty": "Ange först ett applösenord.",
   "config.koofr.app_password_saved": "Koofr applösenord sparades i Vault.",
-  "config.koofr.app_password_save_failed": "Kunde inte spara Koofr applösenord i Vault."
+  "config.koofr.app_password_save_failed": "Kunde inte spara Koofr applösenord i Vault.",
+  "config.koofr.checking": "Kontrollerar anslutning…",
+  "config.koofr.loading": "Testar…",
+  "config.koofr.connection_failed": "Anslutningen misslyckades",
+  "config.koofr.test_btn": "Testa anslutning",
+  "config.koofr.test_ok": "Anslutningen lyckades",
+  "config.koofr.test_fail": "Anslutningen misslyckades",
+  "config.koofr.status_disabled": "Koofr-integrationen är inaktiverad",
+  "config.koofr.status_no_credentials": "Användarnamn eller app-lösenord saknas",
+  "config.koofr.status_ok": "Ansluten till Koofr",
+  "config.koofr.status_success": "✅",
+  "config.koofr.status_error": "❌"
 }

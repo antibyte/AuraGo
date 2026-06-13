@@ -43,5 +43,10 @@
   "config.cloudflare_tunnel.general_title": "常规",
   "config.cloudflare_tunnel.general_desc": "启用隧道并配置基本设置。",
   "config.cloudflare_tunnel.connection_title": "连接",
-  "config.cloudflare_tunnel.connection_desc": "配置隧道连接和身份验证设置。"
+  "config.cloudflare_tunnel.connection_desc": "配置隧道连接和身份验证设置。",
+  "config.cloudflare_tunnel.checking": "正在检查连接…",
+  "config.cloudflare_tunnel.status_disabled": "Cloudflare Tunnel 已禁用",
+  "config.cloudflare_tunnel.status_running": "隧道正在运行",
+  "config.cloudflare_tunnel.status_stopped": "隧道未运行",
+  "config.cloudflare_tunnel.status_error": "无法加载隧道状态"
 }

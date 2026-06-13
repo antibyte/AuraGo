@@ -75,5 +75,17 @@
   "config.webdav.token_save_failed": "Det gick inte att spara WebDAV bearer-token i Vault.",
   "config.webdav.token_saved": "WebDAV bearer-token sparades i Vault.",
   "config.webdav.url_label": "WebDAV-URL",
-  "config.webdav.username_label": "Användarnamn"
+  "config.webdav.username_label": "Användarnamn",
+  "config.webdav.checking": "Kontrollerar anslutning…",
+  "config.webdav.loading": "Testar…",
+  "config.webdav.connection_failed": "Anslutningen misslyckades",
+  "config.webdav.test_btn": "Testa anslutning",
+  "config.webdav.test_ok": "Anslutningen lyckades",
+  "config.webdav.test_fail": "Anslutningen misslyckades",
+  "config.webdav.status_disabled": "WebDAV-integrationen är inaktiverad",
+  "config.webdav.status_no_url": "Ingen WebDAV-URL konfigurerad",
+  "config.webdav.status_no_credentials": "WebDAV-uppgifter saknas",
+  "config.webdav.status_ok": "Ansluten till WebDAV",
+  "config.webdav.status_success": "✅",
+  "config.webdav.status_error": "❌"
 }

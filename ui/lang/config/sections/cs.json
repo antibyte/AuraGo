@@ -473,5 +473,11 @@
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Externi katalog integraci a zdroj nastroju pro agenta",
   "config.section.virtual_desktop.label": "Virtuální plocha",
-  "config.section.virtual_desktop.desc": "Pracovní plocha v prohlížeči s aplikacemi, soubory a widgety řízenými agentem."
+  "config.section.virtual_desktop.desc": "Pracovní plocha v prohlížeči s aplikacemi, soubory a widgety řízenými agentem.",
+  "config.github.test_btn": "Otestovat připojení",
+  "config.github.test_ok": "Připojení úspěšné",
+  "config.github.test_fail": "Připojení selhalo",
+  "config.github.loading": "Testování…",
+  "config.github.status_success": "✅",
+  "config.github.status_error": "❌"
 }

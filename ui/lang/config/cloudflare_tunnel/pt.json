@@ -43,5 +43,10 @@
   "config.cloudflare_tunnel.general_title": "Geral",
   "config.cloudflare_tunnel.general_desc": "Ative o túnel e configure as definições básicas.",
   "config.cloudflare_tunnel.connection_title": "Conexão",
-  "config.cloudflare_tunnel.connection_desc": "Configure as definições de conexão e autenticação do túnel."
+  "config.cloudflare_tunnel.connection_desc": "Configure as definições de conexão e autenticação do túnel.",
+  "config.cloudflare_tunnel.checking": "Verificando conexão…",
+  "config.cloudflare_tunnel.status_disabled": "Cloudflare Tunnel desativado",
+  "config.cloudflare_tunnel.status_running": "O túnel está em execução",
+  "config.cloudflare_tunnel.status_stopped": "O túnel não está em execução",
+  "config.cloudflare_tunnel.status_error": "Falha ao carregar status do túnel"
 }

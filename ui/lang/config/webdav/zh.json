@@ -75,5 +75,17 @@
   "config.webdav.token_save_failed": "无法将 WebDAV Bearer Token 保存到 Vault。",
   "config.webdav.token_saved": "WebDAV Bearer Token 已保存到 Vault。",
   "config.webdav.url_label": "WebDAV URL",
-  "config.webdav.username_label": "用户名"
+  "config.webdav.username_label": "用户名",
+  "config.webdav.checking": "正在检查连接…",
+  "config.webdav.loading": "测试中…",
+  "config.webdav.connection_failed": "连接失败",
+  "config.webdav.test_btn": "测试连接",
+  "config.webdav.test_ok": "连接成功",
+  "config.webdav.test_fail": "连接失败",
+  "config.webdav.status_disabled": "WebDAV 集成已禁用",
+  "config.webdav.status_no_url": "未配置 WebDAV URL",
+  "config.webdav.status_no_credentials": "缺少 WebDAV 凭据",
+  "config.webdav.status_ok": "已连接到 WebDAV",
+  "config.webdav.status_success": "✅",
+  "config.webdav.status_error": "❌"
 }

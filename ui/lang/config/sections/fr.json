@@ -473,5 +473,11 @@
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Catalogue externe d integrations et source d outils pour l agent",
   "config.section.virtual_desktop.label": "Bureau virtuel",
-  "config.section.virtual_desktop.desc": "Bureau dans le navigateur avec apps, fichiers et widgets contrôlés par l'agent."
+  "config.section.virtual_desktop.desc": "Bureau dans le navigateur avec apps, fichiers et widgets contrôlés par l'agent.",
+  "config.github.test_btn": "Tester la connexion",
+  "config.github.test_ok": "Connexion réussie",
+  "config.github.test_fail": "Échec de la connexion",
+  "config.github.loading": "Test en cours…",
+  "config.github.status_success": "✅",
+  "config.github.status_error": "❌"
 }

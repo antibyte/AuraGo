@@ -8,5 +8,16 @@
   "config.koofr.save_vault": "Im Vault speichern",
   "config.koofr.app_password_empty": "Bitte zuerst ein App-Passwort eingeben.",
   "config.koofr.app_password_saved": "Koofr-App-Passwort im Vault gespeichert.",
-  "config.koofr.app_password_save_failed": "Koofr-App-Passwort konnte nicht im Vault gespeichert werden."
+  "config.koofr.app_password_save_failed": "Koofr-App-Passwort konnte nicht im Vault gespeichert werden.",
+  "config.koofr.checking": "Verbindung wird geprüft…",
+  "config.koofr.loading": "Teste…",
+  "config.koofr.connection_failed": "Verbindung fehlgeschlagen",
+  "config.koofr.test_btn": "Verbindung testen",
+  "config.koofr.test_ok": "Verbindung erfolgreich",
+  "config.koofr.test_fail": "Verbindung fehlgeschlagen",
+  "config.koofr.status_disabled": "Koofr-Integration ist deaktiviert",
+  "config.koofr.status_no_credentials": "Benutzername oder App-Passwort fehlt",
+  "config.koofr.status_ok": "Mit Koofr verbunden",
+  "config.koofr.status_success": "✅",
+  "config.koofr.status_error": "❌"
 }

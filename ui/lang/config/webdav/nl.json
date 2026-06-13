@@ -75,5 +75,17 @@
   "config.webdav.token_save_failed": "WebDAV-bearer-token opslaan in Vault is mislukt.",
   "config.webdav.token_saved": "WebDAV-bearer-token opgeslagen in Vault.",
   "config.webdav.url_label": "WebDAV-URL",
-  "config.webdav.username_label": "Gebruikersnaam"
+  "config.webdav.username_label": "Gebruikersnaam",
+  "config.webdav.checking": "Verbinding controleren…",
+  "config.webdav.loading": "Testen…",
+  "config.webdav.connection_failed": "Verbinding mislukt",
+  "config.webdav.test_btn": "Verbinding testen",
+  "config.webdav.test_ok": "Verbinding geslaagd",
+  "config.webdav.test_fail": "Verbinding mislukt",
+  "config.webdav.status_disabled": "WebDAV-integratie is uitgeschakeld",
+  "config.webdav.status_no_url": "Geen WebDAV-URL geconfigureerd",
+  "config.webdav.status_no_credentials": "WebDAV-gegevens ontbreken",
+  "config.webdav.status_ok": "Verbonden met WebDAV",
+  "config.webdav.status_success": "✅",
+  "config.webdav.status_error": "❌"
 }

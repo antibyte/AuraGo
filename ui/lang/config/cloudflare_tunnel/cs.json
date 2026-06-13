@@ -43,5 +43,10 @@
   "config.cloudflare_tunnel.general_title": "Obecné",
   "config.cloudflare_tunnel.general_desc": "Povolte tunel a nakonfigurujte základní nastavení.",
   "config.cloudflare_tunnel.connection_title": "Připojení",
-  "config.cloudflare_tunnel.connection_desc": "Nakonfigurujte připojení tunelu a nastavení ověřování."
+  "config.cloudflare_tunnel.connection_desc": "Nakonfigurujte připojení tunelu a nastavení ověřování.",
+  "config.cloudflare_tunnel.checking": "Kontrola připojení…",
+  "config.cloudflare_tunnel.status_disabled": "Cloudflare Tunnel je zakázán",
+  "config.cloudflare_tunnel.status_running": "Tunel běží",
+  "config.cloudflare_tunnel.status_stopped": "Tunel neběží",
+  "config.cloudflare_tunnel.status_error": "Nepodařilo se načíst stav tunelu"
 }

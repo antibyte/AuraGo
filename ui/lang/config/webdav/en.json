@@ -75,5 +75,17 @@
   "config.webdav.token_save_failed": "Failed to save WebDAV bearer token to vault.",
   "config.webdav.token_saved": "WebDAV bearer token saved to vault.",
   "config.webdav.url_label": "WebDAV URL",
-  "config.webdav.username_label": "Username"
+  "config.webdav.username_label": "Username",
+  "config.webdav.checking": "Checking connection…",
+  "config.webdav.loading": "Testing…",
+  "config.webdav.connection_failed": "Connection failed",
+  "config.webdav.test_btn": "Test Connection",
+  "config.webdav.test_ok": "Connection successful",
+  "config.webdav.test_fail": "Connection failed",
+  "config.webdav.status_disabled": "WebDAV integration is disabled",
+  "config.webdav.status_no_url": "No WebDAV URL configured",
+  "config.webdav.status_no_credentials": "WebDAV credentials missing",
+  "config.webdav.status_ok": "Connected to WebDAV",
+  "config.webdav.status_success": "✅",
+  "config.webdav.status_error": "❌"
 }

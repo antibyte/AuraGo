@@ -473,5 +473,11 @@
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Externe integratiecatalogus en toolbron voor de agent",
   "config.section.virtual_desktop.label": "Virtueel bureaublad",
-  "config.section.virtual_desktop.desc": "Browserbureaublad met agentgestuurde apps, bestanden en widgets."
+  "config.section.virtual_desktop.desc": "Browserbureaublad met agentgestuurde apps, bestanden en widgets.",
+  "config.github.test_btn": "Verbinding testen",
+  "config.github.test_ok": "Verbinding geslaagd",
+  "config.github.test_fail": "Verbinding mislukt",
+  "config.github.loading": "Testen…",
+  "config.github.status_success": "✅",
+  "config.github.status_error": "❌"
 }

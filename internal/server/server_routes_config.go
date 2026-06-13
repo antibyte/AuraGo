@@ -161,6 +161,8 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	// AdGuard Home integration endpoints
 	mux.HandleFunc("/api/adguard/status", handleAdGuardStatus(s))
 	mux.HandleFunc("/api/adguard/test", handleAdGuardTest(s))
+	registerKoofrHandlers(mux, s)
+	registerWebDAVHandlers(mux, s)
 	mux.HandleFunc("/api/uptime-kuma/status", handleUptimeKumaStatus(s))
 	mux.HandleFunc("/api/uptime-kuma/test", handleUptimeKumaTest(s))
 	mux.HandleFunc("/api/grafana/status", handleGrafanaStatus(s))

@@ -75,5 +75,17 @@
   "config.webdav.token_save_failed": "Bearer token WebDAV se nepodařilo uložit do Vaultu.",
   "config.webdav.token_saved": "Bearer token WebDAV byl uložen do Vaultu.",
   "config.webdav.url_label": "WebDAV URL",
-  "config.webdav.username_label": "Uživatelské jméno"
+  "config.webdav.username_label": "Uživatelské jméno",
+  "config.webdav.checking": "Kontrola připojení…",
+  "config.webdav.loading": "Testování…",
+  "config.webdav.connection_failed": "Připojení selhalo",
+  "config.webdav.test_btn": "Otestovat připojení",
+  "config.webdav.test_ok": "Připojení úspěšné",
+  "config.webdav.test_fail": "Připojení selhalo",
+  "config.webdav.status_disabled": "Integrace WebDAV je zakázána",
+  "config.webdav.status_no_url": "Není nastavena WebDAV URL",
+  "config.webdav.status_no_credentials": "Chybí přihlašovací údaje WebDAV",
+  "config.webdav.status_ok": "Připojeno k WebDAV",
+  "config.webdav.status_success": "✅",
+  "config.webdav.status_error": "❌"
 }

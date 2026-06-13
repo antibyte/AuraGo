@@ -473,5 +473,11 @@
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Externer Integrationskatalog und Toolquelle fuer den Agenten",
   "config.section.virtual_desktop.label": "Virtueller Desktop",
-  "config.section.virtual_desktop.desc": "Browser-Desktop-Arbeitsbereich mit agentengesteuerten Apps, Dateien und Widgets."
+  "config.section.virtual_desktop.desc": "Browser-Desktop-Arbeitsbereich mit agentengesteuerten Apps, Dateien und Widgets.",
+  "config.github.test_btn": "Verbindung testen",
+  "config.github.test_ok": "Verbindung erfolgreich",
+  "config.github.test_fail": "Verbindung fehlgeschlagen",
+  "config.github.loading": "Teste…",
+  "config.github.status_success": "✅",
+  "config.github.status_error": "❌"
 }

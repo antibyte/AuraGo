@@ -473,5 +473,11 @@
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Zewnetrzny katalog integracji i zrodlo narzedzi dla agenta",
   "config.section.virtual_desktop.label": "Wirtualny pulpit",
-  "config.section.virtual_desktop.desc": "Pulpit w przeglądarce z aplikacjami, plikami i widżetami sterowanymi przez agenta."
+  "config.section.virtual_desktop.desc": "Pulpit w przeglądarce z aplikacjami, plikami i widżetami sterowanymi przez agenta.",
+  "config.github.test_btn": "Testuj połączenie",
+  "config.github.test_ok": "Połączenie udane",
+  "config.github.test_fail": "Połączenie nieudane",
+  "config.github.loading": "Testowanie…",
+  "config.github.status_success": "✅",
+  "config.github.status_error": "❌"
 }

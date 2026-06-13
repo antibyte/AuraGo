@@ -8,5 +8,16 @@
   "config.koofr.save_vault": "Save to Vault",
   "config.koofr.app_password_empty": "Please enter an app password first.",
   "config.koofr.app_password_saved": "Koofr app password saved to vault.",
-  "config.koofr.app_password_save_failed": "Failed to save Koofr app password to vault."
+  "config.koofr.app_password_save_failed": "Failed to save Koofr app password to vault.",
+  "config.koofr.checking": "Checking connection…",
+  "config.koofr.loading": "Testing…",
+  "config.koofr.connection_failed": "Connection failed",
+  "config.koofr.test_btn": "Test Connection",
+  "config.koofr.test_ok": "Connection successful",
+  "config.koofr.test_fail": "Connection failed",
+  "config.koofr.status_disabled": "Koofr integration is disabled",
+  "config.koofr.status_no_credentials": "Username or app password missing",
+  "config.koofr.status_ok": "Connected to Koofr",
+  "config.koofr.status_success": "✅",
+  "config.koofr.status_error": "❌"
 }

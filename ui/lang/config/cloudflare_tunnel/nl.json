@@ -43,5 +43,10 @@
   "config.cloudflare_tunnel.general_title": "Algemeen",
   "config.cloudflare_tunnel.general_desc": "Schakel de tunnel in en configureer basisinstellingen.",
   "config.cloudflare_tunnel.connection_title": "Verbinding",
-  "config.cloudflare_tunnel.connection_desc": "Configureer tunnelverbinding en authenticatie-instellingen."
+  "config.cloudflare_tunnel.connection_desc": "Configureer tunnelverbinding en authenticatie-instellingen.",
+  "config.cloudflare_tunnel.checking": "Verbinding controleren…",
+  "config.cloudflare_tunnel.status_disabled": "Cloudflare Tunnel is uitgeschakeld",
+  "config.cloudflare_tunnel.status_running": "Tunnel draait",
+  "config.cloudflare_tunnel.status_stopped": "Tunnel draait niet",
+  "config.cloudflare_tunnel.status_error": "Tunnelstatus laden mislukt"
 }

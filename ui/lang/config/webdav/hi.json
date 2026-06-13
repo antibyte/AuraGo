@@ -75,5 +75,17 @@
   "config.webdav.token_save_failed": "WebDAV Bearer टोकन Vault में सहेजा नहीं जा सका।",
   "config.webdav.token_saved": "WebDAV Bearer टोकन Vault में सहेजा गया।",
   "config.webdav.url_label": "WebDAV URL",
-  "config.webdav.username_label": "उपयोगकर्ता नाम"
+  "config.webdav.username_label": "उपयोगकर्ता नाम",
+  "config.webdav.checking": "कनेक्शन जाँच हो रहा है…",
+  "config.webdav.loading": "परीक्षण…",
+  "config.webdav.connection_failed": "कनेक्शन विफल",
+  "config.webdav.test_btn": "कनेक्शन परीक्षण",
+  "config.webdav.test_ok": "कनेक्शन सफल",
+  "config.webdav.test_fail": "कनेक्शन विफल",
+  "config.webdav.status_disabled": "WebDAV एकीकरण अक्षम है",
+  "config.webdav.status_no_url": "कोई WebDAV URL कॉन्फ़िगर नहीं",
+  "config.webdav.status_no_credentials": "WebDAV क्रेडेंशियल गायब हैं",
+  "config.webdav.status_ok": "WebDAV से कनेक्ट",
+  "config.webdav.status_success": "✅",
+  "config.webdav.status_error": "❌"
 }

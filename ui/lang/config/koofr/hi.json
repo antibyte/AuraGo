@@ -8,5 +8,16 @@
   "config.koofr.save_vault": "Vault में सहेजें",
   "config.koofr.app_password_empty": "पहले ऐप पासवर्ड दर्ज करें।",
   "config.koofr.app_password_saved": "Koofr ऐप पासवर्ड Vault में सहेजा गया।",
-  "config.koofr.app_password_save_failed": "Koofr ऐप पासवर्ड Vault में सहेजा नहीं जा सका।"
+  "config.koofr.app_password_save_failed": "Koofr ऐप पासवर्ड Vault में सहेजा नहीं जा सका।",
+  "config.koofr.checking": "कनेक्शन जाँच हो रहा है…",
+  "config.koofr.loading": "परीक्षण…",
+  "config.koofr.connection_failed": "कनेक्शन विफल",
+  "config.koofr.test_btn": "कनेक्शन परीक्षण",
+  "config.koofr.test_ok": "कनेक्शन सफल",
+  "config.koofr.test_fail": "कनेक्शन विफल",
+  "config.koofr.status_disabled": "Koofr एकीकरण अक्षम है",
+  "config.koofr.status_no_credentials": "उपयोगकर्ता नाम या ऐप पासवर्ड गायब है",
+  "config.koofr.status_ok": "Koofr से कनेक्ट",
+  "config.koofr.status_success": "✅",
+  "config.koofr.status_error": "❌"
 }

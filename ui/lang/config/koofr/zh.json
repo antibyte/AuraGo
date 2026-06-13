@@ -8,5 +8,16 @@
   "config.koofr.save_vault": "保存到 Vault",
   "config.koofr.app_password_empty": "请先输入应用密码。",
   "config.koofr.app_password_saved": "Koofr 应用密码已保存到 Vault。",
-  "config.koofr.app_password_save_failed": "无法将 Koofr 应用密码保存到 Vault。"
+  "config.koofr.app_password_save_failed": "无法将 Koofr 应用密码保存到 Vault。",
+  "config.koofr.checking": "正在检查连接…",
+  "config.koofr.loading": "测试中…",
+  "config.koofr.connection_failed": "连接失败",
+  "config.koofr.test_btn": "测试连接",
+  "config.koofr.test_ok": "连接成功",
+  "config.koofr.test_fail": "连接失败",
+  "config.koofr.status_disabled": "Koofr 集成已禁用",
+  "config.koofr.status_no_credentials": "缺少用户名或应用密码",
+  "config.koofr.status_ok": "已连接到 Koofr",
+  "config.koofr.status_success": "✅",
+  "config.koofr.status_error": "❌"
 }

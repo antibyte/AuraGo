@@ -473,5 +473,11 @@
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Agent ke liye bahari integration catalog aur tool source",
   "config.section.virtual_desktop.label": "वर्चुअल डेस्कटॉप",
-  "config.section.virtual_desktop.desc": "एजेंट नियंत्रित ऐप, फ़ाइल और विजेट वाला ब्राउज़र डेस्कटॉप।"
+  "config.section.virtual_desktop.desc": "एजेंट नियंत्रित ऐप, फ़ाइल और विजेट वाला ब्राउज़र डेस्कटॉप।",
+  "config.github.test_btn": "कनेक्शन परीक्षण",
+  "config.github.test_ok": "कनेक्शन सफल",
+  "config.github.test_fail": "कनेक्शन विफल",
+  "config.github.loading": "परीक्षण…",
+  "config.github.status_success": "✅",
+  "config.github.status_error": "❌"
 }

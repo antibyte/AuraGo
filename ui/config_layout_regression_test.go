@@ -69,6 +69,67 @@ func TestConfigPhase1HelpMarkersPresent(t *testing.T) {
 	}
 }
 
+func TestConfigPhase2AuraConfigFormRollout(t *testing.T) {
+	t.Parallel()
+
+	for _, spec := range []struct {
+		file   string
+		marker string
+	}{
+		{"cfg/adguard.js", "form.renderSpec"},
+		{"cfg/koofr.js", "form.renderSpec"},
+		{"cfg/webdav.js", "form.renderSpec"},
+	} {
+		content := normalizeAssetText(mustReadUIFile(t, spec.file))
+		if !strings.Contains(content, spec.marker) {
+			t.Fatalf("%s missing %q", spec.file, spec.marker)
+		}
+	}
+
+	builder := normalizeAssetText(mustReadUIFile(t, "cfg/form-builder.js"))
+	if !strings.Contains(builder, "field-select") {
+		t.Fatal("form-builder.js select must use field-select")
+	}
+}
+
+func TestConfigPhase2TestConnectionMarkers(t *testing.T) {
+	t.Parallel()
+
+	checks := map[string][]string{
+		"cfg/koofr.js":              {"/api/koofr/test", "koofrTestConnection"},
+		"cfg/webdav.js":             {"/api/webdav/test", "webdavTestConnection"},
+		"cfg/github.js":             {"githubTestConnection", "config.github.test_btn"},
+		"cfg/cloudflare_tunnel.js":  {"cloudflareTunnelCheckStatus", "/api/cloudflare-tunnel/status"},
+	}
+	for file, markers := range checks {
+		content := normalizeAssetText(mustReadUIFile(t, file))
+		for _, marker := range markers {
+			if !strings.Contains(content, marker) {
+				t.Fatalf("%s missing marker %q", file, marker)
+			}
+		}
+	}
+}
+
+func TestConfigPhase2SecretsModalUsesSharedOverlay(t *testing.T) {
+	t.Parallel()
+
+	secretsJS := normalizeAssetText(mustReadUIFile(t, "cfg/secrets.js"))
+	for _, marker := range []string{
+		"modal-overlay open active",
+		"modal-card secrets-modal-card",
+		"modal-actions",
+		"btn btn-secondary",
+	} {
+		if !strings.Contains(secretsJS, marker) {
+			t.Fatalf("secrets.js missing modal marker %q", marker)
+		}
+	}
+	if strings.Contains(secretsJS, "overlay.style.cssText") {
+		t.Fatal("secrets.js should not use inline overlay styles")
+	}
+}
+
 func TestConfigVirtualDesktopSectionLabelsInSectionsBundle(t *testing.T) {
 	t.Parallel()
 

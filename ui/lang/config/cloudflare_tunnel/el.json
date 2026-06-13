@@ -43,5 +43,10 @@
   "config.cloudflare_tunnel.general_title": "Γενικά",
   "config.cloudflare_tunnel.general_desc": "Ενεργοποιήστε το τούνελ και ρυθμίστε τις βασικές ρυθμίσεις.",
   "config.cloudflare_tunnel.connection_title": "Σύνδεση",
-  "config.cloudflare_tunnel.connection_desc": "Ρυθμίσεις σύνδεσης τούνελ και ελέγχου ταυτότητας."
+  "config.cloudflare_tunnel.connection_desc": "Ρυθμίσεις σύνδεσης τούνελ και ελέγχου ταυτότητας.",
+  "config.cloudflare_tunnel.checking": "Έλεγχος σύνδεσης…",
+  "config.cloudflare_tunnel.status_disabled": "Το Cloudflare Tunnel είναι απενεργοποιημένο",
+  "config.cloudflare_tunnel.status_running": "Ο σήραγγας εκτελείται",
+  "config.cloudflare_tunnel.status_stopped": "Ο σήραγγας δεν εκτελείται",
+  "config.cloudflare_tunnel.status_error": "Αποτυχία φόρτωσης κατάστασης σήραγγας"
 }

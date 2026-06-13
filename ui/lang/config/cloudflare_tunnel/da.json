@@ -43,5 +43,10 @@
   "config.cloudflare_tunnel.general_title": "Generelt",
   "config.cloudflare_tunnel.general_desc": "Aktivér tunnelen og konfigurer grundlæggende indstillinger.",
   "config.cloudflare_tunnel.connection_title": "Forbindelse",
-  "config.cloudflare_tunnel.connection_desc": "Konfigurer tunnelforbindelse og godkendelsesindstillinger."
+  "config.cloudflare_tunnel.connection_desc": "Konfigurer tunnelforbindelse og godkendelsesindstillinger.",
+  "config.cloudflare_tunnel.checking": "Tjekker forbindelse…",
+  "config.cloudflare_tunnel.status_disabled": "Cloudflare Tunnel er deaktiveret",
+  "config.cloudflare_tunnel.status_running": "Tunnel kører",
+  "config.cloudflare_tunnel.status_stopped": "Tunnel kører ikke",
+  "config.cloudflare_tunnel.status_error": "Kunne ikke indlæse tunnelstatus"
 }

@@ -473,5 +473,11 @@
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Catalogo esterno di integrazioni e fonte di strumenti per l agente",
   "config.section.virtual_desktop.label": "Desktop virtuale",
-  "config.section.virtual_desktop.desc": "Desktop nel browser con app, file e widget controllati dall'agente."
+  "config.section.virtual_desktop.desc": "Desktop nel browser con app, file e widget controllati dall'agente.",
+  "config.github.test_btn": "Testa connessione",
+  "config.github.test_ok": "Connessione riuscita",
+  "config.github.test_fail": "Connessione non riuscita",
+  "config.github.loading": "Test in corso…",
+  "config.github.status_success": "✅",
+  "config.github.status_error": "❌"
 }

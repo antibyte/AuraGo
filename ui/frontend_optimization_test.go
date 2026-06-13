@@ -756,8 +756,14 @@ func TestConfigFormBuilderAPIIsEmbeddedAndLoadedBeforeConfigMain(t *testing.T) {
 		}
 	}
 
-	grafana := readEmbeddedText(t, "cfg/grafana.js")
-	if !strings.Contains(grafana, "window.AuraConfigForm.renderSpec") {
+	usesFormBuilder := false
+	for _, cfgModule := range []string{"cfg/grafana.js", "cfg/adguard.js", "cfg/koofr.js", "cfg/webdav.js"} {
+		if strings.Contains(readEmbeddedText(t, cfgModule), "window.AuraConfigForm.renderSpec") {
+			usesFormBuilder = true
+			break
+		}
+	}
+	if !usesFormBuilder {
 		t.Fatal("at least one field-list config section must use AuraConfigForm.renderSpec")
 	}
 }

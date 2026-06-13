@@ -75,5 +75,17 @@
   "config.webdav.token_save_failed": "Falha ao guardar o token bearer do WebDAV no Vault.",
   "config.webdav.token_saved": "Token bearer do WebDAV guardado no Vault.",
   "config.webdav.url_label": "WebDAV URL",
-  "config.webdav.username_label": "Nome de usuário"
+  "config.webdav.username_label": "Nome de usuário",
+  "config.webdav.checking": "Verificando conexão…",
+  "config.webdav.loading": "Testando…",
+  "config.webdav.connection_failed": "Falha na conexão",
+  "config.webdav.test_btn": "Testar conexão",
+  "config.webdav.test_ok": "Conexão bem-sucedida",
+  "config.webdav.test_fail": "Falha na conexão",
+  "config.webdav.status_disabled": "Integração WebDAV desativada",
+  "config.webdav.status_no_url": "Nenhuma URL WebDAV configurada",
+  "config.webdav.status_no_credentials": "Credenciais WebDAV ausentes",
+  "config.webdav.status_ok": "Conectado ao WebDAV",
+  "config.webdav.status_success": "✅",
+  "config.webdav.status_error": "❌"
 }
