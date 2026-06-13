@@ -401,6 +401,29 @@ func deriveReuseGap(result ReuseLookupResult) string {
 	}
 }
 
+func shouldInjectReuseLookupPrompt(userText string, result ReuseLookupResult) bool {
+	if !result.Performed || strings.TrimSpace(result.Prompt) == "" {
+		return false
+	}
+	text := normalizeAdaptiveIntentText(userText)
+	explicitCues := []string{
+		"reuse", "re-use", "wiederverwend", "cheatsheet", "skill", "skills",
+		"template", "vorlage", "bestehende methode", "existing workflow",
+	}
+	for _, cue := range explicitCues {
+		if strings.Contains(text, cue) {
+			return true
+		}
+	}
+	if len(result.CheatsheetHits) > 0 && result.CheatsheetHits[0].Score >= 0.30 {
+		return true
+	}
+	if len(result.SkillHits) > 0 && result.SkillHits[0].Score >= 0.28 {
+		return true
+	}
+	return false
+}
+
 func renderReusePrompt(result ReuseLookupResult) string {
 	if !result.Performed {
 		return ""

@@ -237,6 +237,51 @@ func TestLazySpecialistAndRuntimePathIntent(t *testing.T) {
 	}
 }
 
+func TestRuntimePromptContextIntentGates(t *testing.T) {
+	if shouldInjectReachableChatChannelsContext("prüfe den Prompt", "web_chat", nil, nil) {
+		t.Fatal("did not expect reachable chat channels for ordinary web chat")
+	}
+	if !shouldInjectReachableChatChannelsContext("benachrichtige mich per ntfy", "web_chat", nil, nil) {
+		t.Fatal("expected reachable chat channels for notification intent")
+	}
+	if !shouldInjectReachableChatChannelsContext("prüfe den Prompt", "telegram", nil, nil) {
+		t.Fatal("expected reachable chat channels outside web chat")
+	}
+
+	if shouldInjectSpaceAgentRuntimePrompt("bewerte den Prompt", nil, nil) {
+		t.Fatal("did not expect space-agent context for ordinary prompt review")
+	}
+	if !shouldInjectSpaceAgentRuntimePrompt("delegiere das an den Space Agent Sidecar", nil, nil) {
+		t.Fatal("expected space-agent context for explicit delegation intent")
+	}
+	if !shouldInjectSpaceAgentRuntimePrompt("weiter damit", []string{"space_agent"}, nil) {
+		t.Fatal("expected space-agent context after recent space_agent usage")
+	}
+
+	if shouldInjectUserProfilingPrompt("analysiere diesen Logauszug") {
+		t.Fatal("did not expect user profiling for ordinary analysis")
+	}
+	if !shouldInjectUserProfilingPrompt("welche Präferenzen kennst du über mich?") {
+		t.Fatal("expected user profiling for explicit profile intent")
+	}
+}
+
+func TestApplyRuntimePromptContextBudgetsCapsOperationalAndTaskRules(t *testing.T) {
+	flags := &prompts.ContextFlags{
+		OperationalIssueReminder: strings.Repeat("issue ", 300),
+		TaskRules:                "## Heavy Task Rule\n" + strings.Repeat("rule detail ", 200),
+	}
+
+	applyRuntimePromptContextBudgets(flags)
+
+	if len([]rune(flags.OperationalIssueReminder)) > 601 {
+		t.Fatalf("OperationalIssueReminder length = %d, want <= 601", len([]rune(flags.OperationalIssueReminder)))
+	}
+	if len([]rune(flags.TaskRules)) > 901 {
+		t.Fatalf("TaskRules length = %d, want <= 901", len([]rune(flags.TaskRules)))
+	}
+}
+
 func TestAssembleSortedStreamToolCallsHandlesSparseIndices(t *testing.T) {
 	streamToolCalls := map[int]*openai.ToolCall{}
 	mergeStreamToolCallChunk(streamToolCalls, openai.ToolCall{

@@ -247,16 +247,17 @@ agent:
     system_prompt_token_budget: 0    # 0 = automatic
     adaptive_system_prompt_token_budget: true
     workflow_feedback: true
-    max_tool_guides: 5          # max tool guide documents injected into prompt
+    max_tool_guides: 3          # max tool guide documents injected into prompt
 
     # Debugging
     debug_mode: false
 
     # Adaptive tool filtering (reduces token usage for tool schemas)
     adaptive_tools:
-        enabled: false
-        max_tools: 16               # adaptive/preferred tool schemas
-        max_total_tools: 32         # final native schemas after required tools
+        enabled: true
+        max_tools: 10               # adaptive/preferred tool schemas
+        max_total_tools: 20         # final native schemas after required tools
+        max_schema_tokens: 6500     # rough schema-token cap (0 = unlimited)
         provider_profiles_enabled: true
         session_tool_retention_turns: 8
         decay_half_life_days: 7

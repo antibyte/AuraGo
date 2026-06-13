@@ -735,9 +735,9 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 
 	// Task Rules — selected workflow guardrails. These sit before tool guides so the
 	// model reads task-specific constraints before detailed tool examples.
-	if strings.TrimSpace(flags.TaskRules) != "" {
+	if taskRules := compactTaskRulesForPrompt(flags.TaskRules); taskRules != "" {
 		finalPrompt.WriteString("# TASK RULES\n")
-		finalPrompt.WriteString(strings.TrimSpace(flags.TaskRules))
+		finalPrompt.WriteString(taskRules)
 		finalPrompt.WriteString("\n\n")
 	}
 	if strings.TrimSpace(flags.HomepageDesignSystem) != "" {
@@ -793,20 +793,9 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 
 	// Personality self-awareness (emotion, traits, inner voice) — tone only.
 	if !flags.IsMission {
-		var personaSignals []string
-		if flags.EmotionDescription != "" {
-			personaSignals = append(personaSignals, "Mood: "+flags.EmotionDescription)
-		}
-		if flags.PersonalityLine != "" {
-			personaSignals = append(personaSignals, "Traits: "+flags.PersonalityLine)
-		}
-		if flags.InnerVoice != "" {
-			personaSignals = append(personaSignals, "Inner voice: "+flags.InnerVoice)
-		}
-		if len(personaSignals) > 0 {
+		if personaSignals := buildCompactPersonaSignals(flags); personaSignals != "" {
 			finalPrompt.WriteString("\n### PERSONA SIGNALS\n")
-			finalPrompt.WriteString("Tone only; not proof of task state or tool results.\n")
-			finalPrompt.WriteString(strings.Join(personaSignals, "\n"))
+			finalPrompt.WriteString(personaSignals)
 			finalPrompt.WriteString("\n\n")
 		}
 	}
@@ -1077,10 +1066,15 @@ func looksLikeLegacyToolJSONExample(content string) bool {
 }
 
 const (
-	maxCoreMemoryPromptChars   = 12000
-	maxCoreMemoryPromptEntries = 60
-	coreMemoryHeadEntries      = 20
-	maxCorePersonalityRunes    = 450
+	maxCoreMemoryPromptChars         = 12000
+	maxCoreMemoryPromptEntries       = 60
+	coreMemoryHeadEntries            = 20
+	maxCorePersonalityRunes          = 450
+	maxPersonaSignalsChars           = 220
+	maxPersonaSignalFieldChars       = 80
+	maxUnifiedMemoryBlockChars       = 1500
+	maxUnifiedMemorySectionBodyChars = 520
+	maxTaskRulesPromptChars          = 900
 )
 
 func compactCoreMemoryForPrompt(coreMemory string) string {
@@ -1148,10 +1142,11 @@ func appendCoreMemoryFilterMarker(lines []string, filteredCount int) []string {
 }
 
 func isTransientCoreMemoryPromptLine(line string) bool {
-	if memory.ValidateCoreMemoryFact(line) != nil {
+	fact := coreMemoryPromptFactText(line)
+	if memory.ValidateCoreMemoryFact(fact) != nil {
 		return true
 	}
-	lower := strings.ToLower(strings.TrimSpace(line))
+	lower := strings.ToLower(strings.TrimSpace(fact))
 	if lower == "" {
 		return false
 	}
@@ -1192,6 +1187,24 @@ func isTransientCoreMemoryPromptLine(line string) bool {
 	return false
 }
 
+func coreMemoryPromptFactText(line string) string {
+	trimmed := strings.TrimSpace(line)
+	if !strings.HasPrefix(trimmed, "[") {
+		return trimmed
+	}
+	end := strings.Index(trimmed, "]")
+	if end <= 1 {
+		return trimmed
+	}
+	id := trimmed[1:end]
+	for _, r := range id {
+		if r < '0' || r > '9' {
+			return trimmed
+		}
+	}
+	return strings.TrimSpace(trimmed[end+1:])
+}
+
 func nonEmptyLines(text string) []string {
 	rawLines := strings.Split(strings.TrimSpace(text), "\n")
 	lines := make([]string, 0, len(rawLines))
@@ -1217,6 +1230,83 @@ func hardTruncateText(text string, maxChars int) string {
 		cut--
 	}
 	return strings.TrimSpace(text[:cut]) + marker
+}
+
+func compactTaskRulesForPrompt(taskRules string) string {
+	taskRules = strings.TrimSpace(taskRules)
+	if taskRules == "" {
+		return ""
+	}
+	return truncateWithEllipsis(taskRules, maxTaskRulesPromptChars)
+}
+
+func buildCompactPersonaSignals(flags *ContextFlags) string {
+	if flags == nil {
+		return ""
+	}
+	parts := make([]string, 0, 4)
+	if mood := compactPersonaSignalValue(flags.EmotionDescription, maxPersonaSignalFieldChars); mood != "" {
+		parts = append(parts, "Mood="+mood)
+	}
+	if traits := compactPersonaSignalValue(flags.PersonalityLine, maxPersonaSignalFieldChars); traits != "" {
+		parts = append(parts, "traits="+traits)
+	}
+	if inner := compactPersonaSignalValue(flags.InnerVoice, maxPersonaSignalFieldChars); inner != "" {
+		parts = append(parts, "inner="+inner)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	parts = append(parts, "tone only")
+	available := maxPersonaSignalsChars - len("### PERSONA SIGNALS\n")
+	return truncateWithEllipsis(strings.Join(parts, "; "), available)
+}
+
+func compactPersonaSignalValue(value string, maxChars int) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	lines := strings.Split(value, "\n")
+	clean := make([]string, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		clean = append(clean, line)
+	}
+	value = strings.Join(clean, " ")
+	replacements := []string{
+		"Your current mood is ", "",
+		"your current mood is ", "",
+		"Current mood is ", "",
+		"current mood is ", "",
+		"Mood: ", "",
+		"Traits: ", "",
+		"Inner voice: ", "",
+	}
+	replacer := strings.NewReplacer(replacements...)
+	value = strings.TrimSpace(replacer.Replace(value))
+	value = strings.TrimSuffix(value, ".")
+	value = strings.Join(strings.Fields(value), " ")
+	return truncateWithEllipsis(value, maxChars)
+}
+
+func truncateWithEllipsis(text string, maxChars int) string {
+	text = strings.TrimSpace(text)
+	if maxChars <= 0 || len(text) <= maxChars {
+		return text
+	}
+	const suffix = "..."
+	if maxChars <= len(suffix) {
+		return text[:maxChars]
+	}
+	cut := maxChars - len(suffix)
+	for cut > 0 && !utf8.ValidString(text[:cut]) {
+		cut--
+	}
+	return strings.TrimSpace(text[:cut]) + suffix
 }
 
 // budgetShed progressively removes content sections until the prompt fits within the token budget.
@@ -1538,56 +1628,96 @@ func longestBytePrefixWithinBudgetContext(ctx context.Context, data []byte, suff
 }
 
 func buildUnifiedMemoryContextBlock(tier string, flags *ContextFlags) string {
-	sections := make([]string, 0, 8)
-
-	if flags.RecentActivityOverview != "" && tier != "minimal" {
-		sections = append(sections,
-			"## Recent Activity\n"+security.IsolateExternalData(flags.RecentActivityOverview),
-		)
+	type unifiedMemorySection struct {
+		title        string
+		body         string
+		minimalSkip  bool
+		fullTierOnly bool
+	}
+	sections := []unifiedMemorySection{
+		{title: "Retrieved Memories", body: flags.RetrievedMemories, minimalSkip: true},
+		{title: "Relevant Knowledge", body: flags.KnowledgeContext, minimalSkip: true},
+		{title: "Learned Rules", body: flags.LearnedRulesContext, minimalSkip: true},
+		{title: "Known Error Patterns", body: flags.ErrorPatternContext, minimalSkip: true},
+		{title: "Recent Activity", body: flags.RecentActivityOverview, minimalSkip: true},
+		{title: "Reuse-First Context", body: flags.ReuseContext},
+		{title: "Predicted Context", body: flags.PredictedMemories, fullTierOnly: true},
 	}
 
-	if flags.RetrievedMemories != "" && tier != "minimal" {
-		sections = append(sections,
-			"## Retrieved Memories\n"+security.IsolateExternalData(flags.RetrievedMemories),
-		)
+	hasSection := false
+	for _, section := range sections {
+		if strings.TrimSpace(section.body) == "" {
+			continue
+		}
+		if section.minimalSkip && tier == "minimal" {
+			continue
+		}
+		if section.fullTierOnly && tier != "full" {
+			continue
+		}
+		hasSection = true
+		break
 	}
-
-	if flags.PredictedMemories != "" && tier == "full" {
-		sections = append(sections,
-			"## Predicted Context\n"+security.IsolateExternalData(flags.PredictedMemories),
-		)
-	}
-
-	if flags.KnowledgeContext != "" && tier != "minimal" {
-		sections = append(sections,
-			"## Relevant Knowledge\n"+security.IsolateExternalData(flags.KnowledgeContext),
-		)
-	}
-
-	if flags.ErrorPatternContext != "" && tier != "minimal" {
-		sections = append(sections,
-			"## Known Error Patterns\n"+security.IsolateExternalData(flags.ErrorPatternContext),
-		)
-	}
-
-	if flags.LearnedRulesContext != "" && tier != "minimal" {
-		sections = append(sections,
-			"## Learned Rules\n"+security.IsolateExternalData(flags.LearnedRulesContext),
-		)
-	}
-
-	if flags.ReuseContext != "" {
-		sections = append(sections,
-			"## Reuse-First Context\n"+security.IsolateExternalData(flags.ReuseContext),
-		)
-	}
-
-	if len(sections) == 0 {
+	if !hasSection {
 		return ""
 	}
 
-	warning := "Memory is advisory and may be stale; fresh tool output, current files, and reproducible checks win. Verify before relying."
-	return "# UNIFIED MEMORY CONTEXT\n" + warning + "\n\n" + strings.Join(sections, "\n\n")
+	warning := "[advisory/stale] Fresh tool output, current files, and reproducible checks win."
+	out := "# UNIFIED MEMORY CONTEXT\n" + warning
+	added := 0
+	for _, section := range sections {
+		if strings.TrimSpace(section.body) == "" {
+			continue
+		}
+		if section.minimalSkip && tier == "minimal" {
+			continue
+		}
+		if section.fullTierOnly && tier != "full" {
+			continue
+		}
+		next, ok := appendBudgetedUnifiedMemorySection(out, section.title, section.body, maxUnifiedMemoryBlockChars)
+		if !ok {
+			continue
+		}
+		out = next
+		added++
+		if len(out) >= maxUnifiedMemoryBlockChars {
+			break
+		}
+	}
+	if added == 0 {
+		return out
+	}
+	if len(out) > maxUnifiedMemoryBlockChars {
+		return truncateWithEllipsis(out, maxUnifiedMemoryBlockChars)
+	}
+	return out
+}
+
+func appendBudgetedUnifiedMemorySection(current, title, body string, maxChars int) (string, bool) {
+	body = strings.TrimSpace(body)
+	if body == "" || maxChars <= len(current) {
+		return current, false
+	}
+	prefix := "\n\n## " + title + "\n"
+	remaining := maxChars - len(current) - len(prefix)
+	if remaining <= len(security.IsolateExternalData(""))+24 {
+		return current, false
+	}
+	if len(body) > maxUnifiedMemorySectionBodyChars {
+		body = truncateWithEllipsis(body, maxUnifiedMemorySectionBodyChars)
+	}
+	section := prefix + security.IsolateExternalData(body)
+	if len(current)+len(section) <= maxChars {
+		return current + section, true
+	}
+	for bodyBudget := remaining - len(security.IsolateExternalData("")) - 8; bodyBudget > 24; bodyBudget -= 32 {
+		section = prefix + security.IsolateExternalData(truncateWithEllipsis(body, bodyBudget))
+		if len(current)+len(section) <= maxChars {
+			return current + section, true
+		}
+	}
+	return current, false
 }
 
 // removeLineByPrefix removes all lines starting with the given prefix (and the following blank line).

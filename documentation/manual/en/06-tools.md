@@ -220,8 +220,9 @@ The related tools are `generate_image`, `generate_music`, and `generate_video`. 
 agent:
   adaptive_tools:
     enabled: true
-    max_tools: 16               # Adaptive/preferred tool cap
-    max_total_tools: 32         # Final native schema cap
+    max_tools: 10               # Adaptive/preferred tool cap
+    max_total_tools: 20         # Final native schema cap
+    max_schema_tokens: 6500     # Rough schema-token cap (0 = unlimited)
     provider_profiles_enabled: true
     session_tool_retention_turns: 8
     

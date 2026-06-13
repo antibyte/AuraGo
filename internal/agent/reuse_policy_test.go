@@ -150,6 +150,31 @@ func TestBuildReuseLookupPrefersSpecificDesktopAppCheatsheetOverGenericQuickstar
 	}
 }
 
+func TestShouldInjectReuseLookupPromptSkipsJournalOnlyHits(t *testing.T) {
+	lookup := ReuseLookupResult{
+		Performed: true,
+		Prompt:    "journal-only reuse prompt",
+		JournalHits: []reuseArtifactHit{{
+			Name:  "Old mission note",
+			Score: 0.95,
+		}},
+	}
+	if shouldInjectReuseLookupPrompt("prüfe den Prompt", lookup) {
+		t.Fatal("did not expect reuse prompt injection for journal-only hits")
+	}
+
+	lookup.CheatsheetHits = []reuseArtifactHit{{
+		Name:  "Prompt Budget Cheatsheet",
+		Score: 0.34,
+	}}
+	if !shouldInjectReuseLookupPrompt("prüfe den Prompt", lookup) {
+		t.Fatal("expected reuse prompt injection for strong cheatsheet hit")
+	}
+	if !shouldInjectReuseLookupPrompt("nutze das passende Cheatsheet", ReuseLookupResult{Performed: true, Prompt: "reuse", JournalHits: lookup.JournalHits}) {
+		t.Fatal("expected explicit reuse intent to inject reuse prompt")
+	}
+}
+
 func TestReusableSkillCandidateSkipsProviderInvalidExamples(t *testing.T) {
 	if isReusableSkillCandidate(tools.SkillRegistryEntry{Name: "Example: Hello World", Description: "Hello World example"}) {
 		t.Fatal("expected provider-invalid example skill to be skipped")

@@ -387,7 +387,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					reuseLookup = buildReuseLookup(trimmedReuseQuery, shortTermMem, s.runCfg.CheatsheetDB, s.currentLogger)
 					lastReuseLookupMsg = trimmedReuseQuery
 				}
-				if reuseLookup.Performed {
+				if shouldInjectReuseLookupPrompt(trimmedReuseQuery, reuseLookup) {
 					flags.ReuseContext = reuseLookup.Prompt
 				}
 			}
@@ -991,6 +991,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			ruleTools = append(ruleTools, tool)
 		}
 		applyTaskRulePromptContext(&flags, buildTaskRulePromptContext(cfg, initialUserMsg, ruleTools, nil, s.homepageRuleProjectDir))
+		applyRuntimePromptContextPolicy(&flags, runtimePromptContextOptions{
+			UserText:         lastUserMsg,
+			MessageSource:    flags.MessageSource,
+			RecentTools:      recentTools,
+			SessionUsedTools: s.sessionUsedTools,
+			ReuseLookup:      reuseLookup,
+			DebugOrError:     flags.IsDebugMode || flags.IsErrorState || recoveryState.ConsecutiveErrorCount > 0,
+		})
 
 		budgetHint := ""
 		if budgetTracker != nil {

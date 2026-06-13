@@ -107,14 +107,20 @@ var transientCoreMemoryTaskMarkers = []string{
 
 var transientCoreMemoryOperationalMarkers = []string{
 	"aktualisiert am",
+	"aktualisierung",
 	"artikel mit quellen",
 	"bot-token prüfen",
 	"build erfolgreich",
 	"build successful",
+	"caddy reload",
+	"caddy-container",
+	"container neu geladen",
 	"deploy state",
+	"docker-leichen",
 	"erfolgreich gesendet",
 	"health-check",
 	"heartbeat",
+	"ki-news",
 	"letzter lauf",
 	"live-verifikation",
 	"lokaler preview",
@@ -150,6 +156,7 @@ var transientCoreMemoryOperationalContextMarkers = []string{
 	"site",
 	"stand ",
 	"success",
+	"reload",
 }
 
 var transientCoreMemoryNetworkDiscoveryMarkers = []string{
@@ -197,14 +204,45 @@ func isCoreMemoryToolStateClaim(text string) bool {
 		strings.Contains(text, "integration") ||
 		strings.Contains(text, "virtual_desktop") ||
 		strings.Contains(text, "native function") ||
-		strings.Contains(text, "provider-invalid")
+		strings.Contains(text, "provider-invalid") ||
+		strings.Contains(text, "send_notification") ||
+		strings.Contains(text, "ntfy") ||
+		strings.Contains(text, "telegram") ||
+		strings.Contains(text, "discord") ||
+		strings.Contains(text, "pushover") ||
+		strings.Contains(text, "rocketchat") ||
+		strings.Contains(text, "ddg_search")
 	if !hasToolSubject {
 		return false
 	}
 	stateTerms := []string{
 		"failed", "failing", "failure", "error", "unavailable", "not available",
 		"unsupported", "invalid", "disabled", "enabled", "configured",
-		"fehlgeschlagen", "fehler", "kaputt", "nicht verfügbar", "aktiviert", "konfiguriert",
+		"fehlgeschlagen", "fehler", "kaputt", "nicht verfügbar", "deaktiviert",
+		"aktiviert", "konfiguriert", "verfügbar", "reachable", "immer aktiv",
 	}
 	return hasAnyCoreMemoryMarker(text, stateTerms)
+}
+
+type CoreMemoryReviewIssue struct {
+	Index  int    `json:"index"`
+	Fact   string `json:"fact"`
+	Reason string `json:"reason"`
+}
+
+// ReviewCoreMemoryFacts identifies existing core-memory entries that should be
+// manually cleaned up. It is report-only: callers must not delete or move data
+// automatically based on this classification.
+func ReviewCoreMemoryFacts(facts []string) []CoreMemoryReviewIssue {
+	issues := make([]CoreMemoryReviewIssue, 0)
+	for i, fact := range facts {
+		if err := ValidateCoreMemoryFact(fact); err != nil {
+			issues = append(issues, CoreMemoryReviewIssue{
+				Index:  i,
+				Fact:   fact,
+				Reason: err.Error(),
+			})
+		}
+	}
+	return issues
 }

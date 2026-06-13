@@ -218,8 +218,9 @@ Die zugehörigen Tools sind `generate_image`, `generate_music` und `generate_vid
 agent:
   adaptive_tools:
     enabled: true
-    max_tools: 16               # Limit fuer adaptive/bevorzugte Tools
-    max_total_tools: 32         # Gesamtlimit fuer native Tool-Schemas
+    max_tools: 10               # Limit fuer adaptive/bevorzugte Tools
+    max_total_tools: 20         # Gesamtlimit fuer native Tool-Schemas
+    max_schema_tokens: 6500     # Grobe Schema-Token-Grenze (0 = unbegrenzt)
     provider_profiles_enabled: true
     session_tool_retention_turns: 8
     

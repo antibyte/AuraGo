@@ -1224,6 +1224,17 @@ func Load(path string) (*Config, error) {
 	if !yamlHasPath(data, "agent", "adaptive_tools", "enabled") {
 		cfg.Agent.AdaptiveTools.Enabled = true
 	}
+	if cfg.Agent.AdaptiveTools.Enabled &&
+		yamlHasPath(data, "agent", "adaptive_tools", "max_tools") &&
+		yamlHasPath(data, "agent", "adaptive_tools", "max_total_tools") &&
+		yamlHasPath(data, "agent", "adaptive_tools", "max_schema_tokens") &&
+		cfg.Agent.AdaptiveTools.MaxTools == 16 &&
+		cfg.Agent.AdaptiveTools.MaxTotalTools == 32 &&
+		cfg.Agent.AdaptiveTools.MaxSchemaTokens == 0 {
+		cfg.Agent.AdaptiveTools.MaxTools = 10
+		cfg.Agent.AdaptiveTools.MaxTotalTools = 20
+		cfg.Agent.AdaptiveTools.MaxSchemaTokens = 6500
+	}
 	// Existing explicit values are preserved. Omitted caps get aggressive
 	// defaults when adaptive filtering is active.
 	if cfg.Agent.AdaptiveTools.MaxTools <= 0 &&

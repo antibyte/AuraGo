@@ -211,6 +211,31 @@ func TestUnifiedMemoryContextUsesCompactAdvisoryWarning(t *testing.T) {
 	}
 }
 
+func TestUnifiedMemoryContextAppliesGlobalRuntimeBudget(t *testing.T) {
+	block := buildUnifiedMemoryContextBlock("full", &ContextFlags{
+		RecentActivityOverview: strings.Repeat("recent activity ", 120),
+		RetrievedMemories:      "retrieved-anchor " + strings.Repeat("retrieved memory ", 120),
+		PredictedMemories:      strings.Repeat("predicted memory ", 80),
+		KnowledgeContext:       "knowledge-anchor " + strings.Repeat("knowledge context ", 100),
+		ErrorPatternContext:    strings.Repeat("known error ", 80),
+		LearnedRulesContext:    strings.Repeat("learned rule ", 80),
+		ReuseContext:           strings.Repeat("reuse hint ", 80),
+	})
+
+	if len(block) > 1500 {
+		t.Fatalf("unified memory context length = %d, want <= 1500\n%s", len(block), block)
+	}
+	if !strings.Contains(block, "retrieved-anchor") {
+		t.Fatalf("highest-priority retrieved memory should survive global cap:\n%s", block)
+	}
+	if !strings.Contains(block, "knowledge-anchor") {
+		t.Fatalf("relevant knowledge should survive after retrieved memories when budget allows:\n%s", block)
+	}
+	if strings.Count(strings.ToLower(block), "fresh tool output") != 1 {
+		t.Fatalf("expected exactly one memory advisory warning:\n%s", block)
+	}
+}
+
 func TestBuildSystemPromptCombinesPersonaSignals(t *testing.T) {
 	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
 		return charRatioEncoder{}, nil
@@ -233,6 +258,83 @@ func TestBuildSystemPromptCombinesPersonaSignals(t *testing.T) {
 			t.Fatalf("legacy persona section %q should not appear:\n%s", legacy, prompt)
 		}
 	}
+}
+
+func TestBuildSystemPromptCompactsPersonaSignals(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return charRatioEncoder{}, nil
+	}, time.Second, time.Second)
+
+	prompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), &ContextFlags{
+		Tier:               "full",
+		SystemLanguage:     "en",
+		TokenBudget:        200000,
+		EmotionDescription: strings.Repeat("focused ", 30),
+		PersonalityLine: "### Current Personality State\n" +
+			"Your current mood is analytical and cautious. Confidence 0.31, creativity 0.40, thoroughness 0.91.",
+		InnerVoice: strings.Repeat("verify evidence before making claims ", 12),
+	}, "", slog.Default())
+
+	section := promptSection(prompt, "### PERSONA SIGNALS")
+	if section == "" {
+		t.Fatalf("missing persona signals section:\n%s", prompt)
+	}
+	if strings.Contains(section, "### Current Personality State") {
+		t.Fatalf("persona signals leaked legacy markdown header:\n%s", section)
+	}
+	if len(section) > 220 {
+		t.Fatalf("persona signals length = %d, want <= 220:\n%s", len(section), section)
+	}
+}
+
+func TestRuntimeWebChatSystemPromptWithoutToolsStaysUnderSixteenK(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return charRatioEncoder{}, nil
+	}, time.Second, time.Second)
+
+	flags := &ContextFlags{
+		Tier:                     "full",
+		SystemLanguage:           "de",
+		TokenBudget:              200000,
+		NativeToolsEnabled:       true,
+		UnifiedMemoryBlock:       true,
+		MessageSource:            "web_chat",
+		RetrievedMemories:        strings.Repeat("retrieved memory detail ", 120),
+		KnowledgeContext:         strings.Repeat("knowledge graph relation ", 80),
+		LearnedRulesContext:      strings.Repeat("learned rule ", 80),
+		ErrorPatternContext:      strings.Repeat("known error pattern ", 80),
+		RecentActivityOverview:   strings.Repeat("recent activity ", 90),
+		OperationalIssueReminder: strings.Repeat("diagnostic issue ", 50),
+		TaskRules:                strings.Repeat("task rule detail ", 100),
+		EmotionDescription:       strings.Repeat("focused ", 20),
+		PersonalityLine:          "### Current Personality State\n" + strings.Repeat("confidence high thoroughness high ", 8),
+		InnerVoice:               strings.Repeat("verify before final answer ", 10),
+	}
+
+	prompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), flags, "[1] User prefers direct German answers", slog.Default())
+	if len(prompt) > 16000 {
+		t.Fatalf("runtime web-chat system prompt length = %d, want <= 16000", len(prompt))
+	}
+	if strings.Contains(prompt, "### Current Personality State") {
+		t.Fatalf("legacy persona header leaked into runtime prompt")
+	}
+}
+
+func promptSection(prompt, header string) string {
+	start := strings.Index(prompt, header)
+	if start < 0 {
+		return ""
+	}
+	rest := prompt[start:]
+	lines := strings.Split(rest, "\n")
+	out := make([]string, 0, len(lines))
+	for i, line := range lines {
+		if i > 0 && strings.HasPrefix(line, "#") {
+			break
+		}
+		out = append(out, line)
+	}
+	return strings.TrimSpace(strings.Join(out, "\n"))
 }
 
 type markerAwareEncoder struct{}
@@ -1129,6 +1231,9 @@ func TestCompactCoreMemoryForPromptFiltersTransientOperationalDetails(t *testing
 		"[5] [project_name] phaser-demo source:memory_analysis session:mission-123",
 		"[6] [test_file_output] Test file created by homepage tool source:memory_analysis session:mission-123",
 		"[7] [WebGL Demo updates] WebGL Galaxy Demo updated with camera position source:memory_analysis session:default",
+		"[8] KI-News-Seite im Caddy-Container aktualisiert; Caddy reload erfolgreich.",
+		"[9] 5 beendete Docker-Leichen wurden entfernt.",
+		"[10] ntfy send_notification ist deaktiviert, aber Ntfy ist reachable.",
 	}, "\n")
 
 	got := compactCoreMemoryForPrompt(coreMemory)
@@ -1141,6 +1246,9 @@ func TestCompactCoreMemoryForPromptFiltersTransientOperationalDetails(t *testing
 	}
 	if strings.Contains(got, "phaser-demo") || strings.Contains(got, "Test file created") || strings.Contains(got, "WebGL Galaxy") {
 		t.Fatalf("stale project/demo artifact leaked into prompt core memory: %q", got)
+	}
+	if strings.Contains(got, "KI-News") || strings.Contains(got, "Docker-Leichen") || strings.Contains(got, "ntfy") {
+		t.Fatalf("snapshot operational artifact leaked into prompt core memory: %q", got)
 	}
 	if !strings.Contains(got, "User prefers German") || !strings.Contains(got, "Proxmox cluster") {
 		t.Fatalf("durable facts missing from core memory prompt: %q", got)

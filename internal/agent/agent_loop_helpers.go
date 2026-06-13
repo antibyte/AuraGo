@@ -1519,6 +1519,8 @@ const (
 	aggressiveErrorPatternChars      = 700
 	aggressiveLearnedRulesChars      = 480
 	aggressiveReuseContextChars      = 700
+	runtimeOperationalIssueChars     = 600
+	runtimeTaskRulesChars            = 900
 )
 
 type promptMemoryEntry struct {
@@ -1556,6 +1558,161 @@ func applyAggressivePromptContextBudgets(flags *prompts.ContextFlags) {
 	flags.ErrorPatternContext = compactMemoryForPrompt(flags.ErrorPatternContext, aggressiveErrorPatternChars)
 	flags.LearnedRulesContext = compactMemoryForPrompt(flags.LearnedRulesContext, aggressiveLearnedRulesChars)
 	flags.ReuseContext = compactMemoryForPrompt(flags.ReuseContext, aggressiveReuseContextChars)
+}
+
+type runtimePromptContextOptions struct {
+	UserText         string
+	MessageSource    string
+	RecentTools      []string
+	SessionUsedTools map[string]bool
+	ReuseLookup      ReuseLookupResult
+	DebugOrError     bool
+}
+
+func applyRuntimePromptContextPolicy(flags *prompts.ContextFlags, opts runtimePromptContextOptions) {
+	if flags == nil {
+		return
+	}
+	if !shouldInjectReachableChatChannelsContext(opts.UserText, opts.MessageSource, opts.RecentTools, opts.SessionUsedTools) {
+		flags.ChatChannelsContext = ""
+	}
+	if !shouldInjectSpaceAgentRuntimePrompt(opts.UserText, opts.RecentTools, opts.SessionUsedTools) {
+		flags.SpaceAgentEnabled = false
+		flags.SpaceAgentPublicURL = ""
+	}
+	if !shouldInjectUserProfilingPrompt(opts.UserText) {
+		flags.UserProfilingEnabled = false
+		flags.UserProfileSummary = ""
+	}
+	if !shouldInjectReuseLookupPrompt(opts.UserText, opts.ReuseLookup) {
+		flags.ReuseContext = ""
+	}
+	if !shouldInjectOperationalIssueReminderForTurn(opts.UserText, flags.OperationalIssueReminder, opts.DebugOrError) {
+		flags.OperationalIssueReminder = ""
+	}
+	applyRuntimePromptContextBudgets(flags)
+}
+
+func applyRuntimePromptContextBudgets(flags *prompts.ContextFlags) {
+	if flags == nil {
+		return
+	}
+	flags.OperationalIssueReminder = compactMemoryForPrompt(flags.OperationalIssueReminder, runtimeOperationalIssueChars)
+	flags.TaskRules = compactMemoryForPrompt(flags.TaskRules, runtimeTaskRulesChars)
+}
+
+func shouldInjectReachableChatChannelsContext(userText, messageSource string, recentTools []string, sessionUsed map[string]bool) bool {
+	source := strings.TrimSpace(strings.ToLower(messageSource))
+	if source != "" && source != "web_chat" {
+		return true
+	}
+	text := normalizeAdaptiveIntentText(userText)
+	cues := []string{
+		"send", "sende", "sent", "message", "nachricht", "benachrichtig", "notify",
+		"notification", "telegram", "discord", "ntfy", "pushover", "sms", "rocketchat",
+		"rocket chat", "agodesk", "kontakt", "contact", "chat channel", "kanal",
+	}
+	if containsAnyRuntimeCue(text, cues) {
+		return true
+	}
+	for _, tool := range recentTools {
+		if isChatChannelTool(tool) {
+			return true
+		}
+	}
+	for tool := range sessionUsed {
+		if isChatChannelTool(tool) {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldInjectSpaceAgentRuntimePrompt(userText string, recentTools []string, sessionUsed map[string]bool) bool {
+	text := normalizeAdaptiveIntentText(userText)
+	cues := []string{
+		"space agent", "space_agent", "sidecar", "delegier", "delegate", "delegation",
+		"workspace handoff", "workspace übergabe", "workspace uebergabe", "arbeitsbereich",
+		"parallel", "subagent", "co agent", "coagent",
+	}
+	if containsAnyRuntimeCue(text, cues) {
+		return true
+	}
+	for _, tool := range recentTools {
+		if strings.EqualFold(strings.TrimSpace(tool), "space_agent") {
+			return true
+		}
+	}
+	for tool := range sessionUsed {
+		if strings.EqualFold(strings.TrimSpace(tool), "space_agent") {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldInjectUserProfilingPrompt(userText string) bool {
+	text := normalizeAdaptiveIntentText(userText)
+	cues := []string{
+		"profile", "profil", "präferenz", "praeferenz", "präferenzen", "praeferenzen",
+		"pr ferenz", "pr ferenzen",
+		"preference", "preferences", "personalisiert", "personalisiere", "personalisierung",
+		"about me", "über mich", "ueber mich", "ber mich", "was weisst du", "was wei t du",
+		"kennst du über mich", "kennst du ueber mich", "kennst du ber mich", "user profile", "nutzerprofil",
+	}
+	return containsAnyRuntimeCue(text, cues)
+}
+
+func shouldInjectOperationalIssueReminderForTurn(userText, reminder string, debugOrError bool) bool {
+	if strings.TrimSpace(reminder) == "" {
+		return false
+	}
+	text := normalizeAdaptiveIntentText(userText)
+	if debugOrError || containsAnyRuntimeCue(text, []string{
+		"debug", "fehler", "error", "failed", "failure", "problem", "probleme",
+		"log", "logs", "kaputt", "hängt", "haengt", "trace", "stacktrace",
+	}) {
+		return true
+	}
+	reminderTokens := runtimeCueTokenSet(normalizeAdaptiveIntentText(reminder))
+	for token := range runtimeCueTokenSet(text) {
+		if reminderTokens[token] {
+			return true
+		}
+	}
+	return false
+}
+
+func isChatChannelTool(name string) bool {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		return false
+	}
+	cues := []string{
+		"telegram", "discord", "ntfy", "pushover", "sms", "rocketchat", "rocket_chat",
+		"send_notification", "send_message", "send_sms", "send_image", "send_video",
+	}
+	return containsAnyRuntimeCue(name, cues)
+}
+
+func containsAnyRuntimeCue(text string, cues []string) bool {
+	for _, cue := range cues {
+		if strings.Contains(text, cue) {
+			return true
+		}
+	}
+	return false
+}
+
+func runtimeCueTokenSet(text string) map[string]bool {
+	tokens := make(map[string]bool)
+	for _, token := range strings.Fields(text) {
+		token = strings.Trim(token, ".,:;!?()[]{}\"'")
+		if len(token) >= 4 {
+			tokens[token] = true
+		}
+	}
+	return tokens
 }
 
 func shouldInjectSpecialistAwareness(userText, suggestion string) bool {

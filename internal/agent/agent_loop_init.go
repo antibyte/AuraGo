@@ -319,6 +319,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	if useNativeFunctions {
 		ntSchemas := make([]openai.Tool, len(allSchemas))
 		copy(ntSchemas, allSchemas)
+		filterReport := toolSchemaFilterReport{}
 
 		// Adaptive tool filtering: remove rarely-used tools to save tokens
 		if cfg.Agent.AdaptiveTools.Enabled && shortTermMem != nil {
@@ -373,7 +374,8 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 				MaxSchemaTokens:  cfg.Agent.AdaptiveTools.MaxSchemaTokens,
 			}, logger)
 			ntSchemas = filterResult.Tools
-			RecordToolFilterReport(filterResult.Report)
+			filterReport = filterResult.Report
+			RecordToolFilterReport(filterReport)
 			// Track tools removed by adaptive filtering so their guides are also skipped
 			remainingSet := make(map[string]bool, len(ntSchemas))
 			for _, t := range ntSchemas {
@@ -416,12 +418,27 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			if toolingPolicy.ParallelToolCallsEnabled {
 				req.ParallelToolCalls = true
 			}
+			if filterReport.FinalToolCount == 0 && len(ntSchemas) > 0 {
+				filterReport.FinalToolCount = len(ntSchemas)
+				filterReport.MaxTotal = toolingPolicy.EffectiveMaxTotalTools
+				filterReport.MaxSchemaTokens = cfg.Agent.AdaptiveTools.MaxSchemaTokens
+				for _, tool := range ntSchemas {
+					filterReport.FinalSchemaTokens += estimateSingleToolSchemaTokens(tool)
+				}
+			}
 			logger.Info("[NativeTools] Native function calling enabled",
 				"tool_count", len(ntSchemas),
 				"parallel", toolingPolicy.ParallelToolCallsEnabled,
 				"provider_tool_profile", toolingPolicy.ProviderToolProfile,
 				"max_adaptive", toolingPolicy.EffectiveMaxAdaptiveTools,
-				"max_total", toolingPolicy.EffectiveMaxTotalTools)
+				"max_total", toolingPolicy.EffectiveMaxTotalTools,
+				"effective_max_total", filterReport.MaxTotal,
+				"effective_max_schema_tokens", filterReport.MaxSchemaTokens,
+				"kept_tools", filterReport.FinalToolCount,
+				"hard_tools", filterReport.KeptHardAlways,
+				"soft_tools", filterReport.KeptSoftAlways,
+				"adaptive_tools", filterReport.KeptAdaptive,
+				"final_schema_tokens", filterReport.FinalSchemaTokens)
 		}
 	} else {
 		// Keep discover_tools state fresh for non-native/text tool sessions too.
