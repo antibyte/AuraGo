@@ -99,10 +99,10 @@ Core agent behaviour settings.
 | `adaptive_system_prompt_token_budget` | `true` | Automatically adjust system prompt token budget. |
 | `show_tool_results` | `false` | Show tool call results in the Web UI by default. Can be toggled live with `/debug on\|off`. |
 | `debug_mode` | `false` | Inject debug instructions into the system prompt so the agent reports internal errors with helpful details. |
-| `adaptive_tools.enabled` | `false` | Enable adaptive tool filtering to reduce token usage. |
-| `adaptive_tools.max_tools` | `16` | Maximum adaptive/preferred tool schemas. Required and always-include tools may be added on top. |
-| `adaptive_tools.max_total_tools` | `32` | Maximum final native tool schemas after hard-required tools are kept. |
-| `adaptive_tools.max_schema_tokens` | `0` | Optional schema-token cap for adaptive native tools. `0` keeps the existing count caps only. |
+| `adaptive_tools.enabled` | `true` | Enable adaptive tool filtering to reduce token usage. Explicit `false` keeps all enabled tools visible. |
+| `adaptive_tools.max_tools` | `10` | Maximum adaptive/preferred tool schemas before required and always-include tools are added. |
+| `adaptive_tools.max_total_tools` | `20` | Maximum final native tool schemas after hard-required tools are kept. |
+| `adaptive_tools.max_schema_tokens` | `6500` | Optional schema-token cap for adaptive native tools. Explicit `0` disables the token cap. |
 | `adaptive_tools.provider_profiles_enabled` | `true` | Apply provider-specific stability overlays for tool budgets and response-header timeouts. |
 | `adaptive_tools.session_tool_retention_turns` | `8` | Keep tools used in recent turns visible as soft always-include tools. |
 | `history_compaction.enabled` | `true` | Compact older complete native tool-call rounds before LLM history compression. |

@@ -119,13 +119,55 @@
       "title": "Memory Compression Limit",
       "description": "Character threshold for compressing older messages. Default: 50000"
     },
+    "tool_output_limit": {
+      "title": "Tool Output Limit",
+      "description": "Maximum characters from a single tool result that are added to the agent context. 0 = unlimited. Default: 50000"
+    },
+    "discover_tools_snapshot_ttl_minutes": {
+      "title": "Discover Tools Snapshot TTL",
+      "description": "How long discover_tools activation snapshots remain valid. 0 or negative values use the default of 5 minutes."
+    },
+    "system_prompt_token_budget": {
+      "title": "System Prompt Token Budget",
+      "description": "Soft token cap for the system prompt. 0 lets AuraGo calculate the budget automatically."
+    },
     "adaptive_system_prompt_token_budget": {
       "title": "Adaptive System Prompt Budget",
       "description": "Automatically adds a small token budget surcharge for enabled tools and integrations so the system prompt can grow with the configured capability set."
     },
+    "optimizer_enabled": {
+      "title": "Prompt Optimizer",
+      "description": "Automatically trims optional prompt context when the context window is tight."
+    },
+    "max_tool_guides": {
+      "title": "Max Tool Guides",
+      "description": "Maximum tool manuals embedded in the system prompt. Default: 3. Fewer reduces tokens but may require discovery more often."
+    },
     "core_memory_max_entries": {
       "title": "Core Memory Max Entries",
-      "description": "Maximum number of permanent core facts. 0 = unlimited. Default: 200"
+      "description": "Maximum number of permanent core facts. 0 uses the default of 80."
+    },
+    "adaptive_tools": {
+      "enabled": {
+        "title": "Adaptive Tool Filtering",
+        "description": "Keeps likely useful native tools visible and leaves the rest behind discover_tools/activate_tools. Reduces prompt tokens; default: on."
+      },
+      "max_tools": {
+        "title": "Max Adaptive Tools",
+        "description": "Maximum adaptive/preferred tool schemas before required and always-included tools are added. Default: 10."
+      },
+      "max_total_tools": {
+        "title": "Max Total Tools",
+        "description": "Final cap for visible native tool schemas after hard-required tools are kept. Default: 20."
+      },
+      "max_schema_tokens": {
+        "title": "Max Schema Tokens",
+        "description": "Approximate token budget for visible native tool schemas. 0 disables this token cap; default: 6500."
+      },
+      "always_include": {
+        "title": "Always Include Tools",
+        "description": "Tool names that stay visible whenever adaptive filtering is active. Default: filesystem, query_memory, manage_memory, execute_shell."
+      }
     },
     "allow_shell": {
       "title": "Allow Shell Execution",

@@ -53,12 +53,44 @@ func TestExtractSecretsToVaultStoresProxmoxSecret(t *testing.T) {
 	}
 }
 
-func TestAdaptiveToolHelpKeysExistInAllLocales(t *testing.T) {
+func TestOptimizationHelpKeysExistInAllLocales(t *testing.T) {
 	required := []string{
+		"help.agent.optimizer_enabled",
+		"help.agent.system_prompt_token_budget",
+		"help.agent.adaptive_system_prompt_token_budget",
+		"help.agent.context_window",
+		"help.agent.memory_compression_char_limit",
+		"help.agent.tool_output_limit",
+		"help.agent.discover_tools_snapshot_ttl_minutes",
+		"help.agent.max_tool_guides",
+		"help.agent.core_memory_max_entries",
+		"help.agent.core_memory_cap_mode",
+		"help.agent.adaptive_tools.enabled",
 		"help.agent.adaptive_tools.max_tools",
 		"help.agent.adaptive_tools.max_total_tools",
+		"help.agent.adaptive_tools.max_schema_tokens",
 		"help.agent.adaptive_tools.provider_profiles_enabled",
 		"help.agent.adaptive_tools.session_tool_retention_turns",
+		"help.agent.adaptive_tools.decay_half_life_days",
+		"help.agent.adaptive_tools.weight_success_rate",
+		"help.agent.adaptive_tools.always_include",
+		"help.agent.adaptive_tools.clean_transitions_after_days",
+		"help.circuit_breaker.max_tool_calls",
+		"help.circuit_breaker.llm_timeout_seconds",
+		"help.circuit_breaker.maintenance_timeout_minutes",
+		"help.circuit_breaker.retry_intervals",
+		"help.agent.recovery.max_provider_422_recoveries",
+		"help.agent.recovery.min_messages_for_empty_retry",
+		"help.agent.recovery.duplicate_consecutive_hits",
+		"help.agent.recovery.duplicate_frequency_hits",
+		"help.agent.recovery.identical_tool_error_hits",
+		"help.agent.background_tasks.enabled",
+		"help.agent.background_tasks.follow_up_delay_seconds",
+		"help.agent.background_tasks.max_retries",
+		"help.agent.background_tasks.retry_delay_seconds",
+		"help.agent.background_tasks.http_timeout_seconds",
+		"help.agent.background_tasks.wait_default_timeout_secs",
+		"help.agent.background_tasks.wait_poll_interval_seconds",
 	}
 	localeDir := filepath.Join("..", "..", "ui", "lang", "help")
 	entries, err := os.ReadDir(localeDir)

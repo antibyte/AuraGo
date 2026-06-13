@@ -648,7 +648,7 @@ type Config struct {
 			WaitPollIntervalSecs   int  `yaml:"wait_poll_interval_seconds"` // poll interval for wait_for_event tasks (default: 5)
 			WaitDefaultTimeoutSecs int  `yaml:"wait_default_timeout_secs"`  // default timeout for wait_for_event tasks (default: 600)
 		} `yaml:"background_tasks"`
-		MaxToolGuides int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 5)
+		MaxToolGuides int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 3)
 
 		OutputCompression struct {
 			Enabled                bool `yaml:"enabled"`            // master toggle for command-aware output compression (default: true)
