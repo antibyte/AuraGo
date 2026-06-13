@@ -127,7 +127,7 @@ docs/superpowers/
 .claude/
 CLAUDE.md
 AGENTS.md
-.github/
+# .github/
 .planning/
 disposable/
 disposable/linux
