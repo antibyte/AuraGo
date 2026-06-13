@@ -49,5 +49,7 @@
   "config.google_workspace.oauth_manual_btn": "Ολοκλήρωση εξουσιοδότησης",
   "config.google_workspace.oauth_manual_success": "Εξουσιοδότηση επιτυχής",
   "config.google_workspace.oauth_manual_failed": "Εξουσιοδότηση απέτυχε:",
-  "config.google_workspace.testing": "⏳ Δοκιμή..."
+  "config.google_workspace.testing": "⏳ Δοκιμή...",
+  "config.google_workspace.test_success": "Επιτυχής σύνδεση",
+  "config.google_workspace.test_failed": "Η δοκιμή σύνδεσης απέτυχε"
 }

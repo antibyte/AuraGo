@@ -154,6 +154,31 @@ func TestConfigPhase2SecretsModalUsesSharedOverlay(t *testing.T) {
 	}
 }
 
+func TestConfigPhase2TTSAndGoogleWorkspaceAvoidInlineStyles(t *testing.T) {
+	t.Parallel()
+
+	for _, file := range []string{"cfg/tts.js", "cfg/google_workspace.js"} {
+		content := normalizeAssetText(mustReadUIFile(t, file))
+		if strings.Contains(content, "style=") {
+			t.Fatalf("%s still contains inline style attributes", file)
+		}
+	}
+
+	ttsJS := normalizeAssetText(mustReadUIFile(t, "cfg/tts.js"))
+	for _, marker := range []string{"adg-status-banner", "adg-password-row", "field-select", "tts-provider-section"} {
+		if !strings.Contains(ttsJS, marker) {
+			t.Fatalf("tts.js missing marker %q", marker)
+		}
+	}
+
+	gwJS := normalizeAssetText(mustReadUIFile(t, "cfg/google_workspace.js"))
+	for _, marker := range []string{"gw-status-line", "adg-password-row", "adg-test-btn", "gw-scope-row"} {
+		if !strings.Contains(gwJS, marker) {
+			t.Fatalf("google_workspace.js missing marker %q", marker)
+		}
+	}
+}
+
 func TestConfigVirtualDesktopSectionLabelsInSectionsBundle(t *testing.T) {
 	t.Parallel()
 

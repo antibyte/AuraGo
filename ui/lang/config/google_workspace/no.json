@@ -49,5 +49,7 @@
   "config.google_workspace.oauth_manual_btn": "Fullfør godkjenning",
   "config.google_workspace.oauth_manual_success": "Godkjenning vellykket",
   "config.google_workspace.oauth_manual_failed": "Godkjenning mislyktes:",
-  "config.google_workspace.testing": "⏳ Tester..."
+  "config.google_workspace.testing": "⏳ Tester...",
+  "config.google_workspace.test_success": "Tilkobling vellykket",
+  "config.google_workspace.test_failed": "Tilkoblingstest mislyktes"
 }

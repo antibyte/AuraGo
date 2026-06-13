@@ -49,5 +49,7 @@
   "config.google_workspace.oauth_manual_btn": "Autorisatie voltooien",
   "config.google_workspace.oauth_manual_success": "Autorisatie geslaagd",
   "config.google_workspace.oauth_manual_failed": "Autorisatie mislukt:",
-  "config.google_workspace.testing": "⏳ Testen..."
+  "config.google_workspace.testing": "⏳ Testen...",
+  "config.google_workspace.test_success": "Verbinding geslaagd",
+  "config.google_workspace.test_failed": "Verbindingstest mislukt"
 }

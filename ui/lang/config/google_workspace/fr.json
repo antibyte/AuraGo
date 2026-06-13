@@ -49,5 +49,7 @@
   "config.google_workspace.oauth_manual_btn": "Terminer l'autorisation",
   "config.google_workspace.oauth_manual_success": "Autorisation réussie",
   "config.google_workspace.oauth_manual_failed": "Échec de l'autorisation :",
-  "config.google_workspace.testing": "⏳ Test en cours..."
+  "config.google_workspace.testing": "⏳ Test en cours...",
+  "config.google_workspace.test_success": "Connexion réussie",
+  "config.google_workspace.test_failed": "Échec du test de connexion"
 }

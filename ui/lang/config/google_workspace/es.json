@@ -49,5 +49,7 @@
   "config.google_workspace.oauth_manual_btn": "Completar autorización",
   "config.google_workspace.oauth_manual_success": "Autorización exitosa",
   "config.google_workspace.oauth_manual_failed": "Autorización fallida:",
-  "config.google_workspace.testing": "⏳ Probando..."
+  "config.google_workspace.testing": "⏳ Probando...",
+  "config.google_workspace.test_success": "Conexión exitosa",
+  "config.google_workspace.test_failed": "Prueba de conexión fallida"
 }

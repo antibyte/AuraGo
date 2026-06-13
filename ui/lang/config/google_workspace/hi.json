@@ -49,5 +49,7 @@
   "config.google_workspace.oauth_manual_btn": "प्राधिकरण पूरा करें",
   "config.google_workspace.oauth_manual_success": "प्राधिकरण सफल",
   "config.google_workspace.oauth_manual_failed": "प्राधिकरण विफल:",
-  "config.google_workspace.testing": "⏳ परीक्षण..."
+  "config.google_workspace.testing": "⏳ परीक्षण...",
+  "config.google_workspace.test_success": "कनेक्शन सफल",
+  "config.google_workspace.test_failed": "कनेक्शन परीक्षण विफल"
 }

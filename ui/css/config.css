@@ -4303,6 +4303,63 @@ select.cfg-input option {
     padding: 1rem;
 }
 
+/* TTS config section */
+.tts-provider-section.is-hidden { display: none; }
+.tts-subsection-title {
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--accent);
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: 0.4rem;
+    margin: 1.5rem 0 0.8rem;
+}
+.tts-voice-row { display: flex; gap: 0.5rem; align-items: center; }
+.tts-voice-row .field-input { flex: 1; }
+.tts-voice-modal .modal { max-width: 600px; }
+.tts-voice-modal-body { max-height: 400px; overflow-y: auto; }
+.tts-voice-list { padding: 0.5rem; }
+.tts-voice-item {
+    padding: 0.6rem 0.8rem;
+    border-bottom: 1px solid var(--border-subtle);
+    cursor: pointer;
+    border-radius: 6px;
+}
+.tts-voice-item:hover { background: var(--bg-hover); }
+.tts-voice-item-name { font-weight: 600; font-size: 0.9rem; }
+.tts-voice-item-desc { font-size: 0.8rem; color: var(--text-secondary); }
+.tts-voice-item-lang { font-size: 0.78rem; color: var(--text-tertiary); }
+.tts-voice-loading,
+.tts-voice-empty { text-align: center; padding: 1rem; color: var(--text-secondary); }
+.tts-voice-error { color: var(--danger); padding: 1rem; }
+
+/* Google Workspace config section */
+.gw-vault-badge { font-size: 0.65rem; color: var(--warning); }
+.gw-actions-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.gw-status-line { margin-top: 0.4rem; font-size: 0.78rem; color: var(--text-secondary); }
+.gw-status-line.is-success { color: var(--success); }
+.gw-status-line.is-danger { color: var(--danger); }
+.gw-status-line.is-warning { color: var(--warning); }
+.gw-status-line.is-accent { color: var(--accent); }
+.gw-manual-panel {
+    display: none;
+    margin-top: 0.8rem;
+    padding: 0.8rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+}
+.gw-manual-panel.is-visible { display: block; }
+.gw-manual-title { font-size: 0.82rem; color: var(--warning); font-weight: 500; margin-bottom: 0.4rem; }
+.gw-manual-hint { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 0.6rem; }
+.gw-manual-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.gw-manual-row .field-input { flex: 1; min-width: 0; font-size: 0.78rem; }
+.gw-scope-group { padding: 0.3rem 0; }
+.gw-scope-row { display: flex; align-items: center; gap: 0.75rem; }
+.gw-scope-row .toggle { flex-shrink: 0; }
+.gw-scope-label { font-weight: 500; font-size: 0.88rem; }
+.gw-scope-hint { font-size: 0.75rem; color: var(--text-secondary); }
+.gw-btn-disconnect { background: var(--danger); }
+
 .adg-stats-title {
     margin-bottom: 0.8rem;
     padding-bottom: 0.4rem;

@@ -49,5 +49,7 @@
   "config.google_workspace.oauth_manual_btn": "Fuldfør godkendelse",
   "config.google_workspace.oauth_manual_success": "Godkendelse lykkedes",
   "config.google_workspace.oauth_manual_failed": "Godkendelse mislykkedes:",
-  "config.google_workspace.testing": "⏳ Tester..."
+  "config.google_workspace.testing": "⏳ Tester...",
+  "config.google_workspace.test_success": "Forbindelse lykkedes",
+  "config.google_workspace.test_failed": "Forbindelsestest mislykkedes"
 }

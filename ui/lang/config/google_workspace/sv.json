@@ -49,5 +49,7 @@
   "config.google_workspace.oauth_manual_btn": "Slutför auktorisering",
   "config.google_workspace.oauth_manual_success": "Auktorisering lyckades",
   "config.google_workspace.oauth_manual_failed": "Auktorisering misslyckades:",
-  "config.google_workspace.testing": "⏳ Testar..."
+  "config.google_workspace.testing": "⏳ Testar...",
+  "config.google_workspace.test_success": "Anslutning lyckades",
+  "config.google_workspace.test_failed": "Anslutningstest misslyckades"
 }

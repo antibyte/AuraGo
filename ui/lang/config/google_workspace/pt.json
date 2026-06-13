@@ -49,5 +49,7 @@
   "config.google_workspace.oauth_manual_btn": "Concluir autorização",
   "config.google_workspace.oauth_manual_success": "Autorização bem-sucedida",
   "config.google_workspace.oauth_manual_failed": "Falha na autorização:",
-  "config.google_workspace.testing": "⏳ Testando..."
+  "config.google_workspace.testing": "⏳ Testando...",
+  "config.google_workspace.test_success": "Ligação bem-sucedida",
+  "config.google_workspace.test_failed": "Teste de ligação falhou"
 }

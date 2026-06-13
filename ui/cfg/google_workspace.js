@@ -8,6 +8,13 @@ function _gwClearPoll() {
 
 window.addEventListener('cfg:section-leave', _gwClearPoll);
 
+function gwSetStatus(el, state, text) {
+    if (!el) return;
+    el.className = 'gw-status-line';
+    if (state) el.classList.add('is-' + state);
+    el.textContent = text;
+}
+
 async function renderGoogleWorkspaceSection(section) {
     const data = configData['google_workspace'] || {};
     const enabledOn = data.enabled === true;
@@ -17,7 +24,6 @@ async function renderGoogleWorkspaceSection(section) {
         <div class="section-header">${section.icon} ${section.label}</div>
         <div class="section-desc">${section.desc}</div>`;
 
-    // ── Enabled toggle ──
     html += `<div class="field-group">
         <div class="field-label">${t('config.google_workspace.enabled_label')}</div>
         <div class="toggle-wrap">
@@ -26,71 +32,61 @@ async function renderGoogleWorkspaceSection(section) {
         </div>
     </div>`;
 
-    // ── ReadOnly toggle ──
     html += `<div class="field-group">
         <div class="field-label">${t('config.google_workspace.readonly_label')}</div>
-        <div class="field-hint">${t('config.google_workspace.readonly_hint')}</div>
+        <div class="field-help">${t('config.google_workspace.readonly_hint')}</div>
         <div class="toggle-wrap">
             <div class="toggle${readonlyOn ? ' on' : ''}" data-path="google_workspace.readonly" onclick="toggleBool(this)"></div>
             <span class="toggle-label">${readonlyOn ? t('config.toggle.active') : t('config.toggle.inactive')}</span>
         </div>
     </div>`;
 
-    // ── OAuth2 Setup ──
     html += `<div class="field-group">
         <div class="field-group-title">🔐 ${t('config.google_workspace.oauth_title')}</div>
-        <div class="field-group-desc">
-            ${t('config.google_workspace.oauth_desc')}
-        </div>`;
+        <div class="field-group-desc">${t('config.google_workspace.oauth_desc')}</div>`;
 
-    // Client ID
     html += `<div class="field-group">
         <div class="field-label">${t('config.google_workspace.client_id_label')}</div>
-        <div class="field-hint">${t('config.google_workspace.client_id_hint')}</div>
+        <div class="field-help">${t('config.google_workspace.client_id_hint')}</div>
         <input class="field-input" type="text" data-path="google_workspace.client_id" value="${escapeAttr(data.client_id || '')}" placeholder="123456789.apps.googleusercontent.com">
     </div>`;
 
-    // Client Secret (vault)
     html += `<div class="field-group">
-        <div class="field-label">${t('config.google_workspace.client_secret_label')} <span style="font-size:0.65rem;color:var(--warning);">🔒</span></div>
-        <div class="field-hint">${t('config.google_workspace.client_secret_hint')}</div>
-        <div style="display:flex;gap:0.5rem;align-items:center;">
-            <div class="password-wrap" style="flex:1;">
-                <input class="field-input" type="password" id="gw-secret-input" value="${escapeAttr(cfgSecretValue(data.client_secret))}" placeholder="${escapeAttr(cfgSecretPlaceholder(data.client_secret, 'GOCSPX-••••••••••'))}" autocomplete="off">
-                    <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
+        <div class="field-label">${t('config.google_workspace.client_secret_label')} <span class="gw-vault-badge">🔒</span></div>
+        <div class="field-help">${t('config.google_workspace.client_secret_hint')}</div>
+        <div class="adg-password-row">
+            <div class="password-wrap adg-password-input">
+                <input class="field-input adg-password-input" type="password" id="gw-secret-input" value="${escapeAttr(cfgSecretValue(data.client_secret))}" placeholder="${escapeAttr(cfgSecretPlaceholder(data.client_secret, 'GOCSPX-••••••••••'))}" autocomplete="off">
+                <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
-            <button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="gwSaveSecret()">💾 ${t('config.google_workspace.save_vault')}</button>
+            <button class="btn-save adg-save-btn" onclick="gwSaveSecret()">💾 ${t('config.google_workspace.save_vault')}</button>
         </div>
-        <div id="gw-secret-status" style="margin-top:0.4rem;font-size:0.78rem;"></div>
+        <div id="gw-secret-status" class="gw-status-line"></div>
     </div>`;
 
-    // OAuth Connect / Status
     html += `<div class="field-group">
         <div class="field-label">${t('config.google_workspace.connection_label')}</div>
-        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-            <button class="btn-save" id="gw-connect-btn" onclick="gwOAuthConnect()" style="padding:0.45rem 1rem;font-size:0.82rem;">🔗 ${t('config.google_workspace.connect_btn')}</button>
-            <button class="btn-save" id="gw-disconnect-btn" onclick="gwOAuthDisconnect()" style="padding:0.45rem 1rem;font-size:0.82rem;background:var(--danger);">🔌 ${t('config.google_workspace.disconnect_btn')}</button>
-            <button class="btn-save" id="gw-test-btn" onclick="gwTestConnection()" style="padding:0.45rem 1rem;font-size:0.82rem;">🧪 ${t('config.google_workspace.test_btn')}</button>
+        <div class="cfg-actions-row gw-actions-row">
+            <button class="btn-save adg-save-btn" id="gw-connect-btn" onclick="gwOAuthConnect()">🔗 ${t('config.google_workspace.connect_btn')}</button>
+            <button class="btn-save adg-save-btn gw-btn-disconnect" id="gw-disconnect-btn" onclick="gwOAuthDisconnect()">🔌 ${t('config.google_workspace.disconnect_btn')}</button>
+            <button class="btn-save adg-test-btn" id="gw-test-btn" onclick="gwTestConnection()">🧪 ${t('config.google_workspace.test_btn')}</button>
         </div>
-        <div id="gw-oauth-status" style="margin-top:0.4rem;font-size:0.78rem;"></div>
-        <div id="gw-manual-section" style="display:none;margin-top:0.8rem;padding:0.8rem;background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:6px;">
-            <div style="font-size:0.82rem;color:var(--warning);font-weight:500;margin-bottom:0.4rem;">⚠️ ${t('config.google_workspace.oauth_manual_title')}</div>
-            <div style="font-size:0.78rem;color:var(--text-secondary);line-height:1.5;margin-bottom:0.6rem;">${t('config.google_workspace.oauth_manual_hint')}</div>
-            <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-                <input class="field-input" type="text" id="gw-manual-url" placeholder="http://localhost:8088/api/oauth/callback?code=…&state=…" style="flex:1;min-width:0;font-size:0.78rem;">
-                <button class="btn-save" onclick="gwOAuthManual('google_workspace')" style="padding:0.45rem 0.8rem;font-size:0.78rem;white-space:nowrap;">${t('config.google_workspace.oauth_manual_btn')}</button>
+        <div id="gw-oauth-status" class="gw-status-line"></div>
+        <div id="gw-manual-section" class="gw-manual-panel">
+            <div class="gw-manual-title">⚠️ ${t('config.google_workspace.oauth_manual_title')}</div>
+            <div class="gw-manual-hint">${t('config.google_workspace.oauth_manual_hint')}</div>
+            <div class="gw-manual-row">
+                <input class="field-input" type="text" id="gw-manual-url" placeholder="http://localhost:8088/api/oauth/callback?code=…&state=…">
+                <button class="btn-save adg-save-btn" onclick="gwOAuthManual('google_workspace')">${t('config.google_workspace.oauth_manual_btn')}</button>
             </div>
         </div>
     </div>`;
 
-    html += `</div>`; // close OAuth setup section
+    html += `</div>`;
 
-    // ── Scope Toggles ──
     html += `<div class="field-group">
         <div class="field-group-title">📋 ${t('config.google_workspace.scopes_title')}</div>
-        <div class="field-group-desc">
-            ${t('config.google_workspace.scopes_desc')}
-        </div>`;
+        <div class="field-group-desc">${t('config.google_workspace.scopes_desc')}</div>`;
 
     const scopes = [
         { key: 'gmail',          label: t('config.google_workspace.scope_gmail'),           hint: t('config.google_workspace.scope_gmail_hint') },
@@ -106,28 +102,22 @@ async function renderGoogleWorkspaceSection(section) {
 
     for (const scope of scopes) {
         const on = data[scope.key] === true;
-        html += `<div class="field-group" style="padding:0.3rem 0;">
-            <div style="display:flex;align-items:center;gap:0.75rem;">
-                <div class="toggle${on ? ' on' : ''}" data-path="google_workspace.${scope.key}" onclick="toggleBool(this)" style="flex-shrink:0;"></div>
+        html += `<div class="field-group gw-scope-group">
+            <div class="gw-scope-row">
+                <div class="toggle${on ? ' on' : ''}" data-path="google_workspace.${scope.key}" onclick="toggleBool(this)"></div>
                 <div>
-                    <div style="font-weight:500;font-size:0.88rem;">${scope.label}</div>
-                    <div style="font-size:0.75rem;color:var(--text-secondary);">${scope.hint}</div>
+                    <div class="gw-scope-label">${scope.label}</div>
+                    <div class="gw-scope-hint">${scope.hint}</div>
                 </div>
             </div>
         </div>`;
     }
 
-    html += `</div>`; // close scopes section
-
-    html += `</div>`; // close cfg-section
+    html += `</div></div>`;
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
-
-    // Check OAuth status on load
     gwCheckOAuthStatus();
 }
-
-// ── Vault Helpers ────────────────────────────────────────────────────────
 
 function gwSaveSecret() {
     const input = document.getElementById('gw-secret-input');
@@ -135,8 +125,7 @@ function gwSaveSecret() {
     const secret = input ? input.value.trim() : '';
 
     if (!secret) {
-        statusEl.style.color = 'var(--danger)';
-        statusEl.textContent = t('config.google_workspace.secret_empty');
+        gwSetStatus(statusEl, 'danger', t('config.google_workspace.secret_empty'));
         return;
     }
 
@@ -148,22 +137,15 @@ function gwSaveSecret() {
     .then(r => r.json())
     .then(res => {
         if (res.status === 'ok' || res.success) {
-            statusEl.style.color = 'var(--success)';
-            statusEl.textContent = '✓ ' + t('config.google_workspace.secret_saved');
+            gwSetStatus(statusEl, 'success', '✓ ' + t('config.google_workspace.secret_saved'));
             cfgMarkSecretStored(input, 'google_workspace.client_secret');
         } else {
-            statusEl.style.color = 'var(--danger)';
-            statusEl.textContent = '✗ ' + (res.message || t('config.google_workspace.secret_save_failed'));
+            gwSetStatus(statusEl, 'danger', '✗ ' + (res.message || t('config.google_workspace.secret_save_failed')));
         }
-        setTimeout(() => { statusEl.textContent = ''; }, 4000);
+        setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 4000);
     })
-    .catch(e => {
-        statusEl.style.color = 'var(--danger)';
-        statusEl.textContent = '✗ ' + e.message;
-    });
+    .catch(e => gwSetStatus(statusEl, 'danger', '✗ ' + e.message));
 }
-
-// ── OAuth Flow ──────────────────────────────────────────────────────────
 
 async function gwOAuthConnect() {
     const btn = document.getElementById('gw-connect-btn');
@@ -175,17 +157,16 @@ async function gwOAuthConnect() {
         const data = await resp.json();
         if (data.auth_url) {
             window.open(data.auth_url, '_blank', 'width=600,height=700,noopener,noreferrer');
-            statusEl.style.color = 'var(--accent)';
-            statusEl.textContent = t('config.google_workspace.oauth_waiting');
+            gwSetStatus(statusEl, 'accent', t('config.google_workspace.oauth_waiting'));
             const manualSection = document.getElementById('gw-manual-section');
-            if (manualSection) manualSection.style.display = 'block';
+            if (manualSection) manualSection.classList.add('is-visible');
             _gwClearPoll();
             let attempts = 0;
             _gwPollInterval = setInterval(async () => {
                 attempts++;
                 if (attempts > 40) {
                     _gwClearPoll();
-                    statusEl.textContent = t('config.google_workspace.oauth_timeout');
+                    gwSetStatus(statusEl, 'warning', t('config.google_workspace.oauth_timeout'));
                     return;
                 }
                 try {
@@ -193,18 +174,15 @@ async function gwOAuthConnect() {
                     const sd = await sr.json();
                     if (sd.authorized) {
                         _gwClearPoll();
-                        statusEl.style.color = 'var(--success)';
-                        statusEl.textContent = '✓ ' + t('config.google_workspace.oauth_connected');
+                        gwSetStatus(statusEl, 'success', '✓ ' + t('config.google_workspace.oauth_connected'));
                     }
                 } catch (_) {}
             }, 3000);
         } else {
-            statusEl.style.color = 'var(--danger)';
-            statusEl.textContent = '✗ ' + (data.message || t('config.google_workspace.oauth_failed'));
+            gwSetStatus(statusEl, 'danger', '✗ ' + (data.message || t('config.google_workspace.oauth_failed')));
         }
     } catch (e) {
-        statusEl.style.color = 'var(--danger)';
-        statusEl.textContent = '✗ ' + e.message;
+        gwSetStatus(statusEl, 'danger', '✗ ' + e.message);
     } finally {
         btn.disabled = false;
     }
@@ -215,8 +193,7 @@ async function gwOAuthManual(provider) {
     const statusEl = document.getElementById('gw-oauth-status');
     const pastedURL = urlInput ? urlInput.value.trim() : '';
     if (!pastedURL) {
-        statusEl.style.color = 'var(--danger)';
-        statusEl.textContent = '✗ ' + t('config.google_workspace.oauth_manual_failed');
+        gwSetStatus(statusEl, 'danger', '✗ ' + t('config.google_workspace.oauth_manual_failed'));
         return;
     }
     try {
@@ -227,17 +204,14 @@ async function gwOAuthManual(provider) {
         });
         const data = await resp.json();
         if (data.success) {
-            statusEl.style.color = 'var(--success)';
-            statusEl.textContent = '✓ ' + t('config.google_workspace.oauth_manual_success');
+            gwSetStatus(statusEl, 'success', '✓ ' + t('config.google_workspace.oauth_manual_success'));
             const manualSection = document.getElementById('gw-manual-section');
-            if (manualSection) manualSection.style.display = 'none';
+            if (manualSection) manualSection.classList.remove('is-visible');
         } else {
-            statusEl.style.color = 'var(--danger)';
-            statusEl.textContent = '✗ ' + t('config.google_workspace.oauth_manual_failed') + (data.message || '');
+            gwSetStatus(statusEl, 'danger', '✗ ' + t('config.google_workspace.oauth_manual_failed') + (data.message || ''));
         }
     } catch (e) {
-        statusEl.style.color = 'var(--danger)';
-        statusEl.textContent = '✗ ' + t('config.google_workspace.oauth_manual_failed') + e.message;
+        gwSetStatus(statusEl, 'danger', '✗ ' + t('config.google_workspace.oauth_manual_failed') + e.message);
     }
 }
 
@@ -247,15 +221,12 @@ async function gwOAuthDisconnect() {
         const resp = await fetch('/api/oauth/revoke?provider=google_workspace', { method: 'POST' });
         const data = await resp.json();
         if (data.status === 'ok' || data.success) {
-            statusEl.style.color = 'var(--success)';
-            statusEl.textContent = '✓ ' + t('config.google_workspace.oauth_disconnected');
+            gwSetStatus(statusEl, 'success', '✓ ' + t('config.google_workspace.oauth_disconnected'));
         } else {
-            statusEl.style.color = 'var(--danger)';
-            statusEl.textContent = '✗ ' + (data.message || 'Failed');
+            gwSetStatus(statusEl, 'danger', '✗ ' + (data.message || 'Failed'));
         }
     } catch (e) {
-        statusEl.style.color = 'var(--danger)';
-        statusEl.textContent = '✗ ' + e.message;
+        gwSetStatus(statusEl, 'danger', '✗ ' + e.message);
     }
 }
 
@@ -265,19 +236,18 @@ async function gwCheckOAuthStatus() {
         const resp = await fetch('/api/oauth/status?provider=google_workspace');
         const data = await resp.json();
         if (data.authorized) {
-            statusEl.style.color = 'var(--success)';
             let msg = '✓ ' + t('config.google_workspace.oauth_connected');
+            let state = 'success';
             if (data.expired) {
                 msg += ' (' + t('config.google_workspace.token_expired') + ')';
-                statusEl.style.color = 'var(--warning)';
+                state = 'warning';
             }
             if (data.has_refresh_token) {
                 msg += ' — ' + t('config.google_workspace.has_refresh');
             }
-            statusEl.textContent = msg;
+            gwSetStatus(statusEl, state, msg);
         } else {
-            statusEl.style.color = 'var(--text-secondary)';
-            statusEl.textContent = t('config.google_workspace.oauth_not_connected');
+            gwSetStatus(statusEl, 'muted', t('config.google_workspace.oauth_not_connected'));
         }
     } catch (_) {}
 }
@@ -292,15 +262,14 @@ async function gwTestConnection() {
         const resp = await fetch('/api/google-workspace/test');
         const data = await resp.json();
         if (data.status === 'ok') {
-            statusEl.style.color = 'var(--success)';
-            statusEl.textContent = '✓ ' + (data.message || 'Connection successful');
+            const okMsg = data.message || t('config.google_workspace.test_success');
+            gwSetStatus(statusEl, 'success', '✓ ' + okMsg);
         } else {
-            statusEl.style.color = 'var(--danger)';
-            statusEl.textContent = '✗ ' + (data.message || 'Connection test failed');
+            const failMsg = data.message || t('config.google_workspace.test_failed');
+            gwSetStatus(statusEl, 'danger', '✗ ' + failMsg);
         }
     } catch (e) {
-        statusEl.style.color = 'var(--danger)';
-        statusEl.textContent = '✗ ' + e.message;
+        gwSetStatus(statusEl, 'danger', '✗ ' + e.message);
     } finally {
         btn.disabled = false;
         btn.textContent = '🧪 ' + t('config.google_workspace.test_btn');

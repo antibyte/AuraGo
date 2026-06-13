@@ -49,5 +49,7 @@
   "config.google_workspace.oauth_manual_btn": "Zakończ autoryzację",
   "config.google_workspace.oauth_manual_success": "Autoryzacja zakończona sukcesem",
   "config.google_workspace.oauth_manual_failed": "Autoryzacja nieudana:",
-  "config.google_workspace.testing": "⏳ Testowanie..."
+  "config.google_workspace.testing": "⏳ Testowanie...",
+  "config.google_workspace.test_success": "Połączenie udane",
+  "config.google_workspace.test_failed": "Test połączenia nieudany"
 }

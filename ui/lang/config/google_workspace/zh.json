@@ -49,5 +49,7 @@
   "config.google_workspace.oauth_manual_btn": "完成授权",
   "config.google_workspace.oauth_manual_success": "授权成功",
   "config.google_workspace.oauth_manual_failed": "授权失败：",
-  "config.google_workspace.testing": "⏳ 测试中..."
+  "config.google_workspace.testing": "⏳ 测试中...",
+  "config.google_workspace.test_success": "连接成功",
+  "config.google_workspace.test_failed": "连接测试失败"
 }
