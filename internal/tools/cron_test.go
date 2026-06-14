@@ -115,6 +115,95 @@ func TestCronManagerMigratesLegacyJSON(t *testing.T) {
 	}
 }
 
+func TestCronManagerStartReportsPersistedScheduleRegistrationFailures(t *testing.T) {
+	dir := tempSystemTaskDir(t)
+	seed := NewCronManager(dir)
+	if err := seed.store.save(systemTaskNamespaceCron, []CronJob{
+		{ID: "good-job", CronExpr: "0 * * * *", TaskPrompt: "run good job"},
+		{ID: "bad-job", CronExpr: "not a cron expression", TaskPrompt: "run bad job"},
+	}); err != nil {
+		t.Fatalf("seed cron store: %v", err)
+	}
+	if err := seed.Close(); err != nil {
+		t.Fatalf("close seed cron manager: %v", err)
+	}
+
+	mgr := NewCronManager(dir)
+	t.Cleanup(func() { _ = mgr.Close() })
+
+	err := mgr.Start(func(string) {})
+	if err == nil {
+		t.Fatal("Start returned nil, want registration error for bad persisted cron job")
+	}
+	if !strings.Contains(err.Error(), "bad-job") {
+		t.Fatalf("Start error = %v, want bad job id", err)
+	}
+	if !strings.Contains(err.Error(), "not a cron expression") {
+		t.Fatalf("Start error = %v, want invalid cron expression", err)
+	}
+	if _, ok := mgr.cronEntryIDs["good-job"]; !ok {
+		t.Fatal("valid persisted cron job was not registered")
+	}
+	if _, ok := mgr.cronEntryIDs["bad-job"]; ok {
+		t.Fatal("invalid persisted cron job should not have a registered cron entry")
+	}
+}
+
+func TestCronManagerListReportsRuntimeRegistrationStatus(t *testing.T) {
+	dir := tempSystemTaskDir(t)
+	seed := NewCronManager(dir)
+	if err := seed.store.save(systemTaskNamespaceCron, []CronJob{
+		{ID: "good-job", CronExpr: "0 * * * *", TaskPrompt: "run good job"},
+		{ID: "bad-job", CronExpr: "not a cron expression", TaskPrompt: "run bad job"},
+	}); err != nil {
+		t.Fatalf("seed cron store: %v", err)
+	}
+	if err := seed.Close(); err != nil {
+		t.Fatalf("close seed cron manager: %v", err)
+	}
+
+	mgr := NewCronManager(dir)
+	t.Cleanup(func() { _ = mgr.Close() })
+	if err := mgr.Start(func(string) {}); err == nil {
+		t.Fatal("Start returned nil, want registration error for bad persisted cron job")
+	}
+
+	result, err := mgr.ManageSchedule("list", "", "", "", "en")
+	if err != nil {
+		t.Fatalf("ManageSchedule list: %v", err)
+	}
+	var payload struct {
+		Status string `json:"status"`
+		Jobs   []struct {
+			ID         string `json:"id"`
+			Registered bool   `json:"registered"`
+			LastError  string `json:"last_error"`
+		} `json:"jobs"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("parse list result: %v\n%s", err, result)
+	}
+	statusByID := map[string]struct {
+		registered bool
+		lastError  string
+	}{}
+	for _, job := range payload.Jobs {
+		statusByID[job.ID] = struct {
+			registered bool
+			lastError  string
+		}{registered: job.Registered, lastError: job.LastError}
+	}
+	if !statusByID["good-job"].registered {
+		t.Fatalf("good job runtime status = %+v, want registered", statusByID["good-job"])
+	}
+	if statusByID["bad-job"].registered {
+		t.Fatalf("bad job runtime status = %+v, want not registered", statusByID["bad-job"])
+	}
+	if !strings.Contains(statusByID["bad-job"].lastError, "not a cron expression") {
+		t.Fatalf("bad job last_error = %q, want parse error", statusByID["bad-job"].lastError)
+	}
+}
+
 func TestCronManagerAcceptsSecondsFieldExpressions(t *testing.T) {
 	mgr := NewCronManager(tempSystemTaskDir(t))
 	t.Cleanup(func() { _ = mgr.Close() })
