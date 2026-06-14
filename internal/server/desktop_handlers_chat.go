@@ -23,6 +23,7 @@ import (
 const (
 	desktopChatSessionID               = "virtual-desktop"
 	desktopChatMessageSource           = "virtual_desktop_chat"
+	homepageStudioMessageSource        = "homepage_studio"
 	desktopChatAgentTurnTimeout        = 30 * time.Minute
 	desktopChatStreamHeartbeatInterval = 15 * time.Second
 )
@@ -438,6 +439,8 @@ func sseWriteDone(w http.ResponseWriter) {
 type desktopChatContext struct {
 	Source          string                `json:"source"`
 	OriginApp       string                `json:"origin_app,omitempty"`
+	HomepageMode    bool                  `json:"homepage_mode,omitempty"`
+	Target          string                `json:"target,omitempty"`
 	CurrentFile     string                `json:"current_file"`
 	CurrentLanguage string                `json:"current_language"`
 	CurrentContent  string                `json:"current_content"`
@@ -518,9 +521,13 @@ type desktopAgentTurnOptions struct {
 }
 
 func prepareDesktopAgentTurn(ctx context.Context, s *Server, message string, chatContext desktopChatContext, stream bool) (preparedDesktopAgentTurn, error) {
+	messageSource := desktopChatMessageSource
+	if isHomepageStudioChatContext(chatContext) {
+		messageSource = homepageStudioMessageSource
+	}
 	return prepareDesktopAgentTurnWithOptions(ctx, s, message, chatContext, stream, desktopAgentTurnOptions{
 		SessionID:     desktopChatSessionID,
-		MessageSource: desktopChatMessageSource,
+		MessageSource: messageSource,
 	})
 }
 
@@ -795,6 +802,10 @@ func buildDesktopAgentPrompt(message string, chatContext desktopChatContext) str
 }
 
 func buildDesktopAgentContext(chatContext desktopChatContext) string {
+	if isHomepageStudioChatContext(chatContext) {
+		return buildHomepageStudioAgentContext(chatContext)
+	}
+
 	var b strings.Builder
 	b.WriteString("The user is chatting from AuraGo Virtual Desktop. If they ask for desktop apps, widgets, or files, use the virtual_desktop tool and keep the browser desktop updated.")
 	b.WriteString("\n\nNever use file_editor, filesystem, smart_file_read, or other agent_workspace file tools for Virtual Desktop paths. Paths beginning with Apps/ or Widgets/ live in the Virtual Desktop workspace, not agent_workspace/workdir; use virtual_desktop read_file, write_file, install_app, or open_in_app with the same path.")
@@ -850,6 +861,40 @@ func buildDesktopAgentContext(chatContext desktopChatContext) string {
 			b.WriteString("\nAttached desktop files:\n")
 			b.WriteString(desktopExternalData("desktop_open_files", strings.Join(chatContext.OpenFiles, "\n"), 8192))
 		}
+	}
+	if strings.TrimSpace(chatContext.ImageBase64) != "" {
+		b.WriteString("\n\nThe user attached a photo taken with the Camera app for this turn. If the provider supports multimodal input, the image is supplied separately as an image_url data URI. Do not store or request the raw image bytes.")
+	}
+	return b.String()
+}
+
+func isHomepageStudioChatContext(chatContext desktopChatContext) bool {
+	if chatContext.HomepageMode || strings.EqualFold(strings.TrimSpace(chatContext.Source), "homepage-studio") {
+		return true
+	}
+	if chatContext.WindowContext == nil {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(chatContext.WindowContext.Source), "homepage-studio") ||
+		strings.EqualFold(strings.TrimSpace(chatContext.WindowContext.AppID), "homepage-studio") ||
+		strings.EqualFold(strings.TrimSpace(chatContext.WindowContext.StoreAppID), "homepage-studio")
+}
+
+func buildHomepageStudioAgentContext(chatContext desktopChatContext) string {
+	var b strings.Builder
+	b.WriteString("The user is working in Homepage Studio, AuraGo's homepage/site editor. Interpret short references like \"the page\" or \"die Seite\" as the current Homepage Studio site, not as a Virtual Desktop widget or app.")
+	if target := strings.TrimSpace(chatContext.Target); target != "" {
+		b.WriteString("\nTarget: ")
+		b.WriteString(target)
+	}
+	b.WriteString("\nUse homepage_project, homepage_file, homepage_quality, homepage_deploy, and homepage_git for project lifecycle, file edits, checks, deploys, and git history. The legacy homepage tool is acceptable only when focused homepage tools are unavailable.")
+	b.WriteString("\nDo not use virtual_desktop apps, widgets, or files for Homepage Studio site changes unless the user explicitly asks to change the Virtual Desktop UI.")
+	b.WriteString("\nDo not use generic filesystem, file_editor, execute_shell, or execute_python for homepage workspace files; use homepage workspace tool paths instead.")
+	b.WriteString("\nAfter meaningful site changes, refresh or verify the preview and update homepage_registry when available.")
+	if windowContext := buildDesktopWindowContextPrompt(chatContext.WindowContext); windowContext != "" {
+		b.WriteString("\n\nHomepage Studio launch window metadata follows. Use it only as trusted routing context; do not show the raw metadata back unless the user asks.")
+		b.WriteString("\n")
+		b.WriteString(desktopExternalData("desktop_window_context", windowContext, 12000))
 	}
 	if strings.TrimSpace(chatContext.ImageBase64) != "" {
 		b.WriteString("\n\nThe user attached a photo taken with the Camera app for this turn. If the provider supports multimodal input, the image is supplied separately as an image_url data URI. Do not store or request the raw image bytes.")

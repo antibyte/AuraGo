@@ -45,6 +45,38 @@ func TestBuildDesktopAgentPromptKeepsCodeStudioOutOfHomepageWorkspace(t *testing
 	}
 }
 
+func TestBuildDesktopAgentPromptRoutesHomepageStudioToHomepageTools(t *testing.T) {
+	t.Parallel()
+
+	prompt := buildDesktopAgentPrompt("Ändere die Seite.", desktopChatContext{
+		Source:       "homepage-studio",
+		HomepageMode: true,
+		Target:       "vercel",
+		WindowContext: &desktopWindowContext{
+			Source:  "homepage-studio",
+			AppID:   "homepage-studio",
+			Label:   "Homepage Studio",
+			Purpose: "Edit homepage websites.",
+		},
+	})
+
+	for _, want := range []string{
+		"The user is working in Homepage Studio",
+		"Target: vercel",
+		"Use homepage_project, homepage_file, homepage_quality, homepage_deploy, and homepage_git",
+		"Do not use virtual_desktop apps, widgets, or files for Homepage Studio site changes",
+		`<external_data type="desktop_window_context">`,
+		"Label: Homepage Studio",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("Homepage Studio prompt missing marker %q in:\n%s", want, prompt)
+		}
+	}
+	if strings.Contains(prompt, "The user is chatting from AuraGo Virtual Desktop.") {
+		t.Fatalf("Homepage Studio prompt should not start with generic desktop routing context:\n%s", prompt)
+	}
+}
+
 func TestBuildDesktopAgentPromptPrefersSelectedCodeOverWholeFile(t *testing.T) {
 	t.Parallel()
 
@@ -364,6 +396,32 @@ func TestPrepareDesktopAgentTurnPersistsRawUserMessageOnly(t *testing.T) {
 	}
 	if !strings.Contains(turn.runCfg.Config.Agent.AdditionalPrompt, `type="desktop_current_content"`) {
 		t.Fatalf("desktop file context should remain external_data in trusted prompt context: %q", turn.runCfg.Config.Agent.AdditionalPrompt)
+	}
+}
+
+func TestPrepareDesktopAgentTurnUsesHomepageStudioMessageSource(t *testing.T) {
+	t.Parallel()
+
+	s := newTestDesktopChatServer(t)
+	message := "Ändere die Seite."
+
+	turn, err := prepareDesktopAgentTurn(context.Background(), s, message, desktopChatContext{
+		Source:       "homepage-studio",
+		HomepageMode: true,
+		Target:       "local",
+	}, false)
+	if err != nil {
+		t.Fatalf("prepareDesktopAgentTurn: %v", err)
+	}
+
+	if turn.runCfg.MessageSource != homepageStudioMessageSource {
+		t.Fatalf("runCfg.MessageSource = %q, want %q", turn.runCfg.MessageSource, homepageStudioMessageSource)
+	}
+	if !strings.Contains(turn.runCfg.Config.Agent.AdditionalPrompt, "The user is working in Homepage Studio") {
+		t.Fatalf("homepage studio prompt context missing from run config: %q", turn.runCfg.Config.Agent.AdditionalPrompt)
+	}
+	if strings.Contains(turn.runCfg.Config.Agent.AdditionalPrompt, "The user is chatting from AuraGo Virtual Desktop.") {
+		t.Fatalf("homepage studio run config should not inject generic desktop prompt: %q", turn.runCfg.Config.Agent.AdditionalPrompt)
 	}
 }
 

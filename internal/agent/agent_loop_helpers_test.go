@@ -1186,6 +1186,24 @@ func TestChannelAdaptiveAlwaysIncludeDoesNotAdvertiseDisabledDesktopTools(t *tes
 	}
 }
 
+func TestChannelAdaptiveAlwaysIncludeRoutesHomepageStudioToHomepageTools(t *testing.T) {
+	got := channelAdaptiveAlwaysInclude(
+		RunConfig{MessageSource: "homepage_studio"},
+		[]string{"filesystem"},
+		ToolFeatureFlags{VirtualDesktopEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true},
+	)
+	for _, want := range []string{"homepage_project", "homepage_file", "homepage_quality", "homepage_deploy", "homepage_git", "homepage_registry"} {
+		if !containsName(got, want) {
+			t.Fatalf("expected Homepage Studio always-include to contain %q, got %v", want, got)
+		}
+	}
+	for _, notWant := range []string{"virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets", "office_document", "office_workbook"} {
+		if containsName(got, notWant) {
+			t.Fatalf("did not expect desktop tool %q in Homepage Studio always-include set, got %v", notWant, got)
+		}
+	}
+}
+
 func TestOutputRefAdaptiveAlwaysIncludeAddsReadToolOutput(t *testing.T) {
 	messages := []openai.ChatCompletionMessage{
 		{Role: openai.ChatMessageRoleTool, Content: `Tool Output: {"status":"success","output_ref":"toolout_abc123"}`},

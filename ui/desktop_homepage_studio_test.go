@@ -83,6 +83,23 @@ func TestHomepageStudioUsesStatusPreviewURL(t *testing.T) {
 	}
 }
 
+func TestHomepageStudioChatPayloadCarriesHomepageScope(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js")
+	for _, want := range []string{
+		"function homepageWindowContext()",
+		"window_context: homepageWindowContext()",
+		"homepage_mode: true",
+		"Use homepage_project, homepage_file, homepage_quality, homepage_deploy, and homepage_git.",
+		"Do not use virtual_desktop apps, widgets, or files for Homepage Studio site changes.",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("homepage studio chat payload missing scope marker %q", want)
+		}
+	}
+}
+
 func TestHomepageStudioGermanUsesInformalAddress(t *testing.T) {
 	t.Parallel()
 

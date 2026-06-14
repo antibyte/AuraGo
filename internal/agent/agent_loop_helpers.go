@@ -723,7 +723,12 @@ func expandAdaptiveAlwaysInclude(cfg *config.Config, alwaysInclude []string) []s
 func channelAdaptiveAlwaysInclude(runCfg RunConfig, alwaysInclude []string, ff ToolFeatureFlags) []string {
 	out := make([]string, 0, len(alwaysInclude)+4)
 	out = append(out, alwaysInclude...)
-	if !strings.EqualFold(strings.TrimSpace(runCfg.MessageSource), "virtual_desktop_chat") {
+	messageSource := strings.ToLower(strings.TrimSpace(runCfg.MessageSource))
+	if messageSource == "homepage_studio" {
+		out = append(out, "homepage_project", "homepage_file", "homepage_quality", "homepage_deploy", "homepage_git", "homepage_registry")
+		return out
+	}
+	if messageSource != "virtual_desktop_chat" {
 		return out
 	}
 	out = append(out, "question_user")

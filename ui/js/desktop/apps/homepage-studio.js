@@ -249,6 +249,22 @@
             }
         }
 
+        function homepageWindowContext() {
+            return {
+                source: 'homepage-studio',
+                app_id: 'homepage-studio',
+                window_id: windowId,
+                label: t('homepage_studio.welcome_heading', 'Homepage Studio'),
+                purpose: 'Homepage Studio edits AuraGo homepage websites and pages in the managed homepage workspace.',
+                guide: 'Use homepage_project, homepage_file, homepage_quality, homepage_deploy, and homepage_git. Do not use virtual_desktop apps, widgets, or files for Homepage Studio site changes.',
+                resources: [{
+                    kind: 'homepage_target',
+                    label: state.target,
+                    path: state.target
+                }]
+            };
+        }
+
         async function sendMessage(message) {
             chatInput.value = '';
             autoResizeTextarea(chatInput);
@@ -334,7 +350,8 @@
             const chatContext = {
                 source: 'homepage-studio',
                 target: state.target,
-                homepage_mode: true
+                homepage_mode: true,
+                window_context: homepageWindowContext()
             };
 
             try {
