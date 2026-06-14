@@ -30,6 +30,21 @@
         return clean(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     }
 
+    /**
+     * Computes a short, stable numeric hash for a string.
+     *
+     * @param {string} value
+     * @returns {string} Hex string of the hash.
+     */
+    function hashString(value) {
+        const text = clean(value);
+        let hash = 5381;
+        for (let i = 0; i < text.length; i++) {
+            hash = ((hash << 5) + hash) + text.charCodeAt(i);
+        }
+        return (hash >>> 0).toString(16);
+    }
+
     function countryFlag(code) {
         const value = clean(code).toUpperCase();
         if (!/^[A-Z]{2}$/.test(value)) return '';
@@ -121,6 +136,7 @@
         cleanID,
         escapeHTML,
         normalizeSearch,
+        hashString,
         countryFlag,
         countryDisplayName,
         debounce,

@@ -99,7 +99,13 @@ func TestDesktopTeeVeeAppMarkers(t *testing.T) {
 		"function resolutionMatches(entry)",
 		"quality: clean(stream.quality || stream.label)",
 		"resolutionBucket: resolutionBucketFromStream(stream)",
-		"favoriteKey: clean(stream.url || stream.channel || stream.title)",
+		"id: stableID(stream.channel, stream.url)",
+		"favoriteKey: stableID(stream.channel, stream.url)",
+		"function stableID(channelID, url)",
+		"function migrateFavorites(entries)",
+		"aurago.teevee.favorites.v2",
+		"aurago.teevee.favorites.v1",
+		"function isLegacyFavoriteKey(key)",
 		"data-action=\"fullscreen-video\"",
 		"playerShell.addEventListener('dblclick'",
 	} {
@@ -179,6 +185,48 @@ func TestDesktopTeeVeeMediaHelpers(t *testing.T) {
 	} {
 		if !strings.Contains(helper, want) {
 			t.Fatalf("desktop media helpers missing marker %q", want)
+		}
+	}
+}
+
+func TestDesktopTeeVeeStableIdentity(t *testing.T) {
+	t.Parallel()
+
+	app := readDesktopAssetText(t, "js/desktop/apps/teevee.js")
+	for _, forbidden := range []string{
+		"clean(stream.channel || stream.title || 'stream') + ':' + index",
+		"favoriteKey: clean(stream.url || stream.channel || stream.title)",
+	} {
+		if strings.Contains(app, forbidden) {
+			t.Fatalf("TeeVee app still uses index or url based identity marker %q", forbidden)
+		}
+	}
+	for _, want := range []string{
+		"function stableID(channelID, url)",
+		"hashString(streamURL || id || 'stream')",
+		"id: stableID(stream.channel, stream.url)",
+		"favoriteKey: stableID(stream.channel, stream.url)",
+	} {
+		if !strings.Contains(app, want) {
+			t.Fatalf("TeeVee app missing stable identity marker %q", want)
+		}
+	}
+}
+
+func TestDesktopTeeVeeFavoriteMigration(t *testing.T) {
+	t.Parallel()
+
+	app := readDesktopAssetText(t, "js/desktop/apps/teevee.js")
+	for _, want := range []string{
+		"aurago.teevee.favorites.v2",
+		"aurago.teevee.favorites.v1",
+		"function isLegacyFavoriteKey(key)",
+		"/^https?:\\/\\//.test(clean(key))",
+		"function migrateFavorites(entries)",
+		"localStorage.removeItem(LEGACY_FAVORITES_KEY)",
+	} {
+		if !strings.Contains(app, want) {
+			t.Fatalf("TeeVee app missing favorite migration marker %q", want)
 		}
 	}
 }

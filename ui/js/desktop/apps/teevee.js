@@ -5,7 +5,8 @@
     const CHANNELS_ENDPOINT = IPTV_API_BASE + '/channels.json';
     const STREAMS_ENDPOINT = IPTV_API_BASE + '/streams.json';
     const CATEGORIES_ENDPOINT = IPTV_API_BASE + '/categories.json';
-    const FAVORITES_KEY = 'aurago.teevee.favorites.v1';
+    const FAVORITES_KEY = 'aurago.teevee.favorites.v2';
+    const LEGACY_FAVORITES_KEY = 'aurago.teevee.favorites.v1';
     const RECENT_KEY = 'aurago.teevee.recent.v1';
     const SEARCH_DELAY = 240;
     const MAX_FAVORITES = 80;
@@ -25,6 +26,7 @@
     const cleanID = Media.cleanID;
     const escapeHTML = Media.escapeHTML;
     const normalizeSearch = Media.normalizeSearch;
+    const hashString = Media.hashString;
     const countryFlag = Media.countryFlag;
     const countryDisplayName = Media.countryDisplayName;
     const debounce = Media.debounce;
@@ -392,6 +394,7 @@
                 state.entries = data.entries;
                 state.catalogLoadedAt = data.loadedAt;
                 updateVisible();
+                migrateFavorites(state.entries);
             } catch (err) {
                 state.error = err.message || t('desktop.teevee_catalog_error', 'Could not load TV catalog');
                 state.visible = [];
@@ -683,8 +686,8 @@
             const country = clean(channel && channel.country).toUpperCase();
             const name = clean(channel && channel.name) || clean(stream.title) || stream.url;
             const entry = {
-                id: clean(stream.channel || stream.title || 'stream') + ':' + index,
-                favoriteKey: clean(stream.url || stream.channel || stream.title),
+                id: stableID(stream.channel, stream.url),
+                favoriteKey: stableID(stream.channel, stream.url),
                 channelID: clean(stream.channel),
                 name,
                 url: clean(stream.url),
@@ -704,6 +707,12 @@
             return entry;
         }).filter(entry => entry && entry.url && !entry.isNsfw && !entry.closed && !entry.replacedBy)
             .sort(sortEntries);
+    }
+
+    function stableID(channelID, url) {
+        const id = clean(channelID);
+        const streamURL = clean(url);
+        return (id || 'unknown') + ':' + hashString(streamURL || id || 'stream');
     }
 
     function isUnsupportedStream(stream) {
@@ -771,10 +780,42 @@
     function loadFavorites() {
         try {
             const parsed = JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]');
-            return Array.isArray(parsed) ? parsed.map(clean).filter(Boolean).slice(0, MAX_FAVORITES) : [];
+            if (Array.isArray(parsed) && parsed.length) return parsed.map(clean).filter(Boolean).slice(0, MAX_FAVORITES);
+            const legacy = JSON.parse(localStorage.getItem(LEGACY_FAVORITES_KEY) || '[]');
+            return Array.isArray(legacy) ? legacy.map(clean).filter(Boolean).slice(0, MAX_FAVORITES) : [];
         } catch (_) {
             return [];
         }
+    }
+
+    function isLegacyFavoriteKey(key) {
+        return /^https?:\/\//.test(clean(key));
+    }
+
+    function migrateFavorites(entries) {
+        if (!entries || !entries.length) return;
+        const legacyKeys = state.favorites.filter(isLegacyFavoriteKey);
+        if (!legacyKeys.length) return;
+        const migrated = [];
+        const seen = new Set();
+        state.favorites.forEach(key => {
+            if (isLegacyFavoriteKey(key)) {
+                const entry = entries.find(item => item.url === key);
+                if (entry && !seen.has(entry.favoriteKey)) {
+                    migrated.push(entry.favoriteKey);
+                    seen.add(entry.favoriteKey);
+                }
+            } else if (!seen.has(key)) {
+                migrated.push(key);
+                seen.add(key);
+            }
+        });
+        state.favorites = migrated.slice(0, MAX_FAVORITES);
+        saveFavorites(state.favorites);
+        try {
+            localStorage.removeItem(LEGACY_FAVORITES_KEY);
+        } catch (_) {}
+        updateVisible();
     }
 
     function saveFavorites(favorites) {
