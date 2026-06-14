@@ -372,7 +372,8 @@ type ToolCall struct {
 	SkillID             string                   `json:"skill_id"`
 	SkillArgs           map[string]interface{}   `json:"skill_args"`
 	Content             string                   `json:"content"`
-	Query               string                   `json:"query"` // Alias for content in query_memory
+	Query               string                   `json:"query"`        // Alias for content in query_memory
+	HistoryQuery        string                   `json:"history_query"`
 	Resource            string                   `json:"resource"`
 	Mode                string                   `json:"mode"`
 	Sources             []string                 `json:"sources"`         // Memory sources filter for query_memory/context_memory

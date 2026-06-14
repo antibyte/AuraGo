@@ -248,7 +248,7 @@ func DeleteHomepageHistoryEntry(db *sql.DB, id int64) error {
 }
 
 // DispatchHomepageHistory handles homepage_registry history operations.
-func DispatchHomepageHistory(db *sql.DB, operation string, id, projectID int64, entryType, content, source string, tags []string, limit, offset int) string {
+func DispatchHomepageHistory(db *sql.DB, operation string, id, projectID int64, entryType, content, query, source string, tags []string, limit, offset int) string {
 	switch operation {
 	case "add_history":
 		if projectID <= 0 {
@@ -286,7 +286,7 @@ func DispatchHomepageHistory(db *sql.DB, operation string, id, projectID int64, 
 		return fmt.Sprintf(`{"status":"success","total":%d,"entries":%s}`, total, string(b))
 
 	case "search_history":
-		entries, total, err := SearchHomepageHistoryEntries(db, projectID, content, entryType, tags, limit, offset)
+		entries, total, err := SearchHomepageHistoryEntries(db, projectID, query, entryType, tags, limit, offset)
 		if err != nil {
 			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
 		}

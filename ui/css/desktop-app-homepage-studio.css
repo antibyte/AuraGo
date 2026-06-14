@@ -565,7 +565,274 @@
 }
 
 /* ============================================================
-   8. Responsive — stack below 800px
+   8. History Panel
+   ============================================================ */
+.vd-hp-preview-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.vd-hp-preview-tab {
+    padding: 6px 12px;
+    border: 1px solid transparent;
+    border-radius: calc(var(--ds-radius-md, 8px) - 2px);
+    background: transparent;
+    color: var(--hp-muted);
+    font-size: 0.78rem;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 200ms ease, color 200ms ease, border-color 200ms ease;
+}
+
+.vd-hp-preview-tab:hover {
+    color: var(--hp-text);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.vd-hp-preview-tab.is-active {
+    color: var(--hp-accent);
+    background: var(--hp-accent-soft);
+    border-color: var(--hp-accent-ring);
+}
+
+.vd-hp-preview-tab:focus-visible {
+    outline: 2px solid var(--hp-accent);
+    outline-offset: 2px;
+}
+
+.vd-hp-preview-panel,
+.vd-hp-history-panel {
+    display: none;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.vd-hp-preview-panel.is-active,
+.vd-hp-history-panel.is-active {
+    display: flex;
+}
+
+.vd-hp-history-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--hp-border);
+    background: rgba(255, 255, 255, 0.02);
+    flex-shrink: 0;
+}
+
+.vd-hp-history-search {
+    flex: 1;
+    min-width: 0;
+    padding: 7px 11px;
+    border: 1px solid var(--hp-border);
+    border-radius: calc(var(--ds-radius-md, 8px) - 2px);
+    background: var(--hp-control-bg);
+    color: var(--hp-text);
+    font-size: 0.8rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.vd-hp-history-search:hover {
+    border-color: color-mix(in srgb, var(--hp-accent) 22%, var(--hp-border));
+}
+
+.vd-hp-history-search:focus-visible {
+    border-color: var(--hp-accent-ring);
+    box-shadow: 0 0 0 3px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12);
+}
+
+.vd-hp-history-filter {
+    width: min(38%, 160px);
+    padding: 7px 28px 7px 11px;
+    border: 1px solid var(--hp-border);
+    border-radius: calc(var(--ds-radius-md, 8px) - 2px);
+    background: var(--hp-control-bg);
+    color: var(--hp-text);
+    font-size: 0.8rem;
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a7b0c0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 9px center;
+    transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.vd-hp-history-filter:hover {
+    border-color: color-mix(in srgb, var(--hp-accent) 22%, var(--hp-border));
+}
+
+.vd-hp-history-filter:focus-visible {
+    border-color: var(--hp-accent-ring);
+    box-shadow: 0 0 0 3px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12);
+}
+
+.vd-hp-history-refresh {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid var(--hp-border);
+    border-radius: calc(var(--ds-radius-md, 8px) - 2px);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--hp-text);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 200ms ease, border-color 200ms ease, color 200ms ease;
+}
+
+.vd-hp-history-refresh:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: color-mix(in srgb, var(--hp-accent) 24%, var(--hp-border));
+    color: var(--hp-accent);
+}
+
+.vd-hp-history-refresh:focus-visible {
+    outline: 2px solid var(--hp-accent);
+    outline-offset: 2px;
+}
+
+.vd-hp-history-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.vd-hp-history-empty {
+    padding: 36px 12px;
+    text-align: center;
+    color: var(--hp-muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.vd-hp-history-entry {
+    padding: 12px 14px;
+    border: 1px solid var(--hp-border);
+    border-radius: var(--ds-radius-md, 8px);
+    background: rgba(255, 255, 255, 0.025);
+    transition: border-color 200ms ease, background 200ms ease;
+}
+
+.vd-hp-history-entry:hover {
+    background: rgba(255, 255, 255, 0.045);
+    border-color: color-mix(in srgb, var(--hp-accent) 20%, var(--hp-border));
+}
+
+.vd-hp-history-entry-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.vd-hp-history-entry-type {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--hp-text);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.vd-hp-history-type-note .vd-hp-history-entry-type { background: rgba(148, 163, 184, 0.16); border-color: rgba(148, 163, 184, 0.24); color: #cbd5e1; }
+.vd-hp-history-type-decision .vd-hp-history-entry-type { background: rgba(39, 199, 166, 0.14); border-color: rgba(39, 199, 166, 0.28); color: var(--hp-accent); }
+.vd-hp-history-type-milestone .vd-hp-history-entry-type { background: rgba(245, 158, 11, 0.14); border-color: rgba(245, 158, 11, 0.28); color: #fbbf24; }
+.vd-hp-history-type-feedback .vd-hp-history-entry-type { background: rgba(99, 102, 241, 0.14); border-color: rgba(99, 102, 241, 0.28); color: #a5b4fc; }
+.vd-hp-history-type-question .vd-hp-history-entry-type { background: rgba(14, 165, 233, 0.14); border-color: rgba(14, 165, 233, 0.28); color: #7dd3fc; }
+.vd-hp-history-type-observation .vd-hp-history-entry-type { background: rgba(168, 85, 247, 0.14); border-color: rgba(168, 85, 247, 0.28); color: #d8b4fe; }
+
+.vd-hp-history-entry-time {
+    margin-left: auto;
+    font-size: 0.72rem;
+    color: var(--hp-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.vd-hp-history-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--hp-muted);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 200ms ease, color 200ms ease, border-color 200ms ease;
+}
+
+.vd-hp-history-delete:hover {
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.24);
+}
+
+.vd-hp-history-delete:focus-visible {
+    outline: 2px solid var(--hp-danger);
+    outline-offset: 2px;
+}
+
+.vd-hp-history-entry-content {
+    margin: 0;
+    font-size: 0.84rem;
+    line-height: 1.55;
+    color: var(--hp-text);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.vd-hp-history-entry-footer {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.vd-hp-history-source {
+    font-size: 0.72rem;
+    color: var(--hp-muted);
+    font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+}
+
+.vd-hp-history-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    color: var(--hp-muted);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--hp-border);
+}
+
+/* ============================================================
+   10. Responsive — stack below 800px
    ============================================================ */
 @media (max-width: 800px) {
     .vd-hp-studio {
@@ -598,7 +865,7 @@
 }
 
 /* ============================================================
-   9. Reduced Motion
+   11. Reduced Motion
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {
     .vd-hp-status-dot.loading,

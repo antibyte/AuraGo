@@ -798,7 +798,31 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.HomepageGitRollback(homepageCfg, req.ProjectDir, count, logger)
 			case "save_revision":
 				logger.Info("LLM requested homepage save_revision", "dir", req.ProjectDir, "message", req.Message)
-				return "Tool Output: " + tools.HomepageSaveRevision(homepageCfg, homepageRegistryDB, req.ProjectDir, req.Message, req.Reason, logger)
+				result := tools.HomepageSaveRevision(homepageCfg, homepageRegistryDB, req.ProjectDir, req.Message, req.Reason, logger)
+				if homepageResultSuccess(result) && homepageRegistryDB != nil && req.ProjectDir != "" {
+					if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
+						msg := req.Message
+						if msg == "" {
+							msg = "Revision saved"
+						}
+						if req.Reason != "" {
+							msg += " (" + req.Reason + ")"
+						}
+						// Include change counts from the revision result if available.
+						var revInfo map[string]interface{}
+						if err := json.Unmarshal([]byte(result), &revInfo); err == nil {
+							added, _ := revInfo["added"].(float64)
+							modified, _ := revInfo["modified"].(float64)
+							deleted, _ := revInfo["deleted"].(float64)
+							if added+modified+deleted > 0 {
+								msg += fmt.Sprintf(" [%d added, %d modified, %d deleted]", int(added), int(modified), int(deleted))
+							}
+						}
+						_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "note",
+							fmt.Sprintf("Saved revision: %s", msg), "homepage_revisions", nil)
+					}
+				}
+				return "Tool Output: " + result
 			case "list_revisions":
 				logger.Info("LLM requested homepage list_revisions", "dir", req.ProjectDir, "count", req.Count)
 				count := req.Count
@@ -965,7 +989,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				"search_history": true, "update_history": true, "delete_history": true,
 			}
 			if historyOps[op] {
-				return "Tool Output: " + tools.DispatchHomepageHistory(homepageRegistryDB, op, req.HistoryID, req.ID, req.EntryType, req.Content, req.Source, req.Tags, req.Limit, req.Offset)
+				return "Tool Output: " + tools.DispatchHomepageHistory(homepageRegistryDB, op, req.HistoryID, req.ID, req.EntryType, req.Content, req.HistoryQuery, req.Source, req.Tags, req.Limit, req.Offset)
 			}
 			return "Tool Output: " + tools.DispatchHomepageRegistry(homepageRegistryDB, op, req.Query, req.Name, req.Description, req.Framework, req.ProjectDir, req.URL, req.Status, req.Reason, req.Problem, req.Notes, req.Tags, req.ID, "", req.Limit, req.Offset)
 

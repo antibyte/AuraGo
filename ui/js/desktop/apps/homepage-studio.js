@@ -16,7 +16,11 @@
             previewUrl: '',
             statusLoaded: false,
             homepageEnabled: false,
-            disposed: false
+            disposed: false,
+            activePanel: 'preview',
+            historyQuery: '',
+            historyFilter: '',
+            historyEntries: []
         };
         instances.set(windowId, state);
 
@@ -50,7 +54,14 @@
                 </aside>
                 <main class="vd-hp-preview">
                     <header class="vd-hp-preview-header">
-                        <output class="vd-hp-preview-url" id="hp-url-${windowId}" title="${esc(t('homepage_studio.no_url', 'No preview URL available for this target'))}">—</output>
+                        <div class="vd-hp-preview-tabs" role="tablist" aria-label="${esc(t('homepage_studio.preview_tabs', 'Preview panels'))}">
+                            <button type="button" class="vd-hp-preview-tab is-active" id="hp-tab-preview-${windowId}" role="tab" aria-selected="true" aria-controls="hp-panel-preview-${windowId}">
+                                ${esc(t('homepage_studio.preview_tab', 'Preview'))}
+                            </button>
+                            <button type="button" class="vd-hp-preview-tab" id="hp-tab-history-${windowId}" role="tab" aria-selected="false" aria-controls="hp-panel-history-${windowId}">
+                                ${esc(t('homepage_studio.history_tab', 'History'))}
+                            </button>
+                        </div>
                         <div class="vd-hp-preview-actions">
                             <button type="button" class="vd-hp-preview-btn" id="hp-refresh-${windowId}" title="${esc(t('homepage_studio.refresh_preview', 'Refresh preview'))}">
                                 ${iconMarkup('refresh', '↻', 'vd-hp-btn-icon', 14)}
@@ -62,17 +73,39 @@
                         </div>
                     </header>
                     <section class="vd-hp-preview-body" id="hp-preview-body-${windowId}">
-                        <div class="vd-hp-preview-placeholder" id="hp-placeholder-${windowId}">
-                            <div class="vd-hp-preview-placeholder-icon" aria-hidden="true">🌐</div>
-                            <h3 class="vd-hp-preview-placeholder-title">${esc(t('homepage_studio.preview_empty_title', 'No live preview yet'))}</h3>
-                            <p class="vd-hp-preview-placeholder-text">${esc(t('homepage_studio.preview_unavailable', 'Preview unavailable — start the homepage container first'))}</p>
+                        <div class="vd-hp-preview-panel is-active" id="hp-panel-preview-${windowId}" role="tabpanel" aria-labelledby="hp-tab-preview-${windowId}">
+                            <div class="vd-hp-preview-placeholder" id="hp-placeholder-${windowId}">
+                                <div class="vd-hp-preview-placeholder-icon" aria-hidden="true">🌐</div>
+                                <h3 class="vd-hp-preview-placeholder-title">${esc(t('homepage_studio.preview_empty_title', 'No live preview yet'))}</h3>
+                                <p class="vd-hp-preview-placeholder-text">${esc(t('homepage_studio.preview_unavailable', 'Preview unavailable — start the homepage container first'))}</p>
+                            </div>
+                            <div class="vd-hp-preview-loading" id="hp-loading-${windowId}" aria-hidden="true">
+                                <span class="vd-hp-preview-loading-label">${esc(t('homepage_studio.preview_loading', 'Loading preview...'))}</span>
+                                <div class="vd-hp-preview-skeleton" aria-hidden="true">
+                                    <div class="vd-hp-skel-bar"></div>
+                                    <div class="vd-hp-skel-hero"></div>
+                                    <div class="vd-hp-skel-row"><span></span><span></span><span></span></div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="vd-hp-preview-loading" id="hp-loading-${windowId}" aria-hidden="true">
-                            <span class="vd-hp-preview-loading-label">${esc(t('homepage_studio.preview_loading', 'Loading preview...'))}</span>
-                            <div class="vd-hp-preview-skeleton" aria-hidden="true">
-                                <div class="vd-hp-skel-bar"></div>
-                                <div class="vd-hp-skel-hero"></div>
-                                <div class="vd-hp-skel-row"><span></span><span></span><span></span></div>
+                        <div class="vd-hp-preview-panel vd-hp-history-panel" id="hp-panel-history-${windowId}" role="tabpanel" aria-labelledby="hp-tab-history-${windowId}" hidden>
+                            <div class="vd-hp-history-controls">
+                                <input type="search" class="vd-hp-history-search" id="hp-history-search-${windowId}" placeholder="${esc(t('homepage_studio.history_search_placeholder', 'Search history...'))}" aria-label="${esc(t('homepage_studio.history_search_placeholder', 'Search history...'))}">
+                                <select class="vd-hp-history-filter" id="hp-history-filter-${windowId}" aria-label="${esc(t('homepage_studio.history_filter_label', 'Filter by type'))}">
+                                    <option value="">${esc(t('homepage_studio.history_filter_all', 'All types'))}</option>
+                                    <option value="note">${esc(t('homepage_studio.history_filter_note', 'Note'))}</option>
+                                    <option value="decision">${esc(t('homepage_studio.history_filter_decision', 'Decision'))}</option>
+                                    <option value="milestone">${esc(t('homepage_studio.history_filter_milestone', 'Milestone'))}</option>
+                                    <option value="feedback">${esc(t('homepage_studio.history_filter_feedback', 'Feedback'))}</option>
+                                    <option value="question">${esc(t('homepage_studio.history_filter_question', 'Question'))}</option>
+                                    <option value="observation">${esc(t('homepage_studio.history_filter_observation', 'Observation'))}</option>
+                                </select>
+                                <button type="button" class="vd-hp-history-refresh" id="hp-history-refresh-${windowId}" title="${esc(t('homepage_studio.refresh', 'Refresh'))}">
+                                    ${iconMarkup('refresh', '↻', 'vd-hp-btn-icon', 14)}
+                                </button>
+                            </div>
+                            <div class="vd-hp-history-list" id="hp-history-list-${windowId}">
+                                <div class="vd-hp-history-empty">${esc(t('homepage_studio.history_loading', 'Loading history...'))}</div>
                             </div>
                         </div>
                     </section>
@@ -94,6 +127,14 @@
         const previewLoading = $(`hp-loading-${windowId}`);
         const refreshBtn = $(`hp-refresh-${windowId}`);
         const externalBtn = $(`hp-external-${windowId}`);
+        const previewTab = $(`hp-tab-preview-${windowId}`);
+        const historyTab = $(`hp-tab-history-${windowId}`);
+        const previewPanel = $(`hp-panel-preview-${windowId}`);
+        const historyPanel = $(`hp-panel-history-${windowId}`);
+        const historySearch = $(`hp-history-search-${windowId}`);
+        const historyFilter = $(`hp-history-filter-${windowId}`);
+        const historyRefresh = $(`hp-history-refresh-${windowId}`);
+        const historyList = $(`hp-history-list-${windowId}`);
 
         autoResizeTextarea(chatInput);
 
@@ -124,6 +165,21 @@
         externalBtn.addEventListener('click', () => {
             if (state.previewUrl) window.open(state.previewUrl, '_blank');
         });
+
+        previewTab.addEventListener('click', () => switchPanel('preview'));
+        historyTab.addEventListener('click', () => {
+            switchPanel('history');
+            loadHistory();
+        });
+        historySearch.addEventListener('input', debounce(() => {
+            state.historyQuery = historySearch.value.trim();
+            loadHistory();
+        }, 250));
+        historyFilter.addEventListener('change', () => {
+            state.historyFilter = historyFilter.value;
+            loadHistory();
+        });
+        historyRefresh.addEventListener('click', () => loadHistory());
 
         loadStatus();
 
@@ -249,6 +305,101 @@
             }
         }
 
+        function switchPanel(panel) {
+            state.activePanel = panel;
+            if (panel === 'preview') {
+                previewTab.classList.add('is-active');
+                previewTab.setAttribute('aria-selected', 'true');
+                historyTab.classList.remove('is-active');
+                historyTab.setAttribute('aria-selected', 'false');
+                previewPanel.classList.add('is-active');
+                previewPanel.removeAttribute('hidden');
+                historyPanel.classList.remove('is-active');
+                historyPanel.setAttribute('hidden', '');
+            } else {
+                historyTab.classList.add('is-active');
+                historyTab.setAttribute('aria-selected', 'true');
+                previewTab.classList.remove('is-active');
+                previewTab.setAttribute('aria-selected', 'false');
+                historyPanel.classList.add('is-active');
+                historyPanel.removeAttribute('hidden');
+                previewPanel.classList.remove('is-active');
+                previewPanel.setAttribute('hidden', '');
+            }
+        }
+
+        async function loadHistory() {
+            if (!state.homepageEnabled) {
+                renderHistory([], t('homepage_studio.history_disabled', 'Homepage is disabled'));
+                return;
+            }
+            try {
+                const params = new URLSearchParams();
+                if (state.historyQuery) params.set('q', state.historyQuery);
+                if (state.historyFilter) params.set('entry_type', state.historyFilter);
+                params.set('limit', '100');
+                const url = '/api/homepage/history' + (params.toString() ? '?' + params.toString() : '');
+                const data = await api(url);
+                if (data && data.status === 'success') {
+                    state.historyEntries = data.entries || [];
+                    renderHistory(state.historyEntries);
+                } else {
+                    renderHistory([], data && data.message ? data.message : t('homepage_studio.history_error', 'Could not load history'));
+                }
+            } catch (err) {
+                renderHistory([], t('homepage_studio.history_error', 'Could not load history'));
+            }
+        }
+
+        function renderHistory(entries, emptyMessage) {
+            if (!historyList) return;
+            if (entries.length === 0) {
+                historyList.innerHTML = `<div class="vd-hp-history-empty">${esc(emptyMessage || t('homepage_studio.history_empty', 'No history entries yet'))}</div>`;
+                return;
+            }
+            const typeLabel = type => t('homepage_studio.history_type_' + type, type);
+            const html = entries.map(e => {
+                const date = e.created_at ? new Date(e.created_at).toLocaleString() : '';
+                const type = esc(e.entry_type || 'note');
+                const content = esc(e.content || '');
+                const source = e.source ? `<span class="vd-hp-history-source">${esc(e.source)}</span>` : '';
+                const tags = (e.tags || []).map(tag => `<span class="vd-hp-history-tag">${esc(tag)}</span>`).join('');
+                return `
+                    <article class="vd-hp-history-entry vd-hp-history-type-${type}">
+                        <header class="vd-hp-history-entry-header">
+                            <span class="vd-hp-history-entry-type">${typeLabel(type)}</span>
+                            <time class="vd-hp-history-entry-time" datetime="${esc(e.created_at || '')}">${esc(date)}</time>
+                            <button type="button" class="vd-hp-history-delete" data-id="${e.id}" title="${esc(t('homepage_studio.history_delete', 'Delete'))}" aria-label="${esc(t('homepage_studio.history_delete', 'Delete'))}">×</button>
+                        </header>
+                        <p class="vd-hp-history-entry-content">${content}</p>
+                        <footer class="vd-hp-history-entry-footer">${source}${tags}</footer>
+                    </article>
+                `;
+            }).join('');
+            historyList.innerHTML = html;
+            historyList.querySelectorAll('.vd-hp-history-delete').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.getAttribute('data-id');
+                    if (!id) return;
+                    if (!confirm(t('homepage_studio.history_delete_confirm', 'Delete this history entry?'))) return;
+                    try {
+                        await api('/api/homepage/history?id=' + encodeURIComponent(id), { method: 'DELETE' });
+                        loadHistory();
+                    } catch (err) {
+                        notify(t('homepage_studio.history_delete_error', 'Could not delete entry'));
+                    }
+                });
+            });
+        }
+
+        function debounce(fn, ms) {
+            let t;
+            return function (...args) {
+                clearTimeout(t);
+                t = setTimeout(() => fn.apply(this, args), ms);
+            };
+        }
+
         function homepageWindowContext() {
             return {
                 source: 'homepage-studio',
@@ -323,6 +474,8 @@
                 state.abortCtrl = null;
                 setBusy(false);
                 scrollToEnd();
+                refreshPreview();
+                loadHistory();
 
                 if (streamingContent.trim()) {
                     setTimeout(() => refreshPreview(), 500);

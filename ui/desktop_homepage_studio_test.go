@@ -100,6 +100,61 @@ func TestHomepageStudioChatPayloadCarriesHomepageScope(t *testing.T) {
 	}
 }
 
+func TestHomepageStudioHistoryPanelMarkers(t *testing.T) {
+	t.Parallel()
+
+	css := readDesktopAssetText(t, "css/desktop-app-homepage-studio.css")
+	for _, want := range []string{
+		".vd-hp-preview-tabs",
+		".vd-hp-history-panel",
+		".vd-hp-history-controls",
+		".vd-hp-history-entry",
+		".vd-hp-history-type-decision",
+		".vd-hp-history-delete",
+	} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("homepage studio css missing history marker %q", want)
+		}
+	}
+
+	source := readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js")
+	for _, want := range []string{
+		"function switchPanel",
+		"function loadHistory",
+		"function renderHistory",
+		"/api/homepage/history",
+		"history_tab",
+		"history_search_placeholder",
+		"history_delete_confirm",
+		"homepage_studio.history_type_",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("homepage studio js missing history marker %q", want)
+		}
+	}
+
+	var en map[string]string
+	if err := json.Unmarshal([]byte(readDesktopAssetText(t, "lang/desktop/en.json")), &en); err != nil {
+		t.Fatalf("parse English desktop translations: %v", err)
+	}
+	for _, key := range []string{
+		"homepage_studio.history_tab",
+		"homepage_studio.history_search_placeholder",
+		"homepage_studio.history_filter_label",
+		"homepage_studio.history_filter_all",
+		"homepage_studio.history_loading",
+		"homepage_studio.history_empty",
+		"homepage_studio.history_error",
+		"homepage_studio.history_delete",
+		"homepage_studio.history_delete_confirm",
+		"homepage_studio.history_type_decision",
+	} {
+		if en[key] == "" {
+			t.Fatalf("English desktop translation missing key %q", key)
+		}
+	}
+}
+
 func TestHomepageStudioGermanUsesInformalAddress(t *testing.T) {
 	t.Parallel()
 

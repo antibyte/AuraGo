@@ -124,7 +124,7 @@ Every project has a chronological history. This is not optional. Use it to remem
 
 ### search_history — Search history content
 ```json
-{"action": "homepage_registry", "operation": "search_history", "id": 1, "content": "hero", "limit": 10}
+{"action": "homepage_registry", "operation": "search_history", "id": 1, "history_query": "hero", "limit": 10}
 ```
 
 ### update_history — Update an existing entry

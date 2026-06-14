@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"aurago/internal/config"
 	"aurago/internal/tools"
@@ -234,5 +235,95 @@ func handleHomepageTestConnection(s *Server) http.HandlerFunc {
 
 		result := tools.HomepageTestConnection(deployCfg, s.Logger)
 		w.Write([]byte(result))
+	}
+}
+
+// handleHomepageHistory serves project history entries for the Homepage Studio UI.
+// Supports GET (list/search) and DELETE (single entry).
+func handleHomepageHistory(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if s.HomepageRegistryDB == nil {
+			jsonError(w, "Homepage registry is not enabled or DB not initialized", http.StatusServiceUnavailable)
+			return
+		}
+
+		switch r.Method {
+		case http.MethodGet:
+			projectID := int64(0)
+			if pidStr := r.URL.Query().Get("project_id"); pidStr != "" {
+				pid, err := strconv.ParseInt(pidStr, 10, 64)
+				if err != nil || pid <= 0 {
+					jsonError(w, "invalid project_id", http.StatusBadRequest)
+					return
+				}
+				projectID = pid
+			} else {
+				projectDir := r.URL.Query().Get("project_dir")
+				if projectDir == "" {
+					s.CfgMu.RLock()
+					projectDir = s.Cfg.Homepage.WorkspacePath
+					s.CfgMu.RUnlock()
+				}
+				if projectDir != "" {
+					if proj, projErr := tools.GetProjectByDir(s.HomepageRegistryDB, projectDir); projErr == nil {
+						projectID = proj.ID
+					}
+				}
+			}
+			// If no project could be resolved, projectID stays 0 and an empty
+			// list is returned, which is expected before any project exists.
+
+			entryType := r.URL.Query().Get("entry_type")
+			query := r.URL.Query().Get("q")
+			if query == "" {
+				query = r.URL.Query().Get("query")
+			}
+
+			limit := 20
+			if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 {
+				limit = v
+			}
+			offset := 0
+			if v, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil && v >= 0 {
+				offset = v
+			}
+
+			var entries []tools.HomepageHistoryEntry
+			var total int
+			var dbErr error
+			if query != "" {
+				entries, total, dbErr = tools.SearchHomepageHistoryEntries(s.HomepageRegistryDB, projectID, query, entryType, nil, limit, offset)
+			} else {
+				entries, total, dbErr = tools.ListHomepageHistoryEntries(s.HomepageRegistryDB, projectID, entryType, nil, limit, offset)
+			}
+			if dbErr != nil {
+				jsonError(w, dbErr.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			b, _ := json.Marshal(map[string]interface{}{
+				"status":  "success",
+				"total":   total,
+				"entries": entries,
+			})
+			w.Write(b)
+
+		case http.MethodDelete:
+			id, err := strconv.ParseInt(r.URL.Query().Get("id"), 10, 64)
+			if err != nil || id <= 0 {
+				jsonError(w, "id is required", http.StatusBadRequest)
+				return
+			}
+			if err := tools.DeleteHomepageHistoryEntry(s.HomepageRegistryDB, id); err != nil {
+				jsonError(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{"status": "success", "message": "History entry deleted"})
+
+		default:
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
 	}
 }

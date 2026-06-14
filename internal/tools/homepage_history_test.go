@@ -140,17 +140,17 @@ func TestDispatchHomepageHistory(t *testing.T) {
 
 	projectID, _, _ := RegisterProject(db, HomepageProject{Name: "DispatchHistoryTest", Framework: "svelte"})
 
-	result := DispatchHomepageHistory(db, "add_history", 0, projectID, "milestone", "Initial setup complete", "homepage_project", []string{"setup"}, 0, 0)
+	result := DispatchHomepageHistory(db, "add_history", 0, projectID, "milestone", "Initial setup complete", "", "homepage_project", []string{"setup"}, 0, 0)
 	if !strings.Contains(result, `"status":"success"`) {
 		t.Errorf("add_history result = %s", result)
 	}
 
-	result = DispatchHomepageHistory(db, "list_history", 0, projectID, "", "", "", nil, 10, 0)
+	result = DispatchHomepageHistory(db, "list_history", 0, projectID, "", "", "", "", nil, 10, 0)
 	if !strings.Contains(result, `"total":1`) {
 		t.Errorf("list_history result = %s", result)
 	}
 
-	result = DispatchHomepageHistory(db, "search_history", 0, projectID, "", "setup", "", nil, 10, 0)
+	result = DispatchHomepageHistory(db, "search_history", 0, projectID, "", "", "setup", "", nil, 10, 0)
 	if !strings.Contains(result, `"total":1`) {
 		t.Errorf("search_history result = %s", result)
 	}

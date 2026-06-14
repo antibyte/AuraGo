@@ -453,4 +453,21 @@ func TestDecodeHomepageRegistryArgsHistoryFields(t *testing.T) {
 	if len(req.Tags) != 2 || req.Tags[0] != "design" || req.Tags[1] != "hero" {
 		t.Fatalf("Tags = %v, want [design hero]", req.Tags)
 	}
+
+	// search_history uses history_query, not content
+	searchTc := ToolCall{
+		Action: "homepage_registry",
+		Params: map[string]interface{}{
+			"operation":     "search_history",
+			"id":            "3",
+			"history_query": "hero",
+		},
+	}
+	searchReq := decodeHomepageRegistryArgs(searchTc)
+	if searchReq.HistoryQuery != "hero" {
+		t.Fatalf("HistoryQuery = %q, want hero", searchReq.HistoryQuery)
+	}
+	if searchReq.Content != "" {
+		t.Fatalf("Content for search_history should be empty, got %q", searchReq.Content)
+	}
 }
