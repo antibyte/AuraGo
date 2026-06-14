@@ -139,3 +139,71 @@ func TestDesktopBuiltInAppsUseFocusedThemeIconNames(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopStoreAppsUseDedicatedThemeIcons(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, marker := range []string{
+		"'store-n8n': 'n8n'",
+		"'store-node-red': 'node-red'",
+		"'store-open-webui': 'open-webui'",
+		"'store-olivetin': 'olivetin'",
+		"'store-romm': 'romm'",
+		"'store-dozzle': 'dozzle'",
+		"'store-termix': 'termix'",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop store app icon mapping missing marker %q", marker)
+		}
+	}
+	for _, placeholder := range []string{
+		"'store-n8n': 'workflow'",
+		"'store-node-red': 'workflow'",
+		"'store-open-webui': 'chat'",
+		"'store-olivetin': 'terminal'",
+		"'store-romm': 'run'",
+		"'store-dozzle': 'terminal'",
+		"'store-termix': 'terminal'",
+	} {
+		if strings.Contains(source, placeholder) {
+			t.Fatalf("desktop store app icon mapping still uses placeholder marker %q", placeholder)
+		}
+	}
+
+	catalog := desktop.DesktopIconCatalog(map[string]string{"appearance.icon_theme": "papirus"})
+	for _, key := range []string{"n8n", "node-red", "open-webui", "olivetin", "romm", "dozzle", "termix"} {
+		if !containsString(catalog.Preferred, key) {
+			t.Fatalf("backend icon catalog missing store app icon %q", key)
+		}
+	}
+
+	for _, theme := range []string{"papirus", "whitesur"} {
+		data, err := Content.ReadFile("img/" + theme + "/manifest.json")
+		if err != nil {
+			t.Fatalf("read %s manifest: %v", theme, err)
+		}
+		var manifest struct {
+			Icons map[string]string `json:"icons"`
+		}
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			t.Fatalf("parse %s manifest: %v", theme, err)
+		}
+		for _, key := range []string{"n8n", "node-red", "open-webui", "olivetin", "romm", "dozzle", "termix"} {
+			path, ok := manifest.Icons[key]
+			if !ok {
+				t.Fatalf("%s theme manifest missing store app icon %q", theme, key)
+			}
+			svg, err := Content.ReadFile(path)
+			if err != nil {
+				t.Fatalf("%s store app icon %q not embedded at %s: %v", theme, key, path, err)
+			}
+			if !strings.Contains(string(svg), "<svg") {
+				t.Fatalf("%s store app icon %q is not an SVG asset", theme, key)
+			}
+		}
+		if manifest.Icons["n8n"] == manifest.Icons["node-red"] {
+			t.Fatalf("%s theme must expose distinct n8n and Node-RED icons", theme)
+		}
+	}
+}
