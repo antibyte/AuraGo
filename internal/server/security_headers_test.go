@@ -124,6 +124,26 @@ func TestSecurityHeadersAllowFirstPartyDesktopWidgetConnectOrigins(t *testing.T)
 	}
 }
 
+func TestSecurityHeadersAllowTeeVeeCatalogOrigin(t *testing.T) {
+	handler := securityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}), false, false)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/desktop", nil)
+	handler.ServeHTTP(rec, req)
+
+	connectSrc := cspDirective(rec.Header().Get("Content-Security-Policy"), "connect-src")
+	if !strings.Contains(connectSrc, "https://iptv-org.github.io") {
+		t.Fatalf("connect-src missing TeeVee catalog origin: %s", connectSrc)
+	}
+	for _, token := range strings.Fields(connectSrc) {
+		if token == "https:" {
+			t.Fatalf("connect-src must not allow arbitrary HTTPS connects: %s", connectSrc)
+		}
+	}
+}
+
 func TestSecurityHeadersAllowSameHostDesktopStoreProxyPorts(t *testing.T) {
 	handler := securityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)

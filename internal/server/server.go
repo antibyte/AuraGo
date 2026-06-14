@@ -1260,7 +1260,7 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 		// as prebuilt static assets and must not require runtime eval.
 		// TODO: Replace unsafe-inline with nonce-based CSP after moving inline UI
 		// handlers/styles into bundled JS/CSS.
-		connectSrc := "connect-src 'self' blob: ws: wss: https://api.open-meteo.com https://geocoding-api.open-meteo.com https://de1.api.radio-browser.info" + desktopStoreProxyConnectSources(r) + "; "
+		connectSrc := "connect-src 'self' blob: ws: wss: https://api.open-meteo.com https://geocoding-api.open-meteo.com https://de1.api.radio-browser.info https://iptv-org.github.io" + desktopStoreProxyConnectSources(r) + "; "
 		csp := "default-src 'self'; " +
 			"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; " +
 			"style-src 'self' 'unsafe-inline'; " +
