@@ -347,6 +347,35 @@ func TestChatFrontend_IntegrationsDrawerRemainsWired(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_IntegrationsDrawerPrefetchesWebhostsBeforeOpen(t *testing.T) {
+	t.Parallel()
+
+	drawerContent, err := os.ReadFile(filepath.Join("js", "chat", "modules", "integrations-drawer.js"))
+	if err != nil {
+		t.Fatalf("read integrations drawer module: %v", err)
+	}
+	drawerJS := string(drawerContent)
+
+	for _, marker := range []string{
+		"let webhostsFetchPromise",
+		"const WEBHOSTS_CACHE_TTL_MS",
+		"function prefetchWebhosts()",
+		"function scheduleWebhostsPrefetch()",
+		"requestIdleCallback",
+		"DOMContentLoaded",
+		"fetchWebhosts({ showLoading: false })",
+		"if (webhostsFetchPromise)",
+		"fetchWebhosts({ force: true",
+	} {
+		if !strings.Contains(drawerJS, marker) {
+			t.Fatalf("integrations drawer JS missing prefetch/cache marker %q", marker)
+		}
+	}
+	if strings.Contains(drawerJS, "\n        fetchWebhosts();") {
+		t.Fatal("integrations drawer should not wait until open() to start a bare webhost fetch")
+	}
+}
+
 func TestChatFrontend_MainScrollerKeepsChatBoxId(t *testing.T) {
 	t.Parallel()
 

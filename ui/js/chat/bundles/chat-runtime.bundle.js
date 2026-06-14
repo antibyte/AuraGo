@@ -3693,6 +3693,10 @@ window.IntegrationsDrawer = (function () {
 
     let isOpen = false;
     let webhosts = [];
+    let webhostsFetchPromise = null;
+    let webhostsLoadedAt = 0;
+    let lastFetchFailed = false;
+    const WEBHOSTS_CACHE_TTL_MS = 30000;
 
     const drawer = document.getElementById('integrations-drawer');
     const backdrop = document.getElementById('integrations-backdrop');
@@ -3714,21 +3718,56 @@ window.IntegrationsDrawer = (function () {
         return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    async function fetchWebhosts() {
+    function hasFreshWebhosts() {
+        return webhostsLoadedAt > 0 && Date.now() - webhostsLoadedAt < WEBHOSTS_CACHE_TTL_MS;
+    }
+
+    function showLoadingState() {
         if (!listEl) return;
         listEl.innerHTML = `<div class="integrations-empty">${escapeHtml(t('chat.integrations_loading'))}</div>`;
-        try {
-            const res = await fetch('/api/integrations/webhosts', { credentials: 'same-origin' });
+    }
+
+    function showErrorState() {
+        if (!listEl) return;
+        listEl.innerHTML = `<div class="integrations-empty">${escapeHtml(t('chat.integrations_error'))}</div>`;
+    }
+
+    async function fetchWebhosts(options = {}) {
+        const force = options.force === true;
+        const showLoading = options.showLoading !== false;
+
+        if (!force && hasFreshWebhosts()) {
+            if (isOpen) renderList();
+            return webhosts;
+        }
+        if (!force && webhostsFetchPromise) {
+            if (showLoading && isOpen) showLoadingState();
+            return webhostsFetchPromise;
+        }
+
+        if (showLoading && isOpen) showLoadingState();
+
+        webhostsFetchPromise = (async () => {
+            const res = await fetch('/api/integrations/webhosts', { credentials: 'same-origin', cache: 'no-store' });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
             webhosts = Array.isArray(data.webhosts) ? data.webhosts : [];
-        } catch (err) {
+            webhostsLoadedAt = Date.now();
+            lastFetchFailed = false;
+            if (isOpen) renderList();
+            return webhosts;
+        })().catch((err) => {
             console.error('Failed to fetch integrations:', err);
             webhosts = [];
-            listEl.innerHTML = `<div class="integrations-empty">${escapeHtml(t('chat.integrations_error'))}</div>`;
-            return;
-        }
-        renderList();
+            webhostsLoadedAt = 0;
+            lastFetchFailed = true;
+            if (isOpen) showErrorState();
+            return webhosts;
+        }).finally(() => {
+            webhostsFetchPromise = null;
+        });
+
+        return webhostsFetchPromise;
     }
 
     function renderList() {
@@ -3761,7 +3800,13 @@ window.IntegrationsDrawer = (function () {
         drawer.classList.add('open');
         if (backdrop) backdrop.classList.add('active');
         if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'true');
-        fetchWebhosts();
+        if (hasFreshWebhosts()) {
+            renderList();
+        } else if (webhostsFetchPromise) {
+            showLoadingState();
+        } else {
+            fetchWebhosts({ force: lastFetchFailed });
+        }
     }
 
     function close() {
@@ -3784,10 +3829,30 @@ window.IntegrationsDrawer = (function () {
         if (e.key === 'Escape' && isOpen) close();
     });
 
+    function prefetchWebhosts() {
+        fetchWebhosts({ showLoading: false });
+    }
+
+    function scheduleWebhostsPrefetch() {
+        if (!drawer || !listEl) return;
+        const runPrefetch = () => prefetchWebhosts();
+        if (typeof window.requestIdleCallback === 'function') {
+            window.requestIdleCallback(runPrefetch, { timeout: 1200 });
+        } else {
+            window.setTimeout(runPrefetch, 250);
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', scheduleWebhostsPrefetch, { once: true });
+    } else {
+        scheduleWebhostsPrefetch();
+    }
+
     return {
         open,
         close,
-        refresh: fetchWebhosts
+        refresh: () => fetchWebhosts({ force: true, showLoading: isOpen })
     };
 })();
 
