@@ -1336,5 +1336,11 @@
   "desktop.teevee_resolution_fhd": "1080p",
   "desktop.teevee_resolution_hd": "720p",
   "desktop.teevee_resolution_sd": "SD",
-  "desktop.teevee_resolution_unknown": "未知"
+  "desktop.teevee_resolution_unknown": "未知",
+  "desktop.teevee_unsupported_hint": "此流需要被浏览器屏蔽的自定义标题",
+  "desktop.teevee_timeout": "目录请求超时",
+  "desktop.teevee_network_error": "网络错误 。 检查你的连接。",
+  "desktop.teevee_cors_error": "被浏览器安全屏蔽的流 。",
+  "desktop.teevee_format_error": "不支持流格式 。",
+  "desktop.teevee_stream_stalled": "水流停滞了。 正在重试..."
 }

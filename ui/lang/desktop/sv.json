@@ -1336,5 +1336,11 @@
   "desktop.teevee_resolution_fhd": "1080p",
   "desktop.teevee_resolution_hd": "720p",
   "desktop.teevee_resolution_sd": "SD",
-  "desktop.teevee_resolution_unknown": "Okänd"
+  "desktop.teevee_resolution_unknown": "Okänd",
+  "desktop.teevee_unsupported_hint": "Denna ström kräver anpassade rubriker blockerade av webbläsaren",
+  "desktop.teevee_timeout": "Katalogbegäran timed out",
+  "desktop.teevee_network_error": "Network error. Kolla din anslutning.",
+  "desktop.teevee_cors_error": "Stream blockerad av webbläsarens säkerhet.",
+  "desktop.teevee_format_error": "Stream format stöds inte.",
+  "desktop.teevee_stream_stalled": "Stream stalled. Retrying..."
 }

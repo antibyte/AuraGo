@@ -313,6 +313,13 @@
                     img.hidden = true;
                 }, { once: true });
             });
+            listEl.querySelectorAll('[data-action="favorite"]').forEach(btn => {
+                btn.addEventListener('click', event => {
+                    event.stopPropagation();
+                    const entry = state.entries.find(item => item.id === btn.dataset.channelId);
+                    if (entry) toggleFavorite(entry);
+                });
+            });
             if (state.visible.length < state.totalVisible) {
                 const sentinel = document.createElement('div');
                 sentinel.className = 'teevee-sentinel';
@@ -334,6 +341,7 @@
         function channelCard(entry) {
             const active = state.current && state.current.id === entry.id;
             const unsupported = entry.unsupported;
+            const favorite = isFavorite(entry);
             const logo = entry.logo || '';
             const meta = [countryFlag(entry.country), entry.country, resolutionText(entry), categoryText(entry)].filter(Boolean).join(' | ');
             return `<article class="teevee-channel ${active ? 'active' : ''} ${unsupported ? 'unsupported' : ''}" role="button" tabindex="0" data-channel-id="${esc(entry.id)}" aria-label="${esc(t('desktop.teevee_play', 'Play'))} ${esc(entry.name)}">
@@ -345,7 +353,8 @@
                     <span title="${esc(meta)}">${esc(meta || entry.url)}</span>
                 </div>
                 <div class="teevee-channel-side">
-                    ${unsupported ? `<span class="teevee-badge">${esc(t('desktop.teevee_unsupported_badge', 'Headers'))}</span>` : `<span class="teevee-live">${esc(t('desktop.teevee_live', 'LIVE'))}</span>`}
+                    ${unsupported ? `<span class="teevee-badge" title="${esc(t('desktop.teevee_unsupported_hint', 'This stream requires custom headers blocked by the browser'))}">${esc(t('desktop.teevee_unsupported_badge', 'Headers'))}</span>` : `<span class="teevee-live">${esc(t('desktop.teevee_live', 'LIVE'))}</span>`}
+                    <button class="teevee-heart ${favorite ? 'active' : ''}" type="button" data-action="favorite" data-channel-id="${esc(entry.id)}" aria-label="${esc(favorite ? t('desktop.teevee_remove_favorite', 'Remove from favorites') : t('desktop.teevee_add_favorite', 'Add to favorites'))}">${favorite ? '♥' : '♡'}</button>
                 </div>
             </article>`;
         }
@@ -434,6 +443,7 @@
             event.preventDefault();
             ctx.showContextMenu(event.clientX, event.clientY, [
                 { labelKey: 'desktop.teevee_play', icon: 'video', disabled: entry.unsupported, action: () => playChannel(entry) },
+                { labelKey: 'desktop.menu_favorite', icon: 'heart', checked: isFavorite(entry), action: () => toggleFavorite(entry) },
                 { type: 'separator' },
                 { labelKey: 'desktop.teevee_refresh', icon: 'refresh', action: () => loadCatalog(true) }
             ]);
@@ -443,6 +453,7 @@
         async function playChannel(entry) {
             if (!entry) return;
             if (entry.unsupported) {
+                resetPlayback();
                 state.current = entry;
                 state.error = t('desktop.teevee_unsupported_stream', 'This stream needs browser-blocked headers.');
                 showToast(state.error);
@@ -450,9 +461,9 @@
                 renderList();
                 return;
             }
-            resetPlayback();
             state.current = entry;
             state.error = '';
+            state.hlsErrorCount = 0;
             renderPlayer();
             try {
                 await attachVideoSource(entry);
@@ -463,8 +474,9 @@
                 updateMediaSession(entry, 'AuraGo TeeVee');
             } catch (err) {
                 state.playing = false;
-                state.error = err && err.message ? err.message : t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK);
+                state.error = formatPlaybackError(err);
                 showToast(state.error);
+                resetPlayback();
             }
             renderAll();
         }
@@ -474,14 +486,24 @@
             if (!url) throw new Error(t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK));
             if (isHLSURL(url)) {
                 if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    destroyHls();
                     video.src = url;
                     video.load();
                     return;
                 }
                 if (window.Hls && window.Hls.isSupported && window.Hls.isSupported()) {
+                    destroyHls();
                     state.hls = new window.Hls({ enableWorker: true, lowLatencyMode: true, backBufferLength: 60 });
                     state.hls.on(window.Hls.Events.ERROR, function (_event, data) {
                         if (data && data.fatal) {
+                            state.error = t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK);
+                            showToast(state.error);
+                            resetPlayback();
+                            renderAll();
+                            return;
+                        }
+                        state.hlsErrorCount = (state.hlsErrorCount || 0) + 1;
+                        if (state.hlsErrorCount > 5) {
                             state.error = t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK);
                             showToast(state.error);
                             resetPlayback();
@@ -494,15 +516,20 @@
                 }
                 throw new Error(t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK));
             }
+            destroyHls();
             video.src = url;
             video.load();
         }
 
-        function resetPlayback() {
+        function destroyHls() {
             if (state.hls) {
                 try { state.hls.destroy(); } catch (_) {}
                 state.hls = null;
             }
+        }
+
+        function resetPlayback() {
+            destroyHls();
             video.pause();
             video.removeAttribute('src');
             video.load();
@@ -574,6 +601,19 @@
             }
         }
 
+        function formatPlaybackError(err) {
+            const message = err && err.message ? err.message : '';
+            if (message.includes('timed out')) return t('desktop.teevee_timeout', 'Catalog request timed out');
+            if (message.includes('network')) return t('desktop.teevee_network_error', 'Network error. Check your connection.');
+            if (message.includes('CORS') || message.includes('cross-origin') || message.includes('cross origin')) {
+                return t('desktop.teevee_cors_error', 'Stream blocked by browser security.');
+            }
+            if (message.includes('MEDIA_ERR') || message.includes('format') || message.includes('decode')) {
+                return t('desktop.teevee_format_error', 'Stream format not supported.');
+            }
+            return t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK);
+        }
+
         const searchDebounce = debounce((value) => {
             state.search = value || '';
             state.visibleLimit = VISIBLE_BATCH;
@@ -643,6 +683,12 @@
             showToast(state.error);
             renderAll();
         });
+        video.addEventListener('stalled', () => {
+            if (!state.current || state.current.unsupported) return;
+            state.error = t('desktop.teevee_stream_stalled', 'Stream stalled. Retrying...');
+            showToast(state.error);
+            renderPlayer();
+        });
         if ('mediaSession' in navigator) {
             try {
                 navigator.mediaSession.setActionHandler('play', () => {
@@ -652,6 +698,40 @@
                 navigator.mediaSession.setActionHandler('stop', stopPlayback);
             } catch (_) {}
         }
+
+        root.addEventListener('keydown', event => {
+            const target = event.target;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+            switch (event.key) {
+                case ' ':
+                    event.preventDefault();
+                    if (!state.current || state.current.unsupported) return;
+                    if (video.paused) {
+                        video.play().then(() => { state.playing = true; renderPlayer(); }).catch(err => {
+                            state.error = formatPlaybackError(err);
+                            showToast(state.error);
+                            renderAll();
+                        });
+                    } else {
+                        video.pause();
+                        state.playing = false;
+                        renderPlayer();
+                    }
+                    break;
+                case 'f':
+                case 'F':
+                    event.preventDefault();
+                    requestPlayerFullscreen();
+                    break;
+                case 'm':
+                case 'M':
+                    event.preventDefault();
+                    state.muted = !state.muted;
+                    video.muted = state.muted;
+                    renderPlayer();
+                    break;
+            }
+        });
 
         disposers.set(windowId, () => {
             searchDebounce.clear();

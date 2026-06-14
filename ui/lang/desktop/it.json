@@ -1336,5 +1336,11 @@
   "desktop.teevee_resolution_fhd": "1080p",
   "desktop.teevee_resolution_hd": "720p",
   "desktop.teevee_resolution_sd": "SD",
-  "desktop.teevee_resolution_unknown": "Sconosciuta"
+  "desktop.teevee_resolution_unknown": "Sconosciuta",
+  "desktop.teevee_unsupported_hint": "Questo flusso richiede intestazioni personalizzate bloccate dal browser",
+  "desktop.teevee_timeout": "Richiesta catalogo time out",
+  "desktop.teevee_network_error": "Errore di rete. Controlla la connessione.",
+  "desktop.teevee_cors_error": "Stream bloccato dalla sicurezza del browser.",
+  "desktop.teevee_format_error": "Formato di streaming non supportato.",
+  "desktop.teevee_stream_stalled": "Stream si e' fermato. Ripensare..."
 }

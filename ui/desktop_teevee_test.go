@@ -98,6 +98,13 @@ func TestDesktopTeeVeeAppMarkers(t *testing.T) {
 		"function renderShortcutList(",
 		"function resolutionBucketFromStream(stream)",
 		"function resolutionMatches(entry)",
+		"function formatPlaybackError(err)",
+		"function destroyHls()",
+		"state.hlsErrorCount = (state.hlsErrorCount || 0) + 1",
+		"video.addEventListener('stalled'",
+		"root.addEventListener('keydown'",
+		"case 'f':",
+		"case 'm':",
 		"const VISIBLE_BATCH = 40",
 		"state.visibleLimit = VISIBLE_BATCH",
 		"state.totalVisible = entries.length",
@@ -153,7 +160,7 @@ func TestDesktopTeeVeeAppMarkers(t *testing.T) {
 	}
 }
 
-func TestDesktopTeeVeeFavoritesAreCurrentStreamOnly(t *testing.T) {
+func TestDesktopTeeVeeFavoritesInListAndContextMenu(t *testing.T) {
 	t.Parallel()
 
 	app := readDesktopAssetText(t, "js/desktop/apps/teevee.js")
@@ -165,13 +172,14 @@ func TestDesktopTeeVeeFavoritesAreCurrentStreamOnly(t *testing.T) {
 	if strings.Index(app, recentMarker) > strings.Index(app, favoritesMarker) {
 		t.Fatalf("TeeVee recent shortcuts should render before favorites")
 	}
-	for _, forbidden := range []string{
+	for _, want := range []string{
 		`data-action="favorite" data-channel-id`,
-		"event.target.closest('[data-action=\"favorite\"]')",
+		`event.stopPropagation()`,
 		"action: () => toggleFavorite(entry)",
+		"checked: isFavorite(entry)",
 	} {
-		if strings.Contains(app, forbidden) {
-			t.Fatalf("TeeVee app should not allow favoriting non-active list streams via marker %q", forbidden)
+		if !strings.Contains(app, want) {
+			t.Fatalf("TeeVee app missing list/context favorite marker %q", want)
 		}
 	}
 }
@@ -293,6 +301,12 @@ func TestDesktopTeeVeeTranslations(t *testing.T) {
 		"desktop.teevee_loading",
 		"desktop.teevee_stream_unavailable",
 		"desktop.teevee_unsupported_stream",
+		"desktop.teevee_unsupported_hint",
+		"desktop.teevee_timeout",
+		"desktop.teevee_network_error",
+		"desktop.teevee_cors_error",
+		"desktop.teevee_format_error",
+		"desktop.teevee_stream_stalled",
 		"desktop.teevee_no_channel",
 		"desktop.teevee_no_results",
 		"desktop.teevee_quality",

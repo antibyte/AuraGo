@@ -1336,5 +1336,11 @@
   "desktop.teevee_resolution_fhd": "1080p",
   "desktop.teevee_resolution_hd": "720p",
   "desktop.teevee_resolution_sd": "SD",
-  "desktop.teevee_resolution_unknown": "Unknown"
+  "desktop.teevee_resolution_unknown": "Unknown",
+  "desktop.teevee_unsupported_hint": "This stream requires custom headers blocked by the browser",
+  "desktop.teevee_timeout": "Catalog request timed out",
+  "desktop.teevee_network_error": "Network error. Check your connection.",
+  "desktop.teevee_cors_error": "Stream blocked by browser security.",
+  "desktop.teevee_format_error": "Stream format not supported.",
+  "desktop.teevee_stream_stalled": "Stream stalled. Retrying..."
 }

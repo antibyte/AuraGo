@@ -1336,5 +1336,11 @@
   "desktop.teevee_resolution_fhd": "1080p",
   "desktop.teevee_resolution_hd": "720p",
   "desktop.teevee_resolution_sd": "SD",
-  "desktop.teevee_resolution_unknown": "Desconhecida"
+  "desktop.teevee_resolution_unknown": "Desconhecida",
+  "desktop.teevee_unsupported_hint": "Este fluxo requer cabeçalhos personalizados bloqueados pelo navegador",
+  "desktop.teevee_timeout": "Pedido de catálogo cronometrado",
+  "desktop.teevee_network_error": "Erro de rede. Verifica a tua ligação.",
+  "desktop.teevee_cors_error": "Fluxo bloqueado pela segurança do navegador.",
+  "desktop.teevee_format_error": "Formato de fluxo não suportado.",
+  "desktop.teevee_stream_stalled": "O fluxo parou. A tentar de novo..."
 }

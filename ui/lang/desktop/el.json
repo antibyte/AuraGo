@@ -1336,5 +1336,11 @@
   "desktop.teevee_resolution_fhd": "1080p",
   "desktop.teevee_resolution_hd": "720p",
   "desktop.teevee_resolution_sd": "SD",
-  "desktop.teevee_resolution_unknown": "Άγνωστη"
+  "desktop.teevee_resolution_unknown": "Άγνωστη",
+  "desktop.teevee_unsupported_hint": "Αυτή η ροή απαιτεί προσαρμοσμένες κεφαλίδες μπλοκαρισμένες από τον περιηγητή",
+  "desktop.teevee_timeout": "Λήξη χρονικού ορίου αίτησης καταλόγου",
+  "desktop.teevee_network_error": "Σφάλμα δικτύου. Έλεγξε τη σύνδεσή σου.",
+  "desktop.teevee_cors_error": "Ροή μπλοκαρισμένη από την ασφάλεια του προγράμματος περιήγησης.",
+  "desktop.teevee_format_error": "Η μορφή ροής δεν υποστηρίζεται.",
+  "desktop.teevee_stream_stalled": "Το ρεύμα σταμάτησε. Ξαναπροσπαθώ..."
 }

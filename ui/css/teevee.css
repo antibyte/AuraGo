@@ -674,6 +674,31 @@
     background: rgba(255, 255, 255, 0.09);
 }
 
+.teevee-heart {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    line-height: 1;
+    color: var(--teevee-muted);
+    background: transparent;
+    cursor: pointer;
+    transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.teevee-heart:hover,
+.teevee-heart.active {
+    color: var(--teevee-danger);
+}
+
+.teevee-heart:active {
+    transform: scale(0.92);
+}
+
 .teevee-empty {
     display: grid;
     place-items: center;

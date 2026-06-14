@@ -1336,5 +1336,11 @@
   "desktop.teevee_resolution_fhd": "1080p",
   "desktop.teevee_resolution_hd": "720p",
   "desktop.teevee_resolution_sd": "SD",
-  "desktop.teevee_resolution_unknown": "अज्ञात"
+  "desktop.teevee_resolution_unknown": "अज्ञात",
+  "desktop.teevee_unsupported_hint": "इस धारा को ब्राउज़र द्वारा अवरुद्ध कस्टम हेडर की आवश्यकता होती है",
+  "desktop.teevee_timeout": "कैटलॉग अनुरोध समय पर",
+  "desktop.teevee_network_error": "नेटवर्क त्रुटि। अपने कनेक्शन की जाँच करें।",
+  "desktop.teevee_cors_error": "ब्राउज़र सुरक्षा द्वारा अवरुद्ध स्ट्रीम करें।",
+  "desktop.teevee_format_error": "स्ट्रीम प्रारूप समर्थित नहीं है।",
+  "desktop.teevee_stream_stalled": "स्ट्रीम स्टालेड। ......"
 }

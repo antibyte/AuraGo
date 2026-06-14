@@ -1336,5 +1336,11 @@
   "desktop.teevee_resolution_fhd": "1080p",
   "desktop.teevee_resolution_hd": "720p",
   "desktop.teevee_resolution_sd": "SD",
-  "desktop.teevee_resolution_unknown": "Ukendt"
+  "desktop.teevee_resolution_unknown": "Ukendt",
+  "desktop.teevee_unsupported_hint": "Denne strøm kræver brugerdefinerede headers blokeret af browseren",
+  "desktop.teevee_timeout": "Katalog forespørgsel timet ud",
+  "desktop.teevee_network_error": "Netværksfejl. Tjek din forbindelse.",
+  "desktop.teevee_cors_error": "Stream blokeret af browsersikkerhed.",
+  "desktop.teevee_format_error": "Stream format ikke understøttet.",
+  "desktop.teevee_stream_stalled": "Strømmen gik i stå. Jeg prøver igen."
 }
