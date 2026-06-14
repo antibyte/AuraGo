@@ -63,6 +63,7 @@
                                 ${esc(t('homepage_studio.history_tab', 'History'))}
                             </button>
                         </div>
+                        <div class="vd-hp-preview-url" id="hp-url-${windowId}" title="${esc(t('homepage_studio.no_url', 'No preview URL available for this target'))}">—</div>
                         <div class="vd-hp-preview-actions">
                             <button type="button" class="vd-hp-preview-btn" id="hp-refresh-${windowId}" title="${esc(t('homepage_studio.refresh_preview', 'Refresh preview'))}">
                                 ${iconMarkup('refresh', '↻', 'vd-hp-btn-icon', 14)}
@@ -264,7 +265,7 @@
                 iframe = document.createElement('iframe');
                 iframe.className = 'vd-hp-preview-iframe';
                 iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups';
-                previewBody.insertBefore(iframe, previewLoading);
+                previewPanel.insertBefore(iframe, previewLoading);
             }
             if (iframe.src !== url) {
                 previewLoading.classList.add('active');
