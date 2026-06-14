@@ -129,7 +129,23 @@ func InitHomepageRegistryDB(dbPath string) (*sql.DB, error) {
 		FOREIGN KEY (revision_id) REFERENCES homepage_revisions(id) ON DELETE CASCADE
 	);
 	CREATE INDEX IF NOT EXISTS idx_hrf_revision_id ON homepage_revision_files(revision_id);
-	CREATE INDEX IF NOT EXISTS idx_hrf_path ON homepage_revision_files(path);`
+	CREATE INDEX IF NOT EXISTS idx_hrf_path ON homepage_revision_files(path);
+
+	CREATE TABLE IF NOT EXISTS homepage_history (
+		id          INTEGER PRIMARY KEY AUTOINCREMENT,
+		project_id  INTEGER NOT NULL,
+		created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+		author      TEXT DEFAULT 'agent',
+		entry_type  TEXT NOT NULL DEFAULT 'note',
+		content     TEXT NOT NULL,
+		tags        TEXT DEFAULT '[]',
+		source      TEXT DEFAULT '',
+		FOREIGN KEY (project_id) REFERENCES homepage_projects(id) ON DELETE CASCADE
+	);
+	CREATE INDEX IF NOT EXISTS idx_hh_project_id ON homepage_history(project_id);
+	CREATE INDEX IF NOT EXISTS idx_hh_created_at ON homepage_history(created_at);
+	CREATE INDEX IF NOT EXISTS idx_hh_entry_type ON homepage_history(entry_type);`
 	if _, err := db.Exec(schema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to create homepage registry schema: %w", err)

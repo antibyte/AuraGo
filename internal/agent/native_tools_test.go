@@ -1532,7 +1532,7 @@ func TestSelectedNativeToolDescriptionsStayCompact(t *testing.T) {
 		{name: "retrieve_original_output", requiredText: []string{"archived original output", "compressed"}},
 		{name: "document_creator", requiredText: []string{"PDF", "document backend"}},
 		{name: "media_registry", requiredText: []string{"Search", "media registry"}},
-		{name: "homepage_registry", requiredText: []string{"homepage/web", "deploy history"}},
+		{name: "homepage_registry", requiredText: []string{"homepage/web", "deploy history", "project history", "add_history", "list_history"}},
 		{name: "web_capture", requiredText: []string{"PNG", "PDF", "Chromium"}},
 		{name: "web_performance_audit", requiredText: []string{"page load", "Chromium"}},
 		{name: "browser_automation", requiredText: []string{"browser sidecar", "screenshots"}},

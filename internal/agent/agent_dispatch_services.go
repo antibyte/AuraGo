@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -21,6 +22,33 @@ var (
 	meshCentralCachedClient *meshcentral.CachedClient
 	meshCentralClientMu     sync.Mutex
 )
+
+// autoAddHomepageHistory records a project history entry when a mutating homepage
+// operation succeeds. It swallows errors so that history logging never breaks the
+// primary tool result.
+func autoAddHomepageHistory(db *sql.DB, path, entryType, content, source string) {
+	if db == nil || path == "" || content == "" {
+		return
+	}
+	// Derive the project directory from the first path segment.
+	projectDir := strings.SplitN(filepath.ToSlash(strings.TrimSpace(path)), "/", 2)[0]
+	if projectDir == "" {
+		return
+	}
+	proj, err := tools.GetProjectByDir(db, projectDir)
+	if err != nil {
+		return
+	}
+	_, _ = tools.AddHomepageHistoryEntry(db, proj.ID, entryType, content, source, nil)
+}
+
+// homepageResultSuccess returns true when a homepage tool result JSON does not
+// indicate an explicit error. Most homepage tools return JSON with a status
+// field; if no error status is present we treat the result as successful enough
+// to record history.
+func homepageResultSuccess(result string) bool {
+	return !strings.Contains(result, `"status":"error"`)
+}
 
 // CloseMeshCentralClient closes the cached MeshCentral connection.
 func CloseMeshCentralClient() {
@@ -456,13 +484,19 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested homepage init_project", "framework", req.Framework, "name", req.Name, "template", req.Template)
 				result := tools.HomepageInitProject(homepageCfg, req.Framework, req.Name, req.Template, logger)
 				// Auto-register project in homepage registry
+				var projectID int64
 				if homepageRegistryDB != nil && req.Name != "" {
-					tools.RegisterProject(homepageRegistryDB, tools.HomepageProject{
+					id, _, _ := tools.RegisterProject(homepageRegistryDB, tools.HomepageProject{
 						Name:      req.Name,
 						Framework: req.Framework,
 						Status:    "active",
 						Tags:      []string{"auto-registered"},
 					})
+					projectID = id
+				}
+				if homepageResultSuccess(result) && projectID > 0 {
+					_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, projectID, "milestone",
+						fmt.Sprintf("Project initialized with framework %q", req.Framework), "homepage_project", nil)
 				}
 				return "Tool Output: " + result
 			case "build":
@@ -473,10 +507,14 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				} else {
 					result = tools.HomepageBuild(homepageCfg, req.ProjectDir, logger)
 				}
-				// Auto-log edit in homepage registry
+				// Auto-log edit and history in homepage registry
 				if homepageRegistryDB != nil && req.ProjectDir != "" {
 					if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
 						tools.LogEdit(homepageRegistryDB, proj.ID, "build")
+						if homepageResultSuccess(result) {
+							_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "note",
+								fmt.Sprintf("Build completed for project directory %q", req.ProjectDir), "homepage_project", nil)
+						}
 					}
 				}
 				return "Tool Output: " + result
@@ -528,28 +566,48 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if strings.TrimSpace(req.Path) == "" {
 					return homepagePathRequired(req.Operation)
 				}
-				return "Tool Output: " + tools.HomepageWriteFile(homepageCfg, req.Path, req.Content, logger)
+				result := tools.HomepageWriteFile(homepageCfg, req.Path, req.Content, logger)
+				if homepageResultSuccess(result) {
+					autoAddHomepageHistory(homepageRegistryDB, filepath.Dir(req.Path), "note",
+						fmt.Sprintf("Wrote file %q", req.Path), "homepage_file")
+				}
+				return "Tool Output: " + result
 			case "edit_file":
 				editOp := req.SubOperation
 				logger.Info("LLM requested homepage edit_file", "path", req.Path, "op", editOp)
 				if strings.TrimSpace(req.Path) == "" {
 					return homepagePathRequired(req.Operation)
 				}
-				return "Tool Output: " + tools.HomepageEditFile(homepageCfg, req.Path, editOp, req.Old, req.New, req.Marker, req.Content, req.StartLine, req.EndLine, logger)
+				result := tools.HomepageEditFile(homepageCfg, req.Path, editOp, req.Old, req.New, req.Marker, req.Content, req.StartLine, req.EndLine, logger)
+				if homepageResultSuccess(result) {
+					autoAddHomepageHistory(homepageRegistryDB, filepath.Dir(req.Path), "note",
+						fmt.Sprintf("Edited file %q (operation: %s)", req.Path, editOp), "homepage_file")
+				}
+				return "Tool Output: " + result
 			case "json_edit":
 				editOp := req.SubOperation
 				logger.Info("LLM requested homepage json_edit", "path", req.Path, "op", editOp)
 				if strings.TrimSpace(req.Path) == "" {
 					return homepagePathRequired(req.Operation)
 				}
-				return "Tool Output: " + tools.HomepageJsonEdit(homepageCfg, req.Path, editOp, req.JsonPath, req.SetValue, req.Content, logger)
+				result := tools.HomepageJsonEdit(homepageCfg, req.Path, editOp, req.JsonPath, req.SetValue, req.Content, logger)
+				if homepageResultSuccess(result) {
+					autoAddHomepageHistory(homepageRegistryDB, filepath.Dir(req.Path), "note",
+						fmt.Sprintf("Edited JSON file %q (operation: %s)", req.Path, editOp), "homepage_file")
+				}
+				return "Tool Output: " + result
 			case "yaml_edit":
 				editOp := req.SubOperation
 				logger.Info("LLM requested homepage yaml_edit", "path", req.Path, "op", editOp)
 				if strings.TrimSpace(req.Path) == "" {
 					return homepagePathRequired(req.Operation)
 				}
-				return "Tool Output: " + tools.HomepageYamlEdit(homepageCfg, req.Path, editOp, req.JsonPath, req.SetValue, logger)
+				result := tools.HomepageYamlEdit(homepageCfg, req.Path, editOp, req.JsonPath, req.SetValue, logger)
+				if homepageResultSuccess(result) {
+					autoAddHomepageHistory(homepageRegistryDB, filepath.Dir(req.Path), "note",
+						fmt.Sprintf("Edited YAML file %q (operation: %s)", req.Path, editOp), "homepage_file")
+				}
+				return "Tool Output: " + result
 			case "xml_edit":
 				editOp := req.SubOperation
 				logger.Info("LLM requested homepage xml_edit", "path", req.Path, "op", editOp)
@@ -560,7 +618,12 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if xpath == "" {
 					xpath = req.JsonPath
 				}
-				return "Tool Output: " + tools.HomepageXmlEdit(homepageCfg, req.Path, editOp, xpath, req.SetValue, logger)
+				result := tools.HomepageXmlEdit(homepageCfg, req.Path, editOp, xpath, req.SetValue, logger)
+				if homepageResultSuccess(result) {
+					autoAddHomepageHistory(homepageRegistryDB, filepath.Dir(req.Path), "note",
+						fmt.Sprintf("Edited XML file %q (operation: %s)", req.Path, editOp), "homepage_file")
+				}
+				return "Tool Output: " + result
 			case "optimize_images":
 				logger.Info("LLM requested homepage optimize_images", "dir", req.ProjectDir)
 				return "Tool Output: " + tools.HomepageOptimizeImages(homepageCfg, req.ProjectDir, logger)
@@ -570,10 +633,14 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			case "deploy":
 				logger.Info("LLM requested homepage deploy", "host", deployCfg.Host)
 				result := tools.HomepageDeploy(homepageCfg, deployCfg, req.ProjectDir, req.BuildDir, logger)
-				// Auto-log deploy in homepage registry
+				// Auto-log deploy and history in homepage registry
 				if homepageRegistryDB != nil && req.ProjectDir != "" {
 					if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
 						tools.LogDeploy(homepageRegistryDB, proj.ID, deployCfg.Host)
+						if homepageResultSuccess(result) {
+							_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "milestone",
+								fmt.Sprintf("Deployed to %s", deployCfg.Host), "homepage_deploy", nil)
+						}
 					}
 				}
 				return "Tool Output: " + result
@@ -621,7 +688,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				logger.Info("LLM requested homepage deploy_netlify", "project", req.ProjectDir, "build_dir", req.BuildDir, "site_id", req.SiteID, "draft", req.Draft)
 				result := tools.HomepageDeployNetlify(homepageCfg, nfCfg, req.ProjectDir, req.BuildDir, req.SiteID, req.Title, req.Draft, logger)
-				// Auto-log deploy in homepage registry
+				// Auto-log deploy and history in homepage registry
 				if homepageRegistryDB != nil && req.ProjectDir != "" {
 					deployURL := req.SiteID
 					if deployURL == "" {
@@ -629,6 +696,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					}
 					if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
 						tools.LogDeploy(homepageRegistryDB, proj.ID, deployURL)
+						if homepageResultSuccess(result) {
+							_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "milestone",
+								fmt.Sprintf("Deployed to Netlify (site: %s)", deployURL), "homepage_deploy", nil)
+						}
 						if req.SiteID != "" {
 							tools.UpdateProject(homepageRegistryDB, proj.ID, map[string]interface{}{
 								"netlify_site_id": req.SiteID,
@@ -683,6 +754,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					}
 					if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
 						tools.LogDeploy(homepageRegistryDB, proj.ID, deployURL)
+						if homepageResultSuccess(result) {
+							_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "milestone",
+								fmt.Sprintf("Deployed to Vercel: %s", deployURL), "homepage_deploy", nil)
+						}
 						_ = tools.UpdateProject(homepageRegistryDB, proj.ID, map[string]interface{}{
 							"deploy_host": "vercel",
 							"url":         deployURL,
@@ -885,6 +960,13 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				op = "list"
 			}
 			logger.Info("LLM requested homepage_registry", "operation", op, "name", req.Name)
+			historyOps := map[string]bool{
+				"add_history": true, "list_history": true, "get_history": true,
+				"search_history": true, "update_history": true, "delete_history": true,
+			}
+			if historyOps[op] {
+				return "Tool Output: " + tools.DispatchHomepageHistory(homepageRegistryDB, op, req.HistoryID, req.ID, req.EntryType, req.Content, req.Source, req.Tags, req.Limit, req.Offset)
+			}
 			return "Tool Output: " + tools.DispatchHomepageRegistry(homepageRegistryDB, op, req.Query, req.Name, req.Description, req.Framework, req.ProjectDir, req.URL, req.Status, req.Reason, req.Problem, req.Notes, req.Tags, req.ID, "", req.Limit, req.Offset)
 
 		case "sql_query":

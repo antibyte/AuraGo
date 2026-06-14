@@ -1467,16 +1467,16 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	}
 	if ff.HomepageRegistryEnabled {
 		tools = append(tools, tool("homepage_registry",
-			"Track homepage/web projects, deploy history, edits, known problems, and project metadata.",
+			"Track homepage/web projects, deploy history, project history, problems, metadata. Read list_history before changes; add_history after.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"register", "search", "get", "list", "update", "delete", "log_edit", "log_deploy", "log_problem", "resolve_problem"},
+					"enum":        []string{"register", "search", "get", "list", "update", "delete", "log_edit", "log_deploy", "log_problem", "resolve_problem", "add_history", "list_history", "get_history", "search_history", "update_history", "delete_history"},
 				},
 				"name":        prop("string", "Project name (unique identifier)"),
-				"query":       prop("string", "Search query (searches name, description, framework, URL, notes)"),
-				"id":          map[string]interface{}{"type": "integer", "description": "Project ID"},
+				"query":       prop("string", "Search query (searches name, description, framework, URL, notes, history content)"),
+				"id":          map[string]interface{}{"type": "integer", "description": "Project ID (used as project_id for history operations)"},
 				"description": prop("string", "Project description"),
 				"framework":   prop("string", "Web framework (next, vite, astro, svelte, vue, html, etc.)"),
 				"project_dir": prop("string", "Project directory within workspace"),
@@ -1484,10 +1484,18 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"status":      prop("string", "Project status: active, archived, maintenance"),
 				"reason":      prop("string", "Edit reason (for log_edit)"),
 				"problem":     prop("string", "Problem description (for log_problem/resolve_problem)"),
-				"tags":        map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Project tags"},
-				"notes":       prop("string", "Additional notes"),
-				"limit":       map[string]interface{}{"type": "integer", "description": "Max results (default: 20)"},
-				"offset":      map[string]interface{}{"type": "integer", "description": "Pagination offset"},
+				"history_id":  map[string]interface{}{"type": "integer", "description": "History entry ID (for get_history, update_history, delete_history)"},
+				"entry_type": map[string]interface{}{
+					"type":        "string",
+					"description": "Type of history entry",
+					"enum":        []string{"note", "decision", "question", "feedback", "milestone", "observation"},
+				},
+				"content": prop("string", "History entry content for add_history/update_history; search query for search_history"),
+				"source":  prop("string", "Originating tool/operation, e.g. homepage_file, homepage_deploy"),
+				"tags":    map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Project tags"},
+				"notes":   prop("string", "Additional notes"),
+				"limit":   map[string]interface{}{"type": "integer", "description": "Max results (default: 20)"},
+				"offset":  map[string]interface{}{"type": "integer", "description": "Pagination offset"},
 			}, "operation"),
 		))
 	}
