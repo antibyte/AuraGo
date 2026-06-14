@@ -89,7 +89,11 @@ func (f *fakeCodeContainerDocker) EnsureImage(ctx context.Context, image string)
 func (f *fakeCodeContainerDocker) CreateContainer(ctx context.Context, req CodeDockerCreateRequest) (string, error) {
 	f.creates = append(f.creates, req)
 	id := "created-" + strconv.Itoa(len(f.creates))
-	f.containers = append(f.containers, CodeDockerContainer{ID: id, Names: []string{"/" + codeContainerName}})
+	name := req.Name
+	if name == "" {
+		name = codeContainerName
+	}
+	f.containers = append(f.containers, CodeDockerContainer{ID: id, Names: []string{"/" + name}})
 	if f.inspectByName == nil {
 		f.inspectByName = map[string]CodeDockerInspect{}
 	}
@@ -100,7 +104,7 @@ func (f *fakeCodeContainerDocker) CreateContainer(ctx context.Context, req CodeD
 			mounts = append(mounts, CodeDockerMount{Source: parts[0], Destination: parts[1]})
 		}
 	}
-	f.inspectByName[id] = CodeDockerInspect{ID: id, Name: "/" + codeContainerName, State: CodeDockerState{Running: true}, Mounts: mounts}
+	f.inspectByName[id] = CodeDockerInspect{ID: id, Name: "/" + name, State: CodeDockerState{Running: true}, Mounts: mounts}
 	return id, nil
 }
 

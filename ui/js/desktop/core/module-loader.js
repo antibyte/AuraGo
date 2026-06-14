@@ -120,6 +120,15 @@
             styles: appStyles('/css/desktop-app-nasscad.css'),
             scripts: ['/js/desktop/apps/nasscad.js']
         },
+        'openscad': {
+            styles: appStyles('/css/desktop-app-openscad.css', '/css/stl-viewer.css'),
+            scripts: [
+                '/js/vendor/three.min.js',
+                '/js/vendor/STLLoader.min.js',
+                '/js/vendor/OrbitControls.min.js',
+                '/js/desktop/apps/openscad.js'
+            ]
+        },
         'viewer-3d': {
             styles: appStyles('/css/stl-viewer.css'),
             scripts: [

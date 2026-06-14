@@ -1038,6 +1038,15 @@ if (appId === 'system-info') {
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
             return window.CodeStudio.render(contentEl(id), id, withDesktopFileDialogs(context, { iconMarkup, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
         }
+        if (appId === 'openscad') {
+            if (!window.OpenSCADApp) {
+                window.AuraDesktopModules.loadAppScript('openscad').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.OpenSCADApp.render === 'function') {
+                return window.OpenSCADApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, openApp, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, updateWindowContext }));
+            }
+        }
         if (appId === 'launchpad') return renderLaunchpad(id);
         if (appId === 'software-store') {
             if (!window.SoftwareStoreApp) {

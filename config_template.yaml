@@ -824,6 +824,20 @@ virtual_desktop:
         auto_stop_minutes: 30                              # stop container after inactivity
         max_memory_mb: 4096                                # Docker memory limit
         max_cpu_cores: 2                                   # Docker CPU quota
+    openscad:
+        enabled: true                                      # built-in headless OpenSCAD compiler container
+        image: openscad/openscad:latest
+        auto_start: false                                  # false = lazy start when the app renders
+        auto_stop_minutes: 20                              # stop container after inactivity
+        max_memory_mb: 2048                                # Docker memory limit
+        max_cpu_cores: 2                                   # Docker CPU quota
+        max_concurrent_jobs: 1                             # render jobs at once
+        default_exports: [png, stl]                        # default render output formats
+        max_source_kb: 512                                 # maximum uploaded/generated SCAD source size
+        max_output_mb: 100                                 # maximum output file size per job
+        render_timeout_seconds: 120                        # default compiler timeout
+        max_render_timeout_seconds: 600                    # hard timeout cap
+        job_retention_days: 7                              # cached render job retention
 indexing:
     enabled: true
     directories:

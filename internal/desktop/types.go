@@ -41,6 +41,7 @@ type Config struct {
 	RemoteMaxSessionMinutes  int
 	RemoteIdleTimeoutMinutes int
 	CodeStudio               CodeStudioConfig
+	OpenSCAD                 OpenSCADConfig
 }
 
 // CodeStudioConfig controls the lazy Code Studio development container.
@@ -51,6 +52,23 @@ type CodeStudioConfig struct {
 	AutoStopMinutes int
 	MaxMemoryMB     int
 	MaxCPUCores     int
+}
+
+// OpenSCADConfig controls the lazy OpenSCAD compiler container.
+type OpenSCADConfig struct {
+	Enabled                 bool
+	Image                   string
+	AutoStart               bool
+	AutoStopMinutes         int
+	MaxMemoryMB             int
+	MaxCPUCores             int
+	MaxConcurrentJobs       int
+	DefaultExports          []string
+	MaxSourceKB             int
+	MaxOutputMB             int
+	RenderTimeoutSeconds    int
+	MaxRenderTimeoutSeconds int
+	JobRetentionDays        int
 }
 
 // WorkspaceInfo is the public workspace state returned to the browser.
@@ -308,6 +326,7 @@ var desktopPreferredIconNames = []string{
 	"notes",
 	"olivetin",
 	"open-webui",
+	"openscad",
 	"package",
 	"pdf",
 	"phone",
@@ -469,6 +488,8 @@ var desktopIconAliases = map[string]string{
 	"note":             "notes",
 	"open_webui":       "open-webui",
 	"openwebui":        "open-webui",
+	"openscad":         "openscad",
+	"open_scad":        "openscad",
 	"password":         "key",
 	"paint":            "pixel",
 	"pictures":         "image",
@@ -516,7 +537,7 @@ var desktopIconCategories = map[string][]string{
 	"games":        {"run", "video", "apps", "terminal", "monitor", "heart"},
 	"office":       {"writer", "spreadsheet", "calendar", "documents", "printer", "mail"},
 	"productivity": {"notes", "check-square", "workflow", "calendar", "clipboard", "search"},
-	"tools":        {"tools", "settings", "terminal", "code", "database", "network", "zipper"},
+	"tools":        {"tools", "settings", "terminal", "code", "openscad", "database", "network", "zipper"},
 	"media":        {"gallery", "pixel", "image", "video", "teevee", "radio", "audio", "audio-player", "camera"},
 	"internet":     {"browser", "globe", "cloud", "mail", "network", "download"},
 	"system":       {"monitor", "server", "settings", "backup", "key", "software-store", "trash-empty"},
@@ -667,6 +688,7 @@ func BuiltinApps() []AppManifest {
 		{ID: "galaxa-deluxe", Name: "Galaxa Deluxe", Version: "1.0.0", Icon: "galaxa-deluxe", Entry: "builtin://galaxa-deluxe", Runtime: BuiltinRuntime, Description: "Classic arcade space shooter — destroy enemy formations and beat the high score!"},
 		{ID: "mission-control", Name: "Mission Control", Version: "1.0.0", Icon: "workflow", Entry: "builtin://mission-control", Runtime: BuiltinRuntime, Description: "Create, plan, and manage agent missions with triggers and schedules.", Permissions: []string{"notifications"}},
 		{ID: "homepage-studio", Name: "Homepage Studio", Version: "1.0.0", Icon: "globe", Entry: "builtin://homepage-studio", Runtime: BuiltinRuntime, Description: "AI-powered website builder with live preview.", Permissions: []string{"notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
+		{ID: "openscad", Name: "OpenSCAD", Version: "1.0.0", Icon: "openscad", Entry: "builtin://openscad", Runtime: BuiltinRuntime, Description: "Script-based parametric CAD compiler with preview, STL export, and downloadable artifacts.", Permissions: []string{"files:read", "files:write", "notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
 		{ID: "nasscad", Name: "NASSCAD", Version: "4.2.7", Icon: "nasscad", Entry: "builtin://nasscad", Runtime: BuiltinRuntime, Description: "Offline browser-based 3D parametric CAD bundled locally — model parts, run booleans, and export STL, OBJ, or 3MF.", Metadata: map[string]string{"open_maximized": "true", "workspace_entry": "Apps/nasscad/index.html"}},
 		{ID: "viewer", Name: "Viewer", Version: "1.0.0", Icon: "eye", Entry: "builtin://viewer", Runtime: BuiltinRuntime, Description: "Read-only viewer for documents, spreadsheets, PDFs and markdown.", Permissions: []string{"files:read"}, Internal: true},
 	}
@@ -675,7 +697,7 @@ func BuiltinApps() []AppManifest {
 		apps[i].Deletable = false
 		apps[i].DockVisible = true
 		apps[i].StartVisible = true
-		if apps[i].ID == "viewer" {
+		if apps[i].ID == "viewer" || apps[i].ID == "openscad" {
 			apps[i].DockVisible = false
 			apps[i].StartVisible = false
 		}

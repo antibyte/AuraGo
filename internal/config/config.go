@@ -404,6 +404,19 @@ func Load(path string) (*Config, error) {
 	cfg.VirtualDesktop.CodeStudio.AutoStopMinutes = 30
 	cfg.VirtualDesktop.CodeStudio.MaxMemoryMB = 4096
 	cfg.VirtualDesktop.CodeStudio.MaxCPUCores = 2
+	cfg.VirtualDesktop.OpenSCAD.Enabled = true
+	cfg.VirtualDesktop.OpenSCAD.Image = "openscad/openscad:latest"
+	cfg.VirtualDesktop.OpenSCAD.AutoStart = false
+	cfg.VirtualDesktop.OpenSCAD.AutoStopMinutes = 20
+	cfg.VirtualDesktop.OpenSCAD.MaxMemoryMB = 2048
+	cfg.VirtualDesktop.OpenSCAD.MaxCPUCores = 2
+	cfg.VirtualDesktop.OpenSCAD.MaxConcurrentJobs = 1
+	cfg.VirtualDesktop.OpenSCAD.DefaultExports = []string{"png", "stl"}
+	cfg.VirtualDesktop.OpenSCAD.MaxSourceKB = 512
+	cfg.VirtualDesktop.OpenSCAD.MaxOutputMB = 100
+	cfg.VirtualDesktop.OpenSCAD.RenderTimeoutSeconds = 120
+	cfg.VirtualDesktop.OpenSCAD.MaxRenderTimeoutSeconds = 600
+	cfg.VirtualDesktop.OpenSCAD.JobRetentionDays = 7
 
 	cfg.Tools.PythonTimeoutSeconds = 30
 	cfg.Tools.SkillTimeoutSeconds = 120
@@ -855,6 +868,39 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.VirtualDesktop.CodeStudio.MaxCPUCores <= 0 {
 		cfg.VirtualDesktop.CodeStudio.MaxCPUCores = 2
+	}
+	if strings.TrimSpace(cfg.VirtualDesktop.OpenSCAD.Image) == "" {
+		cfg.VirtualDesktop.OpenSCAD.Image = "openscad/openscad:latest"
+	}
+	if cfg.VirtualDesktop.OpenSCAD.AutoStopMinutes <= 0 {
+		cfg.VirtualDesktop.OpenSCAD.AutoStopMinutes = 20
+	}
+	if cfg.VirtualDesktop.OpenSCAD.MaxMemoryMB <= 0 {
+		cfg.VirtualDesktop.OpenSCAD.MaxMemoryMB = 2048
+	}
+	if cfg.VirtualDesktop.OpenSCAD.MaxCPUCores <= 0 {
+		cfg.VirtualDesktop.OpenSCAD.MaxCPUCores = 2
+	}
+	if cfg.VirtualDesktop.OpenSCAD.MaxConcurrentJobs <= 0 {
+		cfg.VirtualDesktop.OpenSCAD.MaxConcurrentJobs = 1
+	}
+	if len(cfg.VirtualDesktop.OpenSCAD.DefaultExports) == 0 {
+		cfg.VirtualDesktop.OpenSCAD.DefaultExports = []string{"png", "stl"}
+	}
+	if cfg.VirtualDesktop.OpenSCAD.MaxSourceKB <= 0 {
+		cfg.VirtualDesktop.OpenSCAD.MaxSourceKB = 512
+	}
+	if cfg.VirtualDesktop.OpenSCAD.MaxOutputMB <= 0 {
+		cfg.VirtualDesktop.OpenSCAD.MaxOutputMB = 100
+	}
+	if cfg.VirtualDesktop.OpenSCAD.RenderTimeoutSeconds <= 0 {
+		cfg.VirtualDesktop.OpenSCAD.RenderTimeoutSeconds = 120
+	}
+	if cfg.VirtualDesktop.OpenSCAD.MaxRenderTimeoutSeconds <= 0 {
+		cfg.VirtualDesktop.OpenSCAD.MaxRenderTimeoutSeconds = 600
+	}
+	if cfg.VirtualDesktop.OpenSCAD.JobRetentionDays <= 0 {
+		cfg.VirtualDesktop.OpenSCAD.JobRetentionDays = 7
 	}
 	cfg.Directories.WorkspaceDir = normalizeDockerWorkspaceDir(configDir, cfg.Directories.WorkspaceDir, runningInDocker)
 	if strings.TrimSpace(cfg.Docker.Host) == "" {
@@ -1964,6 +2010,19 @@ func (c *Config) Save(path string) error {
 		{[]string{"virtual_desktop", "code_studio", "auto_stop_minutes"}, c.VirtualDesktop.CodeStudio.AutoStopMinutes},
 		{[]string{"virtual_desktop", "code_studio", "max_memory_mb"}, c.VirtualDesktop.CodeStudio.MaxMemoryMB},
 		{[]string{"virtual_desktop", "code_studio", "max_cpu_cores"}, c.VirtualDesktop.CodeStudio.MaxCPUCores},
+		{[]string{"virtual_desktop", "openscad", "enabled"}, c.VirtualDesktop.OpenSCAD.Enabled},
+		{[]string{"virtual_desktop", "openscad", "image"}, c.VirtualDesktop.OpenSCAD.Image},
+		{[]string{"virtual_desktop", "openscad", "auto_start"}, c.VirtualDesktop.OpenSCAD.AutoStart},
+		{[]string{"virtual_desktop", "openscad", "auto_stop_minutes"}, c.VirtualDesktop.OpenSCAD.AutoStopMinutes},
+		{[]string{"virtual_desktop", "openscad", "max_memory_mb"}, c.VirtualDesktop.OpenSCAD.MaxMemoryMB},
+		{[]string{"virtual_desktop", "openscad", "max_cpu_cores"}, c.VirtualDesktop.OpenSCAD.MaxCPUCores},
+		{[]string{"virtual_desktop", "openscad", "max_concurrent_jobs"}, c.VirtualDesktop.OpenSCAD.MaxConcurrentJobs},
+		{[]string{"virtual_desktop", "openscad", "default_exports"}, c.VirtualDesktop.OpenSCAD.DefaultExports},
+		{[]string{"virtual_desktop", "openscad", "max_source_kb"}, c.VirtualDesktop.OpenSCAD.MaxSourceKB},
+		{[]string{"virtual_desktop", "openscad", "max_output_mb"}, c.VirtualDesktop.OpenSCAD.MaxOutputMB},
+		{[]string{"virtual_desktop", "openscad", "render_timeout_seconds"}, c.VirtualDesktop.OpenSCAD.RenderTimeoutSeconds},
+		{[]string{"virtual_desktop", "openscad", "max_render_timeout_seconds"}, c.VirtualDesktop.OpenSCAD.MaxRenderTimeoutSeconds},
+		{[]string{"virtual_desktop", "openscad", "job_retention_days"}, c.VirtualDesktop.OpenSCAD.JobRetentionDays},
 	}
 	for _, patch := range patches {
 		if err := setYAMLPathValue(&root, patch.path, patch.value); err != nil {

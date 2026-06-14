@@ -233,7 +233,7 @@ func TestToolSchemaManualSync(t *testing.T) {
 		MemoryMaintenanceEnabled: true, MemoryAnalysisEnabled: true,
 		DocumentCreatorEnabled: true, HomepageAllowLocalServer: true,
 		WebCaptureEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,
-		S3Enabled: true,
+		OpenSCADEnabled: true, S3Enabled: true,
 	}
 	schemas := builtinToolSchemas(ff)
 
@@ -2003,6 +2003,39 @@ func TestBuiltinToolSchemasVirtualDesktopUsesFocusedTools(t *testing.T) {
 		return
 	}
 	t.Fatal("virtual_desktop_files schema not found")
+}
+
+func TestBuiltinToolSchemasIncludesOpenSCADRenderWhenEnabled(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{OpenSCADEnabled: true})
+	var params map[string]interface{}
+	for _, schema := range schemas {
+		if schema.Function != nil && schema.Function.Name == "openscad_render" {
+			params = schema.Function.Parameters.(map[string]interface{})
+			break
+		}
+	}
+	if params == nil {
+		t.Fatal("openscad_render schema not found")
+	}
+	props := params["properties"].(map[string]interface{})
+	if _, ok := props["source_scad"]; !ok {
+		t.Fatalf("openscad_render source_scad property missing: %#v", props)
+	}
+	exports := props["exports"].(map[string]interface{})
+	items := exports["items"].(map[string]interface{})
+	for _, want := range []string{"png", "stl", "3mf", "off", "amf", "dxf", "svg", "pdf", "csg", "echo"} {
+		if !containsInterfaceString(items["enum"], want) {
+			t.Fatalf("openscad_render exports enum missing %s: %#v", want, items["enum"])
+		}
+	}
+	defines := props["defines"].(map[string]interface{})
+	defineItems := defines["items"].(map[string]interface{})
+	if defineItems["additionalProperties"] != false {
+		t.Fatalf("openscad_render defines item must be strict, got additionalProperties=%#v", defineItems["additionalProperties"])
+	}
+	if !containsRequiredValue(defineItems["required"], "name") || !containsRequiredValue(defineItems["required"], "value") {
+		t.Fatalf("openscad_render defines item required = %#v, want name and value", defineItems["required"])
+	}
 }
 
 func TestFilesystemSchemaIncludesHashlineReadOption(t *testing.T) {

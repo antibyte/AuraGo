@@ -126,6 +126,7 @@
         'music-player': 'audio-player',
         player: 'audio-player',
         radio: 'radio',
+        openscad: 'openscad',
         teevee: 'teevee',
         todo: 'notes',
         'agent-chat': 'agent-chat',
@@ -166,6 +167,7 @@
         yml: 'yaml',
         xml: 'xml',
         py: 'python',
+        scad: 'openscad',
         go: 'go',
         pdf: 'pdf',
         png: 'image',
@@ -239,6 +241,7 @@
         music: 'audio-player',
         player: 'audio-player',
         radio: 'radio',
+        openscad: 'openscad',
         teevee: 'teevee',
         workflow: 'workflow',
         workflows: 'workflow',
@@ -301,6 +304,7 @@
             calculator: 'Ca',
             'music-player': 'MP',
             radio: 'Ra',
+            openscad: 'OS',
             teevee: 'TV',
             todo: 'Td',
             'agent-chat': 'A',
@@ -500,6 +504,7 @@
             writer: 'WriterApp',
             sheets: 'SheetsApp',
             'code-studio': 'CodeStudioApp',
+            openscad: 'OpenSCADApp',
             looper: 'LooperApp',
             camera: 'CameraApp',
             zipper: 'ZipperApp',
@@ -949,6 +954,7 @@
         }
         if (win.appId === 'music-player') disposeWebampMusic(win.id);
         if (win.appId === 'radio') callAppDispose(window.RadioApp, win.id);
+        if (win.appId === 'openscad') callAppDispose(window.OpenSCADApp, win.id);
         if (win.appId === 'teevee') callAppDispose(window.TeeVeeApp, win.id);
         if (win.appId === 'system-info') callAppDispose(window.SystemInfoApp, win.id);
         if (win.appId === 'people') callAppDispose(window.PeopleApp, win.id);

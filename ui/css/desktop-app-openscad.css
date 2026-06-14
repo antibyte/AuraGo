@@ -1,0 +1,385 @@
+.openscad-app {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    color: #eef7f7;
+    background:
+        radial-gradient(circle at 18% 8%, rgba(48, 214, 199, 0.14), transparent 34%),
+        linear-gradient(145deg, #071018 0%, #0e1721 48%, #101820 100%);
+    overflow: hidden;
+}
+
+.oscad-shell {
+    display: grid;
+    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+    height: 100%;
+    min-height: 0;
+}
+
+.oscad-left {
+    display: grid;
+    grid-template-rows: auto auto minmax(96px, 130px) auto auto auto auto minmax(180px, 1fr);
+    gap: 12px;
+    min-height: 0;
+    padding: 20px;
+    border-right: 1px solid rgba(148, 184, 202, 0.16);
+    background: rgba(5, 12, 19, 0.54);
+}
+
+.oscad-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.oscad-brand-icon {
+    display: grid;
+    place-items: center;
+    width: 58px;
+    height: 58px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(62, 218, 204, 0.22), rgba(54, 117, 255, 0.16));
+    border: 1px solid rgba(96, 231, 217, 0.24);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 18px 36px rgba(0, 0, 0, 0.28);
+}
+
+.oscad-brand h2 {
+    margin: 0;
+    font-size: 22px;
+    line-height: 1.05;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+
+.oscad-brand p {
+    margin: 5px 0 0;
+    color: #9fb0bd;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.oscad-label {
+    align-self: end;
+    color: #a8b7c2;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0;
+}
+
+.oscad-chat,
+.oscad-source,
+.oscad-select,
+.oscad-input {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid rgba(142, 170, 188, 0.18);
+    border-radius: 10px;
+    color: #edf6f7;
+    background: rgba(5, 11, 18, 0.68);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.oscad-chat,
+.oscad-source {
+    resize: none;
+    padding: 12px;
+    font: 13px/1.45 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.oscad-chat {
+    min-height: 96px;
+}
+
+.oscad-source {
+    min-height: 0;
+    height: 100%;
+    overflow: auto;
+}
+
+.oscad-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.oscad-options {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid rgba(142, 170, 188, 0.14);
+    border-radius: 12px;
+    background: rgba(13, 24, 34, 0.62);
+}
+
+.oscad-chips {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.oscad-chip {
+    cursor: pointer;
+}
+
+.oscad-chip input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.oscad-chip span {
+    display: grid;
+    place-items: center;
+    min-height: 32px;
+    border-radius: 8px;
+    border: 1px solid rgba(142, 170, 188, 0.18);
+    color: #aebbc5;
+    background: rgba(4, 10, 17, 0.56);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.oscad-chip input:checked + span {
+    color: #061014;
+    background: linear-gradient(135deg, #47e1d4, #65c7ff);
+    border-color: transparent;
+}
+
+.oscad-select,
+.oscad-input {
+    height: 40px;
+    padding: 0 12px;
+    font-size: 14px;
+    font-weight: 750;
+}
+
+.oscad-btn,
+.oscad-icon-btn,
+.oscad-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 0;
+    border: 1px solid rgba(142, 170, 188, 0.2);
+    color: #edf6f7;
+    background: rgba(20, 32, 44, 0.82);
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.oscad-btn {
+    min-height: 42px;
+    padding: 0 12px;
+}
+
+.oscad-btn span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.oscad-primary {
+    color: #041014;
+    border-color: transparent;
+    background: linear-gradient(135deg, #46e0d3, #67cbff);
+}
+
+.oscad-btn:hover:not(:disabled),
+.oscad-icon-btn:hover,
+.oscad-tab:hover {
+    transform: translateY(-1px);
+    border-color: rgba(77, 224, 211, 0.55);
+}
+
+.oscad-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.46;
+}
+
+.oscad-main {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    min-width: 0;
+    min-height: 0;
+    padding: 20px;
+    gap: 14px;
+}
+
+.oscad-tabs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.oscad-tab {
+    min-height: 38px;
+    padding: 0 14px;
+}
+
+.oscad-tab.active {
+    color: #041014;
+    border-color: transparent;
+    background: #42d7c8;
+}
+
+.oscad-icon-btn {
+    width: 38px;
+    height: 38px;
+    margin-left: auto;
+}
+
+.oscad-panel {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid rgba(148, 184, 202, 0.18);
+    border-radius: 14px;
+    background: #050a10;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 22px 42px rgba(0, 0, 0, 0.24);
+}
+
+.oscad-preview-img,
+.oscad-preview-object,
+.oscad-stl {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 360px;
+    object-fit: contain;
+    border: 0;
+    background: #050a10;
+}
+
+.oscad-stl canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.oscad-empty {
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 8px;
+    height: 100%;
+    min-height: 280px;
+    padding: 24px;
+    color: #9fb0bd;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 750;
+}
+
+.oscad-empty strong {
+    color: #edf6f7;
+    font-size: 18px;
+}
+
+.oscad-code {
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 16px;
+    overflow: auto;
+    color: #d8f1ee;
+    font: 13px/1.55 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    white-space: pre-wrap;
+}
+
+.oscad-file-list {
+    display: grid;
+    gap: 10px;
+    padding: 16px;
+    overflow: auto;
+    max-height: 100%;
+}
+
+.oscad-file {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    min-width: 0;
+    min-height: 52px;
+    padding: 10px 12px;
+    color: #edf6f7;
+    text-decoration: none;
+    border: 1px solid rgba(148, 184, 202, 0.16);
+    border-radius: 10px;
+    background: rgba(20, 32, 44, 0.7);
+}
+
+.oscad-file span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 800;
+}
+
+.oscad-file small {
+    flex: 0 0 auto;
+    color: #9fb0bd;
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.oscad-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 48px;
+}
+
+.oscad-status {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #b9c7d1;
+    font-size: 13px;
+    font-weight: 750;
+}
+
+.oscad-status.error {
+    color: #ff7d8d;
+}
+
+.oscad-actions {
+    display: flex;
+    gap: 8px;
+}
+
+@media (max-width: 860px) {
+    .oscad-shell {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(0, 1fr);
+        overflow: auto;
+    }
+
+    .oscad-left {
+        grid-template-rows: auto auto minmax(82px, auto) auto auto auto auto minmax(170px, 260px);
+        border-right: 0;
+        border-bottom: 1px solid rgba(148, 184, 202, 0.16);
+    }
+
+    .oscad-main {
+        min-height: 540px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .oscad-btn,
+    .oscad-icon-btn,
+    .oscad-tab {
+        transition: none;
+    }
+}

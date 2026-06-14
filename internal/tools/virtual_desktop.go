@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -80,7 +81,7 @@ func getToolDesktopService(ctx context.Context, cfg *config.Config) (*desktop.Se
 	desktopCfg := desktop.ConfigFromAuraConfig(cfg)
 
 	toolDesktopMu.Lock()
-	if toolDesktopSvc != nil && toolDesktopCfg == desktopCfg {
+	if toolDesktopSvc != nil && reflect.DeepEqual(toolDesktopCfg, desktopCfg) {
 		svc := toolDesktopSvc
 		toolDesktopMu.Unlock()
 		return svc, func() {}, nil

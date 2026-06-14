@@ -1205,6 +1205,45 @@ virtual_desktop:
 	}
 }
 
+func TestLoadOpenSCADDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	got := cfg.VirtualDesktop.OpenSCAD
+	if !got.Enabled {
+		t.Fatal("OpenSCAD should default enabled")
+	}
+	if got.Image != "openscad/openscad:latest" {
+		t.Fatalf("OpenSCAD image = %q, want openscad/openscad:latest", got.Image)
+	}
+	if got.AutoStart {
+		t.Fatal("OpenSCAD auto_start should default false")
+	}
+	if got.AutoStopMinutes != 20 {
+		t.Fatalf("OpenSCAD auto_stop_minutes = %d, want 20", got.AutoStopMinutes)
+	}
+	if got.MaxMemoryMB != 2048 || got.MaxCPUCores != 2 || got.MaxConcurrentJobs != 1 {
+		t.Fatalf("OpenSCAD resource defaults = %+v", got)
+	}
+	if got.MaxSourceKB != 512 || got.MaxOutputMB != 100 {
+		t.Fatalf("OpenSCAD size limit defaults = %+v", got)
+	}
+	if got.RenderTimeoutSeconds != 120 || got.MaxRenderTimeoutSeconds != 600 || got.JobRetentionDays != 7 {
+		t.Fatalf("OpenSCAD timeout defaults = %+v", got)
+	}
+	if len(got.DefaultExports) != 2 || got.DefaultExports[0] != "png" || got.DefaultExports[1] != "stl" {
+		t.Fatalf("OpenSCAD default exports = %#v, want [png stl]", got.DefaultExports)
+	}
+}
+
 func TestLoadMigratesLegacyBrowserAutomationDockerURLOutsideDocker(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

@@ -964,6 +964,23 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			return "Tool Output: " + exec.Output
 
+		case "openscad_render":
+			logger.Info("LLM requested OpenSCAD render",
+				"model_name", toolArgString(tc.Params, "model_name"),
+				"source_bytes", len([]byte(toolArgString(tc.Params, "source_scad"))),
+			)
+			exec := tools.ExecuteOpenSCADRender(ctx, cfg, tc.Params)
+			if exec.Event != nil && dc.Broker != nil {
+				if typed, ok := dc.Broker.(TypedFeedbackBroker); !ok || !typed.SendTyped("openscad_result", exec.Event.Payload) {
+					payload, _ := json.Marshal(struct {
+						Type    string      `json:"type"`
+						Payload interface{} `json:"payload"`
+					}{"openscad_result", exec.Event.Payload})
+					dc.Broker.SendJSON(string(payload))
+				}
+			}
+			return "Tool Output: " + exec.Output
+
 		case "office_document":
 			logger.Info("LLM requested office document operation",
 				"operation", tc.Operation,

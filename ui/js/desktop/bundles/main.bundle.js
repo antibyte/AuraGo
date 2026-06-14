@@ -131,6 +131,7 @@
         'music-player': 'audio-player',
         player: 'audio-player',
         radio: 'radio',
+        openscad: 'openscad',
         teevee: 'teevee',
         todo: 'notes',
         'agent-chat': 'agent-chat',
@@ -171,6 +172,7 @@
         yml: 'yaml',
         xml: 'xml',
         py: 'python',
+        scad: 'openscad',
         go: 'go',
         pdf: 'pdf',
         png: 'image',
@@ -244,6 +246,7 @@
         music: 'audio-player',
         player: 'audio-player',
         radio: 'radio',
+        openscad: 'openscad',
         teevee: 'teevee',
         workflow: 'workflow',
         workflows: 'workflow',
@@ -306,6 +309,7 @@
             calculator: 'Ca',
             'music-player': 'MP',
             radio: 'Ra',
+            openscad: 'OS',
             teevee: 'TV',
             todo: 'Td',
             'agent-chat': 'A',
@@ -505,6 +509,7 @@
             writer: 'WriterApp',
             sheets: 'SheetsApp',
             'code-studio': 'CodeStudioApp',
+            openscad: 'OpenSCADApp',
             looper: 'LooperApp',
             camera: 'CameraApp',
             zipper: 'ZipperApp',
@@ -954,6 +959,7 @@
         }
         if (win.appId === 'music-player') disposeWebampMusic(win.id);
         if (win.appId === 'radio') callAppDispose(window.RadioApp, win.id);
+        if (win.appId === 'openscad') callAppDispose(window.OpenSCADApp, win.id);
         if (win.appId === 'teevee') callAppDispose(window.TeeVeeApp, win.id);
         if (win.appId === 'system-info') callAppDispose(window.SystemInfoApp, win.id);
         if (win.appId === 'people') callAppDispose(window.PeopleApp, win.id);
@@ -2670,6 +2676,7 @@
             todo: { width: 900, height: 600 },
             'music-player': { width: 430, height: 260 },
             radio: { width: 960, height: 680 },
+            openscad: { width: 1120, height: 720 },
             teevee: { width: 1120, height: 720 },
             gallery: { width: 1040, height: 700 },
             calendar: { width: 950, height: 650 },
@@ -2692,7 +2699,7 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, nasscad: true, 'mission-control': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, nasscad: true, 'mission-control': true }[appId]; }
 
     function appWindowMinSize(appId) {
         const mins = { 'system-info': { width: 560, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 } };
@@ -6068,6 +6075,15 @@ if (appId === 'system-info') {
         } if (appId === 'quick-connect') return renderQuickConnect(id);
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
             return window.CodeStudio.render(contentEl(id), id, withDesktopFileDialogs(context, { iconMarkup, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
+        }
+        if (appId === 'openscad') {
+            if (!window.OpenSCADApp) {
+                window.AuraDesktopModules.loadAppScript('openscad').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.OpenSCADApp.render === 'function') {
+                return window.OpenSCADApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, openApp, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, updateWindowContext }));
+            }
         }
         if (appId === 'launchpad') return renderLaunchpad(id);
         if (appId === 'software-store') {

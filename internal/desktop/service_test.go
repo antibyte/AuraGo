@@ -1970,6 +1970,45 @@ func TestBuiltinViewerIsInternalOnly(t *testing.T) {
 	}
 }
 
+func TestBuiltinOpenSCADIsHiddenUntilStoreInstall(t *testing.T) {
+	t.Parallel()
+
+	var app AppManifest
+	for _, candidate := range BuiltinApps() {
+		if candidate.ID == "openscad" {
+			app = candidate
+			break
+		}
+	}
+	if app.ID == "" {
+		t.Fatal("openscad builtin app missing")
+	}
+	if app.Entry != "builtin://openscad" || app.Runtime != BuiltinRuntime {
+		t.Fatalf("openscad app route = %q/%q, want builtin://openscad/builtin", app.Entry, app.Runtime)
+	}
+	if app.Icon != "openscad" {
+		t.Fatalf("openscad icon = %q, want openscad", app.Icon)
+	}
+	if app.Internal {
+		t.Fatalf("openscad must not be internal; the Store needs to make it visible: %+v", app)
+	}
+	if app.DockVisible || app.StartVisible {
+		t.Fatalf("openscad should be hidden before Store install, got dock_visible=%v start_visible=%v", app.DockVisible, app.StartVisible)
+	}
+
+	bootstrap, err := testService(t).Bootstrap(context.Background())
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	bootApp := testFindApp(t, bootstrap.BuiltinApps, "openscad")
+	if bootApp.ID == "" {
+		t.Fatal("openscad missing from bootstrap builtin apps")
+	}
+	if bootApp.DockVisible || bootApp.StartVisible {
+		t.Fatalf("bootstrap openscad should be hidden before Store install, got dock_visible=%v start_visible=%v", bootApp.DockVisible, bootApp.StartVisible)
+	}
+}
+
 func TestServiceUpsertWidgetInfersMissingIconFromWidgetIdentity(t *testing.T) {
 	t.Parallel()
 

@@ -10,7 +10,8 @@ import (
 )
 
 const (
-	RuntimeContainerWebApp = "container-web-app"
+	RuntimeContainerWebApp  = "container-web-app"
+	RuntimeNativeManagedApp = "native-managed-app"
 
 	BindModeLocal = "local"
 	BindModeLAN   = "lan"
@@ -48,6 +49,8 @@ type CatalogEntry struct {
 	LogoSlug         string              `json:"logo_slug"`
 	LogoURL          string              `json:"logo_url"`
 	PrimaryPort      PortSpec            `json:"primary_port"`
+	Runtime          string              `json:"runtime,omitempty"`
+	DesktopAppID     string              `json:"desktop_app_id,omitempty"`
 	ExtraPorts       []PortSpec          `json:"extra_ports,omitempty"`
 	Volumes          []VolumeTemplate    `json:"volumes,omitempty"`
 	HostBinds        []HostBindTemplate  `json:"host_binds,omitempty"`
@@ -185,6 +188,28 @@ type ContainerState struct {
 	Health  string `json:"health,omitempty"`
 }
 
+// NativeManagedStatus is returned by store runtimes that do not expose a web
+// container but still own lifecycle side effects.
+type NativeManagedStatus struct {
+	ContainerName string `json:"container_name,omitempty"`
+	ContainerID   string `json:"container_id,omitempty"`
+	Image         string `json:"image,omitempty"`
+	Status        string `json:"status"`
+	Running       bool   `json:"running,omitempty"`
+	Error         string `json:"error,omitempty"`
+}
+
+// NativeManagedRuntime handles installable Store apps backed by native AuraGo
+// services instead of generated container-web desktop apps.
+type NativeManagedRuntime interface {
+	InstallNativeManagedApp(ctx context.Context, appID string, entry CatalogEntry, deleteData bool) (NativeManagedStatus, error)
+	StartNativeManagedApp(ctx context.Context, appID string, entry CatalogEntry) (NativeManagedStatus, error)
+	StopNativeManagedApp(ctx context.Context, appID string, entry CatalogEntry) (NativeManagedStatus, error)
+	RestartNativeManagedApp(ctx context.Context, appID string, entry CatalogEntry) (NativeManagedStatus, error)
+	UpdateNativeManagedApp(ctx context.Context, appID string, entry CatalogEntry) (NativeManagedStatus, error)
+	UninstallNativeManagedApp(ctx context.Context, appID string, entry CatalogEntry, deleteData bool) error
+}
+
 // InstalledApp is the persisted runtime state for an installed catalog app.
 type InstalledApp struct {
 	AppID              string          `json:"app_id"`
@@ -290,6 +315,7 @@ type DesktopAdapter interface {
 	WriteFile(ctx context.Context, path, content, source string) error
 	SetAppVisibility(ctx context.Context, id string, dockVisible, startVisible *bool, source string) error
 	AddDesktopAppShortcut(ctx context.Context, appID, source string) error
+	RemoveDesktopShortcut(ctx context.Context, id, source string) error
 	DeleteApp(ctx context.Context, appID, source string) error
 }
 

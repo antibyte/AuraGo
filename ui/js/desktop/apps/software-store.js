@@ -183,6 +183,9 @@
         }
 
         function storeUiBadge(entry) {
+            if (isNativeManagedEntry(entry)) {
+                return `<span class="vd-store-badge">${esc(t('desktop.store.badge_native', 'Native'))}</span>`;
+            }
             if (entry && entry.metadata && entry.metadata.store_ui === 'terminal-preview') {
                 return `<span class="vd-store-badge">${esc(t('desktop.store.badge_terminal_preview', 'Console + Preview'))}</span>`;
             }
@@ -299,6 +302,7 @@
             if (action === 'install') {
                 return openInstallModal(appId);
             }
+            if (action === 'open' && isNativeManagedEntry(entry)) return openApp(nativeDesktopAppID(entry));
             if (action === 'open' && shouldOpenStoreEntryExternally(entry)) return openStorePort(appId, '');
             if (action === 'open') return openApp('store-' + appId);
             if (action === 'open-port') return openStorePort(appId, portId);
@@ -314,6 +318,14 @@
 
         function shouldOpenStoreEntryExternally(entry) {
             return !!(entry && entry.metadata && entry.metadata.open_external === 'true');
+        }
+
+        function isNativeManagedEntry(entry) {
+            return !!(entry && entry.runtime === 'native-managed-app');
+        }
+
+        function nativeDesktopAppID(entry) {
+            return (entry && (entry.desktop_app_id || (entry.metadata && entry.metadata.desktop_app_id) || entry.id)) || '';
         }
 
         function mutationDisabledText() {

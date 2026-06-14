@@ -26,6 +26,8 @@ var discoverToolAliases = map[string]string{
 	"ddg":                    "ddg_search",
 	"brave":                  "brave_search",
 	"pdf extractor":          "pdf_extractor",
+	"openscad":               "openscad_render",
+	"cad":                    "openscad_render",
 }
 
 func resolveDiscoverToolName(name string) string {
@@ -208,6 +210,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"virtual_desktop_widgets", "Manage browser desktop widgets and notifications"},
 		{"office_document", "Create, read, patch, and export virtual desktop Writer documents"},
 		{"office_workbook", "Create, read, edit, evaluate, and export virtual desktop spreadsheets"},
+		{"openscad_render", "Render OpenSCAD CAD source to preview and export files"},
 		{"meshcentral", "Remote desktop via MeshCentral (screenshot, command, file transfer)"},
 		{"remote_control_devices", "List and inspect remote control devices"},
 		{"remote_control_shell", "Run shell commands on remote control devices"},

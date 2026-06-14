@@ -57,6 +57,7 @@ type Service struct {
 	mediaRegistryDB     *sql.DB
 	imageGalleryDB      *sql.DB
 	codeContainer       *CodeContainerService
+	openSCADContainer   *OpenSCADContainerService
 	integritySecrets    IntegritySecretStore
 	integrityPrivateKey []byte
 	integrityPublicKey  []byte
@@ -104,9 +105,10 @@ func NewService(cfg Config) (*Service, error) {
 		return nil, err
 	}
 	return &Service{
-		cfg:           normalized,
-		codeContainer: NewCodeContainerService(normalized, nil),
-		listCache:     make(map[string]listCacheEntry),
+		cfg:               normalized,
+		codeContainer:     NewCodeContainerService(normalized, nil),
+		openSCADContainer: NewOpenSCADContainerService(normalized, nil),
+		listCache:         make(map[string]listCacheEntry),
 	}, nil
 }
 
@@ -269,6 +271,13 @@ func (s *Service) Close() error {
 		}
 		cancel()
 	}
+	if s.openSCADContainer != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		if err := s.openSCADContainer.Stop(ctx); err != nil {
+			closeErr = errors.Join(closeErr, fmt.Errorf("openscad container stop: %w", err))
+		}
+		cancel()
+	}
 
 	// Close DBs in a consistent order. Always attempt every close.
 	if s.db != nil {
@@ -298,6 +307,13 @@ func (s *Service) CodeContainer() *CodeContainerService {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.codeContainer
+}
+
+// OpenSCADContainer returns the lazy OpenSCAD compiler container service.
+func (s *Service) OpenSCADContainer() *OpenSCADContainerService {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.openSCADContainer
 }
 
 // DB returns the underlying SQLite database handle.

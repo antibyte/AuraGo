@@ -348,6 +348,7 @@ type VirtualDesktopConfig struct {
 	RemoteMaxSessionMinutes  int              `yaml:"remote_max_session_minutes" json:"remote_max_session_minutes"`   // max SSH/VNC remote session duration
 	RemoteIdleTimeoutMinutes int              `yaml:"remote_idle_timeout_minutes" json:"remote_idle_timeout_minutes"` // idle timeout for SSH/VNC remote sessions
 	CodeStudio               CodeStudioConfig `yaml:"code_studio" json:"code_studio"`                                 // built-in Code Studio development container
+	OpenSCAD                 OpenSCADConfig   `yaml:"openscad" json:"openscad"`                                       // built-in OpenSCAD compiler container
 }
 
 // CodeStudioConfig holds settings for the lazy Code Studio dev container.
@@ -358,6 +359,23 @@ type CodeStudioConfig struct {
 	AutoStopMinutes int    `yaml:"auto_stop_minutes" json:"auto_stop_minutes"`
 	MaxMemoryMB     int    `yaml:"max_memory_mb" json:"max_memory_mb"`
 	MaxCPUCores     int    `yaml:"max_cpu_cores" json:"max_cpu_cores"`
+}
+
+// OpenSCADConfig holds settings for the lazy OpenSCAD compiler container.
+type OpenSCADConfig struct {
+	Enabled                 bool     `yaml:"enabled" json:"enabled"`
+	Image                   string   `yaml:"image" json:"image"`
+	AutoStart               bool     `yaml:"auto_start" json:"auto_start"`
+	AutoStopMinutes         int      `yaml:"auto_stop_minutes" json:"auto_stop_minutes"`
+	MaxMemoryMB             int      `yaml:"max_memory_mb" json:"max_memory_mb"`
+	MaxCPUCores             int      `yaml:"max_cpu_cores" json:"max_cpu_cores"`
+	MaxConcurrentJobs       int      `yaml:"max_concurrent_jobs" json:"max_concurrent_jobs"`
+	DefaultExports          []string `yaml:"default_exports" json:"default_exports"`
+	MaxSourceKB             int      `yaml:"max_source_kb" json:"max_source_kb"`
+	MaxOutputMB             int      `yaml:"max_output_mb" json:"max_output_mb"`
+	RenderTimeoutSeconds    int      `yaml:"render_timeout_seconds" json:"render_timeout_seconds"`
+	MaxRenderTimeoutSeconds int      `yaml:"max_render_timeout_seconds" json:"max_render_timeout_seconds"`
+	JobRetentionDays        int      `yaml:"job_retention_days" json:"job_retention_days"`
 }
 
 type PackageManagerConfig struct {

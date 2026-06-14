@@ -515,6 +515,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/looper/resume", handleLooperResume(s))
 	mux.HandleFunc("/api/desktop/looper/status", handleLooperStatus(s))
 	registerCodeStudioRoutes(mux, s)
+	registerOpenSCADRoutes(mux, s)
 
 	// Pixel image editor endpoints
 	mux.HandleFunc("/api/pixel/config", handlePixelConfig(s))

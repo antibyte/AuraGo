@@ -3,7 +3,7 @@ package desktopstore
 // DefaultCatalog returns the fixed allowlist of Docker web apps that the store
 // is allowed to install.
 func DefaultCatalog() []CatalogEntry {
-	return []CatalogEntry{
+	return withCatalogDefaults([]CatalogEntry{
 		{
 			ID:          "homarr",
 			Name:        "Homarr",
@@ -370,15 +370,42 @@ func DefaultCatalog() []CatalogEntry {
 				{WorkspacePath: "Shared/CommandCode", ContainerPath: "/workspace"},
 			},
 			Metadata: map[string]string{
-				"store_ui":           "terminal-preview",
-				"terminal_enabled":   "true",
-				"terminal_command":   "cmd",
-				"preview_port_id":    "web",
-				"open_maximized":     "true",
-				"workspace_path":     "Shared/CommandCode",
+				"store_ui":         "terminal-preview",
+				"terminal_enabled": "true",
+				"terminal_command": "cmd",
+				"preview_port_id":  "web",
+				"open_maximized":   "true",
+				"workspace_path":   "Shared/CommandCode",
 			},
 		},
+		{
+			ID:           "openscad",
+			Name:         "OpenSCAD",
+			Description:  "Script-based parametric CAD compiler with previews and export files.",
+			Image:        "openscad/openscad:latest",
+			Icon:         "openscad",
+			LogoSlug:     "openscad",
+			LogoURL:      logoURL("openscad"),
+			Runtime:      RuntimeNativeManagedApp,
+			DesktopAppID: "openscad",
+			Metadata: map[string]string{
+				"native_runtime": "openscad",
+				"open_maximized": "true",
+			},
+		},
+	})
+}
+
+func withCatalogDefaults(entries []CatalogEntry) []CatalogEntry {
+	for i := range entries {
+		if entries[i].Runtime == "" {
+			entries[i].Runtime = RuntimeContainerWebApp
+		}
+		if entries[i].DesktopAppID == "" {
+			entries[i].DesktopAppID = DesktopAppID(entries[i].ID)
+		}
 	}
+	return entries
 }
 
 const oliveTinDefaultConfig = `actions:

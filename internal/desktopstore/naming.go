@@ -18,9 +18,22 @@ func DesktopAppID(appID string) string {
 	return "store-" + normalizeAppID(appID)
 }
 
+func desktopAppIDForEntry(entry CatalogEntry) string {
+	if strings.TrimSpace(entry.DesktopAppID) != "" {
+		return strings.ToLower(strings.TrimSpace(entry.DesktopAppID))
+	}
+	return DesktopAppID(entry.ID)
+}
+
 // ContainerName returns the managed Docker container name for a store app.
 func ContainerName(appID string) string {
 	return "aurago-store-" + normalizeAppID(appID)
+}
+
+// NativeManagedContainerName returns the stable managed container name for a
+// native Store runtime.
+func NativeManagedContainerName(appID string) string {
+	return "aurago-" + normalizeAppID(appID)
 }
 
 // CompanionContainerName returns the managed Docker container name for a Store

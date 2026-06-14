@@ -394,6 +394,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		BrowserAutomationEnabled:     cfg.BrowserAutomation.Enabled && cfg.Tools.BrowserAutomation.Enabled,
 		SpaceAgentEnabled:            cfg.SpaceAgent.Enabled,
 		VirtualDesktopEnabled:        cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.Tools.VirtualDesktop.Enabled,
+		OpenSCADEnabled:              cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.VirtualDesktop.OpenSCAD.Enabled,
 		OfficeDocumentEnabled:        cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.Tools.OfficeDocument.Enabled,
 		OfficeWorkbookEnabled:        cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.Tools.OfficeWorkbook.Enabled,
 		NetworkPingEnabled:           cfg.Tools.NetworkPing.Enabled,

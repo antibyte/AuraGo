@@ -1490,13 +1490,13 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"description": "Type of history entry",
 					"enum":        []string{"note", "decision", "question", "feedback", "milestone", "observation"},
 				},
-				"content": prop("string", "History entry content (for add_history, update_history)"),
+				"content":       prop("string", "History entry content (for add_history, update_history)"),
 				"history_query": prop("string", "Search query for search_history (searches content and source)"),
-				"source":  prop("string", "Originating tool/operation, e.g. homepage_file, homepage_deploy"),
-				"tags":    map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Project tags"},
-				"notes":   prop("string", "Additional notes"),
-				"limit":   map[string]interface{}{"type": "integer", "description": "Max results (default: 20)"},
-				"offset":  map[string]interface{}{"type": "integer", "description": "Pagination offset"},
+				"source":        prop("string", "Originating tool/operation, e.g. homepage_file, homepage_deploy"),
+				"tags":          map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Project tags"},
+				"notes":         prop("string", "Additional notes"),
+				"limit":         map[string]interface{}{"type": "integer", "description": "Max results (default: 20)"},
+				"offset":        map[string]interface{}{"type": "integer", "description": "Pagination offset"},
 			}, "operation"),
 		))
 	}
@@ -1679,6 +1679,40 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"additionalProperties": true,
 				},
 			}, "operation"),
+		))
+	}
+
+	if ff.OpenSCADEnabled {
+		tools = append(tools, tool("openscad_render",
+			"Render OpenSCAD source through the managed compiler container and return preview/export files.",
+			schema(map[string]interface{}{
+				"source_scad": prop("string", "OpenSCAD source code to write as model.scad."),
+				"model_name":  prop("string", "Safe base name for output files."),
+				"exports": map[string]interface{}{
+					"type":        "array",
+					"description": "Export formats; defaults to png and stl.",
+					"items": map[string]interface{}{
+						"type": "string",
+						"enum": []string{"png", "stl", "3mf", "off", "amf", "dxf", "svg", "pdf", "csg", "echo"},
+					},
+				},
+				"defines": map[string]interface{}{
+					"type":        "array",
+					"description": "OpenSCAD -D parameter overrides.",
+					"items": map[string]interface{}{
+						"type":                 "object",
+						"additionalProperties": false,
+						"properties": map[string]interface{}{
+							"name":  prop("string", "OpenSCAD variable name."),
+							"value": prop("string", "OpenSCAD expression value."),
+						},
+						"required": []string{"name", "value"},
+					},
+				},
+				"render_mode":     map[string]interface{}{"type": "string", "description": "Use render for final geometry or preview for faster image output.", "enum": []string{"render", "preview"}},
+				"timeout_seconds": prop("integer", "Per-export timeout; capped by config."),
+				"save_to_desktop": prop("boolean", "Save generated files under Documents/OpenSCAD."),
+			}, "source_scad"),
 		))
 	}
 
