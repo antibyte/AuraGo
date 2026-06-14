@@ -194,5 +194,11 @@
   "setup.toast_config_saved": "Configurazione salvata!",
   "setup.toast_error_prefix": "Errore:",
   "setup.plan_embedding_warning": "Questo piano non usa OpenRouter. Assicurati che sia configurato un modello di embeddings; AuraGo non può raggiungere tutte le sue capacità senza embeddings.",
-  "setup.provider_embedding_warning": "Per provider diversi da OpenRouter, scegli e verifica un modello di embeddings nel prossimo passaggio del setup. AuraGo non può raggiungere tutte le sue capacità senza embeddings."
+  "setup.provider_embedding_warning": "Per provider diversi da OpenRouter, scegli e verifica un modello di embeddings nel prossimo passaggio del setup. AuraGo non può raggiungere tutte le sue capacità senza embeddings.",
+  "setup.success_config_links_title": "Recommended next steps",
+  "setup.success_config_links_desc": "Open the full configuration when you want to fine-tune these areas.",
+  "setup.success_config_providers": "Review providers & models",
+  "setup.success_config_security": "Login & security",
+  "setup.success_config_server": "Server & ports",
+  "setup.success_config_backup": "Set up backups"
 }

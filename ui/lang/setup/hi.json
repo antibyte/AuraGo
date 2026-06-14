@@ -194,5 +194,11 @@
   "setup.toast_config_saved": "कॉन्फ़िगरेशन सहेजा गया!",
   "setup.toast_error_prefix": "त्रुटि:",
   "setup.plan_embedding_warning": "यह प्लान OpenRouter का उपयोग नहीं करता। कृपया सुनिश्चित करें कि कोई embedding मॉडल कॉन्फ़िगर है; embeddings के बिना AuraGo अपनी पूरी क्षमता तक नहीं पहुँच सकता।",
-  "setup.provider_embedding_warning": "OpenRouter के अलावा अन्य providers के लिए, अगले setup चरण में कोई embedding मॉडल चुनें और जाँचें। embeddings के बिना AuraGo अपनी पूरी क्षमता तक नहीं पहुँच सकता।"
+  "setup.provider_embedding_warning": "OpenRouter के अलावा अन्य providers के लिए, अगले setup चरण में कोई embedding मॉडल चुनें और जाँचें। embeddings के बिना AuraGo अपनी पूरी क्षमता तक नहीं पहुँच सकता।",
+  "setup.success_config_links_title": "Recommended next steps",
+  "setup.success_config_links_desc": "Open the full configuration when you want to fine-tune these areas.",
+  "setup.success_config_providers": "Review providers & models",
+  "setup.success_config_security": "Login & security",
+  "setup.success_config_server": "Server & ports",
+  "setup.success_config_backup": "Set up backups"
 }

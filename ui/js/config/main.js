@@ -394,6 +394,7 @@ function buildSidebar() {
     search.className = 'cfg-sidebar-search';
     search.id = 'sidebarSearch';
     search.innerHTML = `
+        <label for="sidebarSearchInput" class="cfg-visually-hidden">${escapeHtml(t('config.sidebar.search_placeholder'))}</label>
         <span class="cfg-sidebar-search-icon">🔍</span>
         <input type="text" id="sidebarSearchInput" class="cfg-sidebar-search-input"
             placeholder="${escapeHtml(t('config.sidebar.search_placeholder'))}"
@@ -404,7 +405,7 @@ function buildSidebar() {
     `;
     sb.appendChild(search);
 
-    SECTIONS.forEach((group) => {
+    SECTIONS.forEach((group, groupIndex) => {
         const groupName = group.group;
         const isCollapsed = collapsedGroups.has(groupName);
 
@@ -424,7 +425,8 @@ function buildSidebar() {
             + (group.integrationSubGroup ? ' integration-subgroup' : '');
 
         // Group header (collapsible)
-        const header = document.createElement('div');
+        const header = document.createElement('button');
+        header.type = 'button';
         header.className = 'sidebar-group-header'
             + (group.dangerGroup ? ' danger-group' : '')
             + (group.integrationSubGroup ? ' integration-subgroup-header' : '');
@@ -437,12 +439,17 @@ function buildSidebar() {
         // Group content (items)
         const content = document.createElement('div');
         content.className = 'sidebar-group-content';
+        const contentId = 'sidebar-group-content-' + groupIndex;
+        content.id = contentId;
         content.style.maxHeight = isCollapsed ? '0' : 'none';
+        header.setAttribute('aria-controls', contentId);
+        header.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
 
         group.items.forEach(s => {
             const blockedReason = sectionBlockedReason(s.key);
             const isBlocked = shouldBlockUnavailableSection(s.key) && blockedReason !== '';
-            const item = document.createElement('div');
+            const item = document.createElement('button');
+            item.type = 'button';
             item.className = 'sidebar-item'
                 + (s.key === activeSection ? ' active' : '')
                 + (group.dangerGroup ? ' danger-item' : '')
@@ -452,11 +459,14 @@ function buildSidebar() {
             item.dataset.searchLabel = s.label;
             item.dataset.searchDesc = s.desc || '';
             item.dataset.searchGroup = groupName;
-            if (isBlocked) item.title = blockedReason;
+            if (isBlocked) {
+                item.title = blockedReason;
+                item.disabled = true;
+            }
             item.innerHTML = '<span class="icon">' + s.icon + '</span><span class="sidebar-item-label">' + escapeHtml(s.label) + '</span>';
             item.onclick = () => {
                 if (shouldBlockUnavailableSection(s.key) && sectionBlockedReason(s.key)) return;
-                selectSection(s.key);
+                navigateToConfigSection(s.key);
             };
             content.appendChild(item);
         });
@@ -474,6 +484,7 @@ function buildSidebar() {
 
     initSidebarSearch();
     if (sidebarSearchQuery) applySidebarSearch(sidebarSearchQuery);
+    syncSidebarActiveState(activeSection);
 }
 
 function initSidebarSearch() {
@@ -628,7 +639,7 @@ function handleSidebarSearchKeys(event) {
         focusSidebarSearchItem(sidebarSearchFocusedIndex - 1);
     } else if (event.key === 'Enter') {
         const item = items[sidebarSearchFocusedIndex >= 0 ? sidebarSearchFocusedIndex : 0];
-        if (item && item.dataset.section) selectSection(item.dataset.section);
+        if (item && item.dataset.section) navigateToConfigSection(item.dataset.section);
     }
 }
 
@@ -648,19 +659,115 @@ function toggleGroup(groupName, groupDiv) {
         content.style.maxHeight = content.scrollHeight + 'px';
         setTimeout(() => content.style.maxHeight = '0', 0);
     }
+    const headerBtn = groupDiv.querySelector('.sidebar-group-header');
+    if (headerBtn) headerBtn.setAttribute('aria-expanded', isCollapsed ? 'true' : 'false');
     saveCollapsedGroups();
+}
+
+
+function hasUnsavedConfigChanges() {
+    return isDirty && collectSnapshot() !== initialSnapshot;
+}
+
+function normalizeSectionKey(key) {
+    if (!hasVisibleSection(key)) return 'server';
+    if (shouldBlockUnavailableSection(key) && sectionBlockedReason(key)) return 'server';
+    return key;
+}
+
+async function confirmDiscardUnsavedChanges() {
+    if (!hasUnsavedConfigChanges()) return true;
+    return showModal(
+        t('config.unsaved_changes.title'),
+        t('config.unsaved_changes.message'),
+        true,
+        {
+            confirmText: t('config.unsaved_changes.discard'),
+            cancelText: t('config.unsaved_changes.stay')
+        }
+    );
+}
+
+async function navigateToConfigSection(key, options = {}) {
+    const target = normalizeSectionKey(key);
+    if (target === activeSection && !hasUnsavedConfigChanges()) {
+        await selectSection(target, options);
+        setTimeout(() => {
+            initialSnapshot = collectSnapshot();
+            setDirty(false);
+        }, 100);
+        return true;
+    }
+    if (!await confirmDiscardUnsavedChanges()) {
+        if (window.location.hash !== '#' + activeSection) {
+            history.replaceState(null, '', '#' + activeSection);
+        }
+        return false;
+    }
+    await selectSection(target, options);
+    setTimeout(() => {
+        initialSnapshot = collectSnapshot();
+        setDirty(false);
+    }, 100);
+    return true;
+}
+
+function handleConfigBeforeUnload(event) {
+    if (!hasUnsavedConfigChanges()) return;
+    event.preventDefault();
+    event.returnValue = '';
+    return '';
+}
+
+function handleConfigHashChange() {
+    const key = (window.location.hash || '').replace(/^#/, '') || 'server';
+    if (key === activeSection) return;
+    navigateToConfigSection(key, { scrollBehavior: 'auto' });
+}
+
+function syncSidebarActiveState(key) {
+    document.querySelectorAll('.sidebar-item').forEach(el => {
+        const active = el.dataset.section === key;
+        el.classList.toggle('active', active);
+        if (active) el.setAttribute('aria-current', 'page');
+        else el.removeAttribute('aria-current');
+    });
+}
+
+function syncToggleA11y(toggle) {
+    if (!toggle) return;
+    const disabled = toggle.disabled === true || toggle.classList.contains('cfg-toggle-disabled') || toggle.getAttribute('aria-disabled') === 'true';
+    const on = toggle.classList.contains('on');
+    toggle.setAttribute('role', 'switch');
+    toggle.setAttribute('aria-checked', on ? 'true' : 'false');
+    toggle.setAttribute('tabindex', disabled ? '-1' : '0');
+    if (disabled) toggle.setAttribute('aria-disabled', 'true');
+    else toggle.removeAttribute('aria-disabled');
+}
+
+function enhanceConfigControls(root = document) {
+    root.querySelectorAll('.toggle').forEach(toggle => {
+        syncToggleA11y(toggle);
+        if (toggle.dataset.a11yBound === 'true') return;
+        toggle.dataset.a11yBound = 'true';
+        toggle.addEventListener('keydown', event => {
+            if (event.key !== ' ' && event.key !== 'Enter') return;
+            event.preventDefault();
+            if (toggle.disabled === true || toggle.classList.contains('cfg-toggle-disabled') || toggle.getAttribute('aria-disabled') === 'true') return;
+            toggle.click();
+        });
+    });
 }
 
 async function selectSection(key, options = {}) {
     const { scrollBehavior = 'smooth' } = options;
-    if (!hasVisibleSection(key)) key = 'server';
-    if (shouldBlockUnavailableSection(key) && sectionBlockedReason(key)) key = 'server';
+    key = normalizeSectionKey(key);
     activeSection = key;
     localStorage.setItem('aurago-cfg-section', key);
     if (window.location.hash !== '#' + key) {
         history.replaceState(null, '', '#' + key);
     }
-    document.querySelectorAll('.sidebar-item').forEach(el => el.classList.toggle('active', el.dataset.section === key));
+    syncSidebarActiveState(key);
     // Auto-expand the group containing this section if it is collapsed
     let expandedTargetGroup = false;
     for (const group of SECTIONS) {
@@ -1144,6 +1251,7 @@ function applyManagedDockerToggleGuard(fullPath, reason) {
     toggle.classList.add('cfg-toggle-disabled');
     toggle.removeAttribute('onclick');
     toggle.setAttribute('title', reason);
+    syncToggleA11y(toggle);
 }
 
 function applyManagedDockerGuards(sectionKey) {
@@ -1344,6 +1452,7 @@ function toggleBool(el) {
     if (el.nextElementSibling) {
         el.nextElementSibling.textContent = on ? t('config.toggle.active') : t('config.toggle.inactive');
     }
+    syncToggleA11y(el);
     markDirty();
 }
 
@@ -1555,6 +1664,7 @@ function attachChangeListeners() {
         el.addEventListener('input', markDirty);
         el.addEventListener('change', markDirty);
     });
+    enhanceConfigControls();
 }
 
 // ── Save ────────────────────────────────────────────
@@ -1889,6 +1999,9 @@ function loadModule(name) {
     });
     return _moduleCache[name];
 }
+
+window.addEventListener('beforeunload', handleConfigBeforeUnload);
+window.addEventListener('hashchange', handleConfigHashChange);
 
 init();
 

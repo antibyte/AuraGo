@@ -31,5 +31,9 @@
   "config.common.inactive": "निष्क्रिय",
   "config.feature_unavailable": "यह सुविधा वर्तमान रनटाइम वातावरण में उपलब्ध नहीं है।",
   "config.docker_mode_banner": "AuraGo एक Docker कंटेनर के अंदर चल रहा है। कुछ सुविधाएँ सीमित हो सकती हैं।",
-  "config.firewall.docker_blocked": "Docker कंटेनर के अंदर फ़ायरवॉल प्रबंधन उपलब्ध नहीं है।"
+  "config.firewall.docker_blocked": "Docker कंटेनर के अंदर फ़ायरवॉल प्रबंधन उपलब्ध नहीं है।",
+  "config.unsaved_changes.title": "Unsaved changes",
+  "config.unsaved_changes.message": "You have unsaved changes. Discard them and switch sections?",
+  "config.unsaved_changes.discard": "Discard changes",
+  "config.unsaved_changes.stay": "Stay here"
 }

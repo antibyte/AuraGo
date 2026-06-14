@@ -513,6 +513,17 @@
                 <h2 id="success-title" class="success-title" data-i18n="setup.success_title">Setup complete!</h2>
                 <p id="success-desc" class="success-desc" data-i18n-html="setup.success_description">AuraGo is now configured and ready.<br>The settings have been saved.</p>
                 <p class="success-desc is-hidden setup-warning-text" id="restart-notice" data-i18n-html="setup.success_restart_notice">⚠️ A restart is recommended for all changes to take effect.</p>
+                <div class="success-config-links" aria-labelledby="success-config-links-title">
+                    <h3 id="success-config-links-title" class="success-config-links-title" data-i18n="setup.success_config_links_title">Recommended next steps</h3>
+                    <p class="success-config-links-desc" data-i18n="setup.success_config_links_desc">Open the full configuration when you want to fine-tune these areas.</p>
+                    <div class="success-config-link-grid">
+                        <a class="success-config-link" href="/config#providers" data-i18n="setup.success_config_providers">Review providers &amp; models</a>
+                        <a class="success-config-link" href="/config#web_config" data-i18n="setup.success_config_security">Login &amp; security</a>
+                        <a class="success-config-link" href="/config#server" data-i18n="setup.success_config_server">Server &amp; ports</a>
+                        <a class="success-config-link" href="/config#backup_restore" data-i18n="setup.success_config_backup">Set up backups</a>
+                    </div>
+                </div>
+
                 <button id="btn-go-to-chat" class="btn-setup btn-next" onclick="window.location.href='/'" data-i18n="setup.success_go_to_chat">Go to Chat →</button>
             </div>
 

@@ -250,6 +250,7 @@
 /* ── Page-specific: Config Interface ───────────────── */
 
 body {
+    --cfg-save-bar-height: 72px;
     height: 100vh;
     display: flex;
     flex-direction: column;
@@ -272,6 +273,18 @@ body {
     padding: 1rem 0;
     flex-shrink: 0;
     box-shadow: 14px 0 36px color-mix(in srgb, #0f172a 5%, transparent);
+}
+
+.cfg-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .cfg-sidebar-search {
@@ -372,11 +385,16 @@ body {
     display: flex;
     align-items: center;
     gap: 0.65rem;
+    width: 100%;
     padding: 0.55rem 1.25rem;
+    font: inherit;
     font-size: 0.82rem;
+    text-align: left;
     color: var(--text-secondary);
+    background: transparent;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 0;
     border-left: 3px solid transparent;
     position: relative;
 }
@@ -399,6 +417,7 @@ body {
     transform: translateX(2px);
 }
 
+.sidebar-item:disabled,
 .sidebar-item.sidebar-item-disabled {
     opacity: 0.42;
     cursor: not-allowed;
@@ -447,6 +466,8 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 2rem 2.5rem;
+    padding-bottom: calc(2rem + var(--cfg-save-bar-height) + env(safe-area-inset-bottom, 0px));
+    scroll-padding-bottom: calc(var(--cfg-save-bar-height) + env(safe-area-inset-bottom, 0px));
     min-width: 0;
 }
 
@@ -711,6 +732,12 @@ select.cfg-input option {
 /* Save bar */
 .save-bar {
     --safe-area-footer-padding-bottom: 0.7rem;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    min-height: var(--cfg-save-bar-height);
     background: var(--header-bg);
     backdrop-filter: blur(20px);
     border-top: 1px solid var(--border-subtle);
@@ -943,6 +970,10 @@ select.cfg-input option {
 /* Mobile (< 768px): sidebar as slide-out drawer */
 /* D-14/D-15: Unified breakpoint — 767px → 768px */
 @media (max-width: 768px) {
+    body {
+        --cfg-save-bar-height: 96px;
+    }
+
     .cfg-sidebar {
         position: fixed;
         top: 0;
@@ -1171,6 +1202,9 @@ select.cfg-input option {
 
 /* D-14/D-15: Unified breakpoint — 374px → 480px */
 @media (max-width: 480px) {
+    body {
+        --cfg-save-bar-height: 72px;
+    }
 
     /* Very small phones: also hide logo text */
     .logo>span {
@@ -1951,12 +1985,17 @@ select.cfg-input option {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    width: 100%;
     padding: 0.7rem 1.25rem;
+    font: inherit;
     font-size: 0.7rem;
     font-weight: 700;
     font-variant: small-caps;
     letter-spacing: 0.1em;
     color: var(--text-secondary);
+    background: transparent;
+    border: 0;
+    text-align: left;
     cursor: pointer;
     opacity: 0.8;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

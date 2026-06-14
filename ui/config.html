@@ -96,8 +96,8 @@
     <!-- Save bar -->
     <div class="save-bar">
         <span class="changes-pill" id="changesPill" data-i18n="config.save_bar.unsaved_changes"></span>
-        <span class="save-status" id="saveStatus"></span>
-        <button class="btn-save" id="btnSave" onclick="saveConfig()" disabled data-i18n="config.save_bar.save_button"></button>
+        <span class="save-status" id="saveStatus" role="status" aria-live="polite" aria-atomic="true"></span>
+        <button type="button" class="btn-save" id="btnSave" onclick="saveConfig()" disabled data-i18n="config.save_bar.save_button"></button>
     </div>
 
     <script src="/cfg/form-builder.js?v={{.BuildVersion}}"></script>

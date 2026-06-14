@@ -691,3 +691,136 @@ func TestConfigVirtualDesktopSectionLabelsInSectionsBundle(t *testing.T) {
 		})
 	}
 }
+
+func TestConfigDirtyGuardAndHashNavigationMarkers(t *testing.T) {
+	t.Parallel()
+
+	mainJS := normalizeAssetText(mustReadUIFile(t, "js/config/main.js"))
+	for _, marker := range []string{
+		"function hasUnsavedConfigChanges()",
+		"function normalizeSectionKey(key)",
+		"async function confirmDiscardUnsavedChanges()",
+		"async function navigateToConfigSection(key, options = {})",
+		"function handleConfigBeforeUnload(event)",
+		"function handleConfigHashChange()",
+		"window.addEventListener('beforeunload', handleConfigBeforeUnload)",
+		"window.addEventListener('hashchange', handleConfigHashChange)",
+		"collectSnapshot() !== initialSnapshot",
+		"t('config.unsaved_changes.title')",
+		"navigateToConfigSection(s.key);",
+		"navigateToConfigSection(item.dataset.section);",
+	} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("config main.js missing dirty guard marker %q", marker)
+		}
+	}
+}
+
+func TestConfigSaveBarStickyAndLiveStatusMarkers(t *testing.T) {
+	t.Parallel()
+
+	html := normalizeAssetText(mustReadUIFile(t, "config.html"))
+	for _, marker := range []string{
+		`id="saveStatus"`,
+		`role="status"`,
+		`aria-live="polite"`,
+		`aria-atomic="true"`,
+		`type="button"`,
+	} {
+		if !strings.Contains(html, marker) {
+			t.Fatalf("config.html missing save bar a11y marker %q", marker)
+		}
+	}
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/config.css"))
+	for _, marker := range []string{
+		"--cfg-save-bar-height: 72px;",
+		"--cfg-save-bar-height: 96px;",
+		"position: fixed;",
+		"bottom: 0;",
+		"z-index: 30;",
+		"scroll-padding-bottom: calc(var(--cfg-save-bar-height) + env(safe-area-inset-bottom, 0px));",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("config.css missing sticky save bar marker %q", marker)
+		}
+	}
+}
+
+func TestConfigSidebarSemanticControlsMarkers(t *testing.T) {
+	t.Parallel()
+
+	mainJS := normalizeAssetText(mustReadUIFile(t, "js/config/main.js"))
+	for _, marker := range []string{
+		"document.createElement('button')",
+		"header.type = 'button';",
+		"header.setAttribute('aria-expanded'",
+		"item.type = 'button';",
+		"el.setAttribute('aria-current', 'page')",
+		"el.removeAttribute('aria-current')",
+		`class="cfg-visually-hidden"`,
+	} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("config main.js missing sidebar semantic marker %q", marker)
+		}
+	}
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/config.css"))
+	for _, marker := range []string{
+		".cfg-visually-hidden",
+		".sidebar-item:disabled",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("config.css missing sidebar semantic marker %q", marker)
+		}
+	}
+}
+
+func TestConfigToggleSwitchA11yMarkers(t *testing.T) {
+	t.Parallel()
+
+	mainJS := normalizeAssetText(mustReadUIFile(t, "js/config/main.js"))
+	for _, marker := range []string{
+		"function syncToggleA11y(toggle)",
+		"function enhanceConfigControls(root = document)",
+		"toggle.setAttribute('role', 'switch')",
+		"toggle.setAttribute('aria-checked'",
+		"event.key !== ' ' && event.key !== 'Enter'",
+		"toggle.click();",
+		"syncToggleA11y(el);",
+		"enhanceConfigControls();",
+	} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("config main.js missing toggle a11y marker %q", marker)
+		}
+	}
+}
+
+func TestSetupSuccessConfigDeepLinksMarkers(t *testing.T) {
+	t.Parallel()
+
+	html := normalizeAssetText(mustReadUIFile(t, "setup.html"))
+	for _, marker := range []string{
+		`href="/config#providers"`,
+		`href="/config#web_config"`,
+		`href="/config#server"`,
+		`href="/config#backup_restore"`,
+		"setup.success_config_links_title",
+		"setup.success_config_backup",
+	} {
+		if !strings.Contains(html, marker) {
+			t.Fatalf("setup.html missing success deep link marker %q", marker)
+		}
+	}
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/setup.css"))
+	for _, marker := range []string{
+		".success-config-links",
+		".success-config-link-grid",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("setup.css missing success deep link marker %q", marker)
+		}
+	}
+}
+
