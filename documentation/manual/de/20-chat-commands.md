@@ -2,7 +2,7 @@
 
 AuraGo unterstützt sogenannte **Slash-Commands** – Befehle, die direkt im Chat eingegeben werden können, um bestimmte Aktionen auszuführen. Alle Commands beginnen mit einem Schrägstrich `/`.
 
-> 📅 **Stand:** März 2026
+> 📅 **Stand:** Juni 2026
 
 ---
 

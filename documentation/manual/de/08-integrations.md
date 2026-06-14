@@ -1848,6 +1848,28 @@ golangci_lint:
   enabled: true
 ```
 
+## Homepage- und Website-Projekte
+
+AuraGo kann **statische Sites / Homepages** per Agent-Tools anlegen, bearbeiten, bauen, deployen und in einer Registry nachverfolgen.
+
+**Web-UI:** Config → Integrationen → Homepage → aktivieren und Pfade setzen.
+
+| Bereich | Tools |
+|---------|-------|
+| Registry & Historie | `homepage_registry` — Projekte, Edits/Deploys/Probleme, **Projekt-Historie** |
+| Dateien | `homepage_file`, `homepage_project` |
+| Build & Deploy | `homepage_deploy`, `homepage_quality` |
+| Design-Regeln | Globales `prompts/rules/homepage/DESIGN.md`; projekt-eigenes `DESIGN.md` nur als Design-Kontext |
+
+Vor größeren Änderungen `list_history`, danach `add_history`. Bei `init_project` automatische Registrierung.
+
+### YAML-Referenz
+```yaml
+homepage:
+  enabled: true
+```
+
+
 ## Integrationen testen
 
 ### Test über Chat

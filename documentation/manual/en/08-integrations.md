@@ -2234,6 +2234,28 @@ golangci_lint:
   enabled: true
 ```
 
+## Homepage and site projects
+
+AuraGo can scaffold, edit, build, deploy, and track **static site / homepage** projects through agent tools.
+
+**Web UI:** Config → Integrations → Homepage → Enable and set project paths if needed.
+
+| Area | Tools |
+|------|-------|
+| Registry & history | `homepage_registry` — register projects, log edits/deploys/issues, read **project history** |
+| Files | `homepage_file`, `homepage_project` |
+| Build & deploy | `homepage_deploy`, `homepage_quality` |
+| Design rules | Global `prompts/rules/homepage/DESIGN.md`; per-project `DESIGN.md` adds design context only |
+
+Call `list_history` before major edits and `add_history` after meaningful changes. New projects are registered automatically on `init_project`.
+
+### YAML Reference
+```yaml
+homepage:
+  enabled: true
+```
+
+
 ## Testing Integrations
 
 ### Health Check Commands

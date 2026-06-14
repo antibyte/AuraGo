@@ -200,9 +200,9 @@ Hier bearbeitest du die `config.yaml` über ein Web-Formular.
 ### Navigation
 
 **Linke Sidebar:**
-- Kategorien aufklappbar
-- Suchfunktion oben
-- Roter Punkt = ungespeicherte Änderungen
+- Kategorien aufklappbar (Buttons mit `aria-expanded`)
+- **Suche** filtert Bereiche nach Titel und Beschreibung; Tastatur mit Pfeiltasten und Enter
+- **Ungespeicherte Änderungen**-Pill im Header bei dirty State
 
 **Hauptbereich:**
 - Formularfelder je nach Kategorie
@@ -211,12 +211,12 @@ Hier bearbeitest du die `config.yaml` über ein Web-Formular.
 
 ### Änderungen speichern
 
-1. **Werte ändern** in den Formularfeldern
-2. **Auf "Save" klicken** oben rechts
-3. **Bestätigung** wartet auf Bestätigung
-4. **AuraGo neu starten** (manchmal erforderlich)
+1. **Werte ändern** in den Formularfeldern (Pill **Ungespeicherte Änderungen** bei dirty State).
+2. **Fixe Save-Leiste** unten: **Speichern**, Live-Status, Button deaktiviert während des Speicherns.
+3. Bestätigungsdialog beim Bereichswechsel mit ungespeicherten Änderungen (Sidebar, Hash, Browser Zurück/Vor).
+4. **AuraGo neu starten**, wenn UI oder Doku es verlangen.
 
-> ⚠️ **Achtung:** Einige Änderungen erfordern einen Neustart von AuraGo.
+> ⚠️ **Achtung:** Verworfene Änderungen nur nach Bestätigung im Modal.
 
 ## Virtual Desktop
 

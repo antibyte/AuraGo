@@ -62,6 +62,11 @@ Choose your AI provider:
 
 You can complete these steps later as well.
 
+### After setup: success screen and Config deep links
+
+When setup finishes, the **success screen** shows a confirmation, an optional **restart recommended** notice, **recommended next steps** (deep links to `/config#providers`, `/config#web_config`, `/config#server`, `/config#backup_restore`), and **Go to Chat**.
+
+
 ## The First Chat
 
 After setup, you'll land in the **Chat** – the heart of AuraGo.
