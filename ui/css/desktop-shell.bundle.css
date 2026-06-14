@@ -1184,7 +1184,6 @@
     -webkit-backdrop-filter: blur(26px) saturate(1.22);
 }
 
-.desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-shortcuts-trigger,
 .desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-taskbar-widget-btn,
 .desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-show-desktop-btn {
     width: 36px;
@@ -1433,7 +1432,6 @@
         box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
     }
 
-    .desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-shortcuts-trigger,
     .desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-taskbar-widget-btn,
     .desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-show-desktop-btn {
         background: rgba(255, 255, 255, 0.1);
@@ -1730,27 +1728,6 @@
     align-items: center;
     gap: 10px;
     margin-left: auto;
-}
-
-.vd-shortcuts-trigger {
-    width: 32px;
-    height: 32px;
-    border: 1px solid var(--vd-border);
-    border-radius: var(--ds-radius-sm);
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--vd-muted);
-    font-size: 16px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    transition: background 0.15s, color 0.15s;
-}
-
-.vd-shortcuts-trigger:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: var(--vd-text);
 }
 
 .vd-show-desktop-btn {

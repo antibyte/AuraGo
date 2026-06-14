@@ -1180,7 +1180,6 @@
     -webkit-backdrop-filter: blur(26px) saturate(1.22);
 }
 
-.desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-shortcuts-trigger,
 .desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-taskbar-widget-btn,
 .desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-show-desktop-btn {
     width: 36px;
@@ -1429,7 +1428,6 @@
         box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
     }
 
-    .desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-shortcuts-trigger,
     .desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-taskbar-widget-btn,
     .desktop-body[data-theme="fruity"] .vd-taskbar-system .vd-show-desktop-btn {
         background: rgba(255, 255, 255, 0.1);

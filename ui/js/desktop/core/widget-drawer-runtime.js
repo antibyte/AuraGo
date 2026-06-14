@@ -89,9 +89,7 @@ async function renderWidgetDrawerContent(drawer) {
 
 function updateTaskbarSystemButtonsForMobile() {
     const isMobile = window.useMobileDesktopMode && window.useMobileDesktopMode();
-    const shortcutsBtn = document.getElementById('vd-shortcuts-trigger');
     const widgetsBtn = document.getElementById('vd-widget-drawer-btn');
 
-    if (shortcutsBtn) shortcutsBtn.style.display = isMobile ? 'none' : '';
     if (widgetsBtn) widgetsBtn.style.display = isMobile ? 'none' : '';
 }

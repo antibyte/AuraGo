@@ -257,7 +257,7 @@ func TestDesktopFruitySystemControlsSitOnCompactCard(t *testing.T) {
 		}
 	}
 
-	controlsBody := cssRuleBodyInFruityThemeTest(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-taskbar-system .vd-shortcuts-trigger,\n.desktop-body[data-theme=\"fruity\"] .vd-taskbar-system .vd-taskbar-widget-btn,\n.desktop-body[data-theme=\"fruity\"] .vd-taskbar-system .vd-show-desktop-btn")
+	controlsBody := cssRuleBodyInFruityThemeTest(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-taskbar-system .vd-taskbar-widget-btn,\n.desktop-body[data-theme=\"fruity\"] .vd-taskbar-system .vd-show-desktop-btn")
 	for _, want := range []string{
 		"width: 36px;",
 		"height: 36px;",
