@@ -10,6 +10,7 @@ AuraGo verfügt über **100+ eingebaute Werkzeuge**, die ihn von einem einfachen
 |-----------|-------|-------------|
 | **🗂️ Dateisystem** | Dateien lesen, schreiben, löschen | Ja |
 | **🌐 Web & APIs** | Suche, HTTP, Scraping, Screenshots | Nein (teilweise) |
+| **🌐 Web & Sites** | Homepage scaffold, Build, Deploy, Registry | Nein (`homepage.enabled`) |
 | **🐳 Docker** | Container, Images, Netzwerke | Ja |
 | **🖥️ Proxmox** | VMs, LXCs, Snapshots | Ja |
 | **🏠 Smart Home** | Home Assistant, MQTT, Wake-on-LAN | Ja |
@@ -39,6 +40,7 @@ Die aktuelle Version enthält mehrere leistungsstarke Erweiterungen:
 | **Media Registry** | Generierte Bilder, Audio, Musik und Videos suchen, taggen und wiederverwenden |
 | **MCP Client/Server** | Model Context Protocol für Interoperabilität |
 | **Invasion Control** | Verteilte Orchestrierung über mehrere Hosts |
+| **Homepage / Website-Projekte** | Docker-Dev-Workspace, fokussierte Tools, Registry & Historie |
 | **Sudo-Execution** | Vault-gestütztes Credential-Handling für privilegierte Befehle |
 
 ---
@@ -201,6 +203,41 @@ video_generation:
 ```
 
 Die zugehörigen Tools sind `generate_image`, `generate_music` und `generate_video`. Generierte Dateien werden lokal gespeichert und in der Media Registry registriert, damit sie später gesucht, getaggt, erneut gesendet oder weiterverwendet werden können.
+
+### 9. Homepage & statische Sites
+
+Marketing-Sites und persönliche Homepages liegen im **Homepage-Workspace** (`data/homepage/` standardmäßig), nicht in `agent_workspace/workdir/`.
+
+### Einrichtung in der Web-UI
+1. **Config → Integrationen → Homepage** aktivieren.
+2. Workspace- und Registry-Pfade setzen; optional **Lokalen Server erlauben** ohne Docker.
+3. Speichern. Für Deploy: **Netlify** und/oder **Vercel** aktivieren.
+4. Optional: **Virtual Desktop → Homepage Studio**.
+
+### Fokussierte Agent-Tools (bevorzugt)
+
+| Tool | Rolle |
+|------|-------|
+| `homepage_project` | Workspace, `init_project`, `exec`, `install_deps` |
+| `homepage_file` | Dateien im Homepage-Workspace lesen/schreiben |
+| `homepage_deploy` | `build`, `dev`, Publish, `deploy_netlify`, `deploy_vercel` |
+| `homepage_quality` | `lint`, `check_js`, `lighthouse`, `screenshot` |
+| `homepage_git` | Git-Workflow im Projekt |
+| `homepage_registry` | Projektliste, Deploy-/Edit-Logs, **Projekt-Historie** |
+
+Das Legacy-Tool `homepage` akzeptiert weiterhin ältere `operation`-Werte.
+
+**Regeln:** Quellen nur mit `homepage_file` — nicht `filesystem`. Kein `/workspace/...` per `execute_shell`. Vor größeren Änderungen `list_history`, danach `add_history`. Design-Regel: `prompts/rules/homepage/DESIGN.md`.
+
+### YAML-Referenz
+```yaml
+homepage:
+  enabled: true
+  allow_local_server: false
+```
+
+Siehe [Integrationen](08-integrations.md#homepage--und-website-projekte) und [Interne Tools](22-interne-tools.md#homepage--statische-website-tool-familie).
+
 
 ---
 

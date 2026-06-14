@@ -2,7 +2,7 @@
 
 Diese Dokumentation listet alle internen Tools, die AuraGo dem Agenten zur Verfügung stellt. Diese Tools werden vom LLM über native Function Calling aufgerufen.
 
-> 📅 **Stand:** 27. Mai 2026
+> 📅 **Stand:** Juni 2026
 > 🔢 **Anzahl:** 100+ Tools
 
 ---
@@ -1126,18 +1126,27 @@ Parallele Co-Agents spawnen und verwalten.
 | `specialist` | enum | researcher, coder, designer, security, writer |
 | `priority` | integer | 1=low, 2=normal, 3=high |
 
-### `homepage`
-Homepage/Web-Projekte entwickeln, bauen, deployen.
+## Homepage & statische Website-Tool-Familie
 
-| Parameter | Typ | Beschreibung |
-|-----------|-----|--------------|
-| `operation` | enum | init, start, stop, status, rebuild, destroy, exec, init_project, build, install_deps, lighthouse, screenshot, lint, list_files, read_file, write_file, deploy_netlify, dev, deploy, git_init, git_commit, git_status, git_diff, git_log |
-| `framework` | enum | next, vite, astro, svelte, vue, html |
-| `command` | string | Shell-Befehl |
-| `project_dir` | string | Projekt-Unterverzeichnis |
+Erfordert `homepage.enabled: true`. Tool-Argumente (`project_dir`, `path`) sind **relativ** zum Homepage-Root (z. B. `my-site`), nicht absolut `/workspace/...`.
 
-### `homepage_registry`
-Homepage-Projekte tracken (URL, Framework, Deploy-History).
+| Natives Tool | Zweck | Manual |
+|--------------|-------|--------|
+| `homepage_project` | Workspace/Container, `init_project`, `exec`, `install_deps` | `homepage_project.md` |
+| `homepage_file` | `list_files`, `read_file`, `write_file`, `edit_file` | `homepage_file.md` |
+| `homepage_deploy` | `build`, `dev`, lokaler Server, `deploy_netlify`, `deploy_vercel`, `tunnel` | `homepage_deploy.md` |
+| `homepage_quality` | `lint`, `check_js`, `lighthouse`, `screenshot`, `optimize_images` | `homepage_quality.md` |
+| `homepage_git` | `git_init`, `git_commit`, `git_status`, `git_diff`, `git_log`, `git_rollback` | `homepage_git.md` |
+| `homepage_registry` | Registry, Deploy-/Edit-Logs, **Projekt-Historie** | `homepage_registry.md` |
+| `homepage` | **Legacy** kombinierte `operation`-Oberfläche | `homepage.md` |
+
+**Historie:** Vor größeren Änderungen `list_history`; danach `add_history` (`decision`, `note`, `feedback`, `milestone`, …).
+
+**UI:** Virtual Desktop **Homepage Studio**; **Config → Integrationen → Homepage**.
+
+### `homepage_registry` (Detail)
+
+SQLite-Registry (`sqlite.homepage_registry_path`). Auto-Registrierung bei `init_project`. Operationen u. a. `register`, `search`, `list`, `log_edit`, `log_deploy`, `log_problem`, `resolve_problem`, `add_history`, `list_history`, `get_history`, `search_history`.
 
 ### `manage_updates`
 AuraGo Updates prüfen/installieren.
