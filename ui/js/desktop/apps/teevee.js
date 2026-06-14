@@ -10,6 +10,7 @@
     const SEARCH_DELAY = 240;
     const MAX_FAVORITES = 80;
     const MAX_RECENT = 30;
+    const MAX_SIDEBAR_SHORTCUTS = 3;
     const MAX_VISIBLE_CHANNELS = 160;
     const STREAM_UNAVAILABLE_FALLBACK = 'Stream unavailable';
     const DEFAULT_COUNTRY = 'DE';
@@ -93,20 +94,23 @@
                     </label>
                 </div>
                 <nav class="teevee-filters" aria-label="${esc(t('desktop.teevee_filters', 'Filters'))}" data-filters></nav>
-                <section class="teevee-favorites" data-favorites-section hidden>
-                    <h3>${esc(t('desktop.teevee_filter_favorites', 'Favorites'))}</h3>
-                    <div class="teevee-shortcut-list" data-favorites-list></div>
-                </section>
-                <section class="teevee-recent" data-recent-section hidden>
-                    <h3>${esc(t('desktop.teevee_recent', 'Recent'))}</h3>
-                    <div class="teevee-shortcut-list" data-recent-list></div>
-                </section>
+                <div class="teevee-shortcuts-panel">
+                    <section class="teevee-recent" data-recent-section hidden>
+                        <h3>${esc(t('desktop.teevee_recent', 'Recent'))}</h3>
+                        <div class="teevee-shortcut-list" data-recent-list></div>
+                    </section>
+                    <section class="teevee-favorites" data-favorites-section hidden>
+                        <h3>${esc(t('desktop.teevee_filter_favorites', 'Favorites'))}</h3>
+                        <div class="teevee-shortcut-list" data-favorites-list></div>
+                    </section>
+                </div>
             </aside>
             <main class="teevee-main">
                 <section class="teevee-stage">
                     <div class="teevee-player" data-player>
                         <div class="teevee-video-shell" data-video-shell>
                             <div class="teevee-video-mount" data-video-mount></div>
+                            <button class="teevee-video-fullscreen" type="button" data-action="fullscreen-video" aria-label="${esc(t('desktop.teevee_fullscreen', 'Fullscreen'))}">${iconMarkup('maximize', 'F', 'teevee-button-icon', 16)}</button>
                             <div class="teevee-player-state" data-player-state>
                                 <span class="teevee-live-dot"></span>
                                 <strong data-state-title>${esc(t('desktop.teevee_no_channel', 'No channel selected'))}</strong>
@@ -202,7 +206,7 @@
         function renderFilters() {
             filtersEl.innerHTML = filters.map(filter => {
                 const active = state.activeFilter === filter.id;
-                const count = filter.favorites ? state.favorites.length : '';
+                const count = filter.favorites ? favoriteEntries().length : '';
                 return `<button class="teevee-filter ${active ? 'active' : ''}" type="button" data-filter="${esc(filter.id)}" aria-pressed="${active ? 'true' : 'false'}">
                     <span>${esc(t(filter.label, filter.fallback))}</span>
                     ${count ? `<em>${esc(count)}</em>` : ''}
@@ -221,17 +225,20 @@
             const available = state.recent
                 .map(id => state.entries.find(entry => entry.id === id))
                 .filter(Boolean)
-                .slice(0, 6);
+                .slice(0, MAX_SIDEBAR_SHORTCUTS);
             renderShortcutList(recentSection, recentList, available, 'recent');
         }
 
         function renderFavorites() {
-            const favoriteIDs = new Set(state.favorites);
-            const available = state.entries
-                .filter(entry => favoriteIDs.has(entry.favoriteKey))
-                .sort((a, b) => state.favorites.indexOf(a.favoriteKey) - state.favorites.indexOf(b.favoriteKey))
-                .slice(0, 6);
+            const available = favoriteEntries().slice(0, MAX_SIDEBAR_SHORTCUTS);
             renderShortcutList(favoritesSection, favoritesList, available, 'favorite-shortcut');
+        }
+
+        function favoriteEntries() {
+            const favoriteIDs = new Set(state.favorites);
+            return state.entries
+                .filter(entry => favoriteIDs.has(entry.favoriteKey))
+                .sort((a, b) => state.favorites.indexOf(a.favoriteKey) - state.favorites.indexOf(b.favoriteKey));
         }
 
         function renderShortcutList(section, list, entries, dataName) {
@@ -268,7 +275,6 @@
             listEl.innerHTML = state.visible.map(channelCard).join('');
             listEl.querySelectorAll('[data-channel-id]').forEach(card => {
                 card.addEventListener('click', event => {
-                    if (event.target.closest('[data-action="favorite"]')) return;
                     const entry = state.entries.find(item => item.id === card.dataset.channelId);
                     if (entry) playChannel(entry);
                 });
@@ -284,13 +290,6 @@
                     showChannelContextMenu(event, entry);
                 });
             });
-            listEl.querySelectorAll('[data-action="favorite"]').forEach(button => {
-                button.addEventListener('click', event => {
-                    event.stopPropagation();
-                    const entry = state.entries.find(item => item.id === button.dataset.channelId);
-                    if (entry) toggleFavorite(entry);
-                });
-            });
             listEl.querySelectorAll('img[data-logo]').forEach(img => {
                 img.addEventListener('error', () => {
                     img.removeAttribute('src');
@@ -300,7 +299,6 @@
         }
 
         function channelCard(entry) {
-            const favorite = isFavorite(entry);
             const active = state.current && state.current.id === entry.id;
             const unsupported = entry.unsupported;
             const logo = entry.logo || '';
@@ -315,7 +313,6 @@
                 </div>
                 <div class="teevee-channel-side">
                     ${unsupported ? `<span class="teevee-badge">${esc(t('desktop.teevee_unsupported_badge', 'Headers'))}</span>` : `<span class="teevee-live">${esc(t('desktop.teevee_live', 'LIVE'))}</span>`}
-                    <button class="teevee-favorite ${favorite ? 'active' : ''}" type="button" data-action="favorite" data-channel-id="${esc(entry.id)}" aria-label="${esc(favorite ? t('desktop.teevee_remove_favorite', 'Remove favorite') : t('desktop.teevee_add_favorite', 'Add favorite'))}">${favorite ? '*' : '+'}</button>
                 </div>
             </article>`;
         }
@@ -400,7 +397,6 @@
             event.preventDefault();
             ctx.showContextMenu(event.clientX, event.clientY, [
                 { labelKey: 'desktop.teevee_play', icon: 'video', disabled: entry.unsupported, action: () => playChannel(entry) },
-                { labelKey: 'desktop.menu_favorite', icon: 'heart', checked: isFavorite(entry), action: () => toggleFavorite(entry) },
                 { type: 'separator' },
                 { labelKey: 'desktop.teevee_refresh', icon: 'refresh', action: () => loadCatalog(true) }
             ]);
@@ -565,6 +561,8 @@
         });
         host.querySelector('[data-action="refresh"]').addEventListener('click', () => loadCatalog(true));
         host.querySelector('[data-action="fullscreen"]').addEventListener('click', requestPlayerFullscreen);
+        host.querySelector('[data-action="fullscreen-video"]').addEventListener('click', requestPlayerFullscreen);
+        playerShell.addEventListener('dblclick', requestPlayerFullscreen);
         host.querySelector('[data-action="stop"]').addEventListener('click', stopPlayback);
         toggleBtn.addEventListener('click', () => {
             if (!state.current || state.current.unsupported) return;
@@ -683,7 +681,7 @@
             const name = clean(channel && channel.name) || clean(stream.title) || stream.url;
             const entry = {
                 id: clean(stream.channel || stream.title || 'stream') + ':' + index,
-                favoriteKey: clean(stream.channel || stream.url || stream.title),
+                favoriteKey: clean(stream.url || stream.channel || stream.title),
                 channelID: clean(stream.channel),
                 name,
                 url: clean(stream.url),

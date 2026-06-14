@@ -95,6 +95,9 @@ func TestDesktopTeeVeeAppMarkers(t *testing.T) {
 		"function resolutionMatches(entry)",
 		"quality: clean(stream.quality || stream.label)",
 		"resolutionBucket: resolutionBucketFromStream(stream)",
+		"favoriteKey: clean(stream.url || stream.channel || stream.title)",
+		"data-action=\"fullscreen-video\"",
+		"playerShell.addEventListener('dblclick'",
 	} {
 		if !strings.Contains(app, want) {
 			t.Fatalf("TeeVee app missing implementation marker %q", want)
@@ -107,8 +110,10 @@ func TestDesktopTeeVeeAppMarkers(t *testing.T) {
 		".teevee-sidebar",
 		".teevee-control-grid",
 		".teevee-select-field",
+		".teevee-shortcuts-panel",
 		".teevee-favorites",
 		".teevee-shortcut-list",
+		".teevee-video-fullscreen",
 		".teevee-now strong",
 		".teevee-player",
 		".teevee-channel-list",
@@ -120,6 +125,29 @@ func TestDesktopTeeVeeAppMarkers(t *testing.T) {
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("TeeVee CSS missing marker %q", want)
+		}
+	}
+}
+
+func TestDesktopTeeVeeFavoritesAreCurrentStreamOnly(t *testing.T) {
+	t.Parallel()
+
+	app := readDesktopAssetText(t, "js/desktop/apps/teevee.js")
+	recentMarker := `<section class="teevee-recent" data-recent-section hidden>`
+	favoritesMarker := `<section class="teevee-favorites" data-favorites-section hidden>`
+	if !strings.Contains(app, recentMarker) || !strings.Contains(app, favoritesMarker) {
+		t.Fatalf("TeeVee app missing recent/favorites shortcut sections")
+	}
+	if strings.Index(app, recentMarker) > strings.Index(app, favoritesMarker) {
+		t.Fatalf("TeeVee recent shortcuts should render before favorites")
+	}
+	for _, forbidden := range []string{
+		`data-action="favorite" data-channel-id`,
+		"event.target.closest('[data-action=\"favorite\"]')",
+		"action: () => toggleFavorite(entry)",
+	} {
+		if strings.Contains(app, forbidden) {
+			t.Fatalf("TeeVee app should not allow favoriting non-active list streams via marker %q", forbidden)
 		}
 	}
 }

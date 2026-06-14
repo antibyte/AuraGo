@@ -191,7 +191,9 @@
 .teevee-filters {
     display: grid;
     gap: 7px;
+    flex: 0 1 168px;
     min-height: 0;
+    max-height: 168px;
     overflow-y: auto;
     scrollbar-width: thin;
 }
@@ -238,23 +240,25 @@
     text-align: center;
 }
 
-.teevee-favorites,
-.teevee-recent {
-    flex: 0 0 auto;
+.teevee-shortcuts-panel {
+    display: grid;
+    gap: 12px;
+    flex: 1 1 140px;
+    min-height: 130px;
     padding-top: 12px;
     border-top: 1px solid var(--teevee-line);
+    overflow-y: auto;
+    scrollbar-width: thin;
 }
 
-.teevee-favorites {
-    margin-top: auto;
-}
-
+.teevee-favorites,
 .teevee-recent {
-    margin-top: auto;
+    min-width: 0;
 }
 
-.teevee-favorites:not([hidden]) + .teevee-recent {
-    margin-top: 0;
+.teevee-recent:not([hidden]) + .teevee-favorites:not([hidden]) {
+    padding-top: 12px;
+    border-top: 1px solid var(--teevee-line);
 }
 
 .teevee-favorites h3,
@@ -360,6 +364,34 @@
     background: #02050a;
 }
 
+.teevee-video-fullscreen {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 2;
+    display: inline-grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    color: #f4fbff;
+    background: rgba(4, 12, 22, 0.64);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+    cursor: pointer;
+    opacity: 0.86;
+    backdrop-filter: blur(10px);
+    transition: border-color 150ms ease, background 150ms ease, opacity 150ms ease, transform 150ms ease;
+}
+
+.teevee-video-fullscreen:hover,
+.teevee-video-fullscreen:focus-visible {
+    border-color: rgba(55, 211, 197, 0.56);
+    background: rgba(55, 211, 197, 0.18);
+    opacity: 1;
+    transform: translateY(-1px);
+}
+
 .teevee-player-state {
     position: absolute;
     inset: auto 16px 16px 16px;
@@ -411,8 +443,7 @@
 }
 
 .teevee-icon-button,
-.teevee-refresh,
-.teevee-favorite {
+.teevee-refresh {
     display: inline-grid;
     place-items: center;
     border: 1px solid var(--teevee-line);
@@ -430,17 +461,14 @@
 
 .teevee-icon-button:hover,
 .teevee-refresh:hover,
-.teevee-favorite:hover,
 .teevee-icon-button:focus-visible,
-.teevee-refresh:focus-visible,
-.teevee-favorite:focus-visible {
+.teevee-refresh:focus-visible {
     border-color: rgba(55, 211, 197, 0.48);
     background: rgba(55, 211, 197, 0.14);
     transform: translateY(-1px);
 }
 
-.teevee-icon-button.active,
-.teevee-favorite.active {
+.teevee-icon-button.active {
     color: #06141b;
     border-color: transparent;
     background: var(--teevee-accent);
@@ -635,13 +663,6 @@
     background: rgba(255, 255, 255, 0.09);
 }
 
-.teevee-favorite {
-    width: 28px;
-    height: 28px;
-    font-size: 0.92rem;
-    font-weight: 900;
-}
-
 .teevee-empty {
     display: grid;
     place-items: center;
@@ -737,6 +758,8 @@
     .teevee-filters {
         grid-column: 1 / -1;
         display: flex;
+        flex: 0 0 auto;
+        max-height: none;
         overflow-x: auto;
     }
 
@@ -749,8 +772,7 @@
         flex: 0 0 auto;
     }
 
-    .teevee-favorites,
-    .teevee-recent {
+    .teevee-shortcuts-panel {
         display: none;
     }
 
