@@ -1302,5 +1302,14 @@
   "desktop.teevee_recent": "Recent",
   "desktop.teevee_unsupported_badge": "Headers",
   "desktop.teevee_catalog_error": "Could not load TV catalog",
-  "desktop.teevee_status_ready": "Choose a channel"
+  "desktop.teevee_status_ready": "Choose a channel",
+  "desktop.teevee_country": "Country",
+  "desktop.teevee_country_all": "All countries",
+  "desktop.teevee_resolution": "Resolution",
+  "desktop.teevee_resolution_all": "All resolutions",
+  "desktop.teevee_resolution_uhd": "UHD / 4K",
+  "desktop.teevee_resolution_fhd": "1080p",
+  "desktop.teevee_resolution_hd": "720p",
+  "desktop.teevee_resolution_sd": "SD",
+  "desktop.teevee_resolution_unknown": "Unknown"
 }

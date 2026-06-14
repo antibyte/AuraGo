@@ -1302,5 +1302,14 @@
   "desktop.teevee_recent": "Πρόσφατα",
   "desktop.teevee_unsupported_badge": "Headers",
   "desktop.teevee_catalog_error": "Δεν ήταν δυνατή η φόρτωση του καταλόγου TV",
-  "desktop.teevee_status_ready": "Διάλεξε κανάλι"
+  "desktop.teevee_status_ready": "Διάλεξε κανάλι",
+  "desktop.teevee_country": "Χώρα",
+  "desktop.teevee_country_all": "Όλες οι χώρες",
+  "desktop.teevee_resolution": "Ανάλυση",
+  "desktop.teevee_resolution_all": "Όλες οι αναλύσεις",
+  "desktop.teevee_resolution_uhd": "UHD / 4K",
+  "desktop.teevee_resolution_fhd": "1080p",
+  "desktop.teevee_resolution_hd": "720p",
+  "desktop.teevee_resolution_sd": "SD",
+  "desktop.teevee_resolution_unknown": "Άγνωστη"
 }

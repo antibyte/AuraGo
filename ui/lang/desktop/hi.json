@@ -1302,5 +1302,14 @@
   "desktop.teevee_recent": "हाल के",
   "desktop.teevee_unsupported_badge": "हेडर",
   "desktop.teevee_catalog_error": "TV कैटलॉग लोड नहीं हो सका",
-  "desktop.teevee_status_ready": "एक चैनल चुनें"
+  "desktop.teevee_status_ready": "एक चैनल चुनें",
+  "desktop.teevee_country": "देश",
+  "desktop.teevee_country_all": "सभी देश",
+  "desktop.teevee_resolution": "रिज़ॉल्यूशन",
+  "desktop.teevee_resolution_all": "सभी रिज़ॉल्यूशन",
+  "desktop.teevee_resolution_uhd": "UHD / 4K",
+  "desktop.teevee_resolution_fhd": "1080p",
+  "desktop.teevee_resolution_hd": "720p",
+  "desktop.teevee_resolution_sd": "SD",
+  "desktop.teevee_resolution_unknown": "अज्ञात"
 }

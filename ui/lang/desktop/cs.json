@@ -1302,5 +1302,14 @@
   "desktop.teevee_recent": "Nedávné",
   "desktop.teevee_unsupported_badge": "Hlavičky",
   "desktop.teevee_catalog_error": "Televizní katalog se nepodařilo načíst",
-  "desktop.teevee_status_ready": "Vyber kanál"
+  "desktop.teevee_status_ready": "Vyber kanál",
+  "desktop.teevee_country": "Země",
+  "desktop.teevee_country_all": "Všechny země",
+  "desktop.teevee_resolution": "Rozlišení",
+  "desktop.teevee_resolution_all": "Všechna rozlišení",
+  "desktop.teevee_resolution_uhd": "UHD / 4K",
+  "desktop.teevee_resolution_fhd": "1080p",
+  "desktop.teevee_resolution_hd": "720p",
+  "desktop.teevee_resolution_sd": "SD",
+  "desktop.teevee_resolution_unknown": "Neznámé"
 }

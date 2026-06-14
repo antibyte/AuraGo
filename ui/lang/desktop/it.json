@@ -1302,5 +1302,14 @@
   "desktop.teevee_recent": "Recenti",
   "desktop.teevee_unsupported_badge": "Header",
   "desktop.teevee_catalog_error": "Impossibile caricare il catalogo TV",
-  "desktop.teevee_status_ready": "Scegli un canale"
+  "desktop.teevee_status_ready": "Scegli un canale",
+  "desktop.teevee_country": "Paese",
+  "desktop.teevee_country_all": "Tutti i paesi",
+  "desktop.teevee_resolution": "Risoluzione",
+  "desktop.teevee_resolution_all": "Tutte le risoluzioni",
+  "desktop.teevee_resolution_uhd": "UHD / 4K",
+  "desktop.teevee_resolution_fhd": "1080p",
+  "desktop.teevee_resolution_hd": "720p",
+  "desktop.teevee_resolution_sd": "SD",
+  "desktop.teevee_resolution_unknown": "Sconosciuta"
 }

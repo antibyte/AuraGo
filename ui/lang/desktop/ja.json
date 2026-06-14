@@ -1302,5 +1302,14 @@
   "desktop.teevee_recent": "最近",
   "desktop.teevee_unsupported_badge": "ヘッダー",
   "desktop.teevee_catalog_error": "TVカタログを読み込めませんでした",
-  "desktop.teevee_status_ready": "チャンネルを選択"
+  "desktop.teevee_status_ready": "チャンネルを選択",
+  "desktop.teevee_country": "国",
+  "desktop.teevee_country_all": "すべての国",
+  "desktop.teevee_resolution": "解像度",
+  "desktop.teevee_resolution_all": "すべての解像度",
+  "desktop.teevee_resolution_uhd": "UHD / 4K",
+  "desktop.teevee_resolution_fhd": "1080p",
+  "desktop.teevee_resolution_hd": "720p",
+  "desktop.teevee_resolution_sd": "SD",
+  "desktop.teevee_resolution_unknown": "不明"
 }

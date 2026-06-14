@@ -1302,5 +1302,14 @@
   "desktop.teevee_recent": "最近",
   "desktop.teevee_unsupported_badge": "请求头",
   "desktop.teevee_catalog_error": "无法加载电视目录",
-  "desktop.teevee_status_ready": "选择频道"
+  "desktop.teevee_status_ready": "选择频道",
+  "desktop.teevee_country": "国家/地区",
+  "desktop.teevee_country_all": "所有国家/地区",
+  "desktop.teevee_resolution": "分辨率",
+  "desktop.teevee_resolution_all": "所有分辨率",
+  "desktop.teevee_resolution_uhd": "UHD / 4K",
+  "desktop.teevee_resolution_fhd": "1080p",
+  "desktop.teevee_resolution_hd": "720p",
+  "desktop.teevee_resolution_sd": "SD",
+  "desktop.teevee_resolution_unknown": "未知"
 }

@@ -12,19 +12,30 @@
     const MAX_RECENT = 30;
     const MAX_VISIBLE_CHANNELS = 160;
     const STREAM_UNAVAILABLE_FALLBACK = 'Stream unavailable';
+    const DEFAULT_COUNTRY = 'DE';
+    const ALL_COUNTRIES = 'all';
+    const ALL_RESOLUTIONS = 'all';
     const disposers = new Map();
     const catalogCache = window.TeeVeeCatalogCache || (window.TeeVeeCatalogCache = { promise: null, data: null, loadedAt: 0 });
 
     const filters = [
-        { id: 'de', label: 'desktop.teevee_filter_germany', fallback: 'Germany', country: 'DE' },
+        { id: 'all', label: 'desktop.teevee_filter_global', fallback: 'Global' },
         { id: 'favorites', label: 'desktop.teevee_filter_favorites', fallback: 'Favorites', favorites: true },
-        { id: 'global', label: 'desktop.teevee_filter_global', fallback: 'Global' },
         { id: 'news', label: 'desktop.teevee_filter_news', fallback: 'News', category: 'news' },
         { id: 'sports', label: 'desktop.teevee_filter_sports', fallback: 'Sports', category: 'sports' },
         { id: 'movies', label: 'desktop.teevee_filter_movies', fallback: 'Movies', category: 'movies' },
         { id: 'music', label: 'desktop.teevee_filter_music', fallback: 'Music', category: 'music' },
         { id: 'kids', label: 'desktop.teevee_filter_kids', fallback: 'Kids', category: 'kids' },
         { id: 'documentary', label: 'desktop.teevee_filter_documentary', fallback: 'Documentary', category: 'documentary' }
+    ];
+
+    const resolutionFilters = [
+        { id: ALL_RESOLUTIONS, label: 'desktop.teevee_resolution_all', fallback: 'All resolutions' },
+        { id: 'uhd', label: 'desktop.teevee_resolution_uhd', fallback: 'UHD / 4K' },
+        { id: 'fhd', label: 'desktop.teevee_resolution_fhd', fallback: '1080p' },
+        { id: 'hd', label: 'desktop.teevee_resolution_hd', fallback: '720p' },
+        { id: 'sd', label: 'desktop.teevee_resolution_sd', fallback: 'SD' },
+        { id: 'unknown', label: 'desktop.teevee_resolution_unknown', fallback: 'Unknown' }
     ];
 
     function render(host, windowId, context) {
@@ -39,7 +50,9 @@
         video.playsInline = true;
 
         const state = {
-            activeFilter: 'de',
+            activeFilter: 'all',
+            countryFilter: DEFAULT_COUNTRY,
+            resolutionFilter: ALL_RESOLUTIONS,
             entries: [],
             visible: [],
             search: '',
@@ -69,6 +82,16 @@
                     ${iconMarkup('search', 'S', 'teevee-search-icon', 15)}
                     <input type="search" data-search autocomplete="off" spellcheck="false" placeholder="${esc(t('desktop.teevee_search_placeholder', 'Search channels...'))}" inputmode="search" enterkeyhint="search" autocapitalize="off">
                 </label>
+                <div class="teevee-control-grid">
+                    <label class="teevee-select-field">
+                        <span>${esc(t('desktop.teevee_country', 'Country'))}</span>
+                        <select data-country-filter aria-label="${esc(t('desktop.teevee_country', 'Country'))}"></select>
+                    </label>
+                    <label class="teevee-select-field">
+                        <span>${esc(t('desktop.teevee_resolution', 'Resolution'))}</span>
+                        <select data-resolution-filter aria-label="${esc(t('desktop.teevee_resolution', 'Resolution'))}"></select>
+                    </label>
+                </div>
                 <nav class="teevee-filters" aria-label="${esc(t('desktop.teevee_filters', 'Filters'))}" data-filters></nav>
                 <section class="teevee-recent" data-recent-section hidden>
                     <h3>${esc(t('desktop.teevee_recent', 'Recent'))}</h3>
@@ -119,6 +142,8 @@
         const root = host.querySelector('.teevee-app');
         const filtersEl = host.querySelector('[data-filters]');
         const searchInput = host.querySelector('[data-search]');
+        const countrySelect = host.querySelector('[data-country-filter]');
+        const resolutionSelect = host.querySelector('[data-resolution-filter]');
         const listEl = host.querySelector('[data-channel-list]');
         const listTitle = host.querySelector('[data-list-title]');
         const listCount = host.querySelector('[data-list-count]');
@@ -142,6 +167,31 @@
 
         playerMount.appendChild(video);
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
+
+        function renderFilterControls() {
+            const countries = countryOptions();
+            if (!countries.some(option => option.value === state.countryFilter)) state.countryFilter = ALL_COUNTRIES;
+            countrySelect.innerHTML = countries.map(option => `<option value="${esc(option.value)}">${esc(option.label)}</option>`).join('');
+            countrySelect.value = state.countryFilter;
+            resolutionSelect.innerHTML = resolutionFilters.map(option => `<option value="${esc(option.id)}">${esc(t(option.label, option.fallback))}</option>`).join('');
+            resolutionSelect.value = state.resolutionFilter;
+        }
+
+        function countryOptions() {
+            const seen = new Set();
+            state.entries.forEach(entry => {
+                if (/^[A-Z]{2}$/.test(entry.country)) seen.add(entry.country);
+            });
+            const codes = Array.from(seen);
+            if (!codes.includes(DEFAULT_COUNTRY)) codes.unshift(DEFAULT_COUNTRY);
+            codes.sort((a, b) => {
+                if (a === DEFAULT_COUNTRY) return -1;
+                if (b === DEFAULT_COUNTRY) return 1;
+                return countryDisplayName(a).localeCompare(countryDisplayName(b), undefined, { sensitivity: 'base' });
+            });
+            return [{ value: ALL_COUNTRIES, label: t('desktop.teevee_country_all', 'All countries') }]
+                .concat(codes.map(code => ({ value: code, label: countryDisplayName(code) })));
+        }
 
         function renderFilters() {
             filtersEl.innerHTML = filters.map(filter => {
@@ -181,7 +231,10 @@
 
         function renderList() {
             const filter = currentFilter();
-            listTitle.textContent = state.search ? t('desktop.teevee_filter_global', 'Global') : t(filter.label, filter.fallback);
+            const titleParts = [t(filter.label, filter.fallback)];
+            if (state.countryFilter !== ALL_COUNTRIES) titleParts.push(countryDisplayName(state.countryFilter));
+            if (state.resolutionFilter !== ALL_RESOLUTIONS) titleParts.push(selectedResolutionLabel());
+            listTitle.textContent = titleParts.filter(Boolean).join(' | ');
             listCount.textContent = state.loading ? '' : String(state.visible.length);
             statusEl.hidden = !state.error && !state.loading;
             statusEl.textContent = state.loading ? t('desktop.teevee_loading', 'Loading channels...') : state.error;
@@ -232,7 +285,7 @@
             const active = state.current && state.current.id === entry.id;
             const unsupported = entry.unsupported;
             const logo = entry.logo || '';
-            const meta = [countryFlag(entry.country), entry.country, qualityText(entry), categoryText(entry)].filter(Boolean).join(' | ');
+            const meta = [countryFlag(entry.country), entry.country, resolutionText(entry), categoryText(entry)].filter(Boolean).join(' | ');
             return `<article class="teevee-channel ${active ? 'active' : ''} ${unsupported ? 'unsupported' : ''}" role="button" tabindex="0" data-channel-id="${esc(entry.id)}" aria-label="${esc(t('desktop.teevee_play', 'Play'))} ${esc(entry.name)}">
                 <div class="teevee-channel-logo">
                     ${logo ? `<img data-logo src="${esc(logo)}" alt="">` : iconMarkup('teevee', 'TV', 'teevee-channel-icon', 22)}
@@ -252,9 +305,9 @@
             const current = state.current;
             const unavailable = state.error && current;
             nowTitle.textContent = current ? current.name : t('desktop.teevee_no_channel', 'No channel selected');
-            nowMeta.textContent = current ? [countryFlag(current.country), current.country, qualityText(current)].filter(Boolean).join(' | ') : '';
+            nowMeta.textContent = current ? [countryFlag(current.country), current.country, resolutionText(current)].filter(Boolean).join(' | ') : '';
             stateTitle.textContent = current ? current.name : t('desktop.teevee_no_channel', 'No channel selected');
-            stateMeta.textContent = unavailable ? state.error : (current ? [t('desktop.teevee_live', 'LIVE'), current.country || '', qualityText(current)].filter(Boolean).join(' | ') : t('desktop.teevee_status_ready', 'Choose a channel'));
+            stateMeta.textContent = unavailable ? state.error : (current ? [t('desktop.teevee_live', 'LIVE'), current.country || '', resolutionText(current)].filter(Boolean).join(' | ') : t('desktop.teevee_status_ready', 'Choose a channel'));
             playerState.hidden = state.playing && !unavailable;
             root.classList.toggle('is-playing', state.playing);
             root.classList.toggle('is-muted', state.muted);
@@ -268,6 +321,7 @@
         }
 
         function renderAll() {
+            renderFilterControls();
             renderFilters();
             renderRecent();
             renderList();
@@ -278,19 +332,29 @@
             const query = normalizeSearch(state.search);
             const favoriteIDs = new Set(state.favorites);
             let entries = state.entries;
-            if (query) {
-                entries = entries.filter(entry => searchableText(entry).includes(query));
-            } else {
-                const filter = currentFilter();
-                if (filter.favorites) {
-                    entries = entries.filter(entry => favoriteIDs.has(entry.favoriteKey));
-                } else if (filter.country) {
-                    entries = entries.filter(entry => entry.country === filter.country);
-                } else if (filter.category) {
-                    entries = entries.filter(entry => entry.categories.includes(filter.category));
-                }
+            if (state.countryFilter !== ALL_COUNTRIES) entries = entries.filter(countryMatches);
+            if (state.resolutionFilter !== ALL_RESOLUTIONS) entries = entries.filter(resolutionMatches);
+            const filter = currentFilter();
+            if (filter.favorites) {
+                entries = entries.filter(entry => favoriteIDs.has(entry.favoriteKey));
+            } else if (filter.category) {
+                entries = entries.filter(entry => entry.categories.includes(filter.category));
             }
+            if (query) entries = entries.filter(entry => searchableText(entry).includes(query));
             state.visible = entries.slice(0, MAX_VISIBLE_CHANNELS);
+        }
+
+        function countryMatches(entry) {
+            return state.countryFilter === ALL_COUNTRIES || entry.country === state.countryFilter;
+        }
+
+        function resolutionMatches(entry) {
+            return state.resolutionFilter === ALL_RESOLUTIONS || entry.resolutionBucket === state.resolutionFilter;
+        }
+
+        function selectedResolutionLabel() {
+            const option = resolutionFilters.find(item => item.id === state.resolutionFilter);
+            return option ? t(option.label, option.fallback) : '';
         }
 
         async function loadCatalog(force) {
@@ -469,6 +533,16 @@
                 renderAll();
             }, SEARCH_DELAY);
         });
+        countrySelect.addEventListener('change', () => {
+            state.countryFilter = countrySelect.value || ALL_COUNTRIES;
+            updateVisible();
+            renderAll();
+        });
+        resolutionSelect.addEventListener('change', () => {
+            state.resolutionFilter = resolutionSelect.value || ALL_RESOLUTIONS;
+            updateVisible();
+            renderAll();
+        });
         host.querySelector('[data-action="refresh"]').addEventListener('click', () => loadCatalog(true));
         host.querySelector('[data-action="fullscreen"]').addEventListener('click', requestPlayerFullscreen);
         host.querySelector('[data-action="stop"]').addEventListener('click', stopPlayback);
@@ -598,6 +672,7 @@
                 categoryNames: channelCategories.map(id => categoryByID.get(id) || id),
                 quality: clean(stream.quality || stream.label),
                 label: clean(stream.label),
+                resolutionBucket: resolutionBucketFromStream(stream),
                 logo: clean(channel && channel.logo),
                 website: clean(channel && channel.website),
                 isNsfw: !!(channel && channel.is_nsfw),
@@ -630,6 +705,7 @@
             entry.country,
             entry.quality,
             entry.label,
+            entry.resolutionBucket,
             entry.channelID,
             entry.categories.join(' '),
             entry.categoryNames.join(' ')
@@ -642,6 +718,33 @@
 
     function qualityText(entry) {
         return clean(entry.quality || entry.label) || '';
+    }
+
+    function resolutionText(entry) {
+        return qualityText(entry) || resolutionFallbackLabel(entry && entry.resolutionBucket);
+    }
+
+    function resolutionBucketFromStream(stream) {
+        const text = [
+            stream && stream.quality,
+            stream && stream.label,
+            stream && stream.url
+        ].map(clean).join(' ').toLowerCase();
+        if (/(2160p?|4k|uhd|ultra\s*hd)/.test(text)) return 'uhd';
+        if (/(1080p?|fhd|full\s*hd)/.test(text)) return 'fhd';
+        if (/(720p?|hd)/.test(text)) return 'hd';
+        if (/(576p?|540p?|480p?|360p?|240p?|sd)/.test(text)) return 'sd';
+        return 'unknown';
+    }
+
+    function resolutionFallbackLabel(bucket) {
+        switch (clean(bucket)) {
+            case 'uhd': return 'UHD / 4K';
+            case 'fhd': return '1080p';
+            case 'hd': return '720p';
+            case 'sd': return 'SD';
+            default: return '';
+        }
     }
 
     function loadFavorites() {
@@ -684,6 +787,18 @@
                 artwork: entry.logo ? [{ src: entry.logo, sizes: '96x96', type: 'image/png' }] : []
             });
         } catch (_) {}
+    }
+
+    function countryDisplayName(code) {
+        const value = clean(code).toUpperCase();
+        if (!/^[A-Z]{2}$/.test(value)) return value;
+        try {
+            const locale = document.documentElement.lang || navigator.language || 'en';
+            const display = new Intl.DisplayNames([locale], { type: 'region' }).of(value);
+            return display ? value + ' - ' + display : value;
+        } catch (_) {
+            return value;
+        }
     }
 
     function countryFlag(code) {

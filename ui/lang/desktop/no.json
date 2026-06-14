@@ -1302,5 +1302,14 @@
   "desktop.teevee_recent": "Siste",
   "desktop.teevee_unsupported_badge": "Headers",
   "desktop.teevee_catalog_error": "Kunne ikke laste TV-katalogen",
-  "desktop.teevee_status_ready": "Velg en kanal"
+  "desktop.teevee_status_ready": "Velg en kanal",
+  "desktop.teevee_country": "Land",
+  "desktop.teevee_country_all": "Alle land",
+  "desktop.teevee_resolution": "Oppløsning",
+  "desktop.teevee_resolution_all": "Alle oppløsninger",
+  "desktop.teevee_resolution_uhd": "UHD / 4K",
+  "desktop.teevee_resolution_fhd": "1080p",
+  "desktop.teevee_resolution_hd": "720p",
+  "desktop.teevee_resolution_sd": "SD",
+  "desktop.teevee_resolution_unknown": "Ukjent"
 }

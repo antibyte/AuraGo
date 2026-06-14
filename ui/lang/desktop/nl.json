@@ -1302,5 +1302,14 @@
   "desktop.teevee_recent": "Recent",
   "desktop.teevee_unsupported_badge": "Headers",
   "desktop.teevee_catalog_error": "TV-catalogus laden mislukt",
-  "desktop.teevee_status_ready": "Kies een kanaal"
+  "desktop.teevee_status_ready": "Kies een kanaal",
+  "desktop.teevee_country": "Land",
+  "desktop.teevee_country_all": "Alle landen",
+  "desktop.teevee_resolution": "Resolutie",
+  "desktop.teevee_resolution_all": "Alle resoluties",
+  "desktop.teevee_resolution_uhd": "UHD / 4K",
+  "desktop.teevee_resolution_fhd": "1080p",
+  "desktop.teevee_resolution_hd": "720p",
+  "desktop.teevee_resolution_sd": "SD",
+  "desktop.teevee_resolution_unknown": "Onbekend"
 }

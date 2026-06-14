@@ -6,17 +6,40 @@
     --teevee-muted: rgba(231, 242, 255, 0.66);
     --teevee-accent: #37d3c5;
     --teevee-accent-strong: #6af3e8;
+    --teevee-warm: #ffb14a;
+    --teevee-blue: #4fb7ff;
     --teevee-danger: #ff4b5f;
     position: relative;
     display: grid;
-    grid-template-columns: 230px minmax(0, 1fr);
+    grid-template-columns: 268px minmax(0, 1fr);
     min-height: 100%;
     height: 100%;
     color: var(--vd-text, #f2f8ff);
     background:
-        linear-gradient(145deg, rgba(7, 15, 26, 0.96), rgba(9, 17, 29, 0.86)),
+        radial-gradient(circle at 18% 12%, rgba(79, 183, 255, 0.2), transparent 28%),
+        radial-gradient(circle at 74% 78%, rgba(255, 75, 95, 0.16), transparent 34%),
+        linear-gradient(145deg, rgba(6, 13, 23, 0.98), rgba(9, 17, 29, 0.9)),
         #08111d;
     overflow: hidden;
+}
+
+.teevee-app::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.65), transparent 72%);
+}
+
+.teevee-sidebar,
+.teevee-main,
+.teevee-toast {
+    position: relative;
+    z-index: 1;
 }
 
 .desktop-body[data-theme="light"] .teevee-app {
@@ -34,12 +57,13 @@
 .teevee-sidebar {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
     min-width: 0;
     min-height: 0;
-    padding: 16px;
+    padding: 18px;
     border-right: 1px solid var(--teevee-line);
-    background: rgba(4, 12, 22, 0.28);
+    background: linear-gradient(180deg, rgba(4, 12, 22, 0.64), rgba(4, 12, 22, 0.22));
+    backdrop-filter: blur(18px);
 }
 
 .desktop-body[data-theme="light"] .teevee-sidebar {
@@ -48,21 +72,22 @@
 
 .teevee-brand {
     display: grid;
-    grid-template-columns: 42px minmax(0, 1fr);
+    grid-template-columns: 46px minmax(0, 1fr);
     align-items: center;
     gap: 10px;
-    min-height: 50px;
+    min-height: 54px;
 }
 
 .teevee-brand-icon {
     display: grid;
     place-items: center;
-    width: 42px;
-    height: 42px;
+    width: 46px;
+    height: 46px;
     border: 1px solid rgba(55, 211, 197, 0.42);
     border-radius: 8px;
     color: #07141b;
-    background: linear-gradient(135deg, #74fff0, #3da5ff);
+    background: linear-gradient(135deg, #74fff0, #4fb7ff 58%, #ffb14a);
+    box-shadow: 0 16px 34px rgba(55, 211, 197, 0.18);
 }
 
 .teevee-brand strong,
@@ -93,11 +118,17 @@
     grid-template-columns: 18px minmax(0, 1fr);
     align-items: center;
     gap: 8px;
-    min-height: 42px;
+    min-height: 44px;
     padding: 0 12px;
     border: 1px solid var(--teevee-line);
     border-radius: 8px;
     background: var(--teevee-panel);
+}
+
+.teevee-search:focus-within,
+.teevee-select-field:focus-within {
+    border-color: rgba(106, 243, 232, 0.58);
+    box-shadow: 0 0 0 3px rgba(55, 211, 197, 0.12);
 }
 
 .teevee-search input {
@@ -116,6 +147,45 @@
 
 .desktop-body[data-theme="light"] .teevee-search input::placeholder {
     color: rgba(38, 58, 78, 0.5);
+}
+
+.teevee-control-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.teevee-select-field {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid var(--teevee-line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.055);
+}
+
+.teevee-select-field span {
+    color: var(--teevee-muted);
+    font-size: 0.72rem;
+    font-weight: 850;
+    text-transform: uppercase;
+}
+
+.teevee-select-field select {
+    width: 100%;
+    min-width: 0;
+    min-height: 34px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    color: inherit;
+    background: rgba(4, 12, 22, 0.62);
+    font: inherit;
+    font-weight: 720;
+}
+
+.desktop-body[data-theme="light"] .teevee-select-field select {
+    background: rgba(255, 255, 255, 0.88);
 }
 
 .teevee-filters {
@@ -140,6 +210,7 @@
     cursor: pointer;
     font-weight: 720;
     text-align: left;
+    transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
 .teevee-filter:hover,
@@ -147,6 +218,7 @@
     color: inherit;
     border-color: rgba(55, 211, 197, 0.34);
     background: rgba(255, 255, 255, 0.07);
+    transform: translateX(2px);
 }
 
 .teevee-filter.active {
@@ -214,7 +286,7 @@
 
 .teevee-main {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 330px;
+    grid-template-columns: minmax(0, 1fr) 370px;
     min-width: 0;
     min-height: 0;
 }
@@ -234,15 +306,19 @@
     min-height: 0;
     border: 1px solid var(--teevee-line);
     border-radius: 8px;
-    background: var(--teevee-panel);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent 36%),
+        var(--teevee-panel);
     overflow: hidden;
-    box-shadow: 0 26px 70px rgba(0, 0, 0, 0.28);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.34);
 }
 
 .teevee-video-shell {
     position: relative;
     min-height: 0;
-    background: #02050a;
+    background:
+        radial-gradient(circle at 50% 45%, rgba(79, 183, 255, 0.09), transparent 35%),
+        #02050a;
 }
 
 .teevee-video-mount,
@@ -302,7 +378,9 @@
     min-height: 64px;
     padding: 10px;
     border-top: 1px solid var(--teevee-line);
-    background: var(--teevee-panel-strong);
+    background:
+        linear-gradient(90deg, rgba(55, 211, 197, 0.08), transparent 46%, rgba(255, 177, 74, 0.07)),
+        var(--teevee-panel-strong);
 }
 
 .teevee-icon-button,
@@ -315,6 +393,7 @@
     color: inherit;
     background: rgba(255, 255, 255, 0.06);
     cursor: pointer;
+    transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
 }
 
 .teevee-icon-button {
@@ -330,6 +409,7 @@
 .teevee-favorite:focus-visible {
     border-color: rgba(55, 211, 197, 0.48);
     background: rgba(55, 211, 197, 0.14);
+    transform: translateY(-1px);
 }
 
 .teevee-icon-button.active,
@@ -447,8 +527,11 @@
     padding: 9px;
     border: 1px solid var(--teevee-line);
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.055);
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.035)),
+        rgba(255, 255, 255, 0.035);
     cursor: pointer;
+    transition: border-color 160ms ease, background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
 }
 
 .teevee-channel:hover,
@@ -456,6 +539,8 @@
 .teevee-channel.active {
     border-color: rgba(55, 211, 197, 0.48);
     background: rgba(55, 211, 197, 0.12);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.16);
+    transform: translateY(-1px);
 }
 
 .teevee-channel.unsupported {
@@ -581,6 +666,10 @@
 }
 
 @media (max-width: 1020px) {
+    .teevee-app {
+        grid-template-columns: 226px minmax(0, 1fr);
+    }
+
     .teevee-main {
         grid-template-columns: minmax(0, 1fr) 300px;
     }
@@ -619,6 +708,11 @@
         overflow-x: auto;
     }
 
+    .teevee-control-grid {
+        grid-column: 1 / -1;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .teevee-filter {
         flex: 0 0 auto;
     }
@@ -645,16 +739,60 @@
 @media (max-width: 560px) {
     .teevee-sidebar {
         grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .teevee-brand {
+        min-height: 46px;
+    }
+
+    .teevee-brand-icon {
+        width: 40px;
+        height: 40px;
     }
 
     .teevee-search,
     .teevee-brand,
+    .teevee-control-grid,
     .teevee-filters {
         grid-column: 1;
     }
 
+    .teevee-control-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .teevee-select-field {
+        padding: 8px;
+    }
+
+    .teevee-main {
+        grid-template-rows: minmax(250px, 46%) minmax(0, 1fr);
+    }
+
+    .teevee-stage {
+        padding: 8px;
+    }
+
+    .teevee-list-head {
+        min-height: 52px;
+        padding: 10px 12px;
+    }
+
+    .teevee-channel-list {
+        gap: 6px;
+        padding: 8px;
+    }
+
+    .teevee-channel {
+        min-height: 56px;
+    }
+
     .teevee-player-bar {
         grid-template-columns: 40px 40px minmax(0, 1fr) 40px 40px;
+        min-height: 56px;
+        padding: 8px;
     }
 
     .teevee-volume,
