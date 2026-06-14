@@ -887,6 +887,13 @@
     }
 }
 
+.teevee-sentinel {
+    height: 1px;
+    margin: 4px 0;
+    pointer-events: none;
+    visibility: hidden;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .teevee-skeleton span,
     .teevee-skeleton strong,

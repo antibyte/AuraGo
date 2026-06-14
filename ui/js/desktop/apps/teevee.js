@@ -14,6 +14,7 @@
     const MAX_RECENT_SHORTCUTS = 2;
     const MAX_FAVORITE_SHORTCUTS = 3;
     const MAX_VISIBLE_CHANNELS = 160;
+    const VISIBLE_BATCH = 40;
     const STREAM_UNAVAILABLE_FALLBACK = 'Stream unavailable';
     const DEFAULT_COUNTRY = 'DE';
     const ALL_COUNTRIES = 'all';
@@ -70,6 +71,9 @@
             resolutionFilter: ALL_RESOLUTIONS,
             entries: [],
             visible: [],
+            totalVisible: 0,
+            visibleLimit: VISIBLE_BATCH,
+            countries: new Set(),
             search: '',
             favorites: loadFavorites(),
             recent: loadRecent(),
@@ -187,6 +191,7 @@
         const recentSection = host.querySelector('[data-recent-section]');
         const recentList = host.querySelector('[data-recent-list]');
         playerMount.appendChild(video);
+        let listObserver = null;
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
 
         function renderFilterControls() {
@@ -199,10 +204,7 @@
         }
 
         function countryOptions() {
-            const seen = new Set();
-            state.entries.forEach(entry => {
-                if (/^[A-Z]{2}$/.test(entry.country)) seen.add(entry.country);
-            });
+            const seen = state.countries || new Set();
             const codes = Array.from(seen);
             if (!codes.includes(DEFAULT_COUNTRY)) codes.unshift(DEFAULT_COUNTRY);
             codes.sort((a, b) => {
@@ -272,9 +274,13 @@
             if (state.countryFilter !== ALL_COUNTRIES) titleParts.push(countryDisplayName(state.countryFilter));
             if (state.resolutionFilter !== ALL_RESOLUTIONS) titleParts.push(selectedResolutionLabel());
             listTitle.textContent = titleParts.filter(Boolean).join(' | ');
-            listCount.textContent = state.loading ? '' : String(state.visible.length);
+            listCount.textContent = state.loading ? '' : String(state.totalVisible || state.visible.length);
             statusEl.hidden = !state.error && !state.loading;
             statusEl.textContent = state.loading ? t('desktop.teevee_loading', 'Loading channels...') : state.error;
+            if (listObserver) {
+                listObserver.disconnect();
+                listObserver = null;
+            }
             if (state.loading) {
                 listEl.innerHTML = Array.from({ length: 9 }).map(() => '<article class="teevee-channel teevee-skeleton"><span></span><strong></strong><em></em></article>').join('');
                 return;
@@ -307,6 +313,22 @@
                     img.hidden = true;
                 }, { once: true });
             });
+            if (state.visible.length < state.totalVisible) {
+                const sentinel = document.createElement('div');
+                sentinel.className = 'teevee-sentinel';
+                sentinel.setAttribute('aria-hidden', 'true');
+                listEl.appendChild(sentinel);
+                listObserver = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            state.visibleLimit = Math.min(state.visibleLimit + VISIBLE_BATCH, MAX_VISIBLE_CHANNELS);
+                            updateVisible();
+                            renderList();
+                        }
+                    });
+                }, { root: listEl, rootMargin: '200px 0px' });
+                listObserver.observe(sentinel);
+            }
         }
 
         function channelCard(entry) {
@@ -369,7 +391,8 @@
                 entries = entries.filter(entry => entry.categories.includes(filter.category));
             }
             if (query) entries = entries.filter(entry => searchableText(entry).includes(query));
-            state.visible = entries.slice(0, MAX_VISIBLE_CHANNELS);
+            state.totalVisible = entries.length;
+            state.visible = entries.slice(0, Math.min(state.visibleLimit, MAX_VISIBLE_CHANNELS));
         }
 
         function countryMatches(entry) {
@@ -392,9 +415,11 @@
             try {
                 const data = await fetchCatalog(force);
                 state.entries = data.entries;
+                state.countries = data.countries || new Set();
                 state.catalogLoadedAt = data.loadedAt;
                 updateVisible();
                 migrateFavorites(state.entries);
+                renderFilterControls();
             } catch (err) {
                 state.error = err.message || t('desktop.teevee_catalog_error', 'Could not load TV catalog');
                 state.visible = [];
@@ -551,19 +576,22 @@
 
         const searchDebounce = debounce((value) => {
             state.search = value || '';
+            state.visibleLimit = VISIBLE_BATCH;
             updateVisible();
-            renderAll();
+            renderList();
         }, SEARCH_DELAY);
         searchInput.addEventListener('input', () => searchDebounce.call(searchInput.value));
         countrySelect.addEventListener('change', () => {
             state.countryFilter = countrySelect.value || ALL_COUNTRIES;
+            state.visibleLimit = VISIBLE_BATCH;
             updateVisible();
-            renderAll();
+            renderList();
         });
         resolutionSelect.addEventListener('change', () => {
             state.resolutionFilter = resolutionSelect.value || ALL_RESOLUTIONS;
+            state.visibleLimit = VISIBLE_BATCH;
             updateVisible();
-            renderAll();
+            renderList();
         });
         host.querySelector('[data-action="refresh"]').addEventListener('click', () => loadCatalog(true));
         host.querySelector('[data-action="fullscreen"]').addEventListener('click', requestPlayerFullscreen);
@@ -648,12 +676,14 @@
         if (!force && catalogCache.data && now - catalogCache.loadedAt < 1000 * 60 * 30) return catalogCache.data;
         if (!force && catalogCache.promise) return catalogCache.promise;
         catalogCache.promise = Promise.all([
-            fetchJSON(CHANNELS_ENDPOINT),
-            fetchJSON(STREAMS_ENDPOINT),
-            fetchJSON(CATEGORIES_ENDPOINT)
+            fetchJSON(CHANNELS_ENDPOINT, force ? 'no-store' : 'force-cache'),
+            fetchJSON(STREAMS_ENDPOINT, force ? 'no-store' : 'force-cache'),
+            fetchJSON(CATEGORIES_ENDPOINT, force ? 'no-store' : 'force-cache')
         ]).then(([channels, streams, categories]) => {
+            const joined = joinStreamsWithChannels(channels, streams, categories);
             const data = {
-                entries: joinStreamsWithChannels(channels, streams, categories),
+                entries: joined.entries,
+                countries: joined.countries,
                 loadedAt: Date.now()
             };
             catalogCache.data = data;
@@ -665,10 +695,19 @@
         return catalogCache.promise;
     }
 
-    async function fetchJSON(url) {
-        const response = await fetch(url, { cache: 'force-cache' });
-        if (!response.ok) throw new Error('iptv-org HTTP ' + response.status);
-        return response.json();
+    async function fetchJSON(url, cacheMode) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 20000);
+        try {
+            const response = await fetch(url, { cache: cacheMode || 'force-cache', signal: controller.signal });
+            clearTimeout(timeout);
+            if (!response.ok) throw new Error('iptv-org HTTP ' + response.status);
+            return response.json();
+        } catch (err) {
+            clearTimeout(timeout);
+            if (err && err.name === 'AbortError') throw new Error('Catalog request timed out');
+            throw err;
+        }
     }
 
     function joinStreamsWithChannels(channels, streams, categories) {
@@ -679,11 +718,13 @@
             .filter(category => category && category.id)
             .map(category => [category.id, category.name || category.id]));
         const rows = Array.isArray(streams) ? streams : [];
-        return rows.map((stream, index) => {
+        const countries = new Set();
+        const entries = rows.map((stream, index) => {
             if (!stream || !stream.url) return null;
             const channel = channelByID.get(stream.channel || '') || null;
             const channelCategories = Array.isArray(channel && channel.categories) ? channel.categories.map(cleanID).filter(Boolean) : [];
             const country = clean(channel && channel.country).toUpperCase();
+            if (/^[A-Z]{2}$/.test(country)) countries.add(country);
             const name = clean(channel && channel.name) || clean(stream.title) || stream.url;
             const entry = {
                 id: stableID(stream.channel, stream.url),
@@ -707,6 +748,7 @@
             return entry;
         }).filter(entry => entry && entry.url && !entry.isNsfw && !entry.closed && !entry.replacedBy)
             .sort(sortEntries);
+        return { entries, countries };
     }
 
     function stableID(channelID, url) {

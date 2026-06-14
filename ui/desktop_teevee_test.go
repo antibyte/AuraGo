@@ -71,6 +71,7 @@ func TestDesktopTeeVeeAppMarkers(t *testing.T) {
 		"function joinStreamsWithChannels(channels, streams, categories)",
 		"stream.channel",
 		"channel.id",
+		"return { entries, countries }",
 		"function isUnsupportedStream(stream)",
 		"stream.user_agent",
 		"stream.referrer",
@@ -97,6 +98,15 @@ func TestDesktopTeeVeeAppMarkers(t *testing.T) {
 		"function renderShortcutList(",
 		"function resolutionBucketFromStream(stream)",
 		"function resolutionMatches(entry)",
+		"const VISIBLE_BATCH = 40",
+		"state.visibleLimit = VISIBLE_BATCH",
+		"state.totalVisible = entries.length",
+		"'teevee-sentinel'",
+		"new IntersectionObserver",
+		"function fetchJSON(url, cacheMode)",
+		"cache: cacheMode || 'force-cache'",
+		"new AbortController",
+		"setTimeout(() => controller.abort(), 20000)",
 		"quality: clean(stream.quality || stream.label)",
 		"resolutionBucket: resolutionBucketFromStream(stream)",
 		"id: stableID(stream.channel, stream.url)",
@@ -185,6 +195,31 @@ func TestDesktopTeeVeeMediaHelpers(t *testing.T) {
 	} {
 		if !strings.Contains(helper, want) {
 			t.Fatalf("desktop media helpers missing marker %q", want)
+		}
+	}
+}
+
+func TestDesktopTeeVeePerformanceMarkers(t *testing.T) {
+	t.Parallel()
+
+	app := readDesktopAssetText(t, "js/desktop/apps/teevee.js")
+	for _, forbidden := range []string{
+		"state.entries.forEach(entry => {\n                if (/^[A-Z]{2}$/.test(entry.country)) seen.add(entry.country);",
+		"fetch(url, { cache: 'force-cache' })",
+	} {
+		if strings.Contains(app, forbidden) {
+			t.Fatalf("TeeVee app still uses unoptimized pattern %q", forbidden)
+		}
+	}
+	for _, want := range []string{
+		"state.countries = data.countries || new Set()",
+		"const seen = state.countries || new Set()",
+		"state.totalVisible = entries.length",
+		"state.visibleLimit = VISIBLE_BATCH",
+		"fetchJSON(CHANNELS_ENDPOINT, force ? 'no-store' : 'force-cache')",
+	} {
+		if !strings.Contains(app, want) {
+			t.Fatalf("TeeVee app missing performance marker %q", want)
 		}
 	}
 }
