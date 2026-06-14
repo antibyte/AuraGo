@@ -10,7 +10,8 @@
     const SEARCH_DELAY = 240;
     const MAX_FAVORITES = 80;
     const MAX_RECENT = 30;
-    const MAX_SIDEBAR_SHORTCUTS = 3;
+    const MAX_RECENT_SHORTCUTS = 2;
+    const MAX_FAVORITE_SHORTCUTS = 3;
     const MAX_VISIBLE_CHANNELS = 160;
     const STREAM_UNAVAILABLE_FALLBACK = 'Stream unavailable';
     const DEFAULT_COUNTRY = 'DE';
@@ -225,12 +226,12 @@
             const available = state.recent
                 .map(id => state.entries.find(entry => entry.id === id))
                 .filter(Boolean)
-                .slice(0, MAX_SIDEBAR_SHORTCUTS);
+                .slice(0, MAX_RECENT_SHORTCUTS);
             renderShortcutList(recentSection, recentList, available, 'recent');
         }
 
         function renderFavorites() {
-            const available = favoriteEntries().slice(0, MAX_SIDEBAR_SHORTCUTS);
+            const available = favoriteEntries().slice(0, MAX_FAVORITE_SHORTCUTS);
             renderShortcutList(favoritesSection, favoritesList, available, 'favorite-shortcut');
         }
 

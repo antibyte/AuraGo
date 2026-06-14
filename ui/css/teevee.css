@@ -190,12 +190,11 @@
 
 .teevee-filters {
     display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 7px;
-    flex: 0 1 168px;
+    flex: 0 0 auto;
     min-height: 0;
-    max-height: 168px;
-    overflow-y: auto;
-    scrollbar-width: thin;
+    overflow: visible;
 }
 
 .teevee-filter {
@@ -203,8 +202,9 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    min-height: 38px;
-    padding: 0 11px;
+    min-width: 0;
+    min-height: 34px;
+    padding: 0 9px;
     border: 1px solid transparent;
     border-radius: 8px;
     color: var(--teevee-muted);
@@ -220,7 +220,17 @@
     color: inherit;
     border-color: rgba(55, 211, 197, 0.34);
     background: rgba(255, 255, 255, 0.07);
-    transform: translateX(2px);
+}
+
+.teevee-filter span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.teevee-filter:nth-child(-n+2) {
+    grid-column: 1 / -1;
 }
 
 .teevee-filter.active {
@@ -332,6 +342,7 @@
 .teevee-player {
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
+    container-type: inline-size;
     width: 100%;
     min-width: 0;
     min-height: 0;
@@ -431,7 +442,7 @@
 
 .teevee-player-bar {
     display: grid;
-    grid-template-columns: 42px 42px minmax(0, 1fr) 42px 42px minmax(86px, 120px) 42px;
+    grid-template-columns: 42px 42px minmax(150px, 1fr) 42px 42px minmax(78px, 112px) 42px;
     align-items: center;
     gap: 8px;
     min-height: 64px;
@@ -718,6 +729,27 @@
     100% { background-position: -40% 0; }
 }
 
+@container (max-width: 620px) {
+    .teevee-player-bar {
+        grid-template-columns: 42px 42px minmax(150px, 1fr) 42px 42px 42px;
+    }
+
+    .teevee-volume {
+        display: none;
+    }
+}
+
+@container (max-width: 500px) {
+    .teevee-player-bar {
+        grid-template-columns: 42px minmax(135px, 1fr) 42px 42px;
+    }
+
+    .teevee-player-bar [data-action="stop"],
+    .teevee-player-bar [data-action="mute"] {
+        display: none;
+    }
+}
+
 @media (max-width: 1020px) {
     .teevee-app {
         grid-template-columns: 226px minmax(0, 1fr);
@@ -759,7 +791,6 @@
         grid-column: 1 / -1;
         display: flex;
         flex: 0 0 auto;
-        max-height: none;
         overflow-x: auto;
     }
 
