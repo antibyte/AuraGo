@@ -461,6 +461,7 @@
                 renderList();
                 return;
             }
+            resetPlayback();
             state.current = entry;
             state.error = '';
             state.hlsErrorCount = 0;
@@ -486,13 +487,11 @@
             if (!url) throw new Error(t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK));
             if (isHLSURL(url)) {
                 if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                    destroyHls();
                     video.src = url;
                     video.load();
                     return;
                 }
                 if (window.Hls && window.Hls.isSupported && window.Hls.isSupported()) {
-                    destroyHls();
                     state.hls = new window.Hls({ enableWorker: true, lowLatencyMode: true, backBufferLength: 60 });
                     state.hls.on(window.Hls.Events.ERROR, function (_event, data) {
                         if (data && data.fatal) {
@@ -516,7 +515,6 @@
                 }
                 throw new Error(t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK));
             }
-            destroyHls();
             video.src = url;
             video.load();
         }
