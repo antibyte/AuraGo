@@ -82,7 +82,7 @@
         },
         'teevee': {
             styles: appStyles('/css/teevee.css'),
-            scripts: ['/js/vendor/hls.min.js', '/js/desktop/apps/teevee.js']
+            scripts: ['/js/vendor/hls.min.js', '/js/desktop/core/media-helpers.js', '/js/desktop/apps/teevee.js']
         },
         'looper': {
             styles: appStyles('/css/desktop-app-looper.css'),

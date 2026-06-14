@@ -20,6 +20,17 @@
     const disposers = new Map();
     const catalogCache = window.TeeVeeCatalogCache || (window.TeeVeeCatalogCache = { promise: null, data: null, loadedAt: 0 });
 
+    const Media = window.AuraDesktopMediaHelpers;
+    const clean = Media.clean;
+    const cleanID = Media.cleanID;
+    const escapeHTML = Media.escapeHTML;
+    const normalizeSearch = Media.normalizeSearch;
+    const countryFlag = Media.countryFlag;
+    const countryDisplayName = Media.countryDisplayName;
+    const debounce = Media.debounce;
+    const createToast = Media.createToast;
+    const updateMediaSession = Media.updateMediaSession;
+
     const filters = [
         { id: 'all', label: 'desktop.teevee_filter_global', fallback: 'Global' },
         { id: 'favorites', label: 'desktop.teevee_filter_favorites', fallback: 'Favorites', favorites: true },
@@ -173,9 +184,6 @@
         const favoritesList = host.querySelector('[data-favorites-list]');
         const recentSection = host.querySelector('[data-recent-section]');
         const recentList = host.querySelector('[data-recent-list]');
-        let searchTimer = 0;
-        let toastTimer = 0;
-
         playerMount.appendChild(video);
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
 
@@ -424,7 +432,7 @@
                 state.playing = true;
                 state.error = '';
                 rememberRecent(entry);
-                updateMediaSession(entry);
+                updateMediaSession(entry, 'AuraGo TeeVee');
             } catch (err) {
                 state.playing = false;
                 state.error = err && err.message ? err.message : t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK);
@@ -501,12 +509,8 @@
             saveRecent(state.recent);
         }
 
-        function showToast(message) {
-            toast.textContent = message || t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK);
-            toast.hidden = false;
-            clearTimeout(toastTimer);
-            toastTimer = setTimeout(() => { toast.hidden = true; }, 3600);
-        }
+        const toastApi = createToast(toast);
+        const showToast = toastApi.show;
 
         function currentFilter() {
             return filters.find(filter => filter.id === state.activeFilter) || filters[0];
@@ -542,14 +546,12 @@
             }
         }
 
-        searchInput.addEventListener('input', () => {
-            clearTimeout(searchTimer);
-            searchTimer = setTimeout(() => {
-                state.search = searchInput.value || '';
-                updateVisible();
-                renderAll();
-            }, SEARCH_DELAY);
-        });
+        const searchDebounce = debounce((value) => {
+            state.search = value || '';
+            updateVisible();
+            renderAll();
+        }, SEARCH_DELAY);
+        searchInput.addEventListener('input', () => searchDebounce.call(searchInput.value));
         countrySelect.addEventListener('change', () => {
             state.countryFilter = countrySelect.value || ALL_COUNTRIES;
             updateVisible();
@@ -621,8 +623,8 @@
         }
 
         disposers.set(windowId, () => {
-            clearTimeout(searchTimer);
-            clearTimeout(toastTimer);
+            searchDebounce.clear();
+            toastApi.clear();
             resetPlayback();
             if (typeof ctx.clearWindowMenus === 'function') ctx.clearWindowMenus(windowId);
         });
@@ -794,57 +796,6 @@
         try {
             localStorage.setItem(RECENT_KEY, JSON.stringify(recent.slice(0, MAX_RECENT)));
         } catch (_) {}
-    }
-
-    function updateMediaSession(entry) {
-        if (!('mediaSession' in navigator) || !entry) return;
-        try {
-            navigator.mediaSession.metadata = new MediaMetadata({
-                title: entry.name || 'TeeVee',
-                artist: entry.country || '',
-                album: 'AuraGo TeeVee',
-                artwork: entry.logo ? [{ src: entry.logo, sizes: '96x96', type: 'image/png' }] : []
-            });
-        } catch (_) {}
-    }
-
-    function countryDisplayName(code) {
-        const value = clean(code).toUpperCase();
-        if (!/^[A-Z]{2}$/.test(value)) return value;
-        try {
-            const locale = document.documentElement.lang || navigator.language || 'en';
-            const display = new Intl.DisplayNames([locale], { type: 'region' }).of(value);
-            return display ? value + ' - ' + display : value;
-        } catch (_) {
-            return value;
-        }
-    }
-
-    function countryFlag(code) {
-        const value = clean(code).toUpperCase();
-        if (!/^[A-Z]{2}$/.test(value)) return '';
-        return String.fromCodePoint.apply(String, value.split('').map(ch => 0x1F1E6 + ch.charCodeAt(0) - 65));
-    }
-
-    function normalizeSearch(value) {
-        return clean(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    }
-
-    function cleanID(value) {
-        return clean(value).toLowerCase();
-    }
-
-    function clean(value) {
-        return String(value == null ? '' : value).trim();
-    }
-
-    function escapeHTML(value) {
-        return String(value == null ? '' : value)
-            .replaceAll('&', '&amp;')
-            .replaceAll('<', '&lt;')
-            .replaceAll('>', '&gt;')
-            .replaceAll('"', '&quot;')
-            .replaceAll("'", '&#39;');
     }
 
     window.TeeVeeApp = { render, dispose };

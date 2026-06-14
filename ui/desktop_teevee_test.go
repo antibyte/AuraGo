@@ -15,6 +15,7 @@ func TestDesktopTeeVeeLazyAssetsAndRouting(t *testing.T) {
 		"'teevee'",
 		"'/css/teevee.css'",
 		"'/js/vendor/hls.min.js'",
+		"'/js/desktop/core/media-helpers.js'",
 		"'/js/desktop/apps/teevee.js'",
 	} {
 		if !strings.Contains(loader, want) {
@@ -89,6 +90,7 @@ func TestDesktopTeeVeeAppMarkers(t *testing.T) {
 		"data-favorites-list",
 		"const MAX_RECENT_SHORTCUTS = 2",
 		"const MAX_FAVORITE_SHORTCUTS = 3",
+		"const Media = window.AuraDesktopMediaHelpers",
 		"function renderFilterControls()",
 		"function countryOptions()",
 		"function renderFavorites()",
@@ -154,6 +156,29 @@ func TestDesktopTeeVeeFavoritesAreCurrentStreamOnly(t *testing.T) {
 	} {
 		if strings.Contains(app, forbidden) {
 			t.Fatalf("TeeVee app should not allow favoriting non-active list streams via marker %q", forbidden)
+		}
+	}
+}
+
+func TestDesktopTeeVeeMediaHelpers(t *testing.T) {
+	t.Parallel()
+
+	helper := readDesktopAssetText(t, "js/desktop/core/media-helpers.js")
+	for _, want := range []string{
+		"window.AuraDesktopMediaHelpers",
+		"function clean(value)",
+		"function cleanID(value)",
+		"function escapeHTML(value)",
+		"function normalizeSearch(value)",
+		"function countryFlag(code)",
+		"function countryDisplayName(code)",
+		"function debounce(fn, delay)",
+		"function createToast(container)",
+		"function updateMediaSession(entry, album)",
+		"'use strict'",
+	} {
+		if !strings.Contains(helper, want) {
+			t.Fatalf("desktop media helpers missing marker %q", want)
 		}
 	}
 }
