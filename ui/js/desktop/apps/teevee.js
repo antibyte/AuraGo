@@ -93,9 +93,13 @@
                     </label>
                 </div>
                 <nav class="teevee-filters" aria-label="${esc(t('desktop.teevee_filters', 'Filters'))}" data-filters></nav>
+                <section class="teevee-favorites" data-favorites-section hidden>
+                    <h3>${esc(t('desktop.teevee_filter_favorites', 'Favorites'))}</h3>
+                    <div class="teevee-shortcut-list" data-favorites-list></div>
+                </section>
                 <section class="teevee-recent" data-recent-section hidden>
                     <h3>${esc(t('desktop.teevee_recent', 'Recent'))}</h3>
-                    <div data-recent-list></div>
+                    <div class="teevee-shortcut-list" data-recent-list></div>
                 </section>
             </aside>
             <main class="teevee-main">
@@ -160,6 +164,8 @@
         const muteBtn = host.querySelector('[data-action="mute"]');
         const volumeInput = host.querySelector('[data-volume]');
         const toast = host.querySelector('[data-toast]');
+        const favoritesSection = host.querySelector('[data-favorites-section]');
+        const favoritesList = host.querySelector('[data-favorites-list]');
         const recentSection = host.querySelector('[data-recent-section]');
         const recentList = host.querySelector('[data-recent-list]');
         let searchTimer = 0;
@@ -216,14 +222,27 @@
                 .map(id => state.entries.find(entry => entry.id === id))
                 .filter(Boolean)
                 .slice(0, 6);
-            recentSection.hidden = !available.length;
-            recentList.innerHTML = available.map(entry => `<button type="button" data-recent="${esc(entry.id)}">
+            renderShortcutList(recentSection, recentList, available, 'recent');
+        }
+
+        function renderFavorites() {
+            const favoriteIDs = new Set(state.favorites);
+            const available = state.entries
+                .filter(entry => favoriteIDs.has(entry.favoriteKey))
+                .sort((a, b) => state.favorites.indexOf(a.favoriteKey) - state.favorites.indexOf(b.favoriteKey))
+                .slice(0, 6);
+            renderShortcutList(favoritesSection, favoritesList, available, 'favorite-shortcut');
+        }
+
+        function renderShortcutList(section, list, entries, dataName) {
+            section.hidden = !entries.length;
+            list.innerHTML = entries.map(entry => `<button type="button" data-${dataName}="${esc(entry.id)}" title="${esc(entry.name)}">
                 <span>${esc(entry.name)}</span>
                 <em>${esc(entry.country || '')}</em>
             </button>`).join('');
-            recentList.querySelectorAll('[data-recent]').forEach(button => {
+            list.querySelectorAll(`[data-${dataName}]`).forEach(button => {
                 button.addEventListener('click', () => {
-                    const entry = state.entries.find(item => item.id === button.dataset.recent);
+                    const entry = state.entries.find(item => item.id === button.getAttribute(`data-${dataName}`));
                     if (entry) playChannel(entry);
                 });
             });
@@ -323,6 +342,7 @@
         function renderAll() {
             renderFilterControls();
             renderFilters();
+            renderFavorites();
             renderRecent();
             renderList();
             renderPlayer();

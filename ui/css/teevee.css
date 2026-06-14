@@ -238,12 +238,26 @@
     text-align: center;
 }
 
+.teevee-favorites,
 .teevee-recent {
-    margin-top: auto;
+    flex: 0 0 auto;
     padding-top: 12px;
     border-top: 1px solid var(--teevee-line);
 }
 
+.teevee-favorites {
+    margin-top: auto;
+}
+
+.teevee-recent {
+    margin-top: auto;
+}
+
+.teevee-favorites:not([hidden]) + .teevee-recent {
+    margin-top: 0;
+}
+
+.teevee-favorites h3,
 .teevee-recent h3 {
     margin: 0 0 8px;
     color: var(--teevee-muted);
@@ -253,14 +267,15 @@
     text-transform: uppercase;
 }
 
-.teevee-recent div {
+.teevee-shortcut-list {
     display: grid;
     gap: 6px;
 }
 
-.teevee-recent button {
+.teevee-shortcut-list button {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
     gap: 8px;
     min-height: 32px;
     padding: 0 9px;
@@ -269,16 +284,28 @@
     color: inherit;
     background: rgba(255, 255, 255, 0.04);
     cursor: pointer;
+    text-align: left;
 }
 
-.teevee-recent span,
-.teevee-recent em {
+.teevee-shortcut-list button:hover,
+.teevee-shortcut-list button:focus-visible {
+    border-color: rgba(55, 211, 197, 0.42);
+    background: rgba(55, 211, 197, 0.1);
+}
+
+.teevee-shortcut-list span,
+.teevee-shortcut-list em {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.teevee-recent em {
+.teevee-shortcut-list span {
+    justify-self: start;
+}
+
+.teevee-shortcut-list em {
+    justify-self: end;
     color: var(--teevee-muted);
     font-size: 0.76rem;
     font-style: normal;
@@ -439,7 +466,12 @@
 }
 
 .teevee-now strong {
+    display: -webkit-box;
     font-size: 0.98rem;
+    line-height: 1.14;
+    white-space: normal;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
 }
 
 .teevee-now em {
@@ -717,6 +749,7 @@
         flex: 0 0 auto;
     }
 
+    .teevee-favorites,
     .teevee-recent {
         display: none;
     }
