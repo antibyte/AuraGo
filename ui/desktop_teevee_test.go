@@ -309,7 +309,6 @@ func TestDesktopTeeVeeTranslations(t *testing.T) {
 		"desktop.teevee_stream_stalled",
 		"desktop.teevee_no_channel",
 		"desktop.teevee_no_results",
-		"desktop.teevee_quality",
 		"desktop.teevee_live",
 		"desktop.teevee_refresh",
 		"desktop.teevee_fullscreen",
