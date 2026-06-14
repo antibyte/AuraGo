@@ -126,6 +126,7 @@
         'music-player': 'audio-player',
         player: 'audio-player',
         radio: 'radio',
+        teevee: 'teevee',
         todo: 'notes',
         'agent-chat': 'agent-chat',
         terminal: 'terminal', 'quick-connect': 'server',
@@ -238,6 +239,7 @@
         music: 'audio-player',
         player: 'audio-player',
         radio: 'radio',
+        teevee: 'teevee',
         workflow: 'workflow',
         workflows: 'workflow',
         'software-store': 'software-store',
@@ -299,6 +301,7 @@
             calculator: 'Ca',
             'music-player': 'MP',
             radio: 'Ra',
+            teevee: 'TV',
             todo: 'Td',
             'agent-chat': 'A',
             gallery: 'G',
@@ -946,6 +949,7 @@
         }
         if (win.appId === 'music-player') disposeWebampMusic(win.id);
         if (win.appId === 'radio') callAppDispose(window.RadioApp, win.id);
+        if (win.appId === 'teevee') callAppDispose(window.TeeVeeApp, win.id);
         if (win.appId === 'system-info') callAppDispose(window.SystemInfoApp, win.id);
         if (win.appId === 'people') callAppDispose(window.PeopleApp, win.id);
         const disposeName = appGlobalName(win.appId);

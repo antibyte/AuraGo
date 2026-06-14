@@ -131,6 +131,7 @@
         'music-player': 'audio-player',
         player: 'audio-player',
         radio: 'radio',
+        teevee: 'teevee',
         todo: 'notes',
         'agent-chat': 'agent-chat',
         terminal: 'terminal', 'quick-connect': 'server',
@@ -243,6 +244,7 @@
         music: 'audio-player',
         player: 'audio-player',
         radio: 'radio',
+        teevee: 'teevee',
         workflow: 'workflow',
         workflows: 'workflow',
         'software-store': 'software-store',
@@ -304,6 +306,7 @@
             calculator: 'Ca',
             'music-player': 'MP',
             radio: 'Ra',
+            teevee: 'TV',
             todo: 'Td',
             'agent-chat': 'A',
             gallery: 'G',
@@ -951,6 +954,7 @@
         }
         if (win.appId === 'music-player') disposeWebampMusic(win.id);
         if (win.appId === 'radio') callAppDispose(window.RadioApp, win.id);
+        if (win.appId === 'teevee') callAppDispose(window.TeeVeeApp, win.id);
         if (win.appId === 'system-info') callAppDispose(window.SystemInfoApp, win.id);
         if (win.appId === 'people') callAppDispose(window.PeopleApp, win.id);
         const disposeName = appGlobalName(win.appId);
@@ -2666,6 +2670,7 @@
             todo: { width: 900, height: 600 },
             'music-player': { width: 430, height: 260 },
             radio: { width: 960, height: 680 },
+            teevee: { width: 1120, height: 720 },
             gallery: { width: 1040, height: 700 },
             calendar: { width: 950, height: 650 },
             'quick-connect': { width: 960, height: 680 },
@@ -2687,7 +2692,7 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, gallery: true, calendar: true, 'quick-connect': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, nasscad: true, 'mission-control': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, nasscad: true, 'mission-control': true }[appId]; }
 
     function appWindowMinSize(appId) {
         const mins = { 'system-info': { width: 560, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 } };
@@ -6039,6 +6044,9 @@ function modalDialog(options) {
         if (appId === 'music-player') return renderMusicPlayer(id);
         if (appId === 'radio' && window.RadioApp && typeof window.RadioApp.render === 'function') {
             return window.RadioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
+        }
+        if (appId === 'teevee' && window.TeeVeeApp && typeof window.TeeVeeApp.render === 'function') {
+            return window.TeeVeeApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
         }
 if (appId === 'system-info') {
             if (!window.SystemInfoApp) {

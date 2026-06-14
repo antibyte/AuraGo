@@ -519,9 +519,12 @@ func TestDesktopInitialLoadDefersAppAssets(t *testing.T) {
 		`src="/js/desktop/file-manager.js`,
 		`src="/js/desktop/chat-renderer.js`,
 		`src="/js/desktop/apps/radio.js`,
+		`src="/js/desktop/apps/teevee.js`,
 		`src="/js/desktop/apps/looper.js`,
 		`src="/js/desktop/apps/viewer.js`,
+		`src="/js/vendor/hls.min.js`,
 		`href="/css/radio.css`,
+		`href="/css/teevee.css`,
 		`href="/css/camera.css`,
 		`href="/css/zipper.css`,
 		`href="/css/code-studio.css`,
@@ -659,6 +662,7 @@ func TestDesktopAppAssetsRegistryCoversHeavyApps(t *testing.T) {
 		"'writer'",
 		"'sheets'",
 		"'radio'",
+		"'teevee'",
 		"'looper'",
 		"'viewer'",
 		"'camera'",
@@ -672,6 +676,7 @@ func TestDesktopAppAssetsRegistryCoversHeavyApps(t *testing.T) {
 		"/js/vendor/quill.js",
 		"/js/vendor/pdf.min.js",
 		"/js/vendor/three.min.js",
+		"/js/vendor/hls.min.js",
 		"/chart.min.js",
 	} {
 		if !strings.Contains(loader, want) {

@@ -14,6 +14,7 @@ func TestDesktopBuiltInAppsUseDedicatedThemeAppIcons(t *testing.T) {
 	source := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, marker := range []string{
 		"radio: 'radio'",
+		"teevee: 'teevee'",
 		"gallery: 'gallery'",
 		"music: 'audio-player'",
 		"looper: 'looper'",
@@ -37,6 +38,7 @@ func TestDesktopBuiltInAppsUseDedicatedThemeAppIcons(t *testing.T) {
 	for _, forbidden := range []string{
 		"Trash: 'package'",
 		"radio: 'audio'",
+		"teevee: 'video'",
 		"gallery: 'image'",
 		"looper: 'workflow'",
 		"'agent-chat': 'mail'",
@@ -53,7 +55,7 @@ func TestDesktopBuiltInAppsUseDedicatedThemeAppIcons(t *testing.T) {
 	}
 	for _, theme := range []string{"papirus", "whitesur"} {
 		manifest := rawDesktopAssetText(t, "img/"+theme+"/manifest.json")
-		for _, key := range []string{"agent-chat", "code-studio", "commandcode", "galaxa-deluxe", "gallery", "launchpad", "looper", "nasscad", "pixel", "quakejs", "radio", "software-store", "trash", "trash-empty", "trash-full", "zipper"} {
+		for _, key := range []string{"agent-chat", "code-studio", "commandcode", "galaxa-deluxe", "gallery", "launchpad", "looper", "nasscad", "pixel", "quakejs", "radio", "software-store", "teevee", "trash", "trash-empty", "trash-full", "zipper"} {
 			if !strings.Contains(manifest, `"`+key+`"`) {
 				t.Fatalf("%s theme manifest missing %q", theme, key)
 			}
@@ -87,7 +89,7 @@ func TestDesktopBuiltInAppsUseFocusedThemeIconNames(t *testing.T) {
 	}
 
 	catalog := desktop.DesktopIconCatalog(map[string]string{"appearance.icon_theme": "papirus"})
-	for _, key := range []string{"software-store", "zipper", "pixel", "trash-empty", "trash-full"} {
+	for _, key := range []string{"software-store", "zipper", "pixel", "teevee", "trash-empty", "trash-full"} {
 		if !containsString(catalog.Preferred, key) {
 			t.Fatalf("backend icon catalog missing focused icon %q", key)
 		}
@@ -118,7 +120,7 @@ func TestDesktopBuiltInAppsUseFocusedThemeIconNames(t *testing.T) {
 		if err := json.Unmarshal(data, &manifest); err != nil {
 			t.Fatalf("parse %s manifest: %v", theme, err)
 		}
-		for _, key := range []string{"software-store", "zipper", "pixel", "agent-chat", "trash-empty", "trash-full"} {
+		for _, key := range []string{"software-store", "zipper", "pixel", "agent-chat", "teevee", "trash-empty", "trash-full"} {
 			path, ok := manifest.Icons[key]
 			if !ok {
 				t.Fatalf("%s theme manifest missing focused icon %q", theme, key)

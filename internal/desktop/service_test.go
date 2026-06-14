@@ -150,6 +150,24 @@ func TestBuiltinAppsExposeCheaterAndMissionControlMetadata(t *testing.T) {
 	}
 }
 
+func TestBuiltinAppsExposeTeeVeeMetadata(t *testing.T) {
+	apps := BuiltinApps()
+
+	teevee := testFindApp(t, apps, "teevee")
+	if !teevee.Builtin || teevee.Deletable || !teevee.DockVisible || !teevee.StartVisible {
+		t.Fatalf("teevee visibility = builtin:%v deletable:%v dock:%v start:%v, want first-party visible app", teevee.Builtin, teevee.Deletable, teevee.DockVisible, teevee.StartVisible)
+	}
+	if teevee.Name != "TeeVee" {
+		t.Fatalf("teevee name = %q, want TeeVee", teevee.Name)
+	}
+	if teevee.Icon != "teevee" || teevee.Entry != "builtin://teevee" || teevee.Runtime != BuiltinRuntime {
+		t.Fatalf("teevee manifest icon/entry/runtime = %q/%q/%q, want teevee/builtin://teevee/%q", teevee.Icon, teevee.Entry, teevee.Runtime, BuiltinRuntime)
+	}
+	if !strings.Contains(strings.ToLower(teevee.Description), "iptv") {
+		t.Fatalf("teevee description should mention IPTV source, got %q", teevee.Description)
+	}
+}
+
 func TestServiceMutationLockIsSharedAcrossServices(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "workspace")
 	dbPath := filepath.Join(t.TempDir(), "desktop.db")
@@ -328,6 +346,7 @@ func TestServiceBootstrapUsesDistinctBuiltinAppIcons(t *testing.T) {
 		"gallery":        "gallery",
 		"music-player":   "audio-player",
 		"radio":          "radio",
+		"teevee":         "teevee",
 		"agent-chat":     "agent-chat",
 		"code-studio":    "code-studio",
 		"looper":         "looper",

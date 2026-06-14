@@ -269,6 +269,7 @@ func TestDesktopInputsHaveMobileAttributes(t *testing.T) {
 		"js/desktop/apps/agent-chat.js",
 		"js/desktop/apps/people.js",
 		"js/desktop/apps/radio.js",
+		"js/desktop/apps/teevee.js",
 		"js/desktop/apps/mission-control.js",
 		"js/desktop/apps/looper.js",
 		"js/desktop/apps/code-studio/command-palette.js",

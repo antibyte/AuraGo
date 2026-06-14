@@ -80,6 +80,10 @@
             styles: appStyles('/css/radio.css'),
             scripts: ['/js/desktop/apps/radio.js']
         },
+        'teevee': {
+            styles: appStyles('/css/teevee.css'),
+            scripts: ['/js/vendor/hls.min.js', '/js/desktop/apps/teevee.js']
+        },
         'looper': {
             styles: appStyles('/css/desktop-app-looper.css'),
             scripts: ['/js/desktop/apps/looper.js']
