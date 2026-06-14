@@ -1240,6 +1240,8 @@
   "homepage_studio.status_error": "ステータスを確認できませんでした",
   "homepage_studio.refresh": "更新",
   "homepage_studio.history_tab": "履歴",
+  "homepage_studio.preview_tabs": "プレビューパネル",
+  "homepage_studio.preview_tab": "プレビュー",
   "homepage_studio.history_search_placeholder": "履歴を検索...",
   "homepage_studio.history_filter_label": "タイプで絞り込み",
   "homepage_studio.history_filter_all": "すべてのタイプ",

@@ -1240,6 +1240,8 @@
   "homepage_studio.status_error": "Nie udało się sprawdzić statusu",
   "homepage_studio.refresh": "Odśwież",
   "homepage_studio.history_tab": "Historia",
+  "homepage_studio.preview_tabs": "Panele podglądu",
+  "homepage_studio.preview_tab": "Podgląd",
   "homepage_studio.history_search_placeholder": "Przeszukaj historię...",
   "homepage_studio.history_filter_label": "Filtruj według typu",
   "homepage_studio.history_filter_all": "Wszystkie typy",

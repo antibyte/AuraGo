@@ -1240,6 +1240,8 @@
   "homepage_studio.status_error": "Kunne ikke tjekke status",
   "homepage_studio.refresh": "Opdater",
   "homepage_studio.history_tab": "Historik",
+  "homepage_studio.preview_tabs": "Forhåndsvisningspaneler",
+  "homepage_studio.preview_tab": "Forhåndsvisning",
   "homepage_studio.history_search_placeholder": "Søg i historik...",
   "homepage_studio.history_filter_label": "Filtrer efter type",
   "homepage_studio.history_filter_all": "Alle typer",

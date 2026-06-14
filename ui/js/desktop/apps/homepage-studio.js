@@ -20,7 +20,8 @@
             activePanel: 'preview',
             historyQuery: '',
             historyFilter: '',
-            historyEntries: []
+            historyEntries: [],
+            historyAbortCtrl: null
         };
         instances.set(windowId, state);
 
@@ -333,13 +334,18 @@
                 renderHistory([], t('homepage_studio.history_disabled', 'Homepage is disabled'));
                 return;
             }
+            if (state.historyAbortCtrl) {
+                state.historyAbortCtrl.abort();
+            }
+            const abortCtrl = new AbortController();
+            state.historyAbortCtrl = abortCtrl;
             try {
                 const params = new URLSearchParams();
                 if (state.historyQuery) params.set('q', state.historyQuery);
                 if (state.historyFilter) params.set('entry_type', state.historyFilter);
                 params.set('limit', '100');
                 const url = '/api/homepage/history' + (params.toString() ? '?' + params.toString() : '');
-                const data = await api(url);
+                const data = await api(url, { signal: abortCtrl.signal });
                 if (data && data.status === 'success') {
                     state.historyEntries = data.entries || [];
                     renderHistory(state.historyEntries);
@@ -347,7 +353,12 @@
                     renderHistory([], data && data.message ? data.message : t('homepage_studio.history_error', 'Could not load history'));
                 }
             } catch (err) {
+                if (err.name === 'AbortError') return;
                 renderHistory([], t('homepage_studio.history_error', 'Could not load history'));
+            } finally {
+                if (state.historyAbortCtrl === abortCtrl) {
+                    state.historyAbortCtrl = null;
+                }
             }
         }
 
@@ -364,12 +375,13 @@
                 const content = esc(e.content || '');
                 const source = e.source ? `<span class="vd-hp-history-source">${esc(e.source)}</span>` : '';
                 const tags = (e.tags || []).map(tag => `<span class="vd-hp-history-tag">${esc(tag)}</span>`).join('');
+                const id = esc(String(e.id || ''));
                 return `
                     <article class="vd-hp-history-entry vd-hp-history-type-${type}">
                         <header class="vd-hp-history-entry-header">
                             <span class="vd-hp-history-entry-type">${typeLabel(type)}</span>
                             <time class="vd-hp-history-entry-time" datetime="${esc(e.created_at || '')}">${esc(date)}</time>
-                            <button type="button" class="vd-hp-history-delete" data-id="${e.id}" title="${esc(t('homepage_studio.history_delete', 'Delete'))}" aria-label="${esc(t('homepage_studio.history_delete', 'Delete'))}">×</button>
+                            <button type="button" class="vd-hp-history-delete" data-id="${id}" title="${esc(t('homepage_studio.history_delete', 'Delete'))}" aria-label="${esc(t('homepage_studio.history_delete', 'Delete'))}">×</button>
                         </header>
                         <p class="vd-hp-history-entry-content">${content}</p>
                         <footer class="vd-hp-history-entry-footer">${source}${tags}</footer>
@@ -613,6 +625,7 @@
         if (!state) return;
         state.disposed = true;
         if (state.abortCtrl) { state.abortCtrl.abort(); state.abortCtrl = null; }
+        if (state.historyAbortCtrl) { state.historyAbortCtrl.abort(); state.historyAbortCtrl = null; }
         instances.delete(windowId);
     }
 

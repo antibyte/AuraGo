@@ -131,3 +131,69 @@ func TestHandleHomepageHistoryListAndDelete(t *testing.T) {
 		t.Fatalf("total after delete = %d, want 0", listResp2.Total)
 	}
 }
+
+func TestHandleHomepageHistoryWorkspaceFallback(t *testing.T) {
+	db, err := tools.InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	workspace := t.TempDir()
+	projectID, _, _ := tools.RegisterProject(db, tools.HomepageProject{Name: "WorkspaceFallback", ProjectDir: workspace, Framework: "astro"})
+	_, _ = tools.AddHomepageHistoryEntry(db, projectID, "note", "Workspace fallback entry", "homepage_file", nil)
+
+	cfg := &config.Config{}
+	cfg.Homepage.WorkspacePath = workspace
+	s := &Server{HomepageRegistryDB: db, Cfg: cfg, Logger: slog.Default()}
+	handler := handleHomepageHistory(s)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/homepage/history", nil)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var listResp struct {
+		Total   int `json:"total"`
+		Entries []tools.HomepageHistoryEntry
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &listResp); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if listResp.Total != 1 {
+		t.Fatalf("total = %d, want 1", listResp.Total)
+	}
+}
+
+func TestHandleHomepageHistoryUnknownProjectReturnsEmpty(t *testing.T) {
+	db, err := tools.InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	cfg := &config.Config{}
+	cfg.Homepage.WorkspacePath = "/nonexistent/workspace"
+	s := &Server{HomepageRegistryDB: db, Cfg: cfg, Logger: slog.Default()}
+	handler := handleHomepageHistory(s)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/homepage/history", nil)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var listResp struct {
+		Total   int `json:"total"`
+		Entries []tools.HomepageHistoryEntry
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &listResp); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if listResp.Total != 0 {
+		t.Fatalf("total = %d, want 0 for unknown project", listResp.Total)
+	}
+}

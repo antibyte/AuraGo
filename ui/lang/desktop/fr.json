@@ -1240,6 +1240,8 @@
   "homepage_studio.status_error": "Impossible de vérifier le statut",
   "homepage_studio.refresh": "Actualiser",
   "homepage_studio.history_tab": "Historique",
+  "homepage_studio.preview_tabs": "Panneaux d'aperçu",
+  "homepage_studio.preview_tab": "Aperçu",
   "homepage_studio.history_search_placeholder": "Rechercher dans l'historique...",
   "homepage_studio.history_filter_label": "Filtrer par type",
   "homepage_studio.history_filter_all": "Tous les types",

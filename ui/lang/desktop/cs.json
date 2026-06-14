@@ -1240,6 +1240,8 @@
   "homepage_studio.status_error": "Nelze zkontrolovat stav",
   "homepage_studio.refresh": "Obnovit",
   "homepage_studio.history_tab": "Historie",
+  "homepage_studio.preview_tabs": "Panely náhledu",
+  "homepage_studio.preview_tab": "Náhled",
   "homepage_studio.history_search_placeholder": "Prohledat historii...",
   "homepage_studio.history_filter_label": "Filtrovat podle typu",
   "homepage_studio.history_filter_all": "Všechny typy",

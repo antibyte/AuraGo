@@ -1240,6 +1240,8 @@
   "homepage_studio.status_error": "Status konnte nicht geprüft werden",
   "homepage_studio.refresh": "Aktualisieren",
   "homepage_studio.history_tab": "Verlauf",
+  "homepage_studio.preview_tabs": "Vorschau-Bereiche",
+  "homepage_studio.preview_tab": "Vorschau",
   "homepage_studio.history_search_placeholder": "Verlauf durchsuchen...",
   "homepage_studio.history_filter_label": "Nach Typ filtern",
   "homepage_studio.history_filter_all": "Alle Typen",

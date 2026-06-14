@@ -1240,6 +1240,8 @@
   "homepage_studio.status_error": "Kon status niet controleren",
   "homepage_studio.refresh": "Vernieuwen",
   "homepage_studio.history_tab": "Geschiedenis",
+  "homepage_studio.preview_tabs": "Voorbeeldpanelen",
+  "homepage_studio.preview_tab": "Voorbeeld",
   "homepage_studio.history_search_placeholder": "Geschiedenis doorzoeken...",
   "homepage_studio.history_filter_label": "Filter op type",
   "homepage_studio.history_filter_all": "Alle typen",

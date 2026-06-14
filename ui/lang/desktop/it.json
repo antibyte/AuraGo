@@ -1240,6 +1240,8 @@
   "homepage_studio.status_error": "Impossibile verificare lo stato",
   "homepage_studio.refresh": "Aggiorna",
   "homepage_studio.history_tab": "Cronologia",
+  "homepage_studio.preview_tabs": "Pannelli di anteprima",
+  "homepage_studio.preview_tab": "Anteprima",
   "homepage_studio.history_search_placeholder": "Cerca nella cronologia...",
   "homepage_studio.history_filter_label": "Filtra per tipo",
   "homepage_studio.history_filter_all": "Tutti i tipi",

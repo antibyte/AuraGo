@@ -1240,6 +1240,8 @@
   "homepage_studio.status_error": "无法检查状态",
   "homepage_studio.refresh": "刷新",
   "homepage_studio.history_tab": "历史",
+  "homepage_studio.preview_tabs": "预览面板",
+  "homepage_studio.preview_tab": "预览",
   "homepage_studio.history_search_placeholder": "搜索历史...",
   "homepage_studio.history_filter_label": "按类型筛选",
   "homepage_studio.history_filter_all": "所有类型",

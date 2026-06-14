@@ -1240,6 +1240,8 @@
   "homepage_studio.status_error": "Kunde inte kontrollera status",
   "homepage_studio.refresh": "Uppdatera",
   "homepage_studio.history_tab": "Historik",
+  "homepage_studio.preview_tabs": "Förhandsgranskningspaneler",
+  "homepage_studio.preview_tab": "Förhandsgranskning",
   "homepage_studio.history_search_placeholder": "Sök i historiken...",
   "homepage_studio.history_filter_label": "Filtrera efter typ",
   "homepage_studio.history_filter_all": "Alla typer",

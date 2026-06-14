@@ -274,6 +274,15 @@ func handleHomepageHistory(s *Server) http.HandlerFunc {
 			}
 			// If no project could be resolved, projectID stays 0 and an empty
 			// list is returned, which is expected before any project exists.
+			if projectID == 0 {
+				b, _ := json.Marshal(map[string]interface{}{
+					"status":  "success",
+					"total":   0,
+					"entries": []tools.HomepageHistoryEntry{},
+				})
+				w.Write(b)
+				return
+			}
 
 			entryType := r.URL.Query().Get("entry_type")
 			query := r.URL.Query().Get("q")

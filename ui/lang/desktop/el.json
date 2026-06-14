@@ -1240,6 +1240,8 @@
   "homepage_studio.status_error": "Αδυναμία ελέγχου κατάστασης",
   "homepage_studio.refresh": "Ανανέωση",
   "homepage_studio.history_tab": "Ιστορικό",
+  "homepage_studio.preview_tabs": "Πίνακες προεπισκόπησης",
+  "homepage_studio.preview_tab": "Προεπισκόπηση",
   "homepage_studio.history_search_placeholder": "Αναζήτηση ιστορικού...",
   "homepage_studio.history_filter_label": "Φιλτράρισμα κατά τύπο",
   "homepage_studio.history_filter_all": "Όλοι οι τύποι",
