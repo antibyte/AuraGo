@@ -217,7 +217,7 @@
                     ? t('homepage_studio.status_online', 'Web server running')
                     : t('homepage_studio.status_offline', 'Web server not running');
 
-                state.previewUrl = homepageStatusPreviewURL(data);
+                state.previewUrl = homepageStatusPreviewURL(data, state.target);
                 updatePreviewUrl();
             } catch (_) {
                 statusDot.className = 'vd-hp-status-dot offline';
@@ -227,11 +227,38 @@
             }
         }
 
-        function homepageStatusPreviewURL(data) {
+        function homepageStatusPreviewURL(data, target) {
             if (!data) return '';
             const webRunning = data.web_container && data.web_container.running;
             const pythonRunning = data.python_server && data.python_server.running;
             const serverRunning = webRunning || pythonRunning;
+
+            const firstString = (...values) => {
+                for (const value of values) {
+                    if (typeof value === 'string' && value.trim()) {
+                        return value.trim();
+                    }
+                }
+                return '';
+            };
+            const objectURL = key => {
+                const obj = data[key];
+                if (!obj || typeof obj !== 'object') return '';
+                return firstString(obj.preview_url, obj.url, obj.deployment_url, obj.deploy_url, obj.browser_url);
+            };
+
+            switch (target) {
+                case 'vercel':
+                    return firstString(data.vercel_url, data.vercel_deployment_url, data.deployment_url, objectURL('vercel'));
+                case 'netlify':
+                    return firstString(data.netlify_url, data.netlify_deploy_url, data.deploy_url, objectURL('netlify'));
+                case 'remote':
+                    return firstString(data.remote_url, data.remote_deploy_url, objectURL('remote'));
+                case 'local':
+                default:
+                    break;
+            }
+
             if (data.preview_url) return String(data.preview_url);
             if (serverRunning && data.tunnel_url) return String(data.tunnel_url);
             if (webRunning && data.web_container.browser_url) {

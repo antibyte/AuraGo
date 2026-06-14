@@ -62,11 +62,17 @@ func TestHomepageStudioUsesStatusPreviewURL(t *testing.T) {
 	source := readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js")
 
 	for _, want := range []string{
-		"function homepageStatusPreviewURL(data)",
-		"state.previewUrl = homepageStatusPreviewURL(data);",
+		"function homepageStatusPreviewURL(data, target)",
+		"state.previewUrl = homepageStatusPreviewURL(data, state.target);",
 		"id=\"hp-url-${windowId}\"",
 		"class=\"vd-hp-preview-url\"",
 		"previewPanel.insertBefore(iframe, previewLoading);",
+		"case 'vercel':",
+		"case 'netlify':",
+		"case 'remote':",
+		"data.vercel_url",
+		"data.netlify_url",
+		"data.remote_url",
 		"data.preview_url",
 		"data.web_container.browser_url",
 		"data.python_server.browser_url",
@@ -80,6 +86,7 @@ func TestHomepageStudioUsesStatusPreviewURL(t *testing.T) {
 		"state.previewUrl = 'http://localhost:' + port;",
 		"const port = 8080;",
 		"previewBody.insertBefore(iframe, previewLoading);",
+		"state.previewUrl = homepageStatusPreviewURL(data);",
 	} {
 		if strings.Contains(source, unwanted) {
 			t.Fatalf("homepage studio still contains hard-coded local URL marker %q", unwanted)
