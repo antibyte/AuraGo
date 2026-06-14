@@ -25,7 +25,7 @@ Use focused homepage tools for homepage workspace projects: `homepage_project` f
 
 When the task is to create, recreate, delete, rebuild, redesign, publish, or deploy a website/page/site, treat it as a homepage workflow even if the user says only "Seite" or "site". Load and follow the `HOMEPAGE DESIGN SYSTEM` section before choosing colors, layout, cards, spacing, typography, or visual effects.
 
-The default visual target is Atmospheric Glass. Unless the user supplied a different brand or project `DESIGN.md`, the resulting page should visibly use the Atmospheric Glass system: translucent glass surfaces, luminous layered gradients, soft borders, blur/backdrop-filter depth, restrained white/silver/blue accents, Inter-based type hierarchy, and readable contrast. A generic dark purple/blue card UI without glass physics does not satisfy the default design system.
+The default visual target is Atmospheric Glass. Unless the user supplied a different brand or project `DESIGN.md`, the resulting page should visibly use the Atmospheric Glass system: translucent glass surfaces, luminous layered gradients, soft borders, blur/backdrop-filter depth, restrained white/silver/blue accents, Inter-based type hierarchy, and readable contrast. When implementing, strictly enforce WCAG AA text contrast. Pair `backdrop-filter: blur(...)` with a fallback `background-color` (for reduced-transparency) and a subtle semi-transparent inner border (e.g., `border: 1px solid rgba(255,255,255,0.1)`) to define physical edges. A generic dark purple/blue card UI without glass physics does not satisfy the default design system.
 
 Keep homepage paths relative to the homepage workspace. Use project-prefixed paths such as `my-site/src/App.tsx`, and use `project_dir` values such as `my-site`, never `/workspace/my-site`.
 
@@ -99,6 +99,9 @@ Before saying a homepage is done, review changed UI code against these rules. Fi
 - Use `font-variant-numeric: tabular-nums` for number columns, counters, and comparisons.
 - Use `text-wrap: balance` or `text-wrap: pretty` on headings when supported.
 - Write active, specific, second-person copy. Prefer labels like `Save API Key` over vague labels like `Continue`.
+- Avoid generic AI marketing jargon (`Elevate`, `Seamless`, `Unleash`, `Next-Gen`). Use concrete, descriptive language.
+- Do not use generic placeholder names like `Acme` or `John Doe`; invent realistic context-appropriate names.
+- Avoid using the em-dash (`—`) as a stylistic crutch.
 - Use Title Case for headings and buttons when it matches the site's language and style.
 - Use numerals for counts, for example `8 deployments`.
 
@@ -107,6 +110,7 @@ Before saying a homepage is done, review changed UI code against these rules. Fi
 - Text containers must survive short, average, and very long content with truncation, clamping, wrapping, or `break-words`.
 - Flex children that contain text need `min-width: 0` or equivalent so truncation can work.
 - Empty states should be intentional; do not render broken UI for empty strings, empty arrays, or missing images.
+- Prefer skeleton loaders that match the final layout shape over generic circular spinners to minimize Cumulative Layout Shift (CLS) during data fetching.
 - User-generated content must not overlap controls or push fixed-format UI out of bounds.
 
 ### Images & Media
@@ -129,7 +133,7 @@ Before saying a homepage is done, review changed UI code against these rules. Fi
 
 - Stateful filters, tabs, pagination, and expanded panels should be reflected in the URL when deep-linking matters.
 - Navigation should use anchors or framework links so Cmd/Ctrl-click and middle-click work.
-- If a stateful UI uses `useState`, consider URL sync for shareable state.
+- Stateful UI that dictates the current view (e.g., active tabs, filters, pagination) SHOULD use URL query parameters instead of isolated local state to ensure deep-linkability.
 - Destructive actions need a confirmation modal or undo window; never run them immediately from a casual click.
 
 ### Touch & Layout
@@ -142,6 +146,8 @@ Before saying a homepage is done, review changed UI code against these rules. Fi
 - Full-bleed layouts need `env(safe-area-inset-*)` padding for notches and mobile browser chrome.
 - Prevent unwanted horizontal scrollbars with layout fixes, not by hiding real overflow bugs.
 - Prefer flex/grid and responsive constraints over JavaScript measurement for layout.
+- Always design mobile-first. Ensure complex layouts (grids, sidebars, multi-column heroes) gracefully collapse to a single column on mobile screens (`< 768px`). Do not ship desktop-only interfaces.
+- Maintain strict z-index discipline. Avoid arbitrary high values like `z-50` or `z-[9999]` for regular content. Keep stacking contexts flat and predictable.
 
 ### Dark Mode, Locale & Hydration
 
