@@ -10,7 +10,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/agent"
@@ -43,6 +45,13 @@ type webhostIntegration struct {
 	URL         string `json:"url"`
 	Icon        string `json:"icon,omitempty"`
 }
+
+var (
+	webhostsCache      []webhostIntegration
+	webhostsCacheMu    sync.RWMutex
+	webhostsCachedAt   time.Time
+	webhostsCacheTTL   = 10 * time.Second
+)
 
 func handleSpaceAgentStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -313,26 +322,100 @@ func integrationWebhostsForRequest(s *Server, r *http.Request) []webhostIntegrat
 	if s == nil {
 		return []webhostIntegration{}
 	}
+
+	webhostsCacheMu.RLock()
+	if len(webhostsCache) > 0 && time.Since(webhostsCachedAt) < webhostsCacheTTL {
+		cached := make([]webhostIntegration, len(webhostsCache))
+		copy(cached, webhostsCache)
+		webhostsCacheMu.RUnlock()
+		return cached
+	}
+	webhostsCacheMu.RUnlock()
+
 	cfg := s.currentSpaceAgentConfig()
 	webhosts := make([]webhostIntegration, 0, 5)
+
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
 	if cfg.SpaceAgent.Enabled {
-		status := "starting"
-		if payload := spaceAgentStatusPayload(s, &cfg); payload != nil {
-			if raw, ok := payload["status"].(string); ok && raw != "" && raw != "disabled" && raw != "stopped" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			status := "starting"
+			if payload := spaceAgentStatusPayload(s, &cfg); payload != nil {
+				if raw, ok := payload["status"].(string); ok && raw != "" && raw != "disabled" && raw != "stopped" {
+					status = raw
+				}
+			}
+			if status == "running" || status == "starting" {
+				mu.Lock()
+				webhosts = append(webhosts, webhostIntegration{
+					ID:          "space_agent",
+					Name:        "Space Agent",
+					Description: "Managed Space Agent workspace",
+					Status:      status,
+					URL:         spaceAgentBrowserURL(s, &cfg, r),
+					Icon:        "space_agent",
+				})
+				mu.Unlock()
+			}
+		}()
+	}
+
+	if cfg.Manifest.Enabled {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			manifestPayload := manifestStatus(r.Context(), s, &cfg)
+			manifestURL := ""
+			if u, ok := manifestPayload["url"].(string); ok {
+				manifestURL = u
+			}
+			browserURL := manifestBrowserURL(s, &cfg, r, manifestURL)
+			status := "starting"
+			if raw, ok := manifestPayload["status"].(string); ok && raw != "" {
 				status = raw
 			}
-		}
-		if status == "running" || status == "starting" {
+			mu.Lock()
 			webhosts = append(webhosts, webhostIntegration{
-				ID:          "space_agent",
-				Name:        "Space Agent",
-				Description: "Managed Space Agent workspace",
+				ID:          "manifest",
+				Name:        "Manifest",
+				Description: "Manifest.build gateway",
 				Status:      status,
-				URL:         spaceAgentBrowserURL(s, &cfg, r),
-				Icon:        "space_agent",
+				URL:         browserURL,
+				Icon:        "link",
 			})
-		}
+			mu.Unlock()
+		}()
 	}
+
+	if cfg.Dograh.Enabled {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			dograhPayload := dograhStatusForRequest(r.Context(), s, &cfg, r)
+			dograhURL := ""
+			if u, ok := dograhPayload["ui_url"].(string); ok {
+				dograhURL = u
+			}
+			status := "starting"
+			if raw, ok := dograhPayload["status"].(string); ok && raw != "" {
+				status = raw
+			}
+			mu.Lock()
+			webhosts = append(webhosts, webhostIntegration{
+				ID:          "dograh",
+				Name:        "Dograh",
+				Description: "Dograh workflow automation",
+				Status:      status,
+				URL:         dograhURL,
+				Icon:        "link",
+			})
+			mu.Unlock()
+		}()
+	}
+
 	if cfg.VirtualDesktop.Enabled {
 		webhosts = append(webhosts, webhostIntegration{
 			ID:          "virtual_desktop",
@@ -343,6 +426,7 @@ func integrationWebhostsForRequest(s *Server, r *http.Request) []webhostIntegrat
 			Icon:        "expand",
 		})
 	}
+
 	if cfg.Homepage.Enabled {
 		homepageURL := homepageBrowserURL(s, &cfg, r)
 		if homepageURL != "" {
@@ -356,46 +440,27 @@ func integrationWebhostsForRequest(s *Server, r *http.Request) []webhostIntegrat
 			})
 		}
 	}
-	if cfg.Manifest.Enabled {
-		manifestPayload := manifestStatus(r.Context(), s, &cfg)
-		manifestURL := ""
-		if u, ok := manifestPayload["url"].(string); ok {
-			manifestURL = u
-		}
-		browserURL := manifestBrowserURL(s, &cfg, r, manifestURL)
-		status := "starting"
-		if raw, ok := manifestPayload["status"].(string); ok && raw != "" {
-			status = raw
-		}
-		webhosts = append(webhosts, webhostIntegration{
-			ID:          "manifest",
-			Name:        "Manifest",
-			Description: "Manifest.build gateway",
-			Status:      status,
-			URL:         browserURL,
-			Icon:        "link",
-		})
-	}
-	if cfg.Dograh.Enabled {
-		dograhPayload := dograhStatusForRequest(r.Context(), s, &cfg, r)
-		dograhURL := ""
-		if u, ok := dograhPayload["ui_url"].(string); ok {
-			dograhURL = u
-		}
-		status := "starting"
-		if raw, ok := dograhPayload["status"].(string); ok && raw != "" {
-			status = raw
-		}
-		webhosts = append(webhosts, webhostIntegration{
-			ID:          "dograh",
-			Name:        "Dograh",
-			Description: "Dograh workflow automation",
-			Status:      status,
-			URL:         dograhURL,
-			Icon:        "link",
-		})
-	}
+
+	wg.Wait()
+
+	sort.Slice(webhosts, func(i, j int) bool {
+		return webhosts[i].ID < webhosts[j].ID
+	})
+
+	webhostsCacheMu.Lock()
+	webhostsCache = make([]webhostIntegration, len(webhosts))
+	copy(webhostsCache, webhosts)
+	webhostsCachedAt = time.Now()
+	webhostsCacheMu.Unlock()
+
 	return webhosts
+}
+
+func clearWebhostsCache() {
+	webhostsCacheMu.Lock()
+	webhostsCache = nil
+	webhostsCachedAt = time.Time{}
+	webhostsCacheMu.Unlock()
 }
 
 func handleSpaceAgentLegacyRedirect(s *Server) http.HandlerFunc {

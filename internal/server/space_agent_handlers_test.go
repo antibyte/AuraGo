@@ -236,6 +236,7 @@ func TestHandleIntegrationWebhostsIncludesRunningSpaceAgentDirectURL(t *testing.
 	req := httptest.NewRequest(http.MethodGet, "/api/integrations/webhosts", nil)
 	rec := httptest.NewRecorder()
 
+	clearWebhostsCache()
 	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
 
 	var resp struct {
@@ -270,6 +271,7 @@ func TestHandleIntegrationWebhostsDerivesServerURLInsteadOfLoopbackURL(t *testin
 	req.Host = "aurago-server.local:8443"
 	rec := httptest.NewRecorder()
 
+	clearWebhostsCache()
 	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
 
 	var resp struct {
@@ -302,6 +304,7 @@ func TestHandleIntegrationWebhostsDerivesDirectURLFromForwardedHost(t *testing.T
 	req.Header.Set("X-Forwarded-Host", "aurago.taild1480.ts.net")
 	rec := httptest.NewRecorder()
 
+	clearWebhostsCache()
 	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
 
 	var resp struct {
@@ -338,6 +341,7 @@ func TestHandleIntegrationWebhostsUsesDedicatedTailscaleSpaceAgentHost(t *testin
 	req.Host = "aurago.taild1480.ts.net"
 	rec := httptest.NewRecorder()
 
+	clearWebhostsCache()
 	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
 
 	var resp struct {
@@ -367,6 +371,7 @@ func TestHandleIntegrationWebhostsDerivesHTTPURLWhenHTTPSWrapperDisabled(t *test
 	req.Host = "aurago-server.local:8443"
 	rec := httptest.NewRecorder()
 
+	clearWebhostsCache()
 	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
 
 	var resp struct {
@@ -394,6 +399,7 @@ func TestHandleIntegrationWebhostsIncludesHomepageLocalURL(t *testing.T) {
 	req.Host = "localhost:8090"
 	rec := httptest.NewRecorder()
 
+	clearWebhostsCache()
 	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
 
 	var resp struct {
@@ -422,6 +428,7 @@ func TestHandleIntegrationWebhostsDerivesHomepageURLFromRequestHost(t *testing.T
 	req.Host = "192.168.6.238:8090"
 	rec := httptest.NewRecorder()
 
+	clearWebhostsCache()
 	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
 
 	var resp struct {
@@ -454,6 +461,7 @@ func TestHandleIntegrationWebhostsUsesTailscaleHomepageURL(t *testing.T) {
 	req.Host = "aurago.taild1480.ts.net"
 	rec := httptest.NewRecorder()
 
+	clearWebhostsCache()
 	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
 
 	var resp struct {
@@ -485,6 +493,7 @@ func TestHandleIntegrationWebhostsIncludesEnabledDograhUIURL(t *testing.T) {
 	req.Host = "aurago-server.local:8443"
 	rec := httptest.NewRecorder()
 
+	clearWebhostsCache()
 	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
 
 	var resp struct {
@@ -524,6 +533,7 @@ func TestHandleIntegrationWebhostsUsesDograhTailscaleProxyURLForLoopback(t *test
 	req.Host = "aurago.taild1480.ts.net"
 	rec := httptest.NewRecorder()
 
+	clearWebhostsCache()
 	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
 
 	var resp struct {
@@ -559,6 +569,7 @@ func TestHandleIntegrationWebhostsDoesNotInventManifestURLWhenTailscaleExposureD
 	req.Host = "aurago.taild1480.ts.net"
 	rec := httptest.NewRecorder()
 
+	clearWebhostsCache()
 	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
 
 	var resp struct {
@@ -601,6 +612,7 @@ func TestHandleIntegrationWebhostsWaitsForDedicatedTailscaleManifestListener(t *
 	req.Host = "aurago.taild1480.ts.net"
 	rec := httptest.NewRecorder()
 
+	clearWebhostsCache()
 	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
 
 	var resp struct {
@@ -639,6 +651,7 @@ func TestHandleIntegrationWebhostsDerivesTailscaleManifestURLWithoutManagerStatu
 	req.Host = "aurago.taild1480.ts.net"
 	rec := httptest.NewRecorder()
 
+	clearWebhostsCache()
 	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
 
 	var resp struct {
