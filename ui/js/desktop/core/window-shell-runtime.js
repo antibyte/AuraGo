@@ -573,7 +573,6 @@
     function renderTaskbar() {
         const host = $('vd-taskbar-apps');
         if (!host) return;
-        updateFruityTopbarAppLabel();
         host.classList.toggle('vd-dock', isFruityTheme());
         if (isFruityTheme()) {
             renderFruityDock();
@@ -641,17 +640,6 @@
     }
 
     function renderStandardTaskbar() { reconcileStandardTaskbar(); }
-
-    function updateFruityTopbarAppLabel() {
-        const label = $('vd-fruity-active-app');
-        if (!label) return;
-        const active = state.windows.get(state.activeWindowId);
-        if (active) {
-            label.textContent = active.title || appName(appById(active.appId)) || t('desktop.page_title');
-            return;
-        }
-        label.textContent = t('desktop.page_title');
-    }
 
     function ensureFruityDockShell(host) {
         let track = host && host.querySelector('[data-fruity-dock-track]');

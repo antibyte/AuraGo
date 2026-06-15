@@ -23,7 +23,6 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 		"function renderFruityDock()",
 		"function scheduleFruityDockOcclusionCheck()",
 		"function updateFruityDockOcclusion()",
-		"function updateFruityTopbarAppLabel()",
 		"function windowOverlapsFruityDock(",
 		"function dockApps()",
 		"class=\"vd-dock-orb\"",
@@ -45,8 +44,6 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 	cssText := readAllDesktopCSS(t)
 	for _, want := range []string{
 		".desktop-body[data-theme=\"fruity\"]",
-		".desktop-body[data-theme=\"fruity\"] .vd-fruity-topbar",
-		".desktop-body[data-theme=\"fruity\"] .vd-fruity-topbar-app",
 		"@media (prefers-color-scheme: dark)",
 		".desktop-body[data-theme=\"fruity\"] .vd-window",
 		".desktop-body[data-theme=\"fruity\"] .vd-window-titlebar",
@@ -92,6 +89,16 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 	} {
 		if !strings.Contains(cssText, want) {
 			t.Fatalf("desktop stylesheet is missing Fruity theme marker %q", want)
+		}
+	}
+	for _, forbidden := range []string{
+		"vd-fruity-topbar",
+		"vd-fruity-active-app",
+		"--vd-fruity-topbar-height",
+		"updateFruityTopbarAppLabel",
+	} {
+		if strings.Contains(shellText, forbidden) || strings.Contains(cssText, forbidden) {
+			t.Fatalf("fruity decorative topbar marker %q must not remain in shell assets", forbidden)
 		}
 	}
 

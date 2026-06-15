@@ -181,7 +181,7 @@
     }
 
     .desktop-body[data-theme="fruity"] .vd-window.maximized {
-        top: var(--vd-fruity-topbar-height, 32px) !important;
+        top: env(safe-area-inset-top, 0px) !important;
         left: env(safe-area-inset-left, 0px) !important;
         right: env(safe-area-inset-right, 0px) !important;
         bottom: calc(env(safe-area-inset-bottom, 0px) + var(--vd-fruity-dock-reserve, 96px)) !important;
