@@ -356,8 +356,8 @@
     }
 
     function updateClock() {
-        const clock = $('vd-clock');
-        if (clock) clock.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        document.querySelectorAll('.vd-clock').forEach(clock => { clock.textContent = value; });
     }
 
     function wireChrome() {

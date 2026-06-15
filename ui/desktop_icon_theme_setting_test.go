@@ -18,6 +18,8 @@ func TestDesktopIconThemeSettingAssets(t *testing.T) {
 		"settingSelect('appearance.icon_theme'",
 		"desktop.settings_icon_theme_papirus",
 		"desktop.settings_icon_theme_whitesur",
+		"const pairedIconTheme = value === 'fruity' ? 'whitesur' : value === 'standard' ? 'papirus' : '';",
+		"updates.push({ key: 'appearance.icon_theme', value: pairedIconTheme });",
 		"/img/whitesur/manifest.json",
 		"iconThemeManifests",
 		"function renderStartButtonIcon()",

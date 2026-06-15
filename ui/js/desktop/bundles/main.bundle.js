@@ -2511,6 +2511,7 @@
     function renderTaskbar() {
         const host = $('vd-taskbar-apps');
         if (!host) return;
+        updateFruityTopbarAppLabel();
         host.classList.toggle('vd-dock', isFruityTheme());
         if (isFruityTheme()) {
             renderFruityDock();
@@ -2578,6 +2579,17 @@
     }
 
     function renderStandardTaskbar() { reconcileStandardTaskbar(); }
+
+    function updateFruityTopbarAppLabel() {
+        const label = $('vd-fruity-active-app');
+        if (!label) return;
+        const active = state.windows.get(state.activeWindowId);
+        if (active) {
+            label.textContent = active.title || appName(appById(active.appId)) || t('desktop.page_title');
+            return;
+        }
+        label.textContent = t('desktop.page_title');
+    }
 
     function ensureFruityDockShell(host) {
         let track = host && host.querySelector('[data-fruity-dock-track]');
@@ -6835,13 +6847,22 @@ if (appId === 'pixel') {
 
     async function saveDesktopSetting(key, value, host) {
         try {
-            const body = await api('/api/desktop/settings', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key, value })
-            });
+            const updates = [{ key, value }];
+            if (key === 'appearance.theme') {
+                const pairedIconTheme = value === 'fruity' ? 'whitesur' : value === 'standard' ? 'papirus' : '';
+                if (pairedIconTheme && settingValue('appearance.icon_theme') !== pairedIconTheme) {
+                    updates.push({ key: 'appearance.icon_theme', value: pairedIconTheme });
+                }
+            }
             if (!state.bootstrap) state.bootstrap = {};
-            state.bootstrap.settings = body.settings || Object.assign(desktopSettings(), { [key]: value });
+            for (const update of updates) {
+                const body = await api('/api/desktop/settings', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(update)
+                });
+                state.bootstrap.settings = body.settings || Object.assign(desktopSettings(), { [update.key]: update.value });
+            }
             applyDesktopSettings();
             renderStartButtonIcon();
             renderIcons();
@@ -10026,8 +10047,8 @@ if (appId === 'pixel') {
     }
 
     function updateClock() {
-        const clock = $('vd-clock');
-        if (clock) clock.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        document.querySelectorAll('.vd-clock').forEach(clock => { clock.textContent = value; });
     }
 
     function wireChrome() {

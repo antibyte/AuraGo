@@ -580,13 +580,22 @@
 
     async function saveDesktopSetting(key, value, host) {
         try {
-            const body = await api('/api/desktop/settings', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key, value })
-            });
+            const updates = [{ key, value }];
+            if (key === 'appearance.theme') {
+                const pairedIconTheme = value === 'fruity' ? 'whitesur' : value === 'standard' ? 'papirus' : '';
+                if (pairedIconTheme && settingValue('appearance.icon_theme') !== pairedIconTheme) {
+                    updates.push({ key: 'appearance.icon_theme', value: pairedIconTheme });
+                }
+            }
             if (!state.bootstrap) state.bootstrap = {};
-            state.bootstrap.settings = body.settings || Object.assign(desktopSettings(), { [key]: value });
+            for (const update of updates) {
+                const body = await api('/api/desktop/settings', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(update)
+                });
+                state.bootstrap.settings = body.settings || Object.assign(desktopSettings(), { [update.key]: update.value });
+            }
             applyDesktopSettings();
             renderStartButtonIcon();
             renderIcons();

@@ -55,11 +55,6 @@ func TestDesktopStandardThemeStaysDarkAndWriterSurfaceStaysWhite(t *testing.T) {
 	desktopCSS := readAllDesktopCSS(t)
 	for _, forbidden := range []string{
 		".desktop-body[data-theme=\"standard\"],\n.desktop-body[data-theme=\"light\"]",
-		".desktop-body[data-theme=\"standard\"] .vd-topbar",
-		".desktop-body[data-theme=\"standard\"] .vd-taskbar",
-		".desktop-body[data-theme=\"standard\"] .vd-window-titlebar",
-		".desktop-body[data-theme=\"standard\"] .vd-window-content",
-		".desktop-body[data-theme=\"standard\"] .vd-button",
 	} {
 		if strings.Contains(desktopCSS, forbidden) {
 			t.Fatalf("standard theme must not use light theme override %q", forbidden)
@@ -67,6 +62,15 @@ func TestDesktopStandardThemeStaysDarkAndWriterSurfaceStaysWhite(t *testing.T) {
 	}
 
 	for _, marker := range []string{
+		".desktop-body[data-theme=\"standard\"]",
+		".desktop-body[data-theme=\"standard\"] .vd-taskbar",
+		".desktop-body[data-theme=\"standard\"] .vd-start-button",
+		".desktop-body[data-theme=\"standard\"] .vd-start-menu",
+		".desktop-body[data-theme=\"standard\"] .vd-window",
+		".desktop-body[data-theme=\"standard\"] .vd-window-titlebar",
+		"--vd-shell-taskbar:",
+		"--vd-shell-window-chrome:",
+		"--vd-shell-accent-secondary:",
 		"--vd-bg: #11151c;",
 		"--vd-surface: rgba(18, 24, 36, 0.92);",
 		"--vd-text: #f6f7fb;",

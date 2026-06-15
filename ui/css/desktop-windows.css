@@ -132,6 +132,13 @@
         transform var(--ds-motion-duration-fast) var(--ds-motion-ease-standard);
 }
 
+.desktop-body[data-theme="standard"] .vd-window {
+    border-radius: var(--vd-shell-radius-window);
+    border-color: rgba(148, 163, 184, 0.16);
+    background: var(--vd-shell-window);
+    box-shadow: var(--vd-shell-shadow-window);
+}
+
 .vd-window.has-window-menu {
     grid-template-rows: 76px 1fr;
 }
@@ -171,6 +178,17 @@
         bottom: calc(env(safe-area-inset-bottom, 0px) + var(--vd-taskbar-height, 54px)) !important;
         width: auto !important;
         height: auto !important;
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-window.maximized {
+        top: var(--vd-fruity-topbar-height, 32px) !important;
+        left: env(safe-area-inset-left, 0px) !important;
+        right: env(safe-area-inset-right, 0px) !important;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + var(--vd-fruity-dock-reserve, 96px)) !important;
+        width: auto !important;
+        height: auto !important;
+        border-radius: 14px;
+        border: 1px solid rgba(78, 92, 118, 0.16);
     }
 }
 
@@ -227,6 +245,19 @@
     user-select: none;
     touch-action: none;
     transition: background var(--ds-motion-duration-base) var(--ds-motion-ease-standard);
+}
+
+.desktop-body[data-theme="standard"] .vd-window-titlebar {
+    background:
+        linear-gradient(180deg, rgba(30, 41, 59, 0.76), rgba(15, 23, 36, 0.94)),
+        var(--vd-shell-window-chrome);
+    border-bottom-color: rgba(148, 163, 184, 0.16);
+}
+
+.desktop-body[data-theme="standard"] .vd-window.active .vd-window-titlebar {
+    background:
+        linear-gradient(180deg, rgba(38, 198, 168, 0.13), rgba(15, 23, 36, 0.94)),
+        var(--vd-shell-window-chrome);
 }
 
 .vd-window.dragging .vd-window-titlebar {
