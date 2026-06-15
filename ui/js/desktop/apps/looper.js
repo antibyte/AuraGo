@@ -304,9 +304,9 @@
             let warning = '';
 
             if (mode === 'every_step') {
-                warning = '⚠️ every_step is very isolated. Not recommended for long creative loops (context is reset after every step).';
+                warning = t('desktop.looper_warn_every_step');
             } else if (mode === 'never' && maxIter > 8) {
-                warning = 'ℹ️ "never" starts each round relatively fresh. Good for some tasks, but "every_iteration" + summarization is usually better for coherent creative work.';
+                warning = t('desktop.looper_warn_never_long');
             }
 
             if (warning) {

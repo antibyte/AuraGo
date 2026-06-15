@@ -1399,5 +1399,7 @@
   "desktop.stl_expand": "Expand",
   "desktop.stl_download": "Download",
   "desktop.stl_loading": "Loading 3D model",
-  "desktop.viewer_pdfjs_unavailable": "PDF viewer is not available"
+  "desktop.viewer_pdfjs_unavailable": "PDF viewer is not available",
+  "desktop.looper_warn_every_step": "⚠️ Every step resets context. Not recommended for long creative loops.",
+  "desktop.looper_warn_never_long": "ℹ️ \"Never\" starts each round relatively fresh. For long runs, \"every iteration\" with summarization is usually better."
 }

@@ -417,6 +417,32 @@
             return option ? t(option.label, option.fallback) : '';
         }
 
+        function migrateFavorites(entries) {
+            if (!entries || !entries.length) return;
+            const legacyKeys = state.favorites.filter(isLegacyFavoriteKey);
+            if (!legacyKeys.length) return;
+            const migrated = [];
+            const seen = new Set();
+            state.favorites.forEach(key => {
+                if (isLegacyFavoriteKey(key)) {
+                    const entry = entries.find(item => item.url === key);
+                    if (entry && !seen.has(entry.favoriteKey)) {
+                        migrated.push(entry.favoriteKey);
+                        seen.add(entry.favoriteKey);
+                    }
+                } else if (!seen.has(key)) {
+                    migrated.push(key);
+                    seen.add(key);
+                }
+            });
+            state.favorites = migrated.slice(0, MAX_FAVORITES);
+            saveFavorites(state.favorites);
+            try {
+                localStorage.removeItem(LEGACY_FAVORITES_KEY);
+            } catch (_) {}
+            updateVisible();
+        }
+
         async function loadCatalog(force) {
             state.loading = true;
             state.error = '';
@@ -910,32 +936,6 @@
 
     function isLegacyFavoriteKey(key) {
         return /^https?:\/\//.test(clean(key));
-    }
-
-    function migrateFavorites(entries) {
-        if (!entries || !entries.length) return;
-        const legacyKeys = state.favorites.filter(isLegacyFavoriteKey);
-        if (!legacyKeys.length) return;
-        const migrated = [];
-        const seen = new Set();
-        state.favorites.forEach(key => {
-            if (isLegacyFavoriteKey(key)) {
-                const entry = entries.find(item => item.url === key);
-                if (entry && !seen.has(entry.favoriteKey)) {
-                    migrated.push(entry.favoriteKey);
-                    seen.add(entry.favoriteKey);
-                }
-            } else if (!seen.has(key)) {
-                migrated.push(key);
-                seen.add(key);
-            }
-        });
-        state.favorites = migrated.slice(0, MAX_FAVORITES);
-        saveFavorites(state.favorites);
-        try {
-            localStorage.removeItem(LEGACY_FAVORITES_KEY);
-        } catch (_) {}
-        updateVisible();
     }
 
     function saveFavorites(favorites) {

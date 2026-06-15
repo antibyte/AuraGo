@@ -337,3 +337,41 @@ func TestDesktopTeeVeeTranslations(t *testing.T) {
 		})
 	}
 }
+
+func TestDesktopTeeVeeMigrateFavoritesInRenderScope(t *testing.T) {
+	t.Parallel()
+
+	app := readDesktopAssetText(t, "js/desktop/apps/teevee.js")
+	renderStart := strings.Index(app, "function render(host, windowId, context)")
+	if renderStart < 0 {
+		t.Fatal("render() not found")
+	}
+	migrateIdx := strings.Index(app, "function migrateFavorites(entries)")
+	if migrateIdx < 0 {
+		t.Fatal("migrateFavorites not found")
+	}
+	if migrateIdx < renderStart {
+		t.Fatal("migrateFavorites must be defined inside render(), not at module scope")
+	}
+	disposeIdx := strings.Index(app, "function dispose(windowId)")
+	if disposeIdx > 0 && migrateIdx > disposeIdx {
+		t.Fatal("migrateFavorites must not be defined after dispose() at module scope")
+	}
+}
+
+func TestDesktopTeeVeeDisposeCleanupChain(t *testing.T) {
+	t.Parallel()
+
+	app := readDesktopAssetText(t, "js/desktop/apps/teevee.js")
+	for _, want := range []string{
+		"disposers.set(windowId",
+		"resetPlayback()",
+		"clearWindowMenus",
+		"disposers.delete(windowId)",
+		"case ' ':",
+	} {
+		if !strings.Contains(app, want) {
+			t.Fatalf("teevee.js missing dispose/shortcut marker %q", want)
+		}
+	}
+}
