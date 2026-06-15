@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -107,5 +109,88 @@ func TestOpenSCADOutputFileExposesSeparatePreviewAndDownloadURLs(t *testing.T) {
 	}
 	if file.DownloadURL != "/api/openscad/jobs/oscad-urltest/files/model.png?download=1" {
 		t.Fatalf("DownloadURL = %q", file.DownloadURL)
+	}
+}
+
+func TestOpenSCADJobsRootRepairsContainerReadablePermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix permission bits are not meaningful on Windows")
+	}
+
+	dataDir := t.TempDir()
+	root := filepath.Join(dataDir, "openscad", "jobs")
+	if err := os.MkdirAll(root, 0o700); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.Chmod(root, 0o700); err != nil {
+		t.Fatalf("Chmod setup: %v", err)
+	}
+	svc := NewOpenSCADContainerService(Config{
+		DataDir:  dataDir,
+		OpenSCAD: OpenSCADConfig{Enabled: true},
+	}, nil)
+
+	got, err := svc.ensureJobsRoot()
+	if err != nil {
+		t.Fatalf("ensureJobsRoot: %v", err)
+	}
+	if got != root {
+		t.Fatalf("jobs root = %q, want %q", got, root)
+	}
+	info, err := os.Stat(root)
+	if err != nil {
+		t.Fatalf("Stat root: %v", err)
+	}
+	if info.Mode().Perm() != openSCADJobsRootMode {
+		t.Fatalf("jobs root mode = %v, want %v", info.Mode().Perm(), openSCADJobsRootMode)
+	}
+}
+
+func TestOpenSCADRenderPreparesContainerWritableJobFiles(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix permission bits are not meaningful on Windows")
+	}
+
+	dataDir := t.TempDir()
+	fake := &fakeCodeContainerDocker{}
+	svc := NewOpenSCADContainerService(Config{
+		DataDir: dataDir,
+		OpenSCAD: OpenSCADConfig{
+			Enabled: true,
+		},
+	}, nil)
+	svc.SetDockerClient(fake)
+
+	_, err := svc.Render(context.Background(), OpenSCADRenderRequest{
+		SourceSCAD: "cube(1);",
+		ModelName:  "perm-test",
+		Exports:    []string{"png"},
+	})
+	if err == nil || !strings.Contains(err.Error(), "openscad output perm-test.png missing") {
+		t.Fatalf("Render error = %v, want missing fake output after job preparation", err)
+	}
+
+	root := filepath.Join(dataDir, "openscad", "jobs")
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatalf("ReadDir jobs root: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("job entries = %d, want 1", len(entries))
+	}
+	jobDir := filepath.Join(root, entries[0].Name())
+	jobInfo, err := os.Stat(jobDir)
+	if err != nil {
+		t.Fatalf("Stat job dir: %v", err)
+	}
+	if jobInfo.Mode().Perm() != openSCADJobDirMode.Perm() || jobInfo.Mode()&os.ModeSticky == 0 {
+		t.Fatalf("job dir mode = %v, want sticky %v", jobInfo.Mode(), openSCADJobDirMode)
+	}
+	sourceInfo, err := os.Stat(filepath.Join(jobDir, "model.scad"))
+	if err != nil {
+		t.Fatalf("Stat source: %v", err)
+	}
+	if sourceInfo.Mode().Perm() != openSCADSourceFileMode {
+		t.Fatalf("source mode = %v, want %v", sourceInfo.Mode().Perm(), openSCADSourceFileMode)
 	}
 }

@@ -19,18 +19,22 @@ import (
 )
 
 const (
-	openSCADContainerName           = "aurago-openscad"
-	defaultOpenSCADImage            = "openscad/openscad:latest"
-	openSCADJobsInContainer         = "/jobs"
-	defaultOpenSCADMemoryMB         = 2048
-	defaultOpenSCADCPUCores         = 2
-	defaultOpenSCADPidsLimit        = 512
-	defaultOpenSCADAutoStop         = 20 * time.Minute
-	defaultOpenSCADRenderTimeout    = 120 * time.Second
-	defaultOpenSCADMaxRenderTimeout = 600 * time.Second
-	defaultOpenSCADMaxSourceKB      = 512
-	defaultOpenSCADMaxOutputMB      = 100
-	defaultOpenSCADJobRetentionDays = 7
+	openSCADContainerName                       = "aurago-openscad"
+	defaultOpenSCADImage                        = "openscad/openscad:latest"
+	openSCADJobsInContainer                     = "/jobs"
+	defaultOpenSCADMemoryMB                     = 2048
+	defaultOpenSCADCPUCores                     = 2
+	defaultOpenSCADPidsLimit                    = 512
+	defaultOpenSCADAutoStop                     = 20 * time.Minute
+	defaultOpenSCADRenderTimeout                = 120 * time.Second
+	defaultOpenSCADMaxRenderTimeout             = 600 * time.Second
+	defaultOpenSCADMaxSourceKB                  = 512
+	defaultOpenSCADMaxOutputMB                  = 100
+	defaultOpenSCADJobRetentionDays             = 7
+	openSCADJobsRootMode            os.FileMode = 0o755
+	// The official OpenSCAD image may execute as a UID different from AuraGo's host UID.
+	openSCADJobDirMode     os.FileMode = 0o1777
+	openSCADSourceFileMode os.FileMode = 0o644
 )
 
 var (
@@ -308,12 +312,18 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 	jobID := newOpenSCADJobID()
 	modelName := safeOpenSCADModelName(req.ModelName)
 	jobDir := filepath.Join(jobsRoot, jobID)
-	if err := os.MkdirAll(jobDir, 0o700); err != nil {
+	if err := os.MkdirAll(jobDir, openSCADJobDirMode); err != nil {
 		return OpenSCADRenderResult{}, fmt.Errorf("create openscad job directory: %w", err)
 	}
+	if err := os.Chmod(jobDir, openSCADJobDirMode); err != nil {
+		return OpenSCADRenderResult{}, fmt.Errorf("prepare openscad job directory permissions: %w", err)
+	}
 	sourcePath := filepath.Join(jobDir, "model.scad")
-	if err := os.WriteFile(sourcePath, []byte(req.SourceSCAD), 0o600); err != nil {
+	if err := os.WriteFile(sourcePath, []byte(req.SourceSCAD), openSCADSourceFileMode); err != nil {
 		return OpenSCADRenderResult{}, fmt.Errorf("write model.scad: %w", err)
+	}
+	if err := os.Chmod(sourcePath, openSCADSourceFileMode); err != nil {
+		return OpenSCADRenderResult{}, fmt.Errorf("prepare model.scad permissions: %w", err)
 	}
 	start := time.Now()
 	timeout := openSCADRenderTimeout(req.TimeoutSeconds, s.cfg.OpenSCAD)
@@ -543,8 +553,11 @@ func (s *OpenSCADContainerService) ensureJobsRoot() (string, error) {
 
 func (s *OpenSCADContainerService) ensureJobsRootLocked() (string, error) {
 	root := s.jobsRootLocked()
-	if err := os.MkdirAll(root, 0o700); err != nil {
+	if err := os.MkdirAll(root, openSCADJobsRootMode); err != nil {
 		return "", fmt.Errorf("create openscad jobs root: %w", err)
+	}
+	if err := os.Chmod(root, openSCADJobsRootMode); err != nil {
+		return "", fmt.Errorf("prepare openscad jobs root permissions: %w", err)
 	}
 	return root, nil
 }
