@@ -5100,7 +5100,7 @@ function updateTaskbarSystemButtonsForMobile() {
             const submenuItems = normalizeContextMenuItems(item.items || item.children || []);
             if (submenuItems.length) {
                 return `<div class="vd-context-submenu" role="none">
-                    <button type="button" class="vd-context-item" role="menuitem" ${disabled}>${icon}${label}<span class="vd-context-arrow">â€º</span></button>
+                    <button type="button" class="vd-context-item" role="menuitem" ${disabled}>${icon}${label}<span class="vd-context-arrow">&rsaquo;</span></button>
                     <div class="vd-context-submenu-popover" role="menu">${renderItems(submenuItems, path.concat(String(item.id || index)))}</div>
                 </div>`;
             }
@@ -5859,7 +5859,7 @@ function modalDialog(options) {
             if (item.type === 'submenu') {
                 return `<div class="vd-window-menu-submenu${disabled}" role="none">
                     <button type="button" class="vd-window-menu-item${checked}" role="menuitem" ${disabled ? 'disabled' : ''}>
-                        ${icon}<span>${label}</span><span class="vd-window-menu-arrow">â€º</span>
+                        ${icon}<span>${label}</span><span class="vd-window-menu-arrow">&rsaquo;</span>
                     </button>
                     <div class="vd-window-menu-popover" role="menu">${renderWindowMenuItems(item.items)}</div>
                 </div>`;

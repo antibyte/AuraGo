@@ -325,6 +325,20 @@ func TestSoftwareStoreActionButtonsUseStableGridLayout(t *testing.T) {
 	}
 }
 
+func TestSoftwareStoreAccessLabelDoesNotContainMojibake(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/software-store.js")
+	for _, forbidden := range []string{"Â·", "â€º"} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("software store source contains mojibake marker %q", forbidden)
+		}
+	}
+	if !strings.Contains(source, "return parts.join(' / ');") {
+		t.Fatalf("software store access label should use a plain readable separator")
+	}
+}
+
 func TestSoftwareStoreExpandedCapabilityTranslations(t *testing.T) {
 	t.Parallel()
 

@@ -75,6 +75,10 @@ func TestDesktopOpenSCADAppMarkers(t *testing.T) {
 		"data.type !== 'openscad_result'",
 		"window.THREE.STLLoader || window.STLLoader",
 		"requestFullscreen",
+		"cleanupPreview(state)",
+		"cancelAnimationFrame",
+		"renderer.dispose()",
+		"preview_url",
 		"data-oscad-panel",
 		"data-oscad-source",
 		"data-oscad-agent",
@@ -83,6 +87,15 @@ func TestDesktopOpenSCADAppMarkers(t *testing.T) {
 	} {
 		if !strings.Contains(app, want) {
 			t.Fatalf("OpenSCAD app missing implementation marker %q", want)
+		}
+	}
+	for _, forbidden := range []string{
+		`src="${esc(file.download_url)}"`,
+		`data="${esc(file.download_url)}"`,
+		`renderSTL(state, panel.querySelector('[data-stl-viewer]'), file.download_url)`,
+	} {
+		if strings.Contains(app, forbidden) {
+			t.Fatalf("OpenSCAD app should use preview_url for inline preview, found %q", forbidden)
 		}
 	}
 

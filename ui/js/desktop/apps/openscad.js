@@ -42,6 +42,7 @@ model();`;
             result: null,
             busy: false,
             stl: null,
+            previewCleanup: null,
             listeners: [],
             eventsAttached: false
         };
@@ -54,6 +55,7 @@ model();`;
 
     function draw(state) {
         const ctx = state.ctx;
+        cleanupPreview(state);
         state.host.className = 'openscad-app';
         state.host.innerHTML = `
             <div class="oscad-shell">
@@ -329,27 +331,29 @@ model();`;
             panel.innerHTML = emptyPanel(state, 'desktop.openscad.no_preview', 'Render a model to see the preview.');
             return;
         }
+        const url = previewURL(file);
         if (file.format === 'png') {
-            panel.innerHTML = `<img class="oscad-preview-img" src="${esc(file.download_url)}" alt="">`;
+            panel.innerHTML = `<img class="oscad-preview-img" src="${esc(url)}" alt="">`;
             return;
         }
         if (file.format === 'svg') {
-            panel.innerHTML = `<object class="oscad-preview-object" data="${esc(file.download_url)}" type="image/svg+xml"></object>`;
+            panel.innerHTML = `<object class="oscad-preview-object" data="${esc(url)}" type="image/svg+xml"></object>`;
             return;
         }
         if (file.format === 'pdf') {
-            panel.innerHTML = `<iframe class="oscad-preview-object" src="${esc(file.download_url)}"></iframe>`;
+            panel.innerHTML = `<iframe class="oscad-preview-object" src="${esc(url)}"></iframe>`;
             return;
         }
         if (file.format === 'stl') {
             panel.innerHTML = `<div class="oscad-stl" data-stl-viewer></div>`;
-            renderSTL(state, panel.querySelector('[data-stl-viewer]'), file.download_url);
+            renderSTL(state, panel.querySelector('[data-stl-viewer]'), url);
             return;
         }
         panel.innerHTML = `<div class="oscad-empty"><strong>${esc(file.name)}</strong><span>${esc(t(state.ctx, 'desktop.openscad.download_hint', 'Preview is not interactive for this format. Download or save the file.'))}</span></div>`;
     }
 
     function renderSTL(state, mount, url) {
+        cleanupPreview(state);
         const STLLoader = window.THREE && (window.THREE.STLLoader || window.STLLoader);
         const OrbitControls = window.THREE && (window.THREE.OrbitControls || window.OrbitControls);
         if (!mount || !window.THREE || !STLLoader) {
@@ -371,11 +375,31 @@ model();`;
         light.position.set(40, 80, 60);
         scene.add(light);
         const controls = OrbitControls ? new OrbitControls(camera, renderer.domElement) : null;
+        let disposed = false;
+        let frameID = 0;
+        let mesh = null;
+        state.previewCleanup = () => {
+            disposed = true;
+            if (frameID) cancelAnimationFrame(frameID);
+            if (controls && typeof controls.dispose === 'function') controls.dispose();
+            if (mesh) {
+                if (mesh.geometry && typeof mesh.geometry.dispose === 'function') mesh.geometry.dispose();
+                if (mesh.material && typeof mesh.material.dispose === 'function') mesh.material.dispose();
+                scene.remove(mesh);
+            }
+            if (renderer && typeof renderer.dispose === 'function') renderer.dispose();
+            if (renderer && typeof renderer.forceContextLoss === 'function') renderer.forceContextLoss();
+            state.previewCleanup = null;
+        };
         new STLLoader().load(url, geometry => {
+            if (disposed) {
+                if (geometry && typeof geometry.dispose === 'function') geometry.dispose();
+                return;
+            }
             geometry.computeBoundingBox();
             geometry.center();
             const material = new THREE.MeshStandardMaterial({ color: 0x42d7c8, roughness: 0.42, metalness: 0.12 });
-            const mesh = new THREE.Mesh(geometry, material);
+            mesh = new THREE.Mesh(geometry, material);
             scene.add(mesh);
             const box = new THREE.Box3().setFromObject(mesh);
             const size = box.getSize(new THREE.Vector3()).length() || 80;
@@ -385,10 +409,20 @@ model();`;
         }, undefined, err => setStatus(state, err && err.message ? err.message : String(err), true));
         function animate() {
             if (!stateByWindow.has(state.windowId)) return;
-            requestAnimationFrame(animate);
+            frameID = requestAnimationFrame(animate);
             if (controls) controls.update();
             renderer.render(scene, camera);
         }
+    }
+
+    function cleanupPreview(state) {
+        if (state && typeof state.previewCleanup === 'function') {
+            state.previewCleanup();
+        }
+    }
+
+    function previewURL(file) {
+        return (file && (file.preview_url || file.download_url)) || '';
     }
 
     function primaryFile(state) {
@@ -436,6 +470,7 @@ model();`;
     function dispose(windowId) {
         const state = stateByWindow.get(windowId);
         if (!state) return;
+        cleanupPreview(state);
         state.listeners.forEach(fn => {
             try { fn(); } catch (_) {}
         });

@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -80,5 +81,31 @@ func TestBuildOpenSCADCommandUsesSeparateArgs(t *testing.T) {
 		if cmd[i] != want[i] {
 			t.Fatalf("cmd[%d] = %q, want %q in %#v", i, cmd[i], want[i], cmd)
 		}
+	}
+}
+
+func TestOpenSCADOutputFileExposesSeparatePreviewAndDownloadURLs(t *testing.T) {
+	t.Parallel()
+
+	jobDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(jobDir, "model.png"), []byte("png-data"), 0o600); err != nil {
+		t.Fatalf("write output: %v", err)
+	}
+	svc := NewOpenSCADContainerService(Config{
+		DataDir: t.TempDir(),
+		OpenSCAD: OpenSCADConfig{
+			Enabled: true,
+		},
+	}, nil)
+
+	file, err := svc.outputFile(jobDir, "oscad-urltest", "model.png", "png")
+	if err != nil {
+		t.Fatalf("outputFile: %v", err)
+	}
+	if file.PreviewURL != "/api/openscad/jobs/oscad-urltest/files/model.png" {
+		t.Fatalf("PreviewURL = %q", file.PreviewURL)
+	}
+	if file.DownloadURL != "/api/openscad/jobs/oscad-urltest/files/model.png?download=1" {
+		t.Fatalf("DownloadURL = %q", file.DownloadURL)
 	}
 }

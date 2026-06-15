@@ -120,7 +120,11 @@ func (h openSCADHandlers) handleJobPath(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		w.Header().Set("X-AuraGo-OpenSCAD-SHA256", file.SHA256)
-		w.Header().Set("Content-Disposition", `attachment; filename="`+strings.ReplaceAll(file.Name, `"`, "")+`"`)
+		disposition := "inline"
+		if r.URL.Query().Get("download") == "1" {
+			disposition = "attachment"
+		}
+		w.Header().Set("Content-Disposition", disposition+`; filename="`+strings.ReplaceAll(file.Name, `"`, "")+`"`)
 		http.ServeFile(w, r, filePath)
 		return
 	}

@@ -358,6 +358,20 @@ func TestWindowMenuShortcutRouterMatchesBrowserZoomKeyCodes(t *testing.T) {
 	}
 }
 
+func TestDesktopWindowMenuDoesNotRenderMojibakeArrows(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/core/menus-and-routing.js")
+	for _, forbidden := range []string{"â€º", "Â·"} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("desktop window menu source contains mojibake marker %q", forbidden)
+		}
+	}
+	if !strings.Contains(source, `vd-window-menu-arrow">&rsaquo;</span>`) {
+		t.Fatalf("desktop window menu should render submenu arrow with an HTML entity")
+	}
+}
+
 func TestDesktopLooperUsesThemeIconMapping(t *testing.T) {
 	t.Parallel()
 

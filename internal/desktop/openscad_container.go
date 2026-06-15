@@ -74,6 +74,7 @@ type OpenSCADFile struct {
 	Size        int64  `json:"size"`
 	SHA256      string `json:"sha256"`
 	DownloadURL string `json:"download_url"`
+	PreviewURL  string `json:"preview_url"`
 	SavedPath   string `json:"saved_path,omitempty"`
 }
 
@@ -596,7 +597,8 @@ func (s *OpenSCADContainerService) describeOutputFile(filePath, jobID, filename,
 		Format:      strings.ToLower(format),
 		Size:        info.Size(),
 		SHA256:      hex.EncodeToString(sum[:]),
-		DownloadURL: "/api/openscad/jobs/" + jobID + "/files/" + filename,
+		DownloadURL: "/api/openscad/jobs/" + jobID + "/files/" + filename + "?download=1",
+		PreviewURL:  "/api/openscad/jobs/" + jobID + "/files/" + filename,
 	}, nil
 }
 

@@ -289,7 +289,7 @@
             const parts = [];
             parts.push(app.bind_mode === 'lan' ? t('desktop.store.access_lan', 'LAN') : t('desktop.store.access_local', 'Local'));
             if (app.tailscale_enabled) parts.push(app.tailscale_status === 'active' ? t('desktop.store.access_tailnet', 'Tailnet') : t('desktop.store.access_tailnet_pending', 'Tailnet pending'));
-            return parts.join(' · ');
+            return parts.join(' / ');
         }
 
         function handleAction(appId, action, portId) {
