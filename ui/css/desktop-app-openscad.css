@@ -1,68 +1,168 @@
 .openscad-app {
+    --oscad-bg: var(--vd-bg, #071018);
+    --oscad-surface: var(--vd-surface, rgba(16, 28, 43, 0.9));
+    --oscad-surface-strong: var(--vd-surface-strong, rgba(20, 34, 48, 0.96));
+    --oscad-border: var(--vd-border, rgba(148, 184, 202, 0.18));
+    --oscad-text: var(--vd-text, #eef7f7);
+    --oscad-muted: var(--vd-muted, #9fb0bd);
+    --oscad-accent: var(--vd-accent, #42d7c8);
+    --oscad-warm: var(--vd-amber, #ffb85c);
+    --oscad-danger: var(--vd-coral, #ff7180);
     width: 100%;
     height: 100%;
     min-height: 0;
-    color: #eef7f7;
+    color: var(--oscad-text);
     background:
-        radial-gradient(circle at 18% 8%, rgba(48, 214, 199, 0.14), transparent 34%),
-        linear-gradient(145deg, #071018 0%, #0e1721 48%, #101820 100%);
+        radial-gradient(circle at 18% 8%, rgba(66, 215, 200, 0.14), transparent 34%),
+        radial-gradient(circle at 82% 78%, rgba(255, 184, 92, 0.08), transparent 30%),
+        linear-gradient(145deg, var(--oscad-bg), #101820);
     overflow: hidden;
 }
 
-.oscad-shell {
+.desktop-body[data-theme="light"] .openscad-app {
+    --oscad-bg: #eef4f7;
+    --oscad-surface: rgba(255, 255, 255, 0.82);
+    --oscad-surface-strong: rgba(255, 255, 255, 0.94);
+    --oscad-border: rgba(22, 42, 61, 0.16);
+    --oscad-text: #152132;
+    --oscad-muted: #617182;
+    background: linear-gradient(145deg, #eef4f7, #dfeaf0);
+}
+
+.desktop-body[data-theme="fruity"] .openscad-app {
+    --oscad-surface: rgba(18, 24, 34, 0.72);
+    --oscad-surface-strong: rgba(21, 28, 39, 0.84);
+    --oscad-border: rgba(255, 255, 255, 0.18);
+}
+
+.oscad-workbench {
     display: grid;
-    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+    grid-template-columns: minmax(260px, 320px) minmax(420px, 1fr) minmax(320px, 380px);
     height: 100%;
     min-height: 0;
 }
 
-.oscad-left {
-    display: grid;
-    grid-template-rows: auto auto minmax(96px, 130px) auto auto auto auto minmax(180px, 1fr);
-    gap: 12px;
+.oscad-agent-panel,
+.oscad-preview-zone,
+.oscad-inspector {
+    min-width: 0;
     min-height: 0;
-    padding: 20px;
-    border-right: 1px solid rgba(148, 184, 202, 0.16);
+}
+
+.oscad-agent-panel,
+.oscad-inspector {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
     background: rgba(5, 12, 19, 0.54);
+    backdrop-filter: blur(18px);
+}
+
+.desktop-body[data-theme="light"] .oscad-agent-panel,
+.desktop-body[data-theme="light"] .oscad-inspector {
+    background: rgba(255, 255, 255, 0.42);
+}
+
+.oscad-agent-panel {
+    grid-template-rows: auto auto auto minmax(96px, 128px) auto auto;
+    border-right: 1px solid var(--oscad-border);
+}
+
+.oscad-inspector {
+    grid-template-rows: auto minmax(0, 1fr);
+    border-left: 1px solid var(--oscad-border);
+}
+
+.oscad-preview-zone {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 16px;
 }
 
 .oscad-brand {
-    display: flex;
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
     align-items: center;
-    gap: 14px;
+    gap: 12px;
 }
 
 .oscad-brand-icon {
     display: grid;
     place-items: center;
-    width: 58px;
-    height: 58px;
-    border-radius: 16px;
-    background: linear-gradient(135deg, rgba(62, 218, 204, 0.22), rgba(54, 117, 255, 0.16));
-    border: 1px solid rgba(96, 231, 217, 0.24);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 18px 36px rgba(0, 0, 0, 0.28);
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    color: #061014;
+    background: linear-gradient(135deg, var(--oscad-accent), #65c7ff 62%, var(--oscad-warm));
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.22);
 }
 
 .oscad-brand h2 {
     margin: 0;
-    font-size: 22px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 20px;
     line-height: 1.05;
-    font-weight: 800;
+    font-weight: 850;
     letter-spacing: 0;
 }
 
+.oscad-brand p,
+.oscad-run-meta,
+.oscad-file small,
+.oscad-file em,
+.oscad-viewport-head span,
+.oscad-status {
+    color: var(--oscad-muted);
+}
+
 .oscad-brand p {
-    margin: 5px 0 0;
-    color: #9fb0bd;
-    font-size: 13px;
-    font-weight: 700;
+    margin: 4px 0 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 720;
+}
+
+.oscad-run-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 28px;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 760;
+}
+
+.oscad-run-meta span,
+.oscad-dirty {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    max-width: 100%;
+    padding: 0 8px;
+    border: 1px solid var(--oscad-border);
+    border-radius: 999px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.oscad-dirty {
+    color: #111820;
+    border-color: transparent;
+    background: var(--oscad-warm);
 }
 
 .oscad-label {
     align-self: end;
-    color: #a8b7c2;
-    font-size: 12px;
-    font-weight: 800;
+    color: var(--oscad-muted);
+    font-size: 11px;
+    font-weight: 820;
     text-transform: uppercase;
     letter-spacing: 0;
 }
@@ -73,11 +173,18 @@
 .oscad-input {
     width: 100%;
     min-width: 0;
-    border: 1px solid rgba(142, 170, 188, 0.18);
-    border-radius: 10px;
-    color: #edf6f7;
+    border: 1px solid var(--oscad-border);
+    border-radius: 8px;
+    color: var(--oscad-text);
     background: rgba(5, 11, 18, 0.68);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.desktop-body[data-theme="light"] .oscad-chat,
+.desktop-body[data-theme="light"] .oscad-source,
+.desktop-body[data-theme="light"] .oscad-select,
+.desktop-body[data-theme="light"] .oscad-input {
+    background: rgba(255, 255, 255, 0.78);
 }
 
 .oscad-chat,
@@ -87,35 +194,50 @@
     font: 13px/1.45 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
-.oscad-chat {
-    min-height: 96px;
-}
-
 .oscad-source {
-    min-height: 0;
     height: 100%;
+    min-height: 0;
     overflow: auto;
 }
 
 .oscad-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 8px;
 }
 
 .oscad-options {
     display: grid;
     gap: 10px;
     padding: 12px;
-    border: 1px solid rgba(142, 170, 188, 0.14);
-    border-radius: 12px;
-    background: rgba(13, 24, 34, 0.62);
+    border: 1px solid var(--oscad-border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.045);
 }
 
 .oscad-chips {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
+}
+
+.oscad-primary-exports {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.oscad-more-exports {
+    min-width: 0;
+}
+
+.oscad-more-exports summary {
+    cursor: pointer;
+    color: var(--oscad-muted);
+    font-size: 12px;
+    font-weight: 780;
+}
+
+.oscad-more-exports .oscad-chips {
+    margin-top: 8px;
 }
 
 .oscad-chip {
@@ -132,26 +254,26 @@
     display: grid;
     place-items: center;
     min-height: 32px;
+    border: 1px solid var(--oscad-border);
     border-radius: 8px;
-    border: 1px solid rgba(142, 170, 188, 0.18);
-    color: #aebbc5;
-    background: rgba(4, 10, 17, 0.56);
+    color: var(--oscad-muted);
+    background: rgba(255, 255, 255, 0.045);
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 820;
 }
 
 .oscad-chip input:checked + span {
     color: #061014;
-    background: linear-gradient(135deg, #47e1d4, #65c7ff);
     border-color: transparent;
+    background: linear-gradient(135deg, var(--oscad-accent), #65c7ff);
 }
 
 .oscad-select,
 .oscad-input {
-    height: 40px;
-    padding: 0 12px;
-    font-size: 14px;
-    font-weight: 750;
+    height: 38px;
+    padding: 0 10px;
+    font-size: 13px;
+    font-weight: 760;
 }
 
 .oscad-btn,
@@ -162,18 +284,18 @@
     justify-content: center;
     gap: 8px;
     min-width: 0;
-    border: 1px solid rgba(142, 170, 188, 0.2);
-    color: #edf6f7;
-    background: rgba(20, 32, 44, 0.82);
-    border-radius: 10px;
-    font-size: 13px;
-    font-weight: 800;
+    border: 1px solid var(--oscad-border);
+    border-radius: 8px;
+    color: var(--oscad-text);
+    background: rgba(255, 255, 255, 0.06);
     cursor: pointer;
+    font-size: 13px;
+    font-weight: 820;
     transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
 .oscad-btn {
-    min-height: 42px;
+    min-height: 40px;
     padding: 0 12px;
 }
 
@@ -184,55 +306,74 @@
     white-space: nowrap;
 }
 
-.oscad-primary {
-    color: #041014;
+.oscad-primary,
+.oscad-tab.active,
+.oscad-icon-btn.active {
+    color: #061014;
     border-color: transparent;
-    background: linear-gradient(135deg, #46e0d3, #67cbff);
+    background: linear-gradient(135deg, var(--oscad-accent), #65c7ff);
+}
+
+.oscad-cancel {
+    color: #fff;
+    border-color: rgba(255, 113, 128, 0.32);
+    background: rgba(255, 113, 128, 0.18);
 }
 
 .oscad-btn:hover:not(:disabled),
-.oscad-icon-btn:hover,
-.oscad-tab:hover {
+.oscad-icon-btn:hover:not(:disabled),
+.oscad-tab:hover:not(:disabled) {
     transform: translateY(-1px);
-    border-color: rgba(77, 224, 211, 0.55);
+    border-color: color-mix(in srgb, var(--oscad-accent) 70%, transparent);
 }
 
-.oscad-btn:disabled {
+.oscad-btn:disabled,
+.oscad-icon-btn:disabled,
+.oscad-tab:disabled {
     cursor: not-allowed;
     opacity: 0.46;
 }
 
-.oscad-main {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    min-width: 0;
-    min-height: 0;
-    padding: 20px;
-    gap: 14px;
+.oscad-viewport-head,
+.oscad-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 44px;
 }
 
-.oscad-tabs {
+.oscad-viewport-head > div:first-child {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+}
+
+.oscad-viewport-head span {
+    font-size: 11px;
+    font-weight: 820;
+    text-transform: uppercase;
+}
+
+.oscad-viewport-head strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 15px;
+}
+
+.oscad-viewport-toolbar,
+.oscad-actions,
+.oscad-file-actions {
     display: flex;
     align-items: center;
     gap: 8px;
-    min-width: 0;
-}
-
-.oscad-tab {
-    min-height: 38px;
-    padding: 0 14px;
-}
-
-.oscad-tab.active {
-    color: #041014;
-    border-color: transparent;
-    background: #42d7c8;
 }
 
 .oscad-icon-btn {
     width: 38px;
     height: 38px;
-    margin-left: auto;
+    flex: 0 0 auto;
 }
 
 .oscad-panel {
@@ -240,10 +381,14 @@
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    border: 1px solid rgba(148, 184, 202, 0.18);
-    border-radius: 14px;
+    border: 1px solid var(--oscad-border);
+    border-radius: 10px;
     background: #050a10;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 22px 42px rgba(0, 0, 0, 0.24);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 22px 42px rgba(0, 0, 0, 0.22);
+}
+
+.openscad-app.light-preview .oscad-panel {
+    background: #f2f6f8;
 }
 
 .openscad-app.busy .oscad-panel::after {
@@ -254,8 +399,8 @@
     width: 26px;
     height: 26px;
     border-radius: 50%;
-    border: 3px solid rgba(77, 224, 211, 0.2);
-    border-top-color: #42d7c8;
+    border: 3px solid rgba(66, 215, 200, 0.2);
+    border-top-color: var(--oscad-accent);
     animation: oscad-spin 780ms linear infinite;
 }
 
@@ -268,7 +413,7 @@
     min-height: 360px;
     object-fit: contain;
     border: 0;
-    background: #050a10;
+    background: transparent;
 }
 
 .oscad-stl canvas {
@@ -282,110 +427,182 @@
     align-content: center;
     gap: 8px;
     height: 100%;
-    min-height: 280px;
+    min-height: 220px;
     padding: 24px;
-    color: #9fb0bd;
+    color: var(--oscad-muted);
     text-align: center;
     font-size: 14px;
-    font-weight: 750;
+    font-weight: 740;
 }
 
 .oscad-empty strong {
-    color: #edf6f7;
-    font-size: 18px;
+    color: var(--oscad-text);
+    font-size: 17px;
+}
+
+.oscad-tabs {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+}
+
+.oscad-tab {
+    min-height: 36px;
+    padding: 0 12px;
+}
+
+.oscad-tabs .oscad-icon-btn {
+    margin-left: auto;
+}
+
+.oscad-inspector-panel {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .oscad-code {
     height: 100%;
     min-height: 0;
     margin: 0;
-    padding: 16px;
+    padding: 14px;
     overflow: auto;
-    color: #d8f1ee;
+    color: var(--oscad-text);
+    background: rgba(0, 0, 0, 0.18);
     font: 13px/1.55 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
     white-space: pre-wrap;
 }
 
 .oscad-file-list {
     display: grid;
+    align-content: start;
     gap: 10px;
-    padding: 16px;
-    overflow: auto;
-    max-height: 100%;
+    height: 100%;
+    padding-right: 2px;
+    overflow-y: auto;
+    scrollbar-width: thin;
 }
 
 .oscad-file {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
-    gap: 14px;
+    gap: 12px;
     min-width: 0;
-    min-height: 52px;
-    padding: 10px 12px;
-    color: #edf6f7;
-    text-decoration: none;
-    border: 1px solid rgba(148, 184, 202, 0.16);
-    border-radius: 10px;
-    background: rgba(20, 32, 44, 0.7);
+    min-height: 62px;
+    padding: 10px;
+    border: 1px solid var(--oscad-border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.055);
 }
 
-.oscad-file span {
+.oscad-file-main {
+    display: grid;
     min-width: 0;
+    gap: 3px;
+}
+
+.oscad-file span,
+.oscad-file small,
+.oscad-file em,
+.oscad-status {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-weight: 800;
 }
 
-.oscad-file small {
-    flex: 0 0 auto;
-    color: #9fb0bd;
+.oscad-file span {
+    font-weight: 820;
+}
+
+.oscad-file small,
+.oscad-file em {
     font-size: 12px;
-    font-weight: 750;
-}
-
-.oscad-footer {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-height: 48px;
+    font-style: normal;
 }
 
 .oscad-status {
     min-width: 0;
     flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: #b9c7d1;
     font-size: 13px;
-    font-weight: 750;
+    font-weight: 760;
 }
 
 .oscad-status.error {
-    color: #ff7d8d;
+    color: var(--oscad-danger);
 }
 
-.oscad-actions {
-    display: flex;
-    gap: 8px;
+@media (max-width: 1120px) {
+    .oscad-workbench {
+        grid-template-columns: minmax(250px, 300px) minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) minmax(220px, 34%);
+    }
+
+    .oscad-agent-panel {
+        grid-row: 1 / span 2;
+    }
+
+    .oscad-inspector {
+        grid-column: 2;
+        border-left: 0;
+        border-top: 1px solid var(--oscad-border);
+    }
 }
 
 @media (max-width: 860px) {
-    .oscad-shell {
+    .oscad-workbench {
         grid-template-columns: 1fr;
-        grid-template-rows: auto minmax(0, 1fr);
+        grid-template-rows: auto minmax(360px, 48%) minmax(260px, 1fr);
         overflow: auto;
     }
 
-    .oscad-left {
-        grid-template-rows: auto auto minmax(82px, auto) auto auto auto auto minmax(170px, 260px);
+    .oscad-agent-panel,
+    .oscad-inspector {
+        border-left: 0;
         border-right: 0;
-        border-bottom: 1px solid rgba(148, 184, 202, 0.16);
     }
 
-    .oscad-main {
-        min-height: 540px;
+    .oscad-agent-panel {
+        grid-template-rows: auto auto auto auto auto;
+        border-bottom: 1px solid var(--oscad-border);
+    }
+
+    .oscad-preview-zone {
+        min-height: 360px;
+        padding: 12px;
+    }
+
+    .oscad-inspector {
+        min-height: 260px;
+        border-top: 1px solid var(--oscad-border);
+    }
+}
+
+@media (max-width: 560px) {
+    .oscad-agent-panel,
+    .oscad-preview-zone,
+    .oscad-inspector {
+        padding: 10px;
+    }
+
+    .oscad-row,
+    .oscad-footer {
+        grid-template-columns: 1fr;
+        display: grid;
+    }
+
+    .oscad-actions {
+        justify-content: stretch;
+    }
+
+    .oscad-actions .oscad-btn {
+        flex: 1;
+    }
+
+    .oscad-viewport-head {
+        align-items: stretch;
+        flex-direction: column;
     }
 }
 

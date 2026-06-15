@@ -38,18 +38,25 @@ model();`;
             exports: new Set(['png', 'stl']),
             renderMode: 'render',
             timeout: 120,
-            activeTab: 'preview',
+            activeTab: 'source',
             result: null,
+            sourceDirty: false,
+            lightPreview: false,
+            showAxes: true,
             busy: false,
+            busyMode: '',
+            cancelRequested: false,
             stl: null,
             previewCleanup: null,
             renderAbort: null,
+            agentAbort: null,
+            statusMessage: '',
+            statusError: false,
             listeners: [],
             eventsAttached: false
         };
         stateByWindow.set(windowId, state);
         draw(state);
-        wire(state);
         updateWindowContext(state);
         loadStatus(state);
     }
@@ -59,10 +66,11 @@ model();`;
         cleanupPreview(state);
         state.host.className = 'openscad-app';
         state.host.classList.toggle('busy', !!state.busy);
+        state.host.classList.toggle('light-preview', !!state.lightPreview);
         state.host.setAttribute('aria-busy', state.busy ? 'true' : 'false');
         state.host.innerHTML = `
-            <div class="oscad-shell">
-                <aside class="oscad-left">
+            <div class="oscad-workbench" data-oscad-workbench>
+                <aside class="oscad-agent-panel" data-oscad-agent-panel>
                     <div class="oscad-brand">
                         <div class="oscad-brand-icon">${icon(ctx, 'openscad', 'O', 'oscad-icon', 28)}</div>
                         <div>
@@ -70,21 +78,29 @@ model();`;
                             <p>${esc(t(ctx, 'desktop.openscad.subtitle', 'Parametric CAD compiler'))}</p>
                         </div>
                     </div>
+                    <div class="oscad-run-meta">
+                        ${jobMetaHTML(state)}
+                        ${state.sourceDirty ? `<span class="oscad-dirty">${esc(t(ctx, 'desktop.openscad.render_required', 'Render required'))}</span>` : ''}
+                    </div>
                     <label class="oscad-label">${esc(t(ctx, 'desktop.openscad.prompt', 'Agent prompt'))}</label>
                     <textarea class="oscad-chat" data-oscad-prompt rows="5" placeholder="${esc(t(ctx, 'desktop.openscad.prompt_placeholder', 'Describe the model you want...'))}">${esc(state.prompt)}</textarea>
                     <div class="oscad-row">
-                        <button class="oscad-btn oscad-primary" data-oscad-agent ${state.busy ? 'disabled' : ''}>${icon(ctx, 'agent-chat', 'A', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.ask_agent', 'Ask agent'))}</span></button>
+                        <button class="oscad-btn oscad-primary" data-oscad-agent ${state.busy ? 'disabled' : ''}>${icon(ctx, 'agent-chat', 'A', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.generate_render', 'Generate & render'))}</span></button>
                         <button class="oscad-btn" data-oscad-render ${state.busy ? 'disabled' : ''}>${icon(ctx, 'run', 'R', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.render', 'Render'))}</span></button>
                     </div>
+                    <button class="oscad-btn oscad-cancel" data-oscad-cancel ${state.busy ? '' : 'hidden'}>${icon(ctx, 'x', 'X', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.cancel', 'Cancel'))}</span></button>
                     <div class="oscad-options">
                         <label class="oscad-label">${esc(t(ctx, 'desktop.openscad.exports', 'Exports'))}</label>
-                        <div class="oscad-chips">
-                            ${['png', 'stl', 'svg', 'pdf', '3mf', 'off', 'dxf'].map(format => `
-                                <label class="oscad-chip">
-                                    <input type="checkbox" data-oscad-export="${esc(format)}" ${state.exports.has(format) ? 'checked' : ''}>
-                                    <span>${esc(format.toUpperCase())}</span>
-                                </label>`).join('')}
+                        <div class="oscad-chips oscad-primary-exports">
+                            ${exportChipHTML(state, 'png')}
+                            ${exportChipHTML(state, 'stl')}
                         </div>
+                        <details class="oscad-more-exports">
+                            <summary>${esc(t(ctx, 'desktop.openscad.more_exports', 'More exports'))}</summary>
+                            <div class="oscad-chips">
+                                ${['svg', 'pdf', '3mf', 'off', 'dxf'].map(format => exportChipHTML(state, format)).join('')}
+                            </div>
+                        </details>
                         <label class="oscad-label">${esc(t(ctx, 'desktop.openscad.mode', 'Mode'))}</label>
                         <select class="oscad-select" data-oscad-mode>
                             <option value="render" ${state.renderMode === 'render' ? 'selected' : ''}>${esc(t(ctx, 'desktop.openscad.mode_render', 'Render'))}</option>
@@ -93,45 +109,86 @@ model();`;
                         <label class="oscad-label">${esc(t(ctx, 'desktop.openscad.timeout', 'Timeout'))}</label>
                         <input class="oscad-input" data-oscad-timeout type="number" min="10" max="600" step="10" value="${esc(state.timeout)}">
                     </div>
-                    <label class="oscad-label">${esc(t(ctx, 'desktop.openscad.source', 'Source'))}</label>
-                    <textarea class="oscad-source" data-oscad-source spellcheck="false">${esc(state.source)}</textarea>
                 </aside>
-                <main class="oscad-main">
+                <main class="oscad-preview-zone">
+                    <div class="oscad-viewport-head">
+                        <div>
+                            <span>${esc(t(ctx, 'desktop.openscad.tab_preview', 'Preview'))}</span>
+                            <strong>${esc(primaryFileLabel(state))}</strong>
+                        </div>
+                        <div class="oscad-viewport-toolbar">
+                            <button class="oscad-icon-btn" data-oscad-fit title="${esc(t(ctx, 'desktop.openscad.viewport_fit', 'Fit view'))}" aria-label="${esc(t(ctx, 'desktop.openscad.viewport_fit', 'Fit view'))}">${icon(ctx, 'zoom-fit', 'F', 'oscad-btn-icon', 16)}</button>
+                            <button class="oscad-icon-btn ${state.lightPreview ? 'active' : ''}" data-oscad-background title="${esc(t(ctx, 'desktop.openscad.viewport_background', 'Toggle background'))}" aria-label="${esc(t(ctx, 'desktop.openscad.viewport_background', 'Toggle background'))}">${icon(ctx, 'contrast', 'B', 'oscad-btn-icon', 16)}</button>
+                            <button class="oscad-icon-btn ${state.showAxes ? 'active' : ''}" data-oscad-axes title="${esc(t(ctx, 'desktop.openscad.viewport_axes', 'Toggle grid and axes'))}" aria-label="${esc(t(ctx, 'desktop.openscad.viewport_axes', 'Toggle grid and axes'))}">${icon(ctx, 'grid', 'G', 'oscad-btn-icon', 16)}</button>
+                            <button class="oscad-icon-btn" data-oscad-fullscreen title="${esc(t(ctx, 'desktop.openscad.fullscreen', 'Fullscreen'))}" aria-label="${esc(t(ctx, 'desktop.openscad.fullscreen', 'Fullscreen'))}">${icon(ctx, 'fullscreen', 'F', 'oscad-btn-icon', 16)}</button>
+                        </div>
+                    </div>
+                    <div class="oscad-panel" data-oscad-panel data-oscad-preview-panel></div>
+                    <div class="oscad-footer">
+                        <div class="oscad-status ${state.statusError ? 'error' : ''}" data-oscad-status>${esc(state.statusMessage || t(ctx, 'desktop.openscad.ready', 'Ready'))}</div>
+                        <div class="oscad-actions">
+                            <button class="oscad-btn" data-oscad-download ${state.result && !state.busy ? '' : 'disabled'}>${icon(ctx, 'download', 'D', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.primary_download', 'Download primary'))}</span></button>
+                            <button class="oscad-btn" data-oscad-save ${state.result && !state.busy ? '' : 'disabled'}>${icon(ctx, 'save', 'S', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.save_all_desktop', 'Save all'))}</span></button>
+                        </div>
+                    </div>
+                </main>
+                <aside class="oscad-inspector" data-oscad-inspector>
                     <div class="oscad-tabs">
-                        ${tabButton(state, 'preview', t(ctx, 'desktop.openscad.tab_preview', 'Preview'))}
                         ${tabButton(state, 'source', t(ctx, 'desktop.openscad.tab_source', 'Source'))}
                         ${tabButton(state, 'files', t(ctx, 'desktop.openscad.tab_files', 'Files'))}
                         ${tabButton(state, 'log', t(ctx, 'desktop.openscad.tab_log', 'Log'))}
                         <button class="oscad-icon-btn" data-oscad-refresh ${state.busy ? 'disabled' : ''} title="${esc(t(ctx, 'desktop.openscad.refresh', 'Refresh'))}">${icon(ctx, 'refresh', 'R', 'oscad-btn-icon', 16)}</button>
                     </div>
-                    <div class="oscad-panel" data-oscad-panel></div>
-                    <div class="oscad-footer">
-                        <div class="oscad-status" data-oscad-status>${esc(t(ctx, 'desktop.openscad.ready', 'Ready'))}</div>
-                        <div class="oscad-actions">
-                            <button class="oscad-btn" data-oscad-download ${state.result && !state.busy ? '' : 'disabled'}>${icon(ctx, 'download', 'D', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.download', 'Download'))}</span></button>
-                            <button class="oscad-btn" data-oscad-save ${state.result && !state.busy ? '' : 'disabled'}>${icon(ctx, 'save', 'S', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.save_desktop', 'Save'))}</span></button>
-                            <button class="oscad-btn" data-oscad-fullscreen>${icon(ctx, 'fullscreen', 'F', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.fullscreen', 'Fullscreen'))}</span></button>
-                        </div>
-                    </div>
-                </main>
+                    <div class="oscad-inspector-panel" data-oscad-inspector-panel></div>
+                </aside>
             </div>`;
         renderPanel(state);
+        wire(state);
+        setWindowMenus(state);
     }
 
     function tabButton(state, id, label) {
         return `<button class="oscad-tab ${state.activeTab === id ? 'active' : ''}" data-oscad-tab="${esc(id)}">${esc(label)}</button>`;
     }
 
+    function exportChipHTML(state, format) {
+        return `<label class="oscad-chip">
+            <input type="checkbox" data-oscad-export="${esc(format)}" ${state.exports.has(format) ? 'checked' : ''}>
+            <span>${esc(format.toUpperCase())}</span>
+        </label>`;
+    }
+
+    function jobMetaHTML(state) {
+        const ctx = state.ctx;
+        if (!state.result || !state.result.job_id) {
+            return `<span>${esc(t(ctx, 'desktop.openscad.ready', 'Ready'))}</span>`;
+        }
+        const duration = Number(state.result.duration_ms || 0);
+        const durationText = duration > 0 ? `${Math.max(0.1, duration / 1000).toFixed(1)}s` : '-';
+        return `<span>${esc(t(ctx, 'desktop.openscad.job', 'Job'))}: ${esc(state.result.job_id)}</span><span>${esc(t(ctx, 'desktop.openscad.duration', 'Duration'))}: ${esc(durationText)}</span>`;
+    }
+
+    function primaryFileLabel(state) {
+        const file = primaryFile(state);
+        return file ? `${file.name} · ${String(file.format || '').toUpperCase()}` : t(state.ctx, 'desktop.openscad.no_preview', 'Render a model to see the preview.');
+    }
+
     function wire(state) {
         const host = state.host;
-        host.querySelector('[data-oscad-source]').addEventListener('input', e => {
+        const sourceEl = host.querySelector('[data-oscad-source]');
+        if (sourceEl) sourceEl.addEventListener('input', e => {
             state.source = e.target.value;
+            state.sourceDirty = true;
             updateWindowContext(state);
-            if (state.activeTab === 'source') renderPanel(state);
+            setStatus(state, t(state.ctx, 'desktop.openscad.render_required', 'Render required'));
+            setWindowMenus(state);
         });
-        host.querySelector('[data-oscad-prompt]').addEventListener('input', e => { state.prompt = e.target.value; });
-        host.querySelector('[data-oscad-mode]').addEventListener('change', e => { state.renderMode = e.target.value || 'render'; });
-        host.querySelector('[data-oscad-timeout]').addEventListener('input', e => { state.timeout = Number(e.target.value || 120); });
+        const promptEl = host.querySelector('[data-oscad-prompt]');
+        if (promptEl) promptEl.addEventListener('input', e => { state.prompt = e.target.value; });
+        const modeEl = host.querySelector('[data-oscad-mode]');
+        if (modeEl) modeEl.addEventListener('change', e => { state.renderMode = e.target.value || 'render'; });
+        const timeoutEl = host.querySelector('[data-oscad-timeout]');
+        if (timeoutEl) timeoutEl.addEventListener('input', e => { state.timeout = Number(e.target.value || 120); });
         host.querySelectorAll('[data-oscad-export]').forEach(input => {
             input.addEventListener('change', () => {
                 const format = input.dataset.oscadExport;
@@ -141,10 +198,21 @@ model();`;
         });
         host.querySelector('[data-oscad-render]').addEventListener('click', () => renderSource(state));
         host.querySelector('[data-oscad-agent]').addEventListener('click', () => askAgent(state));
+        host.querySelector('[data-oscad-cancel]').addEventListener('click', () => cancelCurrentOpenSCADWork(state));
         host.querySelector('[data-oscad-save]').addEventListener('click', () => saveJob(state));
         host.querySelector('[data-oscad-download]').addEventListener('click', () => downloadPrimary(state));
         host.querySelector('[data-oscad-fullscreen]').addEventListener('click', () => fullscreenPreview(state));
-        host.querySelector('[data-oscad-refresh]').addEventListener('click', () => loadStatus(state));
+        host.querySelector('[data-oscad-fit]').addEventListener('click', () => resetPreviewView(state));
+        host.querySelector('[data-oscad-background]').addEventListener('click', () => togglePreviewBackground(state));
+        host.querySelector('[data-oscad-axes]').addEventListener('click', () => togglePreviewAxes(state));
+        const refreshEl = host.querySelector('[data-oscad-refresh]');
+        if (refreshEl) refreshEl.addEventListener('click', () => loadStatus(state));
+        host.querySelectorAll('[data-oscad-file-download]').forEach(btn => btn.addEventListener('click', () => {
+            const files = resultFiles(state);
+            const file = files.find(item => item.name === btn.dataset.oscadFileDownload);
+            if (file) downloadFile(file);
+        }));
+        host.querySelectorAll('[data-oscad-open-saved]').forEach(btn => btn.addEventListener('click', () => openSavedPath(state, btn.dataset.oscadOpenSaved)));
         host.querySelectorAll('[data-oscad-tab]').forEach(btn => btn.addEventListener('click', () => {
             state.activeTab = btn.dataset.oscadTab;
             draw(state);
@@ -179,7 +247,8 @@ model();`;
         if (data && data.event === 'virtual_desktop_event' && data.detail) data = normalizeEventData(data.detail);
         if (!data || data.type !== 'openscad_result') return;
         state.result = data.payload || data.result || null;
-        state.activeTab = 'preview';
+        state.sourceDirty = false;
+        state.activeTab = 'files';
         draw(state);
         setStatus(state, t(state.ctx, 'desktop.openscad.render_complete', 'Render complete'));
     }
@@ -198,7 +267,8 @@ model();`;
         if (state.busy) return;
         const exports = Array.from(state.exports);
         if (!exports.length) exports.push('png', 'stl');
-        setOpenSCADBusy(state, true);
+        state.cancelRequested = false;
+        setOpenSCADBusy(state, true, 'render');
         setStatus(state, t(state.ctx, 'desktop.openscad.rendering', 'Rendering...'));
         const controller = new AbortController();
         state.renderAbort = controller;
@@ -217,31 +287,37 @@ model();`;
                 })
             });
             state.result = body && body.result ? body.result : null;
-            state.activeTab = 'preview';
+            state.sourceDirty = false;
+            state.activeTab = 'files';
             setOpenSCADBusy(state, false);
             draw(state);
             setStatus(state, state.result ? t(state.ctx, 'desktop.openscad.render_complete', 'Render complete') : t(state.ctx, 'desktop.openscad.no_preview', 'Render a model to see the preview.'), !state.result);
         } catch (err) {
             setOpenSCADBusy(state, false);
             const message = err && err.name === 'AbortError'
-                ? t(state.ctx, 'desktop.openscad.render_timeout', 'Render timed out. Try a simpler model or increase the timeout.')
+                ? (state.cancelRequested ? t(state.ctx, 'desktop.openscad.cancelled', 'Cancelled') : t(state.ctx, 'desktop.openscad.render_timeout', 'Render timed out. Try a simpler model or increase the timeout.'))
                 : (err && err.message) || String(err);
             setStatus(state, message, true);
         } finally {
             window.clearTimeout(timeout);
             if (state.renderAbort === controller) state.renderAbort = null;
+            state.cancelRequested = false;
         }
     }
 
     async function askAgent(state) {
         const message = state.prompt.trim();
         if (!message || state.busy) return;
-        state.busy = true;
+        state.cancelRequested = false;
+        setOpenSCADBusy(state, true, 'agent');
         setStatus(state, t(state.ctx, 'desktop.openscad.agent_working', 'Agent is working...'));
+        const controller = new AbortController();
+        state.agentAbort = controller;
         try {
             const response = await fetch('/api/desktop/chat/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: controller.signal,
                 body: JSON.stringify({
                     message,
                     context: {
@@ -262,9 +338,14 @@ model();`;
             if (!response.ok || !response.body) throw new Error(await response.text());
             await readChatStream(state, response.body.getReader());
         } catch (err) {
-            setStatus(state, err.message || String(err), true);
+            const message = err && err.name === 'AbortError'
+                ? t(state.ctx, 'desktop.openscad.cancelled', 'Cancelled')
+                : (err && err.message) || String(err);
+            setStatus(state, message, true);
         } finally {
-            state.busy = false;
+            if (state.agentAbort === controller) state.agentAbort = null;
+            state.cancelRequested = false;
+            setOpenSCADBusy(state, false);
         }
     }
 
@@ -297,6 +378,7 @@ model();`;
         try {
             const body = await state.ctx.api(`/api/openscad/jobs/${encodeURIComponent(state.result.job_id)}/save`, { method: 'POST' });
             state.result = body.result;
+            state.activeTab = 'files';
             draw(state);
             setStatus(state, t(state.ctx, 'desktop.openscad.saved', 'Saved to Desktop'));
         } catch (err) {
@@ -307,27 +389,29 @@ model();`;
     function downloadPrimary(state) {
         const file = primaryFile(state);
         if (!file) return;
-        window.open(file.download_url, '_blank', 'noopener');
+        downloadFile(file);
     }
 
     function fullscreenPreview(state) {
-        const panel = state.host.querySelector('[data-oscad-panel]');
+        const panel = state.host.querySelector('[data-oscad-preview-panel]');
         if (panel && panel.requestFullscreen) panel.requestFullscreen();
     }
 
     function renderPanel(state) {
-        const panel = state.host.querySelector('[data-oscad-panel]');
+        renderViewport(state);
+        renderInspector(state);
+    }
+
+    function renderInspector(state) {
+        const panel = state.host.querySelector('[data-oscad-inspector-panel]');
         if (!panel) return;
         if (state.activeTab === 'source') {
-            panel.innerHTML = `<pre class="oscad-code">${esc(state.source)}</pre>`;
+            panel.innerHTML = `<textarea class="oscad-source" data-oscad-source spellcheck="false" inputmode="text">${esc(state.source)}</textarea>`;
             return;
         }
         if (state.activeTab === 'files') {
-            const files = state.result && Array.isArray(state.result.files) ? state.result.files : [];
-            panel.innerHTML = files.length ? `<div class="oscad-file-list">${files.map(file => `
-                <a class="oscad-file" href="${esc(file.download_url)}" target="_blank" rel="noopener">
-                    <span>${esc(file.name)}</span><small>${esc(file.format.toUpperCase())} · ${esc(formatSize(file.size))}</small>
-                </a>`).join('')}</div>` : emptyPanel(state, 'desktop.openscad.no_files', 'No files yet');
+            const files = resultFiles(state);
+            panel.innerHTML = files.length ? `<div class="oscad-file-list">${files.map(file => fileRowHTML(state, file)).join('')}</div>` : emptyPanel(state, 'desktop.openscad.no_files', 'No files yet');
             return;
         }
         if (state.activeTab === 'log') {
@@ -335,7 +419,34 @@ model();`;
             panel.innerHTML = log ? `<pre class="oscad-code">${esc(log)}</pre>` : emptyPanel(state, 'desktop.openscad.no_log', 'No log yet');
             return;
         }
+        state.activeTab = 'source';
+        renderInspector(state);
+    }
+
+    function renderViewport(state) {
+        const panel = state.host.querySelector('[data-oscad-preview-panel]');
+        if (!panel) return;
         renderPreview(state, panel);
+    }
+
+    function resultFiles(state) {
+        return state.result && Array.isArray(state.result.files) ? state.result.files : [];
+    }
+
+    function fileRowHTML(state, file) {
+        const ctx = state.ctx;
+        const savedPath = file.saved_path || file.SavedPath || '';
+        return `<article class="oscad-file">
+            <div class="oscad-file-main">
+                <span title="${esc(file.name)}">${esc(file.name)}</span>
+                <small>${esc(String(file.format || '').toUpperCase())} · ${esc(formatSize(file.size))}</small>
+                ${savedPath ? `<em title="${esc(savedPath)}">${esc(t(ctx, 'desktop.openscad.saved_path', 'Saved'))}: ${esc(savedPath)}</em>` : ''}
+            </div>
+            <div class="oscad-file-actions">
+                <button type="button" class="oscad-icon-btn" data-oscad-file-download="${esc(file.name)}" title="${esc(t(ctx, 'desktop.openscad.file_download', 'Download file'))}">${icon(ctx, 'download', 'D', 'oscad-btn-icon', 16)}</button>
+                ${savedPath ? `<button type="button" class="oscad-icon-btn" data-oscad-open-saved="${esc(savedPath)}" title="${esc(t(ctx, 'desktop.openscad.open_saved', 'Open saved file'))}">${icon(ctx, 'folder-open', 'O', 'oscad-btn-icon', 16)}</button>` : ''}
+            </div>
+        </article>`;
     }
 
     function renderPreview(state, panel) {
@@ -376,17 +487,89 @@ model();`;
         }, { once: true });
     }
 
-    function setOpenSCADBusy(state, busy) {
+    function setOpenSCADBusy(state, busy, mode) {
         state.busy = !!busy;
+        state.busyMode = state.busy ? (mode || state.busyMode || 'work') : '';
         if (!state.host) return;
         state.host.classList.toggle('busy', state.busy);
+        state.host.classList.toggle('busy-render', state.busy && state.busyMode === 'render');
+        state.host.classList.toggle('busy-agent', state.busy && state.busyMode === 'agent');
         state.host.setAttribute('aria-busy', state.busy ? 'true' : 'false');
-        state.host.querySelectorAll('[data-oscad-render], [data-oscad-agent], [data-oscad-refresh]').forEach(btn => { btn.disabled = state.busy; });
+        state.host.querySelectorAll('[data-oscad-render], [data-oscad-agent], [data-oscad-refresh], [data-oscad-download], [data-oscad-save]').forEach(btn => { btn.disabled = state.busy || (btn.hasAttribute('data-oscad-download') || btn.hasAttribute('data-oscad-save')) && !state.result; });
+        const cancel = state.host.querySelector('[data-oscad-cancel]');
+        if (cancel) cancel.hidden = !state.busy;
+        setWindowMenus(state);
     }
 
     function renderRequestTimeoutMS(state) {
         const seconds = Math.max(10, Math.min(Number(state.timeout) || 120, 600));
         return (seconds + 45) * 1000;
+    }
+
+    function cancelCurrentOpenSCADWork(state) {
+        state.cancelRequested = true;
+        if (state.renderAbort) state.renderAbort.abort();
+        if (state.agentAbort) state.agentAbort.abort();
+        setStatus(state, t(state.ctx, 'desktop.openscad.cancelled', 'Cancelled'), true);
+    }
+
+    function resetPreviewView(state) {
+        renderViewport(state);
+    }
+
+    function togglePreviewBackground(state) {
+        state.lightPreview = !state.lightPreview;
+        draw(state);
+    }
+
+    function togglePreviewAxes(state) {
+        state.showAxes = !state.showAxes;
+        draw(state);
+    }
+
+    function downloadFile(file) {
+        if (!file || !file.download_url) return;
+        window.open(file.download_url, '_blank', 'noopener');
+    }
+
+    function openSavedPath(state, savedPath) {
+        const normalized = String(savedPath || '').replace(/\\/g, '/').replace(/^\/+/, '');
+        if (!normalized || !state.ctx || typeof state.ctx.openApp !== 'function') return;
+        const dir = normalized.split('/').slice(0, -1).join('/') || normalized;
+        state.ctx.openApp('files', { path: dir });
+    }
+
+    function setWindowMenus(state) {
+        if (!state.ctx || typeof state.ctx.setWindowMenus !== 'function') return;
+        state.ctx.setWindowMenus(state.windowId, [
+            {
+                id: 'model',
+                labelKey: 'desktop.openscad.title',
+                items: [
+                    { id: 'render', labelKey: 'desktop.openscad.render', icon: 'run', disabled: state.busy, action: () => renderSource(state) },
+                    { id: 'cancel', labelKey: 'desktop.openscad.cancel', icon: 'x', disabled: !state.busy, action: () => cancelCurrentOpenSCADWork(state) },
+                    { type: 'separator' },
+                    { id: 'download', labelKey: 'desktop.openscad.primary_download', icon: 'download', disabled: !state.result || state.busy, action: () => downloadPrimary(state) },
+                    { id: 'save', labelKey: 'desktop.openscad.save_all_desktop', icon: 'save', disabled: !state.result || state.busy, action: () => saveJob(state) }
+                ]
+            },
+            {
+                id: 'view',
+                labelKey: 'desktop.menu_view',
+                items: [
+                    { id: 'fit', labelKey: 'desktop.openscad.viewport_fit', icon: 'zoom-fit', action: () => resetPreviewView(state) },
+                    { id: 'background', labelKey: 'desktop.openscad.viewport_background', icon: 'contrast', checked: state.lightPreview, action: () => togglePreviewBackground(state) },
+                    { id: 'axes', labelKey: 'desktop.openscad.viewport_axes', icon: 'grid', checked: state.showAxes, action: () => togglePreviewAxes(state) },
+                    { id: 'fullscreen', labelKey: 'desktop.openscad.fullscreen', icon: 'fullscreen', action: () => fullscreenPreview(state) }
+                ]
+            }
+        ]);
+    }
+
+    function clearWindowMenus(state) {
+        if (state && state.ctx && typeof state.ctx.clearWindowMenus === 'function') {
+            state.ctx.clearWindowMenus(state.windowId);
+        }
     }
 
     function renderSTL(state, mount, url) {
@@ -397,20 +580,29 @@ model();`;
             mount.innerHTML = `<div class="oscad-empty">${esc(t(state.ctx, 'desktop.openscad.download_hint', 'Preview is not interactive for this format. Download or save the file.'))}</div>`;
             return;
         }
+        mount.innerHTML = `<div class="oscad-empty">${esc(t(state.ctx, 'desktop.openscad.rendering', 'Rendering...'))}</div>`;
         const width = mount.clientWidth || 640;
         const height = mount.clientHeight || 420;
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x071018);
+        scene.background = new THREE.Color(state.lightPreview ? 0xf2f6f8 : 0x071018);
         const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 5000);
         camera.position.set(80, 70, 90);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(width, height);
         mount.innerHTML = '';
         mount.appendChild(renderer.domElement);
-        scene.add(new THREE.HemisphereLight(0xffffff, 0x243447, 1.2));
+        scene.add(new THREE.HemisphereLight(0xffffff, state.lightPreview ? 0xd8e1ea : 0x243447, 1.2));
         const light = new THREE.DirectionalLight(0xffffff, 0.9);
         light.position.set(40, 80, 60);
         scene.add(light);
+        const helpers = [];
+        if (state.showAxes) {
+            const grid = new THREE.GridHelper(160, 16, 0x42d7c8, state.lightPreview ? 0xc4d1db : 0x1a3441);
+            const axes = new THREE.AxesHelper(70);
+            helpers.push(grid, axes);
+            scene.add(grid);
+            scene.add(axes);
+        }
         const controls = OrbitControls ? new OrbitControls(camera, renderer.domElement) : null;
         let disposed = false;
         let frameID = 0;
@@ -424,6 +616,7 @@ model();`;
                 if (mesh.material && typeof mesh.material.dispose === 'function') mesh.material.dispose();
                 scene.remove(mesh);
             }
+            helpers.forEach(helper => scene.remove(helper));
             if (renderer && typeof renderer.dispose === 'function') renderer.dispose();
             if (renderer && typeof renderer.forceContextLoss === 'function') renderer.forceContextLoss();
             state.previewCleanup = null;
@@ -442,8 +635,12 @@ model();`;
             const size = box.getSize(new THREE.Vector3()).length() || 80;
             camera.position.set(size, size * 0.75, size);
             camera.lookAt(0, 0, 0);
+            if (controls && controls.target) controls.target.set(0, 0, 0);
             animate();
-        }, undefined, err => setStatus(state, err && err.message ? err.message : String(err), true));
+        }, undefined, err => {
+            mount.innerHTML = `<div class="oscad-empty"><strong>${esc(t(state.ctx, 'desktop.openscad.no_preview', 'Render a model to see the preview.'))}</strong><span>${esc(err && err.message ? err.message : String(err))}</span></div>`;
+            setStatus(state, err && err.message ? err.message : String(err), true);
+        });
         function animate() {
             if (!stateByWindow.has(state.windowId)) return;
             frameID = requestAnimationFrame(animate);
@@ -463,7 +660,7 @@ model();`;
     }
 
     function primaryFile(state) {
-        const files = state.result && Array.isArray(state.result.files) ? state.result.files : [];
+        const files = resultFiles(state);
         return files.find(file => file.format === 'png') || files.find(file => file.format === 'stl') || files[0] || null;
     }
 
@@ -472,6 +669,8 @@ model();`;
     }
 
     function setStatus(state, message, error) {
+        state.statusMessage = message || '';
+        state.statusError = !!error;
         const el = state.host.querySelector('[data-oscad-status]');
         if (el) {
             el.textContent = message || '';
@@ -511,6 +710,11 @@ model();`;
             state.renderAbort.abort();
             state.renderAbort = null;
         }
+        if (state.agentAbort) {
+            state.agentAbort.abort();
+            state.agentAbort = null;
+        }
+        clearWindowMenus(state);
         cleanupPreview(state);
         state.listeners.forEach(fn => {
             try { fn(); } catch (_) {}
