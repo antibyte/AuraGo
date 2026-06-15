@@ -6,6 +6,7 @@
 
     function render(host, windowId, context) {
         if (!host) return;
+        dispose(windowId);
         instances.set(windowId, { container: host });
         const ctx = context || {};
         const esc = ctx.esc || (value => String(value == null ? '' : value));
@@ -311,6 +312,8 @@
                 } catch (_) {
                     editor = null;
                 }
+                const instAfter = instances.get(windowId);
+                if (instAfter) instAfter.quill = editor;
             }
             if (!editor) {
                 editorHost.hidden = true;
@@ -348,6 +351,10 @@
     }
 
     function dispose(windowId) {
+        const instance = instances.get(windowId);
+        if (instance && instance.quill && typeof instance.quill.disable === 'function') {
+            try { instance.quill.disable(); } catch (_) {}
+        }
         instances.delete(windowId);
     }
 

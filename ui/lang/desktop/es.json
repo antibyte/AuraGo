@@ -1342,7 +1342,7 @@
   "desktop.teevee_network_error": "Error de red. Comprueba tu conexión.",
   "desktop.teevee_cors_error": "Corriente bloqueada por seguridad del navegador.",
   "desktop.teevee_format_error": "Formato de corriente no compatible.",
-  "desktop.teevee_stream_stalled": "Corriente estancada. Retrying...",
+  "desktop.teevee_stream_stalled": "Corriente estancada. Retrying...",
   "desktop.app_openscad": "OpenSCAD",
   "desktop.store.badge_native": "Nativo",
   "desktop.openscad.title": "OpenSCAD",
@@ -1391,5 +1391,13 @@
   "desktop.openscad.download_hint": "La vista previa no es interactiva para este formato. Descarga o guarda el archivo.",
   "desktop.openscad.file_download": "Descargar archivo",
   "desktop.openscad.saved_path": "Guardado",
-  "desktop.openscad.open_saved": "Abrir archivo guardado"
+  "desktop.openscad.open_saved": "Abrir archivo guardado",
+  "desktop.app_viewer_3d": "3D Viewer",
+  "desktop.stl_viewer": "STL Viewer",
+  "desktop.stl_wireframe": "Wireframe",
+  "desktop.stl_auto_rotate": "Auto-rotate",
+  "desktop.stl_expand": "Expand",
+  "desktop.stl_download": "Download",
+  "desktop.stl_loading": "Loading 3D model",
+  "desktop.viewer_pdfjs_unavailable": "PDF viewer is not available"
 }

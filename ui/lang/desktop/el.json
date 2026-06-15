@@ -1342,7 +1342,7 @@
   "desktop.teevee_network_error": "Σφάλμα δικτύου. Έλεγξε τη σύνδεσή σου.",
   "desktop.teevee_cors_error": "Ροή μπλοκαρισμένη από την ασφάλεια του προγράμματος περιήγησης.",
   "desktop.teevee_format_error": "Η μορφή ροής δεν υποστηρίζεται.",
-  "desktop.teevee_stream_stalled": "Το ρεύμα σταμάτησε. Ξαναπροσπαθώ...",
+  "desktop.teevee_stream_stalled": "Το ρεύμα σταμάτησε. Ξαναπροσπαθώ...",
   "desktop.app_openscad": "OpenSCAD",
   "desktop.store.badge_native": "Εγγενές",
   "desktop.openscad.title": "OpenSCAD",
@@ -1391,5 +1391,13 @@
   "desktop.openscad.download_hint": "Η προεπισκόπηση δεν είναι διαδραστική για αυτή τη μορφή. Κατέβασε ή αποθήκευσε το αρχείο.",
   "desktop.openscad.file_download": "Λήψη αρχείου",
   "desktop.openscad.saved_path": "Αποθηκεύτηκε",
-  "desktop.openscad.open_saved": "Άνοιγμα αποθηκευμένου αρχείου"
+  "desktop.openscad.open_saved": "Άνοιγμα αποθηκευμένου αρχείου",
+  "desktop.app_viewer_3d": "3D Viewer",
+  "desktop.stl_viewer": "STL Viewer",
+  "desktop.stl_wireframe": "Wireframe",
+  "desktop.stl_auto_rotate": "Auto-rotate",
+  "desktop.stl_expand": "Expand",
+  "desktop.stl_download": "Download",
+  "desktop.stl_loading": "Loading 3D model",
+  "desktop.viewer_pdfjs_unavailable": "PDF viewer is not available"
 }

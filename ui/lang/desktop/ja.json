@@ -1342,7 +1342,7 @@
   "desktop.teevee_network_error": "ネットワークエラー。 接続を確認してください。",
   "desktop.teevee_cors_error": "ブラウザのセキュリティによってブロックされるストリーム。",
   "desktop.teevee_format_error": "ストリーム形式はサポートされていません。",
-  "desktop.teevee_stream_stalled": "流れは押されます。 再試行...",
+  "desktop.teevee_stream_stalled": "流れは押されます。 再試行...",
   "desktop.app_openscad": "OpenSCAD",
   "desktop.store.badge_native": "ネイティブ",
   "desktop.openscad.title": "OpenSCAD",
@@ -1391,5 +1391,13 @@
   "desktop.openscad.download_hint": "この形式のプレビューはインタラクティブではありません。ダウンロードまたは保存してください。",
   "desktop.openscad.file_download": "ファイルをダウンロード",
   "desktop.openscad.saved_path": "保存済み",
-  "desktop.openscad.open_saved": "保存済みファイルを開く"
+  "desktop.openscad.open_saved": "保存済みファイルを開く",
+  "desktop.app_viewer_3d": "3D Viewer",
+  "desktop.stl_viewer": "STL Viewer",
+  "desktop.stl_wireframe": "Wireframe",
+  "desktop.stl_auto_rotate": "Auto-rotate",
+  "desktop.stl_expand": "Expand",
+  "desktop.stl_download": "Download",
+  "desktop.stl_loading": "Loading 3D model",
+  "desktop.viewer_pdfjs_unavailable": "PDF viewer is not available"
 }

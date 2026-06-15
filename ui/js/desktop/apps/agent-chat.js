@@ -1280,6 +1280,35 @@
         return null;
     }
 
+
+    function disposeAgentChatWindow(windowId) {
+        const id = String(windowId || '');
+        const host = agentChatContentEl(id);
+        if (host) {
+            if (host._desktopChatAbort) {
+                try { host._desktopChatAbort(); } catch (_) {}
+                host._desktopChatAbort = null;
+            }
+            host._desktopChatHistoryToken = null;
+            if (host._sidebarResizeObserver) {
+                try { host._sidebarResizeObserver.disconnect(); } catch (_) {}
+                host._sidebarResizeObserver = null;
+            }
+            if (typeof host._desktopChatDropCleanup === 'function') {
+                try { host._desktopChatDropCleanup(); } catch (_) {}
+                host._desktopChatDropCleanup = null;
+            }
+            host.dataset.chatFiles = '';
+            host.dataset.chatWindowContext = '';
+        }
+        if (state.chatBusy && typeof state.activeWindowId !== 'undefined' && state.activeWindowId === id) {
+            state.chatBusy = false;
+        }
+        lastRole = null;
+        desktopPersonaPromise = null;
+    }
+
     window.AgentChatApp = window.AgentChatApp || {};
     window.AgentChatApp.render = renderChat;
+    window.AgentChatApp.dispose = disposeAgentChatWindow;
     window.renderChat = renderChat;

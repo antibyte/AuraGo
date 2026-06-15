@@ -1342,7 +1342,7 @@
   "desktop.teevee_network_error": "Netzwerkfehler. Überprüfen Sie Ihre Verbindung.",
   "desktop.teevee_cors_error": "Stream durch Browsersicherheit blockiert.",
   "desktop.teevee_format_error": "Stream Format wird nicht unterstützt.",
-  "desktop.teevee_stream_stalled": "Stream unterbrochen. Wiederholung...",
+  "desktop.teevee_stream_stalled": "Stream unterbrochen. Wiederholung...",
   "desktop.app_openscad": "OpenSCAD",
   "desktop.store.badge_native": "Nativ",
   "desktop.openscad.title": "OpenSCAD",
@@ -1391,5 +1391,13 @@
   "desktop.openscad.download_hint": "Die Vorschau ist für dieses Format nicht interaktiv. Lade die Datei herunter oder speichere sie.",
   "desktop.openscad.file_download": "Datei herunterladen",
   "desktop.openscad.saved_path": "Gespeichert",
-  "desktop.openscad.open_saved": "Gespeicherte Datei öffnen"
+  "desktop.openscad.open_saved": "Gespeicherte Datei öffnen",
+  "desktop.app_viewer_3d": "3D-Viewer",
+  "desktop.stl_viewer": "STL-Viewer",
+  "desktop.stl_wireframe": "Drahtgitter",
+  "desktop.stl_auto_rotate": "Auto-Rotation",
+  "desktop.stl_expand": "Vergrößern",
+  "desktop.stl_download": "Herunterladen",
+  "desktop.stl_loading": "3D-Modell wird geladen",
+  "desktop.viewer_pdfjs_unavailable": "PDF-Viewer ist nicht verfügbar"
 }

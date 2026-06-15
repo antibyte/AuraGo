@@ -8,6 +8,7 @@
 
     function render(host, windowId, context) {
         if (!host) return;
+        dispose(windowId);
         instances.set(windowId, { container: host, closeContextMenu: () => closeSheetContextMenu() });
         const ctx = context || {};
         const esc = ctx.esc || (value => String(value == null ? '' : value));

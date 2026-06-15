@@ -154,6 +154,7 @@
             if (state.disposed) return;
             if (e.ctrlKey && e.key === 'n') { e.preventDefault(); openModal(); }
         }
+        state.keydownHandler = handleKeydown;
         document.addEventListener('keydown', handleKeydown);
 
         async function loadData() {
@@ -694,7 +695,10 @@
             if (st.sseHandler && window.AuraSSE && typeof window.AuraSSE.off === 'function') {
                 window.AuraSSE.off('mission_update', st.sseHandler);
             }
-            document.removeEventListener('keydown', handleKeydown);
+            if (st.keydownHandler) {
+                document.removeEventListener('keydown', st.keydownHandler);
+                st.keydownHandler = null;
+            }
             instances.delete(wid);
         }.bind(null, windowId);
     }
@@ -705,6 +709,10 @@
         st.disposed = true;
         if (st.sseHandler && window.AuraSSE && typeof window.AuraSSE.off === 'function') {
             window.AuraSSE.off('mission_update', st.sseHandler);
+        }
+        if (st.keydownHandler) {
+            document.removeEventListener('keydown', st.keydownHandler);
+            st.keydownHandler = null;
         }
         instances.delete(windowId);
     }

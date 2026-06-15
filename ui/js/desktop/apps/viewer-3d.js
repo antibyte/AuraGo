@@ -16,7 +16,7 @@
         const iconMarkup = ctx.iconMarkup || ((key, fallback) => `<span>${esc(fallback || key || '')}</span>`);
         const notify = ctx.notify || (() => {});
         const currentPath = ctx.path || '';
-        const fileName = currentPath.split('/').pop() || currentPath || t('stl_viewer', 'STL Viewer');
+        const fileName = currentPath.split('/').pop() || currentPath || t('desktop.stl_viewer', 'STL Viewer');
         const fileUrl = '/api/desktop/download?path=' + encodeURIComponent(currentPath);
 
         host.innerHTML = `<div class="vd-viewer vd-viewer-3d" data-viewer-3d="${esc(windowId)}">
@@ -26,10 +26,10 @@
                     <span class="vd-viewer-filename">${esc(fileName)}</span>
                 </div>
                 <div class="vd-viewer-toolbar-right">
-                    <button class="vd-tool-button" type="button" data-action="wireframe">${iconMarkup('grid', 'W')}<span>${esc(t('stl_wireframe', 'Wireframe'))}</span></button>
-                    <button class="vd-tool-button is-active" type="button" data-action="rotate">${iconMarkup('refresh', 'R')}<span>${esc(t('stl_auto_rotate', 'Auto-rotate'))}</span></button>
+                    <button class="vd-tool-button" type="button" data-action="wireframe">${iconMarkup('grid', 'W')}<span>${esc(t('desktop.stl_wireframe', 'Wireframe'))}</span></button>
+                    <button class="vd-tool-button is-active" type="button" data-action="rotate">${iconMarkup('refresh', 'R')}<span>${esc(t('desktop.stl_auto_rotate', 'Auto-rotate'))}</span></button>
                     <button class="vd-tool-button" type="button" data-action="fullscreen">${iconMarkup('maximize', 'F')}<span>${esc(t('stl_expand', 'Fullscreen'))}</span></button>
-                    <button class="vd-tool-button" type="button" data-action="download">${iconMarkup('download', 'D')}<span>${esc(t('stl_download', 'Download'))}</span></button>
+                    <button class="vd-tool-button" type="button" data-action="download">${iconMarkup('download', 'D')}<span>${esc(t('desktop.stl_download', 'Download'))}</span></button>
                 </div>
             </div>
             <div class="vd-viewer-3d-stage" data-stage>

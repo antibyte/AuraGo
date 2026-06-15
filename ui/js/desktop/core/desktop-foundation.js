@@ -514,6 +514,8 @@
             people: 'PeopleApp',
             'homepage-studio': 'HomepageStudioApp',
             cheater: 'CheaterApp',
+            'agent-chat': 'AgentChatApp',
+            'viewer-3d': 'Viewer3DApp',
             'mission-control': 'MissionControlApp'
         }[appId] || '';
     }
@@ -957,7 +959,6 @@
         if (win.appId === 'openscad') callAppDispose(window.OpenSCADApp, win.id);
         if (win.appId === 'teevee') callAppDispose(window.TeeVeeApp, win.id);
         if (win.appId === 'system-info') callAppDispose(window.SystemInfoApp, win.id);
-        if (win.appId === 'people') callAppDispose(window.PeopleApp, win.id);
         const disposeName = appGlobalName(win.appId);
         const fallbackName = appGlobalFallbackName(win.appId);
         const disposed = callAppDispose(disposeName ? window[disposeName] : null, win.id);

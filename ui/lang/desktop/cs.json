@@ -1342,7 +1342,7 @@
   "desktop.teevee_network_error": "Chyba sítě. Zkontrolujte spojení.",
   "desktop.teevee_cors_error": "Stream blokován zabezpečením prohlížeče.",
   "desktop.teevee_format_error": "Formát stream není podporován.",
-  "desktop.teevee_stream_stalled": "Proud zastaven. Zkouším...",
+  "desktop.teevee_stream_stalled": "Proud zastaven. Zkouším...",
   "desktop.app_openscad": "OpenSCAD",
   "desktop.store.badge_native": "Nativní",
   "desktop.openscad.title": "OpenSCAD",
@@ -1391,5 +1391,13 @@
   "desktop.openscad.download_hint": "Náhled pro tento formát není interaktivní. Stáhni nebo ulož soubor.",
   "desktop.openscad.file_download": "Stáhnout soubor",
   "desktop.openscad.saved_path": "Uloženo",
-  "desktop.openscad.open_saved": "Otevřít uložený soubor"
+  "desktop.openscad.open_saved": "Otevřít uložený soubor",
+  "desktop.app_viewer_3d": "3D Viewer",
+  "desktop.stl_viewer": "STL Viewer",
+  "desktop.stl_wireframe": "Wireframe",
+  "desktop.stl_auto_rotate": "Auto-rotate",
+  "desktop.stl_expand": "Expand",
+  "desktop.stl_download": "Download",
+  "desktop.stl_loading": "Loading 3D model",
+  "desktop.viewer_pdfjs_unavailable": "PDF viewer is not available"
 }

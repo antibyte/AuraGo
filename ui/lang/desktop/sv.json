@@ -1342,7 +1342,7 @@
   "desktop.teevee_network_error": "Network error. Kolla din anslutning.",
   "desktop.teevee_cors_error": "Stream blockerad av webbläsarens säkerhet.",
   "desktop.teevee_format_error": "Stream format stöds inte.",
-  "desktop.teevee_stream_stalled": "Stream stalled. Retrying...",
+  "desktop.teevee_stream_stalled": "Stream stalled. Retrying...",
   "desktop.app_openscad": "OpenSCAD",
   "desktop.store.badge_native": "Inbyggd",
   "desktop.openscad.title": "OpenSCAD",
@@ -1391,5 +1391,13 @@
   "desktop.openscad.download_hint": "Förhandsvisningen är inte interaktiv för detta format. Ladda ner eller spara filen.",
   "desktop.openscad.file_download": "Ladda ner fil",
   "desktop.openscad.saved_path": "Sparad",
-  "desktop.openscad.open_saved": "Öppna sparad fil"
+  "desktop.openscad.open_saved": "Öppna sparad fil",
+  "desktop.app_viewer_3d": "3D Viewer",
+  "desktop.stl_viewer": "STL Viewer",
+  "desktop.stl_wireframe": "Wireframe",
+  "desktop.stl_auto_rotate": "Auto-rotate",
+  "desktop.stl_expand": "Expand",
+  "desktop.stl_download": "Download",
+  "desktop.stl_loading": "Loading 3D model",
+  "desktop.viewer_pdfjs_unavailable": "PDF viewer is not available"
 }

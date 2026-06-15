@@ -341,7 +341,7 @@
 
         async function loadPdf() {
             if (typeof pdfjsLib === 'undefined') {
-                contentEl.innerHTML = `<div class="vd-viewer-error">pdf.js not loaded</div>`;
+                contentEl.innerHTML = `<div class="vd-viewer-error">${esc(t('desktop.viewer_pdfjs_unavailable', 'PDF viewer is not available'))}</div>`;
                 return;
             }
             try {
@@ -377,6 +377,13 @@
     }
 
     function dispose(windowId) {
+        const instance = instances.get(windowId);
+        if (instance) {
+            if (instance.pdfLoadingTask && typeof instance.pdfLoadingTask.destroy === 'function') {
+                try { instance.pdfLoadingTask.destroy(); } catch (_) {}
+            }
+            instance.pdfDoc = null;
+        }
         instances.delete(windowId);
     }
 

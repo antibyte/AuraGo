@@ -1342,7 +1342,7 @@
   "desktop.teevee_network_error": "网络错误 。 检查你的连接。",
   "desktop.teevee_cors_error": "被浏览器安全屏蔽的流 。",
   "desktop.teevee_format_error": "不支持流格式 。",
-  "desktop.teevee_stream_stalled": "水流停滞了。 正在重试...",
+  "desktop.teevee_stream_stalled": "水流停滞了。 正在重试...",
   "desktop.app_openscad": "OpenSCAD",
   "desktop.store.badge_native": "原生",
   "desktop.openscad.title": "OpenSCAD",
@@ -1391,5 +1391,13 @@
   "desktop.openscad.download_hint": "此格式的预览不可交互。请下载或保存文件。",
   "desktop.openscad.file_download": "下载文件",
   "desktop.openscad.saved_path": "已保存",
-  "desktop.openscad.open_saved": "打开已保存文件"
+  "desktop.openscad.open_saved": "打开已保存文件",
+  "desktop.app_viewer_3d": "3D Viewer",
+  "desktop.stl_viewer": "STL Viewer",
+  "desktop.stl_wireframe": "Wireframe",
+  "desktop.stl_auto_rotate": "Auto-rotate",
+  "desktop.stl_expand": "Expand",
+  "desktop.stl_download": "Download",
+  "desktop.stl_loading": "Loading 3D model",
+  "desktop.viewer_pdfjs_unavailable": "PDF viewer is not available"
 }
