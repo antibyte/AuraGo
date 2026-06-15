@@ -53,13 +53,13 @@
                                 const grid = this.host.querySelector('[data-photos-grid]');
                                 if (!grid) return;
                                 try {
-                                    const resp = await this.api('/this.api/desktop/files?path=Pictures&recursive=true&limit=30');
+                                    const resp = await this.api('/api/desktop/files?path=Pictures&recursive=true&limit=30');
                                     if (!resp || !resp.files || !resp.files.length) { grid.innerHTML = `<span class="pixel-photos-empty">${this.esc(this.t('pixel.no_photos', 'No photos found'))}</span>`; return; }
                                     const imageFiles = resp.files.filter(f => f.is_dir === false && this.IMAGE_EXTS.some(ext => (f.name || '').toLowerCase().endsWith('.' + ext)));
                                     if (!imageFiles.length) { grid.innerHTML = `<span class="pixel-photos-empty">${this.esc(this.t('pixel.no_photos', 'No photos found'))}</span>`; return; }
                                     grid.innerHTML = imageFiles.slice(0, 12).map(f => {
                                         const name = f.name || f.path || '';
-                                        const previewUrl = '/this.api/desktop/preview?path=' + encodeURIComponent(f.path) + '&thumb=1';
+                                        const previewUrl = '/api/desktop/preview?path=' + encodeURIComponent(f.path) + '&thumb=1';
                                         return `<button class="pixel-photo-thumb" type="button" data-photo-path="${this.esc(f.path)}" title="${this.esc(name)}"><img src="${this.esc(previewUrl)}" alt="${this.esc(name)}" loading="lazy"><span class="pixel-photo-name">${this.esc(name)}</span></button>`;
                                     }).join('');
                                 } catch (_) { grid.innerHTML = ''; }
@@ -73,11 +73,11 @@
                                     this.isDirty = false;
                                     this.saveRecentFile(this.filePath);
                                     try {
-                                        const preview = await this.api('/this.api/desktop/preview?path=' + encodeURIComponent(this.filePath));
+                                        const preview = await this.api('/api/desktop/preview?path=' + encodeURIComponent(this.filePath));
                                         if (preview && preview.url) {
                                             await this.loadImageToCanvas(preview.url);
                                         } else {
-                                            await this.loadImageToCanvas('/this.api/desktop/preview?path=' + encodeURIComponent(this.filePath) + '&raw=1');
+                                            await this.loadImageToCanvas('/api/desktop/preview?path=' + encodeURIComponent(this.filePath) + '&raw=1');
                                         }
                                     } catch (_) {
                                         this.notify({ type: 'error', message: this.t('pixel.error_load', 'Failed to load image') });
@@ -102,7 +102,7 @@
                                     const isJPEG = ext === 'jpg' || ext === 'jpeg';
                                     const dataURL = isJPEG ? tmpC.toDataURL('image/jpeg', 0.92) : tmpC.toDataURL('image/png');
                                     this.releaseTempCanvas(tmpC);
-                                    await this.api('/this.api/pixel/save', {
+                                    await this.api('/api/pixel/save', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ path: this.filePath, data: dataURL, format: isJPEG ? 'jpeg' : 'png' })
@@ -151,7 +151,7 @@
                                 if (statusEl) statusEl.textContent = this.t('pixel.generating', 'Generating...');
                                 try {
                                     this.abortCtrl = new AbortController();
-                                    const resp = await this.api('/this.api/pixel/generate', {
+                                    const resp = await this.api('/api/pixel/generate', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ prompt, size, quality, style }),
@@ -178,7 +178,7 @@
                                 try {
                                     const dataURL = this.canvas.toDataURL('image/png');
                                     this.abortCtrl = new AbortController();
-                                    const resp = await this.api('/this.api/pixel/enhance', {
+                                    const resp = await this.api('/api/pixel/enhance', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ source_data: dataURL, prompt, strength }),
@@ -198,7 +198,7 @@
             }),
             checkAIConfig: Pixel.bindRuntime(runtime, async function checkAIConfig() {
                                 try {
-                                    const cfg = await this.api('/this.api/pixel/config');
+                                    const cfg = await this.api('/api/pixel/config');
                                     this.aiConfigured = cfg && cfg.enabled;
                                     const statusEl = this.host.querySelector('[data-ai-status]');
                                     if (!this.aiConfigured && statusEl) {

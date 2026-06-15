@@ -210,6 +210,26 @@ func TestPixelOpenDialogStartsInPhotosRoot(t *testing.T) {
 	}
 }
 
+func TestPixelActionsUseRootAPIEndpoints(t *testing.T) {
+	actions := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-actions.js"))
+
+	if strings.Contains(actions, "/this.api/") {
+		t.Fatalf("Pixel actions must call root /api endpoints, not transformed /this.api paths")
+	}
+	for _, want := range []string{
+		"/api/desktop/files?path=Pictures&recursive=true&limit=30",
+		"/api/desktop/preview?path=",
+		"/api/pixel/save",
+		"/api/pixel/generate",
+		"/api/pixel/enhance",
+		"/api/pixel/config",
+	} {
+		if !strings.Contains(actions, want) {
+			t.Fatalf("Pixel actions missing API endpoint %q", want)
+		}
+	}
+}
+
 func TestPixelGermanOpenLabelsUseUmlaut(t *testing.T) {
 	var values map[string]string
 	if err := json.Unmarshal([]byte(readDesktopAssetText(t, "lang/desktop/de.json")), &values); err != nil {
