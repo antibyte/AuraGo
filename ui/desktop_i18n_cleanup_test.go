@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"aurago/internal/desktop"
 )
 
 func TestDesktopAuditedI18nKeysAndPlaceholders(t *testing.T) {
@@ -155,6 +157,32 @@ func TestDesktopUsedI18nKeysExistInAllLanguages(t *testing.T) {
 		for key := range used {
 			if strings.TrimSpace(values[key]) == "" {
 				t.Fatalf("%s missing desktop-used translation key %s", lang, key)
+			}
+		}
+	}
+}
+
+func TestDesktopBuiltinAppNamesExistInAllLanguages(t *testing.T) {
+	t.Parallel()
+
+	var keys []string
+	for _, app := range desktop.BuiltinApps() {
+		keys = append(keys, "desktop.app_"+strings.ReplaceAll(app.ID, "-", "_"))
+	}
+
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		path := filepath.Join("lang", "desktop", lang+".json")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var values map[string]string
+		if err := json.Unmarshal(data, &values); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, key := range keys {
+			if strings.TrimSpace(values[key]) == "" {
+				t.Fatalf("%s missing non-empty builtin app translation for %s", path, key)
 			}
 		}
 	}
