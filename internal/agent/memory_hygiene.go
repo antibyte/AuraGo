@@ -235,6 +235,9 @@ func buildKnowledgeGraphSparseIssue(coreFacts []string, nodes int, edges int) (p
 
 func buildCoreMemoryReviewIssue(coreFacts []string) (planner.OperationalIssue, bool) {
 	var lowSignal []string
+	for _, issue := range memory.ReviewCoreMemoryFacts(coreFacts) {
+		lowSignal = append(lowSignal, formatCoreMemoryReviewCandidate(issue.Fact, issue.Reason))
+	}
 	for _, fact := range coreFacts {
 		trimmed := strings.TrimSpace(fact)
 		if trimmed == "" {
@@ -242,11 +245,14 @@ func buildCoreMemoryReviewIssue(coreFacts []string) (planner.OperationalIssue, b
 		}
 		lower := strings.ToLower(trimmed)
 		if strings.Contains(lower, "test fact") || strings.Contains(lower, "test-fact") {
-			lowSignal = append(lowSignal, trimmed)
+			lowSignal = append(lowSignal, formatCoreMemoryReviewCandidate(trimmed, "low-signal test fact"))
 		}
 	}
 	if len(lowSignal) == 0 {
 		return planner.OperationalIssue{}, false
+	}
+	if len(lowSignal) > 5 {
+		lowSignal = append(lowSignal[:5], fmt.Sprintf("...%d more", len(lowSignal)-5))
 	}
 	return planner.OperationalIssue{
 		Source:      "maintenance",
@@ -258,4 +264,16 @@ func buildCoreMemoryReviewIssue(coreFacts []string) (planner.OperationalIssue, b
 		Fingerprint: "memory_maintenance|core_memory_review|low_signal",
 		OccurredAt:  time.Now(),
 	}, true
+}
+
+func formatCoreMemoryReviewCandidate(fact, reason string) string {
+	fact = strings.TrimSpace(fact)
+	if len(fact) > 180 {
+		fact = fact[:177] + "..."
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return fact
+	}
+	return fact + " (" + reason + ")"
 }

@@ -1,11 +1,16 @@
 package memory
 
 import (
+	"database/sql"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	_ "modernc.org/sqlite"
 )
 
 // ── Core Memory CRUD ──────────────────────────────────────────────────────────
@@ -141,6 +146,74 @@ func TestCoreMemory_FactExists(t *testing.T) {
 	// Exact match only — a substring should not match.
 	if stm.CoreMemoryFactExists("pres") {
 		t.Error("CoreMemoryFactExists should do exact match, not substring")
+	}
+}
+
+func TestCoreMemory_NormalizedDuplicateFactsReuseExistingEntry(t *testing.T) {
+	stm := newTestProfileDB(t)
+
+	firstID, err := stm.AddCoreMemoryFact("User prefers German responses.")
+	if err != nil {
+		t.Fatalf("AddCoreMemoryFact first: %v", err)
+	}
+	secondID, err := stm.AddCoreMemoryFact(" user   PREFERS german responses. ")
+	if err != nil {
+		t.Fatalf("AddCoreMemoryFact duplicate: %v", err)
+	}
+	if secondID != firstID {
+		t.Fatalf("normalized duplicate id = %d, want existing id %d", secondID, firstID)
+	}
+
+	facts, err := stm.GetCoreMemoryFacts()
+	if err != nil {
+		t.Fatalf("GetCoreMemoryFacts: %v", err)
+	}
+	if len(facts) != 1 {
+		t.Fatalf("facts len = %d, want 1: %+v", len(facts), facts)
+	}
+	if !stm.CoreMemoryFactExists("USER prefers german responses.") {
+		t.Fatal("CoreMemoryFactExists should match normalized case/spacing duplicates")
+	}
+	if stm.CoreMemoryFactExists("prefers German") {
+		t.Fatal("CoreMemoryFactExists should not match substrings")
+	}
+}
+
+func TestNewSQLiteMemoryFailsWhenCoreMemoryDuplicateCleanupFails(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "stm.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	_, err = db.Exec(`
+		CREATE TABLE core_memory (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			fact TEXT NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
+		INSERT INTO core_memory (fact) VALUES ('duplicate'), ('duplicate');
+		CREATE TRIGGER block_core_memory_delete
+		BEFORE DELETE ON core_memory
+		BEGIN
+			SELECT RAISE(ABORT, 'delete blocked');
+		END;
+	`)
+	if err != nil {
+		_ = db.Close()
+		t.Fatalf("seed duplicate core memory: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close seed db: %v", err)
+	}
+
+	stm, err := NewSQLiteMemory(dbPath, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err == nil {
+		_ = stm.Close()
+		t.Fatal("NewSQLiteMemory should fail when core_memory duplicate cleanup fails")
+	}
+	if !strings.Contains(err.Error(), "core_memory duplicate cleanup") {
+		t.Fatalf("error = %v, want core_memory duplicate cleanup context", err)
 	}
 }
 

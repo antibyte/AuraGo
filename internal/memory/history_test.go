@@ -143,6 +143,37 @@ func TestHistoryManager_PersistAndLoad_MultiContent(t *testing.T) {
 	}
 }
 
+func TestHistoryManager_GetAllReturnsIsolatedNestedMessageSlices(t *testing.T) {
+	hm := &HistoryManager{
+		Messages: []HistoryMessage{
+			{ChatCompletionMessage: openai.ChatCompletionMessage{
+				Role: openai.ChatMessageRoleAssistant,
+				ToolCalls: []openai.ToolCall{
+					{ID: "call_original", Function: openai.FunctionCall{Name: "query_memory", Arguments: `{"query":"x"}`}},
+				},
+				MultiContent: []openai.ChatMessagePart{
+					{Type: openai.ChatMessagePartTypeText, Text: "original"},
+				},
+			}},
+		},
+	}
+
+	all := hm.GetAll()
+	if len(all) != 1 {
+		t.Fatalf("GetAll len = %d, want 1", len(all))
+	}
+	all[0].ToolCalls[0].ID = "call_mutated"
+	all[0].MultiContent[0].Text = "mutated"
+
+	again := hm.GetAll()
+	if again[0].ToolCalls[0].ID != "call_original" {
+		t.Fatalf("ToolCalls leaked mutation into history: %q", again[0].ToolCalls[0].ID)
+	}
+	if again[0].MultiContent[0].Text != "original" {
+		t.Fatalf("MultiContent leaked mutation into history: %q", again[0].MultiContent[0].Text)
+	}
+}
+
 func TestHistoryManagerCloseAndAddRaceDoesNotPanic(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "history.json")

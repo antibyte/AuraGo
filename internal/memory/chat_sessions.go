@@ -39,12 +39,20 @@ func sqliteDatetimeToRFC3339(dt string) string {
 }
 
 func ShouldHideAutonomousMessage(sessionID, role, content string) bool {
-	if sessionID == "heartbeat" || sessionID == "space-agent-bridge" {
+	if isAutonomousChatSessionID(sessionID) {
 		return true
 	}
 	if role != "user" {
 		return false
 	}
+	return isAutonomousUserMessageContent(content)
+}
+
+func isAutonomousChatSessionID(sessionID string) bool {
+	return sessionID == "heartbeat" || sessionID == "space-agent-bridge"
+}
+
+func isAutonomousUserMessageContent(content string) bool {
 	return strings.Contains(content, "[SYSTEM HEARTBEAT]") ||
 		strings.Contains(content, "Space Agent sent this bridge question to AuraGo.")
 }
@@ -96,7 +104,7 @@ func (s *SQLiteMemory) ListChatSessionsWithLimit(limit int) ([]ChatSession, erro
 	rows, err := s.db.Query(
 		`SELECT id, COALESCE(preview, ''), created_at, last_active_at, message_count
 		 FROM chat_sessions
-		 WHERE id != 'heartbeat'
+		 WHERE id NOT IN ('heartbeat', 'space-agent-bridge')
 		 ORDER BY last_active_at DESC
 		 LIMIT ?`, limit,
 	)
@@ -139,38 +147,55 @@ func (s *SQLiteMemory) GetChatSession(id string) (*ChatSession, error) {
 // UpdateChatSessionPreview updates the preview text and message count for a session.
 // The preview is derived from the first non-empty user message in the session.
 func (s *SQLiteMemory) UpdateChatSessionPreview(sessionID string) error {
-	if sessionID == "heartbeat" {
+	if isAutonomousChatSessionID(sessionID) {
 		_, err := s.db.Exec(
 			`UPDATE chat_sessions SET preview = '', message_count = 0 WHERE id = ?`,
 			sessionID,
 		)
 		if err != nil {
-			return fmt.Errorf("failed to update heartbeat chat session preview: %w", err)
+			return fmt.Errorf("failed to update autonomous chat session preview: %w", err)
 		}
 		return nil
 	}
 
-	// Get first non-internal user message for preview
-	var content string
-	err := s.db.QueryRow(
-		`SELECT content FROM messages
-		 WHERE session_id = ? AND role = 'user' AND is_internal = 0
-		 AND content NOT LIKE '%[SYSTEM HEARTBEAT]%'
-		 ORDER BY timestamp ASC, id ASC LIMIT 1`, sessionID,
-	).Scan(&content)
+	rows, err := s.db.Query(
+		`SELECT role, content FROM messages
+		 WHERE session_id = ? AND is_internal = 0
+		 ORDER BY timestamp ASC, id ASC`, sessionID,
+	)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			// No user messages yet, try assistant
-			_ = s.db.QueryRow(
-				`SELECT content FROM messages
-				 WHERE session_id = ? AND role = 'assistant' AND is_internal = 0
-				 ORDER BY timestamp ASC, id ASC LIMIT 1`, sessionID,
-			).Scan(&content)
+		return fmt.Errorf("failed to read chat session messages for preview: %w", err)
+	}
+	defer rows.Close()
+
+	var firstUser, firstAssistant string
+	count := 0
+	for rows.Next() {
+		var role, content string
+		if err := rows.Scan(&role, &content); err != nil {
+			return fmt.Errorf("failed to scan chat session preview message: %w", err)
 		}
+		if ShouldHideAutonomousMessage(sessionID, role, content) {
+			continue
+		}
+		count++
+		if role == "user" && firstUser == "" {
+			firstUser = content
+		}
+		if role == "assistant" && firstAssistant == "" {
+			firstAssistant = content
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("failed to read chat session preview messages: %w", err)
 	}
 
 	// Truncate preview to first line, max 80 chars
 	preview := ""
+	content := firstUser
+	if content == "" {
+		content = firstAssistant
+	}
 	if content != "" {
 		lines := strings.SplitN(content, "\n", 2)
 		preview = strings.TrimSpace(lines[0])
@@ -178,14 +203,6 @@ func (s *SQLiteMemory) UpdateChatSessionPreview(sessionID string) error {
 			preview = preview[:77] + "..."
 		}
 	}
-
-	// Count visible messages
-	var count int
-	_ = s.db.QueryRow(
-		`SELECT COUNT(*) FROM messages
-		 WHERE session_id = ? AND is_internal = 0
-		 AND NOT (role = 'user' AND content LIKE '%[SYSTEM HEARTBEAT]%')`, sessionID,
-	).Scan(&count)
 
 	now := time.Now().UTC().Format("2006-01-02 15:04:05")
 	_, err = s.db.Exec(
@@ -226,7 +243,7 @@ func (s *SQLiteMemory) RotateChatSessionsWithLimit(limit int) error {
 	// Find sessions to delete (all except the newest MaxChatSessions)
 	rows, err := s.db.Query(
 		`SELECT id FROM chat_sessions
-		 WHERE id != 'heartbeat'
+		 WHERE id NOT IN ('heartbeat', 'space-agent-bridge')
 		 ORDER BY last_active_at DESC
 		 LIMIT -1 OFFSET ?`, limit,
 	)

@@ -68,6 +68,25 @@ func TestBuildCoreMemoryReviewIssueFlagsTestFacts(t *testing.T) {
 	}
 }
 
+func TestBuildCoreMemoryReviewIssueUsesCoreMemoryPolicy(t *testing.T) {
+	issue, ok := buildCoreMemoryReviewIssue([]string{
+		"KI-News Aktualisierung am 2026-06-13: 25 Artikel mit Quellen.",
+		"User prefers German responses.",
+	})
+	if !ok {
+		t.Fatal("expected core memory review issue for operational core-memory junk")
+	}
+	if issue.Fingerprint != "memory_maintenance|core_memory_review|low_signal" {
+		t.Fatalf("fingerprint = %q, want stable core memory review fingerprint", issue.Fingerprint)
+	}
+	if !strings.Contains(issue.Detail, "KI-News") {
+		t.Fatalf("issue detail = %q, want operational fact detail", issue.Detail)
+	}
+	if strings.Contains(issue.Detail, "User prefers German responses") {
+		t.Fatalf("issue detail = %q, should not include durable fact", issue.Detail)
+	}
+}
+
 func TestRunAutomaticMemoryHygieneLimitsNoteAutoArchivePerRun(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "stm.db")
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))

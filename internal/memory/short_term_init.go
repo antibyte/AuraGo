@@ -263,14 +263,22 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		}
 	}
 
-	// Migration: add unique constraint on fact to prevent duplicates.
-	// First remove any existing duplicates, keeping the newest entry for each fact.
-	_, _ = db.Exec(`
-		DELETE FROM core_memory WHERE id NOT IN (
-			SELECT MAX(id) FROM core_memory GROUP BY fact
-		)
-	`)
-	_, _ = db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_core_memory_fact_unique ON core_memory(fact)`)
+	deletedCoreDuplicates, err := migrateCoreMemoryUniqueFacts(db)
+	if err != nil {
+		if closeErr := db.Close(); closeErr != nil {
+			logger.Warn("Failed to close SQLite after core_memory duplicate cleanup error", "error", closeErr)
+		}
+		return nil, fmt.Errorf("core_memory duplicate cleanup: %w", err)
+	}
+	if deletedCoreDuplicates > 0 {
+		logger.Warn("Removed duplicate core memory facts before unique-index migration", "deleted", deletedCoreDuplicates)
+	}
+	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_core_memory_fact_unique ON core_memory(fact)`); err != nil {
+		if closeErr := db.Close(); closeErr != nil {
+			logger.Warn("Failed to close SQLite after core_memory unique-index error", "error", closeErr)
+		}
+		return nil, fmt.Errorf("core_memory unique index: %w", err)
+	}
 
 	if _, err := db.Exec(conflictSchema); err != nil {
 		return nil, fmt.Errorf("failed to create conflict schema: %w", err)
@@ -314,6 +322,22 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	}
 
 	return stm, nil
+}
+
+func migrateCoreMemoryUniqueFacts(db *sql.DB) (int64, error) {
+	res, err := db.Exec(`
+		DELETE FROM core_memory WHERE id NOT IN (
+			SELECT MAX(id) FROM core_memory GROUP BY fact
+		)
+	`)
+	if err != nil {
+		return 0, err
+	}
+	deleted, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return deleted, nil
 }
 
 // migrateFileIndexToCollectionAware migrates file_indices and file_embedding_docs tables
