@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestOpenSCADEnsureInstalledCreatesNoNetworkContainerWithLimits(t *testing.T) {
@@ -193,4 +194,117 @@ func TestOpenSCADRenderPreparesContainerWritableJobFiles(t *testing.T) {
 	if sourceInfo.Mode().Perm() != openSCADSourceFileMode {
 		t.Fatalf("source mode = %v, want %v", sourceInfo.Mode().Perm(), openSCADSourceFileMode)
 	}
+}
+
+func TestOpenSCADRenderSkips2DOnlyExportsWhen3DOutputsSucceed(t *testing.T) {
+	t.Parallel()
+
+	dataDir := t.TempDir()
+	fake := &fakeOpenSCADExportDocker{dataDir: dataDir}
+	svc := NewOpenSCADContainerService(Config{
+		DataDir:  dataDir,
+		OpenSCAD: OpenSCADConfig{Enabled: true},
+	}, nil)
+	svc.SetDockerClient(fake)
+
+	result, err := svc.Render(context.Background(), OpenSCADRenderRequest{
+		SourceSCAD: "cube(10);",
+		ModelName:  "mixed-exports",
+		Exports:    []string{"png", "stl", "svg", "pdf"},
+	})
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if result.ExitCode != 0 {
+		t.Fatalf("ExitCode = %d, want 0 for partial success with skipped 2D exports", result.ExitCode)
+	}
+	if got := openSCADFileNames(result.Files); strings.Join(got, ",") != "mixed-exports.png,mixed-exports.stl" {
+		t.Fatalf("files = %#v, want png and stl only", got)
+	}
+	for _, want := range []string{"Skipped svg export", "Skipped pdf export", "requires a 2D top-level object"} {
+		if !strings.Contains(result.Stderr, want) {
+			t.Fatalf("stderr %q missing %q", result.Stderr, want)
+		}
+	}
+}
+
+func TestOpenSCADRenderReturnsActionableErrorWhenOnly2DExportsFailFor3D(t *testing.T) {
+	t.Parallel()
+
+	dataDir := t.TempDir()
+	fake := &fakeOpenSCADExportDocker{dataDir: dataDir}
+	svc := NewOpenSCADContainerService(Config{
+		DataDir:  dataDir,
+		OpenSCAD: OpenSCADConfig{Enabled: true},
+	}, nil)
+	svc.SetDockerClient(fake)
+
+	result, err := svc.Render(context.Background(), OpenSCADRenderRequest{
+		SourceSCAD: "cube(10);",
+		ModelName:  "only-2d",
+		Exports:    []string{"svg", "pdf"},
+	})
+	if err == nil {
+		t.Fatal("Render succeeded with only incompatible 2D exports")
+	}
+	if len(result.Files) != 0 {
+		t.Fatalf("files = %#v, want none", result.Files)
+	}
+	for _, want := range []string{"Skipped svg export", "Skipped pdf export", "current model is 3D"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error %q missing %q", err.Error(), want)
+		}
+	}
+}
+
+type fakeOpenSCADExportDocker struct {
+	fakeCodeContainerDocker
+	dataDir string
+}
+
+func (f *fakeOpenSCADExportDocker) ExecContainer(ctx context.Context, container string, cmd []string, user string, timeout time.Duration) (CodeDockerExecResult, error) {
+	f.execs = append(f.execs, fakeCodeContainerExec{container: container, cmd: append([]string(nil), cmd...), user: user})
+	joined := strings.Join(cmd, " ")
+	if strings.Contains(joined, "command -v openscad") {
+		return CodeDockerExecResult{ExitCode: 0}, nil
+	}
+	outputPath := openSCADOutputArg(cmd)
+	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(outputPath), "."))
+	switch ext {
+	case "svg", "pdf", "dxf":
+		return CodeDockerExecResult{ExitCode: 1, Output: "Top level object is a 3D object.\nCurrent top level object is not a 2D object.\n"}, nil
+	case "png", "stl", "3mf", "off", "amf", "csg", "txt":
+		if err := f.writeOutputFile(outputPath, []byte(ext+" data")); err != nil {
+			return CodeDockerExecResult{}, err
+		}
+		return CodeDockerExecResult{ExitCode: 0, Output: "rendered " + ext + "\n"}, nil
+	default:
+		return CodeDockerExecResult{ExitCode: 0}, nil
+	}
+}
+
+func (f *fakeOpenSCADExportDocker) writeOutputFile(containerPath string, data []byte) error {
+	rel := strings.TrimPrefix(strings.TrimPrefix(containerPath, openSCADJobsInContainer), "/")
+	hostPath := filepath.Join(f.dataDir, "openscad", "jobs", filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(hostPath), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(hostPath, data, 0o644)
+}
+
+func openSCADOutputArg(cmd []string) string {
+	for i, item := range cmd {
+		if item == "-o" && i+1 < len(cmd) {
+			return cmd[i+1]
+		}
+	}
+	return ""
+}
+
+func openSCADFileNames(files []OpenSCADFile) []string {
+	names := make([]string, 0, len(files))
+	for _, file := range files {
+		names = append(names, file.Name)
+	}
+	return names
 }

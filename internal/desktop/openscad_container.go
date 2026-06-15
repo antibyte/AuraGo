@@ -43,6 +43,9 @@ var (
 	openSCADExportSet         = map[string]struct{}{
 		"png": {}, "stl": {}, "3mf": {}, "off": {}, "amf": {}, "dxf": {}, "svg": {}, "pdf": {}, "csg": {}, "echo": {},
 	}
+	openSCAD2DOnlyExportSet = map[string]struct{}{
+		"dxf": {}, "svg": {}, "pdf": {},
+	}
 )
 
 type OpenSCADContainerService struct {
@@ -328,6 +331,7 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 	start := time.Now()
 	timeout := openSCADRenderTimeout(req.TimeoutSeconds, s.cfg.OpenSCAD)
 	var combinedOutput strings.Builder
+	var skippedExports []string
 	result := OpenSCADRenderResult{
 		JobID:        jobID,
 		ModelName:    modelName,
@@ -338,25 +342,28 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 	for _, export := range req.Exports {
 		cmd, filename := buildOpenSCADCommand(jobID, modelName, export, req)
 		execResult, execErr := s.docker.ExecContainer(ctx, containerID, cmd, "", timeout)
-		result.ExitCode = execResult.ExitCode
-		if strings.TrimSpace(execResult.Output) != "" {
-			combinedOutput.WriteString(execResult.Output)
-			if !strings.HasSuffix(execResult.Output, "\n") {
-				combinedOutput.WriteByte('\n')
-			}
-		}
+		execOutput := strings.TrimSpace(execResult.Output)
 		if execErr != nil {
+			result.ExitCode = execResult.ExitCode
 			result.DurationMS = time.Since(start).Milliseconds()
+			appendOpenSCADOutput(&combinedOutput, execResult.Output)
 			result.Stderr = truncateOpenSCADOutput(combinedOutput.String())
 			_ = s.writeJobMetadata(jobDir, result)
 			return result, fmt.Errorf("run openscad export %s: %w", export, execErr)
 		}
 		if execResult.ExitCode != 0 {
+			if openSCADExportFailedBecause3DObject(export, execOutput) {
+				skippedExports = append(skippedExports, openSCADSkipped2DExportMessage(export))
+				continue
+			}
+			result.ExitCode = execResult.ExitCode
 			result.DurationMS = time.Since(start).Milliseconds()
+			appendOpenSCADOutput(&combinedOutput, execResult.Output)
 			result.Stderr = truncateOpenSCADOutput(combinedOutput.String())
 			_ = s.writeJobMetadata(jobDir, result)
 			return result, fmt.Errorf("openscad export %s failed: %s", export, strings.TrimSpace(result.Stderr))
 		}
+		appendOpenSCADOutput(&combinedOutput, execResult.Output)
 		file, err := s.outputFile(jobDir, jobID, filename, export)
 		if err != nil {
 			result.DurationMS = time.Since(start).Milliseconds()
@@ -367,7 +374,17 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 		result.Files = append(result.Files, file)
 	}
 	result.DurationMS = time.Since(start).Milliseconds()
+	if len(result.Files) == 0 && len(skippedExports) > 0 {
+		result.ExitCode = 1
+		result.Stderr = truncateOpenSCADOutput(strings.Join(skippedExports, "\n"))
+		_ = s.writeJobMetadata(jobDir, result)
+		return result, fmt.Errorf("%s", strings.Join(skippedExports, "\n"))
+	}
+	result.ExitCode = 0
 	result.Stdout = truncateOpenSCADOutput(combinedOutput.String())
+	if len(skippedExports) > 0 {
+		result.Stderr = truncateOpenSCADOutput(strings.Join(skippedExports, "\n"))
+	}
 	if err := s.enforceOutputLimit(result.Files); err != nil {
 		result.Stderr = err.Error()
 		_ = s.writeJobMetadata(jobDir, result)
@@ -733,6 +750,30 @@ func buildOpenSCADCommand(jobID, modelName, export string, req OpenSCADRenderReq
 	}
 	cmd = append(cmd, "-o", outputPath, sourcePath)
 	return cmd, filename
+}
+
+func appendOpenSCADOutput(builder *strings.Builder, output string) {
+	if builder == nil || strings.TrimSpace(output) == "" {
+		return
+	}
+	builder.WriteString(output)
+	if !strings.HasSuffix(output, "\n") {
+		builder.WriteByte('\n')
+	}
+}
+
+func openSCADExportFailedBecause3DObject(export, output string) bool {
+	if _, ok := openSCAD2DOnlyExportSet[strings.ToLower(strings.TrimSpace(export))]; !ok {
+		return false
+	}
+	normalized := strings.ToLower(output)
+	return strings.Contains(normalized, "not a 2d object") ||
+		strings.Contains(normalized, "top level object is a 3d object")
+}
+
+func openSCADSkipped2DExportMessage(export string) string {
+	export = strings.ToLower(strings.TrimSpace(export))
+	return fmt.Sprintf("Skipped %s export: OpenSCAD %s export requires a 2D top-level object; the current model is 3D. Use PNG/STL/3MF/OFF/AMF/CSG for 3D models or wrap a 2D design/projection before exporting %s.", export, strings.ToUpper(export), export)
 }
 
 func openSCADContainerMatches(container CodeDockerContainer) bool {
