@@ -9580,7 +9580,6 @@ if (appId === 'pixel') {
         if (options && options.allowGamepad) allowParts.push('gamepad');
         // Test compatibility marker: iframe.setAttribute('allow', 'clipboard-read; clipboard-write')
         iframe.setAttribute('allow', allowParts.join('; '));
-        if (options && options.allowFullscreen) iframe.setAttribute('allowfullscreen', '');
         iframe.tabIndex = 0;
         iframe.addEventListener('pointerdown', () => focusDesktopFrame(iframe));
         if (!(options && options.disableAutoFocus)) iframe.addEventListener('load', () => focusDesktopFrame(iframe));

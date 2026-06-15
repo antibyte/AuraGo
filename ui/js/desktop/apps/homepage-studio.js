@@ -291,7 +291,8 @@
                 previewPlaceholder.style.display = 'none';
                 iframe = document.createElement('iframe');
                 iframe.className = 'vd-hp-preview-iframe';
-                iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups';
+                iframe.sandbox = 'allow-scripts allow-forms';
+                iframe.referrerPolicy = 'no-referrer';
                 previewPanel.insertBefore(iframe, previewLoading);
             }
             if (iframe.src !== url) {

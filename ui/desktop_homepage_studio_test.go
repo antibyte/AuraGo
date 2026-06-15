@@ -94,6 +94,28 @@ func TestHomepageStudioUsesStatusPreviewURL(t *testing.T) {
 	}
 }
 
+func TestHomepageStudioPreviewSandboxKeepsOpaqueOrigin(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js")
+	for _, want := range []string{
+		"iframe.sandbox = 'allow-scripts allow-forms';",
+		"iframe.referrerPolicy = 'no-referrer';",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("homepage studio preview iframe missing sandbox marker %q", want)
+		}
+	}
+	for _, unwanted := range []string{
+		"allow-same-origin",
+		"allow-popups",
+	} {
+		if strings.Contains(source, unwanted) {
+			t.Fatalf("homepage studio preview iframe must not use sandbox flag %q", unwanted)
+		}
+	}
+}
+
 func TestHomepageStudioChatPayloadCarriesHomepageScope(t *testing.T) {
 	t.Parallel()
 
@@ -174,10 +196,10 @@ func TestHomepageStudioGermanUsesInformalAddress(t *testing.T) {
 		t.Fatalf("parse German desktop translations: %v", err)
 	}
 	for key, want := range map[string]string{
-		"homepage_studio.chat_placeholder":     "Beschreibe deine Website-Änderungen...",
-		"homepage_studio.preview_unavailable":  "Vorschau nicht verfügbar — starte zuerst den Homepage-Container",
-		"homepage_studio.preview_empty_title":  "Noch keine Live-Vorschau",
-		"homepage_studio.welcome":              "Willkommen im Homepage-Studio! Beschreibe die Website, die du erstellen möchtest, und ich erstelle sie für dich.",
+		"homepage_studio.chat_placeholder":    "Beschreibe deine Website-Änderungen...",
+		"homepage_studio.preview_unavailable": "Vorschau nicht verfügbar — starte zuerst den Homepage-Container",
+		"homepage_studio.preview_empty_title": "Noch keine Live-Vorschau",
+		"homepage_studio.welcome":             "Willkommen im Homepage-Studio! Beschreibe die Website, die du erstellen möchtest, und ich erstelle sie für dich.",
 	} {
 		if values[key] != want {
 			t.Fatalf("%s = %q, want %q", key, values[key], want)
