@@ -40,6 +40,7 @@
     grid-template-columns: minmax(260px, 320px) minmax(420px, 1fr) minmax(320px, 380px);
     height: 100%;
     min-height: 0;
+    overflow: hidden;
 }
 
 .oscad-agent-panel,
@@ -53,6 +54,7 @@
 .oscad-inspector {
     display: grid;
     gap: 12px;
+    overflow: hidden;
     padding: 16px;
     background: rgba(5, 12, 19, 0.54);
     backdrop-filter: blur(18px);
@@ -64,7 +66,10 @@
 }
 
 .oscad-agent-panel {
-    grid-template-rows: auto auto auto minmax(96px, 128px) auto auto;
+    grid-template-rows: auto auto auto minmax(76px, 112px) auto auto minmax(0, auto);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
     border-right: 1px solid var(--oscad-border);
 }
 
@@ -77,6 +82,7 @@
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
     gap: 12px;
+    overflow: hidden;
     padding: 16px;
 }
 
@@ -209,6 +215,7 @@
 .oscad-options {
     display: grid;
     gap: 10px;
+    min-height: 0;
     padding: 12px;
     border: 1px solid var(--oscad-border);
     border-radius: 10px;
@@ -296,14 +303,16 @@
 
 .oscad-btn {
     min-height: 40px;
-    padding: 0 12px;
+    padding: 8px 12px;
+    line-height: 1.15;
 }
 
 .oscad-btn span {
     min-width: 0;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    text-align: center;
+    white-space: normal;
 }
 
 .oscad-primary,
@@ -339,6 +348,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
     gap: 12px;
     min-height: 44px;
 }
@@ -367,7 +377,13 @@
 .oscad-file-actions {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
+}
+
+.oscad-viewport-toolbar,
+.oscad-actions {
+    justify-content: flex-end;
 }
 
 .oscad-icon-btn {
@@ -445,6 +461,9 @@
     align-items: center;
     gap: 7px;
     min-width: 0;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
 }
 
 .oscad-tab {
