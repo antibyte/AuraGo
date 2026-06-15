@@ -93,7 +93,7 @@ func (s *Server) getDesktopService(ctx context.Context) (*desktop.Service, *desk
 			codeContainer.SetDockerClient(newCodeStudioDockerAdapter(desktopCfg, s.Logger))
 		}
 		if openSCADContainer := svc.OpenSCADContainer(); openSCADContainer != nil {
-			openSCADContainer.SetDockerClient(newCodeStudioDockerAdapter(desktopCfg, s.Logger))
+			openSCADContainer.SetDockerClient(newOpenSCADDockerAdapter(svc.Config(), s.Logger))
 		}
 		s.DesktopService = svc
 		s.DesktopHub = desktop.NewHub(desktopCfg.MaxWSClients)
