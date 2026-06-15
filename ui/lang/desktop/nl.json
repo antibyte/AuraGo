@@ -1375,5 +1375,6 @@
   "desktop.openscad.no_files": "Nog geen bestanden",
   "desktop.openscad.no_log": "Nog geen logboek",
   "desktop.openscad.no_preview": "Render een model om het voorbeeld te zien.",
+  "desktop.openscad.render_timeout": "Renderen duurde te lang. Probeer een eenvoudiger model of verhoog de timeout.",
   "desktop.openscad.download_hint": "Voor dit formaat is het voorbeeld niet interactief. Download of sla het bestand op."
 }

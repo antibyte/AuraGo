@@ -1375,5 +1375,6 @@
   "desktop.openscad.no_files": "Zatím žádné soubory",
   "desktop.openscad.no_log": "Zatím žádný log",
   "desktop.openscad.no_preview": "Vyrenderuj model a zobrazí se náhled.",
+  "desktop.openscad.render_timeout": "Renderování vypršelo. Zkus jednodušší model nebo zvyšte timeout.",
   "desktop.openscad.download_hint": "Náhled pro tento formát není interaktivní. Stáhni nebo ulož soubor."
 }

@@ -1375,5 +1375,6 @@
   "desktop.openscad.no_files": "Nie ma jeszcze plików",
   "desktop.openscad.no_log": "Nie ma jeszcze dziennika",
   "desktop.openscad.no_preview": "Wyrenderuj model, aby zobaczyć podgląd.",
+  "desktop.openscad.render_timeout": "Renderowanie przekroczyło limit czasu. Spróbuj prostszego modelu albo zwiększ timeout.",
   "desktop.openscad.download_hint": "Podgląd nie jest interaktywny dla tego formatu. Pobierz lub zapisz plik."
 }

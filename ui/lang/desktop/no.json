@@ -1375,5 +1375,6 @@
   "desktop.openscad.no_files": "Ingen filer ennå",
   "desktop.openscad.no_log": "Ingen logg ennå",
   "desktop.openscad.no_preview": "Render en modell for å se forhåndsvisningen.",
+  "desktop.openscad.render_timeout": "Renderingen tidsavbrøt. Prøv en enklere modell eller øk tidsavbruddet.",
   "desktop.openscad.download_hint": "Forhåndsvisningen er ikke interaktiv for dette formatet. Last ned eller lagre filen."
 }

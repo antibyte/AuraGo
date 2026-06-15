@@ -1375,5 +1375,6 @@
   "desktop.openscad.no_files": "还没有文件",
   "desktop.openscad.no_log": "还没有日志",
   "desktop.openscad.no_preview": "渲染一个模型即可查看预览。",
+  "desktop.openscad.render_timeout": "渲染超时。请尝试更简单的模型或增加超时时间。",
   "desktop.openscad.download_hint": "此格式的预览不可交互。请下载或保存文件。"
 }

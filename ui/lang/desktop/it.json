@@ -1375,5 +1375,6 @@
   "desktop.openscad.no_files": "Nessun file ancora",
   "desktop.openscad.no_log": "Nessun log ancora",
   "desktop.openscad.no_preview": "Renderizza un modello per vedere l’anteprima.",
+  "desktop.openscad.render_timeout": "Il rendering è scaduto. Prova un modello più semplice o aumenta il timeout.",
   "desktop.openscad.download_hint": "L’anteprima non è interattiva per questo formato. Scarica o salva il file."
 }

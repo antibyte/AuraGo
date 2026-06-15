@@ -1375,5 +1375,6 @@
   "desktop.openscad.no_files": "Inga filer ännu",
   "desktop.openscad.no_log": "Ingen logg ännu",
   "desktop.openscad.no_preview": "Rendera en modell för att se förhandsvisningen.",
+  "desktop.openscad.render_timeout": "Renderingen tog för lång tid. Prova en enklare modell eller höj timeouten.",
   "desktop.openscad.download_hint": "Förhandsvisningen är inte interaktiv för detta format. Ladda ner eller spara filen."
 }

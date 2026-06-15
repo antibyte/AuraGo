@@ -1375,5 +1375,6 @@
   "desktop.openscad.no_files": "Ainda não há ficheiros",
   "desktop.openscad.no_log": "Ainda não há registo",
   "desktop.openscad.no_preview": "Renderiza um modelo para ver a pré-visualização.",
+  "desktop.openscad.render_timeout": "A renderização excedeu o tempo limite. Tenta um modelo mais simples ou aumenta o timeout.",
   "desktop.openscad.download_hint": "A pré-visualização não é interativa para este formato. Transfere ou guarda o ficheiro."
 }

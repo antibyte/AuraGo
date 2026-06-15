@@ -1375,5 +1375,6 @@
   "desktop.openscad.no_files": "अभी कोई फाइल नहीं",
   "desktop.openscad.no_log": "अभी कोई लॉग नहीं",
   "desktop.openscad.no_preview": "प्रीव्यू देखने के लिए मॉडल रेंडर करें।",
+  "desktop.openscad.render_timeout": "रेंडर का समय समाप्त हो गया। सरल मॉडल आज़माएँ या टाइमआउट बढ़ाएँ।",
   "desktop.openscad.download_hint": "इस फॉर्मेट के लिए प्रीव्यू इंटरैक्टिव नहीं है। फाइल डाउनलोड या सेव करें।"
 }

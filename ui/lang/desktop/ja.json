@@ -1375,5 +1375,6 @@
   "desktop.openscad.no_files": "まだファイルがありません",
   "desktop.openscad.no_log": "まだログがありません",
   "desktop.openscad.no_preview": "モデルをレンダーするとプレビューが表示されます。",
+  "desktop.openscad.render_timeout": "レンダーがタイムアウトしました。モデルを単純にするか、タイムアウトを延ばしてください。",
   "desktop.openscad.download_hint": "この形式のプレビューはインタラクティブではありません。ダウンロードまたは保存してください。"
 }

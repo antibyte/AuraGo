@@ -1375,5 +1375,6 @@
   "desktop.openscad.no_files": "No files yet",
   "desktop.openscad.no_log": "No log yet",
   "desktop.openscad.no_preview": "Render a model to see the preview.",
+  "desktop.openscad.render_timeout": "Render timed out. Try a simpler model or increase the timeout.",
   "desktop.openscad.download_hint": "Preview is not interactive for this format. Download or save the file."
 }

@@ -43,6 +43,7 @@ model();`;
             busy: false,
             stl: null,
             previewCleanup: null,
+            renderAbort: null,
             listeners: [],
             eventsAttached: false
         };
@@ -57,6 +58,8 @@ model();`;
         const ctx = state.ctx;
         cleanupPreview(state);
         state.host.className = 'openscad-app';
+        state.host.classList.toggle('busy', !!state.busy);
+        state.host.setAttribute('aria-busy', state.busy ? 'true' : 'false');
         state.host.innerHTML = `
             <div class="oscad-shell">
                 <aside class="oscad-left">
@@ -70,8 +73,8 @@ model();`;
                     <label class="oscad-label">${esc(t(ctx, 'desktop.openscad.prompt', 'Agent prompt'))}</label>
                     <textarea class="oscad-chat" data-oscad-prompt rows="5" placeholder="${esc(t(ctx, 'desktop.openscad.prompt_placeholder', 'Describe the model you want...'))}">${esc(state.prompt)}</textarea>
                     <div class="oscad-row">
-                        <button class="oscad-btn oscad-primary" data-oscad-agent>${icon(ctx, 'agent-chat', 'A', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.ask_agent', 'Ask agent'))}</span></button>
-                        <button class="oscad-btn" data-oscad-render>${icon(ctx, 'run', 'R', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.render', 'Render'))}</span></button>
+                        <button class="oscad-btn oscad-primary" data-oscad-agent ${state.busy ? 'disabled' : ''}>${icon(ctx, 'agent-chat', 'A', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.ask_agent', 'Ask agent'))}</span></button>
+                        <button class="oscad-btn" data-oscad-render ${state.busy ? 'disabled' : ''}>${icon(ctx, 'run', 'R', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.render', 'Render'))}</span></button>
                     </div>
                     <div class="oscad-options">
                         <label class="oscad-label">${esc(t(ctx, 'desktop.openscad.exports', 'Exports'))}</label>
@@ -99,14 +102,14 @@ model();`;
                         ${tabButton(state, 'source', t(ctx, 'desktop.openscad.tab_source', 'Source'))}
                         ${tabButton(state, 'files', t(ctx, 'desktop.openscad.tab_files', 'Files'))}
                         ${tabButton(state, 'log', t(ctx, 'desktop.openscad.tab_log', 'Log'))}
-                        <button class="oscad-icon-btn" data-oscad-refresh title="${esc(t(ctx, 'desktop.openscad.refresh', 'Refresh'))}">${icon(ctx, 'refresh', 'R', 'oscad-btn-icon', 16)}</button>
+                        <button class="oscad-icon-btn" data-oscad-refresh ${state.busy ? 'disabled' : ''} title="${esc(t(ctx, 'desktop.openscad.refresh', 'Refresh'))}">${icon(ctx, 'refresh', 'R', 'oscad-btn-icon', 16)}</button>
                     </div>
                     <div class="oscad-panel" data-oscad-panel></div>
                     <div class="oscad-footer">
                         <div class="oscad-status" data-oscad-status>${esc(t(ctx, 'desktop.openscad.ready', 'Ready'))}</div>
                         <div class="oscad-actions">
-                            <button class="oscad-btn" data-oscad-download ${state.result ? '' : 'disabled'}>${icon(ctx, 'download', 'D', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.download', 'Download'))}</span></button>
-                            <button class="oscad-btn" data-oscad-save ${state.result ? '' : 'disabled'}>${icon(ctx, 'save', 'S', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.save_desktop', 'Save'))}</span></button>
+                            <button class="oscad-btn" data-oscad-download ${state.result && !state.busy ? '' : 'disabled'}>${icon(ctx, 'download', 'D', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.download', 'Download'))}</span></button>
+                            <button class="oscad-btn" data-oscad-save ${state.result && !state.busy ? '' : 'disabled'}>${icon(ctx, 'save', 'S', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.save_desktop', 'Save'))}</span></button>
                             <button class="oscad-btn" data-oscad-fullscreen>${icon(ctx, 'fullscreen', 'F', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.fullscreen', 'Fullscreen'))}</span></button>
                         </div>
                     </div>
@@ -195,12 +198,16 @@ model();`;
         if (state.busy) return;
         const exports = Array.from(state.exports);
         if (!exports.length) exports.push('png', 'stl');
-        state.busy = true;
+        setOpenSCADBusy(state, true);
         setStatus(state, t(state.ctx, 'desktop.openscad.rendering', 'Rendering...'));
+        const controller = new AbortController();
+        state.renderAbort = controller;
+        const timeout = window.setTimeout(() => controller.abort(), renderRequestTimeoutMS(state));
         try {
             const body = await state.ctx.api('/api/openscad/render', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: controller.signal,
                 body: JSON.stringify({
                     source_scad: state.source,
                     model_name: 'model',
@@ -209,14 +216,20 @@ model();`;
                     timeout_seconds: state.timeout
                 })
             });
-            state.result = body.result;
+            state.result = body && body.result ? body.result : null;
             state.activeTab = 'preview';
+            setOpenSCADBusy(state, false);
             draw(state);
-            setStatus(state, t(state.ctx, 'desktop.openscad.render_complete', 'Render complete'));
+            setStatus(state, state.result ? t(state.ctx, 'desktop.openscad.render_complete', 'Render complete') : t(state.ctx, 'desktop.openscad.no_preview', 'Render a model to see the preview.'), !state.result);
         } catch (err) {
-            setStatus(state, err.message || String(err), true);
+            setOpenSCADBusy(state, false);
+            const message = err && err.name === 'AbortError'
+                ? t(state.ctx, 'desktop.openscad.render_timeout', 'Render timed out. Try a simpler model or increase the timeout.')
+                : (err && err.message) || String(err);
+            setStatus(state, message, true);
         } finally {
-            state.busy = false;
+            window.clearTimeout(timeout);
+            if (state.renderAbort === controller) state.renderAbort = null;
         }
     }
 
@@ -333,15 +346,18 @@ model();`;
         }
         const url = previewURL(file);
         if (file.format === 'png') {
-            panel.innerHTML = `<img class="oscad-preview-img" src="${esc(url)}" alt="">`;
+            panel.innerHTML = `<img class="oscad-preview-img" data-oscad-preview-img src="${esc(url)}" alt="">`;
+            bindPreviewLoadError(state, panel, panel.querySelector('[data-oscad-preview-img]'));
             return;
         }
         if (file.format === 'svg') {
-            panel.innerHTML = `<object class="oscad-preview-object" data="${esc(url)}" type="image/svg+xml"></object>`;
+            panel.innerHTML = `<object class="oscad-preview-object" data-oscad-preview-object data="${esc(url)}" type="image/svg+xml"></object>`;
+            bindPreviewLoadError(state, panel, panel.querySelector('[data-oscad-preview-object]'));
             return;
         }
         if (file.format === 'pdf') {
-            panel.innerHTML = `<iframe class="oscad-preview-object" src="${esc(url)}"></iframe>`;
+            panel.innerHTML = `<iframe class="oscad-preview-object" data-oscad-preview-frame src="${esc(url)}"></iframe>`;
+            bindPreviewLoadError(state, panel, panel.querySelector('[data-oscad-preview-frame]'));
             return;
         }
         if (file.format === 'stl') {
@@ -350,6 +366,27 @@ model();`;
             return;
         }
         panel.innerHTML = `<div class="oscad-empty"><strong>${esc(file.name)}</strong><span>${esc(t(state.ctx, 'desktop.openscad.download_hint', 'Preview is not interactive for this format. Download or save the file.'))}</span></div>`;
+    }
+
+    function bindPreviewLoadError(state, panel, element) {
+        if (!element) return;
+        element.addEventListener('error', () => {
+            panel.innerHTML = `<div class="oscad-empty"><strong>${esc(t(state.ctx, 'desktop.openscad.no_preview', 'Render a model to see the preview.'))}</strong><span>${esc(t(state.ctx, 'desktop.openscad.download_hint', 'Preview is not interactive for this format. Download or save the file.'))}</span></div>`;
+            setStatus(state, t(state.ctx, 'desktop.openscad.download_hint', 'Preview is not interactive for this format. Download or save the file.'), true);
+        }, { once: true });
+    }
+
+    function setOpenSCADBusy(state, busy) {
+        state.busy = !!busy;
+        if (!state.host) return;
+        state.host.classList.toggle('busy', state.busy);
+        state.host.setAttribute('aria-busy', state.busy ? 'true' : 'false');
+        state.host.querySelectorAll('[data-oscad-render], [data-oscad-agent], [data-oscad-refresh]').forEach(btn => { btn.disabled = state.busy; });
+    }
+
+    function renderRequestTimeoutMS(state) {
+        const seconds = Math.max(10, Math.min(Number(state.timeout) || 120, 600));
+        return (seconds + 45) * 1000;
     }
 
     function renderSTL(state, mount, url) {
@@ -470,6 +507,10 @@ model();`;
     function dispose(windowId) {
         const state = stateByWindow.get(windowId);
         if (!state) return;
+        if (state.renderAbort) {
+            state.renderAbort.abort();
+            state.renderAbort = null;
+        }
         cleanupPreview(state);
         state.listeners.forEach(fn => {
             try { fn(); } catch (_) {}
