@@ -43,9 +43,23 @@ func ExecuteOpenSCADRender(ctx context.Context, cfg *config.Config, args map[str
 			return virtualDesktopJSON("error", err.Error(), result, nil)
 		}
 	}
+	payload := map[string]interface{}{
+		"job_id":      result.JobID,
+		"model_name":  result.ModelName,
+		"files":       result.Files,
+		"source_path": result.SourcePath,
+		"source_scad": req.SourceSCAD,
+		"exit_code":   result.ExitCode,
+		"duration_ms": result.DurationMS,
+		"stdout":      result.Stdout,
+		"stderr":      result.Stderr,
+		"saved_paths": result.SavedPaths,
+		"download_base": result.DownloadBase,
+		"created_at":  result.CreatedAt,
+	}
 	event := &desktop.Event{
 		Type:      "openscad_result",
-		Payload:   result,
+		Payload:   payload,
 		CreatedAt: time.Now().UTC(),
 	}
 	return virtualDesktopJSON("ok", "openscad render complete", result, event)

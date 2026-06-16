@@ -1,4 +1,4 @@
-﻿// AUDIT(Task27 / 2026-06-02): All 24 `.style.*` assignments in this file were reviewed.
+// AUDIT(Task27 / 2026-06-02): All 24 `.style.*` assignments in this file were reviewed.
 // No tokenizable hard-coded colors/sizes/radii were found. Every match is one of:
 //   - Reading current inline state (parseInt on style.left/top/width) for math
 //   - Writing a dynamic computed value (icon grid, widget bounds, drag delta)
@@ -929,7 +929,9 @@
         const shouldParseJSON = contentType.includes('application/json') || String(url).includes('.json');
         const body = shouldParseJSON ? await resp.json() : {};
         if (!resp.ok) {
-            throw new Error(body.error || body.message || ('HTTP ' + resp.status));
+            const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
+            err.body = body;
+            throw err;
         }
         return body;
     }

@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -307,4 +308,43 @@ func openSCADFileNames(files []OpenSCADFile) []string {
 		names = append(names, file.Name)
 	}
 	return names
+}
+
+func TestOpenSCADPruneOldJobsRemovesExpiredDirectories(t *testing.T) {
+	t.Parallel()
+	dataDir := t.TempDir()
+	jobsRoot := filepath.Join(dataDir, "openscad", "jobs")
+	if err := os.MkdirAll(jobsRoot, openSCADJobsRootMode); err != nil {
+		t.Fatalf("mkdir jobs: %v", err)
+	}
+	oldJob := filepath.Join(jobsRoot, "oscad-old")
+	if err := os.MkdirAll(oldJob, openSCADJobDirMode); err != nil {
+		t.Fatalf("mkdir old job: %v", err)
+	}
+	oldMeta := OpenSCADRenderResult{
+		JobID:     "oscad-old",
+		CreatedAt: time.Now().UTC().Add(-48 * time.Hour),
+	}
+	data, err := json.Marshal(oldMeta)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(oldJob, "job.json"), data, 0o600); err != nil {
+		t.Fatalf("write job.json: %v", err)
+	}
+	keepJob := filepath.Join(jobsRoot, "oscad-keep")
+	if err := os.MkdirAll(keepJob, openSCADJobDirMode); err != nil {
+		t.Fatalf("mkdir keep job: %v", err)
+	}
+	svc := NewOpenSCADContainerService(Config{
+		DataDir: dataDir,
+		OpenSCAD: OpenSCADConfig{JobRetentionDays: 1},
+	}, nil)
+	svc.pruneOldOpenSCADJobs(jobsRoot, "oscad-keep")
+	if _, err := os.Stat(oldJob); !os.IsNotExist(err) {
+		t.Fatalf("old job dir should be removed, stat err=%v", err)
+	}
+	if _, err := os.Stat(keepJob); err != nil {
+		t.Fatalf("keep job dir should remain: %v", err)
+	}
 }

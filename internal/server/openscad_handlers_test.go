@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -62,5 +63,45 @@ func TestOpenSCADJobFileServesInlineByDefaultAndAttachmentOnDownload(t *testing.
 	}
 	if got := downloadRec.Header().Get("Content-Disposition"); !strings.Contains(strings.ToLower(got), "attachment") {
 		t.Fatalf("download Content-Disposition = %q, want attachment", got)
+	}
+}
+
+func TestOpenSCADRenderReturnsPartialResultOnFailure(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	cfg := &config.Config{}
+	cfg.VirtualDesktop.Enabled = true
+	cfg.VirtualDesktop.WorkspaceDir = filepath.Join(root, "desktop")
+	cfg.VirtualDesktop.OpenSCAD.Enabled = true
+	cfg.SQLite.VirtualDesktopPath = filepath.Join(root, "virtual_desktop.db")
+	cfg.Directories.DataDir = filepath.Join(root, "data")
+	s := &Server{Cfg: cfg}
+	t.Cleanup(func() {
+		if s.DesktopService != nil {
+			_ = s.DesktopService.Close()
+		}
+		if s.DesktopHub != nil {
+			s.DesktopHub.Close()
+		}
+	})
+	if _, _, err := s.getDesktopService(context.Background()); err != nil {
+		t.Fatalf("getDesktopService: %v", err)
+	}
+	handlers := openSCADHandlers{server: s}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/openscad/render", strings.NewReader(`{"source_scad":"cube(1);","exports":["png"]}`))
+	req.Header.Set("Content-Type", "application/json")
+	handlers.handleRender(rec, req)
+	if rec.Code != http.StatusOK && rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if rec.Code == http.StatusOK && body["status"] == "error" {
+		if body["result"] == nil {
+			t.Fatalf("expected partial result in error response, got %#v", body)
+		}
 	}
 }

@@ -246,7 +246,11 @@ model();`;
         if (data && data.type === 'virtual_desktop_event' && data.payload) data = data.payload;
         if (data && data.event === 'virtual_desktop_event' && data.detail) data = normalizeEventData(data.detail);
         if (!data || data.type !== 'openscad_result') return;
-        state.result = data.payload || data.result || null;
+        const payload = data.payload || data.result || null;
+        state.result = payload;
+        if (payload && typeof payload.source_scad === 'string' && payload.source_scad.length) {
+            state.source = payload.source_scad;
+        }
         state.sourceDirty = false;
         state.activeTab = 'files';
         draw(state);
@@ -287,6 +291,13 @@ model();`;
                 })
             });
             state.result = body && body.result ? body.result : null;
+            if (body && body.status === 'error') {
+                state.activeTab = state.result ? 'log' : state.activeTab;
+                setOpenSCADBusy(state, false);
+                draw(state);
+                setStatus(state, body.error || t(state.ctx, 'desktop.openscad.render_failed', 'Render failed'), true);
+                return;
+            }
             state.sourceDirty = false;
             state.activeTab = 'files';
             setOpenSCADBusy(state, false);
@@ -294,6 +305,12 @@ model();`;
             setStatus(state, state.result ? t(state.ctx, 'desktop.openscad.render_complete', 'Render complete') : t(state.ctx, 'desktop.openscad.no_preview', 'Render a model to see the preview.'), !state.result);
         } catch (err) {
             setOpenSCADBusy(state, false);
+            const partial = err && err.body && err.body.result ? err.body.result : null;
+            if (partial) {
+                state.result = partial;
+                state.activeTab = 'log';
+                draw(state);
+            }
             const message = err && err.name === 'AbortError'
                 ? (state.cancelRequested ? t(state.ctx, 'desktop.openscad.cancelled', 'Cancelled') : t(state.ctx, 'desktop.openscad.render_timeout', 'Render timed out. Try a simpler model or increase the timeout.'))
                 : (err && err.message) || String(err);
@@ -628,8 +645,9 @@ model();`;
             }
             geometry.computeBoundingBox();
             geometry.center();
-            const material = new THREE.MeshStandardMaterial({ color: 0x42d7c8, roughness: 0.42, metalness: 0.12 });
-            mesh = new THREE.Mesh(geometry, material);
+            // OpenSCAD/STL is Z-up; Three.js preview uses Y-up (same as other desktop CAD viewers).
+            mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0x42d7c8, roughness: 0.42, metalness: 0.12 }));
+            mesh.rotation.x = -Math.PI / 2;
             scene.add(mesh);
             const box = new THREE.Box3().setFromObject(mesh);
             const size = box.getSize(new THREE.Vector3()).length() || 80;

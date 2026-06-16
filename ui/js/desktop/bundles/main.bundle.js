@@ -934,7 +934,9 @@
         const shouldParseJSON = contentType.includes('application/json') || String(url).includes('.json');
         const body = shouldParseJSON ? await resp.json() : {};
         if (!resp.ok) {
-            throw new Error(body.error || body.message || ('HTTP ' + resp.status));
+            const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
+            err.body = body;
+            throw err;
         }
         return body;
     }

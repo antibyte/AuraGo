@@ -90,6 +90,7 @@ type OpenSCADRenderResult struct {
 	ModelName    string         `json:"model_name"`
 	Files        []OpenSCADFile `json:"files"`
 	SourcePath   string         `json:"source_path"`
+	SourceSCAD   string         `json:"source_scad,omitempty"`
 	ExitCode     int            `json:"exit_code"`
 	DurationMS   int64          `json:"duration_ms"`
 	Stdout       string         `json:"stdout,omitempty"`
@@ -336,6 +337,7 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 		JobID:        jobID,
 		ModelName:    modelName,
 		SourcePath:   sourcePath,
+		SourceSCAD:   req.SourceSCAD,
 		DownloadBase: "/api/openscad/jobs/" + jobID + "/files/",
 		CreatedAt:    start.UTC(),
 	}
@@ -395,7 +397,7 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 	}
 	s.mu.Lock()
 	s.touchLocked()
-	s.mu.Unlock()
+	s.pruneOldOpenSCADJobs(jobsRoot, jobID)
 	return result, nil
 }
 
@@ -927,6 +929,52 @@ func newOpenSCADJobID() string {
 		return fmt.Sprintf("oscad-%d", time.Now().UTC().UnixNano())
 	}
 	return "oscad-" + hex.EncodeToString(b[:])
+}
+
+func openSCADJobRetentionDays(cfg OpenSCADConfig) int {
+	if cfg.JobRetentionDays <= 0 {
+		return defaultOpenSCADJobRetentionDays
+	}
+	return cfg.JobRetentionDays
+}
+
+func openSCADJobDirCreatedAt(jobDir string) time.Time {
+	data, err := os.ReadFile(filepath.Join(jobDir, "job.json"))
+	if err == nil {
+		var meta OpenSCADRenderResult
+		if json.Unmarshal(data, &meta) == nil && !meta.CreatedAt.IsZero() {
+			return meta.CreatedAt.UTC()
+		}
+	}
+	fi, err := os.Stat(jobDir)
+	if err != nil {
+		return time.Time{}
+	}
+	return fi.ModTime().UTC()
+}
+
+func (s *OpenSCADContainerService) pruneOldOpenSCADJobs(jobsRoot, keepJobID string) {
+	days := openSCADJobRetentionDays(s.cfg.OpenSCAD)
+	if days <= 0 {
+		return
+	}
+	cutoff := time.Now().UTC().Add(-time.Duration(days) * 24 * time.Hour)
+	entries, err := os.ReadDir(jobsRoot)
+	if err != nil {
+		return
+	}
+	for _, ent := range entries {
+		if !ent.IsDir() || !strings.HasPrefix(ent.Name(), "oscad-") {
+			continue
+		}
+		if ent.Name() == keepJobID {
+			continue
+		}
+		created := openSCADJobDirCreatedAt(filepath.Join(jobsRoot, ent.Name()))
+		if created.IsZero() || created.Before(cutoff) {
+			_ = os.RemoveAll(filepath.Join(jobsRoot, ent.Name()))
+		}
+	}
 }
 
 func truncateOpenSCADOutput(value string) string {

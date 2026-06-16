@@ -64,6 +64,10 @@ func (h openSCADHandlers) handleRender(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := svc.OpenSCADContainer().Render(r.Context(), req)
 	if err != nil {
+		if result.JobID != "" {
+			writeJSON(w, map[string]interface{}{"status": "error", "error": err.Error(), "result": result})
+			return
+		}
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}

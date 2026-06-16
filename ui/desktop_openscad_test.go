@@ -42,6 +42,7 @@ func TestDesktopOpenSCADLazyAssetsRoutingAndWindowRuntime(t *testing.T) {
 		"openscad: 'openscad'",
 		"scad: 'openscad'",
 		"openscad: 'OS'",
+		"err.body = body",
 		"OpenSCADApp",
 	} {
 		if !strings.Contains(foundation, want) {
@@ -74,6 +75,10 @@ func TestDesktopOpenSCADAppMarkers(t *testing.T) {
 		"window.AuraSSE.on('virtual_desktop_event'",
 		"data.type !== 'openscad_result'",
 		"new AbortController()",
+		"payload.source_scad",
+		"mesh.rotation.x = -Math.PI / 2",
+		"body.status === 'error'",
+		"err.body",
 		"renderRequestTimeoutMS(state)",
 		"setOpenSCADBusy(state, true,",
 		"setOpenSCADBusy(state, false)",
