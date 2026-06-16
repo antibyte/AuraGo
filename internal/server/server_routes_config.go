@@ -107,7 +107,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	})))
 
 	// Backup & Restore (.ago archives)
-	mux.HandleFunc("/api/backup/create", handleBackupCreate(s))
+	mux.Handle("/api/backup/create", requireAdmin(s, handleBackupCreate(s)))
 	mux.Handle("/api/backup/import", requireAdmin(s, handleBackupImport(s)))
 
 	// Chromecast mDNS discovery

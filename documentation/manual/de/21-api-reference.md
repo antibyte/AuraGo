@@ -1174,7 +1174,7 @@ POST /api/indexing/directories
 
 ## Backup API
 
-AuraGo-Backups verwenden das `.ago`-Format. Archive sind ZIP-basiert und können mit AES-256-GCM und Argon2id-abgeleiteten Schlüsseln verschlüsselt werden. Sie können Konfiguration, SQLite-Datenbanken inklusive WAL/SHM-Dateien, VectorDB-Daten, Skills, Tools, ausgewählte Workspace-Dateien und separat verschlüsselte Vault-Secrets für Instanzmigrationen enthalten.
+AuraGo-Backups verwenden das `.ago`-Format. Archive sind ZIP-basiert und können mit AES-256-GCM und Argon2id-abgeleiteten Schlüsseln verschlüsselt werden. Sie können Konfiguration, konsistente SQLite-Datenbank-Snapshots, VectorDB-Daten, Skills, Tools, ausgewählte Workspace-Dateien und separat verschlüsselte Vault-Secrets für Instanzmigrationen enthalten.
 
 ### Backup erstellen
 ```http
@@ -1184,18 +1184,11 @@ Content-Type: application/json
 {
   "include_vectordb": true,
   "include_workdir": false,
-  "encrypt": true,
-  "passphrase": "starkes-passwort"
+  "password": "starkes-passwort"
 }
 ```
 
-**Antwort:**
-```json
-{
-  "id": "backup-001",
-  "status": "running"
-}
-```
+Gibt das `.ago`-Archiv als `application/octet-stream`-Download mit `Content-Disposition`-Dateiname zurück. Lass `password` leer für ein unverschlüsseltes, ZIP-kompatibles `.ago`; setze es, um das Archiv zu verschlüsseln und portable Vault-/Token-Exporte einzuschließen.
 
 ### Backup importieren
 ```http
@@ -1203,7 +1196,14 @@ POST /api/backup/import
 Content-Type: multipart/form-data
 ```
 
-Importe werden zuerst gestaged, auf Path-Traversal, Schema-Warnungen und Archiv-Kompatibilität geprüft und danach so atomar wie möglich wiederhergestellt.
+Form-Felder:
+
+| Feld | Pflicht | Beschreibung |
+|------|---------|--------------|
+| `file` | ja | `.ago`-Backup-Archiv |
+| `password` | nein | Passwort für verschlüsselte Backups |
+
+Importe werden zuerst gestaged, auf Path-Traversal, Schema-Warnungen und Archiv-Kompatibilität geprüft und danach so atomar wie möglich wiederhergestellt. Ein SQLite-Restore gibt `restart_required: true` zurück.
 
 ---
 

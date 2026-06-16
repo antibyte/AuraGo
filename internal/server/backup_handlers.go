@@ -453,51 +453,80 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		zw := zip.NewWriter(&zipBuf)
 		contents := []string{}
 		seenZipPaths := map[string]struct{}{}
+		totalSelectedBytes := int64(0)
 
 		// addFile adds a single file to the ZIP at the given zip-internal path.
-		addFile := func(zipPath, filePath string) {
+		addFile := func(zipPath, filePath string) (bool, error) {
 			info, err := os.Lstat(filePath)
-			if err != nil || info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-				return
+			if err != nil {
+				if os.IsNotExist(err) {
+					return false, nil
+				}
+				return false, fmt.Errorf("stat %s: %w", filePath, err)
+			}
+			if info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+				return false, nil
 			}
 			zipPath = filepath.ToSlash(filepath.Clean(zipPath))
 			if zipPath == "." {
-				return
+				return false, nil
 			}
 			if _, exists := seenZipPaths[zipPath]; exists {
-				return
+				return false, nil
 			}
-			// Skip excessively large files (>100 MB) to prevent OOM
 			if info.Size() > 100<<20 {
-				s.Logger.Warn("[Backup] Skipping oversized file", "path", filePath, "size", info.Size())
-				return
+				return false, fmt.Errorf("file exceeds backup entry size limit: %s (%d bytes)", filePath, info.Size())
+			}
+			if totalSelectedBytes+info.Size() > agoMaxExtractSize {
+				return false, fmt.Errorf("backup selection exceeds maximum size limit")
 			}
 			f, err := os.Open(filePath)
 			if err != nil {
-				return
+				return false, fmt.Errorf("open %s: %w", filePath, err)
 			}
-			defer f.Close()
 			fh, err := zip.FileInfoHeader(info)
 			if err != nil {
-				return
+				_ = f.Close()
+				return false, fmt.Errorf("create zip header for %s: %w", filePath, err)
 			}
 			fh.Name = zipPath
 			fh.Method = zip.Deflate
 			fw, err := zw.CreateHeader(fh)
 			if err != nil {
-				return
+				_ = f.Close()
+				return false, fmt.Errorf("create zip entry %s: %w", zipPath, err)
 			}
 			if _, err := io.Copy(fw, f); err != nil {
-				return
+				_ = f.Close()
+				return false, fmt.Errorf("copy %s into backup: %w", filePath, err)
+			}
+			if err := f.Close(); err != nil {
+				return false, fmt.Errorf("close %s: %w", filePath, err)
 			}
 			seenZipPaths[zipPath] = struct{}{}
+			totalSelectedBytes += info.Size()
+			return true, nil
 		}
 
 		// addDir recursively adds all files under dirPath into zipPrefix, skipping
 		// any path components matching the excludes substrings.
-		addDir := func(zipPrefix, dirPath string, excludes ...string) {
-			filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
-				if err != nil || info.IsDir() {
+		addDir := func(zipPrefix, dirPath string, excludes ...string) (int, error) {
+			rootInfo, err := os.Lstat(dirPath)
+			if err != nil {
+				if os.IsNotExist(err) {
+					return 0, nil
+				}
+				return 0, fmt.Errorf("stat directory %s: %w", dirPath, err)
+			}
+			if !rootInfo.IsDir() || rootInfo.Mode()&os.ModeSymlink != 0 {
+				return 0, fmt.Errorf("backup directory is not a regular directory: %s", dirPath)
+			}
+			added := 0
+			err = filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return fmt.Errorf("walk %s: %w", path, err)
+				}
+				if info.IsDir() {
 					return nil
 				}
 				fwdPath := filepath.ToSlash(path)
@@ -507,9 +536,19 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 					}
 				}
 				rel, _ := filepath.Rel(dirPath, path)
-				addFile(zipPrefix+filepath.ToSlash(rel), path)
+				fileAdded, err := addFile(zipPrefix+filepath.ToSlash(rel), path)
+				if err != nil {
+					return err
+				}
+				if fileAdded {
+					added++
+				}
 				return nil
 			})
+			if err != nil {
+				return added, err
+			}
+			return added, nil
 		}
 
 		configBytes, err := os.ReadFile(absConfig)
@@ -522,7 +561,11 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			jsonError(w, "Backup password required because config.yaml contains plaintext secrets", http.StatusBadRequest)
 			return
 		}
-		addFile("config.yaml", absConfig)
+		if _, err := addFile("config.yaml", absConfig); err != nil {
+			s.Logger.Warn("[Backup] Failed to add config", "path", absConfig, "error", err)
+			jsonError(w, "Failed to add config to backup", http.StatusInternalServerError)
+			return
+		}
 		contents = append(contents, "config.yaml")
 
 		// 2. prompts/ — only custom files (user-created or user-modified).
@@ -531,31 +574,54 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		// them up.  Only new personalities or edited prompt files are included.
 		absPrompts, _ := filepath.Abs(s.Cfg.Directories.PromptsDir)
 		customPromptCount := 0
-		filepath.Walk(absPrompts, func(path string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
+		if promptInfo, err := os.Lstat(absPrompts); err == nil {
+			if !promptInfo.IsDir() || promptInfo.Mode()&os.ModeSymlink != 0 {
+				s.Logger.Warn("[Backup] Prompts path is not a regular directory", "path", absPrompts)
+				jsonError(w, "Failed to add prompts to backup", http.StatusInternalServerError)
+				return
 			}
-			rel, _ := filepath.Rel(absPrompts, path)
-			embedPath := filepath.ToSlash(rel)
+			if err := filepath.Walk(absPrompts, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return fmt.Errorf("walk prompts %s: %w", path, err)
+				}
+				if info.IsDir() {
+					return nil
+				}
+				rel, _ := filepath.Rel(absPrompts, path)
+				embedPath := filepath.ToSlash(rel)
 
-			// Read the on-disk file
-			diskBytes, err := os.ReadFile(path)
-			if err != nil {
+				// Read the on-disk file
+				diskBytes, err := os.ReadFile(path)
+				if err != nil {
+					return fmt.Errorf("read prompt %s: %w", path, err)
+				}
+
+				// Check if this path exists in the embedded FS
+				embedBytes, embedErr := fs.ReadFile(promptsembed.FS, embedPath)
+				if embedErr == nil && bytes.Equal(diskBytes, embedBytes) {
+					// Identical to the embedded default — skip
+					return nil
+				}
+
+				// Include: either not in embed (user-created) or content differs (user-modified)
+				added, err := addFile("prompts/"+embedPath, path)
+				if err != nil {
+					return err
+				}
+				if added {
+					customPromptCount++
+				}
 				return nil
+			}); err != nil {
+				s.Logger.Warn("[Backup] Failed to add prompts", "path", absPrompts, "error", err)
+				jsonError(w, "Failed to add prompts to backup", http.StatusInternalServerError)
+				return
 			}
-
-			// Check if this path exists in the embedded FS
-			embedBytes, embedErr := fs.ReadFile(promptsembed.FS, embedPath)
-			if embedErr == nil && bytes.Equal(diskBytes, embedBytes) {
-				// Identical to the embedded default — skip
-				return nil
-			}
-
-			// Include: either not in embed (user-created) or content differs (user-modified)
-			addFile("prompts/"+embedPath, path)
-			customPromptCount++
-			return nil
-		})
+		} else if !os.IsNotExist(err) {
+			s.Logger.Warn("[Backup] Failed to stat prompts directory", "path", absPrompts, "error", err)
+			jsonError(w, "Failed to add prompts to backup", http.StatusInternalServerError)
+			return
+		}
 		if customPromptCount > 0 {
 			contents = append(contents, fmt.Sprintf("prompts/ (custom only, %d file(s))", customPromptCount))
 		}
@@ -567,9 +633,14 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			"crontab.json", "current_plan.md", "character_journal.md",
 			"budget.json", "tokens.json", "webhooks.json", "webhook_log.json",
 			"background_tasks.json", "missions_v2.json", "missions_v2_queue.json",
+			"heartbeat_state.json", "embeddings_reset_pending.json",
 		}
 		for _, fname := range dataFiles {
-			addFile("data/"+fname, filepath.Join(absData, fname))
+			if _, err := addFile("data/"+fname, filepath.Join(absData, fname)); err != nil {
+				s.Logger.Warn("[Backup] Failed to add runtime file", "file", fname, "error", err)
+				jsonError(w, "Failed to add runtime files to backup", http.StatusInternalServerError)
+				return
+			}
 		}
 		contents = append(contents, "data/ (runtime files)")
 
@@ -606,8 +677,13 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 				jsonError(w, "Failed to create a consistent SQLite backup", http.StatusInternalServerError)
 				return
 			}
-			addFile(zipPath, snapshotPath)
-			if len(seenZipPaths) > before {
+			added, err := addFile(zipPath, snapshotPath)
+			if err != nil {
+				s.Logger.Warn("[Backup] Failed to add SQLite snapshot", "path", absDB, "error", err)
+				jsonError(w, "Failed to add SQLite backup to archive", http.StatusInternalServerError)
+				return
+			}
+			if added && len(seenZipPaths) > before {
 				sqliteAdded++
 			}
 		}
@@ -618,26 +694,50 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		// 5. VectorDB (optional — can be large)
 		if req.IncludeVectorDB {
 			absVDB, _ := filepath.Abs(s.Cfg.Directories.VectorDBDir)
-			addDir("data/vectordb/", absVDB)
-			contents = append(contents, "data/vectordb/")
+			added, err := addDir("data/vectordb/", absVDB)
+			if err != nil {
+				s.Logger.Warn("[Backup] Failed to add VectorDB", "path", absVDB, "error", err)
+				jsonError(w, "Failed to add VectorDB files to backup", http.StatusInternalServerError)
+				return
+			}
+			if added > 0 {
+				contents = append(contents, "data/vectordb/")
+			}
 		}
 
 		// 6. Skills (exclude OAuth credentials)
 		absSkills, _ := filepath.Abs(s.Cfg.Directories.SkillsDir)
-		addDir("agent_workspace/skills/", absSkills,
-			"client_secret.json", "client_secrets.json", "token.json")
-		contents = append(contents, "agent_workspace/skills/")
+		if added, err := addDir("agent_workspace/skills/", absSkills,
+			"client_secret.json", "client_secrets.json", "token.json"); err != nil {
+			s.Logger.Warn("[Backup] Failed to add skills", "path", absSkills, "error", err)
+			jsonError(w, "Failed to add skills to backup", http.StatusInternalServerError)
+			return
+		} else if added > 0 {
+			contents = append(contents, "agent_workspace/skills/")
+		}
 
 		// 7. Tools
 		absTools, _ := filepath.Abs(s.Cfg.Directories.ToolsDir)
-		addDir("agent_workspace/tools/", absTools)
-		contents = append(contents, "agent_workspace/tools/")
+		if added, err := addDir("agent_workspace/tools/", absTools); err != nil {
+			s.Logger.Warn("[Backup] Failed to add tools", "path", absTools, "error", err)
+			jsonError(w, "Failed to add tools to backup", http.StatusInternalServerError)
+			return
+		} else if added > 0 {
+			contents = append(contents, "agent_workspace/tools/")
+		}
 
 		// 8. Workdir (optional — excludes images sub-dir to keep size manageable)
 		if req.IncludeWorkdir {
 			absWorkdir, _ := filepath.Abs(s.Cfg.Directories.WorkspaceDir)
-			addDir("agent_workspace/workdir/", absWorkdir, "/images/", "/attachments/")
-			contents = append(contents, "agent_workspace/workdir/")
+			added, err := addDir("agent_workspace/workdir/", absWorkdir, "/images/", "/attachments/")
+			if err != nil {
+				s.Logger.Warn("[Backup] Failed to add workdir", "path", absWorkdir, "error", err)
+				jsonError(w, "Failed to add workdir files to backup", http.StatusInternalServerError)
+				return
+			}
+			if added > 0 {
+				contents = append(contents, "agent_workspace/workdir/")
+			}
 		}
 
 		// 9. Vault secrets (only when a password is set — never in plain-text backups)
@@ -648,18 +748,34 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 				s.Logger.Warn("[Backup] Could not export vault secrets", "error", err)
 			} else if len(vaultBlob) > 0 {
 				if vw, err := zw.Create("vault_secrets.enc"); err == nil {
-					vw.Write(vaultBlob)
+					if _, err := vw.Write(vaultBlob); err != nil {
+						s.Logger.Warn("[Backup] Failed to write vault secrets", "error", err)
+						jsonError(w, "Failed to add vault secrets to backup", http.StatusInternalServerError)
+						return
+					}
 					vaultIncluded = true
 					contents = append(contents, "vault_secrets.enc (secrets, encrypted)")
+				} else {
+					s.Logger.Warn("[Backup] Failed to create vault secrets entry", "error", err)
+					jsonError(w, "Failed to add vault secrets to backup", http.StatusInternalServerError)
+					return
 				}
 			}
 			if tokenBlob, tokenCount, err := exportTokenStore(s.Vault, filepath.Join(absData, "tokens.json"), req.Password); err != nil {
 				s.Logger.Warn("[Backup] Could not export portable token store", "error", err)
 			} else if len(tokenBlob) > 0 {
 				if tw, err := zw.Create("token_store.enc"); err == nil {
-					tw.Write(tokenBlob)
+					if _, err := tw.Write(tokenBlob); err != nil {
+						s.Logger.Warn("[Backup] Failed to write token store", "error", err)
+						jsonError(w, "Failed to add token store to backup", http.StatusInternalServerError)
+						return
+					}
 					tokenStoreIncluded = true
 					contents = append(contents, fmt.Sprintf("token_store.enc (%d API token metadata record(s), encrypted)", tokenCount))
+				} else {
+					s.Logger.Warn("[Backup] Failed to create token store entry", "error", err)
+					jsonError(w, "Failed to add token store to backup", http.StatusInternalServerError)
+					return
 				}
 			}
 		}
@@ -675,7 +791,15 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			DBSchemaVersion: currentDBSchemaVersion,
 		}
 		if mw, err := zw.Create("manifest.json"); err == nil {
-			json.NewEncoder(mw).Encode(manifest)
+			if err := json.NewEncoder(mw).Encode(manifest); err != nil {
+				s.Logger.Error("[Backup] Failed to write manifest", "error", err)
+				jsonError(w, "Failed to create backup manifest", http.StatusInternalServerError)
+				return
+			}
+		} else {
+			s.Logger.Error("[Backup] Failed to create manifest entry", "error", err)
+			jsonError(w, "Failed to create backup manifest", http.StatusInternalServerError)
+			return
 		}
 
 		if err := zw.Close(); err != nil {

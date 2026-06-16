@@ -1173,7 +1173,7 @@ POST /api/indexing/directories
 
 ## Backup API
 
-AuraGo backup archives use the `.ago` format. Archives are ZIP-based and can be encrypted with AES-256-GCM using Argon2id-derived keys. They can include configuration, SQLite databases including WAL/SHM files, vector DB data, skills, tools, selected workspace files, and separately encrypted vault secrets for cross-instance migration.
+AuraGo backup archives use the `.ago` format. Archives are ZIP-based and can be encrypted with AES-256-GCM using Argon2id-derived keys. They can include configuration, consistent SQLite database snapshots, vector DB data, skills, tools, selected workspace files, and separately encrypted vault secrets for cross-instance migration.
 
 ### Create Backup
 ```http
@@ -1183,18 +1183,11 @@ Content-Type: application/json
 {
   "include_vectordb": true,
   "include_workdir": false,
-  "encrypt": true,
-  "passphrase": "strong-passphrase"
+  "password": "strong-passphrase"
 }
 ```
 
-**Response:**
-```json
-{
-  "backup_path": "data/backups/aurago_backup_20260328_020000.ago",
-  "size_bytes": 10485760
-}
-```
+Returns the `.ago` archive as an `application/octet-stream` download with a `Content-Disposition` filename. Leave `password` empty for a plain ZIP-compatible `.ago`; set it to encrypt the archive and include portable vault/token exports.
 
 ### Import Backup
 ```http
@@ -1202,7 +1195,14 @@ POST /api/backup/import
 Content-Type: multipart/form-data
 ```
 
-Imports are staged first, checked for path traversal, schema warnings, and archive compatibility, then restored atomically where possible.
+Form fields:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `file` | yes | `.ago` backup archive |
+| `password` | no | Password for encrypted backups |
+
+Imports are staged first, checked for path traversal, schema warnings, and archive compatibility, then restored atomically where possible. A SQLite restore returns `restart_required: true`.
 
 ---
 
