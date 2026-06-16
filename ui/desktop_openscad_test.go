@@ -31,6 +31,7 @@ func TestDesktopOpenSCADLazyAssetsRoutingAndWindowRuntime(t *testing.T) {
 		"window.OpenSCADApp",
 		"window.OpenSCADApp.render",
 		"updateWindowContext",
+		"readonly: desktopReadonly()",
 	} {
 		if !strings.Contains(routing, want) {
 			t.Fatalf("desktop routing missing OpenSCAD marker %q", want)
@@ -74,6 +75,12 @@ func TestDesktopOpenSCADAppMarkers(t *testing.T) {
 		"openscad_render",
 		"window.AuraSSE.on('virtual_desktop_event'",
 		"data.type !== 'openscad_result'",
+		"isOpenSCADReadOnly",
+		"parseDefinesText",
+		"data-oscad-defines",
+		"ensureShell",
+		"preview3D",
+		"previewStlURL",
 		"new AbortController()",
 		"payload.source_scad",
 		"mesh.rotation.x = -Math.PI / 2",
@@ -188,6 +195,8 @@ func TestDesktopOpenSCADTranslations(t *testing.T) {
 		"desktop.openscad.cancelled",
 		"desktop.openscad.exports",
 		"desktop.openscad.more_exports",
+		"desktop.openscad.defines",
+		"desktop.openscad.defines_placeholder",
 		"desktop.openscad.mode",
 		"desktop.openscad.mode_render",
 		"desktop.openscad.mode_preview",
@@ -209,6 +218,7 @@ func TestDesktopOpenSCADTranslations(t *testing.T) {
 		"desktop.openscad.viewport_axes",
 		"desktop.openscad.render_complete",
 		"desktop.openscad.render_required",
+		"desktop.openscad.render_failed",
 		"desktop.openscad.job",
 		"desktop.openscad.duration",
 		"desktop.openscad.status_running",

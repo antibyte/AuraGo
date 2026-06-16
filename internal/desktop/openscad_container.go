@@ -110,6 +110,7 @@ type OpenSCADStatus struct {
 	JobsContainerPath       string                 `json:"jobs_container_path"`
 	AutoStopMinutes         int                    `json:"auto_stop_minutes"`
 	MaxConcurrentJobs       int                    `json:"max_concurrent_jobs"`
+	RenderQueueNote         string                 `json:"render_queue_note,omitempty"`
 	DefaultExports          []string               `json:"default_exports"`
 	RenderTimeoutSeconds    int                    `json:"render_timeout_seconds"`
 	MaxRenderTimeoutSeconds int                    `json:"max_render_timeout_seconds"`
@@ -501,6 +502,7 @@ func (s *OpenSCADContainerService) Status(ctx context.Context) OpenSCADStatus {
 		JobsContainerPath:       openSCADJobsInContainer,
 		AutoStopMinutes:         openSCADAutoStopMinutes(s.cfg.OpenSCAD),
 		MaxConcurrentJobs:       openSCADMaxConcurrentJobs(s.cfg.OpenSCAD),
+		RenderQueueNote:         "Renders run one at a time in the OpenSCAD container.",
 		DefaultExports:          openSCADDefaultExports(s.cfg.OpenSCAD),
 		RenderTimeoutSeconds:    int(openSCADDefaultTimeout(s.cfg.OpenSCAD).Seconds()),
 		MaxRenderTimeoutSeconds: int(openSCADMaxTimeout(s.cfg.OpenSCAD).Seconds()),

@@ -6085,7 +6085,7 @@ if (appId === 'system-info') {
                 return;
             }
             if (typeof window.OpenSCADApp.render === 'function') {
-                return window.OpenSCADApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, openApp, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, updateWindowContext }));
+                return window.OpenSCADApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), openApp, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, updateWindowContext }));
             }
         }
         if (appId === 'launchpad') return renderLaunchpad(id);

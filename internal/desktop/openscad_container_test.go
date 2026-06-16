@@ -348,3 +348,15 @@ func TestOpenSCADPruneOldJobsRemovesExpiredDirectories(t *testing.T) {
 		t.Fatalf("keep job dir should remain: %v", err)
 	}
 }
+
+func TestOpenSCADStatusIncludesRenderQueueNote(t *testing.T) {
+	t.Parallel()
+	svc := NewOpenSCADContainerService(Config{OpenSCAD: OpenSCADConfig{Enabled: true}}, nil)
+	status := svc.Status(context.Background())
+	if status.RenderQueueNote == "" {
+		t.Fatalf("expected render_queue_note, got empty")
+	}
+	if status.MaxConcurrentJobs <= 0 {
+		t.Fatalf("max_concurrent_jobs = %d", status.MaxConcurrentJobs)
+	}
+}

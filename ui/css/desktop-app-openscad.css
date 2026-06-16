@@ -188,16 +188,23 @@
 
 .desktop-body[data-theme="light"] .oscad-chat,
 .desktop-body[data-theme="light"] .oscad-source,
+.desktop-body[data-theme="light"] .oscad-defines,
 .desktop-body[data-theme="light"] .oscad-select,
 .desktop-body[data-theme="light"] .oscad-input {
     background: rgba(255, 255, 255, 0.78);
 }
 
 .oscad-chat,
-.oscad-source {
-    resize: none;
-    padding: 12px;
-    font: 13px/1.45 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+.oscad-source,
+.oscad-defines,
+.oscad-select,
+.oscad-input {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid var(--oscad-border);
+    background: rgba(7, 16, 24, 0.55);
+    color: var(--oscad-text);
+    font: inherit;
 }
 
 .oscad-source {
