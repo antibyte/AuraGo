@@ -399,6 +399,7 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 	s.mu.Lock()
 	s.touchLocked()
 	s.pruneOldOpenSCADJobs(jobsRoot, jobID)
+	s.mu.Unlock()
 	return result, nil
 }
 

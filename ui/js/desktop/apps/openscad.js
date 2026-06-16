@@ -646,21 +646,29 @@ model();`;
     function renderPreview(state, panel) {
         const file = primaryFile(state);
         if (!file) {
+            state.previewStlURL = '';
             panel.innerHTML = emptyPanel(state, 'desktop.openscad.no_preview', 'Render a model to see the preview.');
             return;
         }
         const url = previewURL(file);
+        if (!url) {
+            panel.innerHTML = emptyPanel(state, 'desktop.openscad.no_preview', 'Render a model to see the preview.');
+            return;
+        }
         if (file.format === 'png') {
+            state.previewStlURL = '';
             panel.innerHTML = `<img class="oscad-preview-img" data-oscad-preview-img src="${esc(url)}" alt="">`;
             bindPreviewLoadError(state, panel, panel.querySelector('[data-oscad-preview-img]'));
             return;
         }
         if (file.format === 'svg') {
+            state.previewStlURL = '';
             panel.innerHTML = `<object class="oscad-preview-object" data-oscad-preview-object data="${esc(url)}" type="image/svg+xml"></object>`;
             bindPreviewLoadError(state, panel, panel.querySelector('[data-oscad-preview-object]'));
             return;
         }
         if (file.format === 'pdf') {
+            state.previewStlURL = '';
             panel.innerHTML = `<iframe class="oscad-preview-object" data-oscad-preview-frame src="${esc(url)}"></iframe>`;
             bindPreviewLoadError(state, panel, panel.querySelector('[data-oscad-preview-frame]'));
             return;
@@ -675,6 +683,7 @@ model();`;
             renderSTL(state, panel.querySelector('[data-stl-viewer]'), url);
             return;
         }
+        state.previewStlURL = '';
         panel.innerHTML = `<div class="oscad-empty"><strong>${esc(file.name)}</strong><span>${esc(t(state.ctx, 'desktop.openscad.download_hint', 'Preview is not interactive for this format. Download or save the file.'))}</span></div>`;
     }
 
@@ -720,6 +729,7 @@ model();`;
         state.cancelRequested = true;
         if (state.renderAbort) state.renderAbort.abort();
         if (state.agentAbort) state.agentAbort.abort();
+        setOpenSCADBusy(state, false);
         setStatus(state, t(state.ctx, 'desktop.openscad.cancelled', 'Cancelled'), true);
     }
 
@@ -803,13 +813,14 @@ model();`;
 
     function renderSTL(state, mount, url) {
         cleanupPreview(state);
-        const STLLoader = window.THREE && (window.THREE.STLLoader || window.STLLoader);
-        const OrbitControls = window.THREE && (window.THREE.OrbitControls || window.OrbitControls);
-        if (!mount || !window.THREE || !STLLoader) {
-            mount.innerHTML = `<div class="oscad-empty">${esc(t(state.ctx, 'desktop.openscad.download_hint', 'Preview is not interactive for this format. Download or save the file.'))}</div>`;
+        if (!mount) return;
+        if (!window.THREE || !THREE.STLLoader) {
+            mount.innerHTML = `<div class="oscad-empty"><strong>${esc(t(state.ctx, 'desktop.openscad.no_preview', 'Render a model to see the preview.'))}</strong><span>${esc(t(state.ctx, 'desktop.openscad.download_hint', 'Preview is not interactive for this format. Download or save the file.'))}</span></div>`;
+            setStatus(state, t(state.ctx, 'desktop.openscad.download_hint', 'Preview is not interactive for this format. Download or save the file.'), true);
             return;
         }
-        mount.innerHTML = `<div class="oscad-empty">${esc(t(state.ctx, 'desktop.openscad.rendering', 'Rendering...'))}</div>`;
+        const STLLoader = THREE.STLLoader;
+        const OrbitControls = THREE.OrbitControls;
         const width = mount.clientWidth || 640;
         const height = mount.clientHeight || 420;
         const scene = new THREE.Scene();

@@ -94,7 +94,7 @@ func TestDesktopOpenSCADAppMarkers(t *testing.T) {
 		"setOpenSCADBusy(state, true,",
 		"setOpenSCADBusy(state, false)",
 		"if (state.renderAbort)",
-		"window.THREE.STLLoader || window.STLLoader",
+		"THREE.STLLoader",
 		"requestFullscreen",
 		"cleanupPreview(state)",
 		"cancelAnimationFrame",
