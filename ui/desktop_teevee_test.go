@@ -77,7 +77,8 @@ func TestDesktopTeeVeeAppMarkers(t *testing.T) {
 		"stream.referrer",
 		"function playChannel(entry)",
 		"window.Hls",
-		"canPlayType('application/vnd.apple.mpegurl')",
+		"xhrSetup: teeveeHlsXhrSetup",
+		"function teeveeCreateHls()",
 		"requestFullscreen",
 		"mediaSession",
 		"Stream unavailable",
@@ -384,6 +385,8 @@ func TestDesktopTeeVeeUsesSameOriginStreamProxy(t *testing.T) {
 		"/api/desktop/teevee/stream",
 		"function streamPlaybackURL(url)",
 		"location.protocol === 'https:'",
+		"teeveeHlsXhrSetup",
+		"teeveeCreateHls",
 		"state.entries = data.entries",
 	} {
 		if !strings.Contains(app, want) {

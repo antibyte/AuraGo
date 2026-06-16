@@ -20,6 +20,21 @@ const (
 )
 
 var teeveePlaylistURIAttr = regexp.MustCompile(`URI="([^"]+)"`)
+var teeveePlaylistURIAttrSingle = regexp.MustCompile(`URI='([^']+)'`)
+
+
+func teeveeHTTPClient(rawURL string) (*http.Client, error) {
+	client, err := security.NewSSRFProtectedHTTPClientForURL(rawURL, 90*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	if transport, ok := client.Transport.(*http.Transport); ok {
+		cloned := transport.Clone()
+		cloned.DisableCompression = true
+		client.Transport = cloned
+	}
+	return client, nil
+}
 
 func handleDesktopTeeVeeStream(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +64,7 @@ func handleDesktopTeeVeeStream(s *Server) http.HandlerFunc {
 			return
 		}
 
-		client, err := security.NewSSRFProtectedHTTPClientForURL(rawURL, 90*time.Second)
+		client, err := teeveeHTTPClient(rawURL)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
@@ -184,14 +199,28 @@ func rewriteTeeVeeHLSPlaylist(body []byte, baseURL string) []byte {
 }
 
 func rewriteTeeVeePlaylistTagLine(base *url.URL, line string) string {
-	return teeveePlaylistURIAttr.ReplaceAllStringFunc(line, func(match string) string {
-		sub := teeveePlaylistURIAttr.FindStringSubmatch(match)
-		if len(sub) < 2 {
+	line = teeveePlaylistURIAttr.ReplaceAllStringFunc(line, rewriteTeeVeeURIAttrMatch(base))
+	line = teeveePlaylistURIAttrSingle.ReplaceAllStringFunc(line, rewriteTeeVeeURIAttrMatch(base))
+	return line
+}
+
+func rewriteTeeVeeURIAttrMatch(base *url.URL) func(string) string {
+	return func(match string) string {
+		ref := ""
+		if sub := teeveePlaylistURIAttr.FindStringSubmatch(match); len(sub) >= 2 {
+			ref = sub[1]
+		} else if sub := teeveePlaylistURIAttrSingle.FindStringSubmatch(match); len(sub) >= 2 {
+			ref = sub[1]
+		} else {
 			return match
 		}
-		resolved := teeveeResolvePlaylistURI(base, sub[1])
-		return `URI="` + teeveeStreamProxyURL(resolved) + `"`
-	})
+		resolved := teeveeResolvePlaylistURI(base, ref)
+		proxied := teeveeStreamProxyURL(resolved)
+		if strings.Contains(match, "URI='") {
+			return `URI='` + proxied + `'`
+		}
+		return `URI="` + proxied + `"`
+	}
 }
 
 func teeveeResolvePlaylistURI(base *url.URL, ref string) string {

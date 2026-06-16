@@ -513,13 +513,10 @@
             const playbackURL = streamPlaybackURL(url);
             if (!url) throw new Error(t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK));
             if (isHLSURL(url)) {
-                if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                    video.src = playbackURL;
-                    video.load();
-                    return;
-                }
+                // Always use hls.js on HTTPS so every variant/segment goes through the stream proxy.
+
                 if (window.Hls && window.Hls.isSupported && window.Hls.isSupported()) {
-                    state.hls = new window.Hls({ enableWorker: true, lowLatencyMode: true, backBufferLength: 60 });
+                    state.hls = teeveeCreateHls();
                     state.hls.on(window.Hls.Events.ERROR, function (_event, data) {
                         if (data && data.fatal) {
                             state.error = t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK);
@@ -872,10 +869,32 @@
         return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
     }
 
+
+    function teeveeUseStreamProxy() {
+        return typeof location !== 'undefined' && location.protocol === 'https:';
+    }
+
+    function teeveeHlsXhrSetup(xhr, url) {
+        if (!teeveeUseStreamProxy()) return;
+        const raw = clean(url);
+        if (!raw || raw.indexOf(TEEVEE_STREAM_PROXY) === 0) return;
+        if (!/^https?:\/\//i.test(raw)) return;
+        xhr.open('GET', streamPlaybackURL(raw), true);
+    }
+
+    function teeveeCreateHls() {
+        return new window.Hls({
+            enableWorker: true,
+            lowLatencyMode: true,
+            backBufferLength: 60,
+            xhrSetup: teeveeHlsXhrSetup
+        });
+    }
+
     function streamPlaybackURL(url) {
         const raw = clean(url);
         if (!raw) return '';
-        if (typeof location !== 'undefined' && location.protocol === 'https:') {
+        if (teeveeUseStreamProxy()) {
             return TEEVEE_STREAM_PROXY + '?url=' + encodeURIComponent(raw);
         }
         return raw;
