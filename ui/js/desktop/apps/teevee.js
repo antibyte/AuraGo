@@ -872,17 +872,10 @@
         return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
     }
 
-    function needsTeeVeeStreamProxy(url) {
-        if (typeof location !== 'undefined' && location.protocol !== 'https:') {
-            return false;
-        }
-        return /^http:\/\//i.test(clean(url));
-    }
-
     function streamPlaybackURL(url) {
         const raw = clean(url);
         if (!raw) return '';
-        if (needsTeeVeeStreamProxy(raw)) {
+        if (typeof location !== 'undefined' && location.protocol === 'https:') {
             return TEEVEE_STREAM_PROXY + '?url=' + encodeURIComponent(raw);
         }
         return raw;

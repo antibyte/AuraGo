@@ -60,6 +60,7 @@ func handleDesktopTeeVeeStream(s *Server) http.HandlerFunc {
 			return
 		}
 		copyTeeVeeUpstreamHeaders(upReq, r)
+		upReq.Header.Set("Accept-Encoding", "identity")
 
 		resp, err := client.Do(upReq)
 		if err != nil {
@@ -71,6 +72,8 @@ func handleDesktopTeeVeeStream(s *Server) http.HandlerFunc {
 			jsonError(w, "upstream stream returned HTTP "+resp.Status, http.StatusBadGateway)
 			return
 		}
+
+		teeveeSanitizeProxyResponseHeaders(resp)
 
 		contentType := resp.Header.Get("Content-Type")
 		if r.Method == http.MethodHead {
@@ -103,14 +106,18 @@ func handleDesktopTeeVeeStream(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", teeveeProxyContentType(contentType, rawURL))
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Accel-Buffering", "no")
-		if resp.ContentLength > 0 {
-			w.Header().Set("Content-Length", resp.Header.Get("Content-Length"))
-		}
 		w.WriteHeader(http.StatusOK)
 		_, err = io.Copy(w, io.LimitReader(resp.Body, teeveeMaxSegmentProxySize))
 		if err != nil {
 			return
 		}
+	}
+}
+
+
+func teeveeSanitizeProxyResponseHeaders(upstream *http.Response) {
+	for _, key := range []string{"Content-Encoding", "Content-Length", "Transfer-Encoding"} {
+		upstream.Header.Del(key)
 	}
 }
 

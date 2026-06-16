@@ -383,6 +383,7 @@ func TestDesktopTeeVeeUsesSameOriginStreamProxy(t *testing.T) {
 	for _, want := range []string{
 		"/api/desktop/teevee/stream",
 		"function streamPlaybackURL(url)",
+		"location.protocol === 'https:'",
 		"state.entries = data.entries",
 	} {
 		if !strings.Contains(app, want) {
