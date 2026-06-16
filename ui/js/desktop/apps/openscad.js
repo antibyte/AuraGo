@@ -13,6 +13,11 @@ module model() {
 
 model();`;
 
+    const OPENSCAD_DRAFT_KEY = 'aurago.desktop.openscad.draft';
+    const OPENSCAD_DRAFT_MAX_SOURCE = 480 * 1024;
+    const OPENSCAD_DRAFT_VERSION = 1;
+    let openSCADDraftSaveTimer = null;
+
     const stateByWindow = new Map();
 
     function esc(value) {
@@ -46,6 +51,80 @@ model();`;
         return defines;
     }
 
+    function readOpenSCADDraft() {
+        try {
+            const raw = localStorage.getItem(OPENSCAD_DRAFT_KEY);
+            if (!raw) return null;
+            const data = JSON.parse(raw);
+            if (!data || typeof data !== 'object' || data.v !== OPENSCAD_DRAFT_VERSION) return null;
+            return data;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function openSCADDraftFromState(state) {
+        const source = String(state.source || '');
+        if (source.length > OPENSCAD_DRAFT_MAX_SOURCE) return null;
+        return {
+            v: OPENSCAD_DRAFT_VERSION,
+            source,
+            definesText: String(state.definesText || ''),
+            prompt: String(state.prompt || ''),
+            renderMode: state.renderMode === 'preview' ? 'preview' : 'render',
+            timeout: Math.min(600, Math.max(10, Number(state.timeout) || 120)),
+            exports: Array.from(state.exports || []),
+            activeTab: ['source', 'files', 'log'].includes(state.activeTab) ? state.activeTab : 'source',
+            lightPreview: !!state.lightPreview,
+            showAxes: state.showAxes !== false,
+            savedAt: Date.now()
+        };
+    }
+
+    function persistOpenSCADDraft(state) {
+        if (!state || isOpenSCADReadOnly(state.ctx)) return;
+        const payload = openSCADDraftFromState(state);
+        if (!payload) return;
+        try {
+            localStorage.setItem(OPENSCAD_DRAFT_KEY, JSON.stringify(payload));
+        } catch (_) {}
+    }
+
+    function scheduleOpenSCADDraftSave(state) {
+        if (!state || isOpenSCADReadOnly(state.ctx)) return;
+        if (openSCADDraftSaveTimer) window.clearTimeout(openSCADDraftSaveTimer);
+        openSCADDraftSaveTimer = window.setTimeout(() => {
+            openSCADDraftSaveTimer = null;
+            persistOpenSCADDraft(state);
+        }, 400);
+    }
+
+    function applyOpenSCADDraftToState(state, draft, opts) {
+        if (!draft) return;
+        const skipSource = opts && opts.skipSource;
+        if (!skipSource && typeof draft.source === 'string' && draft.source.length && draft.source.length <= OPENSCAD_DRAFT_MAX_SOURCE) {
+            state.source = draft.source;
+        }
+        if (typeof draft.definesText === 'string') state.definesText = draft.definesText;
+        if (typeof draft.prompt === 'string') state.prompt = draft.prompt;
+        if (draft.renderMode === 'preview' || draft.renderMode === 'render') state.renderMode = draft.renderMode;
+        if (Number.isFinite(Number(draft.timeout))) state.timeout = Math.min(600, Math.max(10, Number(draft.timeout)));
+        if (Array.isArray(draft.exports) && draft.exports.length) {
+            state.exports = new Set(draft.exports.map(f => String(f).toLowerCase()).filter(Boolean));
+        }
+        if (['source', 'files', 'log'].includes(draft.activeTab)) state.activeTab = draft.activeTab;
+        if (typeof draft.lightPreview === 'boolean') state.lightPreview = draft.lightPreview;
+        if (typeof draft.showAxes === 'boolean') state.showAxes = draft.showAxes;
+    }
+
+    function mergeOpenSCADLaunchContext(ctx, draft) {
+        const merged = Object.assign({}, ctx || {});
+        if (draft && typeof draft.source === 'string' && draft.source.length) {
+            if (!merged.source) merged.source = draft.source;
+        }
+        return merged;
+    }
+
     function definesTextFromRows(rows) {
         if (!Array.isArray(rows) || !rows.length) return '';
         return rows.map(row => `${String(row.name || '').trim()}=${String(row.value ?? '').trim()}`).join('\n');
@@ -53,11 +132,17 @@ model();`;
 
 
     function render(host, windowId, ctx) {
-        const source = ctx && ctx.source ? String(ctx.source) : DEFAULT_SOURCE;
+        const launchCtx = ctx || {};
+        const draft = readOpenSCADDraft();
+        const mergedCtx = mergeOpenSCADLaunchContext(launchCtx, draft);
+        const explicitSource = launchCtx.source != null && String(launchCtx.source).trim() !== '';
+        const source = explicitSource
+            ? String(launchCtx.source)
+            : (mergedCtx.source ? String(mergedCtx.source) : DEFAULT_SOURCE);
         const state = {
             host,
             windowId,
-            ctx: ctx || {},
+            ctx: mergedCtx,
             source,
             prompt: '',
             exports: new Set(['png', 'stl']),
@@ -84,6 +169,7 @@ model();`;
             listeners: [],
             eventsAttached: false
         };
+        applyOpenSCADDraftToState(state, draft, { skipSource: explicitSource });
         stateByWindow.set(windowId, state);
         draw(state);
         updateWindowContext(state);
@@ -254,18 +340,19 @@ model();`;
     function wire(state) {
         const host = state.host;
         const promptEl = host.querySelector('[data-oscad-prompt]');
-        if (promptEl) promptEl.addEventListener('input', e => { state.prompt = e.target.value; });
+        if (promptEl) promptEl.addEventListener('input', e => { state.prompt = e.target.value; scheduleOpenSCADDraftSave(state); });
         const definesEl = host.querySelector('[data-oscad-defines]');
-        if (definesEl) definesEl.addEventListener('input', e => { state.definesText = e.target.value; });
+        if (definesEl) definesEl.addEventListener('input', e => { state.definesText = e.target.value; scheduleOpenSCADDraftSave(state); });
         const modeEl = host.querySelector('[data-oscad-mode]');
-        if (modeEl) modeEl.addEventListener('change', e => { state.renderMode = e.target.value || 'render'; });
+        if (modeEl) modeEl.addEventListener('change', e => { state.renderMode = e.target.value || 'render'; scheduleOpenSCADDraftSave(state); });
         const timeoutEl = host.querySelector('[data-oscad-timeout]');
-        if (timeoutEl) timeoutEl.addEventListener('input', e => { state.timeout = Number(e.target.value || 120); });
+        if (timeoutEl) timeoutEl.addEventListener('input', e => { state.timeout = Number(e.target.value || 120); scheduleOpenSCADDraftSave(state); });
         host.querySelectorAll('[data-oscad-export]').forEach(input => {
             input.addEventListener('change', () => {
                 const format = input.dataset.oscadExport;
                 if (input.checked) state.exports.add(format);
                 else state.exports.delete(format);
+                scheduleOpenSCADDraftSave(state);
             });
         });
         host.querySelector('[data-oscad-render]').addEventListener('click', () => renderSource(state));
@@ -283,6 +370,7 @@ model();`;
             state.activeTab = btn.dataset.oscadTab;
             syncShellControls(state);
             renderInspector(state);
+            scheduleOpenSCADDraftSave(state);
         }));
     }
     function attachResultListeners(state) {
@@ -319,6 +407,7 @@ model();`;
         state.sourceDirty = false;
         state.activeTab = 'files';
         draw(state);
+        persistOpenSCADDraft(state);
         setStatus(state, t(state.ctx, 'desktop.openscad.render_complete', 'Render complete'));
     }
 
@@ -368,6 +457,7 @@ model();`;
             state.activeTab = 'files';
             setOpenSCADBusy(state, false);
             draw(state);
+            persistOpenSCADDraft(state);
             setStatus(state, state.result ? t(state.ctx, 'desktop.openscad.render_complete', 'Render complete') : t(state.ctx, 'desktop.openscad.no_preview', 'Render a model to see the preview.'), !state.result);
         } catch (err) {
             setOpenSCADBusy(state, false);
@@ -503,6 +593,7 @@ model();`;
                         meta.innerHTML = jobMetaHTML(state) + `<span class="oscad-dirty">${esc(t(state.ctx, 'desktop.openscad.render_required', 'Render required'))}</span>`;
                     }
                     setWindowMenus(state);
+                    scheduleOpenSCADDraftSave(state);
                 });
             }
             return;
@@ -654,12 +745,14 @@ model();`;
         }
         syncShellControls(state);
         if (!p3d) renderViewport(state);
+        scheduleOpenSCADDraftSave(state);
     }
 
     function togglePreviewAxes(state) {
         state.showAxes = !state.showAxes;
         renderViewport(state);
         syncShellControls(state);
+        scheduleOpenSCADDraftSave(state);
     }
 
     function downloadFile(file) {
@@ -845,6 +938,7 @@ model();`;
     function dispose(windowId) {
         const state = stateByWindow.get(windowId);
         if (!state) return;
+        persistOpenSCADDraft(state);
         if (state.renderAbort) {
             state.renderAbort.abort();
             state.renderAbort = null;
