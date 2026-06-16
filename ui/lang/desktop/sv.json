@@ -1402,5 +1402,6 @@
   "desktop.viewer_pdfjs_unavailable": "PDF viewer is not available",
   "desktop.looper_warn_every_step": "⚠️ Every step resets context. Not recommended for long creative loops.",
   "desktop.looper_warn_never_long": "ℹ️ \"Never\" starts each round relatively fresh. For long runs, \"every iteration\" with summarization is usually better.",
-  "desktop.qc_badge_setup": "Setup"
+  "desktop.qc_badge_setup": "Setup",
+  "desktop.teevee_mixed_content": "This channel uses an HTTP-only stream and cannot play on a secure (HTTPS) page. Try another channel."
 }

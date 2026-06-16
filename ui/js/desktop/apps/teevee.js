@@ -62,7 +62,6 @@
         const iconMarkup = ctx.iconMarkup || ((key, fallback) => `<span>${esc(fallback || key || '')}</span>`);
         const video = document.createElement('video');
         video.preload = 'metadata';
-        video.crossOrigin = 'anonymous';
         video.playsInline = true;
 
         const state = {
@@ -449,7 +448,7 @@
             renderAll();
             try {
                 const data = await fetchCatalog(force);
-                state.entries = data.entries;
+                state.entries = filterEntriesForPage(data.entries);
                 state.countries = data.countries || new Set();
                 state.catalogLoadedAt = data.loadedAt;
                 updateVisible();
@@ -478,6 +477,15 @@
 
         async function playChannel(entry) {
             if (!entry) return;
+            if (pageIsSecure() && isInsecureMediaURL(entry.url)) {
+                resetPlayback();
+                state.current = entry;
+                state.error = t('desktop.teevee_mixed_content', 'This channel uses an HTTP stream and cannot play on a secure HTTPS page.');
+                showToast(state.error);
+                renderPlayer();
+                renderList();
+                return;
+            }
             if (entry.unsupported) {
                 resetPlayback();
                 state.current = entry;
@@ -518,7 +526,7 @@
                     return;
                 }
                 if (window.Hls && window.Hls.isSupported && window.Hls.isSupported()) {
-                    state.hls = new window.Hls({ enableWorker: true, lowLatencyMode: true, backBufferLength: 60 });
+                    state.hls = new window.Hls({ enableWorker: true, lowLatencyMode: false, backBufferLength: 90, fragLoadingMaxRetry: 4, manifestLoadingMaxRetry: 4 });
                     state.hls.on(window.Hls.Events.ERROR, function (_event, data) {
                         if (data && data.fatal) {
                             state.error = t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK);
@@ -869,6 +877,24 @@
         if (a.country === 'DE' && b.country !== 'DE') return -1;
         if (a.country !== 'DE' && b.country === 'DE') return 1;
         return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    }
+
+
+    function pageIsSecure() {
+        try {
+            return typeof location !== 'undefined' && location.protocol === 'https:';
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function isInsecureMediaURL(url) {
+        return /^http:\/\//i.test(clean(url));
+    }
+
+    function filterEntriesForPage(entries) {
+        if (!pageIsSecure()) return entries;
+        return (entries || []).filter(entry => entry && entry.url && !isInsecureMediaURL(entry.url));
     }
 
     function isHLSURL(url) {

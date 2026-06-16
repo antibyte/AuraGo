@@ -1402,5 +1402,6 @@
   "desktop.viewer_pdfjs_unavailable": "PDF-Viewer ist nicht verfügbar",
   "desktop.looper_warn_every_step": "⚠️ Jeder Schritt setzt den Kontext zurück. Nicht empfohlen für lange kreative Schleifen.",
   "desktop.looper_warn_never_long": "ℹ️ „Nie“ startet jede Runde relativ frisch. Bei langen Läufen ist „jede Iteration“ mit Zusammenfassung meist besser.",
-  "desktop.qc_badge_setup": "Einrichtung"
+  "desktop.qc_badge_setup": "Einrichtung",
+  "desktop.teevee_mixed_content": "Dieser Kanal nutzt nur HTTP und kann auf einer sicheren HTTPS-Seite nicht abgespielt werden. Anderen Kanal wählen."
 }
