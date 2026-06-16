@@ -1401,5 +1401,6 @@
   "desktop.stl_loading": "3D-Modell wird geladen",
   "desktop.viewer_pdfjs_unavailable": "PDF-Viewer ist nicht verfügbar",
   "desktop.looper_warn_every_step": "⚠️ Jeder Schritt setzt den Kontext zurück. Nicht empfohlen für lange kreative Schleifen.",
-  "desktop.looper_warn_never_long": "ℹ️ „Nie“ startet jede Runde relativ frisch. Bei langen Läufen ist „jede Iteration“ mit Zusammenfassung meist besser."
+  "desktop.looper_warn_never_long": "ℹ️ „Nie“ startet jede Runde relativ frisch. Bei langen Läufen ist „jede Iteration“ mit Zusammenfassung meist besser.",
+  "desktop.qc_badge_setup": "Einrichtung"
 }

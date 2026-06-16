@@ -747,6 +747,7 @@
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
             if (activeResizeObserver) { activeResizeObserver.disconnect(); activeResizeObserver = null; }
+            host.querySelectorAll('.vd-qc-modal-overlay, .vd-qc-notify').forEach(el => el.remove());
         });
 
         setQuickConnectMenus(id, host, loadAll, showServerModal, () => switchTab('files'));
@@ -829,7 +830,7 @@
                         ${d.description ? `<div class="vd-qc-device-desc">${esc(d.description)}</div>` : ''}
                     </div>
                     <div class="vd-qc-device-badges">
-                        ${d.is_template ? '<span class="vd-qc-badge vd-qc-badge-info">Setup</span>' : (d.credential_id ? '<span class="vd-qc-badge vd-qc-badge-ok">' + esc(protoLabel) + '</span>' : '<span class="vd-qc-badge vd-qc-badge-warn">?</span>')}
+                        ${d.is_template ? '<span class="vd-qc-badge vd-qc-badge-info">' + esc(t('desktop.qc_badge_setup')) + '</span>' : (d.credential_id ? '<span class="vd-qc-badge vd-qc-badge-ok">' + esc(protoLabel) + '</span>' : '<span class="vd-qc-badge vd-qc-badge-warn">?</span>')}
                     </div>
                 </button>`;
             }).join('');

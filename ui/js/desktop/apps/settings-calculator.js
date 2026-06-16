@@ -1103,6 +1103,9 @@
             }
         });
         root.focus();
+        registerWindowCleanup(id, () => {
+            host.innerHTML = '';
+        });
     }
 
     function evaluateProgrammerExpression(expression, base) {

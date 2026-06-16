@@ -1058,6 +1058,10 @@
         searchInput.addEventListener('input', (e) => { searchQuery = e.target.value; render(); });
         categorySelect.addEventListener('change', (e) => { selectedCategory = e.target.value; load(); });
 
+        registerWindowCleanup(id, () => {
+            document.querySelectorAll('.vd-modal-backdrop').forEach(el => el.remove());
+            if (iconSearchDebounce) { clearTimeout(iconSearchDebounce); iconSearchDebounce = null; }
+        });
         setLaunchpadMenus(id, host, openEditModal, load);
         load();
     }
