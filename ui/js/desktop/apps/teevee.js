@@ -16,6 +16,7 @@
     const MAX_VISIBLE_CHANNELS = 160;
     const VISIBLE_BATCH = 40;
     const STREAM_UNAVAILABLE_FALLBACK = 'Stream unavailable';
+    const TEEVEE_STREAM_PROXY = '/api/desktop/teevee/stream';
     const DEFAULT_COUNTRY = 'DE';
     const ALL_COUNTRIES = 'all';
     const ALL_RESOLUTIONS = 'all';
@@ -62,6 +63,7 @@
         const iconMarkup = ctx.iconMarkup || ((key, fallback) => `<span>${esc(fallback || key || '')}</span>`);
         const video = document.createElement('video');
         video.preload = 'metadata';
+        video.crossOrigin = 'anonymous';
         video.playsInline = true;
 
         const state = {
@@ -448,7 +450,7 @@
             renderAll();
             try {
                 const data = await fetchCatalog(force);
-                state.entries = filterEntriesForPage(data.entries);
+                state.entries = data.entries;
                 state.countries = data.countries || new Set();
                 state.catalogLoadedAt = data.loadedAt;
                 updateVisible();
@@ -477,15 +479,6 @@
 
         async function playChannel(entry) {
             if (!entry) return;
-            if (pageIsSecure() && isInsecureMediaURL(entry.url)) {
-                resetPlayback();
-                state.current = entry;
-                state.error = t('desktop.teevee_mixed_content', 'This channel uses an HTTP stream and cannot play on a secure HTTPS page.');
-                showToast(state.error);
-                renderPlayer();
-                renderList();
-                return;
-            }
             if (entry.unsupported) {
                 resetPlayback();
                 state.current = entry;
@@ -518,15 +511,16 @@
 
         async function attachVideoSource(entry) {
             const url = entry.url;
+            const playbackURL = streamPlaybackURL(url);
             if (!url) throw new Error(t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK));
             if (isHLSURL(url)) {
                 if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                    video.src = url;
+                    video.src = playbackURL;
                     video.load();
                     return;
                 }
                 if (window.Hls && window.Hls.isSupported && window.Hls.isSupported()) {
-                    state.hls = new window.Hls({ enableWorker: true, lowLatencyMode: false, backBufferLength: 90, fragLoadingMaxRetry: 4, manifestLoadingMaxRetry: 4 });
+                    state.hls = new window.Hls({ enableWorker: true, lowLatencyMode: true, backBufferLength: 60 });
                     state.hls.on(window.Hls.Events.ERROR, function (_event, data) {
                         if (data && data.fatal) {
                             state.error = t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK);
@@ -544,12 +538,12 @@
                         }
                     });
                     state.hls.attachMedia(video);
-                    state.hls.loadSource(url);
+                    state.hls.loadSource(playbackURL);
                     return;
                 }
                 throw new Error(t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK));
             }
-            video.src = url;
+            video.src = playbackURL;
             video.load();
         }
 
@@ -879,22 +873,17 @@
         return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
     }
 
-
-    function pageIsSecure() {
-        try {
-            return typeof location !== 'undefined' && location.protocol === 'https:';
-        } catch (_) {
-            return false;
-        }
-    }
-
-    function isInsecureMediaURL(url) {
+    function needsTeeVeeStreamProxy(url) {
         return /^http:\/\//i.test(clean(url));
     }
 
-    function filterEntriesForPage(entries) {
-        if (!pageIsSecure()) return entries;
-        return (entries || []).filter(entry => entry && entry.url && !isInsecureMediaURL(entry.url));
+    function streamPlaybackURL(url) {
+        const raw = clean(url);
+        if (!raw) return '';
+        if (needsTeeVeeStreamProxy(raw)) {
+            return TEEVEE_STREAM_PROXY + '?url=' + encodeURIComponent(raw);
+        }
+        return raw;
     }
 
     function isHLSURL(url) {

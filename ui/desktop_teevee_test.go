@@ -376,21 +376,20 @@ func TestDesktopTeeVeeDisposeCleanupChain(t *testing.T) {
 	}
 }
 
-func TestDesktopTeeVeeHttpsMixedContentGuards(t *testing.T) {
+func TestDesktopTeeVeeUsesSameOriginStreamProxy(t *testing.T) {
 	t.Parallel()
 
 	app := readDesktopAssetText(t, "js/desktop/apps/teevee.js")
 	for _, want := range []string{
-		"function filterEntriesForPage(entries)",
-		"filterEntriesForPage(data.entries)",
-		"desktop.teevee_mixed_content",
-		"isInsecureMediaURL(entry.url)",
+		"/api/desktop/teevee/stream",
+		"function streamPlaybackURL(url)",
+		"state.entries = data.entries",
 	} {
 		if !strings.Contains(app, want) {
-			t.Fatalf("teevee.js missing HTTPS guard marker %q", want)
+			t.Fatalf("teevee.js missing stream proxy marker %q", want)
 		}
 	}
-	if strings.Contains(app, "video.crossOrigin = 'anonymous'") {
-		t.Fatal("teevee should not force crossOrigin anonymous on IPTV video")
+	if strings.Contains(app, "filterEntriesForPage") {
+		t.Fatal("teevee must not hide HTTP channels; use stream proxy instead")
 	}
 }

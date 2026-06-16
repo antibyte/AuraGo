@@ -470,6 +470,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/office/workbook", handleDesktopOfficeWorkbook(s))
 	mux.HandleFunc("/api/desktop/office/export", handleDesktopOfficeExport(s))
 	mux.HandleFunc("/api/desktop/viewer/content", handleDesktopViewerContent(s))
+	mux.HandleFunc("/api/desktop/teevee/stream", handleDesktopTeeVeeStream(s))
 	mux.HandleFunc("/api/desktop/apps", handleDesktopApps(s))
 	mux.HandleFunc("/api/desktop/shortcuts", handleDesktopShortcuts(s))
 	mux.HandleFunc("/api/desktop/widgets", handleDesktopWidgets(s))
