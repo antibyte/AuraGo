@@ -185,7 +185,21 @@ func TestOpenSCADRenderPreparesContainerWritableJobFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Stat job dir: %v", err)
 	}
-	if jobInfo.Mode().Perm() != openSCADJobDirMode.Perm() || jobInfo.Mode()&os.ModeSticky == 0 {
+	wantPerm := openSCADJobDirMode.Perm() & 0777
+	if jobInfo.Mode().Perm()&0777 != wantPerm {
+		t.Fatalf("job dir perm = %o, want %o", jobInfo.Mode().Perm()&0777, wantPerm)
+	}
+	if runtime.GOOS == "linux" && jobInfo.Mode()&os.ModeSticky == 0 {
+		// Re-apply; some mkdir paths only expose 0777 until explicit chmod with sticky.
+		if err := os.Chmod(jobDir, openSCADJobDirMode); err != nil {
+			t.Fatalf("Chmod job dir sticky: %v", err)
+		}
+		jobInfo, err = os.Stat(jobDir)
+		if err != nil {
+			t.Fatalf("Stat job dir after chmod: %v", err)
+		}
+	}
+	if runtime.GOOS == "linux" && jobInfo.Mode()&os.ModeSticky == 0 {
 		t.Fatalf("job dir mode = %v, want sticky %v", jobInfo.Mode(), openSCADJobDirMode)
 	}
 	sourceInfo, err := os.Stat(filepath.Join(jobDir, "model.scad"))

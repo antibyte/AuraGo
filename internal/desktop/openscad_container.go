@@ -37,6 +37,13 @@ const (
 	openSCADSourceFileMode os.FileMode = 0o644
 )
 
+func openSCADEnsureStickyJobDir(jobDir string) error {
+	if err := os.Chmod(jobDir, openSCADJobDirMode); err != nil {
+		return fmt.Errorf("prepare openscad job directory permissions: %w", err)
+	}
+	return nil
+}
+
 var (
 	openSCADDefineNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 	openSCADModelNamePattern  = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
@@ -320,8 +327,8 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 	if err := os.MkdirAll(jobDir, openSCADJobDirMode); err != nil {
 		return OpenSCADRenderResult{}, fmt.Errorf("create openscad job directory: %w", err)
 	}
-	if err := os.Chmod(jobDir, openSCADJobDirMode); err != nil {
-		return OpenSCADRenderResult{}, fmt.Errorf("prepare openscad job directory permissions: %w", err)
+	if err := openSCADEnsureStickyJobDir(jobDir); err != nil {
+		return OpenSCADRenderResult{}, err
 	}
 	sourcePath := filepath.Join(jobDir, "model.scad")
 	if err := os.WriteFile(sourcePath, []byte(req.SourceSCAD), openSCADSourceFileMode); err != nil {

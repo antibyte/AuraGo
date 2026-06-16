@@ -157,7 +157,7 @@ func TestGalaxaDeluxeCachesCanvasResources(t *testing.T) {
 		"nebulaCv.width = W",
 		"const radialGradientCache = new Map()",
 		"function cachedRadialGradient",
-		"function drawPixelSprite",
+		"function drawSp(",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("galaxa deluxe canvas optimization missing marker %q", marker)
