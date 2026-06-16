@@ -49,3 +49,33 @@ func TestTeeVeeStreamProxyURLEncodes(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestTeeVeeUnwrapProxiedStreamURL(t *testing.T) {
+	t.Parallel()
+
+	inner := "http://customized-cdn.net/invalidurlstream1/streamPlaylist.m3u8"
+	once := teeveeStreamProxyURL(inner)
+	nested := "https://aurago.example/api/desktop/teevee/stream?url=" + url.QueryEscape("https://aurago.example"+once)
+	if got := teeveeUnwrapProxiedStreamURL(nested); got != inner {
+		t.Fatalf("nested unwrap: got %q want %q", got, inner)
+	}
+	if got := teeveeUnwrapProxiedStreamURL(once); got != inner {
+		t.Fatalf("single proxy path unwrap: got %q want %q", got, inner)
+	}
+}
+
+func TestRewriteTeeVeeHLSPlaylistDoesNotDoubleWrapProxyURL(t *testing.T) {
+	t.Parallel()
+
+	inner := "http://cdn.example.com/live/ch.m3u8"
+	proxied := "https://aurago.example/api/desktop/teevee/stream?url=" + url.QueryEscape(inner)
+	body := []byte("#EXTM3U\n" + proxied + "\n")
+	out := rewriteTeeVeeHLSPlaylist(body, inner)
+	text := string(out)
+	if strings.Contains(text, url.QueryEscape(url.QueryEscape(inner))) {
+		t.Fatalf("playlist must not nest proxy urls: %s", text)
+	}
+	if !strings.Contains(text, url.QueryEscape(inner)) {
+		t.Fatalf("expected single-encoded upstream in proxy url: %s", text)
+	}
+}

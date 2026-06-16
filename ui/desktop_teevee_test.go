@@ -385,6 +385,7 @@ func TestDesktopTeeVeeUsesSameOriginStreamProxy(t *testing.T) {
 		"/api/desktop/teevee/stream",
 		"function streamPlaybackURL(url)",
 		"location.protocol === 'https:'",
+		"teeveeUnwrapStreamURL",
 		"teeveeHlsXhrSetup",
 		"teeveeCreateHls",
 		"state.entries = data.entries",

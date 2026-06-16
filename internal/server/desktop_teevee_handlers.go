@@ -23,6 +23,38 @@ var teeveePlaylistURIAttr = regexp.MustCompile(`URI="([^"]+)"`)
 var teeveePlaylistURIAttrSingle = regexp.MustCompile(`URI='([^']+)'`)
 
 
+
+func teeveeUnwrapProxiedStreamURL(raw string) string {
+	for i := 0; i < 8; i++ {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			return ""
+		}
+		if strings.HasPrefix(raw, teeveeStreamProxyPath+"?") {
+			if parsed, err := url.Parse(raw); err == nil {
+				if inner := strings.TrimSpace(parsed.Query().Get("url")); inner != "" {
+					raw = inner
+					continue
+				}
+			}
+		}
+		parsed, err := url.Parse(raw)
+		if err != nil {
+			return raw
+		}
+		path := parsed.Path
+		if path != teeveeStreamProxyPath && !strings.HasSuffix(path, teeveeStreamProxyPath) {
+			return raw
+		}
+		inner := strings.TrimSpace(parsed.Query().Get("url"))
+		if inner == "" {
+			return raw
+		}
+		raw = inner
+	}
+	return raw
+}
+
 func teeveeHTTPClient(rawURL string) (*http.Client, error) {
 	client, err := security.NewSSRFProtectedHTTPClientForURL(rawURL, 90*time.Second)
 	if err != nil {
@@ -50,11 +82,16 @@ func handleDesktopTeeVeeStream(s *Server) http.HandlerFunc {
 			jsonError(w, "url query parameter is required", http.StatusBadRequest)
 			return
 		}
-		if err := security.ValidateSSRF(rawURL); err != nil {
+		upstreamURL := teeveeUnwrapProxiedStreamURL(rawURL)
+		if upstreamURL == "" {
+			jsonError(w, "invalid stream url", http.StatusBadRequest)
+			return
+		}
+		if err := security.ValidateSSRF(upstreamURL); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		parsed, err := url.Parse(rawURL)
+		parsed, err := url.Parse(upstreamURL)
 		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 			jsonError(w, "invalid stream url", http.StatusBadRequest)
 			return
@@ -64,12 +101,12 @@ func handleDesktopTeeVeeStream(s *Server) http.HandlerFunc {
 			return
 		}
 
-		client, err := teeveeHTTPClient(rawURL)
+		client, err := teeveeHTTPClient(upstreamURL)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		upReq, err := http.NewRequestWithContext(r.Context(), r.Method, rawURL, nil)
+		upReq, err := http.NewRequestWithContext(r.Context(), r.Method, upstreamURL, nil)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusBadGateway)
 			return
@@ -92,7 +129,7 @@ func handleDesktopTeeVeeStream(s *Server) http.HandlerFunc {
 
 		contentType := resp.Header.Get("Content-Type")
 		if r.Method == http.MethodHead {
-			w.Header().Set("Content-Type", teeveeProxyContentType(contentType, rawURL))
+			w.Header().Set("Content-Type", teeveeProxyContentType(contentType, upstreamURL))
 			w.Header().Set("Cache-Control", "no-store")
 			w.WriteHeader(http.StatusOK)
 			return
@@ -104,9 +141,9 @@ func handleDesktopTeeVeeStream(s *Server) http.HandlerFunc {
 				jsonError(w, err.Error(), http.StatusBadGateway)
 				return
 			}
-			body = rewriteTeeVeeHLSPlaylist(body, rawURL)
+			body = rewriteTeeVeeHLSPlaylist(body, upstreamURL)
 			contentType = "application/vnd.apple.mpegurl"
-			w.Header().Set("Content-Type", teeveeProxyContentType(contentType, rawURL))
+			w.Header().Set("Content-Type", teeveeProxyContentType(contentType, upstreamURL))
 			w.Header().Set("Cache-Control", "no-store")
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(body)
@@ -118,7 +155,7 @@ func handleDesktopTeeVeeStream(s *Server) http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", teeveeProxyContentType(contentType, rawURL))
+		w.Header().Set("Content-Type", teeveeProxyContentType(contentType, upstreamURL))
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Accel-Buffering", "no")
 		w.WriteHeader(http.StatusOK)
@@ -191,7 +228,7 @@ func rewriteTeeVeeHLSPlaylist(body []byte, baseURL string) []byte {
 			out.WriteString("\n")
 			continue
 		}
-		resolved := teeveeResolvePlaylistURI(base, trim)
+		resolved := teeveeUnwrapProxiedStreamURL(teeveeResolvePlaylistURI(base, trim))
 		out.WriteString(teeveeStreamProxyURL(resolved))
 		out.WriteString("\n")
 	}
@@ -214,7 +251,7 @@ func rewriteTeeVeeURIAttrMatch(base *url.URL) func(string) string {
 		} else {
 			return match
 		}
-		resolved := teeveeResolvePlaylistURI(base, ref)
+		resolved := teeveeUnwrapProxiedStreamURL(teeveeResolvePlaylistURI(base, ref))
 		proxied := teeveeStreamProxyURL(resolved)
 		if strings.Contains(match, "URI='") {
 			return `URI='` + proxied + `'`

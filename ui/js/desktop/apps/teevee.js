@@ -874,12 +874,41 @@
         return typeof location !== 'undefined' && location.protocol === 'https:';
     }
 
+
+    function teeveeUnwrapStreamURL(url) {
+        let raw = clean(url);
+        for (let i = 0; i < 8; i++) {
+            if (!raw) return '';
+            if (raw.indexOf(TEEVEE_STREAM_PROXY + '?') === 0) {
+                const inner = new URLSearchParams(raw.slice(raw.indexOf('?') + 1)).get('url');
+                if (inner) {
+                    raw = inner;
+                    continue;
+                }
+                return raw;
+            }
+            let parsed;
+            try {
+                parsed = new URL(raw, typeof location !== 'undefined' ? location.href : 'https://localhost/');
+            } catch (_) {
+                return raw;
+            }
+            const path = parsed.pathname || '';
+            if (path.indexOf(TEEVEE_STREAM_PROXY) < 0) return raw;
+            const inner = parsed.searchParams.get('url');
+            if (!inner) return raw;
+            raw = inner;
+        }
+        return raw;
+    }
+
     function teeveeHlsXhrSetup(xhr, url) {
         if (!teeveeUseStreamProxy()) return;
         const raw = clean(url);
-        if (!raw || raw.indexOf(TEEVEE_STREAM_PROXY) === 0) return;
-        if (!/^https?:\/\//i.test(raw)) return;
-        xhr.open('GET', streamPlaybackURL(raw), true);
+        if (!raw) return;
+        const proxied = streamPlaybackURL(raw);
+        if (!proxied || proxied === raw) return;
+        xhr.open('GET', proxied, true);
     }
 
     function teeveeCreateHls() {
@@ -892,12 +921,12 @@
     }
 
     function streamPlaybackURL(url) {
-        const raw = clean(url);
-        if (!raw) return '';
+        const upstream = teeveeUnwrapStreamURL(url);
+        if (!upstream) return '';
         if (teeveeUseStreamProxy()) {
-            return TEEVEE_STREAM_PROXY + '?url=' + encodeURIComponent(raw);
+            return TEEVEE_STREAM_PROXY + '?url=' + encodeURIComponent(upstream);
         }
-        return raw;
+        return upstream;
     }
 
     function isHLSURL(url) {
