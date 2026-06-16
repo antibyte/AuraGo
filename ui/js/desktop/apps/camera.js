@@ -315,6 +315,26 @@
             }
         }
 
+        function showCameraContextMenu(event) {
+            if (typeof ctx.showContextMenu !== 'function') return false;
+            const captured = __omp_shell("!state.capturedDataURL;")
+            event.preventDefault();
+            ctx.showContextMenu(event.clientX, event.clientY, [
+                { labelKey: 'desktop.camera_capture', icon: 'camera', disabled: captured, action: function () { captureBtn.click(); } },
+                { labelKey: 'desktop.camera_retake', icon: 'refresh', disabled: !captured, action: function () { retakeBtn.click(); } },
+                { type: 'separator' },
+                { labelKey: 'desktop.camera_save', icon: 'save', disabled: !captured || state.saving, action: function () { saveBtn.click(); } },
+                { labelKey: 'desktop.camera_send_agent', icon: 'chat', disabled: !captured || state.sending, action: function () { sendBtn.click(); } },
+                { type: 'separator' },
+                { labelKey: 'desktop.camera_switch', icon: 'refresh', disabled: captured || !state.hasMultipleCameras, action: function () { switchBtn.click(); } }
+            ]);
+            return true;
+        }
+        if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
+        host.addEventListener('contextmenu', function (event) {
+            if (showCameraContextMenu(event)) return;
+        });
+
         captureBtn.addEventListener('click', capture);
         switchBtn.addEventListener('click', switchCamera);
         retakeBtn.addEventListener('click', retake);

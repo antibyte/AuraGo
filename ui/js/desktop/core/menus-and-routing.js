@@ -1068,7 +1068,7 @@ if (appId === 'system-info') {
                 window.AuraDesktopModules.loadAppScript('camera').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            if (typeof window.CameraApp.render === 'function') return window.CameraApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, setWindowMenus, clearWindowMenus}));
+            if (typeof window.CameraApp.render === 'function') return window.CameraApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary}));
         }
 if (appId === 'zipper') {
             if (!window.ZipperApp) {

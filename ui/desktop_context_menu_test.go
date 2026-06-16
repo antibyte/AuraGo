@@ -295,6 +295,7 @@ func TestDesktopBuiltInAppsDeclareContextMenuPolicy(t *testing.T) {
 		filepath.Join("js", "desktop", "apps", "code-studio.js"),
 		filepath.Join("js", "desktop", "apps", "radio.js"),
 		filepath.Join("js", "desktop", "apps", "teevee.js"),
+		filepath.Join("js", "desktop", "apps", "camera.js"),
 	} {
 		text := readDesktopAssetText(t, path)
 		if !strings.Contains(text, "contextmenu") && !strings.Contains(text, "wireContextMenuBoundary") {
