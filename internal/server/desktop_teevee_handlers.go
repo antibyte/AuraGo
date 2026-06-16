@@ -6,13 +6,20 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
 	"aurago/internal/security"
 )
 
-const teeveeStreamProxyPath = "/api/desktop/teevee/stream"
+const (
+	teeveeStreamProxyPath     = "/api/desktop/teevee/stream"
+	teeveeMaxPlaylistBytes    = 4 << 20
+	teeveeMaxSegmentProxySize = 64 << 20
+)
+
+var teeveePlaylistURIAttr = regexp.MustCompile(`URI="([^"]+)"`)
 
 func handleDesktopTeeVeeStream(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -73,22 +80,37 @@ func handleDesktopTeeVeeStream(s *Server) http.HandlerFunc {
 			return
 		}
 
-		body, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
-		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadGateway)
+		if teeveeShouldRewritePlaylist(contentType, rawURL) {
+			body, err := io.ReadAll(io.LimitReader(resp.Body, teeveeMaxPlaylistBytes))
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusBadGateway)
+				return
+			}
+			body = rewriteTeeVeeHLSPlaylist(body, rawURL)
+			contentType = "application/vnd.apple.mpegurl"
+			w.Header().Set("Content-Type", teeveeProxyContentType(contentType, rawURL))
+			w.Header().Set("Cache-Control", "no-store")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(body)
 			return
 		}
 
-		if teeveeLooksLikeHLSPlaylist(contentType, rawURL, body) {
-			body = rewriteTeeVeeHLSPlaylist(body, rawURL)
-			contentType = "application/vnd.apple.mpegurl"
+		if resp.ContentLength > teeveeMaxSegmentProxySize {
+			jsonError(w, "stream exceeds maximum proxy size", http.StatusBadGateway)
+			return
 		}
 
 		w.Header().Set("Content-Type", teeveeProxyContentType(contentType, rawURL))
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Accel-Buffering", "no")
+		if resp.ContentLength > 0 {
+			w.Header().Set("Content-Length", resp.Header.Get("Content-Length"))
+		}
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(body)
+		_, err = io.Copy(w, io.LimitReader(resp.Body, teeveeMaxSegmentProxySize))
+		if err != nil {
+			return
+		}
 	}
 }
 
@@ -112,12 +134,16 @@ func teeveeProxyContentType(header, rawURL string) string {
 	return "application/octet-stream"
 }
 
-func teeveeLooksLikeHLSPlaylist(contentType, rawURL string, body []byte) bool {
+func teeveeShouldRewritePlaylist(contentType, rawURL string) bool {
 	ct := strings.ToLower(contentType)
 	if strings.Contains(ct, "mpegurl") || strings.Contains(ct, "m3u8") {
 		return true
 	}
-	if strings.Contains(strings.ToLower(rawURL), ".m3u8") {
+	return strings.Contains(strings.ToLower(rawURL), ".m3u8")
+}
+
+func teeveeLooksLikeHLSPlaylist(contentType, rawURL string, body []byte) bool {
+	if teeveeShouldRewritePlaylist(contentType, rawURL) {
 		return true
 	}
 	trim := bytes.TrimSpace(body)
@@ -132,21 +158,33 @@ func rewriteTeeVeeHLSPlaylist(body []byte, baseURL string) []byte {
 	var out bytes.Buffer
 	scanner := bufio.NewScanner(bytes.NewReader(body))
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
+		line := scanner.Text()
+		trim := strings.TrimSpace(line)
+		if trim == "" {
 			out.WriteString("\n")
 			continue
 		}
-		if strings.HasPrefix(line, "#") {
-			out.WriteString(line)
+		if strings.HasPrefix(trim, "#") {
+			out.WriteString(rewriteTeeVeePlaylistTagLine(base, line))
 			out.WriteString("\n")
 			continue
 		}
-		resolved := teeveeResolvePlaylistURI(base, line)
+		resolved := teeveeResolvePlaylistURI(base, trim)
 		out.WriteString(teeveeStreamProxyURL(resolved))
 		out.WriteString("\n")
 	}
 	return out.Bytes()
+}
+
+func rewriteTeeVeePlaylistTagLine(base *url.URL, line string) string {
+	return teeveePlaylistURIAttr.ReplaceAllStringFunc(line, func(match string) string {
+		sub := teeveePlaylistURIAttr.FindStringSubmatch(match)
+		if len(sub) < 2 {
+			return match
+		}
+		resolved := teeveeResolvePlaylistURI(base, sub[1])
+		return `URI="` + teeveeStreamProxyURL(resolved) + `"`
+	})
 }
 
 func teeveeResolvePlaylistURI(base *url.URL, ref string) string {
@@ -167,6 +205,3 @@ func teeveeResolvePlaylistURI(base *url.URL, ref string) string {
 func teeveeStreamProxyURL(raw string) string {
 	return teeveeStreamProxyPath + "?url=" + url.QueryEscape(raw)
 }
-
-// teeveeStreamProxyPathForTests exposes the path constant to ui/server tests.
-func teeveeStreamProxyPathForTests() string { return teeveeStreamProxyPath }

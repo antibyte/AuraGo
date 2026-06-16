@@ -63,7 +63,6 @@
         const iconMarkup = ctx.iconMarkup || ((key, fallback) => `<span>${esc(fallback || key || '')}</span>`);
         const video = document.createElement('video');
         video.preload = 'metadata';
-        video.crossOrigin = 'anonymous';
         video.playsInline = true;
 
         const state = {
@@ -874,6 +873,9 @@
     }
 
     function needsTeeVeeStreamProxy(url) {
+        if (typeof location !== 'undefined' && location.protocol !== 'https:') {
+            return false;
+        }
         return /^http:\/\//i.test(clean(url));
     }
 

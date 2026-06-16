@@ -393,3 +393,12 @@ func TestDesktopTeeVeeUsesSameOriginStreamProxy(t *testing.T) {
 		t.Fatal("teevee must not hide HTTP channels; use stream proxy instead")
 	}
 }
+
+func TestDesktopTeeVeeNoCrossOriginOnVideo(t *testing.T) {
+	t.Parallel()
+
+	app := readDesktopAssetText(t, "js/desktop/apps/teevee.js")
+	if strings.Contains(app, "video.crossOrigin = 'anonymous'") {
+		t.Fatal("teevee must not set crossOrigin on IPTV video; breaks many CDNs")
+	}
+}
