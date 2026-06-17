@@ -368,35 +368,44 @@
 }
 
 .desktop-body[data-theme="standard"] {
-    /* Ubuntu Yaru identity */
-    --vd-bg: #1d1820;
-    --vd-surface: rgba(46, 35, 47, 0.92);
-    --vd-surface-strong: rgba(56, 43, 56, 0.97);
+    /* Ubuntu Yaru Dark identity - cool grays, orange accent */
+    --vd-bg: #1e1e1e;
+    --vd-surface: rgba(48, 48, 48, 0.92);
+    --vd-surface-strong: rgba(58, 58, 58, 0.97);
     --vd-border: rgba(255, 255, 255, 0.12);
     --vd-border-bright: rgba(255, 255, 255, 0.2);
     --vd-text: #f6f7fb;
-    --vd-muted: #c8bfc4;
+    --vd-muted: #a8a8a8;
     --vd-accent: #E95420;
     --vd-coral: #f97362;
     --vd-amber: #f59e0b;
     --vd-shadow: 0 18px 52px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.28);
     --vd-shadow-window: var(--vd-shell-shadow-window);
     --vd-accent-glow: rgba(233, 84, 32, 0.20);
-    --vd-shell-panel: rgba(34, 26, 35, 0.82);
-    --vd-shell-panel-strong: rgba(46, 35, 47, 0.98);
+    --vd-shell-panel: rgba(36, 36, 36, 0.88);
+    --vd-shell-panel-strong: rgba(48, 48, 48, 0.98);
     --vd-shell-panel-border: rgba(255, 255, 255, 0.14);
-    --vd-shell-taskbar: rgba(34, 26, 35, 0.92);
+    --vd-shell-taskbar: rgba(36, 36, 36, 0.92);
     --vd-shell-taskbar-border: rgba(255, 255, 255, 0.16);
-    --vd-shell-window: rgba(44, 33, 45, 0.95);
-    --vd-shell-window-chrome: rgba(44, 33, 45, 0.94);
-    --vd-shell-menu: rgba(38, 29, 39, 0.98);
+    --vd-shell-window: rgba(46, 46, 46, 0.95);
+    --vd-shell-window-chrome: rgba(44, 44, 44, 0.94);
+    --vd-shell-menu: rgba(40, 40, 40, 0.98);
     --vd-shell-accent-secondary: #f59e0b;
     --vd-shell-radius-window: 8px;
-    --ds-color-bg-canvas: #1d1820;
-    --ds-color-surface-1: rgba(46, 35, 47, 0.82);
-    --ds-color-surface-2: rgba(56, 43, 56, 0.95);
-    --ds-color-surface-3: rgba(66, 51, 66, 0.98);
+    --ds-color-bg-canvas: #1e1e1e;
+    --ds-color-surface-1: rgba(48, 48, 48, 0.82);
+    --ds-color-surface-2: rgba(58, 58, 58, 0.95);
+    --ds-color-surface-3: rgba(68, 68, 68, 0.98);
     --ds-color-border-subtle: rgba(255, 255, 255, 0.12);
+    --ds-color-border-default: rgba(255, 255, 255, 0.2);
+    --ds-color-border-focus: #E95420;
+    --ds-color-accent-500: #E95420;
+    --ds-color-accent-600: #c7431a;
+    --ds-color-accent-amber: #f59e0b;
+    --ds-color-control-bg: rgba(255, 255, 255, 0.08);
+    --ds-color-control-hover: rgba(255, 255, 255, 0.12);
+    --ds-color-control-active: rgba(233, 84, 32, 0.16);
+}
     --ds-color-border-default: rgba(255, 255, 255, 0.2);
     --ds-color-border-focus: #E95420;
     --ds-color-accent-500: #E95420;

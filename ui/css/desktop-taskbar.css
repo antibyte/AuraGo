@@ -51,7 +51,7 @@
     transform: translateY(-3px);
     background:
         linear-gradient(135deg, rgba(233, 84, 32, 0.42), rgba(245, 158, 11, 0.28)),
-        rgba(46, 35, 47, 0.92);
+        rgba(48, 48, 48, 0.92);
     box-shadow:
         0 0 0 1px rgba(233, 84, 32, 0.28),
         0 12px 30px rgba(0, 0, 0, 0.34),
@@ -62,7 +62,7 @@
     transform: translateY(-5px);
     background:
         linear-gradient(135deg, rgba(233, 84, 32, 0.56), rgba(245, 158, 11, 0.38)),
-        rgba(46, 35, 47, 0.92);
+        rgba(48, 48, 48, 0.92);
     box-shadow:
         0 0 0 1px rgba(233, 84, 32, 0.4),
         0 16px 36px rgba(0, 0, 0, 0.4),
