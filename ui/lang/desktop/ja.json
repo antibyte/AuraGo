@@ -888,7 +888,7 @@
   "desktop.settings_theme": "テーマ",
   "desktop.settings_theme_desc": "デスクトップの外観を選択します。Fruity は WhiteSur アイコンによく合います。",
   "desktop.settings_theme_fruity": "Fruity",
-  "desktop.settings_theme_standard": "標準",
+  "desktop.settings_theme_standard": "Ubuntu",
   "desktop.settings_fruity_mode": "Fruity外観",
   "desktop.settings_fruity_mode_desc": "Fruityテーマのライトまたはダークバリアント。",
   "desktop.settings_fruity_mode_light": "ライト",

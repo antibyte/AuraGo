@@ -888,7 +888,7 @@
   "desktop.settings_theme": "Tema",
   "desktop.settings_theme_desc": "Sceglie l'aspetto del desktop. Fruity si abbina bene alle icone WhiteSur.",
   "desktop.settings_theme_fruity": "Fruity",
-  "desktop.settings_theme_standard": "Standard",
+  "desktop.settings_theme_standard": "Ubuntu",
   "desktop.settings_fruity_mode": "Aspetto Fruity",
   "desktop.settings_fruity_mode_desc": "Variante chiara o scura per il tema Fruity.",
   "desktop.settings_fruity_mode_light": "Chiaro",

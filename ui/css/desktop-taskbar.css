@@ -445,9 +445,9 @@
 }
 
 .desktop-body[data-theme="standard"] .vd-task-button.active {
-    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.46);
+    border-color: rgba(233, 84, 32, 0.46);
     background:
-        linear-gradient(180deg, rgba(38, 198, 168, 0.18), rgba(38, 198, 168, 0.08)),
+        linear-gradient(180deg, rgba(233, 84, 32, 0.18), rgba(233, 84, 32, 0.08)),
         rgba(255, 255, 255, 0.05);
     box-shadow:
         inset 0 -3px 0 var(--vd-accent),

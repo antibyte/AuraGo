@@ -888,7 +888,7 @@
   "desktop.settings_theme": "Motyw",
   "desktop.settings_theme_desc": "Wybiera wygląd pulpitu. Fruity dobrze pasuje do ikon WhiteSur.",
   "desktop.settings_theme_fruity": "Fruity",
-  "desktop.settings_theme_standard": "Standardowy",
+  "desktop.settings_theme_standard": "Ubuntu",
   "desktop.settings_fruity_mode": "Wygląd Fruity",
   "desktop.settings_fruity_mode_desc": "Jasny lub ciemny wariant motywu Fruity.",
   "desktop.settings_fruity_mode_light": "Jasny",
