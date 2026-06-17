@@ -114,7 +114,16 @@
         },
         'galaxa-deluxe': {
             styles: appStyles('/css/galaxa-deluxe.css'),
-            scripts: ['/js/desktop/apps/galaxa-deluxe.js']
+            scripts: [
+                '/js/desktop/apps/galaxa-constants.js',
+                '/js/desktop/apps/galaxa-audio.js',
+                '/js/desktop/apps/galaxa-sprites.js',
+                '/js/desktop/apps/galaxa-background.js',
+                '/js/desktop/apps/galaxa-entities.js',
+                '/js/desktop/apps/galaxa-render.js',
+                '/js/desktop/apps/galaxa-game.js',
+                '/js/desktop/apps/galaxa-deluxe.js'
+            ]
         },
         'nasscad': {
             styles: appStyles('/css/desktop-app-nasscad.css'),
