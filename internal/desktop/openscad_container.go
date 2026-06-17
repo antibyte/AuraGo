@@ -33,7 +33,7 @@ const (
 	defaultOpenSCADJobRetentionDays             = 7
 	openSCADJobsRootMode            os.FileMode = 0o755
 	// The official OpenSCAD image may execute as a UID different from AuraGo's host UID.
-	openSCADJobDirMode     os.FileMode = 0o1777
+	openSCADJobDirMode     os.FileMode = os.ModeSticky | 0o777
 	openSCADSourceFileMode os.FileMode = 0o644
 )
 

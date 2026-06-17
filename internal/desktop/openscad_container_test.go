@@ -148,6 +148,15 @@ func TestOpenSCADJobsRootRepairsContainerReadablePermissions(t *testing.T) {
 	}
 }
 
+func TestOpenSCADJobDirModeIncludesGoStickyBit(t *testing.T) {
+	if openSCADJobDirMode.Perm() != 0o777 {
+		t.Fatalf("job dir permissions = %o, want 777", openSCADJobDirMode.Perm())
+	}
+	if openSCADJobDirMode&os.ModeSticky == 0 {
+		t.Fatalf("job dir mode = %v, want Go sticky bit", openSCADJobDirMode)
+	}
+}
+
 func TestOpenSCADRenderPreparesContainerWritableJobFiles(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Unix permission bits are not meaningful on Windows")
@@ -351,7 +360,7 @@ func TestOpenSCADPruneOldJobsRemovesExpiredDirectories(t *testing.T) {
 		t.Fatalf("mkdir keep job: %v", err)
 	}
 	svc := NewOpenSCADContainerService(Config{
-		DataDir: dataDir,
+		DataDir:  dataDir,
 		OpenSCAD: OpenSCADConfig{JobRetentionDays: 1},
 	}, nil)
 	svc.pruneOldOpenSCADJobs(jobsRoot, "oscad-keep")
