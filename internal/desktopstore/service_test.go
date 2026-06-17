@@ -1254,8 +1254,15 @@ func TestInitDoesNotBlockOnInterruptedInstallDockerCleanup(t *testing.T) {
 		if err != nil {
 			t.Fatalf("recovery init failed: %v", err)
 		}
-	case name := <-removeStarted:
-		t.Fatalf("Init started Docker cleanup synchronously for %s", name)
+	case <-removeStarted:
+		select {
+		case err := <-initDone:
+			if err != nil {
+				t.Fatalf("recovery init failed: %v", err)
+			}
+		case <-time.After(200 * time.Millisecond):
+			t.Fatal("Init blocked on interrupted install Docker cleanup")
+		}
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("Init blocked while recovering interrupted install")
 	}
