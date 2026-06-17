@@ -49,24 +49,19 @@
 .desktop-body[data-theme="standard"] .vd-start-button {
     border-radius: 13px;
     transform: translateY(-3px);
-    background:
-        linear-gradient(135deg, rgba(233, 84, 32, 0.42), rgba(245, 158, 11, 0.28)),
-        rgba(48, 48, 48, 0.92);
+    background: #363636;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow:
-        0 0 0 1px rgba(233, 84, 32, 0.28),
-        0 12px 30px rgba(0, 0, 0, 0.34),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        0 8px 24px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .desktop-body[data-theme="standard"] .vd-start-button:hover {
     transform: translateY(-5px);
-    background:
-        linear-gradient(135deg, rgba(233, 84, 32, 0.56), rgba(245, 158, 11, 0.38)),
-        rgba(48, 48, 48, 0.92);
+    background: #3c3c3c;
     box-shadow:
-        0 0 0 1px rgba(233, 84, 32, 0.4),
-        0 16px 36px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        0 12px 32px rgba(0, 0, 0, 0.34),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 /* Subtle inner-top shine */
@@ -386,24 +381,23 @@
 .desktop-body[data-theme="standard"] .vd-task-button {
     min-width: 46px;
     border-radius: 9px;
-    border-color: rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.05);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    border-color: transparent;
+    background: transparent;
 }
 
 .desktop-body[data-theme="standard"] .vd-task-button:hover {
-    border-color: rgba(255, 255, 255, 0.18);
-    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .desktop-body[data-theme="standard"] .vd-task-button.running {
-    border-color: rgba(233, 84, 32, 0.3);
-    background: rgba(233, 84, 32, 0.08);
+    border-color: transparent;
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .desktop-body[data-theme="standard"] .vd-task-button.running:hover {
-    border-color: rgba(233, 84, 32, 0.5);
-    background: rgba(233, 84, 32, 0.14);
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .vd-task-button:hover {
@@ -445,14 +439,9 @@
 }
 
 .desktop-body[data-theme="standard"] .vd-task-button.active {
-    border-color: rgba(233, 84, 32, 0.46);
-    background:
-        linear-gradient(180deg, rgba(233, 84, 32, 0.18), rgba(233, 84, 32, 0.08)),
-        rgba(255, 255, 255, 0.05);
-    box-shadow:
-        inset 0 -3px 0 var(--vd-accent),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08),
-        0 8px 18px rgba(0, 0, 0, 0.18);
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 -3px 0 rgba(233, 84, 32, 0.6);
 }
 
 .vd-task-button:active,
@@ -606,7 +595,6 @@
         box-shadow:
             var(--ds-elevation-3),
             0 0 0 1px rgba(255, 255, 255, 0.06) inset,
-            0 0 18px rgba(233, 84, 32, 0.12),
             0 8px 32px rgba(0, 0, 0, 0.38);
     }
 }

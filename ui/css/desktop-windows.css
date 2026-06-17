@@ -134,45 +134,42 @@
 
 .desktop-body[data-theme="standard"] .vd-window {
     border-radius: var(--vd-shell-radius-window);
-    border-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.1);
     background: var(--vd-shell-window);
     box-shadow: var(--vd-shell-shadow-window);
 }
 
 .desktop-body[data-theme="standard"] .vd-window.active {
-    border-color: rgba(233, 84, 32, 0.38);
+    border-color: rgba(255, 255, 255, 0.18);
     box-shadow:
         var(--vd-shadow-window, var(--vd-shadow)),
-        var(--vd-inner-glow),
-        0 0 0 1px rgba(233, 84, 32, 0.14) inset,
-        0 0 32px var(--vd-accent-glow),
-        0 0 0 1px rgba(233, 84, 32, 0.12);
+        var(--vd-inner-glow);
 }
 
 .desktop-body[data-theme="standard"] .vd-window.vd-window-file-drop-target {
-    border-color: rgba(233, 84, 32, 0.72);
-    box-shadow: var(--vd-shadow), 0 0 0 2px rgba(233, 84, 32, 0.25);
+    border-color: rgba(233, 84, 32, 0.5);
+    box-shadow: var(--vd-shadow), 0 0 0 2px rgba(233, 84, 32, 0.15);
 }
 
 .desktop-body[data-theme="standard"] .vd-window-menu-button:hover,
 .desktop-body[data-theme="standard"] .vd-window-menu.open > .vd-window-menu-button {
-    border-color: rgba(233, 84, 32, 0.28);
-    background: rgba(233, 84, 32, 0.12);
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .desktop-body[data-theme="standard"] .vd-window-menu-item:hover:not(:disabled),
 .desktop-body[data-theme="standard"] .vd-window-menu-item:focus-visible:not(:disabled) {
-    background: rgba(233, 84, 32, 0.14);
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .desktop-body[data-theme="standard"] .vd-window .vd-window-ai-button {
-    background: rgba(233, 84, 32, 0.12);
-    border-color: rgba(233, 84, 32, 0.24);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
 .desktop-body[data-theme="standard"] .vd-window .vd-window-ai-button:hover {
-    background: rgba(233, 84, 32, 0.22);
-    border-color: rgba(233, 84, 32, 0.38);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.18);
 }
 
 .vd-window.has-window-menu {
@@ -289,7 +286,7 @@
 }
 
 .desktop-body[data-theme="standard"] .vd-window.active .vd-window-titlebar {
-    background: linear-gradient(180deg, rgba(233, 84, 32, 0.06), var(--vd-shell-window-chrome));
+    background: #343434;
 }
 
 .vd-window.dragging .vd-window-titlebar {
