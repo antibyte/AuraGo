@@ -76,6 +76,7 @@
         GC.createEntities(gameCtx);
         GC.createRenderer(gameCtx);
         GC.createGame(gameCtx);
+        GC.createShop(gameCtx);
 
         gameCtx.G = {
             st: 'TITLE', score: 0, lives: 3, stage: 1, hi: 10000, hiScores: [],
@@ -83,7 +84,7 @@
             bul: [], ebul: [], enemies: [], exp: [], part: [],
             fX: 0, fTmr: 0, dTmr: 0, sTmr: 0, tIdle: 0,
             attract: false, aTmr: 0, ne: { ch: [65, 65, 65], pos: 0, done: false },
-            chal: false, chalHits: 0, chalTot: 0, beam: null, shkT: 0, shkM: 0,
+            chal: false, chalHits: 0, chalTot: 0, beam: null, shkT: 0, shkM: 0, shkX: 0, shkY: 0,
             powerups: [], activePU: null, puTimer: 0, shieldHits: 0,
             scorePopups: [], flashT: 0, warpT: 0, warpFlash: 0, perfectT: 0, contTmr: 0, contCnt: 0,
             damageVignetteT: 0, freezeT: 0, lightningT: 0, lightningX: 0, bgTheme: 'nebula',
@@ -93,6 +94,7 @@
             timeScale: 1, timeSlowTimer: 0,
             bossWarningT: 0, bossWarningShown: false,
             weaponLv: 1, killCount: 0, puUpgrade: null, upgradeBanner: null,
+            weaponXP: 0, weaponEvo: null, evoChoiceOpen: false,
             slowMoT: 0, chromAb: 0, displayScore: 0, shipTilt: 0, muzzleT: 0, deathParts: [], pendingBooms: [], levelSkipTimer: 0, stageWipeT: 0,
             introTmr: 0, stageEmptyT: 0, stageClearLock: 0,
             beatPhase: 0, beatT: 0, plasmaRings: [], titleParts: [], drones: [], droneTimer: 0,
@@ -103,6 +105,8 @@
             noDamageStages: 0, pacifistStage: true, frozenKills: 0, ricochetKills: 0,
             blackholeKills: 0, dailyStreak: parseInt(localStorage.getItem('galaxa_daily_streak') || '0'),
             shipStageProgress: {}, transitionType: 0,
+            envHazards: [], solarFlareT: 0, solarFlareActive: false, emStormT: 0,
+            gravityBomb: null, mirrorActive: false, mirrorTimer: 0, voidZones: [], voidZoneT: 0,
             swipeT: 0, swipeDir: 1, portalT: 0, portalR: 0, glitchT: 0, glitchStrips: [],
             _closeCallCooldown: 0, _synergyChecked: null, shieldReflect: false, laserSlow: false, droneRicochet: false,
             inp: { l: false, r: false, f: false, fp: false, s: false, sp: false, p: false, pp: false, u: false, d: false, rp: false, lp: false, up: false, dp: false },
@@ -125,7 +129,8 @@
         });
         ro.observe(host);
         gameCtx.resize();
-        gameCtx.loadHS().then(() => { gameCtx.showTitle(); gameCtx.rafId = requestAnimationFrame(gameCtx.loop); });
+        gameCtx.loadHS().then(() => { gameCtx.showTitle(); gameCtx.rafId = requestAnimationFrame(gameCtx.loop); if (gameCtx.checkDailyStreak) gameCtx.checkDailyStreak(); });
+        if (gameCtx.setupTouch) gameCtx.setupTouch();
 
         state.dispose = function () {
             state.disposed = true; cancelAnimationFrame(gameCtx.rafId); gameCtx.MusicEngine.stop(); gameCtx.G.pendingBooms = []; gameCtx.G.levelSkipTimer = 0;

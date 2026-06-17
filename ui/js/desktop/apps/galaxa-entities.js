@@ -3,6 +3,18 @@
     const GC = window.GalaxaCore = window.GalaxaCore || {};
     GC.createEntities = function (ctx) {
         let lastFireT = 0;
+        const particlePool = [];
+        function getParticle(props) {
+            const p = particlePool.length > 0 ? particlePool.pop() : {};
+            Object.assign(p, props);
+            return p;
+        }
+        function recycleParticles(arr) {
+            for (let i = 0; i < arr.length; i++) {
+                if (particlePool.length < 300) { const p = arr[i]; for (const k in p) delete p[k]; particlePool.push(p); }
+            }
+            arr.length = 0;
+        }
         function mkFormation() {
             ctx.G.enemies = []; ctx.G.chal = ctx.isChal(ctx.G.stage); ctx.G.chalHits = 0; ctx.G.chalTot = 0;
             ctx.G.bossWarningShown = false;
@@ -13,16 +25,16 @@
             function pushEnemy(type, r, col, fx, fy, hp) {
                 const side = idx % 2 === 0 ? -1 : 1;
                 const diveDelay = ctx.G.chal ? (800 + idx * 200) : (1000 + Math.random() * 3000 + idx * 50);
+                const animSpeedMap = { bee: 150, butterfly: 120, hunter: 90, boss: 220, miniboss: 220, kamikaze: 70, stalker: 130, sniper: 160, spinner: 100, bomber: 180, lasher: 140, weaver: 110, splitter: 130, shield_bee: 150, carrier: 200, teleporter: 100 };
                 const enemy = { type, r, col, x: ctx.W / 2 + side * (120 + Math.random() * 80), y: -30 - (idx % 8) * 20,
                     fx, fy, hp, maxHp: hp, st: 'ENTER', eTmr: 500 + idx * 80 + r * 100,
                     fr: 0, frT: 0, dTmr: diveDelay / ctx.diffMod('diveRate'), dPath: null,
                     sTmr: (type === 'spinner' || type === 'bomber' || type === 'lasher') ? 800 + Math.random() * 1200 : 0,
                     shootPh: 0, hasCap: false, hitF: 0, elite: type === 'hunter',
-                    // NEW: Boss phase system
                     bossPhase: (type === 'boss' || type === 'miniboss') ? 1 : 0,
                     bossPhaseTransition: 0, bossPhaseHP: [0.6, 0.3, 0],
-                    // NEW: Sprite animation system
-                    animFrame: 0, animTimer: 0, animSpeed: 120, animFrames: 3 };
+                    animFrame: 0, animTimer: 0, animSpeed: animSpeedMap[type] || 120, animFrames: 3,
+                    spawnAnim: 0, spawnDur: 400, rowPhase: r * 1.2 + col * 0.3, bobAmp: 2.5 + r * 0.5 };
                 ctx.G.enemies.push(enemy);
                 idx++;
             }
@@ -207,8 +219,18 @@
                 }
             }
             ctx.SFX.shoot(ctx.G.p.x); ctx.G.muzzleT = 50;
+            if (ctx.G.mirrorActive) {
+                const mirrorX = ctx.W - ctx.G.p.x;
+                const mirrorBullets = [];
+                for (let bi = ctx.G.bul.length - 1; bi >= 0; bi--) {
+                    const b = ctx.G.bul[bi];
+                    if (b._mirror) continue;
+                    mirrorBullets.push({ x: mirrorX + (ctx.G.p.x - b.x), y: b.y, w: b.w, h: b.h, vx: b.vx ? -b.vx : 0, vy: b.vy, laser: b.laser, pierce: b.pierce, homing: b.homing, target: b.target, _mirror: true });
+                }
+                for (const mb of mirrorBullets) ctx.G.bul.push(mb);
+            }
         }
-        function boom(x, y, isBoss, enemyType) {
+        function boom(x, y, isBoss, enemyType, killVx, killVy) {
             const dur = isBoss ? 900 : 450;
             const pCount = isBoss ? 50 : 20;
             const sparkCount = isBoss ? 24 : 10;
@@ -240,7 +262,7 @@
                 const a = (i / pCount) * Math.PI * 2 + Math.random() * 0.8, sp = 60 + (i * 23 % 160) * (isBoss ? 2 : 1.2);
                 const cols = fireCols[i % fireCols.length];
                 const sz = i % 4 === 0 ? 4 : i % 3 === 0 ? 3 : 2;
-                ctx.G.part.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: (280 + (i * 41 % 280)) * (isBoss ? 1.6 : 1.1), t: 0, col: cols, size: sz });
+                ctx.G.part.push(getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: (280 + (i * 41 % 280)) * (isBoss ? 1.6 : 1.1), t: 0, col: cols, size: sz }));
             }
             // NEW: Type-specific death effects
             if (enemyType === 'bee') {
@@ -268,26 +290,29 @@
             }
             for (let i = 0; i < sparkCount; i++) {
                 const a = Math.random() * Math.PI * 2, sp = 90 + Math.random() * 150;
-                ctx.G.part.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 120 + Math.random() * 180, t: 0, col: Math.random() > 0.5 ? '#ffffff' : '#ffeeaa', size: 1, spark: true });
+                ctx.G.part.push(getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 120 + Math.random() * 180, t: 0, col: Math.random() > 0.5 ? '#ffffff' : '#ffeeaa', size: 1, spark: true }));
             }
             for (let i = 0; i < debrisCount; i++) {
-                const a = Math.random() * Math.PI * 2, sp = 25 + Math.random() * 50;
+                const hasKillDir = killVx !== undefined && killVy !== undefined;
+                const baseA = hasKillDir ? Math.atan2(killVy, killVx) + (Math.random() - 0.5) * 1.5 : Math.random() * Math.PI * 2;
+                const sp = 25 + Math.random() * 50;
                 const sz = isBoss ? 3 + Math.random() * 4 : 2 + Math.random() * 3;
-                ctx.G.part.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 18, life: 600 + Math.random() * 500, t: 0, col: isBoss ? '#999' : '#777', size: sz, debris: true, rot: Math.random() * 6.28 });
+                ctx.G.part.push(getParticle({ x, y, vx: Math.cos(baseA) * sp + (killVx || 0) * 0.15, vy: Math.sin(baseA) * sp + (killVy || 0) * 0.15 - 18, life: 600 + Math.random() * 500, t: 0, col: isBoss ? '#999' : '#777', size: sz, debris: true, rot: Math.random() * 6.28 }));
             }
             for (let i = 0; i < smokeCount; i++) {
                 const a = Math.random() * Math.PI * 2, sp = 12 + Math.random() * 25;
-                ctx.G.part.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 15, life: 600 + Math.random() * 500, t: 0, col: Math.random() > 0.5 ? '#666' : '#555', size: 3 + (isBoss ? 3 : 0), smoke: true });
+                ctx.G.part.push(getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 15, life: 600 + Math.random() * 500, t: 0, col: Math.random() > 0.5 ? '#666' : '#555', size: 3 + (isBoss ? 3 : 0), smoke: true }));
             }
             for (let i = 0; i < flashCount; i++) {
                 const a = Math.random() * Math.PI * 2, sp = 40 + Math.random() * 80;
-                ctx.G.part.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 60 + Math.random() * 40, t: 0, col: '#ffffff', size: 2, spark: true });
+                ctx.G.part.push(getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 60 + Math.random() * 40, t: 0, col: '#ffffff', size: 2, spark: true, trail: true }));
             }
             if (isBoss) {
                 for (let i = 0; i < 6; i++) {
                     ctx.G.pendingBooms.push({ x: x + (Math.random() - 0.5) * 50, y: y + (Math.random() - 0.5) * 40, isBoss: false, delay: i * 100 });
                 }
                 ctx.G.shkT = Math.max(ctx.G.shkT, 800); ctx.G.shkM = Math.max(ctx.G.shkM, 7);
+                ctx.G.shkX = x; ctx.G.shkY = y;
                 ctx.G.plasmaRings.push({ x, y, r: 0, maxR: 140, t: 0, dur: 800, col: '#ff4444' });
                 ctx.G.plasmaRings.push({ x, y, r: 0, maxR: 100, t: 0, dur: 550, col: '#ff8800' });
                 ctx.G.plasmaRings.push({ x, y, r: 0, maxR: 60, t: 0, dur: 320, col: '#ffcc00' });
@@ -319,6 +344,7 @@
             ctx.G.combo++;
             ctx.G.comboTimer = ctx.COMBO_TIMEOUT;
             if (ctx.G.combo >= 15) ctx.unlockAchievement('combo_king');
+            if (ctx.G.combo >= 30) ctx.unlockAchievement('combo_god');
             let level = 0;
             for (let i = ctx.COMBO_THRESH.length - 1; i >= 0; i--) { if (ctx.G.combo >= ctx.COMBO_THRESH[i]) { level = i + 1; break; } }
             ctx.G.comboMult = ctx.COMBO_MULT[level] || 1;
@@ -326,6 +352,23 @@
                 ctx.G.comboBanner = { text: ctx.COMBO_TEXT[level], mult: ctx.G.comboMult, t: 0, dur: 1200 };
                 ctx.SFX.combo(level);
                 if (level >= 4) ctx.SFX.killStreak();
+            }
+            if (ctx.G.combo === 10) {
+                for (const e of ctx.G.enemies) { if (e.st !== 'DEAD' && e.type !== 'boss' && e.type !== 'miniboss') { ctx.addScore(50, e.x, e.y, '#ff4444'); ctx.boom(e.x, e.y, false, e.type); e.st = 'DEAD'; } }
+                ctx.G.flashT = 80; ctx.G.shkT = 200; ctx.G.shkM = 4;
+                ctx.G.scorePopups.push({ x: ctx.W / 2, y: ctx.H / 2 - 60, text: 'COMBO BOMB!', t: 0, dur: 1200, col: '#ff4444', big: true });
+                ctx.SFX.bomb(ctx.W / 2);
+            }
+            if (ctx.G.combo === 20) {
+                ctx.G.timeScale = 0.35; ctx.G.timeSlowTimer = 3000;
+                ctx.G.scorePopups.push({ x: ctx.W / 2, y: ctx.H / 2 - 60, text: 'COMBO FREEZE!', t: 0, dur: 1200, col: '#aa44ff', big: true });
+                ctx.SFX.freeze(ctx.W / 2);
+            }
+            if (ctx.G.combo === 30) {
+                for (const e of ctx.G.enemies) { if (e.st !== 'DEAD') { ctx.addScore(ctx.PTS[e.type] ? ctx.PTS[e.type][0] + 500 : 500, e.x, e.y, '#ffffff'); ctx.boom(e.x, e.y, e.type === 'boss' || e.type === 'miniboss', e.type); e.st = 'DEAD'; } }
+                ctx.G.ebul = []; ctx.G.flashT = 200; ctx.G.shkT = 600; ctx.G.shkM = 8;
+                ctx.G.scorePopups.push({ x: ctx.W / 2, y: ctx.H / 2 - 60, text: 'SUPERNOVA!', t: 0, dur: 1500, col: '#ffffff', big: true });
+                ctx.SFX.supernova(ctx.W / 2);
             }
         }
         function hit(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
@@ -355,12 +398,24 @@
             if (pu.type === 'bomb' || pu.type === 'multibomb') {
                 ctx.SFX.bomb(pu.x);
                 const bonus = pu.type === 'multibomb' ? 500 : 0;
-                for (const e of ctx.G.enemies) { if (e.st !== 'DEAD') { ctx.addScore(ctx.PTS[e.type][0] + bonus, e.x, e.y, ctx.PU_COL[pu.type]); ctx.boom(e.x, e.y, e.type === 'boss', e.type); e.st = 'DEAD'; } }
+                for (const e of ctx.G.enemies) {
+                    if (e.st !== 'DEAD') {
+                        if (e.type === 'boss' || e.type === 'miniboss') { e.enraged = true; e.hitF = 200; }
+                        else { ctx.addScore(ctx.PTS[e.type][0] + bonus, e.x, e.y, ctx.PU_COL[pu.type]); ctx.boom(e.x, e.y, false, e.type); e.st = 'DEAD'; }
+                    }
+                }
+                for (const e of ctx.G.enemies) { if (e.st !== 'DEAD' && e.enraged) { e.animSpeed = Math.max(40, (e.animSpeed || 120) * 0.6); } }
                 ctx.G.flashT = 100; ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.setPUClass(null); return;
             }
             if (pu.type === 'supernova') {
                 ctx.SFX.supernova(pu.x);
-                for (const e of ctx.G.enemies) { if (e.st !== 'DEAD') { ctx.addScore(ctx.PTS[e.type][0] + 1000, e.x, e.y, '#fff'); ctx.boom(e.x, e.y, e.type === 'boss', e.type); e.st = 'DEAD'; } }
+                for (const e of ctx.G.enemies) {
+                    if (e.st !== 'DEAD') {
+                        if (e.type === 'boss' || e.type === 'miniboss') { e.enraged = true; e.hitF = 300; }
+                        else { ctx.addScore(ctx.PTS[e.type][0] + 1000, e.x, e.y, '#fff'); ctx.boom(e.x, e.y, false, e.type); e.st = 'DEAD'; }
+                    }
+                }
+                for (const e of ctx.G.enemies) { if (e.st !== 'DEAD' && e.enraged) { e.animSpeed = Math.max(40, (e.animSpeed || 120) * 0.6); } }
                 for (let i = ctx.G.ebul.length - 1; i >= 0; i--) { ctx.bulletImpact(ctx.G.ebul[i].x, ctx.G.ebul[i].y, '#fff'); }
                 ctx.G.ebul = []; ctx.G.flashT = 200; ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.setPUClass(null);
                 ctx.G.shkT = 500; ctx.G.shkM = 8;
@@ -411,8 +466,19 @@
             if (pu.type === 'blackhole_bomb') {
                 ctx.G.blackhole = { x: ctx.G.p.x, y: ctx.G.p.y - 60, targetX: ctx.G.p.x, targetY: ctx.G.p.y - 120, t: 0 };
                 ctx.SFX.bomb(pu.x); ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.setPUClass(null);
-                for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; ctx.G.part.push({ x: ctx.G.p.x, y: ctx.G.p.y - 60, vx: Math.cos(a) * 50, vy: Math.sin(a) * 50, life: 300, t: 0, col: '#8844ff', size: 2, spark: true }); }
+                for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; ctx.G.part.push(getParticle({ x: ctx.G.p.x, y: ctx.G.p.y - 60, vx: Math.cos(a) * 50, vy: Math.sin(a) * 50, life: 300, t: 0, col: '#8844ff', size: 2, spark: true })); }
                 return;
+            }
+            if (pu.type === 'gravity_bomb') {
+                ctx.G.gravityBomb = { x: ctx.G.p.x, y: ctx.G.p.y - 80, t: 0, phase: 'pull' };
+                ctx.SFX.bomb(pu.x); ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.setPUClass(null);
+                for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; ctx.G.part.push(getParticle({ x: ctx.G.p.x, y: ctx.G.p.y - 80, vx: Math.cos(a) * 60, vy: Math.sin(a) * 60, life: 400, t: 0, col: '#cc66ff', size: 2, spark: true })); }
+                return;
+            }
+            if (pu.type === 'mirror') {
+                ctx.G.mirrorActive = true; ctx.G.mirrorTimer = ctx.PU_DUR.mirror;
+                ctx.G.activePU = { type: 'mirror', timer: ctx.PU_DUR.mirror }; ctx.G.puTimer = ctx.PU_DUR.mirror; ctx.setPUClass('mirror');
+                ctx.SFX.puCollect(pu.x); return;
             }
             if (isUpgradeable && isSameType && !ctx.G.puUpgrade) {
                 ctx.G.puUpgrade = ctx.PU_UPGRADE[pu.type]; ctx.G.activePU.type = ctx.G.puUpgrade; ctx.G.puTimer = ctx.PU_DUR[pu.type] || 0;
@@ -448,6 +514,17 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
             ctx.wrapEl.classList.add('galaxa-desaturate'); setTimeout(() => { if (!ctx.state.disposed) ctx.wrapEl.classList.remove('galaxa-desaturate'); }, 800);
             ctx.G.flashT = 50; ctx.G.chromAb = 300; ctx.G.damageVignetteT = 800; ctx.G.activePU = null; ctx.G.shieldHits = 0; ctx.G.timeScale = 1; ctx.G.timeSlowTimer = 0; ctx.G.puUpgrade = null;
             ctx.G.weaponLv = Math.max(1, ctx.G.weaponLv - 1);
+            let savedCombo = 0;
+            for (let i = ctx.COMBO_THRESH.length - 1; i >= 0; i--) { if (ctx.G.combo >= ctx.COMBO_THRESH[i]) { savedCombo = ctx.COMBO_THRESH[i]; break; } }
+            if (savedCombo > 0) {
+                ctx.G.combo = savedCombo;
+                let level = 0;
+                for (let i = ctx.COMBO_THRESH.length - 1; i >= 0; i--) { if (ctx.G.combo >= ctx.COMBO_THRESH[i]) { level = i + 1; break; } }
+                ctx.G.comboMult = ctx.COMBO_MULT[level] || 1;
+                ctx.G.scorePopups.push({ x: ctx.G.p.x, y: ctx.G.p.y - 20, text: 'COMBO SAVED!', t: 0, dur: 1000, col: '#44ff88', big: true });
+            } else {
+                ctx.G.combo = 0; ctx.G.comboMult = 1; ctx.G.comboBanner = null;
+            }
             for (let i = 0; i < 8; i++) {
                 const a = Math.random() * 6.28, sp = 30 + Math.random() * 50;
                 ctx.G.deathParts.push({ x: ctx.G.p.x, y: ctx.G.p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 20, life: 800, t: 0, col: ctx.SP.pC[1 + (i % 4)] || '#fff', sz: 3 + Math.random() * 3, rot: Math.random() * 6.28 });
@@ -515,6 +592,48 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                     }
                     ctx.G.flashT = 150; ctx.G.shkT = 400; ctx.G.shkM = 6;
                     ctx.G.blackhole = null;
+                }
+            }
+            if (ctx.G.gravityBomb) {
+                ctx.G.gravityBomb.t += dt * 1000;
+                const gb = ctx.G.gravityBomb;
+                if (gb.phase === 'pull') {
+                    for (const e of ctx.G.enemies) {
+                        if (e.st === 'DEAD') continue;
+                        const dx = gb.x - e.x, dy = gb.y - e.y, dist = Math.hypot(dx, dy);
+                        if (dist > 5 && dist < 120) { e.x += (dx / dist) * 120 * dt; e.y += (dy / dist) * 120 * dt; }
+                    }
+                    if (gb.t > 2000) {
+                        gb.phase = 'explode';
+                        let caught = 0;
+                        for (const e of ctx.G.enemies) {
+                            if (e.st === 'DEAD') continue;
+                            const dist = Math.hypot(e.x - gb.x, e.y - gb.y);
+                            if (dist < 80) { caught++; const dmgMult = 1 + caught * 0.3; ctx.addScore(Math.floor(ctx.PTS[e.type] ? ctx.PTS[e.type][0] * dmgMult : 200 * dmgMult), e.x, e.y, '#cc66ff'); ctx.boom(e.x, e.y, e.type === 'boss' || e.type === 'miniboss', e.type); e.st = 'DEAD'; }
+                        }
+                        ctx.G.flashT = 150; ctx.G.shkT = 500; ctx.G.shkM = 7;
+                        ctx.SFX.bigExplode(gb.x);
+                        for (let i = 0; i < 20; i++) { const a = (i / 20) * Math.PI * 2; ctx.G.part.push(getParticle({ x: gb.x, y: gb.y, vx: Math.cos(a) * 100, vy: Math.sin(a) * 100, life: 400, t: 0, col: '#cc66ff', size: 3, spark: true, trail: true })); }
+                        ctx.G.gravityBomb = null;
+                    }
+                }
+            }
+            if (ctx.G.mirrorActive && ctx.G.mirrorTimer > 0) {
+                ctx.G.mirrorTimer -= dt * 1000;
+                if (ctx.G.mirrorTimer <= 0) { ctx.G.mirrorActive = false; }
+            }
+            if (ctx.G.stage >= 20 && ctx.G.st === 'PLAYING') {
+                ctx.G.voidZoneT -= dt * 1000;
+                if (ctx.G.voidZoneT <= 0) {
+                    ctx.G.voidZoneT = 10000;
+                    ctx.G.voidZones = [];
+                    const count = 1 + Math.floor(Math.random() * 2);
+                    for (let vi = 0; vi < count; vi++) {
+                        ctx.G.voidZones.push({ x: 60 + Math.random() * (ctx.W - 120), y: 80 + Math.random() * (ctx.H - 200), r: 30 + Math.random() * 20, t: 0 });
+                    }
+                }
+                if (ctx.G.voidZones) {
+                    for (const vz of ctx.G.voidZones) { vz.t += dt * 1000; }
                 }
             }
             if (ctx.G.activePU && ctx.G.activePU.type !== 'shield') {
@@ -626,6 +745,9 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                         const maxSpd = ctx.PB_SPEED * 0.8;
                         if (spd > maxSpd) { b.vx *= maxSpd / spd; b.vy *= maxSpd / spd; }
                     }
+                    if (ctx.G.trails.length < 100) {
+                        ctx.G.trails.push({ x: b.x, y: b.y, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, life: 150, t: 0, col: 'rgba(255,136,170,0.5)', size: 1 });
+                    }
                     b.x += b.vx * dt; b.y += b.vy * dt;
                 } else if (b.vx) { b.x += b.vx * dt; b.y += b.vy * dt; } else b.y -= (b.laser ? ctx.PB_SPEED * 1.5 : ctx.PB_SPEED) * dt;
                 if (b.y < -10 || b.y > ctx.H + 10) continue;
@@ -645,16 +767,28 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             const pts = ctx.PTS[e.type] ? ctx.PTS[e.type][e.st === 'DIVING' ? 1 : 0] : 200;
                             ctx.registerKill();
                             ctx.addScore(pts, e.x, e.y, e.type === 'bee' ? '#ffcc00' : e.type === 'butterfly' ? '#ff3366' : '#44cc44');
-                            ctx.boom(e.x, e.y, e.type === 'boss' || e.type === 'miniboss', e.type); ctx.SFX.eExplode(e.x); ctx.dropPU(e);
+                            if (e.st === 'DIVING') {
+                                ctx.G.scorePopups.push({ x: e.x, y: e.y - 16, text: 'HEADSHOT!', t: 0, dur: 800, col: '#ff8844', big: true });
+                                ctx.addScore(100, e.x, e.y - 10, '#ff8844');
+                            }
+                            if (ctx.G.combo > 0 && ctx.G.combo % 5 === 0) {
+                                ctx.G.scorePopups.push({ x: e.x + 15, y: e.y - 16, text: 'CHAIN x' + ctx.G.combo + '!', t: 0, dur: 800, col: '#44ff88', big: false });
+                            }
+                            ctx.boom(e.x, e.y, e.type === 'boss' || e.type === 'miniboss', e.type, b.vx || 0, b.vy || -ctx.PB_SPEED); ctx.SFX.eExplode(e.x); ctx.dropPU(e);
+                            ctx.G.credits += (e.type === 'boss' ? 10 : e.type === 'miniboss' ? 7 : 1);
+                            if (ctx.G.comboMult >= 4) ctx.G.credits += 5;
+                            try { localStorage.setItem('galaxa_credits', String(ctx.G.credits)); } catch (e2) {}
                             if (e.type === 'boss' || e.type === 'miniboss') { ctx.G.timeScale = 0.3; ctx.G.slowMoT = 1500; }
                             if (e.hasCap) ctx.G.p.cap = { x: e.x, y: e.y };
                             if (ctx.G.chal) ctx.G.chalHits++; e.st = 'DEAD';
                             // NEW: Splitter splits into 2 mini enemies on death
                             if (e.type === 'splitter') {
+                                const _splitType = ctx.G.stage >= 15 && !(e._chained) ? 'splitter' : 'bee';
+                                const _splitHP = _splitType === 'splitter' ? 1 : 1;
                                 for (let _si = 0; _si < 2; _si++) {
                                     const sx = e.x + (_si === 0 ? -15 : 15);
                                     const sy = e.y - 10;
-                                    ctx.G.enemies.push({ type: 'bee', r: 0, col: 0, x: sx, y: sy, fx: sx, fy: sy, hp: 1, maxHp: 1, st: 'DIVING', eTmr: 0, fr: 0, frT: 0, dTmr: 2000, dPath: { ph: 0, amp: 20, vx: (_si === 0 ? -40 : 40) }, sTmr: 500, shootPh: 0, hasCap: false, hitF: 0, elite: false, bossPhase: 0, bossPhaseTransition: 0, bossPhaseHP: [0,0,0], animFrame: 0, animTimer: 0, animSpeed: 120, animFrames: 4 });
+                                    ctx.G.enemies.push({ type: _splitType, r: 0, col: 0, x: sx, y: sy, fx: sx, fy: sy, hp: _splitHP, maxHp: _splitHP, st: 'DIVING', eTmr: 0, fr: 0, frT: 0, dTmr: 2000, dPath: { ph: 0, amp: 20, vx: (_si === 0 ? -40 : 40) }, sTmr: 500, shootPh: 0, hasCap: false, hitF: 0, elite: false, bossPhase: 0, bossPhaseTransition: 0, bossPhaseHP: [0,0,0], animFrame: 0, animTimer: 0, animSpeed: 120, animFrames: 4, spawnAnim: 0, spawnDur: 300, rowPhase: Math.random() * 3, bobAmp: 2, _chained: _splitType === 'splitter' });
                                 }
                             }
                             // NEW: Carrier releases 3 bees on death
@@ -666,12 +800,27 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             }
                             ctx.G.killCount++;
                             if (ctx.G.killCount === 1) ctx.unlockAchievement('first_blood');
+                            ctx.G.weaponXP += (e.type === 'boss' ? 3 : e.type === 'miniboss' ? 2 : e.st === 'DIVING' ? 1.5 : 1);
+                            const xpNeeded = ctx.G.weaponLv * 10;
+                            if (ctx.G.weaponXP >= xpNeeded && ctx.G.weaponLv < 4) {
+                                ctx.G.weaponXP -= xpNeeded;
+                                ctx.G.weaponLv++;
+                                ctx.SFX.weaponUp();
+                                ctx.G.upgradeBanner = { text: 'W' + ctx.G.weaponLv, type: 'weapon', t: 0, dur: 1000 };
+                            }
+                            if (ctx.G.weaponLv >= 4 && !ctx.G.weaponEvo && !ctx.G.evoChoiceOpen) {
+                                ctx.G.evoChoiceOpen = true;
+                            }
+                            if (ctx.G.weaponLv >= 4) ctx.unlockAchievement('weapon_master');
                             if (e.type === 'boss' || e.type === 'miniboss') { ctx.G.bossKillTotal++; if (ctx.G.bossKillTotal >= 10) ctx.unlockAchievement('boss_slayer'); try { localStorage.setItem('galaxa_boss_kills', String(ctx.G.bossKillTotal)); } catch(e2) {} }
                             const _remainingAlive = ctx.G.enemies.filter(_en => _en.st !== 'DEAD' && _en !== e).length;
                             if (_remainingAlive === 0 && e.type !== 'boss' && e.type !== 'miniboss') { ctx.G.timeScale = 0.3; ctx.G.slowMoT = 500; }
                             if (ctx.G.killCount % 10 === 0 && ctx.G.weaponLv < 4) { ctx.G.weaponLv++; ctx.SFX.weaponUp(); }
-                        } else e.hitF = 100;
+                        }                         else e.hitF = 100;
                         if (!b.laser && !b.pierce) { removed = true; break; }
+                        if (b.laser) {
+                            for (let li = 0; li < 4; li++) { const la = Math.random() * Math.PI * 2; ctx.G.part.push(getParticle({ x: e.x, y: e.y, vx: Math.cos(la) * 60, vy: Math.sin(la) * 60, life: 100 + Math.random() * 80, t: 0, col: '#aaccff', size: 1, spark: true })); }
+                        }
                     }
                 }
                 if (!removed) ctx.G.bul[bw++] = b;
@@ -870,10 +1019,12 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                         const enterK = Math.min(1, eDt * 5);
                         e.x += (e.fx - e.x) * enterK;
                         e.y += (e.fy - e.y) * enterK;
+                        e.spawnAnim = Math.min(e.spawnDur, (e.spawnAnim || 0) + dtMs);
                         if (Math.abs(e.x - e.fx) < 2 && Math.abs(e.y - e.fy) < 2) {
                             e.x = e.fx + ctx.G.fX;
-                            e.y = e.fy + Math.sin(ctx.G.fTmr * 2 + e.col * 0.5) * 3;
+                            e.y = e.fy + Math.sin(ctx.G.fTmr * 2 + (e.rowPhase || e.col * 0.5)) * (e.bobAmp || 3);
                             e.st = 'FORM';
+                            e.spawnAnim = e.spawnDur;
                             for (let _ei = 0; _ei < 2; _ei++) { const _ea = Math.random() * Math.PI * 2; ctx.G.part.push({ x: e.x, y: e.y, vx: Math.cos(_ea)*25, vy: Math.sin(_ea)*25, life: 200, t: 0, col: e.type === 'bee' ? '#ffcc00' : e.type === 'butterfly' ? '#ff3366' : e.type === 'hunter' ? '#ff6600' : e.type === 'spinner' ? '#44ffff' : e.type === 'bomber' ? '#cc66ff' : e.type === 'lasher' ? '#44ff88' : '#44cc44', size: 1, spark: true }); }
                             if ((e.type === 'boss' || e.type === 'miniboss') && !ctx.G.bossWarningShown) { ctx.G.bossWarningT = 2000; ctx.G.bossWarningShown = true; if (e.type === 'miniboss') ctx.SFX.miniBossWarning(); else ctx.SFX.bossWarning(); }
                             if (e.type === 'hunter') { ctx.G.bossWarningT = Math.max(ctx.G.bossWarningT || 0, 1000); ctx.SFX.hunterDive(e.x); }
@@ -881,7 +1032,8 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                     }
                 }
                 else if (e.st === 'FORM') {
-                    e.x = e.fx + ctx.G.fX; e.y = e.fy + Math.sin(ctx.G.fTmr * 2 + e.col * 0.5) * 3;
+                    e.x = e.fx + ctx.G.fX; e.y = e.fy + Math.sin(ctx.G.fTmr * 2 + (e.rowPhase || e.col * 0.5)) * (e.bobAmp || 3);
+                    if ((e.spawnAnim || 0) < (e.spawnDur || 400)) e.spawnAnim = Math.min(e.spawnDur, (e.spawnAnim || 0) + dtMs);
                     // NEW: Weaver sine-wave horizontal movement
                     if (e.type === 'weaver') {
                         e.x += Math.sin(ctx.G.fTmr * 3 + e.col) * 40;
@@ -896,11 +1048,22 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                         e.teleportTimer = (e.teleportTimer || 0) - dtMs;
                         if (e.teleportTimer <= 0) {
                             e.teleportTimer = 2000 + Math.random() * 1000;
+                            const oldX = e.x, oldY = e.y;
                             e.x = 40 + Math.random() * (ctx.W - 80);
                             e.y = ctx.FTOP + Math.random() * 100;
                             for (let _ti = 0; _ti < 8; _ti++) {
                                 const _ta = (_ti / 8) * Math.PI * 2;
-                                ctx.G.part.push({ x: e.x, y: e.y, vx: Math.cos(_ta) * 30, vy: Math.sin(_ta) * 30, life: 200, t: 0, col: '#44ffff', size: 1, spark: true });
+                                ctx.G.part.push(getParticle({ x: oldX, y: oldY, vx: Math.cos(_ta) * 30, vy: Math.sin(_ta) * 30, life: 200, t: 0, col: '#44ffff', size: 1, spark: true }));
+                                ctx.G.part.push(getParticle({ x: e.x, y: e.y, vx: Math.cos(_ta) * 30, vy: Math.sin(_ta) * 30, life: 200, t: 0, col: '#44ffff', size: 1, spark: true }));
+                            }
+                            for (const oe of ctx.G.enemies) {
+                                if (oe === e || oe.st === 'DEAD') continue;
+                                const dist = Math.hypot(oe.x - oldX, oe.y - oldY);
+                                if (dist < 60) {
+                                    oe.x += e.x - oldX; oe.y += e.y - oldY;
+                                    oe.x = Math.max(20, Math.min(ctx.W - 20, oe.x));
+                                    for (let _oi = 0; _oi < 4; _oi++) { const _oa = (_oi / 4) * Math.PI * 2; ctx.G.part.push(getParticle({ x: oe.x, y: oe.y, vx: Math.cos(_oa) * 20, vy: Math.sin(_oa) * 20, life: 150, t: 0, col: '#66ffff', size: 1, spark: true })); }
+                                }
                             }
                         }
                         e.sTmr -= dtMs;
@@ -976,6 +1139,97 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 ctx.advanceToNextStage(false);
             }
         }
+        function spawnHazards() {
+            ctx.G.envHazards = [];
+            ctx.G.solarFlareT = 0; ctx.G.solarFlareActive = false; ctx.G.emStormT = 0;
+            const theme = ctx.G.bgTheme;
+            if (theme === 'asteroid') {
+                for (let i = 0; i < 4; i++) {
+                    ctx.G.envHazards.push({ type: 'asteroid_h', x: 40 + Math.random() * (ctx.W - 80), y: 80 + Math.random() * (ctx.H - 200), hp: 2, maxHp: 2, r: 8 + Math.random() * 6, vx: (Math.random() - 0.5) * 20, vy: 8 + Math.random() * 12, rot: Math.random() * 6.28, rotSpd: (Math.random() - 0.5) * 2 });
+                }
+            } else if (theme === 'nebula' && ctx.G.stage >= 8) {
+                ctx.G.solarFlareT = 5000 + Math.random() * 3000;
+            } else if (theme === 'crystal') {
+                for (let i = 0; i < 3; i++) {
+                    ctx.G.envHazards.push({ type: 'crystal_h', x: 60 + Math.random() * (ctx.W - 120), y: 100 + Math.random() * 200, r: 5, t: 0, collected: false });
+                }
+            } else if (theme === 'storm') {
+                ctx.G.emStormT = 8000 + Math.random() * 5000;
+            }
+        }
+
+        function updateHazards(dt) {
+            const dtMs = dt * 1000;
+            let hw = 0;
+            for (let i = 0; i < ctx.G.envHazards.length; i++) {
+                const h = ctx.G.envHazards[i];
+                if (h.type === 'asteroid_h') {
+                    h.x += h.vx * dt; h.y += h.vy * dt; h.rot += h.rotSpd * dt;
+                    if (h.y > ctx.H + 20) { h.y = -20; h.x = 40 + Math.random() * (ctx.W - 80); }
+                    for (let bi = ctx.G.bul.length - 1; bi >= 0; bi--) {
+                        const b = ctx.G.bul[bi];
+                        if (Math.hypot(b.x - h.x, b.y - h.y) < h.r + 3) {
+                            h.hp--;
+                            ctx.bulletImpact(b.x, b.y, '#886644');
+                            if (!b.pierce && !b.laser) { ctx.G.bul.splice(bi, 1); }
+                            if (h.hp <= 0) {
+                                ctx.addScore(100, h.x, h.y, '#886644');
+                                for (let pi = 0; pi < 8; pi++) { const pa = (pi / 8) * Math.PI * 2; ctx.G.part.push(getParticle({ x: h.x, y: h.y, vx: Math.cos(pa) * 40, vy: Math.sin(pa) * 40, life: 300, t: 0, col: '#776655', size: 2, debris: true, rot: Math.random() * 6.28 })); }
+                                break;
+                            }
+                        }
+                    }
+                    for (let bi = ctx.G.ebul.length - 1; bi >= 0; bi--) {
+                        const b = ctx.G.ebul[bi];
+                        if (Math.hypot(b.x - h.x, b.y - h.y) < h.r + 3) {
+                            ctx.bulletImpact(b.x, b.y, '#886644');
+                            ctx.G.ebul.splice(bi, 1);
+                        }
+                    }
+                } else if (h.type === 'crystal_h' && !h.collected) {
+                    h.t += dtMs;
+                    if (ctx.G.p.alive && Math.hypot(ctx.G.p.x - h.x, ctx.G.p.y - h.y) < 16) {
+                        h.collected = true;
+                        ctx.G.weaponLv = Math.min(4, ctx.G.weaponLv + 1);
+                        ctx.SFX.puCollect(h.x);
+                        ctx.G.scorePopups.push({ x: h.x, y: h.y - 10, text: 'CRYSTAL!', t: 0, dur: 800, col: '#88ccff', big: true });
+                        for (let ci = 0; ci < 10; ci++) { const ca = (ci / 10) * Math.PI * 2; ctx.G.part.push(getParticle({ x: h.x, y: h.y, vx: Math.cos(ca) * 50, vy: Math.sin(ca) * 50, life: 250, t: 0, col: '#88ccff', size: 2, spark: true })); }
+                    }
+                }
+                if (h.hp > 0 || h.type === 'crystal_h') ctx.G.envHazards[hw++] = h;
+            }
+            ctx.G.envHazards.length = hw;
+
+            if (ctx.G.solarFlareT > 0) {
+                ctx.G.solarFlareT -= dtMs;
+                if (ctx.G.solarFlareT <= 0 && ctx.G.st === 'PLAYING') {
+                    ctx.G.solarFlareActive = true;
+                    ctx.G.solarFlareT = 1200;
+                    ctx.SFX.bossWarning();
+                }
+            } else if (ctx.G.solarFlareActive) {
+                ctx.G.solarFlareT -= dtMs;
+                if (ctx.G.solarFlareT <= 0) {
+                    ctx.G.solarFlareActive = false;
+                    ctx.G.solarFlareT = 6000 + Math.random() * 4000;
+                }
+                const flareY = ctx.H * (1 - Math.max(0, ctx.G.solarFlareT) / 1200);
+                if (ctx.G.p.alive && ctx.G.p.inv <= 0 && Math.abs(ctx.G.p.y - flareY) < 12) {
+                    ctx.killP();
+                }
+            }
+
+            if (ctx.G.emStormT > 0 && ctx.G.st === 'PLAYING') {
+                ctx.G.emStormT -= dtMs;
+                if (ctx.G.emStormT <= 0 && ctx.G.activePU && ctx.G.activePU.type !== 'shield') {
+                    const puType = ctx.G.activePU.type;
+                    ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.setPUClass(null);
+                    ctx.G.scorePopups.push({ x: ctx.W / 2, y: ctx.H / 2, text: 'EM STORM!', t: 0, dur: 1000, col: '#ffff44', big: true });
+                    ctx.G.flashT = 50; ctx.G.emStormT = 10000 + Math.random() * 5000;
+                }
+            }
+        }
+
         function startChalDive(e) {
             if (e.st !== 'FORM') return; e.st = 'DIVING'; e.dPath = { ph: 0, amp: 50 + Math.random() * 30, vx: (Math.random() - 0.5) * 130 }; e.dTmr = 4000; e.sTmr = 99999; ctx.SFX.dive();
         }
@@ -998,5 +1252,34 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
         ctx.startChalDive = startChalDive;
         ctx.updateP = updateP;
         ctx.updateBul = updateBul;
+        ctx.spawnHazards = spawnHazards;
+        ctx.updateHazards = updateHazards;
+        ctx.getParticle = getParticle;
+        ctx.recycleParticles = recycleParticles;
+
+        const WEAPON_EVOS = {
+            vulcan: { name: 'VULCAN', desc: 'Ultra-fast stream', col: '#ff8844', fireRate: 0.6, spread: 0, dmgMult: 0.7 },
+            cannon: { name: 'CANNON', desc: 'Slow massive shots', col: '#ff4444', fireRate: 2.5, spread: 0, dmgMult: 4 },
+            beam: { name: 'BEAM', desc: 'Continuous laser', col: '#88ccff', fireRate: 0, spread: 0, dmgMult: 0, isBeam: true }
+        };
+        ctx.WEAPON_EVOS = WEAPON_EVOS;
+
+        let evoSel = 0;
+        function updateEvoChoice() {
+            const u = ctx.G.inp.u && !ctx.G.inp.up;
+            const d = ctx.G.inp.d && !ctx.G.inp.dp;
+            const f = ctx.G.inp.f && !ctx.G.inp.fp;
+            if (u) evoSel = Math.max(0, evoSel - 1);
+            if (d) evoSel = Math.min(2, evoSel + 1);
+            if (f) {
+                const evos = ['vulcan', 'cannon', 'beam'];
+                ctx.G.weaponEvo = evos[evoSel];
+                ctx.G.evoChoiceOpen = false;
+                ctx.SFX.puUpgrade(ctx.W / 2);
+                ctx.G.upgradeBanner = { text: WEAPON_EVOS[ctx.G.weaponEvo].name + '!', type: 'evolution', t: 0, dur: 2000 };
+            }
+        }
+        ctx.updateEvoChoice = updateEvoChoice;
+        ctx.evoSel = function() { return evoSel; };
     };
 })();

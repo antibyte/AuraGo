@@ -14,6 +14,56 @@
 
         function isMiniBossStage() { return ctx.G.stage >= 5 && ctx.G.stage % 5 === 0; }
 
+        function dailySeed() {
+            const d = new Date();
+            return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+        }
+
+        function seededRandom(seed) {
+            let s = seed;
+            return function() { s = (s * 16807 + 0) % 2147483647; return (s - 1) / 2147483646; };
+        }
+
+        function startDailyChallenge() {
+            const seed = dailySeed();
+            const rng = seededRandom(seed);
+            ctx.G.dailySeed = seed;
+            ctx.G.score = 0; ctx.G.lives = ctx.diffMod('lives'); ctx.G.stage = 1;
+            ctx.G.p.dual = false; ctx.G.p.cap = null; ctx.G.weaponLv = 1; ctx.G.killCount = 0;
+            ctx.G.displayScore = 0; ctx.G.deathParts = []; ctx.G.collectedPU = new Set();
+            ctx.G.perfectCount = 0; ctx.G.chal = true;
+            const mods = ctx.STAGE_MODIFIERS;
+            const mod1 = mods[Math.floor(rng() * mods.length)];
+            let mod2 = mods[Math.floor(rng() * mods.length)];
+            while (mod2.id === mod1.id && mods.length > 1) mod2 = mods[Math.floor(rng() * mods.length)];
+            mod1.apply(ctx.G); mod2.apply(ctx.G);
+            ctx.G.stageModifier = [mod1, mod2];
+            ctx.settings.mode = 'daily';
+            ctx.startStage();
+            ctx.MusicEngine.play('challenge');
+            ctx.G.scorePopups.push({ x: ctx.W / 2, y: ctx.H / 2 - 40, text: 'DAILY CHALLENGE', t: 0, dur: 2000, col: '#ff88ff', big: true });
+        }
+
+        function checkDailyStreak() {
+            const today = dailySeed();
+            const lastDaily = parseInt(localStorage.getItem('galaxa_last_daily') || '0');
+            const streak = ctx.G.dailyStreak;
+            if (lastDaily === today) return;
+            const yesterday = dailySeed() - 1;
+            if (lastDaily === yesterday || lastDaily === today - 1) {
+                ctx.G.dailyStreak = streak + 1;
+            } else if (lastDaily < today - 1) {
+                ctx.G.dailyStreak = 1;
+            }
+            try {
+                localStorage.setItem('galaxa_daily_streak', String(ctx.G.dailyStreak));
+                localStorage.setItem('galaxa_last_daily', String(today));
+            } catch (e) {}
+            if (ctx.G.dailyStreak >= 7) ctx.unlockAchievement('daily_warrior');
+            if (ctx.G.dailyStreak >= 3) { ctx.G.credits += 50; try { localStorage.setItem('galaxa_credits', String(ctx.G.credits)); } catch(e2) {} }
+            if (ctx.G.dailyStreak >= 7) { ctx.G.credits += 100; try { localStorage.setItem('galaxa_credits', String(ctx.G.credits)); } catch(e3) {} }
+        }
+
         function advanceToNextStage(fromSkip) {
             if (ctx.G.stageClearLock > 0 || ctx.G.st === 'STAGE_INTRO' || ctx.G.st === 'GAME_OVER') return;
             ctx.G.stageClearLock = 600;
@@ -34,7 +84,11 @@
                 ctx.MusicEngine.play('victory');
                 setTimeout(() => { if (!ctx.state.disposed && ctx.MusicEngine.playing === 'victory') ctx.MusicEngine.play('gameplay'); }, 3500);
             }
-            ctx.startStage();
+            if (ctx.G.stage % 3 === 0 && !fromSkip && ctx.openShop) {
+                ctx.openShop();
+            } else {
+                ctx.startStage();
+            }
         }
 
         function startStage() {
@@ -62,6 +116,7 @@
             ctx.MusicEngine.setTempo(1 + ctx.G.stage * 0.05);
             ctx.MusicEngine.play(ctx.G.chal ? 'challenge' : 'gameplay');
             ctx.mkFormation();
+            if (ctx.spawnHazards) ctx.spawnHazards();
         }
 
         function updateExp(dt) {
@@ -81,7 +136,12 @@
                 else if (p.spark) { p.vx *= 0.95; p.vy *= 0.95; }
                 p.t += dtMs; if (p.t < p.life) ctx.G.part[plen++] = p;
             }
-            ctx.G.part.length = plen;
+            if (ctx.G.part.length > plen && ctx.recycleParticles) {
+                const dead = ctx.G.part.splice(plen);
+                ctx.recycleParticles(dead);
+            } else {
+                ctx.G.part.length = plen;
+            }
             let tlen = 0;
             for (let i = 0; i < ctx.G.trails.length; i++) { const tr = ctx.G.trails[i]; tr.x += tr.vx * dt; tr.y += tr.vy * dt; tr.t += dtMs; if (tr.t < tr.life) ctx.G.trails[tlen++] = tr; }
             ctx.G.trails.length = tlen;
@@ -150,6 +210,8 @@
             }
             if (ctx.G.st === 'PAUSED') { ctx.updatePauseMenu(); return; }
             if (ctx.G.st === 'SETTINGS') { ctx.updateSettingsMenu(); return; }
+            if (ctx.G.st === 'SHOP') { ctx.updateShop(); return; }
+            if (ctx.G.evoChoiceOpen) { ctx.updateEvoChoice(); return; }
             if (ctx.G.st === 'TITLE') {
                 ctx.G.tIdle += dt * 1000;
                 if (ctx.G.tIdle > ctx.TITLE_IDLE && !ctx.G.attract) { ctx.G.attract = true; ctx.G.aTmr = 0; ctx.G.score = 0; ctx.G.lives = ctx.diffMod('lives'); ctx.G.stage = 1; ctx.G.p.x = ctx.W / 2; ctx.G.p.alive = true; ctx.G.p.inv = 0; ctx.G.bul = []; ctx.G.ebul = []; ctx.G.exp = []; ctx.G.part = []; ctx.G.trails = []; ctx.mkFormation(); ctx.MusicEngine.play('title'); }
@@ -183,6 +245,7 @@
             if (ctx.G.st === 'HIGH_SCORE') { ctx.handleName(); return; }
             if (ctx.G.st === 'PLAYING') {
                 ctx.updateP(dt, now); ctx.updateBul(dt); ctx.updateE(dt); ctx.updateExp(dt);
+                if (ctx.updateHazards) ctx.updateHazards(dt);
                 if (ctx.G.shkT > 0) ctx.G.shkT -= dt * 1000;
                 if (ctx.G.p.cap) { ctx.G.p.cap.y -= 100 * dt; if (ctx.G.p.cap.y < ctx.G.p.y - 20) { ctx.G.p.dual = true; ctx.G.p.cap = null; ctx.SFX.rescue(); ctx.unlockAchievement('dual_wielder'); } }
                 let bossAlive = false, minibossAlive = false, _aliveN = 0;
@@ -312,6 +375,7 @@
             if (k === 'Escape') { ctx.G.kb.p = true; e.preventDefault(); }
             if (k === 'm' || k === 'M') { ctx.G.muted = !ctx.G.muted; ctx.settings.mute = ctx.G.muted; ctx.MusicEngine.setMuted(ctx.G.muted); ctx.saveSettings(); }
             if ((k === 'S' || k === 's') && ctx.G.st === 'TITLE' && !ctx.G.attract && !ctx.G.kb.d) { ctx.G.st = 'SETTINGS'; ctx.G.settingsSel = 0; }
+            if ((k === 'D' || k === 'd') && ctx.G.st === 'TITLE' && !ctx.G.attract && !ctx.G.kb.r) { ctx.SFX.coinInsert(); ctx.startDailyChallenge(); }
         }
         function onKeyUp(e) {
             const k = e.key;
@@ -324,6 +388,75 @@
         }
 
         function savePrev() { ctx.G.inp.fp = ctx.G.inp.f; ctx.G.inp.sp = ctx.G.inp.s; ctx.G.inp.pp = ctx.G.inp.p; ctx.G.inp.lp = ctx.G.inp.l; ctx.G.inp.rp = ctx.G.inp.r; ctx.G.inp.up = ctx.G.inp.u; ctx.G.inp.dp = ctx.G.inp.d; }
+
+        let touchJoystick = null;
+        let touchFire = false;
+        let touchStartY = 0;
+        let touchStartX = 0;
+        const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+        function onTouchStart(e) {
+            if (ctx.state.disposed) return;
+            e.preventDefault();
+            for (const touch of e.changedTouches) {
+                const rect = ctx.canvas.getBoundingClientRect();
+                const tx = (touch.clientX - rect.left) / ctx.scale;
+                const ty = (touch.clientY - rect.top) / ctx.scale;
+                if (tx < ctx.W / 2) {
+                    touchJoystick = { id: touch.identifier, startX: tx, startY: ty, curX: tx, curY: ty };
+                    touchStartY = ty;
+                    touchStartX = tx;
+                } else {
+                    touchFire = true;
+                    ctx.G.kb.f = true; ctx.G.kb.s = true;
+                }
+            }
+        }
+
+        function onTouchMove(e) {
+            if (ctx.state.disposed) return;
+            e.preventDefault();
+            for (const touch of e.changedTouches) {
+                if (touchJoystick && touch.identifier === touchJoystick.id) {
+                    const rect = ctx.canvas.getBoundingClientRect();
+                    touchJoystick.curX = (touch.clientX - rect.left) / ctx.scale;
+                    touchJoystick.curY = (touch.clientY - rect.top) / ctx.scale;
+                    const dx = touchJoystick.curX - touchJoystick.startX;
+                    ctx.G.kb.l = dx < -8;
+                    ctx.G.kb.r = dx > 8;
+                }
+            }
+        }
+
+        function onTouchEnd(e) {
+            if (ctx.state.disposed) return;
+            e.preventDefault();
+            for (const touch of e.changedTouches) {
+                if (touchJoystick && touch.identifier === touchJoystick.id) {
+                    const dy = touchJoystick.curY - touchStartY;
+                    const dx = touchJoystick.curX - touchStartX;
+                    if (dy < -50 && Math.abs(dx) < 40) {
+                        ctx.G.kb.s = true;
+                        setTimeout(() => { ctx.G.kb.s = false; }, 100);
+                    }
+                    touchJoystick = null;
+                    ctx.G.kb.l = false;
+                    ctx.G.kb.r = false;
+                } else {
+                    touchFire = false;
+                    ctx.G.kb.f = false;
+                    ctx.G.kb.s = false;
+                }
+            }
+        }
+
+        function setupTouch() {
+            if (!isTouchDevice) return;
+            ctx.canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+            ctx.canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+            ctx.canvas.addEventListener('touchend', onTouchEnd, { passive: false });
+            ctx.canvas.addEventListener('touchcancel', onTouchEnd, { passive: false });
+        }
 
         let _frameBudgetSkip = 0;
         function loop() {
@@ -345,6 +478,8 @@
         ctx.updateExp = updateExp;
         ctx.update = update;
         ctx.updateAttract = updateAttract;
+        ctx.startDailyChallenge = startDailyChallenge;
+        ctx.checkDailyStreak = checkDailyStreak;
         ctx.updatePauseMenu = updatePauseMenu;
         ctx.updateSettingsMenu = updateSettingsMenu;
         ctx.showTitle = showTitle;
@@ -359,5 +494,7 @@
         ctx.onKeyUp = onKeyUp;
         ctx.savePrev = savePrev;
         ctx.loop = loop;
+        ctx.setupTouch = setupTouch;
+        ctx.isTouchDevice = function() { return isTouchDevice; };
     };
 })();

@@ -392,3 +392,45 @@
     from { box-shadow: 0 0 20px rgba(255, 34, 34, 0.3); }
     to { box-shadow: 0 0 40px rgba(255, 34, 34, 0.7), 0 0 80px rgba(255, 34, 34, 0.3); }
 }
+
+/* Touch controls */
+.galaxa-touch-hint {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.3);
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    pointer-events: none;
+    z-index: 4;
+    text-align: center;
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .galaxa-canvas {
+        touch-action: none;
+    }
+}
+
+/* Gravity Bomb powerup effect */
+.galaxa-powerup-gravity_bomb .galaxa-canvas {
+    box-shadow: 0 0 25px rgba(204, 102, 255, 0.4), 0 0 50px rgba(204, 102, 255, 0.15);
+    animation: galaxa-gravity-pulse 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes galaxa-gravity-pulse {
+    from { filter: brightness(1) hue-rotate(0deg); }
+    to { filter: brightness(1.1) hue-rotate(10deg); }
+}
+
+/* Mirror powerup effect */
+.galaxa-powerup-mirror .galaxa-canvas {
+    box-shadow: 0 0 20px rgba(136, 221, 255, 0.3), 0 0 40px rgba(136, 221, 255, 0.1);
+    animation: galaxa-mirror-shimmer 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes galaxa-mirror-shimmer {
+    from { filter: brightness(1) contrast(1); }
+    to { filter: brightness(1.08) contrast(1.05); }
+}
