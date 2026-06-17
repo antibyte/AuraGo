@@ -308,3 +308,87 @@
     color: #ffcc00;
     text-shadow: 0 0 6px rgba(255, 204, 0, 0.3);
 }
+
+/* NEW: Overcharge visual effect */
+.galaxa-overcharge .galaxa-canvas {
+    box-shadow: 0 0 25px rgba(255, 170, 0, 0.4), 0 0 50px rgba(255, 170, 0, 0.15);
+    animation: galaxa-overcharge-pulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes galaxa-overcharge-pulse {
+    from { filter: brightness(1) saturate(1); }
+    to { filter: brightness(1.15) saturate(1.2); }
+}
+
+/* NEW: Synergy active effect */
+.galaxa-synergy .galaxa-canvas {
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.3), 0 0 60px rgba(255, 255, 255, 0.1);
+    animation: galaxa-synergy-glow 1s ease-in-out infinite alternate;
+}
+
+@keyframes galaxa-synergy-glow {
+    from { filter: brightness(1.05) hue-rotate(0deg); }
+    to { filter: brightness(1.12) hue-rotate(15deg); }
+}
+
+/* NEW: Darkness stage modifier */
+.galaxa-darkness .galaxa-canvas {
+    filter: brightness(0.5) contrast(1.2);
+}
+
+/* NEW: Glass Cannon stage modifier */
+.galaxa-glass-cannon .galaxa-canvas {
+    box-shadow: 0 0 20px rgba(255, 68, 68, 0.3), 0 0 40px rgba(255, 68, 68, 0.1);
+}
+
+/* NEW: Turbo stage modifier */
+.galaxa-turbo .galaxa-canvas {
+    animation: galaxa-turbo-shake 0.3s linear infinite;
+}
+
+@keyframes galaxa-turbo-shake {
+    0%, 100% { transform: translate(0, 0); }
+    25% { transform: translate(1px, 0); }
+    75% { transform: translate(-1px, 0); }
+}
+
+/* NEW: Boss phase transition flash */
+.galaxa-boss-phase .galaxa-canvas {
+    animation: galaxa-boss-phase-flash 0.15s ease-out 3;
+}
+
+@keyframes galaxa-boss-phase-flash {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.8) saturate(0.5); }
+}
+
+/* NEW: Screen transition effects */
+.galaxa-swipe-transition .galaxa-canvas {
+    transition: none;
+}
+
+.galaxa-portal-transition .galaxa-canvas {
+    transition: none;
+}
+
+.galaxa-glitch-transition .galaxa-canvas {
+    animation: galaxa-glitch-shift 0.05s steps(3) infinite;
+}
+
+@keyframes galaxa-glitch-shift {
+    0% { transform: translate(0, 0); }
+    33% { transform: translate(3px, -1px); }
+    66% { transform: translate(-2px, 1px); }
+    100% { transform: translate(0, 0); }
+}
+
+/* NEW: Kamikaze warning glow */
+.galaxa-kamikaze-near .galaxa-canvas {
+    box-shadow: 0 0 30px rgba(255, 34, 34, 0.5), 0 0 60px rgba(255, 34, 34, 0.2);
+    animation: galaxa-kamikaze-pulse 0.3s ease-in-out infinite alternate;
+}
+
+@keyframes galaxa-kamikaze-pulse {
+    from { box-shadow: 0 0 20px rgba(255, 34, 34, 0.3); }
+    to { box-shadow: 0 0 40px rgba(255, 34, 34, 0.7), 0 0 80px rgba(255, 34, 34, 0.3); }
+}

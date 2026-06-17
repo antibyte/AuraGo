@@ -9,10 +9,100 @@ const PU_TYPES = ['rapid', 'spread', 'shield', 'bomb', 'speed', 'magnet', 'laser
         const PU_UPGRADE = { rapid: 'ultra_rapid', spread: 'mega_spread', speed: 'hyper_speed', magnet: 'super_magnet', laser: 'mega_laser', pierce: 'mega_pierce', ricochet: 'mega_ricochet', drone: 'dual_drone' };
         const PU_UPGRADE_COL = { ultra_rapid: '#00ffee', mega_spread: '#ff8800', hyper_speed: '#ffff44', super_magnet: '#ff88ff', mega_laser: '#ccddff', mega_pierce: '#aaffcc', mega_ricochet: '#ffcc66', dual_drone: '#66ffcc' };
         const PU_TRAIL_COL = { rapid: '0,255,204', ultra_rapid: '0,255,238', spread: '255,102,0', mega_spread: '255,136,0', shield: '68,136,255', speed: '255,238,0', hyper_speed: '255,255,68', magnet: '255,68,255', super_magnet: '255,136,255', laser: '180,200,255', mega_laser: '160,180,255', timeslow: '170,68,255', pierce: '136,255,170', mega_pierce: '170,255,204', homing: '255,136,170', freeze: '136,238,255', levelskip: '255,136,255', ricochet: '255,170,68', mega_ricochet: '255,204,102', drone: '68,255,170', dual_drone: '102,255,204', blackhole_bomb: '136,68,255' };
+        // NEW: Powerup rarity tiers for weighted drops
+        const PU_RARITY = {
+            common: ['rapid', 'spread', 'speed', 'pierce'],
+            uncommon: ['shield', 'magnet', 'laser', 'ricochet'],
+            rare: ['homing', 'drone', 'timeslow', 'freeze'],
+            legendary: ['bomb', 'multibomb', 'supernova', 'blackhole_bomb', 'levelskip']
+        };
+        const PU_RARITY_WEIGHT = { common: 50, uncommon: 30, rare: 15, legendary: 5 };
+        // NEW: Powerup synergies — when two specific powerups are active simultaneously
+        const PU_SYNERGIES = {
+            'rapid+pierce': { name: 'Phaser', col: '#00ffaa', desc: 'Double fire rate + pierce' },
+            'spread+homing': { name: 'Swarm', col: '#ff8844', desc: 'Spread bullets curve toward targets' },
+            'shield+magnet': { name: 'Aegis', col: '#88aaff', desc: 'Shield reflects bullets + pulls powerups' },
+            'laser+timeslow': { name: 'Chrono-Beam', col: '#cc88ff', desc: 'Laser slows hit enemies' },
+            'drone+ricochet': { name: 'Bouncer', col: '#66ffaa', desc: 'Drone bullets bounce off walls' }
+        };
     const COMBO_TIMEOUT = 2000;
     const COMBO_THRESH = [2, 3, 5, 8, 10, 15, 20];
     const COMBO_MULT = [1, 2, 4, 4, 8, 8, 16, 16];
     const COMBO_TEXT = ['', 'DOUBLE KILL', 'TRIPLE KILL', 'RAMPAGE', 'UNSTOPPABLE', 'GODLIKE', 'LEGENDARY', 'BEYOND'];
+    // NEW: Attack pattern library for bullet-hell elements
+    const ATTACK_PATTERNS = {
+        spiral: function(e, count, speed, spread, ebSpd) {
+            const a0 = (e.shootPh || 0) + Math.PI / 3;
+            e.shootPh = a0;
+            const bullets = [];
+            for (let i = 0; i < count; i++) {
+                const a = a0 + i * (Math.PI * 2 / count);
+                bullets.push({ x: e.x, y: e.y + 8, w: 2, h: 4, vx: Math.cos(a) * ebSpd * speed, vy: Math.sin(a) * ebSpd * speed, kind: 'spiral' });
+            }
+            return bullets;
+        },
+        circle: function(e, count, speed, ebSpd) {
+            const bullets = [];
+            for (let i = 0; i < count; i++) {
+                const a = (i / count) * Math.PI * 2;
+                bullets.push({ x: e.x, y: e.y + 8, w: 2, h: 4, vx: Math.cos(a) * ebSpd * speed, vy: Math.sin(a) * ebSpd * speed, kind: 'spiral' });
+            }
+            return bullets;
+        },
+        wave: function(e, count, speed, amplitude, ebSpd) {
+            const bullets = [];
+            for (let i = 0; i < count; i++) {
+                const a = -Math.PI / 2 + (i - count / 2) * amplitude;
+                bullets.push({ x: e.x, y: e.y + 8, w: 2, h: 4, vx: Math.cos(a) * ebSpd * speed * 0.3, vy: Math.sin(a) * ebSpd * speed, kind: 'spiral' });
+            }
+            return bullets;
+        },
+        aimed_burst: function(e, count, speed, delay, ebSpd, targetX, targetY) {
+            const dx = targetX - e.x, dy = targetY - e.y, dist = Math.hypot(dx, dy) || 1;
+            const baseA = Math.atan2(dy, dx);
+            const bullets = [];
+            for (let i = 0; i < count; i++) {
+                const a = baseA + (i - count / 2) * 0.15;
+                bullets.push({ x: e.x, y: e.y + 8, w: 2, h: 5, vx: Math.cos(a) * ebSpd * speed, vy: Math.sin(a) * ebSpd * speed, kind: 'hunter' });
+            }
+            return bullets;
+        },
+        random_spread: function(e, count, speed, angle, ebSpd) {
+            const bullets = [];
+            for (let i = 0; i < count; i++) {
+                const a = -Math.PI / 2 + (Math.random() - 0.5) * angle;
+                bullets.push({ x: e.x, y: e.y + 8, w: 2, h: 6, vx: Math.cos(a) * ebSpd * speed, vy: Math.sin(a) * ebSpd * speed });
+            }
+            return bullets;
+        },
+        wall: function(e, rows, cols, speed, ebSpd) {
+            const bullets = [];
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    bullets.push({ x: e.x + (c - cols / 2) * 14, y: e.y + 8 + r * 10, w: 2, h: 4, vx: 0, vy: ebSpd * speed });
+                }
+            }
+            return bullets;
+        }
+    };
+    // NEW: Stage modifiers (roulette) — random modifier per stage from stage 5+
+    const STAGE_MODIFIERS = [
+        { id: 'double_score', name: 'Double Score', desc: 'All points x2', col: '#ffcc00', apply: function(G) { G.scoreMult = 2; } },
+        { id: 'glass_cannon', name: 'Glass Cannon', desc: 'Everyone has 1 HP', col: '#ff4444', apply: function(G) { G.glassCannon = true; } },
+        { id: 'bullet_storm', name: 'Bullet Storm', desc: '2x enemy fire rate', col: '#ff8800', apply: function(G) { G.bulletStorm = true; } },
+        { id: 'power_surge', name: 'Power Surge', desc: '3x powerup drops', col: '#44ff88', apply: function(G) { G.powerSurge = true; } },
+        { id: 'darkness', name: 'Darkness', desc: 'Reduced visibility', col: '#444466', apply: function(G) { G.darkness = true; } },
+        { id: 'turbo', name: 'Turbo', desc: '1.5x speed everything', col: '#44aaff', apply: function(G) { G.turbo = true; G.timeScale = 1.5; } }
+    ];
+    // NEW: Enemy type definitions for new enemy types
+    const NEW_ENEMY_TYPES = {
+        weaver: { name: 'Weaver', stageMin: 7, hp: 1, pts: [130, 260], col: '#ff8844', desc: 'Moves in sine wave, shoots in direction' },
+        splitter: { name: 'Splitter', stageMin: 8, hp: 2, pts: [140, 280], col: '#88ff44', desc: 'Splits into 2 mini enemies on death' },
+        shield_bee: { name: 'Shield Bee', stageMin: 4, hp: 2, pts: [70, 140], col: '#ffcc00', desc: 'Bee with 1 extra shield HP' },
+        kamikaze: { name: 'Kamikaze', stageMin: 6, hp: 1, pts: [150, 300], col: '#ff2222', desc: 'Charges at player, explodes on contact' },
+        carrier: { name: 'Carrier', stageMin: 9, hp: 3, pts: [200, 400], col: '#cc88ff', desc: 'Releases 3 bees on death' },
+        teleporter: { name: 'Teleporter', stageMin: 10, hp: 2, pts: [160, 320], col: '#44ffff', desc: 'Teleports every 2s to random position' }
+    };
     const ACHIEVEMENTS = {
         first_blood: { name: 'First Blood', desc: 'Kill your first enemy' },
         combo_king: { name: 'Combo King', desc: 'Reach 15 combo' },
@@ -23,7 +113,28 @@ const PU_TYPES = ['rapid', 'spread', 'shield', 'bomb', 'speed', 'magnet', 'laser
         perfectionist: { name: 'Perfectionist', desc: 'Get 3 perfect challenge stages' },
         power_collector: { name: 'Power Collector', desc: 'Collect all powerup types in one run' },
         speed_demon: { name: 'Speed Demon', desc: 'Complete a stage in under 30 seconds' },
-        boss_slayer: { name: 'Boss Slayer', desc: 'Defeat 10 bosses total' }
+        boss_slayer: { name: 'Boss Slayer', desc: 'Defeat 10 bosses total' },
+        // NEW Phase 3 achievements
+        millionaire: { name: 'Millionaire', desc: 'Score 1,000,000 points' },
+        no_powerups: { name: 'Purist', desc: 'Reach stage 10 without collecting any powerup' },
+        one_life: { name: 'Iron Man', desc: 'Reach stage 5 starting with 1 life' },
+        bullet_hell: { name: 'Bullet Hell', desc: 'Have 100+ enemy bullets on screen at once' },
+        boss_rusher: { name: 'Boss Rusher', desc: 'Reach stage 10 in Boss Rush mode' },
+        collector: { name: 'Collector', desc: 'Collect all 17 powerup types in a single run' },
+        speedrun: { name: 'Speedrunner', desc: 'Complete stages 1-5 in under 2 minutes' },
+        pacifist: { name: 'Pacifist', desc: 'Clear a stage without firing (drones/blackhole only)' },
+        overcharge: { name: 'Overcharged', desc: 'Use Overcharge 5 times in one run' },
+        shopaholic: { name: 'Shopaholic', desc: 'Visit the shop 10 times' },
+        daily_warrior: { name: 'Daily Warrior', desc: 'Complete 7 daily challenges' },
+        flawless_boss: { name: 'Flawless', desc: 'Defeat a boss without taking damage' },
+        combo_god: { name: 'Combo God', desc: 'Reach 30 combo' },
+        weapon_master: { name: 'Weapon Master', desc: 'Reach weapon level 4' },
+        ship_collector: { name: 'Fleet Commander', desc: 'Reach stage 10 with all 4 ship types' },
+        no_damage_run: { name: 'Untouchable II', desc: 'Complete 3 stages in a row without damage' },
+        black_hole_master: { name: 'Singularity', desc: 'Kill 20 enemies with one Black Hole Bomb' },
+        freeze_frame: { name: 'Cryo Master', desc: 'Kill 50 enemies while they are frozen' },
+        ricochet_master: { name: 'Trick Shot', desc: 'Kill 30 enemies with ricochet bullets' },
+        supernova_survivor: { name: 'Supernova Survivor', desc: 'Survive an enemy-triggered Supernova' }
     };
     const SHIP_TYPES = {
         classic: { name: 'Classic', speedMult: 1, lifeMod: 0, hitboxMod: 0, invMult: 1, diveTargetMod: 1 },
@@ -111,6 +222,15 @@ const PU_TYPES = ['rapid', 'spread', 'shield', 'bomb', 'speed', 'magnet', 'laser
             introTmr: 0, stageEmptyT: 0, stageClearLock: 0,
             beatPhase: 0, beatT: 0, plasmaRings: [], titleParts: [], drones: [], droneTimer: 0,
             blackhole: null,
+            // NEW Phase 2-3 state fields
+            overcharge: 0, overchargeTimer: 0, scoreMult: 1, glassCannon: false, bulletStorm: false,
+            powerSurge: false, darkness: false, turbo: false, stageModifier: null,
+            credits: parseInt(localStorage.getItem('galaxa_credits') || '0'), shopOpen: false,
+            noDamageStages: 0, pacifistStage: true, frozenKills: 0, ricochetKills: 0,
+            blackholeKills: 0, dailyStreak: parseInt(localStorage.getItem('galaxa_daily_streak') || '0'),
+            shipStageProgress: {}, transitionType: 0,
+            swipeT: 0, swipeDir: 1, portalT: 0, portalR: 0, glitchT: 0, glitchStrips: [],
+            _closeCallCooldown: 0, _synergyChecked: null, shieldReflect: false, laserSlow: false, droneRicochet: false,
             inp: { l: false, r: false, f: false, fp: false, s: false, sp: false, p: false, pp: false, u: false, d: false, rp: false, lp: false, up: false, dp: false },
             kb: { l: false, r: false, u: false, d: false, f: false, s: false, p: false },
             gp: { l: false, r: false, u: false, d: false, f: false, s: false, p: false },
@@ -419,8 +539,9 @@ themes: {
             }
         };
 
-        const PTS = { bee: [50, 100], butterfly: [80, 160], boss: [400, 800], miniboss: [600, 1200], stalker: [120, 240], sniper: [100, 200], hunter: [200, 400], spinner: [90, 180], bomber: [110, 220], lasher: [80, 160] };
+        const PTS = { bee: [50, 100], butterfly: [80, 160], boss: [400, 800], miniboss: [600, 1200], stalker: [120, 240], sniper: [100, 200], hunter: [200, 400], spinner: [90, 180], bomber: [110, 220], lasher: [80, 160], weaver: [130, 260], splitter: [140, 280], shield_bee: [70, 140], kamikaze: [150, 300], carrier: [200, 400], teleporter: [160, 320] };
         const SP = buildSprites();
+        SP.shield_bee = SP.bee; // Reuse bee sprite for shield bee
         const STARS = [];
         const STAR_COLS = ['#ffffff', '#ffeecc', '#ccddff', '#ffcccc', '#ccffcc'];
         for (let i = 0; i < 60; i++) STARS.push({ x: Math.random() * W, y: Math.random() * H, sp: 10 + Math.random() * 20, br: 0.15 + Math.random() * 0.3, sz: 1, layer: 0, col: STAR_COLS[Math.floor(Math.random() * STAR_COLS.length)] });
@@ -705,6 +826,114 @@ themes: {
                     ].join('\n'))
                 ],
                 lasherC: { 4: '#44ff88', 5: '#00cc66', 6: '#aaffcc' },
+                // NEW: Enemy type sprites (reuse existing shapes with new colors)
+                weaver: [
+                    p([
+                        '00000000880000000000', '00000008898000000000', '00000088998800000000', '00000889999880000000',
+                        '00008899999888000000', '00088999999988000000', '00889999999998800000', '08889999999998880000',
+                        '00889999999998800000', '00088999999988000000', '00008899999888000000', '00000889999880000000',
+                        '00000088998800000000', '00000008898000000000', '00000000880000000000', '00000000000000000000'
+                    ].join('\n')),
+                    p([
+                        '00000000880000000000', '00000008898000000000', '00000088998800000000', '00000889999880000000',
+                        '00008899999888000000', '00088999999988000000', '00889999999998800000', '08889999999998880000',
+                        '00889999999998800000', '00088999999988000000', '00008899999888000000', '00000889999880000000',
+                        '00000088998800000000', '00000008898000000000', '00000000880000000000', '00000000000000000000'
+                    ].join('\n')),
+                    p([
+                        '00000000880000000000', '00000008898000000000', '00000088998800000000', '00000889999880000000',
+                        '00008899999888000000', '00088999999988000000', '00889999999998800000', '08889999999998880000',
+                        '00889999999998800000', '00088999999988000000', '00008899999888000000', '00000889999880000000',
+                        '00000088998800000000', '00000008898000000000', '00000000880000000000', '00000000000000000000'
+                    ].join('\n'))
+                ],
+                weaverC: { 8: '#ff8844', 9: '#ffaa66' },
+                splitter: [
+                    p([
+                        '00000000660000000000', '00000006666000000000', '00000066776600000000', '00000667776600000000',
+                        '00066666666666000000', '00666666666666600000', '06666666666666660000', '66666666666666666600',
+                        '06666666666666660000', '00666666666666600000', '00066666666666000000', '00000667776600000000',
+                        '00000066776600000000', '00000006666000000000', '00000000660000000000', '00000000000000000000'
+                    ].join('\n')),
+                    p([
+                        '00000000660000000000', '00000006666000000000', '00000066776600000000', '00000667776600000000',
+                        '00066666666666000000', '00666666666666600000', '06666666666666660000', '66666666666666666600',
+                        '06666666666666660000', '00666666666666600000', '00066666666666000000', '00000667776600000000',
+                        '00000066776600000000', '00000006666000000000', '00000000660000000000', '00000000000000000000'
+                    ].join('\n')),
+                    p([
+                        '00000000660000000000', '00000006666000000000', '00000066776600000000', '00000667776600000000',
+                        '00066666666666000000', '00666666666666600000', '06666666666666660000', '66666666666666666600',
+                        '06666666666666660000', '00666666666666600000', '00066666666666000000', '00000667776600000000',
+                        '00000066776600000000', '00000006666000000000', '00000000660000000000', '00000000000000000000'
+                    ].join('\n'))
+                ],
+                splitterC: { 6: '#88ff44', 7: '#aaff66' },
+                shield_bee: null, // Will be set after SP is built
+                shield_beeC: { 4: '#ffcc00', 5: '#ffaa00', 6: '#ff4444' },
+                kamikaze: [
+                    p([
+                        '00000000440000000000', '00000004454000000000', '00000044554400000000', '00000445554400000000',
+                        '00004455554400000000', '00044555554400000000', '00445555554400000000', '00445555554400000000',
+                        '00044555554400000000', '00004455554400000000', '00000445554400000000', '00000044554400000000',
+                        '00000004454000000000', '00000000440000000000', '00000000000000000000', '00000000000000000000'
+                    ].join('\n')),
+                    p([
+                        '00000000440000000000', '00000004454000000000', '00000044554400000000', '00000445554400000000',
+                        '00004455554400000000', '00044555554400000000', '00445555554400000000', '00445555554400000000',
+                        '00044555554400000000', '00004455554400000000', '00000445554400000000', '00000044554400000000',
+                        '00000004454000000000', '00000000440000000000', '00000000000000000000', '00000000000000000000'
+                    ].join('\n')),
+                    p([
+                        '00000000440000000000', '00000004454000000000', '00000044554400000000', '00000445554400000000',
+                        '00004455554400000000', '00044555554400000000', '00445555554400000000', '00445555554400000000',
+                        '00044555554400000000', '00004455554400000000', '00000445554400000000', '00000044554400000000',
+                        '00000004454000000000', '00000000440000000000', '00000000000000000000', '00000000000000000000'
+                    ].join('\n'))
+                ],
+                kamikazeC: { 4: '#ff2222', 5: '#ff4444' },
+                carrier: [
+                    p([
+                        '00000000888800000000', '00000008899880000000', '00000088999aa8800000', '00000889999aa9880000',
+                        '00088999999aaa988000', '00889999999aaaa98800', '08889999999aaaa98880', '88889999999aaaa98888',
+                        '08889999999aaaa98880', '00889999999aaa988000', '0008899999aaa9880000', '000008899aa988000000',
+                        '00000088998800000000', '00000008898000000000', '00000000888000000000', '00000000000000000000'
+                    ].join('\n')),
+                    p([
+                        '00000000888800000000', '00000008899880000000', '00000088999aa8800000', '00000889999aa9880000',
+                        '00088999999aaa988000', '00889999999aaaa98800', '08889999999aaaa98880', '88889999999aaaa98888',
+                        '08889999999aaaa98880', '00889999999aaa988000', '0008899999aaa9880000', '000008899aa988000000',
+                        '00000088998800000000', '00000008898000000000', '00000000888000000000', '00000000000000000000'
+                    ].join('\n')),
+                    p([
+                        '00000000888800000000', '00000008899880000000', '00000088999aa8800000', '00000889999aa9880000',
+                        '00088999999aaa988000', '00889999999aaaa98800', '08889999999aaaa98880', '88889999999aaaa98888',
+                        '08889999999aaaa98880', '00889999999aaa988000', '0008899999aaa9880000', '000008899aa988000000',
+                        '00000088998800000000', '00000008898000000000', '00000000888000000000', '00000000000000000000'
+                    ].join('\n'))
+                ],
+                carrierC: { 8: '#cc88ff', 9: '#ddaaff', a: '#eeccff' },
+                teleporter: [
+                    p([
+                        '00000000660000000000', '00000006666000000000', '00000066776600000000', '00000667776600000000',
+                        '00006667676660000000', '00066666666666000000', '00666666666666600000', '60666666666666060000',
+                        '66006666666666000060', '00006666666660000000', '00000066660000000000', '00000060060000000000',
+                        '00000060060000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
+                    ].join('\n')),
+                    p([
+                        '00000000660000000000', '00000006666000000000', '00000066776600000000', '00000667776600000000',
+                        '00006667676660000000', '00066666666666000000', '00666666666666600000', '60666666666666060000',
+                        '66006666666666000060', '00006666666660000000', '00000066660000000000', '00000060060000000000',
+                        '00000060060000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
+                    ].join('\n')),
+                    p([
+                        '00000000660000000000', '00000006666000000000', '00000066776600000000', '00000667776600000000',
+                        '00006667676660000000', '00066666666666000000', '00666666666666600000', '60666666666666060000',
+                        '66006666666666000060', '00006666666660000000', '00000066660000000000', '00000060060000000000',
+                        '00000060060000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
+                    ].join('\n'))
+                ],
+                teleporterC: { 6: '#44ffff', 7: '#66ffff' },
                 bossRedC: { 8: '#cc2222', 9: '#ff4444', a: '#ff6666', b: '#ffaa44', c: '#ffcc00' },
                 bossBlueC: { 8: '#2244cc', 9: '#4488ff', a: '#66aaff', b: '#88ccff', c: '#aaeeff' },
                 boss: p([
@@ -1022,11 +1251,17 @@ themes: {
             function pushEnemy(type, r, col, fx, fy, hp) {
                 const side = idx % 2 === 0 ? -1 : 1;
                 const diveDelay = G.chal ? (800 + idx * 200) : (1000 + Math.random() * 3000 + idx * 50);
-                G.enemies.push({ type, r, col, x: W / 2 + side * (120 + Math.random() * 80), y: -30 - (idx % 8) * 20,
+                const enemy = { type, r, col, x: W / 2 + side * (120 + Math.random() * 80), y: -30 - (idx % 8) * 20,
                     fx, fy, hp, maxHp: hp, st: 'ENTER', eTmr: 500 + idx * 80 + r * 100,
                     fr: 0, frT: 0, dTmr: diveDelay / diffMod('diveRate'), dPath: null,
                     sTmr: (type === 'spinner' || type === 'bomber' || type === 'lasher') ? 800 + Math.random() * 1200 : 0,
-                    shootPh: 0, hasCap: false, hitF: 0, elite: type === 'hunter' });
+                    shootPh: 0, hasCap: false, hitF: 0, elite: type === 'hunter',
+                    // NEW: Boss phase system
+                    bossPhase: (type === 'boss' || type === 'miniboss') ? 1 : 0,
+                    bossPhaseTransition: 0, bossPhaseHP: [0.6, 0.3, 0],
+                    // NEW: Sprite animation system
+                    animFrame: 0, animTimer: 0, animSpeed: 120, animFrames: 3 };
+                G.enemies.push(enemy);
                 idx++;
             }
 
@@ -1117,6 +1352,25 @@ themes: {
                 if (G.stage >= 5 && Math.random() < 0.28) {
                     pushEnemy('lasher', 0, 2, W / 2 + (Math.random() - 0.5) * 70, FTOP, 1);
                 }
+                // NEW: Additional enemy types at higher stages
+                if (G.stage >= 4 && Math.random() < 0.2) {
+                    pushEnemy('shield_bee', 1, 4, W / 2 + (Math.random() - 0.5) * 100, FTOP + ESP_Y, 2);
+                }
+                if (G.stage >= 6 && Math.random() < 0.18) {
+                    pushEnemy('kamikaze', 0, 2, W / 2 + (Math.random() - 0.5) * 80, FTOP, 1);
+                }
+                if (G.stage >= 7 && Math.random() < 0.22) {
+                    pushEnemy('weaver', 1, 5, W / 2 + (Math.random() - 0.5) * 120, FTOP + ESP_Y, 1);
+                }
+                if (G.stage >= 8 && Math.random() < 0.16) {
+                    pushEnemy('splitter', 2, 3, W / 2 + (Math.random() - 0.5) * 100, FTOP + ESP_Y * 2, 2);
+                }
+                if (G.stage >= 9 && Math.random() < 0.14) {
+                    pushEnemy('carrier', 0, 4, W / 2 + (Math.random() - 0.5) * 90, FTOP, 3);
+                }
+                if (G.stage >= 10 && Math.random() < 0.12) {
+                    pushEnemy('teleporter', 1, 6, W / 2 + (Math.random() - 0.5) * 110, FTOP + ESP_Y, 2);
+                }
             }
             G.chalTot = G.enemies.length;
             G.dTmr = (2000 - Math.min(G.stage * 100, 1200)) / diffMod('diveRate');
@@ -1129,10 +1383,16 @@ themes: {
             if (G.stageClearLock > 0 || G.st === 'STAGE_INTRO' || G.st === 'GAME_OVER') return;
             G.stageClearLock = 600;
             G.stageEmptyT = 0;
-            G.warpT = 1500; G.warpFlash = 50;
+            // NEW: Random transition type (0=warp, 1=swipe, 2=portal, 3=glitch)
+            G.transitionType = Math.floor(Math.random() * 4);
+            if (G.transitionType === 0) { G.warpT = 1500; G.warpFlash = 50; }
+            else if (G.transitionType === 1) { G.swipeT = 1200; G.swipeDir = Math.random() > 0.5 ? 1 : -1; }
+            else if (G.transitionType === 2) { G.portalT = 1400; G.portalR = 0; }
+            else { G.glitchT = 1000; G.glitchStrips = []; for (let _gi = 0; _gi < 12; _gi++) G.glitchStrips.push({ y: _gi * (H / 12), offset: 0, targetOffset: (Math.random() - 0.5) * 60 }); }
             G.stage++;
             if (G.stage >= 10) unlockAchievement('survivor');
             if (G.stage >= 20) unlockAchievement('legend');
+            if (G.score >= 1000000) unlockAchievement('millionaire');
             const stageTime = (performance.now ? performance.now() : Date.now()) - G.stageStartTime;
             if (stageTime < 30000 && G.stage > 2) unlockAchievement('speed_demon');
             SFX.warpJump();
@@ -1157,6 +1417,11 @@ themes: {
             G.trails = []; G.timeScale = 1; G.timeSlowTimer = 0; G.freezeT = 0; G.damageVignetteT = 0;
             G.bossWarningT = 0; G.bossWarningShown = false;
             G.weaponLv = Math.max(1, G.weaponLv); G.puUpgrade = null; G.upgradeBanner = null; G.killCount = 0; G.slowMoT = 0;
+            // NEW: Reset new state fields
+            G.swipeT = 0; G.portalT = 0; G.glitchT = 0; G.glitchStrips = [];
+            G._closeCallCooldown = 0; G._synergyChecked = null; G.shieldReflect = false; G.laserSlow = false; G.droneRicochet = false;
+            G.scoreMult = 1; G.glassCannon = false; G.bulletStorm = false; G.powerSurge = false; G.darkness = false; G.turbo = false;
+            G.pacifistStage = true; G.overcharge = 0; G.overchargeTimer = 0;
             G.p.x = W / 2; G.p.alive = true; G.p.inv = 2000; G.p.cap = null; G.p.dual = false; G.p.reviveTimer = 0;
             G.stageEmptyT = 0;
             setPUClass(null);
@@ -1236,7 +1501,7 @@ themes: {
             SFX.shoot(G.p.x); G.muzzleT = 50;
         }
 
-        function boom(x, y, isBoss) {
+        function boom(x, y, isBoss, enemyType) {
             const dur = isBoss ? 900 : 450;
             const pCount = isBoss ? 50 : 20;
             const sparkCount = isBoss ? 24 : 10;
@@ -1246,12 +1511,53 @@ themes: {
             G.exp.push({ x, y, t: 0, dur, seed: Math.random(), isBoss });
             if (isBoss) { G.exp.push({ x, y, t: 0, dur: 700, seed: Math.random(), isBoss: false, shockwave: true }); G.exp.push({ x, y, t: 0, dur: 180, seed: Math.random(), isBoss: false, flash: true }); }
             else { G.exp.push({ x, y, t: 0, dur: 100, seed: Math.random(), isBoss: false, flash: true }); G.exp.push({ x, y, t: 0, dur: 300, seed: Math.random(), isBoss: false, shockwave: true }); }
-            const fireCols = ['#ffcc00', '#ff4444', '#ff8800', '#fff', '#ffee88', '#ff6622', '#ffaa00'];
+            // NEW: Per-enemy-type death animation colors
+            const typeCols = {
+                bee: ['#ffcc00', '#ffaa00', '#ffee88', '#fff'],
+                butterfly: ['#ff3366', '#ff6688', '#ff88aa', '#fff'],
+                stalker: ['#6622aa', '#8844cc', '#aa66ee', '#fff'],
+                sniper: ['#ffcc00', '#ffaa00', '#ffff44', '#fff'],
+                hunter: ['#ff6600', '#ff8844', '#ffaa00', '#fff'],
+                spinner: ['#00cccc', '#44ffff', '#88ffff', '#fff'],
+                bomber: ['#aa44cc', '#cc66ff', '#ff44aa', '#fff'],
+                lasher: ['#44ff88', '#00cc66', '#aaffcc', '#fff'],
+                weaver: ['#ff8844', '#ffaa66', '#ffcc88', '#fff'],
+                splitter: ['#88ff44', '#aaff66', '#ccff88', '#fff'],
+                shield_bee: ['#ffcc00', '#ffdd44', '#ffee88', '#fff'],
+                kamikaze: ['#ff2222', '#ff4444', '#ff6666', '#fff'],
+                carrier: ['#cc88ff', '#ddaaff', '#eeccff', '#fff'],
+                teleporter: ['#44ffff', '#66ffff', '#88ffff', '#fff']
+            };
+            const fireCols = (enemyType && typeCols[enemyType]) ? typeCols[enemyType] : ['#ffcc00', '#ff4444', '#ff8800', '#fff', '#ffee88', '#ff6622', '#ffaa00'];
             for (let i = 0; i < pCount; i++) {
                 const a = (i / pCount) * Math.PI * 2 + Math.random() * 0.8, sp = 60 + (i * 23 % 160) * (isBoss ? 2 : 1.2);
                 const cols = fireCols[i % fireCols.length];
                 const sz = i % 4 === 0 ? 4 : i % 3 === 0 ? 3 : 2;
                 G.part.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: (280 + (i * 41 % 280)) * (isBoss ? 1.6 : 1.1), t: 0, col: cols, size: sz });
+            }
+            // NEW: Type-specific death effects
+            if (enemyType === 'bee') {
+                for (let i = 0; i < 6; i++) { const a = Math.random() * Math.PI * 2; G.part.push({ x, y, vx: Math.cos(a) * 30, vy: Math.sin(a) * 30 - 20, life: 400, t: 0, col: '#ffcc00', size: 2, spark: true }); }
+            } else if (enemyType === 'butterfly') {
+                for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; G.part.push({ x, y, vx: Math.cos(a) * 50, vy: Math.sin(a) * 50, life: 300, t: 0, col: '#ff3366', size: 1, spark: true }); }
+            } else if (enemyType === 'stalker') {
+                G.exp.push({ x, y, t: 0, dur: 400, seed: Math.random(), isBoss: false, implosion: true, col: '#8844cc' });
+            } else if (enemyType === 'hunter') {
+                for (let i = 0; i < 10; i++) { const a = Math.random() * Math.PI * 2; G.part.push({ x, y, vx: Math.cos(a) * 70, vy: Math.sin(a) * 70, life: 350, t: 0, col: '#ff6600', size: 3, debris: true, rot: Math.random() * 6.28 }); }
+            } else if (enemyType === 'spinner') {
+                G.plasmaRings.push({ x, y, r: 0, maxR: 40, t: 0, dur: 300, col: '#44ffff' });
+            } else if (enemyType === 'bomber') {
+                for (let i = 0; i < 3; i++) { G.pendingBooms.push({ x: x + (Math.random() - 0.5) * 30, y: y + (Math.random() - 0.5) * 20, isBoss: false, delay: i * 80 }); }
+            } else if (enemyType === 'lasher') {
+                G.flashT = Math.max(G.flashT, 50);
+                for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; G.part.push({ x, y, vx: Math.cos(a) * 60, vy: Math.sin(a) * 60, life: 200, t: 0, col: '#44ff88', size: 2, spark: true }); }
+            } else if (enemyType === 'kamikaze') {
+                G.shkT = Math.max(G.shkT, 300); G.shkM = Math.max(G.shkM, 5);
+                G.exp.push({ x, y, t: 0, dur: 300, seed: Math.random(), isBoss: false, flash: true });
+            } else if (enemyType === 'carrier') {
+                for (let i = 0; i < 3; i++) { G.pendingBooms.push({ x: x + (Math.random() - 0.5) * 40, y: y + (Math.random() - 0.5) * 30, isBoss: false, delay: i * 150 }); }
+            } else if (enemyType === 'teleporter') {
+                for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; G.part.push({ x, y, vx: Math.cos(a) * 80, vy: Math.sin(a) * 80, life: 250, t: 0, col: '#44ffff', size: 1, spark: true }); }
             }
             for (let i = 0; i < sparkCount; i++) {
                 const a = Math.random() * Math.PI * 2, sp = 90 + Math.random() * 150;
@@ -1291,7 +1597,7 @@ themes: {
 
         function addScore(pts, x, y, col) {
             const prev = G.score;
-            const multiplied = pts * G.comboMult;
+            const multiplied = pts * G.comboMult * (G.scoreMult || 1);
             G.score += multiplied;
             if (G.score > G.hi) G.hi = G.score;
             const text = G.comboMult > 1 ? '+' + multiplied + ' x' + G.comboMult : '+' + multiplied;
@@ -1323,11 +1629,24 @@ themes: {
         function hit(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
 
         function dropPU(e) {
-            const chance = e.type === 'miniboss' ? 1 : (e.type === 'boss' ? 0.35 : (e.type === 'bee' && !diffMod('puFromBee') ? 0 : 0.12));
+            let chance = e.type === 'miniboss' ? 1 : (e.type === 'boss' ? 0.35 : (e.type === 'bee' && !diffMod('puFromBee') ? 0 : 0.12));
+            // NEW: Power Surge modifier triples drop chance
+            if (G.powerSurge) chance *= 3;
             if (Math.random() < chance) {
-                let type = PU_TYPES[Math.floor(Math.random() * PU_TYPES.length)];
+                // NEW: Weighted rarity-based powerup selection
+                let type;
+                const roll = Math.random() * 100;
+                if (roll < PU_RARITY_WEIGHT.legendary) {
+                    type = PU_RARITY.legendary[Math.floor(Math.random() * PU_RARITY.legendary.length)];
+                } else if (roll < PU_RARITY_WEIGHT.legendary + PU_RARITY_WEIGHT.rare) {
+                    type = PU_RARITY.rare[Math.floor(Math.random() * PU_RARITY.rare.length)];
+                } else if (roll < PU_RARITY_WEIGHT.legendary + PU_RARITY_WEIGHT.rare + PU_RARITY_WEIGHT.uncommon) {
+                    type = PU_RARITY.uncommon[Math.floor(Math.random() * PU_RARITY.uncommon.length)];
+                } else {
+                    type = PU_RARITY.common[Math.floor(Math.random() * PU_RARITY.common.length)];
+                }
                 if (type === 'levelskip' && (e.type !== 'boss' && e.type !== 'miniboss')) type = 'rapid';
-                if (type === 'levelskip' && Math.random() > 0.05) type = PU_TYPES[Math.floor(Math.random() * (PU_TYPES.length - 1))];
+                if (type === 'levelskip' && Math.random() > 0.05) type = PU_RARITY.legendary[Math.floor(Math.random() * (PU_RARITY.legendary.length - 1))];
                 G.powerups.push({ x: e.x, y: e.y, type, t: 0 });
             }
         }
@@ -1336,12 +1655,12 @@ themes: {
             if (pu.type === 'bomb' || pu.type === 'multibomb') {
                 SFX.bomb(pu.x);
                 const bonus = pu.type === 'multibomb' ? 500 : 0;
-                for (const e of G.enemies) { if (e.st !== 'DEAD') { addScore(PTS[e.type][0] + bonus, e.x, e.y, PU_COL[pu.type]); boom(e.x, e.y, e.type === 'boss'); e.st = 'DEAD'; } }
+                for (const e of G.enemies) { if (e.st !== 'DEAD') { addScore(PTS[e.type][0] + bonus, e.x, e.y, PU_COL[pu.type]); boom(e.x, e.y, e.type === 'boss', e.type); e.st = 'DEAD'; } }
                 G.flashT = 100; G.activePU = null; G.puTimer = 0; setPUClass(null); return;
             }
             if (pu.type === 'supernova') {
                 SFX.supernova(pu.x);
-                for (const e of G.enemies) { if (e.st !== 'DEAD') { addScore(PTS[e.type][0] + 1000, e.x, e.y, '#fff'); boom(e.x, e.y, e.type === 'boss'); e.st = 'DEAD'; } }
+                for (const e of G.enemies) { if (e.st !== 'DEAD') { addScore(PTS[e.type][0] + 1000, e.x, e.y, '#fff'); boom(e.x, e.y, e.type === 'boss', e.type); e.st = 'DEAD'; } }
                 for (let i = G.ebul.length - 1; i >= 0; i--) { bulletImpact(G.ebul[i].x, G.ebul[i].y, '#fff'); }
                 G.ebul = []; G.flashT = 200; G.activePU = null; G.puTimer = 0; setPUClass(null);
                 G.shkT = 500; G.shkM = 8;
@@ -1426,7 +1745,7 @@ themes: {
         function killP() {
             if (!G.p.alive) return;
             if (G.shieldHits > 0) { G.shieldHits--; G.damageVignetteT = 300; if (G.shieldHits <= 0) { G.activePU = null; G.puTimer = 0; setPUClass(null); SFX.shieldBreak(); } else SFX.shieldHit(); return; }
-G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM = 4; G.lives--;
+G.p.alive = false; boom(G.p.x, G.p.y, false, 'player'); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM = 4; G.lives--;
             wrapEl.classList.add('galaxa-desaturate'); setTimeout(() => { if (!state.disposed) wrapEl.classList.remove('galaxa-desaturate'); }, 800);
             G.flashT = 50; G.chromAb = 300; G.damageVignetteT = 800; G.activePU = null; G.shieldHits = 0; G.timeScale = 1; G.timeSlowTimer = 0; G.puUpgrade = null;
             G.weaponLv = Math.max(1, G.weaponLv - 1);
@@ -1494,7 +1813,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                     for (const e of G.enemies) {
                         if (e.st === 'DEAD') continue;
                         const dist = Math.hypot(e.x - G.blackhole.x, e.y - G.blackhole.y);
-                        if (dist < 120) { addScore(PTS[e.type] ? PTS[e.type][0] : 100, e.x, e.y, '#8844ff'); boom(e.x, e.y, e.type === 'boss' || e.type === 'miniboss'); e.st = 'DEAD'; }
+                        if (dist < 120) { addScore(PTS[e.type] ? PTS[e.type][0] : 100, e.x, e.y, '#8844ff'); boom(e.x, e.y, e.type === 'boss' || e.type === 'miniboss', e.type); e.st = 'DEAD'; }
                     }
                     G.flashT = 150; G.shkT = 400; G.shkM = 6;
                     G.blackhole = null;
@@ -1515,6 +1834,37 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                     const dx = G.p.x - pu.x, dy = G.p.y - pu.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     if (dist < 80 && dist > 5) { pu.x += dx / dist * 120 * dt; pu.y += dy / dist * 120 * dt; }
+                }
+            }
+            // NEW: Overcharge timer decay
+            if (G.overchargeTimer > 0) {
+                G.overchargeTimer -= dt * 1000;
+                if (G.overchargeTimer <= 0) { G.overcharge = 0; G.overchargeTimer = 0; }
+            }
+            // NEW: Powerup synergy detection
+            if (G.activePU && G.puUpgrade) {
+                const baseType = Object.keys(PU_UPGRADE).find(k => PU_UPGRADE[k] === G.activePU.type);
+                if (baseType) {
+                    for (const otherType of Object.keys(PU_SYNERGIES)) {
+                        const [t1, t2] = otherType.split('+');
+                        if ((baseType === t1 || baseType === t2) && G._synergyChecked !== otherType) {
+                            // Check if we have the other powerup's effect active
+                            const otherActive = (t1 === 'shield' && G.shieldHits > 0) ||
+                                (t2 === 'shield' && G.shieldHits > 0) ||
+                                (G.activePU && (G.activePU.type === t1 || G.activePU.type === t2 || G.activePU.type === PU_UPGRADE[t1] || G.activePU.type === PU_UPGRADE[t2]));
+                            if (otherActive && baseType !== (t1 === baseType ? t2 : t1)) {
+                                G._synergyChecked = otherType;
+                                const syn = PU_SYNERGIES[otherType];
+                                G.upgradeBanner = { text: 'SYNERGY: ' + syn.name, type: 'synergy', t: 0, dur: 2000 };
+                                G.scorePopups.push({ x: G.p.x, y: G.p.y - 30, text: syn.name + '!', t: 0, dur: 1500, col: syn.col, big: true });
+                                SFX.puUpgrade(G.p.x);
+                                // Apply synergy effects
+                                if (otherType === 'shield+magnet') G.shieldReflect = true;
+                                if (otherType === 'laser+timeslow') G.laserSlow = true;
+                                if (otherType === 'drone+ricochet') G.droneRicochet = true;
+                            }
+                        }
+                    }
                 }
             }
             if (G.p.alive) {
@@ -1542,6 +1892,20 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                 _pu.y += 60 * dt; _pu.t += dt * 1000;
                 if (_pu.y > H + 20) continue;
                 if (G.p.alive && hit({ x: _pu.x - 5, y: _pu.y - 5, w: 10, h: 10 }, { x: G.p.x - 6, y: G.p.y - 6, w: 12, h: 12 })) {
+                    // NEW: Overcharge — reject powerup by pressing down
+                    if (inp.d && _pu.type !== 'bomb' && _pu.type !== 'multibomb' && _pu.type !== 'supernova' && _pu.type !== 'levelskip') {
+                        G.overcharge++;
+                        G.overchargeTimer = 15000; // 15s to collect another
+                        if (G.overcharge >= 5) unlockAchievement('overcharge');
+                        // Visual feedback
+                        for (let _oi = 0; _oi < 8; _oi++) {
+                            const _oa = (_oi / 8) * Math.PI * 2;
+                            G.part.push({ x: _pu.x, y: _pu.y, vx: Math.cos(_oa) * 40, vy: Math.sin(_oa) * 40 - 20, life: 300, t: 0, col: '#ffaa00', size: 2, spark: true });
+                        }
+                        G.scorePopups.push({ x: _pu.x, y: _pu.y - 10, text: 'OVERCHARGE ' + G.overcharge + '/3', t: 0, dur: 1200, col: '#ffaa00', big: false });
+                        SFX.puCollect(_pu.x);
+                        continue;
+                    }
                     collectPU(_pu); continue;
                 }
                 G.powerups[plw++] = _pu;
@@ -1585,10 +1949,25 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                             const pts = PTS[e.type] ? PTS[e.type][e.st === 'DIVING' ? 1 : 0] : 200;
                             registerKill();
                             addScore(pts, e.x, e.y, e.type === 'bee' ? '#ffcc00' : e.type === 'butterfly' ? '#ff3366' : '#44cc44');
-                            boom(e.x, e.y, e.type === 'boss' || e.type === 'miniboss'); SFX.eExplode(e.x); dropPU(e);
+                            boom(e.x, e.y, e.type === 'boss' || e.type === 'miniboss', e.type); SFX.eExplode(e.x); dropPU(e);
                             if (e.type === 'boss' || e.type === 'miniboss') { G.timeScale = 0.3; G.slowMoT = 1500; }
                             if (e.hasCap) G.p.cap = { x: e.x, y: e.y };
                             if (G.chal) G.chalHits++; e.st = 'DEAD';
+                            // NEW: Splitter splits into 2 mini enemies on death
+                            if (e.type === 'splitter') {
+                                for (let _si = 0; _si < 2; _si++) {
+                                    const sx = e.x + (_si === 0 ? -15 : 15);
+                                    const sy = e.y - 10;
+                                    G.enemies.push({ type: 'bee', r: 0, col: 0, x: sx, y: sy, fx: sx, fy: sy, hp: 1, maxHp: 1, st: 'DIVING', eTmr: 0, fr: 0, frT: 0, dTmr: 2000, dPath: { ph: 0, amp: 20, vx: (_si === 0 ? -40 : 40) }, sTmr: 500, shootPh: 0, hasCap: false, hitF: 0, elite: false, bossPhase: 0, bossPhaseTransition: 0, bossPhaseHP: [0,0,0], animFrame: 0, animTimer: 0, animSpeed: 120, animFrames: 4 });
+                                }
+                            }
+                            // NEW: Carrier releases 3 bees on death
+                            if (e.type === 'carrier') {
+                                for (let _ci = 0; _ci < 3; _ci++) {
+                                    const ca = (_ci / 3) * Math.PI * 2;
+                                    G.enemies.push({ type: 'bee', r: 0, col: 0, x: e.x, y: e.y, fx: e.x + Math.cos(ca) * 40, fy: e.y + Math.sin(ca) * 40, hp: 1, maxHp: 1, st: 'ENTER', eTmr: 300 + _ci * 100, fr: 0, frT: 0, dTmr: 1500, dPath: null, sTmr: 800, shootPh: 0, hasCap: false, hitF: 0, elite: false, bossPhase: 0, bossPhaseTransition: 0, bossPhaseHP: [0,0,0], animFrame: 0, animTimer: 0, animSpeed: 120, animFrames: 4 });
+                                }
+                            }
                             G.killCount++;
                             if (G.killCount === 1) unlockAchievement('first_blood');
                             if (e.type === 'boss' || e.type === 'miniboss') { G.bossKillTotal++; if (G.bossKillTotal >= 10) unlockAchievement('boss_slayer'); try { localStorage.setItem('galaxa_boss_kills', String(G.bossKillTotal)); } catch(e2) {} }
@@ -1627,6 +2006,17 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                 }
                 if (b.y > H + 14 || b.y < -14 || b.x < -14 || b.x > W + 14) continue;
                 if (G.p.alive && G.p.inv <= 0 && hit(b, { x: G.p.x - 6, y: G.p.y - 6, w: 12, h: 12 })) { killP(); continue; }
+                // NEW: Danger-close bonus — near miss detection
+                if (G.p.alive && G.p.inv <= 0 && !G._closeCallCooldown) {
+                    const _cdx = G.p.x - b.x, _cdy = G.p.y - b.y;
+                    const _cdist = Math.hypot(_cdx, _cdy);
+                    if (_cdist < 18 && _cdist > 8) {
+                        G._closeCallCooldown = 500;
+                        addScore(500, G.p.x, G.p.y - 10, '#ffaa00');
+                        G.scorePopups.push({ x: G.p.x, y: G.p.y - 20, text: 'CLOSE CALL!', t: 0, dur: 1000, col: '#ffaa00', big: true });
+                        SFX.closeCall(G.p.x);
+                    }
+                }
                 G.ebul[ew++] = b;
             }
             for (let i = origELen; i < G.ebul.length; i++) G.ebul[ew++] = G.ebul[i];
@@ -1637,6 +2027,31 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             if (G.chal || G.st !== 'PLAYING') return;
             const spd = EB_SPEED * diffMod('ebSpd');
             const px = e.x, py = e.y + 8;
+            // NEW: Boss phase-based attack patterns
+            if ((e.type === 'boss' || e.type === 'miniboss') && e.bossPhase) {
+                const ebSpd = spd;
+                switch (e.bossPhase) {
+                    case 1:
+                        G.ebul.push({ x: px, y: py, w: 2, h: 6 });
+                        if (G.stage >= 5) { G.ebul.push({ x: px - 8, y: py, w: 2, h: 6 }); G.ebul.push({ x: px + 8, y: py, w: 2, h: 6 }); }
+                        break;
+                    case 2:
+                        // Spread shot + aimed burst
+                        G.ebul.push(...ATTACK_PATTERNS.aimed_burst(e, 5, 0.55, 0, ebSpd, G.p.x, G.p.y));
+                        G.ebul.push(...ATTACK_PATTERNS.random_spread(e, 4, 0.4, 0.8, ebSpd));
+                        SFX.hunterShot(e.x);
+                        break;
+                    case 3:
+                        // Bullet hell: spiral + circle + wall
+                        G.ebul.push(...ATTACK_PATTERNS.spiral(e, 12, 0.35, 0, ebSpd));
+                        G.ebul.push(...ATTACK_PATTERNS.circle(e, 8, 0.3, ebSpd));
+                        if (Math.random() < 0.5) G.ebul.push(...ATTACK_PATTERNS.wall(e, 3, 5, 0.25, ebSpd));
+                        SFX.spinnerShot(e.x);
+                        G.shkT = Math.max(G.shkT, 200); G.shkM = Math.max(G.shkM, 3);
+                        break;
+                }
+                return;
+            }
             switch (e.type) {
                 case 'hunter':
                     if (!G.p.alive) break;
@@ -1661,6 +2076,27 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                       G.ebul.push({ x: px - 6, y: py, w: 3, h: 7, vx: (dx / dist) * spd * 0.4 + 28, vy: (dy / dist) * spd * 0.4, kind: 'plasma' });
                       G.ebul.push({ x: px + 6, y: py, w: 3, h: 7, vx: (dx / dist) * spd * 0.4 - 28, vy: (dy / dist) * spd * 0.4, kind: 'plasma' }); }
                     break;
+                // NEW: Enemy type firing patterns
+                case 'weaver':
+                    if (!G.p.alive) break;
+                    { const dx = G.p.x - px, dy = G.p.y - py, dist = Math.hypot(dx, dy) || 1;
+                      G.ebul.push({ x: px, y: py, w: 2, h: 5, vx: (dx / dist) * spd * 0.45, vy: (dy / dist) * spd * 0.45, kind: 'hunter' }); }
+                    break;
+                case 'splitter':
+                    G.ebul.push(...ATTACK_PATTERNS.random_spread(e, 5, 0.35, 0.6, spd));
+                    break;
+                case 'shield_bee':
+                    G.ebul.push({ x: px, y: py, w: 2, h: 6 });
+                    break;
+                case 'kamikaze':
+                    // Kamikaze doesn't shoot — it charges
+                    break;
+                case 'carrier':
+                    G.ebul.push(...ATTACK_PATTERNS.aimed_burst(e, 3, 0.4, 0, spd, G.p.x, G.p.y));
+                    break;
+                case 'teleporter':
+                    G.ebul.push(...ATTACK_PATTERNS.circle(e, 6, 0.3, spd));
+                    break;
                 case 'stalker':
                     G.ebul.push({ x: px, y: py, w: 2, h: 6 });
                     G.ebul.push({ x: px - 6, y: py - 2, w: 2, h: 6 });
@@ -1684,6 +2120,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
         function diveRateMult(e) {
             if (e.type === 'hunter') return 5;
             if (e.type === 'stalker') return 3;
+            if (e.type === 'kamikaze') return 4;
             return 1;
         }
 
@@ -1701,7 +2138,39 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             const eDt = dt * G.timeScale;
             const dtMs = eDt * 1000; G.fTmr += dt; G.fX = Math.sin(G.fTmr * 0.5) * 30;
             for (const e of G.enemies) {
-                if (e.st === 'DEAD') continue; e.frT += dtMs; if (e.frT > 300) { e.fr = 1 - e.fr; e.frT = 0; } if (e.hitF > 0) e.hitF -= dtMs;
+                if (e.st === 'DEAD') continue;
+                // NEW: Sprite animation system (replaces old fr/frT toggle)
+                e.animTimer += dtMs;
+                const maxFrames = e.animFrames || 3;
+                if (e.animTimer >= e.animSpeed) {
+                    e.animFrame = (e.animFrame + 1) % maxFrames;
+                    e.animTimer -= e.animSpeed;
+                }
+                // Keep old fr for backward compat in rendering (maps to animFrame)
+                e.fr = e.animFrame % maxFrames;
+                e.frT = e.animTimer;
+                if (e.hitF > 0) e.hitF -= dtMs;
+                // NEW: Boss phase transition
+                if ((e.type === 'boss' || e.type === 'miniboss') && e.bossPhase > 0 && e.bossPhase < 3 && e.bossPhaseTransition <= 0) {
+                    const hpRatio = e.hp / e.maxHp;
+                    if (hpRatio <= e.bossPhaseHP[e.bossPhase - 1]) {
+                        e.bossPhase++;
+                        e.bossPhaseTransition = 800;
+                        e.invulnerable = true;
+                        G.shkT = Math.max(G.shkT, 400); G.shkM = Math.max(G.shkM, 5);
+                        G.flashT = 100;
+                        SFX.bossWarning();
+                        // Spawn phase transition particles
+                        for (let _pi = 0; _pi < 20; _pi++) {
+                            const _pa = Math.random() * Math.PI * 2;
+                            G.part.push({ x: e.x, y: e.y, vx: Math.cos(_pa) * 80, vy: Math.sin(_pa) * 80, life: 400, t: 0, col: e.bossPhase === 2 ? '#ff8800' : '#ff4444', size: 2, spark: true });
+                        }
+                    }
+                }
+                if (e.bossPhaseTransition > 0) {
+                    e.bossPhaseTransition -= dtMs;
+                    if (e.bossPhaseTransition <= 0) e.invulnerable = false;
+                }
                 if (G.freezeT > 0 && e.st !== 'ENTER') continue;
                 if (e.st === 'ENTER') {
                     e.eTmr -= dtMs;
@@ -1721,7 +2190,34 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                 }
                 else if (e.st === 'FORM') {
                     e.x = e.fx + G.fX; e.y = e.fy + Math.sin(G.fTmr * 2 + e.col * 0.5) * 3;
-                    if ((e.type === 'sniper' || e.type === 'spinner' || e.type === 'bomber' || e.type === 'lasher') && G.p.alive && G.freezeT <= 0) {
+                    // NEW: Weaver sine-wave horizontal movement
+                    if (e.type === 'weaver') {
+                        e.x += Math.sin(G.fTmr * 3 + e.col) * 40;
+                        e.sTmr -= dtMs;
+                        if (e.sTmr <= 0 && G.p.alive && G.freezeT <= 0) {
+                            enemyFire(e);
+                            e.sTmr = 1800 + Math.random() * 1200;
+                        }
+                    }
+                    // NEW: Teleporter behavior
+                    if (e.type === 'teleporter') {
+                        e.teleportTimer = (e.teleportTimer || 0) - dtMs;
+                        if (e.teleportTimer <= 0) {
+                            e.teleportTimer = 2000 + Math.random() * 1000;
+                            e.x = 40 + Math.random() * (W - 80);
+                            e.y = FTOP + Math.random() * 100;
+                            for (let _ti = 0; _ti < 8; _ti++) {
+                                const _ta = (_ti / 8) * Math.PI * 2;
+                                G.part.push({ x: e.x, y: e.y, vx: Math.cos(_ta) * 30, vy: Math.sin(_ta) * 30, life: 200, t: 0, col: '#44ffff', size: 1, spark: true });
+                            }
+                        }
+                        e.sTmr -= dtMs;
+                        if (e.sTmr <= 0 && G.p.alive && G.freezeT <= 0) {
+                            enemyFire(e);
+                            e.sTmr = 1500 + Math.random() * 1000;
+                        }
+                    }
+                    if ((e.type === 'sniper' || e.type === 'spinner' || e.type === 'bomber' || e.type === 'lasher' || e.type === 'weaver' || e.type === 'splitter' || e.type === 'shield_bee' || e.type === 'carrier' || e.type === 'teleporter') && G.p.alive && G.freezeT <= 0) {
                         e.sTmr -= dtMs;
                         if (e.sTmr <= 0) {
                             enemyFire(e);
@@ -1737,12 +2233,18 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                     e.dTmr -= dtMs;
                     if (e.dTmr <= 0 || e.y > H + 20) { e.st = 'RETURN'; e.y = -20; }
                     else {
-                        const diveSpd = DIVE_SPD * (e.type === 'hunter' ? 2.1 : e.type === 'stalker' ? 1.5 : 1);
+                        const diveSpd = DIVE_SPD * (e.type === 'hunter' ? 2.1 : e.type === 'stalker' ? 1.5 : e.type === 'kamikaze' ? 2.5 : 1);
                         e.y += diveSpd * eDt;
                         if (e.type === 'hunter' && G.p.alive) {
                             e.x += (G.p.x - e.x) * eDt * 4.8;
                             e.y += (G.p.y - e.y) * eDt * 1.1;
                         } else if (e.type === 'stalker' && G.p.alive) { e.x += (G.p.x - e.x) * eDt * 2.5; }
+                        // NEW: Kamikaze charges directly at player
+                        else if (e.type === 'kamikaze' && G.p.alive) {
+                            const kdx = G.p.x - e.x, kdy = G.p.y - e.y, kdist = Math.hypot(kdx, kdy) || 1;
+                            e.x += (kdx / kdist) * diveSpd * 1.8 * eDt;
+                            e.y += (kdy / kdist) * diveSpd * 1.8 * eDt;
+                        }
                         else if (e.dPath) { e.dPath.ph += eDt * 3; e.x += e.dPath.vx * eDt + Math.cos(e.dPath.ph) * e.dPath.amp * 3 * eDt; }
                         if (G.beam && G.beam.owner === e) { G.beam.x = e.x; G.beam.y = e.y + 16; }
                         e.sTmr -= dtMs;
@@ -1753,7 +2255,12 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                         if (G.p.alive && G.p.inv <= 0) {
                             const ew = (e.type === 'boss' || e.type === 'miniboss') ? 16 : e.type === 'hunter' ? 14 : 12;
                             if (hit({ x: e.x - ew / 2, y: e.y - 8, w: ew, h: 16 }, { x: G.p.x - 6, y: G.p.y - 6, w: 12, h: 12 })) {
-                                registerKill(); addScore(PTS[e.type] ? PTS[e.type][1] : 200, e.x, e.y); boom(e.x, e.y, e.type === 'boss' || e.type === 'miniboss'); SFX.eExplode(e.x); if (G.chal) G.chalHits++; e.st = 'DEAD'; killP();
+                                // NEW: Kamikaze explodes on contact, damaging player
+                                if (e.type === 'kamikaze') {
+                                    boom(e.x, e.y, false, 'kamikaze');
+                                    G.shkT = Math.max(G.shkT, 300); G.shkM = Math.max(G.shkM, 5);
+                                }
+                                registerKill(); addScore(PTS[e.type] ? PTS[e.type][1] : 200, e.x, e.y); boom(e.x, e.y, e.type === 'boss' || e.type === 'miniboss', e.type); SFX.eExplode(e.x); if (G.chal) G.chalHits++; e.st = 'DEAD'; killP();
                             }
                         }
                     }
@@ -1813,6 +2320,10 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
             if (G.damageVignetteT > 0) G.damageVignetteT -= dtMs;
             if (G.freezeT > 0) { G.freezeT -= dtMs; wrapEl.classList.add('galaxa-freeze'); if (G.freezeT <= 0) { G.freezeT = 0; wrapEl.classList.remove('galaxa-freeze'); if (G.activePU && G.activePU.type === 'freeze') { G.activePU = null; G.puTimer = 0; setPUClass(null); } } }
             if (G.warpT > 0) G.warpT -= dtMs;
+            if (G.swipeT > 0) G.swipeT -= dtMs;
+            if (G.portalT > 0) G.portalT -= dtMs;
+            if (G.glitchT > 0) G.glitchT -= dtMs;
+            if (G._closeCallCooldown > 0) G._closeCallCooldown -= dtMs;
             if (G.warpFlash > 0) G.warpFlash -= dtMs;
             if (G.perfectT > 0) G.perfectT -= dtMs;
             if (G.bossWarningT > 0) G.bossWarningT -= dtMs;
@@ -2019,6 +2530,43 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                 c.globalAlpha = 1;
             }
             if (G.warpFlash > 0) { c.fillStyle = 'rgba(255,255,255,' + (G.warpFlash / 50) + ')'; c.fillRect(0, 0, W, H); }
+            // NEW: Alternative screen transitions
+            if (G.swipeT > 0) {
+                const progress = 1 - (G.swipeT / 1200);
+                const wipeX = G.swipeDir > 0 ? W * progress : W * (1 - progress);
+                c.fillStyle = '#000';
+                if (G.swipeDir > 0) c.fillRect(0, 0, wipeX, H);
+                else c.fillRect(wipeX, 0, W - wipeX, H);
+                c.strokeStyle = '#4488ff'; c.lineWidth = 2;
+                c.beginPath(); c.moveTo(wipeX, 0); c.lineTo(wipeX, H); c.stroke();
+            }
+            if (G.portalT > 0) {
+                const progress = 1 - (G.portalT / 1400);
+                G.portalR = progress * Math.max(W, H) * 0.8;
+                c.save();
+                c.beginPath(); c.arc(W / 2, H / 2, G.portalR, 0, Math.PI * 2); c.clip();
+                c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
+                c.restore();
+                c.strokeStyle = '#ffcc00'; c.lineWidth = 3; c.shadowBlur = 15; c.shadowColor = '#ffcc00';
+                c.beginPath(); c.arc(W / 2, H / 2, G.portalR, 0, Math.PI * 2); c.stroke();
+                c.shadowBlur = 0;
+            }
+            if (G.glitchT > 0) {
+                const progress = 1 - (G.glitchT / 1000);
+                c.save();
+                for (const strip of G.glitchStrips) {
+                    strip.offset += (strip.targetOffset - strip.offset) * 0.1;
+                    const alpha = Math.abs(Math.sin(progress * Math.PI * 3 + strip.y * 0.1)) * 0.8;
+                    c.globalAlpha = alpha;
+                    c.fillStyle = '#000';
+                    c.fillRect(0, strip.y, W, H / 12);
+                    if (Math.random() < 0.3) {
+                        c.fillStyle = ['#ff0000', '#00ff00', '#0000ff', '#ffffff'][Math.floor(Math.random() * 4)];
+                        c.fillRect(strip.offset, strip.y, 2, H / 12);
+                    }
+                }
+                c.restore();
+            }
             if (G.flashT > 0) { c.fillStyle = 'rgba(255,255,255,' + (G.flashT > 30 ? 0.5 : G.flashT / 60) + ')'; c.fillRect(0, 0, W, H); }
             if (G.stageWipeT > 0) { const wp = G.stageWipeT / 400; c.fillStyle = '#000'; c.fillRect(0, 0, W, H * wp); c.fillRect(0, H * (1 - wp), W, H * wp); }
             if (G.levelSkipTimer > 0) {
@@ -2282,7 +2830,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                     let sp, cols;
                     const _bossVar = (G.stage - 1) % 3;
                     const _bossCols = _bossVar === 1 ? SP.bossRedC : _bossVar === 2 ? SP.bossBlueC : SP.bossC;
-                    if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === 'butterfly') { sp = SP.bf[e.fr]; cols = SP.bfC; } else if (e.type === 'stalker') { sp = SP.stalker[e.fr]; cols = SP.stalkerC; } else if (e.type === 'sniper') { sp = SP.sniper[e.fr]; cols = SP.sniperC; } else if (e.type === 'hunter') { sp = SP.hunter[e.fr]; cols = SP.hunterC; } else if (e.type === 'spinner') { sp = SP.spinner[e.fr]; cols = SP.spinnerC; } else if (e.type === 'bomber') { sp = SP.bomber[e.fr]; cols = SP.bomberC; } else if (e.type === 'lasher') { sp = SP.lasher[e.fr]; cols = SP.lasherC; } else if (e.type === 'miniboss') { sp = e.hp <= 1 ? SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? SP.bossHit : SP.boss; cols = _bossCols; } else { sp = e.hp <= 1 ? SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? SP.bossHit : SP.boss; cols = _bossCols; }
+                    if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === 'butterfly') { sp = SP.bf[e.fr]; cols = SP.bfC; } else if (e.type === 'stalker') { sp = SP.stalker[e.fr]; cols = SP.stalkerC; } else if (e.type === 'sniper') { sp = SP.sniper[e.fr]; cols = SP.sniperC; } else if (e.type === 'hunter') { sp = SP.hunter[e.fr]; cols = SP.hunterC; } else if (e.type === 'spinner') { sp = SP.spinner[e.fr]; cols = SP.spinnerC; } else if (e.type === 'bomber') { sp = SP.bomber[e.fr]; cols = SP.bomberC; } else if (e.type === 'lasher') { sp = SP.lasher[e.fr]; cols = SP.lasherC; } else if (e.type === 'weaver') { sp = SP.weaver[e.fr]; cols = SP.weaverC; } else if (e.type === 'splitter') { sp = SP.splitter[e.fr]; cols = SP.splitterC; } else if (e.type === 'shield_bee') { sp = SP.shield_bee[e.fr]; cols = SP.shield_beeC; } else if (e.type === 'kamikaze') { sp = SP.kamikaze[e.fr]; cols = SP.kamikazeC; } else if (e.type === 'carrier') { sp = SP.carrier[e.fr]; cols = SP.carrierC; } else if (e.type === 'teleporter') { sp = SP.teleporter[e.fr]; cols = SP.teleporterC; } else if (e.type === 'miniboss') { sp = e.hp <= 1 ? SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? SP.bossHit : SP.boss; cols = _bossCols; } else { sp = e.hp <= 1 ? SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? SP.bossHit : SP.boss; cols = _bossCols; }
                     drawSp(c, sp, cols, e.x - 12, e.y - 18, false);
                     drawSp(c, sp, cols, e.x - 12, e.y - 10, false);
                     c.globalAlpha = 1;
@@ -2290,7 +2838,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(G.p.x); G.shkT = 300; G.shkM
                 const fl = e.hitF > 0; let sp, cols;
                 const bossVariant = (G.stage - 1) % 3;
                 const bossCols = bossVariant === 1 ? SP.bossRedC : bossVariant === 2 ? SP.bossBlueC : SP.bossC;
-                if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === 'butterfly') { sp = SP.bf[e.fr]; cols = SP.bfC; } else if (e.type === 'stalker') { sp = SP.stalker[e.fr]; cols = SP.stalkerC; } else if (e.type === 'sniper') { sp = SP.sniper[e.fr]; cols = SP.sniperC; } else if (e.type === 'hunter') { sp = SP.hunter[e.fr]; cols = SP.hunterC; } else if (e.type === 'spinner') { sp = SP.spinner[e.fr]; cols = SP.spinnerC; } else if (e.type === 'bomber') { sp = SP.bomber[e.fr]; cols = SP.bomberC; } else if (e.type === 'lasher') { sp = SP.lasher[e.fr]; cols = SP.lasherC; } else if (e.type === 'miniboss') { sp = e.hp <= 1 ? SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? SP.bossHit : SP.boss; cols = bossCols; } else { sp = e.hp <= 1 ? SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? SP.bossHit : SP.boss; cols = bossCols; }
+                if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === 'butterfly') { sp = SP.bf[e.fr]; cols = SP.bfC; } else if (e.type === 'stalker') { sp = SP.stalker[e.fr]; cols = SP.stalkerC; } else if (e.type === 'sniper') { sp = SP.sniper[e.fr]; cols = SP.sniperC; } else if (e.type === 'hunter') { sp = SP.hunter[e.fr]; cols = SP.hunterC; } else if (e.type === 'spinner') { sp = SP.spinner[e.fr]; cols = SP.spinnerC; } else if (e.type === 'bomber') { sp = SP.bomber[e.fr]; cols = SP.bomberC; } else if (e.type === 'lasher') { sp = SP.lasher[e.fr]; cols = SP.lasherC; } else if (e.type === 'weaver') { sp = SP.weaver[e.fr]; cols = SP.weaverC; } else if (e.type === 'splitter') { sp = SP.splitter[e.fr]; cols = SP.splitterC; } else if (e.type === 'shield_bee') { sp = SP.shield_bee[e.fr]; cols = SP.shield_beeC; } else if (e.type === 'kamikaze') { sp = SP.kamikaze[e.fr]; cols = SP.kamikazeC; } else if (e.type === 'carrier') { sp = SP.carrier[e.fr]; cols = SP.carrierC; } else if (e.type === 'teleporter') { sp = SP.teleporter[e.fr]; cols = SP.teleporterC; } else if (e.type === 'miniboss') { sp = e.hp <= 1 ? SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? SP.bossHit : SP.boss; cols = bossCols; } else { sp = e.hp <= 1 ? SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? SP.bossHit : SP.boss; cols = bossCols; }
                 if (e.type === 'hunter' && e.st !== 'DEAD') {
                     c.globalAlpha = 0.25 + Math.sin(tick * 0.12) * 0.1;
                     c.shadowBlur = 10; c.shadowColor = '#ff6600';
