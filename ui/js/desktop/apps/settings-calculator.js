@@ -396,6 +396,9 @@
                     settingSelect('appearance.theme', 'desktop.settings_theme', 'desktop.settings_theme_desc', [
                         ['standard', 'desktop.settings_theme_standard'], ['fruity', 'desktop.settings_theme_fruity']
                     ]),
+                    settingSelect('appearance.fruity_mode', 'desktop.settings_fruity_mode', 'desktop.settings_fruity_mode_desc', [
+                        ['light', 'desktop.settings_fruity_mode_light'], ['dark', 'desktop.settings_fruity_mode_dark']
+                    ]),
                     settingSelect('appearance.accent', 'desktop.settings_accent', 'desktop.settings_accent_desc', [
                         ['teal', 'desktop.settings_accent_teal'], ['orange', 'desktop.settings_accent_orange'], ['blue', 'desktop.settings_accent_blue'], ['violet', 'desktop.settings_accent_violet'], ['green', 'desktop.settings_accent_green']
                     ]),

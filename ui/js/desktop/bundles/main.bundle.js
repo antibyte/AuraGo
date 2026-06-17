@@ -268,6 +268,7 @@
         'appearance.accent': 'teal',
         'appearance.density': 'comfortable',
         'appearance.icon_theme': 'papirus',
+        'appearance.fruity_mode': 'light',
         'desktop.icon_size': 'medium',
         'desktop.show_widgets': 'true',
         'windows.animations': 'true',
@@ -569,6 +570,7 @@
         const body = document.body;
         body.dataset.wallpaper = settingValue('appearance.wallpaper');
         body.dataset.theme = settingValue('appearance.theme');
+        body.dataset.fruityMode = settingValue('appearance.fruity_mode');
         body.dataset.accent = settingValue('appearance.accent');
         body.dataset.density = settingValue('appearance.density');
         body.dataset.iconTheme = settingValue('appearance.icon_theme');
@@ -6653,6 +6655,9 @@ if (appId === 'pixel') {
                     ]),
                     settingSelect('appearance.theme', 'desktop.settings_theme', 'desktop.settings_theme_desc', [
                         ['standard', 'desktop.settings_theme_standard'], ['fruity', 'desktop.settings_theme_fruity']
+                    ]),
+                    settingSelect('appearance.fruity_mode', 'desktop.settings_fruity_mode', 'desktop.settings_fruity_mode_desc', [
+                        ['light', 'desktop.settings_fruity_mode_light'], ['dark', 'desktop.settings_fruity_mode_dark']
                     ]),
                     settingSelect('appearance.accent', 'desktop.settings_accent', 'desktop.settings_accent_desc', [
                         ['teal', 'desktop.settings_accent_teal'], ['orange', 'desktop.settings_accent_orange'], ['blue', 'desktop.settings_accent_blue'], ['violet', 'desktop.settings_accent_violet'], ['green', 'desktop.settings_accent_green']

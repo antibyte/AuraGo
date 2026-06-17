@@ -372,40 +372,43 @@
 }
 
 .desktop-body[data-theme="standard"] {
-    --vd-bg: #0d121a;
-    --vd-surface: rgba(16, 23, 34, 0.88);
-    --vd-surface-strong: rgba(20, 28, 40, 0.97);
-    --vd-border: rgba(148, 163, 184, 0.14);
-    --vd-border-bright: rgba(148, 163, 184, 0.24);
-    --vd-text: #f4f7fb;
-    --vd-muted: #aab6c7;
-    --vd-accent: #26c6a8;
+    /* Ubuntu Yaru identity */
+    --vd-bg: #1d1820;
+    --vd-surface: rgba(46, 35, 47, 0.92);
+    --vd-surface-strong: rgba(56, 43, 56, 0.97);
+    --vd-border: rgba(255, 255, 255, 0.12);
+    --vd-border-bright: rgba(255, 255, 255, 0.2);
+    --vd-text: #f6f7fb;
+    --vd-muted: #c8bfc4;
+    --vd-accent: #E95420;
     --vd-coral: #f97362;
     --vd-amber: #f59e0b;
     --vd-shadow: 0 18px 52px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.28);
     --vd-shadow-window: var(--vd-shell-shadow-window);
-    --vd-accent-glow: rgba(38, 198, 168, 0.18);
-    --vd-shell-panel: rgba(17, 24, 39, 0.82);
-    --vd-shell-panel-strong: rgba(21, 30, 43, 0.98);
-    --vd-shell-panel-border: rgba(148, 163, 184, 0.18);
-    --vd-shell-taskbar: rgba(12, 17, 27, 0.9);
-    --vd-shell-taskbar-border: rgba(148, 163, 184, 0.22);
-    --vd-shell-window: rgba(20, 29, 42, 0.95);
-    --vd-shell-window-chrome: rgba(15, 23, 36, 0.94);
-    --vd-shell-menu: rgba(17, 25, 38, 0.98);
+    --vd-accent-glow: rgba(233, 84, 32, 0.20);
+    --vd-shell-panel: rgba(34, 26, 35, 0.82);
+    --vd-shell-panel-strong: rgba(46, 35, 47, 0.98);
+    --vd-shell-panel-border: rgba(255, 255, 255, 0.14);
+    --vd-shell-taskbar: rgba(34, 26, 35, 0.92);
+    --vd-shell-taskbar-border: rgba(255, 255, 255, 0.16);
+    --vd-shell-window: rgba(44, 33, 45, 0.95);
+    --vd-shell-window-chrome: rgba(44, 33, 45, 0.94);
+    --vd-shell-menu: rgba(38, 29, 39, 0.98);
     --vd-shell-accent-secondary: #f59e0b;
-    --ds-color-bg-canvas: #0d121a;
-    --ds-color-surface-1: rgba(16, 23, 34, 0.82);
-    --ds-color-surface-2: rgba(20, 29, 42, 0.95);
-    --ds-color-surface-3: rgba(24, 34, 49, 0.98);
-    --ds-color-border-subtle: rgba(148, 163, 184, 0.14);
-    --ds-color-border-default: rgba(148, 163, 184, 0.24);
-    --ds-color-accent-500: #26c6a8;
-    --ds-color-accent-600: #1ca88f;
+    --vd-shell-radius-window: 8px;
+    --ds-color-bg-canvas: #1d1820;
+    --ds-color-surface-1: rgba(46, 35, 47, 0.82);
+    --ds-color-surface-2: rgba(56, 43, 56, 0.95);
+    --ds-color-surface-3: rgba(66, 51, 66, 0.98);
+    --ds-color-border-subtle: rgba(255, 255, 255, 0.12);
+    --ds-color-border-default: rgba(255, 255, 255, 0.2);
+    --ds-color-border-focus: #E95420;
+    --ds-color-accent-500: #E95420;
+    --ds-color-accent-600: #c7431a;
     --ds-color-accent-amber: #f59e0b;
-    --ds-color-control-bg: rgba(255, 255, 255, 0.07);
-    --ds-color-control-hover: rgba(255, 255, 255, 0.11);
-    --ds-color-control-active: rgba(38, 198, 168, 0.16);
+    --ds-color-control-bg: rgba(255, 255, 255, 0.08);
+    --ds-color-control-hover: rgba(255, 255, 255, 0.12);
+    --ds-color-control-active: rgba(233, 84, 32, 0.16);
 }
 
 .desktop-body[data-theme="light"] {
@@ -601,6 +604,35 @@
 
 .desktop-body[data-theme="fruity"] .vd-resize-w {
     top: 48px;
+}
+
+/* Fruity dark mode - explicit attribute selector (takes precedence over media query) */
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] {
+    color-scheme: dark;
+    --vd-bg: #1c1c1e;
+    --vd-surface: rgba(40, 40, 44, 0.55);
+    --vd-surface-strong: rgba(52, 52, 58, 0.74);
+    --vd-border: rgba(255, 255, 255, 0.12);
+    --vd-border-bright: rgba(255, 255, 255, 0.2);
+    --vd-text: #f5f5f7;
+    --vd-muted: #a1a1aa;
+    --vd-shadow: 0 26px 70px rgba(0, 0, 0, 0.36);
+    --fruity-window-chrome: rgba(54, 54, 60, 0.74);
+
+    --ds-color-fg-primary: #f5f5f7;
+    --ds-color-fg-secondary: #d4dbe7;
+    --ds-color-fg-muted: #a1a1aa;
+    --ds-color-fg-disabled: #6b7785;
+
+    --ds-color-bg-canvas: #1c1c1e;
+    --ds-color-surface-0: #1c1c1e;
+    --ds-color-surface-1: rgba(40, 40, 44, 0.55);
+    --ds-color-surface-2: rgba(52, 52, 58, 0.72);
+    --ds-color-surface-3: rgba(64, 64, 72, 0.88);
+
+    --ds-color-border-subtle: rgba(255, 255, 255, 0.12);
+    --ds-color-border-default: rgba(255, 255, 255, 0.18);
+    --ds-color-border-strong: rgba(255, 255, 255, 0.28);
 }
 
 .desktop-body[data-theme="fruity"][data-wallpaper="aurora"] {
@@ -1433,28 +1465,28 @@
 }
 
 @media (prefers-color-scheme: dark) {
-    .desktop-body[data-theme="fruity"] {
+    /* Dark mode fallback when no explicit fruity-mode is set - macOS dark appearance */
+    .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) {
         color-scheme: dark;
-        --vd-bg: #111723;
-        --vd-surface: rgba(25, 31, 43, 0.62);
-        --vd-surface-strong: rgba(31, 38, 52, 0.78);
-        --vd-border: rgba(255, 255, 255, 0.14);
-        --vd-text: #f6f8fb;
-        --vd-muted: #c5cdd9;
+        --vd-bg: #1c1c1e;
+        --vd-surface: rgba(40, 40, 44, 0.55);
+        --vd-surface-strong: rgba(52, 52, 58, 0.74);
+        --vd-border: rgba(255, 255, 255, 0.12);
+        --vd-text: #f5f5f7;
+        --vd-muted: #a1a1aa;
         --vd-shadow: 0 26px 70px rgba(0, 0, 0, 0.36);
-        --fruity-window-chrome: rgba(34, 41, 55, 0.78);
+        --fruity-window-chrome: rgba(54, 54, 60, 0.74);
 
-        /* Override the light fruity design-system tokens for dark mode so
-           contrast is preserved (muted text stays readable on dark surfaces). */
-        --ds-color-fg-primary: #f6f8fb;
+        --ds-color-fg-primary: #f5f5f7;
         --ds-color-fg-secondary: #d4dbe7;
-        --ds-color-fg-muted: #c5cdd9;
+        --ds-color-fg-muted: #a1a1aa;
         --ds-color-fg-disabled: #6b7785;
 
-        --ds-color-surface-0: #11151c;
-        --ds-color-surface-1: rgba(25, 31, 43, 0.62);
-        --ds-color-surface-2: rgba(31, 38, 52, 0.78);
-        --ds-color-surface-3: rgba(38, 46, 64, 0.88);
+        --ds-color-bg-canvas: #1c1c1e;
+        --ds-color-surface-0: #1c1c1e;
+        --ds-color-surface-1: rgba(40, 40, 44, 0.55);
+        --ds-color-surface-2: rgba(52, 52, 58, 0.72);
+        --ds-color-surface-3: rgba(64, 64, 72, 0.88);
     }
 
     .desktop-body[data-theme="fruity"][data-wallpaper="aurora"] {

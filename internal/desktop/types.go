@@ -228,6 +228,7 @@ func DesktopSettingDefinitions() []SettingDefinition {
 		{Key: "appearance.accent", Default: "teal", Values: []string{"teal", "orange", "blue", "violet", "green"}},
 		{Key: "appearance.density", Default: "comfortable", Values: []string{"comfortable", "compact"}},
 		{Key: "appearance.icon_theme", Default: "papirus", Values: []string{"papirus", "whitesur"}},
+		{Key: "appearance.fruity_mode", Default: "light", Values: []string{"light", "dark"}},
 		{Key: "desktop.icon_size", Default: "medium", Values: []string{"small", "medium", "large"}},
 		{Key: "desktop.show_widgets", Default: "true", Values: []string{"true", "false"}},
 		{Key: "windows.animations", Default: "true", Values: []string{"true", "false"}},

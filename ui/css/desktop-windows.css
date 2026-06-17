@@ -134,7 +134,7 @@
 
 .desktop-body[data-theme="standard"] .vd-window {
     border-radius: var(--vd-shell-radius-window);
-    border-color: rgba(148, 163, 184, 0.16);
+    border-color: rgba(255, 255, 255, 0.12);
     background: var(--vd-shell-window);
     box-shadow: var(--vd-shell-shadow-window);
 }
@@ -248,16 +248,12 @@
 }
 
 .desktop-body[data-theme="standard"] .vd-window-titlebar {
-    background:
-        linear-gradient(180deg, rgba(30, 41, 59, 0.76), rgba(15, 23, 36, 0.94)),
-        var(--vd-shell-window-chrome);
-    border-bottom-color: rgba(148, 163, 184, 0.16);
+    background: var(--vd-shell-window-chrome);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
 .desktop-body[data-theme="standard"] .vd-window.active .vd-window-titlebar {
-    background:
-        linear-gradient(180deg, rgba(38, 198, 168, 0.13), rgba(15, 23, 36, 0.94)),
-        var(--vd-shell-window-chrome);
+    background: linear-gradient(180deg, rgba(233, 84, 32, 0.08), var(--vd-shell-window-chrome));
 }
 
 .vd-window.dragging .vd-window-titlebar {
@@ -400,6 +396,18 @@
 
 .vd-window-button[data-action="close"]:hover {
     background: var(--ds-color-danger-fg);
+    color: white;
+    border-color: transparent;
+}
+
+/* Standard theme (Yaru) window buttons */
+.desktop-body[data-theme="standard"] .vd-window-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+.desktop-body[data-theme="standard"] .vd-window-button[data-action="close"]:hover {
+    background: var(--vd-accent);
     color: white;
     border-color: transparent;
 }

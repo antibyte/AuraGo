@@ -263,6 +263,7 @@
         'appearance.accent': 'teal',
         'appearance.density': 'comfortable',
         'appearance.icon_theme': 'papirus',
+        'appearance.fruity_mode': 'light',
         'desktop.icon_size': 'medium',
         'desktop.show_widgets': 'true',
         'windows.animations': 'true',
@@ -564,6 +565,7 @@
         const body = document.body;
         body.dataset.wallpaper = settingValue('appearance.wallpaper');
         body.dataset.theme = settingValue('appearance.theme');
+        body.dataset.fruityMode = settingValue('appearance.fruity_mode');
         body.dataset.accent = settingValue('appearance.accent');
         body.dataset.density = settingValue('appearance.density');
         body.dataset.iconTheme = settingValue('appearance.icon_theme');
