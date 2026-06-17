@@ -1814,11 +1814,9 @@
 }
 
 .desktop-body[data-theme="standard"] .vd-taskbar {
-    background:
-        linear-gradient(180deg, rgba(30, 41, 59, 0.78), rgba(12, 17, 27, 0.94)),
-        var(--vd-shell-taskbar);
+    background: var(--vd-shell-taskbar);
     border-color: var(--vd-shell-taskbar-border);
-    border-top-color: rgba(148, 163, 184, 0.28);
+    border-top-color: rgba(255, 255, 255, 0.1);
     box-shadow:
         0 -1px 0 rgba(255, 255, 255, 0.06) inset,
         0 -18px 42px rgba(0, 0, 0, 0.32);
@@ -1828,16 +1826,23 @@
     border-radius: 13px;
     transform: translateY(-3px);
     background:
-        linear-gradient(135deg, rgba(38, 198, 168, 0.42), rgba(245, 158, 11, 0.28)),
-        rgba(15, 23, 42, 0.92);
+        linear-gradient(135deg, rgba(233, 84, 32, 0.42), rgba(245, 158, 11, 0.28)),
+        rgba(46, 35, 47, 0.92);
     box-shadow:
-        0 0 0 1px rgba(38, 198, 168, 0.28),
+        0 0 0 1px rgba(233, 84, 32, 0.28),
         0 12px 30px rgba(0, 0, 0, 0.34),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .desktop-body[data-theme="standard"] .vd-start-button:hover {
     transform: translateY(-5px);
+    background:
+        linear-gradient(135deg, rgba(233, 84, 32, 0.56), rgba(245, 158, 11, 0.38)),
+        rgba(46, 35, 47, 0.92);
+    box-shadow:
+        0 0 0 1px rgba(233, 84, 32, 0.4),
+        0 16px 36px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 /* Subtle inner-top shine */
@@ -2358,6 +2363,17 @@
 
     .vd-taskbar-apps::-webkit-scrollbar {
         display: none;
+    }
+
+    /* Standard theme mobile floating island uses Yaru aubergine with orange glow */
+    .desktop-body[data-theme="standard"] .vd-taskbar {
+        background: var(--vd-shell-taskbar);
+        border-color: var(--vd-shell-taskbar-border);
+        box-shadow:
+            var(--ds-elevation-3),
+            0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+            0 0 18px rgba(233, 84, 32, 0.12),
+            0 8px 32px rgba(0, 0, 0, 0.38);
     }
 }
 

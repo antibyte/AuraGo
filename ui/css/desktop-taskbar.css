@@ -598,4 +598,15 @@
     .vd-taskbar-apps::-webkit-scrollbar {
         display: none;
     }
+
+    /* Standard theme mobile floating island uses Yaru aubergine with orange glow */
+    .desktop-body[data-theme="standard"] .vd-taskbar {
+        background: var(--vd-shell-taskbar);
+        border-color: var(--vd-shell-taskbar-border);
+        box-shadow:
+            var(--ds-elevation-3),
+            0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+            0 0 18px rgba(233, 84, 32, 0.12),
+            0 8px 32px rgba(0, 0, 0, 0.38);
+    }
 }
