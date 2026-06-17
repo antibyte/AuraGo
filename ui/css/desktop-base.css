@@ -369,11 +369,11 @@
 
 .desktop-body[data-theme="standard"] {
     color-scheme: dark;
-    --vd-bg: #242424;
-    --vd-surface: rgba(48, 48, 48, 0.94);
-    --vd-surface-strong: rgba(58, 58, 58, 0.98);
-    --vd-border: rgba(255, 255, 255, 0.13);
-    --vd-border-bright: rgba(255, 255, 255, 0.22);
+    --vd-bg: #1d1d1d;
+    --vd-surface: #303030;
+    --vd-surface-strong: #363636;
+    --vd-border: rgba(255, 255, 255, 0.12);
+    --vd-border-bright: rgba(255, 255, 255, 0.18);
     --vd-text: #f0f0f0;
     --vd-muted: #929292;
     --vd-accent: #E95420;
@@ -384,18 +384,18 @@
     --vd-amber: #f59e0b;
     --vd-shadow: 0 18px 52px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.28);
     --vd-shadow-window: var(--vd-shell-shadow-window);
-    --vd-accent-glow: rgba(233, 84, 32, 0.20);
+    --vd-accent-glow: rgba(233, 84, 32, 0.18);
     --vd-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-    --vd-control-bg: rgba(255, 255, 255, 0.08);
-    --vd-control-hover: rgba(255, 255, 255, 0.12);
-    --vd-shell-panel: rgba(36, 36, 36, 0.92);
-    --vd-shell-panel-strong: rgba(48, 48, 48, 0.98);
-    --vd-shell-panel-border: rgba(255, 255, 255, 0.14);
-    --vd-shell-taskbar: rgba(36, 36, 36, 0.94);
-    --vd-shell-taskbar-border: rgba(255, 255, 255, 0.16);
-    --vd-shell-window: rgba(48, 48, 48, 0.96);
-    --vd-shell-window-chrome: rgba(44, 44, 44, 0.96);
-    --vd-shell-menu: rgba(40, 40, 40, 0.98);
+    --vd-control-bg: rgba(255, 255, 255, 0.06);
+    --vd-control-hover: rgba(255, 255, 255, 0.1);
+    --vd-shell-panel: #303030;
+    --vd-shell-panel-strong: #363636;
+    --vd-shell-panel-border: rgba(255, 255, 255, 0.12);
+    --vd-shell-taskbar: #303030;
+    --vd-shell-taskbar-border: rgba(255, 255, 255, 0.14);
+    --vd-shell-window: #2d2d2d;
+    --vd-shell-window-chrome: #303030;
+    --vd-shell-menu: #2d2d2d;
     --vd-shell-accent-secondary: #f59e0b;
     --vd-shell-radius-window: 8px;
     --vd-shell-shadow-window: 0 28px 70px rgba(0, 0, 0, 0.48), 0 8px 24px rgba(0, 0, 0, 0.26);
@@ -405,19 +405,19 @@
     --ds-color-fg-muted: #929292;
     --ds-color-fg-disabled: #6b6b6b;
 
-    --ds-color-bg-canvas: #242424;
-    --ds-color-bg-raised: #2a2a2a;
+    --ds-color-bg-canvas: #1d1d1d;
+    --ds-color-bg-raised: #242424;
     --ds-color-bg-overlay: #303030;
-    --ds-color-bg-modal: #353535;
+    --ds-color-bg-modal: #363636;
 
-    --ds-color-surface-0: #242424;
-    --ds-color-surface-1: rgba(48, 48, 48, 0.82);
-    --ds-color-surface-2: rgba(58, 58, 58, 0.95);
-    --ds-color-surface-3: rgba(68, 68, 68, 0.98);
+    --ds-color-surface-0: #1d1d1d;
+    --ds-color-surface-1: #242424;
+    --ds-color-surface-2: #303030;
+    --ds-color-surface-3: #363636;
 
-    --ds-color-border-subtle: rgba(255, 255, 255, 0.13);
-    --ds-color-border-default: rgba(255, 255, 255, 0.22);
-    --ds-color-border-strong: rgba(255, 255, 255, 0.32);
+    --ds-color-border-subtle: rgba(255, 255, 255, 0.12);
+    --ds-color-border-default: rgba(255, 255, 255, 0.18);
+    --ds-color-border-strong: rgba(255, 255, 255, 0.28);
     --ds-color-border-focus: #E95420;
 
     --ds-color-accent-50: #fde8e0;

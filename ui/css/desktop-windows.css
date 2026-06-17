@@ -285,11 +285,11 @@
 
 .desktop-body[data-theme="standard"] .vd-window-titlebar {
     background: var(--vd-shell-window-chrome);
-    border-bottom-color: rgba(255, 255, 255, 0.1);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 
 .desktop-body[data-theme="standard"] .vd-window.active .vd-window-titlebar {
-    background: linear-gradient(180deg, rgba(233, 84, 32, 0.08), var(--vd-shell-window-chrome));
+    background: linear-gradient(180deg, rgba(233, 84, 32, 0.06), var(--vd-shell-window-chrome));
 }
 
 .vd-window.dragging .vd-window-titlebar {
