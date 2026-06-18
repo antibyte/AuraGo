@@ -221,6 +221,51 @@ func TestDesktopPetRuntimeSchedulesAmbientAnimations(t *testing.T) {
 	}
 }
 
+func TestDesktopPetDragHangsAndSwaysBelowPointer(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"js/desktop/core/pet-runtime.js",
+		"js/desktop/bundles/main.bundle.js",
+	} {
+		source := readDesktopAssetText(t, path)
+		for _, marker := range []string{
+			"const DRAG_HANG_OFFSET_Y = 28;",
+			"const DRAG_SWAY_MAX_X = 18;",
+			"const DRAG_SWAY_MAX_DEG = 7;",
+			"const DRAG_SWAY_PERIOD_MS = 820;",
+			"function dragHangPosition(pointerX, pointerY, swayX)",
+			"function applyDragHangPosition(sway)",
+			"function startDragSway()",
+			"function stopDragSway()",
+			"pointerX: event.clientX",
+			"pointerY: event.clientY",
+			"startedAt: Date.now()",
+			"startDragSway();",
+			"drag.pointerX = event.clientX;",
+			"drag.pointerY = event.clientY;",
+			"applyDragHangPosition(false);",
+			"stopDragSway();",
+			"layer.style.transform = 'rotate(' + swayDeg.toFixed(2) + 'deg)';",
+			"window.requestAnimationFrame(tick)",
+		} {
+			if !strings.Contains(source, marker) {
+				t.Fatalf("%s is missing dangling desktop pet drag marker %q", path, marker)
+			}
+		}
+	}
+
+	for _, path := range []string{
+		"css/desktop-pet.css",
+		"css/desktop-shell.bundle.css",
+	} {
+		source := readDesktopAssetText(t, path)
+		if !strings.Contains(source, "transform-origin: 50% 0;") {
+			t.Fatalf("%s must swing the desktop pet from the top edge while dragging", path)
+		}
+	}
+}
+
 func TestDesktopPetAnimationUsesRuntimePixelOffsets(t *testing.T) {
 	t.Parallel()
 

@@ -13,6 +13,10 @@
     const AMBIENT_RETURN_PADDING_MS = 260;
     const AMBIENT_RUN_MIN_DISTANCE = 90;
     const AMBIENT_RUN_MAX_DISTANCE = 180;
+    const DRAG_HANG_OFFSET_Y = 28;
+    const DRAG_SWAY_MAX_X = 18;
+    const DRAG_SWAY_MAX_DEG = 7;
+    const DRAG_SWAY_PERIOD_MS = 820;
     const ambientStates = ['waving', 'jumping', 'running', 'running'];
 
     // OpenPets-compatible reaction → animation state mapping.
@@ -409,27 +413,78 @@
         }
     }
 
+    function dragHangPosition(pointerX, pointerY, swayX) {
+        const scale = petScale();
+        const w = Math.round(PET_FRAME_W * scale);
+        const h = Math.round(PET_FRAME_H * scale);
+        return clampToViewport({
+            x: Math.round(pointerX - w / 2 + swayX),
+            y: Math.round(pointerY + DRAG_HANG_OFFSET_Y),
+            w,
+            h
+        });
+    }
+
+    function applyDragHangPosition(sway) {
+        if (!layer || !drag) return;
+        const elapsed = Date.now() - drag.startedAt;
+        const phase = (elapsed / DRAG_SWAY_PERIOD_MS) * Math.PI * 2;
+        const swayX = sway ? Math.round(Math.sin(phase) * DRAG_SWAY_MAX_X) : 0;
+        const swayDeg = sway ? Math.sin(phase) * DRAG_SWAY_MAX_DEG : 0;
+        const pos = dragHangPosition(drag.pointerX, drag.pointerY, swayX);
+        layer.style.left = pos.x + 'px';
+        layer.style.top = pos.y + 'px';
+        layer.style.transform = 'rotate(' + swayDeg.toFixed(2) + 'deg)';
+    }
+
+    function startDragSway() {
+        if (!drag) return;
+        const tick = () => {
+            if (!drag) return;
+            applyDragHangPosition(true);
+            drag.frame = window.requestAnimationFrame(tick);
+        };
+        tick();
+    }
+
+    function stopDragSway() {
+        if (drag && drag.frame) {
+            window.cancelAnimationFrame(drag.frame);
+            drag.frame = null;
+        }
+        if (layer) layer.style.transform = '';
+    }
+
     function wireDrag() {
         if (!layer) return;
         layer.addEventListener('pointerdown', event => {
             if (event.button !== 0) return;
-            drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, origX: layer.offsetLeft, origY: layer.offsetTop };
+            clearAmbientTimers();
+            drag = {
+                pointerId: event.pointerId,
+                pointerX: event.clientX,
+                pointerY: event.clientY,
+                startedAt: Date.now(),
+                frame: null
+            };
             layer.setPointerCapture(event.pointerId);
             layer.classList.add('dragging');
+            startDragSway();
         });
         layer.addEventListener('pointermove', event => {
             if (!drag || drag.pointerId !== event.pointerId) return;
-            const dx = event.clientX - drag.startX;
-            const dy = event.clientY - drag.startY;
-            layer.style.left = (drag.origX + dx) + 'px';
-            layer.style.top = (drag.origY + dy) + 'px';
+            drag.pointerX = event.clientX;
+            drag.pointerY = event.clientY;
+            applyDragHangPosition(true);
         });
         layer.addEventListener('pointerup', event => {
             if (!drag || drag.pointerId !== event.pointerId) return;
+            applyDragHangPosition(false);
             layer.releasePointerCapture(event.pointerId);
             layer.classList.remove('dragging');
             const x = layer.offsetLeft;
             const y = layer.offsetTop;
+            stopDragSway();
             drag = null;
             saveSetting('pet.position_x', String(x));
             saveSetting('pet.position_y', String(y));
@@ -438,6 +493,7 @@
             if (!drag || drag.pointerId !== event.pointerId) return;
             layer.releasePointerCapture(event.pointerId);
             layer.classList.remove('dragging');
+            stopDragSway();
             drag = null;
             applyPosition();
         });
