@@ -170,7 +170,9 @@ func TestDesktopStoreTerminalPreviewSupportsRestartAndPolling(t *testing.T) {
 		"data-store-terminal-restart",
 		"function restartActiveTerminalSession()",
 		"async function pollPreviewStatus()",
-		"/__commandcode_preview_status",
+		"function previewStatusURL(storeAppId, previewPortID)",
+		"'/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/preview-status?port_id=' + encodeURIComponent(previewPortID)",
+		"fetch(previewStatusURL(storeAppId, previewPortID), { credentials: 'same-origin', cache: 'no-store' })",
 		"desktop.store_terminal_preview_ready_toast",
 		"window.StoreTerminalPreviewApp.render = render",
 	} {

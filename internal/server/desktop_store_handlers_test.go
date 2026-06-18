@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -84,6 +86,51 @@ func TestDesktopStoreOpenURLUsesRequestedPortID(t *testing.T) {
 	handleDesktopStoreOpenURL(s, "romm").ServeHTTP(badRec, badReq)
 	if badRec.Code != http.StatusNotFound {
 		t.Fatalf("invalid port status = %d, want 404; body=%s", badRec.Code, badRec.Body.String())
+	}
+}
+
+func TestDesktopStorePreviewStatusProxiesThroughSameOrigin(t *testing.T) {
+	preview := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/__commandcode_preview_status" {
+			t.Fatalf("unexpected preview path %q", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ready":true,"target":"http://127.0.0.1:5173/"}`))
+	}))
+	defer preview.Close()
+
+	_, portText, err := net.SplitHostPort(strings.TrimPrefix(preview.URL, "http://"))
+	if err != nil {
+		t.Fatalf("parse preview port: %v", err)
+	}
+	port, err := strconv.Atoi(portText)
+	if err != nil {
+		t.Fatalf("parse preview port int: %v", err)
+	}
+
+	svc, _, _ := testInstalledStoreApp(t, "commandcode", port)
+	s := testDesktopStoreServerWithService(t, svc)
+	req := httptest.NewRequest(http.MethodGet, "/api/desktop/store/apps/commandcode/preview-status?port_id=web", nil)
+	rec := httptest.NewRecorder()
+
+	handleDesktopStoreAppRoute(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Cache-Control"); !strings.Contains(got, "no-store") {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
+	var body struct {
+		Status string `json:"status"`
+		Ready  bool   `json:"ready"`
+		Target string `json:"target"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Status != "ok" || !body.Ready || body.Target != "http://127.0.0.1:5173/" {
+		t.Fatalf("preview status body = %#v", body)
 	}
 }
 

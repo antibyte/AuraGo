@@ -54,12 +54,8 @@
         });
     }
 
-    function previewStatusURL(previewURL) {
-        try {
-            return new URL('/__commandcode_preview_status', previewURL).toString();
-        } catch (_) {
-            return String(previewURL || '').replace(/\/?$/, '/__commandcode_preview_status');
-        }
+    function previewStatusURL(storeAppId, previewPortID) {
+        return '/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/preview-status?port_id=' + encodeURIComponent(previewPortID);
     }
 
     async function render(id, app, storeAppId, deps) {
@@ -269,7 +265,7 @@
             async function pollPreviewStatus() {
                 if (disposed) return;
                 try {
-                    const response = await fetch(previewStatusURL(body.url), { credentials: 'same-origin', cache: 'no-store' });
+                    const response = await fetch(previewStatusURL(storeAppId, previewPortID), { credentials: 'same-origin', cache: 'no-store' });
                     if (!response.ok) throw new Error('preview status unavailable');
                     const status = await response.json();
                     if (status && status.ready) {
