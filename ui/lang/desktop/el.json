@@ -889,7 +889,7 @@
   "desktop.settings_theme": "Θέμα",
   "desktop.settings_theme_desc": "Επιλέγει την εμφάνιση της επιφάνειας εργασίας. Το Fruity ταιριάζει καλά με τα εικονίδια WhiteSur.",
   "desktop.settings_theme_fruity": "Fruity",
-  "desktop.settings_theme_standard": "Ubuntu",
+  "desktop.settings_theme_standard": "Standard",
   "desktop.settings_fruity_mode": "Εμφάνιση Fruity",
   "desktop.settings_fruity_mode_desc": "Φωτεινή ή σκοτεινή παραλλαγή για το θέμα Fruity.",
   "desktop.settings_fruity_mode_light": "Φωτεινή",

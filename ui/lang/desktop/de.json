@@ -889,7 +889,7 @@
   "desktop.settings_theme": "Design",
   "desktop.settings_theme_desc": "Wählt den Desktop-Look. Fruity passt gut zum WhiteSur-Iconset.",
   "desktop.settings_theme_fruity": "Fruity",
-  "desktop.settings_theme_standard": "Ubuntu",
+  "desktop.settings_theme_standard": "Standard",
   "desktop.settings_fruity_mode": "Fruity-Erscheinungsbild",
   "desktop.settings_fruity_mode_desc": "Helle oder dunkle Variante für das Fruity-Design.",
   "desktop.settings_fruity_mode_light": "Hell",

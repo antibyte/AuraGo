@@ -27,6 +27,8 @@
     transition: height 200ms ease;
 }
 
+
+
 .vd-widget[data-widget-auto-size="true"] {
     height: var(--vd-widget-auto-height, auto) !important;
     transition: none;
@@ -816,6 +818,15 @@
 .vd-widget:hover {
     box-shadow: var(--ds-elevation-3);
 }
+
+.desktop-body[data-theme="standard"] .vd-widget {
+    border-color: var(--vd-shell-context-menu-border);
+    background: var(--vd-shell-context-menu-bg);
+    box-shadow: var(--vd-shell-context-menu-shadow);
+    backdrop-filter: var(--vd-shell-context-menu-blur);
+    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
+}
+
 
 .vd-widget-frame {
     padding: var(--ds-space-3) var(--ds-space-4);

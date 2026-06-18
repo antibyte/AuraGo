@@ -889,7 +889,7 @@
   "desktop.settings_theme": "Tema",
   "desktop.settings_theme_desc": "Vælger skrivebordets udseende. Fruity passer godt til WhiteSur-ikoner.",
   "desktop.settings_theme_fruity": "Fruity",
-  "desktop.settings_theme_standard": "Ubuntu",
+  "desktop.settings_theme_standard": "Standard",
   "desktop.settings_fruity_mode": "Fruity-udseende",
   "desktop.settings_fruity_mode_desc": "Lys eller mørk variant til Fruity-temaet.",
   "desktop.settings_fruity_mode_light": "Lys",

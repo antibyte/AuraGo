@@ -403,11 +403,6 @@
     --vd-shell-panel: #303030;
     --vd-shell-panel-strong: #363636;
     --vd-shell-panel-border: rgba(255, 255, 255, 0.12);
-    --vd-shell-taskbar: #303030;
-    --vd-shell-taskbar-border: rgba(255, 255, 255, 0.14);
-    --vd-shell-window: #2d2d2d;
-    --vd-shell-window-chrome: #303030;
-    --vd-shell-menu: #2d2d2d;
     --vd-shell-context-menu-bg: rgba(11, 15, 24, 0.92);
     --vd-shell-context-menu-border: rgba(255, 255, 255, 0.1);
     --vd-shell-context-menu-shadow:
@@ -415,6 +410,11 @@
         0 28px 64px rgba(0, 0, 0, 0.52),
         0 6px 18px rgba(0, 0, 0, 0.32);
     --vd-shell-context-menu-blur: blur(40px) saturate(160%);
+    --vd-shell-taskbar: var(--vd-shell-context-menu-bg);
+    --vd-shell-taskbar-border: var(--vd-shell-context-menu-border);
+    --vd-shell-window: var(--vd-shell-context-menu-bg);
+    --vd-shell-window-chrome: var(--vd-shell-context-menu-bg);
+    --vd-shell-menu: var(--vd-shell-context-menu-bg);
     --vd-shell-accent-secondary: #f59e0b;
     --vd-shell-radius-window: 8px;
     --vd-shell-shadow-window: 0 28px 70px rgba(0, 0, 0, 0.48), 0 8px 24px rgba(0, 0, 0, 0.26);
@@ -576,10 +576,6 @@
     --fruity-window-minimize: #ffbd2e;
     --fruity-window-maximize: #28c840;
     --fruity-window-chrome: rgba(249, 251, 255, 0.74);
-    --vd-shell-context-menu-bg: rgba(255, 255, 255, 0.82);
-    --vd-shell-context-menu-border: rgba(78, 92, 118, 0.16);
-    --vd-shell-context-menu-shadow: 0 20px 52px rgba(52, 64, 84, 0.16);
-    --vd-shell-context-menu-blur: blur(28px) saturate(1.2);
 }
 
 .desktop-body[data-theme="fruity"] {
@@ -671,10 +667,6 @@
     --vd-muted: #a1a1aa;
     --vd-shadow: 0 26px 70px rgba(0, 0, 0, 0.36);
     --fruity-window-chrome: rgba(54, 54, 60, 0.74);
-    --vd-shell-context-menu-bg: rgba(24, 30, 42, 0.84);
-    --vd-shell-context-menu-border: rgba(255, 255, 255, 0.13);
-    --vd-shell-context-menu-shadow: 0 26px 70px rgba(0, 0, 0, 0.4);
-    --vd-shell-context-menu-blur: blur(40px) saturate(160%);
 
     --ds-color-fg-primary: #f5f5f7;
     --ds-color-fg-secondary: #d4dbe7;
@@ -717,11 +709,12 @@
 .desktop-body[data-theme="fruity"] .vd-window {
     grid-template-rows: 48px 1fr;
     border-radius: 14px;
-    background: var(--vd-shell-context-menu-bg);
-    border-color: var(--vd-shell-context-menu-border);
-    box-shadow: var(--vd-shell-context-menu-shadow);
-    backdrop-filter: var(--vd-shell-context-menu-blur);
-    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
+    background: rgba(255, 255, 255, 0.76);
+    border-color: rgba(78, 92, 118, 0.16);
+    box-shadow:
+        0 34px 78px rgba(52, 64, 84, 0.22),
+        0 1px 0 rgba(255, 255, 255, 0.6) inset;
+    backdrop-filter: blur(40px) saturate(1.3);
 }
 
 .desktop-body[data-theme="fruity"] .vd-window:not(.maximized) > .vd-window-titlebar {
@@ -753,10 +746,10 @@
     position: relative;
     justify-content: center;
     padding: 0 92px;
-    background: var(--vd-shell-context-menu-bg);
-    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
-    backdrop-filter: var(--vd-shell-context-menu-blur);
-    border-bottom-color: var(--vd-shell-context-menu-border);
+    background: var(--fruity-window-chrome);
+    -webkit-backdrop-filter: blur(40px) saturate(1.4);
+    backdrop-filter: blur(40px) saturate(1.4);
+    border-bottom-color: rgba(78, 92, 118, 0.14);
     cursor: default;
 }
 
@@ -764,10 +757,10 @@
    is communicated via the window border + box-shadow glow, not the titlebar.
    Prevents the titlebar from going near-white when window is focused. */
 .desktop-body[data-theme="fruity"] .vd-window.active .vd-window-titlebar {
-    background: var(--vd-shell-context-menu-bg);
-    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
-    backdrop-filter: var(--vd-shell-context-menu-blur);
-    border-bottom-color: var(--vd-shell-context-menu-border);
+    background: var(--fruity-window-chrome);
+    -webkit-backdrop-filter: blur(40px) saturate(1.4);
+    backdrop-filter: blur(40px) saturate(1.4);
+    border-bottom-color: rgba(78, 92, 118, 0.14);
 }
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu .vd-window-titlebar {
@@ -987,12 +980,11 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-menu-popover {
-    border-color: var(--vd-shell-context-menu-border);
+    border-color: rgba(78, 92, 118, 0.14);
     border-radius: var(--ds-radius-md);
-    background: var(--vd-shell-context-menu-bg);
-    box-shadow: var(--vd-shell-context-menu-shadow);
-    backdrop-filter: var(--vd-shell-context-menu-blur);
-    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
+    background: rgba(255, 255, 255, 0.86);
+    box-shadow: 0 18px 44px rgba(52, 64, 84, 0.2);
+    backdrop-filter: blur(32px) saturate(1.24);
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-menu-item:hover:not(:disabled),
@@ -1035,11 +1027,10 @@
 .desktop-body[data-theme="fruity"] .vd-setting-row,
 .desktop-body[data-theme="fruity"] .vd-context-menu,
 .desktop-body[data-theme="fruity"] .vd-modal {
-    background: var(--vd-shell-context-menu-bg);
-    border-color: var(--vd-shell-context-menu-border);
-    box-shadow: var(--vd-shell-context-menu-shadow);
-    backdrop-filter: var(--vd-shell-context-menu-blur);
-    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
+    background: rgba(255, 255, 255, 0.82);
+    border-color: rgba(78, 92, 118, 0.16);
+    box-shadow: 0 20px 52px rgba(52, 64, 84, 0.16);
+    backdrop-filter: blur(28px) saturate(1.2);
 }
 
 .desktop-body[data-theme="fruity"] .vd-settings-sidebar,
@@ -1625,9 +1616,9 @@
     .desktop-body[data-theme="fruity"] .vd-setting-row,
     .desktop-body[data-theme="fruity"] .vd-context-menu,
     .desktop-body[data-theme="fruity"] .vd-modal {
-        background: var(--vd-shell-context-menu-bg);
-        border-color: var(--vd-shell-context-menu-border);
-        box-shadow: var(--vd-shell-context-menu-shadow);
+        background: rgba(24, 30, 42, 0.84);
+        border-color: rgba(255, 255, 255, 0.13);
+        box-shadow: 0 26px 70px rgba(0, 0, 0, 0.4);
     }
 
     .desktop-body[data-theme="fruity"] .vd-window-menu-button {
@@ -1635,10 +1626,9 @@
     }
 
     .desktop-body[data-theme="fruity"] .vd-window-menu-popover {
-        background: var(--vd-shell-context-menu-bg);
-        border-color: var(--vd-shell-context-menu-border);
-        box-shadow: var(--vd-shell-context-menu-shadow);
-        backdrop-filter: var(--vd-shell-context-menu-blur);
+        background: rgba(28, 35, 48, 0.9);
+        border-color: rgba(255, 255, 255, 0.14);
+        box-shadow: 0 22px 52px rgba(0, 0, 0, 0.38);
     }
 
     .desktop-body[data-theme="fruity"] .vd-button,
@@ -1874,19 +1864,19 @@
 }
 
 .desktop-body[data-theme="standard"] .vd-taskbar {
-    background: var(--vd-shell-taskbar);
-    border-color: var(--vd-shell-taskbar-border);
-    border-top-color: rgba(255, 255, 255, 0.08);
-    box-shadow:
-        0 -1px 0 rgba(255, 255, 255, 0.04) inset,
-        0 -8px 28px rgba(0, 0, 0, 0.28);
+    background: var(--vd-shell-context-menu-bg);
+    border-color: var(--vd-shell-context-menu-border);
+    border-top-color: var(--vd-shell-context-menu-border);
+    box-shadow: var(--vd-shell-context-menu-shadow);
+    backdrop-filter: var(--vd-shell-context-menu-blur);
+    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
 }
 
 .desktop-body[data-theme="standard"] .vd-start-button {
     border-radius: 13px;
     transform: translateY(-3px);
-    background: #363636;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--vd-shell-context-menu-bg);
+    border: 1px solid var(--vd-shell-context-menu-border);
     box-shadow:
         0 8px 24px rgba(0, 0, 0, 0.28),
         inset 0 1px 0 rgba(255, 255, 255, 0.04);
@@ -2505,12 +2495,12 @@
     left: 18px;
     bottom: calc(var(--vd-taskbar-height, 54px) + 12px);
     width: min(420px, calc(100vw - 36px));
-    border-color: rgba(255, 255, 255, 0.12);
+    border-color: var(--vd-shell-context-menu-border);
     border-radius: 14px;
-    background: var(--vd-shell-menu);
-    box-shadow:
-        0 24px 70px rgba(0, 0, 0, 0.46),
-        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    background: var(--vd-shell-context-menu-bg);
+    box-shadow: var(--vd-shell-context-menu-shadow);
+    backdrop-filter: var(--vd-shell-context-menu-blur);
+    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
 }
 
 .desktop-body[data-theme="fruity"] .vd-start-menu {
@@ -2906,11 +2896,11 @@
     display: grid;
     grid-template-rows: 46px 1fr;
     border-radius: var(--ds-radius-lg);
-    border: 1px solid var(--vd-shell-context-menu-border);
-    background: var(--vd-shell-context-menu-bg);
-    box-shadow: var(--vd-shell-context-menu-shadow);
-    backdrop-filter: var(--vd-shell-context-menu-blur);
-    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
+    border: 1px solid var(--ds-color-border-subtle);
+    background: var(--ds-color-surface-2);
+    box-shadow: var(--ds-elevation-4);
+    backdrop-filter: var(--ds-blur-fine);
+    -webkit-backdrop-filter: var(--ds-blur-fine);
     overflow: visible;
     pointer-events: auto;
     transition:
@@ -3061,7 +3051,7 @@
     justify-content: space-between;
     gap: var(--ds-space-3);
     padding: 0 var(--ds-space-4);
-    background: var(--vd-shell-context-menu-bg);
+    background: var(--ds-color-surface-2);
     border-bottom: 1px solid var(--ds-color-border-subtle);
     overflow: visible;
     cursor: grab;
@@ -3309,16 +3299,25 @@
     z-index: calc(var(--vd-z-menu) + 1);
     min-width: 210px;
     padding: 6px;
-    border: 1px solid var(--vd-shell-context-menu-border);
+    border: 1px solid var(--vd-border);
     border-radius: var(--ds-radius-md);
-    background: var(--vd-shell-context-menu-bg);
-    box-shadow: var(--vd-shell-context-menu-shadow);
-    backdrop-filter: var(--vd-shell-context-menu-blur);
+    background: var(--vd-surface-strong);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.34);
+    backdrop-filter: blur(22px) saturate(1.14);
     opacity: 0;
     pointer-events: none;
     transform: translateY(-3px);
     transition: opacity 90ms var(--ds-motion-ease-standard), transform 90ms var(--ds-motion-ease-standard);
 }
+
+.desktop-body[data-theme="standard"] .vd-window-menu-popover {
+    border-color: var(--vd-shell-context-menu-border);
+    background: var(--vd-shell-context-menu-bg);
+    box-shadow: var(--vd-shell-context-menu-shadow);
+    backdrop-filter: var(--vd-shell-context-menu-blur);
+    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
+}
+
 
 .vd-window-menu.open > .vd-window-menu-popover,
 .vd-window-menu-submenu:hover > .vd-window-menu-popover,
@@ -4481,6 +4480,8 @@
     transition: height 200ms ease;
 }
 
+
+
 .vd-widget[data-widget-auto-size="true"] {
     height: var(--vd-widget-auto-height, auto) !important;
     transition: none;
@@ -5270,6 +5271,15 @@
 .vd-widget:hover {
     box-shadow: var(--ds-elevation-3);
 }
+
+.desktop-body[data-theme="standard"] .vd-widget {
+    border-color: var(--vd-shell-context-menu-border);
+    background: var(--vd-shell-context-menu-bg);
+    box-shadow: var(--vd-shell-context-menu-shadow);
+    backdrop-filter: var(--vd-shell-context-menu-blur);
+    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
+}
+
 
 .vd-widget-frame {
     padding: var(--ds-space-3) var(--ds-space-4);

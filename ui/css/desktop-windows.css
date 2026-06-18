@@ -118,11 +118,11 @@
     display: grid;
     grid-template-rows: 46px 1fr;
     border-radius: var(--ds-radius-lg);
-    border: 1px solid var(--vd-shell-context-menu-border);
-    background: var(--vd-shell-context-menu-bg);
-    box-shadow: var(--vd-shell-context-menu-shadow);
-    backdrop-filter: var(--vd-shell-context-menu-blur);
-    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
+    border: 1px solid var(--ds-color-border-subtle);
+    background: var(--ds-color-surface-2);
+    box-shadow: var(--ds-elevation-4);
+    backdrop-filter: var(--ds-blur-fine);
+    -webkit-backdrop-filter: var(--ds-blur-fine);
     overflow: visible;
     pointer-events: auto;
     transition:
@@ -273,7 +273,7 @@
     justify-content: space-between;
     gap: var(--ds-space-3);
     padding: 0 var(--ds-space-4);
-    background: var(--vd-shell-context-menu-bg);
+    background: var(--ds-color-surface-2);
     border-bottom: 1px solid var(--ds-color-border-subtle);
     overflow: visible;
     cursor: grab;
@@ -521,16 +521,25 @@
     z-index: calc(var(--vd-z-menu) + 1);
     min-width: 210px;
     padding: 6px;
-    border: 1px solid var(--vd-shell-context-menu-border);
+    border: 1px solid var(--vd-border);
     border-radius: var(--ds-radius-md);
-    background: var(--vd-shell-context-menu-bg);
-    box-shadow: var(--vd-shell-context-menu-shadow);
-    backdrop-filter: var(--vd-shell-context-menu-blur);
+    background: var(--vd-surface-strong);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.34);
+    backdrop-filter: blur(22px) saturate(1.14);
     opacity: 0;
     pointer-events: none;
     transform: translateY(-3px);
     transition: opacity 90ms var(--ds-motion-ease-standard), transform 90ms var(--ds-motion-ease-standard);
 }
+
+.desktop-body[data-theme="standard"] .vd-window-menu-popover {
+    border-color: var(--vd-shell-context-menu-border);
+    background: var(--vd-shell-context-menu-bg);
+    box-shadow: var(--vd-shell-context-menu-shadow);
+    backdrop-filter: var(--vd-shell-context-menu-blur);
+    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
+}
+
 
 .vd-window-menu.open > .vd-window-menu-popover,
 .vd-window-menu-submenu:hover > .vd-window-menu-popover,
