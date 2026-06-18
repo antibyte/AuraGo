@@ -32,10 +32,11 @@
   --border: #2a2a2a;
   --border-focus: var(--accent);
 
-  /* Status dim variants */
-  --success-dim: rgba(34, 197, 94, 0.15);
-  --warning-dim: rgba(234, 179, 8, 0.15);
-  --danger-dim: rgba(239, 68, 68, 0.15);
+  /* Status dim variants — aliases to theme-dependent -bg tokens */
+  /* Use --success-bg/--warning-bg/--danger-bg directly for theme-aware backgrounds */
+  --success-dim: var(--success-bg);
+  --warning-dim: var(--warning-bg);
+  --danger-dim: var(--danger-bg);
   --info: #3b82f6;
   --info-dim: rgba(59, 130, 246, 0.15);
 
@@ -46,12 +47,16 @@
   --font-sans: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'Geist Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', ui-monospace, monospace;
 
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-lg: 1.125rem;
-  --text-xl: 1.25rem;
-  --text-2xl: 1.5rem;
+  /* Typography Scale — MAẞGEBLICHE DEFINITION (fluid clamp-based)
+   * These are the SINGLE SOURCE OF TRUTH for font sizes.
+   * DO NOT duplicate --text-* tokens in shared-variables.css or elsewhere.
+   * Validated: Requirements 1.1, 1.2 — Token-Single-Source */
+  --text-xs:   clamp(0.65rem, 0.6rem + 0.15vw, 0.75rem);
+  --text-sm:   clamp(0.75rem, 0.7rem + 0.2vw, 0.85rem);
+  --text-base: clamp(0.875rem, 0.8rem + 0.25vw, 1rem);
+  --text-lg:   clamp(1.1rem, 1rem + 0.3vw, 1.3rem);
+  --text-xl:   clamp(1.25rem, 1.1rem + 0.4vw, 1.5rem);
+  --text-2xl:  clamp(1.5rem, 1.3rem + 0.6vw, 1.9rem);
 
   /* ───────────────────────────────────────────────────────────────
    * SPACING

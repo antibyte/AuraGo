@@ -118,11 +118,11 @@
     display: grid;
     grid-template-rows: 46px 1fr;
     border-radius: var(--ds-radius-lg);
-    border: 1px solid var(--ds-color-border-subtle);
-    background: var(--ds-color-surface-2);
-    box-shadow: var(--ds-elevation-4);
-    backdrop-filter: var(--ds-blur-fine);
-    -webkit-backdrop-filter: var(--ds-blur-fine);
+    border: 1px solid var(--vd-shell-context-menu-border);
+    background: var(--vd-shell-context-menu-bg);
+    box-shadow: var(--vd-shell-context-menu-shadow);
+    backdrop-filter: var(--vd-shell-context-menu-blur);
+    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
     overflow: visible;
     pointer-events: auto;
     transition:
@@ -134,9 +134,11 @@
 
 .desktop-body[data-theme="standard"] .vd-window {
     border-radius: var(--vd-shell-radius-window);
-    border-color: rgba(255, 255, 255, 0.1);
-    background: var(--vd-shell-window);
-    box-shadow: var(--vd-shell-shadow-window);
+    border-color: var(--vd-shell-context-menu-border);
+    background: var(--vd-shell-context-menu-bg);
+    box-shadow: var(--vd-shell-context-menu-shadow);
+    backdrop-filter: var(--vd-shell-context-menu-blur);
+    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
 }
 
 .desktop-body[data-theme="standard"] .vd-window.active {
@@ -271,7 +273,7 @@
     justify-content: space-between;
     gap: var(--ds-space-3);
     padding: 0 var(--ds-space-4);
-    background: var(--ds-color-surface-2);
+    background: var(--vd-shell-context-menu-bg);
     border-bottom: 1px solid var(--ds-color-border-subtle);
     overflow: visible;
     cursor: grab;
@@ -281,12 +283,12 @@
 }
 
 .desktop-body[data-theme="standard"] .vd-window-titlebar {
-    background: var(--vd-shell-window-chrome);
-    border-bottom-color: rgba(255, 255, 255, 0.08);
+    background: var(--vd-shell-context-menu-bg);
+    border-bottom-color: var(--vd-shell-context-menu-border);
 }
 
 .desktop-body[data-theme="standard"] .vd-window.active .vd-window-titlebar {
-    background: #343434;
+    background: var(--vd-shell-context-menu-bg);
 }
 
 .vd-window.dragging .vd-window-titlebar {
@@ -519,11 +521,11 @@
     z-index: calc(var(--vd-z-menu) + 1);
     min-width: 210px;
     padding: 6px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-shell-context-menu-border);
     border-radius: var(--ds-radius-md);
-    background: var(--vd-surface-strong);
-    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.34);
-    backdrop-filter: blur(22px) saturate(1.14);
+    background: var(--vd-shell-context-menu-bg);
+    box-shadow: var(--vd-shell-context-menu-shadow);
+    backdrop-filter: var(--vd-shell-context-menu-blur);
     opacity: 0;
     pointer-events: none;
     transform: translateY(-3px);

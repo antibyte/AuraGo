@@ -37,15 +37,12 @@
     position: fixed;
     min-width: 214px;
     padding: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--vd-shell-context-menu-border);
     border-radius: 12px;
-    background: rgba(11, 15, 24, 0.92);
-    box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.05) inset,
-        0 28px 64px rgba(0, 0, 0, 0.52),
-        0 6px 18px rgba(0, 0, 0, 0.32);
-    backdrop-filter: blur(40px) saturate(160%);
-    -webkit-backdrop-filter: blur(40px) saturate(160%);
+    background: var(--vd-shell-context-menu-bg);
+    box-shadow: var(--vd-shell-context-menu-shadow);
+    backdrop-filter: var(--vd-shell-context-menu-blur);
+    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
     z-index: var(--vd-z-context-menu);
 }
 
@@ -83,15 +80,12 @@
     top: -7px;
     min-width: 214px;
     padding: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--vd-shell-context-menu-border);
     border-radius: 12px;
-    background: rgba(11, 15, 24, 0.92);
-    box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.05) inset,
-        0 28px 64px rgba(0, 0, 0, 0.52),
-        0 6px 18px rgba(0, 0, 0, 0.32);
-    backdrop-filter: blur(40px) saturate(160%);
-    -webkit-backdrop-filter: blur(40px) saturate(160%);
+    background: var(--vd-shell-context-menu-bg);
+    box-shadow: var(--vd-shell-context-menu-shadow);
+    backdrop-filter: var(--vd-shell-context-menu-blur);
+    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
 }
 
 .vd-context-submenu:hover > .vd-context-submenu-popover,
