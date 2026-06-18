@@ -151,10 +151,13 @@ func TestDesktopIconsUseReconciliation(t *testing.T) {
 func TestGalaxaDeluxeCachesCanvasResources(t *testing.T) {
 	t.Parallel()
 
-	source := readEmbeddedText(t, "js/desktop/apps/galaxa-deluxe.js")
+	source := strings.Join([]string{
+		readEmbeddedText(t, "js/desktop/apps/galaxa-background.js"),
+		readEmbeddedText(t, "js/desktop/apps/galaxa-sprites.js"),
+	}, "\n")
 	for _, marker := range []string{
 		"function ensureNebulaCanvas()",
-		"nebulaCv.width = W",
+		"nebulaCv.width = ctx.W",
 		"const radialGradientCache = new Map()",
 		"function cachedRadialGradient",
 		"function drawSp(",
