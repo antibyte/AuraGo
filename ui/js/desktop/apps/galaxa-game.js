@@ -79,6 +79,15 @@
             if (ctx.G.score >= 1000000) ctx.unlockAchievement('millionaire');
             const stageTime = (performance.now ? performance.now() : Date.now()) - ctx.G.stageStartTime;
             if (stageTime < 30000 && ctx.G.stage > 2) ctx.unlockAchievement('speed_demon');
+            // Intensity Director
+            const _accuracy = (ctx.G.stageAccuracyShots || 0) > 0 ? (ctx.G.stageAccuracyHits || 0) / ctx.G.stageAccuracyShots : 0.5;
+            const _killSpeed = (ctx.G.stageKills || 0) / Math.max(1, stageTime / 1000);
+            let _intAdj = 0;
+            if (_accuracy > 0.7) _intAdj--; if (_accuracy < 0.3) _intAdj++;
+            if (_killSpeed > 3) _intAdj--; if (_killSpeed < 1) _intAdj++;
+            if ((ctx.G.stageDamageTaken || 0) === 0) _intAdj--; if ((ctx.G.stageDamageTaken || 0) >= 3) _intAdj++;
+            ctx.G.intensityScore = Math.max(0, Math.min(10, (ctx.G.intensityScore || 5) + _intAdj));
+            ctx.MusicEngine.setIntensity(ctx.G.intensityScore);
             ctx.SFX.warpJump();
             if (!ctx.G.chal && !fromSkip) {
                 ctx.MusicEngine.play('victory');
@@ -108,6 +117,9 @@
             ctx.G.swipeT = 0; ctx.G.portalT = 0; ctx.G.glitchT = 0; ctx.G.glitchStrips = [];
             ctx.G._closeCallCooldown = 0; ctx.G._synergyChecked = null; ctx.G.shieldReflect = false; ctx.G.laserSlow = false; ctx.G.droneRicochet = false;
             ctx.G.scoreMult = 1; ctx.G.glassCannon = false; ctx.G.bulletStorm = false; ctx.G.powerSurge = false; ctx.G.darkness = false; ctx.G.turbo = false;
+            ctx.G.mirrorField = false; ctx.G.gravityWell = false; ctx.G.phasing = false; ctx.G.ricochetWorld = false;
+            ctx.G.orbitalShields = null; ctx.G.orbitalShieldTimer = 0;
+            ctx.G.stageKills = 0; ctx.G.stageDamageTaken = 0; ctx.G.stageAccuracyShots = 0; ctx.G.stageAccuracyHits = 0;
             ctx.G.pacifistStage = true; ctx.G.overcharge = 0; ctx.G.overchargeTimer = 0;
             ctx.G.p.x = ctx.W / 2; ctx.G.p.alive = true; ctx.G.p.inv = 2000; ctx.G.p.cap = null; ctx.G.p.dual = false; ctx.G.p.reviveTimer = 0;
             ctx.G.stageEmptyT = 0;
@@ -117,6 +129,9 @@
             ctx.MusicEngine.play(ctx.G.chal ? 'challenge' : 'gameplay');
             ctx.mkFormation();
             if (ctx.spawnHazards) ctx.spawnHazards();
+            if (ctx.relic_applyRelics) ctx.relic_applyRelics(ctx.G);
+            // Mutation start notification
+            if (ctx.G.stageModifier) { for (const _m of (Array.isArray(ctx.G.stageModifier) ? ctx.G.stageModifier : [ctx.G.stageModifier])) { if (_m && (_m.id === 'mirror_field' || _m.id === 'gravity_well' || _m.id === 'phasing' || _m.id === 'ricochet_world')) { ctx.SFX.mutationStart(); ctx.G.mutationStages = (ctx.G.mutationStages || 0) + 1; if (ctx.G.mutationStages >= 5) ctx.unlockAchievement('mutation_master'); } } }
         }
 
         function updateExp(dt) {
@@ -133,6 +148,7 @@
                 if (ctx.G.bgTheme === 'blackhole') { const _bhDx = ctx.W/2 - p.x, _bhDy = ctx.H/3 - p.y, _bhDist = Math.hypot(_bhDx, _bhDy); if (_bhDist > 10 && _bhDist < 150) { const _bhF = 60 / _bhDist; p.vx += (_bhDx / _bhDist) * _bhF * dt; p.vy += (_bhDy / _bhDist) * _bhF * dt; } }
                 if (p.debris) { p.vy += 60 * dt; p.vx *= 0.98; p.rot += dt * 3; }
                 else if (p.smoke) { p.vy -= 8 * dt; p.size += dt * 2; }
+                else if (p.bloom) { const _bp = p.t / p.life; if (_bp > 0.5) { p.vx *= 1 + dt * 3; p.vy *= 1 + dt * 3; } else { p.vx *= 1 - dt * 2; p.vy *= 1 - dt * 2; } }
                 else if (p.spark) { p.vx *= 0.95; p.vy *= 0.95; }
                 p.t += dtMs; if (p.t < p.life) ctx.G.part[plen++] = p;
             }
@@ -237,6 +253,7 @@
                 if (ctx.G.contTmr > 0) { ctx.G.contTmr -= dt; ctx.G.contCnt = Math.ceil(ctx.G.contTmr); }
                 if (ctx.G.contTmr > 0 && ctx.G.inp.s && !ctx.G.inp.sp) { ctx.G.lives = ctx.diffMod('lives'); ctx.G.st = 'PLAYING'; ctx.G.p.alive = true; ctx.G.p.x = ctx.W / 2; ctx.G.p.inv = 3000; ctx.G.activePU = null; ctx.G.shieldHits = 0; ctx.G.powerups = []; ctx.G.timeScale = 1; ctx.G.freezeT = 0; ctx.G.damageVignetteT = 0; ctx.G.combo = 0; ctx.G.comboMult = 1; ctx.mkFormation(); ctx.MusicEngine.play('gameplay'); }
                 if (ctx.G.sTmr <= 0 && ctx.G.contTmr <= 0) {
+                    if (ctx.relic_earnShards) ctx.relic_earnShards(ctx.G.score, ctx.G.stage);
                     if (ctx.G.score > 0 && ctx.isHS(ctx.G.score)) { ctx.G.st = 'HIGH_SCORE'; ctx.G.ne = { ch: [65, 65, 65], pos: 0, done: false }; ctx.showHSOverlay(); }
                     else { ctx.G.st = 'TITLE'; ctx.G.tIdle = 0; ctx.showTitle(); ctx.MusicEngine.play('title'); }
                 }

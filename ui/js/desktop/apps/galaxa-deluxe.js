@@ -77,6 +77,7 @@
         GC.createRenderer(gameCtx);
         GC.createGame(gameCtx);
         GC.createShop(gameCtx);
+        GC.createRelics(gameCtx);
 
         gameCtx.G = {
             st: 'TITLE', score: 0, lives: 3, stage: 1, hi: 10000, hiScores: [],
@@ -109,6 +110,10 @@
             gravityBomb: null, mirrorActive: false, mirrorTimer: 0, voidZones: [], voidZoneT: 0,
             swipeT: 0, swipeDir: 1, portalT: 0, portalR: 0, glitchT: 0, glitchStrips: [],
             _closeCallCooldown: 0, _synergyChecked: null, shieldReflect: false, laserSlow: false, droneRicochet: false,
+            orbitalShields: null, orbitalShieldTimer: 0,
+            intensityScore: 5, stageKills: 0, stageDamageTaken: 0, stageAccuracyShots: 0, stageAccuracyHits: 0,
+            rageKills: 0, chainMasterHits: 0, orbitalBlocks: 0, mutationStages: 0,
+            mirrorField: false, gravityWell: false, phasing: false, ricochetWorld: false,
             inp: { l: false, r: false, f: false, fp: false, s: false, sp: false, p: false, pp: false, u: false, d: false, rp: false, lp: false, up: false, dp: false },
             kb: { l: false, r: false, u: false, d: false, f: false, s: false, p: false },
             gp: { l: false, r: false, u: false, d: false, f: false, s: false, p: false },

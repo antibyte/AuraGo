@@ -16,16 +16,16 @@
     GC.EXTRA_LIFE = 20000;
     GC.TITLE_IDLE = 15000;
 
-    GC.PU_TYPES = ['rapid', 'spread', 'shield', 'bomb', 'speed', 'magnet', 'laser', 'multibomb', 'timeslow', 'pierce', 'homing', 'supernova', 'freeze', 'levelskip', 'ricochet', 'drone', 'blackhole_bomb', 'gravity_bomb', 'mirror'];
-    GC.PU_COL = { rapid: '#00ffcc', spread: '#ff6600', shield: '#4488ff', bomb: '#ff4444', speed: '#ffee00', magnet: '#ff44ff', laser: '#eeeeff', multibomb: '#cc2222', timeslow: '#aa44ff', pierce: '#88ffaa', homing: '#ff88aa', supernova: '#ffffff', freeze: '#88eeff', levelskip: '#ff88ff', ricochet: '#ffaa44', drone: '#44ffaa', blackhole_bomb: '#8844ff', gravity_bomb: '#cc66ff', mirror: '#88ddff' };
-    GC.PU_DUR = { rapid: 8000, spread: 10000, speed: 6000, magnet: 8000, laser: 5000, timeslow: 4000, pierce: 6000, homing: 0, freeze: 4000, ricochet: 8000, drone: 10000, mirror: 8000 };
+    GC.PU_TYPES = ['rapid', 'spread', 'shield', 'bomb', 'speed', 'magnet', 'laser', 'multibomb', 'timeslow', 'pierce', 'homing', 'supernova', 'freeze', 'levelskip', 'ricochet', 'drone', 'blackhole_bomb', 'gravity_bomb', 'mirror', 'orbital_shield', 'chain_lightning'];
+    GC.PU_COL = { rapid: '#00ffcc', spread: '#ff6600', shield: '#4488ff', bomb: '#ff4444', speed: '#ffee00', magnet: '#ff44ff', laser: '#eeeeff', multibomb: '#cc2222', timeslow: '#aa44ff', pierce: '#88ffaa', homing: '#ff88aa', supernova: '#ffffff', freeze: '#88eeff', levelskip: '#ff88ff', ricochet: '#ffaa44', drone: '#44ffaa', blackhole_bomb: '#8844ff', gravity_bomb: '#cc66ff', mirror: '#88ddff', orbital_shield: '#44aaff', chain_lightning: '#aaddff' };
+    GC.PU_DUR = { rapid: 8000, spread: 10000, speed: 6000, magnet: 8000, laser: 5000, timeslow: 4000, pierce: 6000, homing: 0, freeze: 4000, ricochet: 8000, drone: 10000, mirror: 8000, orbital_shield: 8000, chain_lightning: 10000 };
     GC.PU_UPGRADE = { rapid: 'ultra_rapid', spread: 'mega_spread', speed: 'hyper_speed', magnet: 'super_magnet', laser: 'mega_laser', pierce: 'mega_pierce', ricochet: 'mega_ricochet', drone: 'dual_drone' };
     GC.PU_UPGRADE_COL = { ultra_rapid: '#00ffee', mega_spread: '#ff8800', hyper_speed: '#ffff44', super_magnet: '#ff88ff', mega_laser: '#ccddff', mega_pierce: '#aaffcc', mega_ricochet: '#ffcc66', dual_drone: '#66ffcc' };
-    GC.PU_TRAIL_COL = { rapid: '0,255,204', ultra_rapid: '0,255,238', spread: '255,102,0', mega_spread: '255,136,0', shield: '68,136,255', speed: '255,238,0', hyper_speed: '255,255,68', magnet: '255,68,255', super_magnet: '255,136,255', laser: '180,200,255', mega_laser: '160,180,255', timeslow: '170,68,255', pierce: '136,255,170', mega_pierce: '170,255,204', homing: '255,136,170', freeze: '136,238,255', levelskip: '255,136,255', ricochet: '255,170,68', mega_ricochet: '255,204,102', drone: '68,255,170', dual_drone: '102,255,204', blackhole_bomb: '136,68,255', gravity_bomb: '204,102,255', mirror: '136,221,255' };
+    GC.PU_TRAIL_COL = { rapid: '0,255,204', ultra_rapid: '0,255,238', spread: '255,102,0', mega_spread: '255,136,0', shield: '68,136,255', speed: '255,238,0', hyper_speed: '255,255,68', magnet: '255,68,255', super_magnet: '255,136,255', laser: '180,200,255', mega_laser: '160,180,255', timeslow: '170,68,255', pierce: '136,255,170', mega_pierce: '170,255,204', homing: '255,136,170', freeze: '136,238,255', levelskip: '255,136,255', ricochet: '255,170,68', mega_ricochet: '255,204,102', drone: '68,255,170', dual_drone: '102,255,204', blackhole_bomb: '136,68,255', gravity_bomb: '204,102,255', mirror: '136,221,255', orbital_shield: '68,170,255', chain_lightning: '170,221,255' };
     GC.PU_RARITY = {
         common: ['rapid', 'spread', 'speed', 'pierce'],
-        uncommon: ['shield', 'magnet', 'laser', 'ricochet', 'mirror'],
-        rare: ['homing', 'drone', 'timeslow', 'freeze'],
+        uncommon: ['shield', 'magnet', 'laser', 'ricochet', 'mirror', 'orbital_shield'],
+        rare: ['homing', 'drone', 'timeslow', 'freeze', 'chain_lightning'],
         legendary: ['bomb', 'multibomb', 'supernova', 'blackhole_bomb', 'levelskip', 'gravity_bomb']
     };
     GC.PU_RARITY_WEIGHT = { common: 50, uncommon: 30, rare: 15, legendary: 5 };
@@ -104,7 +104,11 @@
         { id: 'bullet_storm', name: 'Bullet Storm', desc: '2x enemy fire rate', col: '#ff8800', apply: function(G) { G.bulletStorm = true; } },
         { id: 'power_surge', name: 'Power Surge', desc: '3x powerup drops', col: '#44ff88', apply: function(G) { G.powerSurge = true; } },
         { id: 'darkness', name: 'Darkness', desc: 'Reduced visibility', col: '#444466', apply: function(G) { G.darkness = true; } },
-        { id: 'turbo', name: 'Turbo', desc: '1.5x speed everything', col: '#44aaff', apply: function(G) { G.turbo = true; G.timeScale = 1.5; } }
+        { id: 'turbo', name: 'Turbo', desc: '1.5x speed everything', col: '#44aaff', apply: function(G) { G.turbo = true; G.timeScale = 1.5; } },
+        { id: 'mirror_field', name: 'Mirror Field', desc: '20% bullets split', col: '#88ddff', apply: function(G) { G.mirrorField = true; } },
+        { id: 'gravity_well', name: 'Gravity Well', desc: 'Center pull affects all', col: '#cc66ff', apply: function(G) { G.gravityWell = true; } },
+        { id: 'phasing', name: 'Phasing', desc: 'Enemies blink invulnerable', col: '#44ffff', apply: function(G) { G.phasing = true; } },
+        { id: 'ricochet_world', name: 'Ricochet World', desc: 'Bullets bounce off walls', col: '#ffaa44', apply: function(G) { G.ricochetWorld = true; } }
     ];
 
     GC.NEW_ENEMY_TYPES = {
@@ -146,7 +150,11 @@
         black_hole_master: { name: 'Singularity', desc: 'Kill 20 enemies with one Black Hole Bomb' },
         freeze_frame: { name: 'Cryo Master', desc: 'Kill 50 enemies while they are frozen' },
         ricochet_master: { name: 'Trick Shot', desc: 'Kill 30 enemies with ricochet bullets' },
-        supernova_survivor: { name: 'Supernova Survivor', desc: 'Survive an enemy-triggered Supernova' }
+        supernova_survivor: { name: 'Supernova Survivor', desc: 'Survive an enemy-triggered Supernova' },
+        rage_survivor: { name: 'Rage Survivor', desc: 'Survive 10 rage-mode enemies' },
+        chain_master: { name: 'Chain Master', desc: 'Hit 5 enemies with one chain lightning' },
+        orbital_king: { name: 'Orbital King', desc: 'Block 20 bullets with orbital shields' },
+        mutation_master: { name: 'Mutation Master', desc: 'Complete 5 mutated stages' }
     };
 
     GC.SHIP_TYPES = {

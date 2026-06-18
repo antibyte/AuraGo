@@ -203,6 +203,10 @@
                 ctx.c.fillStyle = '#ff4444'; ctx.c.font = 'bold 28px "Courier New",monospace'; ctx.c.textAlign = 'center';
                 ctx.c.fillText('WARNING', ctx.W / 2, ctx.H / 2 - 20);
                 ctx.c.shadowBlur = 0;
+                const bvAlpha = Math.min(0.3, ctx.G.bossWarningT / 2000 * 0.3);
+                const bvGrad = ctx.c.createRadialGradient(ctx.W / 2, ctx.H / 2, ctx.H * 0.3, ctx.W / 2, ctx.H / 2, ctx.H * 0.8);
+                bvGrad.addColorStop(0, 'rgba(0,0,0,0)'); bvGrad.addColorStop(1, 'rgba(180,0,0,' + bvAlpha + ')');
+                ctx.c.fillStyle = bvGrad; ctx.c.fillRect(0, 0, ctx.W, ctx.H);
                 ctx.wrapEl.classList.add('galaxa-boss-warning');
             } else {
                 ctx.wrapEl.classList.remove('galaxa-boss-warning');
@@ -251,7 +255,8 @@
                     if (p.dual) ctx.drawSp(ctx.c, ctx.SP.player, ctx.SP.pC, p.x + 28, p.y - 12, false);
                 }
                 if (p.alive) {
-                    const eg = 0.5 + Math.sin(ctx.tick * 0.15) * 0.3;
+                    const beatMod = ctx.G.beatPhase > 0.85 ? 1.3 : 1;
+                    const eg = (0.5 + Math.sin(ctx.tick * 0.15) * 0.3) * beatMod;
                     const flameGlowCol = ctx.G.activePU && ctx.PU_COL[ctx.G.activePU.type] ? ctx.PU_COL[ctx.G.activePU.type] : '#ff6600';
                     renderFlame(ctx.c, p.x - 6, p.y + 11, eg, ctx.tick);
                     renderFlame(ctx.c, p.x + 3, p.y + 11, eg, ctx.tick);
@@ -272,12 +277,29 @@
                     ctx.c.fillStyle = '#4488ff'; ctx.c.fillRect(Math.floor(p.x + Math.cos(a) * 18 - 1), Math.floor(p.y + Math.sin(a) * 18 - 1), 3, 3);
                 }
             }
+            if (ctx.G.orbitalShields && p.alive) {
+                for (const os of ctx.G.orbitalShields) {
+                    if (!os.active) continue;
+                    const osx = p.x + Math.cos(os.angle) * 24;
+                    const osy = p.y + Math.sin(os.angle) * 24;
+                    ctx.c.fillStyle = '#44aaff'; ctx.c.shadowBlur = 6; ctx.c.shadowColor = '#44aaff';
+                    ctx.c.beginPath(); ctx.c.arc(osx, osy, 4, 0, Math.PI * 2); ctx.c.fill();
+                    ctx.c.strokeStyle = '#88ccff'; ctx.c.lineWidth = 1;
+                    ctx.c.beginPath(); ctx.c.arc(osx, osy, 6, 0, Math.PI * 2); ctx.c.stroke();
+                    ctx.c.shadowBlur = 0;
+                }
+            }
             if (ctx.G.activePU && ctx.G.activePU.type !== 'shield' && p.alive) {
                 const auraCol = ctx.PU_COL[ctx.G.activePU.type];
                 const auraPulse = 0.15 + Math.sin(ctx.tick * 0.08) * 0.1;
                 ctx.c.shadowBlur = 12; ctx.c.shadowColor = auraCol;
                 ctx.c.strokeStyle = auraCol; ctx.c.lineWidth = 1; ctx.c.globalAlpha = auraPulse;
                 ctx.c.beginPath(); ctx.c.arc(p.x, p.y, 20 + Math.sin(ctx.tick * 0.12) * 3, 0, Math.PI * 2); ctx.c.stroke();
+                ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1;
+            }
+            if (ctx.G.activePU && ctx.G.activePU.type === 'chain_lightning' && p.alive) {
+                ctx.c.globalAlpha = 0.3 + Math.sin(ctx.tick * 0.2) * 0.15; ctx.c.strokeStyle = '#aaddff'; ctx.c.lineWidth = 1; ctx.c.shadowBlur = 4; ctx.c.shadowColor = '#aaddff';
+                for (let i = 0; i < 3; i++) { const ea = ctx.tick * 0.1 + i * 2.1; ctx.c.beginPath(); ctx.c.moveTo(p.x, p.y); for (let j = 1; j < 4; j++) ctx.c.lineTo(p.x + Math.cos(ea) * j * 8 + (Math.random() - 0.5) * 6, p.y + Math.sin(ea) * j * 8 + (Math.random() - 0.5) * 6); ctx.c.stroke(); }
                 ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1;
             }
 
@@ -484,6 +506,9 @@
                 if (!fl && ctx.G.beatPhase > 0.82 && (e.type === 'bee' || e.type === 'butterfly')) {
                     // beat glow drawn in batched pass below to avoid per-enemy shadowBlur changes
                 }
+                if (e.rageMode > 0) { ctx.c.globalAlpha = 0.3 + Math.sin(ctx.tick * 0.3) * 0.15; ctx.c.shadowBlur = 8; ctx.c.shadowColor = '#ff0000'; ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 12, false); ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1; }
+                if (e.weakPoint && (e.type === 'boss' || e.type === 'miniboss')) { const wpx = e.x + e.weakPoint.x, wpy = e.y + e.weakPoint.y; const wpPulse = 0.6 + Math.sin(ctx.tick * 0.15) * 0.4; ctx.c.globalAlpha = wpPulse; ctx.c.fillStyle = '#ff4444'; ctx.c.shadowBlur = 8; ctx.c.shadowColor = '#ff4444'; ctx.c.beginPath(); ctx.c.arc(wpx, wpy, 3, 0, Math.PI * 2); ctx.c.fill(); ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1; }
+                if (e.type === 'kamikaze' && e.st === 'DIVING') { ctx.c.globalAlpha = 0.15; ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 18, false); ctx.c.globalAlpha = 0.08; ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 24, false); ctx.c.globalAlpha = 1; }
             }
 
             // batched beat-glow pass — one shadow setup per color type instead of per enemy
@@ -699,14 +724,19 @@
                 const alpha = Math.max(0, 1 - pt.t / pt.life);
                 if (!pt.spark && !pt.smoke && !pt.debris) {
                     ctx.c.globalAlpha = alpha; ctx.c.fillStyle = pt.col;
-                    if (pt.size >= 3) { ctx.c.shadowBlur = 6; ctx.c.shadowColor = pt.col; ctx.c.fillRect(Math.floor(pt.x), Math.floor(pt.y), pt.size || 2, pt.size || 2); ctx.c.shadowBlur = 0; }
-                    else ctx.c.fillRect(Math.floor(pt.x), Math.floor(pt.y), pt.size || 2, pt.size || 2);
+                    const sz = pt.size || 2;
+                    if (pt.shape === 'diamond') { ctx.c.save(); ctx.c.translate(pt.x + sz / 2, pt.y + sz / 2); ctx.c.rotate(Math.PI / 4); ctx.c.fillRect(-sz / 2, -sz / 2, sz, sz); ctx.c.restore(); }
+                    else if (pt.shape === 'circle') { ctx.c.beginPath(); ctx.c.arc(pt.x + sz / 2, pt.y + sz / 2, sz / 2, 0, Math.PI * 2); ctx.c.fill(); }
+                    else if (pt.shape === 'star') { ctx.c.save(); ctx.c.translate(pt.x + sz / 2, pt.y + sz / 2); for (let si = 0; si < 4; si++) { ctx.c.rotate(Math.PI / 4); ctx.c.fillRect(-sz / 2, -0.5, sz, 1); ctx.c.fillRect(-0.5, -sz / 2, 1, sz); } ctx.c.restore(); }
+                    else { if (sz >= 3) { ctx.c.shadowBlur = 6; ctx.c.shadowColor = pt.col; } ctx.c.fillRect(Math.floor(pt.x), Math.floor(pt.y), sz, sz); ctx.c.shadowBlur = 0; }
                 }
             }
             for (const pt of ctx.G.part) {
                 const alpha = Math.max(0, 1 - pt.t / pt.life);
                 if (pt.spark && !pt.trail) {
-                    ctx.c.globalAlpha = alpha; ctx.c.fillStyle = pt.col; ctx.c.fillRect(Math.floor(pt.x), Math.floor(pt.y), 1, 1);
+                    ctx.c.globalAlpha = alpha; ctx.c.fillStyle = pt.col;
+                    if (pt.shape === 'diamond') { ctx.c.save(); ctx.c.translate(pt.x, pt.y); ctx.c.rotate(Math.PI / 4); ctx.c.fillRect(-1, -1, 2, 2); ctx.c.restore(); }
+                    else ctx.c.fillRect(Math.floor(pt.x), Math.floor(pt.y), 1, 1);
                 }
             }
             for (const pt of ctx.G.part) {
@@ -743,10 +773,11 @@
             if (ctx.G.comboBanner) {
                 const alpha = Math.max(0, 1 - ctx.G.comboBanner.t / ctx.G.comboBanner.dur);
                 const sc = 1 + (ctx.G.comboBanner.t < 200 ? (200 - ctx.G.comboBanner.t) / 200 * 0.5 : 0);
+                const _cbl = ctx.G.comboBanner.mult >= 16 ? '#ffffff' : ctx.G.comboBanner.mult >= 8 ? '#ff4444' : ctx.G.comboBanner.mult >= 4 ? '#ffcc00' : '#4488ff';
                 ctx.c.save(); ctx.c.globalAlpha = alpha;
                 ctx.c.translate(ctx.W / 2, ctx.H / 2 + 30); ctx.c.scale(sc, sc);
-                ctx.c.shadowBlur = 12; ctx.c.shadowColor = '#ffcc00';
-                ctx.c.fillStyle = '#ffcc00'; ctx.c.font = 'bold 20px "Courier New",monospace'; ctx.c.textAlign = 'center';
+                ctx.c.shadowBlur = 12; ctx.c.shadowColor = _cbl;
+                ctx.c.fillStyle = _cbl; ctx.c.font = 'bold 20px "Courier New",monospace'; ctx.c.textAlign = 'center';
                 ctx.c.fillText(ctx.G.comboBanner.text, 0, 0);
                 ctx.c.fillStyle = '#fff'; ctx.c.font = 'bold 14px "Courier New",monospace';
                 ctx.c.fillText('x' + ctx.G.comboBanner.mult, 0, 20);

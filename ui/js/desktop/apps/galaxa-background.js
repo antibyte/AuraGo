@@ -11,6 +11,8 @@
         let shootingStars = [];
         let nebulaCv = null, nebulaColors = [];
         let bgPlanets = [], bgComets = [];
+        const FG_DUST = [];
+        for (let i = 0; i < 20; i++) FG_DUST.push({ x: Math.random() * ctx.W, y: Math.random() * ctx.H, sp: 140 + Math.random() * 100, sz: Math.random() > 0.5 ? 1 : 2, alpha: 0.15 + Math.random() * 0.15 });
 
         function initBG() {
             bgPlanets = [];
@@ -104,6 +106,7 @@
             if (ctx.G.bgTheme === 'storm' && Math.random() < 0.005) { ctx.G.lightningT = 150; ctx.G.lightningX = Math.random() * ctx.W; }
             if (ctx.G.lightningT > 0) ctx.G.lightningT -= dt * 1000;
             if (Math.random() < 0.002) ctx.SFX.envAmbience(ctx.G.bgTheme);
+            for (const d of FG_DUST) { d.y += d.sp * dt; if (d.y > ctx.H) { d.y = 0; d.x = Math.random() * ctx.W; } }
         }
 
         function drawStars(cv) {
@@ -132,6 +135,8 @@
                 cv.lineTo(ss.prevX != null ? ss.prevX : ss.x - ss.vx * 0.05, ss.prevY != null ? ss.prevY : ss.y - ss.vy * 0.05);
                 cv.stroke();
             }
+            cv.globalAlpha = 1;
+            for (const d of FG_DUST) { cv.globalAlpha = d.alpha; cv.fillStyle = '#ffffff'; cv.fillRect(d.x, d.y, d.sz, d.sz + 2); cv.globalAlpha = d.alpha * 0.4; cv.fillRect(d.x, d.y - 3, d.sz, 1); }
             cv.globalAlpha = 1;
 
             if (ctx.G.warpT > 0) {

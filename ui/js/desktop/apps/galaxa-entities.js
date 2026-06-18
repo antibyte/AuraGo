@@ -34,7 +34,9 @@
                     bossPhase: (type === 'boss' || type === 'miniboss') ? 1 : 0,
                     bossPhaseTransition: 0, bossPhaseHP: [0.6, 0.3, 0],
                     animFrame: 0, animTimer: 0, animSpeed: animSpeedMap[type] || 120, animFrames: 3,
-                    spawnAnim: 0, spawnDur: 400, rowPhase: r * 1.2 + col * 0.3, bobAmp: 2.5 + r * 0.5 };
+                    spawnAnim: 0, spawnDur: 400, rowPhase: r * 1.2 + col * 0.3, bobAmp: 2.5 + r * 0.5,
+                    weakPoint: (type === 'boss' || type === 'miniboss') ? { x: 0, y: -10, angle: 0 } : null,
+                    rageMode: 0, rageSpeedMult: 1, phaseTimer: 0 };
                 ctx.G.enemies.push(enemy);
                 idx++;
             }
@@ -218,7 +220,7 @@
                     ctx.G.bul.push({ x: ctx.G.p.x, y: ctx.G.p.y - 8, w: 2, h: 6, vx: Math.sin(0.2) * ctx.PB_SPEED * 0.2, vy: -ctx.PB_SPEED, pierce: isPierce });
                 }
             }
-            ctx.SFX.shoot(ctx.G.p.x); ctx.G.muzzleT = 50;
+            ctx.SFX.shoot(ctx.G.p.x); ctx.G.muzzleT = 50; ctx.G.stageAccuracyShots = (ctx.G.stageAccuracyShots || 0) + 1;
             if (ctx.G.mirrorActive) {
                 const mirrorX = ctx.W - ctx.G.p.x;
                 const mirrorBullets = [];
@@ -238,8 +240,12 @@
             const smokeCount = isBoss ? 14 : 7;
             const flashCount = isBoss ? 8 : 4;
             ctx.G.exp.push({ x, y, t: 0, dur, seed: Math.random(), isBoss });
-            if (isBoss) { ctx.G.exp.push({ x, y, t: 0, dur: 700, seed: Math.random(), isBoss: false, shockwave: true }); ctx.G.exp.push({ x, y, t: 0, dur: 180, seed: Math.random(), isBoss: false, flash: true }); }
-            else { ctx.G.exp.push({ x, y, t: 0, dur: 100, seed: Math.random(), isBoss: false, flash: true }); ctx.G.exp.push({ x, y, t: 0, dur: 300, seed: Math.random(), isBoss: false, shockwave: true }); }
+            if (isBoss) {
+                ctx.G.exp.push({ x, y, t: 0, dur: 700, seed: Math.random(), isBoss: false, shockwave: true });
+                ctx.G.exp.push({ x, y, t: 0, dur: 180, seed: Math.random(), isBoss: false, flash: true });
+                for (let _bi = 0; _bi < 16; _bi++) { const _ba = (_bi / 16) * Math.PI * 2; const _bsp = 40 + Math.random() * 60; ctx.G.part.push(getParticle({ x, y, vx: Math.cos(_ba) * _bsp, vy: Math.sin(_ba) * _bsp, life: 800, t: 0, col: '#ffcc44', size: 2, spark: true, trail: true, bloom: true, bloomPhase: 0 })); }
+                ctx.SFX.deathBloom();
+            } else { ctx.G.exp.push({ x, y, t: 0, dur: 100, seed: Math.random(), isBoss: false, flash: true }); ctx.G.exp.push({ x, y, t: 0, dur: 300, seed: Math.random(), isBoss: false, shockwave: true }); }
             // NEW: Per-enemy-type death animation colors
             const typeCols = {
                 bee: ['#ffcc00', '#ffaa00', '#ffee88', '#fff'],
@@ -262,7 +268,9 @@
                 const a = (i / pCount) * Math.PI * 2 + Math.random() * 0.8, sp = 60 + (i * 23 % 160) * (isBoss ? 2 : 1.2);
                 const cols = fireCols[i % fireCols.length];
                 const sz = i % 4 === 0 ? 4 : i % 3 === 0 ? 3 : 2;
-                ctx.G.part.push(getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: (280 + (i * 41 % 280)) * (isBoss ? 1.6 : 1.1), t: 0, col: cols, size: sz }));
+                const shapes = ['rect', 'diamond', 'circle', 'star'];
+                const shape = Math.random() < 0.2 ? shapes[1 + Math.floor(Math.random() * 3)] : 'rect';
+                ctx.G.part.push(getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: (280 + (i * 41 % 280)) * (isBoss ? 1.6 : 1.1), t: 0, col: cols, size: sz, shape }));
             }
             // NEW: Type-specific death effects
             if (enemyType === 'bee') {
@@ -290,7 +298,7 @@
             }
             for (let i = 0; i < sparkCount; i++) {
                 const a = Math.random() * Math.PI * 2, sp = 90 + Math.random() * 150;
-                ctx.G.part.push(getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 120 + Math.random() * 180, t: 0, col: Math.random() > 0.5 ? '#ffffff' : '#ffeeaa', size: 1, spark: true }));
+                ctx.G.part.push(getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 120 + Math.random() * 180, t: 0, col: Math.random() > 0.5 ? '#ffffff' : '#ffeeaa', size: 1, spark: true, shape: 'diamond' }));
             }
             for (let i = 0; i < debrisCount; i++) {
                 const hasKillDir = killVx !== undefined && killVy !== undefined;
@@ -301,11 +309,11 @@
             }
             for (let i = 0; i < smokeCount; i++) {
                 const a = Math.random() * Math.PI * 2, sp = 12 + Math.random() * 25;
-                ctx.G.part.push(getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 15, life: 600 + Math.random() * 500, t: 0, col: Math.random() > 0.5 ? '#666' : '#555', size: 3 + (isBoss ? 3 : 0), smoke: true }));
+                ctx.G.part.push(getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 15, life: 600 + Math.random() * 500, t: 0, col: Math.random() > 0.5 ? '#666' : '#555', size: 3 + (isBoss ? 3 : 0), smoke: true, shape: 'circle' }));
             }
             for (let i = 0; i < flashCount; i++) {
                 const a = Math.random() * Math.PI * 2, sp = 40 + Math.random() * 80;
-                ctx.G.part.push(getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 60 + Math.random() * 40, t: 0, col: '#ffffff', size: 2, spark: true, trail: true }));
+                ctx.G.part.push(getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 60 + Math.random() * 40, t: 0, col: '#ffffff', size: 2, spark: true, trail: true, shape: 'star' }));
             }
             if (isBoss) {
                 for (let i = 0; i < 6; i++) {
@@ -333,6 +341,7 @@
             const text = ctx.G.comboMult > 1 ? '+' + multiplied + ' x' + ctx.G.comboMult : '+' + multiplied;
             if (x !== undefined) ctx.G.scorePopups.push({ x, y, text, t: 0, dur: 800, col: col || '#ffcc00', big: ctx.G.comboMult > 1 });
             if (Math.floor(ctx.G.score / ctx.EXTRA_LIFE) > Math.floor(prev / ctx.EXTRA_LIFE)) { ctx.G.lives++; ctx.SFX.extra(); }
+            const _crb = ctx.relic_getRelicBonuses ? ctx.relic_getRelicBonuses() : { creditMult: 1 }; ctx.G.credits = Math.floor(ctx.G.credits * _crb.creditMult);
         }
         function updateCombo(dtMs) {
             if (ctx.G.comboTimer > 0) {
@@ -340,9 +349,10 @@
                 if (ctx.G.comboTimer <= 0) { if (ctx.G.combo > 2) ctx.SFX.comboBreak(); ctx.G.combo = 0; ctx.G.comboMult = 1; ctx.G.comboBanner = null; }
             }
         }
+        function getComboTimeout() { const _rb = ctx.relic_getRelicBonuses ? ctx.relic_getRelicBonuses() : { comboBonus: 0 }; return ctx.COMBO_TIMEOUT + _rb.comboBonus; }
         function registerKill() {
             ctx.G.combo++;
-            ctx.G.comboTimer = ctx.COMBO_TIMEOUT;
+            ctx.G.comboTimer = getComboTimeout();
             if (ctx.G.combo >= 15) ctx.unlockAchievement('combo_king');
             if (ctx.G.combo >= 30) ctx.unlockAchievement('combo_god');
             let level = 0;
@@ -374,8 +384,8 @@
         function hit(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
         function dropPU(e) {
             let chance = e.type === 'miniboss' ? 1 : (e.type === 'boss' ? 0.35 : (e.type === 'bee' && !ctx.diffMod('puFromBee') ? 0 : 0.12));
-            // NEW: Power Surge modifier triples drop chance
             if (ctx.G.powerSurge) chance *= 3;
+            const _rb = ctx.relic_getRelicBonuses ? ctx.relic_getRelicBonuses() : { dropBonus: 0 }; chance += _rb.dropBonus;
             if (Math.random() < chance) {
                 // NEW: Weighted rarity-based powerup selection
                 let type;
@@ -480,6 +490,17 @@
                 ctx.G.activePU = { type: 'mirror', timer: ctx.PU_DUR.mirror }; ctx.G.puTimer = ctx.PU_DUR.mirror; ctx.setPUClass('mirror');
                 ctx.SFX.puCollect(pu.x); return;
             }
+            if (pu.type === 'orbital_shield') {
+                ctx.G.orbitalShields = [];
+                for (let i = 0; i < 4; i++) ctx.G.orbitalShields.push({ angle: (i / 4) * Math.PI * 2, active: true });
+                ctx.G.orbitalShieldTimer = 8000;
+                ctx.G.activePU = { type: 'orbital_shield', timer: 8000 }; ctx.G.puTimer = 8000; ctx.setPUClass('orbital_shield');
+                ctx.SFX.puCollect(pu.x); return;
+            }
+            if (pu.type === 'chain_lightning') {
+                ctx.G.activePU = { type: 'chain_lightning', timer: 10000 }; ctx.G.puTimer = 10000; ctx.setPUClass('chain_lightning');
+                ctx.SFX.puCollect(pu.x); return;
+            }
             if (isUpgradeable && isSameType && !ctx.G.puUpgrade) {
                 ctx.G.puUpgrade = ctx.PU_UPGRADE[pu.type]; ctx.G.activePU.type = ctx.G.puUpgrade; ctx.G.puTimer = ctx.PU_DUR[pu.type] || 0;
                 ctx.G.upgradeBanner = { text: 'POWER UP!', type: ctx.G.puUpgrade, t: 0, dur: 1500 };
@@ -502,6 +523,7 @@
             ctx.G.collectedPU.add(pu.type); if (ctx.G.collectedPU.size >= ctx.PU_TYPES.length) ctx.unlockAchievement('power_collector');
             ctx.SFX.puCollect(pu.x);
             const puCol = ctx.PU_COL[pu.type] || ctx.PU_UPGRADE_COL[pu.type];
+            ctx.G.plasmaRings.push({ x: pu.x, y: pu.y, r: 0, maxR: 35, t: 0, dur: 350, col: puCol || '#ffffff' });
             for (let i = 0; i < 12; i++) {
                 const a = (i / 12) * Math.PI * 2, sp = 60 + Math.random() * 40;
                 ctx.G.part.push({ x: pu.x, y: pu.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 200 + Math.random() * 100, t: 0, col: puCol, size: 2, spark: true });
@@ -510,7 +532,7 @@
         function killP() {
             if (!ctx.G.p.alive) return;
             if (ctx.G.shieldHits > 0) { ctx.G.shieldHits--; ctx.G.damageVignetteT = 300; if (ctx.G.shieldHits <= 0) { ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.setPUClass(null); ctx.SFX.shieldBreak(); } else ctx.SFX.shieldHit(); return; }
-ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.pExplode(ctx.G.p.x); ctx.G.shkT = 300; ctx.G.shkM = 4; ctx.G.lives--;
+ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.pExplode(ctx.G.p.x); ctx.G.shkT = 300; ctx.G.shkM = 4; ctx.G.lives--; ctx.G.stageDamageTaken = (ctx.G.stageDamageTaken || 0) + 1;
             ctx.wrapEl.classList.add('galaxa-desaturate'); setTimeout(() => { if (!ctx.state.disposed) ctx.wrapEl.classList.remove('galaxa-desaturate'); }, 800);
             ctx.G.flashT = 50; ctx.G.chromAb = 300; ctx.G.damageVignetteT = 800; ctx.G.activePU = null; ctx.G.shieldHits = 0; ctx.G.timeScale = 1; ctx.G.timeSlowTimer = 0; ctx.G.puUpgrade = null;
             ctx.G.weaponLv = Math.max(1, ctx.G.weaponLv - 1);
@@ -621,6 +643,11 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
             if (ctx.G.mirrorActive && ctx.G.mirrorTimer > 0) {
                 ctx.G.mirrorTimer -= dt * 1000;
                 if (ctx.G.mirrorTimer <= 0) { ctx.G.mirrorActive = false; }
+            }
+            if (ctx.G.orbitalShields && ctx.G.orbitalShieldTimer > 0) {
+                ctx.G.orbitalShieldTimer -= dt * 1000;
+                for (const os of ctx.G.orbitalShields) { os.angle += dt * 2; }
+                if (ctx.G.orbitalShieldTimer <= 0) { ctx.G.orbitalShields = null; }
             }
             if (ctx.G.stage >= 20 && ctx.G.st === 'PLAYING') {
                 ctx.G.voidZoneT -= dt * 1000;
@@ -760,9 +787,16 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 let removed = false;
                 for (let j = ctx.G.enemies.length - 1; j >= 0; j--) {
                     const e = ctx.G.enemies[j]; if (e.st === 'DEAD') continue;
+                    if (e.invulnerable) continue;
                     const ew = (e.type === 'boss' || e.type === 'miniboss') ? 24 : (e.type === 'hunter' ? 18 : e.type === 'sniper' ? 14 : 16);
                     if (ctx.hit(b, { x: e.x - ew / 2, y: e.y - 8, w: ew, h: 16 })) {
+                        // Weak point check for bosses
+                        if (e.weakPoint && (e.type === 'boss' || e.type === 'miniboss')) {
+                            const wpx = e.x + e.weakPoint.x, wpy = e.y + e.weakPoint.y;
+                            if (Math.hypot(b.x - wpx, b.y - wpy) < 6) { e.hp--; }
+                        }
                         e.hp--;
+                        ctx.G.stageAccuracyHits = (ctx.G.stageAccuracyHits || 0) + 1;
                         if (e.hp <= 0) {
                             const pts = ctx.PTS[e.type] ? ctx.PTS[e.type][e.st === 'DIVING' ? 1 : 0] : 200;
                             ctx.registerKill();
@@ -778,7 +812,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             ctx.G.credits += (e.type === 'boss' ? 10 : e.type === 'miniboss' ? 7 : 1);
                             if (ctx.G.comboMult >= 4) ctx.G.credits += 5;
                             try { localStorage.setItem('galaxa_credits', String(ctx.G.credits)); } catch (e2) {}
-                            if (e.type === 'boss' || e.type === 'miniboss') { ctx.G.timeScale = 0.3; ctx.G.slowMoT = 1500; }
+                            if (e.type === 'boss' || e.type === 'miniboss') { ctx.G.timeScale = 0.15; ctx.G.slowMoT = 1800; }
                             if (e.hasCap) ctx.G.p.cap = { x: e.x, y: e.y };
                             if (ctx.G.chal) ctx.G.chalHits++; e.st = 'DEAD';
                             // NEW: Splitter splits into 2 mini enemies on death
@@ -799,7 +833,9 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                                 }
                             }
                             ctx.G.killCount++;
+                            ctx.G.stageKills = (ctx.G.stageKills || 0) + 1;
                             if (ctx.G.killCount === 1) ctx.unlockAchievement('first_blood');
+                            if (ctx.G.activePU && ctx.G.activePU.type === 'chain_lightning') ctx.G._chainLightningTarget = e;
                             ctx.G.weaponXP += (e.type === 'boss' ? 3 : e.type === 'miniboss' ? 2 : e.st === 'DIVING' ? 1.5 : 1);
                             const xpNeeded = ctx.G.weaponLv * 10;
                             if (ctx.G.weaponXP >= xpNeeded && ctx.G.weaponLv < 4) {
@@ -814,7 +850,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             if (ctx.G.weaponLv >= 4) ctx.unlockAchievement('weapon_master');
                             if (e.type === 'boss' || e.type === 'miniboss') { ctx.G.bossKillTotal++; if (ctx.G.bossKillTotal >= 10) ctx.unlockAchievement('boss_slayer'); try { localStorage.setItem('galaxa_boss_kills', String(ctx.G.bossKillTotal)); } catch(e2) {} }
                             const _remainingAlive = ctx.G.enemies.filter(_en => _en.st !== 'DEAD' && _en !== e).length;
-                            if (_remainingAlive === 0 && e.type !== 'boss' && e.type !== 'miniboss') { ctx.G.timeScale = 0.3; ctx.G.slowMoT = 500; }
+                            if (_remainingAlive === 0 && e.type !== 'boss' && e.type !== 'miniboss') { ctx.G.timeScale = 0.2; ctx.G.slowMoT = 600; }
                             if (ctx.G.killCount % 10 === 0 && ctx.G.weaponLv < 4) { ctx.G.weaponLv++; ctx.SFX.weaponUp(); }
                         }                         else e.hitF = 100;
                         if (!b.laser && !b.pierce) { removed = true; break; }
@@ -823,9 +859,57 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                         }
                     }
                 }
+                // Near-miss rage trigger
+                if (!removed) {
+                    for (let j = ctx.G.enemies.length - 1; j >= 0; j--) {
+                        const _re = ctx.G.enemies[j];
+                        if (_re.st === 'DEAD' || _re.rageMode) continue;
+                        const _nmDist = Math.hypot(b.x - _re.x, b.y - _re.y);
+                        if (_nmDist < 12 && _nmDist > 4 && Math.random() < 0.15) {
+                            _re.rageMode = 3000; _re.rageSpeedMult = 1.5;
+                            ctx.SFX.rageMode(_re.x);
+                            break;
+                        }
+                    }
+                }
                 if (!removed) ctx.G.bul[bw++] = b;
             }
             ctx.G.bul.length = bw;
+            // Chain lightning on kill
+            if (ctx.G._chainLightningTarget) {
+                const killedE = ctx.G._chainLightningTarget;
+                ctx.G._chainLightningTarget = null;
+                let chainTargets = [killedE];
+                let lastTarget = killedE;
+                for (let hop = 0; hop < 3; hop++) {
+                    let nearest = null, nearDist = 120;
+                    for (const ce of ctx.G.enemies) { if (ce.st === 'DEAD' || chainTargets.includes(ce)) continue; const cdist = Math.hypot(ce.x - lastTarget.x, ce.y - lastTarget.y); if (cdist < nearDist) { nearDist = cdist; nearest = ce; } }
+                    if (nearest) {
+                        chainTargets.push(nearest); lastTarget = nearest; nearest.hp--; nearest.hitF = 100;
+                        ctx.SFX.chainLightning(hop, nearest.x);
+                        for (let li = 0; li < 5; li++) { const lt = li / 5; ctx.G.trails.push({ x: chainTargets[chainTargets.length - 2].x + (nearest.x - chainTargets[chainTargets.length - 2].x) * lt + (Math.random() - 0.5) * 8, y: chainTargets[chainTargets.length - 2].y + (nearest.y - chainTargets[chainTargets.length - 2].y) * lt + (Math.random() - 0.5) * 8, vx: 0, vy: 0, life: 200, t: 0, col: '#aaddff', size: 1, spark: true }); }
+                        if (nearest.hp <= 0) { ctx.addScore(ctx.PTS[nearest.type] ? ctx.PTS[nearest.type][0] : 100, nearest.x, nearest.y, '#aaddff'); ctx.boom(nearest.x, nearest.y, false, nearest.type); nearest.st = 'DEAD'; }
+                    }
+                }
+                if (chainTargets.length >= 5) ctx.unlockAchievement('chain_master');
+            }
+            // Orbital shield collision with enemy bullets
+            if (ctx.G.orbitalShields && ctx.G.p.alive) {
+                for (let bi = ctx.G.ebul.length - 1; bi >= 0; bi--) {
+                    const _ob = ctx.G.ebul[bi];
+                    for (const os of ctx.G.orbitalShields) {
+                        if (!os.active) continue;
+                        const osx = ctx.G.p.x + Math.cos(os.angle) * 24;
+                        const osy = ctx.G.p.y + Math.sin(os.angle) * 24;
+                        if (Math.hypot(_ob.x - osx, _ob.y - osy) < 8) {
+                            os.active = false; ctx.G.orbitalBlocks = (ctx.G.orbitalBlocks || 0) + 1;
+                            ctx.SFX.orbitalShieldHit(_ob.x);
+                            for (let pi = 0; pi < 6; pi++) { const pa = (pi / 6) * Math.PI * 2; ctx.G.part.push({ x: osx, y: osy, vx: Math.cos(pa) * 40, vy: Math.sin(pa) * 40, life: 200, t: 0, col: '#44aaff', size: 2, spark: true }); }
+                            ctx.G.ebul.splice(bi, 1); break;
+                        }
+                    }
+                }
+            }
             const eDt = dt * ctx.G.timeScale;
             const ebSpd = ctx.EB_SPEED * ctx.diffMod('ebSpd');
             const origELen = ctx.G.ebul.length;
@@ -850,6 +934,12 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                     b.y += ebSpd * eDt;
                 }
                 if (b.y > ctx.H + 14 || b.y < -14 || b.x < -14 || b.x > ctx.W + 14) continue;
+                // Ricochet world mutation
+                if (ctx.G.ricochetWorld && (b.x < 0 || b.x > ctx.W)) { b.vx = -(b.vx || 0); b.x = Math.max(1, Math.min(ctx.W - 1, b.x)); }
+                // Mirror field mutation
+                if (ctx.G.mirrorField && Math.random() < 0.2 && origELen > 0) { ctx.G.ebul.push({ x: b.x, y: b.y, w: b.w || 2, h: b.h || 4, vx: -(b.vx || 0), vy: b.vy || 0, kind: b.kind }); }
+                // Gravity well mutation
+                if (ctx.G.gravityWell) { const _gbx = ctx.W / 2 - b.x, _gby = ctx.H / 3 - b.y, _gbd = Math.hypot(_gbx, _gby); if (_gbd > 20) { b.x += (_gbx / _gbd) * 30 * eDt; b.y += (_gby / _gbd) * 30 * eDt; } }
                 if (ctx.G.p.alive && ctx.G.p.inv <= 0 && ctx.hit(b, { x: ctx.G.p.x - 6, y: ctx.G.p.y - 6, w: 12, h: 12 })) { ctx.killP(); continue; }
                 // NEW: Danger-close bonus — near miss detection
                 if (ctx.G.p.alive && ctx.G.p.inv <= 0 && !ctx.G._closeCallCooldown) {
@@ -991,6 +1081,14 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 e.fr = e.animFrame % maxFrames;
                 e.frT = e.animTimer;
                 if (e.hitF > 0) e.hitF -= dtMs;
+                // Rage mode decay
+                if (e.rageMode > 0) { e.rageMode -= dtMs; if (e.rageMode <= 0) { e.rageMode = 0; e.rageSpeedMult = 1; } }
+                // Weak point update
+                if (e.weakPoint) { e.weakPoint.angle += dtMs * 0.002; e.weakPoint.x = Math.cos(e.weakPoint.angle) * 12; e.weakPoint.y = -10 + Math.sin(e.weakPoint.angle * 1.5) * 5; }
+                // Phasing mutation
+                if (ctx.G.phasing && e.type !== 'boss' && e.type !== 'miniboss' && e.st === 'FORM') { e.phaseTimer = (e.phaseTimer || 0) + dtMs; e.invulnerable = (e.phaseTimer % 6000) < 1000; }
+                // Gravity well mutation
+                if (ctx.G.gravityWell && e.st === 'FORM') { const _gdx = ctx.W / 2 - e.x, _gdy = ctx.H / 3 - e.y, _gdist = Math.hypot(_gdx, _gdy); if (_gdist > 20) { e.x += (_gdx / _gdist) * 15 * dt; e.y += (_gdy / _gdist) * 15 * dt; } }
                 // NEW: Boss phase transition
                 if ((e.type === 'boss' || e.type === 'miniboss') && e.bossPhase > 0 && e.bossPhase < 3 && e.bossPhaseTransition <= 0) {
                     const hpRatio = e.hp / e.maxHp;
@@ -1088,7 +1186,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                     e.dTmr -= dtMs;
                     if (e.dTmr <= 0 || e.y > ctx.H + 20) { e.st = 'RETURN'; e.y = -20; }
                     else {
-                        const diveSpd = ctx.DIVE_SPD * (e.type === 'hunter' ? 2.1 : e.type === 'stalker' ? 1.5 : e.type === 'kamikaze' ? 2.5 : 1);
+                        const diveSpd = ctx.DIVE_SPD * (e.type === 'hunter' ? 2.1 : e.type === 'stalker' ? 1.5 : e.type === 'kamikaze' ? 2.5 : 1) * (e.rageSpeedMult || 1);
                         e.y += diveSpd * eDt;
                         if (e.type === 'hunter' && ctx.G.p.alive) {
                             e.x += (ctx.G.p.x - e.x) * eDt * 4.8;
