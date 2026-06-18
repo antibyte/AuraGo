@@ -6051,7 +6051,7 @@ function modalDialog(options) {
         }
         if (appId === 'settings') return renderSettings(id);
         if (appId === 'pet-picker' && window.PetPickerApp && typeof window.PetPickerApp.render === 'function') {
-            return window.PetPickerApp.render(contentEl(id), id, context);
+            return window.PetPickerApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, api, loadBootstrap, notify: showDesktopNotification }));
         }
         if (appId === 'calendar') return renderCalendar(id);
         if (appId === 'calculator') return renderCalculator(id);

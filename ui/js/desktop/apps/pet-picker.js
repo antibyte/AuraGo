@@ -2,6 +2,12 @@
     'use strict';
 
     function render(host, windowId, context) {
+        const ctx = context || {};
+        const esc = typeof ctx.esc === 'function' ? ctx.esc : function (s) { return String(s || '').replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]; }); };
+        const t = typeof ctx.t === 'function' ? ctx.t : function (key, fallback) { return fallback !== undefined ? fallback : key; };
+        const api = typeof ctx.api === 'function' ? ctx.api : function () { return Promise.reject(new Error('api not available')); };
+        const notify = typeof ctx.notify === 'function' ? ctx.notify : function () {};
+
         host.innerHTML = `
             <div class="vd-pet-picker">
                 <div class="vd-pet-picker-header">
@@ -44,18 +50,21 @@
 
         async function load() {
             try {
-                const body = await api('/api/desktop/pets');
-                pets = body.pets || [];
-                activeId = body.active_pet_id || '';
+                const [petsBody, settingsBody] = await Promise.all([
+                    api('/api/desktop/pets'),
+                    api('/api/desktop/settings')
+                ]);
+                pets = petsBody.pets || [];
+                activeId = petsBody.active_pet_id || '';
                 renderGrid();
+                const settings = settingsBody.settings || {};
+                scaleInput.value = parseFloat(settings['pet.scale'] || '1');
+                scaleValue.textContent = Number(scaleInput.value).toFixed(1) + 'x';
+                enabledInput.checked = String(settings['pet.enabled']).toLowerCase() !== 'false';
+                alwaysOnTopInput.checked = String(settings['pet.always_on_top']).toLowerCase() === 'true';
             } catch (err) {
-                showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+                notify({ title: t('desktop.notification'), message: err.message });
             }
-            const settings = state.bootstrap && state.bootstrap.settings || {};
-            scaleInput.value = parseFloat(settings['pet.scale'] || '1');
-            scaleValue.textContent = Number(scaleInput.value).toFixed(1) + 'x';
-            enabledInput.checked = String(settings['pet.enabled']).toLowerCase() !== 'false';
-            alwaysOnTopInput.checked = String(settings['pet.always_on_top']).toLowerCase() === 'true';
         }
 
         function renderGrid() {
@@ -85,23 +94,22 @@
                 });
                 activeId = id;
                 renderGrid();
-                if (window.PetRuntime) window.PetRuntime.load();
+                if (window.PetRuntime && typeof window.PetRuntime.load === 'function') window.PetRuntime.load();
             } catch (err) {
-                showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+                notify({ title: t('desktop.notification'), message: err.message });
             }
         }
 
         async function saveSetting(key, value) {
             try {
-                const body = await api('/api/desktop/settings', {
+                await api('/api/desktop/settings', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ key, value })
                 });
-                if (state.bootstrap) state.bootstrap.settings = body.settings || Object.assign({}, state.bootstrap.settings || {}, { [key]: value });
-                if (window.PetRuntime) window.PetRuntime.load();
+                if (window.PetRuntime && typeof window.PetRuntime.load === 'function') window.PetRuntime.load();
             } catch (err) {
-                showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+                notify({ title: t('desktop.notification'), message: err.message });
             }
         }
 
@@ -124,7 +132,7 @@
             if (!file) return;
             const id = file.name.replace(/\.zip$/i, '').toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-|-$/g, '');
             if (!id) {
-                showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.pet_import_invalid', 'Invalid file name') });
+                notify({ title: t('desktop.notification'), message: t('desktop.pet_import_invalid', 'Invalid file name') });
                 return;
             }
             const arrayBuffer = await file.arrayBuffer();
@@ -138,7 +146,7 @@
                 });
                 await load();
             } catch (err) {
-                showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+                notify({ title: t('desktop.notification'), message: err.message });
             }
             fileInput.value = '';
         });
