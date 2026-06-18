@@ -122,6 +122,7 @@
                 '/js/desktop/apps/galaxa-entities.js',
                 '/js/desktop/apps/galaxa-render.js',
                 '/js/desktop/apps/galaxa-shop.js',
+                '/js/desktop/apps/galaxa-relics.js',
                 '/js/desktop/apps/galaxa-game.js',
                 '/js/desktop/apps/galaxa-deluxe.js'
             ]
