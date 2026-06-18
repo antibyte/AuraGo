@@ -81,6 +81,7 @@
                 enabledInput.checked = String(settings['pet.enabled']).toLowerCase() !== 'false';
                 alwaysOnTopInput.checked = String(settings['pet.always_on_top']).toLowerCase() === 'true';
                 syncPetBootstrap({ pets, active_pet_id: activeId, settings });
+                if (window.PetRuntime && typeof window.PetRuntime.load === 'function') window.PetRuntime.load();
             } catch (err) {
                 notify({ title: t('desktop.notification'), message: err.message });
             }

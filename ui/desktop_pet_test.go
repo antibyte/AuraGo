@@ -109,6 +109,41 @@ func TestDesktopPetLayerSitsAboveWindowsByDefault(t *testing.T) {
 	}
 }
 
+func TestDesktopPetRuntimeHydratesMissingBootstrapPets(t *testing.T) {
+	t.Parallel()
+
+	runtime := readDesktopAssetText(t, "js/desktop/core/pet-runtime.js")
+	for _, marker := range []string{
+		"let petCatalogHydration = null;",
+		"async function hydratePetCatalog()",
+		"api('/api/desktop/pets')",
+		"api('/api/desktop/settings')",
+		"hydratePetCatalog();",
+	} {
+		if !strings.Contains(runtime, marker) {
+			t.Fatalf("desktop pet runtime is missing bootstrap hydration marker %q", marker)
+		}
+	}
+
+	picker := readDesktopAssetText(t, "js/desktop/apps/pet-picker.js")
+	if !strings.Contains(picker, "syncPetBootstrap({ pets, active_pet_id: activeId, settings });\n                if (window.PetRuntime && typeof window.PetRuntime.load === 'function') window.PetRuntime.load();") {
+		t.Fatal("desktop pet picker must re-render the runtime after loading pets/settings")
+	}
+
+	bundle := readDesktopAssetText(t, "js/desktop/bundles/main.bundle.js")
+	for _, marker := range []string{
+		"let petCatalogHydration = null;",
+		"async function hydratePetCatalog()",
+		"api('/api/desktop/pets')",
+		"api('/api/desktop/settings')",
+		"hydratePetCatalog();",
+	} {
+		if !strings.Contains(bundle, marker) {
+			t.Fatalf("desktop main bundle is missing pet hydration marker %q", marker)
+		}
+	}
+}
+
 func TestDesktopPetAnimationUsesRuntimePixelOffsets(t *testing.T) {
 	t.Parallel()
 

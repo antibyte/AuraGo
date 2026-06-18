@@ -6322,6 +6322,7 @@ if (appId === 'pixel') {
     let currentState = 'idle';
     let bubbleTimer = null;
     let loadedPetId = null;
+    let petCatalogHydration = null;
 
     function petEnabled() {
         return String(settingValue('pet.enabled')).toLowerCase() !== 'false';
@@ -6387,6 +6388,28 @@ if (appId === 'pixel') {
             settings['pet.active_id'] = state.bootstrap.active_pet_id;
             state.bootstrap.settings = settings;
         }
+    }
+
+    async function hydratePetCatalog() {
+        if (petCatalogHydration) return petCatalogHydration;
+        petCatalogHydration = Promise.all([
+            api('/api/desktop/pets'),
+            api('/api/desktop/settings')
+        ]).then(([petsBody, settingsBody]) => {
+            const pets = Array.isArray(petsBody && petsBody.pets) ? petsBody.pets : [];
+            const settings = settingsBody && settingsBody.settings ? settingsBody.settings : {};
+            syncPetBootstrap({
+                pets,
+                active_pet_id: (petsBody && petsBody.active_pet_id) || '',
+                settings
+            });
+            if (activePet() && petEnabled()) loadPet();
+        }).catch(() => {
+            // Bootstrap can be intentionally unavailable while the desktop is disabled.
+        }).finally(() => {
+            petCatalogHydration = null;
+        });
+        return petCatalogHydration;
     }
 
     function clampToViewport(rect) {
@@ -6461,7 +6484,13 @@ if (appId === 'pixel') {
 
     function loadPet() {
         const pet = activePet();
-        if (!pet || !petEnabled()) {
+        if (!pet) {
+            removeLayer();
+            loadedPetId = null;
+            hydratePetCatalog();
+            return;
+        }
+        if (!petEnabled()) {
             removeLayer();
             loadedPetId = null;
             return;
