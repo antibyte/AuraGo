@@ -53,7 +53,7 @@ AuraGo accepts AgoDesk WebSocket messages up to 16 MiB. Desktop screenshot resul
 - `system.warning.acknowledge`: acknowledge one warning or all warnings.
 - `persona.assets.request`: client request for the currently active AuraGo persona's visual assets and prompt.
 - `persona.assets`: server response with the active persona name, asset key, avatar image URL, icon URL, and persona prompt.
-- `desktop.command` / `desktop.result`: server-to-client command transport for screenshots, discovery, UI automation, browser CDP, permission requests, locally approved input/actions, and locally approved file access.
+- `desktop.command` / `desktop.result`: server-to-client command transport for screenshots, discovery, UI automation, browser CDP, permission requests, locally approved input/actions, locally approved file access, and locally enabled remote shell commands.
 
 ## Client Capabilities
 
@@ -98,8 +98,9 @@ Desktop commands are dispatched only when the matching client capability is pres
 - `remote.desktop.browser`: required for `desktop_browser_connect`, `desktop_browser_snapshot`, `desktop_browser_action`, and `desktop_browser_disconnect`
 - `remote.files.read`: required for `file_list`, `file_read`, and `file_search`
 - `remote.files.write`: required for `file_write`
+- `remote.shell.exec`: required for `shell_exec`; AgoDesk must advertise it only when remote shell is enabled in the local AgoDesk config, and AuraGo must offer/dispatch it only when its own `agent.allow_remote_shell` policy permits remote shell usage.
 
-If a client omits these capabilities, pairing, heartbeat, persona assets, and chat can still work, but remote commands return `UNSUPPORTED_CAPABILITY` immediately instead of waiting for a `desktop.result` timeout. A client that sends keepalives but does not advertise the desktop or file capabilities is connected, but only capable of the features it advertised.
+If a client omits these capabilities, pairing, heartbeat, persona assets, and chat can still work, but remote commands return `UNSUPPORTED_CAPABILITY` immediately instead of waiting for a `desktop.result` timeout. A client that sends keepalives but does not advertise the desktop, file, or shell capabilities is connected, but only capable of the features it advertised.
 
 ## File Access Metadata
 
@@ -214,6 +215,9 @@ hmac = hex(HMAC_SHA256(shared_key_bytes, material))
 - Display a visible local remote-control banner with approve, deny, and stop controls before allowing input injection.
 - Store file-access roots and per-root read/write permissions locally in AgoDesk. AuraGo does not configure or enforce these roots.
 - Canonicalize every requested file path before access, reject traversal and symlink escapes, enforce per-root permissions, and use atomic writes.
+- Store the remote-shell enablement flag, allowed working directories, shell choice, timeout, output limit, and approval policy locally in AgoDesk. AuraGo does not configure local shell access.
+- Advertise `remote.shell.exec` only when local remote shell access is enabled. Execute `shell_exec` only after re-checking local config, capability negotiation, working-directory policy, timeout/output limits, and any required local user approval.
+- Audit shell command id, cwd id/display, exit code, duration, timeout/truncation flags, and status. Do not log full command output, environment variables, secrets, or shell history.
 
 ## Server-Initiated AgoChat Messages
 
@@ -922,6 +926,109 @@ File command errors use `ok=false` and a stable error code in `error`, for examp
 
 Inline file payloads are limited to 8 MiB in v1 or the smaller value from `file_access.max_read_bytes` / `file_access.max_write_bytes`. Larger transfers should return `FILE_TOO_LARGE`; chunked transfer is reserved for a later protocol version.
 
+## Remote Shell Access Metadata
+
+AgoDesk owns local shell execution permissions. If local remote shell access is available, include `payload.shell_access` in `session.start` and advertise `remote.shell.exec` only when `shell_access.enabled=true`:
+
+```json
+{
+  "client_version": "agodesk-1.3.0",
+  "client_capabilities": ["chat.full_response", "remote.shell.exec"],
+  "shell_access": {
+    "enabled": true,
+    "requires_approval": true,
+    "default_cwd": "~",
+    "allowed_cwds": [
+      {
+        "cwd_id": "workspace",
+        "label": "Workspace",
+        "path_display": "~/Projects/AuraGo"
+      }
+    ],
+    "shells": ["powershell", "cmd"],
+    "max_command_chars": 4000,
+    "max_output_bytes": 1048576,
+    "default_timeout_ms": 30000,
+    "max_timeout_ms": 120000
+  }
+}
+```
+
+Rules:
+
+- `shell_access` is optional for backward compatibility.
+- `enabled=false` means AgoDesk must not advertise `remote.shell.exec`.
+- AuraGo must not dispatch `shell_exec` unless both sides allow it: AgoDesk advertises `remote.shell.exec`, and AuraGo server policy has remote shell enabled (`agent.allow_remote_shell=true`).
+- `requires_approval=true` means AgoDesk must show a local approval prompt before running each command. If the user denies or the prompt expires, return `SHELL_APPROVAL_DENIED`.
+- `default_cwd` and `allowed_cwds.path_display` are UI/debug metadata. AuraGo must not treat them as authorization boundaries.
+- `cwd_id` is stable for the local AgoDesk configuration and is used in later commands.
+- AgoDesk must enforce canonical working-directory checks locally for every command because AuraGo never receives the real local paths.
+- AgoDesk must enforce command length, timeout, and output limits locally even if AuraGo already clipped a request.
+- Do not send or log environment variables, secrets, keychain paths, shell history, or full command output in normal logs. Audit command id, cwd id/display, duration, exit code, truncation, and status only.
+
+## Remote Shell Commands
+
+Shell commands reuse the existing `desktop.command` / `desktop.result` envelope pair. AgoDesk must execute them only when local remote shell access is enabled and the requested working directory resolves inside an allowed shell working directory. Shell execution is never read-only safe.
+
+### Execute shell command (`shell_exec`)
+
+Requires `remote.shell.exec`.
+
+```json
+{
+  "command_id": "cmd-shell-1",
+  "operation": "shell_exec",
+  "params": {
+    "command": "git status --short",
+    "cwd_id": "workspace",
+    "timeout_ms": 30000
+  }
+}
+```
+
+Successful result:
+
+```json
+{
+  "command_id": "cmd-shell-1",
+  "ok": true,
+  "data": {
+    "exit_code": 0,
+    "stdout": " M src/main.ts\n",
+    "stderr": "",
+    "duration_ms": 145,
+    "timed_out": false,
+    "truncated": false,
+    "cwd_display": "~/Projects/AuraGo",
+    "shell": "powershell"
+  }
+}
+```
+
+`ok=true` means the command was launched and completed. Non-zero `exit_code` values are command results, not transport failures. Use `ok=false` for policy, validation, approval, spawn, timeout, or protocol errors:
+
+```json
+{
+  "command_id": "cmd-shell-1",
+  "ok": false,
+  "error": "SHELL_ACCESS_DENIED",
+  "message": "remote shell is disabled for this AgoDesk profile"
+}
+```
+
+Stable shell error codes:
+
+- `SHELL_ACCESS_DISABLED`: local AgoDesk shell access is off.
+- `SHELL_ACCESS_DENIED`: capability, cwd, policy, or read-only state denies the request.
+- `SHELL_APPROVAL_REQUIRED`: local approval is required but has not been granted yet.
+- `SHELL_APPROVAL_DENIED`: the local user denied or ignored the command approval prompt.
+- `SHELL_COMMAND_REJECTED`: command is empty, too long, blocked by local policy, or contains a locally forbidden pattern.
+- `SHELL_TIMEOUT`: command exceeded the effective timeout and was terminated.
+- `SHELL_OUTPUT_TOO_LARGE`: output exceeded the negotiated limit before truncation could produce a safe response.
+- `SHELL_SPAWN_FAILED`: the configured shell process could not be started.
+
+`shell_exec_stream` remains reserved for a later protocol version and is not available in v1.
+
 ## RemoteHub Operations
 
 The existing RemoteHub command protocol supports these agodesk-capable operations in this backend version:
@@ -943,9 +1050,10 @@ The existing RemoteHub command protocol supports these agodesk-capable operation
 - `file_read`
 - `file_search`
 - `file_write`
+- `shell_exec`
 
-Read-only policy permits screenshot, permission status requests, discovery, UI tree reads, browser connect/snapshot/disconnect, file listing, file reading, and file search. It denies desktop input, `desktop_ui_action`, `desktop_browser_action`, and file writing before dispatch.
+Read-only policy permits screenshot, permission status requests, discovery, UI tree reads, browser connect/snapshot/disconnect, file listing, file reading, and file search. It denies desktop input, `desktop_ui_action`, `desktop_browser_action`, file writing, and `shell_exec` before dispatch.
 
-`desktop_stream_start` and `desktop_stream_stop` remain reserved for a later backend version and are not available in v1.
+`desktop_stream_start`, `desktop_stream_stop`, and `shell_exec_stream` remain reserved for a later backend version and are not available in v1.
 
-For a concrete client-side implementation checklist, see [`agodesk_coding_agent_file_access.md`](./agodesk_coding_agent_file_access.md).
+For concrete client-side implementation checklists, see [`agodesk_coding_agent_file_access.md`](./agodesk_coding_agent_file_access.md) and [`agodesk_coding_agent_remote_shell.md`](./agodesk_coding_agent_remote_shell.md).
