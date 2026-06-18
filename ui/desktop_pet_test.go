@@ -94,14 +94,14 @@ func TestDesktopPetLayerSitsAboveWindowsByDefault(t *testing.T) {
 
 	petCSS := readDesktopAssetText(t, "css/desktop-pet.css")
 	layerBody := desktopExactCSSRuleBody(t, petCSS, ".vd-pet-layer")
-	if !strings.Contains(layerBody, "z-index: var(--vd-z-pet);") {
+	if !strings.Contains(layerBody, "z-index: var(--vd-z-pet, 650);") {
 		t.Fatalf("desktop pet layer should use --vd-z-pet, got %s", layerBody)
 	}
 
 	bundle := readDesktopAssetText(t, "css/desktop-shell.bundle.css")
 	for _, marker := range []string{
 		"--vd-z-pet: 650;",
-		"z-index: var(--vd-z-pet);",
+		"z-index: var(--vd-z-pet, 650);",
 	} {
 		if !strings.Contains(bundle, marker) {
 			t.Fatalf("desktop shell CSS bundle is missing pet layer marker %q", marker)
