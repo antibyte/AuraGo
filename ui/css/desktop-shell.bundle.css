@@ -44,6 +44,7 @@
     --vd-z-desktop: 0;
     --vd-z-widget: 10;
     --vd-z-window: 100;
+    --vd-z-pet: 220;
     --vd-z-dock: 400;
     --vd-z-menu: 700;
     --vd-z-modal: 800;
@@ -5932,7 +5933,7 @@
     top: 24px;
     width: 192px;
     height: 208px;
-    z-index: 5;
+    z-index: var(--vd-z-pet);
     pointer-events: none;
     user-select: none;
     transition: transform 0.1s ease-out;

@@ -77,9 +77,37 @@
         return pets.find(p => p.id === id) || null;
     }
 
+    function petAssetURL(id, relPath) {
+        const cleanPath = String(relPath || 'spritesheet.webp')
+            .replace(/\\/g, '/')
+            .split('/')
+            .map(part => part.trim())
+            .filter(part => part && part !== '.' && part !== '..')
+            .map(encodeURIComponent)
+            .join('/');
+        if (!id || !cleanPath) return '';
+        return '/files/desktop/Pets/' + encodeURIComponent(id) + '/' + cleanPath;
+    }
+
     function spritesheetURL(pet) {
         if (!pet || !pet.spritesheet) return '';
-        return '/files/desktop/Pets/' + encodeURIComponent(pet.id) + '/' + encodeURIComponent(pet.spritesheet);
+        return petAssetURL(pet.id, pet.spritesheet);
+    }
+
+    function syncPetBootstrap(payload) {
+        if (!state.bootstrap || !payload) return;
+        if (Array.isArray(payload.pets)) {
+            state.bootstrap.pets = payload.pets;
+        }
+        if (payload.settings) {
+            state.bootstrap.settings = Object.assign({}, state.bootstrap.settings || {}, payload.settings);
+        }
+        if (Object.prototype.hasOwnProperty.call(payload, 'active_pet_id')) {
+            state.bootstrap.active_pet_id = payload.active_pet_id || '';
+            const settings = Object.assign({}, state.bootstrap.settings || {});
+            settings['pet.active_id'] = state.bootstrap.active_pet_id;
+            state.bootstrap.settings = settings;
+        }
     }
 
     function clampToViewport(rect) {
@@ -212,9 +240,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ key, value })
             });
-            if (state.bootstrap) {
-                state.bootstrap.settings = body.settings || Object.assign({}, (state.bootstrap.settings || {}), { [key]: value });
-            }
+            syncPetBootstrap({ settings: body.settings || { [key]: value } });
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
@@ -286,6 +312,7 @@
     function handlePetEvent(event) {
         switch (event.type) {
             case 'pet_changed':
+                syncPetBootstrap(event.payload);
                 loadPet();
                 return;
             case 'pet_reaction_changed':
@@ -299,8 +326,8 @@
                 }
                 return;
             case 'pet_setting_changed':
-                if (state.bootstrap && event.payload) {
-                    state.bootstrap.settings = Object.assign({}, state.bootstrap.settings || {}, { [event.payload.key]: event.payload.value });
+                if (event.payload) {
+                    syncPetBootstrap({ settings: { [event.payload.key]: event.payload.value } });
                 }
                 loadPet();
                 return;
@@ -330,6 +357,7 @@
         say: showBubble,
         hideBubble,
         handleEvent: handlePetEvent,
+        syncBootstrap: syncPetBootstrap,
         saveSetting
     };
 })();

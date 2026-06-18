@@ -5,7 +5,7 @@
     top: 24px;
     width: 192px;
     height: 208px;
-    z-index: 5;
+    z-index: var(--vd-z-pet);
     pointer-events: none;
     user-select: none;
     transition: transform 0.1s ease-out;

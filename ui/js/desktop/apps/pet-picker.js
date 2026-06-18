@@ -48,6 +48,24 @@
         let pets = [];
         let activeId = '';
 
+        function petAssetURL(id, relPath) {
+            const cleanPath = String(relPath || 'spritesheet.webp')
+                .replace(/\\/g, '/')
+                .split('/')
+                .map(part => part.trim())
+                .filter(part => part && part !== '.' && part !== '..')
+                .map(encodeURIComponent)
+                .join('/');
+            if (!id || !cleanPath) return '';
+            return '/files/desktop/Pets/' + encodeURIComponent(id) + '/' + cleanPath;
+        }
+
+        function syncPetBootstrap(payload) {
+            if (window.PetRuntime && typeof window.PetRuntime.syncBootstrap === 'function') {
+                window.PetRuntime.syncBootstrap(payload);
+            }
+        }
+
         async function load() {
             try {
                 const [petsBody, settingsBody] = await Promise.all([
@@ -62,6 +80,7 @@
                 scaleValue.textContent = Number(scaleInput.value).toFixed(1) + 'x';
                 enabledInput.checked = String(settings['pet.enabled']).toLowerCase() !== 'false';
                 alwaysOnTopInput.checked = String(settings['pet.always_on_top']).toLowerCase() === 'true';
+                syncPetBootstrap({ pets, active_pet_id: activeId, settings });
             } catch (err) {
                 notify({ title: t('desktop.notification'), message: err.message });
             }
@@ -74,7 +93,7 @@
             }
             grid.innerHTML = pets.map(pet => `
                 <div class="vd-pet-picker-card${pet.id === activeId ? ' is-active' : ''}" data-id="${esc(pet.id)}">
-                    <div class="vd-pet-picker-thumb" style="background-image:url('/files/desktop/Pets/${encodeURIComponent(pet.id)}/${encodeURIComponent(pet.spritesheet || 'spritesheet.webp')}')"></div>
+                    <div class="vd-pet-picker-thumb" style="background-image:url('${petAssetURL(pet.id, pet.spritesheet)}')"></div>
                     <div class="vd-pet-picker-name">${esc(pet.display_name || pet.id)}</div>
                     <div class="vd-pet-picker-desc">${esc(pet.description || '')}</div>
                     <button type="button" class="vd-pet-picker-select vd-btn-secondary" data-id="${esc(pet.id)}">${esc(t('desktop.pet_select', 'Select'))}</button>
@@ -87,12 +106,13 @@
 
         async function activatePet(id) {
             try {
-                await api('/api/desktop/pets?action=activate', {
+                const body = await api('/api/desktop/pets?action=activate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id })
                 });
-                activeId = id;
+                activeId = body.active_pet_id || id;
+                syncPetBootstrap({ active_pet_id: body.active_pet_id || id });
                 renderGrid();
                 if (window.PetRuntime && typeof window.PetRuntime.load === 'function') window.PetRuntime.load();
             } catch (err) {
@@ -102,11 +122,12 @@
 
         async function saveSetting(key, value) {
             try {
-                await api('/api/desktop/settings', {
+                const body = await api('/api/desktop/settings', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ key, value })
                 });
+                syncPetBootstrap({ settings: body.settings || { [key]: value } });
                 if (window.PetRuntime && typeof window.PetRuntime.load === 'function') window.PetRuntime.load();
             } catch (err) {
                 notify({ title: t('desktop.notification'), message: err.message });
