@@ -192,20 +192,26 @@ func TestDesktopPetRuntimeSchedulesAmbientAnimations(t *testing.T) {
 	} {
 		source := readDesktopAssetText(t, path)
 		for _, marker := range []string{
-			"const ambientStates = ['waving', 'jumping', 'running'];",
+			"const AMBIENT_MIN_DELAY_MS = 10000;",
+			"const AMBIENT_MAX_DELAY_MS = 24000;",
+			"const ambientStates = ['waving', 'jumping', 'running', 'running'];",
 			"let ambientTimer = null;",
 			"let ambientReturnTimer = null;",
 			"function randomAmbientDelay()",
 			"function clearAmbientTimers()",
 			"function scheduleAmbientAnimation()",
+			"function ambientRunPlan()",
 			"function ambientRunDistance()",
 			"function moveAmbientRun(",
 			"function playAmbientAnimation()",
 			"window.setTimeout(playAmbientAnimation, randomAmbientDelay())",
 			"if (ambientState === 'running') {",
-			"moveAmbientRun(ambientPlaybackMs(ambientState), () => {",
+			"const runPlan = ambientRunPlan();",
+			"const runningState = runPlan.deltaX < 0 ? 'running-left' : 'running-right';",
+			"setSpriteState(runningState);",
+			"moveAmbientRun(runPlan, ambientPlaybackMs(runningState), () => {",
 			"setSpriteState(ambientState);",
-			"if (layer && currentState === ambientState) setSpriteState('idle');",
+			"if (layer && currentState === runningState) setSpriteState('idle');",
 			"scheduleAmbientAnimation();",
 		} {
 			if !strings.Contains(source, marker) {

@@ -1611,12 +1611,12 @@
     const BUBBLE_DURATION_MS = 4000;
     const LONG_BUBBLE_DURATION_MS = 8000;
     const MAX_BUBBLE_CHARS = 140;
-    const AMBIENT_MIN_DELAY_MS = 18000;
-    const AMBIENT_MAX_DELAY_MS = 42000;
+    const AMBIENT_MIN_DELAY_MS = 10000;
+    const AMBIENT_MAX_DELAY_MS = 24000;
     const AMBIENT_RETURN_PADDING_MS = 260;
     const AMBIENT_RUN_MIN_DISTANCE = 90;
     const AMBIENT_RUN_MAX_DISTANCE = 180;
-    const ambientStates = ['waving', 'jumping', 'running'];
+    const ambientStates = ['waving', 'jumping', 'running', 'running'];
 
     // OpenPets-compatible reaction → animation state mapping.
     const reactionToState = {
@@ -1853,11 +1853,8 @@
         return AMBIENT_RUN_MIN_DISTANCE + Math.floor(Math.random() * (AMBIENT_RUN_MAX_DISTANCE - AMBIENT_RUN_MIN_DISTANCE + 1));
     }
 
-    function moveAmbientRun(durationMs, done) {
-        if (!layer) {
-            if (typeof done === 'function') done();
-            return;
-        }
+    function ambientRunPlan() {
+        if (!layer) return null;
         const scale = petScale();
         const startX = layer.offsetLeft;
         const startY = layer.offsetTop;
@@ -1870,8 +1867,17 @@
             direction *= -1;
             target = clampToViewport({ x: startX + direction * distance, y: startY, w, h });
         }
-        const deltaX = target.x - startX;
-        if (Math.abs(deltaX) < 12) {
+        return {
+            startX,
+            startY,
+            targetX: target.x,
+            targetY: target.y,
+            deltaX: target.x - startX
+        };
+    }
+
+    function moveAmbientRun(runPlan, durationMs, done) {
+        if (!layer || !runPlan || Math.abs(runPlan.deltaX) < 12) {
             if (typeof done === 'function') done();
             return;
         }
@@ -1881,16 +1887,16 @@
             if (!layer) return;
             const progress = Math.min(1, (Date.now() - startedAt) / duration);
             const eased = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-            layer.style.left = Math.round(startX + deltaX * eased) + 'px';
-            layer.style.top = startY + 'px';
+            layer.style.left = Math.round(runPlan.startX + runPlan.deltaX * eased) + 'px';
+            layer.style.top = runPlan.startY + 'px';
             if (progress < 1 && !drag) {
                 ambientMoveFrame = window.requestAnimationFrame(tick);
                 return;
             }
             ambientMoveFrame = null;
             if (layer && !drag) {
-                layer.style.left = target.x + 'px';
-                layer.style.top = target.y + 'px';
+                layer.style.left = runPlan.targetX + 'px';
+                layer.style.top = runPlan.targetY + 'px';
             }
             if (typeof done === 'function') done();
         };
@@ -1905,14 +1911,21 @@
             return;
         }
         const ambientState = ambientStates[Math.floor(Math.random() * ambientStates.length)] || 'waving';
-        setSpriteState(ambientState);
         if (ambientState === 'running') {
-            moveAmbientRun(ambientPlaybackMs(ambientState), () => {
-                if (layer && currentState === ambientState) setSpriteState('idle');
+            const runPlan = ambientRunPlan();
+            if (!runPlan) {
+                scheduleAmbientAnimation();
+                return;
+            }
+            const runningState = runPlan.deltaX < 0 ? 'running-left' : 'running-right';
+            setSpriteState(runningState);
+            moveAmbientRun(runPlan, ambientPlaybackMs(runningState), () => {
+                if (layer && currentState === runningState) setSpriteState('idle');
                 scheduleAmbientAnimation();
             });
             return;
         }
+        setSpriteState(ambientState);
         if (ambientReturnTimer) window.clearTimeout(ambientReturnTimer);
         ambientReturnTimer = window.setTimeout(() => {
             ambientReturnTimer = null;
