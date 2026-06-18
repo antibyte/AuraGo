@@ -11,7 +11,7 @@
 .media-container {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 1.5rem;
+    padding: var(--space-6);
     overflow-x: hidden;
 }
 
@@ -21,8 +21,8 @@
     justify-content: space-between;
     align-items: flex-end;
     flex-wrap: wrap;
-    gap: 1rem;
-    margin-bottom: 1.25rem;
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
 }
 
 .media-header h1,
@@ -33,21 +33,21 @@
 .media-controls,
 .gallery-controls {
     display: flex;
-    gap: 0.6rem;
+    gap: var(--space-2);
     align-items: center;
     flex-wrap: wrap;
 }
 
 .gallery-search {
-    padding: 0.45rem 0.8rem;
+    padding: var(--space-2) var(--space-3);
     border: 1px solid var(--border-subtle);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     background: var(--bg-secondary);
     color: var(--text-primary);
-    font-size: 0.85rem;
+    font-size: var(--text-sm);
     min-width: 200px;
     max-width: 100%;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: border-color var(--transition-base), box-shadow var(--transition-base);
 }
 
 .gallery-search:hover {
@@ -61,13 +61,13 @@
 }
 
 .gallery-filter {
-    padding: 0.45rem 0.8rem;
+    padding: var(--space-2) var(--space-3);
     border: 1px solid var(--border-subtle);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     background: var(--bg-secondary);
     color: var(--text-primary);
-    font-size: 0.85rem;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    font-size: var(--text-sm);
+    transition: border-color var(--transition-base), box-shadow var(--transition-base);
 }
 
 .gallery-filter:hover {
@@ -84,16 +84,16 @@
 .gallery-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 1rem;
+    gap: var(--space-4);
 }
 
 .gallery-card {
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     overflow: hidden;
     background: var(--bg-secondary);
     border: 1px solid var(--border-subtle);
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .gallery-card:hover {
@@ -110,16 +110,16 @@
 }
 
 .gallery-card-info {
-    padding: 0.6rem 0.8rem;
+    padding: var(--space-2) var(--space-3);
 }
 
 .gallery-card-prompt {
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
     color: var(--text-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    margin-bottom: 0.3rem;
+    margin-bottom: var(--space-1);
 }
 
 .gallery-card-meta {
@@ -132,40 +132,40 @@
 .gallery-loading {
     grid-column: 1 / -1;
     text-align: center;
-    padding: 3rem;
+    padding: var(--space-12);
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
 }
 
 .gallery-empty {
     grid-column: 1 / -1;
     text-align: center;
-    padding: 4rem 2rem;
+    padding: var(--space-12) var(--space-8);
     color: var(--text-secondary);
 }
 
 .gallery-empty-icon {
     font-size: 3rem;
-    margin-bottom: 0.8rem;
+    margin-bottom: var(--space-3);
 }
 
 .gallery-pagination {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 1rem;
-    padding: 1.5rem 0;
+    gap: var(--space-4);
+    padding: var(--space-6) 0;
 }
 
 .btn-gallery-nav {
-    padding: 0.4rem 1rem;
+    padding: var(--space-2) var(--space-4);
     border: 1px solid var(--border-subtle);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     background: var(--bg-secondary);
     color: var(--text-primary);
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all var(--transition-base);
 }
 
 .btn-gallery-nav:hover {
@@ -181,12 +181,12 @@
 .lightbox {
     position: fixed;
     inset: 0;
-    z-index: 1000;
+    z-index: var(--z-modal);
     background: rgba(2, 6, 23, 0.85);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2rem;
+    padding: var(--space-8);
 }
 /* .lightbox {display:flex} overrides .is-hidden {display:none} (same specificity, gallery.css
    loads after shared.css). Higher specificity rule needed to properly hide the lightbox. */
@@ -198,7 +198,7 @@
     max-width: 900px;
     max-height: 90vh;
     background: var(--bg-primary);
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     overflow: hidden;
     position: relative;
     display: flex;
@@ -208,21 +208,21 @@
 
 .lightbox-close {
     position: absolute;
-    top: 0.5rem;
-    right: 0.6rem;
+    top: var(--space-2);
+    right: var(--space-2);
     background: rgba(2, 6, 23, 0.6);
     color: white;
     border: none;
-    border-radius: 50%;
+    border-radius: var(--radius-full);
     width: 2rem;
     height: 2rem;
-    font-size: 1.2rem;
+    font-size: var(--text-lg);
     cursor: pointer;
     z-index: 10;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    transition: all var(--transition-base);
 }
 
 .lightbox-close:hover {
@@ -237,8 +237,8 @@
 }
 
 .lightbox-meta {
-    padding: 1rem;
-    font-size: 0.8rem;
+    padding: var(--space-4);
+    font-size: var(--text-sm);
     color: var(--text-secondary);
     line-height: 1.6;
     max-height: 200px;
@@ -251,22 +251,22 @@
 
 .lightbox-actions {
     display: flex;
-    gap: 0.6rem;
-    padding: 0.8rem 1rem;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
     border-top: 1px solid var(--border-subtle);
 }
 
 .btn-gallery-action {
-    padding: 0.4rem 0.8rem;
+    padding: var(--space-2) var(--space-3);
     border: 1px solid var(--border-subtle);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     background: var(--bg-secondary);
     color: var(--text-primary);
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
     cursor: pointer;
     text-decoration: none;
     text-align: center;
-    transition: all 0.2s;
+    transition: all var(--transition-base);
 }
 
 .btn-gallery-action:hover {
@@ -286,30 +286,30 @@
 /* Media page specific */
 .media-tabs {
     display: flex;
-    gap: 4px;
-    margin-bottom: 20px;
+    gap: var(--space-1);
+    margin-bottom: var(--space-5);
     background: var(--bg-secondary);
-    border-radius: 12px;
-    padding: 4px;
+    border-radius: var(--radius-xl);
+    padding: var(--space-1);
     border: 1px solid var(--border-subtle);
     position: sticky;
     top: 0;
-    z-index: 50;
+    z-index: var(--z-sticky);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
 }
 
 .media-tab {
     flex: 1;
-    padding: 10px 20px;
+    padding: var(--space-2) var(--space-5);
     border: none;
     background: transparent;
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
     font-weight: 500;
     cursor: pointer;
-    border-radius: 8px;
-    transition: all 0.3s;
+    border-radius: var(--radius-lg);
+    transition: all var(--transition-slow);
     text-align: center;
 }
 
@@ -332,37 +332,37 @@
 }
 
 .media-extra-controls {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-4);
 }
 
 .media-audio-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1rem;
+    gap: var(--space-4);
 }
 
 .media-doc-list {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--space-2);
 }
 
 .media-modal {
     position: fixed;
     inset: 0;
-    z-index: 1000;
+    z-index: var(--z-modal);
     background: rgba(2, 6, 23, 0.85);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2rem;
+    padding: var(--space-8);
 }
 
 .media-modal-content {
     max-width: 600px;
     max-height: 90vh;
     background: var(--bg-primary);
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     overflow: hidden;
     position: relative;
     border: 1px solid var(--border-subtle);
@@ -372,7 +372,7 @@
 @media (max-width: 640px) {
     .gallery-container,
     .media-container {
-        padding: 1rem;
+        padding: var(--space-4);
     }
     .gallery-grid {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
