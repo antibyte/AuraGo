@@ -272,7 +272,14 @@
         'files.default_folder': 'Documents',
         'agent.show_chat_button': 'true',
         // Mobile experience (Phase 0)
-        'desktop.mobile_experience': 'auto'   // 'auto' | 'enabled' | 'disabled'
+        'desktop.mobile_experience': 'auto',   // 'auto' | 'enabled' | 'disabled'
+        // Desktop pet (OpenPets)
+        'pet.enabled': 'true',
+        'pet.active_id': 'openpets-default',
+        'pet.scale': '1.0',
+        'pet.position_x': '24',
+        'pet.position_y': '24',
+        'pet.always_on_top': 'false'
     };
 
     function $(id) {

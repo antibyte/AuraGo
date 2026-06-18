@@ -536,28 +536,38 @@ func (s *Service) seedDesktopShortcutsLocked(ctx context.Context) error {
 func (s *Service) seedDefaultPetLocked(ctx context.Context) error {
 	var seeded string
 	err := s.db.QueryRowContext(ctx, `SELECT value FROM desktop_meta WHERE key = 'desktop_default_pet_seeded'`).Scan(&seeded)
-	if err == nil && seeded == "true" {
-		return nil
-	}
 	if err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("read default pet seed state: %w", err)
 	}
 	petDir := filepath.Join(s.cfg.WorkspaceDir, petsDirName, "openpets-default")
+	petInstalled := false
 	if _, err := os.Stat(filepath.Join(petDir, "pet.json")); err == nil {
-		// Already present on disk; just mark seeded.
-		_, _ = s.db.ExecContext(ctx, `INSERT INTO desktop_meta(key, value) VALUES('desktop_default_pet_seeded', 'true')
-			ON CONFLICT(key) DO UPDATE SET value = excluded.value`)
-		return nil
+		petInstalled = true
 	}
-	if err := InstallBundledDefaultPet(s.cfg.WorkspaceDir, defaultPetSpritesheet); err != nil {
-		return err
+	if !petInstalled {
+		if err := InstallBundledDefaultPet(s.cfg.WorkspaceDir, defaultPetSpritesheet); err != nil {
+			return err
+		}
 	}
-	now := time.Now().UTC().Format(time.RFC3339Nano)
-	_, err = s.db.ExecContext(ctx, `INSERT INTO desktop_meta(key, value) VALUES('desktop_default_pet_seeded', 'true')
-		ON CONFLICT(key) DO UPDATE SET value = excluded.value`, now)
-	if err != nil {
-		return fmt.Errorf("mark default pet seeded: %w", err)
+	if seeded != "true" {
+		now := time.Now().UTC().Format(time.RFC3339Nano)
+		_, err = s.db.ExecContext(ctx, `INSERT INTO desktop_meta(key, value) VALUES('desktop_default_pet_seeded', 'true')
+			ON CONFLICT(key) DO UPDATE SET value = excluded.value`, now)
+		if err != nil {
+			return fmt.Errorf("mark default pet seeded: %w", err)
+		}
 	}
+	// Activate the default pet if nothing is active yet.
+	var activeID string
+	_ = s.db.QueryRowContext(ctx, `SELECT value FROM desktop_settings WHERE key = 'pet.active_id'`).Scan(&activeID)
+	if activeID == "" {
+		now := time.Now().UTC().Format(time.RFC3339Nano)
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO desktop_settings(key, value, updated_at) VALUES('pet.active_id', 'openpets-default', ?)
+			ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`, now); err != nil {
+			return fmt.Errorf("activate default pet: %w", err)
+		}
+	}
+	s.InvalidateSettings()
 	return nil
 }
 
