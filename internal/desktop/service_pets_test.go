@@ -139,6 +139,30 @@ func TestServiceRepairsBrokenDefaultPetSeed(t *testing.T) {
 	t.Fatalf("default pet missing after repair: %+v", pets)
 }
 
+func TestServiceBootstrapRepairsEmptyPetWorkspace(t *testing.T) {
+	svc := testService(t)
+	ctx := context.Background()
+	root := svc.Config().WorkspaceDir
+	petDir := filepath.Join(root, petsDirName, "openpets-default")
+	if err := os.RemoveAll(petDir); err != nil {
+		t.Fatalf("remove default pet fixture: %v", err)
+	}
+
+	bootstrap, err := svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	for _, pet := range bootstrap.Pets {
+		if pet.ID == "openpets-default" {
+			if _, err := os.Stat(filepath.Join(petDir, "spritesheet.webp")); err != nil {
+				t.Fatalf("default spritesheet was not repaired: %v", err)
+			}
+			return
+		}
+	}
+	t.Fatalf("default pet missing from bootstrap after repair: %+v", bootstrap.Pets)
+}
+
 func TestParsePetScale(t *testing.T) {
 	if ParsePetScale("1.5") != 1.5 {
 		t.Fatalf("ParsePetScale(1.5) failed")

@@ -35,7 +35,7 @@ func (s *Service) ListPets(ctx context.Context) ([]PetManifest, error) {
 		return nil, err
 	}
 	cfg := s.Config()
-	return listPetsInDir(cfg.WorkspaceDir)
+	return s.listPetsWithDefaultRepair(cfg.WorkspaceDir)
 }
 
 // GetPet returns a single pet by ID.
@@ -209,6 +209,25 @@ func listPetsInDir(workspaceDir string) ([]PetManifest, error) {
 		return strings.ToLower(pets[i].DisplayName) < strings.ToLower(pets[j].DisplayName)
 	})
 	return pets, nil
+}
+
+func (s *Service) listPetsWithDefaultRepair(workspaceDir string) ([]PetManifest, error) {
+	pets, err := listPetsInDir(workspaceDir)
+	if err != nil || len(pets) > 0 {
+		return pets, err
+	}
+
+	desktopMutationMu.Lock()
+	defer desktopMutationMu.Unlock()
+
+	pets, err = listPetsInDir(workspaceDir)
+	if err != nil || len(pets) > 0 {
+		return pets, err
+	}
+	if err := InstallBundledDefaultPet(workspaceDir, defaultPetSpritesheet); err != nil {
+		return nil, err
+	}
+	return listPetsInDir(workspaceDir)
 }
 
 func getPetInDir(workspaceDir, id string) (PetManifest, error) {

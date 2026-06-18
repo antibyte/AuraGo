@@ -731,7 +731,7 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 		IconCatalog:   DesktopIconCatalog(s.cacheSettings),
 	}
 
-	pets, err := listPetsInDir(s.cfg.WorkspaceDir)
+	pets, err := s.listPetsWithDefaultRepair(s.cfg.WorkspaceDir)
 	if err != nil {
 		return BootstrapPayload{}, err
 	}

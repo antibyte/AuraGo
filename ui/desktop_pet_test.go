@@ -135,3 +135,34 @@ func TestDesktopPetAnimationUsesRuntimePixelOffsets(t *testing.T) {
 		t.Fatal("desktop shell CSS bundle must not rely on unsupported calc() multiplication for pet sprite offsets")
 	}
 }
+
+func TestDesktopPetReloadsAfterBootstrapRefresh(t *testing.T) {
+	t.Parallel()
+
+	foundation := readDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
+	for _, marker := range []string{
+		"function refreshPetRuntime()",
+		"window.PetRuntime.load();",
+		"renderDesktop();\n            refreshPetRuntime();",
+	} {
+		if !strings.Contains(foundation, marker) {
+			t.Fatalf("desktop foundation is missing pet refresh marker %q", marker)
+		}
+	}
+
+	events := readDesktopAssetText(t, "js/desktop/core/sdk-events-bootstrap.js")
+	if !strings.Contains(events, "renderDesktop();\n            refreshPetRuntime();\n            return;") {
+		t.Fatal("desktop welcome event must refresh pet runtime after replacing bootstrap state")
+	}
+
+	bundle := readDesktopAssetText(t, "js/desktop/bundles/main.bundle.js")
+	for _, marker := range []string{
+		"function refreshPetRuntime()",
+		"renderDesktop();\n            refreshPetRuntime();",
+		"renderDesktop();\n            refreshPetRuntime();\n            return;",
+	} {
+		if !strings.Contains(bundle, marker) {
+			t.Fatalf("desktop main bundle is missing pet bootstrap refresh marker %q", marker)
+		}
+	}
+}

@@ -305,6 +305,7 @@
         if (event.type === 'welcome') {
             state.bootstrap = event.payload || state.bootstrap;
             renderDesktop();
+            refreshPetRuntime();
             return;
         }
         if (event.type === 'desktop_changed') {

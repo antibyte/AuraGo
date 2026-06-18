@@ -1092,6 +1092,7 @@
             state.bootstrap = await api('/api/desktop/bootstrap');
             state.desktopFiles = await loadDesktopFiles();
             renderDesktop();
+            refreshPetRuntime();
             return state.bootstrap;
         })();
         try {
@@ -1120,6 +1121,12 @@
         renderStartApps();
         renderTaskbar();
         if (!state._startMenuDragWired) { state._startMenuDragWired = true; wireStartMenuDrag(); }
+    }
+
+    function refreshPetRuntime() {
+        if (window.PetRuntime && typeof window.PetRuntime.load === 'function') {
+            window.PetRuntime.load();
+        }
     }
 
     function renderStartButtonIcon() {
@@ -10379,6 +10386,7 @@ if (appId === 'pixel') {
         if (event.type === 'welcome') {
             state.bootstrap = event.payload || state.bootstrap;
             renderDesktop();
+            refreshPetRuntime();
             return;
         }
         if (event.type === 'desktop_changed') {
