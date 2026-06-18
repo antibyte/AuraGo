@@ -7,6 +7,8 @@ import (
 	"testing"
 )
 
+var expectedBundledDefaultPetIDs = []string{"openpets-default", "snoopy", "clippit", "tux", "wall-e", "dobby"}
+
 func TestInstallAndListPets(t *testing.T) {
 	svc := testService(t)
 	ctx := context.Background()
@@ -103,6 +105,32 @@ func TestInstallBundledDefaultPet(t *testing.T) {
 	}
 }
 
+func TestInstallBundledDefaultPets(t *testing.T) {
+	root := t.TempDir()
+	if err := InstallBundledDefaultPets(root); err != nil {
+		t.Fatalf("InstallBundledDefaultPets: %v", err)
+	}
+
+	for _, id := range expectedBundledDefaultPetIDs {
+		t.Run(id, func(t *testing.T) {
+			petDir := filepath.Join(root, "Pets", id)
+			if _, err := os.Stat(filepath.Join(petDir, "pet.json")); err != nil {
+				t.Fatalf("%s pet.json missing: %v", id, err)
+			}
+			if _, err := os.Stat(filepath.Join(petDir, "spritesheet.webp")); err != nil {
+				t.Fatalf("%s spritesheet missing: %v", id, err)
+			}
+			pet, err := getPetInDir(root, id)
+			if err != nil {
+				t.Fatalf("getPetInDir(%s): %v", id, err)
+			}
+			if pet.ID != id {
+				t.Fatalf("pet ID = %q, want %q", pet.ID, id)
+			}
+		})
+	}
+}
+
 func TestServiceRepairsBrokenDefaultPetSeed(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "workspace")
 	dbPath := filepath.Join(t.TempDir(), "desktop.db")
@@ -161,6 +189,25 @@ func TestServiceBootstrapRepairsEmptyPetWorkspace(t *testing.T) {
 		}
 	}
 	t.Fatalf("default pet missing from bootstrap after repair: %+v", bootstrap.Pets)
+}
+
+func TestServiceBootstrapIncludesAllBundledDefaultPets(t *testing.T) {
+	svc := testService(t)
+	ctx := context.Background()
+
+	bootstrap, err := svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	seen := make(map[string]bool)
+	for _, pet := range bootstrap.Pets {
+		seen[pet.ID] = true
+	}
+	for _, id := range expectedBundledDefaultPetIDs {
+		if !seen[id] {
+			t.Fatalf("bundled pet %q missing from bootstrap: %+v", id, bootstrap.Pets)
+		}
+	}
 }
 
 func TestParsePetScale(t *testing.T) {

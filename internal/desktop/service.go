@@ -539,10 +539,8 @@ func (s *Service) seedDefaultPetLocked(ctx context.Context) error {
 	if err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("read default pet seed state: %w", err)
 	}
-	if _, err := getPetInDir(s.cfg.WorkspaceDir, "openpets-default"); err != nil {
-		if err := InstallBundledDefaultPet(s.cfg.WorkspaceDir, defaultPetSpritesheet); err != nil {
-			return err
-		}
+	if err := ensureBundledDefaultPets(s.cfg.WorkspaceDir); err != nil {
+		return err
 	}
 	if seeded != "true" {
 		now := time.Now().UTC().Format(time.RFC3339Nano)

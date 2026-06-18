@@ -29,6 +29,11 @@ type PetJSON struct {
 	Subcategory     string `json:"subcategory,omitempty"`
 }
 
+type bundledPet struct {
+	Manifest    PetJSON
+	Spritesheet []byte
+}
+
 // ListPets returns all pets discovered in the workspace Pets directory.
 func (s *Service) ListPets(ctx context.Context) ([]PetManifest, error) {
 	if err := s.ensureReady(ctx); err != nil {
@@ -213,18 +218,14 @@ func listPetsInDir(workspaceDir string) ([]PetManifest, error) {
 
 func (s *Service) listPetsWithDefaultRepair(workspaceDir string) ([]PetManifest, error) {
 	pets, err := listPetsInDir(workspaceDir)
-	if err != nil || len(pets) > 0 {
+	if err != nil {
 		return pets, err
 	}
 
 	desktopMutationMu.Lock()
 	defer desktopMutationMu.Unlock()
 
-	pets, err = listPetsInDir(workspaceDir)
-	if err != nil || len(pets) > 0 {
-		return pets, err
-	}
-	if err := InstallBundledDefaultPet(workspaceDir, defaultPetSpritesheet); err != nil {
+	if err := ensureBundledDefaultPets(workspaceDir); err != nil {
 		return nil, err
 	}
 	return listPetsInDir(workspaceDir)
@@ -331,31 +332,120 @@ func PetScaleString(scale float64) string {
 	return strconv.FormatFloat(scale, 'f', 2, 64)
 }
 
+func bundledDefaultPets() []bundledPet {
+	return []bundledPet{
+		{
+			Manifest: PetJSON{
+				ID:              "openpets-default",
+				DisplayName:     "OpenPets Default",
+				Description:     "The built-in OpenPets companion (MIT licensed).",
+				SpritesheetPath: "spritesheet.webp",
+				Category:        "mascot",
+			},
+			Spritesheet: defaultPetSpritesheet,
+		},
+		{
+			Manifest: PetJSON{
+				ID:              "snoopy",
+				DisplayName:     "Snoopy",
+				Description:     "A tiny black-and-white beagle with a red collar for calm coding sessions.",
+				SpritesheetPath: "spritesheet.webp",
+				Category:        "mascot",
+			},
+			Spritesheet: snoopyPetSpritesheet,
+		},
+		{
+			Manifest: PetJSON{
+				ID:              "clippit",
+				DisplayName:     "Clippy",
+				Description:     "A classic paperclip assistant rebuilt from Microsoft Agent animation frames.",
+				SpritesheetPath: "spritesheet.webp",
+				Category:        "mascot",
+			},
+			Spritesheet: clippitPetSpritesheet,
+		},
+		{
+			Manifest: PetJSON{
+				ID:              "tux",
+				DisplayName:     "Tux",
+				Description:     "A tiny pixel-adjacent Linux mascot for calm coding sessions.",
+				SpritesheetPath: "spritesheet.webp",
+				Category:        "mascot",
+			},
+			Spritesheet: tuxPetSpritesheet,
+		},
+		{
+			Manifest: PetJSON{
+				ID:              "wall-e",
+				DisplayName:     "Wall-E",
+				Description:     "A tiny weathered trash-compactor robot companion with binocular eyes and treads.",
+				SpritesheetPath: "spritesheet.webp",
+				Category:        "mascot",
+			},
+			Spritesheet: wallEPetSpritesheet,
+		},
+		{
+			Manifest: PetJSON{
+				ID:              "dobby",
+				DisplayName:     "Dobby",
+				Description:     "An earnest, genuinely helpful tiny house-elf companion.",
+				SpritesheetPath: "spritesheet.webp",
+				Category:        "mascot",
+			},
+			Spritesheet: dobbyPetSpritesheet,
+		},
+	}
+}
+
+func ensureBundledDefaultPets(workspaceDir string) error {
+	for _, pet := range bundledDefaultPets() {
+		if _, err := getPetInDir(workspaceDir, pet.Manifest.ID); err == nil {
+			continue
+		}
+		if err := installBundledPet(workspaceDir, pet); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// InstallBundledDefaultPets installs all OpenPets pets bundled with AuraGo.
+func InstallBundledDefaultPets(workspaceDir string) error {
+	for _, pet := range bundledDefaultPets() {
+		if err := installBundledPet(workspaceDir, pet); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // InstallBundledDefaultPet installs the built-in OpenPets default pet into the workspace.
 func InstallBundledDefaultPet(workspaceDir string, spritesheet []byte) error {
-	if len(spritesheet) == 0 {
-		return fmt.Errorf("default pet spritesheet is empty")
+	pet := bundledDefaultPets()[0]
+	pet.Spritesheet = spritesheet
+	return installBundledPet(workspaceDir, pet)
+}
+
+func installBundledPet(workspaceDir string, pet bundledPet) error {
+	if !petIDPattern.MatchString(pet.Manifest.ID) {
+		return fmt.Errorf("invalid bundled pet id %q", pet.Manifest.ID)
 	}
-	petDir := filepath.Join(workspaceDir, petsDirName, "openpets-default")
+	if len(pet.Spritesheet) == 0 {
+		return fmt.Errorf("bundled pet %q spritesheet is empty", pet.Manifest.ID)
+	}
+	petDir := filepath.Join(workspaceDir, petsDirName, pet.Manifest.ID)
 	if err := os.MkdirAll(petDir, 0o700); err != nil {
-		return fmt.Errorf("create default pet directory: %w", err)
+		return fmt.Errorf("create bundled pet directory: %w", err)
 	}
-	manifest := PetJSON{
-		ID:              "openpets-default",
-		DisplayName:     "OpenPets Default",
-		Description:     "The default OpenPets companion (MIT licensed).",
-		SpritesheetPath: "spritesheet.webp",
-		Category:        "mascot",
-	}
-	data, err := json.MarshalIndent(manifest, "", "  ")
+	data, err := json.MarshalIndent(pet.Manifest, "", "  ")
 	if err != nil {
-		return fmt.Errorf("marshal default pet manifest: %w", err)
+		return fmt.Errorf("marshal bundled pet manifest: %w", err)
 	}
 	if err := os.WriteFile(filepath.Join(petDir, "pet.json"), data, 0o600); err != nil {
-		return fmt.Errorf("write default pet.json: %w", err)
+		return fmt.Errorf("write bundled pet.json: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(petDir, "spritesheet.webp"), spritesheet, 0o600); err != nil {
-		return fmt.Errorf("write default pet spritesheet: %w", err)
+	if err := os.WriteFile(filepath.Join(petDir, "spritesheet.webp"), pet.Spritesheet, 0o600); err != nil {
+		return fmt.Errorf("write bundled pet spritesheet: %w", err)
 	}
 	return nil
 }
