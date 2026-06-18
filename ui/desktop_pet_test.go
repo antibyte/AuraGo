@@ -192,7 +192,7 @@ func TestDesktopPetRuntimeSchedulesAmbientAnimations(t *testing.T) {
 	} {
 		source := readDesktopAssetText(t, path)
 		for _, marker := range []string{
-			"const ambientStates = ['waving', 'jumping'];",
+			"const ambientStates = ['waving', 'jumping', 'running'];",
 			"let ambientTimer = null;",
 			"let ambientReturnTimer = null;",
 			"function randomAmbientDelay()",

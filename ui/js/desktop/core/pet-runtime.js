@@ -11,7 +11,7 @@
     const AMBIENT_MIN_DELAY_MS = 18000;
     const AMBIENT_MAX_DELAY_MS = 42000;
     const AMBIENT_RETURN_PADDING_MS = 260;
-    const ambientStates = ['waving', 'jumping'];
+    const ambientStates = ['waving', 'jumping', 'running'];
 
     // OpenPets-compatible reaction → animation state mapping.
     const reactionToState = {
