@@ -1416,5 +1416,17 @@
   "zipper.open": "Archief openen",
   "zipper.size": "Grootte",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} totaal"
+  "zipper.total_size": "{{size}} totaal",
+  "desktop.pet_picker_title": "Kies huisdier",
+  "desktop.pet_picker_subtitle": "Kies je desktop-metgezel",
+  "desktop.pet_select": "Selecteer",
+  "desktop.pet_scale": "Grootte",
+  "desktop.pet_enabled": "Toon huisdier",
+  "desktop.pet_always_on_top": "Altijd bovenaan",
+  "desktop.pet_import": "Importeer ZIP",
+  "desktop.pet_import_invalid": "Ongeldige bestandsnaam",
+  "desktop.pet_empty": "Nog geen huisdieren geïnstalleerd. Importeer er een hieronder.",
+  "desktop.pet_open_picker": "Kies huisdier...",
+  "desktop.pet_hide_bubble": "Verberg tekstballon",
+  "desktop.pet_hello": "Hoi!"
 }

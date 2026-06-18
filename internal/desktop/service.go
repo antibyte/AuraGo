@@ -238,6 +238,10 @@ func (s *Service) Init(ctx context.Context) error {
 		return err
 	}
 	s.cleanupStaleDeletes()
+	if err := s.seedDefaultPetLocked(ctx); err != nil {
+		cleanup()
+		return fmt.Errorf("seed default pet: %w", err)
+	}
 	return nil
 }
 
@@ -529,6 +533,34 @@ func (s *Service) seedDesktopShortcutsLocked(ctx context.Context) error {
 	return tx.Commit()
 }
 
+func (s *Service) seedDefaultPetLocked(ctx context.Context) error {
+	var seeded string
+	err := s.db.QueryRowContext(ctx, `SELECT value FROM desktop_meta WHERE key = 'desktop_default_pet_seeded'`).Scan(&seeded)
+	if err == nil && seeded == "true" {
+		return nil
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("read default pet seed state: %w", err)
+	}
+	petDir := filepath.Join(s.cfg.WorkspaceDir, petsDirName, "openpets-default")
+	if _, err := os.Stat(filepath.Join(petDir, "pet.json")); err == nil {
+		// Already present on disk; just mark seeded.
+		_, _ = s.db.ExecContext(ctx, `INSERT INTO desktop_meta(key, value) VALUES('desktop_default_pet_seeded', 'true')
+			ON CONFLICT(key) DO UPDATE SET value = excluded.value`)
+		return nil
+	}
+	if err := InstallBundledDefaultPet(s.cfg.WorkspaceDir, defaultPetSpritesheet); err != nil {
+		return err
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	_, err = s.db.ExecContext(ctx, `INSERT INTO desktop_meta(key, value) VALUES('desktop_default_pet_seeded', 'true')
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value`, now)
+	if err != nil {
+		return fmt.Errorf("mark default pet seeded: %w", err)
+	}
+	return nil
+}
+
 func (s *Service) seedBuiltinWidgetsLocked(ctx context.Context) error {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	defaults := []Widget{
@@ -693,6 +725,13 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 		Settings:      s.cacheSettings,
 		IconCatalog:   DesktopIconCatalog(s.cacheSettings),
 	}
+
+	pets, err := listPetsInDir(s.cfg.WorkspaceDir)
+	if err != nil {
+		return BootstrapPayload{}, err
+	}
+	payload.Pets = pets
+	payload.ActivePetID = s.cacheSettings["pet.active_id"]
 
 	return payload, nil
 }

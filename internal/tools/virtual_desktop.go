@@ -688,6 +688,51 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		}
 		event := virtualDesktopEvent("notification", map[string]interface{}{"title": title, "message": message})
 		return virtualDesktopJSON("ok", "desktop notification event emitted", map[string]interface{}{"title": title, "message": message}, event)
+	case "list_pets":
+		pets, err := svc.ListPets(ctx)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		activeID, _ := svc.GetActivePetID(ctx)
+		return virtualDesktopJSON("ok", "desktop pets listed", map[string]interface{}{"pets": pets, "active_pet_id": activeID}, nil)
+	case "set_pet":
+		petID := strings.ToLower(strings.TrimSpace(virtualDesktopString(args, "pet_id", "id")))
+		if petID == "" {
+			return virtualDesktopJSON("error", "pet_id is required", nil, nil)
+		}
+		if _, err := svc.GetPet(ctx, petID); err != nil {
+			return virtualDesktopJSON("error", err.Error(), map[string]string{"code": "desktop_pet_not_found", "pet_id": petID}, nil)
+		}
+		if err := svc.SetActivePet(ctx, petID); err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		event := virtualDesktopEvent("pet_changed", map[string]interface{}{"active_pet_id": petID})
+		return virtualDesktopJSON("ok", "desktop pet activated", map[string]interface{}{"active_pet_id": petID}, event)
+	case "set_pet_reaction":
+		reaction := strings.ToLower(strings.TrimSpace(virtualDesktopString(args, "reaction")))
+		allowed := map[string]bool{"idle": true, "thinking": true, "working": true, "editing": true, "running": true, "testing": true, "waiting": true, "waving": true, "success": true, "error": true, "celebrating": true}
+		if !allowed[reaction] {
+			return virtualDesktopJSON("error", fmt.Sprintf("unsupported pet reaction %q", reaction), map[string]interface{}{"allowed_reactions": allowed}, nil)
+		}
+		event := virtualDesktopEvent("pet_reaction_changed", map[string]interface{}{"reaction": reaction})
+		return virtualDesktopJSON("ok", "desktop pet reaction emitted", map[string]interface{}{"reaction": reaction}, event)
+	case "pet_say":
+		message := virtualDesktopString(args, "message", "text", "content")
+		if message == "" {
+			return virtualDesktopJSON("error", "message is required", nil, nil)
+		}
+		if len(message) > 280 {
+			message = message[:280]
+		}
+		event := virtualDesktopEvent("pet_say", map[string]interface{}{"message": message})
+		return virtualDesktopJSON("ok", "desktop pet say event emitted", map[string]interface{}{"message": message}, event)
+	case "set_pet_scale":
+		scale := virtualDesktopFloat(args, 1.0, "scale")
+		if err := svc.SetSetting(ctx, "pet.scale", desktop.PetScaleString(scale), desktop.SourceAgent); err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		event := virtualDesktopEvent("pet_setting_changed", map[string]interface{}{"key": "pet.scale", "value": desktop.PetScaleString(scale)})
+		return virtualDesktopJSON("ok", "desktop pet scale updated", map[string]interface{}{"scale": desktop.PetScaleString(scale)}, event)
 	default:
 		return virtualDesktopJSON("error", fmt.Sprintf("unsupported virtual desktop operation %q", op), nil, nil)
 	}
@@ -780,6 +825,32 @@ func virtualDesktopInt(args map[string]interface{}, fallback int, keys ...string
 		case string:
 			if i, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
 				return i
+			}
+		}
+	}
+	return fallback
+}
+
+func virtualDesktopFloat(args map[string]interface{}, fallback float64, keys ...string) float64 {
+	for _, key := range keys {
+		raw, ok := args[key]
+		if !ok || raw == nil {
+			continue
+		}
+		switch v := raw.(type) {
+		case float64:
+			return v
+		case int:
+			return float64(v)
+		case int64:
+			return float64(v)
+		case json.Number:
+			if f, err := v.Float64(); err == nil {
+				return f
+			}
+		case string:
+			if f, err := strconv.ParseFloat(strings.TrimSpace(v), 64); err == nil {
+				return f
 			}
 		}
 	}

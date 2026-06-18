@@ -86,6 +86,17 @@ type ProviderOption struct {
 	Model string `json:"model"`
 }
 
+// PetManifest describes one desktop pet available in the workspace.
+type PetManifest struct {
+	ID          string `json:"id"`
+	DisplayName string `json:"display_name"`
+	Description string `json:"description,omitempty"`
+	Category    string `json:"category,omitempty"`
+	Subcategory string `json:"subcategory,omitempty"`
+	Spritesheet string `json:"spritesheet,omitempty"`
+	Builtin     bool   `json:"builtin"`
+}
+
 // BootstrapPayload is the initial state used by the virtual desktop UI.
 type BootstrapPayload struct {
 	Enabled            bool              `json:"enabled"`
@@ -103,6 +114,8 @@ type BootstrapPayload struct {
 	Settings           map[string]string `json:"settings"`
 	Providers          []ProviderOption  `json:"providers,omitempty"`
 	IconCatalog        IconCatalogInfo   `json:"icon_catalog"`
+	Pets               []PetManifest     `json:"pets"`
+	ActivePetID        string            `json:"active_pet_id,omitempty"`
 }
 
 // IconCatalogInfo tells agents and generated apps which semantic icons are safe
@@ -237,6 +250,12 @@ func DesktopSettingDefinitions() []SettingDefinition {
 		{Key: "files.default_folder", Default: "Documents", Values: []string{"Desktop", "Documents", "Downloads", "Pictures", "Shared"}},
 		{Key: "agent.show_chat_button", Default: "true", Values: []string{"true", "false"}},
 		{Key: "agent.provider", Default: ""},
+		{Key: "pet.enabled", Default: "true", Values: []string{"true", "false"}},
+		{Key: "pet.active_id", Default: "openpets-default"},
+		{Key: "pet.scale", Default: "1.0"},
+		{Key: "pet.position_x", Default: "24"},
+		{Key: "pet.position_y", Default: "24"},
+		{Key: "pet.always_on_top", Default: "false", Values: []string{"true", "false"}},
 	}
 }
 
@@ -657,7 +676,7 @@ func DefaultDirectories() []string {
 }
 
 func workspaceDirectories() []string {
-	return []string{"Desktop", "Documents", "Downloads", "Apps", "Widgets", "Data", "Pictures", "Trash", "Shared"}
+	return []string{"Desktop", "Documents", "Downloads", "Apps", "Widgets", "Pets", "Data", "Pictures", "Trash", "Shared"}
 }
 
 // BuiltinApps returns the first-party applications always available in the shell.
@@ -692,6 +711,7 @@ func BuiltinApps() []AppManifest {
 		{ID: "openscad", Name: "OpenSCAD", Version: "1.0.0", Icon: "openscad", Entry: "builtin://openscad", Runtime: BuiltinRuntime, Description: "Script-based parametric CAD compiler with preview, STL export, and downloadable artifacts.", Permissions: []string{"files:read", "files:write", "notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
 		{ID: "nasscad", Name: "NASSCAD", Version: "4.2.7", Icon: "nasscad", Entry: "builtin://nasscad", Runtime: BuiltinRuntime, Description: "Offline browser-based 3D parametric CAD bundled locally — model parts, run booleans, and export STL, OBJ, or 3MF.", Metadata: map[string]string{"open_maximized": "true", "workspace_entry": "Apps/nasscad/index.html"}},
 		{ID: "viewer", Name: "Viewer", Version: "1.0.0", Icon: "eye", Entry: "builtin://viewer", Runtime: BuiltinRuntime, Description: "Read-only viewer for documents, spreadsheets, PDFs and markdown.", Permissions: []string{"files:read"}, Internal: true},
+		{ID: "pet-picker", Name: "Pet Picker", Version: "1.0.0", Icon: "heart", Entry: "builtin://pet-picker", Runtime: BuiltinRuntime, Description: "Choose and manage your desktop pet companions."},
 	}
 	for i := range apps {
 		apps[i].Builtin = true

@@ -197,6 +197,10 @@
                 '/js/desktop/chat-renderer.js',
                 '/js/desktop/apps/homepage-studio.js'
             ]
+        },
+        'pet-picker': {
+            styles: appStyles('/css/desktop-app-pet-picker.css'),
+            scripts: ['/js/desktop/apps/pet-picker.js']
         }
     };
 

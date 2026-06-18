@@ -1416,5 +1416,17 @@
   "zipper.open": "Åbn arkiv",
   "zipper.size": "Størrelse",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} i alt"
+  "zipper.total_size": "{{size}} i alt",
+  "desktop.pet_picker_title": "Vælg kæledyr",
+  "desktop.pet_picker_subtitle": "Vælg din skrivebordskammerat",
+  "desktop.pet_select": "Vælg",
+  "desktop.pet_scale": "Størrelse",
+  "desktop.pet_enabled": "Vis kæledyr",
+  "desktop.pet_always_on_top": "Altid øverst",
+  "desktop.pet_import": "Importer ZIP",
+  "desktop.pet_import_invalid": "Ugyldigt filnavn",
+  "desktop.pet_empty": "Ingen kæledyr installeret endnu. Importer et nedenfor.",
+  "desktop.pet_open_picker": "Vælg kæledyr...",
+  "desktop.pet_hide_bubble": "Skjul boble",
+  "desktop.pet_hello": "Hej!"
 }

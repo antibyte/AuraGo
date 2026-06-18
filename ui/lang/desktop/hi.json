@@ -1416,5 +1416,17 @@
   "zipper.open": "आर्काइव खोलें",
   "zipper.size": "आकार",
   "zipper.title": "ज़िपर",
-  "zipper.total_size": "{{size}} कुल"
+  "zipper.total_size": "{{size}} कुल",
+  "desktop.pet_picker_title": "पेट चुनें",
+  "desktop.pet_picker_subtitle": "अपना डेस्कटोप साथी चुनें",
+  "desktop.pet_select": "चुनें",
+  "desktop.pet_scale": "आकार",
+  "desktop.pet_enabled": "पेट दिखाएं",
+  "desktop.pet_always_on_top": "हमेशा ऊपर",
+  "desktop.pet_import": "ZIP आयात करें",
+  "desktop.pet_import_invalid": "अमान्य फ़ाइल नाम",
+  "desktop.pet_empty": "अभी तक कोई पेट स्थापित नहीं। नीचे से एक आयात करें।",
+  "desktop.pet_open_picker": "पेट चुनें...",
+  "desktop.pet_hide_bubble": "बुलबुला छिपाएं",
+  "desktop.pet_hello": "नमस्ते!"
 }

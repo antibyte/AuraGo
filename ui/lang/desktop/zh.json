@@ -1416,5 +1416,17 @@
   "zipper.open": "打开压缩包",
   "zipper.size": "大小",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} 总计"
+  "zipper.total_size": "{{size}} 总计",
+  "desktop.pet_picker_title": "宠物选择器",
+  "desktop.pet_picker_subtitle": "选择你的桌面伙伴",
+  "desktop.pet_select": "选择",
+  "desktop.pet_scale": "大小",
+  "desktop.pet_enabled": "显示宠物",
+  "desktop.pet_always_on_top": "始终置顶",
+  "desktop.pet_import": "导入 ZIP",
+  "desktop.pet_import_invalid": "无效文件名",
+  "desktop.pet_empty": "尚未安装宠物。请在下方导入一个。",
+  "desktop.pet_open_picker": "选择宠物...",
+  "desktop.pet_hide_bubble": "隐藏气泡",
+  "desktop.pet_hello": "你好！"
 }

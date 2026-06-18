@@ -1416,5 +1416,17 @@
   "zipper.open": "Apri archivio",
   "zipper.size": "Dimensione",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} totale"
+  "zipper.total_size": "{{size}} totale",
+  "desktop.pet_picker_title": "Selettore animali",
+  "desktop.pet_picker_subtitle": "Scegli il tuo compagno desktop",
+  "desktop.pet_select": "Seleziona",
+  "desktop.pet_scale": "Dimensione",
+  "desktop.pet_enabled": "Mostra animale",
+  "desktop.pet_always_on_top": "Sempre in primo piano",
+  "desktop.pet_import": "Importa ZIP",
+  "desktop.pet_import_invalid": "Nome file non valido",
+  "desktop.pet_empty": "Nessun animale installato. Importane uno qui sotto.",
+  "desktop.pet_open_picker": "Scegli animale...",
+  "desktop.pet_hide_bubble": "Nascondi bolla",
+  "desktop.pet_hello": "Ciao!"
 }

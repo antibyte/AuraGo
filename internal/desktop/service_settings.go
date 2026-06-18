@@ -3,6 +3,7 @@ package desktop
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -94,19 +95,34 @@ func validateDesktopSetting(key, value string) error {
 }
 
 func validateFreeformDesktopSetting(key, value string) error {
-	if key != "agent.provider" {
-		return fmt.Errorf("invalid desktop setting value for %s", key)
-	}
-	if len(value) > 128 {
-		return fmt.Errorf("invalid desktop setting value for %s", key)
-	}
-	for _, r := range value {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' || r == ':' || r == '/' {
-			continue
+	switch key {
+	case "agent.provider":
+		if len(value) > 128 {
+			return fmt.Errorf("invalid desktop setting value for %s", key)
 		}
+		for _, r := range value {
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' || r == ':' || r == '/' {
+				continue
+			}
+			return fmt.Errorf("invalid desktop setting value for %s", key)
+		}
+		return nil
+	case "pet.active_id":
+		if value == "" {
+			return nil
+		}
+		if !petIDPattern.MatchString(value) {
+			return fmt.Errorf("invalid desktop setting value for %s", key)
+		}
+		return nil
+	case "pet.scale", "pet.position_x", "pet.position_y":
+		if _, err := strconv.ParseFloat(strings.TrimSpace(value), 64); err != nil {
+			return fmt.Errorf("invalid desktop setting value for %s", key)
+		}
+		return nil
+	default:
 		return fmt.Errorf("invalid desktop setting value for %s", key)
 	}
-	return nil
 }
 
 func (s *Service) listSettings(ctx context.Context) (map[string]string, error) {

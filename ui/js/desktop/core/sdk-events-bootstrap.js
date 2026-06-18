@@ -325,6 +325,13 @@
         }
         if (event.type === 'notification') {
             showDesktopNotification(event.payload || {});
+            return;
+        }
+        if (event.type === 'pet_changed' || event.type === 'pet_reaction_changed' || event.type === 'pet_say' || event.type === 'pet_setting_changed') {
+            if (window.PetRuntime && typeof window.PetRuntime.handleEvent === 'function') {
+                window.PetRuntime.handleEvent(event);
+            }
+            return;
         }
     }
 
@@ -1000,6 +1007,9 @@
         window.addEventListener('beforeunload', cleanupDesktopShellRuntime);
         await loadBootstrap();
         if (state.bootstrap && state.bootstrap.enabled) connectWS();
+        if (window.PetRuntime && typeof window.PetRuntime.init === 'function') {
+            window.PetRuntime.init();
+        }
     }
 
     ensureDesktopRadialMenuAnchor();

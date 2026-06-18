@@ -1,0 +1,97 @@
+/* Desktop pet overlay layer */
+.vd-pet-layer {
+    position: fixed;
+    left: 24px;
+    top: 24px;
+    width: 192px;
+    height: 208px;
+    z-index: 5;
+    pointer-events: none;
+    user-select: none;
+    transition: transform 0.1s ease-out;
+}
+
+.vd-pet-layer[data-always-on-top="true"] {
+    z-index: 9999;
+}
+
+.vd-pet-layer.dragging {
+    cursor: grabbing;
+}
+
+.vd-pet-sprite {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 192px;
+    height: 208px;
+    background-repeat: no-repeat;
+    background-size: 1536px 1872px;
+    image-rendering: auto;
+    pointer-events: auto;
+    cursor: grab;
+    transform-origin: top left;
+    --pet-row: 0;
+    --pet-frames: 6;
+    --pet-duration: 5500ms;
+    --pet-iterations: infinite;
+    background-position: 0 calc(var(--pet-row) * -208px);
+    animation: vd-pet-frames var(--pet-duration) steps(var(--pet-frames)) var(--pet-iterations);
+}
+
+.vd-pet-layer.dragging .vd-pet-sprite {
+    cursor: grabbing;
+}
+
+@keyframes vd-pet-frames {
+    from { background-position: 0 calc(var(--pet-row) * -208px); }
+    to { background-position: calc(var(--pet-frames) * -192px) calc(var(--pet-row) * -208px); }
+}
+
+.vd-pet-bubble {
+    position: absolute;
+    left: 50%;
+    bottom: 100%;
+    transform: translateX(-50%) translateY(8px);
+    min-width: 92px;
+    max-width: min(220px, calc(100vw - 32px));
+    padding: 10px 14px;
+    background: linear-gradient(135deg, rgba(239, 246, 255, 0.97), rgba(237, 233, 254, 0.96));
+    color: #172033;
+    font: 760 12px/1.35 var(--vd-font-family, system-ui, sans-serif);
+    border: 1px solid rgba(255, 255, 255, 0.78);
+    border-radius: 14px;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16), 0 2px 5px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.82);
+    pointer-events: auto;
+    opacity: 0;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    z-index: 10;
+}
+
+.vd-pet-bubble.opening {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.vd-pet-bubble[hidden] {
+    display: none;
+}
+
+.vd-pet-bubble::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -7px;
+    width: 12px;
+    height: 12px;
+    background: inherit;
+    border-right: 1px solid rgba(255, 255, 255, 0.56);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.56);
+    border-bottom-right-radius: 3px;
+    transform: translateX(-50%) rotate(45deg);
+    box-shadow: 3px 3px 7px rgba(15, 23, 42, 0.08);
+}
+
+.vd-pet-bubble.is-success { background: linear-gradient(135deg, rgba(209, 250, 229, 0.97), rgba(167, 243, 208, 0.96)); }
+.vd-pet-bubble.is-error { background: linear-gradient(135deg, rgba(254, 226, 226, 0.97), rgba(254, 202, 202, 0.96)); }
+.vd-pet-bubble.is-info { background: linear-gradient(135deg, rgba(224, 242, 254, 0.97), rgba(186, 230, 253, 0.96)); }

@@ -1006,6 +1006,9 @@ function modalDialog(options) {
             return window.SheetsApp.render(contentEl(id), id, officeAppContext(context));
         }
         if (appId === 'settings') return renderSettings(id);
+        if (appId === 'pet-picker' && window.PetPickerApp && typeof window.PetPickerApp.render === 'function') {
+            return window.PetPickerApp.render(contentEl(id), id, context);
+        }
         if (appId === 'calendar') return renderCalendar(id);
         if (appId === 'calculator') return renderCalculator(id);
         if (appId === 'todo') return renderTodo(id);

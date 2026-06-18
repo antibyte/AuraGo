@@ -1416,5 +1416,17 @@
   "zipper.open": "Abrir archivo",
   "zipper.size": "Tamaño",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} en total"
+  "zipper.total_size": "{{size}} en total",
+  "desktop.pet_picker_title": "Selector de mascota",
+  "desktop.pet_picker_subtitle": "Elige tu compañero de escritorio",
+  "desktop.pet_select": "Seleccionar",
+  "desktop.pet_scale": "Tamaño",
+  "desktop.pet_enabled": "Mostrar mascota",
+  "desktop.pet_always_on_top": "Siempre encima",
+  "desktop.pet_import": "Importar ZIP",
+  "desktop.pet_import_invalid": "Nombre de archivo inválido",
+  "desktop.pet_empty": "Aún no hay mascotas instaladas. Importa una abajo.",
+  "desktop.pet_open_picker": "Elegir mascota...",
+  "desktop.pet_hide_bubble": "Ocultar burbuja",
+  "desktop.pet_hello": "¡Hola!"
 }

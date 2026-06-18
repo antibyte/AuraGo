@@ -1416,5 +1416,17 @@
   "zipper.open": "Otevřít archiv",
   "zipper.size": "Velikost",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} celkem"
+  "zipper.total_size": "{{size}} celkem",
+  "desktop.pet_picker_title": "Výběr mazlíčka",
+  "desktop.pet_picker_subtitle": "Vyber si svého společníka na plochu",
+  "desktop.pet_select": "Vybrat",
+  "desktop.pet_scale": "Velikost",
+  "desktop.pet_enabled": "Zobrazit mazlíčka",
+  "desktop.pet_always_on_top": "Vždy navrchu",
+  "desktop.pet_import": "Importovat ZIP",
+  "desktop.pet_import_invalid": "Neplatný název souboru",
+  "desktop.pet_empty": "Zatím žádní mazlíčci. Importuj jednoho níže.",
+  "desktop.pet_open_picker": "Vybrat mazlíčka...",
+  "desktop.pet_hide_bubble": "Skrýt bublinu",
+  "desktop.pet_hello": "Ahoj!"
 }

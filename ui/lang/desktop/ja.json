@@ -1416,5 +1416,17 @@
   "zipper.open": "アーカイブを開く",
   "zipper.size": "サイズ",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} 合計"
+  "zipper.total_size": "{{size}} 合計",
+  "desktop.pet_picker_title": "ペット選択",
+  "desktop.pet_picker_subtitle": "デスクトップの相棒を選ぼう",
+  "desktop.pet_select": "選択",
+  "desktop.pet_scale": "サイズ",
+  "desktop.pet_enabled": "ペットを表示",
+  "desktop.pet_always_on_top": "常に最前面",
+  "desktop.pet_import": "ZIPをインポート",
+  "desktop.pet_import_invalid": "無効なファイル名",
+  "desktop.pet_empty": "まだペットがインストールされていません。下からインポートしてください。",
+  "desktop.pet_open_picker": "ペットを選ぶ...",
+  "desktop.pet_hide_bubble": "バブルを隠す",
+  "desktop.pet_hello": "こんにちは！"
 }

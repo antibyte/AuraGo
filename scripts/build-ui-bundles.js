@@ -19,6 +19,7 @@ const desktopMainParts = [
   'ui/js/desktop/core/desktop-window-file-drops.js',
   'ui/js/desktop/core/widget-drawer-runtime.js',
   'ui/js/desktop/core/menus-and-routing.js',
+  'ui/js/desktop/core/pet-runtime.js',
   'ui/js/desktop/apps/settings-calculator.js',
   'ui/js/desktop/apps/planning-gallery-music.js',
   'ui/js/desktop/apps/quickconnect-launchpad-chat.js',
@@ -118,7 +119,8 @@ const cssBundles = [
       'ui/css/desktop-icons.css',
       'ui/css/desktop-widgets.css',
       'ui/css/desktop-modals.css',
-      'ui/css/desktop-shell-overrides.css'
+      'ui/css/desktop-shell-overrides.css',
+      'ui/css/desktop-pet.css'
     ]
   },
   {

@@ -1416,5 +1416,17 @@
   "zipper.open": "Ouvrir l'archive",
   "zipper.size": "Taille",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} au total"
+  "zipper.total_size": "{{size}} au total",
+  "desktop.pet_picker_title": "Choix de mascotte",
+  "desktop.pet_picker_subtitle": "Choisis ton compagnon de bureau",
+  "desktop.pet_select": "Sélectionner",
+  "desktop.pet_scale": "Taille",
+  "desktop.pet_enabled": "Afficher la mascotte",
+  "desktop.pet_always_on_top": "Toujours au-dessus",
+  "desktop.pet_import": "Importer un ZIP",
+  "desktop.pet_import_invalid": "Nom de fichier invalide",
+  "desktop.pet_empty": "Aucune mascotte installée. Importe-en une ci-dessous.",
+  "desktop.pet_open_picker": "Choisir une mascotte...",
+  "desktop.pet_hide_bubble": "Masquer la bulle",
+  "desktop.pet_hello": "Salut !"
 }

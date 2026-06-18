@@ -1416,5 +1416,17 @@
   "zipper.open": "Άνοιγμα αρχείου",
   "zipper.size": "Μέγεθος",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} σύνολο"
+  "zipper.total_size": "{{size}} σύνολο",
+  "desktop.pet_picker_title": "Επιλογή κατοικιδίου",
+  "desktop.pet_picker_subtitle": "Διάλεξε τον σύντροφό σου στην επιφάνεια εργασίας",
+  "desktop.pet_select": "Επιλογή",
+  "desktop.pet_scale": "Μέγεθος",
+  "desktop.pet_enabled": "Εμφάνιση κατοικιδίου",
+  "desktop.pet_always_on_top": "Πάντα στην κορυφή",
+  "desktop.pet_import": "Εισαγωγή ZIP",
+  "desktop.pet_import_invalid": "Μη έγκυρο όνομα αρχείου",
+  "desktop.pet_empty": "Δεν υπάρχουν εγκατεστημένα κατοικίδια ακόμα. Εισήγαγε ένα παρακάτω.",
+  "desktop.pet_open_picker": "Επιλογή κατοικιδίου...",
+  "desktop.pet_hide_bubble": "Απόκρυψη φυσαλίδας",
+  "desktop.pet_hello": "Γειά!"
 }

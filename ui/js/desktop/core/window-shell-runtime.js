@@ -755,7 +755,8 @@
             'galaxa-deluxe': { width: 600, height: 800 },
             nasscad: { width: 1280, height: 850 },
             people: { width: 1020, height: 700 },
-            'mission-control': { width: 1100, height: 750 }
+            'mission-control': { width: 1100, height: 750 },
+            'pet-picker': { width: 760, height: 620 }
         };
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();

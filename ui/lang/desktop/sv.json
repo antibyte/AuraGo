@@ -1416,5 +1416,17 @@
   "zipper.open": "Öppna arkiv",
   "zipper.size": "Storlek",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} totalt"
+  "zipper.total_size": "{{size}} totalt",
+  "desktop.pet_picker_title": "Välj husdjur",
+  "desktop.pet_picker_subtitle": "Välj din skrivbordskompis",
+  "desktop.pet_select": "Välj",
+  "desktop.pet_scale": "Storlek",
+  "desktop.pet_enabled": "Visa husdjur",
+  "desktop.pet_always_on_top": "Alltid överst",
+  "desktop.pet_import": "Importera ZIP",
+  "desktop.pet_import_invalid": "Ogiltigt filnamn",
+  "desktop.pet_empty": "Inga husdjur installerade än. Importera ett nedan.",
+  "desktop.pet_open_picker": "Välj husdjur...",
+  "desktop.pet_hide_bubble": "Dölj bubbla",
+  "desktop.pet_hello": "Hej!"
 }

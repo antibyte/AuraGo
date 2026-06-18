@@ -515,6 +515,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/looper/pause", handleLooperPause(s))
 	mux.HandleFunc("/api/desktop/looper/resume", handleLooperResume(s))
 	mux.HandleFunc("/api/desktop/looper/status", handleLooperStatus(s))
+	mux.HandleFunc("/api/desktop/pets", handleDesktopPets(s))
 	registerCodeStudioRoutes(mux, s)
 	registerOpenSCADRoutes(mux, s)
 

@@ -1416,5 +1416,17 @@
   "zipper.open": "Open Archive",
   "zipper.size": "Size",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} total"
+  "zipper.total_size": "{{size}} total",
+  "desktop.pet_picker_title": "Pet Picker",
+  "desktop.pet_picker_subtitle": "Choose your desktop companion",
+  "desktop.pet_select": "Select",
+  "desktop.pet_scale": "Size",
+  "desktop.pet_enabled": "Show pet",
+  "desktop.pet_always_on_top": "Always on top",
+  "desktop.pet_import": "Import ZIP",
+  "desktop.pet_import_invalid": "Invalid file name",
+  "desktop.pet_empty": "No pets installed yet. Import one below.",
+  "desktop.pet_open_picker": "Choose pet...",
+  "desktop.pet_hide_bubble": "Hide bubble",
+  "desktop.pet_hello": "Hi there!"
 }
