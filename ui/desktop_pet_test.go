@@ -210,6 +210,27 @@ func TestDesktopPetAnimationUsesRuntimePixelOffsets(t *testing.T) {
 	}
 }
 
+func TestDesktopPetAnimationSurvivesReducedMotionWhenEnabled(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"css/desktop-pet.css",
+		"css/desktop-shell.bundle.css",
+	} {
+		source := readDesktopAssetText(t, path)
+		for _, marker := range []string{
+			"@media (prefers-reduced-motion: reduce)",
+			".desktop-body[data-animations=\"true\"] .vd-pet-sprite",
+			"animation-duration: var(--pet-duration) !important;",
+			"animation-iteration-count: var(--pet-iterations) !important;",
+		} {
+			if !strings.Contains(source, marker) {
+				t.Fatalf("%s must keep desktop pet sprite frames animated under reduced motion when AuraGo animations are enabled; missing %q", path, marker)
+			}
+		}
+	}
+}
+
 func TestDesktopPetReloadsAfterBootstrapRefresh(t *testing.T) {
 	t.Parallel()
 

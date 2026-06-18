@@ -50,6 +50,13 @@
     to { background-position: var(--pet-frame-end-x) var(--pet-row-y); }
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .desktop-body[data-animations="true"] .vd-pet-sprite {
+        animation-duration: var(--pet-duration) !important;
+        animation-iteration-count: var(--pet-iterations) !important;
+    }
+}
+
 .vd-pet-bubble {
     position: absolute;
     left: 50%;
