@@ -6065,6 +6065,154 @@
 /* ui/css/desktop-shell-overrides.css */
 /* desktop-shell-overrides.css - final shell-level desktop overrides */
 
+/* === Theme material bridge: keep shell, apps, modals and toasts visually aligned === */
+.desktop-body[data-theme="standard"] {
+    --vd-theme-app-bg: rgba(17, 24, 39, 0.88);
+    --vd-theme-panel-bg: rgba(11, 15, 24, 0.92);
+    --vd-theme-panel-bg-strong: rgba(18, 25, 38, 0.96);
+    --vd-theme-chrome-bg: rgba(13, 18, 28, 0.94);
+    --vd-theme-overlay-bg: rgba(4, 7, 12, 0.62);
+    --vd-theme-control-bg: rgba(255, 255, 255, 0.075);
+    --vd-theme-control-hover: rgba(255, 255, 255, 0.12);
+    --vd-theme-border: rgba(255, 255, 255, 0.12);
+    --vd-theme-border-strong: rgba(255, 255, 255, 0.18);
+    --vd-theme-muted: #a8b3c4;
+    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 233), var(--vd-accent-g, 84), var(--vd-accent-b, 32), 0.16);
+    --vd-theme-accent-border: rgba(var(--vd-accent-r, 233), var(--vd-accent-g, 84), var(--vd-accent-b, 32), 0.38);
+    --vd-theme-radius-panel: 10px;
+    --vd-theme-radius-modal: 12px;
+    --vd-theme-shadow-panel: 0 24px 64px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    --vd-theme-shadow-modal: 0 32px 88px rgba(0, 0, 0, 0.56), 0 10px 28px rgba(0, 0, 0, 0.34);
+    --vd-theme-blur: blur(28px) saturate(1.22);
+}
+
+.desktop-body[data-theme="fruity"] {
+    --vd-theme-app-bg: rgba(255, 255, 255, 0.46);
+    --vd-theme-panel-bg: rgba(255, 255, 255, 0.58);
+    --vd-theme-panel-bg-strong: rgba(255, 255, 255, 0.78);
+    --vd-theme-chrome-bg: rgba(249, 251, 255, 0.72);
+    --vd-theme-overlay-bg: rgba(34, 47, 70, 0.28);
+    --vd-theme-control-bg: rgba(255, 255, 255, 0.42);
+    --vd-theme-control-hover: rgba(255, 255, 255, 0.64);
+    --vd-theme-border: rgba(78, 92, 118, 0.13);
+    --vd-theme-border-strong: rgba(78, 92, 118, 0.22);
+    --vd-theme-muted: #4f5a73;
+    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 10), var(--vd-accent-g, 132), var(--vd-accent-b, 255), 0.12);
+    --vd-theme-accent-border: rgba(var(--vd-accent-r, 10), var(--vd-accent-g, 132), var(--vd-accent-b, 255), 0.26);
+    --vd-theme-radius-panel: 14px;
+    --vd-theme-radius-modal: 18px;
+    --vd-theme-shadow-panel: 0 24px 58px rgba(52, 64, 84, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.58);
+    --vd-theme-shadow-modal: 0 34px 84px rgba(52, 64, 84, 0.24), 0 8px 24px rgba(52, 64, 84, 0.12);
+    --vd-theme-blur: blur(34px) saturate(1.35);
+}
+
+@media (prefers-color-scheme: dark) {
+    .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) {
+        --vd-theme-app-bg: rgba(24, 30, 42, 0.78);
+        --vd-theme-panel-bg: rgba(24, 30, 42, 0.84);
+        --vd-theme-panel-bg-strong: rgba(31, 38, 52, 0.9);
+        --vd-theme-chrome-bg: rgba(38, 44, 58, 0.76);
+        --vd-theme-overlay-bg: rgba(4, 7, 12, 0.56);
+        --vd-theme-control-bg: rgba(255, 255, 255, 0.08);
+        --vd-theme-control-hover: rgba(255, 255, 255, 0.13);
+        --vd-theme-border: rgba(255, 255, 255, 0.13);
+        --vd-theme-border-strong: rgba(255, 255, 255, 0.2);
+        --vd-theme-muted: #a1a1aa;
+        --vd-theme-shadow-panel: 0 26px 70px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        --vd-theme-shadow-modal: 0 34px 86px rgba(0, 0, 0, 0.48), 0 10px 28px rgba(0, 0, 0, 0.3);
+    }
+}
+
+.desktop-body[data-theme="standard"] :where(
+    .vd-start-menu,
+    .vd-context-menu,
+    .vd-context-submenu-popover,
+    .vd-window-menu-popover,
+    .vd-widget-frame,
+    .vd-widget-manager,
+    .vd-widget-drawer,
+    .vd-disabled-panel,
+    .vd-shortcuts-modal,
+    .vd-file-dialog,
+    .vd-modal,
+    .vd-toast
+),
+.desktop-body[data-theme="fruity"] :where(
+    .vd-start-menu,
+    .vd-context-menu,
+    .vd-context-submenu-popover,
+    .vd-window-menu-popover,
+    .vd-widget-frame,
+    .vd-widget-manager,
+    .vd-widget-drawer,
+    .vd-disabled-panel,
+    .vd-shortcuts-modal,
+    .vd-file-dialog,
+    .vd-modal,
+    .vd-toast
+) {
+    border-color: var(--vd-theme-border);
+    border-radius: var(--vd-theme-radius-panel);
+    background: var(--vd-theme-panel-bg-strong);
+    color: var(--vd-text);
+    box-shadow: var(--vd-theme-shadow-panel);
+    -webkit-backdrop-filter: var(--vd-theme-blur);
+    backdrop-filter: var(--vd-theme-blur);
+}
+
+.desktop-body[data-theme="standard"] :where(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal, .vd-toast),
+.desktop-body[data-theme="fruity"] :where(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal, .vd-toast) {
+    border-radius: var(--vd-theme-radius-modal);
+    box-shadow: var(--vd-theme-shadow-modal);
+}
+
+.desktop-body[data-theme="standard"] :where(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay),
+.desktop-body[data-theme="fruity"] :where(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay) {
+    background: var(--vd-theme-overlay-bg);
+    -webkit-backdrop-filter: blur(10px) saturate(1.08);
+    backdrop-filter: blur(10px) saturate(1.08);
+}
+
+.desktop-body[data-theme="standard"] :where(.vd-modal-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input, .vd-shortcuts-row, .vd-shortcuts-keys),
+.desktop-body[data-theme="fruity"] :where(.vd-modal-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input, .vd-shortcuts-row, .vd-shortcuts-keys) {
+    border-color: var(--vd-theme-border);
+    background: var(--vd-theme-control-bg);
+    color: var(--vd-text);
+}
+
+.desktop-body[data-theme="standard"] :where(.vd-modal-copy, .vd-toast-message, .vd-file-dialog-status, .vd-shortcuts-action),
+.desktop-body[data-theme="fruity"] :where(.vd-modal-copy, .vd-toast-message, .vd-file-dialog-status, .vd-shortcuts-action) {
+    color: var(--vd-theme-muted);
+}
+
+.desktop-body[data-theme="standard"] :where(.vd-window-content, .vd-panel),
+.desktop-body[data-theme="fruity"] :where(.vd-window-content, .vd-panel) {
+    color: var(--vd-text);
+}
+
+.desktop-body[data-theme="standard"] .vd-window-content {
+    background: var(--vd-theme-app-bg);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-content {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 42%), var(--vd-theme-app-bg);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window .vd-window-titlebar,
+.desktop-body[data-theme="fruity"] .vd-window.active .vd-window-titlebar {
+    background: var(--fruity-window-chrome);
+    border-bottom-color: var(--vd-theme-border);
+    color: var(--vd-text);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window .vd-window-title {
+    color: var(--vd-text);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window .vd-window-subtitle {
+    color: color-mix(in srgb, var(--vd-text) 62%, transparent);
+}
+
 /* === Mobile Performance: reduce backdrop-filter on touch devices === */
 @media (pointer: coarse) {
   .vd-taskbar,
