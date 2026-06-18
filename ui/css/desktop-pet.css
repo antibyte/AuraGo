@@ -33,9 +33,11 @@
     transform-origin: top left;
     --pet-row: 0;
     --pet-frames: 6;
+    --pet-row-y: 0px;
+    --pet-frame-end-x: -1152px;
     --pet-duration: 5500ms;
     --pet-iterations: infinite;
-    background-position: 0 calc(var(--pet-row) * -208px);
+    background-position: 0 var(--pet-row-y);
     animation: vd-pet-frames var(--pet-duration) steps(var(--pet-frames)) var(--pet-iterations);
 }
 
@@ -44,8 +46,8 @@
 }
 
 @keyframes vd-pet-frames {
-    from { background-position: 0 calc(var(--pet-row) * -208px); }
-    to { background-position: calc(var(--pet-frames) * -192px) calc(var(--pet-row) * -208px); }
+    from { background-position: 0 var(--pet-row-y); }
+    to { background-position: var(--pet-frame-end-x) var(--pet-row-y); }
 }
 
 .vd-pet-bubble {

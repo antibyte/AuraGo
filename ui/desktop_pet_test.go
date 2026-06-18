@@ -20,6 +20,16 @@ func TestDesktopPetRuntimeSynchronizesBootstrapChanges(t *testing.T) {
 			t.Fatalf("desktop pet runtime is missing bootstrap sync marker %q", marker)
 		}
 	}
+	for _, marker := range []string{
+		"const pet = pets.find(p => p.id === id);",
+		"return pet || pets[0] || null;",
+		"spriteEl.style.setProperty('--pet-row-y', '-' + (def.row * PET_FRAME_H) + 'px');",
+		"spriteEl.style.setProperty('--pet-frame-end-x', '-' + (def.frames * PET_FRAME_W) + 'px');",
+	} {
+		if !strings.Contains(runtime, marker) {
+			t.Fatalf("desktop pet runtime is missing visibility fallback marker %q", marker)
+		}
+	}
 
 	picker := readDesktopAssetText(t, "js/desktop/apps/pet-picker.js")
 	for _, marker := range []string{
@@ -37,6 +47,8 @@ func TestDesktopPetRuntimeSynchronizesBootstrapChanges(t *testing.T) {
 	for _, marker := range []string{
 		"function syncPetBootstrap(payload)",
 		"syncBootstrap: syncPetBootstrap",
+		"return pet || pets[0] || null;",
+		"spriteEl.style.setProperty('--pet-row-y', '-' + (def.row * PET_FRAME_H) + 'px');",
 	} {
 		if !strings.Contains(bundle, marker) {
 			t.Fatalf("desktop main bundle is missing runtime sync marker %q", marker)
@@ -76,8 +88,8 @@ func TestDesktopPetLayerSitsAboveWindowsByDefault(t *testing.T) {
 	t.Parallel()
 
 	base := readDesktopAssetText(t, "css/desktop-base.css")
-	if !strings.Contains(base, "--vd-z-pet: 220;") {
-		t.Fatalf("desktop base CSS must define --vd-z-pet between windows and dock")
+	if !strings.Contains(base, "--vd-z-pet: 650;") {
+		t.Fatalf("desktop base CSS must define --vd-z-pet above windows and dock but below menus")
 	}
 
 	petCSS := readDesktopAssetText(t, "css/desktop-pet.css")
@@ -88,11 +100,38 @@ func TestDesktopPetLayerSitsAboveWindowsByDefault(t *testing.T) {
 
 	bundle := readDesktopAssetText(t, "css/desktop-shell.bundle.css")
 	for _, marker := range []string{
-		"--vd-z-pet: 220;",
+		"--vd-z-pet: 650;",
 		"z-index: var(--vd-z-pet);",
 	} {
 		if !strings.Contains(bundle, marker) {
 			t.Fatalf("desktop shell CSS bundle is missing pet layer marker %q", marker)
 		}
+	}
+}
+
+func TestDesktopPetAnimationUsesRuntimePixelOffsets(t *testing.T) {
+	t.Parallel()
+
+	petCSS := readDesktopAssetText(t, "css/desktop-pet.css")
+	for _, marker := range []string{
+		"--pet-row-y: 0px;",
+		"--pet-frame-end-x: -1152px;",
+		"background-position: 0 var(--pet-row-y);",
+		"to { background-position: var(--pet-frame-end-x) var(--pet-row-y); }",
+	} {
+		if !strings.Contains(petCSS, marker) {
+			t.Fatalf("desktop pet CSS is missing stable animation marker %q", marker)
+		}
+	}
+	if strings.Contains(petCSS, "calc(var(--pet-row)") || strings.Contains(petCSS, "calc(var(--pet-frames)") {
+		t.Fatal("desktop pet CSS must not rely on unsupported calc() multiplication for sprite offsets")
+	}
+
+	bundle := readDesktopAssetText(t, "css/desktop-shell.bundle.css")
+	if !strings.Contains(bundle, "background-position: 0 var(--pet-row-y);") {
+		t.Fatal("desktop shell CSS bundle is missing stable pet background-position marker")
+	}
+	if strings.Contains(bundle, "calc(var(--pet-row)") || strings.Contains(bundle, "calc(var(--pet-frames)") {
+		t.Fatal("desktop shell CSS bundle must not rely on unsupported calc() multiplication for pet sprite offsets")
 	}
 }

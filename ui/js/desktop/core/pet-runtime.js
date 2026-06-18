@@ -72,9 +72,10 @@
     function activePet() {
         const boot = state.bootstrap || {};
         const id = boot.active_pet_id || settingValue('pet.active_id') || '';
-        if (!id) return null;
         const pets = boot.pets || [];
-        return pets.find(p => p.id === id) || null;
+        if (!pets.length) return null;
+        const pet = pets.find(p => p.id === id);
+        return pet || pets[0] || null;
     }
 
     function petAssetURL(id, relPath) {
@@ -170,6 +171,8 @@
         spriteEl.dataset.state = stateId;
         spriteEl.style.setProperty('--pet-row', String(def.row));
         spriteEl.style.setProperty('--pet-frames', String(def.frames));
+        spriteEl.style.setProperty('--pet-row-y', '-' + (def.row * PET_FRAME_H) + 'px');
+        spriteEl.style.setProperty('--pet-frame-end-x', '-' + (def.frames * PET_FRAME_W) + 'px');
         spriteEl.style.setProperty('--pet-duration', def.duration + 'ms');
         spriteEl.style.setProperty('--pet-iterations', String(def.iterations || 'infinite'));
         // Reset animation to restart from first frame.
