@@ -183,6 +183,34 @@ func TestDesktopPetRuntimeLoadsEarlyAndStartsItself(t *testing.T) {
 	}
 }
 
+func TestDesktopPetRuntimeSchedulesAmbientAnimations(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"js/desktop/core/pet-runtime.js",
+		"js/desktop/bundles/main.bundle.js",
+	} {
+		source := readDesktopAssetText(t, path)
+		for _, marker := range []string{
+			"const ambientStates = ['waving', 'jumping'];",
+			"let ambientTimer = null;",
+			"let ambientReturnTimer = null;",
+			"function randomAmbientDelay()",
+			"function clearAmbientTimers()",
+			"function scheduleAmbientAnimation()",
+			"function playAmbientAnimation()",
+			"window.setTimeout(playAmbientAnimation, randomAmbientDelay())",
+			"setSpriteState(ambientState);",
+			"if (layer && currentState === ambientState) setSpriteState('idle');",
+			"scheduleAmbientAnimation();",
+		} {
+			if !strings.Contains(source, marker) {
+				t.Fatalf("%s is missing ambient desktop pet animation marker %q", path, marker)
+			}
+		}
+	}
+}
+
 func TestDesktopPetAnimationUsesRuntimePixelOffsets(t *testing.T) {
 	t.Parallel()
 

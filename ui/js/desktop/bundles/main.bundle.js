@@ -1611,6 +1611,10 @@
     const BUBBLE_DURATION_MS = 4000;
     const LONG_BUBBLE_DURATION_MS = 8000;
     const MAX_BUBBLE_CHARS = 140;
+    const AMBIENT_MIN_DELAY_MS = 18000;
+    const AMBIENT_MAX_DELAY_MS = 42000;
+    const AMBIENT_RETURN_PADDING_MS = 260;
+    const ambientStates = ['waving', 'jumping'];
 
     // OpenPets-compatible reaction → animation state mapping.
     const reactionToState = {
@@ -1649,6 +1653,8 @@
     let loadedPetId = null;
     let petRuntimeInitialized = false;
     let petCatalogHydration = null;
+    let ambientTimer = null;
+    let ambientReturnTimer = null;
 
     function petEnabled() {
         return String(settingValue('pet.enabled')).toLowerCase() !== 'false';
@@ -1762,6 +1768,7 @@
 
     function removeLayer() {
         if (!layer) return;
+        clearAmbientTimers();
         layer.remove();
         layer = null;
         spriteEl = null;
@@ -1808,6 +1815,50 @@
         spriteEl.style.animation = '';
     }
 
+    function randomAmbientDelay() {
+        return AMBIENT_MIN_DELAY_MS + Math.floor(Math.random() * (AMBIENT_MAX_DELAY_MS - AMBIENT_MIN_DELAY_MS + 1));
+    }
+
+    function ambientPlaybackMs(stateId) {
+        const def = stateRows[stateId] || stateRows.idle;
+        const iterations = Number(def.iterations || 1);
+        return Math.max(300, def.duration * (Number.isFinite(iterations) ? iterations : 1) + AMBIENT_RETURN_PADDING_MS);
+    }
+
+    function clearAmbientTimers() {
+        if (ambientTimer) {
+            window.clearTimeout(ambientTimer);
+            ambientTimer = null;
+        }
+        if (ambientReturnTimer) {
+            window.clearTimeout(ambientReturnTimer);
+            ambientReturnTimer = null;
+        }
+    }
+
+    function scheduleAmbientAnimation() {
+        if (!layer || !spriteEl || !petEnabled()) return;
+        if (ambientTimer) window.clearTimeout(ambientTimer);
+        ambientTimer = window.setTimeout(playAmbientAnimation, randomAmbientDelay());
+    }
+
+    function playAmbientAnimation() {
+        ambientTimer = null;
+        if (!layer || !spriteEl || !petEnabled()) return;
+        if (drag || currentState !== 'idle') {
+            scheduleAmbientAnimation();
+            return;
+        }
+        const ambientState = ambientStates[Math.floor(Math.random() * ambientStates.length)] || 'waving';
+        setSpriteState(ambientState);
+        if (ambientReturnTimer) window.clearTimeout(ambientReturnTimer);
+        ambientReturnTimer = window.setTimeout(() => {
+            ambientReturnTimer = null;
+            if (layer && currentState === ambientState) setSpriteState('idle');
+            scheduleAmbientAnimation();
+        }, ambientPlaybackMs(ambientState));
+    }
+
     function loadPet() {
         const pet = activePet();
         if (!pet) {
@@ -1834,7 +1885,9 @@
         }
         applyPosition();
         updateLayerZIndex();
+        clearAmbientTimers();
         setSpriteState('idle');
+        scheduleAmbientAnimation();
     }
 
     function showBubble(message, type) {
@@ -1866,7 +1919,9 @@
 
     function setReaction(reaction) {
         const stateId = reactionToState[reaction] || 'idle';
+        clearAmbientTimers();
         setSpriteState(stateId);
+        if (stateId === 'idle') scheduleAmbientAnimation();
     }
 
     async function saveSetting(key, value) {
