@@ -539,12 +539,7 @@ func (s *Service) seedDefaultPetLocked(ctx context.Context) error {
 	if err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("read default pet seed state: %w", err)
 	}
-	petDir := filepath.Join(s.cfg.WorkspaceDir, petsDirName, "openpets-default")
-	petInstalled := false
-	if _, err := os.Stat(filepath.Join(petDir, "pet.json")); err == nil {
-		petInstalled = true
-	}
-	if !petInstalled {
+	if _, err := getPetInDir(s.cfg.WorkspaceDir, "openpets-default"); err != nil {
 		if err := InstallBundledDefaultPet(s.cfg.WorkspaceDir, defaultPetSpritesheet); err != nil {
 			return err
 		}

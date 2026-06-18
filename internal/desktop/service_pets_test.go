@@ -12,7 +12,7 @@ func TestInstallAndListPets(t *testing.T) {
 	ctx := context.Background()
 
 	files := map[string][]byte{
-		"pet.json":       []byte(`{"id":"test-pet","displayName":"Test Pet","spritesheetPath":"spritesheet.webp"}`),
+		"pet.json":         []byte(`{"id":"test-pet","displayName":"Test Pet","spritesheetPath":"spritesheet.webp"}`),
 		"spritesheet.webp": []byte("RIFF\x00\x00\x00\x00WEBPVP8 "),
 	}
 	if err := svc.InstallPet(ctx, "test-pet", files); err != nil {
@@ -101,6 +101,42 @@ func TestInstallBundledDefaultPet(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, "Pets", "openpets-default", "spritesheet.webp")); err != nil {
 		t.Fatalf("default spritesheet missing: %v", err)
 	}
+}
+
+func TestServiceRepairsBrokenDefaultPetSeed(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "workspace")
+	dbPath := filepath.Join(t.TempDir(), "desktop.db")
+	cfg := Config{
+		Enabled:            true,
+		WorkspaceDir:       root,
+		DBPath:             dbPath,
+		MaxFileSizeMB:      1,
+		AllowGeneratedApps: true,
+		AllowAgentControl:  true,
+		ControlLevel:       ControlConfirmDestructive,
+	}
+	svc := testServiceWithConfig(t, cfg)
+	ctx := context.Background()
+	spritesheetPath := filepath.Join(root, petsDirName, "openpets-default", "spritesheet.webp")
+	if err := os.Remove(spritesheetPath); err != nil {
+		t.Fatalf("remove default spritesheet fixture: %v", err)
+	}
+	_ = svc.Close()
+
+	reopened := testServiceWithConfig(t, cfg)
+	if _, err := os.Stat(spritesheetPath); err != nil {
+		t.Fatalf("default spritesheet was not repaired: %v", err)
+	}
+	pets, err := reopened.ListPets(ctx)
+	if err != nil {
+		t.Fatalf("ListPets after repair: %v", err)
+	}
+	for _, pet := range pets {
+		if pet.ID == "openpets-default" {
+			return
+		}
+	}
+	t.Fatalf("default pet missing after repair: %+v", pets)
 }
 
 func TestParsePetScale(t *testing.T) {
