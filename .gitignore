@@ -123,6 +123,7 @@ docs/superpowers/
 #Agent files
 .kilo/
 .kilocode/
+.kiro/
 .planning/
 .claude/
 .serena/
