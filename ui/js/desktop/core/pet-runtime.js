@@ -44,6 +44,7 @@
     let currentState = 'idle';
     let bubbleTimer = null;
     let loadedPetId = null;
+    let petRuntimeInitialized = false;
     let petCatalogHydration = null;
 
     function petEnabled() {
@@ -368,6 +369,8 @@
 
     function initPetRuntime() {
         if (typeof window.addEventListener !== 'function') return;
+        if (petRuntimeInitialized) return;
+        petRuntimeInitialized = true;
         window.addEventListener('resize', () => {
             if (layer) applyPosition();
         });
@@ -392,4 +395,5 @@
         syncBootstrap: syncPetBootstrap,
         saveSetting
     };
+    initPetRuntime();
 })();

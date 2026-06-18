@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -114,11 +115,15 @@ func TestDesktopPetRuntimeHydratesMissingBootstrapPets(t *testing.T) {
 
 	runtime := readDesktopAssetText(t, "js/desktop/core/pet-runtime.js")
 	for _, marker := range []string{
+		"let petRuntimeInitialized = false;",
 		"let petCatalogHydration = null;",
 		"async function hydratePetCatalog()",
 		"api('/api/desktop/pets')",
 		"api('/api/desktop/settings')",
 		"hydratePetCatalog();",
+		"if (petRuntimeInitialized) return;",
+		"petRuntimeInitialized = true;",
+		"initPetRuntime();",
 	} {
 		if !strings.Contains(runtime, marker) {
 			t.Fatalf("desktop pet runtime is missing bootstrap hydration marker %q", marker)
@@ -132,15 +137,49 @@ func TestDesktopPetRuntimeHydratesMissingBootstrapPets(t *testing.T) {
 
 	bundle := readDesktopAssetText(t, "js/desktop/bundles/main.bundle.js")
 	for _, marker := range []string{
+		"let petRuntimeInitialized = false;",
 		"let petCatalogHydration = null;",
 		"async function hydratePetCatalog()",
 		"api('/api/desktop/pets')",
 		"api('/api/desktop/settings')",
 		"hydratePetCatalog();",
+		"if (petRuntimeInitialized) return;",
+		"petRuntimeInitialized = true;",
+		"initPetRuntime();",
 	} {
 		if !strings.Contains(bundle, marker) {
 			t.Fatalf("desktop main bundle is missing pet hydration marker %q", marker)
 		}
+	}
+}
+
+func TestDesktopPetRuntimeLoadsEarlyAndStartsItself(t *testing.T) {
+	t.Parallel()
+
+	buildScriptBytes, err := os.ReadFile("../scripts/build-ui-bundles.js")
+	if err != nil {
+		t.Fatalf("read desktop bundle build script: %v", err)
+	}
+	buildScript := string(buildScriptBytes)
+	foundationIdx := strings.Index(buildScript, "'ui/js/desktop/core/desktop-foundation.js'")
+	petIdx := strings.Index(buildScript, "'ui/js/desktop/core/pet-runtime.js'")
+	windowIdx := strings.Index(buildScript, "'ui/js/desktop/core/window-shell-runtime.js'")
+	if foundationIdx < 0 || petIdx < 0 || windowIdx < 0 {
+		t.Fatal("desktop bundle source list is missing expected core runtime entries")
+	}
+	if !(foundationIdx < petIdx && petIdx < windowIdx) {
+		t.Fatalf("pet runtime must load immediately after desktop foundation; foundation=%d pet=%d window=%d", foundationIdx, petIdx, windowIdx)
+	}
+
+	bundle := readDesktopAssetText(t, "js/desktop/bundles/main.bundle.js")
+	foundationMarker := strings.Index(bundle, "/* ui/js/desktop/core/desktop-foundation.js */")
+	petMarker := strings.Index(bundle, "/* ui/js/desktop/core/pet-runtime.js */")
+	windowMarker := strings.Index(bundle, "/* ui/js/desktop/core/window-shell-runtime.js */")
+	if foundationMarker < 0 || petMarker < 0 || windowMarker < 0 {
+		t.Fatal("desktop main bundle is missing expected core runtime markers")
+	}
+	if !(foundationMarker < petMarker && petMarker < windowMarker) {
+		t.Fatalf("desktop main bundle must load pet runtime immediately after foundation; foundation=%d pet=%d window=%d", foundationMarker, petMarker, windowMarker)
 	}
 }
 

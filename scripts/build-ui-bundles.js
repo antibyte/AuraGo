@@ -6,6 +6,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const desktopMainParts = [
   'ui/js/desktop/core/desktop-foundation.js',
+  'ui/js/desktop/core/pet-runtime.js',
   'ui/js/desktop/core/icon-selection-runtime.js',
   'ui/js/desktop/core/window-shell-runtime.js',
   'ui/js/desktop/core/fruity-dock-scroll.js',
@@ -19,7 +20,6 @@ const desktopMainParts = [
   'ui/js/desktop/core/desktop-window-file-drops.js',
   'ui/js/desktop/core/widget-drawer-runtime.js',
   'ui/js/desktop/core/menus-and-routing.js',
-  'ui/js/desktop/core/pet-runtime.js',
   'ui/js/desktop/apps/settings-calculator.js',
   'ui/js/desktop/apps/planning-gallery-music.js',
   'ui/js/desktop/apps/quickconnect-launchpad-chat.js',
