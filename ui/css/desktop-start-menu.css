@@ -12,7 +12,7 @@
     display: grid;
     place-items: center;
     border-radius: var(--ds-radius-md);
-    background: linear-gradient(135deg, rgba(39, 199, 166, 0.96), rgba(242, 184, 75, 0.94));
+    background: linear-gradient(135deg, rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.96), rgba(242, 184, 75, 0.94));
     color: #071014;
     font-weight: 900;
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);

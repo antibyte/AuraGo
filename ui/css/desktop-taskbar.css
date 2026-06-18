@@ -433,9 +433,9 @@
 }
 
 .vd-task-button.active {
-    border-color: rgba(39, 199, 166, 0.5);
-    background: rgba(39, 199, 166, 0.12);
-    box-shadow: 0 0 12px rgba(39, 199, 166, 0.1), inset 0 1px 0 rgba(39, 199, 166, 0.12);
+    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.5);
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12);
+    box-shadow: 0 0 12px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.1), inset 0 1px 0 rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12);
 }
 
 .desktop-body[data-theme="standard"] .vd-task-button.active {

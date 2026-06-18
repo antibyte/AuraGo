@@ -39,16 +39,16 @@
 .vd-icon:hover,
 .vd-icon:focus-visible,
 .vd-icon.selected {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.14);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    background: var(--ds-color-control-bg);
+    border-color: var(--ds-color-border-default);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28), 0 0 0 1px var(--ds-color-inner-highlight) inset;
     outline: none;
 }
 
 .vd-icon.selected {
-    background: rgba(39, 199, 166, 0.18);
-    border-color: rgba(39, 199, 166, 0.52);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28), 0 0 12px rgba(39, 199, 166, 0.14), 0 0 0 1px rgba(39, 199, 166, 0.1) inset;
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.18);
+    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.52);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28), 0 0 12px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.14), 0 0 0 1px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.1) inset;
 }
 
 .vd-icon.vd-trash-drop-target {
@@ -284,8 +284,8 @@
 }
 
 .vd-icon-button:hover {
-    border-color: rgba(39, 199, 166, 0.45);
-    background: rgba(39, 199, 166, 0.12);
+    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.45);
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12);
 }
 
 .vd-icon-button.danger:hover {

@@ -17,9 +17,9 @@
     gap: 6px;
     min-height: 46px;
     padding: 8px 16px;
-    border: 1px solid rgba(39, 199, 166, 0.35);
+    border: 1px solid rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.35);
     border-radius: var(--ds-radius-md);
-    background: rgba(39, 199, 166, 0.15);
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.15);
     color: var(--vd-accent, #27c7a6);
     font-size: 0.84rem;
     font-weight: 600;
@@ -28,8 +28,8 @@
 }
 
 .vd-chat-send:hover {
-    background: rgba(39, 199, 166, 0.25);
-    border-color: rgba(39, 199, 166, 0.55);
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.25);
+    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.55);
 }
 
 .vd-chat-send:active {
@@ -156,12 +156,12 @@
 }
 
 .vd-file-row:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--ds-color-control-hover);
 }
 
 .vd-file-row.selected {
-    background: rgba(39, 199, 166, 0.15);
-    outline: 1px solid rgba(39, 199, 166, 0.35);
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.15);
+    outline: 1px solid rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.35);
 }
 
 .vd-file-name {
