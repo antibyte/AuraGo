@@ -135,6 +135,16 @@
             gp: { l: false, r: false, u: false, d: false, f: false, s: false, p: false, parry: false, super: false },
             muted: settings.mute, vol: settings.vol / 100, _prevSt: 'TITLE', gameMode: 'classic',
             achievements: loadAchievements(), achievementPopups: [], collectedPU: new Set(), stageStartTime: 0, perfectCount: 0, bossKillTotal: parseInt(localStorage.getItem('galaxa_boss_kills') || '0'),
+            // NEW: Super State Machine (Phase 2)
+            superPhase: 'idle', superPhaseT: 0, superBurstFired: false, superFreezeWorld: false,
+            // NEW: Cinematic Camera
+            camZoom: 1, camX: 0, camY: 0,
+            // NEW: Biome Transitions
+            transitionActive: false, transitionT: 0, transitionType: 'wipe',
+            // NEW: Ranked Performance
+            stageBoni: { noDamageRun: false, speedDemon: false, pacifist: false }, stageRank: null,
+            // NEW: Adaptive Music State
+            musicModulation: { combo: 0, bossPhase: 0, health: 3 }, biomeAmbientLayer: null,
             // NEW: Parry system
             parryActive: 0, parryCooldown: 0, parryCount: 0, parrySuccessFlash: 0,
             // NEW: Super / Overdrive meter
