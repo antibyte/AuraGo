@@ -118,6 +118,8 @@
                 const prevBiomeId = ctx.G.biome;
                 ctx.G.biome = _biome.id; ctx.G.biomeName = _biome.name;
                 if (prevBiomeId !== _biome.id && ctx.G.stage > 1) { ctx.G.biomeRevealT = 2200; if (ctx.SFX.biomeReveal) ctx.SFX.biomeReveal(); ctx.duckMusic(0.3, 600); }
+                // Adaptive music: switch ambient layer when biome changes (Task 3.3/6.5)
+                if (prevBiomeId !== _biome.id && ctx.applyBiomeAmbient) ctx.applyBiomeAmbient(ctx.G.biome);
             }
             // NEW: Bonus sub-stage scheduling (every BONUS_STAGE_EVERY stages, no death penalty)
             ctx.G.bonusStage = (ctx.G.stage > 1) && (ctx.G.stage % ctx.BONUS_STAGE_EVERY === 0) && !ctx.G.chal && !ctx.isMiniBossStage();
@@ -338,6 +340,12 @@
                 }
                 if (ctx.updateSupers) ctx.updateSupers(dt);
                 if (ctx.updateBiomeTransitions) ctx.updateBiomeTransitions(dt);
+                // Adaptive music modulation — drives tempo/transpose/intensity from live combat state
+                if (ctx.modulateMusic) {
+                    ctx.modulateMusic('combo', ctx.G.combo || 0);
+                    ctx.modulateMusic('health', ctx.G.lives || 0);
+                    if (ctx.G.bossPhase) ctx.modulateMusic('bossPhase', ctx.G.bossPhase);
+                }
                 // NEW: Bonus sub-stage auto-advance when timer hits zero (no death penalty)
                 if (ctx.G.bonusStage && ctx.G.bonusStageT <= 0 && ctx.G.stageClearLock <= 0) {
                     ctx.G.bonusStage = false;
