@@ -222,4 +222,32 @@
     // NEW: Bonus sub-stage schedule (every 4 stages before boss)
     GC.BONUS_STAGE_EVERY = 4;
     GC.BONUS_STAGE_DURATION = 20000; // 20s
+
+    // NEW: Stage archetypes
+    GC.ARCHETYPES = {
+        swarm_wave: {
+            name: 'SWARM WAVE',
+            duration: 30000,
+            spawnRate: 0.08,
+            enemyCount: 30,
+            puDropRate: 0.5,
+            hue: '#88ff44'
+        },
+        escort: {
+            name: 'ESCORT',
+            duration: 60000,
+            vipHp: 5,
+            enemyRate: 0.02,
+            reward: 5000,
+            hue: '#ffcc00'
+        },
+        asteroid_field: {
+            name: 'ASTEROID FIELD',
+            duration: 45000,
+            asteroidRate: 0.05,
+            reflectDamage: true,
+            hue: '#aa6644'
+        }
+    };
+    GC.ARCHETYPE_SCHEDULE = ['swarm_wave', null, null, 'escort', null, null, null, null, 'swarm_wave', null, 'escort', null, null, 'swarm_wave', null, 'escort', null, null, 'swarm_wave', null];
 })();
