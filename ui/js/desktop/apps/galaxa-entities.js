@@ -1282,6 +1282,10 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 }
                 else if (e.st === 'RETURN') { e.x += (e.fx + ctx.G.fX - e.x) * eDt * 3; e.y += (e.fy - e.y) * eDt * 3; if (Math.abs(e.x - e.fx - ctx.G.fX) < 3 && Math.abs(e.y - e.fy) < 3) { if (ctx.G.chal) { e.st = 'DEAD'; ctx.G.chalHits++; } else e.st = 'FORM'; } }
             }
+            if (ctx.G.vipShip && ctx.G.vipShip.hp <= 0) {
+                ctx.G.archetypeFailed = true;
+                ctx.G.vipShip = null;
+            }
             if (ctx.G.beam && ctx.G.beam.active) { ctx.G.beam.t += dtMs; ctx.G.beam.h = Math.min(Math.max(0, ctx.H - ctx.G.beam.y), ctx.G.beam.h + eDt * 300); if (ctx.G.beam.t > 3000) { ctx.G.beam.active = false; if (ctx.G.beam.cap && ctx.G.p.cap) { ctx.G.beam.owner.hasCap = true; ctx.G.p.cap = null; } } }
             ctx.G.dTmr -= dtMs;
             if (ctx.G.dTmr <= 0 && !ctx.G.chal && ctx.G.st === 'PLAYING') {
