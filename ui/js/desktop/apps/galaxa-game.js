@@ -180,9 +180,7 @@
             // NEW: Biome reveal timer + bonus sub-stage timer
             if (ctx.G.biomeRevealT > 0) ctx.G.biomeRevealT -= dtMs;
             if (ctx.G.bonusStage && ctx.G.bonusStageT > 0) { ctx.G.bonusStageT -= dtMs; if (ctx.G.bonusStageT <= 0) ctx.G.bonusStageT = 0; }
-            // NEW: Super timer countdown
-            if (ctx.G.superActive > 0) { ctx.G.superActive -= dtMs; if (ctx.G.superActive <= 0) { ctx.G.superActive = 0; ctx.G.superType = null; ctx.G.superTimer = 0; } }
-            if (ctx.G.superCooldown > 0) ctx.G.superCooldown -= dtMs;
+            // REMOVED: Old superActive/superCooldown decrement — new cinematic super state machine in galaxa-supers.js manages its own lifecycle via updateSupers()
             // NEW: Parry timers
             if (ctx.G.parryActive > 0) { ctx.G.parryActive -= dtMs; if (ctx.G.parryActive <= 0) { ctx.G.parryActive = 0; ctx.G.parryCooldown = ctx.PARRY_COOLDOWN; } }
             if (ctx.G.parryCooldown > 0) ctx.G.parryCooldown -= dtMs;

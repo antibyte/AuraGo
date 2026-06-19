@@ -155,38 +155,7 @@
             if (isMini) ctx.SFX.miniBossWarning();
         }
         function fire(now) {
-            // NEW: Super effects — Nova Barrage (classic) fires wide spread burst
-            if (ctx.G.superActive > 0 && ctx.G.superType === 'classic') {
-                if (now - lastFireT < 60) return;
-                lastFireT = now;
-                for (let a = -60; a <= 60; a += 12) {
-                    const rad = a * Math.PI / 180;
-                    ctx.G.bul.push({ x: ctx.G.p.x, y: ctx.G.p.y - 8, w: 2, h: 6, vx: Math.sin(rad) * ctx.PB_SPEED * 0.5, vy: -ctx.PB_SPEED, pierce: true, _super: true });
-                }
-                if (ctx.G.p.dual) for (let a = -60; a <= 60; a += 12) { const rad = a * Math.PI / 180; ctx.G.bul.push({ x: ctx.G.p.x + 28, y: ctx.G.p.y - 8, w: 2, h: 6, vx: Math.sin(rad) * ctx.PB_SPEED * 0.5, vy: -ctx.PB_SPEED, pierce: true, _super: true }); }
-                ctx.SFX.shoot(ctx.G.p.x); ctx.G.muzzleT = 50;
-                return;
-            }
-            // NEW: Super effects — Aegis Cannon (heavy) fires a continuous thick beam
-            if (ctx.G.superActive > 0 && ctx.G.superType === 'heavy') {
-                if (now - lastFireT < 100) return;
-                lastFireT = now;
-                ctx.G.bul.push({ x: ctx.G.p.x, y: ctx.G.p.y - 8, w: 8, h: 16, vx: 0, vy: -ctx.PB_SPEED * 2, laser: true, pierce: true, _super: true, aegis: true });
-                ctx.SFX.laserShoot(ctx.G.p.x); ctx.G.muzzleT = 50;
-                return;
-            }
-            // NEW: Super effects — Shadow Clones (stealth) fire alongside player
-            if (ctx.G.superActive > 0 && ctx.G.superType === 'stealth') {
-                // Clones positioned to left/right, fire straight up in sync
-                const cloneOffsets = [-40, 40, -80, 80];
-                for (const off of cloneOffsets) {
-                    ctx.G.bul.push({ x: ctx.G.p.x + off, y: ctx.G.p.y - 8, w: 2, h: 6, vx: 0, vy: -ctx.PB_SPEED, pierce: true, _super: true });
-                }
-            }
-            // NEW: Super effects — Phase Dash (interceptor) grants i-frames automatically (handled in inv calc)
-            if (ctx.G.superActive > 0 && ctx.G.superType === 'interceptor') {
-                ctx.G.p.inv = Math.max(ctx.G.p.inv, 100); // continuous i-frames during dash
-            }
+            // REMOVED: Old super effects branches — bursts are now triggered by galaxa-supers.js via triggerBurst() during superPhase==='burst'
             if (ctx.G.activePU && (ctx.G.activePU.type === 'laser' || ctx.G.activePU.type === 'mega_laser')) {
                 const cd = ctx.G.activePU.type === 'mega_laser' ? 200 : 300;
                 if (now - lastFireT < cd) return;
@@ -611,20 +580,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 ctx.G.parrySuccessFlash = 0;
                 if (ctx.SFX.parryStart) ctx.SFX.parryStart(ctx.G.p.x);
             }
-            // NEW: Super activation (edge-triggered, requires full meter)
-            if (inp.super && !inp.superp && ctx.G.superMeter >= ctx.SUPER_COST && ctx.G.superActive <= 0 && ctx.G.superCooldown <= 0) {
-                ctx.G.superActive = (ctx.SUPER_DEFS[ctx.settings.ship] || ctx.SUPER_DEFS.classic).dur;
-                ctx.G.superType = ctx.settings.ship;
-                ctx.G.superTimer = ctx.G.superActive;
-                ctx.G.superMeter = 0;
-                ctx.G.superCooldown = 1000;
-                const _def = ctx.SUPER_DEFS[ctx.settings.ship] || ctx.SUPER_DEFS.classic;
-                if (ctx.SFX.superActivate) ctx.SFX.superActivate(ctx.settings.ship, ctx.G.p.x);
-                ctx.duckMusic(0.4, 400);
-                ctx.G.hitstopT = Math.max(ctx.G.hitstopT, 80);
-                ctx.G.flashT = Math.max(ctx.G.flashT, 60);
-                ctx.G.scorePopups.push({ x: ctx.G.p.x, y: ctx.G.p.y - 30, text: _def.name + '!', t: 0, dur: 1500, col: _def.col, big: true });
-            }
+            // REMOVED: Old super activation block — new cinematic super system is activated in galaxa-game.js via ctx.startSuper()
             const baseSpd = ctx.getShipSpeed();
             const spd = ctx.G.activePU && (ctx.G.activePU.type === 'speed' || ctx.G.activePU.type === 'hyper_speed') ? baseSpd * (ctx.G.activePU.type === 'hyper_speed' ? 2.2 : 1.8) : baseSpd;
             const vspd = spd * ctx.PLAYER_VERTICAL_SPEED_MULT;
