@@ -134,6 +134,46 @@ func TestDesktopStorePreviewStatusProxiesThroughSameOrigin(t *testing.T) {
 	}
 }
 
+func TestDesktopStorePreviewStatusReportsNotReadyWhenTargetUnavailable(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen for unused preview port: %v", err)
+	}
+	_, portText, err := net.SplitHostPort(listener.Addr().String())
+	if err != nil {
+		t.Fatalf("parse preview listener port: %v", err)
+	}
+	if err := listener.Close(); err != nil {
+		t.Fatalf("close preview listener: %v", err)
+	}
+	port, err := strconv.Atoi(portText)
+	if err != nil {
+		t.Fatalf("parse preview port int: %v", err)
+	}
+
+	svc, _, _ := testInstalledStoreApp(t, "commandcode", port)
+	s := testDesktopStoreServerWithService(t, svc)
+	req := httptest.NewRequest(http.MethodGet, "/api/desktop/store/apps/commandcode/preview-status?port_id=web", nil)
+	rec := httptest.NewRecorder()
+
+	handleDesktopStoreAppRoute(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Status string `json:"status"`
+		Ready  bool   `json:"ready"`
+		Target string `json:"target"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Status != "ok" || body.Ready || body.Target != "" {
+		t.Fatalf("preview status body = %#v, want ok ready=false with empty target", body)
+	}
+}
+
 func TestDesktopStoreCatalogDisablesBrowserCachingAndUsesRomM(t *testing.T) {
 	svc, _, _ := testInstalledStoreApp(t, "romm", 17676)
 	s := testDesktopStoreServerWithService(t, svc)

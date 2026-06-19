@@ -369,12 +369,12 @@ func handleDesktopStorePreviewStatus(s *Server, appID string) http.HandlerFunc {
 		req.Header.Set("Accept", "application/json")
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
-			jsonError(w, "preview status unavailable", http.StatusBadGateway)
+			writeDesktopStorePreviewStatus(w, false, "")
 			return
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			jsonError(w, "preview status unavailable", http.StatusBadGateway)
+			writeDesktopStorePreviewStatus(w, false, "")
 			return
 		}
 		var body struct {
@@ -382,16 +382,20 @@ func handleDesktopStorePreviewStatus(s *Server, appID string) http.HandlerFunc {
 			Target string `json:"target"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-			jsonError(w, "invalid preview status response", http.StatusBadGateway)
+			writeDesktopStorePreviewStatus(w, false, "")
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"status": "ok",
-			"ready":  body.Ready,
-			"target": body.Target,
-		})
+		writeDesktopStorePreviewStatus(w, body.Ready, body.Target)
 	}
+}
+
+func writeDesktopStorePreviewStatus(w http.ResponseWriter, ready bool, target string) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"status": "ok",
+		"ready":  ready,
+		"target": target,
+	})
 }
 
 func handleDesktopStoreTerminal(s *Server, appID string) http.HandlerFunc {
