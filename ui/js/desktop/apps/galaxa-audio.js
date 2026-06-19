@@ -198,7 +198,13 @@
             archetypeEscortPad() { const _v = vv(); beep('sawtooth', 110, 220, 1.0, 0.15 * _v); beep('triangle', 165, 330, 1.0, 0.1 * _v); },
             archetypeAsteroidWarning(panX) { const _p = pv(); beep('sine', 1800 * _p, 600 * _p, 0.15, 0.25, panX); beep('triangle', 1200 * _p, 400 * _p, 0.1, 0.15, panX); },
             // NEW: Risk-It mode toggle UI sound
-            riskItToggle() { beep('square', 600, 900, 0.05, 0.18); setTimeout(() => beep('triangle', 900, 1200, 0.05, 0.18), 50); }
+            riskItToggle() { beep('square', 600, 900, 0.05, 0.18); setTimeout(() => beep('triangle', 900, 1200, 0.05, 0.18), 50); },
+            // NEW: Rank jingles
+            rankJingleSplus() { const _v = vv(); [784, 988, 1175, 1568, 2093, 2637].forEach((f, i) => { setTimeout(() => beep('sine', f, f, 0.12, 0.3 * _v), i * 60); }); },
+            rankJingleS() { const _v = vv(); [659, 784, 988, 1319, 1568].forEach((f, i) => { setTimeout(() => beep('triangle', f, f, 0.1, 0.25 * _v), i * 70); }); },
+            rankJingleA() { const _v = vv(); [523, 659, 784, 1047].forEach((f, i) => { setTimeout(() => beep('sine', f, f, 0.1, 0.22 * _v), i * 80); }); },
+            rankJingleB() { beep('triangle', 440, 440, 0.15, 0.2); setTimeout(() => beep('triangle', 660, 660, 0.15, 0.2), 150); },
+            rankJingleC() { const _v = vv(); beep('sawtooth', 220, 110, 0.4, 0.25 * _v); beep('triangle', 165, 82, 0.3, 0.2 * _v); }
         };
 
         const MusicEngine = {
