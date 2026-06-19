@@ -452,6 +452,10 @@ func TestAuthMiddlewareAllowsLoginAssetsWithoutSession(t *testing.T) {
 		"/css/enhancements.css",
 		"/js/vendor/three.min.js",
 		"/js/login/main.js",
+		"/js/desktop/apps/openscad.js",
+		"/js/desktop/bundles/main.bundle.js",
+		"/js/desktop/core/module-loader.js",
+		"/js/config/main.js",
 		"/site.webmanifest",
 	}
 

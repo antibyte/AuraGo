@@ -647,10 +647,7 @@ var authBypassPrefixes = []string{
 	"/shared-components.css",
 	"/shared-animations.css",
 	"/shared.js",
-	"/js/setup/",
-	"/js/login/",
-	"/js/shared/",
-	"/js/vendor/",
+	"/js/", // All front-end JS is static UI code with no secrets; data access is enforced via auth-protected API endpoints
 	"/cfg/",
 	// Static media files (audio, images, documents) require authentication.
 	// They are served as sub-resources in authenticated pages and must not be
@@ -711,9 +708,7 @@ var noPasswordPrefixes = []string{
 	"/shared-components.css",
 	"/shared-animations.css",
 	"/shared.js",
-	"/js/setup/",
-	"/js/login/",
-	"/js/vendor/",
+	"/js/",
 	"/cfg/",
 	"/site.webmanifest",
 	"/sw.js",
