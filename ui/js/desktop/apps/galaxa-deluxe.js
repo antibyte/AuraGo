@@ -3,6 +3,14 @@
     const GC = window.GalaxaCore = window.GalaxaCore || {};
     const instances = new Map();
 
+    function backupSettingsIfNeeded() {
+        try {
+            const current = localStorage.getItem('galaxa_settings');
+            if (current && !localStorage.getItem('galaxa_settings_v1_backup')) {
+                localStorage.setItem('galaxa_settings_v1_backup', current);
+            }
+        } catch (e) { /* localStorage unavailable, skip backup */ }
+    }
     function loadSettings() {
         try { const s = JSON.parse(localStorage.getItem('galaxa_settings') || '{}'); return { vol: s.vol || 30, diff: s.diff || 'normal', mute: s.mute || false, ship: s.ship || 'classic', mode: s.mode || 'classic', crt: s.crt !== undefined ? s.crt : true, particles: s.particles || 'high', shake: s.shake !== undefined ? s.shake : 1, parry: s.parry !== undefined ? s.parry : true }; } catch (e) { return { vol: 30, diff: 'normal', mute: false, ship: 'classic', mode: 'classic', crt: true, particles: 'high', shake: 1, parry: true }; }
     }
@@ -27,6 +35,7 @@
         c.imageSmoothingEnabled = false;
 
         const settings = loadSettings();
+        backupSettingsIfNeeded();
         if (!settings.crt) wrapEl.classList.remove('galaxa-crt');
 
         function saveSettings() { try { localStorage.setItem('galaxa_settings', JSON.stringify(settings)); } catch (e) {} }
