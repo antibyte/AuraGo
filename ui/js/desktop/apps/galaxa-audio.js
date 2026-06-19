@@ -382,6 +382,32 @@
                 this.intensity = level;
                 const volMult = 1 + Math.min(level, 5) * 0.08;
                 if (this.masterGain) this.masterGain.gain.value = ctx.G.muted ? 0 : ctx.G.vol * 0.35 * volMult;
+            },
+            addLayer(layerId, layerDef) {
+                if (!this.layerGains) this.layerGains = {};
+                const a = audio(); if (!a) return null;
+                const gainNode = a.createGain();
+                gainNode.gain.value = 0;
+                gainNode.connect(this.masterGain || a.destination);
+                this.layerGains[layerId] = { gain: gainNode, def: layerDef, active: false };
+                return this.layerGains[layerId];
+            },
+            removeLayer(themeId, layerId) {
+                if (!this.layerGains || !this.layerGains[layerId]) return;
+                try { this.layerGains[layerId].gain.disconnect(); } catch (_) {}
+                delete this.layerGains[layerId];
+            },
+            setLayerGain(themeId, layerId, value) {
+                if (!this.layerGains || !this.layerGains[layerId]) return;
+                this.layerGains[layerId].gain.gain.value = Math.min(0.04, value);
+            },
+            transpose(semitones) {
+                if (!this.semitoneOffset) this.semitoneOffset = 0;
+                this.semitoneOffset = semitones;
+                if (this.playing) {
+                    const wasPlaying = this.playing;
+                    this.play(wasPlaying);
+                }
             }
         };
 
