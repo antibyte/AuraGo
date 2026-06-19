@@ -370,6 +370,9 @@
     }
 
     function showBubble(message, type) {
+        if (!bubbleEl) {
+            loadPet();
+        }
         if (!bubbleEl) return;
         if (bubbleTimer) {
             clearTimeout(bubbleTimer);

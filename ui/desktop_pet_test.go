@@ -257,6 +257,33 @@ func TestDesktopPetBubbleRemainsVisibleUntilHideTimer(t *testing.T) {
 	}
 }
 
+func TestDesktopPetSayLoadsLayerBeforeBubbleNoop(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"js/desktop/core/pet-runtime.js",
+		"js/desktop/bundles/main.bundle.js",
+	} {
+		source := readDesktopAssetText(t, path)
+		showIdx := strings.Index(source, "function showBubble(message, type)")
+		if showIdx < 0 {
+			t.Fatalf("%s is missing showBubble", path)
+		}
+		body := source[showIdx:]
+		loadIdx := strings.Index(body, "if (!bubbleEl) {\n            loadPet();\n        }")
+		if loadIdx < 0 {
+			t.Fatalf("%s must try to load the pet layer before showing a bubble", path)
+		}
+		returnIdx := strings.Index(body, "if (!bubbleEl) return;")
+		if returnIdx < 0 {
+			t.Fatalf("%s is missing the disabled/unavailable pet bubble no-op", path)
+		}
+		if loadIdx > returnIdx {
+			t.Fatalf("%s must load the pet layer before the bubble no-op", path)
+		}
+	}
+}
+
 func TestDesktopPetDragHangsAndSwaysBelowPointer(t *testing.T) {
 	t.Parallel()
 
