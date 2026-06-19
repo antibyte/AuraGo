@@ -74,7 +74,7 @@ func TestDesktopOpenSCADAppMarkers(t *testing.T) {
 		"source: 'openscad'",
 		"openscad_render",
 		"window.AuraSSE.on('virtual_desktop_event'",
-		"data.type !== 'openscad_result'",
+		"isOpenSCADResultPayload(data)",
 		"isOpenSCADReadOnly",
 		"aurago.desktop.openscad.draft",
 		"readOpenSCADDraft",
@@ -186,6 +186,21 @@ func TestDesktopOpenSCADEventResultClearsBusyBeforeDrawing(t *testing.T) {
 	clearBusyIndex := strings.Index(body, "setOpenSCADBusy(state, false)")
 	if clearBusyIndex < 0 || clearBusyIndex > drawIndex {
 		t.Fatalf("applyOpenSCADResultEvent must clear busy before draw; clearBusyIndex=%d drawIndex=%d", clearBusyIndex, drawIndex)
+	}
+}
+
+func TestDesktopOpenSCADTypedSSEPayloadIsAccepted(t *testing.T) {
+	t.Parallel()
+
+	app := readDesktopAssetText(t, "js/desktop/apps/openscad.js")
+	for _, want := range []string{
+		"function isOpenSCADResultPayload",
+		"isOpenSCADResultPayload(data)",
+		"payload = data",
+	} {
+		if !strings.Contains(app, want) {
+			t.Fatalf("OpenSCAD result handler must accept raw typed SSE payload; missing %q", want)
+		}
 	}
 }
 

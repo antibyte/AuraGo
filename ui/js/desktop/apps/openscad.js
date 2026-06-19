@@ -398,8 +398,13 @@ model();`;
     function applyOpenSCADResultEvent(state, data) {
         if (data && data.type === 'virtual_desktop_event' && data.payload) data = data.payload;
         if (data && data.event === 'virtual_desktop_event' && data.detail) data = normalizeEventData(data.detail);
-        if (!data || data.type !== 'openscad_result') return;
-        const payload = data.payload || data.result || null;
+        let payload = null;
+        if (data && data.type === 'openscad_result') {
+            payload = data.payload || data.result || null;
+        } else if (isOpenSCADResultPayload(data)) {
+            payload = data;
+        }
+        if (!payload) return;
         state.result = payload;
         if (payload && typeof payload.source_scad === 'string' && payload.source_scad.length) {
             state.source = payload.source_scad;
@@ -410,6 +415,15 @@ model();`;
         draw(state);
         persistOpenSCADDraft(state);
         setStatus(state, t(state.ctx, 'desktop.openscad.render_complete', 'Render complete'));
+    }
+
+    function isOpenSCADResultPayload(value) {
+        return !!(value && typeof value === 'object' && (
+            typeof value.job_id === 'string' ||
+            Array.isArray(value.files) ||
+            typeof value.source_scad === 'string' ||
+            typeof value.download_base === 'string'
+        ));
     }
 
     async function loadStatus(state) {
