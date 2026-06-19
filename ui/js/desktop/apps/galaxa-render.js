@@ -48,6 +48,16 @@
             }
             ctx.c.translate(sx, sy); ctx.c.fillStyle = '#000'; ctx.c.fillRect(-5, -5, ctx.W + 10, ctx.H + 10);
             ctx.drawNebula(ctx.c); ctx.drawStars(ctx.c);
+            // NEW: Foreground parallax layer (debris, dust, ice shards)
+            const _fgOff = (ctx.tick * 1.5) % ctx.H;
+            ctx.c.globalAlpha = 0.4;
+            for (let _fi = 0; _fi < 8; _fi++) {
+                const _fx = (_fi * 73 + _fgOff * 0.3) % ctx.W;
+                const _fy = ((_fi * 91) + _fgOff) % ctx.H;
+                ctx.c.fillStyle = ctx.G.biome === 'crystal' ? '#88ccff' : ctx.G.biome === 'void' ? '#ffffff' : '#666';
+                ctx.c.fillRect(_fx, _fy, 2, 2);
+            }
+            ctx.c.globalAlpha = 1;
             if (ctx.G.chromAb > 0) {
                 const ca = Math.min(1, ctx.G.chromAb / 200);
                 const offset = Math.round(ca * 3);
