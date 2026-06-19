@@ -788,6 +788,8 @@ func TestConfigDirtyGuardAndHashNavigationMarkers(t *testing.T) {
 	mainJS := normalizeAssetText(mustReadUIFile(t, "js/config/main.js"))
 	for _, marker := range []string{
 		"function hasUnsavedConfigChanges()",
+		"let suppressDirtyTracking = false",
+		"function resetDirtySnapshot()",
 		"function normalizeSectionKey(key)",
 		"async function confirmDiscardUnsavedChanges()",
 		"async function navigateToConfigSection(key, options = {})",
@@ -795,6 +797,9 @@ func TestConfigDirtyGuardAndHashNavigationMarkers(t *testing.T) {
 		"function handleConfigHashChange()",
 		"window.addEventListener('beforeunload', handleConfigBeforeUnload)",
 		"window.addEventListener('hashchange', handleConfigHashChange)",
+		"await selectSection(activeSection, { scrollBehavior: 'auto' });",
+		"resetDirtySnapshot();",
+		"if (suppressDirtyTracking) return;",
 		"collectSnapshot() !== initialSnapshot",
 		"t('config.unsaved_changes.title')",
 		"navigateToConfigSection(s.key);",
@@ -803,6 +808,9 @@ func TestConfigDirtyGuardAndHashNavigationMarkers(t *testing.T) {
 		if !strings.Contains(mainJS, marker) {
 			t.Fatalf("config main.js missing dirty guard marker %q", marker)
 		}
+	}
+	if strings.Contains(mainJS, "setTimeout(() => { initialSnapshot = collectSnapshot(); setDirty(false); }, 100);") {
+		t.Fatal("config main.js should not use a timed initial snapshot reset; it races async section rendering")
 	}
 }
 

@@ -235,6 +235,7 @@ let isDirty = false;
 let configSaveInFlight = false;
 let restartInFlight = false;
 let initialSnapshot = '';
+let suppressDirtyTracking = false;
 let vaultExists = false;
 const SENSITIVE_KEYS = ['api_key', 'bot_token', 'password', 'app_password', 'access_token', 'token', 'user_key', 'app_token', 'secret', 'master_key'];
 
@@ -309,9 +310,8 @@ async function init() {
         localStorage.setItem('aurago-cfg-section', activeSection);
     }
     buildSidebar();
-    selectSection(activeSection, { scrollBehavior: 'auto' });
-    // Take initial snapshot for dirty tracking after first render
-    setTimeout(() => { initialSnapshot = collectSnapshot(); setDirty(false); }, 100);
+    await selectSection(activeSection, { scrollBehavior: 'auto' });
+    resetDirtySnapshot();
 }
 
 /* ── Sidebar drawer (mobile) ── */
@@ -692,10 +692,7 @@ async function navigateToConfigSection(key, options = {}) {
     const target = normalizeSectionKey(key);
     if (target === activeSection && !hasUnsavedConfigChanges()) {
         await selectSection(target, options);
-        setTimeout(() => {
-            initialSnapshot = collectSnapshot();
-            setDirty(false);
-        }, 100);
+        resetDirtySnapshot();
         return true;
     }
     if (!await confirmDiscardUnsavedChanges()) {
@@ -705,10 +702,7 @@ async function navigateToConfigSection(key, options = {}) {
         return false;
     }
     await selectSection(target, options);
-    setTimeout(() => {
-        initialSnapshot = collectSnapshot();
-        setDirty(false);
-    }, 100);
+    resetDirtySnapshot();
     return true;
 }
 
@@ -1502,6 +1496,15 @@ function collectSnapshot() {
     return parts.join('|');
 }
 
+function resetDirtySnapshot() {
+    suppressDirtyTracking = true;
+    initialSnapshot = collectSnapshot();
+    setDirty(false);
+    setTimeout(() => {
+        suppressDirtyTracking = false;
+    }, 0);
+}
+
 function getNestedValue(obj, path) {
     if (!obj || !path) return undefined;
     return path.split('.').reduce((cur, part) => (cur && cur[part] !== undefined) ? cur[part] : undefined, obj);
@@ -1640,6 +1643,7 @@ async function scheduleEmbeddingsReset() {
 }
 
 function markDirty() {
+    if (suppressDirtyTracking) return;
     if (!isDirty) {
         isDirty = true;
         setDirty(true);
