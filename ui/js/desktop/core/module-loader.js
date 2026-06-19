@@ -121,6 +121,7 @@
                 '/js/desktop/apps/galaxa-sprites.js',
                 '/js/desktop/apps/galaxa-background.js',
                 '/js/desktop/apps/galaxa-entities-core.js',
+                '/js/desktop/apps/galaxa-entities-spawning.js',
                 '/js/desktop/apps/galaxa-entities.js',
                 '/js/desktop/apps/galaxa-render.js',
                 '/js/desktop/apps/galaxa-shop.js',
