@@ -28,7 +28,10 @@
             stepValues: { prepare: '', plan: '', action: '', test: '', exit: '', finish: '' },
             startTime: null,
             logCount: 0,
-            collapsed: false
+            collapsed: false,
+            autoScroll: true,
+            workspaceHeight: null,
+            savedWorkspaceHeight: null
         };
         instances.set(windowId, state);
 
@@ -102,6 +105,8 @@
                     </div>
                 </div>
 
+                <div class="vd-looper-resizer" id="looper-resizer-${windowId}" role="separator" aria-orientation="horizontal" title="${esc(t('desktop.looper_resize_handle'))}" tabindex="0"></div>
+
                 <div class="vd-looper-monitor" id="looper-monitor-${windowId}">
                     <div class="vd-looper-monitor-header">
                         <div class="vd-looper-monitor-title">
@@ -136,6 +141,10 @@
                         <div class="vd-looper-logs" id="looper-logs-${windowId}">
                             <div class="vd-looper-log-empty">${esc(t('desktop.looper_no_logs'))}</div>
                         </div>
+                        <button type="button" class="vd-looper-jump-bottom" id="looper-jump-bottom-${windowId}" title="${esc(t('desktop.looper_jump_bottom'))}" aria-label="${esc(t('desktop.looper_jump_bottom'))}">
+                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            <span>${esc(t('desktop.looper_jump_bottom'))}</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -149,12 +158,33 @@
 
         function updateToggleState(isCollapsed) {
             if (!looperEl) return;
+            const workspace = looperEl.querySelector('.vd-looper-workspace');
             looperEl.classList.toggle('vd-looper--collapsed', isCollapsed);
             if (toggleIcon) {
                 if (isCollapsed) {
                     toggleIcon.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>';
                 } else {
                     toggleIcon.innerHTML = '<polyline points="18 15 12 9 6 15"></polyline>';
+                }
+            }
+            if (workspace) {
+                if (isCollapsed) {
+                    state.savedWorkspaceHeight = state.workspaceHeight || workspace.offsetHeight;
+                    workspace.style.flexBasis = '0px';
+                    workspace.style.maxHeight = '0px';
+                    workspace.style.opacity = '0';
+                    workspace.style.overflow = 'hidden';
+                    workspace.style.padding = '0 14px';
+                    workspace.style.pointerEvents = 'none';
+                } else {
+                    const restore = state.savedWorkspaceHeight || 200;
+                    workspace.style.flexBasis = restore + 'px';
+                    workspace.style.maxHeight = '';
+                    workspace.style.opacity = '';
+                    workspace.style.overflow = '';
+                    workspace.style.padding = '';
+                    workspace.style.pointerEvents = '';
+                    state.workspaceHeight = restore;
                 }
             }
         }
@@ -204,6 +234,117 @@
                 updateToggleState(state.collapsed);
             });
         }
+
+        const resizerEl = $(`looper-resizer-${windowId}`);
+        const workspaceEl = looperEl.querySelector('.vd-looper-workspace');
+        const monitorEl = $(`looper-monitor-${windowId}`);
+
+        if (resizerEl && workspaceEl && monitorEl) {
+            let startY = 0;
+            let startH = 0;
+
+            resizerEl.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                resizerEl.setPointerCapture(e.pointerId);
+                startY = e.clientY;
+                startH = workspaceEl.offsetHeight;
+                resizerEl.classList.add('vd-looper-resizer--active');
+                document.body.style.cursor = 'row-resize';
+                document.body.style.userSelect = 'none';
+            });
+
+            resizerEl.addEventListener('pointermove', (e) => {
+                if (!resizerEl.hasPointerCapture(e.pointerId)) return;
+                const dy = e.clientY - startY;
+                const looperH = looperEl.offsetHeight;
+                const minWS = 80;
+                const minMon = 80;
+                let newH = Math.max(minWS, Math.min(startH + dy, looperH - minMon));
+                workspaceEl.style.flexBasis = newH + 'px';
+                state.workspaceHeight = newH;
+            });
+
+            const endResize = (e) => {
+                if (!resizerEl.hasPointerCapture(e.pointerId)) return;
+                resizerEl.releasePointerCapture(e.pointerId);
+                resizerEl.classList.remove('vd-looper-resizer--active');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            };
+
+            resizerEl.addEventListener('pointerup', endResize);
+            resizerEl.addEventListener('pointercancel', endResize);
+
+            resizerEl.addEventListener('keydown', (e) => {
+                const step = 20;
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const h = Math.max(80, (workspaceEl.offsetHeight || 200) - step);
+                    workspaceEl.style.flexBasis = h + 'px';
+                    state.workspaceHeight = h;
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const looperH = looperEl.offsetHeight;
+                    const h = Math.min((workspaceEl.offsetHeight || 200) + step, looperH - 80);
+                    workspaceEl.style.flexBasis = h + 'px';
+                    state.workspaceHeight = h;
+                }
+            });
+        }
+
+        const logsEl = $(`looper-logs-${windowId}`);
+        const jumpBottomEl = $(`looper-jump-bottom-${windowId}`);
+
+        if (logsEl) {
+            logsEl.addEventListener('scroll', () => {
+                const atBottom = logsEl.scrollTop + logsEl.clientHeight >= logsEl.scrollHeight - 4;
+                state.autoScroll = atBottom;
+                if (jumpBottomEl) {
+                    jumpBottomEl.classList.toggle('vd-looper-jump-bottom--visible', !atBottom && state.logCount > 0);
+                }
+            });
+        }
+
+        if (jumpBottomEl) {
+            jumpBottomEl.addEventListener('click', () => {
+                if (logsEl) {
+                    logsEl.scrollTop = logsEl.scrollHeight;
+                    state.autoScroll = true;
+                    jumpBottomEl.classList.remove('vd-looper-jump-bottom--visible');
+                }
+            });
+        }
+
+        function setWorkspaceRunning(running) {
+            if (!workspaceEl) return;
+            if (running) {
+                const currentH = workspaceEl.offsetHeight;
+                if (!state.savedWorkspaceHeight) {
+                    state.savedWorkspaceHeight = currentH > 10 ? currentH : 200;
+                }
+                const looperH = looperEl.offsetHeight;
+                const targetH = Math.round(looperH * 0.35);
+                workspaceEl.style.flexBasis = targetH + 'px';
+                state.workspaceHeight = targetH;
+            } else {
+                if (state.savedWorkspaceHeight) {
+                    workspaceEl.style.flexBasis = state.savedWorkspaceHeight + 'px';
+                    state.workspaceHeight = state.savedWorkspaceHeight;
+                    state.savedWorkspaceHeight = null;
+                }
+            }
+        }
+
+        function setInitialWorkspaceHeight() {
+            if (!workspaceEl) return;
+            const looperH = looperEl.offsetHeight;
+            if (looperH > 0 && !state.workspaceHeight) {
+                const initH = Math.round(looperH * 0.5);
+                workspaceEl.style.flexBasis = initH + 'px';
+                state.workspaceHeight = initH;
+            }
+        }
+        requestAnimationFrame(setInitialWorkspaceHeight);
 
         if ($(`looper-monitor-stop-${windowId}`)) {
             $(`looper-monitor-stop-${windowId}`).addEventListener('click', async () => {
@@ -440,6 +581,7 @@
             if (wasRunning && !data.running) {
                 state.collapsed = false;
                 updateToggleState(false);
+                setWorkspaceRunning(false);
             }
 
             if (data.error) {
@@ -480,20 +622,51 @@
                     const stepLabel = t('desktop.looper_step_' + log.step) || log.step;
                     const isFirstOfStep = i === 0 || data.logs[i - 1].step !== log.step;
                     const title = log.iteration > 0 ? `#${log.iteration} ${stepLabel}` : stepLabel;
-                    return `<div class="vd-looper-log${isFirstOfStep ? ' vd-looper-log--first' : ''}">
+                    const isCollapsed = i < data.logs.length - 1;
+                    const collapseClass = isCollapsed ? ' vd-looper-log--collapsed' : '';
+                    const expandTitle = esc(t(isCollapsed ? 'desktop.looper_expand_log' : 'desktop.looper_collapse_log'));
+                    const hasBody = log.prompt || log.response;
+                    return `<div class="vd-looper-log${isFirstOfStep ? ' vd-looper-log--first' : ''}${collapseClass}">
                         <div class="vd-looper-log-dot" style="background:${stepMeta.color};box-shadow:0 0 6px ${stepMeta.color}60"></div>
                         <div class="vd-looper-log-content">
-                            <div class="vd-looper-log-header">
+                            <div class="vd-looper-log-header" title="${expandTitle}" role="button" aria-expanded="${!isCollapsed}" tabindex="0">
+                                ${hasBody ? `<span class="vd-looper-log-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></span>` : ''}
                                 <span class="vd-looper-log-step" style="color:${stepMeta.color}">${esc(title)}</span>
                                 <span class="vd-looper-log-time">${formatDuration(log.duration)}</span>
                             </div>
-                            ${log.prompt ? `<div class="vd-looper-log-prompt">${highlightCode(log.prompt)}</div>` : ''}
-                            ${log.response ? `<div class="vd-looper-log-response">${highlightCode(log.response)}</div>` : ''}
+                            ${hasBody ? `<div class="vd-looper-log-body">
+                                ${log.prompt ? `<div class="vd-looper-log-prompt">${highlightCode(log.prompt)}</div>` : ''}
+                                ${log.response ? `<div class="vd-looper-log-response">${highlightCode(log.response)}</div>` : ''}
+                            </div>` : ''}
                         </div>
                     </div>`;
                 }).join('');
                 logsEl.innerHTML = html;
-                logsEl.scrollTop = logsEl.scrollHeight;
+
+                logsEl.querySelectorAll('.vd-looper-log-header').forEach(header => {
+                    header.addEventListener('click', () => {
+                        const logEntry = header.closest('.vd-looper-log');
+                        if (!logEntry || !logEntry.querySelector('.vd-looper-log-body')) return;
+                        logEntry.classList.toggle('vd-looper-log--collapsed');
+                        const expanded = !logEntry.classList.contains('vd-looper-log--collapsed');
+                        header.setAttribute('aria-expanded', String(expanded));
+                        const expandTitle = esc(t(expanded ? 'desktop.looper_collapse_log' : 'desktop.looper_expand_log'));
+                        header.setAttribute('title', expandTitle);
+                    });
+                    header.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            header.click();
+                        }
+                    });
+                });
+
+                if (state.autoScroll) {
+                    logsEl.scrollTop = logsEl.scrollHeight;
+                }
+                if (jumpBottomEl) {
+                    jumpBottomEl.classList.toggle('vd-looper-jump-bottom--visible', !state.autoScroll && state.logCount > 0);
+                }
             }
 
             if (!data.running && data.current_step === 'idle' && state.sse) {
@@ -512,9 +685,10 @@
                 $(`looper-logs-${windowId}`).innerHTML = '';
                 state.logCount = 0;
                 state.startTime = Date.now();
+                state.autoScroll = true;
+                if (jumpBottomEl) jumpBottomEl.classList.remove('vd-looper-jump-bottom--visible');
                 connectStatus();
-                state.collapsed = true;
-                updateToggleState(true);
+                setWorkspaceRunning(true);
             } catch (e) {
                 if (e && e.status === 409) {
                     if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_already_running') });
