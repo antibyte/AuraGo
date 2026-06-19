@@ -997,7 +997,14 @@
 
         function renderHUD() {
             ctx.c.fillStyle = '#4488ff'; ctx.c.font = '12px "Courier New",monospace'; ctx.c.textAlign = 'left'; ctx.c.fillText(ctx.t('galaxa.score', 'SCORE'), 10, 16);
-            ctx.c.fillStyle = '#fff'; ctx.c.fillText(String(ctx.G.displayScore).padStart(8, '0'), 10, 32);
+            const _scoreText = ctx.formatScore ? ctx.formatScore(ctx.G.displayScore | 0) : String(ctx.G.displayScore | 0);
+            const _isHigh = ctx.G.displayScore > ctx.G.hi;
+            ctx.c.fillStyle = _isHigh ? '#ffcc00' : '#fff';
+            ctx.c.font = 'bold 14px monospace';
+            ctx.c.textAlign = 'left';
+            if (_isHigh) { ctx.c.shadowColor = '#ffcc00'; ctx.c.shadowBlur = 8 + Math.sin(ctx.tick * 0.1) * 4; }
+            ctx.c.fillText(_scoreText, 10, 34);
+            ctx.c.shadowBlur = 0;
             if (ctx.G.comboMult > 1) {
                 ctx.c.fillStyle = '#ffcc00'; ctx.c.font = 'bold 11px "Courier New",monospace';
                 ctx.c.fillText('x' + ctx.G.comboMult, 10, 44);
