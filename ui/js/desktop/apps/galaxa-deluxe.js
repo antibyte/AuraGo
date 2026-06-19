@@ -16,6 +16,55 @@
     }
     function loadAchievements() { try { const a = JSON.parse(localStorage.getItem('galaxa_achievements') || '{}'); return a; } catch (e) { return {}; } }
 
+    // Declarative settings menu items. The renderer iterates this list to
+    // build the SETTINGS screen, and the input handler dispatches on `type`
+    // to toggle / cycle / adjust the value. Adding a new setting only
+    // requires a new entry here plus a key in loadSettings() defaults.
+    GC.SETTINGS_ITEMS = [
+        { id: 'sound', label: 'SOUND', type: 'toggle', key: 'mute' },
+        { id: 'difficulty', label: 'DIFFICULTY', type: 'cycle', key: 'diff', values: ['easy', 'normal', 'hard'] },
+        { id: 'volume', label: 'VOLUME', type: 'slider', key: 'vol', min: 0, max: 100, step: 10 },
+        { id: 'ship', label: 'SHIP', type: 'cycle', key: 'ship', values: 'SHIPS' },
+        { id: 'crt', label: 'CRT EFFECT', type: 'toggle', key: 'crt' },
+        { id: 'particles', label: 'PARTICLES', type: 'cycle', key: 'particles', values: ['high', 'medium', 'low'] },
+        { id: 'shake', label: 'SHAKE', type: 'cycle', key: 'shake', values: [0, 0.25, 0.5, 0.75, 1] },
+        { id: 'riskIt', label: 'RISK-IT MODE', type: 'toggle', key: 'riskIt', onChange: 'riskItToggle' },
+        { id: 'adaptiveMusic', label: 'ADAPTIVE MUSIC', type: 'toggle', key: 'adaptiveMusic' },
+        { id: 'quit', label: 'QUIT', type: 'action', action: 'quit' }
+    ];
+
+    // Apply a left/right input to a settings item. Returns true if the value
+    // changed so the caller can play a confirmation SFX if desired.
+    GC.applySettingsInput = function (ctx, item, dir) {
+        if (!ctx || !item) return false;
+        const s = ctx.settings;
+        switch (item.type) {
+            case 'toggle': {
+                s[item.key] = !s[item.key];
+                if (ctx.saveSettings) ctx.saveSettings();
+                if (item.onChange && ctx.SFX && typeof ctx.SFX[item.onChange] === 'function') ctx.SFX[item.onChange]();
+                return true;
+            }
+            case 'cycle': {
+                let pool;
+                if (item.values === 'SHIPS') pool = Object.keys(ctx.SHIP_TYPES || {});
+                else pool = item.values.slice();
+                const idx = pool.indexOf(s[item.key]);
+                const next = pool[(idx + pool.length + (dir < 0 ? -1 : 1)) % pool.length];
+                s[item.key] = next;
+                if (ctx.saveSettings) ctx.saveSettings();
+                return true;
+            }
+            case 'slider': {
+                const step = item.step || 1;
+                const next = Math.max(item.min, Math.min(item.max, s[item.key] + (dir < 0 ? -step : step)));
+                if (next !== s[item.key]) { s[item.key] = next; if (ctx.saveSettings) ctx.saveSettings(); return true; }
+                return false;
+            }
+        }
+        return false;
+    };
+
     function render(host, windowId, context) {
         if (!host) return;
         const ctx = context || {};
