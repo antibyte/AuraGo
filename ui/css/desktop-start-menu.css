@@ -211,8 +211,9 @@
 }
 
 .desktop-body[data-theme="standard"] .vd-start-recent-item {
-    border-left-color: var(--vd-shell-accent-secondary);
-    background: rgba(245, 158, 11, 0.08);
+    border-radius: var(--ds-radius-xs);
+    border-left-color: var(--vd-accent);
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .desktop-body[data-theme="fruity"] .vd-start-recent-label {
