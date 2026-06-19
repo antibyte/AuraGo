@@ -74,6 +74,11 @@
             else if (ctx.G.transitionType === 2) { ctx.G.portalT = 1400; ctx.G.portalR = 0; }
             else { ctx.G.glitchT = 1000; ctx.G.glitchStrips = []; for (let _gi = 0; _gi < 12; _gi++) ctx.G.glitchStrips.push({ y: _gi * (ctx.H / 12), offset: 0, targetOffset: (Math.random() - 0.5) * 60 }); }
             ctx.G.stage++;
+            // NEW: Trigger biome transition cinematic when crossing into a new biome
+            const newBiome = GC.getBiomeForStage(ctx.G.stage);
+            if (newBiome && newBiome.id !== ctx.G.biome) {
+                if (ctx.startBiomeTransition) ctx.startBiomeTransition(newBiome);
+            }
             if (ctx.G.stage >= 10) ctx.unlockAchievement('survivor');
             if (ctx.G.stage >= 20) ctx.unlockAchievement('legend');
             if (ctx.G.score >= 1000000) ctx.unlockAchievement('millionaire');
