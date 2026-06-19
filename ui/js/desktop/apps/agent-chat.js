@@ -55,6 +55,21 @@
         return translated && translated !== key ? translated : fallback;
     }
 
+    function normalizeAgentResponseForPetBubble(text) {
+        return String(text || '')
+            .replace(/```[\s\S]*?```/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function announceAgentResponseToPet(text) {
+        const message = normalizeAgentResponseForPetBubble(text);
+        if (!message) return;
+        if (window.PetRuntime && typeof window.PetRuntime.say === 'function') {
+            window.PetRuntime.say(message, 'info');
+        }
+    }
+
     function iconMarkup(key, fallback, className, size) {
         const runtime = useDesktopChatRuntime();
         if (runtime && typeof runtime.iconMarkup === 'function') return runtime.iconMarkup(key, fallback, className, size);
@@ -1016,6 +1031,7 @@
         if (statusEl) chatLog.appendChild(statusEl);
         let streamingBubble = null;
         let streamingContent = '';
+        let petAnnouncementText = '';
         let streamTextFrame = 0;
         let finalized = false;
         let chatScrollFrame = 0;
@@ -1078,6 +1094,7 @@
                 } else {
                     cancelChatScroll();
                 }
+                announceAgentResponseToPet(petAnnouncementText || streamingContent);
                 resolve();
             }
 
@@ -1232,8 +1249,10 @@
                                     appendChat(host, 'agent', text);
                                     lastRole = 'agent';
                                 }
+                                petAnnouncementText = text;
                             } else if (streamingBubble && !streamingContent.trim() && text.trim()) {
                                 streamingContent = text;
+                                petAnnouncementText = text;
                                 flushStreamingBubble();
                             }
                         }
