@@ -406,6 +406,7 @@ model();`;
         }
         state.sourceDirty = false;
         state.activeTab = 'files';
+        setOpenSCADBusy(state, false);
         draw(state);
         persistOpenSCADDraft(state);
         setStatus(state, t(state.ctx, 'desktop.openscad.render_complete', 'Render complete'));

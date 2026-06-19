@@ -170,6 +170,25 @@ func TestDesktopOpenSCADAppMarkers(t *testing.T) {
 	}
 }
 
+func TestDesktopOpenSCADEventResultClearsBusyBeforeDrawing(t *testing.T) {
+	t.Parallel()
+
+	app := readDesktopAssetText(t, "js/desktop/apps/openscad.js")
+	start := strings.Index(app, "function applyOpenSCADResultEvent")
+	if start < 0 {
+		t.Fatal("OpenSCAD app missing applyOpenSCADResultEvent")
+	}
+	body := app[start:]
+	drawIndex := strings.Index(body, "draw(state)")
+	if drawIndex < 0 {
+		t.Fatal("applyOpenSCADResultEvent must redraw after receiving a result")
+	}
+	clearBusyIndex := strings.Index(body, "setOpenSCADBusy(state, false)")
+	if clearBusyIndex < 0 || clearBusyIndex > drawIndex {
+		t.Fatalf("applyOpenSCADResultEvent must clear busy before draw; clearBusyIndex=%d drawIndex=%d", clearBusyIndex, drawIndex)
+	}
+}
+
 func TestDesktopOpenSCADIconsExistInBothThemes(t *testing.T) {
 	t.Parallel()
 
