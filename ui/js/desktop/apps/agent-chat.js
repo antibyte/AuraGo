@@ -23,6 +23,7 @@
         'punk', 'secretary', 'servant', 'terminator', 'thinker'
     ]);
     let desktopPersonaPromise = null;
+    let petAnnouncementRetryTimer = null;
 
     function useDesktopChatRuntime(context) {
         if (context && context.__desktopRuntime) desktopRuntime = context.__desktopRuntime;
@@ -65,9 +66,29 @@
     function announceAgentResponseToPet(text) {
         const message = normalizeAgentResponseForPetBubble(text);
         if (!message) return;
+        if (tryAnnounceAgentResponseToPet(message)) return;
+        if (petAnnouncementRetryTimer) {
+            window.clearTimeout(petAnnouncementRetryTimer);
+            petAnnouncementRetryTimer = null;
+        }
+        let petAnnouncementAttempts = 0;
+        const retry = () => {
+            petAnnouncementAttempts += 1;
+            if (tryAnnounceAgentResponseToPet(message) || petAnnouncementAttempts >= 20) {
+                petAnnouncementRetryTimer = null;
+                return;
+            }
+            petAnnouncementRetryTimer = window.setTimeout(retry, 100);
+        };
+        petAnnouncementRetryTimer = window.setTimeout(retry, 100);
+    }
+
+    function tryAnnounceAgentResponseToPet(message) {
         if (window.PetRuntime && typeof window.PetRuntime.say === 'function') {
             window.PetRuntime.say(message, 'info');
+            return true;
         }
+        return false;
     }
 
     function iconMarkup(key, fallback, className, size) {

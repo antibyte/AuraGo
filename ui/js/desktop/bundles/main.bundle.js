@@ -1659,6 +1659,7 @@
     let drag = null;
     let currentState = 'idle';
     let bubbleTimer = null;
+    let pendingBubble = null;
     let loadedPetId = null;
     let petRuntimeInitialized = false;
     let petCatalogHydration = null;
@@ -1972,16 +1973,30 @@
         scheduleAmbientAnimation();
     }
 
-    function showBubble(message, type) {
+    function queuePendingBubble(message, type) {
+        if (!petEnabled() || !petCatalogHydration || typeof petCatalogHydration.then !== 'function') return;
+        pendingBubble = { message, type };
+        petCatalogHydration.then(() => {
+            const pending = pendingBubble;
+            pendingBubble = null;
+            if (pending && pending.message) showBubble(pending.message, pending.type, false);
+        });
+    }
+
+    function showBubble(message, type, allowDeferred = true) {
+        const text = String(message || '').slice(0, MAX_BUBBLE_CHARS);
+        if (!text) return;
         if (!bubbleEl) {
             loadPet();
         }
-        if (!bubbleEl) return;
+        if (!bubbleEl) {
+            if (allowDeferred) queuePendingBubble(text, type);
+            return;
+        }
         if (bubbleTimer) {
             clearTimeout(bubbleTimer);
             bubbleTimer = null;
         }
-        const text = String(message || '').slice(0, MAX_BUBBLE_CHARS);
         bubbleEl.textContent = text;
         bubbleEl.hidden = false;
         bubbleEl.className = 'vd-pet-bubble' + (type ? ' is-' + type : '');

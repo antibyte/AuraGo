@@ -265,7 +265,7 @@ func TestDesktopPetSayLoadsLayerBeforeBubbleNoop(t *testing.T) {
 		"js/desktop/bundles/main.bundle.js",
 	} {
 		source := readDesktopAssetText(t, path)
-		showIdx := strings.Index(source, "function showBubble(message, type)")
+		showIdx := strings.Index(source, "function showBubble(message, type, allowDeferred = true)")
 		if showIdx < 0 {
 			t.Fatalf("%s is missing showBubble", path)
 		}
@@ -274,12 +274,40 @@ func TestDesktopPetSayLoadsLayerBeforeBubbleNoop(t *testing.T) {
 		if loadIdx < 0 {
 			t.Fatalf("%s must try to load the pet layer before showing a bubble", path)
 		}
-		returnIdx := strings.Index(body, "if (!bubbleEl) return;")
+		deferIdx := strings.Index(body, "if (allowDeferred) queuePendingBubble(text, type);")
+		if deferIdx < 0 {
+			t.Fatalf("%s must defer the pet bubble while the pet catalog hydrates", path)
+		}
+		returnIdx := strings.Index(body[deferIdx:], "return;")
 		if returnIdx < 0 {
 			t.Fatalf("%s is missing the disabled/unavailable pet bubble no-op", path)
 		}
-		if loadIdx > returnIdx {
+		if loadIdx > deferIdx {
 			t.Fatalf("%s must load the pet layer before the bubble no-op", path)
+		}
+	}
+}
+
+func TestDesktopPetSayWaitsForHydratedLayer(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"js/desktop/core/pet-runtime.js",
+		"js/desktop/bundles/main.bundle.js",
+	} {
+		source := readDesktopAssetText(t, path)
+		for _, marker := range []string{
+			"let pendingBubble = null;",
+			"function queuePendingBubble(message, type)",
+			"if (!petEnabled() || !petCatalogHydration || typeof petCatalogHydration.then !== 'function') return;",
+			"pendingBubble = { message, type };",
+			"showBubble(pending.message, pending.type, false);",
+			"function showBubble(message, type, allowDeferred = true)",
+			"if (allowDeferred) queuePendingBubble(text, type);",
+		} {
+			if !strings.Contains(source, marker) {
+				t.Fatalf("%s is missing hydrated pet bubble marker %q", path, marker)
+			}
 		}
 	}
 }
