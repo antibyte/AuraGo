@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -821,6 +822,45 @@ func TestConfigDirtyGuardAndHashNavigationMarkers(t *testing.T) {
 	}
 	if strings.Contains(mainJS, "setTimeout(() => { initialSnapshot = collectSnapshot(); setDirty(false); }, 100);") {
 		t.Fatal("config main.js should not use a timed initial snapshot reset; it races async section rendering")
+	}
+}
+
+func TestConfigMaintenanceHelpTextComplete(t *testing.T) {
+	t.Parallel()
+
+	langs := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
+	keys := []string{
+		"help.maintenance.enabled",
+		"help.maintenance.time",
+		"help.maintenance.lifeboat_enabled",
+		"help.maintenance.lifeboat_port",
+		"help.maintenance.retention.patterns_days",
+		"help.maintenance.retention.archive_events_days",
+		"help.maintenance.retention.mood_log_days",
+		"help.maintenance.retention.error_patterns_days",
+		"help.maintenance.retention.profile_stale_days",
+		"help.maintenance.retention.done_notes_days",
+		"help.maintenance.retention.operational_issues_days",
+	}
+
+	for _, lang := range langs {
+		lang := lang
+		t.Run(lang, func(t *testing.T) {
+			t.Parallel()
+			data, err := os.ReadFile("lang/help/" + lang + ".json")
+			if err != nil {
+				t.Fatalf("read help %s: %v", lang, err)
+			}
+			var help map[string]string
+			if err := json.Unmarshal(data, &help); err != nil {
+				t.Fatalf("parse help %s: %v", lang, err)
+			}
+			for _, key := range keys {
+				if strings.TrimSpace(help[key]) == "" || help[key] == key {
+					t.Fatalf("help/%s.json missing maintenance help %q", lang, key)
+				}
+			}
+		})
 	}
 }
 
