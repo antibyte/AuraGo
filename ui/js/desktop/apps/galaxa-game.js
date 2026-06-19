@@ -293,6 +293,11 @@
             if (ctx.G.st === 'PLAYING') {
                 ctx.updateP(dt, now); ctx.updateBul(dt); ctx.updateE(dt); ctx.updateExp(dt);
                 if (ctx.updateHazards) ctx.updateHazards(dt);
+                // Super activation check (C / left shoulder / Y button)
+                if (ctx.G.inp.super && !ctx.G.inp.superp && ctx.G.superPhase === 'idle' && ctx.G.superMeter >= 100) {
+                    if (ctx.startSuper) ctx.startSuper();
+                }
+                if (ctx.updateSupers) ctx.updateSupers(dt);
                 // NEW: Bonus sub-stage auto-advance when timer hits zero (no death penalty)
                 if (ctx.G.bonusStage && ctx.G.bonusStageT <= 0 && ctx.G.stageClearLock <= 0) {
                     ctx.G.bonusStage = false;
