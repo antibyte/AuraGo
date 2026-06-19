@@ -83,6 +83,7 @@
         GC.createTweens(gameCtx);
         GC.createSprites(gameCtx);
         GC.createBackground(gameCtx);
+        GC.createEntitiesCore(gameCtx);
         GC.createEntities(gameCtx);
         GC.createRenderer(gameCtx);
         GC.createGame(gameCtx);
