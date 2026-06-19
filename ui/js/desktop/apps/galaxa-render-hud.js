@@ -28,7 +28,34 @@
             c.fillText(arch.name, GC.W - 59, 20);
         }
 
+        function drawRankBanner(c, G) {
+            if (!G.stageRank) return;
+            const colors = { 'S+': '#ffcc00', 'S': '#cccccc', 'A': '#44ccff', 'B': '#44ff44', 'C': '#888888' };
+            const col = colors[G.stageRank] || '#fff';
+            const y = GC.H * 0.4;
+            const scale = Math.min(1, (G.tick % 60) / 30);
+            c.save();
+            c.translate(GC.W / 2, y);
+            c.scale(scale, scale);
+            c.fillStyle = col;
+            c.font = 'bold 64px monospace';
+            c.textAlign = 'center';
+            c.shadowColor = col;
+            c.shadowBlur = 16;
+            c.fillText(G.stageRank, 0, 0);
+            c.shadowBlur = 0;
+            // Bonus icons
+            c.font = '12px monospace';
+            c.fillStyle = '#fff';
+            const boni = G.stageBoni || {};
+            c.fillText(`NO DAMAGE: ${boni.noDamageRun ? '✓' : '✗'}`, 0, 30);
+            c.fillText(`SPEED: ${boni.speedDemon ? '✓' : '✗'}`, 0, 50);
+            c.fillText(`PACIFIST: ${boni.pacifist ? '✓' : '✗'}`, 0, 70);
+            c.restore();
+        }
+
         ctx.drawSuperMeterHUD = drawSuperMeter;
         ctx.drawArchetypeHUD = drawArchetypeHUD;
+        ctx.drawRankBanner = drawRankBanner;
     };
 })();
