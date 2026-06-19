@@ -16,6 +16,19 @@
             c.fillRect(x, y, fill, 5);
         }
 
+        function drawArchetypeHUD(c, G) {
+            if (!G.archetype) return;
+            const arch = GC.ARCHETYPES[G.archetype];
+            if (!arch) return;
+            c.fillStyle = 'rgba(0,0,0,0.5)';
+            c.fillRect(GC.W - 110, 8, 102, 18);
+            c.fillStyle = arch.hue;
+            c.font = 'bold 10px monospace';
+            c.textAlign = 'center';
+            c.fillText(arch.name, GC.W - 59, 20);
+        }
+
         ctx.drawSuperMeterHUD = drawSuperMeter;
+        ctx.drawArchetypeHUD = drawArchetypeHUD;
     };
 })();
