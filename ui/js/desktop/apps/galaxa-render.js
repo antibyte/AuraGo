@@ -21,6 +21,17 @@
         }
 
         function renderFrame(dt) {
+            // NEW: Cinematic camera transform during super (zoom-in around canvas center)
+            const G = ctx.G;
+            const zoom = G.camZoom || 1;
+            const camX = G.camX || 0;
+            const camY = G.camY || 0;
+            if (zoom !== 1 || camX !== 0 || camY !== 0) {
+                ctx.c.save();
+                ctx.c.translate(ctx.W / 2, ctx.H / 2);
+                ctx.c.scale(zoom, zoom);
+                ctx.c.translate(-ctx.W / 2 + camX, -ctx.H / 2 + camY);
+            }
             ctx.c.save(); ctx.c.setTransform(ctx.scale, 0, 0, ctx.scale, 0, 0);
             let sx = 0, sy = 0; if (ctx.G.shkT > 0 && ctx.settings.shake > 0) {
                 const _decay = Math.pow(Math.min(1, ctx.G.shkT / 200), 1.5);
@@ -149,6 +160,9 @@
             else if (ctx.G.st === 'SHOP') ctx.renderShop();
             else ctx.renderGame();
             ctx.c.restore();
+            if (zoom !== 1 || camX !== 0 || camY !== 0) {
+                ctx.c.restore();
+            }
         }
 
         function renderTitle() {
