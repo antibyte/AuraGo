@@ -126,6 +126,7 @@
                 '/js/desktop/apps/galaxa-entities.js',
                 '/js/desktop/apps/galaxa-render-effects.js',
                 '/js/desktop/apps/galaxa-render-stage.js',
+                '/js/desktop/apps/galaxa-render-hud.js',
                 '/js/desktop/apps/galaxa-render.js',
                 '/js/desktop/apps/galaxa-shop.js',
                 '/js/desktop/apps/galaxa-relics.js',
