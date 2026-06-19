@@ -46,7 +46,11 @@
 
             // Phase 1: Wipe (0-300ms)
             if (t < TRANSITION_DURATIONS.wipe) {
-                const wipeY = (t / TRANSITION_DURATIONS.wipe) * GC.H;
+                // FIX: cap wipeY at GC.H/2 so top and bottom bars meet at the middle
+                // and stop, leaving the middle band of the screen always visible.
+                // Without the cap, the bars overlap after t=150ms and cover the entire
+                // canvas with black, hiding the game until the lens-flare phase starts.
+                const wipeY = Math.min(GC.H / 2, (t / TRANSITION_DURATIONS.wipe) * (GC.H / 2));
                 c.fillStyle = '#000';
                 c.fillRect(0, 0, GC.W, wipeY);
                 c.fillRect(0, GC.H - wipeY, GC.W, wipeY);
