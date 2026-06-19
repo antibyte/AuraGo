@@ -89,6 +89,7 @@
         GC.createEntities(gameCtx);
         GC.createRenderer(gameCtx);
         GC.createRenderEffects(gameCtx);
+        GC.createRenderStage(gameCtx);
         GC.createGame(gameCtx);
         GC.createShop(gameCtx);
         GC.createRelics(gameCtx);
