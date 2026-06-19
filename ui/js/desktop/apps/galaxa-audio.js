@@ -196,7 +196,9 @@
             // NEW: Stage archetype cues
             archetypeSwarmLoop() { const _v = vv(); beep('square', 100, 100, 0.1, 0.18 * _v); setTimeout(() => beep('square', 100, 100, 0.1, 0.18 * _v), 500); },
             archetypeEscortPad() { const _v = vv(); beep('sawtooth', 110, 220, 1.0, 0.15 * _v); beep('triangle', 165, 330, 1.0, 0.1 * _v); },
-            archetypeAsteroidWarning(panX) { const _p = pv(); beep('sine', 1800 * _p, 600 * _p, 0.15, 0.25, panX); beep('triangle', 1200 * _p, 400 * _p, 0.1, 0.15, panX); }
+            archetypeAsteroidWarning(panX) { const _p = pv(); beep('sine', 1800 * _p, 600 * _p, 0.15, 0.25, panX); beep('triangle', 1200 * _p, 400 * _p, 0.1, 0.15, panX); },
+            // NEW: Risk-It mode toggle UI sound
+            riskItToggle() { beep('square', 600, 900, 0.05, 0.18); setTimeout(() => beep('triangle', 900, 1200, 0.05, 0.18), 50); }
         };
 
         const MusicEngine = {
