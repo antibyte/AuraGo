@@ -958,6 +958,7 @@
             }
 
             ctx.renderHUD();
+            if (ctx.drawSuperMeterHUD) ctx.drawSuperMeterHUD(ctx.c, ctx.G);
             if (ctx.G.st === 'GAME_OVER') {
                 ctx.c.fillStyle = 'rgba(0,0,0,0.5)'; ctx.c.fillRect(0, ctx.H / 2 - 40, ctx.W, 80);
                 ctx.c.fillStyle = '#ff4444'; ctx.c.font = 'bold 24px "Courier New",monospace'; ctx.c.textAlign = 'center'; ctx.c.fillText(ctx.t('galaxa.game_over', 'GAME OVER'), ctx.W / 2, ctx.H / 2 - 10);
