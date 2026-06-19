@@ -6319,7 +6319,7 @@
     pointer-events: none;
     user-select: none;
     transform-origin: 50% 0;
-    transition: transform 0.1s ease-out;
+    transition: left 0.1s ease-out, top 0.1s ease-out;
 }
 
 .vd-pet-layer[data-always-on-top="true"] {
@@ -6328,6 +6328,7 @@
 
 .vd-pet-layer.dragging {
     cursor: grabbing;
+    transition: none;
 }
 
 .vd-pet-sprite {

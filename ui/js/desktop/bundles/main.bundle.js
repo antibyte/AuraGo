@@ -1617,9 +1617,12 @@
     const AMBIENT_RUN_MIN_DISTANCE = 90;
     const AMBIENT_RUN_MAX_DISTANCE = 180;
     const DRAG_HANG_OFFSET_Y = 28;
-    const DRAG_SWAY_MAX_X = 18;
-    const DRAG_SWAY_MAX_DEG = 7;
-    const DRAG_SWAY_PERIOD_MS = 820;
+    const DRAG_TILT_MAX_DEG = 14;
+    const DRAG_VEL_SMOOTH = 0.34;
+    const DRAG_TILT_GAIN = 0.11;
+    const DRAG_TILT_SPRING = 220;
+    const DRAG_TILT_DAMPING = 16;
+    const DRAG_SETTLE_EPS = 0.08;
     const ambientStates = ['waving', 'jumping', 'running', 'running'];
 
     // OpenPets-compatible reaction → animation state mapping.
@@ -2016,88 +2019,152 @@
         }
     }
 
-    function dragHangPosition(pointerX, pointerY, swayX) {
+    function dragHangPosition(pointerX, pointerY) {
         const scale = petScale();
         const w = Math.round(PET_FRAME_W * scale);
         const h = Math.round(PET_FRAME_H * scale);
         return clampToViewport({
-            x: Math.round(pointerX - w / 2 + swayX),
+            x: Math.round(pointerX - w / 2),
             y: Math.round(pointerY + DRAG_HANG_OFFSET_Y),
             w,
             h
         });
     }
 
-    function applyDragHangPosition(sway) {
+    function applyLayerTilt(deg) {
+        if (!layer) return;
+        layer.style.transform = 'rotate(' + deg.toFixed(2) + 'deg)';
+    }
+
+    function applyDragHangPosition() {
         if (!layer || !drag) return;
-        const elapsed = Date.now() - drag.startedAt;
-        const phase = (elapsed / DRAG_SWAY_PERIOD_MS) * Math.PI * 2;
-        const swayX = sway ? Math.round(Math.sin(phase) * DRAG_SWAY_MAX_X) : 0;
-        const swayDeg = sway ? Math.sin(phase) * DRAG_SWAY_MAX_DEG : 0;
-        const pos = dragHangPosition(drag.pointerX, drag.pointerY, swayX);
+        const pos = dragHangPosition(drag.pointerX, drag.pointerY);
         layer.style.left = pos.x + 'px';
         layer.style.top = pos.y + 'px';
-        layer.style.transform = 'rotate(' + swayDeg.toFixed(2) + 'deg)';
+        applyLayerTilt(drag.tilt);
     }
 
-    function startDragSway() {
+    function stepDragPhysics(now) {
         if (!drag) return;
-        const tick = () => {
+        const prev = drag.lastSampleAt || now;
+        const dt = Math.min(0.05, Math.max(0.001, (now - prev) / 1000));
+        drag.lastSampleAt = now;
+        const instVelX = (drag.pointerX - drag.lastPointerX) / dt;
+        drag.lastPointerX = drag.pointerX;
+        drag.velX = drag.velX * (1 - DRAG_VEL_SMOOTH) + instVelX * DRAG_VEL_SMOOTH;
+        const tiltTarget = Math.max(-DRAG_TILT_MAX_DEG, Math.min(DRAG_TILT_MAX_DEG, -drag.velX * DRAG_TILT_GAIN));
+        const tiltAccel = (tiltTarget - drag.tilt) * DRAG_TILT_SPRING - drag.tiltVel * DRAG_TILT_DAMPING;
+        drag.tiltVel += tiltAccel * dt;
+        drag.tilt += drag.tiltVel * dt;
+        applyDragHangPosition();
+    }
+
+    function startDragMotionLoop() {
+        if (!drag) return;
+        const tick = now => {
             if (!drag) return;
-            applyDragHangPosition(true);
+            stepDragPhysics(now);
             drag.frame = window.requestAnimationFrame(tick);
         };
-        tick();
+        drag.frame = window.requestAnimationFrame(tick);
     }
 
-    function stopDragSway() {
+    function stopDragMotionLoop() {
         if (drag && drag.frame) {
             window.cancelAnimationFrame(drag.frame);
             drag.frame = null;
         }
-        if (layer) layer.style.transform = '';
     }
+
+    function settleDragTilt(onDone) {
+        if (!layer) {
+            if (typeof onDone === 'function') onDone();
+            return;
+        }
+        stopDragMotionLoop();
+        const state = {
+            tilt: drag ? drag.tilt : 0,
+            tiltVel: drag ? drag.tiltVel + (drag.velX || 0) * 0.015 : 0
+        };
+        let last = performance.now();
+        const tick = now => {
+            const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
+            last = now;
+            const tiltAccel = (0 - state.tilt) * DRAG_TILT_SPRING - state.tiltVel * DRAG_TILT_DAMPING;
+            state.tiltVel += tiltAccel * dt;
+            state.tilt += state.tiltVel * dt;
+            applyLayerTilt(state.tilt);
+            if (Math.abs(state.tilt) < DRAG_SETTLE_EPS && Math.abs(state.tiltVel) < DRAG_SETTLE_EPS) {
+                applyLayerTilt(0);
+                layer.style.transform = '';
+                if (typeof onDone === 'function') onDone();
+                return;
+            }
+            state.frame = window.requestAnimationFrame(tick);
+        };
+        state.frame = window.requestAnimationFrame(tick);
+        if (drag) drag.settleFrame = state.frame;
+    }
+
+    function cancelDragSettle() {
+        if (drag && drag.settleFrame) {
+            window.cancelAnimationFrame(drag.settleFrame);
+            drag.settleFrame = null;
+        }
+    }
+
 
     function wireDrag() {
         if (!layer) return;
         layer.addEventListener('pointerdown', event => {
             if (event.button !== 0) return;
             clearAmbientTimers();
+            cancelDragSettle();
+            stopDragMotionLoop();
+            const now = performance.now();
             drag = {
                 pointerId: event.pointerId,
                 pointerX: event.clientX,
                 pointerY: event.clientY,
-                startedAt: Date.now(),
-                frame: null
+                lastPointerX: event.clientX,
+                lastSampleAt: now,
+                velX: 0,
+                tilt: 0,
+                tiltVel: 0,
+                frame: null,
+                settleFrame: null
             };
             layer.setPointerCapture(event.pointerId);
             layer.classList.add('dragging');
-            startDragSway();
+            applyDragHangPosition();
+            startDragMotionLoop();
         });
         layer.addEventListener('pointermove', event => {
             if (!drag || drag.pointerId !== event.pointerId) return;
             drag.pointerX = event.clientX;
             drag.pointerY = event.clientY;
-            applyDragHangPosition(true);
         });
         layer.addEventListener('pointerup', event => {
             if (!drag || drag.pointerId !== event.pointerId) return;
-            applyDragHangPosition(false);
             layer.releasePointerCapture(event.pointerId);
             layer.classList.remove('dragging');
             const x = layer.offsetLeft;
             const y = layer.offsetTop;
-            stopDragSway();
-            drag = null;
-            saveSetting('pet.position_x', String(x));
-            saveSetting('pet.position_y', String(y));
+            settleDragTilt(() => {
+                cancelDragSettle();
+                drag = null;
+                saveSetting('pet.position_x', String(x));
+                saveSetting('pet.position_y', String(y));
+            });
         });
         layer.addEventListener('pointercancel', event => {
             if (!drag || drag.pointerId !== event.pointerId) return;
             layer.releasePointerCapture(event.pointerId);
             layer.classList.remove('dragging');
-            stopDragSway();
+            cancelDragSettle();
+            stopDragMotionLoop();
             drag = null;
+            if (layer) layer.style.transform = '';
             applyPosition();
         });
         layer.addEventListener('contextmenu', event => {

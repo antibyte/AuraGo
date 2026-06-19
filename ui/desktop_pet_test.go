@@ -231,26 +231,24 @@ func TestDesktopPetDragHangsAndSwaysBelowPointer(t *testing.T) {
 		source := readDesktopAssetText(t, path)
 		for _, marker := range []string{
 			"const DRAG_HANG_OFFSET_Y = 28;",
-			"const DRAG_SWAY_MAX_X = 18;",
-			"const DRAG_SWAY_MAX_DEG = 7;",
-			"const DRAG_SWAY_PERIOD_MS = 820;",
-			"function dragHangPosition(pointerX, pointerY, swayX)",
-			"function applyDragHangPosition(sway)",
-			"function startDragSway()",
-			"function stopDragSway()",
+			"const DRAG_TILT_MAX_DEG = 14;",
+			"const DRAG_VEL_SMOOTH = 0.34;",
+			"const DRAG_TILT_GAIN = 0.11;",
+			"function dragHangPosition(pointerX, pointerY)",
+			"function stepDragPhysics(now)",
+			"function startDragMotionLoop()",
+			"function settleDragTilt(onDone)",
+			"function applyLayerTilt(deg)",
 			"pointerX: event.clientX",
 			"pointerY: event.clientY",
-			"startedAt: Date.now()",
-			"startDragSway();",
-			"drag.pointerX = event.clientX;",
-			"drag.pointerY = event.clientY;",
-			"applyDragHangPosition(false);",
-			"stopDragSway();",
-			"layer.style.transform = 'rotate(' + swayDeg.toFixed(2) + 'deg)';",
+			"lastPointerX: event.clientX",
+			"startDragMotionLoop();",
+			"settleDragTilt(() => {",
+			"-drag.velX * DRAG_TILT_GAIN",
 			"window.requestAnimationFrame(tick)",
 		} {
 			if !strings.Contains(source, marker) {
-				t.Fatalf("%s is missing dangling desktop pet drag marker %q", path, marker)
+				t.Fatalf("%s is missing desktop pet velocity drag marker %q", path, marker)
 			}
 		}
 	}
@@ -262,6 +260,9 @@ func TestDesktopPetDragHangsAndSwaysBelowPointer(t *testing.T) {
 		source := readDesktopAssetText(t, path)
 		if !strings.Contains(source, "transform-origin: 50% 0;") {
 			t.Fatalf("%s must swing the desktop pet from the top edge while dragging", path)
+		}
+		if !strings.Contains(source, ".vd-pet-layer.dragging") {
+			t.Fatalf("%s must disable transform easing while the pet is dragged", path)
 		}
 	}
 }
