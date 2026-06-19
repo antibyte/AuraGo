@@ -147,6 +147,18 @@
             if (ctx.relic_applyRelics) ctx.relic_applyRelics(ctx.G);
             // Mutation start notification
             if (ctx.G.stageModifier) { for (const _m of (Array.isArray(ctx.G.stageModifier) ? ctx.G.stageModifier : [ctx.G.stageModifier])) { if (_m && (_m.id === 'mirror_field' || _m.id === 'gravity_well' || _m.id === 'phasing' || _m.id === 'ricochet_world')) { ctx.SFX.mutationStart(); ctx.G.mutationStages = (ctx.G.mutationStages || 0) + 1; if (ctx.G.mutationStages >= 5) ctx.unlockAchievement('mutation_master'); } } }
+            // NEW: Apply stage archetype if scheduled
+            const archetypeId = GC.ARCHETYPE_SCHEDULE[(ctx.G.stage - 1) % GC.ARCHETYPE_SCHEDULE.length];
+            if (archetypeId) {
+                const arch = GC.ARCHETYPES[archetypeId];
+                ctx.G.archetype = archetypeId;
+                ctx.G.archetypeT = 0;
+                ctx.G.archetypeDur = arch.duration;
+                ctx.G.enemiesPerWave = arch.enemyCount;
+                ctx.G.puDropBoost = arch.puDropRate || 1;
+            } else {
+                ctx.G.archetype = null;
+            }
         }
 
         function updateExp(dt) {
