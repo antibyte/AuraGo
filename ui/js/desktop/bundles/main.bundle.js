@@ -1982,6 +1982,7 @@
         bubbleEl.textContent = text;
         bubbleEl.hidden = false;
         bubbleEl.className = 'vd-pet-bubble' + (type ? ' is-' + type : '');
+        bubbleEl.classList.add('is-visible');
         bubbleEl.classList.add('opening');
         setTimeout(() => bubbleEl.classList.remove('opening'), 200);
         const duration = text.length > 70 ? LONG_BUBBLE_DURATION_MS : BUBBLE_DURATION_MS;

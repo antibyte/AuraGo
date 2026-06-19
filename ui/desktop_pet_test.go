@@ -221,6 +221,42 @@ func TestDesktopPetRuntimeSchedulesAmbientAnimations(t *testing.T) {
 	}
 }
 
+func TestDesktopPetBubbleRemainsVisibleUntilHideTimer(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"js/desktop/core/pet-runtime.js",
+		"js/desktop/bundles/main.bundle.js",
+	} {
+		source := readDesktopAssetText(t, path)
+		for _, marker := range []string{
+			"bubbleEl.classList.add('is-visible');",
+			"setTimeout(() => bubbleEl.classList.remove('opening'), 200);",
+			"bubbleEl.className = 'vd-pet-bubble';",
+		} {
+			if !strings.Contains(source, marker) {
+				t.Fatalf("%s is missing persistent pet bubble visibility marker %q", path, marker)
+			}
+		}
+	}
+
+	for _, path := range []string{
+		"css/desktop-pet.css",
+		"css/desktop-shell.bundle.css",
+	} {
+		source := readDesktopAssetText(t, path)
+		for _, marker := range []string{
+			".vd-pet-bubble.is-visible,\n.vd-pet-bubble.opening",
+			"opacity: 1;",
+			"transform: translateX(-50%) translateY(0);",
+		} {
+			if !strings.Contains(source, marker) {
+				t.Fatalf("%s is missing persistent pet bubble CSS marker %q", path, marker)
+			}
+		}
+	}
+}
+
 func TestDesktopPetDragHangsAndSwaysBelowPointer(t *testing.T) {
 	t.Parallel()
 
