@@ -133,6 +133,7 @@
                 '/js/desktop/apps/galaxa-supers.js',
                 '/js/desktop/apps/galaxa-biome-transitions.js',
                 '/js/desktop/apps/galaxa-combo-ladder.js',
+                '/js/desktop/apps/galaxa-adaptive-music.js',
                 '/js/desktop/apps/galaxa-game.js',
                 '/js/desktop/apps/galaxa-deluxe.js'
             ]
