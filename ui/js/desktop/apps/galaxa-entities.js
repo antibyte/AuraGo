@@ -341,11 +341,15 @@
         }
         function addScore(pts, x, y, col) {
             const prev = ctx.G.score;
-            const multiplied = pts * ctx.G.comboMult * (ctx.G.scoreMult || 1);
+            const baseScore = pts;
+            const mult = (ctx.settings.riskIt && ctx.applyRiskItMultiplier)
+                ? ctx.applyRiskItMultiplier(ctx.G.combo)
+                : ctx.G.comboMult;
+            const multiplied = Math.floor(baseScore * mult * (ctx.G.scoreMult || 1));
             ctx.G.score += multiplied;
             if (ctx.G.score > ctx.G.hi) ctx.G.hi = ctx.G.score;
-            const text = ctx.G.comboMult > 1 ? '+' + multiplied + ' x' + ctx.G.comboMult : '+' + multiplied;
-            if (x !== undefined) ctx.G.scorePopups.push({ x, y, text, t: 0, dur: 800, col: col || '#ffcc00', big: ctx.G.comboMult > 1 });
+            const text = mult > 1 ? '+' + multiplied + ' x' + (ctx.settings.riskIt ? mult.toFixed(2) : mult) : '+' + multiplied;
+            if (x !== undefined) ctx.G.scorePopups.push({ x, y, text, t: 0, dur: 800, col: col || '#ffcc00', big: mult > 1 });
             if (Math.floor(ctx.G.score / ctx.EXTRA_LIFE) > Math.floor(prev / ctx.EXTRA_LIFE)) { ctx.G.lives++; ctx.SFX.extra(); }
             const _crb = ctx.relic_getRelicBonuses ? ctx.relic_getRelicBonuses() : { creditMult: 1 }; ctx.G.credits = Math.floor(ctx.G.credits * _crb.creditMult);
         }
