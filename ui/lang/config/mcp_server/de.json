@@ -30,5 +30,7 @@
   "config.mcp_server.general_title": "Allgemein",
   "config.mcp_server.general_desc": "Aktivieren Sie den MCP-Server und konfigurieren Sie die Grundeinstellungen.",
   "config.mcp_server.connection_title": "Verbindung",
-  "config.mcp_server.connection_desc": "Endpunkt- und Authentifizierungseinstellungen für den MCP-Server."
+  "config.mcp_server.connection_desc": "Endpunkt- und Authentifizierungseinstellungen für den MCP-Server.",
+  "config.mcp_server.enabled_help": "Stellt AuraGos eingebauten MCP-Server-Endpunkt bereit.",
+  "config.mcp_server.require_auth_help": "Verlangt von Clients ein MCP-Zugriffstoken, bevor Tools freigegeben werden."
 }

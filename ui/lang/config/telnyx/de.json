@@ -43,5 +43,6 @@
   "config.telnyx.status_no_credentials": "Telnyx API-Schlüssel fehlt",
   "config.telnyx.status_ok": "Mit Telnyx verbunden",
   "config.telnyx.status_success": "✅",
-  "config.telnyx.status_error": "❌"
+  "config.telnyx.status_error": "❌",
+  "help.telnyx.voice_language": "Standard-Sprachcode für Telnyx-Sprachansagen und Anruftranskription."
 }

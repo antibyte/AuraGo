@@ -30,5 +30,7 @@
   "config.mcp_server.general_title": "Obecné",
   "config.mcp_server.general_desc": "Povolte MCP server a nakonfigurujte základní nastavení.",
   "config.mcp_server.connection_title": "Připojení",
-  "config.mcp_server.connection_desc": "Nastavení endpointu a ověřování pro MCP server."
+  "config.mcp_server.connection_desc": "Nastavení endpointu a ověřování pro MCP server.",
+  "config.mcp_server.enabled_help": "Exposes AuraGo's built-in MCP server endpoint.",
+  "config.mcp_server.require_auth_help": "Requires clients to use an MCP access token before tools are exposed."
 }

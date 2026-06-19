@@ -53,5 +53,6 @@
   "config.tts.piper_status_disabled": "⚪ O Piper está desativado",
   "config.tts.piper_status_running": "🟢 Piper está em execução",
   "config.tts.piper_status_stopped": "🟡 Piper está parado",
-  "config.tts.piper_status_error": "🔴 Erro do Piper"
+  "config.tts.piper_status_error": "🔴 Erro do Piper",
+  "config.tts.language_custom_help": "Use Personalizado apenas quando seu provedor TTS exigir um código de idioma fora da lista."
 }

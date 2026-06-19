@@ -43,5 +43,6 @@
   "config.telnyx.status_no_credentials": "Chave API Telnyx em falta",
   "config.telnyx.status_ok": "Ligado ao Telnyx",
   "config.telnyx.status_success": "✅",
-  "config.telnyx.status_error": "❌"
+  "config.telnyx.status_error": "❌",
+  "help.telnyx.voice_language": "Código de idioma padrão para prompts de voz e transcrição de chamadas da Telnyx."
 }

@@ -53,5 +53,6 @@
   "config.tts.piper_status_disabled": "⚪ Piper är inaktiverat",
   "config.tts.piper_status_running": "🟢 Piper körs",
   "config.tts.piper_status_stopped": "🟡 Piper är stoppad",
-  "config.tts.piper_status_error": "🔴 Piper-fel"
+  "config.tts.piper_status_error": "🔴 Piper-fel",
+  "config.tts.language_custom_help": "Använd Anpassad endast om din TTS-leverantör kräver en språkkod som inte finns i listan."
 }

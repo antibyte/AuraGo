@@ -53,5 +53,6 @@
   "config.tts.piper_status_disabled": "⚪ Piper 已禁用",
   "config.tts.piper_status_running": "🟢 Piper 正在运行",
   "config.tts.piper_status_stopped": "🟡 Piper 已停止",
-  "config.tts.piper_status_error": "🔴 Piper 错误"
+  "config.tts.piper_status_error": "🔴 Piper 错误",
+  "config.tts.language_custom_help": "仅当你的 TTS 提供商需要列表外的语言代码时才使用自定义。"
 }

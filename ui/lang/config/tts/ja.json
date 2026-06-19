@@ -53,5 +53,6 @@
   "config.tts.piper_status_disabled": "⚪ Piperは無効です",
   "config.tts.piper_status_running": "🟢 Piper は実行中です",
   "config.tts.piper_status_stopped": "🟡 Piper は停止しています",
-  "config.tts.piper_status_error": "🔴 Piperエラー"
+  "config.tts.piper_status_error": "🔴 Piperエラー",
+  "config.tts.language_custom_help": "TTS プロバイダーが一覧外の言語コードを必要とする場合のみカスタムを使います。"
 }

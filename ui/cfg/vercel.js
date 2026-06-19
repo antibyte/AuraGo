@@ -47,7 +47,10 @@ async function renderVercelSection(section) {
     }
 
     html += `<div class="cfg-toggle-row-highlight">
-        <span class="cfg-toggle-label">${t('config.vercel.enabled_label')}</span>
+        <div class="cfg-toggle-copy">
+            <span class="cfg-toggle-label">${t('config.vercel.enabled_label')}</span>
+            <div class="field-help">${t('config.vercel.enabled_help')}</div>
+        </div>
         <div class="toggle ${enabled ? 'on' : ''}" data-path="vercel.enabled" onclick="toggleBool(this)"></div>
     </div>`;
 
@@ -68,27 +71,42 @@ async function renderVercelSection(section) {
 
     html += `<div class="cfg-toggle-row-compact">
         <div class="toggle ${cfg.readonly ? 'on' : ''}" data-path="vercel.readonly" onclick="toggleBool(this)"></div>
-        <span class="cfg-toggle-label">${t('config.vercel.readonly')}</span>
+        <div class="cfg-toggle-copy">
+            <span class="cfg-toggle-label">${t('config.vercel.readonly')}</span>
+            <div class="field-help">${t('config.vercel.readonly_help')}</div>
+        </div>
     </div>`;
 
     html += `<div class="cfg-toggle-row-compact">
         <div class="toggle ${cfg.allow_deploy !== false ? 'on' : ''}" data-path="vercel.allow_deploy" onclick="toggleBool(this)"></div>
-        <span class="cfg-toggle-label">${t('config.vercel.allow_deploy')}</span>
+        <div class="cfg-toggle-copy">
+            <span class="cfg-toggle-label">${t('config.vercel.allow_deploy')}</span>
+            <div class="field-help">${t('config.vercel.allow_deploy_help')}</div>
+        </div>
     </div>`;
 
     html += `<div class="cfg-toggle-row-compact">
         <div class="toggle ${cfg.allow_project_management ? 'on' : ''}" data-path="vercel.allow_project_management" onclick="toggleBool(this)"></div>
-        <span class="cfg-toggle-label">${t('config.vercel.allow_project_management')}</span>
+        <div class="cfg-toggle-copy">
+            <span class="cfg-toggle-label">${t('config.vercel.allow_project_management')}</span>
+            <div class="field-help">${t('config.vercel.allow_project_management_help')}</div>
+        </div>
     </div>`;
 
     html += `<div class="cfg-toggle-row-compact">
         <div class="toggle ${cfg.allow_env_management ? 'on' : ''}" data-path="vercel.allow_env_management" onclick="toggleBool(this)"></div>
-        <span class="cfg-toggle-label">${t('config.vercel.allow_env_management')}</span>
+        <div class="cfg-toggle-copy">
+            <span class="cfg-toggle-label">${t('config.vercel.allow_env_management')}</span>
+            <div class="field-help">${t('config.vercel.allow_env_management_help')}</div>
+        </div>
     </div>`;
 
     html += `<div class="cfg-toggle-row-compact">
         <div class="toggle ${cfg.allow_domain_management ? 'on' : ''}" data-path="vercel.allow_domain_management" onclick="toggleBool(this)"></div>
-        <span class="cfg-toggle-label">${t('config.vercel.allow_domain_management')}</span>
+        <div class="cfg-toggle-copy">
+            <span class="cfg-toggle-label">${t('config.vercel.allow_domain_management')}</span>
+            <div class="field-help">${t('config.vercel.allow_domain_management_help')}</div>
+        </div>
     </div>`;
 
     html += `</div>`;
@@ -101,16 +119,19 @@ async function renderVercelSection(section) {
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.vercel.default_project_id')}</div>
+        <div class="field-help">${t('config.vercel.default_project_id_help')}</div>
         <input class="field-input" type="text" data-path="vercel.default_project_id" value="${escapeAttr(cfg.default_project_id || '')}" placeholder="prj_xxxxxxxxxxxxxxxxxxxxxxxxx">
     </div>`;
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.vercel.team_id')}</div>
+        <div class="field-help">${t('config.vercel.team_id_help')}</div>
         <input class="field-input" type="text" data-path="vercel.team_id" value="${escapeAttr(cfg.team_id || '')}" placeholder="team_xxxxxxxxxxxxxxxxxxxxxxxxx">
     </div>`;
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.vercel.team_slug')}</div>
+        <div class="field-help">${t('config.vercel.team_slug_help')}</div>
         <input class="field-input" type="text" data-path="vercel.team_slug" value="${escapeAttr(cfg.team_slug || '')}" placeholder="my-team">
     </div>`;
 

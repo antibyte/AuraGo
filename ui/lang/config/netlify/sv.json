@@ -83,5 +83,12 @@
   "config.updates.installing": "Installerar…",
   "config.updates.running": "Kör…",
   "config.web_scraper.summary_mode": "Sammanfattningsläge",
-  "config.webdav.secret_empty": "Värdet är tomt"
+  "config.webdav.secret_empty": "Värdet är tomt",
+  "config.netlify.enabled_help": "Allows AuraGo to connect to Netlify with the stored token.",
+  "config.netlify.readonly_help": "Allows reading Netlify data but blocks deploy, create, update, and delete actions.",
+  "config.netlify.allow_deploy_help": "Permits site deploys and deploy rollbacks when read-only mode is off.",
+  "config.netlify.allow_site_management_help": "Permits creating, updating, and deleting Netlify sites.",
+  "config.netlify.allow_env_management_help": "Permits managing environment variables on Netlify sites.",
+  "config.netlify.default_site_id_help": "Optional site ID used when the agent does not name a site.",
+  "config.netlify.team_slug_help": "Optional Netlify team slug used for team-scoped API calls."
 }

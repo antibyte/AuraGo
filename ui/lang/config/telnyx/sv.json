@@ -43,5 +43,6 @@
   "config.telnyx.status_no_credentials": "Telnyx API-nyckel saknas",
   "config.telnyx.status_ok": "Ansluten till Telnyx",
   "config.telnyx.status_success": "✅",
-  "config.telnyx.status_error": "❌"
+  "config.telnyx.status_error": "❌",
+  "help.telnyx.voice_language": "Standardspråkkod för Telnyx röstmeddelanden och samtalstranskribering."
 }

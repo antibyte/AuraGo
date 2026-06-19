@@ -30,5 +30,7 @@
   "config.mcp_server.general_title": "Geral",
   "config.mcp_server.general_desc": "Ative o servidor MCP e configure as definições básicas.",
   "config.mcp_server.connection_title": "Conexão",
-  "config.mcp_server.connection_desc": "Configurações de endpoint e autenticação para o servidor MCP."
+  "config.mcp_server.connection_desc": "Configurações de endpoint e autenticação para o servidor MCP.",
+  "config.mcp_server.enabled_help": "Exposes AuraGo's built-in MCP server endpoint.",
+  "config.mcp_server.require_auth_help": "Requires clients to use an MCP access token before tools are exposed."
 }

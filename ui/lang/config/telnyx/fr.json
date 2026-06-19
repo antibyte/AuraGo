@@ -43,5 +43,6 @@
   "config.telnyx.status_no_credentials": "Clé API Telnyx manquante",
   "config.telnyx.status_ok": "Connecté à Telnyx",
   "config.telnyx.status_success": "✅",
-  "config.telnyx.status_error": "❌"
+  "config.telnyx.status_error": "❌",
+  "help.telnyx.voice_language": "Code langue par défaut pour les messages vocaux Telnyx et la transcription d’appels."
 }

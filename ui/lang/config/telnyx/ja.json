@@ -43,5 +43,6 @@
   "config.telnyx.status_no_credentials": "Telnyx APIキーがありません",
   "config.telnyx.status_ok": "Telnyxに接続済み",
   "config.telnyx.status_success": "✅",
-  "config.telnyx.status_error": "❌"
+  "config.telnyx.status_error": "❌",
+  "help.telnyx.voice_language": "Telnyx の音声案内と通話文字起こしに使う既定の言語コードです。"
 }

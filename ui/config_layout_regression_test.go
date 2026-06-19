@@ -602,6 +602,96 @@ func TestConfigPhase3AIGateway(t *testing.T) {
 	}
 }
 
+func TestConfigFieldDescriptionsAndDropdownUXCoverage(t *testing.T) {
+	t.Parallel()
+
+	checks := map[string][]string{
+		"cfg/cloudflare_tunnel.js": {
+			"config.cloudflare_tunnel.enabled_help",
+			"config.cloudflare_tunnel.readonly_help",
+			"config.cloudflare_tunnel.auto_start_help",
+			"config.cloudflare_tunnel.mode_help",
+			"config.cloudflare_tunnel.auth_method_help",
+			"config.cloudflare_tunnel.tunnel_name_help",
+			"config.cloudflare_tunnel.account_id_help",
+			"config.cloudflare_tunnel.metrics_port_help",
+			"config.cloudflare_tunnel.log_level_help",
+			"config.cloudflare_tunnel.expose_target_help",
+			"config.cloudflare_tunnel.token_hint",
+		},
+		"cfg/mcp_server.js": {
+			"config.mcp_server.enabled_help",
+			"config.mcp_server.vscode_bridge_desc",
+			"config.mcp_server.require_auth_help",
+			"config.mcp_server.allowed_tools_desc",
+		},
+		"cfg/netlify.js": {
+			"config.netlify.enabled_help",
+			"config.netlify.readonly_help",
+			"config.netlify.allow_deploy_help",
+			"config.netlify.allow_site_management_help",
+			"config.netlify.allow_env_management_help",
+			"config.netlify.default_site_id_help",
+			"config.netlify.team_slug_help",
+		},
+		"cfg/onedrive.js": {
+			"config.onedrive.enabled_help",
+			"config.onedrive.readonly_hint",
+			"config.onedrive.client_id_hint",
+			"config.onedrive.tenant_id_hint",
+		},
+		"cfg/vercel.js": {
+			"config.vercel.enabled_help",
+			"config.vercel.readonly_help",
+			"config.vercel.allow_deploy_help",
+			"config.vercel.allow_project_management_help",
+			"config.vercel.allow_env_management_help",
+			"config.vercel.allow_domain_management_help",
+			"config.vercel.default_project_id_help",
+			"config.vercel.team_id_help",
+			"config.vercel.team_slug_help",
+		},
+	}
+
+	for file, markers := range checks {
+		content := normalizeAssetText(mustReadUIFile(t, file))
+		for _, marker := range markers {
+			if !strings.Contains(content, marker) {
+				t.Fatalf("%s missing field description marker %q", file, marker)
+			}
+		}
+	}
+
+	ttsJS := normalizeAssetText(mustReadUIFile(t, "cfg/tts.js"))
+	for _, marker := range []string{
+		"ttsLanguageSelect('tts.language'",
+		`<select class="field-select" data-path="`,
+		"config.tts.language_custom_help",
+		`data-custom-for="`,
+	} {
+		if !strings.Contains(ttsJS, marker) {
+			t.Fatalf("tts.js missing language dropdown marker %q", marker)
+		}
+	}
+	if strings.Contains(ttsJS, `<input class="field-input" type="text" data-path="tts.language"`) {
+		t.Fatal("tts.language should be a dropdown with custom fallback, not a free text field")
+	}
+
+	telnyxJS := normalizeAssetText(mustReadUIFile(t, "cfg/telnyx.js"))
+	for _, marker := range []string{
+		`<select class="field-select" data-path="telnyx.voice_language"`,
+		"help.telnyx.voice_language",
+		`data-custom-for="telnyx.voice_language"`,
+	} {
+		if !strings.Contains(telnyxJS, marker) {
+			t.Fatalf("telnyx.js missing voice language dropdown marker %q", marker)
+		}
+	}
+	if strings.Contains(telnyxJS, `<input class="field-input" type="text" data-path="telnyx.voice_language"`) {
+		t.Fatal("telnyx.voice_language should be a dropdown with custom fallback, not a free text field")
+	}
+}
+
 func TestConfigManifestDograhAvoidEmbeddedFallbackTables(t *testing.T) {
 	t.Parallel()
 

@@ -48,5 +48,17 @@
   "config.cloudflare_tunnel.status_disabled": "Cloudflare Tunnel ist deaktiviert",
   "config.cloudflare_tunnel.status_running": "Tunnel läuft",
   "config.cloudflare_tunnel.status_stopped": "Tunnel läuft nicht",
-  "config.cloudflare_tunnel.status_error": "Tunnelstatus konnte nicht geladen werden"
+  "config.cloudflare_tunnel.status_error": "Tunnelstatus konnte nicht geladen werden",
+  "config.cloudflare_tunnel.enabled_help": "Aktiviert die Cloudflare-Tunnel-Verwaltung für AuraGo.",
+  "config.cloudflare_tunnel.readonly_help": "Beschränkt die Integration auf Statusprüfungen und blockiert Tunneländerungen.",
+  "config.cloudflare_tunnel.auto_start_help": "Startet cloudflared automatisch, wenn AuraGo startet.",
+  "config.cloudflare_tunnel.mode_help": "Wähle aus, ob AuraGo Docker, eine native Binärdatei oder automatische Erkennung nutzt.",
+  "config.cloudflare_tunnel.auth_method_help": "Wähle aus, wie sich der Tunnel bei Cloudflare authentifiziert.",
+  "config.cloudflare_tunnel.tunnel_name_help": "Name des benannten Tunnels in Cloudflare. Nur für benannte Tunnel nötig.",
+  "config.cloudflare_tunnel.account_id_help": "Optionale Cloudflare-Konto-ID für benannte Tunnelvorgänge.",
+  "config.cloudflare_tunnel.metrics_port_help": "Lokaler Metrik-Port für cloudflared. 0 deaktiviert Metriken.",
+  "config.cloudflare_tunnel.log_level_help": "Steuert, wie ausführlich AuraGo cloudflared-Protokolle speichert.",
+  "config.cloudflare_tunnel.expose_web_ui_help": "Leitet die AuraGo-Web-UI durch den Tunnel.",
+  "config.cloudflare_tunnel.expose_homepage_help": "Leitet den Homepage-Webserver durch den Tunnel.",
+  "config.cloudflare_tunnel.expose_target_help": "Wähle den einzelnen lokalen Dienst für Token- oder Quick-Tunnel."
 }

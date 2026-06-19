@@ -31,5 +31,14 @@
   "config.vercel.token_empty": "Por favor ingrese un token",
   "config.vercel.token_label": "Token de acceso personal",
   "config.vercel.token_saved": "Token guardado en el vault",
-  "config.vercel.token_title": "Token de API"
+  "config.vercel.token_title": "Token de API",
+  "config.vercel.enabled_help": "Permite a AuraGo conectarse a Vercel con el token guardado.",
+  "config.vercel.readonly_help": "Permite leer datos de Vercel, pero bloquea despliegues y cambios.",
+  "config.vercel.allow_deploy_help": "Permite despliegues de proyectos cuando el modo solo lectura está desactivado.",
+  "config.vercel.allow_project_management_help": "Permite crear, actualizar y eliminar proyectos de Vercel.",
+  "config.vercel.allow_env_management_help": "Permite gestionar variables de entorno de proyectos Vercel.",
+  "config.vercel.allow_domain_management_help": "Permite añadir, actualizar y eliminar dominios de Vercel.",
+  "config.vercel.default_project_id_help": "ID de proyecto opcional usado cuando el agente no indica uno.",
+  "config.vercel.team_id_help": "ID opcional del equipo de Vercel para llamadas API del equipo.",
+  "config.vercel.team_slug_help": "Slug opcional del equipo de Vercel para llamadas API del equipo."
 }

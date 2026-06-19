@@ -83,5 +83,12 @@
   "config.updates.installing": "Installiere…",
   "config.updates.running": "Läuft…",
   "config.web_scraper.summary_mode": "Zusammenfassungsmodus",
-  "config.webdav.secret_empty": "Wert ist leer"
+  "config.webdav.secret_empty": "Wert ist leer",
+  "config.netlify.enabled_help": "Erlaubt AuraGo, sich mit dem gespeicherten Token mit Netlify zu verbinden.",
+  "config.netlify.readonly_help": "Erlaubt das Lesen von Netlify-Daten, blockiert aber Deploys sowie Erstellen, Ändern und Löschen.",
+  "config.netlify.allow_deploy_help": "Erlaubt Site-Deploys und Rollbacks, wenn der Nur-Lesen-Modus aus ist.",
+  "config.netlify.allow_site_management_help": "Erlaubt das Erstellen, Ändern und Löschen von Netlify-Sites.",
+  "config.netlify.allow_env_management_help": "Erlaubt das Verwalten von Umgebungsvariablen auf Netlify-Sites.",
+  "config.netlify.default_site_id_help": "Optionale Site-ID, wenn der Agent keine Site nennt.",
+  "config.netlify.team_slug_help": "Optionaler Netlify-Team-Slug für teambezogene API-Aufrufe."
 }

@@ -75,5 +75,6 @@
   "config.updates.running": "Kör…",
   "config.web_scraper.summary_mode": "Sammanfattningsläge",
   "config.webdav.secret_empty": "Värdet är tomt",
-  "config.onedrive.disconnect_confirm_title": "Koppla från OneDrive?"
+  "config.onedrive.disconnect_confirm_title": "Koppla från OneDrive?",
+  "config.onedrive.enabled_help": "Aktiverar OneDrive-filåtkomst när Microsoft-auktoriseringen är klar."
 }

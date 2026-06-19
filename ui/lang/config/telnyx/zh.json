@@ -43,5 +43,6 @@
   "config.telnyx.status_no_credentials": "缺少 Telnyx API 密钥",
   "config.telnyx.status_ok": "已连接到 Telnyx",
   "config.telnyx.status_success": "✅",
-  "config.telnyx.status_error": "❌"
+  "config.telnyx.status_error": "❌",
+  "help.telnyx.voice_language": "Telnyx 语音提示和通话转写使用的默认语言代码。"
 }

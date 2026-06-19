@@ -12,6 +12,7 @@ async function renderOneDriveSection(section) {
     // ── Enabled toggle ──
     html += `<div class="field-group">
         <div class="field-label">${t('config.onedrive.enabled_label')}</div>
+        <div class="field-help">${t('config.onedrive.enabled_help')}</div>
         <div class="toggle-wrap">
             <div class="toggle${enabledOn ? ' on' : ''}" data-path="onedrive.enabled" onclick="toggleBool(this)"></div>
             <span class="toggle-label">${enabledOn ? t('config.toggle.active') : t('config.toggle.inactive')}</span>
@@ -21,7 +22,7 @@ async function renderOneDriveSection(section) {
     // ── Read-Only toggle ──
     html += `<div class="field-group">
         <div class="field-label">${t('config.onedrive.readonly_label')}</div>
-        <div class="field-hint">${t('config.onedrive.readonly_hint')}</div>
+        <div class="field-help">${t('config.onedrive.readonly_hint')}</div>
         <div class="toggle-wrap">
             <div class="toggle${readonlyOn ? ' on' : ''}" data-path="onedrive.readonly" onclick="toggleBool(this)"></div>
             <span class="toggle-label">${readonlyOn ? t('config.toggle.active') : t('config.toggle.inactive')}</span>
@@ -38,14 +39,14 @@ async function renderOneDriveSection(section) {
     // Client ID
     html += `<div class="field-group">
         <div class="field-label">${t('config.onedrive.client_id_label')}</div>
-        <div class="field-hint">${t('config.onedrive.client_id_hint')}</div>
+        <div class="field-help">${t('config.onedrive.client_id_hint')}</div>
         <input class="field-input" type="text" data-path="onedrive.client_id" value="${escapeAttr(data.client_id || '')}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
     </div>`;
 
     // Tenant ID
     html += `<div class="field-group">
         <div class="field-label">${t('config.onedrive.tenant_id_label')}</div>
-        <div class="field-hint">${t('config.onedrive.tenant_id_hint')}</div>
+        <div class="field-help">${t('config.onedrive.tenant_id_hint')}</div>
         <input class="field-input" type="text" data-path="onedrive.tenant_id" value="${escapeAttr(data.tenant_id || '')}" placeholder="common">
     </div>`;
 

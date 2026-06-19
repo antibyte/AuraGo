@@ -646,6 +646,11 @@ select.cfg-input option {
     padding: 0.4rem 0;
 }
 
+.cfg-toggle-copy {
+    flex: 1;
+    min-width: 0;
+}
+
 .cfg-toggle-label {
     font-size: 0.82rem;
     color: var(--text-secondary);
@@ -4019,6 +4024,11 @@ select.cfg-input option {
     background: var(--bg-tertiary);
 }
 
+.cft-toggle-copy {
+    flex: 1;
+    min-width: 0;
+}
+
 .cft-toggle-row-exposure {
     margin: 0.6rem 0;
 }
@@ -4078,6 +4088,11 @@ select.cfg-input option {
     padding: 0.6rem 1rem;
     border-radius: 8px;
     background: var(--bg-tertiary);
+}
+
+.mcp-srv-toggle-copy {
+    flex: 1;
+    min-width: 0;
 }
 
 .mcp-srv-toggle-label {
