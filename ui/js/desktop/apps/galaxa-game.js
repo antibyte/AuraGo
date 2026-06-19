@@ -301,6 +301,7 @@
                     if (ctx.startSuper) ctx.startSuper();
                 }
                 if (ctx.updateSupers) ctx.updateSupers(dt);
+                if (ctx.updateBiomeTransitions) ctx.updateBiomeTransitions(dt);
                 // NEW: Bonus sub-stage auto-advance when timer hits zero (no death penalty)
                 if (ctx.G.bonusStage && ctx.G.bonusStageT <= 0 && ctx.G.stageClearLock <= 0) {
                     ctx.G.bonusStage = false;

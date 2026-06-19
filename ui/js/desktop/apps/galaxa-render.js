@@ -169,6 +169,7 @@
             else if (ctx.G.st === 'PAUSED') { ctx.renderGame(); ctx.renderPause(); }
             else if (ctx.G.st === 'SHOP') ctx.renderShop();
             else ctx.renderGame();
+            if (ctx.drawBiomeTransition) ctx.drawBiomeTransition(ctx.c, ctx.G);
             ctx.c.restore();
             if (zoom !== 1 || camX !== 0 || camY !== 0) {
                 ctx.c.restore();
