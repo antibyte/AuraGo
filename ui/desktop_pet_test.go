@@ -312,6 +312,27 @@ func TestDesktopPetSayWaitsForHydratedLayer(t *testing.T) {
 	}
 }
 
+func TestDesktopPetContextMenuUsesSymbolFallbacksForToggleIcons(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"js/desktop/core/pet-runtime.js",
+		"js/desktop/bundles/main.bundle.js",
+	} {
+		source := readDesktopAssetText(t, path)
+		for _, marker := range []string{
+			"const petVisible = petEnabled();",
+			"const petOnTop = petAlwaysOnTop();",
+			"fallback: petVisible ? '\\u2713' : '\\u2610'",
+			"fallback: petOnTop ? '\\u2713' : '\\u2610'",
+		} {
+			if !strings.Contains(source, marker) {
+				t.Fatalf("%s is missing pet context menu symbol fallback marker %q", path, marker)
+			}
+		}
+	}
+}
+
 func TestDesktopPetDragHangsAndSwaysBelowPointer(t *testing.T) {
 	t.Parallel()
 

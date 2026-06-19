@@ -2193,11 +2193,13 @@
     }
 
     function showPetContextMenu(event) {
+        const petVisible = petEnabled();
+        const petOnTop = petAlwaysOnTop();
         const items = [
             { label: t('desktop.pet_open_picker', 'Choose pet...'), icon: 'heart', action: () => openApp('pet-picker') },
             { separator: true },
-            { label: t('desktop.pet_enabled', 'Show pet'), icon: petEnabled() ? 'check-square' : 'square', action: toggleEnabled },
-            { label: t('desktop.pet_always_on_top', 'Always on top'), icon: petAlwaysOnTop() ? 'check-square' : 'square', action: toggleAlwaysOnTop },
+            { label: t('desktop.pet_enabled', 'Show pet'), icon: petVisible ? 'check-square' : 'square', fallback: petVisible ? '\u2713' : '\u2610', action: toggleEnabled },
+            { label: t('desktop.pet_always_on_top', 'Always on top'), icon: petOnTop ? 'check-square' : 'square', fallback: petOnTop ? '\u2713' : '\u2610', action: toggleAlwaysOnTop },
             { separator: true },
             { label: t('desktop.pet_hide_bubble', 'Hide bubble'), icon: 'x', action: hideBubble }
         ];
