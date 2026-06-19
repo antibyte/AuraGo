@@ -93,6 +93,7 @@
         GC.createRenderHUD(gameCtx);
         GC.createSupers(gameCtx);
         GC.createBiomeTransitions(gameCtx);
+        GC.createComboLadder(gameCtx);
         GC.createGame(gameCtx);
         GC.createShop(gameCtx);
         GC.createRelics(gameCtx);
