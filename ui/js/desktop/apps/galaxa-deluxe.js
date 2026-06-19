@@ -91,6 +91,7 @@
         GC.createRenderEffects(gameCtx);
         GC.createRenderStage(gameCtx);
         GC.createRenderHUD(gameCtx);
+        GC.createSupers(gameCtx);
         GC.createGame(gameCtx);
         GC.createShop(gameCtx);
         GC.createRelics(gameCtx);
