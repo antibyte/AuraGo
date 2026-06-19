@@ -385,7 +385,7 @@ func DefaultCatalog() []CatalogEntry {
 			Image:        "openscad/openscad:latest",
 			Icon:         "openscad",
 			LogoSlug:     "openscad",
-			LogoURL:      logoURL("openscad"),
+			LogoURL:      "",
 			Runtime:      RuntimeNativeManagedApp,
 			DesktopAppID: "openscad",
 			Metadata: map[string]string{

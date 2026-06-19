@@ -72,6 +72,9 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 			if entry.DesktopAppID != "openscad" {
 				t.Fatalf("openscad desktop app id = %q, want openscad", entry.DesktopAppID)
 			}
+			if entry.LogoURL != "" {
+				t.Fatalf("openscad logo URL = %q, want empty because desktop themes provide the icon", entry.LogoURL)
+			}
 			if entry.Metadata["native_runtime"] != "openscad" || entry.Metadata["open_maximized"] != "true" {
 				t.Fatalf("openscad metadata = %#v, want native runtime and maximized app", entry.Metadata)
 			}
