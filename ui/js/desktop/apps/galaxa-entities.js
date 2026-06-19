@@ -390,6 +390,10 @@
         function registerKill() {
             ctx.G.combo++;
             ctx.G.comboTimer = getComboTimeout();
+            // NEW: Fill super meter on kill (only when no super is active)
+            if (ctx.G.superPhase === 'idle') {
+                ctx.G.superMeter = Math.min(100, (ctx.G.superMeter || 0) + 5);
+            }
             if (ctx.G.combo >= 15) ctx.unlockAchievement('combo_king');
             if (ctx.G.combo >= 30) ctx.unlockAchievement('combo_god');
             let level = 0;
@@ -909,9 +913,6 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             if (ctx.G.killCount === 1) ctx.unlockAchievement('first_blood');
                             if (ctx.G.activePU && ctx.G.activePU.type === 'chain_lightning') ctx.G._chainLightningTarget = e;
                             ctx.G.weaponXP += (e.type === 'boss' ? 3 : e.type === 'miniboss' ? 2 : e.st === 'DIVING' ? 1.5 : 1);
-                            // NEW: Super meter gain from kills + combat text
-                            const _meterGain = ctx.SUPER_METER_GAIN.kill + (e.st === 'DIVING' ? ctx.SUPER_METER_GAIN.headshot : 0) + (ctx.G.combo > 5 ? ctx.SUPER_METER_GAIN.combo : 0);
-                            ctx.G.superMeter = Math.min(ctx.SUPER_COST, (ctx.G.superMeter || 0) + _meterGain);
                             // NEW: Floating combat text — damage on hit, crit on headshot/weakpoint
                             if (e.weakPoint && Math.hypot(b.x - (e.x + e.weakPoint.x), b.y - (e.y + e.weakPoint.y)) < 6) {
                                 ctx.G.combatText.push({ x: e.x, y: e.y - 12, text: 'CRIT!', t: 0, dur: 600, col: '#ff4444', big: true });
