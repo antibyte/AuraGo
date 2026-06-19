@@ -38,6 +38,10 @@
         'shield+magnet': { name: 'Aegis', col: '#88aaff', desc: 'Shield reflects bullets + pulls powerups' },
         'laser+timeslow': { name: 'Chrono-Beam', col: '#cc88ff', desc: 'Laser slows hit enemies' },
         'drone+ricochet': { name: 'Bouncer', col: '#66ffaa', desc: 'Drone bullets bounce off walls' }
+        ,
+        'rapid+speed': { name: 'BLITZ', col: '#ffff44', desc: '3x fire rate + 1.5x movement' },
+        'pierce+laser': { name: 'ANNIHILATOR', col: '#ff44aa', desc: 'Laser pierces all + 50% damage' },
+        'magnet+orbital_shield': { name: 'GRAVITY WELL', col: '#88ddff', desc: 'Shields attract powerups' }
     };
 
     GC.COMBO_TIMEOUT = 2000;
