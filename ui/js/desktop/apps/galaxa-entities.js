@@ -559,18 +559,21 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
             if (!ctx.G.p.alive) {
                 if (ctx.G.p.reviveTimer > 0 && ctx.G.st === 'PLAYING') {
                     ctx.G.p.reviveTimer -= dt * 1000;
-                    if (ctx.G.p.reviveTimer <= 0) { ctx.G.p.x = ctx.W / 2; ctx.G.p.alive = true; ctx.G.p.inv = 3000; ctx.G.p.reviveTimer = 0; ctx.SFX.respawn(); }
+                    if (ctx.G.p.reviveTimer <= 0) { ctx.G.p.x = ctx.W / 2; ctx.G.p.y = ctx.H - 50; ctx.G.p.alive = true; ctx.G.p.inv = 3000; ctx.G.p.reviveTimer = 0; ctx.SFX.respawn(); }
                 }
                 return;
             }
             const inp = ctx.G.inp;
             const baseSpd = ctx.getShipSpeed();
             const spd = ctx.G.activePU && (ctx.G.activePU.type === 'speed' || ctx.G.activePU.type === 'hyper_speed') ? baseSpd * (ctx.G.activePU.type === 'hyper_speed' ? 2.2 : 1.8) : baseSpd;
+            const vspd = spd * ctx.PLAYER_VERTICAL_SPEED_MULT;
             if (inp.l) ctx.G.p.x -= spd * dt; if (inp.r) ctx.G.p.x += spd * dt;
+            if (inp.u) ctx.G.p.y -= vspd * dt; if (inp.d) ctx.G.p.y += vspd * dt;
             ctx.G.p.x = Math.max(10, Math.min(ctx.W - 10, ctx.G.p.x));
+            ctx.G.p.y = Math.max(ctx.PLAYER_Y_MIN, Math.min(ctx.PLAYER_Y_MAX, ctx.G.p.y));
             if (ctx.G.p.inv > 0) ctx.G.p.inv -= dt * 1000;
             if (inp.f && ctx.G.st === 'PLAYING') ctx.fire(now);
-            if (ctx.G.beam && ctx.G.beam.active && ctx.G.p.x > ctx.G.beam.x - 20 && ctx.G.p.x < ctx.G.beam.x + 20 && ctx.G.p.y > ctx.G.beam.y) {
+            if (ctx.G.beam && ctx.G.beam.active && ctx.G.p.x > ctx.G.beam.x - 20 && ctx.G.p.x < ctx.G.beam.x + 20 && ctx.G.p.y > ctx.G.beam.y && ctx.G.p.y < ctx.G.beam.y + ctx.G.beam.h) {
                 if (ctx.G.p.alive) { ctx.killP(); ctx.G.beam.cap = true; ctx.G.beam.capT = 0; ctx.SFX.beam(); }
             }
             if (ctx.G.droneTimer > 0) {
@@ -1220,7 +1223,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 }
                 else if (e.st === 'RETURN') { e.x += (e.fx + ctx.G.fX - e.x) * eDt * 3; e.y += (e.fy - e.y) * eDt * 3; if (Math.abs(e.x - e.fx - ctx.G.fX) < 3 && Math.abs(e.y - e.fy) < 3) { if (ctx.G.chal) { e.st = 'DEAD'; ctx.G.chalHits++; } else e.st = 'FORM'; } }
             }
-            if (ctx.G.beam && ctx.G.beam.active) { ctx.G.beam.t += dtMs; ctx.G.beam.h = Math.min(200, ctx.G.beam.h + eDt * 300); if (ctx.G.beam.t > 3000) { ctx.G.beam.active = false; if (ctx.G.beam.cap && ctx.G.p.cap) { ctx.G.beam.owner.hasCap = true; ctx.G.p.cap = null; } } }
+            if (ctx.G.beam && ctx.G.beam.active) { ctx.G.beam.t += dtMs; ctx.G.beam.h = Math.min(Math.max(0, ctx.H - ctx.G.beam.y), ctx.G.beam.h + eDt * 300); if (ctx.G.beam.t > 3000) { ctx.G.beam.active = false; if (ctx.G.beam.cap && ctx.G.p.cap) { ctx.G.beam.owner.hasCap = true; ctx.G.p.cap = null; } } }
             ctx.G.dTmr -= dtMs;
             if (ctx.G.dTmr <= 0 && !ctx.G.chal && ctx.G.st === 'PLAYING') {
                 const fe = ctx.G.enemies.filter(e => e.st === 'FORM');

@@ -241,7 +241,7 @@
             }
 
             if (p.alive) {
-                ctx.c.save(); ctx.c.translate(p.x, p.y); ctx.c.rotate(ctx.G.shipTilt); ctx.c.translate(-p.x, -p.y);
+                ctx.c.save(); ctx.c.translate(p.x, p.y); ctx.c.rotate(ctx.G.shipTilt); ctx.c.transform(1, ctx.G.shipPitch || 0, 0, 1 - Math.abs(ctx.G.shipPitch || 0) * 0.35, 0, 0); ctx.c.translate(-p.x, -p.y);
                 const _egGlow = ctx.G.activePU && ctx.PU_COL[ctx.G.activePU.type] ? ctx.PU_COL[ctx.G.activePU.type] : '#ff6600';
                 const _egInt = 0.25 + Math.sin(ctx.tick * 0.15) * 0.15;
                 const _eglG = ctx.cachedRadialGradient(ctx.c, 'engGlow:' + _egGlow, p.x, p.y + 14, 0, 18, [[0, _egGlow + '88'], [0.5, _egGlow + '22'], [1, 'transparent']]);

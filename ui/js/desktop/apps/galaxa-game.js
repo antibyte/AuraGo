@@ -121,7 +121,7 @@
             ctx.G.orbitalShields = null; ctx.G.orbitalShieldTimer = 0;
             ctx.G.stageKills = 0; ctx.G.stageDamageTaken = 0; ctx.G.stageAccuracyShots = 0; ctx.G.stageAccuracyHits = 0;
             ctx.G.pacifistStage = true; ctx.G.overcharge = 0; ctx.G.overchargeTimer = 0;
-            ctx.G.p.x = ctx.W / 2; ctx.G.p.alive = true; ctx.G.p.inv = 2000; ctx.G.p.cap = null; ctx.G.p.dual = false; ctx.G.p.reviveTimer = 0;
+            ctx.G.p.x = ctx.W / 2; ctx.G.p.y = ctx.H - 50; ctx.G.p.alive = true; ctx.G.p.inv = 2000; ctx.G.p.cap = null; ctx.G.p.dual = false; ctx.G.p.reviveTimer = 0;
             ctx.G.stageEmptyT = 0;
             ctx.setPUClass(null);
             ctx.G.chal ? ctx.SFX.challenge() : ctx.SFX.stageClear();
@@ -204,6 +204,9 @@
             if (inp2.l) ctx.G.shipTilt = Math.max(-0.15, ctx.G.shipTilt - dt * 2);
             else if (inp2.r) ctx.G.shipTilt = Math.min(0.15, ctx.G.shipTilt + dt * 2);
             else ctx.G.shipTilt *= Math.max(0, 1 - dt * 5);
+            if (inp2.u) ctx.G.shipPitch = Math.max(-0.16, ctx.G.shipPitch - dt * 2);
+            else if (inp2.d) ctx.G.shipPitch = Math.min(0.16, ctx.G.shipPitch + dt * 2);
+            else ctx.G.shipPitch *= Math.max(0, 1 - dt * 5);
             let dlen = 0;
             for (let i = 0; i < ctx.G.deathParts.length; i++) {
                 const dp = ctx.G.deathParts[i]; dp.x += dp.vx * dt; dp.y += dp.vy * dt; dp.vy += 40 * dt; dp.rot += dt * 4; dp.t += dtMs;
@@ -230,7 +233,7 @@
             if (ctx.G.evoChoiceOpen) { ctx.updateEvoChoice(); return; }
             if (ctx.G.st === 'TITLE') {
                 ctx.G.tIdle += dt * 1000;
-                if (ctx.G.tIdle > ctx.TITLE_IDLE && !ctx.G.attract) { ctx.G.attract = true; ctx.G.aTmr = 0; ctx.G.score = 0; ctx.G.lives = ctx.diffMod('lives'); ctx.G.stage = 1; ctx.G.p.x = ctx.W / 2; ctx.G.p.alive = true; ctx.G.p.inv = 0; ctx.G.bul = []; ctx.G.ebul = []; ctx.G.exp = []; ctx.G.part = []; ctx.G.trails = []; ctx.mkFormation(); ctx.MusicEngine.play('title'); }
+                if (ctx.G.tIdle > ctx.TITLE_IDLE && !ctx.G.attract) { ctx.G.attract = true; ctx.G.aTmr = 0; ctx.G.score = 0; ctx.G.lives = ctx.diffMod('lives'); ctx.G.stage = 1; ctx.G.p.x = ctx.W / 2; ctx.G.p.y = ctx.H - 50; ctx.G.p.alive = true; ctx.G.p.inv = 0; ctx.G.bul = []; ctx.G.ebul = []; ctx.G.exp = []; ctx.G.part = []; ctx.G.trails = []; ctx.mkFormation(); ctx.MusicEngine.play('title'); }
                 if (ctx.G.attract) { ctx.updateAttract(dt); ctx.updateP(dt, now); ctx.updateBul(dt); ctx.updateE(dt); ctx.updateExp(dt); if (ctx.G.inp.s && !ctx.G.inp.sp) { ctx.G.attract = false; ctx.G.tIdle = 0; ctx.G.score = 0; ctx.G.lives = ctx.diffMod('lives'); ctx.G.stage = 1; ctx.G.p.dual = false; ctx.G.p.cap = null; ctx.G.weaponLv = 1; ctx.G.killCount = 0; ctx.G.displayScore = 0; ctx.G.deathParts = []; ctx.startStage(); ctx.MusicEngine.play('gameplay'); } }
                 else if (ctx.G.inp.s && !ctx.G.inp.sp) { ctx.SFX.coinInsert(); ctx.G.titleParts = []; ctx.G.score = 0; ctx.G.lives = ctx.diffMod('lives'); ctx.G.stage = 1; ctx.G.p.dual = false; ctx.G.p.cap = null; ctx.G.weaponLv = 1; ctx.G.killCount = 0; ctx.G.displayScore = 0; ctx.G.deathParts = []; ctx.G.collectedPU = new Set(); ctx.G.perfectCount = 0; ctx.G.bossKillTotal = 0; ctx.startStage(); ctx.MusicEngine.play('gameplay'); }
                 if (!ctx.G.attract) {
@@ -251,7 +254,7 @@
             if (ctx.G.st === 'GAME_OVER') {
                 ctx.G.sTmr -= dt * 1000; ctx.updateExp(dt);
                 if (ctx.G.contTmr > 0) { ctx.G.contTmr -= dt; ctx.G.contCnt = Math.ceil(ctx.G.contTmr); }
-                if (ctx.G.contTmr > 0 && ctx.G.inp.s && !ctx.G.inp.sp) { ctx.G.lives = ctx.diffMod('lives'); ctx.G.st = 'PLAYING'; ctx.G.p.alive = true; ctx.G.p.x = ctx.W / 2; ctx.G.p.inv = 3000; ctx.G.activePU = null; ctx.G.shieldHits = 0; ctx.G.powerups = []; ctx.G.timeScale = 1; ctx.G.freezeT = 0; ctx.G.damageVignetteT = 0; ctx.G.combo = 0; ctx.G.comboMult = 1; ctx.mkFormation(); ctx.MusicEngine.play('gameplay'); }
+                if (ctx.G.contTmr > 0 && ctx.G.inp.s && !ctx.G.inp.sp) { ctx.G.lives = ctx.diffMod('lives'); ctx.G.st = 'PLAYING'; ctx.G.p.alive = true; ctx.G.p.x = ctx.W / 2; ctx.G.p.y = ctx.H - 50; ctx.G.p.inv = 3000; ctx.G.activePU = null; ctx.G.shieldHits = 0; ctx.G.powerups = []; ctx.G.timeScale = 1; ctx.G.freezeT = 0; ctx.G.damageVignetteT = 0; ctx.G.combo = 0; ctx.G.comboMult = 1; ctx.mkFormation(); ctx.MusicEngine.play('gameplay'); }
                 if (ctx.G.sTmr <= 0 && ctx.G.contTmr <= 0) {
                     if (ctx.relic_earnShards) ctx.relic_earnShards(ctx.G.score, ctx.G.stage);
                     if (ctx.G.score > 0 && ctx.isHS(ctx.G.score)) { ctx.G.st = 'HIGH_SCORE'; ctx.G.ne = { ch: [65, 65, 65], pos: 0, done: false }; ctx.showHSOverlay(); }
@@ -439,8 +442,11 @@
                     touchJoystick.curX = (touch.clientX - rect.left) / ctx.scale;
                     touchJoystick.curY = (touch.clientY - rect.top) / ctx.scale;
                     const dx = touchJoystick.curX - touchJoystick.startX;
+                    const dy = touchJoystick.curY - touchJoystick.startY;
                     ctx.G.kb.l = dx < -8;
                     ctx.G.kb.r = dx > 8;
+                    ctx.G.kb.u = dy < -8;
+                    ctx.G.kb.d = dy > 8;
                 }
             }
         }
@@ -459,6 +465,8 @@
                     touchJoystick = null;
                     ctx.G.kb.l = false;
                     ctx.G.kb.r = false;
+                    ctx.G.kb.u = false;
+                    ctx.G.kb.d = false;
                 } else {
                     touchFire = false;
                     ctx.G.kb.f = false;

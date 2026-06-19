@@ -5,6 +5,9 @@
     GC.W = 480;
     GC.H = 640;
     GC.PLAYER_SPEED = 220;
+    GC.PLAYER_Y_MIN = 380;
+    GC.PLAYER_Y_MAX = GC.H - 30;
+    GC.PLAYER_VERTICAL_SPEED_MULT = 0.85;
     GC.PB_SPEED = 500;
     GC.EB_SPEED = 260;
     GC.FCOLS = 10;
