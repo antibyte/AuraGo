@@ -163,6 +163,23 @@
                 ctx.G.archetypeDur = arch.duration;
                 ctx.G.vipShip = { x: GC.W / 2, y: 100, hp: arch.vipHp, maxHp: arch.vipHp, w: 24, h: 24, col: arch.hue };
                 ctx.G.enemies.push(ctx.G.vipShip);
+            } else if (archetypeId === 'asteroid_field') {
+                const arch = GC.ARCHETYPES[archetypeId];
+                ctx.G.archetype = archetypeId;
+                ctx.G.archetypeT = 0;
+                ctx.G.archetypeDur = arch.duration;
+                ctx.G.asteroids = [];
+                // Spawn initial asteroids
+                for (let i = 0; i < 5; i++) {
+                    ctx.G.asteroids.push({
+                        x: Math.random() * GC.W,
+                        y: Math.random() * GC.H,
+                        vx: (Math.random() - 0.5) * 100,
+                        vy: Math.random() * 80 + 40,
+                        r: 12 + Math.random() * 8,
+                        col: arch.hue
+                    });
+                }
             } else {
                 ctx.G.archetype = null;
             }

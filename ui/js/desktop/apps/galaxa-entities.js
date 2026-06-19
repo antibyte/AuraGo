@@ -1288,6 +1288,15 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
             }
             if (ctx.G.beam && ctx.G.beam.active) { ctx.G.beam.t += dtMs; ctx.G.beam.h = Math.min(Math.max(0, ctx.H - ctx.G.beam.y), ctx.G.beam.h + eDt * 300); if (ctx.G.beam.t > 3000) { ctx.G.beam.active = false; if (ctx.G.beam.cap && ctx.G.p.cap) { ctx.G.beam.owner.hasCap = true; ctx.G.p.cap = null; } } }
             ctx.G.dTmr -= dtMs;
+            if (ctx.G.asteroids) {
+                for (let a of ctx.G.asteroids) {
+                    a.x += a.vx * dt * 0.06;
+                    a.y += a.vy * dt * 0.06;
+                    if (a.y > ctx.H + 20) { a.y = -20; a.x = Math.random() * ctx.W; }
+                    if (a.x < -20 || a.x > ctx.W + 20) a.vx *= -1;
+                }
+                ctx.G.asteroids = ctx.G.asteroids.filter(a => a.y < ctx.H + 50);
+            }
             if (ctx.G.dTmr <= 0 && !ctx.G.chal && ctx.G.st === 'PLAYING') {
                 const fe = ctx.G.enemies.filter(e => e.st === 'FORM');
                 if (fe.length) {
