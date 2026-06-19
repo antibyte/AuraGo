@@ -800,6 +800,8 @@ func TestConfigDirtyGuardAndHashNavigationMarkers(t *testing.T) {
 		"await selectSection(activeSection, { scrollBehavior: 'auto' });",
 		"resetDirtySnapshot();",
 		"if (suppressDirtyTracking) return;",
+		"const dirty = collectSnapshot() !== initialSnapshot;",
+		"setDirty(dirty);",
 		"collectSnapshot() !== initialSnapshot",
 		"t('config.unsaved_changes.title')",
 		"navigateToConfigSection(s.key);",

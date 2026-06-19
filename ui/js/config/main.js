@@ -1644,10 +1644,8 @@ async function scheduleEmbeddingsReset() {
 
 function markDirty() {
     if (suppressDirtyTracking) return;
-    if (!isDirty) {
-        isDirty = true;
-        setDirty(true);
-    }
+    const dirty = collectSnapshot() !== initialSnapshot;
+    setDirty(dirty);
 }
 
 function setDirty(dirty) {
