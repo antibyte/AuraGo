@@ -192,7 +192,11 @@
             superNovaBarrage(panX) { const _v = vv(); beep('sawtooth', 200 * pv(), 1400, 0.3, 0.45 * _v, panX); beep('square', 100, 300, 0.25, 0.25 * _v, panX); setTimeout(() => noise(0.4, 0.5 * _v, 800, panX), 250); },
             superPhaseDash(panX) { const _v = vv(); beep('sine', 300, 3000, 0.3, 0.4 * _v, panX); beep('sawtooth', 150, 2000, 0.25, 0.25 * _v, panX); setTimeout(() => noise(0.15, 0.3 * _v, 5000, panX), 200); },
             superAegisCannon(panX) { const _v = vv(); beep('sawtooth', 80, 60, 0.5, 0.6 * _v, panX); noise(0.5, 0.5 * _v, 400, panX); beep('square', 120, 80, 0.3, 0.3 * _v, panX); },
-            superShadowClone(panX) { const _v = vv(); beep('sine', 600, 1800, 0.35, 0.35 * _v, panX); beep('triangle', 900, 2400, 0.3, 0.25 * _v, panX); setTimeout(() => { beep('sine', 1200, 1200, 0.2, 0.2 * _v, panX); beep('sine', 1500, 1500, 0.2, 0.15 * _v, panX); beep('sine', 1800, 1800, 0.2, 0.12 * _v, panX); }, 150); }
+            superShadowClone(panX) { const _v = vv(); beep('sine', 600, 1800, 0.35, 0.35 * _v, panX); beep('triangle', 900, 2400, 0.3, 0.25 * _v, panX); setTimeout(() => { beep('sine', 1200, 1200, 0.2, 0.2 * _v, panX); beep('sine', 1500, 1500, 0.2, 0.15 * _v, panX); beep('sine', 1800, 1800, 0.2, 0.12 * _v, panX); }, 150); },
+            // NEW: Stage archetype cues
+            archetypeSwarmLoop() { const _v = vv(); beep('square', 100, 100, 0.1, 0.18 * _v); setTimeout(() => beep('square', 100, 100, 0.1, 0.18 * _v), 500); },
+            archetypeEscortPad() { const _v = vv(); beep('sawtooth', 110, 220, 1.0, 0.15 * _v); beep('triangle', 165, 330, 1.0, 0.1 * _v); },
+            archetypeAsteroidWarning(panX) { const _p = pv(); beep('sine', 1800 * _p, 600 * _p, 0.15, 0.25, panX); beep('triangle', 1200 * _p, 400 * _p, 0.1, 0.15, panX); }
         };
 
         const MusicEngine = {
