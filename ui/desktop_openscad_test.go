@@ -204,6 +204,21 @@ func TestDesktopOpenSCADTypedSSEPayloadIsAccepted(t *testing.T) {
 	}
 }
 
+func TestDesktopOpenSCADPartialErrorKeepsPreviewFiles(t *testing.T) {
+	t.Parallel()
+
+	app := readDesktopAssetText(t, "js/desktop/apps/openscad.js")
+	for _, want := range []string{
+		"function hasOpenSCADResultFiles",
+		"hasOpenSCADResultFiles(state.result)",
+		"state.activeTab = hasFiles ? 'files'",
+	} {
+		if !strings.Contains(app, want) {
+			t.Fatalf("OpenSCAD direct render must keep partial preview files; missing %q", want)
+		}
+	}
+}
+
 func TestDesktopOpenSCADIconsExistInBothThemes(t *testing.T) {
 	t.Parallel()
 

@@ -53,6 +53,9 @@ var (
 	openSCAD2DOnlyExportSet = map[string]struct{}{
 		"dxf": {}, "svg": {}, "pdf": {},
 	}
+	openSCAD3DOnlyExportSet = map[string]struct{}{
+		"stl": {}, "3mf": {}, "off": {}, "amf": {},
+	}
 )
 
 type OpenSCADContainerService struct {
@@ -364,6 +367,10 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 		if execResult.ExitCode != 0 {
 			if openSCADExportFailedBecause3DObject(export, execOutput) {
 				skippedExports = append(skippedExports, openSCADSkipped2DExportMessage(export))
+				continue
+			}
+			if openSCADExportFailedBecause2DObject(export, execOutput) {
+				skippedExports = append(skippedExports, openSCADSkipped3DExportMessage(export))
 				continue
 			}
 			result.ExitCode = execResult.ExitCode
@@ -783,9 +790,24 @@ func openSCADExportFailedBecause3DObject(export, output string) bool {
 		strings.Contains(normalized, "top level object is a 3d object")
 }
 
+func openSCADExportFailedBecause2DObject(export, output string) bool {
+	if _, ok := openSCAD3DOnlyExportSet[strings.ToLower(strings.TrimSpace(export))]; !ok {
+		return false
+	}
+	normalized := strings.ToLower(output)
+	return strings.Contains(normalized, "not a 3d object") ||
+		strings.Contains(normalized, "top level object is a 2d object") ||
+		strings.Contains(normalized, "current top level object is a 2d object")
+}
+
 func openSCADSkipped2DExportMessage(export string) string {
 	export = strings.ToLower(strings.TrimSpace(export))
 	return fmt.Sprintf("Skipped %s export: OpenSCAD %s export requires a 2D top-level object; the current model is 3D. Use PNG/STL/3MF/OFF/AMF/CSG for 3D models or wrap a 2D design/projection before exporting %s.", export, strings.ToUpper(export), export)
+}
+
+func openSCADSkipped3DExportMessage(export string) string {
+	export = strings.ToLower(strings.TrimSpace(export))
+	return fmt.Sprintf("Skipped %s export: OpenSCAD %s export requires a 3D top-level object; the current model is 2D. Use PNG/SVG/PDF/DXF for 2D models or extrude the design before exporting %s.", export, strings.ToUpper(export), export)
 }
 
 func openSCADContainerMatches(container CodeDockerContainer) bool {

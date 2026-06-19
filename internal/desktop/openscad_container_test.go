@@ -252,6 +252,43 @@ func TestOpenSCADRenderSkips2DOnlyExportsWhen3DOutputsSucceed(t *testing.T) {
 	}
 }
 
+func TestOpenSCADRenderSkips3DOnlyExportsWhen2DPreviewSucceeds(t *testing.T) {
+	t.Parallel()
+
+	dataDir := t.TempDir()
+	fake := &fakeOpenSCADExportDocker{
+		dataDir: dataDir,
+		failExports: map[string]CodeDockerExecResult{
+			"stl": {ExitCode: 1, Output: "Current top level object is a 2D object.\n"},
+		},
+	}
+	svc := NewOpenSCADContainerService(Config{
+		DataDir:  dataDir,
+		OpenSCAD: OpenSCADConfig{Enabled: true},
+	}, nil)
+	svc.SetDockerClient(fake)
+
+	result, err := svc.Render(context.Background(), OpenSCADRenderRequest{
+		SourceSCAD: "circle(10);",
+		ModelName:  "mixed-2d",
+		Exports:    []string{"png", "stl"},
+	})
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if result.ExitCode != 0 {
+		t.Fatalf("ExitCode = %d, want 0 for PNG preview with skipped STL export", result.ExitCode)
+	}
+	if got := openSCADFileNames(result.Files); strings.Join(got, ",") != "mixed-2d.png" {
+		t.Fatalf("files = %#v, want png only", got)
+	}
+	for _, want := range []string{"Skipped stl export", "requires a 3D top-level object"} {
+		if !strings.Contains(result.Stderr, want) {
+			t.Fatalf("stderr %q missing %q", result.Stderr, want)
+		}
+	}
+}
+
 func TestOpenSCADRenderReturnsActionableErrorWhenOnly2DExportsFailFor3D(t *testing.T) {
 	t.Parallel()
 
@@ -283,7 +320,8 @@ func TestOpenSCADRenderReturnsActionableErrorWhenOnly2DExportsFailFor3D(t *testi
 
 type fakeOpenSCADExportDocker struct {
 	fakeCodeContainerDocker
-	dataDir string
+	dataDir     string
+	failExports map[string]CodeDockerExecResult
 }
 
 func (f *fakeOpenSCADExportDocker) ExecContainer(ctx context.Context, container string, cmd []string, user string, timeout time.Duration) (CodeDockerExecResult, error) {
@@ -294,6 +332,9 @@ func (f *fakeOpenSCADExportDocker) ExecContainer(ctx context.Context, container 
 	}
 	outputPath := openSCADOutputArg(cmd)
 	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(outputPath), "."))
+	if fail, ok := f.failExports[ext]; ok {
+		return fail, nil
+	}
 	switch ext {
 	case "svg", "pdf", "dxf":
 		return CodeDockerExecResult{ExitCode: 1, Output: "Top level object is a 3D object.\nCurrent top level object is not a 2D object.\n"}, nil

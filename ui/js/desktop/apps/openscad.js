@@ -462,10 +462,11 @@ model();`;
             });
             state.result = body && body.result ? body.result : null;
             if (body && body.status === 'error') {
-                state.activeTab = state.result ? 'log' : state.activeTab;
+                const hasFiles = hasOpenSCADResultFiles(state.result);
+                state.activeTab = hasFiles ? 'files' : (state.result ? 'log' : state.activeTab);
                 setOpenSCADBusy(state, false);
                 draw(state);
-                setStatus(state, body.error || t(state.ctx, 'desktop.openscad.render_failed', 'Render failed'), true);
+                setStatus(state, body.error || t(state.ctx, 'desktop.openscad.render_failed', 'Render failed'), !hasFiles);
                 return;
             }
             state.sourceDirty = false;
@@ -640,6 +641,10 @@ model();`;
 
     function resultFiles(state) {
         return state.result && Array.isArray(state.result.files) ? state.result.files : [];
+    }
+
+    function hasOpenSCADResultFiles(result) {
+        return !!(result && Array.isArray(result.files) && result.files.length);
     }
 
     function fileRowHTML(state, file) {
