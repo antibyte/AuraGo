@@ -2052,7 +2052,7 @@
         const instVelX = (drag.pointerX - drag.lastPointerX) / dt;
         drag.lastPointerX = drag.pointerX;
         drag.velX = drag.velX * (1 - DRAG_VEL_SMOOTH) + instVelX * DRAG_VEL_SMOOTH;
-        const tiltTarget = Math.max(-DRAG_TILT_MAX_DEG, Math.min(DRAG_TILT_MAX_DEG, -drag.velX * DRAG_TILT_GAIN));
+        const tiltTarget = Math.max(-DRAG_TILT_MAX_DEG, Math.min(DRAG_TILT_MAX_DEG, drag.velX * DRAG_TILT_GAIN));
         const tiltAccel = (tiltTarget - drag.tilt) * DRAG_TILT_SPRING - drag.tiltVel * DRAG_TILT_DAMPING;
         drag.tiltVel += tiltAccel * dt;
         drag.tilt += drag.tiltVel * dt;

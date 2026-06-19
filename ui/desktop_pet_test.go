@@ -244,7 +244,7 @@ func TestDesktopPetDragHangsAndSwaysBelowPointer(t *testing.T) {
 			"lastPointerX: event.clientX",
 			"startDragMotionLoop();",
 			"settleDragTilt(() => {",
-			"-drag.velX * DRAG_TILT_GAIN",
+			"drag.velX * DRAG_TILT_GAIN",
 			"window.requestAnimationFrame(tick)",
 		} {
 			if !strings.Contains(source, marker) {
