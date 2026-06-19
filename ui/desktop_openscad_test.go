@@ -219,6 +219,54 @@ func TestDesktopOpenSCADPartialErrorKeepsPreviewFiles(t *testing.T) {
 	}
 }
 
+func TestDesktopOpenSCADMultiExportRequestsPNGPreviewFirst(t *testing.T) {
+	t.Parallel()
+
+	app := readDesktopAssetText(t, "js/desktop/apps/openscad.js")
+	for _, want := range []string{
+		"function renderOpenSCADRequest",
+		"const previewFirst = exports.includes('png') && exports.length > 1;",
+		"const previewExports = previewFirst ? ['png'] : exports;",
+		"const remainingExports = previewFirst ? exports.filter(format => format !== 'png') : [];",
+		"await renderOpenSCADRequest(state, previewExports, controller.signal)",
+		"renderRemainingOpenSCADExports(state, remainingExports",
+	} {
+		if !strings.Contains(app, want) {
+			t.Fatalf("OpenSCAD render must request PNG preview before slow exports; missing %q", want)
+		}
+	}
+	renderStart := strings.Index(app, "async function renderSource")
+	if renderStart < 0 {
+		t.Fatal("OpenSCAD app missing renderSource")
+	}
+	renderBody := app[renderStart:]
+	backgroundIndex := strings.Index(renderBody, "renderRemainingOpenSCADExports(state, remainingExports")
+	if backgroundIndex < 0 {
+		t.Fatal("renderSource must continue remaining exports after preview")
+	}
+	clearBusyIndex := strings.LastIndex(renderBody[:backgroundIndex], "setOpenSCADBusy(state, false)")
+	if clearBusyIndex < 0 {
+		t.Fatal("renderSource must clear busy before remaining exports can continue")
+	}
+}
+
+func TestDesktopOpenSCADSaveAllIncludesMergedPreviewAndExportJobs(t *testing.T) {
+	t.Parallel()
+
+	app := readDesktopAssetText(t, "js/desktop/apps/openscad.js")
+	for _, want := range []string{
+		"function openSCADResultJobIDs",
+		"function openSCADJobIDFromURL",
+		"openSCADJobIDFromURL(file.preview_url)",
+		"for (const jobID of openSCADResultJobIDs(state.result))",
+		"savedResults.reduce((merged, result) => mergeOpenSCADResults(merged, result), null)",
+	} {
+		if !strings.Contains(app, want) {
+			t.Fatalf("OpenSCAD save all must save every merged render job; missing %q", want)
+		}
+	}
+}
+
 func TestDesktopOpenSCADIconsExistInBothThemes(t *testing.T) {
 	t.Parallel()
 

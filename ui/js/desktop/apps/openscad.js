@@ -163,7 +163,9 @@ model();`;
             previewStlURL: '',
             previewCleanup: null,
             renderAbort: null,
+            exportAbort: null,
             agentAbort: null,
+            renderSerial: 0,
             statusMessage: '',
             statusError: false,
             listeners: [],
@@ -440,6 +442,15 @@ model();`;
         if (state.busy || isOpenSCADReadOnly(state.ctx)) return;
         const exports = Array.from(state.exports);
         if (!exports.length) exports.push('png', 'stl');
+        const previewFirst = exports.includes('png') && exports.length > 1;
+        const previewExports = previewFirst ? ['png'] : exports;
+        const remainingExports = previewFirst ? exports.filter(format => format !== 'png') : [];
+        state.renderSerial += 1;
+        const renderSerial = state.renderSerial;
+        if (state.exportAbort) {
+            state.exportAbort.abort();
+            state.exportAbort = null;
+        }
         state.cancelRequested = false;
         setOpenSCADBusy(state, true, 'render');
         setStatus(state, t(state.ctx, 'desktop.openscad.rendering', 'Rendering...'));
@@ -447,19 +458,7 @@ model();`;
         state.renderAbort = controller;
         const timeout = window.setTimeout(() => controller.abort(), renderRequestTimeoutMS(state));
         try {
-            const body = await state.ctx.api('/api/openscad/render', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                signal: controller.signal,
-                body: JSON.stringify({
-                    source_scad: state.source,
-                    model_name: 'model',
-                    exports,
-                    defines: parseDefinesText(state.definesText),
-                    render_mode: state.renderMode,
-                    timeout_seconds: state.timeout
-                })
-            });
+            const body = await renderOpenSCADRequest(state, previewExports, controller.signal);
             state.result = body && body.result ? body.result : null;
             if (body && body.status === 'error') {
                 const hasFiles = hasOpenSCADResultFiles(state.result);
@@ -475,6 +474,9 @@ model();`;
             draw(state);
             persistOpenSCADDraft(state);
             setStatus(state, state.result ? t(state.ctx, 'desktop.openscad.render_complete', 'Render complete') : t(state.ctx, 'desktop.openscad.no_preview', 'Render a model to see the preview.'), !state.result);
+            if (remainingExports.length && !state.cancelRequested && renderSerial === state.renderSerial) {
+                renderRemainingOpenSCADExports(state, remainingExports, renderSerial);
+            }
         } catch (err) {
             setOpenSCADBusy(state, false);
             const partial = err && err.body && err.body.result ? err.body.result : null;
@@ -490,6 +492,63 @@ model();`;
         } finally {
             window.clearTimeout(timeout);
             if (state.renderAbort === controller) state.renderAbort = null;
+            state.cancelRequested = false;
+        }
+    }
+
+    function renderOpenSCADRequest(state, exports, signal) {
+        return state.ctx.api('/api/openscad/render', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal,
+            body: JSON.stringify({
+                source_scad: state.source,
+                model_name: 'model',
+                exports,
+                defines: parseDefinesText(state.definesText),
+                render_mode: state.renderMode,
+                timeout_seconds: state.timeout
+            })
+        });
+    }
+
+    async function renderRemainingOpenSCADExports(state, exports, renderSerial) {
+        const controller = new AbortController();
+        state.exportAbort = controller;
+        const timeout = window.setTimeout(() => controller.abort(), renderRequestTimeoutMS(state));
+        try {
+            setStatus(state, t(state.ctx, 'desktop.openscad.rendering', 'Rendering...'));
+            const body = await renderOpenSCADRequest(state, exports, controller.signal);
+            if (renderSerial !== state.renderSerial) return;
+            const nextResult = body && body.result ? body.result : null;
+            if (nextResult) {
+                state.result = mergeOpenSCADResults(state.result, nextResult);
+                state.activeTab = 'files';
+                draw(state);
+                persistOpenSCADDraft(state);
+            }
+            if (body && body.status === 'error') {
+                const hasFiles = hasOpenSCADResultFiles(state.result);
+                setStatus(state, body.error || t(state.ctx, 'desktop.openscad.render_failed', 'Render failed'), !hasFiles);
+                return;
+            }
+            setStatus(state, t(state.ctx, 'desktop.openscad.render_complete', 'Render complete'));
+        } catch (err) {
+            if (renderSerial !== state.renderSerial) return;
+            const partial = err && err.body && err.body.result ? err.body.result : null;
+            if (partial) {
+                state.result = mergeOpenSCADResults(state.result, partial);
+                state.activeTab = 'files';
+                draw(state);
+                persistOpenSCADDraft(state);
+            }
+            const message = err && err.name === 'AbortError'
+                ? (state.cancelRequested ? t(state.ctx, 'desktop.openscad.cancelled', 'Cancelled') : t(state.ctx, 'desktop.openscad.render_timeout', 'Render timed out. Try a simpler model or increase the timeout.'))
+                : (err && err.message) || String(err);
+            setStatus(state, message, !hasOpenSCADResultFiles(state.result));
+        } finally {
+            window.clearTimeout(timeout);
+            if (state.exportAbort === controller) state.exportAbort = null;
             state.cancelRequested = false;
         }
     }
@@ -563,8 +622,12 @@ model();`;
         if (!state.result || !state.result.job_id || isOpenSCADReadOnly(state.ctx)) return;
         setStatus(state, t(state.ctx, 'desktop.openscad.saving', 'Saving...'));
         try {
-            const body = await state.ctx.api(`/api/openscad/jobs/${encodeURIComponent(state.result.job_id)}/save`, { method: 'POST' });
-            state.result = body.result;
+            const savedResults = [];
+            for (const jobID of openSCADResultJobIDs(state.result)) {
+                const body = await state.ctx.api(`/api/openscad/jobs/${encodeURIComponent(jobID)}/save`, { method: 'POST' });
+                if (body && body.result) savedResults.push(body.result);
+            }
+            state.result = savedResults.reduce((merged, result) => mergeOpenSCADResults(merged, result), null) || state.result;
             state.activeTab = 'files';
             draw(state);
             setStatus(state, t(state.ctx, 'desktop.openscad.saved', 'Saved to Desktop'));
@@ -639,12 +702,51 @@ model();`;
         renderPreview(state, panel);
     }
 
-    function resultFiles(state) {
-        return state.result && Array.isArray(state.result.files) ? state.result.files : [];
+    function resultFiles(state) { return state.result && Array.isArray(state.result.files) ? state.result.files : []; }
+
+    function hasOpenSCADResultFiles(result) { return !!(result && Array.isArray(result.files) && result.files.length); }
+
+    function mergeOpenSCADResults(current, next) {
+        if (!current) return next || null;
+        if (!next) return current;
+        const merged = Object.assign({}, current);
+        const seen = new Set();
+        const fileIndexes = new Map();
+        merged.files = [];
+        [current, next].forEach(result => {
+            (Array.isArray(result.files) ? result.files : []).forEach(file => {
+                const key = [file.name, file.format, file.preview_url || file.download_url || ''].join('|');
+                if (seen.has(key)) {
+                    const existing = merged.files[fileIndexes.get(key)];
+                    if (existing && !existing.saved_path && file.saved_path) existing.saved_path = file.saved_path;
+                    return;
+                }
+                seen.add(key);
+                fileIndexes.set(key, merged.files.length);
+                merged.files.push(file);
+            });
+        });
+        merged.duration_ms = Number(current.duration_ms || 0) + Number(next.duration_ms || 0);
+        merged.stdout = [current.stdout, next.stdout].filter(Boolean).join('\n');
+        merged.stderr = [current.stderr, next.stderr].filter(Boolean).join('\n');
+        merged.saved_paths = (Array.isArray(current.saved_paths) ? current.saved_paths : []).concat(Array.isArray(next.saved_paths) ? next.saved_paths : []);
+        return merged;
     }
 
-    function hasOpenSCADResultFiles(result) {
-        return !!(result && Array.isArray(result.files) && result.files.length);
+    function openSCADResultJobIDs(result) {
+        const ids = [], seen = new Set();
+        const add = value => {
+            const id = String(value || '').trim();
+            if (id && !seen.has(id)) { seen.add(id); ids.push(id); }
+        };
+        add(result && result.job_id);
+        (result && Array.isArray(result.files) ? result.files : []).forEach(file => { add(openSCADJobIDFromURL(file.preview_url)); add(openSCADJobIDFromURL(file.download_url)); });
+        return ids;
+    }
+
+    function openSCADJobIDFromURL(url) {
+        const match = String(url || '').match(/\/api\/openscad\/jobs\/([^/]+)\//);
+        return match ? decodeURIComponent(match[1]) : '';
     }
 
     function fileRowHTML(state, file) {
@@ -748,6 +850,7 @@ model();`;
     function cancelCurrentOpenSCADWork(state) {
         state.cancelRequested = true;
         if (state.renderAbort) state.renderAbort.abort();
+        if (state.exportAbort) state.exportAbort.abort();
         if (state.agentAbort) state.agentAbort.abort();
         setOpenSCADBusy(state, false);
         setStatus(state, t(state.ctx, 'desktop.openscad.cancelled', 'Cancelled'), true);
@@ -973,6 +1076,10 @@ model();`;
         if (state.renderAbort) {
             state.renderAbort.abort();
             state.renderAbort = null;
+        }
+        if (state.exportAbort) {
+            state.exportAbort.abort();
+            state.exportAbort = null;
         }
         if (state.agentAbort) {
             state.agentAbort.abort();
