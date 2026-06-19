@@ -1303,6 +1303,40 @@ func TestInitClearsStaleActiveOperationMarkerForRunningApp(t *testing.T) {
 	}
 }
 
+func TestReconcileDesktopBrandingUpdatesStaleLogoPathWithoutBlocking(t *testing.T) {
+	ctx := context.Background()
+	desktopAdapter := &fakeDesktopAdapter{}
+	svc := newTestService(t, &fakeDockerAdapter{}, desktopAdapter, &fakeLaunchpadAdapter{}, fixedPorts(19189))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "node-red", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	record := svc.buildInstallRecord(svc.catalogByID["node-red"], op, BindModeLocal, "127.0.0.1", 19189, false)
+	record.Status = AppStatusRunning
+	record.LogoPath = "/api/desktop/store/logos/old-node-red.png"
+	if err := svc.saveInstalled(ctx, record); err != nil {
+		t.Fatalf("seed stale logo record: %v", err)
+	}
+
+	reconcileCtx, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
+	defer cancel()
+	if err := svc.ReconcileDesktopBranding(reconcileCtx); err != nil {
+		t.Fatalf("reconcile desktop branding: %v", err)
+	}
+
+	stored, ok, err := svc.GetInstalled(ctx, "node-red")
+	if err != nil || !ok {
+		t.Fatalf("get reconciled app: ok=%v err=%v", ok, err)
+	}
+	if stored.LogoPath != svc.catalogByID["node-red"].LogoURL {
+		t.Fatalf("logo path = %q, want %q", stored.LogoPath, svc.catalogByID["node-red"].LogoURL)
+	}
+	if desktopAdapter.installed.ID != DesktopAppID("node-red") {
+		t.Fatalf("refreshed desktop app id = %q, want %q", desktopAdapter.installed.ID, DesktopAppID("node-red"))
+	}
+}
+
 func TestStartInstallRejectsConcurrentOperationForSameApp(t *testing.T) {
 	ctx := context.Background()
 	svc := newTestService(t, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19185))

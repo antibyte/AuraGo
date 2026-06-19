@@ -2095,21 +2095,11 @@ func (s *Service) ReconcileDesktopBranding(ctx context.Context) error {
 	if s.cfg.Desktop == nil {
 		return nil
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT app_id, desktop_app_id, launchpad_link_id, container_name, container_id, image,
-		status, error, bind_mode, host_ip, host_port, container_port, protocol, tailscale_enabled, tailscale_status,
-		tailscale_port, logo_path, ports_json, volumes_json, host_binds_json, env_json, extra_hosts_json,
-		secret_refs_json, companions_json, created_at, updated_at,
-		last_operation_id, last_operation_type, last_operation_state
-		FROM desktop_store_apps`)
+	apps, err := s.ListApps(ctx)
 	if err != nil {
 		return fmt.Errorf("list desktop store apps for branding reconcile: %w", err)
 	}
-	defer rows.Close()
-	for rows.Next() {
-		app, err := scanInstalledApp(rows)
-		if err != nil {
-			return err
-		}
+	for _, app := range apps {
 		entry, ok := s.catalogByID[app.AppID]
 		if !ok {
 			continue
@@ -2125,7 +2115,7 @@ func (s *Service) ReconcileDesktopBranding(ctx context.Context) error {
 			return fmt.Errorf("reconcile desktop branding for %s: %w", app.AppID, err)
 		}
 	}
-	return rows.Err()
+	return nil
 }
 
 func (s *Service) updateLogoPath(ctx context.Context, appID, logoPath string) error {
