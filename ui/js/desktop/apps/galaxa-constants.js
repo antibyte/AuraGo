@@ -253,5 +253,5 @@
             hue: '#aa6644'
         }
     };
-    GC.ARCHETYPE_SCHEDULE = ['swarm_wave', null, null, 'escort', null, null, null, null, 'swarm_wave', null, 'escort', null, null, 'swarm_wave', null, 'escort', null, null, 'swarm_wave', null];
+    GC.ARCHETYPE_SCHEDULE = ['swarm_wave', null, null, 'escort', null, 'asteroid_field', null, null, 'swarm_wave', null, 'escort', null, 'asteroid_field', 'swarm_wave', null, 'escort', null, null, 'swarm_wave', null];
 })();
