@@ -85,6 +85,21 @@
         function pv() { return 0.95 + Math.random() * 0.1; }
         function vv() { return 0.9 + Math.random() * 0.2; }
 
+        // NEW: Audio ducking — temporarily lower music master gain on loud SFX
+        let duckTimer = 0, duckTarget = 1;
+        function duckMusic(amount, durMs) {
+            if (!ctx.MusicEngine.masterGain) return;
+            const a = audio(); if (!a) return;
+            duckTarget = Math.max(0.2, 1 - amount);
+            ctx.MusicEngine.masterGain.gain.linearRampToValueAtTime(ctx.G.muted ? 0 : ctx.G.vol * 0.35 * duckTarget, a.currentTime + 0.04);
+            duckTimer = durMs;
+        }
+        function updateDuck(dtMs) {
+            if (duckTimer > 0) { duckTimer -= dtMs; if (duckTimer <= 0) { duckTimer = 0; const a = audio(); if (a && ctx.MusicEngine.masterGain) ctx.MusicEngine.masterGain.gain.linearRampToValueAtTime(ctx.G.muted ? 0 : ctx.G.vol * 0.35, a.currentTime + 0.2); } }
+        }
+        ctx.duckMusic = duckMusic;
+        ctx.updateDuck = updateDuck;
+
         const SFX = {
             shoot(panX) { const _p = pv(); beep('sine', 800 * _p, 1200 * _p, 0.08, 0.3 * vv(), panX); beep('square', 400 * _p, 200 * _p, 0.05, 0.08 * vv(), panX); },
             laserShoot(panX) { const _p = pv(), _v = vv(); beep('sine', 1200 * _p, 400 * _p, 0.15, 0.25 * _v, panX); beep('sawtooth', 800 * _p, 200 * _p, 0.1, 0.15 * _v, panX); noise(0.08, 0.1 * _v, 3000, panX); },
@@ -141,7 +156,37 @@
             comboExtend() { [600, 800, 1000, 1200].forEach((f, i) => { setTimeout(() => beep('triangle', f, f, 0.06, 0.2), i * 30); }); },
             scoreRoll() { beep('triangle', 1200, 1400, 0.02, 0.08); },
             deathBloom() { noise(0.3, 0.4, 8000); beep('sine', 2000, 500, 0.25, 0.3); },
-            envWind() { noise(1.5, 0.04, 600); beep('sine', 30, 30, 1.5, 0.02); }
+            envWind() { noise(1.5, 0.04, 600); beep('sine', 30, 30, 1.5, 0.02); },
+            // NEW: Parry success — crisp upward "shwing" with reverb tail
+            parrySuccess(panX) { const _p = pv(), _v = vv(); beep('triangle', 1800 * _p, 4200 * _p, 0.06, 0.35 * _v, panX); beep('sine', 2400 * _p, 3600 * _p, 0.05, 0.25 * _v, panX); setTimeout(() => { beep('sine', 1200, 800, 0.1, 0.18 * _v, panX); }, 60); },
+            parryStart(panX) { const _p = pv(); beep('sine', 2200 * _p, 2600 * _p, 0.04, 0.18, panX); beep('triangle', 1400 * _p, 2000 * _p, 0.03, 0.12, panX); },
+            parryMiss(panX) { const _p = pv(); beep('sawtooth', 400 * _p, 200 * _p, 0.08, 0.12, panX); },
+            // NEW: Super activation — build sweep + impact boom, unique per ship type
+            superActivate(shipType, panX) {
+                const _v = vv();
+                if (shipType === 'classic') { beep('sawtooth', 200, 1400, 0.3, 0.4 * _v, panX); beep('square', 100, 300, 0.25, 0.2 * _v, panX); setTimeout(() => noise(0.4, 0.5 * _v, 800, panX), 250); }
+                else if (shipType === 'interceptor') { beep('sine', 300, 3000, 0.3, 0.4 * _v, panX); beep('sawtooth', 150, 2000, 0.25, 0.25 * _v, panX); setTimeout(() => noise(0.15, 0.3 * _v, 5000, panX), 200); }
+                else if (shipType === 'heavy') { beep('sawtooth', 80, 60, 0.5, 0.6 * _v, panX); noise(0.5, 0.5 * _v, 400, panX); beep('square', 120, 80, 0.3, 0.3 * _v, panX); }
+                else if (shipType === 'stealth') { beep('sine', 600, 1800, 0.35, 0.35 * _v, panX); beep('triangle', 900, 2400, 0.3, 0.25 * _v, panX); setTimeout(() => { beep('sine', 1200, 1200, 0.2, 0.2 * _v, panX); beep('sine', 1500, 1500, 0.2, 0.15 * _v, panX); beep('sine', 1800, 1800, 0.2, 0.12 * _v, panX); }, 150); }
+                else { beep('sawtooth', 150, 800, 0.4, 0.45 * _v, panX); noise(0.3, 0.4 * _v, 600, panX); }
+            },
+            // NEW: Biome reveal stinger
+            biomeReveal() { [262, 330, 392, 523, 659].forEach((f, i) => { setTimeout(() => beep('sine', f, f, 0.18, 0.22), i * 90); }); setTimeout(() => { beep('triangle', 523, 523, 0.4, 0.2); beep('sine', 784, 784, 0.4, 0.12); }, 500); },
+            // NEW: Bonus sub-stage jingle
+            bonusStart() { [523, 659, 784, 659, 784, 988].forEach((f, i) => { setTimeout(() => beep('square', f, f, 0.1, 0.2), i * 70); }); },
+            bonusEnd(rating) { const base = rating === 'S' ? [784, 988, 1175, 1568] : rating === 'A' ? [659, 784, 988, 1319] : [523, 659, 784, 1047]; base.forEach((f, i) => { setTimeout(() => beep('sine', f, f, 0.12, 0.25), i * 80); }); },
+            // NEW: UI sounds
+            uiHover() { beep('sine', 1000, 1000, 0.03, 0.1); },
+            uiClick() { beep('triangle', 1200, 1200, 0.04, 0.15); },
+            uiBack() { beep('triangle', 600, 400, 0.05, 0.12); },
+            uiToggle() { beep('square', 800, 1000, 0.04, 0.1); },
+            shopBuy() { beep('sine', 880, 1200, 0.08, 0.2); setTimeout(() => beep('sine', 1320, 1320, 0.08, 0.2), 80); },
+            shopError() { beep('sawtooth', 200, 120, 0.12, 0.2); },
+            achievementUnlock() { [523, 659, 784, 1047].forEach((f, i) => { setTimeout(() => beep('sine', f, f, 0.15, 0.28), i * 70); }); },
+            // NEW: Whoosh for dives/parries/supers — noise + bandpass sweep
+            whoosh(speed, panX) { const _p = pv(); const dur = Math.max(0.1, Math.min(0.4, 60 / Math.max(50, speed))); const a = audio(); if (!a || ctx.G.muted) return; const buf = a.createBuffer(1, Math.floor(a.sampleRate * dur), a.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length); const s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain(); s.buffer = buf; f.type = 'bandpass'; f.frequency.setValueAtTime(400 * _p, a.currentTime); f.frequency.linearRampToValueAtTime(3000 * _p, a.currentTime + dur); g.gain.setValueAtTime(ctx.G.vol * 0.2, a.currentTime); g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur); if (panX !== undefined && a.createStereoPanner) { const p = a.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, (panX / (ctx.W / 2)) - 1)); s.connect(f).connect(g).connect(p).connect(a.destination); } else { s.connect(f).connect(g).connect(a.destination); } s.start(); },
+            // NEW: Per-enemy-type explosion with layered sub-bass + mid crack + debris noise
+            eExplodeTyped(type, size, panX) { const _p = pv(), _v = vv(); const big = size === 'big' || type === 'boss' || type === 'miniboss'; noise(big ? 0.3 : 0.15, big ? 0.5 * _v : 0.4 * _v, big ? 1500 : 2000, panX); noise(big ? 0.15 : 0.08, big ? 0.3 * _v : 0.2 * _v, big ? 4000 : 5000, panX); const baseF = type === 'boss' ? 60 : type === 'miniboss' ? 70 : type === 'kamikaze' ? 100 : 200; beep('sine', baseF * _p, baseF * 0.4 * _p, big ? 0.25 : 0.1, big ? 0.4 * _v : 0.2 * _v, panX); beep('triangle', baseF * 0.3 * _p, baseF * 0.15 * _p, big ? 0.3 : 0.15, big ? 0.25 * _v : 0.15 * _v, panX); if (big) { noise(0.2, 0.2 * _v, 600, panX); beep('sawtooth', 80 * _p, 40 * _p, 0.4, 0.3 * _v, panX); } }
         };
 
         const MusicEngine = {

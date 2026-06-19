@@ -107,6 +107,16 @@
             ctx.G.st = 'STAGE_INTRO';
             ctx.G.introTmr = 1200;
             ctx.G.stageStartTime = performance.now ? performance.now() : Date.now();
+            // NEW: Biome progression + reveal cinematic
+            const _biome = ctx.getBiomeForStage ? ctx.getBiomeForStage(ctx.G.stage) : null;
+            if (_biome) {
+                const prevBiomeId = ctx.G.biome;
+                ctx.G.biome = _biome.id; ctx.G.biomeName = _biome.name;
+                if (prevBiomeId !== _biome.id && ctx.G.stage > 1) { ctx.G.biomeRevealT = 2200; if (ctx.SFX.biomeReveal) ctx.SFX.biomeReveal(); ctx.duckMusic(0.3, 600); }
+            }
+            // NEW: Bonus sub-stage scheduling (every BONUS_STAGE_EVERY stages, no death penalty)
+            ctx.G.bonusStage = (ctx.G.stage > 1) && (ctx.G.stage % ctx.BONUS_STAGE_EVERY === 0) && !ctx.G.chal && !ctx.isMiniBossStage();
+            if (ctx.G.bonusStage) { ctx.G.bonusStageT = ctx.BONUS_STAGE_DURATION; if (ctx.SFX.bonusStart) ctx.SFX.bonusStart(); }
             ctx.G.bul = []; ctx.G.ebul = []; ctx.G.exp = []; ctx.G.part = []; ctx.G.pendingBooms = []; ctx.G.levelSkipTimer = 0;
             ctx.G.beam = null; ctx.G.powerups = []; ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.G.shieldHits = 0;
             ctx.G.scorePopups = []; ctx.G.warpT = 0; ctx.G.warpFlash = 0; ctx.G.perfectT = 0;
@@ -165,6 +175,20 @@
             for (let i = 0; i < ctx.G.scorePopups.length; i++) { const sp = ctx.G.scorePopups[i]; sp.y -= 40 * dt; sp.t += dtMs; if (sp.t < sp.dur) ctx.G.scorePopups[slen++] = sp; }
             ctx.G.scorePopups.length = slen;
             if (ctx.G.flashT > 0) ctx.G.flashT -= dtMs;
+            // NEW: Hitstop countdown — freezes gameplay timeScale briefly for impact weight
+            if (ctx.G.hitstopT > 0) { ctx.G.hitstopT -= dtMs; if (ctx.G.hitstopT <= 0) { ctx.G.hitstopT = 0; ctx.G.timeScale = 1; } else ctx.G.timeScale = 0.001; }
+            // NEW: Biome reveal timer + bonus sub-stage timer
+            if (ctx.G.biomeRevealT > 0) ctx.G.biomeRevealT -= dtMs;
+            if (ctx.G.bonusStage && ctx.G.bonusStageT > 0) { ctx.G.bonusStageT -= dtMs; if (ctx.G.bonusStageT <= 0) ctx.G.bonusStageT = 0; }
+            // NEW: Super timer countdown
+            if (ctx.G.superActive > 0) { ctx.G.superActive -= dtMs; if (ctx.G.superActive <= 0) { ctx.G.superActive = 0; ctx.G.superType = null; ctx.G.superTimer = 0; } }
+            if (ctx.G.superCooldown > 0) ctx.G.superCooldown -= dtMs;
+            // NEW: Parry timers
+            if (ctx.G.parryActive > 0) { ctx.G.parryActive -= dtMs; if (ctx.G.parryActive <= 0) { ctx.G.parryActive = 0; ctx.G.parryCooldown = ctx.PARRY_COOLDOWN; } }
+            if (ctx.G.parryCooldown > 0) ctx.G.parryCooldown -= dtMs;
+            if (ctx.G.parrySuccessFlash > 0) ctx.G.parrySuccessFlash -= dtMs;
+            // NEW: Combat text float update
+            let _ctlen = 0; for (let _ci = 0; _ci < ctx.G.combatText.length; _ci++) { const _ct = ctx.G.combatText[_ci]; _ct.y -= 30 * dt; _ct.t += dtMs; if (_ct.t < _ct.dur) ctx.G.combatText[_ctlen++] = _ct; } ctx.G.combatText.length = _ctlen;
             if (ctx.G.stageWipeT > 0) ctx.G.stageWipeT -= dtMs;
             if (ctx.G.damageVignetteT > 0) ctx.G.damageVignetteT -= dtMs;
             if (ctx.G.freezeT > 0) { ctx.G.freezeT -= dtMs; ctx.wrapEl.classList.add('galaxa-freeze'); if (ctx.G.freezeT <= 0) { ctx.G.freezeT = 0; ctx.wrapEl.classList.remove('galaxa-freeze'); if (ctx.G.activePU && ctx.G.activePU.type === 'freeze') { ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.setPUClass(null); } } }
@@ -201,12 +225,13 @@
                 }
             }
             const inp2 = ctx.G.inp;
-            if (inp2.l) ctx.G.shipTilt = Math.max(-0.15, ctx.G.shipTilt - dt * 2);
-            else if (inp2.r) ctx.G.shipTilt = Math.min(0.15, ctx.G.shipTilt + dt * 2);
-            else ctx.G.shipTilt *= Math.max(0, 1 - dt * 5);
-            if (inp2.u) ctx.G.shipPitch = Math.max(-0.16, ctx.G.shipPitch - dt * 2);
-            else if (inp2.d) ctx.G.shipPitch = Math.min(0.16, ctx.G.shipPitch + dt * 2);
-            else ctx.G.shipPitch *= Math.max(0, 1 - dt * 5);
+            // NEW: Eased ship banking toward target tilt (smoother than instant)
+            ctx.G.shipTiltTarget = (inp2.l ? -0.18 : 0) + (inp2.r ? 0.18 : 0);
+            ctx.G.shipPitchTarget = (inp2.u ? -0.16 : 0) + (inp2.d ? 0.16 : 0);
+            ctx.G.shipTilt += (ctx.G.shipTiltTarget - ctx.G.shipTilt) * Math.min(1, dt * 8);
+            ctx.G.shipPitch += (ctx.G.shipPitchTarget - ctx.G.shipPitch) * Math.min(1, dt * 8);
+            if (!inp2.l && !inp2.r) ctx.G.shipTilt *= Math.max(0, 1 - dt * 4);
+            if (!inp2.u && !inp2.d) ctx.G.shipPitch *= Math.max(0, 1 - dt * 4);
             let dlen = 0;
             for (let i = 0; i < ctx.G.deathParts.length; i++) {
                 const dp = ctx.G.deathParts[i]; dp.x += dp.vx * dt; dp.y += dp.vy * dt; dp.vy += 40 * dt; dp.rot += dt * 4; dp.t += dtMs;
@@ -222,6 +247,8 @@
             if (dt > 0.1) dt = 0.1;
             const dtMs = dt * 1000;
             ctx.updateBackground(dt);
+            if (ctx.updateDuck) ctx.updateDuck(dtMs);
+            if (ctx.updateTweens) ctx.updateTweens(dtMs);
             ctx.updateCombo(dtMs);
             if (ctx.G.inp.p && !ctx.G.inp.pp) {
                 if (ctx.G.st === 'PAUSED') { ctx.G.st = ctx.G._prevSt; } else if (ctx.G.st === 'PLAYING') { ctx.G._prevSt = ctx.G.st; ctx.G.st = 'PAUSED'; ctx.G.pauseSel = 0; }
@@ -266,6 +293,16 @@
             if (ctx.G.st === 'PLAYING') {
                 ctx.updateP(dt, now); ctx.updateBul(dt); ctx.updateE(dt); ctx.updateExp(dt);
                 if (ctx.updateHazards) ctx.updateHazards(dt);
+                // NEW: Bonus sub-stage auto-advance when timer hits zero (no death penalty)
+                if (ctx.G.bonusStage && ctx.G.bonusStageT <= 0 && ctx.G.stageClearLock <= 0) {
+                    ctx.G.bonusStage = false;
+                    const _rating = ctx.G.stageKills >= 30 ? 'S' : ctx.G.stageKills >= 20 ? 'A' : ctx.G.stageKills >= 10 ? 'B' : 'C';
+                    ctx.G.bonusRating = _rating;
+                    if (ctx.SFX.bonusEnd) ctx.SFX.bonusEnd(_rating);
+                    ctx.G.scorePopups.push({ x: ctx.W / 2, y: ctx.H / 2, text: 'BONUS RANK: ' + _rating, t: 0, dur: 2000, col: '#ffcc00', big: true });
+                    ctx.unlockAchievement('bonus_hunter');
+                    ctx.advanceToNextStage(true);
+                }
                 if (ctx.G.shkT > 0) ctx.G.shkT -= dt * 1000;
                 if (ctx.G.p.cap) { ctx.G.p.cap.y -= 100 * dt; if (ctx.G.p.cap.y < ctx.G.p.y - 20) { ctx.G.p.dual = true; ctx.G.p.cap = null; ctx.SFX.rescue(); ctx.unlockAchievement('dual_wielder'); } }
                 let bossAlive = false, minibossAlive = false, _aliveN = 0;
@@ -374,6 +411,9 @@
                     if (!!gp.buttons[0]?.pressed) ctx.G.gp.f = true;
                     if (!!gp.buttons[9]?.pressed) ctx.G.gp.s = true;
                     if (!!gp.buttons[8]?.pressed) ctx.G.gp.p = true;
+                    // NEW: parry on right shoulder (button 5) or X face button (button 2), super on Y face button (button 3) or left shoulder (button 4)
+                    if (!!gp.buttons[5]?.pressed || !!gp.buttons[2]?.pressed) ctx.G.gp.parry = true;
+                    if (!!gp.buttons[3]?.pressed || !!gp.buttons[4]?.pressed) ctx.G.gp.super = true;
                     break;
                 }
             } catch (e) {}
@@ -383,6 +423,8 @@
             ctx.G.inp.l = ctx.G.kb.l || ctx.G.gp.l; ctx.G.inp.r = ctx.G.kb.r || ctx.G.gp.r;
             ctx.G.inp.u = ctx.G.kb.u || ctx.G.gp.u; ctx.G.inp.d = ctx.G.kb.d || ctx.G.gp.d;
             ctx.G.inp.f = ctx.G.kb.f || ctx.G.gp.f; ctx.G.inp.s = ctx.G.kb.s || ctx.G.gp.s; ctx.G.inp.p = ctx.G.kb.p || ctx.G.gp.p;
+            ctx.G.inp.parry = ctx.G.kb.parry || ctx.G.gp.parry;
+            ctx.G.inp.super = ctx.G.kb.super || ctx.G.gp.super;
         }
 
         function onKey(e) {
@@ -394,6 +436,8 @@
             if (k === ' ' || k === 'Enter') { ctx.G.kb.f = true; ctx.G.kb.s = true; e.preventDefault(); }
             if (k === 'Escape') { ctx.G.kb.p = true; e.preventDefault(); }
             if (k === 'm' || k === 'M') { ctx.G.muted = !ctx.G.muted; ctx.settings.mute = ctx.G.muted; ctx.MusicEngine.setMuted(ctx.G.muted); ctx.saveSettings(); }
+            if (k === 'x' || k === 'X') { ctx.G.kb.parry = true; e.preventDefault(); }
+            if (k === 'c' || k === 'C') { ctx.G.kb.super = true; e.preventDefault(); }
             if ((k === 'S' || k === 's') && ctx.G.st === 'TITLE' && !ctx.G.attract && !ctx.G.kb.d) { ctx.G.st = 'SETTINGS'; ctx.G.settingsSel = 0; }
             if ((k === 'D' || k === 'd') && ctx.G.st === 'TITLE' && !ctx.G.attract && !ctx.G.kb.r) { ctx.SFX.coinInsert(); ctx.startDailyChallenge(); }
         }
@@ -405,9 +449,11 @@
             if (k === 'ArrowDown' || k === 's') ctx.G.kb.d = false;
             if (k === ' ' || k === 'Enter') { ctx.G.kb.f = false; ctx.G.kb.s = false; }
             if (k === 'Escape') ctx.G.kb.p = false;
+            if (k === 'x' || k === 'X') ctx.G.kb.parry = false;
+            if (k === 'c' || k === 'C') ctx.G.kb.super = false;
         }
 
-        function savePrev() { ctx.G.inp.fp = ctx.G.inp.f; ctx.G.inp.sp = ctx.G.inp.s; ctx.G.inp.pp = ctx.G.inp.p; ctx.G.inp.lp = ctx.G.inp.l; ctx.G.inp.rp = ctx.G.inp.r; ctx.G.inp.up = ctx.G.inp.u; ctx.G.inp.dp = ctx.G.inp.d; }
+        function savePrev() { ctx.G.inp.fp = ctx.G.inp.f; ctx.G.inp.sp = ctx.G.inp.s; ctx.G.inp.pp = ctx.G.inp.p; ctx.G.inp.lp = ctx.G.inp.l; ctx.G.inp.rp = ctx.G.inp.r; ctx.G.inp.up = ctx.G.inp.u; ctx.G.inp.dp = ctx.G.inp.d; ctx.G.inp.parryp = ctx.G.inp.parry; ctx.G.inp.superp = ctx.G.inp.super; }
 
         let touchJoystick = null;
         let touchFire = false;
@@ -498,6 +544,7 @@
         ctx.resize = resize;
         ctx.isChal = isChal;
         ctx.isMiniBossStage = isMiniBossStage;
+        ctx.getBiomeForStage = GC.getBiomeForStage;
         ctx.advanceToNextStage = advanceToNextStage;
         ctx.startStage = startStage;
         ctx.updateExp = updateExp;

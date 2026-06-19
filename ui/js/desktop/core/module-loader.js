@@ -116,6 +116,7 @@
             styles: appStyles('/css/galaxa-deluxe.css'),
             scripts: [
                 '/js/desktop/apps/galaxa-constants.js',
+                '/js/desktop/apps/galaxa-tweens.js',
                 '/js/desktop/apps/galaxa-audio.js',
                 '/js/desktop/apps/galaxa-sprites.js',
                 '/js/desktop/apps/galaxa-background.js',

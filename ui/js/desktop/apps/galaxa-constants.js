@@ -157,7 +157,11 @@
         rage_survivor: { name: 'Rage Survivor', desc: 'Survive 10 rage-mode enemies' },
         chain_master: { name: 'Chain Master', desc: 'Hit 5 enemies with one chain lightning' },
         orbital_king: { name: 'Orbital King', desc: 'Block 20 bullets with orbital shields' },
-        mutation_master: { name: 'Mutation Master', desc: 'Complete 5 mutated stages' }
+        mutation_master: { name: 'Mutation Master', desc: 'Complete 5 mutated stages' },
+        parry_master: { name: 'Parry Master', desc: 'Parry 50 enemy bullets in one run' },
+        super_nova: { name: 'Nova Strike', desc: 'Activate your ship super 10 times total' },
+        biome_explorer: { name: 'Explorer', desc: 'Reach every biome' },
+        bonus_hunter: { name: 'Bonus Hunter', desc: 'Complete 5 bonus sub-stages' }
     };
 
     GC.SHIP_TYPES = {
@@ -168,4 +172,54 @@
     };
 
     GC.PTS = { bee: [50, 100], butterfly: [80, 160], boss: [400, 800], miniboss: [600, 1200], stalker: [120, 240], sniper: [100, 200], hunter: [200, 400], spinner: [90, 180], bomber: [110, 220], lasher: [80, 160], weaver: [130, 260], splitter: [140, 280], shield_bee: [70, 140], kamikaze: [150, 300], carrier: [200, 400], teleporter: [160, 320] };
+
+    // NEW: Biome progression — one biome per 5 stages, each with own identity.
+    GC.BIOMES = [
+        { id: 'nebula', name: 'NEBULA', stages: [1, 2, 3, 4], bgTheme: 'nebula', musicTheme: 'gameplay', hazardTheme: 'nebula', palette: ['#1a0033', '#4488ff', '#ffcc00'], enemyBonus: [], desc: 'Drifting gas clouds' },
+        { id: 'asteroid', name: 'ASTEROID FIELD', stages: [5, 6, 7, 8, 9], bgTheme: 'asteroid', musicTheme: 'gameplay', hazardTheme: 'asteroid', palette: ['#3a2a1a', '#ff8844', '#aa6644'], enemyBonus: ['weaver', 'kamikaze'], desc: 'Dodging tumbling rocks' },
+        { id: 'crystal', name: 'CRYSTAL CAVES', stages: [10, 11, 12, 13, 14], bgTheme: 'crystal', musicTheme: 'gameplay', hazardTheme: 'crystal', palette: ['#0a2a3a', '#88ccff', '#aaffee'], enemyBonus: ['splitter', 'shield_bee'], desc: 'Glittering crystal formations' },
+        { id: 'storm', name: 'ION STORM', stages: [15, 16, 17, 18, 19], bgTheme: 'storm', musicTheme: 'deep_boss', hazardTheme: 'storm', palette: ['#1a1a2a', '#ffff44', '#88ccff'], enemyBonus: ['carrier', 'teleporter'], desc: 'Electromagnetic chaos' },
+        { id: 'blackhole', name: 'BLACK HOLE', stages: [20, 21, 22, 23, 24], bgTheme: 'blackhole', musicTheme: 'deep_boss', hazardTheme: 'blackhole', palette: ['#0a0011', '#8844ff', '#cc66ff'], enemyBonus: ['weaver', 'splitter', 'kamikaze'], desc: 'Gravitational maelstrom' },
+        { id: 'void', name: 'THE VOID', stages: [25, 26, 27, 28, 29], bgTheme: 'nebula', musicTheme: 'deep_boss', hazardTheme: 'nebula', palette: ['#000000', '#ffffff', '#ff44ff'], enemyBonus: ['teleporter', 'carrier', 'kamikaze', 'splitter'], desc: 'Beyond the known' }
+    ];
+    GC.getBiomeForStage = function (stage) { for (let i = GC.BIOMES.length - 1; i >= 0; i--) { if (stage >= GC.BIOMES[i].stages[0]) return GC.BIOMES[i]; } return GC.BIOMES[0]; };
+
+    // NEW: Super / Overdrive definitions — unique per ship. Meter fills from kills+combo+parry.
+    GC.SUPER_DEFS = {
+        classic: { name: 'NOVA BARRAGE', desc: 'Screen-wide salvo', col: '#ffcc00', dur: 2000, meterMax: 100 },
+        interceptor: { name: 'PHASE DASH', desc: 'i-frames + dash trail', col: '#00ffcc', dur: 1800, meterMax: 100 },
+        heavy: { name: 'AEGIS CANNON', desc: 'Massive front beam', col: '#ff4444', dur: 2200, meterMax: 100 },
+        stealth: { name: 'SHADOW CLONE', desc: '3 clones fire in sync', col: '#ff88ff', dur: 2500, meterMax: 100 }
+    };
+    GC.SUPER_METER_GAIN = { kill: 2, combo: 1, parry: 8, headshot: 4 };
+    GC.SUPER_COST = 100; // full meter to activate
+
+    // NEW: Parry tuning
+    GC.PARRY_WINDOW = 120;     // ms active parry window
+    GC.PARRY_COOLDOWN = 600;   // ms cooldown after window ends
+    GC.PARRY_RADIUS = 28;      // px radius around player
+
+    // NEW: Explosion profiles per enemy type (flash size, shockwave strength, debris count, color set)
+    GC.EXPLOSION_PROFILE = {
+        bee: { flashR: 10, shockR: 30, debris: 6, smoke: 4, sparks: 10, cols: ['#ffcc00', '#ffaa00', '#ffee88'] },
+        butterfly: { flashR: 10, shockR: 30, debris: 6, smoke: 4, sparks: 10, cols: ['#ff3366', '#ff6688', '#ff88aa'] },
+        stalker: { flashR: 12, shockR: 36, debris: 7, smoke: 5, sparks: 12, cols: ['#6622aa', '#8844cc', '#aa66ee'] },
+        sniper: { flashR: 10, shockR: 32, debris: 6, smoke: 4, sparks: 12, cols: ['#ffcc00', '#ffaa00', '#ffff44'] },
+        hunter: { flashR: 14, shockR: 40, debris: 8, smoke: 6, sparks: 14, cols: ['#ff6600', '#ff8844', '#ffaa00'] },
+        spinner: { flashR: 12, shockR: 36, debris: 7, smoke: 5, sparks: 14, cols: ['#00cccc', '#44ffff', '#88ffff'] },
+        bomber: { flashR: 12, shockR: 38, debris: 7, smoke: 6, sparks: 12, cols: ['#aa44cc', '#cc66ff', '#ff44aa'] },
+        lasher: { flashR: 10, shockR: 32, debris: 6, smoke: 4, sparks: 10, cols: ['#44ff88', '#00cc66', '#aaffcc'] },
+        weaver: { flashR: 12, shockR: 34, debris: 7, smoke: 5, sparks: 12, cols: ['#ff8844', '#ffaa66', '#ffcc88'] },
+        splitter: { flashR: 12, shockR: 34, debris: 8, smoke: 5, sparks: 12, cols: ['#88ff44', '#aaff66', '#ccff88'] },
+        shield_bee: { flashR: 11, shockR: 32, debris: 6, smoke: 4, sparks: 11, cols: ['#ffcc00', '#ffdd44', '#ffee88'] },
+        kamikaze: { flashR: 16, shockR: 44, debris: 9, smoke: 7, sparks: 16, cols: ['#ff2222', '#ff4444', '#ff6666'] },
+        carrier: { flashR: 14, shockR: 42, debris: 9, smoke: 7, sparks: 14, cols: ['#cc88ff', '#ddaaff', '#eeccff'] },
+        teleporter: { flashR: 13, shockR: 38, debris: 7, smoke: 5, sparks: 14, cols: ['#44ffff', '#66ffff', '#88ffff'] },
+        boss: { flashR: 30, shockR: 80, debris: 16, smoke: 14, sparks: 28, cols: ['#ffcc00', '#ff8800', '#ff4444', '#fff'] },
+        miniboss: { flashR: 26, shockR: 70, debris: 14, smoke: 12, sparks: 24, cols: ['#ffcc00', '#ff8800', '#ff4444'] }
+    };
+
+    // NEW: Bonus sub-stage schedule (every 4 stages before boss)
+    GC.BONUS_STAGE_EVERY = 4;
+    GC.BONUS_STAGE_DURATION = 20000; // 20s
 })();

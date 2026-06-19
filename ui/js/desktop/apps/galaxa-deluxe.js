@@ -4,7 +4,7 @@
     const instances = new Map();
 
     function loadSettings() {
-        try { const s = JSON.parse(localStorage.getItem('galaxa_settings') || '{}'); return { vol: s.vol || 30, diff: s.diff || 'normal', mute: s.mute || false, ship: s.ship || 'classic', mode: s.mode || 'classic', crt: s.crt !== undefined ? s.crt : true, particles: s.particles || 'high', shake: s.shake !== undefined ? s.shake : 1 }; } catch (e) { return { vol: 30, diff: 'normal', mute: false, ship: 'classic', mode: 'classic', crt: true, particles: 'high', shake: 1 }; }
+        try { const s = JSON.parse(localStorage.getItem('galaxa_settings') || '{}'); return { vol: s.vol || 30, diff: s.diff || 'normal', mute: s.mute || false, ship: s.ship || 'classic', mode: s.mode || 'classic', crt: s.crt !== undefined ? s.crt : true, particles: s.particles || 'high', shake: s.shake !== undefined ? s.shake : 1, parry: s.parry !== undefined ? s.parry : true }; } catch (e) { return { vol: 30, diff: 'normal', mute: false, ship: 'classic', mode: 'classic', crt: true, particles: 'high', shake: 1, parry: true }; }
     }
     function loadAchievements() { try { const a = JSON.parse(localStorage.getItem('galaxa_achievements') || '{}'); return a; } catch (e) { return {}; } }
 
@@ -71,6 +71,7 @@
         });
 
         GC.createAudio(gameCtx);
+        GC.createTweens(gameCtx);
         GC.createSprites(gameCtx);
         GC.createBackground(gameCtx);
         GC.createEntities(gameCtx);
@@ -114,11 +115,27 @@
             intensityScore: 5, stageKills: 0, stageDamageTaken: 0, stageAccuracyShots: 0, stageAccuracyHits: 0,
             rageKills: 0, chainMasterHits: 0, orbitalBlocks: 0, mutationStages: 0,
             mirrorField: false, gravityWell: false, phasing: false, ricochetWorld: false,
-            inp: { l: false, r: false, f: false, fp: false, s: false, sp: false, p: false, pp: false, u: false, d: false, rp: false, lp: false, up: false, dp: false },
-            kb: { l: false, r: false, u: false, d: false, f: false, s: false, p: false },
-            gp: { l: false, r: false, u: false, d: false, f: false, s: false, p: false },
+            inp: { l: false, r: false, f: false, fp: false, s: false, sp: false, p: false, pp: false, u: false, d: false, rp: false, lp: false, up: false, dp: false, parry: false, parryp: false, super: false, superp: false },
+            kb: { l: false, r: false, u: false, d: false, f: false, s: false, p: false, parry: false, super: false },
+            gp: { l: false, r: false, u: false, d: false, f: false, s: false, p: false, parry: false, super: false },
             muted: settings.mute, vol: settings.vol / 100, _prevSt: 'TITLE', gameMode: 'classic',
-            achievements: loadAchievements(), achievementPopups: [], collectedPU: new Set(), stageStartTime: 0, perfectCount: 0, bossKillTotal: parseInt(localStorage.getItem('galaxa_boss_kills') || '0')
+            achievements: loadAchievements(), achievementPopups: [], collectedPU: new Set(), stageStartTime: 0, perfectCount: 0, bossKillTotal: parseInt(localStorage.getItem('galaxa_boss_kills') || '0'),
+            // NEW: Parry system
+            parryActive: 0, parryCooldown: 0, parryCount: 0, parrySuccessFlash: 0,
+            // NEW: Super / Overdrive meter
+            superMeter: 0, superActive: 0, superType: null, superTimer: 0, superCooldown: 0,
+            // NEW: Hitstop (short global freeze for impact)
+            hitstopT: 0,
+            // NEW: Floating combat text (damage/crit/elemental)
+            combatText: [],
+            // NEW: Ship banking target (eased tilt)
+            shipTiltTarget: 0, shipPitchTarget: 0,
+            // NEW: Biome progression
+            biome: 'nebula', biomeName: 'NEBULA', biomeRevealT: 0,
+            // NEW: Motion trail history buffers per bullet (capped)
+            trailBudget: 0, parryMasterCount: 0,
+            // NEW: Bonus sub-stage flag
+            bonusStage: false, bonusStageT: 0, bonusRating: null
         };
         gameCtx.G.lives = diffMod('lives');
 

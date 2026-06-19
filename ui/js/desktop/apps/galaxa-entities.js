@@ -155,6 +155,38 @@
             if (isMini) ctx.SFX.miniBossWarning();
         }
         function fire(now) {
+            // NEW: Super effects — Nova Barrage (classic) fires wide spread burst
+            if (ctx.G.superActive > 0 && ctx.G.superType === 'classic') {
+                if (now - lastFireT < 60) return;
+                lastFireT = now;
+                for (let a = -60; a <= 60; a += 12) {
+                    const rad = a * Math.PI / 180;
+                    ctx.G.bul.push({ x: ctx.G.p.x, y: ctx.G.p.y - 8, w: 2, h: 6, vx: Math.sin(rad) * ctx.PB_SPEED * 0.5, vy: -ctx.PB_SPEED, pierce: true, _super: true });
+                }
+                if (ctx.G.p.dual) for (let a = -60; a <= 60; a += 12) { const rad = a * Math.PI / 180; ctx.G.bul.push({ x: ctx.G.p.x + 28, y: ctx.G.p.y - 8, w: 2, h: 6, vx: Math.sin(rad) * ctx.PB_SPEED * 0.5, vy: -ctx.PB_SPEED, pierce: true, _super: true }); }
+                ctx.SFX.shoot(ctx.G.p.x); ctx.G.muzzleT = 50;
+                return;
+            }
+            // NEW: Super effects — Aegis Cannon (heavy) fires a continuous thick beam
+            if (ctx.G.superActive > 0 && ctx.G.superType === 'heavy') {
+                if (now - lastFireT < 100) return;
+                lastFireT = now;
+                ctx.G.bul.push({ x: ctx.G.p.x, y: ctx.G.p.y - 8, w: 8, h: 16, vx: 0, vy: -ctx.PB_SPEED * 2, laser: true, pierce: true, _super: true, aegis: true });
+                ctx.SFX.laserShoot(ctx.G.p.x); ctx.G.muzzleT = 50;
+                return;
+            }
+            // NEW: Super effects — Shadow Clones (stealth) fire alongside player
+            if (ctx.G.superActive > 0 && ctx.G.superType === 'stealth') {
+                // Clones positioned to left/right, fire straight up in sync
+                const cloneOffsets = [-40, 40, -80, 80];
+                for (const off of cloneOffsets) {
+                    ctx.G.bul.push({ x: ctx.G.p.x + off, y: ctx.G.p.y - 8, w: 2, h: 6, vx: 0, vy: -ctx.PB_SPEED, pierce: true, _super: true });
+                }
+            }
+            // NEW: Super effects — Phase Dash (interceptor) grants i-frames automatically (handled in inv calc)
+            if (ctx.G.superActive > 0 && ctx.G.superType === 'interceptor') {
+                ctx.G.p.inv = Math.max(ctx.G.p.inv, 100); // continuous i-frames during dash
+            }
             if (ctx.G.activePU && (ctx.G.activePU.type === 'laser' || ctx.G.activePU.type === 'mega_laser')) {
                 const cd = ctx.G.activePU.type === 'mega_laser' ? 200 : 300;
                 if (now - lastFireT < cd) return;
@@ -233,11 +265,13 @@
             }
         }
         function boom(x, y, isBoss, enemyType, killVx, killVy) {
+            // NEW: Use per-enemy explosion profile for layered explosion intensity
+            const _prof = (enemyType && ctx.EXPLOSION_PROFILE[enemyType]) || ctx.EXPLOSION_PROFILE.bee;
             const dur = isBoss ? 900 : 450;
-            const pCount = isBoss ? 50 : 20;
-            const sparkCount = isBoss ? 24 : 10;
-            const debrisCount = isBoss ? 14 : 6;
-            const smokeCount = isBoss ? 14 : 7;
+            const pCount = isBoss ? _prof.debris * 3 : _prof.debris;
+            const sparkCount = isBoss ? _prof.sparks * 2 : _prof.sparks;
+            const debrisCount = isBoss ? _prof.debris * 2 : _prof.debris;
+            const smokeCount = isBoss ? _prof.smoke * 2 : _prof.smoke;
             const flashCount = isBoss ? 8 : 4;
             ctx.G.exp.push({ x, y, t: 0, dur, seed: Math.random(), isBoss });
             if (isBoss) {
@@ -263,7 +297,10 @@
                 carrier: ['#cc88ff', '#ddaaff', '#eeccff', '#fff'],
                 teleporter: ['#44ffff', '#66ffff', '#88ffff', '#fff']
             };
-            const fireCols = (enemyType && typeCols[enemyType]) ? typeCols[enemyType] : ['#ffcc00', '#ff4444', '#ff8800', '#fff', '#ffee88', '#ff6622', '#ffaa00'];
+            const fireCols = (enemyType && typeCols[enemyType]) ? typeCols[enemyType] : (isBoss ? ['#ffcc00', '#ff8800', '#ff4444', '#fff'] : ['#ffcc00', '#ff4444', '#ff8800', '#fff', '#ffee88', '#ff6622', '#ffaa00']);
+            // NEW: Per-enemy-type layered explosion sound + hitstop on boss kills
+            if (ctx.SFX.eExplodeTyped) ctx.SFX.eExplodeTyped(enemyType || 'bee', isBoss ? 'big' : 'normal', x); else ctx.SFX.eExplode(x);
+            if (isBoss) { ctx.G.hitstopT = Math.max(ctx.G.hitstopT, 120); ctx.duckMusic(0.5, 600); }
             for (let i = 0; i < pCount; i++) {
                 const a = (i / pCount) * Math.PI * 2 + Math.random() * 0.8, sp = 60 + (i * 23 % 160) * (isBoss ? 2 : 1.2);
                 const cols = fireCols[i % fireCols.length];
@@ -564,6 +601,26 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 return;
             }
             const inp = ctx.G.inp;
+            // NEW: Parry activation (edge-triggered, with cooldown)
+            if (inp.parry && !inp.parryp && ctx.G.parryCooldown <= 0 && ctx.G.parryActive <= 0 && ctx.settings.parry !== false) {
+                ctx.G.parryActive = ctx.PARRY_WINDOW;
+                ctx.G.parrySuccessFlash = 0;
+                if (ctx.SFX.parryStart) ctx.SFX.parryStart(ctx.G.p.x);
+            }
+            // NEW: Super activation (edge-triggered, requires full meter)
+            if (inp.super && !inp.superp && ctx.G.superMeter >= ctx.SUPER_COST && ctx.G.superActive <= 0 && ctx.G.superCooldown <= 0) {
+                ctx.G.superActive = (ctx.SUPER_DEFS[ctx.settings.ship] || ctx.SUPER_DEFS.classic).dur;
+                ctx.G.superType = ctx.settings.ship;
+                ctx.G.superTimer = ctx.G.superActive;
+                ctx.G.superMeter = 0;
+                ctx.G.superCooldown = 1000;
+                const _def = ctx.SUPER_DEFS[ctx.settings.ship] || ctx.SUPER_DEFS.classic;
+                if (ctx.SFX.superActivate) ctx.SFX.superActivate(ctx.settings.ship, ctx.G.p.x);
+                ctx.duckMusic(0.4, 400);
+                ctx.G.hitstopT = Math.max(ctx.G.hitstopT, 80);
+                ctx.G.flashT = Math.max(ctx.G.flashT, 60);
+                ctx.G.scorePopups.push({ x: ctx.G.p.x, y: ctx.G.p.y - 30, text: _def.name + '!', t: 0, dur: 1500, col: _def.col, big: true });
+            }
             const baseSpd = ctx.getShipSpeed();
             const spd = ctx.G.activePU && (ctx.G.activePU.type === 'speed' || ctx.G.activePU.type === 'hyper_speed') ? baseSpd * (ctx.G.activePU.type === 'hyper_speed' ? 2.2 : 1.8) : baseSpd;
             const vspd = spd * ctx.PLAYER_VERTICAL_SPEED_MULT;
@@ -717,19 +774,31 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
             if (ctx.G.p.alive) {
                 const eg = 0.5 + Math.sin(ctx.tick * 0.15) * 0.3;
                 const tRgb = ctx.G.activePU && ctx.PU_TRAIL_COL[ctx.G.activePU.type] ? ctx.PU_TRAIL_COL[ctx.G.activePU.type] : '255,150,50';
-                const tCol1 = 'rgba(' + tRgb + ',' + eg + ')';
-                const tCol2 = 'rgba(' + tRgb + ',0.4)';
-                if (ctx.G.trails.length < 80) {
-                    ctx.G.trails.push({ x: ctx.G.p.x - 6, y: ctx.G.p.y + 12, vx: (Math.random() - 0.5) * 10, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
-                    ctx.G.trails.push({ x: ctx.G.p.x + 3, y: ctx.G.p.y + 12, vx: (Math.random() - 0.5) * 10, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
+                // NEW: Super-active thrusters are doubled and tinted with super color
+                const _superDef = ctx.G.superActive > 0 ? (ctx.SUPER_DEFS[ctx.G.superType] || ctx.SUPER_DEFS.classic) : null;
+                const _superRgb = _superDef ? _superDef.col.replace('#', '').match(/.{2}/g).map(h => parseInt(h, 16)).join(',') : null;
+                const _useRgb = _superRgb || tRgb;
+                const _thrustBoost = _superDef ? 2 : 1;
+                const tCol1 = 'rgba(' + _useRgb + ',' + eg + ')';
+                const tCol2 = 'rgba(' + _useRgb + ',0.4)';
+                const _trailCap = (ctx.settings.particles === 'low' ? 40 : ctx.settings.particles === 'medium' ? 60 : 80) * _thrustBoost;
+                if (ctx.G.trails.length < _trailCap) {
+                    // NEW: direction-aware thruster particles — stronger lateral thrust when moving
+                    const _latVx = (inp.r ? 1 : 0) - (inp.l ? 1 : 0);
+                    ctx.G.trails.push({ x: ctx.G.p.x - 6, y: ctx.G.p.y + 12, vx: (Math.random() - 0.5) * 10 + _latVx * -15, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
+                    ctx.G.trails.push({ x: ctx.G.p.x + 3, y: ctx.G.p.y + 12, vx: (Math.random() - 0.5) * 10 + _latVx * -15, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
                     ctx.G.trails.push({ x: ctx.G.p.x - 4, y: ctx.G.p.y + 14, vx: (Math.random() - 0.5) * 5, vy: 15 + Math.random() * 10, life: 100, t: 0, col: tCol2, size: 1 });
                     if (ctx.G.p.dual) {
-                        ctx.G.trails.push({ x: ctx.G.p.x + 28, y: ctx.G.p.y + 12, vx: (Math.random() - 0.5) * 10, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
-                        ctx.G.trails.push({ x: ctx.G.p.x + 34, y: ctx.G.p.y + 12, vx: (Math.random() - 0.5) * 10, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
+                        ctx.G.trails.push({ x: ctx.G.p.x + 28, y: ctx.G.p.y + 12, vx: (Math.random() - 0.5) * 10 + _latVx * -15, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
+                        ctx.G.trails.push({ x: ctx.G.p.x + 34, y: ctx.G.p.y + 12, vx: (Math.random() - 0.5) * 10 + _latVx * -15, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
                     }
-                    if (Math.abs(inp.r ? 1 : 0 - (inp.l ? 1 : 0)) > 0 && ctx.G.trails.length < 75) {
-                        const wakeDir = inp.l ? 1 : -1;
+                    if (Math.abs(_latVx) > 0 && ctx.G.trails.length < _trailCap - 5) {
+                        const wakeDir = _latVx > 0 ? -1 : 1;
                         ctx.G.trails.push({ x: ctx.G.p.x + wakeDir * 10, y: ctx.G.p.y + 8, vx: wakeDir * (40 + Math.random() * 30), vy: 10 + Math.random() * 10, life: 120, t: 0, col: 'rgba(255,200,100,0.3)', size: 1 });
+                    }
+                    // NEW: Super Nova Barrage adds extra glow trails
+                    if (_superDef && ctx.G.superType === 'classic') {
+                        for (let _si = 0; _si < 3; _si++) ctx.G.trails.push({ x: ctx.G.p.x + (Math.random()-0.5)*20, y: ctx.G.p.y + 10, vx: (Math.random()-0.5)*30, vy: 30 + Math.random()*20, life: 200, t: 0, col: tCol1, size: 2 });
                     }
                 }
             }
@@ -840,6 +909,13 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             if (ctx.G.killCount === 1) ctx.unlockAchievement('first_blood');
                             if (ctx.G.activePU && ctx.G.activePU.type === 'chain_lightning') ctx.G._chainLightningTarget = e;
                             ctx.G.weaponXP += (e.type === 'boss' ? 3 : e.type === 'miniboss' ? 2 : e.st === 'DIVING' ? 1.5 : 1);
+                            // NEW: Super meter gain from kills + combat text
+                            const _meterGain = ctx.SUPER_METER_GAIN.kill + (e.st === 'DIVING' ? ctx.SUPER_METER_GAIN.headshot : 0) + (ctx.G.combo > 5 ? ctx.SUPER_METER_GAIN.combo : 0);
+                            ctx.G.superMeter = Math.min(ctx.SUPER_COST, (ctx.G.superMeter || 0) + _meterGain);
+                            // NEW: Floating combat text — damage on hit, crit on headshot/weakpoint
+                            if (e.weakPoint && Math.hypot(b.x - (e.x + e.weakPoint.x), b.y - (e.y + e.weakPoint.y)) < 6) {
+                                ctx.G.combatText.push({ x: e.x, y: e.y - 12, text: 'CRIT!', t: 0, dur: 600, col: '#ff4444', big: true });
+                            }
                             const xpNeeded = ctx.G.weaponLv * 10;
                             if (ctx.G.weaponXP >= xpNeeded && ctx.G.weaponLv < 4) {
                                 ctx.G.weaponXP -= xpNeeded;
@@ -944,6 +1020,32 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 // Gravity well mutation
                 if (ctx.G.gravityWell) { const _gbx = ctx.W / 2 - b.x, _gby = ctx.H / 3 - b.y, _gbd = Math.hypot(_gbx, _gby); if (_gbd > 20) { b.x += (_gbx / _gbd) * 30 * eDt; b.y += (_gby / _gbd) * 30 * eDt; } }
                 if (ctx.G.p.alive && ctx.G.p.inv <= 0 && ctx.hit(b, { x: ctx.G.p.x - 6, y: ctx.G.p.y - 6, w: 12, h: 12 })) { ctx.killP(); continue; }
+                // NEW: Parry deflection — if parry active and bullet within parry radius, reflect it back
+                if (ctx.G.p.alive && ctx.G.parryActive > 0) {
+                    const _pdx = b.x - ctx.G.p.x, _pdy = b.y - ctx.G.p.y;
+                    const _pdist = Math.hypot(_pdx, _pdy);
+                    if (_pdist < ctx.PARRY_RADIUS) {
+                        // Reflect bullet back toward nearest enemy (or straight up)
+                        let _tx = b.x, _ty = b.y - 100;
+                        let _nearE = null, _nearD = Infinity;
+                        for (const _pe of ctx.G.enemies) { if (_pe.st === 'DEAD') continue; const _d = Math.hypot(_pe.x - ctx.G.p.x, _pe.y - ctx.G.p.y); if (_d < _nearD) { _nearD = _d; _nearE = _pe; } }
+                        if (_nearE) { _tx = _nearE.x; _ty = _nearE.y; }
+                        const _dx = _tx - b.x, _dy = _ty - b.y, _dd = Math.hypot(_dx, _dy) || 1;
+                        b.vx = (_dx / _dd) * ctx.EB_SPEED * 1.2; b.vy = (_dy / _dd) * ctx.EB_SPEED * 1.2; b.kind = 'bolt'; b._parried = true;
+                        ctx.G.parryActive = 0; ctx.G.parryCooldown = ctx.PARRY_COOLDOWN;
+                        ctx.G.parryCount = (ctx.G.parryCount || 0) + 1;
+                        ctx.G.parrySuccessFlash = 200;
+                        ctx.G.hitstopT = Math.max(ctx.G.hitstopT, 60);
+                        ctx.G.combo = (ctx.G.combo || 0) + 1; ctx.G.comboTimer = ctx.getComboTimeout();
+                        ctx.addScore(300, b.x, b.y - 10, '#ffffff');
+                        ctx.G.combatText.push({ x: b.x, y: b.y - 14, text: 'PARRY!', t: 0, dur: 700, col: '#ffffff', big: true });
+                        if (ctx.SFX.parrySuccess) ctx.SFX.parrySuccess(ctx.G.p.x);
+                        ctx.duckMusic(0.25, 200);
+                        for (let _pi = 0; _pi < 12; _pi++) { const _pa = (_pi / 12) * Math.PI * 2; ctx.G.part.push({ x: ctx.G.p.x, y: ctx.G.p.y, vx: Math.cos(_pa) * 80, vy: Math.sin(_pa) * 80, life: 300, t: 0, col: '#ffffff', size: 2, spark: true }); }
+                        if (ctx.G.parryCount >= 50) ctx.unlockAchievement('parry_master');
+                        continue;
+                    }
+                }
                 // NEW: Danger-close bonus — near miss detection
                 if (ctx.G.p.alive && ctx.G.p.inv <= 0 && !ctx.G._closeCallCooldown) {
                     const _cdx = ctx.G.p.x - b.x, _cdy = ctx.G.p.y - b.y;
@@ -1341,6 +1443,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
         ctx.bulletImpact = bulletImpact;
         ctx.addScore = addScore;
         ctx.updateCombo = updateCombo;
+        ctx.getComboTimeout = getComboTimeout;
         ctx.registerKill = registerKill;
         ctx.hit = hit;
         ctx.dropPU = dropPU;

@@ -49,6 +49,16 @@
                 ctx.c.globalCompositeOperation = 'source-over';
                 ctx.c.globalAlpha = 1;
             }
+            // NEW: Hitstop chromab spike — brief red/blue split during hitstop freeze
+            if (ctx.G.hitstopT > 0) {
+                const _hsa = Math.min(1, ctx.G.hitstopT / 120) * 0.12;
+                ctx.c.globalCompositeOperation = 'lighter';
+                ctx.c.globalAlpha = _hsa;
+                ctx.c.fillStyle = '#ff0000'; ctx.c.fillRect(2, 0, ctx.W, ctx.H);
+                ctx.c.fillStyle = '#00ffff'; ctx.c.fillRect(-2, 0, ctx.W, ctx.H);
+                ctx.c.globalCompositeOperation = 'source-over';
+                ctx.c.globalAlpha = 1;
+            }
             if (ctx.G.damageVignetteT > 0) {
                 const _dv = Math.min(1, ctx.G.damageVignetteT / 400) * 0.65;
                 ctx.c.save();
@@ -301,6 +311,73 @@
                 ctx.c.globalAlpha = 0.3 + Math.sin(ctx.tick * 0.2) * 0.15; ctx.c.strokeStyle = '#aaddff'; ctx.c.lineWidth = 1; ctx.c.shadowBlur = 4; ctx.c.shadowColor = '#aaddff';
                 for (let i = 0; i < 3; i++) { const ea = ctx.tick * 0.1 + i * 2.1; ctx.c.beginPath(); ctx.c.moveTo(p.x, p.y); for (let j = 1; j < 4; j++) ctx.c.lineTo(p.x + Math.cos(ea) * j * 8 + (Math.random() - 0.5) * 6, p.y + Math.sin(ea) * j * 8 + (Math.random() - 0.5) * 6); ctx.c.stroke(); }
                 ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1;
+            }
+            // NEW: Parry aura — expanding white ring while parry window active, plus success flash
+            if (ctx.G.parryActive > 0 && p.alive) {
+                const _pa = 1 - (ctx.G.parryActive / ctx.PARRY_WINDOW);
+                const _pr = 16 + _pa * 20;
+                ctx.c.globalAlpha = Math.max(0, 1 - _pa) * 0.9;
+                ctx.c.strokeStyle = '#ffffff'; ctx.c.lineWidth = 2;
+                ctx.c.shadowBlur = 12; ctx.c.shadowColor = '#ffffff';
+                ctx.c.beginPath(); ctx.c.arc(p.x, p.y, _pr, 0, Math.PI * 2); ctx.c.stroke();
+                ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1;
+            }
+            if (ctx.G.parryCooldown > 0 && p.alive && ctx.settings.parry !== false) {
+                const _cdP = 1 - (ctx.G.parryCooldown / ctx.PARRY_COOLDOWN);
+                ctx.c.globalAlpha = 0.4; ctx.c.strokeStyle = '#888';
+                ctx.c.lineWidth = 2;
+                ctx.c.beginPath(); ctx.c.arc(p.x, p.y, 20, -Math.PI / 2, -Math.PI / 2 + _cdP * Math.PI * 2); ctx.c.stroke();
+                ctx.c.globalAlpha = 1;
+            }
+            if (ctx.G.parrySuccessFlash > 0 && p.alive) {
+                ctx.c.globalAlpha = Math.min(1, ctx.G.parrySuccessFlash / 200) * 0.5;
+                ctx.c.fillStyle = '#ffffff'; ctx.c.fillRect(0, 0, ctx.W, ctx.H);
+                ctx.c.globalAlpha = 1;
+            }
+            // NEW: Super meter bar — rendered above player when partially/fully charged
+            if (p.alive && (ctx.G.superMeter || 0) > 0) {
+                const _def = ctx.SUPER_DEFS[ctx.settings.ship] || ctx.SUPER_DEFS.classic;
+                const _bw = 40, _bh = 3, _bx = p.x - _bw / 2, _by = p.y + 28;
+                ctx.c.fillStyle = '#222'; ctx.c.fillRect(_bx - 1, _by - 1, _bw + 2, _bh + 2);
+                ctx.c.fillStyle = '#333'; ctx.c.fillRect(_bx, _by, _bw, _bh);
+                const _ratio = ctx.G.superMeter / ctx.SUPER_COST;
+                ctx.c.fillStyle = _def.col;
+                if (_ratio >= 1) { // pulsing when ready
+                    const _pulse = 0.7 + Math.sin(ctx.tick * 0.2) * 0.3;
+                    ctx.c.globalAlpha = _pulse;
+                    ctx.c.fillRect(_bx, _by, _bw, _bh);
+                    ctx.c.globalAlpha = 1;
+                    ctx.c.fillStyle = '#fff'; ctx.c.font = '8px "Courier New",monospace'; ctx.c.textAlign = 'center';
+                    ctx.c.fillText('SUPER READY', p.x, _by + 12);
+                } else {
+                    ctx.c.fillRect(_bx, _by, _bw * _ratio, _bh);
+                }
+            }
+            // NEW: Super active glow — colored aura per ship super type
+            if (ctx.G.superActive > 0 && p.alive) {
+                const _def = ctx.SUPER_DEFS[ctx.G.superType] || ctx.SUPER_DEFS.classic;
+                const _sga = Math.min(1, ctx.G.superActive / 500) * 0.4 + 0.2;
+                ctx.c.globalAlpha = _sga * (0.6 + Math.sin(ctx.tick * 0.3) * 0.4);
+                ctx.c.fillStyle = _def.col;
+                const _sgr = 22 + Math.sin(ctx.tick * 0.15) * 4;
+                const _sgGrad = ctx.cachedRadialGradient(ctx.c, 'superGlow:' + _def.col, p.x, p.y, 0, _sgr + 10, [[0, _def.col + 'cc'], [0.5, _def.col + '44'], [1, 'transparent']]);
+                ctx.c.fillStyle = _sgGrad; ctx.c.fillRect(p.x - _sgr - 10, p.y - _sgr - 10, (_sgr + 10) * 2, (_sgr + 10) * 2);
+                ctx.c.globalAlpha = 1;
+                // Interceptor phase dash — motion streak lines
+                if (ctx.G.superType === 'interceptor') {
+                    ctx.c.strokeStyle = _def.col; ctx.c.lineWidth = 1; ctx.c.globalAlpha = 0.3;
+                    for (let _si = 0; _si < 4; _si++) { ctx.c.beginPath(); ctx.c.moveTo(p.x, p.y); ctx.c.lineTo(p.x + (Math.random()-0.5)*8, p.y + 20 + _si * 6); ctx.c.stroke(); }
+                    ctx.c.globalAlpha = 1;
+                }
+                // Shadow clone ghosts (stealth)
+                if (ctx.G.superType === 'stealth') {
+                    const _offsets = [-40, 40, -80, 80];
+                    for (const _off of _offsets) {
+                        ctx.c.globalAlpha = 0.3 + Math.sin(ctx.tick * 0.2 + _off) * 0.1;
+                        ctx.drawSp(ctx.c, ctx.SP.player, { 1: _def.col, 2: '#4466aa', 3: '#224477', 4: '#112244', 5: '#ff8800', 6: '#44ffaa', 7: '#aaddff', a: '#ff5544' }, p.x + _off - 12, p.y - 12, false);
+                    }
+                    ctx.c.globalAlpha = 1;
+                }
             }
 
             if (ctx.G.activePU && (ctx.G.activePU.type === 'laser' || ctx.G.activePU.type === 'mega_laser') && ctx.G.p.alive && ctx.G.muzzleT > 0) {
@@ -763,6 +840,22 @@
                 ctx.c.restore();
             } ctx.c.globalAlpha = 1;
 
+            // NEW: Floating combat text (damage / crit / parry) — easeOutBack scale-in
+            for (const _ct of ctx.G.combatText) {
+                const _ctAlpha = Math.max(0, 1 - _ct.t / _ct.dur);
+                const _ctProgress = Math.min(1, _ct.t / 200);
+                const _ctScale = _ct.big ? (0.5 + ctx.Easing.easeOutBack(_ctProgress) * 0.8) : (0.8 + _ctProgress * 0.3);
+                ctx.c.globalAlpha = _ctAlpha;
+                ctx.c.save(); ctx.c.translate(Math.floor(_ct.x), Math.floor(_ct.y)); ctx.c.scale(_ctScale, _ctScale);
+                if (_ct.big) { ctx.c.shadowBlur = 10; ctx.c.shadowColor = _ct.col; }
+                ctx.c.fillStyle = _ct.col;
+                ctx.c.font = (_ct.big ? 'bold 15px' : 'bold 11px') + ' "Courier New",monospace';
+                ctx.c.textAlign = 'center'; ctx.c.fillText(_ct.text, 0, 0);
+                if (_ct.big) ctx.c.shadowBlur = 0;
+                ctx.c.restore();
+            }
+            ctx.c.globalAlpha = 1;
+
             if (ctx.G.perfectT > 0) {
                 ctx.c.shadowBlur = 8; ctx.c.shadowColor = '#00ffcc';
                 ctx.c.fillStyle = '#00ffcc'; ctx.c.font = 'bold 22px "Courier New",monospace'; ctx.c.textAlign = 'center';
@@ -969,6 +1062,47 @@
                     ctx.c.beginPath(); ctx.c.arc(cx, cy, r, startA, endA); ctx.c.stroke();
                     ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1;
                 }
+            }
+            // NEW: Biome reveal cinematic — letterbox + sliding name plate
+            if (ctx.G.biomeRevealT > 0) {
+                const _br = ctx.G.biomeRevealT;
+                const _phase = _br > 2000 ? 0 : _br > 1800 ? (_br - 1800) / 200 : _br < 400 ? _br / 400 : 1;
+                const _ease = ctx.Easing.easeOutCubic(Math.min(1, _phase));
+                // letterbox bars
+                const _bh = Math.floor(ctx.H * 0.12 * (1 - _ease));
+                if (_br > 200) { ctx.c.fillStyle = '#000'; ctx.c.fillRect(0, 0, ctx.W, _bh + 4); ctx.c.fillRect(0, ctx.H - _bh - 4, ctx.W, _bh + 4); }
+                // name plate
+                if (_phase > 0) {
+                    ctx.c.save();
+                    const _py = ctx.H / 2;
+                    const _plateW = ctx.W * 0.8, _plateX = ctx.W / 2 - _plateW / 2;
+                    const _slide = (1 - _ease) * ctx.W;
+                    ctx.c.globalAlpha = _ease;
+                    ctx.c.fillStyle = 'rgba(0,0,0,0.6)'; ctx.c.fillRect(_plateX - _slide, _py - 24, _plateW, 48);
+                    const _biomeDef = ctx.getBiomeForStage ? ctx.getBiomeForStage(ctx.G.stage) : null;
+                    const _accent = _biomeDef ? _biomeDef.palette[1] : '#4488ff';
+                    ctx.c.strokeStyle = _accent; ctx.c.lineWidth = 1; ctx.c.strokeRect(_plateX - _slide, _py - 24, _plateW, 48);
+                    ctx.c.shadowBlur = 12; ctx.c.shadowColor = _accent;
+                    ctx.c.fillStyle = _accent; ctx.c.font = 'bold 22px "Courier New",monospace'; ctx.c.textAlign = 'center';
+                    ctx.c.fillText(ctx.G.biomeName || 'BIOME', ctx.W / 2 - _slide, _py);
+                    ctx.c.shadowBlur = 0;
+                    ctx.c.fillStyle = '#aaccee'; ctx.c.font = '10px "Courier New",monospace';
+                    const _desc = _biomeDef ? _biomeDef.desc : '';
+                    if (_desc) ctx.c.fillText(_desc, ctx.W / 2 - _slide, _py + 18);
+                    ctx.c.restore(); ctx.c.globalAlpha = 1;
+                }
+            }
+            // NEW: Bonus sub-stage banner
+            if (ctx.G.bonusStage && ctx.G.bonusStageT > 0) {
+                const _btA = ctx.G.bonusStageT < 1500 ? Math.min(1, (ctx.G.bonusStageT) / 300) : Math.min(1, (ctx.BONUS_STAGE_DURATION - ctx.G.bonusStageT) / 300);
+                const _blink = Math.sin(ctx.tick * 0.15) > 0;
+                ctx.c.save(); ctx.c.globalAlpha = Math.min(0.9, _btA + 0.3);
+                ctx.c.fillStyle = _blink ? '#ffcc00' : '#ff8844'; ctx.c.font = 'bold 12px "Courier New",monospace'; ctx.c.textAlign = 'center';
+                ctx.c.fillText('BONUS STAGE', ctx.W / 2, ctx.H - 70);
+                ctx.c.fillStyle = '#fff'; ctx.c.font = '10px "Courier New",monospace';
+                const _secs = Math.ceil(ctx.G.bonusStageT / 1000);
+                ctx.c.fillText(_secs + 's', ctx.W / 2, ctx.H - 56);
+                ctx.c.restore();
             }
             for (let i = 0; i < Math.min(ctx.G.lives, 5); i++) ctx.drawSp(ctx.c, ctx.SP.player, ctx.SP.pC, 10 + i * 26, ctx.H - 24, false);
             if (ctx.G.activePU) {
