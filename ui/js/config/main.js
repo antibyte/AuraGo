@@ -236,8 +236,17 @@ let configSaveInFlight = false;
 let restartInFlight = false;
 let initialSnapshot = '';
 let suppressDirtyTracking = false;
+let userEditedSinceSnapshot = false;
+let configEditIntentUntil = 0;
+let dirtyBaselineRefreshTimers = [];
+let configEditIntentTrackingInstalled = false;
 let vaultExists = false;
+const CONFIG_EDIT_INTENT_WINDOW_MS = 2000;
+const DIRTY_BASELINE_REFRESH_DELAY_MS = 160;
+const DIRTY_BASELINE_SETTLE_DELAYS_MS = [120, 600, 1600, 3600, 8000];
 const SENSITIVE_KEYS = ['api_key', 'bot_token', 'password', 'app_password', 'access_token', 'token', 'user_key', 'app_token', 'secret', 'master_key'];
+const CFG_TEXT_AUTOFILL_ATTRS = ' autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"';
+const CFG_SENSITIVE_AUTOFILL_ATTRS = ' autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"';
 
 function hasVisibleSection(key) {
     return SECTIONS.some(group => group.items.some(item => item.key === key));
@@ -309,6 +318,7 @@ async function init() {
         activeSection = 'server';
         localStorage.setItem('aurago-cfg-section', activeSection);
     }
+    installConfigEditIntentTracking();
     buildSidebar();
     await selectSection(activeSection, { scrollBehavior: 'auto' });
     resetDirtySnapshot();
@@ -1280,7 +1290,7 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
             h += '<div class="cfg-master-key-note">🔐 ' + t('config.master_key.vault_exists') + '</div>';
         } else {
             h += '<div class="password-wrap">';
-            h += '<input class="field-input" type="password" data-path="server.master_key" value="" placeholder="' + t('config.master_key.placeholder') + '" autocomplete="off">';
+            h += '<input class="field-input" type="password" data-path="server.master_key" value="" placeholder="' + t('config.master_key.placeholder') + '"' + cfgNoAutofillAttrs(true) + '>';
             h += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
             h += '</div>';
             h += '<div class="cfg-master-key-note cfg-master-key-note-warning">⚠️ ' + t('config.master_key.no_vault') + '</div>';
@@ -1352,12 +1362,12 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
         if (hasCustom) {
             const hiddenCls = isCustomVal ? '' : ' is-hidden';
             const customVal = isCustomVal ? value : '';
-            html += `<input class="field-input cfg-custom-input${hiddenCls}" type="text" data-custom-for="${fullPath}" value="${escapeAttr(customVal)}" placeholder="${t('config.field.custom_value_placeholder')}" oninput="markDirty()">`;
+            html += `<input class="field-input cfg-custom-input${hiddenCls}" type="text" data-custom-for="${fullPath}" value="${escapeAttr(customVal)}" placeholder="${t('config.field.custom_value_placeholder')}"${cfgNoAutofillAttrs(false)} oninput="markDirty(event)">`;
         }
     } else if (isSensitive) {
         const displayVal = cfgSecretValue(value);
         html += '<div class="password-wrap">';
-        html += '<input class="field-input" type="password" data-path="' + fullPath + '" value="' + escapeAttr(displayVal) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(value)) + '" autocomplete="off">';
+        html += '<input class="field-input" type="password" data-path="' + fullPath + '" value="' + escapeAttr(displayVal) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(value)) + '"' + cfgNoAutofillAttrs(true) + '>';
         html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';
     } else if (fieldType === 'int' || fieldType === 'float') {
@@ -1367,7 +1377,7 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
         if (fullPath.endsWith('agent.core_memory_max_entries')) {
             showValue = (value === undefined || value === null || value === 0 || value === '') ? 80 : value;
         }
-        html += '<input class="field-input" type="number" step="' + step + '" data-path="' + fullPath + '" value="' + (showValue ?? '') + '">';
+        html += '<input class="field-input" type="number" step="' + step + '" data-path="' + fullPath + '" value="' + (showValue ?? '') + '"' + cfgNoAutofillAttrs(false) + '>';
     } else if (fieldType === 'array') {
         // budget.models is now managed in Provider settings
         if (fullPath === 'budget.models') {
@@ -1381,10 +1391,10 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
             html += `<div class="cfg-array-chips" data-array-path="${escapeAttr(fullPath)}">
                 <div class="cfg-chip-row" data-chip-row="1"></div>
                 <div class="cfg-chip-input-row">
-                    <input class="field-input cfg-chip-input" type="text" placeholder="${t('config.field.placeholder_example')}">
+                    <input class="field-input cfg-chip-input" type="text" placeholder="${t('config.field.placeholder_example')}"${cfgNoAutofillAttrs(false)}>
                     <button type="button" class="cfg-btn cfg-btn-sm cfg-chip-add-btn" title="${t('config.field.add')}">+</button>
                 </div>
-                <input class="field-input is-hidden" type="text" data-path="${escapeAttr(fullPath)}" data-type="array" value="${escapeAttr(joined)}">
+                <input class="field-input is-hidden" type="text" data-path="${escapeAttr(fullPath)}" data-type="array" value="${escapeAttr(joined)}"${cfgNoAutofillAttrs(false)}>
             </div>`;
         } else {
             const isObjArray = (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && value[0] !== null);
@@ -1394,12 +1404,12 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
                 html += '<div class="cfg-json-array-hint">' + t('config.field.json_array_hint') + '</div>';
             } else {
                 const arrVal = Array.isArray(value) ? value.join(', ') : (value || '');
-                html += '<input class="field-input" type="text" data-path="' + fullPath + '" data-type="array" value="' + escapeAttr(arrVal) + '" placeholder="' + t('config.field.comma_separated') + '">';
+                html += '<input class="field-input" type="text" data-path="' + fullPath + '" data-type="array" value="' + escapeAttr(arrVal) + '" placeholder="' + t('config.field.comma_separated') + '"' + cfgNoAutofillAttrs(false) + '>';
             }
         }
         }
     } else {
-        html += '<input class="field-input" type="text" data-path="' + fullPath + '" value="' + escapeAttr(value ?? '') + '">';
+        html += '<input class="field-input" type="text" data-path="' + fullPath + '" value="' + escapeAttr(value ?? '') + '"' + cfgNoAutofillAttrs(false) + '>';
     }
     html += '</div>';
     return html;
@@ -1427,6 +1437,9 @@ function formatKey(key) {
 
 function escapeAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+function cfgNoAutofillAttrs(sensitive = false) {
+    return sensitive ? CFG_SENSITIVE_AUTOFILL_ATTRS : CFG_TEXT_AUTOFILL_ATTRS;
+}
 
 /** Set a deep value on an object using a dot-separated path, e.g. "tools.web_scraper.enabled". */
 function setNestedValue(obj, path, value) {
@@ -1496,13 +1509,69 @@ function collectSnapshot() {
     return parts.join('|');
 }
 
-function resetDirtySnapshot() {
-    suppressDirtyTracking = true;
+function clearDirtyBaselineRefreshTimers() {
+    dirtyBaselineRefreshTimers.forEach(timer => clearTimeout(timer));
+    dirtyBaselineRefreshTimers = [];
+}
+
+function refreshDirtyBaselineIfIdle() {
+    if (userEditedSinceSnapshot) return;
     initialSnapshot = collectSnapshot();
     setDirty(false);
-    setTimeout(() => {
-        suppressDirtyTracking = false;
-    }, 0);
+}
+
+function scheduleDirtyBaselineRefresh(delayMs = DIRTY_BASELINE_REFRESH_DELAY_MS) {
+    const timer = setTimeout(() => {
+        dirtyBaselineRefreshTimers = dirtyBaselineRefreshTimers.filter(t => t !== timer);
+        refreshDirtyBaselineIfIdle();
+    }, delayMs);
+    dirtyBaselineRefreshTimers.push(timer);
+}
+
+function scheduleDirtyBaselineSettling() {
+    clearDirtyBaselineRefreshTimers();
+    DIRTY_BASELINE_SETTLE_DELAYS_MS.forEach(delay => scheduleDirtyBaselineRefresh(delay));
+    const finalDelay = DIRTY_BASELINE_SETTLE_DELAYS_MS[DIRTY_BASELINE_SETTLE_DELAYS_MS.length - 1] || 0;
+    const timer = setTimeout(() => {
+        dirtyBaselineRefreshTimers = dirtyBaselineRefreshTimers.filter(t => t !== timer);
+        if (!userEditedSinceSnapshot) suppressDirtyTracking = false;
+    }, finalDelay + 50);
+    dirtyBaselineRefreshTimers.push(timer);
+}
+
+function resetDirtySnapshot() {
+    suppressDirtyTracking = true;
+    userEditedSinceSnapshot = false;
+    initialSnapshot = collectSnapshot();
+    setDirty(false);
+    scheduleDirtyBaselineSettling();
+}
+
+function closestConfigEditable(target) {
+    if (!target || typeof target.closest !== 'function') return null;
+    return target.closest('.field-input, .field-select, .cfg-input, .toggle');
+}
+
+function noteConfigEditIntent(event) {
+    if (!event || event.isTrusted !== true || !closestConfigEditable(event.target)) return;
+    if (event.type === 'keydown' && ['Tab', 'Shift', 'Control', 'Alt', 'Meta', 'Escape'].includes(event.key)) return;
+    configEditIntentUntil = Date.now() + CONFIG_EDIT_INTENT_WINDOW_MS;
+}
+
+function installConfigEditIntentTracking() {
+    if (configEditIntentTrackingInstalled) return;
+    configEditIntentTrackingInstalled = true;
+    ['beforeinput', 'keydown', 'pointerdown', 'paste', 'drop'].forEach(type => {
+        document.addEventListener(type, noteConfigEditIntent, true);
+    });
+}
+
+function isUserInitiatedConfigChange(event) {
+    if (!event) return true;
+    if (event.isTrusted !== true) return false;
+    if (suppressDirtyTracking && Date.now() > configEditIntentUntil) return false;
+    if (Date.now() <= configEditIntentUntil) return true;
+    return !!(event.inputType && event.inputType !== 'insertReplacementText');
 }
 
 function getNestedValue(obj, path) {
@@ -1642,8 +1711,14 @@ async function scheduleEmbeddingsReset() {
     return { ok: resp.ok, data };
 }
 
-function markDirty() {
-    if (suppressDirtyTracking) return;
+function markDirty(event) {
+    if (!isUserInitiatedConfigChange(event)) {
+        if (!userEditedSinceSnapshot) scheduleDirtyBaselineRefresh();
+        return;
+    }
+    userEditedSinceSnapshot = true;
+    suppressDirtyTracking = false;
+    clearDirtyBaselineRefreshTimers();
     const dirty = collectSnapshot() !== initialSnapshot;
     setDirty(dirty);
 }
@@ -1750,8 +1825,7 @@ async function saveConfig() {
                 } catch (_) { /* tunnel restarting, retry */ }
                 await new Promise(r => setTimeout(r, 800));
             }
-            initialSnapshot = collectSnapshot();
-            setDirty(false);
+            resetDirtySnapshot();
             // Check for security issues introduced by this save
             checkSecurityAfterSave();
             if (shouldScheduleResetNow) {
