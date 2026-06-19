@@ -6,7 +6,14 @@
     GC.H = 640;
     GC.PLAYER_SPEED = 220;
     GC.PLAYER_Y_MIN = 380;
-    GC.PLAYER_Y_MAX = GC.H - 30;
+    // FIX: tightened from H-30 to H-60 so the 24x24 player sprite stays fully
+    // visible during the cinematic super camera zoom (max camZoom 1.15x).
+    // With the old value, sprite bottom (p.y+12 = 622) was drawn at canvas y
+    // ~667 when zoomed in — 27 pixels below the canvas bottom (640) — so the
+    // sprite appeared to "leave the field" by ~one player height during supers.
+    // New value gives sprite bottom at 592, drawn at canvas y ~633 when zoomed
+    // (8px clear of canvas bottom).
+    GC.PLAYER_Y_MAX = GC.H - 60;
     GC.PLAYER_VERTICAL_SPEED_MULT = 0.85;
     GC.PB_SPEED = 500;
     GC.EB_SPEED = 260;
