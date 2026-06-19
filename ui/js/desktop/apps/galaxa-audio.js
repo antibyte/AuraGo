@@ -204,7 +204,11 @@
             rankJingleS() { const _v = vv(); [659, 784, 988, 1319, 1568].forEach((f, i) => { setTimeout(() => beep('triangle', f, f, 0.1, 0.25 * _v), i * 70); }); },
             rankJingleA() { const _v = vv(); [523, 659, 784, 1047].forEach((f, i) => { setTimeout(() => beep('sine', f, f, 0.1, 0.22 * _v), i * 80); }); },
             rankJingleB() { beep('triangle', 440, 440, 0.15, 0.2); setTimeout(() => beep('triangle', 660, 660, 0.15, 0.2), 150); },
-            rankJingleC() { const _v = vv(); beep('sawtooth', 220, 110, 0.4, 0.25 * _v); beep('triangle', 165, 82, 0.3, 0.2 * _v); }
+            rankJingleC() { const _v = vv(); beep('sawtooth', 220, 110, 0.4, 0.25 * _v); beep('triangle', 165, 82, 0.3, 0.2 * _v); },
+            // NEW: Boss phase stingers
+            bossPhaseTransition() { const _v = vv(); beep('sawtooth', 100, 50, 0.6, 0.4 * _v); noise(0.4, 0.3 * _v, 800); setTimeout(() => beep('sawtooth', 200, 100, 0.3, 0.25 * _v), 200); },
+            bossPhaseCrescendo() { const _v = vv(); beep('sawtooth', 200, 800, 0.5, 0.35 * _v); beep('triangle', 400, 1600, 0.4, 0.25 * _v); noise(0.3, 0.2 * _v, 4000); },
+            bossDeathStinger() { const _v = vv(); [110, 82, 65, 49, 41].forEach((f, i) => { setTimeout(() => { beep('sawtooth', f, f * 0.5, 0.6, 0.35 * _v); beep('sine', f * 2, f, 0.5, 0.25 * _v); }, i * 400); }); }
         };
 
         const MusicEngine = {
