@@ -666,21 +666,18 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 	allNodes[centerNodeID] = center
 	visited[centerNodeID] = true
 
-	queue := []kgBFSLevel{{centerNodeID, 0}}
-	for len(queue) > 0 {
-		var levelNodeIDs []string
-		maxDepthInLevel := queue[0].depth
-		for _, item := range queue {
-			if item.depth >= maxDepth {
-				continue
+	currentLevel := []string{centerNodeID}
+	for depth := 0; depth < maxDepth && len(currentLevel) > 0; depth++ {
+		levelNodeIDs := make([]string, 0, len(currentLevel))
+		for _, nodeID := range currentLevel {
+			if strings.TrimSpace(nodeID) != "" {
+				levelNodeIDs = append(levelNodeIDs, nodeID)
 			}
-			levelNodeIDs = append(levelNodeIDs, item.nodeID)
 		}
 		if len(levelNodeIDs) == 0 {
 			break
 		}
 
-		var discoveredEdges []Edge
 		var neighborIDs []string
 		placeholders := make([]string, len(levelNodeIDs))
 		batchArgs := make([]interface{}, len(levelNodeIDs)*2)
@@ -701,23 +698,36 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 			for batchRows.Next() {
 				var e Edge
 				var propsJSON string
-				if batchRows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON) == nil {
-					json.Unmarshal([]byte(propsJSON), &e.Properties)
-					if e.Properties == nil {
-						e.Properties = make(map[string]string)
-					}
-					edgeKey := knowledgeGraphEdgeKey(e.Source, e.Target, e.Relation)
-					if _, exists := allEdges[edgeKey]; !exists {
-						allEdges[edgeKey] = e
-						discoveredEdges = append(discoveredEdges, e)
-					}
-					if !visited[e.Source] {
-						neighborIDs = append(neighborIDs, e.Source)
-					}
-					if !visited[e.Target] {
-						neighborIDs = append(neighborIDs, e.Target)
+				if err := batchRows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON); err != nil {
+					batchRows.Close()
+					kg.logger.Warn("GetSubgraph: scan edge failed", "error", err)
+					return nil, nil
+				}
+				if strings.TrimSpace(propsJSON) != "" {
+					if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
+						batchRows.Close()
+						kg.logger.Warn("GetSubgraph: corrupt edge properties JSON", "source", e.Source, "target", e.Target, "relation", e.Relation, "error", err)
+						return nil, nil
 					}
 				}
+				if e.Properties == nil {
+					e.Properties = make(map[string]string)
+				}
+				edgeKey := knowledgeGraphEdgeKey(e.Source, e.Target, e.Relation)
+				if _, exists := allEdges[edgeKey]; !exists {
+					allEdges[edgeKey] = e
+				}
+				if !visited[e.Source] {
+					neighborIDs = append(neighborIDs, e.Source)
+				}
+				if !visited[e.Target] {
+					neighborIDs = append(neighborIDs, e.Target)
+				}
+			}
+			if err := batchRows.Err(); err != nil {
+				batchRows.Close()
+				kg.logger.Warn("GetSubgraph: iterate edge rows failed", "error", err)
+				return nil, nil
 			}
 			batchRows.Close()
 		}
@@ -746,12 +756,13 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 			}
 		}
 
-		queue = make([]kgBFSLevel, 0, len(uniqueNeighborIDs))
+		nextLevel := make([]string, 0, len(uniqueNeighborIDs))
 		for _, id := range uniqueNeighborIDs {
 			if visited[id] {
-				queue = append(queue, kgBFSLevel{id, maxDepthInLevel + 1})
+				nextLevel = append(nextLevel, id)
 			}
 		}
+		currentLevel = nextLevel
 	}
 
 	if err := tx.Commit(); err != nil && kg.logger != nil {

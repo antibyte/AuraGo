@@ -653,9 +653,15 @@ func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
 	var ids []string
 	for rows.Next() {
 		var id string
-		if err := rows.Scan(&id); err == nil {
-			ids = append(ids, id)
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("scan node id for source file delete: %w", err)
 		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return 0, fmt.Errorf("iterate node ids for source file delete: %w", err)
 	}
 	rows.Close()
 
@@ -749,11 +755,15 @@ func (kg *KnowledgeGraph) GetNodesBySourceFile(path string, limit int) ([]Node, 
 		var n Node
 		var propsJSON string
 		var protected int
-		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
-			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetNodesBySourceFile", n.ID, propsJSON, protected)
-			n.Protected = protected != 0
-			nodes = append(nodes, n)
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+			return nil, fmt.Errorf("scan node by source file: %w", err)
 		}
+		n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetNodesBySourceFile", n.ID, propsJSON, protected)
+		n.Protected = protected != 0
+		nodes = append(nodes, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate nodes by source file: %w", err)
 	}
 	return nodes, nil
 }

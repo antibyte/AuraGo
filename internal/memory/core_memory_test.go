@@ -179,6 +179,99 @@ func TestCoreMemory_NormalizedDuplicateFactsReuseExistingEntry(t *testing.T) {
 	}
 }
 
+func TestCoreMemoryMigrationBackfillsNormalizedFactAndDeduplicates(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "stm.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	_, err = db.Exec(`
+		CREATE TABLE core_memory (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			fact TEXT NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
+		INSERT INTO core_memory (fact) VALUES
+			('User prefers German responses.'),
+			(' user   PREFERS german responses. '),
+			('Different fact');
+	`)
+	if err != nil {
+		_ = db.Close()
+		t.Fatalf("seed core_memory: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close seed db: %v", err)
+	}
+
+	stm, err := NewSQLiteMemory(dbPath, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	facts, err := stm.GetCoreMemoryFacts()
+	if err != nil {
+		t.Fatalf("GetCoreMemoryFacts: %v", err)
+	}
+	if len(facts) != 2 {
+		t.Fatalf("facts len = %d, want 2 after normalized duplicate cleanup: %+v", len(facts), facts)
+	}
+
+	var normalized string
+	if err := stm.db.QueryRow(`
+		SELECT normalized_fact FROM core_memory
+		WHERE normalized_fact = ?
+	`, normalizeCoreMemoryFactForDedupe("USER prefers german responses.")).Scan(&normalized); err != nil {
+		t.Fatalf("normalized_fact should be backfilled and queryable: %v", err)
+	}
+	if normalized != "user prefers german responses." {
+		t.Fatalf("normalized_fact = %q", normalized)
+	}
+
+	duplicateID, err := stm.AddCoreMemoryFact("USER   PREFERS German responses.")
+	if err != nil {
+		t.Fatalf("AddCoreMemoryFact duplicate: %v", err)
+	}
+	if duplicateID == 0 {
+		t.Fatal("duplicate AddCoreMemoryFact returned zero id")
+	}
+	facts, err = stm.GetCoreMemoryFacts()
+	if err != nil {
+		t.Fatalf("GetCoreMemoryFacts after duplicate: %v", err)
+	}
+	if len(facts) != 2 {
+		t.Fatalf("facts len after duplicate add = %d, want 2: %+v", len(facts), facts)
+	}
+}
+
+func TestCoreMemoryUpdateRefreshesNormalizedFact(t *testing.T) {
+	stm := newTestProfileDB(t)
+
+	id, err := stm.AddCoreMemoryFact("original fact")
+	if err != nil {
+		t.Fatalf("AddCoreMemoryFact: %v", err)
+	}
+	if err := stm.UpdateCoreMemoryFact(id, "User Prefers Go"); err != nil {
+		t.Fatalf("UpdateCoreMemoryFact: %v", err)
+	}
+
+	var normalized string
+	if err := stm.db.QueryRow("SELECT normalized_fact FROM core_memory WHERE id = ?", id).Scan(&normalized); err != nil {
+		t.Fatalf("query normalized_fact: %v", err)
+	}
+	if normalized != "user prefers go" {
+		t.Fatalf("normalized_fact = %q, want %q", normalized, "user prefers go")
+	}
+	if !stm.CoreMemoryFactExists(" user   PREFERS go ") {
+		t.Fatal("CoreMemoryFactExists should use updated normalized_fact")
+	}
+	if stm.CoreMemoryFactExists("original fact") {
+		t.Fatal("old normalized fact should not remain after update")
+	}
+}
+
 func TestNewSQLiteMemoryFailsWhenCoreMemoryDuplicateCleanupFails(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "stm.db")
 	db, err := sql.Open("sqlite", dbPath)

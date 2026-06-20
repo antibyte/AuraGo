@@ -133,11 +133,6 @@ type KGCollectionStats struct {
 	LastSyncAt *time.Time `json:"last_sync_at,omitempty"`
 }
 
-type kgBFSLevel struct {
-	nodeID string
-	depth  int
-}
-
 func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logger) (*KnowledgeGraph, error) {
 	maxOpenConns := 2
 	// SQLite in-memory databases are scoped to a single connection unless callers

@@ -128,6 +128,7 @@ func (s *SQLiteMemory) AddCoreMemoryFact(fact string) (int64, error) {
 	if len(fact) > maxCoreMemoryFactLen {
 		fact = truncateUTF8Bytes(fact, maxCoreMemoryFactLen)
 	}
+	normalized := normalizeCoreMemoryFactForDedupe(fact)
 
 	var existingID int64
 	existingID, err := s.findCoreMemoryIDByNormalizedFact(fact)
@@ -142,53 +143,37 @@ func (s *SQLiteMemory) AddCoreMemoryFact(fact string) (int64, error) {
 		return 0, err
 	}
 
-	res, err := s.db.Exec("INSERT OR IGNORE INTO core_memory (fact) VALUES (?)", fact)
+	res, err := s.db.Exec("INSERT OR IGNORE INTO core_memory (fact, normalized_fact) VALUES (?, ?)", fact, normalized)
 	if err != nil {
 		return 0, err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	if affected == 0 {
+		existingID, err = s.findCoreMemoryIDByNormalizedFact(fact)
+		return existingID, err
 	}
 	id, err := res.LastInsertId()
 	if err != nil {
 		return 0, err
-	}
-	if id == 0 {
-		existingID, err = s.findCoreMemoryIDByNormalizedFact(fact)
-		return existingID, err
 	}
 	return id, nil
 }
 
 func (s *SQLiteMemory) findCoreMemoryIDByNormalizedFact(fact string) (int64, error) {
 	normalized := normalizeCoreMemoryFactForDedupe(fact)
-	if normalized == "" {
-		return 0, sql.ErrNoRows
-	}
-	rows, err := s.db.Query("SELECT id, fact FROM core_memory ORDER BY id ASC")
-	if err != nil {
-		return 0, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var id int64
-		var stored string
-		if err := rows.Scan(&id, &stored); err != nil {
-			return 0, err
-		}
-		if normalizeCoreMemoryFactForDedupe(stored) == normalized {
-			return id, nil
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return 0, err
-	}
-	return 0, sql.ErrNoRows
+	var id int64
+	err := s.db.QueryRow("SELECT id FROM core_memory WHERE normalized_fact = ? LIMIT 1", normalized).Scan(&id)
+	return id, err
 }
 
 // UpdateCoreMemoryFact overwrites an existing entry's text by ID.
 func (s *SQLiteMemory) UpdateCoreMemoryFact(id int64, fact string) error {
 	res, err := s.db.Exec(
-		"UPDATE core_memory SET fact = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-		fact, id,
+		"UPDATE core_memory SET fact = ?, normalized_fact = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		fact, normalizeCoreMemoryFactForDedupe(fact), id,
 	)
 	if err != nil {
 		return err

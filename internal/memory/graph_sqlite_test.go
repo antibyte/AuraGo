@@ -2045,6 +2045,48 @@ func TestKGGetSubgraphBFS(t *testing.T) {
 	}
 }
 
+func TestKGGetSubgraphBranchingBFSDoesNotLeakPastMaxDepth(t *testing.T) {
+	kg := newTestKG(t)
+
+	for _, id := range []string{"a", "b", "c", "d", "e"} {
+		if err := kg.AddNode(id, id, nil); err != nil {
+			t.Fatalf("AddNode %s: %v", id, err)
+		}
+	}
+	if err := kg.AddEdge("a", "b", "rel", nil); err != nil {
+		t.Fatalf("AddEdge a-b: %v", err)
+	}
+	if err := kg.AddEdge("a", "c", "rel", nil); err != nil {
+		t.Fatalf("AddEdge a-c: %v", err)
+	}
+	if err := kg.AddEdge("b", "d", "rel", nil); err != nil {
+		t.Fatalf("AddEdge b-d: %v", err)
+	}
+	if err := kg.AddEdge("c", "d", "rel", nil); err != nil {
+		t.Fatalf("AddEdge c-d: %v", err)
+	}
+	if err := kg.AddEdge("d", "e", "rel", nil); err != nil {
+		t.Fatalf("AddEdge d-e: %v", err)
+	}
+
+	nodes, edges := kg.GetSubgraph("a", 2)
+	nodeIDs := make(map[string]bool)
+	for _, n := range nodes {
+		nodeIDs[n.ID] = true
+	}
+	for _, id := range []string{"a", "b", "c", "d"} {
+		if !nodeIDs[id] {
+			t.Fatalf("expected node %q in depth-2 branching subgraph; nodes=%v", id, nodeIDs)
+		}
+	}
+	if nodeIDs["e"] {
+		t.Fatalf("node e at depth 3 should not be included; nodes=%v", nodeIDs)
+	}
+	if len(edges) != 4 {
+		t.Fatalf("edges len = %d, want the four edges within depth 2", len(edges))
+	}
+}
+
 // TestKGGetSubgraphCycle verifies that GetSubgraph terminates and does not loop
 // when the graph contains cycles.
 func TestKGGetSubgraphCycle(t *testing.T) {

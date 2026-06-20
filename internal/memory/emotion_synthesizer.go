@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -288,12 +289,55 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 // emotionSynthesisKey generates a singleflight key from the EmotionInput context
 // so that concurrent calls with different inputs are not incorrectly deduplicated.
 func emotionSynthesisKey(input EmotionInput) string {
-	// Round volatile float fields to prevent singleflight bypass
-	input.InactivityHours = math.Round(input.InactivityHours*10) / 10
-	data, _ := json.Marshal(input)
 	h := sha256.New()
-	h.Write(data)
-	return "synthesis_" + hex.EncodeToString(h.Sum(nil))[:16]
+	writeKeyPart := func(label, value string) {
+		h.Write([]byte(label))
+		h.Write([]byte{0})
+		h.Write([]byte(value))
+		h.Write([]byte{0})
+	}
+	writeKeyPart("user", compactEmotionKeyText(input.UserMessage))
+	writeKeyPart("mood", string(input.CurrentMood))
+	writeKeyPart("trigger_type", string(input.TriggerType))
+	writeKeyPart("trigger_detail", compactEmotionKeyText(input.TriggerDetail))
+	writeKeyPart("task_status", compactEmotionKeyText(input.TaskStatus))
+	writeKeyPart("phase", compactEmotionKeyText(input.ConversationPhase))
+	writeKeyPart("next", compactEmotionKeyText(input.PredictedNextAction))
+	writeKeyPart("persona", compactEmotionKeyText(input.PersonaName))
+	writeKeyPart("errors", strconv.Itoa(input.ErrorCount))
+	writeKeyPart("successes", strconv.Itoa(input.SuccessCount))
+	writeKeyPart("turns", strconv.Itoa(input.ConversationTurns))
+	writeKeyPart("recovery", strconv.Itoa(input.RecoveryAttempts))
+	writeKeyPart("inactivity", strconv.FormatFloat(math.Round(input.InactivityHours*10)/10, 'f', 1, 64))
+	writeKeyPart("conversation", compactEmotionKeyStrings(input.RecentConversation))
+	writeKeyPart("lessons", compactEmotionKeyStrings(input.RelevantLessons))
+	return "synthesis_" + hex.EncodeToString(h.Sum(nil))[:32]
+}
+
+const emotionSynthesisKeyTextLimit = 512
+const emotionSynthesisKeySliceLimit = 4
+
+func compactEmotionKeyText(value string) string {
+	value = strings.ToLower(strings.Join(strings.Fields(value), " "))
+	if len(value) <= emotionSynthesisKeyTextLimit {
+		return value
+	}
+	return value[:emotionSynthesisKeyTextLimit]
+}
+
+func compactEmotionKeyStrings(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	start := 0
+	if len(values) > emotionSynthesisKeySliceLimit {
+		start = len(values) - emotionSynthesisKeySliceLimit
+	}
+	parts := make([]string, 0, len(values)-start)
+	for _, value := range values[start:] {
+		parts = append(parts, compactEmotionKeyText(value))
+	}
+	return strings.Join(parts, "\n")
 }
 
 // buildPrompt constructs the LLM prompt for emotion synthesis.

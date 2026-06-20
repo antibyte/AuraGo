@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -351,6 +352,44 @@ func TestKGDrainSemanticReindexBacklogNoOpWhenClean(t *testing.T) {
 	}
 }
 
+func TestKGRunSemanticReindexDoesNotMarkPartialBatchOnFailure(t *testing.T) {
+	kg := newTestKG(t)
+
+	var failReindex atomic.Bool
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		if failReindex.Load() && strings.Contains(text, "Second") {
+			return nil, errors.New("synthetic embedding failure")
+		}
+		return []float32{float32(len(text)), 1}, nil
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+	if err := kg.AddNode("first", "First", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode first: %v", err)
+	}
+	if err := kg.AddNode("second", "Second", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode second: %v", err)
+	}
+	if _, err := kg.db.Exec("UPDATE kg_nodes SET semantic_indexed_at = NULL WHERE id IN ('first', 'second')"); err != nil {
+		t.Fatalf("mark nodes dirty: %v", err)
+	}
+
+	failReindex.Store(true)
+	err := kg.RunSemanticReindex()
+	if err == nil {
+		t.Fatal("RunSemanticReindex should return the batch embedding failure")
+	}
+	dirtyNodes, _, countErr := kg.DirtySemanticCounts()
+	if countErr != nil {
+		t.Fatalf("DirtySemanticCounts: %v", countErr)
+	}
+	if dirtyNodes != 2 {
+		t.Fatalf("dirty nodes = %d, want both nodes to remain dirty after failed batch", dirtyNodes)
+	}
+}
+
 func TestKGConsistencyCheckDetectsMissingIndexedNodeDocument(t *testing.T) {
 	kg := newTestKG(t)
 
@@ -377,6 +416,35 @@ func TestKGConsistencyCheckDetectsMissingIndexedNodeDocument(t *testing.T) {
 	}
 	if report.NodesMissingFromIndex != 1 {
 		t.Fatalf("NodesMissingFromIndex = %d, want 1", report.NodesMissingFromIndex)
+	}
+}
+
+func TestKGConsistencyCheckDetectsSemanticIndexOrphans(t *testing.T) {
+	kg := newTestKG(t)
+
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		return []float32{float32(len(text)), 1}, nil
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+	if err := kg.AddNode("orphaned", "Orphaned", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+	if _, err := kg.db.Exec("DELETE FROM kg_nodes WHERE id = 'orphaned'"); err != nil {
+		t.Fatalf("delete sqlite node only: %v", err)
+	}
+
+	report, err := kg.ConsistencyCheck()
+	if err != nil {
+		t.Fatalf("ConsistencyCheck: %v", err)
+	}
+	if report.IndexOrphans == 0 {
+		t.Fatalf("expected orphaned semantic document to be reported: %+v", report)
+	}
+	if !report.NeedsReindex {
+		t.Fatalf("orphaned semantic document should set NeedsReindex: %+v", report)
 	}
 }
 
