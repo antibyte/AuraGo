@@ -63,6 +63,7 @@ Manage a structured graph of entities and relations stored in SQLite with full-t
 - Nightly batch extraction automatically discovers entities and relationships from conversations.
 - Nodes track `access_count` on each search hit.
 - Set `"protected": "true"` in a node's `properties` to exempt it from automated Priority-Based Forgetting.
+- Synced nodes from planner, inventory, core memory, file sync, and manual curation are protected from auto-optimize pruning by default (`protect_optimize_sources` / `protect_id_prefixes` in config).
 
 ## Notes
 

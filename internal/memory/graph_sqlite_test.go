@@ -500,6 +500,63 @@ func TestKGOptimizeGraph(t *testing.T) {
 	}
 }
 
+func TestKGOptimizeGraphProtectsConfiguredSources(t *testing.T) {
+	kg := newTestKG(t)
+	kg.SetProtectOptimizeSources([]string{"planner"})
+	kg.SetProtectIDPrefixes([]string{"core_fact_"})
+
+	if err := kg.AddNode("todo_1", "Probe Todo", map[string]string{"type": "task", "source": "planner"}); err != nil {
+		t.Fatalf("AddNode planner: %v", err)
+	}
+	if err := kg.AddNode("core_fact_42", "Core Fact", map[string]string{"type": "concept", "source": "auto_extraction"}); err != nil {
+		t.Fatalf("AddNode core_fact: %v", err)
+	}
+	if err := kg.AddNode("temp_low", "Temporary", map[string]string{"type": "concept"}); err != nil {
+		t.Fatalf("AddNode temp: %v", err)
+	}
+
+	removed, err := kg.OptimizeGraph(1)
+	if err != nil {
+		t.Fatalf("OptimizeGraph: %v", err)
+	}
+	if removed != 1 {
+		t.Fatalf("removed = %d, want 1 (only temp_low)", removed)
+	}
+	for _, id := range []string{"todo_1", "core_fact_42"} {
+		node, err := kg.GetNode(id)
+		if err != nil {
+			t.Fatalf("GetNode %s: %v", id, err)
+		}
+		if node == nil {
+			t.Fatalf("expected protected node %s to survive optimize", id)
+		}
+	}
+}
+
+func TestKGHealthReportWithoutSemanticIndex(t *testing.T) {
+	kg := newTestKG(t)
+	if err := kg.AddNode("nas", "NAS", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+
+	report, err := kg.HealthReport()
+	if err != nil {
+		t.Fatalf("HealthReport: %v", err)
+	}
+	if report.SemanticEnabled {
+		t.Fatal("expected semantic_enabled=false without semantic index")
+	}
+	if report.DirtyNodes != 1 {
+		t.Fatalf("DirtyNodes = %d, want 1", report.DirtyNodes)
+	}
+	if report.TotalNodes != 1 {
+		t.Fatalf("TotalNodes = %d, want 1", report.TotalNodes)
+	}
+	if report.Consistency != nil {
+		t.Fatal("expected no consistency sub-report when semantic search is disabled")
+	}
+}
+
 func TestKGGetNeighbors(t *testing.T) {
 	kg := newTestKG(t)
 

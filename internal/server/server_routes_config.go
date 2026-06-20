@@ -438,6 +438,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/knowledge-graph/stats", handleKnowledgeGraphStats(s))
 	mux.HandleFunc("/api/knowledge-graph/search", handleKnowledgeGraphSearch(s))
 	mux.HandleFunc("/api/knowledge-graph/quality", handleKnowledgeGraphQuality(s))
+	mux.HandleFunc("/api/knowledge-graph/health", handleKnowledgeGraphHealth(s))
 
 	// System endpoints
 	mux.HandleFunc("/api/system/os", func(w http.ResponseWriter, r *http.Request) {

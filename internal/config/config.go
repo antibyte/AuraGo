@@ -244,6 +244,8 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.KnowledgeGraph.MinSemanticSimilarity = 0.60
 	cfg.Tools.KnowledgeGraph.ExcludeNodeTypes = []string{"activity_entity", "unknown"}
 	cfg.Tools.KnowledgeGraph.SemanticReindexInterval = "5m"
+	cfg.Tools.KnowledgeGraph.ProtectOptimizeSources = []string{"planner", "inventory_sync", "manual", "file_sync", "core_memory"}
+	cfg.Tools.KnowledgeGraph.ProtectIDPrefixes = []string{"core_fact_", "dev_", "contact_"}
 	cfg.Tools.SecretsVault.Enabled = true
 	cfg.Tools.Scheduler.Enabled = true
 	cfg.Tools.Notes.Enabled = true

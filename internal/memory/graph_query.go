@@ -863,7 +863,7 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 
 func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 	rows, err := kg.db.Query(`
-		SELECT n.id, n.access_count,
+		SELECT n.id, n.access_count, COALESCE(n.source_type, ''),
 			(SELECT COUNT(*) FROM kg_edges e WHERE e.source = n.id OR e.target = n.id) as degree
 		FROM kg_nodes n
 		WHERE n.protected = 0
@@ -874,9 +874,12 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 
 	var toRemove []string
 	for rows.Next() {
-		var id string
+		var id, source string
 		var accessCount, degree int
-		if err := rows.Scan(&id, &accessCount, &degree); err == nil {
+		if err := rows.Scan(&id, &accessCount, &source, &degree); err == nil {
+			if kg.isKnowledgeGraphOptimizeProtected(id, source) {
+				continue
+			}
 			priority := accessCount + (degree * 2)
 			if priority < threshold {
 				toRemove = append(toRemove, id)

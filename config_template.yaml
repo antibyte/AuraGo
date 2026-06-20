@@ -385,6 +385,8 @@ tools:
         min_semantic_similarity: 0.60                        # minimum similarity for KG semantic search
         exclude_node_types: ["activity_entity", "unknown"]   # node types excluded from semantic/prompt context
         semantic_reindex_interval: "5m"                      # minimum interval between dirty-node semantic reindexes
+        protect_optimize_sources: ["planner", "inventory_sync", "manual", "file_sync", "core_memory"]  # sources exempt from auto-optimize graph pruning
+        protect_id_prefixes: ["core_fact_", "dev_", "contact_"]  # node ID prefixes exempt from auto-optimize graph pruning
     secrets_vault:
         enabled: true
         readonly: false

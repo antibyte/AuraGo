@@ -830,16 +830,101 @@ func (kg *KnowledgeGraph) retrySemanticEmbedding(op string, fn func(ctx context.
 	return lastErr
 }
 
+const knowledgeGraphSemanticReindexBacklogLimit = 5000
+
 // ConsistencyCheck verifies that the KG semantic index is in sync with SQLite nodes/edges.
-// Returns counts of detected drift and an error if significant drift is found.
 type KGConsistencyReport struct {
 	NodesMissingFromIndex int  `json:"nodes_missing_from_index"`
 	EdgesMissingFromIndex int  `json:"edges_missing_from_index"`
+	DirtyNodes            int  `json:"dirty_nodes"`
+	DirtyEdges            int  `json:"dirty_edges"`
 	StaleNodes            int  `json:"stale_nodes"`
 	IndexOrphans          int  `json:"index_orphans"`
 	TotalNodes            int  `json:"total_nodes"`
+	TotalEdges            int  `json:"total_edges"`
 	TotalIndexed          uint `json:"total_indexed"`
+	SemanticEnabled       bool `json:"semantic_enabled"`
 	NeedsReindex          bool `json:"needs_reindex"`
+	ReindexBacklog        bool `json:"reindex_backlog"`
+}
+
+// KnowledgeGraphHealthReport summarizes KG runtime health for dashboards and operators.
+type KnowledgeGraphHealthReport struct {
+	SemanticEnabled   bool                 `json:"semantic_enabled"`
+	DirtyNodes        int                  `json:"dirty_nodes"`
+	DirtyEdges        int                  `json:"dirty_edges"`
+	DroppedAccessHits int64                `json:"dropped_access_hits"`
+	NeedsReindex      bool                 `json:"needs_reindex"`
+	ReindexBacklog    bool                 `json:"reindex_backlog"`
+	TotalNodes        int                  `json:"total_nodes"`
+	TotalEdges        int                  `json:"total_edges"`
+	Consistency       *KGConsistencyReport `json:"consistency,omitempty"`
+}
+
+func (kg *KnowledgeGraph) countDirtySemanticNodes() (int, error) {
+	var count int
+	err := kg.db.QueryRow(`
+		SELECT COUNT(*) FROM kg_nodes
+		WHERE semantic_indexed_at IS NULL OR semantic_indexed_at < updated_at
+	`).Scan(&count)
+	return count, err
+}
+
+func (kg *KnowledgeGraph) countDirtySemanticEdges() (int, error) {
+	var count int
+	err := kg.db.QueryRow(`
+		SELECT COUNT(*) FROM kg_edges e
+		LEFT JOIN (
+			SELECT e2.source, e2.target, e2.relation, MAX(n.updated_at) AS max_updated_at
+			FROM kg_edges e2
+			JOIN kg_nodes n ON n.id = e2.source OR n.id = e2.target
+			GROUP BY e2.source, e2.target, e2.relation
+		) node_updates ON e.source = node_updates.source AND e.target = node_updates.target AND e.relation = node_updates.relation
+		WHERE e.semantic_indexed_at IS NULL
+		   OR e.semantic_indexed_at < COALESCE(e.updated_at, '1970-01-01')
+		   OR e.semantic_indexed_at < COALESCE(node_updates.max_updated_at, '1970-01-01')
+	`).Scan(&count)
+	return count, err
+}
+
+func (kg *KnowledgeGraph) HealthReport() (*KnowledgeGraphHealthReport, error) {
+	if kg == nil || kg.db == nil {
+		return nil, fmt.Errorf("knowledge graph not initialized")
+	}
+
+	report := &KnowledgeGraphHealthReport{
+		SemanticEnabled:   kg.semantic != nil,
+		DroppedAccessHits: kg.DroppedAccessHits(),
+	}
+	_ = kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&report.TotalNodes)
+	_ = kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&report.TotalEdges)
+
+	dirtyNodes, err := kg.countDirtySemanticNodes()
+	if err != nil {
+		return nil, fmt.Errorf("count dirty semantic nodes: %w", err)
+	}
+	report.DirtyNodes = dirtyNodes
+
+	dirtyEdges, err := kg.countDirtySemanticEdges()
+	if err != nil {
+		return nil, fmt.Errorf("count dirty semantic edges: %w", err)
+	}
+	report.DirtyEdges = dirtyEdges
+
+	report.ReindexBacklog = dirtyNodes > knowledgeGraphSemanticReindexBacklogLimit || dirtyEdges > knowledgeGraphSemanticReindexBacklogLimit
+	report.NeedsReindex = dirtyNodes > 0 || dirtyEdges > 0
+
+	if kg.semantic != nil {
+		consistency, err := kg.ConsistencyCheck()
+		if err != nil {
+			return nil, err
+		}
+		report.Consistency = consistency
+		report.NeedsReindex = consistency.NeedsReindex || report.NeedsReindex
+		report.ReindexBacklog = consistency.ReindexBacklog || report.ReindexBacklog
+	}
+
+	return report, nil
 }
 
 func (kg *KnowledgeGraph) ConsistencyCheck() (*KGConsistencyReport, error) {
@@ -847,10 +932,25 @@ func (kg *KnowledgeGraph) ConsistencyCheck() (*KGConsistencyReport, error) {
 		return nil, fmt.Errorf("semantic search is disabled")
 	}
 
-	report := &KGConsistencyReport{}
+	report := &KGConsistencyReport{
+		SemanticEnabled: true,
+	}
 
 	_ = kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&report.TotalNodes)
+	_ = kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&report.TotalEdges)
 	report.TotalIndexed = uint(kg.semantic.collection.Count())
+
+	dirtyNodes, err := kg.countDirtySemanticNodes()
+	if err != nil {
+		return nil, fmt.Errorf("count dirty semantic nodes: %w", err)
+	}
+	report.DirtyNodes = dirtyNodes
+
+	dirtyEdges, err := kg.countDirtySemanticEdges()
+	if err != nil {
+		return nil, fmt.Errorf("count dirty semantic edges: %w", err)
+	}
+	report.DirtyEdges = dirtyEdges
 
 	rows, err := kg.db.Query(`
 		SELECT id, semantic_indexed_at IS NULL OR semantic_indexed_at < updated_at AS dirty
@@ -864,7 +964,7 @@ func (kg *KnowledgeGraph) ConsistencyCheck() (*KGConsistencyReport, error) {
 				continue
 			}
 			if dirty {
-				report.NodesMissingFromIndex++
+				report.StaleNodes++
 				continue
 			}
 			if _, getErr := kg.semantic.collection.GetByID(context.Background(), id); getErr != nil {
@@ -875,8 +975,13 @@ func (kg *KnowledgeGraph) ConsistencyCheck() (*KGConsistencyReport, error) {
 	}
 
 	edgeRows, err := kg.db.Query(`
-		SELECT source, target, relation, semantic_indexed_at IS NULL AS dirty
-		FROM kg_edges
+		SELECT e.source, e.target, e.relation,
+			(e.semantic_indexed_at IS NULL
+			 OR e.semantic_indexed_at < COALESCE(e.updated_at, '1970-01-01')
+			 OR e.semantic_indexed_at < COALESCE((
+				SELECT MAX(n.updated_at) FROM kg_nodes n WHERE n.id = e.source OR n.id = e.target
+			 ), '1970-01-01')) AS dirty
+		FROM kg_edges e
 	`)
 	if err == nil {
 		for edgeRows.Next() {
@@ -886,7 +991,6 @@ func (kg *KnowledgeGraph) ConsistencyCheck() (*KGConsistencyReport, error) {
 				continue
 			}
 			if dirty {
-				report.EdgesMissingFromIndex++
 				continue
 			}
 			edgeDocID := "edge://" + source + "\x00" + target + "\x00" + relation
@@ -897,7 +1001,8 @@ func (kg *KnowledgeGraph) ConsistencyCheck() (*KGConsistencyReport, error) {
 		edgeRows.Close()
 	}
 
-	report.NeedsReindex = report.NodesMissingFromIndex > 50 || report.EdgesMissingFromIndex > 50
+	report.ReindexBacklog = report.DirtyNodes > knowledgeGraphSemanticReindexBacklogLimit || report.DirtyEdges > knowledgeGraphSemanticReindexBacklogLimit
+	report.NeedsReindex = report.DirtyNodes > 0 || report.DirtyEdges > 0 || report.NodesMissingFromIndex > 50 || report.EdgesMissingFromIndex > 50
 
 	return report, nil
 }

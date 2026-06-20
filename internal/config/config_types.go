@@ -1527,6 +1527,8 @@ type Config struct {
 			MinSemanticSimilarity   float64  `yaml:"min_semantic_similarity"`   // minimum similarity for KG semantic search (default 0.60)
 			ExcludeNodeTypes        []string `yaml:"exclude_node_types"`        // node types excluded from semantic/prompt context (default ["activity_entity", "unknown"])
 			SemanticReindexInterval string   `yaml:"semantic_reindex_interval"` // minimum interval between dirty-node semantic reindexes (default "5m")
+			ProtectOptimizeSources  []string `yaml:"protect_optimize_sources"`  // node sources exempt from OptimizeGraph (default planner, inventory_sync, manual, file_sync, core_memory)
+			ProtectIDPrefixes       []string `yaml:"protect_id_prefixes"`       // node ID prefixes exempt from OptimizeGraph (default core_fact_, dev_, contact_)
 		} `yaml:"knowledge_graph"`
 		SecretsVault struct {
 			Enabled  bool `yaml:"enabled"`  // default true; disable to block secrets_vault

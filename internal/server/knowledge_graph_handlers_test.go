@@ -113,6 +113,32 @@ func TestHandleKnowledgeGraphNodeDetail(t *testing.T) {
 	}
 }
 
+func TestHandleKnowledgeGraphHealth(t *testing.T) {
+	s := newTestKnowledgeGraphServer(t)
+	if err := s.KG.AddNode("nas", "NAS", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/knowledge-graph/health", nil)
+	rec := httptest.NewRecorder()
+	handleKnowledgeGraphHealth(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d, body=%s", rec.Code, rec.Body.String())
+	}
+
+	var payload memory.KnowledgeGraphHealthReport
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode payload: %v", err)
+	}
+	if payload.TotalNodes != 1 {
+		t.Fatalf("TotalNodes = %d, want 1", payload.TotalNodes)
+	}
+	if payload.DirtyNodes != 1 {
+		t.Fatalf("DirtyNodes = %d, want 1", payload.DirtyNodes)
+	}
+}
+
 func TestHandleKnowledgeGraphQuality(t *testing.T) {
 	s := newTestKnowledgeGraphServer(t)
 	if err := s.KG.AddNode("router", "Router", map[string]string{"type": "device", "protected": "true"}); err != nil {

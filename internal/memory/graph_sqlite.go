@@ -72,6 +72,10 @@ type KnowledgeGraph struct {
 	minSemanticSimilarity   float32
 	excludedNodeTypes       map[string]bool
 	excludedNodeTypesMu     sync.RWMutex
+	protectOptimizeSources  map[string]bool
+	protectOptimizeSourcesMu sync.RWMutex
+	protectIDPrefixes       []string
+	protectIDPrefixesMu     sync.RWMutex
 	semanticReindexInterval time.Duration
 	lastSemanticReindex     time.Time
 	lastSemanticReindexMu   sync.Mutex
@@ -512,6 +516,55 @@ func (kg *KnowledgeGraph) isExcludedNodeType(nodeType string) bool {
 	kg.excludedNodeTypesMu.RLock()
 	defer kg.excludedNodeTypesMu.RUnlock()
 	return kg.excludedNodeTypes[strings.ToLower(strings.TrimSpace(nodeType))]
+}
+
+// SetProtectOptimizeSources configures node property sources that OptimizeGraph must
+// not delete. Pass an empty slice to allow all sources.
+func (kg *KnowledgeGraph) SetProtectOptimizeSources(sources []string) {
+	kg.protectOptimizeSourcesMu.Lock()
+	defer kg.protectOptimizeSourcesMu.Unlock()
+	kg.protectOptimizeSources = make(map[string]bool, len(sources))
+	for _, source := range sources {
+		source = strings.ToLower(strings.TrimSpace(source))
+		if source != "" {
+			kg.protectOptimizeSources[source] = true
+		}
+	}
+}
+
+// SetProtectIDPrefixes configures node ID prefixes that OptimizeGraph must not delete.
+func (kg *KnowledgeGraph) SetProtectIDPrefixes(prefixes []string) {
+	kg.protectIDPrefixesMu.Lock()
+	defer kg.protectIDPrefixesMu.Unlock()
+	kg.protectIDPrefixes = make([]string, 0, len(prefixes))
+	for _, prefix := range prefixes {
+		prefix = strings.TrimSpace(prefix)
+		if prefix != "" {
+			kg.protectIDPrefixes = append(kg.protectIDPrefixes, prefix)
+		}
+	}
+}
+
+func (kg *KnowledgeGraph) isKnowledgeGraphOptimizeProtected(nodeID, source string) bool {
+	if kg == nil {
+		return false
+	}
+	nodeID = strings.TrimSpace(nodeID)
+	source = strings.ToLower(strings.TrimSpace(source))
+
+	kg.protectIDPrefixesMu.RLock()
+	prefixes := append([]string(nil), kg.protectIDPrefixes...)
+	kg.protectIDPrefixesMu.RUnlock()
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(nodeID, prefix) {
+			return true
+		}
+	}
+
+	kg.protectOptimizeSourcesMu.RLock()
+	protected := kg.protectOptimizeSources[source]
+	kg.protectOptimizeSourcesMu.RUnlock()
+	return protected
 }
 
 // SetSemanticReindexInterval configures how often RunSemanticReindexIfDue may
