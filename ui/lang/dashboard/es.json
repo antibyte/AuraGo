@@ -740,5 +740,7 @@
   "dashboard.knowledge_health_needs_reindex": "Reindexación semántica pendiente",
   "dashboard.knowledge_health_index_ok": "Índice semántico actualizado",
   "dashboard.knowledge_health_reindex_backlog": "Acumulación alta de reindexación",
+  "dashboard.knowledge_health_isolated_nodes": "Nodos aislados",
+  "dashboard.knowledge_health_duplicate_groups": "Grupos duplicados",
   "dashboard.memory_graph_dirty_hint": "{count} pendientes"
 }

@@ -49,16 +49,19 @@ type KnowledgeGraphDuplicateCandidate struct {
 }
 
 type KnowledgeGraphQualityReport struct {
-	Nodes               int                                `json:"nodes"`
-	Edges               int                                `json:"edges"`
-	ProtectedNodes      int                                `json:"protected_nodes"`
-	IsolatedNodes       int                                `json:"isolated_nodes"`
-	UntypedNodes        int                                `json:"untyped_nodes"`
-	DuplicateGroups     int                                `json:"duplicate_groups"`
-	DuplicateNodes      int                                `json:"duplicate_nodes"`
-	IsolatedSample      []Node                             `json:"isolated_sample"`
-	UntypedSample       []Node                             `json:"untyped_sample"`
-	DuplicateCandidates []KnowledgeGraphDuplicateCandidate `json:"duplicate_candidates"`
+	Nodes                 int                                `json:"nodes"`
+	Edges                 int                                `json:"edges"`
+	ProtectedNodes        int                                `json:"protected_nodes"`
+	IsolatedNodes         int                                `json:"isolated_nodes"`
+	UntypedNodes          int                                `json:"untyped_nodes"`
+	DuplicateGroups       int                                `json:"duplicate_groups"`
+	DuplicateNodes        int                                `json:"duplicate_nodes"`
+	IDDuplicateGroups     int                                `json:"id_duplicate_groups"`
+	IDDuplicateNodes      int                                `json:"id_duplicate_nodes"`
+	IsolatedSample        []Node                             `json:"isolated_sample"`
+	UntypedSample         []Node                             `json:"untyped_sample"`
+	DuplicateCandidates   []KnowledgeGraphDuplicateCandidate `json:"duplicate_candidates"`
+	IDDuplicateCandidates []KnowledgeGraphDuplicateCandidate `json:"id_duplicate_candidates"`
 }
 
 type KnowledgeGraph struct {

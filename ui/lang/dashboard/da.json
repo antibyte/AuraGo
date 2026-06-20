@@ -740,5 +740,7 @@
   "dashboard.knowledge_health_needs_reindex": "Semantisk reindex afventer",
   "dashboard.knowledge_health_index_ok": "Semantisk indeks er opdateret",
   "dashboard.knowledge_health_reindex_backlog": "Høj reindex-backlog",
+  "dashboard.knowledge_health_isolated_nodes": "Isolerede noder",
+  "dashboard.knowledge_health_duplicate_groups": "Duplikatgrupper",
   "dashboard.memory_graph_dirty_hint": "{count} afventende"
 }

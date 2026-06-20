@@ -57,7 +57,7 @@ func TestBuildKnowledgeGraphSparseIssueRequiresCoreFacts(t *testing.T) {
 }
 
 func TestBuildKnowledgeGraphDuplicateIssue(t *testing.T) {
-	if _, ok := buildKnowledgeGraphDuplicateIssue(&memory.KnowledgeGraphQualityReport{DuplicateGroups: 2}); ok {
+	if _, ok := buildKnowledgeGraphDuplicateIssue(&memory.KnowledgeGraphQualityReport{DuplicateGroups: 2, IDDuplicateGroups: 2}); ok {
 		t.Fatal("unexpected duplicate issue below threshold")
 	}
 	issue, ok := buildKnowledgeGraphDuplicateIssue(&memory.KnowledgeGraphQualityReport{
@@ -70,11 +70,25 @@ func TestBuildKnowledgeGraphDuplicateIssue(t *testing.T) {
 	if !ok {
 		t.Fatal("expected duplicate issue above threshold")
 	}
-	if issue.Fingerprint != "maintenance|knowledge_graph|duplicate_labels" {
-		t.Fatalf("fingerprint = %q, want duplicate labels fingerprint", issue.Fingerprint)
+	if issue.Fingerprint != "maintenance|knowledge_graph|duplicates" {
+		t.Fatalf("fingerprint = %q, want duplicates fingerprint", issue.Fingerprint)
 	}
-	if !strings.Contains(issue.Detail, "duplicate_groups=4") || !strings.Contains(issue.Detail, "nas_a") {
+	if !strings.Contains(issue.Detail, "label_duplicate_groups=4") || !strings.Contains(issue.Detail, "nas_a") {
 		t.Fatalf("issue detail = %q, want duplicate counts and sample IDs", issue.Detail)
+	}
+
+	idIssue, ok := buildKnowledgeGraphDuplicateIssue(&memory.KnowledgeGraphQualityReport{
+		IDDuplicateGroups: 4,
+		IDDuplicateNodes:  8,
+		IDDuplicateCandidates: []memory.KnowledgeGraphDuplicateCandidate{
+			{Label: "TrueNAS", IDs: []string{"truenas", "true_nas"}},
+		},
+	})
+	if !ok {
+		t.Fatal("expected duplicate issue for id duplicate groups above threshold")
+	}
+	if !strings.Contains(idIssue.Detail, "id_duplicate_groups=4") || !strings.Contains(idIssue.Detail, "truenas") {
+		t.Fatalf("id issue detail = %q, want id duplicate counts and sample IDs", idIssue.Detail)
 	}
 }
 

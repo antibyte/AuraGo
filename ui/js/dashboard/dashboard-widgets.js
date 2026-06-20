@@ -47,6 +47,8 @@
             const stats = [
                 { val: Number(health?.dirty_nodes || 0), lbl: t('dashboard.knowledge_health_dirty_nodes') },
                 { val: Number(health?.dirty_edges || 0), lbl: t('dashboard.knowledge_health_dirty_edges') },
+                { val: Number(health?.isolated_nodes || 0), lbl: t('dashboard.knowledge_health_isolated_nodes') },
+                { val: Number(health?.duplicate_groups || 0), lbl: t('dashboard.knowledge_health_duplicate_groups') },
                 { val: Number(health?.dropped_access_hits || 0), lbl: t('dashboard.knowledge_health_dropped_hits') },
                 {
                     val: semanticEnabled ? t('dashboard.knowledge_health_semantic_on') : t('dashboard.knowledge_health_semantic_off'),

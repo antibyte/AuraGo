@@ -740,5 +740,7 @@
   "dashboard.knowledge_health_needs_reindex": "Semantischer Reindex ausstehend",
   "dashboard.knowledge_health_index_ok": "Semantischer Index aktuell",
   "dashboard.knowledge_health_reindex_backlog": "Reindex-Rückstau ist hoch",
+  "dashboard.knowledge_health_isolated_nodes": "Isolierte Knoten",
+  "dashboard.knowledge_health_duplicate_groups": "Duplikat-Gruppen",
   "dashboard.memory_graph_dirty_hint": "{count} ausstehend"
 }

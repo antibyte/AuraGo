@@ -740,5 +740,7 @@
   "dashboard.knowledge_health_needs_reindex": "セマンティック再インデックス待ち",
   "dashboard.knowledge_health_index_ok": "セマンティックインデックスは最新です",
   "dashboard.knowledge_health_reindex_backlog": "再インデックスの滞留が大きい",
+  "dashboard.knowledge_health_isolated_nodes": "孤立ノード",
+  "dashboard.knowledge_health_duplicate_groups": "重複グループ",
   "dashboard.memory_graph_dirty_hint": "{count} 件未処理"
 }

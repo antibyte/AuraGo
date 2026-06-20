@@ -740,5 +740,7 @@
   "dashboard.knowledge_health_needs_reindex": "语义重索引待处理",
   "dashboard.knowledge_health_index_ok": "语义索引已是最新",
   "dashboard.knowledge_health_reindex_backlog": "重索引积压较高",
+  "dashboard.knowledge_health_isolated_nodes": "孤立节点",
+  "dashboard.knowledge_health_duplicate_groups": "重复组",
   "dashboard.memory_graph_dirty_hint": "{count} 个待处理"
 }

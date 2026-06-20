@@ -740,5 +740,7 @@
   "dashboard.knowledge_health_needs_reindex": "Oczekuje reindeksacja semantyczna",
   "dashboard.knowledge_health_index_ok": "Indeks semantyczny aktualny",
   "dashboard.knowledge_health_reindex_backlog": "Wysoki zaległy reindeks",
+  "dashboard.knowledge_health_isolated_nodes": "Izolowane węzły",
+  "dashboard.knowledge_health_duplicate_groups": "Grupy duplikatów",
   "dashboard.memory_graph_dirty_hint": "{count} oczekujących"
 }

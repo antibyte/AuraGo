@@ -214,11 +214,14 @@ func recordKnowledgeGraphQualityIssues(plannerDB *sql.DB, kg *memory.KnowledgeGr
 }
 
 func buildKnowledgeGraphDuplicateIssue(report *memory.KnowledgeGraphQualityReport) (planner.OperationalIssue, bool) {
-	if report == nil || report.DuplicateGroups <= knowledgeGraphDuplicateIssueThreshold {
+	if report == nil {
+		return planner.OperationalIssue{}, false
+	}
+	if report.DuplicateGroups <= knowledgeGraphDuplicateIssueThreshold && report.IDDuplicateGroups <= knowledgeGraphDuplicateIssueThreshold {
 		return planner.OperationalIssue{}, false
 	}
 	sampleIDs := make([]string, 0, 8)
-	for _, candidate := range report.DuplicateCandidates {
+	for _, candidate := range append(report.DuplicateCandidates, report.IDDuplicateCandidates...) {
 		for _, id := range candidate.IDs {
 			id = strings.TrimSpace(id)
 			if id == "" {
@@ -234,9 +237,11 @@ func buildKnowledgeGraphDuplicateIssue(report *memory.KnowledgeGraphQualityRepor
 		}
 	}
 	detail := fmt.Sprintf(
-		"Knowledge graph has duplicate_groups=%d and duplicate_nodes=%d. Review and merge manually in the dashboard; no auto-merge is performed.",
+		"Knowledge graph has label_duplicate_groups=%d label_duplicate_nodes=%d id_duplicate_groups=%d id_duplicate_nodes=%d. Review and merge manually in the dashboard; no auto-merge is performed.",
 		report.DuplicateGroups,
 		report.DuplicateNodes,
+		report.IDDuplicateGroups,
+		report.IDDuplicateNodes,
 	)
 	if len(sampleIDs) > 0 {
 		detail += " Sample IDs: " + strings.Join(sampleIDs, ", ")
@@ -244,11 +249,11 @@ func buildKnowledgeGraphDuplicateIssue(report *memory.KnowledgeGraphQualityRepor
 	return planner.OperationalIssue{
 		Source:      "maintenance",
 		Context:     "knowledge_graph",
-		Title:       "Knowledge graph duplicate labels detected",
+		Title:       "Knowledge graph duplicates detected",
 		Detail:      detail,
 		Severity:    "warning",
-		Reference:   "kg_duplicate_labels",
-		Fingerprint: "maintenance|knowledge_graph|duplicate_labels",
+		Reference:   "kg_duplicates",
+		Fingerprint: "maintenance|knowledge_graph|duplicates",
 		OccurredAt:  time.Now(),
 	}, true
 }

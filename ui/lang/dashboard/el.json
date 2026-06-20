@@ -740,5 +740,7 @@
   "dashboard.knowledge_health_needs_reindex": "Εκκρεμεί σημασιολογική reindex",
   "dashboard.knowledge_health_index_ok": "Το σημασιολογικό ευρετήριο είναι ενημερωμένο",
   "dashboard.knowledge_health_reindex_backlog": "Υψηλή ουρά reindex",
+  "dashboard.knowledge_health_isolated_nodes": "Απομονωμένοι κόμβοι",
+  "dashboard.knowledge_health_duplicate_groups": "Ομάδες διπλότυπων",
   "dashboard.memory_graph_dirty_hint": "{count} σε αναμονή"
 }

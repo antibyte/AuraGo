@@ -740,5 +740,7 @@
   "dashboard.knowledge_health_needs_reindex": "Semantic reindex pending",
   "dashboard.knowledge_health_index_ok": "Semantic index up to date",
   "dashboard.knowledge_health_reindex_backlog": "Reindex backlog is high",
+  "dashboard.knowledge_health_isolated_nodes": "Isolated Nodes",
+  "dashboard.knowledge_health_duplicate_groups": "Duplicate Groups",
   "dashboard.memory_graph_dirty_hint": "{count} pending"
 }

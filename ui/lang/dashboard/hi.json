@@ -740,5 +740,7 @@
   "dashboard.knowledge_health_needs_reindex": "सिमेंटिक रीइंडेक्स लंबित",
   "dashboard.knowledge_health_index_ok": "सिमेंटिक इंडेक्स अप टू डेट है",
   "dashboard.knowledge_health_reindex_backlog": "रीइंडेक्स बैकलॉग अधिक है",
+  "dashboard.knowledge_health_isolated_nodes": "अलग नोड्स",
+  "dashboard.knowledge_health_duplicate_groups": "डुप्लिकेट समूह",
   "dashboard.memory_graph_dirty_hint": "{count} लंबित"
 }

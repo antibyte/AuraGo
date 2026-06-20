@@ -740,5 +740,7 @@
   "dashboard.knowledge_health_needs_reindex": "Reindex semantico in sospeso",
   "dashboard.knowledge_health_index_ok": "Indice semantico aggiornato",
   "dashboard.knowledge_health_reindex_backlog": "Backlog di reindex elevato",
+  "dashboard.knowledge_health_isolated_nodes": "Nodi isolati",
+  "dashboard.knowledge_health_duplicate_groups": "Gruppi duplicati",
   "dashboard.memory_graph_dirty_hint": "{count} in sospeso"
 }

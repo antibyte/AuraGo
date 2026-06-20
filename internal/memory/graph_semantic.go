@@ -981,6 +981,8 @@ type KnowledgeGraphHealthReport struct {
 	ReindexBacklog    bool                 `json:"reindex_backlog"`
 	TotalNodes        int                  `json:"total_nodes"`
 	TotalEdges        int                  `json:"total_edges"`
+	IsolatedNodes     int                  `json:"isolated_nodes"`
+	DuplicateGroups   int                  `json:"duplicate_groups"`
 	Consistency       *KGConsistencyReport `json:"consistency,omitempty"`
 }
 
@@ -1040,6 +1042,22 @@ func (kg *KnowledgeGraph) HealthReport() (*KnowledgeGraphHealthReport, error) {
 	}
 	_ = kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&report.TotalNodes)
 	_ = kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&report.TotalEdges)
+
+	isolatedNodes, err := countKnowledgeGraphIsolatedNodes(kg.db)
+	if err != nil {
+		return nil, fmt.Errorf("count isolated knowledge graph nodes: %w", err)
+	}
+	report.IsolatedNodes = isolatedNodes
+
+	labelDuplicateGroups, err := countKnowledgeGraphLabelDuplicateGroups(kg.db)
+	if err != nil {
+		return nil, fmt.Errorf("count label duplicate groups: %w", err)
+	}
+	idDuplicateGroups, err := countKnowledgeGraphIDDuplicateGroups(kg.db)
+	if err != nil {
+		return nil, fmt.Errorf("count id duplicate groups: %w", err)
+	}
+	report.DuplicateGroups = labelDuplicateGroups + idDuplicateGroups
 
 	dirtyNodes, err := kg.countDirtySemanticNodes()
 	if err != nil {

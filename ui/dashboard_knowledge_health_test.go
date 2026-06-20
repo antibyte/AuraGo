@@ -34,6 +34,8 @@ func TestDashboardKnowledgeGraphHealthContract(t *testing.T) {
 	for _, marker := range []string{
 		"function renderKnowledgeGraphHealth",
 		"knowledge_health_dirty_nodes",
+		"knowledge_health_isolated_nodes",
+		"knowledge_health_duplicate_groups",
 		"knowledge_health_needs_reindex",
 		"memory_graph_dirty_hint",
 	} {

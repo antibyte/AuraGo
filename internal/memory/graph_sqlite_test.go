@@ -548,6 +548,56 @@ func TestKGQualityReport(t *testing.T) {
 	}
 }
 
+func TestKGQualityReportDetectsIDDuplicateVariants(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("truenas", "TrueNAS", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode truenas: %v", err)
+	}
+	if _, err := kg.db.Exec("INSERT INTO kg_nodes (id, label, properties) VALUES (?, ?, ?)", "true_nas", "TrueNAS Alt", "{}"); err != nil {
+		t.Fatalf("Insert true_nas: %v", err)
+	}
+
+	report, err := kg.QualityReport(10)
+	if err != nil {
+		t.Fatalf("QualityReport: %v", err)
+	}
+	if report.IDDuplicateGroups != 1 {
+		t.Fatalf("IDDuplicateGroups = %d, want 1", report.IDDuplicateGroups)
+	}
+	if report.IDDuplicateNodes != 2 {
+		t.Fatalf("IDDuplicateNodes = %d, want 2", report.IDDuplicateNodes)
+	}
+	if len(report.IDDuplicateCandidates) != 1 {
+		t.Fatalf("IDDuplicateCandidates len = %d, want 1", len(report.IDDuplicateCandidates))
+	}
+	gotIDs := strings.Join(report.IDDuplicateCandidates[0].IDs, ",")
+	if gotIDs != "truenas,true_nas" {
+		t.Fatalf("id duplicate IDs = %q, want truenas,true_nas", gotIDs)
+	}
+}
+
+func TestKGHealthReportIncludesQualityKPIs(t *testing.T) {
+	kg := newTestKG(t)
+	if err := kg.AddNode("truenas", "TrueNAS", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode truenas: %v", err)
+	}
+	if _, err := kg.db.Exec("INSERT INTO kg_nodes (id, label, properties) VALUES (?, ?, ?)", "true_nas", "TrueNAS Alt", "{}"); err != nil {
+		t.Fatalf("Insert true_nas: %v", err)
+	}
+
+	report, err := kg.HealthReport()
+	if err != nil {
+		t.Fatalf("HealthReport: %v", err)
+	}
+	if report.IsolatedNodes != 2 {
+		t.Fatalf("IsolatedNodes = %d, want 2", report.IsolatedNodes)
+	}
+	if report.DuplicateGroups != 1 {
+		t.Fatalf("DuplicateGroups = %d, want 1", report.DuplicateGroups)
+	}
+}
+
 func TestKGQualityReportReturnsQueryErrors(t *testing.T) {
 	kg := newTestKG(t)
 
