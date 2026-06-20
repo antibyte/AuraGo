@@ -723,5 +723,11 @@
   "dashboard.maintenance_status_failed": "fallido",
   "dashboard.maintenance_status_never": "sin ejecución",
   "dashboard.memory_hygiene_partial_failures": "{{count}} acciones fallidas",
-  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}",
+  "dashboard.knowledge_quality_merge_btn": "Fusionar",
+  "dashboard.knowledge_quality_merge_confirm_title": "Fusionar nodos",
+  "dashboard.knowledge_quality_merge_confirm": "¿Fusionar \"{source}\" en \"{target}\" ({label})? El nodo origen se eliminará.",
+  "dashboard.knowledge_quality_merge_success": "Nodos fusionados correctamente.",
+  "dashboard.knowledge_quality_merge_error": "No se pudieron fusionar los nodos.",
+  "dashboard.kg_col_actions": "Acciones"
 }

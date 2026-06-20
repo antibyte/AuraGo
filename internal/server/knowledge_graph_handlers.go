@@ -365,6 +365,78 @@ func handleKnowledgeGraphEdgeMutate(s *Server) http.HandlerFunc {
 	}
 }
 
+func handleKnowledgeGraphMerge(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s.KG == nil {
+			jsonError(w, "Knowledge graph is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+
+		var req struct {
+			TargetID string `json:"target_id"`
+			SourceID string `json:"source_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			jsonError(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+		targetID := strings.TrimSpace(req.TargetID)
+		sourceID := strings.TrimSpace(req.SourceID)
+		if targetID == "" || sourceID == "" {
+			jsonError(w, "target_id and source_id are required", http.StatusBadRequest)
+			return
+		}
+		if targetID == sourceID {
+			jsonError(w, "target_id and source_id must differ", http.StatusBadRequest)
+			return
+		}
+
+		sourceNode, err := s.KG.GetNode(sourceID)
+		if err != nil {
+			jsonError(w, "Failed to load source node", http.StatusInternalServerError)
+			return
+		}
+		if sourceNode == nil {
+			jsonError(w, "Source node not found", http.StatusNotFound)
+			return
+		}
+		if sourceNode.Protected {
+			jsonError(w, "Protected source nodes cannot be merged", http.StatusConflict)
+			return
+		}
+		targetNode, err := s.KG.GetNode(targetID)
+		if err != nil {
+			jsonError(w, "Failed to load target node", http.StatusInternalServerError)
+			return
+		}
+		if targetNode == nil {
+			jsonError(w, "Target node not found", http.StatusNotFound)
+			return
+		}
+
+		if err := s.KG.MergeNodes(targetID, sourceID); err != nil {
+			jsonError(w, "Failed to merge knowledge graph nodes", http.StatusInternalServerError)
+			return
+		}
+
+		mergedNode, err := s.KG.GetNode(targetID)
+		if err != nil {
+			jsonError(w, "Nodes merged but failed to reload target node", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]interface{}{
+			"status":    "ok",
+			"target_id": targetID,
+			"source_id": sourceID,
+			"node":      mergedNode,
+		})
+	}
+}
+
 func parseKnowledgeGraphLimit(r *http.Request, defaultLimit int) int {
 	limit := defaultLimit
 	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {

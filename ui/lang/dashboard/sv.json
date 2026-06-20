@@ -723,5 +723,11 @@
   "dashboard.maintenance_status_failed": "misslyckades",
   "dashboard.maintenance_status_never": "inget körning än",
   "dashboard.memory_hygiene_partial_failures": "{{count}} åtgärder misslyckades",
-  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}",
+  "dashboard.knowledge_quality_merge_btn": "Slå ihop",
+  "dashboard.knowledge_quality_merge_confirm_title": "Slå ihop noder",
+  "dashboard.knowledge_quality_merge_confirm": "Slå ihop \"{source}\" till \"{target}\" ({label})? Källnoden tas bort.",
+  "dashboard.knowledge_quality_merge_success": "Noder slogs ihop.",
+  "dashboard.knowledge_quality_merge_error": "Det gick inte att slå ihop noderna.",
+  "dashboard.kg_col_actions": "Åtgärder"
 }

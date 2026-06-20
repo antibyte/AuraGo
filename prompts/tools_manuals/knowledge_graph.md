@@ -10,6 +10,7 @@ Manage a structured graph of entities and relations stored in SQLite with full-t
 | `add_edge` | `source`, `target`, `relation` | Create a directed edge (auto-creates missing nodes). Optional: `properties` |
 | `update_node` | `id` | Update node label or properties |
 | `update_edge` | `source`, `target`, `relation` | Update edge properties or relation type |
+| `merge_nodes` | `target`, `source` | Merge `source` into `target`, move edges/properties, delete `source` |
 | `delete_node` | `id` | Remove a node and all its connected edges |
 | `delete_edge` | `source`, `target`, `relation` | Remove a specific edge |
 | `get_node` | `id` | Get a single node's details |
@@ -56,6 +57,11 @@ Manage a structured graph of entities and relations stored in SQLite with full-t
 {"action": "knowledge_graph", "operation": "get_neighbors", "id": "api_server", "limit": 10}
 ```
 
+**Merge duplicate nodes:**
+```json
+{"action": "knowledge_graph", "operation": "merge_nodes", "target": "nas_primary", "source": "nas_secondary"}
+```
+
 ## Behavior
 
 - Search uses FTS5 full-text search with LIKE fallback for broad matching.
@@ -73,4 +79,5 @@ Manage a structured graph of entities and relations stored in SQLite with full-t
 - **Protected nodes**: Mark sensitive nodes with `"protected": "true"` in properties to prevent deletion by automated cleanup.
 - **Search vs Explore**: `search` finds nodes by text match; `explore` returns context including relationship paths.
 - **Deletion cascades**: `delete_node` removes all connected edges automatically.
+- **Merge nodes**: `merge_nodes` keeps the target node, merges properties/labels, moves edges, and deletes the source. Protected source nodes cannot be merged.
 - **Subgraph**: Use `depth=1` for direct neighbors, `depth=2` for friends-of-friends, etc.

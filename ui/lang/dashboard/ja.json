@@ -723,5 +723,11 @@
   "dashboard.maintenance_status_failed": "失敗",
   "dashboard.maintenance_status_never": "未実行",
   "dashboard.memory_hygiene_partial_failures": "{{count}} 件のアクションが失敗",
-  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}",
+  "dashboard.knowledge_quality_merge_btn": "統合",
+  "dashboard.knowledge_quality_merge_confirm_title": "ノードを統合",
+  "dashboard.knowledge_quality_merge_confirm": "「{source}」を「{target}」（{label}）に統合しますか？ソースノードは削除されます。",
+  "dashboard.knowledge_quality_merge_success": "ノードを統合しました。",
+  "dashboard.knowledge_quality_merge_error": "ノードの統合に失敗しました。",
+  "dashboard.kg_col_actions": "操作"
 }

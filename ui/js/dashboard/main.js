@@ -408,6 +408,17 @@
             setupAuditControls();
             setupCronjobsControls();
             document.addEventListener('click', (e) => {
+                const mergeButton = e.target.closest('[data-kg-merge-source]');
+                if (mergeButton) {
+                    e.preventDefault();
+                    const sourceID = mergeButton.getAttribute('data-kg-merge-source');
+                    const targetID = mergeButton.getAttribute('data-kg-merge-target');
+                    const label = mergeButton.getAttribute('data-kg-merge-label') || '';
+                    if (sourceID && targetID && typeof mergeKnowledgeGraphNodes === 'function') {
+                        mergeKnowledgeGraphNodes(targetID, sourceID, label);
+                    }
+                    return;
+                }
                 const nodeLink = e.target.closest('[data-kg-open-node]');
                 if (nodeLink) {
                     const nodeID = nodeLink.getAttribute('data-kg-open-node');

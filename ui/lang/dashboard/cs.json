@@ -723,5 +723,11 @@
   "dashboard.maintenance_status_failed": "selhalo",
   "dashboard.maintenance_status_never": "zatím neproběhlo",
   "dashboard.memory_hygiene_partial_failures": "{{count}} akcí selhalo",
-  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}",
+  "dashboard.knowledge_quality_merge_btn": "Sloučit",
+  "dashboard.knowledge_quality_merge_confirm_title": "Sloučit uzly",
+  "dashboard.knowledge_quality_merge_confirm": "Sloučit \"{source}\" do \"{target}\" ({label})? Zdrojový uzel bude smazán.",
+  "dashboard.knowledge_quality_merge_success": "Uzly byly úspěšně sloučeny.",
+  "dashboard.knowledge_quality_merge_error": "Sloučení uzlů se nezdařilo.",
+  "dashboard.kg_col_actions": "Akce"
 }

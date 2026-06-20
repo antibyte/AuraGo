@@ -723,5 +723,11 @@
   "dashboard.maintenance_status_failed": "失败",
   "dashboard.maintenance_status_never": "尚未运行",
   "dashboard.memory_hygiene_partial_failures": "{{count}} 个操作失败",
-  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}",
+  "dashboard.knowledge_quality_merge_btn": "合并",
+  "dashboard.knowledge_quality_merge_confirm_title": "合并节点",
+  "dashboard.knowledge_quality_merge_confirm": "将“{source}”合并到“{target}”（{label}）？源节点将被删除。",
+  "dashboard.knowledge_quality_merge_success": "节点合并成功。",
+  "dashboard.knowledge_quality_merge_error": "合并节点失败。",
+  "dashboard.kg_col_actions": "操作"
 }

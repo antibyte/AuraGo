@@ -723,5 +723,11 @@
   "dashboard.maintenance_status_failed": "mislukt",
   "dashboard.maintenance_status_never": "nog niet uitgevoerd",
   "dashboard.memory_hygiene_partial_failures": "{{count}} acties mislukt",
-  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}",
+  "dashboard.knowledge_quality_merge_btn": "Samenvoegen",
+  "dashboard.knowledge_quality_merge_confirm_title": "Knooppunten samenvoegen",
+  "dashboard.knowledge_quality_merge_confirm": "\"{source}\" samenvoegen in \"{target}\" ({label})? Het bronknooppunt wordt verwijderd.",
+  "dashboard.knowledge_quality_merge_success": "Knooppunten succesvol samengevoegd.",
+  "dashboard.knowledge_quality_merge_error": "Samenvoegen van knooppunten mislukt.",
+  "dashboard.kg_col_actions": "Acties"
 }

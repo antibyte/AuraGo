@@ -723,5 +723,11 @@
   "dashboard.maintenance_status_failed": "nieudana",
   "dashboard.maintenance_status_never": "brak uruchomień",
   "dashboard.memory_hygiene_partial_failures": "{{count}} akcji nie powiodło się",
-  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}",
+  "dashboard.knowledge_quality_merge_btn": "Scal",
+  "dashboard.knowledge_quality_merge_confirm_title": "Scal węzły",
+  "dashboard.knowledge_quality_merge_confirm": "Scalić \"{source}\" z \"{target}\" ({label})? Węzeł źródłowy zostanie usunięty.",
+  "dashboard.knowledge_quality_merge_success": "Węzły scalone pomyślnie.",
+  "dashboard.knowledge_quality_merge_error": "Nie udało się scalić węzłów.",
+  "dashboard.kg_col_actions": "Akcje"
 }

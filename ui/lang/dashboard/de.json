@@ -723,5 +723,11 @@
   "dashboard.maintenance_status_failed": "fehlgeschlagen",
   "dashboard.maintenance_status_never": "noch kein Lauf",
   "dashboard.memory_hygiene_partial_failures": "{{count}} Aktionen fehlgeschlagen",
-  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}",
+  "dashboard.knowledge_quality_merge_btn": "Zusammenführen",
+  "dashboard.knowledge_quality_merge_confirm_title": "Knoten zusammenführen",
+  "dashboard.knowledge_quality_merge_confirm": "\"{source}\" in \"{target}\" ({label}) zusammenführen? Der Quellknoten wird gelöscht.",
+  "dashboard.knowledge_quality_merge_success": "Knoten erfolgreich zusammengeführt.",
+  "dashboard.knowledge_quality_merge_error": "Zusammenführen fehlgeschlagen.",
+  "dashboard.kg_col_actions": "Aktionen"
 }

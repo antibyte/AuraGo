@@ -723,5 +723,11 @@
   "dashboard.maintenance_status_failed": "विफल",
   "dashboard.maintenance_status_never": "अभी तक नहीं चला",
   "dashboard.memory_hygiene_partial_failures": "{{count}} कार्य विफल",
-  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}",
+  "dashboard.knowledge_quality_merge_btn": "मर्ज करें",
+  "dashboard.knowledge_quality_merge_confirm_title": "नोड मर्ज करें",
+  "dashboard.knowledge_quality_merge_confirm": "\"{source}\" को \"{target}\" ({label}) में मर्ज करें? स्रोत नोड हटा दिया जाएगा।",
+  "dashboard.knowledge_quality_merge_success": "नोड सफलतापूर्वक मर्ज हो गए।",
+  "dashboard.knowledge_quality_merge_error": "नोड मर्ज करने में विफल।",
+  "dashboard.kg_col_actions": "कार्रवाइयाँ"
 }

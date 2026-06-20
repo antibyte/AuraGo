@@ -251,6 +251,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	if kg != nil && shortTermMem != nil {
 		SyncCoreMemoryToKnowledgeGraph(ctx, shortTermMem, kg, logger)
 		recordKnowledgeGraphSparseIssue(plannerDB, shortTermMem, kg, logger)
+		recordKnowledgeGraphQualityIssues(plannerDB, kg, logger)
 	}
 
 	// Knowledge Graph: incremental file-based KG sync

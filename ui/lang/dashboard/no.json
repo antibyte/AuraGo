@@ -723,5 +723,11 @@
   "dashboard.maintenance_status_failed": "mislyktes",
   "dashboard.maintenance_status_never": "ingen kjøring ennå",
   "dashboard.memory_hygiene_partial_failures": "{{count}} handlinger mislyktes",
-  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}",
+  "dashboard.knowledge_quality_merge_btn": "Slå sammen",
+  "dashboard.knowledge_quality_merge_confirm_title": "Slå sammen noder",
+  "dashboard.knowledge_quality_merge_confirm": "Slå sammen \"{source}\" inn i \"{target}\" ({label})? Kildenoden slettes.",
+  "dashboard.knowledge_quality_merge_success": "Noder slått sammen.",
+  "dashboard.knowledge_quality_merge_error": "Kunne ikke slå sammen noder.",
+  "dashboard.kg_col_actions": "Handlinger"
 }

@@ -723,5 +723,11 @@
   "dashboard.maintenance_status_failed": "fallita",
   "dashboard.maintenance_status_never": "nessuna esecuzione",
   "dashboard.memory_hygiene_partial_failures": "{{count}} azioni fallite",
-  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}",
+  "dashboard.knowledge_quality_merge_btn": "Unisci",
+  "dashboard.knowledge_quality_merge_confirm_title": "Unisci nodi",
+  "dashboard.knowledge_quality_merge_confirm": "Unire \"{source}\" in \"{target}\" ({label})? Il nodo sorgente verrà eliminato.",
+  "dashboard.knowledge_quality_merge_success": "Nodi uniti con successo.",
+  "dashboard.knowledge_quality_merge_error": "Impossibile unire i nodi.",
+  "dashboard.kg_col_actions": "Azioni"
 }

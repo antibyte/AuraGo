@@ -15,6 +15,9 @@ import (
 
 const maxJournalHygieneIterations = 5
 const maxNotesAutoArchivePerHygieneRun = 20
+const knowledgeGraphDuplicateIssueThreshold = 3
+
+var lastRecordedKGDroppedAccessHits int64
 
 func runJournalDuplicateConsolidation(stm *memory.SQLiteMemory, opts memory.JournalConsolidationOptions) (int, error) {
 	totalRemoved := 0
@@ -181,6 +184,93 @@ func buildMemoryReflectionReviewIssue(scope string, curator memory.MemoryCurator
 		Severity:    "warning",
 		Reference:   "memory_reflect",
 		Fingerprint: "memory_reflect|" + scope + "|curator_review",
+		OccurredAt:  time.Now(),
+	}, true
+}
+
+func recordKnowledgeGraphQualityIssues(plannerDB *sql.DB, kg *memory.KnowledgeGraph, logger *slog.Logger) {
+	if kg == nil {
+		return
+	}
+	report, err := kg.QualityReport(5)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("[MemoryHygiene] Failed to build knowledge graph quality report", "error", err)
+		}
+		return
+	}
+	if issue, ok := buildKnowledgeGraphDuplicateIssue(report); ok {
+		recordOperationalIssue(RunConfig{PlannerDB: plannerDB, MessageSource: "maintenance", IsMaintenance: true}, issue, logger)
+	}
+	recordKnowledgeGraphDroppedAccessHitsIssue(plannerDB, kg, logger)
+}
+
+func buildKnowledgeGraphDuplicateIssue(report *memory.KnowledgeGraphQualityReport) (planner.OperationalIssue, bool) {
+	if report == nil || report.DuplicateGroups <= knowledgeGraphDuplicateIssueThreshold {
+		return planner.OperationalIssue{}, false
+	}
+	sampleIDs := make([]string, 0, 8)
+	for _, candidate := range report.DuplicateCandidates {
+		for _, id := range candidate.IDs {
+			id = strings.TrimSpace(id)
+			if id == "" {
+				continue
+			}
+			sampleIDs = append(sampleIDs, id)
+			if len(sampleIDs) >= 8 {
+				break
+			}
+		}
+		if len(sampleIDs) >= 8 {
+			break
+		}
+	}
+	detail := fmt.Sprintf(
+		"Knowledge graph has duplicate_groups=%d and duplicate_nodes=%d. Review and merge manually in the dashboard; no auto-merge is performed.",
+		report.DuplicateGroups,
+		report.DuplicateNodes,
+	)
+	if len(sampleIDs) > 0 {
+		detail += " Sample IDs: " + strings.Join(sampleIDs, ", ")
+	}
+	return planner.OperationalIssue{
+		Source:      "maintenance",
+		Context:     "knowledge_graph",
+		Title:       "Knowledge graph duplicate labels detected",
+		Detail:      detail,
+		Severity:    "warning",
+		Reference:   "kg_duplicate_labels",
+		Fingerprint: "maintenance|knowledge_graph|duplicate_labels",
+		OccurredAt:  time.Now(),
+	}, true
+}
+
+func recordKnowledgeGraphDroppedAccessHitsIssue(plannerDB *sql.DB, kg *memory.KnowledgeGraph, logger *slog.Logger) {
+	if kg == nil {
+		return
+	}
+	current := kg.DroppedAccessHits()
+	delta := current - lastRecordedKGDroppedAccessHits
+	lastRecordedKGDroppedAccessHits = current
+	issue, ok := buildKnowledgeGraphDroppedAccessHitsIssue(delta)
+	if !ok {
+		return
+	}
+	recordOperationalIssue(RunConfig{PlannerDB: plannerDB, MessageSource: "maintenance", IsMaintenance: true}, issue, logger)
+}
+
+func buildKnowledgeGraphDroppedAccessHitsIssue(delta int64) (planner.OperationalIssue, bool) {
+	if delta <= 0 {
+		return planner.OperationalIssue{}, false
+	}
+	return planner.OperationalIssue{
+		Source:      "maintenance",
+		Context:     "knowledge_graph",
+		Title:       "Knowledge graph access updates were dropped",
+		Detail:      fmt.Sprintf("Dropped %d knowledge graph access-counter updates since the previous maintenance run because the async queue was full. Importance scores may be slightly stale until load decreases.", delta),
+		Severity:    "warning",
+		Reference:   "kg_dropped_access_hits",
+		Fingerprint: "maintenance|knowledge_graph|dropped_access_hits",
 		OccurredAt:  time.Now(),
 	}, true
 }

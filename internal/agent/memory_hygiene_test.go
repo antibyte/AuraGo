@@ -55,6 +55,44 @@ func TestBuildKnowledgeGraphSparseIssueRequiresCoreFacts(t *testing.T) {
 	}
 }
 
+func TestBuildKnowledgeGraphDuplicateIssue(t *testing.T) {
+	if _, ok := buildKnowledgeGraphDuplicateIssue(&memory.KnowledgeGraphQualityReport{DuplicateGroups: 2}); ok {
+		t.Fatal("unexpected duplicate issue below threshold")
+	}
+	issue, ok := buildKnowledgeGraphDuplicateIssue(&memory.KnowledgeGraphQualityReport{
+		DuplicateGroups: 4,
+		DuplicateNodes:  9,
+		DuplicateCandidates: []memory.KnowledgeGraphDuplicateCandidate{
+			{Label: "NAS", IDs: []string{"nas_a", "nas_b", "nas_c"}},
+		},
+	})
+	if !ok {
+		t.Fatal("expected duplicate issue above threshold")
+	}
+	if issue.Fingerprint != "maintenance|knowledge_graph|duplicate_labels" {
+		t.Fatalf("fingerprint = %q, want duplicate labels fingerprint", issue.Fingerprint)
+	}
+	if !strings.Contains(issue.Detail, "duplicate_groups=4") || !strings.Contains(issue.Detail, "nas_a") {
+		t.Fatalf("issue detail = %q, want duplicate counts and sample IDs", issue.Detail)
+	}
+}
+
+func TestBuildKnowledgeGraphDroppedAccessHitsIssue(t *testing.T) {
+	if _, ok := buildKnowledgeGraphDroppedAccessHitsIssue(0); ok {
+		t.Fatal("unexpected dropped access issue for zero delta")
+	}
+	issue, ok := buildKnowledgeGraphDroppedAccessHitsIssue(12)
+	if !ok {
+		t.Fatal("expected dropped access issue for positive delta")
+	}
+	if issue.Fingerprint != "maintenance|knowledge_graph|dropped_access_hits" {
+		t.Fatalf("fingerprint = %q, want dropped access hits fingerprint", issue.Fingerprint)
+	}
+	if !strings.Contains(issue.Detail, "Dropped 12") {
+		t.Fatalf("issue detail = %q, want dropped delta", issue.Detail)
+	}
+}
+
 func TestBuildKnowledgeGraphSemanticReindexBacklogIssue(t *testing.T) {
 	if _, ok := buildKnowledgeGraphSemanticReindexBacklogIssue(100, 100); ok {
 		t.Fatal("unexpected backlog issue below threshold")

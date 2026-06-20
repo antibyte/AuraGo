@@ -723,5 +723,11 @@
   "dashboard.maintenance_status_failed": "falhou",
   "dashboard.maintenance_status_never": "sem execução",
   "dashboard.memory_hygiene_partial_failures": "{{count}} ações falharam",
-  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}",
+  "dashboard.knowledge_quality_merge_btn": "Fundir",
+  "dashboard.knowledge_quality_merge_confirm_title": "Fundir nós",
+  "dashboard.knowledge_quality_merge_confirm": "Fundir \"{source}\" em \"{target}\" ({label})? O nó de origem será eliminado.",
+  "dashboard.knowledge_quality_merge_success": "Nós fundidos com sucesso.",
+  "dashboard.knowledge_quality_merge_error": "Falha ao fundir os nós.",
+  "dashboard.kg_col_actions": "Ações"
 }

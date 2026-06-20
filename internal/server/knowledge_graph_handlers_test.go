@@ -262,6 +262,59 @@ func TestHandleKnowledgeGraphEdgeUpdate(t *testing.T) {
 	}
 }
 
+func TestHandleKnowledgeGraphMerge(t *testing.T) {
+	s := newTestKnowledgeGraphServer(t)
+	if err := s.KG.AddNode("nas_primary", "NAS", map[string]string{"type": "device", "ip": "10.0.0.1"}); err != nil {
+		t.Fatalf("AddNode primary: %v", err)
+	}
+	if err := s.KG.AddNode("nas_secondary", "NAS", map[string]string{"type": "device", "role": "backup"}); err != nil {
+		t.Fatalf("AddNode secondary: %v", err)
+	}
+	if err := s.KG.AddEdge("nas_secondary", "service_backup", "hosts", nil); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	body := bytes.NewBufferString(`{"target_id":"nas_primary","source_id":"nas_secondary"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/knowledge-graph/merge", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handleKnowledgeGraphMerge(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d, body=%s", rec.Code, rec.Body.String())
+	}
+	if node, err := s.KG.GetNode("nas_secondary"); err != nil || node != nil {
+		t.Fatalf("expected source node removed, node=%v err=%v", node, err)
+	}
+	merged, err := s.KG.GetNode("nas_primary")
+	if err != nil || merged == nil {
+		t.Fatalf("expected merged target node, node=%v err=%v", merged, err)
+	}
+	if merged.Properties["ip"] != "10.0.0.1" || merged.Properties["role"] != "backup" {
+		t.Fatalf("merged properties = %#v, want merged props", merged.Properties)
+	}
+}
+
+func TestHandleKnowledgeGraphMergeProtectedSourceRejected(t *testing.T) {
+	s := newTestKnowledgeGraphServer(t)
+	if err := s.KG.AddNode("keeper", "Keeper", map[string]string{"protected": "true"}); err != nil {
+		t.Fatalf("AddNode keeper: %v", err)
+	}
+	if err := s.KG.AddNode("target", "Target", nil); err != nil {
+		t.Fatalf("AddNode target: %v", err)
+	}
+
+	body := bytes.NewBufferString(`{"target_id":"target","source_id":"keeper"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/knowledge-graph/merge", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handleKnowledgeGraphMerge(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409 Conflict, got %d, body=%s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestHandleKnowledgeGraphEdgeDelete(t *testing.T) {
 	s := newTestKnowledgeGraphServer(t)
 	if err := s.KG.AddEdge("proxmox", "backup_server", "replicates_to", map[string]string{"notes": "nightly"}); err != nil {

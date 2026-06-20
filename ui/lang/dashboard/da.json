@@ -723,5 +723,11 @@
   "dashboard.maintenance_status_failed": "mislykkedes",
   "dashboard.maintenance_status_never": "ingen kørsel endnu",
   "dashboard.memory_hygiene_partial_failures": "{{count}} handlinger mislykkedes",
-  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}",
+  "dashboard.knowledge_quality_merge_btn": "Flet",
+  "dashboard.knowledge_quality_merge_confirm_title": "Flet noder",
+  "dashboard.knowledge_quality_merge_confirm": "Flet \"{source}\" ind i \"{target}\" ({label})? Kildenoden slettes.",
+  "dashboard.knowledge_quality_merge_success": "Noder flettet.",
+  "dashboard.knowledge_quality_merge_error": "Kunne ikke flette noder.",
+  "dashboard.kg_col_actions": "Handlinger"
 }

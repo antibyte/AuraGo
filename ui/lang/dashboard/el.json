@@ -723,5 +723,11 @@
   "dashboard.maintenance_status_failed": "απέτυχε",
   "dashboard.maintenance_status_never": "χωρίς εκτέλεση",
   "dashboard.memory_hygiene_partial_failures": "{{count}} ενέργειες απέτυχαν",
-  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}",
+  "dashboard.knowledge_quality_merge_btn": "Συγχώνευση",
+  "dashboard.knowledge_quality_merge_confirm_title": "Συγχώνευση κόμβων",
+  "dashboard.knowledge_quality_merge_confirm": "Να γίνει συγχώνευση του \"{source}\" στον \"{target}\" ({label}); Ο κόμβος πηγής θα διαγραφεί.",
+  "dashboard.knowledge_quality_merge_success": "Οι κόμβοι συγχωνεύτηκαν επιτυχώς.",
+  "dashboard.knowledge_quality_merge_error": "Αποτυχία συγχώνευσης κόμβων.",
+  "dashboard.kg_col_actions": "Ενέργειες"
 }

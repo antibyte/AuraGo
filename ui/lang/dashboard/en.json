@@ -723,5 +723,11 @@
   "dashboard.maintenance_status_failed": "failed",
   "dashboard.maintenance_status_never": "no run yet",
   "dashboard.memory_hygiene_partial_failures": "{{count}} actions failed",
-  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}",
+  "dashboard.knowledge_quality_merge_btn": "Merge",
+  "dashboard.knowledge_quality_merge_confirm_title": "Merge nodes",
+  "dashboard.knowledge_quality_merge_confirm": "Merge \"{source}\" into \"{target}\" ({label})? The source node will be deleted.",
+  "dashboard.knowledge_quality_merge_success": "Nodes merged successfully.",
+  "dashboard.knowledge_quality_merge_error": "Failed to merge nodes.",
+  "dashboard.kg_col_actions": "Actions"
 }

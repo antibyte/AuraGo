@@ -723,5 +723,11 @@
   "dashboard.maintenance_status_failed": "échouée",
   "dashboard.maintenance_status_never": "aucune exécution",
   "dashboard.memory_hygiene_partial_failures": "{{count}} actions échouées",
-  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}"
+  "dashboard.memory_hygiene_failed_action": "{{domain}} {{target}}: {{error}}",
+  "dashboard.knowledge_quality_merge_btn": "Fusionner",
+  "dashboard.knowledge_quality_merge_confirm_title": "Fusionner les nœuds",
+  "dashboard.knowledge_quality_merge_confirm": "Fusionner « {source} » dans « {target} » ({label}) ? Le nœud source sera supprimé.",
+  "dashboard.knowledge_quality_merge_success": "Nœuds fusionnés avec succès.",
+  "dashboard.knowledge_quality_merge_error": "Échec de la fusion des nœuds.",
+  "dashboard.kg_col_actions": "Actions"
 }

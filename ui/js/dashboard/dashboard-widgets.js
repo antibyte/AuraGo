@@ -68,16 +68,27 @@
                 let html = '<table class="kg-table kg-table-compact"><thead><tr>' +
                     `<th>${t('dashboard.kg_col_label')}</th>` +
                     `<th>${t('dashboard.kg_col_count')}</th>` +
-                    `<th>ID</th>` +
+                    `<th>${t('dashboard.kg_col_id')}</th>` +
+                    `<th>${t('dashboard.kg_col_actions')}</th>` +
                     '</tr></thead><tbody>';
                 candidates.forEach(candidate => {
-                    const ids = (Array.isArray(candidate.ids) ? candidate.ids : []).map(id =>
-                        `<span class="kg-cell-link" data-kg-open-node="${esc(id || '')}">${esc(id || '')}</span>`
+                    const rawIDs = Array.isArray(candidate.ids) ? candidate.ids.filter(id => String(id || '').trim()) : [];
+                    const targetID = rawIDs[0] || '';
+                    const idLinks = rawIDs.map(id =>
+                        `<span class="kg-cell-link" data-kg-open-node="${esc(id)}">${esc(id)}</span>`
                     ).join(', ');
+                    const mergeButtons = rawIDs.slice(1).map(sourceID => `
+                        <button type="button" class="btn btn-secondary btn-sm"
+                            data-kg-merge-source="${esc(sourceID)}"
+                            data-kg-merge-target="${esc(targetID)}"
+                            data-kg-merge-label="${esc(candidate.label || candidate.normalized_label || 'Node')}">
+                            ${t('dashboard.knowledge_quality_merge_btn')}
+                        </button>`).join(' ');
                     html += `<tr>
                         <td>${esc(candidate.label || candidate.normalized_label || 'Node')}</td>
                         <td class="text-secondary">${Number(candidate.count || 0)}</td>
-                        <td class="text-secondary">${ids || '—'}</td>
+                        <td class="text-secondary">${idLinks || '—'}</td>
+                        <td class="kg-merge-actions">${mergeButtons || '—'}</td>
                     </tr>`;
                 });
                 html += '</tbody></table>';
@@ -526,6 +537,38 @@
 
             KnowledgeGraphState.editingEdgeKey = '';
             if (typeof showToast === 'function') showToast(t('dashboard.knowledge_edge_saved'), 'success', 2500);
+            await loadTabKnowledge();
+        }
+
+        async function mergeKnowledgeGraphNodes(targetID, sourceID, label) {
+            targetID = String(targetID || '').trim();
+            sourceID = String(sourceID || '').trim();
+            if (!targetID || !sourceID || targetID === sourceID) return;
+
+            const confirmed = typeof showConfirm === 'function'
+                ? await showConfirm(
+                    t('dashboard.knowledge_quality_merge_confirm_title'),
+                    t('dashboard.knowledge_quality_merge_confirm', { source: sourceID, target: targetID, label: label || sourceID })
+                )
+                : true;
+            if (!confirmed) return;
+
+            const response = await fetch('/api/knowledge-graph/merge', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_id: targetID, source_id: sourceID }),
+            });
+            const payload = await safeReadJSON(response);
+            if (!response.ok) {
+                if (typeof showToast === 'function') {
+                    showToast(payload?.error || t('dashboard.knowledge_quality_merge_error'), 'error', 5000);
+                }
+                return;
+            }
+            if (typeof showToast === 'function') {
+                showToast(t('dashboard.knowledge_quality_merge_success'), 'success', 2500);
+            }
             await loadTabKnowledge();
         }
 

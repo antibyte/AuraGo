@@ -411,7 +411,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			if cfg.Tools.KnowledgeGraph.ReadOnly {
 				switch req.Operation {
-				case "add_node", "add_edge", "delete_node", "delete_edge", "update_node", "update_edge", "optimize":
+				case "add_node", "add_edge", "delete_node", "delete_edge", "update_node", "update_edge", "merge_nodes", "optimize":
 					return `Tool Output: {"status":"error","message":"Knowledge graph is in read-only mode. Disable tools.knowledge_graph.read_only to allow changes."}`
 				}
 			}
@@ -463,6 +463,53 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					"label":      node.Label,
 					"properties": node.Properties,
 					"protected":  node.Protected,
+				})
+				return "Tool Output: " + string(data)
+
+			case "merge_nodes":
+				if req.Source == "" || req.Target == "" {
+					return `Tool Output: {"status": "error", "message": "source and target are required for merge_nodes"}`
+				}
+				if req.Source == req.Target {
+					return `Tool Output: {"status": "error", "message": "source and target must differ for merge_nodes"}`
+				}
+				sourceNode, err := kg.GetNode(req.Source)
+				if err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+				}
+				if sourceNode == nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Source node not found: %s"}`, req.Source)
+				}
+				if sourceNode.Protected {
+					return `Tool Output: {"status": "error", "message": "Protected source nodes cannot be merged"}`
+				}
+				if targetNode, err := kg.GetNode(req.Target); err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+				} else if targetNode == nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Target node not found: %s"}`, req.Target)
+				}
+				if err := kg.MergeNodes(req.Target, req.Source); err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+				}
+				mergedNode, err := kg.GetNode(req.Target)
+				if err != nil || mergedNode == nil {
+					data, _ := json.Marshal(map[string]interface{}{
+						"status":    "success",
+						"message":   "Nodes merged",
+						"target_id": req.Target,
+						"source_id": req.Source,
+					})
+					return "Tool Output: " + string(data)
+				}
+				data, _ := json.Marshal(map[string]interface{}{
+					"status":     "success",
+					"message":    "Nodes merged",
+					"target_id":  req.Target,
+					"source_id":  req.Source,
+					"id":         mergedNode.ID,
+					"label":      mergedNode.Label,
+					"properties": mergedNode.Properties,
+					"protected":  mergedNode.Protected,
 				})
 				return "Tool Output: " + string(data)
 
