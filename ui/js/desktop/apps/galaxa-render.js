@@ -1122,9 +1122,6 @@
                 const _br = ctx.G.biomeRevealT;
                 const _phase = _br > 2000 ? 0 : _br > 1800 ? (_br - 1800) / 200 : _br < 400 ? _br / 400 : 1;
                 const _ease = ctx.Easing.easeOutCubic(Math.min(1, _phase));
-                // letterbox bars
-                const _bh = Math.floor(ctx.H * 0.12 * (1 - _ease));
-                if (_br > 200) { ctx.c.fillStyle = '#000'; ctx.c.fillRect(0, 0, ctx.W, _bh + 4); ctx.c.fillRect(0, ctx.H - _bh - 4, ctx.W, _bh + 4); }
                 // name plate
                 if (_phase > 0) {
                     ctx.c.save();
