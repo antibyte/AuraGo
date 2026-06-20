@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/memory"
 	"aurago/internal/tools"
 )
 
@@ -34,6 +35,88 @@ func TestDispatchExecManageScheduleBlocksEnableInReadOnlyMode(t *testing.T) {
 	}
 	if !strings.Contains(out, "read-only mode") {
 		t.Fatalf("expected read-only error, got %s", out)
+	}
+}
+
+func TestDispatchExecOptimizeMemorySkipsKnowledgeGraphWhenReadOnly(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.MemoryMaintenance.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
+	cfg.Tools.KnowledgeGraph.ReadOnly = true
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(filepath.Join(t.TempDir(), "memory.db"), logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	t.Cleanup(func() { _ = kg.Close() })
+	if err := kg.AddNode("temporary", "Temporary", nil); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "optimize_memory", ThresholdLow: 1},
+		&DispatchContext{
+			Cfg:          cfg,
+			Logger:       logger,
+			ShortTermMem: stm,
+			LongTermMem:  &fakeVectorDB{},
+			KG:           kg,
+		},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle optimize_memory")
+	}
+	if !strings.Contains(out, `"graph_nodes_archived": 0`) {
+		t.Fatalf("expected KG optimization to be skipped in read-only mode, got %s", out)
+	}
+	if node, err := kg.GetNode("temporary"); err != nil || node == nil {
+		t.Fatalf("read-only optimize_memory removed KG node, node=%v err=%v", node, err)
+	}
+}
+
+func TestDispatchExecKnowledgeGraphSupportsDocumentedOptimizeGraphAlias(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.KnowledgeGraph.Enabled = true
+	cfg.Tools.MemoryMaintenance.Enabled = true
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(filepath.Join(t.TempDir(), "memory.db"), logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	t.Cleanup(func() { _ = kg.Close() })
+
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "knowledge_graph", Operation: "optimize_graph", Preview: true},
+		&DispatchContext{
+			Cfg:          cfg,
+			Logger:       logger,
+			ShortTermMem: stm,
+			LongTermMem:  &fakeVectorDB{},
+			KG:           kg,
+		},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle knowledge_graph")
+	}
+	if strings.Contains(out, "Unknown graph operation") {
+		t.Fatalf("expected optimize_graph alias to be accepted, got %s", out)
+	}
+	if !strings.Contains(out, `"preview": true`) {
+		t.Fatalf("expected optimize_graph alias to run memory orchestrator preview, got %s", out)
 	}
 }
 

@@ -19,6 +19,7 @@ Manage a structured graph of entities and relations stored in SQLite with full-t
 | `search` | `content` | Full-text search across nodes and edges |
 | `explore` | `content` | Search with relationship context |
 | `suggest_relations` | `id` | Suggest possible relations for a node |
+| `optimize` / `optimize_graph` | optional thresholds | Run priority-based KG cleanup through the memory optimizer |
 
 ## Parameters
 
@@ -71,7 +72,7 @@ Manage a structured graph of entities and relations stored in SQLite with full-t
 - Nodes track `access_count` on each search hit; maintenance flushes queued access hits before optimize/cleanup so recent usage is not lost.
 - Set `"protected": "true"` in a node's `properties` to exempt it from automated Priority-Based Forgetting.
 - Synced nodes from planner, inventory, core memory, file sync, and manual curation are protected from auto-optimize pruning by default (`protect_optimize_sources` / `protect_id_prefixes` in config).
-- `optimize_graph` runs in a single SQLite transaction and only deduplicates edges touched by the current merge/delete scope.
+- `optimize` (`optimize_graph` is accepted as a compatibility alias) runs in a single SQLite transaction and only deduplicates edges touched by the current merge/delete scope.
 - `merge_nodes` keeps the target node, merges labels/properties with the longer readable label winning, moves incident edges, deduplicates only within the merged node pair, and deletes the source.
 - Planner sync creates a synthetic hub node `planner_workspace` (`type: planner_hub`). Todos without checklist items link to it via `part_of`; checklist items link to their parent todo with `part_of`. Stale planner edges are pruned in batched deletes.
 - File-to-KG sync processes KG writes serially to avoid SQLite write contention.

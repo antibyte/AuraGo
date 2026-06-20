@@ -9,6 +9,12 @@ import (
 )
 
 func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties map[string]string) error {
+	source = strings.TrimSpace(source)
+	target = strings.TrimSpace(target)
+	relation = strings.TrimSpace(relation)
+	if source == "" || target == "" || relation == "" {
+		return fmt.Errorf("source, target, and relation are required")
+	}
 	properties = normalizeKnowledgeGraphProperties(properties)
 
 	tx, err := kg.db.Begin()

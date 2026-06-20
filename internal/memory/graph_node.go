@@ -71,6 +71,10 @@ func validateNodeSchema(properties map[string]string) map[string]string {
 }
 
 func (kg *KnowledgeGraph) AddNode(id, label string, properties map[string]string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("node id is required")
+	}
 	isProtected := strings.EqualFold(strings.TrimSpace(properties["protected"]), "true")
 	properties = sanitizeKnowledgeGraphNodeProperties(properties, isProtected)
 

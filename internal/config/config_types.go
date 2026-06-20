@@ -1519,7 +1519,7 @@ type Config struct {
 		} `yaml:"memory"`
 		KnowledgeGraph struct {
 			Enabled                 bool     `yaml:"enabled"`                   // default true; disable to block knowledge_graph
-			ReadOnly                bool     `yaml:"readonly"`                  // true = only query/search, block add/delete
+			ReadOnly                bool     `yaml:"readonly"`                  // true = only query/search, block add/delete/optimize pruning
 			AutoExtraction          bool     `yaml:"auto_extraction"`           // nightly batch entity extraction from conversations
 			PromptInjection         bool     `yaml:"prompt_injection"`          // inject relevant KG context into system prompt
 			MaxPromptNodes          int      `yaml:"max_prompt_nodes"`          // max nodes to inject into prompt (default 5)

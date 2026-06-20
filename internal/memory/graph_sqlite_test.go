@@ -52,6 +52,23 @@ func TestKGAddNodeAndStats(t *testing.T) {
 	}
 }
 
+func TestKGAddNodeRejectsBlankIDAndTrimsStoredID(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("   ", "Blank", nil); err == nil {
+		t.Fatal("expected blank node id to be rejected")
+	}
+	if err := kg.AddNode("  trimmed_node  ", "Trimmed", nil); err != nil {
+		t.Fatalf("AddNode with padded id: %v", err)
+	}
+	if node, err := kg.GetNode("trimmed_node"); err != nil || node == nil {
+		t.Fatalf("expected trimmed node id to be stored, node=%v err=%v", node, err)
+	}
+	if node, err := kg.GetNode("  trimmed_node  "); err != nil || node != nil {
+		t.Fatalf("expected padded node id not to be stored, node=%v err=%v", node, err)
+	}
+}
+
 func TestKGAddEdge(t *testing.T) {
 	kg := newTestKG(t)
 
@@ -65,6 +82,35 @@ func TestKGAddEdge(t *testing.T) {
 	}
 	if edges != 1 {
 		t.Errorf("expected 1 edge, got %d", edges)
+	}
+}
+
+func TestKGAddEdgeRejectsBlankEndpointOrRelationAndTrimsIdentity(t *testing.T) {
+	kg := newTestKG(t)
+
+	for _, tc := range []struct {
+		name     string
+		source   string
+		target   string
+		relation string
+	}{
+		{name: "blank source", source: " ", target: "target", relation: "rel"},
+		{name: "blank target", source: "source", target: " ", relation: "rel"},
+		{name: "blank relation", source: "source", target: "target", relation: " "},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := kg.AddEdge(tc.source, tc.target, tc.relation, nil); err == nil {
+				t.Fatal("expected invalid edge identity to be rejected")
+			}
+		})
+	}
+
+	if err := kg.AddEdge(" source ", " target ", " relates_to ", nil); err != nil {
+		t.Fatalf("AddEdge with padded identity: %v", err)
+	}
+	nodes, edges := kg.GetNeighbors("source", 10)
+	if len(nodes) != 1 || len(edges) != 1 || edges[0].Source != "source" || edges[0].Target != "target" || edges[0].Relation != "relates_to" {
+		t.Fatalf("expected trimmed edge identity, nodes=%v edges=%v", nodes, edges)
 	}
 }
 

@@ -1606,7 +1606,7 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 
 	// Optimize Knowledge Graph
 	graphRemoved := 0
-	if kg != nil {
+	if shouldOptimizeKnowledgeGraph(cfg, kg) {
 		if dropped := kg.DroppedAccessHits(); dropped > 0 {
 			logger.Warn("[AutoOptimize] Dropped knowledge graph access hits under load", "dropped", dropped)
 		}

@@ -411,13 +411,16 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			if cfg.Tools.KnowledgeGraph.ReadOnly {
 				switch req.Operation {
-				case "add_node", "add_edge", "delete_node", "delete_edge", "update_node", "update_edge", "merge_nodes", "optimize":
+				case "add_node", "add_edge", "delete_node", "delete_edge", "update_node", "update_edge", "merge_nodes", "optimize", "optimize_graph":
 					return `Tool Output: {"status":"error","message":"Knowledge graph is in read-only mode. Disable tools.knowledge_graph.read_only to allow changes."}`
 				}
 			}
 			logger.Info("LLM requested knowledge graph operation", "op", req.Operation)
 			switch req.Operation {
 			case "add_node":
+				if strings.TrimSpace(req.ID) == "" || strings.TrimSpace(req.Label) == "" {
+					return `Tool Output: {"status": "error", "message": "id and label are required for add_node"}`
+				}
 				err := kg.AddNode(req.ID, req.Label, req.Properties)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
@@ -425,6 +428,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return `Tool Output: {"status": "success", "message": "Node added to graph"}`
 
 			case "add_edge":
+				if strings.TrimSpace(req.Source) == "" || strings.TrimSpace(req.Target) == "" || strings.TrimSpace(req.Relation) == "" {
+					return `Tool Output: {"status": "error", "message": "source, target, and relation are required for add_edge"}`
+				}
 				err := kg.AddEdge(req.Source, req.Target, req.Relation, req.Properties)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
@@ -609,7 +615,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			case "suggest_relations":
 				return fmt.Sprintf("Tool Output: %s", kg.SuggestRelations(req.Limit))
 
-			case "optimize":
+			case "optimize", "optimize_graph":
 				res := runMemoryOrchestrator(decodeMemoryOrchestratorArgs(tc), cfg, logger, llmClient, longTermMem, shortTermMem, kg)
 				return fmt.Sprintf("Tool Output: %s", res)
 
