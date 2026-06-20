@@ -54,8 +54,8 @@
   "config.providers.field_model_label": "Modelnavn",
   "config.providers.field_name": "Navn",
   "config.providers.field_scopes": "Omfang",
-  "config.providers.field_token_url": "Token URL",
-  "config.providers.field_token_url_label": "Token URL",
+  "config.providers.field_token_url": "Token-URL",
+  "config.providers.field_token_url_label": "Token-URL",
   "config.providers.field_type": "Indtast",
   "config.providers.field_type_label": "Indtast",
   "config.providers.filter_models": "Filtrer konfigurerede modeller...",
@@ -160,9 +160,9 @@
   "config.providers.cap_auto_source": "Automatisk registreret fra {source} for {model}.",
   "config.providers.cap_manual_source": "Manuel tilsidesættelse for denne model.",
   "config.providers.cap_detecting": "Registrerer modelfunktioner...",
-  "config.providers.cap_tool_short": "Tools",
+  "config.providers.cap_tool_short": "Værktøjer",
   "config.providers.cap_structured_short": "JSON",
-  "config.providers.cap_multimodal_short": "Vision",
+  "config.providers.cap_multimodal_short": "Billede",
   "config.providers.empty_key_confirm_title": "Tom API-nøgle",
   "config.providers.empty_key_confirm": "Advarsel: Feltet til API-nøglen er tomt. Vil du gemme denne udbyder alligevel?"
 }

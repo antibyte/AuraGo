@@ -824,6 +824,43 @@ func loadMergedEnglishTranslationKeys(t *testing.T) map[string]bool {
 	return keys
 }
 
+// TestTranslations_SectionFilesOnlyOwnPrefixes ensures shard files do not carry
+// duplicate status keys copied from unrelated config sections.
+func TestTranslations_SectionFilesOnlyOwnPrefixes(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		relPath  string
+		prefixes []string
+	}{
+		{relPath: filepath.Join("lang", "config", "co_agents"), prefixes: []string{"config.co_agents."}},
+		{relPath: filepath.Join("lang", "config", "daemon_skills"), prefixes: []string{"config.daemon_skills.", "help.daemon_skills."}},
+	}
+	langs := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
+
+	for _, c := range cases {
+		for _, lang := range langs {
+			path := filepath.Join(c.relPath, lang+".json")
+			m, err := readJSONFileMap(path)
+			if err != nil {
+				t.Fatalf("read %s: %v", path, err)
+			}
+			for key := range m {
+				ok := false
+				for _, prefix := range c.prefixes {
+					if strings.HasPrefix(key, prefix) {
+						ok = true
+						break
+					}
+				}
+				if !ok {
+					t.Fatalf("%s contains stray key %q outside allowed prefixes %v", path, key, c.prefixes)
+				}
+			}
+		}
+	}
+}
+
 // TestTranslations_ConfigCfgJSKeysExist verifies config.* keys referenced in ui/cfg/*.js
 // are present in the merged English translation bundle.
 func TestTranslations_ConfigCfgJSKeysExist(t *testing.T) {
