@@ -370,6 +370,20 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 		cmd, filename := buildOpenSCADCommand(jobID, modelName, export, req)
 		exportStart := time.Now()
 		commandText := strings.Join(cmd, " ")
+		execCmd := wrapOpenSCADCommandWithContainerLogs(
+			cmd,
+			openSCADContainerLogLine("export_start",
+				"job_id", jobID,
+				"export", export,
+				"filename", filename,
+				"timeout_seconds", fmt.Sprintf("%d", int(timeout.Seconds())),
+			),
+			openSCADContainerLogLine("export_done",
+				"job_id", jobID,
+				"export", export,
+				"filename", filename,
+			),
+		)
 		if s.logger != nil {
 			s.logger.Info("openscad export started",
 				"job_id", jobID,
@@ -379,7 +393,7 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 				"timeout_seconds", int(timeout.Seconds()),
 			)
 		}
-		execResult, execErr := s.docker.ExecContainer(ctx, containerID, cmd, "", timeout)
+		execResult, execErr := s.docker.ExecContainer(ctx, containerID, execCmd, "", timeout)
 		exportDuration := time.Since(exportStart)
 		execOutput := strings.TrimSpace(execResult.Output)
 		if execErr != nil {
@@ -885,6 +899,61 @@ func buildOpenSCADCommand(jobID, modelName, export string, req OpenSCADRenderReq
 	}
 	cmd = append(cmd, "-o", outputPath, sourcePath)
 	return cmd, filename
+}
+
+func wrapOpenSCADCommandWithContainerLogs(cmd []string, startLine, doneLine string) []string {
+	if len(cmd) == 0 {
+		return cmd
+	}
+	script := `start_line=$1
+done_line=$2
+shift 2
+{ printf '%s\n' "$start_line" > /proc/1/fd/1; } 2>/dev/null || true
+"$@"
+rc=$?
+{ printf '%s exit_code=%s\n' "$done_line" "$rc" > /proc/1/fd/1; } 2>/dev/null || true
+exit "$rc"`
+	wrapped := []string{"sh", "-c", script, "aurago-openscad-log", startLine, doneLine}
+	return append(wrapped, cmd...)
+}
+
+func openSCADContainerLogLine(event string, attrs ...string) string {
+	var b strings.Builder
+	b.WriteString("[AuraGo OpenSCAD] ")
+	b.WriteString(openSCADContainerLogValue(event))
+	for i := 0; i+1 < len(attrs); i += 2 {
+		key := openSCADContainerLogKey(attrs[i])
+		if key == "" {
+			continue
+		}
+		b.WriteByte(' ')
+		b.WriteString(key)
+		b.WriteByte('=')
+		b.WriteString(openSCADContainerLogValue(attrs[i+1]))
+	}
+	return b.String()
+}
+
+func openSCADContainerLogKey(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+			return r
+		}
+		return -1
+	}, value)
+	return value
+}
+
+func openSCADContainerLogValue(value string) string {
+	value = strings.TrimSpace(strings.NewReplacer("\r", " ", "\n", " ", "\t", " ").Replace(value))
+	if len(value) > 240 {
+		value = value[:240] + "..."
+	}
+	if value == "" {
+		return "-"
+	}
+	return strings.ReplaceAll(value, " ", "_")
 }
 
 func appendOpenSCADOutput(builder *strings.Builder, output string) {

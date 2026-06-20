@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -364,14 +365,69 @@ func TestOpenSCADRenderLogsPerExportDiagnostics(t *testing.T) {
 	}
 }
 
-type fakeOpenSCADExportDocker struct {
-	fakeCodeContainerDocker
-	dataDir     string
-	failExports map[string]CodeDockerExecResult
+func TestOpenSCADRenderWritesExportDiagnosticsToContainerLogStream(t *testing.T) {
+	t.Parallel()
+
+	dataDir := t.TempDir()
+	fake := &fakeOpenSCADExportDocker{dataDir: dataDir}
+	svc := NewOpenSCADContainerService(Config{
+		DataDir:  dataDir,
+		OpenSCAD: OpenSCADConfig{Enabled: true},
+	}, nil)
+	svc.SetDockerClient(fake)
+
+	result, err := svc.Render(context.Background(), OpenSCADRenderRequest{
+		SourceSCAD: "cube(10);",
+		ModelName:  "container-log-render",
+		Exports:    []string{"png", "stl"},
+	})
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	logText := strings.Join(fake.containerLogs, "\n")
+	for _, want := range []string{
+		"[AuraGo OpenSCAD] export_start",
+		"[AuraGo OpenSCAD] export_done",
+		"job_id=" + result.JobID,
+		"export=png",
+		"export=stl",
+		"filename=container-log-render.png",
+		"filename=container-log-render.stl",
+		"timeout_seconds=120",
+		"exit_code=0",
+	} {
+		if !strings.Contains(logText, want) {
+			t.Fatalf("container logs missing %q in:\n%s", want, logText)
+		}
+	}
+	if len(fake.containerLogExecs) != 2 {
+		t.Fatalf("container log wrapped execs = %d, want 2", len(fake.containerLogExecs))
+	}
+	for _, cmd := range fake.containerLogExecs {
+		if len(cmd) < 6 || cmd[0] != "sh" || cmd[1] != "-c" || !strings.Contains(strings.Join(cmd, " "), "/proc/1/fd/1") {
+			t.Fatalf("render exec should write diagnostics to PID 1 stdout, got %#v", cmd)
+		}
+	}
 }
 
-func (f *fakeOpenSCADExportDocker) ExecContainer(ctx context.Context, container string, cmd []string, user string, timeout time.Duration) (CodeDockerExecResult, error) {
+type fakeOpenSCADExportDocker struct {
+	fakeCodeContainerDocker
+	dataDir           string
+	failExports       map[string]CodeDockerExecResult
+	containerLogs     []string
+	containerLogExecs [][]string
+}
+
+func (f *fakeOpenSCADExportDocker) ExecContainer(ctx context.Context, container string, cmd []string, user string, timeout time.Duration) (result CodeDockerExecResult, err error) {
 	f.execs = append(f.execs, fakeCodeContainerExec{container: container, cmd: append([]string(nil), cmd...), user: user})
+	startLog, doneLog := fakeOpenSCADWrappedContainerLogLines(cmd)
+	if startLog != "" {
+		f.containerLogs = append(f.containerLogs, startLog)
+		f.containerLogExecs = append(f.containerLogExecs, append([]string(nil), cmd...))
+		defer func() {
+			f.containerLogs = append(f.containerLogs, doneLog+" exit_code="+strconv.Itoa(result.ExitCode))
+		}()
+	}
 	joined := strings.Join(cmd, " ")
 	if strings.Contains(joined, "command -v openscad") {
 		return CodeDockerExecResult{ExitCode: 0}, nil
@@ -392,6 +448,13 @@ func (f *fakeOpenSCADExportDocker) ExecContainer(ctx context.Context, container 
 	default:
 		return CodeDockerExecResult{ExitCode: 0}, nil
 	}
+}
+
+func fakeOpenSCADWrappedContainerLogLines(cmd []string) (string, string) {
+	if len(cmd) < 6 || cmd[0] != "sh" || cmd[1] != "-c" || !strings.Contains(cmd[2], "/proc/1/fd/1") {
+		return "", ""
+	}
+	return cmd[4], cmd[5]
 }
 
 func (f *fakeOpenSCADExportDocker) writeOutputFile(containerPath string, data []byte) error {
