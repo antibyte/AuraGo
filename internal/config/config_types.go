@@ -370,6 +370,7 @@ type OpenSCADConfig struct {
 	MaxMemoryMB             int      `yaml:"max_memory_mb" json:"max_memory_mb"`
 	MaxCPUCores             int      `yaml:"max_cpu_cores" json:"max_cpu_cores"`
 	MaxConcurrentJobs       int      `yaml:"max_concurrent_jobs" json:"max_concurrent_jobs"`
+	GeometryBackend         string   `yaml:"geometry_backend" json:"geometry_backend"`
 	DefaultExports          []string `yaml:"default_exports" json:"default_exports"`
 	MaxSourceKB             int      `yaml:"max_source_kb" json:"max_source_kb"`
 	MaxOutputMB             int      `yaml:"max_output_mb" json:"max_output_mb"`

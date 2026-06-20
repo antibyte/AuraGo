@@ -63,6 +63,7 @@ type OpenSCADConfig struct {
 	MaxMemoryMB             int
 	MaxCPUCores             int
 	MaxConcurrentJobs       int
+	GeometryBackend         string
 	DefaultExports          []string
 	MaxSourceKB             int
 	MaxOutputMB             int

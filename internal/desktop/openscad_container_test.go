@@ -91,6 +91,37 @@ func TestBuildOpenSCADCommandUsesSeparateArgs(t *testing.T) {
 	}
 }
 
+func TestBuildOpenSCADCommandUsesGeometryBackendFor3DExportsOnly(t *testing.T) {
+	req := OpenSCADRenderRequest{RenderMode: "render"}
+	cmd, _ := buildOpenSCADCommandWithBackend("oscad-123", "test-model", "stl", req, "manifold")
+	if !containsString(cmd, "--backend=manifold") {
+		t.Fatalf("stl command missing manifold backend: %#v", cmd)
+	}
+	if got := strings.Join(cmd, " "); !strings.Contains(got, "openscad --backend=manifold --render") {
+		t.Fatalf("backend flag should follow openscad before render mode, got %q", got)
+	}
+	cmd, _ = buildOpenSCADCommandWithBackend("oscad-123", "test-model", "png", req, "manifold")
+	if containsString(cmd, "--backend=manifold") {
+		t.Fatalf("png command should not force geometry backend: %#v", cmd)
+	}
+}
+
+func TestOpenSCADSelectsGeometryBackendFromRuntimeCapabilities(t *testing.T) {
+	diag := openSCADRuntimeDiagnostics{BackendHelp: "--backend arg backend CGAL (old/slow) or Manifold (new/fast)"}
+	if got := selectOpenSCADGeometryBackend(OpenSCADConfig{GeometryBackend: "auto"}, "stl", diag); got != "manifold" {
+		t.Fatalf("auto backend = %q, want manifold", got)
+	}
+	if got := selectOpenSCADGeometryBackend(OpenSCADConfig{GeometryBackend: "cgal"}, "stl", diag); got != "cgal" {
+		t.Fatalf("cgal backend = %q, want cgal", got)
+	}
+	if got := selectOpenSCADGeometryBackend(OpenSCADConfig{GeometryBackend: "manifold"}, "stl", openSCADRuntimeDiagnostics{}); got != "" {
+		t.Fatalf("unsupported forced manifold backend = %q, want fallback", got)
+	}
+	if got := selectOpenSCADGeometryBackend(OpenSCADConfig{GeometryBackend: "auto"}, "png", diag); got != "" {
+		t.Fatalf("png backend = %q, want no geometry backend", got)
+	}
+}
+
 func TestOpenSCADOutputFileExposesSeparatePreviewAndDownloadURLs(t *testing.T) {
 	t.Parallel()
 
@@ -400,7 +431,7 @@ func TestOpenSCADRenderWritesExportDiagnosticsToContainerLogStream(t *testing.T)
 		"filename=container-log-render.png",
 		"filename=container-log-render.stl",
 		"timeout_seconds=120",
-		"command=openscad_--render",
+		"command=openscad_--backend=manifold_--render",
 		"exit_code=0",
 	} {
 		if !strings.Contains(logText, want) {
@@ -419,10 +450,11 @@ func TestOpenSCADRenderWritesExportDiagnosticsToContainerLogStream(t *testing.T)
 
 type fakeOpenSCADExportDocker struct {
 	fakeCodeContainerDocker
-	dataDir           string
-	failExports       map[string]CodeDockerExecResult
-	containerLogs     []string
-	containerLogExecs [][]string
+	dataDir            string
+	failExports        map[string]CodeDockerExecResult
+	runtimeBackendHelp string
+	containerLogs      []string
+	containerLogExecs  [][]string
 }
 
 func (f *fakeOpenSCADExportDocker) ExecContainer(ctx context.Context, container string, cmd []string, user string, timeout time.Duration) (result CodeDockerExecResult, err error) {
@@ -444,14 +476,18 @@ func (f *fakeOpenSCADExportDocker) ExecContainer(ctx context.Context, container 
 		if len(cmd) >= 5 {
 			jobID = cmd[4]
 		}
+		backendHelp := f.runtimeBackendHelp
+		if backendHelp == "" {
+			backendHelp = "--backend arg backend CGAL (old/slow) or Manifold (new/fast)"
+		}
 		f.containerLogs = append(f.containerLogs, openSCADContainerLogLine("runtime",
 			"job_id", jobID,
 			"version", "OpenSCAD 2021.01",
-			"backend_help", "--backend arg backend CGAL (old/slow) or Manifold (new/fast)",
+			"backend_help", backendHelp,
 		))
 		return CodeDockerExecResult{
 			ExitCode: 0,
-			Output:   "version=OpenSCAD 2021.01\nbackend_help=--backend arg backend CGAL (old/slow) or Manifold (new/fast)\n",
+			Output:   "version=OpenSCAD 2021.01\nbackend_help=" + backendHelp + "\n",
 		}, nil
 	}
 	outputPath := openSCADOutputArg(cmd)

@@ -413,6 +413,7 @@ func Load(path string) (*Config, error) {
 	cfg.VirtualDesktop.OpenSCAD.MaxMemoryMB = 2048
 	cfg.VirtualDesktop.OpenSCAD.MaxCPUCores = 2
 	cfg.VirtualDesktop.OpenSCAD.MaxConcurrentJobs = 1
+	cfg.VirtualDesktop.OpenSCAD.GeometryBackend = "auto"
 	cfg.VirtualDesktop.OpenSCAD.DefaultExports = []string{"png", "stl"}
 	cfg.VirtualDesktop.OpenSCAD.MaxSourceKB = 512
 	cfg.VirtualDesktop.OpenSCAD.MaxOutputMB = 100
@@ -886,6 +887,7 @@ func Load(path string) (*Config, error) {
 	if cfg.VirtualDesktop.OpenSCAD.MaxConcurrentJobs <= 0 {
 		cfg.VirtualDesktop.OpenSCAD.MaxConcurrentJobs = 1
 	}
+	cfg.VirtualDesktop.OpenSCAD.GeometryBackend = normalizeOpenSCADGeometryBackend(cfg.VirtualDesktop.OpenSCAD.GeometryBackend)
 	if len(cfg.VirtualDesktop.OpenSCAD.DefaultExports) == 0 {
 		cfg.VirtualDesktop.OpenSCAD.DefaultExports = []string{"png", "stl"}
 	}
@@ -1870,6 +1872,17 @@ func Load(path string) (*Config, error) {
 	cfg.ConfigPath = absConfigPath
 
 	return &cfg, nil
+}
+
+func normalizeOpenSCADGeometryBackend(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "manifold":
+		return "manifold"
+	case "cgal":
+		return "cgal"
+	default:
+		return "auto"
+	}
 }
 
 func usesLegacyDefaultIndexingExtensions(exts []string) bool {

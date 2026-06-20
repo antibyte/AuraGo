@@ -1239,6 +1239,9 @@ func TestLoadOpenSCADDefaults(t *testing.T) {
 	if got.RenderTimeoutSeconds != 120 || got.MaxRenderTimeoutSeconds != 600 || got.JobRetentionDays != 7 {
 		t.Fatalf("OpenSCAD timeout defaults = %+v", got)
 	}
+	if got.GeometryBackend != "auto" {
+		t.Fatalf("OpenSCAD geometry_backend = %q, want auto", got.GeometryBackend)
+	}
 	if len(got.DefaultExports) != 2 || got.DefaultExports[0] != "png" || got.DefaultExports[1] != "stl" {
 		t.Fatalf("OpenSCAD default exports = %#v, want [png stl]", got.DefaultExports)
 	}

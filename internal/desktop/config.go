@@ -89,6 +89,7 @@ func ConfigFromAuraConfig(cfg *config.Config) Config {
 			MaxMemoryMB:             desktopCfg.OpenSCAD.MaxMemoryMB,
 			MaxCPUCores:             desktopCfg.OpenSCAD.MaxCPUCores,
 			MaxConcurrentJobs:       desktopCfg.OpenSCAD.MaxConcurrentJobs,
+			GeometryBackend:         strings.TrimSpace(desktopCfg.OpenSCAD.GeometryBackend),
 			DefaultExports:          append([]string(nil), desktopCfg.OpenSCAD.DefaultExports...),
 			MaxSourceKB:             desktopCfg.OpenSCAD.MaxSourceKB,
 			MaxOutputMB:             desktopCfg.OpenSCAD.MaxOutputMB,

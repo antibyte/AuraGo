@@ -37,6 +37,12 @@ const (
 	openSCADSourceFileMode os.FileMode = 0o644
 )
 
+const (
+	openSCADGeometryBackendAuto     = "auto"
+	openSCADGeometryBackendCGAL     = "cgal"
+	openSCADGeometryBackendManifold = "manifold"
+)
+
 func openSCADEnsureStickyJobDir(jobDir string) error {
 	if err := os.Chmod(jobDir, openSCADJobDirMode); err != nil {
 		return fmt.Errorf("prepare openscad job directory permissions: %w", err)
@@ -366,9 +372,10 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 		DownloadBase: "/api/openscad/jobs/" + jobID + "/files/",
 		CreatedAt:    start.UTC(),
 	}
-	s.logOpenSCADRuntimeDiagnostics(ctx, containerID, jobID)
+	runtimeDiag := s.logOpenSCADRuntimeDiagnostics(ctx, containerID, jobID)
 	for _, export := range req.Exports {
-		cmd, filename := buildOpenSCADCommand(jobID, modelName, export, req)
+		selectedBackend := selectOpenSCADGeometryBackend(s.cfg.OpenSCAD, export, runtimeDiag)
+		cmd, filename := buildOpenSCADCommandWithBackend(jobID, modelName, export, req, selectedBackend)
 		exportStart := time.Now()
 		commandText := strings.Join(cmd, " ")
 		execCmd := wrapOpenSCADCommandWithContainerLogs(
@@ -378,6 +385,7 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 				"export", export,
 				"filename", filename,
 				"command", commandText,
+				"geometry_backend", openSCADLogBackendValue(selectedBackend),
 				"timeout_seconds", fmt.Sprintf("%d", int(timeout.Seconds())),
 			),
 			openSCADContainerLogLine("export_done",
@@ -393,6 +401,8 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 				"filename", filename,
 				"command", commandText,
 				"timeout_seconds", int(timeout.Seconds()),
+				"geometry_backend", openSCADLogBackendValue(selectedBackend),
+				"geometry_backend_requested", openSCADGeometryBackendPreference(s.cfg.OpenSCAD),
 			)
 		}
 		execResult, execErr := s.docker.ExecContainer(ctx, containerID, execCmd, "", timeout)
@@ -879,6 +889,10 @@ func (s *OpenSCADContainerService) resetAutoStopTimerLocked() {
 }
 
 func buildOpenSCADCommand(jobID, modelName, export string, req OpenSCADRenderRequest) ([]string, string) {
+	return buildOpenSCADCommandWithBackend(jobID, modelName, export, req, "")
+}
+
+func buildOpenSCADCommandWithBackend(jobID, modelName, export string, req OpenSCADRenderRequest, geometryBackend string) ([]string, string) {
 	ext := export
 	if ext == "echo" {
 		ext = "txt"
@@ -889,6 +903,9 @@ func buildOpenSCADCommand(jobID, modelName, export string, req OpenSCADRenderReq
 	cmd := []string{"openscad"}
 	if export == "png" {
 		cmd = []string{"xvfb-run", "-a", "openscad"}
+	}
+	if backend := openSCADCommandGeometryBackend(geometryBackend, export); backend != "" {
+		cmd = appendOpenSCADGeometryBackendArg(cmd, backend)
 	}
 	switch strings.ToLower(strings.TrimSpace(req.RenderMode)) {
 	case "preview":
@@ -904,11 +921,13 @@ func buildOpenSCADCommand(jobID, modelName, export string, req OpenSCADRenderReq
 }
 
 type openSCADRuntimeDiagnostics struct {
-	Version     string
-	BackendHelp string
+	Version          string
+	BackendHelp      string
+	SupportsBackend  bool
+	SupportsManifold bool
 }
 
-func (s *OpenSCADContainerService) logOpenSCADRuntimeDiagnostics(ctx context.Context, containerID, jobID string) {
+func (s *OpenSCADContainerService) logOpenSCADRuntimeDiagnostics(ctx context.Context, containerID, jobID string) openSCADRuntimeDiagnostics {
 	result, err := s.docker.ExecContainer(ctx, containerID, openSCADRuntimeDiagnosticsCommand(jobID), "", 10*time.Second)
 	diag := parseOpenSCADRuntimeDiagnostics(result.Output)
 	if err != nil || result.ExitCode != 0 {
@@ -920,15 +939,18 @@ func (s *OpenSCADContainerService) logOpenSCADRuntimeDiagnostics(ctx context.Con
 				"error", err,
 			)
 		}
-		return
+		return diag
 	}
 	if s.logger != nil {
 		s.logger.Info("openscad runtime diagnostics",
 			"job_id", jobID,
 			"version", diag.Version,
 			"backend_help", diag.BackendHelp,
+			"supports_backend", diag.SupportsBackend,
+			"supports_manifold", diag.SupportsManifold,
 		)
 	}
+	return diag
 }
 
 func openSCADRuntimeDiagnosticsCommand(jobID string) []string {
@@ -953,7 +975,96 @@ func parseOpenSCADRuntimeDiagnostics(output string) openSCADRuntimeDiagnostics {
 			diag.BackendHelp = strings.TrimSpace(strings.TrimPrefix(line, "backend_help="))
 		}
 	}
+	normalizedHelp := strings.ToLower(diag.BackendHelp)
+	diag.SupportsBackend = strings.Contains(normalizedHelp, "--backend")
+	diag.SupportsManifold = diag.SupportsBackend && strings.Contains(normalizedHelp, "manifold")
 	return diag
+}
+
+func openSCADRuntimeDiagnosticsWithCapabilities(diag openSCADRuntimeDiagnostics) openSCADRuntimeDiagnostics {
+	normalizedHelp := strings.ToLower(diag.BackendHelp)
+	if !diag.SupportsBackend && strings.Contains(normalizedHelp, "--backend") {
+		diag.SupportsBackend = true
+	}
+	if !diag.SupportsManifold && diag.SupportsBackend && strings.Contains(normalizedHelp, "manifold") {
+		diag.SupportsManifold = true
+	}
+	return diag
+}
+
+func selectOpenSCADGeometryBackend(cfg OpenSCADConfig, export string, diag openSCADRuntimeDiagnostics) string {
+	if !openSCADGeometryBackendAppliesToExport(export) {
+		return ""
+	}
+	diag = openSCADRuntimeDiagnosticsWithCapabilities(diag)
+	preference := openSCADGeometryBackendPreference(cfg)
+	switch preference {
+	case openSCADGeometryBackendManifold:
+		if diag.SupportsManifold {
+			return openSCADGeometryBackendManifold
+		}
+	case openSCADGeometryBackendCGAL:
+		if diag.SupportsBackend {
+			return openSCADGeometryBackendCGAL
+		}
+	case openSCADGeometryBackendAuto:
+		if diag.SupportsManifold {
+			return openSCADGeometryBackendManifold
+		}
+	}
+	return ""
+}
+
+func openSCADGeometryBackendPreference(cfg OpenSCADConfig) string {
+	switch strings.ToLower(strings.TrimSpace(cfg.GeometryBackend)) {
+	case openSCADGeometryBackendManifold:
+		return openSCADGeometryBackendManifold
+	case openSCADGeometryBackendCGAL:
+		return openSCADGeometryBackendCGAL
+	default:
+		return openSCADGeometryBackendAuto
+	}
+}
+
+func openSCADGeometryBackendAppliesToExport(export string) bool {
+	_, ok := openSCAD3DOnlyExportSet[strings.ToLower(strings.TrimSpace(export))]
+	return ok
+}
+
+func openSCADCommandGeometryBackend(backend, export string) string {
+	backend = strings.ToLower(strings.TrimSpace(backend))
+	if !openSCADGeometryBackendAppliesToExport(export) {
+		return ""
+	}
+	switch backend {
+	case openSCADGeometryBackendManifold, openSCADGeometryBackendCGAL:
+		return backend
+	default:
+		return ""
+	}
+}
+
+func appendOpenSCADGeometryBackendArg(cmd []string, backend string) []string {
+	if len(cmd) == 0 {
+		return cmd
+	}
+	arg := "--backend=" + backend
+	insertAt := 1
+	if len(cmd) >= 3 && cmd[0] == "xvfb-run" && cmd[2] == "openscad" {
+		insertAt = 3
+	}
+	cmd = append(cmd, "")
+	copy(cmd[insertAt+1:], cmd[insertAt:])
+	cmd[insertAt] = arg
+	return cmd
+}
+
+func openSCADLogBackendValue(backend string) string {
+	backend = strings.TrimSpace(backend)
+	if backend == "" {
+		return "default"
+	}
+	return backend
 }
 
 func wrapOpenSCADCommandWithContainerLogs(cmd []string, startLine, doneLine string) []string {
