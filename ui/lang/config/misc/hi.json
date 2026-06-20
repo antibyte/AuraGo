@@ -67,5 +67,8 @@
   "config.vault.delete_desc": "इससे वॉल्ट<strong>स्थायी रूप से</strong>हट जाएगा. सभी संग्रहीत एपीआई कुंजी, पासवर्ड और क्रेडेंशियल हमेशा के लिए खो जाएंगे!<br><br>जारी रखने के लिए <strong style=\"color:#f87171;\">delete</strong> टाइप करें:",
   "config.vault.delete_title": "⚠️ वॉल्ट को स्थायी रूप से हटाएं",
   "config.vault.deleted_toast": "✓ वॉल्ट हटा दिया गया. एक नई मास्टर कुंजी दर्ज करें, सहेजें और AuraGo को पुनरारंभ करें।",
-  "config.vault.destroy_button": "नष्ट करो"
+  "config.vault.destroy_button": "नष्ट करो",
+  "config.menu": "मेनू",
+  "config.toggle_sidebar": "साइडबार टॉगल करें",
+  "config.page_description": "अपने AI एजेंट की सेटिंग्स कॉन्फ़िगर करें"
 }

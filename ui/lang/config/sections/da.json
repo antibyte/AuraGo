@@ -483,5 +483,6 @@
   "config.group_title.agent.announcement_detector": "Svarrettelse",
   "config.group_title.agent.importance_scoring": "Vigtighedsscore",
   "config.group_title.agent.auto_learning": "Automatisk læring",
-  "config.group_title.agent.reuse_first": "Genbrug først"
+  "config.group_title.agent.reuse_first": "Genbrug først",
+  "config.github.saving": "Gemmer..."
 }

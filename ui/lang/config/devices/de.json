@@ -45,7 +45,7 @@
   "config.devices.find_mac_no_ip": "Bitte zuerst eine IP-Adresse eingeben.",
   "config.devices.find_mac_searching": "ARP-Tabelle wird durchsucht…",
   "config.devices.find_mac_found": "Gefunden: {mac}",
-  "config.devices.find_mac_not_found": "Nicht im ARP-Cache gefunden. Stellen Sie sicher, dass das Gerät erreichbar ist.",
+  "config.devices.find_mac_not_found": "Nicht im ARP-Cache gefunden. Stelle sicher, dass das Gerät erreichbar ist.",
   "config.devices.find_mac_error": "Abfrage fehlgeschlagen.",
   "config.devices.delete_failed": "Löschen fehlgeschlagen",
   "config.devices.field_name_label": "Name *",

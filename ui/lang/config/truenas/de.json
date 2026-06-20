@@ -70,7 +70,7 @@
   "config.web_scraper.summary_mode": "Zusammenfassungsmodus",
   "config.webdav.secret_empty": "Wert ist leer",
   "help.truenas.allow_destructive": "Erlaubt das Löschen von Datasets, Snapshots und Rollback-Operationen.",
-  "help.truenas.api_key": "API-Schlüssel für die TrueNAS-API. Erstellen Sie einen unter System → API Keys in TrueNAS.",
+  "help.truenas.api_key": "API-Schlüssel für die TrueNAS-API. Erstelle einen unter System → API Keys in TrueNAS.",
   "help.truenas.enabled": "Aktiviert die TrueNAS-Integration. Der Agent kann Pools, Datasets, Snapshots und Shares verwalten.",
   "help.truenas.host": "Hostname oder IP-Adresse Ihres TrueNAS-Servers (z.B. truenas.local oder 192.168.1.100).",
   "help.truenas.insecure_ssl": "Akzeptiert selbstsignierte oder ungültige Zertifikate (nur für Testumgebungen).",

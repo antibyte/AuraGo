@@ -35,5 +35,6 @@
   "config.prompts.saved": "Zapisano.",
   "config.prompts.setting_active": "Ustawianie aktywnej...",
   "config.prompts.delete_confirm": "Na pewno usunąć osobowość \"{name}\"?",
-  "config.prompts.deleting": "Usuwanie..."
+  "config.prompts.deleting": "Usuwanie...",
+  "config.prompts.delete_confirm_title": "Usunąć osobowość?"
 }

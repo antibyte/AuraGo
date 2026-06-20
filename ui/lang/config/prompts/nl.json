@@ -35,5 +35,6 @@
   "config.prompts.saved": "Opgeslagen.",
   "config.prompts.setting_active": "Actief instellen...",
   "config.prompts.delete_confirm": "Persoonlijkheid \" {name} \" echt verwijderen?",
-  "config.prompts.deleting": "Verwijderen..."
+  "config.prompts.deleting": "Verwijderen...",
+  "config.prompts.delete_confirm_title": "Persoonlijkheid verwijderen?"
 }

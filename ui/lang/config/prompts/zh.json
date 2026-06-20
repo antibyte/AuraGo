@@ -35,5 +35,6 @@
   "config.prompts.saved": "已保存。",
   "config.prompts.setting_active": "设置活跃中...",
   "config.prompts.delete_confirm": "确定要删除个性 '{name}' 吗？",
-  "config.prompts.deleting": "删除中..."
+  "config.prompts.deleting": "删除中...",
+  "config.prompts.delete_confirm_title": "确定删除个性吗？"
 }

@@ -35,5 +35,6 @@
   "config.prompts.saved": "Salvo",
   "config.prompts.setting_active": "A definir como ativo...",
   "config.prompts.delete_confirm": "Realmente excluir a personalidade \"{name}\"?",
-  "config.prompts.deleting": "Mazání..."
+  "config.prompts.deleting": "Mazání...",
+  "config.prompts.delete_confirm_title": "Excluir personalidade?"
 }

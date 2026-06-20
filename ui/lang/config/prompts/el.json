@@ -35,5 +35,6 @@
   "config.prompts.saved": "Αποθηκεύτηκε.",
   "config.prompts.setting_active": "Ορισμός ως ενεργό...",
   "config.prompts.delete_confirm": "Διαγραφή προσωπικότητας \"{name}\";",
-  "config.prompts.deleting": "Διαγραφή..."
+  "config.prompts.deleting": "Διαγραφή...",
+  "config.prompts.delete_confirm_title": "Διαγραφή προσωπικότητας;"
 }

@@ -67,5 +67,8 @@
   "config.vault.delete_desc": "Detta kommer att <strong> permanent </strong> radera valvet. Alla lagrade API nycklar, lösenord och referenser kommer att gå förlorade för alltid! <br> <br> Skriv <strong style=\"color:#f87171;\"> radera </strong> för att fortsätta:",
   "config.vault.delete_title": "⚠️ Ta bort valv permanent",
   "config.vault.deleted_toast": "✓ Valv raderat. Ange en ny huvudnyckel, spara och starta om AuraGo.",
-  "config.vault.destroy_button": "Förstör"
+  "config.vault.destroy_button": "Förstör",
+  "config.menu": "Meny",
+  "config.toggle_sidebar": "Växla sidofält",
+  "config.page_description": "Konfigurera dina AI-agentinställningar"
 }

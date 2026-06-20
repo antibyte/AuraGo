@@ -26,5 +26,5 @@
   "help.jellyfin.insecure_ssl": "Akzeptiert selbstsignierte oder ungültige Zertifikate (nur für Testumgebungen).",
   "help.jellyfin.host": "Hostname oder IP-Adresse Ihres Jellyfin-Servers (z.B. jellyfin.local oder 192.168.1.100).",
   "help.jellyfin.port": "Port des Jellyfin-Servers (Standard: 8096).",
-  "help.jellyfin.api_key": "API-Schlüssel für die Jellyfin-API. Erstellen Sie einen unter Dashboard → API-Schlüssel in Jellyfin."
+  "help.jellyfin.api_key": "API-Schlüssel für die Jellyfin-API. Erstelle einen unter Dashboard → API-Schlüssel in Jellyfin."
 }

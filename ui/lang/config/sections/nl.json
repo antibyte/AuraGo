@@ -483,5 +483,6 @@
   "config.group_title.agent.announcement_detector": "Antwoordcorrectie",
   "config.group_title.agent.importance_scoring": "Belangscore",
   "config.group_title.agent.auto_learning": "Automatisch leren",
-  "config.group_title.agent.reuse_first": "Hergebruik eerst"
+  "config.group_title.agent.reuse_first": "Hergebruik eerst",
+  "config.github.saving": "Opslaan..."
 }

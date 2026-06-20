@@ -35,5 +35,6 @@
   "config.prompts.saved": "Enregistré.",
   "config.prompts.setting_active": "Définition active...",
   "config.prompts.delete_confirm": "Vraiment supprimer la personnalité \"{name}\" ?",
-  "config.prompts.deleting": "Suppression..."
+  "config.prompts.deleting": "Suppression...",
+  "config.prompts.delete_confirm_title": "Supprimer la personnalité ?"
 }

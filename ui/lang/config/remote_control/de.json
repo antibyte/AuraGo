@@ -58,7 +58,7 @@
   "config.remote_control.loading_devices": "Lade Geräte…",
   "config.remote_control.loading_platforms": "Lade Plattformen…",
   "config.remote_control.max_file_size_label": "Max. Dateigröße (MB)",
-  "config.remote_control.network_desc": "Konfigurieren Sie, wie Remote-Clients diesen Supervisor finden und sich verbinden.",
+  "config.remote_control.network_desc": "Konfiguriere, wie Remote-Clients diesen Supervisor finden und sich verbinden.",
   "config.remote_control.network_title": "Netzwerk",
   "config.remote_control.no_devices": "Keine Geräte",
   "config.remote_control.no_platforms": "Keine Plattformen verfügbar",

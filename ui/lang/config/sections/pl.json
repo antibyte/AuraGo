@@ -483,5 +483,6 @@
   "config.group_title.agent.announcement_detector": "Korekta odpowiedzi",
   "config.group_title.agent.importance_scoring": "Ocena ważności",
   "config.group_title.agent.auto_learning": "Automatyczne uczenie",
-  "config.group_title.agent.reuse_first": "Najpierw reuse"
+  "config.group_title.agent.reuse_first": "Najpierw reuse",
+  "config.github.saving": "Zapisywanie..."
 }

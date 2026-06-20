@@ -483,5 +483,6 @@
   "config.group_title.agent.announcement_detector": "响应修正",
   "config.group_title.agent.importance_scoring": "重要性评分",
   "config.group_title.agent.auto_learning": "自动学习",
-  "config.group_title.agent.reuse_first": "优先复用"
+  "config.group_title.agent.reuse_first": "优先复用",
+  "config.github.saving": "正在保存..."
 }

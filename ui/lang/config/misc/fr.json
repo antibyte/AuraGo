@@ -67,5 +67,8 @@
   "config.vault.delete_desc": "Cela supprimera <strong>définitivement</strong> le coffre. Toutes les clés API, mots de passe et identifiants stockés seront perdus pour toujours !<br><br>Tapez <strong style=\"color:#f87171;\">delete</strong> pour continuer :",
   "config.vault.delete_title": "⚠️ Supprimer définitivement le coffre",
   "config.vault.deleted_toast": "✓ Coffre supprimé. Entrez une nouvelle clé master, enregistrez et redémarrez AuraGo.",
-  "config.vault.destroy_button": "Détruire"
+  "config.vault.destroy_button": "Détruire",
+  "config.menu": "Menu",
+  "config.toggle_sidebar": "Basculer la barre latérale",
+  "config.page_description": "Configurez les paramètres de votre agent IA"
 }

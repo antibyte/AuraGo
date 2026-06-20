@@ -35,5 +35,6 @@
   "config.prompts.saved": "Saved.",
   "config.prompts.setting_active": "Setting active...",
   "config.prompts.delete_confirm": "Really delete personality \"{name}\"?",
-  "config.prompts.deleting": "Deleting..."
+  "config.prompts.deleting": "Deleting...",
+  "config.prompts.delete_confirm_title": "Delete personality?"
 }

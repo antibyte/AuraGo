@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -387,6 +388,13 @@ func TestTranslations_WebUIReleaseFixKeysAreTranslated(t *testing.T) {
 		{relPath: filepath.Join("lang", "config", "tailscale"), key: "config.tailscale.tsnet_status_starting"},
 		{relPath: filepath.Join("lang", "config", "tokens"), key: "config.tokens.delete_confirm_title"},
 		{relPath: filepath.Join("lang", "config", "updates"), key: "config.updates.confirm_install_title"},
+		{relPath: filepath.Join("lang", "config", "prompts"), key: "config.prompts.delete_confirm_title"},
+		{relPath: filepath.Join("lang", "config", "sections"), key: "config.github.saving"},
+		{relPath: filepath.Join("lang", "config", "composio"), key: "config.composio.saving"},
+		{relPath: filepath.Join("lang", "config", "composio"), key: "config.composio.testing"},
+		{relPath: filepath.Join("lang", "config", "misc"), key: "config.menu"},
+		{relPath: filepath.Join("lang", "config", "misc"), key: "config.toggle_sidebar"},
+		{relPath: filepath.Join("lang", "config", "misc"), key: "config.page_description"},
 		{relPath: filepath.Join("lang", "skills"), key: "skills.detail_security"},
 	}
 	langs := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
@@ -771,4 +779,89 @@ func readJSONFileMap(path string) (map[string]any, error) {
 		return nil, err
 	}
 	return m, nil
+}
+
+// cfgJSI18nKeyPattern matches static t('config.key') calls, not dynamic concatenation.
+var cfgJSI18nKeyPattern = regexp.MustCompile(`\bt\(\s*['"](config\.[^'"]+)['"]\s*[,)]`)
+
+// loadMergedEnglishTranslationKeys mirrors internal/i18n merge logic for en.json files.
+func loadMergedEnglishTranslationKeys(t *testing.T) map[string]bool {
+	t.Helper()
+
+	keys := make(map[string]bool)
+	langDir := filepath.Join("lang")
+	if _, err := os.Stat(langDir); err != nil {
+		t.Skipf("ui/lang/ directory not found, skipping test: %v", err)
+	}
+
+	var walkDir func(path string)
+	walkDir = func(dirPath string) {
+		entries, err := os.ReadDir(dirPath)
+		if err != nil {
+			return
+		}
+		for _, e := range entries {
+			itemPath := filepath.Join(dirPath, e.Name())
+			if e.IsDir() {
+				walkDir(itemPath)
+				continue
+			}
+			if e.Name() != "en.json" {
+				continue
+			}
+			m, err := readJSONFileMap(itemPath)
+			if err != nil {
+				t.Fatalf("read %s: %v", itemPath, err)
+			}
+			for k, v := range m {
+				if s, ok := v.(string); ok && strings.TrimSpace(s) != "" {
+					keys[k] = true
+				}
+			}
+		}
+	}
+	walkDir(langDir)
+	return keys
+}
+
+// TestTranslations_ConfigCfgJSKeysExist verifies config.* keys referenced in ui/cfg/*.js
+// are present in the merged English translation bundle.
+func TestTranslations_ConfigCfgJSKeysExist(t *testing.T) {
+	t.Parallel()
+
+	cfgDir := filepath.Join("cfg")
+	entries, err := os.ReadDir(cfgDir)
+	if err != nil {
+		t.Skipf("ui/cfg/ directory not found, skipping test: %v", err)
+	}
+
+	mergedKeys := loadMergedEnglishTranslationKeys(t)
+	referenced := make(map[string][]string)
+
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".js") {
+			continue
+		}
+		path := filepath.Join(cfgDir, e.Name())
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		for _, match := range cfgJSI18nKeyPattern.FindAllStringSubmatch(string(content), -1) {
+			key := match[1]
+			referenced[key] = append(referenced[key], e.Name())
+		}
+	}
+
+	var missing []string
+	for key, files := range referenced {
+		if !mergedKeys[key] {
+			missing = append(missing, fmt.Sprintf("%s (in %s)", key, strings.Join(files, ", ")))
+		}
+	}
+	sort.Strings(missing)
+
+	if len(missing) > 0 {
+		t.Fatalf("cfg/*.js references %d config.* keys missing from merged en translations:\n%s", len(missing), strings.Join(missing, "\n"))
+	}
 }

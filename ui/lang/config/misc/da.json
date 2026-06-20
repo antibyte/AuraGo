@@ -67,5 +67,8 @@
   "config.vault.delete_desc": "Dette vil <strong> permanent </strong> slette boksen. Alle gemte API nøgler, adgangskoder og legitimationsoplysninger vil gå tabt for altid! <br> <br> Indtast <strong style=\"color:#f87171;\"> slet </strong> for at fortsætte:",
   "config.vault.delete_title": "⚠️ Slet boks permanent",
   "config.vault.deleted_toast": "✓ Vault slettet. Indtast en ny hovednøgle, gem og genstart AuraGo.",
-  "config.vault.destroy_button": "Ødelæg"
+  "config.vault.destroy_button": "Ødelæg",
+  "config.menu": "Menu",
+  "config.toggle_sidebar": "Skift sidebjælke",
+  "config.page_description": "Konfigurer dine AI-agentindstillinger"
 }

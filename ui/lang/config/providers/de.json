@@ -89,7 +89,7 @@
   "config.providers.type_manifest": "Manifest",
   "config.providers.hint.workers_ai": "Cloudflare API-Token mit Workers AI Berechtigungen.",
   "config.providers.account_id": "Account-ID",
-  "config.providers.account_id_help": "Ihre Cloudflare Account-ID (zu finden in der Dashboard-URL oder API-Einstellungen).",
+  "config.providers.account_id_help": "Deine Cloudflare Account-ID (in der Dashboard-URL oder unter API-Einstellungen zu finden).",
   "config.providers.account_id_empty_error": "Account-ID ist für Workers AI erforderlich.",
   "config.providers.workers_ai_url_auto": "URL wird automatisch aus der Account-ID generiert.",
   "config.providers.manifest_url_auto": "URL wird aus den Manifest-Einstellungen ermittelt.",
@@ -124,7 +124,7 @@
   "config.providers.client_secret_placeholder": "GOCSPX-...",
   "config.providers.type_minimax": "minimax",
   "config.providers.hint.minimax": "MiniMax API-Key.",
-  "config.providers.delete_confirm_title": "Provider loeschen",
+  "config.providers.delete_confirm_title": "Provider löschen",
   "config.providers.revoke_confirm_title": "OAuth-Token widerrufen",
   "config.providers.scopes_placeholder": "openid email https://www.googleapis.com/auth/cloud-platform",
   "config.providers.type_yepapi": "yepapi",
@@ -164,5 +164,5 @@
   "config.providers.cap_structured_short": "JSON",
   "config.providers.cap_multimodal_short": "Vision",
   "config.providers.empty_key_confirm_title": "Leerer API-Schlüssel",
-  "config.providers.empty_key_confirm": "Warnung: Das Feld für den API-Schlüssel ist leer. Möchten Sie diesen Provider trotzdem speichern?"
+  "config.providers.empty_key_confirm": "Warnung: Das API-Schlüssel-Feld ist leer. Trotzdem diesen Provider speichern?"
 }

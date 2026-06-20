@@ -483,5 +483,6 @@
   "config.group_title.agent.announcement_detector": "Announcement Detector",
   "config.group_title.agent.importance_scoring": "Importance Scoring",
   "config.group_title.agent.auto_learning": "Auto Learning",
-  "config.group_title.agent.reuse_first": "Reuse First"
+  "config.group_title.agent.reuse_first": "Reuse First",
+  "config.github.saving": "Saving..."
 }

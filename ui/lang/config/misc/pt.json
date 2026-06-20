@@ -67,5 +67,8 @@
   "config.vault.delete_desc": "Isso <strong> </strong> excluirá permanentemente o cofre. Todas as chaves, senhas e credenciais API armazenadas serão perdidas para sempre! <br> <br> Digite <strong style=\"color:#f87171;\"> delete </strong> para continuar:",
   "config.vault.delete_title": "⚠️ Excluir cofre permanentemente",
   "config.vault.deleted_toast": "✓ Cofre excluído. Insira uma nova chave mestra, salve e reinicie o AuraGo.",
-  "config.vault.destroy_button": "Destruir"
+  "config.vault.destroy_button": "Destruir",
+  "config.menu": "Menu",
+  "config.toggle_sidebar": "Alternar barra lateral",
+  "config.page_description": "Configure as definições do seu agente de IA"
 }
