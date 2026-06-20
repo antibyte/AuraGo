@@ -2736,14 +2736,31 @@
         });
     }
 
+    function normalizeQuickChatResponseForPetBubble(text) {
+        return String(text || '')
+            .replace(/```[\s\S]*?```/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function announceQuickChatResponseToPet(text) {
+        const message = normalizeQuickChatResponseForPetBubble(text);
+        if (!message) return;
+        if (window.PetRuntime && typeof window.PetRuntime.say === 'function') {
+            window.PetRuntime.say(message, 'info');
+        }
+    }
+
     async function sendQuickChatStream(responseEl, message) {
         let streamingContent = '';
+        let petAnnouncementText = '';
         let finalized = false;
         return new Promise((resolve, reject) => {
             const ctrl = new AbortController();
             function doFinalize() {
                 if (finalized) return;
                 finalized = true;
+                announceQuickChatResponseToPet(petAnnouncementText || streamingContent);
                 resolve();
             }
             function doReject(err) {
@@ -2783,6 +2800,9 @@
                                         }
                                     } else if (event === 'final_response') {
                                         const text = parsed.detail || parsed.message || '';
+                                        if (text.trim()) {
+                                            petAnnouncementText = text;
+                                        }
                                         if (!streamingContent.trim() && text.trim()) {
                                             streamingContent = text;
                                             responseEl.textContent = text;

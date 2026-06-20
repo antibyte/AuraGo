@@ -49,3 +49,37 @@ func TestDesktopChatAnnouncesFinalAgentRepliesToPet(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopQuickChatAnnouncesFinalAgentRepliesToPet(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"js/desktop/core/window-shell-runtime.js",
+		"js/desktop/bundles/main.bundle.js",
+	} {
+		source := readDesktopAssetText(t, path)
+		for _, marker := range []string{
+			"function normalizeQuickChatResponseForPetBubble(text)",
+			".replace(/```[\\s\\S]*?```/g, ' ')",
+			"function announceQuickChatResponseToPet(text)",
+			"window.PetRuntime && typeof window.PetRuntime.say === 'function'",
+			"window.PetRuntime.say(message, 'info')",
+			"let petAnnouncementText = '';",
+			"announceQuickChatResponseToPet(petAnnouncementText || streamingContent);",
+			"petAnnouncementText = text;",
+		} {
+			if !strings.Contains(source, marker) {
+				t.Fatalf("%s quickchat pet announcement missing marker %q", path, marker)
+			}
+		}
+
+		deltaIdx := strings.Index(source, "if (event === 'llm_stream_delta')")
+		finalIdx := strings.Index(source, "} else if (event === 'final_response')")
+		if deltaIdx < 0 || finalIdx < deltaIdx {
+			t.Fatalf("%s quickchat stream markers are missing or out of order", path)
+		}
+		if strings.Contains(source[deltaIdx:finalIdx], "announceQuickChatResponseToPet") {
+			t.Fatalf("%s quickchat pet must not announce partial stream deltas", path)
+		}
+	}
+}
