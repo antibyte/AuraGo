@@ -311,7 +311,9 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 	if err := s.validateRenderRequest(&req); err != nil {
 		return OpenSCADRenderResult{}, err
 	}
+	queueStart := time.Now()
 	s.renderMu.Lock()
+	queueWait := time.Since(queueStart)
 	defer s.renderMu.Unlock()
 	if err := s.EnsureStarted(ctx); err != nil {
 		return OpenSCADRenderResult{}, err
@@ -342,6 +344,18 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 	}
 	start := time.Now()
 	timeout := openSCADRenderTimeout(req.TimeoutSeconds, s.cfg.OpenSCAD)
+	if s.logger != nil {
+		s.logger.Info("openscad render job started",
+			"job_id", jobID,
+			"model_name", modelName,
+			"exports", strings.Join(req.Exports, ","),
+			"render_mode", req.RenderMode,
+			"timeout_seconds", int(timeout.Seconds()),
+			"container_id", containerID,
+			"queue_wait_ms", queueWait.Milliseconds(),
+			"source_bytes", len(req.SourceSCAD),
+		)
+	}
 	var combinedOutput strings.Builder
 	var skippedExports []string
 	result := OpenSCADRenderResult{
@@ -354,7 +368,19 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 	}
 	for _, export := range req.Exports {
 		cmd, filename := buildOpenSCADCommand(jobID, modelName, export, req)
+		exportStart := time.Now()
+		commandText := strings.Join(cmd, " ")
+		if s.logger != nil {
+			s.logger.Info("openscad export started",
+				"job_id", jobID,
+				"export", export,
+				"filename", filename,
+				"command", commandText,
+				"timeout_seconds", int(timeout.Seconds()),
+			)
+		}
 		execResult, execErr := s.docker.ExecContainer(ctx, containerID, cmd, "", timeout)
+		exportDuration := time.Since(exportStart)
 		execOutput := strings.TrimSpace(execResult.Output)
 		if execErr != nil {
 			result.ExitCode = execResult.ExitCode
@@ -362,15 +388,48 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 			appendOpenSCADOutput(&combinedOutput, execResult.Output)
 			result.Stderr = truncateOpenSCADOutput(combinedOutput.String())
 			_ = s.writeJobMetadata(jobDir, result)
+			if s.logger != nil {
+				s.logger.Warn("openscad export failed",
+					"job_id", jobID,
+					"export", export,
+					"filename", filename,
+					"duration_ms", exportDuration.Milliseconds(),
+					"exit_code", execResult.ExitCode,
+					"output", truncateOpenSCADOutput(execResult.Output),
+					"error", execErr,
+				)
+			}
 			return result, fmt.Errorf("run openscad export %s: %w", export, execErr)
 		}
 		if execResult.ExitCode != 0 {
 			if openSCADExportFailedBecause3DObject(export, execOutput) {
 				skippedExports = append(skippedExports, openSCADSkipped2DExportMessage(export))
+				if s.logger != nil {
+					s.logger.Info("openscad export skipped",
+						"job_id", jobID,
+						"export", export,
+						"filename", filename,
+						"duration_ms", exportDuration.Milliseconds(),
+						"exit_code", execResult.ExitCode,
+						"reason", "3d_object_for_2d_export",
+						"output", truncateOpenSCADOutput(execResult.Output),
+					)
+				}
 				continue
 			}
 			if openSCADExportFailedBecause2DObject(export, execOutput) {
 				skippedExports = append(skippedExports, openSCADSkipped3DExportMessage(export))
+				if s.logger != nil {
+					s.logger.Info("openscad export skipped",
+						"job_id", jobID,
+						"export", export,
+						"filename", filename,
+						"duration_ms", exportDuration.Milliseconds(),
+						"exit_code", execResult.ExitCode,
+						"reason", "2d_object_for_3d_export",
+						"output", truncateOpenSCADOutput(execResult.Output),
+					)
+				}
 				continue
 			}
 			result.ExitCode = execResult.ExitCode
@@ -378,6 +437,16 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 			appendOpenSCADOutput(&combinedOutput, execResult.Output)
 			result.Stderr = truncateOpenSCADOutput(combinedOutput.String())
 			_ = s.writeJobMetadata(jobDir, result)
+			if s.logger != nil {
+				s.logger.Warn("openscad export failed",
+					"job_id", jobID,
+					"export", export,
+					"filename", filename,
+					"duration_ms", exportDuration.Milliseconds(),
+					"exit_code", execResult.ExitCode,
+					"output", truncateOpenSCADOutput(execResult.Output),
+				)
+			}
 			return result, fmt.Errorf("openscad export %s failed: %s", export, strings.TrimSpace(result.Stderr))
 		}
 		appendOpenSCADOutput(&combinedOutput, execResult.Output)
@@ -386,15 +455,46 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 			result.DurationMS = time.Since(start).Milliseconds()
 			result.Stderr = truncateOpenSCADOutput(combinedOutput.String())
 			_ = s.writeJobMetadata(jobDir, result)
+			if s.logger != nil {
+				s.logger.Warn("openscad export output missing",
+					"job_id", jobID,
+					"export", export,
+					"filename", filename,
+					"duration_ms", exportDuration.Milliseconds(),
+					"exit_code", execResult.ExitCode,
+					"output", truncateOpenSCADOutput(execResult.Output),
+					"error", err,
+				)
+			}
 			return result, err
 		}
 		result.Files = append(result.Files, file)
+		if s.logger != nil {
+			s.logger.Info("openscad export completed",
+				"job_id", jobID,
+				"export", export,
+				"filename", filename,
+				"duration_ms", exportDuration.Milliseconds(),
+				"exit_code", execResult.ExitCode,
+				"size_bytes", file.Size,
+				"sha256", file.SHA256,
+				"output_bytes", len(execResult.Output),
+			)
+		}
 	}
 	result.DurationMS = time.Since(start).Milliseconds()
 	if len(result.Files) == 0 && len(skippedExports) > 0 {
 		result.ExitCode = 1
 		result.Stderr = truncateOpenSCADOutput(strings.Join(skippedExports, "\n"))
 		_ = s.writeJobMetadata(jobDir, result)
+		if s.logger != nil {
+			s.logger.Warn("openscad render job failed",
+				"job_id", jobID,
+				"duration_ms", result.DurationMS,
+				"skipped_count", len(skippedExports),
+				"error", result.Stderr,
+			)
+		}
 		return result, fmt.Errorf("%s", strings.Join(skippedExports, "\n"))
 	}
 	result.ExitCode = 0
@@ -405,10 +505,26 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 	if err := s.enforceOutputLimit(result.Files); err != nil {
 		result.Stderr = err.Error()
 		_ = s.writeJobMetadata(jobDir, result)
+		if s.logger != nil {
+			s.logger.Warn("openscad render job failed",
+				"job_id", jobID,
+				"duration_ms", result.DurationMS,
+				"file_count", len(result.Files),
+				"error", err,
+			)
+		}
 		return result, err
 	}
 	if err := s.writeJobMetadata(jobDir, result); err != nil {
 		return OpenSCADRenderResult{}, err
+	}
+	if s.logger != nil {
+		s.logger.Info("openscad render job completed",
+			"job_id", jobID,
+			"duration_ms", result.DurationMS,
+			"file_count", len(result.Files),
+			"skipped_count", len(skippedExports),
+		)
 	}
 	s.mu.Lock()
 	s.touchLocked()

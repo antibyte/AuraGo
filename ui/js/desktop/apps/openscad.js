@@ -28,6 +28,11 @@ model();`;
         return ctx && typeof ctx.t === 'function' ? ctx.t(key, fallback) : fallback;
     }
 
+    function openSCADNowMS() { return window.performance && typeof window.performance.now === 'function' ? window.performance.now() : Date.now(); }
+    function openSCADResultSummary(result) { const files = result && Array.isArray(result.files) ? result.files : []; return result ? { job_id: result.job_id || '', duration_ms: Number(result.duration_ms || 0), exit_code: Number(result.exit_code || 0), files: files.map(file => ({ name: file.name, format: file.format, size: file.size })) } : null; }
+    function logOpenSCAD(state, message, detail) { if (window.console && typeof console.info === 'function') console.info('[OpenSCAD]', message, Object.assign({ window_id: state && state.windowId }, detail || {})); }
+    function warnOpenSCAD(state, message, detail) { if (window.console && typeof console.warn === 'function') console.warn('[OpenSCAD]', message, Object.assign({ window_id: state && state.windowId }, detail || {})); }
+
     function icon(ctx, name, fallback, className, size) {
         return ctx && typeof ctx.iconMarkup === 'function' ? ctx.iconMarkup(name, fallback, className, size) : `<span class="${esc(className || '')}">${esc(fallback || '')}</span>`;
     }
@@ -445,6 +450,8 @@ model();`;
         const previewFirst = exports.includes('png') && exports.length > 1;
         const previewExports = previewFirst ? ['png'] : exports;
         const remainingExports = previewFirst ? exports.filter(format => format !== 'png') : [];
+        const startedAt = openSCADNowMS();
+        logOpenSCAD(state, 'render requested', { exports, preview_exports: previewExports, remaining_exports: remainingExports, render_mode: state.renderMode, timeout_seconds: Number(state.timeout) || 120 });
         state.renderSerial += 1;
         const renderSerial = state.renderSerial;
         if (state.exportAbort) {
@@ -460,8 +467,10 @@ model();`;
         try {
             const body = await renderOpenSCADRequest(state, previewExports, controller.signal);
             state.result = body && body.result ? body.result : null;
+            logOpenSCAD(state, 'preview render completed', { exports: previewExports, elapsed_ms: Math.round(openSCADNowMS() - startedAt), status: body && body.status, result: openSCADResultSummary(state.result) });
             if (body && body.status === 'error') {
                 const hasFiles = hasOpenSCADResultFiles(state.result);
+                warnOpenSCAD(state, 'render failed', { exports: previewExports, elapsed_ms: Math.round(openSCADNowMS() - startedAt), error: body.error || '', result: openSCADResultSummary(state.result) });
                 state.activeTab = hasFiles ? 'files' : (state.result ? 'log' : state.activeTab);
                 setOpenSCADBusy(state, false);
                 draw(state);
@@ -488,6 +497,7 @@ model();`;
             const message = err && err.name === 'AbortError'
                 ? (state.cancelRequested ? t(state.ctx, 'desktop.openscad.cancelled', 'Cancelled') : t(state.ctx, 'desktop.openscad.render_timeout', 'Render timed out. Try a simpler model or increase the timeout.'))
                 : (err && err.message) || String(err);
+            warnOpenSCAD(state, 'render failed', { exports: previewExports, elapsed_ms: Math.round(openSCADNowMS() - startedAt), error: message, aborted: err && err.name === 'AbortError', result: openSCADResultSummary(partial) });
             setStatus(state, message, true);
         } finally {
             window.clearTimeout(timeout);
@@ -514,7 +524,9 @@ model();`;
 
     async function renderRemainingOpenSCADExports(state, exports, renderSerial) {
         const controller = new AbortController();
+        const startedAt = openSCADNowMS();
         state.exportAbort = controller;
+        logOpenSCAD(state, 'background exports started', { exports, render_serial: renderSerial, timeout_seconds: Number(state.timeout) || 120 });
         const timeout = window.setTimeout(() => controller.abort(), renderRequestTimeoutMS(state));
         try {
             setStatus(state, t(state.ctx, 'desktop.openscad.rendering', 'Rendering...'));
@@ -527,8 +539,10 @@ model();`;
                 draw(state);
                 persistOpenSCADDraft(state);
             }
+            logOpenSCAD(state, 'background exports completed', { exports, elapsed_ms: Math.round(openSCADNowMS() - startedAt), status: body && body.status, result: openSCADResultSummary(nextResult) });
             if (body && body.status === 'error') {
                 const hasFiles = hasOpenSCADResultFiles(state.result);
+                warnOpenSCAD(state, 'background exports failed', { exports, elapsed_ms: Math.round(openSCADNowMS() - startedAt), error: body.error || '', result: openSCADResultSummary(nextResult) });
                 setStatus(state, body.error || t(state.ctx, 'desktop.openscad.render_failed', 'Render failed'), !hasFiles);
                 return;
             }
@@ -545,6 +559,7 @@ model();`;
             const message = err && err.name === 'AbortError'
                 ? (state.cancelRequested ? t(state.ctx, 'desktop.openscad.cancelled', 'Cancelled') : t(state.ctx, 'desktop.openscad.render_timeout', 'Render timed out. Try a simpler model or increase the timeout.'))
                 : (err && err.message) || String(err);
+            warnOpenSCAD(state, 'background exports failed', { exports, elapsed_ms: Math.round(openSCADNowMS() - startedAt), error: message, aborted: err && err.name === 'AbortError', result: openSCADResultSummary(partial) });
             setStatus(state, message, !hasOpenSCADResultFiles(state.result));
         } finally {
             window.clearTimeout(timeout);
@@ -1015,24 +1030,16 @@ model();`;
         }
     }
 
-    function cleanupPreview(state) {
-        if (state && typeof state.previewCleanup === 'function') {
-            state.previewCleanup();
-        }
-    }
+    function cleanupPreview(state) { if (state && typeof state.previewCleanup === 'function') state.previewCleanup(); }
 
-    function previewURL(file) {
-        return (file && (file.preview_url || file.download_url)) || '';
-    }
+    function previewURL(file) { return (file && (file.preview_url || file.download_url)) || ''; }
 
     function primaryFile(state) {
         const files = resultFiles(state);
         return files.find(file => file.format === 'png') || files.find(file => file.format === 'stl') || files[0] || null;
     }
 
-    function emptyPanel(state, key, fallback) {
-        return `<div class="oscad-empty">${esc(t(state.ctx, key, fallback))}</div>`;
-    }
+    function emptyPanel(state, key, fallback) { return `<div class="oscad-empty">${esc(t(state.ctx, key, fallback))}</div>`; }
 
     function setStatus(state, message, error) {
         state.statusMessage = message || '';
@@ -1073,23 +1080,12 @@ model();`;
         const state = stateByWindow.get(windowId);
         if (!state) return;
         persistOpenSCADDraft(state);
-        if (state.renderAbort) {
-            state.renderAbort.abort();
-            state.renderAbort = null;
-        }
-        if (state.exportAbort) {
-            state.exportAbort.abort();
-            state.exportAbort = null;
-        }
-        if (state.agentAbort) {
-            state.agentAbort.abort();
-            state.agentAbort = null;
-        }
+        if (state.renderAbort) { state.renderAbort.abort(); state.renderAbort = null; }
+        if (state.exportAbort) { state.exportAbort.abort(); state.exportAbort = null; }
+        if (state.agentAbort) { state.agentAbort.abort(); state.agentAbort = null; }
         clearWindowMenus(state);
         cleanupPreview(state);
-        state.listeners.forEach(fn => {
-            try { fn(); } catch (_) {}
-        });
+        state.listeners.forEach(fn => { try { fn(); } catch (_) {} });
         stateByWindow.delete(windowId);
     }
 

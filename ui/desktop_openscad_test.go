@@ -250,6 +250,30 @@ func TestDesktopOpenSCADMultiExportRequestsPNGPreviewFirst(t *testing.T) {
 	}
 }
 
+func TestDesktopOpenSCADLogsRenderDiagnostics(t *testing.T) {
+	t.Parallel()
+
+	app := readDesktopAssetText(t, "js/desktop/apps/openscad.js")
+	for _, want := range []string{
+		"function logOpenSCAD",
+		"function warnOpenSCAD",
+		"console.info('[OpenSCAD]'",
+		"console.warn('[OpenSCAD]'",
+		"logOpenSCAD(state, 'render requested'",
+		"logOpenSCAD(state, 'preview render completed'",
+		"logOpenSCAD(state, 'background exports started'",
+		"logOpenSCAD(state, 'background exports completed'",
+		"warnOpenSCAD(state, 'render failed'",
+		"warnOpenSCAD(state, 'background exports failed'",
+		"openSCADResultSummary",
+		"elapsed_ms",
+	} {
+		if !strings.Contains(app, want) {
+			t.Fatalf("OpenSCAD app missing render diagnostic marker %q", want)
+		}
+	}
+}
+
 func TestDesktopOpenSCADSaveAllIncludesMergedPreviewAndExportJobs(t *testing.T) {
 	t.Parallel()
 

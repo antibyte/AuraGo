@@ -1,8 +1,10 @@
 package desktop
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -314,6 +316,50 @@ func TestOpenSCADRenderReturnsActionableErrorWhenOnly2DExportsFailFor3D(t *testi
 	for _, want := range []string{"Skipped svg export", "Skipped pdf export", "current model is 3D"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("error %q missing %q", err.Error(), want)
+		}
+	}
+}
+
+func TestOpenSCADRenderLogsPerExportDiagnostics(t *testing.T) {
+	t.Parallel()
+
+	dataDir := t.TempDir()
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	fake := &fakeOpenSCADExportDocker{dataDir: dataDir}
+	svc := NewOpenSCADContainerService(Config{
+		DataDir:  dataDir,
+		OpenSCAD: OpenSCADConfig{Enabled: true},
+	}, logger)
+	svc.SetDockerClient(fake)
+
+	result, err := svc.Render(context.Background(), OpenSCADRenderRequest{
+		SourceSCAD: "cube(10);",
+		ModelName:  "logged-render",
+		Exports:    []string{"png", "stl"},
+	})
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	logText := logs.String()
+	for _, want := range []string{
+		"openscad render job started",
+		"openscad export started",
+		"openscad export completed",
+		"openscad render job completed",
+		"job_id=" + result.JobID,
+		"model_name=logged-render",
+		"exports=png,stl",
+		"export=png",
+		"export=stl",
+		"timeout_seconds=120",
+		"duration_ms=",
+		"command=",
+		"size_bytes=",
+		"sha256=",
+	} {
+		if !strings.Contains(logText, want) {
+			t.Fatalf("render logs missing %q in:\n%s", want, logText)
 		}
 	}
 }
