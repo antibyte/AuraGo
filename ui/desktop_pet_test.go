@@ -309,6 +309,35 @@ func TestDesktopPetBubbleRemainsVisibleUntilHideTimer(t *testing.T) {
 	}
 }
 
+func TestDesktopPetBubbleUsesReadableWidth(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"css/desktop-pet.css",
+		"css/desktop-shell.bundle.css",
+	} {
+		source := readDesktopAssetText(t, path)
+		for _, marker := range []string{
+			"min-width: min(180px, calc(100vw - 32px));",
+			"width: max-content;",
+			"max-width: min(360px, calc(100vw - 32px));",
+			"overflow-wrap: anywhere;",
+		} {
+			if !strings.Contains(source, marker) {
+				t.Fatalf("%s is missing readable pet bubble width marker %q", path, marker)
+			}
+		}
+		for _, narrow := range []string{
+			"min-width: 92px;",
+			"max-width: min(220px, calc(100vw - 32px));",
+		} {
+			if strings.Contains(source, narrow) {
+				t.Fatalf("%s must not keep narrow pet bubble marker %q", path, narrow)
+			}
+		}
+	}
+}
+
 func TestDesktopPetSayLoadsLayerBeforeBubbleNoop(t *testing.T) {
 	t.Parallel()
 

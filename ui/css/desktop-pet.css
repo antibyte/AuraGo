@@ -64,12 +64,14 @@
     left: 50%;
     bottom: 100%;
     transform: translateX(-50%) translateY(8px);
-    min-width: 92px;
-    max-width: min(220px, calc(100vw - 32px));
+    min-width: min(180px, calc(100vw - 32px));
+    width: max-content;
+    max-width: min(360px, calc(100vw - 32px));
     padding: 10px 14px;
     background: linear-gradient(135deg, rgba(239, 246, 255, 0.97), rgba(237, 233, 254, 0.96));
     color: #172033;
     font: 760 12px/1.35 var(--vd-font-family, system-ui, sans-serif);
+    overflow-wrap: anywhere;
     border: 1px solid rgba(255, 255, 255, 0.78);
     border-radius: 14px;
     box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16), 0 2px 5px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.82);
