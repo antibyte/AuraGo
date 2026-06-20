@@ -214,6 +214,13 @@ func TestKGFlushAccessHitsPersistsQueuedNodeAccess(t *testing.T) {
 	}
 }
 
+func TestKGAccessCountReliableNilGraphIsFalse(t *testing.T) {
+	var kg *KnowledgeGraph
+	if kg.accessCountReliable() {
+		t.Fatal("nil knowledge graph should not report reliable access counts")
+	}
+}
+
 func TestKGSearchFTS5(t *testing.T) {
 	kg := newTestKG(t)
 

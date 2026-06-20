@@ -40,9 +40,10 @@ func (idx *Index) SetContentCacheEntry(nodeID, content string) {
 	if idx.ContentCache == nil {
 		idx.ContentCache = make(map[string]string)
 	}
-	if _, exists := idx.ContentCache[nodeID]; !exists {
-		idx.ContentKeys = append(idx.ContentKeys, nodeID)
+	if _, exists := idx.ContentCache[nodeID]; exists {
+		idx.removeContentCacheKey(nodeID)
 	}
+	idx.ContentKeys = append(idx.ContentKeys, nodeID)
 	idx.ContentCache[nodeID] = content
 	idx.TrimContentCache()
 }
@@ -50,12 +51,20 @@ func (idx *Index) SetContentCacheEntry(nodeID, content string) {
 // RemoveContentCacheEntry drops a node from the content cache.
 func (idx *Index) RemoveContentCacheEntry(nodeID string) {
 	delete(idx.ContentCache, nodeID)
-	for i, key := range idx.ContentKeys {
-		if key == nodeID {
-			idx.ContentKeys = append(idx.ContentKeys[:i], idx.ContentKeys[i+1:]...)
-			return
+	idx.removeContentCacheKey(nodeID)
+}
+
+func (idx *Index) removeContentCacheKey(nodeID string) {
+	if len(idx.ContentKeys) == 0 {
+		return
+	}
+	filtered := idx.ContentKeys[:0]
+	for _, key := range idx.ContentKeys {
+		if key != nodeID {
+			filtered = append(filtered, key)
 		}
 	}
+	idx.ContentKeys = filtered
 }
 
 // TrimContentCache evicts oldest entries when the cache grows too large.

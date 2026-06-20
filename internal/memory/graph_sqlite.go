@@ -67,27 +67,27 @@ type KnowledgeGraphQualityReport struct {
 }
 
 type KnowledgeGraph struct {
-	db                     *sql.DB
-	logger                 *slog.Logger
-	accessQueue            chan knowledgeGraphAccessHit
-	flushAccessHits        chan chan struct{}
-	doneChan               chan struct{}
-	closeOnce              sync.Once
-	wg                     sync.WaitGroup
-	semantic               *kgsemantic.Index
-	semanticMu             sync.RWMutex
-	droppedHits            atomic.Int64 // count of access-queue hits dropped due to full channel
-	minSemanticSimilarity  atomic.Uint32
-	excludedNodeTypes       map[string]bool
-	excludedNodeTypesMu     sync.RWMutex
-	protectOptimizeSources  map[string]bool
+	db                       *sql.DB
+	logger                   *slog.Logger
+	accessQueue              chan knowledgeGraphAccessHit
+	flushAccessHits          chan chan struct{}
+	doneChan                 chan struct{}
+	closeOnce                sync.Once
+	wg                       sync.WaitGroup
+	semantic                 *kgsemantic.Index
+	semanticMu               sync.RWMutex
+	droppedHits              atomic.Int64 // count of access-queue hits dropped due to full channel
+	minSemanticSimilarity    atomic.Uint32
+	excludedNodeTypes        map[string]bool
+	excludedNodeTypesMu      sync.RWMutex
+	protectOptimizeSources   map[string]bool
 	protectOptimizeSourcesMu sync.RWMutex
-	protectIDPrefixes       []string
-	protectIDPrefixesMu     sync.RWMutex
-	semanticReindexInterval time.Duration
-	lastSemanticReindex     time.Time
-	lastSemanticReindexMu   sync.Mutex
-	reindexInProgress       atomic.Bool
+	protectIDPrefixes        []string
+	protectIDPrefixesMu      sync.RWMutex
+	semanticReindexInterval  time.Duration
+	lastSemanticReindex      time.Time
+	lastSemanticReindexMu    sync.Mutex
+	reindexInProgress        atomic.Bool
 }
 
 const knowledgeGraphWriteTimeout = 5 * time.Second
@@ -153,11 +153,11 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 	}
 
 	kg := &KnowledgeGraph{
-		db:                    db,
-		logger:                logger,
-		accessQueue:           make(chan knowledgeGraphAccessHit, knowledgeGraphAccessQueueSize),
-		flushAccessHits:       make(chan chan struct{}),
-		doneChan:              make(chan struct{}),
+		db:                      db,
+		logger:                  logger,
+		accessQueue:             make(chan knowledgeGraphAccessHit, knowledgeGraphAccessQueueSize),
+		flushAccessHits:         make(chan chan struct{}),
+		doneChan:                make(chan struct{}),
 		excludedNodeTypes:       map[string]bool{"activity_entity": true, "unknown": true},
 		semanticReindexInterval: 5 * time.Minute,
 	}
@@ -311,7 +311,7 @@ func (kg *KnowledgeGraph) accessCountWorker() {
 }
 
 func (kg *KnowledgeGraph) accessCountReliable() bool {
-	return kg == nil || kg.DroppedAccessHits() < knowledgeGraphDroppedAccessHitsThreshold
+	return kg != nil && kg.DroppedAccessHits() < knowledgeGraphDroppedAccessHitsThreshold
 }
 
 // FlushAccessHits drains the async access queue and waits for the worker batch flush.
@@ -335,14 +335,27 @@ func (kg *KnowledgeGraph) FlushAccessHits() error {
 }
 
 func (kg *KnowledgeGraph) Stats() (nodes int, edges int, err error) {
+	tx, txErr := kg.beginReadTx("KG Stats")
+	if txErr != nil {
+		return 0, 0, txErr
+	}
+	defer tx.Rollback()
+
 	var nodeErr, edgeErr error
-	if nodeErr = kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&nodes); nodeErr != nil {
+	if nodeErr = tx.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&nodes); nodeErr != nil {
 		kg.logger.Warn("KG Stats: failed to count nodes", "error", nodeErr)
 	}
-	if edgeErr = kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&edges); edgeErr != nil {
+	if edgeErr = tx.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&edges); edgeErr != nil {
 		kg.logger.Warn("KG Stats: failed to count edges", "error", edgeErr)
 	}
-	return nodes, edges, errors.Join(nodeErr, edgeErr)
+	if err := errors.Join(nodeErr, edgeErr); err != nil {
+		return nodes, edges, err
+	}
+	if commitErr := tx.Commit(); commitErr != nil {
+		kg.logger.Warn("KG Stats: failed to commit read transaction", "error", commitErr)
+		return nodes, edges, commitErr
+	}
+	return nodes, edges, nil
 }
 
 func (kg *KnowledgeGraph) ResetSemanticIndex() error {

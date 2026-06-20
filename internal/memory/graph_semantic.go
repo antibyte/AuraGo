@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -244,7 +245,7 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 	edgeRows, err := kg.db.Query(`
 		SELECT e.source, e.target, e.relation, e.properties
 		FROM kg_edges e
-		WHERE `+kgsemantic.EdgeDirtyCondition("e")+`
+		WHERE ` + kgsemantic.EdgeDirtyCondition("e") + `
 		LIMIT 5000
 	`)
 	var edges []Edge
@@ -447,7 +448,57 @@ func (kg *KnowledgeGraph) indexSemanticNodeAfterWrite(node Node) {
 	kg.markSemanticNodeDirty(node.ID)
 }
 
+func (kg *KnowledgeGraph) hydrateSemanticEdgeForIndex(edge Edge) (Edge, bool) {
+	if edge.Properties != nil && len(edge.Properties) > 0 {
+		return edge, true
+	}
+	if kg == nil || kg.db == nil {
+		return edge, false
+	}
+
+	var propsJSON string
+	err := kg.db.QueryRow(`
+		SELECT properties FROM kg_edges
+		WHERE source = ? AND target = ? AND relation = ?
+	`, edge.Source, edge.Target, edge.Relation).Scan(&propsJSON)
+	if err == sql.ErrNoRows {
+		return edge, false
+	}
+	if err != nil {
+		if kg.logger != nil {
+			kg.logger.Warn("indexSemanticEdgeAfterWrite: failed to reload edge properties",
+				"source", edge.Source, "target", edge.Target, "relation", edge.Relation, "error", err)
+		}
+		return edge, false
+	}
+
+	props := make(map[string]string)
+	if strings.TrimSpace(propsJSON) != "" {
+		if err := json.Unmarshal([]byte(propsJSON), &props); err != nil {
+			if kg.logger != nil {
+				kg.logger.Warn("indexSemanticEdgeAfterWrite: corrupt edge properties JSON",
+					"source", edge.Source, "target", edge.Target, "relation", edge.Relation, "error", err)
+			}
+			return edge, false
+		}
+	}
+	edge.Properties = props
+	return edge, true
+}
+
 func (kg *KnowledgeGraph) indexSemanticEdgeAfterWrite(edge Edge) {
+	edge.Source = strings.TrimSpace(edge.Source)
+	edge.Target = strings.TrimSpace(edge.Target)
+	edge.Relation = strings.TrimSpace(edge.Relation)
+	if edge.Source == "" || edge.Target == "" || edge.Relation == "" {
+		return
+	}
+	var ok bool
+	edge, ok = kg.hydrateSemanticEdgeForIndex(edge)
+	if !ok {
+		kg.markSemanticEdgeDirty(edge.Source, edge.Target, edge.Relation)
+		return
+	}
 	if kg.upsertSemanticEdgeIndex(edge) {
 		return
 	}
@@ -636,7 +687,7 @@ func (kg *KnowledgeGraph) semanticSearchNodeScores(query string, maxNodes int) m
 
 	minSim := kg.getMinSemanticSimilarity()
 	type candidateHit struct {
-		id       string
+		id         string
 		similarity float32
 	}
 	var candidates []candidateHit
@@ -845,19 +896,19 @@ type KGConsistencyReport struct {
 
 // KnowledgeGraphHealthReport summarizes KG runtime health for dashboards and operators.
 type KnowledgeGraphHealthReport struct {
-	SemanticEnabled   bool                 `json:"semantic_enabled"`
-	DirtyNodes        int                  `json:"dirty_nodes"`
-	DirtyEdges        int                  `json:"dirty_edges"`
-	DroppedAccessHits int64                `json:"dropped_access_hits"`
-	NeedsReindex      bool                 `json:"needs_reindex"`
-	ReindexBacklog    bool                 `json:"reindex_backlog"`
-	TotalNodes        int                  `json:"total_nodes"`
-	TotalEdges        int                  `json:"total_edges"`
-	IsolatedNodes          int                  `json:"isolated_nodes"`
-	DuplicateGroups        int                  `json:"duplicate_groups"`
-	LabelDuplicateGroups   int                  `json:"label_duplicate_groups"`
-	IDDuplicateGroups      int                  `json:"id_duplicate_groups"`
-	Consistency            *KGConsistencyReport `json:"consistency,omitempty"`
+	SemanticEnabled      bool                 `json:"semantic_enabled"`
+	DirtyNodes           int                  `json:"dirty_nodes"`
+	DirtyEdges           int                  `json:"dirty_edges"`
+	DroppedAccessHits    int64                `json:"dropped_access_hits"`
+	NeedsReindex         bool                 `json:"needs_reindex"`
+	ReindexBacklog       bool                 `json:"reindex_backlog"`
+	TotalNodes           int                  `json:"total_nodes"`
+	TotalEdges           int                  `json:"total_edges"`
+	IsolatedNodes        int                  `json:"isolated_nodes"`
+	DuplicateGroups      int                  `json:"duplicate_groups"`
+	LabelDuplicateGroups int                  `json:"label_duplicate_groups"`
+	IDDuplicateGroups    int                  `json:"id_duplicate_groups"`
+	Consistency          *KGConsistencyReport `json:"consistency,omitempty"`
 }
 
 // SemanticSearchEnabled reports whether the KG semantic index is active.
@@ -900,7 +951,7 @@ func (kg *KnowledgeGraph) countDirtySemanticEdges() (int, error) {
 	var count int
 	err := kg.db.QueryRow(`
 		SELECT COUNT(*) FROM kg_edges e
-		WHERE `+kgsemantic.EdgeDirtyCondition("e"),
+		WHERE ` + kgsemantic.EdgeDirtyCondition("e"),
 	).Scan(&count)
 	return count, err
 }

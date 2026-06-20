@@ -1205,56 +1205,73 @@ func (kg *KnowledgeGraph) GetStats() (*KnowledgeGraphStats, error) {
 		BySource: make(map[string]int),
 	}
 
-	if err := kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&stats.TotalNodes); err != nil {
+	tx, err := kg.beginReadTx("GetStats")
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&stats.TotalNodes); err != nil {
 		return nil, fmt.Errorf("count knowledge graph nodes: %w", err)
 	}
-	if err := kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&stats.TotalEdges); err != nil {
+	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&stats.TotalEdges); err != nil {
 		return nil, fmt.Errorf("count knowledge graph edges: %w", err)
 	}
-	if err := kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges WHERE relation = 'co_mentioned_with'").Scan(&stats.CoMentionEdges); err != nil {
+	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_edges WHERE relation = 'co_mentioned_with'").Scan(&stats.CoMentionEdges); err != nil {
 		return nil, fmt.Errorf("count co-mention edges: %w", err)
 	}
 	stats.MeaningfulEdges = stats.TotalEdges - stats.CoMentionEdges
 
-	typeRows, err := kg.db.Query(`
+	typeRows, err := tx.Query(`
 		SELECT COALESCE(NULLIF(json_extract(properties, '$.type'), ''), 'untyped') AS t, COUNT(*)
 		FROM kg_nodes GROUP BY t ORDER BY COUNT(*) DESC
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("query knowledge graph node types: %w", err)
 	}
-	defer typeRows.Close()
 	for typeRows.Next() {
 		var t string
 		var c int
 		if err := typeRows.Scan(&t, &c); err != nil {
+			typeRows.Close()
 			return nil, fmt.Errorf("scan knowledge graph node type count: %w", err)
 		}
 		stats.ByType[t] = c
 	}
 	if err := typeRows.Err(); err != nil {
+		typeRows.Close()
 		return nil, fmt.Errorf("iterate knowledge graph node type counts: %w", err)
 	}
+	if err := typeRows.Close(); err != nil {
+		return nil, fmt.Errorf("close knowledge graph node type counts: %w", err)
+	}
 
-	sourceRows, err := kg.db.Query(`
+	sourceRows, err := tx.Query(`
 		SELECT COALESCE(NULLIF(json_extract(properties, '$.source'), ''), 'unknown') AS s, COUNT(*)
 		FROM kg_nodes GROUP BY s ORDER BY COUNT(*) DESC
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("query knowledge graph node sources: %w", err)
 	}
-	defer sourceRows.Close()
 	for sourceRows.Next() {
 		var s string
 		var c int
 		if err := sourceRows.Scan(&s, &c); err != nil {
+			sourceRows.Close()
 			return nil, fmt.Errorf("scan knowledge graph node source count: %w", err)
 		}
 		stats.BySource[s] = c
 	}
 	if err := sourceRows.Err(); err != nil {
+		sourceRows.Close()
 		return nil, fmt.Errorf("iterate knowledge graph node source counts: %w", err)
 	}
+	if err := sourceRows.Close(); err != nil {
+		return nil, fmt.Errorf("close knowledge graph node source counts: %w", err)
+	}
 
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit knowledge graph stats transaction: %w", err)
+	}
 	return stats, nil
 }

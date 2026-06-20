@@ -171,6 +171,71 @@ func TestKGAddEdgePreservesRichNodeSemanticIndex(t *testing.T) {
 	}
 }
 
+func TestKGAddEdgeIndexesEdgePropertiesImmediately(t *testing.T) {
+	kg := newTestKG(t)
+
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		return []float32{float32(len(text)), 1}, nil
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+
+	if err := kg.AddEdge("app", "server", "runs_on", map[string]string{"notes": "nightly workload"}); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	doc, err := kg.semantic.Collection.GetByID(context.Background(), "edge://app\x00server\x00runs_on")
+	if err != nil {
+		t.Fatalf("expected semantic edge document: %v", err)
+	}
+	if !strings.Contains(doc.Content, "nightly workload") {
+		t.Fatalf("semantic edge content = %q, want edge properties", doc.Content)
+	}
+}
+
+func TestKGIncrementCoOccurrenceIndexesUpdatedWeightImmediately(t *testing.T) {
+	kg := newTestKG(t)
+
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		return []float32{float32(len(text)), 1}, nil
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+
+	if err := kg.AddNode("alpha", "Alpha", nil); err != nil {
+		t.Fatalf("AddNode alpha: %v", err)
+	}
+	if err := kg.AddNode("beta", "Beta", nil); err != nil {
+		t.Fatalf("AddNode beta: %v", err)
+	}
+	if err := kg.IncrementCoOccurrence("alpha", "beta", "2026-06-20"); err != nil {
+		t.Fatalf("IncrementCoOccurrence first: %v", err)
+	}
+	if err := kg.IncrementCoOccurrence("alpha", "beta", "2026-06-21"); err != nil {
+		t.Fatalf("IncrementCoOccurrence second: %v", err)
+	}
+
+	var propsJSON string
+	if err := kg.db.QueryRow(`SELECT properties FROM kg_edges WHERE source = ? AND target = ? AND relation = ?`, "alpha", "beta", "co_mentioned_with").Scan(&propsJSON); err != nil {
+		t.Fatalf("query co-occurrence edge: %v", err)
+	}
+	if !strings.Contains(propsJSON, `"weight":"2"`) || !strings.Contains(propsJSON, `"date":"2026-06-21"`) {
+		t.Fatalf("stored co-occurrence properties = %s, want updated weight and date", propsJSON)
+	}
+
+	doc, err := kg.semantic.Collection.GetByID(context.Background(), "edge://alpha\x00beta\x00co_mentioned_with")
+	if err != nil {
+		t.Fatalf("expected semantic co-occurrence edge document: %v", err)
+	}
+	if !strings.Contains(doc.Content, "weight: 2") {
+		t.Fatalf("semantic edge content = %q, want updated weight property", doc.Content)
+	}
+}
+
 func TestKGOptimizeGraphRemovesSemanticIndexEntries(t *testing.T) {
 	kg := newTestKG(t)
 
