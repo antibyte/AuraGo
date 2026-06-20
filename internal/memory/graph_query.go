@@ -319,15 +319,35 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 	hits := make(map[string]float32)
 
 	semScores := kg.semanticSearchNodeScores(query, maxNodes*2)
-	for id, score := range semScores {
-		hits[id] += score * 0.5
-	}
 
 	tx, err := kg.beginReadTx("SearchForContext")
 	if err != nil {
 		return ""
 	}
 	defer tx.Rollback()
+
+	if len(semScores) > 0 {
+		semIDs := make([]string, 0, len(semScores))
+		for id := range semScores {
+			semIDs = append(semIDs, id)
+		}
+		semNodes, loadErr := loadNodesByIDs(tx, semIDs, kg.logger, "SearchForContext")
+		if loadErr != nil {
+			kg.logger.Warn("SearchForContext: filter semantic hits failed", "error", loadErr)
+		} else {
+			allowed := make(map[string]struct{}, len(semNodes))
+			for _, n := range semNodes {
+				if !kg.isExcludedNodeType(n.Properties["type"]) {
+					allowed[n.ID] = struct{}{}
+				}
+			}
+			for id, score := range semScores {
+				if _, ok := allowed[id]; ok {
+					hits[id] += score * 0.5
+				}
+			}
+		}
+	}
 
 	ftsQuery := escapeFTS5(query)
 	rows, err := tx.Query(`
@@ -646,15 +666,22 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 		maxDepth = 3
 	}
 
-	center, err := kg.GetNode(centerNodeID)
-	if err != nil || center == nil {
+	tx, err := kg.beginReadTx("GetSubgraph")
+	if err != nil {
 		return nil, nil
 	}
+	defer tx.Rollback()
+
+	centerNodes, err := loadNodesByIDs(tx, []string{centerNodeID}, kg.logger, "GetSubgraph")
+	if err != nil || len(centerNodes) == 0 {
+		return nil, nil
+	}
+	center := centerNodes[0]
 
 	visited := make(map[string]bool)
 	allNodes := make(map[string]Node)
 	allEdges := make(map[string]Edge)
-	allNodes[centerNodeID] = *center
+	allNodes[centerNodeID] = center
 	visited[centerNodeID] = true
 
 	queue := []kgBFSLevel{{centerNodeID, 0}}
@@ -685,7 +712,7 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 			strings.Join(placeholders, ","),
 			strings.Join(placeholders, ","),
 		)
-		batchRows, batchErr := kg.db.Query(batchEdgeQuery, batchArgs...)
+		batchRows, batchErr := tx.Query(batchEdgeQuery, batchArgs...)
 		if batchErr != nil {
 			kg.logger.Warn("GetSubgraph: batch edge query failed", "error", batchErr)
 		} else {
@@ -727,10 +754,14 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 			}
 		}
 
-		batchNodes := kg.batchGetNodes(uniqueNeighborIDs)
-		for _, n := range batchNodes {
-			allNodes[n.ID] = n
-			visited[n.ID] = true
+		batchNodes, batchErr := loadNodesByIDs(tx, uniqueNeighborIDs, kg.logger, "GetSubgraph")
+		if batchErr != nil {
+			kg.logger.Warn("GetSubgraph: batch node query failed", "error", batchErr)
+		} else {
+			for _, n := range batchNodes {
+				allNodes[n.ID] = n
+				visited[n.ID] = true
+			}
 		}
 
 		queue = make([]kgBFSLevel, 0, len(uniqueNeighborIDs))
@@ -739,6 +770,10 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 				queue = append(queue, kgBFSLevel{id, maxDepthInLevel + 1})
 			}
 		}
+	}
+
+	if err := tx.Commit(); err != nil && kg.logger != nil {
+		kg.logger.Warn("GetSubgraph: commit read transaction failed", "error", err)
 	}
 
 	nodes := make([]Node, 0, len(allNodes))
@@ -1188,39 +1223,55 @@ func (kg *KnowledgeGraph) GetStats() (*KnowledgeGraphStats, error) {
 		BySource: make(map[string]int),
 	}
 
-	kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&stats.TotalNodes)
-	kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&stats.TotalEdges)
-	kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges WHERE relation = 'co_mentioned_with'").Scan(&stats.CoMentionEdges)
+	if err := kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&stats.TotalNodes); err != nil {
+		return nil, fmt.Errorf("count knowledge graph nodes: %w", err)
+	}
+	if err := kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&stats.TotalEdges); err != nil {
+		return nil, fmt.Errorf("count knowledge graph edges: %w", err)
+	}
+	if err := kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges WHERE relation = 'co_mentioned_with'").Scan(&stats.CoMentionEdges); err != nil {
+		return nil, fmt.Errorf("count co-mention edges: %w", err)
+	}
 	stats.MeaningfulEdges = stats.TotalEdges - stats.CoMentionEdges
 
 	typeRows, err := kg.db.Query(`
 		SELECT COALESCE(NULLIF(json_extract(properties, '$.type'), ''), 'untyped') AS t, COUNT(*)
 		FROM kg_nodes GROUP BY t ORDER BY COUNT(*) DESC
 	`)
-	if err == nil {
-		defer typeRows.Close()
-		for typeRows.Next() {
-			var t string
-			var c int
-			if typeRows.Scan(&t, &c) == nil {
-				stats.ByType[t] = c
-			}
+	if err != nil {
+		return nil, fmt.Errorf("query knowledge graph node types: %w", err)
+	}
+	defer typeRows.Close()
+	for typeRows.Next() {
+		var t string
+		var c int
+		if err := typeRows.Scan(&t, &c); err != nil {
+			return nil, fmt.Errorf("scan knowledge graph node type count: %w", err)
 		}
+		stats.ByType[t] = c
+	}
+	if err := typeRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate knowledge graph node type counts: %w", err)
 	}
 
 	sourceRows, err := kg.db.Query(`
 		SELECT COALESCE(NULLIF(json_extract(properties, '$.source'), ''), 'unknown') AS s, COUNT(*)
 		FROM kg_nodes GROUP BY s ORDER BY COUNT(*) DESC
 	`)
-	if err == nil {
-		defer sourceRows.Close()
-		for sourceRows.Next() {
-			var s string
-			var c int
-			if sourceRows.Scan(&s, &c) == nil {
-				stats.BySource[s] = c
-			}
+	if err != nil {
+		return nil, fmt.Errorf("query knowledge graph node sources: %w", err)
+	}
+	defer sourceRows.Close()
+	for sourceRows.Next() {
+		var s string
+		var c int
+		if err := sourceRows.Scan(&s, &c); err != nil {
+			return nil, fmt.Errorf("scan knowledge graph node source count: %w", err)
 		}
+		stats.BySource[s] = c
+	}
+	if err := sourceRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate knowledge graph node source counts: %w", err)
 	}
 
 	return stats, nil

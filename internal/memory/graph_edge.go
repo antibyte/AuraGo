@@ -49,16 +49,16 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 		return err
 	}
 	if sourceNode, err := kg.GetNode(source); err == nil && sourceNode != nil {
-		kg.upsertSemanticNodeIndex(*sourceNode)
+		kg.indexSemanticNodeAfterWrite(*sourceNode)
 	} else if err != nil && kg.logger != nil {
 		kg.logger.Warn("AddEdge: failed to reload source node for semantic index", "id", source, "error", err)
 	}
 	if targetNode, err := kg.GetNode(target); err == nil && targetNode != nil {
-		kg.upsertSemanticNodeIndex(*targetNode)
+		kg.indexSemanticNodeAfterWrite(*targetNode)
 	} else if err != nil && kg.logger != nil {
 		kg.logger.Warn("AddEdge: failed to reload target node for semantic index", "id", target, "error", err)
 	}
-	kg.upsertSemanticEdgeIndex(Edge{Source: source, Target: target, Relation: relation})
+	kg.indexSemanticEdgeAfterWrite(Edge{Source: source, Target: target, Relation: relation})
 	return nil
 }
 
@@ -183,7 +183,7 @@ func (kg *KnowledgeGraph) UpdateEdge(source, target, relation, newRelation strin
 			kg.logger.Warn("UpdateEdge: failed to remove old semantic edge index", "source", source, "target", target, "relation", relation, "error", err)
 		}
 	}
-	kg.upsertSemanticEdgeIndex(*updated)
+	kg.indexSemanticEdgeAfterWrite(*updated)
 	return updated, nil
 }
 
@@ -404,7 +404,7 @@ func (kg *KnowledgeGraph) IncrementCoOccurrence(a, b, date string) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	kg.upsertSemanticEdgeIndex(Edge{Source: a, Target: b, Relation: "co_mentioned_with"})
+	kg.indexSemanticEdgeAfterWrite(Edge{Source: a, Target: b, Relation: "co_mentioned_with"})
 	return nil
 }
 

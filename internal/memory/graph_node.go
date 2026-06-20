@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -116,7 +117,7 @@ func (kg *KnowledgeGraph) AddNode(id, label string, properties map[string]string
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	kg.upsertSemanticNodeIndex(Node{ID: id, Label: finalLabel, Properties: finalProps})
+	kg.indexSemanticNodeAfterWrite(Node{ID: id, Label: finalLabel, Properties: finalProps})
 	return nil
 }
 
@@ -224,7 +225,7 @@ func (kg *KnowledgeGraph) UpdateNode(id, label string, properties map[string]str
 	}
 
 	node := &Node{ID: id, Label: finalLabel, Properties: finalProps, Protected: existingProtected != 0}
-	kg.upsertSemanticNodeIndex(*node)
+	kg.indexSemanticNodeAfterWrite(*node)
 	return node, nil
 }
 
@@ -267,7 +268,7 @@ func (kg *KnowledgeGraph) SetNodeProtected(id string, protected bool) (*Node, er
 	}
 
 	node := &Node{ID: id, Label: label, Properties: properties, Protected: protected}
-	kg.upsertSemanticNodeIndex(*node)
+	kg.indexSemanticNodeAfterWrite(*node)
 	return node, nil
 }
 
@@ -350,11 +351,15 @@ func (kg *KnowledgeGraph) GetAllNodes(limit int) ([]Node, error) {
 		var n Node
 		var propsJSON string
 		var protected int
-		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
-			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetAllNodes", n.ID, propsJSON, protected)
-			n.Protected = protected != 0
-			nodes = append(nodes, n)
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+			return nil, fmt.Errorf("scan node in GetAllNodes: %w", err)
 		}
+		n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetAllNodes", n.ID, propsJSON, protected)
+		n.Protected = protected != 0
+		nodes = append(nodes, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate GetAllNodes rows: %w", err)
 	}
 	return nodes, nil
 }
@@ -382,11 +387,15 @@ func (kg *KnowledgeGraph) GetNodesByType(nodeType string, limit int) ([]Node, er
 		var n Node
 		var propsJSON string
 		var protected int
-		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
-			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetNodesByType", n.ID, propsJSON, protected)
-			n.Protected = protected != 0
-			nodes = append(nodes, n)
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+			return nil, fmt.Errorf("scan node in GetNodesByType: %w", err)
 		}
+		n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetNodesByType", n.ID, propsJSON, protected)
+		n.Protected = protected != 0
+		nodes = append(nodes, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate GetNodesByType rows: %w", err)
 	}
 	if nodes == nil {
 		nodes = []Node{}
@@ -443,11 +452,15 @@ func (kg *KnowledgeGraph) GetImportantNodes(limit int, minScore int) ([]Importan
 		var n ImportantNode
 		var propsJSON string
 		var protected int
-		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected, &n.ImportanceScore); err == nil {
-			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetImportantNodes", n.ID, propsJSON, protected)
-			n.Protected = protected != 0
-			result = append(result, n)
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected, &n.ImportanceScore); err != nil {
+			return nil, fmt.Errorf("scan important node: %w", err)
 		}
+		n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetImportantNodes", n.ID, propsJSON, protected)
+		n.Protected = protected != 0
+		result = append(result, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate important nodes: %w", err)
 	}
 	return result, nil
 }
@@ -469,11 +482,15 @@ func (kg *KnowledgeGraph) GetRecentChanges(since time.Time) ([]Node, error) {
 		var n Node
 		var propsJSON string
 		var protected int
-		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
-			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetRecentChanges", n.ID, propsJSON, protected)
-			n.Protected = protected != 0
-			nodes = append(nodes, n)
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+			return nil, fmt.Errorf("scan recent change node: %w", err)
 		}
+		n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetRecentChanges", n.ID, propsJSON, protected)
+		n.Protected = protected != 0
+		nodes = append(nodes, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate recent changes: %w", err)
 	}
 	return nodes, nil
 }
@@ -519,7 +536,7 @@ func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
 	`, sourceID, sourceID)
 
 	mergedLabel := mergeKnowledgeGraphLabel(targetLabel, sourceLabel)
-	mergedProtected := targetProtected != 0 || sourceProtected != 0
+	mergedProtected := targetProtected != 0
 	mergedProps := mergeKnowledgeGraphProperties(targetProps, sourceProps)
 	mergedProps = sanitizeKnowledgeGraphNodeProperties(mergedProps, mergedProtected)
 	propsJSON, err := json.Marshal(mergedProps)
@@ -602,13 +619,13 @@ func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
 	}
 
 	kg.removeSemanticIndexesForDeletedGraphData([]string{sourceID}, removedEdges)
-	kg.upsertSemanticNodeIndex(Node{ID: targetID, Label: mergedLabel, Properties: mergedProps, Protected: mergedProtected})
+	kg.indexSemanticNodeAfterWrite(Node{ID: targetID, Label: mergedLabel, Properties: mergedProps, Protected: mergedProtected})
 	incidentEdges, err := kg.GetImportantEdges(500, []string{targetID})
 	if err != nil {
 		return fmt.Errorf("reload merged incident edges: %w", err)
 	}
 	for _, edge := range incidentEdges {
-		kg.upsertSemanticEdgeIndex(edge)
+		kg.indexSemanticEdgeAfterWrite(edge)
 	}
 
 	return nil
@@ -738,34 +755,47 @@ func (kg *KnowledgeGraph) GetNodesBySourceFile(path string, limit int) ([]Node, 
 }
 
 func (kg *KnowledgeGraph) batchGetNodes(ids []string) []Node {
-	if len(ids) == 0 {
-		return nil
+	nodes, err := loadNodesByIDs(kg.db, ids, kg.logger, "batchGetNodes")
+	if err != nil && kg.logger != nil {
+		kg.logger.Warn("batchGetNodes failed", "error", err)
 	}
-	placeholders := make([]string, len(ids))
+	return nodes
+}
+
+func loadNodesByIDs(q knowledgeGraphQueryer, ids []string, logger *slog.Logger, op string) ([]Node, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	placeholders := knowledgeGraphSQLInPlaceholders(len(ids))
 	args := make([]interface{}, len(ids))
 	for i, id := range ids {
-		placeholders[i] = "?"
 		args[i] = id
 	}
-	query := fmt.Sprintf("SELECT id, label, properties, protected FROM kg_nodes WHERE id IN (%s)", strings.Join(placeholders, ","))
-	rows, err := kg.db.Query(query, args...)
+	rows, err := q.Query(fmt.Sprintf(
+		"SELECT id, label, properties, protected FROM kg_nodes WHERE id IN (%s) ORDER BY id",
+		placeholders,
+	), args...)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("query nodes by ids: %w", err)
 	}
 	defer rows.Close()
 
-	var nodes []Node
+	nodes := make([]Node, 0, len(ids))
 	for rows.Next() {
 		var n Node
 		var propsJSON string
 		var protected int
-		if rows.Scan(&n.ID, &n.Label, &propsJSON, &protected) == nil {
-			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "batchGetNodes", n.ID, propsJSON, protected)
-			n.Protected = protected != 0
-			nodes = append(nodes, n)
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+			return nil, fmt.Errorf("scan node by id: %w", err)
 		}
+		n.Properties = decodeKnowledgeGraphNodeProperties(logger, op, n.ID, propsJSON, protected)
+		n.Protected = protected != 0
+		nodes = append(nodes, n)
 	}
-	return nodes
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate nodes by ids: %w", err)
+	}
+	return nodes, nil
 }
 
 func loadKnowledgeGraphNode(tx *sql.Tx, id string) (label string, properties map[string]string, protected int, found bool, err error) {

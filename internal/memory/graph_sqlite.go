@@ -86,6 +86,7 @@ type KnowledgeGraph struct {
 	semanticReindexInterval time.Duration
 	lastSemanticReindex     time.Time
 	lastSemanticReindexMu   sync.Mutex
+	reindexInProgress       atomic.Bool
 }
 
 const knowledgeGraphWriteTimeout = 5 * time.Second

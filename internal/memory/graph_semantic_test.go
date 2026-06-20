@@ -2,9 +2,13 @@ package memory
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	chromem "github.com/philippgille/chromem-go"
 )
@@ -539,5 +543,95 @@ func TestKGSearchForContextWildcardUsesImportantNodes(t *testing.T) {
 	}
 	if strings.Contains(ctx, "activity_xyz") {
 		t.Fatalf("expected wildcard context to exclude activity_entity, got %q", ctx)
+	}
+}
+
+func TestKGIndexSemanticNodeAfterWriteMarksDirtyOnFailure(t *testing.T) {
+	kg := newTestKG(t)
+	if err := kg.AddNode("nas", "NAS", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+
+	embeddingFunc := func(_ context.Context, _ string) ([]float32, error) {
+		return nil, context.DeadlineExceeded
+	}
+	db := chromem.NewDB()
+	collection, err := db.GetOrCreateCollection(knowledgeGraphSemanticCollection, nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection: %v", err)
+	}
+	kg.semantic = &knowledgeGraphSemanticIndex{
+		collection:    collection,
+		embeddingFunc: embeddingFunc,
+		queryCache:    make(map[string]queryCacheEntry),
+		queryCacheTTL: knowledgeGraphSemanticQueryCacheTTL,
+		contentCache:  make(map[string]string),
+	}
+
+	if _, err := kg.db.Exec("UPDATE kg_nodes SET semantic_indexed_at = CURRENT_TIMESTAMP WHERE id = 'nas'"); err != nil {
+		t.Fatalf("seed semantic_indexed_at: %v", err)
+	}
+
+	kg.indexSemanticNodeAfterWrite(Node{ID: "nas", Label: "NAS", Properties: map[string]string{"type": "device"}})
+
+	var indexedAt sql.NullString
+	if err := kg.db.QueryRow("SELECT semantic_indexed_at FROM kg_nodes WHERE id = 'nas'").Scan(&indexedAt); err != nil {
+		t.Fatalf("query semantic_indexed_at: %v", err)
+	}
+	if indexedAt.Valid {
+		t.Fatal("expected semantic_indexed_at to be cleared after failed upsert")
+	}
+}
+
+func TestKGRunSemanticReindexIfDueSkipsConcurrentRuns(t *testing.T) {
+	kg := newTestKG(t)
+
+	var started atomic.Int32
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		if strings.Contains(text, "knowledge graph semantic validation") {
+			return []float32{1, 0}, nil
+		}
+		started.Add(1)
+		time.Sleep(200 * time.Millisecond)
+		return []float32{1, 0}, nil
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+	if err := kg.AddNode("docker", "Docker", map[string]string{"type": "software"}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+	if _, err := kg.db.Exec("UPDATE kg_nodes SET semantic_indexed_at = NULL WHERE id = 'docker'"); err != nil {
+		t.Fatalf("mark node dirty: %v", err)
+	}
+	kg.lastSemanticReindexMu.Lock()
+	kg.lastSemanticReindex = time.Time{}
+	kg.lastSemanticReindexMu.Unlock()
+	beforeReindex := started.Load()
+
+	var wg sync.WaitGroup
+	var ranCount atomic.Int32
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ran, err := kg.RunSemanticReindexIfDue()
+			if err != nil {
+				t.Errorf("RunSemanticReindexIfDue: %v", err)
+				return
+			}
+			if ran {
+				ranCount.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+
+	if ranCount.Load() != 1 {
+		t.Fatalf("expected exactly one concurrent reindex attempt, got %d", ranCount.Load())
+	}
+	if started.Load()-beforeReindex != 1 {
+		t.Fatalf("expected one embedding reindex pass during concurrent due check, got %d", started.Load()-beforeReindex)
 	}
 }

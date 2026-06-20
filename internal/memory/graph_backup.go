@@ -329,15 +329,19 @@ func (kg *KnowledgeGraph) GetFileSyncStats() (*FileSyncStats, error) {
 		ByCollection: make(map[string]int),
 	}
 
-	kg.db.QueryRow(`
+	if err := kg.db.QueryRow(`
 		SELECT COUNT(*) FROM kg_nodes
 		WHERE json_extract(properties, '$.source') = 'file_sync'
-	`).Scan(&stats.NodeCount)
+	`).Scan(&stats.NodeCount); err != nil {
+		return nil, fmt.Errorf("count file sync nodes: %w", err)
+	}
 
-	kg.db.QueryRow(`
+	if err := kg.db.QueryRow(`
 		SELECT COUNT(*) FROM kg_edges
 		WHERE json_extract(properties, '$.source') = 'file_sync'
-	`).Scan(&stats.EdgeCount)
+	`).Scan(&stats.EdgeCount); err != nil {
+		return nil, fmt.Errorf("count file sync edges: %w", err)
+	}
 
 	typeRows, err := kg.db.Query(`
 		SELECT COALESCE(NULLIF(json_extract(properties, '$.type'), ''), 'untyped') AS t, COUNT(*)
@@ -345,15 +349,20 @@ func (kg *KnowledgeGraph) GetFileSyncStats() (*FileSyncStats, error) {
 		WHERE json_extract(properties, '$.source') = 'file_sync'
 		GROUP BY t
 	`)
-	if err == nil {
-		defer typeRows.Close()
-		for typeRows.Next() {
-			var t string
-			var c int
-			if typeRows.Scan(&t, &c) == nil {
-				stats.ByEntityType[t] = c
-			}
+	if err != nil {
+		return nil, fmt.Errorf("query file sync node types: %w", err)
+	}
+	defer typeRows.Close()
+	for typeRows.Next() {
+		var t string
+		var c int
+		if err := typeRows.Scan(&t, &c); err != nil {
+			return nil, fmt.Errorf("scan file sync node type count: %w", err)
 		}
+		stats.ByEntityType[t] = c
+	}
+	if err := typeRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate file sync node type counts: %w", err)
 	}
 
 	collRows, err := kg.db.Query(`
@@ -362,15 +371,20 @@ func (kg *KnowledgeGraph) GetFileSyncStats() (*FileSyncStats, error) {
 		WHERE json_extract(properties, '$.source') = 'file_sync'
 		GROUP BY c
 	`)
-	if err == nil {
-		defer collRows.Close()
-		for collRows.Next() {
-			var c string
-			var cnt int
-			if collRows.Scan(&c, &cnt) == nil {
-				stats.ByCollection[c] = cnt
-			}
+	if err != nil {
+		return nil, fmt.Errorf("query file sync collections: %w", err)
+	}
+	defer collRows.Close()
+	for collRows.Next() {
+		var c string
+		var cnt int
+		if err := collRows.Scan(&c, &cnt); err != nil {
+			return nil, fmt.Errorf("scan file sync collection count: %w", err)
 		}
+		stats.ByCollection[c] = cnt
+	}
+	if err := collRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate file sync collection counts: %w", err)
 	}
 
 	return stats, nil

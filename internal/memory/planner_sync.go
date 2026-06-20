@@ -59,13 +59,43 @@ func (kg *KnowledgeGraph) PrunePlannerEdges(source, relation string, keepTargets
 	if err := rows.Err(); err != nil {
 		return 0, fmt.Errorf("iterate planner edges for prune: %w", err)
 	}
+	if len(staleTargets) == 0 {
+		return 0, nil
+	}
 
-	removed := 0
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("begin planner edge prune transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	placeholders := knowledgeGraphSQLInPlaceholders(len(staleTargets))
+	args := make([]interface{}, 0, 2+len(staleTargets))
+	args = append(args, source, relation)
 	for _, target := range staleTargets {
-		if err := kg.DeleteEdge(source, target, relation); err != nil {
-			return removed, fmt.Errorf("delete stale planner edge %s->%s/%s: %w", source, target, relation, err)
+		args = append(args, target)
+	}
+	res, err := tx.Exec(fmt.Sprintf(`
+		DELETE FROM kg_edges
+		WHERE source = ? AND relation = ?
+		  AND target IN (%s)
+		  AND json_extract(properties, '$.source') = 'planner'
+	`, placeholders), args...)
+	if err != nil {
+		return 0, fmt.Errorf("batch delete stale planner edges: %w", err)
+	}
+	removed64, _ := res.RowsAffected()
+	removed := int(removed64)
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit planner edge prune transaction: %w", err)
+	}
+
+	for _, target := range staleTargets {
+		if err := kg.removeSemanticEdgeIndex(source, target, relation); err != nil && kg.logger != nil {
+			kg.logger.Warn("PrunePlannerEdges: failed to remove semantic edge index",
+				"source", source, "target", target, "relation", relation, "error", err)
 		}
-		removed++
 	}
 	return removed, nil
 }
@@ -198,13 +228,65 @@ func (kg *KnowledgeGraph) DeleteStalePlannerSyncEdges(expectedEdges map[string]s
 	if err := rows.Err(); err != nil {
 		return 0, fmt.Errorf("iterate planner sync edges: %w", err)
 	}
+	if len(staleEdges) == 0 {
+		return 0, nil
+	}
 
-	removed := 0
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("begin planner sync edge delete transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`CREATE TEMP TABLE IF NOT EXISTS kg_planner_stale_edges (
+		source TEXT NOT NULL,
+		target TEXT NOT NULL,
+		relation TEXT NOT NULL,
+		PRIMARY KEY (source, target, relation)
+	)`); err != nil {
+		return 0, fmt.Errorf("create planner stale edge batch table: %w", err)
+	}
+	if _, err := tx.Exec(`DELETE FROM kg_planner_stale_edges`); err != nil {
+		return 0, fmt.Errorf("reset planner stale edge batch table: %w", err)
+	}
+
+	stmt, err := tx.Prepare(`INSERT INTO kg_planner_stale_edges (source, target, relation) VALUES (?, ?, ?)`)
+	if err != nil {
+		return 0, fmt.Errorf("prepare planner stale edge batch insert: %w", err)
+	}
 	for _, edge := range staleEdges {
-		if err := kg.DeleteEdge(edge.source, edge.target, edge.relation); err != nil {
-			return removed, fmt.Errorf("delete stale planner sync edge %s->%s/%s: %w", edge.source, edge.target, edge.relation, err)
+		if _, err := stmt.Exec(edge.source, edge.target, edge.relation); err != nil {
+			stmt.Close()
+			return 0, fmt.Errorf("insert planner stale edge batch row: %w", err)
 		}
-		removed++
+	}
+	stmt.Close()
+
+	res, err := tx.Exec(`
+		DELETE FROM kg_edges
+		WHERE EXISTS (
+			SELECT 1
+			FROM kg_planner_stale_edges s
+			WHERE s.source = kg_edges.source
+			  AND s.target = kg_edges.target
+			  AND s.relation = kg_edges.relation
+		)
+	`)
+	if err != nil {
+		return 0, fmt.Errorf("batch delete stale planner sync edges: %w", err)
+	}
+	removed64, _ := res.RowsAffected()
+	removed := int(removed64)
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit planner sync edge delete transaction: %w", err)
+	}
+
+	for _, edge := range staleEdges {
+		if err := kg.removeSemanticEdgeIndex(edge.source, edge.target, edge.relation); err != nil && kg.logger != nil {
+			kg.logger.Warn("DeleteStalePlannerSyncEdges: failed to remove semantic edge index",
+				"source", edge.source, "target", edge.target, "relation", edge.relation, "error", err)
+		}
 	}
 	return removed, nil
 }

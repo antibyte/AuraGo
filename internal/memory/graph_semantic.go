@@ -182,6 +182,10 @@ func (kg *KnowledgeGraph) RunSemanticReindexIfDue() (bool, error) {
 	if kg.semanticIndex() == nil {
 		return false, nil
 	}
+	if !kg.reindexInProgress.CompareAndSwap(false, true) {
+		return false, nil
+	}
+	defer kg.reindexInProgress.Store(false)
 
 	kg.lastSemanticReindexMu.Lock()
 	interval := kg.semanticReindexInterval
@@ -286,7 +290,7 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 		}
 	} else {
 		for _, edge := range edges {
-			kg.upsertSemanticEdgeIndex(edge)
+			kg.indexSemanticEdgeAfterWrite(edge)
 		}
 		if len(edges) > 0 {
 			idx.reindexMu.Lock()
@@ -443,14 +447,14 @@ func (idx *knowledgeGraphSemanticIndex) trimContentCache() {
 	}
 }
 
-func (kg *KnowledgeGraph) upsertSemanticEdgeIndex(edge Edge) {
+func (kg *KnowledgeGraph) upsertSemanticEdgeIndex(edge Edge) bool {
 	idx := kg.semanticIndex()
 	if idx == nil {
-		return
+		return true
 	}
 	content := buildKnowledgeGraphEdgeSemanticContent(edge)
 	if content == "" {
-		return
+		return true
 	}
 
 	idx.mu.Lock()
@@ -468,9 +472,55 @@ func (kg *KnowledgeGraph) upsertSemanticEdgeIndex(edge Edge) {
 			},
 		})
 	})
-	if err != nil && idx.logger != nil {
-		idx.logger.Warn("KG semantic edge index update failed", "source", edge.Source, "target", edge.Target, "error", err)
+	if err != nil {
+		if idx.logger != nil {
+			idx.logger.Warn("KG semantic edge index update failed", "source", edge.Source, "target", edge.Target, "error", err)
+		}
+		return false
 	}
+	return true
+}
+
+func (kg *KnowledgeGraph) markSemanticNodeDirty(nodeID string) {
+	nodeID = strings.TrimSpace(nodeID)
+	if kg == nil || kg.db == nil || nodeID == "" {
+		return
+	}
+	if _, err := kg.db.Exec(`UPDATE kg_nodes SET semantic_indexed_at = NULL WHERE id = ?`, nodeID); err != nil && kg.logger != nil {
+		kg.logger.Warn("markSemanticNodeDirty failed", "node_id", nodeID, "error", err)
+	}
+}
+
+func (kg *KnowledgeGraph) markSemanticEdgeDirty(source, target, relation string) {
+	if kg == nil || kg.db == nil {
+		return
+	}
+	source = strings.TrimSpace(source)
+	target = strings.TrimSpace(target)
+	relation = strings.TrimSpace(relation)
+	if source == "" || target == "" || relation == "" {
+		return
+	}
+	if _, err := kg.db.Exec(`
+		UPDATE kg_edges SET semantic_indexed_at = NULL
+		WHERE source = ? AND target = ? AND relation = ?
+	`, source, target, relation); err != nil && kg.logger != nil {
+		kg.logger.Warn("markSemanticEdgeDirty failed", "source", source, "target", target, "relation", relation, "error", err)
+	}
+}
+
+func (kg *KnowledgeGraph) indexSemanticNodeAfterWrite(node Node) {
+	if kg.upsertSemanticNodeIndex(node) {
+		return
+	}
+	kg.markSemanticNodeDirty(node.ID)
+}
+
+func (kg *KnowledgeGraph) indexSemanticEdgeAfterWrite(edge Edge) {
+	if kg.upsertSemanticEdgeIndex(edge) {
+		return
+	}
+	kg.markSemanticEdgeDirty(edge.Source, edge.Target, edge.Relation)
 }
 
 // removeSemanticNodeIndex removes a node's entry from the semantic index.
@@ -533,6 +583,10 @@ func buildKnowledgeGraphEdgeSemanticContent(edge Edge) string {
 }
 
 func (kg *KnowledgeGraph) semanticSearchNodes(query string, minSim float32, maxNodes int) []Node {
+	return kg.semanticSearchNodesWithQueryer(kg.db, query, minSim, maxNodes)
+}
+
+func (kg *KnowledgeGraph) semanticSearchNodesWithQueryer(q knowledgeGraphQueryer, query string, minSim float32, maxNodes int) []Node {
 	idx := kg.semanticIndex()
 	if idx == nil || maxNodes <= 0 || shouldSkipKnowledgeGraphSemanticQuery(query) {
 		return nil
@@ -564,20 +618,32 @@ func (kg *KnowledgeGraph) semanticSearchNodes(query string, minSim float32, maxN
 		return nil
 	}
 
-	var out []Node
+	candidateIDs := make([]string, 0, len(results))
 	for _, result := range results {
 		if result.Similarity < minSim {
 			continue
 		}
 		if !strings.HasPrefix(result.ID, "edge://") {
-			// Resolve full node from SQLite to return Node struct
-			if n, err := kg.GetNode(result.ID); err == nil && n != nil {
-				if kg.isExcludedNodeType(n.Properties["type"]) {
-					continue
-				}
-				out = append(out, *n)
-			}
+			candidateIDs = append(candidateIDs, result.ID)
 		}
+	}
+	if len(candidateIDs) == 0 {
+		return nil
+	}
+
+	nodes, err := loadNodesByIDs(q, candidateIDs, kg.logger, "semanticSearchNodes")
+	if err != nil {
+		if idx.logger != nil {
+			idx.logger.Warn("semanticSearchNodes: batch load failed", "error", err)
+		}
+		return nil
+	}
+	out := make([]Node, 0, len(nodes))
+	for _, n := range nodes {
+		if kg.isExcludedNodeType(n.Properties["type"]) {
+			continue
+		}
+		out = append(out, n)
 	}
 	return out
 }
