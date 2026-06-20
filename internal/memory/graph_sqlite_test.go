@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/config"
+
 	chromem "github.com/philippgille/chromem-go"
 )
 
@@ -135,6 +137,72 @@ func TestKGExploreFallsBackToFTSWhenSemanticReturnsNoNodes(t *testing.T) {
 		}
 	}
 	t.Fatalf("expected FTS fallback to include backup_server, got %q", result)
+}
+
+func TestKGExploreDeduplicatesSharedEdges(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("alpha_lab", "Alpha Datalab", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode alpha_lab: %v", err)
+	}
+	if err := kg.AddNode("beta_lab", "Beta Datalab", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode beta_lab: %v", err)
+	}
+	if err := kg.AddEdge("alpha_lab", "beta_lab", "related_to", nil); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	var payload struct {
+		Edges []Edge `json:"edges"`
+	}
+	result := kg.Explore("datalab")
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("unmarshal explore result %q: %v", result, err)
+	}
+	if len(payload.Edges) != 1 {
+		t.Fatalf("expected 1 deduplicated edge, got %d in %q", len(payload.Edges), result)
+	}
+}
+
+func TestKGSearchReturnsMatchingNodesDespiteCorruptEdgeJSON(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("good_node", "Rack-B Server", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+	if err := kg.AddNode("peer", "Peer", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode peer: %v", err)
+	}
+	if _, err := kg.db.Exec(`
+		INSERT INTO kg_edges (source, target, relation, properties)
+		VALUES (?, ?, ?, ?)
+	`, "good_node", "peer", "connects_to", "{not-json"); err != nil {
+		t.Fatalf("insert corrupt edge: %v", err)
+	}
+
+	result := kg.Search("rack-b")
+	if result == "[]" {
+		t.Fatal("expected node match despite corrupt edge JSON")
+	}
+	var payload struct {
+		Nodes []Node `json:"nodes"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("unmarshal search result: %v", err)
+	}
+	if len(payload.Nodes) == 0 {
+		t.Fatalf("expected matching node in partial search result, got %q", result)
+	}
+}
+
+func TestKGEnableSemanticSearchDisabledConfigIsNoOp(t *testing.T) {
+	kg := newTestKG(t)
+	if err := kg.EnableSemanticSearch(nil); err == nil {
+		t.Fatal("expected nil config error")
+	}
+	if err := kg.EnableSemanticSearch(&config.Config{}); err != nil {
+		t.Fatalf("disabled embeddings should remain no-op, got %v", err)
+	}
 }
 
 func TestKGEdgeFTS5Indexing(t *testing.T) {

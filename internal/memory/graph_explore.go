@@ -17,6 +17,7 @@ func (kg *KnowledgeGraph) Explore(query string) string {
 
 	nodesMap := make(map[string]Node)
 	var edges []Edge
+	seenEdges := make(map[string]struct{})
 	var matchedNodeIDs []string
 	var accessHits []knowledgeGraphAccessHit
 
@@ -51,6 +52,11 @@ func (kg *KnowledgeGraph) Explore(query string) string {
 			}
 		}
 		for _, e := range es {
+			edgeKey := knowledgeGraphEdgeKey(e.Source, e.Target, e.Relation)
+			if _, exists := seenEdges[edgeKey]; exists {
+				continue
+			}
+			seenEdges[edgeKey] = struct{}{}
 			edges = append(edges, e)
 		}
 	}

@@ -64,8 +64,10 @@ func (kg *KnowledgeGraph) EnableSemanticSearch(cfg *config.Config) error {
 	}
 
 	_ = embeddingFunc
-	kg.logger.Warn("EnableSemanticSearch: non-shared path is deprecated, use EnableSemanticSearchShared instead; skipping")
-	return nil
+	if kg.logger != nil {
+		kg.logger.Warn("EnableSemanticSearch: non-shared path is deprecated, use EnableSemanticSearchShared instead")
+	}
+	return fmt.Errorf("EnableSemanticSearch is deprecated: use EnableSemanticSearchShared")
 }
 
 // EnableSemanticSearchShared reuses an already-open chromem.DB and its embedding

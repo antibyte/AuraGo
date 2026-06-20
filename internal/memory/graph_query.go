@@ -67,9 +67,8 @@ func (kg *KnowledgeGraph) Search(query string) string {
 			var propsJSON string
 			var protected int
 			if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
-				rows.Close()
 				kg.logger.Warn("Search: scan node failed", "error", err)
-				return "[]"
+				continue
 			}
 			if _, exists := seenNodes[n.ID]; exists {
 				continue
@@ -81,9 +80,7 @@ func (kg *KnowledgeGraph) Search(query string) string {
 			matchedNodeIDs = append(matchedNodeIDs, n.ID)
 		}
 		if err := rows.Err(); err != nil {
-			rows.Close()
 			kg.logger.Warn("Search: iterate nodes failed", "error", err)
-			return "[]"
 		}
 		rows.Close()
 	}
@@ -107,9 +104,8 @@ func (kg *KnowledgeGraph) Search(query string) string {
 			var e Edge
 			var propsJSON string
 			if err := edgeRows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON); err != nil {
-				edgeRows.Close()
 				kg.logger.Warn("Search: scan edge failed", "error", err)
-				return "[]"
+				continue
 			}
 			edgeKey := knowledgeGraphEdgeKey(e.Source, e.Target, e.Relation)
 			if _, exists := seenEdges[edgeKey]; exists {
@@ -130,9 +126,7 @@ func (kg *KnowledgeGraph) Search(query string) string {
 			})
 		}
 		if err := edgeRows.Err(); err != nil {
-			edgeRows.Close()
 			kg.logger.Warn("Search: iterate edges failed", "error", err)
-			return "[]"
 		}
 		edgeRows.Close()
 	}
@@ -142,7 +136,9 @@ func (kg *KnowledgeGraph) Search(query string) string {
 	}
 	if err := tx.Commit(); err != nil {
 		kg.logger.Warn("Search: commit read transaction failed", "error", err)
-		return "[]"
+		if len(matchedNodes) == 0 && len(matchedEdges) == 0 {
+			return "[]"
+		}
 	}
 
 	result := map[string]interface{}{
@@ -349,9 +345,8 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 			var id string
 			var ac sql.NullInt64
 			if err := rows.Scan(&id, &ac); err != nil {
-				rows.Close()
 				kg.logger.Warn("SearchForContext: scan FTS hit failed", "error", err)
-				return ""
+				continue
 			}
 			ftsScore := float32(0.4) - (float32(count) * 0.05)
 			if ftsScore < 0.1 {
@@ -368,9 +363,7 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 			count++
 		}
 		if err := rows.Err(); err != nil {
-			rows.Close()
 			kg.logger.Warn("SearchForContext: iterate FTS hits failed", "error", err)
-			return ""
 		}
 		rows.Close()
 	}
@@ -390,9 +383,8 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 				var id string
 				var ac sql.NullInt64
 				if err := likeRows.Scan(&id, &ac); err != nil {
-					likeRows.Close()
 					kg.logger.Warn("SearchForContext: scan LIKE hit failed", "error", err)
-					return ""
+					continue
 				}
 				likeScore := float32(0.3) - (float32(count) * 0.05)
 				if likeScore < 0.1 {
@@ -402,9 +394,7 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 				count++
 			}
 			if err := likeRows.Err(); err != nil {
-				likeRows.Close()
 				kg.logger.Warn("SearchForContext: iterate LIKE hits failed", "error", err)
-				return ""
 			}
 			likeRows.Close()
 		}
