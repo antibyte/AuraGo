@@ -2,6 +2,7 @@ package memory
 
 import (
 	"aurago/internal/dbutil"
+	"aurago/internal/memory/kgquery"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -87,7 +88,7 @@ func (kg *KnowledgeGraph) exploreFTS(q knowledgeGraphQueryer, query string, limi
 	if limit <= 0 {
 		limit = 5
 	}
-	ftsQuery := escapeFTS5(query)
+	ftsQuery := kgquery.EscapeFTS5(query)
 	likePattern := "%" + dbutil.EscapeLike(strings.ToLower(query)) + "%"
 	rows, err := q.Query(`
 		SELECT id, label, properties, protected

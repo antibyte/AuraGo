@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/memory/kgsemantic"
+
 	chromem "github.com/philippgille/chromem-go"
 )
 
@@ -21,17 +23,17 @@ func TestKGSemanticUpsertDoesNotDeleteOnEmbeddingFailure(t *testing.T) {
 	}
 
 	db := chromem.NewDB()
-	collection, err := db.GetOrCreateCollection(knowledgeGraphSemanticCollection, nil, embeddingFunc)
+	collection, err := db.GetOrCreateCollection(kgsemantic.CollectionName, nil, embeddingFunc)
 	if err != nil {
 		t.Fatalf("GetOrCreateCollection: %v", err)
 	}
 
-	kg.semantic = &knowledgeGraphSemanticIndex{
-		collection:    collection,
-		embeddingFunc: embeddingFunc,
-		queryCache:    make(map[string]queryCacheEntry),
-		queryCacheTTL: knowledgeGraphSemanticQueryCacheTTL,
-		contentCache:  make(map[string]string),
+	kg.semantic = &kgsemantic.Index{
+		Collection:    collection,
+		EmbeddingFunc: embeddingFunc,
+		QueryCache:    make(map[string]kgsemantic.QueryCacheEntry),
+		QueryCacheTTL: kgsemantic.QueryCacheTTL,
+		ContentCache:  make(map[string]string),
 	}
 
 	// Seed an existing document so we can verify it's not removed when the embedding
@@ -88,26 +90,26 @@ func TestKGDeleteBySourceFileRemovesSemanticIndexEntries(t *testing.T) {
 	}
 
 	edgeDocID := "edge://file-node\x00other-node\x00mentions"
-	if _, err := kg.semantic.collection.GetByID(context.Background(), "file-node"); err != nil {
+	if _, err := kg.semantic.Collection.GetByID(context.Background(), "file-node"); err != nil {
 		t.Fatalf("expected node semantic document before delete: %v", err)
 	}
-	if _, err := kg.semantic.collection.GetByID(context.Background(), edgeDocID); err != nil {
+	if _, err := kg.semantic.Collection.GetByID(context.Background(), edgeDocID); err != nil {
 		t.Fatalf("expected edge semantic document before delete: %v", err)
 	}
 
 	if deleted, err := kg.DeleteNodesBySourceFile("/docs/a.md"); err != nil || deleted != 1 {
 		t.Fatalf("DeleteNodesBySourceFile deleted=%d err=%v", deleted, err)
 	}
-	if _, err := kg.semantic.collection.GetByID(context.Background(), "file-node"); err == nil {
+	if _, err := kg.semantic.Collection.GetByID(context.Background(), "file-node"); err == nil {
 		t.Fatalf("expected node semantic document removed, got %v", err)
 	}
-	if _, ok := kg.semantic.contentCache["file-node"]; ok {
+	if _, ok := kg.semantic.ContentCache["file-node"]; ok {
 		t.Fatalf("expected node semantic content cache to be removed")
 	}
-	if _, err := kg.semantic.collection.GetByID(context.Background(), edgeDocID); err == nil {
+	if _, err := kg.semantic.Collection.GetByID(context.Background(), edgeDocID); err == nil {
 		t.Fatalf("expected incident edge semantic document removed, got %v", err)
 	}
-	if _, err := kg.semantic.collection.GetByID(context.Background(), "other-node"); err != nil {
+	if _, err := kg.semantic.Collection.GetByID(context.Background(), "other-node"); err != nil {
 		t.Fatalf("expected unrelated node semantic document to remain: %v", err)
 	}
 }
@@ -130,7 +132,7 @@ func TestKGSemanticNodeUpsertRefreshesCachedContent(t *testing.T) {
 		t.Fatalf("AddNode new: %v", err)
 	}
 
-	doc, err := kg.semantic.collection.GetByID(context.Background(), "service")
+	doc, err := kg.semantic.Collection.GetByID(context.Background(), "service")
 	if err != nil {
 		t.Fatalf("GetByID: %v", err)
 	}
@@ -160,7 +162,7 @@ func TestKGAddEdgePreservesRichNodeSemanticIndex(t *testing.T) {
 		t.Fatalf("AddEdge: %v", err)
 	}
 
-	doc, err := kg.semantic.collection.GetByID(context.Background(), "app")
+	doc, err := kg.semantic.Collection.GetByID(context.Background(), "app")
 	if err != nil {
 		t.Fatalf("GetByID app: %v", err)
 	}
@@ -183,7 +185,7 @@ func TestKGOptimizeGraphRemovesSemanticIndexEntries(t *testing.T) {
 	if err := kg.AddNode("temp", "Temporary Node", map[string]string{"notes": "short lived"}); err != nil {
 		t.Fatalf("AddNode temp: %v", err)
 	}
-	if _, err := kg.semantic.collection.GetByID(context.Background(), "temp"); err != nil {
+	if _, err := kg.semantic.Collection.GetByID(context.Background(), "temp"); err != nil {
 		t.Fatalf("expected semantic doc before optimize: %v", err)
 	}
 
@@ -194,7 +196,7 @@ func TestKGOptimizeGraphRemovesSemanticIndexEntries(t *testing.T) {
 	if removed != 1 {
 		t.Fatalf("removed = %d, want 1", removed)
 	}
-	if _, err := kg.semantic.collection.GetByID(context.Background(), "temp"); err == nil {
+	if _, err := kg.semantic.Collection.GetByID(context.Background(), "temp"); err == nil {
 		t.Fatal("expected semantic doc removed after optimize")
 	}
 }
@@ -224,11 +226,11 @@ func TestKGUpdateEdgeRefreshesSemanticIndex(t *testing.T) {
 	}
 
 	oldID := "edge://app\x00server\x00runs_on"
-	if _, err := kg.semantic.collection.GetByID(context.Background(), oldID); err == nil {
+	if _, err := kg.semantic.Collection.GetByID(context.Background(), oldID); err == nil {
 		t.Fatalf("expected old edge semantic document removed")
 	}
 	newID := "edge://app\x00server\x00depends_on"
-	doc, err := kg.semantic.collection.GetByID(context.Background(), newID)
+	doc, err := kg.semantic.Collection.GetByID(context.Background(), newID)
 	if err != nil {
 		t.Fatalf("expected updated edge semantic document: %v", err)
 	}
@@ -300,7 +302,7 @@ func TestKGConsistencyCheckDetectsMissingIndexedNodeDocument(t *testing.T) {
 	if _, err := kg.db.Exec("UPDATE kg_nodes SET semantic_indexed_at = CURRENT_TIMESTAMP WHERE id = 'nas'"); err != nil {
 		t.Fatalf("mark indexed: %v", err)
 	}
-	if err := kg.semantic.collection.Delete(context.Background(), nil, nil, "nas"); err != nil {
+	if err := kg.semantic.Collection.Delete(context.Background(), nil, nil, "nas"); err != nil {
 		t.Fatalf("delete semantic doc: %v", err)
 	}
 
@@ -333,9 +335,9 @@ func TestKGSemanticSearchAllowsShortEntityQueries(t *testing.T) {
 		{"*", true},
 	}
 	for _, tc := range cases {
-		got := shouldSkipKnowledgeGraphSemanticQuery(tc.query)
+		got := kgsemantic.ShouldSkipQuery(tc.query)
 		if got != tc.want {
-			t.Errorf("shouldSkipKnowledgeGraphSemanticQuery(%q) = %v, want %v", tc.query, got, tc.want)
+			t.Errorf("ShouldSkipQuery(%q) = %v, want %v", tc.query, got, tc.want)
 		}
 	}
 }
@@ -427,20 +429,20 @@ func TestKGRunSemanticReindexIfDueRespectsInterval(t *testing.T) {
 }
 
 func TestKGSemanticContentCacheTrimsOldestEntries(t *testing.T) {
-	idx := &knowledgeGraphSemanticIndex{
-		contentCache:     make(map[string]string),
-		contentCacheKeys: make([]string, 0),
+	idx := &kgsemantic.Index{
+		ContentCache: make(map[string]string),
+		ContentKeys:  make([]string, 0),
 	}
-	for i := 0; i < knowledgeGraphSemanticContentCacheMaxSize+1; i++ {
-		idx.setContentCacheEntry(fmt.Sprintf("node-%d", i), "content")
+	for i := 0; i < kgsemantic.ContentCacheMaxSize+1; i++ {
+		idx.SetContentCacheEntry(fmt.Sprintf("node-%d", i), "content")
 	}
-	if len(idx.contentCache) > knowledgeGraphSemanticContentCacheMaxSize {
-		t.Fatalf("cache size = %d, want <= %d", len(idx.contentCache), knowledgeGraphSemanticContentCacheMaxSize)
+	if len(idx.ContentCache) > kgsemantic.ContentCacheMaxSize {
+		t.Fatalf("cache size = %d, want <= %d", len(idx.ContentCache), kgsemantic.ContentCacheMaxSize)
 	}
-	if _, ok := idx.contentCache["node-0"]; ok {
+	if _, ok := idx.ContentCache["node-0"]; ok {
 		t.Fatal("expected oldest cache entry to be evicted")
 	}
-	if _, ok := idx.contentCache[fmt.Sprintf("node-%d", knowledgeGraphSemanticContentCacheMaxSize)]; !ok {
+	if _, ok := idx.ContentCache[fmt.Sprintf("node-%d", kgsemantic.ContentCacheMaxSize)]; !ok {
 		t.Fatal("expected newest cache entry to remain")
 	}
 }
@@ -467,7 +469,7 @@ func TestKGIncrementCoOccurrenceUpsertsSemanticEdge(t *testing.T) {
 	}
 
 	edgeDocID := "edge://alice\x00bob\x00co_mentioned_with"
-	doc, err := kg.semantic.collection.GetByID(context.Background(), edgeDocID)
+	doc, err := kg.semantic.Collection.GetByID(context.Background(), edgeDocID)
 	if err != nil {
 		t.Fatalf("expected co-occurrence semantic edge document: %v", err)
 	}
@@ -503,7 +505,7 @@ func TestKGMergeNodesRemovesSourceSemanticEdges(t *testing.T) {
 	sourceOutgoingID := "edge://source\x00peer\x00connects_to"
 	sourceIncomingID := "edge://client\x00source\x00uses"
 	for _, docID := range []string{"source", sourceOutgoingID, sourceIncomingID} {
-		if _, err := kg.semantic.collection.GetByID(context.Background(), docID); err != nil {
+		if _, err := kg.semantic.Collection.GetByID(context.Background(), docID); err != nil {
 			t.Fatalf("expected semantic document %q before merge: %v", docID, err)
 		}
 	}
@@ -513,7 +515,7 @@ func TestKGMergeNodesRemovesSourceSemanticEdges(t *testing.T) {
 	}
 
 	for _, docID := range []string{"source", sourceOutgoingID, sourceIncomingID} {
-		if _, err := kg.semantic.collection.GetByID(context.Background(), docID); err == nil {
+		if _, err := kg.semantic.Collection.GetByID(context.Background(), docID); err == nil {
 			t.Fatalf("expected stale semantic document %q removed after merge", docID)
 		}
 	}
@@ -521,7 +523,7 @@ func TestKGMergeNodesRemovesSourceSemanticEdges(t *testing.T) {
 	targetOutgoingID := "edge://target\x00peer\x00connects_to"
 	targetIncomingID := "edge://client\x00target\x00uses"
 	for _, docID := range []string{"target", targetOutgoingID, targetIncomingID} {
-		if _, err := kg.semantic.collection.GetByID(context.Background(), docID); err != nil {
+		if _, err := kg.semantic.Collection.GetByID(context.Background(), docID); err != nil {
 			t.Fatalf("expected merged semantic document %q after merge: %v", docID, err)
 		}
 	}
@@ -556,16 +558,16 @@ func TestKGIndexSemanticNodeAfterWriteMarksDirtyOnFailure(t *testing.T) {
 		return nil, context.DeadlineExceeded
 	}
 	db := chromem.NewDB()
-	collection, err := db.GetOrCreateCollection(knowledgeGraphSemanticCollection, nil, embeddingFunc)
+	collection, err := db.GetOrCreateCollection(kgsemantic.CollectionName, nil, embeddingFunc)
 	if err != nil {
 		t.Fatalf("GetOrCreateCollection: %v", err)
 	}
-	kg.semantic = &knowledgeGraphSemanticIndex{
-		collection:    collection,
-		embeddingFunc: embeddingFunc,
-		queryCache:    make(map[string]queryCacheEntry),
-		queryCacheTTL: knowledgeGraphSemanticQueryCacheTTL,
-		contentCache:  make(map[string]string),
+	kg.semantic = &kgsemantic.Index{
+		Collection:    collection,
+		EmbeddingFunc: embeddingFunc,
+		QueryCache:    make(map[string]kgsemantic.QueryCacheEntry),
+		QueryCacheTTL: kgsemantic.QueryCacheTTL,
+		ContentCache:  make(map[string]string),
 	}
 
 	if _, err := kg.db.Exec("UPDATE kg_nodes SET semantic_indexed_at = CURRENT_TIMESTAMP WHERE id = 'nas'"); err != nil {

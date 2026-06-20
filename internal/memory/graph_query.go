@@ -2,12 +2,11 @@ package memory
 
 import (
 	"aurago/internal/dbutil"
-	"aurago/internal/security"
+	"aurago/internal/memory/kgquery"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"sort"
 	"strings"
 )
@@ -49,7 +48,7 @@ func (kg *KnowledgeGraph) Search(query string) string {
 	var matchedNodeIDs []string
 	var matchedEdgeHits []knowledgeGraphAccessHit
 
-	ftsQuery := escapeFTS5(query)
+	ftsQuery := kgquery.EscapeFTS5(query)
 	escapedLike := strings.NewReplacer("%", `\%`, "_", `\_`).Replace(query)
 	likePattern := "%" + escapedLike + "%"
 	rows, err := tx.Query(`
@@ -89,7 +88,7 @@ func (kg *KnowledgeGraph) Search(query string) string {
 
 	escapedLikeEdge := strings.NewReplacer("%", `\%`, "_", `\_`).Replace(strings.ToLower(query))
 	likeQ := "%" + escapedLikeEdge + "%"
-	edgeFTSQuery := escapeFTS5(query)
+	edgeFTSQuery := kgquery.EscapeFTS5(query)
 	edgeRows, err := tx.Query(`
 		SELECT source, target, relation, properties FROM kg_edges
 		WHERE id IN (SELECT rowid FROM kg_edges_fts WHERE kg_edges_fts MATCH ?)
@@ -299,26 +298,6 @@ func (kg *KnowledgeGraph) getNeighborsWithQueryer(q knowledgeGraphQueryer, nodeI
 	return nodes, edges, accessHits, nil
 }
 
-func appendKnowledgeGraphContextProperties(sb *strings.Builder, properties map[string]string) {
-	for k, v := range properties {
-		if k == "access_count" || k == "protected" || k == "source" || k == "extracted_at" {
-			continue
-		}
-		if isSensitiveKnowledgeGraphPropertyKey(k) {
-			continue
-		}
-		sb.WriteString(fmt.Sprintf(" | %s: %s", k, v))
-	}
-}
-
-func finalizeKnowledgeGraphContextResult(sb strings.Builder, maxChars int) string {
-	result := sb.String()
-	if len(result) > maxChars {
-		result = truncateUTF8Safe(result, maxChars)
-	}
-	return security.Scrub(result)
-}
-
 func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars int) string {
 	if query == "" || maxNodes <= 0 {
 		return ""
@@ -370,7 +349,7 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 		}
 	}
 
-	ftsQuery := escapeFTS5(query)
+	ftsQuery := kgquery.EscapeFTS5(query)
 	rows, err := tx.Query(`
 		SELECT n.id, n.access_count FROM kg_nodes_fts f
 		JOIN kg_nodes n ON n.rowid = f.rowid
@@ -483,7 +462,7 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 		}
 
 		sb.WriteString(fmt.Sprintf("- [%s] %s", nid, node.Label))
-		appendKnowledgeGraphContextProperties(&sb, node.Properties)
+		kgquery.AppendContextProperties(&sb, node.Properties, isSensitiveKnowledgeGraphPropertyKey)
 		sb.WriteString("\n")
 
 		for _, edge := range edgesByNodeID[nid] {
@@ -502,7 +481,7 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 		kg.enqueueAccessHit(hit)
 	}
 
-	return finalizeKnowledgeGraphContextResult(sb, maxChars)
+	return kgquery.FinalizeContextResult(sb, maxChars)
 }
 
 // searchForContextImportantNodes returns a formatted context string built from
@@ -552,7 +531,7 @@ func (kg *KnowledgeGraph) searchForContextImportantNodes(maxNodes int, maxChars 
 		}
 
 		sb.WriteString(fmt.Sprintf("- [%s] %s", n.ID, node.Label))
-		appendKnowledgeGraphContextProperties(&sb, node.Properties)
+		kgquery.AppendContextProperties(&sb, node.Properties, isSensitiveKnowledgeGraphPropertyKey)
 		sb.WriteString("\n")
 
 		for _, edge := range edgesByNodeID[n.ID] {
@@ -571,7 +550,7 @@ func (kg *KnowledgeGraph) searchForContextImportantNodes(maxNodes int, maxChars 
 		kg.enqueueAccessHit(hit)
 	}
 
-	return finalizeKnowledgeGraphContextResult(sb, maxChars)
+	return kgquery.FinalizeContextResult(sb, maxChars)
 }
 
 func (kg *KnowledgeGraph) loadSearchContextData(q knowledgeGraphQueryer, nodeIDs []string) (map[string]Node, map[string][]Edge, []knowledgeGraphAccessHit, error) {
@@ -923,7 +902,7 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 		for _, l := range labels {
 			candByLabel[l] = &KnowledgeGraphDuplicateCandidate{
 				Label:           l,
-				NormalizedLabel: normalizeKnowledgeGraphDuplicateLabel(l),
+				NormalizedLabel: kgquery.NormalizeDuplicateLabel(l),
 			}
 		}
 		for nodesRows.Next() {
@@ -1278,262 +1257,4 @@ func (kg *KnowledgeGraph) GetStats() (*KnowledgeGraphStats, error) {
 	}
 
 	return stats, nil
-}
-
-func escapeFTS5(query string) string {
-	query = strings.TrimSpace(query)
-	if query == "" {
-		return `""`
-	}
-	if len(query) >= 2 && strings.HasPrefix(query, `"`) && strings.HasSuffix(query, `"`) {
-		inner := strings.TrimSpace(query[1 : len(query)-1])
-		if inner == "" {
-			return `""`
-		}
-		return `"` + strings.ReplaceAll(inner, `"`, `""`) + `"`
-	}
-	words := strings.Fields(query)
-	if len(words) == 0 {
-		return `""`
-	}
-	var escaped []string
-	for _, w := range words {
-		w = strings.ReplaceAll(w, `"`, `""`)
-		if w != "" {
-			escaped = append(escaped, `"`+w+`"`)
-		}
-	}
-	if len(escaped) == 0 {
-		return `""`
-	}
-	if len(escaped) == 1 {
-		return escaped[0]
-	}
-	return strings.Join(escaped, " AND ")
-}
-
-func truncateUTF8Safe(s string, maxLen int) string {
-	runes := []rune(s)
-	if len(runes) <= maxLen {
-		return s
-	}
-	truncated := string(runes[:maxLen])
-	if idx := strings.LastIndex(truncated, "\n"); idx > 0 {
-		truncated = truncated[:idx]
-	}
-	return truncated
-}
-
-func buildKnowledgeGraphDuplicateCandidates(groups map[string][]Node) []KnowledgeGraphDuplicateCandidate {
-	candidates := make([]KnowledgeGraphDuplicateCandidate, 0, len(groups))
-	for normalized, nodes := range groups {
-		if len(nodes) < 2 {
-			continue
-		}
-		sort.Slice(nodes, func(i, j int) bool {
-			left := strings.TrimSpace(nodes[i].Label)
-			right := strings.TrimSpace(nodes[j].Label)
-			if left != right {
-				return left < right
-			}
-			return nodes[i].ID < nodes[j].ID
-		})
-
-		ids := make([]string, 0, len(nodes))
-		for _, node := range nodes {
-			ids = append(ids, node.ID)
-		}
-		candidates = append(candidates, KnowledgeGraphDuplicateCandidate{
-			Label:           nodes[0].Label,
-			NormalizedLabel: normalized,
-			Count:           len(nodes),
-			IDs:             ids,
-		})
-	}
-
-	sort.Slice(candidates, func(i, j int) bool {
-		if candidates[i].Count != candidates[j].Count {
-			return candidates[i].Count > candidates[j].Count
-		}
-		return candidates[i].Label < candidates[j].Label
-	})
-	return candidates
-}
-
-func normalizeKnowledgeGraphDuplicateLabel(label string) string {
-	label = strings.ToLower(strings.TrimSpace(label))
-	if label == "" {
-		return ""
-	}
-	return strings.Join(strings.Fields(label), " ")
-}
-
-func normalizeKnowledgeGraphDuplicateID(id string) string {
-	id = strings.ToLower(strings.TrimSpace(id))
-	if id == "" {
-		return ""
-	}
-	id = strings.ReplaceAll(id, "_", "")
-	id = strings.ReplaceAll(id, "-", "")
-	return id
-}
-
-func countKnowledgeGraphLabelDuplicateGroups(querier interface {
-	QueryRow(query string, args ...any) *sql.Row
-}) (int, error) {
-	var count int
-	err := querier.QueryRow(`
-		SELECT COUNT(*) FROM (
-			SELECT 1
-			FROM kg_nodes
-			WHERE label != ''
-			GROUP BY LOWER(TRIM(label))
-			HAVING COUNT(*) > 1
-		)
-	`).Scan(&count)
-	return count, err
-}
-
-func countKnowledgeGraphIDDuplicateGroups(querier interface {
-	Query(query string, args ...any) (*sql.Rows, error)
-}, logger *slog.Logger) (int, error) {
-	nodes, err := knowledgeGraphLoadNodesForIDDuplicateCheck(querier, logger)
-	if err != nil {
-		return 0, err
-	}
-	grouped := knowledgeGraphGroupNodesByNormalizedID(nodes)
-	qualified := knowledgeGraphFilterQualifiedIDDuplicateGroups(grouped)
-	return len(qualified), nil
-}
-
-func countKnowledgeGraphIsolatedNodes(querier interface {
-	QueryRow(query string, args ...any) *sql.Row
-}) (int, error) {
-	var count int
-	err := querier.QueryRow(`
-		SELECT COUNT(*) FROM kg_nodes n
-		WHERE NOT EXISTS (SELECT 1 FROM kg_edges e WHERE e.source = n.id OR e.target = n.id)
-	`).Scan(&count)
-	return count, err
-}
-
-func knowledgeGraphNodesQualifyAsIDDuplicates(a, b Node) bool {
-	srcA := strings.TrimSpace(a.Properties["source"])
-	srcB := strings.TrimSpace(b.Properties["source"])
-	if srcA != "" && srcA == srcB {
-		return true
-	}
-
-	la := normalizeKnowledgeGraphDuplicateLabel(a.Label)
-	lb := normalizeKnowledgeGraphDuplicateLabel(b.Label)
-	if la == "" && lb == "" {
-		return true
-	}
-	if la == lb {
-		return true
-	}
-	if la != "" && lb != "" && (strings.HasPrefix(la, lb) || strings.HasPrefix(lb, la)) {
-		return true
-	}
-	return false
-}
-
-func knowledgeGraphIDDuplicateGroupQualifies(nodes []Node) bool {
-	if len(nodes) < 2 {
-		return false
-	}
-	for i := 0; i < len(nodes); i++ {
-		for j := i + 1; j < len(nodes); j++ {
-			if knowledgeGraphNodesQualifyAsIDDuplicates(nodes[i], nodes[j]) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func knowledgeGraphGroupNodesByNormalizedID(nodes []Node) map[string][]Node {
-	grouped := make(map[string][]Node)
-	for _, node := range nodes {
-		normalized := normalizeKnowledgeGraphDuplicateID(node.ID)
-		if normalized == "" {
-			continue
-		}
-		grouped[normalized] = append(grouped[normalized], node)
-	}
-	return grouped
-}
-
-func knowledgeGraphFilterQualifiedIDDuplicateGroups(grouped map[string][]Node) map[string][]Node {
-	qualified := make(map[string][]Node, len(grouped))
-	for key, nodes := range grouped {
-		if len(nodes) < 2 || !knowledgeGraphIDDuplicateGroupQualifies(nodes) {
-			continue
-		}
-		qualified[key] = nodes
-	}
-	return qualified
-}
-
-const knowledgeGraphIDDuplicateCandidateSQL = `
-	WITH normalized AS (
-		SELECT id, label, properties, protected,
-			REPLACE(REPLACE(LOWER(TRIM(id)), '_', ''), '-', '') AS norm_id
-		FROM kg_nodes
-	),
-	dup_groups AS (
-		SELECT norm_id
-		FROM normalized
-		WHERE norm_id != ''
-		GROUP BY norm_id
-		HAVING COUNT(*) > 1
-	)
-	SELECT n.id, n.label, n.properties, n.protected
-	FROM normalized n
-	INNER JOIN dup_groups g ON g.norm_id = n.norm_id
-	ORDER BY n.norm_id, n.id`
-
-func knowledgeGraphLoadNodesForIDDuplicateCheck(querier interface {
-	Query(query string, args ...any) (*sql.Rows, error)
-}, logger *slog.Logger) ([]Node, error) {
-	rows, err := querier.Query(knowledgeGraphIDDuplicateCandidateSQL)
-	if err != nil {
-		return nil, fmt.Errorf("query knowledge graph id duplicate candidates: %w", err)
-	}
-	defer rows.Close()
-
-	nodes := make([]Node, 0)
-	for rows.Next() {
-		var node Node
-		var propsJSON string
-		var protected int
-		if err := rows.Scan(&node.ID, &node.Label, &propsJSON, &protected); err != nil {
-			return nil, fmt.Errorf("scan knowledge graph node for id duplicates: %w", err)
-		}
-		node.Properties = decodeKnowledgeGraphNodeProperties(logger, "IDDuplicateCheck", node.ID, propsJSON, protected)
-		node.Protected = protected != 0
-		nodes = append(nodes, node)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate knowledge graph nodes for id duplicates: %w", err)
-	}
-	return nodes, nil
-}
-
-func knowledgeGraphIDDuplicateSummary(logger *slog.Logger, tx *sql.Tx, sampleLimit int) (groups int, nodes int, candidates []KnowledgeGraphDuplicateCandidate, err error) {
-	nodesLoaded, err := knowledgeGraphLoadNodesForIDDuplicateCheck(tx, logger)
-	if err != nil {
-		return 0, 0, nil, err
-	}
-
-	grouped := knowledgeGraphFilterQualifiedIDDuplicateGroups(knowledgeGraphGroupNodesByNormalizedID(nodesLoaded))
-	allCandidates := buildKnowledgeGraphDuplicateCandidates(grouped)
-	for _, candidate := range allCandidates {
-		nodes += candidate.Count
-	}
-	groups = len(allCandidates)
-	if sampleLimit > 0 && len(allCandidates) > sampleLimit {
-		allCandidates = allCandidates[:sampleLimit]
-	}
-	return groups, nodes, allCandidates, nil
 }

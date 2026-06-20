@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/memory/kgquery"
+	"aurago/internal/memory/kgsemantic"
 
 	chromem "github.com/philippgille/chromem-go"
 )
@@ -97,7 +99,7 @@ func TestKGSearch(t *testing.T) {
 }
 
 func TestEscapeFTS5PreservesQuotedPhrase(t *testing.T) {
-	got := escapeFTS5(`"Raspberry Pi"`)
+	got := kgquery.EscapeFTS5(`"Raspberry Pi"`)
 	want := `"Raspberry Pi"`
 	if got != want {
 		t.Fatalf("escapeFTS5 quoted phrase = %q, want %q", got, want)
@@ -105,7 +107,7 @@ func TestEscapeFTS5PreservesQuotedPhrase(t *testing.T) {
 }
 
 func TestEscapeFTS5EscapesInternalQuotes(t *testing.T) {
-	got := escapeFTS5(`"say ""hello"""`)
+	got := kgquery.EscapeFTS5(`"say ""hello"""`)
 	want := `"say """"hello"""""`
 	if got != want {
 		t.Fatalf("escapeFTS5 internal quotes = %q, want %q", got, want)
@@ -113,7 +115,7 @@ func TestEscapeFTS5EscapesInternalQuotes(t *testing.T) {
 }
 
 func TestEscapeFTS5UsesANDForMultipleWords(t *testing.T) {
-	got := escapeFTS5("docker host")
+	got := kgquery.EscapeFTS5("docker host")
 	want := `"docker" AND "host"`
 	if got != want {
 		t.Fatalf("escapeFTS5 multi-word = %q, want %q", got, want)
@@ -1787,9 +1789,9 @@ func TestKGSemanticQuerySkipsShortInputs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.query, func(t *testing.T) {
-			got := shouldSkipKnowledgeGraphSemanticQuery(tt.query)
+			got := kgsemantic.ShouldSkipQuery(tt.query)
 			if got != tt.want {
-				t.Fatalf("shouldSkipKnowledgeGraphSemanticQuery(%q) = %v, want %v", tt.query, got, tt.want)
+				t.Fatalf("ShouldSkipQuery(%q) = %v, want %v", tt.query, got, tt.want)
 			}
 		})
 	}

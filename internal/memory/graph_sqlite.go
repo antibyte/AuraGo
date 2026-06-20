@@ -2,6 +2,7 @@ package memory
 
 import (
 	"aurago/internal/dbutil"
+	"aurago/internal/memory/kgsemantic"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -73,7 +74,7 @@ type KnowledgeGraph struct {
 	doneChan               chan struct{}
 	closeOnce              sync.Once
 	wg                     sync.WaitGroup
-	semantic               *knowledgeGraphSemanticIndex
+	semantic               *kgsemantic.Index
 	semanticMu             sync.RWMutex
 	droppedHits            atomic.Int64 // count of access-queue hits dropped due to full channel
 	minSemanticSimilarity  atomic.Uint32
@@ -564,7 +565,7 @@ func (kg *KnowledgeGraph) getMinSemanticSimilarity() float32 {
 	return math.Float32frombits(kg.minSemanticSimilarity.Load())
 }
 
-func (kg *KnowledgeGraph) semanticIndex() *knowledgeGraphSemanticIndex {
+func (kg *KnowledgeGraph) semanticIndex() *kgsemantic.Index {
 	if kg == nil {
 		return nil
 	}
