@@ -20,14 +20,20 @@
 
 .vd-chess-board-shell {
     min-height: 0;
+    width: 100%;
+    height: 100%;
     display: grid;
     place-items: center;
+    overflow: hidden;
 }
 
 .vd-chess-board {
-    width: min(100%, calc(100vh - 190px));
+    width: min(100%, 620px);
+    height: min(100%, 620px);
     max-width: 620px;
+    max-height: 620px;
     min-width: 280px;
+    min-height: 280px;
     aspect-ratio: 1;
     border-radius: 8px;
     overflow: hidden;
@@ -37,6 +43,8 @@
 
 .vd-chess-board .cm-chessboard {
     display: block;
+    width: 100%;
+    height: 100%;
 }
 
 .vd-chess-ribbon {
@@ -286,8 +294,8 @@
     }
 
     .vd-chess-board {
-        width: min(100%, 70vh);
         min-width: 240px;
+        min-height: 240px;
     }
 
     .vd-chess-side {

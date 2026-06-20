@@ -29,6 +29,8 @@ func TestDesktopChessAppAssetsAreLocalAndLazy(t *testing.T) {
 		"createChessAgentClient",
 		"window.ChessApp = { render, dispose }",
 		"requestPromotionChoice",
+		"ResizeObserver",
+		"fitBoardToShell",
 	} {
 		if !strings.Contains(app, want) {
 			t.Fatalf("desktop chess app missing marker %q", want)
@@ -56,6 +58,26 @@ func TestDesktopChessAppAssetsAreLocalAndLazy(t *testing.T) {
 		if !strings.Contains(agent, want) {
 			t.Fatalf("desktop chess agent client missing marker %q", want)
 		}
+	}
+}
+
+func TestDesktopChessBoardLayoutKeepsStatusVisible(t *testing.T) {
+	t.Parallel()
+
+	css := readEmbeddedText(t, "css/desktop-app-chess.css")
+	for _, want := range []string{
+		"grid-template-rows: minmax(0, 1fr) auto;",
+		".vd-chess-board-shell",
+		"overflow: hidden;",
+		"height: min(100%, 620px);",
+		".vd-chess-ribbon",
+	} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("desktop chess layout CSS missing marker %q", want)
+		}
+	}
+	if strings.Contains(css, "100vh") {
+		t.Fatal("desktop chess board must not size itself from the browser viewport")
 	}
 }
 
@@ -97,5 +119,14 @@ func TestDesktopChessUsesThemeIcons(t *testing.T) {
 	}
 	if !strings.Contains(readEmbeddedText(t, "img/whitesur/manifest.json"), `"chess":  "img/whitesur/icons/chess.svg"`) {
 		t.Fatal("WhiteSur manifest must expose the chess theme icon")
+	}
+	for _, path := range []string{
+		"img/papirus/icons/chess.svg",
+		"img/whitesur/icons/chess.svg",
+	} {
+		icon := readEmbeddedText(t, path)
+		if !strings.Contains(icon, "<title>Chess</title>") || !strings.Contains(icon, "chess-king") {
+			t.Fatalf("chess theme icon must stay recognizable as a chess piece: %s", path)
+		}
 	}
 }

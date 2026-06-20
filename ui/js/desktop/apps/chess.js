@@ -22,6 +22,8 @@
             board: null,
             engine: null,
             agent: null,
+            resizeObserver: null,
+            resizeHandler: null,
             playerColor: 'white',
             opponent: 'computer',
             strength: 8,
@@ -63,6 +65,10 @@
         try {
             if (state.board) state.board.destroy();
         } catch (e) {}
+        try {
+            if (state.resizeObserver) state.resizeObserver.disconnect();
+        } catch (e) {}
+        if (state.resizeHandler) window.removeEventListener('resize', state.resizeHandler);
         try {
             if (state.engine) state.engine.dispose();
         } catch (e) {}
@@ -138,6 +144,7 @@
         const root = state.container.querySelector('.vd-chess');
         state.refs = {
             root,
+            boardShell: root.querySelector('.vd-chess-board-shell'),
             board: root.querySelector('[data-chess-board]'),
             status: root.querySelector('[data-status]'),
             comment: root.querySelector('[data-comment]'),
@@ -179,6 +186,8 @@
 
     function createBoard(state) {
         const { Chessboard, COLOR, BORDER_TYPE, Markers } = state.vendor;
+        attachBoardResizeObserver(state);
+        fitBoardToShell(state);
         state.board = new Chessboard(state.refs.board, {
             position: state.game.fen(),
             orientation: state.playerColor === 'black' ? COLOR.black : COLOR.white,
@@ -194,6 +203,31 @@
             },
             extensions: [{ class: Markers, props: { autoMarkers: null, sprite: 'markers.svg' } }]
         });
+    }
+
+    function attachBoardResizeObserver(state) {
+        const resize = () => fitBoardToShell(state);
+        state.resizeHandler = resize;
+        if (window.ResizeObserver && state.refs.boardShell) {
+            state.resizeObserver = new ResizeObserver(resize);
+            state.resizeObserver.observe(state.refs.boardShell);
+        } else {
+            window.addEventListener('resize', resize);
+        }
+        window.requestAnimationFrame(resize);
+    }
+
+    function fitBoardToShell(state) {
+        const shell = state.refs.boardShell;
+        const board = state.refs.board;
+        if (!shell || !board || state.disposed) return;
+        const width = shell.clientWidth || shell.getBoundingClientRect().width;
+        const height = shell.clientHeight || shell.getBoundingClientRect().height;
+        const size = Math.floor(Math.min(width, height, 620));
+        if (!Number.isFinite(size) || size < 220) return;
+        const px = size + 'px';
+        if (board.style.width !== px) board.style.width = px;
+        if (board.style.height !== px) board.style.height = px;
     }
 
     function startNewGame(state) {
