@@ -8,6 +8,7 @@
     const BUBBLE_DURATION_MS = 4000;
     const LONG_BUBBLE_DURATION_MS = 8000;
     const MAX_BUBBLE_CHARS = 140;
+    const BUBBLE_VIEWPORT_MARGIN = 16;
     const AMBIENT_MIN_DELAY_MS = 10000;
     const AMBIENT_MAX_DELAY_MS = 24000;
     const AMBIENT_RETURN_PADDING_MS = 260;
@@ -219,6 +220,7 @@
         layer.style.width = w + 'px';
         layer.style.height = h + 'px';
         if (spriteEl) spriteEl.style.transform = 'scale(' + scale + ')';
+        positionBubbleInViewport();
     }
 
     function setSpriteState(stateId) {
@@ -403,6 +405,18 @@
         });
     }
 
+    function positionBubbleInViewport() {
+        if (!layer || !bubbleEl || bubbleEl.hidden) return;
+        const layerRect = layer.getBoundingClientRect();
+        const bubbleRect = bubbleEl.getBoundingClientRect();
+        if (!bubbleRect.width || !window.innerWidth) return;
+        const desiredCenter = layerRect.left + layerRect.width / 2;
+        const minCenter = BUBBLE_VIEWPORT_MARGIN + bubbleRect.width / 2;
+        const maxCenter = window.innerWidth - BUBBLE_VIEWPORT_MARGIN - bubbleRect.width / 2;
+        const clampedCenter = Math.max(minCenter, Math.min(desiredCenter, maxCenter));
+        bubbleEl.style.left = Math.round(clampedCenter - layerRect.left) + 'px';
+    }
+
     function showBubble(message, type, allowDeferred = true) {
         const text = String(message || '').slice(0, MAX_BUBBLE_CHARS);
         if (!text) return;
@@ -422,6 +436,7 @@
         bubbleEl.className = 'vd-pet-bubble' + (type ? ' is-' + type : '');
         bubbleEl.classList.add('is-visible');
         bubbleEl.classList.add('opening');
+        positionBubbleInViewport();
         setTimeout(() => bubbleEl.classList.remove('opening'), 200);
         const duration = text.length > 70 ? LONG_BUBBLE_DURATION_MS : BUBBLE_DURATION_MS;
         bubbleTimer = setTimeout(() => hideBubble(), duration);
@@ -432,6 +447,7 @@
         bubbleEl.hidden = true;
         bubbleEl.textContent = '';
         bubbleEl.className = 'vd-pet-bubble';
+        bubbleEl.style.left = '';
         if (bubbleTimer) {
             clearTimeout(bubbleTimer);
             bubbleTimer = null;

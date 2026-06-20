@@ -338,6 +338,45 @@ func TestDesktopPetBubbleUsesReadableWidth(t *testing.T) {
 	}
 }
 
+func TestDesktopPetBubbleStaysInsideViewportAtEdges(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"js/desktop/core/pet-runtime.js",
+		"js/desktop/bundles/main.bundle.js",
+	} {
+		source := readDesktopAssetText(t, path)
+		for _, marker := range []string{
+			"const BUBBLE_VIEWPORT_MARGIN = 16;",
+			"function positionBubbleInViewport()",
+			"const layerRect = layer.getBoundingClientRect();",
+			"const bubbleRect = bubbleEl.getBoundingClientRect();",
+			"const desiredCenter = layerRect.left + layerRect.width / 2;",
+			"const minCenter = BUBBLE_VIEWPORT_MARGIN + bubbleRect.width / 2;",
+			"const maxCenter = window.innerWidth - BUBBLE_VIEWPORT_MARGIN - bubbleRect.width / 2;",
+			"const clampedCenter = Math.max(minCenter, Math.min(desiredCenter, maxCenter));",
+			"bubbleEl.style.left = Math.round(clampedCenter - layerRect.left) + 'px';",
+			"positionBubbleInViewport();",
+			"bubbleEl.style.left = '';",
+		} {
+			if !strings.Contains(source, marker) {
+				t.Fatalf("%s is missing viewport-safe pet bubble marker %q", path, marker)
+			}
+		}
+
+		showIdx := strings.Index(source, "function showBubble(message, type, allowDeferred = true)")
+		if showIdx < 0 {
+			t.Fatalf("%s is missing showBubble", path)
+		}
+		showBody := source[showIdx:]
+		positionIdx := strings.Index(showBody, "positionBubbleInViewport();")
+		timerIdx := strings.Index(showBody, "bubbleTimer = setTimeout(() => hideBubble(), duration);")
+		if positionIdx < 0 || timerIdx < 0 || positionIdx > timerIdx {
+			t.Fatalf("%s must position pet bubble after showing it", path)
+		}
+	}
+}
+
 func TestDesktopPetSayLoadsLayerBeforeBubbleNoop(t *testing.T) {
 	t.Parallel()
 
