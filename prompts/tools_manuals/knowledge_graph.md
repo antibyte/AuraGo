@@ -70,6 +70,7 @@ Manage a structured graph of entities and relations stored in SQLite with full-t
 - Nodes track `access_count` on each search hit.
 - Set `"protected": "true"` in a node's `properties` to exempt it from automated Priority-Based Forgetting.
 - Synced nodes from planner, inventory, core memory, file sync, and manual curation are protected from auto-optimize pruning by default (`protect_optimize_sources` / `protect_id_prefixes` in config).
+- Planner sync creates a synthetic hub node `planner_workspace` (`type: planner_hub`). Todos without checklist items link to it via `part_of`; checklist items link to their parent todo with `part_of`.
 - When `add_edge` or bulk sync references a missing endpoint, AuraGo creates a temporary `Unknown` placeholder node (`source: auto_placeholder`, `type: unknown`). Isolated placeholders older than 7 days are removed by nightly cleanup.
 
 ## Notes

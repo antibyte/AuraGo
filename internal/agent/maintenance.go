@@ -1752,6 +1752,9 @@ func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg plan
 	logger.Info("[Maintenance] Syncing Planner to Knowledge Graph")
 
 	tracker := planner.NewKGSyncTracker()
+	if err := planner.EnsurePlannerWorkspaceHub(kg, tracker); err != nil {
+		logger.Debug("[Maintenance] Failed to ensure planner workspace hub", "error", err)
+	}
 
 	appointments, err := planner.ListAppointments(plannerDB, "", "")
 	if err != nil {

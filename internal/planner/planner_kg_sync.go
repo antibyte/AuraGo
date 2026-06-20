@@ -5,7 +5,11 @@ import (
 	"strings"
 )
 
-const PlannerKGSource = "planner"
+const (
+	PlannerKGSource            = "planner"
+	PlannerWorkspaceKGNodeID   = "planner_workspace"
+	PlannerWorkspaceKGNodeName = "Planner Workspace"
+)
 
 // KGSyncTracker records planner-managed nodes and edges during a batch sync pass.
 type KGSyncTracker struct {
@@ -34,6 +38,45 @@ func plannerKGEdgeKey(source, target, relation string) string {
 
 func plannerKGEdgeProps() map[string]string {
 	return map[string]string{"source": PlannerKGSource}
+}
+
+func plannerWorkspaceKGProps() map[string]string {
+	return map[string]string{
+		"type":   "planner_hub",
+		"source": PlannerKGSource,
+	}
+}
+
+// EnsurePlannerWorkspaceHub creates the synthetic planner hub node used to anchor itemless todos.
+func EnsurePlannerWorkspaceHub(kg KnowledgeGraph, tracker *KGSyncTracker) error {
+	if isNilKnowledgeGraph(kg) {
+		return nil
+	}
+	if err := kg.AddNode(PlannerWorkspaceKGNodeID, PlannerWorkspaceKGNodeName, plannerWorkspaceKGProps()); err != nil {
+		return fmt.Errorf("sync planner workspace hub: %w", err)
+	}
+	if tracker != nil {
+		tracker.markPlannerNode(PlannerWorkspaceKGNodeID)
+	}
+	return nil
+}
+
+func syncTodoWorkspaceHubEdge(kg KnowledgeGraph, todoNodeID string, tracker *KGSyncTracker) error {
+	if err := EnsurePlannerWorkspaceHub(kg, tracker); err != nil {
+		return err
+	}
+	edgeProps := plannerKGEdgeProps()
+	keepTargets := map[string]struct{}{PlannerWorkspaceKGNodeID: {}}
+	if err := kg.AddEdge(todoNodeID, PlannerWorkspaceKGNodeID, "part_of", edgeProps); err != nil {
+		return fmt.Errorf("sync todo workspace part_of edge %s->%s: %w", todoNodeID, PlannerWorkspaceKGNodeID, err)
+	}
+	if tracker != nil {
+		tracker.expectEdge(todoNodeID, PlannerWorkspaceKGNodeID, "part_of")
+	}
+	if _, err := kg.PrunePlannerEdges(todoNodeID, "part_of", keepTargets); err != nil {
+		return fmt.Errorf("prune todo workspace edges for %s: %w", todoNodeID, err)
+	}
+	return nil
 }
 
 func (t *KGSyncTracker) markPlannerNode(id string) {
@@ -153,7 +196,11 @@ func SyncTodoKGRecord(kg KnowledgeGraph, t Todo, tracker *KGSyncTracker) error {
 		if _, err := kg.PrunePlannerNodesByPrefix(PlannerTodoItemKGNodeID(t.KGNodeID, ""), nil); err != nil {
 			return fmt.Errorf("prune todo item nodes for %s: %w", t.KGNodeID, err)
 		}
-		return nil
+		return syncTodoWorkspaceHubEdge(kg, t.KGNodeID, tracker)
+	}
+
+	if _, err := kg.PrunePlannerEdges(t.KGNodeID, "part_of", map[string]struct{}{}); err != nil {
+		return fmt.Errorf("prune todo workspace edges for %s: %w", t.KGNodeID, err)
 	}
 
 	keepItemNodes := make(map[string]struct{}, len(t.Items))

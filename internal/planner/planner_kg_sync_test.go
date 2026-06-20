@@ -100,6 +100,91 @@ func TestSyncAppointmentKGRecordPrunesStaleInvolves(t *testing.T) {
 	}
 }
 
+func TestSyncTodoKGRecordPartOfWorkspaceWhenNoItems(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	todoID, _ := CreateTodo(db, Todo{
+		Title:    "Standalone task",
+		Priority: "medium",
+	})
+
+	todo, err := GetTodo(db, todoID)
+	if err != nil {
+		t.Fatalf("GetTodo: %v", err)
+	}
+
+	kg := newMockKG()
+	tracker := NewKGSyncTracker()
+	if err := SyncTodoKGRecord(kg, *todo, tracker); err != nil {
+		t.Fatalf("SyncTodoKGRecord: %v", err)
+	}
+
+	if _, ok := tracker.ActivePlannerNodes[PlannerWorkspaceKGNodeID]; !ok {
+		t.Fatal("expected planner workspace hub tracked for itemless todo")
+	}
+	if _, ok := tracker.ExpectedEdges[plannerKGEdgeKey("todo_"+todoID, PlannerWorkspaceKGNodeID, "part_of")]; !ok {
+		t.Fatal("expected workspace part_of edge tracked")
+	}
+
+	hub, ok := kg.nodes[PlannerWorkspaceKGNodeID]
+	if !ok {
+		t.Fatal("expected planner workspace hub node")
+	}
+	if hub.props["type"] != "planner_hub" {
+		t.Fatalf("expected planner_hub type on workspace node, got %q", hub.props["type"])
+	}
+
+	todoNodeID := "todo_" + todoID
+	if !mockKGHasEdge(kg, todoNodeID, PlannerWorkspaceKGNodeID, "part_of") {
+		t.Fatalf("expected part_of edge from %s to %s", todoNodeID, PlannerWorkspaceKGNodeID)
+	}
+}
+
+func TestSyncTodoKGRecordRemovesWorkspaceLinkWhenItemsAdded(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	todoID, _ := CreateTodo(db, Todo{
+		Title: "Growing checklist",
+	})
+
+	todo, err := GetTodo(db, todoID)
+	if err != nil {
+		t.Fatalf("GetTodo: %v", err)
+	}
+
+	kg := newMockKG()
+	if err := SyncTodoKGRecord(kg, *todo, nil); err != nil {
+		t.Fatalf("initial sync: %v", err)
+	}
+
+	todoNodeID := "todo_" + todoID
+	if !mockKGHasEdge(kg, todoNodeID, PlannerWorkspaceKGNodeID, "part_of") {
+		t.Fatal("expected workspace part_of edge before items were added")
+	}
+
+	itemID, err := AddTodoItem(db, todoID, TodoItem{Title: "First step"})
+	if err != nil {
+		t.Fatalf("AddTodoItem: %v", err)
+	}
+	todo, err = GetTodo(db, todoID)
+	if err != nil {
+		t.Fatalf("GetTodo after item add: %v", err)
+	}
+
+	if err := SyncTodoKGRecord(kg, *todo, nil); err != nil {
+		t.Fatalf("resync with items: %v", err)
+	}
+	if mockKGHasEdge(kg, todoNodeID, PlannerWorkspaceKGNodeID, "part_of") {
+		t.Fatal("expected workspace part_of edge removed after checklist items were added")
+	}
+	itemNodeID := PlannerTodoItemKGNodeID(todoNodeID, itemID)
+	if !mockKGHasEdge(kg, itemNodeID, todoNodeID, "part_of") {
+		t.Fatalf("expected checklist part_of edge from %s to %s", itemNodeID, todoNodeID)
+	}
+}
+
 func TestSyncTodoKGRecordPartOfItems(t *testing.T) {
 	db := testDB(t)
 	defer db.Close()
@@ -139,6 +224,9 @@ func TestSyncTodoKGRecordPartOfItems(t *testing.T) {
 		if !mockKGHasEdge(kg, itemNodeID, todoNodeID, "part_of") {
 			t.Fatalf("expected part_of edge from %s to %s", itemNodeID, todoNodeID)
 		}
+	}
+	if mockKGHasEdge(kg, todoNodeID, PlannerWorkspaceKGNodeID, "part_of") {
+		t.Fatal("expected no workspace part_of edge when checklist items exist")
 	}
 }
 
@@ -211,6 +299,7 @@ func TestKGSyncTrackerRecordsNodesAndEdges(t *testing.T) {
 	if _, ok := tracker.ActivePlannerNodes["todo_todo-1_item_item-1"]; !ok {
 		t.Fatal("expected todo item node tracked")
 	}
+
 	if _, ok := tracker.ExpectedEdges[plannerKGEdgeKey("appointment_appt-1", "contact_c1", "involves")]; !ok {
 		t.Fatal("expected involves edge tracked")
 	}
