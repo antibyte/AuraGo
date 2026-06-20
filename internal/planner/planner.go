@@ -18,6 +18,10 @@ import (
 type KnowledgeGraph interface {
 	AddNode(id, name string, properties map[string]string) error
 	DeleteNode(id string) error
+	AddEdge(source, target, relation string, properties map[string]string) error
+	PrunePlannerEdges(source, relation string, keepTargets map[string]struct{}) (int, error)
+	PrunePlannerNodesByPrefix(prefix string, keepIDs map[string]struct{}) (int, error)
+	DeleteStalePlannerSyncEdges(expectedEdges map[string]struct{}, activePlannerNodes map[string]struct{}) (int, error)
 }
 
 // ParticipantSummary is a compact contact reference embedded in appointments.
@@ -1465,19 +1469,11 @@ func SyncAppointmentToKG(kg KnowledgeGraph, db *sql.DB, id string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get appointment for KG sync: %w", err)
 	}
-	props := map[string]string{
-		"type":   "event",
-		"source": "planner",
-		"date":   a.DateTime,
-		"status": a.Status,
+	contactIDs, err := GetAppointmentContactIDs(db, id)
+	if err != nil {
+		return fmt.Errorf("failed to get appointment contacts for KG sync: %w", err)
 	}
-	if a.Description != "" {
-		props["description"] = a.Description
-	}
-	if err := kg.AddNode(a.KGNodeID, a.Title, props); err != nil {
-		return fmt.Errorf("failed to sync appointment to KG: %w", err)
-	}
-	return nil
+	return SyncAppointmentKGRecord(kg, *a, contactIDs, nil)
 }
 
 // SyncTodoToKG syncs a single todo to the knowledge graph.
@@ -1489,30 +1485,7 @@ func SyncTodoToKG(kg KnowledgeGraph, db *sql.DB, id string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get todo for KG sync: %w", err)
 	}
-	props := map[string]string{
-		"type":     "task",
-		"source":   "planner",
-		"priority": t.Priority,
-		"status":   t.Status,
-		"progress": fmt.Sprintf("%d", t.ProgressPercent),
-	}
-	if t.DueDate != "" {
-		props["due_date"] = t.DueDate
-	}
-	if t.Description != "" {
-		props["description"] = t.Description
-	}
-	if t.RemindDaily {
-		props["remind_daily"] = "true"
-	}
-	if t.ItemCount > 0 {
-		props["item_count"] = fmt.Sprintf("%d", t.ItemCount)
-		props["done_item_count"] = fmt.Sprintf("%d", t.DoneItemCount)
-	}
-	if err := kg.AddNode(t.KGNodeID, t.Title, props); err != nil {
-		return fmt.Errorf("failed to sync todo to KG: %w", err)
-	}
-	return nil
+	return SyncTodoKGRecord(kg, *t, nil)
 }
 
 // ToJSON marshals a value to JSON string (for tool output).

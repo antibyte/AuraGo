@@ -1745,6 +1745,8 @@ func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg plan
 
 	logger.Info("[Maintenance] Syncing Planner to Knowledge Graph")
 
+	tracker := planner.NewKGSyncTracker()
+
 	appointments, err := planner.ListAppointments(plannerDB, "", "")
 	if err != nil {
 		logger.Error("[Maintenance] Failed to list appointments for KG sync", "error", err)
@@ -1753,17 +1755,13 @@ func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg plan
 			if a.Status == "cancelled" {
 				continue
 			}
-			props := map[string]string{
-				"type":   "event",
-				"source": "planner",
-				"date":   a.DateTime,
-				"status": a.Status,
+			contactIDs, contactErr := planner.GetAppointmentContactIDs(plannerDB, a.ID)
+			if contactErr != nil {
+				logger.Debug("[Maintenance] Failed to load appointment contacts for KG sync", "appointment_id", a.ID, "error", contactErr)
+				continue
 			}
-			if a.Description != "" {
-				props["description"] = a.Description
-			}
-			if err := kg.AddNode(a.KGNodeID, a.Title, props); err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
-				logger.Debug("[Maintenance] AddNode returned error", "nodeID", a.KGNodeID, "error", err)
+			if err := planner.SyncAppointmentKGRecord(kg, a, contactIDs, tracker); err != nil {
+				logger.Debug("[Maintenance] Failed to sync appointment to KG", "nodeID", a.KGNodeID, "error", err)
 			}
 		}
 	}
@@ -1774,21 +1772,15 @@ func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg plan
 		return
 	}
 	for _, t := range todos {
-		props := map[string]string{
-			"type":     "task",
-			"source":   "planner",
-			"priority": t.Priority,
-			"status":   t.Status,
+		if err := planner.SyncTodoKGRecord(kg, t, tracker); err != nil {
+			logger.Debug("[Maintenance] Failed to sync todo to KG", "nodeID", t.KGNodeID, "error", err)
 		}
-		if t.DueDate != "" {
-			props["due_date"] = t.DueDate
-		}
-		if t.Description != "" {
-			props["description"] = t.Description
-		}
-		if err := kg.AddNode(t.KGNodeID, t.Title, props); err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			logger.Debug("[Maintenance] AddNode returned error", "nodeID", t.KGNodeID, "error", err)
-		}
+	}
+
+	if removed, err := kg.DeleteStalePlannerSyncEdges(tracker.ExpectedEdges, tracker.ActivePlannerNodes); err != nil {
+		logger.Warn("[Maintenance] Failed to clean stale planner KG edges", "error", err)
+	} else if removed > 0 {
+		logger.Info("[Maintenance] Removed stale planner KG edges", "removed", removed)
 	}
 }
 
@@ -1816,6 +1808,7 @@ func SyncCoreMemoryToKnowledgeGraph(ctx context.Context, stm *memory.SQLiteMemor
 		}
 		props := map[string]string{
 			"type":    "concept",
+			"source":  "core_memory",
 			"content": fact.Fact,
 		}
 

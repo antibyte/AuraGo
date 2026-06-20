@@ -455,6 +455,11 @@ func plannerTablesSQL() string {
 			key TEXT PRIMARY KEY,
 			value TEXT NOT NULL DEFAULT ''
 		);
+		CREATE TABLE IF NOT EXISTS appointment_contacts (
+			appointment_id TEXT NOT NULL,
+			contact_id TEXT NOT NULL,
+			UNIQUE(appointment_id, contact_id)
+		);
 	` + operationalIssuesSQL() + `
 	` + operationalIssueIndexesSQL() + `
 	` + plannerIndexesSQL())
@@ -544,6 +549,8 @@ func plannerIndexesSQL() string {
 		CREATE INDEX IF NOT EXISTS idx_todos_remind_daily ON todos(remind_daily, status);
 		CREATE INDEX IF NOT EXISTS idx_todo_items_todo ON todo_items(todo_id);
 		CREATE INDEX IF NOT EXISTS idx_todo_items_order ON todo_items(todo_id, position);
+		CREATE INDEX IF NOT EXISTS idx_appointment_contacts_appointment ON appointment_contacts(appointment_id);
+		CREATE INDEX IF NOT EXISTS idx_appointment_contacts_contact ON appointment_contacts(contact_id);
 	`)
 }
 
