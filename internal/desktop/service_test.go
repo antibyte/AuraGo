@@ -178,8 +178,8 @@ func TestBuiltinAppsExposeChessMetadata(t *testing.T) {
 	if chess.Name != "Chess" {
 		t.Fatalf("chess name = %q, want Chess", chess.Name)
 	}
-	if chess.Icon != "run" || chess.Entry != "builtin://chess" || chess.Runtime != BuiltinRuntime {
-		t.Fatalf("chess manifest icon/entry/runtime = %q/%q/%q, want run/builtin://chess/%q", chess.Icon, chess.Entry, chess.Runtime, BuiltinRuntime)
+	if chess.Icon != "chess" || chess.Entry != "builtin://chess" || chess.Runtime != BuiltinRuntime {
+		t.Fatalf("chess manifest icon/entry/runtime = %q/%q/%q, want chess/builtin://chess/%q", chess.Icon, chess.Entry, chess.Runtime, BuiltinRuntime)
 	}
 	if !strings.Contains(strings.ToLower(chess.Description), "chess") {
 		t.Fatalf("chess description should mention chess, got %q", chess.Description)
@@ -506,7 +506,7 @@ func TestServiceBootstrapIncludesGeneratedAppIconCatalog(t *testing.T) {
 	if bootstrap.IconCatalog.LegacySpritePrefix != "sprite:" {
 		t.Fatalf("legacy sprite prefix = %q, want sprite:", bootstrap.IconCatalog.LegacySpritePrefix)
 	}
-	for _, want := range []string{"analytics", "chat", "cloud", "mail", "notes", "server", "settings", "tools", "weather", "software-store", "pixel", "zipper", "trash-empty", "trash-full", "folder", "file-plus", "folder-plus", "refresh", "search", "run", "save", "stop", "eye", "heart", "maximize", "minus", "redo", "undo", "zoom-in", "zoom-out", "zoom-reset"} {
+	for _, want := range []string{"analytics", "chat", "chess", "cloud", "mail", "notes", "server", "settings", "tools", "weather", "software-store", "pixel", "zipper", "trash-empty", "trash-full", "folder", "file-plus", "folder-plus", "refresh", "search", "run", "save", "stop", "eye", "heart", "maximize", "minus", "redo", "undo", "zoom-in", "zoom-out", "zoom-reset"} {
 		if !stringSliceContains(bootstrap.IconCatalog.Preferred, want) {
 			t.Fatalf("icon catalog missing preferred icon %q: %+v", want, bootstrap.IconCatalog.Preferred)
 		}
@@ -518,7 +518,7 @@ func TestServiceBootstrapIncludesGeneratedAppIconCatalog(t *testing.T) {
 		t.Fatalf("stats alias = %q, want analytics", bootstrap.IconCatalog.Aliases["stats"])
 	}
 	for category, icons := range map[string][]string{
-		"games":        {"run", "video", "apps"},
+		"games":        {"chess", "run", "video", "apps"},
 		"office":       {"writer", "spreadsheet", "calendar"},
 		"tools":        {"tools", "settings", "terminal"},
 		"productivity": {"notes", "check-square", "workflow"},
@@ -535,6 +535,9 @@ func TestServiceBootstrapIncludesGeneratedAppIconCatalog(t *testing.T) {
 	}
 	if bootstrap.IconCatalog.Aliases["space-invaders"] != "run" {
 		t.Fatalf("space-invaders alias = %q, want run", bootstrap.IconCatalog.Aliases["space-invaders"])
+	}
+	if bootstrap.IconCatalog.Aliases["board-game"] != "chess" {
+		t.Fatalf("board-game alias = %q, want chess", bootstrap.IconCatalog.Aliases["board-game"])
 	}
 }
 

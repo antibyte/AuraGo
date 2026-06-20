@@ -98,6 +98,7 @@
         book: 'book',
         books: 'book',
         camera: 'camera',
+        chess: 'chess',
         cloud: 'cloud',
         files: 'folder',
         editor: 'edit',
@@ -323,6 +324,7 @@
             'software-store': 'SS',
             looper: 'Lp',
             cheater: 'Ch',
+            chess: 'Ch',
             pixel: 'Px',
             'galaxa-deluxe': 'Gx',
             nasscad: 'NC',
@@ -335,8 +337,8 @@
     async function loadIconManifest() {
         const [spriteManifest, defaultThemeManifest, whitesurThemeManifest] = await Promise.all([
             api('/img/desktop-icons-sprite.json').catch(() => null),
-            api('/img/papirus/manifest.json?v=4').catch(() => null),
-            api('/img/whitesur/manifest.json?v=3').catch(() => null)
+            api('/img/papirus/manifest.json?v=5').catch(() => null),
+            api('/img/whitesur/manifest.json?v=4').catch(() => null)
         ]);
         state.iconManifest = spriteManifest;
         state.iconMap = new Map(((spriteManifest && spriteManifest.icons) || []).map(icon => [icon.name, icon]));

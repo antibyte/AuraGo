@@ -74,3 +74,28 @@ func TestDesktopChessAppFilesStaySmall(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopChessUsesThemeIcons(t *testing.T) {
+	t.Parallel()
+
+	foundation := readEmbeddedText(t, "js/desktop/core/desktop-foundation.js")
+	if !strings.Contains(foundation, "chess: 'chess'") {
+		t.Fatal("desktop app icon map must route chess to the chess theme icon")
+	}
+	for _, path := range []string{
+		"img/papirus/manifest.json",
+		"img/whitesur/manifest.json",
+		"img/papirus/icons/chess.svg",
+		"img/whitesur/icons/chess.svg",
+	} {
+		if _, err := Content.ReadFile(path); err != nil {
+			t.Fatalf("embedded chess theme icon asset missing %s: %v", path, err)
+		}
+	}
+	if !strings.Contains(readEmbeddedText(t, "img/papirus/manifest.json"), `"chess": "img/papirus/icons/chess.svg"`) {
+		t.Fatal("Papirus manifest must expose the chess theme icon")
+	}
+	if !strings.Contains(readEmbeddedText(t, "img/whitesur/manifest.json"), `"chess":  "img/whitesur/icons/chess.svg"`) {
+		t.Fatal("WhiteSur manifest must expose the chess theme icon")
+	}
+}
