@@ -2,7 +2,9 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -305,6 +307,49 @@ func sanitizeUploadFilename(name string) string {
 	return base
 }
 
+var errDesktopUploadTargetExists = errors.New("desktop upload target exists")
+
+func desktopUploadNameCandidate(name string, index int) string {
+	if index <= 0 {
+		return name
+	}
+	ext := filepath.Ext(name)
+	base := strings.TrimSuffix(name, ext)
+	if ext == "" {
+		return fmt.Sprintf("%s (%d)", base, index)
+	}
+	return fmt.Sprintf("%s (%d)%s", base, index, ext)
+}
+
+func writeDesktopUploadFile(ctx context.Context, svc *desktop.Service, destDir, safeName string, content []byte, unique bool) (string, error) {
+	destDir = strings.TrimRight(destDir, "/")
+	if !unique {
+		destPath := destDir + "/" + safeName
+		if err := svc.WriteFileBytes(ctx, destPath, content, desktop.SourceUser); err != nil {
+			return "", err
+		}
+		return destPath, nil
+	}
+	for index := 0; index < 1000; index++ {
+		candidateName := desktopUploadNameCandidate(safeName, index)
+		destPath := destDir + "/" + candidateName
+		_, err := svc.WriteFileBytesConditional(ctx, destPath, content, desktop.SourceUser, func(state desktop.FileWriteState) error {
+			if state.Exists {
+				return errDesktopUploadTargetExists
+			}
+			return nil
+		})
+		if err == nil {
+			return destPath, nil
+		}
+		if errors.Is(err, errDesktopUploadTargetExists) {
+			continue
+		}
+		return "", err
+	}
+	return "", fmt.Errorf("could not find a free upload filename")
+}
+
 func handleDesktopUpload(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
@@ -341,8 +386,13 @@ func handleDesktopUpload(s *Server) http.HandlerFunc {
 			return
 		}
 		safeName := sanitizeUploadFilename(header.Filename)
-		destPath := strings.TrimRight(destDir, "/") + "/" + safeName
-		if err := svc.WriteFileBytes(r.Context(), destPath, content, desktop.SourceUser); err != nil {
+		unique := r.FormValue("unique") == "1"
+		destPath, err := writeDesktopUploadFile(r.Context(), svc, destDir, safeName, content, unique)
+		if err != nil {
+			if strings.Contains(err.Error(), "could not find a free upload filename") {
+				jsonError(w, err.Error(), http.StatusConflict)
+				return
+			}
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}

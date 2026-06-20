@@ -308,3 +308,44 @@ func TestDesktopWindowDropStylesAreAvailable(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopBackgroundAcceptsHostFileDrops(t *testing.T) {
+	t.Parallel()
+
+	mainText := readDesktopAssetText(t, "js/desktop/bundles/main.bundle.js")
+	for _, marker := range []string{
+		"function hasDesktopHostFileDrag(event)",
+		"dataTransferHasType(event && event.dataTransfer, 'Files')",
+		"async function uploadHostFilesToDesktop(files, clientX, clientY)",
+		"form.append('path', 'Desktop')",
+		"form.append('unique', '1')",
+		"await api('/api/desktop/upload', { method: 'POST', body: form })",
+		"saveIconPosition('desktop-entry-' + uploadedPath, iconPos.x, iconPos.y)",
+		"await refreshAfterDesktopFileDrop()",
+	} {
+		if !strings.Contains(mainText, marker) {
+			t.Fatalf("desktop background host file drop missing marker %q in main bundle", marker)
+		}
+	}
+
+	drops := rawDesktopAssetText(t, "js/desktop/core/desktop-file-drops.js")
+	dragOverBody := jsFunctionBodyInWindowMenuTest(t, drops, "function handleDesktopFileDragOver(event)")
+	for _, marker := range []string{
+		"hasDesktopHostFileDrag(event)",
+		"event.dataTransfer.dropEffect = hasDesktopHostFileDrag(event) ? 'copy' : 'move'",
+	} {
+		if !strings.Contains(dragOverBody, marker) {
+			t.Fatalf("handleDesktopFileDragOver missing marker %q", marker)
+		}
+	}
+
+	dropBody := jsFunctionBodyInWindowMenuTest(t, drops, "async function handleDesktopFileDrop(event)")
+	for _, marker := range []string{
+		"await moveDraggedFilesToDesktop(payload.paths, event.clientX, event.clientY)",
+		"await uploadHostFilesToDesktop(event.dataTransfer.files, event.clientX, event.clientY)",
+	} {
+		if !strings.Contains(dropBody, marker) {
+			t.Fatalf("handleDesktopFileDrop missing marker %q", marker)
+		}
+	}
+}

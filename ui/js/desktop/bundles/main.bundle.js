@@ -5319,6 +5319,10 @@ function wireWindow(win, id) {
         return dataTransferHasType(event && event.dataTransfer, DESKTOP_FILE_DRAG_TYPE);
     }
 
+    function hasDesktopHostFileDrag(event) {
+        return dataTransferHasType(event && event.dataTransfer, 'Files');
+    }
+
     function desktopFileClipboard() {
         const clipboard = window.AuraDesktopFileClipboard;
         if (!clipboard || !Array.isArray(clipboard.paths) || clipboard.paths.length === 0) return null;
@@ -5427,6 +5431,34 @@ function wireWindow(win, id) {
         await refreshAfterDesktopFileDrop();
     }
 
+    async function uploadHostFilesToDesktop(files, clientX, clientY) {
+        const hostFiles = Array.from(files || []).filter(Boolean);
+        if (!hostFiles.length) return;
+        if ((state.bootstrap || {}).readonly) {
+            showDesktopNotification({
+                title: t('desktop.notification'),
+                message: t('desktop.file_dialog_readonly', 'Read-only mode: saving and importing are disabled.')
+            });
+            return;
+        }
+        const basePos = clampDesktopIconPosition(clientX - 40, clientY - 44);
+        let usedCells = desktopIconGridEnabled() ? desktopIconGridUsedCells() : null;
+        let offset = 0;
+        for (const file of hostFiles) {
+            const form = new FormData();
+            form.append('path', 'Desktop');
+            form.append('unique', '1');
+            form.append('file', file);
+            const body = await api('/api/desktop/upload', { method: 'POST', body: form });
+            const uploadedPath = normalizeDesktopPath(body.path);
+            if (!uploadedPath) continue;
+            const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
+            saveIconPosition('desktop-entry-' + uploadedPath, iconPos.x, iconPos.y);
+            offset += 18;
+        }
+        await refreshAfterDesktopFileDrop();
+    }
+
     async function pasteDesktopFileClipboard(destBase, options) {
         const clipboard = desktopFileClipboard();
         if (!clipboard) return;
@@ -5507,9 +5539,9 @@ function wireWindow(win, id) {
     }
 
     function handleDesktopFileDragOver(event) {
-        if (!hasDesktopFileDragPayload(event)) return;
+        if (!hasDesktopFileDragPayload(event) && !hasDesktopHostFileDrag(event)) return;
         event.preventDefault();
-        event.dataTransfer.dropEffect = 'move';
+        event.dataTransfer.dropEffect = hasDesktopHostFileDrag(event) ? 'copy' : 'move';
         const workspace = $('vd-workspace');
         if (workspace) workspace.classList.add('vd-desktop-file-drop-target');
     }
@@ -5522,13 +5554,25 @@ function wireWindow(win, id) {
 
     async function handleDesktopFileDrop(event) {
         const payload = desktopFileDragPayload(event);
-        if (!payload) return;
+        if (payload) {
+            event.preventDefault();
+            event.stopPropagation();
+            const workspace = $('vd-workspace');
+            if (workspace) workspace.classList.remove('vd-desktop-file-drop-target');
+            try {
+                await moveDraggedFilesToDesktop(payload.paths, event.clientX, event.clientY);
+            } catch (err) {
+                showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+            }
+            return;
+        }
+        if (!hasDesktopHostFileDrag(event)) return;
         event.preventDefault();
         event.stopPropagation();
         const workspace = $('vd-workspace');
         if (workspace) workspace.classList.remove('vd-desktop-file-drop-target');
         try {
-            await moveDraggedFilesToDesktop(payload.paths, event.clientX, event.clientY);
+            await uploadHostFilesToDesktop(event.dataTransfer.files, event.clientX, event.clientY);
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }

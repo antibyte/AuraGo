@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -245,6 +246,108 @@ func TestDesktopUploadAndDownloadPreserveBinaryOfficeBytes(t *testing.T) {
 	if got := rr.Header().Get("Content-Disposition"); !strings.Contains(got, "attachment") || !strings.Contains(got, "book.xlsx") {
 		t.Fatalf("content disposition = %q", got)
 	}
+}
+
+func TestHandleDesktopUploadUniqueAvoidsOverwrite(t *testing.T) {
+	t.Parallel()
+
+	srv, _ := testDesktopMediaServer(t)
+	ctx := context.Background()
+	svc, _, err := srv.getDesktopService(ctx)
+	if err != nil {
+		t.Fatalf("getDesktopService: %v", err)
+	}
+
+	firstResp := uploadDesktopFile(t, srv, "Desktop", "report.txt", "first", true)
+	if firstResp.Path != "Desktop/report.txt" {
+		t.Fatalf("first path = %q, want Desktop/report.txt", firstResp.Path)
+	}
+	secondResp := uploadDesktopFile(t, srv, "Desktop", "report.txt", "second", true)
+	if secondResp.Path != "Desktop/report (1).txt" {
+		t.Fatalf("second path = %q, want Desktop/report (1).txt", secondResp.Path)
+	}
+
+	firstData, _, err := svc.ReadFileBytes(ctx, "Desktop/report.txt")
+	if err != nil {
+		t.Fatalf("read first file: %v", err)
+	}
+	if string(firstData) != "first" {
+		t.Fatalf("first file = %q, want first", string(firstData))
+	}
+	secondData, _, err := svc.ReadFileBytes(ctx, "Desktop/report (1).txt")
+	if err != nil {
+		t.Fatalf("read second file: %v", err)
+	}
+	if string(secondData) != "second" {
+		t.Fatalf("second file = %q, want second", string(secondData))
+	}
+}
+
+func TestHandleDesktopUploadKeepsOverwriteDefault(t *testing.T) {
+	t.Parallel()
+
+	srv, _ := testDesktopMediaServer(t)
+	ctx := context.Background()
+	svc, _, err := srv.getDesktopService(ctx)
+	if err != nil {
+		t.Fatalf("getDesktopService: %v", err)
+	}
+
+	uploadDesktopFile(t, srv, "Desktop", "report.txt", "first", false)
+	secondResp := uploadDesktopFile(t, srv, "Desktop", "report.txt", "second", false)
+	if secondResp.Path != "Desktop/report.txt" {
+		t.Fatalf("second path = %q, want Desktop/report.txt", secondResp.Path)
+	}
+
+	data, _, err := svc.ReadFileBytes(ctx, "Desktop/report.txt")
+	if err != nil {
+		t.Fatalf("read file: %v", err)
+	}
+	if string(data) != "second" {
+		t.Fatalf("file = %q, want second", string(data))
+	}
+}
+
+type desktopUploadJSON struct {
+	Status string `json:"status"`
+	Path   string `json:"path"`
+}
+
+func uploadDesktopFile(t *testing.T, srv *Server, destPath, filename, content string, unique bool) desktopUploadJSON {
+	t.Helper()
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	if err := writer.WriteField("path", destPath); err != nil {
+		t.Fatalf("write path field: %v", err)
+	}
+	if unique {
+		if err := writer.WriteField("unique", "1"); err != nil {
+			t.Fatalf("write unique field: %v", err)
+		}
+	}
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		t.Fatalf("create file part: %v", err)
+	}
+	if _, err := part.Write([]byte(content)); err != nil {
+		t.Fatalf("write file part: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close multipart: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/desktop/upload", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rr := httptest.NewRecorder()
+	handleDesktopUpload(srv)(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("upload status = %d body = %s", rr.Code, rr.Body.String())
+	}
+	var resp desktopUploadJSON
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode upload response: %v", err)
+	}
+	return resp
 }
 
 func TestDesktopDownloadCanServeMediaInline(t *testing.T) {
