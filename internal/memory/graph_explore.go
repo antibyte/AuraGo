@@ -127,38 +127,79 @@ func (kg *KnowledgeGraph) jsonError(operation string, err error) string {
 	return string(data)
 }
 
+const knowledgeGraphSuggestRelationsBranchLimit = 50
+
+func knowledgeGraphSuggestRelationEligibleSQL(alias string, sourceCount int) string {
+	placeholders := knowledgeGraphSQLInPlaceholders(sourceCount)
+	return fmt.Sprintf("(%s.access_count > 0 OR %s.protected != 0 OR %s.source_type IN (%s))", alias, alias, alias, placeholders)
+}
+
+func appendKnowledgeGraphSuggestRelationSourceArgs(args []interface{}, sources []string) []interface{} {
+	for _, source := range sources {
+		args = append(args, source)
+	}
+	for _, source := range sources {
+		args = append(args, source)
+	}
+	return args
+}
+
 // SuggestRelations finds nodes that might be related based on common properties or labels, but aren't connected yet.
 func (kg *KnowledgeGraph) SuggestRelations(limit int) string {
 	if limit <= 0 {
 		limit = 10
 	}
-	rows, err := kg.db.Query(`
+	sources := kg.listProtectOptimizeSources()
+	n1Eligible := knowledgeGraphSuggestRelationEligibleSQL("n1", len(sources))
+	n2Eligible := knowledgeGraphSuggestRelationEligibleSQL("n2", len(sources))
+
+	args := make([]interface{}, 0, len(sources)*6+4)
+	for i := 0; i < 3; i++ {
+		args = appendKnowledgeGraphSuggestRelationSourceArgs(args, sources)
+		args = append(args, knowledgeGraphSuggestRelationsBranchLimit)
+	}
+	args = append(args, limit)
+
+	query := fmt.Sprintf(`
 		SELECT id1, label1, id2, label2, reason FROM (
-			SELECT n1.id as id1, n1.label as label1, n2.id as id2, n2.label as label2, 'same_type' as reason
-			FROM kg_nodes n1 
-			JOIN kg_nodes n2 ON n1.node_type = n2.node_type AND n1.id < n2.id
-			WHERE n1.node_type IS NOT NULL AND n1.node_type != 'activity_entity' AND n1.node_type != 'unknown'
-
+			SELECT id1, label1, id2, label2, reason FROM (
+				SELECT n1.id as id1, n1.label as label1, n2.id as id2, n2.label as label2, 'same_type' as reason
+				FROM kg_nodes n1 
+				JOIN kg_nodes n2 ON n1.node_type = n2.node_type AND n1.id < n2.id
+				WHERE n1.node_type IS NOT NULL AND n1.node_type != 'activity_entity' AND n1.node_type != 'unknown'
+				  AND %s AND %s
+				LIMIT ?
+			)
 			UNION
-
-			SELECT n1.id as id1, n1.label as label1, n2.id as id2, n2.label as label2, 'same_ip' as reason
-			FROM kg_nodes n1 
-			JOIN kg_nodes n2 ON json_extract(n1.properties, '$.ip') = json_extract(n2.properties, '$.ip') AND n1.id < n2.id
-			WHERE json_extract(n1.properties, '$.ip') IS NOT NULL
-
+			SELECT id1, label1, id2, label2, reason FROM (
+				SELECT n1.id as id1, n1.label as label1, n2.id as id2, n2.label as label2, 'same_ip' as reason
+				FROM kg_nodes n1 
+				JOIN kg_nodes n2 ON json_extract(n1.properties, '$.ip') = json_extract(n2.properties, '$.ip') AND n1.id < n2.id
+				WHERE json_extract(n1.properties, '$.ip') IS NOT NULL
+				  AND %s AND %s
+				LIMIT ?
+			)
 			UNION
-
-			SELECT n1.id as id1, n1.label as label1, n2.id as id2, n2.label as label2, 'same_location' as reason
-			FROM kg_nodes n1 
-			JOIN kg_nodes n2 ON json_extract(n1.properties, '$.location') = json_extract(n2.properties, '$.location') AND n1.id < n2.id
-			WHERE json_extract(n1.properties, '$.location') IS NOT NULL
+			SELECT id1, label1, id2, label2, reason FROM (
+				SELECT n1.id as id1, n1.label as label1, n2.id as id2, n2.label as label2, 'same_location' as reason
+				FROM kg_nodes n1 
+				JOIN kg_nodes n2 ON json_extract(n1.properties, '$.location') = json_extract(n2.properties, '$.location') AND n1.id < n2.id
+				WHERE json_extract(n1.properties, '$.location') IS NOT NULL
+				  AND %s AND %s
+				LIMIT ?
+			)
 		) results
 		WHERE NOT EXISTS (
 			SELECT 1 FROM kg_edges e 
 			WHERE (e.source = results.id1 AND e.target = results.id2) OR (e.source = results.id2 AND e.target = results.id1)
 		)
-		LIMIT ?`, limit)
+		LIMIT ?`, n1Eligible, n2Eligible, n1Eligible, n2Eligible, n1Eligible, n2Eligible)
+
+	rows, err := kg.db.Query(query, args...)
 	if err != nil {
+		if kg.logger != nil {
+			kg.logger.Warn("SuggestRelations: query failed", "error", err)
+		}
 		return "[]"
 	}
 	defer rows.Close()

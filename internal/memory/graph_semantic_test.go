@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -371,6 +372,25 @@ func TestKGRunSemanticReindexIfDueRespectsInterval(t *testing.T) {
 	}
 	if ran {
 		t.Fatal("expected semantic reindex to be skipped before interval elapsed")
+	}
+}
+
+func TestKGSemanticContentCacheTrimsOldestEntries(t *testing.T) {
+	idx := &knowledgeGraphSemanticIndex{
+		contentCache:     make(map[string]string),
+		contentCacheKeys: make([]string, 0),
+	}
+	for i := 0; i < knowledgeGraphSemanticContentCacheMaxSize+1; i++ {
+		idx.setContentCacheEntry(fmt.Sprintf("node-%d", i), "content")
+	}
+	if len(idx.contentCache) > knowledgeGraphSemanticContentCacheMaxSize {
+		t.Fatalf("cache size = %d, want <= %d", len(idx.contentCache), knowledgeGraphSemanticContentCacheMaxSize)
+	}
+	if _, ok := idx.contentCache["node-0"]; ok {
+		t.Fatal("expected oldest cache entry to be evicted")
+	}
+	if _, ok := idx.contentCache[fmt.Sprintf("node-%d", knowledgeGraphSemanticContentCacheMaxSize)]; !ok {
+		t.Fatal("expected newest cache entry to remain")
 	}
 }
 

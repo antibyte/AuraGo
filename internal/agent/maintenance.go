@@ -218,6 +218,12 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 			logger.Warn("[Maintenance] Failed to reindex semantic knowledge graph", "error", err)
 		} else if ran {
 			logger.Debug("[Maintenance] Semantic knowledge graph reindex completed")
+			if backlog, dirtyNodes, dirtyEdges, backlogErr := kg.HasSemanticReindexBacklog(); backlogErr != nil {
+				logger.Warn("[Maintenance] Failed to inspect knowledge graph semantic reindex backlog", "error", backlogErr)
+			} else if backlog {
+				logger.Warn("[Maintenance] Knowledge graph semantic reindex backlog remains high", "dirty_nodes", dirtyNodes, "dirty_edges", dirtyEdges)
+				recordKnowledgeGraphSemanticReindexBacklogIssue(plannerDB, dirtyNodes, dirtyEdges, logger)
+			}
 		}
 	}
 

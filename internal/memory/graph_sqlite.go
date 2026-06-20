@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -543,6 +544,31 @@ func (kg *KnowledgeGraph) SetProtectIDPrefixes(prefixes []string) {
 			kg.protectIDPrefixes = append(kg.protectIDPrefixes, prefix)
 		}
 	}
+}
+
+func (kg *KnowledgeGraph) listProtectOptimizeSources() []string {
+	defaults := []string{"planner", "inventory_sync", "manual", "file_sync", "core_memory"}
+	if kg == nil {
+		return defaults
+	}
+	kg.protectOptimizeSourcesMu.RLock()
+	defer kg.protectOptimizeSourcesMu.RUnlock()
+	if len(kg.protectOptimizeSources) == 0 {
+		return defaults
+	}
+	sources := make([]string, 0, len(kg.protectOptimizeSources))
+	for source := range kg.protectOptimizeSources {
+		sources = append(sources, source)
+	}
+	sort.Strings(sources)
+	return sources
+}
+
+func knowledgeGraphSQLInPlaceholders(count int) string {
+	if count <= 0 {
+		return ""
+	}
+	return strings.TrimSuffix(strings.Repeat("?,", count), ",")
 }
 
 func (kg *KnowledgeGraph) isKnowledgeGraphOptimizeProtected(nodeID, source string) bool {

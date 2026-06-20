@@ -314,10 +314,6 @@ func (kg *KnowledgeGraph) DeleteNode(id string) error {
 	}
 
 	if kg.semantic != nil {
-		kg.semantic.mu.Lock()
-		delete(kg.semantic.contentCache, id)
-		kg.semantic.mu.Unlock()
-
 		for _, e := range edgesToClean {
 			if err := kg.removeSemanticEdgeIndex(e.Source, e.Target, e.Relation); err != nil && kg.logger != nil {
 				kg.logger.Warn("DeleteNode: failed to remove semantic edge index", "source", e.Source, "target", e.Target, "relation", e.Relation, "error", err)

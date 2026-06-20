@@ -946,19 +946,33 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 	}
 	defer tx.Rollback()
 
-	nodesDeleted := 0
-	var removedEdges []semanticEdgeIdentity
-	for _, id := range toRemove {
-		removedEdges = append(removedEdges, kg.collectSemanticEdgeIdentities(tx, "SELECT source, target, relation FROM kg_edges WHERE source = ? OR target = ?", id, id)...)
-		if _, execErr := tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id); execErr != nil {
-			kg.logger.Warn("OptimizeGraph: failed to delete edges for node", "id", id, "error", execErr)
-		}
-		if _, execErr := tx.Exec("DELETE FROM kg_nodes WHERE id = ?", id); execErr != nil {
-			kg.logger.Warn("OptimizeGraph: failed to delete node", "id", id, "error", execErr)
-		} else {
-			nodesDeleted++
-		}
+	inPlaceholders := knowledgeGraphSQLInPlaceholders(len(toRemove))
+	inArgs := make([]interface{}, len(toRemove))
+	for i, id := range toRemove {
+		inArgs[i] = id
 	}
+
+	edgeArgs := make([]interface{}, 0, len(toRemove)*2)
+	for _, id := range toRemove {
+		edgeArgs = append(edgeArgs, id)
+	}
+	for _, id := range toRemove {
+		edgeArgs = append(edgeArgs, id)
+	}
+	removedEdges := kg.collectSemanticEdgeIdentities(tx,
+		fmt.Sprintf(`SELECT source, target, relation FROM kg_edges WHERE source IN (%s) OR target IN (%s)`, inPlaceholders, inPlaceholders),
+		edgeArgs...,
+	)
+
+	deleteRes, execErr := tx.Exec(
+		fmt.Sprintf("DELETE FROM kg_nodes WHERE id IN (%s)", inPlaceholders),
+		inArgs...,
+	)
+	if execErr != nil {
+		return 0, fmt.Errorf("batch delete optimized nodes: %w", execErr)
+	}
+	nodesDeleted64, _ := deleteRes.RowsAffected()
+	nodesDeleted := int(nodesDeleted64)
 
 	if err := tx.Commit(); err != nil {
 		return 0, err

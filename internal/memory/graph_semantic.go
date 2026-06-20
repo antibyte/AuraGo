@@ -34,10 +34,13 @@ type knowledgeGraphSemanticIndex struct {
 	logger        *slog.Logger
 	mu            sync.Mutex
 	reindexMu     sync.Mutex
-	queryCache    map[string]queryCacheEntry
-	queryCacheTTL time.Duration
-	contentCache  map[string]string
+	queryCache       map[string]queryCacheEntry
+	queryCacheTTL    time.Duration
+	contentCache     map[string]string
+	contentCacheKeys []string
 }
+
+const knowledgeGraphSemanticContentCacheMaxSize = 5000
 
 // Close releases resources held by the semantic index and clears the embedding cache.
 func (idx *knowledgeGraphSemanticIndex) Close() {
@@ -106,7 +109,8 @@ func (kg *KnowledgeGraph) enableSemanticSearchWithCollection(db *chromem.DB, emb
 		logger:        logger,
 		queryCache:    make(map[string]queryCacheEntry),
 		queryCacheTTL: knowledgeGraphSemanticQueryCacheTTL,
-		contentCache:  make(map[string]string),
+		contentCache:     make(map[string]string),
+		contentCacheKeys: make([]string, 0),
 	}
 
 	if err := kg.validateSemanticIndex(index); err != nil {
@@ -309,11 +313,44 @@ func (kg *KnowledgeGraph) upsertSemanticNodeIndex(node Node) bool {
 		}
 		return false
 	}
-	kg.semantic.contentCache[node.ID] = content
-	if len(kg.semantic.contentCache) > 5000 {
-		kg.semantic.contentCache = make(map[string]string)
-	}
+	kg.semantic.setContentCacheEntry(node.ID, content)
 	return true
+}
+
+func (idx *knowledgeGraphSemanticIndex) setContentCacheEntry(nodeID, content string) {
+	if idx.contentCache == nil {
+		idx.contentCache = make(map[string]string)
+	}
+	if _, exists := idx.contentCache[nodeID]; !exists {
+		idx.contentCacheKeys = append(idx.contentCacheKeys, nodeID)
+	}
+	idx.contentCache[nodeID] = content
+	idx.trimContentCache()
+}
+
+func (idx *knowledgeGraphSemanticIndex) removeContentCacheEntry(nodeID string) {
+	delete(idx.contentCache, nodeID)
+	for i, key := range idx.contentCacheKeys {
+		if key == nodeID {
+			idx.contentCacheKeys = append(idx.contentCacheKeys[:i], idx.contentCacheKeys[i+1:]...)
+			return
+		}
+	}
+}
+
+func (idx *knowledgeGraphSemanticIndex) trimContentCache() {
+	if len(idx.contentCache) <= knowledgeGraphSemanticContentCacheMaxSize {
+		return
+	}
+	removeCount := len(idx.contentCache) / 5
+	if removeCount < 1 {
+		removeCount = 1
+	}
+	for i := 0; i < removeCount && len(idx.contentCacheKeys) > 0; i++ {
+		oldestID := idx.contentCacheKeys[0]
+		idx.contentCacheKeys = idx.contentCacheKeys[1:]
+		delete(idx.contentCache, oldestID)
+	}
 }
 
 func (kg *KnowledgeGraph) upsertSemanticEdgeIndex(edge Edge) {
@@ -353,7 +390,7 @@ func (kg *KnowledgeGraph) removeSemanticNodeIndex(nodeID string) error {
 	kg.semantic.mu.Lock()
 	defer kg.semantic.mu.Unlock()
 
-	delete(kg.semantic.contentCache, nodeID)
+	kg.semantic.removeContentCacheEntry(nodeID)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return kg.semantic.collection.Delete(ctx, nil, nil, nodeID)
@@ -859,6 +896,28 @@ type KnowledgeGraphHealthReport struct {
 	TotalNodes        int                  `json:"total_nodes"`
 	TotalEdges        int                  `json:"total_edges"`
 	Consistency       *KGConsistencyReport `json:"consistency,omitempty"`
+}
+
+// DirtySemanticCounts returns how many KG nodes and edges still need semantic reindexing.
+func (kg *KnowledgeGraph) DirtySemanticCounts() (nodes int, edges int, err error) {
+	if kg == nil || kg.db == nil {
+		return 0, 0, fmt.Errorf("knowledge graph not initialized")
+	}
+	nodes, err = kg.countDirtySemanticNodes()
+	if err != nil {
+		return 0, 0, err
+	}
+	edges, err = kg.countDirtySemanticEdges()
+	return nodes, edges, err
+}
+
+// HasSemanticReindexBacklog reports whether dirty semantic rows exceed the nightly reindex batch size.
+func (kg *KnowledgeGraph) HasSemanticReindexBacklog() (bool, int, int, error) {
+	nodes, edges, err := kg.DirtySemanticCounts()
+	if err != nil {
+		return false, 0, 0, err
+	}
+	return nodes > knowledgeGraphSemanticReindexBacklogLimit || edges > knowledgeGraphSemanticReindexBacklogLimit, nodes, edges, nil
 }
 
 func (kg *KnowledgeGraph) countDirtySemanticNodes() (int, error) {

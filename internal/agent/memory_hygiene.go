@@ -217,6 +217,30 @@ func recordKnowledgeGraphSparseIssue(plannerDB *sql.DB, stm *memory.SQLiteMemory
 	recordOperationalIssue(RunConfig{PlannerDB: plannerDB, MessageSource: "maintenance", IsMaintenance: true}, issue, logger)
 }
 
+func recordKnowledgeGraphSemanticReindexBacklogIssue(plannerDB *sql.DB, dirtyNodes, dirtyEdges int, logger *slog.Logger) {
+	issue, ok := buildKnowledgeGraphSemanticReindexBacklogIssue(dirtyNodes, dirtyEdges)
+	if !ok {
+		return
+	}
+	recordOperationalIssue(RunConfig{PlannerDB: plannerDB, MessageSource: "maintenance", IsMaintenance: true}, issue, logger)
+}
+
+func buildKnowledgeGraphSemanticReindexBacklogIssue(dirtyNodes, dirtyEdges int) (planner.OperationalIssue, bool) {
+	if dirtyNodes <= 5000 && dirtyEdges <= 5000 {
+		return planner.OperationalIssue{}, false
+	}
+	return planner.OperationalIssue{
+		Source:      "maintenance",
+		Context:     "knowledge_graph",
+		Title:       "Knowledge graph semantic reindex backlog is high",
+		Detail:      fmt.Sprintf("Semantic reindex still has dirty_nodes=%d and dirty_edges=%d after the latest maintenance run. The nightly batch only processes 5000 dirty rows per pass.", dirtyNodes, dirtyEdges),
+		Severity:    "warning",
+		Reference:   "kg_semantic_reindex_backlog",
+		Fingerprint: "maintenance|knowledge_graph|semantic_reindex_backlog",
+		OccurredAt:  time.Now(),
+	}, true
+}
+
 func buildKnowledgeGraphSparseIssue(coreFacts []string, nodes int, edges int) (planner.OperationalIssue, bool) {
 	if len(coreFacts) == 0 || nodes >= 3 {
 		return planner.OperationalIssue{}, false

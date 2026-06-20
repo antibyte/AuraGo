@@ -533,6 +533,66 @@ func TestKGOptimizeGraphProtectsConfiguredSources(t *testing.T) {
 	}
 }
 
+func TestKGOptimizeGraphBatchDeletesMultipleNodes(t *testing.T) {
+	kg := newTestKG(t)
+
+	for _, id := range []string{"temp_a", "temp_b", "temp_c"} {
+		if err := kg.AddNode(id, id, map[string]string{"type": "concept"}); err != nil {
+			t.Fatalf("AddNode %s: %v", id, err)
+		}
+	}
+	if err := kg.AddNode("keeper", "Keeper", map[string]string{"protected": "true"}); err != nil {
+		t.Fatalf("AddNode keeper: %v", err)
+	}
+
+	removed, err := kg.OptimizeGraph(1)
+	if err != nil {
+		t.Fatalf("OptimizeGraph: %v", err)
+	}
+	if removed != 3 {
+		t.Fatalf("removed = %d, want 3 low-priority nodes in one batch", removed)
+	}
+	keeper, err := kg.GetNode("keeper")
+	if err != nil {
+		t.Fatalf("GetNode keeper: %v", err)
+	}
+	if keeper == nil {
+		t.Fatal("expected protected keeper node to survive batch optimize")
+	}
+}
+
+func TestKGSuggestRelationsIgnoresUnqualifiedNodes(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("noise_a", "Noise A", map[string]string{"type": "device", "source": "auto_extraction"}); err != nil {
+		t.Fatalf("AddNode noise_a: %v", err)
+	}
+	if err := kg.AddNode("noise_b", "Noise B", map[string]string{"type": "device", "source": "auto_extraction"}); err != nil {
+		t.Fatalf("AddNode noise_b: %v", err)
+	}
+	if result := kg.SuggestRelations(10); result != "[]" {
+		t.Fatalf("unqualified suggestions = %q, want []", result)
+	}
+
+	if err := kg.AddNode("manual_a", "Manual A", map[string]string{"type": "device", "source": "manual"}); err != nil {
+		t.Fatalf("AddNode manual_a: %v", err)
+	}
+	if err := kg.AddNode("manual_b", "Manual B", map[string]string{"type": "device", "source": "manual"}); err != nil {
+		t.Fatalf("AddNode manual_b: %v", err)
+	}
+	result := kg.SuggestRelations(10)
+	var suggestions []map[string]string
+	if err := json.Unmarshal([]byte(result), &suggestions); err != nil {
+		t.Fatalf("unmarshal suggestions: %v", err)
+	}
+	if len(suggestions) != 1 {
+		t.Fatalf("qualified suggestions = %d, want 1 same_type pair", len(suggestions))
+	}
+	if suggestions[0]["reason"] != "same_type" {
+		t.Fatalf("reason = %q, want same_type", suggestions[0]["reason"])
+	}
+}
+
 func TestKGHealthReportWithoutSemanticIndex(t *testing.T) {
 	kg := newTestKG(t)
 	if err := kg.AddNode("nas", "NAS", map[string]string{"type": "device"}); err != nil {

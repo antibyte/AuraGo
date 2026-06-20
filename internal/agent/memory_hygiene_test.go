@@ -55,6 +55,22 @@ func TestBuildKnowledgeGraphSparseIssueRequiresCoreFacts(t *testing.T) {
 	}
 }
 
+func TestBuildKnowledgeGraphSemanticReindexBacklogIssue(t *testing.T) {
+	if _, ok := buildKnowledgeGraphSemanticReindexBacklogIssue(100, 100); ok {
+		t.Fatal("unexpected backlog issue below threshold")
+	}
+	issue, ok := buildKnowledgeGraphSemanticReindexBacklogIssue(5001, 12)
+	if !ok {
+		t.Fatal("expected backlog issue when dirty nodes exceed batch size")
+	}
+	if issue.Fingerprint != "maintenance|knowledge_graph|semantic_reindex_backlog" {
+		t.Fatalf("fingerprint = %q, want semantic reindex backlog fingerprint", issue.Fingerprint)
+	}
+	if !strings.Contains(issue.Detail, "dirty_nodes=5001") {
+		t.Fatalf("issue detail = %q, want dirty node count", issue.Detail)
+	}
+}
+
 func TestBuildCoreMemoryReviewIssueFlagsTestFacts(t *testing.T) {
 	issue, ok := buildCoreMemoryReviewIssue([]string{"This is a test fact", "User: Andi"})
 	if !ok {
