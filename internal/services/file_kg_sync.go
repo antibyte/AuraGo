@@ -317,14 +317,11 @@ func (s *FileKGSyncer) runSyncFile(path, collection string, opts FileKGSyncOptio
 }
 
 func (s *FileKGSyncer) fileSyncWorkerCount(fileCount int) int {
-	if fileCount <= 1 {
-		return fileCount
+	if fileCount <= 0 {
+		return 0
 	}
-	workerCount := 4
-	if fileCount < workerCount {
-		workerCount = fileCount
-	}
-	return workerCount
+	// SQLite KG writes must stay serialized; parallel file sync workers only race on kg.db.
+	return 1
 }
 
 // CleanupFile removes KG nodes and edges that were extracted from the given file.

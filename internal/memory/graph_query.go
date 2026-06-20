@@ -907,7 +907,13 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 }
 
 func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
-	rows, err := kg.db.Query(`
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	rows, err := tx.Query(`
 		SELECT n.id, n.access_count, COALESCE(n.source_type, ''),
 			(SELECT COUNT(*) FROM kg_edges e WHERE e.source = n.id OR e.target = n.id) as degree
 		FROM kg_nodes n
@@ -938,12 +944,6 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 	if len(toRemove) == 0 {
 		return 0, nil
 	}
-
-	tx, err := kg.db.Begin()
-	if err != nil {
-		return 0, err
-	}
-	defer tx.Rollback()
 
 	inPlaceholders := knowledgeGraphSQLInPlaceholders(len(toRemove))
 	inArgs := make([]interface{}, len(toRemove))
@@ -1093,7 +1093,7 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 }
 
 func (kg *KnowledgeGraph) collectSemanticEdgeIdentities(tx *sql.Tx, query string, args ...interface{}) []semanticEdgeIdentity {
-	if kg.semantic == nil {
+	if kg.semanticIndex() == nil {
 		return nil
 	}
 	rows, err := tx.Query(query, args...)
@@ -1120,7 +1120,7 @@ func (kg *KnowledgeGraph) collectSemanticEdgeIdentities(tx *sql.Tx, query string
 }
 
 func (kg *KnowledgeGraph) removeSemanticIndexesForDeletedGraphData(nodeIDs []string, edges []semanticEdgeIdentity) {
-	if kg.semantic == nil {
+	if kg.semanticIndex() == nil {
 		return
 	}
 	seenEdges := make(map[semanticEdgeIdentity]struct{}, len(edges))

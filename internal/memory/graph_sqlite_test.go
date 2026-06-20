@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -692,6 +694,88 @@ func TestKGOptimizeGraphProtectsConfiguredSources(t *testing.T) {
 		if node == nil {
 			t.Fatalf("expected protected node %s to survive optimize", id)
 		}
+	}
+}
+
+func TestKGOptimizeGraphPreservesConnectedLowAccessNodes(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("low", "Low Priority", map[string]string{"type": "concept"}); err != nil {
+		t.Fatalf("AddNode low: %v", err)
+	}
+	for i := 0; i < 5; i++ {
+		peerID := fmt.Sprintf("peer%d", i)
+		if err := kg.AddNode(peerID, peerID, nil); err != nil {
+			t.Fatalf("AddNode %s: %v", peerID, err)
+		}
+		if err := kg.AddEdge("low", peerID, "links", nil); err != nil {
+			t.Fatalf("AddEdge low->%s: %v", peerID, err)
+		}
+	}
+
+	_, err := kg.OptimizeGraph(10)
+	if err != nil {
+		t.Fatalf("OptimizeGraph: %v", err)
+	}
+	if node, err := kg.GetNode("low"); err != nil || node == nil {
+		t.Fatal("expected connected low-priority node to survive transactional optimize")
+	}
+}
+
+func TestKGMergeNodesScopedDedupPreservesUnrelatedEdges(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddEdge("alpha", "beta", "links", nil); err != nil {
+		t.Fatalf("AddEdge alpha->beta: %v", err)
+	}
+	if err := kg.AddEdge("target", "shared", "uses", nil); err != nil {
+		t.Fatalf("AddEdge target->shared: %v", err)
+	}
+	if err := kg.AddEdge("source", "shared", "uses", nil); err != nil {
+		t.Fatalf("AddEdge source->shared: %v", err)
+	}
+
+	if err := kg.MergeNodes("target", "source"); err != nil {
+		t.Fatalf("MergeNodes: %v", err)
+	}
+
+	var unrelated int
+	if err := kg.db.QueryRow(
+		`SELECT COUNT(*) FROM kg_edges WHERE source = ? AND target = ? AND relation = ?`,
+		"alpha", "beta", "links",
+	).Scan(&unrelated); err != nil {
+		t.Fatalf("count unrelated edges: %v", err)
+	}
+	if unrelated != 1 {
+		t.Fatalf("scoped dedup touched unrelated edges: got %d rows, want 1", unrelated)
+	}
+
+	var merged int
+	if err := kg.db.QueryRow(
+		`SELECT COUNT(*) FROM kg_edges WHERE source = ? AND target = ? AND relation = ?`,
+		"target", "shared", "uses",
+	).Scan(&merged); err != nil {
+		t.Fatalf("count merged edges: %v", err)
+	}
+	if merged != 1 {
+		t.Fatalf("expected merged duplicate edges to collapse to 1 row, got %d", merged)
+	}
+}
+
+func TestKGSetMinSemanticSimilarityConcurrent(t *testing.T) {
+	kg := newTestKG(t)
+	var wg sync.WaitGroup
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+		go func(v float64) {
+			defer wg.Done()
+			kg.SetMinSemanticSimilarity(v)
+			_ = kg.getMinSemanticSimilarity()
+		}(float64(i) / 100)
+	}
+	wg.Wait()
+	if sim := kg.getMinSemanticSimilarity(); sim < 0 || sim > 1 {
+		t.Fatalf("invalid min semantic similarity after concurrent updates: %f", sim)
 	}
 }
 

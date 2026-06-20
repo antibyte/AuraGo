@@ -341,6 +341,46 @@ func TestPrepareContent_MarkdownOutline_Truncated(t *testing.T) {
 	}
 }
 
+func TestFileKGSyncer_SyncCollection_SerializesKGWrites(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	cfg := &config.Config{}
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	for _, path := range []string{"/docs/a.md", "/docs/b.md", "/docs/c.md", "/docs/d.md"} {
+		if err := stm.UpdateFileIndexWithDocs(path, IndexerCollection, time.Now(), []string{"doc-" + path}); err != nil {
+			t.Fatalf("UpdateFileIndexWithDocs(%s): %v", path, err)
+		}
+	}
+
+	var concurrent atomic.Int32
+	var maxConcurrent atomic.Int32
+	syncer := NewFileKGSyncer(cfg, logger, nil, nil, stm, nil)
+	syncer.syncFile = func(path, collection string, opts FileKGSyncOptions) FileKGSyncResult {
+		cur := concurrent.Add(1)
+		for {
+			prev := maxConcurrent.Load()
+			if cur <= prev || maxConcurrent.CompareAndSwap(prev, cur) {
+				break
+			}
+		}
+		time.Sleep(5 * time.Millisecond)
+		concurrent.Add(-1)
+		return FileKGSyncResult{FilesProcessed: 1}
+	}
+
+	result := syncer.SyncCollection(IndexerCollection, FileKGSyncOptions{})
+	if result.FilesProcessed != 4 {
+		t.Fatalf("expected 4 processed files, got %d", result.FilesProcessed)
+	}
+	if maxConcurrent.Load() > 1 {
+		t.Fatalf("expected serial file sync (max concurrent %d)", maxConcurrent.Load())
+	}
+}
+
 func TestFileKGSyncer_SyncCollectionAggregatesParallelResults(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	cfg := &config.Config{}

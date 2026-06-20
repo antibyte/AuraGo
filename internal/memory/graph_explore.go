@@ -21,7 +21,7 @@ func (kg *KnowledgeGraph) Explore(query string) string {
 	var matchedNodeIDs []string
 	var accessHits []knowledgeGraphAccessHit
 
-	if kg.semantic != nil {
+	if kg.semanticIndex() != nil {
 		results := kg.semanticSearchNodes(query, 0.4, 5)
 		for _, n := range results {
 			nodesMap[n.ID] = n

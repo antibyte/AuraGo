@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"regexp"
 	"sort"
 	"strconv"
@@ -72,8 +73,9 @@ type KnowledgeGraph struct {
 	closeOnce              sync.Once
 	wg                     sync.WaitGroup
 	semantic               *knowledgeGraphSemanticIndex
+	semanticMu             sync.RWMutex
 	droppedHits            atomic.Int64 // count of access-queue hits dropped due to full channel
-	minSemanticSimilarity   float32
+	minSemanticSimilarity  atomic.Uint32
 	excludedNodeTypes       map[string]bool
 	excludedNodeTypesMu     sync.RWMutex
 	protectOptimizeSources  map[string]bool
@@ -151,10 +153,10 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 		logger:                logger,
 		accessQueue:           make(chan knowledgeGraphAccessHit, knowledgeGraphAccessQueueSize),
 		doneChan:              make(chan struct{}),
-		minSemanticSimilarity:   0.60,
 		excludedNodeTypes:       map[string]bool{"activity_entity": true, "unknown": true},
 		semanticReindexInterval: 5 * time.Minute,
 	}
+	kg.minSemanticSimilarity.Store(math.Float32bits(0.60))
 	kg.wg.Add(1)
 	go kg.accessCountWorker()
 	if err := kg.initTables(); err != nil {
@@ -179,8 +181,12 @@ func (kg *KnowledgeGraph) Close() error {
 		close(kg.doneChan)
 		kg.wg.Wait()
 		kg.drainAccessQueue()
-		if kg.semantic != nil {
-			kg.semantic.Close()
+		kg.semanticMu.Lock()
+		idx := kg.semantic
+		kg.semantic = nil
+		kg.semanticMu.Unlock()
+		if idx != nil {
+			idx.Close()
 		}
 		err = kg.db.Close()
 	})
@@ -491,6 +497,23 @@ func boolToInt(v bool) int {
 	return 0
 }
 
+func (kg *KnowledgeGraph) getMinSemanticSimilarity() float32 {
+	if kg == nil {
+		return 0
+	}
+	return math.Float32frombits(kg.minSemanticSimilarity.Load())
+}
+
+func (kg *KnowledgeGraph) semanticIndex() *knowledgeGraphSemanticIndex {
+	if kg == nil {
+		return nil
+	}
+	kg.semanticMu.RLock()
+	idx := kg.semantic
+	kg.semanticMu.RUnlock()
+	return idx
+}
+
 // SetMinSemanticSimilarity configures the minimum similarity threshold for KG
 // semantic search. Values outside [0,1] are clamped.
 func (kg *KnowledgeGraph) SetMinSemanticSimilarity(v float64) {
@@ -500,7 +523,7 @@ func (kg *KnowledgeGraph) SetMinSemanticSimilarity(v float64) {
 	if v > 1 {
 		v = 1
 	}
-	kg.minSemanticSimilarity = float32(v)
+	kg.minSemanticSimilarity.Store(math.Float32bits(float32(v)))
 }
 
 // SetExcludedNodeTypes configures which node types are filtered out of semantic

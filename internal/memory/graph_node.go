@@ -273,7 +273,7 @@ func (kg *KnowledgeGraph) SetNodeProtected(id string, protected bool) (*Node, er
 
 func (kg *KnowledgeGraph) DeleteNode(id string) error {
 	var edgesToClean []Edge
-	if kg.semantic != nil {
+	if kg.semanticIndex() != nil {
 		rows, err := kg.db.Query("SELECT source, target, relation FROM kg_edges WHERE source = ? OR target = ?", id, id)
 		if err == nil {
 			for rows.Next() {
@@ -314,7 +314,7 @@ func (kg *KnowledgeGraph) DeleteNode(id string) error {
 		return err
 	}
 
-	if kg.semantic != nil {
+	if kg.semanticIndex() != nil {
 		for _, e := range edgesToClean {
 			if err := kg.removeSemanticEdgeIndex(e.Source, e.Target, e.Relation); err != nil && kg.logger != nil {
 				kg.logger.Warn("DeleteNode: failed to remove semantic edge index", "source", e.Source, "target", e.Target, "relation", e.Relation, "error", err)
@@ -569,12 +569,14 @@ func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
 	}
 	if _, err := tx.Exec(`
 		DELETE FROM kg_edges
-		WHERE rowid NOT IN (
+		WHERE (source IN (?, ?) OR target IN (?, ?))
+		  AND rowid NOT IN (
 			SELECT MIN(rowid)
 			FROM kg_edges
+			WHERE source IN (?, ?) OR target IN (?, ?)
 			GROUP BY source, target, relation
 		)
-	`); err != nil {
+	`, targetID, sourceID, targetID, sourceID, targetID, sourceID, targetID, sourceID); err != nil {
 		return fmt.Errorf("deduplicate merged edges: %w", err)
 	}
 
