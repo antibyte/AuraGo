@@ -162,6 +162,54 @@ func TestDeleteStalePlannerSyncEdges(t *testing.T) {
 	}
 }
 
+func TestPruneStalePlannerItemNodes(t *testing.T) {
+	kg := newTestKG(t)
+
+	for _, spec := range []struct {
+		id   string
+		keep bool
+	}{
+		{"todo_active_item_keep", true},
+		{"todo_active_item_stale", false},
+		{"todo_removed_item_orphan", false},
+	} {
+		if err := kg.AddNode(spec.id, spec.id, map[string]string{"source": "planner", "type": "task_item"}); err != nil {
+			t.Fatalf("AddNode %s: %v", spec.id, err)
+		}
+	}
+
+	active := map[string]struct{}{
+		"todo_active_item_keep": {},
+	}
+
+	removed, err := kg.PruneStalePlannerItemNodes(active)
+	if err != nil {
+		t.Fatalf("PruneStalePlannerItemNodes: %v", err)
+	}
+	if removed != 2 {
+		t.Fatalf("removed = %d, want 2 stale item nodes", removed)
+	}
+
+	for _, id := range []string{"todo_active_item_keep"} {
+		node, err := kg.GetNode(id)
+		if err != nil {
+			t.Fatalf("GetNode %s: %v", id, err)
+		}
+		if node == nil {
+			t.Fatalf("expected node %s to remain", id)
+		}
+	}
+	for _, id := range []string{"todo_active_item_stale", "todo_removed_item_orphan"} {
+		node, err := kg.GetNode(id)
+		if err != nil {
+			t.Fatalf("GetNode %s: %v", id, err)
+		}
+		if node != nil {
+			t.Fatalf("expected stale item node %s deleted", id)
+		}
+	}
+}
+
 func TestPruneStalePlannerRootNodes(t *testing.T) {
 	kg := newTestKG(t)
 

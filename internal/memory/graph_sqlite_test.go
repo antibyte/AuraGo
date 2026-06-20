@@ -596,6 +596,31 @@ func TestKGHealthReportIncludesQualityKPIs(t *testing.T) {
 	if report.DuplicateGroups != 1 {
 		t.Fatalf("DuplicateGroups = %d, want 1", report.DuplicateGroups)
 	}
+	if report.LabelDuplicateGroups != 0 {
+		t.Fatalf("LabelDuplicateGroups = %d, want 0", report.LabelDuplicateGroups)
+	}
+	if report.IDDuplicateGroups != 1 {
+		t.Fatalf("IDDuplicateGroups = %d, want 1", report.IDDuplicateGroups)
+	}
+}
+
+func TestKGQualityReportIgnoresUnrelatedIDVariants(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("contact_12", "Contact 12", map[string]string{"type": "person"}); err != nil {
+		t.Fatalf("AddNode contact_12: %v", err)
+	}
+	if _, err := kg.db.Exec("INSERT INTO kg_nodes (id, label, properties) VALUES (?, ?, ?)", "contact12", "Billing Service", "{}"); err != nil {
+		t.Fatalf("Insert contact12: %v", err)
+	}
+
+	report, err := kg.QualityReport(10)
+	if err != nil {
+		t.Fatalf("QualityReport: %v", err)
+	}
+	if report.IDDuplicateGroups != 0 {
+		t.Fatalf("IDDuplicateGroups = %d, want 0 for unrelated labels", report.IDDuplicateGroups)
+	}
 }
 
 func TestKGQualityReportReturnsQueryErrors(t *testing.T) {

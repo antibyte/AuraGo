@@ -281,7 +281,12 @@
   "dashboard.knowledge_quality_duplicate_count": "{count} nœuds",
   "dashboard.knowledge_quality_duplicates": "Groupes de doublons",
   "dashboard.knowledge_quality_duplicates_title": "Candidats doublons",
+  "dashboard.knowledge_quality_label_duplicates": "Labels en double",
+  "dashboard.knowledge_quality_id_duplicates": "Variantes d'ID",
+  "dashboard.knowledge_quality_label_duplicates_title": "Labels en double",
+  "dashboard.knowledge_quality_id_duplicates_title": "Variantes d'ID",
   "dashboard.knowledge_quality_empty_duplicates": "Aucun label en double détecté.",
+  "dashboard.knowledge_quality_empty_id_duplicates": "Aucune variante d'ID suspecte détectée.",
   "dashboard.knowledge_quality_empty_isolated": "Aucun nœud isolé détecté.",
   "dashboard.knowledge_quality_empty_untyped": "Tous les nœuds visibles ont un type.",
   "dashboard.knowledge_quality_isolated": "Nœuds isolés",
@@ -742,5 +747,7 @@
   "dashboard.knowledge_health_reindex_backlog": "Fort arriéré de réindexation",
   "dashboard.knowledge_health_isolated_nodes": "Nœuds isolés",
   "dashboard.knowledge_health_duplicate_groups": "Groupes de doublons",
+  "dashboard.knowledge_health_label_duplicate_groups": "Labels en double",
+  "dashboard.knowledge_health_id_duplicate_groups": "Variantes d'ID",
   "dashboard.memory_graph_dirty_hint": "{count} en attente"
 }

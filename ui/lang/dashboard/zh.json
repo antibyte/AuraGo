@@ -281,7 +281,12 @@
   "dashboard.knowledge_quality_duplicate_count": "{count} 个节点",
   "dashboard.knowledge_quality_duplicates": "重复组",
   "dashboard.knowledge_quality_duplicates_title": "重复候选",
+  "dashboard.knowledge_quality_label_duplicates": "标签重复",
+  "dashboard.knowledge_quality_id_duplicates": "ID变体",
+  "dashboard.knowledge_quality_label_duplicates_title": "标签重复",
+  "dashboard.knowledge_quality_id_duplicates_title": "ID变体",
   "dashboard.knowledge_quality_empty_duplicates": "未检测到重复标签。",
+  "dashboard.knowledge_quality_empty_id_duplicates": "未检测到可疑的ID变体。",
   "dashboard.knowledge_quality_empty_isolated": "未检测到孤立节点。",
   "dashboard.knowledge_quality_empty_untyped": "所有可见节点都有一个类型。",
   "dashboard.knowledge_quality_isolated": "孤立节点",
@@ -742,5 +747,7 @@
   "dashboard.knowledge_health_reindex_backlog": "重索引积压较高",
   "dashboard.knowledge_health_isolated_nodes": "孤立节点",
   "dashboard.knowledge_health_duplicate_groups": "重复组",
+  "dashboard.knowledge_health_label_duplicate_groups": "标签重复",
+  "dashboard.knowledge_health_id_duplicate_groups": "ID变体",
   "dashboard.memory_graph_dirty_hint": "{count} 个待处理"
 }

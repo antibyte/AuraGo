@@ -981,9 +981,11 @@ type KnowledgeGraphHealthReport struct {
 	ReindexBacklog    bool                 `json:"reindex_backlog"`
 	TotalNodes        int                  `json:"total_nodes"`
 	TotalEdges        int                  `json:"total_edges"`
-	IsolatedNodes     int                  `json:"isolated_nodes"`
-	DuplicateGroups   int                  `json:"duplicate_groups"`
-	Consistency       *KGConsistencyReport `json:"consistency,omitempty"`
+	IsolatedNodes          int                  `json:"isolated_nodes"`
+	DuplicateGroups        int                  `json:"duplicate_groups"`
+	LabelDuplicateGroups   int                  `json:"label_duplicate_groups"`
+	IDDuplicateGroups      int                  `json:"id_duplicate_groups"`
+	Consistency            *KGConsistencyReport `json:"consistency,omitempty"`
 }
 
 // SemanticSearchEnabled reports whether the KG semantic index is active.
@@ -1053,10 +1055,12 @@ func (kg *KnowledgeGraph) HealthReport() (*KnowledgeGraphHealthReport, error) {
 	if err != nil {
 		return nil, fmt.Errorf("count label duplicate groups: %w", err)
 	}
-	idDuplicateGroups, err := countKnowledgeGraphIDDuplicateGroups(kg.db)
+	idDuplicateGroups, err := countKnowledgeGraphIDDuplicateGroups(kg.db, kg.logger)
 	if err != nil {
 		return nil, fmt.Errorf("count id duplicate groups: %w", err)
 	}
+	report.LabelDuplicateGroups = labelDuplicateGroups
+	report.IDDuplicateGroups = idDuplicateGroups
 	report.DuplicateGroups = labelDuplicateGroups + idDuplicateGroups
 
 	dirtyNodes, err := kg.countDirtySemanticNodes()

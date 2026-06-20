@@ -17,6 +17,10 @@ func isPlannerRootKGNodeID(id string) bool {
 	return strings.HasPrefix(id, "todo_") && !strings.Contains(id, "_item_")
 }
 
+func isPlannerItemKGNodeID(id string) bool {
+	return strings.HasPrefix(id, "todo_") && strings.Contains(id, "_item_")
+}
+
 // PrunePlannerEdges removes planner-sourced edges from source with relation where target is not kept.
 func (kg *KnowledgeGraph) PrunePlannerEdges(source, relation string, keepTargets map[string]struct{}) (int, error) {
 	source = strings.TrimSpace(source)
@@ -127,6 +131,37 @@ func (kg *KnowledgeGraph) PruneStalePlannerRootNodes(keepIDs map[string]struct{}
 			}
 			removed++
 		}
+	}
+	return removed, nil
+}
+
+// PruneStalePlannerItemNodes deletes planner-sourced todo checklist item nodes not in keepIDs.
+func (kg *KnowledgeGraph) PruneStalePlannerItemNodes(keepIDs map[string]struct{}) (int, error) {
+	nodes, err := kg.ListNodesByIDPrefix("todo_", 10000)
+	if err != nil {
+		return 0, fmt.Errorf("list planner item nodes: %w", err)
+	}
+
+	removed := 0
+	for _, node := range nodes {
+		if !isPlannerItemKGNodeID(node.ID) {
+			continue
+		}
+		if keepIDs != nil {
+			if _, keep := keepIDs[node.ID]; keep {
+				continue
+			}
+		}
+		if node.Properties["source"] != "planner" {
+			continue
+		}
+		if node.Protected {
+			continue
+		}
+		if err := kg.DeleteNode(node.ID); err != nil {
+			return removed, fmt.Errorf("delete stale planner item node %s: %w", node.ID, err)
+		}
+		removed++
 	}
 	return removed, nil
 }

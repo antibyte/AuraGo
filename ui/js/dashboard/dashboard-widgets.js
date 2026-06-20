@@ -48,7 +48,8 @@
                 { val: Number(health?.dirty_nodes || 0), lbl: t('dashboard.knowledge_health_dirty_nodes') },
                 { val: Number(health?.dirty_edges || 0), lbl: t('dashboard.knowledge_health_dirty_edges') },
                 { val: Number(health?.isolated_nodes || 0), lbl: t('dashboard.knowledge_health_isolated_nodes') },
-                { val: Number(health?.duplicate_groups || 0), lbl: t('dashboard.knowledge_health_duplicate_groups') },
+                { val: Number(health?.label_duplicate_groups || 0), lbl: t('dashboard.knowledge_health_label_duplicate_groups') },
+                { val: Number(health?.id_duplicate_groups || 0), lbl: t('dashboard.knowledge_health_id_duplicate_groups') },
                 { val: Number(health?.dropped_access_hits || 0), lbl: t('dashboard.knowledge_health_dropped_hits') },
                 {
                     val: semanticEnabled ? t('dashboard.knowledge_health_semantic_on') : t('dashboard.knowledge_health_semantic_off'),
@@ -74,18 +75,57 @@
             status.innerHTML = pills.join('');
         }
 
+        function renderKnowledgeGraphDuplicateCandidates(container, candidates, emptyKey) {
+            if (!container) return;
+            const rows = Array.isArray(candidates) ? candidates : [];
+            if (!rows.length) {
+                container.innerHTML = `<div class="empty-state">${t(emptyKey)}</div>`;
+                return;
+            }
+            let html = '<table class="kg-table kg-table-compact"><thead><tr>' +
+                `<th>${t('dashboard.kg_col_label')}</th>` +
+                `<th>${t('dashboard.kg_col_count')}</th>` +
+                `<th>${t('dashboard.kg_col_id')}</th>` +
+                `<th>${t('dashboard.kg_col_actions')}</th>` +
+                '</tr></thead><tbody>';
+            rows.forEach(candidate => {
+                const rawIDs = Array.isArray(candidate.ids) ? candidate.ids.filter(id => String(id || '').trim()) : [];
+                const targetID = rawIDs[0] || '';
+                const idLinks = rawIDs.map(id =>
+                    `<span class="kg-cell-link" data-kg-open-node="${esc(id)}">${esc(id)}</span>`
+                ).join(', ');
+                const mergeButtons = rawIDs.slice(1).map(sourceID => `
+                    <button type="button" class="btn btn-secondary btn-sm"
+                        data-kg-merge-source="${esc(sourceID)}"
+                        data-kg-merge-target="${esc(targetID)}"
+                        data-kg-merge-label="${esc(candidate.label || candidate.normalized_label || 'Node')}">
+                        ${t('dashboard.knowledge_quality_merge_btn')}
+                    </button>`).join(' ');
+                html += `<tr>
+                    <td>${esc(candidate.label || candidate.normalized_label || 'Node')}</td>
+                    <td class="text-secondary">${Number(candidate.count || 0)}</td>
+                    <td class="text-secondary">${idLinks || '—'}</td>
+                    <td class="kg-merge-actions">${mergeButtons || '—'}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
         function renderKnowledgeGraphQuality(report) {
             const metrics = document.getElementById('knowledge-quality-metrics');
             const isolated = document.getElementById('knowledge-quality-isolated');
             const untyped = document.getElementById('knowledge-quality-untyped');
             const duplicates = document.getElementById('knowledge-quality-duplicates');
-            if (!metrics || !isolated || !untyped || !duplicates) return;
+            const idDuplicates = document.getElementById('knowledge-quality-id-duplicates');
+            if (!metrics || !isolated || !untyped || !duplicates || !idDuplicates) return;
 
             const stats = [
                 { val: Number(report?.protected_nodes || 0), lbl: t('dashboard.knowledge_quality_protected') },
                 { val: Number(report?.isolated_nodes || 0), lbl: t('dashboard.knowledge_quality_isolated') },
                 { val: Number(report?.untyped_nodes || 0), lbl: t('dashboard.knowledge_quality_untyped') },
-                { val: Number(report?.duplicate_groups || 0), lbl: t('dashboard.knowledge_quality_duplicates') },
+                { val: Number(report?.duplicate_groups || 0), lbl: t('dashboard.knowledge_quality_label_duplicates') },
+                { val: Number(report?.id_duplicate_groups || 0), lbl: t('dashboard.knowledge_quality_id_duplicates') },
             ];
             metrics.innerHTML = stats.map(stat => `
                 <div class="mem-stat">
@@ -96,40 +136,8 @@
 
             renderKnowledgeGraphQualityNodeList(isolated, report?.isolated_sample, 'dashboard.knowledge_quality_empty_isolated');
             renderKnowledgeGraphQualityNodeList(untyped, report?.untyped_sample, 'dashboard.knowledge_quality_empty_untyped');
-
-            const candidates = Array.isArray(report?.duplicate_candidates) ? report.duplicate_candidates : [];
-            if (!candidates.length) {
-                duplicates.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_quality_empty_duplicates')}</div>`;
-            } else {
-                let html = '<table class="kg-table kg-table-compact"><thead><tr>' +
-                    `<th>${t('dashboard.kg_col_label')}</th>` +
-                    `<th>${t('dashboard.kg_col_count')}</th>` +
-                    `<th>${t('dashboard.kg_col_id')}</th>` +
-                    `<th>${t('dashboard.kg_col_actions')}</th>` +
-                    '</tr></thead><tbody>';
-                candidates.forEach(candidate => {
-                    const rawIDs = Array.isArray(candidate.ids) ? candidate.ids.filter(id => String(id || '').trim()) : [];
-                    const targetID = rawIDs[0] || '';
-                    const idLinks = rawIDs.map(id =>
-                        `<span class="kg-cell-link" data-kg-open-node="${esc(id)}">${esc(id)}</span>`
-                    ).join(', ');
-                    const mergeButtons = rawIDs.slice(1).map(sourceID => `
-                        <button type="button" class="btn btn-secondary btn-sm"
-                            data-kg-merge-source="${esc(sourceID)}"
-                            data-kg-merge-target="${esc(targetID)}"
-                            data-kg-merge-label="${esc(candidate.label || candidate.normalized_label || 'Node')}">
-                            ${t('dashboard.knowledge_quality_merge_btn')}
-                        </button>`).join(' ');
-                    html += `<tr>
-                        <td>${esc(candidate.label || candidate.normalized_label || 'Node')}</td>
-                        <td class="text-secondary">${Number(candidate.count || 0)}</td>
-                        <td class="text-secondary">${idLinks || '—'}</td>
-                        <td class="kg-merge-actions">${mergeButtons || '—'}</td>
-                    </tr>`;
-                });
-                html += '</tbody></table>';
-                duplicates.innerHTML = html;
-            }
+            renderKnowledgeGraphDuplicateCandidates(duplicates, report?.duplicate_candidates, 'dashboard.knowledge_quality_empty_duplicates');
+            renderKnowledgeGraphDuplicateCandidates(idDuplicates, report?.id_duplicate_candidates, 'dashboard.knowledge_quality_empty_id_duplicates');
         }
 
         function renderKnowledgeGraphQualityNodeList(container, nodes, emptyKey) {

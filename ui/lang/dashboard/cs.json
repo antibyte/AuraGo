@@ -281,7 +281,12 @@
   "dashboard.knowledge_quality_duplicate_count": "{count} uzlů",
   "dashboard.knowledge_quality_duplicates": "Duplicitní skupiny",
   "dashboard.knowledge_quality_duplicates_title": "Kandidáti na duplikáty",
+  "dashboard.knowledge_quality_label_duplicates": "Duplicitní štítky",
+  "dashboard.knowledge_quality_id_duplicates": "ID varianty",
+  "dashboard.knowledge_quality_label_duplicates_title": "Duplicitní štítky",
+  "dashboard.knowledge_quality_id_duplicates_title": "ID varianty",
   "dashboard.knowledge_quality_empty_duplicates": "Nebyly detekovány žádné duplicitní štítky.",
+  "dashboard.knowledge_quality_empty_id_duplicates": "Nebyly nalezeny žádné podezřelé ID varianty.",
   "dashboard.knowledge_quality_empty_isolated": "Nebyly detekovány žádné izolované uzly.",
   "dashboard.knowledge_quality_empty_untyped": "Všechny viditelné uzly mají typ.",
   "dashboard.knowledge_quality_isolated": "Izolované uzly",
@@ -742,5 +747,7 @@
   "dashboard.knowledge_health_reindex_backlog": "Vysoká fronta reindexace",
   "dashboard.knowledge_health_isolated_nodes": "Izolované uzly",
   "dashboard.knowledge_health_duplicate_groups": "Skupiny duplicit",
+  "dashboard.knowledge_health_label_duplicate_groups": "Duplicitní štítky",
+  "dashboard.knowledge_health_id_duplicate_groups": "ID varianty",
   "dashboard.memory_graph_dirty_hint": "{count} čekajících"
 }

@@ -281,7 +281,12 @@
   "dashboard.knowledge_quality_duplicate_count": "{count} Κόμβοι",
   "dashboard.knowledge_quality_duplicates": "Ομάδες Διπλότυπων",
   "dashboard.knowledge_quality_duplicates_title": "Υποψήφιοι Διπλότυποι",
+  "dashboard.knowledge_quality_label_duplicates": "Διπλότυπες ετικέτες",
+  "dashboard.knowledge_quality_id_duplicates": "Παραλλαγές ID",
+  "dashboard.knowledge_quality_label_duplicates_title": "Διπλότυπες ετικέτες",
+  "dashboard.knowledge_quality_id_duplicates_title": "Παραλλαγές ID",
   "dashboard.knowledge_quality_empty_duplicates": "Δεν ανιχνεύτηκαν διπλότυπες ετικέτες.",
+  "dashboard.knowledge_quality_empty_id_duplicates": "Δεν εντοπίστηκαν ύποπτες παραλλαγές ID.",
   "dashboard.knowledge_quality_empty_isolated": "Δεν ανιχνεύτηκαν απομονωμένοι κόμβοι.",
   "dashboard.knowledge_quality_empty_untyped": "Όλοι οι ορατοί κόμβοι έχουν τύπο.",
   "dashboard.knowledge_quality_isolated": "Απομονωμένοι Κόμβοι",
@@ -742,5 +747,7 @@
   "dashboard.knowledge_health_reindex_backlog": "Υψηλή ουρά reindex",
   "dashboard.knowledge_health_isolated_nodes": "Απομονωμένοι κόμβοι",
   "dashboard.knowledge_health_duplicate_groups": "Ομάδες διπλότυπων",
+  "dashboard.knowledge_health_label_duplicate_groups": "Διπλότυπες ετικέτες",
+  "dashboard.knowledge_health_id_duplicate_groups": "Παραλλαγές ID",
   "dashboard.memory_graph_dirty_hint": "{count} σε αναμονή"
 }

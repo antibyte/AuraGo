@@ -281,7 +281,12 @@
   "dashboard.knowledge_quality_duplicate_count": "{count} नोड्स",
   "dashboard.knowledge_quality_duplicates": "डुप्लिकेट समूह",
   "dashboard.knowledge_quality_duplicates_title": "डुप्लिकेट उम्मीदवार",
+  "dashboard.knowledge_quality_label_duplicates": "डुप्लिकेट लेबल",
+  "dashboard.knowledge_quality_id_duplicates": "ID वेरिएंट",
+  "dashboard.knowledge_quality_label_duplicates_title": "डुप्लिकेट लेबल",
+  "dashboard.knowledge_quality_id_duplicates_title": "ID वेरिएंट",
   "dashboard.knowledge_quality_empty_duplicates": "कोई डुप्लिकेट लेबल नहीं मिला।",
+  "dashboard.knowledge_quality_empty_id_duplicates": "कोई संदिग्ध ID वेरिएंट नहीं मिला।",
   "dashboard.knowledge_quality_empty_isolated": "कोई विच्छिन्न नोड नहीं मिला।",
   "dashboard.knowledge_quality_empty_untyped": "सभी दृश्यमान नोड्स में टाइप है।",
   "dashboard.knowledge_quality_isolated": "विच्छिन्न नोड्स",
@@ -742,5 +747,7 @@
   "dashboard.knowledge_health_reindex_backlog": "रीइंडेक्स बैकलॉग अधिक है",
   "dashboard.knowledge_health_isolated_nodes": "अलग नोड्स",
   "dashboard.knowledge_health_duplicate_groups": "डुप्लिकेट समूह",
+  "dashboard.knowledge_health_label_duplicate_groups": "डुप्लिकेट लेबल",
+  "dashboard.knowledge_health_id_duplicate_groups": "ID वेरिएंट",
   "dashboard.memory_graph_dirty_hint": "{count} लंबित"
 }

@@ -281,7 +281,12 @@
   "dashboard.knowledge_quality_duplicate_count": "{count} noder",
   "dashboard.knowledge_quality_duplicates": "Duplikatgrupper",
   "dashboard.knowledge_quality_duplicates_title": "Duplikatkandidater",
+  "dashboard.knowledge_quality_label_duplicates": "Duplikatetiketter",
+  "dashboard.knowledge_quality_id_duplicates": "ID-varianter",
+  "dashboard.knowledge_quality_label_duplicates_title": "Duplikatetiketter",
+  "dashboard.knowledge_quality_id_duplicates_title": "ID-varianter",
   "dashboard.knowledge_quality_empty_duplicates": "Inga duplikat etiketter upptäckta.",
+  "dashboard.knowledge_quality_empty_id_duplicates": "Inga misstänkta ID-varianter upptäckta.",
   "dashboard.knowledge_quality_empty_isolated": "Inga isorerade noder upptäckta.",
   "dashboard.knowledge_quality_empty_untyped": "Alla synliga noder har en typ.",
   "dashboard.knowledge_quality_isolated": "Isolerade noder",
@@ -742,5 +747,7 @@
   "dashboard.knowledge_health_reindex_backlog": "Hög omindexeringskö",
   "dashboard.knowledge_health_isolated_nodes": "Isolerade noder",
   "dashboard.knowledge_health_duplicate_groups": "Duplikatgrupper",
+  "dashboard.knowledge_health_label_duplicate_groups": "Duplikatetiketter",
+  "dashboard.knowledge_health_id_duplicate_groups": "ID-varianter",
   "dashboard.memory_graph_dirty_hint": "{count} väntande"
 }

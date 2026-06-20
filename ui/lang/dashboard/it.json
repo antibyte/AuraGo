@@ -281,7 +281,12 @@
   "dashboard.knowledge_quality_duplicate_count": "{count} Nodi",
   "dashboard.knowledge_quality_duplicates": "Gruppi Duplicati",
   "dashboard.knowledge_quality_duplicates_title": "Candidati Duplicati",
+  "dashboard.knowledge_quality_label_duplicates": "Etichette duplicate",
+  "dashboard.knowledge_quality_id_duplicates": "Varianti ID",
+  "dashboard.knowledge_quality_label_duplicates_title": "Etichette duplicate",
+  "dashboard.knowledge_quality_id_duplicates_title": "Varianti ID",
   "dashboard.knowledge_quality_empty_duplicates": "Nessuna etichetta duplicata rilevata.",
+  "dashboard.knowledge_quality_empty_id_duplicates": "Nessuna variante ID sospetta rilevata.",
   "dashboard.knowledge_quality_empty_isolated": "Nessun nodo isolato rilevato.",
   "dashboard.knowledge_quality_empty_untyped": "Tutti i nodi visibili hanno un tipo.",
   "dashboard.knowledge_quality_isolated": "Nodi Isolati",
@@ -742,5 +747,7 @@
   "dashboard.knowledge_health_reindex_backlog": "Backlog di reindex elevato",
   "dashboard.knowledge_health_isolated_nodes": "Nodi isolati",
   "dashboard.knowledge_health_duplicate_groups": "Gruppi duplicati",
+  "dashboard.knowledge_health_label_duplicate_groups": "Etichette duplicate",
+  "dashboard.knowledge_health_id_duplicate_groups": "Varianti ID",
   "dashboard.memory_graph_dirty_hint": "{count} in sospeso"
 }

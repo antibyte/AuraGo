@@ -1797,6 +1797,12 @@ func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg plan
 	} else if removed > 0 {
 		logger.Info("[Maintenance] Removed stale planner KG nodes", "removed", removed)
 	}
+
+	if removed, err := kg.PruneStalePlannerItemNodes(tracker.ActivePlannerNodes); err != nil {
+		logger.Warn("[Maintenance] Failed to prune stale planner KG item nodes", "error", err)
+	} else if removed > 0 {
+		logger.Info("[Maintenance] Removed stale planner KG item nodes", "removed", removed)
+	}
 }
 
 // SyncCoreMemoryToKnowledgeGraph synchronizes core memory facts to the knowledge graph.

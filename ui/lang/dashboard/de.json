@@ -281,7 +281,12 @@
   "dashboard.knowledge_quality_duplicate_count": "{count} Knoten",
   "dashboard.knowledge_quality_duplicates": "Duplikat-Gruppen",
   "dashboard.knowledge_quality_duplicates_title": "Duplikat-Kandidaten",
+  "dashboard.knowledge_quality_label_duplicates": "Label-Duplikate",
+  "dashboard.knowledge_quality_id_duplicates": "ID-Varianten",
+  "dashboard.knowledge_quality_label_duplicates_title": "Label-Duplikate",
+  "dashboard.knowledge_quality_id_duplicates_title": "ID-Varianten",
   "dashboard.knowledge_quality_empty_duplicates": "Keine doppelten Labels erkannt.",
+  "dashboard.knowledge_quality_empty_id_duplicates": "Keine verdächtigen ID-Varianten erkannt.",
   "dashboard.knowledge_quality_empty_isolated": "Keine isolierten Nodes erkannt.",
   "dashboard.knowledge_quality_empty_untyped": "Alle sichtbaren Nodes haben einen Typ.",
   "dashboard.knowledge_quality_isolated": "Isolierte Nodes",
@@ -742,5 +747,7 @@
   "dashboard.knowledge_health_reindex_backlog": "Reindex-Rückstau ist hoch",
   "dashboard.knowledge_health_isolated_nodes": "Isolierte Knoten",
   "dashboard.knowledge_health_duplicate_groups": "Duplikat-Gruppen",
+  "dashboard.knowledge_health_label_duplicate_groups": "Label-Duplikate",
+  "dashboard.knowledge_health_id_duplicate_groups": "ID-Varianten",
   "dashboard.memory_graph_dirty_hint": "{count} ausstehend"
 }

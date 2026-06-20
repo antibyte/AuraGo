@@ -281,7 +281,12 @@
   "dashboard.knowledge_quality_duplicate_count": "{count}ノード",
   "dashboard.knowledge_quality_duplicates": "重複グループ",
   "dashboard.knowledge_quality_duplicates_title": "重複候補",
+  "dashboard.knowledge_quality_label_duplicates": "ラベル重複",
+  "dashboard.knowledge_quality_id_duplicates": "IDバリアント",
+  "dashboard.knowledge_quality_label_duplicates_title": "ラベル重複",
+  "dashboard.knowledge_quality_id_duplicates_title": "IDバリアント",
   "dashboard.knowledge_quality_empty_duplicates": "重複ラベルは検出されていません。",
+  "dashboard.knowledge_quality_empty_id_duplicates": "疑わしいIDバリアントは検出されていません。",
   "dashboard.knowledge_quality_empty_isolated": "孤立したノードは検出されていません。",
   "dashboard.knowledge_quality_empty_untyped": "すべての可視ノードに型があります。",
   "dashboard.knowledge_quality_isolated": "孤立したノード",
@@ -742,5 +747,7 @@
   "dashboard.knowledge_health_reindex_backlog": "再インデックスの滞留が大きい",
   "dashboard.knowledge_health_isolated_nodes": "孤立ノード",
   "dashboard.knowledge_health_duplicate_groups": "重複グループ",
+  "dashboard.knowledge_health_label_duplicate_groups": "ラベル重複",
+  "dashboard.knowledge_health_id_duplicate_groups": "IDバリアント",
   "dashboard.memory_graph_dirty_hint": "{count} 件未処理"
 }

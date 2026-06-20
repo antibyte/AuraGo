@@ -17,7 +17,9 @@ func TestDashboardKnowledgeGraphHealthContract(t *testing.T) {
 		`id="card-knowledge-graph-health"`,
 		`id="knowledge-health-metrics"`,
 		`id="knowledge-health-status"`,
+		`id="knowledge-quality-id-duplicates"`,
 		`dashboard.knowledge_health_title`,
+		`dashboard.knowledge_quality_id_duplicates_title`,
 	} {
 		if !strings.Contains(html, marker) {
 			t.Fatalf("dashboard HTML missing health marker %q", marker)
@@ -35,7 +37,10 @@ func TestDashboardKnowledgeGraphHealthContract(t *testing.T) {
 		"function renderKnowledgeGraphHealth",
 		"knowledge_health_dirty_nodes",
 		"knowledge_health_isolated_nodes",
-		"knowledge_health_duplicate_groups",
+		"knowledge_health_label_duplicate_groups",
+		"knowledge_health_id_duplicate_groups",
+		"renderKnowledgeGraphDuplicateCandidates",
+		"knowledge_quality_id_duplicates",
 		"knowledge_health_needs_reindex",
 		"memory_graph_dirty_hint",
 	} {

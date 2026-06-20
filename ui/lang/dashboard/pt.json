@@ -281,7 +281,12 @@
   "dashboard.knowledge_quality_duplicate_count": "{count} nós",
   "dashboard.knowledge_quality_duplicates": "Grupos de Duplicatas",
   "dashboard.knowledge_quality_duplicates_title": "Candidatos de Duplicata",
+  "dashboard.knowledge_quality_label_duplicates": "Rótulos duplicados",
+  "dashboard.knowledge_quality_id_duplicates": "Variantes de ID",
+  "dashboard.knowledge_quality_label_duplicates_title": "Rótulos duplicados",
+  "dashboard.knowledge_quality_id_duplicates_title": "Variantes de ID",
   "dashboard.knowledge_quality_empty_duplicates": "Nenhum rótulo duplicado detectado.",
+  "dashboard.knowledge_quality_empty_id_duplicates": "Nenhuma variante de ID suspeita detectada.",
   "dashboard.knowledge_quality_empty_isolated": "Nenhum nó isolado detectado.",
   "dashboard.knowledge_quality_empty_untyped": "Todos os nós visíveis têm um tipo.",
   "dashboard.knowledge_quality_isolated": "Nós Isolados",
@@ -742,5 +747,7 @@
   "dashboard.knowledge_health_reindex_backlog": "Backlog de reindexação alto",
   "dashboard.knowledge_health_isolated_nodes": "Nós isolados",
   "dashboard.knowledge_health_duplicate_groups": "Grupos duplicados",
+  "dashboard.knowledge_health_label_duplicate_groups": "Rótulos duplicados",
+  "dashboard.knowledge_health_id_duplicate_groups": "Variantes de ID",
   "dashboard.memory_graph_dirty_hint": "{count} pendentes"
 }

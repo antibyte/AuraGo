@@ -1291,36 +1291,14 @@ func countKnowledgeGraphLabelDuplicateGroups(querier interface {
 
 func countKnowledgeGraphIDDuplicateGroups(querier interface {
 	Query(query string, args ...any) (*sql.Rows, error)
-}) (int, error) {
-	rows, err := querier.Query(`SELECT id FROM kg_nodes`)
+}, logger *slog.Logger) (int, error) {
+	nodes, err := knowledgeGraphLoadNodesForIDDuplicateCheck(querier, logger)
 	if err != nil {
-		return 0, fmt.Errorf("query knowledge graph node ids: %w", err)
+		return 0, err
 	}
-	defer rows.Close()
-
-	groups := make(map[string]int)
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return 0, fmt.Errorf("scan knowledge graph node id: %w", err)
-		}
-		normalized := normalizeKnowledgeGraphDuplicateID(id)
-		if normalized == "" {
-			continue
-		}
-		groups[normalized]++
-	}
-	if err := rows.Err(); err != nil {
-		return 0, fmt.Errorf("iterate knowledge graph node ids: %w", err)
-	}
-
-	count := 0
-	for _, size := range groups {
-		if size > 1 {
-			count++
-		}
-	}
-	return count, nil
+	grouped := knowledgeGraphGroupNodesByNormalizedID(nodes)
+	qualified := knowledgeGraphFilterQualifiedIDDuplicateGroups(grouped)
+	return len(qualified), nil
 }
 
 func countKnowledgeGraphIsolatedNodes(querier interface {
@@ -1334,33 +1312,98 @@ func countKnowledgeGraphIsolatedNodes(querier interface {
 	return count, err
 }
 
-func knowledgeGraphIDDuplicateSummary(logger *slog.Logger, tx *sql.Tx, sampleLimit int) (groups int, nodes int, candidates []KnowledgeGraphDuplicateCandidate, err error) {
-	rows, err := tx.Query(`SELECT id, label, properties, protected FROM kg_nodes`)
-	if err != nil {
-		return 0, 0, nil, fmt.Errorf("query knowledge graph nodes for id duplicates: %w", err)
+func knowledgeGraphNodesQualifyAsIDDuplicates(a, b Node) bool {
+	srcA := strings.TrimSpace(a.Properties["source"])
+	srcB := strings.TrimSpace(b.Properties["source"])
+	if srcA != "" && srcA == srcB {
+		return true
 	}
-	defer rows.Close()
 
-	grouped := make(map[string][]Node)
-	for rows.Next() {
-		var node Node
-		var propsJSON string
-		var protected int
-		if err := rows.Scan(&node.ID, &node.Label, &propsJSON, &protected); err != nil {
-			return 0, 0, nil, fmt.Errorf("scan knowledge graph node for id duplicates: %w", err)
+	la := normalizeKnowledgeGraphDuplicateLabel(a.Label)
+	lb := normalizeKnowledgeGraphDuplicateLabel(b.Label)
+	if la == "" && lb == "" {
+		return true
+	}
+	if la == lb {
+		return true
+	}
+	if la != "" && lb != "" && (strings.HasPrefix(la, lb) || strings.HasPrefix(lb, la)) {
+		return true
+	}
+	return false
+}
+
+func knowledgeGraphIDDuplicateGroupQualifies(nodes []Node) bool {
+	if len(nodes) < 2 {
+		return false
+	}
+	for i := 0; i < len(nodes); i++ {
+		for j := i + 1; j < len(nodes); j++ {
+			if knowledgeGraphNodesQualifyAsIDDuplicates(nodes[i], nodes[j]) {
+				return true
+			}
 		}
-		node.Properties = decodeKnowledgeGraphNodeProperties(logger, "QualityReport", node.ID, propsJSON, protected)
-		node.Protected = protected != 0
+	}
+	return false
+}
+
+func knowledgeGraphGroupNodesByNormalizedID(nodes []Node) map[string][]Node {
+	grouped := make(map[string][]Node)
+	for _, node := range nodes {
 		normalized := normalizeKnowledgeGraphDuplicateID(node.ID)
 		if normalized == "" {
 			continue
 		}
 		grouped[normalized] = append(grouped[normalized], node)
 	}
+	return grouped
+}
+
+func knowledgeGraphFilterQualifiedIDDuplicateGroups(grouped map[string][]Node) map[string][]Node {
+	qualified := make(map[string][]Node, len(grouped))
+	for key, nodes := range grouped {
+		if len(nodes) < 2 || !knowledgeGraphIDDuplicateGroupQualifies(nodes) {
+			continue
+		}
+		qualified[key] = nodes
+	}
+	return qualified
+}
+
+func knowledgeGraphLoadNodesForIDDuplicateCheck(querier interface {
+	Query(query string, args ...any) (*sql.Rows, error)
+}, logger *slog.Logger) ([]Node, error) {
+	rows, err := querier.Query(`SELECT id, label, properties, protected FROM kg_nodes`)
+	if err != nil {
+		return nil, fmt.Errorf("query knowledge graph nodes for id duplicates: %w", err)
+	}
+	defer rows.Close()
+
+	nodes := make([]Node, 0)
+	for rows.Next() {
+		var node Node
+		var propsJSON string
+		var protected int
+		if err := rows.Scan(&node.ID, &node.Label, &propsJSON, &protected); err != nil {
+			return nil, fmt.Errorf("scan knowledge graph node for id duplicates: %w", err)
+		}
+		node.Properties = decodeKnowledgeGraphNodeProperties(logger, "IDDuplicateCheck", node.ID, propsJSON, protected)
+		node.Protected = protected != 0
+		nodes = append(nodes, node)
+	}
 	if err := rows.Err(); err != nil {
-		return 0, 0, nil, fmt.Errorf("iterate knowledge graph nodes for id duplicates: %w", err)
+		return nil, fmt.Errorf("iterate knowledge graph nodes for id duplicates: %w", err)
+	}
+	return nodes, nil
+}
+
+func knowledgeGraphIDDuplicateSummary(logger *slog.Logger, tx *sql.Tx, sampleLimit int) (groups int, nodes int, candidates []KnowledgeGraphDuplicateCandidate, err error) {
+	nodesLoaded, err := knowledgeGraphLoadNodesForIDDuplicateCheck(tx, logger)
+	if err != nil {
+		return 0, 0, nil, err
 	}
 
+	grouped := knowledgeGraphFilterQualifiedIDDuplicateGroups(knowledgeGraphGroupNodesByNormalizedID(nodesLoaded))
 	allCandidates := buildKnowledgeGraphDuplicateCandidates(grouped)
 	for _, candidate := range allCandidates {
 		nodes += candidate.Count
