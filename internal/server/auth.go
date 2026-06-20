@@ -382,6 +382,19 @@ func IsAuthenticated(r *http.Request, secret string) bool {
 	return validateSessionValue(secret, cookie.Value)
 }
 
+// requireAdminUnlessGET applies requireAdmin to mutating requests while leaving
+// read-only GET/HEAD/OPTIONS traffic unchanged.
+func requireAdminUnlessGET(s *Server, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			next.ServeHTTP(w, r)
+		default:
+			requireAdmin(s, next).ServeHTTP(w, r)
+		}
+	})
+}
+
 // requireAdmin protects destructive/admin endpoints. Browser sessions are the
 // built-in admin identity; API Bearer tokens must explicitly carry admin scope.
 func requireAdmin(s *Server, next http.Handler) http.Handler {

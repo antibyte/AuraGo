@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -17,7 +19,13 @@ const maxJournalHygieneIterations = 5
 const maxNotesAutoArchivePerHygieneRun = 20
 const knowledgeGraphDuplicateIssueThreshold = 3
 
-var lastRecordedKGDroppedAccessHits int64
+const plannerMetaKGDroppedAccessHitsKey = "kg_dropped_access_hits_last_recorded"
+
+var (
+	lastRecordedKGDroppedAccessHits int64
+	kgDroppedAccessHitsStateMu      sync.Mutex
+	kgDroppedAccessHitsStateLoaded  bool
+)
 
 func runJournalDuplicateConsolidation(stm *memory.SQLiteMemory, opts memory.JournalConsolidationOptions) (int, error) {
 	totalRemoved := 0
@@ -245,13 +253,59 @@ func buildKnowledgeGraphDuplicateIssue(report *memory.KnowledgeGraphQualityRepor
 	}, true
 }
 
+func ensureKGDroppedAccessHitsBaseline(plannerDB *sql.DB, logger *slog.Logger) {
+	kgDroppedAccessHitsStateMu.Lock()
+	defer kgDroppedAccessHitsStateMu.Unlock()
+	if kgDroppedAccessHitsStateLoaded {
+		return
+	}
+	kgDroppedAccessHitsStateLoaded = true
+	if plannerDB == nil {
+		return
+	}
+	raw, err := planner.GetPlannerMeta(plannerDB, plannerMetaKGDroppedAccessHitsKey)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("[MemoryHygiene] Failed to load KG dropped-access baseline", "error", err)
+		}
+		return
+	}
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return
+	}
+	parsed, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("[MemoryHygiene] Invalid KG dropped-access baseline", "value", raw, "error", err)
+		}
+		return
+	}
+	if parsed > 0 {
+		lastRecordedKGDroppedAccessHits = parsed
+	}
+}
+
+func persistKGDroppedAccessHitsBaseline(plannerDB *sql.DB, value int64, logger *slog.Logger) {
+	if plannerDB == nil {
+		return
+	}
+	if err := planner.SetPlannerMeta(plannerDB, plannerMetaKGDroppedAccessHitsKey, strconv.FormatInt(value, 10)); err != nil && logger != nil {
+		logger.Warn("[MemoryHygiene] Failed to persist KG dropped-access baseline", "error", err)
+	}
+}
+
 func recordKnowledgeGraphDroppedAccessHitsIssue(plannerDB *sql.DB, kg *memory.KnowledgeGraph, logger *slog.Logger) {
 	if kg == nil {
 		return
 	}
+	ensureKGDroppedAccessHitsBaseline(plannerDB, logger)
+
 	current := kg.DroppedAccessHits()
 	delta := current - lastRecordedKGDroppedAccessHits
 	lastRecordedKGDroppedAccessHits = current
+	persistKGDroppedAccessHitsBaseline(plannerDB, current, logger)
+
 	issue, ok := buildKnowledgeGraphDroppedAccessHitsIssue(delta)
 	if !ok {
 		return

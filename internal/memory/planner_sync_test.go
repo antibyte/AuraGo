@@ -161,3 +161,56 @@ func TestDeleteStalePlannerSyncEdges(t *testing.T) {
 		t.Fatal("expected edge with inactive planner endpoint removed")
 	}
 }
+
+func TestPruneStalePlannerRootNodes(t *testing.T) {
+	kg := newTestKG(t)
+
+	for _, spec := range []struct {
+		id   string
+		keep bool
+	}{
+		{"appointment_active", true},
+		{"appointment_removed", false},
+		{"todo_active", true},
+		{"todo_removed", false},
+		{"todo_active_item_keep", true},
+		{"todo_active_item_stale", false},
+	} {
+		if err := kg.AddNode(spec.id, spec.id, map[string]string{"source": "planner"}); err != nil {
+			t.Fatalf("AddNode %s: %v", spec.id, err)
+		}
+	}
+
+	active := map[string]struct{}{
+		"appointment_active":    {},
+		"todo_active":           {},
+		"todo_active_item_keep": {},
+	}
+
+	removed, err := kg.PruneStalePlannerRootNodes(active)
+	if err != nil {
+		t.Fatalf("PruneStalePlannerRootNodes: %v", err)
+	}
+	if removed != 2 {
+		t.Fatalf("removed = %d, want 2 stale root nodes", removed)
+	}
+
+	for _, id := range []string{"appointment_active", "todo_active", "todo_active_item_keep", "todo_active_item_stale"} {
+		node, err := kg.GetNode(id)
+		if err != nil {
+			t.Fatalf("GetNode %s: %v", id, err)
+		}
+		if node == nil {
+			t.Fatalf("expected node %s to remain", id)
+		}
+	}
+	for _, id := range []string{"appointment_removed", "todo_removed"} {
+		node, err := kg.GetNode(id)
+		if err != nil {
+			t.Fatalf("GetNode %s: %v", id, err)
+		}
+		if node != nil {
+			t.Fatalf("expected stale root node %s deleted", id)
+		}
+	}
+}

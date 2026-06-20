@@ -12,6 +12,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/planner"
 
 	_ "modernc.org/sqlite"
 )
@@ -74,6 +75,32 @@ func TestBuildKnowledgeGraphDuplicateIssue(t *testing.T) {
 	}
 	if !strings.Contains(issue.Detail, "duplicate_groups=4") || !strings.Contains(issue.Detail, "nas_a") {
 		t.Fatalf("issue detail = %q, want duplicate counts and sample IDs", issue.Detail)
+	}
+}
+
+func TestKGDroppedAccessHitsBaselinePersists(t *testing.T) {
+	kgDroppedAccessHitsStateMu.Lock()
+	lastRecordedKGDroppedAccessHits = 0
+	kgDroppedAccessHitsStateLoaded = false
+	kgDroppedAccessHitsStateMu.Unlock()
+
+	db, err := planner.InitDB(filepath.Join(t.TempDir(), "planner.db"))
+	if err != nil {
+		t.Fatalf("InitDB: %v", err)
+	}
+	defer db.Close()
+
+	if err := planner.SetPlannerMeta(db, plannerMetaKGDroppedAccessHitsKey, "42"); err != nil {
+		t.Fatalf("SetPlannerMeta: %v", err)
+	}
+
+	ensureKGDroppedAccessHitsBaseline(db, nil)
+
+	kgDroppedAccessHitsStateMu.Lock()
+	got := lastRecordedKGDroppedAccessHits
+	kgDroppedAccessHitsStateMu.Unlock()
+	if got != 42 {
+		t.Fatalf("baseline = %d, want 42", got)
 	}
 }
 

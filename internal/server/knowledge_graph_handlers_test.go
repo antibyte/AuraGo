@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"aurago/internal/config"
 	"aurago/internal/memory"
 )
 
@@ -292,6 +293,24 @@ func TestHandleKnowledgeGraphMerge(t *testing.T) {
 	}
 	if merged.Properties["ip"] != "10.0.0.1" || merged.Properties["role"] != "backup" {
 		t.Fatalf("merged properties = %#v, want merged props", merged.Properties)
+	}
+}
+
+func TestRequireAdminBlocksKnowledgeGraphMergeWhenAuthEnabled(t *testing.T) {
+	s := newTestKnowledgeGraphServer(t)
+	s.Cfg = &config.Config{}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.SessionSecret = "session-secret"
+	s.Cfg.Auth.PasswordHash = "configured"
+
+	body := bytes.NewBufferString(`{"target_id":"target","source_id":"source"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/knowledge-graph/merge", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	requireAdmin(s, handleKnowledgeGraphMerge(s)).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized, got %d, body=%s", rec.Code, rec.Body.String())
 	}
 }
 

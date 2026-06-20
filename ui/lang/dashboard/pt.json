@@ -731,8 +731,8 @@
   "dashboard.knowledge_quality_merge_error": "Falha ao fundir os nós.",
   "dashboard.kg_col_actions": "Ações",
   "dashboard.knowledge_health_title": "Saúde do grafo",
-  "dashboard.knowledge_health_dirty_nodes": "Nós dirty",
-  "dashboard.knowledge_health_dirty_edges": "Arestas dirty",
+  "dashboard.knowledge_health_dirty_nodes": "Nós pendentes",
+  "dashboard.knowledge_health_dirty_edges": "Arestas pendentes",
   "dashboard.knowledge_health_dropped_hits": "Acessos descartados",
   "dashboard.knowledge_health_semantic_enabled": "Pesquisa semântica",
   "dashboard.knowledge_health_semantic_on": "Ativa",
@@ -740,5 +740,5 @@
   "dashboard.knowledge_health_needs_reindex": "Reindexação semântica pendente",
   "dashboard.knowledge_health_index_ok": "Índice semântico atualizado",
   "dashboard.knowledge_health_reindex_backlog": "Backlog de reindexação alto",
-  "dashboard.memory_graph_dirty_hint": "{count} dirty"
+  "dashboard.memory_graph_dirty_hint": "{count} pendentes"
 }

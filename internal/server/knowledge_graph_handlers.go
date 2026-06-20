@@ -419,6 +419,10 @@ func handleKnowledgeGraphMerge(s *Server) http.HandlerFunc {
 		}
 
 		if err := s.KG.MergeNodes(targetID, sourceID); err != nil {
+			if errors.Is(err, memory.ErrKnowledgeGraphProtectedNode) {
+				jsonError(w, "Protected source nodes cannot be merged", http.StatusConflict)
+				return
+			}
 			jsonError(w, "Failed to merge knowledge graph nodes", http.StatusInternalServerError)
 			return
 		}

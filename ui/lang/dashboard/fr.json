@@ -731,8 +731,8 @@
   "dashboard.knowledge_quality_merge_error": "Échec de la fusion des nœuds.",
   "dashboard.kg_col_actions": "Actions",
   "dashboard.knowledge_health_title": "Santé du graphe",
-  "dashboard.knowledge_health_dirty_nodes": "Nœuds dirty",
-  "dashboard.knowledge_health_dirty_edges": "Arêtes dirty",
+  "dashboard.knowledge_health_dirty_nodes": "Nœuds en attente",
+  "dashboard.knowledge_health_dirty_edges": "Arêtes en attente",
   "dashboard.knowledge_health_dropped_hits": "Accès ignorés",
   "dashboard.knowledge_health_semantic_enabled": "Recherche sémantique",
   "dashboard.knowledge_health_semantic_on": "Activée",
@@ -740,5 +740,5 @@
   "dashboard.knowledge_health_needs_reindex": "Réindexation sémantique en attente",
   "dashboard.knowledge_health_index_ok": "Index sémantique à jour",
   "dashboard.knowledge_health_reindex_backlog": "Fort arriéré de réindexation",
-  "dashboard.memory_graph_dirty_hint": "{count} dirty"
+  "dashboard.memory_graph_dirty_hint": "{count} en attente"
 }

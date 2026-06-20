@@ -21,6 +21,7 @@ type KnowledgeGraph interface {
 	AddEdge(source, target, relation string, properties map[string]string) error
 	PrunePlannerEdges(source, relation string, keepTargets map[string]struct{}) (int, error)
 	PrunePlannerNodesByPrefix(prefix string, keepIDs map[string]struct{}) (int, error)
+	PruneStalePlannerRootNodes(keepIDs map[string]struct{}) (int, error)
 	DeleteStalePlannerSyncEdges(expectedEdges map[string]struct{}, activePlannerNodes map[string]struct{}) (int, error)
 }
 

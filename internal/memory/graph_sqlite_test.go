@@ -296,6 +296,25 @@ func TestKGDeleteProtectedNodeRejected(t *testing.T) {
 	}
 }
 
+func TestKGMergeNodesRejectsProtectedSource(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("target", "Target", map[string]string{"type": "concept"}); err != nil {
+		t.Fatalf("AddNode target: %v", err)
+	}
+	if err := kg.AddNode("protected_source", "Protected", map[string]string{"protected": "true"}); err != nil {
+		t.Fatalf("AddNode protected_source: %v", err)
+	}
+
+	err := kg.MergeNodes("target", "protected_source")
+	if err == nil {
+		t.Fatal("expected protected source merge to fail")
+	}
+	if !errors.Is(err, ErrKnowledgeGraphProtectedNode) {
+		t.Fatalf("expected ErrKnowledgeGraphProtectedNode, got %v", err)
+	}
+}
+
 func TestKGDeleteEdge(t *testing.T) {
 	kg := newTestKG(t)
 
@@ -318,7 +337,7 @@ func TestKGMergeNodesMovesEdgesAndMergesProperties(t *testing.T) {
 	if err := kg.AddNode("target", "Target Node", map[string]string{"type": "service", "source": "manual"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := kg.AddNode("source", "Source Node", map[string]string{"ip": "192.168.1.10", "protected": "true"}); err != nil {
+	if err := kg.AddNode("source", "Source Node", map[string]string{"ip": "192.168.1.10", "role": "backup"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := kg.AddEdge("source", "peer", "connects_to", nil); err != nil {
@@ -350,8 +369,8 @@ func TestKGMergeNodesMovesEdgesAndMergesProperties(t *testing.T) {
 	if targetNode.Properties["ip"] != "192.168.1.10" {
 		t.Fatalf("expected merged target to keep source properties, got %#v", targetNode.Properties)
 	}
-	if !targetNode.Protected {
-		t.Fatal("expected merged target node to become protected")
+	if targetNode.Properties["role"] != "backup" {
+		t.Fatalf("expected merged target to keep source role, got %#v", targetNode.Properties)
 	}
 
 	edges, err := kg.GetAllEdges(20)

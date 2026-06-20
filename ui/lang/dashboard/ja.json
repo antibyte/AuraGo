@@ -731,8 +731,8 @@
   "dashboard.knowledge_quality_merge_error": "ノードの統合に失敗しました。",
   "dashboard.kg_col_actions": "操作",
   "dashboard.knowledge_health_title": "グラフの健全性",
-  "dashboard.knowledge_health_dirty_nodes": "Dirtyノード",
-  "dashboard.knowledge_health_dirty_edges": "Dirtyエッジ",
+  "dashboard.knowledge_health_dirty_nodes": "未インデックスノード",
+  "dashboard.knowledge_health_dirty_edges": "未インデックスエッジ",
   "dashboard.knowledge_health_dropped_hits": "破棄されたアクセス",
   "dashboard.knowledge_health_semantic_enabled": "セマンティック検索",
   "dashboard.knowledge_health_semantic_on": "有効",
@@ -740,5 +740,5 @@
   "dashboard.knowledge_health_needs_reindex": "セマンティック再インデックス待ち",
   "dashboard.knowledge_health_index_ok": "セマンティックインデックスは最新です",
   "dashboard.knowledge_health_reindex_backlog": "再インデックスの滞留が大きい",
-  "dashboard.memory_graph_dirty_hint": "{count} dirty"
+  "dashboard.memory_graph_dirty_hint": "{count} 件未処理"
 }

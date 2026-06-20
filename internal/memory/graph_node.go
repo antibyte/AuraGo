@@ -496,6 +496,9 @@ func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
 	if !sourceFound {
 		return fmt.Errorf("source node not found: %s", sourceID)
 	}
+	if sourceProtected != 0 {
+		return ErrKnowledgeGraphProtectedNode
+	}
 
 	removedEdges := kg.collectSemanticEdgeIdentities(tx, `
 		SELECT source, target, relation FROM kg_edges

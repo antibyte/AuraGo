@@ -520,7 +520,7 @@ func (kg *KnowledgeGraph) isExcludedNodeType(nodeType string) bool {
 }
 
 // SetProtectOptimizeSources configures node property sources that OptimizeGraph must
-// not delete. Pass an empty slice to allow all sources.
+// not delete. An empty configured list falls back to built-in defaults.
 func (kg *KnowledgeGraph) SetProtectOptimizeSources(sources []string) {
 	kg.protectOptimizeSourcesMu.Lock()
 	defer kg.protectOptimizeSourcesMu.Unlock()
@@ -546,8 +546,16 @@ func (kg *KnowledgeGraph) SetProtectIDPrefixes(prefixes []string) {
 	}
 }
 
+func defaultKnowledgeGraphProtectOptimizeSources() []string {
+	return []string{"planner", "inventory_sync", "manual", "file_sync", "core_memory"}
+}
+
+func defaultKnowledgeGraphProtectIDPrefixes() []string {
+	return []string{"core_fact_", "dev_", "contact_"}
+}
+
 func (kg *KnowledgeGraph) listProtectOptimizeSources() []string {
-	defaults := []string{"planner", "inventory_sync", "manual", "file_sync", "core_memory"}
+	defaults := defaultKnowledgeGraphProtectOptimizeSources()
 	if kg == nil {
 		return defaults
 	}
@@ -564,6 +572,19 @@ func (kg *KnowledgeGraph) listProtectOptimizeSources() []string {
 	return sources
 }
 
+func (kg *KnowledgeGraph) listProtectIDPrefixes() []string {
+	defaults := defaultKnowledgeGraphProtectIDPrefixes()
+	if kg == nil {
+		return defaults
+	}
+	kg.protectIDPrefixesMu.RLock()
+	defer kg.protectIDPrefixesMu.RUnlock()
+	if len(kg.protectIDPrefixes) == 0 {
+		return defaults
+	}
+	return append([]string(nil), kg.protectIDPrefixes...)
+}
+
 func knowledgeGraphSQLInPlaceholders(count int) string {
 	if count <= 0 {
 		return ""
@@ -578,17 +599,24 @@ func (kg *KnowledgeGraph) isKnowledgeGraphOptimizeProtected(nodeID, source strin
 	nodeID = strings.TrimSpace(nodeID)
 	source = strings.ToLower(strings.TrimSpace(source))
 
-	kg.protectIDPrefixesMu.RLock()
-	prefixes := append([]string(nil), kg.protectIDPrefixes...)
-	kg.protectIDPrefixesMu.RUnlock()
-	for _, prefix := range prefixes {
+	for _, prefix := range kg.listProtectIDPrefixes() {
 		if strings.HasPrefix(nodeID, prefix) {
 			return true
 		}
 	}
 
 	kg.protectOptimizeSourcesMu.RLock()
-	protected := kg.protectOptimizeSources[source]
+	sources := kg.protectOptimizeSources
+	if len(sources) == 0 {
+		kg.protectOptimizeSourcesMu.RUnlock()
+		for _, defaultSource := range defaultKnowledgeGraphProtectOptimizeSources() {
+			if source == defaultSource {
+				return true
+			}
+		}
+		return false
+	}
+	protected := sources[source]
 	kg.protectOptimizeSourcesMu.RUnlock()
 	return protected
 }

@@ -1012,6 +1012,11 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 
 	var toRemove []string
 
+	placeholderGrace := thresholdDays
+	if placeholderGrace > knowledgeGraphPlaceholderGraceDays {
+		placeholderGrace = knowledgeGraphPlaceholderGraceDays
+	}
+
 	placeholderRows, err := tx.Query(`
 		SELECT id FROM kg_nodes n
 		WHERE json_extract(n.properties, '$.source') = ?
@@ -1021,7 +1026,7 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 		  AND NOT EXISTS (
 			SELECT 1 FROM kg_edges e WHERE e.source = n.id OR e.target = n.id
 		  )
-	`, knowledgeGraphPlaceholderSource, knowledgeGraphPlaceholderGraceDays)
+	`, knowledgeGraphPlaceholderSource, placeholderGrace)
 	if err != nil {
 		return 0, 0, fmt.Errorf("query stale placeholder nodes: %w", err)
 	}

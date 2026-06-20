@@ -1563,6 +1563,24 @@ func (m *mockKG) PrunePlannerNodesByPrefix(prefix string, keepIDs map[string]str
 	return removed, nil
 }
 
+func (m *mockKG) PruneStalePlannerRootNodes(keepIDs map[string]struct{}) (int, error) {
+	removed := 0
+	for id := range m.nodes {
+		if !strings.HasPrefix(id, "appointment_") && !(strings.HasPrefix(id, "todo_") && !strings.Contains(id, "_item_")) {
+			continue
+		}
+		if keepIDs != nil {
+			if _, keep := keepIDs[id]; keep {
+				continue
+			}
+		}
+		delete(m.nodes, id)
+		m.deleted = append(m.deleted, id)
+		removed++
+	}
+	return removed, nil
+}
+
 func (m *mockKG) DeleteStalePlannerSyncEdges(expectedEdges map[string]struct{}, activePlannerNodes map[string]struct{}) (int, error) {
 	return 0, nil
 }

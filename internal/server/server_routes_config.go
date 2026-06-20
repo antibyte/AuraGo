@@ -429,9 +429,9 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/dashboard/errors", handleDashboardErrors(s))
 	mux.HandleFunc("/api/dashboard/compression", handleDashboardCompression(s))
 	mux.HandleFunc("/api/dashboard/mission-history", handleDashboardMissionHistory(s))
-	mux.HandleFunc("/api/knowledge-graph/node", handleKnowledgeGraphNodeDetail(s))
-	mux.HandleFunc("/api/knowledge-graph/node/protect", handleKnowledgeGraphNodeProtect(s))
-	mux.HandleFunc("/api/knowledge-graph/edge", handleKnowledgeGraphEdgeMutate(s))
+	mux.Handle("/api/knowledge-graph/node", requireAdminUnlessGET(s, handleKnowledgeGraphNodeDetail(s)))
+	mux.Handle("/api/knowledge-graph/node/protect", requireAdmin(s, handleKnowledgeGraphNodeProtect(s)))
+	mux.Handle("/api/knowledge-graph/edge", requireAdmin(s, handleKnowledgeGraphEdgeMutate(s)))
 	mux.HandleFunc("/api/knowledge-graph/nodes", handleKnowledgeGraphNodes(s))
 	mux.HandleFunc("/api/knowledge-graph/edges", handleKnowledgeGraphEdges(s))
 	mux.HandleFunc("/api/knowledge-graph/important", handleKnowledgeGraphImportant(s))
@@ -439,7 +439,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/knowledge-graph/search", handleKnowledgeGraphSearch(s))
 	mux.HandleFunc("/api/knowledge-graph/quality", handleKnowledgeGraphQuality(s))
 	mux.HandleFunc("/api/knowledge-graph/health", handleKnowledgeGraphHealth(s))
-	mux.HandleFunc("/api/knowledge-graph/merge", handleKnowledgeGraphMerge(s))
+	mux.Handle("/api/knowledge-graph/merge", requireAdmin(s, handleKnowledgeGraphMerge(s)))
 
 	// System endpoints
 	mux.HandleFunc("/api/system/os", func(w http.ResponseWriter, r *http.Request) {

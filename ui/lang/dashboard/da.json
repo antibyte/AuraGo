@@ -731,8 +731,8 @@
   "dashboard.knowledge_quality_merge_error": "Kunne ikke flette noder.",
   "dashboard.kg_col_actions": "Handlinger",
   "dashboard.knowledge_health_title": "Grafhelbred",
-  "dashboard.knowledge_health_dirty_nodes": "Dirty noder",
-  "dashboard.knowledge_health_dirty_edges": "Dirty kanter",
+  "dashboard.knowledge_health_dirty_nodes": "Afventende noder",
+  "dashboard.knowledge_health_dirty_edges": "Afventende kanter",
   "dashboard.knowledge_health_dropped_hits": "Droppede adgange",
   "dashboard.knowledge_health_semantic_enabled": "Semantisk søgning",
   "dashboard.knowledge_health_semantic_on": "Aktiv",
@@ -740,5 +740,5 @@
   "dashboard.knowledge_health_needs_reindex": "Semantisk reindex afventer",
   "dashboard.knowledge_health_index_ok": "Semantisk indeks er opdateret",
   "dashboard.knowledge_health_reindex_backlog": "Høj reindex-backlog",
-  "dashboard.memory_graph_dirty_hint": "{count} dirty"
+  "dashboard.memory_graph_dirty_hint": "{count} afventende"
 }

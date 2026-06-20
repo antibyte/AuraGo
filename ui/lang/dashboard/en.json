@@ -731,8 +731,8 @@
   "dashboard.knowledge_quality_merge_error": "Failed to merge nodes.",
   "dashboard.kg_col_actions": "Actions",
   "dashboard.knowledge_health_title": "Graph Health",
-  "dashboard.knowledge_health_dirty_nodes": "Dirty Nodes",
-  "dashboard.knowledge_health_dirty_edges": "Dirty Edges",
+  "dashboard.knowledge_health_dirty_nodes": "Pending Nodes",
+  "dashboard.knowledge_health_dirty_edges": "Pending Edges",
   "dashboard.knowledge_health_dropped_hits": "Dropped Access Hits",
   "dashboard.knowledge_health_semantic_enabled": "Semantic Search",
   "dashboard.knowledge_health_semantic_on": "Enabled",
@@ -740,5 +740,5 @@
   "dashboard.knowledge_health_needs_reindex": "Semantic reindex pending",
   "dashboard.knowledge_health_index_ok": "Semantic index up to date",
   "dashboard.knowledge_health_reindex_backlog": "Reindex backlog is high",
-  "dashboard.memory_graph_dirty_hint": "{count} dirty"
+  "dashboard.memory_graph_dirty_hint": "{count} pending"
 }
