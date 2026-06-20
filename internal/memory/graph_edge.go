@@ -19,7 +19,7 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 	defer tx.Rollback()
 
 	for _, id := range []string{source, target} {
-		if _, err := tx.Exec(`INSERT OR IGNORE INTO kg_nodes (id, label, properties) VALUES (?, 'Unknown', '{}')`, id); err != nil {
+		if err := ensureKnowledgeGraphPlaceholderNodeTx(tx, id); err != nil {
 			kg.logger.Warn("AddEdge: failed to ensure node exists", "id", id, "error", err)
 		}
 	}
@@ -363,7 +363,11 @@ func (kg *KnowledgeGraph) IncrementCoOccurrence(a, b, date string) error {
 		return fmt.Errorf("query co-occurrence: %w", err)
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	kg.upsertSemanticEdgeIndex(Edge{Source: a, Target: b, Relation: "co_mentioned_with"})
+	return nil
 }
 
 func loadKnowledgeGraphEdge(tx *sql.Tx, source, target, relation string) (properties map[string]string, found bool, err error) {

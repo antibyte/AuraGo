@@ -950,9 +950,34 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 	}
 	edgesDeleted, _ := edgeRes.RowsAffected()
 
+	var toRemove []string
+
+	placeholderRows, err := tx.Query(`
+		SELECT id FROM kg_nodes n
+		WHERE json_extract(n.properties, '$.source') = ?
+		  AND LOWER(TRIM(n.label)) = 'unknown'
+		  AND n.protected = 0
+		  AND n.updated_at <= datetime('now', '-' || ? || ' days')
+		  AND NOT EXISTS (
+			SELECT 1 FROM kg_edges e WHERE e.source = n.id OR e.target = n.id
+		  )
+	`, knowledgeGraphPlaceholderSource, knowledgeGraphPlaceholderGraceDays)
+	if err != nil {
+		return 0, 0, fmt.Errorf("query stale placeholder nodes: %w", err)
+	}
+	for placeholderRows.Next() {
+		var id string
+		if err := placeholderRows.Scan(&id); err == nil {
+			toRemove = append(toRemove, id)
+		}
+	}
+	if err := placeholderRows.Close(); err != nil {
+		return 0, 0, fmt.Errorf("close stale placeholder rows: %w", err)
+	}
+
 	rows, err := tx.Query(`
-		SELECT id FROM kg_nodes
-		WHERE access_count = 0 
+		SELECT id, COALESCE(source_type, '') FROM kg_nodes
+		WHERE access_count = 0
 		  AND protected = 0
 		  AND updated_at <= datetime('now', '-' || ? || ' days')
 	`, thresholdDays)
@@ -960,16 +985,29 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 		return 0, 0, fmt.Errorf("query unaccessed nodes: %w", err)
 	}
 
-	var toRemove []string
 	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err == nil {
+		var id, source string
+		if err := rows.Scan(&id, &source); err == nil {
+			if kg.isKnowledgeGraphOptimizeProtected(id, source) {
+				continue
+			}
 			toRemove = append(toRemove, id)
 		}
 	}
 	if err := rows.Close(); err != nil {
 		return 0, 0, fmt.Errorf("close stale node rows: %w", err)
 	}
+
+	seenRemove := make(map[string]struct{}, len(toRemove))
+	uniqueRemove := make([]string, 0, len(toRemove))
+	for _, id := range toRemove {
+		if _, ok := seenRemove[id]; ok {
+			continue
+		}
+		seenRemove[id] = struct{}{}
+		uniqueRemove = append(uniqueRemove, id)
+	}
+	toRemove = uniqueRemove
 
 	removedEdges := append([]semanticEdgeIdentity(nil), staleEdges...)
 	for _, id := range toRemove {

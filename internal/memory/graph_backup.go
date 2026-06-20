@@ -17,30 +17,48 @@ func (kg *KnowledgeGraph) BulkAddEntities(nodes []Node, edges []Edge) error {
 
 	now := time.Now().Format(time.RFC3339)
 	indexNodes := make([]Node, 0, len(nodes))
+	indexEdges := make([]Edge, 0, len(edges))
 	for _, n := range nodes {
 		if n.ID == "" {
 			continue
 		}
+		existingLabel, existingProps, existingProtected, _, err := loadKnowledgeGraphNode(tx, n.ID)
+		if err != nil {
+			return fmt.Errorf("load existing node %q for bulk add: %w", n.ID, err)
+		}
+
 		n.Properties = sanitizeKnowledgeGraphNodeProperties(n.Properties, strings.EqualFold(strings.TrimSpace(n.Properties["protected"]), "true"))
-		propsJSON, _ := json.Marshal(n.Properties)
-		isProtected := boolToInt(strings.EqualFold(strings.TrimSpace(n.Properties["protected"]), "true"))
+		finalLabel := mergeKnowledgeGraphLabel(existingLabel, n.Label)
+		finalProps := mergeKnowledgeGraphPropertiesOverwrite(existingProps, n.Properties)
+		isProtected := existingProtected
+		if finalProps["protected"] == "true" {
+			isProtected = 1
+		}
+		finalProps = sanitizeKnowledgeGraphNodeProperties(finalProps, isProtected != 0)
+		propsJSON, err := json.Marshal(finalProps)
+		if err != nil {
+			return fmt.Errorf("marshal bulk add node properties: %w", err)
+		}
 		if _, execErr := tx.Exec(`
 			INSERT INTO kg_nodes (id, label, properties, protected, updated_at)
 			VALUES (?, ?, ?, ?, ?)
 			ON CONFLICT(id) DO UPDATE SET
-				label = CASE WHEN excluded.label != 'Unknown' THEN excluded.label ELSE kg_nodes.label END,
+				label = excluded.label,
 				properties = excluded.properties,
 				protected = excluded.protected,
-				updated_at = ?
-		`, n.ID, n.Label, string(propsJSON), isProtected, now, now); execErr != nil {
+				updated_at = excluded.updated_at
+		`, n.ID, finalLabel, string(propsJSON), isProtected, now, now); execErr != nil {
 			kg.logger.Warn("[KG] BulkAddEntities: failed to insert node", "id", n.ID, "error", execErr)
 		}
-		indexNodes = append(indexNodes, Node{ID: n.ID, Label: n.Label, Properties: n.Properties})
+		indexNodes = append(indexNodes, Node{ID: n.ID, Label: finalLabel, Properties: finalProps, Protected: isProtected != 0})
 	}
 
 	for _, e := range edges {
+		if e.Source == "" || e.Target == "" || e.Relation == "" {
+			continue
+		}
 		for _, id := range []string{e.Source, e.Target} {
-			if _, execErr := tx.Exec(`INSERT OR IGNORE INTO kg_nodes (id, label, properties) VALUES (?, 'Unknown', '{}')`, id); execErr != nil {
+			if execErr := ensureKnowledgeGraphPlaceholderNodeTx(tx, id); execErr != nil {
 				kg.logger.Warn("[KG] BulkAddEntities: failed to ensure endpoint node", "id", id, "error", execErr)
 			}
 		}
@@ -48,16 +66,25 @@ func (kg *KnowledgeGraph) BulkAddEntities(nodes []Node, edges []Edge) error {
 			e.Properties = make(map[string]string)
 		}
 		e.Properties = normalizeKnowledgeGraphProperties(e.Properties)
-		propsJSON, _ := json.Marshal(e.Properties)
+		existingProps, _, err := loadKnowledgeGraphEdge(tx, e.Source, e.Target, e.Relation)
+		if err != nil {
+			return fmt.Errorf("load existing edge %q->%q/%q for bulk add: %w", e.Source, e.Target, e.Relation, err)
+		}
+		finalProps := mergeKnowledgeGraphPropertiesOverwrite(existingProps, e.Properties)
+		propsJSON, err := json.Marshal(finalProps)
+		if err != nil {
+			return fmt.Errorf("marshal bulk add edge properties: %w", err)
+		}
 		if _, execErr := tx.Exec(`
 			INSERT INTO kg_edges (source, target, relation, properties, updated_at)
 			VALUES (?, ?, ?, ?, ?)
 			ON CONFLICT(source, target, relation) DO UPDATE SET
 				properties = excluded.properties,
 				updated_at = excluded.updated_at
-		`, e.Source, e.Target, e.Relation, string(propsJSON), now); execErr != nil {
+		`, e.Source, e.Target, e.Relation, string(propsJSON), now, now); execErr != nil {
 			kg.logger.Warn("[KG] BulkAddEntities: failed to insert edge", "source", e.Source, "target", e.Target, "error", execErr)
 		}
+		indexEdges = append(indexEdges, Edge{Source: e.Source, Target: e.Target, Relation: e.Relation, Properties: finalProps})
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -66,10 +93,8 @@ func (kg *KnowledgeGraph) BulkAddEntities(nodes []Node, edges []Edge) error {
 	for _, node := range indexNodes {
 		kg.upsertSemanticNodeIndex(node)
 	}
-	for _, e := range edges {
-		if e.Source != "" && e.Target != "" && e.Relation != "" {
-			kg.upsertSemanticEdgeIndex(e)
-		}
+	for _, e := range indexEdges {
+		kg.upsertSemanticEdgeIndex(e)
 	}
 	return nil
 }
@@ -124,7 +149,7 @@ func (kg *KnowledgeGraph) BulkMergeExtractedEntities(nodes []Node, edges []Edge)
 			continue
 		}
 		for _, id := range []string{e.Source, e.Target} {
-			if _, execErr := tx.Exec(`INSERT OR IGNORE INTO kg_nodes (id, label, properties) VALUES (?, 'Unknown', '{}')`, id); execErr != nil {
+			if execErr := ensureKnowledgeGraphPlaceholderNodeTx(tx, id); execErr != nil {
 				kg.logger.Warn("[KG] BulkMergeExtractedEntities: failed to ensure endpoint node", "id", id, "error", execErr)
 			}
 		}

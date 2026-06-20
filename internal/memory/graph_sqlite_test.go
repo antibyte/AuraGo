@@ -641,6 +641,139 @@ func TestKGBulkAddEntities(t *testing.T) {
 	}
 }
 
+func TestKGBulkAddEntitiesMergesExistingNodeProperties(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("nas", "NAS", map[string]string{
+		"type":   "device",
+		"notes":  "manual notes",
+		"source": "manual",
+	}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+
+	err := kg.BulkAddEntities(
+		[]Node{{
+			ID:    "nas",
+			Label: "Network Storage",
+			Properties: map[string]string{
+				"notes":  "synced notes",
+				"vendor": "synology",
+				"source": "inventory",
+			},
+		}},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("BulkAddEntities: %v", err)
+	}
+
+	node, err := kg.GetNode("nas")
+	if err != nil {
+		t.Fatalf("GetNode: %v", err)
+	}
+	if node == nil {
+		t.Fatal("expected merged node")
+	}
+	if node.Label != "NAS" {
+		t.Fatalf("label = %q, want existing curated label NAS", node.Label)
+	}
+	if node.Properties["notes"] != "synced notes" {
+		t.Fatalf("notes = %q, want overwrite merge from bulk add", node.Properties["notes"])
+	}
+	if node.Properties["vendor"] != "synology" {
+		t.Fatalf("vendor = %q, want synology", node.Properties["vendor"])
+	}
+	if node.Properties["type"] != "device" {
+		t.Fatalf("type = %q, want preserved device type", node.Properties["type"])
+	}
+}
+
+func TestKGAddEdgeCreatesPlaceholderNodeProperties(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("server", "Server", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+	if err := kg.AddEdge("server", "ghost_peer", "connects_to", nil); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	ghost, err := kg.GetNode("ghost_peer")
+	if err != nil {
+		t.Fatalf("GetNode ghost_peer: %v", err)
+	}
+	if ghost == nil {
+		t.Fatal("expected auto-created placeholder node")
+	}
+	if ghost.Label != knowledgeGraphPlaceholderLabel {
+		t.Fatalf("label = %q, want %q", ghost.Label, knowledgeGraphPlaceholderLabel)
+	}
+	if ghost.Properties["source"] != knowledgeGraphPlaceholderSource {
+		t.Fatalf("source = %q, want %q", ghost.Properties["source"], knowledgeGraphPlaceholderSource)
+	}
+	if ghost.Properties["type"] != "unknown" {
+		t.Fatalf("type = %q, want unknown", ghost.Properties["type"])
+	}
+}
+
+func TestKGCleanupStaleGraphRemovesStalePlaceholders(t *testing.T) {
+	kg := newTestKG(t)
+
+	propsJSON, err := json.Marshal(knowledgeGraphPlaceholderNodeProperties())
+	if err != nil {
+		t.Fatalf("marshal placeholder props: %v", err)
+	}
+	for _, spec := range []struct {
+		id      string
+		updated string
+	}{
+		{"stale_placeholder", "-8 days"},
+		{"fresh_placeholder", "-1 days"},
+	} {
+		if _, err := kg.db.Exec(`
+			INSERT INTO kg_nodes (id, label, properties, updated_at)
+			VALUES (?, ?, ?, datetime('now', ?))
+		`, spec.id, knowledgeGraphPlaceholderLabel, string(propsJSON), spec.updated); err != nil {
+			t.Fatalf("insert placeholder %s: %v", spec.id, err)
+		}
+	}
+	if _, err := kg.db.Exec(`
+		INSERT INTO kg_nodes (id, label, properties, updated_at)
+		VALUES ('linked_placeholder', ?, ?, datetime('now', '-8 days'))
+	`, knowledgeGraphPlaceholderLabel, string(propsJSON)); err != nil {
+		t.Fatalf("insert linked placeholder: %v", err)
+	}
+	if err := kg.AddEdge("linked_placeholder", "anchor", "mentions", nil); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	_, nodesRemoved, err := kg.CleanupStaleGraph(30)
+	if err != nil {
+		t.Fatalf("CleanupStaleGraph: %v", err)
+	}
+	if nodesRemoved != 1 {
+		t.Fatalf("nodesRemoved = %d, want 1 (only stale isolated placeholder)", nodesRemoved)
+	}
+
+	stale, err := kg.GetNode("stale_placeholder")
+	if err != nil {
+		t.Fatalf("GetNode stale_placeholder: %v", err)
+	}
+	if stale != nil {
+		t.Fatal("expected stale isolated placeholder to be removed")
+	}
+	for _, id := range []string{"fresh_placeholder", "linked_placeholder", "anchor"} {
+		node, err := kg.GetNode(id)
+		if err != nil {
+			t.Fatalf("GetNode %s: %v", id, err)
+		}
+		if node == nil {
+			t.Fatalf("expected node %s to survive cleanup", id)
+		}
+	}
+}
+
 func TestKGBulkMergeExtractedEntitiesPreservesExistingProperties(t *testing.T) {
 	kg := newTestKG(t)
 

@@ -374,6 +374,88 @@ func TestKGRunSemanticReindexIfDueRespectsInterval(t *testing.T) {
 	}
 }
 
+func TestKGIncrementCoOccurrenceUpsertsSemanticEdge(t *testing.T) {
+	kg := newTestKG(t)
+
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		return []float32{float32(len(text)), 1}, nil
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+
+	if err := kg.AddNode("alice", "Alice", nil); err != nil {
+		t.Fatalf("AddNode alice: %v", err)
+	}
+	if err := kg.AddNode("bob", "Bob", nil); err != nil {
+		t.Fatalf("AddNode bob: %v", err)
+	}
+	if err := kg.IncrementCoOccurrence("alice", "bob", "2026-01-01"); err != nil {
+		t.Fatalf("IncrementCoOccurrence: %v", err)
+	}
+
+	edgeDocID := "edge://alice\x00bob\x00co_mentioned_with"
+	doc, err := kg.semantic.collection.GetByID(context.Background(), edgeDocID)
+	if err != nil {
+		t.Fatalf("expected co-occurrence semantic edge document: %v", err)
+	}
+	if !strings.Contains(doc.Content, "co_mentioned_with") {
+		t.Fatalf("semantic edge content = %q, want co_mentioned_with relation", doc.Content)
+	}
+}
+
+func TestKGMergeNodesRemovesSourceSemanticEdges(t *testing.T) {
+	kg := newTestKG(t)
+
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		return []float32{float32(len(text)), 1}, nil
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+
+	if err := kg.AddNode("target", "Target", map[string]string{"type": "service"}); err != nil {
+		t.Fatalf("AddNode target: %v", err)
+	}
+	if err := kg.AddNode("source", "Source", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode source: %v", err)
+	}
+	if err := kg.AddEdge("source", "peer", "connects_to", map[string]string{"notes": "outgoing"}); err != nil {
+		t.Fatalf("AddEdge outgoing: %v", err)
+	}
+	if err := kg.AddEdge("client", "source", "uses", map[string]string{"notes": "incoming"}); err != nil {
+		t.Fatalf("AddEdge incoming: %v", err)
+	}
+
+	sourceOutgoingID := "edge://source\x00peer\x00connects_to"
+	sourceIncomingID := "edge://client\x00source\x00uses"
+	for _, docID := range []string{"source", sourceOutgoingID, sourceIncomingID} {
+		if _, err := kg.semantic.collection.GetByID(context.Background(), docID); err != nil {
+			t.Fatalf("expected semantic document %q before merge: %v", docID, err)
+		}
+	}
+
+	if err := kg.MergeNodes("target", "source"); err != nil {
+		t.Fatalf("MergeNodes: %v", err)
+	}
+
+	for _, docID := range []string{"source", sourceOutgoingID, sourceIncomingID} {
+		if _, err := kg.semantic.collection.GetByID(context.Background(), docID); err == nil {
+			t.Fatalf("expected stale semantic document %q removed after merge", docID)
+		}
+	}
+
+	targetOutgoingID := "edge://target\x00peer\x00connects_to"
+	targetIncomingID := "edge://client\x00target\x00uses"
+	for _, docID := range []string{"target", targetOutgoingID, targetIncomingID} {
+		if _, err := kg.semantic.collection.GetByID(context.Background(), docID); err != nil {
+			t.Fatalf("expected merged semantic document %q after merge: %v", docID, err)
+		}
+	}
+}
+
 func TestKGSearchForContextWildcardUsesImportantNodes(t *testing.T) {
 	kg := newTestKG(t)
 

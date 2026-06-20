@@ -9,6 +9,33 @@ import (
 	"time"
 )
 
+const knowledgeGraphPlaceholderLabel = "Unknown"
+const knowledgeGraphPlaceholderSource = "auto_placeholder"
+const knowledgeGraphPlaceholderGraceDays = 7
+
+func knowledgeGraphPlaceholderNodeProperties() map[string]string {
+	return map[string]string{
+		"type":   "unknown",
+		"source": knowledgeGraphPlaceholderSource,
+	}
+}
+
+func ensureKnowledgeGraphPlaceholderNodeTx(tx *sql.Tx, id string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil
+	}
+	propsJSON, err := json.Marshal(knowledgeGraphPlaceholderNodeProperties())
+	if err != nil {
+		return fmt.Errorf("marshal placeholder node properties: %w", err)
+	}
+	_, err = tx.Exec(`
+		INSERT OR IGNORE INTO kg_nodes (id, label, properties, updated_at)
+		VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+	`, id, knowledgeGraphPlaceholderLabel, string(propsJSON))
+	return err
+}
+
 func validateNodeSchema(properties map[string]string) map[string]string {
 	if properties == nil {
 		properties = make(map[string]string)
@@ -474,6 +501,11 @@ func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
 		return fmt.Errorf("source node not found: %s", sourceID)
 	}
 
+	removedEdges := kg.collectSemanticEdgeIdentities(tx, `
+		SELECT source, target, relation FROM kg_edges
+		WHERE source = ? OR target = ?
+	`, sourceID, sourceID)
+
 	mergedLabel := mergeKnowledgeGraphLabel(targetLabel, sourceLabel)
 	mergedProtected := targetProtected != 0 || sourceProtected != 0
 	mergedProps := mergeKnowledgeGraphProperties(targetProps, sourceProps)
@@ -555,9 +587,7 @@ func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
 		return err
 	}
 
-	if err := kg.removeSemanticNodeIndex(sourceID); err != nil && kg.logger != nil {
-		kg.logger.Warn("MergeNodes: failed to remove source semantic node index", "source_id", sourceID, "error", err)
-	}
+	kg.removeSemanticIndexesForDeletedGraphData([]string{sourceID}, removedEdges)
 	kg.upsertSemanticNodeIndex(Node{ID: targetID, Label: mergedLabel, Properties: mergedProps, Protected: mergedProtected})
 	incidentEdges, err := kg.GetImportantEdges(500, []string{targetID})
 	if err != nil {
