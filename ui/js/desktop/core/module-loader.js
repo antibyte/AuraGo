@@ -139,6 +139,14 @@
                 '/js/desktop/apps/galaxa-deluxe.js'
             ]
         },
+        'chess': {
+            styles: appStyles('/css/cm-chessboard.css', '/css/desktop-app-chess.css'),
+            scripts: [
+                '/js/desktop/apps/chess-engine.js',
+                '/js/desktop/apps/chess-agent.js',
+                '/js/desktop/apps/chess.js'
+            ]
+        },
         'nasscad': {
             styles: appStyles('/css/desktop-app-nasscad.css'),
             scripts: ['/js/desktop/apps/nasscad.js']

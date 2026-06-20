@@ -48,6 +48,13 @@ func TestDesktopAppsExposeDisposeLifecycle(t *testing.T) {
 			"WriterApp.dispose",
 			"instances.delete(windowId)",
 		},
+		"ui/js/desktop/apps/chess.js": {
+			"window.ChessApp = { render, dispose }",
+			"const instances = new Map()",
+			"function render(container, windowId, context = {})",
+			"function dispose(windowId)",
+			"instances.delete(windowId)",
+		},
 	}
 
 	for path, wants := range markers {

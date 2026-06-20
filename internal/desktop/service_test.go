@@ -168,6 +168,24 @@ func TestBuiltinAppsExposeTeeVeeMetadata(t *testing.T) {
 	}
 }
 
+func TestBuiltinAppsExposeChessMetadata(t *testing.T) {
+	apps := BuiltinApps()
+
+	chess := testFindApp(t, apps, "chess")
+	if !chess.Builtin || chess.Deletable || !chess.DockVisible || !chess.StartVisible {
+		t.Fatalf("chess visibility = builtin:%v deletable:%v dock:%v start:%v, want first-party visible app", chess.Builtin, chess.Deletable, chess.DockVisible, chess.StartVisible)
+	}
+	if chess.Name != "Chess" {
+		t.Fatalf("chess name = %q, want Chess", chess.Name)
+	}
+	if chess.Icon != "run" || chess.Entry != "builtin://chess" || chess.Runtime != BuiltinRuntime {
+		t.Fatalf("chess manifest icon/entry/runtime = %q/%q/%q, want run/builtin://chess/%q", chess.Icon, chess.Entry, chess.Runtime, BuiltinRuntime)
+	}
+	if !strings.Contains(strings.ToLower(chess.Description), "chess") {
+		t.Fatalf("chess description should mention chess, got %q", chess.Description)
+	}
+}
+
 func TestServiceMutationLockIsSharedAcrossServices(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "workspace")
 	dbPath := filepath.Join(t.TempDir(), "desktop.db")

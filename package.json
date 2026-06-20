@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build:codemirror": "node scripts/build-codemirror.js",
+    "build:chess-vendor": "node scripts/build-chess-vendor.js",
     "build:ui": "node scripts/build-ui-bundles.js"
   },
   "dependencies": {
@@ -24,8 +25,11 @@
     "@codemirror/theme-one-dark": "^6.1.3",
     "@codemirror/view": "^6.36.3",
     "@rollup/plugin-node-resolve": "^16.0.1",
+    "chess.js": "1.4.0",
+    "cm-chessboard": "8.12.12",
     "headroom-ai": "^0.22.4",
     "quill": "^2.0.2",
-    "rollup": "^4.40.0"
+    "rollup": "^4.40.0",
+    "stockfish": "18.0.8"
   }
 }

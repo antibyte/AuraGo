@@ -478,6 +478,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/embed-token", handleDesktopEmbedToken(s))
 	mux.HandleFunc("/api/desktop/chat", handleDesktopChat(s))
 	mux.HandleFunc("/api/desktop/chat/stream", handleDesktopChatStream(s))
+	mux.HandleFunc("/api/desktop/chess/agent-move", handleDesktopChessAgentMove(s))
 	mux.HandleFunc("/api/desktop/ws", handleDesktopWS(s))
 	mux.HandleFunc("/api/agodesk/ws", handleAgodeskWebSocket(s))
 	mux.HandleFunc("/api/agodesk/tts/", handleAgodeskTTSAsset(s))
