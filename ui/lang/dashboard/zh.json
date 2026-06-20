@@ -729,5 +729,16 @@
   "dashboard.knowledge_quality_merge_confirm": "将“{source}”合并到“{target}”（{label}）？源节点将被删除。",
   "dashboard.knowledge_quality_merge_success": "节点合并成功。",
   "dashboard.knowledge_quality_merge_error": "合并节点失败。",
-  "dashboard.kg_col_actions": "操作"
+  "dashboard.kg_col_actions": "操作",
+  "dashboard.knowledge_health_title": "图谱健康状态",
+  "dashboard.knowledge_health_dirty_nodes": "Dirty 节点",
+  "dashboard.knowledge_health_dirty_edges": "Dirty 边",
+  "dashboard.knowledge_health_dropped_hits": "丢弃的访问计数",
+  "dashboard.knowledge_health_semantic_enabled": "语义搜索",
+  "dashboard.knowledge_health_semantic_on": "已启用",
+  "dashboard.knowledge_health_semantic_off": "已禁用",
+  "dashboard.knowledge_health_needs_reindex": "语义重索引待处理",
+  "dashboard.knowledge_health_index_ok": "语义索引已是最新",
+  "dashboard.knowledge_health_reindex_backlog": "重索引积压较高",
+  "dashboard.memory_graph_dirty_hint": "{count} dirty"
 }

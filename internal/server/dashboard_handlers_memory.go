@@ -32,10 +32,7 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 			vectorDisabled = s.LongTermMem.IsDisabled()
 		}
 
-		graphNodes, graphEdges := 0, 0
-		if s.KG != nil {
-			graphNodes, graphEdges, _ = s.KG.Stats()
-		}
+		kgPayload := knowledgeGraphDashboardPayload(s.KG)
 
 		milestones, _ := s.ShortTermMem.GetMilestoneEntries(10)
 		if milestones == nil {
@@ -69,10 +66,7 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 			"chat_messages":     msgCount,
 			"vectordb_entries":  vectorCount,
 			"vectordb_disabled": vectorDisabled,
-			"knowledge_graph": map[string]int{
-				"nodes": graphNodes,
-				"edges": graphEdges,
-			},
+			"knowledge_graph":   kgPayload,
 			"journal_entries":  journalCount,
 			"notes_count":      notesCount,
 			"error_patterns":   errorPatternsCount,
@@ -207,19 +201,12 @@ func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.Handle
 			vectorCount = s.LongTermMem.Count()
 			vectorDisabled = s.LongTermMem.IsDisabled()
 		}
-		graphNodes, graphEdges := 0, 0
-		if s.KG != nil {
-			graphNodes, graphEdges, _ = s.KG.Stats()
-		}
 		sse.BroadcastType(EventMemoryUpdate, map[string]interface{}{
 			"core_memory_facts": coreCount,
 			"chat_messages":     msgCount,
 			"vectordb_entries":  vectorCount,
 			"vectordb_disabled": vectorDisabled,
-			"knowledge_graph": map[string]int{
-				"nodes": graphNodes,
-				"edges": graphEdges,
-			},
+			"knowledge_graph":   knowledgeGraphDashboardPayload(s.KG),
 		})
 	}
 
@@ -309,4 +296,26 @@ func handleDashboardNotes(s *Server) http.HandlerFunc {
 			"count": len(notes),
 		})
 	}
+}
+
+func knowledgeGraphDashboardPayload(kg *memory.KnowledgeGraph) map[string]interface{} {
+	payload := map[string]interface{}{
+		"nodes":            0,
+		"edges":            0,
+		"dirty_nodes":      0,
+		"semantic_enabled": false,
+	}
+	if kg == nil {
+		return payload
+	}
+	nodes, edges, err := kg.Stats()
+	if err == nil {
+		payload["nodes"] = nodes
+		payload["edges"] = edges
+	}
+	payload["semantic_enabled"] = kg.SemanticSearchEnabled()
+	if dirtyNodes, _, err := kg.DirtySemanticCounts(); err == nil {
+		payload["dirty_nodes"] = dirtyNodes
+	}
+	return payload
 }

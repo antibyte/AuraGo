@@ -729,5 +729,16 @@
   "dashboard.knowledge_quality_merge_confirm": "Να γίνει συγχώνευση του \"{source}\" στον \"{target}\" ({label}); Ο κόμβος πηγής θα διαγραφεί.",
   "dashboard.knowledge_quality_merge_success": "Οι κόμβοι συγχωνεύτηκαν επιτυχώς.",
   "dashboard.knowledge_quality_merge_error": "Αποτυχία συγχώνευσης κόμβων.",
-  "dashboard.kg_col_actions": "Ενέργειες"
+  "dashboard.kg_col_actions": "Ενέργειες",
+  "dashboard.knowledge_health_title": "Υγεία γράφου",
+  "dashboard.knowledge_health_dirty_nodes": "Dirty κόμβοι",
+  "dashboard.knowledge_health_dirty_edges": "Dirty ακμές",
+  "dashboard.knowledge_health_dropped_hits": "Απορριφθείσες προσβάσεις",
+  "dashboard.knowledge_health_semantic_enabled": "Σημασιολογική αναζήτηση",
+  "dashboard.knowledge_health_semantic_on": "Ενεργή",
+  "dashboard.knowledge_health_semantic_off": "Ανενεργή",
+  "dashboard.knowledge_health_needs_reindex": "Εκκρεμεί σημασιολογική reindex",
+  "dashboard.knowledge_health_index_ok": "Το σημασιολογικό ευρετήριο είναι ενημερωμένο",
+  "dashboard.knowledge_health_reindex_backlog": "Υψηλή ουρά reindex",
+  "dashboard.memory_graph_dirty_hint": "{count} dirty"
 }

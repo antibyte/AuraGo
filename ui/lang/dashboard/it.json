@@ -729,5 +729,16 @@
   "dashboard.knowledge_quality_merge_confirm": "Unire \"{source}\" in \"{target}\" ({label})? Il nodo sorgente verrà eliminato.",
   "dashboard.knowledge_quality_merge_success": "Nodi uniti con successo.",
   "dashboard.knowledge_quality_merge_error": "Impossibile unire i nodi.",
-  "dashboard.kg_col_actions": "Azioni"
+  "dashboard.kg_col_actions": "Azioni",
+  "dashboard.knowledge_health_title": "Salute del grafo",
+  "dashboard.knowledge_health_dirty_nodes": "Nodi dirty",
+  "dashboard.knowledge_health_dirty_edges": "Archi dirty",
+  "dashboard.knowledge_health_dropped_hits": "Accessi scartati",
+  "dashboard.knowledge_health_semantic_enabled": "Ricerca semantica",
+  "dashboard.knowledge_health_semantic_on": "Attiva",
+  "dashboard.knowledge_health_semantic_off": "Disattiva",
+  "dashboard.knowledge_health_needs_reindex": "Reindex semantico in sospeso",
+  "dashboard.knowledge_health_index_ok": "Indice semantico aggiornato",
+  "dashboard.knowledge_health_reindex_backlog": "Backlog di reindex elevato",
+  "dashboard.memory_graph_dirty_hint": "{count} dirty"
 }

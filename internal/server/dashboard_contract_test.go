@@ -143,6 +143,52 @@ func TestHandleDashboardMemoryContract(t *testing.T) {
 	}
 }
 
+func TestHandleDashboardMemoryKnowledgeGraphHealthFields(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	t.Cleanup(func() { _ = kg.Close() })
+	if err := kg.AddNode("router", "Router", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	s := &Server{ShortTermMem: stm, KG: kg}
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/memory", nil)
+	rec := httptest.NewRecorder()
+	handleDashboardMemory(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rec.Code)
+	}
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode JSON: %v", err)
+	}
+	kgPayload, ok := body["knowledge_graph"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("knowledge_graph has unexpected type %T", body["knowledge_graph"])
+	}
+	for _, key := range []string{"nodes", "edges", "dirty_nodes", "semantic_enabled"} {
+		if _, ok := kgPayload[key]; !ok {
+			t.Fatalf("knowledge_graph missing key %q", key)
+		}
+	}
+	if nodes, _ := kgPayload["nodes"].(float64); nodes != 1 {
+		t.Fatalf("nodes = %v, want 1", kgPayload["nodes"])
+	}
+	if dirty, _ := kgPayload["dirty_nodes"].(float64); dirty != 1 {
+		t.Fatalf("dirty_nodes = %v, want 1", kgPayload["dirty_nodes"])
+	}
+}
+
 func TestHandleDashboardCoreMemoryMutateDeleteAllRequiresConfirmation(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)

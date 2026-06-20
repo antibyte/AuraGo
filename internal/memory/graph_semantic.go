@@ -898,6 +898,11 @@ type KnowledgeGraphHealthReport struct {
 	Consistency       *KGConsistencyReport `json:"consistency,omitempty"`
 }
 
+// SemanticSearchEnabled reports whether the KG semantic index is active.
+func (kg *KnowledgeGraph) SemanticSearchEnabled() bool {
+	return kg != nil && kg.semantic != nil
+}
+
 // DirtySemanticCounts returns how many KG nodes and edges still need semantic reindexing.
 func (kg *KnowledgeGraph) DirtySemanticCounts() (nodes int, edges int, err error) {
 	if kg == nil || kg.db == nil {

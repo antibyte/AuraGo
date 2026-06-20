@@ -729,5 +729,16 @@
   "dashboard.knowledge_quality_merge_confirm": "\"{source}\" in \"{target}\" ({label}) zusammenführen? Der Quellknoten wird gelöscht.",
   "dashboard.knowledge_quality_merge_success": "Knoten erfolgreich zusammengeführt.",
   "dashboard.knowledge_quality_merge_error": "Zusammenführen fehlgeschlagen.",
-  "dashboard.kg_col_actions": "Aktionen"
+  "dashboard.kg_col_actions": "Aktionen",
+  "dashboard.knowledge_health_title": "Graph-Gesundheit",
+  "dashboard.knowledge_health_dirty_nodes": "Dirty Nodes",
+  "dashboard.knowledge_health_dirty_edges": "Dirty Edges",
+  "dashboard.knowledge_health_dropped_hits": "Verworfene Zugriffe",
+  "dashboard.knowledge_health_semantic_enabled": "Semantische Suche",
+  "dashboard.knowledge_health_semantic_on": "Aktiv",
+  "dashboard.knowledge_health_semantic_off": "Inaktiv",
+  "dashboard.knowledge_health_needs_reindex": "Semantischer Reindex ausstehend",
+  "dashboard.knowledge_health_index_ok": "Semantischer Index aktuell",
+  "dashboard.knowledge_health_reindex_backlog": "Reindex-Rückstau ist hoch",
+  "dashboard.memory_graph_dirty_hint": "{count} dirty"
 }

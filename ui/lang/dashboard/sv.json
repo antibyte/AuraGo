@@ -729,5 +729,16 @@
   "dashboard.knowledge_quality_merge_confirm": "Slå ihop \"{source}\" till \"{target}\" ({label})? Källnoden tas bort.",
   "dashboard.knowledge_quality_merge_success": "Noder slogs ihop.",
   "dashboard.knowledge_quality_merge_error": "Det gick inte att slå ihop noderna.",
-  "dashboard.kg_col_actions": "Åtgärder"
+  "dashboard.kg_col_actions": "Åtgärder",
+  "dashboard.knowledge_health_title": "Grafhälsa",
+  "dashboard.knowledge_health_dirty_nodes": "Dirty noder",
+  "dashboard.knowledge_health_dirty_edges": "Dirty kanter",
+  "dashboard.knowledge_health_dropped_hits": "Bortfallna åtkomster",
+  "dashboard.knowledge_health_semantic_enabled": "Semantiskt sök",
+  "dashboard.knowledge_health_semantic_on": "Aktiverat",
+  "dashboard.knowledge_health_semantic_off": "Inaktiverat",
+  "dashboard.knowledge_health_needs_reindex": "Semantisk omindexering väntar",
+  "dashboard.knowledge_health_index_ok": "Semantiskt index är uppdaterat",
+  "dashboard.knowledge_health_reindex_backlog": "Hög omindexeringskö",
+  "dashboard.memory_graph_dirty_hint": "{count} dirty"
 }

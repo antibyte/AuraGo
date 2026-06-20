@@ -3338,6 +3338,12 @@
             margin-bottom: 0.95rem;
         }
 
+        .knowledge-health-status {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
         .knowledge-quality-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));

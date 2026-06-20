@@ -38,6 +38,40 @@
             grid.innerHTML = statsHTML + (typeBadges ? `<div class="knowledge-type-badges">${typeBadges}</div>` : '');
         }
 
+        function renderKnowledgeGraphHealth(health) {
+            const metrics = document.getElementById('knowledge-health-metrics');
+            const status = document.getElementById('knowledge-health-status');
+            if (!metrics || !status) return;
+
+            const semanticEnabled = !!health?.semantic_enabled;
+            const stats = [
+                { val: Number(health?.dirty_nodes || 0), lbl: t('dashboard.knowledge_health_dirty_nodes') },
+                { val: Number(health?.dirty_edges || 0), lbl: t('dashboard.knowledge_health_dirty_edges') },
+                { val: Number(health?.dropped_access_hits || 0), lbl: t('dashboard.knowledge_health_dropped_hits') },
+                {
+                    val: semanticEnabled ? t('dashboard.knowledge_health_semantic_on') : t('dashboard.knowledge_health_semantic_off'),
+                    lbl: t('dashboard.knowledge_health_semantic_enabled'),
+                },
+            ];
+            metrics.innerHTML = stats.map(stat => `
+                <div class="mem-stat">
+                    <div class="mem-stat-val">${esc(String(stat.val))}</div>
+                    <div class="mem-stat-lbl">${esc(stat.lbl)}</div>
+                </div>
+            `).join('');
+
+            const pills = [];
+            if (health?.needs_reindex) {
+                pills.push(`<span class="pill-status pill-warning">${t('dashboard.knowledge_health_needs_reindex')}</span>`);
+            } else {
+                pills.push(`<span class="pill-status pill-completed">${t('dashboard.knowledge_health_index_ok')}</span>`);
+            }
+            if (health?.reindex_backlog) {
+                pills.push(`<span class="pill-status pill-warning">${t('dashboard.knowledge_health_reindex_backlog')}</span>`);
+            }
+            status.innerHTML = pills.join('');
+        }
+
         function renderKnowledgeGraphQuality(report) {
             const metrics = document.getElementById('knowledge-quality-metrics');
             const isolated = document.getElementById('knowledge-quality-isolated');
@@ -1193,8 +1227,13 @@
         function renderMemoryStats(data) {
             if (!data) return;
             const container = document.getElementById('memory-stats');
-            const gn = (data.knowledge_graph || {}).nodes || 0;
-            const ge = (data.knowledge_graph || {}).edges || 0;
+            const kg = data.knowledge_graph || {};
+            const gn = kg.nodes || 0;
+            const ge = kg.edges || 0;
+            let graphVal = gn + ' / ' + ge;
+            if ((kg.dirty_nodes || 0) > 0) {
+                graphVal += ' · ' + t('dashboard.memory_graph_dirty_hint', { count: kg.dirty_nodes });
+            }
 
             let embeddingVal = data.vectordb_entries || 0;
             let embeddingLbl = t('dashboard.memory_embeddings');
@@ -1206,7 +1245,7 @@
                 { val: data.core_memory_facts || 0, lbl: t('dashboard.memory_core_facts'), clickable: true },
                 { val: data.chat_messages || 0, lbl: t('dashboard.memory_messages') },
                 { val: embeddingVal, lbl: embeddingLbl },
-                { val: gn + ' / ' + ge, lbl: t('dashboard.memory_graph_label') },
+                { val: graphVal, lbl: t('dashboard.memory_graph_label') },
                 { val: data.journal_entries || 0, lbl: t('dashboard.memory_journal') },
                 { val: data.notes_count || 0, lbl: t('dashboard.memory_notes') },
                 { val: data.error_patterns || 0, lbl: t('dashboard.memory_error_patterns') },

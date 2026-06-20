@@ -225,10 +225,11 @@
         }
 
         async function loadTabKnowledge() {
-            const [important, stats, quality] = await Promise.all([
+            const [important, stats, quality, health] = await Promise.all([
                 API.get('/api/knowledge-graph/important?limit=30&min_score=15'),
                 API.get('/api/knowledge-graph/stats'),
                 API.get('/api/knowledge-graph/quality?limit=6'),
+                API.get('/api/knowledge-graph/health'),
             ]);
 
             KnowledgeGraphState.importantNodes = Array.isArray(important) ? important : [];
@@ -250,6 +251,7 @@
             KnowledgeGraphState.edges = filterEdgesForDisplay(allEdges, displayNodes);
 
             renderKnowledgeGraphSummary(KnowledgeGraphState.importantNodes, KnowledgeGraphState.importantEdges, KnowledgeGraphState.stats);
+            renderKnowledgeGraphHealth(health || {});
             renderKnowledgeGraphQuality(quality || {});
             renderKnowledgeGraphLists(KnowledgeGraphState.nodes, KnowledgeGraphState.edges);
             renderKnowledgeGraphVisual();

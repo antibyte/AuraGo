@@ -729,5 +729,16 @@
   "dashboard.knowledge_quality_merge_confirm": "¿Fusionar \"{source}\" en \"{target}\" ({label})? El nodo origen se eliminará.",
   "dashboard.knowledge_quality_merge_success": "Nodos fusionados correctamente.",
   "dashboard.knowledge_quality_merge_error": "No se pudieron fusionar los nodos.",
-  "dashboard.kg_col_actions": "Acciones"
+  "dashboard.kg_col_actions": "Acciones",
+  "dashboard.knowledge_health_title": "Salud del grafo",
+  "dashboard.knowledge_health_dirty_nodes": "Nodos dirty",
+  "dashboard.knowledge_health_dirty_edges": "Aristas dirty",
+  "dashboard.knowledge_health_dropped_hits": "Accesos descartados",
+  "dashboard.knowledge_health_semantic_enabled": "Búsqueda semántica",
+  "dashboard.knowledge_health_semantic_on": "Activa",
+  "dashboard.knowledge_health_semantic_off": "Inactiva",
+  "dashboard.knowledge_health_needs_reindex": "Reindexación semántica pendiente",
+  "dashboard.knowledge_health_index_ok": "Índice semántico actualizado",
+  "dashboard.knowledge_health_reindex_backlog": "Acumulación alta de reindexación",
+  "dashboard.memory_graph_dirty_hint": "{count} dirty"
 }

@@ -729,5 +729,16 @@
   "dashboard.knowledge_quality_merge_confirm": "Scalić \"{source}\" z \"{target}\" ({label})? Węzeł źródłowy zostanie usunięty.",
   "dashboard.knowledge_quality_merge_success": "Węzły scalone pomyślnie.",
   "dashboard.knowledge_quality_merge_error": "Nie udało się scalić węzłów.",
-  "dashboard.kg_col_actions": "Akcje"
+  "dashboard.kg_col_actions": "Akcje",
+  "dashboard.knowledge_health_title": "Kondycja grafu",
+  "dashboard.knowledge_health_dirty_nodes": "Dirty nodes",
+  "dashboard.knowledge_health_dirty_edges": "Dirty edges",
+  "dashboard.knowledge_health_dropped_hits": "Odrzucone dostępy",
+  "dashboard.knowledge_health_semantic_enabled": "Wyszukiwanie semantyczne",
+  "dashboard.knowledge_health_semantic_on": "Włączone",
+  "dashboard.knowledge_health_semantic_off": "Wyłączone",
+  "dashboard.knowledge_health_needs_reindex": "Oczekuje reindeksacja semantyczna",
+  "dashboard.knowledge_health_index_ok": "Indeks semantyczny aktualny",
+  "dashboard.knowledge_health_reindex_backlog": "Wysoki zaległy reindeks",
+  "dashboard.memory_graph_dirty_hint": "{count} dirty"
 }

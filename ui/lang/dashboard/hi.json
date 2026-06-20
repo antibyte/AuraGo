@@ -729,5 +729,16 @@
   "dashboard.knowledge_quality_merge_confirm": "\"{source}\" को \"{target}\" ({label}) में मर्ज करें? स्रोत नोड हटा दिया जाएगा।",
   "dashboard.knowledge_quality_merge_success": "नोड सफलतापूर्वक मर्ज हो गए।",
   "dashboard.knowledge_quality_merge_error": "नोड मर्ज करने में विफल।",
-  "dashboard.kg_col_actions": "कार्रवाइयाँ"
+  "dashboard.kg_col_actions": "कार्रवाइयाँ",
+  "dashboard.knowledge_health_title": "ग्राफ स्वास्थ्य",
+  "dashboard.knowledge_health_dirty_nodes": "Dirty नोड",
+  "dashboard.knowledge_health_dirty_edges": "Dirty एज",
+  "dashboard.knowledge_health_dropped_hits": "छोड़े गए एक्सेस",
+  "dashboard.knowledge_health_semantic_enabled": "सिमेंटिक खोज",
+  "dashboard.knowledge_health_semantic_on": "सक्रिय",
+  "dashboard.knowledge_health_semantic_off": "निष्क्रिय",
+  "dashboard.knowledge_health_needs_reindex": "सिमेंटिक रीइंडेक्स लंबित",
+  "dashboard.knowledge_health_index_ok": "सिमेंटिक इंडेक्स अप टू डेट है",
+  "dashboard.knowledge_health_reindex_backlog": "रीइंडेक्स बैकलॉग अधिक है",
+  "dashboard.memory_graph_dirty_hint": "{count} dirty"
 }

@@ -729,5 +729,16 @@
   "dashboard.knowledge_quality_merge_confirm": "Slå sammen \"{source}\" inn i \"{target}\" ({label})? Kildenoden slettes.",
   "dashboard.knowledge_quality_merge_success": "Noder slått sammen.",
   "dashboard.knowledge_quality_merge_error": "Kunne ikke slå sammen noder.",
-  "dashboard.kg_col_actions": "Handlinger"
+  "dashboard.kg_col_actions": "Handlinger",
+  "dashboard.knowledge_health_title": "Grafhelse",
+  "dashboard.knowledge_health_dirty_nodes": "Dirty noder",
+  "dashboard.knowledge_health_dirty_edges": "Dirty kanter",
+  "dashboard.knowledge_health_dropped_hits": "Droppede tilganger",
+  "dashboard.knowledge_health_semantic_enabled": "Semantisk søk",
+  "dashboard.knowledge_health_semantic_on": "Aktivert",
+  "dashboard.knowledge_health_semantic_off": "Deaktivert",
+  "dashboard.knowledge_health_needs_reindex": "Semantisk reindeksering venter",
+  "dashboard.knowledge_health_index_ok": "Semantisk indeks er oppdatert",
+  "dashboard.knowledge_health_reindex_backlog": "Høy reindekseringskø",
+  "dashboard.memory_graph_dirty_hint": "{count} dirty"
 }

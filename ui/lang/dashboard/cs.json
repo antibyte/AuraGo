@@ -729,5 +729,16 @@
   "dashboard.knowledge_quality_merge_confirm": "Sloučit \"{source}\" do \"{target}\" ({label})? Zdrojový uzel bude smazán.",
   "dashboard.knowledge_quality_merge_success": "Uzly byly úspěšně sloučeny.",
   "dashboard.knowledge_quality_merge_error": "Sloučení uzlů se nezdařilo.",
-  "dashboard.kg_col_actions": "Akce"
+  "dashboard.kg_col_actions": "Akce",
+  "dashboard.knowledge_health_title": "Zdraví grafu",
+  "dashboard.knowledge_health_dirty_nodes": "Dirty uzly",
+  "dashboard.knowledge_health_dirty_edges": "Dirty hrany",
+  "dashboard.knowledge_health_dropped_hits": "Zahozené přístupy",
+  "dashboard.knowledge_health_semantic_enabled": "Sémantické vyhledávání",
+  "dashboard.knowledge_health_semantic_on": "Zapnuto",
+  "dashboard.knowledge_health_semantic_off": "Vypnuto",
+  "dashboard.knowledge_health_needs_reindex": "Čeká sémantická reindexace",
+  "dashboard.knowledge_health_index_ok": "Sémantický index je aktuální",
+  "dashboard.knowledge_health_reindex_backlog": "Vysoká fronta reindexace",
+  "dashboard.memory_graph_dirty_hint": "{count} dirty"
 }

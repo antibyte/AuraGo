@@ -729,5 +729,16 @@
   "dashboard.knowledge_quality_merge_confirm": "\"{source}\" samenvoegen in \"{target}\" ({label})? Het bronknooppunt wordt verwijderd.",
   "dashboard.knowledge_quality_merge_success": "Knooppunten succesvol samengevoegd.",
   "dashboard.knowledge_quality_merge_error": "Samenvoegen van knooppunten mislukt.",
-  "dashboard.kg_col_actions": "Acties"
+  "dashboard.kg_col_actions": "Acties",
+  "dashboard.knowledge_health_title": "Grafgezondheid",
+  "dashboard.knowledge_health_dirty_nodes": "Dirty nodes",
+  "dashboard.knowledge_health_dirty_edges": "Dirty edges",
+  "dashboard.knowledge_health_dropped_hits": "Verworpene toegangen",
+  "dashboard.knowledge_health_semantic_enabled": "Semantisch zoeken",
+  "dashboard.knowledge_health_semantic_on": "Ingeschakeld",
+  "dashboard.knowledge_health_semantic_off": "Uitgeschakeld",
+  "dashboard.knowledge_health_needs_reindex": "Semantische reindex openstaand",
+  "dashboard.knowledge_health_index_ok": "Semantische index actueel",
+  "dashboard.knowledge_health_reindex_backlog": "Hoge reindex-achterstand",
+  "dashboard.memory_graph_dirty_hint": "{count} dirty"
 }
