@@ -158,7 +158,7 @@
                 ctx.c.restore();
             }
             if (ctx.G.flashT > 0) { ctx.c.fillStyle = 'rgba(255,255,255,' + (ctx.G.flashT > 30 ? 0.5 : ctx.G.flashT / 60) + ')'; ctx.c.fillRect(0, 0, ctx.W, ctx.H); }
-            if (ctx.G.stageWipeT > 0) { const wp = ctx.G.stageWipeT / 400; ctx.c.fillStyle = '#000'; ctx.c.fillRect(0, 0, ctx.W, ctx.H * wp); ctx.c.fillRect(0, ctx.H * (1 - wp), ctx.W, ctx.H * wp); }
+
             if (ctx.G.levelSkipTimer > 0) {
                 const _lsA = Math.min(1, ctx.G.levelSkipTimer / 500) * 0.15;
                 ctx.c.fillStyle = 'rgba(255,136,255,' + _lsA + ')'; ctx.c.fillRect(0, 0, ctx.W, ctx.H);
