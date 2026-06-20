@@ -92,6 +92,10 @@ func handleDashboardCoreMemory(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		if s == nil || s.ShortTermMem == nil {
+			jsonError(w, "Memory subsystem not available", http.StatusServiceUnavailable)
+			return
+		}
 
 		rows, err := s.ShortTermMem.GetCoreMemoryFacts()
 		if err != nil {
@@ -113,6 +117,10 @@ func handleDashboardProfile(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s == nil || s.ShortTermMem == nil {
+			jsonError(w, "Memory subsystem not available", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -150,6 +158,10 @@ func handleDashboardProfile(s *Server) http.HandlerFunc {
 //	PUT    /api/dashboard/profile/entry  { category, key, value }  – updates the value
 func handleDashboardProfileEntry(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if s == nil || s.ShortTermMem == nil {
+			jsonError(w, "Memory subsystem not available", http.StatusServiceUnavailable)
+			return
+		}
 		switch r.Method {
 		case http.MethodDelete:
 			category := r.URL.Query().Get("category")
@@ -269,6 +281,10 @@ func handleDashboardNotes(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s == nil || s.ShortTermMem == nil {
+			jsonError(w, "Memory subsystem not available", http.StatusServiceUnavailable)
 			return
 		}
 

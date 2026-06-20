@@ -2983,7 +2983,7 @@
         async function loadMissionHistory(append) {
             try {
                 const url = `/api/dashboard/mission-history?limit=${MH_PAGE_SIZE}&offset=${mhOffset}`;
-                const resp = await fetch(url);
+                const resp = await fetch(url, { credentials: 'same-origin' });
                 if (!resp.ok) return;
                 const data = await resp.json();
                 renderMissionHistory(data, append);
@@ -3057,7 +3057,7 @@
                 { icon: '🥚', val: inv.nests || 0, lbl: t('dashboard.operations_nests'), sub: t('dashboard.operations_eggs_connected', {n: inv.connected_eggs || 0}) },
                 { icon: '📂', val: idx.indexed_files || 0, lbl: t('dashboard.operations_indexed'), sub: idx.enabled ? t('dashboard.operations_of_files', {n: idx.total_files || 0}) : t('dashboard.operations_disabled') },
                 { icon: '📡', val: mq.connected ? '✓' : '✗', lbl: t('dashboard.operations_mqtt'), sub: mq.enabled ? t('dashboard.operations_buffered', {n: mq.buffer || 0}) : t('dashboard.operations_disabled') },
-                { icon: '�', val: notes.open || 0, lbl: t('dashboard.operations_notes_open'), sub: t('dashboard.operations_notes_sub', {total: notes.total || 0, done: notes.done || 0}) },
+                { icon: '📝', val: notes.open || 0, lbl: t('dashboard.operations_notes_open'), sub: t('dashboard.operations_notes_sub', {total: notes.total || 0, done: notes.done || 0}) },
                 { icon: '🔐', val: sec.vault_keys || 0, lbl: t('dashboard.operations_vault_keys'), sub: t('dashboard.operations_api_tokens', {n: sec.tokens || 0}) },
                 { icon: '📱', val: overview.devices || 0, lbl: t('dashboard.operations_devices'), sub: t('dashboard.operations_inventory') },
                 { icon: '🧠', val: overview.context?.has_summary ? '✓' : '✗', lbl: t('dashboard.operations_summary'), sub: t('dashboard.operations_chars_count', {n: ((overview.context?.total_chars || 0) / 1000).toFixed(1)}) },
@@ -3482,8 +3482,11 @@
                 // Uptime from started_at
                 let uptimeHtml = '';
                 if (d.started_at && (s === 'running' || s === 'starting')) {
-                    const ms = Date.now() - Date.parse(d.started_at);
-                    uptimeHtml = `<span class="daemon-uptime">${formatDuration(ms)}</span>`;
+                    const startedMs = Date.parse(d.started_at);
+                    if (!Number.isNaN(startedMs)) {
+                        const ms = Date.now() - startedMs;
+                        uptimeHtml = `<span class="daemon-uptime">${formatDuration(ms)}</span>`;
+                    }
                 }
 
                 // Wake-up stats badge
@@ -3504,8 +3507,11 @@
                 // Last wake-up time
                 let lastWakeHtml = '';
                 if (d.last_wake_up) {
-                    const wLabel = t('dashboard.daemons_last_wakeup') || 'Last wake-up';
-                    lastWakeHtml = `<span class="daemon-meta-item" title="${wLabel}">${relativeTime(Date.parse(d.last_wake_up))}</span>`;
+                    const wakeMs = Date.parse(d.last_wake_up);
+                    if (!Number.isNaN(wakeMs)) {
+                        const wLabel = t('dashboard.daemons_last_wakeup') || 'Last wake-up';
+                        lastWakeHtml = `<span class="daemon-meta-item" title="${wLabel}">${relativeTime(wakeMs)}</span>`;
+                    }
                 }
 
                 // Error detail

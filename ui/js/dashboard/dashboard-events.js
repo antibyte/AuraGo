@@ -1,5 +1,6 @@
         // ── Mood Time Range Buttons ─────────────────────────────────────────────────
-        document.querySelector('.mood-mini-btns').addEventListener('click', async (e) => {
+        const moodMiniBtns = document.querySelector('.mood-mini-btns');
+        if (moodMiniBtns) moodMiniBtns.addEventListener('click', async (e) => {
             const btn = e.target.closest('.mood-btn');
             if (!btn) return;
             document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
@@ -16,7 +17,8 @@
         });
 
         // ── Profile Search ──────────────────────────────────────────────────────────
-        document.getElementById('profile-search').addEventListener('input', function () {
+        const profileSearch = document.getElementById('profile-search');
+        if (profileSearch) profileSearch.addEventListener('input', function () {
             const q = this.value.toLowerCase();
             document.querySelectorAll('.profile-entry').forEach(el => {
                 const match = !q || (el.dataset.search || '').toLowerCase().includes(q);
