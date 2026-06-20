@@ -2,6 +2,7 @@ package memory
 
 import (
 	"aurago/internal/dbutil"
+	"aurago/internal/security"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -298,6 +299,26 @@ func (kg *KnowledgeGraph) getNeighborsWithQueryer(q knowledgeGraphQueryer, nodeI
 	return nodes, edges, accessHits, nil
 }
 
+func appendKnowledgeGraphContextProperties(sb *strings.Builder, properties map[string]string) {
+	for k, v := range properties {
+		if k == "access_count" || k == "protected" || k == "source" || k == "extracted_at" {
+			continue
+		}
+		if isSensitiveKnowledgeGraphPropertyKey(k) {
+			continue
+		}
+		sb.WriteString(fmt.Sprintf(" | %s: %s", k, v))
+	}
+}
+
+func finalizeKnowledgeGraphContextResult(sb strings.Builder, maxChars int) string {
+	result := sb.String()
+	if len(result) > maxChars {
+		result = truncateUTF8Safe(result, maxChars)
+	}
+	return security.Scrub(result)
+}
+
 func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars int) string {
 	if query == "" || maxNodes <= 0 {
 		return ""
@@ -462,12 +483,7 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 		}
 
 		sb.WriteString(fmt.Sprintf("- [%s] %s", nid, node.Label))
-		for k, v := range node.Properties {
-			if k == "access_count" || k == "protected" || k == "source" || k == "extracted_at" {
-				continue
-			}
-			sb.WriteString(fmt.Sprintf(" | %s: %s", k, v))
-		}
+		appendKnowledgeGraphContextProperties(&sb, node.Properties)
 		sb.WriteString("\n")
 
 		for _, edge := range edgesByNodeID[nid] {
@@ -486,11 +502,7 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 		kg.enqueueAccessHit(hit)
 	}
 
-	result := sb.String()
-	if len(result) > maxChars {
-		result = truncateUTF8Safe(result, maxChars)
-	}
-	return result
+	return finalizeKnowledgeGraphContextResult(sb, maxChars)
 }
 
 // searchForContextImportantNodes returns a formatted context string built from
@@ -540,12 +552,7 @@ func (kg *KnowledgeGraph) searchForContextImportantNodes(maxNodes int, maxChars 
 		}
 
 		sb.WriteString(fmt.Sprintf("- [%s] %s", n.ID, node.Label))
-		for k, v := range node.Properties {
-			if k == "access_count" || k == "protected" || k == "source" || k == "extracted_at" {
-				continue
-			}
-			sb.WriteString(fmt.Sprintf(" | %s: %s", k, v))
-		}
+		appendKnowledgeGraphContextProperties(&sb, node.Properties)
 		sb.WriteString("\n")
 
 		for _, edge := range edgesByNodeID[n.ID] {
@@ -564,11 +571,7 @@ func (kg *KnowledgeGraph) searchForContextImportantNodes(maxNodes int, maxChars 
 		kg.enqueueAccessHit(hit)
 	}
 
-	result := sb.String()
-	if len(result) > maxChars {
-		result = truncateUTF8Safe(result, maxChars)
-	}
-	return result
+	return finalizeKnowledgeGraphContextResult(sb, maxChars)
 }
 
 func (kg *KnowledgeGraph) loadSearchContextData(q knowledgeGraphQueryer, nodeIDs []string) (map[string]Node, map[string][]Edge, []knowledgeGraphAccessHit, error) {

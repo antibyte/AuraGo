@@ -64,14 +64,19 @@ Manage a structured graph of entities and relations stored in SQLite with full-t
 
 ## Behavior
 
-- Search uses FTS5 full-text search with LIKE fallback for broad matching.
+- Search uses FTS5 full-text search with quoted tokens and AND semantics for multi-word queries, plus LIKE fallback for broad matching.
+- `explore` and prompt-context search can use semantic similarity when embeddings are enabled; failed semantic upserts mark rows dirty for nightly reindex.
 - Relevant knowledge graph entities are automatically injected into the system prompt when `prompt_injection` is enabled.
 - Nightly batch extraction automatically discovers entities and relationships from conversations.
-- Nodes track `access_count` on each search hit.
+- Nodes track `access_count` on each search hit; maintenance flushes queued access hits before optimize/cleanup so recent usage is not lost.
 - Set `"protected": "true"` in a node's `properties` to exempt it from automated Priority-Based Forgetting.
 - Synced nodes from planner, inventory, core memory, file sync, and manual curation are protected from auto-optimize pruning by default (`protect_optimize_sources` / `protect_id_prefixes` in config).
-- Planner sync creates a synthetic hub node `planner_workspace` (`type: planner_hub`). Todos without checklist items link to it via `part_of`; checklist items link to their parent todo with `part_of`.
+- `optimize_graph` runs in a single SQLite transaction and only deduplicates edges touched by the current merge/delete scope.
+- `merge_nodes` keeps the target node, merges labels/properties with the longer readable label winning, moves incident edges, deduplicates only within the merged node pair, and deletes the source.
+- Planner sync creates a synthetic hub node `planner_workspace` (`type: planner_hub`). Todos without checklist items link to it via `part_of`; checklist items link to their parent todo with `part_of`. Stale planner edges are pruned in batched deletes.
+- File-to-KG sync processes KG writes serially to avoid SQLite write contention.
 - When `add_edge` or bulk sync references a missing endpoint, AuraGo creates a temporary `Unknown` placeholder node (`source: auto_placeholder`, `type: unknown`). Isolated placeholders older than 7 days are removed by nightly cleanup.
+- Prompt-context output omits sensitive node properties such as `password`, `token`, and `api_key`, and applies secret scrubbing before injection.
 
 ## Notes
 

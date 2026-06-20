@@ -506,20 +506,44 @@ func mergeAutoExtractedProperties(existing, incoming map[string]string) map[stri
 }
 
 func mergeKnowledgeGraphLabel(existing, incoming string) string {
+	return mergeKnowledgeGraphLabels(existing, incoming, false)
+}
+
+func mergeKnowledgeGraphLabels(existing, incoming string, preferLonger bool) string {
 	existing = strings.TrimSpace(existing)
 	incoming = strings.TrimSpace(incoming)
 	switch {
 	case existing == "" || strings.EqualFold(existing, "unknown"):
-		if incoming != "" {
-			return incoming
-		}
+		return incoming
 	case incoming == "" || strings.EqualFold(incoming, "unknown"):
 		return existing
+	}
+	if preferLonger && len([]rune(incoming)) > len([]rune(existing)) {
+		return incoming
 	}
 	if existing == "" {
 		return incoming
 	}
 	return existing
+}
+
+func isSensitiveKnowledgeGraphPropertyKey(key string) bool {
+	key = strings.ToLower(strings.TrimSpace(key))
+	if key == "" {
+		return false
+	}
+	switch key {
+	case "password", "passwd", "secret", "token", "api_key", "apikey",
+		"access_token", "refresh_token", "private_key", "master_key",
+		"credential", "credentials", "auth", "authorization":
+		return true
+	}
+	for _, suffix := range []string{"_password", "_passwd", "_secret", "_token", "_api_key", "_credential"} {
+		if strings.HasSuffix(key, suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 func knowledgeGraphEdgeKey(source, target, relation string) string {

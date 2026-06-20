@@ -852,16 +852,5 @@ func sortKnowledgeGraphNodes(nodes map[string]Node) []Node {
 }
 
 func choosePreferredAutoExtractedLabel(existing, incoming string) string {
-	existing = strings.TrimSpace(existing)
-	incoming = strings.TrimSpace(incoming)
-	switch {
-	case existing == "" || strings.EqualFold(existing, "unknown"):
-		return incoming
-	case incoming == "" || strings.EqualFold(incoming, "unknown"):
-		return existing
-	case len([]rune(incoming)) > len([]rune(existing)):
-		return incoming
-	default:
-		return existing
-	}
+	return mergeKnowledgeGraphLabels(existing, incoming, true)
 }
