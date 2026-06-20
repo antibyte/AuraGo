@@ -41,6 +41,21 @@ func TestBuildNodeContentSkipsOperationalProperties(t *testing.T) {
 	}
 }
 
+func TestBuildEdgeContentPreservesDotSeparator(t *testing.T) {
+	content := BuildEdgeContent(EdgeContent{
+		Source:   "app",
+		Target:   "server",
+		Relation: "runs_on",
+		Properties: map[string]string{
+			"notes": "nightly workload",
+		},
+	})
+	want := "runs_on. app runs_on server. notes: nightly workload"
+	if content != want {
+		t.Fatalf("BuildEdgeContent() = %q, want %q", content, want)
+	}
+}
+
 func contains(s, sub string) bool {
 	return len(s) >= len(sub) && (s == sub || len(sub) == 0 || indexOf(s, sub) >= 0)
 }

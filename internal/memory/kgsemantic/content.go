@@ -78,7 +78,7 @@ func BuildEdgeContent(edge EdgeContent) string {
 			parts = append(parts, key+": "+value)
 		}
 	}
-	return strings.TrimSpace(strings.Join(parts, " "))
+	return strings.TrimSpace(strings.Join(parts, ". "))
 }
 
 // ShouldIndexNode reports whether a node should be indexed semantically.
