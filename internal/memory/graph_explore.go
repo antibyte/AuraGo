@@ -175,7 +175,7 @@ func (kg *KnowledgeGraph) SuggestRelations(limit int) string {
 				SELECT n1.id as id1, n1.label as label1, n2.id as id2, n2.label as label2, 'same_ip' as reason
 				FROM kg_nodes n1 
 				JOIN kg_nodes n2 ON json_extract(n1.properties, '$.ip') = json_extract(n2.properties, '$.ip') AND n1.id < n2.id
-				WHERE json_extract(n1.properties, '$.ip') IS NOT NULL
+				WHERE NULLIF(TRIM(json_extract(n1.properties, '$.ip')), '') IS NOT NULL
 				  AND %s AND %s
 				LIMIT ?
 			)
@@ -184,7 +184,7 @@ func (kg *KnowledgeGraph) SuggestRelations(limit int) string {
 				SELECT n1.id as id1, n1.label as label1, n2.id as id2, n2.label as label2, 'same_location' as reason
 				FROM kg_nodes n1 
 				JOIN kg_nodes n2 ON json_extract(n1.properties, '$.location') = json_extract(n2.properties, '$.location') AND n1.id < n2.id
-				WHERE json_extract(n1.properties, '$.location') IS NOT NULL
+				WHERE NULLIF(TRIM(json_extract(n1.properties, '$.location')), '') IS NOT NULL
 				  AND %s AND %s
 				LIMIT ?
 			)

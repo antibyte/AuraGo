@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -314,57 +313,49 @@ func (kg *KnowledgeGraph) IncrementCoOccurrence(a, b, date string) error {
 		a, b = b, a
 	}
 
+	initProps, err := json.Marshal(map[string]string{
+		"source": "pending",
+		"weight": "1",
+		"date":   date,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal co-occurrence properties: %w", err)
+	}
+
 	tx, err := kg.db.Begin()
 	if err != nil {
 		return fmt.Errorf("begin co-occurrence transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	var currentWeight int
-	var propsJSON string
-	err = tx.QueryRow(
-		"SELECT properties FROM kg_edges WHERE source = ? AND target = ? AND relation = 'co_mentioned_with'",
-		a, b,
-	).Scan(&propsJSON)
-	if err == nil {
-		var props map[string]string
-		if json.Unmarshal([]byte(propsJSON), &props) == nil {
-			if w, e := strconv.Atoi(props["weight"]); e == nil {
-				currentWeight = w
-			}
-		}
-		currentWeight++
-		props["weight"] = strconv.Itoa(currentWeight)
-		props["date"] = date
-		if currentWeight >= coOccurrenceThreshold {
-			props["source"] = "activity_turn"
-		}
-		newPropsJSON, _ := json.Marshal(props)
-		_, err = tx.Exec(
-			"UPDATE kg_edges SET properties = ?, updated_at = CURRENT_TIMESTAMP WHERE source = ? AND target = ? AND relation = 'co_mentioned_with'",
-			string(newPropsJSON), a, b,
-		)
-		if err != nil {
-			return fmt.Errorf("update co-occurrence: %w", err)
-		}
-	} else if err == sql.ErrNoRows {
-		initProps, _ := json.Marshal(map[string]string{
-			"source": "pending",
-			"weight": "1",
-			"date":   date,
-		})
-		_, err = tx.Exec(`
-			INSERT INTO kg_edges (source, target, relation, properties, updated_at)
-			VALUES (?, ?, 'co_mentioned_with', ?, CURRENT_TIMESTAMP)
-			ON CONFLICT(source, target, relation) DO UPDATE SET
-				properties = excluded.properties,
-				updated_at = CURRENT_TIMESTAMP
-		`, a, b, string(initProps))
-		if err != nil {
-			return fmt.Errorf("insert co-occurrence: %w", err)
-		}
-	} else {
-		return fmt.Errorf("query co-occurrence: %w", err)
+	_, err = tx.Exec(`
+		INSERT INTO kg_edges (source, target, relation, properties, updated_at)
+		VALUES (?, ?, 'co_mentioned_with', ?, CURRENT_TIMESTAMP)
+		ON CONFLICT(source, target, relation) DO UPDATE SET
+			properties = json_set(
+				json_set(
+					json_set(
+						kg_edges.properties,
+						'$.weight',
+						CAST(
+							CAST(COALESCE(NULLIF(json_extract(kg_edges.properties, '$.weight'), ''), '0') AS INTEGER) + 1
+							AS TEXT
+						)
+					),
+					'$.date',
+					?
+				),
+				'$.source',
+				CASE
+					WHEN CAST(COALESCE(NULLIF(json_extract(kg_edges.properties, '$.weight'), ''), '0') AS INTEGER) + 1 >= ?
+					THEN 'activity_turn'
+					ELSE COALESCE(json_extract(kg_edges.properties, '$.source'), 'pending')
+				END
+			),
+			updated_at = CURRENT_TIMESTAMP
+	`, a, b, string(initProps), date, coOccurrenceThreshold)
+	if err != nil {
+		return fmt.Errorf("upsert co-occurrence: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {

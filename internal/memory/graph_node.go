@@ -93,6 +93,7 @@ func (kg *KnowledgeGraph) AddNode(id, label string, properties map[string]string
 		isProtectedFinal = 1
 	}
 	finalProps = sanitizeKnowledgeGraphNodeProperties(finalProps, isProtectedFinal != 0)
+	finalProps = validateNodeSchema(finalProps)
 
 	propsJSON, err := json.Marshal(finalProps)
 	if err != nil {

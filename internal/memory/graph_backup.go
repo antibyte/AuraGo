@@ -35,6 +35,7 @@ func (kg *KnowledgeGraph) BulkAddEntities(nodes []Node, edges []Edge) error {
 			isProtected = 1
 		}
 		finalProps = sanitizeKnowledgeGraphNodeProperties(finalProps, isProtected != 0)
+		finalProps = validateNodeSchema(finalProps)
 		propsJSON, err := json.Marshal(finalProps)
 		if err != nil {
 			return fmt.Errorf("marshal bulk add node properties: %w", err)
@@ -47,7 +48,7 @@ func (kg *KnowledgeGraph) BulkAddEntities(nodes []Node, edges []Edge) error {
 				properties = excluded.properties,
 				protected = excluded.protected,
 				updated_at = excluded.updated_at
-		`, n.ID, finalLabel, string(propsJSON), isProtected, now, now); execErr != nil {
+		`, n.ID, finalLabel, string(propsJSON), isProtected, now); execErr != nil {
 			kg.logger.Warn("[KG] BulkAddEntities: failed to insert node", "id", n.ID, "error", execErr)
 		}
 		indexNodes = append(indexNodes, Node{ID: n.ID, Label: finalLabel, Properties: finalProps, Protected: isProtected != 0})
@@ -81,7 +82,7 @@ func (kg *KnowledgeGraph) BulkAddEntities(nodes []Node, edges []Edge) error {
 			ON CONFLICT(source, target, relation) DO UPDATE SET
 				properties = excluded.properties,
 				updated_at = excluded.updated_at
-		`, e.Source, e.Target, e.Relation, string(propsJSON), now, now); execErr != nil {
+		`, e.Source, e.Target, e.Relation, string(propsJSON), now); execErr != nil {
 			kg.logger.Warn("[KG] BulkAddEntities: failed to insert edge", "source", e.Source, "target", e.Target, "error", execErr)
 		}
 		indexEdges = append(indexEdges, Edge{Source: e.Source, Target: e.Target, Relation: e.Relation, Properties: finalProps})
@@ -128,6 +129,7 @@ func (kg *KnowledgeGraph) BulkMergeExtractedEntities(nodes []Node, edges []Edge)
 			isProtected = 1
 		}
 		finalProps = sanitizeKnowledgeGraphNodeProperties(finalProps, isProtected != 0)
+		finalProps = validateNodeSchema(finalProps)
 		propsJSON, _ := json.Marshal(finalProps)
 
 		if _, execErr := tx.Exec(`

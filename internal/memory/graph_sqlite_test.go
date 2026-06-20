@@ -1550,6 +1550,85 @@ func TestKGCoOccurrenceThreshold(t *testing.T) {
 	}
 }
 
+func TestKGIncrementCoOccurrenceUpsertIncrementsExisting(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("alice", "Alice", nil); err != nil {
+		t.Fatalf("AddNode alice: %v", err)
+	}
+	if err := kg.AddNode("bob", "Bob", nil); err != nil {
+		t.Fatalf("AddNode bob: %v", err)
+	}
+
+	if err := kg.IncrementCoOccurrence("alice", "bob", "2026-06-20"); err != nil {
+		t.Fatalf("first IncrementCoOccurrence: %v", err)
+	}
+	if err := kg.IncrementCoOccurrence("alice", "bob", "2026-06-21"); err != nil {
+		t.Fatalf("second IncrementCoOccurrence: %v", err)
+	}
+
+	var propsJSON string
+	if err := kg.db.QueryRow(
+		"SELECT properties FROM kg_edges WHERE source = ? AND target = ? AND relation = 'co_mentioned_with'",
+		"alice", "bob",
+	).Scan(&propsJSON); err != nil {
+		t.Fatalf("query edge: %v", err)
+	}
+	var props map[string]string
+	if err := json.Unmarshal([]byte(propsJSON), &props); err != nil {
+		t.Fatalf("unmarshal props: %v", err)
+	}
+	if props["weight"] != "2" {
+		t.Fatalf("weight = %q, want 2 after upsert increment", props["weight"])
+	}
+	if props["date"] != "2026-06-21" {
+		t.Fatalf("date = %q, want latest upsert date", props["date"])
+	}
+}
+
+func TestKGAddNodeAppliesSchemaDefaults(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("router", "Router", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+	node, err := kg.GetNode("router")
+	if err != nil {
+		t.Fatalf("GetNode: %v", err)
+	}
+	for _, key := range []string{"ip", "mac", "os"} {
+		if _, ok := node.Properties[key]; !ok {
+			t.Fatalf("expected schema default key %q on device node", key)
+		}
+	}
+}
+
+func TestKGBulkAddEntitiesSetsUpdatedAt(t *testing.T) {
+	kg := newTestKG(t)
+
+	before := time.Now().UTC().Add(-2 * time.Second).Format(time.RFC3339)
+	if err := kg.BulkAddEntities([]Node{{
+		ID:    "bulk_node",
+		Label: "Bulk Node",
+		Properties: map[string]string{
+			"type": "concept",
+		},
+	}}, nil); err != nil {
+		t.Fatalf("BulkAddEntities: %v", err)
+	}
+
+	var updatedAt string
+	if err := kg.db.QueryRow("SELECT updated_at FROM kg_nodes WHERE id = ?", "bulk_node").Scan(&updatedAt); err != nil {
+		t.Fatalf("query updated_at: %v", err)
+	}
+	if strings.TrimSpace(updatedAt) == "" {
+		t.Fatal("expected non-empty updated_at after bulk add")
+	}
+	if updatedAt < before {
+		t.Fatalf("updated_at %q should be newer than %q", updatedAt, before)
+	}
+}
+
 // TestKGCoOccurrencePropertiesJSON verifies that the date value is properly JSON-encoded
 // and not injected via string concatenation.
 func TestKGCoOccurrencePropertiesJSON(t *testing.T) {
