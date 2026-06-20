@@ -261,4 +261,10 @@
         }
     };
     GC.ARCHETYPE_SCHEDULE = ['swarm_wave', null, null, 'escort', null, 'asteroid_field', null, null, 'swarm_wave', null, 'escort', null, 'asteroid_field', 'swarm_wave', null, 'escort', null, null, 'swarm_wave', null];
+
+    GC.DEMO_DECISION_MS = 50;
+    GC.DEMO_DODGE_LOOKAHEAD = 18;
+    GC.DEMO_DODGE_RADIUS = 28;
+    GC.DEMO_MENU_TAP_MS = 180;
+    GC.DEMO_AIM_DEADZONE = 6;
 })();

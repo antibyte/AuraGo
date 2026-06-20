@@ -163,12 +163,31 @@
                 const _lsA = Math.min(1, ctx.G.levelSkipTimer / 500) * 0.15;
                 ctx.c.fillStyle = 'rgba(255,136,255,' + _lsA + ')'; ctx.c.fillRect(0, 0, ctx.W, ctx.H);
             }
-            if (ctx.G.st === 'TITLE' && !ctx.G.attract) ctx.renderTitle();
+            if (ctx.G.st === 'TITLE' && !ctx.G.demoMode) ctx.renderTitle();
             else if (ctx.G.st === 'STAGE_INTRO') { ctx.renderGame(); ctx.renderStageIntro(); }
             else if (ctx.G.st === 'SETTINGS') ctx.renderSettings();
             else if (ctx.G.st === 'PAUSED') { ctx.renderGame(); ctx.renderPause(); }
             else if (ctx.G.st === 'SHOP') ctx.renderShop();
             else ctx.renderGame();
+            if (ctx.G.demoMode) {
+                ctx.c.save();
+                ctx.c.fillStyle = 'rgba(0,0,0,0.55)';
+                ctx.c.fillRect(ctx.W / 2 - 90, 8, 180, 36);
+                ctx.c.strokeStyle = '#4488ff';
+                ctx.c.lineWidth = 1;
+                ctx.c.strokeRect(ctx.W / 2 - 90, 8, 180, 36);
+                ctx.c.textAlign = 'center';
+                ctx.c.fillStyle = '#ffcc00';
+                ctx.c.font = 'bold 13px "Courier New",monospace';
+                ctx.c.fillText('DEMO MODE', ctx.W / 2, 22);
+                const _blink = Math.sin(ctx.tick * 0.08) > 0;
+                if (_blink) {
+                    ctx.c.fillStyle = '#aaccee';
+                    ctx.c.font = '9px "Courier New",monospace';
+                    ctx.c.fillText('PRESS ANY KEY TO PLAY', ctx.W / 2, 37);
+                }
+                ctx.c.restore();
+            }
             if (ctx.drawBiomeTransition) ctx.drawBiomeTransition(ctx.c, ctx.G);
             ctx.c.restore();
             if (zoom !== 1 || camX !== 0 || camY !== 0) {

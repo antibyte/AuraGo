@@ -301,10 +301,9 @@
             if (ctx.G.evoChoiceOpen) { ctx.updateEvoChoice(); return; }
             if (ctx.G.st === 'TITLE') {
                 ctx.G.tIdle += dt * 1000;
-                if (ctx.G.tIdle > ctx.TITLE_IDLE && !ctx.G.attract) { ctx.G.attract = true; ctx.G.aTmr = 0; ctx.G.score = 0; ctx.G.lives = ctx.diffMod('lives'); ctx.G.stage = 1; ctx.G.p.x = ctx.W / 2; ctx.G.p.y = ctx.H - 50; ctx.G.p.alive = true; ctx.G.p.inv = 0; ctx.G.bul = []; ctx.G.ebul = []; ctx.G.exp = []; ctx.G.part = []; ctx.G.trails = []; ctx.mkFormation(); ctx.MusicEngine.play('title'); }
-                if (ctx.G.attract) { ctx.updateAttract(dt); ctx.updateP(dt, now); ctx.updateBul(dt); ctx.updateE(dt); ctx.updateExp(dt); if (ctx.G.inp.s && !ctx.G.inp.sp) { ctx.G.attract = false; ctx.G.tIdle = 0; ctx.G.score = 0; ctx.G.lives = ctx.diffMod('lives'); ctx.G.stage = 1; ctx.G.p.dual = false; ctx.G.p.cap = null; ctx.G.weaponLv = 1; ctx.G.killCount = 0; ctx.G.displayScore = 0; ctx.G.deathParts = []; ctx.startStage(); ctx.MusicEngine.play('gameplay'); } }
+                if (ctx.G.tIdle > ctx.TITLE_IDLE && !ctx.G.demoMode) { ctx.startDemo(); }
                 else if (ctx.G.inp.s && !ctx.G.inp.sp) { ctx.SFX.coinInsert(); ctx.G.titleParts = []; ctx.G.score = 0; ctx.G.lives = ctx.diffMod('lives'); ctx.G.stage = 1; ctx.G.p.dual = false; ctx.G.p.cap = null; ctx.G.weaponLv = 1; ctx.G.killCount = 0; ctx.G.displayScore = 0; ctx.G.deathParts = []; ctx.G.collectedPU = new Set(); ctx.G.perfectCount = 0; ctx.G.bossKillTotal = 0; ctx.startStage(); ctx.MusicEngine.play('gameplay'); }
-                if (!ctx.G.attract) {
+                if (!ctx.G.demoMode) {
                     if (Math.random() < 0.04) { const _tc = ['#4488ff','#ffcc00','#ff4444','#00ffcc','#ff88aa']; ctx.G.titleParts.push({ x: Math.random() * ctx.W, y: ctx.H + 5, vx: (Math.random()-0.5)*20, vy: -30 - Math.random()*40, life: 2500, t: 0, col: _tc[Math.floor(Math.random()*_tc.length)], size: 1 + Math.floor(Math.random()*2) }); }
                     let _tplen = 0; for (let _ti = 0; _ti < ctx.G.titleParts.length; _ti++) { const _tp = ctx.G.titleParts[_ti]; _tp.x += _tp.vx * dt; _tp.y += _tp.vy * dt; _tp.t += dt * 1000; if (_tp.t < _tp.life && _tp.y >= -10) ctx.G.titleParts[_tplen++] = _tp; } ctx.G.titleParts.length = _tplen;
                 }
@@ -325,7 +324,8 @@
                 if (ctx.G.contTmr > 0 && ctx.G.inp.s && !ctx.G.inp.sp) { ctx.G.lives = ctx.diffMod('lives'); ctx.G.st = 'PLAYING'; ctx.G.p.alive = true; ctx.G.p.x = ctx.W / 2; ctx.G.p.y = ctx.H - 50; ctx.G.p.inv = 3000; ctx.G.activePU = null; ctx.G.shieldHits = 0; ctx.G.powerups = []; ctx.G.timeScale = 1; ctx.G.freezeT = 0; ctx.G.damageVignetteT = 0; ctx.G.combo = 0; ctx.G.comboMult = 1; ctx.mkFormation(); ctx.MusicEngine.play('gameplay'); }
                 if (ctx.G.sTmr <= 0 && ctx.G.contTmr <= 0) {
                     if (ctx.relic_earnShards) ctx.relic_earnShards(ctx.G.score, ctx.G.stage);
-                    if (ctx.G.score > 0 && ctx.isHS(ctx.G.score)) { ctx.G.st = 'HIGH_SCORE'; ctx.G.ne = { ch: [65, 65, 65], pos: 0, done: false }; ctx.showHSOverlay(); }
+                    if (ctx.G.demoMode) { ctx.startDemo(); }
+                    else if (ctx.G.score > 0 && ctx.isHS(ctx.G.score)) { ctx.G.st = 'HIGH_SCORE'; ctx.G.ne = { ch: [65, 65, 65], pos: 0, done: false }; ctx.showHSOverlay(); }
                     else { ctx.G.st = 'TITLE'; ctx.G.tIdle = 0; ctx.showTitle(); ctx.MusicEngine.play('title'); }
                 }
                 return;
@@ -379,16 +379,6 @@
                 else if (!bossAlive && (ctx.MusicEngine.playing === 'boss' || ctx.MusicEngine.playing === 'miniboss' || ctx.MusicEngine.playing === 'deep_boss')) ctx.MusicEngine.play(baseTheme);
                 else if (!bossAlive && ctx.MusicEngine.playing !== baseTheme && ctx.MusicEngine.playing !== 'challenge' && ctx.MusicEngine.playing !== 'victory') ctx.MusicEngine.play(baseTheme);
                 if (_aliveN !== ctx.MusicEngine._lastIntensity) { ctx.MusicEngine.setIntensity(_aliveN); ctx.MusicEngine._lastIntensity = _aliveN; }
-            }
-        }
-
-        function updateAttract(dt) {
-            ctx.G.aTmr += dt * 1000;
-            if (ctx.G.aTmr > 300) {
-                ctx.G.aTmr = 0;
-                const ne = ctx.G.enemies.filter(e => e.st === 'FORM');
-                if (ne.length) { const tgt = ne[0]; ctx.G.inp.l = ctx.G.p.x > tgt.x + 5; ctx.G.inp.r = ctx.G.p.x < tgt.x - 5; ctx.G.inp.f = Math.abs(ctx.G.p.x - tgt.x) < 20; }
-                else { ctx.G.inp.l = Math.random() < 0.2; ctx.G.inp.r = !ctx.G.inp.l && Math.random() < 0.2; ctx.G.inp.f = Math.random() < 0.2; }
             }
         }
 
@@ -478,10 +468,29 @@
             ctx.G.inp.f = ctx.G.kb.f || ctx.G.gp.f; ctx.G.inp.s = ctx.G.kb.s || ctx.G.gp.s; ctx.G.inp.p = ctx.G.kb.p || ctx.G.gp.p;
             ctx.G.inp.parry = ctx.G.kb.parry || ctx.G.gp.parry;
             ctx.G.inp.super = ctx.G.kb.super || ctx.G.gp.super;
+            if (ctx.G.demoMode) {
+                ctx.G.inp.l = ctx.G.inp.l || ctx.G.ai.l;
+                ctx.G.inp.r = ctx.G.inp.r || ctx.G.ai.r;
+                ctx.G.inp.u = ctx.G.inp.u || ctx.G.ai.u;
+                ctx.G.inp.d = ctx.G.inp.d || ctx.G.ai.d;
+                ctx.G.inp.f = ctx.G.inp.f || ctx.G.ai.f;
+            }
         }
 
         function onKey(e) {
             if (ctx.state.disposed) return; const k = e.key;
+            if (ctx.G.demoMode) {
+                ctx.G.demoMode = false;
+                Object.keys(ctx.G.ai).forEach(function(ak) { ctx.G.ai[ak] = false; });
+                ctx.G.st = 'TITLE'; ctx.G.tIdle = 0; ctx.G.score = 0;
+                ctx.G.lives = ctx.diffMod('lives'); ctx.G.stage = 1;
+                ctx.G.p.dual = false; ctx.G.p.cap = null; ctx.G.weaponLv = 1;
+                ctx.G.killCount = 0; ctx.G.displayScore = 0; ctx.G.deathParts = [];
+                ctx.G.activePU = null; ctx.G.shieldHits = 0; ctx.G.timeScale = 1;
+                ctx.G.freezeT = 0; ctx.G.combo = 0; ctx.G.comboMult = 1;
+                ctx.setPUClass(null);
+                ctx.showTitle(); ctx.MusicEngine.play('title');
+            }
             if (k === 'ArrowLeft' || k === 'a') { ctx.G.kb.l = true; e.preventDefault(); }
             if (k === 'ArrowRight' || k === 'd') { ctx.G.kb.r = true; e.preventDefault(); }
             if (k === 'ArrowUp' || k === 'w') { ctx.G.kb.u = true; e.preventDefault(); }
@@ -491,8 +500,8 @@
             if (k === 'm' || k === 'M') { ctx.G.muted = !ctx.G.muted; ctx.settings.mute = ctx.G.muted; ctx.MusicEngine.setMuted(ctx.G.muted); ctx.saveSettings(); }
             if (k === 'x' || k === 'X') { ctx.G.kb.parry = true; e.preventDefault(); }
             if (k === 'c' || k === 'C') { ctx.G.kb.super = true; e.preventDefault(); }
-            if ((k === 'S' || k === 's') && ctx.G.st === 'TITLE' && !ctx.G.attract && !ctx.G.kb.d) { ctx.G.st = 'SETTINGS'; ctx.G.settingsSel = 0; }
-            if ((k === 'D' || k === 'd') && ctx.G.st === 'TITLE' && !ctx.G.attract && !ctx.G.kb.r) { ctx.SFX.coinInsert(); ctx.startDailyChallenge(); }
+            if ((k === 'S' || k === 's') && ctx.G.st === 'TITLE' && !ctx.G.demoMode && !ctx.G.kb.d) { ctx.G.st = 'SETTINGS'; ctx.G.settingsSel = 0; }
+            if ((k === 'D' || k === 'd') && ctx.G.st === 'TITLE' && !ctx.G.demoMode && !ctx.G.kb.r) { ctx.SFX.coinInsert(); ctx.startDailyChallenge(); }
         }
         function onKeyUp(e) {
             const k = e.key;
@@ -587,6 +596,7 @@
             if (ctx.state.disposed) return;
             const dt = ctx.frameDelta();
             ctx.savePrev(); ctx.pollGP(); ctx.mergeInput();
+            if (ctx.G.demoMode && ctx.updateDemo) ctx.updateDemo(dt);
             ctx.update(dt, performance.now());
             ctx.tick++;
             ctx.renderFrame(dt);
@@ -602,7 +612,6 @@
         ctx.startStage = startStage;
         ctx.updateExp = updateExp;
         ctx.update = update;
-        ctx.updateAttract = updateAttract;
         ctx.startDailyChallenge = startDailyChallenge;
         ctx.checkDailyStreak = checkDailyStreak;
         ctx.updatePauseMenu = updatePauseMenu;

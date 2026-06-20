@@ -130,6 +130,7 @@
                 '/js/desktop/apps/galaxa-render.js',
                 '/js/desktop/apps/galaxa-shop.js',
                 '/js/desktop/apps/galaxa-relics.js',
+                '/js/desktop/apps/galaxa-demo.js',
                 '/js/desktop/apps/galaxa-supers.js',
                 '/js/desktop/apps/galaxa-biome-transitions.js',
                 '/js/desktop/apps/galaxa-combo-ladder.js',

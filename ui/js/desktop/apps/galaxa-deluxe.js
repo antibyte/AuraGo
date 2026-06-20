@@ -144,6 +144,7 @@
         GC.createBiomeTransitions(gameCtx);
         GC.createComboLadder(gameCtx);
         GC.createAdaptiveMusic(gameCtx);
+        GC.createDemo(gameCtx);
         GC.createGame(gameCtx);
         GC.createShop(gameCtx);
         GC.createRelics(gameCtx);
@@ -186,6 +187,8 @@
             inp: { l: false, r: false, f: false, fp: false, s: false, sp: false, p: false, pp: false, u: false, d: false, rp: false, lp: false, up: false, dp: false, parry: false, parryp: false, super: false, superp: false },
             kb: { l: false, r: false, u: false, d: false, f: false, s: false, p: false, parry: false, super: false },
             gp: { l: false, r: false, u: false, d: false, f: false, s: false, p: false, parry: false, super: false },
+            ai: { l: false, r: false, u: false, d: false, f: false, s: false, p: false, parry: false, super: false },
+            demoMode: false,
             muted: settings.mute, vol: settings.vol / 100, _prevSt: 'TITLE', gameMode: 'classic',
             achievements: loadAchievements(), achievementPopups: [], collectedPU: new Set(), stageStartTime: 0, perfectCount: 0, bossKillTotal: parseInt(localStorage.getItem('galaxa_boss_kills') || '0'),
             // NEW: Super State Machine (Phase 2)
@@ -234,6 +237,7 @@
 
         state.dispose = function () {
             state.disposed = true; cancelAnimationFrame(gameCtx.rafId); gameCtx.MusicEngine.stop(); gameCtx.G.pendingBooms = []; gameCtx.G.levelSkipTimer = 0;
+            gameCtx.G.demoMode = false; if (gameCtx.G.ai) { Object.keys(gameCtx.G.ai).forEach(function(k) { gameCtx.G.ai[k] = false; }); }
             document.removeEventListener('keydown', gameCtx.onKey); document.removeEventListener('keyup', gameCtx.onKeyUp);
             ro.disconnect(); gameCtx.radialGradientCache.clear(); gameCtx.spriteAtlasCache.delete.bind(gameCtx.spriteAtlasCache);
             if (gameCtx.reverbNode) try { gameCtx.reverbNode.disconnect(); } catch (_) {}

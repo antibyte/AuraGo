@@ -148,5 +148,6 @@
         ctx.closeShop = closeShop;
         ctx.updateShop = updateShop;
         ctx.renderShop = renderShop;
+        ctx.shopItemCount = function() { return shopItems.length; };
     };
 })();
