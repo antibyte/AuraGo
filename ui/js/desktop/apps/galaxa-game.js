@@ -108,7 +108,6 @@
         function startStage() {
             ctx.G.enemies = [];
             ctx.G.chal = ctx.isChal(ctx.G.stage);
-            ctx.G.stageWipeT = 400;
             ctx.G.st = 'STAGE_INTRO';
             ctx.G.introTmr = 1200;
             ctx.G.stageStartTime = performance.now ? performance.now() : Date.now();
@@ -230,7 +229,7 @@
             if (ctx.G.parrySuccessFlash > 0) ctx.G.parrySuccessFlash -= dtMs;
             // NEW: Combat text float update
             let _ctlen = 0; for (let _ci = 0; _ci < ctx.G.combatText.length; _ci++) { const _ct = ctx.G.combatText[_ci]; _ct.y -= 30 * dt; _ct.t += dtMs; if (_ct.t < _ct.dur) ctx.G.combatText[_ctlen++] = _ct; } ctx.G.combatText.length = _ctlen;
-            if (ctx.G.stageWipeT > 0) ctx.G.stageWipeT -= dtMs;
+
             if (ctx.G.damageVignetteT > 0) ctx.G.damageVignetteT -= dtMs;
             if (ctx.G.freezeT > 0) { ctx.G.freezeT -= dtMs; ctx.wrapEl.classList.add('galaxa-freeze'); if (ctx.G.freezeT <= 0) { ctx.G.freezeT = 0; ctx.wrapEl.classList.remove('galaxa-freeze'); if (ctx.G.activePU && ctx.G.activePU.type === 'freeze') { ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.setPUClass(null); } } }
             if (ctx.G.warpT > 0) ctx.G.warpT -= dtMs;

@@ -166,7 +166,7 @@
             bossWarningT: 0, bossWarningShown: false,
             weaponLv: 1, killCount: 0, puUpgrade: null, upgradeBanner: null,
             weaponXP: 0, weaponEvo: null, evoChoiceOpen: false,
-            slowMoT: 0, chromAb: 0, displayScore: 0, shipTilt: 0, shipPitch: 0, muzzleT: 0, deathParts: [], pendingBooms: [], levelSkipTimer: 0, stageWipeT: 0,
+            slowMoT: 0, chromAb: 0, displayScore: 0, shipTilt: 0, shipPitch: 0, muzzleT: 0, deathParts: [], pendingBooms: [], levelSkipTimer: 0,
             introTmr: 0, stageEmptyT: 0, stageClearLock: 0,
             beatPhase: 0, beatT: 0, plasmaRings: [], titleParts: [], drones: [], droneTimer: 0,
             blackhole: null,
