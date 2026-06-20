@@ -366,6 +366,7 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 		DownloadBase: "/api/openscad/jobs/" + jobID + "/files/",
 		CreatedAt:    start.UTC(),
 	}
+	s.logOpenSCADRuntimeDiagnostics(ctx, containerID, jobID)
 	for _, export := range req.Exports {
 		cmd, filename := buildOpenSCADCommand(jobID, modelName, export, req)
 		exportStart := time.Now()
@@ -376,6 +377,7 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 				"job_id", jobID,
 				"export", export,
 				"filename", filename,
+				"command", commandText,
 				"timeout_seconds", fmt.Sprintf("%d", int(timeout.Seconds())),
 			),
 			openSCADContainerLogLine("export_done",
@@ -899,6 +901,59 @@ func buildOpenSCADCommand(jobID, modelName, export string, req OpenSCADRenderReq
 	}
 	cmd = append(cmd, "-o", outputPath, sourcePath)
 	return cmd, filename
+}
+
+type openSCADRuntimeDiagnostics struct {
+	Version     string
+	BackendHelp string
+}
+
+func (s *OpenSCADContainerService) logOpenSCADRuntimeDiagnostics(ctx context.Context, containerID, jobID string) {
+	result, err := s.docker.ExecContainer(ctx, containerID, openSCADRuntimeDiagnosticsCommand(jobID), "", 10*time.Second)
+	diag := parseOpenSCADRuntimeDiagnostics(result.Output)
+	if err != nil || result.ExitCode != 0 {
+		if s.logger != nil {
+			s.logger.Warn("openscad runtime diagnostics failed",
+				"job_id", jobID,
+				"exit_code", result.ExitCode,
+				"output", truncateOpenSCADOutput(result.Output),
+				"error", err,
+			)
+		}
+		return
+	}
+	if s.logger != nil {
+		s.logger.Info("openscad runtime diagnostics",
+			"job_id", jobID,
+			"version", diag.Version,
+			"backend_help", diag.BackendHelp,
+		)
+	}
+}
+
+func openSCADRuntimeDiagnosticsCommand(jobID string) []string {
+	script := `job_id=$1
+version=$(openscad --version 2>&1 | head -n 1 || true)
+backend_help=$(openscad --help 2>&1 | grep -i -- 'backend' | head -n 8 | tr '\n' ' ' || true)
+printf 'version=%s\nbackend_help=%s\n' "$version" "$backend_help"
+log_version=$(printf '%s' "$version" | tr '\r\n\t ' '____' | cut -c 1-240)
+log_backend_help=$(printf '%s' "$backend_help" | tr '\r\n\t ' '____' | cut -c 1-240)
+{ printf '[AuraGo OpenSCAD] runtime job_id=%s version=%s backend_help=%s\n' "$job_id" "$log_version" "$log_backend_help" > /proc/1/fd/1; } 2>/dev/null || true`
+	return []string{"sh", "-c", script, "aurago-openscad-runtime", jobID}
+}
+
+func parseOpenSCADRuntimeDiagnostics(output string) openSCADRuntimeDiagnostics {
+	var diag openSCADRuntimeDiagnostics
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(line, "version="):
+			diag.Version = strings.TrimSpace(strings.TrimPrefix(line, "version="))
+		case strings.HasPrefix(line, "backend_help="):
+			diag.BackendHelp = strings.TrimSpace(strings.TrimPrefix(line, "backend_help="))
+		}
+	}
+	return diag
 }
 
 func wrapOpenSCADCommandWithContainerLogs(cmd []string, startLine, doneLine string) []string {

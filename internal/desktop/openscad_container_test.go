@@ -345,12 +345,15 @@ func TestOpenSCADRenderLogsPerExportDiagnostics(t *testing.T) {
 	logText := logs.String()
 	for _, want := range []string{
 		"openscad render job started",
+		"openscad runtime diagnostics",
 		"openscad export started",
 		"openscad export completed",
 		"openscad render job completed",
 		"job_id=" + result.JobID,
 		"model_name=logged-render",
 		"exports=png,stl",
+		"version=\"OpenSCAD 2021.01\"",
+		"backend_help=",
 		"export=png",
 		"export=stl",
 		"timeout_seconds=120",
@@ -386,14 +389,18 @@ func TestOpenSCADRenderWritesExportDiagnosticsToContainerLogStream(t *testing.T)
 	}
 	logText := strings.Join(fake.containerLogs, "\n")
 	for _, want := range []string{
+		"[AuraGo OpenSCAD] runtime",
 		"[AuraGo OpenSCAD] export_start",
 		"[AuraGo OpenSCAD] export_done",
 		"job_id=" + result.JobID,
+		"version=OpenSCAD_2021.01",
+		"backend_help=--backend_arg_backend_CGAL_(old/slow)_or_Manifold_(new/fast)",
 		"export=png",
 		"export=stl",
 		"filename=container-log-render.png",
 		"filename=container-log-render.stl",
 		"timeout_seconds=120",
+		"command=openscad_--render",
 		"exit_code=0",
 	} {
 		if !strings.Contains(logText, want) {
@@ -431,6 +438,21 @@ func (f *fakeOpenSCADExportDocker) ExecContainer(ctx context.Context, container 
 	joined := strings.Join(cmd, " ")
 	if strings.Contains(joined, "command -v openscad") {
 		return CodeDockerExecResult{ExitCode: 0}, nil
+	}
+	if strings.Contains(joined, "openscad --version") && strings.Contains(joined, "openscad --help") {
+		jobID := ""
+		if len(cmd) >= 5 {
+			jobID = cmd[4]
+		}
+		f.containerLogs = append(f.containerLogs, openSCADContainerLogLine("runtime",
+			"job_id", jobID,
+			"version", "OpenSCAD 2021.01",
+			"backend_help", "--backend arg backend CGAL (old/slow) or Manifold (new/fast)",
+		))
+		return CodeDockerExecResult{
+			ExitCode: 0,
+			Output:   "version=OpenSCAD 2021.01\nbackend_help=--backend arg backend CGAL (old/slow) or Manifold (new/fast)\n",
+		}, nil
 	}
 	outputPath := openSCADOutputArg(cmd)
 	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(outputPath), "."))
