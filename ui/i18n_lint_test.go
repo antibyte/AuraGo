@@ -395,6 +395,9 @@ func TestTranslations_WebUIReleaseFixKeysAreTranslated(t *testing.T) {
 		{relPath: filepath.Join("lang", "config", "misc"), key: "config.menu"},
 		{relPath: filepath.Join("lang", "config", "misc"), key: "config.toggle_sidebar"},
 		{relPath: filepath.Join("lang", "config", "misc"), key: "config.page_description"},
+		{relPath: filepath.Join("lang", "config", "sections"), key: "config.section.providers.label"},
+		{relPath: filepath.Join("lang", "config", "sections"), key: "config.section.logging.label"},
+		{relPath: filepath.Join("lang", "config", "webhooks"), key: "config.webhooks.og_auto_json"},
 		{relPath: filepath.Join("lang", "skills"), key: "skills.detail_security"},
 	}
 	langs := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
