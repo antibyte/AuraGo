@@ -84,11 +84,21 @@
     }
 
     function tryAnnounceAgentResponseToPet(message) {
+        if (window.PetRuntime && typeof window.PetRuntime.announceAgentResponse === 'function') {
+            window.PetRuntime.announceAgentResponse(message);
+            return true;
+        }
         if (window.PetRuntime && typeof window.PetRuntime.say === 'function') {
             window.PetRuntime.say(message, 'info');
             return true;
         }
         return false;
+    }
+
+    function forwardAgentStreamEventToPet(data) {
+        if (window.PetRuntime && typeof window.PetRuntime.handleAgentEvent === 'function') {
+            window.PetRuntime.handleAgentEvent(data);
+        }
     }
 
     function iconMarkup(key, fallback, className, size) {
@@ -1168,6 +1178,7 @@
                 function handleStreamEvent(data) {
                     if (!data) return;
                     const event = data.event || data.type;
+                    if (event !== 'llm_stream_delta' && event !== 'token_update') forwardAgentStreamEventToPet(data);
                     if (data.event === 'llm_stream_delta' || data.type === 'llm_stream_delta') {
                         const content = data.content || '';
                         if (!content) return;

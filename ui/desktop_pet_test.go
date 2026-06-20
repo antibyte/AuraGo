@@ -221,6 +221,58 @@ func TestDesktopPetRuntimeSchedulesAmbientAnimations(t *testing.T) {
 	}
 }
 
+func TestDesktopPetRuntimeHandlesAgentDrivenReactions(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"js/desktop/core/pet-runtime.js",
+		"js/desktop/bundles/main.bundle.js",
+	} {
+		source := readDesktopAssetText(t, path)
+		for _, marker := range []string{
+			"const PET_REACTION_DURATION_MS = 2200;",
+			"const PET_REACTION_DURATIONS_MS = {",
+			"let reactionTimer = null;",
+			"function clearReactionTimer()",
+			"function applyReaction(reaction)",
+			"function react(reaction, options = {})",
+			"reactionTimer = window.setTimeout(() => {",
+			"if (layer && currentState === stateId && !drag) {",
+			"setSpriteState('idle');",
+			"scheduleAmbientAnimation();",
+			"function petReactionForAgentEvent(data)",
+			"function agentActionStateReaction(data)",
+			"function classifyAgentResponseReaction(text)",
+			"function handleAgentEvent(data)",
+			"function announceAgentResponse(text)",
+			"showBubble(message, 'info');",
+			"react(classifyAgentResponseReaction(message)",
+			"handleAgentEvent",
+			"announceAgentResponse",
+		} {
+			if !strings.Contains(source, marker) {
+				t.Fatalf("%s is missing agent-driven pet reaction marker %q", path, marker)
+			}
+		}
+
+		for _, marker := range []string{
+			"return 'thinking';",
+			"return 'working';",
+			"return 'editing';",
+			"return 'testing';",
+			"return 'waiting';",
+			"return 'error';",
+			"return 'success';",
+			"return 'celebrating';",
+			"return 'waving';",
+		} {
+			if !strings.Contains(source, marker) {
+				t.Fatalf("%s is missing agent reaction mapping marker %q", path, marker)
+			}
+		}
+	}
+}
+
 func TestDesktopPetBubbleRemainsVisibleUntilHideTimer(t *testing.T) {
 	t.Parallel()
 

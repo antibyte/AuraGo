@@ -20,6 +20,19 @@
     const DRAG_TILT_SPRING = 220;
     const DRAG_TILT_DAMPING = 16;
     const DRAG_SETTLE_EPS = 0.08;
+    const PET_REACTION_DURATION_MS = 2200;
+    const PET_REACTION_DURATIONS_MS = {
+        thinking: 1800,
+        working: 1800,
+        editing: 1900,
+        running: 1600,
+        testing: 2200,
+        waiting: 2200,
+        waving: 1300,
+        success: 2200,
+        error: 2800,
+        celebrating: 2600
+    };
     const ambientStates = ['waving', 'jumping', 'running', 'running'];
 
     // OpenPets-compatible reaction → animation state mapping.
@@ -63,6 +76,7 @@
     let ambientTimer = null;
     let ambientReturnTimer = null;
     let ambientMoveFrame = null;
+    let reactionTimer = null;
 
     function petEnabled() {
         return String(settingValue('pet.enabled')).toLowerCase() !== 'false';
@@ -177,6 +191,7 @@
     function removeLayer() {
         if (!layer) return;
         clearAmbientTimers();
+        clearReactionTimer();
         layer.remove();
         layer = null;
         spriteEl = null;
@@ -245,6 +260,13 @@
         if (ambientMoveFrame) {
             window.cancelAnimationFrame(ambientMoveFrame);
             ambientMoveFrame = null;
+        }
+    }
+
+    function clearReactionTimer() {
+        if (reactionTimer) {
+            window.clearTimeout(reactionTimer);
+            reactionTimer = null;
         }
     }
 
@@ -366,6 +388,7 @@
         applyPosition();
         updateLayerZIndex();
         clearAmbientTimers();
+        clearReactionTimer();
         setSpriteState('idle');
         scheduleAmbientAnimation();
     }
@@ -415,11 +438,93 @@
         }
     }
 
-    function setReaction(reaction) {
+    function applyReaction(reaction) {
         const stateId = reactionToState[reaction] || 'idle';
         clearAmbientTimers();
         setSpriteState(stateId);
         if (stateId === 'idle') scheduleAmbientAnimation();
+        return stateId;
+    }
+
+    function setReaction(reaction) {
+        clearReactionTimer();
+        applyReaction(reaction);
+    }
+
+    function react(reaction, options = {}) {
+        const reactionName = reactionToState[reaction] ? reaction : 'idle';
+        clearReactionTimer();
+        const stateId = applyReaction(reactionName);
+        if (stateId === 'idle') return;
+        const duration = Math.max(500, Number(options.durationMs || PET_REACTION_DURATIONS_MS[reactionName] || PET_REACTION_DURATION_MS));
+        reactionTimer = window.setTimeout(() => {
+            reactionTimer = null;
+            if (layer && currentState === stateId && !drag) {
+                setSpriteState('idle');
+                scheduleAmbientAnimation();
+            }
+        }, duration);
+    }
+
+    function eventDetail(data) {
+        if (!data) return '';
+        const payload = data.payload && typeof data.payload === 'object' ? data.payload : data;
+        return String(payload.tool_name || payload.toolName || data.detail || data.message || '').toLowerCase();
+    }
+
+    function toolActivityReaction(data) {
+        const detail = eventDetail(data);
+        if (detail.includes('test') || detail.includes('pytest') || detail.includes('go test') || detail.includes('npm test')) return 'testing';
+        if (detail.includes('write') || detail.includes('edit') || detail.includes('patch') || detail.includes('code')) return 'editing';
+        if (detail.includes('wait') || detail.includes('sleep')) return 'waiting';
+        return 'working';
+    }
+
+    function agentActionStateReaction(data) {
+        const payload = data && data.payload && typeof data.payload === 'object' ? data.payload : data || {};
+        const state = String(payload.state || payload.action_state || payload.actionState || '').toLowerCase();
+        if (state === 'succeeded' || state === 'sanitized') return 'success';
+        if (state === 'failed' || state === 'blocked' || state === 'cancelled') return 'error';
+        if (state === 'started' || state === 'accepted') return toolActivityReaction(payload);
+        if (state === 'proposed') return 'thinking';
+        return '';
+    }
+
+    function petReactionForAgentEvent(data) {
+        if (!data) return '';
+        const event = data.event || data.type || '';
+        if (event === 'thinking' || event === 'workflow_plan') return 'thinking';
+        if (event === 'thinking_block') return data.state === 'stop' ? 'waiting' : 'thinking';
+        if (event === 'tool_start') return toolActivityReaction(data);
+        if (event === 'tool_end') return 'success';
+        if (event === 'agent_action') return agentActionStateReaction(data);
+        if (event === 'co_agent_spawn') return 'working';
+        if (event === 'coding') return 'editing';
+        if (event === 'error_recovery' || event === 'error') return 'error';
+        if (event === 'question_user') return 'waving';
+        if (event === 'final_response' || event === 'done') return 'success';
+        return '';
+    }
+
+    function classifyAgentResponseReaction(text) {
+        const message = String(text || '').toLowerCase();
+        if (!message) return 'idle';
+        if (/[?？]$/.test(message.trim())) return 'waving';
+        if (message.includes('error') || message.includes('failed') || message.includes('fehler') || message.includes('problem')) return 'error';
+        if (message.includes('done') || message.includes('fixed') || message.includes('fertig') || message.includes('erledigt') || message.includes('success')) return 'celebrating';
+        return 'success';
+    }
+
+    function handleAgentEvent(data) {
+        const reaction = petReactionForAgentEvent(data);
+        if (reaction) react(reaction);
+    }
+
+    function announceAgentResponse(text) {
+        const message = String(text || '').trim();
+        if (!message) return;
+        showBubble(message, 'info');
+        react(classifyAgentResponseReaction(message), { durationMs: PET_REACTION_DURATIONS_MS.success });
     }
 
     async function saveSetting(key, value) {
@@ -664,6 +769,9 @@
         load: loadPet,
         setReaction,
         say: showBubble,
+        react,
+        handleAgentEvent,
+        announceAgentResponse,
         hideBubble,
         handleEvent: handlePetEvent,
         syncBootstrap: syncPetBootstrap,

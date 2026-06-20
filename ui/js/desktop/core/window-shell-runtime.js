@@ -113,7 +113,9 @@
     function announceQuickChatResponseToPet(text) {
         const message = normalizeQuickChatResponseForPetBubble(text);
         if (!message) return;
-        if (window.PetRuntime && typeof window.PetRuntime.say === 'function') {
+        if (window.PetRuntime && typeof window.PetRuntime.announceAgentResponse === 'function') {
+            window.PetRuntime.announceAgentResponse(message);
+        } else if (window.PetRuntime && typeof window.PetRuntime.say === 'function') {
             window.PetRuntime.say(message, 'info');
         }
     }
