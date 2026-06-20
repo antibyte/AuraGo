@@ -96,6 +96,76 @@ func TestKGSearch(t *testing.T) {
 	}
 }
 
+func TestEscapeFTS5PreservesQuotedPhrase(t *testing.T) {
+	got := escapeFTS5(`"Raspberry Pi"`)
+	want := `"Raspberry Pi"`
+	if got != want {
+		t.Fatalf("escapeFTS5 quoted phrase = %q, want %q", got, want)
+	}
+}
+
+func TestEscapeFTS5EscapesInternalQuotes(t *testing.T) {
+	got := escapeFTS5(`"say ""hello"""`)
+	want := `"say """"hello"""""`
+	if got != want {
+		t.Fatalf("escapeFTS5 internal quotes = %q, want %q", got, want)
+	}
+}
+
+func TestEscapeFTS5UsesANDForMultipleWords(t *testing.T) {
+	got := escapeFTS5("docker host")
+	want := `"docker" AND "host"`
+	if got != want {
+		t.Fatalf("escapeFTS5 multi-word = %q, want %q", got, want)
+	}
+}
+
+func TestKGPruneOutgoingRelationEdgesRemovesStaleTargets(t *testing.T) {
+	kg := newTestKG(t)
+	if err := kg.AddEdge("contact_1", "org_old", "belongs_to", nil); err != nil {
+		t.Fatalf("AddEdge old: %v", err)
+	}
+	if err := kg.AddEdge("contact_1", "org_new", "belongs_to", nil); err != nil {
+		t.Fatalf("AddEdge new: %v", err)
+	}
+
+	removed, err := kg.PruneOutgoingRelationEdges("contact_1", "belongs_to", map[string]struct{}{"org_new": {}})
+	if err != nil {
+		t.Fatalf("PruneOutgoingRelationEdges: %v", err)
+	}
+	if removed != 1 {
+		t.Fatalf("removed = %d, want 1", removed)
+	}
+
+	edges, err := kg.GetImportantEdges(10, []string{"contact_1"})
+	if err != nil {
+		t.Fatalf("GetImportantEdges: %v", err)
+	}
+	for _, edge := range edges {
+		if edge.Relation == "belongs_to" && edge.Target == "org_old" {
+			t.Fatal("expected stale org_old belongs_to edge to be removed")
+		}
+	}
+}
+
+func TestKGFlushAccessHitsPersistsQueuedNodeAccess(t *testing.T) {
+	kg := newTestKG(t)
+	if err := kg.AddNode("accessed", "Accessed", nil); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+	kg.enqueueAccessHit(knowledgeGraphAccessHit{nodeID: "accessed"})
+	if err := kg.FlushAccessHits(); err != nil {
+		t.Fatalf("FlushAccessHits: %v", err)
+	}
+	var count int
+	if err := kg.db.QueryRow("SELECT access_count FROM kg_nodes WHERE id = ?", "accessed").Scan(&count); err != nil {
+		t.Fatalf("query access_count: %v", err)
+	}
+	if count < 1 {
+		t.Fatalf("access_count = %d, want >= 1 after flush", count)
+	}
+}
+
 func TestKGSearchFTS5(t *testing.T) {
 	kg := newTestKG(t)
 

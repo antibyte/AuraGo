@@ -272,20 +272,6 @@ func (kg *KnowledgeGraph) SetNodeProtected(id string, protected bool) (*Node, er
 }
 
 func (kg *KnowledgeGraph) DeleteNode(id string) error {
-	var edgesToClean []Edge
-	if kg.semanticIndex() != nil {
-		rows, err := kg.db.Query("SELECT source, target, relation FROM kg_edges WHERE source = ? OR target = ?", id, id)
-		if err == nil {
-			for rows.Next() {
-				var src, tgt, rel string
-				if rows.Scan(&src, &tgt, &rel) == nil {
-					edgesToClean = append(edgesToClean, Edge{Source: src, Target: tgt, Relation: rel})
-				}
-			}
-			rows.Close()
-		}
-	}
-
 	tx, err := kg.db.Begin()
 	if err != nil {
 		return fmt.Errorf("begin delete node: %w", err)
@@ -301,6 +287,27 @@ func (kg *KnowledgeGraph) DeleteNode(id string) error {
 		return fmt.Errorf("load node %s for delete: %w", id, err)
 	case protected != 0:
 		return ErrKnowledgeGraphProtectedNode
+	}
+
+	var edgesToClean []Edge
+	if kg.semanticIndex() != nil {
+		edgeRows, err := tx.Query("SELECT source, target, relation FROM kg_edges WHERE source = ? OR target = ?", id, id)
+		if err != nil {
+			return fmt.Errorf("load incident edges for node %s: %w", id, err)
+		}
+		for edgeRows.Next() {
+			var src, tgt, rel string
+			if err := edgeRows.Scan(&src, &tgt, &rel); err != nil {
+				edgeRows.Close()
+				return fmt.Errorf("scan incident edge for node %s: %w", id, err)
+			}
+			edgesToClean = append(edgesToClean, Edge{Source: src, Target: tgt, Relation: rel})
+		}
+		if err := edgeRows.Err(); err != nil {
+			edgeRows.Close()
+			return fmt.Errorf("iterate incident edges for node %s: %w", id, err)
+		}
+		edgeRows.Close()
 	}
 
 	if _, err := tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id); err != nil {
@@ -406,17 +413,22 @@ func (kg *KnowledgeGraph) GetImportantNodes(limit int, minScore int) ([]Importan
 			(CASE WHEN json_extract(n.properties, '$.type') IS NOT NULL
 				AND json_extract(n.properties, '$.type') != '' THEN 15 ELSE 0 END) +
 			MIN(n.access_count, 20) +
-			MIN((
-				SELECT COUNT(*) FROM kg_edges e
-				WHERE (e.source = n.id OR e.target = n.id)
-				  AND e.relation != 'co_mentioned_with'
-			) * 3, 30) +
+			MIN(COALESCE(deg.meaningful_degree, 0) * 3, 30) +
 			(CASE WHEN (SELECT COUNT(*) FROM json_each(n.properties)
 				WHERE key NOT IN ('source','extracted_at','last_seen','session_id','channel','protected')) >= 3
 				THEN 10 ELSE 0 END) +
 			(CASE WHEN n.updated_at > datetime('now', '-7 days') THEN 5 ELSE 0 END)
 			AS importance_score
 		FROM kg_nodes n
+		LEFT JOIN (
+			SELECT node_id, COUNT(*) AS meaningful_degree
+			FROM (
+				SELECT source AS node_id FROM kg_edges WHERE relation != 'co_mentioned_with'
+				UNION ALL
+				SELECT target AS node_id FROM kg_edges WHERE relation != 'co_mentioned_with'
+			)
+			GROUP BY node_id
+		) deg ON deg.node_id = n.id
 		WHERE importance_score >= ?
 		ORDER BY importance_score DESC
 		LIMIT ?
@@ -626,33 +638,59 @@ func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
 	}
 	rows.Close()
 
-	incidentEdges := make([]Edge, 0)
+	if len(ids) == 0 {
+		return 0, nil
+	}
+
+	inPlaceholders := knowledgeGraphSQLInPlaceholders(len(ids))
+	inArgs := make([]interface{}, len(ids))
+	for i, id := range ids {
+		inArgs[i] = id
+	}
+	edgeArgs := make([]interface{}, 0, len(ids)*2)
 	for _, id := range ids {
-		edgeRows, err := tx.Query(`
+		edgeArgs = append(edgeArgs, id)
+	}
+	for _, id := range ids {
+		edgeArgs = append(edgeArgs, id)
+	}
+
+	incidentEdges := make([]Edge, 0)
+	if kg.semanticIndex() != nil {
+		edgeRows, err := tx.Query(fmt.Sprintf(`
 			SELECT source, target, relation FROM kg_edges
-			WHERE source = ? OR target = ?
-		`, id, id)
+			WHERE source IN (%s) OR target IN (%s)
+		`, inPlaceholders, inPlaceholders), edgeArgs...)
 		if err != nil {
-			kg.logger.Warn("DeleteNodesBySourceFile: failed to load incident edges", "id", id, "error", err)
-			continue
+			return 0, fmt.Errorf("load incident edges for source file delete: %w", err)
 		}
 		for edgeRows.Next() {
 			var edge Edge
-			if err := edgeRows.Scan(&edge.Source, &edge.Target, &edge.Relation); err == nil {
-				incidentEdges = append(incidentEdges, edge)
+			if err := edgeRows.Scan(&edge.Source, &edge.Target, &edge.Relation); err != nil {
+				edgeRows.Close()
+				return 0, fmt.Errorf("scan incident edge for source file delete: %w", err)
 			}
+			incidentEdges = append(incidentEdges, edge)
+		}
+		if err := edgeRows.Err(); err != nil {
+			edgeRows.Close()
+			return 0, fmt.Errorf("iterate incident edges for source file delete: %w", err)
 		}
 		edgeRows.Close()
 	}
 
-	for _, id := range ids {
-		if _, err := tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id); err != nil {
-			kg.logger.Warn("DeleteNodesBySourceFile: failed to delete edges for node", "id", id, "error", err)
-		}
-		if _, err := tx.Exec("DELETE FROM kg_nodes WHERE id = ?", id); err != nil {
-			kg.logger.Warn("DeleteNodesBySourceFile: failed to delete node", "id", id, "error", err)
-		}
+	if _, err := tx.Exec(fmt.Sprintf(`
+		DELETE FROM kg_edges
+		WHERE source IN (%s) OR target IN (%s)
+	`, inPlaceholders, inPlaceholders), edgeArgs...); err != nil {
+		return 0, fmt.Errorf("batch delete edges for source file nodes: %w", err)
 	}
+	deleteRes, err := tx.Exec(fmt.Sprintf("DELETE FROM kg_nodes WHERE id IN (%s)", inPlaceholders), inArgs...)
+	if err != nil {
+		return 0, fmt.Errorf("batch delete nodes by source file: %w", err)
+	}
+	deleted64, _ := deleteRes.RowsAffected()
+	deleted := int(deleted64)
 
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("commit delete nodes by source file: %w", err)
@@ -668,7 +706,7 @@ func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
 			kg.logger.Warn("DeleteNodesBySourceFile: failed to remove semantic node index", "id", id, "error", err)
 		}
 	}
-	return len(ids), nil
+	return deleted, nil
 }
 
 func (kg *KnowledgeGraph) GetNodesBySourceFile(path string, limit int) ([]Node, error) {

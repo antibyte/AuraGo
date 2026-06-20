@@ -69,6 +69,7 @@ type KnowledgeGraph struct {
 	db                     *sql.DB
 	logger                 *slog.Logger
 	accessQueue            chan knowledgeGraphAccessHit
+	flushAccessHits        chan chan struct{}
 	doneChan               chan struct{}
 	closeOnce              sync.Once
 	wg                     sync.WaitGroup
@@ -90,6 +91,7 @@ type KnowledgeGraph struct {
 const knowledgeGraphWriteTimeout = 5 * time.Second
 const knowledgeGraphPropertyValueLimit = 500
 const knowledgeGraphAccessQueueSize = 2500
+const knowledgeGraphDroppedAccessHitsThreshold = 1
 const coOccurrenceThreshold = 15
 
 var ErrKnowledgeGraphProtectedNode = errors.New("knowledge graph node is protected")
@@ -152,6 +154,7 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 		db:                    db,
 		logger:                logger,
 		accessQueue:           make(chan knowledgeGraphAccessHit, knowledgeGraphAccessQueueSize),
+		flushAccessHits:       make(chan chan struct{}),
 		doneChan:              make(chan struct{}),
 		excludedNodeTypes:       map[string]bool{"activity_entity": true, "unknown": true},
 		semanticReindexInterval: 5 * time.Minute,
@@ -293,7 +296,39 @@ func (kg *KnowledgeGraph) accessCountWorker() {
 			}
 		case <-ticker.C:
 			flush()
+		case ack, ok := <-kg.flushAccessHits:
+			if !ok {
+				continue
+			}
+			flush()
+			if ack != nil {
+				close(ack)
+			}
 		}
+	}
+}
+
+func (kg *KnowledgeGraph) accessCountReliable() bool {
+	return kg == nil || kg.DroppedAccessHits() < knowledgeGraphDroppedAccessHitsThreshold
+}
+
+// FlushAccessHits drains the async access queue and waits for the worker batch flush.
+func (kg *KnowledgeGraph) FlushAccessHits() error {
+	if kg == nil {
+		return nil
+	}
+	kg.drainAccessQueue()
+	ack := make(chan struct{})
+	select {
+	case kg.flushAccessHits <- ack:
+		select {
+		case <-ack:
+			return nil
+		case <-time.After(knowledgeGraphWriteTimeout):
+			return fmt.Errorf("flush access hits ack timed out")
+		}
+	case <-time.After(knowledgeGraphWriteTimeout):
+		return fmt.Errorf("flush access hits request timed out")
 	}
 }
 

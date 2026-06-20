@@ -62,6 +62,49 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 	return nil
 }
 
+// PruneOutgoingRelationEdges removes outgoing edges from source with relation where
+// target is not in keepTargets.
+func (kg *KnowledgeGraph) PruneOutgoingRelationEdges(source, relation string, keepTargets map[string]struct{}) (int, error) {
+	source = strings.TrimSpace(source)
+	relation = strings.TrimSpace(relation)
+	if source == "" || relation == "" {
+		return 0, nil
+	}
+
+	rows, err := kg.db.Query(`
+		SELECT target FROM kg_edges
+		WHERE source = ? AND relation = ?
+	`, source, relation)
+	if err != nil {
+		return 0, fmt.Errorf("query outgoing relation edges for prune: %w", err)
+	}
+	defer rows.Close()
+
+	var staleTargets []string
+	for rows.Next() {
+		var target string
+		if err := rows.Scan(&target); err != nil {
+			return 0, fmt.Errorf("scan outgoing relation edge for prune: %w", err)
+		}
+		if _, keep := keepTargets[target]; keep {
+			continue
+		}
+		staleTargets = append(staleTargets, target)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("iterate outgoing relation edges for prune: %w", err)
+	}
+
+	removed := 0
+	for _, target := range staleTargets {
+		if err := kg.DeleteEdge(source, target, relation); err != nil {
+			return removed, fmt.Errorf("delete stale relation edge %s->%s/%s: %w", source, target, relation, err)
+		}
+		removed++
+	}
+	return removed, nil
+}
+
 func (kg *KnowledgeGraph) DeleteEdge(source, target, relation string) error {
 	_, err := kg.db.Exec("DELETE FROM kg_edges WHERE source = ? AND target = ? AND relation = ?",
 		source, target, relation)
@@ -191,13 +234,13 @@ func (kg *KnowledgeGraph) GetImportantEdges(limit int, nodeIDs []string) ([]Edge
 		args = append(args, limit)
 
 		query := fmt.Sprintf(`
-			SELECT source, target, relation, properties FROM kg_edges
-			WHERE relation != 'co_mentioned_with'
-			  AND (source IN (%s) OR target IN (%s))
-			ORDER BY (
-				SELECT SUM(n2.access_count) FROM kg_nodes n2
-				WHERE n2.id IN (kg_edges.source, kg_edges.target)
-			) DESC
+			SELECT e.source, e.target, e.relation, e.properties
+			FROM kg_edges e
+			LEFT JOIN kg_nodes ns ON ns.id = e.source
+			LEFT JOIN kg_nodes nt ON nt.id = e.target
+			WHERE e.relation != 'co_mentioned_with'
+			  AND (e.source IN (%s) OR e.target IN (%s))
+			ORDER BY (COALESCE(ns.access_count, 0) + COALESCE(nt.access_count, 0)) DESC
 			LIMIT ?
 		`, strings.Join(placeholders, ","), strings.Join(placeholders, ","))
 		allArgs := make([]interface{}, 0, len(nodeIDs)*2+1)
@@ -211,12 +254,12 @@ func (kg *KnowledgeGraph) GetImportantEdges(limit int, nodeIDs []string) ([]Edge
 		rows, err = kg.db.Query(query, allArgs...)
 	} else {
 		rows, err = kg.db.Query(`
-			SELECT source, target, relation, properties FROM kg_edges
-			WHERE relation != 'co_mentioned_with'
-			ORDER BY (
-				SELECT SUM(n2.access_count) FROM kg_nodes n2
-				WHERE n2.id IN (kg_edges.source, kg_edges.target)
-			) DESC
+			SELECT e.source, e.target, e.relation, e.properties
+			FROM kg_edges e
+			LEFT JOIN kg_nodes ns ON ns.id = e.source
+			LEFT JOIN kg_nodes nt ON nt.id = e.target
+			WHERE e.relation != 'co_mentioned_with'
+			ORDER BY (COALESCE(ns.access_count, 0) + COALESCE(nt.access_count, 0)) DESC
 			LIMIT ?
 		`, limit)
 	}

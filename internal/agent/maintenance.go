@@ -1726,6 +1726,13 @@ func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *m
 			relSlug := strings.ToLower(strings.ReplaceAll(relationship.String, " ", "_"))
 			relNodeID := "org_" + relSlug
 
+			if _, err := kg.PruneOutgoingRelationEdges(nodeID, "belongs_to", map[string]struct{}{relNodeID: {}}); err != nil {
+				logger.Warn("[Maintenance] Failed to prune stale contact relationship edges",
+					"contact_node_id", nodeID,
+					"relationship_node_id", relNodeID,
+					"error", err)
+			}
+
 			if err := kg.AddNode(relNodeID, relationship.String, map[string]string{"type": "organization"}); err != nil {
 				logger.Warn("[Maintenance] Failed to sync relationship org node to KG",
 					"contact_node_id", nodeID,

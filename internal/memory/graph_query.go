@@ -866,33 +866,54 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 		return nil, fmt.Errorf("iterate duplicate knowledge graph groups: %w", err)
 	}
 
-	for _, l := range labels {
-		cand := KnowledgeGraphDuplicateCandidate{
-			Label:           l,
-			NormalizedLabel: l,
-			Count:           0,
+	if len(labels) > 0 {
+		labelPlaceholders := knowledgeGraphSQLInPlaceholders(len(labels))
+		labelArgs := make([]interface{}, len(labels))
+		for i, l := range labels {
+			labelArgs[i] = l
 		}
-		nodesRows, err := tx.Query(`SELECT id, label, properties, protected FROM kg_nodes WHERE LOWER(TRIM(label)) = ?`, l)
+		nodesRows, err := tx.Query(fmt.Sprintf(`
+			SELECT id, label, properties, protected, LOWER(TRIM(label))
+			FROM kg_nodes
+			WHERE label != '' AND LOWER(TRIM(label)) IN (%s)
+			ORDER BY LOWER(TRIM(label)), id
+		`, labelPlaceholders), labelArgs...)
 		if err != nil {
-			return nil, fmt.Errorf("query duplicate knowledge graph nodes for %q: %w", l, err)
+			return nil, fmt.Errorf("query duplicate knowledge graph node batch: %w", err)
+		}
+		candByLabel := make(map[string]*KnowledgeGraphDuplicateCandidate, len(labels))
+		for _, l := range labels {
+			candByLabel[l] = &KnowledgeGraphDuplicateCandidate{
+				Label:           l,
+				NormalizedLabel: normalizeKnowledgeGraphDuplicateLabel(l),
+			}
 		}
 		for nodesRows.Next() {
 			var n Node
 			var propsJSON string
 			var protected int
-			if err := nodesRows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+			var normLabel string
+			if err := nodesRows.Scan(&n.ID, &n.Label, &propsJSON, &protected, &normLabel); err != nil {
 				nodesRows.Close()
-				return nil, fmt.Errorf("scan duplicate knowledge graph node for %q: %w", l, err)
+				return nil, fmt.Errorf("scan duplicate knowledge graph node batch: %w", err)
+			}
+			cand, ok := candByLabel[normLabel]
+			if !ok {
+				continue
 			}
 			cand.IDs = append(cand.IDs, n.ID)
 			cand.Count++
 		}
 		if err := nodesRows.Err(); err != nil {
 			nodesRows.Close()
-			return nil, fmt.Errorf("iterate duplicate knowledge graph nodes for %q: %w", l, err)
+			return nil, fmt.Errorf("iterate duplicate knowledge graph node batch: %w", err)
 		}
 		nodesRows.Close()
-		report.DuplicateCandidates = append(report.DuplicateCandidates, cand)
+		for _, l := range labels {
+			if cand := candByLabel[l]; cand != nil && cand.Count > 0 {
+				report.DuplicateCandidates = append(report.DuplicateCandidates, *cand)
+			}
+		}
 	}
 
 	idDuplicateGroups, idDuplicateNodes, idDuplicateCandidates, err := knowledgeGraphIDDuplicateSummary(kg.logger, tx, sampleLimit)
@@ -907,6 +928,10 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 }
 
 func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
+	if err := kg.FlushAccessHits(); err != nil && kg.logger != nil {
+		kg.logger.Warn("OptimizeGraph: failed to flush access hits", "error", err)
+	}
+
 	tx, err := kg.db.Begin()
 	if err != nil {
 		return 0, err
@@ -931,7 +956,10 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 			if kg.isKnowledgeGraphOptimizeProtected(id, source) {
 				continue
 			}
-			priority := accessCount + (degree * 2)
+			priority := degree * 2
+			if kg.accessCountReliable() {
+				priority += accessCount
+			}
 			if priority < threshold {
 				toRemove = append(toRemove, id)
 			}
@@ -983,6 +1011,10 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error) {
 	if thresholdDays <= 0 {
 		return 0, 0, fmt.Errorf("invalid thresholdDays: %d", thresholdDays)
+	}
+
+	if err := kg.FlushAccessHits(); err != nil && kg.logger != nil {
+		kg.logger.Warn("CleanupStaleGraph: failed to flush access hits", "error", err)
 	}
 
 	tx, err := kg.db.Begin()
@@ -1039,27 +1071,32 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 		return 0, 0, fmt.Errorf("close stale placeholder rows: %w", err)
 	}
 
-	rows, err := tx.Query(`
-		SELECT id, COALESCE(source_type, '') FROM kg_nodes
-		WHERE access_count = 0
-		  AND protected = 0
-		  AND updated_at <= datetime('now', '-' || ? || ' days')
-	`, thresholdDays)
-	if err != nil {
-		return 0, 0, fmt.Errorf("query unaccessed nodes: %w", err)
-	}
-
-	for rows.Next() {
-		var id, source string
-		if err := rows.Scan(&id, &source); err == nil {
-			if kg.isKnowledgeGraphOptimizeProtected(id, source) {
-				continue
-			}
-			toRemove = append(toRemove, id)
+	if kg.accessCountReliable() {
+		rows, err := tx.Query(`
+			SELECT id, COALESCE(source_type, '') FROM kg_nodes
+			WHERE access_count = 0
+			  AND protected = 0
+			  AND updated_at <= datetime('now', '-' || ? || ' days')
+		`, thresholdDays)
+		if err != nil {
+			return 0, 0, fmt.Errorf("query unaccessed nodes: %w", err)
 		}
-	}
-	if err := rows.Close(); err != nil {
-		return 0, 0, fmt.Errorf("close stale node rows: %w", err)
+
+		for rows.Next() {
+			var id, source string
+			if err := rows.Scan(&id, &source); err == nil {
+				if kg.isKnowledgeGraphOptimizeProtected(id, source) {
+					continue
+				}
+				toRemove = append(toRemove, id)
+			}
+		}
+		if err := rows.Close(); err != nil {
+			return 0, 0, fmt.Errorf("close stale node rows: %w", err)
+		}
+	} else if kg.logger != nil {
+		kg.logger.Warn("CleanupStaleGraph: skipping access_count stale removal because access hits were dropped",
+			"dropped_hits", kg.DroppedAccessHits())
 	}
 
 	seenRemove := make(map[string]struct{}, len(toRemove))
@@ -1190,13 +1227,24 @@ func (kg *KnowledgeGraph) GetStats() (*KnowledgeGraphStats, error) {
 }
 
 func escapeFTS5(query string) string {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return `""`
+	}
+	if len(query) >= 2 && strings.HasPrefix(query, `"`) && strings.HasSuffix(query, `"`) {
+		inner := strings.TrimSpace(query[1 : len(query)-1])
+		if inner == "" {
+			return `""`
+		}
+		return `"` + strings.ReplaceAll(inner, `"`, `""`) + `"`
+	}
 	words := strings.Fields(query)
 	if len(words) == 0 {
 		return `""`
 	}
 	var escaped []string
 	for _, w := range words {
-		w = strings.ReplaceAll(w, `"`, ``)
+		w = strings.ReplaceAll(w, `"`, `""`)
 		if w != "" {
 			escaped = append(escaped, `"`+w+`"`)
 		}
@@ -1204,7 +1252,10 @@ func escapeFTS5(query string) string {
 	if len(escaped) == 0 {
 		return `""`
 	}
-	return strings.Join(escaped, " OR ")
+	if len(escaped) == 1 {
+		return escaped[0]
+	}
+	return strings.Join(escaped, " AND ")
 }
 
 func truncateUTF8Safe(s string, maxLen int) string {
@@ -1370,12 +1421,30 @@ func knowledgeGraphFilterQualifiedIDDuplicateGroups(grouped map[string][]Node) m
 	return qualified
 }
 
+const knowledgeGraphIDDuplicateCandidateSQL = `
+	WITH normalized AS (
+		SELECT id, label, properties, protected,
+			REPLACE(REPLACE(LOWER(TRIM(id)), '_', ''), '-', '') AS norm_id
+		FROM kg_nodes
+	),
+	dup_groups AS (
+		SELECT norm_id
+		FROM normalized
+		WHERE norm_id != ''
+		GROUP BY norm_id
+		HAVING COUNT(*) > 1
+	)
+	SELECT n.id, n.label, n.properties, n.protected
+	FROM normalized n
+	INNER JOIN dup_groups g ON g.norm_id = n.norm_id
+	ORDER BY n.norm_id, n.id`
+
 func knowledgeGraphLoadNodesForIDDuplicateCheck(querier interface {
 	Query(query string, args ...any) (*sql.Rows, error)
 }, logger *slog.Logger) ([]Node, error) {
-	rows, err := querier.Query(`SELECT id, label, properties, protected FROM kg_nodes`)
+	rows, err := querier.Query(knowledgeGraphIDDuplicateCandidateSQL)
 	if err != nil {
-		return nil, fmt.Errorf("query knowledge graph nodes for id duplicates: %w", err)
+		return nil, fmt.Errorf("query knowledge graph id duplicate candidates: %w", err)
 	}
 	defer rows.Close()
 

@@ -3,6 +3,7 @@ package memory
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -18,6 +19,7 @@ func (kg *KnowledgeGraph) BulkAddEntities(nodes []Node, edges []Edge) error {
 	now := time.Now().Format(time.RFC3339)
 	indexNodes := make([]Node, 0, len(nodes))
 	indexEdges := make([]Edge, 0, len(edges))
+	var bulkErrors []error
 	for _, n := range nodes {
 		if n.ID == "" {
 			continue
@@ -49,7 +51,8 @@ func (kg *KnowledgeGraph) BulkAddEntities(nodes []Node, edges []Edge) error {
 				protected = excluded.protected,
 				updated_at = excluded.updated_at
 		`, n.ID, finalLabel, string(propsJSON), isProtected, now); execErr != nil {
-			kg.logger.Warn("[KG] BulkAddEntities: failed to insert node", "id", n.ID, "error", execErr)
+			bulkErrors = append(bulkErrors, fmt.Errorf("insert node %q: %w", n.ID, execErr))
+			continue
 		}
 		indexNodes = append(indexNodes, Node{ID: n.ID, Label: finalLabel, Properties: finalProps, Protected: isProtected != 0})
 	}
@@ -60,7 +63,7 @@ func (kg *KnowledgeGraph) BulkAddEntities(nodes []Node, edges []Edge) error {
 		}
 		for _, id := range []string{e.Source, e.Target} {
 			if execErr := ensureKnowledgeGraphPlaceholderNodeTx(tx, id); execErr != nil {
-				kg.logger.Warn("[KG] BulkAddEntities: failed to ensure endpoint node", "id", id, "error", execErr)
+				bulkErrors = append(bulkErrors, fmt.Errorf("ensure endpoint node %q for edge %q->%q: %w", id, e.Source, e.Target, execErr))
 			}
 		}
 		if e.Properties == nil {
@@ -83,9 +86,14 @@ func (kg *KnowledgeGraph) BulkAddEntities(nodes []Node, edges []Edge) error {
 				properties = excluded.properties,
 				updated_at = excluded.updated_at
 		`, e.Source, e.Target, e.Relation, string(propsJSON), now); execErr != nil {
-			kg.logger.Warn("[KG] BulkAddEntities: failed to insert edge", "source", e.Source, "target", e.Target, "error", execErr)
+			bulkErrors = append(bulkErrors, fmt.Errorf("insert edge %q->%q/%q: %w", e.Source, e.Target, e.Relation, execErr))
+			continue
 		}
 		indexEdges = append(indexEdges, Edge{Source: e.Source, Target: e.Target, Relation: e.Relation, Properties: finalProps})
+	}
+
+	if len(bulkErrors) > 0 {
+		return fmt.Errorf("bulk add entities failed: %w", errors.Join(bulkErrors...))
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -112,6 +120,7 @@ func (kg *KnowledgeGraph) BulkMergeExtractedEntities(nodes []Node, edges []Edge)
 	mergedEdges := mergeKnowledgeGraphEdges(edges)
 	indexNodes := make([]Node, 0, len(mergedNodes))
 	indexEdges := make([]Edge, 0, len(mergedEdges))
+	var bulkErrors []error
 	for _, n := range mergedNodes {
 		if n.ID == "" {
 			continue
@@ -141,7 +150,8 @@ func (kg *KnowledgeGraph) BulkMergeExtractedEntities(nodes []Node, edges []Edge)
 				protected = excluded.protected,
 				updated_at = excluded.updated_at
 		`, n.ID, finalLabel, string(propsJSON), isProtected, now); execErr != nil {
-			kg.logger.Warn("[KG] BulkMergeExtractedEntities: failed to merge node", "id", n.ID, "error", execErr)
+			bulkErrors = append(bulkErrors, fmt.Errorf("merge node %q: %w", n.ID, execErr))
+			continue
 		}
 		indexNodes = append(indexNodes, Node{ID: n.ID, Label: finalLabel, Properties: finalProps})
 	}
@@ -152,7 +162,7 @@ func (kg *KnowledgeGraph) BulkMergeExtractedEntities(nodes []Node, edges []Edge)
 		}
 		for _, id := range []string{e.Source, e.Target} {
 			if execErr := ensureKnowledgeGraphPlaceholderNodeTx(tx, id); execErr != nil {
-				kg.logger.Warn("[KG] BulkMergeExtractedEntities: failed to ensure endpoint node", "id", id, "error", execErr)
+				bulkErrors = append(bulkErrors, fmt.Errorf("ensure endpoint node %q for edge %q->%q: %w", id, e.Source, e.Target, execErr))
 			}
 		}
 
@@ -171,9 +181,14 @@ func (kg *KnowledgeGraph) BulkMergeExtractedEntities(nodes []Node, edges []Edge)
 				properties = excluded.properties,
 				updated_at = excluded.updated_at
 		`, e.Source, e.Target, e.Relation, string(propsJSON), now); execErr != nil {
-			kg.logger.Warn("[KG] BulkMergeExtractedEntities: failed to merge edge", "source", e.Source, "target", e.Target, "error", execErr)
+			bulkErrors = append(bulkErrors, fmt.Errorf("merge edge %q->%q/%q: %w", e.Source, e.Target, e.Relation, execErr))
+			continue
 		}
 		indexEdges = append(indexEdges, e)
+	}
+
+	if len(bulkErrors) > 0 {
+		return fmt.Errorf("bulk merge extracted entities failed: %w", errors.Join(bulkErrors...))
 	}
 
 	if err := tx.Commit(); err != nil {
