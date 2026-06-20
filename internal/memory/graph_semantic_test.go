@@ -233,6 +233,53 @@ func TestKGUpdateEdgeRefreshesSemanticIndex(t *testing.T) {
 	}
 }
 
+func TestKGConsistencyCheckSampleMarksSampledReport(t *testing.T) {
+	kg := newTestKG(t)
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		return []float32{float32(len(text)), 1}, nil
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+
+	report, err := kg.ConsistencyCheckSample(25)
+	if err != nil {
+		t.Fatalf("ConsistencyCheckSample: %v", err)
+	}
+	if !report.Sampled {
+		t.Fatal("expected sampled consistency report")
+	}
+	if report.SampleSize != 25 {
+		t.Fatalf("SampleSize = %d, want 25", report.SampleSize)
+	}
+}
+
+func TestKGDrainSemanticReindexBacklogNoOpWhenClean(t *testing.T) {
+	kg := newTestKG(t)
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		return []float32{float32(len(text)), 1}, nil
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+	if err := kg.AddNode("nas", "NAS", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+	if err := kg.RunSemanticReindex(); err != nil {
+		t.Fatalf("RunSemanticReindex: %v", err)
+	}
+
+	passes, err := kg.DrainSemanticReindexBacklog(2)
+	if err != nil {
+		t.Fatalf("DrainSemanticReindexBacklog: %v", err)
+	}
+	if passes != 0 {
+		t.Fatalf("passes = %d, want 0 without backlog", passes)
+	}
+}
+
 func TestKGConsistencyCheckDetectsMissingIndexedNodeDocument(t *testing.T) {
 	kg := newTestKG(t)
 

@@ -84,6 +84,7 @@ type KnowledgeGraph struct {
 
 const knowledgeGraphWriteTimeout = 5 * time.Second
 const knowledgeGraphPropertyValueLimit = 500
+const knowledgeGraphAccessQueueSize = 2500
 const coOccurrenceThreshold = 15
 
 var ErrKnowledgeGraphProtectedNode = errors.New("knowledge graph node is protected")
@@ -145,7 +146,7 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 	kg := &KnowledgeGraph{
 		db:                    db,
 		logger:                logger,
-		accessQueue:           make(chan knowledgeGraphAccessHit, 1000),
+		accessQueue:           make(chan knowledgeGraphAccessHit, knowledgeGraphAccessQueueSize),
 		doneChan:              make(chan struct{}),
 		minSemanticSimilarity:   0.60,
 		excludedNodeTypes:       map[string]bool{"activity_entity": true, "unknown": true},

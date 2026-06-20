@@ -27,6 +27,8 @@ const knowledgeGraphSemanticQueryCacheMaxSize = 100
 
 const knowledgeGraphSemanticRetryMaxAttempts = 3
 const knowledgeGraphSemanticRetryBackoffBase = 250 * time.Millisecond
+const knowledgeGraphConsistencyCheckSampleSize = 200
+const knowledgeGraphSemanticEdgeReindexBatchSize = 100
 
 type knowledgeGraphSemanticIndex struct {
 	collection    *chromem.Collection
@@ -147,6 +149,30 @@ func (kg *KnowledgeGraph) RunSemanticReindex() error {
 	return err
 }
 
+// DrainSemanticReindexBacklog runs RunSemanticReindex up to maxPasses times while
+// dirty semantic rows remain. It is intended for maintenance follow-up passes.
+func (kg *KnowledgeGraph) DrainSemanticReindexBacklog(maxPasses int) (int, error) {
+	if kg == nil || kg.semantic == nil || maxPasses <= 0 {
+		return 0, nil
+	}
+
+	passes := 0
+	for pass := 0; pass < maxPasses; pass++ {
+		backlog, _, _, err := kg.HasSemanticReindexBacklog()
+		if err != nil {
+			return passes, err
+		}
+		if !backlog {
+			break
+		}
+		if err := kg.RunSemanticReindex(); err != nil {
+			return passes, err
+		}
+		passes++
+	}
+	return passes, nil
+}
+
 // RunSemanticReindexIfDue runs RunSemanticReindex only when the configured
 // semantic_reindex_interval has elapsed since the last successful reindex.
 // It returns whether a reindex was attempted.
@@ -232,15 +258,7 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 	edgeRows, err := kg.db.Query(`
 		SELECT e.source, e.target, e.relation, e.properties
 		FROM kg_edges e
-		LEFT JOIN (
-			SELECT e2.source, e2.target, e2.relation, MAX(n.updated_at) AS max_updated_at
-			FROM kg_edges e2
-			JOIN kg_nodes n ON n.id = e2.source OR n.id = e2.target
-			GROUP BY e2.source, e2.target, e2.relation
-		) node_updates ON e.source = node_updates.source AND e.target = node_updates.target AND e.relation = node_updates.relation
-		WHERE e.semantic_indexed_at IS NULL
-		   OR e.semantic_indexed_at < COALESCE(e.updated_at, '1970-01-01')
-		   OR e.semantic_indexed_at < COALESCE(node_updates.max_updated_at, '1970-01-01')
+		WHERE `+knowledgeGraphSemanticEdgeDirtyCondition("e")+`
 		LIMIT 5000
 	`)
 	var edges []Edge
@@ -267,22 +285,86 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 		}
 		if len(edges) > 0 {
 			kg.semantic.reindexMu.Lock()
-			edgePlaceholders := make([]string, len(edges))
-			edgeArgs := make([]interface{}, 0, len(edges)+1)
-			edgeArgs = append(edgeArgs, now)
-			for i, edge := range edges {
-				edgePlaceholders[i] = "(? IS NOT NULL AND source = ? AND target = ? AND relation = ?)"
-				edgeArgs = append(edgeArgs, now, edge.Source, edge.Target, edge.Relation)
+			if err := kg.markSemanticEdgesIndexedAt(edges, now); err != nil && kg.semantic.logger != nil {
+				kg.semantic.logger.Warn("reindexSemanticNodes: failed to mark edges indexed", "error", err)
 			}
-			// Update both NULL and stale edges by matching their exact identity
-			_, _ = kg.db.Exec(
-				`UPDATE kg_edges SET semantic_indexed_at = ? WHERE `+strings.Join(edgePlaceholders, " OR "),
-				edgeArgs...,
-			)
 			kg.semantic.reindexMu.Unlock()
 		}
 	}
 
+	return nil
+}
+
+func knowledgeGraphSemanticEdgeDirtyCondition(edgeAlias string) string {
+	return fmt.Sprintf(`(
+		%s.semantic_indexed_at IS NULL
+		OR %s.semantic_indexed_at < COALESCE(%s.updated_at, '1970-01-01')
+		OR EXISTS (
+			SELECT 1 FROM kg_nodes n
+			WHERE (n.id = %s.source OR n.id = %s.target)
+			  AND n.updated_at > COALESCE(%s.semantic_indexed_at, '1970-01-01')
+		)
+	)`, edgeAlias, edgeAlias, edgeAlias, edgeAlias, edgeAlias, edgeAlias)
+}
+
+func (kg *KnowledgeGraph) markSemanticEdgesIndexedAt(edges []Edge, indexedAt string) error {
+	if kg == nil || kg.db == nil || len(edges) == 0 {
+		return nil
+	}
+	for start := 0; start < len(edges); start += knowledgeGraphSemanticEdgeReindexBatchSize {
+		end := start + knowledgeGraphSemanticEdgeReindexBatchSize
+		if end > len(edges) {
+			end = len(edges)
+		}
+		chunk := edges[start:end]
+		tx, err := kg.db.Begin()
+		if err != nil {
+			return fmt.Errorf("begin semantic edge batch update: %w", err)
+		}
+		if _, err := tx.Exec(`CREATE TEMP TABLE IF NOT EXISTS kg_semantic_edge_batch (
+			source TEXT NOT NULL,
+			target TEXT NOT NULL,
+			relation TEXT NOT NULL,
+			PRIMARY KEY (source, target, relation)
+		)`); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("create semantic edge batch table: %w", err)
+		}
+		if _, err := tx.Exec(`DELETE FROM kg_semantic_edge_batch`); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("reset semantic edge batch table: %w", err)
+		}
+		stmt, err := tx.Prepare(`INSERT INTO kg_semantic_edge_batch (source, target, relation) VALUES (?, ?, ?)`)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("prepare semantic edge batch insert: %w", err)
+		}
+		for _, edge := range chunk {
+			if _, err := stmt.Exec(edge.Source, edge.Target, edge.Relation); err != nil {
+				stmt.Close()
+				tx.Rollback()
+				return fmt.Errorf("insert semantic edge batch row: %w", err)
+			}
+		}
+		stmt.Close()
+		if _, err := tx.Exec(`
+			UPDATE kg_edges
+			SET semantic_indexed_at = ?
+			WHERE EXISTS (
+				SELECT 1
+				FROM kg_semantic_edge_batch b
+				WHERE b.source = kg_edges.source
+				  AND b.target = kg_edges.target
+				  AND b.relation = kg_edges.relation
+			)
+		`, indexedAt); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("update semantic edge batch timestamps: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit semantic edge batch update: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -883,6 +965,8 @@ type KGConsistencyReport struct {
 	TotalEdges            int  `json:"total_edges"`
 	TotalIndexed          uint `json:"total_indexed"`
 	SemanticEnabled       bool `json:"semantic_enabled"`
+	Sampled               bool `json:"sampled"`
+	SampleSize            int  `json:"sample_size,omitempty"`
 	NeedsReindex          bool `json:"needs_reindex"`
 	ReindexBacklog        bool `json:"reindex_backlog"`
 }
@@ -940,16 +1024,8 @@ func (kg *KnowledgeGraph) countDirtySemanticEdges() (int, error) {
 	var count int
 	err := kg.db.QueryRow(`
 		SELECT COUNT(*) FROM kg_edges e
-		LEFT JOIN (
-			SELECT e2.source, e2.target, e2.relation, MAX(n.updated_at) AS max_updated_at
-			FROM kg_edges e2
-			JOIN kg_nodes n ON n.id = e2.source OR n.id = e2.target
-			GROUP BY e2.source, e2.target, e2.relation
-		) node_updates ON e.source = node_updates.source AND e.target = node_updates.target AND e.relation = node_updates.relation
-		WHERE e.semantic_indexed_at IS NULL
-		   OR e.semantic_indexed_at < COALESCE(e.updated_at, '1970-01-01')
-		   OR e.semantic_indexed_at < COALESCE(node_updates.max_updated_at, '1970-01-01')
-	`).Scan(&count)
+		WHERE `+knowledgeGraphSemanticEdgeDirtyCondition("e"),
+	).Scan(&count)
 	return count, err
 }
 
@@ -981,7 +1057,7 @@ func (kg *KnowledgeGraph) HealthReport() (*KnowledgeGraphHealthReport, error) {
 	report.NeedsReindex = dirtyNodes > 0 || dirtyEdges > 0
 
 	if kg.semantic != nil {
-		consistency, err := kg.ConsistencyCheck()
+		consistency, err := kg.ConsistencyCheckSample(knowledgeGraphConsistencyCheckSampleSize)
 		if err != nil {
 			return nil, err
 		}
@@ -993,13 +1069,24 @@ func (kg *KnowledgeGraph) HealthReport() (*KnowledgeGraphHealthReport, error) {
 	return report, nil
 }
 
+// ConsistencyCheck performs a full semantic index consistency scan.
 func (kg *KnowledgeGraph) ConsistencyCheck() (*KGConsistencyReport, error) {
+	return kg.ConsistencyCheckSample(0)
+}
+
+// ConsistencyCheckSample verifies semantic index sync. sampleSize <= 0 scans all
+// indexed rows; sampleSize > 0 limits expensive vector lookups to a stable subset.
+func (kg *KnowledgeGraph) ConsistencyCheckSample(sampleSize int) (*KGConsistencyReport, error) {
 	if kg.semantic == nil {
 		return nil, fmt.Errorf("semantic search is disabled")
 	}
 
 	report := &KGConsistencyReport{
 		SemanticEnabled: true,
+	}
+	if sampleSize > 0 {
+		report.Sampled = true
+		report.SampleSize = sampleSize
 	}
 
 	_ = kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&report.TotalNodes)
@@ -1011,6 +1098,7 @@ func (kg *KnowledgeGraph) ConsistencyCheck() (*KGConsistencyReport, error) {
 		return nil, fmt.Errorf("count dirty semantic nodes: %w", err)
 	}
 	report.DirtyNodes = dirtyNodes
+	report.StaleNodes = dirtyNodes
 
 	dirtyEdges, err := kg.countDirtySemanticEdges()
 	if err != nil {
@@ -1018,19 +1106,21 @@ func (kg *KnowledgeGraph) ConsistencyCheck() (*KGConsistencyReport, error) {
 	}
 	report.DirtyEdges = dirtyEdges
 
-	rows, err := kg.db.Query(`
-		SELECT id, semantic_indexed_at IS NULL OR semantic_indexed_at < updated_at AS dirty
+	nodeQuery := `
+		SELECT id
 		FROM kg_nodes
-	`)
+		WHERE NOT (semantic_indexed_at IS NULL OR semantic_indexed_at < updated_at)
+		ORDER BY id`
+	nodeArgs := []interface{}(nil)
+	if sampleSize > 0 {
+		nodeQuery += ` LIMIT ?`
+		nodeArgs = append(nodeArgs, sampleSize)
+	}
+	rows, err := kg.db.Query(nodeQuery, nodeArgs...)
 	if err == nil {
 		for rows.Next() {
 			var id string
-			var dirty bool
-			if rows.Scan(&id, &dirty) != nil {
-				continue
-			}
-			if dirty {
-				report.StaleNodes++
+			if rows.Scan(&id) != nil {
 				continue
 			}
 			if _, getErr := kg.semantic.collection.GetByID(context.Background(), id); getErr != nil {
@@ -1040,23 +1130,21 @@ func (kg *KnowledgeGraph) ConsistencyCheck() (*KGConsistencyReport, error) {
 		rows.Close()
 	}
 
-	edgeRows, err := kg.db.Query(`
-		SELECT e.source, e.target, e.relation,
-			(e.semantic_indexed_at IS NULL
-			 OR e.semantic_indexed_at < COALESCE(e.updated_at, '1970-01-01')
-			 OR e.semantic_indexed_at < COALESCE((
-				SELECT MAX(n.updated_at) FROM kg_nodes n WHERE n.id = e.source OR n.id = e.target
-			 ), '1970-01-01')) AS dirty
+	edgeQuery := `
+		SELECT e.source, e.target, e.relation
 		FROM kg_edges e
-	`)
+		WHERE NOT ` + knowledgeGraphSemanticEdgeDirtyCondition("e") + `
+		ORDER BY e.source, e.target, e.relation`
+	edgeArgs := []interface{}(nil)
+	if sampleSize > 0 {
+		edgeQuery += ` LIMIT ?`
+		edgeArgs = append(edgeArgs, sampleSize)
+	}
+	edgeRows, err := kg.db.Query(edgeQuery, edgeArgs...)
 	if err == nil {
 		for edgeRows.Next() {
 			var source, target, relation string
-			var dirty bool
-			if edgeRows.Scan(&source, &target, &relation, &dirty) != nil {
-				continue
-			}
-			if dirty {
+			if edgeRows.Scan(&source, &target, &relation) != nil {
 				continue
 			}
 			edgeDocID := "edge://" + source + "\x00" + target + "\x00" + relation
