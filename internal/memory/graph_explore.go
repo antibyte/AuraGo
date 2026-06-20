@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"aurago/internal/dbutil"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -81,7 +82,7 @@ func (kg *KnowledgeGraph) exploreFTS(q knowledgeGraphQueryer, query string, limi
 		limit = 5
 	}
 	ftsQuery := escapeFTS5(query)
-	likePattern := "%" + strings.ToLower(query) + "%"
+	likePattern := "%" + dbutil.EscapeLike(strings.ToLower(query)) + "%"
 	rows, err := q.Query(`
 		SELECT id, label, properties, protected
 		FROM kg_nodes
@@ -89,7 +90,7 @@ func (kg *KnowledgeGraph) exploreFTS(q knowledgeGraphQueryer, query string, limi
 		UNION
 		SELECT id, label, properties, protected
 		FROM kg_nodes
-		WHERE id LIKE ? OR label LIKE ? OR properties LIKE ?
+		WHERE LOWER(id) LIKE ? ESCAPE '\' OR LOWER(label) LIKE ? ESCAPE '\' OR LOWER(properties) LIKE ? ESCAPE '\'
 		LIMIT ?
 	`, ftsQuery, likePattern, likePattern, likePattern, limit)
 	if err != nil {

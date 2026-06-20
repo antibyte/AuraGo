@@ -61,6 +61,7 @@ func (kg *KnowledgeGraph) Search(query string) string {
 	if err != nil {
 		kg.logger.Warn("Search: node query failed", "error", err)
 	} else {
+		seenNodes := make(map[string]struct{})
 		for rows.Next() {
 			var n Node
 			var propsJSON string
@@ -70,6 +71,10 @@ func (kg *KnowledgeGraph) Search(query string) string {
 				kg.logger.Warn("Search: scan node failed", "error", err)
 				return "[]"
 			}
+			if _, exists := seenNodes[n.ID]; exists {
+				continue
+			}
+			seenNodes[n.ID] = struct{}{}
 			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "Search", n.ID, propsJSON, protected)
 			n.Protected = protected != 0
 			matchedNodes = append(matchedNodes, n)
@@ -97,6 +102,7 @@ func (kg *KnowledgeGraph) Search(query string) string {
 	if err != nil {
 		kg.logger.Warn("Search: edge query failed", "error", err)
 	} else {
+		seenEdges := make(map[string]struct{})
 		for edgeRows.Next() {
 			var e Edge
 			var propsJSON string
@@ -105,6 +111,11 @@ func (kg *KnowledgeGraph) Search(query string) string {
 				kg.logger.Warn("Search: scan edge failed", "error", err)
 				return "[]"
 			}
+			edgeKey := knowledgeGraphEdgeKey(e.Source, e.Target, e.Relation)
+			if _, exists := seenEdges[edgeKey]; exists {
+				continue
+			}
+			seenEdges[edgeKey] = struct{}{}
 			if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
 				kg.logger.Warn("Search: corrupt edge properties JSON", "source", e.Source, "target", e.Target, "error", err)
 			}
@@ -182,19 +193,22 @@ func (kg *KnowledgeGraph) getNeighborsWithQueryer(q knowledgeGraphQueryer, nodeI
 		limit = 20
 	}
 
-	var edges []Edge
+	var allEdges []Edge
 	rows, err := q.Query(`
 		SELECT source, target, relation, properties FROM kg_edges
 		WHERE source = ? OR target = ?
-		LIMIT ?
-	`, nodeID, nodeID, limit)
+		ORDER BY updated_at DESC
+	`, nodeID, nodeID)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	defer rows.Close()
 
-	neighborIDs := make(map[string]bool)
-	accessHits := []knowledgeGraphAccessHit{{nodeID: nodeID}}
+	type neighborCandidate struct {
+		id string
+	}
+	neighborOrder := make([]neighborCandidate, 0)
+	seenNeighbors := make(map[string]struct{})
 	for rows.Next() {
 		var e Edge
 		var propsJSON string
@@ -207,25 +221,51 @@ func (kg *KnowledgeGraph) getNeighborsWithQueryer(q knowledgeGraphQueryer, nodeI
 		if e.Properties == nil {
 			e.Properties = make(map[string]string)
 		}
-		edges = append(edges, e)
-		accessHits = append(accessHits, knowledgeGraphAccessHit{source: e.Source, target: e.Target, relation: e.Relation})
-		if e.Source != nodeID {
-			neighborIDs[e.Source] = true
-		}
-		if e.Target != nodeID {
-			neighborIDs[e.Target] = true
-		}
+		allEdges = append(allEdges, e)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, nil, nil, fmt.Errorf("iterate neighbor edges: %w", err)
 	}
 
+	for _, e := range allEdges {
+		neighborID := e.Target
+		if neighborID == nodeID {
+			neighborID = e.Source
+		}
+		if _, exists := seenNeighbors[neighborID]; exists {
+			continue
+		}
+		seenNeighbors[neighborID] = struct{}{}
+		neighborOrder = append(neighborOrder, neighborCandidate{id: neighborID})
+		if len(neighborOrder) >= limit {
+			break
+		}
+	}
+
+	selectedNeighbors := make(map[string]struct{}, len(neighborOrder))
+	for _, candidate := range neighborOrder {
+		selectedNeighbors[candidate.id] = struct{}{}
+	}
+
+	var edges []Edge
+	accessHits := []knowledgeGraphAccessHit{{nodeID: nodeID}}
+	for _, e := range allEdges {
+		otherID := e.Target
+		if otherID == nodeID {
+			otherID = e.Source
+		}
+		if _, ok := selectedNeighbors[otherID]; ok {
+			edges = append(edges, e)
+			accessHits = append(accessHits, knowledgeGraphAccessHit{source: e.Source, target: e.Target, relation: e.Relation})
+		}
+	}
+
 	var nodes []Node
-	if len(neighborIDs) > 0 {
+	if len(selectedNeighbors) > 0 {
 		var ids []interface{}
 		var placeholders []string
-		for id := range neighborIDs {
-			ids = append(ids, id)
+		for _, candidate := range neighborOrder {
+			ids = append(ids, candidate.id)
 			placeholders = append(placeholders, "?")
 		}
 
@@ -233,6 +273,7 @@ func (kg *KnowledgeGraph) getNeighborsWithQueryer(q knowledgeGraphQueryer, nodeI
 		rows, err := q.Query(query, ids...)
 		if err == nil {
 			defer rows.Close()
+			nodeByID := make(map[string]Node, len(neighborOrder))
 			for rows.Next() {
 				var n Node
 				var propsJSON string
@@ -242,10 +283,15 @@ func (kg *KnowledgeGraph) getNeighborsWithQueryer(q knowledgeGraphQueryer, nodeI
 				}
 				n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetNeighbors", n.ID, propsJSON, protected)
 				n.Protected = protected != 0
-				nodes = append(nodes, n)
+				nodeByID[n.ID] = n
 			}
 			if err := rows.Err(); err != nil {
 				return nil, nil, nil, fmt.Errorf("iterate neighbor nodes: %w", err)
+			}
+			for _, candidate := range neighborOrder {
+				if n, ok := nodeByID[candidate.id]; ok {
+					nodes = append(nodes, n)
+				}
 			}
 		} else {
 			return nil, nil, nil, fmt.Errorf("query neighbor nodes: %w", err)

@@ -214,6 +214,10 @@ func (kg *KnowledgeGraph) GetImportantEdges(limit int, nodeIDs []string) ([]Edge
 		rows, err = kg.db.Query(`
 			SELECT source, target, relation, properties FROM kg_edges
 			WHERE relation != 'co_mentioned_with'
+			ORDER BY (
+				SELECT SUM(n2.access_count) FROM kg_nodes n2
+				WHERE n2.id IN (kg_edges.source, kg_edges.target)
+			) DESC
 			LIMIT ?
 		`, limit)
 	}

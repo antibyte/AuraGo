@@ -574,6 +574,154 @@ func TestKGGetNeighbors(t *testing.T) {
 	}
 }
 
+func TestKGGetNeighborsLimitsNeighborNodes(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("center", "Center", nil); err != nil {
+		t.Fatalf("AddNode center: %v", err)
+	}
+	for _, id := range []string{"n1", "n2", "n3", "n4"} {
+		if err := kg.AddNode(id, id, nil); err != nil {
+			t.Fatalf("AddNode %s: %v", id, err)
+		}
+	}
+	if err := kg.AddEdge("center", "n1", "rel_a", nil); err != nil {
+		t.Fatalf("AddEdge n1: %v", err)
+	}
+	if err := kg.AddEdge("center", "n2", "rel_b", nil); err != nil {
+		t.Fatalf("AddEdge n2: %v", err)
+	}
+	if err := kg.AddEdge("center", "n3", "rel_c", nil); err != nil {
+		t.Fatalf("AddEdge n3: %v", err)
+	}
+	if err := kg.AddEdge("center", "n4", "rel_d", nil); err != nil {
+		t.Fatalf("AddEdge n4: %v", err)
+	}
+	if err := kg.AddEdge("center", "n4", "rel_e", nil); err != nil {
+		t.Fatalf("AddEdge n4 second relation: %v", err)
+	}
+	for _, spec := range []struct {
+		relation string
+		offset   string
+	}{
+		{"rel_a", "-40 minutes"},
+		{"rel_b", "-30 minutes"},
+		{"rel_c", "-20 minutes"},
+		{"rel_d", "-10 minutes"},
+		{"rel_e", "-1 minutes"},
+	} {
+		if _, err := kg.db.Exec(`UPDATE kg_edges SET updated_at = datetime('now', ?) WHERE source = 'center' AND relation = ?`, spec.offset, spec.relation); err != nil {
+			t.Fatalf("update edge timestamp %s: %v", spec.relation, err)
+		}
+	}
+
+	nodes, edges := kg.GetNeighbors("center", 2)
+	if len(nodes) != 2 {
+		t.Fatalf("neighbor nodes = %d, want 2", len(nodes))
+	}
+	if len(edges) != 3 {
+		t.Fatalf("edges = %d, want 3 (two relations to n4 plus one other neighbor)", len(edges))
+	}
+	gotIDs := []string{nodes[0].ID, nodes[1].ID}
+	if gotIDs[0] != "n4" || gotIDs[1] != "n3" {
+		t.Fatalf("neighbor order = %v, want [n4 n3] by most recent edge", gotIDs)
+	}
+}
+
+func TestKGSearchDeduplicatesMatchedNodes(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("server_prod", "Production Server", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+
+	result := kg.Search("server")
+	var payload struct {
+		Nodes []Node `json:"nodes"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("unmarshal search result: %v", err)
+	}
+	count := 0
+	for _, node := range payload.Nodes {
+		if node.ID == "server_prod" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("server_prod occurrences = %d, want 1", count)
+	}
+}
+
+func TestKGExploreFTSEscapesLikeMetacharacters(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("cpu_100_percent", "CPU at 100%", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode cpu: %v", err)
+	}
+	if err := kg.AddNode("other_host", "Other Host", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode other: %v", err)
+	}
+
+	tx, err := kg.beginReadTx("TestKGExploreFTSEscapesLikeMetacharacters")
+	if err != nil {
+		t.Fatalf("beginReadTx: %v", err)
+	}
+	defer tx.Rollback()
+
+	nodes, err := kg.exploreFTS(tx, "100%", 10)
+	if err != nil {
+		t.Fatalf("exploreFTS: %v", err)
+	}
+	if len(nodes) != 1 {
+		t.Fatalf("matched nodes = %d, want 1 for literal percent query", len(nodes))
+	}
+	if nodes[0].ID != "cpu_100_percent" {
+		t.Fatalf("matched node = %q, want cpu_100_percent", nodes[0].ID)
+	}
+}
+
+func TestKGGetImportantEdgesOrdersByAccessCount(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("hot_a", "Hot A", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode hot_a: %v", err)
+	}
+	if err := kg.AddNode("hot_b", "Hot B", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode hot_b: %v", err)
+	}
+	if err := kg.AddNode("cold_a", "Cold A", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode cold_a: %v", err)
+	}
+	if err := kg.AddNode("cold_b", "Cold B", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode cold_b: %v", err)
+	}
+	if _, err := kg.db.Exec(`UPDATE kg_nodes SET access_count = 50 WHERE id IN ('hot_a', 'hot_b')`); err != nil {
+		t.Fatalf("update hot access counts: %v", err)
+	}
+	if _, err := kg.db.Exec(`UPDATE kg_nodes SET access_count = 1 WHERE id IN ('cold_a', 'cold_b')`); err != nil {
+		t.Fatalf("update cold access counts: %v", err)
+	}
+	if err := kg.AddEdge("hot_a", "hot_b", "connects_to", nil); err != nil {
+		t.Fatalf("AddEdge hot: %v", err)
+	}
+	if err := kg.AddEdge("cold_a", "cold_b", "connects_to", nil); err != nil {
+		t.Fatalf("AddEdge cold: %v", err)
+	}
+
+	edges, err := kg.GetImportantEdges(1, nil)
+	if err != nil {
+		t.Fatalf("GetImportantEdges: %v", err)
+	}
+	if len(edges) != 1 {
+		t.Fatalf("edges = %d, want 1", len(edges))
+	}
+	got := edges[0]
+	if got.Source != "hot_a" || got.Target != "hot_b" {
+		t.Fatalf("edge = %#v, want hot_a->hot_b ordered by highest endpoint access", got)
+	}
+}
+
 func TestKGSearchForContext(t *testing.T) {
 	kg := newTestKG(t)
 
