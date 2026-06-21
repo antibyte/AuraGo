@@ -2,6 +2,7 @@ package server
 
 import (
 	"aurago/internal/config"
+	"aurago/internal/kgquality"
 	"aurago/internal/memory"
 	"aurago/internal/services"
 	"context"
@@ -261,6 +262,9 @@ func TestFileKGLifecycleUpdateRenameDeleteReindexReset(t *testing.T) {
 func assertSourceFileNodes(t *testing.T, kg *memory.KnowledgeGraph, sourceFile string, wantIDs []string) {
 	t.Helper()
 
+	if wantIDs != nil {
+		wantIDs = append([]string{kgquality.FileNodeID(sourceFile)}, wantIDs...)
+	}
 	nodes, err := kg.GetNodesBySourceFile(sourceFile, 20)
 	if err != nil {
 		t.Fatalf("GetNodesBySourceFile(%s): %v", sourceFile, err)
@@ -334,4 +338,4 @@ func (v *lifecycleVectorDB) StoreCheatsheet(string, string, string, ...string) e
 	return nil
 }
 func (v *lifecycleVectorDB) DeleteCheatsheet(string) error { return nil }
-func (v *lifecycleVectorDB) RegisterCollections([]string)   {}
+func (v *lifecycleVectorDB) RegisterCollections([]string)  {}
