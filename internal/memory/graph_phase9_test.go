@@ -192,6 +192,51 @@ func TestKGCleanupStaleGraphWithOptionsSeparatesPendingEdgeAndNodeTTLs(t *testin
 	}
 }
 
+func TestKGQualityReportIncludesEdgeConfidenceMetrics(t *testing.T) {
+	kg := newTestKG(t)
+
+	for _, id := range []string{"alpha", "beta", "gamma"} {
+		if err := kg.AddNode(id, strings.Title(id), map[string]string{"type": "service"}); err != nil {
+			t.Fatalf("AddNode %s: %v", id, err)
+		}
+	}
+	if err := kg.AddEdge("alpha", "beta", "co_mentioned_with", map[string]string{
+		"source": "pending",
+		"weight": "1",
+	}); err != nil {
+		t.Fatalf("AddEdge pending: %v", err)
+	}
+	if err := kg.AddEdge("alpha", "gamma", "co_mentioned_with", map[string]string{
+		"source": "auto_extraction",
+		"weight": "1",
+	}); err != nil {
+		t.Fatalf("AddEdge low weight: %v", err)
+	}
+	if err := kg.AddEdge("beta", "gamma", "uses", map[string]string{
+		"source":     "manual",
+		"confidence": "1.00",
+	}); err != nil {
+		t.Fatalf("AddEdge semantic: %v", err)
+	}
+
+	report, err := kg.QualityReport(5)
+	if err != nil {
+		t.Fatalf("QualityReport: %v", err)
+	}
+	if report.PendingEdges != 1 {
+		t.Fatalf("PendingEdges = %d, want 1", report.PendingEdges)
+	}
+	if report.LowConfidenceEdges != 2 {
+		t.Fatalf("LowConfidenceEdges = %d, want 2", report.LowConfidenceEdges)
+	}
+	if report.CoMentionEdges != 2 {
+		t.Fatalf("CoMentionEdges = %d, want 2", report.CoMentionEdges)
+	}
+	if report.SemanticEdges != 1 {
+		t.Fatalf("SemanticEdges = %d, want 1", report.SemanticEdges)
+	}
+}
+
 func TestKGSuggestRelationsRespectsBranchLimit(t *testing.T) {
 	kg := newTestKG(t)
 

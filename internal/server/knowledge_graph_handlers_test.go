@@ -232,6 +232,9 @@ func TestHandleKnowledgeGraphQuality(t *testing.T) {
 	if err := s.KG.AddEdge("router", "nas_a", "backs_up", nil); err != nil {
 		t.Fatalf("AddEdge: %v", err)
 	}
+	if err := s.KG.AddEdge("router", "nas_b", "co_mentioned_with", map[string]string{"source": "pending", "weight": "1"}); err != nil {
+		t.Fatalf("AddEdge pending: %v", err)
+	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/knowledge-graph/quality?limit=5", nil)
 	rec := httptest.NewRecorder()
@@ -253,6 +256,12 @@ func TestHandleKnowledgeGraphQuality(t *testing.T) {
 	}
 	if payload.UntypedNodes != 1 {
 		t.Fatalf("UntypedNodes = %d, want 1", payload.UntypedNodes)
+	}
+	if payload.PendingEdges != 1 {
+		t.Fatalf("PendingEdges = %d, want 1", payload.PendingEdges)
+	}
+	if payload.LowConfidenceEdges != 1 {
+		t.Fatalf("LowConfidenceEdges = %d, want 1", payload.LowConfidenceEdges)
 	}
 }
 

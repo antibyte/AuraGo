@@ -841,6 +841,30 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&report.Edges); err != nil {
 		return nil, fmt.Errorf("count knowledge graph edges: %w", err)
 	}
+	if err := tx.QueryRow(`
+		SELECT COUNT(*) FROM kg_edges
+		WHERE json_extract(properties, '$.source') = 'pending'
+	`).Scan(&report.PendingEdges); err != nil {
+		return nil, fmt.Errorf("count pending knowledge graph edges: %w", err)
+	}
+	if err := tx.QueryRow(`
+		SELECT COUNT(*) FROM kg_edges
+		WHERE relation = 'co_mentioned_with'
+	`).Scan(&report.CoMentionEdges); err != nil {
+		return nil, fmt.Errorf("count co-mentioned knowledge graph edges: %w", err)
+	}
+	report.SemanticEdges = report.Edges - report.CoMentionEdges
+	policy := kg.qualityPolicy()
+	if err := tx.QueryRow(`
+		SELECT COUNT(*) FROM kg_edges
+		WHERE relation = 'co_mentioned_with'
+		  AND (
+			COALESCE(json_extract(properties, '$.source'), '') IN ('', 'pending')
+			OR CAST(COALESCE(NULLIF(json_extract(properties, '$.weight'), ''), '0') AS INTEGER) < ?
+		  )
+	`, policy.LowConfidenceCoMentionMinWeight).Scan(&report.LowConfidenceEdges); err != nil {
+		return nil, fmt.Errorf("count low-confidence knowledge graph edges: %w", err)
+	}
 	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_nodes WHERE protected != 0").Scan(&report.ProtectedNodes); err != nil {
 		return nil, fmt.Errorf("count protected knowledge graph nodes: %w", err)
 	}

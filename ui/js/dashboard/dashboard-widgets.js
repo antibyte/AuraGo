@@ -122,6 +122,10 @@
 
             const stats = [
                 { val: Number(report?.protected_nodes || 0), lbl: t('dashboard.knowledge_quality_protected') },
+                { val: Number(report?.pending_edges || 0), lbl: t('dashboard.knowledge_quality_pending_edges') },
+                { val: Number(report?.low_confidence_edges || 0), lbl: t('dashboard.knowledge_quality_low_confidence_edges') },
+                { val: Number(report?.co_mention_edges || 0), lbl: t('dashboard.knowledge_quality_co_mentions') },
+                { val: Number(report?.semantic_edges || 0), lbl: t('dashboard.knowledge_quality_semantic_edges') },
                 { val: Number(report?.isolated_nodes || 0), lbl: t('dashboard.knowledge_quality_isolated') },
                 { val: Number(report?.untyped_nodes || 0), lbl: t('dashboard.knowledge_quality_untyped') },
                 { val: Number(report?.duplicate_groups || 0), lbl: t('dashboard.knowledge_quality_label_duplicates') },

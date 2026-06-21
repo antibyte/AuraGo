@@ -54,6 +54,10 @@ type KnowledgeGraphDuplicateCandidate struct {
 type KnowledgeGraphQualityReport struct {
 	Nodes                 int                                `json:"nodes"`
 	Edges                 int                                `json:"edges"`
+	PendingEdges          int                                `json:"pending_edges"`
+	LowConfidenceEdges    int                                `json:"low_confidence_edges"`
+	CoMentionEdges        int                                `json:"co_mention_edges"`
+	SemanticEdges         int                                `json:"semantic_edges"`
 	ProtectedNodes        int                                `json:"protected_nodes"`
 	IsolatedNodes         int                                `json:"isolated_nodes"`
 	UntypedNodes          int                                `json:"untyped_nodes"`
