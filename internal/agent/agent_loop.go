@@ -583,7 +583,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					ranked = filtered
 				}
 
-				servedRanked := selectServedRAGMemories(ranked, 1, s.currentLogger)
+				onDemandRetrieval := cfg.Tools.Memory.OnDemandRetrieval
+				servedRanked, availableRanked := selectRAGMemoriesForOnDemand(ranked, onDemandRetrieval, s.currentLogger)
 				if shortTermMem != nil {
 					for _, r := range servedRanked {
 						_ = shortTermMem.UpdateMemoryAccess(r.docID)
@@ -591,6 +592,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					}
 				}
 				markMemoryDocIDsUsed(usedMemoryDocIDs, servedRanked)
+				if onDemandRetrieval.Enabled {
+					flags.AvailableMemoryContextIndex = appendAvailableContextIndex(
+						flags.AvailableMemoryContextIndex,
+						buildAvailableMemoryIndex(availableRanked, onDemandRetrieval.MaxAvailableChars),
+						onDemandRetrieval.MaxAvailableChars,
+					)
+				}
 				wantsDeepDetails := wantsDetailedMemory(lastUserMsg)
 				ragEntries := buildAggressiveRAGPromptEntries(servedRanked, wantsDeepDetails, func(docID string) (string, error) {
 					return longTermMem.GetByID(docID)
@@ -790,10 +798,39 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if maxChars <= 0 || maxChars > aggressiveKnowledgeContextChars {
 				maxChars = aggressiveKnowledgeContextChars
 			}
-			kgContext := kg.SearchForContext(lastUserMsg, maxNodes, maxChars)
-			if kgContext != "" {
-				flags.KnowledgeContext = kgContext
-				s.currentLogger.Debug("[Sync] KG: Injected knowledge context", "chars", len(kgContext))
+			onDemandRetrieval := cfg.Tools.Memory.OnDemandRetrieval
+			if onDemandRetrieval.Enabled {
+				availableKGNodes := onDemandRetrieval.MaxAvailableKGNodes
+				if availableKGNodes < 0 {
+					availableKGNodes = 0
+				}
+				availableChars := onDemandRetrieval.MaxAvailableChars
+				if availableChars <= 0 {
+					availableChars = aggressiveAvailableContextChars
+				}
+				searchNodes := 1 + availableKGNodes
+				if searchNodes < maxNodes {
+					searchNodes = maxNodes
+				}
+				kgResult := kg.SearchForContextStructured(lastUserMsg, searchNodes, maxChars+availableChars)
+				if len(kgResult.Nodes) > 0 {
+					kg.RecordContextAccess(kgResult)
+					if kgContext := kgResult.LimitNodes(0, 1).FormatContext(maxChars); kgContext != "" {
+						flags.KnowledgeContext = kgContext
+					}
+					flags.AvailableKnowledgeContextIndex = appendAvailableContextIndex(
+						flags.AvailableKnowledgeContextIndex,
+						kgResult.LimitNodes(1, availableKGNodes).AvailableIndex(availableChars),
+						availableChars,
+					)
+					s.currentLogger.Debug("[Sync] KG: Injected on-demand knowledge context", "direct_nodes", 1, "available_nodes", len(kgResult.Nodes)-1)
+				}
+			} else {
+				kgContext := kg.SearchForContext(lastUserMsg, maxNodes, maxChars)
+				if kgContext != "" {
+					flags.KnowledgeContext = kgContext
+					s.currentLogger.Debug("[Sync] KG: Injected knowledge context", "chars", len(kgContext))
+				}
 			}
 		}
 
@@ -804,10 +841,26 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			longTermMem != nil && kg != nil {
 			fusionResult := applyRetrievalFusion(topMemories, flags.KnowledgeContext, longTermMem, shortTermMem, kg, s.currentLogger)
 			if fusionResult.EnrichedMemories != "" {
-				flags.RetrievedMemories += "\n---\n" + compactMemoryForPrompt(fusionResult.EnrichedMemories, 400)
+				if cfg.Tools.Memory.OnDemandRetrieval.Enabled {
+					flags.AvailableMemoryContextIndex = appendAvailableContextIndex(
+						flags.AvailableMemoryContextIndex,
+						"- [fusion:memory] source=retrieval_fusion - "+compactMemoryForPrompt(fusionResult.EnrichedMemories, 260),
+						cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableChars,
+					)
+				} else {
+					flags.RetrievedMemories += "\n---\n" + compactMemoryForPrompt(fusionResult.EnrichedMemories, 400)
+				}
 			}
 			if fusionResult.EnrichedKGContext != "" {
-				flags.KnowledgeContext += "\n" + compactMemoryForPrompt(fusionResult.EnrichedKGContext, 400)
+				if cfg.Tools.Memory.OnDemandRetrieval.Enabled {
+					flags.AvailableKnowledgeContextIndex = appendAvailableContextIndex(
+						flags.AvailableKnowledgeContextIndex,
+						"- [fusion:kg] source=retrieval_fusion - "+compactMemoryForPrompt(fusionResult.EnrichedKGContext, 260),
+						cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableChars,
+					)
+				} else {
+					flags.KnowledgeContext += "\n" + compactMemoryForPrompt(fusionResult.EnrichedKGContext, 400)
+				}
 			}
 		}
 

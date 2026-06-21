@@ -213,6 +213,49 @@ func TestBuildSystemPromptUsesCompactMetaFlags(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptIncludesAvailableContextIndex(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return charRatioEncoder{}, nil
+	}, time.Second, time.Second)
+
+	prompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), &ContextFlags{
+		Tier:                           "full",
+		SystemLanguage:                 "en",
+		TokenBudget:                    200000,
+		NativeToolsEnabled:             true,
+		RetrievedMemories:              "essential memory",
+		AvailableMemoryContextIndex:    "[memory:mem-2] score=0.80 - backup detail",
+		AvailableKnowledgeContextIndex: "[kg:node-1] service - Proxmox",
+	}, "", slog.Default())
+
+	for _, want := range []string{
+		"# AVAILABLE CONTEXT INDEX",
+		"[memory:mem-2]",
+		"[kg:node-1]",
+		"Use recall_memory",
+		"explore_kg",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("prompt missing %q:\n%s", want, prompt)
+		}
+	}
+}
+
+func TestUnifiedMemoryContextIncludesAvailableContextIndex(t *testing.T) {
+	block := buildUnifiedMemoryContextBlock("full", &ContextFlags{
+		RetrievedMemories:              "essential memory",
+		AvailableMemoryContextIndex:    "[memory:mem-2] score=0.80 - backup detail",
+		AvailableKnowledgeContextIndex: "[kg:node-1] service - Proxmox",
+	})
+
+	if !strings.Contains(block, "Available Context Index") {
+		t.Fatalf("unified block missing available index section:\n%s", block)
+	}
+	if !strings.Contains(block, "[memory:mem-2]") || !strings.Contains(block, "[kg:node-1]") {
+		t.Fatalf("unified block missing available entries:\n%s", block)
+	}
+}
+
 func TestBalancedRulesPromptKeepsCriticalMarkers(t *testing.T) {
 	raw, err := promptsembed.FS.ReadFile("rules.md")
 	if err != nil {

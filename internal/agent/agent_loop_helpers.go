@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"html"
 	"log/slog"
 	"path/filepath"
@@ -43,6 +44,8 @@ func ShouldReloadCoreMemory(dirty bool, loadedAt time.Time, dbUpdatedAt, cachedU
 func countMemoryPromptTelemetryTokens(flags prompts.ContextFlags, model string) int {
 	sections := []string{
 		flags.RetrievedMemories,
+		flags.AvailableMemoryContextIndex,
+		flags.AvailableKnowledgeContextIndex,
 		flags.PredictedMemories,
 		flags.KnowledgeContext,
 		flags.ErrorPatternContext,
@@ -1524,6 +1527,7 @@ const (
 	aggressiveErrorPatternChars      = 700
 	aggressiveLearnedRulesChars      = 480
 	aggressiveReuseContextChars      = 700
+	aggressiveAvailableContextChars  = 1600
 	runtimeOperationalIssueChars     = 600
 	runtimeTaskRulesChars            = 900
 )
@@ -1552,11 +1556,82 @@ func buildAggressiveRAGPromptEntries(served []rankedMemory, wantsDeepDetails boo
 	}}
 }
 
+func selectRAGMemoriesForOnDemand(ranked []rankedMemory, cfg config.MemoryOnDemandRetrievalConfig, logger *slog.Logger) ([]rankedMemory, []rankedMemory) {
+	if len(ranked) == 0 {
+		return nil, nil
+	}
+	essentialLimit := cfg.MaxEssentialMemories
+	if essentialLimit <= 0 {
+		essentialLimit = 1
+	}
+	if !cfg.Enabled {
+		return selectServedRAGMemories(ranked, essentialLimit, logger), nil
+	}
+	availableLimit := cfg.MaxAvailableMemories
+	if availableLimit < 0 {
+		availableLimit = 0
+	}
+	served := selectServedRAGMemories(ranked, essentialLimit+availableLimit, logger)
+	if len(served) <= essentialLimit {
+		return served, nil
+	}
+	essential := append([]rankedMemory(nil), served[:essentialLimit]...)
+	available := append([]rankedMemory(nil), served[essentialLimit:]...)
+	return essential, available
+}
+
+func buildAvailableMemoryIndex(available []rankedMemory, maxChars int) string {
+	if len(available) == 0 || maxChars <= 0 {
+		return ""
+	}
+	var sb strings.Builder
+	for _, item := range available {
+		if strings.TrimSpace(item.docID) == "" || strings.TrimSpace(item.text) == "" {
+			continue
+		}
+		teaser := compactMemoryForPrompt(item.text, 96)
+		line := "- [memory:" + item.docID + "] source=ltm score=" + formatScore(item.score) + " - " + teaser
+		nextLen := len([]rune(line))
+		if sb.Len() > 0 {
+			nextLen += 1
+		}
+		if len([]rune(sb.String()))+nextLen > maxChars {
+			if sb.Len() == 0 {
+				return compactMemoryForPrompt(line, maxChars)
+			}
+			break
+		}
+		if sb.Len() > 0 {
+			sb.WriteString("\n")
+		}
+		sb.WriteString(line)
+	}
+	return sb.String()
+}
+
+func appendAvailableContextIndex(existing string, addition string, maxChars int) string {
+	existing = strings.TrimSpace(existing)
+	addition = strings.TrimSpace(addition)
+	if addition == "" {
+		return existing
+	}
+	if existing == "" {
+		return compactMemoryForPrompt(addition, maxChars)
+	}
+	return compactMemoryForPrompt(existing+"\n"+addition, maxChars)
+}
+
+func formatScore(score float64) string {
+	return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.2f", score), "0"), ".")
+}
+
 func applyAggressivePromptContextBudgets(flags *prompts.ContextFlags) {
 	if flags == nil {
 		return
 	}
 	flags.RetrievedMemories = compactMemoryForPrompt(flags.RetrievedMemories, aggressiveRetrievedMemoriesChars)
+	flags.AvailableMemoryContextIndex = compactMemoryForPrompt(flags.AvailableMemoryContextIndex, aggressiveAvailableContextChars)
+	flags.AvailableKnowledgeContextIndex = compactMemoryForPrompt(flags.AvailableKnowledgeContextIndex, aggressiveAvailableContextChars)
 	flags.PredictedMemories = compactMemoryForPrompt(flags.PredictedMemories, aggressivePredictedMemoriesChars)
 	flags.RecentActivityOverview = compactMemoryForPrompt(flags.RecentActivityOverview, aggressiveRecentOverviewChars)
 	flags.KnowledgeContext = compactMemoryForPrompt(flags.KnowledgeContext, aggressiveKnowledgeContextChars)

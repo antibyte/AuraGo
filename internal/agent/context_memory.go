@@ -10,6 +10,7 @@ import (
 
 	"aurago/internal/memory"
 	"aurago/internal/planner"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
@@ -571,6 +572,127 @@ func executeQueryMemory(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTerm
 	raw, err := json.Marshal(response)
 	if err != nil {
 		return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to serialize results: %v"}`, err), nil
+	}
+	return "Tool Output: " + string(raw), nil
+}
+
+func executeRecallMemory(tc ToolCall, longTermMem memory.VectorDB) (string, error) {
+	if longTermMem == nil {
+		return `Tool Output: {"status":"error","message":"long-term memory unavailable"}`, nil
+	}
+	ids := memoryIDsFromToolCall(tc)
+	if len(ids) == 0 {
+		return `Tool Output: {"status":"error","message":"ids are required"}`, nil
+	}
+	if len(ids) > 10 {
+		ids = ids[:10]
+	}
+	type recalledMemory struct {
+		ID      string `json:"id"`
+		Content string `json:"content"`
+	}
+	results := make([]recalledMemory, 0, len(ids))
+	missing := make([]string, 0)
+	for _, id := range ids {
+		content, err := longTermMem.GetByID(id)
+		if err != nil || strings.TrimSpace(content) == "" {
+			missing = append(missing, id)
+			continue
+		}
+		results = append(results, recalledMemory{ID: id, Content: security.Scrub(content)})
+	}
+	response := map[string]interface{}{
+		"status":  "success",
+		"results": results,
+	}
+	if len(missing) > 0 {
+		response["missing"] = missing
+	}
+	raw, err := json.Marshal(response)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to serialize recall results: %v"}`, err), nil
+	}
+	return "Tool Output: " + string(raw), nil
+}
+
+func memoryIDsFromToolCall(tc ToolCall) []string {
+	seen := make(map[string]struct{})
+	add := func(ids []string, out *[]string) {
+		for _, id := range ids {
+			id = strings.TrimSpace(id)
+			if id == "" {
+				continue
+			}
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			*out = append(*out, id)
+		}
+	}
+	var ids []string
+	add(tc.IDs, &ids)
+	add(tc.ArtifactIDs, &ids)
+	if strings.TrimSpace(tc.ID) != "" {
+		add([]string{tc.ID}, &ids)
+	}
+	return ids
+}
+
+func executeExploreKG(tc ToolCall, kg *memory.KnowledgeGraph) (string, error) {
+	if kg == nil {
+		return `Tool Output: {"status":"error","message":"knowledge graph unavailable"}`, nil
+	}
+	ids := memoryIDsFromToolCall(tc)
+	if len(ids) == 0 {
+		return `Tool Output: {"status":"error","message":"ids are required"}`, nil
+	}
+	if len(ids) > 5 {
+		ids = ids[:5]
+	}
+	depth := tc.Depth
+	if depth <= 0 {
+		depth = 1
+	}
+	if depth > 3 {
+		depth = 3
+	}
+	limit := tc.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	type kgExploration struct {
+		CenterID string        `json:"center_id"`
+		Depth    int           `json:"depth"`
+		Nodes    []memory.Node `json:"nodes"`
+		Edges    []memory.Edge `json:"edges"`
+	}
+	results := make([]kgExploration, 0, len(ids))
+	missing := make([]string, 0)
+	for _, id := range ids {
+		nodes, edges := kg.GetSubgraph(id, depth)
+		if len(nodes) == 0 && len(edges) == 0 {
+			missing = append(missing, id)
+			continue
+		}
+		if len(nodes) > limit {
+			nodes = nodes[:limit]
+		}
+		if len(edges) > limit {
+			edges = edges[:limit]
+		}
+		results = append(results, kgExploration{CenterID: id, Depth: depth, Nodes: nodes, Edges: edges})
+	}
+	response := map[string]interface{}{
+		"status":  "success",
+		"results": results,
+	}
+	if len(missing) > 0 {
+		response["missing"] = missing
+	}
+	raw, err := json.Marshal(response)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to serialize KG exploration: %v"}`, err), nil
 	}
 	return "Tool Output: " + string(raw), nil
 }

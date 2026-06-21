@@ -33,6 +33,16 @@ type IndexingDirectory struct {
 	Collection string `yaml:"collection"` // optional; empty = default "file_index"
 }
 
+// MemoryOnDemandRetrievalConfig controls compact prompt context plus explicit recall tools.
+type MemoryOnDemandRetrievalConfig struct {
+	Enabled              bool   `yaml:"enabled"`
+	MaxEssentialMemories int    `yaml:"max_essential_memories"`
+	MaxAvailableMemories int    `yaml:"max_available_memories"`
+	MaxAvailableKGNodes  int    `yaml:"max_available_kg_nodes"`
+	MaxAvailableChars    int    `yaml:"max_available_chars"`
+	DedupeScope          string `yaml:"dedupe_scope"`
+}
+
 // SpecialistConfig holds per-role configuration for a specialist co-agent.
 // Empty LLM.Provider inherits from co_agents.llm, which in turn falls back to the main LLM.
 type SpecialistConfig struct {
@@ -1523,8 +1533,9 @@ type Config struct {
 	} `yaml:"mcp"`
 	Tools struct {
 		Memory struct {
-			Enabled  bool `yaml:"enabled"`  // default true; disable to block manage_memory/core_memory
-			ReadOnly bool `yaml:"readonly"` // true = only read/query, block store/delete/save_core/delete_core
+			Enabled           bool                          `yaml:"enabled"`  // default true; disable to block manage_memory/core_memory
+			ReadOnly          bool                          `yaml:"readonly"` // true = only read/query, block store/delete/save_core/delete_core
+			OnDemandRetrieval MemoryOnDemandRetrievalConfig `yaml:"ondemand_retrieval"`
 		} `yaml:"memory"`
 		KnowledgeGraph struct {
 			Enabled                         bool     `yaml:"enabled"`                              // default true; disable to block knowledge_graph

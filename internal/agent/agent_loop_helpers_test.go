@@ -127,6 +127,54 @@ func TestSelectServedRAGMemoriesBackfillsAfterServeFilter(t *testing.T) {
 	}
 }
 
+func TestSelectRAGMemoriesForOnDemandSplitsEssentialAndAvailable(t *testing.T) {
+	ranked := []rankedMemory{
+		{text: "primary memory", docID: "mem-1", score: 0.90},
+		{text: "[tool_availability] stale tool memory", docID: "stale-1", score: 0.89},
+		{text: "second memory", docID: "mem-2", score: 0.80},
+		{text: "third memory", docID: "mem-3", score: 0.70},
+		{text: "fourth memory", docID: "mem-4", score: 0.60},
+	}
+	cfg := config.MemoryOnDemandRetrievalConfig{
+		Enabled:              true,
+		MaxEssentialMemories: 1,
+		MaxAvailableMemories: 2,
+		MaxAvailableChars:    400,
+	}
+
+	essential, available := selectRAGMemoriesForOnDemand(ranked, cfg, nil)
+
+	if len(essential) != 1 || essential[0].docID != "mem-1" {
+		t.Fatalf("essential = %+v, want only mem-1", essential)
+	}
+	gotIDs := []string{}
+	for _, item := range available {
+		gotIDs = append(gotIDs, item.docID)
+	}
+	if strings.Join(gotIDs, ",") != "mem-2,mem-3" {
+		t.Fatalf("available IDs = %v, want mem-2,mem-3", gotIDs)
+	}
+}
+
+func TestBuildAvailableMemoryIndexUsesStableIDsAndLimits(t *testing.T) {
+	available := []rankedMemory{
+		{text: strings.Repeat("deployment detail ", 20), docID: "mem-2", score: 0.81},
+		{text: "backup memory", docID: "mem-3", score: 0.70},
+	}
+
+	got := buildAvailableMemoryIndex(available, 170)
+
+	if !strings.Contains(got, "[memory:mem-2]") || !strings.Contains(got, "score=0.81") {
+		t.Fatalf("available index missing stable memory id/score: %q", got)
+	}
+	if strings.Contains(got, "mem-3") {
+		t.Fatalf("available index should respect max chars before adding mem-3: %q", got)
+	}
+	if len([]rune(got)) > 171 {
+		t.Fatalf("available index length = %d, want <= 171 including ellipsis", len([]rune(got)))
+	}
+}
+
 func TestCountMemoryPromptTelemetryTokensIncludesAllMemorySections(t *testing.T) {
 	flags := prompts.ContextFlags{
 		RetrievedMemories:   "[Recent Day Anchors]\n- 2026-06-11: deployment",

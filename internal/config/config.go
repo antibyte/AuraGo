@@ -238,6 +238,12 @@ func Load(path string) (*Config, error) {
 	// These are set before unmarshal so that keys absent from the YAML file keep the
 	// correct default; explicit 'enabled: false' in the YAML will still override them.
 	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.Memory.OnDemandRetrieval.Enabled = true
+	cfg.Tools.Memory.OnDemandRetrieval.MaxEssentialMemories = 1
+	cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableMemories = 6
+	cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableKGNodes = 6
+	cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableChars = 1600
+	cfg.Tools.Memory.OnDemandRetrieval.DedupeScope = "turn"
 	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.Tools.KnowledgeGraph.AutoExtraction = true
 	cfg.Tools.KnowledgeGraph.PromptInjection = true

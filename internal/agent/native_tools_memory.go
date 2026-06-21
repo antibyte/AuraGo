@@ -46,6 +46,16 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 					},
 				}, "query"),
 			),
+			tool("recall_memory",
+				"Read specific long-term memory entries by ID from the Available Context Index. Use only when the listed memory teaser is needed for the current task.",
+				schema(map[string]interface{}{
+					"ids": map[string]interface{}{
+						"type":        "array",
+						"description": "Memory IDs from [memory:<id>] entries in the Available Context Index.",
+						"items":       map[string]interface{}{"type": "string"},
+					},
+				}, "ids"),
+			),
 			tool("context_manager",
 				"Manage the current conversation context window. Operations: 'status' (check token budget and messages count), 'compact' (summarize old messages into a single statement to free up tokens), 'drop' (remove a specific message by its index).",
 				schema(map[string]interface{}{
@@ -112,7 +122,18 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 	))
 
 	if ff.KnowledgeGraphEnabled {
-		tools = append(tools, tool("knowledge_graph",
+		tools = append(tools, tool("explore_kg",
+			"Expand specific Knowledge Graph nodes by ID from the Available Context Index. Read-only alias for subgraph exploration.",
+			schema(map[string]interface{}{
+				"ids": map[string]interface{}{
+					"type":        "array",
+					"description": "Knowledge Graph node IDs from [kg:<id>] entries in the Available Context Index.",
+					"items":       map[string]interface{}{"type": "string"},
+				},
+				"depth": prop("integer", "Traversal depth 1-3. Default: 1."),
+				"limit": prop("integer", "Maximum nodes and edges per requested ID. Default: 20."),
+			}, "ids"),
+		), tool("knowledge_graph",
 			"Manage a structured graph of entities and relationships. Use for tracking people, devices, services, projects, and their connections. Nightly auto-extraction also populates the graph from conversations.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{

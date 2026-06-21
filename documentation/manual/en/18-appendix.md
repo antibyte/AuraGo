@@ -606,6 +606,14 @@ query_memory:
   query: string       # Search query (required)
   limit: int          # Max results (optional, default: 5)
   threshold: float    # Similarity threshold (optional)
+
+recall_memory:
+  ids: [string]       # Memory IDs from AVAILABLE CONTEXT INDEX entries
+
+explore_kg:
+  ids: [string]       # KG node IDs from AVAILABLE CONTEXT INDEX entries
+  depth: int          # Traversal depth 1-3 (optional)
+  limit: int          # Max nodes/edges per ID (optional)
 ```
 
 #### Email

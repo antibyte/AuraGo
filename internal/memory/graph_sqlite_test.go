@@ -1466,6 +1466,35 @@ func TestKGSearchForContextBatchesEdgesAcrossMultipleNodes(t *testing.T) {
 	}
 }
 
+func TestKGSearchForContextStructuredFormatsReadableEdges(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("proxmox", "Proxmox Host", map[string]string{"type": "service"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.AddNode("backup_server", "Backup Server", map[string]string{"type": "device"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.AddEdge("proxmox", "backup_server", "replicates_to", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	result := kg.SearchForContextStructured("backup", 3, 1000)
+	if len(result.Nodes) == 0 {
+		t.Fatal("expected structured KG search nodes")
+	}
+	formatted := result.FormatContext(1000)
+	if !strings.Contains(formatted, "[backup_server] Backup Server") {
+		t.Fatalf("formatted context missing matched node label: %q", formatted)
+	}
+	if !strings.Contains(formatted, "[proxmox] Proxmox Host -[replicates_to]-> [backup_server] Backup Server") {
+		t.Fatalf("formatted context should use readable edge labels, got %q", formatted)
+	}
+	if len(result.AvailableIndex(500)) == 0 || !strings.Contains(result.AvailableIndex(500), "[kg:backup_server]") {
+		t.Fatalf("available index missing KG stable id: %q", result.AvailableIndex(500))
+	}
+}
+
 func TestKGBulkAddEntities(t *testing.T) {
 	kg := newTestKG(t)
 

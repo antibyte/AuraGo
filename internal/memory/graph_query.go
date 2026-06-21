@@ -26,6 +26,137 @@ type KnowledgeGraphQueryOptions struct {
 	IncludeLowConfidence bool
 }
 
+type KnowledgeGraphContextResult struct {
+	Nodes         []Node
+	EdgesByNodeID map[string][]Edge
+	nodeByID      map[string]Node
+	nodeOrder     []string
+	nodeScores    map[string]float32
+	accessHits    []knowledgeGraphAccessHit
+}
+
+func (r KnowledgeGraphContextResult) FormatContext(maxChars int) string {
+	if maxChars <= 0 {
+		maxChars = 2000
+	}
+	if len(r.Nodes) == 0 {
+		return ""
+	}
+	nodeByID := r.nodeByID
+	if nodeByID == nil {
+		nodeByID = make(map[string]Node, len(r.Nodes))
+		for _, node := range r.Nodes {
+			nodeByID[node.ID] = node
+		}
+	}
+	order := r.nodeOrder
+	if len(order) == 0 {
+		order = make([]string, 0, len(r.Nodes))
+		for _, node := range r.Nodes {
+			order = append(order, node.ID)
+		}
+	}
+
+	var sb strings.Builder
+	for _, nodeID := range order {
+		node, ok := nodeByID[nodeID]
+		if !ok {
+			continue
+		}
+		sb.WriteString(fmt.Sprintf("- [%s] %s", node.ID, node.Label))
+		kgquery.AppendContextProperties(&sb, node.Properties, isSensitiveKnowledgeGraphPropertyKey)
+		sb.WriteString("\n")
+
+		for _, edge := range r.EdgesByNodeID[node.ID] {
+			if edge.Relation == "co_mentioned_with" && edge.Properties["source"] != "activity_turn" {
+				continue
+			}
+			sb.WriteString("  - ")
+			sb.WriteString(formatReadableContextEdge(edge, nodeByID))
+			sb.WriteString("\n")
+		}
+
+		if sb.Len() > maxChars {
+			break
+		}
+	}
+	return kgquery.FinalizeContextResult(sb, maxChars)
+}
+
+func (r KnowledgeGraphContextResult) AvailableIndex(maxChars int) string {
+	if maxChars <= 0 || len(r.Nodes) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	for _, node := range r.Nodes {
+		nodeType := strings.TrimSpace(node.Properties["type"])
+		if nodeType == "" {
+			nodeType = "entity"
+		}
+		score := r.nodeScores[node.ID]
+		line := fmt.Sprintf("- [kg:%s] type=%s score=%.2f - %s", node.ID, nodeType, score, node.Label)
+		nextLen := len([]rune(line))
+		if sb.Len() > 0 {
+			nextLen++
+		}
+		if len([]rune(sb.String()))+nextLen > maxChars {
+			if sb.Len() == 0 {
+				return kgquery.TruncateUTF8Safe(line, maxChars)
+			}
+			break
+		}
+		if sb.Len() > 0 {
+			sb.WriteString("\n")
+		}
+		sb.WriteString(line)
+	}
+	return sb.String()
+}
+
+func (r KnowledgeGraphContextResult) LimitNodes(offset int, limit int) KnowledgeGraphContextResult {
+	if offset < 0 {
+		offset = 0
+	}
+	if limit <= 0 || offset >= len(r.Nodes) {
+		return KnowledgeGraphContextResult{}
+	}
+	end := offset + limit
+	if end > len(r.Nodes) {
+		end = len(r.Nodes)
+	}
+	nodes := append([]Node(nil), r.Nodes[offset:end]...)
+	order := make([]string, 0, len(nodes))
+	for _, node := range nodes {
+		order = append(order, node.ID)
+	}
+	return KnowledgeGraphContextResult{
+		Nodes:         nodes,
+		EdgesByNodeID: r.EdgesByNodeID,
+		nodeByID:      r.nodeByID,
+		nodeOrder:     order,
+		nodeScores:    r.nodeScores,
+		accessHits:    r.accessHits,
+	}
+}
+
+func (kg *KnowledgeGraph) RecordContextAccess(result KnowledgeGraphContextResult) {
+	for _, hit := range result.accessHits {
+		kg.enqueueAccessHit(hit)
+	}
+}
+
+func formatReadableContextEdge(edge Edge, nodeByID map[string]Node) string {
+	sourceLabel := edge.Source
+	if node, ok := nodeByID[edge.Source]; ok && strings.TrimSpace(node.Label) != "" {
+		sourceLabel = node.Label
+	}
+	targetLabel := edge.Target
+	if node, ok := nodeByID[edge.Target]; ok && strings.TrimSpace(node.Label) != "" {
+		targetLabel = node.Label
+	}
+	return fmt.Sprintf("[%s] %s -[%s]-> [%s] %s", edge.Source, sourceLabel, edge.Relation, edge.Target, targetLabel)
+}
+
 type KnowledgeGraphCleanupOptions struct {
 	PendingCoMentionDays int
 	StaleNodeDays        int
@@ -335,8 +466,17 @@ func (kg *KnowledgeGraph) hideLowConfidenceEdge(edge Edge, options KnowledgeGrap
 }
 
 func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars int) string {
-	if query == "" || maxNodes <= 0 {
+	result := kg.SearchForContextStructured(query, maxNodes, maxChars)
+	if len(result.Nodes) == 0 {
 		return ""
+	}
+	kg.RecordContextAccess(result)
+	return result.FormatContext(maxChars)
+}
+
+func (kg *KnowledgeGraph) SearchForContextStructured(query string, maxNodes int, maxChars int) KnowledgeGraphContextResult {
+	if query == "" || maxNodes <= 0 {
+		return KnowledgeGraphContextResult{}
 	}
 	if maxChars <= 0 {
 		maxChars = 2000
@@ -344,7 +484,7 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 
 	// Wildcard fallback: return important nodes instead of trying to FTS-match "*".
 	if strings.TrimSpace(query) == "*" {
-		return kg.searchForContextImportantNodes(maxNodes, maxChars)
+		return kg.searchForContextImportantNodesStructured(maxNodes, maxChars)
 	}
 
 	var nodeIDs []string
@@ -358,7 +498,7 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 
 	tx, err := kg.beginReadTx("SearchForContext")
 	if err != nil {
-		return ""
+		return KnowledgeGraphContextResult{}
 	}
 	defer tx.Rollback()
 
@@ -474,55 +614,58 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 	}
 
 	if len(nodeIDs) == 0 {
-		return ""
+		return KnowledgeGraphContextResult{}
 	}
 
 	nodesByID, edgesByNodeID, accessHits, err := kg.loadSearchContextData(tx, nodeIDs)
 	if err != nil {
 		kg.logger.Warn("SearchForContext: load context data failed", "error", err)
-		return ""
+		return KnowledgeGraphContextResult{}
 	}
 	if err := tx.Commit(); err != nil {
 		kg.logger.Warn("SearchForContext: commit read transaction failed", "error", err)
-		return ""
+		return KnowledgeGraphContextResult{}
 	}
 
-	var sb strings.Builder
-	for _, nid := range nodeIDs {
-		node, ok := nodesByID[nid]
+	nodes := make([]Node, 0, len(nodeIDs))
+	filteredOrder := make([]string, 0, len(nodeIDs))
+	nodeScores := make(map[string]float32, len(rankedHits))
+	for _, hit := range rankedHits {
+		nodeScores[hit.id] = hit.score
+	}
+	for _, nodeID := range nodeIDs {
+		node, ok := nodesByID[nodeID]
 		if !ok {
 			continue
 		}
 		if kg.isExcludedNodeType(node.Properties["type"]) {
 			continue
 		}
-
-		sb.WriteString(fmt.Sprintf("- [%s] %s", nid, node.Label))
-		kgquery.AppendContextProperties(&sb, node.Properties, isSensitiveKnowledgeGraphPropertyKey)
-		sb.WriteString("\n")
-
-		for _, edge := range edgesByNodeID[nid] {
-			if edge.Relation == "co_mentioned_with" && edge.Properties["source"] != "activity_turn" {
-				continue
-			}
-			sb.WriteString(fmt.Sprintf("  - [%s] -[%s]-> [%s]\n", edge.Source, edge.Relation, edge.Target))
-		}
-
-		if sb.Len() > maxChars {
-			break
-		}
+		nodes = append(nodes, node)
+		filteredOrder = append(filteredOrder, node.ID)
 	}
-
-	for _, hit := range accessHits {
-		kg.enqueueAccessHit(hit)
+	return KnowledgeGraphContextResult{
+		Nodes:         nodes,
+		EdgesByNodeID: edgesByNodeID,
+		nodeByID:      nodesByID,
+		nodeOrder:     filteredOrder,
+		nodeScores:    nodeScores,
+		accessHits:    accessHits,
 	}
-
-	return kgquery.FinalizeContextResult(sb, maxChars)
 }
 
 // searchForContextImportantNodes returns a formatted context string built from
 // the most important nodes. It is used as a fallback for wildcard queries.
 func (kg *KnowledgeGraph) searchForContextImportantNodes(maxNodes int, maxChars int) string {
+	result := kg.searchForContextImportantNodesStructured(maxNodes, maxChars)
+	if len(result.Nodes) == 0 {
+		return ""
+	}
+	kg.RecordContextAccess(result)
+	return result.FormatContext(maxChars)
+}
+
+func (kg *KnowledgeGraph) searchForContextImportantNodesStructured(maxNodes int, maxChars int) KnowledgeGraphContextResult {
 	if maxNodes <= 0 {
 		maxNodes = 20
 	}
@@ -532,31 +675,34 @@ func (kg *KnowledgeGraph) searchForContextImportantNodes(maxNodes int, maxChars 
 
 	nodes, err := kg.GetImportantNodes(maxNodes, 15)
 	if err != nil || len(nodes) == 0 {
-		return ""
+		return KnowledgeGraphContextResult{}
 	}
 
 	nodeIDs := make([]string, len(nodes))
+	nodeScores := make(map[string]float32, len(nodes))
 	for i, n := range nodes {
 		nodeIDs[i] = n.ID
+		nodeScores[n.ID] = 1
 	}
 
 	tx, err := kg.beginReadTx("SearchForContextImportantNodes")
 	if err != nil {
-		return ""
+		return KnowledgeGraphContextResult{}
 	}
 	defer tx.Rollback()
 
 	nodesByID, edgesByNodeID, accessHits, err := kg.loadSearchContextData(tx, nodeIDs)
 	if err != nil {
 		kg.logger.Warn("SearchForContext: load important nodes context data failed", "error", err)
-		return ""
+		return KnowledgeGraphContextResult{}
 	}
 	if err := tx.Commit(); err != nil {
 		kg.logger.Warn("SearchForContext: commit important nodes read transaction failed", "error", err)
-		return ""
+		return KnowledgeGraphContextResult{}
 	}
 
-	var sb strings.Builder
+	formattedNodes := make([]Node, 0, len(nodes))
+	filteredOrder := make([]string, 0, len(nodes))
 	for _, n := range nodes {
 		node, ok := nodesByID[n.ID]
 		if !ok {
@@ -565,28 +711,17 @@ func (kg *KnowledgeGraph) searchForContextImportantNodes(maxNodes int, maxChars 
 		if kg.isExcludedNodeType(node.Properties["type"]) {
 			continue
 		}
-
-		sb.WriteString(fmt.Sprintf("- [%s] %s", n.ID, node.Label))
-		kgquery.AppendContextProperties(&sb, node.Properties, isSensitiveKnowledgeGraphPropertyKey)
-		sb.WriteString("\n")
-
-		for _, edge := range edgesByNodeID[n.ID] {
-			if edge.Relation == "co_mentioned_with" && edge.Properties["source"] != "activity_turn" {
-				continue
-			}
-			sb.WriteString(fmt.Sprintf("  - [%s] -[%s]-> [%s]\n", edge.Source, edge.Relation, edge.Target))
-		}
-
-		if sb.Len() > maxChars {
-			break
-		}
+		formattedNodes = append(formattedNodes, node)
+		filteredOrder = append(filteredOrder, node.ID)
 	}
-
-	for _, hit := range accessHits {
-		kg.enqueueAccessHit(hit)
+	return KnowledgeGraphContextResult{
+		Nodes:         formattedNodes,
+		EdgesByNodeID: edgesByNodeID,
+		nodeByID:      nodesByID,
+		nodeOrder:     filteredOrder,
+		nodeScores:    nodeScores,
+		accessHits:    accessHits,
 	}
-
-	return kgquery.FinalizeContextResult(sb, maxChars)
 }
 
 func (kg *KnowledgeGraph) loadSearchContextData(q knowledgeGraphQueryer, nodeIDs []string) (map[string]Node, map[string][]Edge, []knowledgeGraphAccessHit, error) {
@@ -636,7 +771,7 @@ func (kg *KnowledgeGraph) loadSearchContextData(q knowledgeGraphQueryer, nodeIDs
 	edgeArgs = append(edgeArgs, nodeArgs...)
 	edgeRows, err := q.Query(
 		fmt.Sprintf(`
-			SELECT source, target, relation
+			SELECT source, target, relation, properties
 			FROM kg_edges
 			WHERE source IN (%[1]s) OR target IN (%[1]s)
 			ORDER BY access_count DESC
@@ -649,10 +784,23 @@ func (kg *KnowledgeGraph) loadSearchContextData(q knowledgeGraphQueryer, nodeIDs
 	defer edgeRows.Close()
 
 	edgeCounts := make(map[string]int, len(nodeIDs))
+	missingEndpointIDs := make(map[string]struct{})
 	for edgeRows.Next() {
 		var edge Edge
-		if err := edgeRows.Scan(&edge.Source, &edge.Target, &edge.Relation); err != nil {
+		var propsJSON string
+		if err := edgeRows.Scan(&edge.Source, &edge.Target, &edge.Relation, &propsJSON); err != nil {
 			return nodesByID, edgesByNodeID, accessHits, fmt.Errorf("scan context edge: %w", err)
+		}
+		if err := json.Unmarshal([]byte(propsJSON), &edge.Properties); err != nil {
+			kg.logger.Warn("SearchForContext: corrupt edge properties JSON", "source", edge.Source, "target", edge.Target, "error", err)
+		}
+		if edge.Properties == nil {
+			edge.Properties = make(map[string]string)
+		}
+		for _, endpoint := range []string{edge.Source, edge.Target} {
+			if _, ok := nodesByID[endpoint]; !ok {
+				missingEndpointIDs[endpoint] = struct{}{}
+			}
 		}
 		recorded := false
 		for _, nodeID := range []string{edge.Source, edge.Target} {
@@ -671,6 +819,20 @@ func (kg *KnowledgeGraph) loadSearchContextData(q knowledgeGraphQueryer, nodeIDs
 	}
 	if err := edgeRows.Err(); err != nil {
 		return nodesByID, edgesByNodeID, accessHits, fmt.Errorf("iterate context edges: %w", err)
+	}
+
+	if len(missingEndpointIDs) > 0 {
+		missing := make([]string, 0, len(missingEndpointIDs))
+		for nodeID := range missingEndpointIDs {
+			missing = append(missing, nodeID)
+		}
+		endpointNodes, err := loadNodesByIDs(q, missing, kg.logger, "SearchForContextEndpoints")
+		if err != nil {
+			return nodesByID, edgesByNodeID, accessHits, fmt.Errorf("batch edge endpoint node query: %w", err)
+		}
+		for _, node := range endpointNodes {
+			nodesByID[node.ID] = node
+		}
 	}
 
 	return nodesByID, edgesByNodeID, accessHits, nil

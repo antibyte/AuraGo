@@ -170,6 +170,72 @@ func TestDispatchExecKnowledgeGraphHealth(t *testing.T) {
 	}
 }
 
+func TestDispatchExecRecallMemoryReadsByID(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	longTerm := &fakeVectorDB{documents: map[string]string{
+		"mem-1": "Retrieved deployment memory",
+	}}
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "recall_memory", IDs: []string{"mem-1", "missing"}},
+		&DispatchContext{
+			Cfg:         cfg,
+			Logger:      logger,
+			LongTermMem: longTerm,
+		},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle recall_memory")
+	}
+	if !strings.Contains(out, `"id":"mem-1"`) || !strings.Contains(out, "Retrieved deployment memory") {
+		t.Fatalf("recall_memory output missing retrieved memory: %s", out)
+	}
+	if !strings.Contains(out, `"missing":["missing"]`) {
+		t.Fatalf("recall_memory output should report missing ids: %s", out)
+	}
+}
+
+func TestDispatchExecExploreKGReadOnlyWrapper(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.KnowledgeGraph.Enabled = true
+	cfg.Tools.KnowledgeGraph.ReadOnly = true
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	t.Cleanup(func() { _ = kg.Close() })
+	if err := kg.AddNode("alpha", "Alpha", map[string]string{"type": "service"}); err != nil {
+		t.Fatalf("AddNode alpha: %v", err)
+	}
+	if err := kg.AddNode("beta", "Beta", map[string]string{"type": "service"}); err != nil {
+		t.Fatalf("AddNode beta: %v", err)
+	}
+	if err := kg.AddEdge("alpha", "beta", "depends_on", nil); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "explore_kg", IDs: []string{"alpha"}, Depth: 1, Limit: 5},
+		&DispatchContext{
+			Cfg:    cfg,
+			Logger: logger,
+			KG:     kg,
+		},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle explore_kg")
+	}
+	if !strings.Contains(out, `"center_id":"alpha"`) || !strings.Contains(out, `"relation":"depends_on"`) {
+		t.Fatalf("explore_kg output missing subgraph data: %s", out)
+	}
+}
+
 func TestDispatchExecListToolsClarifiesBuiltinSkills(t *testing.T) {
 	tmpDir := t.TempDir()
 	manifest := tools.NewManifest(filepath.Join(tmpDir, "tools"))

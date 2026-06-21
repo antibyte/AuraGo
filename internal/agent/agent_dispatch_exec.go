@@ -269,6 +269,16 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			return result
 
+		case "recall_memory":
+			if !cfg.Tools.Memory.Enabled {
+				return `Tool Output: {"status":"error","message":"Memory tools are disabled. Set tools.memory.enabled=true in config.yaml."}`
+			}
+			result, err := executeRecallMemory(tc, longTermMem)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"recall_memory failed: %v"}`, err)
+			}
+			return result
+
 		case "context_memory":
 			if !cfg.Tools.Memory.Enabled {
 				return `Tool Output: {"status":"error","message":"Memory tools are disabled. Set tools.memory.enabled=true in config.yaml."}`
@@ -276,6 +286,16 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			result, err := executeContextMemoryQuery(tc, shortTermMem, longTermMem, kg, plannerDB, cheatsheetDB)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"context_memory failed: %v"}`, err)
+			}
+			return result
+
+		case "explore_kg":
+			if !cfg.Tools.KnowledgeGraph.Enabled {
+				return `Tool Output: {"status":"error","message":"Knowledge graph is disabled. Set tools.knowledge_graph.enabled=true in config.yaml."}`
+			}
+			result, err := executeExploreKG(tc, kg)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"explore_kg failed: %v"}`, err)
 			}
 			return result
 
