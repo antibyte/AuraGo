@@ -413,9 +413,9 @@
         function showTitle() { ctx.overlayEl.classList.remove('active'); ctx.overlayEl.innerHTML = ''; ctx.MusicEngine.play('title'); }
         function showHSOverlay() {
             ctx.overlayEl.classList.add('active');
-            let h = '<div class="galaxa-overlay-box"><h2>' + ctx.esc(ctx.t('galaxa.game_over', 'GAME OVER')) + '</h2>';
-            h += '<p>' + ctx.esc(ctx.t('galaxa.score', 'SCORE')) + ': ' + ctx.G.score + '</p><p>' + ctx.esc(ctx.t('galaxa.stage', 'STAGE')) + ': ' + ctx.G.stage + '</p>';
-            h += '<p style="margin-top:12px">' + ctx.esc(ctx.t('galaxa.enter_name', 'ENTER YOUR NAME')) + '</p>';
+            let h = '<div class="galaxa-overlay-box"><h2>' + ctx.esc(ctx.t('galaxa.game_over')) + '</h2>';
+            h += '<p>' + ctx.esc(ctx.t('galaxa.score')) + ': ' + ctx.G.score + '</p><p>' + ctx.esc(ctx.t('galaxa.stage')) + ': ' + ctx.G.stage + '</p>';
+            h += '<p style="margin-top:12px">' + ctx.esc(ctx.t('galaxa.enter_name')) + '</p>';
             h += '<div class="galaxa-name-entry" data-ne>';
             for (let i = 0; i < 3; i++) h += '<div class="galaxa-name-char' + (i === 0 ? ' active' : '') + '" data-ci="' + i + '">A</div>';
             h += '</div><p style="font-size:10px;color:#666">\u2191\u2193 change  \u2190\u2192 select  ENTER confirm</p></div>';

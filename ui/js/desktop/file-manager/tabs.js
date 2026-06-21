@@ -20,17 +20,17 @@
         
         const tabItems = fm.tabs.map((tab, idx) => {
             const active = idx === fm.activeTabIndex ? ' active' : '';
-            const title = tab.path ? tab.path.split('/').pop() : t('desktop.fm.workspace_root', 'Workspace');
+            const title = tab.path ? tab.path.split('/').pop() : t('desktop.fm.workspace_root');
             return `<div class="fm-tab${active}" data-tab-index="${idx}" draggable="true" role="tab" aria-selected="${idx === fm.activeTabIndex ? 'true' : 'false'}">
                 <span class="fm-tab-icon">${iconMarkup('folder', 'F', 'fm-tab-folder-icon', 12)}</span>
                 <span class="fm-tab-title" title="${esc(tab.path || '/')}">${esc(title)}</span>
-                ${fm.tabs.length > 1 ? `<button type="button" class="fm-tab-close" data-action="close-tab" data-tab-index="${idx}" title="${esc(t('desktop.close', 'Close'))}">&times;</button>` : ''}
+                ${fm.tabs.length > 1 ? `<button type="button" class="fm-tab-close" data-action="close-tab" data-tab-index="${idx}" title="${esc(t('desktop.close'))}">&times;</button>` : ''}
             </div>`;
         }).join('');
         
         return `<div class="fm-tab-bar" role="tablist">
             <div class="fm-tabs-container">${tabItems}</div>
-            <button type="button" class="fm-tab-new" data-action="new-tab" title="${esc(t('desktop.fm.new_tab', 'New Tab (Ctrl+T)'))}">+</button>
+            <button type="button" class="fm-tab-new" data-action="new-tab" title="${esc(t('desktop.fm.new_tab'))}">+</button>
         </div>`;
     }
 

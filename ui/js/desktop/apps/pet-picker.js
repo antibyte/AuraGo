@@ -11,27 +11,27 @@
         host.innerHTML = `
             <div class="vd-pet-picker">
                 <div class="vd-pet-picker-header">
-                    <h2>${esc(t('desktop.pet_picker_title', 'Pet Picker'))}</h2>
-                    <p class="vd-pet-picker-subtitle">${esc(t('desktop.pet_picker_subtitle', 'Choose your desktop companion'))}</p>
+                    <h2>${esc(t('desktop.pet_picker_title'))}</h2>
+                    <p class="vd-pet-picker-subtitle">${esc(t('desktop.pet_picker_subtitle'))}</p>
                 </div>
                 <div class="vd-pet-picker-grid"></div>
                 <div class="vd-pet-picker-settings">
                     <label class="vd-pet-picker-setting">
-                        <span>${esc(t('desktop.pet_scale', 'Size'))}</span>
+                        <span>${esc(t('desktop.pet_scale'))}</span>
                         <input type="range" class="vd-pet-picker-scale" min="0.5" max="2" step="0.1" value="1">
                         <span class="vd-pet-picker-scale-value">1.0x</span>
                     </label>
                     <label class="vd-pet-picker-setting">
-                        <span>${esc(t('desktop.pet_enabled', 'Show pet'))}</span>
+                        <span>${esc(t('desktop.pet_enabled'))}</span>
                         <input type="checkbox" class="vd-pet-picker-enabled" checked>
                     </label>
                     <label class="vd-pet-picker-setting">
-                        <span>${esc(t('desktop.pet_always_on_top', 'Always on top'))}</span>
+                        <span>${esc(t('desktop.pet_always_on_top'))}</span>
                         <input type="checkbox" class="vd-pet-picker-always-on-top">
                     </label>
                 </div>
                 <div class="vd-pet-picker-actions">
-                    <button type="button" class="vd-pet-picker-import vd-btn-primary">${esc(t('desktop.pet_import', 'Import ZIP'))}</button>
+                    <button type="button" class="vd-pet-picker-import vd-btn-primary">${esc(t('desktop.pet_import'))}</button>
                     <input type="file" class="vd-pet-picker-file" accept=".zip" hidden>
                 </div>
             </div>
@@ -89,7 +89,7 @@
 
         function renderGrid() {
             if (!pets.length) {
-                grid.innerHTML = `<div class="vd-pet-picker-empty">${esc(t('desktop.pet_empty', 'No pets installed yet. Import one below.'))}</div>`;
+                grid.innerHTML = `<div class="vd-pet-picker-empty">${esc(t('desktop.pet_empty'))}</div>`;
                 return;
             }
             grid.innerHTML = pets.map(pet => `
@@ -97,7 +97,7 @@
                     <div class="vd-pet-picker-thumb" style="background-image:url('${petAssetURL(pet.id, pet.spritesheet)}')"></div>
                     <div class="vd-pet-picker-name">${esc(pet.display_name || pet.id)}</div>
                     <div class="vd-pet-picker-desc">${esc(pet.description || '')}</div>
-                    <button type="button" class="vd-pet-picker-select vd-btn-secondary" data-id="${esc(pet.id)}">${esc(t('desktop.pet_select', 'Select'))}</button>
+                    <button type="button" class="vd-pet-picker-select vd-btn-secondary" data-id="${esc(pet.id)}">${esc(t('desktop.pet_select'))}</button>
                 </div>
             `).join('');
             grid.querySelectorAll('.vd-pet-picker-select').forEach(btn => {
@@ -154,7 +154,7 @@
             if (!file) return;
             const id = file.name.replace(/\.zip$/i, '').toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-|-$/g, '');
             if (!id) {
-                notify({ title: t('desktop.notification'), message: t('desktop.pet_import_invalid', 'Invalid file name') });
+                notify({ title: t('desktop.notification'), message: t('desktop.pet_import_invalid') });
                 return;
             }
             const arrayBuffer = await file.arrayBuffer();

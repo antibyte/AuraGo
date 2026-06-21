@@ -136,7 +136,7 @@
         }
         if (isDesktopEntry || kind === 'file') {
             if (kind === 'file') {
-                items.push({ separator: true }, { label: t('desktop.fm.add_to_chat', 'Add to chat'), icon: 'chat', fallback: 'A', action: () => desktopBatchFileEntries(btn).forEach(addFileContextToChat) }, { label: t('desktop.fm.ask_agent', 'Ask Agent'), icon: 'agent', fallback: 'Q', action: () => desktopBatchFileEntries(btn).forEach(askAgentAboutFile) });
+                items.push({ separator: true }, { label: t('desktop.fm.add_to_chat'), icon: 'chat', fallback: 'A', action: () => desktopBatchFileEntries(btn).forEach(addFileContextToChat) }, { label: t('desktop.fm.ask_agent'), icon: 'agent', fallback: 'Q', action: () => desktopBatchFileEntries(btn).forEach(askAgentAboutFile) });
             }
             items.push(
                 { separator: true },

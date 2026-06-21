@@ -16,7 +16,7 @@
         const iconMarkup = ctx.iconMarkup || ((key, fallback) => `<span>${esc(fallback || key || '')}</span>`);
         const notify = ctx.notify || (() => {});
         const currentPath = ctx.path || '';
-        const fileName = currentPath.split('/').pop() || currentPath || t('desktop.stl_viewer', 'STL Viewer');
+        const fileName = currentPath.split('/').pop() || currentPath || t('desktop.stl_viewer');
         const fileUrl = '/api/desktop/download?path=' + encodeURIComponent(currentPath);
 
         host.innerHTML = `<div class="vd-viewer vd-viewer-3d" data-viewer-3d="${esc(windowId)}">
@@ -26,14 +26,14 @@
                     <span class="vd-viewer-filename">${esc(fileName)}</span>
                 </div>
                 <div class="vd-viewer-toolbar-right">
-                    <button class="vd-tool-button" type="button" data-action="wireframe">${iconMarkup('grid', 'W')}<span>${esc(t('desktop.stl_wireframe', 'Wireframe'))}</span></button>
-                    <button class="vd-tool-button is-active" type="button" data-action="rotate">${iconMarkup('refresh', 'R')}<span>${esc(t('desktop.stl_auto_rotate', 'Auto-rotate'))}</span></button>
-                    <button class="vd-tool-button" type="button" data-action="fullscreen">${iconMarkup('maximize', 'F')}<span>${esc(t('stl_expand', 'Fullscreen'))}</span></button>
-                    <button class="vd-tool-button" type="button" data-action="download">${iconMarkup('download', 'D')}<span>${esc(t('desktop.stl_download', 'Download'))}</span></button>
+                    <button class="vd-tool-button" type="button" data-action="wireframe">${iconMarkup('grid', 'W')}<span>${esc(t('desktop.stl_wireframe'))}</span></button>
+                    <button class="vd-tool-button is-active" type="button" data-action="rotate">${iconMarkup('refresh', 'R')}<span>${esc(t('desktop.stl_auto_rotate'))}</span></button>
+                    <button class="vd-tool-button" type="button" data-action="fullscreen">${iconMarkup('maximize', 'F')}<span>${esc(t('stl_expand'))}</span></button>
+                    <button class="vd-tool-button" type="button" data-action="download">${iconMarkup('download', 'D')}<span>${esc(t('desktop.stl_download'))}</span></button>
                 </div>
             </div>
             <div class="vd-viewer-3d-stage" data-stage>
-                <div class="vd-viewer-loading" data-loading>${esc(t('stl_loading', 'Loading 3D model...'))}</div>
+                <div class="vd-viewer-loading" data-loading>${esc(t('stl_loading'))}</div>
             </div>
         </div>`;
 
@@ -48,8 +48,8 @@
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
 
         init().catch(err => {
-            if (loading) loading.textContent = (t('viewer.error', 'Failed to load file') + ': ' + err.message);
-            notify(t('viewer.error', 'Failed to load file') + ': ' + err.message);
+            if (loading) loading.textContent = (t('viewer.error') + ': ' + err.message);
+            notify(t('viewer.error') + ': ' + err.message);
         });
 
         async function init() {
@@ -163,7 +163,7 @@
 
         function downloadFile() {
             if (typeof ctx.exportDesktopFile === 'function') {
-                ctx.exportDesktopFile({ path: currentPath, name: fileName, url: fileUrl }).catch(err => notify(t('viewer.error', 'Failed to load file') + ': ' + (err.message || String(err))));
+                ctx.exportDesktopFile({ path: currentPath, name: fileName, url: fileUrl }).catch(err => notify(t('viewer.error') + ': ' + (err.message || String(err))));
                 return;
             }
             const link = document.createElement('a');

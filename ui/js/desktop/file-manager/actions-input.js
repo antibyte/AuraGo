@@ -3,9 +3,9 @@
         const iconKey = isDir ? iconForDirectory(file.name) : iconForFile(file);
         const selected = fm.selectedPaths.has(file.path) ? ' selected' : '';
         const cut = (fm.clipboard && fm.clipboard.mode === 'cut' && fm.clipboard.paths.includes(file.path)) ? ' cut-item' : '';
-        const typeLabel = isDir ? t('desktop.fm.prop_folder', 'Folder') : (String(file.name || '').split('.').pop().toUpperCase() || t('desktop.fm.prop_file', 'File'));
+        const typeLabel = isDir ? t('desktop.fm.prop_folder') : (String(file.name || '').split('.').pop().toUpperCase() || t('desktop.fm.prop_file'));
         const nameContent = fm.renamePath === file.path
-            ? `<input class="fm-rename-input" data-rename-input value="${esc(file.name)}" aria-label="${esc(t('desktop.fm.rename', 'Rename'))}">`
+            ? `<input class="fm-rename-input" data-rename-input value="${esc(file.name)}" aria-label="${esc(t('desktop.fm.rename'))}">`
             : esc(file.name);
         return `<div class="fm-list-row${selected}${cut}" data-path="${esc(file.path)}" data-type="${esc(file.type)}" role="button" tabindex="0">
             <div class="fm-list-cell fm-col-name">
@@ -25,18 +25,18 @@
         const selectedSize = selectedCount > 0 ? ' (' + fmtBytes(getSelectedSize()) + ')' : '';
         const clipboard = sharedFileClipboard();
         const clipboardIndicator = clipboard && clipboard.paths && clipboard.paths.length
-            ? `<span class="fm-status-sep">|</span><span class="fm-status-clipboard" title="${esc(clipboard.paths.join('\n'))}">📋 ${esc(clipboard.mode === 'cut' ? t('desktop.fm.clipboard_cut', '{{count}} cut', { count: clipboard.paths.length }) : t('desktop.fm.clipboard_copied', '{{count}} copied', { count: clipboard.paths.length }))}</span>`
+            ? `<span class="fm-status-sep">|</span><span class="fm-status-clipboard" title="${esc(clipboard.paths.join('\n'))}">📋 ${esc(clipboard.mode === 'cut' ? t('desktop.fm.clipboard_cut', { count: clipboard.paths.length }) : t('desktop.fm.clipboard_copied', { count: clipboard.paths.length }))}</span>`
             : '';
         return `<div class="fm-statusbar">
             <div class="fm-status-left">
-                <span>${esc(t('desktop.fm.items', '{{count}} items', { count: totalItems }))}</span>
-                ${selectedCount > 0 ? `<span class="fm-status-sep">|</span><span>${esc(t('desktop.fm.selected', '{{count}} selected', { count: selectedCount }))}${esc(selectedSize)}</span>` : ''}
+                <span>${esc(t('desktop.fm.items', { count: totalItems }))}</span>
+                ${selectedCount > 0 ? `<span class="fm-status-sep">|</span><span>${esc(t('desktop.fm.selected', { count: selectedCount }))}${esc(selectedSize)}</span>` : ''}
                 ${clipboardIndicator}
             </div>
             <div class="fm-status-right">
-                <span>${esc(fm.viewMode === 'grid' ? t('desktop.fm.view_grid', 'Grid View') : t('desktop.fm.view_list', 'List View'))}</span>
+                <span>${esc(fm.viewMode === 'grid' ? t('desktop.fm.view_grid') : t('desktop.fm.view_list'))}</span>
                 <span class="fm-status-sep">|</span>
-                <span>${esc(t('desktop.fm.sort_name', 'Name'))}: ${esc(fm.sortAsc ? t('desktop.fm.sort_asc', 'Ascending') : t('desktop.fm.sort_desc', 'Descending'))}</span>
+                <span>${esc(t('desktop.fm.sort_name'))}: ${esc(fm.sortAsc ? t('desktop.fm.sort_asc') : t('desktop.fm.sort_desc'))}</span>
             </div>
         </div>`;
     }
@@ -46,7 +46,7 @@
         return `<div class="fm-drop-overlay" data-fm-drop-overlay>
             <div class="fm-drop-message">
                 ${iconMarkup('upload', '\u2191', 'fm-drop-icon', 48)}
-                <div>${esc(t('desktop.fm.drop_here', 'Drop files here to upload'))}</div>
+                <div>${esc(t('desktop.fm.drop_here'))}</div>
             </div>
         </div>`;
     }
@@ -351,13 +351,13 @@
 
     function showSortMenu(e) {
         const items = [
-            { label: t('desktop.fm.sort_name', 'Name'), action: 'sort-name', handler: () => { fm.sortBy = 'name'; savePreferences(); renderFileContent(); } },
-            { label: t('desktop.fm.sort_size', 'Size'), action: 'sort-size', handler: () => { fm.sortBy = 'size'; savePreferences(); renderFileContent(); } },
-            { label: t('desktop.fm.sort_date', 'Date Modified'), action: 'sort-date', handler: () => { fm.sortBy = 'date'; savePreferences(); renderFileContent(); } },
-            { label: t('desktop.fm.sort_type', 'Type'), action: 'sort-type', handler: () => { fm.sortBy = 'type'; savePreferences(); renderFileContent(); } },
+            { label: t('desktop.fm.sort_name'), action: 'sort-name', handler: () => { fm.sortBy = 'name'; savePreferences(); renderFileContent(); } },
+            { label: t('desktop.fm.sort_size'), action: 'sort-size', handler: () => { fm.sortBy = 'size'; savePreferences(); renderFileContent(); } },
+            { label: t('desktop.fm.sort_date'), action: 'sort-date', handler: () => { fm.sortBy = 'date'; savePreferences(); renderFileContent(); } },
+            { label: t('desktop.fm.sort_type'), action: 'sort-type', handler: () => { fm.sortBy = 'type'; savePreferences(); renderFileContent(); } },
             { separator: true },
-            { label: t('desktop.fm.sort_asc', 'Ascending'), action: 'sort-asc', handler: () => { fm.sortAsc = true; savePreferences(); renderFileContent(); } },
-            { label: t('desktop.fm.sort_desc', 'Descending'), action: 'sort-desc', handler: () => { fm.sortAsc = false; savePreferences(); renderFileContent(); } },
+            { label: t('desktop.fm.sort_asc'), action: 'sort-asc', handler: () => { fm.sortAsc = true; savePreferences(); renderFileContent(); } },
+            { label: t('desktop.fm.sort_desc'), action: 'sort-desc', handler: () => { fm.sortAsc = false; savePreferences(); renderFileContent(); } },
         ];
         const rect = e.currentTarget.getBoundingClientRect();
         showContextMenu(rect.left, rect.bottom + 4, items);
@@ -457,50 +457,50 @@
         }
         const hasClipboard = hasSharedFileClipboard();
         const items = [
-            { label: t('desktop.fm.open', 'Open'), action: 'open', icon: 'folder-open', shortcut: 'Enter', handler: () => { if (type === 'directory') navigate(path); else openFileEntry(file); } },
+            { label: t('desktop.fm.open'), action: 'open', icon: 'folder-open', shortcut: 'Enter', handler: () => { if (type === 'directory') navigate(path); else openFileEntry(file); } },
         ];
         if (type === 'file') {
             const openWithItems = buildOpenWithSubmenu(file);
             if (openWithItems.length) {
-                items.push({ label: t('desktop.fm.open_with', 'Open with...'), action: 'open-with', icon: 'apps', items: openWithItems });
+                items.push({ label: t('desktop.fm.open_with'), action: 'open-with', icon: 'apps', items: openWithItems });
             }
         }
         if (type === 'file' && isViewerFile(file.name || '')) {
-            items.push({ label: t('desktop.fm.view', 'View'), action: 'view', icon: 'eye', handler: () => { if (fm.callbacks && typeof fm.callbacks.openApp === 'function') fm.callbacks.openApp('viewer', { path: file.path }); else openFileEntry(file); } });
+            items.push({ label: t('desktop.fm.view'), action: 'view', icon: 'eye', handler: () => { if (fm.callbacks && typeof fm.callbacks.openApp === 'function') fm.callbacks.openApp('viewer', { path: file.path }); else openFileEntry(file); } });
         }
         if (type === 'file') {
             items.push(
                 { separator: true },
-                { label: t('desktop.fm.add_to_chat', 'Add to chat'), action: 'add-to-chat', icon: 'chat', handler: () => { if (fm.callbacks && typeof fm.callbacks.addFileToChat === 'function') fm.callbacks.addFileToChat(file); } },
-                { label: t('desktop.fm.ask_agent', 'Ask Agent'), action: 'ask-agent', icon: 'agent', handler: () => { if (fm.callbacks && typeof fm.callbacks.askAgentAboutFile === 'function') fm.callbacks.askAgentAboutFile(file); } }
+                { label: t('desktop.fm.add_to_chat'), action: 'add-to-chat', icon: 'chat', handler: () => { if (fm.callbacks && typeof fm.callbacks.addFileToChat === 'function') fm.callbacks.addFileToChat(file); } },
+                { label: t('desktop.fm.ask_agent'), action: 'ask-agent', icon: 'agent', handler: () => { if (fm.callbacks && typeof fm.callbacks.askAgentAboutFile === 'function') fm.callbacks.askAgentAboutFile(file); } }
             );
         }
         items.push(
             { separator: true },
-            { label: t('desktop.fm.cut', 'Cut'), action: 'cut', icon: 'scissors', shortcut: 'Ctrl+X', handler: () => cutSelection() },
-            { label: t('desktop.fm.copy', 'Copy'), action: 'copy', icon: 'copy', shortcut: 'Ctrl+C', handler: () => copySelection() },
-            { label: t('desktop.fm.copy_path', 'Copy Path'), action: 'copy-path', icon: 'text', shortcut: 'Ctrl+Shift+C', handler: () => copyPathToClipboard(path) },
-            { label: t('desktop.fm.paste', 'Paste'), action: 'paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: !hasClipboard, handler: () => pasteClipboard(type === 'directory' ? path : fm.currentPath) },
-            { label: t('desktop.fm.duplicate', 'Duplicate'), action: 'duplicate', icon: 'copy', shortcut: 'Ctrl+D', handler: () => duplicateSelected() },
-            { label: t('desktop.fm.create_symlink', 'Create Symlink'), action: 'create-symlink', icon: 'link', handler: () => createSymlink(file) },
+            { label: t('desktop.fm.cut'), action: 'cut', icon: 'scissors', shortcut: 'Ctrl+X', handler: () => cutSelection() },
+            { label: t('desktop.fm.copy'), action: 'copy', icon: 'copy', shortcut: 'Ctrl+C', handler: () => copySelection() },
+            { label: t('desktop.fm.copy_path'), action: 'copy-path', icon: 'text', shortcut: 'Ctrl+Shift+C', handler: () => copyPathToClipboard(path) },
+            { label: t('desktop.fm.paste'), action: 'paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: !hasClipboard, handler: () => pasteClipboard(type === 'directory' ? path : fm.currentPath) },
+            { label: t('desktop.fm.duplicate'), action: 'duplicate', icon: 'copy', shortcut: 'Ctrl+D', handler: () => duplicateSelected() },
+            { label: t('desktop.fm.create_symlink'), action: 'create-symlink', icon: 'link', handler: () => createSymlink(file) },
         );
         const selected = getSelectedFiles();
         if (selected.length > 1) {
-            items.push({ label: t('desktop.fm.batch_rename', 'Batch Rename'), action: 'batch-rename', icon: 'edit', handler: () => { if (typeof executeBatchRename === 'function') executeBatchRename(); } });
+            items.push({ label: t('desktop.fm.batch_rename'), action: 'batch-rename', icon: 'edit', handler: () => { if (typeof executeBatchRename === 'function') executeBatchRename(); } });
         }
         if (selected.length > 0) {
-            items.push({ label: t('desktop.fm.compress_zip', 'Compress to ZIP'), action: 'compress-zip', icon: 'archive', handler: () => { if (typeof compressSelectionToZip === 'function') compressSelectionToZip(); } });
+            items.push({ label: t('desktop.fm.compress_zip'), action: 'compress-zip', icon: 'archive', handler: () => { if (typeof compressSelectionToZip === 'function') compressSelectionToZip(); } });
         }
         if (type === 'file' && String(file.name).endsWith('.zip')) {
             items.push(
-                { label: t('desktop.fm.extract_zip', 'Extract ZIP Here'), action: 'extract-zip-here', icon: 'archive', handler: () => { if (typeof extractZip === 'function') extractZip(file, true); } },
-                { label: t('desktop.fm.extract_zip_to', 'Extract ZIP to...'), action: 'extract-zip-to', icon: 'archive', handler: () => { if (typeof extractZip === 'function') extractZip(file, false); } }
+                { label: t('desktop.fm.extract_zip'), action: 'extract-zip-here', icon: 'archive', handler: () => { if (typeof extractZip === 'function') extractZip(file, true); } },
+                { label: t('desktop.fm.extract_zip_to'), action: 'extract-zip-to', icon: 'archive', handler: () => { if (typeof extractZip === 'function') extractZip(file, false); } }
             );
         }
         if (type === 'directory') {
             const isFav = fm.favorites && fm.favorites.includes(path);
             items.push({
-                label: isFav ? t('desktop.fm.remove_favorite', 'Remove from Favorites') : t('desktop.fm.add_favorite', 'Add to Favorites'),
+                label: isFav ? t('desktop.fm.remove_favorite') : t('desktop.fm.add_favorite'),
                 action: isFav ? 'remove-favorite' : 'add-favorite',
                 icon: 'star',
                 handler: () => { if (typeof toggleFavorite === 'function') toggleFavorite(path); }
@@ -508,22 +508,22 @@
         }
         items.push(
             { separator: true },
-            { label: t('desktop.fm.rename', 'Rename'), action: 'rename', icon: 'edit', shortcut: 'F2', handler: () => startRename(path) },
-            { label: t('desktop.fm.delete', 'Delete'), action: 'delete', icon: 'trash', shortcut: 'Del', handler: () => deleteSelected() },
+            { label: t('desktop.fm.rename'), action: 'rename', icon: 'edit', shortcut: 'F2', handler: () => startRename(path) },
+            { label: t('desktop.fm.delete'), action: 'delete', icon: 'trash', shortcut: 'Del', handler: () => deleteSelected() },
         );
         if (type === 'directory') {
             items.push(
                 { separator: true },
-                { label: t('desktop.fm.open_terminal', 'Open Terminal Here'), action: 'open-terminal', icon: 'terminal', handler: () => openTerminalHere(path) }
+                { label: t('desktop.fm.open_terminal'), action: 'open-terminal', icon: 'terminal', handler: () => openTerminalHere(path) }
             );
         }
         if (type === 'file' && file.web_path) {
-            items.push({ label: t('desktop.fm.download', 'Download'), action: 'download', icon: 'download', handler: () => downloadFile(file) });
+            items.push({ label: t('desktop.fm.download'), action: 'download', icon: 'download', handler: () => downloadFile(file) });
         } else if (type === 'file') {
-            items.push({ label: t('desktop.fm.download', 'Download'), action: 'download', icon: 'download', handler: () => downloadFile(file) });
+            items.push({ label: t('desktop.fm.download'), action: 'download', icon: 'download', handler: () => downloadFile(file) });
         }
         items.push({ separator: true });
-        items.push({ label: t('desktop.fm.properties', 'Properties'), action: 'properties', icon: 'info', handler: () => showProperties(file) });
+        items.push({ label: t('desktop.fm.properties'), action: 'properties', icon: 'info', handler: () => showProperties(file) });
         showContextMenu(e.clientX, e.clientY, readonlyGuardItems(items));
     }
 
@@ -531,16 +531,16 @@
         e.preventDefault();
         const hasClipboard = hasSharedFileClipboard();
         const items = [
-            { label: t('desktop.fm.new_file', 'New File'), action: 'new-file', icon: 'file-plus', handler: () => createNewFile() },
-            { label: t('desktop.fm.new_folder', 'New Folder'), action: 'new-folder', icon: 'folder-plus', handler: () => createNewFolder() },
+            { label: t('desktop.fm.new_file'), action: 'new-file', icon: 'file-plus', handler: () => createNewFile() },
+            { label: t('desktop.fm.new_folder'), action: 'new-folder', icon: 'folder-plus', handler: () => createNewFolder() },
             { separator: true },
-            { label: t('desktop.fm.paste', 'Paste'), action: 'paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: !hasClipboard, handler: () => pasteClipboard() },
+            { label: t('desktop.fm.paste'), action: 'paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: !hasClipboard, handler: () => pasteClipboard() },
             { separator: true },
-            { label: t('desktop.fm.sort_by', 'Sort by') + ' >', action: 'sort-submenu', icon: 'sort', handler: () => showSortMenu(e) },
-            { label: t('desktop.fm.refresh', 'Refresh'), action: 'refresh', icon: 'refresh', shortcut: 'F5', handler: () => refresh() },
-            { label: t('desktop.fm.open_terminal', 'Open Terminal Here'), action: 'open-terminal', icon: 'terminal', handler: () => openTerminalHere(fm.currentPath) },
+            { label: t('desktop.fm.sort_by') + ' >', action: 'sort-submenu', icon: 'sort', handler: () => showSortMenu(e) },
+            { label: t('desktop.fm.refresh'), action: 'refresh', icon: 'refresh', shortcut: 'F5', handler: () => refresh() },
+            { label: t('desktop.fm.open_terminal'), action: 'open-terminal', icon: 'terminal', handler: () => openTerminalHere(fm.currentPath) },
             { separator: true },
-            { label: t('desktop.fm.select_all', 'Select All'), action: 'select-all', icon: 'check-square', shortcut: 'Ctrl+A', handler: () => selectAll() },
+            { label: t('desktop.fm.select_all'), action: 'select-all', icon: 'check-square', shortcut: 'Ctrl+A', handler: () => selectAll() },
         ];
         showContextMenu(e.clientX, e.clientY, readonlyGuardItems(items));
     }
@@ -657,14 +657,14 @@
 
     async function undo() {
         if (!undoStack.length) {
-            showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_undo', 'Nothing to undo') });
+            showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_undo') });
             return;
         }
         const action = undoStack.pop();
         try {
             let progress = null;
             if (action.items.length > 1) {
-                progress = showProgressOverlay(t('desktop.fm.undoing', 'Undoing...'), action.items.length);
+                progress = showProgressOverlay(t('desktop.fm.undoing'), action.items.length);
             }
             let count = 0;
             for (const item of action.items) {
@@ -678,23 +678,23 @@
             if (progress) progress.close();
             
             redoStack.push(action);
-            showNotification({ type: 'success', message: t('desktop.fm.undone', 'Operation undone') });
+            showNotification({ type: 'success', message: t('desktop.fm.undone') });
             refresh();
         } catch (err) {
-            showNotification({ type: 'error', message: t('desktop.fm.undo_error', 'Undo failed: {{error}}', { error: err.message || String(err) }) });
+            showNotification({ type: 'error', message: t('desktop.fm.undo_error', { error: err.message || String(err) }) });
         }
     }
 
     async function redo() {
         if (!redoStack.length) {
-            showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_redo', 'Nothing to redo') });
+            showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_redo') });
             return;
         }
         const action = redoStack.pop();
         try {
             let progress = null;
             if (action.items.length > 1) {
-                progress = showProgressOverlay(t('desktop.fm.redoing', 'Redoing...'), action.items.length);
+                progress = showProgressOverlay(t('desktop.fm.redoing'), action.items.length);
             }
             let count = 0;
             for (const item of action.items) {
@@ -708,10 +708,10 @@
             if (progress) progress.close();
             
             undoStack.push(action);
-            showNotification({ type: 'success', message: t('desktop.fm.redone', 'Operation redone') });
+            showNotification({ type: 'success', message: t('desktop.fm.redone') });
             refresh();
         } catch (err) {
-            showNotification({ type: 'error', message: t('desktop.fm.redo_error', 'Redo failed: {{error}}', { error: err.message || String(err) }) });
+            showNotification({ type: 'error', message: t('desktop.fm.redo_error', { error: err.message || String(err) }) });
         }
     }
 
@@ -879,8 +879,8 @@
         let progress = null;
         if (clipboard.paths.length > 1) {
             const title = clipboard.mode === 'copy' 
-                ? t('desktop.fm.copying', 'Copying...') 
-                : t('desktop.fm.moving', 'Moving...');
+                ? t('desktop.fm.copying')
+                : t('desktop.fm.moving');
             progress = showProgressOverlay(title, clipboard.paths.length);
         }
 
@@ -893,10 +893,10 @@
             let destPath = joinPath(targetBase, name);
             const exists = fm.files.some(f => f.name === name);
             if (exists && clipboard.mode === 'copy') {
-                const newName = name + ' (' + t('desktop.fm.copy_of', 'copy') + ')';
+                const newName = name + ' (' + t('desktop.fm.copy_of') + ')';
                 destPath = joinPath(targetBase, newName);
             } else if (exists && clipboard.mode === 'cut') {
-                const overwrite = await confirmDialog(t('desktop.fm.paste_exists', 'An item named "{{name}}" already exists. Overwrite?', { name: name }));
+                const overwrite = await confirmDialog(t('desktop.fm.paste_exists', { name: name }));
                 if (!overwrite) continue;
             }
 

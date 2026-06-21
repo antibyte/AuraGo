@@ -86,7 +86,7 @@
                     <div class="cheater-loading-card"></div>
                     <div class="cheater-loading-card"></div>
                 </div>
-                <p class="cheater-loading-label">${esc(t('cheater.library_loading', 'Loading sheets...'))}</p>
+                <p class="cheater-loading-label">${esc(t('cheater.library_loading'))}</p>
             </div>
         </section>`;
         focusAppSurface(host);
@@ -98,10 +98,10 @@
         host.innerHTML = `<section class="cheater-app" data-cheater="${esc(windowId)}" data-state="empty" tabindex="-1">
             <div class="cheater-empty" data-empty>
                 <div class="cheater-empty-icon" aria-hidden="true">${icon}</div>
-                <h1 class="cheater-empty-title">${esc(t('cheater.app_name', 'Cheater'))}</h1>
-                <p class="cheater-empty-subtitle">${esc(t('cheater.empty_subtitle', 'Deine Cheat-Sheet-Sammlung'))}</p>
-                <button type="button" class="cheater-primary" data-action="create">${esc(t('cheater.empty_cta', 'Erstes Sheet anlegen'))}</button>
-                <p class="cheater-empty-hint">${esc(t('cheater.empty_hint', 'Create your first cheat sheet with the button above.'))}</p>
+                <h1 class="cheater-empty-title">${esc(t('cheater.app_name'))}</h1>
+                <p class="cheater-empty-subtitle">${esc(t('cheater.empty_subtitle'))}</p>
+                <button type="button" class="cheater-primary" data-action="create">${esc(t('cheater.empty_cta'))}</button>
+                <p class="cheater-empty-hint">${esc(t('cheater.empty_hint'))}</p>
             </div>
         </section>`;
         bindCreateButton(state);
@@ -110,25 +110,25 @@
 
     function renderLibrary(state) {
         const { host, windowId, esc, t } = state;
-        const countLabel = t('cheater.library_count', '{{count}} sheets').replace('{{count}}', String(state.searchIndex.length));
+        const countLabel = t('cheater.library_count').replace('{{count}}', String(state.searchIndex.length));
         host.innerHTML = `<section class="cheater-app" data-cheater="${esc(windowId)}" data-state="library" tabindex="-1">
             <header class="cheater-library-header">
                 <div class="cheater-library-intro">
-                    <h1 class="cheater-library-title">${esc(t('cheater.app_name', 'Cheater'))}</h1>
-                    <p class="cheater-library-subtitle">${esc(t('cheater.empty_subtitle', 'Deine Cheat-Sheet-Sammlung'))}</p>
+                    <h1 class="cheater-library-title">${esc(t('cheater.app_name'))}</h1>
+                    <p class="cheater-library-subtitle">${esc(t('cheater.empty_subtitle'))}</p>
                 </div>
                 <div class="cheater-library-actions">
-                    <button type="button" class="cheater-secondary" data-action="spotlight" title="${esc(t('cheater.library_open_spotlight', 'Command palette'))}">
-                        ${esc(t('cheater.library_open_spotlight', 'Command palette'))}
+                    <button type="button" class="cheater-secondary" data-action="spotlight" title="${esc(t('cheater.library_open_spotlight'))}">
+                        ${esc(t('cheater.library_open_spotlight'))}
                         <kbd class="cheater-kbd">Ctrl+Shift+K</kbd>
                     </button>
-                    <button type="button" class="cheater-primary" data-action="create">${esc(t('cheater.create_title', 'Neues Cheat Sheet'))}</button>
+                    <button type="button" class="cheater-primary" data-action="create">${esc(t('cheater.create_title'))}</button>
                 </div>
             </header>
             <div class="cheater-library-toolbar">
                 <label class="cheater-library-search">
-                    <span class="cheater-library-search-label">${esc(t('cheater.spotlight_input_label', 'Suche'))}</span>
-                    <input type="search" data-library-filter placeholder="${esc(t('cheater.library_search_placeholder', 'Filter cheat sheets...'))}" autocomplete="off" spellcheck="false">
+                    <span class="cheater-library-search-label">${esc(t('cheater.spotlight_input_label'))}</span>
+                    <input type="search" data-library-filter placeholder="${esc(t('cheater.library_search_placeholder'))}" autocomplete="off" spellcheck="false">
                 </label>
                 <span class="cheater-library-count" data-library-count>${esc(countLabel)}</span>
             </div>
@@ -148,10 +148,10 @@
         if (!list) return;
         const { esc, t } = state;
         if (countNode) {
-            countNode.textContent = t('cheater.library_count', '{{count}} sheets').replace('{{count}}', String(entries.length));
+            countNode.textContent = t('cheater.library_count').replace('{{count}}', String(entries.length));
         }
         if (!entries.length) {
-            list.innerHTML = `<li class="cheater-library-empty">${esc(t('cheater.library_no_results', 'No sheets match this filter'))}</li>`;
+            list.innerHTML = `<li class="cheater-library-empty">${esc(t('cheater.library_no_results'))}</li>`;
             return;
         }
         list.innerHTML = entries.map(entry => {
@@ -161,7 +161,7 @@
                 : (entry.updated_at ? `<span class="cheater-library-meta">${esc(formatRelative(entry.updated_at, t))}</span>` : '');
             return `<li class="cheater-library-card" role="listitem">
                 <button type="button" class="cheater-library-card-btn" data-sheet-id="${esc(entry.id)}">
-                    <span class="cheater-library-card-title">${esc(entry.name || t('cheater.untitled_sheet', 'Untitled sheet'))}</span>
+                    <span class="cheater-library-card-title">${esc(entry.name || t('cheater.untitled_sheet'))}</span>
                     ${entry.abstract ? `<span class="cheater-library-card-abstract">${esc(entry.abstract)}</span>` : ''}
                     <span class="cheater-library-card-footer">${tags}${meta}</span>
                 </button>
@@ -254,18 +254,18 @@
 
         host.innerHTML = `<section class="cheater-app" data-cheater="${esc(windowId)}" data-state="editor">
             <header class="cheater-header">
-                <button type="button" class="cheater-back" data-action="back" aria-label="${esc(t('cheater.back', 'Zurück zur Suche'))}">←</button>
+                <button type="button" class="cheater-back" data-action="back" aria-label="${esc(t('cheater.back'))}">←</button>
                 <input class="cheater-title" data-title type="text" value="${esc(sheet.name || '')}" spellcheck="false" autocomplete="off">
-                <span class="cheater-save" data-save>${esc(t('cheater.saved', 'Gespeichert'))}</span>
+                <span class="cheater-save" data-save>${esc(t('cheater.saved'))}</span>
                 <span class="cheater-agent-badge" data-agent-badge hidden></span>
-                <button type="button" class="cheater-attach-btn" data-action="attachments" aria-label="${esc(t('cheater.attachments', 'Anhänge'))}">📎 <span data-attach-count>${(sheet.attachments || []).length}</span></button>
+                <button type="button" class="cheater-attach-btn" data-action="attachments" aria-label="${esc(t('cheater.attachments'))}">📎 <span data-attach-count>${(sheet.attachments || []).length}</span></button>
             </header>
             <div class="cheater-content" data-content>
                 <pre class="cheater-source" data-source contenteditable="true" spellcheck="true">${esc(sheet.content || '')}</pre>
             </div>
             <footer class="cheater-footer">
-                <span data-charcount>${(sheet.content || '').length}</span> ${esc(t('cheater.chars', 'Zeichen'))} ·
-                <span data-help>${esc(t('cheater.hover_help', 'Hover zum Rendern · Ctrl+S zum Speichern'))}</span>
+                <span data-charcount>${(sheet.content || '').length}</span> ${esc(t('cheater.chars'))} ·
+                <span data-help>${esc(t('cheater.hover_help'))}</span>
             </footer>
         </section>`;
     }
@@ -298,7 +298,7 @@
         bar.className = 'cheater-update-bar';
         bar.dataset.updateBadge = '1';
         const t = state.t;
-        bar.innerHTML = `<span>${esc(t('cheater.update_available', '🔄 Aktualisiert verfügbar'))}</span><button type="button" data-action="apply">${esc(t('cheater.update_apply', 'Neu laden'))}</button><button type="button" data-action="dismiss" aria-label="${esc(t('cheater.close', 'Schließen'))}">×</button>`;
+        bar.innerHTML = `<span>${esc(t('cheater.update_available'))}</span><button type="button" data-action="apply">${esc(t('cheater.update_apply'))}</button><button type="button" data-action="dismiss" aria-label="${esc(t('cheater.close'))}">×</button>`;
         bar.querySelector('[data-action="apply"]').addEventListener('click', () => {
             openSheet(state, fresh);
             bar.remove();
@@ -362,7 +362,7 @@
         }
         const t = state.t;
         node.hidden = false;
-        node.textContent = '🤖 ' + t('cheater.agent_badge', 'vor {{time}} benutzt').replace('{{time}}', formatRelative(lastUsed, t));
+        node.textContent = '🤖 ' + t('cheater.agent_badge').replace('{{time}}', formatRelative(lastUsed, t));
     }
 
     function markDirty(state) {
@@ -420,30 +420,30 @@
         const t = state.t;
         if (kind === 'saving') {
             node.dataset.state = 'saving';
-            node.textContent = t('cheater.saving', 'Speichert…');
+            node.textContent = t('cheater.saving');
         } else if (kind === 'error') {
             node.dataset.state = 'error';
-            node.textContent = t('cheater.save_error', 'Fehler · Erneut versuchen');
+            node.textContent = t('cheater.save_error');
         } else {
             delete node.dataset.state;
             const last = state.lastSavedAt;
-            node.textContent = t('cheater.saved_ago', 'Gespeichert').replace('{{time}}', formatRelative(last, t));
+            node.textContent = t('cheater.saved_ago').replace('{{time}}', formatRelative(last, t));
         }
     }
 
     function formatRelative(iso, t) {
-        if (!iso) return t('cheater.just_now', 'gerade eben');
+        if (!iso) return t('cheater.just_now');
         const then = new Date(iso).getTime();
-        if (Number.isNaN(then)) return t('cheater.just_now', 'gerade eben');
+        if (Number.isNaN(then)) return t('cheater.just_now');
         const diff = Math.max(0, Date.now() - then);
         const sec = Math.floor(diff / 1000);
-        if (sec < 60) return t('cheater.seconds_ago', 'vor {{n}}s').replace('{{n}}', String(sec));
+        if (sec < 60) return t('cheater.seconds_ago').replace('{{n}}', String(sec));
         const min = Math.floor(sec / 60);
-        if (min < 60) return t('cheater.minutes_ago', 'vor {{n}}m').replace('{{n}}', String(min));
+        if (min < 60) return t('cheater.minutes_ago').replace('{{n}}', String(min));
         const hr = Math.floor(min / 60);
-        if (hr < 24) return t('cheater.hours_ago', 'vor {{n}}h').replace('{{n}}', String(hr));
+        if (hr < 24) return t('cheater.hours_ago').replace('{{n}}', String(hr));
         const day = Math.floor(hr / 24);
-        return t('cheater.days_ago', 'vor {{n}} Tagen').replace('{{n}}', String(day));
+        return t('cheater.days_ago').replace('{{n}}', String(day));
     }
 
     function updateSearchIndexEntry(state, sheet) {
@@ -628,7 +628,7 @@
         modal.className = 'cheater-modal';
         modal.setAttribute('role', 'dialog');
         modal.setAttribute('aria-modal', 'true');
-        modal.setAttribute('aria-label', t('cheater.create_title', 'Neues Cheat Sheet'));
+        modal.setAttribute('aria-label', t('cheater.create_title'));
 
         const templates = (window.CheaterTemplates ? window.CheaterTemplates.list(t) : [{ id: 'empty', name: 'Leer', icon: '📄' }]);
         const existingTags = collectTags(state.searchIndex);
@@ -636,25 +636,25 @@
         modal.innerHTML = `
             <div class="cheater-modal-backdrop" data-backdrop></div>
             <div class="cheater-modal-panel">
-                <h2 class="cheater-modal-title">${esc(t('cheater.create_title', 'Neues Cheat Sheet'))}</h2>
+                <h2 class="cheater-modal-title">${esc(t('cheater.create_title'))}</h2>
                 <label class="cheater-field">
-                    <span>${esc(t('cheater.field_title', 'Titel'))} *</span>
+                    <span>${esc(t('cheater.field_title'))} *</span>
                     <input type="text" data-title required maxlength="120" value="${esc(prefillTitle || '')}" autofocus>
                 </label>
                 <label class="cheater-field">
-                    <span>${esc(t('cheater.field_description', 'Beschreibung'))}</span>
-                    <input type="text" data-abstract maxlength="200" placeholder="${esc(t('cheater.field_description_placeholder', 'Optional — 1-2 Zeilen'))}">
+                    <span>${esc(t('cheater.field_description'))}</span>
+                    <input type="text" data-abstract maxlength="200" placeholder="${esc(t('cheater.field_description_placeholder'))}">
                 </label>
                 <div class="cheater-field">
-                    <span>${esc(t('cheater.field_tags', 'Tags'))}</span>
+                    <span>${esc(t('cheater.field_tags'))}</span>
                     <div class="cheater-tag-input">
                         <div class="cheater-tag-chips" data-chips></div>
-                        <input type="text" data-tag-input placeholder="${esc(t('cheater.field_tags_placeholder', 'Tag hinzufügen...'))}">
+                        <input type="text" data-tag-input placeholder="${esc(t('cheater.field_tags_placeholder'))}">
                         <datalist data-tag-suggestions>${existingTags.map(tag => `<option value="${esc(tag)}">`).join('')}</datalist>
                     </div>
                 </div>
                 <div class="cheater-field">
-                    <span>${esc(t('cheater.field_template', 'Template'))}</span>
+                    <span>${esc(t('cheater.field_template'))}</span>
                     <div class="cheater-template-grid" data-templates>
                         ${templates.map(tpl => `<button type="button" class="cheater-template-card" data-template-id="${esc(tpl.id)}">
                             <span class="cheater-template-icon">${esc(tpl.icon)}</span>
@@ -663,8 +663,8 @@
                     </div>
                 </div>
                 <div class="cheater-modal-footer">
-                    <button type="button" class="cheater-secondary" data-action="cancel">${esc(t('cheater.cancel', 'Abbrechen'))}</button>
-                    <button type="button" class="cheater-primary" data-action="submit" disabled>${esc(t('cheater.create_submit', 'Erstellen & öffnen'))}</button>
+                    <button type="button" class="cheater-secondary" data-action="cancel">${esc(t('cheater.cancel'))}</button>
+                    <button type="button" class="cheater-primary" data-action="submit" disabled>${esc(t('cheater.create_submit'))}</button>
                 </div>
             </div>
         `;
@@ -702,7 +702,7 @@
 
         function renderChips() {
             chips.innerHTML = selectedTags.map(tag =>
-                `<span class="cheater-pill">${esc(tag)} <button type="button" class="cheater-pill-remove" data-remove="${esc(tag)}" aria-label="${esc(t('cheater.remove_tag', 'Tag entfernen'))}">×</button></span>`
+                `<span class="cheater-pill">${esc(tag)} <button type="button" class="cheater-pill-remove" data-remove="${esc(tag)}" aria-label="${esc(t('cheater.remove_tag'))}">×</button></span>`
             ).join('');
             chips.querySelectorAll('[data-remove]').forEach(btn => {
                 btn.addEventListener('click', () => removeTag(btn.dataset.remove));

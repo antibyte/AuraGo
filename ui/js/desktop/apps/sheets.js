@@ -39,13 +39,13 @@
         host.innerHTML = `<div class="office-app office-sheets" data-office-sheets="${esc(windowId)}">
             <div class="vd-toolbar office-toolbar">
                 <input class="office-path-input" data-path value="${esc(currentPath)}" spellcheck="false" autocomplete="off">
-                <span class="vd-chat-meta" data-status>${esc(t('desktop.sheets_loading', 'Loading...'))}</span>
+                <span class="vd-chat-meta" data-status>${esc(t('desktop.sheets_loading'))}</span>
             </div>
             <div class="office-formula-bar" data-formula-bar>
                 <output class="office-range-name" data-range-name>A1</output>
                 <span class="office-formula-fx" aria-hidden="true">fx</span>
                 <input class="office-formula-input" data-formula-input value="" spellcheck="false" autocomplete="off" placeholder="=SUM(A1:A3)">
-                <button class="vd-tool-button office-formula-apply" type="button" data-action="apply-formula">${iconMarkup('check-square', 'OK', 'vd-tool-icon', 15)}<span>${esc(t('desktop.ok', 'OK'))}</span></button>
+                <button class="vd-tool-button office-formula-apply" type="button" data-action="apply-formula">${iconMarkup('check-square', 'OK', 'vd-tool-icon', 15)}<span>${esc(t('desktop.ok'))}</span></button>
             </div>
             <div class="office-sheet-tabs" data-tabs></div>
             <div class="office-sheet-grid-wrap" data-grid></div>
@@ -79,7 +79,7 @@
             workbook = normalizeWorkbook(workbook, pathInput.value.trim() || DEFAULT_PATH);
             activeSheet = Math.min(activeSheet, workbook.sheets.length - 1);
             const sheet = workbook.sheets[activeSheet];
-            tabsHost.innerHTML = workbook.sheets.map((sheet, index) => `<button type="button" class="${index === activeSheet ? 'active' : ''}" data-sheet-index="${index}">${esc(sheet.name || (t('desktop.sheets_sheet', 'Sheet') + ' ' + (index + 1)))}</button>`).join('');
+            tabsHost.innerHTML = workbook.sheets.map((sheet, index) => `<button type="button" class="${index === activeSheet ? 'active' : ''}" data-sheet-index="${index}">${esc(sheet.name || (t('desktop.sheets_sheet') + ' ' + (index + 1)))}</button>`).join('');
             tabsHost.querySelectorAll('[data-sheet-index]').forEach(btn => {
                 btn.addEventListener('click', () => {
                     captureGrid();
@@ -306,8 +306,8 @@
         function showSheetContextMenu(x, y) {
             closeSheetContextMenu();
             const items = [
-                { action: 'copy-range', icon: 'copy', label: t('desktop.fm.copy', 'Copy') },
-                { action: 'paste-range', icon: 'clipboard', label: t('desktop.fm.paste', 'Paste') },
+                { action: 'copy-range', icon: 'copy', label: t('desktop.fm.copy') },
+                { action: 'paste-range', icon: 'clipboard', label: t('desktop.fm.paste') },
                 { action: 'clear-range', icon: 'x', label: t('desktop.sheets_clear_range') },
                 { separator: true },
                 { action: 'insert-row-above', icon: 'list', label: t('desktop.sheets_insert_row_above') },
@@ -554,7 +554,7 @@
         async function save() {
             if (readonly) return;
             captureGrid();
-            setStatus(t('desktop.saving', 'Saving...'));
+            setStatus(t('desktop.saving'));
             const path = pathInput.value.trim() || DEFAULT_PATH;
             workbook.path = path;
             const body = await api('/api/desktop/office/workbook', {
@@ -564,8 +564,8 @@
             });
             officeVersion = body.office_version || officeVersion;
             setPath(path);
-            setStatus(t('desktop.sheets_saved', 'Saved'));
-            notify({ type: 'success', message: t('desktop.sheets_saved', 'Saved') });
+            setStatus(t('desktop.sheets_saved'));
+            notify({ type: 'success', message: t('desktop.sheets_saved') });
             await refreshDesktop();
         }
 
@@ -582,9 +582,9 @@
         async function openWorkbookFromDialog() {
             if (typeof ctx.openFileDialog !== 'function') return;
             const result = await ctx.openFileDialog({
-                title: t('desktop.file_dialog_open', 'Open'),
+                title: t('desktop.file_dialog_open'),
                 initialPath: pathDir(currentPath),
-                filters: [{ label: t('desktop.app_sheets', 'Sheets'), extensions: ['.xlsx', '.xlsm', '.csv'] }]
+                filters: [{ label: t('desktop.app_sheets'), extensions: ['.xlsx', '.xlsm', '.csv'] }]
             });
             if (!result || result.canceled || !result.path) return;
             setPath(result.path);
@@ -595,11 +595,11 @@
             if (readonly) return;
             if (typeof ctx.saveFileDialog === 'function') {
                 const result = await ctx.saveFileDialog({
-                    title: t('desktop.sheets_save_as', 'Save as'),
+                    title: t('desktop.sheets_save_as'),
                     initialPath: pathDir(pathInput.value.trim() || currentPath || DEFAULT_PATH),
                     defaultName: currentFileEntry().name,
                     defaultExtension: '.xlsx',
-                    filters: [{ label: t('desktop.app_sheets', 'Sheets'), extensions: ['.xlsx', '.xlsm', '.csv'] }]
+                    filters: [{ label: t('desktop.app_sheets'), extensions: ['.xlsx', '.xlsm', '.csv'] }]
                 });
                 if (!result || result.canceled || !result.path) return;
                 const previousPath = currentPath;
@@ -616,7 +616,7 @@
                 return;
             }
             const prompt = ctx.promptDialog || (async () => null);
-            const nextPath = await prompt(t('desktop.sheets_save_as', 'Save as'), pathInput.value.trim() || DEFAULT_PATH);
+            const nextPath = await prompt(t('desktop.sheets_save_as'), pathInput.value.trim() || DEFAULT_PATH);
             if (nextPath == null) return;
             const trimmed = String(nextPath).trim();
             if (!trimmed) return;
@@ -656,7 +656,7 @@
 
         async function runAgentTask() {
             const prompt = ctx.promptDialog || (async () => null);
-            const task = await prompt(t('desktop.agent_task_title', 'Task for Agent'), '');
+            const task = await prompt(t('desktop.agent_task_title'), '');
             if (!task) return;
             await save();
             if (typeof ctx.openAgentChatForFile === 'function') {

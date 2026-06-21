@@ -158,25 +158,25 @@ function showDisabledState() {
         const id = skill.name || skill.Name || skill.id || skill.ID || '';
         const ds = getDaemonState(id);
         if (!ds) {
-            return `<span class="sk-daemon-badge sk-daemon-stopped" title="${t('skills.daemon_stopped') || 'Daemon: Stopped'}">⏹ ${t('skills.daemon') || 'Daemon'}</span>`;
+            return `<span class="sk-daemon-badge sk-daemon-stopped" title="${t('skills.daemon_stopped')}">⏹ ${t('skills.daemon')}</span>`;
         }
         const status = (ds.status || ds.Status || 'stopped').toLowerCase();
         const statusMap = {
-            running: { cls: 'sk-daemon-running', icon: '🟢', label: t('skills.daemon_running') || 'Running' },
-            stopped: { cls: 'sk-daemon-stopped', icon: '⏹', label: t('skills.daemon_stopped') || 'Stopped' },
-            error: { cls: 'sk-daemon-error', icon: '🔴', label: t('skills.daemon_error') || 'Error' },
-            disabled: { cls: 'sk-daemon-disabled', icon: '⛔', label: t('skills.daemon_disabled') || 'Disabled' },
-            starting: { cls: 'sk-daemon-starting', icon: '🟡', label: t('skills.daemon_starting') || 'Starting' },
+            running: { cls: 'sk-daemon-running', icon: '🟢', label: t('skills.daemon_running') },
+            stopped: { cls: 'sk-daemon-stopped', icon: '⏹', label: t('skills.daemon_stopped') },
+            error: { cls: 'sk-daemon-error', icon: '🔴', label: t('skills.daemon_error') },
+            disabled: { cls: 'sk-daemon-disabled', icon: '⛔', label: t('skills.daemon_disabled') },
+            starting: { cls: 'sk-daemon-starting', icon: '🟡', label: t('skills.daemon_starting') },
         };
         const info = statusMap[status] || statusMap.stopped;
-        return `<span class="sk-daemon-badge ${info.cls}" title="${info.label}">${info.icon} ${t('skills.daemon') || 'Daemon'}</span>`;
+        return `<span class="sk-daemon-badge ${info.cls}" title="${info.label}">${info.icon} ${t('skills.daemon')}</span>`;
     }
 
     function renderDaemonActions(skill) {
         const isDaemon = skill.IsDaemon || skill.is_daemon;
         if (!isDaemon) return '';
         if (!daemonSystemEnabled) {
-            return `<div class="sk-daemon-actions"><span class="sk-daemon-badge sk-daemon-disabled" title="${t('skills.daemon_disabled_hint') || 'Enable daemon_skills in config to start'}">⛔ ${t('skills.daemon') || 'Daemon'}</span></div>`;
+            return `<div class="sk-daemon-actions"><span class="sk-daemon-badge sk-daemon-disabled" title="${t('skills.daemon_disabled_hint')}">⛔ ${t('skills.daemon')}</span></div>`;
         }
         const id = skill.name || skill.Name || skill.id || skill.ID || '';
         const ds = getDaemonState(id);
@@ -185,11 +185,11 @@ function showDisabledState() {
 
         let btns = '';
         if (status === 'running') {
-            btns = `<button class="btn btn-sm btn-warning" onclick="daemonAction('${id}','stop')">${t('skills.daemon_stop') || 'Stop'}</button>`;
+            btns = `<button class="btn btn-sm btn-warning" onclick="daemonAction('${id}','stop')">${t('skills.daemon_stop')}</button>`;
         } else if (autoDisabled || status === 'disabled') {
-            btns = `<button class="btn btn-sm btn-primary" onclick="daemonAction('${id}','reenable')">${t('skills.daemon_reenable') || 'Re-enable'}</button>`;
+            btns = `<button class="btn btn-sm btn-primary" onclick="daemonAction('${id}','reenable')">${t('skills.daemon_reenable')}</button>`;
         } else {
-            btns = `<button class="btn btn-sm btn-primary" onclick="daemonAction('${id}','start')">${t('skills.daemon_start') || 'Start'}</button>`;
+            btns = `<button class="btn btn-sm btn-primary" onclick="daemonAction('${id}','start')">${t('skills.daemon_start')}</button>`;
         }
         return `<div class="sk-daemon-actions">${btns}</div>`;
     }
@@ -203,20 +203,20 @@ function showDisabledState() {
                 data = await resp.json();
             } catch (parseErr) {
                 console.error('Daemon action failed: non-JSON response', resp.status, parseErr);
-                showToast(`${t('skills.daemon_action_failed') || 'Daemon error'}: HTTP ${resp.status}`, 'error');
+                showToast(`${t('skills.daemon_action_failed')}: HTTP ${resp.status}`, 'error');
                 return;
             }
             if (data.status === 'ok' && resp.ok) {
-                showToast(t('skills.daemon_action_ok') || 'Daemon action executed', 'success');
+                showToast(t('skills.daemon_action_ok'), 'success');
                 await loadSkills();
             } else {
                 const msg = data.message || data.error || 'Unknown error';
                 console.error('Daemon action error:', msg);
-                showToast(`${t('skills.daemon_action_failed') || 'Daemon error'}: ${msg}`, 'error');
+                showToast(`${t('skills.daemon_action_failed')}: ${msg}`, 'error');
             }
         } catch (e) {
             console.error('Daemon action network error:', e);
-            showToast(`${t('skills.daemon_action_failed') || 'Daemon error'}: ${e.message || 'Network error'}`, 'error');
+            showToast(`${t('skills.daemon_action_failed')}: ${e.message || 'Network error'}`, 'error');
         }
     }
 
@@ -259,33 +259,33 @@ function showDisabledState() {
 
         return `
         <div class="sk-daemon-settings-section">
-            <h4 class="sk-daemon-settings-title">👹 ${t('skills.daemon_settings_title') || 'Daemon Settings'}</h4>
+            <h4 class="sk-daemon-settings-title">👹 ${t('skills.daemon_settings_title')}</h4>
             <div class="sk-detail-grid">
                 <div class="sk-detail-row">
-                    <span class="sk-detail-label">${t('skills.daemon_wake_agent') || 'Wake Agent'}:</span>
+                    <span class="sk-detail-label">${t('skills.daemon_wake_agent')}:</span>
                     <label class="toggle-wrap compact">
                         <div class="toggle${wakeAgent ? ' on' : ''}" id="daemon-wake-toggle" onclick="this.classList.toggle('on')"></div>
-                        <span class="toggle-label">${wakeAgent ? (t('config.toggle.active') || 'Active') : (t('config.toggle.inactive') || 'Inactive')}</span>
+                        <span class="toggle-label">${wakeAgent ? (t('config.toggle.active')) : (t('config.toggle.inactive'))}</span>
                     </label>
                 </div>
                 <div class="sk-detail-row">
-                    <span class="sk-detail-label">${t('skills.daemon_trigger_mission') || 'Trigger Mission'}:</span>
+                    <span class="sk-detail-label">${t('skills.daemon_trigger_mission')}:</span>
                     <select id="daemon-mission-select" class="field-input sk-daemon-select">
-                        <option value="">— ${t('skills.daemon_no_mission') || 'No mission'} —</option>
+                        <option value="">— ${t('skills.daemon_no_mission')} —</option>
                         ${missionOpts}
                     </select>
                 </div>
                 <div class="sk-detail-row">
-                    <span class="sk-detail-label">${t('skills.daemon_cheatsheet') || 'Cheat Sheet'}:</span>
+                    <span class="sk-detail-label">${t('skills.daemon_cheatsheet')}:</span>
                     <select id="daemon-cheatsheet-select" class="field-input sk-daemon-select">
-                        <option value="">— ${t('skills.daemon_no_cheatsheet') || 'No cheat sheet'} —</option>
+                        <option value="">— ${t('skills.daemon_no_cheatsheet')} —</option>
                         ${csOpts}
                     </select>
                 </div>
             </div>
-            <div class="sk-daemon-settings-help">${t('skills.daemon_settings_help') || 'When the daemon fires an event, the selected mission is triggered and the cheat sheet content is passed as working instructions.'}</div>
+            <div class="sk-daemon-settings-help">${t('skills.daemon_settings_help')}</div>
             <div class="sk-daemon-settings-actions">
-                <button class="btn btn-sm btn-primary" onclick="saveDaemonSettings('${esc(skill.ID || skill.id || '')}')">${t('common.btn_save') || 'Save'}</button>
+                <button class="btn btn-sm btn-primary" onclick="saveDaemonSettings('${esc(skill.ID || skill.id || '')}')">${t('common.btn_save')}</button>
             </div>
         </div>`;
     }
@@ -309,14 +309,14 @@ function showDisabledState() {
             });
             const data = await resp.json();
             if (data.status === 'ok') {
-                showToast(t('skills.daemon_settings_saved') || 'Daemon settings saved', 'success');
+                showToast(t('skills.daemon_settings_saved'), 'success');
                 showDetail(currentDetailId);
                 loadSkills();
             } else {
                 showToast(data.message || t('common.error'), 'error');
             }
         } catch (e) {
-            showToast(t('common.error') || 'Error', 'error');
+            showToast(t('common.error'), 'error');
         }
     }
 
@@ -405,7 +405,7 @@ function showDisabledState() {
         const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
         const secBadge = renderSecurityBadge(secStatus);
         const enabledClass = enabled ? 'sk-enabled' : 'sk-disabled-card';
-        const toggleLabel = enabled ? (t('skills.btn_disable') || 'Disable') : (t('skills.btn_enable') || 'Enable');
+        const toggleLabel = enabled ? (t('skills.btn_disable')) : (t('skills.btn_enable'));
         const toggleClass = enabled ? 'btn-secondary' : 'btn-primary';
 
         let depTags = '';
@@ -429,14 +429,14 @@ function showDisabledState() {
                 }).join('')
                 : '';
             vaultRow = `<div class="sk-card-vault">
-            <button class="btn btn-xs btn-secondary sk-vault-edit-btn" onclick="openVaultKeyModal('${id}')" title="${t('skills.btn_edit_secrets') || 'Edit Secrets'}">🔑 ${t('skills.btn_edit_secrets') || 'Secrets'}</button>
-            <button class="btn btn-xs btn-secondary sk-vault-edit-btn" onclick="openInternalToolsModal('${id}')" title="${t('skills.btn_edit_internal_tools') || 'Edit Internal Tools'}">⚙️ ${t('skills.btn_edit_internal_tools') || 'Tools'}</button>
+            <button class="btn btn-xs btn-secondary sk-vault-edit-btn" onclick="openVaultKeyModal('${id}')" title="${t('skills.btn_edit_secrets')}">🔑 ${t('skills.btn_edit_secrets')}</button>
+            <button class="btn btn-xs btn-secondary sk-vault-edit-btn" onclick="openInternalToolsModal('${id}')" title="${t('skills.btn_edit_internal_tools')}">⚙️ ${t('skills.btn_edit_internal_tools')}</button>
             ${keyTags ? `<span class="sk-vault-keys">${keyTags}</span>` : ''}
         </div>`;
         }
 
         const internalToolsRow = internalTools.length > 0
-            ? `<div class="sk-card-internal-tools"><span class="sk-internal-tools-label">⚙️ ${t('skills.internal_tools_label') || 'Internal Tools'}:</span> ${internalTools.map(tool => `<code class="sk-dep-tag sk-internal-tool-tag" title="${esc(tool)}">${esc(tool)}</code>`).join('')}</div>`
+            ? `<div class="sk-card-internal-tools"><span class="sk-internal-tools-label">⚙️ ${t('skills.internal_tools_label')}:</span> ${internalTools.map(tool => `<code class="sk-dep-tag sk-internal-tool-tag" title="${esc(tool)}">${esc(tool)}</code>`).join('')}</div>`
             : '';
 
         return `
@@ -449,7 +449,7 @@ function showDisabledState() {
                 ${renderDaemonBadge(skill)}
             </div>
         </div>
-        <div class="sk-card-desc">${desc || '<em>' + (t('skills.no_description') || 'No description') + '</em>'}</div>
+        <div class="sk-card-desc">${desc || '<em>' + (t('skills.no_description')) + '</em>'}</div>
         ${metaRow}
         ${depTags}
         ${vaultRow}
@@ -524,11 +524,11 @@ function showDisabledState() {
 
     function renderSecurityBadge(status) {
         const labels = {
-            clean: t('skills.sec_clean') || 'Clean',
-            warning: t('skills.sec_warning') || 'Warning',
-            dangerous: t('skills.sec_dangerous') || 'Dangerous',
-            pending: t('skills.sec_pending') || 'Pending',
-            error: t('skills.sec_error') || 'Error'
+            clean: t('skills.sec_clean'),
+            warning: t('skills.sec_warning'),
+            dangerous: t('skills.sec_dangerous'),
+            pending: t('skills.sec_pending'),
+            error: t('skills.sec_error')
         };
         const label = labels[status] || status;
         return `<span class="sk-sec-badge sk-sec-${status}">${label}</span>`;
@@ -901,13 +901,13 @@ function showDisabledState() {
             });
             const data = await resp.json();
             if (data.status === 'ok') {
-                showToast(t('skills.toggle_success') || 'Skill updated', 'success');
+                showToast(t('skills.toggle_success'), 'success');
                 await loadSkills();
             } else {
                 showToast(data.message || t('common.error'), 'error');
             }
         } catch (e) {
-            showToast(t('common.error') || 'Error', 'error');
+            showToast(t('common.error'), 'error');
         }
     }
 
@@ -920,7 +920,7 @@ function showDisabledState() {
         const actions = document.querySelector('#detail-modal .modal-actions');
         if (actions) actions.style.display = '';
         const body = document.getElementById('detail-modal-body');
-        body.innerHTML = `<p>${t('common.loading') || 'Loading...'}</p>`;
+        body.innerHTML = `<p>${t('common.loading')}</p>`;
         document.getElementById('detail-modal').classList.add('active');
 
         try {
@@ -951,17 +951,17 @@ function showDisabledState() {
                 const findings = sec.StaticAnalysis || sec.static_analysis || [];
                 if (findings.length > 0) {
                     secHTML = `<div class="sk-findings">
-                    <h4 data-i18n="skills.findings_title">${t('skills.findings_title') || 'Security Findings'}</h4>
+                    <h4 data-i18n="skills.findings_title">${t('skills.findings_title')}</h4>
                     <ul>${findings.map(f => `<li class="sk-finding sk-finding-${(f.Severity || f.severity || 'info').toLowerCase()}">
                         <strong>${esc(f.Category || f.category || '')}</strong>: ${esc(f.Message || f.message || '')}
-                        ${f.Line || f.line ? ` <span class="sk-finding-line">(${t('skills.finding_line') || 'line'} ${f.Line || f.line})</span>` : ''}
+                        ${f.Line || f.line ? ` <span class="sk-finding-line">(${t('skills.finding_line')} ${f.Line || f.line})</span>` : ''}
                     </li>`).join('')}</ul>
                 </div>`;
                 }
                 if (sec.GuardianDecision || sec.guardian_decision) {
                     secHTML += `<div class="sk-guardian-result">
-                    <h4>${t('skills.guardian_title') || 'LLM Guardian'}</h4>
-                    <p><strong>${t('skills.guardian_decision') || 'Decision'}:</strong> ${esc(sec.GuardianDecision || sec.guardian_decision)}</p>
+                    <h4>${t('skills.guardian_title')}</h4>
+                    <p><strong>${t('skills.guardian_decision')}:</strong> ${esc(sec.GuardianDecision || sec.guardian_decision)}</p>
                     ${sec.GuardianReason || sec.guardian_reason ? `<p>${esc(sec.GuardianReason || sec.guardian_reason)}</p>` : ''}
                 </div>`;
                 }
@@ -969,23 +969,23 @@ function showDisabledState() {
 
             body.innerHTML = `
             <div class="sk-detail-grid">
-                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_name') || 'Name'}:</span> <span>${esc(s.Name || s.name)}</span></div>
-                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_type') || 'Type'}:</span> <span class="sk-type-badge sk-type-${(s.Type || s.type || '').toLowerCase()}">${esc(s.Type || s.type)}</span></div>
-                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_status') || 'Security'}:</span> ${renderSecurityBadge((s.SecurityStatus || s.security_status || 'pending').toLowerCase())}</div>
-                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_enabled') || 'Enabled'}:</span> <span>${s.Enabled || s.enabled ? '✅' : '❌'}</span></div>
-                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_created') || 'Created'}:</span> <span>${esc(s.CreatedAt || s.created_at || '-')}</span></div>
-                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_description') || 'Description'}:</span> <span>${esc(s.Description || s.description || '-')}</span></div>
-                ${category ? `<div class="sk-detail-row"><span class="sk-detail-label">${t('skills.field_category') || 'Category'}:</span> <span>${esc(category)}</span></div>` : ''}
-                ${tags.length > 0 ? `<div class="sk-detail-row"><span class="sk-detail-label">${t('skills.field_tags') || 'Tags'}:</span> <span class="sk-meta-list">${tags.map(tag => `<span class="sk-dep-tag">${esc(tag)}</span>`).join('')}</span></div>` : ''}
-                ${deps.length > 0 ? `<div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_deps') || 'Dependencies'}:</span> <span>${deps.map(d => `<span class="sk-dep-tag">${esc(d)}</span>`).join(' ')}</span></div>` : ''}
-                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.vault_keys_label') || 'Vault Keys'}:</span> <span>${vaultKeys.length > 0 ? vaultKeys.map(k => {
+                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_name')}:</span> <span>${esc(s.Name || s.name)}</span></div>
+                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_type')}:</span> <span class="sk-type-badge sk-type-${(s.Type || s.type || '').toLowerCase()}">${esc(s.Type || s.type)}</span></div>
+                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_status')}:</span> ${renderSecurityBadge((s.SecurityStatus || s.security_status || 'pending').toLowerCase())}</div>
+                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_enabled')}:</span> <span>${s.Enabled || s.enabled ? '✅' : '❌'}</span></div>
+                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_created')}:</span> <span>${esc(s.CreatedAt || s.created_at || '-')}</span></div>
+                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_description')}:</span> <span>${esc(s.Description || s.description || '-')}</span></div>
+                ${category ? `<div class="sk-detail-row"><span class="sk-detail-label">${t('skills.field_category')}:</span> <span>${esc(category)}</span></div>` : ''}
+                ${tags.length > 0 ? `<div class="sk-detail-row"><span class="sk-detail-label">${t('skills.field_tags')}:</span> <span class="sk-meta-list">${tags.map(tag => `<span class="sk-dep-tag">${esc(tag)}</span>`).join('')}</span></div>` : ''}
+                ${deps.length > 0 ? `<div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_deps')}:</span> <span>${deps.map(d => `<span class="sk-dep-tag">${esc(d)}</span>`).join(' ')}</span></div>` : ''}
+                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.vault_keys_label')}:</span> <span>${vaultKeys.length > 0 ? vaultKeys.map(k => {
                 if (k.startsWith('cred:')) {
                     const cname = credentialMap[k.slice(5)] || k.slice(5);
                     return `<code class="sk-vault-key-tag sk-vault-key-cred" title="${esc(k)}">🔑 ${esc(cname)}</code>`;
                 }
                 return `<code class="sk-vault-key-tag">${esc(k)}</code>`;
-            }).join(' ') : `<span class="sk-vault-none">${t('skills.vault_none') || 'No secrets assigned'}</span>`}</span></div>
-                <div class="sk-detail-row"><span class="sk-detail-label">⚙️ ${t('skills.internal_tools_label') || 'Internal Tools'}:</span> <span>${internalTools.length > 0 ? internalTools.map(tool => `<code class="sk-dep-tag sk-internal-tool-tag">${esc(tool)}</code>`).join(' ') : `<span class="sk-vault-none">${t('skills.internal_tools_none') || 'No internal tools'}</span>`}</span></div>
+            }).join(' ') : `<span class="sk-vault-none">${t('skills.vault_none')}</span>`}</span></div>
+                <div class="sk-detail-row"><span class="sk-detail-label">⚙️ ${t('skills.internal_tools_label')}:</span> <span>${internalTools.length > 0 ? internalTools.map(tool => `<code class="sk-dep-tag sk-internal-tool-tag">${esc(tool)}</code>`).join(' ') : `<span class="sk-vault-none">${t('skills.internal_tools_none')}</span>`}</span></div>
             </div>
             ${renderDaemonSettings(s, data.daemon)}
             ${renderSkillDocumentation(s)}
@@ -999,7 +999,7 @@ function showDisabledState() {
                 loadAndRenderSkillDocumentation(s.ID || s.id);
             }
         } catch (e) {
-            body.innerHTML = `<p class="sk-error">${t('common.error') || 'Error'}</p>`;
+            body.innerHTML = `<p class="sk-error">${t('common.error')}</p>`;
         }
     }
 
@@ -1017,23 +1017,23 @@ function showDisabledState() {
         if (!currentDetailId) return;
         const btn = document.getElementById('detail-verify-btn');
         btn.disabled = true;
-        btn.textContent = t('common.loading') || 'Scanning...';
+        btn.textContent = t('common.loading');
 
         try {
             const resp = await fetch(`/api/skills/${encodeURIComponent(currentDetailId)}/verify`, { method: 'POST' });
             const data = await resp.json();
             if (data.status === 'scanned') {
-                showToast(t('skills.scan_complete') || 'Scan complete', 'success');
+                showToast(t('skills.scan_complete'), 'success');
                 showDetail(currentDetailId);
                 loadSkills();
             } else {
                 showToast(data.message || t('common.error'), 'error');
             }
         } catch (e) {
-            showToast(t('common.error') || 'Error', 'error');
+            showToast(t('common.error'), 'error');
         } finally {
             btn.disabled = false;
-            btn.textContent = t('skills.btn_verify') || 'Re-Scan';
+            btn.textContent = t('skills.btn_verify');
         }
     }
 
@@ -1096,7 +1096,7 @@ function showDisabledState() {
         const saveBtn = document.getElementById('code-save-btn');
         if (!meta) {
             metaWrap.style.display = 'none';
-            saveBtn.textContent = t('skills.btn_save_code') || 'Save';
+            saveBtn.textContent = t('skills.btn_save_code');
             return;
         }
         metaWrap.style.display = '';
@@ -1106,7 +1106,7 @@ function showDisabledState() {
         document.getElementById('code-draft-tags').value = (meta.tags || []).join(', ');
         const docEl = document.getElementById('code-draft-documentation');
         if (docEl) docEl.value = meta.documentation || '';
-        saveBtn.textContent = readOnly ? (t('common.btn_close') || 'Close') : (t('skills.btn_create_skill') || 'Create Skill');
+        saveBtn.textContent = readOnly ? (t('common.btn_close')) : (t('skills.btn_create_skill'));
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -1132,7 +1132,7 @@ function showDisabledState() {
         } catch (_) {
             container.innerHTML = `<textarea id="code-editor-fallback" class="sk-editor-fallback" ${readOnly ? 'readonly' : ''}></textarea>`;
             document.getElementById('code-editor-fallback').value = code || '';
-            showToast(t('skills.editor_fallback') || 'Advanced editor unavailable, using plain text mode.', 'info');
+            showToast(t('skills.editor_fallback'), 'info');
         }
 
         const saveBtn = document.getElementById('code-save-btn');
@@ -1146,7 +1146,7 @@ function showDisabledState() {
     async function viewCode(id) {
         document.getElementById('code-modal').classList.add('active');
         const container = document.getElementById('code-editor-container');
-        container.innerHTML = `<p style="padding:16px;color:var(--text-secondary);">${t('common.loading') || 'Loading...'}</p>`;
+        container.innerHTML = `<p style="padding:16px;color:var(--text-secondary);">${t('common.loading')}</p>`;
 
         try {
             const resp = await fetch(`/api/skills/${encodeURIComponent(id)}?code=true`);
@@ -1155,10 +1155,10 @@ function showDisabledState() {
                 container.innerHTML = '';
                 await openCodeEditor(id, data.code, false, null);
             } else {
-                container.innerHTML = `<p style="padding:16px;color:var(--text-secondary);">${t('skills.no_code') || 'Code not available'}</p>`;
+                container.innerHTML = `<p style="padding:16px;color:var(--text-secondary);">${t('skills.no_code')}</p>`;
             }
         } catch (e) {
-            container.innerHTML = `<p style="padding:16px;color:var(--text-secondary);">${t('skills.failed_to_load_code') || 'Failed to load code'}</p>`;
+            container.innerHTML = `<p style="padding:16px;color:var(--text-secondary);">${t('skills.failed_to_load_code')}</p>`;
         }
     }
 
@@ -1168,7 +1168,7 @@ function showDisabledState() {
         if (!code) return;
         const btn = document.getElementById('code-save-btn');
         btn.disabled = true;
-        btn.textContent = t('common.loading') || 'Saving...';
+        btn.textContent = t('common.loading');
 
         try {
             let resp;
@@ -1193,7 +1193,7 @@ function showDisabledState() {
             }
             const data = await resp.json();
             if (data.status === 'ok' || data.status === 'created') {
-                showToast(codeEditorSkillId ? (t('skills.code_saved') || 'Code saved') : (t('skills.create_success') || 'Skill created'), 'success');
+                showToast(codeEditorSkillId ? (t('skills.code_saved')) : (t('skills.create_success')), 'success');
                 await loadSkills();
                 closeCodeModal();
                 if (!codeEditorSkillId && data.skill && data.skill.id) {
@@ -1203,10 +1203,10 @@ function showDisabledState() {
                 showToast(data.message || t('common.error'), 'error');
             }
         } catch (e) {
-            showToast(t('common.error') || 'Error', 'error');
+            showToast(t('common.error'), 'error');
         } finally {
             btn.disabled = false;
-            btn.textContent = t('skills.btn_save_code') || 'Save';
+            btn.textContent = t('skills.btn_save_code');
         }
     }
 
@@ -1256,7 +1256,7 @@ function showDisabledState() {
 
     function selectFile(file) {
         if (!file.name.endsWith('.py')) {
-            showToast(t('skills.upload_py_only') || 'Only .py files are allowed', 'error');
+            showToast(t('skills.upload_py_only'), 'error');
             return;
         }
         selectedFile = file;
@@ -1297,7 +1297,7 @@ function showDisabledState() {
         if (!selectedFile) return;
         const btn = document.getElementById('upload-submit-btn');
         btn.disabled = true;
-        btn.textContent = t('common.loading') || 'Uploading...';
+        btn.textContent = t('common.loading');
 
         const fd = new FormData();
         fd.append('file', selectedFile);
@@ -1315,7 +1315,7 @@ function showDisabledState() {
             const data = await resp.json();
 
             if (data.status === 'uploaded' || data.status === 'created') {
-                showToast(t('skills.upload_success') || 'Skill uploaded', 'success');
+                showToast(t('skills.upload_success'), 'success');
                 closeUploadModal();
                 await loadSkills();
             } else if (data.status === 'rejected') {
@@ -1325,10 +1325,10 @@ function showDisabledState() {
                 showToast(data.message || t('common.error'), 'error');
             }
         } catch (e) {
-            showToast(t('common.error') || 'Error', 'error');
+            showToast(t('common.error'), 'error');
         } finally {
             btn.disabled = false;
-            btn.textContent = t('skills.btn_upload') || 'Upload';
+            btn.textContent = t('skills.btn_upload');
         }
     }
 
@@ -1408,13 +1408,13 @@ function showDisabledState() {
         const documentation = tplDocEl ? tplDocEl.value : '';
 
         if (!templateName || !skillName) {
-            showToast(t('skills.template_required') || 'Template and skill name are required', 'error');
+            showToast(t('skills.template_required'), 'error');
             return;
         }
 
         const btn = document.getElementById('template-submit-btn');
         btn.disabled = true;
-        btn.textContent = t('common.loading') || 'Creating...';
+        btn.textContent = t('common.loading');
 
         try {
             const resp = await fetch('/api/skills/templates', {
@@ -1434,7 +1434,7 @@ function showDisabledState() {
             const data = await resp.json();
 
             if (data.status === 'created') {
-                showToast(t('skills.template_success') || 'Skill created from template', 'success');
+                showToast(t('skills.template_success'), 'success');
                 closeTemplateModal();
                 await loadSkills();
                 // Open the code editor for the newly created skill
@@ -1445,10 +1445,10 @@ function showDisabledState() {
                 showToast(data.message || t('common.error'), 'error');
             }
         } catch (e) {
-            showToast(t('common.error') || 'Error', 'error');
+            showToast(t('common.error'), 'error');
         } finally {
             btn.disabled = false;
-            btn.textContent = t('skills.btn_create') || 'Create';
+            btn.textContent = t('skills.btn_create');
         }
     }
 
@@ -1496,7 +1496,7 @@ function showDisabledState() {
             const resp = await fetch(`${apiPath}${encodeURIComponent(rawID)}?delete_files=${deleteFiles}`, { method: 'DELETE' });
             const data = await resp.json();
             if (data.status === 'deleted') {
-                showToast(t('skills.delete_success') || 'Skill deleted', 'success');
+                showToast(t('skills.delete_success'), 'success');
                 closeDeleteSkillModal();
                 closeDetailModal();
                 if (isAgentSkillDelete) await loadAgentSkills(); else await loadSkills();
@@ -1504,7 +1504,7 @@ function showDisabledState() {
                 showToast(data.message || t('common.error'), 'error');
             }
         } catch (e) {
-            showToast(t('common.error') || 'Error', 'error');
+            showToast(t('common.error'), 'error');
         } finally {
             if (deleteTargetId) {
                 skillDeleteInFlight = false;
@@ -1522,12 +1522,12 @@ function showDisabledState() {
 
     function renderSkillDocumentation(s) {
         const has = s.HasDocumentation || s.has_documentation;
-        const hint = t('skills.documentation_hint') || 'Markdown manual the agent can read before reusing this skill. Max 64 KB. Never paste secrets or API keys.';
-        const editLabel = has ? (t('skills.documentation_edit') || 'Edit Manual') : (t('skills.documentation_add') || 'Add Manual');
-        const deleteBtn = has ? `<button class="btn btn-sm btn-danger" onclick="deleteSkillDocumentation()" data-i18n="skills.documentation_delete">${t('skills.documentation_delete') || 'Delete Manual'}</button>` : '';
-        const placeholder = has ? `<p class="sk-loading">${t('common.loading') || 'Loading...'}</p>` : `<p class="sk-vault-none" data-i18n="skills.documentation_empty">${t('skills.documentation_empty') || 'No documentation manual attached yet.'}</p>`;
+        const hint = t('skills.documentation_hint');
+        const editLabel = has ? (t('skills.documentation_edit')) : (t('skills.documentation_add'));
+        const deleteBtn = has ? `<button class="btn btn-sm btn-danger" onclick="deleteSkillDocumentation()" data-i18n="skills.documentation_delete">${t('skills.documentation_delete')}</button>` : '';
+        const placeholder = has ? `<p class="sk-loading">${t('common.loading')}</p>` : `<p class="sk-vault-none" data-i18n="skills.documentation_empty">${t('skills.documentation_empty')}</p>`;
         return `<div class="sk-findings sk-documentation-block">
-        <h4>📖 ${t('skills.documentation_title') || 'Skill Manual'}</h4>
+        <h4>📖 ${t('skills.documentation_title')}</h4>
         <p class="sk-inline-help">${esc(hint)}</p>
         <div id="sk-documentation-content" class="sk-documentation-content">${placeholder}</div>
         <div class="sk-documentation-actions">
@@ -1555,10 +1555,10 @@ function showDisabledState() {
                 }
                 target.innerHTML = `<div class="sk-documentation-rendered">${rendered}</div>`;
             } else {
-                target.innerHTML = `<p class="sk-vault-none">${t('skills.documentation_empty') || 'No documentation manual attached yet.'}</p>`;
+                target.innerHTML = `<p class="sk-vault-none">${t('skills.documentation_empty')}</p>`;
             }
         } catch (_) {
-            target.innerHTML = `<p class="sk-error">${t('common.error') || 'Error'}</p>`;
+            target.innerHTML = `<p class="sk-error">${t('common.error')}</p>`;
         }
     }
 
@@ -1579,20 +1579,20 @@ function showDisabledState() {
         overlay.id = 'sk-doc-editor-modal';
         overlay.innerHTML = `<div class="modal modal-wide">
             <div class="modal-header">
-                <h2>${t('skills.documentation_title') || 'Skill Manual'}</h2>
+                <h2>${t('skills.documentation_title')}</h2>
                 <button class="modal-close" onclick="closeSkillDocumentationEditor()">&times;</button>
             </div>
             <div class="modal-body">
-                <p class="sk-inline-help">${esc(t('skills.documentation_hint') || 'Markdown manual the agent can read before reusing this skill. Max 64 KB. Never paste secrets or API keys.')}</p>
+                <p class="sk-inline-help">${esc(t('skills.documentation_hint'))}</p>
                 <textarea id="sk-doc-editor-textarea" class="sk-input sk-textarea" rows="20" style="font-family:monospace"></textarea>
                 <div class="sk-form-group" style="margin-top:8px">
-                    <label>${esc(t('skills.documentation_upload') || 'Or upload a .md file')}</label>
+                    <label>${esc(t('skills.documentation_upload'))}</label>
                     <input type="file" id="sk-doc-editor-file" accept=".md,.markdown,.txt" onchange="handleSkillDocumentationFileSelect(event)">
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeSkillDocumentationEditor()">${t('common.btn_cancel') || 'Cancel'}</button>
-                <button class="btn btn-primary" onclick="saveSkillDocumentation()">${t('common.btn_save') || 'Save'}</button>
+                <button class="btn btn-secondary" onclick="closeSkillDocumentationEditor()">${t('common.btn_cancel')}</button>
+                <button class="btn btn-primary" onclick="saveSkillDocumentation()">${t('common.btn_save')}</button>
             </div>
         </div>`;
         document.body.appendChild(overlay);
@@ -1610,7 +1610,7 @@ function showDisabledState() {
         const f = event.target.files && event.target.files[0];
         if (!f) return;
         if (f.size > 64 * 1024) {
-            showToast(t('skills.documentation_too_large') || 'Manual exceeds the 64 KB limit', 'error');
+            showToast(t('skills.documentation_too_large'), 'error');
             return;
         }
         const reader = new FileReader();
@@ -1625,7 +1625,7 @@ function showDisabledState() {
         if (!currentDetailId) return;
         const content = document.getElementById('sk-doc-editor-textarea').value;
         if (!content.trim()) {
-            showToast(t('skills.documentation_empty_save') || 'Please enter Markdown content or use Delete Manual.', 'error');
+            showToast(t('skills.documentation_empty_save'), 'error');
             return;
         }
         try {
@@ -1636,18 +1636,18 @@ function showDisabledState() {
             });
             const data = await resp.json().catch(() => ({}));
             if (resp.ok && data.status === 'ok') {
-                showToast(t('skills.documentation_saved') || 'Manual saved', 'success');
+                showToast(t('skills.documentation_saved'), 'success');
                 closeSkillDocumentationEditor();
                 showDetail(currentDetailId);
             } else if (resp.status === 413) {
-                showToast(t('skills.documentation_too_large') || 'Manual exceeds the 64 KB limit', 'error');
+                showToast(t('skills.documentation_too_large'), 'error');
             } else if (resp.status === 403) {
-                showToast(t('skills.documentation_readonly') || 'Skill Manager is in read-only mode', 'error');
+                showToast(t('skills.documentation_readonly'), 'error');
             } else {
-                showToast(data.message || (t('common.error') || 'Error'), 'error');
+                showToast(data.message || (t('common.error')), 'error');
             }
         } catch (_) {
-            showToast(t('common.error') || 'Error', 'error');
+            showToast(t('common.error'), 'error');
         }
     }
 
@@ -1657,28 +1657,28 @@ function showDisabledState() {
         try {
             const resp = await fetch(`/api/skills/${encodeURIComponent(currentDetailId)}/documentation`, { method: 'DELETE' });
             if (resp.ok) {
-                showToast(t('skills.documentation_deleted') || 'Manual deleted', 'success');
+                showToast(t('skills.documentation_deleted'), 'success');
                 showDetail(currentDetailId);
             } else if (resp.status === 403) {
-                showToast(t('skills.documentation_readonly') || 'Skill Manager is in read-only mode', 'error');
+                showToast(t('skills.documentation_readonly'), 'error');
             } else {
                 const data = await resp.json().catch(() => ({}));
-                showToast(data.message || (t('common.error') || 'Error'), 'error');
+                showToast(data.message || (t('common.error')), 'error');
             }
         } catch (_) {
-            showToast(t('common.error') || 'Error', 'error');
+            showToast(t('common.error'), 'error');
         }
     }
 
     function renderSkillHistory(versions) {
         if (!Array.isArray(versions) || versions.length === 0) return '';
         return `<div class="sk-findings">
-        <h4>${t('skills.history_title') || 'Version History'}</h4>
+        <h4>${t('skills.history_title')}</h4>
         <ul class="sk-history-list">
             ${versions.slice(0, 8).map(v => `<li class="sk-history-item">
                 <div class="sk-history-item-head">
-                    <span>${t('skills.history_version') || 'Version'} ${esc(String(v.version || v.Version || '?'))}</span>
-                    <button class="btn btn-sm btn-secondary" onclick="restoreSkillVersion('${esc(currentDetailId)}', ${Number(v.version || v.Version || 0)})">${t('skills.btn_restore') || 'Restore'}</button>
+                    <span>${t('skills.history_version')} ${esc(String(v.version || v.Version || '?'))}</span>
+                    <button class="btn btn-sm btn-secondary" onclick="restoreSkillVersion('${esc(currentDetailId)}', ${Number(v.version || v.Version || 0)})">${t('skills.btn_restore')}</button>
                 </div>
                 <div class="sk-history-note">${esc(v.change_note || v.ChangeNote || '')}</div>
                 <div class="sk-audit-details">${esc(v.created_by || v.CreatedBy || '')} · ${esc(v.created_at || v.CreatedAt || '')}</div>
@@ -1690,7 +1690,7 @@ function showDisabledState() {
     function renderSkillAudit(audit) {
         if (!Array.isArray(audit) || audit.length === 0) return '';
         return `<div class="sk-findings">
-        <h4>${t('skills.audit_title') || 'Audit Trail'}</h4>
+        <h4>${t('skills.audit_title')}</h4>
         <ul class="sk-audit-list">
             ${audit.slice(0, 12).map(entry => `<li class="sk-audit-item">
                 <div class="sk-audit-item-head">
@@ -1714,14 +1714,14 @@ function showDisabledState() {
             });
             const data = await resp.json();
             if (data.status === 'ok') {
-                showToast(t('skills.restore_success') || 'Version restored', 'success');
+                showToast(t('skills.restore_success'), 'success');
                 await showDetail(id);
                 await loadSkills();
             } else {
                 showToast(data.message || t('common.error'), 'error');
             }
         } catch (_) {
-            showToast(t('common.error') || 'Error', 'error');
+            showToast(t('common.error'), 'error');
         }
     }
 
@@ -1752,7 +1752,7 @@ function showDisabledState() {
         const statusEl = document.getElementById('test-output-status');
         const outputEl = document.getElementById('test-output');
         btn.disabled = true;
-        btn.textContent = t('common.loading') || 'Running...';
+        btn.textContent = t('common.loading');
         try {
             const args = JSON.parse(document.getElementById('test-args-input').value || '{}');
             const resp = await fetch(`/api/skills/${encodeURIComponent(currentDetailId)}/test`, {
@@ -1764,17 +1764,17 @@ function showDisabledState() {
             statusEl.textContent = data.status || '';
             outputEl.textContent = data.output || data.message || '';
             if (data.status === 'ok') {
-                showToast(t('skills.test_success') || 'Test finished', 'success');
+                showToast(t('skills.test_success'), 'success');
             } else {
-                showToast(data.message || (t('skills.test_failed') || 'Test failed'), 'error');
+                showToast(data.message || (t('skills.test_failed')), 'error');
             }
         } catch (e) {
             statusEl.textContent = 'error';
             outputEl.textContent = e.message || 'Invalid JSON';
-            showToast(t('skills.test_invalid_json') || 'Input must be valid JSON', 'error');
+            showToast(t('skills.test_invalid_json'), 'error');
         } finally {
             btn.disabled = false;
-            btn.textContent = t('skills.btn_run_test') || 'Run Test';
+            btn.textContent = t('skills.btn_run_test');
         }
     }
 
@@ -1782,7 +1782,7 @@ function showDisabledState() {
     function showImportModal() {
         selectedImportFile = null;
         document.getElementById('import-file').value = '';
-        document.getElementById('import-file-name').textContent = t('skills.import_hint') || 'Choose an exported `.aurago-skill.json` bundle.';
+        document.getElementById('import-file-name').textContent = t('skills.import_hint');
         document.getElementById('import-submit-btn').disabled = true;
         document.getElementById('import-modal').classList.add('active');
     }
@@ -1805,7 +1805,7 @@ function showDisabledState() {
         if (!selectedImportFile) return;
         const btn = document.getElementById('import-submit-btn');
         btn.disabled = true;
-        btn.textContent = t('common.loading') || 'Importing...';
+        btn.textContent = t('common.loading');
         try {
             const bundle = JSON.parse(await selectedImportFile.text());
             const resp = await fetch('/api/skills/import', {
@@ -1815,17 +1815,17 @@ function showDisabledState() {
             });
             const data = await resp.json();
             if (data.status === 'imported') {
-                showToast(t('skills.import_success') || 'Skill imported', 'success');
+                showToast(t('skills.import_success'), 'success');
                 closeImportModal();
                 await loadSkills();
             } else {
                 showToast(data.message || t('common.error'), 'error');
             }
         } catch (e) {
-            showToast(e.message || (t('common.error') || 'Error'), 'error');
+            showToast(e.message || (t('common.error')), 'error');
         } finally {
             btn.disabled = false;
-            btn.textContent = t('skills.btn_import') || 'Import';
+            btn.textContent = t('skills.btn_import');
         }
     }
 
@@ -1883,13 +1883,13 @@ function showDisabledState() {
     async function submitGenerateSkill() {
         const prompt = document.getElementById('generate-prompt').value.trim();
         if (!prompt) {
-            showToast(t('skills.generate_prompt_required') || 'Please describe the skill you want.', 'error');
+            showToast(t('skills.generate_prompt_required'), 'error');
             return;
         }
         const btn = document.getElementById('generate-submit-btn');
         btn.disabled = true;
-        btn.textContent = t('common.loading') || 'Generating...';
-        setGenerateStatus(t('skills.generate_in_progress') || 'Creating AI draft. This can take a few moments.', 'info');
+        btn.textContent = t('common.loading');
+        setGenerateStatus(t('skills.generate_in_progress'), 'info');
         const controller = new AbortController();
         const timeoutHandle = window.setTimeout(() => controller.abort(), 90000);
         try {
@@ -1907,12 +1907,12 @@ function showDisabledState() {
             });
             const data = await readResponseJSON(resp);
             if (!resp.ok || data.status !== 'ok' || !data.draft) {
-                const message = getResponseError(data, t('common.error') || 'Error');
+                const message = getResponseError(data, t('common.error'));
                 setGenerateStatus(message, 'error');
                 showToast(message, 'error');
                 return;
             }
-            setGenerateStatus(t('skills.generate_success') || 'Draft generated', 'success');
+            setGenerateStatus(t('skills.generate_success'), 'success');
             closeGenerateModal();
             await openCodeEditor('', data.draft.code || '', false, {
                 name: data.draft.name || '',
@@ -1921,17 +1921,17 @@ function showDisabledState() {
                 tags: data.draft.tags || [],
                 documentation: data.draft.documentation || ''
             });
-            showToast(t('skills.generate_success') || 'Draft generated', 'success');
+            showToast(t('skills.generate_success'), 'success');
         } catch (e) {
             const message = e && e.name === 'AbortError'
-                ? (t('skills.generate_timeout') || 'The AI draft took too long. Please try again or shorten the prompt.')
-                : (e.message || (t('common.error') || 'Error'));
+                ? (t('skills.generate_timeout'))
+                : (e.message || (t('common.error')));
             setGenerateStatus(message, 'error');
             showToast(message, 'error');
         } finally {
             window.clearTimeout(timeoutHandle);
             btn.disabled = false;
-            btn.textContent = t('skills.btn_generate') || 'Generate';
+            btn.textContent = t('skills.btn_generate');
         }
     }
 
@@ -1949,7 +1949,7 @@ function showDisabledState() {
         vaultKeyTargetId = id;
         const listEl = document.getElementById('vault-key-list');
         const emptyEl = document.getElementById('vault-key-empty');
-        listEl.innerHTML = `<p>${t('common.loading') || 'Loading...'}</p>`;
+        listEl.innerHTML = `<p>${t('common.loading')}</p>`;
         emptyEl.style.display = 'none';
         document.getElementById('vault-key-modal').classList.add('active');
 
@@ -1981,7 +1981,7 @@ function showDisabledState() {
             let html = '';
 
             if (allVaultSecrets.length > 0) {
-                html += `<p class="sk-vault-section-label">${t('skills.vault_section_secrets') || 'Vault Secrets'}</p>`;
+                html += `<p class="sk-vault-section-label">${t('skills.vault_section_secrets')}</p>`;
                 html += allVaultSecrets.map(key => {
                     const checked = currentKeys.includes(key) ? 'checked' : '';
                     return `<label class="sk-vault-checkbox-row">
@@ -1992,7 +1992,7 @@ function showDisabledState() {
             }
 
             if (credList.length > 0) {
-                html += `<p class="sk-vault-section-label" style="margin-top:10px">${t('skills.vault_section_creds') || 'Credentials'}</p>`;
+                html += `<p class="sk-vault-section-label" style="margin-top:10px">${t('skills.vault_section_creds')}</p>`;
                 html += credList.map(c => {
                     const credKey = `cred:${c.id}`;
                     const checked = currentKeys.includes(credKey) ? 'checked' : '';
@@ -2007,7 +2007,7 @@ function showDisabledState() {
 
             listEl.innerHTML = html;
         } catch (e) {
-            listEl.innerHTML = `<p class="sk-error">${t('common.error') || 'Error loading secrets'}</p>`;
+            listEl.innerHTML = `<p class="sk-error">${t('common.error')}</p>`;
         }
     }
 
@@ -2031,14 +2031,14 @@ function showDisabledState() {
             });
             const data = await resp.json();
             if (data.status === 'ok') {
-                showToast(t('skills.vault_save_success') || 'Secrets updated', 'success');
+                showToast(t('skills.vault_save_success'), 'success');
                 closeVaultKeyModal();
                 await loadSkills();
             } else {
                 showToast(data.message || t('common.error'), 'error');
             }
         } catch (e) {
-            showToast(t('common.error') || 'Error', 'error');
+            showToast(t('common.error'), 'error');
         }
     }
 
@@ -2051,7 +2051,7 @@ function showDisabledState() {
         internalToolsTargetId = id;
         const listEl = document.getElementById('internal-tools-list');
         const bridgeOffEl = document.getElementById('internal-tools-bridge-off');
-        listEl.innerHTML = `<p>${t('common.loading') || 'Loading...'}</p>`;
+        listEl.innerHTML = `<p>${t('common.loading')}</p>`;
         if (bridgeOffEl) bridgeOffEl.style.display = 'none';
         document.getElementById('internal-tools-modal').classList.add('active');
 
@@ -2080,7 +2080,7 @@ function showDisabledState() {
                 </label>`;
             }).join('');
         } catch (e) {
-            listEl.innerHTML = `<p class="sk-error">${t('common.error') || 'Error loading tools'}</p>`;
+            listEl.innerHTML = `<p class="sk-error">${t('common.error')}</p>`;
         }
     }
 
@@ -2104,13 +2104,13 @@ function showDisabledState() {
             });
             const data = await resp.json();
             if (data.status === 'ok') {
-                showToast(t('skills.internal_tools_save_success') || 'Internal tools updated', 'success');
+                showToast(t('skills.internal_tools_save_success'), 'success');
                 closeInternalToolsModal();
                 await loadSkills();
             } else {
                 showToast(data.message || t('common.error'), 'error');
             }
         } catch (e) {
-            showToast(t('common.error') || 'Error', 'error');
+            showToast(t('common.error'), 'error');
         }
     }

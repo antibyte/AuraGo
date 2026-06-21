@@ -1065,7 +1065,7 @@
         const host = contentEl(id);
         if (!host) return;
         host.innerHTML = `<div class="vd-app-error">
-            <div class="vd-app-error-title">${esc(t('desktop.app_error_title', 'App failed to load'))}</div>
+            <div class="vd-app-error-title">${esc(t('desktop.app_error_title'))}</div>
             <div class="vd-app-error-message">${esc((err && err.message) || String(err || 'Error'))}</div>
         </div>`;
     }
@@ -2319,12 +2319,12 @@
         const petVisible = petEnabled();
         const petOnTop = petAlwaysOnTop();
         const items = [
-            { label: t('desktop.pet_open_picker', 'Choose pet...'), icon: 'heart', action: () => openApp('pet-picker') },
+            { label: t('desktop.pet_open_picker'), icon: 'heart', action: () => openApp('pet-picker') },
             { separator: true },
-            { label: t('desktop.pet_enabled', 'Show pet'), icon: petVisible ? 'check-square' : 'square', fallback: petVisible ? '\u2713' : '\u2610', action: toggleEnabled },
-            { label: t('desktop.pet_always_on_top', 'Always on top'), icon: petOnTop ? 'check-square' : 'square', fallback: petOnTop ? '\u2713' : '\u2610', action: toggleAlwaysOnTop },
+            { label: t('desktop.pet_enabled'), icon: petVisible ? 'check-square' : 'square', fallback: petVisible ? '\u2713' : '\u2610', action: toggleEnabled },
+            { label: t('desktop.pet_always_on_top'), icon: petOnTop ? 'check-square' : 'square', fallback: petOnTop ? '\u2713' : '\u2610', action: toggleAlwaysOnTop },
             { separator: true },
-            { label: t('desktop.pet_hide_bubble', 'Hide bubble'), icon: 'x', action: hideBubble }
+            { label: t('desktop.pet_hide_bubble'), icon: 'x', action: hideBubble }
         ];
         showContextMenu(event.clientX, event.clientY, items);
     }
@@ -2333,7 +2333,7 @@
         const next = !petEnabled();
         saveSetting('pet.enabled', String(next)).then(() => {
             loadPet();
-            if (next) showBubble(t('desktop.pet_hello', 'Hi there!'), 'info');
+            if (next) showBubble(t('desktop.pet_hello'), 'info');
         });
     }
 
@@ -3326,7 +3326,7 @@
 
         let html = '';
         if (recentApps.length > 0) {
-            html += `<div class="vd-start-recent-label">${esc(t('desktop.recent_apps', 'Recent'))}</div>`;
+            html += `<div class="vd-start-recent-label">${esc(t('desktop.recent_apps'))}</div>`;
             html += recentApps.map(app => `<button class="vd-start-item vd-start-recent-item" type="button" data-app-id="${esc(app.id)}">
                 ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
                 <span>${esc(appName(app))}${brokenAppLabel(app)}</span>
@@ -5437,7 +5437,7 @@ function wireWindow(win, id) {
         if ((state.bootstrap || {}).readonly) {
             showDesktopNotification({
                 title: t('desktop.notification'),
-                message: t('desktop.file_dialog_readonly', 'Read-only mode: saving and importing are disabled.')
+                message: t('desktop.file_dialog_readonly')
             });
             return;
         }
@@ -5841,7 +5841,7 @@ async function renderWidgetDrawerContent(drawer) {
     if (allWidgets.length === 0) {
         content.innerHTML = `
             <div style="padding: 24px 12px; color: var(--vd-muted); font-size: 13px; text-align: center;">
-                ${t('desktop.widget_drawer_empty', 'No widgets available.')}
+                ${t('desktop.widget_drawer_empty')}
             </div>
         `;
         drawer.appendChild(content);
@@ -5867,14 +5867,14 @@ async function renderWidgetDrawerContent(drawer) {
                     ${esc(widget.title || widget.id)}
                 </div>
                 <div style="font-size:11px; color:var(--vd-muted);">
-                    ${isBuiltin ? t('desktop.widget_builtin', 'Builtin') : t('desktop.widget_custom', 'Custom')}
-                    ${isVisible ? ' • ' + t('desktop.widget_on_desktop', 'On desktop') : ''}
+                    ${isBuiltin ? t('desktop.widget_builtin') : t('desktop.widget_custom')}
+                    ${isVisible ? ' • ' + t('desktop.widget_on_desktop') : ''}
                 </div>
             </div>
             <div>
                 <button type="button" class="vd-wm-btn" data-widget-action="${isVisible ? 'hide' : 'show'}" data-widget-id="${esc(widget.id)}"
                     style="font-size:11px; padding:4px 10px; min-width:72px;">
-                    ${isVisible ? t('desktop.widget_remove_from_desktop', 'Remove') : t('desktop.widget_add_to_desktop', 'Add')}
+                    ${isVisible ? t('desktop.widget_remove_from_desktop') : t('desktop.widget_add_to_desktop')}
                 </button>
             </div>
         `;
@@ -5904,8 +5904,8 @@ async function renderWidgetDrawerContent(drawer) {
                 });
                 btn.disabled = false;
                 btn.textContent = action === 'show'
-                    ? t('desktop.widget_add_to_desktop', 'Add')
-                    : t('desktop.widget_remove_from_desktop', 'Remove');
+                    ? t('desktop.widget_add_to_desktop')
+                    : t('desktop.widget_remove_from_desktop');
             }
         });
 
@@ -6063,7 +6063,7 @@ function updateTaskbarSystemButtonsForMobile() {
         }
         if (isDesktopEntry || kind === 'file') {
             if (kind === 'file') {
-                items.push({ separator: true }, { label: t('desktop.fm.add_to_chat', 'Add to chat'), icon: 'chat', fallback: 'A', action: () => desktopBatchFileEntries(btn).forEach(addFileContextToChat) }, { label: t('desktop.fm.ask_agent', 'Ask Agent'), icon: 'agent', fallback: 'Q', action: () => desktopBatchFileEntries(btn).forEach(askAgentAboutFile) });
+                items.push({ separator: true }, { label: t('desktop.fm.add_to_chat'), icon: 'chat', fallback: 'A', action: () => desktopBatchFileEntries(btn).forEach(addFileContextToChat) }, { label: t('desktop.fm.ask_agent'), icon: 'agent', fallback: 'Q', action: () => desktopBatchFileEntries(btn).forEach(askAgentAboutFile) });
             }
             items.push(
                 { separator: true },
@@ -7307,7 +7307,7 @@ if (appId === 'pixel') {
     }
 
     function agentTaskPrompt(entry, task) {
-        return desktopText('desktop.agent_task_prompt', 'Please work on {{path}}.\n\nTask:\n{{task}}')
+        return desktopText('desktop.agent_task_prompt')
             .replaceAll('{{path}}', entry.path || '')
             .replaceAll('{{name}}', entry.name || entry.path || '')
             .replaceAll('{{task}}', task || '');
@@ -7334,7 +7334,7 @@ if (appId === 'pixel') {
     function askAgentAboutFile(file) {
         const entry = chatFileContextFromEntry(file);
         if (!entry) return;
-        const prompt = desktopText('desktop.chat_ask_file_prompt', 'What should I know about {{name}}?')
+        const prompt = desktopText('desktop.chat_ask_file_prompt')
             .replaceAll('{{name}}', entry.name || entry.path);
         openApp('agent-chat', {
             chat_files: [entry],
@@ -7646,7 +7646,7 @@ if (appId === 'pixel') {
             <aside class="vd-settings-sidebar" aria-label="${esc(t('desktop.app_settings'))}">
                 <div class="vd-settings-sidebar-title">${esc(t('desktop.app_settings'))}</div>
                 <div class="vd-settings-search">
-                    <input type="search" class="vd-settings-search-input" placeholder="${esc(t('desktop.settings_search_placeholder', 'Search settings\u2026'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
+                    <input type="search" class="vd-settings-search-input" placeholder="${esc(t('desktop.settings_search_placeholder'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
                 </div>
                 ${sections.map(section => `<button type="button" class="vd-settings-nav ${section.id === active.id ? 'active' : ''}" data-section="${esc(section.id)}">
                     ${iconMarkup(section.icon, section.fallback || section.icon, 'vd-settings-nav-icon', 18)}<span>${esc(t(section.title))}</span>
@@ -10306,7 +10306,7 @@ if (appId === 'pixel') {
             host.innerHTML = `<div class="vd-store-frame-error">
                 <div class="vd-store-frame-error-title">${esc(appName(app))}</div>
                 <div class="vd-store-frame-error-msg">${esc(err.message)}</div>
-                <button type="button" class="vd-store-btn vd-store-primary" data-action="start">${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start', 'Start'))}</span></button>
+                <button type="button" class="vd-store-btn vd-store-primary" data-action="start">${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start'))}</span></button>
             </div>`;
             const start = host.querySelector('[data-action="start"]');
             if (start) {
@@ -10383,13 +10383,13 @@ if (appId === 'pixel') {
             if (window.StoreTerminalPreviewApp && typeof window.StoreTerminalPreviewApp.render === 'function') {
                 return window.StoreTerminalPreviewApp.render(id, app, storeAppId, storeTerminalPreviewDeps());
             }
-            throw new Error(t('desktop.store_terminal_module_unavailable', 'Terminal preview module is unavailable.'));
+            throw new Error(t('desktop.store_terminal_module_unavailable'));
         } catch (err) {
             if (!contentEl(id)) return;
             host.innerHTML = `<div class="vd-store-frame-error">
                 <div class="vd-store-frame-error-title">${esc(appName(app))}</div>
-                <div class="vd-store-frame-error-msg">${esc(err && err.message ? err.message : t('common.error', 'Error'))}</div>
-                <button type="button" class="vd-store-btn vd-store-primary" data-action="retry">${iconMarkup('refresh', 'R', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.retry', 'Retry'))}</span></button>
+                <div class="vd-store-frame-error-msg">${esc(err && err.message ? err.message : t('common.error'))}</div>
+                <button type="button" class="vd-store-btn vd-store-primary" data-action="retry">${iconMarkup('refresh', 'R', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.retry'))}</span></button>
             </div>`;
             const retry = host.querySelector('[data-action="retry"]');
             if (retry) retry.addEventListener('click', () => renderStoreTerminalPreviewApp(id, app, storeAppId));
@@ -10883,10 +10883,10 @@ if (appId === 'pixel') {
             dot.title = '';
         } else if (failed) {
             dot.dataset.state = 'offline';
-            dot.title = t('desktop.ws_connection_lost', 'Connection lost. Please refresh the page.');
+            dot.title = t('desktop.ws_connection_lost');
         } else {
             dot.dataset.state = 'reconnecting';
-            dot.title = t('desktop.ws_reconnecting', 'Reconnecting...');
+            dot.title = t('desktop.ws_reconnecting');
         }
     }
 
@@ -11042,7 +11042,7 @@ if (appId === 'pixel') {
         }, { once: true });
 
         const title = drawer.querySelector('.vd-widget-drawer-title');
-        title.textContent = t('desktop.widget_drawer_title', 'Widgets');
+        title.textContent = t('desktop.widget_drawer_title');
 
         renderWidgetDrawerContent(drawer);
     }

@@ -74,9 +74,9 @@ function showModal(title, message, isConfirm = false, options = {}) {
 
         if (titleEl) titleEl.textContent = title;
         if (msgEl) msgEl.textContent = message;
-        if (confirmBtn) confirmBtn.textContent = options.confirmText || t('common.btn_ok') || 'OK';
+        if (confirmBtn) confirmBtn.textContent = options.confirmText || t('common.btn_ok');
         if (cancelBtn) {
-            cancelBtn.textContent = options.cancelText || t('common.btn_cancel') || 'Cancel';
+            cancelBtn.textContent = options.cancelText || t('common.btn_cancel');
             cancelBtn.style.display = isConfirm ? 'inline-block' : 'none';
         }
 
@@ -138,11 +138,11 @@ function showModal(title, message, isConfirm = false, options = {}) {
 function showConfirm(title, message) {
     if (arguments.length === 1) {
         message = title;
-        title = t('common.confirm_title') || 'Confirm';
+        title = t('common.confirm_title');
     }
     return showModal(title, message, true, {
-        confirmText: t('common.btn_yes') || 'Yes',
-        cancelText: t('common.btn_no') || 'No'
+        confirmText: t('common.btn_yes'),
+        cancelText: t('common.btn_no')
     });
 }
 
@@ -155,9 +155,9 @@ function showConfirm(title, message) {
 function showAlert(title, message) {
     if (arguments.length === 1) {
         message = title;
-        title = t('common.alert_title') || 'Notice';
+        title = t('common.alert_title');
     }
-    return showModal(title, message, false, { confirmText: t('common.btn_ok') || 'OK' });
+    return showModal(title, message, false, { confirmText: t('common.btn_ok') });
 }
 
 function ensureHeadAsset(tagName, attrs) {
@@ -333,7 +333,7 @@ function injectRadialMenu() {
 
     anchor.innerHTML = `
     <nav class="radial-menu" id="radialMenu">
-        <button class="radial-trigger" id="radialTrigger" aria-label="${t('common.nav_aria_label') || 'Navigation'}">
+        <button class="radial-trigger" id="radialTrigger" aria-label="${t('common.nav_aria_label')}">
             <div class="radial-icon"><span></span><span></span><span></span></div>
         </button>
         <div class="radial-items">
@@ -979,7 +979,7 @@ function timeAgo(date) {
     const then = new Date(date);
     const seconds = Math.floor((now - then) / 1000);
 
-    if (seconds < 60) return t('common.time_ago_just_now') || 'just now';
+    if (seconds < 60) return t('common.time_ago_just_now');
     if (seconds < 3600) return t('common.time_ago_minutes', {n: Math.floor(seconds / 60)}) || (Math.floor(seconds / 60) + 'm ago');
     if (seconds < 86400) return t('common.time_ago_hours', {n: Math.floor(seconds / 3600)}) || (Math.floor(seconds / 3600) + 'h ago');
     return t('common.time_ago_days', {n: Math.floor(seconds / 86400)}) || (Math.floor(seconds / 86400) + 'd ago');
@@ -1007,10 +1007,10 @@ function debounce(fn, delay) {
 async function copyToClipboard(text) {
     try {
         await navigator.clipboard.writeText(text);
-        showToast(t('common.clipboard_copied') || 'Copied to clipboard', 'success');
+        showToast(t('common.clipboard_copied'), 'success');
         return true;
     } catch (err) {
-        showToast(t('common.clipboard_failed') || 'Failed to copy', 'error');
+        showToast(t('common.clipboard_failed'), 'error');
         return false;
     }
 }
@@ -1136,11 +1136,11 @@ function injectLanguageSwitcher() {
                 window.location.reload();
             } else {
                 const err = await resp.text();
-                showToast((t('common.language_update_failed') || 'Failed to update UI language') + ': ' + err, 'error');
+                showToast((t('common.language_update_failed')) + ': ' + err, 'error');
             }
         } catch (err) {
             console.error('Failed to update UI language:', err);
-            showToast(t('common.server_connection_failed') || 'Failed to connect to server', 'error');
+            showToast(t('common.server_connection_failed'), 'error');
         }
     });
 }

@@ -62,7 +62,7 @@
             }).catch(() => {
                 if (!_apiErrorShown && typeof showToast === 'function') {
                     _apiErrorShown = true;
-                    showToast(t('dashboard.api_error') || 'Dashboard data could not be loaded', 'error', 5000);
+                    showToast(t('dashboard.api_error'), 'error', 5000);
                     setTimeout(() => { _apiErrorShown = false; }, 15000);
                 }
                 return null;

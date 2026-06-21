@@ -293,10 +293,10 @@
             dot.title = '';
         } else if (failed) {
             dot.dataset.state = 'offline';
-            dot.title = t('desktop.ws_connection_lost', 'Connection lost. Please refresh the page.');
+            dot.title = t('desktop.ws_connection_lost');
         } else {
             dot.dataset.state = 'reconnecting';
-            dot.title = t('desktop.ws_reconnecting', 'Reconnecting...');
+            dot.title = t('desktop.ws_reconnecting');
         }
     }
 
@@ -452,7 +452,7 @@
         }, { once: true });
 
         const title = drawer.querySelector('.vd-widget-drawer-title');
-        title.textContent = t('desktop.widget_drawer_title', 'Widgets');
+        title.textContent = t('desktop.widget_drawer_title');
 
         renderWidgetDrawerContent(drawer);
     }

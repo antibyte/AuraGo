@@ -155,7 +155,7 @@
         if ((state.bootstrap || {}).readonly) {
             showDesktopNotification({
                 title: t('desktop.notification'),
-                message: t('desktop.file_dialog_readonly', 'Read-only mode: saving and importing are disabled.')
+                message: t('desktop.file_dialog_readonly')
             });
             return;
         }

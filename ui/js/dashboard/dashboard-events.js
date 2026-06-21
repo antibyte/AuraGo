@@ -88,7 +88,7 @@
                 if (_sseReconnectTimer) return; // Already pending
                 _sseReconnectTimer = setTimeout(function () {
                     _sseReconnectTimer = null;
-                    showSSEBanner('⚠ ' + (t('dashboard.sse_reconnecting') || 'Reconnecting…'));
+                    showSSEBanner('⚠ ' + (t('dashboard.sse_reconnecting')));
                 }, 3000);
                 // Also check auth status after a longer delay
                 if (_sseReconnectTimeout) clearTimeout(_sseReconnectTimeout);

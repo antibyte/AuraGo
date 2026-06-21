@@ -32,13 +32,13 @@
     <link href="/fonts/fonts.css" rel="stylesheet">
 </head>
 <body>
-    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content">Skip to content</a>
+    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <header class="app-header">
         <div class="header-left">
             <a href="/" class="logo">
                 <div class="logo-icon">🥚</div>
                 <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-                <span class="logo-subtitle" data-i18n="knowledge.subtitle">Knowledge Center</span>
+                <span class="logo-subtitle" data-i18n="knowledge.subtitle"></span>
             </a>
         </div>
         <div class="header-actions">
@@ -88,10 +88,10 @@
             <div class="kc-panel-header">
                 <div class="kc-search-row">
                     <input type="text" id="contacts-search" class="kc-search"
-                        placeholder="Search contacts..." data-i18n-placeholder="knowledge.contacts_search_placeholder"
+                        placeholder="" data-i18n-placeholder="knowledge.contacts_search_placeholder"
                         oninput="debounceContactSearch()">
                     <button class="btn btn-primary" onclick="openContactModal()">
-                        <span>+</span> <span data-i18n="knowledge.contacts_add">Add Contact</span>
+                        <span>+</span> <span data-i18n="knowledge.contacts_add"></span>
                     </button>
                 </div>
             </div>
@@ -99,12 +99,12 @@
                 <table class="kc-table" id="contacts-table">
                     <thead>
                         <tr>
-                            <th data-sort-col="name" data-sort-type="string" data-i18n="knowledge.col_name">Name</th>
-                            <th data-sort-col="email" data-sort-type="string" data-i18n="knowledge.col_email">Email</th>
-                            <th data-sort-col="phone" data-sort-type="string" data-i18n="knowledge.col_phone">Phone</th>
-                            <th data-sort-col="mobile" data-sort-type="string" data-i18n="knowledge.col_mobile">Mobile</th>
-                            <th data-sort-col="relationship" data-sort-type="string" data-i18n="knowledge.col_relationship">Relationship</th>
-                            <th data-i18n="knowledge.col_actions">Actions</th>
+                            <th data-sort-col="name" data-sort-type="string" data-i18n="knowledge.col_name"></th>
+                            <th data-sort-col="email" data-sort-type="string" data-i18n="knowledge.col_email"></th>
+                            <th data-sort-col="phone" data-sort-type="string" data-i18n="knowledge.col_phone"></th>
+                            <th data-sort-col="mobile" data-sort-type="string" data-i18n="knowledge.col_mobile"></th>
+                            <th data-sort-col="relationship" data-sort-type="string" data-i18n="knowledge.col_relationship"></th>
+                            <th data-i18n="knowledge.col_actions"></th>
                         </tr>
                     </thead>
                     <tbody id="contacts-tbody"></tbody>
@@ -112,9 +112,9 @@
             </div>
             <div class="empty-state is-hidden" id="contacts-empty">
                 <div class="empty-icon">📇</div>
-                <h3 data-i18n="knowledge.contacts_empty_title">No Contacts Yet</h3>
-                <p data-i18n="knowledge.contacts_empty_desc">Add contacts to your address book.</p>
-                <button class="btn btn-primary kc-empty-cta" onclick="openContactModal()" data-i18n="knowledge.contacts_add">Add Contact</button>
+                <h3 data-i18n="knowledge.contacts_empty_title"></h3>
+                <p data-i18n="knowledge.contacts_empty_desc"></p>
+                <button class="btn btn-primary kc-empty-cta" onclick="openContactModal()" data-i18n="knowledge.contacts_add"></button>
             </div>
         </div>
 
@@ -123,10 +123,10 @@
             <div class="kc-panel-header">
                 <div class="kc-search-row">
                     <input type="text" id="files-search" class="kc-search"
-                        placeholder="Filter files..." data-i18n-placeholder="knowledge.files_search_placeholder"
+                        placeholder="" data-i18n-placeholder="knowledge.files_search_placeholder"
                         oninput="filterFiles()">
                     <label class="btn btn-primary kc-upload-btn">
-                        <span>⬆</span> <span data-i18n="knowledge.files_upload">Upload File</span>
+                        <span>⬆</span> <span data-i18n="knowledge.files_upload"></span>
                         <input type="file" id="file-upload-input" class="is-hidden" multiple onchange="uploadFiles(this)">
                     </label>
                 </div>
@@ -134,17 +134,17 @@
             <div class="kc-drop-zone" id="files-drop-zone">
                 <div class="kc-drop-zone-content">
                     <div class="kc-drop-zone-icon">⬆</div>
-                    <p data-i18n="knowledge.files_drop_here">Drop files here to upload</p>
+                    <p data-i18n="knowledge.files_drop_here"></p>
                 </div>
             </div>
             <div class="kc-table-wrap">
                 <table class="kc-table" id="files-table">
                     <thead>
                         <tr>
-                            <th data-sort-col="name" data-sort-type="string" data-i18n="knowledge.col_filename">Filename</th>
-                            <th data-sort-col="size" data-sort-type="number" data-i18n="knowledge.col_size">Size</th>
-                            <th data-sort-col="modified" data-sort-type="date" data-i18n="knowledge.col_modified">Modified</th>
-                            <th data-i18n="knowledge.col_actions">Actions</th>
+                            <th data-sort-col="name" data-sort-type="string" data-i18n="knowledge.col_filename"></th>
+                            <th data-sort-col="size" data-sort-type="number" data-i18n="knowledge.col_size"></th>
+                            <th data-sort-col="modified" data-sort-type="date" data-i18n="knowledge.col_modified"></th>
+                            <th data-i18n="knowledge.col_actions"></th>
                         </tr>
                     </thead>
                     <tbody id="files-tbody"></tbody>
@@ -152,10 +152,10 @@
             </div>
             <div class="empty-state is-hidden" id="files-empty">
                 <div class="empty-icon">📂</div>
-                <h3 data-i18n="knowledge.files_empty_title">No Knowledge Files</h3>
-                <p data-i18n="knowledge.files_empty_desc">Upload files to the knowledge directory.</p>
+                <h3 data-i18n="knowledge.files_empty_title"></h3>
+                <p data-i18n="knowledge.files_empty_desc"></p>
                 <label class="btn btn-primary kc-empty-cta">
-                    <span data-i18n="knowledge.files_upload">Upload File</span>
+                    <span data-i18n="knowledge.files_upload"></span>
                     <input type="file" id="file-upload-input-empty" class="is-hidden" multiple onchange="uploadFiles(this)">
                 </label>
             </div>
@@ -166,10 +166,10 @@
             <div class="kc-panel-header">
                 <div class="kc-search-row">
                     <input type="text" id="devices-search" class="kc-search"
-                        placeholder="Filter devices..." data-i18n-placeholder="knowledge.devices_search_placeholder"
+                        placeholder="" data-i18n-placeholder="knowledge.devices_search_placeholder"
                         oninput="filterDevices()">
                     <button class="btn btn-primary" onclick="openDeviceModal()">
-                        <span>+</span> <span data-i18n="knowledge.devices_add">Add Device</span>
+                        <span>+</span> <span data-i18n="knowledge.devices_add"></span>
                     </button>
                 </div>
             </div>
@@ -177,14 +177,14 @@
                 <table class="kc-table" id="devices-table">
                     <thead>
                         <tr>
-                            <th data-sort-col="name" data-sort-type="string" data-i18n="knowledge.devices_col_name">Name</th>
-                            <th data-sort-col="type" data-sort-type="string" data-i18n="knowledge.devices_col_type">Type</th>
-                            <th data-sort-col="ip_address" data-sort-type="string" data-i18n="knowledge.devices_col_ip">IP</th>
-                            <th data-sort-col="port" data-sort-type="number" data-i18n="knowledge.devices_col_port">Port</th>
-                            <th data-sort-col="access" data-sort-type="string" data-i18n="knowledge.devices_col_access">Access</th>
-                            <th data-sort-col="mac_address" data-sort-type="string" data-i18n="knowledge.devices_col_mac">MAC</th>
-                            <th data-i18n="knowledge.devices_col_tags">Tags</th>
-                            <th data-i18n="knowledge.col_actions">Actions</th>
+                            <th data-sort-col="name" data-sort-type="string" data-i18n="knowledge.devices_col_name"></th>
+                            <th data-sort-col="type" data-sort-type="string" data-i18n="knowledge.devices_col_type"></th>
+                            <th data-sort-col="ip_address" data-sort-type="string" data-i18n="knowledge.devices_col_ip"></th>
+                            <th data-sort-col="port" data-sort-type="number" data-i18n="knowledge.devices_col_port"></th>
+                            <th data-sort-col="access" data-sort-type="string" data-i18n="knowledge.devices_col_access"></th>
+                            <th data-sort-col="mac_address" data-sort-type="string" data-i18n="knowledge.devices_col_mac"></th>
+                            <th data-i18n="knowledge.devices_col_tags"></th>
+                            <th data-i18n="knowledge.col_actions"></th>
                         </tr>
                     </thead>
                     <tbody id="devices-tbody"></tbody>
@@ -192,9 +192,9 @@
             </div>
             <div class="empty-state" id="devices-empty" style="display:none;">
                 <div class="empty-icon">📱</div>
-                <h3 data-i18n="knowledge.devices_empty_title">No Devices Registered</h3>
-                <p data-i18n="knowledge.devices_empty_desc">Add devices to your device registry.</p>
-                <button class="btn btn-primary kc-empty-cta" onclick="openDeviceModal()" data-i18n="knowledge.devices_add">Add Device</button>
+                <h3 data-i18n="knowledge.devices_empty_title"></h3>
+                <p data-i18n="knowledge.devices_empty_desc"></p>
+                <button class="btn btn-primary kc-empty-cta" onclick="openDeviceModal()" data-i18n="knowledge.devices_add"></button>
             </div>
         </div>
 
@@ -203,10 +203,10 @@
             <div class="kc-panel-header">
                 <div class="kc-search-row">
                     <input type="text" id="credentials-search" class="kc-search"
-                        placeholder="Filter access credentials..." data-i18n-placeholder="knowledge.credentials_search_placeholder"
+                        placeholder="" data-i18n-placeholder="knowledge.credentials_search_placeholder"
                         oninput="filterCredentials()">
                     <button class="btn btn-primary" onclick="openCredentialModal()">
-                        <span>+</span> <span data-i18n="knowledge.credentials_add">Add Access Credential</span>
+                        <span>+</span> <span data-i18n="knowledge.credentials_add"></span>
                     </button>
                 </div>
             </div>
@@ -214,14 +214,14 @@
                 <table class="kc-table" id="credentials-table">
                     <thead>
                         <tr>
-                            <th data-sort-col="name" data-sort-type="string" data-i18n="knowledge.credentials_col_name">Name</th>
-                            <th data-sort-col="type" data-sort-type="string" data-i18n="knowledge.credentials_col_type">Type</th>
-                            <th data-sort-col="host" data-sort-type="string" data-i18n="knowledge.credentials_col_host">Host / IP</th>
-                            <th data-sort-col="username" data-sort-type="string" data-i18n="knowledge.credentials_col_username">Username</th>
-                            <th data-i18n="knowledge.credentials_col_password">Password</th>
-                            <th data-i18n="knowledge.credentials_col_certificate">Certificate</th>
-                            <th data-i18n="knowledge.credentials_col_python">Python</th>
-                            <th data-i18n="knowledge.col_actions">Actions</th>
+                            <th data-sort-col="name" data-sort-type="string" data-i18n="knowledge.credentials_col_name"></th>
+                            <th data-sort-col="type" data-sort-type="string" data-i18n="knowledge.credentials_col_type"></th>
+                            <th data-sort-col="host" data-sort-type="string" data-i18n="knowledge.credentials_col_host"></th>
+                            <th data-sort-col="username" data-sort-type="string" data-i18n="knowledge.credentials_col_username"></th>
+                            <th data-i18n="knowledge.credentials_col_password"></th>
+                            <th data-i18n="knowledge.credentials_col_certificate"></th>
+                            <th data-i18n="knowledge.credentials_col_python"></th>
+                            <th data-i18n="knowledge.col_actions"></th>
                         </tr>
                     </thead>
                     <tbody id="credentials-tbody"></tbody>
@@ -229,9 +229,9 @@
             </div>
             <div class="empty-state is-hidden" id="credentials-empty">
                 <div class="empty-icon">🔑</div>
-                <h3 data-i18n="knowledge.credentials_empty_title">No Access Credentials Yet</h3>
-                <p data-i18n="knowledge.credentials_empty_desc">Store SSH access data with vault-backed secrets.</p>
-                <button class="btn btn-primary kc-empty-cta" onclick="openCredentialModal()" data-i18n="knowledge.credentials_add">Add Access Credential</button>
+                <h3 data-i18n="knowledge.credentials_empty_title"></h3>
+                <p data-i18n="knowledge.credentials_empty_desc"></p>
+                <button class="btn btn-primary kc-empty-cta" onclick="openCredentialModal()" data-i18n="knowledge.credentials_add"></button>
             </div>
         </div>
 
@@ -245,26 +245,26 @@
             <div class="kc-panel-header">
                 <div class="kc-search-row">
                     <input type="text" id="appointments-search" class="kc-search"
-                        placeholder="Search appointments..." data-i18n-placeholder="knowledge.appointments_search_placeholder"
+                        placeholder="" data-i18n-placeholder="knowledge.appointments_search_placeholder"
                         oninput="debounceAppointmentSearch()">
                     <select id="appointments-filter" class="kc-filter-select" onchange="loadAppointments()">
-                        <option value="" data-i18n="knowledge.appointments_filter_all">All</option>
-                        <option value="upcoming" data-i18n="knowledge.appointments_filter_upcoming">Upcoming</option>
-                        <option value="overdue" data-i18n="knowledge.appointments_filter_overdue">Overdue</option>
-                        <option value="completed" data-i18n="knowledge.appointments_filter_completed">Completed</option>
-                        <option value="cancelled" data-i18n="knowledge.appointments_filter_cancelled">Cancelled</option>
+                        <option value="" data-i18n="knowledge.appointments_filter_all"></option>
+                        <option value="upcoming" data-i18n="knowledge.appointments_filter_upcoming"></option>
+                        <option value="overdue" data-i18n="knowledge.appointments_filter_overdue"></option>
+                        <option value="completed" data-i18n="knowledge.appointments_filter_completed"></option>
+                        <option value="cancelled" data-i18n="knowledge.appointments_filter_cancelled"></option>
                     </select>
                     <button class="btn btn-primary" onclick="openAppointmentModal()">
-                        <span>+</span> <span data-i18n="knowledge.appointments_add">New Appointment</span>
+                        <span>+</span> <span data-i18n="knowledge.appointments_add"></span>
                     </button>
                 </div>
             </div>
             <div id="appointments-list" class="kc-cards"></div>
             <div class="empty-state is-hidden" id="appointments-empty">
                 <div class="empty-icon">📅</div>
-                <h3 data-i18n="knowledge.appointments_empty_title">No Appointments</h3>
-                <p data-i18n="knowledge.appointments_empty_desc">Create your first appointment to get started.</p>
-                <button class="btn btn-primary kc-empty-cta" onclick="openAppointmentModal()" data-i18n="knowledge.appointments_add">New Appointment</button>
+                <h3 data-i18n="knowledge.appointments_empty_title"></h3>
+                <p data-i18n="knowledge.appointments_empty_desc"></p>
+                <button class="btn btn-primary kc-empty-cta" onclick="openAppointmentModal()" data-i18n="knowledge.appointments_add"></button>
             </div>
         </div>
 
@@ -273,16 +273,16 @@
             <div class="kc-panel-header">
                 <div class="kc-search-row">
                     <input type="text" id="todos-search" class="kc-search"
-                        placeholder="Search to-dos..." data-i18n-placeholder="knowledge.todos_search_placeholder"
+                        placeholder="" data-i18n-placeholder="knowledge.todos_search_placeholder"
                         oninput="debounceTodoSearch()">
                     <select id="todos-filter" class="kc-filter-select" onchange="loadTodos()">
-                        <option value="" data-i18n="knowledge.todos_filter_all">All</option>
-                        <option value="open" data-i18n="knowledge.todos_filter_open">Open</option>
-                        <option value="in_progress" data-i18n="knowledge.todos_filter_in_progress">In Progress</option>
-                        <option value="done" data-i18n="knowledge.todos_filter_done">Done</option>
+                        <option value="" data-i18n="knowledge.todos_filter_all"></option>
+                        <option value="open" data-i18n="knowledge.todos_filter_open"></option>
+                        <option value="in_progress" data-i18n="knowledge.todos_filter_in_progress"></option>
+                        <option value="done" data-i18n="knowledge.todos_filter_done"></option>
                     </select>
                     <button class="btn btn-primary" onclick="openTodoModal()">
-                        <span>+</span> <span data-i18n="knowledge.todos_add">New To-Do</span>
+                        <span>+</span> <span data-i18n="knowledge.todos_add"></span>
                     </button>
                 </div>
             </div>
@@ -290,9 +290,9 @@
             <div id="todos-list" class="kc-todo-list"></div>
             <div class="empty-state is-hidden" id="todos-empty">
                 <div class="empty-icon">✅</div>
-                <h3 data-i18n="knowledge.todos_empty_title">No To-Dos</h3>
-                <p data-i18n="knowledge.todos_empty_desc">Create your first to-do to get started.</p>
-                <button class="btn btn-primary kc-empty-cta" onclick="openTodoModal()" data-i18n="knowledge.todos_add">New To-Do</button>
+                <h3 data-i18n="knowledge.todos_empty_title"></h3>
+                <p data-i18n="knowledge.todos_empty_desc"></p>
+                <button class="btn btn-primary kc-empty-cta" onclick="openTodoModal()" data-i18n="knowledge.todos_add"></button>
             </div>
         </div>
     </div>
@@ -301,18 +301,18 @@
     <div class="modal-overlay" id="device-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 id="device-modal-title" data-i18n="knowledge.devices_add">Add Device</h2>
+                <h2 id="device-modal-title" data-i18n="knowledge.devices_add"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('device-modal')">&times;</button>
             </div>
             <input type="hidden" id="device-id">
             <div class="form-group">
-                <label data-i18n="knowledge.devices_col_name">Name</label>
+                <label data-i18n="knowledge.devices_col_name"></label>
                 <input type="text" id="device-name" maxlength="200" required
-                    placeholder="e.g. Web Server" data-i18n-placeholder="knowledge.devices_name_placeholder">
+                    placeholder="" data-i18n-placeholder="knowledge.devices_name_placeholder">
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label data-i18n="knowledge.devices_type_label">Type</label>
+                    <label data-i18n="knowledge.devices_type_label"></label>
                     <select id="device-type">
                         <option value="server">Server</option>
                         <option value="router">Router</option>
@@ -333,32 +333,32 @@
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label data-i18n="knowledge.devices_ip_address">IP Address</label>
+                    <label data-i18n="knowledge.devices_ip_address"></label>
                     <input type="text" id="device-ip" maxlength="200" placeholder="192.168.1.100">
                 </div>
                 <div class="form-group">
-                    <label data-i18n="knowledge.devices_access_label">Access Credential</label>
+                    <label data-i18n="knowledge.devices_access_label"></label>
                     <select id="device-credential"></select>
                 </div>
             </div>
             <div class="form-group">
-                <label data-i18n="knowledge.devices_description">Description</label>
+                <label data-i18n="knowledge.devices_description"></label>
                 <input type="text" id="device-description" maxlength="500"
-                    placeholder="Optional description..." data-i18n-placeholder="knowledge.devices_desc_placeholder">
+                    placeholder="" data-i18n-placeholder="knowledge.devices_desc_placeholder">
             </div>
             <div class="form-group">
-                <label><span data-i18n="knowledge.devices_mac_address">MAC Address</span>
-                    <small class="form-hint" data-i18n="knowledge.devices_mac_hint">(optional, required for Wake-on-LAN)</small></label>
+                <label><span data-i18n="knowledge.devices_mac_address"></span>
+                    <small class="form-hint" data-i18n="knowledge.devices_mac_hint"></small></label>
                 <input type="text" id="device-mac" maxlength="17" placeholder="AA:BB:CC:DD:EE:FF">
             </div>
             <div class="form-group">
-                <label>Tags <small class="form-hint" data-i18n="knowledge.devices_tags_hint">(comma-separated)</small></label>
+                <label>Tags <small class="form-hint" data-i18n="knowledge.devices_tags_hint"></small></label>
                 <input type="text" id="device-tags" maxlength="500"
-                    placeholder="e.g. production, linux, docker" data-i18n-placeholder="knowledge.devices_tags_placeholder">
+                    placeholder="" data-i18n-placeholder="knowledge.devices_tags_placeholder">
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('device-modal')" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-primary" onclick="saveDevice()" data-i18n="common.btn_save">Save</button>
+                <button class="btn btn-secondary" onclick="closeModal('device-modal')" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-primary" onclick="saveDevice()" data-i18n="common.btn_save"></button>
             </div>
         </div>
     </div>
@@ -367,46 +367,46 @@
     <div class="modal-overlay" id="contact-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 id="contact-modal-title" data-i18n="knowledge.contacts_add">Add Contact</h2>
+                <h2 id="contact-modal-title" data-i18n="knowledge.contacts_add"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('contact-modal')">&times;</button>
             </div>
             <input type="hidden" id="contact-id">
             <div class="form-group">
-                <label data-i18n="knowledge.col_name">Name</label>
+                <label data-i18n="knowledge.col_name"></label>
                 <input type="text" id="contact-name" maxlength="200" required>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label data-i18n="knowledge.col_email">Email</label>
+                    <label data-i18n="knowledge.col_email"></label>
                     <input type="email" id="contact-email" maxlength="200">
                 </div>
                 <div class="form-group">
-                    <label data-i18n="knowledge.col_relationship">Relationship</label>
+                    <label data-i18n="knowledge.col_relationship"></label>
                     <input type="text" id="contact-relationship" maxlength="100"
-                        placeholder="e.g. friend, colleague" data-i18n-placeholder="knowledge.relationship_placeholder">
+                        placeholder="" data-i18n-placeholder="knowledge.relationship_placeholder">
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label data-i18n="knowledge.col_phone">Phone</label>
+                    <label data-i18n="knowledge.col_phone"></label>
                     <input type="tel" id="contact-phone" maxlength="50">
                 </div>
                 <div class="form-group">
-                    <label data-i18n="knowledge.col_mobile">Mobile</label>
+                    <label data-i18n="knowledge.col_mobile"></label>
                     <input type="tel" id="contact-mobile" maxlength="50">
                 </div>
             </div>
             <div class="form-group">
-                <label data-i18n="knowledge.col_address">Address</label>
+                <label data-i18n="knowledge.col_address"></label>
                 <textarea id="contact-address" rows="2" maxlength="500"></textarea>
             </div>
             <div class="form-group">
-                <label data-i18n="knowledge.col_notes">Notes</label>
+                <label data-i18n="knowledge.col_notes"></label>
                 <textarea id="contact-notes" rows="2" maxlength="1000"></textarea>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('contact-modal')" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-primary" onclick="saveContact()" data-i18n="common.btn_save">Save</button>
+                <button class="btn btn-secondary" onclick="closeModal('contact-modal')" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-primary" onclick="saveContact()" data-i18n="common.btn_save"></button>
             </div>
         </div>
     </div>
@@ -415,74 +415,74 @@
     <div class="modal-overlay" id="credential-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 id="credential-modal-title" data-i18n="knowledge.credentials_add">Add Access Credential</h2>
+                <h2 id="credential-modal-title" data-i18n="knowledge.credentials_add"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('credential-modal')">&times;</button>
             </div>
             <input type="hidden" id="credential-id">
             <div class="form-group">
-                <label data-i18n="knowledge.credentials_col_name">Name</label>
+                <label data-i18n="knowledge.credentials_col_name"></label>
                 <input type="text" id="credential-name" maxlength="200" required
-                    placeholder="e.g. Proxmox SSH" data-i18n-placeholder="knowledge.credentials_name_placeholder">
+                    placeholder="" data-i18n-placeholder="knowledge.credentials_name_placeholder">
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label data-i18n="knowledge.credentials_type_label">Type</label>
+                    <label data-i18n="knowledge.credentials_type_label"></label>
                     <select id="credential-type" onchange="updateCredentialTypeFields()">
-                        <option value="ssh" data-i18n="knowledge.credentials_type_ssh">SSH</option>
-                        <option value="login" data-i18n="knowledge.credentials_type_login">Login</option>
-                        <option value="token" data-i18n="knowledge.credentials_type_token">Token / Key</option>
+                        <option value="ssh" data-i18n="knowledge.credentials_type_ssh"></option>
+                        <option value="login" data-i18n="knowledge.credentials_type_login"></option>
+                        <option value="token" data-i18n="knowledge.credentials_type_token"></option>
                     </select>
                 </div>
                 <div class="form-group" id="credential-host-group">
-                    <label id="credential-host-label" data-i18n="knowledge.credentials_host_label">Host / IP</label>
+                    <label id="credential-host-label" data-i18n="knowledge.credentials_host_label"></label>
                     <input type="text" id="credential-host" maxlength="200"
-                        placeholder="192.168.1.50" data-i18n-placeholder="knowledge.credentials_host_placeholder">
-                    <small class="form-hint is-hidden" id="credential-host-hint" data-i18n="knowledge.credentials_host_optional_hint">Optional for this credential type</small>
+                        placeholder="" data-i18n-placeholder="knowledge.credentials_host_placeholder">
+                    <small class="form-hint is-hidden" id="credential-host-hint" data-i18n="knowledge.credentials_host_optional_hint"></small>
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label data-i18n="knowledge.credentials_username_label">Username</label>
+                    <label data-i18n="knowledge.credentials_username_label"></label>
                     <input type="text" id="credential-username" maxlength="200"
-                        placeholder="root" data-i18n-placeholder="knowledge.credentials_username_placeholder">
+                        placeholder="" data-i18n-placeholder="knowledge.credentials_username_placeholder">
                 </div>
                 <div class="form-group" id="credential-password-group">
-                    <label data-i18n="knowledge.credentials_password_label">Password</label>
+                    <label data-i18n="knowledge.credentials_password_label"></label>
                     <input type="password" id="credential-password" maxlength="1000"
-                        placeholder="Optional - stored only in vault" data-i18n-placeholder="knowledge.credentials_password_placeholder">
-                    <div class="kc-secret-state is-hidden" id="credential-password-state" data-i18n="knowledge.credentials_password_stored">Password already stored in vault.</div>
+                        placeholder="" data-i18n-placeholder="knowledge.credentials_password_placeholder">
+                    <div class="kc-secret-state is-hidden" id="credential-password-state" data-i18n="knowledge.credentials_password_stored"></div>
                 </div>
             </div>
             <div class="form-group is-hidden" id="credential-token-group">
-                <label data-i18n="knowledge.credentials_token_label">Token / API Key</label>
+                <label data-i18n="knowledge.credentials_token_label"></label>
                 <input type="password" id="credential-token" maxlength="2000"
-                    placeholder="Paste token or API key here..." data-i18n-placeholder="knowledge.credentials_token_placeholder">
-                <div class="kc-secret-state is-hidden" id="credential-token-state" data-i18n="knowledge.credentials_token_stored">Token already stored in vault.</div>
+                    placeholder="" data-i18n-placeholder="knowledge.credentials_token_placeholder">
+                <div class="kc-secret-state is-hidden" id="credential-token-state" data-i18n="knowledge.credentials_token_stored"></div>
             </div>
             <div id="credential-certificate-section">
                 <div class="form-group">
-                    <label data-i18n="knowledge.credentials_certificate_mode_label">Certificate Input</label>
+                    <label data-i18n="knowledge.credentials_certificate_mode_label"></label>
                     <select id="credential-certificate-mode" onchange="updateCredentialCertificateMode()">
-                        <option value="text" data-i18n="knowledge.credentials_certificate_mode_text">Paste as text</option>
-                        <option value="upload" data-i18n="knowledge.credentials_certificate_mode_upload">Upload file</option>
+                        <option value="text" data-i18n="knowledge.credentials_certificate_mode_text"></option>
+                        <option value="upload" data-i18n="knowledge.credentials_certificate_mode_upload"></option>
                     </select>
                 </div>
                 <div class="form-group" id="credential-certificate-text-group">
-                    <label data-i18n="knowledge.credentials_certificate_label">Certificate</label>
+                    <label data-i18n="knowledge.credentials_certificate_label"></label>
                     <textarea id="credential-certificate-text" rows="5"
-                        placeholder="Paste PEM/private key/certificate text here..." data-i18n-placeholder="knowledge.credentials_certificate_text_placeholder"></textarea>
+                        placeholder="" data-i18n-placeholder="knowledge.credentials_certificate_text_placeholder"></textarea>
                 </div>
                 <div class="form-group is-hidden" id="credential-certificate-file-group">
-                    <label data-i18n="knowledge.credentials_certificate_upload">Upload Certificate File</label>
+                    <label data-i18n="knowledge.credentials_certificate_upload"></label>
                     <input type="file" id="credential-certificate-file" accept=".pem,.key,.pub,.crt,.cer,.txt" onchange="handleCredentialCertificateUpload(event)">
                     <div class="kc-upload-state" id="credential-certificate-file-state"></div>
                 </div>
-                <div class="kc-secret-state is-hidden" id="credential-certificate-state" data-i18n="knowledge.credentials_certificate_stored">Certificate already stored in vault.</div>
+                <div class="kc-secret-state is-hidden" id="credential-certificate-state" data-i18n="knowledge.credentials_certificate_stored"></div>
             </div>
             <div class="form-group">
-                <label data-i18n="knowledge.credentials_description">Description</label>
+                <label data-i18n="knowledge.credentials_description"></label>
                 <input type="text" id="credential-description" maxlength="500"
-                    placeholder="Optional notes..." data-i18n-placeholder="knowledge.credentials_desc_placeholder">
+                    placeholder="" data-i18n-placeholder="knowledge.credentials_desc_placeholder">
             </div>
             <div class="form-group">
                 <div class="toggle-wrap">
@@ -490,13 +490,13 @@
                         <input type="checkbox" id="credential-allow-python">
                         <span class="slider"></span>
                     </label>
-                    <span class="toggle-label" data-i18n="knowledge.credentials_allow_python">Allow use in Python tools</span>
+                    <span class="toggle-label" data-i18n="knowledge.credentials_allow_python"></span>
                 </div>
-                <small class="form-hint" data-i18n="knowledge.credentials_allow_python_hint">When enabled, the agent can inject these credentials as environment variables into Python scripts.</small>
+                <small class="form-hint" data-i18n="knowledge.credentials_allow_python_hint"></small>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('credential-modal')" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-primary" onclick="saveCredential()" data-i18n="common.btn_save">Save</button>
+                <button class="btn btn-secondary" onclick="closeModal('credential-modal')" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-primary" onclick="saveCredential()" data-i18n="common.btn_save"></button>
             </div>
         </div>
     </div>
@@ -505,19 +505,19 @@
     <div class="modal-overlay" id="appointment-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 id="appointment-modal-title" data-i18n="knowledge.appointments_add">New Appointment</h2>
+                <h2 id="appointment-modal-title" data-i18n="knowledge.appointments_add"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('appointment-modal')">&times;</button>
             </div>
             <input type="hidden" id="appointment-id">
             <div class="form-group">
-                <label data-i18n="knowledge.appointments_title_label">Title</label>
+                <label data-i18n="knowledge.appointments_title_label"></label>
                 <input type="text" id="appointment-title" maxlength="200" required
-                    placeholder="e.g. Team Meeting" data-i18n-placeholder="knowledge.appointments_title_placeholder">
+                    placeholder="" data-i18n-placeholder="knowledge.appointments_title_placeholder">
             </div>
             <div class="form-group">
-                <label data-i18n="knowledge.appointments_desc_label">Description</label>
+                <label data-i18n="knowledge.appointments_desc_label"></label>
                 <textarea id="appointment-description" rows="3"
-                    placeholder="Optional description..." data-i18n-placeholder="knowledge.appointments_desc_placeholder"></textarea>
+                    placeholder="" data-i18n-placeholder="knowledge.appointments_desc_placeholder"></textarea>
             </div>
             <div class="form-row">
                 <div class="form-group">
@@ -525,9 +525,9 @@
                     <input type="datetime-local" id="appointment-datetime" required>
                 </div>
                 <div class="form-group">
-                    <label data-i18n="knowledge.appointments_notify_label">Notification</label>
+                    <label data-i18n="knowledge.appointments_notify_label"></label>
                     <input type="datetime-local" id="appointment-notification">
-                    <small class="form-hint" data-i18n="knowledge.appointments_notify_hint">Leave empty for no notification</small>
+                    <small class="form-hint" data-i18n="knowledge.appointments_notify_hint"></small>
                 </div>
             </div>
             <div class="form-group kc-wake-agent-section">
@@ -536,31 +536,31 @@
                         <input type="checkbox" id="appointment-wake-agent" onchange="toggleAgentInstruction()">
                         <span class="slider"></span>
                     </label>
-                    <span class="toggle-label" data-i18n="knowledge.appointments_wake_agent">Wake agent at notification time</span>
+                    <span class="toggle-label" data-i18n="knowledge.appointments_wake_agent"></span>
                 </div>
             </div>
             <div class="form-group" id="appointment-participants-section">
-                <label data-i18n="knowledge.appointments_participants_label">Participants</label>
+                <label data-i18n="knowledge.appointments_participants_label"></label>
                 <div id="appointment-participant-chips" class="kc-chip-list"></div>
                 <div class="kc-picker-input-wrap">
                     <input type="text" id="appointment-participant-search"
                         class="kc-picker-search"
                         autocomplete="off"
-                        placeholder="Search contacts..." data-i18n-placeholder="knowledge.appointments_participants_search">
+                        placeholder="" data-i18n-placeholder="knowledge.appointments_participants_search">
                     <div id="appointment-participant-dropdown" class="kc-picker-dropdown is-hidden"></div>
                 </div>
                 <input type="hidden" id="appointment-contact-ids">
-                <small class="form-hint" data-i18n="knowledge.appointments_participants_hint">Add people from your address book</small>
+                <small class="form-hint" data-i18n="knowledge.appointments_participants_hint"></small>
             </div>
             <div class="form-group is-hidden" id="agent-instruction-group">
-                <label data-i18n="knowledge.appointments_instruction_label">Agent Instruction</label>
+                <label data-i18n="knowledge.appointments_instruction_label"></label>
                 <textarea id="appointment-instruction" rows="2"
-                    placeholder="e.g. Send me a reminder via Telegram" data-i18n-placeholder="knowledge.appointments_instruction_placeholder"></textarea>
-                <small class="form-hint" data-i18n="knowledge.appointments_instruction_hint">Optional instruction for the agent when woken up</small>
+                    placeholder="" data-i18n-placeholder="knowledge.appointments_instruction_placeholder"></textarea>
+                <small class="form-hint" data-i18n="knowledge.appointments_instruction_hint"></small>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('appointment-modal')" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-primary" onclick="saveAppointment()" data-i18n="common.btn_save">Save</button>
+                <button class="btn btn-secondary" onclick="closeModal('appointment-modal')" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-primary" onclick="saveAppointment()" data-i18n="common.btn_save"></button>
             </div>
         </div>
     </div>
@@ -569,33 +569,33 @@
     <div class="modal-overlay" id="todo-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 id="todo-modal-title" data-i18n="knowledge.todos_add">New To-Do</h2>
+                <h2 id="todo-modal-title" data-i18n="knowledge.todos_add"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('todo-modal')">&times;</button>
             </div>
             <input type="hidden" id="todo-id">
             <div class="form-group">
-                <label data-i18n="knowledge.todos_title_label">Title</label>
+                <label data-i18n="knowledge.todos_title_label"></label>
                 <input type="text" id="todo-title" maxlength="200" required
-                    placeholder="e.g. Update documentation" data-i18n-placeholder="knowledge.todos_title_placeholder">
+                    placeholder="" data-i18n-placeholder="knowledge.todos_title_placeholder">
             </div>
             <div class="form-group">
-                <label data-i18n="knowledge.todos_desc_label">Description</label>
+                <label data-i18n="knowledge.todos_desc_label"></label>
                 <textarea id="todo-description" rows="3"
-                    placeholder="Optional description..." data-i18n-placeholder="knowledge.todos_desc_placeholder"></textarea>
+                    placeholder="" data-i18n-placeholder="knowledge.todos_desc_placeholder"></textarea>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label data-i18n="knowledge.todos_priority_label">Priority</label>
+                    <label data-i18n="knowledge.todos_priority_label"></label>
                     <select id="todo-priority">
-                        <option value="low" data-i18n="knowledge.todos_priority_low">Low</option>
-                        <option value="medium" selected data-i18n="knowledge.todos_priority_medium">Medium</option>
-                        <option value="high" data-i18n="knowledge.todos_priority_high">High</option>
+                        <option value="low" data-i18n="knowledge.todos_priority_low"></option>
+                        <option value="medium" selected data-i18n="knowledge.todos_priority_medium"></option>
+                        <option value="high" data-i18n="knowledge.todos_priority_high"></option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label data-i18n="knowledge.todos_due_label">Due Date</label>
+                    <label data-i18n="knowledge.todos_due_label"></label>
                     <input type="date" id="todo-due-date">
-                    <small class="form-hint" data-i18n="knowledge.todos_due_hint">Optional</small>
+                    <small class="form-hint" data-i18n="knowledge.todos_due_hint"></small>
                 </div>
             </div>
             <div class="form-group">
@@ -604,26 +604,26 @@
                         <input type="checkbox" id="todo-remind-daily">
                         <span class="slider"></span>
                     </label>
-                    <span class="toggle-label" data-i18n="knowledge.todos_remind_daily_label">Daily reminder by agent</span>
+                    <span class="toggle-label" data-i18n="knowledge.todos_remind_daily_label"></span>
                 </div>
-                <small class="form-hint" data-i18n="knowledge.todos_remind_daily_hint">When enabled, the agent reminds you about open checklist points on the first contact of the day.</small>
+                <small class="form-hint" data-i18n="knowledge.todos_remind_daily_hint"></small>
             </div>
             <div class="form-group">
                 <div class="kc-section-header">
                     <div>
-                        <label data-i18n="knowledge.todos_items_label">Checklist</label>
-                        <small class="form-hint" data-i18n="knowledge.todos_items_hint">Optional subtasks you can tick off one by one.</small>
+                        <label data-i18n="knowledge.todos_items_label"></label>
+                        <small class="form-hint" data-i18n="knowledge.todos_items_hint"></small>
                     </div>
                     <button type="button" class="btn btn-sm btn-secondary" onclick="addTodoDraftItem()">
-                        <span>+</span> <span data-i18n="knowledge.todos_item_add">Add point</span>
+                        <span>+</span> <span data-i18n="knowledge.todos_item_add"></span>
                     </button>
                 </div>
                 <div id="todo-items-editor" class="kc-todo-editor-list"></div>
-                <div id="todo-items-empty" class="kc-todo-editor-empty" data-i18n="knowledge.todos_items_empty">No checklist points yet. Add one if this task needs multiple steps.</div>
+                <div id="todo-items-empty" class="kc-todo-editor-empty" data-i18n="knowledge.todos_items_empty"></div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('todo-modal')" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-primary" onclick="saveTodo()" data-i18n="common.btn_save">Save</button>
+                <button class="btn btn-secondary" onclick="closeModal('todo-modal')" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-primary" onclick="saveTodo()" data-i18n="common.btn_save"></button>
             </div>
         </div>
     </div>
@@ -632,15 +632,15 @@
     <div class="modal-overlay" id="delete-modal">
         <div class="modal modal-small">
             <div class="modal-header">
-                <h2 data-i18n="knowledge.delete_confirm_title">Confirm Delete</h2>
+                <h2 data-i18n="knowledge.delete_confirm_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('delete-modal')">&times;</button>
             </div>
-            <p id="delete-confirm-text" data-i18n="knowledge.delete_confirm_text">Are you sure you want to delete this item?</p>
+            <p id="delete-confirm-text" data-i18n="knowledge.delete_confirm_text"></p>
             <input type="hidden" id="delete-target-id">
             <input type="hidden" id="delete-target-type">
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('delete-modal')" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-danger" id="knowledge-delete-confirm-btn" onclick="confirmDelete()" data-i18n="common.btn_delete">Delete</button>
+                <button class="btn btn-secondary" onclick="closeModal('delete-modal')" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-danger" id="knowledge-delete-confirm-btn" onclick="confirmDelete()" data-i18n="common.btn_delete"></button>
             </div>
         </div>
     </div>
@@ -673,16 +673,16 @@
                 </div>
                 <div class="kc-preview-fallback is-hidden" id="file-preview-fallback">
                     <div class="empty-icon">📄</div>
-                    <h3 id="file-preview-fallback-title" data-i18n="knowledge.files_preview_unavailable_title">Preview unavailable</h3>
-                    <p id="file-preview-fallback-text" data-i18n="knowledge.files_preview_unavailable_desc">This file type cannot be previewed inline.</p>
+                    <h3 id="file-preview-fallback-title" data-i18n="knowledge.files_preview_unavailable_title"></h3>
+                    <p id="file-preview-fallback-text" data-i18n="knowledge.files_preview_unavailable_desc"></p>
                 </div>
             </div>
             <div class="modal-actions">
                 <a id="file-preview-download" class="btn btn-secondary" target="_blank" rel="noopener">
                     <span>⬇️</span>
-                    <span data-i18n="knowledge.files_download">Download</span>
+                    <span data-i18n="knowledge.files_download"></span>
                 </a>
-                <button class="btn btn-primary" onclick="closeFilePreview()" data-i18n="common.btn_close">Close</button>
+                <button class="btn btn-primary" onclick="closeFilePreview()" data-i18n="common.btn_close"></button>
             </div>
         </div>
     </div>

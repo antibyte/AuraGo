@@ -192,49 +192,49 @@
         host.innerHTML = `<div class="vd-chat" data-sidebar-collapsed="${sidebarCollapsed}" ${sidebarOpen ? 'data-sidebar-open="true"' : ''}>
             <div class="vd-chat-sidebar">
                 <div class="vd-chat-sidebar-header">
-                    <span class="vd-chat-sidebar-title">${esc(desktopText('desktop.chat_sessions', 'Conversations'))}</span>
-                    <button class="vd-chat-new-chat-btn" type="button" data-chat-new title="${esc(desktopText('desktop.chat_new', 'New Chat'))}" aria-label="${esc(desktopText('desktop.chat_new', 'New Chat'))}">
-                        ${iconMarkup('plus', '+', 'vd-chat-sidebar-icon', 14)}<span>${esc(desktopText('desktop.chat_new', 'New Chat'))}</span>
+                    <span class="vd-chat-sidebar-title">${esc(desktopText('desktop.chat_sessions'))}</span>
+                    <button class="vd-chat-new-chat-btn" type="button" data-chat-new title="${esc(desktopText('desktop.chat_new'))}" aria-label="${esc(desktopText('desktop.chat_new'))}">
+                        ${iconMarkup('plus', '+', 'vd-chat-sidebar-icon', 14)}<span>${esc(desktopText('desktop.chat_new'))}</span>
                     </button>
                 </div>
                 <div class="vd-chat-sidebar-search">
-                    <input type="text" placeholder="${esc(desktopText('desktop.chat_search', 'Search conversations...'))}" data-chat-sidebar-search autocomplete="off" inputmode="search" enterkeyhint="search" autocapitalize="off">
+                    <input type="text" placeholder="${esc(desktopText('desktop.chat_search'))}" data-chat-sidebar-search autocomplete="off" inputmode="search" enterkeyhint="search" autocapitalize="off">
                 </div>
                 <div class="vd-chat-sidebar-list" data-chat-sidebar-list></div>
             </div>
             <div class="vd-chat-sidebar-backdrop" data-chat-sidebar-backdrop></div>
             <div class="vd-chat-toolbar">
                 <div class="vd-chat-toolbar-left">
-                    <button class="vd-chat-sidebar-toggle" type="button" data-chat-sidebar-toggle title="${esc(desktopText('desktop.chat_toggle_sidebar', 'Toggle sidebar'))}" aria-label="${esc(desktopText('desktop.chat_toggle_sidebar', 'Toggle sidebar'))}">
+                    <button class="vd-chat-sidebar-toggle" type="button" data-chat-sidebar-toggle title="${esc(desktopText('desktop.chat_toggle_sidebar'))}" aria-label="${esc(desktopText('desktop.chat_toggle_sidebar'))}">
                         ${iconMarkup('menu', '☰', 'vd-chat-toolbar-icon', 16)}
                     </button>
                 </div>
                 <div class="vd-chat-toolbar-right">
-                    <button class="vd-chat-clear-history" type="button" data-chat-clear-history title="${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}" aria-label="${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}">
-                        ${iconMarkup('trash', 'X', 'vd-chat-toolbar-icon', 14)}<span>${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}</span>
+                    <button class="vd-chat-clear-history" type="button" data-chat-clear-history title="${esc(desktopText('desktop.chat_clear_history'))}" aria-label="${esc(desktopText('desktop.chat_clear_history'))}">
+                        ${iconMarkup('trash', 'X', 'vd-chat-toolbar-icon', 14)}<span>${esc(desktopText('desktop.chat_clear_history'))}</span>
                     </button>
                 </div>
             </div>
             <div class="vd-chat-main">
                 <div class="vd-chat-log"></div>
-                <div class="vd-chat-scroll-fab" data-chat-scroll-fab aria-label="${esc(desktopText('desktop.chat_scroll_bottom', 'Scroll to bottom'))}">
+                <div class="vd-chat-scroll-fab" data-chat-scroll-fab aria-label="${esc(desktopText('desktop.chat_scroll_bottom'))}">
                     ${iconMarkup('chevron-down', '↓', 'vd-chat-scroll-icon', 18)}
                 </div>
                 <div class="vd-chat-drop-overlay" data-chat-drop-overlay>
                     <div class="vd-chat-drop-overlay-content">
                         <div class="vd-chat-drop-overlay-icon">📎</div>
-                        <div class="vd-chat-drop-overlay-text">${esc(desktopText('desktop.chat_drop_files', 'Drop files here'))}</div>
+                        <div class="vd-chat-drop-overlay-text">${esc(desktopText('desktop.chat_drop_files'))}</div>
                     </div>
                 </div>
                 <div class="vd-chat-context" data-chat-context hidden></div>
                 <form class="vd-chat-form">
                     <div class="vd-chat-input-wrap">
-                        <textarea class="vd-chat-input" rows="1" autocomplete="off" placeholder="${esc(desktopText('desktop.chat_placeholder', 'Type a message...'))}"></textarea>
+                        <textarea class="vd-chat-input" rows="1" autocomplete="off" placeholder="${esc(desktopText('desktop.chat_placeholder'))}"></textarea>
                         <span class="vd-chat-input-counter" data-chat-input-counter></span>
                     </div>
                     <div class="vd-chat-form-buttons">
                         <button class="vd-chat-voice" type="button" data-i18n-title="desktop.chat_voice_input" data-i18n-aria-label="desktop.chat_voice_input">${iconMarkup('microphone', 'M', 'vd-chat-voice-icon', 15)}</button>
-                        <button class="vd-chat-send" type="submit" data-chat-send-button>${iconMarkup('chat', 'S', 'vd-chat-send-icon', 15)}<span data-chat-send-label>${esc(desktopText('desktop.send', 'Send'))}</span></button>
+                        <button class="vd-chat-send" type="submit" data-chat-send-button>${iconMarkup('chat', 'S', 'vd-chat-send-icon', 15)}<span data-chat-send-label>${esc(desktopText('desktop.send'))}</span></button>
                     </div>
                 </form>
             </div>
@@ -348,7 +348,7 @@
         const list = host.querySelector('[data-chat-sidebar-list]');
         if (!list) return;
         const sessionId = 'virtual-desktop';
-        const title = desktopText('desktop.chat_current_session', 'Current Session');
+        const title = desktopText('desktop.chat_current_session');
         const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         list.innerHTML = `<div class="vd-chat-sidebar-item active" data-session-id="${esc(sessionId)}">
             <div class="vd-chat-sidebar-item-content">
@@ -512,7 +512,7 @@
         if (!chatLog) return;
         const token = Symbol('desktop-chat-history');
         host._desktopChatHistoryToken = token;
-        chatLog.innerHTML = `<div class="vd-chat-history-status">${esc(desktopText('desktop.loading', 'Loading...'))}</div>`;
+        chatLog.innerHTML = `<div class="vd-chat-history-status">${esc(desktopText('desktop.loading'))}</div>`;
         try {
             const messages = await api('/history?session_id=virtual-desktop');
             if (host._desktopChatHistoryToken !== token) return;
@@ -534,7 +534,7 @@
             lastRole = null;
             appendDesktopChatWelcome(host);
             if (typeof showDesktopNotification === 'function') {
-                showDesktopNotification({ message: desktopText('desktop.chat_history_load_error', 'Could not load chat history.') });
+                showDesktopNotification({ message: desktopText('desktop.chat_history_load_error') });
             }
         }
     }
@@ -604,8 +604,8 @@
         welcome.className = 'vd-chat-welcome';
         welcome.innerHTML = `
             <div class="vd-chat-welcome-avatar">${avatarHtml}</div>
-            <div class="vd-chat-welcome-heading">${esc(desktopText('desktop.chat_welcome_heading', 'How can I help you?'))}</div>
-            <div class="vd-chat-welcome-sub">${esc(desktopText('desktop.chat_welcome_sub', 'Ask me anything or try a suggestion below'))}</div>
+            <div class="vd-chat-welcome-heading">${esc(desktopText('desktop.chat_welcome_heading'))}</div>
+            <div class="vd-chat-welcome-sub">${esc(desktopText('desktop.chat_welcome_sub'))}</div>
             <div class="vd-chat-welcome-prompts">${promptChips}</div>
         `;
         chatLog.appendChild(welcome);
@@ -669,7 +669,7 @@
             lastRole = null;
             appendDesktopChatWelcome(host);
             if (!silent && typeof showDesktopNotification === 'function') {
-                showDesktopNotification({ message: desktopText('desktop.chat_history_cleared', 'Chat history cleared.') });
+                showDesktopNotification({ message: desktopText('desktop.chat_history_cleared') });
             }
         } catch (err) {
             appendDesktopChatError(host, err);
@@ -683,11 +683,11 @@
             const overlay = document.createElement('div');
             overlay.className = 'vd-qc-modal-overlay';
             overlay.innerHTML = `<div class="vd-qc-confirm">
-                <div class="vd-qc-confirm-title">${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}</div>
-                <div class="vd-qc-confirm-msg">${esc(desktopText('desktop.chat_clear_confirm', 'Delete the visible desktop chat history?'))}</div>
+                <div class="vd-qc-confirm-title">${esc(desktopText('desktop.chat_clear_history'))}</div>
+                <div class="vd-qc-confirm-msg">${esc(desktopText('desktop.chat_clear_confirm'))}</div>
                 <div class="vd-qc-confirm-actions">
-                    <button class="vd-qc-btn vd-qc-btn-secondary" type="button" data-action="cancel">${iconMarkup('x', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(desktopText('desktop.cancel', 'Cancel'))}</span></button>
-                    <button class="vd-qc-btn vd-qc-btn-danger" type="button" data-action="ok">${iconMarkup('trash', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(desktopText('desktop.delete', 'Delete'))}</span></button>
+                    <button class="vd-qc-btn vd-qc-btn-secondary" type="button" data-action="cancel">${iconMarkup('x', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(desktopText('desktop.cancel'))}</span></button>
+                    <button class="vd-qc-btn vd-qc-btn-danger" type="button" data-action="ok">${iconMarkup('trash', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(desktopText('desktop.delete'))}</span></button>
                 </div>
             </div>`;
             container.appendChild(overlay);
@@ -738,14 +738,14 @@
             </button>`;
         }).join('');
         const freeText = payload.allow_free_text ? `<form class="vd-chat-question-free-text" data-question-free-text>
-                <input type="text" autocomplete="off" placeholder="${esc(desktopText('desktop.chat_question_free_text_placeholder', 'Type a custom answer...'))}" inputmode="text" enterkeyhint="send" autocapitalize="on">
-                <button class="vd-qc-btn vd-qc-btn-primary" type="submit">${iconMarkup('chat', 'S', 'vd-qc-btn-icon', 14)}<span>${esc(desktopText('desktop.send', 'Send'))}</span></button>
+                <input type="text" autocomplete="off" placeholder="${esc(desktopText('desktop.chat_question_free_text_placeholder'))}" inputmode="text" enterkeyhint="send" autocapitalize="on">
+                <button class="vd-qc-btn vd-qc-btn-primary" type="submit">${iconMarkup('chat', 'S', 'vd-qc-btn-icon', 14)}<span>${esc(desktopText('desktop.send'))}</span></button>
             </form>` : '';
 
         overlay.innerHTML = `<div class="vd-qc-confirm vd-chat-question-panel">
-            <div class="vd-qc-confirm-title">${esc(desktopText('desktop.chat_question_waiting', 'The agent is waiting for your answer...'))}</div>
+            <div class="vd-qc-confirm-title">${esc(desktopText('desktop.chat_question_waiting'))}</div>
             <div class="vd-qc-confirm-msg">${esc(payload.question)}</div>
-            ${options.length ? `<div class="vd-chat-question-select">${esc(desktopText('desktop.chat_question_select', 'Select an option'))}</div><div class="vd-chat-question-options">${optionButtons}</div>` : ''}
+            ${options.length ? `<div class="vd-chat-question-select">${esc(desktopText('desktop.chat_question_select'))}</div><div class="vd-chat-question-options">${optionButtons}</div>` : ''}
             ${freeText}
             <div class="vd-chat-question-timer" aria-hidden="true"><span></span></div>
         </div>`;
@@ -794,7 +794,7 @@
             if (remaining <= 0) {
                 window.clearInterval(timer);
                 const title = overlay.querySelector('.vd-qc-confirm-title');
-                if (title) title.textContent = desktopText('desktop.chat_question_timeout', 'The question timed out.');
+                if (title) title.textContent = desktopText('desktop.chat_question_timeout');
                 setTimeout(close, 900);
             }
         }, 250);
@@ -807,8 +807,8 @@
         const sendBtn = host.querySelector('.vd-chat-send');
         const label = host.querySelector('[data-chat-send-label]');
         const clearBtn = host.querySelector('[data-chat-clear-history]');
-        const stop = desktopText('desktop.chat_stop', 'Stop');
-        const send = desktopText('desktop.send', 'Send');
+        const stop = desktopText('desktop.chat_stop');
+        const send = desktopText('desktop.send');
         if (input) input.disabled = !!busy;
         if (voiceBtn) {
             const disabled = !!busy || voiceBtn.dataset.voiceAvailable === 'false';
@@ -841,10 +841,10 @@
         const useBrowserSTT = !!(window.SpeechToText && window.SpeechToText.isSupported);
         const useRecorderFallback = !!(window.VoiceRecorder && navigator.mediaDevices && window.MediaRecorder);
         const unavailable = !isSecure || (!useBrowserSTT && !useRecorderFallback);
-        const unavailableText = desktopText('desktop.chat_voice_unavailable', 'Speech input requires HTTPS and browser microphone support.');
+        const unavailableText = desktopText('desktop.chat_voice_unavailable');
 
-        voiceBtn.title = desktopText('desktop.chat_voice_input', 'Voice input');
-        voiceBtn.setAttribute('aria-label', desktopText('desktop.chat_voice_input', 'Voice input'));
+        voiceBtn.title = desktopText('desktop.chat_voice_input');
+        voiceBtn.setAttribute('aria-label', desktopText('desktop.chat_voice_input'));
         voiceBtn.dataset.voiceAvailable = unavailable ? 'false' : 'true';
         if (unavailable) {
             voiceBtn.disabled = true;
@@ -971,18 +971,18 @@
         const chips = [];
         if (windowContext) {
             const contextLabel = windowContext.label || windowContext.app_id || windowContext.purpose;
-            chips.push(`<span class="vd-chat-context-chip context-window" title="${esc(desktopText('desktop.chat_request_context', 'Request context'))}: ${esc(contextLabel)}">${esc(contextLabel)}</span>`);
+            chips.push(`<span class="vd-chat-context-chip context-window" title="${esc(desktopText('desktop.chat_request_context'))}: ${esc(contextLabel)}">${esc(contextLabel)}</span>`);
         }
         files.forEach(file => {
             const name = file.name || file.path;
             chips.push(`<span class="vd-chat-context-chip">${iconMarkup('file', '📄', 'vd-chat-context-icon', 12)}${esc(name)}
-                <button class="vd-chat-context-chip-remove" type="button" data-remove-file="${esc(file.path)}" title="${esc(desktopText('desktop.remove', 'Remove'))}">${iconMarkup('x', 'X', 'vd-chat-context-icon', 10)}</button>
+                <button class="vd-chat-context-chip-remove" type="button" data-remove-file="${esc(file.path)}" title="${esc(desktopText('desktop.remove'))}">${iconMarkup('x', 'X', 'vd-chat-context-icon', 10)}</button>
             </span>`);
         });
 
         bar.hidden = false;
         bar.innerHTML = `<div class="vd-chat-context-chips">${chips.join('')}</div>
-            <button class="vd-chat-context-clear-all" type="button" data-chat-context-clear title="${esc(desktopText('desktop.clear', 'Clear'))}" aria-label="${esc(desktopText('desktop.clear', 'Clear all context'))}">${iconMarkup('x', 'X', 'vd-chat-context-icon', 14)}</button>`;
+            <button class="vd-chat-context-clear-all" type="button" data-chat-context-clear title="${esc(desktopText('desktop.clear'))}" aria-label="${esc(desktopText('desktop.clear'))}">${iconMarkup('x', 'X', 'vd-chat-context-icon', 14)}</button>`;
 
         bar.querySelectorAll('[data-remove-file]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1204,7 +1204,7 @@
                     } else if (event === 'thinking_block') {
                         const state2 = data.state || '';
                         if (statusEl && state2 === 'start' && renderer) {
-                            renderer.updateStatus(statusEl, desktopText('desktop.chat_thinking', 'Reasoning...'));
+                            renderer.updateStatus(statusEl, desktopText('desktop.chat_thinking'));
                             keepAgentStatusAtEnd();
                         }
                     } else if (event === 'thinking' || event === 'tool_start' || event === 'tool_end' ||

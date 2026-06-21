@@ -30,13 +30,13 @@
     <link href="/fonts/fonts.css" rel="stylesheet">
 </head>
 <body>
-    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content">Skip to content</a>
+    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <header class="app-header">
         <div class="header-left">
             <a href="/" class="logo">
                 <div class="logo-icon">🥚</div>
                 <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-                <span class="logo-subtitle" data-i18n="invasion.logo_subtitle">Invasion</span>
+                <span class="logo-subtitle" data-i18n="invasion.logo_subtitle"></span>
             </a>
         </div>
         <div class="header-actions">
@@ -48,18 +48,18 @@
 
     <div class="container" id="main-content">
         <div class="page-header">
-            <h1 data-i18n="invasion.title">Invasion Control</h1>
+            <h1 data-i18n="invasion.title"></h1>
             <button class="btn btn-primary" id="btn-create" type="button">
-                <span>+</span> <span data-i18n="invasion.create_new">Create New</span>
+                <span>+</span> <span data-i18n="invasion.create_new"></span>
             </button>
         </div>
 
         <div class="media-tabs invasion-tabs">
             <button class="media-tab invasion-tab active" type="button" data-tab="nests">
-                🪺 <span data-i18n="invasion.nests">Nests</span>
+                🪺 <span data-i18n="invasion.nests"></span>
             </button>
             <button class="media-tab invasion-tab" type="button" data-tab="eggs">
-                🥚 <span data-i18n="invasion.eggs">Eggs</span>
+                🥚 <span data-i18n="invasion.eggs"></span>
             </button>
         </div>
 
@@ -67,9 +67,9 @@
             <div class="cards-grid" id="nests-grid"></div>
             <div class="empty-state is-hidden" id="nests-empty">
                 <div class="icon">🪺</div>
-                <p data-i18n="invasion.no_nests">No nests yet.</p>
+                <p data-i18n="invasion.no_nests"></p>
                 <button class="btn btn-primary" type="button" data-action="open-create">
-                    <span data-i18n="invasion.create_first_nest">Create first nest</span>
+                    <span data-i18n="invasion.create_first_nest"></span>
                 </button>
             </div>
         </div>
@@ -78,9 +78,9 @@
             <div class="cards-grid" id="eggs-grid"></div>
             <div class="empty-state is-hidden" id="eggs-empty">
                 <div class="icon">🥚</div>
-                <p data-i18n="invasion.no_eggs">No eggs yet.</p>
+                <p data-i18n="invasion.no_eggs"></p>
                 <button class="btn btn-primary" type="button" data-action="open-create">
-                    <span data-i18n="invasion.create_first_egg">Create first egg</span>
+                    <span data-i18n="invasion.create_first_egg"></span>
                 </button>
             </div>
         </div>
@@ -89,81 +89,81 @@
     <div class="modal-overlay" id="nest-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 id="nest-modal-title" data-i18n="invasion.create_nest">Create Nest</h2>
+                <h2 id="nest-modal-title" data-i18n="invasion.create_nest"></h2>
                 <button class="modal-close" type="button" data-i18n-aria-label="common.close" data-modal-close="nest-modal">&times;</button>
             </div>
             <input type="hidden" id="nest-id">
             <div class="form-group">
-                <label for="nest-name" data-i18n="invasion.name">Name</label>
-                <input type="text" id="nest-name" data-i18n-placeholder="invasion.ph_nest_name" placeholder="Produktionsserver">
+                <label for="nest-name" data-i18n="invasion.name"></label>
+                <input type="text" id="nest-name" data-i18n-placeholder="invasion.ph_nest_name" placeholder="">
             </div>
             <div class="form-group">
-                <label for="nest-notes" data-i18n="invasion.notes">Notes</label>
-                <textarea id="nest-notes" data-i18n-placeholder="invasion.ph_nest_notes" placeholder="Optionale Notizen..." rows="2" class="resize-vertical"></textarea>
+                <label for="nest-notes" data-i18n="invasion.notes"></label>
+                <textarea id="nest-notes" data-i18n-placeholder="invasion.ph_nest_notes" placeholder="" rows="2" class="resize-vertical"></textarea>
             </div>
             <div class="form-group">
-                <label for="nest-access-type" data-i18n="invasion.access_type">Access Type</label>
+                <label for="nest-access-type" data-i18n="invasion.access_type"></label>
                 <select id="nest-access-type" class="form-select">
-                    <option value="ssh" data-i18n="invasion.access_ssh">SSH</option>
-                    <option value="docker" data-i18n="invasion.access_docker">Docker API</option>
-                    <option value="local" data-i18n="invasion.access_local">Local</option>
+                    <option value="ssh" data-i18n="invasion.access_ssh"></option>
+                    <option value="docker" data-i18n="invasion.access_docker"></option>
+                    <option value="local" data-i18n="invasion.access_local"></option>
                 </select>
             </div>
             <div id="nest-remote-fields">
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="nest-host" data-i18n="invasion.host">Host</label>
-                        <input type="text" id="nest-host" data-i18n-placeholder="invasion.ph_host" placeholder="192.168.1.100">
+                        <label for="nest-host" data-i18n="invasion.host"></label>
+                        <input type="text" id="nest-host" data-i18n-placeholder="invasion.ph_host" placeholder="">
                     </div>
                     <div class="form-group">
-                        <label for="nest-port" data-i18n="invasion.port">Port</label>
+                        <label for="nest-port" data-i18n="invasion.port"></label>
                         <input type="number" id="nest-port" value="22">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="nest-username" data-i18n="invasion.username">Username</label>
-                    <input type="text" id="nest-username" data-i18n-placeholder="invasion.ph_username" placeholder="deploy">
+                    <label for="nest-username" data-i18n="invasion.username"></label>
+                    <input type="text" id="nest-username" data-i18n-placeholder="invasion.ph_username" placeholder="">
                 </div>
                 <div class="form-group">
-                    <label for="nest-secret" id="nest-secret-label" data-i18n="invasion.secret">Secret</label>
-                    <textarea id="nest-secret" data-i18n-placeholder="invasion.ph_secret" placeholder="Passwort oder SSH Private Key..." rows="3" class="resize-vertical"></textarea>
-                    <small id="nest-secret-hint" class="hint-subtle is-hidden" data-i18n="invasion.secret_set">Secret already stored</small>
+                    <label for="nest-secret" id="nest-secret-label" data-i18n="invasion.secret"></label>
+                    <textarea id="nest-secret" data-i18n-placeholder="invasion.ph_secret" placeholder="" rows="3" class="resize-vertical"></textarea>
+                    <small id="nest-secret-hint" class="hint-subtle is-hidden" data-i18n="invasion.secret_set"></small>
                 </div>
             </div>
             <div class="form-group">
-                <label for="nest-egg-id" data-i18n="invasion.assign_egg">Assign Egg</label>
+                <label for="nest-egg-id" data-i18n="invasion.assign_egg"></label>
                 <select id="nest-egg-id" class="form-select">
                     <option value="" data-i18n="invasion.no_egg">— No Egg —</option>
                 </select>
             </div>
             <div class="form-group">
-                <label for="nest-deploy-method" data-i18n="invasion.deploy_method">Deploy Method</label>
+                <label for="nest-deploy-method" data-i18n="invasion.deploy_method"></label>
                 <select id="nest-deploy-method" class="form-select">
-                    <option value="ssh" data-i18n="invasion.deploy_ssh">SSH</option>
-                    <option value="docker_remote" data-i18n="invasion.deploy_docker_remote">Docker (Remote)</option>
-                    <option value="docker_local" data-i18n="invasion.deploy_docker_local">Docker (Local)</option>
+                    <option value="ssh" data-i18n="invasion.deploy_ssh"></option>
+                    <option value="docker_remote" data-i18n="invasion.deploy_docker_remote"></option>
+                    <option value="docker_local" data-i18n="invasion.deploy_docker_local"></option>
                 </select>
-                <small id="deploy-docker-local-hint" class="hint-subtle is-hidden mt-xs" data-i18n="invasion.docker_local_hint">Local Docker uses the host daemon directly.</small>
+                <small id="deploy-docker-local-hint" class="hint-subtle is-hidden mt-xs" data-i18n="invasion.docker_local_hint"></small>
             </div>
             <div class="form-group">
-                <label for="nest-target-arch" data-i18n="invasion.target_arch">Target Architecture</label>
+                <label for="nest-target-arch" data-i18n="invasion.target_arch"></label>
                 <select id="nest-target-arch" class="form-select">
                     <option value="linux/amd64">linux/amd64</option>
                     <option value="linux/arm64">linux/arm64</option>
                 </select>
             </div>
             <div class="form-group">
-                <label for="nest-route" data-i18n="invasion.route">Route</label>
+                <label for="nest-route" data-i18n="invasion.route"></label>
                 <select id="nest-route" class="form-select">
-                    <option value="direct" data-i18n="invasion.route_direct">Direct</option>
-                    <option value="ssh_tunnel" data-i18n="invasion.route_ssh_tunnel">SSH Tunnel</option>
-                    <option value="tailscale" data-i18n="invasion.route_tailscale">Tailscale</option>
-                    <option value="wireguard" data-i18n="invasion.route_wireguard">WireGuard</option>
-                    <option value="custom" data-i18n="invasion.route_custom">Custom</option>
+                    <option value="direct" data-i18n="invasion.route_direct"></option>
+                    <option value="ssh_tunnel" data-i18n="invasion.route_ssh_tunnel"></option>
+                    <option value="tailscale" data-i18n="invasion.route_tailscale"></option>
+                    <option value="wireguard" data-i18n="invasion.route_wireguard"></option>
+                    <option value="custom" data-i18n="invasion.route_custom"></option>
                 </select>
             </div>
             <div class="form-group">
-                <label for="nest-route-config" data-i18n="invasion.route_config">Route Config</label>
+                <label for="nest-route-config" data-i18n="invasion.route_config"></label>
                 <textarea id="nest-route-config" placeholder='{"tunnel_port":8443}' rows="2" class="resize-vertical"></textarea>
             </div>
             <div class="form-group">
@@ -172,16 +172,16 @@
                         <input type="checkbox" id="nest-active" checked>
                         <span class="slider"></span>
                     </label>
-                    <span class="toggle-label" data-i18n="invasion.active">Active</span>
+                    <span class="toggle-label" data-i18n="invasion.active"></span>
                 </div>
             </div>
             <div id="nest-validate-area" class="is-hidden">
-                <button class="btn btn-sm btn-secondary" id="btn-validate" type="button" data-i18n="invasion.test_connection">Test Connection</button>
+                <button class="btn btn-sm btn-secondary" id="btn-validate" type="button" data-i18n="invasion.test_connection"></button>
                 <div class="validate-result" id="validate-result"></div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" id="nest-cancel-btn" type="button" data-i18n="invasion.cancel">Cancel</button>
-                <button class="btn btn-primary" id="nest-save-btn" type="button" data-i18n="invasion.save">Save</button>
+                <button class="btn btn-secondary" id="nest-cancel-btn" type="button" data-i18n="invasion.cancel"></button>
+                <button class="btn btn-primary" id="nest-save-btn" type="button" data-i18n="invasion.save"></button>
             </div>
         </div>
     </div>
@@ -189,45 +189,45 @@
     <div class="modal-overlay" id="egg-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 id="egg-modal-title" data-i18n="invasion.create_egg">Create Egg</h2>
+                <h2 id="egg-modal-title" data-i18n="invasion.create_egg"></h2>
                 <button class="modal-close" type="button" data-i18n-aria-label="common.close" data-modal-close="egg-modal">&times;</button>
             </div>
             <input type="hidden" id="egg-id">
             <div class="form-group">
-                <label for="egg-name" data-i18n="invasion.name">Name</label>
-                <input type="text" id="egg-name" data-i18n-placeholder="invasion.ph_egg_name" placeholder="Analytics Agent">
+                <label for="egg-name" data-i18n="invasion.name"></label>
+                <input type="text" id="egg-name" data-i18n-placeholder="invasion.ph_egg_name" placeholder="">
             </div>
             <div class="form-group">
-                <label for="egg-description" data-i18n="invasion.description">Description</label>
-                <textarea id="egg-description" data-i18n-placeholder="invasion.ph_egg_description" placeholder="Was macht dieser Sub-Agent?" rows="2" class="resize-vertical"></textarea>
+                <label for="egg-description" data-i18n="invasion.description"></label>
+                <textarea id="egg-description" data-i18n-placeholder="invasion.ph_egg_description" placeholder="" rows="2" class="resize-vertical"></textarea>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label for="egg-provider" data-i18n="invasion.provider">Provider</label>
+                    <label for="egg-provider" data-i18n="invasion.provider"></label>
                     <select id="egg-provider">
                         <option value=""></option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="egg-model" data-i18n="invasion.model">Model</label>
+                    <label for="egg-model" data-i18n="invasion.model"></label>
                     <input type="text" id="egg-model" placeholder="gpt-4o-mini">
                 </div>
             </div>
             <div class="form-group">
-                <label for="egg-base-url" data-i18n="invasion.base_url">Base URL</label>
+                <label for="egg-base-url" data-i18n="invasion.base_url"></label>
                 <input type="text" id="egg-base-url" placeholder="https://openrouter.ai/api/v1">
             </div>
             <div class="form-group">
-                <label for="egg-api-key" data-i18n="invasion.api_key">API Key</label>
+                <label for="egg-api-key" data-i18n="invasion.api_key"></label>
                 <input type="password" id="egg-api-key" placeholder="sk-...">
-                <small id="egg-apikey-hint" class="hint-subtle is-hidden" data-i18n="invasion.apikey_set">API key already stored</small>
+                <small id="egg-apikey-hint" class="hint-subtle is-hidden" data-i18n="invasion.apikey_set"></small>
             </div>
             <div class="form-group">
-                <label for="egg-port" data-i18n="invasion.egg_port">Egg Port</label>
+                <label for="egg-port" data-i18n="invasion.egg_port"></label>
                 <input type="number" id="egg-port" value="8099" min="1024" max="65535">
             </div>
             <div class="form-group">
-                <label for="egg-allowed-tools" data-i18n="invasion.allowed_tools">Allowed Tools</label>
+                <label for="egg-allowed-tools" data-i18n="invasion.allowed_tools"></label>
                 <input type="text" id="egg-allowed-tools" placeholder='["shell","python"]'>
             </div>
             <div class="form-group">
@@ -236,7 +236,7 @@
                         <input type="checkbox" id="egg-permanent">
                         <span class="slider"></span>
                     </label>
-                    <span class="toggle-label" data-i18n="invasion.permanent">Permanent</span>
+                    <span class="toggle-label" data-i18n="invasion.permanent"></span>
                 </div>
             </div>
             <div class="form-group">
@@ -245,7 +245,7 @@
                         <input type="checkbox" id="egg-include-vault">
                         <span class="slider"></span>
                     </label>
-                    <span class="toggle-label" data-i18n="invasion.include_vault">Include Vault</span>
+                    <span class="toggle-label" data-i18n="invasion.include_vault"></span>
                 </div>
             </div>
             <div class="form-group">
@@ -254,7 +254,7 @@
                         <input type="checkbox" id="egg-inherit-llm" checked>
                         <span class="slider"></span>
                     </label>
-                    <span class="toggle-label" data-i18n="invasion.inherit_llm">Inherit LLM</span>
+                    <span class="toggle-label" data-i18n="invasion.inherit_llm"></span>
                 </div>
             </div>
             <div class="form-group">
@@ -263,12 +263,12 @@
                         <input type="checkbox" id="egg-active" checked>
                         <span class="slider"></span>
                     </label>
-                    <span class="toggle-label" data-i18n="invasion.active">Active</span>
+                    <span class="toggle-label" data-i18n="invasion.active"></span>
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" id="egg-cancel-btn" type="button" data-i18n="invasion.cancel">Cancel</button>
-                <button class="btn btn-primary" id="egg-save-btn" type="button" data-i18n="invasion.save">Save</button>
+                <button class="btn btn-secondary" id="egg-cancel-btn" type="button" data-i18n="invasion.cancel"></button>
+                <button class="btn btn-primary" id="egg-save-btn" type="button" data-i18n="invasion.save"></button>
             </div>
         </div>
     </div>
@@ -276,67 +276,67 @@
     <div class="modal-overlay" id="reconfigure-modal">
         <div class="modal modal-lg">
             <div class="modal-header">
-                <h2 id="reconfigure-modal-title" data-i18n="invasion.reconfigure_title">Safe Reconfigure</h2>
+                <h2 id="reconfigure-modal-title" data-i18n="invasion.reconfigure_title"></h2>
                 <button class="modal-close" type="button" data-i18n-aria-label="common.close" data-modal-close="reconfigure-modal">&times;</button>
             </div>
             <input type="hidden" id="reconfigure-nest-id">
             <div class="reconfigure-warning" data-i18n="invasion.reconfigure_warning">⚠️ The egg will be restarted after applying changes.</div>
             <div class="form-row">
                 <div class="form-group">
-                    <label for="reconfigure-provider" data-i18n="invasion.provider">Provider</label>
+                    <label for="reconfigure-provider" data-i18n="invasion.provider"></label>
                     <select id="reconfigure-provider" class="form-select">
                         <option value="" data-i18n="invasion.reconfigure_keep_current">— Keep Current —</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="reconfigure-model" data-i18n="invasion.model">Model</label>
-                    <input type="text" id="reconfigure-model" data-i18n-placeholder="invasion.reconfigure_ph_model" placeholder="Leave empty to keep current">
+                    <label for="reconfigure-model" data-i18n="invasion.model"></label>
+                    <input type="text" id="reconfigure-model" data-i18n-placeholder="invasion.reconfigure_ph_model" placeholder="">
                 </div>
             </div>
             <div class="form-group">
-                <label for="reconfigure-base-url" data-i18n="invasion.base_url">Base URL</label>
-                <input type="text" id="reconfigure-base-url" data-i18n-placeholder="invasion.reconfigure_ph_base_url" placeholder="Leave empty to keep current">
+                <label for="reconfigure-base-url" data-i18n="invasion.base_url"></label>
+                <input type="text" id="reconfigure-base-url" data-i18n-placeholder="invasion.reconfigure_ph_base_url" placeholder="">
             </div>
             <div class="form-group">
-                <label for="reconfigure-allowed-tools" data-i18n="invasion.allowed_tools">Allowed Tools (JSON Array)</label>
+                <label for="reconfigure-allowed-tools" data-i18n="invasion.allowed_tools"></label>
                 <input type="text" id="reconfigure-allowed-tools" placeholder='["shell","python"]'>
-                <small class="hint-subtle" data-i18n="invasion.reconfigure_tools_hint">Available: shell, python, filesystem_write, network_requests, remote_shell, self_update</small>
+                <small class="hint-subtle" data-i18n="invasion.reconfigure_tools_hint"></small>
             </div>
             <fieldset class="reconfigure-fieldset">
-                <legend data-i18n="invasion.reconfigure_runtime_flags">Runtime Flags</legend>
+                <legend data-i18n="invasion.reconfigure_runtime_flags"></legend>
                 <div class="reconfigure-toggles">
                     <div class="toggle-wrap">
                         <label class="toggle">
                             <input type="checkbox" id="reconfigure-allow-filesystem">
                             <span class="slider"></span>
                         </label>
-                        <span class="toggle-label" data-i18n="invasion.reconfigure_allow_filesystem">Allow Filesystem Write</span>
+                        <span class="toggle-label" data-i18n="invasion.reconfigure_allow_filesystem"></span>
                     </div>
                     <div class="toggle-wrap">
                         <label class="toggle">
                             <input type="checkbox" id="reconfigure-allow-network">
                             <span class="slider"></span>
                         </label>
-                        <span class="toggle-label" data-i18n="invasion.reconfigure_allow_network">Allow Network Requests</span>
+                        <span class="toggle-label" data-i18n="invasion.reconfigure_allow_network"></span>
                     </div>
                     <div class="toggle-wrap">
                         <label class="toggle">
                             <input type="checkbox" id="reconfigure-allow-remote-shell">
                             <span class="slider"></span>
                         </label>
-                        <span class="toggle-label" data-i18n="invasion.reconfigure_allow_remote">Allow Remote Shell</span>
+                        <span class="toggle-label" data-i18n="invasion.reconfigure_allow_remote"></span>
                     </div>
                     <div class="toggle-wrap">
                         <label class="toggle">
                             <input type="checkbox" id="reconfigure-allow-self-update">
                             <span class="slider"></span>
                         </label>
-                        <span class="toggle-label" data-i18n="invasion.reconfigure_allow_selfupdate">Allow Self-Update</span>
+                        <span class="toggle-label" data-i18n="invasion.reconfigure_allow_selfupdate"></span>
                     </div>
                 </div>
             </fieldset>
             <div class="modal-actions">
-                <button class="btn btn-secondary" id="reconfigure-cancel-btn" type="button" data-i18n="invasion.cancel">Cancel</button>
+                <button class="btn btn-secondary" id="reconfigure-cancel-btn" type="button" data-i18n="invasion.cancel"></button>
                 <button class="btn btn-primary" id="reconfigure-apply-btn" type="button" data-i18n="invasion.reconfigure_apply">Apply & Restart</button>
             </div>
         </div>
@@ -345,15 +345,15 @@
     <div class="modal-overlay" id="config-history-modal">
         <div class="modal modal-lg">
             <div class="modal-header">
-                <h2 id="config-history-title" data-i18n="invasion.config_history_title">Config History</h2>
+                <h2 id="config-history-title" data-i18n="invasion.config_history_title"></h2>
                 <button class="modal-close" type="button" data-i18n-aria-label="common.close" data-modal-close="config-history-modal">&times;</button>
             </div>
             <input type="hidden" id="history-nest-id">
             <div id="config-history-list" class="config-history-list">
-                <div class="config-history-empty" data-i18n="invasion.config_history_empty">No configuration changes recorded yet.</div>
+                <div class="config-history-empty" data-i18n="invasion.config_history_empty"></div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" id="config-history-close-btn" type="button" data-i18n="invasion.cancel">Close</button>
+                <button class="btn btn-secondary" id="config-history-close-btn" type="button" data-i18n="invasion.cancel"></button>
             </div>
         </div>
     </div>
@@ -361,15 +361,15 @@
     <div class="modal-overlay" id="delete-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 class="delete-modal-title">⚠️ <span data-i18n="invasion.confirm_delete">Confirm Delete</span></h2>
+                <h2 class="delete-modal-title">⚠️ <span data-i18n="invasion.confirm_delete"></span></h2>
                 <button class="modal-close" type="button" data-i18n-aria-label="common.close" data-modal-close="delete-modal">&times;</button>
             </div>
             <p id="delete-message" class="delete-message"></p>
-            <p class="delete-modal-hint" data-i18n="invasion.type_name_confirm">Type the exact name to confirm deletion.</p>
+            <p class="delete-modal-hint" data-i18n="invasion.type_name_confirm"></p>
             <input type="text" class="delete-confirm-input" id="delete-confirm-input" autocomplete="off">
             <div class="modal-actions">
-                <button class="btn btn-secondary" id="delete-cancel-btn" type="button" data-i18n="invasion.cancel">Cancel</button>
-                <button class="btn btn-danger" id="btn-delete-confirm" type="button" disabled data-i18n="invasion.delete_permanent">Delete Permanently</button>
+                <button class="btn btn-secondary" id="delete-cancel-btn" type="button" data-i18n="invasion.cancel"></button>
+                <button class="btn btn-danger" id="btn-delete-confirm" type="button" disabled data-i18n="invasion.delete_permanent"></button>
             </div>
         </div>
     </div>

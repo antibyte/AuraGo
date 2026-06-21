@@ -151,7 +151,7 @@ async function renderServerSection(section) {
             if (httpsPort < 1024) {
                 html += `<div class="wh-notice wh-notice-warning">
                     <span>⚠️</span>
-                    <div><small>${t('config.server.selfsigned_port_warning') || 'Port ' + httpsPort + ' requires root/admin privileges on Linux. For local use without root, consider port 8443.'}</small></div>
+                    <div><small>${t('config.server.selfsigned_port_warning') + httpsPort + ' requires root/admin privileges on Linux. For local use without root, consider port 8443.'}</small></div>
                 </div>`;
             }
 

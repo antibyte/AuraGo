@@ -44,29 +44,29 @@
             <div class="radio-scroll">
                 <div class="radio-hero">
                     <div>
-                        <div class="radio-kicker">${esc(t('desktop.radio_top_stations', 'Popular'))}</div>
-                        <h2>${esc(t('desktop.app_radio', 'Radio'))}</h2>
+                        <div class="radio-kicker">${esc(t('desktop.radio_top_stations'))}</div>
+                        <h2>${esc(t('desktop.app_radio'))}</h2>
                     </div>
                     <label class="radio-search">
                         ${iconMarkup('search', 'S', 'radio-search-icon', 15)}
-                        <input type="search" data-search autocomplete="off" spellcheck="false" placeholder="${esc(t('desktop.radio_search_placeholder', 'Search stations...'))}" inputmode="search" enterkeyhint="search" autocapitalize="off">
+                        <input type="search" data-search autocomplete="off" spellcheck="false" placeholder="${esc(t('desktop.radio_search_placeholder'))}" inputmode="search" enterkeyhint="search" autocapitalize="off">
                     </label>
                 </div>
-                <div class="radio-tabs" role="tablist" aria-label="${esc(t('desktop.radio_categories', 'Categories'))}" data-tabs></div>
+                <div class="radio-tabs" role="tablist" aria-label="${esc(t('desktop.radio_categories'))}" data-tabs></div>
                 <div class="radio-status" data-status hidden></div>
                 <div class="radio-grid" data-grid></div>
             </div>
             <div class="radio-player" data-player>
-                <button class="radio-player-button" type="button" data-action="toggle" aria-label="${esc(t('desktop.radio_play', 'Play'))}">${iconMarkup('audio', 'A', 'radio-button-icon', 18)}</button>
+                <button class="radio-player-button" type="button" data-action="toggle" aria-label="${esc(t('desktop.radio_play'))}">${iconMarkup('audio', 'A', 'radio-button-icon', 18)}</button>
                 <div class="radio-now">
-                    <span class="radio-now-label">${esc(t('desktop.radio_now_playing', 'Now Playing'))}</span>
-                    <strong data-now-title>${esc(t('desktop.radio_no_station', 'No station selected'))}</strong>
+                    <span class="radio-now-label">${esc(t('desktop.radio_now_playing'))}</span>
+                    <strong data-now-title>${esc(t('desktop.radio_no_station'))}</strong>
                     <span data-now-meta></span>
                 </div>
-                <button class="radio-icon-button" type="button" data-action="favorite-current" aria-label="${esc(t('desktop.radio_add_favorite', 'Add to favorites'))}">♡</button>
-                <button class="radio-icon-button" type="button" data-action="mute" aria-label="${esc(t('desktop.radio_mute', 'Mute'))}">${iconMarkup('audio', 'V', 'radio-button-icon', 16)}</button>
-                <input class="radio-volume" type="range" min="0" max="100" value="72" data-volume aria-label="${esc(t('desktop.radio_volume', 'Volume'))}">
-                <button class="radio-icon-button" type="button" data-action="stop" aria-label="${esc(t('desktop.radio_stop', 'Stop'))}">${iconMarkup('stop', 'S', 'radio-button-icon', 16)}</button>
+                <button class="radio-icon-button" type="button" data-action="favorite-current" aria-label="${esc(t('desktop.radio_add_favorite'))}">♡</button>
+                <button class="radio-icon-button" type="button" data-action="mute" aria-label="${esc(t('desktop.radio_mute'))}">${iconMarkup('audio', 'V', 'radio-button-icon', 16)}</button>
+                <input class="radio-volume" type="range" min="0" max="100" value="72" data-volume aria-label="${esc(t('desktop.radio_volume'))}">
+                <button class="radio-icon-button" type="button" data-action="stop" aria-label="${esc(t('desktop.radio_stop'))}">${iconMarkup('stop', 'S', 'radio-button-icon', 16)}</button>
             </div>
             <div class="radio-toast" data-toast hidden></div>
         </div>`;
@@ -114,14 +114,14 @@
         function renderGrid() {
             if (state.loading) {
                 status.hidden = false;
-                status.textContent = t('desktop.radio_loading', 'Loading stations...');
+                status.textContent = t('desktop.radio_loading');
                 grid.innerHTML = Array.from({ length: 8 }).map(() => '<article class="radio-card radio-skeleton"><div></div><span></span><p></p><em></em></article>').join('');
                 return;
             }
             status.hidden = !state.error;
             status.textContent = state.error || '';
             if (!state.stations.length) {
-                grid.innerHTML = `<div class="radio-empty">${iconMarkup('radio', 'R', 'radio-empty-icon', 34)}<strong>${esc(t('desktop.radio_no_results', 'No stations found'))}</strong></div>`;
+                grid.innerHTML = `<div class="radio-empty">${iconMarkup('radio', 'R', 'radio-empty-icon', 34)}<strong>${esc(t('desktop.radio_no_results'))}</strong></div>`;
                 return;
             }
             grid.innerHTML = state.stations.map(stationCard).join('');
@@ -164,20 +164,20 @@
             const id = station.stationuuid || station.url_resolved || station.name;
             const active = state.current && stationKey(state.current) === stationKey(station);
             const favorite = isFavorite(station);
-            const bitrate = station.bitrate ? t('desktop.radio_kbps', '{{bitrate}} kbps').replace('{{bitrate}}', station.bitrate) : '';
-            const clicks = station.clickcount ? t('desktop.radio_listeners', '{{count}} clicks').replace('{{count}}', compactNumber(station.clickcount)) : '';
+            const bitrate = station.bitrate ? t('desktop.radio_kbps').replace('{{bitrate}}', station.bitrate) : '';
+            const clicks = station.clickcount ? t('desktop.radio_listeners').replace('{{count}}', compactNumber(station.clickcount)) : '';
             const country = countryFlag(station.countrycode) || clean(station.countrycode || '');
             const favicon = clean(station.favicon || '');
-            return `<article class="radio-card ${active ? 'active' : ''}" role="button" tabindex="0" data-play-station="${esc(id)}" aria-label="${esc(t('desktop.radio_play', 'Play'))} ${esc(station.name || '')}">
+            return `<article class="radio-card ${active ? 'active' : ''}" role="button" tabindex="0" data-play-station="${esc(id)}" aria-label="${esc(t('desktop.radio_play'))} ${esc(station.name || '')}">
                 <div class="radio-art">
                     ${favicon ? `<img data-favicon src="${esc(favicon)}" alt="">` : ''}
                     <span data-favicon-fallback ${favicon ? 'hidden' : ''}>${iconMarkup('radio', 'R', 'radio-card-icon', 26)}</span>
                     <span class="radio-play-overlay">${iconMarkup('audio', 'P', 'radio-play-icon', 22)}</span>
                 </div>
                 <div class="radio-card-body">
-                    <h3 title="${esc(station.name || '')}">${esc(station.name || t('desktop.app_radio', 'Radio'))}</h3>
+                    <h3 title="${esc(station.name || '')}">${esc(station.name || t('desktop.app_radio'))}</h3>
                     <p>${esc([country, station.codec, bitrate].filter(Boolean).join(' · '))}</p>
-                    <div class="radio-card-meta"><span>${esc(clicks || t('desktop.radio_top_stations', 'Popular'))}</span><button class="radio-heart ${favorite ? 'active' : ''}" type="button" data-action="favorite" data-station-id="${esc(id)}" aria-label="${esc(favorite ? t('desktop.radio_remove_favorite', 'Remove from favorites') : t('desktop.radio_add_favorite', 'Add to favorites'))}">${favorite ? '♥' : '♡'}</button></div>
+                    <div class="radio-card-meta"><span>${esc(clicks || t('desktop.radio_top_stations'))}</span><button class="radio-heart ${favorite ? 'active' : ''}" type="button" data-action="favorite" data-station-id="${esc(id)}" aria-label="${esc(favorite ? t('desktop.radio_remove_favorite') : t('desktop.radio_add_favorite'))}">${favorite ? '♥' : '♡'}</button></div>
                 </div>
             </article>`;
         }
@@ -265,7 +265,7 @@
         async function playStation(station) {
             const url = await resolveStreamURL(station).catch(() => station.url_resolved || station.url);
             if (!url) {
-                showToast(t('desktop.radio_error', 'Failed to load stream'));
+                showToast(t('desktop.radio_error'));
                 return;
             }
             state.current = station;
@@ -278,7 +278,7 @@
                 updateMediaSession(station);
             } catch (err) {
                 state.playing = false;
-                showToast(err.message || t('desktop.radio_error', 'Failed to load stream'));
+                showToast(err.message || t('desktop.radio_error'));
             }
             updatePlayer();
             renderGrid();
@@ -292,13 +292,13 @@
 
         function updatePlayer() {
             const current = state.current;
-            nowTitle.textContent = current ? current.name : t('desktop.radio_no_station', 'No station selected');
-            nowMeta.textContent = current ? [clean(current.countrycode || ''), clean(current.codec || ''), current.bitrate ? t('desktop.radio_kbps', '{{bitrate}} kbps').replace('{{bitrate}}', current.bitrate) : ''].filter(Boolean).join(' · ') : '';
+            nowTitle.textContent = current ? current.name : t('desktop.radio_no_station');
+            nowMeta.textContent = current ? [clean(current.countrycode || ''), clean(current.codec || ''), current.bitrate ? t('desktop.radio_kbps').replace('{{bitrate}}', current.bitrate) : ''].filter(Boolean).join(' · ') : '';
             toggleBtn.classList.toggle('active', state.playing);
-            toggleBtn.setAttribute('aria-label', state.playing ? t('desktop.radio_pause', 'Pause') : t('desktop.radio_play', 'Play'));
+            toggleBtn.setAttribute('aria-label', state.playing ? t('desktop.radio_pause') : t('desktop.radio_play'));
             toggleBtn.innerHTML = iconMarkup(state.playing ? 'stop' : 'audio', state.playing ? 'P' : 'A', 'radio-button-icon', 18);
             muteBtn.classList.toggle('active', state.muted);
-            muteBtn.setAttribute('aria-label', state.muted ? t('desktop.radio_unmute', 'Unmute') : t('desktop.radio_mute', 'Mute'));
+            muteBtn.setAttribute('aria-label', state.muted ? t('desktop.radio_unmute') : t('desktop.radio_mute'));
             favoriteCurrentBtn.classList.toggle('active', current && isFavorite(current));
             favoriteCurrentBtn.textContent = current && isFavorite(current) ? '♥' : '♡';
             setWindowMenus();
@@ -327,7 +327,7 @@
         }
 
         function showToast(message) {
-            toast.textContent = message || t('desktop.radio_error', 'Failed to load stream');
+            toast.textContent = message || t('desktop.radio_error');
             toast.hidden = false;
             clearTimeout(toastTimer);
             toastTimer = setTimeout(() => { toast.hidden = true; }, 3600);
@@ -373,10 +373,10 @@
         audio.addEventListener('playing', () => { state.playing = true; updatePlayer(); });
         audio.addEventListener('error', () => {
             state.playing = false;
-            showToast(t('desktop.radio_error', 'Failed to load stream'));
+            showToast(t('desktop.radio_error'));
             updatePlayer();
         });
-        audio.addEventListener('stalled', () => showToast(t('desktop.radio_error', 'Failed to load stream')));
+        audio.addEventListener('stalled', () => showToast(t('desktop.radio_error')));
         disposers.set(windowId, () => {
             clearTimeout(searchTimer);
             clearTimeout(toastTimer);

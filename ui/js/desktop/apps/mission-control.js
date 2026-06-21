@@ -83,7 +83,7 @@
         const $ = (suffix) => container.querySelector(`[data-mc="${suffix}"]`);
         const $$ = (suffix) => container.querySelectorAll(`[data-mc="${suffix}"]`);
 
-        container.innerHTML = `<div class="${P}"><div class="${P}-loading" data-mc="loading">${esc(t('desktop.loading', 'Loading...'))}</div></div>`;
+        container.innerHTML = `<div class="${P}"><div class="${P}-loading" data-mc="loading">${esc(t('desktop.loading'))}</div></div>`;
 
         setupSSE();
         loadData();
@@ -138,11 +138,11 @@
                 if (!mission) return;
                 const isRunning = mid === state.queue.running;
                 const items = [
-                    { icon: 'play', label: t('missions.card_btn_run_title', 'Run'), action: () => runMission(mid), disabled: isRunning },
-                    { icon: 'edit', label: t('missions.card_btn_edit_title', 'Edit'), action: () => openModal(mid) },
-                    { icon: 'copy', label: t('missions.card_btn_duplicate_title', 'Duplicate'), action: () => duplicateMission(mid) },
+                    { icon: 'play', label: t('missions.card_btn_run_title'), action: () => runMission(mid), disabled: isRunning },
+                    { icon: 'edit', label: t('missions.card_btn_edit_title'), action: () => openModal(mid) },
+                    { icon: 'copy', label: t('missions.card_btn_duplicate_title'), action: () => duplicateMission(mid) },
                     { separator: true },
-                    { icon: 'trash', label: t('missions.card_btn_delete_title', 'Delete'), action: () => deleteMission(mid), disabled: !!mission.locked }
+                    { icon: 'trash', label: t('missions.card_btn_delete_title'), action: () => deleteMission(mid), disabled: !!mission.locked }
                 ];
                 if (typeof context.showContextMenu === 'function') {
                     context.showContextMenu(e.clientX, e.clientY, items);
@@ -170,9 +170,9 @@
                 const host = container.querySelector(`.${P}`);
                 if (host) {
                     const detail = err && err.message ? ': ' + esc(err.message) : '';
-                    host.innerHTML = `<div class="${P}-empty"><div class="${P}-empty-icon">⚠️</div><div class="${P}-empty-text">${esc(t('missions.empty_load_error', 'Error loading missions'))}${detail}</div><button type="button" class="${P}-btn" data-mc="retry" style="margin-top:8px">${esc(t('desktop.retry', 'Retry'))}</button></div>`;
+                    host.innerHTML = `<div class="${P}-empty"><div class="${P}-empty-icon">⚠️</div><div class="${P}-empty-text">${esc(t('missions.empty_load_error'))}${detail}</div><button type="button" class="${P}-btn" data-mc="retry" style="margin-top:8px">${esc(t('desktop.retry'))}</button></div>`;
                     const retry = host.querySelector('[data-mc="retry"]');
-                    if (retry) retry.addEventListener('click', () => { host.innerHTML = `<div class="${P}-loading">${esc(t('desktop.loading', 'Loading...'))}</div>`; loadData(); });
+                    if (retry) retry.addEventListener('click', () => { host.innerHTML = `<div class="${P}-loading">${esc(t('desktop.loading'))}</div>`; loadData(); });
                 }
             }
         }
@@ -227,13 +227,13 @@
         function buildLayout() {
             return `
                 <div class="${P}-toolbar" data-mc="toolbar">
-                    <button type="button" class="${P}-btn ${P}-btn-primary" data-mc="btn-new">+ ${esc(t('desktop.mc_new_mission', 'New Mission'))}</button>
-                    <input type="text" class="${P}-search" data-mc="search" placeholder="${esc(t('desktop.mc_search_placeholder', 'Search missions...'))}" inputmode="search" enterkeyhint="search" autocapitalize="off">
+                    <button type="button" class="${P}-btn ${P}-btn-primary" data-mc="btn-new">+ ${esc(t('desktop.mc_new_mission'))}</button>
+                    <input type="text" class="${P}-search" data-mc="search" placeholder="${esc(t('desktop.mc_search_placeholder'))}" inputmode="search" enterkeyhint="search" autocapitalize="off">
                     <select class="${P}-filter-select" data-mc="filter-select">
-                        <option value="all">${esc(t('missions.filter_all', 'All'))}</option>
-                        <option value="manual">${esc(t('missions.filter_manual', 'Manual'))}</option>
-                        <option value="scheduled">${esc(t('missions.filter_scheduled', 'Scheduled'))}</option>
-                        <option value="triggered">${esc(t('missions.filter_triggered', 'Triggered'))}</option>
+                        <option value="all">${esc(t('missions.filter_all'))}</option>
+                        <option value="manual">${esc(t('missions.filter_manual'))}</option>
+                        <option value="scheduled">${esc(t('missions.filter_scheduled'))}</option>
+                        <option value="triggered">${esc(t('missions.filter_triggered'))}</option>
                     </select>
                     <div class="${P}-view-toggle">
                         <button type="button" class="${P}-view-btn${state.viewMode === 'grid' ? ' active' : ''}" data-mc="view-grid" title="Grid">▦</button>
@@ -336,10 +336,10 @@
             const queued = state.queue.items.length;
             const triggered = state.missions.filter(m => m.execution_type === 'triggered').length;
             bar.innerHTML = `
-                <div class="${P}-stat"><span class="${P}-stat-icon">📋</span><span><span class="${P}-stat-value">${total}</span><br><span class="${P}-stat-label">${esc(t('missions.status_total', 'Total'))}</span></span></div>
-                <div class="${P}-stat${running > 0 ? ' running' : ''}"><span class="${P}-stat-icon">▶️</span><span><span class="${P}-stat-value">${running}</span><br><span class="${P}-stat-label">${esc(t('missions.status_running', 'Running'))}</span></span></div>
-                <div class="${P}-stat"><span class="${P}-stat-icon">⏳</span><span><span class="${P}-stat-value">${queued}</span><br><span class="${P}-stat-label">${esc(t('missions.status_queue', 'Queue'))}</span></span></div>
-                <div class="${P}-stat"><span class="${P}-stat-icon">⚡</span><span><span class="${P}-stat-value">${triggered}</span><br><span class="${P}-stat-label">${esc(t('missions.status_triggered', 'Triggered'))}</span></span></div>
+                <div class="${P}-stat"><span class="${P}-stat-icon">📋</span><span><span class="${P}-stat-value">${total}</span><br><span class="${P}-stat-label">${esc(t('missions.status_total'))}</span></span></div>
+                <div class="${P}-stat${running > 0 ? ' running' : ''}"><span class="${P}-stat-icon">▶️</span><span><span class="${P}-stat-value">${running}</span><br><span class="${P}-stat-label">${esc(t('missions.status_running'))}</span></span></div>
+                <div class="${P}-stat"><span class="${P}-stat-icon">⏳</span><span><span class="${P}-stat-value">${queued}</span><br><span class="${P}-stat-label">${esc(t('missions.status_queue'))}</span></span></div>
+                <div class="${P}-stat"><span class="${P}-stat-icon">⚡</span><span><span class="${P}-stat-value">${triggered}</span><br><span class="${P}-stat-label">${esc(t('missions.status_triggered'))}</span></span></div>
             `;
         }
 
@@ -352,18 +352,18 @@
                 return;
             }
             el.style.display = '';
-            let html = `<div class="${P}-queue-header"><span>${esc(t('missions.queue_title', 'Queue'))}</span><span class="${P}-queue-badge">${esc(t('missions.queue_serial_badge', 'Serial'))}</span></div><div class="${P}-queue-items">`;
+            let html = `<div class="${P}-queue-header"><span>${esc(t('missions.queue_title'))}</span><span class="${P}-queue-badge">${esc(t('missions.queue_serial_badge'))}</span></div><div class="${P}-queue-items">`;
 
             if (state.queue.running) {
                 const rm = state.missions.find(m => m.id === state.queue.running);
                 if (rm) {
-                    html += `<div class="${P}-queue-item running"><span class="${P}-queue-pos">▶</span><span class="${P}-queue-name">${esc(rm.name)}</span><span class="${P}-queue-meta">${esc(t('missions.queue_running_now', 'Running...'))}</span></div>`;
+                    html += `<div class="${P}-queue-item running"><span class="${P}-queue-pos">▶</span><span class="${P}-queue-name">${esc(rm.name)}</span><span class="${P}-queue-meta">${esc(t('missions.queue_running_now'))}</span></div>`;
                 }
             }
             state.queue.items.forEach((item, idx) => {
                 const m = state.missions.find(ms => ms.id === item.mission_id);
                 if (!m) return;
-                html += `<div class="${P}-queue-item"><span class="${P}-queue-pos">${idx + 1}</span><span class="${P}-queue-name">${esc(m.name)}</span><span class="${P}-queue-meta">${esc(t('missions.queue_priority_prefix', 'Prio:'))} ${m.priority}</span><button type="button" class="${P}-queue-remove" data-mc-action="remove-queue" data-mission-id="${escAttr(m.id)}" title="${esc(t('missions.queue_remove_title', 'Remove'))}">${SVG.x}</button></div>`;
+                html += `<div class="${P}-queue-item"><span class="${P}-queue-pos">${idx + 1}</span><span class="${P}-queue-name">${esc(m.name)}</span><span class="${P}-queue-meta">${esc(t('missions.queue_priority_prefix'))} ${m.priority}</span><button type="button" class="${P}-queue-remove" data-mc-action="remove-queue" data-mission-id="${escAttr(m.id)}" title="${esc(t('missions.queue_remove_title'))}">${SVG.x}</button></div>`;
             });
             html += '</div>';
             el.innerHTML = html;
@@ -397,7 +397,7 @@
             if (state.searchQuery) filtered = filtered.filter(m => (m.name || '').toLowerCase().includes(state.searchQuery) || (m.prompt || '').toLowerCase().includes(state.searchQuery));
 
             if (filtered.length === 0) {
-                el.innerHTML = `<div class="${P}-empty" style="grid-column:1/-1"><div class="${P}-empty-icon">🚀</div><div class="${P}-empty-text">${esc(state.currentFilter === 'all' ? t('missions.empty_create_first', 'Create your first mission') : t('missions.empty_no_missions_of_type', 'No missions of this type'))}</div><button type="button" class="${P}-btn ${P}-btn-primary" data-mc="btn-new-empty">+ ${esc(t('desktop.mc_new_mission', 'New Mission'))}</button></div>`;
+                el.innerHTML = `<div class="${P}-empty" style="grid-column:1/-1"><div class="${P}-empty-icon">🚀</div><div class="${P}-empty-text">${esc(state.currentFilter === 'all' ? t('missions.empty_create_first') : t('missions.empty_no_missions_of_type'))}</div><button type="button" class="${P}-btn ${P}-btn-primary" data-mc="btn-new-empty">+ ${esc(t('desktop.mc_new_mission'))}</button></div>`;
                 return;
             }
 
@@ -418,7 +418,7 @@
             const statusClass = isRunning ? ' running' : isQueued ? ' queued' : '';
 
             const chip = renderStatusChip(mission, isRunning, isQueued);
-            const remoteBadge = mission.runner_type === 'remote' ? `<span class="${P}-remote-badge">${esc(mission.remote_egg_name || mission.remote_nest_name || t('missions.card_remote_badge', 'Remote'))}</span>` : '';
+            const remoteBadge = mission.runner_type === 'remote' ? `<span class="${P}-remote-badge">${esc(mission.remote_egg_name || mission.remote_nest_name || t('missions.card_remote_badge'))}</span>` : '';
             const prepBadge = renderPrepBadge(mission);
 
             let triggerPill = '';
@@ -427,11 +427,11 @@
                 if (txt) triggerPill = `<div class="${P}-trigger-pill" title="${escAttr(txt.replace(/<[^>]+>/g, ''))}">${SVG.bolt}<span>${txt}</span></div>`;
             }
 
-            const lastRun = mission.last_run ? formatTime(mission.last_run) : t('missions.card_last_run_never', 'Never');
+            const lastRun = mission.last_run ? formatTime(mission.last_run) : t('missions.card_last_run_never');
             const hasError = !isRunning && mission.last_result === 'error';
             const resultIcon = hasError ? SVG.xCircle : (mission.last_result === 'success' ? SVG.checkCircle : '');
             const resultClass = hasError ? `${P}-meta-item--error` : (mission.last_result === 'success' ? `${P}-meta-item--ok` : '');
-            const lockedMark = mission.locked ? `<span class="${P}-card-name-lock" title="${esc(t('missions.card_locked_title', 'Locked'))}">${SVG.lock}</span>` : '';
+            const lockedMark = mission.locked ? `<span class="${P}-card-name-lock" title="${esc(t('missions.card_locked_title'))}">${SVG.lock}</span>` : '';
 
             return `
                 <article class="${P}-card${statusClass}${isExpanded ? ' expanded' : ''}" data-priority="${escAttr(mission.priority)}" data-status="${statusKind}" data-mission-id="${mid}">
@@ -449,19 +449,19 @@
                                 <span class="${P}-meta-item">${esc(t('missions.meta_run_count', { count: mission.run_count }) || (mission.run_count + 'x'))}</span>
                             </div>
                             <div style="display:flex;gap:4px;align-items:center">
-                                <button type="button" class="${P}-run-btn" data-mc-action="run" data-mission-id="${mid}" ${isRunning ? 'disabled' : ''}>${SVG.play}<span>${esc(t('missions.card_run_label', 'Run'))}</span></button>
+                                <button type="button" class="${P}-run-btn" data-mc-action="run" data-mission-id="${mid}" ${isRunning ? 'disabled' : ''}>${SVG.play}<span>${esc(t('missions.card_run_label'))}</span></button>
                             </div>
                         </div>
                     </div>
                     <div class="${P}-card-expand">
                         <div class="${P}-card-expand-inner">
                             ${mission.prompt ? `<div class="${P}-prompt-full">${esc(mission.prompt)}</div>` : ''}
-                            ${mission.last_output ? `<div class="${P}-log-block"><div class="${P}-log-head" data-mc-action="toggle-log">${SVG.fileText}<span>${esc(t('missions.card_view_log', 'View Log'))}</span></div><pre class="${P}-log-body" style="display:none">${esc(extractLastOutput(mission.last_output))}</pre></div>` : ''}
+                            ${mission.last_output ? `<div class="${P}-log-block"><div class="${P}-log-head" data-mc-action="toggle-log">${SVG.fileText}<span>${esc(t('missions.card_view_log'))}</span></div><pre class="${P}-log-body" style="display:none">${esc(extractLastOutput(mission.last_output))}</pre></div>` : ''}
                             <div class="${P}-actions-secondary">
                                 ${renderPrepButtons(mission, isRunning)}
-                                <button type="button" class="${P}-action-btn" data-mc-action="duplicate" data-mission-id="${mid}" title="${esc(t('missions.card_btn_duplicate_title', 'Duplicate'))}">${SVG.copy}</button>
-                                <button type="button" class="${P}-action-btn" data-mc-action="edit" data-mission-id="${mid}" title="${esc(t('missions.card_btn_edit_title', 'Edit'))}">${SVG.edit}</button>
-                                <button type="button" class="${P}-action-btn ${P}-action-btn--danger" data-mc-action="delete" data-mission-id="${mid}" title="${esc(t('missions.card_btn_delete_title', 'Delete'))}" ${mission.locked ? 'disabled' : ''}>${SVG.trash}</button>
+                                <button type="button" class="${P}-action-btn" data-mc-action="duplicate" data-mission-id="${mid}" title="${esc(t('missions.card_btn_duplicate_title'))}">${SVG.copy}</button>
+                                <button type="button" class="${P}-action-btn" data-mc-action="edit" data-mission-id="${mid}" title="${esc(t('missions.card_btn_edit_title'))}">${SVG.edit}</button>
+                                <button type="button" class="${P}-action-btn ${P}-action-btn--danger" data-mc-action="delete" data-mission-id="${mid}" title="${esc(t('missions.card_btn_delete_title'))}" ${mission.locked ? 'disabled' : ''}>${SVG.trash}</button>
                             </div>
                         </div>
                     </div>
@@ -473,9 +473,9 @@
             const isQueued = state.queue.items.some(i => i.mission_id === mission.id);
             const mid = escAttr(mission.id);
             const typeIcon = { manual: '👆', scheduled: '📅', triggered: '⚡' }[mission.execution_type] || '👆';
-            const statusBadge = isRunning ? `<span class="${P}-chip ${P}-chip--running">${esc(t('missions.card_badge_running', 'running'))}</span>` : isQueued ? `<span class="${P}-chip ${P}-chip--queued">${esc(t('missions.card_badge_queued', 'Queued'))}</span>` : '';
+            const statusBadge = isRunning ? `<span class="${P}-chip ${P}-chip--running">${esc(t('missions.card_badge_running'))}</span>` : isQueued ? `<span class="${P}-chip ${P}-chip--queued">${esc(t('missions.card_badge_queued'))}</span>` : '';
             const prepBadge = renderPrepBadge(mission);
-            const runnerBadge = mission.runner_type === 'remote' ? `<span class="${P}-remote-badge">${esc(mission.remote_egg_name || t('missions.card_remote_badge', 'Remote'))}</span>` : '';
+            const runnerBadge = mission.runner_type === 'remote' ? `<span class="${P}-remote-badge">${esc(mission.remote_egg_name || t('missions.card_remote_badge'))}</span>` : '';
 
             return `
                 <div class="${P}-card-list${isRunning ? ' running' : ''}" data-mission-id="${mid}" data-mc-action="edit" data-mc-action-param="${mid}">
@@ -484,10 +484,10 @@
                     ${mission.locked ? `<span class="${P}-card-name-lock">${SVG.lock}</span>` : ''}
                     <div class="${P}-card-list-badges">${statusBadge}${prepBadge}${runnerBadge}</div>
                     <div class="${P}-card-list-actions">
-                        <button type="button" class="${P}-action-btn" data-mc-action="run" data-mission-id="${mid}" title="${esc(t('missions.card_btn_run_title', 'Run'))}" ${isRunning ? 'disabled' : ''}>${SVG.play}</button>
-                        <button type="button" class="${P}-action-btn" data-mc-action="edit" data-mission-id="${mid}" title="${esc(t('missions.card_btn_edit_title', 'Edit'))}">${SVG.edit}</button>
-                        <button type="button" class="${P}-action-btn" data-mc-action="duplicate" data-mission-id="${mid}" title="${esc(t('missions.card_btn_duplicate_title', 'Duplicate'))}">${SVG.copy}</button>
-                        <button type="button" class="${P}-action-btn ${P}-action-btn--danger" data-mc-action="delete" data-mission-id="${mid}" title="${esc(t('missions.card_btn_delete_title', 'Delete'))}" ${mission.locked ? 'disabled' : ''}>${SVG.trash}</button>
+                        <button type="button" class="${P}-action-btn" data-mc-action="run" data-mission-id="${mid}" title="${esc(t('missions.card_btn_run_title'))}" ${isRunning ? 'disabled' : ''}>${SVG.play}</button>
+                        <button type="button" class="${P}-action-btn" data-mc-action="edit" data-mission-id="${mid}" title="${esc(t('missions.card_btn_edit_title'))}">${SVG.edit}</button>
+                        <button type="button" class="${P}-action-btn" data-mc-action="duplicate" data-mission-id="${mid}" title="${esc(t('missions.card_btn_duplicate_title'))}">${SVG.copy}</button>
+                        <button type="button" class="${P}-action-btn ${P}-action-btn--danger" data-mc-action="delete" data-mission-id="${mid}" title="${esc(t('missions.card_btn_delete_title'))}" ${mission.locked ? 'disabled' : ''}>${SVG.trash}</button>
                     </div>
                 </div>`;
         }
@@ -495,13 +495,13 @@
         // ── Status Chip ──
         function renderStatusChip(mission, isRunning, isQueued) {
             let kind, label, icon;
-            if (isRunning) { kind = 'running'; label = t('missions.card_badge_running', 'running'); icon = SVG.play; }
-            else if (isQueued) { kind = 'queued'; label = t('missions.card_badge_queued', 'Queued'); icon = SVG.clock; }
+            if (isRunning) { kind = 'running'; label = t('missions.card_badge_running'); icon = SVG.play; }
+            else if (isQueued) { kind = 'queued'; label = t('missions.card_badge_queued'); icon = SVG.clock; }
             else {
                 kind = mission.execution_type || 'manual';
-                if (kind === 'scheduled') { label = t('missions.filter_scheduled', 'Scheduled'); icon = SVG.calendar; }
-                else if (kind === 'triggered') { label = t('missions.filter_triggered', 'Triggered'); icon = SVG.bolt; }
-                else { label = t('missions.filter_manual', 'Manual'); icon = SVG.hand; }
+                if (kind === 'scheduled') { label = t('missions.filter_scheduled'); icon = SVG.calendar; }
+                else if (kind === 'triggered') { label = t('missions.filter_triggered'); icon = SVG.bolt; }
+                else { label = t('missions.filter_manual'); icon = SVG.hand; }
             }
             return `<span class="${P}-chip ${P}-chip--${kind}"><span class="${P}-chip-priority" data-priority="${escAttr(mission.priority)}"></span><span class="${P}-chip-icon">${icon}</span><span>${esc(label)}</span></span>`;
         }
@@ -517,9 +517,9 @@
             const s = mission.preparation_status || 'none';
             const mid = escAttr(mission.id);
             if (s === 'prepared') {
-                return `<button type="button" class="${P}-action-btn" data-mc-action="view-prep" data-mission-id="${mid}" title="${esc(t('missions.prep_view_title', 'View'))}">${SVG.info}</button><button type="button" class="${P}-action-btn" data-mc-action="invalidate-prep" data-mission-id="${mid}" title="${esc(t('missions.prep_btn_invalidate', 'Invalidate'))}">${SVG.refresh}</button>`;
+                return `<button type="button" class="${P}-action-btn" data-mc-action="view-prep" data-mission-id="${mid}" title="${esc(t('missions.prep_view_title'))}">${SVG.info}</button><button type="button" class="${P}-action-btn" data-mc-action="invalidate-prep" data-mission-id="${mid}" title="${esc(t('missions.prep_btn_invalidate'))}">${SVG.refresh}</button>`;
             }
-            return `<button type="button" class="${P}-action-btn" data-mc-action="prepare" data-mission-id="${mid}" title="${esc(t('missions.prep_btn_prepare', 'Prepare'))}" ${s === 'preparing' || isRunning ? 'disabled' : ''}>${SVG.cog}</button>`;
+            return `<button type="button" class="${P}-action-btn" data-mc-action="prepare" data-mission-id="${mid}" title="${esc(t('missions.prep_btn_prepare'))}" ${s === 'preparing' || isRunning ? 'disabled' : ''}>${SVG.cog}</button>`;
         }
 
         // ── Trigger Text ──
@@ -528,63 +528,63 @@
             let txt = '';
             switch (mission.trigger_type) {
                 case 'mission_completed': {
-                    const src = cfg.source_mission_name || cfg.source_mission_id || t('missions.trigger_info_unknown_mission', 'Unknown');
+                    const src = cfg.source_mission_name || cfg.source_mission_id || t('missions.trigger_info_unknown_mission');
                     txt = t('missions.trigger_info_when_completed', { name: src }) || ('When "' + src + '" completed');
-                    if (cfg.require_success) txt += ' ' + t('missions.trigger_info_only_on_success', '(only on success)');
+                    if (cfg.require_success) txt += ' ' + t('missions.trigger_info_only_on_success');
                     break;
                 }
                 case 'email_received': {
                     const parts = [];
-                    if (cfg.email_folder) parts.push(t('missions.trigger_info_folder_prefix', 'Folder:') + ' ' + cfg.email_folder);
-                    if (cfg.email_subject_contains) parts.push(t('missions.trigger_info_subject_prefix', 'Subject:') + ' "' + cfg.email_subject_contains + '"');
-                    if (cfg.email_from_contains) parts.push(t('missions.trigger_info_from_prefix', 'From:') + ' "' + cfg.email_from_contains + '"');
-                    txt = parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_any_email', 'On any email');
+                    if (cfg.email_folder) parts.push(t('missions.trigger_info_folder_prefix') + ' ' + cfg.email_folder);
+                    if (cfg.email_subject_contains) parts.push(t('missions.trigger_info_subject_prefix') + ' "' + cfg.email_subject_contains + '"');
+                    if (cfg.email_from_contains) parts.push(t('missions.trigger_info_from_prefix') + ' "' + cfg.email_from_contains + '"');
+                    txt = parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_any_email');
                     break;
                 }
-                case 'webhook': txt = t('missions.trigger_info_webhook_prefix', 'Webhook:') + ' ' + (cfg.webhook_slug || cfg.webhook_id || t('missions.trigger_info_webhook_unknown', 'Unknown')); break;
+                case 'webhook': txt = t('missions.trigger_info_webhook_prefix') + ' ' + (cfg.webhook_slug || cfg.webhook_id || t('missions.trigger_info_webhook_unknown')); break;
                 case 'egg_hatched': {
-                    const egg = cfg.egg_name || cfg.egg_id ? t('missions.trigger_info_egg_prefix', 'Egg:') + ' ' + (cfg.egg_name || cfg.egg_id) : t('missions.trigger_info_any_egg', 'Any egg');
-                    const nest = cfg.nest_name || cfg.nest_id ? ', ' + t('missions.trigger_info_nest_prefix', 'Nest:') + ' ' + (cfg.nest_name || cfg.nest_id) : '';
+                    const egg = cfg.egg_name || cfg.egg_id ? t('missions.trigger_info_egg_prefix') + ' ' + (cfg.egg_name || cfg.egg_id) : t('missions.trigger_info_any_egg');
+                    const nest = cfg.nest_name || cfg.nest_id ? ', ' + t('missions.trigger_info_nest_prefix') + ' ' + (cfg.nest_name || cfg.nest_id) : '';
                     txt = '🥚 ' + egg + nest; break;
                 }
-                case 'nest_cleared': txt = '🪺 ' + (cfg.nest_name || cfg.nest_id ? t('missions.trigger_info_nest_prefix', 'Nest:') + ' ' + (cfg.nest_name || cfg.nest_id) : t('missions.trigger_info_any_nest', 'Any nest')); break;
+                case 'nest_cleared': txt = '🪺 ' + (cfg.nest_name || cfg.nest_id ? t('missions.trigger_info_nest_prefix') + ' ' + (cfg.nest_name || cfg.nest_id) : t('missions.trigger_info_any_nest')); break;
                 case 'mqtt_message': {
-                    const parts = [t('missions.trigger_info_mqtt_topic_prefix', 'Topic:') + ' ' + (cfg.mqtt_topic || '#')];
-                    if (cfg.mqtt_payload_contains) parts.push(t('missions.trigger_info_mqtt_payload_prefix', 'Payload:') + ' "' + cfg.mqtt_payload_contains + '"');
+                    const parts = [t('missions.trigger_info_mqtt_topic_prefix') + ' ' + (cfg.mqtt_topic || '#')];
+                    if (cfg.mqtt_payload_contains) parts.push(t('missions.trigger_info_mqtt_payload_prefix') + ' "' + cfg.mqtt_payload_contains + '"');
                     txt = '📡 ' + parts.join(' | '); break;
                 }
-                case 'system_startup': txt = t('missions.trigger_system_startup_badge', 'On System Startup'); break;
+                case 'system_startup': txt = t('missions.trigger_system_startup_badge'); break;
                 case 'home_assistant_state': {
-                    const parts = [t('missions.trigger_info_ha_entity_prefix', 'Entity:') + ' ' + (cfg.ha_entity_id || t('missions.trigger_info_ha_any_entity', 'Any'))];
-                    if (cfg.ha_state_equals) parts.push(t('missions.trigger_info_ha_state_prefix', 'State:') + ' "' + cfg.ha_state_equals + '"');
+                    const parts = [t('missions.trigger_info_ha_entity_prefix') + ' ' + (cfg.ha_entity_id || t('missions.trigger_info_ha_any_entity'))];
+                    if (cfg.ha_state_equals) parts.push(t('missions.trigger_info_ha_state_prefix') + ' "' + cfg.ha_state_equals + '"');
                     txt = '🏠 ' + parts.join(' | '); break;
                 }
-                case 'device_connected': txt = '🔌 ' + t('missions.trigger_info_device_connected_prefix', 'Connected:') + ' ' + (cfg.device_name || cfg.device_id || t('missions.trigger_info_any_device', 'Any')); break;
-                case 'device_disconnected': txt = '⚡ ' + t('missions.trigger_info_device_disconnected_prefix', 'Disconnected:') + ' ' + (cfg.device_name || cfg.device_id || t('missions.trigger_info_any_device', 'Any')); break;
-                case 'fritzbox_call': txt = '📞 ' + t('missions.trigger_info_fritzbox_prefix', 'Fritz!Box:') + ' ' + (cfg.call_type || t('missions.trigger_info_fritzbox_any', 'Any')); break;
-                case 'budget_warning': txt = '💰 ' + t('missions.trigger_budget_warning_badge', 'Budget warning'); break;
-                case 'budget_exceeded': txt = '🚫 ' + t('missions.trigger_budget_exceeded_badge', 'Budget exceeded'); break;
+                case 'device_connected': txt = '🔌 ' + t('missions.trigger_info_device_connected_prefix') + ' ' + (cfg.device_name || cfg.device_id || t('missions.trigger_info_any_device')); break;
+                case 'device_disconnected': txt = '⚡ ' + t('missions.trigger_info_device_disconnected_prefix') + ' ' + (cfg.device_name || cfg.device_id || t('missions.trigger_info_any_device')); break;
+                case 'fritzbox_call': txt = '📞 ' + t('missions.trigger_info_fritzbox_prefix') + ' ' + (cfg.call_type || t('missions.trigger_info_fritzbox_any')); break;
+                case 'budget_warning': txt = '💰 ' + t('missions.trigger_budget_warning_badge'); break;
+                case 'budget_exceeded': txt = '🚫 ' + t('missions.trigger_budget_exceeded_badge'); break;
                 case 'planner_appointment_due': {
                     const parts = [];
-                    if (cfg.planner_appointment_id) parts.push(t('missions.trigger_info_planner_appointment_id_prefix', 'Appointment:') + ' ' + cfg.planner_appointment_id);
-                    if (cfg.planner_title_contains) parts.push(t('missions.trigger_info_planner_title_prefix', 'Title:') + ' "' + cfg.planner_title_contains + '"');
-                    txt = '📅 ' + (parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_planner_any_appointment', 'Any appointment')); break;
+                    if (cfg.planner_appointment_id) parts.push(t('missions.trigger_info_planner_appointment_id_prefix') + ' ' + cfg.planner_appointment_id);
+                    if (cfg.planner_title_contains) parts.push(t('missions.trigger_info_planner_title_prefix') + ' "' + cfg.planner_title_contains + '"');
+                    txt = '📅 ' + (parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_planner_any_appointment')); break;
                 }
                 case 'planner_todo_overdue': {
                     const parts = [];
-                    if (cfg.planner_todo_id) parts.push(t('missions.trigger_info_planner_todo_id_prefix', 'Todo:') + ' ' + cfg.planner_todo_id);
-                    if (cfg.planner_title_contains) parts.push(t('missions.trigger_info_planner_title_prefix', 'Title:') + ' "' + cfg.planner_title_contains + '"');
-                    txt = '📝 ' + (parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_planner_any_todo', 'Any overdue todo')); break;
+                    if (cfg.planner_todo_id) parts.push(t('missions.trigger_info_planner_todo_id_prefix') + ' ' + cfg.planner_todo_id);
+                    if (cfg.planner_title_contains) parts.push(t('missions.trigger_info_planner_title_prefix') + ' "' + cfg.planner_title_contains + '"');
+                    txt = '📝 ' + (parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_planner_any_todo')); break;
                 }
                 case 'planner_operational_issue': {
                     const parts = [];
-                    if (cfg.planner_issue_source) parts.push(t('missions.trigger_info_planner_issue_source_prefix', 'Source:') + ' ' + cfg.planner_issue_source);
-                    if (cfg.planner_issue_severity) parts.push(t('missions.trigger_info_planner_issue_severity_prefix', 'Severity:') + ' ' + cfg.planner_issue_severity);
-                    txt = '🧯 ' + (parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_planner_any_issue', 'Any issue')); break;
+                    if (cfg.planner_issue_source) parts.push(t('missions.trigger_info_planner_issue_source_prefix') + ' ' + cfg.planner_issue_source);
+                    if (cfg.planner_issue_severity) parts.push(t('missions.trigger_info_planner_issue_severity_prefix') + ' ' + cfg.planner_issue_severity);
+                    txt = '🧯 ' + (parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_planner_any_issue')); break;
                 }
             }
             if (cfg.min_interval_seconds) {
-                const intv = t('missions.trigger_info_min_interval_prefix', 'Min interval:') + ' ' + cfg.min_interval_seconds + 's';
+                const intv = t('missions.trigger_info_min_interval_prefix') + ' ' + cfg.min_interval_seconds + 's';
                 txt = txt ? txt + ' | ' + intv : intv;
             }
             return txt;
@@ -594,17 +594,17 @@
         async function runMission(id) {
             try {
                 await api('/api/missions/v2/' + id + '/run', { method: 'POST' });
-                notify(t('missions.toast_queued', 'Mission queued'));
+                notify(t('missions.toast_queued'));
                 loadData();
-            } catch (err) { notify(t('missions.toast_error_prefix', 'Error: ') + err.message, 'error'); }
+            } catch (err) { notify(t('missions.toast_error_prefix') + err.message, 'error'); }
         }
 
         async function removeFromQueue(id) {
             try {
                 await api('/api/missions/v2/' + id + '/queue', { method: 'DELETE' });
-                notify(t('missions.toast_removed_from_queue', 'Removed'));
+                notify(t('missions.toast_removed_from_queue'));
                 loadData();
-            } catch (err) { notify(t('missions.toast_error_prefix', 'Error: ') + err.message, 'error'); }
+            } catch (err) { notify(t('missions.toast_error_prefix') + err.message, 'error'); }
         }
 
         async function deleteMission(id) {
@@ -616,9 +616,9 @@
             }
             try {
                 await api('/api/missions/v2/' + encodeURIComponent(id), { method: 'DELETE' });
-                notify(t('missions.toast_mission_deleted', 'Mission deleted'));
+                notify(t('missions.toast_mission_deleted'));
                 loadData();
-            } catch (err) { notify(t('missions.toast_error_prefix', 'Error: ') + err.message, 'error'); }
+            } catch (err) { notify(t('missions.toast_error_prefix') + err.message, 'error'); }
         }
 
         function duplicateMission(id) {
@@ -630,17 +630,17 @@
         async function prepareMission(id) {
             try {
                 await api('/api/missions/v2/' + id + '/prepare', { method: 'POST' });
-                notify(t('missions.prep_toast_started', 'Preparation started'));
+                notify(t('missions.prep_toast_started'));
                 loadData();
-            } catch (err) { notify(t('missions.prep_toast_error', 'Error') + ': ' + err.message, 'error'); }
+            } catch (err) { notify(t('missions.prep_toast_error') + ': ' + err.message, 'error'); }
         }
 
         async function invalidatePrep(id) {
             try {
                 await api('/api/missions/v2/' + id + '/prepared', { method: 'DELETE' });
-                notify(t('missions.prep_toast_invalidated', 'Invalidated'));
+                notify(t('missions.prep_toast_invalidated'));
                 loadData();
-            } catch (err) { notify(t('missions.prep_toast_error', 'Error') + ': ' + err.message, 'error'); }
+            } catch (err) { notify(t('missions.prep_toast_error') + ': ' + err.message, 'error'); }
         }
 
         async function viewPrep(id) {
@@ -653,10 +653,10 @@
                     if (a.essential_tools && a.essential_tools.length) { content += '── Tools ──\n'; a.essential_tools.forEach(tool => { content += '• ' + tool.tool_name + ': ' + tool.purpose + '\n'; }); content += '\n'; }
                     if (a.step_plan && a.step_plan.length) { content += '── Steps ──\n'; a.step_plan.forEach((s, i) => { content += (i + 1) + '. ' + s.action + (s.expectation ? ' — ' + s.expectation : '') + '\n'; }); content += '\n'; }
                     if (a.pitfalls && a.pitfalls.length) { content += '── Pitfalls ──\n'; a.pitfalls.forEach(p => { content += '⚠ ' + p.risk + (p.mitigation ? ' → ' + p.mitigation : '') + '\n'; }); }
-                    if (data.confidence) content += t('missions.prep_confidence', 'Confidence') + ': ' + Math.round(data.confidence * 100) + '%';
+                    if (data.confidence) content += t('missions.prep_confidence') + ': ' + Math.round(data.confidence * 100) + '%';
                 } else { content = JSON.stringify(data, null, 2); }
-                showInfoModal(t('missions.prep_view_title', 'Prepared Context'), content);
-            } catch (err) { notify(t('missions.prep_toast_error', 'Error') + ': ' + err.message, 'error'); }
+                showInfoModal(t('missions.prep_view_title'), content);
+            } catch (err) { notify(t('missions.prep_toast_error') + ': ' + err.message, 'error'); }
         }
 
         // ── Modal ──
@@ -675,10 +675,10 @@
         }
 
         function formatTime(iso) {
-            if (!iso) return t('missions.time_never', 'Never');
+            if (!iso) return t('missions.time_never');
             const diff = Date.now() - new Date(iso).getTime();
             const min = Math.floor(diff / 60000);
-            if (min < 1) return t('missions.time_just_now', 'Just now');
+            if (min < 1) return t('missions.time_just_now');
             if (min < 60) return t('missions.time_minutes_ago', { n: min }) || (min + 'm ago');
             const hrs = Math.floor(diff / 3600000);
             if (hrs < 24) return t('missions.time_hours_ago', { n: hrs }) || (hrs + 'h ago');

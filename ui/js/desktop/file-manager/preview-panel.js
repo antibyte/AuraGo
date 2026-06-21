@@ -32,24 +32,24 @@
         let body = '';
         
         if (selected.length === 0) {
-            header = `<div class="fm-preview-header"><h3>${esc(t('desktop.fm.preview_properties', 'File Details'))}</h3></div>`;
-            body = `<div class="fm-preview-empty">${esc(t('desktop.fm.no_file_selected', 'No file selected'))}</div>`;
+            header = `<div class="fm-preview-header"><h3>${esc(t('desktop.fm.preview_properties'))}</h3></div>`;
+            body = `<div class="fm-preview-empty">${esc(t('desktop.fm.no_file_selected'))}</div>`;
         } else if (selected.length > 1) {
-            header = `<div class="fm-preview-header"><h3>${esc(t('desktop.fm.preview_properties', 'File Details'))}</h3></div>`;
+            header = `<div class="fm-preview-header"><h3>${esc(t('desktop.fm.preview_properties'))}</h3></div>`;
             const size = getSelectedSize();
             body = `<div class="fm-preview-multi">
                 <div class="fm-preview-icon-large">${iconMarkup('copy', '📋', '', 48)}</div>
-                <div class="fm-preview-name">${esc(t('desktop.fm.selected', '{{count}} selected', { count: selected.length }))}</div>
+                <div class="fm-preview-name">${esc(t('desktop.fm.selected', { count: selected.length }))}</div>
                 <div class="fm-preview-info-row">
-                    <span class="fm-preview-info-label">${esc(t('desktop.fm.prop_size', 'Size'))}:</span>
+                    <span class="fm-preview-info-label">${esc(t('desktop.fm.prop_size'))}:</span>
                     <span class="fm-preview-info-val">${esc(fmtBytes(size))}</span>
                 </div>
             </div>`;
         } else {
             const file = selected[0];
             header = `<div class="fm-preview-header">
-                <h3>${esc(t('desktop.fm.preview_properties', 'File Details'))}</h3>
-                <button type="button" class="fm-preview-close" data-action="toggle-preview" title="${esc(t('desktop.close', 'Close'))}">&times;</button>
+                <h3>${esc(t('desktop.fm.preview_properties'))}</h3>
+                <button type="button" class="fm-preview-close" data-action="toggle-preview" title="${esc(t('desktop.close'))}">&times;</button>
             </div>`;
             
             const isImg = isPreviewableImage(file);
@@ -75,7 +75,7 @@
                 }
             } else if (isText) {
                 previewContent = `<div class="fm-preview-text-wrap" data-preview-path="${esc(file.path)}">
-                    <div class="fm-preview-text-loading">${esc(t('desktop.fm.loading', 'Loading...'))}</div>
+                    <div class="fm-preview-text-loading">${esc(t('desktop.fm.loading'))}</div>
                 </div>`;
                 loadTextExcerpt(file.path);
             } else {
@@ -86,22 +86,22 @@
                 ${previewContent}
                 <div class="fm-preview-name-title" title="${esc(file.name)}">${esc(file.name)}</div>
                 <div class="fm-preview-info-row">
-                    <span class="fm-preview-info-label">${esc(t('desktop.fm.prop_type', 'Type'))}:</span>
-                    <span class="fm-preview-info-val">${esc(file.type === 'directory' ? t('desktop.fm.prop_folder', 'Folder') : t('desktop.fm.prop_file', 'File'))}</span>
+                    <span class="fm-preview-info-label">${esc(t('desktop.fm.prop_type'))}:</span>
+                    <span class="fm-preview-info-val">${esc(file.type === 'directory' ? t('desktop.fm.prop_folder') : t('desktop.fm.prop_file'))}</span>
                 </div>
                 <div class="fm-preview-info-row">
-                    <span class="fm-preview-info-label">${esc(t('desktop.fm.prop_size', 'Size'))}:</span>
+                    <span class="fm-preview-info-label">${esc(t('desktop.fm.prop_size'))}:</span>
                     <span class="fm-preview-info-val">${esc(file.type === 'directory' ? '' : fmtBytes(file.size || 0))}</span>
                 </div>
                 <div class="fm-preview-info-row">
-                    <span class="fm-preview-info-label">${esc(t('desktop.fm.prop_modified', 'Modified'))}:</span>
+                    <span class="fm-preview-info-label">${esc(t('desktop.fm.prop_modified'))}:</span>
                     <span class="fm-preview-info-val">${esc(formatDate(file.modified))}</span>
                 </div>
                 ${file.type === 'directory' ? `
                 <div class="fm-preview-info-row">
-                    <span class="fm-preview-info-label">${esc(t('desktop.fm.folder_size', 'Folder Size'))}:</span>
+                    <span class="fm-preview-info-label">${esc(t('desktop.fm.folder_size'))}:</span>
                     <span class="fm-preview-info-val" data-preview-folder-size="${esc(file.path)}">
-                        <button type="button" class="fm-preview-calc-size-btn" data-action="calc-folder-size" data-path="${esc(file.path)}">${esc(t('desktop.fm.calculate_folder_size', 'Calculate'))}</button>
+                        <button type="button" class="fm-preview-calc-size-btn" data-action="calc-folder-size" data-path="${esc(file.path)}">${esc(t('desktop.fm.calculate_folder_size'))}</button>
                     </span>
                 </div>` : ''}
             </div>`;

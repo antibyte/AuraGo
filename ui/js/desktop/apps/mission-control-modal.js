@@ -36,7 +36,7 @@
         }
 
         function buildModalForm(source, isEdit) {
-            const title = isEdit ? t('missions.modal_title_edit', 'Edit Mission') : t('missions.modal_title_new', 'New Mission');
+            const title = isEdit ? t('missions.modal_title_edit') : t('missions.modal_title_new');
             return `
                 <div class="${P}-modal">
                     <div class="${P}-modal-header">
@@ -47,85 +47,85 @@
                         <input type="hidden" data-mc="form-id" value="${escAttr(source ? source.id : '')}">
 
                         <div class="${P}-form-group">
-                            <label>${esc(t('missions.form_name_label', 'Name'))}</label>
-                            <input type="text" class="${P}-form-input" data-mc="form-name" placeholder="${esc(t('missions.form_name_placeholder', 'e.g. Daily Report'))}" value="${escAttr(source ? source.name : '')}">
+                            <label>${esc(t('missions.form_name_label'))}</label>
+                            <input type="text" class="${P}-form-input" data-mc="form-name" placeholder="${esc(t('missions.form_name_placeholder'))}" value="${escAttr(source ? source.name : '')}">
                         </div>
 
                         <div class="${P}-form-group">
-                            <label>${esc(t('missions.form_prompt_label', 'Prompt'))}</label>
-                            <textarea class="${P}-form-textarea" data-mc="form-prompt" placeholder="${esc(t('missions.form_prompt_placeholder', 'Describe the task...'))}">${esc(source ? source.prompt : '')}</textarea>
+                            <label>${esc(t('missions.form_prompt_label'))}</label>
+                            <textarea class="${P}-form-textarea" data-mc="form-prompt" placeholder="${esc(t('missions.form_prompt_placeholder'))}">${esc(source ? source.prompt : '')}</textarea>
                         </div>
 
                         <div class="${P}-form-group">
-                            <label>${esc(t('missions.form_runner_label', 'Run Location'))}</label>
+                            <label>${esc(t('missions.form_runner_label'))}</label>
                             <div class="${P}-runner-selector">
-                                <label class="${P}-runner-option${!source || source.runner_type !== 'remote' ? ' active' : ''}" data-mc-runner="local"><input type="radio" name="mc-runner" value="local" ${!source || source.runner_type !== 'remote' ? 'checked' : ''}><span class="${P}-runner-label">${esc(t('missions.form_runner_local_label', 'Local'))}</span><span class="${P}-runner-desc">${esc(t('missions.form_runner_local_desc', 'Run on this instance'))}</span></label>
-                                <label class="${P}-runner-option${source && source.runner_type === 'remote' ? ' active' : ''}" data-mc-runner="remote"><input type="radio" name="mc-runner" value="remote" ${source && source.runner_type === 'remote' ? 'checked' : ''}><span class="${P}-runner-label">${esc(t('missions.form_runner_remote_label', 'Remote Egg'))}</span><span class="${P}-runner-desc">${esc(t('missions.form_runner_remote_desc', 'Run on Invasion egg'))}</span></label>
+                                <label class="${P}-runner-option${!source || source.runner_type !== 'remote' ? ' active' : ''}" data-mc-runner="local"><input type="radio" name="mc-runner" value="local" ${!source || source.runner_type !== 'remote' ? 'checked' : ''}><span class="${P}-runner-label">${esc(t('missions.form_runner_local_label'))}</span><span class="${P}-runner-desc">${esc(t('missions.form_runner_local_desc'))}</span></label>
+                                <label class="${P}-runner-option${source && source.runner_type === 'remote' ? ' active' : ''}" data-mc-runner="remote"><input type="radio" name="mc-runner" value="remote" ${source && source.runner_type === 'remote' ? 'checked' : ''}><span class="${P}-runner-label">${esc(t('missions.form_runner_remote_label'))}</span><span class="${P}-runner-desc">${esc(t('missions.form_runner_remote_desc'))}</span></label>
                             </div>
                             <div class="${P}-form-group" data-mc="remote-target-group" style="display:${source && source.runner_type === 'remote' ? '' : 'none'}">
-                                <label>${esc(t('missions.form_remote_target_label', 'Remote Egg'))}</label>
-                                <select class="${P}-form-select" data-mc="form-remote-target"><option value="">${esc(t('missions.form_remote_target_loading', 'Loading...'))}</option></select>
-                                <div class="${P}-form-hint">${esc(t('missions.form_remote_target_hint', 'Only connected eggs.'))}</div>
+                                <label>${esc(t('missions.form_remote_target_label'))}</label>
+                                <select class="${P}-form-select" data-mc="form-remote-target"><option value="">${esc(t('missions.form_remote_target_loading'))}</option></select>
+                                <div class="${P}-form-hint">${esc(t('missions.form_remote_target_hint'))}</div>
                             </div>
                         </div>
 
                         <div class="${P}-form-group">
-                            <label>${esc(t('missions.form_priority_label', 'Priority'))}</label>
+                            <label>${esc(t('missions.form_priority_label'))}</label>
                             <select class="${P}-form-select" data-mc="form-priority">
-                                <option value="low">${esc(t('missions.form_priority_low', 'Low'))}</option>
-                                <option value="medium" selected>${esc(t('missions.form_priority_medium', 'Medium'))}</option>
-                                <option value="high">${esc(t('missions.form_priority_high', 'High'))}</option>
+                                <option value="low">${esc(t('missions.form_priority_low'))}</option>
+                                <option value="medium" selected>${esc(t('missions.form_priority_medium'))}</option>
+                                <option value="high">${esc(t('missions.form_priority_high'))}</option>
                             </select>
                         </div>
 
                         <div class="${P}-form-group">
-                            <label>${esc(t('missions.form_exec_type_label', 'Execution Type'))}</label>
+                            <label>${esc(t('missions.form_exec_type_label'))}</label>
                             <div class="${P}-exec-selector">
-                                <label class="${P}-exec-option active" data-mc-exec="manual"><input type="radio" name="mc-exec" value="manual" checked><span class="${P}-exec-icon">👆</span><span class="${P}-exec-label">${esc(t('missions.form_exec_manual_label', 'Manual'))}</span><span class="${P}-exec-desc">${esc(t('missions.form_exec_manual_desc', 'On demand'))}</span></label>
-                                <label class="${P}-exec-option" data-mc-exec="scheduled"><input type="radio" name="mc-exec" value="scheduled"><span class="${P}-exec-icon">📅</span><span class="${P}-exec-label">${esc(t('missions.form_exec_scheduled_label', 'Scheduled'))}</span><span class="${P}-exec-desc">${esc(t('missions.form_exec_scheduled_desc', 'Cron'))}</span></label>
-                                <label class="${P}-exec-option" data-mc-exec="triggered"><input type="radio" name="mc-exec" value="triggered"><span class="${P}-exec-icon">⚡</span><span class="${P}-exec-label">${esc(t('missions.form_exec_triggered_label', 'Triggered'))}</span><span class="${P}-exec-desc">${esc(t('missions.form_exec_triggered_desc', 'Event'))}</span></label>
+                                <label class="${P}-exec-option active" data-mc-exec="manual"><input type="radio" name="mc-exec" value="manual" checked><span class="${P}-exec-icon">👆</span><span class="${P}-exec-label">${esc(t('missions.form_exec_manual_label'))}</span><span class="${P}-exec-desc">${esc(t('missions.form_exec_manual_desc'))}</span></label>
+                                <label class="${P}-exec-option" data-mc-exec="scheduled"><input type="radio" name="mc-exec" value="scheduled"><span class="${P}-exec-icon">📅</span><span class="${P}-exec-label">${esc(t('missions.form_exec_scheduled_label'))}</span><span class="${P}-exec-desc">${esc(t('missions.form_exec_scheduled_desc'))}</span></label>
+                                <label class="${P}-exec-option" data-mc-exec="triggered"><input type="radio" name="mc-exec" value="triggered"><span class="${P}-exec-icon">⚡</span><span class="${P}-exec-label">${esc(t('missions.form_exec_triggered_label'))}</span><span class="${P}-exec-desc">${esc(t('missions.form_exec_triggered_desc'))}</span></label>
                             </div>
                         </div>
 
                         <div class="${P}-form-group" data-mc="config-scheduled" style="display:none">
-                            <label>${esc(t('missions.form_cron_preset_label', 'Presets'))}</label>
+                            <label>${esc(t('missions.form_cron_preset_label'))}</label>
                             <select class="${P}-form-select" data-mc="cron-preset">${CRON_PRESETS.map(p => `<option value="${escAttr(p.value)}">${esc(t(p.labelKey, p.value || '-- Custom --'))}</option>`).join('')}</select>
                             <div style="margin-top:6px">
-                                <label>${esc(t('missions.form_cron_label', 'Cron Expression'))}</label>
-                                <input type="text" class="${P}-form-input" data-mc="form-cron" placeholder="${esc(t('missions.form_cron_placeholder', '0 9 * * *'))}">
-                                <div class="${P}-form-hint">${esc(t('missions.form_cron_hint', 'Format: Min Hour Day Month Weekday'))}</div>
+                                <label>${esc(t('missions.form_cron_label'))}</label>
+                                <input type="text" class="${P}-form-input" data-mc="form-cron" placeholder="${esc(t('missions.form_cron_placeholder'))}">
+                                <div class="${P}-form-hint">${esc(t('missions.form_cron_hint'))}</div>
                             </div>
                         </div>
 
                         <div class="${P}-form-group" data-mc="config-triggered" style="display:none">
-                            <label>${esc(t('missions.form_exec_triggered_label', 'Trigger Type'))}</label>
+                            <label>${esc(t('missions.form_exec_triggered_label'))}</label>
                             <div class="${P}-trigger-grid">${TRIGGER_TYPES.map(tr => `<button type="button" class="${P}-trigger-btn" data-mc-trigger="${tr.key}">${tr.icon} ${esc(t(tr.labelKey, tr.key))}</button>`).join('')}</div>
                             <div class="${P}-form-group">
-                                <label>${esc(t('missions.trigger_min_interval_label', 'Min interval'))}</label>
-                                <input type="number" class="${P}-form-input" data-mc="form-min-interval" min="0" max="86400" value="0" placeholder="${esc(t('missions.trigger_min_interval_placeholder', 'e.g. 60'))}">
-                                <div class="${P}-form-hint">${esc(t('missions.trigger_min_interval_hint', 'Seconds before re-trigger.'))}</div>
+                                <label>${esc(t('missions.trigger_min_interval_label'))}</label>
+                                <input type="number" class="${P}-form-input" data-mc="form-min-interval" min="0" max="86400" value="0" placeholder="${esc(t('missions.trigger_min_interval_placeholder'))}">
+                                <div class="${P}-form-hint">${esc(t('missions.trigger_min_interval_hint'))}</div>
                             </div>
                             ${buildTriggerFields()}
                         </div>
 
                         <div class="${P}-toggle-row">
                             <label class="${P}-toggle"><input type="checkbox" data-mc="form-locked"><span class="${P}-toggle-slider"></span></label>
-                            <div><div class="${P}-toggle-text">${esc(t('missions.form_lock_label', 'Lock'))}</div><div class="${P}-toggle-hint">${esc(t('missions.form_lock_hint', 'Prevents deletion'))}</div></div>
+                            <div><div class="${P}-toggle-text">${esc(t('missions.form_lock_label'))}</div><div class="${P}-toggle-hint">${esc(t('missions.form_lock_hint'))}</div></div>
                         </div>
                         <div class="${P}-toggle-row">
                             <label class="${P}-toggle"><input type="checkbox" data-mc="form-auto-prepare"><span class="${P}-toggle-slider"></span></label>
-                            <div><div class="${P}-toggle-text">${esc(t('missions.prep_auto', 'Auto-prepare'))}</div><div class="${P}-toggle-hint">${esc(t('missions.prep_auto_hint', 'Prepare before runs'))}</div></div>
+                            <div><div class="${P}-toggle-text">${esc(t('missions.prep_auto'))}</div><div class="${P}-toggle-hint">${esc(t('missions.prep_auto_hint'))}</div></div>
                         </div>
 
                         <div class="${P}-form-group">
-                            <label>${esc(t('missions.form_cheatsheets_label', 'Cheat Sheets'))}</label>
-                            <div class="${P}-cheatsheet-picker" data-mc="cheatsheet-picker"><div class="${P}-cheatsheet-empty">${esc(t('missions.form_cheatsheets_loading', 'Loading...'))}</div></div>
-                            <div class="${P}-form-hint">${esc(t('missions.form_cheatsheets_hint', 'Include as context.'))}</div>
+                            <label>${esc(t('missions.form_cheatsheets_label'))}</label>
+                            <div class="${P}-cheatsheet-picker" data-mc="cheatsheet-picker"><div class="${P}-cheatsheet-empty">${esc(t('missions.form_cheatsheets_loading'))}</div></div>
+                            <div class="${P}-form-hint">${esc(t('missions.form_cheatsheets_hint'))}</div>
                         </div>
                     </div>
                     <div class="${P}-modal-actions">
-                        <button type="button" class="${P}-btn" data-mc="modal-cancel">${esc(t('missions.modal_btn_cancel', 'Cancel'))}</button>
-                        <button type="button" class="${P}-btn ${P}-btn-primary" data-mc="modal-save">${esc(t('missions.modal_btn_save', 'Save'))}</button>
+                        <button type="button" class="${P}-btn" data-mc="modal-cancel">${esc(t('missions.modal_btn_cancel'))}</button>
+                        <button type="button" class="${P}-btn ${P}-btn-primary" data-mc="modal-save">${esc(t('missions.modal_btn_save'))}</button>
                     </div>
                 </div>`;
         }
@@ -133,60 +133,60 @@
         function buildTriggerFields() {
             return `
                 <div class="${P}-trigger-fields" data-mc-trigger-fields="mission_completed">
-                    <div class="${P}-form-group"><label>${esc(t('missions.trigger_source_mission_label', 'Source Mission'))}</label><div class="${P}-mission-selector" data-mc="mission-selector"></div></div>
-                    <div class="${P}-toggle-row"><label class="${P}-toggle"><input type="checkbox" data-mc="form-require-success"><span class="${P}-toggle-slider"></span></label><span class="${P}-toggle-text">${esc(t('missions.trigger_require_success', 'Only on success'))}</span></div>
+                    <div class="${P}-form-group"><label>${esc(t('missions.trigger_source_mission_label'))}</label><div class="${P}-mission-selector" data-mc="mission-selector"></div></div>
+                    <div class="${P}-toggle-row"><label class="${P}-toggle"><input type="checkbox" data-mc="form-require-success"><span class="${P}-toggle-slider"></span></label><span class="${P}-toggle-text">${esc(t('missions.trigger_require_success'))}</span></div>
                 </div>
                 <div class="${P}-trigger-fields" data-mc-trigger-fields="email_received">
-                    <div class="${P}-form-row"><div class="${P}-form-group"><label>${esc(t('missions.trigger_email_folder_label', 'Folder'))}</label><select class="${P}-form-select" data-mc="form-email-folder"><option value="INBOX">${esc(t('missions.trigger_email_folder_inbox', 'Inbox'))}</option><option value="Sent">${esc(t('missions.trigger_email_folder_sent', 'Sent'))}</option></select></div><div class="${P}-form-group"><label>${esc(t('missions.trigger_email_subject_label', 'Subject'))}</label><input type="text" class="${P}-form-input" data-mc="form-email-subject" placeholder="${esc(t('missions.trigger_email_subject_placeholder', 'Order'))}"></div></div>
-                    <div class="${P}-form-group"><label>${esc(t('missions.trigger_email_from_label', 'From'))}</label><input type="text" class="${P}-form-input" data-mc="form-email-from" placeholder="${esc(t('missions.trigger_email_from_placeholder', '@company.com'))}"></div>
+                    <div class="${P}-form-row"><div class="${P}-form-group"><label>${esc(t('missions.trigger_email_folder_label'))}</label><select class="${P}-form-select" data-mc="form-email-folder"><option value="INBOX">${esc(t('missions.trigger_email_folder_inbox'))}</option><option value="Sent">${esc(t('missions.trigger_email_folder_sent'))}</option></select></div><div class="${P}-form-group"><label>${esc(t('missions.trigger_email_subject_label'))}</label><input type="text" class="${P}-form-input" data-mc="form-email-subject" placeholder="${esc(t('missions.trigger_email_subject_placeholder'))}"></div></div>
+                    <div class="${P}-form-group"><label>${esc(t('missions.trigger_email_from_label'))}</label><input type="text" class="${P}-form-input" data-mc="form-email-from" placeholder="${esc(t('missions.trigger_email_from_placeholder'))}"></div>
                 </div>
                 <div class="${P}-trigger-fields" data-mc-trigger-fields="webhook">
-                    <div class="${P}-form-group"><label>${esc(t('missions.trigger_webhook_label', 'Webhook'))}</label><select class="${P}-form-select" data-mc="form-webhook"><option value="">${esc(t('missions.trigger_webhook_loading', 'Loading...'))}</option></select><div class="${P}-form-hint">${esc(t('missions.trigger_webhook_hint', 'Choose webhook.'))}</div></div>
+                    <div class="${P}-form-group"><label>${esc(t('missions.trigger_webhook_label'))}</label><select class="${P}-form-select" data-mc="form-webhook"><option value="">${esc(t('missions.trigger_webhook_loading'))}</option></select><div class="${P}-form-hint">${esc(t('missions.trigger_webhook_hint'))}</div></div>
                 </div>
                 <div class="${P}-trigger-fields" data-mc-trigger-fields="egg_hatched">
-                    <div class="${P}-form-hint">${esc(t('missions.trigger_egg_hatched_hint', 'When an egg hatches.'))}</div>
-                    <div class="${P}-form-row"><div class="${P}-form-group"><label>${esc(t('missions.trigger_egg_select_label', 'Egg'))}</label><select class="${P}-form-select" data-mc="form-egg"><option value="">${esc(t('missions.trigger_egg_any', 'Any'))}</option></select></div><div class="${P}-form-group"><label>${esc(t('missions.trigger_nest_select_label', 'Nest'))}</label><select class="${P}-form-select" data-mc="form-egg-nest"><option value="">${esc(t('missions.trigger_nest_any', 'Any'))}</option></select></div></div>
+                    <div class="${P}-form-hint">${esc(t('missions.trigger_egg_hatched_hint'))}</div>
+                    <div class="${P}-form-row"><div class="${P}-form-group"><label>${esc(t('missions.trigger_egg_select_label'))}</label><select class="${P}-form-select" data-mc="form-egg"><option value="">${esc(t('missions.trigger_egg_any'))}</option></select></div><div class="${P}-form-group"><label>${esc(t('missions.trigger_nest_select_label'))}</label><select class="${P}-form-select" data-mc="form-egg-nest"><option value="">${esc(t('missions.trigger_nest_any'))}</option></select></div></div>
                 </div>
                 <div class="${P}-trigger-fields" data-mc-trigger-fields="nest_cleared">
-                    <div class="${P}-form-hint">${esc(t('missions.trigger_nest_cleared_hint', 'When a nest is cleared.'))}</div>
-                    <div class="${P}-form-group"><label>${esc(t('missions.trigger_nest_select_label', 'Nest'))}</label><select class="${P}-form-select" data-mc="form-nest"><option value="">${esc(t('missions.trigger_nest_any', 'Any'))}</option></select></div>
+                    <div class="${P}-form-hint">${esc(t('missions.trigger_nest_cleared_hint'))}</div>
+                    <div class="${P}-form-group"><label>${esc(t('missions.trigger_nest_select_label'))}</label><select class="${P}-form-select" data-mc="form-nest"><option value="">${esc(t('missions.trigger_nest_any'))}</option></select></div>
                 </div>
                 <div class="${P}-trigger-fields" data-mc-trigger-fields="mqtt_message">
-                    <div class="${P}-form-hint">${esc(t('missions.trigger_mqtt_hint', 'MQTT messages.'))}</div>
-                    <div class="${P}-form-group"><label>${esc(t('missions.trigger_mqtt_topic_label', 'Topic'))}</label><input type="text" class="${P}-form-input" data-mc="form-mqtt-topic" placeholder="${esc(t('missions.trigger_mqtt_topic_placeholder', 'home/sensors/#'))}"></div>
-                    <div class="${P}-form-row"><div class="${P}-form-group"><label>${esc(t('missions.trigger_mqtt_payload_label', 'Payload'))}</label><input type="text" class="${P}-form-input" data-mc="form-mqtt-payload" placeholder="${esc(t('missions.trigger_mqtt_payload_placeholder', 'alarm'))}"></div><div class="${P}-form-group"><label>${esc(t('missions.trigger_mqtt_min_interval_label', 'Min interval'))}</label><input type="number" class="${P}-form-input" data-mc="form-mqtt-interval" min="0" value="0"></div></div>
+                    <div class="${P}-form-hint">${esc(t('missions.trigger_mqtt_hint'))}</div>
+                    <div class="${P}-form-group"><label>${esc(t('missions.trigger_mqtt_topic_label'))}</label><input type="text" class="${P}-form-input" data-mc="form-mqtt-topic" placeholder="${esc(t('missions.trigger_mqtt_topic_placeholder'))}"></div>
+                    <div class="${P}-form-row"><div class="${P}-form-group"><label>${esc(t('missions.trigger_mqtt_payload_label'))}</label><input type="text" class="${P}-form-input" data-mc="form-mqtt-payload" placeholder="${esc(t('missions.trigger_mqtt_payload_placeholder'))}"></div><div class="${P}-form-group"><label>${esc(t('missions.trigger_mqtt_min_interval_label'))}</label><input type="number" class="${P}-form-input" data-mc="form-mqtt-interval" min="0" value="0"></div></div>
                 </div>
-                <div class="${P}-trigger-fields" data-mc-trigger-fields="system_startup"><div class="${P}-form-hint">${esc(t('missions.trigger_system_startup_hint', 'Runs on startup.'))}</div></div>
+                <div class="${P}-trigger-fields" data-mc-trigger-fields="system_startup"><div class="${P}-form-hint">${esc(t('missions.trigger_system_startup_hint'))}</div></div>
                 <div class="${P}-trigger-fields" data-mc-trigger-fields="home_assistant_state">
-                    <div class="${P}-form-hint">${esc(t('missions.trigger_home_assistant_state_hint', 'HA entity state change.'))}</div>
-                    <div class="${P}-form-row"><div class="${P}-form-group"><label>${esc(t('missions.trigger_ha_entity_id_label', 'Entity ID'))}</label><input type="text" class="${P}-form-input" data-mc="form-ha-entity" placeholder="${esc(t('missions.trigger_ha_entity_id_placeholder', 'binary_sensor.door'))}"></div><div class="${P}-form-group"><label>${esc(t('missions.trigger_ha_state_equals_label', 'State equals'))}</label><input type="text" class="${P}-form-input" data-mc="form-ha-state" placeholder="${esc(t('missions.trigger_ha_state_equals_placeholder', 'on'))}"></div></div>
+                    <div class="${P}-form-hint">${esc(t('missions.trigger_home_assistant_state_hint'))}</div>
+                    <div class="${P}-form-row"><div class="${P}-form-group"><label>${esc(t('missions.trigger_ha_entity_id_label'))}</label><input type="text" class="${P}-form-input" data-mc="form-ha-entity" placeholder="${esc(t('missions.trigger_ha_entity_id_placeholder'))}"></div><div class="${P}-form-group"><label>${esc(t('missions.trigger_ha_state_equals_label'))}</label><input type="text" class="${P}-form-input" data-mc="form-ha-state" placeholder="${esc(t('missions.trigger_ha_state_equals_placeholder'))}"></div></div>
                 </div>
                 <div class="${P}-trigger-fields" data-mc-trigger-fields="device_connected">
-                    <div class="${P}-form-hint">${esc(t('missions.trigger_device_connected_hint', 'Device connects.'))}</div>
-                    <div class="${P}-form-row"><div class="${P}-form-group"><label>${esc(t('missions.trigger_device_id_label', 'Device ID'))}</label><input type="text" class="${P}-form-input" data-mc="form-device-conn-id"></div><div class="${P}-form-group"><label>${esc(t('missions.trigger_device_name_label', 'Name'))}</label><input type="text" class="${P}-form-input" data-mc="form-device-conn-name"></div></div>
+                    <div class="${P}-form-hint">${esc(t('missions.trigger_device_connected_hint'))}</div>
+                    <div class="${P}-form-row"><div class="${P}-form-group"><label>${esc(t('missions.trigger_device_id_label'))}</label><input type="text" class="${P}-form-input" data-mc="form-device-conn-id"></div><div class="${P}-form-group"><label>${esc(t('missions.trigger_device_name_label'))}</label><input type="text" class="${P}-form-input" data-mc="form-device-conn-name"></div></div>
                 </div>
                 <div class="${P}-trigger-fields" data-mc-trigger-fields="device_disconnected">
-                    <div class="${P}-form-hint">${esc(t('missions.trigger_device_disconnected_hint', 'Device disconnects.'))}</div>
-                    <div class="${P}-form-row"><div class="${P}-form-group"><label>${esc(t('missions.trigger_device_id_label', 'Device ID'))}</label><input type="text" class="${P}-form-input" data-mc="form-device-disc-id"></div><div class="${P}-form-group"><label>${esc(t('missions.trigger_device_name_label', 'Name'))}</label><input type="text" class="${P}-form-input" data-mc="form-device-disc-name"></div></div>
+                    <div class="${P}-form-hint">${esc(t('missions.trigger_device_disconnected_hint'))}</div>
+                    <div class="${P}-form-row"><div class="${P}-form-group"><label>${esc(t('missions.trigger_device_id_label'))}</label><input type="text" class="${P}-form-input" data-mc="form-device-disc-id"></div><div class="${P}-form-group"><label>${esc(t('missions.trigger_device_name_label'))}</label><input type="text" class="${P}-form-input" data-mc="form-device-disc-name"></div></div>
                 </div>
                 <div class="${P}-trigger-fields" data-mc-trigger-fields="fritzbox_call">
-                    <div class="${P}-form-hint">${esc(t('missions.trigger_fritzbox_call_hint', 'Fritz!Box calls.'))}</div>
-                    <div class="${P}-form-group"><label>${esc(t('missions.trigger_fritzbox_call_type_label', 'Type'))}</label><select class="${P}-form-select" data-mc="form-fritzbox-type"><option value="">${esc(t('missions.trigger_fritzbox_call_type_any', 'Any'))}</option><option value="call">${esc(t('missions.trigger_fritzbox_call_type_call', 'Call'))}</option><option value="tam_message">${esc(t('missions.trigger_fritzbox_call_type_tam', 'TAM'))}</option></select></div>
+                    <div class="${P}-form-hint">${esc(t('missions.trigger_fritzbox_call_hint'))}</div>
+                    <div class="${P}-form-group"><label>${esc(t('missions.trigger_fritzbox_call_type_label'))}</label><select class="${P}-form-select" data-mc="form-fritzbox-type"><option value="">${esc(t('missions.trigger_fritzbox_call_type_any'))}</option><option value="call">${esc(t('missions.trigger_fritzbox_call_type_call'))}</option><option value="tam_message">${esc(t('missions.trigger_fritzbox_call_type_tam'))}</option></select></div>
                 </div>
-                <div class="${P}-trigger-fields" data-mc-trigger-fields="budget_warning"><div class="${P}-form-hint">${esc(t('missions.trigger_budget_warning_hint', 'Budget warning.'))}</div></div>
-                <div class="${P}-trigger-fields" data-mc-trigger-fields="budget_exceeded"><div class="${P}-form-hint">${esc(t('missions.trigger_budget_exceeded_hint', 'Budget exceeded.'))}</div></div>
+                <div class="${P}-trigger-fields" data-mc-trigger-fields="budget_warning"><div class="${P}-form-hint">${esc(t('missions.trigger_budget_warning_hint'))}</div></div>
+                <div class="${P}-trigger-fields" data-mc-trigger-fields="budget_exceeded"><div class="${P}-form-hint">${esc(t('missions.trigger_budget_exceeded_hint'))}</div></div>
                 <div class="${P}-trigger-fields" data-mc-trigger-fields="planner_appointment_due">
-                    <div class="${P}-form-hint">${esc(t('missions.trigger_planner_appointment_due_hint', 'Appointment due.'))}</div>
-                    <div class="${P}-form-row"><div class="${P}-form-group"><label>${esc(t('missions.trigger_planner_appointment_id_label', 'ID'))}</label><input type="text" class="${P}-form-input" data-mc="form-planner-appt-id"></div><div class="${P}-form-group"><label>${esc(t('missions.trigger_planner_title_contains_label', 'Title'))}</label><input type="text" class="${P}-form-input" data-mc="form-planner-appt-title"></div></div>
+                    <div class="${P}-form-hint">${esc(t('missions.trigger_planner_appointment_due_hint'))}</div>
+                    <div class="${P}-form-row"><div class="${P}-form-group"><label>${esc(t('missions.trigger_planner_appointment_id_label'))}</label><input type="text" class="${P}-form-input" data-mc="form-planner-appt-id"></div><div class="${P}-form-group"><label>${esc(t('missions.trigger_planner_title_contains_label'))}</label><input type="text" class="${P}-form-input" data-mc="form-planner-appt-title"></div></div>
                 </div>
                 <div class="${P}-trigger-fields" data-mc-trigger-fields="planner_todo_overdue">
-                    <div class="${P}-form-hint">${esc(t('missions.trigger_planner_todo_overdue_hint', 'Todo overdue.'))}</div>
-                    <div class="${P}-form-row"><div class="${P}-form-group"><label>${esc(t('missions.trigger_planner_todo_id_label', 'ID'))}</label><input type="text" class="${P}-form-input" data-mc="form-planner-todo-id"></div><div class="${P}-form-group"><label>${esc(t('missions.trigger_planner_title_contains_label', 'Title'))}</label><input type="text" class="${P}-form-input" data-mc="form-planner-todo-title"></div></div>
+                    <div class="${P}-form-hint">${esc(t('missions.trigger_planner_todo_overdue_hint'))}</div>
+                    <div class="${P}-form-row"><div class="${P}-form-group"><label>${esc(t('missions.trigger_planner_todo_id_label'))}</label><input type="text" class="${P}-form-input" data-mc="form-planner-todo-id"></div><div class="${P}-form-group"><label>${esc(t('missions.trigger_planner_title_contains_label'))}</label><input type="text" class="${P}-form-input" data-mc="form-planner-todo-title"></div></div>
                 </div>
                 <div class="${P}-trigger-fields" data-mc-trigger-fields="planner_operational_issue">
-                    <div class="${P}-form-hint">${esc(t('missions.trigger_planner_operational_issue_hint', 'Operational issue.'))}</div>
-                    <div class="${P}-form-row"><div class="${P}-form-group"><label>${esc(t('missions.trigger_planner_issue_source_label', 'Source'))}</label><input type="text" class="${P}-form-input" data-mc="form-planner-issue-source" placeholder="${esc(t('missions.trigger_planner_issue_source_placeholder', 'mission'))}"></div><div class="${P}-form-group"><label>${esc(t('missions.trigger_planner_issue_severity_label', 'Severity'))}</label><select class="${P}-form-select" data-mc="form-planner-issue-severity"><option value="">${esc(t('missions.trigger_planner_issue_severity_any', 'Any'))}</option><option value="warning">${esc(t('missions.trigger_planner_issue_severity_warning', 'Warning'))}</option><option value="error">${esc(t('missions.trigger_planner_issue_severity_error', 'Error'))}</option></select></div></div>
-                    <div class="${P}-form-group"><label>${esc(t('missions.trigger_planner_title_contains_label', 'Title'))}</label><input type="text" class="${P}-form-input" data-mc="form-planner-issue-title"></div>
+                    <div class="${P}-form-hint">${esc(t('missions.trigger_planner_operational_issue_hint'))}</div>
+                    <div class="${P}-form-row"><div class="${P}-form-group"><label>${esc(t('missions.trigger_planner_issue_source_label'))}</label><input type="text" class="${P}-form-input" data-mc="form-planner-issue-source" placeholder="${esc(t('missions.trigger_planner_issue_source_placeholder'))}"></div><div class="${P}-form-group"><label>${esc(t('missions.trigger_planner_issue_severity_label'))}</label><select class="${P}-form-select" data-mc="form-planner-issue-severity"><option value="">${esc(t('missions.trigger_planner_issue_severity_any'))}</option><option value="warning">${esc(t('missions.trigger_planner_issue_severity_warning'))}</option><option value="error">${esc(t('missions.trigger_planner_issue_severity_error'))}</option></select></div></div>
+                    <div class="${P}-form-group"><label>${esc(t('missions.trigger_planner_title_contains_label'))}</label><input type="text" class="${P}-form-input" data-mc="form-planner-issue-title"></div>
                 </div>
             `;
         }
@@ -250,7 +250,7 @@
                 const sel = overlay.querySelector('[data-mc="form-webhook"]');
                 if (sel) {
                     sel.innerHTML = state.webhooks.length === 0
-                        ? '<option value="">' + esc(t('missions.trigger_webhook_none', 'None')) + '</option>'
+                        ? '<option value="">' + esc(t('missions.trigger_webhook_none')) + '</option>'
                         : state.webhooks.map(w => '<option value="' + escAttr(w.id) + '" data-slug="' + escAttr(w.slug) + '">' + esc(w.name) + ' (' + esc(w.slug) + ')</option>').join('');
                 }
             } catch (_) { /* webhooks unavailable */ }
@@ -261,8 +261,8 @@
                 const [eggsResp, nestsResp] = await Promise.all([api('/api/invasion/eggs').catch(() => null), api('/api/invasion/nests').catch(() => null)]);
                 const eggs = eggsResp ? (eggsResp.eggs || eggsResp || []) : [];
                 const nests = nestsResp ? (nestsResp.nests || nestsResp || []) : [];
-                const eggOpts = '<option value="">' + esc(t('missions.trigger_egg_any', 'Any')) + '</option>' + eggs.map(e => '<option value="' + escAttr(e.id) + '" data-name="' + escAttr(e.name) + '">' + esc(e.name) + '</option>').join('');
-                const nestOpts = '<option value="">' + esc(t('missions.trigger_nest_any', 'Any')) + '</option>' + nests.map(n => '<option value="' + escAttr(n.id) + '" data-name="' + escAttr(n.name) + '">' + esc(n.name) + '</option>').join('');
+                const eggOpts = '<option value="">' + esc(t('missions.trigger_egg_any')) + '</option>' + eggs.map(e => '<option value="' + escAttr(e.id) + '" data-name="' + escAttr(e.name) + '">' + esc(e.name) + '</option>').join('');
+                const nestOpts = '<option value="">' + esc(t('missions.trigger_nest_any')) + '</option>' + nests.map(n => '<option value="' + escAttr(n.id) + '" data-name="' + escAttr(n.name) + '">' + esc(n.name) + '</option>').join('');
                 const eggSel = overlay.querySelector('[data-mc="form-egg"]');
                 const eggNestSel = overlay.querySelector('[data-mc="form-egg-nest"]');
                 const nestSel = overlay.querySelector('[data-mc="form-nest"]');
@@ -278,10 +278,10 @@
             try {
                 const data = await api('/api/missions/v2/remote-targets');
                 state.remoteTargets = data.targets || [];
-                if (state.remoteTargets.length === 0) { sel.innerHTML = '<option value="">' + esc(t('missions.form_remote_target_none', 'None')) + '</option>'; return; }
-                sel.innerHTML = '<option value="">' + esc(t('missions.form_remote_target_placeholder', 'Select...')) + '</option>' + state.remoteTargets.map(tgt => '<option value="' + escAttr(tgt.nest_id) + '" data-egg-id="' + escAttr(tgt.egg_id) + '" data-nest-name="' + escAttr(tgt.nest_name || '') + '" data-egg-name="' + escAttr(tgt.egg_name || '') + '">' + esc((tgt.nest_name || tgt.nest_id) + ' · ' + (tgt.egg_name || tgt.egg_id)) + '</option>').join('');
+                if (state.remoteTargets.length === 0) { sel.innerHTML = '<option value="">' + esc(t('missions.form_remote_target_none')) + '</option>'; return; }
+                sel.innerHTML = '<option value="">' + esc(t('missions.form_remote_target_placeholder')) + '</option>' + state.remoteTargets.map(tgt => '<option value="' + escAttr(tgt.nest_id) + '" data-egg-id="' + escAttr(tgt.egg_id) + '" data-nest-name="' + escAttr(tgt.nest_name || '') + '" data-egg-name="' + escAttr(tgt.egg_name || '') + '">' + esc((tgt.nest_name || tgt.nest_id) + ' · ' + (tgt.egg_name || tgt.egg_id)) + '</option>').join('');
                 if (source && source.remote_nest_id) sel.value = source.remote_nest_id;
-            } catch (_) { sel.innerHTML = '<option value="">' + esc(t('missions.form_remote_target_unavailable', 'Unavailable')) + '</option>'; }
+            } catch (_) { sel.innerHTML = '<option value="">' + esc(t('missions.form_remote_target_unavailable')) + '</option>'; }
         }
 
         async function loadCheatsheetsForModal(overlay, selectedIds) {
@@ -289,20 +289,20 @@
             if (!picker) return;
             try {
                 const sheets = await api('/api/cheatsheets?active=true&created_by=user');
-                if (!sheets || sheets.length === 0) { picker.innerHTML = '<div class="' + P + '-cheatsheet-empty">' + esc(t('missions.form_cheatsheets_none', 'None')) + '</div>'; return; }
+                if (!sheets || sheets.length === 0) { picker.innerHTML = '<div class="' + P + '-cheatsheet-empty">' + esc(t('missions.form_cheatsheets_none')) + '</div>'; return; }
                 picker.innerHTML = sheets.map(s => {
                     const checked = selectedIds.includes(s.id) ? 'checked' : '';
                     const abstract = s.abstract ? '<div class="' + P + '-cheatsheet-preview">' + esc(s.abstract) + '</div>' : '';
                     return '<div class="' + P + '-cheatsheet-item"><input type="checkbox" id="mc-cs-' + s.id + '" value="' + s.id + '" ' + checked + '><label for="mc-cs-' + s.id + '">' + esc(s.name) + abstract + '</label></div>';
                 }).join('');
-            } catch (_) { picker.innerHTML = '<div class="' + P + '-cheatsheet-empty">' + esc(t('missions.form_cheatsheets_none', 'None')) + '</div>'; }
+            } catch (_) { picker.innerHTML = '<div class="' + P + '-cheatsheet-empty">' + esc(t('missions.form_cheatsheets_none')) + '</div>'; }
         }
 
         async function loadMissionSelectorForModal(overlay) {
             const el = overlay.querySelector('[data-mc="mission-selector"]');
             if (!el) return;
             const manual = state.missions.filter(m => m.execution_type === 'manual' || m.execution_type === 'scheduled');
-            if (manual.length === 0) { el.innerHTML = '<div class="' + P + '-cheatsheet-empty">' + esc(t('missions.trigger_no_suitable_missions', 'None')) + '</div>'; return; }
+            if (manual.length === 0) { el.innerHTML = '<div class="' + P + '-cheatsheet-empty">' + esc(t('missions.trigger_no_suitable_missions')) + '</div>'; return; }
             el.innerHTML = manual.map(m => '<label class="' + P + '-mission-option"><input type="radio" name="mc-source-mission" value="' + m.id + '" data-name="' + escAttr(m.name) + '"><div><div class="' + P + '-mission-option-name">' + esc(m.name) + '</div><div class="' + P + '-mission-option-meta">' + m.execution_type + ' · ' + m.priority + '</div></div></label>').join('');
         }
 
@@ -367,7 +367,7 @@
             const q = (sel) => overlay.querySelector(sel);
             const name = (q('[data-mc="form-name"]')?.value || '').trim();
             const prompt = (q('[data-mc="form-prompt"]')?.value || '').trim();
-            if (!name || !prompt) { notify(t('missions.toast_name_prompt_required', 'Name and prompt required'), 'error'); return; }
+            if (!name || !prompt) { notify(t('missions.toast_name_prompt_required'), 'error'); return; }
 
             const execType = overlay.querySelector('input[name="mc-exec"]:checked')?.value || 'manual';
             const runnerType = overlay.querySelector('input[name="mc-runner"]:checked')?.value || 'local';
@@ -386,7 +386,7 @@
             if (runnerType === 'remote') {
                 const rSel = q('[data-mc="form-remote-target"]');
                 const opt = rSel?.options[rSel.selectedIndex];
-                if (!rSel?.value || !opt?.dataset?.eggId) { notify(t('missions.toast_select_remote_target', 'Select remote target'), 'error'); return; }
+                if (!rSel?.value || !opt?.dataset?.eggId) { notify(t('missions.toast_select_remote_target'), 'error'); return; }
                 mission.remote_nest_id = rSel.value;
                 mission.remote_nest_name = opt.dataset.nestName || '';
                 mission.remote_egg_id = opt.dataset.eggId;
@@ -399,7 +399,7 @@
                 mission.trigger_config = null;
             } else if (execType === 'triggered') {
                 const trigBtn = overlay.querySelector('[data-mc-trigger].active');
-                if (!trigBtn) { notify(t('missions.toast_select_trigger_type', 'Select trigger'), 'error'); return; }
+                if (!trigBtn) { notify(t('missions.toast_select_trigger_type'), 'error'); return; }
                 mission.trigger_type = trigBtn.dataset.mcTrigger;
                 mission.trigger_config = buildTriggerConfig(overlay, mission.trigger_type);
                 mission.schedule = '';
@@ -414,10 +414,10 @@
                 const url = editId ? '/api/missions/v2/' + editId : '/api/missions/v2';
                 const method = editId ? 'PUT' : 'POST';
                 await api(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(mission) });
-                notify(editId ? t('missions.toast_mission_updated', 'Updated') : t('missions.toast_mission_created', 'Created'));
+                notify(editId ? t('missions.toast_mission_updated') : t('missions.toast_mission_created'));
                 closeModalFn();
                 loadData();
-            } catch (err) { notify(t('missions.toast_error_prefix', 'Error: ') + err.message, 'error'); }
+            } catch (err) { notify(t('missions.toast_error_prefix') + err.message, 'error'); }
         }
 
         function buildTriggerConfig(overlay, type) {

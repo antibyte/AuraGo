@@ -137,35 +137,23 @@ func TestFrontend_JS_HardcodedUIToasts(t *testing.T) {
 	}
 }
 
-// TestFrontend_JS_NoNewLiteralTranslationFallbacks catches new t('key') || 'literal'
-// fallback strings. Existing legacy fallbacks are tracked as a debt baseline so
-// this guard can run in normal CI without requiring a broad UI rewrite first.
-func TestFrontend_JS_NoNewLiteralTranslationFallbacks(t *testing.T) {
+// TestFrontend_JS_NoLiteralTranslationFallbacks ensures frontend UI text comes
+// from translation bundles instead of literal fallback strings in code.
+func TestFrontend_JS_NoLiteralTranslationFallbacks(t *testing.T) {
 	t.Parallel()
 
-	fallbackPattern := regexp.MustCompile(`\bt\(\s*('[^']+'|"[^"]+")\s*\)\s*\|\|\s*('[^']+'|"[^"]+")`)
-	legacyFallbackBudget := map[string]int{
-		"cfg/auth.js":                       2,
-		"cfg/daemon_skills.js":              2,
-		"cfg/obsidian.js":                   2,
-		"cfg/providers.js":                  1,
-		"cfg/server.js":                     1,
-		"cfg/skill_manager.js":              21,
-		"cfg/tailscale.js":                  3,
-		"js/chat/main.js":                   1,
-		"js/cheatsheets/main.js":            17,
-		"js/config/main.js":                 2,
-		"js/containers/main.js":             6,
-		"js/dashboard/dashboard-events.js":  1,
-		"js/dashboard/dashboard-widgets.js": 8,
-		"js/dashboard/main.js":              1,
-		"js/knowledge/appointments.js":      3,
-		"js/knowledge/file_sync_status.js":  32,
-		"js/knowledge/main.js":              1,
-		"js/knowledge/todos.js":             2,
-		"js/setup/main.js":                  8,
-		"js/shared/shared-core.js":          13,
-		"js/skills/main.js":                 140,
+	checks := []struct {
+		desc    string
+		pattern *regexp.Regexp
+	}{
+		{
+			desc:    "literal fallback argument in translation call",
+			pattern: regexp.MustCompile(`\b(?:t|dt|desktopT|desktopText|configText)\(\s*(?:'[^']+'|"[^"]+")\s*,\s*(?:'[^']*'|"[^"]*")`),
+		},
+		{
+			desc:    "literal fallback after translation call",
+			pattern: regexp.MustCompile(`\b(?:t|dt|desktopT|desktopText|configText)\(\s*(?:'[^']+'|"[^"]+")\s*\)\s*\|\|\s*(?:'[^']+'|"[^"]+")`),
+		},
 	}
 	scanRoots := []string{"js", "cfg"}
 	skipDirs := map[string]bool{
@@ -173,10 +161,12 @@ func TestFrontend_JS_NoNewLiteralTranslationFallbacks(t *testing.T) {
 		"codemirror": true,
 		"monaco":     true,
 	}
+	skipFiles := map[string]bool{
+		filepath.ToSlash(filepath.Join("js", "chat", "bundles", "chat-vendor.bundle.js")): true,
+	}
 
 	var failures []string
 	checkedFiles := 0
-	observed := map[string]int{}
 
 	for _, root := range scanRoots {
 		if _, err := os.Stat(root); err != nil {
@@ -196,6 +186,10 @@ func TestFrontend_JS_NoNewLiteralTranslationFallbacks(t *testing.T) {
 			if !strings.HasSuffix(path, ".js") {
 				return nil
 			}
+			relPath := filepath.ToSlash(path)
+			if skipFiles[relPath] {
+				return nil
+			}
 
 			content, err := os.ReadFile(path)
 			if err != nil {
@@ -203,12 +197,10 @@ func TestFrontend_JS_NoNewLiteralTranslationFallbacks(t *testing.T) {
 			}
 
 			checkedFiles++
-			relPath := filepath.ToSlash(path)
 			for lineNum, line := range strings.Split(string(content), "\n") {
-				if fallbackPattern.MatchString(line) {
-					observed[relPath]++
-					if observed[relPath] > legacyFallbackBudget[relPath] {
-						failures = append(failures, fmt.Sprintf("%s:%d: new literal fallback after t() (line: %s)", relPath, lineNum+1, strings.TrimSpace(line)))
+				for _, check := range checks {
+					if check.pattern.MatchString(line) {
+						failures = append(failures, fmt.Sprintf("%s:%d: %s (line: %s)", relPath, lineNum+1, check.desc, strings.TrimSpace(line)))
 					}
 				}
 			}
@@ -223,7 +215,7 @@ func TestFrontend_JS_NoNewLiteralTranslationFallbacks(t *testing.T) {
 		t.Skip("no frontend JS files found")
 	}
 	if len(failures) > 0 {
-		t.Errorf("Found %d new literal translation fallbacks in %d JS files:\n%s", len(failures), checkedFiles, strings.Join(failures, "\n"))
+		t.Errorf("Found %d literal translation fallbacks in %d JS files:\n%s", len(failures), checkedFiles, strings.Join(failures, "\n"))
 	}
 }
 
@@ -320,6 +312,226 @@ func TestFrontend_HTML_HardcodedGermanUIText(t *testing.T) {
 
 	if len(failures) > 0 {
 		t.Errorf("Found %d hardcoded German UI strings in %d HTML files:\n%s", len(failures), checkedFiles, strings.Join(failures, "\n"))
+	}
+}
+
+func TestFrontend_HTML_NoTextFallbacksInsideDataI18n(t *testing.T) {
+	t.Parallel()
+
+	htmlFiles := []string{
+		"404.html",
+		"index.html",
+		"config.html",
+		"containers.html",
+		"dashboard.html",
+		"desktop.html",
+		"gallery.html",
+		"cheatsheets.html",
+		"invasion_control.html",
+		"knowledge.html",
+		"login.html",
+		"media.html",
+		"missions_v2.html",
+		"setup.html",
+		"skills.html",
+		"plans.html",
+		"truenas.html",
+	}
+	dataI18nElementPattern := regexp.MustCompile(`<([a-zA-Z][\w:-]*)([^>]*\sdata-i18n=(["'])[^"']+["'][^>]*)>([^<]*)</[a-zA-Z][\w:-]*>`)
+	htmlTagPattern := regexp.MustCompile(`<[^>]+>`)
+	alphaPattern := regexp.MustCompile(`[\p{L}\p{N}]`)
+	symbolPattern := regexp.MustCompile(`[^\p{L}\p{N}\p{Zs}\t\r\n.,:;!?'"()/_|+\-=]`)
+
+	var failures []string
+	for _, htmlFile := range htmlFiles {
+		content, err := os.ReadFile(htmlFile)
+		if err != nil {
+			continue
+		}
+		source := string(content)
+		matches := dataI18nElementPattern.FindAllStringSubmatchIndex(source, -1)
+		for _, match := range matches {
+			inner := source[match[8]:match[9]]
+			if htmlTagPattern.MatchString(inner) {
+				continue
+			}
+			text := strings.TrimSpace(strings.ReplaceAll(inner, "&nbsp;", " "))
+			if text == "" || !alphaPattern.MatchString(text) || symbolPattern.MatchString(text) {
+				continue
+			}
+			line := strings.Count(source[:match[0]], "\n") + 1
+			failures = append(failures, fmt.Sprintf("%s:%d contains data-i18n text fallback %q", htmlFile, line, text))
+		}
+	}
+
+	if len(failures) > 0 {
+		t.Fatalf("Found %d HTML data-i18n text fallbacks:\n%s", len(failures), strings.Join(failures, "\n"))
+	}
+}
+
+func TestFrontend_HTML_NoAttributeFallbacksInsideDataI18n(t *testing.T) {
+	t.Parallel()
+
+	htmlFiles := []string{
+		"404.html",
+		"index.html",
+		"config.html",
+		"containers.html",
+		"dashboard.html",
+		"desktop.html",
+		"gallery.html",
+		"cheatsheets.html",
+		"invasion_control.html",
+		"knowledge.html",
+		"login.html",
+		"media.html",
+		"missions_v2.html",
+		"setup.html",
+		"skills.html",
+		"plans.html",
+		"truenas.html",
+	}
+	directAttrPairs := []struct {
+		marker string
+		attr   string
+	}{
+		{marker: "data-i18n-placeholder", attr: "placeholder"},
+		{marker: "data-i18n-ph", attr: "placeholder"},
+		{marker: "data-i18n-title", attr: "title"},
+		{marker: "data-i18n-aria-label", attr: "aria-label"},
+	}
+	tagPattern := regexp.MustCompile(`<[^>]+>`)
+	dataI18nAttrPattern := regexp.MustCompile(`\sdata-i18n-attr=["']([^"']+)["']`)
+
+	var failures []string
+	for _, htmlFile := range htmlFiles {
+		content, err := os.ReadFile(htmlFile)
+		if err != nil {
+			continue
+		}
+		source := string(content)
+		matches := tagPattern.FindAllStringIndex(source, -1)
+		for _, match := range matches {
+			tag := source[match[0]:match[1]]
+			attrsToCheck := make(map[string]bool)
+			for _, pair := range directAttrPairs {
+				if strings.Contains(tag, pair.marker+"=") {
+					attrsToCheck[pair.attr] = true
+				}
+			}
+			for _, attrMatch := range dataI18nAttrPattern.FindAllStringSubmatch(tag, -1) {
+				attrsToCheck[attrMatch[1]] = true
+			}
+			if len(attrsToCheck) == 0 {
+				continue
+			}
+			line := strings.Count(source[:match[0]], "\n") + 1
+			for attr := range attrsToCheck {
+				attrValuePattern := regexp.MustCompile(`\s` + regexp.QuoteMeta(attr) + `=["']([^"']+)["']`)
+				if value := attrValuePattern.FindStringSubmatch(tag); len(value) == 2 && strings.TrimSpace(value[1]) != "" {
+					failures = append(failures, fmt.Sprintf("%s:%d contains data-i18n %s fallback %q", htmlFile, line, attr, value[1]))
+				}
+			}
+		}
+	}
+
+	if len(failures) > 0 {
+		t.Fatalf("Found %d HTML data-i18n attribute fallbacks:\n%s", len(failures), strings.Join(failures, "\n"))
+	}
+}
+
+func TestFrontend_StaticI18nKeysExistInEnglishBundle(t *testing.T) {
+	t.Parallel()
+
+	mergedKeys := loadMergedEnglishTranslationKeys(t)
+	jsKeyPattern := regexp.MustCompile(`\b(?:t|dt|desktopT|desktopText|configText)\(\s*['"]([a-zA-Z0-9_.-]+)['"]\s*(?:[,)]|$)`)
+	htmlKeyPattern := regexp.MustCompile(`\bdata-i18n(?:-[a-z-]+)?=["']([a-zA-Z0-9_.-]+)["']`)
+	skipDirs := map[string]bool{
+		"vendor":     true,
+		"codemirror": true,
+		"monaco":     true,
+	}
+	skipFiles := map[string]bool{
+		filepath.ToSlash(filepath.Join("js", "chat", "bundles", "chat-vendor.bundle.js")): true,
+	}
+	referenced := make(map[string][]string)
+
+	for _, root := range []string{"js", "cfg"} {
+		if _, err := os.Stat(root); err != nil {
+			continue
+		}
+		if err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return nil
+			}
+			if d.IsDir() {
+				if skipDirs[d.Name()] {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if !strings.HasSuffix(path, ".js") {
+				return nil
+			}
+			relPath := filepath.ToSlash(path)
+			if skipFiles[relPath] {
+				return nil
+			}
+			content, err := os.ReadFile(path)
+			if err != nil {
+				return nil
+			}
+			for _, match := range jsKeyPattern.FindAllStringSubmatch(string(content), -1) {
+				referenced[match[1]] = append(referenced[match[1]], relPath)
+			}
+			return nil
+		}); err != nil {
+			t.Fatalf("scan %s: %v", root, err)
+		}
+	}
+
+	for _, htmlFile := range []string{
+		"404.html",
+		"index.html",
+		"config.html",
+		"containers.html",
+		"dashboard.html",
+		"desktop.html",
+		"gallery.html",
+		"cheatsheets.html",
+		"invasion_control.html",
+		"knowledge.html",
+		"login.html",
+		"media.html",
+		"missions_v2.html",
+		"setup.html",
+		"skills.html",
+		"plans.html",
+		"truenas.html",
+	} {
+		content, err := os.ReadFile(htmlFile)
+		if err != nil {
+			continue
+		}
+		for _, match := range htmlKeyPattern.FindAllStringSubmatch(string(content), -1) {
+			if strings.HasPrefix(match[0], "data-i18n-attr=") {
+				continue
+			}
+			referenced[match[1]] = append(referenced[match[1]], htmlFile)
+		}
+	}
+
+	var missing []string
+	for key, files := range referenced {
+		if mergedKeys[key] {
+			continue
+		}
+		sort.Strings(files)
+		missing = append(missing, fmt.Sprintf("%s (in %s)", key, strings.Join(uniqueStrings(files), ", ")))
+	}
+	sort.Strings(missing)
+	if len(missing) > 0 {
+		t.Fatalf("frontend references %d static i18n keys missing from merged en translations:\n%s", len(missing), strings.Join(missing, "\n"))
 	}
 }
 
@@ -783,6 +995,22 @@ func readJSONFileMap(path string) (map[string]any, error) {
 		return nil, err
 	}
 	return m, nil
+}
+
+func uniqueStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	out := values[:0]
+	var last string
+	for i, value := range values {
+		if i > 0 && value == last {
+			continue
+		}
+		out = append(out, value)
+		last = value
+	}
+	return out
 }
 
 // cfgJSI18nKeyPattern matches static t('config.key') calls, not dynamic concatenation.

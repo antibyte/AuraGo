@@ -3184,7 +3184,7 @@
                 const total = dm.total || 0;
                 items.push({
                     icon: '👹',
-                    lbl: t('dashboard.quickstatus_daemons') || 'Daemons',
+                    lbl: t('dashboard.quickstatus_daemons'),
                     val: `${running} / ${total}`,
                     status: autoDisabled > 0 ? 'warning' : (running > 0 ? 'ok' : 'neutral'),
                     info: autoDisabled > 0 ? `${autoDisabled} auto-disabled` : ''
@@ -3450,19 +3450,19 @@
                 <div class="guardian-metrics-grid">
                     <div class="guardian-metric">
                         <div class="guardian-metric-val">${daemons.length}</div>
-                        <div class="guardian-metric-lbl">${t('dashboard.daemons_total') || 'Total'}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.daemons_total')}</div>
                     </div>
                     <div class="guardian-metric">
                         <div class="guardian-metric-val ok">${running}</div>
-                        <div class="guardian-metric-lbl">${t('dashboard.daemons_running') || 'Running'}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.daemons_running')}</div>
                     </div>
                     <div class="guardian-metric">
                         <div class="guardian-metric-val">${stopped}</div>
-                        <div class="guardian-metric-lbl">${t('dashboard.daemons_stopped') || 'Stopped'}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.daemons_stopped')}</div>
                     </div>
                     <div class="guardian-metric">
                         <div class="guardian-metric-val${errored > 0 ? ' warn' : ''}">${errored}</div>
-                        <div class="guardian-metric-lbl">${t('dashboard.daemons_error') || 'Error'}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.daemons_error')}</div>
                     </div>
                 </div>`;
 
@@ -3492,14 +3492,14 @@
                 // Wake-up stats badge
                 const wakeCount = d.wake_up_count || 0;
                 const suppressedCount = d.suppressed_count || 0;
-                const wakeLabel = t('dashboard.daemons_wakeups') || 'Wake-ups';
+                const wakeLabel = t('dashboard.daemons_wakeups');
                 const wakeHtml = wakeCount > 0
                     ? `<span class="daemon-badge daemon-badge-wake" title="${wakeLabel}: ${wakeCount}${suppressedCount > 0 ? ` (${suppressedCount} suppressed)` : ''}">💬 ${wakeCount}</span>`
                     : '';
 
                 // Restart count badge
                 const restartCount = d.restart_count || 0;
-                const restartLabel = t('dashboard.daemons_restarts') || 'Restarts';
+                const restartLabel = t('dashboard.daemons_restarts');
                 const restartHtml = restartCount > 0
                     ? `<span class="daemon-badge daemon-badge-restart${restartCount >= 3 ? ' warn' : ''}" title="${restartLabel}: ${restartCount}">↻ ${restartCount}</span>`
                     : '';
@@ -3509,7 +3509,7 @@
                 if (d.last_wake_up) {
                     const wakeMs = Date.parse(d.last_wake_up);
                     if (!Number.isNaN(wakeMs)) {
-                        const wLabel = t('dashboard.daemons_last_wakeup') || 'Last wake-up';
+                        const wLabel = t('dashboard.daemons_last_wakeup');
                         lastWakeHtml = `<span class="daemon-meta-item" title="${wLabel}">${relativeTime(wakeMs)}</span>`;
                     }
                 }

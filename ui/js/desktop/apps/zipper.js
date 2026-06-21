@@ -28,11 +28,11 @@
 
         host.innerHTML = `<div class="zipper-app">
             <div class="vd-toolbar zipper-toolbar">
-                <button class="vd-tool-button vd-tool-button-icon" type="button" data-action="open" title="${esc(t('zipper.open', 'Open Archive'))}">${iconMarkup('folder-open', 'Open', 'vd-tool-icon', 15)}</button>
-                <button class="vd-tool-button vd-tool-button-icon" type="button" data-action="extract-here" title="${esc(t('zipper.extract_here', 'Extract Here'))}">${iconMarkup('download', 'Extract', 'vd-tool-icon', 15)}</button>
-                <button class="vd-tool-button vd-tool-button-icon" type="button" data-action="extract-to" title="${esc(t('zipper.extract_to', 'Extract To...'))}">${iconMarkup('folder', 'Extract To', 'vd-tool-icon', 15)}</button>
-                <button class="vd-tool-button vd-tool-button-icon" type="button" data-action="new-archive" title="${esc(t('zipper.new_archive', 'New Archive'))}">${iconMarkup('archive', 'New', 'vd-tool-icon', 15)}</button>
-                <span class="zipper-path vd-path">${esc(zipPath || t('zipper.no_archive', 'No archive open'))}</span>
+                <button class="vd-tool-button vd-tool-button-icon" type="button" data-action="open" title="${esc(t('zipper.open'))}">${iconMarkup('folder-open', 'Open', 'vd-tool-icon', 15)}</button>
+                <button class="vd-tool-button vd-tool-button-icon" type="button" data-action="extract-here" title="${esc(t('zipper.extract_here'))}">${iconMarkup('download', 'Extract', 'vd-tool-icon', 15)}</button>
+                <button class="vd-tool-button vd-tool-button-icon" type="button" data-action="extract-to" title="${esc(t('zipper.extract_to'))}">${iconMarkup('folder', 'Extract To', 'vd-tool-icon', 15)}</button>
+                <button class="vd-tool-button vd-tool-button-icon" type="button" data-action="new-archive" title="${esc(t('zipper.new_archive'))}">${iconMarkup('archive', 'New', 'vd-tool-icon', 15)}</button>
+                <span class="zipper-path vd-path">${esc(zipPath || t('zipper.no_archive'))}</span>
             </div>
             <div class="zipper-breadcrumb" data-breadcrumb></div>
             <div class="zipper-list" data-list>
@@ -40,10 +40,10 @@
                     <thead>
                         <tr>
                             <th class="zipper-col-check"><input type="checkbox" data-select-all></th>
-                            <th class="zipper-col-name" data-sort="name">${esc(t('zipper.name', 'Name'))}</th>
-                            <th class="zipper-col-size" data-sort="size">${esc(t('zipper.size', 'Size'))}</th>
-                            <th class="zipper-col-compressed" data-sort="compressed">${esc(t('zipper.compressed', 'Compressed'))}</th>
-                            <th class="zipper-col-modified" data-sort="modified">${esc(t('zipper.modified', 'Modified'))}</th>
+                            <th class="zipper-col-name" data-sort="name">${esc(t('zipper.name'))}</th>
+                            <th class="zipper-col-size" data-sort="size">${esc(t('zipper.size'))}</th>
+                            <th class="zipper-col-compressed" data-sort="compressed">${esc(t('zipper.compressed'))}</th>
+                            <th class="zipper-col-modified" data-sort="modified">${esc(t('zipper.modified'))}</th>
                         </tr>
                     </thead>
                     <tbody data-tbody></tbody>
@@ -108,7 +108,7 @@
         function updateBreadcrumb() {
             if (!breadcrumbNode) return;
             const parts = currentDir ? currentDir.split('/').filter(Boolean) : [];
-            let html = `<button class="zipper-crumb" type="button" data-dir="">${esc(t('zipper.title', 'Zipper'))}</button>`;
+            let html = `<button class="zipper-crumb" type="button" data-dir="">${esc(t('zipper.title'))}</button>`;
             let acc = '';
             for (const p of parts) {
                 acc += (acc ? '/' : '') + p;
@@ -164,7 +164,7 @@
         function renderTable() {
             if (!tbody) return;
             if (filteredEntries.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="zipper-empty">${esc(t('zipper.empty_archive', 'This archive is empty'))}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="zipper-empty">${esc(t('zipper.empty_archive'))}</td></tr>`;
                 return;
             }
             tbody.innerHTML = filteredEntries.map((e, i) => {
@@ -222,8 +222,8 @@
             const totalCompressed = entries.filter(e => !e.is_dir).reduce((s, e) => s + e.compressed_size, 0);
             const count = entries.filter(e => !e.is_dir).length;
             const msg = [
-                t('zipper.items', '{{count}} items').replace('{{count}}', count),
-                t('zipper.total_size', '{{size}} total').replace('{{size}}', fmtBytes(totalSize)),
+                t('zipper.items').replace('{{count}}', count),
+                t('zipper.total_size').replace('{{size}}', fmtBytes(totalSize)),
                 fmtBytes(totalCompressed) + ' compressed'
             ].join('  ·  ');
             setStatus((selected.size > 0 ? selected.size + ' selected  ·  ' : '') + msg);
@@ -247,8 +247,8 @@
         }
 
         async function load() {
-            if (!zipPath) { setStatus(t('zipper.no_archive', 'No archive open')); return; }
-            setStatus(t('zipper.extracting', 'Loading...'));
+            if (!zipPath) { setStatus(t('zipper.no_archive')); return; }
+            setStatus(t('zipper.extracting'));
             try {
                 const body = await api('/api/desktop/archive/list?path=' + encodeURIComponent(zipPath));
                 entries = (body.entries || []).map(e => ({
@@ -277,7 +277,7 @@
                 selected.clear();
                 applyFilter();
             } catch (err) {
-                setStatus(t('zipper.error_list', 'Failed to read archive'));
+                setStatus(t('zipper.error_list'));
                 notify({ type: 'error', message: err.message || String(err) });
             }
         }
@@ -303,7 +303,7 @@
                 const paths = await uploadExternalFilesForArchive(externalFiles);
                 return await createArchiveFromPaths(paths);
             } catch (err) {
-                setStatus(t('zipper.error_create', 'Failed to create archive'));
+                setStatus(t('zipper.error_create'));
                 notify({ type: 'error', message: err.message || String(err) });
                 return false;
             }
@@ -318,23 +318,23 @@
             }
             const prompt = ctx.promptDialog || (async () => null);
             const defaultDir = dirName(cleanPaths[0]) || 'Documents';
-            let dest = await prompt(t('zipper.new_archive', 'New Archive'), joinPath(defaultDir, defaultArchiveName(cleanPaths)));
+            let dest = await prompt(t('zipper.new_archive'), joinPath(defaultDir, defaultArchiveName(cleanPaths)));
             if (!dest) return false;
             dest = ensureZipExtension(dest);
-            setStatus(t('zipper.creating', 'Creating archive...'));
+            setStatus(t('zipper.creating'));
             try {
                 await api('/api/desktop/archive', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ paths: cleanPaths, dest: dest })
                 });
-                setStatus(t('zipper.created', 'Archive created'));
-                notify({ type: 'success', message: t('zipper.created', 'Archive created') });
+                setStatus(t('zipper.created'));
+                notify({ type: 'success', message: t('zipper.created') });
                 if (typeof ctx.loadBootstrap === 'function') await ctx.loadBootstrap();
                 openZipPath(dest);
                 return true;
             } catch (err) {
-                setStatus(t('zipper.error_create', 'Failed to create archive'));
+                setStatus(t('zipper.error_create'));
                 notify({ type: 'error', message: err.message || String(err) });
                 return false;
             }
@@ -350,44 +350,44 @@
             if (!zipPath) return;
             if (!dest) {
                 const prompt = ctx.promptDialog || (async () => null);
-                dest = await prompt(t('zipper.extract_to', 'Extract To...'), zipPath.split('/').slice(0, -1).join('/') || 'Documents');
+                dest = await prompt(t('zipper.extract_to'), zipPath.split('/').slice(0, -1).join('/') || 'Documents');
                 if (!dest) return;
             }
-            setStatus(t('zipper.extracting', 'Extracting...'));
+            setStatus(t('zipper.extracting'));
             try {
                 await api('/api/desktop/extract', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ path: zipPath, dest: dest })
                 });
-                setStatus(t('zipper.extracted', 'Extraction complete'));
-                notify({ type: 'success', message: t('zipper.extracted', 'Extraction complete') });
+                setStatus(t('zipper.extracted'));
+                notify({ type: 'success', message: t('zipper.extracted') });
                 if (typeof ctx.loadBootstrap === 'function') await ctx.loadBootstrap();
                 if (selected.size > 0) {
                     openApp('files', { path: dest });
                 }
             } catch (err) {
-                setStatus(t('zipper.error_extract', 'Failed to extract archive'));
+                setStatus(t('zipper.error_extract'));
                 notify({ type: 'error', message: err.message || String(err) });
             }
         }
 
         async function newArchive() {
             const prompt = ctx.promptDialog || (async () => null);
-            const name = await prompt(t('zipper.new_archive', 'New Archive'), 'Documents/archive.zip');
+            const name = await prompt(t('zipper.new_archive'), 'Documents/archive.zip');
             if (!name) return;
-            setStatus(t('zipper.creating', 'Creating archive...'));
+            setStatus(t('zipper.creating'));
             try {
                 await api('/api/desktop/archive', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ paths: [], dest: String(name).trim() })
                 });
-                setStatus(t('zipper.created', 'Archive created'));
-                notify({ type: 'success', message: t('zipper.created', 'Archive created') });
+                setStatus(t('zipper.created'));
+                notify({ type: 'success', message: t('zipper.created') });
                 if (typeof ctx.loadBootstrap === 'function') await ctx.loadBootstrap();
             } catch (err) {
-                setStatus(t('zipper.error_create', 'Failed to create archive'));
+                setStatus(t('zipper.error_create'));
                 notify({ type: 'error', message: err.message || String(err) });
             }
         }

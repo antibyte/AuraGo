@@ -586,7 +586,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 if (!cb || cb.id === 'pp-select-all') return; // skip select-all, handled separately
                 if (cb.checked) selected.add(cb.dataset.name); else selected.delete(cb.dataset.name);
                 const sc = overlay.querySelector('#pp-sel-count');
-                if (sc) sc.textContent = selected.size + ' ' + (t('config.providers.pricing_picker_selected') || 'selected');
+                if (sc) sc.textContent = selected.size + ' ' + (t('config.providers.pricing_picker_selected'));
                 const sa = overlay.querySelector('#pp-select-all');
                 if (sa) { const v = getVisible(); sa.checked = v.length > 0 && v.every(m => selected.has(m.name)); }
             });

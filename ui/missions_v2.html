@@ -32,14 +32,14 @@
 </head>
 
 <body>
-    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content">Skip to content</a>
+    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <!-- App Header -->
     <header class="app-header">
         <div class="header-left">
             <a href="/" class="logo">
                 <div class="logo-icon">🚀</div>
                 <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-                <span class="logo-subtitle" data-i18n="missions.logo_subtitle">Mission Control</span>
+                <span class="logo-subtitle" data-i18n="missions.logo_subtitle"></span>
             </a>
         </div>
         <div class="header-actions">
@@ -52,7 +52,7 @@
     <div class="container" id="main-content">
         <!-- Page Header -->
         <div class="page-header">
-            <h1 data-i18n="missions.heading">Mission Control</h1>
+            <h1 data-i18n="missions.heading"></h1>
             <div class="header-actions">
                 <div class="view-toggle" id="view-toggle">
                     <button type="button" data-view-mode="grid" data-mode="grid" data-i18n-title="common.view_grid" data-i18n-aria-label="common.view_grid">
@@ -64,7 +64,7 @@
                 </div>
                 <button class="btn btn-primary" type="button" id="open-mission-modal-btn">
                     <span>+</span>
-                    <span data-i18n="missions.btn_new_mission">New Mission</span>
+                    <span data-i18n="missions.btn_new_mission"></span>
                 </button>
             </div>
         </div>
@@ -74,31 +74,31 @@
             <div class="status-card" id="status-total">
                 <div class="status-icon">📋</div>
                 <div class="status-value">-</div>
-                <div class="status-label" data-i18n="missions.status_total">Total</div>
+                <div class="status-label" data-i18n="missions.status_total"></div>
             </div>
             <div class="status-card" id="status-running">
                 <div class="status-icon">▶️</div>
                 <div class="status-value">-</div>
-                <div class="status-label" data-i18n="missions.status_running">Running</div>
+                <div class="status-label" data-i18n="missions.status_running"></div>
             </div>
             <div class="status-card" id="status-queued">
                 <div class="status-icon">⏳</div>
                 <div class="status-value">-</div>
-                <div class="status-label" data-i18n="missions.status_queue">Queue</div>
+                <div class="status-label" data-i18n="missions.status_queue"></div>
             </div>
             <div class="status-card" id="status-triggered">
                 <div class="status-icon">⚡</div>
                 <div class="status-value">-</div>
-                <div class="status-label" data-i18n="missions.status_triggered">Triggered</div>
+                <div class="status-label" data-i18n="missions.status_triggered"></div>
             </div>
         </div>
 
         <!-- Queue Section -->
             <div class="queue-section is-hidden" id="queue-section">
             <div class="queue-header">
-                <h3 data-i18n="missions.queue_title">Queue</h3>
+                <h3 data-i18n="missions.queue_title"></h3>
                 <span class="badge badge-running">
-                    <span data-i18n="missions.queue_serial_badge">Serial Queue</span>
+                    <span data-i18n="missions.queue_serial_badge"></span>
                 </span>
             </div>
             <div class="queue-items" id="queue-items"></div>
@@ -107,16 +107,16 @@
         <!-- Tabs -->
         <div class="tabs">
             <button class="tab active" type="button" data-filter="all" id="tab-all">
-                <span data-i18n="missions.filter_all">All</span>
+                <span data-i18n="missions.filter_all"></span>
             </button>
             <button class="tab" type="button" data-filter="manual" id="tab-manual">
-                <span data-i18n="missions.filter_manual">Manual</span>
+                <span data-i18n="missions.filter_manual"></span>
             </button>
             <button class="tab" type="button" data-filter="scheduled" id="tab-scheduled">
-                <span data-i18n="missions.filter_scheduled">Scheduled</span>
+                <span data-i18n="missions.filter_scheduled"></span>
             </button>
             <button class="tab" type="button" data-filter="triggered" id="tab-triggered">
-                <span data-i18n="missions.filter_triggered">Triggered</span>
+                <span data-i18n="missions.filter_triggered"></span>
             </button>
         </div>
 
@@ -140,75 +140,75 @@
                     <input type="hidden" id="mission-id">
 
                     <div class="form-group">
-                        <label for="mission-name" data-i18n="missions.form_name_label">Mission Name</label>
+                        <label for="mission-name" data-i18n="missions.form_name_label"></label>
                         <input type="text" id="mission-name" required data-i18n-placeholder="missions.form_name_placeholder">
                     </div>
 
                     <div class="form-group">
-                        <label for="mission-prompt" data-i18n="missions.form_prompt_label">Prompt</label>
+                        <label for="mission-prompt" data-i18n="missions.form_prompt_label"></label>
                         <textarea class="form-textarea" id="mission-prompt" required data-i18n-placeholder="missions.form_prompt_placeholder"></textarea>
                     </div>
 
                     <div class="form-group">
-                        <label for="cheatsheet-picker" data-i18n="missions.form_cheatsheets_label">Cheatsheets</label>
+                        <label for="cheatsheet-picker" data-i18n="missions.form_cheatsheets_label"></label>
                         <div id="cheatsheet-picker" class="cheatsheet-picker">
-                            <div class="cheatsheet-picker-empty" data-i18n="missions.form_cheatsheets_loading">Loading cheatsheets...</div>
+                            <div class="cheatsheet-picker-empty" data-i18n="missions.form_cheatsheets_loading"></div>
                         </div>
-                        <div class="form-hint" data-i18n="missions.form_cheatsheets_hint">Select optional cheatsheets for this mission.</div>
+                        <div class="form-hint" data-i18n="missions.form_cheatsheets_hint"></div>
                     </div>
 
                     <div class="form-group">
-                        <label data-i18n="missions.form_runner_label">Run Location</label>
+                        <label data-i18n="missions.form_runner_label"></label>
                         <div class="mission-runner-selector">
                             <label class="mission-runner-option" data-runner-type="local">
                                 <input type="radio" name="runner-type" value="local" checked>
-                                <span class="runner-label" data-i18n="missions.form_runner_local_label">Local</span>
-                                <span class="runner-desc" data-i18n="missions.form_runner_local_desc">Run on this AuraGo instance.</span>
+                                <span class="runner-label" data-i18n="missions.form_runner_local_label"></span>
+                                <span class="runner-desc" data-i18n="missions.form_runner_local_desc"></span>
                             </label>
                             <label class="mission-runner-option" data-runner-type="remote">
                                 <input type="radio" name="runner-type" value="remote">
-                                <span class="runner-label" data-i18n="missions.form_runner_remote_label">Remote Egg</span>
-                                <span class="runner-desc" data-i18n="missions.form_runner_remote_desc">Deliver and run on an Invasion egg.</span>
+                                <span class="runner-label" data-i18n="missions.form_runner_remote_label"></span>
+                                <span class="runner-desc" data-i18n="missions.form_runner_remote_desc"></span>
                             </label>
                         </div>
                         <div id="remote-target-group" class="remote-target-group is-hidden">
-                            <label for="remote-target-select" data-i18n="missions.form_remote_target_label">Remote Egg</label>
+                            <label for="remote-target-select" data-i18n="missions.form_remote_target_label"></label>
                             <select id="remote-target-select" class="form-select">
-                                <option value="" data-i18n="missions.form_remote_target_loading">Loading eggs...</option>
+                                <option value="" data-i18n="missions.form_remote_target_loading"></option>
                             </select>
-                            <div class="form-hint" data-i18n="missions.form_remote_target_hint">Only connected deployed eggs can receive missions.</div>
+                            <div class="form-hint" data-i18n="missions.form_remote_target_hint"></div>
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label for="mission-priority" data-i18n="missions.form_priority_label">Priority</label>
+                        <label for="mission-priority" data-i18n="missions.form_priority_label"></label>
                         <select id="mission-priority" class="form-select">
-                            <option value="low" data-i18n="missions.form_priority_low">Low</option>
-                            <option value="medium" selected data-i18n="missions.form_priority_medium">Medium</option>
-                            <option value="high" data-i18n="missions.form_priority_high">High</option>
+                            <option value="low" data-i18n="missions.form_priority_low"></option>
+                            <option value="medium" selected data-i18n="missions.form_priority_medium"></option>
+                            <option value="high" data-i18n="missions.form_priority_high"></option>
                         </select>
                     </div>
 
                     <div class="form-group">
-                            <label data-i18n="missions.form_exec_type_label">Execution Type</label>
+                            <label data-i18n="missions.form_exec_type_label"></label>
                         <div class="exec-type-selector">
                             <label class="exec-type-option" data-exec-type="manual">
                                 <input type="radio" name="exec-type" value="manual" checked>
                                 <span class="exec-icon">👆</span>
-                                <span class="exec-label" data-i18n="missions.form_exec_manual_label">Manual</span>
-                                <span class="exec-desc" data-i18n="missions.form_exec_manual_desc">Run this mission on demand.</span>
+                                <span class="exec-label" data-i18n="missions.form_exec_manual_label"></span>
+                                <span class="exec-desc" data-i18n="missions.form_exec_manual_desc"></span>
                             </label>
                             <label class="exec-type-option" data-exec-type="scheduled">
                                 <input type="radio" name="exec-type" value="scheduled">
                                 <span class="exec-icon">📅</span>
-                                <span class="exec-label" data-i18n="missions.form_exec_scheduled_label">Scheduled</span>
-                                <span class="exec-desc" data-i18n="missions.form_exec_scheduled_desc">Run this mission on a cron schedule.</span>
+                                <span class="exec-label" data-i18n="missions.form_exec_scheduled_label"></span>
+                                <span class="exec-desc" data-i18n="missions.form_exec_scheduled_desc"></span>
                             </label>
                             <label class="exec-type-option" data-exec-type="triggered">
                                 <input type="radio" name="exec-type" value="triggered">
                                 <span class="exec-icon">⚡</span>
-                                <span class="exec-label" data-i18n="missions.form_exec_triggered_label">Triggered</span>
-                                <span class="exec-desc" data-i18n="missions.form_exec_triggered_desc">Run this mission when an event occurs.</span>
+                                <span class="exec-label" data-i18n="missions.form_exec_triggered_label"></span>
+                                <span class="exec-desc" data-i18n="missions.form_exec_triggered_desc"></span>
                             </label>
                         </div>
                     </div>
@@ -216,69 +216,69 @@
                     <!-- Scheduled Config -->
                     <div id="config-scheduled" class="trigger-config is-hidden">
                         <div class="form-group">
-                            <label for="cron-preset" data-i18n="missions.form_cron_preset_label">Preset</label>
+                            <label for="cron-preset" data-i18n="missions.form_cron_preset_label"></label>
                             <select id="cron-preset">
-                                <option value="" data-i18n="missions.form_cron_preset_custom">Custom</option>
-                                <option value="*/5 * * * *" data-i18n="missions.cron_preset_every_5min">Every 5 minutes</option>
-                                <option value="*/15 * * * *" data-i18n="missions.cron_preset_every_15min">Every 15 minutes</option>
-                                <option value="*/30 * * * *" data-i18n="missions.cron_preset_every_30min">Every 30 minutes</option>
-                                <option value="0 * * * *" data-i18n="missions.cron_preset_every_hour">Every hour</option>
-                                <option value="0 */6 * * *" data-i18n="missions.cron_preset_every_6hours">Every 6 hours</option>
-                                <option value="0 0 * * *" data-i18n="missions.cron_preset_daily_midnight">Daily at midnight</option>
-                                <option value="0 9 * * *" data-i18n="missions.cron_preset_daily_9am">Daily at 9 AM</option>
-                                <option value="0 9 * * 1" data-i18n="missions.cron_preset_weekly_monday">Weekly on Monday</option>
-                                <option value="0 0 1 * *" data-i18n="missions.cron_preset_monthly_first">Monthly on the first day</option>
+                                <option value="" data-i18n="missions.form_cron_preset_custom"></option>
+                                <option value="*/5 * * * *" data-i18n="missions.cron_preset_every_5min"></option>
+                                <option value="*/15 * * * *" data-i18n="missions.cron_preset_every_15min"></option>
+                                <option value="*/30 * * * *" data-i18n="missions.cron_preset_every_30min"></option>
+                                <option value="0 * * * *" data-i18n="missions.cron_preset_every_hour"></option>
+                                <option value="0 */6 * * *" data-i18n="missions.cron_preset_every_6hours"></option>
+                                <option value="0 0 * * *" data-i18n="missions.cron_preset_daily_midnight"></option>
+                                <option value="0 9 * * *" data-i18n="missions.cron_preset_daily_9am"></option>
+                                <option value="0 9 * * 1" data-i18n="missions.cron_preset_weekly_monday"></option>
+                                <option value="0 0 1 * *" data-i18n="missions.cron_preset_monthly_first"></option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="cron-schedule" data-i18n="missions.form_cron_label">Cron Schedule</label>
+                            <label for="cron-schedule" data-i18n="missions.form_cron_label"></label>
                             <input type="text" id="cron-schedule" data-i18n-placeholder="missions.form_cron_placeholder">
-                            <div class="form-hint" data-i18n="missions.form_cron_hint">Use standard cron syntax.</div>
+                            <div class="form-hint" data-i18n="missions.form_cron_hint"></div>
                         </div>
                     </div>
 
                     <!-- Triggered Config -->
                     <div id="config-triggered" class="trigger-config is-hidden">
                         <div class="trigger-type-selector">
-                            <button type="button" class="trigger-type-btn" data-trigger="mission_completed" data-i18n="missions.trigger_mission_completed">Mission completed</button>
-                            <button type="button" class="trigger-type-btn" data-trigger="email_received" data-i18n="missions.trigger_email_received">Email received</button>
-                            <button type="button" class="trigger-type-btn" data-trigger="webhook" data-i18n="missions.trigger_webhook">Webhook</button>
-                            <button type="button" class="trigger-type-btn" data-trigger="egg_hatched" data-i18n="missions.trigger_egg_hatched">Egg hatched</button>
-                            <button type="button" class="trigger-type-btn" data-trigger="nest_cleared" data-i18n="missions.trigger_nest_cleared">Nest cleared</button>
-                            <button type="button" class="trigger-type-btn" data-trigger="mqtt_message" data-i18n="missions.trigger_mqtt_message">MQTT message</button>
-                            <button type="button" class="trigger-type-btn" data-trigger="system_startup" data-i18n="missions.trigger_system_startup">System startup</button>
-                            <button type="button" class="trigger-type-btn" data-trigger="home_assistant_state" data-i18n="missions.trigger_home_assistant_state">Home Assistant state</button>
-                            <button type="button" class="trigger-type-btn" data-trigger="device_connected" data-i18n="missions.trigger_device_connected">Device connected</button>
-                            <button type="button" class="trigger-type-btn" data-trigger="device_disconnected" data-i18n="missions.trigger_device_disconnected">Device disconnected</button>
-                            <button type="button" class="trigger-type-btn" data-trigger="fritzbox_call" data-i18n="missions.trigger_fritzbox_call">Fritz!Box call</button>
-                            <button type="button" class="trigger-type-btn" data-trigger="budget_warning" data-i18n="missions.trigger_budget_warning">Budget warning</button>
-                            <button type="button" class="trigger-type-btn" data-trigger="budget_exceeded" data-i18n="missions.trigger_budget_exceeded">Budget exceeded</button>
-                            <button type="button" class="trigger-type-btn" data-trigger="planner_appointment_due" data-i18n="missions.trigger_planner_appointment_due">Planner appointment due</button>
-                            <button type="button" class="trigger-type-btn" data-trigger="planner_todo_overdue" data-i18n="missions.trigger_planner_todo_overdue">Planner todo overdue</button>
-                            <button type="button" class="trigger-type-btn" data-trigger="planner_operational_issue" data-i18n="missions.trigger_planner_operational_issue">Planner operational issue</button>
+                            <button type="button" class="trigger-type-btn" data-trigger="mission_completed" data-i18n="missions.trigger_mission_completed"></button>
+                            <button type="button" class="trigger-type-btn" data-trigger="email_received" data-i18n="missions.trigger_email_received"></button>
+                            <button type="button" class="trigger-type-btn" data-trigger="webhook" data-i18n="missions.trigger_webhook"></button>
+                            <button type="button" class="trigger-type-btn" data-trigger="egg_hatched" data-i18n="missions.trigger_egg_hatched"></button>
+                            <button type="button" class="trigger-type-btn" data-trigger="nest_cleared" data-i18n="missions.trigger_nest_cleared"></button>
+                            <button type="button" class="trigger-type-btn" data-trigger="mqtt_message" data-i18n="missions.trigger_mqtt_message"></button>
+                            <button type="button" class="trigger-type-btn" data-trigger="system_startup" data-i18n="missions.trigger_system_startup"></button>
+                            <button type="button" class="trigger-type-btn" data-trigger="home_assistant_state" data-i18n="missions.trigger_home_assistant_state"></button>
+                            <button type="button" class="trigger-type-btn" data-trigger="device_connected" data-i18n="missions.trigger_device_connected"></button>
+                            <button type="button" class="trigger-type-btn" data-trigger="device_disconnected" data-i18n="missions.trigger_device_disconnected"></button>
+                            <button type="button" class="trigger-type-btn" data-trigger="fritzbox_call" data-i18n="missions.trigger_fritzbox_call"></button>
+                            <button type="button" class="trigger-type-btn" data-trigger="budget_warning" data-i18n="missions.trigger_budget_warning"></button>
+                            <button type="button" class="trigger-type-btn" data-trigger="budget_exceeded" data-i18n="missions.trigger_budget_exceeded"></button>
+                            <button type="button" class="trigger-type-btn" data-trigger="planner_appointment_due" data-i18n="missions.trigger_planner_appointment_due"></button>
+                            <button type="button" class="trigger-type-btn" data-trigger="planner_todo_overdue" data-i18n="missions.trigger_planner_todo_overdue"></button>
+                            <button type="button" class="trigger-type-btn" data-trigger="planner_operational_issue" data-i18n="missions.trigger_planner_operational_issue"></button>
                         </div>
 
                         <div class="form-group">
-                            <label for="trigger-min-interval" data-i18n="missions.trigger_min_interval_label">Minimum interval</label>
+                            <label for="trigger-min-interval" data-i18n="missions.trigger_min_interval_label"></label>
                             <input type="number" id="trigger-min-interval" min="0" max="86400" value="0" data-i18n-placeholder="missions.trigger_min_interval_placeholder">
-                            <div class="form-hint" data-i18n="missions.trigger_min_interval_hint">Seconds to wait before this trigger can start the mission again. Use 0 to disable the limit.</div>
+                            <div class="form-hint" data-i18n="missions.trigger_min_interval_hint"></div>
                         </div>
 
                         <!-- System Startup Trigger -->
                         <div id="trigger-system_startup" class="trigger-fields">
-                            <div class="form-hint form-hint-tight" data-i18n="missions.trigger_system_startup_hint">This mission will run when AuraGo starts.</div>
+                            <div class="form-hint form-hint-tight" data-i18n="missions.trigger_system_startup_hint"></div>
                         </div>
 
                         <!-- Planner Appointment Due Trigger -->
                         <div id="trigger-planner_appointment_due" class="trigger-fields">
-                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_planner_appointment_due_hint">React when a planner appointment reminder becomes due.</div>
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_planner_appointment_due_hint"></div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="planner-appointment-id" data-i18n="missions.trigger_planner_appointment_id_label">Appointment ID</label>
+                                    <label for="planner-appointment-id" data-i18n="missions.trigger_planner_appointment_id_label"></label>
                                     <input type="text" id="planner-appointment-id" data-i18n-placeholder="missions.trigger_planner_appointment_id_placeholder">
                                 </div>
                                 <div class="form-group">
-                                    <label for="planner-title-contains" data-i18n="missions.trigger_planner_title_contains_label">Title contains</label>
+                                    <label for="planner-title-contains" data-i18n="missions.trigger_planner_title_contains_label"></label>
                                     <input type="text" id="planner-title-contains" data-i18n-placeholder="missions.trigger_planner_title_contains_placeholder">
                                 </div>
                             </div>
@@ -286,14 +286,14 @@
 
                         <!-- Planner Todo Overdue Trigger -->
                         <div id="trigger-planner_todo_overdue" class="trigger-fields">
-                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_planner_todo_overdue_hint">React when an open planner todo passes its due date.</div>
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_planner_todo_overdue_hint"></div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="planner-todo-id" data-i18n="missions.trigger_planner_todo_id_label">Todo ID</label>
+                                    <label for="planner-todo-id" data-i18n="missions.trigger_planner_todo_id_label"></label>
                                     <input type="text" id="planner-todo-id" data-i18n-placeholder="missions.trigger_planner_todo_id_placeholder">
                                 </div>
                                 <div class="form-group">
-                                    <label for="planner-todo-title-contains" data-i18n="missions.trigger_planner_title_contains_label">Title contains</label>
+                                    <label for="planner-todo-title-contains" data-i18n="missions.trigger_planner_title_contains_label"></label>
                                     <input type="text" id="planner-todo-title-contains" data-i18n-placeholder="missions.trigger_planner_title_contains_placeholder">
                                 </div>
                             </div>
@@ -301,23 +301,23 @@
 
                         <!-- Planner Operational Issue Trigger -->
                         <div id="trigger-planner_operational_issue" class="trigger-fields">
-                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_planner_operational_issue_hint">React when AuraGo records an internal operational issue.</div>
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_planner_operational_issue_hint"></div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="planner-issue-source" data-i18n="missions.trigger_planner_issue_source_label">Issue source</label>
+                                    <label for="planner-issue-source" data-i18n="missions.trigger_planner_issue_source_label"></label>
                                     <input type="text" id="planner-issue-source" data-i18n-placeholder="missions.trigger_planner_issue_source_placeholder">
                                 </div>
                                 <div class="form-group">
-                                    <label for="planner-issue-severity" data-i18n="missions.trigger_planner_issue_severity_label">Severity</label>
+                                    <label for="planner-issue-severity" data-i18n="missions.trigger_planner_issue_severity_label"></label>
                                     <select id="planner-issue-severity" class="form-select">
-                                        <option value="" data-i18n="missions.trigger_planner_issue_severity_any">Any severity</option>
-                                        <option value="warning" data-i18n="missions.trigger_planner_issue_severity_warning">Warning</option>
-                                        <option value="error" data-i18n="missions.trigger_planner_issue_severity_error">Error</option>
+                                        <option value="" data-i18n="missions.trigger_planner_issue_severity_any"></option>
+                                        <option value="warning" data-i18n="missions.trigger_planner_issue_severity_warning"></option>
+                                        <option value="error" data-i18n="missions.trigger_planner_issue_severity_error"></option>
                                     </select>
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="planner-issue-title-contains" data-i18n="missions.trigger_planner_title_contains_label">Title contains</label>
+                                <label for="planner-issue-title-contains" data-i18n="missions.trigger_planner_title_contains_label"></label>
                                 <input type="text" id="planner-issue-title-contains" data-i18n-placeholder="missions.trigger_planner_title_contains_placeholder">
                             </div>
                         </div>
@@ -325,7 +325,7 @@
                         <!-- Mission Completed Trigger -->
                         <div id="trigger-mission_completed" class="trigger-fields">
                             <div class="form-group">
-                                <label for="mission-selector" data-i18n="missions.trigger_source_mission_label">Source Mission</label>
+                                <label for="mission-selector" data-i18n="missions.trigger_source_mission_label"></label>
                                 <div class="mission-selector" id="mission-selector"></div>
                             </div>
                             <div class="form-group">
@@ -333,7 +333,7 @@
                                     <input type="checkbox" id="require-success">
                                     <span class="slider"></span>
                                 </label>
-                                <span class="inline-note" data-i18n="missions.trigger_require_success">Only trigger on success</span>
+                                <span class="inline-note" data-i18n="missions.trigger_require_success"></span>
                             </div>
                         </div>
 
@@ -341,19 +341,19 @@
                         <div id="trigger-email_received" class="trigger-fields">
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="email-folder" data-i18n="missions.trigger_email_folder_label">Folder</label>
+                                    <label for="email-folder" data-i18n="missions.trigger_email_folder_label"></label>
                                     <select id="email-folder" class="form-select">
-                                        <option value="INBOX" data-i18n="missions.trigger_email_folder_inbox">Inbox</option>
-                                        <option value="Sent" data-i18n="missions.trigger_email_folder_sent">Sent</option>
+                                        <option value="INBOX" data-i18n="missions.trigger_email_folder_inbox"></option>
+                                        <option value="Sent" data-i18n="missions.trigger_email_folder_sent"></option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label for="email-subject" data-i18n="missions.trigger_email_subject_label">Subject Contains</label>
+                                    <label for="email-subject" data-i18n="missions.trigger_email_subject_label"></label>
                                     <input type="text" id="email-subject" data-i18n-placeholder="missions.trigger_email_subject_placeholder">
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="email-from" data-i18n="missions.trigger_email_from_label">From Contains</label>
+                                <label for="email-from" data-i18n="missions.trigger_email_from_label"></label>
                                 <input type="text" id="email-from" data-i18n-placeholder="missions.trigger_email_from_placeholder">
                             </div>
                         </div>
@@ -361,28 +361,28 @@
                         <!-- Webhook Trigger -->
                         <div id="trigger-webhook" class="trigger-fields">
                             <div class="form-group">
-                                <label for="webhook-select" data-i18n="missions.trigger_webhook_label">Webhook</label>
+                                <label for="webhook-select" data-i18n="missions.trigger_webhook_label"></label>
                                 <select id="webhook-select" class="form-select">
-                                    <option value="" data-i18n="missions.trigger_webhook_loading">Loading webhooks...</option>
+                                    <option value="" data-i18n="missions.trigger_webhook_loading"></option>
                                 </select>
-                                <div class="form-hint" data-i18n="missions.trigger_webhook_hint">Choose which webhook should start this mission.</div>
+                                <div class="form-hint" data-i18n="missions.trigger_webhook_hint"></div>
                             </div>
                         </div>
 
                         <!-- Egg Hatched Trigger -->
                         <div id="trigger-egg_hatched" class="trigger-fields">
-                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_egg_hatched_hint">React when a specific egg or any egg hatches.</div>
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_egg_hatched_hint"></div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="egg-hatched-egg-select" data-i18n="missions.trigger_egg_select_label">Egg</label>
+                                    <label for="egg-hatched-egg-select" data-i18n="missions.trigger_egg_select_label"></label>
                                     <select id="egg-hatched-egg-select" class="form-select">
-                                        <option value="" data-i18n="missions.trigger_egg_any">Any egg</option>
+                                        <option value="" data-i18n="missions.trigger_egg_any"></option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label for="egg-hatched-nest-select" data-i18n="missions.trigger_nest_select_label">Nest</label>
+                                    <label for="egg-hatched-nest-select" data-i18n="missions.trigger_nest_select_label"></label>
                                     <select id="egg-hatched-nest-select" class="form-select">
-                                        <option value="" data-i18n="missions.trigger_nest_any">Any nest</option>
+                                        <option value="" data-i18n="missions.trigger_nest_any"></option>
                                     </select>
                                 </div>
                             </div>
@@ -390,45 +390,45 @@
 
                         <!-- Nest Cleared Trigger -->
                         <div id="trigger-nest_cleared" class="trigger-fields">
-                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_nest_cleared_hint">React when a nest is cleared.</div>
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_nest_cleared_hint"></div>
                             <div class="form-group">
-                                <label for="nest-cleared-nest-select" data-i18n="missions.trigger_nest_select_label">Nest</label>
+                                <label for="nest-cleared-nest-select" data-i18n="missions.trigger_nest_select_label"></label>
                                 <select id="nest-cleared-nest-select" class="form-select">
-                                    <option value="" data-i18n="missions.trigger_nest_any">Any nest</option>
+                                    <option value="" data-i18n="missions.trigger_nest_any"></option>
                                 </select>
                             </div>
                         </div>
 
                         <!-- MQTT Message Trigger -->
                         <div id="trigger-mqtt_message" class="trigger-fields">
-                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_mqtt_hint">React to incoming MQTT messages.</div>
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_mqtt_hint"></div>
                             <div class="form-group">
-                                <label for="mqtt-topic" data-i18n="missions.trigger_mqtt_topic_label">Topic</label>
+                                <label for="mqtt-topic" data-i18n="missions.trigger_mqtt_topic_label"></label>
                                 <input type="text" id="mqtt-topic" data-i18n-placeholder="missions.trigger_mqtt_topic_placeholder">
-                                <div class="form-hint" data-i18n="missions.trigger_mqtt_topic_hint">Use MQTT wildcards if needed.</div>
+                                <div class="form-hint" data-i18n="missions.trigger_mqtt_topic_hint"></div>
                             </div>
                             <div class="form-group">
-                                <label for="mqtt-payload-contains" data-i18n="missions.trigger_mqtt_payload_label">Payload Contains</label>
+                                <label for="mqtt-payload-contains" data-i18n="missions.trigger_mqtt_payload_label"></label>
                                 <input type="text" id="mqtt-payload-contains" data-i18n-placeholder="missions.trigger_mqtt_payload_placeholder">
-                                <div class="form-hint" data-i18n="missions.trigger_mqtt_payload_hint">Leave empty to match any payload.</div>
+                                <div class="form-hint" data-i18n="missions.trigger_mqtt_payload_hint"></div>
                             </div>
                             <div class="form-group">
-                                <label for="mqtt-min-interval" data-i18n="missions.trigger_mqtt_min_interval_label">Minimum interval</label>
+                                <label for="mqtt-min-interval" data-i18n="missions.trigger_mqtt_min_interval_label"></label>
                                 <input type="number" id="mqtt-min-interval" min="0" max="86400" value="0" data-i18n-placeholder="missions.trigger_mqtt_min_interval_placeholder">
-                                <div class="form-hint" data-i18n="missions.trigger_mqtt_min_interval_hint">Seconds to wait before this MQTT trigger can start the mission again.</div>
+                                <div class="form-hint" data-i18n="missions.trigger_mqtt_min_interval_hint"></div>
                             </div>
                         </div>
 
                         <!-- Home Assistant State Trigger -->
                         <div id="trigger-home_assistant_state" class="trigger-fields">
-                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_home_assistant_state_hint">Triggers when a Home Assistant entity changes its state.</div>
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_home_assistant_state_hint"></div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="ha-entity-id" data-i18n="missions.trigger_ha_entity_id_label">Entity ID (empty = any entity)</label>
+                                    <label for="ha-entity-id" data-i18n="missions.trigger_ha_entity_id_label"></label>
                                     <input type="text" id="ha-entity-id" data-i18n-placeholder="missions.trigger_ha_entity_id_placeholder">
                                 </div>
                                 <div class="form-group">
-                                    <label for="ha-state-equals" data-i18n="missions.trigger_ha_state_equals_label">Trigger when state equals (optional)</label>
+                                    <label for="ha-state-equals" data-i18n="missions.trigger_ha_state_equals_label"></label>
                                     <input type="text" id="ha-state-equals" data-i18n-placeholder="missions.trigger_ha_state_equals_placeholder">
                                 </div>
                             </div>
@@ -436,14 +436,14 @@
 
                         <!-- Device Connected Trigger -->
                         <div id="trigger-device_connected" class="trigger-fields">
-                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_device_connected_hint">React when a device comes online.</div>
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_device_connected_hint"></div>
                             <div class="form-row">
                                 <div class="form-group">
-                                        <label for="device-connected-id" data-i18n="missions.trigger_device_id_label">Device ID</label>
+                                        <label for="device-connected-id" data-i18n="missions.trigger_device_id_label"></label>
                                     <input type="text" id="device-connected-id" data-i18n-placeholder="missions.trigger_device_id_placeholder">
                                 </div>
                                 <div class="form-group">
-                                        <label for="device-connected-name" data-i18n="missions.trigger_device_name_label">Device Name</label>
+                                        <label for="device-connected-name" data-i18n="missions.trigger_device_name_label"></label>
                                     <input type="text" id="device-connected-name" data-i18n-placeholder="missions.trigger_device_name_placeholder">
                                 </div>
                             </div>
@@ -451,14 +451,14 @@
 
                         <!-- Device Disconnected Trigger -->
                         <div id="trigger-device_disconnected" class="trigger-fields">
-                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_device_disconnected_hint">React when a device goes offline.</div>
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_device_disconnected_hint"></div>
                             <div class="form-row">
                                 <div class="form-group">
-                                        <label for="device-disconnected-id" data-i18n="missions.trigger_device_id_label">Device ID</label>
+                                        <label for="device-disconnected-id" data-i18n="missions.trigger_device_id_label"></label>
                                     <input type="text" id="device-disconnected-id" data-i18n-placeholder="missions.trigger_device_id_placeholder">
                                 </div>
                                 <div class="form-group">
-                                        <label for="device-disconnected-name" data-i18n="missions.trigger_device_name_label">Device Name</label>
+                                        <label for="device-disconnected-name" data-i18n="missions.trigger_device_name_label"></label>
                                     <input type="text" id="device-disconnected-name" data-i18n-placeholder="missions.trigger_device_name_placeholder">
                                 </div>
                             </div>
@@ -466,25 +466,25 @@
 
                         <!-- Fritz!Box Call Trigger -->
                         <div id="trigger-fritzbox_call" class="trigger-fields">
-                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_fritzbox_call_hint">React to incoming calls or TAM messages.</div>
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_fritzbox_call_hint"></div>
                             <div class="form-group">
-                                <label for="fritzbox-call-type" data-i18n="missions.trigger_fritzbox_call_type_label">Call Type</label>
+                                <label for="fritzbox-call-type" data-i18n="missions.trigger_fritzbox_call_type_label"></label>
                                 <select id="fritzbox-call-type" class="form-select">
-                                    <option value="" data-i18n="missions.trigger_fritzbox_call_type_any">Any type</option>
-                                    <option value="call" data-i18n="missions.trigger_fritzbox_call_type_call">Call</option>
-                                    <option value="tam_message" data-i18n="missions.trigger_fritzbox_call_type_tam">TAM message</option>
+                                    <option value="" data-i18n="missions.trigger_fritzbox_call_type_any"></option>
+                                    <option value="call" data-i18n="missions.trigger_fritzbox_call_type_call"></option>
+                                    <option value="tam_message" data-i18n="missions.trigger_fritzbox_call_type_tam"></option>
                                 </select>
                             </div>
                         </div>
 
                         <!-- Budget Warning Trigger -->
                         <div id="trigger-budget_warning" class="trigger-fields">
-                            <div class="form-hint form-hint-tight" data-i18n="missions.trigger_budget_warning_hint">Run this mission when the budget warning threshold is reached.</div>
+                            <div class="form-hint form-hint-tight" data-i18n="missions.trigger_budget_warning_hint"></div>
                         </div>
 
                         <!-- Budget Exceeded Trigger -->
                         <div id="trigger-budget_exceeded" class="trigger-fields">
-                            <div class="form-hint form-hint-tight" data-i18n="missions.trigger_budget_exceeded_hint">Run this mission when the budget limit is exceeded.</div>
+                            <div class="form-hint form-hint-tight" data-i18n="missions.trigger_budget_exceeded_hint"></div>
                         </div>
                     </div>
 
@@ -494,8 +494,8 @@
                             <span class="slider"></span>
                         </label>
                         <div>
-                            <div class="font-medium" data-i18n="missions.form_lock_label">Lock Mission</div>
-                            <div class="form-hint" data-i18n="missions.form_lock_hint">Locked missions cannot be deleted.</div>
+                            <div class="font-medium" data-i18n="missions.form_lock_label"></div>
+                            <div class="form-hint" data-i18n="missions.form_lock_hint"></div>
                         </div>
                     </div>
 
@@ -505,15 +505,15 @@
                             <span class="slider"></span>
                         </label>
                         <div>
-                            <div class="font-medium" data-i18n="missions.prep_auto">Auto Prepare</div>
-                            <div class="form-hint" data-i18n="missions.prep_auto_hint">Prepare mission context automatically before runs.</div>
+                            <div class="font-medium" data-i18n="missions.prep_auto"></div>
+                            <div class="form-hint" data-i18n="missions.prep_auto_hint"></div>
                         </div>
                     </div>
                 </form>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" id="mission-modal-cancel-btn" data-i18n="missions.modal_btn_cancel">Cancel</button>
-                <button type="button" class="btn btn-primary" id="mission-save-btn" data-i18n="missions.modal_btn_save">Save Mission</button>
+                <button type="button" class="btn btn-secondary" id="mission-modal-cancel-btn" data-i18n="missions.modal_btn_cancel"></button>
+                <button type="button" class="btn btn-primary" id="mission-save-btn" data-i18n="missions.modal_btn_save"></button>
             </div>
         </div>
     </div>
@@ -529,7 +529,7 @@
                 <div id="prep-context-body" class="prep-context-content"></div>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" id="prep-modal-cancel-btn" data-i18n="missions.modal_btn_cancel">Cancel</button>
+                <button type="button" class="btn btn-secondary" id="prep-modal-cancel-btn" data-i18n="missions.modal_btn_cancel"></button>
             </div>
         </div>
     </div>

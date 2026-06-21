@@ -46,7 +46,7 @@ func TestSoftwareStoreShowsInstallingAndDisablesActionsDuringInstallOperation(t 
 		"const actionDisabled = operation ? statusLabel(status, operation) : mutationDisabled;",
 		"actionDisabled ? `disabled title=\"${esc(actionDisabled)}\"` : ''",
 		"if (operation && operation.type === 'install')",
-		"return t('desktop.store.status_installing', 'Installing');",
+		"return t('desktop.store.status_installing');",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("software store missing install operation UI marker %q", want)

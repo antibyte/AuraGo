@@ -121,7 +121,7 @@ async function renderSkillManagerSection(section) {
 
     const helpBridgeSQL = t('help.tools.python_tool_bridge.allowed_sql_connections');
     html += '<div class="field-group">';
-    html += '<div class="field-label">' + (t('config.skill_manager.tool_bridge_allowed_sql_connections_label') || 'Allowed Databases') + '</div>';
+    html += '<div class="field-label">' + (t('config.skill_manager.tool_bridge_allowed_sql_connections_label')) + '</div>';
     if (helpBridgeSQL) html += '<div class="field-help">' + helpBridgeSQL + '</div>';
     html += renderPythonToolBridgeSQLConnectionsPicker(bridgeAllowedSQL);
     html += '</div>';
@@ -141,16 +141,16 @@ function renderPythonToolBridgeAllowedToolsPicker(currentAllowedTools) {
     return `
         <div class="ptb-tools-wrap">
             <div class="ptb-tools-toolbar">
-                <input id="ptb-tools-search" class="field-input ptb-tools-search" placeholder="${escapeAttr(t('config.skill_manager.tool_bridge_search') || 'Search…')}" oninput="ptbFilterCatalog()">
+                <input id="ptb-tools-search" class="field-input ptb-tools-search" placeholder="${escapeAttr(t('config.skill_manager.tool_bridge_search'))}" oninput="ptbFilterCatalog()">
                 <span id="ptb-selected-count" class="ptb-selected-count"></span>
-                <button class="btn btn-sm" onclick="ptbSelectAll(true)">${t('config.skill_manager.tool_bridge_select_all') || 'Select all'}</button>
-                <button class="btn btn-sm" onclick="ptbSelectAll(false)">${t('config.skill_manager.tool_bridge_select_none') || 'Select none'}</button>
+                <button class="btn btn-sm" onclick="ptbSelectAll(true)">${t('config.skill_manager.tool_bridge_select_all')}</button>
+                <button class="btn btn-sm" onclick="ptbSelectAll(false)">${t('config.skill_manager.tool_bridge_select_none')}</button>
             </div>
 
             <textarea class="field-input is-hidden" id="ptb-allowed-tools-state"
                 data-path="tools.python_tool_bridge.allowed_tools" data-type="json" style="display:none;">${allowedJSON}</textarea>
 
-            <div id="ptb-tools-status" class="ptb-tools-status">${t('config.skill_manager.tool_bridge_loading') || 'Loading…'}</div>
+            <div id="ptb-tools-status" class="ptb-tools-status">${t('config.skill_manager.tool_bridge_loading')}</div>
             <div id="ptb-tools-list" class="mcp-srv-tools-list"></div>
             <div id="ptb-tools-warning" class="ptb-tools-warning" style="display:none;"></div>
         </div>
@@ -160,14 +160,14 @@ function renderPythonToolBridgeAllowedToolsPicker(currentAllowedTools) {
 function renderPythonToolBridgeSQLConnectionsPicker(currentAllowedSQL) {
     const allowed = Array.isArray(currentAllowedSQL) ? currentAllowedSQL : [];
     const allowedJSON = escapeAttr(JSON.stringify(allowed));
-    const tmpl = t('config.skill_manager.tool_bridge_selected_dbs') || '{n} selected';
+    const tmpl = t('config.skill_manager.tool_bridge_selected_dbs');
     const countText = String(tmpl).replace('{n}', String(allowed.length));
 
     return `
         <div class="ptb-sql-wrap">
             <div class="ptb-sql-row">
                 <button class="btn btn-sm" onclick="ptbOpenSQLConnectionsModal()">
-                    ${t('config.skill_manager.tool_bridge_choose_dbs') || 'Choose…'}
+                    ${t('config.skill_manager.tool_bridge_choose_dbs')}
                 </button>
                 <span id="ptb-sql-count" class="ptb-selected-count">${esc(countText)}</span>
             </div>
@@ -190,7 +190,7 @@ async function ptbLoadAndRenderCatalog() {
         }
         ptbRenderCatalog(ptbCatalogCache);
     } catch (e) {
-        statusEl.textContent = t('config.skill_manager.tool_bridge_load_error') || 'Error loading tools';
+        statusEl.textContent = t('config.skill_manager.tool_bridge_load_error');
         listEl.innerHTML = '';
     }
 }
@@ -202,7 +202,7 @@ function ptbRenderCatalog(catalog) {
 
     const groups = (catalog && catalog.groups) ? catalog.groups : [];
     if (!groups.length) {
-        statusEl.textContent = t('config.skill_manager.tool_bridge_no_tools') || 'No tools available';
+        statusEl.textContent = t('config.skill_manager.tool_bridge_no_tools');
         listEl.innerHTML = '';
         ptbUpdateWarning();
         return;
@@ -287,7 +287,7 @@ function ptbSetAllowedSQLConnections(selected) {
 
     const countEl = document.getElementById('ptb-sql-count');
     if (countEl) {
-        const tmpl = t('config.skill_manager.tool_bridge_selected_dbs') || '{n} selected';
+        const tmpl = t('config.skill_manager.tool_bridge_selected_dbs');
         countEl.textContent = String(tmpl).replace('{n}', String(uniq.length));
     }
 }
@@ -342,7 +342,7 @@ function ptbSyncCheckboxStates() {
 
     const countEl = document.getElementById('ptb-selected-count');
     if (countEl) {
-        const tmpl = t('config.skill_manager.tool_bridge_selected_count') || 'Selected: {n}';
+        const tmpl = t('config.skill_manager.tool_bridge_selected_count');
         countEl.textContent = String(tmpl).replace('{n}', String(allowed.length));
     }
 }
@@ -396,7 +396,7 @@ function ptbUpdateWarning() {
     const selected = ptbGetAllowedTools();
     if (!selected.length) {
         warnEl.style.display = '';
-        warnEl.textContent = t('config.skill_manager.tool_bridge_none_selected') || 'No tools selected. Python skills will not be able to call any native tools.';
+        warnEl.textContent = t('config.skill_manager.tool_bridge_none_selected');
         return;
     }
 
@@ -405,7 +405,7 @@ function ptbUpdateWarning() {
         const dbs = ptbGetAllowedSQLConnections();
         if (!dbs.length) {
             warnEl.style.display = '';
-            warnEl.textContent = t('config.skill_manager.tool_bridge_sql_none_selected') || 'sql_query is selected, but no databases are allowed. SQL bridge calls will be blocked.';
+            warnEl.textContent = t('config.skill_manager.tool_bridge_sql_none_selected');
             return;
         }
     }
@@ -422,13 +422,13 @@ async function ptbOpenSQLConnectionsModal() {
     modal.className = 'sec-modal-overlay';
     modal.innerHTML = `
         <div class="sec-modal-panel ptb-sql-modal-panel">
-            <div class="sec-modal-title">🗄️ ${t('config.skill_manager.tool_bridge_sql_modal_title') || 'Allowed Databases'}</div>
-            <div class="sec-modal-desc">${t('config.skill_manager.tool_bridge_sql_modal_desc') || 'Select which SQL connections Python skills may use via the tool bridge.'}</div>
-            <input id="ptb-sql-search" class="field-input ptb-tools-search" placeholder="${escapeAttr(t('config.skill_manager.tool_bridge_sql_search') || 'Search…')}" oninput="ptbFilterSQLModal()">
+            <div class="sec-modal-title">🗄️ ${t('config.skill_manager.tool_bridge_sql_modal_title')}</div>
+            <div class="sec-modal-desc">${t('config.skill_manager.tool_bridge_sql_modal_desc')}</div>
+            <input id="ptb-sql-search" class="field-input ptb-tools-search" placeholder="${escapeAttr(t('config.skill_manager.tool_bridge_sql_search'))}" oninput="ptbFilterSQLModal()">
             <div id="ptb-sql-list" class="mcp-srv-tools-list ptb-sql-list"></div>
             <div class="sec-modal-actions">
-                <button id="ptb-sql-cancel" class="sec-modal-btn sec-modal-btn-skip">${t('common.btn_cancel') || 'Cancel'}</button>
-                <button id="ptb-sql-save" class="sec-modal-btn sec-modal-btn-apply">✓ ${t('common.btn_save') || 'Save'}</button>
+                <button id="ptb-sql-cancel" class="sec-modal-btn sec-modal-btn-skip">${t('common.btn_cancel')}</button>
+                <button id="ptb-sql-save" class="sec-modal-btn sec-modal-btn-apply">✓ ${t('common.btn_save')}</button>
             </div>
         </div>
     `;
@@ -452,7 +452,7 @@ async function ptbLoadSQLConnectionsIntoModal() {
     const listEl = document.getElementById('ptb-sql-list');
     if (!listEl) return;
 
-    listEl.innerHTML = `<div class="ptb-tools-status">${t('config.skill_manager.tool_bridge_loading') || 'Loading…'}</div>`;
+    listEl.innerHTML = `<div class="ptb-tools-status">${t('config.skill_manager.tool_bridge_loading')}</div>`;
 
     try {
         const resp = await fetch('/api/sql-connections');
@@ -463,7 +463,7 @@ async function ptbLoadSQLConnectionsIntoModal() {
         const rows = Array.isArray(connections) ? connections : [];
 
         if (!rows.length) {
-            listEl.innerHTML = `<div class="ptb-tools-status">${t('config.skill_manager.tool_bridge_sql_no_connections') || 'No SQL connections configured'}</div>`;
+            listEl.innerHTML = `<div class="ptb-tools-status">${t('config.skill_manager.tool_bridge_sql_no_connections')}</div>`;
             return;
         }
 
@@ -493,7 +493,7 @@ async function ptbLoadSQLConnectionsIntoModal() {
         listEl.innerHTML = html;
         ptbFilterSQLModal();
     } catch (_) {
-        listEl.innerHTML = `<div class="ptb-tools-status">${t('config.skill_manager.tool_bridge_load_error') || 'Error loading tool list'}</div>`;
+        listEl.innerHTML = `<div class="ptb-tools-status">${t('config.skill_manager.tool_bridge_load_error')}</div>`;
     }
 }
 

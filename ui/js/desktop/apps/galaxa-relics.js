@@ -73,9 +73,9 @@
             const shards = getShards();
             const owned = loadRelics();
             const loadout = loadLoadout();
-            let h = '<div class="galaxa-overlay-box"><h2>' + ctx.t('galaxa.relics', 'RELICS') + '</h2>';
-            h += '<p style="color:#ffcc00">' + ctx.t('galaxa.shards', 'Shards') + ': ' + shards + '</p>';
-            h += '<p style="color:#888;font-size:10px">' + ctx.t('galaxa.relic_loadout', 'Active loadout') + ': ' + loadout.length + '/' + MAX_ACTIVE + '</p>';
+            let h = '<div class="galaxa-overlay-box"><h2>' + ctx.t('galaxa.relics') + '</h2>';
+            h += '<p style="color:#ffcc00">' + ctx.t('galaxa.shards') + ': ' + shards + '</p>';
+            h += '<p style="color:#888;font-size:10px">' + ctx.t('galaxa.relic_loadout') + ': ' + loadout.length + '/' + MAX_ACTIVE + '</p>';
             h += '<div class="galaxa-relic-grid">';
             for (const [id, relic] of Object.entries(RELICS)) {
                 const isOwned = owned[id];
@@ -89,10 +89,10 @@
                 h += '</div>';
             }
             h += '</div>';
-            h += '<p style="font-size:10px;color:#666;margin-top:8px">' + ctx.t('galaxa.relic_hint', 'Click owned relics to add/remove from loadout') + '</p>';
-            h += '<p style="font-size:10px;color:#666">' + ctx.t('galaxa.relic_hint2', 'Earn shards by completing runs') + '</p>';
+            h += '<p style="font-size:10px;color:#666;margin-top:8px">' + ctx.t('galaxa.relic_hint') + '</p>';
+            h += '<p style="font-size:10px;color:#666">' + ctx.t('galaxa.relic_hint2') + '</p>';
             h += '<div class="galaxa-relic-actions">';
-            h += '<button class="galaxa-btn" data-action="back">' + ctx.t('galaxa.back', 'BACK') + '</button>';
+            h += '<button class="galaxa-btn" data-action="back">' + ctx.t('galaxa.back') + '</button>';
             h += '</div></div>';
             ctx.overlayEl.innerHTML = h;
             ctx.overlayEl.classList.add('active');

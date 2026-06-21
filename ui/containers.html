@@ -33,13 +33,13 @@
     <script defer src="/js/vendor/xterm-addon-fit.min.js"></script>
 </head>
 <body>
-    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content">Skip to content</a>
+    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <header class="app-header">
         <div class="header-left">
             <a href="/" class="logo">
                 <div class="logo-icon">🥚</div>
                 <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-                <span class="logo-subtitle" data-i18n="containers.subtitle">Containers</span>
+                <span class="logo-subtitle" data-i18n="containers.subtitle"></span>
             </a>
         </div>
         <div class="header-actions">
@@ -54,27 +54,27 @@
         <div class="ct-status-bar" id="ct-status-bar">
             <div class="ct-stat">
                 <span class="ct-stat-value" id="ct-total">0</span>
-                <span class="ct-stat-label" data-i18n="containers.stat_total">Total</span>
+                <span class="ct-stat-label" data-i18n="containers.stat_total"></span>
             </div>
             <div class="ct-stat ct-stat-running">
                 <span class="ct-stat-value" id="ct-running">0</span>
-                <span class="ct-stat-label" data-i18n="containers.stat_running">Running</span>
+                <span class="ct-stat-label" data-i18n="containers.stat_running"></span>
             </div>
             <div class="ct-stat ct-stat-stopped">
                 <span class="ct-stat-value" id="ct-stopped">0</span>
-                <span class="ct-stat-label" data-i18n="containers.stat_stopped">Stopped</span>
+                <span class="ct-stat-label" data-i18n="containers.stat_stopped"></span>
             </div>
         </div>
 
         <!-- Search + filter bar -->
         <div class="ct-toolbar">
             <input type="text" id="ct-search" class="ct-search"
-                placeholder="Search containers..." data-i18n-placeholder="containers.search_placeholder"
+                placeholder="" data-i18n-placeholder="containers.search_placeholder"
                 oninput="filterContainers()">
             <div class="ct-filter-group">
-                <button class="ct-filter-btn active" data-filter="all" onclick="setFilter('all')" data-i18n="containers.filter_all">All</button>
-                <button class="ct-filter-btn" data-filter="running" onclick="setFilter('running')" data-i18n="containers.filter_running">Running</button>
-                <button class="ct-filter-btn" data-filter="stopped" onclick="setFilter('stopped')" data-i18n="containers.filter_stopped">Stopped</button>
+                <button class="ct-filter-btn active" data-filter="all" onclick="setFilter('all')" data-i18n="containers.filter_all"></button>
+                <button class="ct-filter-btn" data-filter="running" onclick="setFilter('running')" data-i18n="containers.filter_running"></button>
+                <button class="ct-filter-btn" data-filter="stopped" onclick="setFilter('stopped')" data-i18n="containers.filter_stopped"></button>
             </div>
         </div>
 
@@ -84,15 +84,15 @@
         <!-- Empty state -->
         <div class="empty-state is-hidden" id="ct-empty">
             <div class="empty-icon">🐳</div>
-            <h3 data-i18n="containers.empty_title">No Containers Found</h3>
-            <p data-i18n="containers.empty_desc">No Docker containers match your current filter.</p>
+            <h3 data-i18n="containers.empty_title"></h3>
+            <p data-i18n="containers.empty_desc"></p>
         </div>
 
         <!-- Error state (Docker disabled) -->
         <div class="empty-state" id="ct-disabled" style="display:none;">
             <div class="empty-icon">⚠️</div>
-            <h3 data-i18n="containers.disabled_title">Docker Not Enabled</h3>
-            <p data-i18n="containers.disabled_desc">Enable Docker in the configuration to manage containers.</p>
+            <h3 data-i18n="containers.disabled_title"></h3>
+            <p data-i18n="containers.disabled_desc"></p>
         </div>
     </div>
 
@@ -100,15 +100,15 @@
     <div class="modal-overlay" id="log-modal">
         <div class="modal modal-wide">
             <div class="modal-header">
-                <h2 id="log-modal-title" data-i18n="containers.logs_title">Container Logs</h2>
+                <h2 id="log-modal-title" data-i18n="containers.logs_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeLogModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <pre class="ct-log-output" id="log-output"></pre>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeLogModal()" data-i18n="common.btn_close">Close</button>
-                <button class="btn btn-primary" onclick="refreshLogs()" data-i18n="containers.logs_refresh">Refresh</button>
+                <button class="btn btn-secondary" onclick="closeLogModal()" data-i18n="common.btn_close"></button>
+                <button class="btn btn-primary" onclick="refreshLogs()" data-i18n="containers.logs_refresh"></button>
             </div>
         </div>
     </div>
@@ -117,14 +117,14 @@
     <div class="modal-overlay" id="inspect-modal">
         <div class="modal modal-wide">
             <div class="modal-header">
-                <h2 id="inspect-modal-title" data-i18n="containers.inspect_title">Container Details</h2>
+                <h2 id="inspect-modal-title" data-i18n="containers.inspect_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeInspectModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <pre class="ct-inspect-output" id="inspect-output"></pre>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeInspectModal()" data-i18n="common.btn_close">Close</button>
+                <button class="btn btn-secondary" onclick="closeInspectModal()" data-i18n="common.btn_close"></button>
             </div>
         </div>
     </div>
@@ -133,15 +133,15 @@
     <div class="modal-overlay" id="terminal-modal">
         <div class="modal modal-wide ct-terminal-modal">
             <div class="modal-header">
-                <h2><span data-i18n="containers.terminal_title">Container Shell</span> <span id="terminal-container-name"></span></h2>
+                <h2><span data-i18n="containers.terminal_title"></span> <span id="terminal-container-name"></span></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeTerminalModal()">&times;</button>
             </div>
             <div class="modal-body ct-terminal-body">
-                <div class="ct-terminal-status" id="terminal-status" data-i18n="containers.terminal_connecting">Connecting...</div>
+                <div class="ct-terminal-status" id="terminal-status" data-i18n="containers.terminal_connecting"></div>
                 <div class="ct-terminal-output" id="terminal-output"></div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeTerminalModal()" data-i18n="common.btn_close">Close</button>
+                <button class="btn btn-secondary" onclick="closeTerminalModal()" data-i18n="common.btn_close"></button>
             </div>
         </div>
     </div>
@@ -150,17 +150,17 @@
     <div class="modal-overlay" id="update-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="containers.update_title">Update Container</h2>
+                <h2 data-i18n="containers.update_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeUpdateModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <p data-i18n="containers.update_confirm">Pull the current image and recreate this container with the same settings?</p>
+                <p data-i18n="containers.update_confirm"></p>
                 <p class="ct-delete-name" id="update-container-name"></p>
-                <p class="muted" data-i18n="containers.update_note">Running containers will be stopped briefly and started again after the replacement is ready.</p>
+                <p class="muted" data-i18n="containers.update_note"></p>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeUpdateModal()" data-i18n="containers.update_cancel">Cancel</button>
-                <button class="btn btn-primary" id="update-confirm-btn" onclick="confirmUpdate()" data-i18n="containers.update_confirm_btn">Update</button>
+                <button class="btn btn-secondary" onclick="closeUpdateModal()" data-i18n="containers.update_cancel"></button>
+                <button class="btn btn-primary" id="update-confirm-btn" onclick="confirmUpdate()" data-i18n="containers.update_confirm_btn"></button>
             </div>
         </div>
     </div>
@@ -169,19 +169,19 @@
     <div class="modal-overlay" id="delete-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="containers.delete_title">Remove Container</h2>
+                <h2 data-i18n="containers.delete_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeDeleteModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <p data-i18n="containers.delete_confirm">Are you sure you want to remove this container?</p>
+                <p data-i18n="containers.delete_confirm"></p>
                 <p class="ct-delete-name" id="delete-container-name"></p>
                 <label class="ct-checkbox-label">
-                    <input type="checkbox" id="delete-force"> <span data-i18n="containers.delete_force">Force remove (kill if running)</span>
+                    <input type="checkbox" id="delete-force"> <span data-i18n="containers.delete_force"></span>
                 </label>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeDeleteModal()" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-danger" id="delete-confirm-btn" onclick="confirmDelete()" data-i18n="common.btn_delete">Delete</button>
+                <button class="btn btn-secondary" onclick="closeDeleteModal()" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-danger" id="delete-confirm-btn" onclick="confirmDelete()" data-i18n="common.btn_delete"></button>
             </div>
         </div>
     </div>

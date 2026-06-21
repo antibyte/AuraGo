@@ -151,7 +151,7 @@
     }
 
     function agentTaskPrompt(entry, task) {
-        return desktopText('desktop.agent_task_prompt', 'Please work on {{path}}.\n\nTask:\n{{task}}')
+        return desktopText('desktop.agent_task_prompt')
             .replaceAll('{{path}}', entry.path || '')
             .replaceAll('{{name}}', entry.name || entry.path || '')
             .replaceAll('{{task}}', task || '');
@@ -178,7 +178,7 @@
     function askAgentAboutFile(file) {
         const entry = chatFileContextFromEntry(file);
         if (!entry) return;
-        const prompt = desktopText('desktop.chat_ask_file_prompt', 'What should I know about {{name}}?')
+        const prompt = desktopText('desktop.chat_ask_file_prompt')
             .replaceAll('{{name}}', entry.name || entry.path);
         openApp('agent-chat', {
             chat_files: [entry],
@@ -490,7 +490,7 @@
             <aside class="vd-settings-sidebar" aria-label="${esc(t('desktop.app_settings'))}">
                 <div class="vd-settings-sidebar-title">${esc(t('desktop.app_settings'))}</div>
                 <div class="vd-settings-search">
-                    <input type="search" class="vd-settings-search-input" placeholder="${esc(t('desktop.settings_search_placeholder', 'Search settings\u2026'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
+                    <input type="search" class="vd-settings-search-input" placeholder="${esc(t('desktop.settings_search_placeholder'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
                 </div>
                 ${sections.map(section => `<button type="button" class="vd-settings-nav ${section.id === active.id ? 'active' : ''}" data-section="${esc(section.id)}">
                     ${iconMarkup(section.icon, section.fallback || section.icon, 'vd-settings-nav-icon', 18)}<span>${esc(t(section.title))}</span>

@@ -6950,18 +6950,18 @@ function docFormatIcon(fmt) {
     function cardHTML(data) {
         const expandIcon = window.chatUiIconMarkup ? window.chatUiIconMarkup('expand') : '[ ]';
         const downloadIcon = window.chatUiIconMarkup ? window.chatUiIconMarkup('download') : '↓';
-        return `<div class="chat-stl-preview" data-stl-path="${esc(data.path)}" title="${esc(t('stl_open_viewer', 'Open 3D viewer'))}">
-                <canvas class="chat-stl-canvas" aria-label="${esc(t('stl_3d_model', 'STL 3D model'))}"></canvas>
-                <div class="chat-stl-loading">${esc(t('stl_loading', 'Loading 3D model...'))}</div>
+        return `<div class="chat-stl-preview" data-stl-path="${esc(data.path)}" title="${esc(t('stl_open_viewer'))}">
+                <canvas class="chat-stl-canvas" aria-label="${esc(t('stl_3d_model'))}"></canvas>
+                <div class="chat-stl-loading">${esc(t('stl_loading'))}</div>
             </div>
             <div class="chat-stl-footer">
                 <div class="chat-stl-info">
                     <div class="chat-stl-title">${esc(data.title)}</div>
-                    <div class="chat-stl-format">${esc(t('stl_3d_model', 'STL 3D Model'))}</div>
+                    <div class="chat-stl-format">${esc(t('stl_3d_model'))}</div>
                 </div>
                 <div class="chat-stl-actions chat-document-actions">
-                    <button class="chat-stl-expand-btn" type="button" data-stl-path="${esc(data.path)}" data-stl-title="${esc(data.title)}" title="${esc(t('stl_expand', 'Expand'))}">${expandIcon}</button>
-                    <a href="${esc(data.path)}" download="${esc(data.filename)}" title="${esc(t('stl_download', 'Download'))}">${downloadIcon}</a>
+                    <button class="chat-stl-expand-btn" type="button" data-stl-path="${esc(data.path)}" data-stl-title="${esc(data.title)}" title="${esc(t('stl_expand'))}">${expandIcon}</button>
+                    <a href="${esc(data.path)}" download="${esc(data.filename)}" title="${esc(t('stl_download'))}">${downloadIcon}</a>
                 </div>
             </div>`;
     }
@@ -7069,7 +7069,7 @@ function docFormatIcon(fmt) {
         try {
             await ensureSTLAssets();
         } catch (err) {
-            if (loading) loading.textContent = err.message || t('viewer.error', 'Failed to load file');
+            if (loading) loading.textContent = err.message || t('viewer.error');
             return;
         }
         if (!window.THREE || !THREE.STLLoader) return;
@@ -7096,7 +7096,7 @@ function docFormatIcon(fmt) {
             resizePreview(instance);
             startPreview(instance);
         } catch (err) {
-            if (loading) loading.textContent = err.message || t('viewer.error', 'Failed to load file');
+            if (loading) loading.textContent = err.message || t('viewer.error');
         }
     }
 
@@ -7180,13 +7180,13 @@ function docFormatIcon(fmt) {
             <div class="stl-modal-toolbar">
                 <strong>${esc(title || filenameFromPath(path))}</strong>
                 <div class="stl-modal-actions">
-                    <button type="button" data-action="wireframe">${esc(t('stl_wireframe', 'Wireframe'))}</button>
-                    <button type="button" class="is-active" data-action="rotate">${esc(t('stl_auto_rotate', 'Auto-rotate'))}</button>
-                    <a href="${esc(path)}" download="${esc(filenameFromPath(path))}">${esc(t('stl_download', 'Download'))}</a>
-                    <button type="button" data-action="close" aria-label="${esc(t('stl_close', 'Close'))}">×</button>
+                    <button type="button" data-action="wireframe">${esc(t('stl_wireframe'))}</button>
+                    <button type="button" class="is-active" data-action="rotate">${esc(t('stl_auto_rotate'))}</button>
+                    <a href="${esc(path)}" download="${esc(filenameFromPath(path))}">${esc(t('stl_download'))}</a>
+                    <button type="button" data-action="close" aria-label="${esc(t('stl_close'))}">×</button>
                 </div>
             </div>
-            <div class="stl-modal-stage"><canvas class="stl-modal-canvas"></canvas><div class="stl-modal-loading">${esc(t('stl_loading', 'Loading 3D model...'))}</div></div>
+            <div class="stl-modal-stage"><canvas class="stl-modal-canvas"></canvas><div class="stl-modal-loading">${esc(t('stl_loading'))}</div></div>
         </div>`;
         document.body.appendChild(modal);
         initModalViewer(modal, path);
@@ -7261,7 +7261,7 @@ function docFormatIcon(fmt) {
             };
             tick();
         } catch (err) {
-            if (loading) loading.textContent = err.message || t('viewer.error', 'Failed to load file');
+            if (loading) loading.textContent = err.message || t('viewer.error');
         }
     }
 

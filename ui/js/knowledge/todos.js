@@ -207,7 +207,7 @@ async function fetchTodoAndOpenModal(id) {
     } catch (error) {
         if (localTodo) {
             openTodoModal(localTodo);
-            showToast((t('common.warning') || 'Warning') + ': ' + error.message, 'warning');
+            showToast((t('common.warning')) + ': ' + error.message, 'warning');
             return;
         }
         throw error;
@@ -340,7 +340,7 @@ async function saveTodo() {
         return;
     }
     if (data.priority && !['low', 'medium', 'high'].includes(data.priority)) {
-        showToast(t('knowledge.todos_invalid_priority') || 'Invalid priority value', 'error');
+        showToast(t('knowledge.todos_invalid_priority'), 'error');
         return;
     }
 

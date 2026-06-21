@@ -1321,7 +1321,7 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
     } else if (help && help.personalities_ref) {
         // Dynamic personality profile dropdown — populated from /api/personalities
         html += '<select class="field-select" data-path="' + fullPath + '">';
-        const emptyLabel = t('config.field.no_personality') || '— default —';
+        const emptyLabel = t('config.field.no_personality');
         const emptySelected = (!value || value === '') ? ' selected' : '';
         html += '<option value=""' + emptySelected + '>' + emptyLabel + '</option>';
         personalitiesCache.forEach(p => {
@@ -1466,7 +1466,7 @@ function toggleBool(el) {
 const CFG_OPTION_OTHER_CUSTOM = 'Other / Custom';
 
 function cfgFieldOptionLabel(option) {
-    if (option === 'disabled') return '\u{1F6AB} ' + (t('config.field.disabled_option') || 'disabled');
+    if (option === 'disabled') return '\u{1F6AB} ' + (t('config.field.disabled_option'));
     if (option === CFG_OPTION_OTHER_CUSTOM) return t('config.field.other_custom_option') || CFG_OPTION_OTHER_CUSTOM;
     return option;
 }

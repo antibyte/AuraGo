@@ -45,9 +45,9 @@
                     <span class="vd-viewer-filename">${esc(fileName)}</span>
                 </div>
                 <div class="vd-viewer-toolbar-right">
-                    ${canEdit ? `<button class="vd-tool-button" type="button" data-action="edit">${viewerIcon('edit', 'E')}<span>${esc(t('viewer.edit', 'Edit'))}</span></button>` : ''}
-                    <button class="vd-tool-button" type="button" data-action="download">${viewerIcon('download', 'D')}<span>${esc(t('viewer.download', 'Download'))}</span></button>
-                    <button class="vd-tool-button" type="button" data-action="print">${viewerIcon('printer', 'P')}<span>${esc(t('viewer.print', 'Print'))}</span></button>
+                    ${canEdit ? `<button class="vd-tool-button" type="button" data-action="edit">${viewerIcon('edit', 'E')}<span>${esc(t('viewer.edit'))}</span></button>` : ''}
+                    <button class="vd-tool-button" type="button" data-action="download">${viewerIcon('download', 'D')}<span>${esc(t('viewer.download'))}</span></button>
+                    <button class="vd-tool-button" type="button" data-action="print">${viewerIcon('printer', 'P')}<span>${esc(t('viewer.print'))}</span></button>
                     <div class="vd-viewer-pdf-controls" data-pdf-controls style="display:none">
                         <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="zoom-out">${viewerGlyph('-')}</button>
                         <span class="vd-viewer-zoom-label" data-zoom-label>100%</span>
@@ -62,7 +62,7 @@
             </div>
             <div class="vd-viewer-sheets-bar" data-sheets-bar style="display:none"></div>
             <div class="vd-viewer-content" data-viewer-content>
-                <div class="vd-viewer-loading">${esc(t('viewer.loading', 'Loading...'))}</div>
+                <div class="vd-viewer-loading">${esc(t('viewer.loading'))}</div>
             </div>
         </div>`;
 
@@ -135,7 +135,7 @@
             try {
                 if (viewerType === 'pdf') {
                     if (!pdfDoc) {
-                        notify(t('viewer.loading', 'Loading...'));
+                        notify(t('viewer.loading'));
                         return;
                     }
                     await printPdfDocument();
@@ -143,7 +143,7 @@
                     await printRenderedContent();
                 }
             } catch (err) {
-                notify(t('viewer.error', 'Failed to load file') + ': ' + err.message);
+                notify(t('viewer.error') + ': ' + err.message);
             }
         }
 
@@ -196,7 +196,7 @@
         async function printRenderedContent() {
             const source = contentEl.querySelector('.vd-viewer-rendered, .vd-viewer-xlsx') || contentEl.firstElementChild || contentEl;
             if (!source || source.classList.contains('vd-viewer-loading') || source.classList.contains('vd-viewer-error')) {
-                notify(t('viewer.loading', 'Loading...'));
+                notify(t('viewer.loading'));
                 return;
             }
             const frame = document.createElement('iframe');
@@ -253,13 +253,13 @@
                     else if (viewerType === 'spreadsheet') renderSpreadsheet(resp.workbook);
                 }
             } catch (err) {
-                contentEl.innerHTML = `<div class="vd-viewer-error">${esc(t('viewer.error', 'Failed to load file'))}: ${esc(err.message)}</div>`;
+                contentEl.innerHTML = `<div class="vd-viewer-error">${esc(t('viewer.error'))}: ${esc(err.message)}</div>`;
             }
         }
 
         function renderMarkdown(raw) {
             if (!raw) {
-                contentEl.innerHTML = `<div class="vd-viewer-empty">${esc(t('viewer.no_content', 'No content to display'))}</div>`;
+                contentEl.innerHTML = `<div class="vd-viewer-empty">${esc(t('viewer.no_content'))}</div>`;
                 return;
             }
             const md = window.markdownit({ html: false, linkify: true, typographer: true });
@@ -283,7 +283,7 @@
 
         function renderDocument(html) {
             if (!html) {
-                contentEl.innerHTML = `<div class="vd-viewer-empty">${esc(t('viewer.no_content', 'No content to display'))}</div>`;
+                contentEl.innerHTML = `<div class="vd-viewer-empty">${esc(t('viewer.no_content'))}</div>`;
                 return;
             }
             contentEl.innerHTML = `<div class="vd-viewer-docx vd-viewer-rendered">${sanitizeViewerHTML(html)}</div>`;
@@ -291,7 +291,7 @@
 
         function renderSpreadsheet(wb) {
             if (!wb || !wb.sheets || !wb.sheets.length) {
-                contentEl.innerHTML = `<div class="vd-viewer-empty">${esc(t('viewer.no_content', 'No content to display'))}</div>`;
+                contentEl.innerHTML = `<div class="vd-viewer-empty">${esc(t('viewer.no_content'))}</div>`;
                 return;
             }
             workbook = wb;
@@ -320,7 +320,7 @@
             const sheet = workbook.sheets[activeSheet];
             const rows = sheet.rows || [];
             if (!rows.length) {
-                contentEl.innerHTML = `<div class="vd-viewer-empty">${esc(t('viewer.no_content', 'No content to display'))}</div>`;
+                contentEl.innerHTML = `<div class="vd-viewer-empty">${esc(t('viewer.no_content'))}</div>`;
                 return;
             }
             const maxCols = Math.max(1, ...rows.map(r => (Array.isArray(r) ? r.length : 0)));
@@ -341,7 +341,7 @@
 
         async function loadPdf() {
             if (typeof pdfjsLib === 'undefined') {
-                contentEl.innerHTML = `<div class="vd-viewer-error">${esc(t('desktop.viewer_pdfjs_unavailable', 'PDF viewer is not available'))}</div>`;
+                contentEl.innerHTML = `<div class="vd-viewer-error">${esc(t('desktop.viewer_pdfjs_unavailable'))}</div>`;
                 return;
             }
             try {
@@ -350,7 +350,7 @@
                 pdfPage = 1;
                 renderPdfPage();
             } catch (err) {
-                contentEl.innerHTML = `<div class="vd-viewer-error">${esc(t('viewer.error', 'Failed to load file'))}: ${esc(err.message)}</div>`;
+                contentEl.innerHTML = `<div class="vd-viewer-error">${esc(t('viewer.error'))}: ${esc(err.message)}</div>`;
             }
         }
 

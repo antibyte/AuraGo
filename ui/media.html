@@ -31,13 +31,13 @@
     <link href="/fonts/fonts.css" rel="stylesheet">
 </head>
 <body>
-    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content">Skip to content</a>
+    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <header class="app-header">
         <div class="header-left">
             <a href="/" class="logo">
                 <div class="logo-icon">🥚</div>
                 <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-                <span class="logo-subtitle" data-i18n="media.subtitle">Media View</span>
+                <span class="logo-subtitle" data-i18n="media.subtitle"></span>
             </a>
         </div>
         <div class="header-actions">
@@ -51,11 +51,11 @@
         <div class="page-header media-header">
             <div class="media-header-text">
                 <h1 data-i18n="media.title">📁 Media View</h1>
-                <p class="media-header-subtitle" data-i18n="media.subtitle_description">Browse, search, and manage generated images, audio, videos, and documents.</p>
+                <p class="media-header-subtitle" data-i18n="media.subtitle_description"></p>
             </div>
             <div class="media-controls">
                 <input type="text" id="media-search" class="gallery-search"
-                    placeholder="Search..." data-i18n-placeholder="media.search_placeholder">
+                    placeholder="" data-i18n-placeholder="media.search_placeholder">
             </div>
         </div>
 
@@ -65,83 +65,83 @@
                 aria-controls="panel-images" tabindex="0"
                 onclick="switchTab('images')">
                 <span class="media-tab-icon" aria-hidden="true">🖼️</span>
-                <span data-i18n="media.tab_images">Images</span>
+                <span data-i18n="media.tab_images"></span>
             </button>
             <button class="media-tab" id="tab-audio" role="tab" aria-selected="false"
                 aria-controls="panel-audio" tabindex="-1"
                 onclick="switchTab('audio')">
                 <span class="media-tab-icon" aria-hidden="true">🎵</span>
-                <span data-i18n="media.tab_audio">Audio</span>
+                <span data-i18n="media.tab_audio"></span>
             </button>
             <button class="media-tab" id="tab-videos" role="tab" aria-selected="false"
                 aria-controls="panel-videos" tabindex="-1"
                 onclick="switchTab('videos')">
                 <span class="media-tab-icon" aria-hidden="true">🎬</span>
-                <span data-i18n="media.tab_videos">Videos</span>
+                <span data-i18n="media.tab_videos"></span>
             </button>
             <button class="media-tab" id="tab-documents" role="tab" aria-selected="false"
                 aria-controls="panel-documents" tabindex="-1"
                 onclick="switchTab('documents')">
                 <span class="media-tab-icon" aria-hidden="true">📄</span>
-                <span data-i18n="media.tab_documents">Documents</span>
+                <span data-i18n="media.tab_documents"></span>
             </button>
         </div>
 
         <div id="media-bulk-toolbar" class="media-bulk-toolbar" aria-live="polite">
-            <button id="media-select-mode-btn" type="button" class="btn-gallery-nav" onclick="toggleMediaSelectionMode()" data-i18n="media.bulk_select">Select</button>
-            <button id="media-select-visible-btn" type="button" class="btn-gallery-nav" onclick="selectVisibleMediaItems()" data-i18n="media.bulk_select_visible">Select visible</button>
-            <button id="media-clear-selection-btn" type="button" class="btn-gallery-nav" onclick="clearCurrentMediaSelection()" data-i18n="media.bulk_clear_selection">Clear selection</button>
-            <button id="media-delete-selected-btn" type="button" class="btn-gallery-nav btn-danger" onclick="deleteSelectedMediaItems()" disabled data-i18n="media.bulk_delete_selected">Delete selected</button>
-            <span id="media-selected-count" class="media-selected-count" data-i18n="media.bulk_selected_none">0 selected</span>
+            <button id="media-select-mode-btn" type="button" class="btn-gallery-nav" onclick="toggleMediaSelectionMode()" data-i18n="media.bulk_select"></button>
+            <button id="media-select-visible-btn" type="button" class="btn-gallery-nav" onclick="selectVisibleMediaItems()" data-i18n="media.bulk_select_visible"></button>
+            <button id="media-clear-selection-btn" type="button" class="btn-gallery-nav" onclick="clearCurrentMediaSelection()" data-i18n="media.bulk_clear_selection"></button>
+            <button id="media-delete-selected-btn" type="button" class="btn-gallery-nav btn-danger" onclick="deleteSelectedMediaItems()" disabled data-i18n="media.bulk_delete_selected"></button>
+            <span id="media-selected-count" class="media-selected-count" data-i18n="media.bulk_selected_none"></span>
         </div>
 
         <!-- Tab panels -->
         <div id="panel-images" class="media-panel active" role="tabpanel" aria-labelledby="tab-images" tabindex="0">
             <div id="images-extra-controls" class="media-extra-controls">
                 <select id="gallery-provider-filter" class="gallery-filter">
-                    <option value="" data-i18n="gallery.all_providers">All Providers</option>
+                    <option value="" data-i18n="gallery.all_providers"></option>
                 </select>
             </div>
             <div id="gallery-grid" class="gallery-grid">
-                <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
+                <div class="gallery-loading" data-i18n="gallery.loading"></div>
             </div>
             <div id="gallery-pagination" class="gallery-pagination is-hidden">
-                <button id="gallery-prev" class="btn-gallery-nav" onclick="galleryPrev()">← <span data-i18n="common.pagination_previous">Previous</span></button>
+                <button id="gallery-prev" class="btn-gallery-nav" onclick="galleryPrev()">← <span data-i18n="common.pagination_previous"></span></button>
                 <span id="gallery-page-info"></span>
-                <button id="gallery-next" class="btn-gallery-nav" onclick="galleryNext()"><span data-i18n="common.pagination_next">Next</span> →</button>
+                <button id="gallery-next" class="btn-gallery-nav" onclick="galleryNext()"><span data-i18n="common.pagination_next"></span> →</button>
             </div>
         </div>
 
         <div id="panel-audio" class="media-panel" role="tabpanel" aria-labelledby="tab-audio" tabindex="0">
             <div id="audio-grid" class="media-audio-grid">
-                <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
+                <div class="gallery-loading" data-i18n="gallery.loading"></div>
             </div>
             <div id="audio-pagination" class="gallery-pagination is-hidden">
-                <button id="audio-prev" class="btn-gallery-nav" onclick="audioPrev()">← <span data-i18n="common.pagination_previous">Previous</span></button>
+                <button id="audio-prev" class="btn-gallery-nav" onclick="audioPrev()">← <span data-i18n="common.pagination_previous"></span></button>
                 <span id="audio-page-info"></span>
-                <button id="audio-next" class="btn-gallery-nav" onclick="audioNext()"><span data-i18n="common.pagination_next">Next</span> →</button>
+                <button id="audio-next" class="btn-gallery-nav" onclick="audioNext()"><span data-i18n="common.pagination_next"></span> →</button>
             </div>
         </div>
 
         <div id="panel-videos" class="media-panel" role="tabpanel" aria-labelledby="tab-videos" tabindex="0">
             <div id="video-grid" class="media-video-grid">
-                <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
+                <div class="gallery-loading" data-i18n="gallery.loading"></div>
             </div>
             <div id="video-pagination" class="gallery-pagination is-hidden">
-                <button id="video-prev" class="btn-gallery-nav" onclick="videoPrev()">← <span data-i18n="common.pagination_previous">Previous</span></button>
+                <button id="video-prev" class="btn-gallery-nav" onclick="videoPrev()">← <span data-i18n="common.pagination_previous"></span></button>
                 <span id="video-page-info"></span>
-                <button id="video-next" class="btn-gallery-nav" onclick="videoNext()"><span data-i18n="common.pagination_next">Next</span> →</button>
+                <button id="video-next" class="btn-gallery-nav" onclick="videoNext()"><span data-i18n="common.pagination_next"></span> →</button>
             </div>
         </div>
 
         <div id="panel-documents" class="media-panel" role="tabpanel" aria-labelledby="tab-documents" tabindex="0">
             <div id="doc-list" class="media-doc-list">
-                <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
+                <div class="gallery-loading" data-i18n="gallery.loading"></div>
             </div>
             <div id="doc-pagination" class="gallery-pagination is-hidden">
-                <button id="doc-prev" class="btn-gallery-nav" onclick="docPrev()">← <span data-i18n="common.pagination_previous">Previous</span></button>
+                <button id="doc-prev" class="btn-gallery-nav" onclick="docPrev()">← <span data-i18n="common.pagination_previous"></span></button>
                 <span id="doc-page-info"></span>
-                <button id="doc-next" class="btn-gallery-nav" onclick="docNext()"><span data-i18n="common.pagination_next">Next</span> →</button>
+                <button id="doc-next" class="btn-gallery-nav" onclick="docNext()"><span data-i18n="common.pagination_next"></span> →</button>
             </div>
         </div>
     </div>

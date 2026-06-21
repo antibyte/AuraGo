@@ -93,32 +93,32 @@
                 <div class="teevee-brand">
                     <span class="teevee-brand-icon">${iconMarkup('teevee', 'TV', 'teevee-brand-glyph', 28)}</span>
                     <div>
-                        <strong>${esc(t('desktop.app_teevee', 'TeeVee'))}</strong>
-                        <span>${esc(t('desktop.teevee_source', 'iptv-org'))}</span>
+                        <strong>${esc(t('desktop.app_teevee'))}</strong>
+                        <span>${esc(t('desktop.teevee_source'))}</span>
                     </div>
                 </div>
                 <label class="teevee-search">
                     ${iconMarkup('search', 'S', 'teevee-search-icon', 15)}
-                    <input type="search" data-search autocomplete="off" spellcheck="false" placeholder="${esc(t('desktop.teevee_search_placeholder', 'Search channels...'))}" inputmode="search" enterkeyhint="search" autocapitalize="off">
+                    <input type="search" data-search autocomplete="off" spellcheck="false" placeholder="${esc(t('desktop.teevee_search_placeholder'))}" inputmode="search" enterkeyhint="search" autocapitalize="off">
                 </label>
                 <div class="teevee-control-grid">
                     <label class="teevee-select-field">
-                        <span>${esc(t('desktop.teevee_country', 'Country'))}</span>
-                        <select data-country-filter aria-label="${esc(t('desktop.teevee_country', 'Country'))}"></select>
+                        <span>${esc(t('desktop.teevee_country'))}</span>
+                        <select data-country-filter aria-label="${esc(t('desktop.teevee_country'))}"></select>
                     </label>
                     <label class="teevee-select-field">
-                        <span>${esc(t('desktop.teevee_resolution', 'Resolution'))}</span>
-                        <select data-resolution-filter aria-label="${esc(t('desktop.teevee_resolution', 'Resolution'))}"></select>
+                        <span>${esc(t('desktop.teevee_resolution'))}</span>
+                        <select data-resolution-filter aria-label="${esc(t('desktop.teevee_resolution'))}"></select>
                     </label>
                 </div>
-                <nav class="teevee-filters" aria-label="${esc(t('desktop.teevee_filters', 'Filters'))}" data-filters></nav>
+                <nav class="teevee-filters" aria-label="${esc(t('desktop.teevee_filters'))}" data-filters></nav>
                 <div class="teevee-shortcuts-panel">
                     <section class="teevee-recent" data-recent-section hidden>
-                        <h3>${esc(t('desktop.teevee_recent', 'Recent'))}</h3>
+                        <h3>${esc(t('desktop.teevee_recent'))}</h3>
                         <div class="teevee-shortcut-list" data-recent-list></div>
                     </section>
                     <section class="teevee-favorites" data-favorites-section hidden>
-                        <h3>${esc(t('desktop.teevee_filter_favorites', 'Favorites'))}</h3>
+                        <h3>${esc(t('desktop.teevee_filter_favorites'))}</h3>
                         <div class="teevee-shortcut-list" data-favorites-list></div>
                     </section>
                 </div>
@@ -128,35 +128,35 @@
                     <div class="teevee-player" data-player>
                         <div class="teevee-video-shell" data-video-shell>
                             <div class="teevee-video-mount" data-video-mount></div>
-                            <button class="teevee-video-fullscreen" type="button" data-action="fullscreen-video" aria-label="${esc(t('desktop.teevee_fullscreen', 'Fullscreen'))}">${iconMarkup('maximize', 'F', 'teevee-button-icon', 16)}</button>
+                            <button class="teevee-video-fullscreen" type="button" data-action="fullscreen-video" aria-label="${esc(t('desktop.teevee_fullscreen'))}">${iconMarkup('maximize', 'F', 'teevee-button-icon', 16)}</button>
                             <div class="teevee-player-state" data-player-state>
                                 <span class="teevee-live-dot"></span>
-                                <strong data-state-title>${esc(t('desktop.teevee_no_channel', 'No channel selected'))}</strong>
-                                <span data-state-meta>${esc(t('desktop.teevee_status_ready', 'Choose a channel'))}</span>
+                                <strong data-state-title>${esc(t('desktop.teevee_no_channel'))}</strong>
+                                <span data-state-meta>${esc(t('desktop.teevee_status_ready'))}</span>
                             </div>
                         </div>
                         <div class="teevee-player-bar">
-                            <button class="teevee-icon-button teevee-primary" type="button" data-action="toggle" aria-label="${esc(t('desktop.teevee_play', 'Play'))}">${iconMarkup('video', 'P', 'teevee-button-icon', 17)}</button>
-                            <button class="teevee-icon-button" type="button" data-action="stop" aria-label="${esc(t('desktop.teevee_stop', 'Stop'))}">${iconMarkup('stop', 'S', 'teevee-button-icon', 16)}</button>
+                            <button class="teevee-icon-button teevee-primary" type="button" data-action="toggle" aria-label="${esc(t('desktop.teevee_play'))}">${iconMarkup('video', 'P', 'teevee-button-icon', 17)}</button>
+                            <button class="teevee-icon-button" type="button" data-action="stop" aria-label="${esc(t('desktop.teevee_stop'))}">${iconMarkup('stop', 'S', 'teevee-button-icon', 16)}</button>
                             <div class="teevee-now">
-                                <span>${esc(t('desktop.teevee_now_playing', 'Now playing'))}</span>
-                                <strong data-now-title>${esc(t('desktop.teevee_no_channel', 'No channel selected'))}</strong>
+                                <span>${esc(t('desktop.teevee_now_playing'))}</span>
+                                <strong data-now-title>${esc(t('desktop.teevee_no_channel'))}</strong>
                                 <em data-now-meta></em>
                             </div>
-                            <button class="teevee-icon-button" type="button" data-action="favorite-current" aria-label="${esc(t('desktop.teevee_add_favorite', 'Add to favorites'))}">${iconMarkup('heart', 'F', 'teevee-button-icon', 16)}</button>
-                            <button class="teevee-icon-button" type="button" data-action="mute" aria-label="${esc(t('desktop.teevee_mute', 'Mute'))}">${iconMarkup('audio', 'V', 'teevee-button-icon', 16)}</button>
-                            <input class="teevee-volume" type="range" min="0" max="100" value="78" data-volume aria-label="${esc(t('desktop.teevee_volume', 'Volume'))}">
-                            <button class="teevee-icon-button" type="button" data-action="fullscreen" aria-label="${esc(t('desktop.teevee_fullscreen', 'Fullscreen'))}">${iconMarkup('maximize', 'F', 'teevee-button-icon', 16)}</button>
+                            <button class="teevee-icon-button" type="button" data-action="favorite-current" aria-label="${esc(t('desktop.teevee_add_favorite'))}">${iconMarkup('heart', 'F', 'teevee-button-icon', 16)}</button>
+                            <button class="teevee-icon-button" type="button" data-action="mute" aria-label="${esc(t('desktop.teevee_mute'))}">${iconMarkup('audio', 'V', 'teevee-button-icon', 16)}</button>
+                            <input class="teevee-volume" type="range" min="0" max="100" value="78" data-volume aria-label="${esc(t('desktop.teevee_volume'))}">
+                            <button class="teevee-icon-button" type="button" data-action="fullscreen" aria-label="${esc(t('desktop.teevee_fullscreen'))}">${iconMarkup('maximize', 'F', 'teevee-button-icon', 16)}</button>
                         </div>
                     </div>
                 </section>
                 <section class="teevee-list-panel">
                     <div class="teevee-list-head">
                         <div>
-                            <strong data-list-title>${esc(t('desktop.teevee_filter_germany', 'Germany'))}</strong>
+                            <strong data-list-title>${esc(t('desktop.teevee_filter_germany'))}</strong>
                             <span data-list-count></span>
                         </div>
-                        <button class="teevee-refresh" type="button" data-action="refresh" aria-label="${esc(t('desktop.teevee_refresh', 'Refresh'))}">${iconMarkup('refresh', 'R', 'teevee-button-icon', 15)}</button>
+                        <button class="teevee-refresh" type="button" data-action="refresh" aria-label="${esc(t('desktop.teevee_refresh'))}">${iconMarkup('refresh', 'R', 'teevee-button-icon', 15)}</button>
                     </div>
                     <div class="teevee-status" data-status hidden></div>
                     <div class="teevee-channel-list" data-channel-list></div>
@@ -212,7 +212,7 @@
                 if (b === DEFAULT_COUNTRY) return 1;
                 return countryDisplayName(a).localeCompare(countryDisplayName(b), undefined, { sensitivity: 'base' });
             });
-            return [{ value: ALL_COUNTRIES, label: t('desktop.teevee_country_all', 'All countries') }]
+            return [{ value: ALL_COUNTRIES, label: t('desktop.teevee_country_all') }]
                 .concat(codes.map(code => ({ value: code, label: countryDisplayName(code) })));
         }
 
@@ -276,7 +276,7 @@
             listTitle.textContent = titleParts.filter(Boolean).join(' | ');
             listCount.textContent = state.loading ? '' : String(state.totalVisible || state.visible.length);
             statusEl.hidden = !state.error && !state.loading;
-            statusEl.textContent = state.loading ? t('desktop.teevee_loading', 'Loading channels...') : state.error;
+            statusEl.textContent = state.loading ? t('desktop.teevee_loading') : state.error;
             if (listObserver) {
                 listObserver.disconnect();
                 listObserver = null;
@@ -286,7 +286,7 @@
                 return;
             }
             if (!state.visible.length) {
-                listEl.innerHTML = `<div class="teevee-empty">${iconMarkup('teevee', 'TV', 'teevee-empty-icon', 32)}<strong>${esc(t('desktop.teevee_no_results', 'No channels found'))}</strong></div>`;
+                listEl.innerHTML = `<div class="teevee-empty">${iconMarkup('teevee', 'TV', 'teevee-empty-icon', 32)}<strong>${esc(t('desktop.teevee_no_results'))}</strong></div>`;
                 return;
             }
             listEl.innerHTML = state.visible.map(channelCard).join('');
@@ -344,7 +344,7 @@
             const favorite = isFavorite(entry);
             const logo = entry.logo || '';
             const meta = [countryFlag(entry.country), entry.country, resolutionText(entry), categoryText(entry)].filter(Boolean).join(' | ');
-            return `<article class="teevee-channel ${active ? 'active' : ''} ${unsupported ? 'unsupported' : ''}" role="button" tabindex="0" data-channel-id="${esc(entry.id)}" aria-label="${esc(t('desktop.teevee_play', 'Play'))} ${esc(entry.name)}">
+            return `<article class="teevee-channel ${active ? 'active' : ''} ${unsupported ? 'unsupported' : ''}" role="button" tabindex="0" data-channel-id="${esc(entry.id)}" aria-label="${esc(t('desktop.teevee_play'))} ${esc(entry.name)}">
                 <div class="teevee-channel-logo">
                     ${logo ? `<img data-logo src="${esc(logo)}" alt="">` : iconMarkup('teevee', 'TV', 'teevee-channel-icon', 22)}
                 </div>
@@ -353,8 +353,8 @@
                     <span title="${esc(meta)}">${esc(meta || entry.url)}</span>
                 </div>
                 <div class="teevee-channel-side">
-                    ${unsupported ? `<span class="teevee-badge" title="${esc(t('desktop.teevee_unsupported_hint', 'This stream requires custom headers blocked by the browser'))}">${esc(t('desktop.teevee_unsupported_badge', 'Headers'))}</span>` : `<span class="teevee-live">${esc(t('desktop.teevee_live', 'LIVE'))}</span>`}
-                    <button class="teevee-heart ${favorite ? 'active' : ''}" type="button" data-action="favorite" data-channel-id="${esc(entry.id)}" aria-label="${esc(favorite ? t('desktop.teevee_remove_favorite', 'Remove from favorites') : t('desktop.teevee_add_favorite', 'Add to favorites'))}">${favorite ? '♥' : '♡'}</button>
+                    ${unsupported ? `<span class="teevee-badge" title="${esc(t('desktop.teevee_unsupported_hint'))}">${esc(t('desktop.teevee_unsupported_badge'))}</span>` : `<span class="teevee-live">${esc(t('desktop.teevee_live'))}</span>`}
+                    <button class="teevee-heart ${favorite ? 'active' : ''}" type="button" data-action="favorite" data-channel-id="${esc(entry.id)}" aria-label="${esc(favorite ? t('desktop.teevee_remove_favorite') : t('desktop.teevee_add_favorite'))}">${favorite ? '♥' : '♡'}</button>
                 </div>
             </article>`;
         }
@@ -362,18 +362,18 @@
         function renderPlayer() {
             const current = state.current;
             const unavailable = state.error && current;
-            nowTitle.textContent = current ? current.name : t('desktop.teevee_no_channel', 'No channel selected');
+            nowTitle.textContent = current ? current.name : t('desktop.teevee_no_channel');
             nowMeta.textContent = current ? [countryFlag(current.country), current.country, resolutionText(current)].filter(Boolean).join(' | ') : '';
-            stateTitle.textContent = current ? current.name : t('desktop.teevee_no_channel', 'No channel selected');
-            stateMeta.textContent = unavailable ? state.error : (current ? [t('desktop.teevee_live', 'LIVE'), current.country || '', resolutionText(current)].filter(Boolean).join(' | ') : t('desktop.teevee_status_ready', 'Choose a channel'));
+            stateTitle.textContent = current ? current.name : t('desktop.teevee_no_channel');
+            stateMeta.textContent = unavailable ? state.error : (current ? [t('desktop.teevee_live'), current.country || '', resolutionText(current)].filter(Boolean).join(' | ') : t('desktop.teevee_status_ready'));
             playerState.hidden = state.playing && !unavailable;
             root.classList.toggle('is-playing', state.playing);
             root.classList.toggle('is-muted', state.muted);
             toggleBtn.classList.toggle('active', state.playing);
-            toggleBtn.setAttribute('aria-label', state.playing ? t('desktop.teevee_pause', 'Pause') : t('desktop.teevee_play', 'Play'));
+            toggleBtn.setAttribute('aria-label', state.playing ? t('desktop.teevee_pause') : t('desktop.teevee_play'));
             toggleBtn.innerHTML = iconMarkup(state.playing ? 'stop' : 'video', state.playing ? 'P' : 'P', 'teevee-button-icon', 17);
             muteBtn.classList.toggle('active', state.muted);
-            muteBtn.setAttribute('aria-label', state.muted ? t('desktop.teevee_unmute', 'Unmute') : t('desktop.teevee_mute', 'Mute'));
+            muteBtn.setAttribute('aria-label', state.muted ? t('desktop.teevee_unmute') : t('desktop.teevee_mute'));
             favoriteCurrentBtn.classList.toggle('active', current && isFavorite(current));
             setWindowMenus();
         }
@@ -456,7 +456,7 @@
                 migrateFavorites(state.entries);
                 renderFilterControls();
             } catch (err) {
-                state.error = err.message || t('desktop.teevee_catalog_error', 'Could not load TV catalog');
+                state.error = err.message || t('desktop.teevee_catalog_error');
                 state.visible = [];
             } finally {
                 state.loading = false;
@@ -481,7 +481,7 @@
             if (entry.unsupported) {
                 resetPlayback();
                 state.current = entry;
-                state.error = t('desktop.teevee_unsupported_stream', 'This stream needs browser-blocked headers.');
+                state.error = t('desktop.teevee_unsupported_stream');
                 showToast(state.error);
                 renderPlayer();
                 renderList();
@@ -625,13 +625,13 @@
 
         function formatPlaybackError(err) {
             const message = err && err.message ? err.message : '';
-            if (message.includes('timed out')) return t('desktop.teevee_timeout', 'Catalog request timed out');
-            if (message.includes('network')) return t('desktop.teevee_network_error', 'Network error. Check your connection.');
+            if (message.includes('timed out')) return t('desktop.teevee_timeout');
+            if (message.includes('network')) return t('desktop.teevee_network_error');
             if (message.includes('CORS') || message.includes('cross-origin') || message.includes('cross origin')) {
-                return t('desktop.teevee_cors_error', 'Stream blocked by browser security.');
+                return t('desktop.teevee_cors_error');
             }
             if (message.includes('MEDIA_ERR') || message.includes('format') || message.includes('decode')) {
-                return t('desktop.teevee_format_error', 'Stream format not supported.');
+                return t('desktop.teevee_format_error');
             }
             return t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK);
         }
@@ -707,7 +707,7 @@
         });
         video.addEventListener('stalled', () => {
             if (!state.current || state.current.unsupported) return;
-            state.error = t('desktop.teevee_stream_stalled', 'Stream stalled. Retrying...');
+            state.error = t('desktop.teevee_stream_stalled');
             showToast(state.error);
             renderPlayer();
         });

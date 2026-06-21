@@ -30,13 +30,13 @@
     <link href="/fonts/fonts.css" rel="stylesheet">
 </head>
 <body>
-    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content">Skip to content</a>
+    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <header class="app-header">
         <div class="header-left">
             <a href="/" class="logo">
                 <div class="logo-icon">🥚</div>
                 <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-                <span class="logo-subtitle" data-i18n="skills.subtitle">Skills</span>
+                <span class="logo-subtitle" data-i18n="skills.subtitle"></span>
             </a>
         </div>
         <div class="header-actions">
@@ -48,60 +48,60 @@
 
     <div class="sk-container" id="main-content">
         <div class="sk-tabs" role="tablist" aria-label="Skill systems">
-            <button id="sk-tab-python" type="button" class="sk-tab active" role="tab" aria-selected="true" onclick="switchSkillMode('python')" data-i18n="skills.tab_python">Python Skills</button>
-            <button id="sk-tab-agent" type="button" class="sk-tab" role="tab" aria-selected="false" onclick="switchSkillMode('agent')" data-i18n="skills.tab_agent">Agent Skills</button>
+            <button id="sk-tab-python" type="button" class="sk-tab active" role="tab" aria-selected="true" onclick="switchSkillMode('python')" data-i18n="skills.tab_python"></button>
+            <button id="sk-tab-agent" type="button" class="sk-tab" role="tab" aria-selected="false" onclick="switchSkillMode('agent')" data-i18n="skills.tab_agent"></button>
         </div>
 
         <!-- Status bar -->
         <div class="sk-status-bar" id="sk-status-bar">
             <div class="sk-stat">
                 <span class="sk-stat-value" id="sk-total">0</span>
-                <span class="sk-stat-label" data-i18n="skills.stat_total">Total</span>
+                <span class="sk-stat-label" data-i18n="skills.stat_total"></span>
             </div>
             <div class="sk-stat sk-stat-agent">
                 <span class="sk-stat-value" id="sk-agent">0</span>
-                <span class="sk-stat-label" data-i18n="skills.stat_agent">Agent</span>
+                <span class="sk-stat-label" data-i18n="skills.stat_agent"></span>
             </div>
             <div class="sk-stat sk-stat-user">
                 <span class="sk-stat-value" id="sk-user">0</span>
-                <span class="sk-stat-label" data-i18n="skills.stat_user">User</span>
+                <span class="sk-stat-label" data-i18n="skills.stat_user"></span>
             </div>
             <div class="sk-stat sk-stat-pending">
                 <span class="sk-stat-value" id="sk-pending">0</span>
-                <span class="sk-stat-label" data-i18n="skills.stat_pending">Pending</span>
+                <span class="sk-stat-label" data-i18n="skills.stat_pending"></span>
             </div>
         </div>
 
         <!-- Toolbar -->
         <div class="sk-toolbar">
             <input type="text" id="sk-search" class="sk-search"
-                placeholder="Search skills..." data-i18n-placeholder="skills.search_placeholder"
+                placeholder="" data-i18n-placeholder="skills.search_placeholder"
                 oninput="filterSkills()">
             <div class="sk-filter-group">
-                <button class="sk-filter-btn active" data-filter="all" onclick="setSkillFilter('all')" data-i18n="skills.filter_all">All</button>
-                <button class="sk-filter-btn" data-filter="agent" onclick="setSkillFilter('agent')" data-i18n="skills.filter_agent">Agent</button>
-                <button class="sk-filter-btn" data-filter="user" onclick="setSkillFilter('user')" data-i18n="skills.filter_user">User</button>
-                <button class="sk-filter-btn" data-filter="daemon" onclick="setSkillFilter('daemon')" data-i18n="skills.filter_daemon">Daemon</button>
+                <button class="sk-filter-btn active" data-filter="all" onclick="setSkillFilter('all')" data-i18n="skills.filter_all"></button>
+                <button class="sk-filter-btn" data-filter="agent" onclick="setSkillFilter('agent')" data-i18n="skills.filter_agent"></button>
+                <button class="sk-filter-btn" data-filter="user" onclick="setSkillFilter('user')" data-i18n="skills.filter_user"></button>
+                <button class="sk-filter-btn" data-filter="daemon" onclick="setSkillFilter('daemon')" data-i18n="skills.filter_daemon"></button>
             </div>
             <div class="sk-toolbar-actions" id="sk-toolbar-actions">
-                <button class="btn btn-primary btn-sm" onclick="showUploadModal()" data-i18n="skills.btn_upload">Upload Skill</button>
-                <button class="btn btn-secondary btn-sm" onclick="showTemplateModal()" data-i18n="skills.btn_from_template">From Template</button>
-                <button class="btn btn-secondary btn-sm" onclick="showImportModal()" data-i18n="skills.btn_import">Import</button>
-                <button class="btn btn-secondary btn-sm" onclick="showGenerateModal()" data-i18n="skills.btn_generate">AI Draft</button>
+                <button class="btn btn-primary btn-sm" onclick="showUploadModal()" data-i18n="skills.btn_upload"></button>
+                <button class="btn btn-secondary btn-sm" onclick="showTemplateModal()" data-i18n="skills.btn_from_template"></button>
+                <button class="btn btn-secondary btn-sm" onclick="showImportModal()" data-i18n="skills.btn_import"></button>
+                <button class="btn btn-secondary btn-sm" onclick="showGenerateModal()" data-i18n="skills.btn_generate"></button>
             </div>
             <div class="sk-toolbar-actions" id="agent-toolbar-actions" style="display:none;">
-                <button class="btn btn-primary btn-sm" onclick="showAgentSkillCreateModal()" data-i18n="skills.agent_btn_create">Create Agent Skill</button>
-                <button class="btn btn-secondary btn-sm" onclick="showAgentSkillImportModal()" data-i18n="skills.agent_btn_import">Import Package</button>
+                <button class="btn btn-primary btn-sm" onclick="showAgentSkillCreateModal()" data-i18n="skills.agent_btn_create"></button>
+                <button class="btn btn-secondary btn-sm" onclick="showAgentSkillImportModal()" data-i18n="skills.agent_btn_import"></button>
             </div>
         </div>
 
         <!-- Security filter pills -->
         <div class="sk-security-filters" id="sk-security-filters">
-            <button class="sk-pill active" data-sec="all" onclick="setSecurityFilter('all')" data-i18n="skills.sec_all">All</button>
-            <button class="sk-pill" data-sec="clean" onclick="setSecurityFilter('clean')"><span class="sk-badge sk-badge-clean"></span> <span data-i18n="skills.sec_clean">Clean</span></button>
-            <button class="sk-pill" data-sec="warning" onclick="setSecurityFilter('warning')"><span class="sk-badge sk-badge-warning"></span> <span data-i18n="skills.sec_warning">Warning</span></button>
-            <button class="sk-pill" data-sec="dangerous" onclick="setSecurityFilter('dangerous')"><span class="sk-badge sk-badge-dangerous"></span> <span data-i18n="skills.sec_dangerous">Dangerous</span></button>
-            <button class="sk-pill" data-sec="pending" onclick="setSecurityFilter('pending')"><span class="sk-badge sk-badge-pending"></span> <span data-i18n="skills.sec_pending">Pending</span></button>
+            <button class="sk-pill active" data-sec="all" onclick="setSecurityFilter('all')" data-i18n="skills.sec_all"></button>
+            <button class="sk-pill" data-sec="clean" onclick="setSecurityFilter('clean')"><span class="sk-badge sk-badge-clean"></span> <span data-i18n="skills.sec_clean"></span></button>
+            <button class="sk-pill" data-sec="warning" onclick="setSecurityFilter('warning')"><span class="sk-badge sk-badge-warning"></span> <span data-i18n="skills.sec_warning"></span></button>
+            <button class="sk-pill" data-sec="dangerous" onclick="setSecurityFilter('dangerous')"><span class="sk-badge sk-badge-dangerous"></span> <span data-i18n="skills.sec_dangerous"></span></button>
+            <button class="sk-pill" data-sec="pending" onclick="setSecurityFilter('pending')"><span class="sk-badge sk-badge-pending"></span> <span data-i18n="skills.sec_pending"></span></button>
         </div>
 
         <!-- Skill cards grid -->
@@ -110,15 +110,15 @@
         <!-- Empty state -->
         <div class="empty-state" id="sk-empty" style="display:none;">
             <div class="empty-icon">🧩</div>
-            <h3 data-i18n="skills.empty_title">No Skills Found</h3>
-            <p data-i18n="skills.empty_desc">No skills match your current filters. Upload a skill or create one from a template.</p>
+            <h3 data-i18n="skills.empty_title"></h3>
+            <p data-i18n="skills.empty_desc"></p>
         </div>
 
         <!-- Disabled state -->
         <div class="empty-state" id="sk-disabled" style="display:none;">
             <div class="empty-icon">⚠️</div>
-            <h3 data-i18n="skills.disabled_title">Skill Manager Not Enabled</h3>
-            <p data-i18n="skills.disabled_desc">Enable Skill Manager in the configuration to manage skills.</p>
+            <h3 data-i18n="skills.disabled_title"></h3>
+            <p data-i18n="skills.disabled_desc"></p>
         </div>
     </div>
 
@@ -126,37 +126,37 @@
     <div class="modal-overlay" id="agent-skill-modal">
         <div class="modal modal-wide">
             <div class="modal-header">
-                <h2 id="agent-skill-modal-title" data-i18n="skills.agent_create_title">Create Agent Skill</h2>
+                <h2 id="agent-skill-modal-title" data-i18n="skills.agent_create_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeAgentSkillModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="sk-code-meta-grid" id="agent-create-fields">
                     <div class="sk-form-group">
-                        <label data-i18n="skills.agent_field_name">Package name</label>
-                        <input type="text" id="agent-skill-name" class="sk-input" placeholder="csv-helper" data-i18n-placeholder="skills.agent_name_placeholder">
+                        <label data-i18n="skills.agent_field_name"></label>
+                        <input type="text" id="agent-skill-name" class="sk-input" placeholder="" data-i18n-placeholder="skills.agent_name_placeholder">
                     </div>
                     <div class="sk-form-group">
-                        <label data-i18n="skills.agent_field_description">Description</label>
-                        <input type="text" id="agent-skill-description" class="sk-input" data-i18n-placeholder="skills.agent_description_placeholder" placeholder="Use when summarizing CSV reports.">
+                        <label data-i18n="skills.agent_field_description"></label>
+                        <input type="text" id="agent-skill-description" class="sk-input" data-i18n-placeholder="skills.agent_description_placeholder" placeholder="">
                     </div>
                 </div>
                 <div class="sk-form-group">
-                    <label data-i18n="skills.agent_skill_md">SKILL.md</label>
+                    <label data-i18n="skills.agent_skill_md"></label>
                     <textarea id="agent-skill-content" class="sk-input sk-textarea sk-agent-editor" rows="18" spellcheck="false"></textarea>
                 </div>
                 <div class="sk-form-group" id="agent-resource-browser" style="display:none;">
-                    <label data-i18n="skills.agent_resources">Resources</label>
+                    <label data-i18n="skills.agent_resources"></label>
                     <div id="agent-resource-list" class="sk-resource-list"></div>
                     <div class="sk-code-meta-grid">
-                        <input type="text" id="agent-resource-path" class="sk-input" placeholder="scripts/run.py" data-i18n-placeholder="skills.agent_resource_path_placeholder">
-                        <button class="btn btn-secondary" type="button" onclick="saveAgentSkillResource()" data-i18n="skills.agent_btn_save_resource">Save File</button>
+                        <input type="text" id="agent-resource-path" class="sk-input" placeholder="" data-i18n-placeholder="skills.agent_resource_path_placeholder">
+                        <button class="btn btn-secondary" type="button" onclick="saveAgentSkillResource()" data-i18n="skills.agent_btn_save_resource"></button>
                     </div>
                     <textarea id="agent-resource-content" class="sk-input sk-textarea" rows="8" spellcheck="false"></textarea>
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeAgentSkillModal()" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-primary" onclick="saveAgentSkill()" data-i18n="common.btn_save">Save</button>
+                <button class="btn btn-secondary" onclick="closeAgentSkillModal()" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-primary" onclick="saveAgentSkill()" data-i18n="common.btn_save"></button>
             </div>
         </div>
     </div>
@@ -165,26 +165,26 @@
     <div class="modal-overlay" id="agent-import-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="skills.agent_import_title">Import Agent Skill</h2>
+                <h2 data-i18n="skills.agent_import_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeAgentSkillImportModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="sk-upload-warning">
-                    <span data-i18n="skills.agent_import_warning">Packages are scanned before activation. New or changed Agent Skills stay disabled until approved by security status.</span>
+                    <span data-i18n="skills.agent_import_warning"></span>
                 </div>
                 <div class="sk-form-group">
-                    <label data-i18n="skills.agent_import_zip">ZIP package</label>
+                    <label data-i18n="skills.agent_import_zip"></label>
                     <input type="file" id="agent-import-file" accept=".zip" onchange="handleAgentImportFileSelect(event)">
-                    <p id="agent-import-file-name" class="sk-inline-help" data-i18n="skills.agent_import_zip_hint">Choose a ZIP containing one folder with SKILL.md.</p>
+                    <p id="agent-import-file-name" class="sk-inline-help" data-i18n="skills.agent_import_zip_hint"></p>
                 </div>
                 <div class="sk-form-group">
-                    <label data-i18n="skills.agent_import_folder">Local folder path</label>
-                    <input type="text" id="agent-import-path" class="sk-input" data-i18n-placeholder="skills.agent_import_folder_placeholder" placeholder="C:\path\to\csv-helper">
+                    <label data-i18n="skills.agent_import_folder"></label>
+                    <input type="text" id="agent-import-path" class="sk-input" data-i18n-placeholder="skills.agent_import_folder_placeholder" placeholder="">
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeAgentSkillImportModal()" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-primary" onclick="submitAgentSkillImport()" data-i18n="skills.btn_import">Import</button>
+                <button class="btn btn-secondary" onclick="closeAgentSkillImportModal()" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-primary" onclick="submitAgentSkillImport()" data-i18n="skills.btn_import"></button>
             </div>
         </div>
     </div>
@@ -193,25 +193,25 @@
     <div class="modal-overlay" id="agent-test-modal">
         <div class="modal modal-wide">
             <div class="modal-header">
-                <h2 data-i18n="skills.agent_test_title">Test Agent Skill Script</h2>
+                <h2 data-i18n="skills.agent_test_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeAgentSkillTestModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="sk-code-meta-grid">
                     <div class="sk-form-group">
-                        <label data-i18n="skills.agent_script_path">Script</label>
+                        <label data-i18n="skills.agent_script_path"></label>
                         <select id="agent-test-script" class="sk-select"></select>
                     </div>
                     <div class="sk-form-group">
-                        <label data-i18n="skills.test_args_label">JSON Input</label>
+                        <label data-i18n="skills.test_args_label"></label>
                         <textarea id="agent-test-args" class="sk-input sk-textarea" rows="6">{}</textarea>
                     </div>
                 </div>
                 <pre id="agent-test-output" class="sk-test-output"></pre>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeAgentSkillTestModal()" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-primary" onclick="runAgentSkillTest()" data-i18n="skills.btn_run_test">Run Test</button>
+                <button class="btn btn-secondary" onclick="closeAgentSkillTestModal()" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-primary" onclick="runAgentSkillTest()" data-i18n="skills.btn_run_test"></button>
             </div>
         </div>
     </div>
@@ -220,17 +220,17 @@
     <div class="modal-overlay" id="detail-modal">
         <div class="modal modal-wide">
             <div class="modal-header">
-                <h2 id="detail-modal-title" data-i18n="skills.detail_title">Skill Details</h2>
+                <h2 id="detail-modal-title" data-i18n="skills.detail_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeDetailModal()">&times;</button>
             </div>
             <div class="modal-body" id="detail-modal-body">
                 <!-- Populated by JS -->
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeDetailModal()" data-i18n="common.btn_close">Close</button>
-                <button class="btn btn-secondary" onclick="exportCurrentSkill()" data-i18n="skills.btn_export">Export</button>
-                <button class="btn btn-secondary" onclick="showTestModal()" data-i18n="skills.btn_test">Test</button>
-                <button class="btn btn-primary" id="detail-verify-btn" onclick="verifyCurrentSkill()" data-i18n="skills.btn_verify">Re-Scan</button>
+                <button class="btn btn-secondary" onclick="closeDetailModal()" data-i18n="common.btn_close"></button>
+                <button class="btn btn-secondary" onclick="exportCurrentSkill()" data-i18n="skills.btn_export"></button>
+                <button class="btn btn-secondary" onclick="showTestModal()" data-i18n="skills.btn_test"></button>
+                <button class="btn btn-primary" id="detail-verify-btn" onclick="verifyCurrentSkill()" data-i18n="skills.btn_verify"></button>
             </div>
         </div>
     </div>
@@ -239,41 +239,41 @@
     <div class="modal-overlay" id="code-modal">
         <div class="modal modal-wide">
             <div class="modal-header">
-                <h2 id="code-modal-title" data-i18n="skills.code_title">Skill Code</h2>
-                <button class="btn btn-secondary btn-sm sk-code-fullscreen-btn" type="button" onclick="toggleCodeFullscreen()" data-i18n="skills.btn_fullscreen">Fullscreen</button>
+                <h2 id="code-modal-title" data-i18n="skills.code_title"></h2>
+                <button class="btn btn-secondary btn-sm sk-code-fullscreen-btn" type="button" onclick="toggleCodeFullscreen()" data-i18n="skills.btn_fullscreen"></button>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeCodeModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div id="code-draft-meta" class="sk-code-meta" style="display:none;">
                     <div class="sk-form-group">
-                        <label data-i18n="skills.template_skill_name">Skill Name</label>
-                        <input type="text" id="code-draft-name" class="sk-input" data-i18n-placeholder="skills.placeholder_skill_name" placeholder="my_skill">
+                        <label data-i18n="skills.template_skill_name"></label>
+                        <input type="text" id="code-draft-name" class="sk-input" data-i18n-placeholder="skills.placeholder_skill_name" placeholder="">
                     </div>
                     <div class="sk-form-group">
-                        <label data-i18n="skills.upload_description">Description</label>
-                        <input type="text" id="code-draft-description" class="sk-input" data-i18n-placeholder="skills.placeholder_description" placeholder="What does this skill do?">
+                        <label data-i18n="skills.upload_description"></label>
+                        <input type="text" id="code-draft-description" class="sk-input" data-i18n-placeholder="skills.placeholder_description" placeholder="">
                     </div>
                     <div class="sk-code-meta-grid">
                         <div class="sk-form-group">
-                            <label data-i18n="skills.field_category">Category</label>
-                            <input type="text" id="code-draft-category" class="sk-input" data-i18n-placeholder="skills.placeholder_category" placeholder="automation">
+                            <label data-i18n="skills.field_category"></label>
+                            <input type="text" id="code-draft-category" class="sk-input" data-i18n-placeholder="skills.placeholder_category" placeholder="">
                         </div>
                         <div class="sk-form-group">
-                            <label data-i18n="skills.field_tags">Tags</label>
-                            <input type="text" id="code-draft-tags" class="sk-input" data-i18n-placeholder="skills.placeholder_tags" placeholder="api, automation">
+                            <label data-i18n="skills.field_tags"></label>
+                            <input type="text" id="code-draft-tags" class="sk-input" data-i18n-placeholder="skills.placeholder_tags" placeholder="">
                         </div>
                     </div>
                     <div class="sk-form-group">
-                        <label data-i18n="skills.documentation_label">Manual (Markdown, optional)</label>
-                        <textarea id="code-draft-documentation" class="sk-input sk-textarea" rows="6" data-i18n-placeholder="skills.documentation_placeholder" placeholder="## Description&#10;..."></textarea>
-                        <p class="sk-inline-help" data-i18n="skills.documentation_hint">Markdown manual the agent can read before reusing this skill. Max 64 KB. Never paste secrets or API keys.</p>
+                        <label data-i18n="skills.documentation_label"></label>
+                        <textarea id="code-draft-documentation" class="sk-input sk-textarea" rows="6" data-i18n-placeholder="skills.documentation_placeholder" placeholder=""></textarea>
+                        <p class="sk-inline-help" data-i18n="skills.documentation_hint"></p>
                     </div>
                 </div>
                 <div id="code-editor-container" class="sk-code-editor-container"></div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeCodeModal()" data-i18n="common.btn_close">Close</button>
-                <button class="btn btn-primary" id="code-save-btn" onclick="saveSkillCode()" data-i18n="skills.btn_save_code">Save</button>
+                <button class="btn btn-secondary" onclick="closeCodeModal()" data-i18n="common.btn_close"></button>
+                <button class="btn btn-primary" id="code-save-btn" onclick="saveSkillCode()" data-i18n="skills.btn_save_code"></button>
             </div>
         </div>
     </div>
@@ -282,50 +282,50 @@
     <div class="modal-overlay" id="upload-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="skills.upload_title">Upload Skill</h2>
+                <h2 data-i18n="skills.upload_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeUploadModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="sk-upload-warning">
                     <span class="sk-upload-warning-icon">⚠️</span>
-                    <span data-i18n="skills.upload_warning">Uploaded skills will be security-scanned. Potentially dangerous code will be flagged and disabled.</span>
+                    <span data-i18n="skills.upload_warning"></span>
                 </div>
                 <div class="sk-form-group">
-                    <label data-i18n="skills.upload_name">Name (optional)</label>
-                    <input type="text" id="upload-name" class="sk-input" placeholder="auto-detected from filename" data-i18n-placeholder="skills.upload_name_hint">
+                    <label data-i18n="skills.upload_name"></label>
+                    <input type="text" id="upload-name" class="sk-input" placeholder="" data-i18n-placeholder="skills.upload_name_hint">
                 </div>
                 <div class="sk-form-group">
-                    <label data-i18n="skills.upload_description">Description</label>
-                    <input type="text" id="upload-description" class="sk-input" placeholder="What does this skill do?" data-i18n-placeholder="skills.upload_desc_hint">
+                    <label data-i18n="skills.upload_description"></label>
+                    <input type="text" id="upload-description" class="sk-input" placeholder="" data-i18n-placeholder="skills.upload_desc_hint">
                 </div>
                 <div class="sk-code-meta-grid">
                     <div class="sk-form-group">
-                        <label data-i18n="skills.field_category">Category</label>
-                        <input type="text" id="upload-category" class="sk-input" data-i18n-placeholder="skills.placeholder_category" placeholder="automation">
+                        <label data-i18n="skills.field_category"></label>
+                        <input type="text" id="upload-category" class="sk-input" data-i18n-placeholder="skills.placeholder_category" placeholder="">
                     </div>
                     <div class="sk-form-group">
-                        <label data-i18n="skills.field_tags">Tags</label>
-                        <input type="text" id="upload-tags" class="sk-input" data-i18n-placeholder="skills.placeholder_tags" placeholder="api, automation">
+                        <label data-i18n="skills.field_tags"></label>
+                        <input type="text" id="upload-tags" class="sk-input" data-i18n-placeholder="skills.placeholder_tags" placeholder="">
                     </div>
                 </div>
                 <div class="sk-dropzone" id="sk-dropzone">
                     <div class="sk-dropzone-icon">📁</div>
-                    <p data-i18n="skills.upload_drop">Drop a .py file here or click to browse</p>
+                    <p data-i18n="skills.upload_drop"></p>
                     <input type="file" id="upload-file" accept=".py" style="display:none" onchange="handleFileSelect(event)">
                 </div>
                 <div class="sk-selected-file" id="sk-selected-file" style="display:none;">
                     <span id="sk-selected-name"></span>
-                    <button class="btn btn-sm btn-secondary" onclick="clearFileSelection()" data-i18n="skills.upload_clear">Clear</button>
+                    <button class="btn btn-sm btn-secondary" onclick="clearFileSelection()" data-i18n="skills.upload_clear"></button>
                 </div>
                 <div class="sk-form-group">
-                    <label data-i18n="skills.documentation_label">Manual (Markdown, optional)</label>
-                    <textarea id="upload-documentation" class="sk-input sk-textarea" rows="6" data-i18n-placeholder="skills.documentation_placeholder" placeholder="## Description&#10;What this skill does.&#10;&#10;## Parameters&#10;- name (string)&#10;&#10;## Output&#10;...&#10;&#10;## Example&#10;...&#10;&#10;## Errors&#10;..."></textarea>
-                    <p class="sk-inline-help" data-i18n="skills.documentation_hint">Markdown manual the agent can read before reusing this skill. Max 64 KB. Never paste secrets or API keys.</p>
+                    <label data-i18n="skills.documentation_label"></label>
+                    <textarea id="upload-documentation" class="sk-input sk-textarea" rows="6" data-i18n-placeholder="skills.documentation_placeholder" placeholder=""></textarea>
+                    <p class="sk-inline-help" data-i18n="skills.documentation_hint"></p>
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeUploadModal()" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-primary" id="upload-submit-btn" onclick="submitUpload()" disabled data-i18n="skills.btn_upload">Upload</button>
+                <button class="btn btn-secondary" onclick="closeUploadModal()" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-primary" id="upload-submit-btn" onclick="submitUpload()" disabled data-i18n="skills.btn_upload"></button>
             </div>
         </div>
     </div>
@@ -334,52 +334,52 @@
     <div class="modal-overlay" id="template-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="skills.template_title">Create from Template</h2>
+                <h2 data-i18n="skills.template_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeTemplateModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="sk-form-group">
-                    <label data-i18n="skills.template_select">Template</label>
+                    <label data-i18n="skills.template_select"></label>
                     <select id="template-select" class="sk-select" onchange="onTemplateSelect()">
-                        <option value="" data-i18n="skills.template_choose">-- Choose a template --</option>
+                        <option value="" data-i18n="skills.template_choose"></option>
                     </select>
                 </div>
                 <div id="template-description" class="sk-template-desc" style="display:none;"></div>
                 <div class="sk-form-group">
-                    <label data-i18n="skills.template_skill_name">Skill Name</label>
-                    <input type="text" id="template-skill-name" class="sk-input" placeholder="my_skill" data-i18n-placeholder="skills.template_name_hint">
+                    <label data-i18n="skills.template_skill_name"></label>
+                    <input type="text" id="template-skill-name" class="sk-input" placeholder="" data-i18n-placeholder="skills.template_name_hint">
                 </div>
                 <div class="sk-form-group">
-                    <label data-i18n="skills.template_description">Description</label>
-                    <input type="text" id="template-description-input" class="sk-input" placeholder="What does this skill do?" data-i18n-placeholder="skills.template_desc_hint">
+                    <label data-i18n="skills.template_description"></label>
+                    <input type="text" id="template-description-input" class="sk-input" placeholder="" data-i18n-placeholder="skills.template_desc_hint">
                 </div>
                 <div class="sk-code-meta-grid">
                     <div class="sk-form-group">
-                        <label data-i18n="skills.field_category">Category</label>
-                        <input type="text" id="template-category-input" class="sk-input" data-i18n-placeholder="skills.placeholder_category" placeholder="automation">
+                        <label data-i18n="skills.field_category"></label>
+                        <input type="text" id="template-category-input" class="sk-input" data-i18n-placeholder="skills.placeholder_category" placeholder="">
                     </div>
                     <div class="sk-form-group">
-                        <label data-i18n="skills.field_tags">Tags</label>
-                        <input type="text" id="template-tags-input" class="sk-input" data-i18n-placeholder="skills.placeholder_tags" placeholder="api, automation">
+                        <label data-i18n="skills.field_tags"></label>
+                        <input type="text" id="template-tags-input" class="sk-input" data-i18n-placeholder="skills.placeholder_tags" placeholder="">
                     </div>
                 </div>
                 <div class="sk-form-group">
-                    <label data-i18n="skills.field_base_url">Base URL</label>
-                    <input type="url" id="template-base-url-input" class="sk-input" data-i18n-placeholder="skills.placeholder_base_url" placeholder="https://api.example.com">
+                    <label data-i18n="skills.field_base_url"></label>
+                    <input type="url" id="template-base-url-input" class="sk-input" data-i18n-placeholder="skills.placeholder_base_url" placeholder="">
                 </div>
                 <div class="sk-form-group">
-                    <label data-i18n="skills.field_dependencies">Dependencies</label>
-                    <input type="text" id="template-dependencies-input" class="sk-input" data-i18n-placeholder="skills.placeholder_dependencies" placeholder="requests, pyyaml">
+                    <label data-i18n="skills.field_dependencies"></label>
+                    <input type="text" id="template-dependencies-input" class="sk-input" data-i18n-placeholder="skills.placeholder_dependencies" placeholder="">
                 </div>
                 <div class="sk-form-group">
-                    <label data-i18n="skills.documentation_label">Manual (Markdown, optional)</label>
-                    <textarea id="template-documentation" class="sk-input sk-textarea" rows="6" data-i18n-placeholder="skills.documentation_placeholder" placeholder="## Description&#10;..."></textarea>
-                    <p class="sk-inline-help" data-i18n="skills.documentation_hint">Markdown manual the agent can read before reusing this skill. Max 64 KB. Never paste secrets or API keys.</p>
+                    <label data-i18n="skills.documentation_label"></label>
+                    <textarea id="template-documentation" class="sk-input sk-textarea" rows="6" data-i18n-placeholder="skills.documentation_placeholder" placeholder=""></textarea>
+                    <p class="sk-inline-help" data-i18n="skills.documentation_hint"></p>
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeTemplateModal()" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-primary" id="template-submit-btn" onclick="submitTemplate()" disabled data-i18n="skills.btn_create">Create</button>
+                <button class="btn btn-secondary" onclick="closeTemplateModal()" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-primary" id="template-submit-btn" onclick="submitTemplate()" disabled data-i18n="skills.btn_create"></button>
             </div>
         </div>
     </div>
@@ -388,19 +388,19 @@
     <div class="modal-overlay" id="delete-skill-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="skills.delete_title">Delete Skill</h2>
+                <h2 data-i18n="skills.delete_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeDeleteSkillModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <p data-i18n="skills.delete_confirm">Are you sure you want to delete this skill?</p>
+                <p data-i18n="skills.delete_confirm"></p>
                 <p class="sk-delete-name" id="delete-skill-name"></p>
                 <label class="sk-checkbox-label">
-                    <input type="checkbox" id="delete-files-checkbox" checked> <span data-i18n="skills.delete_files">Also delete files from disk</span>
+                    <input type="checkbox" id="delete-files-checkbox" checked> <span data-i18n="skills.delete_files"></span>
                 </label>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeDeleteSkillModal()" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-danger" id="skill-delete-confirm-btn" onclick="confirmDeleteSkill()" data-i18n="common.btn_delete">Delete</button>
+                <button class="btn btn-secondary" onclick="closeDeleteSkillModal()" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-danger" id="skill-delete-confirm-btn" onclick="confirmDeleteSkill()" data-i18n="common.btn_delete"></button>
             </div>
         </div>
     </div>
@@ -409,19 +409,19 @@
     <div class="modal-overlay" id="vault-key-modal">
         <div class="modal modal--sm">
             <div class="modal-header">
-                <h2 data-i18n="skills.vault_modal_title">Assign Secrets</h2>
+                <h2 data-i18n="skills.vault_modal_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeVaultKeyModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <p class="sk-vault-modal-desc" data-i18n="skills.vault_modal_desc">Select the vault secrets this skill will receive as environment variables at runtime.</p>
+                <p class="sk-vault-modal-desc" data-i18n="skills.vault_modal_desc"></p>
                 <div id="vault-key-list" class="sk-vault-key-list">
                     <!-- Populated by JS -->
                 </div>
-                <p id="vault-key-empty" class="sk-vault-empty" style="display:none" data-i18n="skills.vault_modal_empty">No secrets available in the vault.</p>
+                <p id="vault-key-empty" class="sk-vault-empty" style="display:none" data-i18n="skills.vault_modal_empty"></p>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeVaultKeyModal()" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-primary" onclick="saveVaultKeys()" data-i18n="skills.vault_modal_save">Save</button>
+                <button class="btn btn-secondary" onclick="closeVaultKeyModal()" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-primary" onclick="saveVaultKeys()" data-i18n="skills.vault_modal_save"></button>
             </div>
         </div>
     </div>
@@ -430,19 +430,19 @@
     <div class="modal-overlay" id="internal-tools-modal">
         <div class="modal modal--sm">
             <div class="modal-header">
-                <h2 data-i18n="skills.internal_tools_modal_title">Assign Internal Tools</h2>
+                <h2 data-i18n="skills.internal_tools_modal_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeInternalToolsModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <p class="sk-vault-modal-desc" data-i18n="skills.internal_tools_modal_desc">Select the AuraGo native tools this skill may call via the tool bridge at runtime.</p>
+                <p class="sk-vault-modal-desc" data-i18n="skills.internal_tools_modal_desc"></p>
                 <div id="internal-tools-list" class="sk-vault-key-list">
                     <!-- Populated by JS -->
                 </div>
                 <p id="internal-tools-bridge-off" class="sk-vault-empty" style="display:none" data-i18n="skills.internal_tools_bridge_disabled">The Python Tool Bridge is not enabled or no tools are configured. Enable it in Settings → Agent.</p>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeInternalToolsModal()" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-primary" onclick="saveInternalTools()" data-i18n="skills.internal_tools_modal_save">Save</button>
+                <button class="btn btn-secondary" onclick="closeInternalToolsModal()" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-primary" onclick="saveInternalTools()" data-i18n="skills.internal_tools_modal_save"></button>
             </div>
         </div>
     </div>
@@ -451,25 +451,25 @@
     <div class="modal-overlay" id="test-modal">
         <div class="modal modal-wide">
             <div class="modal-header">
-                <h2 data-i18n="skills.test_title">Test Skill</h2>
+                <h2 data-i18n="skills.test_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeTestModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="sk-form-group">
-                    <label data-i18n="skills.test_args_label">JSON Input</label>
+                    <label data-i18n="skills.test_args_label"></label>
                     <textarea id="test-args-input" class="sk-input sk-textarea" rows="8">{}</textarea>
                 </div>
                 <div class="sk-test-output-wrap">
                     <div class="sk-test-output-head">
-                        <span data-i18n="skills.test_output_label">Output</span>
+                        <span data-i18n="skills.test_output_label"></span>
                         <span id="test-output-status" class="sk-test-status"></span>
                     </div>
                     <pre id="test-output" class="sk-test-output"></pre>
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeTestModal()" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-primary" id="test-run-btn" onclick="runSkillTest()" data-i18n="skills.btn_run_test">Run Test</button>
+                <button class="btn btn-secondary" onclick="closeTestModal()" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-primary" id="test-run-btn" onclick="runSkillTest()" data-i18n="skills.btn_run_test"></button>
             </div>
         </div>
     </div>
@@ -478,19 +478,19 @@
     <div class="modal-overlay" id="import-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="skills.import_title">Import Skill Bundle</h2>
+                <h2 data-i18n="skills.import_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeImportModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="sk-form-group">
-                    <label data-i18n="skills.import_file_label">Bundle File</label>
+                    <label data-i18n="skills.import_file_label"></label>
                     <input type="file" id="import-file" accept=".json,.aurago-skill.json" onchange="handleImportFileSelect(event)">
                 </div>
                 <p id="import-file-name" class="sk-inline-help" data-i18n="skills.import_hint">Choose an exported `.aurago-skill.json` bundle.</p>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeImportModal()" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-primary" id="import-submit-btn" onclick="submitImportSkill()" disabled data-i18n="skills.btn_import">Import</button>
+                <button class="btn btn-secondary" onclick="closeImportModal()" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-primary" id="import-submit-btn" onclick="submitImportSkill()" disabled data-i18n="skills.btn_import"></button>
             </div>
         </div>
     </div>
@@ -499,41 +499,41 @@
     <div class="modal-overlay" id="generate-modal">
         <div class="modal modal-wide">
             <div class="modal-header">
-                <h2 data-i18n="skills.generate_title">Generate Skill Draft</h2>
+                <h2 data-i18n="skills.generate_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeGenerateModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="sk-form-group">
-                    <label data-i18n="skills.generate_prompt_label">What should the skill do?</label>
-                    <textarea id="generate-prompt" class="sk-input sk-textarea" rows="6" data-i18n-placeholder="skills.placeholder_prompt" placeholder="Create a skill that fetches JSON from an API and returns a filtered summary."></textarea>
+                    <label data-i18n="skills.generate_prompt_label"></label>
+                    <textarea id="generate-prompt" class="sk-input sk-textarea" rows="6" data-i18n-placeholder="skills.placeholder_prompt" placeholder=""></textarea>
                 </div>
                 <div id="generate-status" class="sk-generate-status" style="display:none;"></div>
                 <div class="sk-code-meta-grid">
                     <div class="sk-form-group">
-                        <label data-i18n="skills.template_skill_name">Skill Name</label>
-                        <input type="text" id="generate-skill-name" class="sk-input" data-i18n-placeholder="skills.placeholder_skill_name_short" placeholder="api_summary">
+                        <label data-i18n="skills.template_skill_name"></label>
+                        <input type="text" id="generate-skill-name" class="sk-input" data-i18n-placeholder="skills.placeholder_skill_name_short" placeholder="">
                     </div>
                     <div class="sk-form-group">
-                        <label data-i18n="skills.field_category">Category</label>
-                        <input type="text" id="generate-category" class="sk-input" data-i18n-placeholder="skills.placeholder_category" placeholder="automation">
+                        <label data-i18n="skills.field_category"></label>
+                        <input type="text" id="generate-category" class="sk-input" data-i18n-placeholder="skills.placeholder_category" placeholder="">
                     </div>
                 </div>
                 <div class="sk-code-meta-grid">
                     <div class="sk-form-group">
-                        <label data-i18n="skills.template_select">Template</label>
+                        <label data-i18n="skills.template_select"></label>
                         <select id="generate-template-select" class="sk-select">
-                            <option value="" data-i18n="skills.template_choose">-- Choose a template --</option>
+                            <option value="" data-i18n="skills.template_choose"></option>
                         </select>
                     </div>
                     <div class="sk-form-group">
-                        <label data-i18n="skills.field_dependencies">Dependencies</label>
-                        <input type="text" id="generate-dependencies" class="sk-input" data-i18n-placeholder="skills.placeholder_dependencies" placeholder="requests, pyyaml">
+                        <label data-i18n="skills.field_dependencies"></label>
+                        <input type="text" id="generate-dependencies" class="sk-input" data-i18n-placeholder="skills.placeholder_dependencies" placeholder="">
                     </div>
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeGenerateModal()" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-primary" id="generate-submit-btn" onclick="submitGenerateSkill()" data-i18n="skills.btn_generate">Generate</button>
+                <button class="btn btn-secondary" onclick="closeGenerateModal()" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-primary" id="generate-submit-btn" onclick="submitGenerateSkill()" data-i18n="skills.btn_generate"></button>
             </div>
         </div>
     </div>

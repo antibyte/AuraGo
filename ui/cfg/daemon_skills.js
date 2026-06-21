@@ -74,7 +74,7 @@ async function loadDaemonStatus() {
         var resp = await fetch('/api/daemons');
         var data = await resp.json();
         if (data.status !== 'ok' || !data.daemons || data.daemons.length === 0) {
-            grid.innerHTML = '<div class="empty-state">' + (t('config.daemon_skills.no_daemons') || 'No daemon skills configured') + '</div>';
+            grid.innerHTML = '<div class="empty-state">' + (t('config.daemon_skills.no_daemons')) + '</div>';
             if (title) title.textContent = t('config.daemon_skills.status_title').replace('%d', '0');
             return;
         }
@@ -93,6 +93,6 @@ async function loadDaemonStatus() {
         });
         grid.innerHTML = html;
     } catch (e) {
-        grid.innerHTML = '<div class="empty-state">' + (t('config.daemon_skills.load_error') || 'Failed to load daemon status') + '</div>';
+        grid.innerHTML = '<div class="empty-state">' + (t('config.daemon_skills.load_error')) + '</div>';
     }
 }

@@ -39,7 +39,7 @@
         collectRefs(state);
         bindControls(state);
         setWindowMenus(state);
-        setStatus(state, ctx.t('desktop.chess_loading', 'Loading chess...'));
+        setStatus(state, ctx.t('desktop.chess_loading'));
 
         loadVendor()
             .then(vendor => {
@@ -52,7 +52,7 @@
                 startNewGame(state);
             })
             .catch(err => {
-                setStatus(state, (err && err.message) || ctx.t('desktop.chess_load_failed', 'Chess failed to load.'));
+                setStatus(state, (err && err.message) || ctx.t('desktop.chess_load_failed'));
                 state.refs.root.classList.add('is-error');
             });
     }
@@ -101,38 +101,38 @@
                         <div class="vd-chess-board" data-chess-board></div>
                     </div>
                     <div class="vd-chess-ribbon">
-                        <div class="vd-chess-status" data-status>${esc(t('desktop.chess_loading', 'Loading chess...'))}</div>
+                        <div class="vd-chess-status" data-status>${esc(t('desktop.chess_loading'))}</div>
                         <div class="vd-chess-comment" data-comment></div>
                     </div>
                 </section>
                 <aside class="vd-chess-side">
                     <div class="vd-chess-controls">
                         <div class="vd-chess-field">
-                            <label for="chess-opponent">${esc(t('desktop.chess_opponent', 'Opponent'))}</label>
+                            <label for="chess-opponent">${esc(t('desktop.chess_opponent'))}</label>
                             <select id="chess-opponent" data-opponent>
-                                <option value="computer">${esc(t('desktop.chess_opponent_computer', 'Computer'))}</option>
-                                <option value="agent">${esc(t('desktop.chess_opponent_agent', 'Agent'))}</option>
+                                <option value="computer">${esc(t('desktop.chess_opponent_computer'))}</option>
+                                <option value="agent">${esc(t('desktop.chess_opponent_agent'))}</option>
                             </select>
                         </div>
                         <div class="vd-chess-field">
-                            <span class="vd-chess-label">${esc(t('desktop.chess_player_color', 'Color'))}</span>
+                            <span class="vd-chess-label">${esc(t('desktop.chess_player_color'))}</span>
                             <div class="vd-chess-segment" data-color-group>
-                                <button type="button" data-color="white" class="active">${esc(t('desktop.chess_color_white', 'White'))}</button>
-                                <button type="button" data-color="black">${esc(t('desktop.chess_color_black', 'Black'))}</button>
+                                <button type="button" data-color="white" class="active">${esc(t('desktop.chess_color_white'))}</button>
+                                <button type="button" data-color="black">${esc(t('desktop.chess_color_black'))}</button>
                             </div>
                         </div>
                         <div class="vd-chess-field" data-strength-wrap>
-                            <label for="chess-strength">${esc(t('desktop.chess_strength', 'Strength'))} <span data-strength-value>8</span></label>
+                            <label for="chess-strength">${esc(t('desktop.chess_strength'))} <span data-strength-value>8</span></label>
                             <input id="chess-strength" data-strength type="range" min="1" max="20" value="8">
                         </div>
                         <div class="vd-chess-actions">
-                            <button type="button" class="vd-chess-primary" data-new-game>${ctx.iconMarkup('refresh', 'N', 'vd-chess-action-icon', 15)}<span>${esc(t('desktop.chess_new_game', 'New game'))}</span></button>
-                            <button type="button" data-undo>${ctx.iconMarkup('undo', 'U', 'vd-chess-action-icon', 15)}<span>${esc(t('desktop.chess_undo', 'Undo'))}</span></button>
-                            <button type="button" data-flip>${ctx.iconMarkup('rotate', 'F', 'vd-chess-action-icon', 15)}<span>${esc(t('desktop.chess_flip', 'Flip'))}</span></button>
+                            <button type="button" class="vd-chess-primary" data-new-game>${ctx.iconMarkup('refresh', 'N', 'vd-chess-action-icon', 15)}<span>${esc(t('desktop.chess_new_game'))}</span></button>
+                            <button type="button" data-undo>${ctx.iconMarkup('undo', 'U', 'vd-chess-action-icon', 15)}<span>${esc(t('desktop.chess_undo'))}</span></button>
+                            <button type="button" data-flip>${ctx.iconMarkup('rotate', 'F', 'vd-chess-action-icon', 15)}<span>${esc(t('desktop.chess_flip'))}</span></button>
                         </div>
                     </div>
                     <div class="vd-chess-moves">
-                        <div class="vd-chess-panel-title">${esc(t('desktop.chess_moves', 'Moves'))}</div>
+                        <div class="vd-chess-panel-title">${esc(t('desktop.chess_moves'))}</div>
                         <ol data-moves></ol>
                     </div>
                 </aside>
@@ -338,8 +338,8 @@
             applyOpponentMove(state, result.move, result.comment || '');
         } catch (err) {
             if (state.disposed || token !== state.searchToken) return;
-            notify(state, (err && err.message) || state.ctx.t('desktop.chess_move_failed', 'Opponent move failed.'));
-            setStatus(state, state.ctx.t('desktop.chess_move_failed', 'Opponent move failed.'));
+            notify(state, (err && err.message) || state.ctx.t('desktop.chess_move_failed'));
+            setStatus(state, state.ctx.t('desktop.chess_move_failed'));
         } finally {
             if (!state.disposed && token === state.searchToken) {
                 state.busy = false;
@@ -419,17 +419,17 @@
         if (!state.game) return;
         let message;
         if (callBool(state.game, 'isCheckmate', 'in_checkmate')) {
-            message = state.ctx.t('desktop.chess_checkmate', 'Checkmate');
+            message = state.ctx.t('desktop.chess_checkmate');
         } else if (callBool(state.game, 'isStalemate', 'in_stalemate')) {
-            message = state.ctx.t('desktop.chess_stalemate', 'Stalemate');
+            message = state.ctx.t('desktop.chess_stalemate');
         } else if (callBool(state.game, 'isDraw', 'in_draw')) {
-            message = state.ctx.t('desktop.chess_draw', 'Draw');
+            message = state.ctx.t('desktop.chess_draw');
         } else if (callBool(state.game, 'inCheck', 'in_check')) {
-            message = state.ctx.t('desktop.chess_check', 'Check');
+            message = state.ctx.t('desktop.chess_check');
         } else if (state.busy) {
-            message = state.ctx.t('desktop.chess_thinking', 'Thinking...');
+            message = state.ctx.t('desktop.chess_thinking');
         } else {
-            message = isPlayersTurn(state) ? state.ctx.t('desktop.chess_your_turn', 'Your turn') : state.ctx.t('desktop.chess_opponent_turn', 'Opponent turn');
+            message = isPlayersTurn(state) ? state.ctx.t('desktop.chess_your_turn') : state.ctx.t('desktop.chess_opponent_turn');
         }
         setStatus(state, message);
         state.refs.comment.textContent = state.agentComment || turnLabel(state);
@@ -438,7 +438,7 @@
     function renderMoves(state) {
         const moves = state.game ? state.game.history({ verbose: true }) : [];
         if (!moves.length) {
-            state.refs.moves.innerHTML = `<li class="vd-chess-empty">${state.ctx.esc(state.ctx.t('desktop.chess_no_moves', 'No moves yet'))}</li>`;
+            state.refs.moves.innerHTML = `<li class="vd-chess-empty">${state.ctx.esc(state.ctx.t('desktop.chess_no_moves'))}</li>`;
             return;
         }
         const rows = [];
@@ -485,10 +485,10 @@
         return new Promise(resolve => {
             const choices = ['q', 'r', 'b', 'n'];
             const names = {
-                q: state.ctx.t('desktop.chess_promo_queen', 'Queen'),
-                r: state.ctx.t('desktop.chess_promo_rook', 'Rook'),
-                b: state.ctx.t('desktop.chess_promo_bishop', 'Bishop'),
-                n: state.ctx.t('desktop.chess_promo_knight', 'Knight')
+                q: state.ctx.t('desktop.chess_promo_queen'),
+                r: state.ctx.t('desktop.chess_promo_rook'),
+                b: state.ctx.t('desktop.chess_promo_bishop'),
+                n: state.ctx.t('desktop.chess_promo_knight')
             };
             const dialog = document.createElement('div');
             dialog.className = 'vd-chess-promotion';
@@ -536,8 +536,8 @@
 
     function turnLabel(state) {
         return state.game && state.game.turn() === 'w'
-            ? state.ctx.t('desktop.chess_white_to_move', 'White to move')
-            : state.ctx.t('desktop.chess_black_to_move', 'Black to move');
+            ? state.ctx.t('desktop.chess_white_to_move')
+            : state.ctx.t('desktop.chess_black_to_move');
     }
 
     function isGameOver(state) {
@@ -556,7 +556,7 @@
 
     function notify(state, message) {
         if (typeof state.ctx.notify === 'function') {
-            state.ctx.notify({ title: state.ctx.t('desktop.chess_title', 'Chess'), message });
+            state.ctx.notify({ title: state.ctx.t('desktop.chess_title'), message });
         }
     }
 

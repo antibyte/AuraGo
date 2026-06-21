@@ -30,10 +30,10 @@
                 '<div class="camera-overlay" data-overlay aria-hidden="true"></div>' +
             '</div>' +
             '<div class="camera-toolbar" data-toolbar>' +
-                '<button class="camera-btn camera-btn-switch" type="button" data-action="switch" hidden aria-label="' + esc(t('desktop.camera_switch', 'Switch Camera')) + '">' +
+                '<button class="camera-btn camera-btn-switch" type="button" data-action="switch" hidden aria-label="' + esc(t('desktop.camera_switch')) + '">' +
                     iconMarkup('refresh', 'S', 'camera-btn-icon', 18) +
                 '</button>' +
-                '<button class="camera-btn camera-btn-capture" type="button" data-action="capture" aria-label="' + esc(t('desktop.camera_capture', 'Capture')) + '">' +
+                '<button class="camera-btn camera-btn-capture" type="button" data-action="capture" aria-label="' + esc(t('desktop.camera_capture')) + '">' +
                     '<span class="camera-capture-ring"></span>' +
                 '</button>' +
                 '<span class="camera-toolbar-spacer" aria-hidden="true"></span>' +
@@ -41,22 +41,22 @@
                     '<button class="camera-btn camera-btn-action" type="button" data-action="retake">' +
                         iconMarkup('refresh', 'R', 'camera-btn-icon', 16) +
                         '<span class="camera-btn-spinner" aria-hidden="true"></span>' +
-                        '<span>' + esc(t('desktop.camera_retake', 'Retake')) + '</span>' +
+                        '<span>' + esc(t('desktop.camera_retake')) + '</span>' +
                     '</button>' +
                     '<button class="camera-btn camera-btn-action" type="button" data-action="save">' +
                         iconMarkup('save', 'S', 'camera-btn-icon', 16) +
                         '<span class="camera-btn-spinner" aria-hidden="true"></span>' +
-                        '<span>' + esc(t('desktop.camera_save', 'Save')) + '</span>' +
+                        '<span>' + esc(t('desktop.camera_save')) + '</span>' +
                     '</button>' +
                     '<button class="camera-btn camera-btn-action camera-btn-send" type="button" data-action="send">' +
                         iconMarkup('chat', 'A', 'camera-btn-icon', 16) +
                         '<span class="camera-btn-spinner" aria-hidden="true"></span>' +
-                        '<span>' + esc(t('desktop.camera_send_agent', 'Send to Agent')) + '</span>' +
+                        '<span>' + esc(t('desktop.camera_send_agent')) + '</span>' +
                     '</button>' +
                 '</div>' +
                 '<div class="camera-toolbar-hint" data-hint aria-hidden="true">' +
-                    '<span><kbd>Space</kbd>' + esc(t('desktop.camera_hint_capture', 'capture')) + '</span>' +
-                    '<span><kbd>R</kbd>' + esc(t('desktop.camera_hint_retake', 'retake')) + '</span>' +
+                    '<span><kbd>Space</kbd>' + esc(t('desktop.camera_hint_capture')) + '</span>' +
+                    '<span><kbd>R</kbd>' + esc(t('desktop.camera_hint_retake')) + '</span>' +
                 '</div>' +
             '</div>' +
         '</div>';
@@ -152,8 +152,8 @@
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 var isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
                 showError(isSecure
-                    ? t('desktop.camera_no_camera', 'No camera found')
-                    : t('desktop.camera_insecure', 'Camera requires HTTPS'));
+                    ? t('desktop.camera_no_camera')
+                    : t('desktop.camera_insecure'));
                 updateUI();
                 return;
             }
@@ -176,9 +176,9 @@
             }).catch(function (err) {
                 var name = (err && err.name) || '';
                 if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-                    showError(t('desktop.camera_permission_denied', 'Camera access denied'));
+                    showError(t('desktop.camera_permission_denied'));
                 } else {
-                    showError(t('desktop.camera_no_camera', 'No camera found'));
+                    showError(t('desktop.camera_no_camera'));
                 }
                 updateUI();
             });
@@ -234,15 +234,15 @@
                 state.saving = false;
                 setLoading(saveBtn, false);
                 if (xhr.status >= 200 && xhr.status < 300) {
-                    notify(t('desktop.camera_saved', 'Photo saved'));
+                    notify(t('desktop.camera_saved'));
                 } else {
-                    notify(t('desktop.camera_save_error', 'Failed to save photo'));
+                    notify(t('desktop.camera_save_error'));
                 }
             };
             xhr.onerror = function () {
                 state.saving = false;
                 setLoading(saveBtn, false);
-                notify(t('desktop.camera_save_error', 'Failed to save photo'));
+                notify(t('desktop.camera_save_error'));
             };
             xhr.send(form);
         }
@@ -254,7 +254,7 @@
 
             var base64 = state.capturedDataURL.split(',')[1] || state.capturedDataURL;
             var body = JSON.stringify({
-                message: t('desktop.camera_analyze_prompt', 'Please analyze this photo.'),
+                message: t('desktop.camera_analyze_prompt'),
                 context: {
                     source: 'camera',
                     image_base64: base64
@@ -276,9 +276,9 @@
                     state.sending = false;
                     setLoading(sendBtn, false);
                     if (xhr.status >= 200 && xhr.status < 300) {
-                        notify(t('desktop.camera_sent', 'Sent to agent'));
+                        notify(t('desktop.camera_sent'));
                     } else {
-                        notify(t('desktop.camera_send_error', 'Failed to send to agent'));
+                        notify(t('desktop.camera_send_error'));
                     }
                 }
             };

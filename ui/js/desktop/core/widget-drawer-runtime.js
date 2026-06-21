@@ -12,7 +12,7 @@ async function renderWidgetDrawerContent(drawer) {
     if (allWidgets.length === 0) {
         content.innerHTML = `
             <div style="padding: 24px 12px; color: var(--vd-muted); font-size: 13px; text-align: center;">
-                ${t('desktop.widget_drawer_empty', 'No widgets available.')}
+                ${t('desktop.widget_drawer_empty')}
             </div>
         `;
         drawer.appendChild(content);
@@ -38,14 +38,14 @@ async function renderWidgetDrawerContent(drawer) {
                     ${esc(widget.title || widget.id)}
                 </div>
                 <div style="font-size:11px; color:var(--vd-muted);">
-                    ${isBuiltin ? t('desktop.widget_builtin', 'Builtin') : t('desktop.widget_custom', 'Custom')}
-                    ${isVisible ? ' • ' + t('desktop.widget_on_desktop', 'On desktop') : ''}
+                    ${isBuiltin ? t('desktop.widget_builtin') : t('desktop.widget_custom')}
+                    ${isVisible ? ' • ' + t('desktop.widget_on_desktop') : ''}
                 </div>
             </div>
             <div>
                 <button type="button" class="vd-wm-btn" data-widget-action="${isVisible ? 'hide' : 'show'}" data-widget-id="${esc(widget.id)}"
                     style="font-size:11px; padding:4px 10px; min-width:72px;">
-                    ${isVisible ? t('desktop.widget_remove_from_desktop', 'Remove') : t('desktop.widget_add_to_desktop', 'Add')}
+                    ${isVisible ? t('desktop.widget_remove_from_desktop') : t('desktop.widget_add_to_desktop')}
                 </button>
             </div>
         `;
@@ -75,8 +75,8 @@ async function renderWidgetDrawerContent(drawer) {
                 });
                 btn.disabled = false;
                 btn.textContent = action === 'show'
-                    ? t('desktop.widget_add_to_desktop', 'Add')
-                    : t('desktop.widget_remove_from_desktop', 'Remove');
+                    ? t('desktop.widget_add_to_desktop')
+                    : t('desktop.widget_remove_from_desktop');
             }
         });
 

@@ -208,8 +208,8 @@
             ctx.c.shadowBlur = 10; ctx.c.shadowColor = '#ffcc00';
             ctx.c.fillStyle = '#ffcc00'; ctx.c.font = 'bold 20px "Courier New",monospace'; ctx.c.fillText('DELUXE', 0, 0);
             ctx.c.shadowBlur = 0; ctx.c.restore();
-            if (Math.sin(ctx.tick * 0.08) > 0) { ctx.c.fillStyle = '#fff'; ctx.c.font = '14px "Courier New",monospace'; ctx.c.fillText(ctx.t('galaxa.insert_coin', 'PRESS START'), ctx.W / 2, 320); }
-            ctx.c.fillStyle = '#4488ff'; ctx.c.font = '12px "Courier New",monospace'; ctx.c.fillText(ctx.t('galaxa.high_score', 'HIGH SCORE'), ctx.W / 2, 260);
+            if (Math.sin(ctx.tick * 0.08) > 0) { ctx.c.fillStyle = '#fff'; ctx.c.font = '14px "Courier New",monospace'; ctx.c.fillText(ctx.t('galaxa.insert_coin'), ctx.W / 2, 320); }
+            ctx.c.fillStyle = '#4488ff'; ctx.c.font = '12px "Courier New",monospace'; ctx.c.fillText(ctx.t('galaxa.high_score'), ctx.W / 2, 260);
             ctx.c.fillStyle = '#ffcc00'; ctx.c.fillText(String(ctx.G.hi).padStart(8, '0'), ctx.W / 2, 280);
             if (ctx.G.hiScores.length) { ctx.c.fillStyle = '#aaccee'; ctx.c.font = '11px "Courier New",monospace'; let y = 380; ctx.c.fillText('RANK   NAME    SCORE    STAGE', ctx.W / 2, y); y += 18; ctx.G.hiScores.forEach((h, i) => { ctx.c.fillText((i + 1) + '    ' + h.name.padEnd(3) + '   ' + String(h.score).padStart(8) + '   ' + String(h.stage).padStart(3), ctx.W / 2, y); y += 16; }); }
             const achKeys = Object.keys(ctx.G.achievements).filter(k => ctx.G.achievements[k]);
@@ -235,7 +235,7 @@
             ctx.c.save(); ctx.c.translate(ctx.W / 2, ctx.H / 2 - 20); ctx.c.scale(sc, sc);
             ctx.c.shadowBlur = 12; ctx.c.shadowColor = '#ffcc00';
             ctx.c.fillStyle = '#ffcc00'; ctx.c.font = 'bold 24px "Courier New",monospace';
-            ctx.c.fillText(ctx.G.chal ? ctx.t('galaxa.challenge_stage', 'CHALLENGE STAGE') : ctx.t('galaxa.stage', 'STAGE') + ' ' + ctx.G.stage, 0, 0);
+            ctx.c.fillText(ctx.G.chal ? ctx.t('galaxa.challenge_stage') : ctx.t('galaxa.stage') + ' ' + ctx.G.stage, 0, 0);
             ctx.c.shadowBlur = 0; ctx.c.restore();
             ctx.c.fillStyle = '#fff'; ctx.c.font = '14px "Courier New",monospace'; ctx.c.fillText('READY', ctx.W / 2, ctx.H / 2 + 20);
         }
@@ -903,7 +903,7 @@
             if (ctx.G.perfectT > 0) {
                 ctx.c.shadowBlur = 8; ctx.c.shadowColor = '#00ffcc';
                 ctx.c.fillStyle = '#00ffcc'; ctx.c.font = 'bold 22px "Courier New",monospace'; ctx.c.textAlign = 'center';
-                ctx.c.fillText(ctx.t('galaxa.perfect_bonus', 'PERFECT BONUS') + ' +5000', ctx.W / 2, ctx.H / 2 - 40);
+                ctx.c.fillText(ctx.t('galaxa.perfect_bonus') + ' +5000', ctx.W / 2, ctx.H / 2 - 40);
                 ctx.c.shadowBlur = 0;
             }
 
@@ -993,10 +993,10 @@
             if (ctx.G.stageRank && ctx.drawRankBanner) ctx.drawRankBanner(ctx.c, ctx.G);
             if (ctx.G.st === 'GAME_OVER') {
                 ctx.c.fillStyle = 'rgba(0,0,0,0.5)'; ctx.c.fillRect(0, ctx.H / 2 - 40, ctx.W, 80);
-                ctx.c.fillStyle = '#ff4444'; ctx.c.font = 'bold 24px "Courier New",monospace'; ctx.c.textAlign = 'center'; ctx.c.fillText(ctx.t('galaxa.game_over', 'GAME OVER'), ctx.W / 2, ctx.H / 2 - 10);
+                ctx.c.fillStyle = '#ff4444'; ctx.c.font = 'bold 24px "Courier New",monospace'; ctx.c.textAlign = 'center'; ctx.c.fillText(ctx.t('galaxa.game_over'), ctx.W / 2, ctx.H / 2 - 10);
                 if (ctx.G.contTmr > 0) {
                     ctx.c.fillStyle = '#ffcc00'; ctx.c.font = '16px "Courier New",monospace';
-                    ctx.c.fillText(ctx.t('galaxa.continue_prompt', 'CONTINUE?') + ' ' + ctx.G.contCnt, ctx.W / 2, ctx.H / 2 + 20);
+                    ctx.c.fillText(ctx.t('galaxa.continue_prompt') + ' ' + ctx.G.contCnt, ctx.W / 2, ctx.H / 2 + 20);
                     const _cAngle = (ctx.G.contTmr / 10) * Math.PI * 2 - Math.PI / 2;
                     ctx.c.strokeStyle = '#ffcc00'; ctx.c.lineWidth = 3; ctx.c.globalAlpha = 0.7;
                     ctx.c.shadowBlur = 6; ctx.c.shadowColor = '#ffcc00';
@@ -1017,7 +1017,7 @@
         }
 
         function renderHUD() {
-            ctx.c.fillStyle = '#4488ff'; ctx.c.font = '12px "Courier New",monospace'; ctx.c.textAlign = 'left'; ctx.c.fillText(ctx.t('galaxa.score', 'SCORE'), 10, 16);
+            ctx.c.fillStyle = '#4488ff'; ctx.c.font = '12px "Courier New",monospace'; ctx.c.textAlign = 'left'; ctx.c.fillText(ctx.t('galaxa.score'), 10, 16);
             const _scoreText = ctx.formatScore ? ctx.formatScore(ctx.G.displayScore | 0) : String(ctx.G.displayScore | 0);
             const _isHigh = ctx.G.displayScore > ctx.G.hi;
             ctx.c.fillStyle = _isHigh ? '#ffcc00' : '#fff';
@@ -1042,17 +1042,17 @@
                 ctx.c.fillStyle = cmCol; ctx.c.font = 'bold 8px monospace'; ctx.c.textAlign = 'center';
                 ctx.c.fillText(ctx.G.combo, cmx, cmy + 3);
             }
-            ctx.c.fillStyle = '#4488ff'; ctx.c.textAlign = 'right'; ctx.c.fillText(ctx.t('galaxa.high_score', 'HIGH SCORE'), ctx.W - 10, 16);
+            ctx.c.fillStyle = '#4488ff'; ctx.c.textAlign = 'right'; ctx.c.fillText(ctx.t('galaxa.high_score'), ctx.W - 10, 16);
             ctx.c.fillStyle = '#ffcc00'; ctx.c.fillText(String(ctx.G.hi).padStart(8, '0'), ctx.W - 10, 32);
             const stagePulse = ctx.G.warpT > 0 ? 1 + Math.sin(ctx.tick * 0.15) * 0.3 : 1;
             ctx.c.save(); ctx.c.translate(ctx.W / 2, 16); ctx.c.scale(stagePulse, stagePulse);
             ctx.c.fillStyle = '#4488ff'; ctx.c.font = 'bold 12px "Courier New",monospace'; ctx.c.textAlign = 'center';
-            ctx.c.fillText(ctx.t('galaxa.stage', 'STAGE') + ' ' + ctx.G.stage, 0, 0);
+            ctx.c.fillText(ctx.t('galaxa.stage') + ' ' + ctx.G.stage, 0, 0);
             ctx.c.restore();
             if (ctx.G.chal) {
                 let _cr = 0; for (let _ci = 0; _ci < ctx.G.enemies.length; _ci++) if (ctx.G.enemies[_ci].st !== 'DEAD') _cr++;
                 ctx.c.fillStyle = '#ff8800'; ctx.c.font = 'bold 10px "Courier New",monospace'; ctx.c.textAlign = 'center';
-                ctx.c.fillText(ctx.t('galaxa.challenge_stage', 'CHALLENGE') + ' ' + _cr + '/' + ctx.G.chalTot, ctx.W / 2, 28);
+                ctx.c.fillText(ctx.t('galaxa.challenge_stage') + ' ' + _cr + '/' + ctx.G.chalTot, ctx.W / 2, 28);
             }
             let alive2cnt = 0; for (let _hi = 0; _hi < ctx.G.enemies.length; _hi++) { const _hh = ctx.G.enemies[_hi]; if (_hh.st !== 'DEAD' && _hh.type !== 'boss' && _hh.type !== 'miniboss') alive2cnt++; }
             if (alive2cnt > 0 && alive2cnt <= 5) {
@@ -1171,11 +1171,11 @@
             ctx.c.fillStyle = 'rgba(0,0,0,0.75)'; ctx.c.fillRect(0, 0, ctx.W, ctx.H);
             ctx.c.textAlign = 'center'; ctx.c.fillStyle = '#ffcc00'; ctx.c.font = 'bold 26px "Courier New",monospace';
             ctx.c.shadowBlur = 10; ctx.c.shadowColor = '#ffcc00';
-            ctx.c.fillText(ctx.t('galaxa.paused', 'PAUSED'), ctx.W / 2, ctx.H / 2 - 60);
+            ctx.c.fillText(ctx.t('galaxa.paused'), ctx.W / 2, ctx.H / 2 - 60);
             ctx.c.shadowBlur = 0;
             ctx.c.fillStyle = '#aaccee'; ctx.c.font = '12px "Courier New",monospace';
-            ctx.c.fillText(ctx.t('galaxa.score', 'SCORE') + ': ' + ctx.G.score + '  ' + ctx.t('galaxa.stage', 'STAGE') + ': ' + ctx.G.stage, ctx.W / 2, ctx.H / 2 - 35);
-            const items = [ctx.t('galaxa.resume', 'RESUME'), ctx.t('galaxa.restart', 'RESTART'), ctx.t('galaxa.quit', 'QUIT')];
+            ctx.c.fillText(ctx.t('galaxa.score') + ': ' + ctx.G.score + '  ' + ctx.t('galaxa.stage') + ': ' + ctx.G.stage, ctx.W / 2, ctx.H / 2 - 35);
+            const items = [ctx.t('galaxa.resume'), ctx.t('galaxa.restart'), ctx.t('galaxa.quit')];
             items.forEach((it, i) => {
                 ctx.c.fillStyle = i === ctx.G.pauseSel ? '#ffcc00' : '#888'; ctx.c.font = i === ctx.G.pauseSel ? 'bold 16px "Courier New",monospace' : '14px "Courier New",monospace';
                 if (i === ctx.G.pauseSel) { ctx.c.shadowBlur = 6; ctx.c.shadowColor = '#ffcc00'; }
@@ -1188,19 +1188,19 @@
             ctx.c.fillStyle = 'rgba(0,0,0,0.88)'; ctx.c.fillRect(0, 0, ctx.W, ctx.H);
             ctx.c.textAlign = 'center'; ctx.c.fillStyle = '#ffcc00'; ctx.c.font = 'bold 22px "Courier New",monospace';
             ctx.c.shadowBlur = 10; ctx.c.shadowColor = '#ffcc00';
-            ctx.c.fillText(ctx.t('galaxa.settings', 'SETTINGS'), ctx.W / 2, 80);
+            ctx.c.fillText(ctx.t('galaxa.settings'), ctx.W / 2, 80);
             ctx.c.shadowBlur = 0;
             const shipName = ctx.t('galaxa.' + ctx.settings.ship, (ctx.SHIP_TYPES[ctx.settings.ship] || ctx.SHIP_TYPES.classic).name);
             const shakeLabel = ctx.settings.shake === 0 ? 'OFF' : ctx.settings.shake === 0.25 ? 'LOW' : ctx.settings.shake === 0.5 ? 'MED' : ctx.settings.shake === 0.75 ? 'HIGH' : 'MAX';
             const items = [
-                { label: ctx.t('galaxa.sound', 'SOUND'), val: ctx.G.muted ? 'OFF' : 'ON' },
-                { label: ctx.t('galaxa.difficulty', 'DIFFICULTY'), val: ctx.t('galaxa.' + ctx.settings.diff, ctx.settings.diff.toUpperCase()) },
-                { label: ctx.t('galaxa.volume', 'VOLUME'), val: ctx.settings.vol + '%' },
-                { label: ctx.t('galaxa.ship_select', 'SHIP'), val: shipName },
-                { label: ctx.t('galaxa.crt_effect', 'CRT EFFECT'), val: ctx.settings.crt ? 'ON' : 'OFF' },
-                { label: ctx.t('galaxa.particle_density', 'PARTICLES'), val: ctx.t('galaxa.' + ctx.settings.particles, ctx.settings.particles.toUpperCase()) },
-                { label: ctx.t('galaxa.shake_intensity', 'SHAKE'), val: shakeLabel },
-                { label: ctx.t('galaxa.quit', 'QUIT'), val: '' }
+                { label: ctx.t('galaxa.sound'), val: ctx.G.muted ? 'OFF' : 'ON' },
+                { label: ctx.t('galaxa.difficulty'), val: ctx.t('galaxa.' + ctx.settings.diff, ctx.settings.diff.toUpperCase()) },
+                { label: ctx.t('galaxa.volume'), val: ctx.settings.vol + '%' },
+                { label: ctx.t('galaxa.ship_select'), val: shipName },
+                { label: ctx.t('galaxa.crt_effect'), val: ctx.settings.crt ? 'ON' : 'OFF' },
+                { label: ctx.t('galaxa.particle_density'), val: ctx.t('galaxa.' + ctx.settings.particles, ctx.settings.particles.toUpperCase()) },
+                { label: ctx.t('galaxa.shake_intensity'), val: shakeLabel },
+                { label: ctx.t('galaxa.quit'), val: '' }
             ];
             items.forEach((it, i) => {
                 const sel = i === ctx.G.settingsSel;

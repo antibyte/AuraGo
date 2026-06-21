@@ -77,13 +77,13 @@
             defaultName = base.includes('.') ? base.slice(0, base.lastIndexOf('.')) + '.zip' : base + '.zip';
         }
         
-        const zipName = await promptDialog(t('desktop.fm.compress_zip', 'Compress to ZIP'), defaultName);
+        const zipName = await promptDialog(t('desktop.fm.compress_zip'), defaultName);
         if (!zipName) return;
         
         const destPath = joinPath(fm.currentPath, zipName);
         
         try {
-            showNotification({ type: 'info', message: t('desktop.fm.copy_progress', 'Copying files...') });
+            showNotification({ type: 'info', message: t('desktop.fm.copy_progress') });
             await api('/api/desktop/archive', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -101,7 +101,7 @@
     async function extractZip(file, extractHere = true) {
         let dest = fm.currentPath;
         if (!extractHere) {
-            const destPrompt = await promptDialog(t('desktop.fm.extract_zip_to', 'Extract ZIP to...'), fm.currentPath);
+            const destPrompt = await promptDialog(t('desktop.fm.extract_zip_to'), fm.currentPath);
             if (!destPrompt) return;
             dest = destPrompt;
         }
@@ -177,28 +177,28 @@
             }
             
             overlay.innerHTML = `<div class="fm-modal fm-batch-rename-modal" style="max-width: 650px; width: 90%">
-                <div class="fm-modal-title">${esc(t('desktop.fm.batch_rename_title', 'Batch Rename Files'))}</div>
+                <div class="fm-modal-title">${esc(t('desktop.fm.batch_rename_title'))}</div>
                 <div class="fm-batch-rename-grid" style="display:grid;grid-template-columns: 240px 1fr; gap:16px; margin: 12px 0;">
                     <div class="fm-batch-rename-fields" style="display:flex;flex-direction:column;gap:8px">
                         <div class="fm-field-group" style="display:flex;flex-direction:column;gap:2px">
-                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_prefix', 'Prefix'))}</label>
+                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_prefix'))}</label>
                             <input type="text" name="prefix" value="" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
                         </div>
                         <div class="fm-field-group" style="display:flex;flex-direction:column;gap:2px">
-                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_suffix', 'Suffix'))}</label>
+                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_suffix'))}</label>
                             <input type="text" name="suffix" value="" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
                         </div>
                         <div class="fm-field-group" style="display:flex;flex-direction:column;gap:2px">
-                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_find', 'Find'))}</label>
+                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_find'))}</label>
                             <input type="text" name="find" value="" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
                         </div>
                         <div class="fm-field-group" style="display:flex;flex-direction:column;gap:2px">
-                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_replace', 'Replace'))}</label>
+                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_replace'))}</label>
                             <input type="text" name="replace" value="" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
                         </div>
                         <div class="fm-field-group fm-checkbox-group" style="display:flex;align-items:center;gap:6px;margin:4px 0">
                             <input type="checkbox" name="numbering" id="fm-rename-num">
-                            <label for="fm-rename-num" style="font-size:0.75rem;user-select:none">${esc(t('desktop.fm.batch_rename_numbering', 'Numbering (001...)'))}</label>
+                            <label for="fm-rename-num" style="font-size:0.75rem;user-select:none">${esc(t('desktop.fm.batch_rename_numbering'))}</label>
                         </div>
                         <div class="fm-field-group" style="display:none;flex-direction:column;gap:2px" id="fm-rename-start-group">
                             <label style="font-size:0.7rem;color:var(--vd-muted)">Start Number</label>
@@ -214,8 +214,8 @@
                     </div>
                 </div>
                 <div class="fm-modal-actions">
-                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel', 'Cancel'))}</button>
-                    <button type="button" class="fm-btn primary" data-rename>${esc(t('desktop.fm.batch_rename', 'Rename'))}</button>
+                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel'))}</button>
+                    <button type="button" class="fm-btn primary" data-rename>${esc(t('desktop.fm.batch_rename'))}</button>
                 </div>
             </div>`;
             
@@ -297,9 +297,9 @@
             const options = templates.map(t => `<option value="${t.ext}">${t.label} (.${t.ext})</option>`).join('');
             
             overlay.innerHTML = `<form class="fm-modal">
-                <div class="fm-modal-title">${esc(t('desktop.fm.new_file_template', 'Create File from Template'))}</div>
+                <div class="fm-modal-title">${esc(t('desktop.fm.new_file_template'))}</div>
                 <div class="fm-field-group" style="margin-bottom: 12px; display:flex; flex-direction:column; gap:4px">
-                    <label style="font-size:0.75rem;color:var(--vd-muted)">${esc(t('desktop.fm.new_file_prompt', 'File name'))}</label>
+                    <label style="font-size:0.75rem;color:var(--vd-muted)">${esc(t('desktop.fm.new_file_prompt'))}</label>
                     <input type="text" name="filename" value="new-file.txt" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
                 </div>
                 <div class="fm-field-group" style="margin-bottom: 16px; display:flex; flex-direction:column; gap:4px">
@@ -307,8 +307,8 @@
                     <select name="template" style="width:100%;box-sizing:border-box;background:#1a1a1a;color:var(--vd-text);border:1px solid var(--vd-border);padding:6px;border-radius:4px">${options}</select>
                 </div>
                 <div class="fm-modal-actions">
-                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel', 'Cancel'))}</button>
-                    <button type="submit" class="fm-btn primary">${esc(t('desktop.ok', 'OK'))}</button>
+                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel'))}</button>
+                    <button type="submit" class="fm-btn primary">${esc(t('desktop.ok'))}</button>
                 </div>
             </form>`;
             

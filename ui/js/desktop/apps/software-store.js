@@ -42,10 +42,10 @@
             <div class="vd-store">
                 <div class="vd-store-toolbar">
                     <div class="vd-store-heading">
-                        <div class="vd-store-title">${esc(t('desktop.store.title', 'Software Store'))}</div>
-                        <div class="vd-store-subtitle">${esc(t('desktop.store.subtitle', 'Install allowlisted Docker web apps.'))}</div>
+                        <div class="vd-store-title">${esc(t('desktop.store.title'))}</div>
+                        <div class="vd-store-subtitle">${esc(t('desktop.store.subtitle'))}</div>
                     </div>
-                    <button type="button" class="vd-store-btn" data-action="refresh">${iconMarkup('refresh', 'R', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.context_refresh', 'Refresh'))}</span></button>
+                    <button type="button" class="vd-store-btn" data-action="refresh">${iconMarkup('refresh', 'R', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.context_refresh'))}</span></button>
                 </div>
                 <div class="vd-store-warning" hidden></div>
                 <div class="vd-store-grid"></div>
@@ -62,7 +62,7 @@
         function showStoreError(err, fallbackKey, fallbackText) {
             if (!storeGridReady()) return;
             const message = err && err.message ? err.message : t(fallbackKey, fallbackText);
-            grid.innerHTML = `<div class="vd-store-empty">${esc(message || t('desktop.store.load_failed', 'Could not load the software store.'))}</div>`;
+            grid.innerHTML = `<div class="vd-store-empty">${esc(message || t('desktop.store.load_failed'))}</div>`;
         }
 
         function storeEntryUsesThemeIcon(entry) {
@@ -115,7 +115,7 @@
         async function loadCatalog(forceRefresh) {
             const token = ++loadToken;
             if (!storeGridReady()) return;
-            grid.innerHTML = `<div class="vd-store-loading">${esc(t('desktop.loading', 'Loading...'))}</div>`;
+            grid.innerHTML = `<div class="vd-store-loading">${esc(t('desktop.loading'))}</div>`;
             try {
                 const body = await fetchCatalog(forceRefresh);
                 const allowSupersededInitialRender = token !== loadToken && !initialCatalogLoaded;
@@ -177,17 +177,17 @@
 
         function storeOpenLabel(entry) {
             if (entry && entry.id === 'commandcode') {
-                return t('desktop.store.open_commandcode', 'Open CommandCode');
+                return t('desktop.store.open_commandcode');
             }
-            return t('desktop.store.open', 'Open');
+            return t('desktop.store.open');
         }
 
         function storeUiBadge(entry) {
             if (isNativeManagedEntry(entry)) {
-                return `<span class="vd-store-badge">${esc(t('desktop.store.badge_native', 'Native'))}</span>`;
+                return `<span class="vd-store-badge">${esc(t('desktop.store.badge_native'))}</span>`;
             }
             if (entry && entry.metadata && entry.metadata.store_ui === 'terminal-preview') {
-                return `<span class="vd-store-badge">${esc(t('desktop.store.badge_terminal_preview', 'Console + Preview'))}</span>`;
+                return `<span class="vd-store-badge">${esc(t('desktop.store.badge_terminal_preview'))}</span>`;
             }
             return '';
         }
@@ -196,7 +196,7 @@
             if (!storeGridReady()) return;
             try {
                 if (!catalog.length) {
-                    grid.innerHTML = `<div class="vd-store-empty">${esc(t('desktop.store.empty', 'No apps available.'))}</div>`;
+                    grid.innerHTML = `<div class="vd-store-empty">${esc(t('desktop.store.empty'))}</div>`;
                     return;
                 }
                 grid.innerHTML = catalog.map(entry => {
@@ -212,7 +212,7 @@
                 const themedStoreIcon = storeEntryUsesThemeIcon(entry);
                 const logo = !themedStoreIcon && entry.logo_url ? `<img class="vd-store-logo" src="${esc(entry.logo_url)}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">` : '';
                 const fallback = `<div class="vd-store-logo-fallback"${!themedStoreIcon && entry.logo_url ? ' hidden' : ''}>${iconMarkup(entry.icon || 'package', entry.name || 'A', 'vd-store-logo-icon', 30)}</div>`;
-                const access = app ? accessLabel(app) : t('desktop.store.not_installed', 'Not installed');
+                const access = app ? accessLabel(app) : t('desktop.store.not_installed');
                 const warningText = hostAccessWarning(entry);
                 return `<article class="vd-store-card" data-app-id="${esc(entry.id)}">
                     <div class="vd-store-card-head">
@@ -232,12 +232,12 @@
                     <div class="vd-store-actions">
                         ${app ? `<button type="button" class="vd-store-btn vd-store-primary" data-action="open">${iconMarkup('browser', 'O', 'vd-store-btn-icon', 15)}<span>${esc(storeOpenLabel(entry))}</span></button>` : ''}
                         ${extraPortButtons(entry, app, actionDisabled)}
-                        ${app && stopped ? `<button type="button" class="vd-store-btn" data-action="start" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start', 'Start'))}</span></button>` : ''}
-                        ${app && running ? `<button type="button" class="vd-store-btn" data-action="stop" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('stop', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.stop', 'Stop'))}</span></button>` : ''}
-                        ${app ? `<button type="button" class="vd-store-btn" data-action="update" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('download', 'U', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.update', 'Update'))}</span></button>
-                            ${hasExposedCredentials(entry) ? `<button type="button" class="vd-store-btn" data-action="credentials">${iconMarkup('key', 'K', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.credentials', 'Credentials'))}</span></button>` : ''}
-                            ${entry.id === 'beszel' ? `<button type="button" class="vd-store-btn" data-action="configure-agent" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('settings', 'A', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.configure_agent', 'Configure agent'))}</span></button>` : ''}
-                            <button type="button" class="vd-store-btn vd-store-danger" data-action="uninstall" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('trash', 'X', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.uninstall', 'Uninstall'))}</span></button>` : `<button type="button" class="vd-store-btn vd-store-primary" data-action="install" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('download', 'I', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.install', 'Install'))}</span></button>`}
+                        ${app && stopped ? `<button type="button" class="vd-store-btn" data-action="start" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start'))}</span></button>` : ''}
+                        ${app && running ? `<button type="button" class="vd-store-btn" data-action="stop" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('stop', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.stop'))}</span></button>` : ''}
+                        ${app ? `<button type="button" class="vd-store-btn" data-action="update" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('download', 'U', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.update'))}</span></button>
+                            ${hasExposedCredentials(entry) ? `<button type="button" class="vd-store-btn" data-action="credentials">${iconMarkup('key', 'K', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.credentials'))}</span></button>` : ''}
+                            ${entry.id === 'beszel' ? `<button type="button" class="vd-store-btn" data-action="configure-agent" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('settings', 'A', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.configure_agent'))}</span></button>` : ''}
+                            <button type="button" class="vd-store-btn vd-store-danger" data-action="uninstall" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('trash', 'X', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.uninstall'))}</span></button>` : `<button type="button" class="vd-store-btn vd-store-primary" data-action="install" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('download', 'I', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.install'))}</span></button>`}
                     </div>
                 </article>`;
                 }).join('');
@@ -258,7 +258,7 @@
             const hasHostBinds = entry && Array.isArray(entry.host_binds) && entry.host_binds.length > 0;
             const hasCompanionHostAccess = entry && Array.isArray(entry.companions) && entry.companions.some(companion => companion.network_mode === 'host' || (Array.isArray(companion.host_binds) && companion.host_binds.length > 0));
             if (!hasHostBinds && !hasCompanionHostAccess) return '';
-            return t('desktop.store.host_access_warning', 'Requires allowlisted host access.');
+            return t('desktop.store.host_access_warning');
         }
 
         function extraPortButtons(entry, app, actionDisabled) {
@@ -276,7 +276,7 @@
         function statusLabel(status, operation) {
             if (operation && operation.type === 'install') {
                 if (operation.status === 'pending' || operation.status === 'running') {
-                    return t('desktop.store.status_installing', 'Installing');
+                    return t('desktop.store.status_installing');
                 }
             }
             if (operation && operation.status && operation.status !== 'succeeded') {
@@ -287,8 +287,8 @@
 
         function accessLabel(app) {
             const parts = [];
-            parts.push(app.bind_mode === 'lan' ? t('desktop.store.access_lan', 'LAN') : t('desktop.store.access_local', 'Local'));
-            if (app.tailscale_enabled) parts.push(app.tailscale_status === 'active' ? t('desktop.store.access_tailnet', 'Tailnet') : t('desktop.store.access_tailnet_pending', 'Tailnet pending'));
+            parts.push(app.bind_mode === 'lan' ? t('desktop.store.access_lan') : t('desktop.store.access_local'));
+            if (app.tailscale_enabled) parts.push(app.tailscale_status === 'active' ? t('desktop.store.access_tailnet') : t('desktop.store.access_tailnet_pending'));
             return parts.join(' / ');
         }
 
@@ -296,7 +296,7 @@
             if (isMutatingAction(action) && busy.has(appId)) return;
             const entry = catalog.find(item => item.id === appId);
             if (isMutatingAction(action) && !mutationsAllowed) {
-                notify({ title: t('desktop.store.title', 'Software Store'), message: mutationDisabledText() });
+                notify({ title: t('desktop.store.title'), message: mutationDisabledText() });
                 return;
             }
             if (action === 'install') {
@@ -331,18 +331,18 @@
         function mutationDisabledText() {
             switch (mutationDisabledReason) {
                 case 'desktop_readonly':
-                    return t('desktop.store.desktop_readonly', 'Virtual Desktop is in read-only mode. Store actions are disabled.');
+                    return t('desktop.store.desktop_readonly');
                 case 'docker_disabled':
-                    return t('desktop.store.docker_disabled', 'Docker integration is disabled. Store actions are disabled.');
+                    return t('desktop.store.docker_disabled');
                 case 'docker_readonly':
-                    return t('desktop.store.docker_readonly', 'Docker is in read-only mode. Store actions are disabled.');
+                    return t('desktop.store.docker_readonly');
                 case 'docker_unavailable':
-                    return t('desktop.store.docker_unavailable', 'Docker is not available. Install actions are disabled.');
+                    return t('desktop.store.docker_unavailable');
                 default:
                     if (!dockerAvailable) {
-                        return t('desktop.store.docker_unavailable', 'Docker is not available. Install actions are disabled.');
+                        return t('desktop.store.docker_unavailable');
                     }
-                    return t('desktop.store.mutations_disabled', 'Store actions are disabled.');
+                    return t('desktop.store.mutations_disabled');
             }
         }
 
@@ -352,14 +352,14 @@
             const overlay = document.createElement('div');
             overlay.className = 'vd-modal-backdrop';
             overlay.innerHTML = `<form class="vd-modal vd-store-modal" role="dialog" aria-modal="true">
-                <div class="vd-modal-title">${esc(t('desktop.store.install_title', 'Install'))}: ${esc(entry.name)}</div>
-                <div class="vd-store-modal-copy">${esc(t('desktop.store.install_copy', 'Choose how the container web UI should be reachable.'))}</div>
-                <label class="vd-store-choice"><input type="radio" name="bind" value="local" checked><span><b>${esc(t('desktop.store.bind_local', 'Local only'))}</b><small>127.0.0.1</small></span></label>
-                <label class="vd-store-choice"><input type="radio" name="bind" value="lan"><span><b>${esc(t('desktop.store.bind_lan', 'LAN'))}</b><small>0.0.0.0</small></span></label>
-                <label class="vd-store-choice"><input type="checkbox" name="tailscale"><span><b>${esc(t('desktop.store.tailscale', 'Tailscale'))}</b><small>${esc(t('desktop.store.tailscale_hint', 'Pending until the tsnet node is available.'))}</small></span></label>
+                <div class="vd-modal-title">${esc(t('desktop.store.install_title'))}: ${esc(entry.name)}</div>
+                <div class="vd-store-modal-copy">${esc(t('desktop.store.install_copy'))}</div>
+                <label class="vd-store-choice"><input type="radio" name="bind" value="local" checked><span><b>${esc(t('desktop.store.bind_local'))}</b><small>127.0.0.1</small></span></label>
+                <label class="vd-store-choice"><input type="radio" name="bind" value="lan"><span><b>${esc(t('desktop.store.bind_lan'))}</b><small>0.0.0.0</small></span></label>
+                <label class="vd-store-choice"><input type="checkbox" name="tailscale"><span><b>${esc(t('desktop.store.tailscale'))}</b><small>${esc(t('desktop.store.tailscale_hint'))}</small></span></label>
                 <div class="vd-modal-actions">
-                    <button type="button" class="vd-button" data-action="cancel">${esc(t('desktop.cancel', 'Cancel'))}</button>
-                    <button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.store.install', 'Install'))}</button>
+                    <button type="button" class="vd-button" data-action="cancel">${esc(t('desktop.cancel'))}</button>
+                    <button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.store.install'))}</button>
                 </div>
             </form>`;
             document.body.appendChild(overlay);
@@ -385,12 +385,12 @@
             const overlay = document.createElement('div');
             overlay.className = 'vd-modal-backdrop';
             overlay.innerHTML = `<form class="vd-modal vd-store-modal" role="dialog" aria-modal="true">
-                <div class="vd-modal-title">${esc(t('desktop.store.uninstall', 'Uninstall'))}</div>
-                <div class="vd-store-modal-copy">${esc(t('desktop.store.uninstall_copy', 'Remove the container and desktop entries.'))}</div>
-                <label class="vd-store-choice"><input type="checkbox" name="delete-data"><span><b>${esc(t('desktop.store.delete_data', 'Delete data volumes'))}</b><small>${esc(t('desktop.store.delete_data_hint', 'This removes the app data volumes.'))}</small></span></label>
+                <div class="vd-modal-title">${esc(t('desktop.store.uninstall'))}</div>
+                <div class="vd-store-modal-copy">${esc(t('desktop.store.uninstall_copy'))}</div>
+                <label class="vd-store-choice"><input type="checkbox" name="delete-data"><span><b>${esc(t('desktop.store.delete_data'))}</b><small>${esc(t('desktop.store.delete_data_hint'))}</small></span></label>
                 <div class="vd-modal-actions">
-                    <button type="button" class="vd-button" data-action="cancel">${esc(t('desktop.cancel', 'Cancel'))}</button>
-                    <button type="submit" class="vd-button vd-button-danger">${esc(t('desktop.store.uninstall', 'Uninstall'))}</button>
+                    <button type="button" class="vd-button" data-action="cancel">${esc(t('desktop.cancel'))}</button>
+                    <button type="submit" class="vd-button vd-button-danger">${esc(t('desktop.store.uninstall'))}</button>
                 </div>
             </form>`;
             document.body.appendChild(overlay);
@@ -425,7 +425,7 @@
                 if (pendingWindow && !pendingWindow.closed) {
                     pendingWindow.close();
                 }
-                notify({ title: t('desktop.store.title', 'Software Store'), message: err.message });
+                notify({ title: t('desktop.store.title'), message: err.message });
             }
         }
 
@@ -436,17 +436,17 @@
                 const overlay = document.createElement('div');
                 overlay.className = 'vd-modal-backdrop';
                 overlay.innerHTML = `<div class="vd-modal vd-store-modal" role="dialog" aria-modal="true">
-                    <div class="vd-modal-title">${esc(t('desktop.store.credentials', 'Credentials'))}</div>
-                    <div class="vd-store-credentials">${credentials.map(credential => `<label class="vd-store-credential"><span>${esc(credential.label || credential.key)}</span><input type="text" readonly value="${esc(credential.value || '')}"></label>`).join('') || `<div class="vd-store-modal-copy">${esc(t('desktop.store.no_credentials', 'No credentials are exposed for this app.'))}</div>`}</div>
+                    <div class="vd-modal-title">${esc(t('desktop.store.credentials'))}</div>
+                    <div class="vd-store-credentials">${credentials.map(credential => `<label class="vd-store-credential"><span>${esc(credential.label || credential.key)}</span><input type="text" readonly value="${esc(credential.value || '')}"></label>`).join('') || `<div class="vd-store-modal-copy">${esc(t('desktop.store.no_credentials'))}</div>`}</div>
                     <div class="vd-modal-actions">
-                        <button type="button" class="vd-button vd-button-primary" data-action="close">${esc(t('desktop.close', 'Close'))}</button>
+                        <button type="button" class="vd-button vd-button-primary" data-action="close">${esc(t('desktop.close'))}</button>
                     </div>
                 </div>`;
                 document.body.appendChild(overlay);
                 overlay.querySelector('[data-action="close"]').addEventListener('click', () => overlay.remove());
                 overlay.addEventListener('click', event => { if (event.target === overlay) overlay.remove(); });
             } catch (err) {
-                notify({ title: t('desktop.store.title', 'Software Store'), message: err.message });
+                notify({ title: t('desktop.store.title'), message: err.message });
             }
         }
 
@@ -454,13 +454,13 @@
             const overlay = document.createElement('div');
             overlay.className = 'vd-modal-backdrop';
             overlay.innerHTML = `<form class="vd-modal vd-store-modal" role="dialog" aria-modal="true">
-                <div class="vd-modal-title">${esc(t('desktop.store.configure_agent', 'Configure agent'))}</div>
-                <div class="vd-store-modal-copy">${esc(t('desktop.store.beszel_agent_copy', 'Paste the KEY and TOKEN from Beszel Hub to start the local agent.'))}</div>
-                <label class="vd-store-field"><span>${esc(t('desktop.store.beszel_key', 'KEY'))}</span><textarea name="key" required></textarea></label>
-                <label class="vd-store-field"><span>${esc(t('desktop.store.beszel_token', 'TOKEN'))}</span><input type="password" name="token" required></label>
+                <div class="vd-modal-title">${esc(t('desktop.store.configure_agent'))}</div>
+                <div class="vd-store-modal-copy">${esc(t('desktop.store.beszel_agent_copy'))}</div>
+                <label class="vd-store-field"><span>${esc(t('desktop.store.beszel_key'))}</span><textarea name="key" required></textarea></label>
+                <label class="vd-store-field"><span>${esc(t('desktop.store.beszel_token'))}</span><input type="password" name="token" required></label>
                 <div class="vd-modal-actions">
-                    <button type="button" class="vd-button" data-action="cancel">${esc(t('desktop.cancel', 'Cancel'))}</button>
-                    <button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.save', 'Save'))}</button>
+                    <button type="button" class="vd-button" data-action="cancel">${esc(t('desktop.cancel'))}</button>
+                    <button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.save'))}</button>
                 </div>
             </form>`;
             document.body.appendChild(overlay);
@@ -480,9 +480,9 @@
                     });
                     overlay.remove();
                     scheduleLoad(true, true);
-                    notify({ title: t('desktop.store.title', 'Software Store'), message: t('desktop.store.agent_configured', 'Agent configured.') });
+                    notify({ title: t('desktop.store.title'), message: t('desktop.store.agent_configured') });
                 } catch (err) {
-                    notify({ title: t('desktop.store.title', 'Software Store'), message: err.message });
+                    notify({ title: t('desktop.store.title'), message: err.message });
                 }
             });
         }
@@ -500,7 +500,7 @@
                     pollOperation(appId, body.operation.id);
                 }
             } catch (err) {
-                notify({ title: t('desktop.store.title', 'Software Store'), message: err.message });
+                notify({ title: t('desktop.store.title'), message: err.message });
             }
         }
 
@@ -520,7 +520,7 @@
                         busy.delete(appId);
                         scheduleLoad(true, true);
                         await loadBootstrap();
-                        if (op && op.status === 'failed') notify({ title: t('desktop.store.title', 'Software Store'), message: op.error || t('desktop.store.operation_failed', 'Operation failed') });
+                        if (op && op.status === 'failed') notify({ title: t('desktop.store.title'), message: op.error || t('desktop.store.operation_failed') });
                         return;
                     }
                 }

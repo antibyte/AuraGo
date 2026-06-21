@@ -7,18 +7,18 @@
             }),
             buildDrawPanelHTML: Pixel.bindRuntime(runtime, function buildDrawPanelHTML() {
                                 const tools = [
-                                    ['select-rect', this.t('pixel.select_rect', 'Rectangle Select')],
-                                    ['select-ellipse', this.t('pixel.select_ellipse', 'Ellipse Select')],
-                                    ['brush', this.t('pixel.brush', 'Brush')],
-                                    ['eraser', this.t('pixel.eraser', 'Eraser')],
-                                    ['pencil', this.t('pixel.pencil', 'Pencil')],
-                                    ['line', this.t('pixel.line', 'Line')],
-                                    ['rectangle', this.t('pixel.rectangle', 'Rectangle')],
-                                    ['ellipse', this.t('pixel.ellipse', 'Ellipse')],
-                                    ['arrow', this.t('pixel.arrow', 'Arrow')],
-                                    ['text', this.t('pixel.text', 'Text')],
-                                    ['fill', this.t('pixel.fill', 'Fill')],
-                                    ['eyedropper', this.t('pixel.eyedropper', 'Eyedropper')]
+                                    ['select-rect', this.t('pixel.select_rect')],
+                                    ['select-ellipse', this.t('pixel.select_ellipse')],
+                                    ['brush', this.t('pixel.brush')],
+                                    ['eraser', this.t('pixel.eraser')],
+                                    ['pencil', this.t('pixel.pencil')],
+                                    ['line', this.t('pixel.line')],
+                                    ['rectangle', this.t('pixel.rectangle')],
+                                    ['ellipse', this.t('pixel.ellipse')],
+                                    ['arrow', this.t('pixel.arrow')],
+                                    ['text', this.t('pixel.text')],
+                                    ['fill', this.t('pixel.fill')],
+                                    ['eyedropper', this.t('pixel.eyedropper')]
                                 ];
                                 const toolGrid = tools.map(([id, label]) =>
                                     `<button class="pixel-tool-btn${this.activeTool === id ? ' active' : ''}" type="button" data-draw-tool="${id}" title="${this.esc(label)}">${this.toolSvg(id)}</button>`
@@ -38,18 +38,18 @@
                                     <div class="pixel-color-section">
                                         <div class="pixel-color-row">
                                             <div class="pixel-color-swatch-wrap">
-                                                <div class="pixel-color-swatch pixel-color-primary" data-color-primary style="background:${this.primaryColor}" title="${this.esc(this.t('pixel.color_primary', 'Primary Color'))}"></div>
-                                                <div class="pixel-color-swatch pixel-color-secondary" data-color-secondary style="background:${this.secondaryColor}" title="${this.esc(this.t('pixel.color_secondary', 'Secondary Color'))}"></div>
-                                                <button class="pixel-color-swap" type="button" data-action="swap-colors" title="${this.esc(this.t('pixel.swap_colors', 'Swap Colors'))}">⇄</button>
+                                                <div class="pixel-color-swatch pixel-color-primary" data-color-primary style="background:${this.primaryColor}" title="${this.esc(this.t('pixel.color_primary'))}"></div>
+                                                <div class="pixel-color-swatch pixel-color-secondary" data-color-secondary style="background:${this.secondaryColor}" title="${this.esc(this.t('pixel.color_secondary'))}"></div>
+                                                <button class="pixel-color-swap" type="button" data-action="swap-colors" title="${this.esc(this.t('pixel.swap_colors'))}">⇄</button>
                                             </div>
                                             <div class="pixel-color-inputs">
-                                                <input type="text" class="pixel-hex-input" data-hex-input value="${this.primaryColor}" maxlength="7" spellcheck="false" title="${this.esc(this.t('pixel.hex_value', 'Hex Color'))}">
-                                                <input type="range" class="pixel-slider" data-opacity-slider min="0" max="100" value="${this.brushOpacity}" title="${this.esc(this.t('pixel.brush_opacity', 'Opacity'))}">
+                                                <input type="text" class="pixel-hex-input" data-hex-input value="${this.primaryColor}" maxlength="7" spellcheck="false" title="${this.esc(this.t('pixel.hex_value'))}">
+                                                <input type="range" class="pixel-slider" data-opacity-slider min="0" max="100" value="${this.brushOpacity}" title="${this.esc(this.t('pixel.brush_opacity'))}">
                                                 <span class="pixel-slider-value">${this.brushOpacity}%</span>
                                             </div>
                                         </div>
                                         <div class="pixel-palette-grid">${paletteColors}</div>
-                                        ${recentHtml ? `<div class="pixel-recent-colors"><span class="pixel-label">${this.esc(this.t('pixel.recent_colors', 'Recent'))}</span><div class="pixel-recent-row">${recentHtml}</div></div>` : ''}
+                                        ${recentHtml ? `<div class="pixel-recent-colors"><span class="pixel-label">${this.esc(this.t('pixel.recent_colors'))}</span><div class="pixel-recent-row">${recentHtml}</div></div>` : ''}
                                     </div>
                                     <hr class="pixel-divider">
                                     <div class="pixel-draw-options" data-draw-options>
@@ -57,7 +57,7 @@
                                     </div>
                                     <hr class="pixel-divider">
                                     <div class="pixel-panel-actions">
-                                        <button class="pixel-btn" type="button" data-action="clear-selection">${this.esc(this.t('pixel.clear_selection', 'Clear Selection'))}</button>
+                                        <button class="pixel-btn" type="button" data-action="clear-selection">${this.esc(this.t('pixel.clear_selection'))}</button>
                                     </div>
                                 </div>`;
             }),
@@ -69,25 +69,25 @@
                                 const isFillType = this.activeTool === 'fill';
 
                                 if (isBrushType) {
-                                    html += `<div class="pixel-slider-row"><span class="pixel-slider-label">${this.esc(this.t('pixel.brush_size', 'Size'))}</span><input type="range" class="pixel-slider" data-brush-size min="1" max="200" value="${this.brushSize}"><span class="pixel-slider-value" data-brush-size-val>${this.brushSize}px</span></div>`;
+                                    html += `<div class="pixel-slider-row"><span class="pixel-slider-label">${this.esc(this.t('pixel.brush_size'))}</span><input type="range" class="pixel-slider" data-brush-size min="1" max="200" value="${this.brushSize}"><span class="pixel-slider-value" data-brush-size-val>${this.brushSize}px</span></div>`;
                                     if (this.activeTool !== 'pencil') {
-                                        html += `<div class="pixel-slider-row"><span class="pixel-slider-label">${this.esc(this.t('pixel.brush_opacity', 'Opacity'))}</span><input type="range" class="pixel-slider" data-brush-opacity min="1" max="100" value="${this.brushOpacity}"><span class="pixel-slider-value" data-brush-opacity-val>${this.brushOpacity}%</span></div>`;
-                                        html += `<div class="pixel-slider-row"><span class="pixel-slider-label">${this.esc(this.t('pixel.brush_hardness', 'Hardness'))}</span><input type="range" class="pixel-slider" data-brush-hardness min="0" max="100" value="${this.brushHardness}"><span class="pixel-slider-value" data-brush-hardness-val>${this.brushHardness}%</span></div>`;
+                                        html += `<div class="pixel-slider-row"><span class="pixel-slider-label">${this.esc(this.t('pixel.brush_opacity'))}</span><input type="range" class="pixel-slider" data-brush-opacity min="1" max="100" value="${this.brushOpacity}"><span class="pixel-slider-value" data-brush-opacity-val>${this.brushOpacity}%</span></div>`;
+                                        html += `<div class="pixel-slider-row"><span class="pixel-slider-label">${this.esc(this.t('pixel.brush_hardness'))}</span><input type="range" class="pixel-slider" data-brush-hardness min="0" max="100" value="${this.brushHardness}"><span class="pixel-slider-value" data-brush-hardness-val>${this.brushHardness}%</span></div>`;
                                     }
                                 } else if (isShapeType) {
-                                    html += `<div class="pixel-slider-row"><span class="pixel-slider-label">${this.esc(this.t('pixel.stroke_width', 'Stroke'))}</span><input type="range" class="pixel-slider" data-shape-stroke min="1" max="20" value="${this.shapeStrokeWidth}"><span class="pixel-slider-value" data-shape-stroke-val>${this.shapeStrokeWidth}px</span></div>`;
+                                    html += `<div class="pixel-slider-row"><span class="pixel-slider-label">${this.esc(this.t('pixel.stroke_width'))}</span><input type="range" class="pixel-slider" data-shape-stroke min="1" max="20" value="${this.shapeStrokeWidth}"><span class="pixel-slider-value" data-shape-stroke-val>${this.shapeStrokeWidth}px</span></div>`;
                                     if (this.activeTool === 'rectangle' || this.activeTool === 'ellipse') {
-                                        html += `<label class="pixel-checkbox-row"><input type="checkbox" data-shape-fill ${this.shapeFill ? 'checked' : ''}> ${this.esc(this.t('pixel.fill_mode', 'Fill shape'))}</label>`;
+                                        html += `<label class="pixel-checkbox-row"><input type="checkbox" data-shape-fill ${this.shapeFill ? 'checked' : ''}> ${this.esc(this.t('pixel.fill_mode'))}</label>`;
                                     }
                                 } else if (isTextType) {
-                                    html += `<div class="pixel-slider-row"><span class="pixel-slider-label">${this.esc(this.t('pixel.font_size', 'Font Size'))}</span><input type="range" class="pixel-slider" data-font-size min="8" max="200" value="${this.fontSize}"><span class="pixel-slider-value" data-font-size-val>${this.fontSize}px</span></div>`;
-                                    html += `<label class="pixel-label">${this.esc(this.t('pixel.font_family', 'Font'))}</label><select class="pixel-select" data-font-family>${this.FONT_FAMILIES.map(f => `<option value="${f}" ${f === this.fontFamily ? 'selected' : ''}>${f}</option>`).join('')}</select>`;
+                                    html += `<div class="pixel-slider-row"><span class="pixel-slider-label">${this.esc(this.t('pixel.font_size'))}</span><input type="range" class="pixel-slider" data-font-size min="8" max="200" value="${this.fontSize}"><span class="pixel-slider-value" data-font-size-val>${this.fontSize}px</span></div>`;
+                                    html += `<label class="pixel-label">${this.esc(this.t('pixel.font_family'))}</label><select class="pixel-select" data-font-family>${this.FONT_FAMILIES.map(f => `<option value="${f}" ${f === this.fontFamily ? 'selected' : ''}>${f}</option>`).join('')}</select>`;
                                 } else if (isFillType) {
-                                    html += `<div class="pixel-slider-row"><span class="pixel-slider-label">${this.esc(this.t('pixel.tolerance', 'Tolerance'))}</span><input type="range" class="pixel-slider" data-fill-tolerance min="0" max="128" value="${this.fillTolerance}"><span class="pixel-slider-value" data-fill-tolerance-val>${this.fillTolerance}</span></div>`;
+                                    html += `<div class="pixel-slider-row"><span class="pixel-slider-label">${this.esc(this.t('pixel.tolerance'))}</span><input type="range" class="pixel-slider" data-fill-tolerance min="0" max="128" value="${this.fillTolerance}"><span class="pixel-slider-value" data-fill-tolerance-val>${this.fillTolerance}</span></div>`;
                                 }
 
                                 if (!html) {
-                                    html = `<p class="pixel-draw-hint">${this.esc(this.t('pixel.select_tool_hint', 'Select a drawing tool'))}</p>`;
+                                    html = `<p class="pixel-draw-hint">${this.esc(this.t('pixel.select_tool_hint'))}</p>`;
                                 }
                                 return html;
             }),
@@ -95,34 +95,34 @@
                                 const layerItems = this.layers.map((layer, i) => {
                                     const isActive = i === this.activeLayerIdx;
                                     return `<div class="pixel-layer-item${isActive ? ' active' : ''}" data-layer-idx="${i}">
-                                        <button class="pixel-layer-vis" type="button" data-layer-vis="${i}" title="${this.esc(this.t('pixel.toggle_visibility', 'Toggle Visibility'))}">${layer.visible ? '👁' : '◻'}</button>
+                                        <button class="pixel-layer-vis" type="button" data-layer-vis="${i}" title="${this.esc(this.t('pixel.toggle_visibility'))}">${layer.visible ? '👁' : '◻'}</button>
                                         <span class="pixel-layer-name" data-layer-name="${i}">${this.esc(layer.name)}</span>
-                                        <input type="range" class="pixel-slider pixel-layer-opacity" data-layer-opacity="${i}" min="0" max="100" value="${Math.round(layer.opacity * 100)}" title="${this.esc(this.t('pixel.layer_opacity', 'Opacity'))}">
+                                        <input type="range" class="pixel-slider pixel-layer-opacity" data-layer-opacity="${i}" min="0" max="100" value="${Math.round(layer.opacity * 100)}" title="${this.esc(this.t('pixel.layer_opacity'))}">
                                     </div>`;
                                 }).reverse().join('');
 
                                 return `<div class="pixel-panel-section pixel-panel-layers" data-section="layers" hidden>
                                     <div class="pixel-layer-list" data-layer-list>${layerItems}</div>
                                     <div class="pixel-layer-actions">
-                                        <button class="pixel-btn-icon" type="button" data-action="add-layer" title="${this.esc(this.t('pixel.new_layer', 'Add Layer'))}">+</button>
-                                        <button class="pixel-btn-icon" type="button" data-action="delete-layer" title="${this.esc(this.t('pixel.delete_layer', 'Delete Layer'))}">−</button>
-                                        <button class="pixel-btn-icon" type="button" data-action="duplicate-layer" title="${this.esc(this.t('pixel.duplicate_layer', 'Duplicate'))}">⧉</button>
-                                        <button class="pixel-btn-icon" type="button" data-action="merge-layers" title="${this.esc(this.t('pixel.merge_layers', 'Merge Down'))}">⤓</button>
-                                        <button class="pixel-btn-icon" type="button" data-action="flatten-layers" title="${this.esc(this.t('pixel.flatten', 'Flatten'))}">▭</button>
+                                        <button class="pixel-btn-icon" type="button" data-action="add-layer" title="${this.esc(this.t('pixel.new_layer'))}">+</button>
+                                        <button class="pixel-btn-icon" type="button" data-action="delete-layer" title="${this.esc(this.t('pixel.delete_layer'))}">−</button>
+                                        <button class="pixel-btn-icon" type="button" data-action="duplicate-layer" title="${this.esc(this.t('pixel.duplicate_layer'))}">⧉</button>
+                                        <button class="pixel-btn-icon" type="button" data-action="merge-layers" title="${this.esc(this.t('pixel.merge_layers'))}">⤓</button>
+                                        <button class="pixel-btn-icon" type="button" data-action="flatten-layers" title="${this.esc(this.t('pixel.flatten'))}">▭</button>
                                     </div>
                                 </div>`;
             }),
             buildPanelHTML: Pixel.bindRuntime(runtime, function buildPanelHTML() {
                                 return `<div class="pixel-panel-section pixel-panel-adjust" data-section="adjust">
-                                    ${this.buildSlider('brightness', this.t('pixel.brightness', 'Brightness'), -100, 100, 0)}
-                                    ${this.buildSlider('contrast', this.t('pixel.contrast', 'Contrast'), -100, 100, 0)}
-                                    ${this.buildSlider('saturation', this.t('pixel.saturation', 'Saturation'), -100, 100, 0)}
-                                    ${this.buildSlider('exposure', this.t('pixel.exposure', 'Exposure'), -100, 100, 0)}
-                                    ${this.buildSlider('sharpness', this.t('pixel.sharpness', 'Sharpness'), 0, 100, 0)}
-                                    ${this.buildSlider('temperature', this.t('pixel.temperature', 'Temperature'), -100, 100, 0)}
-                                    ${this.buildSlider('shadows', this.t('pixel.shadows', 'Shadows'), -100, 100, 0)}
-                                    ${this.buildSlider('highlights', this.t('pixel.highlights', 'Highlights'), -100, 100, 0)}
-                                    <div class="pixel-panel-actions"><button class="pixel-btn pixel-btn-primary" type="button" data-action="apply-adjust">${this.esc(this.t('pixel.apply', 'Apply'))}</button><button class="pixel-btn" type="button" data-action="reset-adjust">${this.esc(this.t('pixel.reset', 'Reset'))}</button><button class="pixel-btn" type="button" data-action="compare-toggle">${this.esc(this.t('pixel.compare', 'Compare'))}</button></div>
+                                    ${this.buildSlider('brightness', this.t('pixel.brightness'), -100, 100, 0)}
+                                    ${this.buildSlider('contrast', this.t('pixel.contrast'), -100, 100, 0)}
+                                    ${this.buildSlider('saturation', this.t('pixel.saturation'), -100, 100, 0)}
+                                    ${this.buildSlider('exposure', this.t('pixel.exposure'), -100, 100, 0)}
+                                    ${this.buildSlider('sharpness', this.t('pixel.sharpness'), 0, 100, 0)}
+                                    ${this.buildSlider('temperature', this.t('pixel.temperature'), -100, 100, 0)}
+                                    ${this.buildSlider('shadows', this.t('pixel.shadows'), -100, 100, 0)}
+                                    ${this.buildSlider('highlights', this.t('pixel.highlights'), -100, 100, 0)}
+                                    <div class="pixel-panel-actions"><button class="pixel-btn pixel-btn-primary" type="button" data-action="apply-adjust">${this.esc(this.t('pixel.apply'))}</button><button class="pixel-btn" type="button" data-action="reset-adjust">${this.esc(this.t('pixel.reset'))}</button><button class="pixel-btn" type="button" data-action="compare-toggle">${this.esc(this.t('pixel.compare'))}</button></div>
                                 </div>
                                 <div class="pixel-panel-section pixel-panel-filters" data-section="filters" hidden>
                                     <div class="pixel-filter-grid" data-filter-grid>
@@ -139,43 +139,43 @@
                                     </div>
                                 </div>
                                 <div class="pixel-panel-section pixel-panel-transform" data-section="transform" hidden>
-                                    <div class="pixel-btn-group"><button class="pixel-btn" type="button" data-action="rotate-cw">${this.iconMarkup('redo', 'CW')} ${this.esc(this.t('pixel.rotate_cw', 'Rotate CW'))}</button><button class="pixel-btn" type="button" data-action="rotate-ccw">${this.iconMarkup('undo', 'CCW')} ${this.esc(this.t('pixel.rotate_ccw', 'Rotate CCW'))}</button></div>
-                                    <div class="pixel-btn-group"><button class="pixel-btn" type="button" data-action="flip-h">${this.iconMarkup('sort', 'H')} ${this.esc(this.t('pixel.flip_h', 'Flip H'))}</button><button class="pixel-btn" type="button" data-action="flip-v">${this.iconMarkup('sort', 'V')} ${this.esc(this.t('pixel.flip_v', 'Flip V'))}</button></div>
+                                    <div class="pixel-btn-group"><button class="pixel-btn" type="button" data-action="rotate-cw">${this.iconMarkup('redo', 'CW')} ${this.esc(this.t('pixel.rotate_cw'))}</button><button class="pixel-btn" type="button" data-action="rotate-ccw">${this.iconMarkup('undo', 'CCW')} ${this.esc(this.t('pixel.rotate_ccw'))}</button></div>
+                                    <div class="pixel-btn-group"><button class="pixel-btn" type="button" data-action="flip-h">${this.iconMarkup('sort', 'H')} ${this.esc(this.t('pixel.flip_h'))}</button><button class="pixel-btn" type="button" data-action="flip-v">${this.iconMarkup('sort', 'V')} ${this.esc(this.t('pixel.flip_v'))}</button></div>
                                     <hr class="pixel-divider">
-                                    <button class="pixel-btn" type="button" data-action="crop">${this.iconMarkup('scissors', 'C')} ${this.esc(this.t('pixel.crop', 'Crop'))}</button>
+                                    <button class="pixel-btn" type="button" data-action="crop">${this.iconMarkup('scissors', 'C')} ${this.esc(this.t('pixel.crop'))}</button>
                                     <div class="pixel-crop-actions" data-crop-actions hidden>
-                                        <button class="pixel-btn pixel-btn-primary" type="button" data-action="apply-crop">${this.esc(this.t('pixel.apply_crop', 'Apply Crop'))}</button>
-                                        <button class="pixel-btn" type="button" data-action="cancel-crop">${this.esc(this.t('pixel.cancel_crop', 'Cancel'))}</button>
+                                        <button class="pixel-btn pixel-btn-primary" type="button" data-action="apply-crop">${this.esc(this.t('pixel.apply_crop'))}</button>
+                                        <button class="pixel-btn" type="button" data-action="cancel-crop">${this.esc(this.t('pixel.cancel_crop'))}</button>
                                     </div>
                                     <hr class="pixel-divider">
-                                    <button class="pixel-btn" type="button" data-action="resize">${this.iconMarkup('maximize', 'R')} ${this.esc(this.t('pixel.resize', 'Resize'))}</button>
+                                    <button class="pixel-btn" type="button" data-action="resize">${this.iconMarkup('maximize', 'R')} ${this.esc(this.t('pixel.resize'))}</button>
                                 </div>
                                 ${this.buildDrawPanelHTML()}
                                 ${this.buildLayersPanelHTML()}
                                 <div class="pixel-panel-section pixel-panel-ai" data-section="ai" hidden>
                                     <div class="pixel-ai-status" data-ai-status></div>
                                     <div class="pixel-ai-panel">
-                                        <label class="pixel-label">${this.esc(this.t('pixel.prompt', 'Prompt'))}</label>
-                                        <textarea class="pixel-ai-prompt" data-ai-prompt rows="3" placeholder="${this.esc(this.t('pixel.prompt_placeholder', 'Describe the image to generate...'))}"></textarea>
-                                        <label class="pixel-label">${this.esc(this.t('pixel.ai_negative_prompt', 'Negative Prompt'))}</label>
-                                        <textarea class="pixel-ai-prompt" data-ai-negative rows="2" placeholder="${this.esc(this.t('pixel.negative_placeholder', 'What to exclude...'))}"></textarea>
+                                        <label class="pixel-label">${this.esc(this.t('pixel.prompt'))}</label>
+                                        <textarea class="pixel-ai-prompt" data-ai-prompt rows="3" placeholder="${this.esc(this.t('pixel.prompt_placeholder'))}"></textarea>
+                                        <label class="pixel-label">${this.esc(this.t('pixel.ai_negative_prompt'))}</label>
+                                        <textarea class="pixel-ai-prompt" data-ai-negative rows="2" placeholder="${this.esc(this.t('pixel.negative_placeholder'))}"></textarea>
                                         <div class="pixel-ai-options">
-                                            <label class="pixel-label">${this.esc(this.t('pixel.ai_size', 'Size'))}</label>
+                                            <label class="pixel-label">${this.esc(this.t('pixel.ai_size'))}</label>
                                             <select class="pixel-select" data-ai-size><option value="1024x1024">1024×1024</option><option value="1024x1792">1024×1792</option><option value="1792x1024">1792×1024</option><option value="512x512">512×512</option></select>
-                                            <label class="pixel-label">${this.esc(this.t('pixel.ai_quality', 'Quality'))}</label>
+                                            <label class="pixel-label">${this.esc(this.t('pixel.ai_quality'))}</label>
                                             <select class="pixel-select" data-ai-quality><option value="standard">Standard</option><option value="hd">HD</option></select>
-                                            <label class="pixel-label">${this.esc(this.t('pixel.ai_style', 'Style'))}</label>
-                                            <select class="pixel-select" data-ai-style><option value="vivid">${this.esc(this.t('pixel.style_vivid', 'Vivid'))}</option><option value="natural">${this.esc(this.t('pixel.style_natural', 'Natural'))}</option></select>
+                                            <label class="pixel-label">${this.esc(this.t('pixel.ai_style'))}</label>
+                                            <select class="pixel-select" data-ai-style><option value="vivid">${this.esc(this.t('pixel.style_vivid'))}</option><option value="natural">${this.esc(this.t('pixel.style_natural'))}</option></select>
                                         </div>
-                                        <button class="pixel-btn pixel-btn-primary pixel-btn-full" type="button" data-action="ai-generate">${this.esc(this.t('pixel.generate', 'Generate'))}</button>
+                                        <button class="pixel-btn pixel-btn-primary pixel-btn-full" type="button" data-action="ai-generate">${this.esc(this.t('pixel.generate'))}</button>
                                     </div>
                                     <hr class="pixel-divider">
                                     <div class="pixel-ai-panel">
-                                        <label class="pixel-label">${this.esc(this.t('pixel.enhance', 'Enhance Image'))}</label>
-                                        <textarea class="pixel-ai-prompt" data-enhance-prompt rows="2" placeholder="${this.esc(this.t('pixel.prompt_placeholder', 'Describe enhancements...'))}"></textarea>
-                                        <label class="pixel-label">${this.esc(this.t('pixel.ai_strength', 'Strength'))} <span data-strength-val>0.7</span></label>
+                                        <label class="pixel-label">${this.esc(this.t('pixel.enhance'))}</label>
+                                        <textarea class="pixel-ai-prompt" data-enhance-prompt rows="2" placeholder="${this.esc(this.t('pixel.prompt_placeholder'))}"></textarea>
+                                        <label class="pixel-label">${this.esc(this.t('pixel.ai_strength'))} <span data-strength-val>0.7</span></label>
                                         <input type="range" class="pixel-slider" data-enhance-strength min="0.1" max="1" step="0.05" value="0.7">
-                                        <button class="pixel-btn pixel-btn-full" type="button" data-action="ai-enhance">${this.esc(this.t('pixel.enhance', 'Enhance'))}</button>
+                                        <button class="pixel-btn pixel-btn-full" type="button" data-action="ai-enhance">${this.esc(this.t('pixel.enhance'))}</button>
                                     </div>
                                 </div>`;
             }),

@@ -267,25 +267,25 @@
         const toolbarIcon = (key, fallback) => iconMarkup(key, fallback, 'pixel-toolbar-icon', 16);
         host.innerHTML = `<div class="pixel-app">
             <div class="pixel-toolbar">
-                <button class="pixel-btn-icon" type="button" data-action="open" title="${esc(t('pixel.open', 'Open'))} (Ctrl+O)">${toolbarIcon('folder-open', 'O')}</button>
-                <button class="pixel-btn-icon" type="button" data-action="save" title="${esc(t('pixel.save', 'Save'))} (Ctrl+S)">${toolbarIcon('save', 'S')}</button>
-                <button class="pixel-btn-icon" type="button" data-action="export" title="${esc(t('pixel.export', 'Export'))}">${toolbarIcon('download', 'E')}</button>
+                <button class="pixel-btn-icon" type="button" data-action="open" title="${esc(t('pixel.open'))} (Ctrl+O)">${toolbarIcon('folder-open', 'O')}</button>
+                <button class="pixel-btn-icon" type="button" data-action="save" title="${esc(t('pixel.save'))} (Ctrl+S)">${toolbarIcon('save', 'S')}</button>
+                <button class="pixel-btn-icon" type="button" data-action="export" title="${esc(t('pixel.export'))}">${toolbarIcon('download', 'E')}</button>
                 <span class="pixel-toolbar-sep"></span>
-                <button class="pixel-btn-icon" type="button" data-action="undo" title="${esc(t('pixel.undo', 'Undo'))} (Ctrl+Z)">${toolbarIcon('undo', 'U')}</button>
-                <button class="pixel-btn-icon" type="button" data-action="redo" title="${esc(t('pixel.redo', 'Redo'))} (Ctrl+Shift+Z)">${toolbarIcon('redo', 'R')}</button>
+                <button class="pixel-btn-icon" type="button" data-action="undo" title="${esc(t('pixel.undo'))} (Ctrl+Z)">${toolbarIcon('undo', 'U')}</button>
+                <button class="pixel-btn-icon" type="button" data-action="redo" title="${esc(t('pixel.redo'))} (Ctrl+Shift+Z)">${toolbarIcon('redo', 'R')}</button>
                 <span class="pixel-toolbar-sep"></span>
-                <button class="pixel-btn-icon" type="button" data-action="zoom-out" title="${esc(t('pixel.zoom_out', 'Zoom Out'))}">${toolbarIcon('zoom-out', '-')}</button>
+                <button class="pixel-btn-icon" type="button" data-action="zoom-out" title="${esc(t('pixel.zoom_out'))}">${toolbarIcon('zoom-out', '-')}</button>
                 <span class="pixel-zoom-label" data-zoom-label>100%</span>
-                <button class="pixel-btn-icon" type="button" data-action="zoom-in" title="${esc(t('pixel.zoom_in', 'Zoom In'))}">${toolbarIcon('zoom-in', '+')}</button>
-                <button class="pixel-btn-icon" type="button" data-action="zoom-fit" title="${esc(t('pixel.zoom_fit', 'Fit'))}">${toolbarIcon('maximize', 'F')}</button>
+                <button class="pixel-btn-icon" type="button" data-action="zoom-in" title="${esc(t('pixel.zoom_in'))}">${toolbarIcon('zoom-in', '+')}</button>
+                <button class="pixel-btn-icon" type="button" data-action="zoom-fit" title="${esc(t('pixel.zoom_fit'))}">${toolbarIcon('maximize', 'F')}</button>
                 <span class="pixel-toolbar-spacer"></span>
                 <div class="pixel-tabs">
-                    <button class="pixel-tab${activePanel === 'adjust' ? ' active' : ''}" type="button" data-panel="adjust">${esc(t('pixel.adjust', 'Adjust'))}</button>
-                    <button class="pixel-tab${activePanel === 'filters' ? ' active' : ''}" type="button" data-panel="filters">${esc(t('pixel.filters', 'Filters'))}</button>
-                    <button class="pixel-tab${activePanel === 'transform' ? ' active' : ''}" type="button" data-panel="transform">${esc(t('pixel.transform', 'Transform'))}</button>
-                    <button class="pixel-tab${activePanel === 'draw' ? ' active' : ''}" type="button" data-panel="draw">${esc(t('pixel.draw', 'Draw'))}</button>
-                    <button class="pixel-tab${activePanel === 'layers' ? ' active' : ''}" type="button" data-panel="layers">${esc(t('pixel.layers', 'Layers'))}</button>
-                    <button class="pixel-tab${activePanel === 'ai' ? ' active' : ''}" type="button" data-panel="ai">${esc(t('pixel.ai_generate', 'AI'))}</button>
+                    <button class="pixel-tab${activePanel === 'adjust' ? ' active' : ''}" type="button" data-panel="adjust">${esc(t('pixel.adjust'))}</button>
+                    <button class="pixel-tab${activePanel === 'filters' ? ' active' : ''}" type="button" data-panel="filters">${esc(t('pixel.filters'))}</button>
+                    <button class="pixel-tab${activePanel === 'transform' ? ' active' : ''}" type="button" data-panel="transform">${esc(t('pixel.transform'))}</button>
+                    <button class="pixel-tab${activePanel === 'draw' ? ' active' : ''}" type="button" data-panel="draw">${esc(t('pixel.draw'))}</button>
+                    <button class="pixel-tab${activePanel === 'layers' ? ' active' : ''}" type="button" data-panel="layers">${esc(t('pixel.layers'))}</button>
+                    <button class="pixel-tab${activePanel === 'ai' ? ' active' : ''}" type="button" data-panel="ai">${esc(t('pixel.ai_generate'))}</button>
                 </div>
             </div>
             <div class="pixel-workspace">
@@ -298,13 +298,13 @@
                     <div class="pixel-compare-divider" data-compare-divider hidden></div>
                     <div class="pixel-empty-state" data-empty>
                         ${iconMarkup('image', 'Img', 'pixel-empty-icon', 64)}
-                        <p>${esc(t('pixel.no_image', 'Open an image to start editing'))}</p>
+                        <p>${esc(t('pixel.no_image'))}</p>
                         <div class="pixel-empty-actions">
-                            <button class="pixel-btn pixel-btn-primary" type="button" data-action="open">${esc(t('pixel.open', 'Open Image'))}</button>
-                            <button class="pixel-btn" type="button" data-action="new-image">${esc(t('pixel.new_image', 'New Image'))}</button>
+                            <button class="pixel-btn pixel-btn-primary" type="button" data-action="open">${esc(t('pixel.open'))}</button>
+                            <button class="pixel-btn" type="button" data-action="new-image">${esc(t('pixel.new_image'))}</button>
                         </div>
                         <div class="pixel-templates" data-templates>
-                            <span class="pixel-label">${esc(t('pixel.quick_start', 'Quick Start'))}</span>
+                            <span class="pixel-label">${esc(t('pixel.quick_start'))}</span>
                             <div class="pixel-template-grid">
                                 <button class="pixel-template-btn" type="button" data-template="512x512">512×512</button>
                                 <button class="pixel-template-btn" type="button" data-template="1024x1024">1024×1024</button>
@@ -313,7 +313,7 @@
                         </div>
                         <div class="pixel-recent-files" data-recent-files></div>
                         <div class="pixel-photos-section" data-photos-section>
-                            <span class="pixel-label">${esc(t('pixel.photos', 'Photos'))}</span>
+                            <span class="pixel-label">${esc(t('pixel.photos'))}</span>
                             <div class="pixel-photos-grid" data-photos-grid></div>
                         </div>
                     </div>
@@ -321,7 +321,7 @@
                 <div class="pixel-panel" data-panel-container>${buildPanelHTML()}</div>
             </div>
             <div class="pixel-status-bar" data-status>
-                <span data-status-text>${esc(t('pixel.status_ready', 'Ready'))}</span>
+                <span data-status-text>${esc(t('pixel.status_ready'))}</span>
                 <span class="pixel-status-cursor" data-status-cursor></span>
                 <span class="pixel-status-color" data-status-color><span class="pixel-status-color-swatch" data-color-swatch></span><span data-color-hex></span></span>
                 <span class="pixel-status-tool" data-status-tool></span>
@@ -347,7 +347,7 @@
         cropOverlay = host.querySelector('[data-crop-overlay]');
         const compareDivider = host.querySelector('[data-compare-divider]');
 
-        layers = [{ canvas: null, name: t('pixel.layer_background', 'Background'), visible: true, opacity: 1 }];
+        layers = [{ canvas: null, name: t('pixel.layer_background'), visible: true, opacity: 1 }];
         activeLayerIdx = 0;
 
         function wireClick(selector, handler) {

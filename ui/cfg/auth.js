@@ -51,7 +51,7 @@ async function renderWebConfigSection(section) {
 
     // Enable toggle
     const isHttpsEnabled = (configData.server && configData.server.https && configData.server.https.enabled) === true;
-    const authHelpText = isHttpsEnabled ? (t('config.auth.https_forces_auth') || 'HTTPS is active. Login cannot be disabled.') : t('config.auth.enable_desc');
+    const authHelpText = isHttpsEnabled ? (t('config.auth.https_forces_auth')) : t('config.auth.enable_desc');
 
     html += `<div class="field-group">
                 <div class="field-label">🔐 ${t('config.auth.enable_login_guard')}</div>

@@ -23,8 +23,8 @@
         host.innerHTML = `<div class="office-app office-writer" data-office-writer="${esc(windowId)}">
             <div class="vd-toolbar office-toolbar">
                 <input class="office-path-input" data-path value="${esc(currentPath)}" spellcheck="false" autocomplete="off">
-                <input class="office-title-input" data-title value="${esc(ctx.title || '')}" spellcheck="false" autocomplete="off" placeholder="${esc(t('desktop.writer_title_placeholder', 'Title'))}">
-                <span class="vd-chat-meta" data-status>${esc(t('desktop.writer_loading', 'Loading...'))}</span>
+                <input class="office-title-input" data-title value="${esc(ctx.title || '')}" spellcheck="false" autocomplete="off" placeholder="${esc(t('desktop.writer_title_placeholder'))}">
+                <span class="vd-chat-meta" data-status>${esc(t('desktop.writer_loading'))}</span>
             </div>
             <div class="office-writer-tools" data-quill-toolbar>
                 <select class="ql-header">
@@ -122,7 +122,7 @@
 
         async function save() {
             if (readonly) return;
-            setStatus(t('desktop.saving', 'Saving...'));
+            setStatus(t('desktop.saving'));
             const path = pathInput.value.trim() || DEFAULT_PATH;
             const payload = {
                 path,
@@ -138,8 +138,8 @@
             });
             officeVersion = body.office_version || officeVersion;
             setPath(path);
-            setStatus(t('desktop.writer_saved', 'Saved'));
-            notify({ type: 'success', message: t('desktop.writer_saved', 'Saved') });
+            setStatus(t('desktop.writer_saved'));
+            notify({ type: 'success', message: t('desktop.writer_saved') });
             await refreshDesktop();
         }
 
@@ -155,9 +155,9 @@
         async function openDocumentFromDialog() {
             if (typeof ctx.openFileDialog !== 'function') return;
             const result = await ctx.openFileDialog({
-                title: t('desktop.file_dialog_open', 'Open'),
+                title: t('desktop.file_dialog_open'),
                 initialPath: pathDir(currentPath),
-                filters: [{ label: t('desktop.app_writer', 'Writer'), extensions: ['.docx', '.html', '.htm', '.md', '.txt'] }]
+                filters: [{ label: t('desktop.app_writer'), extensions: ['.docx', '.html', '.htm', '.md', '.txt'] }]
             });
             if (!result || result.canceled || !result.path) return;
             setPath(result.path);
@@ -168,11 +168,11 @@
             if (readonly) return;
             if (typeof ctx.saveFileDialog === 'function') {
                 const result = await ctx.saveFileDialog({
-                    title: t('desktop.writer_save_as', 'Save as'),
+                    title: t('desktop.writer_save_as'),
                     initialPath: pathDir(pathInput.value.trim() || currentPath || DEFAULT_PATH),
                     defaultName: currentFileEntry().name,
                     defaultExtension: '.docx',
-                    filters: [{ label: t('desktop.app_writer', 'Writer'), extensions: ['.docx', '.html', '.htm', '.md', '.txt'] }]
+                    filters: [{ label: t('desktop.app_writer'), extensions: ['.docx', '.html', '.htm', '.md', '.txt'] }]
                 });
                 if (!result || result.canceled || !result.path) return;
                 const previousPath = currentPath;
@@ -189,7 +189,7 @@
                 return;
             }
             const prompt = ctx.promptDialog || (async () => null);
-            const nextPath = await prompt(t('desktop.writer_save_as', 'Save as'), pathInput.value.trim() || DEFAULT_PATH);
+            const nextPath = await prompt(t('desktop.writer_save_as'), pathInput.value.trim() || DEFAULT_PATH);
             if (nextPath == null) return;
             const trimmed = String(nextPath).trim();
             if (!trimmed) return;
@@ -228,7 +228,7 @@
 
         async function runAgentTask() {
             const prompt = ctx.promptDialog || (async () => null);
-            const task = await prompt(t('desktop.agent_task_title', 'Task for Agent'), '');
+            const task = await prompt(t('desktop.agent_task_title'), '');
             if (!task) return;
             await save();
             if (typeof ctx.openAgentChatForFile === 'function') {
@@ -306,7 +306,7 @@
                 try {
                     editor = new window.Quill(editorHost, {
                         modules: { toolbar: host.querySelector('[data-quill-toolbar]') },
-                        placeholder: t('desktop.writer_placeholder', 'Start writing...'),
+                        placeholder: t('desktop.writer_placeholder'),
                         theme: 'snow'
                     });
                 } catch (_) {

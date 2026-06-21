@@ -1141,7 +1141,7 @@
             host.innerHTML = `<div class="vd-store-frame-error">
                 <div class="vd-store-frame-error-title">${esc(appName(app))}</div>
                 <div class="vd-store-frame-error-msg">${esc(err.message)}</div>
-                <button type="button" class="vd-store-btn vd-store-primary" data-action="start">${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start', 'Start'))}</span></button>
+                <button type="button" class="vd-store-btn vd-store-primary" data-action="start">${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start'))}</span></button>
             </div>`;
             const start = host.querySelector('[data-action="start"]');
             if (start) {
@@ -1218,13 +1218,13 @@
             if (window.StoreTerminalPreviewApp && typeof window.StoreTerminalPreviewApp.render === 'function') {
                 return window.StoreTerminalPreviewApp.render(id, app, storeAppId, storeTerminalPreviewDeps());
             }
-            throw new Error(t('desktop.store_terminal_module_unavailable', 'Terminal preview module is unavailable.'));
+            throw new Error(t('desktop.store_terminal_module_unavailable'));
         } catch (err) {
             if (!contentEl(id)) return;
             host.innerHTML = `<div class="vd-store-frame-error">
                 <div class="vd-store-frame-error-title">${esc(appName(app))}</div>
-                <div class="vd-store-frame-error-msg">${esc(err && err.message ? err.message : t('common.error', 'Error'))}</div>
-                <button type="button" class="vd-store-btn vd-store-primary" data-action="retry">${iconMarkup('refresh', 'R', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.retry', 'Retry'))}</span></button>
+                <div class="vd-store-frame-error-msg">${esc(err && err.message ? err.message : t('common.error'))}</div>
+                <button type="button" class="vd-store-btn vd-store-primary" data-action="retry">${iconMarkup('refresh', 'R', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.retry'))}</span></button>
             </div>`;
             const retry = host.querySelector('[data-action="retry"]');
             if (retry) retry.addEventListener('click', () => renderStoreTerminalPreviewApp(id, app, storeAppId));

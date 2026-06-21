@@ -30,13 +30,13 @@
     <link href="/fonts/fonts.css" rel="stylesheet">
 </head>
 <body>
-    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content">Skip to content</a>
+    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <header class="app-header">
         <div class="header-left">
             <a href="/" class="logo">
                 <div class="logo-icon">🥚</div>
                 <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-                <span class="logo-subtitle" data-i18n="cheatsheets.subtitle">Cheat Sheets</span>
+                <span class="logo-subtitle" data-i18n="cheatsheets.subtitle"></span>
             </a>
         </div>
         <div class="header-actions">
@@ -50,7 +50,7 @@
         <div class="page-header">
             <div class="page-title-row">
                 <span class="page-title-badge" aria-hidden="true">📋</span>
-                <h1 data-i18n="cheatsheets.title">Cheat Sheets</h1>
+                <h1 data-i18n="cheatsheets.title"></h1>
             </div>
             <div class="header-actions">
                 <div class="view-toggle" id="view-toggle">
@@ -62,7 +62,7 @@
                     </button>
                 </div>
                 <button class="btn btn-primary" id="btn-create" onclick="openCreate()">
-                    <span>+</span> <span data-i18n="cheatsheets.create_new">New Cheat Sheet</span>
+                    <span>+</span> <span data-i18n="cheatsheets.create_new"></span>
                 </button>
             </div>
         </div>
@@ -70,30 +70,30 @@
         <div class="cheatsheet-tabs" role="tablist" aria-label="Cheat sheet groups">
             <button class="cheatsheet-tab active" id="tab-user" role="tab" aria-selected="true"
                 aria-controls="panel-user" tabindex="0"
-                onclick="switchCheatTab('user')">👤 <span data-i18n="cheatsheets.group_user">User</span> <span class="cheatsheet-tab-count" id="sheets-count-user">0</span></button>
+                onclick="switchCheatTab('user')">👤 <span data-i18n="cheatsheets.group_user"></span> <span class="cheatsheet-tab-count" id="sheets-count-user">0</span></button>
             <button class="cheatsheet-tab" id="tab-agent" role="tab" aria-selected="false"
                 aria-controls="panel-agent" tabindex="-1"
-                onclick="switchCheatTab('agent')">🤖 <span data-i18n="cheatsheets.group_agent">Agent</span> <span class="cheatsheet-tab-count" id="sheets-count-agent">0</span></button>
+                onclick="switchCheatTab('agent')">🤖 <span data-i18n="cheatsheets.group_agent"></span> <span class="cheatsheet-tab-count" id="sheets-count-agent">0</span></button>
         </div>
 
         <div class="empty-state is-hidden" id="sheets-empty">
             <div class="empty-icon">📋</div>
-            <h3 data-i18n="cheatsheets.empty_title">No Cheat Sheets Yet</h3>
-            <p data-i18n="cheatsheets.empty_desc">Create reusable workflow instructions for the agent.</p>
+            <h3 data-i18n="cheatsheets.empty_title"></h3>
+            <p data-i18n="cheatsheets.empty_desc"></p>
         </div>
 
         <div class="cheatsheet-panel active" id="panel-user" role="tabpanel" aria-labelledby="tab-user" tabindex="0">
             <div class="cards-grid" id="sheets-grid-user"></div>
             <div class="empty-state empty-state-inline is-hidden" id="sheets-empty-user">
                 <div class="empty-icon">👤</div>
-                <p data-i18n="cheatsheets.empty_user">No user cheat sheets yet.</p>
+                <p data-i18n="cheatsheets.empty_user"></p>
             </div>
         </div>
         <div class="cheatsheet-panel" id="panel-agent" role="tabpanel" aria-labelledby="tab-agent" tabindex="0">
             <div class="cards-grid" id="sheets-grid-agent"></div>
             <div class="empty-state empty-state-inline is-hidden" id="sheets-empty-agent">
                 <div class="empty-icon">🤖</div>
-                <p data-i18n="cheatsheets.empty_agent">No agent cheat sheets yet.</p>
+                <p data-i18n="cheatsheets.empty_agent"></p>
             </div>
         </div>
     </div>
@@ -102,25 +102,25 @@
     <div class="modal-overlay" id="edit-modal">
         <div class="modal modal-wide">
             <div class="modal-header">
-                <h2 id="modal-title" data-i18n="cheatsheets.create_new">New Cheat Sheet</h2>
+                <h2 id="modal-title" data-i18n="cheatsheets.create_new"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('edit-modal')">&times;</button>
             </div>
             <input type="hidden" id="sheet-id">
             <div class="form-group">
-                <label data-i18n="cheatsheets.name">Name</label>
+                <label data-i18n="cheatsheets.name"></label>
                 <input type="text" id="sheet-name" placeholder="e.g. Deploy Website" maxlength="200">
             </div>
             <div class="form-group">
-                <label data-i18n="cheatsheets.content">Content (Markdown)</label>
+                <label data-i18n="cheatsheets.content"></label>
                 <div class="editor-tabs">
-                    <button class="editor-tab active" onclick="switchEditorTab('edit')" data-i18n="cheatsheets.tab_edit">Edit</button>
-                    <button class="editor-tab" onclick="switchEditorTab('preview')" data-i18n="cheatsheets.tab_preview">Preview</button>
+                    <button class="editor-tab active" onclick="switchEditorTab('edit')" data-i18n="cheatsheets.tab_edit"></button>
+                    <button class="editor-tab" onclick="switchEditorTab('preview')" data-i18n="cheatsheets.tab_preview"></button>
                 </div>
                 <textarea id="sheet-content" rows="16" placeholder="# Steps&#10;1. First do this&#10;2. Then do that"></textarea>
                 <div id="sheet-preview" class="md-preview is-hidden"></div>
             </div>
             <div class="form-group">
-                <label data-i18n="cheatsheets.abstract">Abstract</label>
+                <label data-i18n="cheatsheets.abstract"></label>
                 <input type="text" id="sheet-abstract" maxlength="280" placeholder="One sentence describing what this cheat sheet is for">
             </div>
             <div class="form-row">
@@ -130,7 +130,7 @@
                             <input type="checkbox" id="sheet-active" checked>
                             <span class="slider"></span>
                         </label>
-                        <span class="toggle-label" data-i18n="cheatsheets.active">Active</span>
+                        <span class="toggle-label" data-i18n="cheatsheets.active"></span>
                     </label>
                 </div>
                 <div class="form-group">
@@ -139,40 +139,40 @@
                             <input type="checkbox" id="sheet-delete-locked">
                             <span class="slider"></span>
                         </label>
-                        <span class="toggle-label" data-i18n="cheatsheets.delete_locked">Delete Locked</span>
+                        <span class="toggle-label" data-i18n="cheatsheets.delete_locked"></span>
                     </label>
-                    <div class="field-hint" data-i18n="cheatsheets.delete_locked_hint">Prevents this cheat sheet from being deleted.</div>
+                    <div class="field-hint" data-i18n="cheatsheets.delete_locked_hint"></div>
                 </div>
             </div>
             <div class="metadata-panel is-hidden" id="sheet-metadata-panel">
-                <div class="metadata-row"><span data-i18n="cheatsheets.created_at">Created</span><strong id="sheet-meta-created">—</strong></div>
-                <div class="metadata-row"><span data-i18n="cheatsheets.usage">Usage</span><strong id="sheet-meta-usage">—</strong></div>
-                <div class="metadata-row"><span data-i18n="cheatsheets.last_used_label">Last used</span><strong id="sheet-meta-last-used">—</strong></div>
-                <div class="metadata-row is-hidden" id="sheet-meta-expires-row"><span data-i18n="cheatsheets.expires_label">Expires</span><strong id="sheet-meta-expires">—</strong></div>
+                <div class="metadata-row"><span data-i18n="cheatsheets.created_at"></span><strong id="sheet-meta-created">—</strong></div>
+                <div class="metadata-row"><span data-i18n="cheatsheets.usage"></span><strong id="sheet-meta-usage">—</strong></div>
+                <div class="metadata-row"><span data-i18n="cheatsheets.last_used_label"></span><strong id="sheet-meta-last-used">—</strong></div>
+                <div class="metadata-row is-hidden" id="sheet-meta-expires-row"><span data-i18n="cheatsheets.expires_label"></span><strong id="sheet-meta-expires">—</strong></div>
             </div>
 
             <!-- Attachments Section -->
             <div class="form-group attachments-section">
-                <label data-i18n="cheatsheets.attachments">Attachments</label>
+                <label data-i18n="cheatsheets.attachments"></label>
                 <div class="attachments-info">
-                    <span class="char-counter" id="attachment-char-counter">0 / 25,000 <span data-i18n="cheatsheets.characters">characters</span></span>
+                    <span class="char-counter" id="attachment-char-counter">0 / 25,000 <span data-i18n="cheatsheets.characters"></span></span>
                 </div>
                 <div class="attachments-list" id="attachments-list"></div>
                 <div class="attachments-actions">
                     <label class="btn btn-secondary btn-sm attachment-upload-btn">
-                        <span>📎</span> <span data-i18n="cheatsheets.upload_file">Upload File</span>
+                        <span>📎</span> <span data-i18n="cheatsheets.upload_file"></span>
                         <input type="file" id="attachment-file-input" accept=".txt,.md" style="display:none" onchange="uploadAttachment(this)">
                     </label>
                     <button class="btn btn-secondary btn-sm" onclick="openKnowledgePicker()">
-                        <span>📚</span> <span data-i18n="cheatsheets.from_knowledge">From Knowledge Center</span>
+                        <span>📚</span> <span data-i18n="cheatsheets.from_knowledge"></span>
                     </button>
                 </div>
-                <div class="attachments-hint" data-i18n="cheatsheets.attachments_hint">Only .txt and .md files. Max 25,000 characters total.</div>
+                <div class="attachments-hint" data-i18n="cheatsheets.attachments_hint"></div>
             </div>
 
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('edit-modal')" data-i18n="cheatsheets.cancel">Cancel</button>
-                <button class="btn btn-primary" onclick="saveSheet()" data-i18n="cheatsheets.save">Save</button>
+                <button class="btn btn-secondary" onclick="closeModal('edit-modal')" data-i18n="cheatsheets.cancel"></button>
+                <button class="btn btn-primary" onclick="saveSheet()" data-i18n="cheatsheets.save"></button>
             </div>
         </div>
     </div>
@@ -181,15 +181,15 @@
     <div class="modal-overlay" id="knowledge-picker-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="cheatsheets.select_knowledge_file">Select Knowledge File</h2>
+                <h2 data-i18n="cheatsheets.select_knowledge_file"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('knowledge-picker-modal')">&times;</button>
             </div>
             <div class="knowledge-picker-list" id="knowledge-picker-list">
-                <div class="knowledge-picker-loading" data-i18n="cheatsheets.loading">Loading...</div>
+                <div class="knowledge-picker-loading" data-i18n="cheatsheets.loading"></div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('knowledge-picker-modal')" data-i18n="cheatsheets.cancel">Cancel</button>
-                <button class="btn btn-primary" id="btn-knowledge-confirm" disabled onclick="confirmKnowledgePick()" data-i18n="cheatsheets.attach_selected">Attach Selected</button>
+                <button class="btn btn-secondary" onclick="closeModal('knowledge-picker-modal')" data-i18n="cheatsheets.cancel"></button>
+                <button class="btn btn-primary" id="btn-knowledge-confirm" disabled onclick="confirmKnowledgePick()" data-i18n="cheatsheets.attach_selected"></button>
             </div>
         </div>
     </div>
@@ -198,13 +198,13 @@
     <div class="modal-overlay" id="delete-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 class="cheatsheets-danger-title">⚠️ <span data-i18n="cheatsheets.confirm_delete">Confirm Deletion</span></h2>
+                <h2 class="cheatsheets-danger-title">⚠️ <span data-i18n="cheatsheets.confirm_delete"></span></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('delete-modal')">&times;</button>
             </div>
             <p id="delete-message"></p>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('delete-modal')" data-i18n="cheatsheets.cancel">Cancel</button>
-                <button class="btn btn-danger" id="btn-delete-confirm" onclick="confirmDelete()" data-i18n="cheatsheets.delete">Delete</button>
+                <button class="btn btn-secondary" onclick="closeModal('delete-modal')" data-i18n="cheatsheets.cancel"></button>
+                <button class="btn btn-danger" id="btn-delete-confirm" onclick="confirmDelete()" data-i18n="cheatsheets.delete"></button>
             </div>
         </div>
     </div>
