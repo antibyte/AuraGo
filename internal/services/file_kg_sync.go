@@ -13,6 +13,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/kgextraction"
+	"aurago/internal/kgquality"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 )
@@ -247,6 +248,7 @@ func (s *FileKGSyncer) SyncFile(path, collection string, opts FileKGSyncOptions)
 
 	// 4. Annotate with source metadata and confidence (minimal evidence link for first draft).
 	now := time.Now().Format("2006-01-02")
+	nodes, edges = anchorFileSyncFileNode(path, collection, now, confidenceStr, nodes, edges)
 	for i := range nodes {
 		if nodes[i].Properties == nil {
 			nodes[i].Properties = make(map[string]string)
@@ -307,6 +309,80 @@ func (s *FileKGSyncer) SyncFile(path, collection string, opts FileKGSyncOptions)
 	result.NodesExtracted += len(nodes)
 	result.EdgesExtracted += len(edges)
 	return result
+}
+
+func anchorFileSyncFileNode(pathValue, collection, extractedAt, confidence string, nodes []memory.Node, edges []memory.Edge) ([]memory.Node, []memory.Edge) {
+	canonicalPath := kgquality.CanonicalPath(pathValue)
+	fileID := kgquality.FileNodeID(pathValue)
+	fileNode := memory.Node{
+		ID:    fileID,
+		Label: kgquality.PathBase(pathValue),
+		Properties: map[string]string{
+			"type":         "file",
+			"path":         canonicalPath,
+			"source":       "file_sync",
+			"source_file":  pathValue,
+			"extracted_at": extractedAt,
+			"confidence":   confidence,
+		},
+	}
+	if collection != "" {
+		fileNode.Properties["collection"] = collection
+	}
+
+	filtered := make([]memory.Node, 0, len(nodes)+1)
+	for _, node := range nodes {
+		if node.ID == fileID {
+			continue
+		}
+		if nodeMatchesFilePath(node, canonicalPath) {
+			continue
+		}
+		filtered = append(filtered, node)
+	}
+
+	linkTargets := make([]string, 0, len(filtered))
+	for _, node := range filtered {
+		if node.ID == "" {
+			continue
+		}
+		if node.Properties != nil && strings.TrimSpace(node.Properties["type"]) == "file" {
+			continue
+		}
+		linkTargets = append(linkTargets, node.ID)
+	}
+	sort.Strings(linkTargets)
+	if len(linkTargets) > 25 {
+		linkTargets = linkTargets[:25]
+	}
+	for _, nodeID := range linkTargets {
+		edges = append(edges, memory.Edge{
+			Source:   nodeID,
+			Target:   fileID,
+			Relation: "related_to",
+			Properties: map[string]string{
+				"source":       "file_sync",
+				"source_file":  pathValue,
+				"extracted_at": extractedAt,
+				"confidence":   confidence,
+			},
+		})
+	}
+
+	filtered = append(filtered, fileNode)
+	return filtered, edges
+}
+
+func nodeMatchesFilePath(node memory.Node, canonicalPath string) bool {
+	if canonicalPath == "" {
+		return false
+	}
+	if node.Properties != nil {
+		if kgquality.CanonicalPath(node.Properties["path"]) == canonicalPath {
+			return true
+		}
+	}
+	return kgquality.IsPathLike(node.Label) && kgquality.CanonicalPath(node.Label) == canonicalPath
 }
 
 func (s *FileKGSyncer) runSyncFile(path, collection string, opts FileKGSyncOptions) FileKGSyncResult {
