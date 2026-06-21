@@ -2,6 +2,7 @@ package memory
 
 import (
 	"aurago/internal/dbutil"
+	"aurago/internal/kgquality"
 	"aurago/internal/memory/kgsemantic"
 	"context"
 	"database/sql"
@@ -84,6 +85,8 @@ type KnowledgeGraph struct {
 	protectOptimizeSourcesMu sync.RWMutex
 	protectIDPrefixes        []string
 	protectIDPrefixesMu      sync.RWMutex
+	qualityPolicyValue       kgquality.Policy
+	qualityPolicyMu          sync.RWMutex
 	semanticReindexInterval  time.Duration
 	lastSemanticReindex      time.Time
 	lastSemanticReindexMu    sync.Mutex
@@ -154,6 +157,7 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 		flushAccessHits:         make(chan chan struct{}),
 		doneChan:                make(chan struct{}),
 		excludedNodeTypes:       map[string]bool{"activity_entity": true, "unknown": true},
+		qualityPolicyValue:      kgquality.DefaultPolicy(),
 		semanticReindexInterval: 5 * time.Minute,
 	}
 	kg.minSemanticSimilarity.Store(math.Float32bits(0.60))
@@ -173,6 +177,25 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 	}
 
 	return kg, nil
+}
+
+func (kg *KnowledgeGraph) SetQualityPolicy(policy kgquality.Policy) {
+	if kg == nil {
+		return
+	}
+	kg.qualityPolicyMu.Lock()
+	kg.qualityPolicyValue = kgquality.NormalizePolicy(policy)
+	kg.qualityPolicyMu.Unlock()
+}
+
+func (kg *KnowledgeGraph) qualityPolicy() kgquality.Policy {
+	if kg == nil {
+		return kgquality.DefaultPolicy()
+	}
+	kg.qualityPolicyMu.RLock()
+	policy := kg.qualityPolicyValue
+	kg.qualityPolicyMu.RUnlock()
+	return kgquality.NormalizePolicy(policy)
 }
 
 func (kg *KnowledgeGraph) Close() error {

@@ -30,6 +30,7 @@ import (
 	"aurago/internal/invasion"
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/inventory"
+	"aurago/internal/kgquality"
 	"aurago/internal/launchpad"
 	"aurago/internal/llm"
 	"aurago/internal/logger"
@@ -394,6 +395,11 @@ func main() {
 	kg.SetSemanticReindexInterval(cfg.Tools.KnowledgeGraph.SemanticReindexInterval)
 	kg.SetProtectOptimizeSources(cfg.Tools.KnowledgeGraph.ProtectOptimizeSources)
 	kg.SetProtectIDPrefixes(cfg.Tools.KnowledgeGraph.ProtectIDPrefixes)
+	kg.SetQualityPolicy(kgquality.Policy{
+		PendingCoMentionTTLDays:         cfg.Tools.KnowledgeGraph.PendingCoMentionTTLDays,
+		LowConfidenceCoMentionMinWeight: cfg.Tools.KnowledgeGraph.LowConfidenceCoMentionMinWeight,
+		HideLowConfidenceByDefault:      cfg.Tools.KnowledgeGraph.HideLowConfidenceByDefault,
+	})
 	defer kg.Close()
 
 	if _, err := server.ApplyPendingEmbeddingsReset(cfg, shortTermMem, kg, appLog); err != nil {

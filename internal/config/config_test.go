@@ -1,6 +1,7 @@
 package config
 
 import (
+	"aurago/internal/kgquality"
 	"log/slog"
 	"net"
 	"os"
@@ -75,6 +76,58 @@ sqlite:
 	}
 	if cfg.SQLite.ShortTermPath != expectedShortTermPath {
 		t.Errorf("expected ShortTermPath %s, got %s", expectedShortTermPath, cfg.SQLite.ShortTermPath)
+	}
+}
+
+func TestLoadKnowledgeGraphQualityDefaults(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte(""), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	want := kgquality.DefaultPolicy()
+	if got := cfg.Tools.KnowledgeGraph.PendingCoMentionTTLDays; got != want.PendingCoMentionTTLDays {
+		t.Fatalf("PendingCoMentionTTLDays = %d, want %d", got, want.PendingCoMentionTTLDays)
+	}
+	if got := cfg.Tools.KnowledgeGraph.LowConfidenceCoMentionMinWeight; got != want.LowConfidenceCoMentionMinWeight {
+		t.Fatalf("LowConfidenceCoMentionMinWeight = %d, want %d", got, want.LowConfidenceCoMentionMinWeight)
+	}
+	if got := cfg.Tools.KnowledgeGraph.HideLowConfidenceByDefault; got != want.HideLowConfidenceByDefault {
+		t.Fatalf("HideLowConfidenceByDefault = %v, want %v", got, want.HideLowConfidenceByDefault)
+	}
+}
+
+func TestLoadKnowledgeGraphQualityOverrides(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	configContent := `
+tools:
+  knowledge_graph:
+    pending_co_mention_ttl_days: 11
+    low_confidence_co_mention_min_weight: 4
+    hide_low_confidence_by_default: false
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	if got := cfg.Tools.KnowledgeGraph.PendingCoMentionTTLDays; got != 11 {
+		t.Fatalf("PendingCoMentionTTLDays = %d, want 11", got)
+	}
+	if got := cfg.Tools.KnowledgeGraph.LowConfidenceCoMentionMinWeight; got != 4 {
+		t.Fatalf("LowConfidenceCoMentionMinWeight = %d, want 4", got)
+	}
+	if cfg.Tools.KnowledgeGraph.HideLowConfidenceByDefault {
+		t.Fatal("HideLowConfidenceByDefault = true, want false")
 	}
 }
 

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"aurago/internal/kgquality"
 	"bytes"
 	"fmt"
 	"net"
@@ -246,6 +247,10 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.KnowledgeGraph.SemanticReindexInterval = "5m"
 	cfg.Tools.KnowledgeGraph.ProtectOptimizeSources = []string{"planner", "inventory_sync", "manual", "file_sync", "core_memory"}
 	cfg.Tools.KnowledgeGraph.ProtectIDPrefixes = []string{"core_fact_", "dev_", "contact_"}
+	kgQualityPolicy := kgquality.DefaultPolicy()
+	cfg.Tools.KnowledgeGraph.PendingCoMentionTTLDays = kgQualityPolicy.PendingCoMentionTTLDays
+	cfg.Tools.KnowledgeGraph.LowConfidenceCoMentionMinWeight = kgQualityPolicy.LowConfidenceCoMentionMinWeight
+	cfg.Tools.KnowledgeGraph.HideLowConfidenceByDefault = kgQualityPolicy.HideLowConfidenceByDefault
 	cfg.Tools.SecretsVault.Enabled = true
 	cfg.Tools.Scheduler.Enabled = true
 	cfg.Tools.Notes.Enabled = true

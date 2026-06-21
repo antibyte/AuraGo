@@ -26,6 +26,12 @@ type KnowledgeGraphQueryOptions struct {
 	IncludeLowConfidence bool
 }
 
+type KnowledgeGraphCleanupOptions struct {
+	PendingCoMentionDays int
+	StaleNodeDays        int
+	PlaceholderDays      int
+}
+
 func (kg *KnowledgeGraph) beginReadTx(operation string) (*sql.Tx, error) {
 	tx, err := kg.db.BeginTx(context.Background(), &sql.TxOptions{ReadOnly: true})
 	if err != nil {
@@ -321,7 +327,7 @@ func (kg *KnowledgeGraph) hideLowConfidenceEdge(edge Edge, options KnowledgeGrap
 	if options.IncludeLowConfidence {
 		return false
 	}
-	policy := kgquality.DefaultPolicy()
+	policy := kg.qualityPolicy()
 	if !policy.HideLowConfidenceByDefault {
 		return false
 	}
@@ -1071,6 +1077,16 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 		return 0, 0, fmt.Errorf("invalid thresholdDays: %d", thresholdDays)
 	}
 
+	return kg.CleanupStaleGraphWithOptions(KnowledgeGraphCleanupOptions{
+		PendingCoMentionDays: thresholdDays,
+		StaleNodeDays:        thresholdDays,
+		PlaceholderDays:      thresholdDays,
+	})
+}
+
+func (kg *KnowledgeGraph) CleanupStaleGraphWithOptions(options KnowledgeGraphCleanupOptions) (int, int, error) {
+	options = kg.normalizeCleanupOptions(options)
+
 	if err := kg.FlushAccessHits(); err != nil && kg.logger != nil {
 		kg.logger.Warn("CleanupStaleGraph: failed to flush access hits", "error", err)
 	}
@@ -1085,15 +1101,15 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 		SELECT source, target, relation FROM kg_edges
 		WHERE relation = 'co_mentioned_with'
 		  AND json_extract(properties, '$.source') = 'pending'
-		  AND created_at <= datetime('now', '-' || ? || ' days')
-	`, thresholdDays)
+		  AND updated_at <= datetime('now', '-' || ? || ' days')
+	`, options.PendingCoMentionDays)
 
 	edgeRes, err := tx.Exec(`
 		DELETE FROM kg_edges 
 		WHERE relation = 'co_mentioned_with' 
 		  AND json_extract(properties, '$.source') = 'pending'
-		  AND created_at <= datetime('now', '-' || ? || ' days')
-	`, thresholdDays)
+		  AND updated_at <= datetime('now', '-' || ? || ' days')
+	`, options.PendingCoMentionDays)
 	if err != nil {
 		return 0, 0, fmt.Errorf("delete stale pending edges: %w", err)
 	}
@@ -1101,7 +1117,7 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 
 	var toRemove []string
 
-	placeholderGrace := thresholdDays
+	placeholderGrace := options.PlaceholderDays
 	if placeholderGrace > knowledgeGraphPlaceholderGraceDays {
 		placeholderGrace = knowledgeGraphPlaceholderGraceDays
 	}
@@ -1135,7 +1151,7 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 			WHERE access_count = 0
 			  AND protected = 0
 			  AND updated_at <= datetime('now', '-' || ? || ' days')
-		`, thresholdDays)
+		`, options.StaleNodeDays)
 		if err != nil {
 			return 0, 0, fmt.Errorf("query unaccessed nodes: %w", err)
 		}
@@ -1185,6 +1201,20 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 
 	kg.removeSemanticIndexesForDeletedGraphData(toRemove, removedEdges)
 	return int(edgesDeleted), len(toRemove), nil
+}
+
+func (kg *KnowledgeGraph) normalizeCleanupOptions(options KnowledgeGraphCleanupOptions) KnowledgeGraphCleanupOptions {
+	policy := kg.qualityPolicy()
+	if options.PendingCoMentionDays <= 0 {
+		options.PendingCoMentionDays = policy.PendingCoMentionTTLDays
+	}
+	if options.StaleNodeDays <= 0 {
+		options.StaleNodeDays = 30
+	}
+	if options.PlaceholderDays <= 0 {
+		options.PlaceholderDays = options.StaleNodeDays
+	}
+	return options
 }
 
 func (kg *KnowledgeGraph) collectSemanticEdgeIdentities(tx *sql.Tx, query string, args ...interface{}) []semanticEdgeIdentity {

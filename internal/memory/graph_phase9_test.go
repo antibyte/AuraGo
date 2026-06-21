@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"aurago/internal/kgquality"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -92,6 +93,102 @@ func TestKGCleanupStaleGraphFlushesAccessBeforeRemoval(t *testing.T) {
 	}
 	if accessCount < 1 {
 		t.Fatalf("access_count = %d, want >= 1 after cleanup flush", accessCount)
+	}
+}
+
+func TestNewKnowledgeGraphInitializesQualityPolicy(t *testing.T) {
+	kg := newTestKG(t)
+
+	if got, want := kg.qualityPolicy(), kgquality.DefaultPolicy(); got != want {
+		t.Fatalf("qualityPolicy() = %+v, want %+v", got, want)
+	}
+}
+
+func TestKnowledgeGraphQualityPolicyControlsLowConfidenceFiltering(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("alpha", "Alpha", map[string]string{"type": "service"}); err != nil {
+		t.Fatalf("AddNode alpha: %v", err)
+	}
+	if err := kg.AddNode("beta", "Beta", map[string]string{"type": "service"}); err != nil {
+		t.Fatalf("AddNode beta: %v", err)
+	}
+	if err := kg.AddEdge("alpha", "beta", "co_mentioned_with", map[string]string{
+		"source": "pending",
+		"weight": "1",
+	}); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	_, hiddenEdges := kg.GetNeighbors("alpha", 10)
+	if len(hiddenEdges) != 0 {
+		t.Fatalf("default policy should hide low-confidence edge, got %d edges", len(hiddenEdges))
+	}
+
+	policy := kgquality.DefaultPolicy()
+	policy.HideLowConfidenceByDefault = false
+	kg.SetQualityPolicy(policy)
+
+	_, visibleEdges := kg.GetNeighbors("alpha", 10)
+	if len(visibleEdges) != 1 {
+		t.Fatalf("disabled low-confidence hiding should return edge, got %d edges", len(visibleEdges))
+	}
+}
+
+func TestKGCleanupStaleGraphWithOptionsSeparatesPendingEdgeAndNodeTTLs(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("pending_a", "Pending A", map[string]string{"type": "concept"}); err != nil {
+		t.Fatalf("AddNode pending_a: %v", err)
+	}
+	if err := kg.AddNode("pending_b", "Pending B", map[string]string{"type": "concept"}); err != nil {
+		t.Fatalf("AddNode pending_b: %v", err)
+	}
+	if err := kg.AddEdge("pending_a", "pending_b", "co_mentioned_with", map[string]string{
+		"source": "pending",
+		"weight": "1",
+	}); err != nil {
+		t.Fatalf("AddEdge pending: %v", err)
+	}
+	if _, err := kg.db.Exec(`
+		UPDATE kg_edges
+		SET created_at = datetime('now', '-10 days'), updated_at = datetime('now', '-10 days')
+		WHERE source = 'pending_a' AND target = 'pending_b' AND relation = 'co_mentioned_with'
+	`); err != nil {
+		t.Fatalf("age pending edge: %v", err)
+	}
+
+	if err := kg.AddNode("stale_node", "Stale Node", map[string]string{"type": "concept"}); err != nil {
+		t.Fatalf("AddNode stale_node: %v", err)
+	}
+	if _, err := kg.db.Exec(`
+		UPDATE kg_nodes
+		SET updated_at = datetime('now', '-20 days'), access_count = 0
+		WHERE id = 'stale_node'
+	`); err != nil {
+		t.Fatalf("age stale node: %v", err)
+	}
+
+	edgesRemoved, nodesRemoved, err := kg.CleanupStaleGraphWithOptions(KnowledgeGraphCleanupOptions{
+		PendingCoMentionDays: 7,
+		StaleNodeDays:        30,
+	})
+	if err != nil {
+		t.Fatalf("CleanupStaleGraphWithOptions: %v", err)
+	}
+	if edgesRemoved != 1 {
+		t.Fatalf("edgesRemoved = %d, want 1", edgesRemoved)
+	}
+	if nodesRemoved != 0 {
+		t.Fatalf("nodesRemoved = %d, want 0", nodesRemoved)
+	}
+
+	node, err := kg.GetNode("stale_node")
+	if err != nil {
+		t.Fatalf("GetNode stale_node: %v", err)
+	}
+	if node == nil {
+		t.Fatal("expected stale_node to survive because StaleNodeDays is 30")
 	}
 }
 
