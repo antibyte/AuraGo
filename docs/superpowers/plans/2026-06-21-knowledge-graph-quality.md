@@ -34,8 +34,8 @@ Do not implement:
 
 ## Files
 
-- Create: `internal/kgquality/policy.go` - dependency-free quality predicates, file ID hashing, generic token filtering, low-confidence predicates, scoring helpers.
-- Create: `internal/kgquality/policy_test.go` - unit tests for generic tokens, path hashing, low-confidence detection, and score ordering.
+- Create: `internal/kgquality/policy.go` - dependency-free quality predicates, file ID hashing, generic token filtering, and low-confidence predicates.
+- Create: `internal/kgquality/policy_test.go` - unit tests for generic tokens, path hashing, and low-confidence detection.
 - Modify: `internal/kgextraction/kg_extraction.go` - update prompt, node type vocabulary, ID remapping, path normalization, generic filtering, edge defaults.
 - Modify: `internal/kgextraction/kg_extraction_test.go` - tests for generic filtering, path hash remapping, and new allowed types.
 - Modify: `internal/services/file_kg_sync.go` - anchor synced files as canonical file nodes with `properties.path`; avoid path-like duplicate nodes.
@@ -46,14 +46,14 @@ Do not implement:
 - Modify: `internal/memory/graph_edge.go` - edge metadata defaults and semantic index updates with final properties.
 - Modify: `internal/memory/graph_backup.go` - bulk merge quality metadata preservation/defaulting.
 - Modify: `internal/memory/graph_query.go` - query options, low-confidence filtering, cleanup options, stats/report metrics.
-- Modify: `internal/memory/graph_query_duplicates.go` and `internal/memory/kgquery/duplicates.go` only if existing ID duplicate detection does not already cover `caddy_server`/`caddyserver`.
+- Modify: `internal/memory/graph_query_duplicates.go` and `internal/memory/kgquery/duplicates.go` are expected to stay unchanged because existing normalized-ID duplicate logic strips `_` and `-`; Task 10 adds a regression test to lock that in.
 - Modify: `internal/memory/*_test.go` - focused tests for edge defaults, filtered search/neighbors, cleanup TTL, stats/report metrics, and duplicate suggestions.
 - Modify: `internal/config/config_types.go`, `internal/config/config.go`, `config_template.yaml`, `internal/server/config_handlers_main.go` - config defaults and serialized config display.
 - Modify: `cmd/aurago/main.go`, `cmd/lifeboat/main.go` - apply KG quality policy to constructed graph instances.
 - Modify: `internal/agent/tool_args_execution.go`, `internal/agent/agent_dispatch_exec.go`, `internal/agent/native_tools_memory.go` - add `include_low_confidence` and `graph_health`.
 - Modify: `prompts/tools_manuals/knowledge_graph.md` - document default filtering and override parameter.
 - Modify: `internal/server/knowledge_graph_handlers.go`, `internal/server/knowledge_graph_handlers_test.go` - parse `include_low_confidence` and expose new report fields.
-- Modify if UI metrics are displayed: `ui/js/dashboard/dashboard-widgets.js`, `ui/lang/dashboard/*.json` for all supported dashboard languages.
+- Modify for dashboard metrics only after target UI files are clean: `ui/js/dashboard/dashboard-widgets.js`, `ui/lang/dashboard/*.json` for all supported dashboard languages.
 
 ---
 
@@ -130,7 +130,7 @@ package kgquality
 import (
 	"crypto/sha1"
 	"encoding/hex"
-	"path/filepath"
+	"path"
 	"strconv"
 	"strings"
 	"unicode"
@@ -140,7 +140,7 @@ const DefaultPendingCoMentionTTLDays = 7
 const DefaultLowConfidenceCoMentionMinWeight = 2
 
 type Policy struct {
-	PendingCoMentionTTLDays        int
+	PendingCoMentionTTLDays         int
 	LowConfidenceCoMentionMinWeight int
 	HideLowConfidenceByDefault      bool
 }
@@ -215,10 +215,27 @@ func IsPathLike(value string) bool {
 	return strings.Contains(value, "/") || strings.Contains(value, `\`) || strings.Contains(value, ":\\")
 }
 
-func FileNodeID(path string) string {
-	clean := filepath.ToSlash(strings.TrimSpace(path))
+func CanonicalPath(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	value = strings.ReplaceAll(value, `\`, "/")
+	return path.Clean(value)
+}
+
+func FileNodeID(pathValue string) string {
+	clean := CanonicalPath(pathValue)
 	sum := sha1.Sum([]byte(clean))
 	return "file_" + hex.EncodeToString(sum[:])[:12]
+}
+
+func PathBase(pathValue string) string {
+	clean := CanonicalPath(pathValue)
+	if clean == "" {
+		return ""
+	}
+	return path.Base(clean)
 }
 
 func LowConfidenceCoMention(relation string, properties map[string]string, policy Policy) bool {
@@ -339,6 +356,7 @@ Implementation rules:
 - Keep `kgIDPattern` for final IDs.
 - Maintain `idRemap := map[string]string{}` so path-normalized node IDs do not orphan edges.
 - Drop nodes when both ID and label are generic tokens.
+- Do not treat the `type=file` property itself as a generic token; a canonical file node with `properties.path` is valid even though the standalone word `file` is generic.
 - Drop edges whose remapped endpoints are missing or whose relation is not allowed.
 - Ensure normalized edge properties are non-nil.
 
@@ -391,9 +409,9 @@ Expected: FAIL because canonical file node anchoring is not implemented.
 
 In `SyncFile`, after extraction and before `BulkMergeExtractedEntities`:
 - Compute `fileID := kgquality.FileNodeID(path)`.
-- Append a `memory.Node` with label `filepath.Base(path)` and properties `type=file`, `path=path`, `source=file_sync`, `source_file=path`, `extracted_at=now`, `confidence=confidenceStr`.
+- Append a `memory.Node` with label `kgquality.PathBase(path)` and properties `type=file`, `path=kgquality.CanonicalPath(path)`, `source=file_sync`, `source_file=path`, `extracted_at=now`, `confidence=confidenceStr`.
 - Drop any extracted node that is path-like and points to the same path unless it already has the canonical `fileID`.
-- Optionally link extracted entities to the file node with `related_to` edges only when the resulting edge count is reasonable. Cap at 25 entity-file edges per file sync run.
+- Add deterministic `related_to` edges from up to the first 25 non-file extracted nodes, sorted by node ID, to `fileID`; set `source=file_sync`, `source_file=path`, `extracted_at=now`, and `confidence=confidenceStr` on those edges.
 
 - [ ] **Step 4: Run tests and confirm pass**
 
@@ -593,17 +611,24 @@ func (kg *KnowledgeGraph) GetNeighbors(nodeID string, limit int) ([]Node, []Edge
 Filtering rule:
 - Unless `IncludeLowConfidence` is true, skip `kgquality.LowConfidenceCoMention(edge.Relation, edge.Properties, kg.qualityPolicy())`.
 - Do not filter semantic relations such as `uses`, `runs_on`, `depends_on`, `part_of`, or `located_in`.
+- In neighbor queries, apply the low-confidence edge filter before building `neighborOrder`, so hidden edges cannot consume the result limit.
 
 - [ ] **Step 4: Wire explicit override through agent and server**
 
 Agent:
 - Add `IncludeLowConfidence bool` to `knowledgeGraphArgs`.
-- Decode via `toolArgBool(tc.Params, "include_low_confidence")`.
+- Decode with:
+
+```go
+includeLowConfidence, _ := toolArgBool(tc.Params, "include_low_confidence")
+req.IncludeLowConfidence = includeLowConfidence
+```
+
 - Add native schema property `include_low_confidence`.
 - Use option-bearing search/neighbors for `search` and `get_neighbors`.
 
 Server:
-- Parse `include_low_confidence=true` from `/api/knowledge/search` and node detail endpoint.
+- Parse `include_low_confidence=true` from `/api/knowledge-graph/search` and `/api/knowledge-graph/node`.
 - Keep default false.
 
 Manual:
@@ -655,6 +680,7 @@ Add tests:
 - Default config sets `pending_co_mention_ttl_days=7`, `low_confidence_co_mention_min_weight=2`, `hide_low_confidence_by_default=true`.
 - `CleanupStaleGraphWithOptions(KnowledgeGraphCleanupOptions{PendingCoMentionDays: 7, StaleNodeDays: 30})` deletes old pending co-mention edges after 7 days but does not delete stale unaccessed nodes until 30 days.
 - Existing `CleanupStaleGraph(30)` remains compatible.
+- `NewKnowledgeGraph` initializes `qualityPolicy` to `kgquality.DefaultPolicy()`.
 
 - [ ] **Step 2: Run tests and confirm failure**
 
@@ -672,7 +698,7 @@ Expected: FAIL because fields/options do not exist.
 Add to `Tools.KnowledgeGraph`:
 
 ```go
-PendingCoMentionTTLDays        int  `yaml:"pending_co_mention_ttl_days"`
+PendingCoMentionTTLDays         int  `yaml:"pending_co_mention_ttl_days"`
 LowConfidenceCoMentionMinWeight int  `yaml:"low_confidence_co_mention_min_weight"`
 HideLowConfidenceByDefault      bool `yaml:"hide_low_confidence_by_default"`
 ```
@@ -702,14 +728,41 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 }
 ```
 
+In `CleanupStaleGraphWithOptions`, delete pending co-mentions with `updated_at <= datetime('now', '-' || ? || ' days')`, not `created_at`, so an edge that was recently observed but not yet promoted gets a full TTL window from the latest observation.
+
 Maintenance should call `CleanupStaleGraphWithOptions` with pending TTL from config and node cleanup still at 30 days.
 
 - [ ] **Step 5: Wire policy into KG construction**
 
-In `cmd/aurago/main.go` and `cmd/lifeboat/main.go`, after KG construction:
+In `internal/memory/graph_sqlite.go`, add policy storage to `KnowledgeGraph`:
 
 ```go
-kg.SetQualityPolicy(memory.KnowledgeGraphQualityPolicy{
+qualityPolicy   kgquality.Policy
+qualityPolicyMu sync.RWMutex
+```
+
+Initialize `qualityPolicy: kgquality.DefaultPolicy()` in `NewKnowledgeGraph`.
+
+Add setter/getter methods:
+
+```go
+func (kg *KnowledgeGraph) SetQualityPolicy(policy kgquality.Policy) {
+	kg.qualityPolicyMu.Lock()
+	defer kg.qualityPolicyMu.Unlock()
+	kg.qualityPolicy = kgquality.NormalizePolicy(policy)
+}
+
+func (kg *KnowledgeGraph) qualityPolicy() kgquality.Policy {
+	kg.qualityPolicyMu.RLock()
+	defer kg.qualityPolicyMu.RUnlock()
+	return kg.qualityPolicy
+}
+```
+
+In `cmd/aurago/main.go` and `cmd/lifeboat/main.go`, import `aurago/internal/kgquality` and call after KG construction:
+
+```go
+kg.SetQualityPolicy(kgquality.Policy{
 	PendingCoMentionTTLDays:         cfg.Tools.KnowledgeGraph.PendingCoMentionTTLDays,
 	LowConfidenceCoMentionMinWeight: cfg.Tools.KnowledgeGraph.LowConfidenceCoMentionMinWeight,
 	HideLowConfidenceByDefault:      cfg.Tools.KnowledgeGraph.HideLowConfidenceByDefault,
@@ -835,9 +888,14 @@ rtk git commit -m "feat: expose knowledge graph quality health metrics"
 
 - [ ] **Step 1: Inspect current dashboard dirty state**
 
-Run: `rtk git status --short`
+Run:
 
-Expected: there may be pre-existing dashboard changes. Do not overwrite unrelated user work. Read the current file contents before editing.
+```bash
+rtk git diff --quiet -- ui/js/dashboard/dashboard-widgets.js ui/lang/dashboard
+rtk git status --short
+```
+
+Expected: the first command exits 0 before editing. If it exits 1, stop Task 9 and move it to a clean worktree or wait until the existing dashboard changes are committed; do not edit or stage partially dirty dashboard files.
 
 - [ ] **Step 2: Add visual indicators**
 
@@ -856,17 +914,26 @@ UI rules:
 
 - [ ] **Step 3: Add translations**
 
-Add equivalent keys to all existing dashboard language files:
+Add these exact keys to all existing dashboard language files:
 
-```json
-"kgPendingEdges": "Pending edges",
-"kgLowConfidenceEdges": "Low-confidence edges",
-"kgPendingCoMentions": "Pending co-mentions",
-"kgGenericNodes": "Generic nodes",
-"kgDuplicateSuggestions": "Duplicate suggestions"
-```
-
-Translate these in all dashboard language JSON files present in `ui/lang/dashboard/`: `cs`, `da`, `de`, `el`, `en`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `no`, `pl`, `pt`, `sv`, `zh`.
+| File | kgPendingEdges | kgLowConfidenceEdges | kgPendingCoMentions | kgGenericNodes | kgDuplicateSuggestions |
+|------|----------------|----------------------|---------------------|----------------|-------------------------|
+| `cs.json` | `Nevyřízené hrany` | `Hrany s nízkou důvěrou` | `Nevyřízené společné zmínky` | `Obecné uzly` | `Návrhy duplicit` |
+| `da.json` | `Afventende kanter` | `Kanter med lav tillid` | `Afventende fælles omtaler` | `Generiske noder` | `Duplikatforslag` |
+| `de.json` | `Ausstehende Kanten` | `Kanten mit niedriger Zuversicht` | `Ausstehende gemeinsame Erwähnungen` | `Generische Knoten` | `Duplikatvorschläge` |
+| `el.json` | `Εκκρεμείς ακμές` | `Ακμές χαμηλής εμπιστοσύνης` | `Εκκρεμείς συν-αναφορές` | `Γενικοί κόμβοι` | `Προτάσεις διπλοτύπων` |
+| `en.json` | `Pending edges` | `Low-confidence edges` | `Pending co-mentions` | `Generic nodes` | `Duplicate suggestions` |
+| `es.json` | `Aristas pendientes` | `Aristas de baja confianza` | `Co-menciones pendientes` | `Nodos genéricos` | `Sugerencias de duplicados` |
+| `fr.json` | `Arêtes en attente` | `Arêtes à faible confiance` | `Co-mentions en attente` | `Nœuds génériques` | `Suggestions de doublons` |
+| `hi.json` | `लंबित एज` | `कम भरोसे वाले एज` | `लंबित सह-उल्लेख` | `सामान्य नोड` | `डुप्लिकेट सुझाव` |
+| `it.json` | `Archi in attesa` | `Archi a bassa affidabilità` | `Co-menzioni in attesa` | `Nodi generici` | `Suggerimenti duplicati` |
+| `ja.json` | `保留中のエッジ` | `信頼度の低いエッジ` | `保留中の共起言及` | `汎用ノード` | `重複候補` |
+| `nl.json` | `Openstaande randen` | `Randen met lage betrouwbaarheid` | `Openstaande co-vermeldingen` | `Generieke knopen` | `Duplicaatsuggesties` |
+| `no.json` | `Ventende kanter` | `Kanter med lav tillit` | `Ventende samomtaler` | `Generiske noder` | `Duplikatforslag` |
+| `pl.json` | `Oczekujące krawędzie` | `Krawędzie o niskiej pewności` | `Oczekujące współwzmianki` | `Węzły ogólne` | `Sugestie duplikatów` |
+| `pt.json` | `Arestas pendentes` | `Arestas de baixa confiança` | `Co-menções pendentes` | `Nós genéricos` | `Sugestões de duplicados` |
+| `sv.json` | `Väntande kanter` | `Kanter med låg tillit` | `Väntande samomnämnanden` | `Generiska noder` | `Dubblettförslag` |
+| `zh.json` | `待处理边` | `低置信度边` | `待处理共同提及` | `通用节点` | `重复建议` |
 
 - [ ] **Step 4: Run UI-safe checks**
 
@@ -874,10 +941,10 @@ Run:
 
 ```bash
 rtk go test ./internal/server -run Dashboard
-rtk npm run lint
+rtk npm run build:ui
 ```
 
-Expected: PASS. If no lint script exists, report that and run the closest existing frontend check.
+Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -891,15 +958,66 @@ rtk git commit -m "feat: show knowledge graph quality metrics on dashboard"
 ### Task 10: Verify Duplicates Are Suggested, Not Auto-Merged
 
 **Files:**
-- Modify only if needed: `internal/memory/kgquery/duplicates.go`
 - Modify: `internal/memory/graph_sqlite_test.go`
-- Modify: `internal/agent/memory_hygiene_test.go`
 
 - [ ] **Step 1: Add regression test**
 
-Add a test with nodes:
-- `caddy_server`
-- `caddyserver`
+Add:
+
+```go
+func TestKGQualityReportSuggestsNormalizedIDDuplicates(t *testing.T) {
+	kg := newTestKG(t)
+	if err := kg.AddNode("caddy_server", "Caddy Server", map[string]string{
+		"type":       "service",
+		"source":     "manual",
+		"confidence": "1.00",
+	}); err != nil {
+		t.Fatalf("add manual node: %v", err)
+	}
+	if err := kg.AddNode("caddyserver", "Caddy Server", map[string]string{
+		"type":       "service",
+		"source":     "auto_extraction",
+		"confidence": "0.70",
+	}); err != nil {
+		t.Fatalf("add extracted node: %v", err)
+	}
+
+	report, err := kg.QualityReport(10)
+	if err != nil {
+		t.Fatalf("quality report: %v", err)
+	}
+
+	found := false
+	for _, candidate := range report.IDDuplicateCandidates {
+		haveA, haveB := false, false
+		for _, id := range candidate.IDs {
+			if id == "caddy_server" {
+				haveA = true
+			}
+			if id == "caddyserver" {
+				haveB = true
+			}
+		}
+		if haveA && haveB {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected caddy_server and caddyserver duplicate suggestion, got %#v", report.IDDuplicateCandidates)
+	}
+
+	for _, id := range []string{"caddy_server", "caddyserver"} {
+		node, err := kg.GetNode(id)
+		if err != nil {
+			t.Fatalf("get node %s: %v", id, err)
+		}
+		if node == nil {
+			t.Fatalf("expected node %s to remain unmerged", id)
+		}
+	}
+}
+```
 
 Expected:
 - Quality report includes an ID duplicate candidate.
@@ -908,24 +1026,15 @@ Expected:
 
 - [ ] **Step 2: Run test**
 
-Run: `rtk go test ./internal/memory -run Duplicate`
+Run: `rtk go test ./internal/memory -run TestKGQualityReportSuggestsNormalizedIDDuplicates`
 
-Expected: PASS if existing normalized-ID duplicate logic already covers it. If it fails, implement the smallest extension in `kgquery` and rerun.
+Expected: PASS with the existing normalized-ID duplicate logic. If this does not pass, stop and revise this task plan before implementation; do not add a speculative duplicate-merging change.
 
-- [ ] **Step 3: Commit if code changed**
-
-If only tests were added:
+- [ ] **Step 3: Commit**
 
 ```bash
-rtk git add internal/memory/graph_sqlite_test.go internal/agent/memory_hygiene_test.go
+rtk git add internal/memory/graph_sqlite_test.go
 rtk git commit -m "test: cover knowledge graph duplicate suggestions"
-```
-
-If implementation changed:
-
-```bash
-rtk git add internal/memory/kgquery/duplicates.go internal/memory/graph_sqlite_test.go internal/agent/memory_hygiene_test.go
-rtk git commit -m "fix: improve knowledge graph duplicate suggestions"
 ```
 
 ---
@@ -969,12 +1078,9 @@ Docs update decision:
 - Do not change `AGENTS.md`; this plan changes implementation behavior, not durable agent work rules.
 - Update `prompts/tools_manuals/knowledge_graph.md` because the `knowledge_graph` tool behavior changes.
 
-- [ ] **Step 5: Final commit if any verification fixes were needed**
+- [ ] **Step 5: Handle verification fixes**
 
-```bash
-rtk git add <only files changed by verification fixes>
-rtk git commit -m "test: verify knowledge graph quality cleanup"
-```
+Do not create a generic verification-fix commit here. If verification reveals a failure, return to the failed task, patch the exact task files, rerun that task's tests, and commit using that task's explicit `git add` list.
 
 ## Self-Review
 
