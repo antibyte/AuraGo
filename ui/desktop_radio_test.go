@@ -15,7 +15,7 @@ func TestDesktopRadioAppMarkers(t *testing.T) {
 		"aurago.radio.favorites.v1",
 		"showStationContextMenu",
 		"wireContextMenuBoundary(host)",
-		"de1.api.radio-browser.info",
+		"/api/radio-browser",
 		"/json/stations/bytag/",
 		"stopPlayback",
 		"disposers.set(windowId",

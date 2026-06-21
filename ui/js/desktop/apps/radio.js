@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const API_BASE = 'https://de1.api.radio-browser.info';
+    const API_BASE = '/api/radio-browser';
     const FAVORITES_KEY = 'aurago.radio.favorites.v1';
     const SEARCH_DELAY = 300;
     const MAX_FAVORITES = 50;

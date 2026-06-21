@@ -530,6 +530,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/galaxa/highscore", handleGalaxaHighscoreGet(s))
 	mux.HandleFunc("/api/desktop/galaxa/highscore/submit", handleGalaxaHighscorePost(s))
 
+	// Radio app: proxy radio-browser.info JSON through the backend to avoid
+	// browser CORS errors and provide failover across API mirrors.
+	mux.HandleFunc("/api/radio-browser/", handleRadioBrowserProxy(s))
+
 	s.registerConfigAPIRoutes(mux, sse)
 
 	// ── Integration bots (disabled in egg mode — eggs are headless workers) ──
