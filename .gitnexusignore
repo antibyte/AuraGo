@@ -8,9 +8,13 @@
 .github/
 .vscode/
 .idea/
+.commandcode/
 .claude/
+.kiro/
 .kilo/
 .kilocode/
+openspec/
+.openspec/
 .planning/
 .playwright-mcp/
 .superpowers/
