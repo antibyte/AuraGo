@@ -53,6 +53,10 @@
         // ── API ─────────────────────────────────────────────────────────────────────
         let _apiErrorShown = false;
         const API = {
+            /**
+             * GET request. Returns parsed JSON or null on failure.
+             * Card-level error handling is done via CardState helpers.
+             */
             get: url => fetch(url, { credentials: 'same-origin' }).then(r => {
                 if (r.status === 401) {
                     window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
@@ -67,6 +71,21 @@
                 }
                 return null;
             }),
+            /**
+             * GET request with structured result for per-card error handling.
+             * Returns { ok: true, data } on success, { ok: false, status } on failure.
+             * Use this with CardState.load() for automatic loading/error states.
+             */
+            getWithStatus(url) {
+                return fetch(url, { credentials: 'same-origin' }).then(r => {
+                    if (r.status === 401) {
+                        window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
+                        return { ok: false, status: 401 };
+                    }
+                    if (!r.ok) return { ok: false, status: r.status };
+                    return r.json().then(data => ({ ok: true, data })).catch(() => ({ ok: false, status: 0 }));
+                }).catch(() => ({ ok: false, status: 0 }));
+            },
             fetchAll(hours) {
                 return Promise.all([
                     this.get('/api/dashboard/system'),
@@ -86,6 +105,110 @@
             }
         };
 
+        // ══════════════════════════════════════════════════════════════════════════════
+        // CARD STATE MANAGER — loading / error / loaded states per card
+        // Uses data-state attribute for CSS shimmer overlay (non-destructive).
+        // On error, body content is replaced with error state + retry button.
+        // ══════════════════════════════════════════════════════════════════════════════
+        const CardState = {
+            _retryFns: {},
+
+            /**
+             * Set a card to loading state (shimmer overlay on existing content).
+             * Non-destructive — preserves existing child elements for render functions.
+             * @param {string} cardId - The card element id (e.g. 'card-system')
+             */
+            setLoading(cardId) {
+                const card = document.getElementById(cardId);
+                if (!card) return;
+                card.setAttribute('data-state', 'loading');
+            },
+
+            /**
+             * Set a card to error state with a retry button.
+             * Replaces card body with error state. Original content is saved
+             * and restored on successful retry.
+             * @param {string} cardId - The card element id
+             * @param {Function} retryFn - Async function to call on retry
+             * @param {object} [opts] - { title, desc, status }
+             */
+            setError(cardId, retryFn, opts) {
+                const card = document.getElementById(cardId);
+                if (!card) return;
+                card.setAttribute('data-state', 'error');
+                const body = card.querySelector('.dash-card-body');
+                if (!body) return;
+                if (!body.dataset.originalContent) {
+                    body.dataset.originalContent = body.innerHTML;
+                }
+                const o = opts || {};
+                const title = o.title || t('dashboard.error_title');
+                let desc = o.desc || t('dashboard.error_generic');
+                if (o.status === 401) desc = t('dashboard.error_auth');
+                else if (o.status >= 500) desc = t('dashboard.error_server');
+                else if (o.status === 0) desc = t('dashboard.error_network');
+                body.innerHTML = `<div class="dash-error-state">
+                    <span class="dash-error-icon">⚠</span>
+                    <p class="dash-error-title">${esc(title)}</p>
+                    <p class="dash-error-desc">${esc(desc)}</p>
+                    <button type="button" class="dash-error-retry" onclick="CardState.retry('${cardId}')">
+                        <span class="dash-error-spinner"></span>
+                        <span class="dash-error-retry-label">${esc(t('dashboard.retry'))}</span>
+                    </button>
+                </div>`;
+                this._retryFns[cardId] = retryFn;
+            },
+
+            /**
+             * Set a card to loaded state, restoring original content if it was
+             * replaced by an error state.
+             * @param {string} cardId - The card element id
+             */
+            setLoaded(cardId) {
+                const card = document.getElementById(cardId);
+                if (!card) return;
+                card.setAttribute('data-state', 'loaded');
+                const body = card.querySelector('.dash-card-body');
+                if (!body) return;
+                if (body.dataset.originalContent) {
+                    // Destroy Chart.js instances in the body before replacing
+                    body.querySelectorAll('canvas').forEach(canvas => {
+                        const chartInstance = Chart.getChart(canvas);
+                        if (chartInstance) chartInstance.destroy();
+                    });
+                    body.innerHTML = body.dataset.originalContent;
+                    delete body.dataset.originalContent;
+                }
+                // Clean up retry function reference
+                delete this._retryFns[cardId];
+            },
+
+            /**
+             * Clear all stored retry functions (call on tab switch to prevent leaks).
+             */
+            clearAllRetryFns() {
+                this._retryFns = {};
+            },
+
+            /**
+             * Retry handler for error-state retry buttons.
+             * @param {string} cardId
+             */
+            async retry(cardId) {
+                const retryFn = this._retryFns[cardId];
+                if (!retryFn) return;
+                const btn = document.querySelector('#' + cardId + ' .dash-error-retry');
+                if (btn) btn.classList.add('loading');
+                try {
+                    await retryFn();
+                } catch (e) {
+                    // Error state will be re-set by the loader if it fails again
+                }
+            },
+        };
+        // Expose CardState globally for inline onclick handlers
+        window.CardState = CardState;
+
         let currentMoodHours = 24;
 
         // ══════════════════════════════════════════════════════════════════════════════
@@ -104,8 +227,15 @@
             if (!VALID_TABS.includes(tabId)) tabId = 'overview';
             localStorage.setItem('aurago-dash-tab', tabId);
             history.replaceState(null, '', '#' + tabId);
-            document.querySelectorAll('.dash-tab').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.tab === tabId);
+            // Clean up stale retry function references from previous tab
+            CardState.clearAllRetryFns();
+            const tablist = document.getElementById('dashTabs');
+            const buttons = tablist ? Array.from(tablist.querySelectorAll('.dash-tab')) : [];
+            buttons.forEach(btn => {
+                const isActive = btn.dataset.tab === tabId;
+                btn.classList.toggle('active', isActive);
+                btn.setAttribute('aria-selected', String(isActive));
+                btn.tabIndex = isActive ? 0 : -1;
             });
             document.querySelectorAll('.dash-tab-panel').forEach(panel => {
                 dashSetHidden(panel, panel.id !== 'tab-' + tabId);
@@ -132,6 +262,30 @@
             }
         }
 
+        // ── Tab keyboard navigation (ARIA tablist pattern) ─────────────────────────
+        function initTabKeyboardNav() {
+            const tablist = document.getElementById('dashTabs');
+            if (!tablist) return;
+            tablist.addEventListener('keydown', (e) => {
+                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+                const buttons = Array.from(tablist.querySelectorAll('.dash-tab'));
+                const currentIndex = buttons.findIndex(b => b.classList.contains('active'));
+                if (currentIndex === -1) return;
+                e.preventDefault();
+                let nextIndex;
+                if (e.key === 'ArrowRight') nextIndex = (currentIndex + 1) % buttons.length;
+                else if (e.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + buttons.length) % buttons.length;
+                else if (e.key === 'Home') nextIndex = 0;
+                else if (e.key === 'End') nextIndex = buttons.length - 1;
+                if (nextIndex == null) return;
+                const targetBtn = buttons[nextIndex];
+                if (targetBtn) {
+                    showTab(targetBtn.dataset.tab);
+                    targetBtn.focus();
+                }
+            });
+        }
+
         async function loadTabContent(tabId) {
             TabState.loaded[tabId] = true;
             switch (tabId) {
@@ -154,18 +308,43 @@
         }
 
         async function loadTabOverview() {
-            const [system, budget, overview, credits, opt, comp] = await Promise.all([
-                API.get('/api/dashboard/system'),
-                API.get('/api/budget'),
-                API.get('/api/dashboard/overview'),
-                API.get('/api/credits'),
-                API.get('/api/dashboard/optimization'),
-                API.get('/api/dashboard/compression'),
+            // Set loading state on all overview cards
+            CardState.setLoading('card-system');
+            CardState.setLoading('card-quickstatus');
+            CardState.setLoading('card-budget');
+            CardState.setLoading('card-optimization');
+            CardState.setLoading('card-compression');
+            CardState.setLoading('card-mission-history');
+
+            const results = await Promise.all([
+                API.getWithStatus('/api/dashboard/system'),
+                API.getWithStatus('/api/budget'),
+                API.getWithStatus('/api/dashboard/overview'),
+                API.getWithStatus('/api/credits'),
+                API.getWithStatus('/api/dashboard/optimization'),
+                API.getWithStatus('/api/dashboard/compression'),
             ]);
-            renderAgentBanner(overview, overview?.context?.total_chars);
-            renderQuickStatus(overview);
-            renderOptimizationStats(opt);
-            renderCompressionStats(comp);
+            const [systemR, budgetR, overviewR, creditsR, optR, compR] = results;
+            const system = systemR.ok ? systemR.data : null;
+            const budget = budgetR.ok ? budgetR.data : null;
+            const overview = overviewR.ok ? overviewR.data : null;
+            const credits = creditsR.ok ? creditsR.data : null;
+            const opt = optR.ok ? optR.data : null;
+            const comp = compR.ok ? compR.data : null;
+
+            // Set loaded/error per card
+            systemR.ok ? CardState.setLoaded('card-system') : CardState.setError('card-system', loadTabOverview, { status: systemR.status });
+            overviewR.ok ? CardState.setLoaded('card-quickstatus') : CardState.setError('card-quickstatus', loadTabOverview, { status: overviewR.status });
+            budgetR.ok ? CardState.setLoaded('card-budget') : CardState.setError('card-budget', loadTabOverview, { status: budgetR.status });
+            optR.ok ? CardState.setLoaded('card-optimization') : CardState.setError('card-optimization', loadTabOverview, { status: optR.status });
+            compR.ok ? CardState.setLoaded('card-compression') : CardState.setError('card-compression', loadTabOverview, { status: compR.status });
+
+            if (overview) {
+                renderAgentBanner(overview, overview?.context?.total_chars);
+                renderQuickStatus(overview);
+            }
+            if (opt) renderOptimizationStats(opt);
+            if (comp) renderCompressionStats(comp);
             loadMissionHistory();
             if (system) {
                 if (!Charts.cpu) Charts.cpu = createGauge('cpu-chart', system.cpu?.usage_percent || 0);
@@ -188,12 +367,25 @@
         }
 
         async function loadTabAgent() {
-            const [personality, moodHistory, emotionHistory, memData] = await Promise.all([
-                API.get('/api/personality/state'),
-                API.get('/api/dashboard/mood-history?hours=' + currentMoodHours),
-                API.get('/api/dashboard/emotion-history?hours=' + currentMoodHours),
-                API.get('/api/dashboard/memory'),
+            // Set loading state on agent cards
+            CardState.setLoading('card-personality');
+            CardState.setLoading('card-memory');
+
+            const results = await Promise.all([
+                API.getWithStatus('/api/personality/state'),
+                API.getWithStatus('/api/dashboard/mood-history?hours=' + currentMoodHours),
+                API.getWithStatus('/api/dashboard/emotion-history?hours=' + currentMoodHours),
+                API.getWithStatus('/api/dashboard/memory'),
             ]);
+            const [personalityR, moodHistoryR, emotionHistoryR, memDataR] = results;
+            const personality = personalityR.ok ? personalityR.data : null;
+            const moodHistory = moodHistoryR.ok ? moodHistoryR.data : null;
+            const emotionHistory = emotionHistoryR.ok ? emotionHistoryR.data : null;
+            const memData = memDataR.ok ? memDataR.data : null;
+
+            personalityR.ok ? CardState.setLoaded('card-personality') : CardState.setError('card-personality', loadTabAgent, { status: personalityR.status });
+            memDataR.ok ? CardState.setLoaded('card-memory') : CardState.setError('card-memory', loadTabAgent, { status: memDataR.status });
+
             if (personality) {
                 renderMoodBadge(personality);
                 if (personality.enabled) {
@@ -215,12 +407,24 @@
         }
 
         async function loadTabUser() {
-            const [profile, activityOverview] = await Promise.all([
-                API.get('/api/dashboard/profile'),
-                API.get('/api/memory/activity-overview?days=7')
+            // Set loading state on user cards
+            CardState.setLoading('card-profile');
+            CardState.setLoading('card-activity-overview');
+            CardState.setLoading('card-journal');
+
+            const results = await Promise.all([
+                API.getWithStatus('/api/dashboard/profile'),
+                API.getWithStatus('/api/memory/activity-overview?days=7')
             ]);
-            renderProfile(profile);
-            renderActivityOverview(activityOverview);
+            const [profileR, activityOverviewR] = results;
+            const profile = profileR.ok ? profileR.data : null;
+            const activityOverview = activityOverviewR.ok ? activityOverviewR.data : null;
+
+            profileR.ok ? CardState.setLoaded('card-profile') : CardState.setError('card-profile', loadTabUser, { status: profileR.status });
+            activityOverviewR.ok ? CardState.setLoaded('card-activity-overview') : CardState.setError('card-activity-overview', loadTabUser, { status: activityOverviewR.status });
+
+            if (profile) renderProfile(profile);
+            if (activityOverview) renderActivityOverview(activityOverview);
             loadJournal();
         }
 
@@ -284,20 +488,42 @@
         }
 
         async function loadTabSystem() {
-            const [activity, promptStats, logResults, githubRepos, overview, toolStats] = await Promise.all([
-                API.get('/api/dashboard/activity'),
-                API.get('/api/dashboard/prompt-stats'),
-                API.get('/api/dashboard/logs?lines=100'),
-                API.get('/api/dashboard/github-repos'),
-                API.get('/api/dashboard/overview'),
-                API.get('/api/dashboard/tool-stats'),
+            // Set loading state on system cards
+            CardState.setLoading('card-operations');
+            CardState.setLoading('card-helper-llm');
+            CardState.setLoading('card-activity');
+            CardState.setLoading('card-prompt');
+            CardState.setLoading('card-logs');
+
+            const results = await Promise.all([
+                API.getWithStatus('/api/dashboard/activity'),
+                API.getWithStatus('/api/dashboard/prompt-stats'),
+                API.getWithStatus('/api/dashboard/logs?lines=100'),
+                API.getWithStatus('/api/dashboard/github-repos'),
+                API.getWithStatus('/api/dashboard/overview'),
+                API.getWithStatus('/api/dashboard/tool-stats'),
             ]);
-            renderOperations(overview);
-            renderIntegrations(overview);
+            const [activityR, promptStatsR, logResultsR, githubReposR, overviewR, toolStatsR] = results;
+            const activity = activityR.ok ? activityR.data : null;
+            const promptStats = promptStatsR.ok ? promptStatsR.data : null;
+            const logResults = logResultsR.ok ? logResultsR.data : null;
+            const githubRepos = githubReposR.ok ? githubReposR.data : null;
+            const overview = overviewR.ok ? overviewR.data : null;
+            const toolStats = toolStatsR.ok ? toolStatsR.data : null;
+
+            overviewR.ok ? CardState.setLoaded('card-operations') : CardState.setError('card-operations', loadTabSystem, { status: overviewR.status });
+            activityR.ok ? CardState.setLoaded('card-activity') : CardState.setError('card-activity', loadTabSystem, { status: activityR.status });
+            promptStatsR.ok ? CardState.setLoaded('card-prompt') : CardState.setError('card-prompt', loadTabSystem, { status: promptStatsR.status });
+            logResultsR.ok ? CardState.setLoaded('card-logs') : CardState.setError('card-logs', loadTabSystem, { status: logResultsR.status });
+
+            if (overview) {
+                renderOperations(overview);
+                renderIntegrations(overview);
+            }
             loadGuardianCard();
             loadHelperLLMCard();
             loadDaemonsCard();
-            renderActivity(activity);
+            if (activity) renderActivity(activity);
             if (promptStats) {
                 renderPromptStats(promptStats);
                 if (Charts.promptSize) Charts.promptSize.destroy();
@@ -309,11 +535,15 @@
                 if (Charts.promptSectionDist) Charts.promptSectionDist.destroy();
                 Charts.promptSectionDist = createPromptSectionDistChart('prompt-section-dist-chart', promptStats.avg_section_sizes);
             }
-            renderAdaptiveToolStats(toolStats);
-            renderToolingTelemetry(toolStats);
-            renderLogs(logResults);
-            scrollLogsToBottom();
-            renderGitHubRepos(githubRepos);
+            if (toolStats) {
+                renderAdaptiveToolStats(toolStats);
+                renderToolingTelemetry(toolStats);
+            }
+            if (logResults) {
+                renderLogs(logResults);
+                scrollLogsToBottom();
+            }
+            if (githubRepos) renderGitHubRepos(githubRepos);
         }
 
         function formatBytes(bytes) {
@@ -378,6 +608,8 @@
             document.querySelectorAll('.dash-tab').forEach(btn => {
                 btn.addEventListener('click', () => showTab(btn.dataset.tab));
             });
+            // Set up tab keyboard navigation (arrow keys, Home, End)
+            initTabKeyboardNav();
 
             // Set up log viewer listeners (elements are in DOM even when tab is hidden)
             const logFilter = document.getElementById('log-filter');

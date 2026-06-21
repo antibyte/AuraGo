@@ -749,5 +749,13 @@
   "dashboard.knowledge_health_duplicate_groups": "Duplikatgrupper",
   "dashboard.knowledge_health_label_duplicate_groups": "Duplikatetiketter",
   "dashboard.knowledge_health_id_duplicate_groups": "ID-varianter",
-  "dashboard.memory_graph_dirty_hint": "{count} väntande"
+  "dashboard.memory_graph_dirty_hint": "{count} väntande",
+  "dashboard.retry": "Försök igen",
+  "dashboard.error_title": "Fel",
+  "dashboard.error_generic": "Data kunde inte laddas.",
+  "dashboard.error_auth": "Autentisering krävs. Logga in igen.",
+  "dashboard.error_server": "Serverfel. Försök igen senare.",
+  "dashboard.error_network": "Nätverksanslutningen förlorad. Kontrollera din anslutning.",
+  "dashboard.tablist_label": "Dashboard-sektioner",
+  "dashboard.status_label": "Status"
 }

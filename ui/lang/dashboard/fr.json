@@ -749,5 +749,13 @@
   "dashboard.knowledge_health_duplicate_groups": "Groupes de doublons",
   "dashboard.knowledge_health_label_duplicate_groups": "Labels en double",
   "dashboard.knowledge_health_id_duplicate_groups": "Variantes d'ID",
-  "dashboard.memory_graph_dirty_hint": "{count} en attente"
+  "dashboard.memory_graph_dirty_hint": "{count} en attente",
+  "dashboard.retry": "Réessayer",
+  "dashboard.error_title": "Erreur",
+  "dashboard.error_generic": "Les données n'ont pas pu être chargées.",
+  "dashboard.error_auth": "Authentification requise. Veuillez vous reconnecter.",
+  "dashboard.error_server": "Erreur serveur. Veuillez réessayer plus tard.",
+  "dashboard.error_network": "Connexion réseau perdue. Veuillez vérifier votre connexion.",
+  "dashboard.tablist_label": "Sections du tableau de bord",
+  "dashboard.status_label": "Statut"
 }

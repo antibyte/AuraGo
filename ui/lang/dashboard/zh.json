@@ -749,5 +749,13 @@
   "dashboard.knowledge_health_duplicate_groups": "重复组",
   "dashboard.knowledge_health_label_duplicate_groups": "标签重复",
   "dashboard.knowledge_health_id_duplicate_groups": "ID变体",
-  "dashboard.memory_graph_dirty_hint": "{count} 个待处理"
+  "dashboard.memory_graph_dirty_hint": "{count} 个待处理",
+  "dashboard.retry": "重试",
+  "dashboard.error_title": "错误",
+  "dashboard.error_generic": "数据无法加载。",
+  "dashboard.error_auth": "需要身份验证。请重新登录。",
+  "dashboard.error_server": "服务器错误。请稍后再试。",
+  "dashboard.error_network": "网络连接已丢失。请检查您的连接。",
+  "dashboard.tablist_label": "仪表板分区",
+  "dashboard.status_label": "状态"
 }

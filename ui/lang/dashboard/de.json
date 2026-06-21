@@ -749,5 +749,13 @@
   "dashboard.knowledge_health_duplicate_groups": "Duplikat-Gruppen",
   "dashboard.knowledge_health_label_duplicate_groups": "Label-Duplikate",
   "dashboard.knowledge_health_id_duplicate_groups": "ID-Varianten",
-  "dashboard.memory_graph_dirty_hint": "{count} ausstehend"
+  "dashboard.memory_graph_dirty_hint": "{count} ausstehend",
+  "dashboard.retry": "Wiederholen",
+  "dashboard.error_title": "Fehler",
+  "dashboard.error_generic": "Daten konnten nicht geladen werden.",
+  "dashboard.error_auth": "Authentifizierung erforderlich. Bitte melde dich erneut an.",
+  "dashboard.error_server": "Serverfehler. Bitte versuche es später erneut.",
+  "dashboard.error_network": "Netzwerkverbindung verloren. Bitte überprüfe deine Verbindung.",
+  "dashboard.tablist_label": "Dashboard-Bereiche",
+  "dashboard.status_label": "Status"
 }

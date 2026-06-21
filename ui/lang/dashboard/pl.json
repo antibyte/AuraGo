@@ -749,5 +749,13 @@
   "dashboard.knowledge_health_duplicate_groups": "Grupy duplikatów",
   "dashboard.knowledge_health_label_duplicate_groups": "Duplikaty etykiet",
   "dashboard.knowledge_health_id_duplicate_groups": "Warianty ID",
-  "dashboard.memory_graph_dirty_hint": "{count} oczekujących"
+  "dashboard.memory_graph_dirty_hint": "{count} oczekujących",
+  "dashboard.retry": "Spróbuj ponownie",
+  "dashboard.error_title": "Błąd",
+  "dashboard.error_generic": "Nie udało się załadować danych.",
+  "dashboard.error_auth": "Wymagane uwierzytelnienie. Zaloguj się ponownie.",
+  "dashboard.error_server": "Błąd serwera. Spróbuj ponownie później.",
+  "dashboard.error_network": "Utracono połączenie sieciowe. Sprawdź swoje połączenie.",
+  "dashboard.tablist_label": "Sekcje pulpitu",
+  "dashboard.status_label": "Status"
 }

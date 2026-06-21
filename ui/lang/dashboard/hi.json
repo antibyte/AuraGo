@@ -749,5 +749,13 @@
   "dashboard.knowledge_health_duplicate_groups": "डुप्लिकेट समूह",
   "dashboard.knowledge_health_label_duplicate_groups": "डुप्लिकेट लेबल",
   "dashboard.knowledge_health_id_duplicate_groups": "ID वेरिएंट",
-  "dashboard.memory_graph_dirty_hint": "{count} लंबित"
+  "dashboard.memory_graph_dirty_hint": "{count} लंबित",
+  "dashboard.retry": "पुनः प्रयास करें",
+  "dashboard.error_title": "त्रुटि",
+  "dashboard.error_generic": "डेटा लोड नहीं हो सका।",
+  "dashboard.error_auth": "प्रमाणीकरण आवश्यक। कृपया फिर से लॉग इन करें।",
+  "dashboard.error_server": "सर्वर त्रुटि। कृपया बाद में पुनः प्रयास करें।",
+  "dashboard.error_network": "नेटवर्क कनेक्शन खो गया। कृपया अपना कनेक्शन जांचें।",
+  "dashboard.tablist_label": "डैशबोर्ड अनुभाग",
+  "dashboard.status_label": "स्थिति"
 }

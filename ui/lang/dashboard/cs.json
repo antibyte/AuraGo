@@ -749,5 +749,13 @@
   "dashboard.knowledge_health_duplicate_groups": "Skupiny duplicit",
   "dashboard.knowledge_health_label_duplicate_groups": "Duplicitní štítky",
   "dashboard.knowledge_health_id_duplicate_groups": "ID varianty",
-  "dashboard.memory_graph_dirty_hint": "{count} čekajících"
+  "dashboard.memory_graph_dirty_hint": "{count} čekajících",
+  "dashboard.retry": "Zopakovat",
+  "dashboard.error_title": "Chyba",
+  "dashboard.error_generic": "Data se nepodařilo načíst.",
+  "dashboard.error_auth": "Vyžadováno přihlášení. Přihlaste se znovu.",
+  "dashboard.error_server": "Chyba serveru. Zkuste to později.",
+  "dashboard.error_network": "Síťové připojení ztraceno. Zkontrolujte připojení.",
+  "dashboard.tablist_label": "Sekce řídicího panelu",
+  "dashboard.status_label": "Stav"
 }

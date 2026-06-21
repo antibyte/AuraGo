@@ -749,5 +749,13 @@
   "dashboard.knowledge_health_duplicate_groups": "Ομάδες διπλότυπων",
   "dashboard.knowledge_health_label_duplicate_groups": "Διπλότυπες ετικέτες",
   "dashboard.knowledge_health_id_duplicate_groups": "Παραλλαγές ID",
-  "dashboard.memory_graph_dirty_hint": "{count} σε αναμονή"
+  "dashboard.memory_graph_dirty_hint": "{count} σε αναμονή",
+  "dashboard.retry": "Επανάληψη",
+  "dashboard.error_title": "Σφάλμα",
+  "dashboard.error_generic": "Τα δεδομένα δεν μπόρεσαν να φορτωθούν.",
+  "dashboard.error_auth": "Απαιτείται πιστοποίηση. Παρακαλώ συνδεθείτε ξανά.",
+  "dashboard.error_server": "Σφάλμα διακομιστή. Προσπαθήστε ξανά αργότερα.",
+  "dashboard.error_network": "Η σύνδεση δικτύου χάθηκε. Ελέγξτε τη σύνδεσή σας.",
+  "dashboard.tablist_label": "Ενότητες πίνακα ελέγχου",
+  "dashboard.status_label": "Κατάσταση"
 }

@@ -749,5 +749,13 @@
   "dashboard.knowledge_health_duplicate_groups": "重複グループ",
   "dashboard.knowledge_health_label_duplicate_groups": "ラベル重複",
   "dashboard.knowledge_health_id_duplicate_groups": "IDバリアント",
-  "dashboard.memory_graph_dirty_hint": "{count} 件未処理"
+  "dashboard.memory_graph_dirty_hint": "{count} 件未処理",
+  "dashboard.retry": "再試行",
+  "dashboard.error_title": "エラー",
+  "dashboard.error_generic": "データを読み込めませんでした。",
+  "dashboard.error_auth": "認証が必要です。もう一度ログインしてください。",
+  "dashboard.error_server": "サーバーエラーが発生しました。しばらくしてから再試行してください。",
+  "dashboard.error_network": "ネットワーク接続が切断されました。接続を確認してください。",
+  "dashboard.tablist_label": "ダッシュボードセクション",
+  "dashboard.status_label": "ステータス"
 }

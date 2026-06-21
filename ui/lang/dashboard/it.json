@@ -749,5 +749,13 @@
   "dashboard.knowledge_health_duplicate_groups": "Gruppi duplicati",
   "dashboard.knowledge_health_label_duplicate_groups": "Etichette duplicate",
   "dashboard.knowledge_health_id_duplicate_groups": "Varianti ID",
-  "dashboard.memory_graph_dirty_hint": "{count} in sospeso"
+  "dashboard.memory_graph_dirty_hint": "{count} in sospeso",
+  "dashboard.retry": "Riprova",
+  "dashboard.error_title": "Errore",
+  "dashboard.error_generic": "Impossibile caricare i dati.",
+  "dashboard.error_auth": "Autenticazione richiesta. Effettua nuovamente l'accesso.",
+  "dashboard.error_server": "Errore del server. Riprova più tardi.",
+  "dashboard.error_network": "Connessione di rete persa. Controlla la connessione.",
+  "dashboard.tablist_label": "Sezioni della dashboard",
+  "dashboard.status_label": "Stato"
 }

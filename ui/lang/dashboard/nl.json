@@ -749,5 +749,13 @@
   "dashboard.knowledge_health_duplicate_groups": "Duplicaatgroepen",
   "dashboard.knowledge_health_label_duplicate_groups": "Dubbele labels",
   "dashboard.knowledge_health_id_duplicate_groups": "ID-varianten",
-  "dashboard.memory_graph_dirty_hint": "{count} in wacht"
+  "dashboard.memory_graph_dirty_hint": "{count} in wacht",
+  "dashboard.retry": "Opnieuw proberen",
+  "dashboard.error_title": "Fout",
+  "dashboard.error_generic": "Gegevens konden niet worden geladen.",
+  "dashboard.error_auth": "Verificatie vereist. Log opnieuw in.",
+  "dashboard.error_server": "Serverfout. Probeer het later opnieuw.",
+  "dashboard.error_network": "Netwerkverbinding verbroken. Controleer je verbinding.",
+  "dashboard.tablist_label": "Dashboardsecties",
+  "dashboard.status_label": "Status"
 }

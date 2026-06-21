@@ -749,5 +749,13 @@
   "dashboard.knowledge_health_duplicate_groups": "Grupos duplicados",
   "dashboard.knowledge_health_label_duplicate_groups": "Rótulos duplicados",
   "dashboard.knowledge_health_id_duplicate_groups": "Variantes de ID",
-  "dashboard.memory_graph_dirty_hint": "{count} pendentes"
+  "dashboard.memory_graph_dirty_hint": "{count} pendentes",
+  "dashboard.retry": "Tentar novamente",
+  "dashboard.error_title": "Erro",
+  "dashboard.error_generic": "Não foi possível carregar os dados.",
+  "dashboard.error_auth": "Autenticação necessária. Por favor, inicie sessão novamente.",
+  "dashboard.error_server": "Erro do servidor. Por favor, tente novamente mais tarde.",
+  "dashboard.error_network": "Ligação de rede perdida. Verifique a sua ligação.",
+  "dashboard.tablist_label": "Secções do painel",
+  "dashboard.status_label": "Estado"
 }
