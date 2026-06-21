@@ -20,6 +20,146 @@
             cv.fillRect(Math.floor(fx + 0.5), Math.floor(fy + 11), 1, 1 + Math.ceil(f3 * 0.5));
         }
 
+        function drawPlayerSpriteDetails(cv, x, y, cols, phaseOffset) {
+            const tk = ctx.tick || 0;
+            const glint = cols[7] || '#e8fbff';
+            cv.fillStyle = glint;
+            cv.fillRect(Math.floor(x - 2), Math.floor(y - 8), 5, 3);
+            const wingOn = (tk % 24) < 12;
+            cv.fillStyle = wingOn ? (cols.c || '#7df9ff') : (cols.a || '#ff5d5d');
+            cv.fillRect(Math.floor(x - 11), Math.floor(y + 1), 1, 1);
+            cv.fillRect(Math.floor(x + 10), Math.floor(y + 1), 1, 1);
+            cv.fillStyle = cols[4] || '#1f5ccc';
+            cv.fillRect(Math.floor(x - 6), Math.floor(y - 1), 1, 1);
+            cv.fillRect(Math.floor(x + 5), Math.floor(y - 1), 1, 1);
+            cv.fillRect(Math.floor(x - 4), Math.floor(y + 4), 1, 1);
+            cv.fillRect(Math.floor(x + 3), Math.floor(y + 4), 1, 1);
+            const coreA = 0.55 + Math.sin(tk * 0.18 + phaseOffset) * 0.25;
+            cv.globalAlpha = coreA;
+            cv.fillStyle = cols[6] || '#4dffcf';
+            cv.fillRect(Math.floor(x - 5), Math.floor(y + 12), 1, 1);
+            cv.fillRect(Math.floor(x + 4), Math.floor(y + 12), 1, 1);
+            cv.globalAlpha = 1;
+            if (ctx.G && ctx.G.superActive > 0) {
+                const def = ctx.SUPER_DEFS && ctx.SUPER_DEFS[ctx.G.superType];
+                cv.fillStyle = def ? def.col : '#ffffff';
+                cv.fillRect(Math.floor(x - 8), Math.floor(y + 7), 17, 1);
+            }
+        }
+
+        function drawEnemySpriteDetails(cv, e, cols) {
+            if (!e || e.st === 'DEAD') return;
+            const ex = Math.floor(e.x), ey = Math.floor(e.y);
+            const tk = ctx.tick || 0;
+            const frame = Math.max(0, Math.floor(e.animFrame || e.fr || 0));
+            const c1 = (cols && cols[1]) || '#ffffff';
+            const c2 = (cols && cols[2]) || '#88ccff';
+            const c3 = (cols && cols[3]) || '#4488ff';
+            const c4 = (cols && cols[4]) || '#2266cc';
+            const c5 = (cols && cols[5]) || '#ff8800';
+            const c6 = (cols && cols[6]) || '#44ffaa';
+            const ca = (cols && cols.a) || '#ff5544';
+            const cb = (cols && cols.b) || '#ffcc44';
+            switch (e.type) {
+            case 'bee':
+                cv.fillStyle = cb; cv.fillRect(ex - 3, ey - 7, 1, 1); cv.fillRect(ex + 2, ey - 7, 1, 1);
+                cv.fillStyle = c5; cv.fillRect(ex - 9 - (frame % 2), ey - 1, 1, 1); cv.fillRect(ex + 8 + (frame % 2), ey - 1, 1, 1);
+                break;
+            case 'butterfly': {
+                const wingA = 0.5 + ((tk + frame) % 2) * 0.35;
+                cv.globalAlpha = wingA; cv.fillStyle = c6; cv.fillRect(ex - 10, ey - 4, 1, 1); cv.fillRect(ex + 9, ey - 4, 1, 1);
+                cv.fillStyle = ca; cv.fillRect(ex - 8, ey + 5, 1, 1); cv.fillRect(ex + 7, ey + 5, 1, 1);
+                cv.globalAlpha = 1;
+                break;
+            }
+            case 'stalker':
+                cv.fillStyle = c3; for (let sx = ex - 4; sx <= ex + 4; sx++) cv.fillRect(sx, ey - 3, 1, 1);
+                cv.fillStyle = c4; cv.fillRect(ex, ey + 2, 1, 1);
+                break;
+            case 'sniper':
+                cv.fillStyle = cb; for (let sy = ey - 9; sy <= ey - 3; sy++) cv.fillRect(ex, sy, 1, 1);
+                if (e.sTmr <= 300) { cv.fillStyle = c1; cv.fillRect(ex, ey + 8, 1, 1); }
+                break;
+            case 'hunter': {
+                const ha = e.st === 'DIVING' ? 0.95 : 0.55;
+                cv.globalAlpha = ha; cv.fillStyle = c5;
+                cv.fillRect(ex - 8, ey - 5, 1, 1); cv.fillRect(ex + 7, ey - 5, 1, 1);
+                cv.fillRect(ex - 10, ey + 2, 1, 1); cv.fillRect(ex + 9, ey + 2, 1, 1);
+                cv.globalAlpha = 1;
+                break;
+            }
+            case 'spinner':
+                for (let i = 0; i < 4; i++) {
+                    const ang = tk * 0.18 + i * Math.PI / 2;
+                    cv.fillStyle = c6;
+                    cv.fillRect(Math.floor(ex + Math.cos(ang) * 10), Math.floor(ey + Math.sin(ang) * 10), 1, 1);
+                }
+                break;
+            case 'bomber': {
+                const pulse = 0.45 + Math.sin(tk * 0.2) * 0.25;
+                cv.globalAlpha = pulse; cv.fillStyle = c3; cv.fillRect(ex - 2, ey - 2, 4, 4);
+                cv.globalAlpha = 1;
+                if (e.hp < e.maxHp) { cv.fillStyle = ca; cv.fillRect(ex + 3, ey, 1, 1); }
+                break;
+            }
+            case 'lasher':
+                cv.fillStyle = c6;
+                cv.fillRect(ex - 4, ey + 8 + (frame % 2), 1, 1);
+                cv.fillRect(ex, ey + 8 + (frame % 2), 1, 1);
+                cv.fillRect(ex + 4, ey + 8 + (frame % 2), 1, 1);
+                break;
+            case 'weaver': {
+                const slide = Math.sin(tk * 0.12 + (e.col || 0)) * 2;
+                cv.fillStyle = cb;
+                cv.fillRect(Math.floor(ex - 6 + slide), ey, 1, 1);
+                cv.fillRect(Math.floor(ex + 5 - slide), ey, 1, 1);
+                break;
+            }
+            case 'splitter':
+                cv.fillStyle = e.hp < e.maxHp ? c6 : c2;
+                for (let sy = ey - 7; sy <= ey + 7; sy++) cv.fillRect(ex, sy, 1, 1);
+                break;
+            case 'shield_bee': {
+                const pulse = 0.18 + (0.5 + Math.sin(tk * 0.14) * 0.5) * 0.18;
+                cv.globalAlpha = pulse; cv.strokeStyle = c2; cv.lineWidth = 1;
+                cv.beginPath(); cv.arc(ex, ey, 14, 0, Math.PI * 2); cv.stroke();
+                cv.globalAlpha = 1;
+                break;
+            }
+            case 'kamikaze': {
+                const kp = e.st === 'DIVING' ? 0.85 : 0.55;
+                cv.globalAlpha = kp; cv.fillStyle = ca; cv.fillRect(ex - 2, ey - 2, 4, 4);
+                cv.fillStyle = c5; cv.fillRect(ex - 5, ey + 5, 1, 1); cv.fillRect(ex + 4, ey + 5, 1, 1);
+                cv.globalAlpha = 1;
+                break;
+            }
+            case 'carrier':
+                cv.fillStyle = c3; cv.fillRect(ex - 5, ey + 2, 10, 1);
+                cv.fillStyle = c2; cv.fillRect(ex - 6, ey - 4, 1, 1); cv.fillRect(ex + 5, ey - 4, 1, 1);
+                break;
+            case 'teleporter': {
+                const ta = 0.35 + (0.5 + Math.sin(tk * 0.22) * 0.5) * 0.45;
+                cv.globalAlpha = ta; cv.fillStyle = c6;
+                cv.fillRect(ex - 8, ey - 8, 1, 1); cv.fillRect(ex + 7, ey - 8, 1, 1);
+                cv.fillRect(ex - 8, ey + 7, 1, 1); cv.fillRect(ex + 7, ey + 7, 1, 1);
+                cv.globalAlpha = 1;
+                break;
+            }
+            case 'boss':
+            case 'miniboss': {
+                cv.fillStyle = c5; cv.fillRect(ex, ey - 2, 1, 1);
+                const ratio = e.maxHp > 0 ? e.hp / e.maxHp : 1;
+                if (ratio <= 0.5) {
+                    cv.fillStyle = ratio <= 0.25 ? ca : cb;
+                    cv.fillRect(ex - 4, ey - 6, 1, 1); cv.fillRect(ex + 3, ey + 4, 1, 1);
+                }
+                break;
+            }
+            default:
+                break;
+            }
+        }
+
         function renderFrame(dt) {
             // NEW: Cinematic camera transform during super (zoom-in around canvas center)
             const G = ctx.G;
@@ -300,13 +440,22 @@
                 const _egInt = 0.25 + Math.sin(ctx.tick * 0.15) * 0.15;
                 const _eglG = ctx.cachedRadialGradient(ctx.c, 'engGlow:' + _egGlow, p.x, p.y + 14, 0, 18, [[0, _egGlow + '88'], [0.5, _egGlow + '22'], [1, 'transparent']]);
                 ctx.c.globalAlpha = _egInt; ctx.c.fillStyle = _eglG; ctx.c.fillRect(p.x - 20, p.y - 4, 40, 36); ctx.c.globalAlpha = 1;
+                const playerFrame = (ctx.getPlayerSpriteFrame && ctx.getPlayerSpriteFrame()) || ctx.SP.player;
                 if (p.inv > 0) {
                     const rpc = ctx.rainbowPC();
-                    ctx.drawSp(ctx.c, ctx.SP.player, rpc, p.x - 12, p.y - 12, false, true);
-                    if (p.dual) ctx.drawSp(ctx.c, ctx.SP.player, rpc, p.x + 28, p.y - 12, false, true);
+                    ctx.drawSp(ctx.c, playerFrame, rpc, p.x - 12, p.y - 12, false, true);
+                    drawPlayerSpriteDetails(ctx.c, p.x, p.y, rpc, 0);
+                    if (p.dual) {
+                        ctx.drawSp(ctx.c, playerFrame, rpc, p.x + 28, p.y - 12, false, true);
+                        drawPlayerSpriteDetails(ctx.c, p.x + 40, p.y, rpc, 1.7);
+                    }
                 } else {
-                    ctx.drawSp(ctx.c, ctx.SP.player, ctx.SP.pC, p.x - 12, p.y - 12, false);
-                    if (p.dual) ctx.drawSp(ctx.c, ctx.SP.player, ctx.SP.pC, p.x + 28, p.y - 12, false);
+                    ctx.drawSp(ctx.c, playerFrame, ctx.SP.pC, p.x - 12, p.y - 12, false);
+                    drawPlayerSpriteDetails(ctx.c, p.x, p.y, ctx.SP.pC, 0);
+                    if (p.dual) {
+                        ctx.drawSp(ctx.c, playerFrame, ctx.SP.pC, p.x + 28, p.y - 12, false);
+                        drawPlayerSpriteDetails(ctx.c, p.x + 40, p.y, ctx.SP.pC, 1.7);
+                    }
                 }
                 if (p.alive) {
                     const beatMod = ctx.G.beatPhase > 0.85 ? 1.3 : 1;
@@ -321,7 +470,10 @@
                 }
                 ctx.c.restore();
             }
-            if (p.cap) ctx.drawSp(ctx.c, ctx.SP.player, ctx.SP.pC, p.cap.x - 12, p.cap.y - 12, false);
+            if (p.cap) {
+                ctx.drawSp(ctx.c, ctx.SP.playerFrames[0], ctx.SP.pC, p.cap.x - 12, p.cap.y - 12, false);
+                drawPlayerSpriteDetails(ctx.c, p.cap.x, p.cap.y, ctx.SP.pC, 0);
+            }
             if (ctx.G.shieldHits > 0 && p.alive) {
                 ctx.c.strokeStyle = '#4488ff'; ctx.c.lineWidth = 1.5; ctx.c.globalAlpha = 0.5 + Math.sin(ctx.tick * 0.1) * 0.2;
                 ctx.c.shadowBlur = 10; ctx.c.shadowColor = '#4488ff';
@@ -418,7 +570,8 @@
                     const _offsets = [-40, 40, -80, 80];
                     for (const _off of _offsets) {
                         ctx.c.globalAlpha = 0.3 + Math.sin(ctx.tick * 0.2 + _off) * 0.1;
-                        ctx.drawSp(ctx.c, ctx.SP.player, { 1: _def.col, 2: '#4466aa', 3: '#224477', 4: '#112244', 5: '#ff8800', 6: '#44ffaa', 7: '#aaddff', a: '#ff5544' }, p.x + _off - 12, p.y - 12, false);
+                        const _cloneFrame = (ctx.getPlayerSpriteFrame && ctx.getPlayerSpriteFrame()) || ctx.SP.player;
+                        ctx.drawSp(ctx.c, _cloneFrame, { 1: _def.col, 2: '#4466aa', 3: '#224477', 4: '#112244', 5: '#ff8800', 6: '#44ffaa', 7: '#aaddff', a: '#ff5544' }, p.x + _off - 12, p.y - 12, false);
                     }
                     ctx.c.globalAlpha = 1;
                 }
@@ -584,18 +737,15 @@
                 if (e.st === 'DEAD') continue;
                 if (e.st === 'DIVING') {
                     ctx.c.globalAlpha = 0.12;
-                    let sp, cols;
-                    const _bossVar = (ctx.G.stage - 1) % 3;
-                    const _bossCols = _bossVar === 1 ? ctx.SP.bossRedC : _bossVar === 2 ? ctx.SP.bossBlueC : ctx.SP.bossC;
-                    if (e.type === 'bee') { sp = ctx.SP.bee[e.fr]; cols = ctx.SP.bC; } else if (e.type === 'butterfly') { sp = ctx.SP.bf[e.fr]; cols = ctx.SP.bfC; } else if (e.type === 'stalker') { sp = ctx.SP.stalker[e.fr]; cols = ctx.SP.stalkerC; } else if (e.type === 'sniper') { sp = ctx.SP.sniper[e.fr]; cols = ctx.SP.sniperC; } else if (e.type === 'hunter') { sp = ctx.SP.hunter[e.fr]; cols = ctx.SP.hunterC; } else if (e.type === 'spinner') { sp = ctx.SP.spinner[e.fr]; cols = ctx.SP.spinnerC; } else if (e.type === 'bomber') { sp = ctx.SP.bomber[e.fr]; cols = ctx.SP.bomberC; } else if (e.type === 'lasher') { sp = ctx.SP.lasher[e.fr]; cols = ctx.SP.lasherC; } else if (e.type === 'weaver') { sp = ctx.SP.weaver[e.fr]; cols = ctx.SP.weaverC; } else if (e.type === 'splitter') { sp = ctx.SP.splitter[e.fr]; cols = ctx.SP.splitterC; } else if (e.type === 'shield_bee') { sp = ctx.SP.shield_bee[e.fr]; cols = ctx.SP.shield_beeC; } else if (e.type === 'kamikaze') { sp = ctx.SP.kamikaze[e.fr]; cols = ctx.SP.kamikazeC; } else if (e.type === 'carrier') { sp = ctx.SP.carrier[e.fr]; cols = ctx.SP.carrierC; } else if (e.type === 'teleporter') { sp = ctx.SP.teleporter[e.fr]; cols = ctx.SP.teleporterC; } else if (e.type === 'miniboss') { sp = e.hp <= 1 ? ctx.SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? ctx.SP.bossHit : ctx.SP.boss; cols = _bossCols; } else { sp = e.hp <= 1 ? ctx.SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? ctx.SP.bossHit : ctx.SP.boss; cols = _bossCols; }
+                    const _ghostRef = ctx.enemySpriteFor(e);
+                    const sp = _ghostRef.sp, cols = _ghostRef.cols;
                     ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 18, false);
                     ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 10, false);
                     ctx.c.globalAlpha = 1;
                 }
-                const fl = e.hitF > 0; let sp, cols;
-                const bossVariant = (ctx.G.stage - 1) % 3;
-                const bossCols = bossVariant === 1 ? ctx.SP.bossRedC : bossVariant === 2 ? ctx.SP.bossBlueC : ctx.SP.bossC;
-                if (e.type === 'bee') { sp = ctx.SP.bee[e.fr]; cols = ctx.SP.bC; } else if (e.type === 'butterfly') { sp = ctx.SP.bf[e.fr]; cols = ctx.SP.bfC; } else if (e.type === 'stalker') { sp = ctx.SP.stalker[e.fr]; cols = ctx.SP.stalkerC; } else if (e.type === 'sniper') { sp = ctx.SP.sniper[e.fr]; cols = ctx.SP.sniperC; } else if (e.type === 'hunter') { sp = ctx.SP.hunter[e.fr]; cols = ctx.SP.hunterC; } else if (e.type === 'spinner') { sp = ctx.SP.spinner[e.fr]; cols = ctx.SP.spinnerC; } else if (e.type === 'bomber') { sp = ctx.SP.bomber[e.fr]; cols = ctx.SP.bomberC; } else if (e.type === 'lasher') { sp = ctx.SP.lasher[e.fr]; cols = ctx.SP.lasherC; } else if (e.type === 'weaver') { sp = ctx.SP.weaver[e.fr]; cols = ctx.SP.weaverC; } else if (e.type === 'splitter') { sp = ctx.SP.splitter[e.fr]; cols = ctx.SP.splitterC; } else if (e.type === 'shield_bee') { sp = ctx.SP.shield_bee[e.fr]; cols = ctx.SP.shield_beeC; } else if (e.type === 'kamikaze') { sp = ctx.SP.kamikaze[e.fr]; cols = ctx.SP.kamikazeC; } else if (e.type === 'carrier') { sp = ctx.SP.carrier[e.fr]; cols = ctx.SP.carrierC; } else if (e.type === 'teleporter') { sp = ctx.SP.teleporter[e.fr]; cols = ctx.SP.teleporterC; } else if (e.type === 'miniboss') { sp = e.hp <= 1 ? ctx.SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? ctx.SP.bossHit : ctx.SP.boss; cols = bossCols; } else { sp = e.hp <= 1 ? ctx.SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? ctx.SP.bossHit : ctx.SP.boss; cols = bossCols; }
+                const fl = e.hitF > 0;
+                const _eref = ctx.enemySpriteFor(e);
+                const sp = _eref.sp, cols = _eref.cols;
                 if (e.type === 'hunter' && e.st !== 'DEAD') {
                     ctx.c.globalAlpha = 0.25 + Math.sin(ctx.tick * 0.12) * 0.1;
                     ctx.c.shadowBlur = 10; ctx.c.shadowColor = '#ff6600';
@@ -613,9 +763,11 @@
                     ctx.c.scale(_sc, _sc);
                     ctx.c.translate(-e.x, -e.y);
                     ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 12, fl);
+                    drawEnemySpriteDetails(ctx.c, e, cols);
                     ctx.c.restore();
                 } else {
                     ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 12, fl);
+                    drawEnemySpriteDetails(ctx.c, e, cols);
                 }
                 if (fl && e.hitF > 60) {
                     const _hitAlpha = (e.hitF - 60) / 40 * 0.5;
@@ -639,27 +791,32 @@
                 ctx.c.shadowBlur = 5; ctx.c.shadowColor = '#8899ff';
                 for (const e of ctx.G.enemies) {
                     if (e.st === 'DEAD' || e.hitF > 0 || e.type !== 'bee') continue;
-                    ctx.drawSp(ctx.c, ctx.SP.bee[e.fr], ctx.SP.bC, e.x - 12, e.y - 12, false);
+                    const _bg = ctx.enemySpriteFor(e);
+                    ctx.drawSp(ctx.c, _bg.sp, _bg.cols, e.x - 12, e.y - 12, false);
                 }
                 ctx.c.shadowColor = '#88ffaa';
                 for (const e of ctx.G.enemies) {
                     if (e.st === 'DEAD' || e.hitF > 0 || e.type !== 'butterfly') continue;
-                    ctx.drawSp(ctx.c, ctx.SP.bf[e.fr], ctx.SP.bfC, e.x - 12, e.y - 12, false);
+                    const _bg = ctx.enemySpriteFor(e);
+                    ctx.drawSp(ctx.c, _bg.sp, _bg.cols, e.x - 12, e.y - 12, false);
                 }
                 ctx.c.shadowColor = '#aa66ee';
                 for (const e of ctx.G.enemies) {
                     if (e.st === 'DEAD' || e.hitF > 0 || e.type !== 'stalker') continue;
-                    ctx.drawSp(ctx.c, ctx.SP.stalker[e.fr], ctx.SP.stalkerC, e.x - 12, e.y - 12, false);
+                    const _bg = ctx.enemySpriteFor(e);
+                    ctx.drawSp(ctx.c, _bg.sp, _bg.cols, e.x - 12, e.y - 12, false);
                 }
                 ctx.c.shadowColor = '#ffff44';
                 for (const e of ctx.G.enemies) {
                     if (e.st === 'DEAD' || e.hitF > 0 || e.type !== 'sniper') continue;
-                    ctx.drawSp(ctx.c, ctx.SP.sniper[e.fr], ctx.SP.sniperC, e.x - 12, e.y - 12, false);
+                    const _bg = ctx.enemySpriteFor(e);
+                    ctx.drawSp(ctx.c, _bg.sp, _bg.cols, e.x - 12, e.y - 12, false);
                 }
                 ctx.c.shadowColor = '#ff6600';
                 for (const e of ctx.G.enemies) {
                     if (e.st === 'DEAD' || e.hitF > 0 || e.type !== 'hunter') continue;
-                    ctx.drawSp(ctx.c, ctx.SP.hunter[e.fr], ctx.SP.hunterC, e.x - 12, e.y - 12, false);
+                    const _bg = ctx.enemySpriteFor(e);
+                    ctx.drawSp(ctx.c, _bg.sp, _bg.cols, e.x - 12, e.y - 12, false);
                 }
                 ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1;
             }

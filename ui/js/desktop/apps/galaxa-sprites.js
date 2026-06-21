@@ -24,16 +24,33 @@
 
         function buildSprites() {
             const p = (s) => { const rows = s.trim().split('\n'); return rows.map(r => r.split('').map(ch => parseInt(ch, 16) || 0)); };
+            const withPixels = (base, pixels) => {
+                const out = base.map(row => row.slice());
+                for (let i = 0; i < pixels.length; i++) {
+                    const px = pixels[i];
+                    out[px[1]][px[0]] = px[2];
+                }
+                return out;
+            };
+            const playerBase = p([
+                '000000000007700000000000', '000000000177710000000000', '000000001727721000000000', '000000017727771000000000',
+                '000000177766771000000000', '000001777666777100000000', '000017772666277710000000', '000177723366332771000000',
+                '001777233333333277100000', '017772333333333327710000', '177723334444433327771100', 'a7723334444444333277a000',
+                'a7233444444444443337a000', '072334444334444433270000', '072344443333344443200000', '002344433333333443200000',
+                '000123433333333432100000', '000012333333333321000000', '000000155555555100000000', '000000055555555000000000',
+                '000000055505555000000000', '000000005505500000000000', '000000000550500000000000', '000000000000000000000000'
+            ].join('\n'));
+            const playerFrames = [
+                playerBase,
+                withPixels(playerBase, [[10,1,'c'],[13,1,'c'],[9,2,7],[14,2,7],[11,7,'b'],[12,7,'b'],[6,18,6],[17,18,6],[10,20,5],[13,20,5]]),
+                withPixels(playerBase, [[0,11,'a'],[1,11,'a'],[2,12,'a'],[5,16,'c'],[6,17,'c'],[20,12,0],[21,11,0],[15,18,5]]),
+                withPixels(playerBase, [[21,11,'a'],[20,11,'a'],[19,12,'a'],[17,16,'c'],[16,17,'c'],[1,11,0],[2,12,0],[8,18,5]]),
+                withPixels(playerBase, [[9,18,6],[10,18,6],[13,18,6],[14,18,6],[9,19,5],[10,19,5],[13,19,5],[14,19,5],[10,20,'b'],[13,20,'b'],[10,21,5],[13,21,5],[11,22,5],[12,22,5]])
+            ];
             return {
-                player: p([
-                    '000000000007700000000000', '000000000177710000000000', '000000001727721000000000', '000000017727771000000000',
-                    '000000177766771000000000', '000001777666777100000000', '000017772666277710000000', '000177723366332771000000',
-                    '001777233333333277100000', '017772333333333327710000', '177723334444433327771100', 'a7723334444444333277a000',
-                    'a7233444444444443337a000', '072334444334444433270000', '072344443333344443200000', '002344433333333443200000',
-                    '000123433333333432100000', '000012333333333321000000', '000000155555555100000000', '000000055555555000000000',
-                    '000000055505555000000000', '000000005505500000000000', '000000000550500000000000', '000000000000000000000000'
-                ].join('\n')),
-                pC: { 1: '#ffffff', 2: '#88ccff', 3: '#4488ff', 4: '#2266cc', 5: '#ff8800', 6: '#44ffaa', 7: '#cceeff', a: '#ff5544' },
+                player: playerFrames[0],
+                playerFrames,
+                pC: { 1: '#f8fbff', 2: '#9edbff', 3: '#4c94ff', 4: '#1f5ccc', 5: '#ff9b2f', 6: '#4dffcf', 7: '#e8fbff', 8: '#132b68', 9: '#06163f', a: '#ff5d5d', b: '#fff47a', c: '#7df9ff' },
                 bee: [
                     p([
                         '00000000444000000000', '00000004455400000000', '00000044555440000000', '00000445555444000000',
@@ -428,6 +445,43 @@
 
         const SP = buildSprites();
         SP.shield_bee = SP.bee; // Reuse bee sprite for shield bee
+
+        const ENEMY_SPRITE_KEYS = {
+            bee: ['bee', 'bC'], butterfly: ['bf', 'bfC'], stalker: ['stalker', 'stalkerC'],
+            sniper: ['sniper', 'sniperC'], hunter: ['hunter', 'hunterC'], spinner: ['spinner', 'spinnerC'],
+            bomber: ['bomber', 'bomberC'], lasher: ['lasher', 'lasherC'], weaver: ['weaver', 'weaverC'],
+            splitter: ['splitter', 'splitterC'], shield_bee: ['shield_bee', 'shield_beeC'],
+            kamikaze: ['kamikaze', 'kamikazeC'], carrier: ['carrier', 'carrierC'], teleporter: ['teleporter', 'teleporterC']
+        };
+        const enemySpriteScratch = { sp: null, cols: null };
+        function enemySpriteFor(e) {
+            const bossVariant = ((ctx.G && ctx.G.stage ? ctx.G.stage : 1) - 1) % 3;
+            const bossCols = bossVariant === 1 ? SP.bossRedC : bossVariant === 2 ? SP.bossBlueC : SP.bossC;
+            if (!e) { enemySpriteScratch.sp = SP.boss; enemySpriteScratch.cols = bossCols; return enemySpriteScratch; }
+            if (e.type === 'boss' || e.type === 'miniboss') {
+                enemySpriteScratch.sp = e.hp <= 1 ? SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? SP.bossHit : SP.boss;
+                enemySpriteScratch.cols = bossCols;
+                return enemySpriteScratch;
+            }
+            const keys = ENEMY_SPRITE_KEYS[e.type];
+            if (!keys) { enemySpriteScratch.sp = SP.boss; enemySpriteScratch.cols = bossCols; return enemySpriteScratch; }
+            const frames = SP[keys[0]];
+            const frameIndex = Math.max(0, Math.floor(e.fr || e.animFrame || 0));
+            enemySpriteScratch.sp = Array.isArray(frames) ? frames[frameIndex % frames.length] : frames;
+            enemySpriteScratch.cols = SP[keys[1]];
+            return enemySpriteScratch;
+        }
+        function getPlayerSpriteFrame() {
+            const g = ctx.G || {};
+            if (!g.p || !g.p.alive) return SP.playerFrames[0];
+            const tilt = g.shipTilt || 0;
+            if (tilt < -0.08) return SP.playerFrames[2];
+            if (tilt > 0.08) return SP.playerFrames[3];
+            if (g.muzzleT > 0 || g.superActive > 0 || (g.activePU && (g.activePU.type === 'speed' || g.activePU.type === 'hyper_speed'))) return SP.playerFrames[4];
+            return SP.playerFrames[Math.floor((ctx.tick || 0) / 12) % 2];
+        }
+        ctx.enemySpriteFor = enemySpriteFor;
+        ctx.getPlayerSpriteFrame = getPlayerSpriteFrame;
 
         ctx.SP = SP;
         ctx.buildSprites = buildSprites;
