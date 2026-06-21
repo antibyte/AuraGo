@@ -120,6 +120,56 @@ func TestDispatchExecKnowledgeGraphSupportsDocumentedOptimizeGraphAlias(t *testi
 	}
 }
 
+func TestDispatchExecKnowledgeGraphHealth(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.KnowledgeGraph.Enabled = true
+	cfg.Tools.KnowledgeGraph.ReadOnly = true
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	t.Cleanup(func() { _ = kg.Close() })
+	if err := kg.AddNode("alpha", "Alpha", map[string]string{"type": "service"}); err != nil {
+		t.Fatalf("AddNode alpha: %v", err)
+	}
+	if err := kg.AddNode("beta", "Beta", map[string]string{"type": "service"}); err != nil {
+		t.Fatalf("AddNode beta: %v", err)
+	}
+	if err := kg.AddEdge("alpha", "beta", "co_mentioned_with", map[string]string{"source": "pending", "weight": "1"}); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "knowledge_graph", Operation: "graph_health"},
+		&DispatchContext{
+			Cfg:    cfg,
+			Logger: logger,
+			KG:     kg,
+		},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle knowledge_graph")
+	}
+	payloadJSON := strings.TrimPrefix(out, "Tool Output: ")
+	var payload struct {
+		Status  string                             `json:"status"`
+		Stats   memory.KnowledgeGraphStats         `json:"stats"`
+		Quality memory.KnowledgeGraphQualityReport `json:"quality"`
+	}
+	if err := json.Unmarshal([]byte(payloadJSON), &payload); err != nil {
+		t.Fatalf("unmarshal graph_health payload: %v\n%s", err, out)
+	}
+	if payload.Status != "success" {
+		t.Fatalf("Status = %q, want success", payload.Status)
+	}
+	if payload.Stats.PendingCoMentionEdges != 1 || payload.Quality.LowConfidenceEdges != 1 {
+		t.Fatalf("unexpected graph_health payload: %+v", payload)
+	}
+}
+
 func TestDispatchExecListToolsClarifiesBuiltinSkills(t *testing.T) {
 	tmpDir := t.TempDir()
 	manifest := tools.NewManifest(filepath.Join(tmpDir, "tools"))

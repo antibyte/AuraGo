@@ -17,6 +17,7 @@ Manage a structured graph of entities and relations stored in SQLite with full-t
 | `get_neighbors` | `id` | Get all nodes connected to this node |
 | `subgraph` | `id`, `depth` | Get subgraph starting from a node |
 | `search` | `content` | Full-text search across nodes and edges |
+| `graph_health` | none | Read KG stats and quality signals, including pending and low-confidence edge counts |
 | `explore` | `content` | Search with relationship context |
 | `suggest_relations` | `id` | Suggest possible relations for a node |
 | `optimize` / `optimize_graph` | optional thresholds | Run priority-based KG cleanup through the memory optimizer |
@@ -59,6 +60,11 @@ Manage a structured graph of entities and relations stored in SQLite with full-t
 {"action": "knowledge_graph", "operation": "search", "content": "andi", "include_low_confidence": true}
 ```
 
+**Read graph health:**
+```json
+{"action": "knowledge_graph", "operation": "graph_health"}
+```
+
 **Get neighbors:**
 ```json
 {"action": "knowledge_graph", "operation": "get_neighbors", "id": "api_server", "limit": 10}
@@ -73,6 +79,7 @@ Manage a structured graph of entities and relations stored in SQLite with full-t
 
 - Search uses FTS5 full-text search with quoted tokens and AND semantics for multi-word queries, plus LIKE fallback for broad matching.
 - `search` and `get_neighbors` hide low-confidence `co_mentioned_with` edges by default. Set `include_low_confidence=true` only when auditing pending co-mentions.
+- `graph_health` is read-only and returns `stats` plus `quality`, including edge source breakdowns, pending co-mentions, generic-node samples, and duplicate suggestions.
 - `explore` and prompt-context search can use semantic similarity when embeddings are enabled; failed semantic upserts mark rows dirty for nightly reindex.
 - Relevant knowledge graph entities are automatically injected into the system prompt when `prompt_injection` is enabled.
 - Nightly batch extraction automatically discovers entities and relationships from conversations.

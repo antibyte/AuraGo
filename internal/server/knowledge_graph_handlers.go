@@ -167,6 +167,8 @@ func handleKnowledgeGraphQuality(s *Server) http.HandlerFunc {
 			writeJSON(w, &memory.KnowledgeGraphQualityReport{
 				IsolatedSample:      []memory.Node{},
 				UntypedSample:       []memory.Node{},
+				GenericSample:       []memory.Node{},
+				EdgeBySource:        map[string]int{},
 				DuplicateCandidates: []memory.KnowledgeGraphDuplicateCandidate{},
 			})
 			return

@@ -825,8 +825,10 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 	}
 
 	report := &KnowledgeGraphQualityReport{
+		EdgeBySource:   make(map[string]int),
 		IsolatedSample: make([]Node, 0, sampleLimit),
 		UntypedSample:  make([]Node, 0, sampleLimit),
+		GenericSample:  make([]Node, 0, sampleLimit),
 	}
 
 	tx, err := kg.db.BeginTx(context.Background(), &sql.TxOptions{ReadOnly: true})
@@ -841,33 +843,25 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&report.Edges); err != nil {
 		return nil, fmt.Errorf("count knowledge graph edges: %w", err)
 	}
-	if err := tx.QueryRow(`
-		SELECT COUNT(*) FROM kg_edges
-		WHERE json_extract(properties, '$.source') = 'pending'
-	`).Scan(&report.PendingEdges); err != nil {
-		return nil, fmt.Errorf("count pending knowledge graph edges: %w", err)
+	edgeCounts, err := kg.edgeQualityCounts(tx)
+	if err != nil {
+		return nil, err
 	}
-	if err := tx.QueryRow(`
-		SELECT COUNT(*) FROM kg_edges
-		WHERE relation = 'co_mentioned_with'
-	`).Scan(&report.CoMentionEdges); err != nil {
-		return nil, fmt.Errorf("count co-mentioned knowledge graph edges: %w", err)
-	}
+	report.PendingEdges = edgeCounts.pending
+	report.LowConfidenceEdges = edgeCounts.lowConfidence
+	report.CoMentionEdges = edgeCounts.coMention
+	report.PendingCoMentionEdges = edgeCounts.pendingCoMention
+	report.EdgeBySource = edgeCounts.bySource
 	report.SemanticEdges = report.Edges - report.CoMentionEdges
-	policy := kg.qualityPolicy()
-	if err := tx.QueryRow(`
-		SELECT COUNT(*) FROM kg_edges
-		WHERE relation = 'co_mentioned_with'
-		  AND (
-			COALESCE(json_extract(properties, '$.source'), '') IN ('', 'pending')
-			OR CAST(COALESCE(NULLIF(json_extract(properties, '$.weight'), ''), '0') AS INTEGER) < ?
-		  )
-	`, policy.LowConfidenceCoMentionMinWeight).Scan(&report.LowConfidenceEdges); err != nil {
-		return nil, fmt.Errorf("count low-confidence knowledge graph edges: %w", err)
-	}
 	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_nodes WHERE protected != 0").Scan(&report.ProtectedNodes); err != nil {
 		return nil, fmt.Errorf("count protected knowledge graph nodes: %w", err)
 	}
+	genericNodes, genericSample, err := kg.genericNodeSummary(tx, sampleLimit)
+	if err != nil {
+		return nil, err
+	}
+	report.GenericNodes = genericNodes
+	report.GenericSample = genericSample
 
 	if err := tx.QueryRow(`SELECT COUNT(*) FROM kg_nodes n WHERE NOT EXISTS (SELECT 1 FROM kg_edges e WHERE e.source = n.id OR e.target = n.id)`).Scan(&report.IsolatedNodes); err != nil {
 		return nil, fmt.Errorf("count isolated knowledge graph nodes: %w", err)
@@ -1096,6 +1090,104 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 	return nodesDeleted, nil
 }
 
+type knowledgeGraphEdgeQualityCounts struct {
+	pending          int
+	lowConfidence    int
+	coMention        int
+	pendingCoMention int
+	bySource         map[string]int
+}
+
+func (kg *KnowledgeGraph) edgeQualityCounts(tx *sql.Tx) (knowledgeGraphEdgeQualityCounts, error) {
+	counts := knowledgeGraphEdgeQualityCounts{bySource: make(map[string]int)}
+	if err := tx.QueryRow(`
+		SELECT COUNT(*) FROM kg_edges
+		WHERE json_extract(properties, '$.source') = 'pending'
+	`).Scan(&counts.pending); err != nil {
+		return counts, fmt.Errorf("count pending knowledge graph edges: %w", err)
+	}
+	if err := tx.QueryRow(`
+		SELECT COUNT(*) FROM kg_edges
+		WHERE relation = 'co_mentioned_with'
+	`).Scan(&counts.coMention); err != nil {
+		return counts, fmt.Errorf("count co-mentioned knowledge graph edges: %w", err)
+	}
+	if err := tx.QueryRow(`
+		SELECT COUNT(*) FROM kg_edges
+		WHERE relation = 'co_mentioned_with'
+		  AND json_extract(properties, '$.source') = 'pending'
+	`).Scan(&counts.pendingCoMention); err != nil {
+		return counts, fmt.Errorf("count pending co-mentioned knowledge graph edges: %w", err)
+	}
+	policy := kg.qualityPolicy()
+	if err := tx.QueryRow(`
+		SELECT COUNT(*) FROM kg_edges
+		WHERE relation = 'co_mentioned_with'
+		  AND (
+			COALESCE(json_extract(properties, '$.source'), '') IN ('', 'pending')
+			OR CAST(COALESCE(NULLIF(json_extract(properties, '$.weight'), ''), '0') AS INTEGER) < ?
+		  )
+	`, policy.LowConfidenceCoMentionMinWeight).Scan(&counts.lowConfidence); err != nil {
+		return counts, fmt.Errorf("count low-confidence knowledge graph edges: %w", err)
+	}
+
+	sourceRows, err := tx.Query(`
+		SELECT COALESCE(NULLIF(json_extract(properties, '$.source'), ''), 'unknown') AS s, COUNT(*)
+		FROM kg_edges GROUP BY s ORDER BY COUNT(*) DESC
+	`)
+	if err != nil {
+		return counts, fmt.Errorf("query knowledge graph edge source counts: %w", err)
+	}
+	defer sourceRows.Close()
+	for sourceRows.Next() {
+		var source string
+		var count int
+		if err := sourceRows.Scan(&source, &count); err != nil {
+			return counts, fmt.Errorf("scan knowledge graph edge source count: %w", err)
+		}
+		counts.bySource[source] = count
+	}
+	if err := sourceRows.Err(); err != nil {
+		return counts, fmt.Errorf("iterate knowledge graph edge source counts: %w", err)
+	}
+	return counts, nil
+}
+
+func (kg *KnowledgeGraph) genericNodeSummary(tx *sql.Tx, sampleLimit int) (int, []Node, error) {
+	sample := make([]Node, 0, max(sampleLimit, 0))
+	rows, err := tx.Query(`
+		SELECT id, label, properties, protected FROM kg_nodes
+		ORDER BY id
+	`)
+	if err != nil {
+		return 0, nil, fmt.Errorf("query generic knowledge graph nodes: %w", err)
+	}
+	defer rows.Close()
+
+	var count int
+	for rows.Next() {
+		var n Node
+		var propsJSON string
+		var protected int
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+			return 0, nil, fmt.Errorf("scan generic knowledge graph node: %w", err)
+		}
+		if !kgquality.IsGenericEntity(n.ID) && !kgquality.IsGenericEntity(n.Label) {
+			continue
+		}
+		count++
+		if sampleLimit > 0 && len(sample) < sampleLimit {
+			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GenericNodeSummary", n.ID, propsJSON, protected)
+			n.Protected = protected != 0
+			sample = append(sample, n)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return 0, nil, fmt.Errorf("iterate generic knowledge graph nodes: %w", err)
+	}
+	return count, sample, nil
+}
+
 func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error) {
 	if thresholdDays <= 0 {
 		return 0, 0, fmt.Errorf("invalid thresholdDays: %d", thresholdDays)
@@ -1296,8 +1388,9 @@ func (kg *KnowledgeGraph) removeSemanticIndexesForDeletedGraphData(nodeIDs []str
 
 func (kg *KnowledgeGraph) GetStats() (*KnowledgeGraphStats, error) {
 	stats := &KnowledgeGraphStats{
-		ByType:   make(map[string]int),
-		BySource: make(map[string]int),
+		ByType:       make(map[string]int),
+		BySource:     make(map[string]int),
+		EdgeBySource: make(map[string]int),
 	}
 
 	tx, err := kg.beginReadTx("GetStats")
@@ -1316,6 +1409,19 @@ func (kg *KnowledgeGraph) GetStats() (*KnowledgeGraphStats, error) {
 		return nil, fmt.Errorf("count co-mention edges: %w", err)
 	}
 	stats.MeaningfulEdges = stats.TotalEdges - stats.CoMentionEdges
+	edgeCounts, err := kg.edgeQualityCounts(tx)
+	if err != nil {
+		return nil, err
+	}
+	stats.PendingEdges = edgeCounts.pending
+	stats.LowConfidenceEdges = edgeCounts.lowConfidence
+	stats.PendingCoMentionEdges = edgeCounts.pendingCoMention
+	stats.EdgeBySource = edgeCounts.bySource
+	genericNodes, _, err := kg.genericNodeSummary(tx, 0)
+	if err != nil {
+		return nil, err
+	}
+	stats.GenericNodes = genericNodes
 
 	typeRows, err := tx.Query(`
 		SELECT COALESCE(NULLIF(json_extract(properties, '$.type'), ''), 'untyped') AS t, COUNT(*)

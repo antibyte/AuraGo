@@ -607,6 +607,22 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				res := kg.SearchWithOptions(req.Content, memory.KnowledgeGraphQueryOptions{IncludeLowConfidence: req.IncludeLowConfidence})
 				return fmt.Sprintf("Tool Output: %s", res)
 
+			case "graph_health":
+				stats, err := kg.GetStats()
+				if err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+				}
+				quality, err := kg.QualityReport(req.Limit)
+				if err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+				}
+				data, _ := json.Marshal(map[string]interface{}{
+					"status":  "success",
+					"stats":   stats,
+					"quality": quality,
+				})
+				return "Tool Output: " + string(data)
+
 			case "explore":
 				if req.Content == "" {
 					return `Tool Output: {"status": "error", "message": "Search 'content' is required for explore"}`

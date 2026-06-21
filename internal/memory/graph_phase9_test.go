@@ -200,6 +200,9 @@ func TestKGQualityReportIncludesEdgeConfidenceMetrics(t *testing.T) {
 			t.Fatalf("AddNode %s: %v", id, err)
 		}
 	}
+	if err := kg.AddNode("png", "png", map[string]string{"type": "concept"}); err != nil {
+		t.Fatalf("AddNode png: %v", err)
+	}
 	if err := kg.AddEdge("alpha", "beta", "co_mentioned_with", map[string]string{
 		"source": "pending",
 		"weight": "1",
@@ -226,6 +229,9 @@ func TestKGQualityReportIncludesEdgeConfidenceMetrics(t *testing.T) {
 	if report.PendingEdges != 1 {
 		t.Fatalf("PendingEdges = %d, want 1", report.PendingEdges)
 	}
+	if report.PendingCoMentionEdges != 1 {
+		t.Fatalf("PendingCoMentionEdges = %d, want 1", report.PendingCoMentionEdges)
+	}
 	if report.LowConfidenceEdges != 2 {
 		t.Fatalf("LowConfidenceEdges = %d, want 2", report.LowConfidenceEdges)
 	}
@@ -234,6 +240,56 @@ func TestKGQualityReportIncludesEdgeConfidenceMetrics(t *testing.T) {
 	}
 	if report.SemanticEdges != 1 {
 		t.Fatalf("SemanticEdges = %d, want 1", report.SemanticEdges)
+	}
+	if report.GenericNodes != 1 {
+		t.Fatalf("GenericNodes = %d, want 1", report.GenericNodes)
+	}
+	if len(report.GenericSample) != 1 || report.GenericSample[0].ID != "png" {
+		t.Fatalf("GenericSample = %#v, want png", report.GenericSample)
+	}
+	if got := report.EdgeBySource["pending"]; got != 1 {
+		t.Fatalf("EdgeBySource[pending] = %d, want 1", got)
+	}
+}
+
+func TestKGStatsIncludesEdgeQualityMetrics(t *testing.T) {
+	kg := newTestKG(t)
+
+	for _, id := range []string{"alpha", "beta", "png"} {
+		if err := kg.AddNode(id, strings.Title(id), map[string]string{"type": "concept"}); err != nil {
+			t.Fatalf("AddNode %s: %v", id, err)
+		}
+	}
+	if err := kg.AddEdge("alpha", "beta", "co_mentioned_with", map[string]string{
+		"source": "pending",
+		"weight": "1",
+	}); err != nil {
+		t.Fatalf("AddEdge pending: %v", err)
+	}
+	if err := kg.AddEdge("beta", "png", "uses", map[string]string{
+		"source": "manual",
+	}); err != nil {
+		t.Fatalf("AddEdge manual: %v", err)
+	}
+
+	stats, err := kg.GetStats()
+	if err != nil {
+		t.Fatalf("GetStats: %v", err)
+	}
+	if stats.PendingEdges != 1 {
+		t.Fatalf("PendingEdges = %d, want 1", stats.PendingEdges)
+	}
+	if stats.PendingCoMentionEdges != 1 {
+		t.Fatalf("PendingCoMentionEdges = %d, want 1", stats.PendingCoMentionEdges)
+	}
+	if stats.LowConfidenceEdges != 1 {
+		t.Fatalf("LowConfidenceEdges = %d, want 1", stats.LowConfidenceEdges)
+	}
+	if stats.GenericNodes != 1 {
+		t.Fatalf("GenericNodes = %d, want 1", stats.GenericNodes)
+	}
+	if got := stats.EdgeBySource["manual"]; got != 1 {
+		t.Fatalf("EdgeBySource[manual] = %d, want 1", got)
 	}
 }
 

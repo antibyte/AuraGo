@@ -57,7 +57,10 @@ type KnowledgeGraphQualityReport struct {
 	PendingEdges          int                                `json:"pending_edges"`
 	LowConfidenceEdges    int                                `json:"low_confidence_edges"`
 	CoMentionEdges        int                                `json:"co_mention_edges"`
+	PendingCoMentionEdges int                                `json:"pending_co_mention_edges"`
 	SemanticEdges         int                                `json:"semantic_edges"`
+	EdgeBySource          map[string]int                     `json:"edge_by_source"`
+	GenericNodes          int                                `json:"generic_nodes"`
 	ProtectedNodes        int                                `json:"protected_nodes"`
 	IsolatedNodes         int                                `json:"isolated_nodes"`
 	UntypedNodes          int                                `json:"untyped_nodes"`
@@ -67,6 +70,7 @@ type KnowledgeGraphQualityReport struct {
 	IDDuplicateNodes      int                                `json:"id_duplicate_nodes"`
 	IsolatedSample        []Node                             `json:"isolated_sample"`
 	UntypedSample         []Node                             `json:"untyped_sample"`
+	GenericSample         []Node                             `json:"generic_sample"`
 	DuplicateCandidates   []KnowledgeGraphDuplicateCandidate `json:"duplicate_candidates"`
 	IDDuplicateCandidates []KnowledgeGraphDuplicateCandidate `json:"id_duplicate_candidates"`
 }
@@ -118,12 +122,17 @@ type ImportantNode struct {
 }
 
 type KnowledgeGraphStats struct {
-	TotalNodes      int            `json:"total_nodes"`
-	TotalEdges      int            `json:"total_edges"`
-	MeaningfulEdges int            `json:"meaningful_edges"`
-	CoMentionEdges  int            `json:"co_mention_edges"`
-	ByType          map[string]int `json:"by_type"`
-	BySource        map[string]int `json:"by_source"`
+	TotalNodes            int            `json:"total_nodes"`
+	TotalEdges            int            `json:"total_edges"`
+	MeaningfulEdges       int            `json:"meaningful_edges"`
+	PendingEdges          int            `json:"pending_edges"`
+	LowConfidenceEdges    int            `json:"low_confidence_edges"`
+	CoMentionEdges        int            `json:"co_mention_edges"`
+	PendingCoMentionEdges int            `json:"pending_co_mention_edges"`
+	GenericNodes          int            `json:"generic_nodes"`
+	ByType                map[string]int `json:"by_type"`
+	BySource              map[string]int `json:"by_source"`
+	EdgeBySource          map[string]int `json:"edge_by_source"`
 }
 
 type FileSyncStats struct {
