@@ -866,6 +866,60 @@ func TestKGQualityReportDetectsIDDuplicateVariants(t *testing.T) {
 	}
 }
 
+func TestKGQualityReportSuggestsNormalizedIDDuplicatesWithoutAutoMerge(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("caddy_server", "Caddy Server", map[string]string{
+		"type":       "service",
+		"source":     "manual",
+		"confidence": "1.00",
+	}); err != nil {
+		t.Fatalf("AddNode caddy_server: %v", err)
+	}
+	if err := kg.AddNode("caddyserver", "Caddy Server", map[string]string{
+		"type":       "service",
+		"source":     "auto_extraction",
+		"confidence": "0.70",
+	}); err != nil {
+		t.Fatalf("AddNode caddyserver: %v", err)
+	}
+
+	report, err := kg.QualityReport(10)
+	if err != nil {
+		t.Fatalf("QualityReport: %v", err)
+	}
+
+	found := false
+	for _, candidate := range report.IDDuplicateCandidates {
+		haveA, haveB := false, false
+		for _, id := range candidate.IDs {
+			if id == "caddy_server" {
+				haveA = true
+			}
+			if id == "caddyserver" {
+				haveB = true
+			}
+		}
+		if haveA && haveB {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected caddy_server and caddyserver duplicate suggestion, got %#v", report.IDDuplicateCandidates)
+	}
+
+	for _, id := range []string{"caddy_server", "caddyserver"} {
+		node, err := kg.GetNode(id)
+		if err != nil {
+			t.Fatalf("GetNode %s: %v", id, err)
+		}
+		if node == nil {
+			t.Fatalf("expected node %s to remain unmerged", id)
+		}
+	}
+}
+
 func TestKGHealthReportIncludesQualityKPIs(t *testing.T) {
 	kg := newTestKG(t)
 	if err := kg.AddNode("truenas", "TrueNAS", map[string]string{"type": "device"}); err != nil {
