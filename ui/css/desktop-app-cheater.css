@@ -506,6 +506,7 @@
 
 .cheater-content {
     display: grid;
+    grid-template-rows: 1fr;
     overflow: hidden;
     background: var(--cheater-surface);
     min-height: 0;
@@ -519,8 +520,10 @@
 .cheater-preview {
     min-width: 0;
     min-height: 0;
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: auto;
     box-sizing: border-box;
+    height: 100%;
 }
 
 .cheater-source {
