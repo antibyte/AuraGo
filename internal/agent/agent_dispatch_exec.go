@@ -19,6 +19,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/credentials"
 	"aurago/internal/inventory"
+	"aurago/internal/memory"
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/tools"
@@ -571,7 +572,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if limit <= 0 {
 					limit = 20
 				}
-				nodes, edges := kg.GetNeighbors(req.ID, limit)
+				nodes, edges := kg.GetNeighborsWithOptions(req.ID, limit, memory.KnowledgeGraphQueryOptions{IncludeLowConfidence: req.IncludeLowConfidence})
 				if len(nodes) == 0 && len(edges) == 0 {
 					return fmt.Sprintf(`Tool Output: {"status": "not_found", "message": "No neighbors found for node: %s"}`, req.ID)
 				}
@@ -603,7 +604,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return "Tool Output: " + string(data)
 
 			case "search":
-				res := kg.Search(req.Content)
+				res := kg.SearchWithOptions(req.Content, memory.KnowledgeGraphQueryOptions{IncludeLowConfidence: req.IncludeLowConfidence})
 				return fmt.Sprintf("Tool Output: %s", res)
 
 			case "explore":

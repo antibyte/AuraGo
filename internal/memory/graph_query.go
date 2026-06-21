@@ -2,6 +2,7 @@ package memory
 
 import (
 	"aurago/internal/dbutil"
+	"aurago/internal/kgquality"
 	"aurago/internal/memory/kgquery"
 	"context"
 	"database/sql"
@@ -21,6 +22,10 @@ type knowledgeGraphQueryer interface {
 	Query(query string, args ...interface{}) (*sql.Rows, error)
 }
 
+type KnowledgeGraphQueryOptions struct {
+	IncludeLowConfidence bool
+}
+
 func (kg *KnowledgeGraph) beginReadTx(operation string) (*sql.Tx, error) {
 	tx, err := kg.db.BeginTx(context.Background(), &sql.TxOptions{ReadOnly: true})
 	if err != nil {
@@ -33,6 +38,10 @@ func (kg *KnowledgeGraph) beginReadTx(operation string) (*sql.Tx, error) {
 }
 
 func (kg *KnowledgeGraph) Search(query string) string {
+	return kg.SearchWithOptions(query, KnowledgeGraphQueryOptions{})
+}
+
+func (kg *KnowledgeGraph) SearchWithOptions(query string, options KnowledgeGraphQueryOptions) string {
 	if query == "" {
 		return "[]"
 	}
@@ -119,6 +128,9 @@ func (kg *KnowledgeGraph) Search(query string) string {
 			if e.Properties == nil {
 				e.Properties = make(map[string]string)
 			}
+			if kg.hideLowConfidenceEdge(e, options) {
+				continue
+			}
 			matchedEdges = append(matchedEdges, e)
 			matchedEdgeHits = append(matchedEdgeHits, knowledgeGraphAccessHit{
 				source:   e.Source,
@@ -159,6 +171,10 @@ func (kg *KnowledgeGraph) Search(query string) string {
 }
 
 func (kg *KnowledgeGraph) GetNeighbors(nodeID string, limit int) ([]Node, []Edge) {
+	return kg.GetNeighborsWithOptions(nodeID, limit, KnowledgeGraphQueryOptions{})
+}
+
+func (kg *KnowledgeGraph) GetNeighborsWithOptions(nodeID string, limit int, options KnowledgeGraphQueryOptions) ([]Node, []Edge) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -169,7 +185,7 @@ func (kg *KnowledgeGraph) GetNeighbors(nodeID string, limit int) ([]Node, []Edge
 	}
 	defer tx.Rollback()
 
-	nodes, edges, accessHits, err := kg.getNeighborsWithQueryer(tx, nodeID, limit)
+	nodes, edges, accessHits, err := kg.getNeighborsWithQueryer(tx, nodeID, limit, options)
 	if err != nil {
 		kg.logger.Warn("GetNeighbors: read failed", "node_id", nodeID, "error", err)
 		return nil, nil
@@ -185,7 +201,7 @@ func (kg *KnowledgeGraph) GetNeighbors(nodeID string, limit int) ([]Node, []Edge
 	return nodes, edges
 }
 
-func (kg *KnowledgeGraph) getNeighborsWithQueryer(q knowledgeGraphQueryer, nodeID string, limit int) ([]Node, []Edge, []knowledgeGraphAccessHit, error) {
+func (kg *KnowledgeGraph) getNeighborsWithQueryer(q knowledgeGraphQueryer, nodeID string, limit int, options KnowledgeGraphQueryOptions) ([]Node, []Edge, []knowledgeGraphAccessHit, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -217,6 +233,9 @@ func (kg *KnowledgeGraph) getNeighborsWithQueryer(q knowledgeGraphQueryer, nodeI
 		}
 		if e.Properties == nil {
 			e.Properties = make(map[string]string)
+		}
+		if kg.hideLowConfidenceEdge(e, options) {
+			continue
 		}
 		allEdges = append(allEdges, e)
 	}
@@ -296,6 +315,17 @@ func (kg *KnowledgeGraph) getNeighborsWithQueryer(q knowledgeGraphQueryer, nodeI
 	}
 
 	return nodes, edges, accessHits, nil
+}
+
+func (kg *KnowledgeGraph) hideLowConfidenceEdge(edge Edge, options KnowledgeGraphQueryOptions) bool {
+	if options.IncludeLowConfidence {
+		return false
+	}
+	policy := kgquality.DefaultPolicy()
+	if !policy.HideLowConfidenceByDefault {
+		return false
+	}
+	return kgquality.LowConfidenceCoMention(edge.Relation, edge.Properties, policy)
 }
 
 func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars int) string {

@@ -79,6 +79,45 @@ func TestHandleKnowledgeGraphSearch(t *testing.T) {
 	}
 }
 
+func TestHandleKnowledgeGraphSearchHonorsIncludeLowConfidence(t *testing.T) {
+	s := newTestKnowledgeGraphServer(t)
+	if err := s.KG.AddNode("andi", "Andi", map[string]string{"type": "person"}); err != nil {
+		t.Fatalf("AddNode andi: %v", err)
+	}
+	if err := s.KG.AddNode("png", "png", map[string]string{"type": "concept"}); err != nil {
+		t.Fatalf("AddNode png: %v", err)
+	}
+	if err := s.KG.AddEdge("andi", "png", "co_mentioned_with", map[string]string{"source": "pending", "weight": "1"}); err != nil {
+		t.Fatalf("AddEdge pending: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/knowledge-graph/search?q=andi", nil)
+	rec := httptest.NewRecorder()
+	handleKnowledgeGraphSearch(s).ServeHTTP(rec, req)
+	var hidden struct {
+		Edges []memory.Edge `json:"edges"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &hidden); err != nil {
+		t.Fatalf("decode default payload: %v", err)
+	}
+	if len(hidden.Edges) != 0 {
+		t.Fatalf("default search should hide low-confidence edge, got %#v", hidden.Edges)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/knowledge-graph/search?q=andi&include_low_confidence=true", nil)
+	rec = httptest.NewRecorder()
+	handleKnowledgeGraphSearch(s).ServeHTTP(rec, req)
+	var included struct {
+		Edges []memory.Edge `json:"edges"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &included); err != nil {
+		t.Fatalf("decode override payload: %v", err)
+	}
+	if len(included.Edges) != 1 || included.Edges[0].Relation != "co_mentioned_with" {
+		t.Fatalf("override search should include low-confidence edge, got %#v", included.Edges)
+	}
+}
+
 func TestHandleKnowledgeGraphNodeDetail(t *testing.T) {
 	s := newTestKnowledgeGraphServer(t)
 	if err := s.KG.AddNode("proxmox", "Proxmox", map[string]string{"type": "service"}); err != nil {
@@ -111,6 +150,45 @@ func TestHandleKnowledgeGraphNodeDetail(t *testing.T) {
 	}
 	if _, ok := payload["edges"]; !ok {
 		t.Fatalf("payload missing edges: %#v", payload)
+	}
+}
+
+func TestHandleKnowledgeGraphNodeDetailHonorsIncludeLowConfidence(t *testing.T) {
+	s := newTestKnowledgeGraphServer(t)
+	if err := s.KG.AddNode("andi", "Andi", map[string]string{"type": "person"}); err != nil {
+		t.Fatalf("AddNode andi: %v", err)
+	}
+	if err := s.KG.AddNode("png", "png", map[string]string{"type": "concept"}); err != nil {
+		t.Fatalf("AddNode png: %v", err)
+	}
+	if err := s.KG.AddEdge("andi", "png", "co_mentioned_with", map[string]string{"source": "pending", "weight": "1"}); err != nil {
+		t.Fatalf("AddEdge pending: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/knowledge-graph/node?id=andi&limit=10", nil)
+	rec := httptest.NewRecorder()
+	handleKnowledgeGraphNodeDetail(s).ServeHTTP(rec, req)
+	var hidden struct {
+		Edges []memory.Edge `json:"edges"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &hidden); err != nil {
+		t.Fatalf("decode default payload: %v", err)
+	}
+	if len(hidden.Edges) != 0 {
+		t.Fatalf("default node detail should hide low-confidence edge, got %#v", hidden.Edges)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/knowledge-graph/node?id=andi&limit=10&include_low_confidence=true", nil)
+	rec = httptest.NewRecorder()
+	handleKnowledgeGraphNodeDetail(s).ServeHTTP(rec, req)
+	var included struct {
+		Edges []memory.Edge `json:"edges"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &included); err != nil {
+		t.Fatalf("decode override payload: %v", err)
+	}
+	if len(included.Edges) != 1 || included.Edges[0].Relation != "co_mentioned_with" {
+		t.Fatalf("override node detail should include low-confidence edge, got %#v", included.Edges)
 	}
 }
 

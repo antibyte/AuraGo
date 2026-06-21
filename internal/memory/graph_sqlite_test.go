@@ -228,6 +228,40 @@ func TestKGSearch(t *testing.T) {
 	}
 }
 
+func TestKGSearchHidesLowConfidenceCoMentionsByDefault(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("andi", "Andi", map[string]string{"type": "person"}); err != nil {
+		t.Fatalf("AddNode andi: %v", err)
+	}
+	if err := kg.AddNode("png", "png", map[string]string{"type": "concept"}); err != nil {
+		t.Fatalf("AddNode png: %v", err)
+	}
+	if err := kg.AddEdge("andi", "png", "co_mentioned_with", map[string]string{"source": "pending", "weight": "1"}); err != nil {
+		t.Fatalf("AddEdge pending: %v", err)
+	}
+
+	var defaultPayload struct {
+		Edges []Edge `json:"edges"`
+	}
+	if err := json.Unmarshal([]byte(kg.Search("andi")), &defaultPayload); err != nil {
+		t.Fatalf("unmarshal default search: %v", err)
+	}
+	if len(defaultPayload.Edges) != 0 {
+		t.Fatalf("default search should hide low-confidence co-mentions, got %#v", defaultPayload.Edges)
+	}
+
+	var overridePayload struct {
+		Edges []Edge `json:"edges"`
+	}
+	if err := json.Unmarshal([]byte(kg.SearchWithOptions("andi", KnowledgeGraphQueryOptions{IncludeLowConfidence: true})), &overridePayload); err != nil {
+		t.Fatalf("unmarshal override search: %v", err)
+	}
+	if len(overridePayload.Edges) != 1 || overridePayload.Edges[0].Relation != "co_mentioned_with" {
+		t.Fatalf("override search should include low-confidence co-mention, got %#v", overridePayload.Edges)
+	}
+}
+
 func TestEscapeFTS5PreservesQuotedPhrase(t *testing.T) {
 	got := kgquery.EscapeFTS5(`"Raspberry Pi"`)
 	want := `"Raspberry Pi"`
@@ -314,6 +348,50 @@ func TestKGSearchFTS5(t *testing.T) {
 	result := kg.Search("raspberry")
 	if result == "[]" {
 		t.Error("FTS5 search for 'raspberry' should return results")
+	}
+}
+
+func TestKGGetNeighborsHidesLowConfidenceCoMentionsBeforeLimit(t *testing.T) {
+	kg := newTestKG(t)
+
+	for _, node := range []Node{
+		{ID: "andi", Label: "Andi", Properties: map[string]string{"type": "person"}},
+		{ID: "agodesk", Label: "AgoDesk", Properties: map[string]string{"type": "service"}},
+		{ID: "png", Label: "png", Properties: map[string]string{"type": "concept"}},
+	} {
+		if err := kg.AddNode(node.ID, node.Label, node.Properties); err != nil {
+			t.Fatalf("AddNode %s: %v", node.ID, err)
+		}
+	}
+	if err := kg.AddEdge("andi", "agodesk", "uses", map[string]string{"source": "manual"}); err != nil {
+		t.Fatalf("AddEdge uses: %v", err)
+	}
+	if err := kg.AddEdge("andi", "png", "co_mentioned_with", map[string]string{"source": "pending", "weight": "1"}); err != nil {
+		t.Fatalf("AddEdge pending: %v", err)
+	}
+
+	nodes, edges := kg.GetNeighbors("andi", 1)
+	if len(nodes) != 1 || nodes[0].ID != "agodesk" {
+		t.Fatalf("default neighbors should skip pending edge before limit, nodes=%#v edges=%#v", nodes, edges)
+	}
+	for _, edge := range edges {
+		if edge.Relation == "co_mentioned_with" {
+			t.Fatalf("default neighbors should hide low-confidence co-mentions, got %#v", edges)
+		}
+	}
+
+	nodes, edges = kg.GetNeighborsWithOptions("andi", 20, KnowledgeGraphQueryOptions{IncludeLowConfidence: true})
+	if len(nodes) < 2 {
+		t.Fatalf("override neighbors should include both neighbors, nodes=%#v edges=%#v", nodes, edges)
+	}
+	var foundPending bool
+	for _, edge := range edges {
+		if edge.Relation == "co_mentioned_with" {
+			foundPending = true
+		}
+	}
+	if !foundPending {
+		t.Fatalf("override neighbors should include pending co-mention, got %#v", edges)
 	}
 }
 
