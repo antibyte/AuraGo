@@ -137,7 +137,14 @@ func buildCaddyfileWithProxies(domain string, port int, routes []ProxyRoute) str
 	}
 	sb.WriteString(" {\n")
 	sb.WriteString("\troot * /srv\n")
-	sb.WriteString("\tencode gzip\n\n")
+	sb.WriteString("\tencode gzip\n")
+	sb.WriteString("\theader {\n")
+	sb.WriteString("\t\tAccess-Control-Allow-Origin \"*\"\n")
+	sb.WriteString("\t\tAccess-Control-Allow-Methods \"GET, HEAD, OPTIONS\"\n")
+	sb.WriteString("\t\tAccess-Control-Allow-Headers \"*\"\n")
+	sb.WriteString("\t}\n")
+	sb.WriteString("\t@cors_preflight method OPTIONS\n")
+	sb.WriteString("\trespond @cors_preflight 204\n\n")
 
 	for _, r := range routes {
 		proxyPath := r.Path
