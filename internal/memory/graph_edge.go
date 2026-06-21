@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 )
 
 func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties map[string]string) error {
@@ -16,6 +17,7 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 		return fmt.Errorf("source, target, and relation are required")
 	}
 	properties = normalizeKnowledgeGraphProperties(properties)
+	now := time.Now()
 
 	tx, err := kg.db.Begin()
 	if err != nil {
@@ -37,8 +39,9 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 	var finalProps map[string]string
 	if found {
 		finalProps = mergeKnowledgeGraphPropertiesOverwrite(existingProps, properties)
+		finalProps = ensureKnowledgeGraphEdgeQualityProperties(finalProps, "manual", now)
 	} else {
-		finalProps = properties
+		finalProps = ensureKnowledgeGraphEdgeQualityProperties(properties, "manual", now)
 	}
 	propsJSON, _ := json.Marshal(finalProps)
 	_, err = tx.Exec(`
@@ -64,7 +67,7 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 	} else if err != nil && kg.logger != nil {
 		kg.logger.Warn("AddEdge: failed to reload target node for semantic index", "id", target, "error", err)
 	}
-	kg.indexSemanticEdgeAfterWrite(Edge{Source: source, Target: target, Relation: relation})
+	kg.indexSemanticEdgeAfterWrite(Edge{Source: source, Target: target, Relation: relation, Properties: finalProps})
 	return nil
 }
 
@@ -151,7 +154,7 @@ func (kg *KnowledgeGraph) UpdateEdge(source, target, relation, newRelation strin
 
 	finalProps := existingProps
 	if properties != nil {
-		finalProps = normalizeKnowledgeGraphProperties(properties)
+		finalProps = ensureKnowledgeGraphEdgeQualityProperties(properties, "manual", time.Now())
 	}
 	propsJSON, err := json.Marshal(finalProps)
 	if err != nil {

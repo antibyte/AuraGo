@@ -410,6 +410,28 @@ func normalizeKnowledgeGraphProperties(properties map[string]string) map[string]
 	return safe
 }
 
+func ensureKnowledgeGraphEdgeQualityProperties(properties map[string]string, defaultSource string, now time.Time) map[string]string {
+	properties = normalizeKnowledgeGraphProperties(properties)
+	defaultSource = strings.TrimSpace(defaultSource)
+	if defaultSource == "" {
+		defaultSource = "auto_extraction"
+	}
+	if strings.TrimSpace(properties["source"]) == "" {
+		properties["source"] = defaultSource
+	}
+	if strings.TrimSpace(properties["confidence"]) == "" {
+		if strings.TrimSpace(properties["source"]) == "manual" {
+			properties["confidence"] = "1.00"
+		} else {
+			properties["confidence"] = "0.50"
+		}
+	}
+	if strings.TrimSpace(properties["extracted_at"]) == "" {
+		properties["extracted_at"] = now.Format("2006-01-02")
+	}
+	return properties
+}
+
 func sanitizeKnowledgeGraphNodeProperties(properties map[string]string, protected bool) map[string]string {
 	safe := normalizeKnowledgeGraphProperties(properties)
 	delete(safe, "access_count")

@@ -85,6 +85,24 @@ func TestKGAddEdge(t *testing.T) {
 	}
 }
 
+func TestKGAddEdgeDefaultsQualityMetadata(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddEdge("andi", "agodesk", "uses", nil); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+	edge := mustFindTestEdge(t, kg, "andi", "agodesk", "uses")
+	if edge.Properties["source"] != "manual" {
+		t.Fatalf("source = %q, want manual in %#v", edge.Properties["source"], edge.Properties)
+	}
+	if edge.Properties["confidence"] != "1.00" {
+		t.Fatalf("confidence = %q, want 1.00 in %#v", edge.Properties["confidence"], edge.Properties)
+	}
+	if edge.Properties["extracted_at"] != time.Now().Format("2006-01-02") {
+		t.Fatalf("extracted_at = %q, want today in %#v", edge.Properties["extracted_at"], edge.Properties)
+	}
+}
+
 func TestKGAddEdgeRejectsBlankEndpointOrRelationAndTrimsIdentity(t *testing.T) {
 	kg := newTestKG(t)
 
@@ -124,6 +142,72 @@ func TestKGAddEdgeUpsert(t *testing.T) {
 	if edges != 1 {
 		t.Errorf("expected 1 edge after upsert, got %d", edges)
 	}
+}
+
+func TestKGBulkMergeExtractedEntitiesDefaultsAndPreservesEdgeQualityMetadata(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.BulkMergeExtractedEntities(nil, []Edge{
+		{Source: "andi", Target: "agodesk", Relation: "uses"},
+		{
+			Source:   "andi",
+			Target:   "caddy",
+			Relation: "manages",
+			Properties: map[string]string{
+				"source":       "auto_extraction",
+				"confidence":   "0.90",
+				"extracted_at": "2026-01-01",
+				"detail":       "existing",
+			},
+		},
+	}); err != nil {
+		t.Fatalf("initial BulkMergeExtractedEntities: %v", err)
+	}
+
+	defaulted := mustFindTestEdge(t, kg, "andi", "agodesk", "uses")
+	if defaulted.Properties["source"] != "auto_extraction" {
+		t.Fatalf("defaulted source = %q, want auto_extraction in %#v", defaulted.Properties["source"], defaulted.Properties)
+	}
+	if defaulted.Properties["confidence"] != "0.50" {
+		t.Fatalf("defaulted confidence = %q, want 0.50 in %#v", defaulted.Properties["confidence"], defaulted.Properties)
+	}
+	if defaulted.Properties["extracted_at"] != time.Now().Format("2006-01-02") {
+		t.Fatalf("defaulted extracted_at = %q, want today in %#v", defaulted.Properties["extracted_at"], defaulted.Properties)
+	}
+
+	if err := kg.BulkMergeExtractedEntities(nil, []Edge{{
+		Source:   "andi",
+		Target:   "caddy",
+		Relation: "manages",
+		Properties: map[string]string{
+			"confidence": "0.20",
+			"detail":     "incoming",
+		},
+	}}); err != nil {
+		t.Fatalf("second BulkMergeExtractedEntities: %v", err)
+	}
+	preserved := mustFindTestEdge(t, kg, "andi", "caddy", "manages")
+	if preserved.Properties["source"] != "auto_extraction" ||
+		preserved.Properties["confidence"] != "0.90" ||
+		preserved.Properties["extracted_at"] != "2026-01-01" ||
+		preserved.Properties["detail"] != "existing" {
+		t.Fatalf("expected higher-confidence existing edge metadata to be preserved, got %#v", preserved.Properties)
+	}
+}
+
+func mustFindTestEdge(t *testing.T, kg *KnowledgeGraph, source, target, relation string) Edge {
+	t.Helper()
+	edges, err := kg.GetAllEdges(100)
+	if err != nil {
+		t.Fatalf("GetAllEdges: %v", err)
+	}
+	for _, edge := range edges {
+		if edge.Source == source && edge.Target == target && edge.Relation == relation {
+			return edge
+		}
+	}
+	t.Fatalf("missing edge %s -> %s / %s in %#v", source, target, relation, edges)
+	return Edge{}
 }
 
 func TestKGSearch(t *testing.T) {

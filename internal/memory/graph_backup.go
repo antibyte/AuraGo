@@ -170,7 +170,11 @@ func (kg *KnowledgeGraph) BulkMergeExtractedEntities(nodes []Node, edges []Edge)
 		if err != nil {
 			return fmt.Errorf("load existing edge %q->%q/%q: %w", e.Source, e.Target, e.Relation, err)
 		}
-		e.Properties = normalizeKnowledgeGraphProperties(e.Properties)
+		defaultSource := strings.TrimSpace(e.Properties["source"])
+		if defaultSource == "" {
+			defaultSource = "auto_extraction"
+		}
+		e.Properties = ensureKnowledgeGraphEdgeQualityProperties(e.Properties, defaultSource, time.Now())
 		finalProps := mergeKnowledgeGraphPropertiesForExtraction(existingProps, e.Properties)
 		propsJSON, _ := json.Marshal(finalProps)
 
@@ -184,7 +188,7 @@ func (kg *KnowledgeGraph) BulkMergeExtractedEntities(nodes []Node, edges []Edge)
 			bulkErrors = append(bulkErrors, fmt.Errorf("merge edge %q->%q/%q: %w", e.Source, e.Target, e.Relation, execErr))
 			continue
 		}
-		indexEdges = append(indexEdges, e)
+		indexEdges = append(indexEdges, Edge{Source: e.Source, Target: e.Target, Relation: e.Relation, Properties: finalProps})
 	}
 
 	if len(bulkErrors) > 0 {
