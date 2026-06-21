@@ -2,11 +2,18 @@ package llm
 
 import (
 	"strings"
+
+	"aurago/internal/llm/catalog"
 )
 
 // GetModelInfo looks up a model in the known registry by provider and model ID.
 // The key format is "provider/model_id" (e.g. "openai/gpt-4o").
 func GetModelInfo(provider, modelID string) (ModelRegistryEntry, bool) {
+	if snapshot, err := catalog.Load(); err == nil {
+		if model, ok := snapshot.FindModel(provider, modelID); ok {
+			return catalogModelToRegistryEntry(model), true
+		}
+	}
 	key := strings.ToLower(provider) + "/" + strings.ToLower(modelID)
 	if entry, ok := KnownModelRegistry[key]; ok {
 		return entry, true
@@ -18,6 +25,29 @@ func GetModelInfo(provider, modelID string) (ModelRegistryEntry, bool) {
 // ignoring the provider. Returns the first match (or any match, since
 // model IDs are typically unique across providers).
 func GetModelInfoByID(modelID string) (ModelRegistryEntry, bool) {
+	if snapshot, err := catalog.Load(); err == nil {
+		if model, ok := snapshot.FindModelByID(modelID); ok {
+			return catalogModelToRegistryEntry(model), true
+		}
+	}
+	lower := strings.ToLower(modelID)
+	for key, entry := range KnownModelRegistry {
+		if strings.HasSuffix(strings.ToLower(key), "/"+lower) {
+			return entry, true
+		}
+	}
+	return ModelRegistryEntry{}, false
+}
+
+func getModelsDevInfo(provider, modelID string) (ModelRegistryEntry, bool) {
+	key := strings.ToLower(provider) + "/" + strings.ToLower(modelID)
+	if entry, ok := KnownModelRegistry[key]; ok {
+		return entry, true
+	}
+	return ModelRegistryEntry{}, false
+}
+
+func getModelsDevInfoByID(modelID string) (ModelRegistryEntry, bool) {
 	lower := strings.ToLower(modelID)
 	for key, entry := range KnownModelRegistry {
 		if strings.HasSuffix(strings.ToLower(key), "/"+lower) {
@@ -31,8 +61,16 @@ func GetModelInfoByID(modelID string) (ModelRegistryEntry, bool) {
 func GetModelsForProvider(provider string) []ModelRegistryEntry {
 	prefix := strings.ToLower(provider) + "/"
 	var result []ModelRegistryEntry
+	seen := map[string]bool{}
+	if snapshot, err := catalog.Load(); err == nil {
+		for _, model := range snapshot.ModelsForProvider(provider) {
+			entry := catalogModelToRegistryEntry(model)
+			result = append(result, entry)
+			seen[strings.ToLower(entry.ID)] = true
+		}
+	}
 	for key, entry := range KnownModelRegistry {
-		if strings.HasPrefix(key, prefix) {
+		if strings.HasPrefix(key, prefix) && !seen[strings.ToLower(entry.ID)] {
 			result = append(result, entry)
 		}
 	}
@@ -92,4 +130,22 @@ func GetCapabilitiesFromRegistry(provider, modelID string) (toolCall, reasoning,
 		return false, false, false, false, false
 	}
 	return entry.SupportsToolCall, entry.SupportsReasoning, entry.SupportsStructuredOutput, entry.SupportsMultimodal, true
+}
+
+func catalogModelToRegistryEntry(model catalog.Model) ModelRegistryEntry {
+	return ModelRegistryEntry{
+		ID:                       model.ID,
+		Name:                     model.Name,
+		Provider:                 model.Provider,
+		ContextWindow:            model.ContextWindow,
+		MaxOutputTokens:          model.MaxTokens,
+		SupportsToolCall:         model.SupportsTools,
+		SupportsReasoning:        model.Reasoning,
+		SupportsStructuredOutput: model.StructuredOutputs,
+		SupportsMultimodal:       model.Multimodal,
+		InputPricePer1M:          model.Cost.Input,
+		OutputPricePer1M:         model.Cost.Output,
+		CacheReadPricePer1M:      model.Cost.CacheRead,
+		CacheWritePricePer1M:     model.Cost.CacheWrite,
+	}
 }

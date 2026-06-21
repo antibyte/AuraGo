@@ -11,6 +11,7 @@
   "config.providers.query_models": "Modelle abfragen",
   "config.providers.loading": "Lädt...",
   "config.providers.available_models": "Verfügbare Modelle (klicken zum Übernehmen):",
+  "config.providers.catalog_model_placeholder": "Modell aus Katalog wählen",
   "config.providers.open_model_browser": "Modell-Browser öffnen",
   "config.providers.browse_openrouter": "Durchsuche alle verfügbaren OpenRouter Modelle",
   "config.providers.authentication": "Authentifizierung",

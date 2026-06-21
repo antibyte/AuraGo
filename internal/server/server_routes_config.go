@@ -21,6 +21,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/providers", handleProviders(s))
 	mux.HandleFunc("/api/providers/capabilities", handleProviderCapabilities(s))
 	mux.HandleFunc("/api/providers/pricing", handleProviderPricing(s))
+	mux.HandleFunc("/api/models/catalog", handleModelCatalog(s))
 	mux.HandleFunc("/api/email-accounts", handleEmailAccounts(s))
 	mux.HandleFunc("/api/email-accounts/test", handleEmailAccountsTest(s))
 	mux.HandleFunc("/api/mcp-servers", handleMCPServers(s))

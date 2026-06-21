@@ -232,6 +232,8 @@ func Load(path string) (*Config, error) {
 	data = fixCommonConfigIssues(data)
 
 	var cfg Config
+	cfg.ModelCatalog.Enabled = true
+	cfg.ModelCatalog.CatalogOnlyVisible = true
 	// Tools section defaults: all tools are enabled by default (opt-in to disable).
 	// These are set before unmarshal so that keys absent from the YAML file keep the
 	// correct default; explicit 'enabled: false' in the YAML will still override them.

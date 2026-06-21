@@ -14,6 +14,7 @@
   "config.providers.authorize": "Autoriser",
   "config.providers.authorized": "Autorisert",
   "config.providers.available_models": "Tilgjengelige modeller (klikk for å søke):",
+  "config.providers.catalog_model_placeholder": "Velg modell fra katalogen",
   "config.providers.browse_openrouter": "Bla gjennom alle tilgjengelige OpenRouter-modeller",
   "config.providers.cancel": "Avbryt",
   "config.providers.card_api_key": "API-nøkkel:",

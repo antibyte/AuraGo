@@ -4,6 +4,8 @@
 let _orModelsCache = null;
 let _orModelsCacheTime = 0;
 const OR_CACHE_TTL = 5 * 60 * 1000;
+let _providerCatalogCache = null;
+let _providerCatalogPromise = null;
 
         async function queryOllamaModelsInModal() {
             const spinner = document.getElementById('prov-ollama-spinner');
@@ -814,6 +816,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             </div>`;
             document.getElementById('content').innerHTML = html;
             providerRenderCards();
+            providerLoadCatalog().then(() => providerRenderCards());
         }
 
         function providerRenderCards() {
@@ -893,7 +896,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
         }
 
         // Known base URLs for auto-fill when creating new providers
-        const PROVIDER_BASE_URLS = {
+        const PROVIDER_BASE_URL_FALLBACKS = {
             openrouter: 'https://openrouter.ai/api/v1',
             openai: 'https://api.openai.com/v1',
             ollama: 'http://localhost:11434',
@@ -945,7 +948,107 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             'opencode-go': 'config.providers.hint.opencode_go'
         };
 
-        const PROVIDER_TYPES = ['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','manifest','yepapi','custom','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'];
+        const PROVIDER_TYPE_FALLBACKS = ['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','manifest','yepapi','custom','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'];
+
+        async function providerLoadCatalog() {
+            if (_providerCatalogCache) return _providerCatalogCache;
+            if (_providerCatalogPromise) return _providerCatalogPromise;
+            _providerCatalogPromise = fetch('/api/models/catalog')
+                .then(async resp => {
+                    if (!resp.ok) throw new Error('catalog unavailable');
+                    const json = await resp.json();
+                    _providerCatalogCache = json;
+                    return json;
+                })
+                .catch(() => null)
+                .finally(() => { _providerCatalogPromise = null; });
+            return _providerCatalogPromise;
+        }
+
+        function providerCatalogTypes() {
+            const types = [...PROVIDER_TYPE_FALLBACKS];
+            const seen = new Set(types);
+            const providers = (_providerCatalogCache && _providerCatalogCache.providers) || [];
+            providers
+                .filter(p => p && !p.catalog_only && p.aura_provider_type)
+                .forEach(p => {
+                    if (!seen.has(p.aura_provider_type)) {
+                        seen.add(p.aura_provider_type);
+                        types.push(p.aura_provider_type);
+                    }
+                });
+            return types;
+        }
+
+        function providerCatalogProvider(type) {
+            const typ = (type || '').toLowerCase();
+            const providers = (_providerCatalogCache && _providerCatalogCache.providers) || [];
+            return providers.find(p => p.aura_provider_type === typ || p.id === typ) || null;
+        }
+
+        function providerCatalogModelsForType(type) {
+            const typ = (type || '').toLowerCase();
+            const models = (_providerCatalogCache && _providerCatalogCache.models) || [];
+            return models
+                .filter(m => m && m.provider === typ && !m.catalog_only)
+                .sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+        }
+
+        function providerBaseURLForType(type) {
+            const typ = (type || '').toLowerCase();
+            const catalogModel = providerCatalogModelsForType(typ).find(m => m.base_url);
+            return (catalogModel && catalogModel.base_url) || PROVIDER_BASE_URL_FALLBACKS[typ] || '';
+        }
+
+        function providerKnownBaseURLs() {
+            const urls = new Set(Object.values(PROVIDER_BASE_URL_FALLBACKS).filter(Boolean));
+            const models = (_providerCatalogCache && _providerCatalogCache.models) || [];
+            models.forEach(m => { if (m.base_url) urls.add(m.base_url); });
+            return urls;
+        }
+
+        function providerTypeLabel(typ) {
+            const key = 'config.providers.type_' + typ.replace('-', '_');
+            const label = t(key);
+            if (label && label !== key) return label;
+            const provider = providerCatalogProvider(typ);
+            return (provider && provider.name) || typ;
+        }
+
+        function providerCatalogModelCost(model) {
+            const cost = (model && model.cost) || {};
+            return {
+                id: model.id,
+                inputPerMillion: cost.input || 0,
+                outputPerMillion: cost.output || 0
+            };
+        }
+
+        function providerRenderCatalogModelPicker(type) {
+            const select = document.getElementById('prov-catalog-model');
+            if (!select) return;
+            const models = providerCatalogModelsForType(type);
+            if (models.length === 0) {
+                select.innerHTML = '';
+                setHidden(select, true);
+                return;
+            }
+            const modelInput = document.getElementById('prov-model');
+            const currentModel = (modelInput && modelInput.value || '').trim();
+            select.innerHTML = `<option value="">${escapeHtml(t('config.providers.catalog_model_placeholder'))}</option>` +
+                models.slice(0, 800).map(model => {
+                    const label = model.name && model.name !== model.id ? `${model.name} (${model.id})` : model.id;
+                    return `<option value="${escapeAttr(model.id)}"${model.id === currentModel ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+                }).join('');
+            setHidden(select, false);
+            select.onchange = () => {
+                const picked = models.find(model => model.id === select.value);
+                if (!picked || !modelInput) return;
+                modelInput.value = picked.id;
+                modelInput.dispatchEvent(new Event('input', { bubbles: true }));
+                updateProviderModelCost(providerCatalogModelCost(picked));
+            };
+        }
 
         function providerShowModal(title, data, onSave) {
             // Remove existing modal
@@ -991,14 +1094,14 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     <div class="field-label">${t('config.providers.field_type_label')}</div>
                     <div class="field-help">${t('config.providers.type_help')}</div>
                     <select class="field-select" id="prov-type">
-                        ${PROVIDER_TYPES.map(typ =>
-                            `<option value="${typ}"${data.type === typ ? ' selected' : ''}>${t('config.providers.type_' + typ.replace('-', '_'))}</option>`
+                        ${providerCatalogTypes().map(typ =>
+                            `<option value="${typ}"${data.type === typ ? ' selected' : ''}>${escapeHtml(providerTypeLabel(typ))}</option>`
                         ).join('')}
                     </select>
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.providers.field_base_url_label')}</div>
-                    <input class="field-input ${isAutoURLInitial ? 'is-disabled' : ''}" id="prov-url" value="${escapeAttr(isAutoURLInitial ? '' : (data.base_url || ''))}" placeholder="${isAutoURLInitial ? initialURLHint : (PROVIDER_BASE_URLS[data.type] || PROVIDER_BASE_URLS.openrouter)}" ${isAutoURLInitial ? 'disabled' : ''}>
+                    <input class="field-input ${isAutoURLInitial ? 'is-disabled' : ''}" id="prov-url" value="${escapeAttr(isAutoURLInitial ? '' : (data.base_url || ''))}" placeholder="${isAutoURLInitial ? initialURLHint : (providerBaseURLForType(data.type) || PROVIDER_BASE_URL_FALLBACKS.openrouter)}" ${isAutoURLInitial ? 'disabled' : ''}>
                     <div id="prov-url-auto-hint" class="prov-field-hint ${isAutoURLInitial ? '' : 'is-hidden'}">${initialURLHint}</div>
                 </div>
 
@@ -1011,6 +1114,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 <div class="field-group">
                     <div class="field-label">${t('config.providers.field_model_label')}</div>
                     <input class="field-input" id="prov-model" value="${escapeAttr(data.model || '')}" placeholder="${t('config.providers.model_placeholder')}">
+                    <select class="field-select prov-catalog-model-picker is-hidden" id="prov-catalog-model"></select>
                 </div>
 
                 <div class="field-group prov-group-divider" id="prov-capabilities-block">
@@ -1225,7 +1329,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             const openrouterBlock = document.getElementById('prov-openrouter-block');
             const accountIdBlock = document.getElementById('prov-account-id-block');
             const urlAutoHint = document.getElementById('prov-url-auto-hint');
-            const knownUrls = new Set(Object.values(PROVIDER_BASE_URLS).filter(Boolean));
+            const knownUrls = providerKnownBaseURLs();
             typeSelect.addEventListener('change', () => {
                 const typ = typeSelect.value;
                 const currentUrl = urlInput.value.trim();
@@ -1240,12 +1344,13 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 } else {
                     urlInput.disabled = false;
                     urlInput.classList.remove('is-disabled');
-                    if ((!currentUrl || knownUrls.has(currentUrl)) && PROVIDER_BASE_URLS[typ]) {
-                        urlInput.value = PROVIDER_BASE_URLS[typ];
+                    const defaultBaseURL = providerBaseURLForType(typ);
+                    if ((!currentUrl || knownUrls.has(currentUrl)) && defaultBaseURL) {
+                        urlInput.value = defaultBaseURL;
                     }
                 }
                 // Update placeholder
-                urlInput.placeholder = isWorkersAI ? t('config.providers.workers_ai_url_auto') : (isManagedManifest ? t('config.providers.manifest_url_auto') : (PROVIDER_BASE_URLS[typ] || 'https://...'));
+                urlInput.placeholder = isWorkersAI ? t('config.providers.workers_ai_url_auto') : (isManagedManifest ? t('config.providers.manifest_url_auto') : (providerBaseURLForType(typ) || 'https://...'));
                 // Update hint
                 if (hintEl) {
                     const hintKey = PROVIDER_HINTS[typ];
@@ -1265,6 +1370,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 if (fetchPricingBtn) {
                     setHidden(fetchPricingBtn, !['openrouter','openai','anthropic','google','ollama','workers-ai','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'].includes(typ));
                 }
+                providerRenderCatalogModelPicker(typ);
                 // Show/hide Copilot auth block
                 const copilotBlock = document.getElementById('prov-copilot-block');
                 if (copilotBlock) setHidden(copilotBlock, typ !== 'copilot');
@@ -1285,6 +1391,10 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 modelInput.addEventListener('input', () => {
                     clearTimeout(capDetectTimer);
                     capDetectTimer = setTimeout(() => providerRefreshCapabilityDetection(false), 350);
+                    const catalogSelect = document.getElementById('prov-catalog-model');
+                    if (catalogSelect && catalogSelect.value !== modelInput.value) {
+                        catalogSelect.value = modelInput.value;
+                    }
                 });
             }
 
@@ -1567,10 +1677,13 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             // Trigger initial auto-fill for new providers
             if (!data._editMode && !data.base_url) {
                 const initType = typeSelect.value;
-                if (PROVIDER_BASE_URLS[initType]) {
-                    urlInput.value = PROVIDER_BASE_URLS[initType];
+                const defaultBaseURL = providerBaseURLForType(initType);
+                if (defaultBaseURL) {
+                    urlInput.value = defaultBaseURL;
                 }
             }
+            providerRenderCatalogModelPicker(typeSelect.value);
+            providerLoadCatalog().then(() => providerRenderCatalogModelPicker(typeSelect.value));
         }
 
         function providerAdd() {

@@ -11,6 +11,7 @@
   "config.providers.query_models": "Query Models",
   "config.providers.loading": "Loading...",
   "config.providers.available_models": "Available models (click to apply):",
+  "config.providers.catalog_model_placeholder": "Choose model from catalog",
   "config.providers.open_model_browser": "Open Model Browser",
   "config.providers.browse_openrouter": "Browse all available OpenRouter models",
   "config.providers.authentication": "Authentication",

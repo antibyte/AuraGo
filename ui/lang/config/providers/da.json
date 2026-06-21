@@ -14,6 +14,7 @@
   "config.providers.authorize": "Tillad",
   "config.providers.authorized": "Autoriseret",
   "config.providers.available_models": "Tilgængelige modeller (klik for at anvende):",
+  "config.providers.catalog_model_placeholder": "Vælg model fra kataloget",
   "config.providers.browse_openrouter": "Gennemse alle tilgængelige OpenRouter-modeller",
   "config.providers.cancel": "Annuller",
   "config.providers.card_api_key": "API-nøgle:",

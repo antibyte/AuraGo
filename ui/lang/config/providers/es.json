@@ -14,6 +14,7 @@
   "config.providers.authorize": "Autorizar",
   "config.providers.authorized": "Autorizado",
   "config.providers.available_models": "Modelos disponibles (haz clic para aplicar):",
+  "config.providers.catalog_model_placeholder": "Elegir modelo del catálogo",
   "config.providers.browse_openrouter": "Explorar todos los modelos OpenRouter disponibles",
   "config.providers.cancel": "Cancelar",
   "config.providers.card_api_key": "Clave API:",

@@ -14,6 +14,7 @@
   "config.providers.authorize": "अधिकृत करें",
   "config.providers.authorized": "अधिकृत",
   "config.providers.available_models": "उपलब्ध मॉडल (लागू करने के लिए क्लिक करें):",
+  "config.providers.catalog_model_placeholder": "कैटलॉग से मॉडल चुनें",
   "config.providers.browse_openrouter": "सभी उपलब्ध ओपनराउटर मॉडल ब्राउज़ करें",
   "config.providers.cancel": "रद्द करें",
   "config.providers.card_api_key": "एपीआई कुंजी:",

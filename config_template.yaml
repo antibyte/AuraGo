@@ -524,7 +524,7 @@ s3:
 # LLM Providers — configure via the Setup Wizard or Config UI
 # Supported types: openai, openrouter, ollama, anthropic, google, minimax,
 # workers-ai, manifest, yepapi, custom, deepseek, groq, mistral, xai,
-# moonshot, qwen, zai, llamacpp, lmstudio
+# moonshot, qwen, zai, llamacpp, lmstudio, copilot, opencode-go
 # Example: route through a managed or external Manifest.build gateway.
 # Store the mnfst_... API key in the vault via the Config UI.
 # providers:
@@ -538,8 +538,13 @@ s3:
 #       structured_outputs: false
 #       multimodal: false
 #       detected_model: "manifest/auto"
-#       source: "legacy_fallback"                        # manual, openrouter, models.dev, heuristic, legacy_fallback
+#       source: "legacy_fallback"                        # manual, openrouter, oh-my-pi, models.dev, heuristic, legacy_fallback
 providers: []
+model_catalog:
+    enabled: true                                         # use bundled Oh-My-Pi provider/model metadata for UI and capability detection
+    disabled_providers: []                                # provider IDs or AuraGo provider types hidden/disabled in catalog status
+    catalog_only_visible: true                            # show unsupported upstream providers as read-only catalog entries
+    upstream_version: ""                                  # optional note/pin for operators; bundled snapshot metadata remains authoritative
 llm:
     provider: ""
     multimodal: false                                      # deprecated fallback only when provider/model capabilities are unknown

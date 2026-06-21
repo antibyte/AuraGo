@@ -14,6 +14,7 @@
   "config.providers.authorize": "Εξουσιοδότηση",
   "config.providers.authorized": "Εξουσιοδοτημένο",
   "config.providers.available_models": "Διαθέσιμα μοντέλα (κάντε κλικ για εφαρμογή):",
+  "config.providers.catalog_model_placeholder": "Επίλεξε μοντέλο από τον κατάλογο",
   "config.providers.browse_openrouter": "Περιήγηση σε όλα τα διαθέσιμα μοντέλα OpenRouter",
   "config.providers.cancel": "Ακύρωση",
   "config.providers.card_api_key": "Κλειδί API:",

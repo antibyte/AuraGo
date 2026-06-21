@@ -105,6 +105,14 @@ type ProviderEntry struct {
 	Models []ModelCost `yaml:"models,omitempty" json:"models,omitempty"`
 }
 
+// ModelCatalogConfig controls read-only model/provider catalog metadata.
+type ModelCatalogConfig struct {
+	Enabled            bool     `yaml:"enabled" json:"enabled"`
+	DisabledProviders  []string `yaml:"disabled_providers" json:"disabled_providers"`
+	CatalogOnlyVisible bool     `yaml:"catalog_only_visible" json:"catalog_only_visible"`
+	UpstreamVersion    string   `yaml:"upstream_version" json:"upstream_version"`
+}
+
 // EmailAccount defines a single IMAP/SMTP email account.
 type EmailAccount struct {
 	ID            string `yaml:"id"             json:"id"`   // unique slug, e.g. "personal", "work"
@@ -501,10 +509,11 @@ type ComposioConfig struct {
 }
 
 type Config struct {
-	ConfigPath    string          `yaml:"-"`          // runtime-only: absolute path to the config file
-	Runtime       Runtime         `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
-	Providers     []ProviderEntry `yaml:"providers"`
-	EmailAccounts []EmailAccount  `yaml:"email_accounts"`
+	ConfigPath    string             `yaml:"-"`          // runtime-only: absolute path to the config file
+	Runtime       Runtime            `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
+	Providers     []ProviderEntry    `yaml:"providers"`
+	ModelCatalog  ModelCatalogConfig `yaml:"model_catalog" json:"model_catalog"`
+	EmailAccounts []EmailAccount     `yaml:"email_accounts"`
 	Server        struct {
 		Host                 string `yaml:"host"`
 		Port                 int    `yaml:"port"`

@@ -14,6 +14,7 @@
   "config.providers.authorize": "Autorizovat",
   "config.providers.authorized": "Autorizováno",
   "config.providers.available_models": "Dostupné modely (klikněte pro použití):",
+  "config.providers.catalog_model_placeholder": "Vybrat model z katalogu",
   "config.providers.browse_openrouter": "Procházejte všechny dostupné modely OpenRouter",
   "config.providers.cancel": "Zrušit",
   "config.providers.card_api_key": "Klíč API:",

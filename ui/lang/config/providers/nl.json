@@ -14,6 +14,7 @@
   "config.providers.authorize": "Autoriseren",
   "config.providers.authorized": "Geautoriseerd",
   "config.providers.available_models": "Beschikbare modellen (klik om toe te passen):",
+  "config.providers.catalog_model_placeholder": "Kies model uit catalogus",
   "config.providers.browse_openrouter": "Blader door alle beschikbare OpenRouter-modellen",
   "config.providers.cancel": "Annuleren",
   "config.providers.card_api_key": "API-sleutel:",
