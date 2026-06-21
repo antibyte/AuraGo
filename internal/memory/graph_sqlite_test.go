@@ -262,6 +262,60 @@ func TestKGSearchHidesLowConfidenceCoMentionsByDefault(t *testing.T) {
 	}
 }
 
+func TestKGSearchKeepsManualCoMentionsVisibleByDefault(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("andi", "Andi", map[string]string{"type": "person"}); err != nil {
+		t.Fatalf("AddNode andi: %v", err)
+	}
+	if err := kg.AddNode("agodesk", "AgoDesk", map[string]string{"type": "service"}); err != nil {
+		t.Fatalf("AddNode agodesk: %v", err)
+	}
+	if err := kg.AddEdge("andi", "agodesk", "co_mentioned_with", map[string]string{"source": "manual"}); err != nil {
+		t.Fatalf("AddEdge manual co-mention: %v", err)
+	}
+
+	var payload struct {
+		Edges []Edge `json:"edges"`
+	}
+	if err := json.Unmarshal([]byte(kg.Search("andi")), &payload); err != nil {
+		t.Fatalf("unmarshal search: %v", err)
+	}
+	if len(payload.Edges) != 1 || payload.Edges[0].Relation != "co_mentioned_with" {
+		t.Fatalf("manual co-mention should be visible by default, got %#v", payload.Edges)
+	}
+}
+
+func TestKGDeleteNodesBySourceFilePreservesSharedNodes(t *testing.T) {
+	kg := newTestKG(t)
+	path := "/docs/a.md"
+
+	if err := kg.AddNode("shared", "Shared", map[string]string{"type": "service", "source": "file_sync", "source_file": path}); err != nil {
+		t.Fatalf("AddNode shared: %v", err)
+	}
+	if err := kg.AddNode("other", "Other", map[string]string{"type": "service", "source": "manual"}); err != nil {
+		t.Fatalf("AddNode other: %v", err)
+	}
+	if err := kg.AddEdge("other", "shared", "uses", map[string]string{"source": "manual"}); err != nil {
+		t.Fatalf("AddEdge manual: %v", err)
+	}
+
+	deleted, err := kg.DeleteNodesBySourceFile(path)
+	if err != nil {
+		t.Fatalf("DeleteNodesBySourceFile: %v", err)
+	}
+	if deleted != 0 {
+		t.Fatalf("DeleteNodesBySourceFile deleted %d nodes, want 0 for shared node", deleted)
+	}
+	if node, err := kg.GetNode("shared"); err != nil || node == nil {
+		t.Fatalf("shared node should remain, node=%#v err=%v", node, err)
+	}
+	nodes, edges := kg.GetNeighbors("shared", 10)
+	if len(nodes) != 1 || len(edges) != 1 {
+		t.Fatalf("manual relationship should remain, nodes=%#v edges=%#v", nodes, edges)
+	}
+}
+
 func TestEscapeFTS5PreservesQuotedPhrase(t *testing.T) {
 	got := kgquery.EscapeFTS5(`"Raspberry Pi"`)
 	want := `"Raspberry Pi"`

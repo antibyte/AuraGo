@@ -115,7 +115,125 @@ func (kg *KnowledgeGraph) BulkMergeExtractedEntities(nodes []Node, edges []Edge)
 	}
 	defer tx.Rollback()
 
-	now := time.Now().Format(time.RFC3339)
+	indexNodes, indexEdges, err := kg.mergeExtractedEntitiesTx(tx, nodes, edges)
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	for _, node := range indexNodes {
+		kg.upsertSemanticNodeIndex(node)
+	}
+	for _, e := range indexEdges {
+		kg.upsertSemanticEdgeIndex(e)
+	}
+	return nil
+}
+
+func (kg *KnowledgeGraph) ReplaceExtractedEntitiesBySourceFile(path string, nodes []Node, edges []Edge) error {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return kg.BulkMergeExtractedEntities(nodes, edges)
+	}
+
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin replace extracted entities by source file: %w", err)
+	}
+	defer tx.Rollback()
+
+	removedEdges := kg.collectSemanticEdgeIdentities(tx, `
+		SELECT source, target, relation FROM kg_edges
+		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source_file') = ?
+	`, path)
+	if _, err := tx.Exec(`
+		DELETE FROM kg_edges
+		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source_file') = ?
+	`, path); err != nil {
+		return fmt.Errorf("delete stale source-file edges: %w", err)
+	}
+
+	keepIDs := make(map[string]struct{}, len(nodes))
+	for _, node := range mergeKnowledgeGraphNodes(nodes) {
+		if node.ID != "" {
+			keepIDs[node.ID] = struct{}{}
+		}
+	}
+
+	candidateRows, err := tx.Query(`
+		SELECT id FROM kg_nodes
+		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source_file') = ?
+		  AND protected = 0
+	`, path)
+	if err != nil {
+		return fmt.Errorf("query stale source-file nodes: %w", err)
+	}
+	var candidateIDs []string
+	for candidateRows.Next() {
+		var id string
+		if err := candidateRows.Scan(&id); err != nil {
+			candidateRows.Close()
+			return fmt.Errorf("scan stale source-file node: %w", err)
+		}
+		if _, keep := keepIDs[id]; keep {
+			continue
+		}
+		candidateIDs = append(candidateIDs, id)
+	}
+	if err := candidateRows.Err(); err != nil {
+		candidateRows.Close()
+		return fmt.Errorf("iterate stale source-file nodes: %w", err)
+	}
+	candidateRows.Close()
+
+	var deleteIDs []string
+	for _, id := range candidateIDs {
+		var degree int
+		if err := tx.QueryRow("SELECT COUNT(*) FROM kg_edges WHERE source = ? OR target = ?", id, id).Scan(&degree); err != nil {
+			return fmt.Errorf("count remaining source-file node edges: %w", err)
+		}
+		if degree == 0 {
+			deleteIDs = append(deleteIDs, id)
+		}
+	}
+
+	if len(deleteIDs) > 0 {
+		placeholders := knowledgeGraphSQLInPlaceholders(len(deleteIDs))
+		args := make([]interface{}, len(deleteIDs))
+		for i, id := range deleteIDs {
+			args[i] = id
+		}
+		if _, err := tx.Exec(fmt.Sprintf("DELETE FROM kg_nodes WHERE id IN (%s)", placeholders), args...); err != nil {
+			return fmt.Errorf("delete stale source-file nodes: %w", err)
+		}
+	}
+
+	indexNodes, indexEdges, err := kg.mergeExtractedEntitiesTx(tx, nodes, edges)
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	kg.removeSemanticIndexesForDeletedGraphData(deleteIDs, removedEdges)
+	for _, node := range indexNodes {
+		kg.upsertSemanticNodeIndex(node)
+	}
+	for _, e := range indexEdges {
+		kg.upsertSemanticEdgeIndex(e)
+	}
+	return nil
+}
+
+func (kg *KnowledgeGraph) mergeExtractedEntitiesTx(tx *sql.Tx, nodes []Node, edges []Edge) ([]Node, []Edge, error) {
+	nowTime := time.Now()
+	now := nowTime.Format(time.RFC3339)
 	mergedNodes := mergeKnowledgeGraphNodes(nodes)
 	mergedEdges := mergeKnowledgeGraphEdges(edges)
 	indexNodes := make([]Node, 0, len(mergedNodes))
@@ -127,7 +245,7 @@ func (kg *KnowledgeGraph) BulkMergeExtractedEntities(nodes []Node, edges []Edge)
 		}
 		existingLabel, existingProps, existingProtected, _, err := loadKnowledgeGraphNode(tx, n.ID)
 		if err != nil {
-			return fmt.Errorf("load existing node %q: %w", n.ID, err)
+			return nil, nil, fmt.Errorf("load existing node %q: %w", n.ID, err)
 		}
 
 		n.Properties = sanitizeKnowledgeGraphNodeProperties(n.Properties, strings.EqualFold(strings.TrimSpace(n.Properties["protected"]), "true"))
@@ -168,13 +286,13 @@ func (kg *KnowledgeGraph) BulkMergeExtractedEntities(nodes []Node, edges []Edge)
 
 		existingProps, _, err := loadKnowledgeGraphEdge(tx, e.Source, e.Target, e.Relation)
 		if err != nil {
-			return fmt.Errorf("load existing edge %q->%q/%q: %w", e.Source, e.Target, e.Relation, err)
+			return nil, nil, fmt.Errorf("load existing edge %q->%q/%q: %w", e.Source, e.Target, e.Relation, err)
 		}
 		defaultSource := strings.TrimSpace(e.Properties["source"])
 		if defaultSource == "" {
 			defaultSource = "auto_extraction"
 		}
-		e.Properties = ensureKnowledgeGraphEdgeQualityProperties(e.Properties, defaultSource, time.Now())
+		e.Properties = ensureKnowledgeGraphEdgeQualityProperties(e.Properties, defaultSource, nowTime)
 		finalProps := mergeKnowledgeGraphPropertiesForExtraction(existingProps, e.Properties)
 		propsJSON, _ := json.Marshal(finalProps)
 
@@ -192,19 +310,9 @@ func (kg *KnowledgeGraph) BulkMergeExtractedEntities(nodes []Node, edges []Edge)
 	}
 
 	if len(bulkErrors) > 0 {
-		return fmt.Errorf("bulk merge extracted entities failed: %w", errors.Join(bulkErrors...))
+		return nil, nil, fmt.Errorf("bulk merge extracted entities failed: %w", errors.Join(bulkErrors...))
 	}
-
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	for _, node := range indexNodes {
-		kg.upsertSemanticNodeIndex(node)
-	}
-	for _, e := range indexEdges {
-		kg.upsertSemanticEdgeIndex(e)
-	}
-	return nil
+	return indexNodes, indexEdges, nil
 }
 
 func (kg *KnowledgeGraph) FindOrphanedFileSyncEntities(activeFiles []string) ([]Node, []Edge, error) {

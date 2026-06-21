@@ -400,17 +400,8 @@ func handleDebugKGFileSyncCleanup(s *Server) http.HandlerFunc {
 		if !dryRun && (len(orphanNodes) > 0 || len(orphanEdges) > 0) {
 			var totalDeletedNodes, totalDeletedEdges int
 
-			// Delete orphaned nodes grouped by source file
+			// Delete orphaned edges before nodes so node cleanup can preserve shared graph relationships.
 			for sf := range orphanFiles {
-				deleted, err := s.KG.DeleteNodesBySourceFile(sf)
-				if err != nil {
-					if s.Logger != nil {
-						s.Logger.Warn("Failed to delete orphaned nodes", "source_file", sf, "error", err)
-					}
-					continue
-				}
-				totalDeletedNodes += deleted
-
 				deletedEdges, err := s.KG.DeleteEdgesBySourceFile(sf)
 				if err != nil {
 					if s.Logger != nil {
@@ -419,6 +410,15 @@ func handleDebugKGFileSyncCleanup(s *Server) http.HandlerFunc {
 					continue
 				}
 				totalDeletedEdges += deletedEdges
+
+				deleted, err := s.KG.DeleteNodesBySourceFile(sf)
+				if err != nil {
+					if s.Logger != nil {
+						s.Logger.Warn("Failed to delete orphaned nodes", "source_file", sf, "error", err)
+					}
+					continue
+				}
+				totalDeletedNodes += deleted
 			}
 
 			result["deleted_nodes"] = totalDeletedNodes

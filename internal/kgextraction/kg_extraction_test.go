@@ -225,6 +225,37 @@ func TestNormalizeExtractedKGPathLikeNodeUsesFileHash(t *testing.T) {
 	}
 }
 
+func TestNormalizeExtractedKGDoesNotConvertURLsToFileNodes(t *testing.T) {
+	nodes, edges := normalizeExtractedKG(
+		[]memory.Node{
+			{ID: "agodesk_api", Label: "https://agodesk.example/api/v1", Properties: map[string]string{"type": "service"}},
+			{ID: "agodesk", Label: "AgoDesk", Properties: map[string]string{"type": "service"}},
+		},
+		[]memory.Edge{{Source: "agodesk", Target: "agodesk_api", Relation: "uses"}},
+	)
+	if len(nodes) != 2 {
+		t.Fatalf("nodes = %#v, want URL service node preserved", nodes)
+	}
+	for _, node := range nodes {
+		if node.ID == "agodesk_api" {
+			if node.Properties["type"] != "service" {
+				t.Fatalf("URL node type = %q, want service", node.Properties["type"])
+			}
+			if _, ok := node.Properties["path"]; ok {
+				t.Fatalf("URL node should not gain path property: %#v", node.Properties)
+			}
+			if node.Label != "https://agodesk.example/api/v1" {
+				t.Fatalf("URL label = %q, want original URL", node.Label)
+			}
+			if len(edges) != 1 || edges[0].Target != "agodesk_api" {
+				t.Fatalf("edges = %#v, want original URL node target", edges)
+			}
+			return
+		}
+	}
+	t.Fatalf("missing agodesk_api node in %#v", nodes)
+}
+
 func TestNormalizeExtractedKGAcceptsFileAndToolTypes(t *testing.T) {
 	nodes, _ := normalizeExtractedKG([]memory.Node{
 		{ID: "readme_file", Label: "README.md", Properties: map[string]string{"type": "file", "path": "/repo/README.md"}},

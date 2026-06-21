@@ -2,9 +2,11 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -15,6 +17,7 @@ import (
 	"aurago/internal/memory"
 
 	"github.com/sashabaranov/go-openai"
+	_ "modernc.org/sqlite"
 )
 
 func TestFileKGSyncer_SyncAll_NilDependencies(t *testing.T) {
@@ -218,6 +221,83 @@ func TestFileKGSyncer_SyncFileCreatesCanonicalFileNode(t *testing.T) {
 	}
 	if !linked {
 		t.Fatalf("expected agodesk related_to %s edge, got %#v", fileID, edges)
+	}
+}
+
+func TestFileKGSyncer_SyncFileKeepsExistingKGDataWhenReplacementMergeFails(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	cfg := &config.Config{}
+	cfg.LLM.Model = "test-model"
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	kgPath := filepath.Join(t.TempDir(), "kg.db")
+	kg, err := memory.NewKnowledgeGraph(kgPath, "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	defer kg.Close()
+
+	path := "/docs/a.md"
+	if err := stm.UpdateFileIndexWithDocs(path, IndexerCollection, time.Now(), []string{"doc-file"}); err != nil {
+		t.Fatalf("UpdateFileIndexWithDocs: %v", err)
+	}
+	if err := kg.BulkMergeExtractedEntities([]memory.Node{
+		{ID: "old_entity", Label: "Old Entity", Properties: map[string]string{"type": "service", "source": "file_sync", "source_file": path}},
+		{ID: "old_target", Label: "Old Target", Properties: map[string]string{"type": "service", "source": "file_sync", "source_file": path}},
+		{ID: "shared", Label: "Shared", Properties: map[string]string{"type": "service", "source": "manual"}},
+		{ID: "other", Label: "Other", Properties: map[string]string{"type": "service", "source": "manual"}},
+	}, []memory.Edge{
+		{Source: "old_entity", Target: "old_target", Relation: "related_to", Properties: map[string]string{"source": "file_sync", "source_file": path}},
+		{Source: "shared", Target: "other", Relation: "related_to", Properties: map[string]string{"source": "manual"}},
+	}); err != nil {
+		t.Fatalf("BulkMergeExtractedEntities seed: %v", err)
+	}
+
+	db, err := sql.Open("sqlite", kgPath)
+	if err != nil {
+		t.Fatalf("open raw kg db: %v", err)
+	}
+	_, err = db.Exec(`CREATE TRIGGER fail_file_sync_merge
+		BEFORE INSERT ON kg_edges
+		WHEN NEW.source = 'shared' AND NEW.target = 'other' AND NEW.relation = 'related_to'
+		BEGIN
+			SELECT RAISE(ABORT, 'merge blocked');
+		END`)
+	if closeErr := db.Close(); closeErr != nil {
+		t.Fatalf("close raw kg db: %v", closeErr)
+	}
+	if err != nil {
+		t.Fatalf("create failing merge trigger: %v", err)
+	}
+
+	vectorDB := &fakeFileKGVectorDB{docs: map[string]string{
+		"doc-file": strings.Repeat("Shared service content about the other service. ", 3),
+	}}
+	llmClient := &fakeFileKGLLM{
+		content: `{"nodes":[{"id":"shared","label":"Shared","properties":{"type":"service"}},{"id":"other","label":"Other","properties":{"type":"service"}}],"edges":[{"source":"shared","target":"other","relation":"related_to"}]}`,
+	}
+
+	syncer := NewFileKGSyncer(cfg, logger, llmClient, vectorDB, stm, kg)
+	result := syncer.SyncFile(path, IndexerCollection, FileKGSyncOptions{})
+	if len(result.Errors) == 0 {
+		t.Fatal("SyncFile should report merge error for corrupt existing edge")
+	}
+	if !strings.Contains(strings.Join(result.Errors, "\n"), "bulk merge") {
+		t.Fatalf("SyncFile should fail during bulk merge, got errors: %v", result.Errors)
+	}
+	if node, err := kg.GetNode("old_entity"); err != nil || node == nil {
+		t.Fatalf("old file entity should remain after failed replacement, node=%#v err=%v", node, err)
+	}
+	edges, err := kg.GetEdgesBySourceFile(path, 10)
+	if err != nil {
+		t.Fatalf("GetEdgesBySourceFile: %v", err)
+	}
+	if len(edges) == 0 {
+		t.Fatal("old file edge should remain after failed replacement")
 	}
 }
 

@@ -642,9 +642,23 @@ func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
 	}
 	defer tx.Rollback()
 
+	sourceFileEdges := kg.collectSemanticEdgeIdentities(tx, `
+		SELECT source, target, relation FROM kg_edges
+		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source_file') = ?
+	`, path)
+	if _, err := tx.Exec(`
+		DELETE FROM kg_edges
+		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source_file') = ?
+	`, path); err != nil {
+		return 0, fmt.Errorf("delete source-file edges before node cleanup: %w", err)
+	}
+
 	rows, err := tx.Query(`
 		SELECT id FROM kg_nodes
-		WHERE json_extract(properties, '$.source_file') = ?
+		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source_file') = ?
 		  AND protected = 0
 	`, path)
 	if err != nil {
@@ -666,73 +680,43 @@ func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
 	rows.Close()
 
 	if len(ids) == 0 {
+		if err := tx.Commit(); err != nil {
+			return 0, fmt.Errorf("commit delete source-file edges: %w", err)
+		}
+		kg.removeSemanticIndexesForDeletedGraphData(nil, sourceFileEdges)
 		return 0, nil
 	}
 
-	inPlaceholders := knowledgeGraphSQLInPlaceholders(len(ids))
-	inArgs := make([]interface{}, len(ids))
-	for i, id := range ids {
-		inArgs[i] = id
-	}
-	edgeArgs := make([]interface{}, 0, len(ids)*2)
+	var toDelete []string
 	for _, id := range ids {
-		edgeArgs = append(edgeArgs, id)
-	}
-	for _, id := range ids {
-		edgeArgs = append(edgeArgs, id)
+		var degree int
+		if err := tx.QueryRow("SELECT COUNT(*) FROM kg_edges WHERE source = ? OR target = ?", id, id).Scan(&degree); err != nil {
+			return 0, fmt.Errorf("count remaining source-file node edges: %w", err)
+		}
+		if degree == 0 {
+			toDelete = append(toDelete, id)
+		}
 	}
 
-	incidentEdges := make([]Edge, 0)
-	if kg.semanticIndex() != nil {
-		edgeRows, err := tx.Query(fmt.Sprintf(`
-			SELECT source, target, relation FROM kg_edges
-			WHERE source IN (%s) OR target IN (%s)
-		`, inPlaceholders, inPlaceholders), edgeArgs...)
+	var deleted int
+	if len(toDelete) > 0 {
+		inPlaceholders := knowledgeGraphSQLInPlaceholders(len(toDelete))
+		inArgs := make([]interface{}, len(toDelete))
+		for i, id := range toDelete {
+			inArgs[i] = id
+		}
+		deleteRes, err := tx.Exec(fmt.Sprintf("DELETE FROM kg_nodes WHERE id IN (%s)", inPlaceholders), inArgs...)
 		if err != nil {
-			return 0, fmt.Errorf("load incident edges for source file delete: %w", err)
+			return 0, fmt.Errorf("batch delete nodes by source file: %w", err)
 		}
-		for edgeRows.Next() {
-			var edge Edge
-			if err := edgeRows.Scan(&edge.Source, &edge.Target, &edge.Relation); err != nil {
-				edgeRows.Close()
-				return 0, fmt.Errorf("scan incident edge for source file delete: %w", err)
-			}
-			incidentEdges = append(incidentEdges, edge)
-		}
-		if err := edgeRows.Err(); err != nil {
-			edgeRows.Close()
-			return 0, fmt.Errorf("iterate incident edges for source file delete: %w", err)
-		}
-		edgeRows.Close()
+		deleted64, _ := deleteRes.RowsAffected()
+		deleted = int(deleted64)
 	}
-
-	if _, err := tx.Exec(fmt.Sprintf(`
-		DELETE FROM kg_edges
-		WHERE source IN (%s) OR target IN (%s)
-	`, inPlaceholders, inPlaceholders), edgeArgs...); err != nil {
-		return 0, fmt.Errorf("batch delete edges for source file nodes: %w", err)
-	}
-	deleteRes, err := tx.Exec(fmt.Sprintf("DELETE FROM kg_nodes WHERE id IN (%s)", inPlaceholders), inArgs...)
-	if err != nil {
-		return 0, fmt.Errorf("batch delete nodes by source file: %w", err)
-	}
-	deleted64, _ := deleteRes.RowsAffected()
-	deleted := int(deleted64)
 
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("commit delete nodes by source file: %w", err)
 	}
-	for _, edge := range incidentEdges {
-		if err := kg.removeSemanticEdgeIndex(edge.Source, edge.Target, edge.Relation); err != nil && kg.logger != nil {
-			kg.logger.Warn("DeleteNodesBySourceFile: failed to remove semantic edge index",
-				"source", edge.Source, "target", edge.Target, "relation", edge.Relation, "error", err)
-		}
-	}
-	for _, id := range ids {
-		if err := kg.removeSemanticNodeIndex(id); err != nil && kg.logger != nil {
-			kg.logger.Warn("DeleteNodesBySourceFile: failed to remove semantic node index", "id", id, "error", err)
-		}
-	}
+	kg.removeSemanticIndexesForDeletedGraphData(toDelete, sourceFileEdges)
 	return deleted, nil
 }
 

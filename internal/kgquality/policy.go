@@ -85,7 +85,23 @@ func IsPathLike(value string) bool {
 	if value == "" {
 		return false
 	}
-	return strings.Contains(value, "/") || strings.Contains(value, `\`) || strings.Contains(value, ":\\")
+	lower := strings.ToLower(value)
+	if strings.Contains(lower, "://") {
+		return false
+	}
+	if len(value) >= 3 && ((value[0] >= 'a' && value[0] <= 'z') || (value[0] >= 'A' && value[0] <= 'Z')) && value[1] == ':' && (value[2] == '\\' || value[2] == '/') {
+		return true
+	}
+	if strings.HasPrefix(value, "/") || strings.HasPrefix(value, `\`) || strings.HasPrefix(value, "./") || strings.HasPrefix(value, "../") {
+		return true
+	}
+	if strings.Contains(value, `\`) {
+		return true
+	}
+	if strings.Contains(value, "/") {
+		return path.Ext(CanonicalPath(value)) != ""
+	}
+	return false
 }
 
 func CanonicalPath(value string) string {
@@ -117,6 +133,9 @@ func LowConfidenceCoMention(relation string, properties map[string]string, polic
 	}
 	policy = NormalizePolicy(policy)
 	source := strings.TrimSpace(properties["source"])
+	if source == "manual" {
+		return false
+	}
 	if source == "pending" || source == "" {
 		return true
 	}

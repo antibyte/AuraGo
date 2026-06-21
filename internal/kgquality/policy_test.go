@@ -31,6 +31,18 @@ func TestFileNodeIDIsStableAndPathBacked(t *testing.T) {
 	}
 }
 
+func TestIsPathLikeRejectsURLs(t *testing.T) {
+	if IsPathLike("https://example.test/api/v1") {
+		t.Fatal("URLs should not be treated as local file paths")
+	}
+	if !IsPathLike(`/home/aurago/docs/readme.md`) {
+		t.Fatal("absolute POSIX paths should be treated as paths")
+	}
+	if !IsPathLike(`C:\Users\Andi\Documents\repo\AuraGo`) {
+		t.Fatal("Windows paths should be treated as paths")
+	}
+}
+
 func TestLowConfidenceCoMention(t *testing.T) {
 	policy := DefaultPolicy()
 	if !LowConfidenceCoMention("co_mentioned_with", map[string]string{"source": "pending", "weight": "1"}, policy) {
@@ -44,5 +56,8 @@ func TestLowConfidenceCoMention(t *testing.T) {
 	}
 	if LowConfidenceCoMention("uses", map[string]string{"source": "manual"}, policy) {
 		t.Fatal("semantic manual edge should not be treated as low-confidence co-mention")
+	}
+	if LowConfidenceCoMention("co_mentioned_with", map[string]string{"source": "manual"}, policy) {
+		t.Fatal("manual co-mention should not be hidden as low-confidence")
 	}
 }

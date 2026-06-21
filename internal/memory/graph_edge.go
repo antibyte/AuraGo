@@ -297,7 +297,8 @@ func (kg *KnowledgeGraph) GetImportantEdges(limit int, nodeIDs []string) ([]Edge
 func (kg *KnowledgeGraph) DeleteEdgesBySourceFile(path string) (int, error) {
 	rows, err := kg.db.Query(`
 		SELECT source, target, relation FROM kg_edges
-		WHERE json_extract(properties, '$.source_file') = ?
+		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source_file') = ?
 	`, path)
 	if err != nil {
 		return 0, fmt.Errorf("query edges by source file: %w", err)
@@ -313,7 +314,8 @@ func (kg *KnowledgeGraph) DeleteEdgesBySourceFile(path string) (int, error) {
 
 	res, err := kg.db.Exec(`
 		DELETE FROM kg_edges
-		WHERE json_extract(properties, '$.source_file') = ?
+		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source_file') = ?
 	`, path)
 	if err != nil {
 		return 0, fmt.Errorf("delete edges by source file: %w", err)
