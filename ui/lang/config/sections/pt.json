@@ -169,7 +169,7 @@
   "config.section.llm_guardian.desc": "Camada de segurança baseada em LLM para validação de chamadas de ferramentas",
   "config.section.llm_guardian.label": "LLM Guardião",
   "config.section.logging.desc": "Configurações de log",
-  "config.section.logging.label": "Logovani",
+  "config.section.logging.label": "Registros",
   "config.section.maintenance.desc": "Tarefas de manutenção",
   "config.section.maintenance.label": "Manutenção",
   "config.section.mcp.desc": "Model Context Protocol — gerencia servidores de ferramentas externos",
