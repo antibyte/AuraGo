@@ -283,30 +283,31 @@ func TestDesktopCheaterInlineRender(t *testing.T) {
 
 	source := readDesktopAssetText(t, "js/desktop/apps/cheater.js")
 	for _, marker := range []string{
-		"function bindInlineRender",
-		"function renderBlock",
-		"function unrenderBlock",
-		"function splitIntoBlocks",
-		"function applyBlockStructure",
-		"data-md-block",
+		"function renderPreview",
+		"function schedulePreview",
 		"window.marked",
 		"window.hljs",
-		"HOVER_DELAY_MS",
-		"block.dataset.pinned",
+		"data-preview",
+		"data-view-mode",
+		"setViewMode",
+		"PREVIEW_DEBOUNCE_MS",
 	} {
 		if !strings.Contains(source, marker) {
-			t.Fatalf("cheater inline render missing JS marker %q", marker)
+			t.Fatalf("cheater preview render missing JS marker %q", marker)
 		}
 	}
 
 	css := readAllDesktopAppCSS(t)
 	for _, marker := range []string{
-		".cheater-md-block",
-		".cheater-md-block.is-rendered",
-		".cheater-md-block pre",
+		".cheater-preview",
+		".cheater-preview pre",
+		".cheater-view-toggle",
+		".cheater-view-btn.is-active",
+		".cheater-toolbar",
+		".cheater-tool-btn",
 	} {
 		if !strings.Contains(css, marker) {
-			t.Fatalf("cheater inline render CSS missing marker %q", marker)
+			t.Fatalf("cheater preview CSS missing marker %q", marker)
 		}
 	}
 
@@ -316,6 +317,9 @@ func TestDesktopCheaterInlineRender(t *testing.T) {
 	}
 	if !strings.Contains(loader, "hljs-github.min.css") {
 		t.Fatalf("cheater entry missing hljs CSS")
+	}
+	if !strings.Contains(loader, "cheater-toolbar.js") {
+		t.Fatalf("cheater entry missing toolbar module")
 	}
 }
 
@@ -529,7 +533,42 @@ func TestDesktopCheaterTranslations(t *testing.T) {
 		"cheater.agent_badge",
 		"cheater.update_available",
 		"cheater.update_apply",
+		"cheater.update_summary",
+		"cheater.update_changed",
+		"cheater.update_added",
+		"cheater.update_removed",
 		"cheater.close",
+		"cheater.save",
+		"cheater.creating",
+		"cheater.editor_placeholder",
+		"cheater.editor_help",
+		"cheater.words",
+		"cheater.lines",
+		"cheater.view_mode_edit",
+		"cheater.view_mode_split",
+		"cheater.view_mode_preview",
+		"cheater.field_title_required",
+		"cheater.spotlight_create_fallback",
+		"cheater.confirm_delete_title",
+		"cheater.confirm_delete_text",
+		"cheater.toolbar.bold",
+		"cheater.toolbar.italic",
+		"cheater.toolbar.code",
+		"cheater.toolbar.inline_code",
+		"cheater.toolbar.link",
+		"cheater.toolbar.link_icon",
+		"cheater.toolbar.heading",
+		"cheater.toolbar.list",
+		"cheater.toolbar.ordered_list",
+		"cheater.toolbar.quote",
+		"cheater.toolbar.divider",
+		"cheater.toolbar.help",
+		"cheater.help.save",
+		"cheater.help.spotlight",
+		"cheater.help.new_sheet",
+		"cheater.help.cycle_view",
+		"cheater.help.indent",
+		"cheater.help.close",
 	}
 
 	languages := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}

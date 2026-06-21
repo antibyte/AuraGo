@@ -203,6 +203,7 @@
                 '/js/vendor/highlight.min.js',
                 '/js/desktop/apps/cheater.js',
                 '/js/desktop/apps/cheater-templates.js',
+                '/js/desktop/apps/cheater-toolbar.js',
                 '/js/desktop/apps/cheater-spotlight.js',
                 '/js/desktop/apps/cheater-attachments.js'
             ]

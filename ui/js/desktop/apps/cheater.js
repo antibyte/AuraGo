@@ -3,9 +3,11 @@
 
     const instances = new Map();
     const SAVE_DEBOUNCE_MS = 500;
-    const HOVER_DELAY_MS = 300;
+    const PREVIEW_DEBOUNCE_MS = 150;
     const POLL_INTERVAL_MS = 30000;
     const SPOTLIGHT_KEY = 'k';
+    const VIEW_MODE_KEY = 'cheater.viewMode';
+    const DEFAULT_VIEW_MODE = 'split';
 
     function normalizeSheetEntries(list) {
         const items = Array.isArray(list) ? list : (list && (list.items || list.cheatsheets)) || [];
@@ -53,6 +55,7 @@
             api,
             notify,
             iconMarkup: ctx.iconMarkup,
+            readonly,
             sheet: null,
             dirty: false,
             lastSavedAt: null,
@@ -60,6 +63,8 @@
             currentAbort: null,
             pollTimer: null,
             searchIndex: [],
+            viewMode: loadViewMode(),
+            previewTimer: null,
             openSheet: (nextState, entry) => {
                 if (entry && entry.id) {
                     loadSheet(nextState, entry.id);
@@ -75,6 +80,18 @@
         bindGlobalShortcuts(state);
         renderLoading(state);
         loadSearchIndex(state);
+    }
+
+    function loadViewMode() {
+        try {
+            const v = localStorage.getItem(VIEW_MODE_KEY);
+            if (v === 'edit' || v === 'split' || v === 'preview') return v;
+        } catch (_) {}
+        return DEFAULT_VIEW_MODE;
+    }
+
+    function saveViewMode(mode) {
+        try { localStorage.setItem(VIEW_MODE_KEY, mode); } catch (_) {}
     }
 
     function renderLoading(state) {
@@ -156,14 +173,17 @@
         }
         list.innerHTML = entries.map(entry => {
             const tags = (entry.tags || []).slice(0, 4).map(tag => `<span class="cheater-pill">${esc(tag)}</span>`).join('');
-            const meta = entry.last_used_at
-                ? `<span class="cheater-library-meta">🤖 ${esc(formatRelative(entry.last_used_at, t))}</span>`
-                : (entry.updated_at ? `<span class="cheater-library-meta">${esc(formatRelative(entry.updated_at, t))}</span>` : '');
+            const updatedMeta = entry.updated_at
+                ? `<span class="cheater-library-meta">${esc(formatRelative(entry.updated_at, t))}</span>`
+                : '';
+            const agentBadge = entry.last_used_at
+                ? `<span class="cheater-agent-badge cheater-library-agent-badge" data-agent-badge>🤖 ${esc(formatRelative(entry.last_used_at, t))}</span>`
+                : '';
             return `<li class="cheater-library-card" role="listitem">
                 <button type="button" class="cheater-library-card-btn" data-sheet-id="${esc(entry.id)}">
                     <span class="cheater-library-card-title">${esc(entry.name || t('cheater.untitled_sheet'))}</span>
                     ${entry.abstract ? `<span class="cheater-library-card-abstract">${esc(entry.abstract)}</span>` : ''}
-                    <span class="cheater-library-card-footer">${tags}${meta}</span>
+                    <span class="cheater-library-card-footer">${tags}${updatedMeta}${agentBadge}</span>
                 </button>
             </li>`;
         }).join('');
@@ -245,29 +265,54 @@
     }
 
     function renderEditor(state, sheet) {
-        const { host, windowId } = state;
-        const esc = state.esc;
-        const t = state.t;
+        const { host, windowId, esc, t, readonly, iconMarkup } = state;
         state.sheet = sheet;
         state.dirty = false;
         state.lastSavedAt = sheet.updated_at || null;
 
-        host.innerHTML = `<section class="cheater-app" data-cheater="${esc(windowId)}" data-state="editor">
+        const backIcon = iconMarkup ? iconMarkup('back', '←') : '←';
+        const attachIcon = iconMarkup ? iconMarkup('attach', '📎') : '📎';
+        const attachCount = (sheet.attachments || []).length;
+        const viewMode = state.viewMode;
+
+        host.innerHTML = `<section class="cheater-app" data-cheater="${esc(windowId)}" data-state="editor" data-view="${esc(viewMode)}">
             <header class="cheater-header">
-                <button type="button" class="cheater-back" data-action="back" aria-label="${esc(t('cheater.back'))}">←</button>
-                <input class="cheater-title" data-title type="text" value="${esc(sheet.name || '')}" spellcheck="false" autocomplete="off">
+                <button type="button" class="cheater-back" data-action="back" aria-label="${esc(t('cheater.back'))}">${backIcon}</button>
+                <input class="cheater-title" data-title type="text" value="${esc(sheet.name || '')}" spellcheck="false" autocomplete="off"${readonly ? ' readonly' : ''}>
                 <span class="cheater-save" data-save>${esc(t('cheater.saved'))}</span>
+                <button type="button" class="cheater-save-btn cheater-secondary" data-action="save" title="${esc(t('cheater.save'))} (Ctrl+S)">${esc(t('cheater.save'))}</button>
                 <span class="cheater-agent-badge" data-agent-badge hidden></span>
-                <button type="button" class="cheater-attach-btn" data-action="attachments" aria-label="${esc(t('cheater.attachments'))}">📎 <span data-attach-count>${(sheet.attachments || []).length}</span></button>
+                <button type="button" class="cheater-attach-btn" data-action="attachments" aria-label="${esc(t('cheater.attachments'))}">${attachIcon} <span data-attach-count>${attachCount}</span></button>
             </header>
+            <div class="cheater-toolbar" data-toolbar></div>
+            <div class="cheater-view-toggle" role="tablist">
+                <button type="button" class="cheater-view-btn${viewMode === 'edit' ? ' is-active' : ''}" data-view-mode="edit" role="tab">${esc(t('cheater.view_mode_edit'))}</button>
+                <button type="button" class="cheater-view-btn${viewMode === 'split' ? ' is-active' : ''}" data-view-mode="split" role="tab">${esc(t('cheater.view_mode_split'))}</button>
+                <button type="button" class="cheater-view-btn${viewMode === 'preview' ? ' is-active' : ''}" data-view-mode="preview" role="tab">${esc(t('cheater.view_mode_preview'))}</button>
+            </div>
             <div class="cheater-content" data-content>
-                <pre class="cheater-source" data-source contenteditable="true" spellcheck="true">${esc(sheet.content || '')}</pre>
+                <textarea class="cheater-source" data-source spellcheck="true" placeholder="${esc(t('cheater.editor_placeholder'))}"${readonly ? ' readonly' : ''}>${esc(sheet.content || '')}</textarea>
+                <div class="cheater-preview" data-preview aria-live="polite"></div>
             </div>
             <footer class="cheater-footer">
                 <span data-charcount>${(sheet.content || '').length}</span> ${esc(t('cheater.chars'))} ·
-                <span data-help>${esc(t('cheater.hover_help'))}</span>
+                <span data-wordcount>${countWords(sheet.content || '')}</span> ${esc(t('cheater.words'))} ·
+                <span data-linecount>${countLines(sheet.content || '')}</span> ${esc(t('cheater.lines'))}
+                <span class="cheater-footer-spacer"></span>
+                <span data-help>${esc(t('cheater.editor_help'))}</span>
             </footer>
         </section>`;
+    }
+
+    function countWords(text) {
+        const m = String(text || '').trim().match(/\S+/g);
+        return m ? m.length : 0;
+    }
+
+    function countLines(text) {
+        const s = String(text || '');
+        if (!s.length) return 0;
+        return s.split('\n').length;
     }
 
     function startPolling(state) {
@@ -298,7 +343,9 @@
         bar.className = 'cheater-update-bar';
         bar.dataset.updateBadge = '1';
         const t = state.t;
-        bar.innerHTML = `<span>${esc(t('cheater.update_available'))}</span><button type="button" data-action="apply">${esc(t('cheater.update_apply'))}</button><button type="button" data-action="dismiss" aria-label="${esc(t('cheater.close'))}">×</button>`;
+        const esc = state.esc;
+        const summary = buildUpdateSummary(state.sheet, fresh, t);
+        bar.innerHTML = `<span>${esc(t('cheater.update_available'))}</span>${summary ? `<span class="cheater-update-summary">${esc(summary)}</span>` : ''}<button type="button" data-action="apply">${esc(t('cheater.update_apply'))}</button><button type="button" data-action="dismiss" aria-label="${esc(t('cheater.close'))}">×</button>`;
         bar.querySelector('[data-action="apply"]').addEventListener('click', () => {
             openSheet(state, fresh);
             bar.remove();
@@ -308,11 +355,21 @@
         if (content) content.prepend(bar);
     }
 
+    function buildUpdateSummary(current, fresh, t) {
+        const curLen = (current && current.content ? current.content.length : 0);
+        const freshLen = (fresh && fresh.content ? fresh.content.length : 0);
+        const delta = freshLen - curLen;
+        if (delta === 0) return t('cheater.update_changed');
+        if (delta > 0) return t('cheater.update_added').replace('{{n}}', String(delta));
+        return t('cheater.update_removed').replace('{{n}}', String(Math.abs(delta)));
+    }
+
     function dispose(windowId) {
         const state = instances.get(windowId);
         if (state) {
             if (state.saveTimer) clearTimeout(state.saveTimer);
             if (state.pollTimer) clearInterval(state.pollTimer);
+            if (state.previewTimer) clearTimeout(state.previewTimer);
             if (state.currentAbort) state.currentAbort.abort();
             if (state._shortcutHandler && state.host) {
                 state.host.removeEventListener('keydown', state._shortcutHandler);
@@ -346,10 +403,178 @@
         }
         renderEditor(state, sheet);
         bindEditorEvents(state);
+        mountToolbar(state);
+        renderPreview(state);
         renderAgentBadge(state);
         bindBackButton(state);
+        bindViewToggle(state);
         bindGlobalShortcuts(state);
         startPolling(state);
+    }
+
+    function mountToolbar(state) {
+        const slot = state.host.querySelector('[data-toolbar]');
+        if (!slot) return;
+        if (window.CheaterToolbar && typeof window.CheaterToolbar.mount === 'function') {
+            window.CheaterToolbar.mount(state, slot);
+        } else {
+            slot.hidden = true;
+        }
+    }
+
+    function bindViewToggle(state) {
+        const buttons = state.host.querySelectorAll('[data-view-mode]');
+        buttons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.dataset.viewMode;
+                setViewMode(state, mode);
+            });
+        });
+    }
+
+    function setViewMode(state, mode) {
+        if (mode !== 'edit' && mode !== 'split' && mode !== 'preview') return;
+        state.viewMode = mode;
+        saveViewMode(mode);
+        const section = state.host.querySelector('[data-cheater]');
+        if (section) section.dataset.view = mode;
+        state.host.querySelectorAll('[data-view-mode]').forEach(btn => {
+            btn.classList.toggle('is-active', btn.dataset.viewMode === mode);
+        });
+        const source = state.host.querySelector('[data-source]');
+        if (mode === 'preview' && source) source.blur();
+        if (mode === 'edit' && source) source.focus();
+        renderPreview(state);
+    }
+
+    function bindEditorEvents(state) {
+        const titleInput = state.host.querySelector('[data-title]');
+        const source = state.host.querySelector('[data-source]');
+        const charCount = state.host.querySelector('[data-charcount]');
+        const wordCount = state.host.querySelector('[data-wordcount]');
+        const lineCount = state.host.querySelector('[data-linecount]');
+
+        if (titleInput) {
+            titleInput.addEventListener('input', () => {
+                if (state.sheet) state.sheet.name = titleInput.value;
+                markDirty(state);
+                scheduleSave(state);
+            });
+        }
+        if (source) {
+            source.addEventListener('input', () => {
+                const text = source.value;
+                if (state.sheet) state.sheet.content = text;
+                if (charCount) charCount.textContent = String(text.length);
+                if (wordCount) wordCount.textContent = String(countWords(text));
+                if (lineCount) lineCount.textContent = String(countLines(text));
+                markDirty(state);
+                scheduleSave(state);
+                schedulePreview(state);
+            });
+            source.addEventListener('keydown', (e) => {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    handleTabIndent(source, e.shiftKey);
+                }
+            });
+        }
+        state.host.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+                e.preventDefault();
+                flushSave(state);
+            } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'e' || e.key === 'E')) {
+                e.preventDefault();
+                cycleViewMode(state);
+            }
+        });
+        const attachBtn = state.host.querySelector('[data-action="attachments"]');
+        if (attachBtn) {
+            attachBtn.addEventListener('click', () => {
+                if (window.CheaterAttachments && typeof window.CheaterAttachments.open === 'function') {
+                    window.CheaterAttachments.open(state);
+                }
+            });
+        }
+        const saveBtn = state.host.querySelector('[data-action="save"]');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => flushSave(state));
+        }
+    }
+
+    function handleTabIndent(textarea, reverse) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const value = textarea.value;
+        if (start === end) {
+            if (reverse) return;
+            textarea.setRangeText('    ', start, end, 'end');
+            return;
+        }
+        const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+        const before = value.slice(0, lineStart);
+        const block = value.slice(lineStart, end);
+        const after = value.slice(end);
+        if (reverse) {
+            const dedented = block.split('\n').map(line => line.startsWith('    ') ? line.slice(4) : (line.startsWith('\t') ? line.slice(1) : line)).join('\n');
+            textarea.value = before + dedented + after;
+            textarea.selectionStart = lineStart;
+            textarea.selectionEnd = lineStart + dedented.length;
+        } else {
+            const indented = block.split('\n').map(line => '    ' + line).join('\n');
+            textarea.value = before + indented + after;
+            textarea.selectionStart = lineStart;
+            textarea.selectionEnd = lineStart + indented.length;
+        }
+        textarea.dispatchEvent(new Event('input'));
+    }
+
+    function cycleViewMode(state) {
+        const order = ['edit', 'split', 'preview'];
+        const idx = order.indexOf(state.viewMode);
+        setViewMode(state, order[(idx + 1) % order.length]);
+    }
+
+    function schedulePreview(state) {
+        if (state.previewTimer) clearTimeout(state.previewTimer);
+        state.previewTimer = setTimeout(() => renderPreview(state), PREVIEW_DEBOUNCE_MS);
+    }
+
+    function renderPreview(state) {
+        const preview = state.host.querySelector('[data-preview]');
+        if (!preview) return;
+        if (state.viewMode === 'edit') {
+            preview.hidden = true;
+            return;
+        }
+        preview.hidden = false;
+        const content = (state.sheet && state.sheet.content) || '';
+        try {
+            const html = window.marked ? window.marked.parse(content, { gfm: true, breaks: false }) : escHtml(content);
+            preview.innerHTML = html;
+            if (window.hljs && window.hljs.highlightElement) {
+                preview.querySelectorAll('pre code').forEach(c => window.hljs.highlightElement(c));
+            }
+        } catch (err) {
+            console.error('cheater preview render failed', err);
+            preview.textContent = content;
+        }
+    }
+
+    function bindBackButton(state) {
+        const back = state.host.querySelector('[data-action="back"]');
+        if (!back) return;
+        back.addEventListener('click', () => {
+            if (state.dirty) flushSave(state).finally(() => goBackToEmpty(state));
+            else goBackToEmpty(state);
+        });
+    }
+
+    function goBackToEmpty(state) {
+        if (state.saveTimer) clearTimeout(state.saveTimer);
+        if (state.previewTimer) clearTimeout(state.previewTimer);
+        state.sheet = null;
+        refreshHome(state);
     }
 
     function renderAgentBadge(state) {
@@ -446,6 +671,20 @@
         return t('cheater.days_ago').replace('{{n}}', String(day));
     }
 
+    function formatRelativeShort(iso, t) {
+        if (!iso) return '';
+        const then = new Date(iso).getTime();
+        if (Number.isNaN(then)) return '';
+        const diff = Math.max(0, Date.now() - then);
+        const min = Math.floor(diff / 60000);
+        if (min < 1) return t('cheater.just_now');
+        if (min < 60) return t('cheater.minutes_ago_short').replace('{{n}}', String(min));
+        const hr = Math.floor(min / 60);
+        if (hr < 24) return t('cheater.hours_ago_short').replace('{{n}}', String(hr));
+        const day = Math.floor(hr / 24);
+        return t('cheater.days_ago_short').replace('{{n}}', String(day));
+    }
+
     function updateSearchIndexEntry(state, sheet) {
         if (!sheet) return;
         const idx = state.searchIndex.findIndex(s => s.id === sheet.id);
@@ -455,158 +694,11 @@
             abstract: sheet.abstract || '',
             tags: sheet.tags || [],
             content_excerpt: (sheet.content || '').slice(0, 200),
-            last_used_at: sheet.last_used_at || null
+            last_used_at: sheet.last_used_at || null,
+            updated_at: sheet.updated_at || null
         };
         if (idx === -1) state.searchIndex.push(entry);
         else state.searchIndex[idx] = entry;
-    }
-
-    function bindEditorEvents(state) {
-        const titleInput = state.host.querySelector('[data-title]');
-        const source = state.host.querySelector('[data-source]');
-        const charCount = state.host.querySelector('[data-charcount]');
-
-        if (titleInput) {
-            titleInput.addEventListener('input', () => {
-                if (state.sheet) state.sheet.name = titleInput.value;
-                markDirty(state);
-                scheduleSave(state);
-            });
-        }
-        if (source) {
-            source.addEventListener('input', () => {
-                if (state.sheet) state.sheet.content = source.textContent;
-                if (charCount) charCount.textContent = String(source.textContent.length);
-                markDirty(state);
-                scheduleSave(state);
-                if (state._blockRebuildTimer) clearTimeout(state._blockRebuildTimer);
-                state._blockRebuildTimer = setTimeout(() => applyBlockStructure(state), 400);
-            });
-            source.addEventListener('blur', () => applyBlockStructure(state));
-        }
-        state.host.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
-                e.preventDefault();
-                flushSave(state);
-            }
-        });
-        const attachBtn = state.host.querySelector('[data-action="attachments"]');
-        if (attachBtn) {
-            attachBtn.addEventListener('click', () => {
-                if (window.CheaterAttachments && typeof window.CheaterAttachments.open === 'function') {
-                    window.CheaterAttachments.open(state);
-                }
-            });
-        }
-        applyBlockStructure(state);
-    }
-
-    function bindBackButton(state) {
-        const back = state.host.querySelector('[data-action="back"]');
-        if (!back) return;
-        back.addEventListener('click', () => {
-            if (state.dirty) flushSave(state).finally(() => goBackToEmpty(state));
-            else goBackToEmpty(state);
-        });
-    }
-
-    function goBackToEmpty(state) {
-        if (state.saveTimer) clearTimeout(state.saveTimer);
-        state.sheet = null;
-        refreshHome(state);
-    }
-
-    function bindInlineRender(state) {
-        const source = state.host.querySelector('[data-source]');
-        if (!source) return;
-        source.addEventListener('mouseover', onHover);
-        source.addEventListener('mouseout', onLeave);
-        source.addEventListener('click', onClickPin);
-    }
-
-    function onHover(e) {
-        const block = e.target.closest('[data-md-block]');
-        if (!block || block.dataset.pinned === '1') return;
-        const source = block.closest('[data-source]');
-        if (source && (document.activeElement === source || source.contains(document.activeElement))) return;
-        if (block._hoverTimer) return;
-        block._hoverTimer = setTimeout(() => renderBlock(block), HOVER_DELAY_MS);
-    }
-
-    function onLeave(e) {
-        const block = e.target.closest('[data-md-block]');
-        if (!block) return;
-        if (block._hoverTimer) {
-            clearTimeout(block._hoverTimer);
-            block._hoverTimer = null;
-        }
-    }
-
-    function onClickPin(e) {
-        const block = e.target.closest('[data-md-block]');
-        if (!block) return;
-        const source = block.closest('[data-source]');
-        const isEditing = source && (document.activeElement === source || source.contains(document.activeElement));
-        if (block.dataset.rendered !== '1') {
-            if (isEditing) return;
-            renderBlock(block);
-            block.dataset.pinned = '1';
-        } else {
-            unrenderBlock(block);
-            if (source) {
-                source.focus();
-            }
-        }
-    }
-
-    function renderBlock(block) {
-        if (block.dataset.rendered === '1') return;
-        const md = block.textContent;
-        try {
-            let html = window.marked ? window.marked.parse(md, { gfm: true, breaks: false }) : escHtml(md);
-            block.innerHTML = html;
-            if (window.hljs && window.hljs.highlightElement) {
-                block.querySelectorAll('pre code').forEach(c => window.hljs.highlightElement(c));
-            }
-            block.dataset.rendered = '1';
-            block.classList.add('is-rendered');
-        } catch (err) {
-            console.error('cheater markdown render failed', err);
-        }
-    }
-
-    function unrenderBlock(block) {
-        const text = block.textContent;
-        block.textContent = text;
-        delete block.dataset.rendered;
-        block.classList.remove('is-rendered');
-        if (block.dataset.pinned === '1') delete block.dataset.pinned;
-    }
-
-    function splitIntoBlocks(text) {
-        const lines = text.split('\n');
-        const blocks = [];
-        let buf = [];
-        let inCode = false;
-        for (const line of lines) {
-            if (line.trim().startsWith('```')) inCode = !inCode;
-            buf.push(line);
-            if (!inCode && line.trim() === '') {
-                blocks.push(buf.join('\n'));
-                buf = [];
-            }
-        }
-        if (buf.length) blocks.push(buf.join('\n'));
-        return blocks.filter(b => b.trim().length > 0);
-    }
-
-    function applyBlockStructure(state) {
-        const source = state.host.querySelector('[data-source]');
-        if (!source) return;
-        const text = source.textContent;
-        const blocks = splitIntoBlocks(text);
-        source.innerHTML = blocks.map(b => `<div class="cheater-md-block" data-md-block>${state.esc(b)}</div>`).join('');
-        bindInlineRender(state);
     }
 
     function escHtml(s) {
@@ -639,7 +731,8 @@
                 <h2 class="cheater-modal-title">${esc(t('cheater.create_title'))}</h2>
                 <label class="cheater-field">
                     <span>${esc(t('cheater.field_title'))} *</span>
-                    <input type="text" data-title required maxlength="120" value="${esc(prefillTitle || '')}" autofocus>
+                    <input type="text" data-title required maxlength="120" value="${esc(prefillTitle || '')}">
+                    <span class="cheater-field-error" data-title-error aria-live="polite"></span>
                 </label>
                 <label class="cheater-field">
                     <span>${esc(t('cheater.field_description'))}</span>
@@ -671,6 +764,7 @@
         document.body.appendChild(modal);
 
         const titleInput = modal.querySelector('[data-title]');
+        const titleError = modal.querySelector('[data-title-error]');
         const abstractInput = modal.querySelector('[data-abstract]');
         const tagInput = modal.querySelector('[data-tag-input]');
         const chips = modal.querySelector('[data-chips]');
@@ -682,7 +776,11 @@
         let selectedTemplate = 'empty';
 
         function refreshSubmit() {
-            submitBtn.disabled = !titleInput.value.trim();
+            const hasTitle = titleInput.value.trim().length > 0;
+            submitBtn.disabled = !hasTitle;
+            if (titleError) {
+                titleError.textContent = hasTitle ? '' : t('cheater.field_title_required');
+            }
         }
 
         function addTag(name) {
@@ -736,7 +834,7 @@
             }
         });
 
-        setTimeout(() => titleInput.focus(), 0);
+        titleInput.focus();
 
         async function submit() {
             const title = titleInput.value.trim();
@@ -744,6 +842,7 @@
             const tpl = window.CheaterTemplates ? window.CheaterTemplates.byId(selectedTemplate) : { content: '# {{title}}\n\n' };
             const content = (tpl.content || '# {{title}}\n\n').replace(/\{\{title\}\}/g, title);
             submitBtn.disabled = true;
+            submitBtn.textContent = t('cheater.creating');
             try {
                 const created = await state.api('/api/cheatsheets', {
                     method: 'POST',
@@ -762,7 +861,8 @@
                         abstract: created.abstract || '',
                         tags: created.tags || [],
                         content_excerpt: (created.content || '').slice(0, 200),
-                        last_used_at: null
+                        last_used_at: null,
+                        updated_at: created.updated_at || null
                     });
                 }
                 close();
@@ -771,6 +871,7 @@
                 state.notify('cheater.error.create_failed', 'error');
                 console.error('cheater create failed', err);
                 submitBtn.disabled = false;
+                submitBtn.textContent = t('cheater.create_submit');
             }
         }
 
@@ -790,4 +891,5 @@
     window.CheaterApp.dispose = dispose;
     window.CheaterApp.openSheet = openSheet;
     window.CheaterApp.openCreateModal = openCreateModal;
+    window.CheaterApp.formatRelativeShort = formatRelativeShort;
 })();
