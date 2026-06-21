@@ -557,6 +557,12 @@
     border-left: 1px solid var(--cheater-border);
     background: var(--cheater-surface-elevated);
     color: var(--cheater-text);
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: auto;
+    box-sizing: border-box;
+    min-height: 0;
+    min-width: 0;
 }
 
 .cheater-app[data-view="preview"] .cheater-preview { border-left: 0; }
