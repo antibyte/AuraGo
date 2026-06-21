@@ -26,7 +26,6 @@
             if (!G.transitionActive) return;
             G.transitionT += dt;
 
-            // Apply new biome at wipe complete
             if (G.transitionT === dt && G.pendingBiome) {
                 G.biome = G.pendingBiome.id;
                 G.biomeName = G.pendingBiome.name;
@@ -42,21 +41,12 @@
         function drawTransition(c, G) {
             if (!G.transitionActive) return;
             const t = G.transitionT;
-            const total = TRANSITION_DURATIONS.total;
 
-            // Phase 1: Wipe (0-300ms)
+            // Phase 1: letterbox wipe removed — no top/bottom bars shrinking play area
             if (t < TRANSITION_DURATIONS.wipe) {
-                // FIX: cap wipeY at GC.H/2 so top and bottom bars meet at the middle
-                // and stop, leaving the middle band of the screen always visible.
-                // Without the cap, the bars overlap after t=150ms and cover the entire
-                // canvas with black, hiding the game until the lens-flare phase starts.
-                const wipeY = Math.min(GC.H / 2, (t / TRANSITION_DURATIONS.wipe) * (GC.H / 2));
-                c.fillStyle = '#000';
-                c.fillRect(0, 0, GC.W, wipeY);
-                c.fillRect(0, GC.H - wipeY, GC.W, wipeY);
+                return;
             }
-            // Phase 2: Lens Flare (300-800ms)
-            else if (t < TRANSITION_DURATIONS.wipe + TRANSITION_DURATIONS.flare) {
+            if (t < TRANSITION_DURATIONS.wipe + TRANSITION_DURATIONS.flare) {
                 const flareT = (t - TRANSITION_DURATIONS.wipe) / TRANSITION_DURATIONS.flare;
                 const intensity = 1 - flareT;
                 const grad = c.createRadialGradient(GC.W / 2, GC.H / 2, 0, GC.W / 2, GC.H / 2, 300);
@@ -64,9 +54,7 @@
                 grad.addColorStop(1, 'rgba(255,255,255,0)');
                 c.fillStyle = grad;
                 c.fillRect(0, 0, GC.W, GC.H);
-            }
-            // Phase 3: Biome name text (500-1000ms)
-            else if (t < TRANSITION_DURATIONS.wipe + TRANSITION_DURATIONS.flare + TRANSITION_DURATIONS.text) {
+            } else if (t < TRANSITION_DURATIONS.wipe + TRANSITION_DURATIONS.flare + TRANSITION_DURATIONS.text) {
                 const textT = (t - TRANSITION_DURATIONS.wipe - TRANSITION_DURATIONS.flare) / TRANSITION_DURATIONS.text;
                 const text = G.biomeName || '';
                 c.fillStyle = '#fff';

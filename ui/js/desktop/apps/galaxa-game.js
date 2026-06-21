@@ -68,16 +68,18 @@
             if (ctx.G.stageClearLock > 0 || ctx.G.st === 'STAGE_INTRO' || ctx.G.st === 'GAME_OVER') return;
             ctx.G.stageClearLock = 600;
             ctx.G.stageEmptyT = 0;
-            ctx.G.transitionType = Math.floor(Math.random() * 4);
-            if (ctx.G.transitionType === 0) { ctx.G.warpT = 1500; ctx.G.warpFlash = 50; }
-            else if (ctx.G.transitionType === 1) { ctx.G.swipeT = 1200; ctx.G.swipeDir = Math.random() > 0.5 ? 1 : -1; }
-            else if (ctx.G.transitionType === 2) { ctx.G.portalT = 1400; ctx.G.portalR = 0; }
-            else { ctx.G.glitchT = 1000; ctx.G.glitchStrips = []; for (let _gi = 0; _gi < 12; _gi++) ctx.G.glitchStrips.push({ y: _gi * (ctx.H / 12), offset: 0, targetOffset: (Math.random() - 0.5) * 60 }); }
+            ctx.G.transitionType = 0;
+            ctx.G.warpT = 1500;
+            ctx.G.warpFlash = 50;
+            ctx.G.swipeT = 0;
+            ctx.G.portalT = 0;
+            ctx.G.glitchT = 0;
+            ctx.G.glitchStrips = [];
             ctx.G.stage++;
-            // NEW: Trigger biome transition cinematic when crossing into a new biome
             const newBiome = GC.getBiomeForStage(ctx.G.stage);
             if (newBiome && newBiome.id !== ctx.G.biome) {
-                if (ctx.startBiomeTransition) ctx.startBiomeTransition(newBiome);
+                ctx.G.biome = newBiome.id;
+                ctx.G.biomeName = newBiome.name;
             }
             if (ctx.G.stage >= 10) ctx.unlockAchievement('survivor');
             if (ctx.G.stage >= 20) ctx.unlockAchievement('legend');

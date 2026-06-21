@@ -121,8 +121,7 @@
                 ctx.c.globalAlpha = 1;
             }
             if (ctx.G.warpFlash > 0) { ctx.c.fillStyle = 'rgba(255,255,255,' + (ctx.G.warpFlash / 50) + ')'; ctx.c.fillRect(0, 0, ctx.W, ctx.H); }
-            // NEW: Alternative screen transitions
-            if (ctx.G.swipeT > 0) {
+            if (false && ctx.G.swipeT > 0) {
                 const progress = 1 - (ctx.G.swipeT / 1200);
                 const wipeX = ctx.G.swipeDir > 0 ? ctx.W * progress : ctx.W * (1 - progress);
                 ctx.c.fillStyle = '#000';
