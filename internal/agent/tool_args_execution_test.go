@@ -734,16 +734,17 @@ func TestDecodeKnowledgeGraphArgsUsesParamsFallback(t *testing.T) {
 	req := decodeKnowledgeGraphArgs(ToolCall{
 		Action: "knowledge_graph",
 		Params: map[string]interface{}{
-			"operation":    "update_edge",
-			"id":           "node-1",
-			"label":        "Server",
-			"source":       "srv-1",
-			"target":       "rack-1",
-			"relation":     "located_in",
-			"new_relation": "runs_in",
-			"depth":        float64(3),
-			"limit":        float64(25),
-			"content":      "search term",
+			"operation":              "update_edge",
+			"id":                     "node-1",
+			"label":                  "Server",
+			"source":                 "srv-1",
+			"target":                 "rack-1",
+			"relation":               "located_in",
+			"new_relation":           "runs_in",
+			"depth":                  float64(3),
+			"limit":                  float64(25),
+			"content":                "search term",
+			"include_low_confidence": true,
 			"properties": map[string]interface{}{
 				"role": "db",
 			},
@@ -758,6 +759,9 @@ func TestDecodeKnowledgeGraphArgsUsesParamsFallback(t *testing.T) {
 	}
 	if req.Depth != 3 || req.Limit != 25 || req.Content != "search term" {
 		t.Fatalf("unexpected depth/limit/content decode: %+v", req)
+	}
+	if !req.IncludeLowConfidence {
+		t.Fatalf("IncludeLowConfidence = false, want true: %+v", req)
 	}
 	if req.Properties["role"] != "db" {
 		t.Fatalf("Properties[role] = %q, want db", req.Properties["role"])

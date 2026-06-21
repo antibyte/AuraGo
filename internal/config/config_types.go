@@ -1518,18 +1518,21 @@ type Config struct {
 			ReadOnly bool `yaml:"readonly"` // true = only read/query, block store/delete/save_core/delete_core
 		} `yaml:"memory"`
 		KnowledgeGraph struct {
-			Enabled                 bool     `yaml:"enabled"`                   // default true; disable to block knowledge_graph
-			ReadOnly                bool     `yaml:"readonly"`                  // true = only query/search, block add/delete/optimize pruning
-			AutoExtraction          bool     `yaml:"auto_extraction"`           // nightly batch entity extraction from conversations
-			PromptInjection         bool     `yaml:"prompt_injection"`          // inject relevant KG context into system prompt
-			MaxPromptNodes          int      `yaml:"max_prompt_nodes"`          // max nodes to inject into prompt (default 5)
-			MaxPromptChars          int      `yaml:"max_prompt_chars"`          // max chars for KG context in prompt (default 800)
-			RetrievalFusion         bool     `yaml:"retrieval_fusion"`          // cross-reference RAG↔KG for bidirectional enrichment (default true)
-			MinSemanticSimilarity   float64  `yaml:"min_semantic_similarity"`   // minimum similarity for KG semantic search (default 0.60)
-			ExcludeNodeTypes        []string `yaml:"exclude_node_types"`        // node types excluded from semantic/prompt context (default ["activity_entity", "unknown"])
-			SemanticReindexInterval string   `yaml:"semantic_reindex_interval"` // minimum interval between dirty-node semantic reindexes (default "5m")
-			ProtectOptimizeSources  []string `yaml:"protect_optimize_sources"`  // node sources exempt from OptimizeGraph (default planner, inventory_sync, manual, file_sync, core_memory)
-			ProtectIDPrefixes       []string `yaml:"protect_id_prefixes"`       // node ID prefixes exempt from OptimizeGraph (default core_fact_, dev_, contact_)
+			Enabled                         bool     `yaml:"enabled"`                              // default true; disable to block knowledge_graph
+			ReadOnly                        bool     `yaml:"readonly"`                             // true = only query/search, block add/delete/optimize pruning
+			AutoExtraction                  bool     `yaml:"auto_extraction"`                      // nightly batch entity extraction from conversations
+			PromptInjection                 bool     `yaml:"prompt_injection"`                     // inject relevant KG context into system prompt
+			MaxPromptNodes                  int      `yaml:"max_prompt_nodes"`                     // max nodes to inject into prompt (default 5)
+			MaxPromptChars                  int      `yaml:"max_prompt_chars"`                     // max chars for KG context in prompt (default 800)
+			RetrievalFusion                 bool     `yaml:"retrieval_fusion"`                     // cross-reference RAG↔KG for bidirectional enrichment (default true)
+			MinSemanticSimilarity           float64  `yaml:"min_semantic_similarity"`              // minimum similarity for KG semantic search (default 0.60)
+			ExcludeNodeTypes                []string `yaml:"exclude_node_types"`                   // node types excluded from semantic/prompt context (default ["activity_entity", "unknown"])
+			SemanticReindexInterval         string   `yaml:"semantic_reindex_interval"`            // minimum interval between dirty-node semantic reindexes (default "5m")
+			ProtectOptimizeSources          []string `yaml:"protect_optimize_sources"`             // node sources exempt from OptimizeGraph (default planner, inventory_sync, manual, file_sync, core_memory)
+			ProtectIDPrefixes               []string `yaml:"protect_id_prefixes"`                  // node ID prefixes exempt from OptimizeGraph (default core_fact_, dev_, contact_)
+			PendingCoMentionTTLDays         int      `yaml:"pending_co_mention_ttl_days"`          // days before pending co-mentioned_with edges are deleted (default 7)
+			LowConfidenceCoMentionMinWeight int      `yaml:"low_confidence_co_mention_min_weight"` // minimum weight before auto co-mention edges are shown by default (default 2)
+			HideLowConfidenceByDefault      bool     `yaml:"hide_low_confidence_by_default"`       // hide low-confidence co-mention edges unless explicitly requested
 		} `yaml:"knowledge_graph"`
 		SecretsVault struct {
 			Enabled  bool `yaml:"enabled"`  // default true; disable to block secrets_vault

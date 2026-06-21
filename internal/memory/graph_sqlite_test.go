@@ -85,6 +85,24 @@ func TestKGAddEdge(t *testing.T) {
 	}
 }
 
+func TestKGAddEdgeDefaultsQualityMetadata(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddEdge("andi", "agodesk", "uses", nil); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+	edge := mustFindTestEdge(t, kg, "andi", "agodesk", "uses")
+	if edge.Properties["source"] != "manual" {
+		t.Fatalf("source = %q, want manual in %#v", edge.Properties["source"], edge.Properties)
+	}
+	if edge.Properties["confidence"] != "1.00" {
+		t.Fatalf("confidence = %q, want 1.00 in %#v", edge.Properties["confidence"], edge.Properties)
+	}
+	if edge.Properties["extracted_at"] != time.Now().Format("2006-01-02") {
+		t.Fatalf("extracted_at = %q, want today in %#v", edge.Properties["extracted_at"], edge.Properties)
+	}
+}
+
 func TestKGAddEdgeRejectsBlankEndpointOrRelationAndTrimsIdentity(t *testing.T) {
 	kg := newTestKG(t)
 
@@ -126,6 +144,72 @@ func TestKGAddEdgeUpsert(t *testing.T) {
 	}
 }
 
+func TestKGBulkMergeExtractedEntitiesDefaultsAndPreservesEdgeQualityMetadata(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.BulkMergeExtractedEntities(nil, []Edge{
+		{Source: "andi", Target: "agodesk", Relation: "uses"},
+		{
+			Source:   "andi",
+			Target:   "caddy",
+			Relation: "manages",
+			Properties: map[string]string{
+				"source":       "auto_extraction",
+				"confidence":   "0.90",
+				"extracted_at": "2026-01-01",
+				"detail":       "existing",
+			},
+		},
+	}); err != nil {
+		t.Fatalf("initial BulkMergeExtractedEntities: %v", err)
+	}
+
+	defaulted := mustFindTestEdge(t, kg, "andi", "agodesk", "uses")
+	if defaulted.Properties["source"] != "auto_extraction" {
+		t.Fatalf("defaulted source = %q, want auto_extraction in %#v", defaulted.Properties["source"], defaulted.Properties)
+	}
+	if defaulted.Properties["confidence"] != "0.50" {
+		t.Fatalf("defaulted confidence = %q, want 0.50 in %#v", defaulted.Properties["confidence"], defaulted.Properties)
+	}
+	if defaulted.Properties["extracted_at"] != time.Now().Format("2006-01-02") {
+		t.Fatalf("defaulted extracted_at = %q, want today in %#v", defaulted.Properties["extracted_at"], defaulted.Properties)
+	}
+
+	if err := kg.BulkMergeExtractedEntities(nil, []Edge{{
+		Source:   "andi",
+		Target:   "caddy",
+		Relation: "manages",
+		Properties: map[string]string{
+			"confidence": "0.20",
+			"detail":     "incoming",
+		},
+	}}); err != nil {
+		t.Fatalf("second BulkMergeExtractedEntities: %v", err)
+	}
+	preserved := mustFindTestEdge(t, kg, "andi", "caddy", "manages")
+	if preserved.Properties["source"] != "auto_extraction" ||
+		preserved.Properties["confidence"] != "0.90" ||
+		preserved.Properties["extracted_at"] != "2026-01-01" ||
+		preserved.Properties["detail"] != "existing" {
+		t.Fatalf("expected higher-confidence existing edge metadata to be preserved, got %#v", preserved.Properties)
+	}
+}
+
+func mustFindTestEdge(t *testing.T, kg *KnowledgeGraph, source, target, relation string) Edge {
+	t.Helper()
+	edges, err := kg.GetAllEdges(100)
+	if err != nil {
+		t.Fatalf("GetAllEdges: %v", err)
+	}
+	for _, edge := range edges {
+		if edge.Source == source && edge.Target == target && edge.Relation == relation {
+			return edge
+		}
+	}
+	t.Fatalf("missing edge %s -> %s / %s in %#v", source, target, relation, edges)
+	return Edge{}
+}
+
 func TestKGSearch(t *testing.T) {
 	kg := newTestKG(t)
 
@@ -141,6 +225,94 @@ func TestKGSearch(t *testing.T) {
 	result = kg.Search("nonexistent_xyz_12345")
 	if result != "[]" {
 		t.Errorf("expected empty results for nonexistent query, got: %s", result)
+	}
+}
+
+func TestKGSearchHidesLowConfidenceCoMentionsByDefault(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("andi", "Andi", map[string]string{"type": "person"}); err != nil {
+		t.Fatalf("AddNode andi: %v", err)
+	}
+	if err := kg.AddNode("png", "png", map[string]string{"type": "concept"}); err != nil {
+		t.Fatalf("AddNode png: %v", err)
+	}
+	if err := kg.AddEdge("andi", "png", "co_mentioned_with", map[string]string{"source": "pending", "weight": "1"}); err != nil {
+		t.Fatalf("AddEdge pending: %v", err)
+	}
+
+	var defaultPayload struct {
+		Edges []Edge `json:"edges"`
+	}
+	if err := json.Unmarshal([]byte(kg.Search("andi")), &defaultPayload); err != nil {
+		t.Fatalf("unmarshal default search: %v", err)
+	}
+	if len(defaultPayload.Edges) != 0 {
+		t.Fatalf("default search should hide low-confidence co-mentions, got %#v", defaultPayload.Edges)
+	}
+
+	var overridePayload struct {
+		Edges []Edge `json:"edges"`
+	}
+	if err := json.Unmarshal([]byte(kg.SearchWithOptions("andi", KnowledgeGraphQueryOptions{IncludeLowConfidence: true})), &overridePayload); err != nil {
+		t.Fatalf("unmarshal override search: %v", err)
+	}
+	if len(overridePayload.Edges) != 1 || overridePayload.Edges[0].Relation != "co_mentioned_with" {
+		t.Fatalf("override search should include low-confidence co-mention, got %#v", overridePayload.Edges)
+	}
+}
+
+func TestKGSearchKeepsManualCoMentionsVisibleByDefault(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("andi", "Andi", map[string]string{"type": "person"}); err != nil {
+		t.Fatalf("AddNode andi: %v", err)
+	}
+	if err := kg.AddNode("agodesk", "AgoDesk", map[string]string{"type": "service"}); err != nil {
+		t.Fatalf("AddNode agodesk: %v", err)
+	}
+	if err := kg.AddEdge("andi", "agodesk", "co_mentioned_with", map[string]string{"source": "manual"}); err != nil {
+		t.Fatalf("AddEdge manual co-mention: %v", err)
+	}
+
+	var payload struct {
+		Edges []Edge `json:"edges"`
+	}
+	if err := json.Unmarshal([]byte(kg.Search("andi")), &payload); err != nil {
+		t.Fatalf("unmarshal search: %v", err)
+	}
+	if len(payload.Edges) != 1 || payload.Edges[0].Relation != "co_mentioned_with" {
+		t.Fatalf("manual co-mention should be visible by default, got %#v", payload.Edges)
+	}
+}
+
+func TestKGDeleteNodesBySourceFilePreservesSharedNodes(t *testing.T) {
+	kg := newTestKG(t)
+	path := "/docs/a.md"
+
+	if err := kg.AddNode("shared", "Shared", map[string]string{"type": "service", "source": "file_sync", "source_file": path}); err != nil {
+		t.Fatalf("AddNode shared: %v", err)
+	}
+	if err := kg.AddNode("other", "Other", map[string]string{"type": "service", "source": "manual"}); err != nil {
+		t.Fatalf("AddNode other: %v", err)
+	}
+	if err := kg.AddEdge("other", "shared", "uses", map[string]string{"source": "manual"}); err != nil {
+		t.Fatalf("AddEdge manual: %v", err)
+	}
+
+	deleted, err := kg.DeleteNodesBySourceFile(path)
+	if err != nil {
+		t.Fatalf("DeleteNodesBySourceFile: %v", err)
+	}
+	if deleted != 0 {
+		t.Fatalf("DeleteNodesBySourceFile deleted %d nodes, want 0 for shared node", deleted)
+	}
+	if node, err := kg.GetNode("shared"); err != nil || node == nil {
+		t.Fatalf("shared node should remain, node=%#v err=%v", node, err)
+	}
+	nodes, edges := kg.GetNeighbors("shared", 10)
+	if len(nodes) != 1 || len(edges) != 1 {
+		t.Fatalf("manual relationship should remain, nodes=%#v edges=%#v", nodes, edges)
 	}
 }
 
@@ -230,6 +402,50 @@ func TestKGSearchFTS5(t *testing.T) {
 	result := kg.Search("raspberry")
 	if result == "[]" {
 		t.Error("FTS5 search for 'raspberry' should return results")
+	}
+}
+
+func TestKGGetNeighborsHidesLowConfidenceCoMentionsBeforeLimit(t *testing.T) {
+	kg := newTestKG(t)
+
+	for _, node := range []Node{
+		{ID: "andi", Label: "Andi", Properties: map[string]string{"type": "person"}},
+		{ID: "agodesk", Label: "AgoDesk", Properties: map[string]string{"type": "service"}},
+		{ID: "png", Label: "png", Properties: map[string]string{"type": "concept"}},
+	} {
+		if err := kg.AddNode(node.ID, node.Label, node.Properties); err != nil {
+			t.Fatalf("AddNode %s: %v", node.ID, err)
+		}
+	}
+	if err := kg.AddEdge("andi", "agodesk", "uses", map[string]string{"source": "manual"}); err != nil {
+		t.Fatalf("AddEdge uses: %v", err)
+	}
+	if err := kg.AddEdge("andi", "png", "co_mentioned_with", map[string]string{"source": "pending", "weight": "1"}); err != nil {
+		t.Fatalf("AddEdge pending: %v", err)
+	}
+
+	nodes, edges := kg.GetNeighbors("andi", 1)
+	if len(nodes) != 1 || nodes[0].ID != "agodesk" {
+		t.Fatalf("default neighbors should skip pending edge before limit, nodes=%#v edges=%#v", nodes, edges)
+	}
+	for _, edge := range edges {
+		if edge.Relation == "co_mentioned_with" {
+			t.Fatalf("default neighbors should hide low-confidence co-mentions, got %#v", edges)
+		}
+	}
+
+	nodes, edges = kg.GetNeighborsWithOptions("andi", 20, KnowledgeGraphQueryOptions{IncludeLowConfidence: true})
+	if len(nodes) < 2 {
+		t.Fatalf("override neighbors should include both neighbors, nodes=%#v edges=%#v", nodes, edges)
+	}
+	var foundPending bool
+	for _, edge := range edges {
+		if edge.Relation == "co_mentioned_with" {
+			foundPending = true
+		}
+	}
+	if !foundPending {
+		t.Fatalf("override neighbors should include pending co-mention, got %#v", edges)
 	}
 }
 
@@ -701,6 +917,60 @@ func TestKGQualityReportDetectsIDDuplicateVariants(t *testing.T) {
 	gotIDs := strings.Join(report.IDDuplicateCandidates[0].IDs, ",")
 	if gotIDs != "truenas,true_nas" {
 		t.Fatalf("id duplicate IDs = %q, want truenas,true_nas", gotIDs)
+	}
+}
+
+func TestKGQualityReportSuggestsNormalizedIDDuplicatesWithoutAutoMerge(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("caddy_server", "Caddy Server", map[string]string{
+		"type":       "service",
+		"source":     "manual",
+		"confidence": "1.00",
+	}); err != nil {
+		t.Fatalf("AddNode caddy_server: %v", err)
+	}
+	if err := kg.AddNode("caddyserver", "Caddy Server", map[string]string{
+		"type":       "service",
+		"source":     "auto_extraction",
+		"confidence": "0.70",
+	}); err != nil {
+		t.Fatalf("AddNode caddyserver: %v", err)
+	}
+
+	report, err := kg.QualityReport(10)
+	if err != nil {
+		t.Fatalf("QualityReport: %v", err)
+	}
+
+	found := false
+	for _, candidate := range report.IDDuplicateCandidates {
+		haveA, haveB := false, false
+		for _, id := range candidate.IDs {
+			if id == "caddy_server" {
+				haveA = true
+			}
+			if id == "caddyserver" {
+				haveB = true
+			}
+		}
+		if haveA && haveB {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected caddy_server and caddyserver duplicate suggestion, got %#v", report.IDDuplicateCandidates)
+	}
+
+	for _, id := range []string{"caddy_server", "caddyserver"} {
+		node, err := kg.GetNode(id)
+		if err != nil {
+			t.Fatalf("GetNode %s: %v", id, err)
+		}
+		if node == nil {
+			t.Fatalf("expected node %s to remain unmerged", id)
+		}
 	}
 }
 

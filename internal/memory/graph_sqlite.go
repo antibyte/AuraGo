@@ -2,6 +2,7 @@ package memory
 
 import (
 	"aurago/internal/dbutil"
+	"aurago/internal/kgquality"
 	"aurago/internal/memory/kgsemantic"
 	"context"
 	"database/sql"
@@ -53,6 +54,13 @@ type KnowledgeGraphDuplicateCandidate struct {
 type KnowledgeGraphQualityReport struct {
 	Nodes                 int                                `json:"nodes"`
 	Edges                 int                                `json:"edges"`
+	PendingEdges          int                                `json:"pending_edges"`
+	LowConfidenceEdges    int                                `json:"low_confidence_edges"`
+	CoMentionEdges        int                                `json:"co_mention_edges"`
+	PendingCoMentionEdges int                                `json:"pending_co_mention_edges"`
+	SemanticEdges         int                                `json:"semantic_edges"`
+	EdgeBySource          map[string]int                     `json:"edge_by_source"`
+	GenericNodes          int                                `json:"generic_nodes"`
 	ProtectedNodes        int                                `json:"protected_nodes"`
 	IsolatedNodes         int                                `json:"isolated_nodes"`
 	UntypedNodes          int                                `json:"untyped_nodes"`
@@ -62,6 +70,7 @@ type KnowledgeGraphQualityReport struct {
 	IDDuplicateNodes      int                                `json:"id_duplicate_nodes"`
 	IsolatedSample        []Node                             `json:"isolated_sample"`
 	UntypedSample         []Node                             `json:"untyped_sample"`
+	GenericSample         []Node                             `json:"generic_sample"`
 	DuplicateCandidates   []KnowledgeGraphDuplicateCandidate `json:"duplicate_candidates"`
 	IDDuplicateCandidates []KnowledgeGraphDuplicateCandidate `json:"id_duplicate_candidates"`
 }
@@ -84,6 +93,8 @@ type KnowledgeGraph struct {
 	protectOptimizeSourcesMu sync.RWMutex
 	protectIDPrefixes        []string
 	protectIDPrefixesMu      sync.RWMutex
+	qualityPolicyValue       kgquality.Policy
+	qualityPolicyMu          sync.RWMutex
 	semanticReindexInterval  time.Duration
 	lastSemanticReindex      time.Time
 	lastSemanticReindexMu    sync.Mutex
@@ -111,12 +122,17 @@ type ImportantNode struct {
 }
 
 type KnowledgeGraphStats struct {
-	TotalNodes      int            `json:"total_nodes"`
-	TotalEdges      int            `json:"total_edges"`
-	MeaningfulEdges int            `json:"meaningful_edges"`
-	CoMentionEdges  int            `json:"co_mention_edges"`
-	ByType          map[string]int `json:"by_type"`
-	BySource        map[string]int `json:"by_source"`
+	TotalNodes            int            `json:"total_nodes"`
+	TotalEdges            int            `json:"total_edges"`
+	MeaningfulEdges       int            `json:"meaningful_edges"`
+	PendingEdges          int            `json:"pending_edges"`
+	LowConfidenceEdges    int            `json:"low_confidence_edges"`
+	CoMentionEdges        int            `json:"co_mention_edges"`
+	PendingCoMentionEdges int            `json:"pending_co_mention_edges"`
+	GenericNodes          int            `json:"generic_nodes"`
+	ByType                map[string]int `json:"by_type"`
+	BySource              map[string]int `json:"by_source"`
+	EdgeBySource          map[string]int `json:"edge_by_source"`
 }
 
 type FileSyncStats struct {
@@ -154,6 +170,7 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 		flushAccessHits:         make(chan chan struct{}),
 		doneChan:                make(chan struct{}),
 		excludedNodeTypes:       map[string]bool{"activity_entity": true, "unknown": true},
+		qualityPolicyValue:      kgquality.DefaultPolicy(),
 		semanticReindexInterval: 5 * time.Minute,
 	}
 	kg.minSemanticSimilarity.Store(math.Float32bits(0.60))
@@ -173,6 +190,25 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 	}
 
 	return kg, nil
+}
+
+func (kg *KnowledgeGraph) SetQualityPolicy(policy kgquality.Policy) {
+	if kg == nil {
+		return
+	}
+	kg.qualityPolicyMu.Lock()
+	kg.qualityPolicyValue = kgquality.NormalizePolicy(policy)
+	kg.qualityPolicyMu.Unlock()
+}
+
+func (kg *KnowledgeGraph) qualityPolicy() kgquality.Policy {
+	if kg == nil {
+		return kgquality.DefaultPolicy()
+	}
+	kg.qualityPolicyMu.RLock()
+	policy := kg.qualityPolicyValue
+	kg.qualityPolicyMu.RUnlock()
+	return kgquality.NormalizePolicy(policy)
 }
 
 func (kg *KnowledgeGraph) Close() error {
@@ -408,6 +444,28 @@ func normalizeKnowledgeGraphProperties(properties map[string]string) map[string]
 		safe[k] = v
 	}
 	return safe
+}
+
+func ensureKnowledgeGraphEdgeQualityProperties(properties map[string]string, defaultSource string, now time.Time) map[string]string {
+	properties = normalizeKnowledgeGraphProperties(properties)
+	defaultSource = strings.TrimSpace(defaultSource)
+	if defaultSource == "" {
+		defaultSource = "auto_extraction"
+	}
+	if strings.TrimSpace(properties["source"]) == "" {
+		properties["source"] = defaultSource
+	}
+	if strings.TrimSpace(properties["confidence"]) == "" {
+		if strings.TrimSpace(properties["source"]) == "manual" {
+			properties["confidence"] = "1.00"
+		} else {
+			properties["confidence"] = "0.50"
+		}
+	}
+	if strings.TrimSpace(properties["extracted_at"]) == "" {
+		properties["extracted_at"] = now.Format("2006-01-02")
+	}
+	return properties
 }
 
 func sanitizeKnowledgeGraphNodeProperties(properties map[string]string, protected bool) map[string]string {

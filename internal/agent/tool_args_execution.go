@@ -60,17 +60,18 @@ type updateManagementArgs struct {
 }
 
 type knowledgeGraphArgs struct {
-	Operation   string
-	ID          string
-	Label       string
-	Properties  map[string]string
-	Source      string
-	Target      string
-	Relation    string
-	NewRelation string
-	Limit       int
-	Depth       int
-	Content     string
+	Operation            string
+	ID                   string
+	Label                string
+	Properties           map[string]string
+	Source               string
+	Target               string
+	Relation             string
+	NewRelation          string
+	Limit                int
+	Depth                int
+	Content              string
+	IncludeLowConfidence bool
 }
 
 type coreMemoryArgs struct {
@@ -608,6 +609,8 @@ func decodeKnowledgeGraphArgs(tc ToolCall) knowledgeGraphArgs {
 		Depth:       firstNonEmptyInt(tc.Depth, toolArgInt(tc.Params, 0, "depth")),
 		Content:     firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
 	}
+	includeLowConfidence, _ := toolArgBool(tc.Params, "include_low_confidence")
+	req.IncludeLowConfidence = includeLowConfidence
 	if len(req.Properties) == 0 {
 		req.Properties = toolArgStringMap(tc.Params, "properties")
 	}

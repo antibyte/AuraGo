@@ -144,6 +144,9 @@ func injectDefaultToolPermissions(rawCfg map[string]interface{}, cfg *config.Con
 	setDefaultInt(kgSection, "max_prompt_nodes", cfg.Tools.KnowledgeGraph.MaxPromptNodes)
 	setDefaultInt(kgSection, "max_prompt_chars", cfg.Tools.KnowledgeGraph.MaxPromptChars)
 	setDefaultBool(kgSection, "retrieval_fusion", cfg.Tools.KnowledgeGraph.RetrievalFusion)
+	setDefaultInt(kgSection, "pending_co_mention_ttl_days", cfg.Tools.KnowledgeGraph.PendingCoMentionTTLDays)
+	setDefaultInt(kgSection, "low_confidence_co_mention_min_weight", cfg.Tools.KnowledgeGraph.LowConfidenceCoMentionMinWeight)
+	setDefaultBool(kgSection, "hide_low_confidence_by_default", cfg.Tools.KnowledgeGraph.HideLowConfidenceByDefault)
 }
 
 func setDefaultBool(section map[string]interface{}, key string, value bool) {

@@ -387,6 +387,9 @@ tools:
         semantic_reindex_interval: "5m"                      # minimum interval between dirty-node semantic reindexes
         protect_optimize_sources: ["planner", "inventory_sync", "manual", "file_sync", "core_memory"]  # sources exempt from auto-optimize graph pruning
         protect_id_prefixes: ["core_fact_", "dev_", "contact_"]  # node ID prefixes exempt from auto-optimize graph pruning
+        pending_co_mention_ttl_days: 7                       # days before weak pending co-mention edges are cleaned up
+        low_confidence_co_mention_min_weight: 2              # minimum co-mention weight shown by default
+        hide_low_confidence_by_default: true                 # hide weak auto co-mention edges unless explicitly requested
     secrets_vault:
         enabled: true
         readonly: false

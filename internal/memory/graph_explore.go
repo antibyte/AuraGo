@@ -41,7 +41,7 @@ func (kg *KnowledgeGraph) Explore(query string) string {
 	}
 
 	for _, id := range matchedNodeIDs {
-		nbs, es, hits, err := kg.getNeighborsWithQueryer(tx, id, 10)
+		nbs, es, hits, err := kg.getNeighborsWithQueryer(tx, id, 10, KnowledgeGraphQueryOptions{})
 		if err != nil {
 			kg.logger.Warn("Explore: neighbor query failed", "node_id", id, "error", err)
 			continue

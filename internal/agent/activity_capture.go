@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"aurago/internal/config"
+	"aurago/internal/kgquality"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 
@@ -184,8 +185,11 @@ func syncActivityTurnToKnowledgeGraph(kg *memory.KnowledgeGraph, turnID int64, d
 	cleanEntities := make([]string, 0, len(entities))
 	for _, raw := range entities {
 		label := strings.TrimSpace(raw)
+		if kgquality.IsGenericEntity(label) {
+			continue
+		}
 		entityID := normalizeActivityEntityID(label)
-		if entityID == "" {
+		if entityID == "" || kgquality.IsGenericEntity(entityID) {
 			continue
 		}
 		if err := kg.AddNode(entityID, label, map[string]string{
@@ -316,8 +320,19 @@ func normalizeActivityDigest(digest memory.ActivityDigest) memory.ActivityDigest
 	digest.Outcomes = uniqueActivityStrings(digest.Outcomes, 5)
 	digest.ImportantPoints = uniqueActivityStrings(digest.ImportantPoints, 5)
 	digest.PendingItems = uniqueActivityStrings(digest.PendingItems, 5)
-	digest.Entities = uniqueActivityStrings(digest.Entities, 8)
+	digest.Entities = filterActivityDigestEntities(uniqueActivityStrings(digest.Entities, 8))
 	return digest
+}
+
+func filterActivityDigestEntities(entities []string) []string {
+	filtered := make([]string, 0, len(entities))
+	for _, entity := range entities {
+		if kgquality.IsGenericEntity(entity) || kgquality.IsGenericEntity(normalizeActivityEntityID(entity)) {
+			continue
+		}
+		filtered = append(filtered, entity)
+	}
+	return filtered
 }
 
 func buildActivityDigest(userRequest, assistantReply string, toolNames, toolSummaries []string, shortTermMem *memory.SQLiteMemory) memory.ActivityDigest {

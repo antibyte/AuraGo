@@ -211,7 +211,10 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 
 	// Knowledge Graph: Garbage collection and semantic reindex
 	if kg != nil {
-		if _, _, err := kg.CleanupStaleGraph(30); err != nil {
+		if _, _, err := kg.CleanupStaleGraphWithOptions(memory.KnowledgeGraphCleanupOptions{
+			PendingCoMentionDays: cfg.Tools.KnowledgeGraph.PendingCoMentionTTLDays,
+			StaleNodeDays:        30,
+		}); err != nil {
 			logger.Error("[Maintenance] Failed to clean up stale KG elements", "error", err)
 		}
 		if ran, err := kg.RunSemanticReindexIfDue(); err != nil {

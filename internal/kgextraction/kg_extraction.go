@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/kgquality"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 
@@ -30,15 +31,16 @@ func ExtractKGFromText(cfg *config.Config, logger *slog.Logger, client llm.ChatC
 	prompt := fmt.Sprintf(`Extract entities and relationships from this conversation.
 Return ONLY valid JSON with this exact structure:
 {
-  "nodes": [{"id": "lowercase_id", "label": "Display Label", "properties": {"type": "person|device|service|software|location|project|concept|event"}}],
+  "nodes": [{"id": "lowercase_id", "label": "Display Label", "properties": {"type": "person|device|service|software|location|project|concept|event|file|tool"}}],
   "edges": [{"source": "node_id", "target": "node_id", "relation": "relationship_type"}]
 }
 
 Rules:
 - IDs must be lowercase with underscores (e.g. "john_doe", "home_server").
+- Do not use raw file paths as IDs. For files, use type "file" and put the original path in properties.path.
 - REUSE existing node IDs if the entity matches an existing one.
 - Extract only clear, factual entities.
-- Vocabulary for types: person, device, service, software, location, project, concept, event.
+- Vocabulary for types: person, device, service, software, location, project, concept, event, file, tool.
 - Vocabulary for relationships: runs_on, owns, manages, uses, depends_on, connected_to, related_to, part_of, deployed_on, located_in.
 - Limit to highly relevant facts. Maximum 15 nodes and 20 edges.
 
@@ -103,6 +105,7 @@ var kgIDPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 var allowedKGNodeTypes = map[string]bool{
 	"person": true, "device": true, "service": true, "software": true,
 	"location": true, "project": true, "concept": true, "event": true,
+	"file": true, "tool": true,
 }
 
 var allowedKGRelations = map[string]bool{
@@ -113,25 +116,50 @@ var allowedKGRelations = map[string]bool{
 
 func normalizeExtractedKG(nodes []memory.Node, edges []memory.Edge) ([]memory.Node, []memory.Edge) {
 	validNodeIDs := make(map[string]bool, len(nodes))
+	idRemap := make(map[string]string, len(nodes))
 	cleanNodes := make([]memory.Node, 0, len(nodes))
 	for _, node := range nodes {
+		originalID := strings.TrimSpace(node.ID)
 		node.ID = strings.TrimSpace(node.ID)
 		node.Label = strings.TrimSpace(node.Label)
-		if !kgIDPattern.MatchString(node.ID) {
-			continue
-		}
 		if node.Label == "" {
 			node.Label = node.ID
 		}
 		if node.Properties == nil {
 			node.Properties = make(map[string]string)
 		}
+		if pathValue := extractedNodePath(node); pathValue != "" {
+			node.ID = kgquality.FileNodeID(pathValue)
+			node.Properties["path"] = kgquality.CanonicalPath(pathValue)
+			node.Properties["type"] = "file"
+			if kgquality.IsPathLike(node.Label) {
+				node.Label = kgquality.PathBase(pathValue)
+			}
+			if node.Label == "" {
+				node.Label = node.ID
+			}
+		}
+		if !kgIDPattern.MatchString(node.ID) {
+			continue
+		}
 		nodeType := strings.ToLower(strings.TrimSpace(node.Properties["type"]))
 		if !allowedKGNodeTypes[nodeType] {
 			nodeType = "concept"
 		}
 		node.Properties["type"] = nodeType
+		if nodeType != "file" && kgquality.IsGenericEntity(node.ID) && kgquality.IsGenericEntity(node.Label) {
+			continue
+		}
+		if validNodeIDs[node.ID] {
+			if originalID != "" {
+				idRemap[originalID] = node.ID
+			}
+			continue
+		}
 		validNodeIDs[node.ID] = true
+		if originalID != "" {
+			idRemap[originalID] = node.ID
+		}
 		cleanNodes = append(cleanNodes, node)
 	}
 
@@ -140,6 +168,12 @@ func normalizeExtractedKG(nodes []memory.Node, edges []memory.Edge) ([]memory.No
 		edge.Source = strings.TrimSpace(edge.Source)
 		edge.Target = strings.TrimSpace(edge.Target)
 		edge.Relation = strings.ToLower(strings.TrimSpace(edge.Relation))
+		if remapped, ok := idRemap[edge.Source]; ok {
+			edge.Source = remapped
+		}
+		if remapped, ok := idRemap[edge.Target]; ok {
+			edge.Target = remapped
+		}
 		if !validNodeIDs[edge.Source] || !validNodeIDs[edge.Target] {
 			continue
 		}
@@ -152,6 +186,21 @@ func normalizeExtractedKG(nodes []memory.Node, edges []memory.Edge) ([]memory.No
 		cleanEdges = append(cleanEdges, edge)
 	}
 	return cleanNodes, cleanEdges
+}
+
+func extractedNodePath(node memory.Node) string {
+	if node.Properties != nil {
+		if pathValue := strings.TrimSpace(node.Properties["path"]); kgquality.IsPathLike(pathValue) {
+			return pathValue
+		}
+	}
+	if kgquality.IsPathLike(node.Label) {
+		return node.Label
+	}
+	if kgquality.IsPathLike(node.ID) {
+		return node.ID
+	}
+	return ""
 }
 
 func resolveHelperBackedLLM(cfg *config.Config, fallbackClient llm.ChatClient, fallbackModel string) (llm.ChatClient, string) {

@@ -121,7 +121,7 @@ func handleKnowledgeGraphSearch(s *Server) http.HandlerFunc {
 			return
 		}
 
-		raw := s.KG.Search(query)
+		raw := s.KG.SearchWithOptions(query, memory.KnowledgeGraphQueryOptions{IncludeLowConfidence: parseKnowledgeGraphBool(r, "include_low_confidence")})
 		if strings.TrimSpace(raw) == "" || raw == "[]" {
 			writeJSON(w, map[string]interface{}{"query": query, "nodes": []interface{}{}, "edges": []interface{}{}})
 			return
@@ -167,6 +167,8 @@ func handleKnowledgeGraphQuality(s *Server) http.HandlerFunc {
 			writeJSON(w, &memory.KnowledgeGraphQualityReport{
 				IsolatedSample:      []memory.Node{},
 				UntypedSample:       []memory.Node{},
+				GenericSample:       []memory.Node{},
+				EdgeBySource:        map[string]int{},
 				DuplicateCandidates: []memory.KnowledgeGraphDuplicateCandidate{},
 			})
 			return
@@ -207,7 +209,7 @@ func handleKnowledgeGraphNodeDetail(s *Server) http.HandlerFunc {
 			}
 
 			limit := parseKnowledgeGraphLimit(r, 25)
-			neighbors, edges := s.KG.GetNeighbors(nodeID, limit)
+			neighbors, edges := s.KG.GetNeighborsWithOptions(nodeID, limit, memory.KnowledgeGraphQueryOptions{IncludeLowConfidence: parseKnowledgeGraphBool(r, "include_low_confidence")})
 			writeJSON(w, map[string]interface{}{
 				"node":      node,
 				"neighbors": neighbors,
@@ -455,4 +457,9 @@ func parseKnowledgeGraphLimit(r *http.Request, defaultLimit int) int {
 		return 1000
 	}
 	return limit
+}
+
+func parseKnowledgeGraphBool(r *http.Request, key string) bool {
+	raw := strings.TrimSpace(r.URL.Query().Get(key))
+	return strings.EqualFold(raw, "true") || raw == "1" || strings.EqualFold(raw, "yes")
 }
