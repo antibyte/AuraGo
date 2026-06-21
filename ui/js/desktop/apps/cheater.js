@@ -7,7 +7,7 @@
     const POLL_INTERVAL_MS = 30000;
     const SPOTLIGHT_KEY = 'k';
     const VIEW_MODE_KEY = 'cheater.viewMode';
-    const DEFAULT_VIEW_MODE = 'split';
+    const DEFAULT_VIEW_MODE = 'edit';
 
     function normalizeSheetEntries(list) {
         const items = Array.isArray(list) ? list : (list && (list.items || list.cheatsheets)) || [];
@@ -543,11 +543,7 @@
     function renderPreview(state) {
         const preview = state.host.querySelector('[data-preview]');
         if (!preview) return;
-        if (state.viewMode === 'edit') {
-            preview.hidden = true;
-            return;
-        }
-        preview.hidden = false;
+        if (state.viewMode === 'edit') return;
         const content = (state.sheet && state.sheet.content) || '';
         try {
             const html = window.marked ? window.marked.parse(content, { gfm: true, breaks: false }) : escHtml(content);
