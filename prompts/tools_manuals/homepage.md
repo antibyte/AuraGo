@@ -337,7 +337,7 @@ Serves the build output via Caddy (Docker required). Always pass `project_dir` w
 ### publish_local — Build and serve locally
 Combines `build` + `webserver_start` in one step.
 For plain HTML projects (no `package.json`), the build step is automatically skipped and the project directory is served directly.
-Referenced assets (`/files/generated_images/*`, `/files/audio/*`, `/files/documents/*`) are automatically copied into the build directory so the Caddy container can serve them.
+Referenced AuraGo assets (`/files/generated_images/*`, generated image `/assets/img_*` paths, `/files/audio/*`, `/files/documents/*`) are automatically copied into the build directory so the Caddy container can serve them.
 ```json
 {"action": "homepage", "operation": "publish_local", "project_dir": "my-site"}
 ```
@@ -492,7 +492,7 @@ For Vite, React, and plain HTML projects, put local images under `public/assets/
 <img src="/assets/banner.jpeg" alt="Banner">
 ```
 
-If an existing page already references generated AuraGo assets such as `/files/generated_images/<filename>` or legacy `/img_<id>.jpeg` paths, `deploy_netlify` tries to bundle those files into the ZIP. Do not rely on that as the primary workflow for new edits: make the image a deployable project asset in `public/assets` and update the markup to `/assets/<filename>`.
+If an existing page already references generated AuraGo assets such as `/files/generated_images/<filename>`, generated image `/assets/img_<id>.jpeg` paths, or legacy `/img_<id>.jpeg` paths, `deploy_netlify` tries to bundle those files into the ZIP. Do not rely on that as the primary workflow for new edits: make the image a deployable project asset in `public/assets` and update the markup to `/assets/<filename>`.
 
 Never use `file://`, host filesystem paths, `/workspace/...`, `data/homepage/...`, or `agent_workspace/...` in page markup. Those paths are not fetchable from a deployed browser.
 

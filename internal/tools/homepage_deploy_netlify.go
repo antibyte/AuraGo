@@ -115,6 +115,7 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 
 	// Track which special Netlify config files are already present in the project.
 	var hasHeaders, hasNetlifyToml, hasRedirects bool
+	writtenZipPaths := make(map[string]struct{})
 
 	// Collect /files/<subdir>/<name> references found in HTML/CSS/JS files so we
 	// can bundle the actual files into the ZIP (they're served by AuraGo locally
@@ -132,6 +133,7 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	}{
 		{generatedImageRefRegex, "generated_images", "files/generated_images"},
 		{legacyRootGeneratedImageRefRegex, "generated_images", ""},
+		{generatedImageAssetRefRegex, "generated_images", "assets"},
 		{generatedVideoRefRegex, "generated_videos", "files/generated_videos"},
 		{audioFileRefRegex, "audio", "files/audio"},
 		{documentFileRefRegex, "documents", "files/documents"},
@@ -162,6 +164,7 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 		if err != nil {
 			return err
 		}
+		writtenZipPaths[rel] = struct{}{}
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return err
@@ -199,8 +202,12 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 			if ref.zipPath != "" {
 				zipPath = filepath.ToSlash(filepath.Join(ref.zipPath, zipPath))
 			}
+			if _, exists := writtenZipPaths[zipPath]; exists {
+				continue
+			}
 			if iw, werr := zw.Create(zipPath); werr == nil {
 				_, _ = iw.Write(srcData)
+				writtenZipPaths[zipPath] = struct{}{}
 				bundled++
 			}
 		}

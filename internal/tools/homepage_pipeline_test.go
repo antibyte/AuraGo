@@ -249,6 +249,105 @@ func TestHomepageDeployNetlifyBundlesLegacyRootGeneratedImageRefs(t *testing.T) 
 	}
 }
 
+func TestCopyAssetsToBuildDirCopiesGeneratedImageAssetRefs(t *testing.T) {
+	dir := t.TempDir()
+	dataDir := filepath.Join(dir, "data")
+	buildDir := filepath.Join(dir, "site", "dist")
+	imageName := "img_20260621_111628_homepage.webp"
+	if err := os.MkdirAll(filepath.Join(dataDir, "generated_images"), 0o755); err != nil {
+		t.Fatalf("mkdir data images: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(buildDir, "assets"), 0o755); err != nil {
+		t.Fatalf("mkdir build assets: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "generated_images", imageName), []byte("webp-bytes"), 0o644); err != nil {
+		t.Fatalf("write generated image: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(buildDir, "assets", "main-Dcz0NIgT.js"), []byte(`const hero="/assets/`+imageName+`";`), 0o644); err != nil {
+		t.Fatalf("write bundle: %v", err)
+	}
+
+	copyAssetsToBuildDir(buildDir, dataDir, slogDiscard())
+
+	copied, err := os.ReadFile(filepath.Join(buildDir, "assets", imageName))
+	if err != nil {
+		t.Fatalf("expected generated image to be copied into dist assets: %v", err)
+	}
+	if string(copied) != "webp-bytes" {
+		t.Fatalf("copied image contents = %q, want webp-bytes", string(copied))
+	}
+}
+
+func TestHomepageDeployNetlifyBundlesGeneratedImageAssetRefs(t *testing.T) {
+	dir := t.TempDir()
+	dataDir := filepath.Join(dir, "data")
+	projectRoot := filepath.Join(dir, "ki-news")
+	imageName := "img_20260621_111628_homepage.webp"
+	if err := os.MkdirAll(filepath.Join(dataDir, "generated_images"), 0o755); err != nil {
+		t.Fatalf("mkdir data images: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(projectRoot, "assets"), 0o755); err != nil {
+		t.Fatalf("mkdir project assets: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "generated_images", imageName), []byte("webp-bytes"), 0o644); err != nil {
+		t.Fatalf("write generated image: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "index.html"), []byte(`<div id="app"></div><script src="/assets/main.js"></script>`), 0o644); err != nil {
+		t.Fatalf("write index: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "assets", "main.js"), []byte(`const hero="/assets/`+imageName+`";`), 0o644); err != nil {
+		t.Fatalf("write bundle: %v", err)
+	}
+
+	oldBaseURL := netlifyBaseURL
+	oldAttempts := netlifyDeployPollAttempts
+	defer func() {
+		netlifyBaseURL = oldBaseURL
+		netlifyDeployPollAttempts = oldAttempts
+	}()
+	netlifyDeployPollAttempts = 0
+
+	var sawAssetImage bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/sites/site-123/deploys" {
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read deploy body: %v", err)
+		}
+		zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+		if err != nil {
+			t.Fatalf("read deploy zip: %v", err)
+		}
+		for _, f := range zr.File {
+			if f.Name == "assets/"+imageName {
+				sawAssetImage = true
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"","state":"ready"}`))
+	}))
+	defer server.Close()
+	netlifyBaseURL = server.URL
+
+	result := HomepageDeployNetlify(
+		HomepageConfig{WorkspacePath: dir, DataDir: dataDir},
+		NetlifyConfig{Token: "token", DefaultSiteID: "site-123", AllowDeploy: true},
+		"ki-news", ".", "", "", false, slogDiscard(),
+	)
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+		t.Fatalf("decode result %q: %v", result, err)
+	}
+	if parsed["status"] == "error" {
+		t.Fatalf("deploy should bundle generated image asset reference, got %s", result)
+	}
+	if !sawAssetImage {
+		t.Fatalf("Netlify ZIP did not contain generated image asset %q; result=%s", imageName, result)
+	}
+}
+
 func TestEnsureNextJsStaticExportWritesValidMJS(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "next.config.mjs")
