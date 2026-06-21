@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -21,6 +22,15 @@ import (
 )
 
 var nowFunc = time.Now
+
+const memoryDedupeSessionMaxIDs = 500
+
+var memoryDedupeSessions = struct {
+	sync.Mutex
+	bySession map[string]map[string]int
+}{
+	bySession: make(map[string]map[string]int),
+}
 
 func ShouldReloadCoreMemory(dirty bool, loadedAt time.Time, dbUpdatedAt, cachedUpdatedAt time.Time) bool {
 	if dirty {
@@ -1565,7 +1575,7 @@ func selectRAGMemoriesForOnDemand(ranked []rankedMemory, cfg config.MemoryOnDema
 		essentialLimit = 1
 	}
 	if !cfg.Enabled {
-		return selectServedRAGMemories(ranked, essentialLimit, logger), nil
+		return selectServedRAGMemories(ranked, 1, logger), nil
 	}
 	availableLimit := cfg.MaxAvailableMemories
 	if availableLimit < 0 {
@@ -1623,6 +1633,68 @@ func appendAvailableContextIndex(existing string, addition string, maxChars int)
 
 func formatScore(score float64) string {
 	return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.2f", score), "0"), ".")
+}
+
+func memoryDedupeMapForScope(scope, sessionID string, turnMap map[string]int) map[string]int {
+	if turnMap == nil {
+		turnMap = make(map[string]int)
+	}
+	if normalizeMemoryDedupeScope(scope) != "session" || strings.TrimSpace(sessionID) == "" {
+		return turnMap
+	}
+
+	memoryDedupeSessions.Lock()
+	defer memoryDedupeSessions.Unlock()
+	return cloneMemoryDedupeMap(memoryDedupeSessions.bySession[sessionID])
+}
+
+func persistMemoryDedupeMapForScope(scope, sessionID string, ids map[string]int) {
+	if normalizeMemoryDedupeScope(scope) != "session" || strings.TrimSpace(sessionID) == "" {
+		return
+	}
+
+	memoryDedupeSessions.Lock()
+	defer memoryDedupeSessions.Unlock()
+	if len(ids) == 0 {
+		delete(memoryDedupeSessions.bySession, sessionID)
+		return
+	}
+	existing := memoryDedupeSessions.bySession[sessionID]
+	if existing == nil {
+		existing = make(map[string]int, len(ids))
+		memoryDedupeSessions.bySession[sessionID] = existing
+	}
+	for id, count := range ids {
+		if strings.TrimSpace(id) == "" || count <= 0 {
+			continue
+		}
+		if count > existing[id] {
+			existing[id] = count
+		}
+	}
+	if len(existing) > memoryDedupeSessionMaxIDs {
+		delete(memoryDedupeSessions.bySession, sessionID)
+	}
+}
+
+func normalizeMemoryDedupeScope(scope string) string {
+	switch strings.ToLower(strings.TrimSpace(scope)) {
+	case "session":
+		return "session"
+	default:
+		return "turn"
+	}
+}
+
+func cloneMemoryDedupeMap(src map[string]int) map[string]int {
+	dst := make(map[string]int, len(src))
+	for id, count := range src {
+		if strings.TrimSpace(id) == "" || count <= 0 {
+			continue
+		}
+		dst[id] = count
+	}
+	return dst
 }
 
 func applyAggressivePromptContextBudgets(flags *prompts.ContextFlags) {

@@ -156,6 +156,45 @@ func TestSelectRAGMemoriesForOnDemandSplitsEssentialAndAvailable(t *testing.T) {
 	}
 }
 
+func TestSelectRAGMemoriesForOnDemandDisabledPreservesLegacySingleMemory(t *testing.T) {
+	ranked := []rankedMemory{
+		{text: "primary memory", docID: "mem-1", score: 0.90},
+		{text: "second memory", docID: "mem-2", score: 0.80},
+	}
+	cfg := config.MemoryOnDemandRetrievalConfig{
+		Enabled:              false,
+		MaxEssentialMemories: 2,
+		MaxAvailableMemories: 4,
+	}
+
+	essential, available := selectRAGMemoriesForOnDemand(ranked, cfg, nil)
+
+	if len(essential) != 1 || essential[0].docID != "mem-1" {
+		t.Fatalf("disabled on-demand should preserve legacy single direct memory, got %+v", essential)
+	}
+	if len(available) != 0 {
+		t.Fatalf("disabled on-demand should not expose available memories, got %+v", available)
+	}
+}
+
+func TestMemoryDedupeMapForScopeSessionPersistsAcrossTurns(t *testing.T) {
+	sessionID := "test-session-" + strings.ReplaceAll(t.Name(), "/", "-")
+	firstTurn := memoryDedupeMapForScope("session", sessionID, map[string]int{})
+	firstTurn["mem-1"] = 2
+	persistMemoryDedupeMapForScope("session", sessionID, firstTurn)
+	t.Cleanup(func() { persistMemoryDedupeMapForScope("session", sessionID, map[string]int{}) })
+
+	secondTurn := memoryDedupeMapForScope("session", sessionID, map[string]int{})
+	if secondTurn["mem-1"] != 2 {
+		t.Fatalf("session dedupe did not persist memory usage across turns: %+v", secondTurn)
+	}
+
+	turnScoped := memoryDedupeMapForScope("turn", sessionID, map[string]int{})
+	if turnScoped["mem-1"] != 0 {
+		t.Fatalf("turn dedupe should not reuse session map, got %+v", turnScoped)
+	}
+}
+
 func TestBuildAvailableMemoryIndexUsesStableIDsAndLimits(t *testing.T) {
 	available := []rankedMemory{
 		{text: strings.Repeat("deployment detail ", 20), docID: "mem-2", score: 0.81},

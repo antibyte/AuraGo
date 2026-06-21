@@ -639,6 +639,77 @@ func memoryIDsFromToolCall(tc ToolCall) []string {
 	return ids
 }
 
+func sanitizeKGNodesForTool(nodes []memory.Node) []memory.Node {
+	if len(nodes) == 0 {
+		return nil
+	}
+	out := make([]memory.Node, 0, len(nodes))
+	for _, node := range nodes {
+		node.ID = scrubToolOutputString(node.ID)
+		node.Label = scrubToolOutputString(node.Label)
+		node.Properties = sanitizeKGPropertiesForTool(node.Properties)
+		out = append(out, node)
+	}
+	return out
+}
+
+func sanitizeKGEdgesForTool(edges []memory.Edge) []memory.Edge {
+	if len(edges) == 0 {
+		return nil
+	}
+	out := make([]memory.Edge, 0, len(edges))
+	for _, edge := range edges {
+		edge.Source = scrubToolOutputString(edge.Source)
+		edge.Target = scrubToolOutputString(edge.Target)
+		edge.Relation = scrubToolOutputString(edge.Relation)
+		edge.Properties = sanitizeKGPropertiesForTool(edge.Properties)
+		out = append(out, edge)
+	}
+	return out
+}
+
+func sanitizeKGPropertiesForTool(properties map[string]string) map[string]string {
+	if properties == nil {
+		return make(map[string]string)
+	}
+	out := make(map[string]string, len(properties))
+	for key, value := range properties {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		if isSensitiveKGToolPropertyKey(key) {
+			out[key] = security.RedactedText("")
+			continue
+		}
+		out[key] = scrubToolOutputString(value)
+	}
+	return out
+}
+
+func isSensitiveKGToolPropertyKey(key string) bool {
+	key = strings.ToLower(strings.TrimSpace(key))
+	if key == "" {
+		return false
+	}
+	switch key {
+	case "password", "passwd", "secret", "token", "api_key", "apikey",
+		"access_token", "refresh_token", "private_key", "master_key",
+		"credential", "credentials", "auth", "authorization":
+		return true
+	}
+	for _, suffix := range []string{"_password", "_passwd", "_secret", "_token", "_api_key", "_credential"} {
+		if strings.HasSuffix(key, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+func scrubToolOutputString(value string) string {
+	return security.RedactSensitiveInfo(security.Scrub(value))
+}
+
 func executeExploreKG(tc ToolCall, kg *memory.KnowledgeGraph) (string, error) {
 	if kg == nil {
 		return `Tool Output: {"status":"error","message":"knowledge graph unavailable"}`, nil
@@ -672,7 +743,7 @@ func executeExploreKG(tc ToolCall, kg *memory.KnowledgeGraph) (string, error) {
 	for _, id := range ids {
 		nodes, edges := kg.GetSubgraph(id, depth)
 		if len(nodes) == 0 && len(edges) == 0 {
-			missing = append(missing, id)
+			missing = append(missing, scrubToolOutputString(id))
 			continue
 		}
 		if len(nodes) > limit {
@@ -681,7 +752,9 @@ func executeExploreKG(tc ToolCall, kg *memory.KnowledgeGraph) (string, error) {
 		if len(edges) > limit {
 			edges = edges[:limit]
 		}
-		results = append(results, kgExploration{CenterID: id, Depth: depth, Nodes: nodes, Edges: edges})
+		nodes = sanitizeKGNodesForTool(nodes)
+		edges = sanitizeKGEdgesForTool(edges)
+		results = append(results, kgExploration{CenterID: scrubToolOutputString(id), Depth: depth, Nodes: nodes, Edges: edges})
 	}
 	response := map[string]interface{}{
 		"status":  "success",

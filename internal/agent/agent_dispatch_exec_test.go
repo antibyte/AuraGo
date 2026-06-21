@@ -209,13 +209,15 @@ func TestDispatchExecExploreKGReadOnlyWrapper(t *testing.T) {
 		t.Fatalf("NewKnowledgeGraph: %v", err)
 	}
 	t.Cleanup(func() { _ = kg.Close() })
-	if err := kg.AddNode("alpha", "Alpha", map[string]string{"type": "service"}); err != nil {
+	nodeSensitiveValue := "node-sensitive-fixture-123456789"
+	edgeSensitiveValue := "edge-sensitive-fixture-123456789"
+	if err := kg.AddNode("alpha", "Alpha", map[string]string{"type": "service", "api_key": nodeSensitiveValue}); err != nil {
 		t.Fatalf("AddNode alpha: %v", err)
 	}
 	if err := kg.AddNode("beta", "Beta", map[string]string{"type": "service"}); err != nil {
 		t.Fatalf("AddNode beta: %v", err)
 	}
-	if err := kg.AddEdge("alpha", "beta", "depends_on", nil); err != nil {
+	if err := kg.AddEdge("alpha", "beta", "depends_on", map[string]string{"token": edgeSensitiveValue}); err != nil {
 		t.Fatalf("AddEdge: %v", err)
 	}
 
@@ -233,6 +235,12 @@ func TestDispatchExecExploreKGReadOnlyWrapper(t *testing.T) {
 	}
 	if !strings.Contains(out, `"center_id":"alpha"`) || !strings.Contains(out, `"relation":"depends_on"`) {
 		t.Fatalf("explore_kg output missing subgraph data: %s", out)
+	}
+	if strings.Contains(out, nodeSensitiveValue) || strings.Contains(out, edgeSensitiveValue) {
+		t.Fatalf("explore_kg output leaked sensitive KG properties: %s", out)
+	}
+	if !strings.Contains(out, "[redacted]") {
+		t.Fatalf("explore_kg output should mark sensitive KG properties as redacted: %s", out)
 	}
 }
 

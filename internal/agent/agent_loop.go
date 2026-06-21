@@ -249,6 +249,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	ragToolIterationsSinceLastRefresh := s.ragToolIterationsSinceLastRefresh
 	pendingTCs := s.pendingTCs
 	usedMemoryDocIDs := s.usedMemoryDocIDs
+	memoryDedupeScope := cfg.Tools.Memory.OnDemandRetrieval.DedupeScope
+	usedMemoryDocIDs = memoryDedupeMapForScope(memoryDedupeScope, sessionID, usedMemoryDocIDs)
+	defer func() {
+		persistMemoryDedupeMapForScope(memoryDedupeScope, sessionID, usedMemoryDocIDs)
+	}()
 	turnToolNames := s.turnToolNames
 	turnToolSummaries := s.turnToolSummaries
 	lastCompressionMsg := s.lastCompressionMsg
