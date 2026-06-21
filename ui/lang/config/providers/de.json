@@ -165,5 +165,16 @@
   "config.providers.cap_structured_short": "JSON",
   "config.providers.cap_multimodal_short": "Vision",
   "config.providers.empty_key_confirm_title": "Leerer API-Schlüssel",
-  "config.providers.empty_key_confirm": "Warnung: Das API-Schlüssel-Feld ist leer. Trotzdem diesen Provider speichern?"
+  "config.providers.empty_key_confirm": "Warnung: Das API-Schlüssel-Feld ist leer. Trotzdem diesen Provider speichern?",
+  "config.providers.oauth_connect_title": "Provider-Verbindung",
+  "config.providers.oauth_connect_hint": "AuraGo öffnet den Provider-Login und speichert Tokens sicher im Vault.",
+  "config.providers.oauth_connect": "Provider verbinden",
+  "config.providers.oauth_waiting": "Warte auf Provider-Login...",
+  "config.providers.oauth_started": "Login geöffnet. Schließe ihn im Browser ab.",
+  "config.providers.oauth_paste_label": "Redirect-URL einfügen",
+  "config.providers.oauth_paste_placeholder": "Füge hier die finale Redirect-URL ein",
+  "config.providers.oauth_paste_help": "Nutze das, wenn der Browser auf localhost endet oder AuraGo nicht erreicht.",
+  "config.providers.oauth_paste_submit": "Verbindung abschließen",
+  "config.providers.oauth_paste_success": "Provider verbunden",
+  "config.providers.oauth_save_first": "Speichere den Provider, bevor du ihn verbindest."
 }

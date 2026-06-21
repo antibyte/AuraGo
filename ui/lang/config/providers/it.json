@@ -165,5 +165,16 @@
   "config.providers.cap_structured_short": "JSON",
   "config.providers.cap_multimodal_short": "Vision",
   "config.providers.empty_key_confirm_title": "Chiave API vuota",
-  "config.providers.empty_key_confirm": "Avviso: Il campo della chiave API è vuoto. Vuoi salvare comunque questo provider?"
+  "config.providers.empty_key_confirm": "Avviso: Il campo della chiave API è vuoto. Vuoi salvare comunque questo provider?",
+  "config.providers.oauth_connect_title": "Connessione provider",
+  "config.providers.oauth_connect_hint": "AuraGo apre il login del provider e conserva i token nel vault in modo sicuro.",
+  "config.providers.oauth_connect": "Connetti provider",
+  "config.providers.oauth_waiting": "In attesa del login...",
+  "config.providers.oauth_started": "Login aperto. Completalo nel browser.",
+  "config.providers.oauth_paste_label": "Incolla URL di redirect",
+  "config.providers.oauth_paste_placeholder": "Incolla qui l’URL finale di redirect",
+  "config.providers.oauth_paste_help": "Usalo se il browser finisce su localhost o non raggiunge AuraGo.",
+  "config.providers.oauth_paste_submit": "Completa connessione",
+  "config.providers.oauth_paste_success": "Provider connesso",
+  "config.providers.oauth_save_first": "Salva il provider prima di connetterlo."
 }

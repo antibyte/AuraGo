@@ -165,5 +165,16 @@
   "config.providers.cap_structured_short": "JSON",
   "config.providers.cap_multimodal_short": "Vision",
   "config.providers.empty_key_confirm_title": "Pusty klucz API",
-  "config.providers.empty_key_confirm": "Ostrzeżenie: Pole klucza API jest puste. Czy mimo to chcesz zapisać tego dostawcę?"
+  "config.providers.empty_key_confirm": "Ostrzeżenie: Pole klucza API jest puste. Czy mimo to chcesz zapisać tego dostawcę?",
+  "config.providers.oauth_connect_title": "Połączenie dostawcy",
+  "config.providers.oauth_connect_hint": "AuraGo otwiera logowanie dostawcy i bezpiecznie przechowuje tokeny w vault.",
+  "config.providers.oauth_connect": "Połącz dostawcę",
+  "config.providers.oauth_waiting": "Oczekiwanie na logowanie...",
+  "config.providers.oauth_started": "Logowanie otwarte. Dokończ je w przeglądarce.",
+  "config.providers.oauth_paste_label": "Wklej URL przekierowania",
+  "config.providers.oauth_paste_placeholder": "Wklej tutaj końcowy URL przekierowania",
+  "config.providers.oauth_paste_help": "Użyj tego, jeśli przeglądarka kończy na localhost albo nie może wrócić do AuraGo.",
+  "config.providers.oauth_paste_submit": "Dokończ połączenie",
+  "config.providers.oauth_paste_success": "Dostawca połączony",
+  "config.providers.oauth_save_first": "Zapisz dostawcę przed połączeniem."
 }

@@ -165,5 +165,16 @@
   "config.providers.cap_structured_short": "JSON",
   "config.providers.cap_multimodal_short": "Vision",
   "config.providers.empty_key_confirm_title": "Κενό Κλειδί API",
-  "config.providers.empty_key_confirm": "Προειδοποίηση: Το πεδίο κλειδιού API είναι κενό. Θέλετε να αποθηκεύσετε αυτόν τον πάροχο οπωσδήποτε;"
+  "config.providers.empty_key_confirm": "Προειδοποίηση: Το πεδίο κλειδιού API είναι κενό. Θέλετε να αποθηκεύσετε αυτόν τον πάροχο οπωσδήποτε;",
+  "config.providers.oauth_connect_title": "Σύνδεση παρόχου",
+  "config.providers.oauth_connect_hint": "Το AuraGo ανοίγει τη σύνδεση του παρόχου και κρατά τα tokens με ασφάλεια στο vault.",
+  "config.providers.oauth_connect": "Σύνδεση παρόχου",
+  "config.providers.oauth_waiting": "Αναμονή για σύνδεση παρόχου...",
+  "config.providers.oauth_started": "Η σύνδεση άνοιξε. Ολοκλήρωσέ την στο πρόγραμμα περιήγησης.",
+  "config.providers.oauth_paste_label": "Επικόλληση redirect URL",
+  "config.providers.oauth_paste_placeholder": "Επικόλλησε εδώ το τελικό redirect URL",
+  "config.providers.oauth_paste_help": "Χρησιμοποίησέ το αν ο browser καταλήξει σε localhost ή δεν φτάσει στο AuraGo.",
+  "config.providers.oauth_paste_submit": "Ολοκλήρωση σύνδεσης",
+  "config.providers.oauth_paste_success": "Ο πάροχος συνδέθηκε",
+  "config.providers.oauth_save_first": "Αποθήκευσε πρώτα τον πάροχο."
 }

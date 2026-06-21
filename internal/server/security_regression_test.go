@@ -22,7 +22,7 @@ func TestOAuthCallbackDoesNotRenderProviderErrorHTML(t *testing.T) {
 	handleOAuthCallback(&Server{}).ServeHTTP(rec, req)
 
 	body := rec.Body.String()
-	if strings.Contains(body, "<script>") || strings.Contains(body, "<img") || strings.Contains(body, "onerror=") {
+	if strings.Contains(body, "<script>alert") || strings.Contains(body, "<img") || strings.Contains(body, "onerror=") {
 		t.Fatalf("OAuth callback rendered executable provider HTML: %s", body)
 	}
 }

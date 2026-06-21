@@ -1,8 +1,6 @@
 package server
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -21,7 +19,7 @@ import (
 
 // handleOAuthStart initiates the OAuth2 Authorization Code flow for a provider.
 // GET /api/oauth/start?provider=<id>
-// Returns JSON: {"auth_url": "https://..."}
+// Returns JSON: {"auth_url": "https://...", "mode": "browser_callback", ...}
 func handleOAuthStart(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -29,9 +27,18 @@ func handleOAuthStart(s *Server) http.HandlerFunc {
 			return
 		}
 
+		launch := r.URL.Query().Get("launch") == "1" || r.URL.Query().Get("redirect") == "1"
+		fail := func(message string, status int) {
+			if launch {
+				renderOAuthResult(w, false, message)
+				return
+			}
+			jsonError(w, message, status)
+		}
+
 		providerID := r.URL.Query().Get("provider")
 		if providerID == "" {
-			jsonError(w, "Missing 'provider' query parameter", http.StatusBadRequest)
+			fail("Missing 'provider' query parameter", http.StatusBadRequest)
 			return
 		}
 
@@ -43,75 +50,59 @@ func handleOAuthStart(s *Server) http.HandlerFunc {
 		}
 		serverPort := s.Cfg.Server.Port
 		serverHost := s.Cfg.Server.Host
+		oauthBase := s.Cfg.Server.OAuthRedirectBaseURL
 		s.CfgMu.RUnlock()
 
 		if prov == nil {
-			jsonError(w, "Provider not found: "+providerID, http.StatusNotFound)
+			fail("Provider not found: "+providerID, http.StatusNotFound)
 			return
 		}
 		if entry.AuthType != "oauth2" {
-			jsonError(w, "Provider is not configured for OAuth2", http.StatusBadRequest)
+			fail("Provider is not configured for OAuth2", http.StatusBadRequest)
 			return
 		}
 		if entry.OAuthAuthURL == "" || entry.OAuthTokenURL == "" || entry.OAuthClientID == "" {
-			jsonError(w, "OAuth2 configuration incomplete (need auth_url, token_url, client_id)", http.StatusBadRequest)
+			fail("OAuth2 configuration incomplete (need auth_url, token_url, client_id)", http.StatusBadRequest)
 			return
 		}
 
 		if s.Vault == nil {
-			jsonError(w, "Vault not available — cannot store OAuth state", http.StatusServiceUnavailable)
+			fail("Vault not available — cannot store OAuth state", http.StatusServiceUnavailable)
 			return
 		}
 
-		// Generate random state for CSRF protection
-		stateBytes := make([]byte, 32)
-		if _, err := rand.Read(stateBytes); err != nil {
-			s.Logger.Error("[OAuth] Failed to generate state", "error", err)
-			jsonError(w, "Internal error", http.StatusInternalServerError)
-			return
-		}
-		state := hex.EncodeToString(stateBytes)
-
-		// Store state → provider mapping in vault (expires implicitly on use)
-		stateData := map[string]string{
-			"provider_id": providerID,
-			"created_at":  time.Now().UTC().Format(time.RFC3339),
-		}
-		stateJSON, _ := json.Marshal(stateData)
-		if err := s.Vault.WriteSecret("oauth_state_"+state, string(stateJSON)); err != nil {
-			s.Logger.Error("[OAuth] Failed to store state", "error", err)
-			jsonError(w, "Failed to store OAuth state", http.StatusInternalServerError)
-			return
-		}
-
-		// Build redirect URI
-		s.CfgMu.RLock()
-		oauthBase := s.Cfg.Server.OAuthRedirectBaseURL
-		s.CfgMu.RUnlock()
 		redirectURI := buildRedirectURI(r, serverHost, serverPort, oauthBase)
-
-		// Build authorization URL
-		authURL, err := url.Parse(entry.OAuthAuthURL)
+		session, err := newOAuthSession(providerID, oauthFlowModeBrowserCallback, redirectURI, time.Now())
 		if err != nil {
-			jsonError(w, "Invalid oauth_auth_url", http.StatusBadRequest)
+			s.Logger.Error("[OAuth] Failed to create session", "provider", providerID, "error", err)
+			fail("Internal error", http.StatusInternalServerError)
 			return
 		}
-		q := authURL.Query()
-		q.Set("response_type", "code")
-		q.Set("client_id", entry.OAuthClientID)
-		q.Set("redirect_uri", redirectURI)
-		q.Set("state", state)
-		if entry.OAuthScopes != "" {
-			q.Set("scope", entry.OAuthScopes)
+		if err := storeOAuthSession(s.Vault, session); err != nil {
+			s.Logger.Error("[OAuth] Failed to store session", "provider", providerID, "error", err)
+			fail("Failed to store OAuth state", http.StatusInternalServerError)
+			return
 		}
-		// Some providers want access_type=offline to return a refresh_token
-		q.Set("access_type", "offline")
-		q.Set("prompt", "consent")
-		authURL.RawQuery = q.Encode()
+
+		authURL, err := buildOAuthAuthorizationURL(entry, session)
+		if err != nil {
+			fail("Invalid oauth_auth_url", http.StatusBadRequest)
+			return
+		}
+
+		if launch {
+			http.Redirect(w, r, authURL, http.StatusFound)
+			return
+		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
-			"auth_url": authURL.String(),
+		json.NewEncoder(w).Encode(map[string]any{
+			"auth_url":       authURL,
+			"mode":           session.Mode,
+			"session_id":     session.State,
+			"expires_at":     session.ExpiresAt.Format(time.RFC3339),
+			"fallback_modes": session.FallbackModes,
+			"message":        "Browser authorization started. If the callback cannot reach AuraGo, paste the final redirect URL.",
 		})
 	}
 }
@@ -139,13 +130,11 @@ func handleOAuthCallback(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Validate and consume state
-		stateRaw, err := s.Vault.ReadSecret("oauth_state_" + state)
-		if err != nil || stateRaw == "" {
+		session, err := consumeOAuthSession(s.Vault, state, time.Now())
+		if err != nil {
 			renderOAuthResult(w, false, "Invalid or expired state parameter")
 			return
 		}
-		_ = s.Vault.DeleteSecret("oauth_state_" + state) // one-time use
 
 		if errParam != "" {
 			errDesc := r.URL.Query().Get("error_description")
@@ -158,12 +147,7 @@ func handleOAuthCallback(s *Server) http.HandlerFunc {
 			return
 		}
 
-		var stateData map[string]string
-		if err := json.Unmarshal([]byte(stateRaw), &stateData); err != nil {
-			renderOAuthResult(w, false, "Corrupt state data")
-			return
-		}
-		providerID := stateData["provider_id"]
+		providerID := session.ProviderID
 
 		// Look up provider config
 		s.CfgMu.RLock()
@@ -174,6 +158,7 @@ func handleOAuthCallback(s *Server) http.HandlerFunc {
 		}
 		serverPort := s.Cfg.Server.Port
 		serverHost := s.Cfg.Server.Host
+		oauthBase := s.Cfg.Server.OAuthRedirectBaseURL
 		s.CfgMu.RUnlock()
 
 		if prov == nil {
@@ -181,30 +166,19 @@ func handleOAuthCallback(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Exchange authorization code for tokens
-		s.CfgMu.RLock()
-		oauthBase := s.Cfg.Server.OAuthRedirectBaseURL
-		s.CfgMu.RUnlock()
-		redirectURI := buildRedirectURI(r, serverHost, serverPort, oauthBase)
+		redirectURI := session.RedirectURI
+		if redirectURI == "" {
+			redirectURI = buildRedirectURI(r, serverHost, serverPort, oauthBase)
+		}
 
-		tokenResp, err := exchangeCodeForToken(entry, code, redirectURI)
+		tokenResp, err := exchangeCodeForToken(entry, code, redirectURI, session.CodeVerifier)
 		if err != nil {
 			s.Logger.Error("[OAuth] Token exchange failed", "provider", providerID, "error", err)
 			renderOAuthResult(w, false, "Token exchange failed")
 			return
 		}
 
-		// Store tokens in vault
-		tok := config.OAuthToken{
-			AccessToken:  tokenResp.AccessToken,
-			RefreshToken: tokenResp.RefreshToken,
-			TokenType:    tokenResp.TokenType,
-		}
-		if tokenResp.ExpiresIn > 0 {
-			tok.Expiry = time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second).UTC().Format(time.RFC3339)
-		}
-		tokJSON, _ := json.Marshal(tok)
-		if err := s.Vault.WriteSecret("oauth_"+providerID, string(tokJSON)); err != nil {
+		if err := storeOAuthToken(s.Vault, providerID, tokenResp, time.Now()); err != nil {
 			s.Logger.Error("[OAuth] Failed to store token", "provider", providerID, "error", err)
 			renderOAuthResult(w, false, "Failed to store token")
 			return
@@ -323,7 +297,7 @@ type tokenExchangeResponse struct {
 }
 
 // exchangeCodeForToken performs the OAuth2 token exchange.
-func exchangeCodeForToken(prov config.ProviderEntry, code, redirectURI string) (*tokenExchangeResponse, error) {
+func exchangeCodeForToken(prov config.ProviderEntry, code, redirectURI, codeVerifier string) (*tokenExchangeResponse, error) {
 	data := url.Values{
 		"grant_type":   {"authorization_code"},
 		"code":         {code},
@@ -332,6 +306,9 @@ func exchangeCodeForToken(prov config.ProviderEntry, code, redirectURI string) (
 	}
 	if prov.OAuthClientSecret != "" {
 		data.Set("client_secret", prov.OAuthClientSecret)
+	}
+	if codeVerifier != "" {
+		data.Set("code_verifier", codeVerifier)
 	}
 
 	client, err := security.NewSSRFProtectedHTTPClientForURL(prov.OAuthTokenURL, 15*time.Second)
@@ -524,22 +501,13 @@ func handleOAuthManual(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Validate and consume state (same one-time-use check as the normal callback)
-		stateRaw, err := s.Vault.ReadSecret("oauth_state_" + state)
-		if err != nil || stateRaw == "" {
+		session, err := consumeOAuthSession(s.Vault, state, time.Now())
+		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Invalid or expired state — please click Connect again to start a new OAuth flow"})
 			return
 		}
-		_ = s.Vault.DeleteSecret("oauth_state_" + state)
-
-		var stateData map[string]string
-		if err := json.Unmarshal([]byte(stateRaw), &stateData); err != nil {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Corrupt state data"})
-			return
-		}
-		providerID := stateData["provider_id"]
+		providerID := session.ProviderID
 
 		s.CfgMu.RLock()
 		prov := s.Cfg.FindProvider(providerID)
@@ -558,10 +526,12 @@ func handleOAuthManual(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Reconstruct the same redirect_uri used in the original authorization request
-		redirectURI := buildRedirectURI(r, serverHost, serverPort, oauthBase)
+		redirectURI := session.RedirectURI
+		if redirectURI == "" {
+			redirectURI = buildRedirectURI(r, serverHost, serverPort, oauthBase)
+		}
 
-		tokenResp, err := exchangeCodeForToken(entry, code, redirectURI)
+		tokenResp, err := exchangeCodeForToken(entry, code, redirectURI, session.CodeVerifier)
 		if err != nil {
 			s.Logger.Error("[OAuth] Manual token exchange failed", "provider", providerID, "error", err)
 			w.Header().Set("Content-Type", "application/json")
@@ -569,16 +539,7 @@ func handleOAuthManual(s *Server) http.HandlerFunc {
 			return
 		}
 
-		tok := config.OAuthToken{
-			AccessToken:  tokenResp.AccessToken,
-			RefreshToken: tokenResp.RefreshToken,
-			TokenType:    tokenResp.TokenType,
-		}
-		if tokenResp.ExpiresIn > 0 {
-			tok.Expiry = time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second).UTC().Format(time.RFC3339)
-		}
-		tokJSON, _ := json.Marshal(tok)
-		if err := s.Vault.WriteSecret("oauth_"+providerID, string(tokJSON)); err != nil {
+		if err := storeOAuthToken(s.Vault, providerID, tokenResp, time.Now()); err != nil {
 			s.Logger.Error("[OAuth] Failed to store token", "provider", providerID, "error", err)
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Failed to store token"})
@@ -618,7 +579,14 @@ h2{color:%s;margin-bottom:0.5rem;}
 p{color:#a0a0a0;margin-bottom:1.5rem;}
 button{padding:0.6rem 1.5rem;border:none;border-radius:8px;background:%s;color:#fff;font-size:0.9rem;cursor:pointer;}
 button:hover{opacity:0.85;}
-</style></head>
+</style>
+<script>
+try {
+  if (window.opener && !window.opener.closed) {
+    window.opener.postMessage({type:"aurago:oauth-provider-connected", success:%t}, window.location.origin);
+  }
+} catch (e) {}
+</script></head>
 <body>
 <div class="card">
 <div style="font-size:3rem;">%s</div>
@@ -626,5 +594,5 @@ button:hover{opacity:0.85;}
 <p>%s</p>
 <button onclick="window.close()">Close Window</button>
 </div>
-</body></html>`, safeTitle, color, color, icon, safeTitle, safeMessage)
+</body></html>`, safeTitle, color, color, success, icon, safeTitle, safeMessage)
 }

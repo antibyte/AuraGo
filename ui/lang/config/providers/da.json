@@ -165,5 +165,16 @@
   "config.providers.cap_structured_short": "JSON",
   "config.providers.cap_multimodal_short": "Billede",
   "config.providers.empty_key_confirm_title": "Tom API-nøgle",
-  "config.providers.empty_key_confirm": "Advarsel: Feltet til API-nøglen er tomt. Vil du gemme denne udbyder alligevel?"
+  "config.providers.empty_key_confirm": "Advarsel: Feltet til API-nøglen er tomt. Vil du gemme denne udbyder alligevel?",
+  "config.providers.oauth_connect_title": "Providerforbindelse",
+  "config.providers.oauth_connect_hint": "AuraGo åbner provider-login og gemmer tokens sikkert i vaulten.",
+  "config.providers.oauth_connect": "Forbind provider",
+  "config.providers.oauth_waiting": "Venter på provider-login...",
+  "config.providers.oauth_started": "Login åbnet. Fuldfør det i browseren.",
+  "config.providers.oauth_paste_label": "Indsæt redirect-URL",
+  "config.providers.oauth_paste_placeholder": "Indsæt den endelige redirect-URL her",
+  "config.providers.oauth_paste_help": "Brug dette hvis browseren ender på localhost eller ikke kan nå AuraGo.",
+  "config.providers.oauth_paste_submit": "Fuldfør forbindelse",
+  "config.providers.oauth_paste_success": "Provider forbundet",
+  "config.providers.oauth_save_first": "Gem provideren før du forbinder den."
 }

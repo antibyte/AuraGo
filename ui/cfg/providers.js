@@ -950,6 +950,123 @@ let _providerCatalogPromise = null;
 
         const PROVIDER_TYPE_FALLBACKS = ['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','manifest','yepapi','custom','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'];
 
+        function providerOAuthStatusText(st) {
+            if (st && st.authorized && !st.expired) return { cls: 'is-ok', text: t('config.providers.authorized'), detail: st.expiry ? `${t('config.providers.expires')}: ${new Date(st.expiry).toLocaleString()}` : '' };
+            if (st && st.authorized && st.expired) return { cls: 'is-warn', text: t('config.providers.token_expired_reauth'), detail: '' };
+            return { cls: 'is-error', text: t('config.providers.not_authorized_click'), detail: '' };
+        }
+
+        function providerOAuthStatusHTML(st) {
+            const status = providerOAuthStatusText(st);
+            const tone = status.cls === 'is-ok' ? 'prov-text-success' : (status.cls === 'is-warn' ? 'prov-text-warning' : 'prov-text-danger');
+            return `<span class="${tone}">${escapeHtml(status.text)}</span>` + (status.detail ? ` <span class="prov-oauth-expiry">${escapeHtml(status.detail)}</span>` : '');
+        }
+
+        function providerSetOAuthModalStatus(st) {
+            const statusEl = document.getElementById('prov-oauth-status');
+            if (!statusEl) return;
+            const status = providerOAuthStatusText(st);
+            statusEl.className = `prov-oauth-status ${status.cls}`;
+            statusEl.innerHTML = `<span>${escapeHtml(status.text)}</span>` + (status.detail ? `<small>${escapeHtml(status.detail)}</small>` : '');
+        }
+
+        async function providerRefreshOAuthStatus(providerID) {
+            if (!providerID) return null;
+            const resp = await fetch('/api/oauth/status?provider=' + encodeURIComponent(providerID));
+            const st = await resp.json();
+            const idx = (providersCache || []).findIndex(p => p.id === providerID);
+            if (idx >= 0) {
+                const cardStatus = document.getElementById('oauth-status-' + idx);
+                if (cardStatus) cardStatus.innerHTML = providerOAuthStatusHTML(st);
+            }
+            providerSetOAuthModalStatus(st);
+            return st;
+        }
+
+        function providerPollOAuthUntilConnected(providerID) {
+            const startedAt = Date.now();
+            const poll = () => {
+                providerRefreshOAuthStatus(providerID).then(st => {
+                    if (st && st.authorized && !st.expired) {
+                        providerRenderCards();
+                        return;
+                    }
+                    if (Date.now() - startedAt < 120000) {
+                        setTimeout(poll, 3000);
+                    }
+                }).catch(() => {
+                    if (Date.now() - startedAt < 120000) {
+                        setTimeout(poll, 5000);
+                    }
+                });
+            };
+            setTimeout(poll, 3000);
+        }
+
+        function providerLaunchOAuthWindow(providerID) {
+            const link = document.createElement('a');
+            link.href = '/api/oauth/start?provider=' + encodeURIComponent(providerID) + '&launch=1';
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        }
+
+        async function providerStartOAuthConnect(providerID) {
+            if (!providerID) {
+                showToast(t('config.providers.oauth_save_first'), 'warn');
+                return;
+            }
+            const statusEl = document.getElementById('prov-oauth-status');
+            if (statusEl) {
+                statusEl.className = 'prov-oauth-status is-warn';
+                statusEl.textContent = t('config.providers.oauth_waiting');
+            }
+            providerLaunchOAuthWindow(providerID);
+            if (statusEl) statusEl.textContent = t('config.providers.oauth_started');
+            providerPollOAuthUntilConnected(providerID);
+        }
+
+        async function providerSubmitOAuthPaste(providerID) {
+            const input = document.getElementById('prov-oauth-paste-url');
+            const pastedURL = input ? input.value.trim() : '';
+            if (!providerID || !pastedURL) {
+                showToast(t('config.providers.oauth_paste_help'), 'warn');
+                return;
+            }
+            const resp = await fetch('/api/oauth/manual', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: pastedURL })
+            });
+            const result = await resp.json().catch(() => ({}));
+            if (!resp.ok || result.success === false) {
+                showToast(result.message || t('config.common.error'), 'error');
+                return;
+            }
+            showToast(result.message || t('config.providers.oauth_paste_success'));
+            if (input) input.value = '';
+            await providerRefreshOAuthStatus(providerID);
+            providerRenderCards();
+        }
+
+        function providerHandleOAuthMessage(event) {
+            if (event.origin !== window.location.origin) return;
+            const data = event.data || {};
+            if (!data || data.type !== 'aurago:oauth-provider-connected') return;
+            const idInput = document.getElementById('prov-id');
+            const providerID = data.provider_id || (idInput ? idInput.value.trim() : '');
+            if (!providerID) return;
+            providerRefreshOAuthStatus(providerID).then(() => providerRenderCards()).catch(() => {});
+        }
+
+        if (!window.__auragoProviderOAuthMessageHandler) {
+            window.addEventListener('message', providerHandleOAuthMessage);
+            window.__auragoProviderOAuthMessageHandler = true;
+        }
+
         async function providerLoadCatalog() {
             if (_providerCatalogCache) return _providerCatalogCache;
             if (_providerCatalogPromise) return _providerCatalogPromise;
@@ -1259,15 +1376,31 @@ let _providerCatalogPromise = null;
                         <input class="field-input" id="prov-oauth-scopes" value="${escapeAttr(data.oauth_scopes || '')}" placeholder="${t('config.providers.scopes_placeholder')}">
                     </div>
                     ${data._editMode && currentAuthType === 'oauth2' ? `
-                    <div class="field-group prov-oauth-group">
-                        <div id="prov-oauth-status" class="prov-oauth-status">⏳ ${t('config.providers.checking_status')}</div>
+                    <div class="field-group prov-oauth-connect-panel">
+                        <div class="prov-oauth-connect-head">
+                            <div>
+                                <div class="field-label">${t('config.providers.oauth_connect_title')}</div>
+                                <div class="field-help">${t('config.providers.oauth_connect_hint')}</div>
+                            </div>
+                            <div id="prov-oauth-status" class="prov-oauth-status is-warn">${t('config.providers.checking_status')}</div>
+                        </div>
                         <div class="prov-oauth-actions">
-                            <button class="btn-save prov-oauth-authorize-btn" id="prov-oauth-authorize-btn">
-                                🔐 ${t('config.providers.authorize')}
+                            <button type="button" class="btn-save prov-oauth-authorize-btn" id="prov-oauth-authorize-btn">
+                                ${t('config.providers.oauth_connect')}
                             </button>
-                            <button class="btn-save prov-oauth-revoke-btn" id="prov-oauth-revoke-btn">
-                                🗑️ ${t('config.providers.revoke_token')}
+                            <button type="button" class="btn-save prov-oauth-revoke-btn" id="prov-oauth-revoke-btn">
+                                ${t('config.providers.revoke_token')}
                             </button>
+                        </div>
+                        <div class="prov-oauth-paste-box">
+                            <div class="field-label">${t('config.providers.oauth_paste_label')}</div>
+                            <div class="field-help">${t('config.providers.oauth_paste_help')}</div>
+                            <div class="prov-oauth-paste-row">
+                                <input class="field-input" id="prov-oauth-paste-url" value="" placeholder="${escapeAttr(t('config.providers.oauth_paste_placeholder'))}">
+                                <button type="button" class="btn-save prov-btn-muted prov-btn-sm" id="prov-oauth-paste-submit">
+                                    ${t('config.providers.oauth_paste_submit')}
+                                </button>
+                            </div>
                         </div>
                     </div>
                     ` : ''}
@@ -1549,16 +1682,12 @@ let _providerCatalogPromise = null;
             // ── OAuth Authorize button ──
             const authBtn = document.getElementById('prov-oauth-authorize-btn');
             if (authBtn) {
-                authBtn.onclick = async () => {
-                    try {
-                        const resp = await fetch('/api/oauth/start?provider=' + encodeURIComponent(data.id));
-                            if (!resp.ok) { showToast(await resp.text(), 'error'); return; }
-                        const result = await resp.json();
-                        if (result.auth_url) {
-                            window.open(result.auth_url, '_blank', 'width=600,height=700,noopener,noreferrer');
-                        }
-                        } catch (e) { showToast(e.message || t('config.common.error'), 'error'); }
-                };
+                authBtn.onclick = () => providerStartOAuthConnect(data.id);
+            }
+
+            const pasteBtn = document.getElementById('prov-oauth-paste-submit');
+            if (pasteBtn) {
+                pasteBtn.onclick = () => providerSubmitOAuthPaste(data.id);
             }
 
             // ── OAuth Revoke button ──
@@ -1568,28 +1697,15 @@ let _providerCatalogPromise = null;
                     if (!(await showConfirm(t('config.providers.revoke_confirm_title'), t('config.providers.revoke_confirm')))) return;
                     try {
                         await fetch('/api/oauth/revoke?provider=' + encodeURIComponent(data.id), { method: 'DELETE' });
-                        const statusEl = document.getElementById('prov-oauth-status');
-                        if (statusEl) statusEl.innerHTML = '<span class="prov-text-danger">❌ ' + t('config.providers.not_authorized') + '</span>';
+                        await providerRefreshOAuthStatus(data.id);
+                        providerRenderCards();
                         } catch (e) { showToast(e.message || t('config.common.error'), 'error'); }
                 };
             }
 
             // ── Fetch OAuth status for edit mode ──
             if (data._editMode && currentAuthType === 'oauth2' && data.id) {
-                fetch('/api/oauth/status?provider=' + encodeURIComponent(data.id))
-                    .then(r => r.json())
-                    .then(st => {
-                        const statusEl = document.getElementById('prov-oauth-status');
-                        if (!statusEl) return;
-                        if (st.authorized && !st.expired) {
-                            statusEl.innerHTML = '<span class="prov-text-success">✅ ' + t('config.providers.authorized') + '</span>'
-                                + (st.expiry ? `<span class="prov-oauth-expiry">(${t('config.providers.expires')}: ${new Date(st.expiry).toLocaleString()})</span>` : '');
-                        } else if (st.authorized && st.expired) {
-                            statusEl.innerHTML = '<span class="prov-text-warning">⚠️ ' + t('config.providers.token_expired_reauth') + '</span>';
-                        } else {
-                            statusEl.innerHTML = '<span class="prov-text-danger">❌ ' + t('config.providers.not_authorized_click') + '</span>';
-                        }
-                    }).catch(() => {});
+                providerRefreshOAuthStatus(data.id).catch(() => {});
             }
 
             // ── Save handler ──

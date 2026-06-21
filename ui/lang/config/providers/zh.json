@@ -165,5 +165,16 @@
   "config.providers.cap_structured_short": "JSON",
   "config.providers.cap_multimodal_short": "Vision",
   "config.providers.empty_key_confirm_title": "API密钥为空",
-  "config.providers.empty_key_confirm": "警告：API密钥字段为空。确定要保存此服务商吗？"
+  "config.providers.empty_key_confirm": "警告：API密钥字段为空。确定要保存此服务商吗？",
+  "config.providers.oauth_connect_title": "提供商连接",
+  "config.providers.oauth_connect_hint": "AuraGo 会打开提供商登录，并将 token 安全保存在 vault 中。",
+  "config.providers.oauth_connect": "连接提供商",
+  "config.providers.oauth_waiting": "正在等待提供商登录...",
+  "config.providers.oauth_started": "登录已打开。请在浏览器中完成。",
+  "config.providers.oauth_paste_label": "粘贴重定向 URL",
+  "config.providers.oauth_paste_placeholder": "在这里粘贴最终的重定向 URL",
+  "config.providers.oauth_paste_help": "如果浏览器停在 localhost 或无法回到 AuraGo，请使用这里。",
+  "config.providers.oauth_paste_submit": "完成连接",
+  "config.providers.oauth_paste_success": "提供商已连接",
+  "config.providers.oauth_save_first": "请先保存提供商再连接。"
 }

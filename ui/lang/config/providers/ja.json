@@ -165,5 +165,16 @@
   "config.providers.cap_structured_short": "JSON",
   "config.providers.cap_multimodal_short": "Vision",
   "config.providers.empty_key_confirm_title": "空のAPIキー",
-  "config.providers.empty_key_confirm": "警告：APIキーフィールドが空です。このプロバイダーを保存しますか？"
+  "config.providers.empty_key_confirm": "警告：APIキーフィールドが空です。このプロバイダーを保存しますか？",
+  "config.providers.oauth_connect_title": "プロバイダー接続",
+  "config.providers.oauth_connect_hint": "AuraGo がプロバイダーのログインを開き、トークンを vault に安全に保存します。",
+  "config.providers.oauth_connect": "プロバイダーを接続",
+  "config.providers.oauth_waiting": "プロバイダーのログインを待機中...",
+  "config.providers.oauth_started": "ログインを開きました。ブラウザーで完了してください。",
+  "config.providers.oauth_paste_label": "リダイレクト URL を貼り付け",
+  "config.providers.oauth_paste_placeholder": "最終リダイレクト URL をここに貼り付け",
+  "config.providers.oauth_paste_help": "ブラウザーが localhost で止まる、または AuraGo に戻れない場合に使います。",
+  "config.providers.oauth_paste_submit": "接続を完了",
+  "config.providers.oauth_paste_success": "プロバイダーを接続しました",
+  "config.providers.oauth_save_first": "接続する前にプロバイダーを保存してください。"
 }

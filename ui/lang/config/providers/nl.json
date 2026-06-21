@@ -165,5 +165,16 @@
   "config.providers.cap_structured_short": "JSON",
   "config.providers.cap_multimodal_short": "Beeld",
   "config.providers.empty_key_confirm_title": "Lege API-sleutel",
-  "config.providers.empty_key_confirm": "Waarschuwing: Het veld voor de API-sleutel is leeg. Wilt u deze provider toch opslaan?"
+  "config.providers.empty_key_confirm": "Waarschuwing: Het veld voor de API-sleutel is leeg. Wilt u deze provider toch opslaan?",
+  "config.providers.oauth_connect_title": "Providerverbinding",
+  "config.providers.oauth_connect_hint": "AuraGo opent de provider-login en bewaart tokens veilig in de vault.",
+  "config.providers.oauth_connect": "Provider verbinden",
+  "config.providers.oauth_waiting": "Wachten op provider-login...",
+  "config.providers.oauth_started": "Login geopend. Rond deze af in de browser.",
+  "config.providers.oauth_paste_label": "Redirect-URL plakken",
+  "config.providers.oauth_paste_placeholder": "Plak hier de uiteindelijke redirect-URL",
+  "config.providers.oauth_paste_help": "Gebruik dit als de browser op localhost eindigt of AuraGo niet kan bereiken.",
+  "config.providers.oauth_paste_submit": "Verbinding voltooien",
+  "config.providers.oauth_paste_success": "Provider verbonden",
+  "config.providers.oauth_save_first": "Sla de provider op voordat je hem verbindt."
 }

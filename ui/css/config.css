@@ -6067,10 +6067,19 @@ select.cfg-input option {
 .prov-model-empty { text-align: center; padding: 0.8rem; color: var(--text-tertiary); font-size: 0.75rem; }
 
 .prov-oauth-group { margin-top: 0.5rem; }
-.prov-oauth-status { font-size: 0.8rem; color: var(--text-tertiary); }
-.prov-oauth-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
-.prov-oauth-authorize-btn { padding: 0.35rem 1rem; font-size: 0.78rem; background: #8e44ad; }
-.prov-oauth-revoke-btn { padding: 0.35rem 1rem; font-size: 0.78rem; background: var(--danger); }
+.prov-oauth-connect-panel { margin-top: 0.6rem; padding: 0.85rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--bg-secondary); }
+.prov-oauth-connect-head { display: flex; justify-content: space-between; gap: 0.8rem; align-items: flex-start; }
+.prov-oauth-status { display: inline-flex; flex-direction: column; gap: 0.15rem; min-width: max-content; max-width: 100%; padding: 0.3rem 0.55rem; border-radius: var(--radius-md); font-size: 0.76rem; line-height: 1.25; color: var(--text-tertiary); background: var(--bg-tertiary); border: 1px solid var(--border-subtle); }
+.prov-oauth-status small { color: var(--text-tertiary); font-size: 0.68rem; }
+.prov-oauth-status.is-ok { color: var(--success); border-color: color-mix(in srgb, #22c55e 30%, transparent); background: color-mix(in srgb, #22c55e 8%, transparent); }
+.prov-oauth-status.is-warn { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 30%, transparent); background: color-mix(in srgb, var(--warning) 8%, transparent); }
+.prov-oauth-status.is-error { color: var(--danger); border-color: color-mix(in srgb, #ef4444 30%, transparent); background: color-mix(in srgb, #ef4444 8%, transparent); }
+.prov-oauth-actions { display: flex; gap: 0.5rem; margin-top: 0.65rem; flex-wrap: wrap; }
+.prov-oauth-authorize-btn { padding: 0.42rem 1rem; font-size: 0.78rem; background: var(--accent); }
+.prov-oauth-revoke-btn { padding: 0.42rem 1rem; font-size: 0.78rem; background: var(--danger); }
+.prov-oauth-paste-box { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle); }
+.prov-oauth-paste-row { display: flex; gap: 0.5rem; align-items: center; }
+.prov-oauth-paste-row .field-input { flex: 1; min-width: 0; }
 .prov-oauth-expiry { margin-left: 0.5rem; font-size: 0.72rem; color: var(--text-tertiary); }
 .prov-modal-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.2rem; }
 
