@@ -49,7 +49,7 @@ func TestDesktopThemeLayeringZIndexScale(t *testing.T) {
 	}
 }
 
-func TestDesktopStandardThemeStaysDarkAndWriterSurfaceStaysWhite(t *testing.T) {
+func TestDesktopStandardThemeKeepsOfficeSurfacesDark(t *testing.T) {
 	t.Parallel()
 
 	desktopCSS := readAllDesktopCSS(t)
@@ -76,12 +76,16 @@ func TestDesktopStandardThemeStaysDarkAndWriterSurfaceStaysWhite(t *testing.T) {
 		"--vd-text: #f6f7fb;",
 		"--vd-control-bg: rgba(255, 255, 255, 0.08);",
 		"--vd-control-hover: rgba(255, 255, 255, 0.12);",
-		"--vd-editor-bg: #ffffff;",
-		"--vd-editor-text: #111827;",
-		"--vd-editor-icon:",
 		".desktop-body[data-theme=\"light\"]",
 		".desktop-body[data-theme=\"light\"] .vd-window-titlebar",
+		".vd-editor",
+		"background: var(--ds-color-bg-raised, #181f2c);",
+		"color: var(--ds-color-fg-primary, #f6f7fb);",
+		".vd-editor textarea",
 		".office-writer",
+		"--vd-editor-bg: var(--ds-color-bg-raised, #181f2c);",
+		"--vd-editor-text: var(--ds-color-fg-primary, #f6f7fb);",
+		"--vd-editor-icon: var(--ds-color-fg-muted, #a8bbd0);",
 		"background: var(--vd-editor-bg);",
 		".office-writer .ql-stroke",
 		"stroke: var(--vd-editor-icon);",

@@ -144,22 +144,45 @@ func TestDesktopOfficeAppsRespectReadonlyMode(t *testing.T) {
 	}
 }
 
-func TestDesktopWriterUsesFullWhiteWritingSurface(t *testing.T) {
+func TestDesktopWriterUsesSheetsDarkWritingSurface(t *testing.T) {
 	t.Parallel()
 
-	desktopCSS := readAllDesktopCSS(t)
+	css := strings.ReplaceAll(readDesktopAssetText(t, "css/desktop-app-office.css"), "\r\n", "\n")
+	writerRule := desktopOfficeCSSRuleBody(t, css, ".office-writer")
 	for _, marker := range []string{
-		".office-writer {",
+		"--vd-editor-bg: var(--ds-color-bg-raised, #181f2c);",
+		"--vd-editor-text: var(--ds-color-fg-primary, #f6f7fb);",
+		"--vd-editor-toolbar-bg:",
 		"grid-template-rows: auto auto minmax(0, 1fr);",
 		"background: var(--vd-editor-bg);",
 		"color: var(--vd-editor-text);",
+	} {
+		if !strings.Contains(writerRule, marker) {
+			t.Fatalf("writer dark-surface rule missing marker %q", marker)
+		}
+	}
+
+	writerEditorRule := desktopOfficeCSSRuleBody(t, css, ".office-writer-editor")
+	for _, marker := range []string{
+		"background: var(--vd-editor-bg);",
+		"color: var(--vd-editor-text);",
+	} {
+		if !strings.Contains(writerEditorRule, marker) {
+			t.Fatalf("writer editor dark-surface rule missing marker %q", marker)
+		}
+	}
+
+	for _, marker := range []string{
+		".office-sheet-grid-wrap {",
+		"background: var(--ds-color-bg-raised, #181f2c);",
+		"background: var(--ds-color-bg-overlay, #1d2533);",
 		".office-writer .ql-stroke {",
 		"stroke: var(--vd-editor-icon);",
 		".office-writer .ql-fill {",
 		"fill: var(--vd-editor-icon);",
 	} {
-		if !strings.Contains(desktopCSS, marker) {
-			t.Fatalf("writer white-surface styling missing marker %q", marker)
+		if !strings.Contains(css, marker) {
+			t.Fatalf("writer dark-surface styling missing marker %q", marker)
 		}
 	}
 }

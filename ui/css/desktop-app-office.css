@@ -5,6 +5,8 @@
     height: 100%;
     min-height: 0;
     min-width: 0;
+    background: var(--ds-color-bg-raised, #181f2c);
+    color: var(--ds-color-fg-primary, #f6f7fb);
 }
 
 .vd-editor textarea {
@@ -20,8 +22,8 @@
     font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
     font-size: 0.92rem;
     line-height: 1.65;
-    color: var(--vd-editor-text);
-    background: var(--vd-editor-bg);
+    color: var(--ds-color-fg-primary, #f6f7fb);
+    background: var(--ds-color-bg-raised, #181f2c);
     caret-color: var(--vd-accent, #27c7a6);
     font-variant-numeric: tabular-nums;
 }
@@ -43,6 +45,13 @@
 }
 
 .office-writer {
+    --vd-editor-bg: var(--ds-color-bg-raised, #181f2c);
+    --vd-editor-text: var(--ds-color-fg-primary, #f6f7fb);
+    --vd-editor-muted: var(--ds-color-fg-muted, #a8bbd0);
+    --vd-editor-border: var(--vd-border);
+    --vd-editor-toolbar-bg: linear-gradient(180deg, rgba(8, 12, 18, 0.7) 0%, rgba(8, 12, 18, 0.45) 100%);
+    --vd-editor-toolbar-text: var(--vd-text);
+    --vd-editor-icon: var(--ds-color-fg-muted, #a8bbd0);
     grid-template-rows: auto auto minmax(0, 1fr);
     background: var(--vd-editor-bg);
     color: var(--vd-editor-text);
@@ -100,7 +109,7 @@
 .office-writer .office-path-input:focus,
 .office-writer .office-title-input:focus {
     box-shadow: 0 0 0 3px rgba(39, 199, 166, 0.18);
-    background: #ffffff;
+    background: var(--ds-color-bg-overlay, #1d2533);
 }
 
 .office-path-input {
@@ -359,12 +368,12 @@
 }
 
 .office-writer-editor .ql-editor code {
-    background: rgba(15, 23, 42, 0.06);
+    background: rgba(255, 255, 255, 0.08);
     padding: 2px 6px;
     border-radius: var(--ds-radius-xs, 4px);
     font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
     font-size: 0.9em;
-    color: #be185d;
+    color: #f8a7c8;
 }
 
 .office-writer-editor .ql-editor pre {
