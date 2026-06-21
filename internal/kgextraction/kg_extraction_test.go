@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/kgquality"
 	"aurago/internal/memory"
 
 	"github.com/sashabaranov/go-openai"
@@ -165,6 +166,77 @@ func TestNormalizeExtractedKGFiltersInvalidSchema(t *testing.T) {
 	}
 	if len(edges) != 1 {
 		t.Fatalf("edges = %#v, want only valid edge with existing endpoints and allowed relation", edges)
+	}
+}
+
+func TestNormalizeExtractedKGFiltersGenericTokens(t *testing.T) {
+	nodes, edges := normalizeExtractedKG(
+		[]memory.Node{
+			{ID: "png", Label: "png", Properties: map[string]string{"type": "concept"}},
+			{ID: "jpeg", Label: ".jpeg", Properties: map[string]string{"type": "concept"}},
+			{ID: "rgba8", Label: "rgba8", Properties: map[string]string{"type": "concept"}},
+			{ID: "x86_64", Label: "x86_64", Properties: map[string]string{"type": "concept"}},
+			{ID: "attachment_folders", Label: "Attachment Folders", Properties: map[string]string{"type": "concept"}},
+			{ID: "agodesk", Label: "AgoDesk", Properties: map[string]string{"type": "service"}},
+		},
+		[]memory.Edge{
+			{Source: "agodesk", Target: "png", Relation: "related_to"},
+			{Source: "agodesk", Target: "attachment_folders", Relation: "related_to"},
+		},
+	)
+	if len(nodes) != 1 || nodes[0].ID != "agodesk" {
+		t.Fatalf("nodes = %#v, want only agodesk", nodes)
+	}
+	if len(edges) != 0 {
+		t.Fatalf("edges = %#v, want generic target edges filtered", edges)
+	}
+}
+
+func TestNormalizeExtractedKGPathLikeNodeUsesFileHash(t *testing.T) {
+	path := `/home/aurago/aurago/data/documents/test_pdf.pdf`
+	nodes, edges := normalizeExtractedKG(
+		[]memory.Node{
+			{ID: "homeauragoauragodatadocumentstest_pdf_pdf", Label: path, Properties: map[string]string{"type": "concept"}},
+			{ID: "agodesk", Label: "AgoDesk", Properties: map[string]string{"type": "service"}},
+		},
+		[]memory.Edge{{Source: "agodesk", Target: "homeauragoauragodatadocumentstest_pdf_pdf", Relation: "related_to"}},
+	)
+	fileID := kgquality.FileNodeID(path)
+	if len(nodes) != 2 {
+		t.Fatalf("nodes = %#v, want 2", nodes)
+	}
+	var foundFile bool
+	for _, node := range nodes {
+		if node.ID == fileID {
+			foundFile = true
+			if node.Properties["type"] != "file" || node.Properties["path"] != path {
+				t.Fatalf("file node properties = %#v", node.Properties)
+			}
+		}
+		if node.ID == "homeauragoauragodatadocumentstest_pdf_pdf" {
+			t.Fatalf("legacy path-like ID was not remapped: %#v", nodes)
+		}
+	}
+	if !foundFile {
+		t.Fatalf("missing canonical file node %q in %#v", fileID, nodes)
+	}
+	if len(edges) != 1 || edges[0].Target != fileID {
+		t.Fatalf("edges = %#v, want remapped target %q", edges, fileID)
+	}
+}
+
+func TestNormalizeExtractedKGAcceptsFileAndToolTypes(t *testing.T) {
+	nodes, _ := normalizeExtractedKG([]memory.Node{
+		{ID: "readme_file", Label: "README.md", Properties: map[string]string{"type": "file", "path": "/repo/README.md"}},
+		{ID: "shell_tool", Label: "Shell Tool", Properties: map[string]string{"type": "tool"}},
+	}, nil)
+	if len(nodes) != 2 {
+		t.Fatalf("nodes = %#v, want file and tool nodes", nodes)
+	}
+	for _, node := range nodes {
+		if node.Properties["type"] != "file" && node.Properties["type"] != "tool" {
+			t.Fatalf("node %q type = %q, want file or tool", node.ID, node.Properties["type"])
+		}
 	}
 }
 
