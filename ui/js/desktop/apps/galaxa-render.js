@@ -20,145 +20,6 @@
             cv.fillRect(Math.floor(fx + 0.5), Math.floor(fy + 11), 1, 1 + Math.ceil(f3 * 0.5));
         }
 
-        function drawPlayerSpriteDetails(cv, x, y, cols, phaseOffset) {
-            const tk = ctx.tick || 0;
-            const glint = cols[7] || '#e8fbff';
-            cv.fillStyle = glint;
-            cv.fillRect(Math.floor(x - 2), Math.floor(y - 8), 5, 3);
-            const wingOn = (tk % 24) < 12;
-            cv.fillStyle = wingOn ? (cols.c || '#7df9ff') : (cols.a || '#ff5d5d');
-            cv.fillRect(Math.floor(x - 11), Math.floor(y + 1), 1, 1);
-            cv.fillRect(Math.floor(x + 10), Math.floor(y + 1), 1, 1);
-            cv.fillStyle = cols[4] || '#1f5ccc';
-            cv.fillRect(Math.floor(x - 6), Math.floor(y - 1), 1, 1);
-            cv.fillRect(Math.floor(x + 5), Math.floor(y - 1), 1, 1);
-            cv.fillRect(Math.floor(x - 4), Math.floor(y + 4), 1, 1);
-            cv.fillRect(Math.floor(x + 3), Math.floor(y + 4), 1, 1);
-            const coreA = 0.55 + Math.sin(tk * 0.18 + phaseOffset) * 0.25;
-            cv.globalAlpha = coreA;
-            cv.fillStyle = cols[6] || '#4dffcf';
-            cv.fillRect(Math.floor(x - 5), Math.floor(y + 12), 1, 1);
-            cv.fillRect(Math.floor(x + 4), Math.floor(y + 12), 1, 1);
-            cv.globalAlpha = 1;
-            if (ctx.G && ctx.G.superActive > 0) {
-                const def = ctx.SUPER_DEFS && ctx.SUPER_DEFS[ctx.G.superType];
-                cv.fillStyle = def ? def.col : '#ffffff';
-                cv.fillRect(Math.floor(x - 8), Math.floor(y + 7), 17, 1);
-            }
-        }
-
-        function drawEnemySpriteDetails(cv, e, cols) {
-            if (!e || e.st === 'DEAD') return;
-            const ex = Math.floor(e.x), ey = Math.floor(e.y);
-            const tk = ctx.tick || 0;
-            const frame = Math.max(0, Math.floor(e.animFrame || e.fr || 0));
-            const c1 = (cols && cols[1]) || '#ffffff';
-            const c2 = (cols && cols[2]) || '#88ccff';
-            const c3 = (cols && cols[3]) || '#4488ff';
-            const c4 = (cols && cols[4]) || '#2266cc';
-            const c5 = (cols && cols[5]) || '#ff8800';
-            const c6 = (cols && cols[6]) || '#44ffaa';
-            const ca = (cols && cols.a) || '#ff5544';
-            const cb = (cols && cols.b) || '#ffcc44';
-            switch (e.type) {
-            case 'bee':
-                cv.fillStyle = cb; cv.fillRect(ex - 3, ey - 7, 1, 1); cv.fillRect(ex + 2, ey - 7, 1, 1);
-                cv.fillStyle = c5; cv.fillRect(ex - 9 - (frame % 2), ey - 1, 1, 1); cv.fillRect(ex + 8 + (frame % 2), ey - 1, 1, 1);
-                break;
-            case 'butterfly': {
-                const wingA = 0.5 + ((tk + frame) % 2) * 0.35;
-                cv.globalAlpha = wingA; cv.fillStyle = c6; cv.fillRect(ex - 10, ey - 4, 1, 1); cv.fillRect(ex + 9, ey - 4, 1, 1);
-                cv.fillStyle = ca; cv.fillRect(ex - 8, ey + 5, 1, 1); cv.fillRect(ex + 7, ey + 5, 1, 1);
-                cv.globalAlpha = 1;
-                break;
-            }
-            case 'stalker':
-                cv.fillStyle = c3; for (let sx = ex - 4; sx <= ex + 4; sx++) cv.fillRect(sx, ey - 3, 1, 1);
-                cv.fillStyle = c4; cv.fillRect(ex, ey + 2, 1, 1);
-                break;
-            case 'sniper':
-                cv.fillStyle = cb; for (let sy = ey - 9; sy <= ey - 3; sy++) cv.fillRect(ex, sy, 1, 1);
-                if (e.sTmr <= 300) { cv.fillStyle = c1; cv.fillRect(ex, ey + 8, 1, 1); }
-                break;
-            case 'hunter': {
-                const ha = e.st === 'DIVING' ? 0.95 : 0.55;
-                cv.globalAlpha = ha; cv.fillStyle = c5;
-                cv.fillRect(ex - 8, ey - 5, 1, 1); cv.fillRect(ex + 7, ey - 5, 1, 1);
-                cv.fillRect(ex - 10, ey + 2, 1, 1); cv.fillRect(ex + 9, ey + 2, 1, 1);
-                cv.globalAlpha = 1;
-                break;
-            }
-            case 'spinner':
-                for (let i = 0; i < 4; i++) {
-                    const ang = tk * 0.18 + i * Math.PI / 2;
-                    cv.fillStyle = c6;
-                    cv.fillRect(Math.floor(ex + Math.cos(ang) * 10), Math.floor(ey + Math.sin(ang) * 10), 1, 1);
-                }
-                break;
-            case 'bomber': {
-                const pulse = 0.45 + Math.sin(tk * 0.2) * 0.25;
-                cv.globalAlpha = pulse; cv.fillStyle = c3; cv.fillRect(ex - 2, ey - 2, 4, 4);
-                cv.globalAlpha = 1;
-                if (e.hp < e.maxHp) { cv.fillStyle = ca; cv.fillRect(ex + 3, ey, 1, 1); }
-                break;
-            }
-            case 'lasher':
-                cv.fillStyle = c6;
-                cv.fillRect(ex - 4, ey + 8 + (frame % 2), 1, 1);
-                cv.fillRect(ex, ey + 8 + (frame % 2), 1, 1);
-                cv.fillRect(ex + 4, ey + 8 + (frame % 2), 1, 1);
-                break;
-            case 'weaver': {
-                const slide = Math.sin(tk * 0.12 + (e.col || 0)) * 2;
-                cv.fillStyle = cb;
-                cv.fillRect(Math.floor(ex - 6 + slide), ey, 1, 1);
-                cv.fillRect(Math.floor(ex + 5 - slide), ey, 1, 1);
-                break;
-            }
-            case 'splitter':
-                cv.fillStyle = e.hp < e.maxHp ? c6 : c2;
-                for (let sy = ey - 7; sy <= ey + 7; sy++) cv.fillRect(ex, sy, 1, 1);
-                break;
-            case 'shield_bee': {
-                const pulse = 0.18 + (0.5 + Math.sin(tk * 0.14) * 0.5) * 0.18;
-                cv.globalAlpha = pulse; cv.strokeStyle = c2; cv.lineWidth = 1;
-                cv.beginPath(); cv.arc(ex, ey, 14, 0, Math.PI * 2); cv.stroke();
-                cv.globalAlpha = 1;
-                break;
-            }
-            case 'kamikaze': {
-                const kp = e.st === 'DIVING' ? 0.85 : 0.55;
-                cv.globalAlpha = kp; cv.fillStyle = ca; cv.fillRect(ex - 2, ey - 2, 4, 4);
-                cv.fillStyle = c5; cv.fillRect(ex - 5, ey + 5, 1, 1); cv.fillRect(ex + 4, ey + 5, 1, 1);
-                cv.globalAlpha = 1;
-                break;
-            }
-            case 'carrier':
-                cv.fillStyle = c3; cv.fillRect(ex - 5, ey + 2, 10, 1);
-                cv.fillStyle = c2; cv.fillRect(ex - 6, ey - 4, 1, 1); cv.fillRect(ex + 5, ey - 4, 1, 1);
-                break;
-            case 'teleporter': {
-                const ta = 0.35 + (0.5 + Math.sin(tk * 0.22) * 0.5) * 0.45;
-                cv.globalAlpha = ta; cv.fillStyle = c6;
-                cv.fillRect(ex - 8, ey - 8, 1, 1); cv.fillRect(ex + 7, ey - 8, 1, 1);
-                cv.fillRect(ex - 8, ey + 7, 1, 1); cv.fillRect(ex + 7, ey + 7, 1, 1);
-                cv.globalAlpha = 1;
-                break;
-            }
-            case 'boss':
-            case 'miniboss': {
-                cv.fillStyle = c5; cv.fillRect(ex, ey - 2, 1, 1);
-                const ratio = e.maxHp > 0 ? e.hp / e.maxHp : 1;
-                if (ratio <= 0.5) {
-                    cv.fillStyle = ratio <= 0.25 ? ca : cb;
-                    cv.fillRect(ex - 4, ey - 6, 1, 1); cv.fillRect(ex + 3, ey + 4, 1, 1);
-                }
-                break;
-            }
-            default:
-                break;
-            }
-        }
 
         function renderFrame(dt) {
             // NEW: Cinematic camera transform during super (zoom-in around canvas center)
@@ -440,21 +301,17 @@
                 const _egInt = 0.25 + Math.sin(ctx.tick * 0.15) * 0.15;
                 const _eglG = ctx.cachedRadialGradient(ctx.c, 'engGlow:' + _egGlow, p.x, p.y + 14, 0, 18, [[0, _egGlow + '88'], [0.5, _egGlow + '22'], [1, 'transparent']]);
                 ctx.c.globalAlpha = _egInt; ctx.c.fillStyle = _eglG; ctx.c.fillRect(p.x - 20, p.y - 4, 40, 36); ctx.c.globalAlpha = 1;
-                const playerFrame = (ctx.getPlayerSpriteFrame && ctx.getPlayerSpriteFrame()) || ctx.SP.player;
+                const playerFrame = (ctx.getPlayerSpriteFrame && ctx.getPlayerSpriteFrame()) || ctx.SP.playerIcon || ctx.SP.player;
                 if (p.inv > 0) {
                     const rpc = ctx.rainbowPC();
                     ctx.drawSp(ctx.c, playerFrame, rpc, p.x - 12, p.y - 12, false, true);
-                    drawPlayerSpriteDetails(ctx.c, p.x, p.y, rpc, 0);
                     if (p.dual) {
                         ctx.drawSp(ctx.c, playerFrame, rpc, p.x + 28, p.y - 12, false, true);
-                        drawPlayerSpriteDetails(ctx.c, p.x + 40, p.y, rpc, 1.7);
                     }
                 } else {
                     ctx.drawSp(ctx.c, playerFrame, ctx.SP.pC, p.x - 12, p.y - 12, false);
-                    drawPlayerSpriteDetails(ctx.c, p.x, p.y, ctx.SP.pC, 0);
                     if (p.dual) {
                         ctx.drawSp(ctx.c, playerFrame, ctx.SP.pC, p.x + 28, p.y - 12, false);
-                        drawPlayerSpriteDetails(ctx.c, p.x + 40, p.y, ctx.SP.pC, 1.7);
                     }
                 }
                 if (p.alive) {
@@ -471,8 +328,7 @@
                 ctx.c.restore();
             }
             if (p.cap) {
-                ctx.drawSp(ctx.c, ctx.SP.playerFrames[0], ctx.SP.pC, p.cap.x - 12, p.cap.y - 12, false);
-                drawPlayerSpriteDetails(ctx.c, p.cap.x, p.cap.y, ctx.SP.pC, 0);
+                ctx.drawSp(ctx.c, ctx.SP.playerIcon || ctx.SP.player, ctx.SP.pC, p.cap.x - 12, p.cap.y - 12, false);
             }
             if (ctx.G.shieldHits > 0 && p.alive) {
                 ctx.c.strokeStyle = '#4488ff'; ctx.c.lineWidth = 1.5; ctx.c.globalAlpha = 0.5 + Math.sin(ctx.tick * 0.1) * 0.2;
@@ -570,7 +426,7 @@
                     const _offsets = [-40, 40, -80, 80];
                     for (const _off of _offsets) {
                         ctx.c.globalAlpha = 0.3 + Math.sin(ctx.tick * 0.2 + _off) * 0.1;
-                        const _cloneFrame = (ctx.getPlayerSpriteFrame && ctx.getPlayerSpriteFrame()) || ctx.SP.player;
+                        const _cloneFrame = (ctx.getPlayerSpriteFrame && ctx.getPlayerSpriteFrame()) || ctx.SP.playerIcon || ctx.SP.player;
                         ctx.drawSp(ctx.c, _cloneFrame, { 1: _def.col, 2: '#4466aa', 3: '#224477', 4: '#112244', 5: '#ff8800', 6: '#44ffaa', 7: '#aaddff', a: '#ff5544' }, p.x + _off - 12, p.y - 12, false);
                     }
                     ctx.c.globalAlpha = 1;
@@ -763,11 +619,9 @@
                     ctx.c.scale(_sc, _sc);
                     ctx.c.translate(-e.x, -e.y);
                     ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 12, fl);
-                    drawEnemySpriteDetails(ctx.c, e, cols);
                     ctx.c.restore();
                 } else {
                     ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 12, fl);
-                    drawEnemySpriteDetails(ctx.c, e, cols);
                 }
                 if (fl && e.hitF > 60) {
                     const _hitAlpha = (e.hitF - 60) / 40 * 0.5;
@@ -859,7 +713,8 @@
             if (ctx.G.mirrorActive && ctx.G.p.alive) {
                 const mirrorX = ctx.W - ctx.G.p.x;
                 ctx.c.globalAlpha = 0.35 + Math.sin(ctx.tick * 0.1) * 0.1;
-                ctx.drawSp(ctx.c, ctx.SP.player, { 1: '#88ddff', 2: '#4488aa', 3: '#225577', 4: '#113344', 5: '#ff8800', 6: '#44ffaa', 7: '#aaddff', a: '#ff5544' }, mirrorX - 12, ctx.G.p.y - 12, false);
+                const _mirrorFrame = (ctx.getPlayerSpriteFrame && ctx.getPlayerSpriteFrame()) || ctx.SP.playerIcon || ctx.SP.player;
+                ctx.drawSp(ctx.c, _mirrorFrame, { 1: '#88ddff', 2: '#4488aa', 3: '#225577', 4: '#113344', 5: '#ff8800', 6: '#44ffaa', 7: '#aaddff', a: '#ff5544' }, mirrorX - 12, ctx.G.p.y - 12, false);
                 ctx.c.globalAlpha = 0.15;
                 ctx.c.strokeStyle = '#88ddff'; ctx.c.lineWidth = 1;
                 ctx.c.beginPath(); ctx.c.moveTo(ctx.G.p.x, ctx.G.p.y); ctx.c.lineTo(mirrorX, ctx.G.p.y); ctx.c.stroke();
@@ -1312,7 +1167,7 @@
                 ctx.c.fillText(_secs + 's', ctx.W / 2, ctx.H - 56);
                 ctx.c.restore();
             }
-            for (let i = 0; i < Math.min(ctx.G.lives, 5); i++) ctx.drawSp(ctx.c, ctx.SP.player, ctx.SP.pC, 10 + i * 26, ctx.H - 24, false);
+            for (let i = 0; i < Math.min(ctx.G.lives, 5); i++) ctx.drawSp(ctx.c, ctx.SP.playerIcon || ctx.SP.player, ctx.SP.pC, 10 + i * 26, ctx.H - 24, false);
             if (ctx.G.activePU) {
                 const puIconX = ctx.W - 20, puIconY = ctx.H - 20;
                 const expiring = ctx.G.activePU.type !== 'shield' && ctx.PU_DUR[ctx.G.activePU.type] && ctx.G.puTimer < 2000;
