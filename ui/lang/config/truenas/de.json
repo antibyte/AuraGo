@@ -72,7 +72,7 @@
   "help.truenas.allow_destructive": "Erlaubt das Löschen von Datasets, Snapshots und Rollback-Operationen.",
   "help.truenas.api_key": "API-Schlüssel für die TrueNAS-API. Erstelle einen unter System → API Keys in TrueNAS.",
   "help.truenas.enabled": "Aktiviert die TrueNAS-Integration. Der Agent kann Pools, Datasets, Snapshots und Shares verwalten.",
-  "help.truenas.host": "Hostname oder IP-Adresse Ihres TrueNAS-Servers (z.B. truenas.local oder 192.168.1.100).",
+  "help.truenas.host": "Hostname oder IP-Adresse deines TrueNAS-Servers.",
   "help.truenas.insecure_ssl": "Akzeptiert selbstsignierte oder ungültige Zertifikate (nur für Testumgebungen).",
   "help.truenas.readonly": "Im Nur-Lesen-Modus kann der Agent nur Daten anzeigen. Alle Schreiboperationen werden blockiert.",
   "help.truenas.use_https": "Verwendet HTTPS für die Verbindung zum TrueNAS-Server (empfohlen)."

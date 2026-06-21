@@ -29,7 +29,7 @@
   "chat.credits_pill_text": "💳 ${{amount}}",
   "chat.credits_pill_title": "Crédito OpenRouter",
   "chat.credits_tooltip_payg": "OpenRouter: ${{usage}} consumido (pré-pago)",
-  "chat.credits_tooltip_used_limit": "OpenRouter: $ {{usage}} usado / limite de $ {{limit}}",
+  "chat.credits_tooltip_used_limit": "OpenRouter: ${{usage}} usado / limite de ${{limit}}",
   "chat.debug_pill": "depurar",
   "chat.debug_pill_on": "🔍 depurar",
   "chat.debug_pill_title": "Alternar modo de depuração (/debug on|off)",

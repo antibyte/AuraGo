@@ -33,7 +33,7 @@
   "truenas.empty_snapshots": "Keine Snapshots gefunden",
   "truenas.empty_shares": "Keine SMB-Freigaben gefunden",
   "truenas.label_host": "Host",
-  "truenas.hint_host": "Hostname oder IP-Adresse Ihres TrueNAS-Servers",
+  "truenas.hint_host": "Hostname oder IP-Adresse deines TrueNAS-Servers",
   "truenas.label_apikey": "API-Schlüssel",
   "truenas.hint_apikey": "API-Schlüssel unter System → API-Schlüssel in TrueNAS erstellen",
   "truenas.label_https": "HTTPS verwenden",

@@ -221,6 +221,6 @@
   "backend.budget_mode_partial_en": "（合作代理 + vision/STT 超出时被阻止）",
   "backend.budget_mode_full_en": "（超过则全部封锁）",
   "backend.budget_mode_warn_de": "（努尔警告）",
-  "backend.budget_mode_partial_de": "（联合代理 + Vision/STT gesperrt bei Überschreitung）",
+  "backend.budget_mode_partial_de": "（超过限制时会阻止协同代理 + Vision/STT）",
   "backend.budget_mode_full_de": "（超出时全部阻止）"
 }

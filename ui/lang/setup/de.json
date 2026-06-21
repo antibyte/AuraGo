@@ -8,7 +8,7 @@
   "setup.feature_vision": "Vision",
   "setup.feature_websearch": "Suche",
   "setup.header_subtitle": "Schnellkonfiguration",
-  "setup.https_warning": "Sie verwenden eine unverschlüsselte HTTP-Verbindung. API-Schlüssel könnten unsicher übertragen werden.",
+  "setup.https_warning": "Du verwendest eine unverschlüsselte HTTP-Verbindung. API-Schlüssel könnten unsicher übertragen werden.",
   "setup.language_cs": "Čeština",
   "setup.language_custom": "Benutzerdefiniert",
   "setup.language_da": "Dansk",

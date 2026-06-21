@@ -7,7 +7,7 @@
   "config.nav.config": "कॉन्फ़िग",
   "config.nav.invasion": "इनवेजन",
   "config.nav.logout": "लॉगआउट",
-  "config.save_bar.unsaved_changes": "असहेजे परिवर्तन",
+  "config.save_bar.unsaved_changes": "सहेजे नहीं गए बदलाव",
   "config.save_bar.save_button": "💾 सहेजें",
   "config.save_bar.saving": "सहेजा जा रहा है...",
   "config.save_bar.saved": "सहेजा गया और लागू किया गया",
@@ -32,8 +32,8 @@
   "config.feature_unavailable": "यह सुविधा वर्तमान रनटाइम वातावरण में उपलब्ध नहीं है।",
   "config.docker_mode_banner": "AuraGo एक Docker कंटेनर के अंदर चल रहा है। कुछ सुविधाएँ सीमित हो सकती हैं।",
   "config.firewall.docker_blocked": "Docker कंटेनर के अंदर फ़ायरवॉल प्रबंधन उपलब्ध नहीं है।",
-  "config.unsaved_changes.title": "Unsaved changes",
-  "config.unsaved_changes.message": "You have unsaved changes. Discard them and switch sections?",
-  "config.unsaved_changes.discard": "Discard changes",
-  "config.unsaved_changes.stay": "Stay here"
+  "config.unsaved_changes.title": "सहेजे नहीं गए बदलाव",
+  "config.unsaved_changes.message": "तुम्हारे पास सहेजे नहीं गए बदलाव हैं। क्या इन्हें छोड़कर सेक्शन बदलना है?",
+  "config.unsaved_changes.discard": "बदलाव छोड़ें",
+  "config.unsaved_changes.stay": "यहीं रहें"
 }
