@@ -52,4 +52,11 @@ func TestLoadBundledSnapshotFindsModelsAndProviders(t *testing.T) {
 	if model.Source != SourceOhMyPi {
 		t.Fatalf("model source = %q, want %q", model.Source, SourceOhMyPi)
 	}
+
+	if _, ok := snapshot.FindModel("nonexistent-provider", "gpt-4o"); ok {
+		t.Fatal("FindModel should not fall back to another provider")
+	}
+	if _, ok := snapshot.FindModelByID("gpt-4o"); !ok {
+		t.Fatal("FindModelByID should still allow provider-agnostic lookup")
+	}
 }

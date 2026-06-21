@@ -124,11 +124,22 @@ func ResolveProviderCapabilities(provider config.ProviderEntry, fallback Capabil
 	}
 }
 
-// CapabilitiesFromRegistry returns capability flags from generated models.dev
-// metadata.
+// CapabilitiesFromRegistry returns capability flags from bundled catalog and
+// generated models.dev metadata.
 func CapabilitiesFromRegistry(provider, modelID string) (ProviderCapabilityResult, bool) {
 	if snapshot, err := catalog.Load(); err == nil {
 		if model, ok := snapshot.FindModel(provider, modelID); ok {
+			return ProviderCapabilityResult{
+				ToolCalling:       model.SupportsTools,
+				StructuredOutputs: model.StructuredOutputs,
+				Multimodal:        model.Multimodal,
+				Reasoning:         model.Reasoning,
+				DetectedModel:     model.ID,
+				Source:            CapabilitySourceOhMyPi,
+				Known:             true,
+			}, true
+		}
+		if model, ok := snapshot.FindModelByID(modelID); ok {
 			return ProviderCapabilityResult{
 				ToolCalling:       model.SupportsTools,
 				StructuredOutputs: model.StructuredOutputs,

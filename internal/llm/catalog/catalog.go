@@ -185,10 +185,8 @@ func (s *Snapshot) FindModel(provider, modelID string) (Model, bool) {
 		s.reindex()
 	}
 	key := modelKey(provider, modelID)
-	if model, ok := s.modelsByProvider[key]; ok {
-		return model, true
-	}
-	return s.FindModelByID(modelID)
+	model, ok := s.modelsByProvider[key]
+	return model, ok
 }
 
 func (s *Snapshot) FindModelByID(modelID string) (Model, bool) {
