@@ -176,5 +176,15 @@
   "config.providers.oauth_paste_help": "Use isto se o navegador parar em localhost ou não alcançar o AuraGo.",
   "config.providers.oauth_paste_submit": "Concluir conexão",
   "config.providers.oauth_paste_success": "Provedor conectado",
-  "config.providers.oauth_save_first": "Salve o provedor antes de conectá-lo."
+  "config.providers.oauth_save_first": "Salve o provedor antes de conectá-lo.",
+  "config.providers.oauth_save_connect": "Salvar e conectar",
+  "config.providers.oauth_reauthorize": "Autorizar novamente",
+  "config.providers.oauth_redirect_uri_label": "Redirect URI",
+  "config.providers.oauth_redirect_uri_help": "Registre exatamente este callback URL no app OAuth do provedor.",
+  "config.providers.oauth_copy_redirect": "Copiar",
+  "config.providers.oauth_redirect_copied": "Redirect URI copiado",
+  "config.providers.oauth_popup_blocked": "O popup de login foi bloqueado. Use o link direto abaixo.",
+  "config.providers.oauth_open_login": "Abrir login",
+  "config.providers.oauth_missing_config": "Configuração OAuth incompleta",
+  "config.providers.oauth_connect_unavailable": "Preencha os campos OAuth antes de conectar."
 }

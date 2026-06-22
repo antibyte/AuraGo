@@ -176,5 +176,15 @@
   "config.providers.oauth_paste_help": "如果浏览器停在 localhost 或无法回到 AuraGo，请使用这里。",
   "config.providers.oauth_paste_submit": "完成连接",
   "config.providers.oauth_paste_success": "提供商已连接",
-  "config.providers.oauth_save_first": "请先保存提供商再连接。"
+  "config.providers.oauth_save_first": "请先保存提供商再连接。",
+  "config.providers.oauth_save_connect": "保存并连接",
+  "config.providers.oauth_reauthorize": "重新授权",
+  "config.providers.oauth_redirect_uri_label": "Redirect URI",
+  "config.providers.oauth_redirect_uri_help": "请在提供商的 OAuth 应用中准确注册这个 callback URL。",
+  "config.providers.oauth_copy_redirect": "复制",
+  "config.providers.oauth_redirect_copied": "Redirect URI 已复制",
+  "config.providers.oauth_popup_blocked": "登录弹窗被阻止。请使用下方的直接链接。",
+  "config.providers.oauth_open_login": "打开登录",
+  "config.providers.oauth_missing_config": "OAuth 配置不完整",
+  "config.providers.oauth_connect_unavailable": "连接前请补全 OAuth 字段。"
 }

@@ -176,5 +176,15 @@
   "config.providers.oauth_paste_help": "Använd detta om webbläsaren hamnar på localhost eller inte når AuraGo.",
   "config.providers.oauth_paste_submit": "Slutför anslutning",
   "config.providers.oauth_paste_success": "Provider ansluten",
-  "config.providers.oauth_save_first": "Spara providern innan du ansluter den."
+  "config.providers.oauth_save_first": "Spara providern innan du ansluter den.",
+  "config.providers.oauth_save_connect": "Spara och anslut",
+  "config.providers.oauth_reauthorize": "Auktorisera igen",
+  "config.providers.oauth_redirect_uri_label": "Redirect URI",
+  "config.providers.oauth_redirect_uri_help": "Registrera exakt denna callback-URL i providerns OAuth-app.",
+  "config.providers.oauth_copy_redirect": "Kopiera",
+  "config.providers.oauth_redirect_copied": "Redirect URI kopierad",
+  "config.providers.oauth_popup_blocked": "Login-popupen blockerades. Använd direktlänken nedan.",
+  "config.providers.oauth_open_login": "Öppna login",
+  "config.providers.oauth_missing_config": "OAuth-konfigurationen är ofullständig",
+  "config.providers.oauth_connect_unavailable": "Fyll i OAuth-fälten innan du ansluter."
 }

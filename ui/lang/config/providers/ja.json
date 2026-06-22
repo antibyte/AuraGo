@@ -176,5 +176,15 @@
   "config.providers.oauth_paste_help": "ブラウザーが localhost で止まる、または AuraGo に戻れない場合に使います。",
   "config.providers.oauth_paste_submit": "接続を完了",
   "config.providers.oauth_paste_success": "プロバイダーを接続しました",
-  "config.providers.oauth_save_first": "接続する前にプロバイダーを保存してください。"
+  "config.providers.oauth_save_first": "接続する前にプロバイダーを保存してください。",
+  "config.providers.oauth_save_connect": "保存して接続",
+  "config.providers.oauth_reauthorize": "再認可",
+  "config.providers.oauth_redirect_uri_label": "Redirect URI",
+  "config.providers.oauth_redirect_uri_help": "このcallback URLをプロバイダーのOAuthアプリに正確に登録してください。",
+  "config.providers.oauth_copy_redirect": "コピー",
+  "config.providers.oauth_redirect_copied": "Redirect URIをコピーしました",
+  "config.providers.oauth_popup_blocked": "ログインpopupがブロックされました。下の直接リンクを使用してください。",
+  "config.providers.oauth_open_login": "ログインを開く",
+  "config.providers.oauth_missing_config": "OAuth設定が不完全です",
+  "config.providers.oauth_connect_unavailable": "接続する前にOAuth項目を入力してください。"
 }

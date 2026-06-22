@@ -176,5 +176,15 @@
   "config.providers.oauth_paste_help": "Použij to, když prohlížeč skončí na localhostu nebo nedosáhne na AuraGo.",
   "config.providers.oauth_paste_submit": "Dokončit připojení",
   "config.providers.oauth_paste_success": "Poskytovatel připojen",
-  "config.providers.oauth_save_first": "Nejdřív poskytovatele ulož."
+  "config.providers.oauth_save_first": "Nejdřív poskytovatele ulož.",
+  "config.providers.oauth_save_connect": "Uložit a připojit",
+  "config.providers.oauth_reauthorize": "Znovu autorizovat",
+  "config.providers.oauth_redirect_uri_label": "Redirect URI",
+  "config.providers.oauth_redirect_uri_help": "Zaregistruj přesně tuto callback URL v OAuth aplikaci poskytovatele.",
+  "config.providers.oauth_copy_redirect": "Kopírovat",
+  "config.providers.oauth_redirect_copied": "Redirect URI zkopírována",
+  "config.providers.oauth_popup_blocked": "Přihlašovací popup byl zablokován. Použij přímý odkaz níže.",
+  "config.providers.oauth_open_login": "Otevřít přihlášení",
+  "config.providers.oauth_missing_config": "OAuth konfigurace není úplná",
+  "config.providers.oauth_connect_unavailable": "Před připojením doplň OAuth pole."
 }
