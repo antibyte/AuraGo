@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -28,6 +29,9 @@ func TestSeedNasscadBundledAppWritesWorkspaceEntry(t *testing.T) {
 	}
 	if !bytesContainsNasscadMonolithMarkers(data) {
 		t.Fatal("seeded nasscad index is not monolithic")
+	}
+	if !bytes.Contains(data, []byte("NASSCAD V4.3.0")) {
+		t.Fatal("seeded nasscad index should contain NASSCAD V4.3.0")
 	}
 	if nasscadExternalScriptPattern.Match(data) {
 		t.Fatal("seeded nasscad index still contains external script tags")

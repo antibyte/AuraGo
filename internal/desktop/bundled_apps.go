@@ -14,7 +14,7 @@ import (
 //go:embed bundled_apps/nasscad/*
 var bundledAppAssets embed.FS
 
-const nasscadBundledVersion = "4.2.7.2"
+const nasscadBundledVersion = "4.3.0"
 
 func (s *Service) seedBundledBuiltinAppsLocked(ctx context.Context) error {
 	if err := s.seedNasscadAppLocked(ctx); err != nil {

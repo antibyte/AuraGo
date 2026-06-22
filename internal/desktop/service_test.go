@@ -142,6 +142,9 @@ func TestBuiltinAppsExposeCheaterAndMissionControlMetadata(t *testing.T) {
 	if nasscad.Entry != "builtin://nasscad" || nasscad.Icon != "nasscad" {
 		t.Fatalf("nasscad manifest entry/icon = %q/%q, want builtin://nasscad/nasscad", nasscad.Entry, nasscad.Icon)
 	}
+	if nasscad.Version != "4.3.0" {
+		t.Fatalf("nasscad version = %q, want 4.3.0", nasscad.Version)
+	}
 	if nasscad.Metadata["open_maximized"] != "true" {
 		t.Fatalf("nasscad must open maximized for CAD workspace: %#v", nasscad.Metadata)
 	}

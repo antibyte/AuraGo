@@ -7,11 +7,24 @@
 <meta name="2026012639">
 <meta name="license" content="CC BY-NC 4.0 — Free non-commercial use. Commercial use requires written agreement. Contact: NassLab.">
 <meta name="author" content="NassLab — Nasser, France">
-<title>NASSCAD V4.2.6</title>
+<title>NASSCAD V4.3.0 — Free Browser CAD | No Login, No Install</title>
+<meta name="description" content="NASSCAD V4.3.0 — Free parametric 3D CAD in your browser. 18 watertight primitives, boolean CSG, NassScript. Zero install, zero cloud.">
+<link rel="canonical" href="https://www.nasscad.com/NASSCAD_V4_3_0.htm">
+<meta property="og:title"       content="NASSCAD V4.3.0 — Free Browser CAD. No Login. No Install.">
+<meta property="og:description" content="Parametric 3D CAD in a single HTML file. Boolean CSG, 18 primitives, NassScript. STEP B-Rep AP242 — OCCT WASM kernel in active development. Zero install.">
+<meta property="og:type"        content="website">
+<meta property="og:url"         content="https://www.nasscad.com/NASSCAD_V4_3_0.htm">
+<meta property="og:image"       content="https://www.nasscad.com/Nasscad_4.2.jpg">
+<meta name="twitter:card"        content="summary_large_image">
+<meta name="twitter:title"       content="NASSCAD V4.3.0 — Free Browser CAD. No Login. No Install.">
+<meta name="twitter:description" content="Parametric 3D CAD in a single HTML file. Boolean CSG, 18 primitives, NassScript. STEP B-Rep AP242 in active development. Best free alternative to Tinkercad &amp; Fusion 360.">
+<meta name="twitter:image"       content="https://www.nasscad.com/Nasscad_4.2.jpg">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"NASSCAD","version":"4.3.0","applicationCategory":"DesignApplication","operatingSystem":"Web Browser","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"description":"Free parametric 3D CAD running in the browser. Boolean CSG, 18 primitives, NassScript. STEP B-Rep AP242 export/import in active development. Zero install.","url":"https://www.nasscad.com","author":{"@type":"Person","name":"Nasser","affiliation":"NassLab"}}</script>
+<script>(function(){if(location.protocol==='file:')return;var s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id=G-3181YHN32V';document.head.appendChild(s);window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-3181YHN32V');})();</script>
 
 <style>
 /* ══════════════════════════════════════════════════════════
-   NASSCAD V4.1 — Modern Theme (inspired by V1)
+   NASSCAD V4.3.0​‌​​‌‌‌​​‌​​​​​‌​‌​‌​​‌‌​‌​‌​​‌‌​‌​​​​‌‌​‌​​​​​‌​‌​​​‌​​​​‌​​​​​​‌​‌​‌‌​​​‌‌​‌​​​​‌​‌‌‌​​​‌‌​​‌‌​​‌​‌‌‌​​​‌‌​​​​​​‌​​​​​​‌​​‌‌‌​​‌‌​​​​‌​‌‌‌​​‌‌​‌‌‌​​‌‌​‌​​‌‌​​​‌‌​​​​‌​‌‌​​​‌​​​‌​​​​​​‌​​‌‌‌​​‌‌​​​​‌​‌‌‌​​‌‌​‌‌‌​​‌‌​‌‌​​‌​‌​‌‌‌​​‌​​​‌​​​​​​​‌‌​​‌​​​‌‌​​​​​​‌‌​​‌​​​‌‌​‌‌​​​‌​‌‌​‌​​‌‌​​​​​​‌‌​‌‌​​​‌​‌‌​‌​​‌‌​​​‌​​‌‌​‌​​ — Modern Theme (inspired by V1)
 ══════════════════════════════════════════════════════════ */
 :root {
   --bg:#eceef2; --viewport-bg:#e8eaf0; --panel:#ffffff;
@@ -203,6 +216,7 @@ canvas{display:block;width:100%;height:100%;}
 #lathe-modal.open{display:block!important;}
 #arcsphere-modal.open{display:block!important;}
 #screw-modal.open{display:block!important;}
+#nut-modal.open{display:block!important;}
 #script-modal.open{display:block!important;}
 #text3d-box{
   background:var(--panel);border:1px solid var(--lo);
@@ -289,7 +303,7 @@ canvas{display:block;width:100%;height:100%;}
 .sc:first-child{flex:1;}
 
 /* ── Infos viewport ────────────────────────────────────── */
-#vinf{grid-column:1/-1;display:flex;flex-direction:column;gap:1px;padding:6px 8px;margin:6px 0 2px 0;border:1px solid var(--lo);border-radius:var(--radius-sm);background:var(--input-bg);}
+#vinf{display:flex;flex-direction:column;gap:1px;padding:6px 8px;margin:4px 2px 2px 2px;border:1px solid var(--lo);border-radius:var(--radius-sm);background:var(--input-bg);}
 .ib{
   font-family:monospace;font-size:13px;font-weight:700;
   color:var(--muted);padding:1px 0;
@@ -309,6 +323,8 @@ canvas{display:block;width:100%;height:100%;}
 /* ── Menu export ───────────────────────────────────────── */
 #exdd{position:absolute;display:none;z-index:300;background:var(--panel);border:1px solid var(--lo);border-radius:var(--radius-sm);box-shadow:0 4px 16px var(--shadow);overflow:hidden;}
 #exdd.vis{display:block;}
+#impdd{position:absolute;display:none;z-index:300;background:var(--panel);border:1px solid var(--lo);border-radius:var(--radius-sm);box-shadow:0 4px 16px var(--shadow);overflow:hidden;}
+#impdd.vis{display:block;}
 .exi{display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;white-space:nowrap;}
 .exi:hover{background:var(--accent);color:#fff;}
 .exi b{width:40px;}
@@ -394,6 +410,22 @@ canvas{display:block;width:100%;height:100%;}
 [data-theme="dark"] .cot-inp-z{color:#82b1ff;border-color:#82b1ff;background:rgba(20,21,38,0.95);}
 
 </style>
+<!-- GA4 — web-only, async, local-first safe -->
+<script>
+  (function() {
+    if (window.location.protocol === 'file:') return;
+    var s = document.createElement('script');
+    s.src = 'https://www.googletagmanager.com/gtag/js?id=G-3181YHN32V';
+    s.async = true;
+    document.head.appendChild(s);
+    s.onload = function() {
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){ dataLayer.push(arguments); }
+      gtag('js', new Date());
+      gtag('config', 'G-3181YHN32V');
+    };
+  })();
+</script>
 </head>
 <body>
 
@@ -418,11 +450,11 @@ canvas{display:block;width:100%;height:100%;}
 
 <!-- MENUBAR -->
 <div id="mbar">
-  <span id="app-logo" style="padding:2px 10px;font-weight:900;font-size:14px;letter-spacing:1px;color:var(--title-fg);background:var(--title-bg);border-right:2px solid var(--dklo);margin-right:3px;display:flex;align-items:center;height:100%;user-select:none;">⬡ NASSCAD <span style="font-size:9px;font-weight:400;opacity:0.8;margin-left:4px">V4.2.6</span></span>
+  <span id="app-logo" style="padding:2px 10px;font-weight:900;font-size:14px;letter-spacing:1px;color:var(--title-fg);background:var(--title-bg);border-right:2px solid var(--dklo);margin-right:3px;display:flex;align-items:center;height:100%;user-select:none;">⬡ NASSCAD <span style="font-size:9px;font-weight:400;opacity:0.8;margin-left:4px">V4.3.0</span></span>
   <span class="mi" onclick="newProject()">📄 New</span>
   <span class="mi" onclick="saveProjectAs()">💾 Save project as</span>
   <span class="mi" onclick="loadProject()">📂 Load project</span>
-  <span class="mi" onclick="document.getElementById('fi-import').click()">📥 Import STL/OBJ/3MF/GLB/PLY</span>
+  <span class="mi" id="imp-mi" onclick="toggleImp(this)">📥 Import ▾</span>
   <span class="mi" id="exp-mi" onclick="toggleExp(this)">📤 Export ▾</span>
   <div class="msep"></div>
   <span class="mi" style="gap:2px;cursor:default">STL:
@@ -467,7 +499,7 @@ canvas{display:block;width:100%;height:100%;}
 
 <div id="help-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:500;align-items:center;justify-content:center;">
   <div class="vb-win" style="width:min(820px,96vw);max-height:88vh;display:flex;flex-direction:column;">
-    <div class="vb-tbar"><span>❓ Help — NASSCAD V4.2.6</span><div class="vb-tbar-btns"><button class="vb-tbtn" onclick="hideHelp()">✕</button></div></div>
+    <div class="vb-tbar"><span>❓ Help — NASSCAD V4.3.0</span><div class="vb-tbar-btns"><button class="vb-tbtn" onclick="hideHelp()">✕</button></div></div>
     <div class="vb-body" style="overflow-y:auto;font-size:12px;line-height:1.6;padding:8px 10px;">
 
       <!-- Navigation -->
@@ -478,7 +510,7 @@ canvas{display:block;width:100%;height:100%;}
           <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">Shift + click</td><td style="padding:3px 6px">Multi-select (N objects) — for CSG, alignment</td></tr>
           <tr><td style="padding:3px 6px;font-weight:600">Left drag on empty zone</td><td style="padding:3px 6px"><b>Box-select</b> — draw a selection rectangle. Shift = add to selection.</td></tr>
           <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">Alt + left drag</td><td style="padding:3px 6px">Pan the grid + all objects — useful for large scenes</td></tr>
-          <tr><td style="padding:3px 6px;font-weight:600">Right click + drag</td><td style="padding:3px 6px">Orbit camera around the scene</td></tr>
+          <tr><td style="padding:3px 6px;font-weight:600">Right click + drag</td><td style="padding:3px 6px">Orbit camera — <b>full sphere</b>, including below the scene (no pole lock). Drag down to go under the model.</td></tr>
           <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">Middle click + drag</td><td style="padding:3px 6px">Pan camera</td></tr>
           <tr><td style="padding:3px 6px;font-weight:600">Scroll wheel</td><td style="padding:3px 6px">Zoom in / out</td></tr>
           <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">Single click on object</td><td style="padding:3px 6px">Select + show <b>cotation mode</b> — XYZ dimension handles, resize by dragging corners or top handle</td></tr>
@@ -499,7 +531,7 @@ canvas{display:block;width:100%;height:100%;}
           <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">Ctrl + A</td><td style="padding:3px 6px">Select all objects</td></tr>
           <tr><td style="padding:3px 6px;font-weight:600">Ctrl + C / Ctrl + V</td><td style="padding:3px 6px">Copy / Paste (offset +10mm X/Z) — geometry + transforms preserved</td></tr>
           <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">L</td><td style="padding:3px 6px">Show / hide 3D alignment handles</td></tr>
-          <tr><td style="padding:3px 6px;font-weight:600">S</td><td style="padding:3px 6px">Enable / disable magnetic snap (0.1 / 0.5 / 1 mm)</td></tr>
+          <tr><td style="padding:3px 6px;font-weight:600">S</td><td style="padding:3px 6px">Enable / disable magnetic snap (0.01 / 0.1 / 0.5 / 1 mm)</td></tr>
           <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">N</td><td style="padding:3px 6px">Toggle light / dark theme</td></tr>
           <tr><td style="padding:3px 6px;font-weight:600">1 · 2 · 3 · 4 · 5</td><td style="padding:3px 6px">Camera views: Perspective · Top · Front · Right · Reset</td></tr>
           <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">Esc</td><td style="padding:3px 6px">Deselect all / Cancel box-select / Close dialogs</td></tr>
@@ -507,7 +539,7 @@ canvas{display:block;width:100%;height:100%;}
       </div>
 
       <!-- Primitives -->
-      <div class="vb-grp"><span class="vb-grp-t">🔷 3D Primitives — 16 watertight</span>
+      <div class="vb-grp"><span class="vb-grp-t">🔷 3D Primitives — 18 watertight</span>
         <table style="width:100%;border-collapse:collapse;">
           <tr style="background:var(--sel-bg);color:var(--sel-fg)"><td colspan="2" style="padding:3px 6px;font-weight:600">Standard primitives (toolbox)</td></tr>
           <tr style="background:var(--input-bg)"><td style="width:28%;padding:3px 6px;font-weight:600">Cube</td><td style="padding:3px 6px">Box 20×20×20 mm — 6 flat faces, perfect manifold</td></tr>
@@ -529,12 +561,16 @@ canvas{display:block;width:100%;height:100%;}
           <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">⌀ RevSolid.Gen</td><td style="padding:3px 6px">Revolved solid — arc angle 1–360°. Closed caps when angle &lt; 360°. Topology: lathe + planar caps, watertight.</td></tr>
           <tr><td style="padding:3px 6px;font-weight:600">🟰 Pipe.Gen</td><td style="padding:3px 6px">Hollow pipe — straight segments + tangent arcs (radius R_bend, real tube-bending). Bishop frame (parallel transport) — zero section twist. Outer wall + inner wall + sealed caps → watertight manifold.</td></tr>
           <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">⚙ Gear.Gen</td><td style="padding:3px 6px">ISO involute gears (20° pressure) — module 0.5–8 mm, straight / helical / herringbone. V-pulley (lathe+caps). Timing pulley (ExtrudeGeometry). Configurable teeth, shaft bore → watertight.</td></tr>
+          <tr><td style="padding:3px 6px;font-weight:600">🔩 Screw.Gen</td><td style="padding:3px 6px">Vis paramétrique ISO 68-1 (M2–M24) / ASME UNC·UNF — tête Hex/CHC/None · Gros pas/Pas fin/Custom/Lisse · Lead-in/lead-out 1 pas · N_RAD 32–96 — watertight manifold garanti. Double-clic pour ré-éditer.</td></tr>
+          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">⬡ Nut.Gen</td><td style="padding:3px 6px">Écrou paramétrique ISO 4032/4033 · ASME B18.2.2 — M2–M24 / impérial UNC·UNF · Gros pas/Pas fin/Custom/Lisse · Style ISO 4032 / ISO 4033 Tall / Custom · Chanfrein 30° optionnel · N_RAD 32–64 — watertight manifold garanti. Double-clic pour ré-éditer.</td></tr>
 
           <tr style="background:var(--sel-bg);color:var(--sel-fg)"><td colspan="2" style="padding:3px 6px;font-weight:600">Hardware library</td></tr>
           <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">🔩 Threads M2–M20</td><td style="padding:3px 6px">ISO metric bolts and nuts — sizes M2 M3 M4 M5 M6 M8 M10 M12 M16 M20 — loaded from NUTS_AND_BOLTS.js on first use</td></tr>
 
           <tr style="background:var(--sel-bg);color:var(--sel-fg)"><td colspan="2" style="padding:3px 6px;font-weight:600">Import</td></tr>
-          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">Import STL/OBJ/3MF</td><td style="padding:3px 6px">Binary + ASCII STL · Wavefront OBJ with normals · 3MF with per-object colors and multi-object support — automatic centering, placed on floor</td></tr>
+          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">Import STL / OBJ / 3MF</td><td style="padding:3px 6px">Binary + ASCII STL · Wavefront OBJ with normals · 3MF with per-object colors and multi-object support — automatic centering, placed on floor</td></tr>
+          <tr><td style="padding:3px 6px;font-weight:600">Import GLB / PLY</td><td style="padding:3px 6px">Binary GLTF 2.0 (GLB) · Stanford PLY — automatic centering, manifold check</td></tr>
+
         </table>
       </div>
 
@@ -619,160 +655,35 @@ canvas{display:block;width:100%;height:100%;}
           <tr><td style="padding:3px 6px;font-weight:600">Export STL ASCII</td><td style="padding:3px 6px">Human-readable text — legacy tool compatibility</td></tr>
           <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">Export OBJ</td><td style="padding:3px 6px">Wavefront with <code>vn</code> normals — compatible Blender, FreeCAD</td></tr>
           <tr><td style="padding:3px 6px;font-weight:600">Export 3MF</td><td style="padding:3px 6px">Native format for Bambu Studio, PrusaSlicer, Cura — per-object colors, Z-up, clean ZIP</td></tr>
+          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">Export GLB</td><td style="padding:3px 6px">Binary GLTF 2.0 — Sketchfab, Blender, AR/VR, web 3D viewers</td></tr>
+          <tr><td style="padding:3px 6px;font-weight:600">Export PLY</td><td style="padding:3px 6px">Stanford PLY — MeshLab, CloudCompare, scan tools</td></tr>
+          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">STEP import/export <span style="color:var(--warn);font-size:10px">SOON</span></td><td style="padding:3px 6px">Not available in this build — OCCT WASM pipeline in development (MEDUSA PROJECT).</td></tr>
+          <tr><td style="padding:3px 6px;font-weight:600">Section SVG / DXF</td><td style="padding:3px 6px">2D cut at any Y plane — SVG for Inkscape/Illustrator · DXF for LibreCAD/Fusion/CNC</td></tr>
           <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">STL Quality</td><td style="padding:3px 6px">Buttons <b>128 / 256 / 512</b> in menubar — curve segments at export. 128 = sufficient for 0.4mm FDM.</td></tr>
           <tr><td style="padding:3px 6px;font-weight:600">📂 IDB Projects</td><td style="padding:3px 6px">Named projects saved in browser IndexedDB — list, save, load, delete. Quota bar displayed.</td></tr>
           <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">📁 Folder</td><td style="padding:3px 6px">Opens the folder containing the NASSCAD .htm file (Electron / desktop only)</td></tr>
         </table>
       </div>
 
-      <!-- NassScript -->
-      <div class="vb-grp"><span class="vb-grp-t">⚡ NassScript — Integrated JS Console</span>
-        <table style="width:100%;border-collapse:collapse;">
-          <tr style="background:var(--input-bg)"><td style="width:22%;padding:3px 6px;font-weight:600">Access</td><td style="padding:3px 6px">Menubar button <b>⚡ Script</b> — opens the script editor modal</td></tr>
-          <tr><td style="padding:3px 6px;font-weight:600">Execution</td><td style="padding:3px 6px">Runs JS code with full access to NASSCAD API: <code>objs</code>, <code>scene</code>, <code>doCSG()</code>, <code>addPrimitive()</code>, <code>nasLog()</code>… Supports <code>await</code> (async functions).</td></tr>
-          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">Shortcuts</td><td style="padding:3px 6px">Ctrl+Enter = Run · Tab = 2 spaces · Ctrl+↑/↓ = history (20 entries)</td></tr>
-          <tr><td style="padding:3px 6px;font-weight:600">Example</td><td style="padding:3px 6px"><code>addPrimitive('cube'); nasLog('OK','done');</code></td></tr>
-          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600;color:var(--warn)">⚠ Dev tool</td><td style="padding:3px 6px">Full JS scope — developer use only. Do not run unverified code.</td></tr>
-        </table>
-      </div>
 
-      <!-- Memory -->
-      <div class="vb-grp"><span class="vb-grp-t">💾 Memory — GeometryPool</span>
-        <p style="padding:3px 6px;">ArrayBuffer allocated at startup. Size chosen via <b>💾 Pool: 512MB / 1GB / 1.5GB / 2GB</b> in menubar (default 512 MB at first launch). Automatic mark-and-sweep GC. Proportions: 80% geo zone + 20% snapshot zone.</p>
-        <table style="width:100%;border-collapse:collapse;">
-          <tr style="background:var(--input-bg)"><td style="width:22%;padding:3px 6px;font-weight:600">512 MB (default)</td><td style="padding:3px 6px">Geo: ~410 MB · Snap: ~102 MB — safe for most sessions</td></tr>
-          <tr><td style="padding:3px 6px;font-weight:600">1 GB</td><td style="padding:3px 6px">Geo: ~819 MB · Snap: ~204 MB — recommended for large scenes</td></tr>
-          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">2 GB (max)</td><td style="padding:3px 6px">SharedArrayBuffer if COOP/COEP headers active (Electron) — otherwise ArrayBuffer fallback</td></tr>
-          <tr><td style="padding:3px 6px;font-weight:600">MEM gauge</td><td style="padding:3px 6px">Bar at bottom right — JS Heap + pool. Hover = full detail.</td></tr>
-          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">♻ Flush pool</td><td style="padding:3px 6px">Toolbar button — triggers mark-and-sweep GC manually. Frees orphan geometries, displays freed MB in logs.</td></tr>
-          <tr><td style="padding:3px 6px;font-weight:600">Checksum</td><td style="padding:3px 6px">XOR of first 256 bytes per slot — silent corruption detection on load.</td></tr>
-        </table>
-      </div>
-
-      <!-- Limites -->
-      <div class="vb-grp"><span class="vb-grp-t">⚠ Performance Limits</span>
-        <table style="width:100%;border-collapse:collapse;">
-          <tr style="background:var(--sel-bg);color:var(--sel-fg)"><td colspan="4" style="padding:3px 6px;font-weight:600">Three.js Rendering (WebGL — GPU)</td></tr>
-          <tr style="background:var(--input-bg)">
-            <td style="width:18%;padding:3px 6px;font-weight:600;color:var(--success)">✅ Smooth</td>
-            <td style="padding:3px 6px">&lt; 500 objects</td>
-            <td style="padding:3px 6px">&lt; 3M vertices</td>
-            <td style="padding:3px 6px">No risk</td>
-          </tr>
-          <tr>
-            <td style="padding:3px 6px;font-weight:600;color:var(--warn)">⚠ Slow</td>
-            <td style="padding:3px 6px">500–1,000 objects</td>
-            <td style="padding:3px 6px">3–8M vertices</td>
-            <td style="padding:3px 6px">FPS drop</td>
-          </tr>
-          <tr style="background:var(--input-bg)">
-            <td style="padding:3px 6px;font-weight:600;color:var(--danger)">🔴 Risk</td>
-            <td style="padding:3px 6px">&gt; 1,000 objects</td>
-            <td style="padding:3px 6px">&gt; 8M vertices</td>
-            <td style="padding:3px 6px">Likely freeze</td>
-          </tr>
-
-          <tr style="background:var(--sel-bg);color:var(--sel-fg)"><td colspan="4" style="padding:3px 6px;font-weight:600">Manifold WASM — CSG operations</td></tr>
-          <tr style="background:var(--input-bg)">
-            <td style="padding:3px 6px;font-weight:600;color:var(--success)">✅ Fast</td>
-            <td colspan="2" style="padding:3px 6px">&lt; 10,000 triangles/object (cube, cone, pyramid…)</td>
-            <td style="padding:3px 6px">&lt; 1 second</td>
-          </tr>
-          <tr>
-            <td style="padding:3px 6px;font-weight:600;color:var(--warn)">⚠ Slow</td>
-            <td colspan="2" style="padding:3px 6px">10,000–50,000 triangles/object (sphere, half-sphere)</td>
-            <td style="padding:3px 6px">1–10 seconds</td>
-          </tr>
-          <tr style="background:var(--input-bg)">
-            <td style="padding:3px 6px;font-weight:600;color:var(--danger)">🔴 Freeze</td>
-            <td colspan="2" style="padding:3px 6px">&gt; 50,000 triangles/object — threads (63K tri) in CSG</td>
-            <td style="padding:3px 6px">&gt; 30 seconds</td>
-          </tr>
-
-          <tr style="background:var(--sel-bg);color:var(--sel-fg)"><td colspan="4" style="padding:3px 6px;font-weight:600">GeometryPool + Undo/Redo (200 levels IDB)</td></tr>
-          <tr style="background:var(--input-bg)">
-            <td style="padding:3px 6px;font-weight:600;color:var(--success)">✅ Safe</td>
-            <td colspan="2" style="padding:3px 6px">&lt; 150 complex objects, &lt; 50 active undo levels</td>
-            <td style="padding:3px 6px">Pool &lt; 50%</td>
-          </tr>
-          <tr>
-            <td style="padding:3px 6px;font-weight:600;color:var(--danger)">🔴 Saturation</td>
-            <td colspan="2" style="padding:3px 6px">&gt; 300 objects or massive CSG snapshots</td>
-            <td style="padding:3px 6px">Red MEM gauge</td>
-          </tr>
-
-          <tr style="background:var(--sel-bg);color:var(--sel-fg)"><td colspan="4" style="padding:3px 6px;font-weight:600">Practical tips</td></tr>
-          <tr style="background:var(--input-bg)">
-            <td colspan="4" style="padding:4px 6px">
-              · <b>M threads in CSG:</b> use CSG⚡ 32 segs first, switch to 128 only for final export<br>
-              · <b>Box-select:</b> drag on empty zone to select groups — then <b>drag any selected object to move the whole group</b> (XZ plane, snap-aware, single Undo)<br>
-              · <b>Deep Re-run:</b> modify sources → ↺↺ Deep to re-compute entire tree without redoing manually<br>
-              · <b>Complex CSG:</b> first reduce simple groups with Union, then subtract<br>
-              · <b>MEM gauge &gt; 70%:</b> save project and reload page to free memory<br>
-              · <b>STL 128 segs:</b> sufficient for FDM 0.4mm nozzle (printer resolution &gt; 0.2mm)<br>
-              · <b>Progressive CSG:</b> sources appear hidden during Pass 1 — this is normal (restored at Pass 2)
-            </td>
-          </tr>
-        </table>
-      </div>
-
-      <!-- Algorithmes -->
-      <div class="vb-grp"><span class="vb-grp-t">🔬 Implemented Algorithms</span>
-        <table style="width:100%;border-collapse:collapse;">
-
-          <tr style="background:var(--sel-bg);color:var(--sel-fg)"><td style="padding:3px 6px;font-weight:600" colspan="2">Watertight generators — deduplicated V() pool</td></tr>
-          <tr style="background:var(--input-bg)"><td style="width:42%;padding:3px 6px;font-weight:600">_ccBuildBox()</td><td style="padding:3px 6px">Cubic.Gen — spherical slerp per edge, Map pool ix|iy|iz PREC=1e5, indexed mesh → watertight by construction</td></tr>
-          <tr><td style="padding:3px 6px;font-weight:600">_ccBuildFrustum()</td><td style="padding:3px 6px">Cylind.Gen — double-chamfer truncated cylinder. Same V() pool, angular seam closed at theta=2π → watertight</td></tr>
-          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">_toreBuild()</td><td style="padding:3px 6px">Tore.Gen — periodic topology (i+1)%N·(j+1)%M. Float64 angles, N×M vertices, 2×N×M CCW tris. 0 seam, 0 border.</td></tr>
-          <tr><td style="padding:3px 6px;font-weight:600">_makeArcSphereGeo()</td><td style="padding:3px 6px">ArcSphere.Gen — analytical normals at both poles. mergeVertices with _arcSphNoMerge sentinel (try/finally protected) for c2 normal integrity.</td></tr>
-          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">_makeLatheGeo()</td><td style="padding:3px 6px">RevSolid.Gen — arc 1–360°. Planar cap closing when angle &lt; 360°. Reconstructed at CSG quality in Deep Re-run.</td></tr>
-          <tr><td style="padding:3px 6px;font-weight:600">_pipeBuild()</td><td style="padding:3px 6px">Pipe.Gen — Bishop frame parallel transport (zero twist), straight + arc R_bend segments, outer+inner+caps → manifold</td></tr>
-          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">_gearBuild()</td><td style="padding:3px 6px">Gear.Gen — ISO 20° involute (ra=rp+m, rf=rp-1.25m, rb=rp·cos20°). V-pulley lathe+caps. Timing ExtrudeGeometry.</td></tr>
-
-          <tr style="background:var(--sel-bg);color:var(--sel-fg)"><td style="padding:3px 6px;font-weight:600" colspan="2">CSG Engine</td></tr>
-          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">Manifold.union(N)</td><td style="padding:3px 6px">Native N-ary C++ WASM merge — 1 call for N objects</td></tr>
-          <tr><td style="padding:3px 6px;font-weight:600">file:// patch</td><td style="padding:3px 6px">manifold.js converted to IIFE — removal of import(), fetch(), export default. Compatible with file://</td></tr>
-          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">WASM base64 inline</td><td style="padding:3px 6px">manifold.wasm base64-encoded in HTML — decoded via atob() at runtime. Zero network.</td></tr>
-
-          <tr style="background:var(--sel-bg);color:var(--sel-fg)"><td style="padding:3px 6px;font-weight:600" colspan="2">Normal smoothing — PP Worker (off main thread)</td></tr>
-          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">BFS continuity islands</td><td style="padding:3px 6px">Breadth-first by edges — groups faces whose angle &lt; crease. CSR v→f adjacence (Uint32Array), cache-friendly.</td></tr>
-          <tr><td style="padding:3px 6px;font-weight:600">postProcessCSGGeo()</td><td style="padding:3px 6px">Short-circuits &lt; 400 faces → computeVertexNormals native. Above: dispatched to PP Worker. Progress badge ⚡.</td></tr>
-
-          <tr style="background:var(--sel-bg);color:var(--sel-fg)"><td style="padding:3px 6px;font-weight:600" colspan="2">Memory management</td></tr>
-          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">Bump allocator</td><td style="padding:3px 6px">Zone-growing pointer — O(1) allocation. Best-fit free-list reuse before bump.</td></tr>
-          <tr><td style="padding:3px 6px;font-weight:600">Mark-and-sweep GC</td><td style="padding:3px 6px">Mark: walks objs[]._poolSlot — Sweep: frees orphans — Compact: recalculates ptrs</td></tr>
-          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">DataView globale</td><td style="padding:3px 6px">Single DataView instance shared by _slotRead/_slotWrite — zero allocation per slot access (GC pressure eliminated)</td></tr>
-
-          <tr style="background:var(--sel-bg);color:var(--sel-fg)"><td style="padding:3px 6px;font-weight:600" colspan="2">BVH Raycaster</td></tr>
-          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">AABB cache</td><td style="padding:3px 6px">Box3 world-space per mesh — rebuilt in updOList(), invalidated on any position/scale change</td></tr>
-          <tr><td style="padding:3px 6px;font-weight:600">ray.intersectsBox()</td><td style="padding:3px 6px">AABB pre-filter — candidates only, O(N) with tiny constant. firstHitOnly=true stops at first triangle hit.</td></tr>
-
-          <tr style="background:var(--sel-bg);color:var(--sel-fg)"><td style="padding:3px 6px;font-weight:600" colspan="2">CSG Tree — non-destructive history</td></tr>
-          <tr style="background:var(--input-bg)"><td style="padding:3px 6px;font-weight:600">_csgTree Map</td><td style="padding:3px 6px">Map&lt;id → {op, children[snapshot]}&gt; — stored at each doCSG(), recursive subtrees propagated</td></tr>
-          <tr><td style="padding:3px 6px;font-weight:600">IDB persistence</td><td style="padding:3px 6px">csgTree serialized as Array.from(entries()) in idbSaveProject — restored on load</td></tr>
-
-        </table>
-      </div>
-
-      <!-- Auteurs -->
-      <div class="vb-grp"><span class="vb-grp-t">🎬 Authors</span>
+            <div class="vb-grp"><span class="vb-grp-t">🎬 Authors</span>
         <table style="width:100%;border-collapse:collapse;">
           <tr style="background:var(--sel-bg);color:var(--sel-fg)">
-            <td colspan="2" style="padding:5px 6px;font-weight:600;text-align:center">NASSCAD V4.2.6 — June 2026</td>
+            <td colspan="2" style="padding:5px 6px;font-weight:600;text-align:center">NASSCAD V4.3.0 — June 2026</td>
           </tr>
           <tr style="background:var(--input-bg)">
             <td style="width:30%;padding:5px 6px;font-weight:600;color:var(--success)">✍ NASSER<br><span style="font-size:10px;font-weight:400;color:var(--muted)">Architect &amp; Tester</span></td>
             <td style="padding:5px 6px">CLIT · Electronics technician · 3D Maker<br>
-            <span style="font-size:11px;color:var(--muted)">Vision, direction, critical bug identification (CSG sizes, manifold, worker), quality standards, field testing, technology pivots.</span></td>
+            <span style="font-size:11px;color:var(--muted)">Vision, direction, critical bug identification (CSG sizes, manifold, worker), quality standards, field testing, technology pivots. STEP B-Rep export strategy (AP242 Manifold+Faceted).</span></td>
           </tr>
           <tr>
             <td style="padding:5px 6px;font-weight:600;color:var(--warn)">🤖 Claude Sonnet 4.6<br><span style="font-size:10px;font-weight:400;color:var(--muted)">Developer</span></td>
             <td style="padding:5px 6px">Artificial Intelligence · Anthropic<br>
-            <span style="font-size:11px;color:var(--muted)">Web Worker Manifold WASM · Watertight primitives · Manifold geometries verified edge by edge · Surgical patches · Systematic node --check.</span></td>
+            <span style="font-size:11px;color:var(--muted)">Web Worker Manifold WASM · Watertight primitives · Manifold geometries verified edge by edge · Surgical patches · Systematic node --check. STEP export pipeline (AP242), full-sphere orbit, sewing.</span></td>
           </tr>
           <tr style="background:var(--input-bg)">
             <td colspan="2" style="padding:4px 6px;font-size:11px;color:var(--muted)">
-              <strong>Architecture V4.2.6:</strong> Three.js r128 · Manifold WASM (Worker Pool ×N async) · Render gate _camDirty · GeometryPool 512MB–2GB (binary arena, GC mark-and-sweep, free-list reuse, DataView globale) · <strong>Undo/Redo 200 niveaux IDB</strong> (TypedArrays structured clone, _csgTree included) · <strong>BVH raycaster</strong> (AABB cache + firstHitOnly) · <strong>Box-select</strong> (rectangle NDC) · <strong>CSG Tree arborescent</strong> (non-destructive, IDB-persistent) · Progressive CSG (2-pass) · PP Worker · IndexedDB · <strong>17 primitives watertight</strong> · ArcSphere.Gen · RevSolid.Gen · Cylind.Gen · Cubic.Gen · Tore.Gen · Pipe.Gen · Gear.Gen · <strong>Screw.Gen</strong> · Face Handles 6-DOF · Rotation Gizmo 3-axis · X-Ray mode · Export STL/OBJ/3MF · Import STL/OBJ/3MF · Snap 0.1mm · Threads M2–M20 · NassScript · Sphere resolution slider
+              <strong>Architecture V4.3.0:</strong> Three.js r128 · Manifold WASM (Worker Pool ×N async) · Render gate _camDirty · GeometryPool 512MB–2GB (binary arena, GC mark-and-sweep, free-list reuse, DataView globale) · <strong>Undo/Redo 200 niveaux IDB</strong> · <strong>BVH raycaster</strong> · <strong>Box-select</strong> · <strong>CSG Tree arborescent</strong> · Progressive CSG (2-pass) · <strong>Full-sphere orbit</strong> (polar angles, no pole lock) · IndexedDB · <strong>18 primitives watertight</strong> · Screw.Gen · Nut.Gen · Face Handles 6-DOF · Rotation Gizmo 3-axis · X-Ray mode · Export STL/OBJ/3MF/GLB/PLY · Import STL/OBJ/3MF/GLB/PLY · NassScript · Threads M2–M20
             </td>
           </tr>
 
@@ -787,7 +698,7 @@ canvas{display:block;width:100%;height:100%;}
           · <strong>nasscad_logs.js</strong> (NassLab) — <em>CC BY-NC 4.0</em> — structured logging module
         </p>
         <p style="padding:6px 6px;font-size:11px;border-top:1px solid var(--lo);margin-top:4px">
-          <strong style="color:var(--accent)">⚖ NASSCAD V4.2 License</strong><br>
+          <strong style="color:var(--accent)">⚖ NASSCAD V4.3.0 License</strong><br>
           <span style="color:var(--muted)">
           © 2026 NassLab — Nasser, France<br>
           This software is distributed under the <strong>Creative Commons BY-NC 4.0</strong> license:<br>
@@ -916,6 +827,62 @@ canvas{display:block;width:100%;height:100%;}
       <div style="display:flex;gap:6px;justify-content:flex-end;">
         <button class="vb-btn" onclick="hideArcSphereDialog(true)" style="font-size:12px">Cancel</button>
         <button class="vb-btn" id="arcsphere-apply-btn" onclick="_arcSphereToScene()" style="font-size:12px;color:var(--success);font-weight:700">✔ Add to scene</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NUT GEN MODAL -->
+<div id="nut-modal" style="display:none;position:fixed;z-index:3000;min-width:320px;max-width:380px;">
+  <div class="vb-win" style="padding:0;">
+    <div class="vb-tbar" data-drag="nut-modal"><span>⬡ Nut.Gen — ISO 4032 / ASME B18</span><div class="vb-tbar-btns"><button class="vb-tbtn" onclick="hideNutDialog(true)">✕</button></div></div>
+    <div style="padding:12px;display:grid;gap:9px;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--accent);font-weight:700;">SYSTEM</div>
+      <div style="display:flex;gap:4px;">
+        <button class="vb-btn active" id="nt-sys-metric" style="flex:1;font-size:11px" onclick="_nutSetSys('metric')">Métrique — ISO</button>
+        <button class="vb-btn" id="nt-sys-imperial" style="flex:1;font-size:11px" onclick="_nutSetSys('imperial')">Impérial — ASME</button>
+      </div>
+      <div style="font-size:9px;letter-spacing:2px;color:var(--accent);font-weight:700;">SIZE</div>
+      <select id="nt-spec" style="background:var(--input-bg);border:1px solid var(--lo);color:var(--fg);padding:7px 10px;border-radius:4px;font-size:12px;font-family:monospace;" onchange="_nutRebuild()"></select>
+      <div style="font-size:9px;letter-spacing:2px;color:var(--accent);font-weight:700;">THREAD</div>
+      <div style="display:flex;gap:4px;">
+        <button class="vb-btn active" id="nt-th-coarse" style="flex:1;font-size:10px" onclick="_nutSetThread('coarse')">Gros pas</button>
+        <button class="vb-btn" id="nt-th-fine" style="flex:1;font-size:10px" onclick="_nutSetThread('fine')">Pas fin</button>
+        <button class="vb-btn" id="nt-th-custom" style="flex:1;font-size:10px" onclick="_nutSetThread('custom')">Custom</button>
+        <button class="vb-btn" id="nt-th-none" style="flex:1;font-size:10px" onclick="_nutSetThread('none')">Lisse</button>
+      </div>
+      <div id="nt-pitch-row" style="display:none;grid-template-columns:90px 1fr 52px;align-items:center;gap:3px 6px;">
+        <label style="font-size:12px">Pas (mm)</label>
+        <input type="range" id="nt-spitch" min="0.10" max="10" value="1.0" step="0.05" oninput="document.getElementById('nt-vpitch').textContent=parseFloat(this.value).toFixed(2);_nutRebuild()">
+        <span id="nt-vpitch" style="font-size:11px;color:var(--accent);text-align:right;font-family:monospace">1.00</span>
+      </div>
+      <div style="font-size:9px;letter-spacing:2px;color:var(--accent);font-weight:700;">STYLE (HAUTEUR)</div>
+      <div style="display:flex;gap:4px;">
+        <button class="vb-btn active" id="nt-st-normal" style="flex:1;font-size:10px" onclick="_nutSetStyle('normal')">ISO 4032</button>
+        <button class="vb-btn" id="nt-st-high" style="flex:1;font-size:10px" onclick="_nutSetStyle('high')">ISO 4033 Tall</button>
+        <button class="vb-btn" id="nt-st-custom" style="flex:1;font-size:10px" onclick="_nutSetStyle('custom')">Custom</button>
+      </div>
+      <div id="nt-height-row" style="display:none;grid-template-columns:90px 1fr 52px;align-items:center;gap:3px 6px;">
+        <label style="font-size:12px">Hauteur (mm)</label>
+        <input type="range" id="nt-sheight" min="1" max="50" value="5" step="0.5" oninput="document.getElementById('nt-vheight').textContent=parseFloat(this.value).toFixed(1);_nutRebuild()">
+        <span id="nt-vheight" style="font-size:11px;color:#ff9966;text-align:right;font-family:monospace;font-weight:700">5.0</span>
+      </div>
+      <div style="font-size:9px;letter-spacing:2px;color:var(--accent);font-weight:700;">CHAMFER (BISEAU 30°)</div>
+      <div style="display:flex;gap:4px;">
+        <button class="vb-btn active" id="nt-ch-on" style="flex:1;font-size:11px" onclick="_nutSetChamfer(true)">✓ ON</button>
+        <button class="vb-btn" id="nt-ch-off" style="flex:1;font-size:11px" onclick="_nutSetChamfer(false)">OFF</button>
+      </div>
+      <div style="font-size:9px;letter-spacing:2px;color:var(--accent);font-weight:700;">RADIAL SEGMENTS</div>
+      <div style="display:flex;gap:4px;align-items:center;">
+        <button class="vb-btn" id="nt-nrad-32" style="flex:1;font-size:11px;padding:3px 0" onclick="_nutSetNRad(32)">32</button>
+        <button class="vb-btn active" id="nt-nrad-48" style="flex:1;font-size:11px;padding:3px 0" onclick="_nutSetNRad(48)">48</button>
+        <button class="vb-btn" id="nt-nrad-64" style="flex:1;font-size:11px;padding:3px 0" onclick="_nutSetNRad(64)">64</button>
+        <span id="nt-vnrad" style="font-size:11px;color:var(--accent);min-width:28px;text-align:right;font-family:monospace">48</span>
+      </div>
+      <div id="nt-stats" style="font-size:10px;color:var(--muted);font-family:monospace;text-align:center;padding:4px 6px;background:var(--input-bg);border-radius:3px">—</div>
+      <div style="display:flex;gap:6px;justify-content:flex-end;">
+        <button class="vb-btn" onclick="hideNutDialog(true)" style="font-size:12px">Cancel</button>
+        <button class="vb-btn" id="nut-apply-btn" onclick="_nutToScene()" style="font-size:12px;color:var(--success);font-weight:700">✔ Add to scene</button>
       </div>
     </div>
   </div>
@@ -1390,16 +1357,18 @@ canvas{display:block;width:100%;height:100%;}
     <button class="vb-btn tbb" onclick="showLatheDialog()" title="Revolved solid arc 1–360° watertight (RevSolid.Gen)" style="font-size:20px;font-weight:800;color:var(--accent)">⌀</button>
     <button class="vb-btn tbb" onclick="showArcSphereDialog()" title="Spherical sector watertight (ArcSphere.Gen)" style="font-size:20px;font-weight:800;color:var(--accent)">◑</button>
     <button class="vb-btn tbb" onclick="showScrewDialog()" title="Parametric screw ISO 68-1 / UNC·UNF (Screw.Gen)" style="font-size:18px;font-weight:800;color:var(--accent)">🔩</button>
+    <button class="vb-btn tbb" onclick="showNutDialog()" title="Parametric nut ISO 4032/4033 · ASME B18.2.2 (Nut.Gen)" style="font-size:18px;font-weight:800;color:var(--warn)">⬡</button>
     <button class="vb-btn tbb" onclick="showTextDialog()" title="3D Text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg></button>
     <button class="vb-btn tbb" onclick="_threadDialog('screw')" title="Insert M thread (NUTS_AND_BOLTS.dat)" style="font-size:14px;font-weight:700;color:var(--success)">M⚙</button>
     <button class="vb-btn tbb" onclick="_threadDialog('nut')"   title="Insert M nut (NUTS_AND_BOLTS.dat)"    style="font-size:14px;font-weight:700;color:var(--warn)">M⬡</button>
 
     <!-- ── SNAP · VIEW ──────────────────────────── -->
     <div class="tsep">Snap · View</div>
-    <button class="vb-btn tbb" onclick="togSnap()" id="tool-snap" title="Grid snap — click: cycle 1/0.5/0.1mm/OFF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button>
-    <button class="vb-btn tbb" onclick="setSnapSize(1)"   title="Snap 1 mm"   style="font-size:20px;font-weight:700">1</button>
-    <button class="vb-btn tbb" onclick="setSnapSize(0.5)" title="Snap 0.5 mm" style="font-size:20px;font-weight:700">½</button>
-    <button class="vb-btn tbb" onclick="setSnapSize(0.1)" title="Snap 0.1 mm" style="font-size:17px;font-weight:700;color:var(--warn)">·1</button>
+    <button class="vb-btn tbb" onclick="togSnap()" id="tool-snap" title="Grid snap — click: cycle 1/0.5/0.1/0.01mm/OFF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button>
+    <button class="vb-btn tbb" onclick="setSnapSize(1)"    title="Snap 1 mm"    style="font-size:20px;font-weight:700">1</button>
+    <button class="vb-btn tbb" onclick="setSnapSize(0.5)"  title="Snap 0.5 mm"  style="font-size:20px;font-weight:700">½</button>
+    <button class="vb-btn tbb" onclick="setSnapSize(0.1)"  title="Snap 0.1 mm"  style="font-size:17px;font-weight:700;color:var(--warn)">·1</button>
+    <button class="vb-btn tbb" onclick="setSnapSize(0.01)" title="Snap 0.01 mm" style="font-size:13px;font-weight:800;color:var(--danger)">·01</button>
     <button class="vb-btn tbb" onclick="setCameraView('top')" title="Top view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="1"/><circle cx="12" cy="12" r="2"/></svg></button>
     <button class="vb-btn tbb" onclick="setCameraView('front')" title="Front view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="6" width="16" height="14" rx="1"/><line x1="4" y1="10" x2="20" y2="10"/></svg></button>
     <button class="vb-btn tbb" onclick="setCameraView('reset')" title="Reset camera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
@@ -1408,8 +1377,9 @@ canvas{display:block;width:100%;height:100%;}
     <button class="vb-btn tbb" onclick="recenterCG()" title="Recenter origin on real center of gravity (selection)" style="font-size:13px;font-weight:700;color:var(--accent)">⊕CG</button>
     <button class="vb-btn tbb" onclick="dropToGround()" title="Drop to ground — places object on Y=0 plane" style="color:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="3" x2="12" y2="17"/><polyline points="7 13 12 17 17 13"/><line x1="3" y1="21" x2="21" y2="21"/></svg></button>
     <button class="vb-btn tbb" onclick="_gridReset()" title="Reset grid + objects to center" style="font-size:24px;font-weight:700">⌂</button>
-    <button class="vb-btn tbb" onclick="scaleSelUniform(0.1)"  title="Scale selection ×0.1 — uniform proportional" style="font-size:11px;font-weight:800;color:var(--success)">·1×</button>
-    <button class="vb-btn tbb" onclick="scaleSelUniform(0.5)"  title="Scale selection ×0.5 — uniform proportional" style="font-size:11px;font-weight:800;color:var(--success)">·5×</button>
+    <button class="vb-btn tbb" onclick="scaleSelUniform(0.1)"  title="Scale selection ÷10 — uniform proportional" style="font-size:11px;font-weight:800;color:var(--warn)">/10</button>
+    <button class="vb-btn tbb" onclick="scaleSelUniform(0.2)"  title="Scale selection ÷5 — uniform proportional"  style="font-size:11px;font-weight:800;color:var(--warn)">/5</button>
+    <button class="vb-btn tbb" onclick="scaleSelUniform(0.5)"  title="Scale selection ÷2 — uniform proportional"  style="font-size:11px;font-weight:800;color:var(--warn)">/2</button>
     <button class="vb-btn tbb" onclick="scaleSelUniform(1)"    title="Reset scale ×1 (original size)"              style="font-size:12px;font-weight:800;color:var(--muted)">1×</button>
     <button class="vb-btn tbb" onclick="scaleSelUniform(2)"    title="Scale selection ×2 — uniform proportional"   style="font-size:13px;font-weight:800;color:var(--success)">2×</button>
     <button class="vb-btn tbb" onclick="scaleSelUniform(5)"    title="Scale selection ×5 — uniform proportional"   style="font-size:13px;font-weight:800;color:var(--success)">5×</button>
@@ -1437,16 +1407,9 @@ canvas{display:block;width:100%;height:100%;}
     <!-- ── FILE · UTILS ──────────────────────────── -->
     <div class="tsep">File · Utils</div>
     <button class="vb-btn tbb" onclick="saveProjectAs()" title="Save project as…" style="font-size:24px">💾</button>
-    <button class="vb-btn tbb" onclick="document.getElementById('fi-import').click()" title="Import STL / OBJ / 3MF" style="font-size:24px">📥</button>
+    <button class="vb-btn tbb" onclick="toggleImp(this)" title="Import STL / OBJ / 3MF / GLB / PLY" style="font-size:24px">📥</button>
     <button class="vb-btn tbb" onclick="toggleExp(this)" title="Export" style="font-size:24px">📤</button>
     <button class="vb-btn tbb" onclick="flushPool()" title="Flush GeometryPool memory" style="font-size:15px;font-weight:700;color:var(--warn)">♻</button>
-
-    <div id="vinf">
-  <div class="ib" id="i-v">Vertices: 0</div>
-  <div class="ib" id="i-f">Faces:     0</div>
-  <div class="ib" id="i-o">Objects:  0</div>
-  <div class="ib" id="i-ur">Undo/Redo: ↺ 0  /  ↻ 0</div>
-</div>
 
   </div>
 </div>
@@ -1489,11 +1452,11 @@ canvas{display:block;width:100%;height:100%;}
 <div style="display:grid;grid-template-columns:46px 12px 1fr 12px 1fr 12px 1fr;gap:2px;align-items:center;margin-bottom:2px;">
   <span class="plbl">Pos (mm)</span>
   <span class="ax x">X</span>
-  <input type="number" step="0.1" min="-9999" max="9999" maxlength="6" class="vb-input" style="width:100%" id="p-px" onchange="setTr('position','x',this.value)" onkeydown="panelKey(event)">
+  <input type="number" step="0.01" min="-9999" max="9999" maxlength="6" class="vb-input" style="width:100%" id="p-px" onchange="setTr('position','x',this.value)" onkeydown="panelKey(event)">
   <span class="ax y">Y</span>
-  <input type="number" step="0.1" min="-9999" max="9999" maxlength="6" class="vb-input" style="width:100%" id="p-py" onchange="setTr('position','y',this.value)" onkeydown="panelKey(event)">
+  <input type="number" step="0.01" min="-9999" max="9999" maxlength="6" class="vb-input" style="width:100%" id="p-py" onchange="setTr('position','y',this.value)" onkeydown="panelKey(event)">
   <span class="ax z">Z</span>
-  <input type="number" step="0.1" min="-9999" max="9999" maxlength="6" class="vb-input" style="width:100%" id="p-pz" onchange="setTr('position','z',this.value)" onkeydown="panelKey(event)">
+  <input type="number" step="0.01" min="-9999" max="9999" maxlength="6" class="vb-input" style="width:100%" id="p-pz" onchange="setTr('position','z',this.value)" onkeydown="panelKey(event)">
 
   <span class="plbl">Rot (°)</span>
   <span class="ax x">X</span>
@@ -1505,11 +1468,11 @@ canvas{display:block;width:100%;height:100%;}
 
   <span class="plbl">Dim (mm)</span>
   <span class="ax x">X</span>
-  <input type="number" step="0.1" min="0.1" max="99999" class="vb-input" style="width:100%" id="p-sx" onchange="setDim('x',this.value)" onkeydown="panelKey(event)">
+  <input type="number" step="0.01" min="0.01" max="99999" class="vb-input" style="width:100%" id="p-sx" onchange="setDim('x',this.value)" onkeydown="panelKey(event)">
   <span class="ax y">Y</span>
-  <input type="number" step="0.1" min="0.1" max="99999" class="vb-input" style="width:100%" id="p-sy" onchange="setDim('y',this.value)" onkeydown="panelKey(event)">
+  <input type="number" step="0.01" min="0.01" max="99999" class="vb-input" style="width:100%" id="p-sy" onchange="setDim('y',this.value)" onkeydown="panelKey(event)">
   <span class="ax z">Z</span>
-  <input type="number" step="0.1" min="0.1" max="99999" class="vb-input" style="width:100%" id="p-sz" onchange="setDim('z',this.value)" onkeydown="panelKey(event)">
+  <input type="number" step="0.01" min="0.01" max="99999" class="vb-input" style="width:100%" id="p-sz" onchange="setDim('z',this.value)" onkeydown="panelKey(event)">
 </div>
 
 <div class="psep"></div>
@@ -1590,6 +1553,12 @@ canvas{display:block;width:100%;height:100%;}
 <!-- OBJECTS -->
 <div id="opn" class="fp vb-win">
   <div class="vb-tbar" data-drag="opn"><span>📦 Objects</span><div class="vb-tbar-btns"><button class="vb-tbtn" onclick="toggleBody('opn')">_</button></div></div>
+  <div id="vinf">
+    <div class="ib" id="i-v">Vertices: 0</div>
+    <div class="ib" id="i-f">Faces:     0</div>
+    <div class="ib" id="i-o">Objects:  0</div>
+    <div class="ib" id="i-ur">Undo/Redo: ↺ 0  /  ↻ 0</div>
+  </div>
   <div class="vb-body vb-sunken" style="padding:2px;min-height:50px" id="olist-c">
     <div id="olist"></div>
     <div id="empty-sc" style="text-align:center;padding:12px 0;color:var(--muted);font-size:12px">No objects</div>
@@ -1599,9 +1568,9 @@ canvas{display:block;width:100%;height:100%;}
 
 
 <canvas id="cotation-canvas" style="position:absolute;inset:0;pointer-events:none;z-index:90;image-rendering:pixelated;"></canvas>
-<input id="cot-inp-x" class="cot-inp cot-inp-x" type="number" min="0.1" max="9999" step="0.1" style="display:none" onkeydown="cotKey(event,'x')" onblur="applyCotDim('x')">
-<input id="cot-inp-y" class="cot-inp cot-inp-y" type="number" min="0.1" max="9999" step="0.1" style="display:none" onkeydown="cotKey(event,'y')" onblur="applyCotDim('y')">
-<input id="cot-inp-z" class="cot-inp cot-inp-z" type="number" min="0.1" max="9999" step="0.1" style="display:none" onkeydown="cotKey(event,'z')" onblur="applyCotDim('z')">
+<input id="cot-inp-x" class="cot-inp cot-inp-x" type="number" min="0.01" max="9999" step="0.01" style="display:none" onkeydown="cotKey(event,'x')" onblur="applyCotDim('x')">
+<input id="cot-inp-y" class="cot-inp cot-inp-y" type="number" min="0.01" max="9999" step="0.01" style="display:none" onkeydown="cotKey(event,'y')" onblur="applyCotDim('y')">
+<input id="cot-inp-z" class="cot-inp cot-inp-z" type="number" min="0.01" max="9999" step="0.01" style="display:none" onkeydown="cotKey(event,'z')" onblur="applyCotDim('z')">
 
 <!-- STATUSBAR -->
 <div id="sbar">
@@ -1618,6 +1587,18 @@ canvas{display:block;width:100%;height:100%;}
 </div>
 
 <!-- EXPORT DROPDOWN -->
+<div id="impdd" class="vb-win">
+  <div style="padding:2px">
+    <div class="exi" onclick="doImp('.stl,.obj,.3mf,.glb,.ply')"><b>All</b> STL · OBJ · 3MF · GLB · PLY</div>
+    <div class="exi" onclick="doImp('.stl')"><b>.STL</b> Binary + ASCII</div>
+    <div class="exi" onclick="doImp('.obj')"><b>.OBJ</b> Wavefront 3D</div>
+    <div class="exi" onclick="doImp('.3mf')"><b>.3MF</b> Bambu / PrusaSlicer</div>
+    <div class="exi" onclick="doImp('.glb')"><b>.GLB</b> Binary GLTF 2.0</div>
+    <div class="exi" onclick="doImp('.ply')"><b>.PLY</b> Point cloud / scan</div>
+
+  </div>
+</div>
+
 <div id="exdd" class="vb-win">
   <div style="padding:2px">
     <div class="exi" onclick="doExp('stl')"><b>.STL</b> Binary (slicer)</div>
@@ -1762,19 +1743,20 @@ canvas{display:block;width:100%;height:100%;}
 <script src="three.js"></script>
 <script src="manifold.js"></script>
 <script src="manifold_worker.js"></script>
-<script src="helvetiker_bold.js"></script>
+<script src="helvetiker_bold.typeface.js"></script>
 <script src="NUTS_AND_BOLTS.js"></script>
-<script src="helvetiker_regular.js"></script>
-<script src="optimer_bold.js"></script>
-<script src="optimer_regular.js"></script>
-<script src="gentilis_bold.js"></script>
-<script src="gentilis_regular.js"></script>
+<script src="helvetiker_regular.typeface.js"></script>
+<script src="optimer_bold.typeface.js"></script>
+<script src="optimer_regular.typeface.js"></script>
+<script src="gentilis_bold.typeface.js"></script>
+<script src="gentilis_regular.typeface.js"></script>
 <!-- ██ LOG ENGINE — separate module (same folder as the .htm) -->
 <script src="nasscad_logs.js"></script>
+
 <script>
 /*
  * ╔══════════════════════════════════════════════════════════════╗
- * ║              NASSCAD V4.2.6 — NassLab                      ║
+ * ║              NASSCAD V4.2.7 — NassLab                      ║
  * ║                                                              ║
  * ║  © 2026 NassLab — All rights reserved                       ║
  * ║                                                              ║
@@ -1800,7 +1782,7 @@ canvas{display:block;width:100%;height:100%;}
 //     (OBJ header, logs, UI title) and in the project JSON.
 //     → Update HERE ONLY on each release.
 // ══════════════════════════════════════════════════════════════
-const NASSCAD_VERSION = '4.2.6';
+const NASSCAD_VERSION = '4.3.0';
 
 // ══ MANIFOLD WASM — now in the Web Worker ══
 // Worker is instantiated after DOM load
@@ -3086,10 +3068,10 @@ let objs=[],selObjs=[],tool='select',snap=true,snapSz=1;
 // _idMap    : Map id→obj pour hOC O(1)
 let _meshList=[], _meshMap=new Map(), _idMap=new Map();
 let _bboxCache=new Map(); // BVH — AABB monde par mesh, reconstruit dans updOList
-const SNAP_SIZES=[1,0.5,0.1];let _snapIdx=0; // cycle 1mm→0.5mm→0.1mm
+const SNAP_SIZES=[1,0.5,0.1,0.01];let _snapIdx=0; // cycle 1mm→0.5mm→0.1mm→0.01mm
 let dragging=false,orbiting=false,panning=false;
 let orbS={x:0,y:0},panS={x:0,y:0};
-let camA={theta:0,phi:Math.PI/5,dist:240},camT=new THREE.Vector3(0,0,0);
+let camA={theta:0,phi:3*Math.PI/10,dist:240},camT=new THREE.Vector3(0,0,0); // phi polaire : 0=top PI=bottom
 let _camDirty=true,_camLast={theta:-1,phi:-1,dist:-1,tx:0,ty:0,tz:0};
 let dPlane=new THREE.Plane(),dOff=new THREE.Vector3(),dObj=null;
 let objCnt=0;
@@ -3176,7 +3158,7 @@ function init(){
   document.addEventListener('focusin', e=>{
     if(e.target.closest('#sel-props')) { _setTrUndoPushed=false; _sresUndoPushed=false; }
   });
-  document.addEventListener('click',e=>{if(!e.target.closest('#exdd')&&!e.target.closest('#exp-mi')&&!e.target.closest('.tbb'))document.getElementById('exdd').classList.remove('vis');});
+  document.addEventListener('click',e=>{if(!e.target.closest('#exdd')&&!e.target.closest('#exp-mi')&&!e.target.closest('.tbb'))document.getElementById('exdd').classList.remove('vis');if(!e.target.closest('#impdd')&&!e.target.closest('#imp-mi')&&!e.target.closest('.tbb'))document.getElementById('impdd').classList.remove('vis');});
   setupDrag();
   anim();updOList();updStats();
   // _initWorker() appelé APRÈS idbLoadSettings() → workerCap IDB garanti correct
@@ -3423,7 +3405,7 @@ function _getAxisWorldPts(){
 }
 
 function updColors(){const dk=document.documentElement.getAttribute('data-theme')==='dark';ren.setClearColor(dk?0x141a26:0xf2f4f8,1);}
-function updCam(){_camDirty=true;cam.position.set(camA.dist*Math.sin(camA.theta)*Math.cos(camA.phi)+camT.x,camA.dist*Math.sin(camA.phi)+camT.y,camA.dist*Math.cos(camA.theta)*Math.cos(camA.phi)+camT.z);cam.lookAt(camT);}
+function updCam(){_camDirty=true;const _sP=Math.sin(camA.phi),_cP=Math.cos(camA.phi);cam.position.set(camA.dist*Math.sin(camA.theta)*_sP+camT.x,camA.dist*_cP+camT.y,camA.dist*Math.cos(camA.theta)*_sP+camT.z);cam.up.set(0,1,0);cam.lookAt(camT);}
 
 // ── _calibrateShadow — recalibre la shadow camera sur le bounding box réel ──
 // Appelé depuis la boucle anim() avec debounce 400ms, déclenché par _shadowDirty.
@@ -4104,7 +4086,7 @@ function updateCotation(){
   drawLine(yA,yB,colY);drawLine(yTA1,yTA2,colY);drawLine(yTB1,yTB2,colY);
 
   // ── Cotation hauteur/sol : distance entre y=0 (grille) et min.y ──
-  const dSolNum=parseFloat((Math.round(min.y*10)/10).toFixed(1));
+  const dSolNum=parseFloat((Math.round(min.y*_precMult())/_precMult()).toFixed(4));
   if(dSolNum !== 0){
     const colSol = dk?'#ffcc44':'#aa7700';
     const solOffset = min.x - offset - 8;
@@ -4124,7 +4106,7 @@ function updateCotation(){
       cotCtx.save();
       cotCtx.font='bold 11px Segoe UI,Tahoma,sans-serif';
       cotCtx.textAlign='center';cotCtx.textBaseline='middle';
-      const lbl='Floor: '+(dSolNum > 0 ? '+' : '')+dSolNum.toFixed(1)+' mm';
+      const lbl='Floor: '+(dSolNum > 0 ? '+' : '')+dSolNum.toFixed(_precDec())+' mm';
       const tw=cotCtx.measureText(lbl).width;
       cotCtx.fillStyle=dk?'rgba(30,25,0,0.85)':'rgba(255,250,220,0.92)';
       cotCtx.fillRect(sSol.x-tw/2-4,sSol.y-9,tw+8,18);
@@ -4213,7 +4195,7 @@ function updateCotation(){
     cotCtx.fill();
     cotCtx.restore();
   }
-  const sTop=toScreen(topCenter);
+  const sTop=toScreen(_hTopPt);
   if(sTop.z>0&&sTop.z<1){
     cotCtx.font='bold 12px Segoe UI, Tahoma, sans-serif';
     const ntw=cotCtx.measureText(obj.name).width;
@@ -4256,7 +4238,7 @@ function applyCotDim(axis){
   const obj=selObjs[selObjs.length-1];
   const mesh=obj.mesh;
   const inp=axis==='x'?cotInpX:axis==='y'?cotInpY:cotInpZ;
-  let newVal=Math.max(0.1,Math.min(99999,Math.round(parseFloat(inp.value)*10)/10));
+  let newVal=Math.max(_precMin(),Math.min(99999,Math.round(parseFloat(inp.value)*_precMult())/_precMult()));
   if(isNaN(newVal))return;
   // FIX V4.2.30 — Rotation-aware applyCotDim (même logique que setDim).
   // axis = axe MONDE (lettre X/Y/Z de la ligne cotation AABB affichée).
@@ -4270,7 +4252,7 @@ function applyCotDim(axis){
                  :                (_lb.max.z - _lb.min.z);
   if(lbExtent < 0.001) return;
   const curDim = Math.abs(mesh.scale[_lAxis]) * lbExtent;
-  if(Math.abs(curDim-newVal)<0.05)return;
+  if(Math.abs(curDim-newVal)<_precMin()*0.5)return;
   _cotApplying=true; inp.value=newVal;
   mesh.scale[_lAxis] = newVal / lbExtent;
   if(axis==='y'){
@@ -4288,12 +4270,22 @@ function toggleTheme(){const dk=document.documentElement.getAttribute('data-them
 
 // ── X-Ray mode — tous les objets semi-transparents, depth-write off ──────────
 let _xrayActive=false;
-function toggleXRay(){
+async function toggleXRay(){
   _xrayActive=!_xrayActive;
-  objs.forEach(o=>_applyXRay(o));
   document.getElementById('btn-xray').classList.toggle('active',_xrayActive);
+  const t0=performance.now();
+  const _totalVerts=objs.reduce((acc,o)=>acc+(o.mesh.geometry.attributes.position?.count||0),0);
+  if(_totalVerts>50000){
+    showSpinner('X-Ray '+(_xrayActive?'ON':'OFF'), 'Computing edges…');
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))); // 2 frames → spinner peint
+  }
+  for(let i=0;i<objs.length;i++){
+    _applyXRay(objs[i]);
+    if(i>0&&i%4===0) await new Promise(r=>setTimeout(r,0));
+  }
+  if(_totalVerts>50000) hideSpinner();
   _camDirty=true;
-  nasLog('OK','X-Ray '+(_xrayActive?'ON':'OFF'));
+  nasLog('OK','X-Ray '+(_xrayActive?'ON':'OFF')+' — '+Math.round(performance.now()-t0)+'ms');
 }
 function _applyXRay(o){
   if(!o||!o.mesh||!o.mesh.material)return;
@@ -4990,7 +4982,14 @@ function _csgStatus(msg) {
   _renderCsgInfo();
 }
 
-function updCSG(){if(selObjs.length<2)_csgStatus('Shift+click = multi-select (2 objects).');else if(selObjs.length===2)_csgStatus('Ready — A: '+selObjs[0].name+' / B: '+selObjs[1].name);else _csgStatus(selObjs.length+' objects.');}
+function updCSG(){
+  const _nm = selObjs.find(o=>o.isManifold===false);
+  document.querySelectorAll('.csg-ob,[title*="CSG"]').forEach(b=>b.disabled=!!_nm);
+  if(_nm) _csgStatus('⚠ "'+_nm.name+'" is non-manifold — CSG disabled');
+  else if(selObjs.length<2)_csgStatus('Shift+click = multi-select (2 objects).');
+  else if(selObjs.length===2)_csgStatus('Ready — A: '+selObjs[0].name+' / B: '+selObjs[1].name);
+  else _csgStatus(selObjs.length+' objects.');
+}
 
 let _setTrUndoPushed=false;
 function setTr(p,a,v){
@@ -5041,7 +5040,7 @@ function setDim(axis,val){
   if(!selObjs.length)return;
   const o=selObjs[selObjs.length-1];
   const mesh=o.mesh;
-  let newVal=Math.max(0.1,Math.min(99999,Math.round(parseFloat(val)*10)/10));
+  let newVal=Math.max(_precMin(),Math.min(99999,Math.round(parseFloat(val)*_precMult())/_precMult()));
   if(isNaN(newVal))return;
   if(!_setTrUndoPushed){_setTrUndoPushed=true;undoPush('transformation');}
   // FIX V4.2.30 — Rotation-aware setDim.
@@ -5198,7 +5197,8 @@ function updOList(selOnly){
   l.innerHTML=objs.map(o=>{
     const icon=o.isHole?'<span style="color:#ff3333">◯</span>':'<span style="color:'+o.color+'">■</span>';
     const _sn=o.name.replace(/[<>&"]/g,c=>'&#'+c.charCodeAt(0)+';');
-    return`<div class="oi ${selObjs.includes(o)?'sel':''}" onclick="hOC(event,${o.id})">${icon}<span class="on">${_sn}${o.isHole?' (hole)':''}</span></div>`;
+    const _warn=(o.isManifold===false)?' <span style="color:var(--warn)" title="Non-manifold — CSG disabled">⚠</span>':'';
+    return`<div class="oi ${selObjs.includes(o)?'sel':''}" onclick="hOC(event,${o.id})">${icon}<span class="on">${_sn}${o.isHole?' (hole)':''}${_warn}</span></div>`;
   }).join('');
 }
 // BVH — invalider le cache AABB d'un mesh (appelé après toute mutation position/scale)
@@ -5263,7 +5263,7 @@ function dupSel(){
   nasLog('DBG',`dupSel: ${ns.map(n=>n.name).join(', ')} (+${ns.length} objects → total ${objs.length})`);
 }
 
-function setCameraView(v){if(v==='top'){camA.theta=0;camA.phi=Math.PI/2-0.01;}else if(v==='front'){camA.theta=0;camA.phi=0.01;}else if(v==='right'){camA.theta=Math.PI/2;camA.phi=0.01;}else if(v==='persp'){camA={theta:0,phi:Math.PI/5,dist:240};camT.set(0,0,0);}else{camA={theta:0,phi:Math.PI/5,dist:300};camT.set(0,0,0);}updCam();}
+function setCameraView(v){if(v==='top'){camA.theta=0;camA.phi=0.01;}else if(v==='front'){camA.theta=0;camA.phi=Math.PI/2-0.01;}else if(v==='right'){camA.theta=Math.PI/2;camA.phi=Math.PI/2-0.01;}else if(v==='persp'){camA={theta:0,phi:3*Math.PI/10,dist:240};camT.set(0,0,0);}else{camA={theta:0,phi:3*Math.PI/10,dist:300};camT.set(0,0,0);}updCam();}
 
 function mDown(e){
   const r=ren.domElement.getBoundingClientRect();mouse.x=((e.clientX-r.left)/r.width)*2-1;mouse.y=-((e.clientY-r.top)/r.height)*2+1;
@@ -5430,7 +5430,7 @@ function mMove(e){
   }
   if(_rotActive){_rotMove_(e);return;}
   if(panning){const dx=(e.clientX-panS.x)*0.5,dy=(e.clientY-panS.y)*0.5;_panDir.subVectors(camT,cam.position).normalize();_panRi.crossVectors(cam.up,_panDir).normalize();_panUp.copy(cam.up);camT.add(_panRi.multiplyScalar(-dx)).add(_panUp.multiplyScalar(dy));panS={x:e.clientX,y:e.clientY};updCam();return;}
-  if(orbiting){camA.theta-=(e.clientX-orbS.x)*0.005;camA.phi=Math.max(0.05,Math.min(Math.PI/2-0.05,camA.phi+(e.clientY-orbS.y)*0.005));orbS={x:e.clientX,y:e.clientY};updCam();return;}
+  if(orbiting){camA.theta-=(e.clientX-orbS.x)*0.005;camA.phi=Math.max(0.01,Math.min(Math.PI-0.01,camA.phi-(e.clientY-orbS.y)*0.005));orbS={x:e.clientX,y:e.clientY};updCam();return;}
   if(dragging&&_multiDrag){
     if(!_dragUndoPushed){_dragUndoPushed=true;undoPush('move');}
     ray.setFromCamera(mouse,cam);const pt=new THREE.Vector3();
@@ -5606,6 +5606,7 @@ function editSelectedGen(){
     case 'lathe':  showLatheDialog(o);         break;
     case 'arcsphere': showArcSphereDialog(o);    break;
     case 'screw':  showScrewDialog(o);          break;
+    case 'nut':    showNutDialog(o);             break;
   }
 }
 
@@ -6073,24 +6074,27 @@ async function _threadInsert(){
   }
 }
 
+// ── Helpers précision affichage/saisie — TOUJOURS 0.01mm (centième) ──────────
+// Le snap contrôle UNIQUEMENT le magnétisme souris (_sv), pas les champs texte.
+function _precDec()  { return 2;    }
+function _precMult() { return 100;  }
+function _precMin()  { return 0.01; }
+
 // Clean snap rounding (avoids 0.30000000000000004 with 0.1mm)
 function _sv(v){ return snap ? parseFloat((Math.round(v/snapSz)*snapSz).toFixed(4)) : v; }
 
-// Format a position for display: tenth if snap<1mm, integer otherwise
-// Handles spurious floats and -0
+// Format a position — toujours 2 décimales (centième mm), indépendant du snap
 function _fmtPos(v){
-  // Nettoyer les flottants parasites (ex: 0.30000000000000004)
   const c = parseFloat(v.toFixed(4));
-  // -0 ou epsilon → afficher 0
-  if(Object.is(c,-0)||Math.abs(c)<1e-9) return '0';
-  // Always 1 decimal — positions deserve tenths of mm
-  return c.toFixed(1);
+  if(Object.is(c,-0)||Math.abs(c)<1e-9) return '0.00';
+  return c.toFixed(2);
 }
 
-// Format a dimension (bbox size): always 1 decimal, never a spurious float
+// Format a dimension (bbox size) — précision-aware
 function _fmtDim(v){
-  const c = parseFloat((Math.round(Math.max(0.1,v)*10)/10).toFixed(4));
-  return c.toFixed(1);
+  const m = _precMult(), d = _precDec(), mn = _precMin();
+  const c = parseFloat((Math.round(Math.max(mn, v) * m) / m).toFixed(4));
+  return c.toFixed(d);
 }
 function togSnap(){
   if(snap){
@@ -6120,7 +6124,7 @@ function _showSnapMenu(e){
     m=document.createElement('div');
     m.id='_snapMenu';
     m.style.cssText='position:fixed;z-index:9999;background:var(--panel);border:2px solid;border-color:var(--hi) var(--dklo) var(--dklo) var(--hi);padding:2px 0;min-width:100px;font-size:12px;';
-    [['1 mm','1'],['0.5 mm','0.5'],['0.1 mm','0.1'],['OFF','0']].forEach(([lbl,val])=>{
+    [['1 mm','1'],['0.5 mm','0.5'],['0.1 mm','0.1'],['0.01 mm','0.01'],['OFF','0']].forEach(([lbl,val])=>{
       const d=document.createElement('div');
       d.textContent=lbl;
       d.style.cssText='padding:4px 12px;cursor:pointer;';
@@ -6351,6 +6355,12 @@ function hideSpinner() {
   const ov = document.getElementById('csg-overlay');
   if(ov) ov.classList.remove('vis');
 }
+function updSpinner(label, sub) {
+  const lb = document.getElementById('csg-spinner-label');
+  const sb = document.getElementById('csg-spinner-sub');
+  if(lb && label) lb.textContent = label;
+  if(sb && sub)   sb.textContent = sub;
+}
 
 // ── CSG geometry post-processing ────────────────────────────────
 // [V4.2.41] Pipeline déchargé sur PP Worker — postProcessCSGGeo() ci-dessous.
@@ -6421,6 +6431,11 @@ async function doCSG(op) {
   // while busy was pushing an empty snapshot onto the undo stack.
   if (_csgBusy) { _csgStatus('⏳ Processing — please wait...'); return; }
   if (selObjs.length < 2) { _csgStatus('⚠ Select ≥ 2 objects (Shift+click)'); return; }
+  // Solution C — gate : Manifold WASM exige des solides watertight.
+  // Un objet non-manifold (import STEP avec faces manquantes) provoque
+  // crash/boucle infinie côté worker → bloqué ici avant d'atteindre le pool.
+  const _nm = selObjs.find(o=>o.isManifold===false);
+  if (_nm) { _csgStatus('⚠ "'+_nm.name+'" is non-manifold — CSG disabled'); return; }
   undoPush('CSG');
 
   _csgBusy = true;
@@ -6720,7 +6735,7 @@ async function doCSG(op) {
   } finally {
     clearInterval(_spinTimer); hideSpinner();
     _csgBusy = false;
-    document.querySelectorAll('.csg-ob,[title*="CSG"]').forEach(b => b.disabled = false);
+    updCSG();
   }
 }
 
@@ -7086,7 +7101,7 @@ async function deepRerunCSG(){
   } finally {
     clearInterval(_spinTimer2); hideSpinner();
     _csgBusy=false;
-    document.querySelectorAll('.csg-ob,[title*="CSG"]').forEach(b=>b.disabled=false);
+    updCSG();
   }
 }
 
@@ -7283,7 +7298,7 @@ function scaleSelUniform(f) {
     _invalidateBbox(o.mesh);
     // Repose sur la grille après le scale
     const bb = new THREE.Box3().setFromObject(o.mesh);
-    if (bb.min.y < -0.001) o.mesh.position.y -= bb.min.y;
+    o.mesh.position.y -= bb.min.y;  // repose sur grille : -= 0 si déjà ras → no-op
     o.mesh.updateMatrixWorld(true);
     _invalidateBbox(o.mesh);
     nasLog('OK', 'Scale ×' + f + ': ' + o.name);
@@ -7333,8 +7348,10 @@ function importMesh(e){
 
   function _importOne(f){
     const ext = f.name.split('.').pop().toLowerCase();
+    const _t0imp = performance.now();
     if(ext === '3mf'){ import3MF(f).then(()=>{ done++; _checkDone(); }); return; }
     if(ext === 'glb'){ importGLB(f).then(()=>{ done++; _checkDone(); }); return; }
+    if(ext === 'stp' || ext === 'step'){ nasLog('WARN','STEP import not available in this build'); done++; _checkDone(); return; }
     const reader = new FileReader();
     reader.onload = ev => {
       try{
@@ -7363,8 +7380,10 @@ function importMesh(e){
         const name = f.name.replace(/\.[^.]+$/, '') + '_' + objCnt;
         const obj  = {id:objCnt, name, type:'csg', mesh, color:col, isHole:false};
         objs.push(obj); selObjs = [obj];
+        const _impMs = Math.round(performance.now()-_t0imp);
+        const _impKB = Math.round(f.size/1024);
         document.getElementById('csg-info') && _csgLog('✓ Imported: '+name);
-        nasLog('OK','Import: '+name);
+        nasLog('OK',`Import ${ext.toUpperCase()}: ${name} — ${geo.attributes.position.count} verts — ${_impKB} KB — ${_impMs}ms`);
       }catch(err){
         nasLog('ERROR','Import '+f.name+': '+err.message);
         _nasAlert('⚠ Import failed: '+f.name+'\n'+err.message);
@@ -7459,7 +7478,7 @@ async function import3MF(file){
       if(cgid) colorMap3mf[cgid]=cols;
     });
 
-    // ── Map id → element (toutes ressources) ──
+    // ── Map id → element (ressources du fichier racine) ──
     const resMap={};
     _tags(doc,'object').forEach(o=>resMap[o.getAttribute('id')]=o);
 
@@ -7469,8 +7488,46 @@ async function import3MF(file){
       ? buildItems.map(it=>({oid:it.getAttribute('objectid'),transform:it.getAttribute('transform')}))
       : Object.keys(resMap).map(id=>({oid:id,transform:null}));
 
-    // ── Recursive function: resolve an object (may reference components) ──
-    function _resolveGeo(objEl){
+    // ── BUG-6 FIX: cache des .model externes référencés via <component p:path="..."/>
+    //    (Production extension — 3MF multi-fichiers Bambu Studio / OrcaSlicer /
+    //    Creality Print / PrusaSlicer "project". L'objet racine ne contient que
+    //    <components>, le mesh réel est dans /3D/Objects/object_N.model) ──
+    const PROD_NS='http://schemas.microsoft.com/3dmanufacturing/production/2015/06';
+    const _extCache=new Map();
+    async function _loadExternalModel(path){
+      const clean=path.replace(/^\/+/,'');
+      if(_extCache.has(clean)) return _extCache.get(clean);
+      const bytes=await _zipExtract(clean);
+      if(!bytes){ _extCache.set(clean,null); return null; }
+      const xdoc=new DOMParser().parseFromString(new TextDecoder().decode(bytes),'text/xml');
+      const xResMap={};
+      _tags(xdoc,'object').forEach(o=>xResMap[o.getAttribute('id')]=o);
+      const entry={doc:xdoc,resMap:xResMap};
+      _extCache.set(clean,entry);
+      return entry;
+    }
+
+    // ── Applique un transform 3MF (12 nombres, repère natif Z-up 3MF) ──
+    function _applyTf(posArr,transformStr){
+      if(!transformStr) return posArr;
+      const m=transformStr.trim().split(/\s+/).map(Number);
+      if(m.length!==12||m.some(v=>!isFinite(v))) return posArr;
+      const [m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11]=m;
+      if(m0===1&&m1===0&&m2===0&&m3===0&&m4===1&&m5===0&&m6===0&&m7===0&&m8===1&&m9===0&&m10===0&&m11===0) return posArr;
+      for(let i=0;i<posArr.length;i+=3){
+        const x=posArr[i],y=posArr[i+1],z=posArr[i+2];
+        posArr[i]  =m0*x+m3*y+m6*z+m9;
+        posArr[i+1]=m1*x+m4*y+m7*z+m10;
+        posArr[i+2]=m2*x+m5*y+m8*z+m11;
+      }
+      return posArr;
+    }
+
+    // ── Recursive: résout un <object> — mesh direct, ou <components> (internes
+    //    via resMapCtx, ou externes via p:path → _loadExternalModel). Retourne
+    //    les positions en repère NATIF 3MF (Z-up) ; le swap Y-up se fait une
+    //    seule fois, en sortie de boucle principale, après transform build-item. ──
+    async function _resolveGeo(objEl,resMapCtx){
       const meshEl=_tag(objEl,'mesh');
       if(meshEl){
         const vertsEl=_tags(meshEl,'vertex');
@@ -7480,20 +7537,31 @@ async function import3MF(file){
         trisEl.forEach(t=>{
           ['v1','v2','v3'].forEach(attr=>{
             const v=vertsEl[+t.getAttribute(attr)];
-            const x=+v.getAttribute('x'),y=+v.getAttribute('y'),z=+v.getAttribute('z');
-            posArr[vi++]=x;posArr[vi++]=z;posArr[vi++]=-y; // Z-up→Y-up
+            posArr[vi++]=+v.getAttribute('x');posArr[vi++]=+v.getAttribute('y');posArr[vi++]=+v.getAttribute('z');
           });
         });
         return posArr;
       }
-      // Components — merge referenced geometries
+      // Components — internes (resMapCtx) ou externes (p:path → autre fichier .model)
       const comps=_tags(objEl,'component');
       if(!comps.length) return null;
       const all=[];
-      comps.forEach(c=>{
-        const ref=resMap[c.getAttribute('objectid')];
-        if(ref){const p=_resolveGeo(ref);if(p)all.push(p);}
-      });
+      for(const c of comps){
+        const path=c.getAttributeNS(PROD_NS,'path')||c.getAttribute('p:path')||c.getAttribute('path');
+        let refEl,refMap;
+        if(path){
+          const ext=await _loadExternalModel(path);
+          if(!ext) continue;
+          refMap=ext.resMap; refEl=refMap[c.getAttribute('objectid')];
+        } else {
+          refMap=resMapCtx; refEl=refMap[c.getAttribute('objectid')];
+        }
+        if(!refEl) continue;
+        let p=await _resolveGeo(refEl,refMap);
+        if(!p) continue;
+        p=_applyTf(p,c.getAttribute('transform'));
+        all.push(p);
+      }
       if(!all.length) return null;
       const total=all.reduce((s,a)=>s+a.length,0);
       const merged=new Float32Array(total); let off=0;
@@ -7504,13 +7572,18 @@ async function import3MF(file){
     let imported=0;
     undoPush('import');
 
-    for(const {oid} of targets){
+    for(const {oid,transform:itemTf} of targets){
       const objEl=resMap[oid]; if(!objEl) continue;
       const t=objEl.getAttribute('type')||'model';
       if(t==='support'||t==='solidsupport') continue; // ignorer supports slicer
 
-      const posArr=_resolveGeo(objEl);
+      let posArr=await _resolveGeo(objEl,resMap);
       if(!posArr||posArr.length<9) continue;
+      posArr=_applyTf(posArr,itemTf); // transform du <item> (repère natif 3MF)
+      for(let i=0;i<posArr.length;i+=3){ // Z-up (3MF) → Y-up (Three.js), passe finale unique
+        const x=posArr[i],y=posArr[i+1],z=posArr[i+2];
+        posArr[i]=x;posArr[i+1]=z;posArr[i+2]=-y;
+      }
 
       const geo=new THREE.BufferGeometry();
       geo.setAttribute('position',new THREE.Float32BufferAttribute(posArr,3));
@@ -7549,6 +7622,55 @@ async function import3MF(file){
     _nasAlert('⚠ Import 3MF: '+err.message);
   }
 }
+
+// ── Manifold check + vertex welding (Solution B + C) ──────────────────────────
+// Soude les sommets proches (tolérance 1e-4mm) puis vérifie l'adjacence des arêtes :
+// un mesh watertight a chaque arête partagée par EXACTEMENT 2 triangles.
+// Retourne true/false et reconstruit geo en indexé (économise mémoire + accélère
+// le check). Triangles dégénérés (a=b, b=c, c=a) ignorés dans le comptage.
+function _weldAndCheckManifold(geo, tol){
+  tol = tol || 4; // décimales toFixed : 4=0.0001mm, 3=0.001mm (sewing STEP), 2=0.01mm
+  const pos = geo.attributes.position;
+  const ix  = geo.index; // null si non-indexée
+  // Nombre de triangles : depuis l'index si indexée, sinon depuis pos.count
+  const nT = ix ? ix.count/3 : pos.count/3;
+  // Weld : remap vertex → id unique par clé spatiale
+  const vmap=new Map(); const remap=new Array(pos.count);
+  const px=[],py=[],pz=[];
+  for(let i=0;i<pos.count;i++){
+    const x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i);
+    const k=x.toFixed(tol)+'|'+y.toFixed(tol)+'|'+z.toFixed(tol);
+    let id=vmap.get(k);
+    if(id===undefined){id=px.length;vmap.set(k,id);px.push(x);py.push(y);pz.push(z);}
+    remap[i]=id;
+  }
+  // Rebuild index (indexée ou non)
+  const newIdx=new Array(nT*3);
+  for(let t=0;t<nT;t++){
+    newIdx[t*3]  =remap[ix?ix.getX(t*3)  :t*3];
+    newIdx[t*3+1]=remap[ix?ix.getX(t*3+1):t*3+1];
+    newIdx[t*3+2]=remap[ix?ix.getX(t*3+2):t*3+2];
+  }
+  const newPos=new Float32Array(px.length*3);
+  for(let i=0;i<px.length;i++){newPos[i*3]=px[i];newPos[i*3+1]=py[i];newPos[i*3+2]=pz[i];}
+  geo.setAttribute('position',new THREE.BufferAttribute(newPos,3));
+  geo.setIndex(new THREE.BufferAttribute(new Uint32Array(newIdx),1));
+  // Edge-adjacency : mesh watertight ⇔ chaque arête partagée par exactement 2 triangles
+  const edges=new Map();
+  for(let t=0;t<nT;t++){
+    const a=newIdx[t*3],b=newIdx[t*3+1],c=newIdx[t*3+2];
+    if(a===b||b===c||c===a)continue; // dégénéré → skip
+    [[a,b],[b,c],[c,a]].forEach(([u,v])=>{
+      const k=u<v?u+'_'+v:v+'_'+u;
+      edges.set(k,(edges.get(k)||0)+1);
+    });
+  }
+  let manifold=edges.size>0;
+  for(const cnt of edges.values()){if(cnt!==2){manifold=false;break;}}
+  return manifold;
+}
+
+
 
 function parseSTL(buf){
   const geo=new THREE.BufferGeometry();
@@ -7707,13 +7829,26 @@ function _parseGLTFPrimitive(gltf,prim,binBuf){
   if(idx) geo.setIndex(new THREE.BufferAttribute(idx instanceof Uint16Array?new Uint16Array(idx):new Uint32Array(idx),1));
   return geo;
 }
-// ── Download helper: browser <a> or Electron fs ───────────────────
+// ── Filtres dialogue natif par extension ────────────────────────
+function _nasSaveFilters(filename){
+  const ext = (filename.split('.').pop()||'').toLowerCase();
+  const map = {
+    json : [{name:'NASSCAD Project',        extensions:['json']}],
+    stl  : [{name:'STL',                    extensions:['stl']}],
+    obj  : [{name:'Wavefront OBJ',          extensions:['obj']}],
+    '3mf': [{name:'3D Manufacturing (3MF)', extensions:['3mf']}],
+    glb  : [{name:'glTF Binary',            extensions:['glb']}],
+    ply  : [{name:'Stanford PLY',           extensions:['ply']}],
+    svg  : [{name:'SVG',                    extensions:['svg']}],
+    dxf  : [{name:'AutoCAD DXF',            extensions:['dxf']}]
+  };
+  return [...(map[ext]||[]), {name:'All Files', extensions:['*']}];
+}
+
+// ── Download helper: browser <a> or Electron fs (dialogue natif) ──
 async function _nasDownload(filename, blobOrString, mimeType){
   const isElectron = window.electronAPI && window.electronAPI.isElectron;
   if(isElectron){
-    // Demander chemin via dialogue natif
-    const dlPath = window.electronAPI.downloadsPath();
-    const filePath = dlPath + '/' + filename;
     let data;
     if(typeof blobOrString === 'string'){
       data = blobOrString;
@@ -7727,13 +7862,20 @@ async function _nasDownload(filename, blobOrString, mimeType){
       for(let _i=0;_i<_u8d.length;_i+=65536) _chunks.push(String.fromCharCode.apply(null,_u8d.subarray(_i,_i+65536)));
       data = _chunks.join('');
     }
+    // BUG-5 FIX: await manquant sur downloadsPath() (Promise non résolue → "[object Promise]/...")
+    // → remplacé par dialogue Save As natif, pré-rempli dans Téléchargements, filtres par format
+    const dlPath = await window.electronAPI.downloadsPath();
+    const filePath = await window.electronAPI.showSaveDialog({
+      defaultPath: dlPath + '/' + filename,
+      filters: _nasSaveFilters(filename)
+    });
+    if(!filePath){ nasLog('INFO','Export annulé'); return; }
     const result = await window.electronAPI.writeFile(filePath, data);
     if(result.ok){
       nasLog('OK','Electron export → '+filePath);
-      if(confirm('File saved:\n'+filePath+'\n\nOpen folder?'))
-        window.electronAPI.openPath(dlPath);
     } else {
       nasLog('ERROR','Electron export failed: '+result.error);
+      _nasAlert('⚠ Export error: '+result.error);
     }
   } else {
     // Mode navigateur standard
@@ -8077,13 +8219,16 @@ function newProject(){
   nasLog('OK','New project — scene reset');
   updProps();updOList();updStats();
 }
+function toggleImp(el){const dd=document.getElementById('impdd');dd.classList.toggle('vis');if(dd.classList.contains('vis')){const r=el.getBoundingClientRect();let left=r.left,top=r.bottom+2;if(left+220>window.innerWidth)left=window.innerWidth-230;if(top+100>window.innerHeight)top=r.top-100;dd.style.left=Math.max(0,left)+'px';dd.style.top=Math.max(28,top)+'px';}}
+function doImp(accept){document.getElementById('impdd').classList.remove('vis');const fi=document.getElementById('fi-import');fi.setAttribute('accept',accept);fi.click();}
 function toggleExp(el){const dd=document.getElementById('exdd');dd.classList.toggle('vis');if(dd.classList.contains('vis')){const r=el.getBoundingClientRect();let left=r.left,top=r.bottom+2;if(left+200>window.innerWidth)left=window.innerWidth-210;if(top+100>window.innerHeight)top=r.top-100;dd.style.left=Math.max(0,left)+'px';dd.style.top=Math.max(28,top)+'px';}}
 
 function doExp(f){document.getElementById('exdd').classList.remove('vis');if(!objs.length)return;if(f==='stl')expSTL();else if(f==='stl-ascii')expSTLascii();else if(f==='obj')expOBJ();else if(f==='3mf')exp3MF();else if(f==='glb')expGLB();else if(f==='ply')expPLY();else if(f==='section'){document.getElementById('sxdlg').style.display='block';}else saveProject();}
 
-// ── Export STL binaire — 4-5× plus compact que l'ASCII, natif pour les slicers
-// Structure : 80B header · 4B uint32 triCount · N×50B (12B normal + 3×12B verts + 2B attr)
 function expSTL(){
+  const t0=performance.now();
+  showSpinner('Export STL','Preparing…');
+  requestAnimationFrame(()=>{
   const cv=(x,y,z)=>({x,y:-z,z:y}); // Three Y-up → Z-up
   scene.updateMatrixWorld(true);
   // Passe 1 : construire + transformer toutes les géos HD, compter les triangles
@@ -8128,8 +8273,10 @@ function expSTL(){
     }
     g.dispose();
   });
-  nasLog('OK',`Export STL binaire — ${triCount} triangles — ${(buf.byteLength/1024).toFixed(0)} KB`);
+  nasLog('OK',`Export STL binaire — ${triCount} triangles — ${(buf.byteLength/1024).toFixed(0)} KB — ${Math.round(performance.now()-t0)}ms`);
   _nasDownload('model.stl',new Blob([buf],{type:'model/stl'}),'model/stl');
+  hideSpinner();
+  }); // end rAF
 }
 
 // ── Export STL ASCII — format texte, compatible outils legacy
@@ -8997,6 +9144,7 @@ function _genLiveUpdateNorm({vPos, normals, tris}) {
 }
 
 function _genEditBegin(obj){
+  undoPush('edit ' + (obj.genType || 'gen')); // BUG-1 FIX V4.2.7 : push AVANT tout live-update
   _genEditObj = obj;
   _genOrigGeo = obj.mesh.geometry.clone(); // snapshot pour Cancel
 }
@@ -9104,7 +9252,6 @@ function _cubeChanfreinToScene(){
 
   // ── MODE ÉDITION : géo déjà live-updatée par _genLiveUpdate → finaliser seulement ──
   if(_genEditObj){
-    undoPush('Cubic.Gen edit');
     _genEditObj.genParams = {W,H,D,c,segs:_ccSegs,mode:_ccMode_val};
     nasLog('OK','Cubic.Gen edited: '+_genEditObj.name);
     _csgLog && _csgLog('✏ Cubic.Gen edited → '+_genEditObj.name);
@@ -9452,7 +9599,6 @@ function _arcSphereToScene() {
 
   // MODE ÉDITION
   if (_genEditObj) {
-    undoPush('ArcSphere.Gen edit');
     _genEditObj.genParams = { R, Wphi, Htheta, arc };
     nasLog('OK', 'ArcSphere.Gen edited: ' + _genEditObj.name);
     _csgLog && _csgLog('✏ ArcSphere.Gen edited → ' + _genEditObj.name);
@@ -9854,7 +10000,6 @@ function _screwToScene() {
 
   // MODE ÉDITION
   if (_genEditObj) {
-    undoPush('Screw.Gen edit');
     _genEditObj.genParams = { system:_screwSys, specIdx, thread:_screwThread,
                                pitchCustom, length, head:_screwHead, nRad:_screwNRad };
     nasLog('OK','Screw.Gen edited: '+_genEditObj.name);
@@ -9914,6 +10059,390 @@ function _screwToScene() {
   }
 }
 // ══ Fin Screw.Gen ══════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════
+// ⬡ NUT.GEN — Écrou paramétrique ISO 4032/4033 · ASME B18.2.2
+// Géométrie watertight : hex ext + bore intérieur fileté ISO 60°
+// + chanfrein 30° optionnel sur les faces haut/bas
+// ══════════════════════════════════════════════════════════════════
+
+// ── Constructeur géométrie pure ────────────────────────────────────
+// params: { system, specIdx, thread, pitchCustom, style, mCustom, chamfer, nRad }
+// Retourne { vPos: Float32Array, tris: Uint32Array }
+// Géométrie posée sur Y=0 (face bas). Face haut à Y = m.
+function _makeNut(params) {
+  const sys     = params.system  || 'metric';
+  const spIdx   = params.specIdx !== undefined ? params.specIdx : 5; // M6 défaut
+  const db      = _SCREW_DB[sys] || _SCREW_DB.metric;
+  const spec    = db[Math.min(Math.max(0, spIdx), db.length - 1)];
+  const D       = spec.dia;
+  const rCrest  = D / 2;
+  const thread  = params.thread  || 'coarse';
+  const style   = params.style   || 'normal';
+  const chamfer = params.chamfer !== false;
+  const N_RAD   = params.nRad    || 48;
+
+  // ── Hauteur de l'écrou ────────────────────────────────────────
+  let m;
+  if      (style === 'custom') m = Math.max(1, params.mCustom || D * 0.8);
+  else if (style === 'high')   m = spec.m_high !== undefined ? spec.m_high : (spec.m || D * 0.8) * 1.2;
+  else                         m = spec.m      !== undefined ? spec.m      : D * 0.8;
+  m = Math.max(1, m);
+
+  // ── Pas du filet (même convention que _makeScrew) ─────────────
+  let pitch = 0, rRoot = rCrest;
+  if (thread !== 'none') {
+    if      (thread === 'custom') pitch = Math.max(0.05, params.pitchCustom || 1.0);
+    else if (thread === 'fine')   pitch = sys === 'metric' ? spec.fine   : 25.4 / spec.fine;
+    else                          pitch = sys === 'metric' ? spec.coarse : 25.4 / spec.coarse;
+    const Hv = (Math.sqrt(3) / 2) * pitch;
+    rRoot    = rCrest - (5 / 8) * Hv;
+  }
+
+  // ── Hexagone externe ──────────────────────────────────────────
+  const hexApothem = spec.s !== undefined ? spec.s / 2 : D * 0.85;
+  function hexR(theta) {
+    const a = theta % (Math.PI / 3) - Math.PI / 6;
+    return hexApothem / Math.cos(a);
+  }
+
+  // ── Profil filet ISO 60° — phase +0.5 = filet femelle ─────────
+  // Crêtes écrou (vers axe) là où la vis a ses gorges, et vice-versa.
+  function profileR(phi) {
+    const p  = ((phi % 1) + 1) % 1;
+    const HR = rCrest - rRoot;
+    if (p < 1/16 || p >= 15/16) return rCrest;
+    if (p < 6/16)   return rCrest - HR * (p - 1/16)  / (5/16);
+    if (p <= 10/16) return rRoot;
+    return rRoot + HR * (p - 10/16) / (5/16);
+  }
+
+  // ── Résolution axiale bore ────────────────────────────────────
+  const N_PER_TURN = 32, N_AX_MAX = 3200;
+  const N_AX = pitch > 0
+    ? Math.max(N_PER_TURN, Math.min(N_AX_MAX, Math.ceil((m / pitch) * N_PER_TURN)))
+    : 48;
+
+  // ── Chanfrein 30° (face haut/bas) — ISO 4032 ─────────────────
+  // ch_h = hauteur axiale du chanfrein
+  // r_cham(θ) = rayon à la face plate (Y=0 ou Y=m) = hexR(θ) − ch_h · √3
+  const SQRT3 = Math.sqrt(3);
+  const ch_h  = chamfer ? Math.min(m * 0.22, (hexApothem - rCrest) * 0.90 / SQRT3) : 0;
+  function rCham(theta) { return Math.max(rCrest + 0.01, hexR(theta) - ch_h * SQRT3); }
+
+  const verts = [], idxs = [];
+
+  // ════════════════ ANNEAUX DE SOMMETS ════════════════════════════
+
+  // Parois hex bas / haut (décalées de ch_h si chanfrein)
+  const yBot = chamfer ? ch_h : 0;
+  const yTop = chamfer ? m - ch_h : m;
+
+  const HEX_BOT = 0;
+  for (let j = 0; j < N_RAD; j++) {
+    const t = (j / N_RAD) * Math.PI * 2;
+    verts.push(Math.cos(t) * hexR(t), yBot, Math.sin(t) * hexR(t));
+  }
+  const HEX_TOP = N_RAD;
+  for (let j = 0; j < N_RAD; j++) {
+    const t = (j / N_RAD) * Math.PI * 2;
+    verts.push(Math.cos(t) * hexR(t), yTop, Math.sin(t) * hexR(t));
+  }
+
+  // Bore intérieur fileté (N_AX+1 anneaux, Y=0 → Y=m)
+  const fadeDist = pitch > 0 ? pitch : 1;
+  const BORE = 2 * N_RAD;
+  for (let i = 0; i <= N_AX; i++) {
+    const y = (i / N_AX) * m;
+    for (let j = 0; j < N_RAD; j++) {
+      const t = (j / N_RAD) * Math.PI * 2;
+      let r;
+      if (pitch <= 0) {
+        r = rCrest;
+      } else {
+        const phi   = y / pitch - t / (Math.PI * 2);
+        const rFull = profileR(phi + 0.5); // +0.5 → filet femelle
+        let fade    = 1.0;
+        if (y < fadeDist)     fade = Math.min(fade, y / fadeDist);
+        if (m - y < fadeDist) fade = Math.min(fade, (m - y) / fadeDist);
+        r = rCrest - (rCrest - rFull) * fade;
+      }
+      verts.push(Math.cos(t) * r, y, Math.sin(t) * r);
+    }
+  }
+
+  // Arêtes intérieures de chanfrein (r_cham, Y=0 / Y=m)
+  const CH_BOT = chamfer ? verts.length / 3 : -1;
+  if (chamfer) {
+    for (let j = 0; j < N_RAD; j++) {
+      const t = (j / N_RAD) * Math.PI * 2;
+      verts.push(Math.cos(t) * rCham(t), 0, Math.sin(t) * rCham(t));
+    }
+  }
+  const CH_TOP = chamfer ? verts.length / 3 : -1;
+  if (chamfer) {
+    for (let j = 0; j < N_RAD; j++) {
+      const t = (j / N_RAD) * Math.PI * 2;
+      verts.push(Math.cos(t) * rCham(t), m, Math.sin(t) * rCham(t));
+    }
+  }
+
+  // ════════════════ TRIANGULATION ═════════════════════════════════
+
+  // 1. Parois hex ext — normales sortantes (convention Screw.Gen : a,c,d,a,d,b)
+  for (let j = 0; j < N_RAD; j++) {
+    const j1 = (j + 1) % N_RAD;
+    const a = HEX_BOT + j, b = HEX_BOT + j1;
+    const c = HEX_TOP + j, d = HEX_TOP + j1;
+    idxs.push(a, c, d,  a, d, b);
+  }
+
+  // 2. Bore fileté — normales vers l'axe (winding inversé : a,c,b,a,d,c)
+  for (let i = 0; i < N_AX; i++) {
+    for (let j = 0; j < N_RAD; j++) {
+      const j1 = (j + 1) % N_RAD;
+      const a = BORE + i       * N_RAD + j;
+      const b = BORE + (i + 1) * N_RAD + j;
+      const c = BORE + (i + 1) * N_RAD + j1;
+      const d = BORE + i       * N_RAD + j1;
+      idxs.push(a, c, b,  a, d, c);
+    }
+  }
+
+  // 3. Face annulaire bas — normale -Y
+  const BORE_BOT = BORE, BORE_TOP = BORE + N_AX * N_RAD;
+  for (let j = 0; j < N_RAD; j++) {
+    const j1 = (j + 1) % N_RAD;
+    const oj  = chamfer ? CH_BOT + j  : HEX_BOT + j;
+    const oj1 = chamfer ? CH_BOT + j1 : HEX_BOT + j1;
+    const ij  = BORE_BOT + j, ij1 = BORE_BOT + j1;
+    idxs.push(oj, ij1, ij,  oj, oj1, ij1);
+  }
+
+  // 4. Face annulaire haut — normale +Y
+  for (let j = 0; j < N_RAD; j++) {
+    const j1 = (j + 1) % N_RAD;
+    const oj  = chamfer ? CH_TOP + j  : HEX_TOP + j;
+    const oj1 = chamfer ? CH_TOP + j1 : HEX_TOP + j1;
+    const ij  = BORE_TOP + j, ij1 = BORE_TOP + j1;
+    idxs.push(oj, ij, ij1,  oj, ij1, oj1);
+  }
+
+  // 5. Surfaces de chanfrein (si activé) — normales sortantes-obliques
+  if (chamfer) {
+    // Chanfrein bas : CH_BOT (r_cham, Y=0) → HEX_BOT (hexR, Y=ch_h)
+    for (let j = 0; j < N_RAD; j++) {
+      const j1 = (j + 1) % N_RAD;
+      const a = CH_BOT + j,  b = CH_BOT + j1;
+      const c = HEX_BOT + j, d = HEX_BOT + j1;
+      idxs.push(a, c, d,  a, d, b);
+    }
+    // Chanfrein haut : HEX_TOP (hexR, Y=m-ch_h) → CH_TOP (r_cham, Y=m)
+    for (let j = 0; j < N_RAD; j++) {
+      const j1 = (j + 1) % N_RAD;
+      const a = HEX_TOP + j,  b = HEX_TOP + j1;
+      const c = CH_TOP + j,   d = CH_TOP + j1;
+      idxs.push(a, c, d,  a, d, b);
+    }
+  }
+
+  return { vPos: new Float32Array(verts), tris: idxs };
+}
+
+// ── État dialog ────────────────────────────────────────────────────
+let _nutSys     = 'metric';
+let _nutThread  = 'coarse';
+let _nutStyle   = 'normal';
+let _nutChamfer = true;
+let _nutNRad    = 48;
+
+function _nutPopulateSpec(targetIdx) {
+  const sel = document.getElementById('nt-spec');
+  if (!sel) return;
+  const db = _SCREW_DB[_nutSys] || _SCREW_DB.metric;
+  sel.innerHTML = '';
+  db.forEach((s, i) => {
+    const o = document.createElement('option');
+    o.value = i;
+    o.textContent = s.name;
+    sel.appendChild(o);
+  });
+  sel.selectedIndex = targetIdx !== undefined ? targetIdx
+    : (_nutSys === 'metric' ? 5 : 4); // défaut M6 / 1/4"
+}
+
+function _nutSetSys(v) {
+  _nutSys = v;
+  document.getElementById('nt-sys-metric').classList.toggle('active',   v === 'metric');
+  document.getElementById('nt-sys-imperial').classList.toggle('active', v === 'imperial');
+  _nutPopulateSpec();
+  _nutRebuild();
+}
+
+function _nutSetThread(v) {
+  _nutThread = v;
+  ['coarse','fine','custom','none'].forEach(t =>
+    document.getElementById('nt-th-'+t).classList.toggle('active', t === v));
+  document.getElementById('nt-pitch-row').style.display = (v === 'custom') ? 'grid' : 'none';
+  _nutRebuild();
+}
+
+function _nutSetStyle(v) {
+  _nutStyle = v;
+  ['normal','high','custom'].forEach(s =>
+    document.getElementById('nt-st-'+s).classList.toggle('active', s === v));
+  document.getElementById('nt-height-row').style.display = (v === 'custom') ? 'grid' : 'none';
+  _nutRebuild();
+}
+
+function _nutSetChamfer(v) {
+  _nutChamfer = v;
+  document.getElementById('nt-ch-on').classList.toggle('active',  v);
+  document.getElementById('nt-ch-off').classList.toggle('active', !v);
+  _nutRebuild();
+}
+
+function _nutSetNRad(v) {
+  _nutNRad = v;
+  document.getElementById('nt-vnrad').textContent = v;
+  [32, 48, 64].forEach(n => {
+    const b = document.getElementById('nt-nrad-'+n);
+    if (b) b.classList.toggle('active', n === v);
+  });
+  _nutRebuild();
+}
+
+function _nutRebuild() {
+  const specIdx     = +document.getElementById('nt-spec').value;
+  const pitchCustom = +document.getElementById('nt-spitch').value;
+  const mCustom     = +document.getElementById('nt-sheight').value;
+  const geo = _makeNut({
+    system: _nutSys, specIdx,
+    thread: _nutThread, pitchCustom,
+    style:  _nutStyle,  mCustom,
+    chamfer: _nutChamfer, nRad: _nutNRad
+  });
+  const db   = _SCREW_DB[_nutSys] || _SCREW_DB.metric;
+  const spec = db[Math.min(specIdx, db.length - 1)] || {};
+  const mVal = _nutStyle === 'custom' ? mCustom
+             : _nutStyle === 'high'   ? (spec.m_high || spec.m || 0)
+             : (spec.m || 0);
+  document.getElementById('nt-stats').textContent =
+    `${spec.name || '?'} · Ø${spec.dia ? spec.dia.toFixed(1) : '?'} mm · h=${mVal.toFixed ? mVal.toFixed(1) : mVal} mm`
+    + ` · ▲ ${(geo.tris.length / 3).toLocaleString('fr-FR')} tri · ◎ ${(geo.vPos.length / 3).toLocaleString('fr-FR')} vtx`;
+  _genLiveUpdate({ vPos: geo.vPos, tris: geo.tris });
+}
+
+function showNutDialog(obj) {
+  const editMode = !!obj;
+  if (editMode) _genEditBegin(obj); else _genEditObj = null;
+
+  const p = (editMode && obj.genParams) ? obj.genParams
+    : { system:'metric', specIdx:5, thread:'coarse', pitchCustom:1.0,
+        style:'normal', mCustom:5, chamfer:true, nRad:48 };
+
+  _nutSys     = p.system  || 'metric';
+  _nutThread  = p.thread  || 'coarse';
+  _nutStyle   = p.style   || 'normal';
+  _nutChamfer = p.chamfer !== false;
+  _nutNRad    = p.nRad    || 48;
+
+  document.getElementById('nt-sys-metric').classList.toggle('active',   _nutSys === 'metric');
+  document.getElementById('nt-sys-imperial').classList.toggle('active', _nutSys === 'imperial');
+  _nutPopulateSpec(p.specIdx !== undefined ? p.specIdx : (_nutSys === 'metric' ? 5 : 4));
+  _nutSetThread(_nutThread);
+  _nutSetStyle(_nutStyle);
+  _nutSetChamfer(_nutChamfer);
+  _nutSetNRad(_nutNRad);
+
+  const sh = document.getElementById('nt-sheight'); if (sh) sh.value = (p.mCustom || 5);
+  const vh = document.getElementById('nt-vheight'); if (vh) vh.textContent = +(p.mCustom || 5).toFixed(1);
+  const sp = document.getElementById('nt-spitch');  if (sp) sp.value = (p.pitchCustom || 1.0).toFixed(2);
+  const vp = document.getElementById('nt-vpitch');  if (vp) vp.textContent = (p.pitchCustom || 1.0).toFixed(2);
+
+  _genDialogMode('nut-modal', editMode, '⬡ Nut.Gen', 'nut-apply-btn');
+  _nutRebuild();
+
+  const el = document.getElementById('nut-modal');
+  el.style.left = Math.max(196, innerWidth  - 390 - 332) + 'px';
+  el.style.top  = Math.max(34,  innerHeight - 660 - 32)  + 'px';
+  el.classList.add('open');
+}
+
+function hideNutDialog(cancel) {
+  _previewDispose();
+  if (cancel) _genEditCancel(); else _genEditApply();
+  document.getElementById('nut-modal').classList.remove('open');
+}
+
+function _nutToScene() {
+  const specIdx     = +document.getElementById('nt-spec').value;
+  const pitchCustom = +document.getElementById('nt-spitch').value;
+  const mCustom     = +document.getElementById('nt-sheight').value;
+  const db   = _SCREW_DB[_nutSys] || _SCREW_DB.metric;
+  const spec = db[Math.min(specIdx, db.length - 1)] || {};
+
+  if (_genEditObj) {
+    _genEditObj.genParams = { system:_nutSys, specIdx, thread:_nutThread,
+                               pitchCustom, style:_nutStyle, mCustom,
+                               chamfer:_nutChamfer, nRad:_nutNRad };
+    nasLog && nasLog('OK', 'Nut.Gen edited: ' + _genEditObj.name);
+    hideNutDialog(false);
+    return;
+  }
+
+  const label = spec.name || ('spec_' + specIdx);
+  showSpinner && showSpinner('Nut.Gen', label);
+  try {
+    const ngr = _makeNut({ system:_nutSys, specIdx, thread:_nutThread,
+                            pitchCustom, style:_nutStyle, mCustom,
+                            chamfer:_nutChamfer, nRad:_nutNRad });
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(ngr.vPos, 3));
+    geo.setIndex(new THREE.BufferAttribute(new Uint32Array(ngr.tris), 1));
+    geo.computeVertexNormals();
+    geo.computeBoundingBox();
+
+    undoPush('Nut.Gen');
+    objCnt++;
+    const isHole = isHoleMode;
+    const col    = isHole ? '#ff3333' : COL[objCnt % COL.length];
+    const colNum = isHole ? 0xff3333  : parseInt(col.replace('#', ''), 16);
+    const mat = new THREE.MeshPhongMaterial({
+      color:colNum, shininess:8, specular:0x1a1a1a,
+      side:THREE.DoubleSide, transparent:isHole, opacity:isHole ? 0.45 : 1
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true; mesh.receiveShadow = false;
+    scene.add(mesh);
+    mesh.updateMatrixWorld(true);
+
+    const freePos = _findFreePos(mesh, PS + 2);
+    const _bb = new THREE.Box3().setFromObject(mesh);
+    mesh.position.set(freePos.x, -_bb.min.y, freePos.z);
+
+    const name = 'nut_' + label.replace(/[^A-Za-z0-9]/g,'_') + '_' + objCnt;
+    const o    = {
+      id:objCnt, name, type:'csg', mesh, color:col, isHole,
+      genType:'nut',
+      genParams:{ system:_nutSys, specIdx, thread:_nutThread,
+                  pitchCustom, style:_nutStyle, mCustom,
+                  chamfer:_nutChamfer, nRad:_nutNRad }
+    };
+    objs.push(o); selObjs = [o];
+    updProps(); updOList(); updStats();
+    hideSpinner && hideSpinner();
+    _csgLog && _csgLog('✓ Nut.Gen → ' + name);
+    nasLog && nasLog('OK', 'Nut.Gen → ' + name);
+    hideNutDialog(false);
+  } catch(err) {
+    hideSpinner && hideSpinner();
+    nasLog && nasLog('ERROR', 'Nut.Gen: ' + err.message);
+    _nasAlert && _nasAlert('⚠ Nut.Gen: ' + err.message);
+  }
+}
+// ══ Fin Nut.Gen ═════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════
 // ⌀ RevSolid.Gen — Solide de révolution watertight
@@ -10103,7 +10632,6 @@ function _latheToScene() {
 
   // MODE ÉDITION — géo déjà live-updatée, on finalise
   if (_genEditObj) {
-    undoPush('RevSolid.Gen edit');
     _genEditObj.genParams = { R, H, N: _latheN_val, arc };
     nasLog('OK', 'RevSolid.Gen edited: ' + _genEditObj.name);
     _csgLog && _csgLog('✏ RevSolid.Gen edited → ' + _genEditObj.name);
@@ -10251,7 +10779,6 @@ function _cylindToScene(){
 
   // ── MODE ÉDITION : géo déjà live-updatée par _genLiveUpdate → finaliser seulement ──
   if(_genEditObj){
-    undoPush('Cylind.Gen edit');
     _genEditObj.genParams = {H,Rt,Rb,ct,cb,segs:_cylSegs,mode:_cylMode_val,N:_cylN_val};
     nasLog('OK','Cylind.Gen edited: '+_genEditObj.name);
     _csgLog && _csgLog('✏ Cylind.Gen edited → '+_genEditObj.name);
@@ -10637,6 +11164,31 @@ async function runScript(){
 //   [FIX]  toggleTheme : _camDirty=true manquant → canvas Three.js ne se rafraîchissait
 //          pas en temps réel (grille/axes/fond restaient à l'ancien thème jusqu'à interaction)
 //
+// V4.2.7 — 2026-06-08 — NassLab, Marseille  [AUDIT FIXES]
+//   [FIX]  BUG-1 SYSTÉMIQUE : undoPush timing incorrect dans tous les modes .gen edit
+//          Avant : undoPush('*.Gen edit') appelé APRÈS _genLiveUpdate → snapshot post-édition
+//                  → premier Ctrl+Z no-op, un niveau d'undo brûlé + redo invalidé
+//          Après : undoPush déplacé dans _genEditBegin(), avant tout live-update
+//                  → snapshot pré-édition garanti. Affecte : Screw/Cubic/ArcSphere/
+//                     RevSolid/Cylind/Tore/Pipe/Gear (8 générateurs)
+//   [FIX]  BUG-2 : _makeScrew — tris retourné en plain Array[]
+//          Avant : return { vPos: Float32Array, tris: [] } — incohérent avec les autres .gen
+//          Après : return { vPos: Float32Array, tris: Uint32Array } — aligné
+//   [DOC]  Help overlay : entrée 🔩 Screw.Gen ajoutée dans la table Generators
+//          (ISO 68-1 M2–M24 / UNC·UNF · tête Hex/CHC/None · Lead-in/out · N_RAD 32–96)
+//   [DOC]  Help header : "16 watertight" → "17 watertight" (Screw.Gen V4.2.7)
+//   [NEW]  Snap 0.01mm — précision centième de mm propagée à tout le code
+//          SNAP_SIZES [1,0.5,0.1] → [1,0.5,0.1,0.01] · cycle S + bouton ·01 (rouge)
+//          Helpers _precDec()/_precMult()/_precMin() — source unique de vérité précision
+//          _fmtPos : 2 décimales si snap≤0.01mm ou valeur sub-0.1mm
+//          _fmtDim : précision-aware (cotation labels X/Y/Z, panneau propriétés W/H/D)
+//          dSolNum / Floor label : arrondi et affichage précision-aware
+//          applyCotDim : arrondi *100/100, garde 0.005mm, min 0.01mm
+//          setDim : arrondi *100/100, min 0.01mm
+//          Inputs HTML : cot-inp-x/y/z step="0.01" min="0.01"
+//          Inputs HTML : p-px/py/pz step="0.01" · p-sx/sy/sz step="0.01" min="0.01"
+//          Menu clic-droit snap : option 0.01 mm ajoutée
+//
 
 // ── TORE.GEN — Tore Ultra-HD intégré ─────────────────────────────────────
 // Algorithme watertight manifold — NassLab 2026 (CC BY-NC 4.0)
@@ -10699,7 +11251,6 @@ function _toreToScene(){
 
   // ── MODE ÉDITION : géo déjà live-updatée par _genLiveUpdate → finaliser seulement ──
   if(_genEditObj){
-    undoPush('Tore.Gen edit');
     _genEditObj.genParams = {R,r,N,M};
     nasLog('OK','Tore.Gen edited: '+_genEditObj.name);
     _csgLog && _csgLog('✏ Tore.Gen edited → '+_genEditObj.name);
@@ -11009,7 +11560,6 @@ function _pipeToScene(){
 
   // ── MODE ÉDITION : géo déjà live-updatée par _genLiveUpdate → finaliser seulement ──
   if(_genEditObj){
-    undoPush('Pipe.Gen edit');
     _genEditObj.genParams = {re:p.rayonExterieur,ep:p.epaisseurMur,rb:p.rayonCintrage,
       sc:p.resolutionCurve,sr:p.resolutionRadial,
       l1:p.longueur1,v1y:p.angleVirage1Y,v1z:p.angleVirage1Z,
@@ -11436,7 +11986,6 @@ function _gearToScene(){
 
   // ── MODE ÉDITION : géo déjà live-updatée par _genLiveUpdate → finaliser seulement ──
   if(_genEditObj){
-    undoPush('Gear.Gen edit');
     _genEditObj.genParams = _getGearParams();
     nasLog('OK','Gear.Gen edited: '+_genEditObj.name);
     _csgLog && _csgLog('✏ Gear.Gen edited → '+_genEditObj.name);
