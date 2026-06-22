@@ -6,11 +6,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/llm"
 	"aurago/internal/security"
 )
 
@@ -57,6 +59,7 @@ func TestOAuthStartReturnsAutomatedSessionMetadataAndPKCE(t *testing.T) {
 		SessionID     string   `json:"session_id"`
 		ExpiresAt     string   `json:"expires_at"`
 		FallbackModes []string `json:"fallback_modes"`
+		RedirectURI   string   `json:"redirect_uri"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("json.Unmarshal() error = %v", err)
@@ -69,6 +72,9 @@ func TestOAuthStartReturnsAutomatedSessionMetadataAndPKCE(t *testing.T) {
 	}
 	if len(body.FallbackModes) != 1 || body.FallbackModes[0] != oauthFlowModeManualPaste {
 		t.Fatalf("fallback_modes = %#v, want manual paste fallback", body.FallbackModes)
+	}
+	if body.RedirectURI != "http://aurago.example/api/oauth/callback" {
+		t.Fatalf("redirect_uri = %q", body.RedirectURI)
 	}
 	authURL, err := url.Parse(body.AuthURL)
 	if err != nil {
@@ -124,6 +130,81 @@ func TestOAuthStartLaunchRedirectsToAuthorizationURL(t *testing.T) {
 	}
 	if raw, err := vault.ReadSecret("oauth_state_" + state); err != nil || !strings.Contains(raw, `"code_verifier"`) {
 		t.Fatalf("launch session not stored with verifier: raw=%q err=%v", raw, err)
+	}
+}
+
+func TestOAuthStatusReturnsConfigurationMetadata(t *testing.T) {
+	t.Parallel()
+
+	server, _ := newOAuthHandlerTestServer(t, "https://accounts.example/token")
+	server.Cfg.Providers = append(server.Cfg.Providers, config.ProviderEntry{
+		ID:            "incomplete",
+		Name:          "Incomplete OAuth",
+		Type:          "openai",
+		BaseURL:       "https://api.example/v1",
+		Model:         "model",
+		AuthType:      "oauth2",
+		OAuthAuthURL:  "https://accounts.example/authorize",
+		OAuthTokenURL: "",
+		OAuthClientID: "",
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/oauth/status?provider=main", nil)
+	req.Host = "aurago.example"
+	rec := httptest.NewRecorder()
+	handleOAuthStatus(server).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var configured struct {
+		Provider      string   `json:"provider"`
+		Authorized    bool     `json:"authorized"`
+		Configured    bool     `json:"configured"`
+		MissingFields []string `json:"missing_fields"`
+		RedirectURI   string   `json:"redirect_uri"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &configured); err != nil {
+		t.Fatalf("json.Unmarshal(configured) error = %v", err)
+	}
+	if configured.Provider != "main" || configured.Authorized {
+		t.Fatalf("unexpected status identity: %+v", configured)
+	}
+	if !configured.Configured {
+		t.Fatalf("configured = false, want true; body=%s", rec.Body.String())
+	}
+	if len(configured.MissingFields) != 0 {
+		t.Fatalf("missing_fields = %#v, want empty", configured.MissingFields)
+	}
+	if configured.RedirectURI != "http://aurago.example/api/oauth/callback" {
+		t.Fatalf("redirect_uri = %q", configured.RedirectURI)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/oauth/status?provider=incomplete", nil)
+	req.Host = "aurago.example"
+	rec = httptest.NewRecorder()
+	handleOAuthStatus(server).ServeHTTP(rec, req)
+
+	var incomplete struct {
+		Configured    bool     `json:"configured"`
+		MissingFields []string `json:"missing_fields"`
+		RedirectURI   string   `json:"redirect_uri"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &incomplete); err != nil {
+		t.Fatalf("json.Unmarshal(incomplete) error = %v", err)
+	}
+	if incomplete.Configured {
+		t.Fatalf("configured = true for incomplete provider; body=%s", rec.Body.String())
+	}
+	wantMissing := map[string]bool{"oauth_token_url": true, "oauth_client_id": true}
+	for _, field := range incomplete.MissingFields {
+		delete(wantMissing, field)
+	}
+	if len(wantMissing) != 0 {
+		t.Fatalf("missing_fields = %#v, still missing expected %#v", incomplete.MissingFields, wantMissing)
+	}
+	if incomplete.RedirectURI != "http://aurago.example/api/oauth/callback" {
+		t.Fatalf("redirect_uri for incomplete provider = %q", incomplete.RedirectURI)
 	}
 }
 
@@ -204,4 +285,72 @@ func TestOAuthManualCompletesStoredPKCESession(t *testing.T) {
 	if !strings.Contains(raw, "manual-access") || !strings.Contains(raw, "manual-refresh") {
 		t.Fatalf("stored token = %s", raw)
 	}
+}
+
+func TestOAuthManualAppliesTokenToRuntimeClients(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("ParseForm() error = %v", err)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"access_token":  "runtime-access",
+			"refresh_token": "runtime-refresh",
+			"token_type":    "Bearer",
+			"expires_in":    3600,
+		})
+	}))
+	t.Cleanup(tokenServer.Close)
+
+	server, vault := newOAuthHandlerTestServer(t, tokenServer.URL)
+	server.Cfg.LLM.Provider = "main"
+	server.Cfg.LLMGuardian.Enabled = true
+	server.Cfg.LLMGuardian.Provider = "main"
+	server.Cfg.ResolveProviders()
+	server.LLMClient = llm.NewFailoverManager(server.Cfg, server.Logger)
+	if fm, ok := server.LLMClient.(*llm.FailoverManager); ok {
+		t.Cleanup(fm.Stop)
+	}
+	session, err := newOAuthSession("main", oauthFlowModeBrowserCallback, "http://aurago.example/api/oauth/callback", time.Now().UTC())
+	if err != nil {
+		t.Fatalf("newOAuthSession() error = %v", err)
+	}
+	if err := storeOAuthSession(vault, session); err != nil {
+		t.Fatalf("storeOAuthSession() error = %v", err)
+	}
+
+	body := strings.NewReader(`{"url":"http://localhost:8088/api/oauth/callback?code=runtime-code&state=` + session.State + `"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/oauth/manual", body)
+	req.Host = "aurago.example"
+	rec := httptest.NewRecorder()
+
+	handleOAuthManual(server).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if server.Cfg.LLM.APIKey != "runtime-access" {
+		t.Fatalf("runtime cfg LLM APIKey = %q, want OAuth access token", server.Cfg.LLM.APIKey)
+	}
+	if got := failoverPrimaryAPIKey(t, server.LLMClient); got != "runtime-access" {
+		t.Fatalf("failover primary API key = %q, want OAuth access token", got)
+	}
+	if server.LLMGuardian == nil {
+		t.Fatal("LLMGuardian was not recreated after OAuth token application")
+	}
+}
+
+func failoverPrimaryAPIKey(t *testing.T, client llm.ChatClient) string {
+	t.Helper()
+	v := reflect.ValueOf(client)
+	if v.Kind() != reflect.Ptr || v.IsNil() {
+		t.Fatalf("client is %T, want *llm.FailoverManager", client)
+	}
+	elem := v.Elem()
+	field := elem.FieldByName("primaryAPIKey")
+	if !field.IsValid() {
+		t.Fatalf("client %T has no primaryAPIKey field", client)
+	}
+	return field.String()
 }

@@ -11,7 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/agent"
 	"aurago/internal/config"
+	"aurago/internal/llm"
 	"aurago/internal/security"
 )
 
@@ -102,6 +104,7 @@ func handleOAuthStart(s *Server) http.HandlerFunc {
 			"session_id":     session.State,
 			"expires_at":     session.ExpiresAt.Format(time.RFC3339),
 			"fallback_modes": session.FallbackModes,
+			"redirect_uri":   redirectURI,
 			"message":        "Browser authorization started. If the callback cannot reach AuraGo, paste the final redirect URL.",
 		})
 	}
@@ -184,10 +187,7 @@ func handleOAuthCallback(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Apply updated token to live config
-		s.CfgMu.Lock()
-		s.Cfg.ApplyOAuthTokens(s.Vault)
-		s.CfgMu.Unlock()
+		applyOAuthTokenToRuntime(s)
 
 		s.Logger.Info("[OAuth] Authorization successful", "provider", providerID)
 		renderOAuthResult(w, true, "Authorization successful for provider: "+providerID)
@@ -210,9 +210,27 @@ func handleOAuthStatus(s *Server) http.HandlerFunc {
 		}
 
 		result := map[string]interface{}{
-			"provider":   providerID,
-			"authorized": false,
+			"provider":       providerID,
+			"authorized":     false,
+			"configured":     false,
+			"missing_fields": []string{},
 		}
+
+		s.CfgMu.RLock()
+		prov := s.Cfg.FindProvider(providerID)
+		var entry config.ProviderEntry
+		if prov != nil {
+			entry = *prov
+		}
+		serverPort := s.Cfg.Server.Port
+		serverHost := s.Cfg.Server.Host
+		oauthBase := s.Cfg.Server.OAuthRedirectBaseURL
+		s.CfgMu.RUnlock()
+
+		result["redirect_uri"] = buildRedirectURI(r, serverHost, serverPort, oauthBase)
+		missing := oauthProviderMissingFields(prov)
+		result["missing_fields"] = missing
+		result["configured"] = len(missing) == 0 && entry.AuthType == "oauth2"
 
 		if s.Vault == nil {
 			w.Header().Set("Content-Type", "application/json")
@@ -248,6 +266,40 @@ func handleOAuthStatus(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
 	}
+}
+
+func oauthProviderMissingFields(prov *config.ProviderEntry) []string {
+	if prov == nil {
+		return []string{"provider"}
+	}
+	if prov.AuthType != "oauth2" {
+		return []string{"auth_type"}
+	}
+	missing := []string{}
+	if strings.TrimSpace(prov.OAuthAuthURL) == "" {
+		missing = append(missing, "oauth_auth_url")
+	}
+	if strings.TrimSpace(prov.OAuthTokenURL) == "" {
+		missing = append(missing, "oauth_token_url")
+	}
+	if strings.TrimSpace(prov.OAuthClientID) == "" {
+		missing = append(missing, "oauth_client_id")
+	}
+	return missing
+}
+
+func applyOAuthTokenToRuntime(s *Server) {
+	if s == nil || s.Vault == nil {
+		return
+	}
+	s.CfgMu.Lock()
+	s.Cfg.ApplyOAuthTokens(s.Vault)
+	if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
+		fm.Reconfigure(s.Cfg)
+	}
+	s.LLMGuardian = security.NewLLMGuardian(s.Cfg, s.Logger)
+	s.CfgMu.Unlock()
+	agent.ResetGlobalHelperLLMManager()
 }
 
 // handleOAuthRevoke deletes stored OAuth tokens for a provider.
@@ -546,9 +598,7 @@ func handleOAuthManual(s *Server) http.HandlerFunc {
 			return
 		}
 
-		s.CfgMu.Lock()
-		s.Cfg.ApplyOAuthTokens(s.Vault)
-		s.CfgMu.Unlock()
+		applyOAuthTokenToRuntime(s)
 
 		s.Logger.Info("[OAuth] Manual authorization successful", "provider", providerID)
 		w.Header().Set("Content-Type", "application/json")

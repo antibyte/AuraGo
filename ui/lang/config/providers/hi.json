@@ -176,5 +176,15 @@
   "config.providers.oauth_paste_help": "यदि ब्राउज़र localhost पर रुक जाए या AuraGo तक न पहुँचे तो इसका उपयोग करें.",
   "config.providers.oauth_paste_submit": "कनेक्शन पूरा करें",
   "config.providers.oauth_paste_success": "प्रदाता जुड़ गया",
-  "config.providers.oauth_save_first": "कनेक्ट करने से पहले प्रदाता को सहेजें."
+  "config.providers.oauth_save_first": "कनेक्ट करने से पहले प्रदाता को सहेजें.",
+  "config.providers.oauth_save_connect": "सहेजें और कनेक्ट करें",
+  "config.providers.oauth_reauthorize": "फिर से अधिकृत करें",
+  "config.providers.oauth_redirect_uri_label": "Redirect URI",
+  "config.providers.oauth_redirect_uri_help": "प्रदाता के OAuth ऐप में यही callback URL दर्ज करें.",
+  "config.providers.oauth_copy_redirect": "कॉपी करें",
+  "config.providers.oauth_redirect_copied": "Redirect URI कॉपी हो गई",
+  "config.providers.oauth_popup_blocked": "लॉगिन popup ब्लॉक हो गया. नीचे दिए सीधे लिंक का उपयोग करें.",
+  "config.providers.oauth_open_login": "लॉगिन खोलें",
+  "config.providers.oauth_missing_config": "OAuth कॉन्फ़िगरेशन अधूरा है",
+  "config.providers.oauth_connect_unavailable": "कनेक्ट करने से पहले OAuth फ़ील्ड पूरे करें."
 }
