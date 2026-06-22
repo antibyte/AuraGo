@@ -1108,7 +1108,7 @@ let _providerCatalogPromise = null;
         }
 
         function providerPrepareOAuthPopup() {
-            const popup = window.open('', '_blank', 'noopener,noreferrer');
+            const popup = window.open('', '_blank');
             if (!popup || popup.closed || typeof popup.closed === 'undefined') {
                 return null;
             }

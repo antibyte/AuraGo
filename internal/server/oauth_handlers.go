@@ -138,19 +138,18 @@ func handleOAuthCallback(s *Server) http.HandlerFunc {
 			renderOAuthResult(w, false, "Invalid or expired state parameter")
 			return
 		}
+		providerID := session.ProviderID
 
 		if errParam != "" {
 			errDesc := r.URL.Query().Get("error_description")
-			renderOAuthResult(w, false, fmt.Sprintf("Authorization denied: %s - %s", errParam, errDesc))
+			renderOAuthResult(w, false, fmt.Sprintf("Authorization denied: %s - %s", errParam, errDesc), providerID)
 			return
 		}
 
 		if code == "" {
-			renderOAuthResult(w, false, "Missing code parameter")
+			renderOAuthResult(w, false, "Missing code parameter", providerID)
 			return
 		}
-
-		providerID := session.ProviderID
 
 		// Look up provider config
 		s.CfgMu.RLock()

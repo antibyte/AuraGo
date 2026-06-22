@@ -326,6 +326,34 @@ func TestOAuthCallbackResultBroadcastsProviderID(t *testing.T) {
 	}
 }
 
+func TestOAuthCallbackErrorBroadcastsProviderID(t *testing.T) {
+	server, vault := newOAuthHandlerTestServer(t, "https://accounts.example/token")
+	session, err := newOAuthSession("main", oauthFlowModeBrowserCallback, "http://aurago.example/api/oauth/callback", time.Now().UTC())
+	if err != nil {
+		t.Fatalf("newOAuthSession() error = %v", err)
+	}
+	if err := storeOAuthSession(vault, session); err != nil {
+		t.Fatalf("storeOAuthSession() error = %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/oauth/callback?error=access_denied&error_description=user+cancelled&state="+session.State, nil)
+	req.Host = "aurago.example"
+	rec := httptest.NewRecorder()
+
+	handleOAuthCallback(server).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Authorization denied") {
+		t.Fatalf("callback error page should mention denied authorization: %s", body)
+	}
+	if !strings.Contains(body, `"provider_id":"main"`) {
+		t.Fatalf("callback error result did not include provider_id in broadcast payload: %s", body)
+	}
+}
+
 func TestOAuthCallbackShowsHelpfulTokenExchangeError(t *testing.T) {
 	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 
