@@ -283,6 +283,14 @@ func TestAgentSkillsResourceDialogContract(t *testing.T) {
 		}
 	}
 	for _, marker := range []string{
+		`/css/skills.css?v={{.BuildVersion}}`,
+		`/js/skills/main.js?v={{.BuildVersion}}`,
+	} {
+		if !strings.Contains(htmlText, marker) {
+			t.Fatalf("skills page must cache-bust agent skills asset %q so native prompt() code cannot stay cached", marker)
+		}
+	}
+	for _, marker := range []string{
 		"function showAgentResourcePathDialog",
 		"function validateAgentResourcePath",
 		"let agentFileDeleteInFlight = false;",
