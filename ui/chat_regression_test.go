@@ -520,6 +520,18 @@ func TestMobileMenuAndKnowledgeTabsStayLinear(t *testing.T) {
 			t.Fatalf("css/knowledge.css missing mobile tab scroll marker %q", marker)
 		}
 	}
+
+	for _, marker := range []string{
+		"padding: clamp(var(--space-3), 2vw, var(--space-5)) var(--space-4) 60px;",
+		"gap: clamp(4px, 0.7vw, var(--space-2));",
+		"font-size: clamp(var(--text-sm), 1.1vw, var(--text-base));",
+		"min-height: 42px;",
+		"font-size: max(0.78rem, var(--text-sm));",
+	} {
+		if !strings.Contains(knowledgeCSS, marker) {
+			t.Fatalf("css/knowledge.css missing compact knowledge header marker %q", marker)
+		}
+	}
 }
 
 func TestRadialMenuButtonsKeepSurfaceBackground(t *testing.T) {
