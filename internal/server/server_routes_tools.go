@@ -114,6 +114,18 @@ func (s *Server) registerToolAPIRoutes(mux *http.ServeMux) {
 				handleApproveAgentSkillWarning(s)(w, r)
 				return
 			}
+			if strings.HasSuffix(r.URL.Path, "/files/rename") {
+				handleAgentSkillFileRename(s)(w, r)
+				return
+			}
+			if strings.HasSuffix(r.URL.Path, "/files/upload") {
+				handleAgentSkillFileUpload(s)(w, r)
+				return
+			}
+			if strings.HasSuffix(r.URL.Path, "/files/raw") {
+				handleAgentSkillFileRaw(s)(w, r)
+				return
+			}
 			if strings.HasSuffix(r.URL.Path, "/files") {
 				handleAgentSkillFile(s)(w, r)
 				return

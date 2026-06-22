@@ -145,13 +145,30 @@
                     <textarea id="agent-skill-content" class="sk-input sk-textarea sk-agent-editor" rows="18" spellcheck="false"></textarea>
                 </div>
                 <div class="sk-form-group" id="agent-resource-browser" style="display:none;">
-                    <label data-i18n="skills.agent_resources"></label>
-                    <div id="agent-resource-list" class="sk-resource-list"></div>
-                    <div class="sk-code-meta-grid">
-                        <input type="text" id="agent-resource-path" class="sk-input" placeholder="" data-i18n-placeholder="skills.agent_resource_path_placeholder">
-                        <button class="btn btn-secondary" type="button" onclick="saveAgentSkillResource()" data-i18n="skills.agent_btn_save_resource"></button>
+                    <div class="sk-file-manager-header">
+                        <label data-i18n="skills.agent_resources"></label>
+                        <div class="sk-file-manager-actions">
+                            <button class="btn btn-sm btn-secondary" type="button" onclick="newAgentSkillFile()" data-i18n="skills.agent_btn_new_file">+ File</button>
+                            <button class="btn btn-sm btn-secondary" type="button" onclick="uploadAgentSkillFile()" data-i18n="skills.agent_btn_upload_file">Upload</button>
+                        </div>
                     </div>
-                    <textarea id="agent-resource-content" class="sk-input sk-textarea" rows="8" spellcheck="false"></textarea>
+                    <div id="agent-resource-list" class="sk-resource-list sk-file-tree"></div>
+                    <input type="file" id="agent-file-upload-input" style="display:none" onchange="handleAgentFileUpload(event)">
+                    <div id="agent-file-editor" style="display:none;">
+                        <div class="sk-code-meta-grid">
+                            <input type="text" id="agent-resource-path" class="sk-input" placeholder="" data-i18n-placeholder="skills.agent_resource_path_placeholder" readonly>
+                            <div class="sk-file-editor-actions">
+                                <button class="btn btn-sm btn-secondary" type="button" onclick="renameAgentSkillFile()" data-i18n="skills.agent_btn_rename_file">Rename</button>
+                                <button class="btn btn-sm btn-danger" type="button" onclick="deleteAgentSkillFile()" data-i18n="skills.agent_btn_delete_file">Delete</button>
+                                <button class="btn btn-sm btn-primary" type="button" onclick="saveAgentSkillResource()" data-i18n="skills.agent_btn_save_resource">Save</button>
+                            </div>
+                        </div>
+                        <textarea id="agent-resource-content" class="sk-input sk-textarea" rows="8" spellcheck="false"></textarea>
+                        <div id="agent-binary-download" style="display:none;">
+                            <p class="sk-inline-help" data-i18n="skills.agent_file_binary"></p>
+                            <button class="btn btn-sm btn-secondary" type="button" onclick="downloadAgentSkillFile()" data-i18n="skills.agent_btn_download_file">Download</button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-actions">
@@ -197,10 +214,13 @@
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeAgentSkillTestModal()">&times;</button>
             </div>
             <div class="modal-body">
+                <div id="agent-nonpython-warning" class="sk-upload-warning" style="display:none;">
+                    <span data-i18n="skills.agent_nonpython_warning"></span>
+                </div>
                 <div class="sk-code-meta-grid">
                     <div class="sk-form-group">
                         <label data-i18n="skills.agent_script_path"></label>
-                        <select id="agent-test-script" class="sk-select"></select>
+                        <select id="agent-test-script" class="sk-select" onchange="onAgentTestScriptChange()"></select>
                     </div>
                     <div class="sk-form-group">
                         <label data-i18n="skills.test_args_label"></label>

@@ -198,5 +198,21 @@
   "skills.agent_import_folder": "本地文件夹路径",
   "skills.agent_resources": "资源",
   "skills.agent_test_title": "测试 Agent Skill 脚本",
-  "skills.detail_security": "安全"
+  "skills.detail_security": "安全",
+  "skills.agent_btn_new_file": "+ 文件",
+  "skills.agent_btn_delete_file": "删除",
+  "skills.agent_btn_rename_file": "重命名",
+  "skills.agent_btn_upload_file": "上传",
+  "skills.agent_btn_download_file": "下载",
+  "skills.agent_file_binary": "这是一个二进制文件。请使用下载按钮保存。",
+  "skills.agent_file_text": "文本文件",
+  "skills.agent_file_script": "脚本文件",
+  "skills.agent_file_reference": "参考文件",
+  "skills.agent_file_agent": "代理配置",
+  "skills.agent_new_file_prompt": "输入文件路径（例如 references/guide.md）：",
+  "skills.agent_rename_prompt": "输入新路径：",
+  "skills.agent_delete_file_confirm": "删除文件 {path}？",
+  "skills.agent_nonpython_warning": "此脚本不是 Python。Bash 和 JavaScript 脚本在执行前需要用户明确批准。",
+  "skills.agent_agents_folder": "代理",
+  "skills.agent_create_with_resources": "使用资源创建"
 }

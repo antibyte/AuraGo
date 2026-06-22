@@ -82,25 +82,92 @@ func TestParseAgentSkillPackageRejectsInvalidStructure(t *testing.T) {
 		}
 	})
 
-	t.Run("only python scripts are executable in v1", func(t *testing.T) {
-		root := t.TempDir()
-		skillDir := filepath.Join(root, "shell-skill")
-		writeAgentSkillFile(t, skillDir, "SKILL.md", validAgentSkillMarkdown("shell-skill"))
-		writeAgentSkillFile(t, skillDir, "scripts/run.sh", "echo nope\n")
-
-		if _, err := ParseAgentSkillPackage(skillDir); err == nil {
-			t.Fatal("expected non-python script to be rejected")
+	t.Run("name must not have leading hyphen", func(t *testing.T) {
+		if agentSkillNamePattern.MatchString("-bad-name") {
+			t.Fatal("expected leading hyphen to be rejected by pattern")
 		}
 	})
 
-	t.Run("nested resources are rejected", func(t *testing.T) {
+	t.Run("name must not have trailing hyphen", func(t *testing.T) {
+		if agentSkillNamePattern.MatchString("bad-name-") {
+			t.Fatal("expected trailing hyphen to be rejected by pattern")
+		}
+	})
+
+	t.Run("name must not have consecutive hyphens", func(t *testing.T) {
+		if agentSkillNamePattern.MatchString("bad--name") {
+			t.Fatal("expected consecutive hyphens to be rejected by pattern")
+		}
+	})
+}
+
+func TestParseAgentSkillPackageAcceptsNestedAndAgents(t *testing.T) {
+	t.Run("nested references are accepted", func(t *testing.T) {
 		root := t.TempDir()
 		skillDir := filepath.Join(root, "nested-skill")
 		writeAgentSkillFile(t, skillDir, "SKILL.md", validAgentSkillMarkdown("nested-skill"))
-		writeAgentSkillFile(t, skillDir, "references/deep/REFERENCE.md", "# nope\n")
+		writeAgentSkillFile(t, skillDir, "references/deep/REFERENCE.md", "# Deep Reference\n")
+		writeAgentSkillFile(t, skillDir, "references/guide.md", "# Guide\n")
 
-		if _, err := ParseAgentSkillPackage(skillDir); err == nil {
-			t.Fatal("expected nested resources to be rejected")
+		pkg, err := ParseAgentSkillPackage(skillDir)
+		if err != nil {
+			t.Fatalf("ParseAgentSkillPackage: %v", err)
+		}
+		if len(pkg.Resources) < 2 {
+			t.Fatalf("expected at least 2 resources, got %d: %+v", len(pkg.Resources), pkg.Resources)
+		}
+	})
+
+	t.Run("agents/openai.yaml is accepted", func(t *testing.T) {
+		root := t.TempDir()
+		skillDir := filepath.Join(root, "agents-skill")
+		writeAgentSkillFile(t, skillDir, "SKILL.md", validAgentSkillMarkdown("agents-skill"))
+		writeAgentSkillFile(t, skillDir, "agents/openai.yaml", "model: gpt-4\n")
+		writeAgentSkillFile(t, skillDir, "scripts/run.py", "print('ok')\n")
+
+		pkg, err := ParseAgentSkillPackage(skillDir)
+		if err != nil {
+			t.Fatalf("ParseAgentSkillPackage: %v", err)
+		}
+		if len(pkg.Agents) != 1 || pkg.Agents[0].Path != "agents/openai.yaml" {
+			t.Fatalf("Agents=%+v, want agents/openai.yaml", pkg.Agents)
+		}
+		if pkg.Agents[0].Kind != "agent" {
+			t.Fatalf("agent resource kind=%q, want agent", pkg.Agents[0].Kind)
+		}
+	})
+
+	t.Run("sh and js scripts are accepted as resources", func(t *testing.T) {
+		root := t.TempDir()
+		skillDir := filepath.Join(root, "multi-script")
+		writeAgentSkillFile(t, skillDir, "SKILL.md", validAgentSkillMarkdown("multi-script"))
+		writeAgentSkillFile(t, skillDir, "scripts/main.py", "print('py')\n")
+		writeAgentSkillFile(t, skillDir, "scripts/setup.sh", "echo shell\n")
+		writeAgentSkillFile(t, skillDir, "scripts/helper.js", "console.log('js')\n")
+
+		pkg, err := ParseAgentSkillPackage(skillDir)
+		if err != nil {
+			t.Fatalf("ParseAgentSkillPackage: %v", err)
+		}
+		if len(pkg.Scripts) != 3 {
+			t.Fatalf("Scripts=%+v, want 3 scripts", pkg.Scripts)
+		}
+		var pyExe, shExe, jsExe bool
+		for _, s := range pkg.Scripts {
+			switch {
+			case strings.HasSuffix(s.Path, ".py"):
+				pyExe = s.Executable
+			case strings.HasSuffix(s.Path, ".sh"):
+				shExe = s.Executable
+			case strings.HasSuffix(s.Path, ".js"):
+				jsExe = s.Executable
+			}
+		}
+		if !pyExe {
+			t.Fatal("expected .py script to be executable")
+		}
+		if shExe || jsExe {
+			t.Fatalf("expected .sh/.js scripts to NOT be executable by default (sh=%t js=%t)", shExe, jsExe)
 		}
 	})
 }

@@ -60,6 +60,7 @@ type AgentSkillPackage struct {
 	Body          string               `json:"body"`
 	Resources     []AgentSkillResource `json:"resources,omitempty"`
 	Scripts       []AgentSkillResource `json:"scripts,omitempty"`
+	Agents        []AgentSkillResource `json:"agents,omitempty"`
 	PackageHash   string               `json:"package_hash"`
 }
 
@@ -76,6 +77,7 @@ type AgentSkillRegistryEntry struct {
 	SkillPath       string               `json:"skill_path"`
 	Resources       []AgentSkillResource `json:"resources,omitempty"`
 	Scripts         []AgentSkillResource `json:"scripts,omitempty"`
+	Agents          []AgentSkillResource `json:"agents,omitempty"`
 	Enabled         bool                 `json:"enabled"`
 	WarningApproved bool                 `json:"warning_approved"`
 	SecurityStatus  SecurityStatus       `json:"security_status"`
@@ -149,6 +151,7 @@ func MigrateAgentSkillsDB(db *sql.DB) error {
 		skill_path TEXT NOT NULL,
 		resources TEXT DEFAULT '[]',
 		scripts TEXT DEFAULT '[]',
+		agents TEXT DEFAULT '[]',
 		enabled INTEGER DEFAULT 0,
 		warning_approved INTEGER DEFAULT 0,
 		security_status TEXT DEFAULT 'pending',
@@ -182,6 +185,13 @@ func MigrateAgentSkillsDB(db *sql.DB) error {
 	`
 	if _, err := db.Exec(schema); err != nil {
 		return fmt.Errorf("failed to create agent skills schema: %w", err)
+	}
+	// Additive migration: agents column for existing databases.
+	if _, err := db.Exec(`ALTER TABLE agent_skills_registry ADD COLUMN agents TEXT DEFAULT '[]'`); err != nil {
+		// Column already exists — safe to ignore.
+		if !strings.Contains(err.Error(), "duplicate column") {
+			return fmt.Errorf("failed to migrate agent skills schema (agents column): %w", err)
+		}
 	}
 	return nil
 }
@@ -235,6 +245,12 @@ func ParseAgentSkillPackage(skillDir string) (*AgentSkillPackage, error) {
 	if err != nil {
 		return nil, err
 	}
+	var agents []AgentSkillResource
+	for _, r := range resources {
+		if r.Kind == "agent" {
+			agents = append(agents, r)
+		}
+	}
 	return &AgentSkillPackage{
 		Name:          front.Name,
 		Description:   front.Description,
@@ -247,6 +263,7 @@ func ParseAgentSkillPackage(skillDir string) (*AgentSkillPackage, error) {
 		Body:          body,
 		Resources:     resources,
 		Scripts:       scripts,
+		Agents:        agents,
 		PackageHash:   hash,
 	}, nil
 }
@@ -290,7 +307,7 @@ func validateAgentSkillFrontmatter(skillDir string, front agentSkillFrontmatter)
 		return fmt.Errorf("agent skill name is required")
 	}
 	if len(name) > maxAgentSkillNameLength || !agentSkillNamePattern.MatchString(name) {
-		return fmt.Errorf("agent skill name must be lowercase letters, numbers, and single hyphens only")
+		return fmt.Errorf("agent skill name must be 1-%d lowercase alphanumeric characters and single hyphens (no leading/trailing/consecutive hyphens)", maxAgentSkillNameLength)
 	}
 	if filepath.Base(skillDir) != name {
 		return fmt.Errorf("agent skill name %q must match parent directory %q", name, filepath.Base(skillDir))
@@ -346,19 +363,16 @@ func enumerateAgentSkillFiles(skillDir string) ([]AgentSkillResource, []AgentSki
 			totalBytes += len(data)
 			return nil
 		}
-		parts := strings.Split(rel, "/")
 		if d.IsDir() {
-			if len(parts) == 1 && isAgentSkillAllowedTopDir(parts[0]) {
-				return nil
-			}
-			return fmt.Errorf("nested or unsupported directory %q is not allowed", rel)
+			return nil
 		}
-		if len(parts) != 2 || !isAgentSkillAllowedTopDir(parts[0]) {
-			return fmt.Errorf("agent skill resources must be one-level files in scripts/, references/, or assets/: %s", rel)
+		parts := strings.Split(rel, "/")
+		if len(parts) < 2 {
+			return nil
 		}
-		kind := strings.TrimSuffix(parts[0], "s")
-		if parts[0] == "scripts" && !strings.HasSuffix(strings.ToLower(parts[1]), ".py") {
-			return fmt.Errorf("agent skill v1 only supports Python scripts in scripts/: %s", rel)
+		topDir := parts[0]
+		if !isAgentSkillAllowedTopDir(topDir) {
+			return nil
 		}
 		data, err := os.ReadFile(path)
 		if err != nil {
@@ -368,14 +382,18 @@ func enumerateAgentSkillFiles(skillDir string) ([]AgentSkillResource, []AgentSki
 		if totalBytes > maxAgentSkillPackageBytes {
 			return fmt.Errorf("agent skill package too large")
 		}
+		kind := classifyAgentSkillResource(topDir, rel)
+		scriptExts := map[string]bool{".py": true, ".sh": true, ".js": true}
+		ext := strings.ToLower(filepath.Ext(parts[len(parts)-1]))
+		isScript := topDir == "scripts" && scriptExts[ext]
 		res := AgentSkillResource{
 			Path:       rel,
 			Kind:       kind,
 			Size:       info.Size(),
-			Executable: parts[0] == "scripts",
+			Executable: isScript && ext == ".py",
 		}
 		resources = append(resources, res)
-		if parts[0] == "scripts" {
+		if isScript {
 			scripts = append(scripts, res)
 		}
 		files = append(files, hashInput{path: rel, data: data})
@@ -397,8 +415,28 @@ func enumerateAgentSkillFiles(skillDir string) ([]AgentSkillResource, []AgentSki
 	return resources, scripts, hex.EncodeToString(h.Sum(nil)), nil
 }
 
+func classifyAgentSkillResource(topDir, relPath string) string {
+	switch topDir {
+	case "scripts":
+		return "script"
+	case "references":
+		return "reference"
+	case "assets":
+		return "asset"
+	case "agents":
+		return "agent"
+	default:
+		return "file"
+	}
+}
+
 func isAgentSkillAllowedTopDir(name string) bool {
-	return name == "scripts" || name == "references" || name == "assets"
+	switch name {
+	case "scripts", "references", "assets", "agents":
+		return true
+	default:
+		return false
+	}
 }
 
 // ScanAgentSkillPackage scans SKILL.md, references, and Python scripts for security risks.
@@ -418,12 +456,30 @@ func ScanAgentSkillPackage(ctx context.Context, pkg *AgentSkillPackage, guardian
 		if err != nil {
 			return nil, SecurityError, fmt.Errorf("reading script %s: %w", script.Path, err)
 		}
-		for _, f := range StaticCodeAnalysis(string(data)) {
+		ext := strings.ToLower(filepath.Ext(script.Path))
+		var scriptFindings []Finding
+		switch ext {
+		case ".sh":
+			scriptFindings = StaticCodeAnalysisBash(string(data))
+		case ".js":
+			scriptFindings = StaticCodeAnalysisJS(string(data))
+		default:
+			scriptFindings = StaticCodeAnalysis(string(data))
+		}
+		for _, f := range scriptFindings {
 			f.Message = fmt.Sprintf("%s (%s)", f.Message, script.Path)
 			findings = append(findings, f)
 		}
 	}
 	report.StaticAnalysis = findings
+	hasNonPythonScript := false
+	for _, s := range pkg.Scripts {
+		ext := strings.ToLower(filepath.Ext(s.Path))
+		if ext == ".sh" || ext == ".js" {
+			hasNonPythonScript = true
+			break
+		}
+	}
 	if useGuardian && guardian != nil {
 		guardianText := buildAgentSkillGuardianText(pkg)
 		result := guardian.EvaluateContent(ctx, "agent_skill_package", guardianText)
@@ -432,6 +488,11 @@ func ScanAgentSkillPackage(ctx context.Context, pkg *AgentSkillPackage, guardian
 		report.GuardianReason = result.Reason
 	}
 	status := DetermineSecurityStatus(report)
+	if hasNonPythonScript && status == SecurityClean {
+		status = SecurityWarning
+		report.OverallStatus = string(SecurityWarning)
+		report.OverallScore = 0.5
+	}
 	return report, status, nil
 }
 
@@ -439,7 +500,7 @@ func scanAgentSkillMarkdownFiles(pkg *AgentSkillPackage) ([]Finding, error) {
 	var findings []Finding
 	files := []string{"SKILL.md"}
 	for _, res := range pkg.Resources {
-		if res.Kind == "reference" {
+		if res.Kind == "reference" || res.Kind == "agent" {
 			files = append(files, res.Path)
 		}
 	}
@@ -876,6 +937,7 @@ func (m *AgentSkillManager) upsertAgentSkillPackage(pkg *AgentSkillPackage, acto
 	}
 	resourcesJSON, _ := json.Marshal(pkg.Resources)
 	scriptsJSON, _ := json.Marshal(pkg.Scripts)
+	agentsJSON, _ := json.Marshal(pkg.Agents)
 	metadataJSON, _ := json.Marshal(pkg.Metadata)
 	reportJSON, _ := json.Marshal(report)
 	var existingID string
@@ -884,19 +946,21 @@ func (m *AgentSkillManager) upsertAgentSkillPackage(pkg *AgentSkillPackage, acto
 		existingID = fmt.Sprintf("%s_%d", pkg.Name, time.Now().UnixMilli())
 		_, err = m.db.Exec(`INSERT INTO agent_skills_registry
 			(id, name, description, license, compatibility, metadata, allowed_tools, directory, skill_path,
-			 resources, scripts, enabled, warning_approved, security_status, security_report, package_hash, created_by)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 resources, scripts, agents, enabled, warning_approved, security_status, security_report, package_hash, created_by)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			existingID, pkg.Name, pkg.Description, pkg.License, pkg.Compatibility, string(metadataJSON), pkg.AllowedTools,
-			pkg.Directory, pkg.SkillPath, string(resourcesJSON), string(scriptsJSON), boolInt(enabled), boolInt(warningApproved),
+			pkg.Directory, pkg.SkillPath, string(resourcesJSON), string(scriptsJSON), string(agentsJSON),
+			boolInt(enabled), boolInt(warningApproved),
 			string(status), nullableJSON(reportJSON, report), pkg.PackageHash, actor)
 	} else if err == nil {
 		_, err = m.db.Exec(`UPDATE agent_skills_registry SET
 			description = ?, license = ?, compatibility = ?, metadata = ?, allowed_tools = ?, directory = ?, skill_path = ?,
-			resources = ?, scripts = ?, enabled = ?, warning_approved = ?, security_status = ?, security_report = ?,
+			resources = ?, scripts = ?, agents = ?, enabled = ?, warning_approved = ?, security_status = ?, security_report = ?,
 			package_hash = ?, updated_at = CURRENT_TIMESTAMP
 			WHERE id = ?`,
 			pkg.Description, pkg.License, pkg.Compatibility, string(metadataJSON), pkg.AllowedTools, pkg.Directory,
-			pkg.SkillPath, string(resourcesJSON), string(scriptsJSON), boolInt(enabled), boolInt(warningApproved),
+			pkg.SkillPath, string(resourcesJSON), string(scriptsJSON), string(agentsJSON),
+			boolInt(enabled), boolInt(warningApproved),
 			string(status), nullableJSON(reportJSON, report), pkg.PackageHash, existingID)
 	}
 	if err != nil {
@@ -925,7 +989,7 @@ func boolInt(v bool) int {
 
 func (m *AgentSkillManager) ListAgentSkills(enabledOnly bool, search string) ([]AgentSkillRegistryEntry, error) {
 	query := `SELECT id, name, description, license, compatibility, metadata, allowed_tools, directory, skill_path,
-		resources, scripts, enabled, warning_approved, security_status, security_report, package_hash,
+		resources, scripts, agents, enabled, warning_approved, security_status, security_report, package_hash,
 		created_at, updated_at, created_by FROM agent_skills_registry WHERE 1=1`
 	var args []any
 	if enabledOnly {
@@ -955,14 +1019,14 @@ func (m *AgentSkillManager) ListAgentSkills(enabledOnly bool, search string) ([]
 
 func (m *AgentSkillManager) GetAgentSkill(id string) (*AgentSkillRegistryEntry, error) {
 	row := m.db.QueryRow(`SELECT id, name, description, license, compatibility, metadata, allowed_tools, directory, skill_path,
-		resources, scripts, enabled, warning_approved, security_status, security_report, package_hash,
+		resources, scripts, agents, enabled, warning_approved, security_status, security_report, package_hash,
 		created_at, updated_at, created_by FROM agent_skills_registry WHERE id = ?`, id)
 	return scanAgentSkillEntry(row)
 }
 
 func (m *AgentSkillManager) GetAgentSkillByName(name string) (*AgentSkillRegistryEntry, error) {
 	row := m.db.QueryRow(`SELECT id, name, description, license, compatibility, metadata, allowed_tools, directory, skill_path,
-		resources, scripts, enabled, warning_approved, security_status, security_report, package_hash,
+		resources, scripts, agents, enabled, warning_approved, security_status, security_report, package_hash,
 		created_at, updated_at, created_by FROM agent_skills_registry WHERE name = ?`, name)
 	return scanAgentSkillEntry(row)
 }
@@ -973,11 +1037,11 @@ type rowScanner interface {
 
 func scanAgentSkillEntry(row rowScanner) (*AgentSkillRegistryEntry, error) {
 	var entry AgentSkillRegistryEntry
-	var metadata, resources, scripts string
+	var metadata, resources, scripts, agents string
 	var report sql.NullString
 	var enabled, warningApproved int
 	if err := row.Scan(&entry.ID, &entry.Name, &entry.Description, &entry.License, &entry.Compatibility, &metadata,
-		&entry.AllowedTools, &entry.Directory, &entry.SkillPath, &resources, &scripts, &enabled, &warningApproved,
+		&entry.AllowedTools, &entry.Directory, &entry.SkillPath, &resources, &scripts, &agents, &enabled, &warningApproved,
 		&entry.SecurityStatus, &report, &entry.PackageHash, &entry.CreatedAt, &entry.UpdatedAt, &entry.CreatedBy); err != nil {
 		return nil, err
 	}
@@ -986,6 +1050,7 @@ func scanAgentSkillEntry(row rowScanner) (*AgentSkillRegistryEntry, error) {
 	_ = json.Unmarshal([]byte(metadata), &entry.Metadata)
 	_ = json.Unmarshal([]byte(resources), &entry.Resources)
 	_ = json.Unmarshal([]byte(scripts), &entry.Scripts)
+	_ = json.Unmarshal([]byte(agents), &entry.Agents)
 	if report.Valid && report.String != "" {
 		var sec SecurityReport
 		if json.Unmarshal([]byte(report.String), &sec) == nil {
@@ -1040,6 +1105,10 @@ func (m *AgentSkillManager) ApproveAgentSkillWarning(id, actor string) error {
 }
 
 func (m *AgentSkillManager) WriteAgentSkillFile(ctx context.Context, id, relPath, content, actor string, guardian *security.LLMGuardian, useGuardian bool) error {
+	return m.writeAgentSkillFileBytes(ctx, id, relPath, []byte(content), false, actor, guardian, useGuardian)
+}
+
+func (m *AgentSkillManager) writeAgentSkillFileBytes(ctx context.Context, id, relPath string, content []byte, isBinary bool, actor string, guardian *security.LLMGuardian, useGuardian bool) error {
 	entry, err := m.GetAgentSkill(id)
 	if err != nil {
 		return err
@@ -1052,20 +1121,10 @@ func (m *AgentSkillManager) WriteAgentSkillFile(ctx context.Context, id, relPath
 	if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
 		return err
 	}
-	if err := os.WriteFile(full, []byte(content), 0o640); err != nil {
+	if err := os.WriteFile(full, content, 0o640); err != nil {
 		return err
 	}
-	pkg, err := ParseAgentSkillPackage(entry.Directory)
-	if err != nil {
-		return err
-	}
-	report, status, scanErr := ScanAgentSkillPackage(ctx, pkg, guardian, useGuardian)
-	_, err = m.upsertAgentSkillPackage(pkg, actor, report, status, false, false)
-	if err != nil {
-		return err
-	}
-	m.audit(id, entry.Name, "write_file", actor, relPath)
-	return scanErr
+	return m.applyEditSafety(ctx, entry, relPath, actor, guardian, useGuardian)
 }
 
 func (m *AgentSkillManager) ReadAgentSkillFile(id, relPath string) (string, error) {
@@ -1082,9 +1141,110 @@ func (m *AgentSkillManager) ReadAgentSkillFile(id, relPath string) (string, erro
 		return "", err
 	}
 	if !utf8.Valid(data) {
-		return "", fmt.Errorf("file is not valid UTF-8")
+		return "", fmt.Errorf("file is not valid UTF-8; use the raw bytes endpoint for binary files")
 	}
 	return string(data), nil
+}
+
+func (m *AgentSkillManager) ReadAgentSkillFileBytes(id, relPath string) ([]byte, bool, error) {
+	entry, err := m.GetAgentSkill(id)
+	if err != nil {
+		return nil, false, err
+	}
+	relPath, err = validateAgentSkillEditablePath(relPath)
+	if err != nil {
+		return nil, false, err
+	}
+	data, err := os.ReadFile(filepath.Join(entry.Directory, filepath.FromSlash(relPath)))
+	if err != nil {
+		return nil, false, err
+	}
+	return data, !utf8.Valid(data), nil
+}
+
+func (m *AgentSkillManager) CreateAgentSkillFile(ctx context.Context, id, relPath string, content []byte, isBinary bool, actor string, guardian *security.LLMGuardian, useGuardian bool) error {
+	entry, err := m.GetAgentSkill(id)
+	if err != nil {
+		return err
+	}
+	relPath, err = validateAgentSkillEditablePath(relPath)
+	if err != nil {
+		return err
+	}
+	full := filepath.Join(entry.Directory, filepath.FromSlash(relPath))
+	if _, err := os.Stat(full); err == nil {
+		return fmt.Errorf("file already exists: %s", relPath)
+	}
+	return m.writeAgentSkillFileBytes(ctx, id, relPath, content, isBinary, actor, guardian, useGuardian)
+}
+
+func (m *AgentSkillManager) DeleteAgentSkillFile(ctx context.Context, id, relPath, actor string) error {
+	entry, err := m.GetAgentSkill(id)
+	if err != nil {
+		return err
+	}
+	relPath, err = validateAgentSkillEditablePath(relPath)
+	if err != nil {
+		return err
+	}
+	if relPath == "SKILL.md" {
+		return fmt.Errorf("cannot delete SKILL.md")
+	}
+	full := filepath.Join(entry.Directory, filepath.FromSlash(relPath))
+	if err := os.Remove(full); err != nil {
+		return err
+	}
+	return m.applyEditSafety(ctx, entry, relPath, actor, nil, false)
+}
+
+func (m *AgentSkillManager) RenameAgentSkillFile(ctx context.Context, id, oldRel, newRel, actor string) error {
+	entry, err := m.GetAgentSkill(id)
+	if err != nil {
+		return err
+	}
+	oldRel, err = validateAgentSkillEditablePath(oldRel)
+	if err != nil {
+		return err
+	}
+	newRel, err = validateAgentSkillEditablePath(newRel)
+	if err != nil {
+		return err
+	}
+	if oldRel == "SKILL.md" {
+		return fmt.Errorf("cannot rename SKILL.md")
+	}
+	oldFull := filepath.Join(entry.Directory, filepath.FromSlash(oldRel))
+	newFull := filepath.Join(entry.Directory, filepath.FromSlash(newRel))
+	if err := os.MkdirAll(filepath.Dir(newFull), 0o750); err != nil {
+		return err
+	}
+	if err := os.Rename(oldFull, newFull); err != nil {
+		return err
+	}
+	return m.applyEditSafety(ctx, entry, newRel, actor, nil, false)
+}
+
+// applyEditSafety re-scans after a file change and applies D4 edit-safety logic:
+// disable and clear warning approval only when the new status is not clean,
+// or when security-relevant files (SKILL.md, scripts/) changed their hash.
+func (m *AgentSkillManager) applyEditSafety(ctx context.Context, entry *AgentSkillRegistryEntry, changedPath, actor string, guardian *security.LLMGuardian, useGuardian bool) error {
+	pkg, err := ParseAgentSkillPackage(entry.Directory)
+	if err != nil {
+		return err
+	}
+	report, status, scanErr := ScanAgentSkillPackage(ctx, pkg, guardian, useGuardian)
+	isSecurityRelevant := changedPath == "SKILL.md" || strings.HasPrefix(changedPath, "scripts/")
+	hashChanged := pkg.PackageHash != entry.PackageHash
+	shouldBeDisabled := status != SecurityClean || (isSecurityRelevant && hashChanged)
+	shouldBeClearWarning := shouldBeDisabled
+	enabled := entry.Enabled && !shouldBeDisabled
+	warningApproved := entry.WarningApproved && !shouldBeClearWarning
+	_, err = m.upsertAgentSkillPackage(pkg, actor, report, status, enabled, warningApproved)
+	if err != nil {
+		return err
+	}
+	m.audit(entry.ID, entry.Name, "write_file", actor, changedPath)
+	return scanErr
 }
 
 func validateAgentSkillEditablePath(relPath string) (string, error) {
@@ -1096,11 +1256,14 @@ func validateAgentSkillEditablePath(relPath string) (string, error) {
 		return relPath, nil
 	}
 	parts := strings.Split(relPath, "/")
-	if len(parts) != 2 || !isAgentSkillAllowedTopDir(parts[0]) {
-		return "", fmt.Errorf("agent skill file path must be SKILL.md or one-level file in scripts/, references/, or assets/")
+	if len(parts) < 2 || !isAgentSkillAllowedTopDir(parts[0]) {
+		return "", fmt.Errorf("agent skill file path must be SKILL.md or a file under scripts/, references/, assets/, or agents/")
 	}
-	if parts[0] == "scripts" && !strings.HasSuffix(strings.ToLower(parts[1]), ".py") {
-		return "", fmt.Errorf("only Python scripts are supported")
+	if parts[0] == "scripts" {
+		ext := strings.ToLower(filepath.Ext(parts[len(parts)-1]))
+		if ext != ".py" && ext != ".sh" && ext != ".js" {
+			return "", fmt.Errorf("only .py, .sh, and .js scripts are supported")
+		}
 	}
 	return relPath, nil
 }
@@ -1140,6 +1303,7 @@ func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptP
 	if !found {
 		return "", fmt.Errorf("agent skill script %q is not registered", scriptPath)
 	}
+	ext := strings.ToLower(filepath.Ext(scriptPath))
 	input, err := json.Marshal(args)
 	if err != nil {
 		return "", err
@@ -1147,21 +1311,41 @@ func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptP
 	if len(input) > maxSkillArgsBytes {
 		return "", fmt.Errorf("script args too large")
 	}
-	pythonBin := GetPythonBin(m.workspaceDir)
-	if _, err := os.Stat(pythonBin); err != nil {
-		if fallback := findSystemPython(); fallback != "" {
-			pythonBin = fallback
-		}
-	}
-	if pythonBin == "" {
-		return "", fmt.Errorf("python not found")
-	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	ctx, cancel := context.WithTimeout(ctx, GetSkillTimeout())
 	defer cancel()
-	cmd := exec.CommandContext(ctx, pythonBin, "-u", filepath.Join(entry.Directory, filepath.FromSlash(scriptPath)))
+
+	var cmd *exec.Cmd
+	switch ext {
+	case ".py":
+		pythonBin := GetPythonBin(m.workspaceDir)
+		if _, err := os.Stat(pythonBin); err != nil {
+			if fallback := findSystemPython(); fallback != "" {
+				pythonBin = fallback
+			}
+		}
+		if pythonBin == "" {
+			return "", fmt.Errorf("python not found")
+		}
+		cmd = exec.CommandContext(ctx, pythonBin, "-u", filepath.Join(entry.Directory, filepath.FromSlash(scriptPath)))
+	case ".sh":
+		shellBin := findShellBinary()
+		if shellBin == "" {
+			return "", fmt.Errorf("shell interpreter (bash/sh) not found")
+		}
+		cmd = exec.CommandContext(ctx, shellBin, filepath.Join(entry.Directory, filepath.FromSlash(scriptPath)))
+	case ".js":
+		nodeBin := findNodeBinary()
+		if nodeBin == "" {
+			return "", fmt.Errorf("node.js interpreter not found")
+		}
+		cmd = exec.CommandContext(ctx, nodeBin, filepath.Join(entry.Directory, filepath.FromSlash(scriptPath)))
+	default:
+		return "", fmt.Errorf("unsupported script extension: %s", ext)
+	}
+
 	cmd.Dir = entry.Directory
 	cmd.Env = sandbox.FilterEnv(os.Environ())
 	SetSkillLimits(cmd, 1024, int(GetSkillTimeout().Seconds()))
@@ -1198,6 +1382,25 @@ func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptP
 		return output, fmt.Errorf("script execution failed: %w", err)
 	}
 	return output, nil
+}
+
+func findShellBinary() string {
+	for _, name := range []string{"bash", "sh"} {
+		if p, err := exec.LookPath(name); err == nil {
+			return p
+		}
+	}
+	return ""
+}
+
+func findNodeBinary() string {
+	if p, err := exec.LookPath("node"); err == nil {
+		return p
+	}
+	if p, err := exec.LookPath("nodejs"); err == nil {
+		return p
+	}
+	return ""
 }
 
 func (m *AgentSkillManager) DeleteAgentSkill(id string, deleteFiles bool, actor string) error {

@@ -198,5 +198,21 @@
   "skills.agent_import_folder": "Lokal mappsökväg",
   "skills.agent_resources": "Resurser",
   "skills.agent_test_title": "Testa Agent Skill-skript",
-  "skills.detail_security": "Säkerhet"
+  "skills.detail_security": "Säkerhet",
+  "skills.agent_btn_new_file": "+ Fil",
+  "skills.agent_btn_delete_file": "Ta bort",
+  "skills.agent_btn_rename_file": "Byt namn",
+  "skills.agent_btn_upload_file": "Ladda upp",
+  "skills.agent_btn_download_file": "Ladda ner",
+  "skills.agent_file_binary": "Detta är en binär fil. Använd nedladdningsknappen för att spara den.",
+  "skills.agent_file_text": "Textfil",
+  "skills.agent_file_script": "Skriptfil",
+  "skills.agent_file_reference": "Referensfil",
+  "skills.agent_file_agent": "Agent-konfiguration",
+  "skills.agent_new_file_prompt": "Ange filsökväg (t.ex. references/guide.md):",
+  "skills.agent_rename_prompt": "Ange ny sökväg:",
+  "skills.agent_delete_file_confirm": "Ta bort fil {path}?",
+  "skills.agent_nonpython_warning": "Detta skript är inte Python. Bash- och JavaScript-skript kräver uttryckligt användargodkännande innan de kan köras.",
+  "skills.agent_agents_folder": "Agenter",
+  "skills.agent_create_with_resources": "Skapa med resurser"
 }

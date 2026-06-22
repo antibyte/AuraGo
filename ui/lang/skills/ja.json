@@ -198,5 +198,21 @@
   "skills.agent_import_folder": "ローカルフォルダーのパス",
   "skills.agent_resources": "リソース",
   "skills.agent_test_title": "Agent Skill スクリプトをテスト",
-  "skills.detail_security": "セキュリティ"
+  "skills.detail_security": "セキュリティ",
+  "skills.agent_btn_new_file": "+ ファイル",
+  "skills.agent_btn_delete_file": "削除",
+  "skills.agent_btn_rename_file": "名前を変更",
+  "skills.agent_btn_upload_file": "アップロード",
+  "skills.agent_btn_download_file": "ダウンロード",
+  "skills.agent_file_binary": "これはバイナリファイルです。保存するにはダウンロードボタンを使用してください。",
+  "skills.agent_file_text": "テキストファイル",
+  "skills.agent_file_script": "スクリプトファイル",
+  "skills.agent_file_reference": "リファレンスファイル",
+  "skills.agent_file_agent": "エージェント設定",
+  "skills.agent_new_file_prompt": "ファイルパスを入力（例: references/guide.md）:",
+  "skills.agent_rename_prompt": "新しいパスを入力:",
+  "skills.agent_delete_file_confirm": "ファイル {path} を削除しますか？",
+  "skills.agent_nonpython_warning": "このスクリプトは Python ではありません。Bash および JavaScript スクリプトは実行前にユーザーの明示的な承認が必要です。",
+  "skills.agent_agents_folder": "エージェント",
+  "skills.agent_create_with_resources": "リソース付きで作成"
 }

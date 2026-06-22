@@ -198,5 +198,21 @@
   "skills.agent_import_folder": "Percorso cartella locale",
   "skills.agent_resources": "Risorse",
   "skills.agent_test_title": "Test script Agent Skill",
-  "skills.detail_security": "Sicurezza"
+  "skills.detail_security": "Sicurezza",
+  "skills.agent_btn_new_file": "+ File",
+  "skills.agent_btn_delete_file": "Elimina",
+  "skills.agent_btn_rename_file": "Rinomina",
+  "skills.agent_btn_upload_file": "Carica",
+  "skills.agent_btn_download_file": "Scarica",
+  "skills.agent_file_binary": "Questo è un file binario. Usa il pulsante di download per salvarlo.",
+  "skills.agent_file_text": "File di testo",
+  "skills.agent_file_script": "File script",
+  "skills.agent_file_reference": "File di riferimento",
+  "skills.agent_file_agent": "Config agente",
+  "skills.agent_new_file_prompt": "Inserisci il percorso del file (es. references/guide.md):",
+  "skills.agent_rename_prompt": "Inserisci il nuovo percorso:",
+  "skills.agent_delete_file_confirm": "Eliminare il file {path}?",
+  "skills.agent_nonpython_warning": "Questo script non è Python. Gli script Bash e JavaScript richiedono l'approvazione esplicita dell'utente prima di essere eseguiti.",
+  "skills.agent_agents_folder": "Agenti",
+  "skills.agent_create_with_resources": "Crea con risorse"
 }

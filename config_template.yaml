@@ -501,6 +501,13 @@ tools:
         max_upload_size_mb: 1                               # maximum upload file size in MB
         auto_enable_clean: false                            # automatically enable skills that pass security scan
         scan_with_guardian: false                            # use LLM Guardian for code review (opt-in)
+        # Allowed script languages for Agent Skills (default: ["python"])
+        # Bash and JavaScript are supported but require user confirmation (warning-gated).
+        # Options: "python", "bash", "javascript"
+        # allowed_script_languages:
+        #   - python
+        # Allow binary asset upload/download for Agent Skills (default: true)
+        # allow_binary_assets: true
     daemon_skills:
         enabled: false                                      # enable long-running daemon skill processes (opt-in)
         max_concurrent_daemons: 5                           # max simultaneous daemon processes

@@ -198,5 +198,21 @@
   "skills.agent_import_folder": "स्थानीय फ़ोल्डर पथ",
   "skills.agent_resources": "संसाधन",
   "skills.agent_test_title": "Agent Skill script जाँचें",
-  "skills.detail_security": "सुरक्षा"
+  "skills.detail_security": "सुरक्षा",
+  "skills.agent_btn_new_file": "+ फ़ाइल",
+  "skills.agent_btn_delete_file": "हटाएँ",
+  "skills.agent_btn_rename_file": "नाम बदलें",
+  "skills.agent_btn_upload_file": "अपलोड करें",
+  "skills.agent_btn_download_file": "डाउनलोड करें",
+  "skills.agent_file_binary": "यह एक बाइनरी फ़ाइल है। इसे सहेजने के लिए डाउनलोड बटन का उपयोग करें।",
+  "skills.agent_file_text": "टेक्स्ट फ़ाइल",
+  "skills.agent_file_script": "स्क्रिप्ट फ़ाइल",
+  "skills.agent_file_reference": "संदर्भ फ़ाइल",
+  "skills.agent_file_agent": "एजेंट कॉन्फ़िगरेशन",
+  "skills.agent_new_file_prompt": "फ़ाइल पथ दर्ज करें (जैसे references/guide.md):",
+  "skills.agent_rename_prompt": "नया पथ दर्ज करें:",
+  "skills.agent_delete_file_confirm": "फ़ाइल {path} हटाएँ?",
+  "skills.agent_nonpython_warning": "यह स्क्रिप्ट Python नहीं है। Bash और JavaScript स्क्रिप्ट को निष्पादित करने से पहले उपयोगकर्ता के स्पष्ट अनुमोदन की आवश्यकता होती है।",
+  "skills.agent_agents_folder": "एजेंट्स",
+  "skills.agent_create_with_resources": "संसाधनों के साथ बनाएँ"
 }

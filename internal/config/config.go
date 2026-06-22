@@ -442,6 +442,8 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.SkillManager.RequireScan = true
 	cfg.Tools.SkillManager.RequireSandbox = false
 	cfg.Tools.SkillManager.MaxUploadSizeMB = 1
+	cfg.Tools.SkillManager.AllowedScriptLanguages = []string{"python"}
+	cfg.Tools.SkillManager.AllowBinaryAssets = true
 	// Daemon Skills defaults: disabled by default (opt-in, potentially costly).
 	cfg.Tools.DaemonSkills.MaxConcurrentDaemons = 5
 	cfg.Tools.DaemonSkills.GlobalRateLimitSecs = 60

@@ -80,6 +80,58 @@
     transform: translateY(-1px);
 }
 
+.sk-file-manager-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.sk-file-manager-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.sk-file-tree .sk-resource-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    border-radius: var(--radius-md);
+    margin-bottom: 2px;
+}
+
+.sk-resource-binary {
+    opacity: 0.7;
+    font-style: italic;
+}
+
+.sk-resource-icon {
+    flex-shrink: 0;
+    font-size: 14px;
+}
+
+.sk-resource-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sk-file-editor-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.sk-dep-tag-clickable {
+    cursor: pointer;
+    transition: all var(--transition-base);
+}
+
+.sk-dep-tag-clickable:hover {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
 /* ── Status Bar ── */
 .sk-status-bar {
     display: flex;

@@ -198,5 +198,21 @@
   "skills.agent_import_folder": "Cesta k místní složce",
   "skills.agent_resources": "Zdroje",
   "skills.agent_test_title": "Test skriptu Agent Skill",
-  "skills.detail_security": "Zabezpečení"
+  "skills.detail_security": "Zabezpečení",
+  "skills.agent_btn_new_file": "+ Soubor",
+  "skills.agent_btn_delete_file": "Smazat",
+  "skills.agent_btn_rename_file": "Přejmenovat",
+  "skills.agent_btn_upload_file": "Nahrát",
+  "skills.agent_btn_download_file": "Stáhnout",
+  "skills.agent_file_binary": "Toto je binární soubor. Pro uložení použij tlačítko stáhnout.",
+  "skills.agent_file_text": "Textový soubor",
+  "skills.agent_file_script": "Skriptový soubor",
+  "skills.agent_file_reference": "Referenční soubor",
+  "skills.agent_file_agent": "Konfigurace agenta",
+  "skills.agent_new_file_prompt": "Zadej cestu k souboru (např. references/guide.md):",
+  "skills.agent_rename_prompt": "Zadej novou cestu:",
+  "skills.agent_delete_file_confirm": "Smazat soubor {path}?",
+  "skills.agent_nonpython_warning": "Tento skript není Python. Bash a JavaScript skripty vyžadují před spuštěním výslovný souhlas uživatele.",
+  "skills.agent_agents_folder": "Agenti",
+  "skills.agent_create_with_resources": "Vytvořit s prostředky"
 }

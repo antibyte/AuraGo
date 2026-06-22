@@ -15,7 +15,7 @@ Choose the smallest durable capability:
 
 Python skills: prefer an existing template; otherwise create `minimal_skill`, edit the generated agent-owned files deliberately, document the change, and verify with `execute_skill`. Do not save reusable Python manually through `execute_python`; it will not be registered or receive vault injection.
 
-Agent Skills: package `skill-name/SKILL.md` plus optional `scripts/`, `references/`, `assets/`, and optional `agents/openai.yaml`. `SKILL.md` needs frontmatter `name` and `description`; keep the body short and put long details in `references/`. Create/import through the manager/API/UI, then verify, approve warnings if needed, enable, confirm with `list_agent_skills`, and activate before use. Do not write runtime Agent Skill folders by hand.
+Agent Skills: package `skill-name/SKILL.md` plus optional nested `scripts/`, `references/`, `assets/`, and optional `agents/openai.yaml`. `SKILL.md` needs frontmatter `name` and `description`; keep the body short and put long details in `references/`. Scripts may be Python, Bash, or JavaScript; Bash and JS require explicit user confirmation at import/verify (warning-gated). Binary assets are supported. Create/import through the manager/API/UI, then verify, approve warnings if needed, enable, confirm with `list_agent_skills`, and activate before use. Do not write runtime Agent Skill folders by hand.
 
 Tool Bridge: if a Python skill calls AuraGo native tools, declare `internal_tools` in the skill manifest and tell the user to enable `tools.python_tool_bridge.enabled`, whitelist `allowed_tools`, and approve the skill's internal tools in the Web UI. In code, use `AuraGoTools.is_available()`, catch `AuraGoToolError`, and call `tools.call("tool_name", {"param": "value"})`.
 

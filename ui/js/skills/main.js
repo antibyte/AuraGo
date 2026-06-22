@@ -670,7 +670,17 @@ function showDisabledState() {
                 <h4>${t('skills.agent_skill_md')}</h4>
                 <pre class="sk-code-preview">${esc(data.content || '')}</pre>
                 <h4>${t('skills.agent_resources')}</h4>
-                <div class="sk-card-deps">${resources.map(r => `<span class="sk-dep-tag">${esc(r.path || r.Path || '')}</span>`).join('') || '<em>' + t('skills.agent_no_resources') + '</em>'}</div>
+                <div class="sk-card-deps">${resources.map(r => {
+                    const p = r.path || r.Path || '';
+                    const kind = r.kind || r.Kind || guessResourceKind(p);
+                    const icon = resourceKindIcon(kind);
+                    const ext = p.split('.').pop().toLowerCase();
+                    const binaryExts = ['png','jpg','jpeg','gif','svg','pdf','zip','tar','gz','bin','exe','dll','so','dylib'];
+                    if (binaryExts.includes(ext)) {
+                        return `<span class="sk-dep-tag sk-dep-tag-clickable" onclick="downloadDetailResource('${esc(id)}','${esc(p)}')" title="${t('skills.agent_btn_download_file')}">${icon} ${esc(p)}</span>`;
+                    }
+                    return `<span class="sk-dep-tag sk-dep-tag-clickable" onclick="previewDetailResource('${esc(id)}','${esc(p)}')" title="Preview">${icon} ${esc(p)}</span>`;
+                }).join('') || '<em>' + t('skills.agent_no_resources') + '</em>'}</div>
                 <h4>${t('skills.agent_scripts')}</h4>
                 <div class="sk-card-deps">${scripts.map(r => `<span class="sk-dep-tag">${esc(r.path || r.Path || '')}</span>`).join('') || '<em>' + t('skills.agent_no_scripts') + '</em>'}</div>
             `;
@@ -700,22 +710,63 @@ function showDisabledState() {
     function renderAgentResourceList(resources) {
         const list = document.getElementById('agent-resource-list');
         if (!list) return;
-        list.innerHTML = (resources || []).map(r => {
+        if (!resources || resources.length === 0) {
+            list.innerHTML = '<em>' + t('skills.agent_no_resources') + '</em>';
+            return;
+        }
+        const sorted = [...resources].sort((a, b) => (a.path || '').localeCompare(b.path || ''));
+        list.innerHTML = sorted.map(r => {
             const p = r.path || r.Path || '';
-            return `<button class="sk-resource-chip" type="button" onclick="loadAgentSkillResource('${esc(p)}')">${esc(p)}</button>`;
+            const kind = r.kind || r.Kind || guessResourceKind(p);
+            const icon = resourceKindIcon(kind);
+            const ext = p.split('.').pop().toLowerCase();
+            const isBinary = ['png','jpg','jpeg','gif','svg','pdf','zip','tar','gz','bin','exe','dll','so','dylib'].includes(ext);
+            const chipClass = isBinary ? 'sk-resource-chip sk-resource-binary' : 'sk-resource-chip';
+            return `<div class="${chipClass}" onclick="loadAgentSkillResource('${esc(p)}')">
+                <span class="sk-resource-icon">${icon}</span>
+                <span class="sk-resource-name">${esc(p)}</span>
+            </div>`;
         }).join('');
+    }
+
+    function guessResourceKind(path) {
+        if (path.startsWith('scripts/')) return 'script';
+        if (path.startsWith('references/')) return 'reference';
+        if (path.startsWith('assets/')) return 'asset';
+        if (path.startsWith('agents/')) return 'agent';
+        return 'file';
+    }
+
+    function resourceKindIcon(kind) {
+        switch (kind) {
+            case 'script': return '⚙️';
+            case 'reference': return '📄';
+            case 'asset': return '📦';
+            case 'agent': return '🤖';
+            default: return '📁';
+        }
     }
 
     // eslint-disable-next-line no-unused-vars
     async function loadAgentSkillResource(path) {
         if (!currentAgentSkillId) return;
-        const resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}/files?path=${encodeURIComponent(path)}`);
-        const data = await resp.json();
-        if (data.status === 'ok') {
-            document.getElementById('agent-resource-path').value = path;
-            document.getElementById('agent-resource-content').value = data.content || '';
+        document.getElementById('agent-file-editor').style.display = '';
+        document.getElementById('agent-resource-path').value = path;
+        const ext = path.split('.').pop().toLowerCase();
+        const binaryExts = ['png','jpg','jpeg','gif','svg','pdf','zip','tar','gz','bin','exe','dll','so','dylib'];
+        if (binaryExts.includes(ext)) {
+            document.getElementById('agent-resource-content').style.display = 'none';
+            document.getElementById('agent-binary-download').style.display = '';
         } else {
-            showToast(data.message || t('common.error'), 'error');
+            document.getElementById('agent-resource-content').style.display = '';
+            document.getElementById('agent-binary-download').style.display = 'none';
+            const resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}/files?path=${encodeURIComponent(path)}`);
+            const data = await resp.json();
+            if (data.status === 'ok') {
+                document.getElementById('agent-resource-content').value = data.content || '';
+            } else {
+                showToast(data.message || t('common.error'), 'error');
+            }
         }
     }
 
@@ -741,6 +792,122 @@ function showDisabledState() {
         } else {
             showToast(data.message || t('common.error'), 'error');
         }
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function newAgentSkillFile() {
+        if (!currentAgentSkillId) return;
+        const path = prompt(t('skills.agent_new_file_prompt') || 'Enter file path (e.g. references/guide.md):');
+        if (!path) return;
+        const resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}/files`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: path.trim(), content: '', binary: false })
+        });
+        const data = await resp.json();
+        if (data.status === 'saved') {
+            showToast(t('skills.code_saved'), 'success');
+            renderAgentResourceList((data.skill && data.skill.resources) || []);
+            loadAgentSkillResource(path.trim());
+            await loadAgentSkills();
+        } else {
+            showToast(data.message || t('common.error'), 'error');
+        }
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function deleteAgentSkillFile() {
+        if (!currentAgentSkillId) return;
+        const path = document.getElementById('agent-resource-path').value.trim();
+        if (!path) return;
+        const msg = (t('skills.agent_delete_file_confirm') || 'Delete file {path}?').replace('{path}', path);
+        if (!confirm(msg)) return;
+        const resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}/files?path=${encodeURIComponent(path)}`, {
+            method: 'DELETE'
+        });
+        const data = await resp.json();
+        if (data.status === 'deleted') {
+            showToast(t('skills.delete_success'), 'success');
+            document.getElementById('agent-file-editor').style.display = 'none';
+            renderAgentResourceList((data.skill && data.skill.resources) || []);
+            await loadAgentSkills();
+        } else {
+            showToast(data.message || t('common.error'), 'error');
+        }
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function renameAgentSkillFile() {
+        if (!currentAgentSkillId) return;
+        const oldPath = document.getElementById('agent-resource-path').value.trim();
+        if (!oldPath) return;
+        const newPath = prompt(t('skills.agent_rename_prompt') || 'Enter new path:', oldPath);
+        if (!newPath || newPath === oldPath) return;
+        const resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}/files/rename`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ from: oldPath, to: newPath.trim() })
+        });
+        const data = await resp.json();
+        if (data.status === 'renamed') {
+            showToast(t('skills.toggle_success'), 'success');
+            document.getElementById('agent-file-editor').style.display = 'none';
+            renderAgentResourceList((data.skill && data.skill.resources) || []);
+            await loadAgentSkills();
+        } else {
+            showToast(data.message || t('common.error'), 'error');
+        }
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    function uploadAgentSkillFile() {
+        document.getElementById('agent-file-upload-input').click();
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function handleAgentFileUpload(event) {
+        if (!currentAgentSkillId) return;
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        const path = prompt(t('skills.agent_new_file_prompt') || 'Enter target path:', file.name);
+        if (!path) return;
+        const form = new FormData();
+        form.append('file', file);
+        form.append('path', path.trim());
+        const resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}/files/upload`, {
+            method: 'POST',
+            body: form
+        });
+        const data = await resp.json();
+        if (data.status === 'uploaded') {
+            showToast(t('skills.upload_success'), 'success');
+            renderAgentResourceList((data.skill && data.skill.resources) || []);
+            await loadAgentSkills();
+        } else {
+            showToast(data.message || t('common.error'), 'error');
+        }
+        event.target.value = '';
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function downloadAgentSkillFile() {
+        if (!currentAgentSkillId) return;
+        const path = document.getElementById('agent-resource-path').value.trim();
+        if (!path) return;
+        const resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}/files/raw?path=${encodeURIComponent(path)}`);
+        if (!resp.ok) {
+            showToast(t('common.error'), 'error');
+            return;
+        }
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = path.split('/').pop();
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -858,7 +1025,18 @@ function showDisabledState() {
         }).join('');
         document.getElementById('agent-test-args').value = '{}';
         document.getElementById('agent-test-output').textContent = '';
+        onAgentTestScriptChange();
         document.getElementById('agent-test-modal').classList.add('active');
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    function onAgentTestScriptChange() {
+        const sel = document.getElementById('agent-test-script');
+        const warn = document.getElementById('agent-nonpython-warning');
+        if (!sel || !warn) return;
+        const val = sel.value || '';
+        const ext = val.split('.').pop().toLowerCase();
+        warn.style.display = (ext === 'sh' || ext === 'js') ? '' : 'none';
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -888,6 +1066,40 @@ function showDisabledState() {
             showToast(t('skills.test_success'), 'success');
         } else {
             showToast(data.message || t('skills.test_failed'), 'error');
+        }
+    }
+
+    async function previewDetailResource(skillId, path) {
+        try {
+            const resp = await fetch(`/api/agent-skills/${encodeURIComponent(skillId)}/files?path=${encodeURIComponent(path)}`);
+            const data = await resp.json();
+            if (data.status === 'ok') {
+                const w = window.open('', '_blank');
+                w.document.write(`<pre>${esc(data.content || '')}</pre>`);
+                w.document.title = path;
+            } else {
+                showToast(data.message || t('common.error'), 'error');
+            }
+        } catch (_) {
+            showToast(t('common.error'), 'error');
+        }
+    }
+
+    async function downloadDetailResource(skillId, path) {
+        try {
+            const resp = await fetch(`/api/agent-skills/${encodeURIComponent(skillId)}/files/raw?path=${encodeURIComponent(path)}`);
+            if (!resp.ok) { showToast(t('common.error'), 'error'); return; }
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = path.split('/').pop();
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (_) {
+            showToast(t('common.error'), 'error');
         }
     }
 
