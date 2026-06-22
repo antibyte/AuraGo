@@ -214,5 +214,18 @@
   "skills.agent_delete_file_confirm": "删除文件 {path}？",
   "skills.agent_nonpython_warning": "此脚本不是 Python。Bash 和 JavaScript 脚本在执行前需要用户明确批准。",
   "skills.agent_agents_folder": "代理",
-  "skills.agent_create_with_resources": "使用资源创建"
+  "skills.agent_create_with_resources": "使用资源创建",
+  "skills.agent_resource_new_title": "新建资源文件",
+  "skills.agent_resource_rename_title": "重命名资源文件",
+  "skills.agent_resource_upload_title": "上传目标路径",
+  "skills.agent_resource_path_label": "文件路径",
+  "skills.agent_resource_path_help": "使用包内的相对路径，例如 references/guide.md 或 scripts/run.py。",
+  "skills.agent_resource_path_invalid": "请使用不含 ..、反斜杠或盘符的相对路径。",
+  "skills.agent_resource_confirm_create": "创建文件",
+  "skills.agent_resource_confirm_rename": "重命名",
+  "skills.agent_resource_confirm_upload": "上传到这里",
+  "skills.agent_delete_file_title": "删除资源文件",
+  "skills.agent_delete_file_text": "从此 Agent Skill 中删除 {path}？",
+  "skills.agent_delete_file_button": "删除文件",
+  "skills.agent_resource_empty_hint": "添加此 skill 要使用的 references、scripts 或 assets。"
 }

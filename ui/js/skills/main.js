@@ -27,6 +27,10 @@ let detailVersions = [];
 let detailAudit = [];
 let searchDebounceHandle = null;
 let codeMirrorModulePromise = null;
+let agentResourcePathDialogResolve = null;
+let agentFileDeleteInFlight = false;
+let agentFileDeleteConfirmButton = null;
+let agentFileDeleteConfirmButtonID = '';
 
 // ── Initialization ──────────────────────────────────────────────────────────
 
@@ -711,9 +715,14 @@ function showDisabledState() {
         const list = document.getElementById('agent-resource-list');
         if (!list) return;
         if (!resources || resources.length === 0) {
-            list.innerHTML = '<em>' + t('skills.agent_no_resources') + '</em>';
+            list.innerHTML = `<div class="sk-resource-empty">
+                <p>${esc(t('skills.agent_no_resources'))}</p>
+                <small>${esc(t('skills.agent_resource_empty_hint'))}</small>
+                <button class="btn btn-sm btn-secondary" type="button" onclick="newAgentSkillFile()">${esc(t('skills.agent_btn_new_file'))}</button>
+            </div>`;
             return;
         }
+        const currentPath = (document.getElementById('agent-resource-path')?.value || '').trim();
         const sorted = [...resources].sort((a, b) => (a.path || '').localeCompare(b.path || ''));
         list.innerHTML = sorted.map(r => {
             const p = r.path || r.Path || '';
@@ -721,11 +730,11 @@ function showDisabledState() {
             const icon = resourceKindIcon(kind);
             const ext = p.split('.').pop().toLowerCase();
             const isBinary = ['png','jpg','jpeg','gif','svg','pdf','zip','tar','gz','bin','exe','dll','so','dylib'].includes(ext);
-            const chipClass = isBinary ? 'sk-resource-chip sk-resource-binary' : 'sk-resource-chip';
-            return `<div class="${chipClass}" onclick="loadAgentSkillResource('${esc(p)}')">
+            const chipClass = ['sk-resource-chip', isBinary ? 'sk-resource-binary' : '', p === currentPath ? 'is-selected' : ''].filter(Boolean).join(' ');
+            return `<button type="button" class="${chipClass}" data-resource-path="${esc(p)}" onclick="loadAgentSkillResource(this.dataset.resourcePath)">
                 <span class="sk-resource-icon">${icon}</span>
                 <span class="sk-resource-name">${esc(p)}</span>
-            </div>`;
+            </button>`;
         }).join('');
     }
 
@@ -747,11 +756,117 @@ function showDisabledState() {
         }
     }
 
+    function setAgentResourceSelection(path) {
+        document.querySelectorAll('#agent-resource-list .sk-resource-chip').forEach(chip => {
+            chip.classList.toggle('is-selected', chip.dataset.resourcePath === path);
+        });
+    }
+
+    function validateAgentResourcePath(path) {
+        const value = (path || '').trim();
+        const invalidSegment = value.split('/').some(part => part === '..');
+        const isAbsolute = value.startsWith('/') || /^[a-zA-Z]:/.test(value);
+        const hasBackslash = value.includes('\\');
+        if (!value) {
+            return { ok: false, value, message: t('skills.agent_resource_path_required') };
+        }
+        if (invalidSegment || isAbsolute || hasBackslash) {
+            return { ok: false, value, message: t('skills.agent_resource_path_invalid') };
+        }
+        return { ok: true, value, message: '' };
+    }
+
+    function setAgentResourcePathError(message) {
+        const errorEl = document.getElementById('agent-resource-path-error');
+        if (!errorEl) return;
+        errorEl.textContent = message || '';
+        errorEl.style.display = message ? '' : 'none';
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    function onAgentResourcePathInput() {
+        const input = document.getElementById('agent-resource-path-input');
+        const confirmBtn = document.getElementById('agent-resource-path-confirm-btn');
+        const validation = validateAgentResourcePath(input ? input.value : '');
+        if (confirmBtn) confirmBtn.disabled = !validation.ok;
+        setAgentResourcePathError(input && input.value.trim() ? validation.message : '');
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    function onAgentResourcePathKeydown(event) {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            cancelAgentResourcePathDialog();
+        }
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            confirmAgentResourcePathDialog();
+        }
+    }
+
+    function closeAgentResourcePathDialog(result) {
+        const overlay = document.getElementById('agent-resource-path-modal');
+        if (overlay) {
+            overlay.classList.remove('active');
+            overlay.style.display = 'none';
+            overlay.onclick = null;
+        }
+        const resolve = agentResourcePathDialogResolve;
+        agentResourcePathDialogResolve = null;
+        if (resolve) resolve(result);
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    function cancelAgentResourcePathDialog() {
+        closeAgentResourcePathDialog(null);
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    function confirmAgentResourcePathDialog() {
+        const input = document.getElementById('agent-resource-path-input');
+        const validation = validateAgentResourcePath(input ? input.value : '');
+        if (!validation.ok) {
+            setAgentResourcePathError(validation.message);
+            if (input) input.focus();
+            return;
+        }
+        closeAgentResourcePathDialog(validation.value);
+    }
+
+    function showAgentResourcePathDialog(options) {
+        const overlay = document.getElementById('agent-resource-path-modal');
+        const titleEl = document.getElementById('agent-resource-path-title');
+        const descEl = document.getElementById('agent-resource-path-description');
+        const input = document.getElementById('agent-resource-path-input');
+        const confirmBtn = document.getElementById('agent-resource-path-confirm-btn');
+        if (!overlay || !input || !confirmBtn) return Promise.resolve(null);
+
+        if (titleEl) titleEl.textContent = t(options.titleKey);
+        if (descEl) descEl.textContent = t(options.descriptionKey || 'skills.agent_resource_path_help');
+        input.value = options.value || '';
+        confirmBtn.textContent = t(options.confirmKey);
+        setAgentResourcePathError('');
+        overlay.style.display = 'flex';
+        overlay.classList.add('active');
+        overlay.onclick = event => {
+            if (event.target === overlay) cancelAgentResourcePathDialog();
+        };
+        window.setTimeout(() => {
+            input.focus();
+            if (input.value) input.select();
+        }, 0);
+        onAgentResourcePathInput();
+        return new Promise(resolve => {
+            agentResourcePathDialogResolve = resolve;
+        });
+    }
+
     // eslint-disable-next-line no-unused-vars
     async function loadAgentSkillResource(path) {
         if (!currentAgentSkillId) return;
         document.getElementById('agent-file-editor').style.display = '';
         document.getElementById('agent-resource-path').value = path;
+        setAgentResourceSelection(path);
         const ext = path.split('.').pop().toLowerCase();
         const binaryExts = ['png','jpg','jpeg','gif','svg','pdf','zip','tar','gz','bin','exe','dll','so','dylib'];
         if (binaryExts.includes(ext)) {
@@ -797,42 +912,91 @@ function showDisabledState() {
     // eslint-disable-next-line no-unused-vars
     async function newAgentSkillFile() {
         if (!currentAgentSkillId) return;
-        const path = prompt(t('skills.agent_new_file_prompt') || 'Enter file path (e.g. references/guide.md):');
+        const path = await showAgentResourcePathDialog({
+            titleKey: 'skills.agent_resource_new_title',
+            confirmKey: 'skills.agent_resource_confirm_create',
+            value: ''
+        });
         if (!path) return;
         const resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}/files`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: path.trim(), content: '', binary: false })
+            body: JSON.stringify({ path, content: '', binary: false })
         });
         const data = await resp.json();
         if (data.status === 'saved') {
             showToast(t('skills.code_saved'), 'success');
             renderAgentResourceList((data.skill && data.skill.resources) || []);
-            loadAgentSkillResource(path.trim());
+            loadAgentSkillResource(path);
             await loadAgentSkills();
         } else {
             showToast(data.message || t('common.error'), 'error');
         }
     }
 
+    async function showAgentFileDeleteConfirm(message) {
+        const promise = showConfirm(t('skills.agent_delete_file_title'), message);
+        const confirmBtn = document.getElementById('shared-modal-confirm') || document.getElementById('modal-confirm');
+        if (confirmBtn) {
+            agentFileDeleteConfirmButton = confirmBtn;
+            agentFileDeleteConfirmButtonID = confirmBtn.id || '';
+            confirmBtn.id = 'agent-file-delete-confirm-btn';
+            confirmBtn.textContent = t('skills.agent_delete_file_button');
+        }
+        return promise;
+    }
+
+    function restoreAgentFileDeleteConfirmButton() {
+        if (agentFileDeleteConfirmButton) {
+            if (agentFileDeleteConfirmButtonID) {
+                agentFileDeleteConfirmButton.id = agentFileDeleteConfirmButtonID;
+            } else {
+                agentFileDeleteConfirmButton.removeAttribute('id');
+            }
+            agentFileDeleteConfirmButton.disabled = false;
+        }
+        agentFileDeleteConfirmButton = null;
+        agentFileDeleteConfirmButtonID = '';
+    }
+
+    function setAgentFileDeleteBusy(busy) {
+        const confirmBtn = document.getElementById('agent-file-delete-confirm-btn');
+        if (confirmBtn) {
+            confirmBtn.disabled = busy;
+        }
+    }
+
     // eslint-disable-next-line no-unused-vars
     async function deleteAgentSkillFile() {
         if (!currentAgentSkillId) return;
+        if (agentFileDeleteInFlight) return;
         const path = document.getElementById('agent-resource-path').value.trim();
         if (!path) return;
-        const msg = (t('skills.agent_delete_file_confirm') || 'Delete file {path}?').replace('{path}', path);
-        if (!confirm(msg)) return;
-        const resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}/files?path=${encodeURIComponent(path)}`, {
-            method: 'DELETE'
-        });
-        const data = await resp.json();
-        if (data.status === 'deleted') {
-            showToast(t('skills.delete_success'), 'success');
-            document.getElementById('agent-file-editor').style.display = 'none';
-            renderAgentResourceList((data.skill && data.skill.resources) || []);
-            await loadAgentSkills();
-        } else {
-            showToast(data.message || t('common.error'), 'error');
+        const msg = t('skills.agent_delete_file_text').replace('{path}', path);
+        const confirmed = await showAgentFileDeleteConfirm(msg);
+        if (!confirmed) {
+            restoreAgentFileDeleteConfirmButton();
+            return;
+        }
+        agentFileDeleteInFlight = true;
+        setAgentFileDeleteBusy(true);
+        try {
+            const resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}/files?path=${encodeURIComponent(path)}`, {
+                method: 'DELETE'
+            });
+            const data = await resp.json();
+            if (data.status === 'deleted') {
+                showToast(t('skills.delete_success'), 'success');
+                document.getElementById('agent-file-editor').style.display = 'none';
+                renderAgentResourceList((data.skill && data.skill.resources) || []);
+                await loadAgentSkills();
+            } else {
+                showToast(data.message || t('common.error'), 'error');
+            }
+        } finally {
+            setAgentFileDeleteBusy(false);
+            agentFileDeleteInFlight = false;
+            restoreAgentFileDeleteConfirmButton();
         }
     }
 
@@ -841,18 +1005,22 @@ function showDisabledState() {
         if (!currentAgentSkillId) return;
         const oldPath = document.getElementById('agent-resource-path').value.trim();
         if (!oldPath) return;
-        const newPath = prompt(t('skills.agent_rename_prompt') || 'Enter new path:', oldPath);
+        const newPath = await showAgentResourcePathDialog({
+            titleKey: 'skills.agent_resource_rename_title',
+            confirmKey: 'skills.agent_resource_confirm_rename',
+            value: oldPath
+        });
         if (!newPath || newPath === oldPath) return;
         const resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}/files/rename`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ from: oldPath, to: newPath.trim() })
+            body: JSON.stringify({ from: oldPath, to: newPath })
         });
         const data = await resp.json();
         if (data.status === 'renamed') {
             showToast(t('skills.toggle_success'), 'success');
-            document.getElementById('agent-file-editor').style.display = 'none';
             renderAgentResourceList((data.skill && data.skill.resources) || []);
+            loadAgentSkillResource(newPath);
             await loadAgentSkills();
         } else {
             showToast(data.message || t('common.error'), 'error');
@@ -869,11 +1037,18 @@ function showDisabledState() {
         if (!currentAgentSkillId) return;
         const file = event.target.files && event.target.files[0];
         if (!file) return;
-        const path = prompt(t('skills.agent_new_file_prompt') || 'Enter target path:', file.name);
-        if (!path) return;
+        const path = await showAgentResourcePathDialog({
+            titleKey: 'skills.agent_resource_upload_title',
+            confirmKey: 'skills.agent_resource_confirm_upload',
+            value: file.name
+        });
+        if (!path) {
+            event.target.value = '';
+            return;
+        }
         const form = new FormData();
         form.append('file', file);
-        form.append('path', path.trim());
+        form.append('path', path);
         const resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}/files/upload`, {
             method: 'POST',
             body: form

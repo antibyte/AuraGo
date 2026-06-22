@@ -214,5 +214,18 @@
   "skills.agent_delete_file_confirm": "Slet fil {path}?",
   "skills.agent_nonpython_warning": "Dette script er ikke Python. Bash- og JavaScript-scripts kræver udtrykkelig brugergodkendelse, før de kan køres.",
   "skills.agent_agents_folder": "Agenter",
-  "skills.agent_create_with_resources": "Opret med ressourcer"
+  "skills.agent_create_with_resources": "Opret med ressourcer",
+  "skills.agent_resource_new_title": "Ny ressourcefil",
+  "skills.agent_resource_rename_title": "Omdøb ressourcefil",
+  "skills.agent_resource_upload_title": "Upload-målsti",
+  "skills.agent_resource_path_label": "Filsti",
+  "skills.agent_resource_path_help": "Brug en relativ sti i pakken, f.eks. references/guide.md eller scripts/run.py.",
+  "skills.agent_resource_path_invalid": "Brug en relativ sti uden .., backslash eller drevbogstav.",
+  "skills.agent_resource_confirm_create": "Opret fil",
+  "skills.agent_resource_confirm_rename": "Omdøb",
+  "skills.agent_resource_confirm_upload": "Upload her",
+  "skills.agent_delete_file_title": "Slet ressourcefil",
+  "skills.agent_delete_file_text": "Slet {path} fra denne Agent Skill?",
+  "skills.agent_delete_file_button": "Slet fil",
+  "skills.agent_resource_empty_hint": "Tilføj referencer, scripts eller assets, som skillen skal bruge."
 }

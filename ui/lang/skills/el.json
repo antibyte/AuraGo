@@ -214,5 +214,18 @@
   "skills.agent_delete_file_confirm": "Διαγραφή αρχείου {path};",
   "skills.agent_nonpython_warning": "Αυτό το σενάριο δεν είναι Python. Τα σενάρια Bash και JavaScript απαιτούν ρητή έγκριση χρήστη πριν την εκτέλεση.",
   "skills.agent_agents_folder": "Πράκτορες",
-  "skills.agent_create_with_resources": "Δημιουργία με πόρους"
+  "skills.agent_create_with_resources": "Δημιουργία με πόρους",
+  "skills.agent_resource_new_title": "Νέο αρχείο πόρου",
+  "skills.agent_resource_rename_title": "Μετονομασία αρχείου πόρου",
+  "skills.agent_resource_upload_title": "Διαδρομή μεταφόρτωσης",
+  "skills.agent_resource_path_label": "Διαδρομή αρχείου",
+  "skills.agent_resource_path_help": "Χρησιμοποίησε σχετική διαδρομή μέσα στο πακέτο, π.χ. references/guide.md ή scripts/run.py.",
+  "skills.agent_resource_path_invalid": "Χρησιμοποίησε σχετική διαδρομή χωρίς .., ανάποδες κάθετους ή γράμμα δίσκου.",
+  "skills.agent_resource_confirm_create": "Δημιουργία αρχείου",
+  "skills.agent_resource_confirm_rename": "Μετονομασία",
+  "skills.agent_resource_confirm_upload": "Μεταφόρτωση εδώ",
+  "skills.agent_delete_file_title": "Διαγραφή αρχείου πόρου",
+  "skills.agent_delete_file_text": "Να διαγραφεί το {path} από αυτό το Agent Skill;",
+  "skills.agent_delete_file_button": "Διαγραφή αρχείου",
+  "skills.agent_resource_empty_hint": "Πρόσθεσε αναφορές, scripts ή assets που θα χρησιμοποιεί το skill."
 }

@@ -214,5 +214,18 @@
   "skills.agent_delete_file_confirm": "ファイル {path} を削除しますか？",
   "skills.agent_nonpython_warning": "このスクリプトは Python ではありません。Bash および JavaScript スクリプトは実行前にユーザーの明示的な承認が必要です。",
   "skills.agent_agents_folder": "エージェント",
-  "skills.agent_create_with_resources": "リソース付きで作成"
+  "skills.agent_create_with_resources": "リソース付きで作成",
+  "skills.agent_resource_new_title": "新しいリソースファイル",
+  "skills.agent_resource_rename_title": "リソースファイル名を変更",
+  "skills.agent_resource_upload_title": "アップロード先パス",
+  "skills.agent_resource_path_label": "ファイルパス",
+  "skills.agent_resource_path_help": "references/guide.md や scripts/run.py のように、パッケージ内の相対パスを使ってください。",
+  "skills.agent_resource_path_invalid": "..、バックスラッシュ、ドライブ文字を含まない相対パスを使ってください。",
+  "skills.agent_resource_confirm_create": "ファイルを作成",
+  "skills.agent_resource_confirm_rename": "名前を変更",
+  "skills.agent_resource_confirm_upload": "ここにアップロード",
+  "skills.agent_delete_file_title": "リソースファイルを削除",
+  "skills.agent_delete_file_text": "この Agent Skill から {path} を削除しますか？",
+  "skills.agent_delete_file_button": "ファイルを削除",
+  "skills.agent_resource_empty_hint": "skill が使う references、scripts、assets を追加してください。"
 }

@@ -148,8 +148,8 @@
                     <div class="sk-file-manager-header">
                         <label data-i18n="skills.agent_resources"></label>
                         <div class="sk-file-manager-actions">
-                            <button class="btn btn-sm btn-secondary" type="button" onclick="newAgentSkillFile()" data-i18n="skills.agent_btn_new_file">+ File</button>
-                            <button class="btn btn-sm btn-secondary" type="button" onclick="uploadAgentSkillFile()" data-i18n="skills.agent_btn_upload_file">Upload</button>
+                            <button class="btn btn-sm btn-secondary" type="button" onclick="newAgentSkillFile()" data-i18n="skills.agent_btn_new_file"></button>
+                            <button class="btn btn-sm btn-secondary" type="button" onclick="uploadAgentSkillFile()" data-i18n="skills.agent_btn_upload_file"></button>
                         </div>
                     </div>
                     <div id="agent-resource-list" class="sk-resource-list sk-file-tree"></div>
@@ -158,15 +158,15 @@
                         <div class="sk-code-meta-grid">
                             <input type="text" id="agent-resource-path" class="sk-input" placeholder="" data-i18n-placeholder="skills.agent_resource_path_placeholder" readonly>
                             <div class="sk-file-editor-actions">
-                                <button class="btn btn-sm btn-secondary" type="button" onclick="renameAgentSkillFile()" data-i18n="skills.agent_btn_rename_file">Rename</button>
-                                <button class="btn btn-sm btn-danger" type="button" onclick="deleteAgentSkillFile()" data-i18n="skills.agent_btn_delete_file">Delete</button>
-                                <button class="btn btn-sm btn-primary" type="button" onclick="saveAgentSkillResource()" data-i18n="skills.agent_btn_save_resource">Save</button>
+                                <button class="btn btn-sm btn-secondary" type="button" onclick="renameAgentSkillFile()" data-i18n="skills.agent_btn_rename_file"></button>
+                                <button class="btn btn-sm btn-danger" type="button" onclick="deleteAgentSkillFile()" data-i18n="skills.agent_btn_delete_file"></button>
+                                <button class="btn btn-sm btn-primary" type="button" onclick="saveAgentSkillResource()" data-i18n="skills.agent_btn_save_resource"></button>
                             </div>
                         </div>
                         <textarea id="agent-resource-content" class="sk-input sk-textarea" rows="8" spellcheck="false"></textarea>
                         <div id="agent-binary-download" style="display:none;">
                             <p class="sk-inline-help" data-i18n="skills.agent_file_binary"></p>
-                            <button class="btn btn-sm btn-secondary" type="button" onclick="downloadAgentSkillFile()" data-i18n="skills.agent_btn_download_file">Download</button>
+                            <button class="btn btn-sm btn-secondary" type="button" onclick="downloadAgentSkillFile()" data-i18n="skills.agent_btn_download_file"></button>
                         </div>
                     </div>
                 </div>
@@ -232,6 +232,29 @@
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeAgentSkillTestModal()" data-i18n="common.btn_cancel"></button>
                 <button class="btn btn-primary" onclick="runAgentSkillTest()" data-i18n="skills.btn_run_test"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AGENT RESOURCE PATH MODAL -->
+    <div class="modal-overlay" id="agent-resource-path-modal" role="dialog" aria-modal="true" aria-labelledby="agent-resource-path-title" aria-describedby="agent-resource-path-description" style="display:none;" onkeydown="onAgentResourcePathKeydown(event)">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="agent-resource-path-title"></h2>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="cancelAgentResourcePathDialog()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="agent-resource-path-description" class="sk-inline-help"></p>
+                <div class="sk-form-group">
+                    <label for="agent-resource-path-input" data-i18n="skills.agent_resource_path_label"></label>
+                    <input type="text" id="agent-resource-path-input" class="sk-input" data-i18n-placeholder="skills.agent_resource_path_placeholder" placeholder="" oninput="onAgentResourcePathInput()" onkeydown="onAgentResourcePathKeydown(event)">
+                    <p id="agent-resource-path-help" class="sk-inline-help" data-i18n="skills.agent_resource_path_help"></p>
+                    <p id="agent-resource-path-error" class="sk-inline-error" role="alert" style="display:none;"></p>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" type="button" onclick="cancelAgentResourcePathDialog()" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-primary" type="button" id="agent-resource-path-confirm-btn" onclick="confirmAgentResourcePathDialog()"></button>
             </div>
         </div>
     </div>

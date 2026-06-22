@@ -80,6 +80,34 @@
     transform: translateY(-1px);
 }
 
+.sk-resource-chip.is-selected {
+    border-color: color-mix(in srgb, var(--accent) 65%, var(--border-subtle));
+    background: color-mix(in srgb, var(--accent) 14%, var(--bg-glass));
+    color: var(--text-primary);
+}
+
+.sk-resource-empty {
+    width: 100%;
+    border: 1px dashed var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    color: var(--text-secondary);
+}
+
+.sk-resource-empty p {
+    margin: 0 0 var(--space-2);
+}
+
+.sk-resource-empty .btn {
+    margin-top: var(--space-3);
+}
+
+.sk-inline-error {
+    color: var(--danger);
+    font-size: var(--text-sm);
+    margin: var(--space-2) 0 0;
+}
+
 .sk-file-manager-header {
     display: flex;
     justify-content: space-between;

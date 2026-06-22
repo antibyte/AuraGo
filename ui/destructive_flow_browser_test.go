@@ -254,6 +254,62 @@ func TestSkillsDestructiveDeleteFlowContract(t *testing.T) {
 	}
 }
 
+func TestAgentSkillsResourceDialogContract(t *testing.T) {
+	t.Parallel()
+
+	html, err := os.ReadFile(filepath.Join(".", "skills.html"))
+	if err != nil {
+		t.Fatalf("read skills.html: %v", err)
+	}
+	js, err := os.ReadFile(filepath.Join(".", "js", "skills", "main.js"))
+	if err != nil {
+		t.Fatalf("read skills main.js: %v", err)
+	}
+
+	htmlText := string(html)
+	jsText := string(js)
+	for _, marker := range []string{
+		`id="agent-resource-path-modal"`,
+		`id="agent-resource-path-input"`,
+		`id="agent-resource-path-error"`,
+		`id="agent-resource-path-confirm-btn"`,
+	} {
+		if !strings.Contains(htmlText, marker) {
+			t.Fatalf("agent skill resource dialog is missing stable modal marker %q", marker)
+		}
+	}
+	for _, marker := range []string{
+		"function showAgentResourcePathDialog",
+		"function validateAgentResourcePath",
+		"let agentFileDeleteInFlight = false;",
+		"if (agentFileDeleteInFlight) return;",
+		"agentFileDeleteInFlight = true;",
+		"setAgentFileDeleteBusy(true);",
+		"setAgentFileDeleteBusy(false);",
+		"function setAgentFileDeleteBusy(busy)",
+		"agent-file-delete-confirm-btn",
+	} {
+		if !strings.Contains(jsText, marker) {
+			t.Fatalf("agent skill resource dialog flow is missing JS marker %q", marker)
+		}
+	}
+}
+
+func TestAgentSkillsDoNotUseNativeBrowserDialogs(t *testing.T) {
+	t.Parallel()
+
+	js, err := os.ReadFile(filepath.Join(".", "js", "skills", "main.js"))
+	if err != nil {
+		t.Fatalf("read skills main.js: %v", err)
+	}
+	jsText := string(js)
+	for _, forbidden := range []string{"prompt(", "confirm(", "alert("} {
+		if strings.Contains(jsText, forbidden) {
+			t.Fatalf("agent skills UI must use AuraGo modals instead of native browser dialog %q", forbidden)
+		}
+	}
+}
+
 func TestKnowledgeDestructiveDeleteFlowContract(t *testing.T) {
 	t.Parallel()
 
