@@ -186,5 +186,11 @@
   "config.providers.oauth_popup_blocked": "登录弹窗被阻止。请使用下方的直接链接。",
   "config.providers.oauth_open_login": "打开登录",
   "config.providers.oauth_missing_config": "OAuth 配置不完整",
+  "config.providers.oauth_missing_fields": "缺少字段：{{fields}}",
+  "config.providers.oauth_field_provider": "提供商",
+  "config.providers.oauth_field_auth_type": "认证类型",
+  "config.providers.oauth_field_auth_url": "授权 URL",
+  "config.providers.oauth_field_token_url": "Token URL",
+  "config.providers.oauth_field_client_id": "客户端 ID",
   "config.providers.oauth_connect_unavailable": "连接前请补全 OAuth 字段。"
 }

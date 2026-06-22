@@ -186,5 +186,11 @@
   "config.providers.oauth_popup_blocked": "La fenêtre de connexion a été bloquée. Utilise le lien direct ci-dessous.",
   "config.providers.oauth_open_login": "Ouvrir la connexion",
   "config.providers.oauth_missing_config": "Configuration OAuth incomplète",
+  "config.providers.oauth_missing_fields": "Champs manquants : {{fields}}",
+  "config.providers.oauth_field_provider": "Fournisseur",
+  "config.providers.oauth_field_auth_type": "Type d'authentification",
+  "config.providers.oauth_field_auth_url": "URL d'autorisation",
+  "config.providers.oauth_field_token_url": "URL du token",
+  "config.providers.oauth_field_client_id": "ID client",
   "config.providers.oauth_connect_unavailable": "Complète les champs OAuth avant de connecter."
 }

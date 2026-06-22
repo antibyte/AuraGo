@@ -186,5 +186,11 @@
   "config.providers.oauth_popup_blocked": "Login-popupen blockerades. Använd direktlänken nedan.",
   "config.providers.oauth_open_login": "Öppna login",
   "config.providers.oauth_missing_config": "OAuth-konfigurationen är ofullständig",
+  "config.providers.oauth_missing_fields": "Saknade fält: {{fields}}",
+  "config.providers.oauth_field_provider": "Leverantör",
+  "config.providers.oauth_field_auth_type": "Autentiseringstyp",
+  "config.providers.oauth_field_auth_url": "Auth-URL",
+  "config.providers.oauth_field_token_url": "Token-URL",
+  "config.providers.oauth_field_client_id": "Client-ID",
   "config.providers.oauth_connect_unavailable": "Fyll i OAuth-fälten innan du ansluter."
 }

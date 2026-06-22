@@ -186,5 +186,11 @@
   "config.providers.oauth_popup_blocked": "De login-popup is geblokkeerd. Gebruik de directe link hieronder.",
   "config.providers.oauth_open_login": "Login openen",
   "config.providers.oauth_missing_config": "OAuth-configuratie onvolledig",
+  "config.providers.oauth_missing_fields": "Ontbrekende velden: {{fields}}",
+  "config.providers.oauth_field_provider": "Provider",
+  "config.providers.oauth_field_auth_type": "Authenticatietype",
+  "config.providers.oauth_field_auth_url": "Auth-URL",
+  "config.providers.oauth_field_token_url": "Token-URL",
+  "config.providers.oauth_field_client_id": "Client-ID",
   "config.providers.oauth_connect_unavailable": "Vul de OAuth-velden in voordat je verbindt."
 }

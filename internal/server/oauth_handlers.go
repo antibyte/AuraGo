@@ -165,7 +165,7 @@ func handleOAuthCallback(s *Server) http.HandlerFunc {
 		s.CfgMu.RUnlock()
 
 		if prov == nil {
-			renderOAuthResult(w, false, "Provider '"+providerID+"' not found in config")
+			renderOAuthResult(w, false, "Provider '"+providerID+"' not found in config", providerID)
 			return
 		}
 
@@ -177,20 +177,20 @@ func handleOAuthCallback(s *Server) http.HandlerFunc {
 		tokenResp, err := exchangeCodeForToken(entry, code, redirectURI, session.CodeVerifier)
 		if err != nil {
 			s.Logger.Error("[OAuth] Token exchange failed", "provider", providerID, "error", err)
-			renderOAuthResult(w, false, "Token exchange failed")
+			renderOAuthResult(w, false, oauthUserMessage(err), providerID)
 			return
 		}
 
 		if err := storeOAuthToken(s.Vault, providerID, tokenResp, time.Now()); err != nil {
 			s.Logger.Error("[OAuth] Failed to store token", "provider", providerID, "error", err)
-			renderOAuthResult(w, false, "Failed to store token")
+			renderOAuthResult(w, false, "Failed to store token", providerID)
 			return
 		}
 
 		applyOAuthTokenToRuntime(s)
 
 		s.Logger.Info("[OAuth] Authorization successful", "provider", providerID)
-		renderOAuthResult(w, true, "Authorization successful for provider: "+providerID)
+		renderOAuthResult(w, true, "Authorization successful for provider: "+providerID, providerID)
 	}
 }
 
@@ -587,7 +587,7 @@ func handleOAuthManual(s *Server) http.HandlerFunc {
 		if err != nil {
 			s.Logger.Error("[OAuth] Manual token exchange failed", "provider", providerID, "error", err)
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Token exchange failed"})
+			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": oauthUserMessage(err)})
 			return
 		}
 
@@ -606,8 +606,33 @@ func handleOAuthManual(s *Server) http.HandlerFunc {
 	}
 }
 
+func oauthUserMessage(err error) string {
+	if err == nil {
+		return "Token exchange failed. Check the OAuth settings and try again."
+	}
+	lower := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(lower, "redirect_uri") || strings.Contains(lower, "redirect uri"):
+		return "Token exchange failed: Redirect URI mismatch. Copy the Redirect URI shown in AuraGo into the provider's OAuth app and try again."
+	case strings.Contains(lower, "invalid_client") ||
+		strings.Contains(lower, "client secret") ||
+		strings.Contains(lower, "client_id") ||
+		strings.Contains(lower, "client id"):
+		return "Token exchange failed: Client ID or client secret was rejected. Check the OAuth client credentials and try again."
+	case strings.Contains(lower, "invalid_grant") ||
+		strings.Contains(lower, "authorization code") ||
+		strings.Contains(lower, "expired") ||
+		strings.Contains(lower, "already used"):
+		return "Token exchange failed: Authorization code expired or was already used. Click Connect again and complete the new login."
+	case strings.Contains(lower, "access_denied"):
+		return "Authorization was denied by the provider."
+	default:
+		return "Token exchange failed: The provider rejected the authorization code. Check the OAuth settings and try again."
+	}
+}
+
 // renderOAuthResult shows a simple HTML page for the OAuth callback result.
-func renderOAuthResult(w http.ResponseWriter, success bool, message string) {
+func renderOAuthResult(w http.ResponseWriter, success bool, message string, providerID ...string) {
 	icon := "❌"
 	title := "Authorization Failed"
 	color := "#e74c3c"
@@ -618,6 +643,17 @@ func renderOAuthResult(w http.ResponseWriter, success bool, message string) {
 	}
 	safeTitle := html.EscapeString(title)
 	safeMessage := html.EscapeString(message)
+	payload := map[string]any{
+		"type":    "aurago:oauth-provider-connected",
+		"success": success,
+	}
+	if len(providerID) > 0 && providerID[0] != "" {
+		payload["provider_id"] = providerID[0]
+	}
+	payloadJSON, err := json.Marshal(payload)
+	if err != nil {
+		payloadJSON = []byte(`{"type":"aurago:oauth-provider-connected","success":false}`)
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, `<!DOCTYPE html>
 <html>
@@ -631,9 +667,17 @@ button{padding:0.6rem 1.5rem;border:none;border-radius:8px;background:%s;color:#
 button:hover{opacity:0.85;}
 </style>
 <script>
+const auragoOAuthPayload = %s;
+try {
+  if (typeof BroadcastChannel !== "undefined") {
+    const channel = new BroadcastChannel("aurago-oauth");
+    channel.postMessage(auragoOAuthPayload);
+    channel.close();
+  }
+} catch (e) {}
 try {
   if (window.opener && !window.opener.closed) {
-    window.opener.postMessage({type:"aurago:oauth-provider-connected", success:%t}, window.location.origin);
+    window.opener.postMessage(auragoOAuthPayload, window.location.origin);
   }
 } catch (e) {}
 </script></head>
@@ -644,5 +688,5 @@ try {
 <p>%s</p>
 <button onclick="window.close()">Close Window</button>
 </div>
-</body></html>`, safeTitle, color, color, success, icon, safeTitle, safeMessage)
+</body></html>`, safeTitle, color, color, string(payloadJSON), icon, safeTitle, safeMessage)
 }

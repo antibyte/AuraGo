@@ -218,7 +218,7 @@ async function gwOAuthManual(provider) {
 async function gwOAuthDisconnect() {
     const statusEl = document.getElementById('gw-oauth-status');
     try {
-        const resp = await fetch('/api/oauth/revoke?provider=google_workspace', { method: 'POST' });
+        const resp = await fetch('/api/oauth/revoke?provider=google_workspace', { method: 'DELETE' });
         const data = await resp.json();
         if (data.status === 'ok' || data.success) {
             gwSetStatus(statusEl, 'success', '✓ ' + t('config.google_workspace.oauth_disconnected'));

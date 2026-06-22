@@ -186,5 +186,11 @@
   "config.providers.oauth_popup_blocked": "The login popup was blocked. Use the direct link below.",
   "config.providers.oauth_open_login": "Open login",
   "config.providers.oauth_missing_config": "OAuth configuration incomplete",
+  "config.providers.oauth_missing_fields": "Missing fields: {{fields}}",
+  "config.providers.oauth_field_provider": "Provider",
+  "config.providers.oauth_field_auth_type": "Auth type",
+  "config.providers.oauth_field_auth_url": "Auth URL",
+  "config.providers.oauth_field_token_url": "Token URL",
+  "config.providers.oauth_field_client_id": "Client ID",
   "config.providers.oauth_connect_unavailable": "Complete the OAuth fields before connecting."
 }
