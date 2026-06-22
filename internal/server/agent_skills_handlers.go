@@ -397,7 +397,7 @@ func handleAgentSkillFile(s *Server) http.HandlerFunc {
 				}
 				if err := s.AgentSkillManager.CreateAgentSkillFile(r.Context(), id, relPath, data, true, "user", s.LLMGuardian, useGuardian); err != nil {
 					if strings.Contains(err.Error(), "already exists") {
-						if err := s.AgentSkillManager.WriteAgentSkillFile(r.Context(), id, relPath, string(data), "user", s.LLMGuardian, useGuardian); err != nil {
+						if err := s.AgentSkillManager.WriteAgentSkillFileBytes(r.Context(), id, relPath, data, "user", s.LLMGuardian, useGuardian); err != nil {
 							jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to write Agent Skill file", "Failed to write Agent Skill file", err, "agent_skill_id", id, "path", relPath)
 							return
 						}
@@ -512,7 +512,7 @@ func handleAgentSkillFileUpload(s *Server) http.HandlerFunc {
 		id := extractSkillPathID(r.URL.Path, "/api/agent-skills/")
 		if err := s.AgentSkillManager.CreateAgentSkillFile(r.Context(), id, relPath, data, isBinary, "user", s.LLMGuardian, useGuardian); err != nil {
 			if strings.Contains(err.Error(), "already exists") {
-				if err := s.AgentSkillManager.WriteAgentSkillFile(r.Context(), id, relPath, string(data), "user", s.LLMGuardian, useGuardian); err != nil {
+				if err := s.AgentSkillManager.WriteAgentSkillFileBytes(r.Context(), id, relPath, data, "user", s.LLMGuardian, useGuardian); err != nil {
 					jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to write Agent Skill file", "Failed to write Agent Skill file", err, "agent_skill_id", id, "path", relPath)
 					return
 				}

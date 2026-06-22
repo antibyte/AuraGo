@@ -1108,6 +1108,10 @@ func (m *AgentSkillManager) WriteAgentSkillFile(ctx context.Context, id, relPath
 	return m.writeAgentSkillFileBytes(ctx, id, relPath, []byte(content), false, actor, guardian, useGuardian)
 }
 
+func (m *AgentSkillManager) WriteAgentSkillFileBytes(ctx context.Context, id, relPath string, content []byte, actor string, guardian *security.LLMGuardian, useGuardian bool) error {
+	return m.writeAgentSkillFileBytes(ctx, id, relPath, content, false, actor, guardian, useGuardian)
+}
+
 func (m *AgentSkillManager) writeAgentSkillFileBytes(ctx context.Context, id, relPath string, content []byte, isBinary bool, actor string, guardian *security.LLMGuardian, useGuardian bool) error {
 	entry, err := m.GetAgentSkill(id)
 	if err != nil {
@@ -1225,8 +1229,9 @@ func (m *AgentSkillManager) RenameAgentSkillFile(ctx context.Context, id, oldRel
 }
 
 // applyEditSafety re-scans after a file change and applies D4 edit-safety logic:
-// disable and clear warning approval only when the new status is not clean,
-// or when security-relevant files (SKILL.md, scripts/) changed their hash.
+// disable and clear warning approval only when (a) the new status is dangerous/error,
+// or (b) security-relevant files (SKILL.md, scripts/) changed their hash.
+// Pure references/assets edits that remain at the same or better status keep the enabled state.
 func (m *AgentSkillManager) applyEditSafety(ctx context.Context, entry *AgentSkillRegistryEntry, changedPath, actor string, guardian *security.LLMGuardian, useGuardian bool) error {
 	pkg, err := ParseAgentSkillPackage(entry.Directory)
 	if err != nil {
@@ -1235,10 +1240,14 @@ func (m *AgentSkillManager) applyEditSafety(ctx context.Context, entry *AgentSki
 	report, status, scanErr := ScanAgentSkillPackage(ctx, pkg, guardian, useGuardian)
 	isSecurityRelevant := changedPath == "SKILL.md" || strings.HasPrefix(changedPath, "scripts/")
 	hashChanged := pkg.PackageHash != entry.PackageHash
-	shouldBeDisabled := status != SecurityClean || (isSecurityRelevant && hashChanged)
-	shouldBeClearWarning := shouldBeDisabled
+	statusDegraded := status == SecurityDangerous || status == SecurityError || (status == SecurityWarning && entry.SecurityStatus == SecurityClean)
+	securityRelevantChange := isSecurityRelevant && hashChanged
+	shouldBeDisabled := statusDegraded || securityRelevantChange
 	enabled := entry.Enabled && !shouldBeDisabled
-	warningApproved := entry.WarningApproved && !shouldBeClearWarning
+	warningApproved := entry.WarningApproved
+	if securityRelevantChange || statusDegraded {
+		warningApproved = false
+	}
 	_, err = m.upsertAgentSkillPackage(pkg, actor, report, status, enabled, warningApproved)
 	if err != nil {
 		return err
