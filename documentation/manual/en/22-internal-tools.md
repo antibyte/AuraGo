@@ -99,7 +99,7 @@ Load full SKILL.md instructions for an enabled Agent Skill package.
 | `name` | string | Alias for skill |
 
 ### `run_agent_skill_script`
-Run an approved Python script from an enabled Agent Skill package.
+Run an approved helper script from an enabled Agent Skill package.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -107,6 +107,8 @@ Run an approved Python script from an enabled Agent Skill package.
 | `name` | string | Alias for skill |
 | `script` | string | Script path under scripts/, e.g. scripts/analyze.py |
 | `args` | object | JSON arguments sent to the script on stdin |
+
+Supported registered script extensions are `.py`, `.sh`, and `.js`; Bash and JavaScript must be enabled in `tools.skill_manager.allowed_script_languages`, and Bash additionally requires `agent.allow_shell`.
 
 ### `run_tool`
 Run a saved custom Python tool from the agent tools directory.

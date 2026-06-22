@@ -551,6 +551,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					return wrongToolKindForExecuteSkill(entry)
 				}
 			}
+			if mgr := tools.DefaultSkillManager(); mgr != nil {
+				if _, err := mgr.GetExecutableSkillByName(cleanSkillName); err != nil {
+					return fmt.Sprintf("Tool Output: ERROR executing skill: %s", security.Scrub(err.Error()))
+				}
+			}
 			// Unwrap skill_args if the LLM nested the actual parameters under that key.
 			// e.g. {"skill_name": "ddg_search", "skill_args": {"query": "..."}} → {"query": "..."}
 			if innerArgs, ok := args["skill_args"].(map[string]interface{}); ok && len(innerArgs) > 0 {

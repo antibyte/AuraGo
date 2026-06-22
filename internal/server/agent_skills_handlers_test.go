@@ -165,3 +165,57 @@ func TestAgentSkillAPIWarningApprovalAndZipImport(t *testing.T) {
 		t.Fatalf("imported name=%v, want zip-api", imported["name"])
 	}
 }
+
+func TestAgentSkillAPICreateAutoEnableClean(t *testing.T) {
+	s, mux := newTestAgentSkillServer(t)
+	s.Cfg.Tools.SkillManager.AutoEnableClean = true
+	createBody := `{"name":"auto-clean","description":"Auto enable test. Use when testing auto enable.","body":"# Clean\nNo risky content."}`
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/agent-skills", strings.NewReader(createBody)))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	created := decodeAgentSkillResponse(t, rec)
+	skill := created["skill"].(map[string]interface{})
+	if !skill["enabled"].(bool) {
+		t.Fatal("expected skill.enabled true with AutoEnableClean")
+	}
+}
+
+func TestAgentSkillAPICreateAutoEnableCleanOffLeavesDisabled(t *testing.T) {
+	s, mux := newTestAgentSkillServer(t)
+	s.Cfg.Tools.SkillManager.AutoEnableClean = false
+	createBody := `{"name":"auto-off","description":"Auto off test. Use when testing auto enable off.","body":"# Clean\nNo risky content."}`
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/agent-skills", strings.NewReader(createBody)))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	created := decodeAgentSkillResponse(t, rec)
+	skill := created["skill"].(map[string]interface{})
+	if skill["enabled"].(bool) {
+		t.Fatal("expected skill.enabled false when AutoEnableClean off")
+	}
+}
+
+func TestAgentSkillAPIVerifyAutoEnableClean(t *testing.T) {
+	s, mux := newTestAgentSkillServer(t)
+	s.Cfg.Tools.SkillManager.AutoEnableClean = false
+	createBody := `{"name":"verify-auto","description":"Verify auto test. Use when testing verify auto.","body":"# Clean\nNo risky content."}`
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/agent-skills", strings.NewReader(createBody)))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	id := decodeAgentSkillResponse(t, rec)["skill"].(map[string]interface{})["id"].(string)
+	s.Cfg.Tools.SkillManager.AutoEnableClean = true
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/agent-skills/"+id+"/verify", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("verify status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	skill := decodeAgentSkillResponse(t, rec)["skill"].(map[string]interface{})
+	if !skill["enabled"].(bool) {
+		t.Fatal("expected skill.enabled true after verify with AutoEnableClean")
+	}
+}

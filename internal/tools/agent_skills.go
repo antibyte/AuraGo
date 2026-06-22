@@ -871,7 +871,13 @@ func (m *AgentSkillManager) SyncFromDisk(ctx context.Context, guardian *security
 		if scanErr != nil && m.logger != nil {
 			m.logger.Warn("Agent Skill scan failed during sync", "name", pkg.Name, "error", scanErr)
 		}
-		if _, err := m.upsertAgentSkillPackage(pkg, "system:sync", report, status, false, false); err != nil && m.logger != nil {
+		enabled := false
+		warningApproved := false
+		if existing != nil {
+			warningApproved = existing.WarningApproved && status == SecurityWarning
+			enabled = existing.Enabled && (status == SecurityClean || (status == SecurityWarning && warningApproved))
+		}
+		if _, err := m.upsertAgentSkillPackage(pkg, "system:sync", report, status, enabled, warningApproved); err != nil && m.logger != nil {
 			m.logger.Warn("Failed to sync Agent Skill", "name", pkg.Name, "error", err)
 		}
 	}

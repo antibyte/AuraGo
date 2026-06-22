@@ -343,13 +343,18 @@ func (m *SkillManager) SyncFromDisk() error {
 			}
 			cheatsheetIDsJSON, _ := json.Marshal(append([]string{}, manifest.CheatsheetIDs...))
 
+			enabledByDefault := 0
+			if manifest.Executable == "__builtin__" {
+				enabledByDefault = 1
+			}
+
 			_, err := m.db.Exec(`INSERT INTO skills_registry 
 				(id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, internal_tools,
 				 created_by, enabled, security_status, file_path, file_hash, cheatsheet_ids)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				id, manifest.Name, string(skillType), manifest.Description,
 				manifest.Executable, manifest.Category, mustJSONString(manifest.Tags), string(params), string(deps), string(vaultKeys), string(internalTools),
-				string(skillType), string(SecurityPending), manifest.Executable, fileHash, string(cheatsheetIDsJSON),
+				string(skillType), enabledByDefault, string(SecurityPending), manifest.Executable, fileHash, string(cheatsheetIDsJSON),
 			)
 			if err != nil {
 				m.logger.Warn("Failed to insert skill", "name", manifest.Name, "error", err)
@@ -586,6 +591,74 @@ func (m *SkillManager) GetSkill(id string) (*SkillRegistryEntry, error) {
 	}
 
 	return &s, nil
+}
+
+// GetSkillByName retrieves a single skill from the registry by name.
+func (m *SkillManager) GetSkillByName(name string) (*SkillRegistryEntry, error) {
+	var s SkillRegistryEntry
+	var params, deps, vaultKeys, internalToolsRaw, secReport, tags sql.NullString
+	var lastScan sql.NullTime
+	var enabled int
+
+	var cheatsheetIDs sql.NullString
+	var docPath, docHash string
+	err := m.db.QueryRow(`SELECT id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, internal_tools,
+		created_at, updated_at, created_by, enabled, security_status, security_report, last_scan_at,
+		file_path, file_hash, COALESCE(documentation_path,''), COALESCE(documentation_hash,''), COALESCE(cheatsheet_ids,'') FROM skills_registry WHERE name = ?`, name).
+		Scan(&s.ID, &s.Name, &s.Type, &s.Description, &s.Executable, &s.Category, &tags,
+			&params, &deps, &vaultKeys, &internalToolsRaw,
+			&s.CreatedAt, &s.UpdatedAt, &s.CreatedBy, &enabled,
+			&s.SecurityStatus, &secReport, &lastScan,
+			&s.FilePath, &s.FileHash, &docPath, &docHash, &cheatsheetIDs)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("skill not found: %s", name)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("querying skill: %w", err)
+	}
+
+	s.DocumentationPath = docPath
+	s.DocumentationHash = docHash
+	s.HasDocumentation = docPath != ""
+	s.CheatsheetIDs = loadCheatsheetIDs(cheatsheetIDs)
+	m.populateSkillFromScan(&s, params, deps, vaultKeys, internalToolsRaw, secReport, tags, lastScan, enabled)
+
+	manifestPath := filepath.Join(m.skillsDir, strings.TrimSuffix(s.Executable, filepath.Ext(s.Executable))+".json")
+	if data, readErr := os.ReadFile(manifestPath); readErr == nil {
+		var mf SkillManifest
+		if json.Unmarshal(data, &mf) == nil && mf.Daemon != nil {
+			s.IsDaemon = true
+		}
+	}
+
+	return &s, nil
+}
+
+// GetExecutableSkillByName returns a registry skill only when it is enabled and security allows execution.
+func (m *SkillManager) GetExecutableSkillByName(name string) (*SkillRegistryEntry, error) {
+	name = strings.TrimSpace(strings.TrimSuffix(name, ".py"))
+	if name == "" {
+		return nil, fmt.Errorf("skill name is required")
+	}
+	skill, err := m.GetSkillByName(name)
+	if err != nil {
+		return nil, err
+	}
+	if !skill.Enabled {
+		return nil, fmt.Errorf("skill %q is disabled", skill.Name)
+	}
+	switch skill.SecurityStatus {
+	case SecurityClean, SecurityWarning:
+		return skill, nil
+	case SecurityPending:
+		return nil, fmt.Errorf("skill %q security status pending cannot execute", skill.Name)
+	case SecurityDangerous:
+		return nil, fmt.Errorf("skill %q security status dangerous cannot execute", skill.Name)
+	case SecurityError:
+		return nil, fmt.Errorf("skill %q security status error cannot execute", skill.Name)
+	default:
+		return nil, fmt.Errorf("skill %q security status %s cannot execute", skill.Name, skill.SecurityStatus)
+	}
 }
 
 // GetSkillCode reads the Python source code of a skill.

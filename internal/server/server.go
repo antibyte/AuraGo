@@ -347,35 +347,8 @@ func Start(opts StartOptions) error {
 	s.HeartbeatScheduler.Start()
 	s.restartUptimeKumaPoller()
 
-	// Initialize Skill Manager (always; gated by config in handlers)
-	if cfg.Tools.SkillManager.Enabled {
-		skillsDB, err := tools.InitSkillsDB(cfg.SQLite.SkillsPath)
-		if err != nil {
-			logger.Warn("Failed to initialize Skills DB", "error", err, "path", cfg.SQLite.SkillsPath)
-		} else {
-			s.SkillsDB = skillsDB
-			s.SkillManager = tools.NewSkillManager(skillsDB, cfg.Directories.SkillsDir, logger)
-			tools.SetDefaultSkillManager(s.SkillManager)
-			if err := s.SkillManager.SyncFromDisk(); err != nil {
-				logger.Warn("Failed to sync skills from disk", "error", err)
-			}
-			if err := tools.MigrateAgentSkillsDB(skillsDB); err != nil {
-				logger.Warn("Failed to initialize Agent Skills schema", "error", err)
-			} else {
-				s.AgentSkillManager = tools.NewAgentSkillManager(skillsDB, cfg.Directories.AgentSkillsDir, cfg.Directories.WorkspaceDir, logger)
-				tools.SetDefaultAgentSkillManager(s.AgentSkillManager)
-				if err := s.AgentSkillManager.SyncFromDisk(context.Background(), s.LLMGuardian, cfg.Tools.SkillManager.ScanWithGuardian); err != nil {
-					logger.Warn("Failed to sync Agent Skills from disk", "error", err)
-				}
-				logger.Info("Agent Skills initialized", "agent_skills_dir", cfg.Directories.AgentSkillsDir)
-			}
-			logger.Info("Skill Manager initialized", "skills_dir", cfg.Directories.SkillsDir)
-			if shouldSeedWelcomeContent(s.IsFirstStart) {
-				// Seed bundled example skills only during first-start setup.
-				tools.SeedWelcomeSkills(s.SkillManager, cfg.Directories.SkillsDir, installDir, logger)
-			}
-		}
-	}
+	// Initialize Skill Manager and Agent Skills (classic manager gated by config)
+	s.initSkillManagers(context.Background(), installDir)
 
 	// Initialize Remote Control Hub
 	remote.InsecureHostKey = cfg.RemoteControl.SSHInsecureHostKey
@@ -1100,6 +1073,45 @@ func newServerFromOptions(opts StartOptions) *Server {
 
 func shouldSeedWelcomeContent(isFirstStart bool) bool {
 	return isFirstStart
+}
+
+func (s *Server) initSkillManagers(ctx context.Context, installDir string) {
+	cfg := s.Cfg
+	logger := s.Logger
+	if cfg == nil || logger == nil {
+		return
+	}
+	skillsDB, err := tools.InitSkillsDB(cfg.SQLite.SkillsPath)
+	if err != nil {
+		logger.Warn("Failed to initialize Skills DB", "error", err, "path", cfg.SQLite.SkillsPath)
+		return
+	}
+	s.SkillsDB = skillsDB
+
+	if cfg.Tools.SkillManager.Enabled {
+		s.SkillManager = tools.NewSkillManager(skillsDB, cfg.Directories.SkillsDir, logger)
+		tools.SetDefaultSkillManager(s.SkillManager)
+		if err := s.SkillManager.SyncFromDisk(); err != nil {
+			logger.Warn("Failed to sync skills from disk", "error", err)
+		}
+		logger.Info("Skill Manager initialized", "skills_dir", cfg.Directories.SkillsDir)
+		if shouldSeedWelcomeContent(s.IsFirstStart) {
+			tools.SeedWelcomeSkills(s.SkillManager, cfg.Directories.SkillsDir, installDir, logger)
+		}
+	} else {
+		tools.SetDefaultSkillManager(nil)
+	}
+
+	if err := tools.MigrateAgentSkillsDB(skillsDB); err != nil {
+		logger.Warn("Failed to initialize Agent Skills schema", "error", err)
+		return
+	}
+	s.AgentSkillManager = tools.NewAgentSkillManager(skillsDB, cfg.Directories.AgentSkillsDir, cfg.Directories.WorkspaceDir, logger)
+	tools.SetDefaultAgentSkillManager(s.AgentSkillManager)
+	if err := s.AgentSkillManager.SyncFromDisk(ctx, s.LLMGuardian, cfg.Tools.SkillManager.ScanWithGuardian); err != nil {
+		logger.Warn("Failed to sync Agent Skills from disk", "error", err)
+	}
+	logger.Info("Agent Skills initialized", "agent_skills_dir", cfg.Directories.AgentSkillsDir)
 }
 
 // runHTTP starts the server in HTTP mode (for local/LAN use)
