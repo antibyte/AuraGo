@@ -1,5 +1,6 @@
         // ── Mood Time Range Buttons ─────────────────────────────────────────────────
-        document.querySelector('.mood-mini-btns').addEventListener('click', async (e) => {
+        const moodMiniBtns = document.querySelector('.mood-mini-btns');
+        if (moodMiniBtns) moodMiniBtns.addEventListener('click', async (e) => {
             const btn = e.target.closest('.mood-btn');
             if (!btn) return;
             document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
@@ -16,7 +17,8 @@
         });
 
         // ── Profile Search ──────────────────────────────────────────────────────────
-        document.getElementById('profile-search').addEventListener('input', function () {
+        const profileSearch = document.getElementById('profile-search');
+        if (profileSearch) profileSearch.addEventListener('input', function () {
             const q = this.value.toLowerCase();
             document.querySelectorAll('.profile-entry').forEach(el => {
                 const match = !q || (el.dataset.search || '').toLowerCase().includes(q);
@@ -86,7 +88,7 @@
                 if (_sseReconnectTimer) return; // Already pending
                 _sseReconnectTimer = setTimeout(function () {
                     _sseReconnectTimer = null;
-                    showSSEBanner('⚠ ' + (t('dashboard.sse_reconnecting') || 'Reconnecting…'));
+                    showSSEBanner('⚠ ' + (t('dashboard.sse_reconnecting')));
                 }, 3000);
                 // Also check auth status after a longer delay
                 if (_sseReconnectTimeout) clearTimeout(_sseReconnectTimeout);
@@ -153,9 +155,105 @@
         document.addEventListener('DOMContentLoaded', () => {
             initDashboard();
             connectSSE();
+            initModalFocusTrap();
         });
 
         // Radial menu is initialized by shared.js (initRadialMenu)
+
+        // ══════════════════════════════════════════════════════════════════════════════
+        // MODAL FOCUS TRAP — Accessible modal management
+        // Traps Tab/Shift+Tab within open modal, restores focus on close.
+        // ══════════════════════════════════════════════════════════════════════════════
+        const ModalFocusTrap = {
+            _lastFocused: null,
+            _activeOverlay: null,
+
+            /**
+             * Get all focusable elements within a container.
+             */
+            _getFocusable(container) {
+                if (!container) return [];
+                return Array.from(container.querySelectorAll(
+                    'button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+                    'textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+                )).filter(el => el.offsetParent !== null || el.getClientRects().length > 0);
+            },
+
+            /**
+             * Called when a modal overlay gains the 'open' class.
+             * Stores the previously focused element and moves focus into the modal.
+             */
+            trap(overlayEl) {
+                if (!overlayEl || this._activeOverlay === overlayEl) return;
+                this._lastFocused = document.activeElement;
+                this._activeOverlay = overlayEl;
+                // Focus first focusable element (prefer close button, then first input)
+                const focusable = this._getFocusable(overlayEl);
+                const closeBtn = overlayEl.querySelector('.cf-close');
+                const target = closeBtn || focusable[0];
+                if (target) requestAnimationFrame(() => target.focus());
+            },
+
+            /**
+             * Releases the focus trap, restoring focus to the trigger element.
+             */
+            release(overlayEl) {
+                if (this._activeOverlay !== overlayEl) return;
+                this._activeOverlay = null;
+                if (this._lastFocused && typeof this._lastFocused.focus === 'function' && document.contains(this._lastFocused)) {
+                    this._lastFocused.focus();
+                }
+                this._lastFocused = null;
+            },
+
+            /**
+             * Tab key handler — wraps focus from last to first element.
+             */
+            _onKeyDown(e) {
+                if (!this._activeOverlay) return;
+                if (e.key !== 'Tab') return;
+                const focusable = this._getFocusable(this._activeOverlay);
+                if (focusable.length === 0) {
+                    e.preventDefault();
+                    return;
+                }
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (e.shiftKey) {
+                    if (document.activeElement === first) {
+                        e.preventDefault();
+                        last.focus();
+                    }
+                } else {
+                    if (document.activeElement === last) {
+                        e.preventDefault();
+                        first.focus();
+                    }
+                }
+            },
+        };
+
+        function initModalFocusTrap() {
+            // Global Tab handler for focus trapping
+            document.addEventListener('keydown', (e) => ModalFocusTrap._onKeyDown(e));
+
+            // Observe 'open' class changes on all overlays
+            const overlayIds = ['cfOverlay', 'cronEditOverlay', 'kgDetailOverlay'];
+            overlayIds.forEach(id => {
+                const overlay = document.getElementById(id);
+                if (!overlay) return;
+                // Watch for class changes (open added/removed)
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach(m => {
+                        if (m.attributeName !== 'class') return;
+                        const isOpen = overlay.classList.contains('open');
+                        if (isOpen) ModalFocusTrap.trap(overlay);
+                        else ModalFocusTrap.release(overlay);
+                    });
+                });
+                observer.observe(overlay, { attributes: true, attributeFilter: ['class'] });
+            });
+        }
 
         // ── Cron Edit Modal ──────────────────────────────────────────────────────────
         function closeCronEditModal() {

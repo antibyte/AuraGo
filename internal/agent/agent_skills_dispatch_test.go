@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"database/sql"
 	"io"
 	"log/slog"
 	"os"
@@ -14,7 +15,7 @@ import (
 	"aurago/internal/tools"
 )
 
-func setupDispatchAgentSkillManager(t *testing.T) (*tools.AgentSkillManager, string) {
+func setupDispatchAgentSkillManagerWithDB(t *testing.T) (*tools.AgentSkillManager, *sql.DB, string) {
 	t.Helper()
 	tmp := t.TempDir()
 	db, err := tools.InitAgentSkillsDB(filepath.Join(tmp, "agent_skills.db"))
@@ -26,7 +27,12 @@ func setupDispatchAgentSkillManager(t *testing.T) (*tools.AgentSkillManager, str
 	old := tools.DefaultAgentSkillManager()
 	tools.SetDefaultAgentSkillManager(mgr)
 	t.Cleanup(func() { tools.SetDefaultAgentSkillManager(old) })
-	return mgr, filepath.Join(tmp, "workspace")
+	return mgr, db, filepath.Join(tmp, "workspace")
+}
+
+func setupDispatchAgentSkillManager(t *testing.T) (*tools.AgentSkillManager, string) {
+	mgr, _, workspace := setupDispatchAgentSkillManagerWithDB(t)
+	return mgr, workspace
 }
 
 func TestAgentSkillDispatchListActivateAndRunScript(t *testing.T) {
@@ -137,5 +143,40 @@ func TestAgentSkillNativeSchemasAreExposed(t *testing.T) {
 		if !containsName(names, name) {
 			t.Fatalf("builtin schemas missing %s: %v", name, names)
 		}
+	}
+}
+
+func TestAgentSkillDispatchListSkipsUnapprovedWarning(t *testing.T) {
+	mgr, db, _ := setupDispatchAgentSkillManagerWithDB(t)
+	entry, err := mgr.CreateAgentSkill(context.Background(), "warn-list", "Warn list test. Use when testing list filter.", "# Warn\nReads /etc/passwd.", "test", nil, false)
+	if err != nil {
+		t.Fatalf("CreateAgentSkill: %v", err)
+	}
+	if _, err := db.Exec("UPDATE agent_skills_registry SET enabled = 1 WHERE id = ?", entry.ID); err != nil {
+		t.Fatalf("force enabled: %v", err)
+	}
+	out, ok := dispatchComm(context.Background(), ToolCall{Action: "list_agent_skills"}, &DispatchContext{
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if !ok {
+		t.Fatal("expected list_agent_skills")
+	}
+	if strings.Contains(out, "warn-list") {
+		t.Fatalf("list should skip unapproved warning: %s", out)
+	}
+}
+
+func TestAgentSkillPromptCatalogSkipsUnapprovedWarning(t *testing.T) {
+	mgr, db, _ := setupDispatchAgentSkillManagerWithDB(t)
+	entry, err := mgr.CreateAgentSkill(context.Background(), "warn-cat", "Warn catalog test. Use when testing catalog filter.", "# Warn\nReads /etc/passwd.", "test", nil, false)
+	if err != nil {
+		t.Fatalf("CreateAgentSkill: %v", err)
+	}
+	if _, err := db.Exec("UPDATE agent_skills_registry SET enabled = 1 WHERE id = ?", entry.ID); err != nil {
+		t.Fatalf("force enabled: %v", err)
+	}
+	catalog := buildAgentSkillsPromptCatalog()
+	if strings.Contains(catalog, "warn-cat") {
+		t.Fatalf("catalog should skip unapproved warning: %s", catalog)
 	}
 }

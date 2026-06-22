@@ -293,10 +293,10 @@
             dot.title = '';
         } else if (failed) {
             dot.dataset.state = 'offline';
-            dot.title = t('desktop.ws_connection_lost', 'Connection lost. Please refresh the page.');
+            dot.title = t('desktop.ws_connection_lost');
         } else {
             dot.dataset.state = 'reconnecting';
-            dot.title = t('desktop.ws_reconnecting', 'Reconnecting...');
+            dot.title = t('desktop.ws_reconnecting');
         }
     }
 
@@ -305,6 +305,7 @@
         if (event.type === 'welcome') {
             state.bootstrap = event.payload || state.bootstrap;
             renderDesktop();
+            refreshPetRuntime();
             return;
         }
         if (event.type === 'desktop_changed') {
@@ -325,6 +326,13 @@
         }
         if (event.type === 'notification') {
             showDesktopNotification(event.payload || {});
+            return;
+        }
+        if (event.type === 'pet_changed' || event.type === 'pet_reaction_changed' || event.type === 'pet_say' || event.type === 'pet_setting_changed') {
+            if (window.PetRuntime && typeof window.PetRuntime.handleEvent === 'function') {
+                window.PetRuntime.handleEvent(event);
+            }
+            return;
         }
     }
 
@@ -356,15 +364,13 @@
     }
 
     function updateClock() {
-        const clock = $('vd-clock');
-        if (clock) clock.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        document.querySelectorAll('.vd-clock').forEach(clock => { clock.textContent = value; });
     }
 
     function wireChrome() {
         $('vd-start-button').addEventListener('click', toggleStartMenu);
         $('vd-agent-button').addEventListener('click', () => openApp('agent-chat'));
-        const shortcutsTrigger = document.getElementById('vd-shortcuts-trigger');
-        if (shortcutsTrigger) shortcutsTrigger.addEventListener('click', toggleShortcutsHelp);
         const widgetDrawerBtn = document.getElementById('vd-widget-drawer-btn');
         if (widgetDrawerBtn) widgetDrawerBtn.addEventListener('click', toggleWidgetDrawer);
         const showDesktopBtn = document.getElementById('vd-show-desktop-btn');
@@ -446,7 +452,7 @@
         }, { once: true });
 
         const title = drawer.querySelector('.vd-widget-drawer-title');
-        title.textContent = t('desktop.widget_drawer_title', 'Widgets');
+        title.textContent = t('desktop.widget_drawer_title');
 
         renderWidgetDrawerContent(drawer);
     }
@@ -515,16 +521,6 @@
         if (handleWindowMenuShortcut(event)) return;
         if (isEditableTarget(event.target)) return;
         if (relayGeneratedFrameKeyboardEvent(event)) return;
-        if ((event.ctrlKey || event.metaKey) && event.key === '/') {
-            event.preventDefault();
-            toggleShortcutsHelp();
-            return;
-        }
-        if (event.key === 'F1') {
-            event.preventDefault();
-            toggleShortcutsHelp();
-            return;
-        }
         if (event.ctrlKey && event.code === 'Space') {
             event.preventDefault();
             $('vd-start-button').click();
@@ -605,45 +601,6 @@
             event.preventDefault();
         }
         return true;
-    }
-
-    function toggleShortcutsHelp() {
-        const existing = document.getElementById('vd-shortcuts-help');
-        if (existing) { existing.remove(); return; }
-        showShortcutsHelp();
-    }
-
-    function showShortcutsHelp() {
-        const shortcuts = [
-            { keys: 'Ctrl+Space', action: t('desktop.shortcut_start_menu', 'Open Start menu') },
-            { keys: 'Alt+F4', action: t('desktop.shortcut_close_window', 'Close active window') },
-            { keys: 'Alt+Tab', action: t('desktop.shortcut_switch_windows', 'Switch windows') },
-            { keys: 'F2', action: t('desktop.shortcut_rename', 'Rename selected item') },
-            { keys: 'Delete', action: t('desktop.shortcut_delete', 'Delete selected item') },
-            { keys: 'Ctrl+/  /  F1', action: t('desktop.shortcut_help', 'Show keyboard shortcuts') }
-        ];
-        const overlay = document.createElement('div');
-        overlay.id = 'vd-shortcuts-help';
-        overlay.className = 'vd-shortcuts-overlay';
-        overlay.innerHTML = `
-            <div class="vd-shortcuts-modal">
-                <div class="vd-shortcuts-header">
-                    <span class="vd-shortcuts-title">${esc(t('desktop.keyboard_shortcuts_title', 'Keyboard Shortcuts'))}</span>
-                    <button class="vd-shortcuts-close" aria-label="${esc(t('desktop.keyboard_shortcuts_close', 'Close'))}">×</button>
-                </div>
-                <div class="vd-shortcuts-body">
-                    ${shortcuts.map(s => `
-                        <div class="vd-shortcuts-row">
-                            <kbd class="vd-shortcuts-keys">${esc(s.keys)}</kbd>
-                            <span class="vd-shortcuts-action">${esc(s.action)}</span>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-        overlay.querySelector('.vd-shortcuts-close').addEventListener('click', () => overlay.remove());
-        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-        document.body.appendChild(overlay);
     }
 
     function selectedDesktopIcon() {
@@ -1051,6 +1008,9 @@
         window.addEventListener('beforeunload', cleanupDesktopShellRuntime);
         await loadBootstrap();
         if (state.bootstrap && state.bootstrap.enabled) connectWS();
+        if (window.PetRuntime && typeof window.PetRuntime.init === 'function') {
+            window.PetRuntime.init();
+        }
     }
 
     ensureDesktopRadialMenuAnchor();

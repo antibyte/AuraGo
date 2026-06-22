@@ -21,6 +21,7 @@ type fakeVectorDB struct {
 	searchMemoriesOnlyCalled bool
 	excludeCollections       []string
 	totalCount               int
+	documents                map[string]string
 }
 
 func (f *fakeVectorDB) StoreDocument(concept, content string) ([]string, error) {
@@ -46,7 +47,12 @@ func (f *fakeVectorDB) SearchMemoriesOnly(query string, topK int) ([]string, []s
 	return []string{"Vincenzo memory hit"}, []string{"mem-1"}, nil
 }
 
-func (f *fakeVectorDB) GetByID(id string) (string, error)                           { return "", nil }
+func (f *fakeVectorDB) GetByID(id string) (string, error) {
+	if f.documents != nil {
+		return f.documents[id], nil
+	}
+	return "", nil
+}
 func (f *fakeVectorDB) GetByIDFromCollection(id, collection string) (string, error) { return "", nil }
 func (f *fakeVectorDB) DeleteDocument(id string) error                              { return nil }
 func (f *fakeVectorDB) DeleteDocumentFromCollection(id, collection string) error    { return nil }

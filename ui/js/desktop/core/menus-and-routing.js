@@ -62,7 +62,7 @@
             const submenuItems = normalizeContextMenuItems(item.items || item.children || []);
             if (submenuItems.length) {
                 return `<div class="vd-context-submenu" role="none">
-                    <button type="button" class="vd-context-item" role="menuitem" ${disabled}>${icon}${label}<span class="vd-context-arrow">â€º</span></button>
+                    <button type="button" class="vd-context-item" role="menuitem" ${disabled}>${icon}${label}<span class="vd-context-arrow">&rsaquo;</span></button>
                     <div class="vd-context-submenu-popover" role="menu">${renderItems(submenuItems, path.concat(String(item.id || index)))}</div>
                 </div>`;
             }
@@ -136,7 +136,7 @@
         }
         if (isDesktopEntry || kind === 'file') {
             if (kind === 'file') {
-                items.push({ separator: true }, { label: t('desktop.fm.add_to_chat', 'Add to chat'), icon: 'chat', fallback: 'A', action: () => desktopBatchFileEntries(btn).forEach(addFileContextToChat) }, { label: t('desktop.fm.ask_agent', 'Ask Agent'), icon: 'agent', fallback: 'Q', action: () => desktopBatchFileEntries(btn).forEach(askAgentAboutFile) });
+                items.push({ separator: true }, { label: t('desktop.fm.add_to_chat'), icon: 'chat', fallback: 'A', action: () => desktopBatchFileEntries(btn).forEach(addFileContextToChat) }, { label: t('desktop.fm.ask_agent'), icon: 'agent', fallback: 'Q', action: () => desktopBatchFileEntries(btn).forEach(askAgentAboutFile) });
             }
             items.push(
                 { separator: true },
@@ -821,7 +821,7 @@ function modalDialog(options) {
             if (item.type === 'submenu') {
                 return `<div class="vd-window-menu-submenu${disabled}" role="none">
                     <button type="button" class="vd-window-menu-item${checked}" role="menuitem" ${disabled ? 'disabled' : ''}>
-                        ${icon}<span>${label}</span><span class="vd-window-menu-arrow">â€º</span>
+                        ${icon}<span>${label}</span><span class="vd-window-menu-arrow">&rsaquo;</span>
                     </button>
                     <div class="vd-window-menu-popover" role="menu">${renderWindowMenuItems(item.items)}</div>
                 </div>`;
@@ -1006,6 +1006,9 @@ function modalDialog(options) {
             return window.SheetsApp.render(contentEl(id), id, officeAppContext(context));
         }
         if (appId === 'settings') return renderSettings(id);
+        if (appId === 'pet-picker' && window.PetPickerApp && typeof window.PetPickerApp.render === 'function') {
+            return window.PetPickerApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, api, loadBootstrap, notify: showDesktopNotification }));
+        }
         if (appId === 'calendar') return renderCalendar(id);
         if (appId === 'calculator') return renderCalculator(id);
         if (appId === 'todo') return renderTodo(id);
@@ -1013,6 +1016,9 @@ function modalDialog(options) {
         if (appId === 'music-player') return renderMusicPlayer(id);
         if (appId === 'radio' && window.RadioApp && typeof window.RadioApp.render === 'function') {
             return window.RadioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
+        }
+        if (appId === 'teevee' && window.TeeVeeApp && typeof window.TeeVeeApp.render === 'function') {
+            return window.TeeVeeApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
         }
 if (appId === 'system-info') {
             if (!window.SystemInfoApp) {
@@ -1035,6 +1041,15 @@ if (appId === 'system-info') {
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
             return window.CodeStudio.render(contentEl(id), id, withDesktopFileDialogs(context, { iconMarkup, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
         }
+        if (appId === 'openscad') {
+            if (!window.OpenSCADApp) {
+                window.AuraDesktopModules.loadAppScript('openscad').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.OpenSCADApp.render === 'function') {
+                return window.OpenSCADApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), openApp, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, updateWindowContext }));
+            }
+        }
         if (appId === 'launchpad') return renderLaunchpad(id);
         if (appId === 'software-store') {
             if (!window.SoftwareStoreApp) {
@@ -1056,7 +1071,7 @@ if (appId === 'system-info') {
                 window.AuraDesktopModules.loadAppScript('camera').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            if (typeof window.CameraApp.render === 'function') return window.CameraApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, setWindowMenus, clearWindowMenus}));
+            if (typeof window.CameraApp.render === 'function') return window.CameraApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary}));
         }
 if (appId === 'zipper') {
             if (!window.ZipperApp) {
@@ -1089,6 +1104,15 @@ if (appId === 'pixel') {
                 return;
             }
             if (typeof window.GalaxaDeluxe.render === 'function') return window.GalaxaDeluxe.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
+        }
+        if (appId === 'chess') {
+            if (!window.ChessApp) {
+                window.AuraDesktopModules.loadAppScript('chess').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.ChessApp.render === 'function') {
+                return window.ChessApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus }));
+            }
         }
         if (appId === 'nasscad') {
             if (!window.NasscadApp) {

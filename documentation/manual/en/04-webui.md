@@ -200,9 +200,9 @@ Here you edit the `config.yaml` via a web form.
 ### Navigation
 
 **Left Sidebar:**
-- Categories expandable
-- Search function at top
-- Red dot = unsaved changes
+- Categories expandable (semantic buttons with `aria-expanded`)
+- **Search** filters sections by title and description; keyboard navigation with arrows and Enter
+- **Unsaved changes** pill in the header when any field is dirty
 
 **Main Area:**
 - Form fields per category
@@ -211,12 +211,12 @@ Here you edit the `config.yaml` via a web form.
 
 ### Saving Changes
 
-1. **Change values** in the form fields
-2. **Click "Save"** at top right
-3. **Confirmation** awaits confirmation
-4. **Restart AuraGo** (sometimes required)
+1. **Change values** in the form fields (the unsaved-changes pill appears when something is dirty).
+2. Use the **sticky save bar** at the bottom: **Save**, live status text, and disabled state while a save is in progress.
+3. Confirm when prompted if you switch sections with unsaved edits (sidebar click, hash change, or browser Back/Forward).
+4. **Restart AuraGo** when the UI or docs indicate it (server port, some integrations).
 
-> ⚠️ **Attention:** Some changes require a restart of AuraGo.
+> ⚠️ **Attention:** Leaving a section without saving discards in-memory edits only after you confirm discard in the modal.
 
 ## Virtual Desktop
 

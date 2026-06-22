@@ -374,9 +374,16 @@ tools:
     memory:
         enabled: true
         readonly: false
+        ondemand_retrieval:
+            enabled: true
+            max_essential_memories: 1
+            max_available_memories: 6
+            max_available_kg_nodes: 6
+            max_available_chars: 1600
+            dedupe_scope: turn
     knowledge_graph:
         enabled: true
-        readonly: false
+        readonly: false                                      # true = query/search only; blocks manual mutations and optimize pruning
         auto_extraction: true                                # nightly entity extraction from recent conversations
         prompt_injection: true                               # inject relevant graph context into the system prompt
         max_prompt_nodes: 5                                  # max graph nodes injected per prompt
@@ -385,6 +392,11 @@ tools:
         min_semantic_similarity: 0.60                        # minimum similarity for KG semantic search
         exclude_node_types: ["activity_entity", "unknown"]   # node types excluded from semantic/prompt context
         semantic_reindex_interval: "5m"                      # minimum interval between dirty-node semantic reindexes
+        protect_optimize_sources: ["planner", "inventory_sync", "manual", "file_sync", "core_memory"]  # sources exempt from auto-optimize graph pruning
+        protect_id_prefixes: ["core_fact_", "dev_", "contact_"]  # node ID prefixes exempt from auto-optimize graph pruning
+        pending_co_mention_ttl_days: 7                       # days before weak pending co-mention edges are cleaned up
+        low_confidence_co_mention_min_weight: 2              # minimum co-mention weight shown by default
+        hide_low_confidence_by_default: true                 # hide weak auto co-mention edges unless explicitly requested
     secrets_vault:
         enabled: true
         readonly: false
@@ -489,6 +501,13 @@ tools:
         max_upload_size_mb: 1                               # maximum upload file size in MB
         auto_enable_clean: false                            # automatically enable skills that pass security scan
         scan_with_guardian: false                            # use LLM Guardian for code review (opt-in)
+        # Allowed script languages for Agent Skills (default: ["python"])
+        # Bash and JavaScript are supported but require user confirmation (warning-gated).
+        # Options: "python", "bash", "javascript"
+        # allowed_script_languages:
+        #   - python
+        # Allow binary asset upload/download for Agent Skills (default: true)
+        # allow_binary_assets: true
     daemon_skills:
         enabled: false                                      # enable long-running daemon skill processes (opt-in)
         max_concurrent_daemons: 5                           # max simultaneous daemon processes
@@ -519,7 +538,7 @@ s3:
 # LLM Providers — configure via the Setup Wizard or Config UI
 # Supported types: openai, openrouter, ollama, anthropic, google, minimax,
 # workers-ai, manifest, yepapi, custom, deepseek, groq, mistral, xai,
-# moonshot, qwen, zai, llamacpp, lmstudio
+# moonshot, qwen, zai, llamacpp, lmstudio, copilot, opencode-go
 # Example: route through a managed or external Manifest.build gateway.
 # Store the mnfst_... API key in the vault via the Config UI.
 # providers:
@@ -533,8 +552,13 @@ s3:
 #       structured_outputs: false
 #       multimodal: false
 #       detected_model: "manifest/auto"
-#       source: "legacy_fallback"                        # manual, openrouter, models.dev, heuristic, legacy_fallback
+#       source: "legacy_fallback"                        # manual, openrouter, oh-my-pi, models.dev, heuristic, legacy_fallback
 providers: []
+model_catalog:
+    enabled: true                                         # use bundled Oh-My-Pi provider/model metadata for UI and capability detection
+    disabled_providers: []                                # provider IDs or AuraGo provider types hidden/disabled in catalog status
+    catalog_only_visible: true                            # show unsupported upstream providers as read-only catalog entries
+    upstream_version: ""                                  # optional note/pin for operators; bundled snapshot metadata remains authoritative
 llm:
     provider: ""
     multimodal: false                                      # deprecated fallback only when provider/model capabilities are unknown
@@ -824,6 +848,21 @@ virtual_desktop:
         auto_stop_minutes: 30                              # stop container after inactivity
         max_memory_mb: 4096                                # Docker memory limit
         max_cpu_cores: 2                                   # Docker CPU quota
+    openscad:
+        enabled: true                                      # built-in headless OpenSCAD compiler container
+        image: openscad/openscad:latest
+        auto_start: false                                  # false = lazy start when the app renders
+        auto_stop_minutes: 20                              # stop container after inactivity
+        max_memory_mb: 2048                                # Docker memory limit
+        max_cpu_cores: 2                                   # Docker CPU quota
+        max_concurrent_jobs: 1                             # render jobs at once
+        geometry_backend: auto                             # auto prefers Manifold when the image supports --backend; cgal/manifold force a backend when available
+        default_exports: [png, stl]                        # default render output formats
+        max_source_kb: 512                                 # maximum uploaded/generated SCAD source size
+        max_output_mb: 100                                 # maximum output file size per job
+        render_timeout_seconds: 120                        # default compiler timeout
+        max_render_timeout_seconds: 600                    # hard timeout cap
+        job_retention_days: 7                              # cached render job retention
 indexing:
     enabled: true
     directories:

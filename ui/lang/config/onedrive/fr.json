@@ -75,5 +75,6 @@
   "config.updates.running": "En cours…",
   "config.web_scraper.summary_mode": "Mode résumé",
   "config.webdav.secret_empty": "La valeur est vide",
-  "config.onedrive.disconnect_confirm_title": "Déconnecter OneDrive ?"
+  "config.onedrive.disconnect_confirm_title": "Déconnecter OneDrive ?",
+  "config.onedrive.enabled_help": "Active l’accès aux fichiers OneDrive une fois l’autorisation Microsoft terminée."
 }

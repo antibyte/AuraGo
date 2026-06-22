@@ -237,7 +237,7 @@ async function confirmUpdate() {
         const resp = await fetch(`/api/containers/${encodeURIComponent(updateTarget)}/update`, { method: 'POST' });
         const data = await resp.json();
         if (data.status === 'ok') {
-            showToast(t('containers.update_success') || 'Container updated', 'success');
+            showToast(t('containers.update_success'), 'success');
             closeUpdateModal();
             lastDataHash = '';
             await loadContainers();
@@ -266,7 +266,7 @@ function setUpdateConfirmBusy(busy) {
 // eslint-disable-next-line no-unused-vars
 async function showLogs(id) {
     currentLogContainer = id;
-    document.getElementById('log-output').textContent = t('common.loading') || 'Loading...';
+    document.getElementById('log-output').textContent = t('common.loading');
     document.getElementById('log-modal').classList.add('active');
     try {
         const resp = await fetch(`/api/containers/${encodeURIComponent(id)}/logs?tail=500`);
@@ -299,7 +299,7 @@ function closeLogModal() {
 
 // eslint-disable-next-line no-unused-vars
 async function showInspect(id) {
-    document.getElementById('inspect-output').textContent = t('common.loading') || 'Loading...';
+    document.getElementById('inspect-output').textContent = t('common.loading');
     document.getElementById('inspect-modal').classList.add('active');
     try {
         const resp = await fetch(`/api/containers/${encodeURIComponent(id)}/inspect`);
@@ -332,7 +332,7 @@ function showTerminal(id, name) {
 
     if (!window.Terminal) {
         setTerminalStatus('containers.terminal_error');
-        output.textContent = t('containers.terminal_unavailable') || 'Terminal renderer unavailable.';
+        output.textContent = t('containers.terminal_unavailable');
         return;
     }
 
@@ -388,7 +388,7 @@ function showTerminal(id, name) {
     terminalSocket.onclose = () => {
         if (token !== terminalSessionToken) return;
         setTerminalStatus('containers.terminal_closed');
-        if (terminal) terminal.write(`\r\n[${t('containers.terminal_closed') || 'Session closed'}]\r\n`);
+        if (terminal) terminal.write(`\r\n[${t('containers.terminal_closed')}]\r\n`);
     };
 
     if (window.ResizeObserver) {
@@ -502,7 +502,7 @@ async function confirmDelete() {
         const resp = await fetch(`/api/containers/${encodeURIComponent(deleteTarget)}?force=${force}`, { method: 'DELETE' });
         const data = await resp.json();
         if (data.status === 'ok') {
-            showToast(t('containers.delete_success') || 'Container removed', 'success');
+            showToast(t('containers.delete_success'), 'success');
             closeDeleteModal();
             lastDataHash = '';
             await loadContainers();

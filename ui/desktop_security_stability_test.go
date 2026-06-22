@@ -62,12 +62,15 @@ func TestDesktopStoreAppFramesAllowInteractiveWebAppBrowserFeatures(t *testing.T
 		`if (options && options.allowStorageAccess) sandboxFlags.push('allow-storage-access-by-user-activation');`,
 		`if (options && options.allowTopNavigationByUserActivation) sandboxFlags.push('allow-top-navigation-by-user-activation');`,
 		`if (options && options.allowPointerLock) sandboxFlags.push('allow-pointer-lock');`,
-		`if (options && options.allowFullscreen) iframe.setAttribute('allowfullscreen', '');`,
+		`if (options && options.allowFullscreen) allowParts.push('fullscreen');`,
 		`if (options && options.allowGamepad) allowParts.push('gamepad');`,
 	} {
 		if !strings.Contains(mainText, want) {
 			t.Fatalf("desktop store app iframe missing browser feature marker %q", want)
 		}
+	}
+	if strings.Contains(mainText, "allowfullscreen") {
+		t.Fatal("store app frames must use the allow policy for fullscreen instead of the legacy allowfullscreen attribute")
 	}
 
 	body := jsFunctionBodyInWindowMenuTest(t, mainText, "function renderContainerWebApp(id, app)")

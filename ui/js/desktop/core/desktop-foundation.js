@@ -1,4 +1,4 @@
-﻿// AUDIT(Task27 / 2026-06-02): All 24 `.style.*` assignments in this file were reviewed.
+// AUDIT(Task27 / 2026-06-02): All 24 `.style.*` assignments in this file were reviewed.
 // No tokenizable hard-coded colors/sizes/radii were found. Every match is one of:
 //   - Reading current inline state (parseInt on style.left/top/width) for math
 //   - Writing a dynamic computed value (icon grid, widget bounds, drag delta)
@@ -98,6 +98,7 @@
         book: 'book',
         books: 'book',
         camera: 'camera',
+        chess: 'chess',
         cloud: 'cloud',
         files: 'folder',
         editor: 'edit',
@@ -126,12 +127,21 @@
         'music-player': 'audio-player',
         player: 'audio-player',
         radio: 'radio',
+        openscad: 'openscad',
+        teevee: 'teevee',
         todo: 'notes',
         'agent-chat': 'agent-chat',
         terminal: 'terminal', 'quick-connect': 'server',
         browser: 'browser', viewer: 'eye',
         launchpad: 'launchpad',
         'software-store': 'software-store',
+        'store-n8n': 'n8n',
+        'store-node-red': 'node-red',
+        'store-open-webui': 'open-webui',
+        'store-olivetin': 'olivetin',
+        'store-romm': 'romm',
+        'store-dozzle': 'dozzle',
+        'store-termix': 'termix',
         'store-commandcode': 'commandcode',
         looper: 'looper',
         'system-info': 'monitor',
@@ -158,6 +168,7 @@
         yml: 'yaml',
         xml: 'xml',
         py: 'python',
+        scad: 'openscad',
         go: 'go',
         pdf: 'pdf',
         png: 'image',
@@ -231,6 +242,8 @@
         music: 'audio-player',
         player: 'audio-player',
         radio: 'radio',
+        openscad: 'openscad',
+        teevee: 'teevee',
         workflow: 'workflow',
         workflows: 'workflow',
         'software-store': 'software-store',
@@ -251,6 +264,7 @@
         'appearance.accent': 'teal',
         'appearance.density': 'comfortable',
         'appearance.icon_theme': 'papirus',
+        'appearance.fruity_mode': 'light',
         'desktop.icon_size': 'medium',
         'desktop.show_widgets': 'true',
         'windows.animations': 'true',
@@ -259,7 +273,14 @@
         'files.default_folder': 'Documents',
         'agent.show_chat_button': 'true',
         // Mobile experience (Phase 0)
-        'desktop.mobile_experience': 'auto'   // 'auto' | 'enabled' | 'disabled'
+        'desktop.mobile_experience': 'auto',   // 'auto' | 'enabled' | 'disabled'
+        // Desktop pet (OpenPets)
+        'pet.enabled': 'true',
+        'pet.active_id': 'openpets-default',
+        'pet.scale': '1.0',
+        'pet.position_x': '24',
+        'pet.position_y': '24',
+        'pet.always_on_top': 'false'
     };
 
     function $(id) {
@@ -292,6 +313,8 @@
             calculator: 'Ca',
             'music-player': 'MP',
             radio: 'Ra',
+            openscad: 'OS',
+            teevee: 'TV',
             todo: 'Td',
             'agent-chat': 'A',
             gallery: 'G',
@@ -301,6 +324,7 @@
             'software-store': 'SS',
             looper: 'Lp',
             cheater: 'Ch',
+            chess: 'Ch',
             pixel: 'Px',
             'galaxa-deluxe': 'Gx',
             nasscad: 'NC',
@@ -313,8 +337,8 @@
     async function loadIconManifest() {
         const [spriteManifest, defaultThemeManifest, whitesurThemeManifest] = await Promise.all([
             api('/img/desktop-icons-sprite.json').catch(() => null),
-            api('/img/papirus/manifest.json?v=4').catch(() => null),
-            api('/img/whitesur/manifest.json?v=3').catch(() => null)
+            api('/img/papirus/manifest.json?v=5').catch(() => null),
+            api('/img/whitesur/manifest.json?v=4').catch(() => null)
         ]);
         state.iconManifest = spriteManifest;
         state.iconMap = new Map(((spriteManifest && spriteManifest.icons) || []).map(icon => [icon.name, icon]));
@@ -490,6 +514,7 @@
             writer: 'WriterApp',
             sheets: 'SheetsApp',
             'code-studio': 'CodeStudioApp',
+            openscad: 'OpenSCADApp',
             looper: 'LooperApp',
             camera: 'CameraApp',
             zipper: 'ZipperApp',
@@ -499,6 +524,8 @@
             people: 'PeopleApp',
             'homepage-studio': 'HomepageStudioApp',
             cheater: 'CheaterApp',
+            'agent-chat': 'AgentChatApp',
+            'viewer-3d': 'Viewer3DApp',
             'mission-control': 'MissionControlApp'
         }[appId] || '';
     }
@@ -547,6 +574,7 @@
         const body = document.body;
         body.dataset.wallpaper = settingValue('appearance.wallpaper');
         body.dataset.theme = settingValue('appearance.theme');
+        body.dataset.fruityMode = settingValue('appearance.fruity_mode');
         body.dataset.accent = settingValue('appearance.accent');
         body.dataset.density = settingValue('appearance.density');
         body.dataset.iconTheme = settingValue('appearance.icon_theme');
@@ -912,7 +940,9 @@
         const shouldParseJSON = contentType.includes('application/json') || String(url).includes('.json');
         const body = shouldParseJSON ? await resp.json() : {};
         if (!resp.ok) {
-            throw new Error(body.error || body.message || ('HTTP ' + resp.status));
+            const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
+            err.body = body;
+            throw err;
         }
         return body;
     }
@@ -939,8 +969,9 @@
         }
         if (win.appId === 'music-player') disposeWebampMusic(win.id);
         if (win.appId === 'radio') callAppDispose(window.RadioApp, win.id);
+        if (win.appId === 'openscad') callAppDispose(window.OpenSCADApp, win.id);
+        if (win.appId === 'teevee') callAppDispose(window.TeeVeeApp, win.id);
         if (win.appId === 'system-info') callAppDispose(window.SystemInfoApp, win.id);
-        if (win.appId === 'people') callAppDispose(window.PeopleApp, win.id);
         const disposeName = appGlobalName(win.appId);
         const fallbackName = appGlobalFallbackName(win.appId);
         const disposed = callAppDispose(disposeName ? window[disposeName] : null, win.id);
@@ -1029,7 +1060,7 @@
         const host = contentEl(id);
         if (!host) return;
         host.innerHTML = `<div class="vd-app-error">
-            <div class="vd-app-error-title">${esc(t('desktop.app_error_title', 'App failed to load'))}</div>
+            <div class="vd-app-error-title">${esc(t('desktop.app_error_title'))}</div>
             <div class="vd-app-error-message">${esc((err && err.message) || String(err || 'Error'))}</div>
         </div>`;
     }
@@ -1058,6 +1089,7 @@
             state.bootstrap = await api('/api/desktop/bootstrap');
             state.desktopFiles = await loadDesktopFiles();
             renderDesktop();
+            refreshPetRuntime();
             return state.bootstrap;
         })();
         try {
@@ -1086,6 +1118,12 @@
         renderStartApps();
         renderTaskbar();
         if (!state._startMenuDragWired) { state._startMenuDragWired = true; wireStartMenuDrag(); }
+    }
+
+    function refreshPetRuntime() {
+        if (window.PetRuntime && typeof window.PetRuntime.load === 'function') {
+            window.PetRuntime.load();
+        }
     }
 
     function renderStartButtonIcon() {

@@ -151,6 +151,69 @@ func TestCaptureActivityTurnWithDigestSyncsEntitiesToKnowledgeGraph(t *testing.T
 	}
 }
 
+func TestNormalizeActivityDigestFiltersGenericEntities(t *testing.T) {
+	digest := normalizeActivityDigest(memory.ActivityDigest{
+		Intent:     "test",
+		Importance: 2,
+		Entities:   []string{"png", "AgoDesk", "x86_64", "Caddy Server"},
+	})
+	if got := strings.Join(digest.Entities, ","); got != "AgoDesk,Caddy Server" {
+		t.Fatalf("entities = %q", got)
+	}
+}
+
+func TestCaptureActivityTurnWithDigestSuppressesGenericCoOccurrences(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	t.Cleanup(func() { _ = kg.Close() })
+
+	captureActivityTurnWithDigest(
+		stm,
+		kg,
+		"session-2",
+		"web_chat",
+		"Please compare png and AgoDesk",
+		nil,
+		false,
+		true,
+		memory.ActivityDigest{
+			Intent:   "Compare entities",
+			UserGoal: "Compare entities",
+			Entities: []string{"Andi", "png", "AgoDesk"},
+		},
+		"runtime_helper_batch",
+	)
+
+	nodes, err := kg.GetAllNodes(20)
+	if err != nil {
+		t.Fatalf("GetAllNodes: %v", err)
+	}
+	for _, node := range nodes {
+		if node.ID == "png" {
+			t.Fatalf("generic png node should not be synced: %#v", nodes)
+		}
+	}
+
+	edges, err := kg.GetAllEdges(20)
+	if err != nil {
+		t.Fatalf("GetAllEdges: %v", err)
+	}
+	for _, edge := range edges {
+		if edge.Source == "png" || edge.Target == "png" {
+			t.Fatalf("generic png edge should not be synced: %#v", edges)
+		}
+	}
+}
+
 func TestNormalizeActivityEntityIDPreservesWordBoundaries(t *testing.T) {
 	tests := map[string]string{
 		"Docker Compose": "docker_compose",

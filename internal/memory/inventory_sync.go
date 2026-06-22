@@ -113,6 +113,7 @@ func (kg *KnowledgeGraph) upsertKnowledgeGraphNodeTx(tx *sql.Tx, id, label strin
 		isProtectedFinal = 1
 	}
 	finalProps = sanitizeKnowledgeGraphNodeProperties(finalProps, isProtectedFinal != 0)
+	finalProps = validateNodeSchema(finalProps)
 
 	propsJSON, err := json.Marshal(finalProps)
 	if err != nil {

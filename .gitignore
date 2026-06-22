@@ -121,10 +121,15 @@ docs/superpowers/
 /mcps/
 .worktrees/
 #Agent files
+.commandcode/
 .kilo/
 .kilocode/
+.kiro/
+openspec/
+.openspec/
 .planning/
 .claude/
+.serena/
 CLAUDE.md
 AGENTS.md
 # .github/

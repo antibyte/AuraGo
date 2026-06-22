@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -602,6 +603,96 @@ func TestConfigPhase3AIGateway(t *testing.T) {
 	}
 }
 
+func TestConfigFieldDescriptionsAndDropdownUXCoverage(t *testing.T) {
+	t.Parallel()
+
+	checks := map[string][]string{
+		"cfg/cloudflare_tunnel.js": {
+			"config.cloudflare_tunnel.enabled_help",
+			"config.cloudflare_tunnel.readonly_help",
+			"config.cloudflare_tunnel.auto_start_help",
+			"config.cloudflare_tunnel.mode_help",
+			"config.cloudflare_tunnel.auth_method_help",
+			"config.cloudflare_tunnel.tunnel_name_help",
+			"config.cloudflare_tunnel.account_id_help",
+			"config.cloudflare_tunnel.metrics_port_help",
+			"config.cloudflare_tunnel.log_level_help",
+			"config.cloudflare_tunnel.expose_target_help",
+			"config.cloudflare_tunnel.token_hint",
+		},
+		"cfg/mcp_server.js": {
+			"config.mcp_server.enabled_help",
+			"config.mcp_server.vscode_bridge_desc",
+			"config.mcp_server.require_auth_help",
+			"config.mcp_server.allowed_tools_desc",
+		},
+		"cfg/netlify.js": {
+			"config.netlify.enabled_help",
+			"config.netlify.readonly_help",
+			"config.netlify.allow_deploy_help",
+			"config.netlify.allow_site_management_help",
+			"config.netlify.allow_env_management_help",
+			"config.netlify.default_site_id_help",
+			"config.netlify.team_slug_help",
+		},
+		"cfg/onedrive.js": {
+			"config.onedrive.enabled_help",
+			"config.onedrive.readonly_hint",
+			"config.onedrive.client_id_hint",
+			"config.onedrive.tenant_id_hint",
+		},
+		"cfg/vercel.js": {
+			"config.vercel.enabled_help",
+			"config.vercel.readonly_help",
+			"config.vercel.allow_deploy_help",
+			"config.vercel.allow_project_management_help",
+			"config.vercel.allow_env_management_help",
+			"config.vercel.allow_domain_management_help",
+			"config.vercel.default_project_id_help",
+			"config.vercel.team_id_help",
+			"config.vercel.team_slug_help",
+		},
+	}
+
+	for file, markers := range checks {
+		content := normalizeAssetText(mustReadUIFile(t, file))
+		for _, marker := range markers {
+			if !strings.Contains(content, marker) {
+				t.Fatalf("%s missing field description marker %q", file, marker)
+			}
+		}
+	}
+
+	ttsJS := normalizeAssetText(mustReadUIFile(t, "cfg/tts.js"))
+	for _, marker := range []string{
+		"ttsLanguageSelect('tts.language'",
+		`<select class="field-select" data-path="`,
+		"config.tts.language_custom_help",
+		`data-custom-for="`,
+	} {
+		if !strings.Contains(ttsJS, marker) {
+			t.Fatalf("tts.js missing language dropdown marker %q", marker)
+		}
+	}
+	if strings.Contains(ttsJS, `<input class="field-input" type="text" data-path="tts.language"`) {
+		t.Fatal("tts.language should be a dropdown with custom fallback, not a free text field")
+	}
+
+	telnyxJS := normalizeAssetText(mustReadUIFile(t, "cfg/telnyx.js"))
+	for _, marker := range []string{
+		`<select class="field-select" data-path="telnyx.voice_language"`,
+		"help.telnyx.voice_language",
+		`data-custom-for="telnyx.voice_language"`,
+	} {
+		if !strings.Contains(telnyxJS, marker) {
+			t.Fatalf("telnyx.js missing voice language dropdown marker %q", marker)
+		}
+	}
+	if strings.Contains(telnyxJS, `<input class="field-input" type="text" data-path="telnyx.voice_language"`) {
+		t.Fatal("telnyx.voice_language should be a dropdown with custom fallback, not a free text field")
+	}
+}
+
 func TestConfigManifestDograhAvoidEmbeddedFallbackTables(t *testing.T) {
 	t.Parallel()
 
@@ -691,3 +782,193 @@ func TestConfigVirtualDesktopSectionLabelsInSectionsBundle(t *testing.T) {
 		})
 	}
 }
+
+func TestConfigDirtyGuardAndHashNavigationMarkers(t *testing.T) {
+	t.Parallel()
+
+	mainJS := normalizeAssetText(mustReadUIFile(t, "js/config/main.js"))
+	for _, marker := range []string{
+		"function hasUnsavedConfigChanges()",
+		"let suppressDirtyTracking = false",
+		"function resetDirtySnapshot()",
+		"function normalizeSectionKey(key)",
+		"async function confirmDiscardUnsavedChanges()",
+		"async function navigateToConfigSection(key, options = {})",
+		"function handleConfigBeforeUnload(event)",
+		"function handleConfigHashChange()",
+		"window.addEventListener('beforeunload', handleConfigBeforeUnload)",
+		"window.addEventListener('hashchange', handleConfigHashChange)",
+		"await selectSection(activeSection, { scrollBehavior: 'auto' });",
+		"resetDirtySnapshot();",
+		"suppressDirtyTracking = false;",
+		"const dirty = collectSnapshot() !== initialSnapshot;",
+		"setDirty(dirty);",
+		"let userEditedSinceSnapshot = false",
+		"const CONFIG_EDIT_INTENT_WINDOW_MS",
+		"function installConfigEditIntentTracking()",
+		"function scheduleDirtyBaselineRefresh",
+		"markDirty(event)",
+		"oninput=\"markDirty(event)\"",
+		"autocomplete=\"new-password\"",
+		"data-lpignore=\"true\"",
+		"collectSnapshot() !== initialSnapshot",
+		"t('config.unsaved_changes.title')",
+		"navigateToConfigSection(s.key);",
+		"navigateToConfigSection(item.dataset.section);",
+	} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("config main.js missing dirty guard marker %q", marker)
+		}
+	}
+	if strings.Contains(mainJS, "setTimeout(() => { initialSnapshot = collectSnapshot(); setDirty(false); }, 100);") {
+		t.Fatal("config main.js should not use a timed initial snapshot reset; it races async section rendering")
+	}
+}
+
+func TestConfigMaintenanceHelpTextComplete(t *testing.T) {
+	t.Parallel()
+
+	langs := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
+	keys := []string{
+		"help.maintenance.enabled",
+		"help.maintenance.time",
+		"help.maintenance.lifeboat_enabled",
+		"help.maintenance.lifeboat_port",
+		"help.maintenance.retention.patterns_days",
+		"help.maintenance.retention.archive_events_days",
+		"help.maintenance.retention.mood_log_days",
+		"help.maintenance.retention.error_patterns_days",
+		"help.maintenance.retention.profile_stale_days",
+		"help.maintenance.retention.done_notes_days",
+		"help.maintenance.retention.operational_issues_days",
+	}
+
+	for _, lang := range langs {
+		lang := lang
+		t.Run(lang, func(t *testing.T) {
+			t.Parallel()
+			data, err := os.ReadFile("lang/help/" + lang + ".json")
+			if err != nil {
+				t.Fatalf("read help %s: %v", lang, err)
+			}
+			var help map[string]string
+			if err := json.Unmarshal(data, &help); err != nil {
+				t.Fatalf("parse help %s: %v", lang, err)
+			}
+			for _, key := range keys {
+				if strings.TrimSpace(help[key]) == "" || help[key] == key {
+					t.Fatalf("help/%s.json missing maintenance help %q", lang, key)
+				}
+			}
+		})
+	}
+}
+
+func TestConfigSaveBarStickyAndLiveStatusMarkers(t *testing.T) {
+	t.Parallel()
+
+	html := normalizeAssetText(mustReadUIFile(t, "config.html"))
+	for _, marker := range []string{
+		`id="saveStatus"`,
+		`role="status"`,
+		`aria-live="polite"`,
+		`aria-atomic="true"`,
+		`type="button"`,
+	} {
+		if !strings.Contains(html, marker) {
+			t.Fatalf("config.html missing save bar a11y marker %q", marker)
+		}
+	}
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/config.css"))
+	for _, marker := range []string{
+		"--cfg-save-bar-height: 72px;",
+		"--cfg-save-bar-height: 96px;",
+		"position: fixed;",
+		"bottom: 0;",
+		"z-index: 30;",
+		"scroll-padding-bottom: calc(var(--cfg-save-bar-height) + env(safe-area-inset-bottom, 0px));",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("config.css missing sticky save bar marker %q", marker)
+		}
+	}
+}
+
+func TestConfigSidebarSemanticControlsMarkers(t *testing.T) {
+	t.Parallel()
+
+	mainJS := normalizeAssetText(mustReadUIFile(t, "js/config/main.js"))
+	for _, marker := range []string{
+		"document.createElement('button')",
+		"header.type = 'button';",
+		"header.setAttribute('aria-expanded'",
+		"item.type = 'button';",
+		"el.setAttribute('aria-current', 'page')",
+		"el.removeAttribute('aria-current')",
+		`class="cfg-visually-hidden"`,
+	} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("config main.js missing sidebar semantic marker %q", marker)
+		}
+	}
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/config.css"))
+	for _, marker := range []string{
+		".cfg-visually-hidden",
+		".sidebar-item:disabled",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("config.css missing sidebar semantic marker %q", marker)
+		}
+	}
+}
+
+func TestConfigToggleSwitchA11yMarkers(t *testing.T) {
+	t.Parallel()
+
+	mainJS := normalizeAssetText(mustReadUIFile(t, "js/config/main.js"))
+	for _, marker := range []string{
+		"function syncToggleA11y(toggle)",
+		"function enhanceConfigControls(root = document)",
+		"toggle.setAttribute('role', 'switch')",
+		"toggle.setAttribute('aria-checked'",
+		"event.key !== ' ' && event.key !== 'Enter'",
+		"toggle.click();",
+		"syncToggleA11y(el);",
+		"enhanceConfigControls();",
+	} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("config main.js missing toggle a11y marker %q", marker)
+		}
+	}
+}
+
+func TestSetupSuccessConfigDeepLinksMarkers(t *testing.T) {
+	t.Parallel()
+
+	html := normalizeAssetText(mustReadUIFile(t, "setup.html"))
+	for _, marker := range []string{
+		`href="/config#providers"`,
+		`href="/config#web_config"`,
+		`href="/config#server"`,
+		`href="/config#backup_restore"`,
+		"setup.success_config_links_title",
+		"setup.success_config_backup",
+	} {
+		if !strings.Contains(html, marker) {
+			t.Fatalf("setup.html missing success deep link marker %q", marker)
+		}
+	}
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/setup.css"))
+	for _, marker := range []string{
+		".success-config-links",
+		".success-config-link-grid",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("setup.css missing success deep link marker %q", marker)
+		}
+	}
+}
+

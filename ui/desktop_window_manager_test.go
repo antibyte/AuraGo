@@ -144,7 +144,7 @@ func TestDesktopWindowScrollbarsStayWideAndUseArrowCursor(t *testing.T) {
 	for _, marker := range []string{
 		".vd-window-content,\n.vd-window-content * {",
 		"scrollbar-width: auto;",
-		"scrollbar-color: rgba(148, 163, 184, 0.52) rgba(15, 23, 42, 0.18);",
+		"scrollbar-color: var(--ds-color-control-hover) var(--ds-color-control-bg);",
 		".vd-window-content ::-webkit-scrollbar {",
 		"width: 14px;",
 		"height: 14px;",

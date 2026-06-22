@@ -121,7 +121,7 @@ func handleKnowledgeGraphSearch(s *Server) http.HandlerFunc {
 			return
 		}
 
-		raw := s.KG.Search(query)
+		raw := s.KG.SearchWithOptions(query, memory.KnowledgeGraphQueryOptions{IncludeLowConfidence: parseKnowledgeGraphBool(r, "include_low_confidence")})
 		if strings.TrimSpace(raw) == "" || raw == "[]" {
 			writeJSON(w, map[string]interface{}{"query": query, "nodes": []interface{}{}, "edges": []interface{}{}})
 			return
@@ -137,6 +137,26 @@ func handleKnowledgeGraphSearch(s *Server) http.HandlerFunc {
 	}
 }
 
+func handleKnowledgeGraphHealth(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s.KG == nil {
+			writeJSON(w, &memory.KnowledgeGraphHealthReport{})
+			return
+		}
+
+		report, err := s.KG.HealthReport()
+		if err != nil {
+			http.Error(w, "Failed to build knowledge graph health report", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, report)
+	}
+}
+
 func handleKnowledgeGraphQuality(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -147,6 +167,8 @@ func handleKnowledgeGraphQuality(s *Server) http.HandlerFunc {
 			writeJSON(w, &memory.KnowledgeGraphQualityReport{
 				IsolatedSample:      []memory.Node{},
 				UntypedSample:       []memory.Node{},
+				GenericSample:       []memory.Node{},
+				EdgeBySource:        map[string]int{},
 				DuplicateCandidates: []memory.KnowledgeGraphDuplicateCandidate{},
 			})
 			return
@@ -187,7 +209,7 @@ func handleKnowledgeGraphNodeDetail(s *Server) http.HandlerFunc {
 			}
 
 			limit := parseKnowledgeGraphLimit(r, 25)
-			neighbors, edges := s.KG.GetNeighbors(nodeID, limit)
+			neighbors, edges := s.KG.GetNeighborsWithOptions(nodeID, limit, memory.KnowledgeGraphQueryOptions{IncludeLowConfidence: parseKnowledgeGraphBool(r, "include_low_confidence")})
 			writeJSON(w, map[string]interface{}{
 				"node":      node,
 				"neighbors": neighbors,
@@ -345,6 +367,82 @@ func handleKnowledgeGraphEdgeMutate(s *Server) http.HandlerFunc {
 	}
 }
 
+func handleKnowledgeGraphMerge(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s.KG == nil {
+			jsonError(w, "Knowledge graph is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+
+		var req struct {
+			TargetID string `json:"target_id"`
+			SourceID string `json:"source_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			jsonError(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+		targetID := strings.TrimSpace(req.TargetID)
+		sourceID := strings.TrimSpace(req.SourceID)
+		if targetID == "" || sourceID == "" {
+			jsonError(w, "target_id and source_id are required", http.StatusBadRequest)
+			return
+		}
+		if targetID == sourceID {
+			jsonError(w, "target_id and source_id must differ", http.StatusBadRequest)
+			return
+		}
+
+		sourceNode, err := s.KG.GetNode(sourceID)
+		if err != nil {
+			jsonError(w, "Failed to load source node", http.StatusInternalServerError)
+			return
+		}
+		if sourceNode == nil {
+			jsonError(w, "Source node not found", http.StatusNotFound)
+			return
+		}
+		if sourceNode.Protected {
+			jsonError(w, "Protected source nodes cannot be merged", http.StatusConflict)
+			return
+		}
+		targetNode, err := s.KG.GetNode(targetID)
+		if err != nil {
+			jsonError(w, "Failed to load target node", http.StatusInternalServerError)
+			return
+		}
+		if targetNode == nil {
+			jsonError(w, "Target node not found", http.StatusNotFound)
+			return
+		}
+
+		if err := s.KG.MergeNodes(targetID, sourceID); err != nil {
+			if errors.Is(err, memory.ErrKnowledgeGraphProtectedNode) {
+				jsonError(w, "Protected source nodes cannot be merged", http.StatusConflict)
+				return
+			}
+			jsonError(w, "Failed to merge knowledge graph nodes", http.StatusInternalServerError)
+			return
+		}
+
+		mergedNode, err := s.KG.GetNode(targetID)
+		if err != nil {
+			jsonError(w, "Nodes merged but failed to reload target node", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]interface{}{
+			"status":    "ok",
+			"target_id": targetID,
+			"source_id": sourceID,
+			"node":      mergedNode,
+		})
+	}
+}
+
 func parseKnowledgeGraphLimit(r *http.Request, defaultLimit int) int {
 	limit := defaultLimit
 	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
@@ -359,4 +457,9 @@ func parseKnowledgeGraphLimit(r *http.Request, defaultLimit int) int {
 		return 1000
 	}
 	return limit
+}
+
+func parseKnowledgeGraphBool(r *http.Request, key string) bool {
+	raw := strings.TrimSpace(r.URL.Query().Get(key))
+	return strings.EqualFold(raw, "true") || raw == "1" || strings.EqualFold(raw, "yes")
 }

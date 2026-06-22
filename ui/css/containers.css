@@ -7,24 +7,24 @@
 .ct-container {
     max-width: 1320px;
     margin: 0 auto;
-    padding: 24px 20px 60px;
+    padding: var(--space-6) var(--space-5) 60px;
 }
 
 /* ── Status Bar ── */
 .ct-status-bar {
     display: flex;
-    gap: 14px;
-    margin-bottom: 22px;
+    gap: var(--space-4);
+    margin-bottom: 1.375rem;
 }
 
 .ct-stat {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 14px 28px;
+    padding: var(--space-4) var(--space-7);
     background: var(--card-bg);
     border: 1px solid var(--border-subtle);
-    border-radius: calc(var(--radius) * 0.65);
+    border-radius: var(--radius-xl);
     min-width: 110px;
     backdrop-filter: blur(18px) saturate(130%);
     -webkit-backdrop-filter: blur(18px) saturate(130%);
@@ -32,7 +32,7 @@
         var(--surface-shadow),
         inset 0 1px 0 var(--surface-highlight),
         inset 0 0 0 1px rgba(255,255,255,0.03);
-    transition: all 0.3s cubic-bezier(0.2, 1, 0.22, 1);
+    transition: all var(--transition-slow) cubic-bezier(0.2, 1, 0.22, 1);
     position: relative;
     overflow: hidden;
 }
@@ -43,7 +43,7 @@
     top: 0; left: 15%; right: 15%; height: 1px;
     background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 50%, transparent), transparent);
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity var(--transition-slow);
 }
 
 .ct-stat:hover {
@@ -77,35 +77,35 @@
 }
 
 .ct-stat-label {
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     color: var(--text-secondary);
     font-variant: small-caps;
     letter-spacing: 0.06em;
-    margin-top: 6px;
+    margin-top: var(--space-2);
     font-weight: 600;
 }
 
 /* ── Toolbar ── */
 .ct-toolbar {
     display: flex;
-    gap: 12px;
+    gap: var(--space-3);
     align-items: center;
-    margin-bottom: 22px;
+    margin-bottom: 1.375rem;
     flex-wrap: wrap;
 }
 
 .ct-search {
     flex: 1;
     min-width: 200px;
-    padding: 10px 16px;
+    padding: var(--space-3) var(--space-4);
     border: 1px solid var(--border-subtle);
-    border-radius: 10px;
+    border-radius: var(--radius-lg);
     background: var(--input-bg);
     color: var(--text-primary);
-    font-size: 0.9rem;
+    font-size: var(--text-base);
     font-family: inherit;
     outline: none;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--transition-base) cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: inset 0 1px 0 var(--surface-highlight);
 }
 
@@ -121,23 +121,23 @@
 
 .ct-filter-group {
     display: flex;
-    gap: 3px;
+    gap: var(--space-1);
     background: var(--input-bg);
-    border-radius: 10px;
-    padding: 4px;
+    border-radius: var(--radius-lg);
+    padding: var(--space-1);
     border: 1px solid var(--border-subtle);
     box-shadow: inset 0 1px 0 var(--surface-highlight);
 }
 
 .ct-filter-btn {
-    padding: 7px 16px;
+    padding: 7px var(--space-4);
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     background: transparent;
     color: var(--text-secondary);
-    font-size: 0.85rem;
+    font-size: var(--text-sm);
     cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--transition-base) cubic-bezier(0.4, 0, 0.2, 1);
     font-family: inherit;
     font-weight: 500;
     position: relative;
@@ -160,7 +160,7 @@
 .ct-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
-    gap: 18px;
+    gap: 1.125rem;
 }
 
 /* ── Container Card ── */
@@ -168,11 +168,11 @@
     background: var(--card-bg);
     border: 1px solid var(--border-subtle);
     border-radius: calc(var(--radius) * 0.7);
-    padding: 18px;
-    transition: all 0.35s cubic-bezier(0.2, 1, 0.22, 1);
+    padding: 1.125rem;
+    transition: all var(--transition-slow) cubic-bezier(0.2, 1, 0.22, 1);
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--space-3);
     backdrop-filter: blur(18px) saturate(130%);
     -webkit-backdrop-filter: blur(18px) saturate(130%);
     box-shadow:
@@ -199,7 +199,7 @@
     top: 0; left: 12%; right: 12%; height: 1px;
     background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 55%, transparent), transparent);
     opacity: 0;
-    transition: opacity 0.35s ease;
+    transition: opacity var(--transition-slow);
 }
 
 .ct-card::after {
@@ -208,7 +208,7 @@
     inset: 0;
     background: radial-gradient(ellipse 75% 35% at 50% 0%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 70%);
     opacity: 0;
-    transition: opacity 0.35s ease;
+    transition: opacity var(--transition-slow);
     pointer-events: none;
     border-radius: inherit;
 }
@@ -231,15 +231,15 @@
 .ct-card-header {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-3);
 }
 
 .ct-card-status {
     width: 9px;
     height: 9px;
-    border-radius: 50%;
+    border-radius: var(--radius-full);
     flex-shrink: 0;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .ct-card-status.running {
@@ -286,7 +286,7 @@
 }
 
 .ct-card-name {
-    font-size: 0.95rem;
+    font-size: var(--text-base);
     font-weight: 600;
     color: var(--text-primary);
     overflow: hidden;
@@ -297,7 +297,7 @@
 }
 
 .ct-card-id {
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     color: var(--text-secondary);
     font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
     flex-shrink: 0;
@@ -307,8 +307,8 @@
 .ct-card-meta {
     display: flex;
     flex-direction: column;
-    gap: 5px;
-    font-size: 0.82rem;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
     color: var(--text-secondary);
     line-height: 1.4;
 }
@@ -316,20 +316,20 @@
 .ct-card-meta span {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: var(--space-2);
 }
 
 .ct-card-meta .ct-meta-icon {
     width: 16px;
     text-align: center;
     flex-shrink: 0;
-    font-size: 0.9rem;
+    font-size: var(--text-base);
 }
 
 .ct-card-state {
-    font-size: 0.75rem;
-    padding: 3px 10px;
-    border-radius: 999px;
+    font-size: var(--text-xs);
+    padding: 3px var(--space-3);
+    border-radius: var(--radius-full);
     display: inline-block;
     font-weight: 600;
     text-transform: capitalize;
@@ -365,18 +365,18 @@
 
 .ct-card-actions {
     display: flex;
-    gap: 7px;
+    gap: var(--space-2);
     flex-wrap: wrap;
     margin-top: auto;
-    padding-top: 10px;
+    padding-top: var(--space-3);
     border-top: 1px solid var(--border-subtle);
 }
 
 .ct-card-actions .btn {
-    font-size: 0.78rem;
-    padding: 5px 12px;
-    border-radius: 8px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: var(--text-xs);
+    padding: 5px var(--space-3);
+    border-radius: var(--radius-lg);
+    transition: all var(--transition-base) cubic-bezier(0.4, 0, 0.2, 1);
     font-weight: 500;
 }
 
@@ -397,14 +397,14 @@
 /* ── Empty States ── */
 .empty-state {
     text-align: center;
-    padding: 3rem 1.5rem;
+    padding: 3rem var(--space-6);
     color: var(--text-secondary);
     position: relative;
 }
 
 .empty-state .empty-icon {
     font-size: 2.5rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-3);
     line-height: 1;
     filter: grayscale(0.2);
     opacity: 0.8;
@@ -412,7 +412,7 @@
 }
 
 .empty-state h3 {
-    font-size: 1.1rem;
+    font-size: var(--text-lg);
     font-weight: 600;
     color: var(--text-primary);
     margin: 0 0 0.35rem;
@@ -420,7 +420,7 @@
 }
 
 .empty-state p {
-    font-size: 0.85rem;
+    font-size: var(--text-sm);
     margin: 0;
     line-height: 1.5;
 }
@@ -435,16 +435,16 @@
     position: fixed;
     inset: 0;
     background: rgba(2,6,23,0.55);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(var(--radius-xl));
+    -webkit-backdrop-filter: blur(var(--radius-xl));
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 9000;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s ease;
-    padding: 20px;
+    transition: opacity var(--transition-slow);
+    padding: var(--space-5);
 }
 
 .modal-overlay.open,
@@ -465,9 +465,9 @@
     max-height: 82vh;
     display: flex;
     flex-direction: column;
-    transform: scale(0.96) translateY(12px);
+    transform: scale(0.96) translateY(var(--space-3));
     opacity: 0;
-    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: all var(--transition-slow) cubic-bezier(0.22, 1, 0.36, 1);
     position: relative;
     overflow: hidden;
     backdrop-filter: blur(24px) saturate(1.2);
@@ -492,7 +492,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1.05rem 1.25rem 0.75rem;
+    padding: 1.05rem var(--space-5) var(--space-3);
     border-bottom: 1px solid var(--border-subtle);
     background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
 }
@@ -513,8 +513,8 @@
     cursor: pointer;
     line-height: 1;
     padding: 0.25rem 0.45rem;
-    border-radius: 0.5rem;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: var(--space-2);
+    transition: all var(--transition-base) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .modal-close:hover {
@@ -525,14 +525,14 @@
 
 .modal-body {
     overflow-y: auto;
-    padding: 0.85rem 1.25rem 1.1rem;
+    padding: 0.85rem var(--space-5) 1.1rem;
 }
 
 .modal-actions {
     display: flex;
-    gap: 10px;
+    gap: var(--space-3);
     justify-content: flex-end;
-    padding: 0.75rem 1.25rem 1rem;
+    padding: var(--space-3) var(--space-5) var(--space-4);
     border-top: 1px solid var(--border-subtle);
     background: linear-gradient(0deg, rgba(255,255,255,0.02) 0%, transparent 100%);
 }
@@ -547,10 +547,10 @@
 .ct-inspect-output {
     background: #0a0e14;
     border: 1px solid var(--border-subtle);
-    border-radius: 0.75rem;
-    padding: 16px;
+    border-radius: var(--space-3);
+    padding: var(--space-4);
     font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     line-height: 1.55;
     color: var(--text-primary);
     max-height: 500px;
@@ -569,7 +569,7 @@
 /* ── Terminal Modal ── */
 #terminal-modal {
     align-items: center;
-    padding: 24px;
+    padding: var(--space-6);
     overflow: hidden;
 }
 
@@ -589,7 +589,7 @@
 .ct-terminal-body {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--space-3);
     flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;
@@ -598,7 +598,7 @@
 .ct-terminal-status {
     min-height: 20px;
     color: var(--text-secondary);
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
     letter-spacing: 0;
 }
 
@@ -608,12 +608,12 @@
     min-height: 0;
     background: #05070a;
     border: 1px solid var(--border-subtle);
-    border-radius: 0.75rem;
+    border-radius: var(--space-3);
     overflow: hidden;
-    padding: 10px;
+    padding: var(--space-3);
     color: #d7e1ec;
     font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     line-height: 1.45;
     white-space: pre-wrap;
 }
@@ -625,7 +625,7 @@
 
 .ct-terminal-output .xterm-viewport,
 .ct-terminal-output .xterm-screen {
-    border-radius: 6px;
+    border-radius: var(--radius-md);
 }
 
 /* ── Delete confirmation ── */
@@ -633,16 +633,16 @@
     font-weight: 600;
     color: var(--accent);
     font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-    font-size: 0.95rem;
-    margin: 8px 0;
+    font-size: var(--text-base);
+    margin: var(--space-2) 0;
     letter-spacing: -0.01em;
 }
 
 .ct-checkbox-label {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 0.9rem;
+    gap: var(--space-2);
+    font-size: var(--text-base);
     color: var(--text-secondary);
     cursor: pointer;
 }
@@ -657,14 +657,14 @@
 /* ── Toast notification ── */
 .ct-toast {
     position: fixed;
-    bottom: 24px;
-    right: 24px;
-    padding: 12px 20px;
-    border-radius: 10px;
-    font-size: 0.9rem;
+    bottom: var(--space-6);
+    right: var(--space-6);
+    padding: var(--space-3) var(--space-5);
+    border-radius: var(--radius-lg);
+    font-size: var(--text-base);
     color: #fff;
     z-index: 10000;
-    animation: ctSlideIn 0.35s cubic-bezier(0.22, 1, 0.36, 1), ctSlideOut 0.3s ease 2.7s;
+    animation: ctSlideIn 0.35s cubic-bezier(0.22, 1, 0.36, 1), ctSlideOut var(--transition-slow) ease 2.7s;
     pointer-events: none;
     font-weight: 500;
     box-shadow: 0 8px 24px rgba(2,6,23,0.2);
@@ -691,19 +691,19 @@
 /* ── Responsive ── */
 @media (max-width: 768px) {
     .ct-container {
-        padding: 16px 12px 60px;
-        padding-top: calc(16px + env(safe-area-inset-top, 0px));
+        padding: var(--space-4) var(--space-3) 60px;
+        padding-top: calc(var(--space-4) + env(safe-area-inset-top, 0px));
         padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
     }
 
     .ct-status-bar {
         flex-wrap: wrap;
-        gap: 10px;
+        gap: var(--space-3);
     }
     .ct-stat {
         flex: 1;
         min-width: 80px;
-        padding: 12px 14px;
+        padding: var(--space-3) 14px;
     }
     .ct-stat-value {
         font-size: 1.4rem;
@@ -726,7 +726,7 @@
         border-radius: 0.85rem;
     }
     #terminal-modal {
-        padding: 10px;
+        padding: var(--space-3);
     }
     .ct-terminal-output {
         height: clamp(260px, 58vh, 620px);

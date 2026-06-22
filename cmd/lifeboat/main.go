@@ -22,6 +22,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/credentials"
 	"aurago/internal/inventory"
+	"aurago/internal/kgquality"
 	"aurago/internal/llm"
 	"aurago/internal/logger"
 	"aurago/internal/memory"
@@ -201,6 +202,13 @@ func runOperation(cfg *config.Config, statePath, planPath string, l *slog.Logger
 	kg.SetMinSemanticSimilarity(cfg.Tools.KnowledgeGraph.MinSemanticSimilarity)
 	kg.SetExcludedNodeTypes(cfg.Tools.KnowledgeGraph.ExcludeNodeTypes)
 	kg.SetSemanticReindexInterval(cfg.Tools.KnowledgeGraph.SemanticReindexInterval)
+	kg.SetProtectOptimizeSources(cfg.Tools.KnowledgeGraph.ProtectOptimizeSources)
+	kg.SetProtectIDPrefixes(cfg.Tools.KnowledgeGraph.ProtectIDPrefixes)
+	kg.SetQualityPolicy(kgquality.Policy{
+		PendingCoMentionTTLDays:         cfg.Tools.KnowledgeGraph.PendingCoMentionTTLDays,
+		LowConfidenceCoMentionMinWeight: cfg.Tools.KnowledgeGraph.LowConfidenceCoMentionMinWeight,
+		HideLowConfidenceByDefault:      cfg.Tools.KnowledgeGraph.HideLowConfidenceByDefault,
+	})
 	if !longTermMem.IsDisabled() {
 		if err := kg.EnableSemanticSearchShared(longTermMem.GetDB(), longTermMem.GetEmbeddingFunc()); err != nil {
 			l.Warn("Failed to enable KG semantic search", "error", err)

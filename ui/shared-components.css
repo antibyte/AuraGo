@@ -10,16 +10,16 @@
 .skip-link {
     position: absolute;
     top: -100%;
-    left: 1rem;
+    left: var(--space-4);
     z-index: calc(var(--z-max, 9999) + 10);
-    padding: 0.75rem 1.25rem;
+    padding: var(--space-3) var(--space-5);
     background: var(--accent);
     color: var(--bg-primary);
     font-weight: 600;
-    font-size: 0.875rem;
-    border-radius: 0 0 8px 8px;
+    font-size: var(--text-sm);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
     text-decoration: none;
-    transition: top 0.2s ease;
+    transition: top var(--transition-base);
 }
 
 .skip-link:focus {
@@ -36,9 +36,9 @@
     justify-content: space-between;
     align-items: flex-end;
     flex-wrap: wrap;
-    gap: 1rem;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
+    padding-bottom: var(--space-4);
     border-bottom: 1px solid var(--border-subtle);
     position: relative;
 }
@@ -67,8 +67,8 @@
     margin: 0;
     display: inline-flex;
     align-items: center;
-    gap: 0.55rem;
-    font-size: clamp(1.2rem, 1.05rem + 0.55vw, 1.45rem);
+    gap: var(--space-2);
+    font-size: var(--text-xl);
     font-weight: 700;
     letter-spacing: -0.02em;
     line-height: 1.15;
@@ -87,7 +87,7 @@
     width: 56px;
     height: 2px;
     background: linear-gradient(90deg, rgba(45, 212, 191, 0.8), transparent);
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     opacity: 0.8;
 }
 
@@ -106,7 +106,7 @@
 .gallery-header .gallery-controls {
     display: flex;
     align-items: center;
-    gap: 0.7rem;
+    gap: var(--space-3);
     flex-wrap: wrap;
 }
 
@@ -118,12 +118,12 @@
     backdrop-filter: blur(20px) saturate(1.15);
     -webkit-backdrop-filter: blur(20px) saturate(1.15);
     border-bottom: 1px solid var(--border-subtle);
-    padding: 0.75rem 1.5rem;
+    padding: var(--safe-area-header-padding-top) var(--space-6);
     display: flex;
     justify-content: space-between;
     align-items: center;
     z-index: 10;
-    transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+    transition: background var(--transition-slow), border-color var(--transition-slow), box-shadow var(--transition-slow);
     position: relative;
     box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
 }
@@ -137,11 +137,11 @@
 
 .logo {
     font-weight: 700;
-    font-size: 1.25rem;
+    font-size: var(--text-xl);
     letter-spacing: 0.12em;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-2);
     flex-shrink: 0;
 }
 
@@ -166,13 +166,13 @@
 .logo-icon {
     width: 32px;
     height: 32px;
-    border-radius: 10px;
+    border-radius: var(--radius-xl);
     background: linear-gradient(135deg, #2dd4bf, #0d9488);
     display: grid;
     place-items: center;
-    font-size: 1rem;
+    font-size: var(--text-base);
     box-shadow: 0 0 16px var(--accent-glow);
-    transition: box-shadow 0.3s, transform 0.3s;
+    transition: box-shadow var(--transition-slow), transform var(--transition-slow);
     animation: logoPulse 3s ease-in-out infinite;
 }
 
@@ -190,7 +190,7 @@ a.logo {
 .header-actions {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-2);
     min-width: 0;
     position: relative;
     z-index: 2;
@@ -205,12 +205,12 @@ a.logo {
     z-index: calc(var(--z-max, 9999) + 1);
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.55rem 1rem;
+    gap: var(--space-3);
+    padding: 0.55rem var(--space-4);
     border-bottom: 2px solid #f9a825;
     background: #7c3300;
     color: #ffe082;
-    font-size: 0.85rem;
+    font-size: var(--text-sm);
     font-weight: 600;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
 }
@@ -238,14 +238,14 @@ a.logo {
 .btn {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 20px;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-5);
     border: none;
-    border-radius: 8px;
-    font-size: 0.9rem;
+    border-radius: var(--radius-lg);
+    font-size: var(--text-sm);
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
     text-decoration: none;
@@ -304,8 +304,8 @@ a.logo {
 }
 
 .btn-sm {
-    padding: 6px 12px;
-    font-size: 0.8rem;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
 }
 
 .btn:disabled {
@@ -319,12 +319,12 @@ a.logo {
     font-size: var(--text-xs);
     font-weight: 500;
     padding: 0.35rem 0.85rem;
-    border-radius: 10px;
+    border-radius: var(--radius-xl);
     border: 1px solid var(--border-subtle);
     background: var(--bg-glass);
     color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--transition-base) cubic-bezier(0.4, 0, 0.2, 1);
     text-decoration: none;
     white-space: nowrap;
     position: relative;
@@ -358,7 +358,7 @@ a.logo {
     width: 32px;
     height: 32px;
     min-width: 32px;
-    border-radius: 10px;
+    border-radius: var(--radius-xl);
     border: 1px solid var(--border-subtle);
     background: var(--bg-glass);
     color: var(--text-secondary);
@@ -372,8 +372,8 @@ a.logo {
 
 .btn-theme::after {
     content: '☀️';
-    font-size: 0.95rem;
-    transition: transform 0.3s;
+    font-size: var(--text-sm);
+    transition: transform var(--transition-slow);
     display: block;
 }
 
@@ -391,11 +391,11 @@ a.logo {
     width: 32px;
     height: 32px;
     min-width: 32px;
-    border-radius: 10px;
+    border-radius: var(--radius-xl);
     border: 1px solid var(--border-subtle);
     background: var(--bg-glass);
     color: var(--text-secondary);
-    font-size: 0.95rem;
+    font-size: var(--text-sm);
     cursor: pointer;
     display: grid;
     place-items: center;
@@ -420,11 +420,11 @@ a.logo {
     width: 32px;
     height: 32px;
     min-width: 32px;
-    border-radius: 10px;
+    border-radius: var(--radius-xl);
     border: 1px solid var(--border-subtle);
     background: var(--bg-glass);
     color: var(--text-secondary);
-    font-size: 0.95rem;
+    font-size: var(--text-sm);
     cursor: pointer;
     display: grid;
     place-items: center;
@@ -437,7 +437,7 @@ a.logo {
     transform: scale(1.1);
 }
 .btn-warnings .warnings-icon {
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
     line-height: 1;
 }
 .warnings-badge {
@@ -446,7 +446,7 @@ a.logo {
     right: -4px;
     min-width: 16px;
     height: 16px;
-    border-radius: 8px;
+    border-radius: var(--space-2);
     background: var(--error, #ef4444);
     color: var(--warnings-badge-text, #fff) !important;
     -webkit-text-fill-color: var(--warnings-badge-text, #fff) !important;
@@ -455,10 +455,10 @@ a.logo {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0 4px;
+    padding: 0 var(--space-1);
     line-height: 1;
     pointer-events: none;
-    transition: background 0.3s ease;
+    transition: background var(--transition-slow);
     border: 1px solid var(--warnings-badge-border, rgba(15, 23, 42, 0.18));
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
     text-shadow: 0 1px 1px rgba(0, 0, 0, 0.28);
@@ -496,8 +496,8 @@ a.logo {
     font-size: 0.9rem;
 }
 .warnings-item {
-    padding: 0.75rem;
-    border-radius: 8px;
+    padding: var(--space-3);
+    border-radius: var(--radius-lg);
     background: var(--bg-glass);
     border: 1px solid var(--border-subtle);
 }
@@ -508,30 +508,30 @@ a.logo {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.88rem;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
 }
 .warnings-item-meta {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--text-secondary);
     white-space: nowrap;
 }
 .warnings-item-desc {
     margin-top: 0.35rem;
-    font-size: 0.82rem;
+    font-size: var(--text-xs);
     color: var(--text-secondary);
     line-height: 1.4;
 }
 .btn-small {
     padding: 0.3rem 0.7rem;
-    font-size: 0.75rem;
-    border-radius: 6px;
+    font-size: var(--text-xs);
+    border-radius: var(--radius-md);
     border: 1px solid var(--border-subtle);
     background: var(--bg-glass);
     color: var(--text-primary);
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.2s;
+    transition: background var(--transition-base);
 }
 .btn-small:hover {
     background: rgba(128, 128, 128, 0.15);
@@ -545,8 +545,8 @@ a.logo {
 .card {
     background: var(--card-bg);
     border: 1px solid var(--border-subtle);
-    border-radius: 16px;
-    padding: 20px;
+    border-radius: var(--radius-2xl);
+    padding: var(--space-5);
     position: relative;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
@@ -734,7 +734,7 @@ a.logo {
 }
 
 .card-title {
-    font-size: 1.1rem;
+    font-size: var(--text-lg);
     font-weight: 600;
     color: var(--text-primary);
     text-wrap: balance;
@@ -744,15 +744,15 @@ a.logo {
 .badge {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.75rem;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-3xl);
+    font-size: var(--text-xs);
     font-weight: 600;
     position: relative;
     backdrop-filter: blur(4px);
     border: 1px solid transparent;
-    transition: all 0.2s;
+    transition: all var(--transition-base);
 }
 
 .badge-active {
@@ -799,10 +799,10 @@ a.logo {
 
 /* ── Pill badges ───────────────────────────────────────────── */
 .pill {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     font-weight: 500;
     padding: 0.35rem 0.7rem;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     border: 1px solid var(--border-subtle);
     background: var(--bg-glass);
     color: var(--text-secondary);
@@ -810,7 +810,7 @@ a.logo {
     align-items: center;
     gap: 0.35rem;
     white-space: nowrap;
-    transition: all 0.2s;
+    transition: all var(--transition-base);
     height: 32px;
     box-sizing: border-box;
 }
@@ -873,11 +873,11 @@ a.logo {
 /* ── Tabs ──────────────────────────────────────────────────── */
 .tabs {
     display: flex;
-    gap: 4px;
-    margin-bottom: 24px;
+    gap: var(--space-1);
+    margin-bottom: var(--space-6);
     background: var(--bg-secondary);
-    border-radius: 12px;
-    padding: 4px;
+    border-radius: var(--radius-xl);
+    padding: var(--space-1);
     border: 1px solid var(--border-subtle);
     position: sticky;
     top: 0;
@@ -900,15 +900,15 @@ a.logo {
 
 .tab {
     flex: 1;
-    padding: 10px 20px;
+    padding: var(--space-3) var(--space-5);
     border: none;
     background: transparent;
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
     font-weight: 500;
     cursor: pointer;
-    border-radius: 8px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: var(--radius-lg);
+    transition: all var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
     text-align: center;
     position: relative;
     overflow: hidden;
@@ -942,16 +942,16 @@ a.logo {
 
 /* ── Form Fields with Focus Glow ───────────────────────────── */
 .form-group {
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
 }
 
 .form-group label {
     display: block;
-    font-size: 0.85rem;
+    font-size: var(--text-sm);
     font-weight: 500;
-    margin-bottom: 6px;
+    margin-bottom: var(--space-2);
     color: var(--text-secondary);
-    transition: color 0.2s;
+    transition: color var(--transition-base);
 }
 
 .form-group:focus-within label {
@@ -962,23 +962,23 @@ a.logo {
 .form-group select,
 .form-group textarea {
     width: 100%;
-    padding: 12px 16px;
+    padding: var(--space-3) var(--space-4);
     border: 1px solid var(--border-subtle);
-    border-radius: 10px;
+    border-radius: var(--radius-xl);
     background: var(--input-bg);
     color: var(--text-primary);
-    font-size: 0.9rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: var(--text-sm);
+    transition: all var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
     font-family: inherit;
 }
 
 /* Selects in forms get special styling with dropdown icon */
 .form-group select {
-    padding: 12px 40px 12px 16px;
+    padding: var(--space-3) 40px var(--space-3) var(--space-4);
     cursor: pointer;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%232dd4bf' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
     background-repeat: no-repeat;
-    background-position: right 12px center;
+    background-position: right var(--space-3) center;
     background-size: 16px;
     appearance: none;
     -webkit-appearance: none;
@@ -1017,8 +1017,8 @@ a.logo {
 .form-group select option {
     background: var(--bg-secondary);
     color: var(--text-primary);
-    padding: 10px;
-    font-size: 0.9rem;
+    padding: var(--space-3);
+    font-size: var(--text-sm);
 }
 
 .form-group textarea {
@@ -1029,7 +1029,7 @@ a.logo {
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: var(--space-3);
 }
 
 /* ── Unified Select Dropdown Style ─────────────────────────── */
@@ -1038,19 +1038,19 @@ select,
 .field-select,
 .select-personality {
     width: 100%;
-    padding: 12px 40px 12px 16px;
-    font-size: 0.9rem;
+    padding: var(--space-3) 40px var(--space-3) var(--space-4);
+    font-size: var(--text-sm);
     font-family: inherit;
     color: var(--text-primary);
     background: var(--input-bg);
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%232dd4bf' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
     background-repeat: no-repeat;
-    background-position: right 12px center;
+    background-position: right var(--space-3) center;
     background-size: 16px;
     border: 1px solid var(--border-subtle);
-    border-radius: 10px;
+    border-radius: var(--radius-xl);
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
@@ -1085,8 +1085,8 @@ select option,
 .select-personality option {
     background: var(--bg-secondary);
     color: var(--text-primary);
-    padding: 10px;
-    font-size: 0.9rem;
+    padding: var(--space-3);
+    font-size: var(--text-sm);
 }
 
 select option:hover,
@@ -1101,8 +1101,8 @@ select option:hover,
 select.small,
 .form-select.small,
 .field-select.small {
-    padding: 8px 32px 8px 12px;
-    font-size: 0.8rem;
+    padding: var(--space-2) 32px var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
     background-position: right 10px center;
     background-size: 14px;
 }
@@ -1110,8 +1110,8 @@ select.small,
 select.large,
 .form-select.large,
 .field-select.large {
-    padding: 14px 44px 14px 18px;
-    font-size: 1rem;
+    padding: var(--space-4) 44px var(--space-4) 18px;
+    font-size: var(--text-base);
     background-position: right 14px center;
     background-size: 18px;
 }
@@ -1121,7 +1121,7 @@ select.large,
 .toggle-wrap {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-3);
 }
 
 /* Checkbox-based toggle (label.toggle > input + span.slider) */
@@ -1142,8 +1142,8 @@ select.large,
     position: absolute;
     inset: 0;
     background: var(--bg-secondary);
-    border-radius: 26px;
-    transition: 0.3s;
+    border-radius: var(--radius-3xl);
+    transition: var(--transition-slow);
     border: 1px solid var(--border-subtle);
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.08);
 }
@@ -1163,7 +1163,7 @@ select.large,
     bottom: 2px;
     background: white;
     border-radius: 50%;
-    transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: var(--transition-slow) cubic-bezier(0.34, 1.56, 0.64, 1);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
     pointer-events: none;
 }
@@ -1264,9 +1264,9 @@ div.toggle.toggle-sm.on::before {
     z-index: var(--z-modal, 1000);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s ease;
+    transition: opacity var(--transition-slow);
     overflow-y: auto;
-    padding: 20px 0;
+    padding: var(--space-5) 0;
     backdrop-filter: blur(4px);
 }
 
@@ -1280,7 +1280,7 @@ div.toggle.toggle-sm.on::before {
 .modal {
     background: var(--modal-surface);
     border: 1px solid var(--modal-border);
-    border-radius: 20px;
+    border-radius: var(--radius-3xl);
     padding: 28px;
     width: 95%;
     max-width: 560px;
@@ -1291,7 +1291,7 @@ div.toggle.toggle-sm.on::before {
     margin: auto;
     transform: scale(0.95) translateY(10px);
     opacity: 0;
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: all var(--transition-slow) cubic-bezier(0.34, 1.56, 0.64, 1);
     position: relative;
     overflow: hidden;
 }
@@ -1313,8 +1313,8 @@ div.toggle.toggle-sm.on::before {
 }
 
 .modal h2 {
-    font-size: 1.3rem;
-    margin-bottom: 20px;
+    font-size: var(--text-lg);
+    margin-bottom: var(--space-5);
     color: var(--text-primary);
     text-wrap: balance;
 }
@@ -1324,8 +1324,8 @@ div.toggle.toggle-sm.on::before {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 20px;
-    gap: 16px;
+    margin-bottom: var(--space-5);
+    gap: var(--space-4);
 }
 
 .modal-header h2 {
@@ -1336,7 +1336,7 @@ div.toggle.toggle-sm.on::before {
 .modal-close {
     background: var(--bg-glass);
     border: 1px solid var(--border-subtle);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     width: 32px;
     height: 32px;
     display: flex;
@@ -1346,7 +1346,7 @@ div.toggle.toggle-sm.on::before {
     font-size: 1.4rem;
     line-height: 1;
     color: var(--text-secondary);
-    transition: all 0.2s ease;
+    transition: all var(--transition-base);
     flex-shrink: 0;
     padding: 0;
     margin: -4px -4px 0 0;
@@ -1362,9 +1362,9 @@ div.toggle.toggle-sm.on::before {
 .modal-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
-    margin-top: 20px;
-    padding-top: 16px;
+    gap: var(--space-3);
+    margin-top: var(--space-5);
+    padding-top: var(--space-4);
     border-top: 1px solid var(--border-subtle);
     position: relative;
 }
@@ -1373,8 +1373,8 @@ div.toggle.toggle-sm.on::before {
 .modal-card {
     background: var(--modal-surface);
     border: 1px solid var(--modal-border);
-    border-radius: 16px;
-    padding: 1.5rem;
+    border-radius: var(--radius-2xl);
+    padding: var(--space-6);
     max-width: 380px;
     width: 100%;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
@@ -1627,23 +1627,23 @@ div.toggle.toggle-sm.on::before {
 /* ── Toast Notifications ───────────────────────────────────── */
 .toast-container {
     position: fixed;
-    bottom: 24px;
-    right: 24px;
+    bottom: var(--space-6);
+    right: var(--space-6);
     z-index: var(--z-toast, 1100);
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--space-2);
     pointer-events: none;
 }
 
 .toast {
     position: fixed;
-    bottom: 24px;
-    right: 24px;
+    bottom: var(--space-6);
+    right: var(--space-6);
     z-index: var(--z-toast, 1100);
-    padding: 14px 24px;
-    border-radius: 12px;
-    font-size: 0.9rem;
+    padding: 14px var(--space-6);
+    border-radius: var(--radius-xl);
+    font-size: var(--text-sm);
     color: white;
     opacity: 0;
     transform: translateY(20px) scale(0.95);
@@ -1716,10 +1716,10 @@ div.toggle.toggle-sm.on::before {
 /* ── Empty State ───────────────────────────────────────────── */
 .empty-state {
     text-align: center;
-    padding: 80px 20px;
+    padding: 80px var(--space-5);
     color: var(--text-secondary);
     background: var(--bg-secondary);
-    border-radius: 16px;
+    border-radius: var(--radius-2xl);
     border: 1px dashed var(--border-subtle);
     position: relative;
     overflow: hidden;
@@ -1737,7 +1737,7 @@ div.toggle.toggle-sm.on::before {
 .empty-state .empty-icon,
 .gallery-empty-icon {
     font-size: 4rem;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
     filter: grayscale(0.3);
     opacity: 0.8;
     animation: float 3s ease-in-out infinite;
@@ -1745,8 +1745,8 @@ div.toggle.toggle-sm.on::before {
 }
 
 .empty-state p {
-    margin-bottom: 20px;
-    font-size: 1.05rem;
+    margin-bottom: var(--space-5);
+    font-size: var(--text-lg);
 }
 
 

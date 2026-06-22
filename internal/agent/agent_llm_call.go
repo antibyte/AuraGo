@@ -408,7 +408,7 @@ func handleStreamingResponse(
 	} else {
 		completionTokens = estimateTokensForModel(content, req.Model)
 		for _, m := range req.Messages {
-			promptTokens += estimateTokensForModel(messageText(m), req.Model)
+			promptTokens += estimateTokensForModel(messageTextWithReasoningForAccounting(m), req.Model)
 		}
 		totalTokens = promptTokens + completionTokens
 		tokenSource = "fallback_estimate"

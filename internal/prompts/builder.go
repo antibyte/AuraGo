@@ -98,19 +98,21 @@ var reHTMLComments = regexp.MustCompile(`(?s)<!--.*?-->`)
 // ContextFlags dictate which secondary prompt files are appended
 // to the core system identity.
 type ContextFlags struct {
-	IsErrorState           bool
-	RequiresCoding         bool
-	RetrievedMemories      string
-	RecentActivityOverview string // Compact 7-day activity overview for recency-aware planning
-	PredictedMemories      string // Phase B: proactively pre-fetched memories from temporal/tool patterns
-	PersonalityLine        string // Phase D: compact self-awareness line [Self: mood=X | C:0.82 ...]
-	CorePersonality        string // Selected core personality profile name (e.g. "neutral", "punk")
-	ActiveProcesses        string // PID (name) comma-separated
-	SystemLanguage         string
-	LifeboatEnabled        bool
-	IsMaintenanceMode      bool
-	SurgeryPlan            string
-	PredictedGuides        []string // Content of tool guides to inject
+	IsErrorState                   bool
+	RequiresCoding                 bool
+	RetrievedMemories              string
+	AvailableMemoryContextIndex    string
+	AvailableKnowledgeContextIndex string
+	RecentActivityOverview         string // Compact 7-day activity overview for recency-aware planning
+	PredictedMemories              string // Phase B: proactively pre-fetched memories from temporal/tool patterns
+	PersonalityLine                string // Phase D: compact self-awareness line [Self: mood=X | C:0.82 ...]
+	CorePersonality                string // Selected core personality profile name (e.g. "neutral", "punk")
+	ActiveProcesses                string // PID (name) comma-separated
+	SystemLanguage                 string
+	LifeboatEnabled                bool
+	IsMaintenanceMode              bool
+	SurgeryPlan                    string
+	PredictedGuides                []string // Content of tool guides to inject
 	// Optimization fields
 	Tier               string   // "full", "compact", "minimal" — controls module loading
 	MessageCount       int      // Current message count in the conversation
@@ -242,6 +244,9 @@ type ContextFlags struct {
 	ToolsDir                 string // absolute path to agent_workspace/tools/ for custom tool scripts
 	SkillsDir                string // absolute path to agent_workspace/skills/ for skill plugins
 	AgentSkillsCatalog       string // enabled Agent Skill names/descriptions; full SKILL.md loads via activate_agent_skill
+	CapabilityCreationIntent bool   // current turn needs capability/skill/tool creation guidance
+	DaemonSkillsIntent       bool   // current turn needs daemon skill guidance
+	LifeboatIntent           bool   // current turn needs lifeboat handover guidance outside maintenance mode
 	UnifiedMemoryBlock       bool   // experimental: merge retrieval/activity/KG context into one prompt section
 	Model                    string // model identifier for token-counting accuracy
 	// SkipIntegrationTools lists tool names to exclude from the [ENABLED INTEGRATIONS]
@@ -685,6 +690,13 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 		if flags.KnowledgeContext != "" && tier != "minimal" {
 			finalPrompt.WriteString("# RELEVANT KNOWLEDGE\n")
 			finalPrompt.WriteString(security.IsolateExternalData(flags.KnowledgeContext))
+			finalPrompt.WriteString("\n\n")
+		}
+
+		if availableContextIndex(flags) != "" && tier != "minimal" {
+			finalPrompt.WriteString("# AVAILABLE CONTEXT INDEX\n")
+			finalPrompt.WriteString("[advisory, stale] Use recall_memory(ids) or explore_kg(ids, depth, limit) only when the listed context is needed.\n\n")
+			finalPrompt.WriteString(security.IsolateExternalData(availableContextIndex(flags)))
 			finalPrompt.WriteString("\n\n")
 		}
 	}
@@ -1637,6 +1649,7 @@ func buildUnifiedMemoryContextBlock(tier string, flags *ContextFlags) string {
 	sections := []unifiedMemorySection{
 		{title: "Retrieved Memories", body: flags.RetrievedMemories, minimalSkip: true},
 		{title: "Relevant Knowledge", body: flags.KnowledgeContext, minimalSkip: true},
+		{title: "Available Context Index", body: availableContextIndex(flags), minimalSkip: true},
 		{title: "Learned Rules", body: flags.LearnedRulesContext, minimalSkip: true},
 		{title: "Known Error Patterns", body: flags.ErrorPatternContext, minimalSkip: true},
 		{title: "Recent Activity", body: flags.RecentActivityOverview, minimalSkip: true},
@@ -1692,6 +1705,20 @@ func buildUnifiedMemoryContextBlock(tier string, flags *ContextFlags) string {
 		return truncateWithEllipsis(out, maxUnifiedMemoryBlockChars)
 	}
 	return out
+}
+
+func availableContextIndex(flags *ContextFlags) string {
+	if flags == nil {
+		return ""
+	}
+	parts := make([]string, 0, 2)
+	if strings.TrimSpace(flags.AvailableMemoryContextIndex) != "" {
+		parts = append(parts, strings.TrimSpace(flags.AvailableMemoryContextIndex))
+	}
+	if strings.TrimSpace(flags.AvailableKnowledgeContextIndex) != "" {
+		parts = append(parts, strings.TrimSpace(flags.AvailableKnowledgeContextIndex))
+	}
+	return strings.Join(parts, "\n")
 }
 
 func appendBudgetedUnifiedMemorySection(current, title, body string, maxChars int) (string, bool) {

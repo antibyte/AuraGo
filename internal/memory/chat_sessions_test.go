@@ -92,6 +92,28 @@ func TestListChatSessionsExcludesHeartbeatSession(t *testing.T) {
 	}
 }
 
+func TestListChatSessionsExcludesSpaceAgentBridgeSession(t *testing.T) {
+	stm := newTestSTM(t)
+	now := "2026-04-27 01:40:00"
+	_, err := stm.db.Exec(
+		`INSERT INTO chat_sessions (id, preview, created_at, last_active_at, message_count) VALUES (?, ?, ?, ?, ?)`,
+		"space-agent-bridge", "Space Agent sent this bridge question", now, now, 1,
+	)
+	if err != nil {
+		t.Fatalf("insert bridge chat session: %v", err)
+	}
+
+	sessions, err := stm.ListChatSessions()
+	if err != nil {
+		t.Fatalf("ListChatSessions: %v", err)
+	}
+	for _, sess := range sessions {
+		if sess.ID == "space-agent-bridge" {
+			t.Fatalf("space-agent bridge session should not be listed: %+v", sessions)
+		}
+	}
+}
+
 func TestGetChatSession(t *testing.T) {
 	stm := newTestSTM(t)
 
@@ -167,6 +189,27 @@ func TestUpdateChatSessionPreviewIgnoresHeartbeatPrompts(t *testing.T) {
 	}
 }
 
+func TestUpdateChatSessionPreviewIgnoresSpaceAgentBridgePrompts(t *testing.T) {
+	stm := newTestSTM(t)
+
+	sess, _ := stm.CreateChatSession()
+	_, _ = stm.InsertMessage(sess.ID, "user", "Space Agent sent this bridge question to AuraGo.\n\nQuestion:\ninternal routing task", false, false)
+	_, _ = stm.InsertMessage(sess.ID, "user", "real user message", false, false)
+
+	err := stm.UpdateChatSessionPreview(sess.ID)
+	if err != nil {
+		t.Fatalf("UpdateChatSessionPreview: %v", err)
+	}
+
+	got, _ := stm.GetChatSession(sess.ID)
+	if got.Preview != "real user message" {
+		t.Fatalf("expected real message preview, got %q", got.Preview)
+	}
+	if got.MessageCount != 1 {
+		t.Fatalf("expected leaked bridge prompt excluded from count, got %d", got.MessageCount)
+	}
+}
+
 func TestUpdateChatSessionPreviewClearsHeartbeatSession(t *testing.T) {
 	stm := newTestSTM(t)
 	now := "2026-04-27 01:40:00"
@@ -192,6 +235,34 @@ func TestUpdateChatSessionPreviewClearsHeartbeatSession(t *testing.T) {
 	}
 	if got.MessageCount != 0 {
 		t.Fatalf("expected heartbeat count cleared, got %d", got.MessageCount)
+	}
+}
+
+func TestUpdateChatSessionPreviewClearsSpaceAgentBridgeSession(t *testing.T) {
+	stm := newTestSTM(t)
+	now := "2026-04-27 01:40:00"
+	_, err := stm.db.Exec(
+		`INSERT INTO chat_sessions (id, preview, created_at, last_active_at, message_count) VALUES (?, ?, ?, ?, ?)`,
+		"space-agent-bridge", "Space Agent sent this bridge question", now, now, 2,
+	)
+	if err != nil {
+		t.Fatalf("insert bridge chat session: %v", err)
+	}
+
+	err = stm.UpdateChatSessionPreview("space-agent-bridge")
+	if err != nil {
+		t.Fatalf("UpdateChatSessionPreview bridge: %v", err)
+	}
+
+	got, _ := stm.GetChatSession("space-agent-bridge")
+	if got == nil {
+		t.Fatal("expected bridge session to exist")
+	}
+	if got.Preview != "" {
+		t.Fatalf("expected bridge preview cleared, got %q", got.Preview)
+	}
+	if got.MessageCount != 0 {
+		t.Fatalf("expected bridge count cleared, got %d", got.MessageCount)
 	}
 }
 

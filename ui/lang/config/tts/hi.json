@@ -53,5 +53,6 @@
   "config.tts.piper_status_disabled": "⚪ Piper अक्षम है",
   "config.tts.piper_status_running": "🟢 Piper चल रहा है",
   "config.tts.piper_status_stopped": "🟡 Piper रुका हुआ है",
-  "config.tts.piper_status_error": "🔴 Piper त्रुटि"
+  "config.tts.piper_status_error": "🔴 Piper त्रुटि",
+  "config.tts.language_custom_help": "Use Custom only when your TTS provider requires a language code not listed above."
 }

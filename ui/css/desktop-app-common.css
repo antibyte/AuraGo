@@ -2,6 +2,249 @@
 /* desktop-apps.css — file manager, editor, office, settings, calculator, todo, calendar, chat, viewer, looper, gallery, sysinfo, quick connect, launchpad */
 
 
+.desktop-body[data-theme="standard"] :where(
+    .fm-modal,
+    .fm-upload-panel,
+    .fm-preview-panel,
+    .fm-context-menu,
+    .cs-modal,
+    .cs-shortcut-modal,
+    .cs-command-palette,
+    .cs-context-menu,
+    .vd-qc-modal,
+    .vd-qc-confirm,
+    .vd-store-modal,
+    .vd-launchpad-modal,
+    .office-sheet-context-menu,
+    .cheater-modal-panel,
+    .cheater-spotlight-panel,
+    .cheater-context-menu,
+    .radio-toast,
+    .teevee-toast,
+    .ad-toast
+),
+.desktop-body[data-theme="fruity"] :where(
+    .fm-modal,
+    .fm-upload-panel,
+    .fm-preview-panel,
+    .fm-context-menu,
+    .cs-modal,
+    .cs-shortcut-modal,
+    .cs-command-palette,
+    .cs-context-menu,
+    .vd-qc-modal,
+    .vd-qc-confirm,
+    .vd-store-modal,
+    .vd-launchpad-modal,
+    .office-sheet-context-menu,
+    .cheater-modal-panel,
+    .cheater-spotlight-panel,
+    .cheater-context-menu,
+    .radio-toast,
+    .teevee-toast,
+    .ad-toast
+) {
+    border-color: var(--vd-theme-border) !important;
+    border-radius: var(--vd-theme-radius-modal) !important;
+    background: var(--vd-theme-panel-bg-strong) !important;
+    color: var(--vd-text) !important;
+    box-shadow: var(--vd-theme-shadow-modal) !important;
+    -webkit-backdrop-filter: var(--vd-theme-blur);
+    backdrop-filter: var(--vd-theme-blur);
+}
+
+.desktop-body[data-theme="standard"] :where(
+    .fm-modal-overlay,
+    .fm-upload-overlay,
+    .cs-modal-backdrop,
+    .cs-shortcut-overlay,
+    .cs-command-palette-backdrop,
+    .vd-qc-modal-overlay,
+    .cheater-modal,
+    .cheater-spotlight,
+    .vd-chat-drop-overlay.active
+),
+.desktop-body[data-theme="fruity"] :where(
+    .fm-modal-overlay,
+    .fm-upload-overlay,
+    .cs-modal-backdrop,
+    .cs-shortcut-overlay,
+    .cs-command-palette-backdrop,
+    .vd-qc-modal-overlay,
+    .cheater-modal,
+    .cheater-spotlight,
+    .vd-chat-drop-overlay.active
+) {
+    background: var(--vd-theme-overlay-bg) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(1.08);
+    backdrop-filter: blur(10px) saturate(1.08);
+}
+
+.desktop-body[data-theme="standard"] :where(
+    .fm-toolbar,
+    .fm-breadcrumb-bar,
+    .fm-sidebar,
+    .fm-statusbar,
+    .fm-tab-bar,
+    .cs-sidebar,
+    .cs-toolbar,
+    .cs-statusbar,
+    .vd-settings-sidebar,
+    .vd-setting-row,
+    .vd-chat-form,
+    .vd-chat-sidebar,
+    .vd-store-sidebar,
+    .vd-store-toolbar,
+    .vd-gallery-toolbar,
+    .vd-qc-toolbar,
+    .cheater-sidebar,
+    .cheater-toolbar
+),
+.desktop-body[data-theme="fruity"] :where(
+    .fm-toolbar,
+    .fm-breadcrumb-bar,
+    .fm-sidebar,
+    .fm-statusbar,
+    .fm-tab-bar,
+    .cs-sidebar,
+    .cs-toolbar,
+    .cs-statusbar,
+    .vd-settings-sidebar,
+    .vd-setting-row,
+    .vd-chat-form,
+    .vd-chat-sidebar,
+    .vd-store-sidebar,
+    .vd-store-toolbar,
+    .vd-gallery-toolbar,
+    .vd-qc-toolbar,
+    .cheater-sidebar,
+    .cheater-toolbar
+) {
+    border-color: var(--vd-theme-border) !important;
+    background: var(--vd-theme-chrome-bg) !important;
+    color: var(--vd-text);
+}
+
+.desktop-body[data-theme="standard"] :where(
+    .fm-toolbtn,
+    .fm-btn,
+    .fm-search-input,
+    .fm-rename-input,
+    .fm-selection-btn,
+    .cs-icon-button,
+    .cs-input,
+    .cs-select,
+    .vd-qc-modal input,
+    .vd-qc-modal select,
+    .vd-qc-modal textarea,
+    .vd-store-modal input,
+    .vd-store-modal select,
+    .cheater-modal-panel input,
+    .cheater-modal-panel textarea,
+    .cheater-toast button
+),
+.desktop-body[data-theme="fruity"] :where(
+    .fm-toolbtn,
+    .fm-btn,
+    .fm-search-input,
+    .fm-rename-input,
+    .fm-selection-btn,
+    .cs-icon-button,
+    .cs-input,
+    .cs-select,
+    .vd-qc-modal input,
+    .vd-qc-modal select,
+    .vd-qc-modal textarea,
+    .vd-store-modal input,
+    .vd-store-modal select,
+    .cheater-modal-panel input,
+    .cheater-modal-panel textarea,
+    .cheater-toast button
+) {
+    border-color: var(--vd-theme-border) !important;
+    background: var(--vd-theme-control-bg) !important;
+    color: var(--vd-text) !important;
+}
+
+.desktop-body[data-theme="standard"] :where(
+    .fm-toolbtn:hover:not(:disabled),
+    .fm-btn:hover,
+    .fm-sidebar-item:hover,
+    .fm-list-row:hover,
+    .fm-grid-item:hover,
+    .cs-icon-button:hover,
+    .vd-qc-modal button:hover,
+    .cheater-context-menu li:hover,
+    .cheater-toast button:hover
+),
+.desktop-body[data-theme="fruity"] :where(
+    .fm-toolbtn:hover:not(:disabled),
+    .fm-btn:hover,
+    .fm-sidebar-item:hover,
+    .fm-list-row:hover,
+    .fm-grid-item:hover,
+    .cs-icon-button:hover,
+    .vd-qc-modal button:hover,
+    .cheater-context-menu li:hover,
+    .cheater-toast button:hover
+) {
+    background: var(--vd-theme-control-hover) !important;
+}
+
+.desktop-body[data-theme="standard"] :where(
+    .radio-app,
+    .camera-app,
+    .code-studio
+) {
+    --radio-glass: var(--vd-theme-panel-bg) !important;
+    --radio-glass-strong: var(--vd-theme-panel-bg-strong) !important;
+    --radio-line: var(--vd-theme-border) !important;
+    --radio-text-muted: var(--vd-theme-muted) !important;
+    --cam-glass: var(--vd-theme-panel-bg) !important;
+    --cam-glass-strong: var(--vd-theme-panel-bg-strong) !important;
+    --cam-line: var(--vd-theme-border) !important;
+    --cam-text-muted: var(--vd-theme-muted) !important;
+    --cs-bg: var(--vd-theme-app-bg) !important;
+    --cs-panel: var(--vd-theme-panel-bg) !important;
+    --cs-panel-soft: var(--vd-theme-chrome-bg) !important;
+    --cs-panel-glass: var(--vd-theme-panel-bg) !important;
+    --cs-panel-elevated: var(--vd-theme-panel-bg-strong) !important;
+    --cs-border: var(--vd-theme-border) !important;
+    --cs-border-subtle: var(--vd-theme-border) !important;
+    --cs-text: var(--vd-text) !important;
+    --cs-muted: var(--vd-theme-muted) !important;
+    --cs-accent: var(--vd-accent) !important;
+    --cs-accent-soft: var(--vd-theme-accent-soft) !important;
+    --cs-accent-glow: var(--vd-accent-glow) !important;
+}
+
+.desktop-body[data-theme="fruity"] :where(
+    .radio-app,
+    .camera-app,
+    .code-studio
+) {
+    --radio-glass: var(--vd-theme-panel-bg) !important;
+    --radio-glass-strong: var(--vd-theme-panel-bg-strong) !important;
+    --radio-line: var(--vd-theme-border) !important;
+    --radio-text-muted: var(--vd-theme-muted) !important;
+    --cam-glass: var(--vd-theme-panel-bg) !important;
+    --cam-glass-strong: var(--vd-theme-panel-bg-strong) !important;
+    --cam-line: var(--vd-theme-border) !important;
+    --cam-text-muted: var(--vd-theme-muted) !important;
+    --cs-bg: var(--vd-theme-app-bg) !important;
+    --cs-panel: var(--vd-theme-panel-bg) !important;
+    --cs-panel-soft: var(--vd-theme-chrome-bg) !important;
+    --cs-panel-glass: var(--vd-theme-panel-bg) !important;
+    --cs-panel-elevated: var(--vd-theme-panel-bg-strong) !important;
+    --cs-border: var(--vd-theme-border) !important;
+    --cs-border-subtle: var(--vd-theme-border) !important;
+    --cs-text: var(--vd-text) !important;
+    --cs-muted: var(--vd-theme-muted) !important;
+    --cs-accent: var(--vd-accent) !important;
+    --cs-accent-soft: var(--vd-theme-accent-soft) !important;
+    --cs-accent-glow: var(--vd-accent-glow) !important;
+}
+
 
 .vd-tool-button {
     display: inline-flex;
@@ -17,9 +260,9 @@
     gap: 6px;
     min-height: 46px;
     padding: 8px 16px;
-    border: 1px solid rgba(39, 199, 166, 0.35);
+    border: 1px solid rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.35);
     border-radius: var(--ds-radius-md);
-    background: rgba(39, 199, 166, 0.15);
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.15);
     color: var(--vd-accent, #27c7a6);
     font-size: 0.84rem;
     font-weight: 600;
@@ -28,8 +271,8 @@
 }
 
 .vd-chat-send:hover {
-    background: rgba(39, 199, 166, 0.25);
-    border-color: rgba(39, 199, 166, 0.55);
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.25);
+    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.55);
 }
 
 .vd-chat-send:active {
@@ -156,12 +399,12 @@
 }
 
 .vd-file-row:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--ds-color-control-hover);
 }
 
 .vd-file-row.selected {
-    background: rgba(39, 199, 166, 0.15);
-    outline: 1px solid rgba(39, 199, 166, 0.35);
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.15);
+    outline: 1px solid rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.35);
 }
 
 .vd-file-name {

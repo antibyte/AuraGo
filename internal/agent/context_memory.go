@@ -10,6 +10,7 @@ import (
 
 	"aurago/internal/memory"
 	"aurago/internal/planner"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
@@ -571,6 +572,200 @@ func executeQueryMemory(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTerm
 	raw, err := json.Marshal(response)
 	if err != nil {
 		return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to serialize results: %v"}`, err), nil
+	}
+	return "Tool Output: " + string(raw), nil
+}
+
+func executeRecallMemory(tc ToolCall, longTermMem memory.VectorDB) (string, error) {
+	if longTermMem == nil {
+		return `Tool Output: {"status":"error","message":"long-term memory unavailable"}`, nil
+	}
+	ids := memoryIDsFromToolCall(tc)
+	if len(ids) == 0 {
+		return `Tool Output: {"status":"error","message":"ids are required"}`, nil
+	}
+	if len(ids) > 10 {
+		ids = ids[:10]
+	}
+	type recalledMemory struct {
+		ID      string `json:"id"`
+		Content string `json:"content"`
+	}
+	results := make([]recalledMemory, 0, len(ids))
+	missing := make([]string, 0)
+	for _, id := range ids {
+		content, err := longTermMem.GetByID(id)
+		if err != nil || strings.TrimSpace(content) == "" {
+			missing = append(missing, id)
+			continue
+		}
+		results = append(results, recalledMemory{ID: id, Content: security.Scrub(content)})
+	}
+	response := map[string]interface{}{
+		"status":  "success",
+		"results": results,
+	}
+	if len(missing) > 0 {
+		response["missing"] = missing
+	}
+	raw, err := json.Marshal(response)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to serialize recall results: %v"}`, err), nil
+	}
+	return "Tool Output: " + string(raw), nil
+}
+
+func memoryIDsFromToolCall(tc ToolCall) []string {
+	seen := make(map[string]struct{})
+	add := func(ids []string, out *[]string) {
+		for _, id := range ids {
+			id = strings.TrimSpace(id)
+			if id == "" {
+				continue
+			}
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			*out = append(*out, id)
+		}
+	}
+	var ids []string
+	add(tc.IDs, &ids)
+	add(tc.ArtifactIDs, &ids)
+	if strings.TrimSpace(tc.ID) != "" {
+		add([]string{tc.ID}, &ids)
+	}
+	return ids
+}
+
+func sanitizeKGNodesForTool(nodes []memory.Node) []memory.Node {
+	if len(nodes) == 0 {
+		return nil
+	}
+	out := make([]memory.Node, 0, len(nodes))
+	for _, node := range nodes {
+		node.ID = scrubToolOutputString(node.ID)
+		node.Label = scrubToolOutputString(node.Label)
+		node.Properties = sanitizeKGPropertiesForTool(node.Properties)
+		out = append(out, node)
+	}
+	return out
+}
+
+func sanitizeKGEdgesForTool(edges []memory.Edge) []memory.Edge {
+	if len(edges) == 0 {
+		return nil
+	}
+	out := make([]memory.Edge, 0, len(edges))
+	for _, edge := range edges {
+		edge.Source = scrubToolOutputString(edge.Source)
+		edge.Target = scrubToolOutputString(edge.Target)
+		edge.Relation = scrubToolOutputString(edge.Relation)
+		edge.Properties = sanitizeKGPropertiesForTool(edge.Properties)
+		out = append(out, edge)
+	}
+	return out
+}
+
+func sanitizeKGPropertiesForTool(properties map[string]string) map[string]string {
+	if properties == nil {
+		return make(map[string]string)
+	}
+	out := make(map[string]string, len(properties))
+	for key, value := range properties {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		if isSensitiveKGToolPropertyKey(key) {
+			out[key] = security.RedactedText("")
+			continue
+		}
+		out[key] = scrubToolOutputString(value)
+	}
+	return out
+}
+
+func isSensitiveKGToolPropertyKey(key string) bool {
+	key = strings.ToLower(strings.TrimSpace(key))
+	if key == "" {
+		return false
+	}
+	switch key {
+	case "password", "passwd", "secret", "token", "api_key", "apikey",
+		"access_token", "refresh_token", "private_key", "master_key",
+		"credential", "credentials", "auth", "authorization":
+		return true
+	}
+	for _, suffix := range []string{"_password", "_passwd", "_secret", "_token", "_api_key", "_credential"} {
+		if strings.HasSuffix(key, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+func scrubToolOutputString(value string) string {
+	return security.RedactSensitiveInfo(security.Scrub(value))
+}
+
+func executeExploreKG(tc ToolCall, kg *memory.KnowledgeGraph) (string, error) {
+	if kg == nil {
+		return `Tool Output: {"status":"error","message":"knowledge graph unavailable"}`, nil
+	}
+	ids := memoryIDsFromToolCall(tc)
+	if len(ids) == 0 {
+		return `Tool Output: {"status":"error","message":"ids are required"}`, nil
+	}
+	if len(ids) > 5 {
+		ids = ids[:5]
+	}
+	depth := tc.Depth
+	if depth <= 0 {
+		depth = 1
+	}
+	if depth > 3 {
+		depth = 3
+	}
+	limit := tc.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	type kgExploration struct {
+		CenterID string        `json:"center_id"`
+		Depth    int           `json:"depth"`
+		Nodes    []memory.Node `json:"nodes"`
+		Edges    []memory.Edge `json:"edges"`
+	}
+	results := make([]kgExploration, 0, len(ids))
+	missing := make([]string, 0)
+	for _, id := range ids {
+		nodes, edges := kg.GetSubgraph(id, depth)
+		if len(nodes) == 0 && len(edges) == 0 {
+			missing = append(missing, scrubToolOutputString(id))
+			continue
+		}
+		if len(nodes) > limit {
+			nodes = nodes[:limit]
+		}
+		if len(edges) > limit {
+			edges = edges[:limit]
+		}
+		nodes = sanitizeKGNodesForTool(nodes)
+		edges = sanitizeKGEdgesForTool(edges)
+		results = append(results, kgExploration{CenterID: scrubToolOutputString(id), Depth: depth, Nodes: nodes, Edges: edges})
+	}
+	response := map[string]interface{}{
+		"status":  "success",
+		"results": results,
+	}
+	if len(missing) > 0 {
+		response["missing"] = missing
+	}
+	raw, err := json.Marshal(response)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to serialize KG exploration: %v"}`, err), nil
 	}
 	return "Tool Output: " + string(raw), nil
 }

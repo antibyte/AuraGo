@@ -67,5 +67,8 @@
   "config.vault.delete_desc": "これにより、 ボールトが<strong>完全に</strong>削除されます。保存されているすべての API キー、パスワード、認証情報は永久に失われます。<br><br>続行するには「<strong style=\"color:#f87171;\">削除</strong>」と入力してください:",
   "config.vault.delete_title": "⚠️ 保管庫を完全に削除します",
   "config.vault.deleted_toast": "✓ ボールトが削除されました。新しいマスターキーを入力して保存し、AuraGo を再起動します。",
-  "config.vault.destroy_button": "破壊する"
+  "config.vault.destroy_button": "破壊する",
+  "config.menu": "メニュー",
+  "config.toggle_sidebar": "サイドバーを切り替え",
+  "config.page_description": "AIエージェントの設定を行う"
 }

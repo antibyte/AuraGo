@@ -491,7 +491,17 @@ func (hm *HistoryManager) GetAll() []HistoryMessage {
 	defer hm.mu.Unlock()
 
 	copied := make([]HistoryMessage, len(hm.Messages))
-	copy(copied, hm.Messages)
+	for i, m := range hm.Messages {
+		msg := m.ChatCompletionMessage
+		if len(msg.MultiContent) > 0 {
+			msg.MultiContent = append([]openai.ChatMessagePart(nil), msg.MultiContent...)
+		}
+		if len(msg.ToolCalls) > 0 {
+			msg.ToolCalls = append([]openai.ToolCall(nil), msg.ToolCalls...)
+		}
+		m.ChatCompletionMessage = msg
+		copied[i] = m
+	}
 	return copied
 }
 

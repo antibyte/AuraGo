@@ -103,6 +103,7 @@
         book: 'book',
         books: 'book',
         camera: 'camera',
+        chess: 'chess',
         cloud: 'cloud',
         files: 'folder',
         editor: 'edit',
@@ -131,12 +132,21 @@
         'music-player': 'audio-player',
         player: 'audio-player',
         radio: 'radio',
+        openscad: 'openscad',
+        teevee: 'teevee',
         todo: 'notes',
         'agent-chat': 'agent-chat',
         terminal: 'terminal', 'quick-connect': 'server',
         browser: 'browser', viewer: 'eye',
         launchpad: 'launchpad',
         'software-store': 'software-store',
+        'store-n8n': 'n8n',
+        'store-node-red': 'node-red',
+        'store-open-webui': 'open-webui',
+        'store-olivetin': 'olivetin',
+        'store-romm': 'romm',
+        'store-dozzle': 'dozzle',
+        'store-termix': 'termix',
         'store-commandcode': 'commandcode',
         looper: 'looper',
         'system-info': 'monitor',
@@ -163,6 +173,7 @@
         yml: 'yaml',
         xml: 'xml',
         py: 'python',
+        scad: 'openscad',
         go: 'go',
         pdf: 'pdf',
         png: 'image',
@@ -236,6 +247,8 @@
         music: 'audio-player',
         player: 'audio-player',
         radio: 'radio',
+        openscad: 'openscad',
+        teevee: 'teevee',
         workflow: 'workflow',
         workflows: 'workflow',
         'software-store': 'software-store',
@@ -256,6 +269,7 @@
         'appearance.accent': 'teal',
         'appearance.density': 'comfortable',
         'appearance.icon_theme': 'papirus',
+        'appearance.fruity_mode': 'light',
         'desktop.icon_size': 'medium',
         'desktop.show_widgets': 'true',
         'windows.animations': 'true',
@@ -264,7 +278,14 @@
         'files.default_folder': 'Documents',
         'agent.show_chat_button': 'true',
         // Mobile experience (Phase 0)
-        'desktop.mobile_experience': 'auto'   // 'auto' | 'enabled' | 'disabled'
+        'desktop.mobile_experience': 'auto',   // 'auto' | 'enabled' | 'disabled'
+        // Desktop pet (OpenPets)
+        'pet.enabled': 'true',
+        'pet.active_id': 'openpets-default',
+        'pet.scale': '1.0',
+        'pet.position_x': '24',
+        'pet.position_y': '24',
+        'pet.always_on_top': 'false'
     };
 
     function $(id) {
@@ -297,6 +318,8 @@
             calculator: 'Ca',
             'music-player': 'MP',
             radio: 'Ra',
+            openscad: 'OS',
+            teevee: 'TV',
             todo: 'Td',
             'agent-chat': 'A',
             gallery: 'G',
@@ -306,6 +329,7 @@
             'software-store': 'SS',
             looper: 'Lp',
             cheater: 'Ch',
+            chess: 'Ch',
             pixel: 'Px',
             'galaxa-deluxe': 'Gx',
             nasscad: 'NC',
@@ -318,8 +342,8 @@
     async function loadIconManifest() {
         const [spriteManifest, defaultThemeManifest, whitesurThemeManifest] = await Promise.all([
             api('/img/desktop-icons-sprite.json').catch(() => null),
-            api('/img/papirus/manifest.json?v=4').catch(() => null),
-            api('/img/whitesur/manifest.json?v=3').catch(() => null)
+            api('/img/papirus/manifest.json?v=5').catch(() => null),
+            api('/img/whitesur/manifest.json?v=4').catch(() => null)
         ]);
         state.iconManifest = spriteManifest;
         state.iconMap = new Map(((spriteManifest && spriteManifest.icons) || []).map(icon => [icon.name, icon]));
@@ -495,6 +519,7 @@
             writer: 'WriterApp',
             sheets: 'SheetsApp',
             'code-studio': 'CodeStudioApp',
+            openscad: 'OpenSCADApp',
             looper: 'LooperApp',
             camera: 'CameraApp',
             zipper: 'ZipperApp',
@@ -504,6 +529,8 @@
             people: 'PeopleApp',
             'homepage-studio': 'HomepageStudioApp',
             cheater: 'CheaterApp',
+            'agent-chat': 'AgentChatApp',
+            'viewer-3d': 'Viewer3DApp',
             'mission-control': 'MissionControlApp'
         }[appId] || '';
     }
@@ -552,6 +579,7 @@
         const body = document.body;
         body.dataset.wallpaper = settingValue('appearance.wallpaper');
         body.dataset.theme = settingValue('appearance.theme');
+        body.dataset.fruityMode = settingValue('appearance.fruity_mode');
         body.dataset.accent = settingValue('appearance.accent');
         body.dataset.density = settingValue('appearance.density');
         body.dataset.iconTheme = settingValue('appearance.icon_theme');
@@ -917,7 +945,9 @@
         const shouldParseJSON = contentType.includes('application/json') || String(url).includes('.json');
         const body = shouldParseJSON ? await resp.json() : {};
         if (!resp.ok) {
-            throw new Error(body.error || body.message || ('HTTP ' + resp.status));
+            const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
+            err.body = body;
+            throw err;
         }
         return body;
     }
@@ -944,8 +974,9 @@
         }
         if (win.appId === 'music-player') disposeWebampMusic(win.id);
         if (win.appId === 'radio') callAppDispose(window.RadioApp, win.id);
+        if (win.appId === 'openscad') callAppDispose(window.OpenSCADApp, win.id);
+        if (win.appId === 'teevee') callAppDispose(window.TeeVeeApp, win.id);
         if (win.appId === 'system-info') callAppDispose(window.SystemInfoApp, win.id);
-        if (win.appId === 'people') callAppDispose(window.PeopleApp, win.id);
         const disposeName = appGlobalName(win.appId);
         const fallbackName = appGlobalFallbackName(win.appId);
         const disposed = callAppDispose(disposeName ? window[disposeName] : null, win.id);
@@ -1034,7 +1065,7 @@
         const host = contentEl(id);
         if (!host) return;
         host.innerHTML = `<div class="vd-app-error">
-            <div class="vd-app-error-title">${esc(t('desktop.app_error_title', 'App failed to load'))}</div>
+            <div class="vd-app-error-title">${esc(t('desktop.app_error_title'))}</div>
             <div class="vd-app-error-message">${esc((err && err.message) || String(err || 'Error'))}</div>
         </div>`;
     }
@@ -1063,6 +1094,7 @@
             state.bootstrap = await api('/api/desktop/bootstrap');
             state.desktopFiles = await loadDesktopFiles();
             renderDesktop();
+            refreshPetRuntime();
             return state.bootstrap;
         })();
         try {
@@ -1091,6 +1123,12 @@
         renderStartApps();
         renderTaskbar();
         if (!state._startMenuDragWired) { state._startMenuDragWired = true; wireStartMenuDrag(); }
+    }
+
+    function refreshPetRuntime() {
+        if (window.PetRuntime && typeof window.PetRuntime.load === 'function') {
+            window.PetRuntime.load();
+        }
     }
 
     function renderStartButtonIcon() {
@@ -1564,6 +1602,806 @@
     }
 
 ;
+/* ui/js/desktop/core/pet-runtime.js */
+(function () {
+    'use strict';
+
+    const PET_FRAME_W = 192;
+    const PET_FRAME_H = 208;
+    const PET_COLUMNS = 8;
+    const PET_ROWS = 9;
+    const BUBBLE_DURATION_MS = 4000;
+    const LONG_BUBBLE_DURATION_MS = 8000;
+    const MAX_BUBBLE_CHARS = 140;
+    const BUBBLE_VIEWPORT_MARGIN = 16;
+    const AMBIENT_MIN_DELAY_MS = 10000;
+    const AMBIENT_MAX_DELAY_MS = 24000;
+    const AMBIENT_RETURN_PADDING_MS = 260;
+    const AMBIENT_RUN_MIN_DISTANCE = 90;
+    const AMBIENT_RUN_MAX_DISTANCE = 180;
+    const DRAG_HANG_OFFSET_Y = 28;
+    const DRAG_TILT_MAX_DEG = 14;
+    const DRAG_VEL_SMOOTH = 0.34;
+    const DRAG_TILT_GAIN = 0.11;
+    const DRAG_TILT_SPRING = 220;
+    const DRAG_TILT_DAMPING = 16;
+    const DRAG_SETTLE_EPS = 0.08;
+    const PET_REACTION_DURATION_MS = 2200;
+    const PET_REACTION_DURATIONS_MS = {
+        thinking: 1800,
+        working: 1800,
+        editing: 1900,
+        running: 1600,
+        testing: 2200,
+        waiting: 2200,
+        waving: 1300,
+        success: 2200,
+        error: 2800,
+        celebrating: 2600
+    };
+    const ambientStates = ['waving', 'jumping', 'running', 'running'];
+
+    // OpenPets-compatible reaction → animation state mapping.
+    const reactionToState = {
+        idle: 'idle',
+        thinking: 'review',
+        working: 'running',
+        editing: 'running',
+        running: 'running',
+        testing: 'waiting',
+        waiting: 'waiting',
+        waving: 'waving',
+        success: 'jumping',
+        error: 'failed',
+        celebrating: 'jumping'
+    };
+
+    // Row indices in the spritesheet (OpenPets default layout).
+    const stateRows = {
+        idle: { row: 0, frames: 6, duration: 5500, iterations: 'infinite' },
+        'running-right': { row: 1, frames: 8, duration: 1060 },
+        'running-left': { row: 2, frames: 8, duration: 1060 },
+        waving: { row: 3, frames: 4, duration: 700, iterations: 2 },
+        jumping: { row: 4, frames: 5, duration: 840, iterations: 2 },
+        failed: { row: 5, frames: 8, duration: 1220, iterations: 2 },
+        waiting: { row: 6, frames: 6, duration: 1010 },
+        running: { row: 7, frames: 6, duration: 820 },
+        review: { row: 8, frames: 6, duration: 1030 }
+    };
+
+    let layer = null;
+    let spriteEl = null;
+    let bubbleEl = null;
+    let drag = null;
+    let currentState = 'idle';
+    let bubbleTimer = null;
+    let pendingBubble = null;
+    let loadedPetId = null;
+    let petRuntimeInitialized = false;
+    let petCatalogHydration = null;
+    let ambientTimer = null;
+    let ambientReturnTimer = null;
+    let ambientMoveFrame = null;
+    let reactionTimer = null;
+
+    function petEnabled() {
+        return String(settingValue('pet.enabled')).toLowerCase() !== 'false';
+    }
+
+    function petScale() {
+        const raw = settingValue('pet.scale') || '1.0';
+        const v = parseFloat(raw);
+        if (!Number.isFinite(v) || v < 0.25 || v > 3) return 1;
+        return v;
+    }
+
+    function petPosition() {
+        const x = parseInt(settingValue('pet.position_x') || '24', 10);
+        const y = parseInt(settingValue('pet.position_y') || '24', 10);
+        return {
+            x: Number.isFinite(x) ? x : 24,
+            y: Number.isFinite(y) ? y : 24
+        };
+    }
+
+    function petAlwaysOnTop() {
+        return String(settingValue('pet.always_on_top')).toLowerCase() === 'true';
+    }
+
+    function activePet() {
+        const boot = state.bootstrap || {};
+        const id = boot.active_pet_id || settingValue('pet.active_id') || '';
+        const pets = boot.pets || [];
+        if (!pets.length) return null;
+        const pet = pets.find(p => p.id === id);
+        return pet || pets[0] || null;
+    }
+
+    function petAssetURL(id, relPath) {
+        const cleanPath = String(relPath || 'spritesheet.webp')
+            .replace(/\\/g, '/')
+            .split('/')
+            .map(part => part.trim())
+            .filter(part => part && part !== '.' && part !== '..')
+            .map(encodeURIComponent)
+            .join('/');
+        if (!id || !cleanPath) return '';
+        return '/files/desktop/Pets/' + encodeURIComponent(id) + '/' + cleanPath;
+    }
+
+    function spritesheetURL(pet) {
+        if (!pet || !pet.spritesheet) return '';
+        return petAssetURL(pet.id, pet.spritesheet);
+    }
+
+    function syncPetBootstrap(payload) {
+        if (!state.bootstrap || !payload) return;
+        if (Array.isArray(payload.pets)) {
+            state.bootstrap.pets = payload.pets;
+        }
+        if (payload.settings) {
+            state.bootstrap.settings = Object.assign({}, state.bootstrap.settings || {}, payload.settings);
+        }
+        if (Object.prototype.hasOwnProperty.call(payload, 'active_pet_id')) {
+            state.bootstrap.active_pet_id = payload.active_pet_id || '';
+            const settings = Object.assign({}, state.bootstrap.settings || {});
+            settings['pet.active_id'] = state.bootstrap.active_pet_id;
+            state.bootstrap.settings = settings;
+        }
+    }
+
+    async function hydratePetCatalog() {
+        if (petCatalogHydration) return petCatalogHydration;
+        petCatalogHydration = Promise.all([
+            api('/api/desktop/pets'),
+            api('/api/desktop/settings')
+        ]).then(([petsBody, settingsBody]) => {
+            const pets = Array.isArray(petsBody && petsBody.pets) ? petsBody.pets : [];
+            const settings = settingsBody && settingsBody.settings ? settingsBody.settings : {};
+            syncPetBootstrap({
+                pets,
+                active_pet_id: (petsBody && petsBody.active_pet_id) || '',
+                settings
+            });
+            if (activePet() && petEnabled()) loadPet();
+        }).catch(() => {
+            // Bootstrap can be intentionally unavailable while the desktop is disabled.
+        }).finally(() => {
+            petCatalogHydration = null;
+        });
+        return petCatalogHydration;
+    }
+
+    function clampToViewport(rect) {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const minVisible = 48;
+        return {
+            x: Math.max(minVisible - rect.w, Math.min(rect.x, vw - minVisible)),
+            y: Math.max(0, Math.min(rect.y, vh - minVisible))
+        };
+    }
+
+    function ensureLayer() {
+        if (layer) return;
+        layer = document.createElement('div');
+        layer.id = 'vd-pet-layer';
+        layer.className = 'vd-pet-layer';
+        layer.innerHTML = '<div class="vd-pet-sprite" role="img" aria-label="Desktop pet"></div><div class="vd-pet-bubble" hidden></div>';
+        document.body.appendChild(layer);
+        spriteEl = layer.querySelector('.vd-pet-sprite');
+        bubbleEl = layer.querySelector('.vd-pet-bubble');
+        wireDrag();
+    }
+
+    function removeLayer() {
+        if (!layer) return;
+        clearAmbientTimers();
+        clearReactionTimer();
+        layer.remove();
+        layer = null;
+        spriteEl = null;
+        bubbleEl = null;
+        if (bubbleTimer) {
+            clearTimeout(bubbleTimer);
+            bubbleTimer = null;
+        }
+    }
+
+    function updateLayerZIndex() {
+        if (!layer) return;
+        layer.dataset.alwaysOnTop = petAlwaysOnTop() ? 'true' : 'false';
+    }
+
+    function applyPosition() {
+        if (!layer) return;
+        const pos = petPosition();
+        const scale = petScale();
+        const w = Math.round(PET_FRAME_W * scale);
+        const h = Math.round(PET_FRAME_H * scale);
+        const clamped = clampToViewport({ x: pos.x, y: pos.y, w, h });
+        layer.style.left = clamped.x + 'px';
+        layer.style.top = clamped.y + 'px';
+        layer.style.width = w + 'px';
+        layer.style.height = h + 'px';
+        if (spriteEl) spriteEl.style.transform = 'scale(' + scale + ')';
+        positionBubbleInViewport();
+    }
+
+    function setSpriteState(stateId) {
+        if (!spriteEl) return;
+        const def = stateRows[stateId] || stateRows.idle;
+        currentState = stateId;
+        spriteEl.dataset.state = stateId;
+        spriteEl.style.setProperty('--pet-row', String(def.row));
+        spriteEl.style.setProperty('--pet-frames', String(def.frames));
+        spriteEl.style.setProperty('--pet-row-y', '-' + (def.row * PET_FRAME_H) + 'px');
+        spriteEl.style.setProperty('--pet-frame-end-x', '-' + (def.frames * PET_FRAME_W) + 'px');
+        spriteEl.style.setProperty('--pet-duration', def.duration + 'ms');
+        spriteEl.style.setProperty('--pet-iterations', String(def.iterations || 'infinite'));
+        // Reset animation to restart from first frame.
+        spriteEl.style.animation = 'none';
+        void spriteEl.offsetWidth;
+        spriteEl.style.animation = '';
+    }
+
+    function randomAmbientDelay() {
+        return AMBIENT_MIN_DELAY_MS + Math.floor(Math.random() * (AMBIENT_MAX_DELAY_MS - AMBIENT_MIN_DELAY_MS + 1));
+    }
+
+    function ambientPlaybackMs(stateId) {
+        const def = stateRows[stateId] || stateRows.idle;
+        const iterations = Number(def.iterations || 1);
+        return Math.max(300, def.duration * (Number.isFinite(iterations) ? iterations : 1) + AMBIENT_RETURN_PADDING_MS);
+    }
+
+    function clearAmbientTimers() {
+        if (ambientTimer) {
+            window.clearTimeout(ambientTimer);
+            ambientTimer = null;
+        }
+        if (ambientReturnTimer) {
+            window.clearTimeout(ambientReturnTimer);
+            ambientReturnTimer = null;
+        }
+        if (ambientMoveFrame) {
+            window.cancelAnimationFrame(ambientMoveFrame);
+            ambientMoveFrame = null;
+        }
+    }
+
+    function clearReactionTimer() {
+        if (reactionTimer) {
+            window.clearTimeout(reactionTimer);
+            reactionTimer = null;
+        }
+    }
+
+    function scheduleAmbientAnimation() {
+        if (!layer || !spriteEl || !petEnabled()) return;
+        if (ambientTimer) window.clearTimeout(ambientTimer);
+        ambientTimer = window.setTimeout(playAmbientAnimation, randomAmbientDelay());
+    }
+
+    function ambientRunDistance() {
+        return AMBIENT_RUN_MIN_DISTANCE + Math.floor(Math.random() * (AMBIENT_RUN_MAX_DISTANCE - AMBIENT_RUN_MIN_DISTANCE + 1));
+    }
+
+    function ambientRunPlan() {
+        if (!layer) return null;
+        const scale = petScale();
+        const startX = layer.offsetLeft;
+        const startY = layer.offsetTop;
+        const w = Math.round(PET_FRAME_W * scale);
+        const h = Math.round(PET_FRAME_H * scale);
+        const distance = ambientRunDistance();
+        let direction = Math.random() < 0.5 ? -1 : 1;
+        let target = clampToViewport({ x: startX + direction * distance, y: startY, w, h });
+        if (Math.abs(target.x - startX) < 48) {
+            direction *= -1;
+            target = clampToViewport({ x: startX + direction * distance, y: startY, w, h });
+        }
+        return {
+            startX,
+            startY,
+            targetX: target.x,
+            targetY: target.y,
+            deltaX: target.x - startX
+        };
+    }
+
+    function moveAmbientRun(runPlan, durationMs, done) {
+        if (!layer || !runPlan || Math.abs(runPlan.deltaX) < 12) {
+            if (typeof done === 'function') done();
+            return;
+        }
+        const duration = Math.max(320, Number(durationMs) || 820);
+        const startedAt = Date.now();
+        const tick = () => {
+            if (!layer) return;
+            const progress = Math.min(1, (Date.now() - startedAt) / duration);
+            const eased = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+            layer.style.left = Math.round(runPlan.startX + runPlan.deltaX * eased) + 'px';
+            layer.style.top = runPlan.startY + 'px';
+            if (progress < 1 && !drag) {
+                ambientMoveFrame = window.requestAnimationFrame(tick);
+                return;
+            }
+            ambientMoveFrame = null;
+            if (layer && !drag) {
+                layer.style.left = runPlan.targetX + 'px';
+                layer.style.top = runPlan.targetY + 'px';
+            }
+            if (typeof done === 'function') done();
+        };
+        ambientMoveFrame = window.requestAnimationFrame(tick);
+    }
+
+    function playAmbientAnimation() {
+        ambientTimer = null;
+        if (!layer || !spriteEl || !petEnabled()) return;
+        if (drag || currentState !== 'idle') {
+            scheduleAmbientAnimation();
+            return;
+        }
+        const ambientState = ambientStates[Math.floor(Math.random() * ambientStates.length)] || 'waving';
+        if (ambientState === 'running') {
+            const runPlan = ambientRunPlan();
+            if (!runPlan) {
+                scheduleAmbientAnimation();
+                return;
+            }
+            const runningState = runPlan.deltaX < 0 ? 'running-left' : 'running-right';
+            setSpriteState(runningState);
+            moveAmbientRun(runPlan, ambientPlaybackMs(runningState), () => {
+                if (layer && currentState === runningState) setSpriteState('idle');
+                scheduleAmbientAnimation();
+            });
+            return;
+        }
+        setSpriteState(ambientState);
+        if (ambientReturnTimer) window.clearTimeout(ambientReturnTimer);
+        ambientReturnTimer = window.setTimeout(() => {
+            ambientReturnTimer = null;
+            if (layer && currentState === ambientState) setSpriteState('idle');
+            scheduleAmbientAnimation();
+        }, ambientPlaybackMs(ambientState));
+    }
+
+    function loadPet() {
+        const pet = activePet();
+        if (!pet) {
+            removeLayer();
+            loadedPetId = null;
+            hydratePetCatalog();
+            return;
+        }
+        if (!petEnabled()) {
+            removeLayer();
+            loadedPetId = null;
+            return;
+        }
+        ensureLayer();
+        const url = spritesheetURL(pet);
+        if (!url) {
+            removeLayer();
+            return;
+        }
+        if (loadedPetId !== pet.id) {
+            loadedPetId = pet.id;
+            spriteEl.style.backgroundImage = 'url("' + url + '")';
+            spriteEl.setAttribute('aria-label', pet.display_name || pet.id);
+        }
+        applyPosition();
+        updateLayerZIndex();
+        clearAmbientTimers();
+        clearReactionTimer();
+        setSpriteState('idle');
+        scheduleAmbientAnimation();
+    }
+
+    function queuePendingBubble(message, type) {
+        if (!petEnabled() || !petCatalogHydration || typeof petCatalogHydration.then !== 'function') return;
+        pendingBubble = { message, type };
+        petCatalogHydration.then(() => {
+            const pending = pendingBubble;
+            pendingBubble = null;
+            if (pending && pending.message) showBubble(pending.message, pending.type, false);
+        });
+    }
+
+    function positionBubbleInViewport() {
+        if (!layer || !bubbleEl || bubbleEl.hidden) return;
+        const layerRect = layer.getBoundingClientRect();
+        const bubbleRect = bubbleEl.getBoundingClientRect();
+        if (!bubbleRect.width || !window.innerWidth) return;
+        const desiredCenter = layerRect.left + layerRect.width / 2;
+        const minCenter = BUBBLE_VIEWPORT_MARGIN + bubbleRect.width / 2;
+        const maxCenter = window.innerWidth - BUBBLE_VIEWPORT_MARGIN - bubbleRect.width / 2;
+        const clampedCenter = Math.max(minCenter, Math.min(desiredCenter, maxCenter));
+        bubbleEl.style.left = Math.round(clampedCenter - layerRect.left) + 'px';
+    }
+
+    function showBubble(message, type, allowDeferred = true) {
+        const text = String(message || '').slice(0, MAX_BUBBLE_CHARS);
+        if (!text) return;
+        if (!bubbleEl) {
+            loadPet();
+        }
+        if (!bubbleEl) {
+            if (allowDeferred) queuePendingBubble(text, type);
+            return;
+        }
+        if (bubbleTimer) {
+            clearTimeout(bubbleTimer);
+            bubbleTimer = null;
+        }
+        bubbleEl.textContent = text;
+        bubbleEl.hidden = false;
+        bubbleEl.className = 'vd-pet-bubble' + (type ? ' is-' + type : '');
+        bubbleEl.classList.add('is-visible');
+        bubbleEl.classList.add('opening');
+        positionBubbleInViewport();
+        setTimeout(() => bubbleEl.classList.remove('opening'), 200);
+        const duration = text.length > 70 ? LONG_BUBBLE_DURATION_MS : BUBBLE_DURATION_MS;
+        bubbleTimer = setTimeout(() => hideBubble(), duration);
+    }
+
+    function hideBubble() {
+        if (!bubbleEl) return;
+        bubbleEl.hidden = true;
+        bubbleEl.textContent = '';
+        bubbleEl.className = 'vd-pet-bubble';
+        bubbleEl.style.left = '';
+        if (bubbleTimer) {
+            clearTimeout(bubbleTimer);
+            bubbleTimer = null;
+        }
+    }
+
+    function applyReaction(reaction) {
+        const stateId = reactionToState[reaction] || 'idle';
+        clearAmbientTimers();
+        setSpriteState(stateId);
+        if (stateId === 'idle') scheduleAmbientAnimation();
+        return stateId;
+    }
+
+    function setReaction(reaction) {
+        clearReactionTimer();
+        applyReaction(reaction);
+    }
+
+    function react(reaction, options = {}) {
+        const reactionName = reactionToState[reaction] ? reaction : 'idle';
+        clearReactionTimer();
+        const stateId = applyReaction(reactionName);
+        if (stateId === 'idle') return;
+        const duration = Math.max(500, Number(options.durationMs || PET_REACTION_DURATIONS_MS[reactionName] || PET_REACTION_DURATION_MS));
+        reactionTimer = window.setTimeout(() => {
+            reactionTimer = null;
+            if (layer && currentState === stateId && !drag) {
+                setSpriteState('idle');
+                scheduleAmbientAnimation();
+            }
+        }, duration);
+    }
+
+    function eventDetail(data) {
+        if (!data) return '';
+        const payload = data.payload && typeof data.payload === 'object' ? data.payload : data;
+        return String(payload.tool_name || payload.toolName || data.detail || data.message || '').toLowerCase();
+    }
+
+    function toolActivityReaction(data) {
+        const detail = eventDetail(data);
+        if (detail.includes('test') || detail.includes('pytest') || detail.includes('go test') || detail.includes('npm test')) return 'testing';
+        if (detail.includes('write') || detail.includes('edit') || detail.includes('patch') || detail.includes('code')) return 'editing';
+        if (detail.includes('wait') || detail.includes('sleep')) return 'waiting';
+        return 'working';
+    }
+
+    function agentActionStateReaction(data) {
+        const payload = data && data.payload && typeof data.payload === 'object' ? data.payload : data || {};
+        const state = String(payload.state || payload.action_state || payload.actionState || '').toLowerCase();
+        if (state === 'succeeded' || state === 'sanitized') return 'success';
+        if (state === 'failed' || state === 'blocked' || state === 'cancelled') return 'error';
+        if (state === 'started' || state === 'accepted') return toolActivityReaction(payload);
+        if (state === 'proposed') return 'thinking';
+        return '';
+    }
+
+    function petReactionForAgentEvent(data) {
+        if (!data) return '';
+        const event = data.event || data.type || '';
+        if (event === 'thinking' || event === 'workflow_plan') return 'thinking';
+        if (event === 'thinking_block') return data.state === 'stop' ? 'waiting' : 'thinking';
+        if (event === 'tool_start') return toolActivityReaction(data);
+        if (event === 'tool_end') return 'success';
+        if (event === 'agent_action') return agentActionStateReaction(data);
+        if (event === 'co_agent_spawn') return 'working';
+        if (event === 'coding') return 'editing';
+        if (event === 'error_recovery' || event === 'error') return 'error';
+        if (event === 'question_user') return 'waving';
+        if (event === 'final_response' || event === 'done') return 'success';
+        return '';
+    }
+
+    function classifyAgentResponseReaction(text) {
+        const message = String(text || '').toLowerCase();
+        if (!message) return 'idle';
+        if (/[?？]$/.test(message.trim())) return 'waving';
+        if (message.includes('error') || message.includes('failed') || message.includes('fehler') || message.includes('problem')) return 'error';
+        if (message.includes('done') || message.includes('fixed') || message.includes('fertig') || message.includes('erledigt') || message.includes('success')) return 'celebrating';
+        return 'success';
+    }
+
+    function handleAgentEvent(data) {
+        const reaction = petReactionForAgentEvent(data);
+        if (reaction) react(reaction);
+    }
+
+    function announceAgentResponse(text) {
+        const message = String(text || '').trim();
+        if (!message) return;
+        showBubble(message, 'info');
+        react(classifyAgentResponseReaction(message), { durationMs: PET_REACTION_DURATIONS_MS.success });
+    }
+
+    async function saveSetting(key, value) {
+        try {
+            const body = await api('/api/desktop/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key, value })
+            });
+            syncPetBootstrap({ settings: body.settings || { [key]: value } });
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        }
+    }
+
+    function dragHangPosition(pointerX, pointerY) {
+        const scale = petScale();
+        const w = Math.round(PET_FRAME_W * scale);
+        const h = Math.round(PET_FRAME_H * scale);
+        return clampToViewport({
+            x: Math.round(pointerX - w / 2),
+            y: Math.round(pointerY + DRAG_HANG_OFFSET_Y),
+            w,
+            h
+        });
+    }
+
+    function applyLayerTilt(deg) {
+        if (!layer) return;
+        layer.style.transform = 'rotate(' + deg.toFixed(2) + 'deg)';
+    }
+
+    function applyDragHangPosition() {
+        if (!layer || !drag) return;
+        const pos = dragHangPosition(drag.pointerX, drag.pointerY);
+        layer.style.left = pos.x + 'px';
+        layer.style.top = pos.y + 'px';
+        applyLayerTilt(drag.tilt);
+    }
+
+    function stepDragPhysics(now) {
+        if (!drag) return;
+        const prev = drag.lastSampleAt || now;
+        const dt = Math.min(0.05, Math.max(0.001, (now - prev) / 1000));
+        drag.lastSampleAt = now;
+        const instVelX = (drag.pointerX - drag.lastPointerX) / dt;
+        drag.lastPointerX = drag.pointerX;
+        drag.velX = drag.velX * (1 - DRAG_VEL_SMOOTH) + instVelX * DRAG_VEL_SMOOTH;
+        const tiltTarget = Math.max(-DRAG_TILT_MAX_DEG, Math.min(DRAG_TILT_MAX_DEG, drag.velX * DRAG_TILT_GAIN));
+        const tiltAccel = (tiltTarget - drag.tilt) * DRAG_TILT_SPRING - drag.tiltVel * DRAG_TILT_DAMPING;
+        drag.tiltVel += tiltAccel * dt;
+        drag.tilt += drag.tiltVel * dt;
+        applyDragHangPosition();
+    }
+
+    function startDragMotionLoop() {
+        if (!drag) return;
+        const tick = now => {
+            if (!drag) return;
+            stepDragPhysics(now);
+            drag.frame = window.requestAnimationFrame(tick);
+        };
+        drag.frame = window.requestAnimationFrame(tick);
+    }
+
+    function stopDragMotionLoop() {
+        if (drag && drag.frame) {
+            window.cancelAnimationFrame(drag.frame);
+            drag.frame = null;
+        }
+    }
+
+    function settleDragTilt(onDone) {
+        if (!layer) {
+            if (typeof onDone === 'function') onDone();
+            return;
+        }
+        stopDragMotionLoop();
+        const state = {
+            tilt: drag ? drag.tilt : 0,
+            tiltVel: drag ? drag.tiltVel + (drag.velX || 0) * 0.015 : 0
+        };
+        let last = performance.now();
+        const tick = now => {
+            const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
+            last = now;
+            const tiltAccel = (0 - state.tilt) * DRAG_TILT_SPRING - state.tiltVel * DRAG_TILT_DAMPING;
+            state.tiltVel += tiltAccel * dt;
+            state.tilt += state.tiltVel * dt;
+            applyLayerTilt(state.tilt);
+            if (Math.abs(state.tilt) < DRAG_SETTLE_EPS && Math.abs(state.tiltVel) < DRAG_SETTLE_EPS) {
+                applyLayerTilt(0);
+                layer.style.transform = '';
+                if (typeof onDone === 'function') onDone();
+                return;
+            }
+            state.frame = window.requestAnimationFrame(tick);
+        };
+        state.frame = window.requestAnimationFrame(tick);
+        if (drag) drag.settleFrame = state.frame;
+    }
+
+    function cancelDragSettle() {
+        if (drag && drag.settleFrame) {
+            window.cancelAnimationFrame(drag.settleFrame);
+            drag.settleFrame = null;
+        }
+    }
+
+
+    function wireDrag() {
+        if (!layer) return;
+        layer.addEventListener('pointerdown', event => {
+            if (event.button !== 0) return;
+            clearAmbientTimers();
+            cancelDragSettle();
+            stopDragMotionLoop();
+            const now = performance.now();
+            drag = {
+                pointerId: event.pointerId,
+                pointerX: event.clientX,
+                pointerY: event.clientY,
+                lastPointerX: event.clientX,
+                lastSampleAt: now,
+                velX: 0,
+                tilt: 0,
+                tiltVel: 0,
+                frame: null,
+                settleFrame: null
+            };
+            layer.setPointerCapture(event.pointerId);
+            layer.classList.add('dragging');
+            applyDragHangPosition();
+            startDragMotionLoop();
+        });
+        layer.addEventListener('pointermove', event => {
+            if (!drag || drag.pointerId !== event.pointerId) return;
+            drag.pointerX = event.clientX;
+            drag.pointerY = event.clientY;
+        });
+        layer.addEventListener('pointerup', event => {
+            if (!drag || drag.pointerId !== event.pointerId) return;
+            layer.releasePointerCapture(event.pointerId);
+            layer.classList.remove('dragging');
+            const x = layer.offsetLeft;
+            const y = layer.offsetTop;
+            settleDragTilt(() => {
+                cancelDragSettle();
+                drag = null;
+                saveSetting('pet.position_x', String(x));
+                saveSetting('pet.position_y', String(y));
+            });
+        });
+        layer.addEventListener('pointercancel', event => {
+            if (!drag || drag.pointerId !== event.pointerId) return;
+            layer.releasePointerCapture(event.pointerId);
+            layer.classList.remove('dragging');
+            cancelDragSettle();
+            stopDragMotionLoop();
+            drag = null;
+            if (layer) layer.style.transform = '';
+            applyPosition();
+        });
+        layer.addEventListener('contextmenu', event => {
+            event.preventDefault();
+            showPetContextMenu(event);
+        });
+    }
+
+    function showPetContextMenu(event) {
+        const petVisible = petEnabled();
+        const petOnTop = petAlwaysOnTop();
+        const items = [
+            { label: t('desktop.pet_open_picker'), icon: 'heart', action: () => openApp('pet-picker') },
+            { separator: true },
+            { label: t('desktop.pet_enabled'), icon: petVisible ? 'check-square' : 'square', fallback: petVisible ? '\u2713' : '\u2610', action: toggleEnabled },
+            { label: t('desktop.pet_always_on_top'), icon: petOnTop ? 'check-square' : 'square', fallback: petOnTop ? '\u2713' : '\u2610', action: toggleAlwaysOnTop },
+            { separator: true },
+            { label: t('desktop.pet_hide_bubble'), icon: 'x', action: hideBubble }
+        ];
+        showContextMenu(event.clientX, event.clientY, items);
+    }
+
+    function toggleEnabled() {
+        const next = !petEnabled();
+        saveSetting('pet.enabled', String(next)).then(() => {
+            loadPet();
+            if (next) showBubble(t('desktop.pet_hello'), 'info');
+        });
+    }
+
+    function toggleAlwaysOnTop() {
+        const next = !petAlwaysOnTop();
+        saveSetting('pet.always_on_top', String(next)).then(updateLayerZIndex);
+    }
+
+    function handlePetEvent(event) {
+        switch (event.type) {
+            case 'pet_changed':
+                syncPetBootstrap(event.payload);
+                loadPet();
+                return;
+            case 'pet_reaction_changed':
+                if (event.payload && event.payload.reaction) {
+                    setReaction(event.payload.reaction);
+                }
+                return;
+            case 'pet_say':
+                if (event.payload && event.payload.message) {
+                    showBubble(event.payload.message, event.payload.type || 'info');
+                }
+                return;
+            case 'pet_setting_changed':
+                if (event.payload) {
+                    syncPetBootstrap({ settings: { [event.payload.key]: event.payload.value } });
+                }
+                loadPet();
+                return;
+        }
+    }
+
+    function initPetRuntime() {
+        if (typeof window.addEventListener !== 'function') return;
+        if (petRuntimeInitialized) return;
+        petRuntimeInitialized = true;
+        window.addEventListener('resize', () => {
+            if (layer) applyPosition();
+        });
+        // Re-render after bootstrap is ready.
+        const check = () => {
+            if (state.bootstrap) {
+                loadPet();
+            } else {
+                setTimeout(check, 100);
+            }
+        };
+        check();
+    }
+
+    window.PetRuntime = {
+        init: initPetRuntime,
+        load: loadPet,
+        setReaction,
+        say: showBubble,
+        react,
+        handleAgentEvent,
+        announceAgentResponse,
+        hideBubble,
+        handleEvent: handlePetEvent,
+        syncBootstrap: syncPetBootstrap,
+        saveSetting
+    };
+    initPetRuntime();
+})();
+
+;
 /* ui/js/desktop/core/icon-selection-runtime.js */
     let desktopSelectionDrag = null;
     let desktopSelectionSuppressClick = false;
@@ -2024,14 +2862,33 @@
         });
     }
 
+    function normalizeQuickChatResponseForPetBubble(text) {
+        return String(text || '')
+            .replace(/```[\s\S]*?```/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function announceQuickChatResponseToPet(text) {
+        const message = normalizeQuickChatResponseForPetBubble(text);
+        if (!message) return;
+        if (window.PetRuntime && typeof window.PetRuntime.announceAgentResponse === 'function') {
+            window.PetRuntime.announceAgentResponse(message);
+        } else if (window.PetRuntime && typeof window.PetRuntime.say === 'function') {
+            window.PetRuntime.say(message, 'info');
+        }
+    }
+
     async function sendQuickChatStream(responseEl, message) {
         let streamingContent = '';
+        let petAnnouncementText = '';
         let finalized = false;
         return new Promise((resolve, reject) => {
             const ctrl = new AbortController();
             function doFinalize() {
                 if (finalized) return;
                 finalized = true;
+                announceQuickChatResponseToPet(petAnnouncementText || streamingContent);
                 resolve();
             }
             function doReject(err) {
@@ -2071,6 +2928,9 @@
                                         }
                                     } else if (event === 'final_response') {
                                         const text = parsed.detail || parsed.message || '';
+                                        if (text.trim()) {
+                                            petAnnouncementText = text;
+                                        }
                                         if (!streamingContent.trim() && text.trim()) {
                                             streamingContent = text;
                                             responseEl.textContent = text;
@@ -2466,7 +3326,7 @@
 
         let html = '';
         if (recentApps.length > 0) {
-            html += `<div class="vd-start-recent-label">${esc(t('desktop.recent_apps', 'Recent'))}</div>`;
+            html += `<div class="vd-start-recent-label">${esc(t('desktop.recent_apps'))}</div>`;
             html += recentApps.map(app => `<button class="vd-start-item vd-start-recent-item" type="button" data-app-id="${esc(app.id)}">
                 ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
                 <span>${esc(appName(app))}${brokenAppLabel(app)}</span>
@@ -2659,6 +3519,8 @@
             todo: { width: 900, height: 600 },
             'music-player': { width: 430, height: 260 },
             radio: { width: 960, height: 680 },
+            openscad: { width: 1120, height: 720 },
+            teevee: { width: 1120, height: 720 },
             gallery: { width: 1040, height: 700 },
             calendar: { width: 950, height: 650 },
             'quick-connect': { width: 960, height: 680 },
@@ -2672,18 +3534,20 @@
             'viewer-3d': { width: 900, height: 700 },
             pixel: { width: 1100, height: 750 },
             'galaxa-deluxe': { width: 600, height: 800 },
+            chess: { width: 980, height: 680 },
             nasscad: { width: 1280, height: 850 },
             people: { width: 1020, height: 700 },
-            'mission-control': { width: 1100, height: 750 }
+            'mission-control': { width: 1100, height: 750 },
+            'pet-picker': { width: 760, height: 620 }
         };
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, gallery: true, calendar: true, 'quick-connect': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, nasscad: true, 'mission-control': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true }[appId]; }
 
     function appWindowMinSize(appId) {
-        const mins = { 'system-info': { width: 560, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 } };
+        const mins = { 'system-info': { width: 560, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 } };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
 
@@ -4455,6 +5319,10 @@ function wireWindow(win, id) {
         return dataTransferHasType(event && event.dataTransfer, DESKTOP_FILE_DRAG_TYPE);
     }
 
+    function hasDesktopHostFileDrag(event) {
+        return dataTransferHasType(event && event.dataTransfer, 'Files');
+    }
+
     function desktopFileClipboard() {
         const clipboard = window.AuraDesktopFileClipboard;
         if (!clipboard || !Array.isArray(clipboard.paths) || clipboard.paths.length === 0) return null;
@@ -4563,6 +5431,34 @@ function wireWindow(win, id) {
         await refreshAfterDesktopFileDrop();
     }
 
+    async function uploadHostFilesToDesktop(files, clientX, clientY) {
+        const hostFiles = Array.from(files || []).filter(Boolean);
+        if (!hostFiles.length) return;
+        if ((state.bootstrap || {}).readonly) {
+            showDesktopNotification({
+                title: t('desktop.notification'),
+                message: t('desktop.file_dialog_readonly')
+            });
+            return;
+        }
+        const basePos = clampDesktopIconPosition(clientX - 40, clientY - 44);
+        let usedCells = desktopIconGridEnabled() ? desktopIconGridUsedCells() : null;
+        let offset = 0;
+        for (const file of hostFiles) {
+            const form = new FormData();
+            form.append('path', 'Desktop');
+            form.append('unique', '1');
+            form.append('file', file);
+            const body = await api('/api/desktop/upload', { method: 'POST', body: form });
+            const uploadedPath = normalizeDesktopPath(body.path);
+            if (!uploadedPath) continue;
+            const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
+            saveIconPosition('desktop-entry-' + uploadedPath, iconPos.x, iconPos.y);
+            offset += 18;
+        }
+        await refreshAfterDesktopFileDrop();
+    }
+
     async function pasteDesktopFileClipboard(destBase, options) {
         const clipboard = desktopFileClipboard();
         if (!clipboard) return;
@@ -4643,9 +5539,9 @@ function wireWindow(win, id) {
     }
 
     function handleDesktopFileDragOver(event) {
-        if (!hasDesktopFileDragPayload(event)) return;
+        if (!hasDesktopFileDragPayload(event) && !hasDesktopHostFileDrag(event)) return;
         event.preventDefault();
-        event.dataTransfer.dropEffect = 'move';
+        event.dataTransfer.dropEffect = hasDesktopHostFileDrag(event) ? 'copy' : 'move';
         const workspace = $('vd-workspace');
         if (workspace) workspace.classList.add('vd-desktop-file-drop-target');
     }
@@ -4658,13 +5554,25 @@ function wireWindow(win, id) {
 
     async function handleDesktopFileDrop(event) {
         const payload = desktopFileDragPayload(event);
-        if (!payload) return;
+        if (payload) {
+            event.preventDefault();
+            event.stopPropagation();
+            const workspace = $('vd-workspace');
+            if (workspace) workspace.classList.remove('vd-desktop-file-drop-target');
+            try {
+                await moveDraggedFilesToDesktop(payload.paths, event.clientX, event.clientY);
+            } catch (err) {
+                showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+            }
+            return;
+        }
+        if (!hasDesktopHostFileDrag(event)) return;
         event.preventDefault();
         event.stopPropagation();
         const workspace = $('vd-workspace');
         if (workspace) workspace.classList.remove('vd-desktop-file-drop-target');
         try {
-            await moveDraggedFilesToDesktop(payload.paths, event.clientX, event.clientY);
+            await uploadHostFilesToDesktop(event.dataTransfer.files, event.clientX, event.clientY);
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
@@ -4933,7 +5841,7 @@ async function renderWidgetDrawerContent(drawer) {
     if (allWidgets.length === 0) {
         content.innerHTML = `
             <div style="padding: 24px 12px; color: var(--vd-muted); font-size: 13px; text-align: center;">
-                ${t('desktop.widget_drawer_empty', 'No widgets available.')}
+                ${t('desktop.widget_drawer_empty')}
             </div>
         `;
         drawer.appendChild(content);
@@ -4959,14 +5867,14 @@ async function renderWidgetDrawerContent(drawer) {
                     ${esc(widget.title || widget.id)}
                 </div>
                 <div style="font-size:11px; color:var(--vd-muted);">
-                    ${isBuiltin ? t('desktop.widget_builtin', 'Builtin') : t('desktop.widget_custom', 'Custom')}
-                    ${isVisible ? ' • ' + t('desktop.widget_on_desktop', 'On desktop') : ''}
+                    ${isBuiltin ? t('desktop.widget_builtin') : t('desktop.widget_custom')}
+                    ${isVisible ? ' • ' + t('desktop.widget_on_desktop') : ''}
                 </div>
             </div>
             <div>
                 <button type="button" class="vd-wm-btn" data-widget-action="${isVisible ? 'hide' : 'show'}" data-widget-id="${esc(widget.id)}"
                     style="font-size:11px; padding:4px 10px; min-width:72px;">
-                    ${isVisible ? t('desktop.widget_remove_from_desktop', 'Remove') : t('desktop.widget_add_to_desktop', 'Add')}
+                    ${isVisible ? t('desktop.widget_remove_from_desktop') : t('desktop.widget_add_to_desktop')}
                 </button>
             </div>
         `;
@@ -4996,8 +5904,8 @@ async function renderWidgetDrawerContent(drawer) {
                 });
                 btn.disabled = false;
                 btn.textContent = action === 'show'
-                    ? t('desktop.widget_add_to_desktop', 'Add')
-                    : t('desktop.widget_remove_from_desktop', 'Remove');
+                    ? t('desktop.widget_add_to_desktop')
+                    : t('desktop.widget_remove_from_desktop');
             }
         });
 
@@ -5010,10 +5918,8 @@ async function renderWidgetDrawerContent(drawer) {
 
 function updateTaskbarSystemButtonsForMobile() {
     const isMobile = window.useMobileDesktopMode && window.useMobileDesktopMode();
-    const shortcutsBtn = document.getElementById('vd-shortcuts-trigger');
     const widgetsBtn = document.getElementById('vd-widget-drawer-btn');
 
-    if (shortcutsBtn) shortcutsBtn.style.display = isMobile ? 'none' : '';
     if (widgetsBtn) widgetsBtn.style.display = isMobile ? 'none' : '';
 }
 
@@ -5083,7 +5989,7 @@ function updateTaskbarSystemButtonsForMobile() {
             const submenuItems = normalizeContextMenuItems(item.items || item.children || []);
             if (submenuItems.length) {
                 return `<div class="vd-context-submenu" role="none">
-                    <button type="button" class="vd-context-item" role="menuitem" ${disabled}>${icon}${label}<span class="vd-context-arrow">â€º</span></button>
+                    <button type="button" class="vd-context-item" role="menuitem" ${disabled}>${icon}${label}<span class="vd-context-arrow">&rsaquo;</span></button>
                     <div class="vd-context-submenu-popover" role="menu">${renderItems(submenuItems, path.concat(String(item.id || index)))}</div>
                 </div>`;
             }
@@ -5157,7 +6063,7 @@ function updateTaskbarSystemButtonsForMobile() {
         }
         if (isDesktopEntry || kind === 'file') {
             if (kind === 'file') {
-                items.push({ separator: true }, { label: t('desktop.fm.add_to_chat', 'Add to chat'), icon: 'chat', fallback: 'A', action: () => desktopBatchFileEntries(btn).forEach(addFileContextToChat) }, { label: t('desktop.fm.ask_agent', 'Ask Agent'), icon: 'agent', fallback: 'Q', action: () => desktopBatchFileEntries(btn).forEach(askAgentAboutFile) });
+                items.push({ separator: true }, { label: t('desktop.fm.add_to_chat'), icon: 'chat', fallback: 'A', action: () => desktopBatchFileEntries(btn).forEach(addFileContextToChat) }, { label: t('desktop.fm.ask_agent'), icon: 'agent', fallback: 'Q', action: () => desktopBatchFileEntries(btn).forEach(askAgentAboutFile) });
             }
             items.push(
                 { separator: true },
@@ -5842,7 +6748,7 @@ function modalDialog(options) {
             if (item.type === 'submenu') {
                 return `<div class="vd-window-menu-submenu${disabled}" role="none">
                     <button type="button" class="vd-window-menu-item${checked}" role="menuitem" ${disabled ? 'disabled' : ''}>
-                        ${icon}<span>${label}</span><span class="vd-window-menu-arrow">â€º</span>
+                        ${icon}<span>${label}</span><span class="vd-window-menu-arrow">&rsaquo;</span>
                     </button>
                     <div class="vd-window-menu-popover" role="menu">${renderWindowMenuItems(item.items)}</div>
                 </div>`;
@@ -6027,6 +6933,9 @@ function modalDialog(options) {
             return window.SheetsApp.render(contentEl(id), id, officeAppContext(context));
         }
         if (appId === 'settings') return renderSettings(id);
+        if (appId === 'pet-picker' && window.PetPickerApp && typeof window.PetPickerApp.render === 'function') {
+            return window.PetPickerApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, api, loadBootstrap, notify: showDesktopNotification }));
+        }
         if (appId === 'calendar') return renderCalendar(id);
         if (appId === 'calculator') return renderCalculator(id);
         if (appId === 'todo') return renderTodo(id);
@@ -6034,6 +6943,9 @@ function modalDialog(options) {
         if (appId === 'music-player') return renderMusicPlayer(id);
         if (appId === 'radio' && window.RadioApp && typeof window.RadioApp.render === 'function') {
             return window.RadioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
+        }
+        if (appId === 'teevee' && window.TeeVeeApp && typeof window.TeeVeeApp.render === 'function') {
+            return window.TeeVeeApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
         }
 if (appId === 'system-info') {
             if (!window.SystemInfoApp) {
@@ -6056,6 +6968,15 @@ if (appId === 'system-info') {
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
             return window.CodeStudio.render(contentEl(id), id, withDesktopFileDialogs(context, { iconMarkup, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
         }
+        if (appId === 'openscad') {
+            if (!window.OpenSCADApp) {
+                window.AuraDesktopModules.loadAppScript('openscad').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.OpenSCADApp.render === 'function') {
+                return window.OpenSCADApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), openApp, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, updateWindowContext }));
+            }
+        }
         if (appId === 'launchpad') return renderLaunchpad(id);
         if (appId === 'software-store') {
             if (!window.SoftwareStoreApp) {
@@ -6077,7 +6998,7 @@ if (appId === 'system-info') {
                 window.AuraDesktopModules.loadAppScript('camera').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            if (typeof window.CameraApp.render === 'function') return window.CameraApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, setWindowMenus, clearWindowMenus}));
+            if (typeof window.CameraApp.render === 'function') return window.CameraApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary}));
         }
 if (appId === 'zipper') {
             if (!window.ZipperApp) {
@@ -6110,6 +7031,15 @@ if (appId === 'pixel') {
                 return;
             }
             if (typeof window.GalaxaDeluxe.render === 'function') return window.GalaxaDeluxe.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
+        }
+        if (appId === 'chess') {
+            if (!window.ChessApp) {
+                window.AuraDesktopModules.loadAppScript('chess').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.ChessApp.render === 'function') {
+                return window.ChessApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus }));
+            }
         }
         if (appId === 'nasscad') {
             if (!window.NasscadApp) {
@@ -6377,7 +7307,7 @@ if (appId === 'pixel') {
     }
 
     function agentTaskPrompt(entry, task) {
-        return desktopText('desktop.agent_task_prompt', 'Please work on {{path}}.\n\nTask:\n{{task}}')
+        return desktopText('desktop.agent_task_prompt')
             .replaceAll('{{path}}', entry.path || '')
             .replaceAll('{{name}}', entry.name || entry.path || '')
             .replaceAll('{{task}}', task || '');
@@ -6404,7 +7334,7 @@ if (appId === 'pixel') {
     function askAgentAboutFile(file) {
         const entry = chatFileContextFromEntry(file);
         if (!entry) return;
-        const prompt = desktopText('desktop.chat_ask_file_prompt', 'What should I know about {{name}}?')
+        const prompt = desktopText('desktop.chat_ask_file_prompt')
             .replaceAll('{{name}}', entry.name || entry.path);
         openApp('agent-chat', {
             chat_files: [entry],
@@ -6622,6 +7552,9 @@ if (appId === 'pixel') {
                     settingSelect('appearance.theme', 'desktop.settings_theme', 'desktop.settings_theme_desc', [
                         ['standard', 'desktop.settings_theme_standard'], ['fruity', 'desktop.settings_theme_fruity']
                     ]),
+                    settingSelect('appearance.fruity_mode', 'desktop.settings_fruity_mode', 'desktop.settings_fruity_mode_desc', [
+                        ['light', 'desktop.settings_fruity_mode_light'], ['dark', 'desktop.settings_fruity_mode_dark']
+                    ]),
                     settingSelect('appearance.accent', 'desktop.settings_accent', 'desktop.settings_accent_desc', [
                         ['teal', 'desktop.settings_accent_teal'], ['orange', 'desktop.settings_accent_orange'], ['blue', 'desktop.settings_accent_blue'], ['violet', 'desktop.settings_accent_violet'], ['green', 'desktop.settings_accent_green']
                     ]),
@@ -6713,7 +7646,7 @@ if (appId === 'pixel') {
             <aside class="vd-settings-sidebar" aria-label="${esc(t('desktop.app_settings'))}">
                 <div class="vd-settings-sidebar-title">${esc(t('desktop.app_settings'))}</div>
                 <div class="vd-settings-search">
-                    <input type="search" class="vd-settings-search-input" placeholder="${esc(t('desktop.settings_search_placeholder', 'Search settings\u2026'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
+                    <input type="search" class="vd-settings-search-input" placeholder="${esc(t('desktop.settings_search_placeholder'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
                 </div>
                 ${sections.map(section => `<button type="button" class="vd-settings-nav ${section.id === active.id ? 'active' : ''}" data-section="${esc(section.id)}">
                     ${iconMarkup(section.icon, section.fallback || section.icon, 'vd-settings-nav-icon', 18)}<span>${esc(t(section.title))}</span>
@@ -6806,13 +7739,22 @@ if (appId === 'pixel') {
 
     async function saveDesktopSetting(key, value, host) {
         try {
-            const body = await api('/api/desktop/settings', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key, value })
-            });
+            const updates = [{ key, value }];
+            if (key === 'appearance.theme') {
+                const pairedIconTheme = value === 'fruity' ? 'whitesur' : value === 'standard' ? 'papirus' : '';
+                if (pairedIconTheme && settingValue('appearance.icon_theme') !== pairedIconTheme) {
+                    updates.push({ key: 'appearance.icon_theme', value: pairedIconTheme });
+                }
+            }
             if (!state.bootstrap) state.bootstrap = {};
-            state.bootstrap.settings = body.settings || Object.assign(desktopSettings(), { [key]: value });
+            for (const update of updates) {
+                const body = await api('/api/desktop/settings', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(update)
+                });
+                state.bootstrap.settings = body.settings || Object.assign(desktopSettings(), { [update.key]: update.value });
+            }
             applyDesktopSettings();
             renderStartButtonIcon();
             renderIcons();
@@ -7320,6 +8262,9 @@ if (appId === 'pixel') {
             }
         });
         root.focus();
+        registerWindowCleanup(id, () => {
+            host.innerHTML = '';
+        });
     }
 
     function evaluateProgrammerExpression(expression, base) {
@@ -8084,6 +9029,7 @@ if (appId === 'pixel') {
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
             if (activeResizeObserver) { activeResizeObserver.disconnect(); activeResizeObserver = null; }
+            host.querySelectorAll('.vd-qc-modal-overlay, .vd-qc-notify').forEach(el => el.remove());
         });
 
         setQuickConnectMenus(id, host, loadAll, showServerModal, () => switchTab('files'));
@@ -8166,7 +9112,7 @@ if (appId === 'pixel') {
                         ${d.description ? `<div class="vd-qc-device-desc">${esc(d.description)}</div>` : ''}
                     </div>
                     <div class="vd-qc-device-badges">
-                        ${d.is_template ? '<span class="vd-qc-badge vd-qc-badge-info">Setup</span>' : (d.credential_id ? '<span class="vd-qc-badge vd-qc-badge-ok">' + esc(protoLabel) + '</span>' : '<span class="vd-qc-badge vd-qc-badge-warn">?</span>')}
+                        ${d.is_template ? '<span class="vd-qc-badge vd-qc-badge-info">' + esc(t('desktop.qc_badge_setup')) + '</span>' : (d.credential_id ? '<span class="vd-qc-badge vd-qc-badge-ok">' + esc(protoLabel) + '</span>' : '<span class="vd-qc-badge vd-qc-badge-warn">?</span>')}
                     </div>
                 </button>`;
             }).join('');
@@ -9277,6 +10223,10 @@ if (appId === 'pixel') {
         searchInput.addEventListener('input', (e) => { searchQuery = e.target.value; render(); });
         categorySelect.addEventListener('change', (e) => { selectedCategory = e.target.value; load(); });
 
+        registerWindowCleanup(id, () => {
+            document.querySelectorAll('.vd-modal-backdrop').forEach(el => el.remove());
+            if (iconSearchDebounce) { clearTimeout(iconSearchDebounce); iconSearchDebounce = null; }
+        });
         setLaunchpadMenus(id, host, openEditModal, load);
         load();
     }
@@ -9356,7 +10306,7 @@ if (appId === 'pixel') {
             host.innerHTML = `<div class="vd-store-frame-error">
                 <div class="vd-store-frame-error-title">${esc(appName(app))}</div>
                 <div class="vd-store-frame-error-msg">${esc(err.message)}</div>
-                <button type="button" class="vd-store-btn vd-store-primary" data-action="start">${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start', 'Start'))}</span></button>
+                <button type="button" class="vd-store-btn vd-store-primary" data-action="start">${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start'))}</span></button>
             </div>`;
             const start = host.querySelector('[data-action="start"]');
             if (start) {
@@ -9433,13 +10383,13 @@ if (appId === 'pixel') {
             if (window.StoreTerminalPreviewApp && typeof window.StoreTerminalPreviewApp.render === 'function') {
                 return window.StoreTerminalPreviewApp.render(id, app, storeAppId, storeTerminalPreviewDeps());
             }
-            throw new Error(t('desktop.store_terminal_module_unavailable', 'Terminal preview module is unavailable.'));
+            throw new Error(t('desktop.store_terminal_module_unavailable'));
         } catch (err) {
             if (!contentEl(id)) return;
             host.innerHTML = `<div class="vd-store-frame-error">
                 <div class="vd-store-frame-error-title">${esc(appName(app))}</div>
-                <div class="vd-store-frame-error-msg">${esc(err && err.message ? err.message : t('common.error', 'Error'))}</div>
-                <button type="button" class="vd-store-btn vd-store-primary" data-action="retry">${iconMarkup('refresh', 'R', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.retry', 'Retry'))}</span></button>
+                <div class="vd-store-frame-error-msg">${esc(err && err.message ? err.message : t('common.error'))}</div>
+                <button type="button" class="vd-store-btn vd-store-primary" data-action="retry">${iconMarkup('refresh', 'R', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.retry'))}</span></button>
             </div>`;
             const retry = host.querySelector('[data-action="retry"]');
             if (retry) retry.addEventListener('click', () => renderStoreTerminalPreviewApp(id, app, storeAppId));
@@ -9542,7 +10492,6 @@ if (appId === 'pixel') {
         if (options && options.allowGamepad) allowParts.push('gamepad');
         // Test compatibility marker: iframe.setAttribute('allow', 'clipboard-read; clipboard-write')
         iframe.setAttribute('allow', allowParts.join('; '));
-        if (options && options.allowFullscreen) iframe.setAttribute('allowfullscreen', '');
         iframe.tabIndex = 0;
         iframe.addEventListener('pointerdown', () => focusDesktopFrame(iframe));
         if (!(options && options.disableAutoFocus)) iframe.addEventListener('load', () => focusDesktopFrame(iframe));
@@ -9934,10 +10883,10 @@ if (appId === 'pixel') {
             dot.title = '';
         } else if (failed) {
             dot.dataset.state = 'offline';
-            dot.title = t('desktop.ws_connection_lost', 'Connection lost. Please refresh the page.');
+            dot.title = t('desktop.ws_connection_lost');
         } else {
             dot.dataset.state = 'reconnecting';
-            dot.title = t('desktop.ws_reconnecting', 'Reconnecting...');
+            dot.title = t('desktop.ws_reconnecting');
         }
     }
 
@@ -9946,6 +10895,7 @@ if (appId === 'pixel') {
         if (event.type === 'welcome') {
             state.bootstrap = event.payload || state.bootstrap;
             renderDesktop();
+            refreshPetRuntime();
             return;
         }
         if (event.type === 'desktop_changed') {
@@ -9966,6 +10916,13 @@ if (appId === 'pixel') {
         }
         if (event.type === 'notification') {
             showDesktopNotification(event.payload || {});
+            return;
+        }
+        if (event.type === 'pet_changed' || event.type === 'pet_reaction_changed' || event.type === 'pet_say' || event.type === 'pet_setting_changed') {
+            if (window.PetRuntime && typeof window.PetRuntime.handleEvent === 'function') {
+                window.PetRuntime.handleEvent(event);
+            }
+            return;
         }
     }
 
@@ -9997,15 +10954,13 @@ if (appId === 'pixel') {
     }
 
     function updateClock() {
-        const clock = $('vd-clock');
-        if (clock) clock.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        document.querySelectorAll('.vd-clock').forEach(clock => { clock.textContent = value; });
     }
 
     function wireChrome() {
         $('vd-start-button').addEventListener('click', toggleStartMenu);
         $('vd-agent-button').addEventListener('click', () => openApp('agent-chat'));
-        const shortcutsTrigger = document.getElementById('vd-shortcuts-trigger');
-        if (shortcutsTrigger) shortcutsTrigger.addEventListener('click', toggleShortcutsHelp);
         const widgetDrawerBtn = document.getElementById('vd-widget-drawer-btn');
         if (widgetDrawerBtn) widgetDrawerBtn.addEventListener('click', toggleWidgetDrawer);
         const showDesktopBtn = document.getElementById('vd-show-desktop-btn');
@@ -10087,7 +11042,7 @@ if (appId === 'pixel') {
         }, { once: true });
 
         const title = drawer.querySelector('.vd-widget-drawer-title');
-        title.textContent = t('desktop.widget_drawer_title', 'Widgets');
+        title.textContent = t('desktop.widget_drawer_title');
 
         renderWidgetDrawerContent(drawer);
     }
@@ -10156,16 +11111,6 @@ if (appId === 'pixel') {
         if (handleWindowMenuShortcut(event)) return;
         if (isEditableTarget(event.target)) return;
         if (relayGeneratedFrameKeyboardEvent(event)) return;
-        if ((event.ctrlKey || event.metaKey) && event.key === '/') {
-            event.preventDefault();
-            toggleShortcutsHelp();
-            return;
-        }
-        if (event.key === 'F1') {
-            event.preventDefault();
-            toggleShortcutsHelp();
-            return;
-        }
         if (event.ctrlKey && event.code === 'Space') {
             event.preventDefault();
             $('vd-start-button').click();
@@ -10246,45 +11191,6 @@ if (appId === 'pixel') {
             event.preventDefault();
         }
         return true;
-    }
-
-    function toggleShortcutsHelp() {
-        const existing = document.getElementById('vd-shortcuts-help');
-        if (existing) { existing.remove(); return; }
-        showShortcutsHelp();
-    }
-
-    function showShortcutsHelp() {
-        const shortcuts = [
-            { keys: 'Ctrl+Space', action: t('desktop.shortcut_start_menu', 'Open Start menu') },
-            { keys: 'Alt+F4', action: t('desktop.shortcut_close_window', 'Close active window') },
-            { keys: 'Alt+Tab', action: t('desktop.shortcut_switch_windows', 'Switch windows') },
-            { keys: 'F2', action: t('desktop.shortcut_rename', 'Rename selected item') },
-            { keys: 'Delete', action: t('desktop.shortcut_delete', 'Delete selected item') },
-            { keys: 'Ctrl+/  /  F1', action: t('desktop.shortcut_help', 'Show keyboard shortcuts') }
-        ];
-        const overlay = document.createElement('div');
-        overlay.id = 'vd-shortcuts-help';
-        overlay.className = 'vd-shortcuts-overlay';
-        overlay.innerHTML = `
-            <div class="vd-shortcuts-modal">
-                <div class="vd-shortcuts-header">
-                    <span class="vd-shortcuts-title">${esc(t('desktop.keyboard_shortcuts_title', 'Keyboard Shortcuts'))}</span>
-                    <button class="vd-shortcuts-close" aria-label="${esc(t('desktop.keyboard_shortcuts_close', 'Close'))}">×</button>
-                </div>
-                <div class="vd-shortcuts-body">
-                    ${shortcuts.map(s => `
-                        <div class="vd-shortcuts-row">
-                            <kbd class="vd-shortcuts-keys">${esc(s.keys)}</kbd>
-                            <span class="vd-shortcuts-action">${esc(s.action)}</span>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-        overlay.querySelector('.vd-shortcuts-close').addEventListener('click', () => overlay.remove());
-        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-        document.body.appendChild(overlay);
     }
 
     function selectedDesktopIcon() {
@@ -10692,6 +11598,9 @@ if (appId === 'pixel') {
         window.addEventListener('beforeunload', cleanupDesktopShellRuntime);
         await loadBootstrap();
         if (state.bootstrap && state.bootstrap.enabled) connectWS();
+        if (window.PetRuntime && typeof window.PetRuntime.init === 'function') {
+            window.PetRuntime.init();
+        }
     }
 
     ensureDesktopRadialMenuAnchor();

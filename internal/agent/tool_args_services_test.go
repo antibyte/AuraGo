@@ -416,3 +416,58 @@ func TestDecodeHomepageRegistryArgsUsesParamsFallback(t *testing.T) {
 		t.Fatalf("Tags = %v, want [frontend landing]", req.Tags)
 	}
 }
+
+func TestDecodeHomepageRegistryArgsHistoryFields(t *testing.T) {
+	tc := ToolCall{
+		Action: "homepage_registry",
+		Params: map[string]interface{}{
+			"operation":  "add_history",
+			"id":         "3",
+			"history_id": "9",
+			"entry_type": "decision",
+			"content":    "Use dark hero with single CTA",
+			"source":     "homepage_file",
+			"tags":       []interface{}{"design", "hero"},
+		},
+	}
+
+	req := decodeHomepageRegistryArgs(tc)
+	if req.Operation != "add_history" {
+		t.Fatalf("Operation = %q, want add_history", req.Operation)
+	}
+	if req.ID != 3 {
+		t.Fatalf("ID = %d, want 3", req.ID)
+	}
+	if req.HistoryID != 9 {
+		t.Fatalf("HistoryID = %d, want 9", req.HistoryID)
+	}
+	if req.EntryType != "decision" {
+		t.Fatalf("EntryType = %q, want decision", req.EntryType)
+	}
+	if req.Content != "Use dark hero with single CTA" {
+		t.Fatalf("Content = %q, want Use dark hero with single CTA", req.Content)
+	}
+	if req.Source != "homepage_file" {
+		t.Fatalf("Source = %q, want homepage_file", req.Source)
+	}
+	if len(req.Tags) != 2 || req.Tags[0] != "design" || req.Tags[1] != "hero" {
+		t.Fatalf("Tags = %v, want [design hero]", req.Tags)
+	}
+
+	// search_history uses history_query, not content
+	searchTc := ToolCall{
+		Action: "homepage_registry",
+		Params: map[string]interface{}{
+			"operation":     "search_history",
+			"id":            "3",
+			"history_query": "hero",
+		},
+	}
+	searchReq := decodeHomepageRegistryArgs(searchTc)
+	if searchReq.HistoryQuery != "hero" {
+		t.Fatalf("HistoryQuery = %q, want hero", searchReq.HistoryQuery)
+	}
+	if searchReq.Content != "" {
+		t.Fatalf("Content for search_history should be empty, got %q", searchReq.Content)
+	}
+}

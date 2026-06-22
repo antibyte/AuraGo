@@ -3,12 +3,14 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"html"
 	"log/slog"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -20,6 +22,15 @@ import (
 )
 
 var nowFunc = time.Now
+
+const memoryDedupeSessionMaxIDs = 500
+
+var memoryDedupeSessions = struct {
+	sync.Mutex
+	bySession map[string]map[string]int
+}{
+	bySession: make(map[string]map[string]int),
+}
 
 func ShouldReloadCoreMemory(dirty bool, loadedAt time.Time, dbUpdatedAt, cachedUpdatedAt time.Time) bool {
 	if dirty {
@@ -43,6 +54,8 @@ func ShouldReloadCoreMemory(dirty bool, loadedAt time.Time, dbUpdatedAt, cachedU
 func countMemoryPromptTelemetryTokens(flags prompts.ContextFlags, model string) int {
 	sections := []string{
 		flags.RetrievedMemories,
+		flags.AvailableMemoryContextIndex,
+		flags.AvailableKnowledgeContextIndex,
 		flags.PredictedMemories,
 		flags.KnowledgeContext,
 		flags.ErrorPatternContext,
@@ -723,7 +736,12 @@ func expandAdaptiveAlwaysInclude(cfg *config.Config, alwaysInclude []string) []s
 func channelAdaptiveAlwaysInclude(runCfg RunConfig, alwaysInclude []string, ff ToolFeatureFlags) []string {
 	out := make([]string, 0, len(alwaysInclude)+4)
 	out = append(out, alwaysInclude...)
-	if !strings.EqualFold(strings.TrimSpace(runCfg.MessageSource), "virtual_desktop_chat") {
+	messageSource := strings.ToLower(strings.TrimSpace(runCfg.MessageSource))
+	if messageSource == "homepage_studio" {
+		out = append(out, "homepage_project", "homepage_file", "homepage_quality", "homepage_deploy", "homepage_git", "homepage_registry")
+		return out
+	}
+	if messageSource != "virtual_desktop_chat" {
 		return out
 	}
 	out = append(out, "question_user")
@@ -1519,6 +1537,7 @@ const (
 	aggressiveErrorPatternChars      = 700
 	aggressiveLearnedRulesChars      = 480
 	aggressiveReuseContextChars      = 700
+	aggressiveAvailableContextChars  = 1600
 	runtimeOperationalIssueChars     = 600
 	runtimeTaskRulesChars            = 900
 )
@@ -1547,11 +1566,144 @@ func buildAggressiveRAGPromptEntries(served []rankedMemory, wantsDeepDetails boo
 	}}
 }
 
+func selectRAGMemoriesForOnDemand(ranked []rankedMemory, cfg config.MemoryOnDemandRetrievalConfig, logger *slog.Logger) ([]rankedMemory, []rankedMemory) {
+	if len(ranked) == 0 {
+		return nil, nil
+	}
+	essentialLimit := cfg.MaxEssentialMemories
+	if essentialLimit <= 0 {
+		essentialLimit = 1
+	}
+	if !cfg.Enabled {
+		return selectServedRAGMemories(ranked, 1, logger), nil
+	}
+	availableLimit := cfg.MaxAvailableMemories
+	if availableLimit < 0 {
+		availableLimit = 0
+	}
+	served := selectServedRAGMemories(ranked, essentialLimit+availableLimit, logger)
+	if len(served) <= essentialLimit {
+		return served, nil
+	}
+	essential := append([]rankedMemory(nil), served[:essentialLimit]...)
+	available := append([]rankedMemory(nil), served[essentialLimit:]...)
+	return essential, available
+}
+
+func buildAvailableMemoryIndex(available []rankedMemory, maxChars int) string {
+	if len(available) == 0 || maxChars <= 0 {
+		return ""
+	}
+	var sb strings.Builder
+	for _, item := range available {
+		if strings.TrimSpace(item.docID) == "" || strings.TrimSpace(item.text) == "" {
+			continue
+		}
+		teaser := compactMemoryForPrompt(item.text, 96)
+		line := "- [memory:" + item.docID + "] source=ltm score=" + formatScore(item.score) + " - " + teaser
+		nextLen := len([]rune(line))
+		if sb.Len() > 0 {
+			nextLen += 1
+		}
+		if len([]rune(sb.String()))+nextLen > maxChars {
+			if sb.Len() == 0 {
+				return compactMemoryForPrompt(line, maxChars)
+			}
+			break
+		}
+		if sb.Len() > 0 {
+			sb.WriteString("\n")
+		}
+		sb.WriteString(line)
+	}
+	return sb.String()
+}
+
+func appendAvailableContextIndex(existing string, addition string, maxChars int) string {
+	existing = strings.TrimSpace(existing)
+	addition = strings.TrimSpace(addition)
+	if addition == "" {
+		return existing
+	}
+	if existing == "" {
+		return compactMemoryForPrompt(addition, maxChars)
+	}
+	return compactMemoryForPrompt(existing+"\n"+addition, maxChars)
+}
+
+func formatScore(score float64) string {
+	return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.2f", score), "0"), ".")
+}
+
+func memoryDedupeMapForScope(scope, sessionID string, turnMap map[string]int) map[string]int {
+	if turnMap == nil {
+		turnMap = make(map[string]int)
+	}
+	if normalizeMemoryDedupeScope(scope) != "session" || strings.TrimSpace(sessionID) == "" {
+		return turnMap
+	}
+
+	memoryDedupeSessions.Lock()
+	defer memoryDedupeSessions.Unlock()
+	return cloneMemoryDedupeMap(memoryDedupeSessions.bySession[sessionID])
+}
+
+func persistMemoryDedupeMapForScope(scope, sessionID string, ids map[string]int) {
+	if normalizeMemoryDedupeScope(scope) != "session" || strings.TrimSpace(sessionID) == "" {
+		return
+	}
+
+	memoryDedupeSessions.Lock()
+	defer memoryDedupeSessions.Unlock()
+	if len(ids) == 0 {
+		delete(memoryDedupeSessions.bySession, sessionID)
+		return
+	}
+	existing := memoryDedupeSessions.bySession[sessionID]
+	if existing == nil {
+		existing = make(map[string]int, len(ids))
+		memoryDedupeSessions.bySession[sessionID] = existing
+	}
+	for id, count := range ids {
+		if strings.TrimSpace(id) == "" || count <= 0 {
+			continue
+		}
+		if count > existing[id] {
+			existing[id] = count
+		}
+	}
+	if len(existing) > memoryDedupeSessionMaxIDs {
+		delete(memoryDedupeSessions.bySession, sessionID)
+	}
+}
+
+func normalizeMemoryDedupeScope(scope string) string {
+	switch strings.ToLower(strings.TrimSpace(scope)) {
+	case "session":
+		return "session"
+	default:
+		return "turn"
+	}
+}
+
+func cloneMemoryDedupeMap(src map[string]int) map[string]int {
+	dst := make(map[string]int, len(src))
+	for id, count := range src {
+		if strings.TrimSpace(id) == "" || count <= 0 {
+			continue
+		}
+		dst[id] = count
+	}
+	return dst
+}
+
 func applyAggressivePromptContextBudgets(flags *prompts.ContextFlags) {
 	if flags == nil {
 		return
 	}
 	flags.RetrievedMemories = compactMemoryForPrompt(flags.RetrievedMemories, aggressiveRetrievedMemoriesChars)
+	flags.AvailableMemoryContextIndex = compactMemoryForPrompt(flags.AvailableMemoryContextIndex, aggressiveAvailableContextChars)
+	flags.AvailableKnowledgeContextIndex = compactMemoryForPrompt(flags.AvailableKnowledgeContextIndex, aggressiveAvailableContextChars)
 	flags.PredictedMemories = compactMemoryForPrompt(flags.PredictedMemories, aggressivePredictedMemoriesChars)
 	flags.RecentActivityOverview = compactMemoryForPrompt(flags.RecentActivityOverview, aggressiveRecentOverviewChars)
 	flags.KnowledgeContext = compactMemoryForPrompt(flags.KnowledgeContext, aggressiveKnowledgeContextChars)
@@ -1566,12 +1718,17 @@ type runtimePromptContextOptions struct {
 	RecentTools      []string
 	SessionUsedTools map[string]bool
 	ReuseLookup      ReuseLookupResult
-	DebugOrError     bool
 }
 
 func applyRuntimePromptContextPolicy(flags *prompts.ContextFlags, opts runtimePromptContextOptions) {
 	if flags == nil {
 		return
+	}
+	flags.CapabilityCreationIntent = flags.CapabilityCreationIntent || shouldInjectCapabilityCreationPrompt(opts.UserText, opts.RecentTools, opts.SessionUsedTools)
+	flags.DaemonSkillsIntent = flags.DaemonSkillsIntent || shouldInjectDaemonSkillsPrompt(opts.UserText, opts.RecentTools, opts.SessionUsedTools)
+	flags.LifeboatIntent = flags.LifeboatIntent || flags.IsMaintenanceMode || (flags.LifeboatEnabled && shouldInjectLifeboatPrompt(opts.UserText, opts.RecentTools, opts.SessionUsedTools))
+	if flags.InternetExposed && !shouldInjectInternetExposureWarning(opts.UserText, opts.RecentTools, opts.SessionUsedTools, flags) {
+		flags.InternetExposed = false
 	}
 	if !shouldInjectReachableChatChannelsContext(opts.UserText, opts.MessageSource, opts.RecentTools, opts.SessionUsedTools) {
 		flags.ChatChannelsContext = ""
@@ -1587,10 +1744,112 @@ func applyRuntimePromptContextPolicy(flags *prompts.ContextFlags, opts runtimePr
 	if !shouldInjectReuseLookupPrompt(opts.UserText, opts.ReuseLookup) {
 		flags.ReuseContext = ""
 	}
-	if !shouldInjectOperationalIssueReminderForTurn(opts.UserText, flags.OperationalIssueReminder, opts.DebugOrError) {
-		flags.OperationalIssueReminder = ""
-	}
 	applyRuntimePromptContextBudgets(flags)
+}
+
+func shouldInjectCapabilityCreationPrompt(userText string, recentTools []string, sessionUsed map[string]bool) bool {
+	text := normalizeAdaptiveIntentText(userText)
+	cues := []string{
+		"create skill", "erstelle skill", "python skill", "agent skill", "agent-skill",
+		"skill.md", "skill md", "agentskills", "agentskills io", "codex skill", "claude skill", "skill package",
+		"create tool", "erstelle tool", "new tool", "neues tool", "tool bridge",
+		"internal_tools", "list_skill_templates", "create_skill_from_template",
+		"reusable capability", "wiederverwendbare f higkeit", "wiederverwendbare faehigkeit",
+		"create capability", "new capability", "capability creation", "skill template", "tool template",
+	}
+	if containsAnyRuntimeCue(text, cues) {
+		return true
+	}
+	for _, tool := range recentTools {
+		if isCapabilityCreationTool(tool) {
+			return true
+		}
+	}
+	for tool := range sessionUsed {
+		if isCapabilityCreationTool(tool) {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldInjectDaemonSkillsPrompt(userText string, recentTools []string, sessionUsed map[string]bool) bool {
+	text := normalizeAdaptiveIntentText(userText)
+	cues := []string{
+		"daemon", "daemon skill", "daemon skills", "manage_daemon", "long-running",
+		"long running", "background watcher", "background listener", "background monitor",
+		"watcher", "listener", "monitor daemon", "dauerhaft", "hintergrunddienst",
+		"hintergrund watcher", "hintergrund monitor", "wake_agent",
+	}
+	if containsAnyRuntimeCue(text, cues) {
+		return true
+	}
+	for _, tool := range recentTools {
+		if isDaemonSkillTool(tool) {
+			return true
+		}
+	}
+	for tool := range sessionUsed {
+		if isDaemonSkillTool(tool) {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldInjectLifeboatPrompt(userText string, recentTools []string, sessionUsed map[string]bool) bool {
+	text := normalizeAdaptiveIntentText(userText)
+	cues := []string{
+		"lifeboat", "life boat", "rettungsboot", "maintenance handover",
+		"initiate_handover", "execute_surgery", "exit_lifeboat", "self update",
+		"self-update", "supervisor rebuild", "rebuild supervisor", "wartungsmodus",
+	}
+	if containsAnyRuntimeCue(text, cues) {
+		return true
+	}
+	for _, tool := range recentTools {
+		if isLifeboatTool(tool) {
+			return true
+		}
+	}
+	for tool := range sessionUsed {
+		if isLifeboatTool(tool) {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldInjectInternetExposureWarning(userText string, recentTools []string, sessionUsed map[string]bool, flags *prompts.ContextFlags) bool {
+	text := normalizeAdaptiveIntentText(userText)
+	cues := []string{
+		"homepage", "web deploy", "website", "deploy", "deployment", "caddy",
+		"reverse proxy", "reverse-proxy", "public url", "publicly", "internet",
+		"expose", "exposed", "domain", "https", "tls", "port", "ports",
+		"docker", "container", "network", "netzwerk", "tailscale", "cloudflare",
+		"tunnel", "web capture", "screenshot url", "scrape", "crawler",
+	}
+	if containsAnyRuntimeCue(text, cues) {
+		return true
+	}
+	for _, tool := range recentTools {
+		if isInternetExposureTool(tool) {
+			return true
+		}
+	}
+	for tool := range sessionUsed {
+		if isInternetExposureTool(tool) {
+			return true
+		}
+	}
+	if flags != nil {
+		for _, tool := range flags.ActiveNativeTools {
+			if isInternetExposureTool(tool) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func applyRuntimePromptContextBudgets(flags *prompts.ContextFlags) {
@@ -1691,6 +1950,50 @@ func isChatChannelTool(name string) bool {
 	cues := []string{
 		"telegram", "discord", "ntfy", "pushover", "sms", "rocketchat", "rocket_chat",
 		"send_notification", "send_message", "send_sms", "send_image", "send_video",
+	}
+	return containsAnyRuntimeCue(name, cues)
+}
+
+func isCapabilityCreationTool(name string) bool {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		return false
+	}
+	cues := []string{
+		"create_skill_from_template", "list_skill_templates", "skills_engine",
+		"execute_skill", "list_agent_skills", "activate_agent_skill",
+		"run_agent_skill_script", "run_tool", "tool_bridge",
+	}
+	return containsAnyRuntimeCue(name, cues)
+}
+
+func isDaemonSkillTool(name string) bool {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		return false
+	}
+	return strings.Contains(name, "daemon") || strings.EqualFold(name, "manage_daemon")
+}
+
+func isLifeboatTool(name string) bool {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		return false
+	}
+	cues := []string{"lifeboat", "initiate_handover", "execute_surgery", "exit_lifeboat", "optimize_memory"}
+	return containsAnyRuntimeCue(name, cues)
+}
+
+func isInternetExposureTool(name string) bool {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		return false
+	}
+	cues := []string{
+		"homepage", "docker", "container", "network", "network_ping", "network_scan",
+		"upnp", "fritzbox", "tailscale", "cloudflare", "tunnel", "web_capture",
+		"web_scraper", "browser_automation", "api_request", "http", "netlify",
+		"vercel", "s3", "caddy",
 	}
 	return containsAnyRuntimeCue(name, cues)
 }

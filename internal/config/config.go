@@ -1,6 +1,7 @@
 package config
 
 import (
+	"aurago/internal/kgquality"
 	"bytes"
 	"fmt"
 	"net"
@@ -231,10 +232,18 @@ func Load(path string) (*Config, error) {
 	data = fixCommonConfigIssues(data)
 
 	var cfg Config
+	cfg.ModelCatalog.Enabled = true
+	cfg.ModelCatalog.CatalogOnlyVisible = true
 	// Tools section defaults: all tools are enabled by default (opt-in to disable).
 	// These are set before unmarshal so that keys absent from the YAML file keep the
 	// correct default; explicit 'enabled: false' in the YAML will still override them.
 	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.Memory.OnDemandRetrieval.Enabled = true
+	cfg.Tools.Memory.OnDemandRetrieval.MaxEssentialMemories = 1
+	cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableMemories = 6
+	cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableKGNodes = 6
+	cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableChars = 1600
+	cfg.Tools.Memory.OnDemandRetrieval.DedupeScope = "turn"
 	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.Tools.KnowledgeGraph.AutoExtraction = true
 	cfg.Tools.KnowledgeGraph.PromptInjection = true
@@ -244,6 +253,12 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.KnowledgeGraph.MinSemanticSimilarity = 0.60
 	cfg.Tools.KnowledgeGraph.ExcludeNodeTypes = []string{"activity_entity", "unknown"}
 	cfg.Tools.KnowledgeGraph.SemanticReindexInterval = "5m"
+	cfg.Tools.KnowledgeGraph.ProtectOptimizeSources = []string{"planner", "inventory_sync", "manual", "file_sync", "core_memory"}
+	cfg.Tools.KnowledgeGraph.ProtectIDPrefixes = []string{"core_fact_", "dev_", "contact_"}
+	kgQualityPolicy := kgquality.DefaultPolicy()
+	cfg.Tools.KnowledgeGraph.PendingCoMentionTTLDays = kgQualityPolicy.PendingCoMentionTTLDays
+	cfg.Tools.KnowledgeGraph.LowConfidenceCoMentionMinWeight = kgQualityPolicy.LowConfidenceCoMentionMinWeight
+	cfg.Tools.KnowledgeGraph.HideLowConfidenceByDefault = kgQualityPolicy.HideLowConfidenceByDefault
 	cfg.Tools.SecretsVault.Enabled = true
 	cfg.Tools.Scheduler.Enabled = true
 	cfg.Tools.Notes.Enabled = true
@@ -404,6 +419,20 @@ func Load(path string) (*Config, error) {
 	cfg.VirtualDesktop.CodeStudio.AutoStopMinutes = 30
 	cfg.VirtualDesktop.CodeStudio.MaxMemoryMB = 4096
 	cfg.VirtualDesktop.CodeStudio.MaxCPUCores = 2
+	cfg.VirtualDesktop.OpenSCAD.Enabled = true
+	cfg.VirtualDesktop.OpenSCAD.Image = "openscad/openscad:latest"
+	cfg.VirtualDesktop.OpenSCAD.AutoStart = false
+	cfg.VirtualDesktop.OpenSCAD.AutoStopMinutes = 20
+	cfg.VirtualDesktop.OpenSCAD.MaxMemoryMB = 2048
+	cfg.VirtualDesktop.OpenSCAD.MaxCPUCores = 2
+	cfg.VirtualDesktop.OpenSCAD.MaxConcurrentJobs = 1
+	cfg.VirtualDesktop.OpenSCAD.GeometryBackend = "auto"
+	cfg.VirtualDesktop.OpenSCAD.DefaultExports = []string{"png", "stl"}
+	cfg.VirtualDesktop.OpenSCAD.MaxSourceKB = 512
+	cfg.VirtualDesktop.OpenSCAD.MaxOutputMB = 100
+	cfg.VirtualDesktop.OpenSCAD.RenderTimeoutSeconds = 120
+	cfg.VirtualDesktop.OpenSCAD.MaxRenderTimeoutSeconds = 600
+	cfg.VirtualDesktop.OpenSCAD.JobRetentionDays = 7
 
 	cfg.Tools.PythonTimeoutSeconds = 30
 	cfg.Tools.SkillTimeoutSeconds = 120
@@ -413,6 +442,8 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.SkillManager.RequireScan = true
 	cfg.Tools.SkillManager.RequireSandbox = false
 	cfg.Tools.SkillManager.MaxUploadSizeMB = 1
+	cfg.Tools.SkillManager.AllowedScriptLanguages = []string{"python"}
+	cfg.Tools.SkillManager.AllowBinaryAssets = true
 	// Daemon Skills defaults: disabled by default (opt-in, potentially costly).
 	cfg.Tools.DaemonSkills.MaxConcurrentDaemons = 5
 	cfg.Tools.DaemonSkills.GlobalRateLimitSecs = 60
@@ -855,6 +886,40 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.VirtualDesktop.CodeStudio.MaxCPUCores <= 0 {
 		cfg.VirtualDesktop.CodeStudio.MaxCPUCores = 2
+	}
+	if strings.TrimSpace(cfg.VirtualDesktop.OpenSCAD.Image) == "" {
+		cfg.VirtualDesktop.OpenSCAD.Image = "openscad/openscad:latest"
+	}
+	if cfg.VirtualDesktop.OpenSCAD.AutoStopMinutes <= 0 {
+		cfg.VirtualDesktop.OpenSCAD.AutoStopMinutes = 20
+	}
+	if cfg.VirtualDesktop.OpenSCAD.MaxMemoryMB <= 0 {
+		cfg.VirtualDesktop.OpenSCAD.MaxMemoryMB = 2048
+	}
+	if cfg.VirtualDesktop.OpenSCAD.MaxCPUCores <= 0 {
+		cfg.VirtualDesktop.OpenSCAD.MaxCPUCores = 2
+	}
+	if cfg.VirtualDesktop.OpenSCAD.MaxConcurrentJobs <= 0 {
+		cfg.VirtualDesktop.OpenSCAD.MaxConcurrentJobs = 1
+	}
+	cfg.VirtualDesktop.OpenSCAD.GeometryBackend = normalizeOpenSCADGeometryBackend(cfg.VirtualDesktop.OpenSCAD.GeometryBackend)
+	if len(cfg.VirtualDesktop.OpenSCAD.DefaultExports) == 0 {
+		cfg.VirtualDesktop.OpenSCAD.DefaultExports = []string{"png", "stl"}
+	}
+	if cfg.VirtualDesktop.OpenSCAD.MaxSourceKB <= 0 {
+		cfg.VirtualDesktop.OpenSCAD.MaxSourceKB = 512
+	}
+	if cfg.VirtualDesktop.OpenSCAD.MaxOutputMB <= 0 {
+		cfg.VirtualDesktop.OpenSCAD.MaxOutputMB = 100
+	}
+	if cfg.VirtualDesktop.OpenSCAD.RenderTimeoutSeconds <= 0 {
+		cfg.VirtualDesktop.OpenSCAD.RenderTimeoutSeconds = 120
+	}
+	if cfg.VirtualDesktop.OpenSCAD.MaxRenderTimeoutSeconds <= 0 {
+		cfg.VirtualDesktop.OpenSCAD.MaxRenderTimeoutSeconds = 600
+	}
+	if cfg.VirtualDesktop.OpenSCAD.JobRetentionDays <= 0 {
+		cfg.VirtualDesktop.OpenSCAD.JobRetentionDays = 7
 	}
 	cfg.Directories.WorkspaceDir = normalizeDockerWorkspaceDir(configDir, cfg.Directories.WorkspaceDir, runningInDocker)
 	if strings.TrimSpace(cfg.Docker.Host) == "" {
@@ -1824,6 +1889,17 @@ func Load(path string) (*Config, error) {
 	return &cfg, nil
 }
 
+func normalizeOpenSCADGeometryBackend(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "manifold":
+		return "manifold"
+	case "cgal":
+		return "cgal"
+	default:
+		return "auto"
+	}
+}
+
 func usesLegacyDefaultIndexingExtensions(exts []string) bool {
 	if len(exts) != len(legacyIndexingExtensions) {
 		return false
@@ -1964,6 +2040,19 @@ func (c *Config) Save(path string) error {
 		{[]string{"virtual_desktop", "code_studio", "auto_stop_minutes"}, c.VirtualDesktop.CodeStudio.AutoStopMinutes},
 		{[]string{"virtual_desktop", "code_studio", "max_memory_mb"}, c.VirtualDesktop.CodeStudio.MaxMemoryMB},
 		{[]string{"virtual_desktop", "code_studio", "max_cpu_cores"}, c.VirtualDesktop.CodeStudio.MaxCPUCores},
+		{[]string{"virtual_desktop", "openscad", "enabled"}, c.VirtualDesktop.OpenSCAD.Enabled},
+		{[]string{"virtual_desktop", "openscad", "image"}, c.VirtualDesktop.OpenSCAD.Image},
+		{[]string{"virtual_desktop", "openscad", "auto_start"}, c.VirtualDesktop.OpenSCAD.AutoStart},
+		{[]string{"virtual_desktop", "openscad", "auto_stop_minutes"}, c.VirtualDesktop.OpenSCAD.AutoStopMinutes},
+		{[]string{"virtual_desktop", "openscad", "max_memory_mb"}, c.VirtualDesktop.OpenSCAD.MaxMemoryMB},
+		{[]string{"virtual_desktop", "openscad", "max_cpu_cores"}, c.VirtualDesktop.OpenSCAD.MaxCPUCores},
+		{[]string{"virtual_desktop", "openscad", "max_concurrent_jobs"}, c.VirtualDesktop.OpenSCAD.MaxConcurrentJobs},
+		{[]string{"virtual_desktop", "openscad", "default_exports"}, c.VirtualDesktop.OpenSCAD.DefaultExports},
+		{[]string{"virtual_desktop", "openscad", "max_source_kb"}, c.VirtualDesktop.OpenSCAD.MaxSourceKB},
+		{[]string{"virtual_desktop", "openscad", "max_output_mb"}, c.VirtualDesktop.OpenSCAD.MaxOutputMB},
+		{[]string{"virtual_desktop", "openscad", "render_timeout_seconds"}, c.VirtualDesktop.OpenSCAD.RenderTimeoutSeconds},
+		{[]string{"virtual_desktop", "openscad", "max_render_timeout_seconds"}, c.VirtualDesktop.OpenSCAD.MaxRenderTimeoutSeconds},
+		{[]string{"virtual_desktop", "openscad", "job_retention_days"}, c.VirtualDesktop.OpenSCAD.JobRetentionDays},
 	}
 	for _, patch := range patches {
 		if err := setYAMLPathValue(&root, patch.path, patch.value); err != nil {

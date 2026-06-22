@@ -48,5 +48,17 @@
   "config.cloudflare_tunnel.status_disabled": "Cloudflare Tunnel 已禁用",
   "config.cloudflare_tunnel.status_running": "隧道正在运行",
   "config.cloudflare_tunnel.status_stopped": "隧道未运行",
-  "config.cloudflare_tunnel.status_error": "无法加载隧道状态"
+  "config.cloudflare_tunnel.status_error": "无法加载隧道状态",
+  "config.cloudflare_tunnel.enabled_help": "为 AuraGo 启用 Cloudflare Tunnel 管理。",
+  "config.cloudflare_tunnel.readonly_help": "将集成限制为仅状态检查，并阻止 tunnel 更改。",
+  "config.cloudflare_tunnel.auto_start_help": "AuraGo 启动时自动启动 cloudflared。",
+  "config.cloudflare_tunnel.mode_help": "选择 AuraGo 使用 Docker、native binary，还是自动检测最佳 runtime。",
+  "config.cloudflare_tunnel.auth_method_help": "选择 tunnel 如何向 Cloudflare 进行认证。",
+  "config.cloudflare_tunnel.tunnel_name_help": "Cloudflare 中 named tunnel 的名称。仅 named tunnel 需要。",
+  "config.cloudflare_tunnel.account_id_help": "Named tunnel 操作使用的可选 Cloudflare account ID。",
+  "config.cloudflare_tunnel.metrics_port_help": "cloudflared 的本地 metrics port。使用 0 可禁用 metrics。",
+  "config.cloudflare_tunnel.log_level_help": "控制 AuraGo 记录多少 cloudflared 日志。",
+  "config.cloudflare_tunnel.expose_web_ui_help": "通过 tunnel 路由 AuraGo Web UI。",
+  "config.cloudflare_tunnel.expose_homepage_help": "通过 tunnel 路由 Homepage web server。",
+  "config.cloudflare_tunnel.expose_target_help": "选择 token 或 quick tunnel 使用的单一本地服务。"
 }

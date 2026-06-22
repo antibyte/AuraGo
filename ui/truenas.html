@@ -30,19 +30,19 @@
     <link href="/fonts/fonts.css" rel="stylesheet">
 </head>
 <body>
-    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content">Skip to content</a>
+    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <header class="app-header">
         <div class="header-left">
             <a href="/" class="logo">
                 <div class="logo-icon">🖥️</div>
                 <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-                <span class="logo-subtitle" data-i18n="truenas.subtitle">TrueNAS</span>
+                <span class="logo-subtitle" data-i18n="truenas.subtitle"></span>
             </a>
         </div>
         <div class="header-actions">
             <div class="connection-status">
                 <span id="status-indicator" class="status-unknown">
-                    <span class="spinner"></span><span data-i18n="truenas.checking_connection">Checking connection...</span>
+                    <span class="spinner"></span><span data-i18n="truenas.checking_connection"></span>
                 </span>
             </div>
             <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
@@ -53,12 +53,12 @@
     <div class="truenas-container">
         <!-- Tab Navigation -->
         <nav class="truenas-nav">
-            <button class="nav-btn active" data-tab="overview" data-i18n="truenas.nav_overview">Overview</button>
-            <button class="nav-btn" data-tab="pools" data-i18n="truenas.nav_pools">Pools</button>
-            <button class="nav-btn" data-tab="datasets" data-i18n="truenas.nav_datasets">Datasets</button>
-            <button class="nav-btn" data-tab="snapshots" data-i18n="truenas.nav_snapshots">Snapshots</button>
-            <button class="nav-btn" data-tab="shares" data-i18n="truenas.nav_shares">Shares</button>
-            <button class="nav-btn" data-tab="settings" data-i18n="truenas.nav_settings">Settings</button>
+            <button class="nav-btn active" data-tab="overview" data-i18n="truenas.nav_overview"></button>
+            <button class="nav-btn" data-tab="pools" data-i18n="truenas.nav_pools"></button>
+            <button class="nav-btn" data-tab="datasets" data-i18n="truenas.nav_datasets"></button>
+            <button class="nav-btn" data-tab="snapshots" data-i18n="truenas.nav_snapshots"></button>
+            <button class="nav-btn" data-tab="shares" data-i18n="truenas.nav_shares"></button>
+            <button class="nav-btn" data-tab="settings" data-i18n="truenas.nav_settings"></button>
         </nav>
 
         <!-- Content -->
@@ -68,32 +68,32 @@
                 <div id="overview-error"></div>
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <h3 data-i18n="truenas.stat_pools">Pools</h3>
+                        <h3 data-i18n="truenas.stat_pools"></h3>
                         <div class="stat-value" id="pool-count">-</div>
                         <div class="stat-detail" id="pool-status"></div>
                     </div>
                     <div class="stat-card">
-                        <h3 data-i18n="truenas.stat_storage">Storage</h3>
+                        <h3 data-i18n="truenas.stat_storage"></h3>
                         <div class="stat-value" id="total-storage">-</div>
                         <div class="progress-bar">
                             <div class="progress-fill" id="storage-progress"></div>
                         </div>
                     </div>
                     <div class="stat-card">
-                        <h3 data-i18n="truenas.nav_snapshots">Snapshots</h3>
+                        <h3 data-i18n="truenas.nav_snapshots"></h3>
                         <div class="stat-value" id="snapshot-count">-</div>
-                        <div class="stat-detail"><span data-i18n="truenas.recent_label">Last 24h:</span> <span id="recent-snapshots">-</span></div>
+                        <div class="stat-detail"><span data-i18n="truenas.recent_label"></span> <span id="recent-snapshots">-</span></div>
                     </div>
                     <div class="stat-card">
-                        <h3 data-i18n="truenas.nav_shares">Shares</h3>
+                        <h3 data-i18n="truenas.nav_shares"></h3>
                         <div class="stat-value" id="share-count">-</div>
-                        <div class="stat-detail"><span data-i18n="truenas.stat_smb">SMB:</span> <span id="smb-count">-</span></div>
+                        <div class="stat-detail"><span data-i18n="truenas.stat_smb"></span> <span id="smb-count">-</span></div>
                     </div>
                 </div>
 
                 <!-- Health Alerts -->
                 <div class="alerts-section is-hidden" id="alerts-section">
-                    <h2 data-i18n="truenas.alerts_title">System Alerts</h2>
+                    <h2 data-i18n="truenas.alerts_title"></h2>
                     <div id="alerts-container"></div>
                 </div>
             </div>
@@ -101,92 +101,92 @@
             <!-- Pools Tab -->
             <div id="tab-pools" class="tab-content">
                 <div class="section-header">
-                    <h2 data-i18n="truenas.section_pools">Storage Pools</h2>
-                    <button class="btn btn-secondary" type="button" id="refresh-pools-btn" data-i18n="truenas.btn_refresh">Refresh</button>
+                    <h2 data-i18n="truenas.section_pools"></h2>
+                    <button class="btn btn-secondary" type="button" id="refresh-pools-btn" data-i18n="truenas.btn_refresh"></button>
                 </div>
                 <div id="pools-container" class="pools-grid">
-                    <div class="loading"><span class="spinner"></span><span data-i18n="truenas.loading_pools">Loading pools...</span></div>
+                    <div class="loading"><span class="spinner"></span><span data-i18n="truenas.loading_pools"></span></div>
                 </div>
             </div>
 
             <!-- Datasets Tab -->
             <div id="tab-datasets" class="tab-content">
                 <div class="section-header">
-                    <h2 data-i18n="truenas.nav_datasets">Datasets</h2>
-                    <button class="btn btn-primary" type="button" id="create-dataset-btn" data-i18n="truenas.btn_new_dataset">+ New Dataset</button>
+                    <h2 data-i18n="truenas.nav_datasets"></h2>
+                    <button class="btn btn-primary" type="button" id="create-dataset-btn" data-i18n="truenas.btn_new_dataset"></button>
                 </div>
                 <div id="datasets-container" class="datasets-list">
-                    <div class="loading"><span class="spinner"></span><span data-i18n="truenas.loading_datasets">Loading datasets...</span></div>
+                    <div class="loading"><span class="spinner"></span><span data-i18n="truenas.loading_datasets"></span></div>
                 </div>
             </div>
 
             <!-- Snapshots Tab -->
             <div id="tab-snapshots" class="tab-content">
                 <div class="section-header">
-                    <h2 data-i18n="truenas.nav_snapshots">Snapshots</h2>
+                    <h2 data-i18n="truenas.nav_snapshots"></h2>
                     <div>
                         <select id="snapshot-filter">
-                            <option value="" data-i18n="truenas.filter_all_datasets">All Datasets</option>
+                            <option value="" data-i18n="truenas.filter_all_datasets"></option>
                         </select>
-                        <button class="btn btn-primary" type="button" id="create-snapshot-btn" data-i18n="truenas.btn_create_snapshot">+ Create Snapshot</button>
+                        <button class="btn btn-primary" type="button" id="create-snapshot-btn" data-i18n="truenas.btn_create_snapshot"></button>
                     </div>
                 </div>
                 <div id="snapshots-container" class="snapshots-list">
-                    <div class="loading"><span class="spinner"></span><span data-i18n="truenas.loading_snapshots">Loading snapshots...</span></div>
+                    <div class="loading"><span class="spinner"></span><span data-i18n="truenas.loading_snapshots"></span></div>
                 </div>
             </div>
 
             <!-- Shares Tab -->
             <div id="tab-shares" class="tab-content">
                 <div class="section-header">
-                    <h2 data-i18n="truenas.section_shares">SMB Shares</h2>
-                    <button class="btn btn-primary" type="button" id="create-share-btn" data-i18n="truenas.btn_new_share">+ New Share</button>
+                    <h2 data-i18n="truenas.section_shares"></h2>
+                    <button class="btn btn-primary" type="button" id="create-share-btn" data-i18n="truenas.btn_new_share"></button>
                 </div>
                 <div id="shares-container" class="shares-list">
-                    <div class="loading"><span class="spinner"></span><span data-i18n="truenas.loading_shares">Loading shares...</span></div>
+                    <div class="loading"><span class="spinner"></span><span data-i18n="truenas.loading_shares"></span></div>
                 </div>
             </div>
 
             <!-- Settings Tab -->
             <div id="tab-settings" class="tab-content">
-                <h2 data-i18n="truenas.section_settings">TrueNAS Settings</h2>
+                <h2 data-i18n="truenas.section_settings"></h2>
                 <div id="settings-error"></div>
                 <form id="truenas-settings-form">
                     <div class="form-group">
-                        <label data-i18n="truenas.label_host">Host</label>
+                        <label data-i18n="truenas.label_host"></label>
                         <input type="text" id="setting-host" placeholder="truenas.local">
-                        <small data-i18n="truenas.hint_host">Hostname or IP address of your TrueNAS server</small>
+                        <small data-i18n="truenas.hint_host"></small>
                     </div>
 
                     <div class="form-group">
-                        <label data-i18n="truenas.label_apikey">API Key</label>
+                        <label data-i18n="truenas.label_apikey"></label>
                         <input type="password" id="setting-apikey" placeholder="API Key">
                         <small data-i18n="truenas.hint_apikey">Create an API key under System → API Keys in TrueNAS</small>
                     </div>
 
                     <div class="form-group checkbox">
                         <input type="checkbox" id="setting-https" checked>
-                        <label for="setting-https" data-i18n="truenas.label_https">Use HTTPS</label>
+                        <label for="setting-https" data-i18n="truenas.label_https"></label>
                     </div>
 
                     <div class="form-group checkbox">
                         <input type="checkbox" id="setting-insecure">
-                        <label for="setting-insecure" data-i18n="truenas.label_insecure">Accept self-signed certificates (insecure)</label>
+                        <label for="setting-insecure" data-i18n="truenas.label_insecure"></label>
                     </div>
 
                     <div class="form-group checkbox">
                         <input type="checkbox" id="setting-readonly">
-                        <label for="setting-readonly" data-i18n="truenas.label_readonly">Read-only mode (no changes allowed)</label>
+                        <label for="setting-readonly" data-i18n="truenas.label_readonly"></label>
                     </div>
 
                     <div class="form-group checkbox">
                         <input type="checkbox" id="setting-destructive">
-                        <label for="setting-destructive" data-i18n="truenas.label_destructive">Allow destructive operations (delete, rollback)</label>
+                        <label for="setting-destructive" data-i18n="truenas.label_destructive"></label>
                     </div>
 
                     <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" id="test-connection-btn" data-i18n="truenas.btn_test_connection">Test Connection</button>
-                        <button type="submit" class="btn btn-primary" data-i18n="common.btn_save">Save</button>
+                        <button type="button" class="btn btn-secondary" id="test-connection-btn" data-i18n="truenas.btn_test_connection"></button>
+                        <button type="submit" class="btn btn-primary" data-i18n="common.btn_save"></button>
                     </div>
                 </form>
             </div>
@@ -196,29 +196,29 @@
     <!-- Modal: Create Dataset -->
     <div id="modal-dataset" class="truenas-modal">
         <div class="modal-content">
-            <h3 data-i18n="truenas.modal_dataset_title">Create New Dataset</h3>
+            <h3 data-i18n="truenas.modal_dataset_title"></h3>
             <div id="dataset-error"></div>
             <form id="dataset-form">
                 <div class="form-group">
-                    <label data-i18n="truenas.label_name_example">Name (e.g. tank/share)</label>
+                    <label data-i18n="truenas.label_name_example"></label>
                     <input type="text" id="dataset-name" required placeholder="tank/my-share">
                 </div>
                 <div class="form-group">
-                    <label data-i18n="truenas.label_compression">Compression</label>
+                    <label data-i18n="truenas.label_compression"></label>
                     <select id="dataset-compression">
-                        <option value="lz4" selected data-i18n="truenas.opt_lz4">LZ4 (recommended)</option>
-                        <option value="gzip" data-i18n="truenas.opt_gzip">GZIP</option>
-                        <option value="zle" data-i18n="truenas.opt_zle">ZLE</option>
-                        <option value="off" data-i18n="truenas.opt_off">Off</option>
+                        <option value="lz4" selected data-i18n="truenas.opt_lz4"></option>
+                        <option value="gzip" data-i18n="truenas.opt_gzip"></option>
+                        <option value="zle" data-i18n="truenas.opt_zle"></option>
+                        <option value="off" data-i18n="truenas.opt_off"></option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label data-i18n="truenas.label_quota">Quota (GB, optional - 0 = unlimited)</label>
+                    <label data-i18n="truenas.label_quota"></label>
                     <input type="number" id="dataset-quota" min="0" value="0">
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" data-close-modal data-i18n="common.btn_cancel">Cancel</button>
-                    <button type="submit" class="btn btn-primary" data-i18n="truenas.btn_create">Create</button>
+                    <button type="button" class="btn btn-secondary" data-close-modal data-i18n="common.btn_cancel"></button>
+                    <button type="submit" class="btn btn-primary" data-i18n="truenas.btn_create"></button>
                 </div>
             </form>
         </div>
@@ -227,30 +227,30 @@
     <!-- Modal: Create Snapshot -->
     <div id="modal-snapshot" class="truenas-modal">
         <div class="modal-content">
-            <h3 data-i18n="truenas.modal_snapshot_title">Create Snapshot</h3>
+            <h3 data-i18n="truenas.modal_snapshot_title"></h3>
             <div id="snapshot-error"></div>
             <form id="snapshot-form">
                 <div class="form-group">
-                    <label data-i18n="truenas.nav_datasets">Dataset</label>
+                    <label data-i18n="truenas.nav_datasets"></label>
                     <select id="snapshot-dataset" required>
                         <option value="">...</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label data-i18n="truenas.label_name_optional">Name (optional, auto-generated)</label>
+                    <label data-i18n="truenas.label_name_optional"></label>
                     <input type="text" id="snapshot-name" placeholder="aura-20240101-120000">
                 </div>
                 <div class="form-group checkbox">
                     <input type="checkbox" id="snapshot-recursive">
-                    <label for="snapshot-recursive" data-i18n="truenas.label_recursive">Recursive (incl. sub-datasets)</label>
+                    <label for="snapshot-recursive" data-i18n="truenas.label_recursive"></label>
                 </div>
                 <div class="form-group">
-                    <label data-i18n="truenas.label_retention">Retention (days, 0 = forever)</label>
+                    <label data-i18n="truenas.label_retention"></label>
                     <input type="number" id="snapshot-retention" min="0" value="0">
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" data-close-modal data-i18n="common.btn_cancel">Cancel</button>
-                    <button type="submit" class="btn btn-primary" data-i18n="truenas.btn_create">Create</button>
+                    <button type="button" class="btn btn-secondary" data-close-modal data-i18n="common.btn_cancel"></button>
+                    <button type="submit" class="btn btn-primary" data-i18n="truenas.btn_create"></button>
                 </div>
             </form>
         </div>
@@ -259,28 +259,28 @@
     <!-- Modal: Create Share -->
     <div id="modal-share" class="truenas-modal">
         <div class="modal-content">
-            <h3 data-i18n="truenas.modal_share_title">Create SMB Share</h3>
+            <h3 data-i18n="truenas.modal_share_title"></h3>
             <div id="share-error"></div>
             <form id="share-form">
                 <div class="form-group">
-                    <label data-i18n="truenas.label_name">Name</label>
+                    <label data-i18n="truenas.label_name"></label>
                     <input type="text" id="share-name" required placeholder="MyShare">
                 </div>
                 <div class="form-group">
-                    <label data-i18n="truenas.label_path">Path</label>
+                    <label data-i18n="truenas.label_path"></label>
                     <input type="text" id="share-path" required placeholder="/mnt/tank/share">
                 </div>
                 <div class="form-group checkbox">
                     <input type="checkbox" id="share-guest">
-                    <label for="share-guest" data-i18n="truenas.label_guest_access">Allow guest access</label>
+                    <label for="share-guest" data-i18n="truenas.label_guest_access"></label>
                 </div>
                 <div class="form-group checkbox">
                     <input type="checkbox" id="share-timemachine">
-                    <label for="share-timemachine" data-i18n="truenas.label_timemachine">Time Machine support (Mac)</label>
+                    <label for="share-timemachine" data-i18n="truenas.label_timemachine"></label>
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" data-close-modal data-i18n="common.btn_cancel">Cancel</button>
-                    <button type="submit" class="btn btn-primary" data-i18n="truenas.btn_create">Create</button>
+                    <button type="button" class="btn btn-secondary" data-close-modal data-i18n="common.btn_cancel"></button>
+                    <button type="submit" class="btn btn-primary" data-i18n="truenas.btn_create"></button>
                 </div>
             </form>
         </div>

@@ -151,7 +151,7 @@
     }
 
     function agentTaskPrompt(entry, task) {
-        return desktopText('desktop.agent_task_prompt', 'Please work on {{path}}.\n\nTask:\n{{task}}')
+        return desktopText('desktop.agent_task_prompt')
             .replaceAll('{{path}}', entry.path || '')
             .replaceAll('{{name}}', entry.name || entry.path || '')
             .replaceAll('{{task}}', task || '');
@@ -178,7 +178,7 @@
     function askAgentAboutFile(file) {
         const entry = chatFileContextFromEntry(file);
         if (!entry) return;
-        const prompt = desktopText('desktop.chat_ask_file_prompt', 'What should I know about {{name}}?')
+        const prompt = desktopText('desktop.chat_ask_file_prompt')
             .replaceAll('{{name}}', entry.name || entry.path);
         openApp('agent-chat', {
             chat_files: [entry],
@@ -396,6 +396,9 @@
                     settingSelect('appearance.theme', 'desktop.settings_theme', 'desktop.settings_theme_desc', [
                         ['standard', 'desktop.settings_theme_standard'], ['fruity', 'desktop.settings_theme_fruity']
                     ]),
+                    settingSelect('appearance.fruity_mode', 'desktop.settings_fruity_mode', 'desktop.settings_fruity_mode_desc', [
+                        ['light', 'desktop.settings_fruity_mode_light'], ['dark', 'desktop.settings_fruity_mode_dark']
+                    ]),
                     settingSelect('appearance.accent', 'desktop.settings_accent', 'desktop.settings_accent_desc', [
                         ['teal', 'desktop.settings_accent_teal'], ['orange', 'desktop.settings_accent_orange'], ['blue', 'desktop.settings_accent_blue'], ['violet', 'desktop.settings_accent_violet'], ['green', 'desktop.settings_accent_green']
                     ]),
@@ -487,7 +490,7 @@
             <aside class="vd-settings-sidebar" aria-label="${esc(t('desktop.app_settings'))}">
                 <div class="vd-settings-sidebar-title">${esc(t('desktop.app_settings'))}</div>
                 <div class="vd-settings-search">
-                    <input type="search" class="vd-settings-search-input" placeholder="${esc(t('desktop.settings_search_placeholder', 'Search settings\u2026'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
+                    <input type="search" class="vd-settings-search-input" placeholder="${esc(t('desktop.settings_search_placeholder'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
                 </div>
                 ${sections.map(section => `<button type="button" class="vd-settings-nav ${section.id === active.id ? 'active' : ''}" data-section="${esc(section.id)}">
                     ${iconMarkup(section.icon, section.fallback || section.icon, 'vd-settings-nav-icon', 18)}<span>${esc(t(section.title))}</span>
@@ -580,13 +583,22 @@
 
     async function saveDesktopSetting(key, value, host) {
         try {
-            const body = await api('/api/desktop/settings', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key, value })
-            });
+            const updates = [{ key, value }];
+            if (key === 'appearance.theme') {
+                const pairedIconTheme = value === 'fruity' ? 'whitesur' : value === 'standard' ? 'papirus' : '';
+                if (pairedIconTheme && settingValue('appearance.icon_theme') !== pairedIconTheme) {
+                    updates.push({ key: 'appearance.icon_theme', value: pairedIconTheme });
+                }
+            }
             if (!state.bootstrap) state.bootstrap = {};
-            state.bootstrap.settings = body.settings || Object.assign(desktopSettings(), { [key]: value });
+            for (const update of updates) {
+                const body = await api('/api/desktop/settings', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(update)
+                });
+                state.bootstrap.settings = body.settings || Object.assign(desktopSettings(), { [update.key]: update.value });
+            }
             applyDesktopSettings();
             renderStartButtonIcon();
             renderIcons();
@@ -1094,6 +1106,9 @@
             }
         });
         root.focus();
+        registerWindowCleanup(id, () => {
+            host.innerHTML = '';
+        });
     }
 
     function evaluateProgrammerExpression(expression, base) {

@@ -1009,19 +1009,21 @@ func HomepagePublishToLocal(cfg HomepageConfig, projectDir string, logger *slog.
 
 var generatedImageRefRegex = regexp.MustCompile(`/files/generated_images/([^"' ><\\]+)`)
 var legacyRootGeneratedImageRefRegex = regexp.MustCompile(`(?:^|[^A-Za-z0-9_./-])/(img_[A-Za-z0-9_-]+\.(?i:jpe?g|png|webp|gif))`)
+var generatedImageAssetRefRegex = regexp.MustCompile(`/assets/(img_[A-Za-z0-9_-]+\.(?i:jpe?g|png|webp|gif|avif))`)
 var generatedVideoRefRegex = regexp.MustCompile(`/files/generated_videos/([^"' ><\\]+)`)
 var audioFileRefRegex = regexp.MustCompile(`/files/audio/([^"' ><\\]+)`)
 var documentFileRefRegex = regexp.MustCompile(`/files/documents/([^"' ><\\]+)`)
 
 type assetRef struct {
-	subdir string
-	name   string
+	subdir       string
+	name         string
+	targetPrefix string
 }
 
 // copyAssetsToBuildDir scans HTML/CSS/JS files in the build directory for
-// /files/<subdir>/<name> references (generated_images, generated_videos, audio, documents) and
-// copies the actual files from the AuraGo data directory into the build
-// directory so the Caddy/Python web server can serve them as static assets.
+// generated AuraGo file references and copies the actual files from the AuraGo
+// data directory into the build directory so the Caddy/Python web server can
+// serve them as static assets.
 func copyAssetsToBuildDir(buildPath, dataDir string, logger *slog.Logger) {
 	if dataDir == "" {
 		return
@@ -1029,13 +1031,15 @@ func copyAssetsToBuildDir(buildPath, dataDir string, logger *slog.Logger) {
 
 	refs := make(map[assetRef]struct{})
 	regexes := []struct {
-		re     *regexp.Regexp
-		subdir string
+		re           *regexp.Regexp
+		subdir       string
+		targetPrefix string
 	}{
-		{generatedImageRefRegex, "generated_images"},
-		{generatedVideoRefRegex, "generated_videos"},
-		{audioFileRefRegex, "audio"},
-		{documentFileRefRegex, "documents"},
+		{generatedImageRefRegex, "generated_images", "files/generated_images"},
+		{generatedImageAssetRefRegex, "generated_images", "assets"},
+		{generatedVideoRefRegex, "generated_videos", "files/generated_videos"},
+		{audioFileRefRegex, "audio", "files/audio"},
+		{documentFileRefRegex, "documents", "files/documents"},
 	}
 
 	filepath.Walk(buildPath, func(path string, info os.FileInfo, err error) error {
@@ -1054,7 +1058,7 @@ func copyAssetsToBuildDir(buildPath, dataDir string, logger *slog.Logger) {
 		for _, r := range regexes {
 			for _, m := range r.re.FindAllSubmatch(data, -1) {
 				if len(m) > 1 {
-					refs[assetRef{subdir: r.subdir, name: string(m[1])}] = struct{}{}
+					refs[assetRef{subdir: r.subdir, name: string(m[1]), targetPrefix: r.targetPrefix}] = struct{}{}
 				}
 			}
 		}
@@ -1073,7 +1077,7 @@ func copyAssetsToBuildDir(buildPath, dataDir string, logger *slog.Logger) {
 			logger.Warn("[Homepage] Could not copy asset for local serving", "subdir", ref.subdir, "file", ref.name, "error", readErr)
 			continue
 		}
-		targetDir := filepath.Join(buildPath, "files", ref.subdir)
+		targetDir := filepath.Join(buildPath, filepath.FromSlash(ref.targetPrefix))
 		if mkdirErr := os.MkdirAll(targetDir, 0755); mkdirErr != nil {
 			logger.Warn("[Homepage] Could not create target directory for assets", "dir", targetDir, "error", mkdirErr)
 			return

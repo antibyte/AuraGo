@@ -62,6 +62,11 @@ Wähle deinen KI-Provider:
 
 Diese Schritte kannst du auch später nachholen.
 
+### Nach dem Setup: Erfolgsbildschirm und Config-Deep-Links
+
+Der **Erfolgsbildschirm** bestätigt das Speichern, zeigt optional **Neustart empfohlen**, **empfohlene nächste Schritte** (Deep-Links zu `/config#providers`, `/config#web_config`, `/config#server`, `/config#backup_restore`) und **Zum Chat**.
+
+
 ## Der erste Chat
 
 Nach dem Setup landest du im **Chat** – das Herzstück von AuraGo.

@@ -277,7 +277,7 @@ function renderParticipantChips() {
     const container = document.getElementById('appointment-participant-chips');
     if (!container) return;
     if (selectedParticipantIds.length === 0) {
-        container.innerHTML = '<span style="color:var(--text-secondary);font-size:0.82rem;line-height:1.6">' + esc(t('knowledge.appointments_participants_empty') || 'No participants added') + '</span>';
+        container.innerHTML = '<span style="color:var(--text-secondary);font-size:0.82rem;line-height:1.6">' + esc(t('knowledge.appointments_participants_empty')) + '</span>';
         return;
     }
     container.innerHTML = selectedParticipantIds.map(p => {
@@ -285,7 +285,7 @@ function renderParticipantChips() {
         return `<span class="kc-chip">
             <span class="kc-chip-avatar">${esc(initial)}</span>
             <span>${esc(p.name)}</span>
-            <button class="kc-chip-remove" onclick="removeParticipantChip('${esc(p.id)}')" title="${esc(t('common.btn_remove') || 'Remove')}">&times;</button>
+            <button class="kc-chip-remove" onclick="removeParticipantChip('${esc(p.id)}')" title="${esc(t('common.btn_remove'))}">&times;</button>
         </span>`;
     }).join('');
 }
@@ -344,7 +344,7 @@ async function filterParticipantSuggestions() {
     }).slice(0, 8);
 
     if (matches.length === 0) {
-        dropdown.innerHTML = `<div class="kc-picker-empty">${esc(t('knowledge.contacts_empty_title') || 'No contacts found')}</div>`;
+        dropdown.innerHTML = `<div class="kc-picker-empty">${esc(t('knowledge.contacts_empty_title'))}</div>`;
     } else {
         dropdown.innerHTML = matches.map(c => {
             const initial = c.name ? c.name.charAt(0).toUpperCase() : '?';

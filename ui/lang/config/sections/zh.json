@@ -471,7 +471,7 @@
   "config.section.rules.label": "规则",
   "config.section.rules.desc": "管理按任务匹配的代理护栏",
   "config.section.composio.label": "Composio",
-  "config.section.composio.desc": "Mianxiang daili de waibu jicheng mulu he gongju laiyuan",
+  "config.section.composio.desc": "面向代理的外部集成目录和工具来源",
   "config.section.virtual_desktop.label": "虚拟桌面",
   "config.section.virtual_desktop.desc": "由智能体控制应用、文件和小组件的浏览器桌面。",
   "config.github.test_btn": "测试连接",
@@ -483,5 +483,6 @@
   "config.group_title.agent.announcement_detector": "响应修正",
   "config.group_title.agent.importance_scoring": "重要性评分",
   "config.group_title.agent.auto_learning": "自动学习",
-  "config.group_title.agent.reuse_first": "优先复用"
+  "config.group_title.agent.reuse_first": "优先复用",
+  "config.github.saving": "正在保存..."
 }

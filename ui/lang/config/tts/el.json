@@ -53,5 +53,6 @@
   "config.tts.piper_status_disabled": "⚪ Το Piper είναι απενεργοποιημένο",
   "config.tts.piper_status_running": "🟢 Ο Πάιπερ τρέχει",
   "config.tts.piper_status_stopped": "🟡 Το Piper έχει σταματήσει",
-  "config.tts.piper_status_error": "🔴 Σφάλμα Piper"
+  "config.tts.piper_status_error": "🔴 Σφάλμα Piper",
+  "config.tts.language_custom_help": "Use Custom only when your TTS provider requires a language code not listed above."
 }

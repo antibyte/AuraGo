@@ -85,7 +85,8 @@ function renderTelnyxSection(section) {
     // Voice Language
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.telnyx.voice_language_label') + '</div>';
-    html += '<input class="field-input" type="text" data-path="telnyx.voice_language" value="' + escapeAttr(data.voice_language || 'en') + '" placeholder="en">';
+    html += '<div class="field-help">' + t('help.telnyx.voice_language') + '</div>';
+    html += telnyxVoiceLanguageSelect(data.voice_language || 'en');
     html += '</div>';
 
     // Voice Gender
@@ -148,6 +149,21 @@ function renderTelnyxSection(section) {
     } else {
         telnyxSetBanner('neutral', '⚪ ' + t('config.telnyx.status_disabled'));
     }
+}
+
+function telnyxVoiceLanguageSelect(selected) {
+    const languages = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'ja', 'zh'];
+    const customOption = typeof CFG_OPTION_OTHER_CUSTOM === 'string' ? CFG_OPTION_OTHER_CUSTOM : 'Other / Custom';
+    const current = String(selected || '').trim();
+    const isCustom = current && !languages.includes(current);
+    let html = '<select class="field-select" data-path="telnyx.voice_language" onchange="cfgToggleCustomInput(this)">';
+    languages.forEach(code => {
+        html += '<option value="' + code + '"' + (current === code ? ' selected' : '') + '>' + code + '</option>';
+    });
+    html += '<option value="' + escapeAttr(customOption) + '"' + (isCustom ? ' selected' : '') + '>' + cfgFieldOptionLabel(customOption) + '</option>';
+    html += '</select>';
+    html += '<input class="field-input cfg-custom-input' + (isCustom ? '' : ' is-hidden') + '" type="text" data-custom-for="telnyx.voice_language" value="' + escapeAttr(isCustom ? current : '') + '" placeholder="en">';
+    return html;
 }
 
 function telnyxSetBanner(state, text) {

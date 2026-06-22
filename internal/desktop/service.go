@@ -57,6 +57,7 @@ type Service struct {
 	mediaRegistryDB     *sql.DB
 	imageGalleryDB      *sql.DB
 	codeContainer       *CodeContainerService
+	openSCADContainer   *OpenSCADContainerService
 	integritySecrets    IntegritySecretStore
 	integrityPrivateKey []byte
 	integrityPublicKey  []byte
@@ -104,9 +105,10 @@ func NewService(cfg Config) (*Service, error) {
 		return nil, err
 	}
 	return &Service{
-		cfg:           normalized,
-		codeContainer: NewCodeContainerService(normalized, nil),
-		listCache:     make(map[string]listCacheEntry),
+		cfg:               normalized,
+		codeContainer:     NewCodeContainerService(normalized, nil),
+		openSCADContainer: NewOpenSCADContainerService(normalized, nil),
+		listCache:         make(map[string]listCacheEntry),
 	}, nil
 }
 
@@ -236,6 +238,10 @@ func (s *Service) Init(ctx context.Context) error {
 		return err
 	}
 	s.cleanupStaleDeletes()
+	if err := s.seedDefaultPetLocked(ctx); err != nil {
+		cleanup()
+		return fmt.Errorf("seed default pet: %w", err)
+	}
 	return nil
 }
 
@@ -269,6 +275,13 @@ func (s *Service) Close() error {
 		}
 		cancel()
 	}
+	if s.openSCADContainer != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		if err := s.openSCADContainer.Stop(ctx); err != nil {
+			closeErr = errors.Join(closeErr, fmt.Errorf("openscad container stop: %w", err))
+		}
+		cancel()
+	}
 
 	// Close DBs in a consistent order. Always attempt every close.
 	if s.db != nil {
@@ -298,6 +311,13 @@ func (s *Service) CodeContainer() *CodeContainerService {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.codeContainer
+}
+
+// OpenSCADContainer returns the lazy OpenSCAD compiler container service.
+func (s *Service) OpenSCADContainer() *OpenSCADContainerService {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.openSCADContainer
 }
 
 // DB returns the underlying SQLite database handle.
@@ -513,6 +533,37 @@ func (s *Service) seedDesktopShortcutsLocked(ctx context.Context) error {
 	return tx.Commit()
 }
 
+func (s *Service) seedDefaultPetLocked(ctx context.Context) error {
+	var seeded string
+	err := s.db.QueryRowContext(ctx, `SELECT value FROM desktop_meta WHERE key = 'desktop_default_pet_seeded'`).Scan(&seeded)
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("read default pet seed state: %w", err)
+	}
+	if err := ensureBundledDefaultPets(s.cfg.WorkspaceDir); err != nil {
+		return err
+	}
+	if seeded != "true" {
+		now := time.Now().UTC().Format(time.RFC3339Nano)
+		_, err = s.db.ExecContext(ctx, `INSERT INTO desktop_meta(key, value) VALUES('desktop_default_pet_seeded', 'true')
+			ON CONFLICT(key) DO UPDATE SET value = excluded.value`, now)
+		if err != nil {
+			return fmt.Errorf("mark default pet seeded: %w", err)
+		}
+	}
+	// Activate the default pet if nothing is active yet.
+	var activeID string
+	_ = s.db.QueryRowContext(ctx, `SELECT value FROM desktop_settings WHERE key = 'pet.active_id'`).Scan(&activeID)
+	if activeID == "" {
+		now := time.Now().UTC().Format(time.RFC3339Nano)
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO desktop_settings(key, value, updated_at) VALUES('pet.active_id', 'openpets-default', ?)
+			ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`, now); err != nil {
+			return fmt.Errorf("activate default pet: %w", err)
+		}
+	}
+	s.InvalidateSettings()
+	return nil
+}
+
 func (s *Service) seedBuiltinWidgetsLocked(ctx context.Context) error {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	defaults := []Widget{
@@ -677,6 +728,13 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 		Settings:      s.cacheSettings,
 		IconCatalog:   DesktopIconCatalog(s.cacheSettings),
 	}
+
+	pets, err := s.listPetsWithDefaultRepair(s.cfg.WorkspaceDir)
+	if err != nil {
+		return BootstrapPayload{}, err
+	}
+	payload.Pets = pets
+	payload.ActivePetID = s.cacheSettings["pet.active_id"]
 
 	return payload, nil
 }

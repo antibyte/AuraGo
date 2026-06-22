@@ -43,5 +43,6 @@
   "config.telnyx.status_no_credentials": "Telnyx API-sleutel ontbreekt",
   "config.telnyx.status_ok": "Verbonden met Telnyx",
   "config.telnyx.status_success": "✅",
-  "config.telnyx.status_error": "❌"
+  "config.telnyx.status_error": "❌",
+  "help.telnyx.voice_language": "Standaardtaalcode voor Telnyx-spraakprompts en oproeptranscriptie."
 }

@@ -27,7 +27,7 @@ func applyTokenEstimationFallback(promptTokens, completionTokens, totalTokens in
 			// Only total provided: estimate prompt from request, rest is completion
 			estimatedPromptTokens := 0
 			for _, m := range req.Messages {
-				estimatedPromptTokens += estimateTokensForModel(messageText(m), req.Model)
+				estimatedPromptTokens += estimateTokensForModel(messageTextWithReasoningForAccounting(m), req.Model)
 			}
 			promptTokens = estimatedPromptTokens
 			completionTokens = totalTokens - promptTokens
@@ -41,7 +41,7 @@ func applyTokenEstimationFallback(promptTokens, completionTokens, totalTokens in
 
 	estimatedPromptTokens := 0
 	for _, m := range req.Messages {
-		estimatedPromptTokens += estimateTokensForModel(messageText(m), req.Model)
+		estimatedPromptTokens += estimateTokensForModel(messageTextWithReasoningForAccounting(m), req.Model)
 	}
 
 	if promptTokens == 0 {

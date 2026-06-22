@@ -35,6 +35,25 @@ func newCodeStudioDockerAdapter(cfg desktop.Config, logger *slog.Logger) codeStu
 	}
 }
 
+func newOpenSCADDockerAdapter(cfg desktop.Config, logger *slog.Logger) codeStudioDockerAdapter {
+	adapter := newCodeStudioDockerAdapter(cfg, logger)
+	jobsRoot := strings.TrimSpace(cfg.DataDir)
+	if jobsRoot == "" {
+		dbPath := strings.TrimSpace(cfg.DBPath)
+		if dbPath != "" {
+			jobsRoot = filepath.Join(filepath.Dir(dbPath), "data")
+		} else {
+			jobsRoot = "data"
+		}
+	}
+	jobsRoot = filepath.Join(jobsRoot, "openscad", "jobs")
+	if abs, err := filepath.Abs(jobsRoot); err == nil {
+		jobsRoot = abs
+	}
+	adapter.cfg.WorkspaceDir = filepath.Clean(jobsRoot)
+	return adapter
+}
+
 func (a codeStudioDockerAdapter) ListContainers(ctx context.Context, all bool) ([]desktop.CodeDockerContainer, error) {
 	raw := tools.DockerListContainers(a.cfg, all)
 	var resp struct {

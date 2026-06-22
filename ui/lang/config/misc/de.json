@@ -67,5 +67,8 @@
   "config.vault.delete_desc": "Dies löscht den Vault <strong>unwiderruflich</strong>. Alle gespeicherten API-Keys, Passwörter und Zugangsdaten gehen für immer verloren!<br><br>Gib <strong style=\"color:#f87171;\">löschen</strong> ein um fortzufahren:",
   "config.vault.delete_title": "⚠️ Vault unwiderruflich löschen",
   "config.vault.deleted_toast": "✓ Vault gelöscht. Neuen Master Key eingeben, speichern und AuraGo neu starten.",
-  "config.vault.destroy_button": "Vernichten"
+  "config.vault.destroy_button": "Vernichten",
+  "config.menu": "Menü",
+  "config.toggle_sidebar": "Seitenleiste ein-/ausblenden",
+  "config.page_description": "Konfiguriere die Einstellungen deines KI-Agenten"
 }

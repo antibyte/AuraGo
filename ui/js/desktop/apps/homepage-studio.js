@@ -16,63 +16,98 @@
             previewUrl: '',
             statusLoaded: false,
             homepageEnabled: false,
-            disposed: false
+            disposed: false,
+            activePanel: 'preview',
+            historyQuery: '',
+            historyFilter: '',
+            historyEntries: [],
+            historyAbortCtrl: null
         };
         instances.set(windowId, state);
 
         container.innerHTML = `
             <div class="vd-hp-studio">
-                <aside class="vd-hp-chat" aria-label="${esc(t('homepage_studio.welcome_heading', 'Homepage Studio'))}">
+                <aside class="vd-hp-chat" aria-label="${esc(t('homepage_studio.welcome_heading'))}">
                     <header class="vd-hp-chat-header">
-                        <label class="vd-hp-chat-header-label" for="hp-target-${windowId}">${esc(t('homepage_studio.target_label', 'Target'))}</label>
+                        <label class="vd-hp-chat-header-label" for="hp-target-${windowId}">${esc(t('homepage_studio.target_label'))}</label>
                         <select class="vd-hp-target-select" id="hp-target-${windowId}" aria-describedby="hp-status-${windowId}">
-                            <option value="local">${esc(t('homepage_studio.target_local', 'Local Server'))}</option>
-                            <option value="vercel">${esc(t('homepage_studio.target_vercel', 'Vercel'))}</option>
-                            <option value="netlify">${esc(t('homepage_studio.target_netlify', 'Netlify'))}</option>
-                            <option value="remote">${esc(t('homepage_studio.target_remote', 'Remote Server'))}</option>
+                            <option value="local">${esc(t('homepage_studio.target_local'))}</option>
+                            <option value="vercel">${esc(t('homepage_studio.target_vercel'))}</option>
+                            <option value="netlify">${esc(t('homepage_studio.target_netlify'))}</option>
+                            <option value="remote">${esc(t('homepage_studio.target_remote'))}</option>
                         </select>
-                        <span class="vd-hp-status-dot loading" id="hp-status-${windowId}" role="status" aria-live="polite" title="${esc(t('homepage_studio.checking_status', 'Checking status...'))}"></span>
+                        <span class="vd-hp-status-dot loading" id="hp-status-${windowId}" role="status" aria-live="polite" title="${esc(t('homepage_studio.checking_status'))}"></span>
                     </header>
                     <section class="vd-hp-chat-log" id="hp-log-${windowId}" aria-live="polite">
                         <div class="vd-hp-welcome">
                             <div class="vd-hp-welcome-icon" aria-hidden="true">🌐</div>
-                            <h2 class="vd-hp-welcome-heading">${esc(t('homepage_studio.welcome_heading', 'Homepage Studio'))}</h2>
-                            <p class="vd-hp-welcome-sub">${esc(t('homepage_studio.welcome', 'Welcome to Homepage Studio! Describe the website you want to build, and I\'ll create it for you.'))}</p>
+                            <h2 class="vd-hp-welcome-heading">${esc(t('homepage_studio.welcome_heading'))}</h2>
+                            <p class="vd-hp-welcome-sub">${esc(t('homepage_studio.welcome'))}</p>
                         </div>
                     </section>
                     <form class="vd-hp-chat-form" id="hp-form-${windowId}">
-                        <textarea class="vd-hp-chat-input" id="hp-input-${windowId}" rows="1" placeholder="${esc(t('homepage_studio.chat_placeholder', 'Describe your website changes...'))}" autocomplete="off" enterkeyhint="send" aria-label="${esc(t('homepage_studio.chat_placeholder', 'Describe your website changes...'))}"></textarea>
+                        <textarea class="vd-hp-chat-input" id="hp-input-${windowId}" rows="1" placeholder="${esc(t('homepage_studio.chat_placeholder'))}" autocomplete="off" enterkeyhint="send" aria-label="${esc(t('homepage_studio.chat_placeholder'))}"></textarea>
                         <button type="submit" class="vd-hp-send-btn" id="hp-send-${windowId}">
                             ${iconMarkup('chat', 'S', 'vd-hp-send-icon', 15)}
-                            <span id="hp-send-label-${windowId}">${esc(t('desktop.send', 'Send'))}</span>
+                            <span id="hp-send-label-${windowId}">${esc(t('desktop.send'))}</span>
                         </button>
                     </form>
                 </aside>
                 <main class="vd-hp-preview">
                     <header class="vd-hp-preview-header">
-                        <output class="vd-hp-preview-url" id="hp-url-${windowId}" title="${esc(t('homepage_studio.no_url', 'No preview URL available for this target'))}">—</output>
-                        <div class="vd-hp-preview-actions">
-                            <button type="button" class="vd-hp-preview-btn" id="hp-refresh-${windowId}" title="${esc(t('homepage_studio.refresh_preview', 'Refresh preview'))}">
-                                ${iconMarkup('refresh', '↻', 'vd-hp-btn-icon', 14)}
-                                <span>${esc(t('homepage_studio.refresh', 'Refresh'))}</span>
+                        <div class="vd-hp-preview-tabs" role="tablist" aria-label="${esc(t('homepage_studio.preview_tabs'))}">
+                            <button type="button" class="vd-hp-preview-tab is-active" id="hp-tab-preview-${windowId}" role="tab" aria-selected="true" aria-controls="hp-panel-preview-${windowId}">
+                                ${esc(t('homepage_studio.preview_tab'))}
                             </button>
-                            <button type="button" class="vd-hp-preview-btn is-disabled" id="hp-external-${windowId}" disabled title="${esc(t('homepage_studio.open_external', 'Open in new tab'))}" aria-label="${esc(t('homepage_studio.open_external', 'Open in new tab'))}">
+                            <button type="button" class="vd-hp-preview-tab" id="hp-tab-history-${windowId}" role="tab" aria-selected="false" aria-controls="hp-panel-history-${windowId}">
+                                ${esc(t('homepage_studio.history_tab'))}
+                            </button>
+                        </div>
+                        <div class="vd-hp-preview-url" id="hp-url-${windowId}" title="${esc(t('homepage_studio.no_url'))}">—</div>
+                        <div class="vd-hp-preview-actions">
+                            <button type="button" class="vd-hp-preview-btn" id="hp-refresh-${windowId}" title="${esc(t('homepage_studio.refresh_preview'))}">
+                                ${iconMarkup('refresh', '↻', 'vd-hp-btn-icon', 14)}
+                                <span>${esc(t('homepage_studio.refresh'))}</span>
+                            </button>
+                            <button type="button" class="vd-hp-preview-btn is-disabled" id="hp-external-${windowId}" disabled title="${esc(t('homepage_studio.open_external'))}" aria-label="${esc(t('homepage_studio.open_external'))}">
                                 ${iconMarkup('external', '↗', 'vd-hp-btn-icon', 14)}
                             </button>
                         </div>
                     </header>
                     <section class="vd-hp-preview-body" id="hp-preview-body-${windowId}">
-                        <div class="vd-hp-preview-placeholder" id="hp-placeholder-${windowId}">
-                            <div class="vd-hp-preview-placeholder-icon" aria-hidden="true">🌐</div>
-                            <h3 class="vd-hp-preview-placeholder-title">${esc(t('homepage_studio.preview_empty_title', 'No live preview yet'))}</h3>
-                            <p class="vd-hp-preview-placeholder-text">${esc(t('homepage_studio.preview_unavailable', 'Preview unavailable — start the homepage container first'))}</p>
+                        <div class="vd-hp-preview-panel is-active" id="hp-panel-preview-${windowId}" role="tabpanel" aria-labelledby="hp-tab-preview-${windowId}">
+                            <div class="vd-hp-preview-placeholder" id="hp-placeholder-${windowId}">
+                                <div class="vd-hp-preview-placeholder-icon" aria-hidden="true">🌐</div>
+                                <h3 class="vd-hp-preview-placeholder-title">${esc(t('homepage_studio.preview_empty_title'))}</h3>
+                                <p class="vd-hp-preview-placeholder-text">${esc(t('homepage_studio.preview_unavailable'))}</p>
+                            </div>
+                            <div class="vd-hp-preview-loading" id="hp-loading-${windowId}" aria-hidden="true">
+                                <span class="vd-hp-preview-loading-label">${esc(t('homepage_studio.preview_loading'))}</span>
+                                <div class="vd-hp-preview-skeleton" aria-hidden="true">
+                                    <div class="vd-hp-skel-bar"></div>
+                                    <div class="vd-hp-skel-hero"></div>
+                                    <div class="vd-hp-skel-row"><span></span><span></span><span></span></div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="vd-hp-preview-loading" id="hp-loading-${windowId}" aria-hidden="true">
-                            <span class="vd-hp-preview-loading-label">${esc(t('homepage_studio.preview_loading', 'Loading preview...'))}</span>
-                            <div class="vd-hp-preview-skeleton" aria-hidden="true">
-                                <div class="vd-hp-skel-bar"></div>
-                                <div class="vd-hp-skel-hero"></div>
-                                <div class="vd-hp-skel-row"><span></span><span></span><span></span></div>
+                        <div class="vd-hp-preview-panel vd-hp-history-panel" id="hp-panel-history-${windowId}" role="tabpanel" aria-labelledby="hp-tab-history-${windowId}" hidden>
+                            <div class="vd-hp-history-controls">
+                                <input type="search" class="vd-hp-history-search" id="hp-history-search-${windowId}" placeholder="${esc(t('homepage_studio.history_search_placeholder'))}" aria-label="${esc(t('homepage_studio.history_search_placeholder'))}">
+                                <select class="vd-hp-history-filter" id="hp-history-filter-${windowId}" aria-label="${esc(t('homepage_studio.history_filter_label'))}">
+                                    <option value="">${esc(t('homepage_studio.history_filter_all'))}</option>
+                                    <option value="note">${esc(t('homepage_studio.history_filter_note'))}</option>
+                                    <option value="decision">${esc(t('homepage_studio.history_filter_decision'))}</option>
+                                    <option value="milestone">${esc(t('homepage_studio.history_filter_milestone'))}</option>
+                                    <option value="feedback">${esc(t('homepage_studio.history_filter_feedback'))}</option>
+                                    <option value="question">${esc(t('homepage_studio.history_filter_question'))}</option>
+                                    <option value="observation">${esc(t('homepage_studio.history_filter_observation'))}</option>
+                                </select>
+                                <button type="button" class="vd-hp-history-refresh" id="hp-history-refresh-${windowId}" title="${esc(t('homepage_studio.refresh'))}">
+                                    ${iconMarkup('refresh', '↻', 'vd-hp-btn-icon', 14)}
+                                </button>
+                            </div>
+                            <div class="vd-hp-history-list" id="hp-history-list-${windowId}">
+                                <div class="vd-hp-history-empty">${esc(t('homepage_studio.history_loading'))}</div>
                             </div>
                         </div>
                     </section>
@@ -94,6 +129,14 @@
         const previewLoading = $(`hp-loading-${windowId}`);
         const refreshBtn = $(`hp-refresh-${windowId}`);
         const externalBtn = $(`hp-external-${windowId}`);
+        const previewTab = $(`hp-tab-preview-${windowId}`);
+        const historyTab = $(`hp-tab-history-${windowId}`);
+        const previewPanel = $(`hp-panel-preview-${windowId}`);
+        const historyPanel = $(`hp-panel-history-${windowId}`);
+        const historySearch = $(`hp-history-search-${windowId}`);
+        const historyFilter = $(`hp-history-filter-${windowId}`);
+        const historyRefresh = $(`hp-history-refresh-${windowId}`);
+        const historyList = $(`hp-history-list-${windowId}`);
 
         autoResizeTextarea(chatInput);
 
@@ -125,6 +168,21 @@
             if (state.previewUrl) window.open(state.previewUrl, '_blank');
         });
 
+        previewTab.addEventListener('click', () => switchPanel('preview'));
+        historyTab.addEventListener('click', () => {
+            switchPanel('history');
+            loadHistory();
+        });
+        historySearch.addEventListener('input', debounce(() => {
+            state.historyQuery = historySearch.value.trim();
+            loadHistory();
+        }, 250));
+        historyFilter.addEventListener('change', () => {
+            state.historyFilter = historyFilter.value;
+            loadHistory();
+        });
+        historyRefresh.addEventListener('click', () => loadHistory());
+
         loadStatus();
 
         function autoResizeTextarea(el) {
@@ -137,7 +195,7 @@
 
         async function loadStatus() {
             statusDot.className = 'vd-hp-status-dot loading';
-            statusDot.title = t('homepage_studio.checking_status', 'Checking status...');
+            statusDot.title = t('homepage_studio.checking_status');
             try {
                 const data = await api('/api/homepage/status');
                 state.statusLoaded = true;
@@ -145,7 +203,7 @@
 
                 if (!state.homepageEnabled) {
                     statusDot.className = 'vd-hp-status-dot offline';
-                    statusDot.title = t('homepage_studio.status_disabled', 'Homepage is disabled');
+                    statusDot.title = t('homepage_studio.status_disabled');
                     state.previewUrl = '';
                     updatePreviewUrl();
                     return;
@@ -156,24 +214,51 @@
                 const serverRunning = webRunning || pythonRunning;
                 statusDot.className = serverRunning ? 'vd-hp-status-dot online' : 'vd-hp-status-dot offline';
                 statusDot.title = serverRunning
-                    ? t('homepage_studio.status_online', 'Web server running')
-                    : t('homepage_studio.status_offline', 'Web server not running');
+                    ? t('homepage_studio.status_online')
+                    : t('homepage_studio.status_offline');
 
-                state.previewUrl = homepageStatusPreviewURL(data);
+                state.previewUrl = homepageStatusPreviewURL(data, state.target);
                 updatePreviewUrl();
             } catch (_) {
                 statusDot.className = 'vd-hp-status-dot offline';
-                statusDot.title = t('homepage_studio.status_error', 'Could not check status');
+                statusDot.title = t('homepage_studio.status_error');
                 state.previewUrl = '';
                 updatePreviewUrl();
             }
         }
 
-        function homepageStatusPreviewURL(data) {
+        function homepageStatusPreviewURL(data, target) {
             if (!data) return '';
             const webRunning = data.web_container && data.web_container.running;
             const pythonRunning = data.python_server && data.python_server.running;
             const serverRunning = webRunning || pythonRunning;
+
+            const firstString = (...values) => {
+                for (const value of values) {
+                    if (typeof value === 'string' && value.trim()) {
+                        return value.trim();
+                    }
+                }
+                return '';
+            };
+            const objectURL = key => {
+                const obj = data[key];
+                if (!obj || typeof obj !== 'object') return '';
+                return firstString(obj.preview_url, obj.url, obj.deployment_url, obj.deploy_url, obj.browser_url);
+            };
+
+            switch (target) {
+                case 'vercel':
+                    return firstString(data.vercel_url, data.vercel_deployment_url, data.deployment_url, objectURL('vercel'));
+                case 'netlify':
+                    return firstString(data.netlify_url, data.netlify_deploy_url, data.deploy_url, objectURL('netlify'));
+                case 'remote':
+                    return firstString(data.remote_url, data.remote_deploy_url, objectURL('remote'));
+                case 'local':
+                default:
+                    break;
+            }
+
             if (data.preview_url) return String(data.preview_url);
             if (serverRunning && data.tunnel_url) return String(data.tunnel_url);
             if (webRunning && data.web_container.browser_url) {
@@ -195,7 +280,7 @@
                 showPreview(state.previewUrl);
             } else {
                 previewUrl.textContent = '—';
-                previewUrl.title = t('homepage_studio.no_url', 'No preview URL available for this target');
+                previewUrl.title = t('homepage_studio.no_url');
                 hidePreview();
             }
         }
@@ -206,8 +291,9 @@
                 previewPlaceholder.style.display = 'none';
                 iframe = document.createElement('iframe');
                 iframe.className = 'vd-hp-preview-iframe';
-                iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups';
-                previewBody.insertBefore(iframe, previewLoading);
+                iframe.sandbox = 'allow-scripts allow-forms';
+                iframe.referrerPolicy = 'no-referrer';
+                previewPanel.insertBefore(iframe, previewLoading);
             }
             if (iframe.src !== url) {
                 previewLoading.classList.add('active');
@@ -247,6 +333,128 @@
             } else {
                 showPreview(state.previewUrl);
             }
+        }
+
+        function switchPanel(panel) {
+            state.activePanel = panel;
+            if (panel === 'preview') {
+                previewTab.classList.add('is-active');
+                previewTab.setAttribute('aria-selected', 'true');
+                historyTab.classList.remove('is-active');
+                historyTab.setAttribute('aria-selected', 'false');
+                previewPanel.classList.add('is-active');
+                previewPanel.removeAttribute('hidden');
+                historyPanel.classList.remove('is-active');
+                historyPanel.setAttribute('hidden', '');
+            } else {
+                historyTab.classList.add('is-active');
+                historyTab.setAttribute('aria-selected', 'true');
+                previewTab.classList.remove('is-active');
+                previewTab.setAttribute('aria-selected', 'false');
+                historyPanel.classList.add('is-active');
+                historyPanel.removeAttribute('hidden');
+                previewPanel.classList.remove('is-active');
+                previewPanel.setAttribute('hidden', '');
+            }
+        }
+
+        async function loadHistory() {
+            if (!state.homepageEnabled) {
+                renderHistory([], t('homepage_studio.history_disabled'));
+                return;
+            }
+            if (state.historyAbortCtrl) {
+                state.historyAbortCtrl.abort();
+            }
+            const abortCtrl = new AbortController();
+            state.historyAbortCtrl = abortCtrl;
+            try {
+                const params = new URLSearchParams();
+                if (state.historyQuery) params.set('q', state.historyQuery);
+                if (state.historyFilter) params.set('entry_type', state.historyFilter);
+                params.set('limit', '100');
+                const url = '/api/homepage/history' + (params.toString() ? '?' + params.toString() : '');
+                const data = await api(url, { signal: abortCtrl.signal });
+                if (data && data.status === 'success') {
+                    state.historyEntries = data.entries || [];
+                    renderHistory(state.historyEntries);
+                } else {
+                    renderHistory([], data && data.message ? data.message : t('homepage_studio.history_error'));
+                }
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+                renderHistory([], t('homepage_studio.history_error'));
+            } finally {
+                if (state.historyAbortCtrl === abortCtrl) {
+                    state.historyAbortCtrl = null;
+                }
+            }
+        }
+
+        function renderHistory(entries, emptyMessage) {
+            if (!historyList) return;
+            if (entries.length === 0) {
+                historyList.innerHTML = `<div class="vd-hp-history-empty">${esc(emptyMessage || t('homepage_studio.history_empty'))}</div>`;
+                return;
+            }
+            const typeLabel = type => t('homepage_studio.history_type_' + type, type);
+            const html = entries.map(e => {
+                const date = e.created_at ? new Date(e.created_at).toLocaleString() : '';
+                const type = esc(e.entry_type || 'note');
+                const content = esc(e.content || '');
+                const source = e.source ? `<span class="vd-hp-history-source">${esc(e.source)}</span>` : '';
+                const tags = (e.tags || []).map(tag => `<span class="vd-hp-history-tag">${esc(tag)}</span>`).join('');
+                const id = esc(String(e.id || ''));
+                return `
+                    <article class="vd-hp-history-entry vd-hp-history-type-${type}">
+                        <header class="vd-hp-history-entry-header">
+                            <span class="vd-hp-history-entry-type">${typeLabel(type)}</span>
+                            <time class="vd-hp-history-entry-time" datetime="${esc(e.created_at || '')}">${esc(date)}</time>
+                            <button type="button" class="vd-hp-history-delete" data-id="${id}" title="${esc(t('homepage_studio.history_delete'))}" aria-label="${esc(t('homepage_studio.history_delete'))}">×</button>
+                        </header>
+                        <p class="vd-hp-history-entry-content">${content}</p>
+                        <footer class="vd-hp-history-entry-footer">${source}${tags}</footer>
+                    </article>
+                `;
+            }).join('');
+            historyList.innerHTML = html;
+            historyList.querySelectorAll('.vd-hp-history-delete').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.getAttribute('data-id');
+                    if (!id) return;
+                    if (!confirm(t('homepage_studio.history_delete_confirm'))) return;
+                    try {
+                        await api('/api/homepage/history?id=' + encodeURIComponent(id), { method: 'DELETE' });
+                        loadHistory();
+                    } catch (err) {
+                        notify(t('homepage_studio.history_delete_error'));
+                    }
+                });
+            });
+        }
+
+        function debounce(fn, ms) {
+            let t;
+            return function (...args) {
+                clearTimeout(t);
+                t = setTimeout(() => fn.apply(this, args), ms);
+            };
+        }
+
+        function homepageWindowContext() {
+            return {
+                source: 'homepage-studio',
+                app_id: 'homepage-studio',
+                window_id: windowId,
+                label: t('homepage_studio.welcome_heading'),
+                purpose: 'Homepage Studio edits AuraGo homepage websites and pages in the managed homepage workspace.',
+                guide: 'Use homepage_project, homepage_file, homepage_quality, homepage_deploy, and homepage_git. Do not use virtual_desktop apps, widgets, or files for Homepage Studio site changes.',
+                resources: [{
+                    kind: 'homepage_target',
+                    label: state.target,
+                    path: state.target
+                }]
+            };
         }
 
         async function sendMessage(message) {
@@ -307,6 +515,8 @@
                 state.abortCtrl = null;
                 setBusy(false);
                 scrollToEnd();
+                refreshPreview();
+                loadHistory();
 
                 if (streamingContent.trim()) {
                     setTimeout(() => refreshPreview(), 500);
@@ -334,7 +544,8 @@
             const chatContext = {
                 source: 'homepage-studio',
                 target: state.target,
-                homepage_mode: true
+                homepage_mode: true,
+                window_context: homepageWindowContext()
             };
 
             try {
@@ -372,7 +583,7 @@
                             if (streamingBubble.classList.contains('vd-streaming')) queueFlush();
                         } else if (event === 'thinking_block') {
                             if (statusEl && (data.state === 'start') && renderer) {
-                                renderer.updateStatus(statusEl, t('desktop.chat_thinking', 'Reasoning...'));
+                                renderer.updateStatus(statusEl, t('desktop.chat_thinking'));
                             }
                         } else if (event === 'thinking' || event === 'tool_start' || event === 'tool_end' ||
                             event === 'co_agent_spawn' || event === 'workflow_plan' || event === 'coding' ||
@@ -431,8 +642,8 @@
         function setBusy(busy) {
             chatInput.disabled = !!busy;
             sendBtn.classList.toggle('is-stop', !!busy);
-            const sendText = t('desktop.send', 'Send');
-            const stopText = t('desktop.chat_stop', 'Stop');
+            const sendText = t('desktop.send');
+            const stopText = t('desktop.chat_stop');
             sendLabel.textContent = busy ? stopText : sendText;
             sendBtn.title = busy ? stopText : sendText;
         }
@@ -443,6 +654,7 @@
         if (!state) return;
         state.disposed = true;
         if (state.abortCtrl) { state.abortCtrl.abort(); state.abortCtrl = null; }
+        if (state.historyAbortCtrl) { state.historyAbortCtrl.abort(); state.historyAbortCtrl = null; }
         instances.delete(windowId);
     }
 

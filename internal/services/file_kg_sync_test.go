@@ -1,15 +1,23 @@
 package services
 
 import (
+	"context"
+	"database/sql"
+	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/kgquality"
 	"aurago/internal/memory"
+
+	"github.com/sashabaranov/go-openai"
+	_ "modernc.org/sqlite"
 )
 
 func TestFileKGSyncer_SyncAll_NilDependencies(t *testing.T) {
@@ -140,6 +148,156 @@ func TestFileKGSyncer_CleanupOrphans_RemovesRenamedAndDeletedFileEntities(t *tes
 	}
 	if len(orphanNodes) != 0 || len(orphanEdges) != 0 {
 		t.Fatalf("expected no orphan entities after cleanup, got nodes=%d edges=%d", len(orphanNodes), len(orphanEdges))
+	}
+}
+
+func TestFileKGSyncer_SyncFileCreatesCanonicalFileNode(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	cfg := &config.Config{}
+	cfg.LLM.Model = "test-model"
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	defer kg.Close()
+
+	path := "/home/aurago/aurago/data/documents/test_pdf.pdf"
+	if err := stm.UpdateFileIndexWithDocs(path, IndexerCollection, time.Now(), []string{"doc-file"}); err != nil {
+		t.Fatalf("UpdateFileIndexWithDocs: %v", err)
+	}
+	vectorDB := &fakeFileKGVectorDB{docs: map[string]string{
+		"doc-file": strings.Repeat("AgoDesk service content about the project. ", 3),
+	}}
+	llmClient := &fakeFileKGLLM{
+		content: `{"nodes":[{"id":"agodesk","label":"AgoDesk","properties":{"type":"service"}}],"edges":[]}`,
+	}
+
+	syncer := NewFileKGSyncer(cfg, logger, llmClient, vectorDB, stm, kg)
+	result := syncer.SyncFile(path, IndexerCollection, FileKGSyncOptions{})
+	if len(result.Errors) != 0 {
+		t.Fatalf("SyncFile errors: %v", result.Errors)
+	}
+	if result.FilesProcessed != 1 {
+		t.Fatalf("FilesProcessed = %d, want 1", result.FilesProcessed)
+	}
+
+	fileID := kgquality.FileNodeID(path)
+	fileNode, err := kg.GetNode(fileID)
+	if err != nil {
+		t.Fatalf("GetNode(%s): %v", fileID, err)
+	}
+	if fileNode == nil {
+		t.Fatalf("expected canonical file node %s", fileID)
+	}
+	if fileNode.Properties["type"] != "file" ||
+		fileNode.Properties["path"] != path ||
+		fileNode.Properties["source"] != "file_sync" ||
+		fileNode.Properties["source_file"] != path {
+		t.Fatalf("file node properties = %#v", fileNode.Properties)
+	}
+
+	nodes, err := kg.GetAllNodes(20)
+	if err != nil {
+		t.Fatalf("GetAllNodes: %v", err)
+	}
+	for _, node := range nodes {
+		if node.ID == "homeauragoauragodatadocumentstest_pdf_pdf" {
+			t.Fatalf("legacy mangled path node should not exist: %#v", nodes)
+		}
+	}
+
+	_, edges := kg.GetNeighbors("agodesk", 20)
+	var linked bool
+	for _, edge := range edges {
+		if edge.Source == "agodesk" && edge.Target == fileID && edge.Relation == "related_to" {
+			linked = true
+			break
+		}
+	}
+	if !linked {
+		t.Fatalf("expected agodesk related_to %s edge, got %#v", fileID, edges)
+	}
+}
+
+func TestFileKGSyncer_SyncFileKeepsExistingKGDataWhenReplacementMergeFails(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	cfg := &config.Config{}
+	cfg.LLM.Model = "test-model"
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	kgPath := filepath.Join(t.TempDir(), "kg.db")
+	kg, err := memory.NewKnowledgeGraph(kgPath, "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	defer kg.Close()
+
+	path := "/docs/a.md"
+	if err := stm.UpdateFileIndexWithDocs(path, IndexerCollection, time.Now(), []string{"doc-file"}); err != nil {
+		t.Fatalf("UpdateFileIndexWithDocs: %v", err)
+	}
+	if err := kg.BulkMergeExtractedEntities([]memory.Node{
+		{ID: "old_entity", Label: "Old Entity", Properties: map[string]string{"type": "service", "source": "file_sync", "source_file": path}},
+		{ID: "old_target", Label: "Old Target", Properties: map[string]string{"type": "service", "source": "file_sync", "source_file": path}},
+		{ID: "shared", Label: "Shared", Properties: map[string]string{"type": "service", "source": "manual"}},
+		{ID: "other", Label: "Other", Properties: map[string]string{"type": "service", "source": "manual"}},
+	}, []memory.Edge{
+		{Source: "old_entity", Target: "old_target", Relation: "related_to", Properties: map[string]string{"source": "file_sync", "source_file": path}},
+		{Source: "shared", Target: "other", Relation: "related_to", Properties: map[string]string{"source": "manual"}},
+	}); err != nil {
+		t.Fatalf("BulkMergeExtractedEntities seed: %v", err)
+	}
+
+	db, err := sql.Open("sqlite", kgPath)
+	if err != nil {
+		t.Fatalf("open raw kg db: %v", err)
+	}
+	_, err = db.Exec(`CREATE TRIGGER fail_file_sync_merge
+		BEFORE INSERT ON kg_edges
+		WHEN NEW.source = 'shared' AND NEW.target = 'other' AND NEW.relation = 'related_to'
+		BEGIN
+			SELECT RAISE(ABORT, 'merge blocked');
+		END`)
+	if closeErr := db.Close(); closeErr != nil {
+		t.Fatalf("close raw kg db: %v", closeErr)
+	}
+	if err != nil {
+		t.Fatalf("create failing merge trigger: %v", err)
+	}
+
+	vectorDB := &fakeFileKGVectorDB{docs: map[string]string{
+		"doc-file": strings.Repeat("Shared service content about the other service. ", 3),
+	}}
+	llmClient := &fakeFileKGLLM{
+		content: `{"nodes":[{"id":"shared","label":"Shared","properties":{"type":"service"}},{"id":"other","label":"Other","properties":{"type":"service"}}],"edges":[{"source":"shared","target":"other","relation":"related_to"}]}`,
+	}
+
+	syncer := NewFileKGSyncer(cfg, logger, llmClient, vectorDB, stm, kg)
+	result := syncer.SyncFile(path, IndexerCollection, FileKGSyncOptions{})
+	if len(result.Errors) == 0 {
+		t.Fatal("SyncFile should report merge error for corrupt existing edge")
+	}
+	if !strings.Contains(strings.Join(result.Errors, "\n"), "bulk merge") {
+		t.Fatalf("SyncFile should fail during bulk merge, got errors: %v", result.Errors)
+	}
+	if node, err := kg.GetNode("old_entity"); err != nil || node == nil {
+		t.Fatalf("old file entity should remain after failed replacement, node=%#v err=%v", node, err)
+	}
+	edges, err := kg.GetEdgesBySourceFile(path, 10)
+	if err != nil {
+		t.Fatalf("GetEdgesBySourceFile: %v", err)
+	}
+	if len(edges) == 0 {
+		t.Fatal("old file edge should remain after failed replacement")
 	}
 }
 
@@ -341,6 +499,46 @@ func TestPrepareContent_MarkdownOutline_Truncated(t *testing.T) {
 	}
 }
 
+func TestFileKGSyncer_SyncCollection_SerializesKGWrites(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	cfg := &config.Config{}
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	for _, path := range []string{"/docs/a.md", "/docs/b.md", "/docs/c.md", "/docs/d.md"} {
+		if err := stm.UpdateFileIndexWithDocs(path, IndexerCollection, time.Now(), []string{"doc-" + path}); err != nil {
+			t.Fatalf("UpdateFileIndexWithDocs(%s): %v", path, err)
+		}
+	}
+
+	var concurrent atomic.Int32
+	var maxConcurrent atomic.Int32
+	syncer := NewFileKGSyncer(cfg, logger, nil, nil, stm, nil)
+	syncer.syncFile = func(path, collection string, opts FileKGSyncOptions) FileKGSyncResult {
+		cur := concurrent.Add(1)
+		for {
+			prev := maxConcurrent.Load()
+			if cur <= prev || maxConcurrent.CompareAndSwap(prev, cur) {
+				break
+			}
+		}
+		time.Sleep(5 * time.Millisecond)
+		concurrent.Add(-1)
+		return FileKGSyncResult{FilesProcessed: 1}
+	}
+
+	result := syncer.SyncCollection(IndexerCollection, FileKGSyncOptions{})
+	if result.FilesProcessed != 4 {
+		t.Fatalf("expected 4 processed files, got %d", result.FilesProcessed)
+	}
+	if maxConcurrent.Load() > 1 {
+		t.Fatalf("expected serial file sync (max concurrent %d)", maxConcurrent.Load())
+	}
+}
+
 func TestFileKGSyncer_SyncCollectionAggregatesParallelResults(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	cfg := &config.Config{}
@@ -381,4 +579,97 @@ func TestFileKGSyncer_SyncCollectionAggregatesParallelResults(t *testing.T) {
 	if len(result.Errors) != 3 {
 		t.Fatalf("expected 3 aggregated errors, got %#v", result.Errors)
 	}
+}
+
+type fakeFileKGVectorDB struct {
+	docs map[string]string
+}
+
+func (f *fakeFileKGVectorDB) StoreDocument(concept, content string) ([]string, error) {
+	return nil, nil
+}
+
+func (f *fakeFileKGVectorDB) StoreDocumentWithEmbedding(concept, content string, embedding []float32) (string, error) {
+	return "", nil
+}
+
+func (f *fakeFileKGVectorDB) StoreDocumentInCollection(concept, content, collection string) ([]string, error) {
+	return nil, nil
+}
+
+func (f *fakeFileKGVectorDB) StoreDocumentWithEmbeddingInCollection(concept, content string, embedding []float32, collection string) (string, error) {
+	return "", nil
+}
+
+func (f *fakeFileKGVectorDB) StoreBatch(items []memory.ArchiveItem) ([]string, error) {
+	return nil, nil
+}
+
+func (f *fakeFileKGVectorDB) SearchSimilar(query string, topK int, excludeCollections ...string) ([]string, []string, error) {
+	return nil, nil, nil
+}
+
+func (f *fakeFileKGVectorDB) SearchMemoriesOnly(query string, topK int) ([]string, []string, error) {
+	return nil, nil, nil
+}
+
+func (f *fakeFileKGVectorDB) GetByIDFromCollection(id, collection string) (string, error) {
+	if content, ok := f.docs[id]; ok {
+		return content, nil
+	}
+	return "", fmt.Errorf("missing doc %s", id)
+}
+
+func (f *fakeFileKGVectorDB) GetByID(id string) (string, error) {
+	return f.GetByIDFromCollection(id, "")
+}
+
+func (f *fakeFileKGVectorDB) DeleteDocument(id string) error {
+	return nil
+}
+
+func (f *fakeFileKGVectorDB) DeleteDocumentFromCollection(id, collection string) error {
+	return nil
+}
+
+func (f *fakeFileKGVectorDB) Count() int {
+	return len(f.docs)
+}
+
+func (f *fakeFileKGVectorDB) IsDisabled() bool {
+	return false
+}
+
+func (f *fakeFileKGVectorDB) IsReady() bool {
+	return true
+}
+
+func (f *fakeFileKGVectorDB) Close() error {
+	return nil
+}
+
+func (f *fakeFileKGVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error {
+	return nil
+}
+
+func (f *fakeFileKGVectorDB) DeleteCheatsheet(id string) error {
+	return nil
+}
+
+func (f *fakeFileKGVectorDB) RegisterCollections(collections []string) {}
+
+type fakeFileKGLLM struct {
+	content string
+}
+
+func (f *fakeFileKGLLM) CreateChatCompletion(_ context.Context, _ openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+	return openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{
+			{Message: openai.ChatCompletionMessage{Content: f.content}},
+		},
+	}, nil
+}
+
+func (f *fakeFileKGLLM) CreateChatCompletionStream(_ context.Context, _ openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+	return nil, nil
 }

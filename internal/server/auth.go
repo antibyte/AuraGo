@@ -382,6 +382,19 @@ func IsAuthenticated(r *http.Request, secret string) bool {
 	return validateSessionValue(secret, cookie.Value)
 }
 
+// requireAdminUnlessGET applies requireAdmin to mutating requests while leaving
+// read-only GET/HEAD/OPTIONS traffic unchanged.
+func requireAdminUnlessGET(s *Server, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			next.ServeHTTP(w, r)
+		default:
+			requireAdmin(s, next).ServeHTTP(w, r)
+		}
+	})
+}
+
 // requireAdmin protects destructive/admin endpoints. Browser sessions are the
 // built-in admin identity; API Bearer tokens must explicitly carry admin scope.
 func requireAdmin(s *Server, next http.Handler) http.Handler {
@@ -434,6 +447,7 @@ func isAdminProtectedPath(path string) bool {
 	}
 	switch path {
 	case "/api/admin/stop",
+		"/api/backup/create",
 		"/api/backup/import",
 		"/api/debug/kg-file-sync-cleanup",
 		"/api/proxy/destroy",
@@ -646,10 +660,7 @@ var authBypassPrefixes = []string{
 	"/shared-components.css",
 	"/shared-animations.css",
 	"/shared.js",
-	"/js/setup/",
-	"/js/login/",
-	"/js/shared/",
-	"/js/vendor/",
+	"/js/", // All front-end JS is static UI code with no secrets; data access is enforced via auth-protected API endpoints
 	"/cfg/",
 	// Static media files (audio, images, documents) require authentication.
 	// They are served as sub-resources in authenticated pages and must not be
@@ -710,9 +721,7 @@ var noPasswordPrefixes = []string{
 	"/shared-components.css",
 	"/shared-animations.css",
 	"/shared.js",
-	"/js/setup/",
-	"/js/login/",
-	"/js/vendor/",
+	"/js/",
 	"/cfg/",
 	"/site.webmanifest",
 	"/sw.js",

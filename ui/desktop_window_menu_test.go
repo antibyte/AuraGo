@@ -81,6 +81,7 @@ func TestDesktopWindowMenuAssets(t *testing.T) {
 		filepath.Join("js", "desktop", "apps", "sheets.js"),
 		filepath.Join("js", "desktop", "apps", "code-studio.js"),
 		filepath.Join("js", "desktop", "apps", "radio.js"),
+		filepath.Join("js", "desktop", "apps", "teevee.js"),
 		filepath.Join("js", "desktop", "file-manager.js"),
 	} {
 		text := readDesktopAssetText(t, path)
@@ -354,6 +355,20 @@ func TestWindowMenuShortcutRouterMatchesBrowserZoomKeyCodes(t *testing.T) {
 		if !strings.Contains(mainText, want) {
 			t.Fatalf("desktop menu shortcut router missing browser zoom key-code support marker %q", want)
 		}
+	}
+}
+
+func TestDesktopWindowMenuDoesNotRenderMojibakeArrows(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/core/menus-and-routing.js")
+	for _, forbidden := range []string{"â€º", "Â·"} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("desktop window menu source contains mojibake marker %q", forbidden)
+		}
+	}
+	if !strings.Contains(source, `vd-window-menu-arrow">&rsaquo;</span>`) {
+		t.Fatalf("desktop window menu should render submenu arrow with an HTML entity")
 	}
 }
 

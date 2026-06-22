@@ -1,6 +1,9 @@
 package memory
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestCoreMemoryFactPolicyRejectsTransientOperationalJunk(t *testing.T) {
 	cases := []string{
@@ -59,11 +62,40 @@ func TestCoreMemoryFactPolicyAllowsDurableFacts(t *testing.T) {
 		`User prefers direct German answers`,
 		`User's main AuraGo repository is c:\Users\Andi\Documents\repo\AuraGo`,
 		`The Proxmox node name is pve01`,
+		`Home server static IP is 192.168.1.100`,
+		`Proxmox host IP is 192.168.1.10, node name pve01`,
+		`Default gateway for homelab is 192.168.0.1`,
+		`Windows fileserver hostname fileserver01 at 192.168.1.20`,
 	}
 
 	for _, fact := range cases {
 		if err := ValidateCoreMemoryFact(fact); err != nil {
 			t.Fatalf("ValidateCoreMemoryFact(%q) = %v, want allowed", fact, err)
+		}
+	}
+}
+
+func TestCoreMemoryNetworkDiscoveryHeuristic(t *testing.T) {
+	rejected := []string{
+		`Google Home Mini im Arbeitszimmer hat IP 192.168.6.130, Port 8009. Erreichbar via Chromecast/TTS.`,
+		`Mission abgeschlossen: 192.168.6.2 per Port-Scan bestätigt erreichbar (SMB/Windows), Google Home Mini TTS-Begrüßung erfolgreich gesendet.`,
+		`192.168.6.55 SMB share reachable after network scan`,
+	}
+	for _, fact := range rejected {
+		if !isCoreMemoryNetworkDiscovery(strings.ToLower(fact)) {
+			t.Fatalf("isCoreMemoryNetworkDiscovery(%q) = false, want true", fact)
+		}
+	}
+
+	allowed := []string{
+		`The Proxmox node name is pve01`,
+		`Home server static IP is 192.168.1.100`,
+		`Device inventory lists 192.168.1.50 as homeassistant`,
+		`Ollama läuft auf Port 11434`,
+	}
+	for _, fact := range allowed {
+		if isCoreMemoryNetworkDiscovery(strings.ToLower(fact)) {
+			t.Fatalf("isCoreMemoryNetworkDiscovery(%q) = true, want false", fact)
 		}
 	}
 }

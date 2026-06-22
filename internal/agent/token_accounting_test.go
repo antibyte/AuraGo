@@ -54,7 +54,7 @@ func TestApplyTokenEstimationFallback_FullyMissingUsageEstimatesAll(t *testing.T
 	}
 
 	completionText := "Hi!"
-	expectedPrompt := estimateTokensForModel(messageText(req.Messages[0]), req.Model)
+	expectedPrompt := estimateTokensForModel(messageTextWithReasoningForAccounting(req.Messages[0]), req.Model)
 	expectedCompletion := estimateTokensForModel(completionText, req.Model)
 
 	promptTokens, completionTokens, totalTokens, tokenSource, usedFallback := applyTokenEstimationFallback(
@@ -187,7 +187,7 @@ func TestApplyTokenEstimationFallback_OnlyTotalProvidedFallsBack(t *testing.T) {
 		},
 	}
 
-	expectedPrompt := estimateTokensForModel(messageText(req.Messages[0]), req.Model)
+	expectedPrompt := estimateTokensForModel(messageTextWithReasoningForAccounting(req.Messages[0]), req.Model)
 
 	promptTokens, completionTokens, totalTokens, tokenSource, usedFallback := applyTokenEstimationFallback(
 		0,

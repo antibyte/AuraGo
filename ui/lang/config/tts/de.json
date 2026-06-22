@@ -1,6 +1,6 @@
 {
   "config.tts.provider_label": "TTS-Anbieter",
-  "config.tts.provider_help": "Wählen Sie den Text-to-Speech-Anbieter.",
+  "config.tts.provider_help": "Wähle den Text-to-Speech-Anbieter.",
   "config.tts.provider_none": "Keiner",
   "config.tts.provider_google": "Google TTS",
   "config.tts.provider_elevenlabs": "ElevenLabs",
@@ -13,7 +13,7 @@
   "config.tts.elevenlabs_api_key_placeholder": "sk-...",
   "config.tts.elevenlabs_voice_id_label": "Stimme-ID",
   "config.tts.elevenlabs_voice_id_placeholder": "21m00Tcm4TlvDq8ikWAM",
-  "config.tts.elevenlabs_voice_id_help": "Ihre ElevenLabs Stimmen-ID aus der Sprachbibliothek.",
+  "config.tts.elevenlabs_voice_id_help": "Deine ElevenLabs-Stimmen-ID aus der Sprachbibliothek.",
   "config.tts.elevenlabs_model_id_label": "Modell-ID",
   "config.tts.elevenlabs_model_id_placeholder": "eleven_monolingual_v1",
   "config.tts.elevenlabs_model_id_help": "ElevenLabs-Modell für die Synthese.",
@@ -53,5 +53,6 @@
   "config.tts.piper_status_disabled": "⚪ Piper ist deaktiviert",
   "config.tts.piper_status_running": "🟢 Piper läuft",
   "config.tts.piper_status_stopped": "🟡 Piper ist gestoppt",
-  "config.tts.piper_status_error": "🔴 Piper-Fehler"
+  "config.tts.piper_status_error": "🔴 Piper-Fehler",
+  "config.tts.language_custom_help": "Nutze Benutzerdefiniert nur, wenn dein TTS-Anbieter einen nicht gelisteten Sprachcode verlangt."
 }

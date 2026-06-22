@@ -75,5 +75,6 @@
   "config.updates.running": "Draait…",
   "config.web_scraper.summary_mode": "Samenvattingsmodus",
   "config.webdav.secret_empty": "Waarde is leeg",
-  "config.onedrive.disconnect_confirm_title": "OneDrive loskoppelen?"
+  "config.onedrive.disconnect_confirm_title": "OneDrive loskoppelen?",
+  "config.onedrive.enabled_help": "Schakelt OneDrive-bestandstoegang in nadat Microsoft-autorisatie is voltooid."
 }

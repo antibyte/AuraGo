@@ -30,6 +30,7 @@ import (
 	"aurago/internal/invasion"
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/inventory"
+	"aurago/internal/kgquality"
 	"aurago/internal/launchpad"
 	"aurago/internal/llm"
 	"aurago/internal/logger"
@@ -392,6 +393,13 @@ func main() {
 	kg.SetMinSemanticSimilarity(cfg.Tools.KnowledgeGraph.MinSemanticSimilarity)
 	kg.SetExcludedNodeTypes(cfg.Tools.KnowledgeGraph.ExcludeNodeTypes)
 	kg.SetSemanticReindexInterval(cfg.Tools.KnowledgeGraph.SemanticReindexInterval)
+	kg.SetProtectOptimizeSources(cfg.Tools.KnowledgeGraph.ProtectOptimizeSources)
+	kg.SetProtectIDPrefixes(cfg.Tools.KnowledgeGraph.ProtectIDPrefixes)
+	kg.SetQualityPolicy(kgquality.Policy{
+		PendingCoMentionTTLDays:         cfg.Tools.KnowledgeGraph.PendingCoMentionTTLDays,
+		LowConfidenceCoMentionMinWeight: cfg.Tools.KnowledgeGraph.LowConfidenceCoMentionMinWeight,
+		HideLowConfidenceByDefault:      cfg.Tools.KnowledgeGraph.HideLowConfidenceByDefault,
+	})
 	defer kg.Close()
 
 	if _, err := server.ApplyPendingEmbeddingsReset(cfg, shortTermMem, kg, appLog); err != nil {
@@ -854,6 +862,18 @@ func main() {
 		go func() {
 			if err := kg.EnableSemanticSearchShared(longTermMem.GetDB(), longTermMem.GetEmbeddingFunc()); err != nil {
 				appLog.Warn("Failed to enable KG semantic search", "error", err)
+				return
+			}
+			health, err := kg.HealthReport()
+			if err != nil {
+				appLog.Warn("Failed to read KG health after semantic enable", "error", err)
+				return
+			}
+			if health.DirtyNodes > 0 || health.DirtyEdges > 0 {
+				appLog.Info("KG startup semantic reindex starting", "dirty_nodes", health.DirtyNodes, "dirty_edges", health.DirtyEdges)
+				if err := kg.RunSemanticReindex(); err != nil {
+					appLog.Warn("KG startup semantic reindex failed", "error", err)
+				}
 			}
 		}()
 	} else {

@@ -16,12 +16,12 @@
         instances.set(windowId, state);
 
         if (typeof desktopEmbedURL !== 'function' || typeof makeSandboxedFrame !== 'function') {
-            host.innerHTML = `<div class="vd-nasscad-error">${esc(t('desktop.nasscad_load_failed', 'Could not load NASSCAD.'))}</div>`;
+            host.innerHTML = `<div class="vd-nasscad-error">${esc(t('desktop.nasscad_load_failed'))}</div>`;
             return;
         }
 
         host.innerHTML = `<div class="vd-nasscad">
-            <div class="vd-nasscad-loading">${esc(t('desktop.loading', 'Loading...'))}</div>
+            <div class="vd-nasscad-loading">${esc(t('desktop.loading'))}</div>
         </div>`;
 
         const wrap = host.querySelector('.vd-nasscad');
@@ -38,7 +38,7 @@
                     '',
                     windowId,
                     'vd-nasscad-frame vd-generated-frame',
-                    t('desktop.app_nasscad', 'NASSCAD'),
+                    t('desktop.app_nasscad'),
                     {
                         allowSameOrigin: true,
                         allowDownloads: true,
@@ -50,7 +50,7 @@
             })
             .catch(err => {
                 if (state.disposed || !wrap) return;
-                const message = err && err.message ? err.message : t('desktop.nasscad_load_failed', 'Could not load NASSCAD.');
+                const message = err && err.message ? err.message : t('desktop.nasscad_load_failed');
                 wrap.innerHTML = `<div class="vd-nasscad-error">${esc(message)}</div>`;
             });
     }

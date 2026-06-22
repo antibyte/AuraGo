@@ -483,7 +483,7 @@ function openFilePreview(name) {
         // ── Text / code: fetch and render in <pre> ──
         // This avoids MIME-type download issues (yaml, md, json, csv, etc.)
         textEl.classList.remove('is-hidden');
-        textEl.textContent = t('common.loading') || 'Loading…';
+        textEl.textContent = t('common.loading');
         const maxBytes = 512 * 1024; // 512 KB display limit
         fetch(previewURL)
             .then(r => {

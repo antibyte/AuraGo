@@ -35,5 +35,6 @@
   "config.prompts.saved": "保存されました。",
   "config.prompts.setting_active": "設定を有効にします...",
   "config.prompts.delete_confirm": "本当にパーソナリティ「{name}」を削除しますか?",
-  "config.prompts.deleting": "削除中..."
+  "config.prompts.deleting": "削除中...",
+  "config.prompts.delete_confirm_title": "パーソナリティを削除しますか？"
 }

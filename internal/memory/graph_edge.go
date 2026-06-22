@@ -5,12 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
+	"time"
 )
 
 func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties map[string]string) error {
+	source = strings.TrimSpace(source)
+	target = strings.TrimSpace(target)
+	relation = strings.TrimSpace(relation)
+	if source == "" || target == "" || relation == "" {
+		return fmt.Errorf("source, target, and relation are required")
+	}
 	properties = normalizeKnowledgeGraphProperties(properties)
+	now := time.Now()
 
 	tx, err := kg.db.Begin()
 	if err != nil {
@@ -19,7 +26,7 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 	defer tx.Rollback()
 
 	for _, id := range []string{source, target} {
-		if _, err := tx.Exec(`INSERT OR IGNORE INTO kg_nodes (id, label, properties) VALUES (?, 'Unknown', '{}')`, id); err != nil {
+		if err := ensureKnowledgeGraphPlaceholderNodeTx(tx, id); err != nil {
 			kg.logger.Warn("AddEdge: failed to ensure node exists", "id", id, "error", err)
 		}
 	}
@@ -32,8 +39,9 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 	var finalProps map[string]string
 	if found {
 		finalProps = mergeKnowledgeGraphPropertiesOverwrite(existingProps, properties)
+		finalProps = ensureKnowledgeGraphEdgeQualityProperties(finalProps, "manual", now)
 	} else {
-		finalProps = properties
+		finalProps = ensureKnowledgeGraphEdgeQualityProperties(properties, "manual", now)
 	}
 	propsJSON, _ := json.Marshal(finalProps)
 	_, err = tx.Exec(`
@@ -50,17 +58,60 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 		return err
 	}
 	if sourceNode, err := kg.GetNode(source); err == nil && sourceNode != nil {
-		kg.upsertSemanticNodeIndex(*sourceNode)
+		kg.indexSemanticNodeAfterWrite(*sourceNode)
 	} else if err != nil && kg.logger != nil {
 		kg.logger.Warn("AddEdge: failed to reload source node for semantic index", "id", source, "error", err)
 	}
 	if targetNode, err := kg.GetNode(target); err == nil && targetNode != nil {
-		kg.upsertSemanticNodeIndex(*targetNode)
+		kg.indexSemanticNodeAfterWrite(*targetNode)
 	} else if err != nil && kg.logger != nil {
 		kg.logger.Warn("AddEdge: failed to reload target node for semantic index", "id", target, "error", err)
 	}
-	kg.upsertSemanticEdgeIndex(Edge{Source: source, Target: target, Relation: relation})
+	kg.indexSemanticEdgeAfterWrite(Edge{Source: source, Target: target, Relation: relation, Properties: finalProps})
 	return nil
+}
+
+// PruneOutgoingRelationEdges removes outgoing edges from source with relation where
+// target is not in keepTargets.
+func (kg *KnowledgeGraph) PruneOutgoingRelationEdges(source, relation string, keepTargets map[string]struct{}) (int, error) {
+	source = strings.TrimSpace(source)
+	relation = strings.TrimSpace(relation)
+	if source == "" || relation == "" {
+		return 0, nil
+	}
+
+	rows, err := kg.db.Query(`
+		SELECT target FROM kg_edges
+		WHERE source = ? AND relation = ?
+	`, source, relation)
+	if err != nil {
+		return 0, fmt.Errorf("query outgoing relation edges for prune: %w", err)
+	}
+	defer rows.Close()
+
+	var staleTargets []string
+	for rows.Next() {
+		var target string
+		if err := rows.Scan(&target); err != nil {
+			return 0, fmt.Errorf("scan outgoing relation edge for prune: %w", err)
+		}
+		if _, keep := keepTargets[target]; keep {
+			continue
+		}
+		staleTargets = append(staleTargets, target)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("iterate outgoing relation edges for prune: %w", err)
+	}
+
+	removed := 0
+	for _, target := range staleTargets {
+		if err := kg.DeleteEdge(source, target, relation); err != nil {
+			return removed, fmt.Errorf("delete stale relation edge %s->%s/%s: %w", source, target, relation, err)
+		}
+		removed++
+	}
+	return removed, nil
 }
 
 func (kg *KnowledgeGraph) DeleteEdge(source, target, relation string) error {
@@ -103,7 +154,7 @@ func (kg *KnowledgeGraph) UpdateEdge(source, target, relation, newRelation strin
 
 	finalProps := existingProps
 	if properties != nil {
-		finalProps = normalizeKnowledgeGraphProperties(properties)
+		finalProps = ensureKnowledgeGraphEdgeQualityProperties(properties, "manual", time.Now())
 	}
 	propsJSON, err := json.Marshal(finalProps)
 	if err != nil {
@@ -141,7 +192,7 @@ func (kg *KnowledgeGraph) UpdateEdge(source, target, relation, newRelation strin
 			kg.logger.Warn("UpdateEdge: failed to remove old semantic edge index", "source", source, "target", target, "relation", relation, "error", err)
 		}
 	}
-	kg.upsertSemanticEdgeIndex(*updated)
+	kg.indexSemanticEdgeAfterWrite(*updated)
 	return updated, nil
 }
 
@@ -192,13 +243,13 @@ func (kg *KnowledgeGraph) GetImportantEdges(limit int, nodeIDs []string) ([]Edge
 		args = append(args, limit)
 
 		query := fmt.Sprintf(`
-			SELECT source, target, relation, properties FROM kg_edges
-			WHERE relation != 'co_mentioned_with'
-			  AND (source IN (%s) OR target IN (%s))
-			ORDER BY (
-				SELECT SUM(n2.access_count) FROM kg_nodes n2
-				WHERE n2.id IN (kg_edges.source, kg_edges.target)
-			) DESC
+			SELECT e.source, e.target, e.relation, e.properties
+			FROM kg_edges e
+			LEFT JOIN kg_nodes ns ON ns.id = e.source
+			LEFT JOIN kg_nodes nt ON nt.id = e.target
+			WHERE e.relation != 'co_mentioned_with'
+			  AND (e.source IN (%s) OR e.target IN (%s))
+			ORDER BY (COALESCE(ns.access_count, 0) + COALESCE(nt.access_count, 0)) DESC
 			LIMIT ?
 		`, strings.Join(placeholders, ","), strings.Join(placeholders, ","))
 		allArgs := make([]interface{}, 0, len(nodeIDs)*2+1)
@@ -212,8 +263,12 @@ func (kg *KnowledgeGraph) GetImportantEdges(limit int, nodeIDs []string) ([]Edge
 		rows, err = kg.db.Query(query, allArgs...)
 	} else {
 		rows, err = kg.db.Query(`
-			SELECT source, target, relation, properties FROM kg_edges
-			WHERE relation != 'co_mentioned_with'
+			SELECT e.source, e.target, e.relation, e.properties
+			FROM kg_edges e
+			LEFT JOIN kg_nodes ns ON ns.id = e.source
+			LEFT JOIN kg_nodes nt ON nt.id = e.target
+			WHERE e.relation != 'co_mentioned_with'
+			ORDER BY (COALESCE(ns.access_count, 0) + COALESCE(nt.access_count, 0)) DESC
 			LIMIT ?
 		`, limit)
 	}
@@ -242,7 +297,8 @@ func (kg *KnowledgeGraph) GetImportantEdges(limit int, nodeIDs []string) ([]Edge
 func (kg *KnowledgeGraph) DeleteEdgesBySourceFile(path string) (int, error) {
 	rows, err := kg.db.Query(`
 		SELECT source, target, relation FROM kg_edges
-		WHERE json_extract(properties, '$.source_file') = ?
+		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source_file') = ?
 	`, path)
 	if err != nil {
 		return 0, fmt.Errorf("query edges by source file: %w", err)
@@ -258,7 +314,8 @@ func (kg *KnowledgeGraph) DeleteEdgesBySourceFile(path string) (int, error) {
 
 	res, err := kg.db.Exec(`
 		DELETE FROM kg_edges
-		WHERE json_extract(properties, '$.source_file') = ?
+		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source_file') = ?
 	`, path)
 	if err != nil {
 		return 0, fmt.Errorf("delete edges by source file: %w", err)
@@ -310,60 +367,56 @@ func (kg *KnowledgeGraph) IncrementCoOccurrence(a, b, date string) error {
 		a, b = b, a
 	}
 
+	initProps, err := json.Marshal(map[string]string{
+		"source": "pending",
+		"weight": "1",
+		"date":   date,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal co-occurrence properties: %w", err)
+	}
+
 	tx, err := kg.db.Begin()
 	if err != nil {
 		return fmt.Errorf("begin co-occurrence transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	var currentWeight int
-	var propsJSON string
-	err = tx.QueryRow(
-		"SELECT properties FROM kg_edges WHERE source = ? AND target = ? AND relation = 'co_mentioned_with'",
-		a, b,
-	).Scan(&propsJSON)
-	if err == nil {
-		var props map[string]string
-		if json.Unmarshal([]byte(propsJSON), &props) == nil {
-			if w, e := strconv.Atoi(props["weight"]); e == nil {
-				currentWeight = w
-			}
-		}
-		currentWeight++
-		props["weight"] = strconv.Itoa(currentWeight)
-		props["date"] = date
-		if currentWeight >= coOccurrenceThreshold {
-			props["source"] = "activity_turn"
-		}
-		newPropsJSON, _ := json.Marshal(props)
-		_, err = tx.Exec(
-			"UPDATE kg_edges SET properties = ?, updated_at = CURRENT_TIMESTAMP WHERE source = ? AND target = ? AND relation = 'co_mentioned_with'",
-			string(newPropsJSON), a, b,
-		)
-		if err != nil {
-			return fmt.Errorf("update co-occurrence: %w", err)
-		}
-	} else if err == sql.ErrNoRows {
-		initProps, _ := json.Marshal(map[string]string{
-			"source": "pending",
-			"weight": "1",
-			"date":   date,
-		})
-		_, err = tx.Exec(`
-			INSERT INTO kg_edges (source, target, relation, properties, updated_at)
-			VALUES (?, ?, 'co_mentioned_with', ?, CURRENT_TIMESTAMP)
-			ON CONFLICT(source, target, relation) DO UPDATE SET
-				properties = excluded.properties,
-				updated_at = CURRENT_TIMESTAMP
-		`, a, b, string(initProps))
-		if err != nil {
-			return fmt.Errorf("insert co-occurrence: %w", err)
-		}
-	} else {
-		return fmt.Errorf("query co-occurrence: %w", err)
+	_, err = tx.Exec(`
+		INSERT INTO kg_edges (source, target, relation, properties, updated_at)
+		VALUES (?, ?, 'co_mentioned_with', ?, CURRENT_TIMESTAMP)
+		ON CONFLICT(source, target, relation) DO UPDATE SET
+			properties = json_set(
+				json_set(
+					json_set(
+						kg_edges.properties,
+						'$.weight',
+						CAST(
+							CAST(COALESCE(NULLIF(json_extract(kg_edges.properties, '$.weight'), ''), '0') AS INTEGER) + 1
+							AS TEXT
+						)
+					),
+					'$.date',
+					?
+				),
+				'$.source',
+				CASE
+					WHEN CAST(COALESCE(NULLIF(json_extract(kg_edges.properties, '$.weight'), ''), '0') AS INTEGER) + 1 >= ?
+					THEN 'activity_turn'
+					ELSE COALESCE(json_extract(kg_edges.properties, '$.source'), 'pending')
+				END
+			),
+			updated_at = CURRENT_TIMESTAMP
+	`, a, b, string(initProps), date, coOccurrenceThreshold)
+	if err != nil {
+		return fmt.Errorf("upsert co-occurrence: %w", err)
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	kg.indexSemanticEdgeAfterWrite(Edge{Source: a, Target: b, Relation: "co_mentioned_with"})
+	return nil
 }
 
 func loadKnowledgeGraphEdge(tx *sql.Tx, source, target, relation string) (properties map[string]string, found bool, err error) {

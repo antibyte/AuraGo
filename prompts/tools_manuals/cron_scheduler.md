@@ -54,6 +54,7 @@ Schedule tasks to run automatically at future times or on recurring intervals. S
 
 - **6-field format:** Unlike standard cron (5 fields), this uses seconds as the first field.
 - **Backward compatibility:** Existing 5-field entries still work and are interpreted without an explicit seconds field.
+- **Runtime status:** `list` includes `registered`; `false` means the entry is persisted but not bound to the in-process scheduler. Check `last_error` when present.
 - **One-time vs recurring:** Specific month/day combinations (e.g. `0 0 12 25 3 *`) run annually unless combined with conditions.
 - **Task prompts:** When triggered, the task_prompt is sent as a new message to the agent for execution.
 - **Due date reminders:** For to-do reminders, use `manage_notes` with `due_date` combined with a cron entry for notification timing.

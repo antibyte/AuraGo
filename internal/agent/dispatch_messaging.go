@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	pathpkg "path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -54,6 +56,9 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 	case "send_image":
 		req := decodeSendMediaArgs(tc)
 		logger.Info("LLM requested image send", "path", req.Path, "caption", req.Caption)
+		if out, blocked := blockAgoDeskGenericAttachmentImageSend(req.Path, cfg.Directories.WorkspaceDir, dc.MessageSource); blocked {
+			return out, true
+		}
 		return handleSendImage(req, cfg, logger), true
 
 	case "send_audio":
@@ -260,4 +265,55 @@ func resolveAgoDeskChatDeviceID(hub *remote.RemoteHub, deviceName string) (strin
 		return "", fmt.Errorf("multiple AgoChat devices are connected; provide device_id")
 	}
 	return devices[0].ID, nil
+}
+
+func blockAgoDeskGenericAttachmentImageSend(pathValue, workspaceDir, messageSource string) (string, bool) {
+	if !strings.EqualFold(strings.TrimSpace(messageSource), "agodesk_chat") {
+		return "", false
+	}
+	rel := normalizeSendImageWorkspacePath(pathValue, workspaceDir)
+	if rel == "" || !strings.HasPrefix(rel, "attachments/") || strings.HasPrefix(rel, "attachments/agodesk/") {
+		return "", false
+	}
+	result, _ := json.Marshal(map[string]interface{}{
+		"status":  "error",
+		"message": "Refusing to send a generic workspace attachment in agodesk_chat. Use the agent_path from <agodesk_attachments> under attachments/agodesk/... or send an explicitly generated output outside attachments/.",
+	})
+	return "Tool Output: " + string(result), true
+}
+
+func normalizeSendImageWorkspacePath(pathValue, workspaceDir string) string {
+	raw := strings.TrimSpace(pathValue)
+	if raw == "" || strings.HasPrefix(raw, "http://") || strings.HasPrefix(raw, "https://") {
+		return ""
+	}
+	if workspaceDir != "" && filepath.IsAbs(raw) {
+		absWorkspace, wsErr := filepath.Abs(workspaceDir)
+		absPath, pathErr := filepath.Abs(raw)
+		if wsErr == nil && pathErr == nil {
+			if rel, err := filepath.Rel(absWorkspace, absPath); err == nil {
+				rel = filepath.ToSlash(rel)
+				if rel != ".." && !strings.HasPrefix(rel, "../") {
+					return cleanSendImageWorkspaceRelPath(rel)
+				}
+			}
+		}
+	}
+	slash := filepath.ToSlash(raw)
+	slash = strings.TrimPrefix(slash, "/files/")
+	if idx := strings.Index(slash, "agent_workspace/workdir/"); idx >= 0 {
+		slash = slash[idx+len("agent_workspace/workdir/"):]
+	}
+	return cleanSendImageWorkspaceRelPath(slash)
+}
+
+func cleanSendImageWorkspaceRelPath(pathValue string) string {
+	pathValue = strings.TrimSpace(filepath.ToSlash(pathValue))
+	pathValue = strings.TrimPrefix(pathValue, "./")
+	pathValue = strings.TrimPrefix(pathValue, "/")
+	clean := pathpkg.Clean("/" + pathValue)
+	if clean == "/" || clean == "/.." || strings.HasPrefix(clean, "/../") {
+		return ""
+	}
+	return strings.TrimPrefix(clean, "/")
 }

@@ -46,7 +46,7 @@ func TestSoftwareStoreShowsInstallingAndDisablesActionsDuringInstallOperation(t 
 		"const actionDisabled = operation ? statusLabel(status, operation) : mutationDisabled;",
 		"actionDisabled ? `disabled title=\"${esc(actionDisabled)}\"` : ''",
 		"if (operation && operation.type === 'install')",
-		"return t('desktop.store.status_installing', 'Installing');",
+		"return t('desktop.store.status_installing');",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("software store missing install operation UI marker %q", want)
@@ -322,6 +322,20 @@ func TestSoftwareStoreActionButtonsUseStableGridLayout(t *testing.T) {
 		if !strings.Contains(source, want) {
 			t.Fatalf("software store action layout missing marker %q", want)
 		}
+	}
+}
+
+func TestSoftwareStoreAccessLabelDoesNotContainMojibake(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/software-store.js")
+	for _, forbidden := range []string{"Â·", "â€º"} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("software store source contains mojibake marker %q", forbidden)
+		}
+	}
+	if !strings.Contains(source, "return parts.join(' / ');") {
+		t.Fatalf("software store access label should use a plain readable separator")
 	}
 }
 

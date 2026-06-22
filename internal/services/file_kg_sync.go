@@ -13,6 +13,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/kgextraction"
+	"aurago/internal/kgquality"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 )
@@ -247,6 +248,7 @@ func (s *FileKGSyncer) SyncFile(path, collection string, opts FileKGSyncOptions)
 
 	// 4. Annotate with source metadata and confidence (minimal evidence link for first draft).
 	now := time.Now().Format("2006-01-02")
+	nodes, edges = anchorFileSyncFileNode(path, collection, now, confidenceStr, nodes, edges)
 	for i := range nodes {
 		if nodes[i].Properties == nil {
 			nodes[i].Properties = make(map[string]string)
@@ -279,25 +281,9 @@ func (s *FileKGSyncer) SyncFile(path, collection string, opts FileKGSyncOptions)
 			"nodes", len(nodes),
 			"edges", len(edges))
 	} else {
-		deletedEdges, err := s.kg.DeleteEdgesBySourceFile(path)
-		if err != nil {
-			s.logger.Error("[FileKGSync] Failed to replace stale file edges before reindex", "path", path, "error", err)
-			result.Errors = append(result.Errors, fmt.Sprintf("replace stale edges %s: %v", path, err))
-			return result
-		}
-		deletedNodes, err := s.kg.DeleteNodesBySourceFile(path)
-		if err != nil {
-			s.logger.Error("[FileKGSync] Failed to replace stale file nodes before reindex", "path", path, "error", err)
-			result.Errors = append(result.Errors, fmt.Sprintf("replace stale nodes %s: %v", path, err))
-			return result
-		}
-		if deletedNodes > 0 || deletedEdges > 0 {
-			s.logger.Info("[FileKGSync] Replacing stale file entities before reindex",
-				"path", path, "deleted_nodes", deletedNodes, "deleted_edges", deletedEdges)
-		}
-		if err := s.kg.BulkMergeExtractedEntities(nodes, edges); err != nil {
-			s.logger.Error("[FileKGSync] Failed to bulk-merge entities", "path", path, "error", err)
-			result.Errors = append(result.Errors, fmt.Sprintf("bulk merge %s: %v", path, err))
+		if err := s.kg.ReplaceExtractedEntitiesBySourceFile(path, nodes, edges); err != nil {
+			s.logger.Error("[FileKGSync] Failed to replace file entities", "path", path, "error", err)
+			result.Errors = append(result.Errors, fmt.Sprintf("replace file entities %s: %v", path, err))
 			return result
 		}
 		s.logger.Info("[FileKGSync] Upserted entities", "path", path, "nodes", len(nodes), "edges", len(edges))
@@ -309,6 +295,80 @@ func (s *FileKGSyncer) SyncFile(path, collection string, opts FileKGSyncOptions)
 	return result
 }
 
+func anchorFileSyncFileNode(pathValue, collection, extractedAt, confidence string, nodes []memory.Node, edges []memory.Edge) ([]memory.Node, []memory.Edge) {
+	canonicalPath := kgquality.CanonicalPath(pathValue)
+	fileID := kgquality.FileNodeID(pathValue)
+	fileNode := memory.Node{
+		ID:    fileID,
+		Label: kgquality.PathBase(pathValue),
+		Properties: map[string]string{
+			"type":         "file",
+			"path":         canonicalPath,
+			"source":       "file_sync",
+			"source_file":  pathValue,
+			"extracted_at": extractedAt,
+			"confidence":   confidence,
+		},
+	}
+	if collection != "" {
+		fileNode.Properties["collection"] = collection
+	}
+
+	filtered := make([]memory.Node, 0, len(nodes)+1)
+	for _, node := range nodes {
+		if node.ID == fileID {
+			continue
+		}
+		if nodeMatchesFilePath(node, canonicalPath) {
+			continue
+		}
+		filtered = append(filtered, node)
+	}
+
+	linkTargets := make([]string, 0, len(filtered))
+	for _, node := range filtered {
+		if node.ID == "" {
+			continue
+		}
+		if node.Properties != nil && strings.TrimSpace(node.Properties["type"]) == "file" {
+			continue
+		}
+		linkTargets = append(linkTargets, node.ID)
+	}
+	sort.Strings(linkTargets)
+	if len(linkTargets) > 25 {
+		linkTargets = linkTargets[:25]
+	}
+	for _, nodeID := range linkTargets {
+		edges = append(edges, memory.Edge{
+			Source:   nodeID,
+			Target:   fileID,
+			Relation: "related_to",
+			Properties: map[string]string{
+				"source":       "file_sync",
+				"source_file":  pathValue,
+				"extracted_at": extractedAt,
+				"confidence":   confidence,
+			},
+		})
+	}
+
+	filtered = append(filtered, fileNode)
+	return filtered, edges
+}
+
+func nodeMatchesFilePath(node memory.Node, canonicalPath string) bool {
+	if canonicalPath == "" {
+		return false
+	}
+	if node.Properties != nil {
+		if kgquality.CanonicalPath(node.Properties["path"]) == canonicalPath {
+			return true
+		}
+	}
+	return kgquality.IsPathLike(node.Label) && kgquality.CanonicalPath(node.Label) == canonicalPath
+}
+
 func (s *FileKGSyncer) runSyncFile(path, collection string, opts FileKGSyncOptions) FileKGSyncResult {
 	if s.syncFile != nil {
 		return s.syncFile(path, collection, opts)
@@ -317,14 +377,11 @@ func (s *FileKGSyncer) runSyncFile(path, collection string, opts FileKGSyncOptio
 }
 
 func (s *FileKGSyncer) fileSyncWorkerCount(fileCount int) int {
-	if fileCount <= 1 {
-		return fileCount
+	if fileCount <= 0 {
+		return 0
 	}
-	workerCount := 4
-	if fileCount < workerCount {
-		workerCount = fileCount
-	}
-	return workerCount
+	// SQLite KG writes must stay serialized; parallel file sync workers only race on kg.db.
+	return 1
 }
 
 // CleanupFile removes KG nodes and edges that were extracted from the given file.

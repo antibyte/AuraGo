@@ -129,7 +129,7 @@ func buildScoredMessages(
 			msg:    messages[i],
 			score:  score,
 			reason: reason,
-			tokens: tokenFn(messageText(messages[i])) + 4,
+			tokens: tokenFn(messageTextWithReasoningForAccounting(messages[i])) + 4,
 		})
 	}
 
@@ -256,7 +256,7 @@ func scoreBasedTrimming(
 			}
 			for _, gi := range groupIndices {
 				removed[gi] = true
-				currentTokens -= tokenFn(messageText(messages[gi])) + 4
+				currentTokens -= tokenFn(messageTextWithReasoningForAccounting(messages[gi])) + 4
 			}
 		} else if !removed[item.idx] {
 			removed[item.idx] = true
@@ -297,7 +297,7 @@ func TrimByImportance(
 	}
 	totalTokens := 0
 	for _, m := range messages {
-		totalTokens += tokenFn(messageText(m)) + 4
+		totalTokens += tokenFn(messageTextWithReasoningForAccounting(m)) + 4
 	}
 	return scoreBasedTrimming(messages, maxTokens, totalTokens, tokenFn, logger)
 }

@@ -21,6 +21,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/providers", handleProviders(s))
 	mux.HandleFunc("/api/providers/capabilities", handleProviderCapabilities(s))
 	mux.HandleFunc("/api/providers/pricing", handleProviderPricing(s))
+	mux.HandleFunc("/api/models/catalog", handleModelCatalog(s))
 	mux.HandleFunc("/api/email-accounts", handleEmailAccounts(s))
 	mux.HandleFunc("/api/email-accounts/test", handleEmailAccountsTest(s))
 	mux.HandleFunc("/api/mcp-servers", handleMCPServers(s))
@@ -107,7 +108,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	})))
 
 	// Backup & Restore (.ago archives)
-	mux.HandleFunc("/api/backup/create", handleBackupCreate(s))
+	mux.Handle("/api/backup/create", requireAdmin(s, handleBackupCreate(s)))
 	mux.Handle("/api/backup/import", requireAdmin(s, handleBackupImport(s)))
 
 	// Chromecast mDNS discovery
@@ -121,6 +122,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/homepage/status", handleHomepageStatus(s))
 	mux.HandleFunc("/api/homepage/detect-workspace", handleHomepageDetectWorkspace(s))
 	mux.HandleFunc("/api/homepage/test-connection", handleHomepageTestConnection(s))
+	mux.HandleFunc("/api/homepage/history", handleHomepageHistory(s))
 
 	// Cloudflare Tunnel endpoints
 	mux.HandleFunc("/api/tunnel/status", handleTunnelStatus(s))
@@ -428,15 +430,17 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/dashboard/errors", handleDashboardErrors(s))
 	mux.HandleFunc("/api/dashboard/compression", handleDashboardCompression(s))
 	mux.HandleFunc("/api/dashboard/mission-history", handleDashboardMissionHistory(s))
-	mux.HandleFunc("/api/knowledge-graph/node", handleKnowledgeGraphNodeDetail(s))
-	mux.HandleFunc("/api/knowledge-graph/node/protect", handleKnowledgeGraphNodeProtect(s))
-	mux.HandleFunc("/api/knowledge-graph/edge", handleKnowledgeGraphEdgeMutate(s))
+	mux.Handle("/api/knowledge-graph/node", requireAdminUnlessGET(s, handleKnowledgeGraphNodeDetail(s)))
+	mux.Handle("/api/knowledge-graph/node/protect", requireAdmin(s, handleKnowledgeGraphNodeProtect(s)))
+	mux.Handle("/api/knowledge-graph/edge", requireAdmin(s, handleKnowledgeGraphEdgeMutate(s)))
 	mux.HandleFunc("/api/knowledge-graph/nodes", handleKnowledgeGraphNodes(s))
 	mux.HandleFunc("/api/knowledge-graph/edges", handleKnowledgeGraphEdges(s))
 	mux.HandleFunc("/api/knowledge-graph/important", handleKnowledgeGraphImportant(s))
 	mux.HandleFunc("/api/knowledge-graph/stats", handleKnowledgeGraphStats(s))
 	mux.HandleFunc("/api/knowledge-graph/search", handleKnowledgeGraphSearch(s))
 	mux.HandleFunc("/api/knowledge-graph/quality", handleKnowledgeGraphQuality(s))
+	mux.HandleFunc("/api/knowledge-graph/health", handleKnowledgeGraphHealth(s))
+	mux.Handle("/api/knowledge-graph/merge", requireAdmin(s, handleKnowledgeGraphMerge(s)))
 
 	// System endpoints
 	mux.HandleFunc("/api/system/os", func(w http.ResponseWriter, r *http.Request) {

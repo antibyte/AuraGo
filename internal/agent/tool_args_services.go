@@ -149,21 +149,26 @@ type mediaRegistryArgs struct {
 }
 
 type homepageRegistryArgs struct {
-	Operation   string
-	Query       string
-	Name        string
-	Description string
-	Framework   string
-	ProjectDir  string
-	URL         string
-	Status      string
-	Reason      string
-	Problem     string
-	Notes       string
-	Tags        []string
-	ID          int64
-	Limit       int
-	Offset      int
+	Operation    string
+	Query        string
+	HistoryQuery string
+	Name         string
+	Description  string
+	Framework    string
+	ProjectDir   string
+	URL          string
+	Status       string
+	Reason       string
+	Problem      string
+	Notes        string
+	EntryType    string
+	Content      string
+	Source       string
+	Tags         []string
+	ID           int64
+	HistoryID    int64
+	Limit        int
+	Offset       int
 }
 
 func toolArgInt64(args map[string]interface{}, keys ...string) int64 {
@@ -481,9 +486,14 @@ func decodeHomepageRegistryArgs(tc ToolCall) homepageRegistryArgs {
 		Status:      firstNonEmptyToolString(tc.Status, toolArgString(tc.Params, "status")),
 		Reason:      firstNonEmptyToolString(tc.Reason, toolArgString(tc.Params, "reason")),
 		Problem:     firstNonEmptyToolString(tc.Problem, toolArgString(tc.Params, "problem")),
-		Notes:       firstNonEmptyToolString(tc.Notes, toolArgString(tc.Params, "notes")),
+		Notes:        firstNonEmptyToolString(tc.Notes, toolArgString(tc.Params, "notes")),
+		EntryType:    firstNonEmptyToolString(tc.EntryType, toolArgString(tc.Params, "entry_type")),
+		Content:      firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
+		HistoryQuery: firstNonEmptyToolString(tc.HistoryQuery, toolArgString(tc.Params, "history_query", "query")),
+		Source:       firstNonEmptyToolString(tc.Source, toolArgString(tc.Params, "source")),
 		Tags:        toolArgTags(tc.Params, tc.Tags, "tags"),
 		ID:          toolArgInt64(tc.Params, "id"),
+		HistoryID:   toolArgInt64(tc.Params, "history_id"),
 		Limit:       firstNonEmptyInt(tc.Limit, toolArgInt(tc.Params, 0, "limit")),
 		Offset:      firstNonEmptyInt(tc.Offset, toolArgInt(tc.Params, 0, "offset")),
 	}

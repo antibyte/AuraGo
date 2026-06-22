@@ -6,10 +6,10 @@
             setStatus: Pixel.bindRuntime(runtime, function setStatus(msg) {                     if (this.statusText) this.statusText.textContent = msg || '';
             }),
             updateStatus: Pixel.bindRuntime(runtime, function updateStatus() {
-                                if (!this.imgWidth || !this.imgHeight) { this.setStatus(this.t('pixel.status_ready', 'Ready')); return; }
+                                if (!this.imgWidth || !this.imgHeight) { this.setStatus(this.t('pixel.status_ready')); return; }
                                 const parts = [`${this.imgWidth} × ${this.imgHeight}`];
                                 if (this.filePath) parts.push(this.filePath.split('/').pop());
-                                if (this.isDirty) parts.push('● ' + this.t('pixel.unsaved_changes', 'Unsaved'));
+                                if (this.isDirty) parts.push('● ' + this.t('pixel.unsaved_changes'));
                                 this.setStatus(parts.join('  ·  '));
                                 if (this.statusTool) this.statusTool.textContent = this.activeTool ? this.t('pixel.' + this.activeTool, this.activeTool) : '';
             }),
@@ -136,7 +136,7 @@
                                 this.cctx.drawImage(img, 0, 0);
                                 this.imgWidth = img.naturalWidth;
                                 this.imgHeight = img.naturalHeight;
-                                this.layers = [{ canvas: null, name: this.t('pixel.layer_background', 'Background'), visible: true, opacity: 1 }];
+                                this.layers = [{ canvas: null, name: this.t('pixel.layer_background'), visible: true, opacity: 1 }];
                                 this.activeLayerIdx = 0;
                                 this.history = [];
                                 this.historyIdx = -1;
@@ -158,7 +158,7 @@
                                 this.cctx.fillRect(0, 0, w, h);
                                 this.imgWidth = w;
                                 this.imgHeight = h;
-                                this.layers = [{ canvas: null, name: this.t('pixel.layer_background', 'Background'), visible: true, opacity: 1 }];
+                                this.layers = [{ canvas: null, name: this.t('pixel.layer_background'), visible: true, opacity: 1 }];
                                 this.activeLayerIdx = 0;
                                 this.history = [];
                                 this.historyIdx = -1;
@@ -457,7 +457,7 @@
                                 this.cropOverlay.hidden = false;
                                 this.cropOverlay.innerHTML = '<div class="pixel-crop-selection" data-crop-sel></div>';
                                 this.host.querySelector('[data-crop-actions]').hidden = false;
-                                this.setStatus(this.t('pixel.crop_hint', 'Drag to select crop area'));
+                                this.setStatus(this.t('pixel.crop_hint'));
             }),
             cancelCrop: Pixel.bindRuntime(runtime, function cancelCrop() {
                                 this.cropState = null;
@@ -507,17 +507,17 @@
                                 const dlg = document.createElement('div');
                                 dlg.className = 'vd-modal-backdrop';
                                 dlg.innerHTML = `<form class="vd-modal" role="dialog">
-                                    <div class="vd-modal-title">${this.esc(this.t('pixel.resize', 'Resize'))}</div>
+                                    <div class="vd-modal-title">${this.esc(this.t('pixel.resize'))}</div>
                                     <div class="pixel-resize-form">
-                                        <label class="pixel-label">${this.esc(this.t('pixel.width', 'Width'))}</label>
+                                        <label class="pixel-label">${this.esc(this.t('pixel.width'))}</label>
                                         <input class="vd-modal-input" type="number" data-resize-w value="${this.imgWidth}" min="1">
-                                        <label class="pixel-label">${this.esc(this.t('pixel.height', 'Height'))}</label>
+                                        <label class="pixel-label">${this.esc(this.t('pixel.height'))}</label>
                                         <input class="vd-modal-input" type="number" data-resize-h value="${this.imgHeight}" min="1">
-                                        <label class="pixel-checkbox-row"><input type="checkbox" data-lock-ratio checked> ${this.esc(this.t('pixel.lock_ratio', 'Lock aspect ratio'))}</label>
+                                        <label class="pixel-checkbox-row"><input type="checkbox" data-lock-ratio checked> ${this.esc(this.t('pixel.lock_ratio'))}</label>
                                     </div>
                                     <div class="vd-modal-actions">
-                                        <button type="button" class="vd-button" data-cancel>${this.esc(this.t('pixel.cancel', 'Cancel'))}</button>
-                                        <button type="submit" class="vd-button vd-button-primary">${this.esc(this.t('pixel.apply', 'Apply'))}</button>
+                                        <button type="button" class="vd-button" data-cancel>${this.esc(this.t('pixel.cancel'))}</button>
+                                        <button type="submit" class="vd-button vd-button-primary">${this.esc(this.t('pixel.apply'))}</button>
                                     </div>
                                 </form>`;
                                 document.body.appendChild(dlg);

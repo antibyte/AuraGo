@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 
 	"aurago/internal/config"
@@ -63,7 +64,7 @@ func (s *Server) getDesktopService(ctx context.Context) (*desktop.Service, *desk
 
 	s.DesktopMu.Lock()
 	defer s.DesktopMu.Unlock()
-	if s.DesktopService != nil && s.DesktopService.Config() != desktopCfg {
+	if s.DesktopService != nil && !reflect.DeepEqual(s.DesktopService.Config(), desktopCfg) {
 		if s.DesktopHub != nil {
 			s.DesktopHub.Close()
 		}
@@ -90,6 +91,9 @@ func (s *Server) getDesktopService(ctx context.Context) (*desktop.Service, *desk
 		}
 		if codeContainer := svc.CodeContainer(); codeContainer != nil {
 			codeContainer.SetDockerClient(newCodeStudioDockerAdapter(desktopCfg, s.Logger))
+		}
+		if openSCADContainer := svc.OpenSCADContainer(); openSCADContainer != nil {
+			openSCADContainer.SetDockerClient(newOpenSCADDockerAdapter(svc.Config(), s.Logger))
 		}
 		s.DesktopService = svc
 		s.DesktopHub = desktop.NewHub(desktopCfg.MaxWSClients)

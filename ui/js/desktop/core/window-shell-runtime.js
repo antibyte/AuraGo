@@ -103,14 +103,33 @@
         });
     }
 
+    function normalizeQuickChatResponseForPetBubble(text) {
+        return String(text || '')
+            .replace(/```[\s\S]*?```/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function announceQuickChatResponseToPet(text) {
+        const message = normalizeQuickChatResponseForPetBubble(text);
+        if (!message) return;
+        if (window.PetRuntime && typeof window.PetRuntime.announceAgentResponse === 'function') {
+            window.PetRuntime.announceAgentResponse(message);
+        } else if (window.PetRuntime && typeof window.PetRuntime.say === 'function') {
+            window.PetRuntime.say(message, 'info');
+        }
+    }
+
     async function sendQuickChatStream(responseEl, message) {
         let streamingContent = '';
+        let petAnnouncementText = '';
         let finalized = false;
         return new Promise((resolve, reject) => {
             const ctrl = new AbortController();
             function doFinalize() {
                 if (finalized) return;
                 finalized = true;
+                announceQuickChatResponseToPet(petAnnouncementText || streamingContent);
                 resolve();
             }
             function doReject(err) {
@@ -150,6 +169,9 @@
                                         }
                                     } else if (event === 'final_response') {
                                         const text = parsed.detail || parsed.message || '';
+                                        if (text.trim()) {
+                                            petAnnouncementText = text;
+                                        }
                                         if (!streamingContent.trim() && text.trim()) {
                                             streamingContent = text;
                                             responseEl.textContent = text;
@@ -545,7 +567,7 @@
 
         let html = '';
         if (recentApps.length > 0) {
-            html += `<div class="vd-start-recent-label">${esc(t('desktop.recent_apps', 'Recent'))}</div>`;
+            html += `<div class="vd-start-recent-label">${esc(t('desktop.recent_apps'))}</div>`;
             html += recentApps.map(app => `<button class="vd-start-item vd-start-recent-item" type="button" data-app-id="${esc(app.id)}">
                 ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
                 <span>${esc(appName(app))}${brokenAppLabel(app)}</span>
@@ -738,6 +760,8 @@
             todo: { width: 900, height: 600 },
             'music-player': { width: 430, height: 260 },
             radio: { width: 960, height: 680 },
+            openscad: { width: 1120, height: 720 },
+            teevee: { width: 1120, height: 720 },
             gallery: { width: 1040, height: 700 },
             calendar: { width: 950, height: 650 },
             'quick-connect': { width: 960, height: 680 },
@@ -751,18 +775,20 @@
             'viewer-3d': { width: 900, height: 700 },
             pixel: { width: 1100, height: 750 },
             'galaxa-deluxe': { width: 600, height: 800 },
+            chess: { width: 980, height: 680 },
             nasscad: { width: 1280, height: 850 },
             people: { width: 1020, height: 700 },
-            'mission-control': { width: 1100, height: 750 }
+            'mission-control': { width: 1100, height: 750 },
+            'pet-picker': { width: 760, height: 620 }
         };
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, gallery: true, calendar: true, 'quick-connect': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, nasscad: true, 'mission-control': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true }[appId]; }
 
     function appWindowMinSize(appId) {
-        const mins = { 'system-info': { width: 560, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 } };
+        const mins = { 'system-info': { width: 560, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 } };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
 

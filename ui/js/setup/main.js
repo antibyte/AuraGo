@@ -157,7 +157,7 @@ async function loadProfiles() {
         renderProfileCards(profiles);
     } catch (e) {
         const loading = document.getElementById('profile-loading');
-        if (loading) loading.innerHTML = `<p style="color:var(--text-secondary);font-size:0.85rem;">${escapeHtml(t('setup.plan_load_error') || 'Could not load profiles.')}</p>`;
+        if (loading) loading.innerHTML = `<p style="color:var(--text-secondary);font-size:0.85rem;">${escapeHtml(t('setup.plan_load_error'))}</p>`;
     }
 }
 
@@ -173,7 +173,7 @@ function getFeatureBadges(features) {
         const active = !!features[key];
         const label = (t(i18nKey) || key);
         const cls = active ? 'feature-badge' : 'feature-badge inactive';
-        return `<span class="${cls}" title="${active ? '' : t('setup.feature_unavailable') || 'Not available'}">${icon} ${escapeHtml(label)}</span>`;
+        return `<span class="${cls}" title="${active ? '' : t('setup.feature_unavailable')}">${icon} ${escapeHtml(label)}</span>`;
     }).join('');
 }
 
@@ -187,7 +187,7 @@ function renderProfileCards(list) {
     const grid = document.getElementById('profile-grid');
     if (!grid) return;
     if (!list || list.length === 0) {
-        grid.innerHTML = `<p style="color:var(--text-secondary);font-size:0.85rem;grid-column:1/-1;text-align:center;padding:2rem;">${escapeHtml(t('setup.plan_no_profiles') || 'No profiles available.')}</p>`;
+        grid.innerHTML = `<p style="color:var(--text-secondary);font-size:0.85rem;grid-column:1/-1;text-align:center;padding:2rem;">${escapeHtml(t('setup.plan_no_profiles'))}</p>`;
         return;
     }
     grid.innerHTML = list.map(p => {
@@ -349,14 +349,14 @@ async function testQuickConnection() {
 
     const apiKey = document.getElementById('quick-api-key').value.trim();
     if (!apiKey) {
-        result.textContent = t('setup.step0_api_key_error') || 'API Key is required.';
+        result.textContent = t('setup.step0_api_key_error');
         result.className = 'field-hint error';
         setupSetHidden(result, false);
         return;
     }
 
     btn.disabled = true;
-    result.textContent = t('setup.step0_test_testing') || 'Testing…';
+    result.textContent = t('setup.step0_test_testing');
     result.className = 'field-hint';
     setupSetHidden(result, false);
 
@@ -377,10 +377,10 @@ async function testQuickConnection() {
         });
         const data = await resp.json();
         if (data.ok) {
-            result.textContent = '✓ ' + (t('setup.step0_test_success') || 'Connection successful!');
+            result.textContent = '✓ ' + (t('setup.step0_test_success'));
             result.className = 'field-hint success';
         } else {
-            result.textContent = '✕ ' + (data.error || t('setup.step0_test_failed') || 'Connection failed.');
+            result.textContent = '✕ ' + (data.error || t('setup.step0_test_failed'));
             result.className = 'field-hint error';
         }
     } catch (err) {
@@ -1262,7 +1262,17 @@ function buildTrustLevelPatch(level) {
 
     // Base tools — always enabled at all levels, always read-write
     const baseTools = {
-        memory:             { enabled: true },
+        memory:             {
+            enabled: true,
+            ondemand_retrieval: {
+                enabled: true,
+                max_essential_memories: 1,
+                max_available_memories: 6,
+                max_available_kg_nodes: 6,
+                max_available_chars: 1600,
+                dedupe_scope: 'turn'
+            }
+        },
         knowledge_graph:    { enabled: true, auto_extraction: true, prompt_injection: true },
         secrets_vault:      { enabled: true },
         scheduler:          { enabled: true },
@@ -1508,7 +1518,7 @@ async function skipSetup() {
 
     let confirmed = false;
     try {
-        confirmed = await showConfirm(t('setup.confirm_skip_setup_title') || 'Skip Setup', t('setup.confirm_skip_setup'));
+        confirmed = await showConfirm(t('setup.confirm_skip_setup_title'), t('setup.confirm_skip_setup'));
         if (confirmed) {
             window.location.href = '/?skip_setup=1';
             return;

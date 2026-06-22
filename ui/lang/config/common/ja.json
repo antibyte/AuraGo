@@ -31,5 +31,9 @@
   "config.common.inactive": "非アクティブ",
   "config.feature_unavailable": "この機能は現在の実行環境では利用できません。",
   "config.docker_mode_banner": "AuraGoはDockerコンテナ内で実行されています。一部の機能が制限される場合があります。",
-  "config.firewall.docker_blocked": "Dockerコンテナ内ではファイアウォール管理は利用できません。"
+  "config.firewall.docker_blocked": "Dockerコンテナ内ではファイアウォール管理は利用できません。",
+  "config.unsaved_changes.title": "未保存の変更",
+  "config.unsaved_changes.message": "未保存の変更があります。破棄してセクションを切り替えますか？",
+  "config.unsaved_changes.discard": "変更を破棄",
+  "config.unsaved_changes.stay": "ここに留まる"
 }

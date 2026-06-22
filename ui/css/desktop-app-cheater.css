@@ -27,14 +27,15 @@
 }
 
 .cheater-app {
+    position: absolute;
+    inset: 0;
     display: flex;
     flex-direction: column;
-    height: 100%;
+    overflow: hidden;
     color: var(--cheater-text);
     background:
         radial-gradient(circle at 10% 0%, rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.08), transparent 36%),
         var(--cheater-surface);
-    position: relative;
     isolation: isolate;
     outline: none;
 }
@@ -345,9 +346,9 @@
 }
 
 .cheater-app[data-state="editor"] {
-    display: grid;
-    grid-template-rows: 56px 1fr 28px;
-    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .cheater-header {
@@ -357,6 +358,8 @@
     padding: 0 1rem;
     border-bottom: 1px solid var(--cheater-border);
     background: var(--cheater-surface-elevated);
+    min-height: 56px;
+    flex-shrink: 0;
 }
 
 .cheater-back {
@@ -367,6 +370,8 @@
     cursor: pointer;
     padding: .25rem .5rem;
     border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
 }
 
 .cheater-back:hover { background: var(--cheater-hover); }
@@ -374,6 +379,7 @@
 
 .cheater-title {
     flex: 1;
+    min-width: 0;
     border: 0;
     background: transparent;
     color: var(--cheater-text);
@@ -383,15 +389,19 @@
 }
 
 .cheater-title:focus { outline: none; border-bottom: 1px solid var(--cheater-accent); }
+.cheater-title[readonly] { opacity: .8; }
 
 .cheater-save {
     color: var(--cheater-muted);
     font-size: .8125rem;
     white-space: nowrap;
+    font-variant-numeric: tabular-nums;
 }
 
 .cheater-save[data-state="saving"] { color: var(--cheater-accent); }
-.cheater-save[data-state="error"]   { color: var(--cheater-danger); }
+.cheater-save[data-state="error"]   { color: var(--cheater-danger); font-weight: 600; }
+
+.cheater-save-btn { padding: .25rem .65rem; font-size: .8125rem; }
 
 .cheater-agent-badge {
     background: var(--cheater-pill-bg);
@@ -410,14 +420,119 @@
     border-radius: 4px;
     cursor: pointer;
     font-size: .875rem;
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
 }
 
 .cheater-attach-btn:hover { background: var(--cheater-hover); }
 
+/* Markdown toolbar */
+.cheater-toolbar {
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--cheater-border);
+    background: var(--cheater-surface-elevated);
+    min-height: 0;
+}
+.cheater-toolbar[hidden] { display: none; }
+
+.cheater-toolbar-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    padding: .35rem .75rem;
+}
+
+.cheater-toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: .2rem;
+    flex-wrap: wrap;
+}
+
+.cheater-tool-btn {
+    background: transparent;
+    border: 0;
+    color: var(--cheater-text);
+    cursor: pointer;
+    padding: .3rem .45rem;
+    border-radius: 4px;
+    font-size: .875rem;
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+    min-width: 1.8rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 120ms ease;
+}
+
+.cheater-tool-btn:hover:not(:disabled) { background: var(--cheater-hover); }
+.cheater-tool-btn:focus-visible { outline: 2px solid var(--cheater-accent); outline-offset: 1px; }
+.cheater-tool-btn:disabled { color: var(--cheater-disabled); cursor: not-allowed; }
+
+.cheater-help-btn {
+    margin-left: auto;
+    font-family: inherit;
+    color: var(--cheater-muted);
+}
+
+/* View toggle */
+.cheater-view-toggle {
+    flex-shrink: 0;
+    display: flex;
+    gap: 0;
+    padding: .3rem .75rem;
+    border-bottom: 1px solid var(--cheater-border);
+    background: var(--cheater-surface-elevated);
+}
+
+.cheater-view-btn {
+    background: transparent;
+    border: 1px solid var(--cheater-border);
+    color: var(--cheater-muted);
+    cursor: pointer;
+    padding: .25rem .75rem;
+    font-size: .8125rem;
+    transition: background 120ms ease, color 120ms ease;
+}
+
+.cheater-view-btn + .cheater-view-btn { border-left: 0; }
+.cheater-view-btn:first-child { border-radius: 6px 0 0 6px; }
+.cheater-view-btn:last-child { border-radius: 0 6px 6px 0; }
+.cheater-view-btn:hover { background: var(--cheater-hover); color: var(--cheater-text); }
+.cheater-view-btn.is-active {
+    background: var(--cheater-selected-bg);
+    color: var(--cheater-accent);
+    border-color: color-mix(in srgb, var(--cheater-accent) 40%, var(--cheater-border));
+}
+.cheater-view-btn:focus-visible { outline: 2px solid var(--cheater-accent); outline-offset: 1px; z-index: 1; }
+
 .cheater-content {
-    overflow: auto;
-    padding: 1.5rem;
+    flex: 1 1 0;
+    display: flex;
+    overflow: hidden;
     background: var(--cheater-surface);
+    min-height: 0;
+}
+
+.cheater-app[data-view="split"] .cheater-source,
+.cheater-app[data-view="split"] .cheater-preview { flex: 1 1 0; }
+
+.cheater-app[data-view="edit"] .cheater-source { flex: 1 1 auto; }
+.cheater-app[data-view="edit"] .cheater-preview { display: none; }
+
+.cheater-app[data-view="preview"] .cheater-source { display: none; }
+.cheater-app[data-view="preview"] .cheater-preview { flex: 1 1 auto; border-left: 0; }
+
+.cheater-source,
+.cheater-preview {
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: auto;
+    box-sizing: border-box;
+    height: 100%;
 }
 
 .cheater-source {
@@ -428,11 +543,63 @@
     word-wrap: break-word;
     margin: 0;
     outline: none;
+    border: 0;
+    resize: none;
+    width: 100%;
+    height: 100%;
+    padding: 1.5rem;
+    background: var(--cheater-surface);
+    color: var(--cheater-text);
+    tab-size: 4;
+    -moz-tab-size: 4;
 }
 
+.cheater-source::placeholder { color: var(--cheater-muted); opacity: .6; }
 .cheater-source:focus { outline: none; }
+.cheater-source[readonly] { background: color-mix(in srgb, var(--cheater-surface) 92%, transparent); }
+
+.cheater-preview {
+    padding: 1.5rem;
+    border-left: 1px solid var(--cheater-border);
+    background: var(--cheater-surface-elevated);
+    color: var(--cheater-text);
+}
+
+.cheater-preview[hidden] { display: none; }
+
+.cheater-preview h1 { font-size: 1.5rem; margin: 1rem 0 .5rem; font-weight: 600; }
+.cheater-preview h2 { font-size: 1.25rem; margin: .9rem 0 .4rem; font-weight: 600; }
+.cheater-preview h3 { font-size: 1.1rem;  margin: .8rem 0 .3rem; font-weight: 600; }
+.cheater-preview p { margin: .5rem 0; line-height: 1.6; }
+.cheater-preview ul, .cheater-preview ol { margin: .5rem 0; padding-left: 1.5rem; }
+.cheater-preview li { margin: .2rem 0; }
+.cheater-preview a { color: var(--cheater-accent); }
+.cheater-preview blockquote { border-left: 3px solid var(--cheater-border); padding-left: 1rem; color: var(--cheater-muted); margin: .5rem 0; }
+.cheater-preview hr { border: 0; border-top: 1px solid var(--cheater-border); margin: 1rem 0; }
+.cheater-preview code {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: .9em;
+    background: var(--cheater-code-inline-bg);
+    padding: .1em .3em;
+    border-radius: 3px;
+}
+.cheater-preview pre {
+    background: var(--cheater-code-bg);
+    color: var(--cheater-code-fg);
+    padding: .75rem 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: .875rem;
+    line-height: 1.5;
+}
+.cheater-preview pre code { background: transparent; padding: 0; }
+.cheater-preview table { border-collapse: collapse; margin: .5rem 0; }
+.cheater-preview th, .cheater-preview td { border: 1px solid var(--cheater-border); padding: .4rem .6rem; }
+.cheater-preview img { max-width: 100%; border-radius: 6px; }
 
 .cheater-footer {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: .5rem;
@@ -441,7 +608,17 @@
     color: var(--cheater-muted);
     border-top: 1px solid var(--cheater-border);
     background: var(--cheater-surface-elevated);
+    font-variant-numeric: tabular-nums;
 }
+
+.cheater-footer-spacer { flex: 1; }
+.cheater-footer [data-help] { color: var(--cheater-muted); }
+
+/* Create modal field error */
+.cheater-field-error { color: var(--cheater-danger); font-size: .75rem; min-height: 1em; }
+
+/* Library agent badge (secondary placement) */
+.cheater-library-agent-badge { margin-left: .35rem; }
 
 .cheater-spotlight {
     position: fixed;
@@ -552,44 +729,56 @@
     .cheater-spotlight-panel { animation: none; }
 }
 
-.cheater-md-block {
+.cheater-help-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10005;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cheater-help-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+.cheater-help-panel {
     position: relative;
-    padding: .25rem .5rem;
-    margin: -.25rem -.5rem;
-    border-radius: 6px;
-    transition: background 150ms ease;
+    width: min(420px, 92vw);
+    max-height: 80vh;
+    overflow-y: auto;
+    background: var(--cheater-modal-surface);
+    color: var(--cheater-text);
+    border: 1px solid var(--cheater-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 24px 60px rgba(0,0,0,.3);
+    animation: cheater-panel-scale 150ms ease-out;
 }
 
-.cheater-md-block:hover { background: var(--cheater-hover); }
-.cheater-md-block.is-rendered { background: transparent; }
-.cheater-md-block.is-rendered:hover { background: var(--cheater-hover); }
+.cheater-help-panel h2 { margin: 0 0 1rem; font-size: 1.1rem; }
 
-.cheater-md-block pre {
-    background: var(--cheater-code-bg);
-    color: var(--cheater-code-fg);
-    padding: .75rem 1rem;
-    border-radius: 6px;
-    overflow-x: auto;
-    font-family: var(--font-mono, ui-monospace, monospace);
-    font-size: .875rem;
-    line-height: 1.5;
+.cheater-help-list { margin: 0; display: flex; flex-direction: column; gap: .3rem; }
+
+.cheater-help-row { display: flex; align-items: center; gap: .75rem; margin: 0; }
+.cheater-help-row dt { flex-shrink: 0; min-width: 9rem; }
+.cheater-help-row dd { margin: 0; color: var(--cheater-muted); font-size: .875rem; }
+.cheater-help-row kbd {
+    display: inline-block;
+    padding: .15rem .4rem;
+    border-radius: 4px;
+    border: 1px solid var(--cheater-border);
+    background: rgba(255,255,255,.05);
+    font-size: .75rem;
+    font-family: ui-monospace, monospace;
+    color: var(--cheater-text);
 }
 
-.cheater-md-block code {
-    font-family: var(--font-mono, ui-monospace, monospace);
-    font-size: .9em;
-    background: var(--cheater-code-inline-bg);
-    padding: .1em .3em;
-    border-radius: 3px;
-}
-
-.cheater-md-block pre code { background: transparent; padding: 0; }
-
-.cheater-md-block h1 { font-size: 1.5rem; margin: 1rem 0 .5rem; }
-.cheater-md-block h2 { font-size: 1.25rem; margin: .9rem 0 .4rem; }
-.cheater-md-block h3 { font-size: 1.1rem;  margin: .8rem 0 .3rem; }
-.cheater-md-block ul, .cheater-md-block ol { margin: .5rem 0; padding-left: 1.5rem; }
-.cheater-md-block a { color: var(--cheater-accent); }
+.cheater-help-footer { display: flex; justify-content: flex-end; margin-top: 1.25rem; }
 
 .cheater-modal {
     position: fixed;
@@ -660,6 +849,9 @@
 .cheater-secondary { background: transparent; border: 1px solid var(--cheater-border); padding: .5rem 1rem; border-radius: 6px; color: var(--cheater-text); cursor: pointer; }
 .cheater-secondary:hover { background: var(--cheater-hover); }
 .cheater-secondary:disabled { color: var(--cheater-disabled); cursor: not-allowed; }
+.cheater-danger-btn { background: var(--cheater-danger); border-color: var(--cheater-danger); }
+.cheater-danger-btn:hover { filter: brightness(1.08); }
+.cheater-confirm-text { margin: 0 0 1rem; color: var(--cheater-muted); line-height: 1.5; }
 
 .cheater-attach-panel {
     position: fixed;
@@ -727,6 +919,7 @@
 .cheater-update-bar button { background: transparent; border: 0; color: inherit; cursor: pointer; padding: .125rem .5rem; }
 .cheater-update-bar button[data-action="apply"] { text-decoration: underline; }
 .cheater-update-bar button[data-action="dismiss"] { font-size: 1.25rem; }
+.cheater-update-summary { color: var(--cheater-muted); font-size: .8125rem; }
 
 .cheater-context-menu {
     position: fixed;

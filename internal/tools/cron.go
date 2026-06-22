@@ -3,6 +3,7 @@ package tools
 import (
 	"aurago/internal/i18n"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -21,27 +22,35 @@ type CronJob struct {
 	Source     string `json:"source,omitempty"`
 }
 
+type cronJobListItem struct {
+	CronJob
+	Registered bool   `json:"registered"`
+	LastError  string `json:"last_error,omitempty"`
+}
+
 type CronManager struct {
-	mu           sync.Mutex
-	engine       *cron.Cron
-	file         string
-	store        *systemTaskStore
-	jobs         []CronJob
-	cronEntryIDs map[string]cron.EntryID
-	callback     func(prompt string)
-	runners      map[string]func(jobID, prompt string)
-	started      bool
+	mu                 sync.Mutex
+	engine             *cron.Cron
+	file               string
+	store              *systemTaskStore
+	jobs               []CronJob
+	cronEntryIDs       map[string]cron.EntryID
+	registrationErrors map[string]string
+	callback           func(prompt string)
+	runners            map[string]func(jobID, prompt string)
+	started            bool
 }
 
 func NewCronManager(dataDir string) *CronManager {
 	store, _ := newSystemTaskStore(dataDir)
 	return &CronManager{
-		engine:       cron.New(cron.WithParser(newCronParser())),
-		file:         filepath.Join(dataDir, "crontab.json"),
-		store:        store,
-		jobs:         []CronJob{},
-		cronEntryIDs: make(map[string]cron.EntryID),
-		runners:      make(map[string]func(jobID, prompt string)),
+		engine:             cron.New(cron.WithParser(newCronParser())),
+		file:               filepath.Join(dataDir, "crontab.json"),
+		store:              store,
+		jobs:               []CronJob{},
+		cronEntryIDs:       make(map[string]cron.EntryID),
+		registrationErrors: make(map[string]string),
+		runners:            make(map[string]func(jobID, prompt string)),
 	}
 }
 
@@ -63,13 +72,22 @@ func (m *CronManager) Start(callback func(prompt string)) error {
 		m.jobs = []CronJob{}
 	}
 
+	var scheduleErrs []error
 	for _, job := range m.jobs {
-		m.scheduleInternal(job)
+		if err := m.scheduleInternal(job); err != nil {
+			slog.Warn("[CronManager] Failed to register persisted cron job",
+				"id", job.ID,
+				"source", job.Source,
+				"cron_expr", job.CronExpr,
+				"error", err)
+			m.registrationErrors[job.ID] = err.Error()
+			scheduleErrs = append(scheduleErrs, fmt.Errorf("register cron job %q (%s): %w", job.ID, job.CronExpr, err))
+		}
 	}
 
 	m.engine.Start()
 	m.started = true
-	return nil
+	return errors.Join(scheduleErrs...)
 }
 
 // RegisterRunner registers a source-specific runner for cron jobs.
@@ -86,25 +104,38 @@ func (m *CronManager) scheduleInternal(job CronJob) error {
 	if job.Disabled {
 		return nil
 	}
-	entryID, err := m.engine.AddFunc(job.CronExpr, func() {
+	j := job
+	entryID, err := m.engine.AddFunc(j.CronExpr, func() {
 		m.mu.Lock()
-		runner := m.runners[job.Source]
+		runner := m.runners[j.Source]
 		if runner == nil && m.callback != nil {
 			cb := m.callback
 			m.mu.Unlock()
-			cb(job.TaskPrompt)
+			slog.Info("[CronManager] Cron job fired",
+				"id", j.ID,
+				"source", j.Source,
+				"dispatch", "fallback_callback")
+			cb(j.TaskPrompt)
 			return
 		}
-		j := job
 		m.mu.Unlock()
 		if runner != nil {
+			slog.Info("[CronManager] Cron job fired",
+				"id", j.ID,
+				"source", j.Source,
+				"dispatch", "source_runner")
 			runner(j.ID, j.TaskPrompt)
+			return
 		}
+		slog.Warn("[CronManager] Cron job fired without runner or fallback callback",
+			"id", j.ID,
+			"source", j.Source)
 	})
 	if err != nil {
 		return err
 	}
-	m.cronEntryIDs[job.ID] = entryID
+	m.cronEntryIDs[j.ID] = entryID
+	delete(m.registrationErrors, j.ID)
 	return nil
 }
 
@@ -198,6 +229,22 @@ func (m *CronManager) GetJobs() []CronJob {
 	return out
 }
 
+func (m *CronManager) jobsWithRuntimeStatusLocked() []cronJobListItem {
+	out := make([]cronJobListItem, 0, len(m.jobs))
+	for _, job := range m.jobs {
+		_, registered := m.cronEntryIDs[job.ID]
+		if job.Disabled {
+			registered = false
+		}
+		out = append(out, cronJobListItem{
+			CronJob:    job,
+			Registered: registered,
+			LastError:  m.registrationErrors[job.ID],
+		})
+	}
+	return out
+}
+
 // ManageSchedule handles cron job operations with i18n support.
 // The lang parameter is used for i18n of user-facing messages. If empty, English is used.
 func (m *CronManager) ManageSchedule(operation, id, expr, prompt string, lang string) (string, error) {
@@ -235,6 +282,7 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 		if existingEntryID, exists := m.cronEntryIDs[jobID]; exists && jobID != "" {
 			m.engine.Remove(existingEntryID)
 			delete(m.cronEntryIDs, jobID)
+			delete(m.registrationErrors, jobID)
 			filtered := []CronJob{}
 			for _, j := range m.jobs {
 				if j.ID != jobID {
@@ -252,6 +300,7 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 		}
 
 		if err := m.scheduleInternal(job); err != nil {
+			m.registrationErrors[jobID] = err.Error()
 			return "", err
 		}
 
@@ -274,6 +323,7 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 			delete(m.cronEntryIDs, id)
 			found = true
 		}
+		delete(m.registrationErrors, id)
 
 		filtered := []CronJob{}
 		for _, j := range m.jobs {
@@ -302,6 +352,7 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 				if job.Disabled {
 					m.jobs[i].Disabled = false
 					if err := m.scheduleInternal(m.jobs[i]); err != nil {
+						m.registrationErrors[id] = err.Error()
 						return "", err
 					}
 					if err := m.saveLocked(); err != nil {
@@ -326,6 +377,7 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 						m.engine.Remove(entryID)
 						delete(m.cronEntryIDs, id)
 					}
+					delete(m.registrationErrors, id)
 					if err := m.saveLocked(); err != nil {
 						return "", err
 					}
@@ -340,7 +392,7 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 		if len(m.jobs) == 0 {
 			return `{"status": "success", "jobs": []}`, nil
 		}
-		data, _ := json.Marshal(m.jobs)
+		data, _ := json.Marshal(m.jobsWithRuntimeStatusLocked())
 		return fmt.Sprintf(`{"status": "success", "jobs": %s}`, string(data)), nil
 
 	default:

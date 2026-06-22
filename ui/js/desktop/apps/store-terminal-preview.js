@@ -12,7 +12,7 @@
         await loadScript('/js/vendor/xterm.min.js');
         await loadScript('/js/vendor/xterm-addon-fit.min.js');
         if (!window.Terminal) {
-            throw new Error(t('common.error', 'Error'));
+            throw new Error(t('common.error'));
         }
     }
 
@@ -54,12 +54,8 @@
         });
     }
 
-    function previewStatusURL(previewURL) {
-        try {
-            return new URL('/__commandcode_preview_status', previewURL).toString();
-        } catch (_) {
-            return String(previewURL || '').replace(/\/?$/, '/__commandcode_preview_status');
-        }
+    function previewStatusURL(storeAppId, previewPortID) {
+        return '/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/preview-status?port_id=' + encodeURIComponent(previewPortID);
     }
 
     async function render(id, app, storeAppId, deps) {
@@ -87,16 +83,16 @@
             const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url?port_id=' + encodeURIComponent(previewPortID));
             if (!contentEl(id)) return;
 
-            const newSessionLabel = t('desktop.store_terminal_new_session', 'New session');
-            const restartLabel = t('desktop.store_terminal_restart_session', 'Restart session');
-            const copyLabel = t('desktop.fm.copy', 'Copy');
-            const pasteLabel = t('desktop.fm.paste', 'Paste');
-            const showPreviewLabel = t('desktop.store_terminal_show_preview', 'Show preview');
-            const hidePreviewLabel = t('desktop.store_terminal_hide_preview', 'Hide preview');
-            const statusStarting = t('desktop.store_terminal_status_starting', 'Starting');
-            const statusConnected = t('desktop.store_terminal_status_connected', 'Connected');
-            const statusPreviewWaiting = t('desktop.store_terminal_status_preview_waiting', 'Preview waiting');
-            const statusPreviewReady = t('desktop.store_terminal_status_preview_ready', 'Preview ready');
+            const newSessionLabel = t('desktop.store_terminal_new_session');
+            const restartLabel = t('desktop.store_terminal_restart_session');
+            const copyLabel = t('desktop.fm.copy');
+            const pasteLabel = t('desktop.fm.paste');
+            const showPreviewLabel = t('desktop.store_terminal_show_preview');
+            const hidePreviewLabel = t('desktop.store_terminal_hide_preview');
+            const statusStarting = t('desktop.store_terminal_status_starting');
+            const statusConnected = t('desktop.store_terminal_status_connected');
+            const statusPreviewWaiting = t('desktop.store_terminal_status_preview_waiting');
+            const statusPreviewReady = t('desktop.store_terminal_status_preview_ready');
 
             host.innerHTML = `<div class="vd-store-terminal-shell">
                 <div class="vd-store-terminal-preview">
@@ -213,18 +209,18 @@
                 const placeholder = document.createElement('div');
                 placeholder.className = 'vd-store-preview-placeholder';
                 placeholder.innerHTML = `<div class="vd-store-preview-placeholder-body">
-                    <div class="vd-store-preview-placeholder-title">${esc(t('desktop.store_terminal_preview_placeholder_title', 'Preview is idle'))}</div>
-                    <p>${esc(t('desktop.store_terminal_preview_placeholder_copy', 'Start your development server in the terminal. Open the preview when your page is ready.'))}</p>
+                    <div class="vd-store-preview-placeholder-title">${esc(t('desktop.store_terminal_preview_placeholder_title'))}</div>
+                    <p>${esc(t('desktop.store_terminal_preview_placeholder_copy'))}</p>
                     <div class="vd-store-terminal-onboarding">
-                        <div class="vd-store-terminal-onboarding-step"><span>1</span><p>${esc(t('desktop.store_terminal_onboarding_cmd', 'CommandCode starts automatically in the terminal.'))}</p></div>
-                        <div class="vd-store-terminal-onboarding-step"><span>2</span><p>${esc(t('desktop.store_terminal_onboarding_api_key', 'Paste your API key from browser auth using the paste button.'))}</p></div>
-                        <div class="vd-store-terminal-onboarding-step"><span>3</span><p>${esc(t('desktop.store_terminal_onboarding_dev_server', 'Start your dev server and point the preview to it.'))}</p></div>
+                        <div class="vd-store-terminal-onboarding-step"><span>1</span><p>${esc(t('desktop.store_terminal_onboarding_cmd'))}</p></div>
+                        <div class="vd-store-terminal-onboarding-step"><span>2</span><p>${esc(t('desktop.store_terminal_onboarding_api_key'))}</p></div>
+                        <div class="vd-store-terminal-onboarding-step"><span>3</span><p>${esc(t('desktop.store_terminal_onboarding_dev_server'))}</p></div>
                     </div>
                     <div class="vd-store-preview-placeholder-code">
-                        <button type="button" class="vd-store-preview-command" data-copy-command="npm run dev -- --host 0.0.0.0"><code>npm run dev -- --host 0.0.0.0</code><span>${esc(t('desktop.store_terminal_copy_command', 'Copy'))}</span></button>
-                        <button type="button" class="vd-store-preview-command" data-copy-command="preview-port 5173"><code>preview-port 5173</code><span>${esc(t('desktop.store_terminal_copy_command', 'Copy'))}</span></button>
+                        <button type="button" class="vd-store-preview-command" data-copy-command="npm run dev -- --host 0.0.0.0"><code>npm run dev -- --host 0.0.0.0</code><span>${esc(t('desktop.store_terminal_copy_command'))}</span></button>
+                        <button type="button" class="vd-store-preview-command" data-copy-command="preview-port 5173"><code>preview-port 5173</code><span>${esc(t('desktop.store_terminal_copy_command'))}</span></button>
                     </div>
-                    <button type="button" class="vd-store-preview-open" data-store-preview-open>${iconMarkup('monitor', 'P', 'vd-store-terminal-action-icon', 15)}<span>${esc(t('desktop.store_terminal_open_preview', 'Open preview'))}</span></button>
+                    <button type="button" class="vd-store-preview-open" data-store-preview-open>${iconMarkup('monitor', 'P', 'vd-store-terminal-action-icon', 15)}<span>${esc(t('desktop.store_terminal_open_preview'))}</span></button>
                 </div>`;
                 placeholder.querySelectorAll('[data-copy-command]').forEach(button => {
                     button.addEventListener('click', event => copyCommandToClipboard(button.dataset.copyCommand, event));
@@ -269,7 +265,7 @@
             async function pollPreviewStatus() {
                 if (disposed) return;
                 try {
-                    const response = await fetch(previewStatusURL(body.url), { credentials: 'same-origin', cache: 'no-store' });
+                    const response = await fetch(previewStatusURL(storeAppId, previewPortID), { credentials: 'same-origin', cache: 'no-store' });
                     if (!response.ok) throw new Error('preview status unavailable');
                     const status = await response.json();
                     if (status && status.ready) {
@@ -281,7 +277,7 @@
                             setPreviewState('ready', detail);
                             showDesktopNotification({
                                 title: appName(app),
-                                message: t('desktop.store_terminal_preview_ready_toast', 'Development server detected. Opening preview.')
+                                message: t('desktop.store_terminal_preview_ready_toast')
                             });
                             openPreviewFrame();
                         } else {
@@ -402,8 +398,8 @@
                 terminalSessionSequence += 1;
                 const sessionID = 'terminal-session-' + terminalSessionSequence;
                 const sessionLabel = bootstrap
-                    ? t('desktop.store_terminal_bootstrap_session', 'CommandCode')
-                    : t('desktop.store_terminal_session_label', 'Session') + ' ' + terminalSessionSequence;
+                    ? t('desktop.store_terminal_bootstrap_session')
+                    : t('desktop.store_terminal_session_label') + ' ' + terminalSessionSequence;
                 const surface = document.createElement('div');
                 surface.className = 'vd-store-terminal-session';
                 surface.hidden = true;
@@ -498,7 +494,7 @@
                 };
                 session.socket.onerror = () => {
                     setConnectionState('starting');
-                    if (session.terminal) session.terminal.write('\r\n[' + esc(t('common.error', 'Error')) + ']\r\n');
+                    if (session.terminal) session.terminal.write('\r\n[' + esc(t('common.error')) + ']\r\n');
                 };
                 session.socket.onclose = () => setConnectionState('starting');
                 activateTerminalSession(sessionID);
@@ -572,7 +568,7 @@
             host.innerHTML = `<div class="vd-store-frame-error">
                 <div class="vd-store-frame-error-title">${esc(appName(app))}</div>
                 <div class="vd-store-frame-error-msg">${esc(err.message)}</div>
-                <button type="button" class="vd-store-btn vd-store-primary" data-action="start">${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start', 'Start'))}</span></button>
+                <button type="button" class="vd-store-btn vd-store-primary" data-action="start">${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start'))}</span></button>
             </div>`;
             const start = host.querySelector('[data-action="start"]');
             if (start) {

@@ -21,7 +21,10 @@ async function renderCloudflareTunnelSection(section) {
         <div class="field-group-title">⚙️ ${t('config.cloudflare_tunnel.general_title')}</div>
         <div class="field-group-desc">${t('config.cloudflare_tunnel.general_desc')}</div>`;
     html += `<div class="cft-toggle-row">
-        <span class="cft-toggle-label">${t('config.cloudflare_tunnel.enabled_label')}</span>
+        <div class="cft-toggle-copy">
+            <span class="cft-toggle-label">${t('config.cloudflare_tunnel.enabled_label')}</span>
+            <div class="field-help">${t('config.cloudflare_tunnel.enabled_help')}</div>
+        </div>
         <div class="toggle ${enabled ? 'on' : ''}" data-path="cloudflare_tunnel.enabled" onclick="toggleBool(this)"></div>
     </div>`;
 
@@ -36,12 +39,18 @@ async function renderCloudflareTunnelSection(section) {
     }
 
     html += `<div class="cft-toggle-row">
-        <span class="cft-toggle-label">${t('config.cloudflare_tunnel.readonly_label')}</span>
+        <div class="cft-toggle-copy">
+            <span class="cft-toggle-label">${t('config.cloudflare_tunnel.readonly_label')}</span>
+            <div class="field-help">${t('config.cloudflare_tunnel.readonly_help')}</div>
+        </div>
         <div class="toggle ${readOnly ? 'on' : ''}" data-path="cloudflare_tunnel.readonly" onclick="toggleBool(this)"></div>
     </div>`;
 
     html += `<div class="cft-toggle-row">
-        <span class="cft-toggle-label">${t('config.cloudflare_tunnel.auto_start_label')}</span>
+        <div class="cft-toggle-copy">
+            <span class="cft-toggle-label">${t('config.cloudflare_tunnel.auto_start_label')}</span>
+            <div class="field-help">${t('config.cloudflare_tunnel.auto_start_help')}</div>
+        </div>
         <div class="toggle ${autoStart ? 'on' : ''}" data-path="cloudflare_tunnel.auto_start" onclick="toggleBool(this)"></div>
     </div>`;
     html += `</div>`;
@@ -54,6 +63,7 @@ async function renderCloudflareTunnelSection(section) {
 
     html += `<label class="cft-field-label">
         <span class="cft-field-caption">${t('config.cloudflare_tunnel.mode')}</span>
+        <div class="field-help">${t('config.cloudflare_tunnel.mode_help')}</div>
         <select class="field-input cft-field-input" data-path="cloudflare_tunnel.mode" onchange="setNestedValue(configData,'cloudflare_tunnel.mode',this.value);setDirty(true)">
             <option value="auto" ${cfg.mode === 'auto' || !cfg.mode ? 'selected' : ''}>${t('config.cloudflare_tunnel.mode_auto')}</option>
             <option value="docker" ${cfg.mode === 'docker' ? 'selected' : ''}>${t('config.cloudflare_tunnel.mode_docker')}</option>
@@ -63,6 +73,7 @@ async function renderCloudflareTunnelSection(section) {
 
     html += `<label class="cft-field-label">
         <span class="cft-field-caption">${t('config.cloudflare_tunnel.auth_method')}</span>
+        <div class="field-help">${t('config.cloudflare_tunnel.auth_method_help')}</div>
         <select class="field-input cft-field-input" data-path="cloudflare_tunnel.auth_method" onchange="setNestedValue(configData,'cloudflare_tunnel.auth_method',this.value);setDirty(true)">
             <option value="token" ${cfg.auth_method === 'token' || !cfg.auth_method ? 'selected' : ''}>${t('config.cloudflare_tunnel.auth_connector_token')}</option>
             <option value="named" ${cfg.auth_method === 'named' ? 'selected' : ''}>${t('config.cloudflare_tunnel.auth_named_tunnel')}</option>
@@ -72,24 +83,28 @@ async function renderCloudflareTunnelSection(section) {
 
     html += `<label class="cft-field-label">
         <span class="cft-field-caption">${t('config.cloudflare_tunnel.tunnel_name')}</span>
+        <div class="field-help">${t('config.cloudflare_tunnel.tunnel_name_help')}</div>
         <input class="field-input cft-field-input" data-path="cloudflare_tunnel.tunnel_name" value="${escapeAttr(cfg.tunnel_name || '')}"
             placeholder="my-tunnel" onchange="setNestedValue(configData,'cloudflare_tunnel.tunnel_name',this.value);setDirty(true)">
     </label>`;
 
     html += `<label class="cft-field-label">
         <span class="cft-field-caption">${t('config.cloudflare_tunnel.account_id')}</span>
+        <div class="field-help">${t('config.cloudflare_tunnel.account_id_help')}</div>
         <input class="field-input cft-field-input" data-path="cloudflare_tunnel.account_id" value="${escapeAttr(cfg.account_id || '')}"
             placeholder="optional" onchange="setNestedValue(configData,'cloudflare_tunnel.account_id',this.value);setDirty(true)">
     </label>`;
 
     html += `<label class="cft-field-label">
         <span class="cft-field-caption">${t('config.cloudflare_tunnel.metrics_port')}</span>
+        <div class="field-help">${t('config.cloudflare_tunnel.metrics_port_help')}</div>
         <input class="field-input cft-field-input" data-path="cloudflare_tunnel.metrics_port" type="number" value="${cfg.metrics_port || 0}"
             placeholder="0 = disabled" onchange="setNestedValue(configData,'cloudflare_tunnel.metrics_port',parseInt(this.value)||0);setDirty(true)">
     </label>`;
 
     html += `<label class="cft-field-label">
         <span class="cft-field-caption">${t('config.cloudflare_tunnel.log_level')}</span>
+        <div class="field-help">${t('config.cloudflare_tunnel.log_level_help')}</div>
         <select class="field-input cft-field-input" data-path="cloudflare_tunnel.log_level" onchange="setNestedValue(configData,'cloudflare_tunnel.log_level',this.value);setDirty(true)">
             <option value="info" ${cfg.log_level === 'info' || !cfg.log_level ? 'selected' : ''}>${t('config.cloudflare_tunnel.log_info')}</option>
             <option value="debug" ${cfg.log_level === 'debug' ? 'selected' : ''}>${t('config.cloudflare_tunnel.log_debug')}</option>
@@ -105,7 +120,10 @@ async function renderCloudflareTunnelSection(section) {
         const loopbackEnabled = (cfg.loopback_port !== undefined && cfg.loopback_port > 0);
         const loopbackPortVal = loopbackEnabled ? cfg.loopback_port : 18080;
         html += `<div class="cft-toggle-row cf-loopback-toggle">
-            <span class="cft-toggle-label">${t('config.cloudflare_tunnel.loopback_label')}</span>
+            <div class="cft-toggle-copy">
+                <span class="cft-toggle-label">${t('config.cloudflare_tunnel.loopback_label')}</span>
+                <div class="field-help">${t('config.cloudflare_tunnel.loopback_hint')}</div>
+            </div>
             <div class="toggle ${loopbackEnabled ? 'on' : ''}" onclick="cloudflareTunnelToggleLoopback(this)"></div>
         </div>`;
         html += `<div id="cf-loopback-port-row" class="cf-loopback-hint${loopbackEnabled ? '' : ' is-hidden'}">
@@ -127,11 +145,17 @@ async function renderCloudflareTunnelSection(section) {
     const isNamed = cfg.auth_method === 'named';
     if (isNamed) {
         html += `<div class="cft-toggle-row cft-toggle-row-exposure">
-            <span class="cft-toggle-label">${t('config.cloudflare_tunnel.expose_web_ui')}</span>
+            <div class="cft-toggle-copy">
+                <span class="cft-toggle-label">${t('config.cloudflare_tunnel.expose_web_ui')}</span>
+                <div class="field-help">${t('config.cloudflare_tunnel.expose_web_ui_help')}</div>
+            </div>
             <div class="toggle ${exposeWebUI ? 'on' : ''}" data-path="cloudflare_tunnel.expose_web_ui" onclick="toggleBool(this)"></div>
         </div>`;
         html += `<div class="cft-toggle-row">
-            <span class="cft-toggle-label">${t('config.cloudflare_tunnel.expose_homepage')}</span>
+            <div class="cft-toggle-copy">
+                <span class="cft-toggle-label">${t('config.cloudflare_tunnel.expose_homepage')}</span>
+                <div class="field-help">${t('config.cloudflare_tunnel.expose_homepage_help')}</div>
+            </div>
             <div class="toggle ${exposeHomepage ? 'on' : ''}" data-path="cloudflare_tunnel.expose_homepage" onclick="toggleBool(this)"></div>
         </div>`;
         html += `<div class="wh-notice cft-notice-info cf-notice-mt-sm">
@@ -142,6 +166,7 @@ async function renderCloudflareTunnelSection(section) {
         const exposeTarget = (exposeHomepage && !exposeWebUI) ? 'homepage' : 'web_ui';
         html += `<label class="cft-field-label cf-expose-narrow">
             <span class="cft-field-caption">${t('config.cloudflare_tunnel.expose_target_label')}</span>
+            <div class="field-help">${t('config.cloudflare_tunnel.expose_target_help')}</div>
             <select class="field-input cft-field-input" onchange="cloudflareTunnelSetExposeTarget(this.value)">
                 <option value="web_ui" ${exposeTarget === 'web_ui' ? 'selected' : ''}>${t('config.cloudflare_tunnel.expose_web_ui')}</option>
                 <option value="homepage" ${exposeTarget === 'homepage' ? 'selected' : ''}>${t('config.cloudflare_tunnel.expose_homepage')}</option>
@@ -159,6 +184,7 @@ async function renderCloudflareTunnelSection(section) {
     if ((cfg.auth_method === 'token' || !cfg.auth_method) && enabled) {
         html += `<div class="field-group cf-token-group">
             <div class="field-label">${t('config.cloudflare_tunnel.token_label')}</div>
+            <div class="field-help">${t('config.cloudflare_tunnel.token_hint')}</div>
             <div class="cfg-password-row">
                 <input class="field-input cfg-password-input" type="password" id="cloudflare-tunnel-token" value="${escapeAttr(cfgSecretValue(cfg.token))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.token, t('config.cloudflare_tunnel.token_placeholder')))}">
                 <button class="btn-save adg-save-btn" onclick="cloudflareTunnelSaveToken()">💾 ${t('config.cloudflare_tunnel.save_vault')}</button>

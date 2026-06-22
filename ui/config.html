@@ -11,9 +11,11 @@
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>AuraGo – Configuration</title>
-    <meta name="description" content="Configure your AI agent settings">
-    <meta property="og:title" content="AuraGo Configuration">
-    <meta property="og:description" content="Configure your AI agent settings">
+    <meta name="description" data-i18n="config.page_description" data-i18n-attr="content"
+        content="">
+    <meta property="og:title" data-i18n="config.page_title" data-i18n-attr="content" content="">
+    <meta property="og:description" data-i18n="config.page_description" data-i18n-attr="content"
+        content="">
     <meta property="og:image" content="/aurago_logo_dark.png">
     <meta property="og:type" content="website">
     <link href="/fonts/fonts.css" rel="stylesheet">
@@ -35,12 +37,12 @@
 </head>
 
 <body>
-    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content">Skip to content</a>
+    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <!-- Header -->
     <div class="cfg-header">
         <div class="cfg-logo-wrap">
-            <button id="cfg-hamburger" class="hamburger-btn cfg-hamburger" title="Menu"
-                aria-label="Toggle sidebar">☰</button>
+            <button id="cfg-hamburger" class="hamburger-btn cfg-hamburger" data-i18n-title="config.menu"
+                data-i18n-aria-label="config.toggle_sidebar">☰</button>
             <a href="/" class="logo">
                 <div class="logo-icon">⚡</div>
                 <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
@@ -96,8 +98,8 @@
     <!-- Save bar -->
     <div class="save-bar">
         <span class="changes-pill" id="changesPill" data-i18n="config.save_bar.unsaved_changes"></span>
-        <span class="save-status" id="saveStatus"></span>
-        <button class="btn-save" id="btnSave" onclick="saveConfig()" disabled data-i18n="config.save_bar.save_button"></button>
+        <span class="save-status" id="saveStatus" role="status" aria-live="polite" aria-atomic="true"></span>
+        <button type="button" class="btn-save" id="btnSave" onclick="saveConfig()" disabled data-i18n="config.save_bar.save_button"></button>
     </div>
 
     <script src="/cfg/form-builder.js?v={{.BuildVersion}}"></script>

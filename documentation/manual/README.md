@@ -19,5 +19,14 @@ Diese Startseite bündelt alle gepflegten Handbücher und Einstiegslinks.
 - [Sicherheit](de/14-sicherheit.md) / [Security](en/14-security.md)
 
 ## Hinweise
-- Die Manuals wurden am 27. Mai 2026 erneut gegen den aktuellen Repo-Stand geprüft.
-- Interne Verlinkungen, Desktop-Dokumentation, API-Referenz und Konfigurationsbeispiele wurden nachgeschärft.
+- Die Manuals wurden am 14. Juni 2026 erneut gegen den aktuellen Repo-Stand geprüft.
+- Interne Verlinkungen, Desktop-Dokumentation, API-Referenz und Konfigurationsbeispiele wurden nachgeschärft (u. a. Config-UX, Setup-Erfolgsbildschirm, Homepage-Registry, Juni 2026).
+
+## Weitere Dokumentation (Repository)
+
+- [Konfigurationsreferenz](../configuration.md)
+- [Docker-Installation](../docker_installation.md)
+- [Architektur](../architecture.md)
+- [Telegram Setup](../telegram_setup.md)
+- [Google OAuth](../google_setup.md)
+- [Output Compression](../output_compression.md)

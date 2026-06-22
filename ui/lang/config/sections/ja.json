@@ -11,7 +11,7 @@
   "config.github.current_allowed_repos": "現在許可されているリポジトリ",
   "config.github.default_private_hint": "有効にすると、新しく作成されるリポジトリは非公開になります",
   "config.github.default_private_label": "新しいリポジトリは既定で非公開",
-  "config.github.enabled_label": "Yuko",
+  "config.github.enabled_label": "有効",
   "config.github.fetch_error": "リポジトリの読み込みエラー",
   "config.github.fetch_repos_btn": "リポジトリを取得",
   "config.github.fetch_to_edit_hint": "一覧を編集するには「リポジトリを取得」をクリックしてください",
@@ -471,7 +471,7 @@
   "config.section.rules.label": "ルール",
   "config.section.rules.desc": "タスク別のエージェント規則を管理",
   "config.section.composio.label": "Composio",
-  "config.section.composio.desc": "Agent muke no gaibu renkei catalog to tool source",
+  "config.section.composio.desc": "エージェント向けの外部連携カタログとツールソース",
   "config.section.virtual_desktop.label": "仮想デスクトップ",
   "config.section.virtual_desktop.desc": "エージェントがアプリ、ファイル、ウィジェットを制御できるブラウザーデスクトップ。",
   "config.github.test_btn": "接続をテスト",
@@ -483,5 +483,6 @@
   "config.group_title.agent.announcement_detector": "応答補正",
   "config.group_title.agent.importance_scoring": "重要度スコア",
   "config.group_title.agent.auto_learning": "自動学習",
-  "config.group_title.agent.reuse_first": "再利用優先"
+  "config.group_title.agent.reuse_first": "再利用優先",
+  "config.github.saving": "保存中..."
 }

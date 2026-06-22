@@ -159,16 +159,55 @@ var transientCoreMemoryOperationalContextMarkers = []string{
 	"reload",
 }
 
-var transientCoreMemoryNetworkDiscoveryMarkers = []string{
+// Strong markers indicate active discovery/reachability checks, not static config.
+var coreMemoryNetworkDiscoveryStrongMarkers = []string{
 	"chromecast",
-	"device",
-	"erreichbar",
-	"gerät",
 	"google home",
-	"ip ",
-	"port ",
+	"netzwerk-scan",
+	"network scan",
+	"nmap",
+	"arp-scan",
+	"arp scan",
 	"port-scan",
+	"port scan",
+}
+
+// Verb markers describe probing or confirming reachability.
+var coreMemoryNetworkDiscoveryVerbMarkers = []string{
+	"discovered",
+	"entdeckt",
+	"erkannt",
+	"detected",
+	"erreichbar",
 	"reachable",
+	"gefunden",
+	"found ",
+	"gescannt",
+	"scanned",
+	"per ping",
+	"ping erfolgreich",
+	"ping successful",
+}
+
+// Durable homelab facts that may mention IPs but are not transient discoveries.
+var durableCoreMemoryNetworkMarkers = []string{
+	"default gateway",
+	"dns server",
+	"feste ip",
+	"gateway ip",
+	"host ip",
+	"host name",
+	"hostname",
+	"node name",
+	"server name",
+	"static ip",
+	"subnet",
+	"vlan ",
+}
+
+var transientCoreMemoryNetworkDiscoveryContextMarkers = []string{
+	"device",
+	"gerät",
 	"smb",
 	"tts",
 	"windows",
@@ -194,9 +233,33 @@ func isCoreMemoryOperationalSnapshot(text string) bool {
 		hasAnyCoreMemoryMarker(text, transientCoreMemoryOperationalContextMarkers)
 }
 
+func isDurableCoreMemoryNetworkFact(text string) bool {
+	return hasAnyCoreMemoryMarker(text, durableCoreMemoryNetworkMarkers)
+}
+
 func isCoreMemoryNetworkDiscovery(text string) bool {
-	return coreMemoryIPv4.MatchString(text) &&
-		hasAnyCoreMemoryMarker(text, transientCoreMemoryNetworkDiscoveryMarkers)
+	if !coreMemoryIPv4.MatchString(text) {
+		return false
+	}
+	if isDurableCoreMemoryNetworkFact(text) {
+		return false
+	}
+	if hasAnyCoreMemoryMarker(text, coreMemoryNetworkDiscoveryStrongMarkers) {
+		return true
+	}
+	if hasAnyCoreMemoryMarker(text, coreMemoryNetworkDiscoveryVerbMarkers) {
+		return true
+	}
+	if strings.Contains(text, "port ") &&
+		(hasAnyCoreMemoryMarker(text, coreMemoryNetworkDiscoveryVerbMarkers) ||
+			hasAnyCoreMemoryMarker(text, coreMemoryNetworkDiscoveryStrongMarkers)) {
+		return true
+	}
+	if hasAnyCoreMemoryMarker(text, transientCoreMemoryNetworkDiscoveryContextMarkers) &&
+		hasAnyCoreMemoryMarker(text, coreMemoryNetworkDiscoveryVerbMarkers) {
+		return true
+	}
+	return false
 }
 
 func isCoreMemoryToolStateClaim(text string) bool {

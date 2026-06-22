@@ -1872,6 +1872,7 @@ func buildAgodeskAgentContext(deviceID string, fileAccess *agodesk.FileAccessPay
 		"Desktop input, UI actions, and browser actions require local approval in the agodesk remote-control banner; the backend cannot approve or bypass that local control session.",
 		"Desktop streaming is not available in this backend version.",
 		"Explicit chat attachments uploaded by the user are listed inside <agodesk_attachments> in the current or prior user messages with agent_workspace/workdir/attachments/... paths. Use those local uploaded files directly; do not use remote.files or remote_control file operations for them unless the user separately asks to access files on the paired PC.",
+		"Ignore generic files directly under agent_workspace/workdir/attachments/ unless they are listed inside <agodesk_attachments>; AgoDesk chat uploads use agent_path entries under attachments/agodesk/.",
 	}
 	if id := strings.TrimSpace(deviceID); id != "" {
 		lines = append(lines,

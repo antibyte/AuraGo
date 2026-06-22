@@ -30,13 +30,13 @@
     <link href="/fonts/fonts.css" rel="stylesheet">
 </head>
 <body>
-    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content">Skip to content</a>
+    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <header class="app-header">
         <div class="header-left">
             <a href="/" class="logo">
                 <div class="logo-icon">🥚</div>
                 <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-                <span class="logo-subtitle" data-i18n="gallery.subtitle">Image Gallery</span>
+                <span class="logo-subtitle" data-i18n="gallery.subtitle"></span>
             </a>
         </div>
         <div class="header-actions">
@@ -51,21 +51,21 @@
             <h1 data-i18n="gallery.title">🎨 Image Gallery</h1>
             <div class="gallery-controls">
                 <input type="text" id="gallery-search" class="gallery-search"
-                    placeholder="Search prompts..." data-i18n-placeholder="gallery.search_placeholder">
+                    placeholder="" data-i18n-placeholder="gallery.search_placeholder">
                 <select id="gallery-provider-filter" class="gallery-filter">
-                    <option value="" data-i18n="gallery.all_providers">All Providers</option>
+                    <option value="" data-i18n="gallery.all_providers"></option>
                 </select>
             </div>
         </div>
 
         <div id="gallery-grid" class="gallery-grid">
-            <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
+            <div class="gallery-loading" data-i18n="gallery.loading"></div>
         </div>
 
         <div id="gallery-pagination" class="gallery-pagination is-hidden">
-            <button id="gallery-prev" class="btn-gallery-nav" onclick="galleryPrev()">← <span data-i18n="common.pagination_previous">Previous</span></button>
+            <button id="gallery-prev" class="btn-gallery-nav" onclick="galleryPrev()">← <span data-i18n="common.pagination_previous"></span></button>
             <span id="gallery-page-info"></span>
-            <button id="gallery-next" class="btn-gallery-nav" onclick="galleryNext()"><span data-i18n="common.pagination_next">Next</span> →</button>
+            <button id="gallery-next" class="btn-gallery-nav" onclick="galleryNext()"><span data-i18n="common.pagination_next"></span> →</button>
         </div>
     </div>
 
@@ -74,7 +74,7 @@
         <div class="modal-backdrop" onclick="closeModal('delete-modal')"></div>
         <div class="modal-content">
             <div class="modal-header">
-                <h3 data-i18n="common.confirm_title">Confirm</h3>
+                <h3 data-i18n="common.confirm_title"></h3>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('delete-modal')">&times;</button>
             </div>
             <div class="modal-body">
@@ -83,8 +83,8 @@
                 <input type="hidden" id="delete-target-type">
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('delete-modal')" data-i18n="common.btn_cancel">Cancel</button>
-                <button class="btn btn-danger" id="gallery-delete-confirm-btn" onclick="confirmDeleteGallery()" data-i18n="common.btn_delete">Delete</button>
+                <button class="btn btn-secondary" onclick="closeModal('delete-modal')" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-danger" id="gallery-delete-confirm-btn" onclick="confirmDeleteGallery()" data-i18n="common.btn_delete"></button>
             </div>
         </div>
     </div>

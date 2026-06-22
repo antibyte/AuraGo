@@ -11,7 +11,7 @@ let currentCheatTab = localStorage.getItem('cheatsheets-tab') || 'user'; // 'use
 
 // ── Init ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    document.title = t('cheatsheets.page_title') || 'AuraGo - Cheat Sheets';
+    document.title = t('cheatsheets.page_title');
     updateViewToggle();
     loadSheets();
 });
@@ -143,8 +143,8 @@ function renderSheetCompact(s) {
     const lockIcon = s.delete_locked ? '🔒' : '';
     const abstract = s.abstract || (s.content || '').substring(0, 120).replace(/\n/g, ' ');
     const creatorTitle = s.created_by === 'agent'
-        ? esc(t('cheatsheets.created_by_agent') || 'Created by agent')
-        : esc(t('cheatsheets.created_by_user') || 'Created by user');
+        ? esc(t('cheatsheets.created_by_agent'))
+        : esc(t('cheatsheets.created_by_user'));
 
     return `
         <div class="card-compact" title="${esc(abstract)}" onclick="if(event.target.closest('.card-actions')) return; openEdit('${escJs(s.id)}')">
@@ -168,7 +168,7 @@ function renderSheetGrid(s) {
         ? `<span class="badge badge-active">${esc(t('cheatsheets.active'))}</span>`
         : `<span class="badge badge-inactive">${esc(t('cheatsheets.inactive'))}</span>`;
     const creatorBadge = s.created_by === 'agent'
-        ? `<span class="badge badge-agent">🤖 ${esc(t('cheatsheets.group_agent') || 'Agent')}</span>`
+        ? `<span class="badge badge-agent">🤖 ${esc(t('cheatsheets.group_agent'))}</span>`
         : '';
     const attachBadge = (s.attachment_count > 0)
         ? `<span class="badge badge-attachment">📎 ${s.attachment_count}</span>`
@@ -425,7 +425,7 @@ function renderAttachments() {
     const pendingChars = pendingAttachments.reduce((sum, a) => sum + (a.charCount || 0), 0);
     const totalChars = savedChars + pendingChars;
 
-    counter.textContent = `${totalChars.toLocaleString()} / ${MAX_ATTACHMENT_CHARS.toLocaleString()} ${t('cheatsheets.characters') || 'characters'}`;
+    counter.textContent = `${totalChars.toLocaleString()} / ${MAX_ATTACHMENT_CHARS.toLocaleString()} ${t('cheatsheets.characters')}`;
     counter.classList.toggle('over-limit', totalChars > MAX_ATTACHMENT_CHARS);
 
     const allItems = [
@@ -434,7 +434,7 @@ function renderAttachments() {
     ];
 
     if (allItems.length === 0) {
-        list.innerHTML = `<div class="attachments-empty">${esc(t('cheatsheets.no_attachments') || 'No attachments')}</div>`;
+        list.innerHTML = `<div class="attachments-empty">${esc(t('cheatsheets.no_attachments'))}</div>`;
         return;
     }
 
@@ -445,7 +445,7 @@ function renderAttachments() {
                 <span class="attachment-icon">${sourceIcon}</span>
                 <span class="attachment-name" title="${esc(a.filename)}">${esc(a.filename)}</span>
                 <span class="attachment-size">${(a.char_count || a.charCount || 0).toLocaleString()} chars</span>
-                <button class="btn btn-sm btn-danger attachment-remove" onclick="removeAttachment('${esc(a.displayId)}')" title="${esc(t('cheatsheets.remove_attachment') || 'Remove')}">✕</button>
+                <button class="btn btn-sm btn-danger attachment-remove" onclick="removeAttachment('${esc(a.displayId)}')" title="${esc(t('cheatsheets.remove_attachment'))}">✕</button>
             </div>`;
     }).join('');
 }
@@ -457,7 +457,7 @@ async function uploadAttachment(input) {
 
     const ext = file.name.toLowerCase().split('.').pop();
     if (ext !== 'txt' && ext !== 'md') {
-        showToast(t('cheatsheets.invalid_file_type') || 'Only .txt and .md files are allowed.', 'warning');
+        showToast(t('cheatsheets.invalid_file_type'), 'warning');
         return;
     }
 
@@ -483,7 +483,7 @@ async function uploadAttachment(input) {
             });
             renderAttachments();
         } catch (e) {
-            showToast((t('cheatsheets.error') || 'Error') + ': ' + e.message, 'error');
+            showToast((t('cheatsheets.error')) + ': ' + e.message, 'error');
         }
         return;
     }
@@ -504,9 +504,9 @@ async function uploadAttachment(input) {
         const attachment = await resp.json();
         currentAttachments.push(attachment);
         renderAttachments();
-        showToast(t('cheatsheets.attachment_added') || 'Attachment added.', 'success');
+        showToast(t('cheatsheets.attachment_added'), 'success');
     } catch (e) {
-        showToast((t('cheatsheets.error') || 'Error') + ': ' + e.message, 'error');
+        showToast((t('cheatsheets.error')) + ': ' + e.message, 'error');
     }
 }
 
@@ -532,9 +532,9 @@ async function removeAttachment(attachmentID) {
         }
         currentAttachments = currentAttachments.filter(a => a.id !== attachmentID);
         renderAttachments();
-        showToast(t('cheatsheets.attachment_removed') || 'Attachment removed.', 'success');
+        showToast(t('cheatsheets.attachment_removed'), 'success');
     } catch (e) {
-        showToast((t('cheatsheets.error') || 'Error') + ': ' + e.message, 'error');
+        showToast((t('cheatsheets.error')) + ': ' + e.message, 'error');
     }
 }
 
@@ -545,7 +545,7 @@ async function openKnowledgePicker() {
     document.getElementById('btn-knowledge-confirm').disabled = true;
 
     const list = document.getElementById('knowledge-picker-list');
-    list.innerHTML = `<div class="knowledge-picker-loading">${esc(t('cheatsheets.loading') || 'Loading...')}</div>`;
+    list.innerHTML = `<div class="knowledge-picker-loading">${esc(t('cheatsheets.loading'))}</div>`;
     openModal('knowledge-picker-modal');
 
     try {
@@ -567,7 +567,7 @@ async function openKnowledgePicker() {
         const available = textFiles.filter(f => !attachedNames.has(f.name));
 
         if (available.length === 0) {
-            list.innerHTML = `<div class="knowledge-picker-empty">${esc(t('cheatsheets.no_knowledge_files') || 'No compatible files found (.txt, .md)')}</div>`;
+            list.innerHTML = `<div class="knowledge-picker-empty">${esc(t('cheatsheets.no_knowledge_files'))}</div>`;
             return;
         }
 
@@ -579,7 +579,7 @@ async function openKnowledgePicker() {
             </label>
         `).join('');
     } catch (e) {
-        list.innerHTML = `<div class="knowledge-picker-empty">${esc((t('cheatsheets.error') || 'Error') + ': ' + e.message)}</div>`;
+        list.innerHTML = `<div class="knowledge-picker-empty">${esc((t('cheatsheets.error')) + ': ' + e.message)}</div>`;
     }
 }
 
@@ -612,7 +612,7 @@ async function confirmKnowledgePick() {
                 const totalChars = currentAttachments.reduce((s, a) => s + (a.char_count || 0), 0)
                                  + pendingAttachments.reduce((s, a) => s + (a.charCount || 0), 0);
                 if (totalChars + charCount > MAX_ATTACHMENT_CHARS) {
-                    showToast(`${filename}: ${t('cheatsheets.char_limit_exceeded') || 'Character limit exceeded'}`, 'warning');
+                    showToast(`${filename}: ${t('cheatsheets.char_limit_exceeded')}`, 'warning');
                     continue;
                 }
                 pendingAttachments.push({

@@ -41,6 +41,7 @@ type Config struct {
 	RemoteMaxSessionMinutes  int
 	RemoteIdleTimeoutMinutes int
 	CodeStudio               CodeStudioConfig
+	OpenSCAD                 OpenSCADConfig
 }
 
 // CodeStudioConfig controls the lazy Code Studio development container.
@@ -51,6 +52,24 @@ type CodeStudioConfig struct {
 	AutoStopMinutes int
 	MaxMemoryMB     int
 	MaxCPUCores     int
+}
+
+// OpenSCADConfig controls the lazy OpenSCAD compiler container.
+type OpenSCADConfig struct {
+	Enabled                 bool
+	Image                   string
+	AutoStart               bool
+	AutoStopMinutes         int
+	MaxMemoryMB             int
+	MaxCPUCores             int
+	MaxConcurrentJobs       int
+	GeometryBackend         string
+	DefaultExports          []string
+	MaxSourceKB             int
+	MaxOutputMB             int
+	RenderTimeoutSeconds    int
+	MaxRenderTimeoutSeconds int
+	JobRetentionDays        int
 }
 
 // WorkspaceInfo is the public workspace state returned to the browser.
@@ -66,6 +85,17 @@ type ProviderOption struct {
 	Name  string `json:"name"`
 	Type  string `json:"type"`
 	Model string `json:"model"`
+}
+
+// PetManifest describes one desktop pet available in the workspace.
+type PetManifest struct {
+	ID          string `json:"id"`
+	DisplayName string `json:"display_name"`
+	Description string `json:"description,omitempty"`
+	Category    string `json:"category,omitempty"`
+	Subcategory string `json:"subcategory,omitempty"`
+	Spritesheet string `json:"spritesheet,omitempty"`
+	Builtin     bool   `json:"builtin"`
 }
 
 // BootstrapPayload is the initial state used by the virtual desktop UI.
@@ -85,6 +115,8 @@ type BootstrapPayload struct {
 	Settings           map[string]string `json:"settings"`
 	Providers          []ProviderOption  `json:"providers,omitempty"`
 	IconCatalog        IconCatalogInfo   `json:"icon_catalog"`
+	Pets               []PetManifest     `json:"pets"`
+	ActivePetID        string            `json:"active_pet_id,omitempty"`
 }
 
 // IconCatalogInfo tells agents and generated apps which semantic icons are safe
@@ -210,6 +242,7 @@ func DesktopSettingDefinitions() []SettingDefinition {
 		{Key: "appearance.accent", Default: "teal", Values: []string{"teal", "orange", "blue", "violet", "green"}},
 		{Key: "appearance.density", Default: "comfortable", Values: []string{"comfortable", "compact"}},
 		{Key: "appearance.icon_theme", Default: "papirus", Values: []string{"papirus", "whitesur"}},
+		{Key: "appearance.fruity_mode", Default: "light", Values: []string{"light", "dark"}},
 		{Key: "desktop.icon_size", Default: "medium", Values: []string{"small", "medium", "large"}},
 		{Key: "desktop.show_widgets", Default: "true", Values: []string{"true", "false"}},
 		{Key: "windows.animations", Default: "true", Values: []string{"true", "false"}},
@@ -218,6 +251,12 @@ func DesktopSettingDefinitions() []SettingDefinition {
 		{Key: "files.default_folder", Default: "Documents", Values: []string{"Desktop", "Documents", "Downloads", "Pictures", "Shared"}},
 		{Key: "agent.show_chat_button", Default: "true", Values: []string{"true", "false"}},
 		{Key: "agent.provider", Default: ""},
+		{Key: "pet.enabled", Default: "true", Values: []string{"true", "false"}},
+		{Key: "pet.active_id", Default: "openpets-default"},
+		{Key: "pet.scale", Default: "1.0"},
+		{Key: "pet.position_x", Default: "24"},
+		{Key: "pet.position_y", Default: "24"},
+		{Key: "pet.always_on_top", Default: "false", Values: []string{"true", "false"}},
 	}
 }
 
@@ -251,6 +290,7 @@ var desktopPreferredIconNames = []string{
 	"chevron-right",
 	"chevron-up",
 	"chat",
+	"chess",
 	"clipboard",
 	"cloud",
 	"code",
@@ -263,6 +303,7 @@ var desktopPreferredIconNames = []string{
 	"desktop",
 	"desktop-symbolic",
 	"documents",
+	"dozzle",
 	"download",
 	"downloads",
 	"editor",
@@ -301,8 +342,13 @@ var desktopPreferredIconNames = []string{
 	"minus",
 	"monitor",
 	"monitor-symbolic",
+	"n8n",
 	"network",
+	"node-red",
 	"notes",
+	"olivetin",
+	"open-webui",
+	"openscad",
 	"package",
 	"pdf",
 	"phone",
@@ -314,6 +360,7 @@ var desktopPreferredIconNames = []string{
 	"radio",
 	"redo",
 	"refresh",
+	"romm",
 	"run",
 	"save",
 	"scissors",
@@ -325,7 +372,9 @@ var desktopPreferredIconNames = []string{
 	"software-store",
 	"spreadsheet",
 	"stop",
+	"teevee",
 	"terminal",
+	"termix",
 	"text",
 	"trash",
 	"trash-empty",
@@ -360,10 +409,13 @@ var desktopIconAliases = map[string]string{
 	"binary":           "code",
 	"book":             "book",
 	"books":            "book",
+	"board-game":       "chess",
+	"boardgame":        "chess",
 	"camera":           "camera",
 	"chart":            "analytics",
 	"calc":             "calculator",
 	"calculator":       "calculator",
+	"chessboard":       "chess",
 	"cloud":            "cloud",
 	"contact":          "forms",
 	"contacts":         "forms",
@@ -457,7 +509,12 @@ var desktopIconAliases = map[string]string{
 	"music":            "audio",
 	"music-player":     "audio-player",
 	"network":          "network",
+	"node_red":         "node-red",
 	"note":             "notes",
+	"open_webui":       "open-webui",
+	"openwebui":        "open-webui",
+	"openscad":         "openscad",
+	"open_scad":        "openscad",
 	"password":         "key",
 	"paint":            "pixel",
 	"pictures":         "image",
@@ -469,6 +526,7 @@ var desktopIconAliases = map[string]string{
 	"printer":          "printer",
 	"quick-launch":     "launchpad",
 	"radio":            "radio",
+	"rom-manager":      "romm",
 	"run":              "run",
 	"screen":           "monitor",
 	"share":            "globe",
@@ -479,6 +537,8 @@ var desktopIconAliases = map[string]string{
 	"store":            "software-store",
 	"support":          "help",
 	"tasks":            "notes",
+	"teevee":           "teevee",
+	"television":       "teevee",
 	"todo":             "notes",
 	"tool":             "tools",
 	"toolbox":          "tools",
@@ -487,6 +547,7 @@ var desktopIconAliases = map[string]string{
 	"utilities":        "tools",
 	"user-trash":       "trash-empty",
 	"people":           "users",
+	"tv":               "teevee",
 	"weather":          "weather",
 	"widgets":          "apps",
 	"workflow":         "workflow",
@@ -498,11 +559,11 @@ var desktopIconAliases = map[string]string{
 }
 
 var desktopIconCategories = map[string][]string{
-	"games":        {"run", "video", "apps", "terminal", "monitor", "heart"},
+	"games":        {"chess", "run", "video", "apps", "terminal", "monitor", "heart"},
 	"office":       {"writer", "spreadsheet", "calendar", "documents", "printer", "mail"},
 	"productivity": {"notes", "check-square", "workflow", "calendar", "clipboard", "search"},
-	"tools":        {"tools", "settings", "terminal", "code", "database", "network", "zipper"},
-	"media":        {"gallery", "pixel", "image", "video", "audio", "audio-player", "camera"},
+	"tools":        {"tools", "settings", "terminal", "code", "openscad", "database", "network", "zipper"},
+	"media":        {"gallery", "pixel", "image", "video", "teevee", "radio", "audio", "audio-player", "camera"},
 	"internet":     {"browser", "globe", "cloud", "mail", "network", "download"},
 	"system":       {"monitor", "server", "settings", "backup", "key", "software-store", "trash-empty"},
 	"documents":    {"documents", "text", "markdown", "pdf", "html", "archive", "zipper"},
@@ -620,7 +681,7 @@ func DefaultDirectories() []string {
 }
 
 func workspaceDirectories() []string {
-	return []string{"Desktop", "Documents", "Downloads", "Apps", "Widgets", "Data", "Pictures", "Trash", "Shared"}
+	return []string{"Desktop", "Documents", "Downloads", "Apps", "Widgets", "Pets", "Data", "Pictures", "Trash", "Shared"}
 }
 
 // BuiltinApps returns the first-party applications always available in the shell.
@@ -637,6 +698,7 @@ func BuiltinApps() []AppManifest {
 		{ID: "gallery", Name: "Gallery", Version: "1.0.0", Icon: "gallery", Entry: "builtin://gallery", Runtime: BuiltinRuntime, Description: "Browse AuraGo photos and videos."},
 		{ID: "music-player", Name: "Music Player", Version: "1.0.0", Icon: "audio-player", Entry: "builtin://music-player", Runtime: BuiltinRuntime, Description: "Winamp-style music player for workspace audio files."},
 		{ID: "radio", Name: "Radio", Version: "1.0.0", Icon: "radio", Entry: "builtin://radio", Runtime: BuiltinRuntime, Description: "Stream popular internet radio stations by category and search."},
+		{ID: "teevee", Name: "TeeVee", Version: "1.0.0", Icon: "teevee", Entry: "builtin://teevee", Runtime: BuiltinRuntime, Description: "Watch public IPTV channels from iptv-org with German-first filtering and global search."},
 		{ID: "agent-chat", Name: "Agent Chat", Version: "1.0.0", Icon: "agent-chat", Entry: "builtin://agent-chat", Runtime: BuiltinRuntime, Description: "Ask AuraGo to create apps, widgets, and files."},
 		{ID: "quick-connect", Name: "Quick Connect", Version: "1.0.0", Icon: "terminal", Entry: "builtin://quick-connect", Runtime: BuiltinRuntime, Description: "Connect to SSH and VNC servers with an interactive terminal or remote desktop viewer."},
 		{ID: "code-studio", Name: "Code Studio", Version: "1.0.0", Icon: "code-studio", Entry: "builtin://code-studio", Runtime: BuiltinRuntime, Description: "Full-featured coding IDE with file browser, editor, and terminal.", Permissions: []string{"files:read", "files:write", "notifications"}},
@@ -649,17 +711,20 @@ func BuiltinApps() []AppManifest {
 		{ID: "pixel", Name: "Pixel", Version: "1.0.0", Icon: "pixel", Entry: "builtin://pixel", Runtime: BuiltinRuntime, Description: "AI-powered image editor — create, edit, and enhance images.", Permissions: []string{"files:read", "files:write", "notifications"}},
 		{ID: "people", Name: "People", Version: "1.0.0", Icon: "users", Entry: "builtin://people", Runtime: BuiltinRuntime, Description: "Address book with knowledge graph integration and birthdays."},
 		{ID: "galaxa-deluxe", Name: "Galaxa Deluxe", Version: "1.0.0", Icon: "galaxa-deluxe", Entry: "builtin://galaxa-deluxe", Runtime: BuiltinRuntime, Description: "Classic arcade space shooter — destroy enemy formations and beat the high score!"},
+		{ID: "chess", Name: "Chess", Version: "1.0.0", Icon: "chess", Entry: "builtin://chess", Runtime: BuiltinRuntime, Description: "Play chess against Stockfish or the AuraGo agent.", Permissions: []string{"notifications"}},
 		{ID: "mission-control", Name: "Mission Control", Version: "1.0.0", Icon: "workflow", Entry: "builtin://mission-control", Runtime: BuiltinRuntime, Description: "Create, plan, and manage agent missions with triggers and schedules.", Permissions: []string{"notifications"}},
 		{ID: "homepage-studio", Name: "Homepage Studio", Version: "1.0.0", Icon: "globe", Entry: "builtin://homepage-studio", Runtime: BuiltinRuntime, Description: "AI-powered website builder with live preview.", Permissions: []string{"notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
+		{ID: "openscad", Name: "OpenSCAD", Version: "1.0.0", Icon: "openscad", Entry: "builtin://openscad", Runtime: BuiltinRuntime, Description: "Script-based parametric CAD compiler with preview, STL export, and downloadable artifacts.", Permissions: []string{"files:read", "files:write", "notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
 		{ID: "nasscad", Name: "NASSCAD", Version: "4.2.7", Icon: "nasscad", Entry: "builtin://nasscad", Runtime: BuiltinRuntime, Description: "Offline browser-based 3D parametric CAD bundled locally — model parts, run booleans, and export STL, OBJ, or 3MF.", Metadata: map[string]string{"open_maximized": "true", "workspace_entry": "Apps/nasscad/index.html"}},
 		{ID: "viewer", Name: "Viewer", Version: "1.0.0", Icon: "eye", Entry: "builtin://viewer", Runtime: BuiltinRuntime, Description: "Read-only viewer for documents, spreadsheets, PDFs and markdown.", Permissions: []string{"files:read"}, Internal: true},
+		{ID: "pet-picker", Name: "Pet Picker", Version: "1.0.0", Icon: "heart", Entry: "builtin://pet-picker", Runtime: BuiltinRuntime, Description: "Choose and manage your desktop pet companions."},
 	}
 	for i := range apps {
 		apps[i].Builtin = true
 		apps[i].Deletable = false
 		apps[i].DockVisible = true
 		apps[i].StartVisible = true
-		if apps[i].ID == "viewer" {
+		if apps[i].ID == "viewer" || apps[i].ID == "openscad" {
 			apps[i].DockVisible = false
 			apps[i].StartVisible = false
 		}

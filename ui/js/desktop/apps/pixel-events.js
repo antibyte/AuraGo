@@ -237,51 +237,51 @@
             }),
             showShortcutsModal: Pixel.bindRuntime(runtime, function showShortcutsModal() {
                                 const shortcuts = [
-                                    [this.t('pixel.shortcuts_file', 'File'), [
-                                        ['Ctrl+O', this.t('pixel.open', 'Open')],
-                                        ['Ctrl+S', this.t('pixel.save', 'Save')],
-                                        ['Ctrl+Shift+S', this.t('pixel.save_as', 'Save As')]
+                                    [this.t('pixel.shortcuts_file'), [
+                                        ['Ctrl+O', this.t('pixel.open')],
+                                        ['Ctrl+S', this.t('pixel.save')],
+                                        ['Ctrl+Shift+S', this.t('pixel.save_as')]
                                     ]],
-                                    [this.t('pixel.shortcuts_edit', 'Edit'), [
-                                        ['Ctrl+Z', this.t('pixel.undo', 'Undo')],
-                                        ['Ctrl+Shift+Z', this.t('pixel.redo', 'Redo')],
-                                        ['Ctrl+C', this.t('pixel.copy', 'Copy')],
-                                        ['Ctrl+V', this.t('pixel.paste', 'Paste')],
-                                        ['Ctrl+X', this.t('pixel.cut', 'Cut')],
-                                        ['Delete', this.t('pixel.delete_selection', 'Delete Selection')],
-                                        ['Ctrl+A', this.t('pixel.select_all', 'Select All')],
-                                        ['Ctrl+D', this.t('pixel.deselect', 'Deselect')]
+                                    [this.t('pixel.shortcuts_edit'), [
+                                        ['Ctrl+Z', this.t('pixel.undo')],
+                                        ['Ctrl+Shift+Z', this.t('pixel.redo')],
+                                        ['Ctrl+C', this.t('pixel.copy')],
+                                        ['Ctrl+V', this.t('pixel.paste')],
+                                        ['Ctrl+X', this.t('pixel.cut')],
+                                        ['Delete', this.t('pixel.delete_selection')],
+                                        ['Ctrl+A', this.t('pixel.select_all')],
+                                        ['Ctrl+D', this.t('pixel.deselect')]
                                     ]],
-                                    [this.t('pixel.shortcuts_view', 'View'), [
-                                        ['Ctrl++', this.t('pixel.zoom_in', 'Zoom In')],
-                                        ['Ctrl+-', this.t('pixel.zoom_out', 'Zoom Out')],
-                                        ['Ctrl+0', this.t('pixel.zoom_fit', 'Fit to Window')],
-                                        ['Space+Drag', this.t('pixel.pan', 'Pan')],
-                                        ['Ctrl+Wheel', this.t('pixel.scroll_zoom', 'Scroll Zoom')]
+                                    [this.t('pixel.shortcuts_view'), [
+                                        ['Ctrl++', this.t('pixel.zoom_in')],
+                                        ['Ctrl+-', this.t('pixel.zoom_out')],
+                                        ['Ctrl+0', this.t('pixel.zoom_fit')],
+                                        ['Space+Drag', this.t('pixel.pan')],
+                                        ['Ctrl+Wheel', this.t('pixel.scroll_zoom')]
                                     ]],
-                                    [this.t('pixel.shortcuts_tools', 'Tools'), [
-                                        ['B', this.t('pixel.brush', 'Brush')],
-                                        ['E', this.t('pixel.eraser', 'Eraser')],
-                                        ['L', this.t('pixel.line', 'Line')],
-                                        ['R', this.t('pixel.rectangle', 'Rectangle')],
-                                        ['O', this.t('pixel.ellipse', 'Ellipse')],
-                                        ['T', this.t('pixel.text', 'Text')],
-                                        ['G', this.t('pixel.fill', 'Fill')],
-                                        ['I', this.t('pixel.eyedropper', 'Eyedropper')],
-                                        ['V', this.t('pixel.select_rect', 'Rectangle Select')],
-                                        ['?', this.t('pixel.shortcuts', 'Shortcuts')]
+                                    [this.t('pixel.shortcuts_tools'), [
+                                        ['B', this.t('pixel.brush')],
+                                        ['E', this.t('pixel.eraser')],
+                                        ['L', this.t('pixel.line')],
+                                        ['R', this.t('pixel.rectangle')],
+                                        ['O', this.t('pixel.ellipse')],
+                                        ['T', this.t('pixel.text')],
+                                        ['G', this.t('pixel.fill')],
+                                        ['I', this.t('pixel.eyedropper')],
+                                        ['V', this.t('pixel.select_rect')],
+                                        ['?', this.t('pixel.shortcuts')]
                                     ]]
                                 ];
                                 const dlg = document.createElement('div');
                                 dlg.className = 'vd-modal-backdrop';
                                 dlg.innerHTML = `<div class="vd-modal pixel-shortcuts-modal" role="dialog">
-                                    <div class="vd-modal-title">${this.esc(this.t('pixel.keyboard_shortcuts', 'Keyboard Shortcuts'))}</div>
+                                    <div class="vd-modal-title">${this.esc(this.t('pixel.keyboard_shortcuts'))}</div>
                                     <div class="pixel-shortcuts-body">${shortcuts.map(([cat, items]) =>
                                         `<div class="pixel-shortcut-group"><h4 class="pixel-shortcut-cat">${this.esc(cat)}</h4>${items.map(([key, desc]) =>
                                             `<div class="pixel-shortcut-row"><kbd class="pixel-kbd">${this.esc(key)}</kbd><span>${this.esc(desc)}</span></div>`
                                         ).join('')}</div>`
                                     ).join('')}</div>
-                                    <div class="vd-modal-actions"><button type="button" class="vd-button vd-button-primary" data-close>${this.esc(this.t('pixel.close', 'Close'))}</button></div>
+                                    <div class="vd-modal-actions"><button type="button" class="vd-button vd-button-primary" data-close>${this.esc(this.t('pixel.close'))}</button></div>
                                 </div>`;
                                 document.body.appendChild(dlg);
                                 dlg.querySelector('[data-close]').addEventListener('click', () => dlg.remove());
@@ -295,16 +295,16 @@
                                 menu.className = 'pixel-ctx-menu';
                                 const items = [];
                                 if (this.canvas.width) {
-                                    items.push({ label: this.t('pixel.copy', 'Copy'), shortcut: 'Ctrl+C', action: this.copySelection });
-                                    items.push({ label: this.t('pixel.paste', 'Paste'), shortcut: 'Ctrl+V', action: this.pasteClipboard });
+                                    items.push({ label: this.t('pixel.copy'), shortcut: 'Ctrl+C', action: this.copySelection });
+                                    items.push({ label: this.t('pixel.paste'), shortcut: 'Ctrl+V', action: this.pasteClipboard });
                                     items.push({ type: 'sep' });
-                                    items.push({ label: this.t('pixel.select_all', 'Select All'), shortcut: 'Ctrl+A', action: this.selectAll });
-                                    items.push({ label: this.t('pixel.deselect', 'Deselect'), shortcut: 'Ctrl+D', action: this.deselect });
+                                    items.push({ label: this.t('pixel.select_all'), shortcut: 'Ctrl+A', action: this.selectAll });
+                                    items.push({ label: this.t('pixel.deselect'), shortcut: 'Ctrl+D', action: this.deselect });
                                     items.push({ type: 'sep' });
-                                    items.push({ label: this.t('pixel.zoom_in', 'Zoom In'), shortcut: 'Ctrl++', action: () => this.zoomTo(this.zoom * 1.25) });
-                                    items.push({ label: this.t('pixel.zoom_out', 'Zoom Out'), shortcut: 'Ctrl+-', action: () => this.zoomTo(this.zoom / 1.25) });
-                                    items.push({ label: this.t('pixel.zoom_fit', 'Fit'), shortcut: 'Ctrl+0', action: this.zoomFit });
-                                    items.push({ label: this.t('pixel.zoom_100', '100%'), action: () => this.zoomTo(1) });
+                                    items.push({ label: this.t('pixel.zoom_in'), shortcut: 'Ctrl++', action: () => this.zoomTo(this.zoom * 1.25) });
+                                    items.push({ label: this.t('pixel.zoom_out'), shortcut: 'Ctrl+-', action: () => this.zoomTo(this.zoom / 1.25) });
+                                    items.push({ label: this.t('pixel.zoom_fit'), shortcut: 'Ctrl+0', action: this.zoomFit });
+                                    items.push({ label: this.t('pixel.zoom_100'), action: () => this.zoomTo(1) });
                                     items.push({ type: 'sep' });
                                     items.push({ label: `${this.imgWidth} × ${this.imgHeight}`, disabled: true });
                                 }

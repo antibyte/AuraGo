@@ -1,7 +1,7 @@
 {
-  "config.grafana.api_key_empty": "Bitte geben Sie zuerst einen API-Schlüssel ein.",
+  "config.grafana.api_key_empty": "Bitte gib zuerst einen API-Schlüssel ein.",
   "config.grafana.api_key_label": "API Schlüssel (Tresor)",
-  "config.grafana.api_key_placeholder": "Geben Sie den Schlüssel API ein…",
+  "config.grafana.api_key_placeholder": "API-Schlüssel eingeben…",
   "config.grafana.api_key_save_failed": "Der Schlüssel API konnte nicht im Tresor gespeichert werden.",
   "config.grafana.api_key_saved": "API Schlüssel im Tresor gespeichert.",
   "config.grafana.base_url_label": "Grafana URL",
@@ -30,9 +30,9 @@
   "config.grafana.test_fail": "Verbindung fehlgeschlagen",
   "config.grafana.test_ok": "Verbindung erfolgreich",
   "help.grafana.api_key": "Grafana-Dienstkonto-Token oder API-Schlüssel. Sicher im verschlüsselten Tresor gespeichert.",
-  "help.grafana.base_url": "Basis URL Ihrer Grafana-Instanz, zum Beispiel http://grafana.local:3000.",
+  "help.grafana.base_url": "Basis-URL deiner Grafana-Instanz, zum Beispiel http://grafana.local:3000.",
   "help.grafana.enabled": "Aktiviert die schreibgeschützte Grafana-Integration. Der Agent kann Dashboards, Datenquellen, Warnungen, Gesundheits- und Organisationsinformationen überprüfen.",
-  "help.grafana.insecure_ssl": "Überspringen Sie die Zertifikatsüberprüfung TLS für selbstsignierte Zertifikate. Verwenden Sie dies nur in vertrauenswürdigen lokalen Netzwerken.",
-  "help.grafana.readonly": "Halten Sie den Grafana-Zugriff schreibgeschützt. Version 1 führt nur Lesevorgänge aus.",
+  "help.grafana.insecure_ssl": "TLS-Zertifikatsprüfung für selbstsignierte Zertifikate überspringen. Nutze das nur in vertrauenswürdigen lokalen Netzwerken.",
+  "help.grafana.readonly": "Halte den Grafana-Zugriff schreibgeschützt. Version 1 führt nur Lesevorgänge aus.",
   "help.grafana.request_timeout": "Zeitüberschreitung in Sekunden für Grafana API-Anfragen. Standard: 15."
 }

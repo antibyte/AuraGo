@@ -16,11 +16,12 @@ func TestGetModelInfo(t *testing.T) {
 		{"openai", "gpt-4o", true, 128000},
 		{"anthropic", "claude-3-5-sonnet-20241022", true, 200000},
 		{"deepseek", "deepseek-chat", true, 1000000},
-		{"minimax", "MiniMax-M3", true, 1048576},
+		{"minimax", "MiniMax-M3", true, 1000000},
 		{"openrouter", "minimax/minimax-m3", true, 1048576},
 		{"openrouter", "stepfun/step-3.7-flash", true, 256000},
 		{"stepfun", "step-3.7-flash", true, 256000},
 		{"groq", "llama3-70b-8192", true, 8192},
+		{"nonexistent-provider", "gpt-4o", false, 0},
 		{"nonexistent", "unknown", false, 0},
 	}
 
@@ -53,6 +54,16 @@ func TestGetModelInfoCaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestGetModelInfoByIDStillFindsProviderAgnosticMatch(t *testing.T) {
+	entry, ok := GetModelInfoByID("gpt-4o")
+	if !ok {
+		t.Fatal("Expected provider-agnostic model lookup to find gpt-4o")
+	}
+	if entry.Provider == "" {
+		t.Fatal("Expected provider-agnostic lookup to return provider metadata")
+	}
+}
+
 func TestGetModelsForProvider(t *testing.T) {
 	models := GetModelsForProvider("openai")
 	if len(models) == 0 {
@@ -82,7 +93,7 @@ func TestDetectContextWindowFromRegistry(t *testing.T) {
 		{"anthropic", "claude-opus-4-0", 200000, true},
 		{"deepseek", "deepseek-chat", 1000000, true},
 		{"moonshot", "kimi-k2.5", 262144, true},
-		{"minimax", "MiniMax-M3", 1048576, true},
+		{"minimax", "MiniMax-M3", 1000000, true},
 		{"openrouter", "minimax/minimax-m3", 1048576, true},
 		{"openrouter", "stepfun/step-3.7-flash", 256000, true},
 		{"stepfun", "step-3.7-flash", 256000, true},
@@ -132,6 +143,14 @@ func TestGetCapabilitiesFromRegistry(t *testing.T) {
 	}
 	if !multimodal {
 		t.Error("gpt-4o should support multimodal image input")
+	}
+
+	caps, ok := CapabilitiesFromRegistry("nonexistent-provider", "gpt-4o")
+	if !ok {
+		t.Fatal("Expected provider-agnostic Oh-My-Pi capabilities for gpt-4o")
+	}
+	if caps.Source != CapabilitySourceOhMyPi {
+		t.Fatalf("capability source = %q, want %q", caps.Source, CapabilitySourceOhMyPi)
 	}
 
 	// o3-pro supports reasoning

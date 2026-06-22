@@ -67,5 +67,8 @@
   "config.vault.delete_desc": "This will <strong>permanently</strong> delete the vault. All stored API keys, passwords and credentials will be lost forever!<br><br>Type <strong style=\"color:#f87171;\">delete</strong> to continue:",
   "config.vault.delete_title": "⚠️ Permanently delete vault",
   "config.vault.deleted_toast": "✓ Vault deleted. Enter a new master key, save, and restart AuraGo.",
-  "config.vault.destroy_button": "Destroy"
+  "config.vault.destroy_button": "Destroy",
+  "config.menu": "Menu",
+  "config.toggle_sidebar": "Toggle sidebar",
+  "config.page_description": "Configure your AI agent settings"
 }

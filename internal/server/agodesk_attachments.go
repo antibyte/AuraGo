@@ -412,16 +412,22 @@ func buildAgodeskMessageWithAttachments(s *Server, message string, records []mem
 	var b strings.Builder
 	b.WriteString(message)
 	b.WriteString("\n\n<agodesk_attachments>\n")
+	b.WriteString("These files were explicitly uploaded through AgoDesk. Use agent_path for file operations; filename is display-only and may not exist in the working directory.\n")
 	for _, record := range records {
 		agentPath := agodeskAttachmentAgentPath(record.RelativePath)
 		b.WriteString("- ")
-		b.WriteString(record.Filename)
-		b.WriteString(" | ")
-		b.WriteString(record.MimeType)
-		b.WriteString(" | ")
-		b.WriteString(fmt.Sprintf("%d bytes", record.SizeBytes))
-		b.WriteString(" | ")
-		b.WriteString(agentPath)
+		b.WriteString("attachment_id: ")
+		b.WriteString(strings.TrimSpace(record.AttachmentID))
+		b.WriteString("\n  filename: ")
+		b.WriteString(strings.TrimSpace(record.Filename))
+		b.WriteString("\n  mime_type: ")
+		b.WriteString(strings.TrimSpace(record.MimeType))
+		b.WriteString("\n  size_bytes: ")
+		b.WriteString(fmt.Sprintf("%d", record.SizeBytes))
+		if agentPath != "" {
+			b.WriteString("\n  agent_path: ")
+			b.WriteString(agentPath)
+		}
 		b.WriteByte('\n')
 		if strings.HasPrefix(record.MimeType, "text/") {
 			if text := agodeskAttachmentInlineText(s, record.RelativePath); text != "" {
@@ -499,10 +505,15 @@ func agodeskAttachmentInlineText(s *Server, relPath string) string {
 
 func agodeskChatAttachmentItem(s *Server, record memory.AgoDeskAttachmentRecord) agodesk.ChatAttachmentItem {
 	pathValue := ""
+	var metadata map[string]interface{}
 	if strings.TrimSpace(record.RelativePath) != "" {
-		mediaRel := strings.TrimPrefix(filepath.ToSlash(record.RelativePath), "attachments/")
+		relPath := filepath.ToSlash(record.RelativePath)
+		mediaRel := strings.TrimPrefix(relPath, "attachments/")
 		pathValue = "/api/agodesk/media/attachments/" + pathpkg.Join(mediaRel)
 		pathValue = signAgodeskMediaAssetPath(s, pathValue, time.Now())
+		if storageFilename := pathpkg.Base(relPath); storageFilename != "." && storageFilename != "/" {
+			metadata = map[string]interface{}{"storage_filename": storageFilename}
+		}
 	}
 	return agodesk.ChatAttachmentItem{
 		AttachmentID: strings.TrimSpace(record.AttachmentID),
@@ -512,6 +523,7 @@ func agodeskChatAttachmentItem(s *Server, record memory.AgoDeskAttachmentRecord)
 		Filename:     strings.TrimSpace(record.Filename),
 		SizeBytes:    record.SizeBytes,
 		SHA256:       strings.TrimSpace(record.SHA256),
+		Metadata:     metadata,
 	}
 }
 

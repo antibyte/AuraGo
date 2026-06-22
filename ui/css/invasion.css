@@ -8,19 +8,19 @@
 .container {
     max-width: 1320px;
     margin: 0 auto;
-    padding: 24px 20px 60px;
+    padding: var(--space-6) var(--space-5) 60px;
     overflow-x: hidden;
 }
 
 .page-header {
-    margin-top: 6px;
+    margin-top: var(--space-2);
 }
 
 /* ── Cards Grid ── */
 .cards-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
-    gap: 18px;
+    gap: var(--space-5);
 }
 
 /* Card enter animation — page-specific stagger */
@@ -29,7 +29,7 @@
     position: relative;
     overflow: hidden;
     border-radius: calc(var(--radius) * 0.7);
-    transition: all 0.35s cubic-bezier(0.2, 1, 0.22, 1);
+    transition: all var(--transition-slow) cubic-bezier(0.2, 1, 0.22, 1);
 }
 
 .cards-grid .card::before {
@@ -38,7 +38,7 @@
     top: 0; left: 12%; right: 12%; height: 1px;
     background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 50%, transparent), transparent);
     opacity: 0;
-    transition: opacity 0.35s ease;
+    transition: opacity var(--transition-slow) ease;
 }
 
 .cards-grid .card::after {
@@ -47,7 +47,7 @@
     inset: 0;
     background: radial-gradient(ellipse 75% 35% at 50% 0%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 70%);
     opacity: 0;
-    transition: opacity 0.35s ease;
+    transition: opacity var(--transition-slow) ease;
     pointer-events: none;
     border-radius: inherit;
 }
@@ -86,16 +86,16 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 12px;
-    gap: 10px;
+    margin-bottom: var(--space-3);
+    gap: var(--space-3);
 }
 
 .card-meta {
     display: flex;
     flex-direction: column;
-    gap: 5px;
-    margin-bottom: 12px;
-    font-size: 0.84rem;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+    font-size: var(--text-sm);
     color: var(--text-secondary);
     line-height: 1.4;
 }
@@ -103,20 +103,20 @@
 .card-meta span {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: var(--space-2);
 }
 
 .card-actions {
     display: flex;
-    gap: 8px;
+    gap: var(--space-2);
     flex-wrap: wrap;
-    padding-top: 12px;
+    padding-top: var(--space-3);
     border-top: 1px solid var(--border-subtle);
     margin-top: auto;
 }
 
 .card-actions .btn {
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--transition-base) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .card-actions .btn:hover {
@@ -125,10 +125,10 @@
 
 /* ── Validation Result ── */
 .validate-result {
-    margin-top: 10px;
-    padding: 10px 14px;
-    border-radius: 10px;
-    font-size: 0.85rem;
+    margin-top: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-xl);
+    font-size: var(--text-sm);
     display: none;
     line-height: 1.4;
 }
@@ -150,15 +150,15 @@
 /* ── Delete Confirm ── */
 .delete-confirm-input {
     width: 100%;
-    padding: 12px 16px;
-    margin-top: 10px;
+    padding: var(--space-3) var(--space-4);
+    margin-top: var(--space-3);
     border: 1.5px solid color-mix(in srgb, var(--danger) 60%, var(--border-subtle));
-    border-radius: 10px;
+    border-radius: var(--radius-xl);
     background: color-mix(in srgb, var(--danger) 6%, var(--input-bg));
     color: var(--text-primary);
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
     font-family: inherit;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .delete-confirm-input:focus {
@@ -177,30 +177,30 @@
 }
 
 .delete-message {
-    margin: 12px 0;
+    margin: var(--space-3) 0;
     line-height: 1.5;
 }
 
 .delete-modal-hint {
-    font-size: 0.85rem;
+    font-size: var(--text-sm);
     color: var(--text-secondary);
     line-height: 1.4;
 }
 
 .hint-subtle {
     color: var(--text-secondary);
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     line-height: 1.4;
-    margin-top: 4px;
+    margin-top: var(--space-1);
     display: block;
 }
 
 .inv-telemetry-row {
     display: flex;
-    gap: 8px;
-    margin-top: 6px;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
     opacity: 0.8;
-    font-size: 0.8rem;
+    font-size: var(--text-xs);
 }
 
 .inv-hatch-error {
@@ -221,7 +221,7 @@
 /* ── Invasion Tabs ── */
 .invasion-tabs {
     display: flex;
-    gap: 4px;
+    gap: var(--space-1);
     flex-wrap: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -252,19 +252,19 @@
 
 .invasion-tab {
     flex: 0 0 auto;
-    padding: 10px 18px;
+    padding: var(--space-3) var(--space-5);
     margin-bottom: -1px;
     border: none;
     border-bottom: 2px solid transparent;
     border-radius: 0;
     background: none;
     color: var(--text-secondary);
-    font-size: 0.95rem;
+    font-size: var(--text-sm);
     font-weight: 500;
     cursor: pointer;
     text-align: center;
     white-space: nowrap;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
     font-family: inherit;
     position: relative;
 }
@@ -297,7 +297,7 @@
     background: rgba(0,0,0,0.55);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    transition: opacity 0.35s ease;
+    transition: opacity var(--transition-slow) ease;
 }
 
 .modal-overlay.open,
@@ -309,14 +309,14 @@
 .modal {
     background: var(--card-bg);
     border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border-subtle));
-    border-radius: 1.1rem;
+    border-radius: var(--radius-3xl);
     box-shadow:
         0 28px 72px rgba(0,0,0,0.45),
         0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent),
         inset 0 1px 0 rgba(255,255,255,0.04);
     transform: scale(0.96) translateY(12px);
     opacity: 0;
-    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: all var(--transition-slow) cubic-bezier(0.22, 1, 0.36, 1);
     position: relative;
     overflow: hidden;
     backdrop-filter: blur(24px) saturate(1.2);
@@ -355,12 +355,12 @@
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 1.4rem;
+    font-size: var(--text-xl);
     cursor: pointer;
     line-height: 1;
-    padding: 0.25rem 0.45rem;
-    border-radius: 0.5rem;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-lg);
+    transition: all var(--transition-base) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .modal-close:hover {
@@ -375,7 +375,7 @@
 
 .modal-actions {
     display: flex;
-    gap: 10px;
+    gap: var(--space-3);
     justify-content: flex-end;
     padding: 0.75rem 1.25rem 1rem;
     border-top: 1px solid var(--border-subtle);
@@ -392,34 +392,34 @@
     background: color-mix(in srgb, var(--warning) 10%, transparent);
     color: var(--warning, #f59e0b);
     border: 1px solid color-mix(in srgb, var(--warning) 25%, transparent);
-    border-radius: 10px;
-    padding: 10px 14px;
-    margin-bottom: 16px;
-    font-size: 0.85rem;
+    border-radius: var(--radius-xl);
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-4);
+    font-size: var(--text-sm);
     font-weight: 600;
     line-height: 1.4;
 }
 
 .reconfigure-fieldset {
     border: 1px solid var(--border-subtle);
-    border-radius: 10px;
-    padding: 14px 16px;
-    margin-bottom: 16px;
+    border-radius: var(--radius-xl);
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
     background: linear-gradient(180deg, rgba(255,255,255,0.01) 0%, transparent 100%);
 }
 
 .reconfigure-fieldset legend {
-    font-size: 0.85rem;
+    font-size: var(--text-sm);
     font-weight: 600;
     color: var(--text-secondary);
-    padding: 0 8px;
+    padding: 0 var(--space-2);
     letter-spacing: 0.02em;
 }
 
 .reconfigure-toggles {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: var(--space-3);
 }
 
 /* ── Config Drift Badges ── */
@@ -451,7 +451,7 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--space-3);
     padding: 4px 0;
 }
 
@@ -460,22 +460,22 @@
     text-align: center;
     padding: 2.5rem 1rem;
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
     line-height: 1.5;
 }
 
 .config-history-error {
     text-align: center;
-    padding: 16px;
+    padding: var(--space-4);
     color: var(--danger);
-    font-size: 0.85rem;
+    font-size: var(--text-sm);
 }
 
 .config-history-item {
     border: 1px solid var(--border-subtle);
-    border-radius: 10px;
-    padding: 12px 14px;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: var(--radius-xl);
+    padding: var(--space-3) var(--space-4);
+    transition: all var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
     background: color-mix(in srgb, var(--card-bg) 40%, transparent);
     position: relative;
     overflow: hidden;
@@ -506,9 +506,9 @@
 .rev-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-    font-size: 0.85rem;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+    font-size: var(--text-sm);
 }
 
 .rev-revision {
@@ -518,10 +518,10 @@
 }
 
 .rev-status {
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 999px;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-full);
     backdrop-filter: blur(4px);
     border: 1px solid transparent;
 }
@@ -552,7 +552,7 @@
 
 .rev-date {
     color: var(--text-secondary);
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
     margin-left: auto;
     font-variant-numeric: tabular-nums;
 }
@@ -560,24 +560,24 @@
 .rev-fields {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
-    margin-bottom: 6px;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
 }
 
 .rev-field {
     background: var(--bg-glass);
     color: var(--text-secondary);
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-size: 0.75rem;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-md);
+    font-size: var(--text-xs);
     font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
     border: 1px solid var(--border-subtle);
 }
 
 .rev-error {
     color: var(--danger);
-    font-size: 0.8rem;
-    margin-bottom: 6px;
+    font-size: var(--text-xs);
+    margin-bottom: var(--space-2);
     line-height: 1.4;
 }
 
@@ -585,11 +585,11 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: var(--space-2);
 }
 
 .rev-source {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--text-secondary);
     opacity: 0.7;
 }
@@ -603,7 +603,7 @@
 }
 
 .empty-state .icon {
-    font-size: 2.5rem;
+    font-size: var(--text-2xl);
     margin-bottom: 0.75rem;
     line-height: 1;
     filter: grayscale(0.2);
@@ -612,13 +612,13 @@
 }
 
 .empty-state p {
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
     margin: 0 0 1rem;
     line-height: 1.5;
 }
 
 .empty-state .btn {
-    margin-top: 0.5rem;
+    margin-top: var(--space-2);
 }
 
 @keyframes invFloat {
@@ -631,7 +631,7 @@
 .form-group textarea,
 .form-group select,
 .form-select {
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .form-group input:hover,
@@ -654,11 +654,11 @@
 /* ── Toast ── */
 .toast {
     position: fixed;
-    bottom: 24px;
-    right: 24px;
-    padding: 12px 20px;
-    border-radius: 10px;
-    font-size: 0.9rem;
+    bottom: var(--space-6);
+    right: var(--space-6);
+    padding: var(--space-3) var(--space-5);
+    border-radius: var(--radius-xl);
+    font-size: var(--text-sm);
     color: #fff;
     z-index: 10000;
     animation: invToastIn 0.35s cubic-bezier(0.22, 1, 0.36, 1), invToastOut 0.3s ease 2.7s;
@@ -689,22 +689,22 @@
 @media (max-width: 768px) {
     .cards-grid {
         grid-template-columns: 1fr;
-        gap: 14px;
+        gap: var(--space-4);
     }
     .form-row {
         grid-template-columns: 1fr;
     }
     .page-header {
         flex-direction: column;
-        gap: 12px;
+        gap: var(--space-3);
         align-items: flex-start;
     }
     .container {
-        padding: 18px 16px 48px;
+        padding: var(--space-5) var(--space-4) 48px;
     }
     .invasion-tab {
-        padding: 8px 14px;
-        font-size: 0.85rem;
+        padding: var(--space-2) var(--space-4);
+        font-size: var(--text-sm);
     }
     .reconfigure-toggles {
         grid-template-columns: 1fr;
@@ -742,3 +742,4 @@
 [data-theme="light"] .reconfigure-fieldset {
     background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 100%);
 }
+

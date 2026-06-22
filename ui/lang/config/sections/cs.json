@@ -483,5 +483,6 @@
   "config.group_title.agent.announcement_detector": "Detektor odpovědí",
   "config.group_title.agent.importance_scoring": "Hodnocení důležitosti",
   "config.group_title.agent.auto_learning": "Automatické učení",
-  "config.group_title.agent.reuse_first": "Nejdřív znovupoužití"
+  "config.group_title.agent.reuse_first": "Nejdřív znovupoužití",
+  "config.github.saving": "Ukládám..."
 }

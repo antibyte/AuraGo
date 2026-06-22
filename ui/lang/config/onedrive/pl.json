@@ -75,5 +75,6 @@
   "config.updates.running": "Uruchomiono…",
   "config.web_scraper.summary_mode": "Tryb podsumowania",
   "config.webdav.secret_empty": "Wartość jest pusta",
-  "config.onedrive.disconnect_confirm_title": "Odłączyć OneDrive?"
+  "config.onedrive.disconnect_confirm_title": "Odłączyć OneDrive?",
+  "config.onedrive.enabled_help": "Enables OneDrive file access after Microsoft authorization is complete."
 }

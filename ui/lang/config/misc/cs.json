@@ -67,5 +67,8 @@
   "config.vault.delete_desc": "Tímto se vault <strong>trvale</strong> smaže. Všechny uložené API klíče, hesla a přihlašovací údaje budou navždy ztraceny!<br><br>Pro pokračování napište <strong style=\"color:#f87171;\">delete</strong>:",
   "config.vault.delete_title": "⚠️ Trvale smazat vault",
   "config.vault.deleted_toast": "✓ Vault smazán. Zadejte nový hlavní klíč, uložte a restartujte AuraGo.",
-  "config.vault.destroy_button": "Zničit"
+  "config.vault.destroy_button": "Zničit",
+  "config.menu": "Menu",
+  "config.toggle_sidebar": "Přepnout postranní panel",
+  "config.page_description": "Nastavte svého AI agenta"
 }

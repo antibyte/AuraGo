@@ -211,13 +211,27 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 
 	// Knowledge Graph: Garbage collection and semantic reindex
 	if kg != nil {
-		if _, _, err := kg.CleanupStaleGraph(30); err != nil {
+		if _, _, err := kg.CleanupStaleGraphWithOptions(memory.KnowledgeGraphCleanupOptions{
+			PendingCoMentionDays: cfg.Tools.KnowledgeGraph.PendingCoMentionTTLDays,
+			StaleNodeDays:        30,
+		}); err != nil {
 			logger.Error("[Maintenance] Failed to clean up stale KG elements", "error", err)
 		}
 		if ran, err := kg.RunSemanticReindexIfDue(); err != nil {
 			logger.Warn("[Maintenance] Failed to reindex semantic knowledge graph", "error", err)
 		} else if ran {
+			if extraPasses, drainErr := kg.DrainSemanticReindexBacklog(2); drainErr != nil {
+				logger.Warn("[Maintenance] Failed to drain knowledge graph semantic reindex backlog", "error", drainErr)
+			} else if extraPasses > 0 {
+				logger.Debug("[Maintenance] Knowledge graph semantic reindex follow-up passes completed", "extra_passes", extraPasses)
+			}
 			logger.Debug("[Maintenance] Semantic knowledge graph reindex completed")
+			if backlog, dirtyNodes, dirtyEdges, backlogErr := kg.HasSemanticReindexBacklog(); backlogErr != nil {
+				logger.Warn("[Maintenance] Failed to inspect knowledge graph semantic reindex backlog", "error", backlogErr)
+			} else if backlog {
+				logger.Warn("[Maintenance] Knowledge graph semantic reindex backlog remains high", "dirty_nodes", dirtyNodes, "dirty_edges", dirtyEdges)
+				recordKnowledgeGraphSemanticReindexBacklogIssue(plannerDB, dirtyNodes, dirtyEdges, logger)
+			}
 		}
 	}
 
@@ -245,6 +259,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	if kg != nil && shortTermMem != nil {
 		SyncCoreMemoryToKnowledgeGraph(ctx, shortTermMem, kg, logger)
 		recordKnowledgeGraphSparseIssue(plannerDB, shortTermMem, kg, logger)
+		recordKnowledgeGraphQualityIssues(plannerDB, kg, logger)
 	}
 
 	// Knowledge Graph: incremental file-based KG sync
@@ -1594,7 +1609,7 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 
 	// Optimize Knowledge Graph
 	graphRemoved := 0
-	if kg != nil {
+	if shouldOptimizeKnowledgeGraph(cfg, kg) {
 		if dropped := kg.DroppedAccessHits(); dropped > 0 {
 			logger.Warn("[AutoOptimize] Dropped knowledge graph access hits under load", "dropped", dropped)
 		}
@@ -1714,6 +1729,13 @@ func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *m
 			relSlug := strings.ToLower(strings.ReplaceAll(relationship.String, " ", "_"))
 			relNodeID := "org_" + relSlug
 
+			if _, err := kg.PruneOutgoingRelationEdges(nodeID, "belongs_to", map[string]struct{}{relNodeID: {}}); err != nil {
+				logger.Warn("[Maintenance] Failed to prune stale contact relationship edges",
+					"contact_node_id", nodeID,
+					"relationship_node_id", relNodeID,
+					"error", err)
+			}
+
 			if err := kg.AddNode(relNodeID, relationship.String, map[string]string{"type": "organization"}); err != nil {
 				logger.Warn("[Maintenance] Failed to sync relationship org node to KG",
 					"contact_node_id", nodeID,
@@ -1739,6 +1761,11 @@ func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg plan
 
 	logger.Info("[Maintenance] Syncing Planner to Knowledge Graph")
 
+	tracker := planner.NewKGSyncTracker()
+	if err := planner.EnsurePlannerWorkspaceHub(kg, tracker); err != nil {
+		logger.Debug("[Maintenance] Failed to ensure planner workspace hub", "error", err)
+	}
+
 	appointments, err := planner.ListAppointments(plannerDB, "", "")
 	if err != nil {
 		logger.Error("[Maintenance] Failed to list appointments for KG sync", "error", err)
@@ -1747,17 +1774,13 @@ func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg plan
 			if a.Status == "cancelled" {
 				continue
 			}
-			props := map[string]string{
-				"type":   "event",
-				"source": "planner",
-				"date":   a.DateTime,
-				"status": a.Status,
+			contactIDs, contactErr := planner.GetAppointmentContactIDs(plannerDB, a.ID)
+			if contactErr != nil {
+				logger.Debug("[Maintenance] Failed to load appointment contacts for KG sync", "appointment_id", a.ID, "error", contactErr)
+				continue
 			}
-			if a.Description != "" {
-				props["description"] = a.Description
-			}
-			if err := kg.AddNode(a.KGNodeID, a.Title, props); err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
-				logger.Debug("[Maintenance] AddNode returned error", "nodeID", a.KGNodeID, "error", err)
+			if err := planner.SyncAppointmentKGRecord(kg, a, contactIDs, tracker); err != nil {
+				logger.Debug("[Maintenance] Failed to sync appointment to KG", "nodeID", a.KGNodeID, "error", err)
 			}
 		}
 	}
@@ -1768,21 +1791,27 @@ func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg plan
 		return
 	}
 	for _, t := range todos {
-		props := map[string]string{
-			"type":     "task",
-			"source":   "planner",
-			"priority": t.Priority,
-			"status":   t.Status,
+		if err := planner.SyncTodoKGRecord(kg, t, tracker); err != nil {
+			logger.Debug("[Maintenance] Failed to sync todo to KG", "nodeID", t.KGNodeID, "error", err)
 		}
-		if t.DueDate != "" {
-			props["due_date"] = t.DueDate
-		}
-		if t.Description != "" {
-			props["description"] = t.Description
-		}
-		if err := kg.AddNode(t.KGNodeID, t.Title, props); err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			logger.Debug("[Maintenance] AddNode returned error", "nodeID", t.KGNodeID, "error", err)
-		}
+	}
+
+	if removed, err := kg.DeleteStalePlannerSyncEdges(tracker.ExpectedEdges, tracker.ActivePlannerNodes); err != nil {
+		logger.Warn("[Maintenance] Failed to clean stale planner KG edges", "error", err)
+	} else if removed > 0 {
+		logger.Info("[Maintenance] Removed stale planner KG edges", "removed", removed)
+	}
+
+	if removed, err := kg.PruneStalePlannerRootNodes(tracker.ActivePlannerNodes); err != nil {
+		logger.Warn("[Maintenance] Failed to prune stale planner KG nodes", "error", err)
+	} else if removed > 0 {
+		logger.Info("[Maintenance] Removed stale planner KG nodes", "removed", removed)
+	}
+
+	if removed, err := kg.PruneStalePlannerItemNodes(tracker.ActivePlannerNodes); err != nil {
+		logger.Warn("[Maintenance] Failed to prune stale planner KG item nodes", "error", err)
+	} else if removed > 0 {
+		logger.Info("[Maintenance] Removed stale planner KG item nodes", "removed", removed)
 	}
 }
 
@@ -1810,6 +1839,7 @@ func SyncCoreMemoryToKnowledgeGraph(ctx context.Context, stm *memory.SQLiteMemor
 		}
 		props := map[string]string{
 			"type":    "concept",
+			"source":  "core_memory",
 			"content": fact.Fact,
 		}
 

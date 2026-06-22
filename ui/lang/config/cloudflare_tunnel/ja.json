@@ -48,5 +48,17 @@
   "config.cloudflare_tunnel.status_disabled": "Cloudflare Tunnelは無効です",
   "config.cloudflare_tunnel.status_running": "トンネルは稼働中です",
   "config.cloudflare_tunnel.status_stopped": "トンネルは停止中です",
-  "config.cloudflare_tunnel.status_error": "トンネル状態の読み込みに失敗しました"
+  "config.cloudflare_tunnel.status_error": "トンネル状態の読み込みに失敗しました",
+  "config.cloudflare_tunnel.enabled_help": "AuraGo の Cloudflare Tunnel 管理を有効にします。",
+  "config.cloudflare_tunnel.readonly_help": "連携を状態確認のみに制限し、tunnel の変更をブロックします。",
+  "config.cloudflare_tunnel.auto_start_help": "AuraGo の起動時に cloudflared を自動起動します。",
+  "config.cloudflare_tunnel.mode_help": "AuraGo が Docker、native binary、自動検出のどれを使うかを選びます。",
+  "config.cloudflare_tunnel.auth_method_help": "tunnel が Cloudflare に認証する方法を選択します。",
+  "config.cloudflare_tunnel.tunnel_name_help": "Cloudflare の named tunnel 名。named tunnel の場合のみ必要です。",
+  "config.cloudflare_tunnel.account_id_help": "Named tunnel 操作で使う任意の Cloudflare account ID。",
+  "config.cloudflare_tunnel.metrics_port_help": "cloudflared のローカル metrics port。metrics を無効にするには 0 を使います。",
+  "config.cloudflare_tunnel.log_level_help": "AuraGo が記録する cloudflared のログ量を制御します。",
+  "config.cloudflare_tunnel.expose_web_ui_help": "AuraGo Web UI を tunnel 経由で公開します。",
+  "config.cloudflare_tunnel.expose_homepage_help": "Homepage web server を tunnel 経由で公開します。",
+  "config.cloudflare_tunnel.expose_target_help": "token または quick tunnel で使う単一のローカルサービスを選択します。"
 }

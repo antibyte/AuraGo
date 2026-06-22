@@ -215,6 +215,8 @@ func TestDesktopEditorFillsWindowContent(t *testing.T) {
 		"height: 100%;",
 		"min-height: 0;",
 		"min-width: 0;",
+		"background: var(--ds-color-bg-raised, #181f2c);",
+		"color: var(--ds-color-fg-primary, #f6f7fb);",
 	} {
 		if !strings.Contains(editorRule, marker) {
 			t.Fatalf("editor root layout rule missing marker %q", marker)
@@ -227,6 +229,8 @@ func TestDesktopEditorFillsWindowContent(t *testing.T) {
 		"height: 100%;",
 		"box-sizing: border-box;",
 		"overflow: auto;",
+		"background: var(--ds-color-bg-raised, #181f2c);",
+		"color: var(--ds-color-fg-primary, #f6f7fb);",
 	} {
 		if !strings.Contains(textareaRule, marker) {
 			t.Fatalf("editor textarea layout rule missing marker %q", marker)

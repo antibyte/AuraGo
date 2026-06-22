@@ -33,6 +33,16 @@ type IndexingDirectory struct {
 	Collection string `yaml:"collection"` // optional; empty = default "file_index"
 }
 
+// MemoryOnDemandRetrievalConfig controls compact prompt context plus explicit recall tools.
+type MemoryOnDemandRetrievalConfig struct {
+	Enabled              bool   `yaml:"enabled"`
+	MaxEssentialMemories int    `yaml:"max_essential_memories"`
+	MaxAvailableMemories int    `yaml:"max_available_memories"`
+	MaxAvailableKGNodes  int    `yaml:"max_available_kg_nodes"`
+	MaxAvailableChars    int    `yaml:"max_available_chars"`
+	DedupeScope          string `yaml:"dedupe_scope"`
+}
+
 // SpecialistConfig holds per-role configuration for a specialist co-agent.
 // Empty LLM.Provider inherits from co_agents.llm, which in turn falls back to the main LLM.
 type SpecialistConfig struct {
@@ -103,6 +113,14 @@ type ProviderEntry struct {
 
 	// Per-provider model cost overrides (used by budget tracker)
 	Models []ModelCost `yaml:"models,omitempty" json:"models,omitempty"`
+}
+
+// ModelCatalogConfig controls read-only model/provider catalog metadata.
+type ModelCatalogConfig struct {
+	Enabled            bool     `yaml:"enabled" json:"enabled"`
+	DisabledProviders  []string `yaml:"disabled_providers" json:"disabled_providers"`
+	CatalogOnlyVisible bool     `yaml:"catalog_only_visible" json:"catalog_only_visible"`
+	UpstreamVersion    string   `yaml:"upstream_version" json:"upstream_version"`
 }
 
 // EmailAccount defines a single IMAP/SMTP email account.
@@ -348,6 +366,7 @@ type VirtualDesktopConfig struct {
 	RemoteMaxSessionMinutes  int              `yaml:"remote_max_session_minutes" json:"remote_max_session_minutes"`   // max SSH/VNC remote session duration
 	RemoteIdleTimeoutMinutes int              `yaml:"remote_idle_timeout_minutes" json:"remote_idle_timeout_minutes"` // idle timeout for SSH/VNC remote sessions
 	CodeStudio               CodeStudioConfig `yaml:"code_studio" json:"code_studio"`                                 // built-in Code Studio development container
+	OpenSCAD                 OpenSCADConfig   `yaml:"openscad" json:"openscad"`                                       // built-in OpenSCAD compiler container
 }
 
 // CodeStudioConfig holds settings for the lazy Code Studio dev container.
@@ -358,6 +377,24 @@ type CodeStudioConfig struct {
 	AutoStopMinutes int    `yaml:"auto_stop_minutes" json:"auto_stop_minutes"`
 	MaxMemoryMB     int    `yaml:"max_memory_mb" json:"max_memory_mb"`
 	MaxCPUCores     int    `yaml:"max_cpu_cores" json:"max_cpu_cores"`
+}
+
+// OpenSCADConfig holds settings for the lazy OpenSCAD compiler container.
+type OpenSCADConfig struct {
+	Enabled                 bool     `yaml:"enabled" json:"enabled"`
+	Image                   string   `yaml:"image" json:"image"`
+	AutoStart               bool     `yaml:"auto_start" json:"auto_start"`
+	AutoStopMinutes         int      `yaml:"auto_stop_minutes" json:"auto_stop_minutes"`
+	MaxMemoryMB             int      `yaml:"max_memory_mb" json:"max_memory_mb"`
+	MaxCPUCores             int      `yaml:"max_cpu_cores" json:"max_cpu_cores"`
+	MaxConcurrentJobs       int      `yaml:"max_concurrent_jobs" json:"max_concurrent_jobs"`
+	GeometryBackend         string   `yaml:"geometry_backend" json:"geometry_backend"`
+	DefaultExports          []string `yaml:"default_exports" json:"default_exports"`
+	MaxSourceKB             int      `yaml:"max_source_kb" json:"max_source_kb"`
+	MaxOutputMB             int      `yaml:"max_output_mb" json:"max_output_mb"`
+	RenderTimeoutSeconds    int      `yaml:"render_timeout_seconds" json:"render_timeout_seconds"`
+	MaxRenderTimeoutSeconds int      `yaml:"max_render_timeout_seconds" json:"max_render_timeout_seconds"`
+	JobRetentionDays        int      `yaml:"job_retention_days" json:"job_retention_days"`
 }
 
 type PackageManagerConfig struct {
@@ -482,10 +519,11 @@ type ComposioConfig struct {
 }
 
 type Config struct {
-	ConfigPath    string          `yaml:"-"`          // runtime-only: absolute path to the config file
-	Runtime       Runtime         `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
-	Providers     []ProviderEntry `yaml:"providers"`
-	EmailAccounts []EmailAccount  `yaml:"email_accounts"`
+	ConfigPath    string             `yaml:"-"`          // runtime-only: absolute path to the config file
+	Runtime       Runtime            `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
+	Providers     []ProviderEntry    `yaml:"providers"`
+	ModelCatalog  ModelCatalogConfig `yaml:"model_catalog" json:"model_catalog"`
+	EmailAccounts []EmailAccount     `yaml:"email_accounts"`
 	Server        struct {
 		Host                 string `yaml:"host"`
 		Port                 int    `yaml:"port"`
@@ -1495,20 +1533,26 @@ type Config struct {
 	} `yaml:"mcp"`
 	Tools struct {
 		Memory struct {
-			Enabled  bool `yaml:"enabled"`  // default true; disable to block manage_memory/core_memory
-			ReadOnly bool `yaml:"readonly"` // true = only read/query, block store/delete/save_core/delete_core
+			Enabled           bool                          `yaml:"enabled"`  // default true; disable to block manage_memory/core_memory
+			ReadOnly          bool                          `yaml:"readonly"` // true = only read/query, block store/delete/save_core/delete_core
+			OnDemandRetrieval MemoryOnDemandRetrievalConfig `yaml:"ondemand_retrieval"`
 		} `yaml:"memory"`
 		KnowledgeGraph struct {
-			Enabled                 bool     `yaml:"enabled"`                   // default true; disable to block knowledge_graph
-			ReadOnly                bool     `yaml:"readonly"`                  // true = only query/search, block add/delete
-			AutoExtraction          bool     `yaml:"auto_extraction"`           // nightly batch entity extraction from conversations
-			PromptInjection         bool     `yaml:"prompt_injection"`          // inject relevant KG context into system prompt
-			MaxPromptNodes          int      `yaml:"max_prompt_nodes"`          // max nodes to inject into prompt (default 5)
-			MaxPromptChars          int      `yaml:"max_prompt_chars"`          // max chars for KG context in prompt (default 800)
-			RetrievalFusion         bool     `yaml:"retrieval_fusion"`          // cross-reference RAG↔KG for bidirectional enrichment (default true)
-			MinSemanticSimilarity   float64  `yaml:"min_semantic_similarity"`   // minimum similarity for KG semantic search (default 0.60)
-			ExcludeNodeTypes        []string `yaml:"exclude_node_types"`        // node types excluded from semantic/prompt context (default ["activity_entity", "unknown"])
-			SemanticReindexInterval string   `yaml:"semantic_reindex_interval"` // minimum interval between dirty-node semantic reindexes (default "5m")
+			Enabled                         bool     `yaml:"enabled"`                              // default true; disable to block knowledge_graph
+			ReadOnly                        bool     `yaml:"readonly"`                             // true = only query/search, block add/delete/optimize pruning
+			AutoExtraction                  bool     `yaml:"auto_extraction"`                      // nightly batch entity extraction from conversations
+			PromptInjection                 bool     `yaml:"prompt_injection"`                     // inject relevant KG context into system prompt
+			MaxPromptNodes                  int      `yaml:"max_prompt_nodes"`                     // max nodes to inject into prompt (default 5)
+			MaxPromptChars                  int      `yaml:"max_prompt_chars"`                     // max chars for KG context in prompt (default 800)
+			RetrievalFusion                 bool     `yaml:"retrieval_fusion"`                     // cross-reference RAG↔KG for bidirectional enrichment (default true)
+			MinSemanticSimilarity           float64  `yaml:"min_semantic_similarity"`              // minimum similarity for KG semantic search (default 0.60)
+			ExcludeNodeTypes                []string `yaml:"exclude_node_types"`                   // node types excluded from semantic/prompt context (default ["activity_entity", "unknown"])
+			SemanticReindexInterval         string   `yaml:"semantic_reindex_interval"`            // minimum interval between dirty-node semantic reindexes (default "5m")
+			ProtectOptimizeSources          []string `yaml:"protect_optimize_sources"`             // node sources exempt from OptimizeGraph (default planner, inventory_sync, manual, file_sync, core_memory)
+			ProtectIDPrefixes               []string `yaml:"protect_id_prefixes"`                  // node ID prefixes exempt from OptimizeGraph (default core_fact_, dev_, contact_)
+			PendingCoMentionTTLDays         int      `yaml:"pending_co_mention_ttl_days"`          // days before pending co-mentioned_with edges are deleted (default 7)
+			LowConfidenceCoMentionMinWeight int      `yaml:"low_confidence_co_mention_min_weight"` // minimum weight before auto co-mention edges are shown by default (default 2)
+			HideLowConfidenceByDefault      bool     `yaml:"hide_low_confidence_by_default"`       // hide low-confidence co-mention edges unless explicitly requested
 		} `yaml:"knowledge_graph"`
 		SecretsVault struct {
 			Enabled  bool `yaml:"enabled"`  // default true; disable to block secrets_vault
@@ -1629,14 +1673,16 @@ type Config struct {
 		SkillTimeoutSeconds      int `yaml:"skill_timeout_seconds"`      // skill execution timeout (default: 120)
 		BackgroundTimeoutSeconds int `yaml:"background_timeout_seconds"` // background Python/shell/tool execution timeout (default: 3600)
 		SkillManager             struct {
-			Enabled          bool `yaml:"enabled"`            // enable skill manager web UI and API (default: true)
-			AllowUploads     bool `yaml:"allow_uploads"`      // allow uploading new skills via web UI (default: true)
-			ReadOnly         bool `yaml:"readonly"`           // read-only mode: list/view only (default: false)
-			RequireScan      bool `yaml:"require_scan"`       // require security scan before enabling (default: true)
-			RequireSandbox   bool `yaml:"require_sandbox"`    // require sandbox for skill execution (default: false)
-			MaxUploadSizeMB  int  `yaml:"max_upload_size_mb"` // max upload file size in MB (default: 1)
-			AutoEnableClean  bool `yaml:"auto_enable_clean"`  // auto-enable skills that pass all scans (default: false)
-			ScanWithGuardian bool `yaml:"scan_with_guardian"` // use LLM Guardian for code review on upload (default: false, costs tokens)
+			Enabled               bool     `yaml:"enabled"`                  // enable skill manager web UI and API (default: true)
+			AllowUploads          bool     `yaml:"allow_uploads"`            // allow uploading new skills via web UI (default: true)
+			ReadOnly              bool     `yaml:"readonly"`                 // read-only mode: list/view only (default: false)
+			RequireScan           bool     `yaml:"require_scan"`             // require security scan before enabling (default: true)
+			RequireSandbox        bool     `yaml:"require_sandbox"`          // require sandbox for skill execution (default: false)
+			MaxUploadSizeMB       int      `yaml:"max_upload_size_mb"`       // max upload file size in MB (default: 1)
+			AutoEnableClean       bool     `yaml:"auto_enable_clean"`        // auto-enable skills that pass all scans (default: false)
+			ScanWithGuardian      bool     `yaml:"scan_with_guardian"`       // use LLM Guardian for code review on upload (default: false, costs tokens)
+			AllowedScriptLanguages []string `yaml:"allowed_script_languages"` // allowed script languages for Agent Skills (default: ["python"])
+			AllowBinaryAssets     bool     `yaml:"allow_binary_assets"`      // allow binary asset upload/download for Agent Skills (default: true)
 		} `yaml:"skill_manager"`
 		DaemonSkills struct {
 			Enabled              bool    `yaml:"enabled"`                // enable daemon skill support (default: false, opt-in)

@@ -67,5 +67,8 @@
   "config.vault.delete_desc": "Hierdoor wordt de kluis <strong> permanent </strong> verwijderd. Alle opgeslagen API sleutels, wachtwoorden en inloggegevens gaan voor altijd verloren! <br> <br> Typ <strong style=\"color:#f87171;\"> verwijder </strong> om door te gaan:",
   "config.vault.delete_title": "⚠️ Kluis permanent verwijderen",
   "config.vault.deleted_toast": "✓ Kluis verwijderd. Voer een nieuwe hoofdsleutel in, sla op en herstart AuraGo.",
-  "config.vault.destroy_button": "Vernietigen"
+  "config.vault.destroy_button": "Vernietigen",
+  "config.menu": "Menu",
+  "config.toggle_sidebar": "Zijbalk in-/uitschakelen",
+  "config.page_description": "Configureer je AI-agentinstellingen"
 }

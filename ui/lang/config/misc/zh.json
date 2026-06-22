@@ -67,5 +67,8 @@
   "config.vault.delete_desc": "这将<strong>永久</strong>删除 vault。所有存储的 API Key、密码和凭据将永远丢失！<br><br>输入 <strong style=\"color:#f87171;\">delete</strong> 继续：",
   "config.vault.delete_title": "⚠️ 永久删除 vault",
   "config.vault.deleted_toast": "✓ Vault 已删除。输入新的主密钥，保存，然后重启 AuraGo。",
-  "config.vault.destroy_button": "销毁"
+  "config.vault.destroy_button": "销毁",
+  "config.menu": "菜单",
+  "config.toggle_sidebar": "切换侧边栏",
+  "config.page_description": "配置你的 AI 代理设置"
 }

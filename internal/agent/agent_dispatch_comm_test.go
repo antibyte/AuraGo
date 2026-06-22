@@ -108,6 +108,48 @@ func TestExecuteSkillRedirectsNativeToolBeforeFilteringArgs(t *testing.T) {
 	}
 }
 
+func TestExecuteSkillBlocksDisabledRegistrySkill(t *testing.T) {
+	tmp := t.TempDir()
+	db, err := tools.InitSkillsDB(filepath.Join(tmp, "skills.db"))
+	if err != nil {
+		t.Fatalf("InitSkillsDB: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	skillsDir := filepath.Join(tmp, "skills")
+	mgr := tools.NewSkillManager(db, skillsDir, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	old := tools.DefaultSkillManager()
+	tools.SetDefaultSkillManager(mgr)
+	t.Cleanup(func() { tools.SetDefaultSkillManager(old) })
+
+	entry, err := mgr.CreateSkillEntry("blocked_skill", "blocked", `def run(): return "SECRET_OUTPUT"`, tools.SkillTypeUser, "test", "", nil)
+	if err != nil {
+		t.Fatalf("CreateSkillEntry: %v", err)
+	}
+	if err := mgr.EnableSkill(entry.ID, false, "test"); err != nil {
+		t.Fatalf("EnableSkill: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.SkillsDir = skillsDir
+	cfg.Directories.WorkspaceDir = filepath.Join(tmp, "workspace")
+	out, ok := dispatchComm(context.Background(), ToolCall{
+		Action: "execute_skill",
+		Skill:  "blocked_skill",
+	}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if !ok {
+		t.Fatal("expected dispatchComm to handle execute_skill")
+	}
+	if !strings.Contains(out, `ERROR executing skill: skill "blocked_skill" is disabled`) {
+		t.Fatalf("output = %q", out)
+	}
+	if strings.Contains(out, "SECRET_OUTPUT") {
+		t.Fatalf("script ran despite disabled skill: %s", out)
+	}
+}
+
 func TestMergeSkillVaultKeysAcceptsPySuffix(t *testing.T) {
 	dir := t.TempDir()
 	manifest := tools.SkillManifest{
@@ -171,6 +213,68 @@ func TestDispatchMessagingSendYouTubeVideoHonorsDisabledConfig(t *testing.T) {
 	}
 	if !strings.Contains(out, "send_youtube_video is disabled") {
 		t.Fatalf("expected disabled error, got %s", out)
+	}
+}
+
+func TestDispatchMessagingBlocksGenericAttachmentImageInAgoDeskChat(t *testing.T) {
+	workspaceDir := t.TempDir()
+	genericImage := filepath.Join(workspaceDir, "attachments", "old_punk.jpg")
+	if err := os.MkdirAll(filepath.Dir(genericImage), 0o755); err != nil {
+		t.Fatalf("mkdir generic attachment dir: %v", err)
+	}
+	if err := os.WriteFile(genericImage, []byte("fake image"), 0o644); err != nil {
+		t.Fatalf("write generic attachment: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = workspaceDir
+	out, ok := dispatchMessagingCases(context.Background(), ToolCall{
+		Action: "send_image",
+		Params: map[string]interface{}{
+			"path":    "attachments/old_punk.jpg",
+			"caption": "wrong icon",
+		},
+	}, &DispatchContext{
+		Cfg:           cfg,
+		Logger:        slog.New(slog.NewTextHandler(io.Discard, nil)),
+		MessageSource: "agodesk_chat",
+	})
+	if !ok {
+		t.Fatal("expected dispatchMessagingCases to handle send_image")
+	}
+	if !strings.Contains(out, `"status":"error"`) || !strings.Contains(out, "agodesk") {
+		t.Fatalf("expected agodesk generic attachment guard error, got %s", out)
+	}
+}
+
+func TestDispatchMessagingAllowsAgoDeskAttachmentImageInAgoDeskChat(t *testing.T) {
+	workspaceDir := t.TempDir()
+	uploadedImage := filepath.Join(workspaceDir, "attachments", "agodesk", "sess-1", "att-1", "maja.jpg")
+	if err := os.MkdirAll(filepath.Dir(uploadedImage), 0o755); err != nil {
+		t.Fatalf("mkdir agodesk attachment dir: %v", err)
+	}
+	if err := os.WriteFile(uploadedImage, []byte("fake image"), 0o644); err != nil {
+		t.Fatalf("write agodesk attachment: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = workspaceDir
+	out, ok := dispatchMessagingCases(context.Background(), ToolCall{
+		Action: "send_image",
+		Params: map[string]interface{}{
+			"path":    "attachments/agodesk/sess-1/att-1/maja.jpg",
+			"caption": "maja",
+		},
+	}, &DispatchContext{
+		Cfg:           cfg,
+		Logger:        slog.New(slog.NewTextHandler(io.Discard, nil)),
+		MessageSource: "agodesk_chat",
+	})
+	if !ok {
+		t.Fatal("expected dispatchMessagingCases to handle send_image")
+	}
+	if !strings.Contains(out, `"status":"success"`) {
+		t.Fatalf("expected agodesk attachment send to succeed, got %s", out)
 	}
 }
 

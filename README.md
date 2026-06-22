@@ -7,14 +7,16 @@
 
 # AuraGo — The Self-Hosted AI Agent Framework for Homelabs
 
-**A privacy-first, open-source agentic framework purpose-built for homelabs. Seamlessly monitor your services, automate maintenance, manage media stacks, respond to incidents, and orchestrate home automation—all locally on modest hardware with zero data leaving your home network.**
+**Self-hosted AI agents. Zero cloud. Zero compromise.**
 
 [![Go Version](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![License](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
+[![Website](https://img.shields.io/badge/Website-aurago--web-blue?logo=githubpages)](https://antibyte.github.io/aurago-web/)
+[![Windows Companion App](https://img.shields.io/badge/Windows%20Companion-Agodesk-0078D4?logo=windows)](https://github.com/antibyte/agodesk/releases)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-5865F2?logo=discord&logoColor=white)](https://discord.gg/aurago)
 
-> **🛠️ Work in Progress** — AuraGo is under active development. Expect rapid feature additions and some rough edges. Windows and macOS support is experimental; Linux servers and Raspberry Pi are fully supported.
+> **🛠️ Work in Progress** — AuraGo is under active development. Expect rapid feature additions and some rough edges. Linux is the primary target; Windows and macOS companion builds exist but are experimental.
 
 > **🔒 Total Security Control** — Every permission is individually granular. File system access, shell execution, python sandboxes, network requests, and self-updates can be enabled or disabled via the **Danger Zone**. For internet-facing setups, auto-HTTPS (Let's Encrypt), secure login, and TOTP 2FA are fully built-in.
 
@@ -92,106 +94,219 @@ AuraGo comes preloaded with **over 100+ native tools**, completely eliminating t
 
 ---
 
-## ⚡ 3-Step Quick Start
+## ⚡ Quick Start Deployment Options
 
-Deploy AuraGo on your local Linux server or Raspberry Pi in less than two minutes:
+Deploy AuraGo on your local Linux server or Raspberry Pi using your preferred method:
 
-### 1. Run the One-Liner Installer
-Execute the automated installation script to download dependencies, verify your Docker setup, and establish directories:
-```bash
-curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash
+### Option A — 3-Step Installer (Recommended)
+
+1. **Run the One-Liner Installer**:
+   Execute the automated installation script to download dependencies, verify your Docker setup, and establish directories:
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash
+   ```
+   *The installer checks Docker, provisions HTTPS for public hostnames, generates a secure first-login password, and sets up optional systemd units.*
+
+2. **Enter Directory & Start Server**:
+   Change into your new configuration directory, initialize your environment configurations, and launch the start script:
+   ```bash
+   cd ~/aurago
+   source .env
+   ./start.sh
+   ```
+
+3. **Open the Interactive Setup Wizard**:
+   Navigate to **http://localhost:8088** in your web browser. You'll be greeted by an interactive Web UI Setup Wizard that will guide you through:
+   *   Setting up your preferred local or cloud LLM provider (OpenAI, OpenRouter, Local Ollama, etc.)
+   *   Creating your secure login password and enabling TOTP 2FA
+   *   Initializing your local AES-256 credentials vault
+   *   Selecting your active homelab integrations
+
+   No manual `.yaml` or `.json` configuration file editing is required!
+
+---
+
+### Option B — Docker Compose
+
+```yaml
+services:
+  aurago:
+    image: ghcr.io/antibyte/aurago:latest
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./data:/app/data
+      - ./config.yaml:/app/config.yaml
+      - ./secrets:/run/optional-secrets:ro
 ```
 
-### 2. Enter Directory & Start Server
-Change into your new configuration directory, initialize your environment configurations, and launch the start script:
+Create `./secrets/aurago_master.key` (64 hex characters) or let AuraGo create the vault key in `./data` on first start.
+
+---
+
+### Option C — Build From Source
+
 ```bash
-cd ~/aurago
-source .env
-./start.sh
+git clone https://github.com/antibyte/AuraGo.git
+cd AuraGo
+go build -o aurago ./cmd/aurago
+./aurago
 ```
 
-### 3. Open the Interactive Setup Wizard
-Navigate to **http://localhost:8088** in your web browser. You'll be greeted by an interactive Web UI Setup Wizard that will guide you through:
-*   Setting up your preferred local or cloud LLM provider (OpenAI, OpenRouter, Local Ollama, etc.)
-*   Creating your secure login password and enabling TOTP 2FA
-*   Initializing your local AES-256 credentials vault
-*   Selecting your active homelab integrations
+---
 
-No manual `.yaml` or `.json` configuration file editing is required!
+## First run: setup and configuration
+
+1. **Setup wizard** (`/setup`) - Provider, model, trust level, optional vault and web login. On success you get a clear next step: open chat or jump into key **Config** areas (providers, security, server, backups).
+2. **Config UI** (`/config`) - Full settings browser with search, unsaved-change protection when switching sections, sticky save bar, and keyboard-friendly toggles.
+3. **Advanced** - Edit `config.yaml` or use env overrides; see [configuration reference](documentation/configuration.md).
+
+No manual YAML is required for a first successful run.
 
 ---
 
 ## 📸 Screenshots
 
-### Web UI Dashboard & Management
-| Dashboard | Chat Interface | Container Management | Configuration |
-| :---: | :---: | :---: | :---: |
+| Dashboard | Chat | Containers | Configuration |
+|:---------:|:----:|:----------:|:-------------:|
 | ![Dashboard](documentation/screenshots/dashboard.png) | ![Chat](documentation/screenshots/chat.png) | ![Containers](documentation/screenshots/containers.png) | ![Config](documentation/screenshots/config.png) |
 
-### Sandbox Virtual Desktop in Browser
-| Virtual Desktop GUI |
-| :---: |
-| ![Virtual Desktop](documentation/screenshots/desktop.png) |
+| Virtual desktop (experimental) |
+|:------------------------------:|
+| ![Virtual Desktop in Browser](documentation/screenshots/desktop.png) |
 
-### Cyberpunk & Retro CRT UI Themes
-| Cyberwar Theme | Retro CRT Theme | Dark Sun Theme | Lollipop Theme |
-| :---: | :---: | :---: | :---: |
+### Built-in chat themes
+
+| Cyberwar | Retro CRT | Dark Sun | Lollipop |
+|:--------:|:---------:|:--------:|:--------:|
 | ![Cyberwar](documentation/screenshots/theme1.png) | ![Retro CRT](documentation/screenshots/theme2.png) | ![Dark Sun](documentation/screenshots/theme3.png) | ![Lollipop](documentation/screenshots/theme4.png) |
 
 ---
 
-## 🧠 Memory & Context Systems
+## Highlights
 
-AuraGo keeps a detailed, persistent understanding of your homelab via a **multi-tiered cognitive architecture**:
-
-*   **Short-Term Window**: Manages immediate conversation history using a sliding SQLite buffer.
-*   **Long-Term Memory (RAG)**: Uses an embedded pure-Go vector database (`chromem-go`) to semantically search past interactions.
-*   **Knowledge Graph**: Builds a structured mapping of your homelab's entities, devices, IP addresses, and services.
-*   **Core Memory**: Stores permanent user profile facts, server specs, and preferences that are always injected into the LLM context.
-*   **Reflective Archiving**: Triggers a nightly batch consolidation to archive old threads, scoring logs by importance, and reflecting on your weekly usage patterns to identify optimizations.
-
----
-
-## 🔒 Security Architecture
-
-| Security Layer | Implemented Protections |
-| --- | --- |
-| **Encrypted Vault** | Master secrets encrypted locally with AES-256-GCM. Decrypted in-memory only. |
-| **Authentication** | Enforced bcrypt password hashing for all sessions, paired with optional TOTP 2FA. |
-| **Sandboxed Execution** | Shell/Python execution is fully isolated inside virtual environments or dedicated Docker containers. |
-| **LLM Guardian** | Secondary security-specialized LLM that checks the inputs/outputs of actions to prevent indirect injection. |
-| **Network & SSL** | Native ACME / Let's Encrypt support for automatic TLS validation on your domain. |
-| **Danger Zone** | Hard-coded environment toggles to disable high-risk tools (file write, script execution, network fetch). |
+| Area | What you get |
+|------|----------------|
+| **Personality engine** | Profiles and long-term preference learning |
+| **LLM Guardian** | Scans tool calls and external content for risky patterns |
+| **Adaptive tools** | Context-aware tool subsets to save tokens |
+| **Vault** | AES-256-GCM for secrets; bcrypt + TOTP for web login |
+| **Memory** | Short-term history, RAG, knowledge graph, core memory, journal |
+| **Media** | Image, music, and video generation with registry and limits |
+| **PWA** | Installable UI; voice features need HTTPS |
+| **Integrations** | 100+ tools without third-party "skills" for most homelab tasks |
 
 ---
 
-## 📖 Documentation Directory
+## Memory system
 
-*   **[English User Manual](documentation/manual/en/README.md)** — Comprehensive user and admin guide
-*   **[German User Manual (Handbuch)](documentation/manual/de/README.md)** — Complete German documentation
-*   **[Deployment Guide](documentation/docker_installation.md)** — Comprehensive Docker and container setup
-*   **[Configuration Reference](documentation/configuration.md)** — Explanation of all settings and parameters
-*   **[LLM Guardian & Safety](documentation/guardian_llm_system.md)** — Deeper look into prompt-injection defenses
-*   **[Architecture Overview](documentation/architecture.md)** — Detailed block diagram of internal components
-*   **[Telegram Setup](documentation/telegram_setup.md)** — Configure mobile chat-bot integrations
-*   **[Google API Setup](documentation/google_setup.md)** — OAuth2 configuration for Workspace and Gmail
+| Type | Role |
+|------|------|
+| **Short-term** | Sliding conversation window (SQLite) |
+| **Long-term (RAG)** | Semantic search over past chats |
+| **Knowledge graph** | Entities and relations |
+| **Core memory** | Always-on facts in context |
+| **Journal** | Timestamped events with importance |
+| **Notes and to-dos** | Persistent lists with due dates |
 
----
-
-## 🤝 Community & Contributing
-
-We welcome all contributions from homelab hobbyists, developers, and sysadmins! 
-*   Before contributing, please read our **[Contributing Guide](CONTRIBUTING.md)** and **[Code of Conduct](CODE_OF_CONDUCT.md)**.
-*   Have a question, feature request, or cool homelab automation to share? Join us on **[GitHub Discussions](https://github.com/antibyte/AuraGo/discussions)**!
-
-### 🏷️ Discoverability Topics
-To help users find this project on GitHub, we suggest configuring the following topics:
-`#homelab` `#ai-agent` `#self-hosted` `#go` `#privacy-first` `#docker` `#home-assistant` `#proxmox` `#sysadmin` `#automation`
+Background jobs can consolidate and analyze memory; see the manuals for tuning.
 
 ---
 
-## ⚖️ License & Attribution
+## Security
 
-This project is licensed under the **AGPLv3 License** — see the [LICENSE](LICENSE) file for details. 
+| Layer | Mechanism |
+|-------|-----------|
+| **Vault** | AES-256-GCM for API keys and secrets |
+| **Web auth** | bcrypt passwords, optional TOTP 2FA |
+| **Danger zone** | Per-capability toggles for execution and network |
+| **LLM Guardian** | Policy checks on tools and ingested content |
+| **Sandbox** | Python isolation (venv or containers) |
+| **TLS** | Let's Encrypt; login enforced when HTTPS is on |
+| **Prompt boundaries** | External payloads wrapped for injection defense |
 
-*Includes embedded dependencies like `chromem-go` (embedded vector DB), `modernc.org/sqlite` (pure Go SQLite), and `go-openai` (LLM communication).*
+---
+
+## Chat commands
+
+| Command | Description |
+|---------|-------------|
+| `/help` | List commands |
+| `/reset` | Clear current conversation |
+| `/stop` | Cancel in-flight work |
+| `/debug on\|off` | Verbose errors |
+| `/budget` | Token cost breakdown |
+| `/personality <name>` | Switch profile |
+| `/restart` | Restart server process |
+| `/voice on\|off` | Voice output |
+| `/warnings` | Active system warnings |
+| `/sudopwd` | Store or clear sudo password in vault |
+| `/addssh` | Add SSH host to inventory |
+| `/credits` | OpenRouter balance (if applicable) |
+
+---
+
+## Documentation
+
+| Topic | Link |
+|-------|------|
+| User guide (DE) | [documentation/manual/de/README.md](documentation/manual/de/README.md) |
+| User guide (EN) | [documentation/manual/en/README.md](documentation/manual/en/README.md) |
+| Configuration | [documentation/configuration.md](documentation/configuration.md) |
+| Docker | [documentation/docker_installation.md](documentation/docker_installation.md) |
+| Architecture | [documentation/architecture.md](documentation/architecture.md) |
+| Telegram | [documentation/telegram_setup.md](documentation/telegram_setup.md) |
+| Google OAuth | [documentation/google_setup.md](documentation/google_setup.md) |
+
+Contributors: see [AGENTS.md](AGENTS.md) for build, test, and layout conventions.
+
+---
+
+## Project layout
+
+```
+AuraGo/
+├── cmd/aurago/       # Main binary
+├── internal/         # Agent, memory, tools, HTTP server
+├── ui/               # Embedded web UI (go:embed)
+├── agent_workspace/  # Skills, sandbox, agent tools
+├── prompts/          # System prompts and tool manuals
+├── documentation/    # Guides and screenshots
+└── config.yaml       # Runtime config (template: config_template.yaml)
+```
+
+---
+
+## Development
+
+```bash
+go build -o aurago ./cmd/aurago
+go test ./...
+go test ./ui -count=1    # UI regression tests (config, setup, chat)
+```
+
+Use `rtk` prefixed commands in local workflows when [RTK](https://github.com/antibyte/rtk) is installed (see project agent docs).
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE). Refer to the framework Business Plan for AGPLv3 dual-licensing conversion steps.
+
+---
+
+<details>
+<summary><b>Key dependencies</b></summary>
+
+| Library | Purpose |
+|---------|---------|
+| [go-openai](https://github.com/sashabaranov/go-openai) | OpenAI-compatible LLM client |
+| [chromem-go](https://github.com/philippgille/chromem-go) | Embedded vector database |
+| [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) | Pure Go SQLite |
+| [telegram-bot-api](https://github.com/go-telegram-bot-api/telegram-bot-api) | Telegram |
+| [discordgo](https://github.com/bwmarrin/discordgo) | Discord |
+| [gopsutil](https://github.com/shirou/gopsutil) | System metrics |
+| [golang.org/x/crypto](https://pkg.go.dev/golang.org/x/crypto) | SSH, bcrypt, ACME |
+| [cron/v3](https://github.com/robfig/cron) | Scheduler |
+
+</details>

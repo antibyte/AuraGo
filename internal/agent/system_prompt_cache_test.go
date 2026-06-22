@@ -107,6 +107,26 @@ func TestBuildSystemPromptCacheKey_DifferentFlags(t *testing.T) {
 			wantNewKey: true,
 		},
 		{
+			name:       "InternetExposed changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.InternetExposed = true },
+			wantNewKey: true,
+		},
+		{
+			name:       "CapabilityCreationIntent changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.CapabilityCreationIntent = true },
+			wantNewKey: true,
+		},
+		{
+			name:       "DaemonSkillsIntent changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.DaemonSkillsIntent = true },
+			wantNewKey: true,
+		},
+		{
+			name:       "LifeboatIntent changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.LifeboatIntent = true },
+			wantNewKey: true,
+		},
+		{
 			name:       "ToolsDir changes cache key",
 			modify:     func(f *prompts.ContextFlags) { f.ToolsDir = "/workspace/tools" },
 			wantNewKey: true,

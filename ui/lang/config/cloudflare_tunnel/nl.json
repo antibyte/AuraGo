@@ -8,7 +8,7 @@
   "config.cloudflare_tunnel.account_id": "Account-ID",
   "config.cloudflare_tunnel.metrics_port": "Metriekenpoort",
   "config.cloudflare_tunnel.log_level": "Logniveau",
-  "config.cloudflare_tunnel.exposure_heading": "Service Exposure",
+  "config.cloudflare_tunnel.exposure_heading": "Dienstblootstelling",
   "config.cloudflare_tunnel.expose_web_ui": "AuraGo Web UI beschikbaar stellen",
   "config.cloudflare_tunnel.expose_homepage": "Homepage webserver beschikbaar stellen",
   "config.cloudflare_tunnel.info": "Stel lokale diensten veilig beschikbaar op internet via het wereldwijde Cloudflare-netwerk met cloudflared. Ondersteunt Docker en native binary.",
@@ -48,5 +48,17 @@
   "config.cloudflare_tunnel.status_disabled": "Cloudflare Tunnel is uitgeschakeld",
   "config.cloudflare_tunnel.status_running": "Tunnel draait",
   "config.cloudflare_tunnel.status_stopped": "Tunnel draait niet",
-  "config.cloudflare_tunnel.status_error": "Tunnelstatus laden mislukt"
+  "config.cloudflare_tunnel.status_error": "Tunnelstatus laden mislukt",
+  "config.cloudflare_tunnel.enabled_help": "Schakelt Cloudflare Tunnel-beheer voor AuraGo in.",
+  "config.cloudflare_tunnel.readonly_help": "Beperkt de integratie tot statuscontroles en blokkeert tunnelwijzigingen.",
+  "config.cloudflare_tunnel.auto_start_help": "Start cloudflared automatisch wanneer AuraGo start.",
+  "config.cloudflare_tunnel.mode_help": "Kies of AuraGo Docker, een native binary of automatische detectie moet gebruiken.",
+  "config.cloudflare_tunnel.auth_method_help": "Kies hoe de tunnel zich bij Cloudflare authenticeert.",
+  "config.cloudflare_tunnel.tunnel_name_help": "Naam van de benoemde tunnel in Cloudflare. Alleen nodig voor benoemde tunnels.",
+  "config.cloudflare_tunnel.account_id_help": "Optionele Cloudflare-account-ID voor benoemde tunnelbewerkingen.",
+  "config.cloudflare_tunnel.metrics_port_help": "Lokale metriekpoort voor cloudflared. Gebruik 0 om metriek uit te schakelen.",
+  "config.cloudflare_tunnel.log_level_help": "Bepaalt hoeveel cloudflared-logging AuraGo vastlegt.",
+  "config.cloudflare_tunnel.expose_web_ui_help": "Leidt de AuraGo-webinterface door de tunnel.",
+  "config.cloudflare_tunnel.expose_homepage_help": "Leidt de Homepage-webserver door de tunnel.",
+  "config.cloudflare_tunnel.expose_target_help": "Kies de enkele lokale dienst voor token- of quick-tunnels."
 }

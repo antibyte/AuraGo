@@ -6,6 +6,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const desktopMainParts = [
   'ui/js/desktop/core/desktop-foundation.js',
+  'ui/js/desktop/core/pet-runtime.js',
   'ui/js/desktop/core/icon-selection-runtime.js',
   'ui/js/desktop/core/window-shell-runtime.js',
   'ui/js/desktop/core/fruity-dock-scroll.js',
@@ -118,7 +119,8 @@ const cssBundles = [
       'ui/css/desktop-icons.css',
       'ui/css/desktop-widgets.css',
       'ui/css/desktop-modals.css',
-      'ui/css/desktop-shell-overrides.css'
+      'ui/css/desktop-shell-overrides.css',
+      'ui/css/desktop-pet.css'
     ]
   },
   {

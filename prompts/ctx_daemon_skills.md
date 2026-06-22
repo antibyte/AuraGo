@@ -1,8 +1,8 @@
 ---
 id: "daemon_skills"
-tags: ["core", "mandatory"]
+tags: ["conditional"]
 priority: 11
-conditions: []
+conditions: ["daemon_skills_intent"]
 ---
 # DAEMON SKILLS
 

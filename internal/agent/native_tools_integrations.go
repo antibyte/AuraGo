@@ -1467,16 +1467,16 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	}
 	if ff.HomepageRegistryEnabled {
 		tools = append(tools, tool("homepage_registry",
-			"Track homepage/web projects, deploy history, edits, known problems, and project metadata.",
+			"Track homepage/web projects, deploy history, project history, problems, metadata. Read list_history before changes; add_history after.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"register", "search", "get", "list", "update", "delete", "log_edit", "log_deploy", "log_problem", "resolve_problem"},
+					"enum":        []string{"register", "search", "get", "list", "update", "delete", "log_edit", "log_deploy", "log_problem", "resolve_problem", "add_history", "list_history", "get_history", "search_history", "update_history", "delete_history"},
 				},
 				"name":        prop("string", "Project name (unique identifier)"),
-				"query":       prop("string", "Search query (searches name, description, framework, URL, notes)"),
-				"id":          map[string]interface{}{"type": "integer", "description": "Project ID"},
+				"query":       prop("string", "Search query (searches name, description, framework, URL, notes, history content)"),
+				"id":          map[string]interface{}{"type": "integer", "description": "Project ID (used as project_id for history operations)"},
 				"description": prop("string", "Project description"),
 				"framework":   prop("string", "Web framework (next, vite, astro, svelte, vue, html, etc.)"),
 				"project_dir": prop("string", "Project directory within workspace"),
@@ -1484,10 +1484,19 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"status":      prop("string", "Project status: active, archived, maintenance"),
 				"reason":      prop("string", "Edit reason (for log_edit)"),
 				"problem":     prop("string", "Problem description (for log_problem/resolve_problem)"),
-				"tags":        map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Project tags"},
-				"notes":       prop("string", "Additional notes"),
-				"limit":       map[string]interface{}{"type": "integer", "description": "Max results (default: 20)"},
-				"offset":      map[string]interface{}{"type": "integer", "description": "Pagination offset"},
+				"history_id":  map[string]interface{}{"type": "integer", "description": "History entry ID (for get_history, update_history, delete_history)"},
+				"entry_type": map[string]interface{}{
+					"type":        "string",
+					"description": "Type of history entry",
+					"enum":        []string{"note", "decision", "question", "feedback", "milestone", "observation"},
+				},
+				"content":       prop("string", "History entry content (for add_history, update_history)"),
+				"history_query": prop("string", "Search query for search_history (searches content and source)"),
+				"source":        prop("string", "Originating tool/operation, e.g. homepage_file, homepage_deploy"),
+				"tags":          map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Project tags"},
+				"notes":         prop("string", "Additional notes"),
+				"limit":         map[string]interface{}{"type": "integer", "description": "Max results (default: 20)"},
+				"offset":        map[string]interface{}{"type": "integer", "description": "Pagination offset"},
 			}, "operation"),
 		))
 	}
@@ -1591,7 +1600,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Virtual desktop operation to perform",
-					"enum":        []string{"status", "bootstrap", "list_files", "read_file", "search_file", "read_file_excerpt", "write_file", "patch_file", "delete", "delete_file", "delete_path", "delete_app", "read_document", "write_document", "patch_document", "read_workbook", "write_workbook", "set_cell", "set_range", "evaluate_formula", "export_file", "install_app", "upsert_widget", "open_app", "open_in_app", "show_notification", "list_apps", "get_app", "list_widgets", "get_widget", "diagnose_app", "diagnose_widget"},
+					"enum":        []string{"status", "bootstrap", "list_files", "read_file", "search_file", "read_file_excerpt", "write_file", "patch_file", "delete", "delete_file", "delete_path", "delete_app", "read_document", "write_document", "patch_document", "read_workbook", "write_workbook", "set_cell", "set_range", "evaluate_formula", "export_file", "install_app", "upsert_widget", "open_app", "open_in_app", "show_notification", "list_apps", "get_app", "list_widgets", "get_widget", "diagnose_app", "diagnose_widget", "list_pets", "set_pet", "set_pet_reaction", "pet_say", "set_pet_scale"},
 				},
 				"path":      prop("string", "Workspace-relative file or directory path. Required for file operations and Office operations such as read_document, write_document, patch_document, read_workbook, write_workbook, set_cell, set_range, evaluate_formula, and export_file. For standalone widgets, write non-empty HTML to 'Widgets/<widget_id>.html' or 'Widgets/<widget_id>/index.html'. For a simple generated HTML app, prefer install_app; write_file to 'Apps/<app_id>.html' is accepted and automatically registers 'Apps/<app_id>/index.html'. Code Studio mounts the virtual desktop workspace at /workspace, so 'Apps/<app_id>/game.js' can be opened as '/workspace/Apps/<app_id>/game.js'. To run a generated app after editing it, open_app with app_id '<app_id>' or open_in_app with path 'Apps/<app_id>/<entry>' so AuraGo can infer the app."),
 				"file_path": prop("string", "Alias for path."),
@@ -1654,6 +1663,16 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"output_path": prop("string", "Workspace-relative target path for export_file."),
 				"app_id":      prop("string", "Desktop app ID for open_app, open_in_app, get_app, diagnose_app, or widget ownership. Built-in open targets include editor for plain text workspace files, writer for word-processing documents, sheets for spreadsheets, and code-studio for code work. For generated apps, use the generated app id itself (for example space-invaders) when you want to run it."),
 				"widget_id":   prop("string", "Desktop widget ID for get_widget or diagnose_widget. Also accepted as 'id' alias."),
+			"pet_id":      prop("string", "Desktop pet ID for set_pet or pet identifier for list_pets results."),
+			"reaction": map[string]interface{}{
+				"type":        "string",
+				"description": "Pet reaction state for set_pet_reaction. Allowed values: idle, thinking, working, editing, running, testing, waiting, waving, success, error, celebrating.",
+				"enum":        []string{"idle", "thinking", "working", "editing", "running", "testing", "waiting", "waving", "success", "error", "celebrating"},
+			},
+			"scale": map[string]interface{}{
+				"type":        "number",
+				"description": "Pet scale factor for set_pet_scale. Must be between 0.25 and 3.0.",
+			},
 				"manifest": map[string]interface{}{
 					"type":                 "object",
 					"description":          "App manifest for install_app: id, name, version, icon, entry, runtime, description, permissions, metadata. icon is optional but should come from icon_catalog.categories, icon_catalog.preferred, icon_catalog.aliases, or sprite:<name>; when omitted AuraGo infers one from id/name/entry/description. runtime defaults to aura-desktop-sdk@1.",
@@ -1670,6 +1689,40 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"additionalProperties": true,
 				},
 			}, "operation"),
+		))
+	}
+
+	if ff.OpenSCADEnabled {
+		tools = append(tools, tool("openscad_render",
+			"Render OpenSCAD source through the managed compiler container and return preview/export files.",
+			schema(map[string]interface{}{
+				"source_scad": prop("string", "OpenSCAD source code to write as model.scad."),
+				"model_name":  prop("string", "Safe base name for output files."),
+				"exports": map[string]interface{}{
+					"type":        "array",
+					"description": "Export formats; defaults to png and stl.",
+					"items": map[string]interface{}{
+						"type": "string",
+						"enum": []string{"png", "stl", "3mf", "off", "amf", "dxf", "svg", "pdf", "csg", "echo"},
+					},
+				},
+				"defines": map[string]interface{}{
+					"type":        "array",
+					"description": "OpenSCAD -D parameter overrides.",
+					"items": map[string]interface{}{
+						"type":                 "object",
+						"additionalProperties": false,
+						"properties": map[string]interface{}{
+							"name":  prop("string", "OpenSCAD variable name."),
+							"value": prop("string", "OpenSCAD expression value."),
+						},
+						"required": []string{"name", "value"},
+					},
+				},
+				"render_mode":     map[string]interface{}{"type": "string", "description": "Use render for final geometry or preview for faster image output.", "enum": []string{"render", "preview"}},
+				"timeout_seconds": prop("integer", "Per-export timeout; capped by config."),
+				"save_to_desktop": prop("boolean", "Save generated files under Documents/OpenSCAD."),
+			}, "source_scad"),
 		))
 	}
 

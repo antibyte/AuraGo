@@ -29,7 +29,7 @@
   "chat.credits_pill_text": "💳 ${{amount}}",
   "chat.credits_pill_title": "OpenRouter-kreditt",
   "chat.credits_tooltip_payg": "OpenRouter: ${{usage}} forbrukt (pay-as-you-go)",
-  "chat.credits_tooltip_used_limit": "OpenRouter: $ {{usage}} brukt / $ {{limit}} grense",
+  "chat.credits_tooltip_used_limit": "OpenRouter: ${{usage}} brukt / grense ${{limit}}",
   "chat.debug_pill": "feilsøking",
   "chat.debug_pill_on": "🔍 feilsøking",
   "chat.debug_pill_title": "Slå feilsøkingsmodus (/debug på|av)",

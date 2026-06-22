@@ -25,7 +25,7 @@
   "help.telnyx.enabled": "Aktiviert die Telnyx-Integration für SMS und Sprachanrufe. Der Agent kann SMS senden/empfangen und Telefonate führen.",
   "help.telnyx.read_only": "Wenn aktiv, kann der Agent nur Nachrichten empfangen, aber keine SMS senden oder Anrufe tätigen.",
   "help.telnyx.api_key": "Ihr Telnyx API v2-Schlüssel. Sicher im verschlüsselten Vault gespeichert.",
-  "help.telnyx.phone_number": "Ihre Telnyx-Telefonnummer im E.164-Format (z.B. +15551234567).",
+  "help.telnyx.phone_number": "Deine Telnyx-Telefonnummer im E.164-Format (z.B. +15551234567).",
   "help.telnyx.messaging_profile_id": "Telnyx Messaging-Profil-ID zum Senden von SMS/MMS.",
   "help.telnyx.connection_id": "Telnyx Verbindungs-ID (TeXML App oder Call Control App) für Sprachanrufe.",
   "help.telnyx.webhook_path": "URL-Pfad, über den Telnyx Webhook-Events liefert. Muss mit den Einstellungen im Telnyx-Portal übereinstimmen.",
@@ -43,5 +43,6 @@
   "config.telnyx.status_no_credentials": "Telnyx API-Schlüssel fehlt",
   "config.telnyx.status_ok": "Mit Telnyx verbunden",
   "config.telnyx.status_success": "✅",
-  "config.telnyx.status_error": "❌"
+  "config.telnyx.status_error": "❌",
+  "help.telnyx.voice_language": "Standard-Sprachcode für Telnyx-Sprachansagen und Anruftranskription."
 }

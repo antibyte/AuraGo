@@ -78,14 +78,15 @@ func (s *Server) getDesktopStoreService(ctx context.Context) (*desktopstore.Serv
 		}
 	}
 	store, err := desktopstore.NewService(desktopstore.Config{
-		DBPath:       filepath.Join(desktopCfg.DataDir, "desktop_store.db"),
-		DockerHost:   desktopCfg.DockerHost,
-		DataDir:      desktopCfg.DataDir,
-		WorkspaceDir: desktopCfg.WorkspaceDir,
-		Docker:       desktopstore.NewToolsDockerAdapter(desktopCfg.DockerHost, desktopCfg.WorkspaceDir, s.Logger),
-		Desktop:      desktopSvc,
-		Launchpad:    launchpadAdapter,
-		Secrets:      s.Vault,
+		DBPath:        filepath.Join(desktopCfg.DataDir, "desktop_store.db"),
+		DockerHost:    desktopCfg.DockerHost,
+		DataDir:       desktopCfg.DataDir,
+		WorkspaceDir:  desktopCfg.WorkspaceDir,
+		Docker:        desktopstore.NewToolsDockerAdapter(desktopCfg.DockerHost, desktopCfg.WorkspaceDir, s.Logger),
+		Desktop:       desktopSvc,
+		Launchpad:     launchpadAdapter,
+		Secrets:       s.Vault,
+		NativeManaged: newDesktopStoreNativeRuntime(desktopSvc),
 	})
 	if err != nil {
 		return nil, err
@@ -246,6 +247,10 @@ func handleDesktopStoreAppRoute(s *Server) http.HandlerFunc {
 			handleDesktopStoreOpenURL(s, appID)(w, r)
 			return
 		}
+		if action == "preview-status" {
+			handleDesktopStorePreviewStatus(s, appID)(w, r)
+			return
+		}
 		if action == "terminal" {
 			handleDesktopStoreTerminal(s, appID)(w, r)
 			return
@@ -322,6 +327,75 @@ func handleDesktopStoreOpenURL(s *Server, appID string) http.HandlerFunc {
 			"app":    app,
 		})
 	}
+}
+
+func handleDesktopStorePreviewStatus(s *Server, appID string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		setDesktopStoreNoCacheHeaders(w)
+		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+			return
+		}
+		store, err := s.getDesktopStoreService(r.Context())
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		fromTailnet, tailnetDNS := s.storeTailnetRequestInfo(r)
+		openURL, _, err := store.OpenURL(r.Context(), appID, r.Host, fromTailnet, tailnetDNS, r.URL.Query().Get("port_id"))
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		statusURL, err := url.Parse(openURL)
+		if err != nil {
+			jsonError(w, "invalid preview URL", http.StatusBadGateway)
+			return
+		}
+		statusURL.Path = "/__commandcode_preview_status"
+		statusURL.RawQuery = ""
+		statusURL.Fragment = ""
+
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, statusURL.String(), nil)
+		if err != nil {
+			jsonError(w, "failed to create preview status request", http.StatusBadGateway)
+			return
+		}
+		req.Header.Set("Accept", "application/json")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			writeDesktopStorePreviewStatus(w, false, "")
+			return
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			writeDesktopStorePreviewStatus(w, false, "")
+			return
+		}
+		var body struct {
+			Ready  bool   `json:"ready"`
+			Target string `json:"target"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+			writeDesktopStorePreviewStatus(w, false, "")
+			return
+		}
+		writeDesktopStorePreviewStatus(w, body.Ready, body.Target)
+	}
+}
+
+func writeDesktopStorePreviewStatus(w http.ResponseWriter, ready bool, target string) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"status": "ok",
+		"ready":  ready,
+		"target": target,
+	})
 }
 
 func handleDesktopStoreTerminal(s *Server, appID string) http.HandlerFunc {

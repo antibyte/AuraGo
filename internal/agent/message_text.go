@@ -9,16 +9,9 @@ import (
 
 func messageText(msg openai.ChatCompletionMessage) string {
 	content := strings.TrimSpace(msg.Content)
-	reasoning := strings.TrimSpace(msg.ReasoningContent)
 
 	if content != "" {
-		if reasoning != "" {
-			return content + "\n" + reasoning
-		}
 		return content
-	}
-	if reasoning != "" {
-		return reasoning
 	}
 	if len(msg.MultiContent) == 0 {
 		return ""
@@ -51,4 +44,16 @@ func messageText(msg openai.ChatCompletionMessage) string {
 		return out + fmt.Sprintf("\n[image x%d]", imageCount)
 	}
 	return out
+}
+
+func messageTextWithReasoningForAccounting(msg openai.ChatCompletionMessage) string {
+	content := messageText(msg)
+	reasoning := strings.TrimSpace(msg.ReasoningContent)
+	if reasoning == "" {
+		return content
+	}
+	if content == "" {
+		return reasoning
+	}
+	return content + "\n" + reasoning
 }

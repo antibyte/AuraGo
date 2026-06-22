@@ -180,8 +180,8 @@
                 <div class="fm-modal-title">${esc(title)}</div>
                 <input type="text" name="value" value="${esc(value || '')}" autocomplete="off" spellcheck="false">
                 <div class="fm-modal-actions">
-                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel', 'Cancel'))}</button>
-                    <button type="submit" class="fm-btn primary">${esc(t('desktop.ok', 'OK'))}</button>
+                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel'))}</button>
+                    <button type="submit" class="fm-btn primary">${esc(t('desktop.ok'))}</button>
                 </div>
             </form>`;
             document.body.appendChild(overlay);
@@ -206,8 +206,8 @@
                 <div class="fm-modal-title">${esc(title)}</div>
                 <p class="fm-modal-message">${esc(message)}</p>
                 <div class="fm-modal-actions">
-                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel', 'Cancel'))}</button>
-                    <button type="button" class="fm-btn danger" data-confirm>${esc(t('desktop.delete', 'Delete'))}</button>
+                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel'))}</button>
+                    <button type="button" class="fm-btn danger" data-confirm>${esc(t('desktop.delete'))}</button>
                 </div>
             </div>`;
             document.body.appendChild(overlay);
@@ -376,7 +376,7 @@
             const result = await api('/api/desktop/files?path=' + encodeURIComponent(path));
             fm.files = Array.isArray(result.files) ? result.files : [];
         } catch (err) {
-            showNotification({ type: 'error', message: t('desktop.fm.error_load', 'Failed to load files') + ': ' + (err.message || String(err)) });
+            showNotification({ type: 'error', message: t('desktop.fm.error_load') + ': ' + (err.message || String(err)) });
             fm.files = [];
         }
         fm.loading = false;
@@ -560,29 +560,29 @@
         const readonly = (typeof isReadonly === 'function') ? isReadonly() : false;
         return `<div class="fm-selection-toolbar">
             <div class="fm-selection-toolbar-left">
-                <button type="button" class="fm-selection-close" data-action="selection-close" title="${esc(t('desktop.close', 'Close'))}" aria-label="${esc(t('desktop.close', 'Close'))}">
+                <button type="button" class="fm-selection-close" data-action="selection-close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}">
                     ${iconMarkup('x', '\u00D7', '', 16)}
                 </button>
                 <span class="fm-selection-count">0</span>
-                <span class="fm-selection-label">${esc(t('desktop.fm.selected', 'selected'))}</span>
+                <span class="fm-selection-label">${esc(t('desktop.fm.selected'))}</span>
             </div>
             <div class="fm-selection-toolbar-actions">
                 <button type="button" class="fm-selection-btn" data-action="selection-open" title="Open" aria-label="Open">
                     ${iconMarkup('folder-open', '\u25B6', '', 16)}
                 </button>
-                <button type="button" class="fm-selection-btn" data-action="selection-copy" title="${esc(t('desktop.fm.copy', 'Copy'))}" aria-label="${esc(t('desktop.fm.copy', 'Copy'))}">
+                <button type="button" class="fm-selection-btn" data-action="selection-copy" title="${esc(t('desktop.fm.copy'))}" aria-label="${esc(t('desktop.fm.copy'))}">
                     ${iconMarkup('copy', '\u2398', '', 16)}
                 </button>
-                <button type="button" class="fm-selection-btn" data-action="selection-cut" title="${esc(t('desktop.fm.cut', 'Cut'))}" aria-label="${esc(t('desktop.fm.cut', 'Cut'))}"${readonly ? ' disabled' : ''}>
+                <button type="button" class="fm-selection-btn" data-action="selection-cut" title="${esc(t('desktop.fm.cut'))}" aria-label="${esc(t('desktop.fm.cut'))}"${readonly ? ' disabled' : ''}>
                     ${iconMarkup('scissors', '\u2702', '', 16)}
                 </button>
-                <button type="button" class="fm-selection-btn${hasFile ? '' : ' is-hidden'}" data-action="selection-download" title="${esc(t('desktop.fm.download', 'Download'))}" aria-label="${esc(t('desktop.fm.download', 'Download'))}">
+                <button type="button" class="fm-selection-btn${hasFile ? '' : ' is-hidden'}" data-action="selection-download" title="${esc(t('desktop.fm.download'))}" aria-label="${esc(t('desktop.fm.download'))}">
                     ${iconMarkup('download', '\u2193', '', 16)}
                 </button>
-                <button type="button" class="fm-selection-btn" data-action="selection-delete" title="${esc(t('desktop.fm.delete', 'Delete'))}" aria-label="${esc(t('desktop.fm.delete', 'Delete'))}"${readonly ? ' disabled' : ''}>
+                <button type="button" class="fm-selection-btn" data-action="selection-delete" title="${esc(t('desktop.fm.delete'))}" aria-label="${esc(t('desktop.fm.delete'))}"${readonly ? ' disabled' : ''}>
                     ${iconMarkup('trash', '\u267B', '', 16)}
                 </button>
-                <button type="button" class="fm-selection-btn" data-action="selection-properties" title="${esc(t('desktop.fm.properties', 'Properties'))}" aria-label="${esc(t('desktop.fm.properties', 'Properties'))}">
+                <button type="button" class="fm-selection-btn" data-action="selection-properties" title="${esc(t('desktop.fm.properties'))}" aria-label="${esc(t('desktop.fm.properties'))}">
                     ${iconMarkup('info', 'i', '', 16)}
                 </button>
             </div>
@@ -851,7 +851,7 @@
         const fwdDisabled = !canGoForward() ? ' disabled' : '';
         return `<div class="fm-toolbar">
             <div class="fm-toolbar-group">
-                <button type="button" class="fm-toolbtn fm-sidebar-toggle" data-action="sidebar-toggle" title="${esc(t('desktop.fm.toggle_sidebar', 'Toggle sidebar'))}" aria-label="${esc(t('desktop.fm.toggle_sidebar', 'Toggle sidebar'))}">
+                <button type="button" class="fm-toolbtn fm-sidebar-toggle" data-action="sidebar-toggle" title="${esc(t('desktop.fm.toggle_sidebar'))}" aria-label="${esc(t('desktop.fm.toggle_sidebar'))}">
                     ${iconMarkup('list', '\u2630', '', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn" data-action="back" title="${esc(t('desktop.back'))}"${backDisabled}>
@@ -860,7 +860,7 @@
                 <button type="button" class="fm-toolbtn" data-action="forward" title="${esc(t('desktop.forward'))}"${fwdDisabled}>
                     ${iconMarkup('chevron-right', '\u203A', '', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn" data-action="up" title="${esc(t('desktop.up', 'Up'))}">
+                <button type="button" class="fm-toolbtn" data-action="up" title="${esc(t('desktop.up'))}">
                     ${iconMarkup('arrow-up', '\u2191', '', 16)}
                 </button>
             </div>
@@ -868,19 +868,19 @@
                 ${renderBreadcrumbSegments()}
             </div>
             <div class="fm-toolbar-group fm-toolbar-right">
-                <button type="button" class="fm-toolbtn${fm.previewOpen ? ' active' : ''}" data-action="toggle-preview" title="${esc(t('desktop.fm.toggle_preview', 'Toggle Preview Panel (Ctrl+P)'))}">
+                <button type="button" class="fm-toolbtn${fm.previewOpen ? ' active' : ''}" data-action="toggle-preview" title="${esc(t('desktop.fm.toggle_preview'))}">
                     ${iconMarkup('layout', '\u25EB', '', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn${fm.splitViewEnabled ? ' active' : ''}" data-action="toggle-split" title="${esc(t('desktop.fm.toggle_split', 'Toggle Split View (Alt+S)'))}">
+                <button type="button" class="fm-toolbtn${fm.splitViewEnabled ? ' active' : ''}" data-action="toggle-split" title="${esc(t('desktop.fm.toggle_split'))}">
                     ${iconMarkup('columns', '\u25EB', '', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn${fm.showHidden ? ' active' : ''}" data-action="toggle-hidden" title="${esc(t('desktop.fm.toggle_hidden', 'Show/Hide Hidden Files (Ctrl+H)'))}">
+                <button type="button" class="fm-toolbtn${fm.showHidden ? ' active' : ''}" data-action="toggle-hidden" title="${esc(t('desktop.fm.toggle_hidden'))}">
                     ${iconMarkup(fm.showHidden ? 'eye' : 'eye-off', fm.showHidden ? '\uD83D\uDC41' : '\uD83D\uDC41\u0338', '', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn${fm.viewMode === 'grid' ? ' active' : ''}" data-action="view-grid" title="${esc(t('desktop.fm.view_grid', 'Grid View'))}">
+                <button type="button" class="fm-toolbtn${fm.viewMode === 'grid' ? ' active' : ''}" data-action="view-grid" title="${esc(t('desktop.fm.view_grid'))}">
                     ${iconMarkup('grid', '\u25A6', '', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn${fm.viewMode === 'list' ? ' active' : ''}" data-action="view-list" title="${esc(t('desktop.fm.view_list', 'List View'))}">
+                <button type="button" class="fm-toolbtn${fm.viewMode === 'list' ? ' active' : ''}" data-action="view-list" title="${esc(t('desktop.fm.view_list'))}">
                     ${iconMarkup('list', '\u2630', '', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn" data-action="search-toggle" title="${esc(t('desktop.search'))} (Ctrl+F)">
@@ -894,7 +894,7 @@
         const hidden = fm.searchQuery ? '' : ' hidden';
         return `<div class="fm-search-bar" data-fm-search${hidden}>
             ${iconMarkup('search', '\u2315', 'fm-search-icon', 14)}
-            <input type="text" class="fm-search-input" placeholder="${esc(t('desktop.fm.search_placeholder', 'Search files...'))}" value="${esc(fm.searchQuery)}" inputmode="search" enterkeyhint="search" autocapitalize="off">
+            <input type="text" class="fm-search-input" placeholder="${esc(t('desktop.fm.search_placeholder'))}" value="${esc(fm.searchQuery)}" inputmode="search" enterkeyhint="search" autocapitalize="off">
             <button type="button" class="fm-search-clear" data-action="search-clear">${iconMarkup('x', '\u00D7', '', 14)}</button>
         </div>`;
     }
@@ -915,18 +915,18 @@
             return `<div class="fm-sidebar-item${isActive ? ' active' : ''} fm-favorite-item" data-sidebar-path="${esc(fav)}" draggable="true" data-fav-index="${idx}" role="button" tabindex="0" style="position:relative">
                 ${iconMarkup('star', '\u2605', 'fm-sidebar-icon', 18)}
                 <span class="fm-sidebar-label">${esc(baseName(fav) || fav)}</span>
-                <button type="button" class="fm-favorite-remove" data-action="remove-favorite" data-path="${esc(fav)}" title="${esc(t('desktop.fm.remove_favorite', 'Remove from Favorites'))}" style="position:absolute;right:8px;background:none;border:none;color:var(--vd-muted);cursor:pointer;font-size:1rem;line-height:1;display:none;align-items:center;justify-content:center;height:100%;top:0">&times;</button>
+                <button type="button" class="fm-favorite-remove" data-action="remove-favorite" data-path="${esc(fav)}" title="${esc(t('desktop.fm.remove_favorite'))}" style="position:absolute;right:8px;background:none;border:none;color:var(--vd-muted);cursor:pointer;font-size:1rem;line-height:1;display:none;align-items:center;justify-content:center;height:100%;top:0">&times;</button>
             </div>`;
         }).join('');
 
         return `<aside class="fm-sidebar">
             <div class="fm-sidebar-section">
-                <div class="fm-sidebar-head">${esc(t('desktop.fm.quick_access', 'Quick Access'))}</div>
-                ${items || `<div class="fm-sidebar-empty">${esc(t('desktop.fm.workspace_root', 'Workspace'))}</div>`}
+                <div class="fm-sidebar-head">${esc(t('desktop.fm.quick_access'))}</div>
+                ${items || `<div class="fm-sidebar-empty">${esc(t('desktop.fm.workspace_root'))}</div>`}
             </div>
             <div class="fm-sidebar-section fm-favorites-section">
-                <div class="fm-sidebar-head">${esc(t('desktop.fm.favorites', 'Favorites'))}</div>
-                ${favItems || `<div class="fm-sidebar-empty" style="font-size:0.7rem;color:var(--vd-muted);padding:8px 12px">${esc(t('desktop.fm.drag_favorite_hint', 'Drag folders here'))}</div>`}
+                <div class="fm-sidebar-head">${esc(t('desktop.fm.favorites'))}</div>
+                ${favItems || `<div class="fm-sidebar-empty" style="font-size:0.7rem;color:var(--vd-muted);padding:8px 12px">${esc(t('desktop.fm.drag_favorite_hint'))}</div>`}
             </div>
         </aside>`;
     }
@@ -944,14 +944,14 @@
 
     function renderContentHtml() {
         if (fm.loading) {
-            return `<div class="fm-loading"><div class="fm-spinner"></div><div>${esc(t('desktop.fm.loading', 'Loading...'))}</div></div>`;
+            return `<div class="fm-loading"><div class="fm-spinner"></div><div>${esc(t('desktop.fm.loading'))}</div></div>`;
         }
         const files = getDisplayFiles();
         if (!files.length) {
             if (fm.filteredFiles !== null && fm.searchQuery) {
-                return `<div class="fm-empty">${iconMarkup('search', '\u2315', 'fm-empty-icon', 32)}<div>${esc(t('desktop.fm.no_results', 'No files match "{{query}}"', { query: fm.searchQuery }))}</div></div>`;
+                return `<div class="fm-empty">${iconMarkup('search', '\u2315', 'fm-empty-icon', 32)}<div>${esc(t('desktop.fm.no_results', { query: fm.searchQuery }))}</div></div>`;
             }
-            return `<div class="fm-empty">${iconMarkup('folder-open', '\u25A1', 'fm-empty-icon', 32)}<div>${esc(t('desktop.fm.empty_folder', 'This folder is empty'))}</div></div>`;
+            return `<div class="fm-empty">${iconMarkup('folder-open', '\u25A1', 'fm-empty-icon', 32)}<div>${esc(t('desktop.fm.empty_folder'))}</div></div>`;
         }
         const renderFiles = files.length > FILE_INCREMENTAL_THRESHOLD ? files.slice(0, FILE_RENDER_BATCH_SIZE) : files;
         const incrementalAttr = files.length > FILE_INCREMENTAL_THRESHOLD ? ` data-fm-incremental="${esc(String(files.length))}"` : '';
@@ -961,22 +961,22 @@
         return `<div class="fm-list">
             <div class="fm-list-header">
                 <div class="fm-list-cell fm-col-name" data-sort="name" role="button" tabindex="0" style="position:relative">
-                    ${esc(t('desktop.fm.sort_name', 'Name'))}
+                    ${esc(t('desktop.fm.sort_name'))}
                     ${fm.sortBy === 'name' ? iconMarkup(fm.sortAsc ? 'chevron-up' : 'chevron-down', fm.sortAsc ? '\u2191' : '\u2193', 'fm-sort-indicator', 12) : ''}
                     <div class="fm-col-resize-handle" data-col-key="name"></div>
                 </div>
                 <div class="fm-list-cell fm-col-size" data-sort="size" role="button" tabindex="0" style="position:relative">
-                    ${esc(t('desktop.fm.sort_size', 'Size'))}
+                    ${esc(t('desktop.fm.sort_size'))}
                     ${fm.sortBy === 'size' ? iconMarkup(fm.sortAsc ? 'chevron-up' : 'chevron-down', fm.sortAsc ? '\u2191' : '\u2193', 'fm-sort-indicator', 12) : ''}
                     <div class="fm-col-resize-handle" data-col-key="size"></div>
                 </div>
                 <div class="fm-list-cell fm-col-date" data-sort="date" role="button" tabindex="0" style="position:relative">
-                    ${esc(t('desktop.fm.sort_date', 'Date Modified'))}
+                    ${esc(t('desktop.fm.sort_date'))}
                     ${fm.sortBy === 'date' ? iconMarkup(fm.sortAsc ? 'chevron-up' : 'chevron-down', fm.sortAsc ? '\u2191' : '\u2193', 'fm-sort-indicator', 12) : ''}
                     <div class="fm-col-resize-handle" data-col-key="date"></div>
                 </div>
                 <div class="fm-list-cell fm-col-type" data-sort="type" role="button" tabindex="0" style="position:relative">
-                    ${esc(t('desktop.fm.sort_type', 'Type'))}
+                    ${esc(t('desktop.fm.sort_type'))}
                     ${fm.sortBy === 'type' ? iconMarkup(fm.sortAsc ? 'chevron-up' : 'chevron-down', fm.sortAsc ? '\u2191' : '\u2193', 'fm-sort-indicator', 12) : ''}
                     <div class="fm-col-resize-handle" data-col-key="type"></div>
                 </div>
@@ -1016,7 +1016,7 @@
         const cut = (fm.clipboard && fm.clipboard.mode === 'cut' && fm.clipboard.paths.includes(file.path)) ? ' cut-item' : '';
         const preview = !isDir && isPreviewableImage(file);
         const nameContent = fm.renamePath === file.path
-            ? `<input class="fm-rename-input" data-rename-input value="${esc(file.name)}" aria-label="${esc(t('desktop.fm.rename', 'Rename'))}">`
+            ? `<input class="fm-rename-input" data-rename-input value="${esc(file.name)}" aria-label="${esc(t('desktop.fm.rename'))}">`
             : esc(file.name);
         return `<div class="fm-grid-item${selected}${cut}" data-path="${esc(file.path)}" data-type="${esc(file.type)}" role="button" tabindex="0" title="${esc(file.name)}">
             <div class="fm-grid-icon${preview ? ' has-preview' : ''}">${thumbnailMarkup(file, iconKey, isDir ? '\u25A0' : '\u25A1', 'grid')}</div>
@@ -1293,9 +1293,9 @@
         const iconKey = isDir ? iconForDirectory(file.name) : iconForFile(file);
         const selected = fm.selectedPaths.has(file.path) ? ' selected' : '';
         const cut = (fm.clipboard && fm.clipboard.mode === 'cut' && fm.clipboard.paths.includes(file.path)) ? ' cut-item' : '';
-        const typeLabel = isDir ? t('desktop.fm.prop_folder', 'Folder') : (String(file.name || '').split('.').pop().toUpperCase() || t('desktop.fm.prop_file', 'File'));
+        const typeLabel = isDir ? t('desktop.fm.prop_folder') : (String(file.name || '').split('.').pop().toUpperCase() || t('desktop.fm.prop_file'));
         const nameContent = fm.renamePath === file.path
-            ? `<input class="fm-rename-input" data-rename-input value="${esc(file.name)}" aria-label="${esc(t('desktop.fm.rename', 'Rename'))}">`
+            ? `<input class="fm-rename-input" data-rename-input value="${esc(file.name)}" aria-label="${esc(t('desktop.fm.rename'))}">`
             : esc(file.name);
         return `<div class="fm-list-row${selected}${cut}" data-path="${esc(file.path)}" data-type="${esc(file.type)}" role="button" tabindex="0">
             <div class="fm-list-cell fm-col-name">
@@ -1315,18 +1315,18 @@
         const selectedSize = selectedCount > 0 ? ' (' + fmtBytes(getSelectedSize()) + ')' : '';
         const clipboard = sharedFileClipboard();
         const clipboardIndicator = clipboard && clipboard.paths && clipboard.paths.length
-            ? `<span class="fm-status-sep">|</span><span class="fm-status-clipboard" title="${esc(clipboard.paths.join('\n'))}">📋 ${esc(clipboard.mode === 'cut' ? t('desktop.fm.clipboard_cut', '{{count}} cut', { count: clipboard.paths.length }) : t('desktop.fm.clipboard_copied', '{{count}} copied', { count: clipboard.paths.length }))}</span>`
+            ? `<span class="fm-status-sep">|</span><span class="fm-status-clipboard" title="${esc(clipboard.paths.join('\n'))}">📋 ${esc(clipboard.mode === 'cut' ? t('desktop.fm.clipboard_cut', { count: clipboard.paths.length }) : t('desktop.fm.clipboard_copied', { count: clipboard.paths.length }))}</span>`
             : '';
         return `<div class="fm-statusbar">
             <div class="fm-status-left">
-                <span>${esc(t('desktop.fm.items', '{{count}} items', { count: totalItems }))}</span>
-                ${selectedCount > 0 ? `<span class="fm-status-sep">|</span><span>${esc(t('desktop.fm.selected', '{{count}} selected', { count: selectedCount }))}${esc(selectedSize)}</span>` : ''}
+                <span>${esc(t('desktop.fm.items', { count: totalItems }))}</span>
+                ${selectedCount > 0 ? `<span class="fm-status-sep">|</span><span>${esc(t('desktop.fm.selected', { count: selectedCount }))}${esc(selectedSize)}</span>` : ''}
                 ${clipboardIndicator}
             </div>
             <div class="fm-status-right">
-                <span>${esc(fm.viewMode === 'grid' ? t('desktop.fm.view_grid', 'Grid View') : t('desktop.fm.view_list', 'List View'))}</span>
+                <span>${esc(fm.viewMode === 'grid' ? t('desktop.fm.view_grid') : t('desktop.fm.view_list'))}</span>
                 <span class="fm-status-sep">|</span>
-                <span>${esc(t('desktop.fm.sort_name', 'Name'))}: ${esc(fm.sortAsc ? t('desktop.fm.sort_asc', 'Ascending') : t('desktop.fm.sort_desc', 'Descending'))}</span>
+                <span>${esc(t('desktop.fm.sort_name'))}: ${esc(fm.sortAsc ? t('desktop.fm.sort_asc') : t('desktop.fm.sort_desc'))}</span>
             </div>
         </div>`;
     }
@@ -1336,7 +1336,7 @@
         return `<div class="fm-drop-overlay" data-fm-drop-overlay>
             <div class="fm-drop-message">
                 ${iconMarkup('upload', '\u2191', 'fm-drop-icon', 48)}
-                <div>${esc(t('desktop.fm.drop_here', 'Drop files here to upload'))}</div>
+                <div>${esc(t('desktop.fm.drop_here'))}</div>
             </div>
         </div>`;
     }
@@ -1641,13 +1641,13 @@
 
     function showSortMenu(e) {
         const items = [
-            { label: t('desktop.fm.sort_name', 'Name'), action: 'sort-name', handler: () => { fm.sortBy = 'name'; savePreferences(); renderFileContent(); } },
-            { label: t('desktop.fm.sort_size', 'Size'), action: 'sort-size', handler: () => { fm.sortBy = 'size'; savePreferences(); renderFileContent(); } },
-            { label: t('desktop.fm.sort_date', 'Date Modified'), action: 'sort-date', handler: () => { fm.sortBy = 'date'; savePreferences(); renderFileContent(); } },
-            { label: t('desktop.fm.sort_type', 'Type'), action: 'sort-type', handler: () => { fm.sortBy = 'type'; savePreferences(); renderFileContent(); } },
+            { label: t('desktop.fm.sort_name'), action: 'sort-name', handler: () => { fm.sortBy = 'name'; savePreferences(); renderFileContent(); } },
+            { label: t('desktop.fm.sort_size'), action: 'sort-size', handler: () => { fm.sortBy = 'size'; savePreferences(); renderFileContent(); } },
+            { label: t('desktop.fm.sort_date'), action: 'sort-date', handler: () => { fm.sortBy = 'date'; savePreferences(); renderFileContent(); } },
+            { label: t('desktop.fm.sort_type'), action: 'sort-type', handler: () => { fm.sortBy = 'type'; savePreferences(); renderFileContent(); } },
             { separator: true },
-            { label: t('desktop.fm.sort_asc', 'Ascending'), action: 'sort-asc', handler: () => { fm.sortAsc = true; savePreferences(); renderFileContent(); } },
-            { label: t('desktop.fm.sort_desc', 'Descending'), action: 'sort-desc', handler: () => { fm.sortAsc = false; savePreferences(); renderFileContent(); } },
+            { label: t('desktop.fm.sort_asc'), action: 'sort-asc', handler: () => { fm.sortAsc = true; savePreferences(); renderFileContent(); } },
+            { label: t('desktop.fm.sort_desc'), action: 'sort-desc', handler: () => { fm.sortAsc = false; savePreferences(); renderFileContent(); } },
         ];
         const rect = e.currentTarget.getBoundingClientRect();
         showContextMenu(rect.left, rect.bottom + 4, items);
@@ -1747,50 +1747,50 @@
         }
         const hasClipboard = hasSharedFileClipboard();
         const items = [
-            { label: t('desktop.fm.open', 'Open'), action: 'open', icon: 'folder-open', shortcut: 'Enter', handler: () => { if (type === 'directory') navigate(path); else openFileEntry(file); } },
+            { label: t('desktop.fm.open'), action: 'open', icon: 'folder-open', shortcut: 'Enter', handler: () => { if (type === 'directory') navigate(path); else openFileEntry(file); } },
         ];
         if (type === 'file') {
             const openWithItems = buildOpenWithSubmenu(file);
             if (openWithItems.length) {
-                items.push({ label: t('desktop.fm.open_with', 'Open with...'), action: 'open-with', icon: 'apps', items: openWithItems });
+                items.push({ label: t('desktop.fm.open_with'), action: 'open-with', icon: 'apps', items: openWithItems });
             }
         }
         if (type === 'file' && isViewerFile(file.name || '')) {
-            items.push({ label: t('desktop.fm.view', 'View'), action: 'view', icon: 'eye', handler: () => { if (fm.callbacks && typeof fm.callbacks.openApp === 'function') fm.callbacks.openApp('viewer', { path: file.path }); else openFileEntry(file); } });
+            items.push({ label: t('desktop.fm.view'), action: 'view', icon: 'eye', handler: () => { if (fm.callbacks && typeof fm.callbacks.openApp === 'function') fm.callbacks.openApp('viewer', { path: file.path }); else openFileEntry(file); } });
         }
         if (type === 'file') {
             items.push(
                 { separator: true },
-                { label: t('desktop.fm.add_to_chat', 'Add to chat'), action: 'add-to-chat', icon: 'chat', handler: () => { if (fm.callbacks && typeof fm.callbacks.addFileToChat === 'function') fm.callbacks.addFileToChat(file); } },
-                { label: t('desktop.fm.ask_agent', 'Ask Agent'), action: 'ask-agent', icon: 'agent', handler: () => { if (fm.callbacks && typeof fm.callbacks.askAgentAboutFile === 'function') fm.callbacks.askAgentAboutFile(file); } }
+                { label: t('desktop.fm.add_to_chat'), action: 'add-to-chat', icon: 'chat', handler: () => { if (fm.callbacks && typeof fm.callbacks.addFileToChat === 'function') fm.callbacks.addFileToChat(file); } },
+                { label: t('desktop.fm.ask_agent'), action: 'ask-agent', icon: 'agent', handler: () => { if (fm.callbacks && typeof fm.callbacks.askAgentAboutFile === 'function') fm.callbacks.askAgentAboutFile(file); } }
             );
         }
         items.push(
             { separator: true },
-            { label: t('desktop.fm.cut', 'Cut'), action: 'cut', icon: 'scissors', shortcut: 'Ctrl+X', handler: () => cutSelection() },
-            { label: t('desktop.fm.copy', 'Copy'), action: 'copy', icon: 'copy', shortcut: 'Ctrl+C', handler: () => copySelection() },
-            { label: t('desktop.fm.copy_path', 'Copy Path'), action: 'copy-path', icon: 'text', shortcut: 'Ctrl+Shift+C', handler: () => copyPathToClipboard(path) },
-            { label: t('desktop.fm.paste', 'Paste'), action: 'paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: !hasClipboard, handler: () => pasteClipboard(type === 'directory' ? path : fm.currentPath) },
-            { label: t('desktop.fm.duplicate', 'Duplicate'), action: 'duplicate', icon: 'copy', shortcut: 'Ctrl+D', handler: () => duplicateSelected() },
-            { label: t('desktop.fm.create_symlink', 'Create Symlink'), action: 'create-symlink', icon: 'link', handler: () => createSymlink(file) },
+            { label: t('desktop.fm.cut'), action: 'cut', icon: 'scissors', shortcut: 'Ctrl+X', handler: () => cutSelection() },
+            { label: t('desktop.fm.copy'), action: 'copy', icon: 'copy', shortcut: 'Ctrl+C', handler: () => copySelection() },
+            { label: t('desktop.fm.copy_path'), action: 'copy-path', icon: 'text', shortcut: 'Ctrl+Shift+C', handler: () => copyPathToClipboard(path) },
+            { label: t('desktop.fm.paste'), action: 'paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: !hasClipboard, handler: () => pasteClipboard(type === 'directory' ? path : fm.currentPath) },
+            { label: t('desktop.fm.duplicate'), action: 'duplicate', icon: 'copy', shortcut: 'Ctrl+D', handler: () => duplicateSelected() },
+            { label: t('desktop.fm.create_symlink'), action: 'create-symlink', icon: 'link', handler: () => createSymlink(file) },
         );
         const selected = getSelectedFiles();
         if (selected.length > 1) {
-            items.push({ label: t('desktop.fm.batch_rename', 'Batch Rename'), action: 'batch-rename', icon: 'edit', handler: () => { if (typeof executeBatchRename === 'function') executeBatchRename(); } });
+            items.push({ label: t('desktop.fm.batch_rename'), action: 'batch-rename', icon: 'edit', handler: () => { if (typeof executeBatchRename === 'function') executeBatchRename(); } });
         }
         if (selected.length > 0) {
-            items.push({ label: t('desktop.fm.compress_zip', 'Compress to ZIP'), action: 'compress-zip', icon: 'archive', handler: () => { if (typeof compressSelectionToZip === 'function') compressSelectionToZip(); } });
+            items.push({ label: t('desktop.fm.compress_zip'), action: 'compress-zip', icon: 'archive', handler: () => { if (typeof compressSelectionToZip === 'function') compressSelectionToZip(); } });
         }
         if (type === 'file' && String(file.name).endsWith('.zip')) {
             items.push(
-                { label: t('desktop.fm.extract_zip', 'Extract ZIP Here'), action: 'extract-zip-here', icon: 'archive', handler: () => { if (typeof extractZip === 'function') extractZip(file, true); } },
-                { label: t('desktop.fm.extract_zip_to', 'Extract ZIP to...'), action: 'extract-zip-to', icon: 'archive', handler: () => { if (typeof extractZip === 'function') extractZip(file, false); } }
+                { label: t('desktop.fm.extract_zip'), action: 'extract-zip-here', icon: 'archive', handler: () => { if (typeof extractZip === 'function') extractZip(file, true); } },
+                { label: t('desktop.fm.extract_zip_to'), action: 'extract-zip-to', icon: 'archive', handler: () => { if (typeof extractZip === 'function') extractZip(file, false); } }
             );
         }
         if (type === 'directory') {
             const isFav = fm.favorites && fm.favorites.includes(path);
             items.push({
-                label: isFav ? t('desktop.fm.remove_favorite', 'Remove from Favorites') : t('desktop.fm.add_favorite', 'Add to Favorites'),
+                label: isFav ? t('desktop.fm.remove_favorite') : t('desktop.fm.add_favorite'),
                 action: isFav ? 'remove-favorite' : 'add-favorite',
                 icon: 'star',
                 handler: () => { if (typeof toggleFavorite === 'function') toggleFavorite(path); }
@@ -1798,22 +1798,22 @@
         }
         items.push(
             { separator: true },
-            { label: t('desktop.fm.rename', 'Rename'), action: 'rename', icon: 'edit', shortcut: 'F2', handler: () => startRename(path) },
-            { label: t('desktop.fm.delete', 'Delete'), action: 'delete', icon: 'trash', shortcut: 'Del', handler: () => deleteSelected() },
+            { label: t('desktop.fm.rename'), action: 'rename', icon: 'edit', shortcut: 'F2', handler: () => startRename(path) },
+            { label: t('desktop.fm.delete'), action: 'delete', icon: 'trash', shortcut: 'Del', handler: () => deleteSelected() },
         );
         if (type === 'directory') {
             items.push(
                 { separator: true },
-                { label: t('desktop.fm.open_terminal', 'Open Terminal Here'), action: 'open-terminal', icon: 'terminal', handler: () => openTerminalHere(path) }
+                { label: t('desktop.fm.open_terminal'), action: 'open-terminal', icon: 'terminal', handler: () => openTerminalHere(path) }
             );
         }
         if (type === 'file' && file.web_path) {
-            items.push({ label: t('desktop.fm.download', 'Download'), action: 'download', icon: 'download', handler: () => downloadFile(file) });
+            items.push({ label: t('desktop.fm.download'), action: 'download', icon: 'download', handler: () => downloadFile(file) });
         } else if (type === 'file') {
-            items.push({ label: t('desktop.fm.download', 'Download'), action: 'download', icon: 'download', handler: () => downloadFile(file) });
+            items.push({ label: t('desktop.fm.download'), action: 'download', icon: 'download', handler: () => downloadFile(file) });
         }
         items.push({ separator: true });
-        items.push({ label: t('desktop.fm.properties', 'Properties'), action: 'properties', icon: 'info', handler: () => showProperties(file) });
+        items.push({ label: t('desktop.fm.properties'), action: 'properties', icon: 'info', handler: () => showProperties(file) });
         showContextMenu(e.clientX, e.clientY, readonlyGuardItems(items));
     }
 
@@ -1821,16 +1821,16 @@
         e.preventDefault();
         const hasClipboard = hasSharedFileClipboard();
         const items = [
-            { label: t('desktop.fm.new_file', 'New File'), action: 'new-file', icon: 'file-plus', handler: () => createNewFile() },
-            { label: t('desktop.fm.new_folder', 'New Folder'), action: 'new-folder', icon: 'folder-plus', handler: () => createNewFolder() },
+            { label: t('desktop.fm.new_file'), action: 'new-file', icon: 'file-plus', handler: () => createNewFile() },
+            { label: t('desktop.fm.new_folder'), action: 'new-folder', icon: 'folder-plus', handler: () => createNewFolder() },
             { separator: true },
-            { label: t('desktop.fm.paste', 'Paste'), action: 'paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: !hasClipboard, handler: () => pasteClipboard() },
+            { label: t('desktop.fm.paste'), action: 'paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: !hasClipboard, handler: () => pasteClipboard() },
             { separator: true },
-            { label: t('desktop.fm.sort_by', 'Sort by') + ' >', action: 'sort-submenu', icon: 'sort', handler: () => showSortMenu(e) },
-            { label: t('desktop.fm.refresh', 'Refresh'), action: 'refresh', icon: 'refresh', shortcut: 'F5', handler: () => refresh() },
-            { label: t('desktop.fm.open_terminal', 'Open Terminal Here'), action: 'open-terminal', icon: 'terminal', handler: () => openTerminalHere(fm.currentPath) },
+            { label: t('desktop.fm.sort_by') + ' >', action: 'sort-submenu', icon: 'sort', handler: () => showSortMenu(e) },
+            { label: t('desktop.fm.refresh'), action: 'refresh', icon: 'refresh', shortcut: 'F5', handler: () => refresh() },
+            { label: t('desktop.fm.open_terminal'), action: 'open-terminal', icon: 'terminal', handler: () => openTerminalHere(fm.currentPath) },
             { separator: true },
-            { label: t('desktop.fm.select_all', 'Select All'), action: 'select-all', icon: 'check-square', shortcut: 'Ctrl+A', handler: () => selectAll() },
+            { label: t('desktop.fm.select_all'), action: 'select-all', icon: 'check-square', shortcut: 'Ctrl+A', handler: () => selectAll() },
         ];
         showContextMenu(e.clientX, e.clientY, readonlyGuardItems(items));
     }
@@ -1947,14 +1947,14 @@
 
     async function undo() {
         if (!undoStack.length) {
-            showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_undo', 'Nothing to undo') });
+            showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_undo') });
             return;
         }
         const action = undoStack.pop();
         try {
             let progress = null;
             if (action.items.length > 1) {
-                progress = showProgressOverlay(t('desktop.fm.undoing', 'Undoing...'), action.items.length);
+                progress = showProgressOverlay(t('desktop.fm.undoing'), action.items.length);
             }
             let count = 0;
             for (const item of action.items) {
@@ -1968,23 +1968,23 @@
             if (progress) progress.close();
 
             redoStack.push(action);
-            showNotification({ type: 'success', message: t('desktop.fm.undone', 'Operation undone') });
+            showNotification({ type: 'success', message: t('desktop.fm.undone') });
             refresh();
         } catch (err) {
-            showNotification({ type: 'error', message: t('desktop.fm.undo_error', 'Undo failed: {{error}}', { error: err.message || String(err) }) });
+            showNotification({ type: 'error', message: t('desktop.fm.undo_error', { error: err.message || String(err) }) });
         }
     }
 
     async function redo() {
         if (!redoStack.length) {
-            showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_redo', 'Nothing to redo') });
+            showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_redo') });
             return;
         }
         const action = redoStack.pop();
         try {
             let progress = null;
             if (action.items.length > 1) {
-                progress = showProgressOverlay(t('desktop.fm.redoing', 'Redoing...'), action.items.length);
+                progress = showProgressOverlay(t('desktop.fm.redoing'), action.items.length);
             }
             let count = 0;
             for (const item of action.items) {
@@ -1998,10 +1998,10 @@
             if (progress) progress.close();
 
             undoStack.push(action);
-            showNotification({ type: 'success', message: t('desktop.fm.redone', 'Operation redone') });
+            showNotification({ type: 'success', message: t('desktop.fm.redone') });
             refresh();
         } catch (err) {
-            showNotification({ type: 'error', message: t('desktop.fm.redo_error', 'Redo failed: {{error}}', { error: err.message || String(err) }) });
+            showNotification({ type: 'error', message: t('desktop.fm.redo_error', { error: err.message || String(err) }) });
         }
     }
 
@@ -2169,8 +2169,8 @@
         let progress = null;
         if (clipboard.paths.length > 1) {
             const title = clipboard.mode === 'copy'
-                ? t('desktop.fm.copying', 'Copying...')
-                : t('desktop.fm.moving', 'Moving...');
+                ? t('desktop.fm.copying')
+                : t('desktop.fm.moving');
             progress = showProgressOverlay(title, clipboard.paths.length);
         }
 
@@ -2183,10 +2183,10 @@
             let destPath = joinPath(targetBase, name);
             const exists = fm.files.some(f => f.name === name);
             if (exists && clipboard.mode === 'copy') {
-                const newName = name + ' (' + t('desktop.fm.copy_of', 'copy') + ')';
+                const newName = name + ' (' + t('desktop.fm.copy_of') + ')';
                 destPath = joinPath(targetBase, newName);
             } else if (exists && clipboard.mode === 'cut') {
-                const overwrite = await confirmDialog(t('desktop.fm.paste_exists', 'An item named "{{name}}" already exists. Overwrite?', { name: name }));
+                const overwrite = await confirmDialog(t('desktop.fm.paste_exists', { name: name }));
                 if (!overwrite) continue;
             }
 
@@ -2236,7 +2236,7 @@
         if (typeof createNewFileWithTemplate === 'function') {
             res = await createNewFileWithTemplate();
         } else {
-            const name = await promptDialog(t('desktop.fm.new_file_prompt', 'File name'), 'new-file.txt');
+            const name = await promptDialog(t('desktop.fm.new_file_prompt'), 'new-file.txt');
             if (name) res = { name, content: '' };
         }
         if (!res) return;
@@ -2255,7 +2255,7 @@
 
     async function createNewFolder() {
         if (isReadonly()) return;
-        const name = await promptDialog(t('desktop.fm.new_folder_prompt', 'Folder name'), 'New Folder');
+        const name = await promptDialog(t('desktop.fm.new_folder_prompt'), 'New Folder');
         if (!name) return;
         const path = joinPath(fm.currentPath, name);
         try {
@@ -2331,9 +2331,9 @@
         if (!selected.length) return;
         let confirmed;
         if (selected.length === 1) {
-            confirmed = await confirmDialog(t('desktop.fm.confirm_delete_single', 'Delete "{{name}}"?', { name: selected[0].name }), '');
+            confirmed = await confirmDialog(t('desktop.fm.confirm_delete_single', { name: selected[0].name }), '');
         } else {
-            confirmed = await confirmDialog(t('desktop.fm.confirm_delete', 'Delete {{count}} item(s)?', { count: selected.length }), '');
+            confirmed = await confirmDialog(t('desktop.fm.confirm_delete', { count: selected.length }), '');
         }
         if (!confirmed) return;
         for (const file of selected) {
@@ -2402,7 +2402,7 @@
                 if (xhr.status >= 200 && xhr.status < 300) {
                     resolve(xhr.response);
                 } else {
-                    let errMsg = t('desktop.fm.upload_error', 'Upload failed');
+                    let errMsg = t('desktop.fm.upload_error');
                     try {
                         const resp = JSON.parse(xhr.responseText);
                         errMsg = resp.error || resp.message || errMsg;
@@ -2412,8 +2412,8 @@
                     reject(new Error(errMsg));
                 }
             });
-            xhr.addEventListener('error', () => reject(new Error(t('desktop.fm.upload_error', 'Upload failed'))));
-            xhr.addEventListener('abort', () => reject(new Error(t('desktop.fm.upload_aborted', 'Upload aborted'))));
+            xhr.addEventListener('error', () => reject(new Error(t('desktop.fm.upload_error'))));
+            xhr.addEventListener('abort', () => reject(new Error(t('desktop.fm.upload_aborted'))));
             xhr.open('POST', '/api/desktop/upload');
             xhr.send(formData);
         });
@@ -2428,7 +2428,7 @@
         overlay.className = 'fm-upload-overlay';
         overlay.innerHTML = `
             <div class="fm-upload-panel">
-                <div class="fm-upload-title">${esc(t('desktop.fm.uploading', 'Uploading'))}</div>
+                <div class="fm-upload-title">${esc(t('desktop.fm.uploading'))}</div>
                 <div class="fm-upload-bar-bg"><div class="fm-upload-bar-fill" style="width:0%"></div></div>
                 <div class="fm-upload-percent">0%</div>
                 <div class="fm-upload-file"></div>
@@ -2470,31 +2470,31 @@
             try {
                 const result = await api('/api/desktop/files?path=' + encodeURIComponent(file.path));
                 const count = Array.isArray(result.files) ? result.files.length : 0;
-                itemCount = `<div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_items', 'Items'))}</span><span class="fm-prop-value">${esc(count)}</span></div>`;
+                itemCount = `<div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_items'))}</span><span class="fm-prop-value">${esc(count)}</span></div>`;
             } catch (_) {}
         }
-        const mimeRow = file.mime_type ? `<div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_mime', 'MIME Type'))}</span><span class="fm-prop-value">${esc(file.mime_type)}</span></div>` : '';
-        const modeRow = file.mode ? `<div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_permissions', 'Permissions'))}</span><span class="fm-prop-value">${esc(file.mode)}</span></div>` : '';
-        const createdRow = file.created ? `<div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_created', 'Created'))}</span><span class="fm-prop-value">${esc(formatDate(file.created))}</span></div>` : '';
+        const mimeRow = file.mime_type ? `<div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_mime'))}</span><span class="fm-prop-value">${esc(file.mime_type)}</span></div>` : '';
+        const modeRow = file.mode ? `<div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_permissions'))}</span><span class="fm-prop-value">${esc(file.mode)}</span></div>` : '';
+        const createdRow = file.created ? `<div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_created'))}</span><span class="fm-prop-value">${esc(formatDate(file.created))}</span></div>` : '';
 
         const overlay = document.createElement('div');
         overlay.className = 'fm-modal-overlay';
-        const typeLabel = isDir ? t('desktop.fm.prop_folder', 'Folder') : t('desktop.fm.prop_file', 'File');
+        const typeLabel = isDir ? t('desktop.fm.prop_folder') : t('desktop.fm.prop_file');
         overlay.innerHTML = `<div class="fm-modal fm-properties">
-            <div class="fm-modal-title">${esc(t('desktop.fm.properties_title', 'Properties'))}</div>
+            <div class="fm-modal-title">${esc(t('desktop.fm.properties_title'))}</div>
             <div class="fm-prop-body">
-                <div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_name', 'Name'))}</span><span class="fm-prop-value">${esc(file.name)}</span></div>
-                <div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_type', 'Type'))}</span><span class="fm-prop-value">${esc(typeLabel)}</span></div>
-                <div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_size', 'Size'))}</span><span class="fm-prop-value">${esc(isDir ? '\u2014' : fmtBytes(file.size))}</span></div>
-                <div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_location', 'Location'))}</span><span class="fm-prop-value">${esc(parentPath(file.path) || '/')}</span></div>
+                <div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_name'))}</span><span class="fm-prop-value">${esc(file.name)}</span></div>
+                <div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_type'))}</span><span class="fm-prop-value">${esc(typeLabel)}</span></div>
+                <div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_size'))}</span><span class="fm-prop-value">${esc(isDir ? '\u2014' : fmtBytes(file.size))}</span></div>
+                <div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_location'))}</span><span class="fm-prop-value">${esc(parentPath(file.path) || '/')}</span></div>
                 ${mimeRow}
                 ${modeRow}
-                <div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_modified', 'Modified'))}</span><span class="fm-prop-value">${esc(formatDate(file.modified))}</span></div>
+                <div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_modified'))}</span><span class="fm-prop-value">${esc(formatDate(file.modified))}</span></div>
                 ${createdRow}
                 ${itemCount}
             </div>
             <div class="fm-modal-actions">
-                <button type="button" class="fm-btn primary" data-close>${esc(t('desktop.ok', 'OK'))}</button>
+                <button type="button" class="fm-btn primary" data-close>${esc(t('desktop.ok'))}</button>
             </div>
         </div>`;
         document.body.appendChild(overlay);
@@ -2530,7 +2530,7 @@
 
         let progress = null;
         if (cleanPaths.length > 1) {
-            progress = showProgressOverlay(t('desktop.fm.moving', 'Moving...'), cleanPaths.length);
+            progress = showProgressOverlay(t('desktop.fm.moving'), cleanPaths.length);
         }
 
         let count = 0;
@@ -2746,34 +2746,34 @@
         const isDoc = isViewerFile(file.name);
 
         if (isText) {
-            apps.push({ label: t('desktop.app_editor', 'Editor'), appId: 'editor' });
-            apps.push({ label: t('desktop.app_code_studio', 'Code Studio'), appId: 'code-studio' });
-            apps.push({ label: t('desktop.app_viewer', 'Viewer'), appId: 'viewer' });
+            apps.push({ label: t('desktop.app_editor'), appId: 'editor' });
+            apps.push({ label: t('desktop.app_code_studio'), appId: 'code-studio' });
+            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (isImage) {
-            apps.push({ label: t('desktop.app_gallery', 'Gallery'), appId: 'gallery' });
-            apps.push({ label: t('desktop.app_viewer', 'Viewer'), appId: 'viewer' });
-            apps.push({ label: t('desktop.app_code_studio', 'Code Studio'), appId: 'code-studio' });
+            apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' });
+            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
+            apps.push({ label: t('desktop.app_code_studio'), appId: 'code-studio' });
         } else if (isMedia) {
             const ext = String(file.name || '').split('.').pop().toLowerCase();
             if (['mp3', 'wav', 'flac', 'ogg', 'm4a', 'opus'].includes(ext)) {
-                apps.push({ label: t('desktop.app_music_player', 'Music Player'), appId: 'music-player' });
+                apps.push({ label: t('desktop.app_music_player'), appId: 'music-player' });
             }
-            apps.push({ label: t('desktop.app_gallery', 'Gallery'), appId: 'gallery' });
-            apps.push({ label: t('desktop.app_viewer', 'Viewer'), appId: 'viewer' });
+            apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' });
+            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (isDoc) {
             const ext = String(file.name || '').split('.').pop().toLowerCase();
             if (['docx', 'html', 'htm'].includes(ext)) {
-                apps.push({ label: t('desktop.app_writer', 'Writer'), appId: 'writer' });
+                apps.push({ label: t('desktop.app_writer'), appId: 'writer' });
             }
             if (['xlsx', 'xlsm', 'csv'].includes(ext)) {
-                apps.push({ label: t('desktop.app_sheets', 'Sheets'), appId: 'sheets' });
+                apps.push({ label: t('desktop.app_sheets'), appId: 'sheets' });
             }
-            apps.push({ label: t('desktop.app_viewer', 'Viewer'), appId: 'viewer' });
+            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (String(file.name || '').toLowerCase().endsWith('.zip')) {
-            apps.push({ label: t('desktop.app_zipper', 'Zipper'), appId: 'zipper' });
+            apps.push({ label: t('desktop.app_zipper'), appId: 'zipper' });
         } else {
-            apps.push({ label: t('desktop.app_viewer', 'Viewer'), appId: 'viewer' });
-            apps.push({ label: t('desktop.app_code_studio', 'Code Studio'), appId: 'code-studio' });
+            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
+            apps.push({ label: t('desktop.app_code_studio'), appId: 'code-studio' });
         }
 
         return apps.map(app => ({
@@ -2802,7 +2802,7 @@
                 base = file.name;
                 ext = '';
             }
-            const copySuffix = ' - ' + t('desktop.fm.copy', 'Copy');
+            const copySuffix = ' - ' + t('desktop.fm.copy');
             let newName = base + copySuffix + ext;
             let destPath = joinPath(parent, newName);
             let index = 2;
@@ -2838,7 +2838,7 @@
         if (!text) return;
         try {
             await navigator.clipboard.writeText(text);
-            showNotification({ type: 'success', message: t('desktop.fm.path_copied', 'Path copied to clipboard') });
+            showNotification({ type: 'success', message: t('desktop.fm.path_copied') });
         } catch (err) {
             showNotification({ type: 'error', message: (err.message || String(err)) });
         }
@@ -2853,7 +2853,7 @@
     async function createSymlink(file) {
         if (isReadonly()) return;
         const defaultName = file.name + '_symlink';
-        const linkName = await promptDialog(t('desktop.fm.create_symlink_prompt', 'Symlink name'), defaultName);
+        const linkName = await promptDialog(t('desktop.fm.create_symlink_prompt'), defaultName);
         if (!linkName) return;
 
         const linkPath = joinPath(fm.currentPath, linkName);
@@ -2866,7 +2866,7 @@
                     link_path: linkPath
                 })
             });
-            showNotification({ type: 'success', message: t('desktop.fm.symlink_created', 'Symlink created successfully') });
+            showNotification({ type: 'success', message: t('desktop.fm.symlink_created') });
             refresh();
         } catch (err) {
             showNotification({ type: 'error', message: err.message || String(err) });
@@ -2877,7 +2877,7 @@
         const span = fm.host ? fm.host.querySelector(`[data-preview-folder-size="${path.replace(/"/g, '\\"')}"]`) : null;
         if (!span) return;
 
-        span.innerHTML = `<span style="color:var(--vd-muted);font-style:italic">${esc(t('desktop.fm.calculating', 'Calculating...'))}</span>`;
+        span.innerHTML = `<span style="color:var(--vd-muted);font-style:italic">${esc(t('desktop.fm.calculating'))}</span>`;
         try {
             const res = await api('/api/desktop/folder-size?path=' + encodeURIComponent(path));
             if (res && res.status === 'ok') {
@@ -2891,7 +2891,7 @@
                 throw new Error();
             }
         } catch (err) {
-            span.innerHTML = `<span style="color:red">${esc(t('desktop.fm.error', 'Error'))}</span>`;
+            span.innerHTML = `<span style="color:red">${esc(t('desktop.fm.error'))}</span>`;
         }
     }
 
@@ -3190,17 +3190,17 @@
 
         const tabItems = fm.tabs.map((tab, idx) => {
             const active = idx === fm.activeTabIndex ? ' active' : '';
-            const title = tab.path ? tab.path.split('/').pop() : t('desktop.fm.workspace_root', 'Workspace');
+            const title = tab.path ? tab.path.split('/').pop() : t('desktop.fm.workspace_root');
             return `<div class="fm-tab${active}" data-tab-index="${idx}" draggable="true" role="tab" aria-selected="${idx === fm.activeTabIndex ? 'true' : 'false'}">
                 <span class="fm-tab-icon">${iconMarkup('folder', 'F', 'fm-tab-folder-icon', 12)}</span>
                 <span class="fm-tab-title" title="${esc(tab.path || '/')}">${esc(title)}</span>
-                ${fm.tabs.length > 1 ? `<button type="button" class="fm-tab-close" data-action="close-tab" data-tab-index="${idx}" title="${esc(t('desktop.close', 'Close'))}">&times;</button>` : ''}
+                ${fm.tabs.length > 1 ? `<button type="button" class="fm-tab-close" data-action="close-tab" data-tab-index="${idx}" title="${esc(t('desktop.close'))}">&times;</button>` : ''}
             </div>`;
         }).join('');
 
         return `<div class="fm-tab-bar" role="tablist">
             <div class="fm-tabs-container">${tabItems}</div>
-            <button type="button" class="fm-tab-new" data-action="new-tab" title="${esc(t('desktop.fm.new_tab', 'New Tab (Ctrl+T)'))}">+</button>
+            <button type="button" class="fm-tab-new" data-action="new-tab" title="${esc(t('desktop.fm.new_tab'))}">+</button>
         </div>`;
     }
 
@@ -3350,24 +3350,24 @@
         let body = '';
 
         if (selected.length === 0) {
-            header = `<div class="fm-preview-header"><h3>${esc(t('desktop.fm.preview_properties', 'File Details'))}</h3></div>`;
-            body = `<div class="fm-preview-empty">${esc(t('desktop.fm.no_file_selected', 'No file selected'))}</div>`;
+            header = `<div class="fm-preview-header"><h3>${esc(t('desktop.fm.preview_properties'))}</h3></div>`;
+            body = `<div class="fm-preview-empty">${esc(t('desktop.fm.no_file_selected'))}</div>`;
         } else if (selected.length > 1) {
-            header = `<div class="fm-preview-header"><h3>${esc(t('desktop.fm.preview_properties', 'File Details'))}</h3></div>`;
+            header = `<div class="fm-preview-header"><h3>${esc(t('desktop.fm.preview_properties'))}</h3></div>`;
             const size = getSelectedSize();
             body = `<div class="fm-preview-multi">
                 <div class="fm-preview-icon-large">${iconMarkup('copy', '📋', '', 48)}</div>
-                <div class="fm-preview-name">${esc(t('desktop.fm.selected', '{{count}} selected', { count: selected.length }))}</div>
+                <div class="fm-preview-name">${esc(t('desktop.fm.selected', { count: selected.length }))}</div>
                 <div class="fm-preview-info-row">
-                    <span class="fm-preview-info-label">${esc(t('desktop.fm.prop_size', 'Size'))}:</span>
+                    <span class="fm-preview-info-label">${esc(t('desktop.fm.prop_size'))}:</span>
                     <span class="fm-preview-info-val">${esc(fmtBytes(size))}</span>
                 </div>
             </div>`;
         } else {
             const file = selected[0];
             header = `<div class="fm-preview-header">
-                <h3>${esc(t('desktop.fm.preview_properties', 'File Details'))}</h3>
-                <button type="button" class="fm-preview-close" data-action="toggle-preview" title="${esc(t('desktop.close', 'Close'))}">&times;</button>
+                <h3>${esc(t('desktop.fm.preview_properties'))}</h3>
+                <button type="button" class="fm-preview-close" data-action="toggle-preview" title="${esc(t('desktop.close'))}">&times;</button>
             </div>`;
 
             const isImg = isPreviewableImage(file);
@@ -3393,7 +3393,7 @@
                 }
             } else if (isText) {
                 previewContent = `<div class="fm-preview-text-wrap" data-preview-path="${esc(file.path)}">
-                    <div class="fm-preview-text-loading">${esc(t('desktop.fm.loading', 'Loading...'))}</div>
+                    <div class="fm-preview-text-loading">${esc(t('desktop.fm.loading'))}</div>
                 </div>`;
                 loadTextExcerpt(file.path);
             } else {
@@ -3404,22 +3404,22 @@
                 ${previewContent}
                 <div class="fm-preview-name-title" title="${esc(file.name)}">${esc(file.name)}</div>
                 <div class="fm-preview-info-row">
-                    <span class="fm-preview-info-label">${esc(t('desktop.fm.prop_type', 'Type'))}:</span>
-                    <span class="fm-preview-info-val">${esc(file.type === 'directory' ? t('desktop.fm.prop_folder', 'Folder') : t('desktop.fm.prop_file', 'File'))}</span>
+                    <span class="fm-preview-info-label">${esc(t('desktop.fm.prop_type'))}:</span>
+                    <span class="fm-preview-info-val">${esc(file.type === 'directory' ? t('desktop.fm.prop_folder') : t('desktop.fm.prop_file'))}</span>
                 </div>
                 <div class="fm-preview-info-row">
-                    <span class="fm-preview-info-label">${esc(t('desktop.fm.prop_size', 'Size'))}:</span>
+                    <span class="fm-preview-info-label">${esc(t('desktop.fm.prop_size'))}:</span>
                     <span class="fm-preview-info-val">${esc(file.type === 'directory' ? '' : fmtBytes(file.size || 0))}</span>
                 </div>
                 <div class="fm-preview-info-row">
-                    <span class="fm-preview-info-label">${esc(t('desktop.fm.prop_modified', 'Modified'))}:</span>
+                    <span class="fm-preview-info-label">${esc(t('desktop.fm.prop_modified'))}:</span>
                     <span class="fm-preview-info-val">${esc(formatDate(file.modified))}</span>
                 </div>
                 ${file.type === 'directory' ? `
                 <div class="fm-preview-info-row">
-                    <span class="fm-preview-info-label">${esc(t('desktop.fm.folder_size', 'Folder Size'))}:</span>
+                    <span class="fm-preview-info-label">${esc(t('desktop.fm.folder_size'))}:</span>
                     <span class="fm-preview-info-val" data-preview-folder-size="${esc(file.path)}">
-                        <button type="button" class="fm-preview-calc-size-btn" data-action="calc-folder-size" data-path="${esc(file.path)}">${esc(t('desktop.fm.calculate_folder_size', 'Calculate'))}</button>
+                        <button type="button" class="fm-preview-calc-size-btn" data-action="calc-folder-size" data-path="${esc(file.path)}">${esc(t('desktop.fm.calculate_folder_size'))}</button>
                     </span>
                 </div>` : ''}
             </div>`;
@@ -3590,13 +3590,13 @@
             defaultName = base.includes('.') ? base.slice(0, base.lastIndexOf('.')) + '.zip' : base + '.zip';
         }
 
-        const zipName = await promptDialog(t('desktop.fm.compress_zip', 'Compress to ZIP'), defaultName);
+        const zipName = await promptDialog(t('desktop.fm.compress_zip'), defaultName);
         if (!zipName) return;
 
         const destPath = joinPath(fm.currentPath, zipName);
 
         try {
-            showNotification({ type: 'info', message: t('desktop.fm.copy_progress', 'Copying files...') });
+            showNotification({ type: 'info', message: t('desktop.fm.copy_progress') });
             await api('/api/desktop/archive', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -3614,7 +3614,7 @@
     async function extractZip(file, extractHere = true) {
         let dest = fm.currentPath;
         if (!extractHere) {
-            const destPrompt = await promptDialog(t('desktop.fm.extract_zip_to', 'Extract ZIP to...'), fm.currentPath);
+            const destPrompt = await promptDialog(t('desktop.fm.extract_zip_to'), fm.currentPath);
             if (!destPrompt) return;
             dest = destPrompt;
         }
@@ -3690,28 +3690,28 @@
             }
 
             overlay.innerHTML = `<div class="fm-modal fm-batch-rename-modal" style="max-width: 650px; width: 90%">
-                <div class="fm-modal-title">${esc(t('desktop.fm.batch_rename_title', 'Batch Rename Files'))}</div>
+                <div class="fm-modal-title">${esc(t('desktop.fm.batch_rename_title'))}</div>
                 <div class="fm-batch-rename-grid" style="display:grid;grid-template-columns: 240px 1fr; gap:16px; margin: 12px 0;">
                     <div class="fm-batch-rename-fields" style="display:flex;flex-direction:column;gap:8px">
                         <div class="fm-field-group" style="display:flex;flex-direction:column;gap:2px">
-                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_prefix', 'Prefix'))}</label>
+                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_prefix'))}</label>
                             <input type="text" name="prefix" value="" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
                         </div>
                         <div class="fm-field-group" style="display:flex;flex-direction:column;gap:2px">
-                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_suffix', 'Suffix'))}</label>
+                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_suffix'))}</label>
                             <input type="text" name="suffix" value="" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
                         </div>
                         <div class="fm-field-group" style="display:flex;flex-direction:column;gap:2px">
-                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_find', 'Find'))}</label>
+                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_find'))}</label>
                             <input type="text" name="find" value="" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
                         </div>
                         <div class="fm-field-group" style="display:flex;flex-direction:column;gap:2px">
-                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_replace', 'Replace'))}</label>
+                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_replace'))}</label>
                             <input type="text" name="replace" value="" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
                         </div>
                         <div class="fm-field-group fm-checkbox-group" style="display:flex;align-items:center;gap:6px;margin:4px 0">
                             <input type="checkbox" name="numbering" id="fm-rename-num">
-                            <label for="fm-rename-num" style="font-size:0.75rem;user-select:none">${esc(t('desktop.fm.batch_rename_numbering', 'Numbering (001...)'))}</label>
+                            <label for="fm-rename-num" style="font-size:0.75rem;user-select:none">${esc(t('desktop.fm.batch_rename_numbering'))}</label>
                         </div>
                         <div class="fm-field-group" style="display:none;flex-direction:column;gap:2px" id="fm-rename-start-group">
                             <label style="font-size:0.7rem;color:var(--vd-muted)">Start Number</label>
@@ -3727,8 +3727,8 @@
                     </div>
                 </div>
                 <div class="fm-modal-actions">
-                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel', 'Cancel'))}</button>
-                    <button type="button" class="fm-btn primary" data-rename>${esc(t('desktop.fm.batch_rename', 'Rename'))}</button>
+                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel'))}</button>
+                    <button type="button" class="fm-btn primary" data-rename>${esc(t('desktop.fm.batch_rename'))}</button>
                 </div>
             </div>`;
 
@@ -3810,9 +3810,9 @@
             const options = templates.map(t => `<option value="${t.ext}">${t.label} (.${t.ext})</option>`).join('');
 
             overlay.innerHTML = `<form class="fm-modal">
-                <div class="fm-modal-title">${esc(t('desktop.fm.new_file_template', 'Create File from Template'))}</div>
+                <div class="fm-modal-title">${esc(t('desktop.fm.new_file_template'))}</div>
                 <div class="fm-field-group" style="margin-bottom: 12px; display:flex; flex-direction:column; gap:4px">
-                    <label style="font-size:0.75rem;color:var(--vd-muted)">${esc(t('desktop.fm.new_file_prompt', 'File name'))}</label>
+                    <label style="font-size:0.75rem;color:var(--vd-muted)">${esc(t('desktop.fm.new_file_prompt'))}</label>
                     <input type="text" name="filename" value="new-file.txt" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
                 </div>
                 <div class="fm-field-group" style="margin-bottom: 16px; display:flex; flex-direction:column; gap:4px">
@@ -3820,8 +3820,8 @@
                     <select name="template" style="width:100%;box-sizing:border-box;background:#1a1a1a;color:var(--vd-text);border:1px solid var(--vd-border);padding:6px;border-radius:4px">${options}</select>
                 </div>
                 <div class="fm-modal-actions">
-                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel', 'Cancel'))}</button>
-                    <button type="submit" class="fm-btn primary">${esc(t('desktop.ok', 'OK'))}</button>
+                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel'))}</button>
+                    <button type="submit" class="fm-btn primary">${esc(t('desktop.ok'))}</button>
                 </div>
             </form>`;
 

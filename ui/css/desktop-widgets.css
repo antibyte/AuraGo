@@ -27,6 +27,8 @@
     transition: height 200ms ease;
 }
 
+
+
 .vd-widget[data-widget-auto-size="true"] {
     height: var(--vd-widget-auto-height, auto) !important;
     transition: none;
@@ -203,7 +205,7 @@
     height: 28px;
     border: 1px solid var(--ds-color-border-subtle);
     border-radius: 6px;
-    background: rgba(39, 199, 166, 0.15);
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.15);
     color: var(--vd-accent);
     cursor: pointer;
     flex-shrink: 0;
@@ -269,7 +271,7 @@
 }
 
 .vd-wm-card-builtin {
-    border-color: rgba(39, 199, 166, 0.2);
+    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.2);
 }
 
 .vd-wm-card-head {
@@ -309,7 +311,7 @@
 }
 
 .vd-wm-badge-on {
-    background: rgba(39, 199, 166, 0.18);
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.18);
     color: var(--vd-accent);
 }
 
@@ -363,12 +365,12 @@
 }
 
 .vd-wm-btn-add {
-    border-color: rgba(39, 199, 166, 0.3);
+    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.3);
     color: var(--vd-accent);
 }
 
 .vd-wm-btn-add:hover {
-    background: rgba(39, 199, 166, 0.12);
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12);
 }
 
 .vd-wm-btn-delete {
@@ -816,6 +818,15 @@
 .vd-widget:hover {
     box-shadow: var(--ds-elevation-3);
 }
+
+.desktop-body[data-theme="standard"] .vd-widget {
+    border-color: var(--vd-shell-context-menu-border);
+    background: var(--vd-shell-context-menu-bg);
+    box-shadow: var(--vd-shell-context-menu-shadow);
+    backdrop-filter: var(--vd-shell-context-menu-blur);
+    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
+}
+
 
 .vd-widget-frame {
     padding: var(--ds-space-3) var(--ds-space-4);

@@ -231,6 +231,44 @@ func TestGetLastEmotion_ThreadSafe(t *testing.T) {
 	}
 }
 
+func TestEmotionSynthesisKeyLimitsLargeContextFields(t *testing.T) {
+	longConversation := strings.Repeat("conversation-", 1000)
+	longLesson := strings.Repeat("lesson-", 1000)
+	input := EmotionInput{
+		UserMessage:        "please help",
+		RecentConversation: []string{longConversation + "alpha"},
+		CurrentMood:        MoodFocused,
+		TimeOfDay:          "morning",
+		TriggerType:        EmotionTriggerConversation,
+		RelevantLessons:    []string{longLesson + "alpha"},
+		InactivityHours:    1.234,
+	}
+
+	key := emotionSynthesisKey(input)
+	if len(key) > 80 {
+		t.Fatalf("emotionSynthesisKey length = %d, want compact key <= 80", len(key))
+	}
+
+	changedBeyondLimit := input
+	changedBeyondLimit.RecentConversation = []string{longConversation + "beta"}
+	changedBeyondLimit.RelevantLessons = []string{longLesson + "beta"}
+	if got := emotionSynthesisKey(changedBeyondLimit); got != key {
+		t.Fatalf("context changes beyond the bounded prefix should not change key: got %q want %q", got, key)
+	}
+
+	changedUserMessage := input
+	changedUserMessage.UserMessage = "please help now"
+	if got := emotionSynthesisKey(changedUserMessage); got == key {
+		t.Fatal("relevant user message change should change emotion synthesis key")
+	}
+
+	changedTrigger := input
+	changedTrigger.TriggerType = EmotionTriggerToolErrorStreak
+	if got := emotionSynthesisKey(changedTrigger); got == key {
+		t.Fatal("relevant trigger change should change emotion synthesis key")
+	}
+}
+
 // ── Prompt Builder Tests ─────────────────────────────────────────────────────
 
 func TestBuildPrompt_InjectionProtection(t *testing.T) {

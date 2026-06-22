@@ -9,11 +9,13 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/llm/catalog"
 )
 
 const (
 	CapabilitySourceManual         = "manual"
 	CapabilitySourceOpenRouter     = "openrouter"
+	CapabilitySourceOhMyPi         = "oh-my-pi"
 	CapabilitySourceModelsDev      = "models.dev"
 	CapabilitySourceHeuristic      = "heuristic"
 	CapabilitySourceLegacyFallback = "legacy_fallback"
@@ -122,12 +124,36 @@ func ResolveProviderCapabilities(provider config.ProviderEntry, fallback Capabil
 	}
 }
 
-// CapabilitiesFromRegistry returns capability flags from generated models.dev
-// metadata.
+// CapabilitiesFromRegistry returns capability flags from bundled catalog and
+// generated models.dev metadata.
 func CapabilitiesFromRegistry(provider, modelID string) (ProviderCapabilityResult, bool) {
-	entry, ok := GetModelInfo(provider, modelID)
+	if snapshot, err := catalog.Load(); err == nil {
+		if model, ok := snapshot.FindModel(provider, modelID); ok {
+			return ProviderCapabilityResult{
+				ToolCalling:       model.SupportsTools,
+				StructuredOutputs: model.StructuredOutputs,
+				Multimodal:        model.Multimodal,
+				Reasoning:         model.Reasoning,
+				DetectedModel:     model.ID,
+				Source:            CapabilitySourceOhMyPi,
+				Known:             true,
+			}, true
+		}
+		if model, ok := snapshot.FindModelByID(modelID); ok {
+			return ProviderCapabilityResult{
+				ToolCalling:       model.SupportsTools,
+				StructuredOutputs: model.StructuredOutputs,
+				Multimodal:        model.Multimodal,
+				Reasoning:         model.Reasoning,
+				DetectedModel:     model.ID,
+				Source:            CapabilitySourceOhMyPi,
+				Known:             true,
+			}, true
+		}
+	}
+	entry, ok := getModelsDevInfo(provider, modelID)
 	if !ok {
-		entry, ok = GetModelInfoByID(modelID)
+		entry, ok = getModelsDevInfoByID(modelID)
 	}
 	if !ok {
 		return ProviderCapabilityResult{}, false

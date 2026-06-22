@@ -181,6 +181,7 @@ type ToolFeatureFlags struct {
 	BrowserAutomationEnabled     bool
 	SpaceAgentEnabled            bool
 	VirtualDesktopEnabled        bool
+	OpenSCADEnabled              bool
 	OfficeDocumentEnabled        bool
 	OfficeWorkbookEnabled        bool
 	NetworkPingEnabled           bool

@@ -551,6 +551,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					return wrongToolKindForExecuteSkill(entry)
 				}
 			}
+			if mgr := tools.DefaultSkillManager(); mgr != nil {
+				if _, err := mgr.GetExecutableSkillByName(cleanSkillName); err != nil {
+					return fmt.Sprintf("Tool Output: ERROR executing skill: %s", security.Scrub(err.Error()))
+				}
+			}
 			// Unwrap skill_args if the LLM nested the actual parameters under that key.
 			// e.g. {"skill_name": "ddg_search", "skill_args": {"query": "..."}} → {"query": "..."}
 			if innerArgs, ok := args["skill_args"].(map[string]interface{}); ok && len(innerArgs) > 0 {
@@ -961,6 +966,23 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					Payload *desktop.Event `json:"payload"`
 				}{"virtual_desktop_event", exec.Event})
 				dc.Broker.SendJSON(string(payload))
+			}
+			return "Tool Output: " + exec.Output
+
+		case "openscad_render":
+			logger.Info("LLM requested OpenSCAD render",
+				"model_name", toolArgString(tc.Params, "model_name"),
+				"source_bytes", len([]byte(toolArgString(tc.Params, "source_scad"))),
+			)
+			exec := tools.ExecuteOpenSCADRender(ctx, cfg, tc.Params)
+			if exec.Event != nil && dc.Broker != nil {
+				if typed, ok := dc.Broker.(TypedFeedbackBroker); !ok || !typed.SendTyped("openscad_result", exec.Event.Payload) {
+					payload, _ := json.Marshal(struct {
+						Type    string      `json:"type"`
+						Payload interface{} `json:"payload"`
+					}{"openscad_result", exec.Event.Payload})
+					dc.Broker.SendJSON(string(payload))
+				}
 			}
 			return "Tool Output: " + exec.Output
 

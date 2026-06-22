@@ -67,5 +67,8 @@
   "config.vault.delete_desc": "Dette vil <strong> permanent </strong> slette hvelvet. Alle lagrede API nøkler, passord og legitimasjon vil gå tapt for alltid! <br> <br> Skriv <strong style=\"color:#f87171;\"> slett </strong> for å fortsette:",
   "config.vault.delete_title": "⚠️ Slett hvelv permanent",
   "config.vault.deleted_toast": "✓ Hvelv slettet. Skriv inn en ny hovednøkkel, lagre og start AuraGo på nytt.",
-  "config.vault.destroy_button": "Ødelegg"
+  "config.vault.destroy_button": "Ødelegg",
+  "config.menu": "Meny",
+  "config.toggle_sidebar": "Vis/skjul sidefelt",
+  "config.page_description": "Konfigurer AI-agentinnstillingene dine"
 }

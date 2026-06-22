@@ -48,5 +48,17 @@
   "config.cloudflare_tunnel.status_disabled": "Cloudflare Tunnel je zakázán",
   "config.cloudflare_tunnel.status_running": "Tunel běží",
   "config.cloudflare_tunnel.status_stopped": "Tunel neběží",
-  "config.cloudflare_tunnel.status_error": "Nepodařilo se načíst stav tunelu"
+  "config.cloudflare_tunnel.status_error": "Nepodařilo se načíst stav tunelu",
+  "config.cloudflare_tunnel.enabled_help": "Turns Cloudflare Tunnel management on for AuraGo.",
+  "config.cloudflare_tunnel.readonly_help": "Limits the integration to status checks and blocks tunnel changes.",
+  "config.cloudflare_tunnel.auto_start_help": "Starts cloudflared automatically when AuraGo starts.",
+  "config.cloudflare_tunnel.mode_help": "Choose whether AuraGo should use Docker, a native binary, or auto-detect the best runtime.",
+  "config.cloudflare_tunnel.auth_method_help": "Select how the tunnel authenticates with Cloudflare.",
+  "config.cloudflare_tunnel.tunnel_name_help": "Name of the named tunnel in Cloudflare. Required only for named tunnels.",
+  "config.cloudflare_tunnel.account_id_help": "Optional Cloudflare account ID used by named tunnel operations.",
+  "config.cloudflare_tunnel.metrics_port_help": "Local metrics port for cloudflared. Use 0 to disable metrics.",
+  "config.cloudflare_tunnel.log_level_help": "Controls how much cloudflared logging AuraGo records.",
+  "config.cloudflare_tunnel.expose_web_ui_help": "Routes the AuraGo Web UI through the tunnel.",
+  "config.cloudflare_tunnel.expose_homepage_help": "Routes the Homepage web server through the tunnel.",
+  "config.cloudflare_tunnel.expose_target_help": "Choose the single local service used by token or quick tunnels."
 }

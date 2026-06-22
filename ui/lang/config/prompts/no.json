@@ -35,5 +35,6 @@
   "config.prompts.saved": "Lagret.",
   "config.prompts.setting_active": "Setter aktiv...",
   "config.prompts.delete_confirm": "Vil du virkelig slette personligheten \" {name} \"?",
-  "config.prompts.deleting": "Sletter..."
+  "config.prompts.deleting": "Sletter...",
+  "config.prompts.delete_confirm_title": "Slette personlighet?"
 }

@@ -299,7 +299,9 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 		}
 
 		// 3. Process Graph Low Priority
-		graphRemoved, _ = kg.OptimizeGraph(thresholdLow)
+		if shouldOptimizeKnowledgeGraph(cfg, kg) {
+			graphRemoved, _ = kg.OptimizeGraph(thresholdLow)
+		}
 		if len(lowDocs) > 0 || len(mediumDocs) > 0 {
 			InvalidateMemoryMetaCache()
 		}
@@ -309,6 +311,10 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 		`{"status": "success", "preview": %v, "memory_rag": {"high_kept": %d, "medium_compressed": %d, "low_archived": %d}, "graph_nodes_archived": %d}`,
 		req.Preview, highCount, mediumCount, lowCount, graphRemoved,
 	)
+}
+
+func shouldOptimizeKnowledgeGraph(cfg *config.Config, kg *memory.KnowledgeGraph) bool {
+	return cfg != nil && kg != nil && cfg.Tools.KnowledgeGraph.Enabled && !cfg.Tools.KnowledgeGraph.ReadOnly
 }
 
 // parseWorkflowPlan extracts tool names from a <workflow_plan>["t1","t2"]</workflow_plan> tag.

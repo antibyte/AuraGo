@@ -57,6 +57,7 @@ type Config struct {
 	Desktop       DesktopAdapter
 	Launchpad     LaunchpadAdapter
 	Secrets       SecretStore
+	NativeManaged NativeManagedRuntime
 	PortAllocator PortAllocator
 	PortProbe     PortProbe
 }
@@ -107,6 +108,17 @@ func NewService(cfg Config) (*Service, error) {
 		if entry.Image == "" {
 			return nil, fmt.Errorf("catalog app %s image is required", entry.ID)
 		}
+		if entry.Runtime == "" {
+			entry.Runtime = RuntimeContainerWebApp
+		}
+		switch entry.Runtime {
+		case RuntimeContainerWebApp, RuntimeNativeManagedApp:
+		default:
+			return nil, fmt.Errorf("catalog app %s runtime %q is unsupported", entry.ID, entry.Runtime)
+		}
+		if entry.DesktopAppID == "" {
+			entry.DesktopAppID = DesktopAppID(entry.ID)
+		}
 		if entry.PrimaryPort.Protocol == "" {
 			entry.PrimaryPort.Protocol = "tcp"
 		}
@@ -116,7 +128,7 @@ func NewService(cfg Config) (*Service, error) {
 		if entry.PrimaryPort.Name == "" {
 			entry.PrimaryPort.Name = "Web UI"
 		}
-		if entry.PrimaryPort.ContainerPort <= 0 {
+		if entry.PrimaryPort.ContainerPort <= 0 && entry.Runtime != RuntimeNativeManagedApp {
 			return nil, fmt.Errorf("catalog app %s container port is required", entry.ID)
 		}
 		for i := range entry.ExtraPorts {
@@ -380,6 +392,19 @@ func (s *Service) recoverInterruptedOperationsLocked(ctx context.Context) error 
 }
 
 func (s *Service) recoverInterruptedInstall(ctx context.Context, app InstalledApp) error {
+	if entry, ok := s.catalogByID[app.AppID]; ok && isNativeManagedEntry(entry) {
+		if s.cfg.NativeManaged != nil {
+			_ = s.cfg.NativeManaged.UninstallNativeManagedApp(ctx, entry.ID, entry, false)
+		}
+		if err := s.deleteStoreArtifacts(ctx, app); err != nil {
+			return err
+		}
+		_, err := s.db.ExecContext(ctx, `DELETE FROM desktop_store_apps WHERE app_id = ?`, app.AppID)
+		if err != nil {
+			return fmt.Errorf("delete interrupted desktop store app record: %w", err)
+		}
+		return nil
+	}
 	if err := s.deleteStoreArtifacts(ctx, app); err != nil {
 		return err
 	}
@@ -844,6 +869,9 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 			return fmt.Errorf("store app %q is already installed", entry.ID)
 		}
 	}
+	if isNativeManagedEntry(entry) {
+		return s.installNativeManaged(ctx, op, entry)
+	}
 	hostPort, err := s.portAllocator(ctx, entry.PrimaryPort.ContainerPort)
 	if err != nil {
 		return fmt.Errorf("allocate port: %w", err)
@@ -921,6 +949,35 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 	return s.saveInstalled(ctx, record)
 }
 
+func (s *Service) installNativeManaged(ctx context.Context, op Operation, entry CatalogEntry) error {
+	if s.cfg.NativeManaged == nil {
+		return fmt.Errorf("native managed runtime is not configured")
+	}
+	record := s.buildNativeManagedRecord(entry, op, AppStatusInstalling)
+	if err := s.saveInstalled(ctx, record); err != nil {
+		return err
+	}
+	status, err := s.cfg.NativeManaged.InstallNativeManagedApp(ctx, entry.ID, entry, false)
+	if err != nil {
+		return s.failInstall(ctx, record, err)
+	}
+	applyNativeManagedStatus(&record, entry, status)
+	if record.Status == "" || record.Status == AppStatusInstalling {
+		record.Status = AppStatusStopped
+	}
+	record.Error = status.Error
+	if err := s.installDesktopApp(ctx, entry, record); err != nil {
+		return s.failInstall(ctx, record, err)
+	}
+	linkID, err := s.upsertLaunchpad(ctx, entry, record)
+	if err != nil {
+		return s.failInstall(ctx, record, err)
+	}
+	record.LaunchpadLinkID = linkID
+	record.LastOperationState = OperationSucceeded
+	return s.saveInstalled(ctx, record)
+}
+
 func (s *Service) update(ctx context.Context, op Operation) error {
 	record, ok, err := s.GetInstalled(ctx, op.AppID)
 	if err != nil {
@@ -934,6 +991,9 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	entry, ok := s.catalogByID[record.AppID]
 	if !ok {
 		return fmt.Errorf("store app %q is no longer in the allowlist", record.AppID)
+	}
+	if isNativeManagedEntry(entry) {
+		return s.updateNativeManaged(ctx, op, entry, record)
 	}
 	record.Image = entry.Image
 	ports, err := s.updatePortBindings(ctx, entry, record)
@@ -1085,7 +1145,42 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	return s.saveInstalled(ctx, record)
 }
 
+func (s *Service) updateNativeManaged(ctx context.Context, op Operation, entry CatalogEntry, record InstalledApp) error {
+	if s.cfg.NativeManaged == nil {
+		return fmt.Errorf("native managed runtime is not configured")
+	}
+	record.Status = AppStatusUpdating
+	record.Error = ""
+	record.LastOperationID = op.ID
+	record.LastOperationType = op.Type
+	record.LastOperationState = OperationRunning
+	if err := s.saveInstalled(ctx, record); err != nil {
+		return err
+	}
+	status, err := s.cfg.NativeManaged.UpdateNativeManagedApp(ctx, entry.ID, entry)
+	if err != nil {
+		record.Status = AppStatusError
+		record.Error = err.Error()
+		record.LastOperationState = OperationFailed
+		_ = s.saveInstalled(ctx, record)
+		return err
+	}
+	applyNativeManagedStatus(&record, entry, status)
+	if record.Status == "" || record.Status == AppStatusUpdating {
+		record.Status = AppStatusStopped
+	}
+	record.Error = status.Error
+	record.LastOperationState = OperationSucceeded
+	return s.saveInstalled(ctx, record)
+}
+
 func (s *Service) start(ctx context.Context, op Operation) error {
+	if entry, ok := s.catalogByID[normalizeAppID(op.AppID)]; ok && isNativeManagedEntry(entry) {
+		if s.cfg.NativeManaged == nil {
+			return fmt.Errorf("native managed runtime is not configured")
+		}
+		return s.nativeManagedAction(ctx, op, entry, s.cfg.NativeManaged.StartNativeManagedApp)
+	}
 	return s.action(ctx, op, AppStatusRunning, func(app InstalledApp) error {
 		for _, companion := range app.Companions {
 			if err := s.requireDocker().StartContainer(ctx, companion.ContainerName); err != nil {
@@ -1100,6 +1195,12 @@ func (s *Service) start(ctx context.Context, op Operation) error {
 }
 
 func (s *Service) stop(ctx context.Context, op Operation) error {
+	if entry, ok := s.catalogByID[normalizeAppID(op.AppID)]; ok && isNativeManagedEntry(entry) {
+		if s.cfg.NativeManaged == nil {
+			return fmt.Errorf("native managed runtime is not configured")
+		}
+		return s.nativeManagedAction(ctx, op, entry, s.cfg.NativeManaged.StopNativeManagedApp)
+	}
 	return s.action(ctx, op, AppStatusStopped, func(app InstalledApp) error {
 		if err := s.requireDocker().StopContainer(ctx, app.ContainerName); err != nil {
 			return err
@@ -1114,6 +1215,12 @@ func (s *Service) stop(ctx context.Context, op Operation) error {
 }
 
 func (s *Service) restart(ctx context.Context, op Operation) error {
+	if entry, ok := s.catalogByID[normalizeAppID(op.AppID)]; ok && isNativeManagedEntry(entry) {
+		if s.cfg.NativeManaged == nil {
+			return fmt.Errorf("native managed runtime is not configured")
+		}
+		return s.nativeManagedAction(ctx, op, entry, s.cfg.NativeManaged.RestartNativeManagedApp)
+	}
 	return s.action(ctx, op, AppStatusRunning, func(app InstalledApp) error {
 		for _, companion := range app.Companions {
 			if err := s.requireDocker().RestartContainer(ctx, companion.ContainerName); err != nil {
@@ -1125,6 +1232,42 @@ func (s *Service) restart(ctx context.Context, op Operation) error {
 		}
 		return s.waitContainerReady(ctx, app, appReadinessTimeout)
 	})
+}
+
+func (s *Service) nativeManagedAction(ctx context.Context, op Operation, entry CatalogEntry, fn func(context.Context, string, CatalogEntry) (NativeManagedStatus, error)) error {
+	if s.cfg.NativeManaged == nil {
+		return fmt.Errorf("native managed runtime is not configured")
+	}
+	app, ok, err := s.GetInstalled(ctx, op.AppID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("store app %q is not installed", op.AppID)
+	}
+	status, err := fn(ctx, entry.ID, entry)
+	if err != nil {
+		app.Status = AppStatusError
+		app.Error = err.Error()
+		app.LastOperationID = op.ID
+		app.LastOperationType = op.Type
+		app.LastOperationState = OperationFailed
+		_ = s.saveInstalled(ctx, app)
+		return err
+	}
+	applyNativeManagedStatus(&app, entry, status)
+	if app.Status == "" {
+		if status.Running {
+			app.Status = AppStatusRunning
+		} else {
+			app.Status = AppStatusStopped
+		}
+	}
+	app.Error = status.Error
+	app.LastOperationID = op.ID
+	app.LastOperationType = op.Type
+	app.LastOperationState = OperationSucceeded
+	return s.saveInstalled(ctx, app)
 }
 
 func (s *Service) action(ctx context.Context, op Operation, targetStatus string, fn func(InstalledApp) error) error {
@@ -1159,6 +1302,9 @@ func (s *Service) uninstall(ctx context.Context, op Operation, deleteData bool) 
 	}
 	if !ok {
 		return fmt.Errorf("store app %q is not installed", op.AppID)
+	}
+	if entry, ok := s.catalogByID[app.AppID]; ok && isNativeManagedEntry(entry) {
+		return s.uninstallNativeManaged(ctx, op, entry, app, deleteData)
 	}
 	for _, companion := range app.Companions {
 		_ = s.requireDocker().StopContainer(ctx, companion.ContainerName)
@@ -1203,6 +1349,37 @@ func (s *Service) uninstall(ctx context.Context, op Operation, deleteData bool) 
 		}
 	}
 	_, err = s.db.ExecContext(ctx, `DELETE FROM desktop_store_apps WHERE app_id = ?`, app.AppID)
+	if err != nil {
+		return fmt.Errorf("delete desktop store app record: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) uninstallNativeManaged(ctx context.Context, op Operation, entry CatalogEntry, app InstalledApp, deleteData bool) error {
+	if s.cfg.NativeManaged == nil {
+		return fmt.Errorf("native managed runtime is not configured")
+	}
+	if err := s.cfg.NativeManaged.UninstallNativeManagedApp(ctx, entry.ID, entry, deleteData); err != nil {
+		app.Status = AppStatusError
+		app.Error = err.Error()
+		app.LastOperationID = op.ID
+		app.LastOperationType = op.Type
+		app.LastOperationState = OperationFailed
+		_ = s.saveInstalled(ctx, app)
+		return err
+	}
+	if err := s.deleteStoreArtifacts(ctx, app); err != nil {
+		return err
+	}
+	if deleteData {
+		if err := s.deleteStoreSecrets(ctx, app); err != nil {
+			return err
+		}
+		if err := s.removeManagedWorkspaceBinds(app); err != nil {
+			return err
+		}
+	}
+	_, err := s.db.ExecContext(ctx, `DELETE FROM desktop_store_apps WHERE app_id = ?`, app.AppID)
 	if err != nil {
 		return fmt.Errorf("delete desktop store app record: %w", err)
 	}
@@ -1270,6 +1447,64 @@ func (s *Service) buildInstallRecord(entry CatalogEntry, op Operation, bindMode,
 		LastOperationType:  op.Type,
 		LastOperationState: OperationRunning,
 	}
+}
+
+func (s *Service) buildNativeManagedRecord(entry CatalogEntry, op Operation, status string) InstalledApp {
+	now := time.Now().UTC()
+	return InstalledApp{
+		AppID:              entry.ID,
+		DesktopAppID:       desktopAppIDForEntry(entry),
+		LaunchpadLinkID:    ManagedLaunchpadLinkID(entry.ID),
+		ContainerName:      NativeManagedContainerName(entry.ID),
+		Image:              entry.Image,
+		Status:             status,
+		BindMode:           BindModeLocal,
+		TailscaleStatus:    TailscaleStatusDisabled,
+		LogoPath:           entry.LogoURL,
+		CreatedAt:          now,
+		UpdatedAt:          now,
+		LastOperationID:    op.ID,
+		LastOperationType:  op.Type,
+		LastOperationState: OperationRunning,
+	}
+}
+
+func applyNativeManagedStatus(app *InstalledApp, entry CatalogEntry, status NativeManagedStatus) {
+	app.DesktopAppID = desktopAppIDForEntry(entry)
+	if strings.TrimSpace(status.ContainerName) != "" {
+		app.ContainerName = strings.TrimSpace(status.ContainerName)
+	} else if strings.TrimSpace(app.ContainerName) == "" {
+		app.ContainerName = NativeManagedContainerName(entry.ID)
+	}
+	if strings.TrimSpace(status.ContainerID) != "" {
+		app.ContainerID = strings.TrimSpace(status.ContainerID)
+	}
+	if strings.TrimSpace(status.Image) != "" {
+		app.Image = strings.TrimSpace(status.Image)
+	} else if strings.TrimSpace(app.Image) == "" {
+		app.Image = entry.Image
+	}
+	if strings.TrimSpace(status.Status) != "" {
+		app.Status = strings.TrimSpace(status.Status)
+	} else if status.Running {
+		app.Status = AppStatusRunning
+	}
+	app.BindMode = BindModeLocal
+	app.HostIP = ""
+	app.HostPort = 0
+	app.ContainerPort = 0
+	app.Protocol = ""
+	app.TailscaleEnabled = false
+	app.TailscaleStatus = TailscaleStatusDisabled
+	app.TailscalePort = 0
+	app.Ports = nil
+	app.Volumes = nil
+	app.HostBinds = nil
+	app.Companions = nil
+}
+
+func isNativeManagedEntry(entry CatalogEntry) bool {
+	return strings.EqualFold(strings.TrimSpace(entry.Runtime), RuntimeNativeManagedApp)
 }
 
 func (s *Service) allocatePortBindings(ctx context.Context, entry CatalogEntry, hostIP string, primaryHostPort int) ([]PortBinding, error) {
@@ -1828,6 +2063,9 @@ func (s *Service) refreshDesktopAppManifest(ctx context.Context, entry CatalogEn
 	if s.cfg.Desktop == nil {
 		return nil
 	}
+	if isNativeManagedEntry(entry) {
+		return nil
+	}
 	files := map[string]string{
 		"index.html": `<!doctype html><meta charset="utf-8"><title>` + entry.Name + `</title><p>` + entry.Name + ` is managed by AuraGo Software Store.</p>`,
 	}
@@ -1857,21 +2095,11 @@ func (s *Service) ReconcileDesktopBranding(ctx context.Context) error {
 	if s.cfg.Desktop == nil {
 		return nil
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT app_id, desktop_app_id, launchpad_link_id, container_name, container_id, image,
-		status, error, bind_mode, host_ip, host_port, container_port, protocol, tailscale_enabled, tailscale_status,
-		tailscale_port, logo_path, ports_json, volumes_json, host_binds_json, env_json, extra_hosts_json,
-		secret_refs_json, companions_json, created_at, updated_at,
-		last_operation_id, last_operation_type, last_operation_state
-		FROM desktop_store_apps`)
+	apps, err := s.ListApps(ctx)
 	if err != nil {
 		return fmt.Errorf("list desktop store apps for branding reconcile: %w", err)
 	}
-	defer rows.Close()
-	for rows.Next() {
-		app, err := scanInstalledApp(rows)
-		if err != nil {
-			return err
-		}
+	for _, app := range apps {
 		entry, ok := s.catalogByID[app.AppID]
 		if !ok {
 			continue
@@ -1887,7 +2115,7 @@ func (s *Service) ReconcileDesktopBranding(ctx context.Context) error {
 			return fmt.Errorf("reconcile desktop branding for %s: %w", app.AppID, err)
 		}
 	}
-	return rows.Err()
+	return nil
 }
 
 func (s *Service) updateLogoPath(ctx context.Context, appID, logoPath string) error {
@@ -2030,6 +2258,21 @@ func (s *Service) failInstall(ctx context.Context, app InstalledApp, runErr erro
 }
 
 func (s *Service) cleanupInstallArtifacts(ctx context.Context, app InstalledApp) error {
+	if entry, ok := s.catalogByID[app.AppID]; ok && isNativeManagedEntry(entry) {
+		if s.cfg.NativeManaged != nil {
+			_ = s.cfg.NativeManaged.UninstallNativeManagedApp(ctx, entry.ID, entry, false)
+		}
+		_ = s.deleteStoreSecrets(ctx, app)
+		_ = s.removeManagedWorkspaceBinds(app)
+		if err := s.deleteStoreArtifacts(ctx, app); err != nil {
+			return err
+		}
+		_, err := s.db.ExecContext(ctx, `DELETE FROM desktop_store_apps WHERE app_id = ?`, app.AppID)
+		if err != nil {
+			return fmt.Errorf("delete desktop store app record: %w", err)
+		}
+		return nil
+	}
 	s.cleanupInstallDockerResources(ctx, app)
 	_ = s.deleteStoreSecrets(ctx, app)
 	_ = s.removeManagedWorkspaceBinds(app)
@@ -2062,9 +2305,21 @@ func (s *Service) cleanupInstallDockerResources(ctx context.Context, app Install
 }
 
 func (s *Service) deleteStoreArtifacts(ctx context.Context, app InstalledApp) error {
+	entry, native := s.catalogByID[app.AppID]
 	if s.cfg.Desktop != nil {
-		if err := s.cfg.Desktop.DeleteApp(ctx, app.DesktopAppID, storeSource); err != nil && !isMissingStoreArtifact(err) {
-			return fmt.Errorf("delete desktop app: %w", err)
+		if native && isNativeManagedEntry(entry) {
+			dockVisible := false
+			startVisible := false
+			if err := s.cfg.Desktop.SetAppVisibility(ctx, app.DesktopAppID, &dockVisible, &startVisible, storeSource); err != nil && !isMissingStoreArtifact(err) {
+				return fmt.Errorf("hide native desktop app: %w", err)
+			}
+			if err := s.cfg.Desktop.RemoveDesktopShortcut(ctx, "app-"+app.DesktopAppID, storeSource); err != nil && !isMissingStoreArtifact(err) {
+				return fmt.Errorf("remove native desktop shortcut: %w", err)
+			}
+		} else {
+			if err := s.cfg.Desktop.DeleteApp(ctx, app.DesktopAppID, storeSource); err != nil && !isMissingStoreArtifact(err) {
+				return fmt.Errorf("delete desktop app: %w", err)
+			}
 		}
 	}
 	if s.cfg.Launchpad != nil && app.LaunchpadLinkID != "" {

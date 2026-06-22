@@ -127,6 +127,93 @@ func TestSelectServedRAGMemoriesBackfillsAfterServeFilter(t *testing.T) {
 	}
 }
 
+func TestSelectRAGMemoriesForOnDemandSplitsEssentialAndAvailable(t *testing.T) {
+	ranked := []rankedMemory{
+		{text: "primary memory", docID: "mem-1", score: 0.90},
+		{text: "[tool_availability] stale tool memory", docID: "stale-1", score: 0.89},
+		{text: "second memory", docID: "mem-2", score: 0.80},
+		{text: "third memory", docID: "mem-3", score: 0.70},
+		{text: "fourth memory", docID: "mem-4", score: 0.60},
+	}
+	cfg := config.MemoryOnDemandRetrievalConfig{
+		Enabled:              true,
+		MaxEssentialMemories: 1,
+		MaxAvailableMemories: 2,
+		MaxAvailableChars:    400,
+	}
+
+	essential, available := selectRAGMemoriesForOnDemand(ranked, cfg, nil)
+
+	if len(essential) != 1 || essential[0].docID != "mem-1" {
+		t.Fatalf("essential = %+v, want only mem-1", essential)
+	}
+	gotIDs := []string{}
+	for _, item := range available {
+		gotIDs = append(gotIDs, item.docID)
+	}
+	if strings.Join(gotIDs, ",") != "mem-2,mem-3" {
+		t.Fatalf("available IDs = %v, want mem-2,mem-3", gotIDs)
+	}
+}
+
+func TestSelectRAGMemoriesForOnDemandDisabledPreservesLegacySingleMemory(t *testing.T) {
+	ranked := []rankedMemory{
+		{text: "primary memory", docID: "mem-1", score: 0.90},
+		{text: "second memory", docID: "mem-2", score: 0.80},
+	}
+	cfg := config.MemoryOnDemandRetrievalConfig{
+		Enabled:              false,
+		MaxEssentialMemories: 2,
+		MaxAvailableMemories: 4,
+	}
+
+	essential, available := selectRAGMemoriesForOnDemand(ranked, cfg, nil)
+
+	if len(essential) != 1 || essential[0].docID != "mem-1" {
+		t.Fatalf("disabled on-demand should preserve legacy single direct memory, got %+v", essential)
+	}
+	if len(available) != 0 {
+		t.Fatalf("disabled on-demand should not expose available memories, got %+v", available)
+	}
+}
+
+func TestMemoryDedupeMapForScopeSessionPersistsAcrossTurns(t *testing.T) {
+	sessionID := "test-session-" + strings.ReplaceAll(t.Name(), "/", "-")
+	firstTurn := memoryDedupeMapForScope("session", sessionID, map[string]int{})
+	firstTurn["mem-1"] = 2
+	persistMemoryDedupeMapForScope("session", sessionID, firstTurn)
+	t.Cleanup(func() { persistMemoryDedupeMapForScope("session", sessionID, map[string]int{}) })
+
+	secondTurn := memoryDedupeMapForScope("session", sessionID, map[string]int{})
+	if secondTurn["mem-1"] != 2 {
+		t.Fatalf("session dedupe did not persist memory usage across turns: %+v", secondTurn)
+	}
+
+	turnScoped := memoryDedupeMapForScope("turn", sessionID, map[string]int{})
+	if turnScoped["mem-1"] != 0 {
+		t.Fatalf("turn dedupe should not reuse session map, got %+v", turnScoped)
+	}
+}
+
+func TestBuildAvailableMemoryIndexUsesStableIDsAndLimits(t *testing.T) {
+	available := []rankedMemory{
+		{text: strings.Repeat("deployment detail ", 20), docID: "mem-2", score: 0.81},
+		{text: "backup memory", docID: "mem-3", score: 0.70},
+	}
+
+	got := buildAvailableMemoryIndex(available, 170)
+
+	if !strings.Contains(got, "[memory:mem-2]") || !strings.Contains(got, "score=0.81") {
+		t.Fatalf("available index missing stable memory id/score: %q", got)
+	}
+	if strings.Contains(got, "mem-3") {
+		t.Fatalf("available index should respect max chars before adding mem-3: %q", got)
+	}
+	if len([]rune(got)) > 171 {
+		t.Fatalf("available index length = %d, want <= 171 including ellipsis", len([]rune(got)))
+	}
+}
+
 func TestCountMemoryPromptTelemetryTokensIncludesAllMemorySections(t *testing.T) {
 	flags := prompts.ContextFlags{
 		RetrievedMemories:   "[Recent Day Anchors]\n- 2026-06-11: deployment",
@@ -263,6 +350,105 @@ func TestRuntimePromptContextIntentGates(t *testing.T) {
 	}
 	if !shouldInjectUserProfilingPrompt("welche Präferenzen kennst du über mich?") {
 		t.Fatal("expected user profiling for explicit profile intent")
+	}
+}
+
+func TestRuntimePromptContextCapabilityDaemonAndInternetGates(t *testing.T) {
+	if shouldInjectCapabilityCreationPrompt("pruefe den prompt", nil, nil) {
+		t.Fatal("did not expect capability creation prompt for ordinary prompt review")
+	}
+	for _, text := range []string{
+		"zeige mir die aktuelle capability routing bewertung",
+		"pruefe das config template",
+	} {
+		if shouldInjectCapabilityCreationPrompt(text, nil, nil) {
+			t.Fatalf("did not expect capability creation prompt for generic text %q", text)
+		}
+	}
+	if !shouldInjectCapabilityCreationPrompt("erstelle einen Python Skill fuer CSV Import", nil, nil) {
+		t.Fatal("expected capability creation prompt for Python skill intent")
+	}
+	if !shouldInjectCapabilityCreationPrompt("create a reusable capability for CSV import", nil, nil) {
+		t.Fatal("expected capability creation prompt for reusable capability creation intent")
+	}
+	if !shouldInjectCapabilityCreationPrompt("weiter", []string{"create_skill_from_template"}, nil) {
+		t.Fatal("expected capability creation prompt after recent skill template usage")
+	}
+
+	if shouldInjectDaemonSkillsPrompt("analysiere den log", nil, nil) {
+		t.Fatal("did not expect daemon skills prompt for ordinary log analysis")
+	}
+	if !shouldInjectDaemonSkillsPrompt("erstelle einen background watcher daemon", nil, nil) {
+		t.Fatal("expected daemon skills prompt for daemon watcher intent")
+	}
+	if !shouldInjectDaemonSkillsPrompt("status", []string{"manage_daemon"}, nil) {
+		t.Fatal("expected daemon skills prompt after recent daemon tool usage")
+	}
+
+	flags := &prompts.ContextFlags{InternetExposed: true}
+	if shouldInjectInternetExposureWarning("bewerte den prompt", nil, nil, flags) {
+		t.Fatal("did not expect internet warning for ordinary prompt review")
+	}
+	if !shouldInjectInternetExposureWarning("deploy die homepage im caddy container", nil, nil, flags) {
+		t.Fatal("expected internet warning for deployment/network intent")
+	}
+	if !shouldInjectInternetExposureWarning("weiter", []string{"network_scan"}, nil, flags) {
+		t.Fatal("expected internet warning after recent network tool usage")
+	}
+	if !shouldInjectInternetExposureWarning("weiter", nil, nil, &prompts.ContextFlags{
+		InternetExposed:   true,
+		ActiveNativeTools: []string{"docker"},
+	}) {
+		t.Fatal("expected internet warning when visible native tools include network/deployment tools")
+	}
+}
+
+func TestRuntimePromptContextIgnoresReasoningForIntentGates(t *testing.T) {
+	messages := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleUser, Content: "bitte normal pruefen"},
+		{Role: openai.ChatMessageRoleAssistant, ReasoningContent: "maybe create a daemon skill and expose public https"},
+	}
+	userText := collectRecentUserIntentText(messages, 4, 800)
+	if strings.Contains(userText, "daemon") || strings.Contains(userText, "https") {
+		t.Fatalf("recent user intent leaked reasoning content: %q", userText)
+	}
+	if shouldInjectDaemonSkillsPrompt(userText, nil, nil) {
+		t.Fatal("reasoning-only daemon text must not trigger daemon prompt")
+	}
+	if shouldInjectInternetExposureWarning(userText, nil, nil, &prompts.ContextFlags{InternetExposed: true}) {
+		t.Fatal("reasoning-only https text must not trigger internet warning")
+	}
+}
+
+func TestApplyRuntimePromptContextPolicySetsIntentFlagsAndGatesInternetWarning(t *testing.T) {
+	flags := &prompts.ContextFlags{
+		InternetExposed: true,
+		LifeboatEnabled: true,
+	}
+	applyRuntimePromptContextPolicy(flags, runtimePromptContextOptions{
+		UserText: "erstelle einen Python Skill",
+	})
+	if !flags.CapabilityCreationIntent {
+		t.Fatal("expected capability creation intent flag")
+	}
+	if flags.InternetExposed {
+		t.Fatal("ordinary skill creation should clear internet exposure warning")
+	}
+
+	flags = &prompts.ContextFlags{InternetExposed: true}
+	applyRuntimePromptContextPolicy(flags, runtimePromptContextOptions{
+		UserText: "deploy die homepage im docker container",
+	})
+	if !flags.InternetExposed {
+		t.Fatal("network/deployment intent should keep internet exposure warning")
+	}
+
+	flags = &prompts.ContextFlags{LifeboatEnabled: true}
+	applyRuntimePromptContextPolicy(flags, runtimePromptContextOptions{
+		UserText: "initiate lifeboat handover",
+	})
+	if !flags.LifeboatIntent {
+		t.Fatal("expected lifeboat intent flag")
 	}
 }
 
@@ -1084,6 +1270,24 @@ func TestChannelAdaptiveAlwaysIncludeDoesNotAdvertiseDisabledDesktopTools(t *tes
 	}
 	if !containsName(got, "question_user") {
 		t.Fatalf("expected desktop chat to keep question_user even when optional desktop tools are disabled, got %v", got)
+	}
+}
+
+func TestChannelAdaptiveAlwaysIncludeRoutesHomepageStudioToHomepageTools(t *testing.T) {
+	got := channelAdaptiveAlwaysInclude(
+		RunConfig{MessageSource: "homepage_studio"},
+		[]string{"filesystem"},
+		ToolFeatureFlags{VirtualDesktopEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true},
+	)
+	for _, want := range []string{"homepage_project", "homepage_file", "homepage_quality", "homepage_deploy", "homepage_git", "homepage_registry"} {
+		if !containsName(got, want) {
+			t.Fatalf("expected Homepage Studio always-include to contain %q, got %v", want, got)
+		}
+	}
+	for _, notWant := range []string{"virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets", "office_document", "office_workbook"} {
+		if containsName(got, notWant) {
+			t.Fatalf("did not expect desktop tool %q in Homepage Studio always-include set, got %v", notWant, got)
+		}
 	}
 }
 

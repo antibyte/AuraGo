@@ -10,6 +10,7 @@ AuraGo's **100+ built-in tools** transform it from a chatbot into an autonomous 
 |----------|-------|-------------|
 | **🗂️ Filesystem** | Read, write, delete files | Yes |
 | **🌐 Web & APIs** | Search, HTTP, scraping, screenshots | No (partial) |
+| **🌐 Web & Sites** | Homepage scaffold, build, deploy, registry | No (`homepage.enabled`) |
 | **🐳 Docker** | Containers, images, networks | Yes |
 | **🖥️ Proxmox** | VMs, LXCs, snapshots | Yes |
 | **🏠 Smart Home** | Home Assistant, MQTT, Wake-on-LAN | Yes |
@@ -39,6 +40,7 @@ The current version includes several powerful extensions:
 | **Media Registry** | Search, tag, and reuse generated images, audio, music, and videos |
 | **MCP Client/Server** | Model Context Protocol for interoperability |
 | **Invasion Control** | Distributed orchestration across multiple hosts |
+| **Homepage / site projects** | Docker dev workspace, focused tools, project registry & history |
 | **Sudo Execution** | Vault-backed credential handling for privileged commands |
 
 ---
@@ -203,6 +205,42 @@ video_generation:
 ```
 
 The related tools are `generate_image`, `generate_music`, and `generate_video`. Generated files are saved locally and registered in the Media Registry so they can be searched, tagged, sent back to chat, or reused later.
+
+### 9. Homepage & static sites
+
+Build and deploy marketing sites or personal homepages inside AuraGo’s dedicated homepage workspace (`data/homepage/` by default), not `agent_workspace/workdir/`.
+
+### Web UI Setup
+1. Open **Config → Integrations → Homepage**.
+2. Enable the integration; set workspace path and registry DB path if needed.
+3. Optionally enable **Allow local server** when Docker is unavailable (limited workflows).
+4. Save. Enable **Netlify** and/or **Vercel** integrations for one-shot deploy tools.
+5. Optional: **Virtual Desktop → Homepage Studio** for a guided UI on the same workspace.
+
+### Focused agent tools (preferred)
+
+| Tool | Role |
+|------|------|
+| `homepage_project` | Workspace lifecycle, `init_project`, `exec`, `install_deps` |
+| `homepage_file` | `read_file`, `write_file`, `edit_file`, `list_files` in the homepage workspace |
+| `homepage_deploy` | `build`, `dev`, local publish, `deploy_netlify`, `deploy_vercel`, tunnel |
+| `homepage_quality` | `lint`, `check_js`, `lighthouse`, `screenshot`, image optimization |
+| `homepage_git` | `git_init`, `commit`, `status`, `diff`, `log`, `rollback` |
+| `homepage_registry` | Project catalog, deploy/edit logs, **project history** (`list_history`, `add_history`) |
+
+The legacy combined tool `homepage` still accepts older `operation` values for compatibility.
+
+**Rules:** Use `homepage_file` for site sources — not generic `filesystem`. Do not run `/workspace/...` via `execute_shell`; use `homepage_project` `exec` or deploy tools. Read `list_history` before large edits; write `add_history` after meaningful changes. Global design guardrail: `prompts/rules/homepage/DESIGN.md`.
+
+### YAML Reference
+```yaml
+homepage:
+  enabled: true
+  allow_local_server: false
+```
+
+See [Integrations](08-integrations.md#homepage-and-site-projects) and [Internal Tools](22-internal-tools.md#homepage--static-site-tool-family).
+
 
 ---
 

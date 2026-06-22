@@ -1,0 +1,797 @@
+(function () {
+    'use strict';
+
+    const PET_FRAME_W = 192;
+    const PET_FRAME_H = 208;
+    const PET_COLUMNS = 8;
+    const PET_ROWS = 9;
+    const BUBBLE_DURATION_MS = 4000;
+    const LONG_BUBBLE_DURATION_MS = 8000;
+    const MAX_BUBBLE_CHARS = 140;
+    const BUBBLE_VIEWPORT_MARGIN = 16;
+    const AMBIENT_MIN_DELAY_MS = 10000;
+    const AMBIENT_MAX_DELAY_MS = 24000;
+    const AMBIENT_RETURN_PADDING_MS = 260;
+    const AMBIENT_RUN_MIN_DISTANCE = 90;
+    const AMBIENT_RUN_MAX_DISTANCE = 180;
+    const DRAG_HANG_OFFSET_Y = 28;
+    const DRAG_TILT_MAX_DEG = 14;
+    const DRAG_VEL_SMOOTH = 0.34;
+    const DRAG_TILT_GAIN = 0.11;
+    const DRAG_TILT_SPRING = 220;
+    const DRAG_TILT_DAMPING = 16;
+    const DRAG_SETTLE_EPS = 0.08;
+    const PET_REACTION_DURATION_MS = 2200;
+    const PET_REACTION_DURATIONS_MS = {
+        thinking: 1800,
+        working: 1800,
+        editing: 1900,
+        running: 1600,
+        testing: 2200,
+        waiting: 2200,
+        waving: 1300,
+        success: 2200,
+        error: 2800,
+        celebrating: 2600
+    };
+    const ambientStates = ['waving', 'jumping', 'running', 'running'];
+
+    // OpenPets-compatible reaction → animation state mapping.
+    const reactionToState = {
+        idle: 'idle',
+        thinking: 'review',
+        working: 'running',
+        editing: 'running',
+        running: 'running',
+        testing: 'waiting',
+        waiting: 'waiting',
+        waving: 'waving',
+        success: 'jumping',
+        error: 'failed',
+        celebrating: 'jumping'
+    };
+
+    // Row indices in the spritesheet (OpenPets default layout).
+    const stateRows = {
+        idle: { row: 0, frames: 6, duration: 5500, iterations: 'infinite' },
+        'running-right': { row: 1, frames: 8, duration: 1060 },
+        'running-left': { row: 2, frames: 8, duration: 1060 },
+        waving: { row: 3, frames: 4, duration: 700, iterations: 2 },
+        jumping: { row: 4, frames: 5, duration: 840, iterations: 2 },
+        failed: { row: 5, frames: 8, duration: 1220, iterations: 2 },
+        waiting: { row: 6, frames: 6, duration: 1010 },
+        running: { row: 7, frames: 6, duration: 820 },
+        review: { row: 8, frames: 6, duration: 1030 }
+    };
+
+    let layer = null;
+    let spriteEl = null;
+    let bubbleEl = null;
+    let drag = null;
+    let currentState = 'idle';
+    let bubbleTimer = null;
+    let pendingBubble = null;
+    let loadedPetId = null;
+    let petRuntimeInitialized = false;
+    let petCatalogHydration = null;
+    let ambientTimer = null;
+    let ambientReturnTimer = null;
+    let ambientMoveFrame = null;
+    let reactionTimer = null;
+
+    function petEnabled() {
+        return String(settingValue('pet.enabled')).toLowerCase() !== 'false';
+    }
+
+    function petScale() {
+        const raw = settingValue('pet.scale') || '1.0';
+        const v = parseFloat(raw);
+        if (!Number.isFinite(v) || v < 0.25 || v > 3) return 1;
+        return v;
+    }
+
+    function petPosition() {
+        const x = parseInt(settingValue('pet.position_x') || '24', 10);
+        const y = parseInt(settingValue('pet.position_y') || '24', 10);
+        return {
+            x: Number.isFinite(x) ? x : 24,
+            y: Number.isFinite(y) ? y : 24
+        };
+    }
+
+    function petAlwaysOnTop() {
+        return String(settingValue('pet.always_on_top')).toLowerCase() === 'true';
+    }
+
+    function activePet() {
+        const boot = state.bootstrap || {};
+        const id = boot.active_pet_id || settingValue('pet.active_id') || '';
+        const pets = boot.pets || [];
+        if (!pets.length) return null;
+        const pet = pets.find(p => p.id === id);
+        return pet || pets[0] || null;
+    }
+
+    function petAssetURL(id, relPath) {
+        const cleanPath = String(relPath || 'spritesheet.webp')
+            .replace(/\\/g, '/')
+            .split('/')
+            .map(part => part.trim())
+            .filter(part => part && part !== '.' && part !== '..')
+            .map(encodeURIComponent)
+            .join('/');
+        if (!id || !cleanPath) return '';
+        return '/files/desktop/Pets/' + encodeURIComponent(id) + '/' + cleanPath;
+    }
+
+    function spritesheetURL(pet) {
+        if (!pet || !pet.spritesheet) return '';
+        return petAssetURL(pet.id, pet.spritesheet);
+    }
+
+    function syncPetBootstrap(payload) {
+        if (!state.bootstrap || !payload) return;
+        if (Array.isArray(payload.pets)) {
+            state.bootstrap.pets = payload.pets;
+        }
+        if (payload.settings) {
+            state.bootstrap.settings = Object.assign({}, state.bootstrap.settings || {}, payload.settings);
+        }
+        if (Object.prototype.hasOwnProperty.call(payload, 'active_pet_id')) {
+            state.bootstrap.active_pet_id = payload.active_pet_id || '';
+            const settings = Object.assign({}, state.bootstrap.settings || {});
+            settings['pet.active_id'] = state.bootstrap.active_pet_id;
+            state.bootstrap.settings = settings;
+        }
+    }
+
+    async function hydratePetCatalog() {
+        if (petCatalogHydration) return petCatalogHydration;
+        petCatalogHydration = Promise.all([
+            api('/api/desktop/pets'),
+            api('/api/desktop/settings')
+        ]).then(([petsBody, settingsBody]) => {
+            const pets = Array.isArray(petsBody && petsBody.pets) ? petsBody.pets : [];
+            const settings = settingsBody && settingsBody.settings ? settingsBody.settings : {};
+            syncPetBootstrap({
+                pets,
+                active_pet_id: (petsBody && petsBody.active_pet_id) || '',
+                settings
+            });
+            if (activePet() && petEnabled()) loadPet();
+        }).catch(() => {
+            // Bootstrap can be intentionally unavailable while the desktop is disabled.
+        }).finally(() => {
+            petCatalogHydration = null;
+        });
+        return petCatalogHydration;
+    }
+
+    function clampToViewport(rect) {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const minVisible = 48;
+        return {
+            x: Math.max(minVisible - rect.w, Math.min(rect.x, vw - minVisible)),
+            y: Math.max(0, Math.min(rect.y, vh - minVisible))
+        };
+    }
+
+    function ensureLayer() {
+        if (layer) return;
+        layer = document.createElement('div');
+        layer.id = 'vd-pet-layer';
+        layer.className = 'vd-pet-layer';
+        layer.innerHTML = '<div class="vd-pet-sprite" role="img" aria-label="Desktop pet"></div><div class="vd-pet-bubble" hidden></div>';
+        document.body.appendChild(layer);
+        spriteEl = layer.querySelector('.vd-pet-sprite');
+        bubbleEl = layer.querySelector('.vd-pet-bubble');
+        wireDrag();
+    }
+
+    function removeLayer() {
+        if (!layer) return;
+        clearAmbientTimers();
+        clearReactionTimer();
+        layer.remove();
+        layer = null;
+        spriteEl = null;
+        bubbleEl = null;
+        if (bubbleTimer) {
+            clearTimeout(bubbleTimer);
+            bubbleTimer = null;
+        }
+    }
+
+    function updateLayerZIndex() {
+        if (!layer) return;
+        layer.dataset.alwaysOnTop = petAlwaysOnTop() ? 'true' : 'false';
+    }
+
+    function applyPosition() {
+        if (!layer) return;
+        const pos = petPosition();
+        const scale = petScale();
+        const w = Math.round(PET_FRAME_W * scale);
+        const h = Math.round(PET_FRAME_H * scale);
+        const clamped = clampToViewport({ x: pos.x, y: pos.y, w, h });
+        layer.style.left = clamped.x + 'px';
+        layer.style.top = clamped.y + 'px';
+        layer.style.width = w + 'px';
+        layer.style.height = h + 'px';
+        if (spriteEl) spriteEl.style.transform = 'scale(' + scale + ')';
+        positionBubbleInViewport();
+    }
+
+    function setSpriteState(stateId) {
+        if (!spriteEl) return;
+        const def = stateRows[stateId] || stateRows.idle;
+        currentState = stateId;
+        spriteEl.dataset.state = stateId;
+        spriteEl.style.setProperty('--pet-row', String(def.row));
+        spriteEl.style.setProperty('--pet-frames', String(def.frames));
+        spriteEl.style.setProperty('--pet-row-y', '-' + (def.row * PET_FRAME_H) + 'px');
+        spriteEl.style.setProperty('--pet-frame-end-x', '-' + (def.frames * PET_FRAME_W) + 'px');
+        spriteEl.style.setProperty('--pet-duration', def.duration + 'ms');
+        spriteEl.style.setProperty('--pet-iterations', String(def.iterations || 'infinite'));
+        // Reset animation to restart from first frame.
+        spriteEl.style.animation = 'none';
+        void spriteEl.offsetWidth;
+        spriteEl.style.animation = '';
+    }
+
+    function randomAmbientDelay() {
+        return AMBIENT_MIN_DELAY_MS + Math.floor(Math.random() * (AMBIENT_MAX_DELAY_MS - AMBIENT_MIN_DELAY_MS + 1));
+    }
+
+    function ambientPlaybackMs(stateId) {
+        const def = stateRows[stateId] || stateRows.idle;
+        const iterations = Number(def.iterations || 1);
+        return Math.max(300, def.duration * (Number.isFinite(iterations) ? iterations : 1) + AMBIENT_RETURN_PADDING_MS);
+    }
+
+    function clearAmbientTimers() {
+        if (ambientTimer) {
+            window.clearTimeout(ambientTimer);
+            ambientTimer = null;
+        }
+        if (ambientReturnTimer) {
+            window.clearTimeout(ambientReturnTimer);
+            ambientReturnTimer = null;
+        }
+        if (ambientMoveFrame) {
+            window.cancelAnimationFrame(ambientMoveFrame);
+            ambientMoveFrame = null;
+        }
+    }
+
+    function clearReactionTimer() {
+        if (reactionTimer) {
+            window.clearTimeout(reactionTimer);
+            reactionTimer = null;
+        }
+    }
+
+    function scheduleAmbientAnimation() {
+        if (!layer || !spriteEl || !petEnabled()) return;
+        if (ambientTimer) window.clearTimeout(ambientTimer);
+        ambientTimer = window.setTimeout(playAmbientAnimation, randomAmbientDelay());
+    }
+
+    function ambientRunDistance() {
+        return AMBIENT_RUN_MIN_DISTANCE + Math.floor(Math.random() * (AMBIENT_RUN_MAX_DISTANCE - AMBIENT_RUN_MIN_DISTANCE + 1));
+    }
+
+    function ambientRunPlan() {
+        if (!layer) return null;
+        const scale = petScale();
+        const startX = layer.offsetLeft;
+        const startY = layer.offsetTop;
+        const w = Math.round(PET_FRAME_W * scale);
+        const h = Math.round(PET_FRAME_H * scale);
+        const distance = ambientRunDistance();
+        let direction = Math.random() < 0.5 ? -1 : 1;
+        let target = clampToViewport({ x: startX + direction * distance, y: startY, w, h });
+        if (Math.abs(target.x - startX) < 48) {
+            direction *= -1;
+            target = clampToViewport({ x: startX + direction * distance, y: startY, w, h });
+        }
+        return {
+            startX,
+            startY,
+            targetX: target.x,
+            targetY: target.y,
+            deltaX: target.x - startX
+        };
+    }
+
+    function moveAmbientRun(runPlan, durationMs, done) {
+        if (!layer || !runPlan || Math.abs(runPlan.deltaX) < 12) {
+            if (typeof done === 'function') done();
+            return;
+        }
+        const duration = Math.max(320, Number(durationMs) || 820);
+        const startedAt = Date.now();
+        const tick = () => {
+            if (!layer) return;
+            const progress = Math.min(1, (Date.now() - startedAt) / duration);
+            const eased = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+            layer.style.left = Math.round(runPlan.startX + runPlan.deltaX * eased) + 'px';
+            layer.style.top = runPlan.startY + 'px';
+            if (progress < 1 && !drag) {
+                ambientMoveFrame = window.requestAnimationFrame(tick);
+                return;
+            }
+            ambientMoveFrame = null;
+            if (layer && !drag) {
+                layer.style.left = runPlan.targetX + 'px';
+                layer.style.top = runPlan.targetY + 'px';
+            }
+            if (typeof done === 'function') done();
+        };
+        ambientMoveFrame = window.requestAnimationFrame(tick);
+    }
+
+    function playAmbientAnimation() {
+        ambientTimer = null;
+        if (!layer || !spriteEl || !petEnabled()) return;
+        if (drag || currentState !== 'idle') {
+            scheduleAmbientAnimation();
+            return;
+        }
+        const ambientState = ambientStates[Math.floor(Math.random() * ambientStates.length)] || 'waving';
+        if (ambientState === 'running') {
+            const runPlan = ambientRunPlan();
+            if (!runPlan) {
+                scheduleAmbientAnimation();
+                return;
+            }
+            const runningState = runPlan.deltaX < 0 ? 'running-left' : 'running-right';
+            setSpriteState(runningState);
+            moveAmbientRun(runPlan, ambientPlaybackMs(runningState), () => {
+                if (layer && currentState === runningState) setSpriteState('idle');
+                scheduleAmbientAnimation();
+            });
+            return;
+        }
+        setSpriteState(ambientState);
+        if (ambientReturnTimer) window.clearTimeout(ambientReturnTimer);
+        ambientReturnTimer = window.setTimeout(() => {
+            ambientReturnTimer = null;
+            if (layer && currentState === ambientState) setSpriteState('idle');
+            scheduleAmbientAnimation();
+        }, ambientPlaybackMs(ambientState));
+    }
+
+    function loadPet() {
+        const pet = activePet();
+        if (!pet) {
+            removeLayer();
+            loadedPetId = null;
+            hydratePetCatalog();
+            return;
+        }
+        if (!petEnabled()) {
+            removeLayer();
+            loadedPetId = null;
+            return;
+        }
+        ensureLayer();
+        const url = spritesheetURL(pet);
+        if (!url) {
+            removeLayer();
+            return;
+        }
+        if (loadedPetId !== pet.id) {
+            loadedPetId = pet.id;
+            spriteEl.style.backgroundImage = 'url("' + url + '")';
+            spriteEl.setAttribute('aria-label', pet.display_name || pet.id);
+        }
+        applyPosition();
+        updateLayerZIndex();
+        clearAmbientTimers();
+        clearReactionTimer();
+        setSpriteState('idle');
+        scheduleAmbientAnimation();
+    }
+
+    function queuePendingBubble(message, type) {
+        if (!petEnabled() || !petCatalogHydration || typeof petCatalogHydration.then !== 'function') return;
+        pendingBubble = { message, type };
+        petCatalogHydration.then(() => {
+            const pending = pendingBubble;
+            pendingBubble = null;
+            if (pending && pending.message) showBubble(pending.message, pending.type, false);
+        });
+    }
+
+    function positionBubbleInViewport() {
+        if (!layer || !bubbleEl || bubbleEl.hidden) return;
+        const layerRect = layer.getBoundingClientRect();
+        const bubbleRect = bubbleEl.getBoundingClientRect();
+        if (!bubbleRect.width || !window.innerWidth) return;
+        const desiredCenter = layerRect.left + layerRect.width / 2;
+        const minCenter = BUBBLE_VIEWPORT_MARGIN + bubbleRect.width / 2;
+        const maxCenter = window.innerWidth - BUBBLE_VIEWPORT_MARGIN - bubbleRect.width / 2;
+        const clampedCenter = Math.max(minCenter, Math.min(desiredCenter, maxCenter));
+        bubbleEl.style.left = Math.round(clampedCenter - layerRect.left) + 'px';
+    }
+
+    function showBubble(message, type, allowDeferred = true) {
+        const text = String(message || '').slice(0, MAX_BUBBLE_CHARS);
+        if (!text) return;
+        if (!bubbleEl) {
+            loadPet();
+        }
+        if (!bubbleEl) {
+            if (allowDeferred) queuePendingBubble(text, type);
+            return;
+        }
+        if (bubbleTimer) {
+            clearTimeout(bubbleTimer);
+            bubbleTimer = null;
+        }
+        bubbleEl.textContent = text;
+        bubbleEl.hidden = false;
+        bubbleEl.className = 'vd-pet-bubble' + (type ? ' is-' + type : '');
+        bubbleEl.classList.add('is-visible');
+        bubbleEl.classList.add('opening');
+        positionBubbleInViewport();
+        setTimeout(() => bubbleEl.classList.remove('opening'), 200);
+        const duration = text.length > 70 ? LONG_BUBBLE_DURATION_MS : BUBBLE_DURATION_MS;
+        bubbleTimer = setTimeout(() => hideBubble(), duration);
+    }
+
+    function hideBubble() {
+        if (!bubbleEl) return;
+        bubbleEl.hidden = true;
+        bubbleEl.textContent = '';
+        bubbleEl.className = 'vd-pet-bubble';
+        bubbleEl.style.left = '';
+        if (bubbleTimer) {
+            clearTimeout(bubbleTimer);
+            bubbleTimer = null;
+        }
+    }
+
+    function applyReaction(reaction) {
+        const stateId = reactionToState[reaction] || 'idle';
+        clearAmbientTimers();
+        setSpriteState(stateId);
+        if (stateId === 'idle') scheduleAmbientAnimation();
+        return stateId;
+    }
+
+    function setReaction(reaction) {
+        clearReactionTimer();
+        applyReaction(reaction);
+    }
+
+    function react(reaction, options = {}) {
+        const reactionName = reactionToState[reaction] ? reaction : 'idle';
+        clearReactionTimer();
+        const stateId = applyReaction(reactionName);
+        if (stateId === 'idle') return;
+        const duration = Math.max(500, Number(options.durationMs || PET_REACTION_DURATIONS_MS[reactionName] || PET_REACTION_DURATION_MS));
+        reactionTimer = window.setTimeout(() => {
+            reactionTimer = null;
+            if (layer && currentState === stateId && !drag) {
+                setSpriteState('idle');
+                scheduleAmbientAnimation();
+            }
+        }, duration);
+    }
+
+    function eventDetail(data) {
+        if (!data) return '';
+        const payload = data.payload && typeof data.payload === 'object' ? data.payload : data;
+        return String(payload.tool_name || payload.toolName || data.detail || data.message || '').toLowerCase();
+    }
+
+    function toolActivityReaction(data) {
+        const detail = eventDetail(data);
+        if (detail.includes('test') || detail.includes('pytest') || detail.includes('go test') || detail.includes('npm test')) return 'testing';
+        if (detail.includes('write') || detail.includes('edit') || detail.includes('patch') || detail.includes('code')) return 'editing';
+        if (detail.includes('wait') || detail.includes('sleep')) return 'waiting';
+        return 'working';
+    }
+
+    function agentActionStateReaction(data) {
+        const payload = data && data.payload && typeof data.payload === 'object' ? data.payload : data || {};
+        const state = String(payload.state || payload.action_state || payload.actionState || '').toLowerCase();
+        if (state === 'succeeded' || state === 'sanitized') return 'success';
+        if (state === 'failed' || state === 'blocked' || state === 'cancelled') return 'error';
+        if (state === 'started' || state === 'accepted') return toolActivityReaction(payload);
+        if (state === 'proposed') return 'thinking';
+        return '';
+    }
+
+    function petReactionForAgentEvent(data) {
+        if (!data) return '';
+        const event = data.event || data.type || '';
+        if (event === 'thinking' || event === 'workflow_plan') return 'thinking';
+        if (event === 'thinking_block') return data.state === 'stop' ? 'waiting' : 'thinking';
+        if (event === 'tool_start') return toolActivityReaction(data);
+        if (event === 'tool_end') return 'success';
+        if (event === 'agent_action') return agentActionStateReaction(data);
+        if (event === 'co_agent_spawn') return 'working';
+        if (event === 'coding') return 'editing';
+        if (event === 'error_recovery' || event === 'error') return 'error';
+        if (event === 'question_user') return 'waving';
+        if (event === 'final_response' || event === 'done') return 'success';
+        return '';
+    }
+
+    function classifyAgentResponseReaction(text) {
+        const message = String(text || '').toLowerCase();
+        if (!message) return 'idle';
+        if (/[?？]$/.test(message.trim())) return 'waving';
+        if (message.includes('error') || message.includes('failed') || message.includes('fehler') || message.includes('problem')) return 'error';
+        if (message.includes('done') || message.includes('fixed') || message.includes('fertig') || message.includes('erledigt') || message.includes('success')) return 'celebrating';
+        return 'success';
+    }
+
+    function handleAgentEvent(data) {
+        const reaction = petReactionForAgentEvent(data);
+        if (reaction) react(reaction);
+    }
+
+    function announceAgentResponse(text) {
+        const message = String(text || '').trim();
+        if (!message) return;
+        showBubble(message, 'info');
+        react(classifyAgentResponseReaction(message), { durationMs: PET_REACTION_DURATIONS_MS.success });
+    }
+
+    async function saveSetting(key, value) {
+        try {
+            const body = await api('/api/desktop/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key, value })
+            });
+            syncPetBootstrap({ settings: body.settings || { [key]: value } });
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        }
+    }
+
+    function dragHangPosition(pointerX, pointerY) {
+        const scale = petScale();
+        const w = Math.round(PET_FRAME_W * scale);
+        const h = Math.round(PET_FRAME_H * scale);
+        return clampToViewport({
+            x: Math.round(pointerX - w / 2),
+            y: Math.round(pointerY + DRAG_HANG_OFFSET_Y),
+            w,
+            h
+        });
+    }
+
+    function applyLayerTilt(deg) {
+        if (!layer) return;
+        layer.style.transform = 'rotate(' + deg.toFixed(2) + 'deg)';
+    }
+
+    function applyDragHangPosition() {
+        if (!layer || !drag) return;
+        const pos = dragHangPosition(drag.pointerX, drag.pointerY);
+        layer.style.left = pos.x + 'px';
+        layer.style.top = pos.y + 'px';
+        applyLayerTilt(drag.tilt);
+    }
+
+    function stepDragPhysics(now) {
+        if (!drag) return;
+        const prev = drag.lastSampleAt || now;
+        const dt = Math.min(0.05, Math.max(0.001, (now - prev) / 1000));
+        drag.lastSampleAt = now;
+        const instVelX = (drag.pointerX - drag.lastPointerX) / dt;
+        drag.lastPointerX = drag.pointerX;
+        drag.velX = drag.velX * (1 - DRAG_VEL_SMOOTH) + instVelX * DRAG_VEL_SMOOTH;
+        const tiltTarget = Math.max(-DRAG_TILT_MAX_DEG, Math.min(DRAG_TILT_MAX_DEG, drag.velX * DRAG_TILT_GAIN));
+        const tiltAccel = (tiltTarget - drag.tilt) * DRAG_TILT_SPRING - drag.tiltVel * DRAG_TILT_DAMPING;
+        drag.tiltVel += tiltAccel * dt;
+        drag.tilt += drag.tiltVel * dt;
+        applyDragHangPosition();
+    }
+
+    function startDragMotionLoop() {
+        if (!drag) return;
+        const tick = now => {
+            if (!drag) return;
+            stepDragPhysics(now);
+            drag.frame = window.requestAnimationFrame(tick);
+        };
+        drag.frame = window.requestAnimationFrame(tick);
+    }
+
+    function stopDragMotionLoop() {
+        if (drag && drag.frame) {
+            window.cancelAnimationFrame(drag.frame);
+            drag.frame = null;
+        }
+    }
+
+    function settleDragTilt(onDone) {
+        if (!layer) {
+            if (typeof onDone === 'function') onDone();
+            return;
+        }
+        stopDragMotionLoop();
+        const state = {
+            tilt: drag ? drag.tilt : 0,
+            tiltVel: drag ? drag.tiltVel + (drag.velX || 0) * 0.015 : 0
+        };
+        let last = performance.now();
+        const tick = now => {
+            const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
+            last = now;
+            const tiltAccel = (0 - state.tilt) * DRAG_TILT_SPRING - state.tiltVel * DRAG_TILT_DAMPING;
+            state.tiltVel += tiltAccel * dt;
+            state.tilt += state.tiltVel * dt;
+            applyLayerTilt(state.tilt);
+            if (Math.abs(state.tilt) < DRAG_SETTLE_EPS && Math.abs(state.tiltVel) < DRAG_SETTLE_EPS) {
+                applyLayerTilt(0);
+                layer.style.transform = '';
+                if (typeof onDone === 'function') onDone();
+                return;
+            }
+            state.frame = window.requestAnimationFrame(tick);
+        };
+        state.frame = window.requestAnimationFrame(tick);
+        if (drag) drag.settleFrame = state.frame;
+    }
+
+    function cancelDragSettle() {
+        if (drag && drag.settleFrame) {
+            window.cancelAnimationFrame(drag.settleFrame);
+            drag.settleFrame = null;
+        }
+    }
+
+
+    function wireDrag() {
+        if (!layer) return;
+        layer.addEventListener('pointerdown', event => {
+            if (event.button !== 0) return;
+            clearAmbientTimers();
+            cancelDragSettle();
+            stopDragMotionLoop();
+            const now = performance.now();
+            drag = {
+                pointerId: event.pointerId,
+                pointerX: event.clientX,
+                pointerY: event.clientY,
+                lastPointerX: event.clientX,
+                lastSampleAt: now,
+                velX: 0,
+                tilt: 0,
+                tiltVel: 0,
+                frame: null,
+                settleFrame: null
+            };
+            layer.setPointerCapture(event.pointerId);
+            layer.classList.add('dragging');
+            applyDragHangPosition();
+            startDragMotionLoop();
+        });
+        layer.addEventListener('pointermove', event => {
+            if (!drag || drag.pointerId !== event.pointerId) return;
+            drag.pointerX = event.clientX;
+            drag.pointerY = event.clientY;
+        });
+        layer.addEventListener('pointerup', event => {
+            if (!drag || drag.pointerId !== event.pointerId) return;
+            layer.releasePointerCapture(event.pointerId);
+            layer.classList.remove('dragging');
+            const x = layer.offsetLeft;
+            const y = layer.offsetTop;
+            settleDragTilt(() => {
+                cancelDragSettle();
+                drag = null;
+                saveSetting('pet.position_x', String(x));
+                saveSetting('pet.position_y', String(y));
+            });
+        });
+        layer.addEventListener('pointercancel', event => {
+            if (!drag || drag.pointerId !== event.pointerId) return;
+            layer.releasePointerCapture(event.pointerId);
+            layer.classList.remove('dragging');
+            cancelDragSettle();
+            stopDragMotionLoop();
+            drag = null;
+            if (layer) layer.style.transform = '';
+            applyPosition();
+        });
+        layer.addEventListener('contextmenu', event => {
+            event.preventDefault();
+            showPetContextMenu(event);
+        });
+    }
+
+    function showPetContextMenu(event) {
+        const petVisible = petEnabled();
+        const petOnTop = petAlwaysOnTop();
+        const items = [
+            { label: t('desktop.pet_open_picker'), icon: 'heart', action: () => openApp('pet-picker') },
+            { separator: true },
+            { label: t('desktop.pet_enabled'), icon: petVisible ? 'check-square' : 'square', fallback: petVisible ? '\u2713' : '\u2610', action: toggleEnabled },
+            { label: t('desktop.pet_always_on_top'), icon: petOnTop ? 'check-square' : 'square', fallback: petOnTop ? '\u2713' : '\u2610', action: toggleAlwaysOnTop },
+            { separator: true },
+            { label: t('desktop.pet_hide_bubble'), icon: 'x', action: hideBubble }
+        ];
+        showContextMenu(event.clientX, event.clientY, items);
+    }
+
+    function toggleEnabled() {
+        const next = !petEnabled();
+        saveSetting('pet.enabled', String(next)).then(() => {
+            loadPet();
+            if (next) showBubble(t('desktop.pet_hello'), 'info');
+        });
+    }
+
+    function toggleAlwaysOnTop() {
+        const next = !petAlwaysOnTop();
+        saveSetting('pet.always_on_top', String(next)).then(updateLayerZIndex);
+    }
+
+    function handlePetEvent(event) {
+        switch (event.type) {
+            case 'pet_changed':
+                syncPetBootstrap(event.payload);
+                loadPet();
+                return;
+            case 'pet_reaction_changed':
+                if (event.payload && event.payload.reaction) {
+                    setReaction(event.payload.reaction);
+                }
+                return;
+            case 'pet_say':
+                if (event.payload && event.payload.message) {
+                    showBubble(event.payload.message, event.payload.type || 'info');
+                }
+                return;
+            case 'pet_setting_changed':
+                if (event.payload) {
+                    syncPetBootstrap({ settings: { [event.payload.key]: event.payload.value } });
+                }
+                loadPet();
+                return;
+        }
+    }
+
+    function initPetRuntime() {
+        if (typeof window.addEventListener !== 'function') return;
+        if (petRuntimeInitialized) return;
+        petRuntimeInitialized = true;
+        window.addEventListener('resize', () => {
+            if (layer) applyPosition();
+        });
+        // Re-render after bootstrap is ready.
+        const check = () => {
+            if (state.bootstrap) {
+                loadPet();
+            } else {
+                setTimeout(check, 100);
+            }
+        };
+        check();
+    }
+
+    window.PetRuntime = {
+        init: initPetRuntime,
+        load: loadPet,
+        setReaction,
+        say: showBubble,
+        react,
+        handleAgentEvent,
+        announceAgentResponse,
+        hideBubble,
+        handleEvent: handlePetEvent,
+        syncBootstrap: syncPetBootstrap,
+        saveSetting
+    };
+    initPetRuntime();
+})();

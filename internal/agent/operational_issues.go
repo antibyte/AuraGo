@@ -95,7 +95,7 @@ func operationalIssueContext(runCfg RunConfig) string {
 }
 
 func operationalIssueReminderText(runCfg RunConfig, initialUserMsg string, isFirstTurn bool, logger *slog.Logger) string {
-	if !shouldInjectOperationalIssueReminder(runCfg, initialUserMsg, isFirstTurn) {
+	if !shouldConsiderOperationalIssueReminder(runCfg, initialUserMsg) {
 		return ""
 	}
 	issues, err := planner.ListOperationalIssueTodos(runCfg.PlannerDB, 5)
@@ -105,20 +105,50 @@ func operationalIssueReminderText(runCfg RunConfig, initialUserMsg string, isFir
 		}
 		return ""
 	}
-	return planner.BuildOperationalIssueReminderText(issues)
+	reminder := planner.BuildOperationalIssueReminderText(issues)
+	if strings.TrimSpace(reminder) == "" {
+		return ""
+	}
+
+	debugMode := runCfg.Config != nil && runCfg.Config.Agent.DebugMode
+	if GetDebugMode() {
+		debugMode = true
+	}
+	if isFirstTurn {
+		if _, err := planner.ClaimOperationalIssueReminderForDay(runCfg.PlannerDB, time.Now()); err != nil && logger != nil {
+			logger.Warn("Failed to claim operational issue reminder", "error", err)
+		}
+		return reminder
+	}
+	if shouldInjectOperationalIssueReminderForTurn(initialUserMsg, reminder, debugMode) {
+		return reminder
+	}
+	claimed, err := planner.ClaimOperationalIssueReminderForDay(runCfg.PlannerDB, time.Now())
+	if err != nil {
+		if logger != nil {
+			logger.Warn("Failed to claim operational issue reminder", "error", err)
+		}
+		return ""
+	}
+	if claimed {
+		return reminder
+	}
+	return ""
 }
 
-func shouldInjectOperationalIssueReminder(runCfg RunConfig, initialUserMsg string, isFirstTurn bool) bool {
-	if runCfg.PlannerDB == nil || strings.TrimSpace(initialUserMsg) == "" || !isFirstTurn {
+func shouldConsiderOperationalIssueReminder(runCfg RunConfig, initialUserMsg string) bool {
+	if runCfg.PlannerDB == nil || strings.TrimSpace(initialUserMsg) == "" {
 		return false
 	}
 	if runCfg.IsCoAgent || runCfg.IsMission || runCfg.IsMaintenance {
 		return false
 	}
 	switch strings.ToLower(strings.TrimSpace(runCfg.MessageSource)) {
-	case "mission", "maintenance", "a2a", "planner_notification", "cron", "daemon":
+	case "", "web_chat", "telegram", "discord", "sms", "rocketchat", "agodesk_chat", "virtual_desktop_chat":
+		return true
+	case "mission", "maintenance", "a2a", "planner_notification", "cron", "daemon", "heartbeat", "follow_up", "uptime_kuma", "webhook", "mqtt":
 		return false
 	default:
-		return true
+		return false
 	}
 }

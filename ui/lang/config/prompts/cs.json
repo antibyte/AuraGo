@@ -35,5 +35,6 @@
   "config.prompts.saved": "Uloženo.",
   "config.prompts.setting_active": "Nastavování aktivní...",
   "config.prompts.delete_confirm": "Opravdu smazat osobnost \"{name}\"?",
-  "config.prompts.deleting": "Mazání..."
+  "config.prompts.deleting": "Mazání...",
+  "config.prompts.delete_confirm_title": "Smazat osobnost?"
 }

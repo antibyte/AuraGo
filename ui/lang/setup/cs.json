@@ -194,5 +194,11 @@
   "setup.toast_config_saved": "Konfigurace uložena!",
   "setup.toast_error_prefix": "Chyba:",
   "setup.plan_embedding_warning": "Tento plán nepoužívá OpenRouter. Ujistěte se prosím, že je nakonfigurován model embeddings; AuraGo bez embeddings nedosáhne svých plných schopností.",
-  "setup.provider_embedding_warning": "U jiných poskytovatelů než OpenRouter vyberte a ověřte model embeddings v dalším kroku nastavení. AuraGo bez embeddings nedosáhne svých plných schopností."
+  "setup.provider_embedding_warning": "U jiných poskytovatelů než OpenRouter vyberte a ověřte model embeddings v dalším kroku nastavení. AuraGo bez embeddings nedosáhne svých plných schopností.",
+  "setup.success_config_links_title": "Recommended next steps",
+  "setup.success_config_links_desc": "Open the full configuration when you want to fine-tune these areas.",
+  "setup.success_config_providers": "Review providers & models",
+  "setup.success_config_security": "Login & security",
+  "setup.success_config_server": "Server & ports",
+  "setup.success_config_backup": "Set up backups"
 }

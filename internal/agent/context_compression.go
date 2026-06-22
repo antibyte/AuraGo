@@ -90,7 +90,7 @@ func CompressHistory(
 	// which is never compressed and is counted separately in the prompt budget).
 	// Subtract system prompt tokens from the available budget so that compression triggers
 	// early enough to prevent the context guard from hard-trimming without a summary.
-	sysTokens := prompts.CountTokensForModel(messageText(messages[0]), model) + 4
+	sysTokens := prompts.CountTokensForModel(messageTextWithReasoningForAccounting(messages[0]), model) + 4
 	availableForHistory := maxHistoryTokens - sysTokens
 	if availableForHistory < 0 {
 		availableForHistory = 0
@@ -98,7 +98,7 @@ func CompressHistory(
 
 	totalTokens := 0
 	for _, m := range messages[1:] {
-		totalTokens += prompts.CountTokensForModel(messageText(m), model) + 4
+		totalTokens += prompts.CountTokensForModel(messageTextWithReasoningForAccounting(m), model) + 4
 	}
 
 	threshold := int(float64(availableForHistory) * compressionThresholdPct)
@@ -206,7 +206,7 @@ func CompressHistory(
 	// Compute total message tokens for the compressed result (excl. system prompt at index 0).
 	compressedTotal := result.SummaryTokens + 4 // summary message overhead
 	for _, m := range messages[tailStart:] {
-		compressedTotal += prompts.CountTokensForModel(messageText(m), model) + 4
+		compressedTotal += prompts.CountTokensForModel(messageTextWithReasoningForAccounting(m), model) + 4
 	}
 	result.TotalTokens = compressedTotal
 

@@ -150,6 +150,42 @@ func TestBuiltinAppsExposeCheaterAndMissionControlMetadata(t *testing.T) {
 	}
 }
 
+func TestBuiltinAppsExposeTeeVeeMetadata(t *testing.T) {
+	apps := BuiltinApps()
+
+	teevee := testFindApp(t, apps, "teevee")
+	if !teevee.Builtin || teevee.Deletable || !teevee.DockVisible || !teevee.StartVisible {
+		t.Fatalf("teevee visibility = builtin:%v deletable:%v dock:%v start:%v, want first-party visible app", teevee.Builtin, teevee.Deletable, teevee.DockVisible, teevee.StartVisible)
+	}
+	if teevee.Name != "TeeVee" {
+		t.Fatalf("teevee name = %q, want TeeVee", teevee.Name)
+	}
+	if teevee.Icon != "teevee" || teevee.Entry != "builtin://teevee" || teevee.Runtime != BuiltinRuntime {
+		t.Fatalf("teevee manifest icon/entry/runtime = %q/%q/%q, want teevee/builtin://teevee/%q", teevee.Icon, teevee.Entry, teevee.Runtime, BuiltinRuntime)
+	}
+	if !strings.Contains(strings.ToLower(teevee.Description), "iptv") {
+		t.Fatalf("teevee description should mention IPTV source, got %q", teevee.Description)
+	}
+}
+
+func TestBuiltinAppsExposeChessMetadata(t *testing.T) {
+	apps := BuiltinApps()
+
+	chess := testFindApp(t, apps, "chess")
+	if !chess.Builtin || chess.Deletable || !chess.DockVisible || !chess.StartVisible {
+		t.Fatalf("chess visibility = builtin:%v deletable:%v dock:%v start:%v, want first-party visible app", chess.Builtin, chess.Deletable, chess.DockVisible, chess.StartVisible)
+	}
+	if chess.Name != "Chess" {
+		t.Fatalf("chess name = %q, want Chess", chess.Name)
+	}
+	if chess.Icon != "chess" || chess.Entry != "builtin://chess" || chess.Runtime != BuiltinRuntime {
+		t.Fatalf("chess manifest icon/entry/runtime = %q/%q/%q, want chess/builtin://chess/%q", chess.Icon, chess.Entry, chess.Runtime, BuiltinRuntime)
+	}
+	if !strings.Contains(strings.ToLower(chess.Description), "chess") {
+		t.Fatalf("chess description should mention chess, got %q", chess.Description)
+	}
+}
+
 func TestServiceMutationLockIsSharedAcrossServices(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "workspace")
 	dbPath := filepath.Join(t.TempDir(), "desktop.db")
@@ -328,6 +364,7 @@ func TestServiceBootstrapUsesDistinctBuiltinAppIcons(t *testing.T) {
 		"gallery":        "gallery",
 		"music-player":   "audio-player",
 		"radio":          "radio",
+		"teevee":         "teevee",
 		"agent-chat":     "agent-chat",
 		"code-studio":    "code-studio",
 		"looper":         "looper",
@@ -469,7 +506,7 @@ func TestServiceBootstrapIncludesGeneratedAppIconCatalog(t *testing.T) {
 	if bootstrap.IconCatalog.LegacySpritePrefix != "sprite:" {
 		t.Fatalf("legacy sprite prefix = %q, want sprite:", bootstrap.IconCatalog.LegacySpritePrefix)
 	}
-	for _, want := range []string{"analytics", "chat", "cloud", "mail", "notes", "server", "settings", "tools", "weather", "software-store", "pixel", "zipper", "trash-empty", "trash-full", "folder", "file-plus", "folder-plus", "refresh", "search", "run", "save", "stop", "eye", "heart", "maximize", "minus", "redo", "undo", "zoom-in", "zoom-out", "zoom-reset"} {
+	for _, want := range []string{"analytics", "chat", "chess", "cloud", "mail", "notes", "server", "settings", "tools", "weather", "software-store", "pixel", "zipper", "trash-empty", "trash-full", "folder", "file-plus", "folder-plus", "refresh", "search", "run", "save", "stop", "eye", "heart", "maximize", "minus", "redo", "undo", "zoom-in", "zoom-out", "zoom-reset"} {
 		if !stringSliceContains(bootstrap.IconCatalog.Preferred, want) {
 			t.Fatalf("icon catalog missing preferred icon %q: %+v", want, bootstrap.IconCatalog.Preferred)
 		}
@@ -481,7 +518,7 @@ func TestServiceBootstrapIncludesGeneratedAppIconCatalog(t *testing.T) {
 		t.Fatalf("stats alias = %q, want analytics", bootstrap.IconCatalog.Aliases["stats"])
 	}
 	for category, icons := range map[string][]string{
-		"games":        {"run", "video", "apps"},
+		"games":        {"chess", "run", "video", "apps"},
 		"office":       {"writer", "spreadsheet", "calendar"},
 		"tools":        {"tools", "settings", "terminal"},
 		"productivity": {"notes", "check-square", "workflow"},
@@ -498,6 +535,9 @@ func TestServiceBootstrapIncludesGeneratedAppIconCatalog(t *testing.T) {
 	}
 	if bootstrap.IconCatalog.Aliases["space-invaders"] != "run" {
 		t.Fatalf("space-invaders alias = %q, want run", bootstrap.IconCatalog.Aliases["space-invaders"])
+	}
+	if bootstrap.IconCatalog.Aliases["board-game"] != "chess" {
+		t.Fatalf("board-game alias = %q, want chess", bootstrap.IconCatalog.Aliases["board-game"])
 	}
 }
 
@@ -1948,6 +1988,45 @@ func TestBuiltinViewerIsInternalOnly(t *testing.T) {
 	}
 	if bootViewer.DockVisible || bootViewer.StartVisible {
 		t.Fatalf("bootstrap viewer must stay hidden, got dock_visible=%v start_visible=%v", bootViewer.DockVisible, bootViewer.StartVisible)
+	}
+}
+
+func TestBuiltinOpenSCADIsHiddenUntilStoreInstall(t *testing.T) {
+	t.Parallel()
+
+	var app AppManifest
+	for _, candidate := range BuiltinApps() {
+		if candidate.ID == "openscad" {
+			app = candidate
+			break
+		}
+	}
+	if app.ID == "" {
+		t.Fatal("openscad builtin app missing")
+	}
+	if app.Entry != "builtin://openscad" || app.Runtime != BuiltinRuntime {
+		t.Fatalf("openscad app route = %q/%q, want builtin://openscad/builtin", app.Entry, app.Runtime)
+	}
+	if app.Icon != "openscad" {
+		t.Fatalf("openscad icon = %q, want openscad", app.Icon)
+	}
+	if app.Internal {
+		t.Fatalf("openscad must not be internal; the Store needs to make it visible: %+v", app)
+	}
+	if app.DockVisible || app.StartVisible {
+		t.Fatalf("openscad should be hidden before Store install, got dock_visible=%v start_visible=%v", app.DockVisible, app.StartVisible)
+	}
+
+	bootstrap, err := testService(t).Bootstrap(context.Background())
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	bootApp := testFindApp(t, bootstrap.BuiltinApps, "openscad")
+	if bootApp.ID == "" {
+		t.Fatal("openscad missing from bootstrap builtin apps")
+	}
+	if bootApp.DockVisible || bootApp.StartVisible {
+		t.Fatalf("bootstrap openscad should be hidden before Store install, got dock_visible=%v start_visible=%v", bootApp.DockVisible, bootApp.StartVisible)
 	}
 }
 

@@ -42,8 +42,6 @@ func (kg *KnowledgeGraph) initTables() error {
 		FOREIGN KEY(target) REFERENCES kg_nodes(id) ON DELETE CASCADE
 	);
 
-	CREATE INDEX IF NOT EXISTS idx_kg_edges_source ON kg_edges(source);
-	CREATE INDEX IF NOT EXISTS idx_kg_edges_target ON kg_edges(target);
 	CREATE TABLE IF NOT EXISTS kg_meta (key TEXT PRIMARY KEY, value TEXT);
 	`
 	if _, err := kg.db.Exec(schema); err != nil {

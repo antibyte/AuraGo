@@ -147,15 +147,22 @@ func TestSyncCoreMemoryToKnowledgeGraphRemovesDeletedFacts(t *testing.T) {
 	SyncCoreMemoryToKnowledgeGraph(t.Context(), stm, kg, logger)
 
 	nodeID := fmt.Sprintf("core_fact_%d", id)
-	if node, err := kg.GetNode(nodeID); err != nil || node == nil {
+	node, err := kg.GetNode(nodeID)
+	if err != nil || node == nil {
 		t.Fatalf("expected synced core fact node, node=%v err=%v", node, err)
+	}
+	if node.Properties["source"] != "core_memory" {
+		t.Fatalf("expected source=core_memory, got %q", node.Properties["source"])
+	}
+	if node.Properties["type"] != "concept" {
+		t.Fatalf("expected type=concept, got %q", node.Properties["type"])
 	}
 	if err := stm.DeleteCoreMemoryFact(id); err != nil {
 		t.Fatalf("DeleteCoreMemoryFact: %v", err)
 	}
 	SyncCoreMemoryToKnowledgeGraph(t.Context(), stm, kg, logger)
 
-	node, err := kg.GetNode(nodeID)
+	node, err = kg.GetNode(nodeID)
 	if err != nil {
 		t.Fatalf("GetNode after delete: %v", err)
 	}

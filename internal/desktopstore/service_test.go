@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -17,29 +18,31 @@ import (
 func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 	catalog := DefaultCatalog()
 	expected := map[string]struct {
-		image string
-		port  int
-		icon  string
+		image   string
+		port    int
+		icon    string
+		runtime string
 	}{
-		"homarr":              {image: "ghcr.io/homarr-labs/homarr:latest", port: 7575, icon: "home"},
-		"n8n":                 {image: "ghcr.io/n8n-io/n8n:latest", port: 5678, icon: "workflow"},
-		"node-red":            {image: "ghcr.io/node-red/node-red:latest", port: 1880, icon: "workflow"},
-		"open-webui":          {image: "ghcr.io/open-webui/open-webui:main", port: 8080, icon: "chat"},
-		"adguard-home":        {image: "adguard/adguardhome", port: 3000, icon: "network"},
-		"excalidraw":          {image: "excalidraw/excalidraw:latest", port: 80, icon: "editor"},
-		"uptime-kuma":         {image: "ghcr.io/louislam/uptime-kuma:2", port: 3001, icon: "monitor"},
-		"olivetin":            {image: "ghcr.io/olivetin/olivetin:latest", port: 1337, icon: "terminal"},
-		"bytestash":           {image: "ghcr.io/jordan-dalby/bytestash:latest", port: 5000, icon: "code"},
-		"it-tools":            {image: "ghcr.io/corentinth/it-tools:latest", port: 80, icon: "tools"},
-		"filebrowser-quantum": {image: "ghcr.io/gtsteffaniak/filebrowser:stable", port: 80, icon: "folder"},
-		"stirling-pdf":        {image: "ghcr.io/stirling-tools/stirling-pdf:latest", port: 8080, icon: "pdf"},
-		"quakejs-rootless":    {image: "docker.io/awakenedpower/quakejs-rootless:latest", port: 8080, icon: "quakejs"},
-		"romm":                {image: "ghcr.io/rommapp/romm:latest", port: 8080, icon: "run"},
-		"beszel":              {image: "ghcr.io/henrygd/beszel/beszel:latest", port: 8090, icon: "monitor"},
-		"dozzle":              {image: "ghcr.io/amir20/dozzle:latest", port: 8080, icon: "terminal"},
-		"code-server":         {image: "ghcr.io/linuxserver/code-server:latest", port: 8443, icon: "code"},
-		"termix":              {image: "ghcr.io/lukegus/termix:latest", port: 8080, icon: "terminal"},
-		"commandcode":         {image: "ghcr.io/antibyte/aurago-commandcode:latest", port: 80, icon: "commandcode"},
+		"homarr":              {image: "ghcr.io/homarr-labs/homarr:latest", port: 7575, icon: "home", runtime: RuntimeContainerWebApp},
+		"n8n":                 {image: "ghcr.io/n8n-io/n8n:latest", port: 5678, icon: "n8n", runtime: RuntimeContainerWebApp},
+		"node-red":            {image: "ghcr.io/node-red/node-red:latest", port: 1880, icon: "node-red", runtime: RuntimeContainerWebApp},
+		"open-webui":          {image: "ghcr.io/open-webui/open-webui:main", port: 8080, icon: "open-webui", runtime: RuntimeContainerWebApp},
+		"adguard-home":        {image: "adguard/adguardhome", port: 3000, icon: "network", runtime: RuntimeContainerWebApp},
+		"excalidraw":          {image: "excalidraw/excalidraw:latest", port: 80, icon: "editor", runtime: RuntimeContainerWebApp},
+		"uptime-kuma":         {image: "ghcr.io/louislam/uptime-kuma:2", port: 3001, icon: "monitor", runtime: RuntimeContainerWebApp},
+		"olivetin":            {image: "ghcr.io/olivetin/olivetin:latest", port: 1337, icon: "olivetin", runtime: RuntimeContainerWebApp},
+		"bytestash":           {image: "ghcr.io/jordan-dalby/bytestash:latest", port: 5000, icon: "code", runtime: RuntimeContainerWebApp},
+		"it-tools":            {image: "ghcr.io/corentinth/it-tools:latest", port: 80, icon: "tools", runtime: RuntimeContainerWebApp},
+		"filebrowser-quantum": {image: "ghcr.io/gtsteffaniak/filebrowser:stable", port: 80, icon: "folder", runtime: RuntimeContainerWebApp},
+		"stirling-pdf":        {image: "ghcr.io/stirling-tools/stirling-pdf:latest", port: 8080, icon: "pdf", runtime: RuntimeContainerWebApp},
+		"quakejs-rootless":    {image: "docker.io/awakenedpower/quakejs-rootless:latest", port: 8080, icon: "quakejs", runtime: RuntimeContainerWebApp},
+		"romm":                {image: "ghcr.io/rommapp/romm:latest", port: 8080, icon: "romm", runtime: RuntimeContainerWebApp},
+		"beszel":              {image: "ghcr.io/henrygd/beszel/beszel:latest", port: 8090, icon: "monitor", runtime: RuntimeContainerWebApp},
+		"dozzle":              {image: "ghcr.io/amir20/dozzle:latest", port: 8080, icon: "dozzle", runtime: RuntimeContainerWebApp},
+		"code-server":         {image: "ghcr.io/linuxserver/code-server:latest", port: 8443, icon: "code", runtime: RuntimeContainerWebApp},
+		"termix":              {image: "ghcr.io/lukegus/termix:latest", port: 8080, icon: "termix", runtime: RuntimeContainerWebApp},
+		"commandcode":         {image: "ghcr.io/antibyte/aurago-commandcode:latest", port: 80, icon: "commandcode", runtime: RuntimeContainerWebApp},
+		"openscad":            {image: "openscad/openscad:latest", port: 0, icon: "openscad", runtime: RuntimeNativeManagedApp},
 	}
 	if len(catalog) != len(expected) {
 		t.Fatalf("expected %d catalog apps, got %d", len(expected), len(catalog))
@@ -59,8 +62,22 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		if entry.Icon != want.icon {
 			t.Fatalf("%s icon = %q, want %q", entry.ID, entry.Icon, want.icon)
 		}
+		if entry.Runtime != want.runtime {
+			t.Fatalf("%s runtime = %q, want %q", entry.ID, entry.Runtime, want.runtime)
+		}
 		if entry.Name == "" || entry.Description == "" || entry.LogoSlug == "" {
 			t.Fatalf("%s must have name, description and logo slug", entry.ID)
+		}
+		if entry.ID == "openscad" {
+			if entry.DesktopAppID != "openscad" {
+				t.Fatalf("openscad desktop app id = %q, want openscad", entry.DesktopAppID)
+			}
+			if entry.LogoURL != "" {
+				t.Fatalf("openscad logo URL = %q, want empty because desktop themes provide the icon", entry.LogoURL)
+			}
+			if entry.Metadata["native_runtime"] != "openscad" || entry.Metadata["open_maximized"] != "true" {
+				t.Fatalf("openscad metadata = %#v, want native runtime and maximized app", entry.Metadata)
+			}
 		}
 		if entry.ID == "uptime-kuma" {
 			hasFrameEnv := false
@@ -179,6 +196,61 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 	}
 	if len(expected) != 0 {
 		t.Fatalf("missing catalog entries: %#v", expected)
+	}
+}
+
+func TestNativeManagedInstallShowsBuiltinAppWithoutWebContainer(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	desktopAdapter := &fakeDesktopAdapter{}
+	native := &fakeNativeManagedRuntime{
+		status: NativeManagedStatus{
+			ContainerName: "aurago-openscad",
+			ContainerID:   "native-openscad",
+			Image:         "openscad/openscad:latest",
+			Status:        AppStatusStopped,
+		},
+	}
+	svc := newTestServiceWithNative(t, docker, desktopAdapter, nil, fixedPorts(18080), native)
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "openscad", BindMode: BindModeLocal, TailscaleEnabled: true})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+
+	if len(native.calls) != 1 || native.calls[0] != "install:openscad" {
+		t.Fatalf("native runtime calls = %#v, want install", native.calls)
+	}
+	if len(docker.created) != 0 || len(docker.pulled) != 0 {
+		t.Fatalf("native install must not use desktop store web Docker path: created=%#v pulled=%#v", docker.created, docker.pulled)
+	}
+	stored, ok, err := svc.GetInstalled(ctx, "openscad")
+	if err != nil {
+		t.Fatalf("get installed: %v", err)
+	}
+	if !ok {
+		t.Fatal("openscad install record missing")
+	}
+	if stored.DesktopAppID != "openscad" || stored.ContainerName != "aurago-openscad" || stored.ContainerID != "native-openscad" {
+		t.Fatalf("stored native identity = %+v", stored)
+	}
+	if stored.HostPort != 0 || stored.ContainerPort != 0 || len(stored.Ports) != 0 {
+		t.Fatalf("native app must not expose web ports: %+v", stored)
+	}
+	if stored.TailscaleEnabled || stored.TailscaleStatus != TailscaleStatusDisabled {
+		t.Fatalf("native app must ignore tailscale web exposure: %+v", stored)
+	}
+	if desktopAdapter.installed.ID != "" {
+		t.Fatalf("native builtin app must not be installed as generated app: %+v", desktopAdapter.installed)
+	}
+	if desktopAdapter.visibilityAppID != "openscad" || desktopAdapter.dockVisible == nil || !*desktopAdapter.dockVisible || desktopAdapter.startVisible == nil || !*desktopAdapter.startVisible {
+		t.Fatalf("native app visibility not enabled: id=%q dock=%v start=%v", desktopAdapter.visibilityAppID, desktopAdapter.dockVisible, desktopAdapter.startVisible)
+	}
+	if desktopAdapter.shortcutAppID != "openscad" {
+		t.Fatalf("shortcut app id = %q, want openscad", desktopAdapter.shortcutAppID)
 	}
 }
 
@@ -1185,8 +1257,15 @@ func TestInitDoesNotBlockOnInterruptedInstallDockerCleanup(t *testing.T) {
 		if err != nil {
 			t.Fatalf("recovery init failed: %v", err)
 		}
-	case name := <-removeStarted:
-		t.Fatalf("Init started Docker cleanup synchronously for %s", name)
+	case <-removeStarted:
+		select {
+		case err := <-initDone:
+			if err != nil {
+				t.Fatalf("recovery init failed: %v", err)
+			}
+		case <-time.After(200 * time.Millisecond):
+			t.Fatal("Init blocked on interrupted install Docker cleanup")
+		}
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("Init blocked while recovering interrupted install")
 	}
@@ -1224,6 +1303,40 @@ func TestInitClearsStaleActiveOperationMarkerForRunningApp(t *testing.T) {
 	}
 	if stored.LastOperationState != OperationFailed {
 		t.Fatalf("stale active operation marker = %q, want %q", stored.LastOperationState, OperationFailed)
+	}
+}
+
+func TestReconcileDesktopBrandingUpdatesStaleLogoPathWithoutBlocking(t *testing.T) {
+	ctx := context.Background()
+	desktopAdapter := &fakeDesktopAdapter{}
+	svc := newTestService(t, &fakeDockerAdapter{}, desktopAdapter, &fakeLaunchpadAdapter{}, fixedPorts(19189))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "node-red", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	record := svc.buildInstallRecord(svc.catalogByID["node-red"], op, BindModeLocal, "127.0.0.1", 19189, false)
+	record.Status = AppStatusRunning
+	record.LogoPath = "/api/desktop/store/logos/old-node-red.png"
+	if err := svc.saveInstalled(ctx, record); err != nil {
+		t.Fatalf("seed stale logo record: %v", err)
+	}
+
+	reconcileCtx, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
+	defer cancel()
+	if err := svc.ReconcileDesktopBranding(reconcileCtx); err != nil {
+		t.Fatalf("reconcile desktop branding: %v", err)
+	}
+
+	stored, ok, err := svc.GetInstalled(ctx, "node-red")
+	if err != nil || !ok {
+		t.Fatalf("get reconciled app: ok=%v err=%v", ok, err)
+	}
+	if stored.LogoPath != svc.catalogByID["node-red"].LogoURL {
+		t.Fatalf("logo path = %q, want %q", stored.LogoPath, svc.catalogByID["node-red"].LogoURL)
+	}
+	if desktopAdapter.installed.ID != DesktopAppID("node-red") {
+		t.Fatalf("refreshed desktop app id = %q, want %q", desktopAdapter.installed.ID, DesktopAppID("node-red"))
 	}
 }
 
@@ -1852,12 +1965,23 @@ func newTestServiceAtPath(t *testing.T, dbPath string, docker DockerAdapter, des
 
 func newTestServiceAtPathWithSecrets(t *testing.T, dbPath string, docker DockerAdapter, desktopAdapter DesktopAdapter, launchpad LaunchpadAdapter, ports PortAllocator, catalog []CatalogEntry, secrets SecretStore) *Service {
 	t.Helper()
+	return newTestServiceAtPathWithSecretsAndNative(t, dbPath, docker, desktopAdapter, launchpad, ports, catalog, secrets, nil)
+}
+
+func newTestServiceWithNative(t *testing.T, docker DockerAdapter, desktopAdapter DesktopAdapter, launchpad LaunchpadAdapter, ports PortAllocator, native NativeManagedRuntime) *Service {
+	t.Helper()
+	return newTestServiceAtPathWithSecretsAndNative(t, filepath.Join(t.TempDir(), "desktop_store.db"), docker, desktopAdapter, launchpad, ports, nil, nil, native)
+}
+
+func newTestServiceAtPathWithSecretsAndNative(t *testing.T, dbPath string, docker DockerAdapter, desktopAdapter DesktopAdapter, launchpad LaunchpadAdapter, ports PortAllocator, catalog []CatalogEntry, secrets SecretStore, native NativeManagedRuntime) *Service {
+	t.Helper()
 	svc, err := NewService(Config{
 		DBPath:        dbPath,
 		WorkspaceDir:  filepath.Join(t.TempDir(), "workspace"),
 		Docker:        docker,
 		Desktop:       desktopAdapter,
 		Launchpad:     launchpad,
+		NativeManaged: native,
 		PortAllocator: ports,
 		PortProbe:     func(context.Context, string, int) bool { return true },
 		Catalog:       catalog,
@@ -1967,6 +2091,69 @@ type fakeDockerAdapter struct {
 	inspectErr             error
 	removeContainerStarted chan string
 	removeContainerBlock   <-chan struct{}
+}
+
+type fakeNativeManagedRuntime struct {
+	calls  []string
+	status NativeManagedStatus
+	err    error
+}
+
+func (f *fakeNativeManagedRuntime) InstallNativeManagedApp(_ context.Context, appID string, _ CatalogEntry, _ bool) (NativeManagedStatus, error) {
+	f.calls = append(f.calls, "install:"+appID)
+	return f.statusOrDefault(), f.err
+}
+
+func (f *fakeNativeManagedRuntime) StartNativeManagedApp(_ context.Context, appID string, _ CatalogEntry) (NativeManagedStatus, error) {
+	f.calls = append(f.calls, "start:"+appID)
+	status := f.statusOrDefault()
+	status.Status = AppStatusRunning
+	status.Running = true
+	return status, f.err
+}
+
+func (f *fakeNativeManagedRuntime) StopNativeManagedApp(_ context.Context, appID string, _ CatalogEntry) (NativeManagedStatus, error) {
+	f.calls = append(f.calls, "stop:"+appID)
+	status := f.statusOrDefault()
+	status.Status = AppStatusStopped
+	status.Running = false
+	return status, f.err
+}
+
+func (f *fakeNativeManagedRuntime) RestartNativeManagedApp(_ context.Context, appID string, _ CatalogEntry) (NativeManagedStatus, error) {
+	f.calls = append(f.calls, "restart:"+appID)
+	status := f.statusOrDefault()
+	status.Status = AppStatusRunning
+	status.Running = true
+	return status, f.err
+}
+
+func (f *fakeNativeManagedRuntime) UpdateNativeManagedApp(_ context.Context, appID string, _ CatalogEntry) (NativeManagedStatus, error) {
+	f.calls = append(f.calls, "update:"+appID)
+	return f.statusOrDefault(), f.err
+}
+
+func (f *fakeNativeManagedRuntime) UninstallNativeManagedApp(_ context.Context, appID string, _ CatalogEntry, deleteData bool) error {
+	f.calls = append(f.calls, "uninstall:"+appID+":"+strconv.FormatBool(deleteData))
+	return f.err
+}
+
+func (f *fakeNativeManagedRuntime) statusOrDefault() NativeManagedStatus {
+	status := f.status
+	if status.ContainerName == "" {
+		status.ContainerName = "aurago-" + strings.TrimPrefix(status.ContainerID, "native-")
+	}
+	if status.ContainerID == "" {
+		status.ContainerID = "native"
+	}
+	if status.Image == "" {
+		status.Image = "openscad/openscad:latest"
+	}
+	if status.Status == "" {
+		status.Status = AppStatusStopped
+	}
+	status.Running = status.Status == AppStatusRunning
+	return status
 }
 
 type fakeSecretStore struct {
@@ -2110,15 +2297,17 @@ func (f *fakeDockerAdapter) InspectContainer(_ context.Context, name string) (Co
 }
 
 type fakeDesktopAdapter struct {
-	installed     desktop.AppManifest
-	files         map[string]string
-	writtenFiles  map[string]string
-	dockVisible   *bool
-	startVisible  *bool
-	shortcutAppID string
-	deletedAppID  string
-	installErr    error
-	deleteErr     error
+	installed         desktop.AppManifest
+	files             map[string]string
+	writtenFiles      map[string]string
+	visibilityAppID   string
+	dockVisible       *bool
+	startVisible      *bool
+	shortcutAppID     string
+	removedShortcutID string
+	deletedAppID      string
+	installErr        error
+	deleteErr         error
 }
 
 func (f *fakeDesktopAdapter) InstallApp(_ context.Context, manifest desktop.AppManifest, files map[string]string, _ string) error {
@@ -2138,7 +2327,8 @@ func (f *fakeDesktopAdapter) WriteFile(_ context.Context, path, content, _ strin
 	return nil
 }
 
-func (f *fakeDesktopAdapter) SetAppVisibility(_ context.Context, _ string, dockVisible, startVisible *bool, _ string) error {
+func (f *fakeDesktopAdapter) SetAppVisibility(_ context.Context, appID string, dockVisible, startVisible *bool, _ string) error {
+	f.visibilityAppID = appID
 	f.dockVisible = dockVisible
 	f.startVisible = startVisible
 	return nil
@@ -2146,6 +2336,11 @@ func (f *fakeDesktopAdapter) SetAppVisibility(_ context.Context, _ string, dockV
 
 func (f *fakeDesktopAdapter) AddDesktopAppShortcut(_ context.Context, appID, _ string) error {
 	f.shortcutAppID = appID
+	return nil
+}
+
+func (f *fakeDesktopAdapter) RemoveDesktopShortcut(_ context.Context, id, _ string) error {
+	f.removedShortcutID = id
 	return nil
 }
 

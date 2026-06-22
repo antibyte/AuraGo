@@ -31,17 +31,18 @@
   <link rel="stylesheet" href="/css/enhancements.css?v=20260425a">
   <script src="/chart.min.js" defer></script>
   <script src="/js/vendor/force-graph.min.js" defer></script>
+  <script src="/js/dashboard/dash-icons.js?v={{.BuildVersion}}"></script>
 </head>
 
 <body>
-  <a href="#tab-overview" class="skip-link" data-i18n="common.skip_to_content">Skip to content</a>
+  <a href="#tab-overview" class="skip-link" data-i18n="common.skip_to_content"></a>
 
   <!-- Header -->
   <header class="app-header">
     <a href="/" class="logo">
-      <div class="logo-icon">📊</div>
+      <div class="logo-icon"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6" fill="currentColor" stroke="none"/><rect x="13" y="7" width="3" height="10" fill="currentColor" stroke="none"/></svg></div>
       <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-      <span class="logo-subtitle" data-i18n="dashboard.logo_subtitle">DASHBOARD</span>
+      <span class="logo-subtitle" data-i18n="dashboard.logo_subtitle"></span>
     </a>
     <div class="header-actions">
       <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
@@ -53,76 +54,76 @@
   <!-- Agent Status Banner – always visible above tabs -->
   <div class="dash-banner-always">
     <div class="dash-card dash-full-width" id="card-agent-banner">
-      <div class="dash-card-header"><span class="card-icon">🤖</span> <span data-i18n="dashboard.agent_banner_title">Agent-Status</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="2"/><circle cx="9" cy="14" r="1.5" fill="currentColor" stroke="none"/><circle cx="15" cy="14" r="1.5" fill="currentColor" stroke="none"/><path d="M12 4v4M9 2h6"/></svg> <span data-i18n="dashboard.agent_banner_title"></span></div>
       <div class="dash-card-body">
         <div class="agent-banner" id="agent-banner">
-          <div class="agent-banner-item"><span class="status-dot gray" id="ab-status-dot"></span> <strong id="ab-model">—</strong></div>
+          <div class="agent-banner-item"><span class="status-dot gray" id="ab-status-dot" role="img" data-i18n-aria-label="dashboard.status_label"></span> <strong id="ab-model">—</strong></div>
           <div class="agent-banner-sep"></div>
-          <div class="agent-banner-item">🎭 <strong id="ab-personality">—</strong></div>
+          <div class="agent-banner-item"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 11l2 2-2 2M16 11l-2 2 2 2" stroke-linecap="round"/><circle cx="9" cy="9" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1" fill="currentColor" stroke="none"/></svg> <strong id="ab-personality">—</strong></div>
           <div class="agent-banner-sep"></div>
-          <div class="agent-banner-item context-gauge">📐 <span data-i18n="dashboard.agent_banner_context">Kontext:</span> <div class="context-gauge-bar"><div class="context-gauge-fill" id="ab-ctx-fill"></div></div> <span id="ab-ctx-pct">—</span></div>
+          <div class="agent-banner-item context-gauge"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="4" y1="6" x2="4" y2="10"/><line x1="4" y1="14" x2="4" y2="18"/><line x1="12" y1="6" x2="12" y2="8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="20" y1="6" x2="20" y2="12"/><line x1="20" y1="16" x2="20" y2="18"/><circle cx="4" cy="12" r="2"/><circle cx="12" cy="10" r="2"/><circle cx="20" cy="14" r="2"/></svg> <span data-i18n="dashboard.agent_banner_context"></span> <div class="context-gauge-bar"><div class="context-gauge-fill" id="ab-ctx-fill"></div></div> <span id="ab-ctx-pct">—</span></div>
           <div class="agent-banner-sep"></div>
-          <div class="agent-banner-item" id="ab-integrations">🔌 <strong>—</strong> <span data-i18n="dashboard.agent_banner_integrations">Integrationen</span></div>
+          <div class="agent-banner-item" id="ab-integrations"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4" stroke-linecap="round"/></svg> <strong>—</strong> <span data-i18n="dashboard.agent_banner_integrations"></span></div>
           <div class="agent-banner-sep"></div>
-          <div class="agent-banner-item" id="ab-last-activity">💬 <span>—</span></div>
+          <div class="agent-banner-item" id="ab-last-activity"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> <span>—</span></div>
           <div class="agent-banner-sep"></div>
-          <div class="agent-banner-item" id="ab-maintenance">🛠 <span>—</span></div>
+          <div class="agent-banner-item" id="ab-maintenance"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 7l3-3 3 3-3 3z"/><path d="M5 12l3-3 4 4-3 3zM14 7l3 3" stroke-linecap="round"/></svg> <span>—</span></div>
         </div>
       </div>
     </div>
   </div><!-- .dash-banner-always -->
 
   <!-- Tab Navigation -->
-  <nav class="dash-tabs" id="dashTabs">
-    <button class="dash-tab active" data-tab="overview">
-      <span class="tab-icon">🏠</span><span class="tab-label" data-i18n="dashboard.tab_overview">Übersicht</span>
+  <nav class="dash-tabs" id="dashTabs" role="tablist" data-i18n-aria-label="dashboard.tablist_label">
+    <button class="dash-tab active" data-tab="overview" id="dash-tab-overview" role="tab" aria-selected="true" aria-controls="tab-overview" tabindex="0">
+      <span class="tab-icon"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="tab-label" data-i18n="dashboard.tab_overview"></span>
     </button>
-    <button class="dash-tab" data-tab="agent">
-      <span class="tab-icon">🧠</span><span class="tab-label" data-i18n="dashboard.tab_agent">Agent</span>
+    <button class="dash-tab" data-tab="agent" id="dash-tab-agent" role="tab" aria-selected="false" aria-controls="tab-agent" tabindex="-1">
+      <span class="tab-icon"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v.5A3.5 3.5 0 0 0 5.5 9c0 1 .4 1.9 1 2.5A3.5 3.5 0 0 0 5 15.5c0 1.9 1.3 3.5 3 3.8V21a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-1.7c1.7-.3 3-1.9 3-3.8a3.5 3.5 0 0 0-1.5-4c.6-.6 1-1.5 1-2.5A3.5 3.5 0 0 0 15 5.5V5a3 3 0 0 0-3-3z"/></svg></span><span class="tab-label" data-i18n="dashboard.tab_agent"></span>
     </button>
-    <button class="dash-tab" data-tab="user">
-      <span class="tab-icon">👤</span><span class="tab-label" data-i18n="dashboard.tab_user">Benutzer</span>
+    <button class="dash-tab" data-tab="user" id="dash-tab-user" role="tab" aria-selected="false" aria-controls="tab-user" tabindex="-1">
+      <span class="tab-icon"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg></span><span class="tab-label" data-i18n="dashboard.tab_user"></span>
     </button>
-    <button class="dash-tab" data-tab="knowledge">
-      <span class="tab-icon">🕸️</span><span class="tab-label" data-i18n="dashboard.tab_knowledge">Knowledge Graph</span>
+    <button class="dash-tab" data-tab="knowledge" id="dash-tab-knowledge" role="tab" aria-selected="false" aria-controls="tab-knowledge" tabindex="-1">
+      <span class="tab-icon"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="2"/><circle cx="5" cy="5" r="1.5"/><circle cx="19" cy="5" r="1.5"/><circle cx="5" cy="19" r="1.5"/><circle cx="19" cy="19" r="1.5"/><line x1="6.5" y1="6.5" x2="10.5" y2="10.5"/><line x1="13.5" y1="10.5" x2="17.5" y2="6.5"/><line x1="6.5" y1="17.5" x2="10.5" y2="13.5"/><line x1="13.5" y1="13.5" x2="17.5" y2="17.5"/></svg></span><span class="tab-label" data-i18n="dashboard.tab_knowledge"></span>
     </button>
-    <button class="dash-tab" data-tab="filesync">
-      <span class="tab-icon">📡</span><span class="tab-label" data-i18n="dashboard.tab_filesync">Datei-Sync</span>
+    <button class="dash-tab" data-tab="filesync" id="dash-tab-filesync" role="tab" aria-selected="false" aria-controls="tab-filesync" tabindex="-1">
+      <span class="tab-icon"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v6m0 0L8 6m4 2l4-2"/><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M7 13h2v4H7zm8 0h2v4h-2z" fill="currentColor" stroke="none"/></svg></span><span class="tab-label" data-i18n="dashboard.tab_filesync"></span>
     </button>
-    <button class="dash-tab" data-tab="audit">
-      <span class="tab-icon">🧾</span><span class="tab-label" data-i18n="dashboard.tab_audit">Audit</span>
+    <button class="dash-tab" data-tab="audit" id="dash-tab-audit" role="tab" aria-selected="false" aria-controls="tab-audit" tabindex="-1">
+      <span class="tab-icon"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg></span><span class="tab-label" data-i18n="dashboard.tab_audit"></span>
     </button>
-    <button class="dash-tab" data-tab="cronjobs">
-      <span class="tab-icon">⏱️</span><span class="tab-label" data-i18n="dashboard.tab_cronjobs">Cronjobs</span>
+    <button class="dash-tab" data-tab="cronjobs" id="dash-tab-cronjobs" role="tab" aria-selected="false" aria-controls="tab-cronjobs" tabindex="-1">
+      <span class="tab-icon"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></span><span class="tab-label" data-i18n="dashboard.tab_cronjobs"></span>
     </button>
-    <button class="dash-tab" data-tab="system">
-      <span class="tab-icon">⚙️</span><span class="tab-label" data-i18n="dashboard.tab_system">System</span>
+    <button class="dash-tab" data-tab="system" id="dash-tab-system" role="tab" aria-selected="false" aria-controls="tab-system" tabindex="-1">
+      <span class="tab-icon"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></span><span class="tab-label" data-i18n="dashboard.tab_system"></span>
     </button>
   </nav>
 
   <!-- ═══ Tab 1: Übersicht ═══════════════════════════════════════════════ -->
-  <div class="dash-tab-panel" id="tab-overview">
+  <div class="dash-tab-panel" id="tab-overview" role="tabpanel" aria-labelledby="dash-tab-overview">
     <div class="dash-grid">
 
     <!-- 1. System Health -->
     <div class="dash-card" id="card-system">
-      <div class="dash-card-header"><span class="card-icon">🖥️</span> <span data-i18n="dashboard.system_title">Systemstatus</span> <span class="collapse-toggle" data-card="card-system" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="21" stroke-linecap="round"/></svg> <span data-i18n="dashboard.system_title"></span> <span class="collapse-toggle" data-card="card-system" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div class="gauge-grid">
           <div class="gauge-item">
             <canvas id="cpu-chart"></canvas>
             <div class="gauge-value" id="cpu-val">—</div>
-            <div class="gauge-label" data-i18n="dashboard.system_cpu">CPU</div>
+            <div class="gauge-label" data-i18n="dashboard.system_cpu"></div>
           </div>
           <div class="gauge-item">
             <canvas id="ram-chart"></canvas>
             <div class="gauge-value" id="ram-val">—</div>
-            <div class="gauge-label" data-i18n="dashboard.system_ram">RAM</div>
+            <div class="gauge-label" data-i18n="dashboard.system_ram"></div>
           </div>
           <div class="gauge-item">
             <canvas id="disk-chart"></canvas>
             <div class="gauge-value" id="disk-val">—</div>
-            <div class="gauge-label" data-i18n="dashboard.system_disk">Festplatte</div>
+            <div class="gauge-label" data-i18n="dashboard.system_disk"></div>
           </div>
         </div>
         <div class="stats-grid" id="system-stats">
@@ -136,13 +137,13 @@
           </div>
           <div class="stat-item">
             <div class="stat-value" id="sse-clients">—</div>
-            <div class="stat-label" data-i18n="dashboard.system_sse_clients">SSE Clients</div>
+            <div class="stat-label" data-i18n="dashboard.system_sse_clients"></div>
           </div>
         </div>
         <div class="stats-grid stats-grid-single">
           <div class="stat-item">
             <div class="stat-value" id="uptime-val">—</div>
-            <div class="stat-label" data-i18n="dashboard.system_uptime">Betriebszeit</div>
+            <div class="stat-label" data-i18n="dashboard.system_uptime"></div>
           </div>
         </div>
       </div>
@@ -150,7 +151,7 @@
 
     <!-- 2. Quick Status -->
     <div class="dash-card" id="card-quickstatus">
-      <div class="dash-card-header"><span class="card-icon">⚡</span> <span data-i18n="dashboard.quickstatus_title">Quick Status</span> <span class="collapse-toggle" data-card="card-quickstatus" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L3 14h7l-1 8 10-12h-7z" fill="currentColor" stroke="none"/></svg> <span data-i18n="dashboard.quickstatus_title"></span> <span class="collapse-toggle" data-card="card-quickstatus" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div class="qs-grid" id="qs-grid"></div>
       </div>
@@ -158,7 +159,7 @@
 
     <!-- 3. Budget & Tokens -->
     <div class="dash-card" id="card-budget">
-      <div class="dash-card-header"><span class="card-icon">💰</span> <span data-i18n="dashboard.budget_title">Budget & Tokens</span> <span class="collapse-toggle" data-card="card-budget" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="17" cy="15" r="1.5" fill="currentColor" stroke="none"/></svg> <span data-i18n="dashboard.budget_title">Budget & Tokens</span> <span class="collapse-toggle" data-card="card-budget" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div id="budget-content">
           <div class="budget-badges" id="budget-badges"></div>
@@ -176,26 +177,26 @@
           </div>
           <div class="budget-reset" id="budget-reset"></div>
           <div class="credits-row" id="credits-row">
-            <span data-i18n="dashboard.budget_openrouter_credits">OpenRouter Guthaben</span>
+            <span data-i18n="dashboard.budget_openrouter_credits"></span>
             <span class="credits-val" id="credits-balance">—</span>
           </div>
           <!-- Per-LLM average token consumption -->
           <div id="budget-llm-avg-wrap" class="mt-sm">
-            <h4 class="dash-subheading" data-i18n="dashboard.budget_llm_avg_title">Ø Token-Verbrauch / Anfrage</h4>
+            <h4 class="dash-subheading" data-i18n="dashboard.budget_llm_avg_title"></h4>
             <div class="chart-wrap-sm">
               <canvas id="budget-llm-avg-chart"></canvas>
             </div>
           </div>
         </div>
-        <div id="budget-disabled" class="empty-state" data-i18n="dashboard.budget_disabled">Budget-Tracking deaktiviert.</div>
+        <div id="budget-disabled" class="empty-state" data-i18n="dashboard.budget_disabled"></div>
       </div>
     </div>
 
     <!-- 4. Optimization -->
     <div class="dash-card" id="card-optimization">
-      <div class="dash-card-header"><span class="card-icon">⚙️</span> <span data-i18n="dashboard.optimization_title">Optimization</span> <span class="collapse-toggle" data-card="card-optimization" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" stroke-linecap="round"/></svg> <span data-i18n="dashboard.optimization_title"></span> <span class="collapse-toggle" data-card="card-optimization" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
-        <p class="dash-card-desc" data-i18n="dashboard.optimization_desc">Prompts die Probleme erzeugen werden testweise durch optimierte Versionen (Mutationen) ersetzt (Shadows). Bei Rückgang der Fehlerquote werden diese dauerhaft übernommen.</p>
+        <p class="dash-card-desc" data-i18n="dashboard.optimization_desc"></p>
         <div class="stats-grid" id="opt-grid"></div>
       </div>
     </div>
@@ -203,52 +204,52 @@
     <!-- 5. Output Compression -->
     <div class="dash-card" id="card-compression">
       <div class="dash-card-header">
-        <span class="card-icon">🗜️</span>
-        <span data-i18n="dashboard.compression_title">Output Compression</span>
+        <svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 9V3M15 9V3M9 15v6M15 15v6M3 9h6M15 9h6M3 15h6M15 15h6" stroke-linecap="round"/></svg>
+        <span data-i18n="dashboard.compression_title"></span>
         <span class="status-badge" id="compression-status-badge">
-          <span data-i18n="dashboard.compression_enabled">Enabled</span>
+          <span data-i18n="dashboard.compression_enabled"></span>
         </span>
-        <span class="collapse-toggle" data-card="card-compression" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span>
+        <span class="collapse-toggle" data-card="card-compression" data-i18n-title="dashboard.activity_collapse" title="">▼</span>
       </div>
       <div class="dash-card-body">
         <div class="stats-grid" id="compression-stats"></div>
         <div id="compression-details" class="mt-sm">
           <div id="compression-tools-wrap">
-            <h4 class="dash-subheading" data-i18n="dashboard.compression_top_tools">Top Tools</h4>
+            <h4 class="dash-subheading" data-i18n="dashboard.compression_top_tools"></h4>
             <div id="compression-tools-list" class="compression-rank-list"></div>
           </div>
           <div id="compression-filters-wrap" class="mt-xs">
-            <h4 class="dash-subheading" data-i18n="dashboard.compression_top_filters">Top Filters</h4>
+            <h4 class="dash-subheading" data-i18n="dashboard.compression_top_filters"></h4>
             <div id="compression-filters-list" class="compression-rank-list"></div>
           </div>
         </div>
-        <div id="compression-empty" class="empty-state" data-i18n="dashboard.compression_no_data">No compression data yet.</div>
+        <div id="compression-empty" class="empty-state" data-i18n="dashboard.compression_no_data"></div>
       </div>
     </div>
 
     <!-- 6. Mission History -->
     <div class="dash-card" id="card-mission-history">
       <div class="dash-card-header">
-        <span class="card-icon">🚀</span>
-        <span data-i18n="dashboard.mission_history_title">Mission History</span>
-        <span class="collapse-toggle" data-card="card-mission-history" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span>
+        <svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2c3 2 5 5 5 9l-2 4h-6l-2-4c0-4 2-7 5-9z" fill="currentColor" stroke="none"/><path d="M9 15l-3 3c0-2 1-4 3-5M15 15l3 3c0-2-1-4-3-5"/><circle cx="12" cy="8" r="1.5" fill="none" stroke="currentColor"/></svg>
+        <span data-i18n="dashboard.mission_history_title"></span>
+        <span class="collapse-toggle" data-card="card-mission-history" data-i18n-title="dashboard.activity_collapse" title="">▼</span>
       </div>
       <div class="dash-card-body">
         <div id="mission-history-content">
           <table class="mh-table">
             <thead>
               <tr>
-                <th data-i18n="dashboard.mh_col_mission">Mission</th>
-                <th data-i18n="dashboard.mh_col_status">Status</th>
-                <th data-i18n="dashboard.mh_col_trigger">Trigger</th>
-                <th data-i18n="dashboard.mh_col_started">Gestartet</th>
-                <th data-i18n="dashboard.mh_col_duration">Dauer</th>
+                <th data-i18n="dashboard.mh_col_mission"></th>
+                <th data-i18n="dashboard.mh_col_status"></th>
+                <th data-i18n="dashboard.mh_col_trigger"></th>
+                <th data-i18n="dashboard.mh_col_started"></th>
+                <th data-i18n="dashboard.mh_col_duration"></th>
               </tr>
             </thead>
             <tbody id="mission-history-tbody"></tbody>
           </table>
-          <div id="mission-history-empty" class="empty-state" data-i18n="dashboard.mh_empty">Noch keine Mission-Ausführungen.</div>
-          <button id="mission-history-more" class="mh-more-btn" style="display:none" data-i18n="dashboard.mh_load_more">Mehr laden</button>
+          <div id="mission-history-empty" class="empty-state" data-i18n="dashboard.mh_empty"></div>
+          <button id="mission-history-more" class="mh-more-btn" style="display:none" data-i18n="dashboard.mh_load_more"></button>
         </div>
       </div>
     </div>
@@ -257,19 +258,19 @@
   </div><!-- #tab-overview -->
 
   <!-- ═══ Tab 2: Agent & Memory ═══════════════════════════════════════════ -->
-  <div class="dash-tab-panel" id="tab-agent">
+  <div class="dash-tab-panel" id="tab-agent" role="tabpanel" aria-labelledby="dash-tab-agent">
     <div class="dash-grid">
 
     <!-- 3. Personality Traits + Mood Inline -->
     <div class="dash-card" id="card-personality">
-      <div class="dash-card-header"><span class="card-icon">🧠</span> <span data-i18n="dashboard.personality_title">Persönlichkeit</span> <span class="collapse-toggle" data-card="card-personality" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v.5A3.5 3.5 0 0 0 5.5 9c0 1 .4 1.9 1 2.5A3.5 3.5 0 0 0 5 15.5c0 1.9 1.3 3.5 3 3.8V21a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-1.7c1.7-.3 3-1.9 3-3.8a3.5 3.5 0 0 0-1.5-4c.6-.6 1-1.5 1-2.5A3.5 3.5 0 0 0 15 5.5V5a3 3 0 0 0-3-3z"/></svg> <span data-i18n="dashboard.personality_title"></span> <span class="collapse-toggle" data-card="card-personality" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div id="personality-content" class="personality-layout">
           <canvas id="traits-chart"></canvas>
-          <div class="mood-badge" id="mood-badge" data-i18n="dashboard.personality_default_mood">Neugierig</div>
+          <div class="mood-badge" id="mood-badge" data-i18n="dashboard.personality_default_mood"></div>
           <div class="mood-trigger-text" id="mood-trigger"></div>
           <div class="emotion-display" id="emotion-display">
-            <div class="emotion-label">💭 <span data-i18n="dashboard.emotion_label">Emotionaler Zustand</span></div>
+            <div class="emotion-label"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2C7 2 3 6 3 11c0 2 1 4 2 5l-2 4 5-2c2 1 4 1 6 0 5 0 9-4 9-9s-4-9-9-9z" fill="none"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/><path d="M9 15c1 1 4 1 5 0" stroke-linecap="round"/></svg> <span data-i18n="dashboard.emotion_label"></span></div>
             <div class="emotion-text" id="emotion-text"></div>
             <div class="emotion-meta is-hidden" id="emotion-meta">
               <div class="emotion-meta-row">
@@ -280,20 +281,20 @@
             </div>
             <div class="emotion-summary is-hidden" id="emotion-summary"></div>
             <div class="emotion-timeline is-hidden" id="emotion-timeline">
-              <div class="emotion-timeline-title" data-i18n="dashboard.emotion_timeline">Emotionsverlauf</div>
+              <div class="emotion-timeline-title" data-i18n="dashboard.emotion_timeline"></div>
               <div class="emotion-timeline-list" id="emotion-timeline-list"></div>
             </div>
           </div>
           <!-- Inline Mood Mini-Chart -->
           <div class="mood-mini-wrap">
             <div class="mood-mini-header">
-              <span>📈 <span data-i18n="dashboard.personality_mood_timeline">Stimmungsverlauf</span></span>
+              <span><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><path d="M17 6h6v6" stroke-linecap="round" stroke-linejoin="round"/></svg> <span data-i18n="dashboard.personality_mood_timeline"></span></span>
               <div class="mood-mini-btns">
-                <button class="mood-btn" data-hours="1" data-i18n="dashboard.personality_btn_1h">1h</button>
-                <button class="mood-btn" data-hours="6" data-i18n="dashboard.personality_btn_6h">6h</button>
-                <button class="mood-btn active" data-hours="24" data-i18n="dashboard.personality_btn_24h">24h</button>
-                <button class="mood-btn" data-hours="168" data-i18n="dashboard.personality_btn_7d">7d</button>
-                <button class="mood-btn" data-hours="720" data-i18n="dashboard.personality_btn_30d">30d</button>
+                <button class="mood-btn" data-hours="1" data-i18n="dashboard.personality_btn_1h"></button>
+                <button class="mood-btn" data-hours="6" data-i18n="dashboard.personality_btn_6h"></button>
+                <button class="mood-btn active" data-hours="24" data-i18n="dashboard.personality_btn_24h"></button>
+                <button class="mood-btn" data-hours="168" data-i18n="dashboard.personality_btn_7d"></button>
+                <button class="mood-btn" data-hours="720" data-i18n="dashboard.personality_btn_30d"></button>
               </div>
             </div>
             <div class="mood-mini-chart-wrap">
@@ -301,13 +302,13 @@
             </div>
           </div>
         </div>
-        <div id="personality-disabled" class="empty-state is-hidden" data-i18n="dashboard.personality_disabled">Persönlichkeits-Engine deaktiviert.</div>
+        <div id="personality-disabled" class="empty-state is-hidden" data-i18n="dashboard.personality_disabled"></div>
       </div>
     </div>
 
     <!-- 5. Memory & Knowledge -->
     <div class="dash-card" id="card-memory">
-      <div class="dash-card-header"><span class="card-icon">🧩</span> <span data-i18n="dashboard.memory_title">Gedächtnis</span> <span class="collapse-toggle" data-card="card-memory" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3h4v3a2 2 0 1 0 0 4v4h-4v-4a2 2 0 1 1 0-4z" fill="currentColor" stroke="none"/></svg> <span data-i18n="dashboard.memory_title"></span> <span class="collapse-toggle" data-card="card-memory" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div class="memory-stats-grid" id="memory-stats"></div>
         <div class="memory-bar-wrap">
@@ -315,17 +316,17 @@
         </div>
         <div id="memory-health-summary" class="mt-sm"></div>
         <div id="memory-curator-wrap" class="mt-sm">
-          <h4 class="card-section-title" data-i18n="dashboard.memory_curator_title">Memory Health</h4>
+          <h4 class="card-section-title" data-i18n="dashboard.memory_curator_title"></h4>
           <div id="memory-curator-list"></div>
         </div>
         <div id="memory-episodic-wrap" class="mt-sm">
-          <h4 class="card-section-title" data-i18n="dashboard.memory_episodic_title">Recent Episodes</h4>
+          <h4 class="card-section-title" data-i18n="dashboard.memory_episodic_title"></h4>
           <div id="memory-episodic-list"></div>
         </div>
         <div class="milestone-list" id="milestone-list"></div>
         <!-- Error Patterns -->
         <div id="error-patterns-wrap" class="mt-sm">
-          <h4 class="card-section-title" data-i18n="dashboard.errors_title">Fehler-Muster</h4>
+          <h4 class="card-section-title" data-i18n="dashboard.errors_title"></h4>
           <div id="error-patterns-list"></div>
         </div>
       </div>
@@ -335,43 +336,43 @@
   </div><!-- #tab-agent -->
 
   <!-- ═══ Tab 3: Benutzer & Journal ═══════════════════════════════════════ -->
-  <div class="dash-tab-panel" id="tab-user">
+  <div class="dash-tab-panel" id="tab-user" role="tabpanel" aria-labelledby="dash-tab-user">
     <div class="dash-grid">
 
     <!-- 6. User Profile -->
     <div class="dash-card" id="card-profile">
-      <div class="dash-card-header"><span class="card-icon">👤</span> <span data-i18n="dashboard.profile_title">Nutzerprofil</span> <span class="collapse-toggle" data-card="card-profile" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg> <span data-i18n="dashboard.profile_title"></span> <span class="collapse-toggle" data-card="card-profile" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
-        <input type="text" class="profile-search" id="profile-search" data-i18n-placeholder="dashboard.profile_search_placeholder" placeholder="Profil durchsuchen...">
+        <input type="text" class="profile-search" id="profile-search" data-i18n-placeholder="dashboard.profile_search_placeholder" placeholder="">
         <div class="profile-scroll" id="profile-content"></div>
       </div>
     </div>
 
     <div class="dash-card" id="card-activity-overview">
-      <div class="dash-card-header"><span class="card-icon">🗓️</span> <span data-i18n="dashboard.activity_overview_title">Last 7 Days</span> <span class="collapse-toggle" data-card="card-activity-overview" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg> <span data-i18n="dashboard.activity_overview_title"></span> <span class="collapse-toggle" data-card="card-activity-overview" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div id="activity-overview-summary" class="journal-summary"></div>
         <div id="activity-overview-highlights" class="journal-summary mt-xs"></div>
         <div id="activity-overview-pending" class="journal-summary mt-xs"></div>
         <div id="activity-overview-days" class="journal-timeline">
-          <div class="empty-state" data-i18n="dashboard.activity_overview_empty">Noch keine Aktivitätsübersicht.</div>
+          <div class="empty-state" data-i18n="dashboard.activity_overview_empty"></div>
         </div>
       </div>
     </div>
 
     <!-- 6b. Journal Timeline -->
     <div class="dash-card" id="card-journal">
-      <div class="dash-card-header"><span class="card-icon">📔</span> <span data-i18n="dashboard.journal_title">Journal</span> <span class="collapse-toggle" data-card="card-journal" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" fill="none"/></svg> <span data-i18n="dashboard.journal_title"></span> <span class="collapse-toggle" data-card="card-journal" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div class="journal-summary" id="journal-summary"></div>
         <!-- Sentiment Trend -->
         <div id="journal-sentiment-wrap" class="mt-xs">
-          <h4 class="card-section-title" data-i18n="dashboard.journal_sentiment_trend">Stimmungs-Verlauf</h4>
+          <h4 class="card-section-title" data-i18n="dashboard.journal_sentiment_trend"></h4>
           <div class="journal-sentiment-row" id="journal-sentiment-row"></div>
           <div id="journal-key-topics-wrap" class="mt-xs"></div>
         </div>
         <div class="journal-timeline" id="journal-timeline">
-          <div class="empty-state" data-i18n="dashboard.journal_empty">Noch keine Einträge.</div>
+          <div class="empty-state" data-i18n="dashboard.journal_empty"></div>
         </div>
       </div>
     </div>
@@ -379,43 +380,57 @@
     </div><!-- .dash-grid tab-user -->
   </div><!-- #tab-user -->
 
-  <div class="dash-tab-panel is-hidden" id="tab-knowledge">
+  <div class="dash-tab-panel is-hidden" id="tab-knowledge" role="tabpanel" aria-labelledby="dash-tab-knowledge">
     <div class="dash-grid">
 
     <div class="dash-card dash-full-width" id="card-knowledge-graph-summary">
-      <div class="dash-card-header"><span class="card-icon">🕸️</span> <span data-i18n="dashboard.knowledge_title">Knowledge Graph</span> <span class="collapse-toggle" data-card="card-knowledge-graph-summary" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2"/><circle cx="5" cy="5" r="1.5"/><circle cx="19" cy="5" r="1.5"/><circle cx="5" cy="19" r="1.5"/><circle cx="19" cy="19" r="1.5"/><line x1="6.5" y1="6.5" x2="10.5" y2="10.5"/><line x1="13.5" y1="10.5" x2="17.5" y2="6.5"/><line x1="6.5" y1="17.5" x2="10.5" y2="13.5"/><line x1="13.5" y1="13.5" x2="17.5" y2="17.5"/></svg> <span data-i18n="dashboard.knowledge_title"></span> <span class="collapse-toggle" data-card="card-knowledge-graph-summary" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div class="knowledge-summary-grid" id="knowledge-summary-grid"></div>
         <div id="knowledge-filter-bar" class="knowledge-filter-bar mt-sm"></div>
         <div class="knowledge-search-row mt-sm">
-          <input type="text" id="knowledge-search-input" class="profile-search knowledge-search-input" data-i18n-placeholder="dashboard.knowledge_search_placeholder" placeholder="Knowledge Graph durchsuchen...">
-          <button type="button" id="knowledge-search-button" class="btn btn-primary knowledge-search-button" data-i18n="dashboard.knowledge_search_button">Suchen</button>
+          <input type="text" id="knowledge-search-input" class="profile-search knowledge-search-input" data-i18n-placeholder="dashboard.knowledge_search_placeholder" placeholder="">
+          <button type="button" id="knowledge-search-button" class="btn btn-primary knowledge-search-button" data-i18n="dashboard.knowledge_search_button"></button>
         </div>
         <div id="knowledge-search-meta" class="knowledge-search-meta"></div>
       </div>
     </div>
 
+    <div class="dash-card dash-full-width" id="card-knowledge-graph-health">
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v6a5 5 0 0 0 10 0V3" stroke-linecap="round"/><circle cx="19" cy="14" r="3"/><path d="M9 14v3a4 4 0 0 0 4 4" stroke-linecap="round"/></svg> <span data-i18n="dashboard.knowledge_health_title"></span> <span class="collapse-toggle" data-card="card-knowledge-graph-health" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
+      <div class="dash-card-body">
+        <div id="knowledge-health-metrics" class="knowledge-quality-metrics"></div>
+        <div id="knowledge-health-status" class="knowledge-health-status"></div>
+      </div>
+    </div>
+
     <div class="dash-card dash-full-width" id="card-knowledge-graph-quality">
-      <div class="dash-card-header"><span class="card-icon">🧠</span> <span data-i18n="dashboard.knowledge_quality_title">Graph Quality</span> <span class="collapse-toggle" data-card="card-knowledge-graph-quality" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v.5A3.5 3.5 0 0 0 5.5 9c0 1 .4 1.9 1 2.5A3.5 3.5 0 0 0 5 15.5c0 1.9 1.3 3.5 3 3.8V21a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-1.7c1.7-.3 3-1.9 3-3.8a3.5 3.5 0 0 0-1.5-4c.6-.6 1-1.5 1-2.5A3.5 3.5 0 0 0 15 5.5V5a3 3 0 0 0-3-3z"/></svg> <span data-i18n="dashboard.knowledge_quality_title"></span> <span class="collapse-toggle" data-card="card-knowledge-graph-quality" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div id="knowledge-quality-metrics" class="knowledge-quality-metrics"></div>
         <div id="knowledge-quality-grid" class="knowledge-quality-grid">
           <div class="knowledge-quality-section">
-            <h4 class="card-section-title" data-i18n="dashboard.knowledge_quality_isolated_title">Isolated Nodes</h4>
+            <h4 class="card-section-title" data-i18n="dashboard.knowledge_quality_isolated_title"></h4>
             <div id="knowledge-quality-isolated" class="knowledge-list">
-              <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_isolated">No isolated nodes detected.</div>
+              <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_isolated"></div>
             </div>
           </div>
           <div class="knowledge-quality-section">
-            <h4 class="card-section-title" data-i18n="dashboard.knowledge_quality_untyped_title">Untyped Nodes</h4>
+            <h4 class="card-section-title" data-i18n="dashboard.knowledge_quality_untyped_title"></h4>
             <div id="knowledge-quality-untyped" class="knowledge-list">
-              <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_untyped">All visible nodes have a type.</div>
+              <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_untyped"></div>
             </div>
           </div>
           <div class="knowledge-quality-section">
-            <h4 class="card-section-title" data-i18n="dashboard.knowledge_quality_duplicates_title">Duplicate Candidates</h4>
+            <h4 class="card-section-title" data-i18n="dashboard.knowledge_quality_label_duplicates_title"></h4>
             <div id="knowledge-quality-duplicates" class="knowledge-list">
-              <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_duplicates">No duplicate labels detected.</div>
+              <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_duplicates"></div>
+            </div>
+          </div>
+          <div class="knowledge-quality-section">
+            <h4 class="card-section-title" data-i18n="dashboard.knowledge_quality_id_duplicates_title"></h4>
+            <div id="knowledge-quality-id-duplicates" class="knowledge-list">
+              <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_id_duplicates"></div>
             </div>
           </div>
         </div>
@@ -423,25 +438,25 @@
     </div>
 
     <div class="dash-card dash-full-width" id="card-knowledge-graph-results">
-      <div class="dash-card-header"><span class="card-icon">🔎</span> <span data-i18n="dashboard.knowledge_results_title">KG Explorer</span> <span class="collapse-toggle" data-card="card-knowledge-graph-results" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16" y1="16" x2="21" y2="21" stroke-linecap="round"/></svg> <span data-i18n="dashboard.knowledge_results_title"></span> <span class="collapse-toggle" data-card="card-knowledge-graph-results" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div class="knowledge-grid">
           <div class="knowledge-section">
-            <h4 class="card-section-title" data-i18n="dashboard.knowledge_search_results">Suchergebnisse</h4>
+            <h4 class="card-section-title" data-i18n="dashboard.knowledge_search_results"></h4>
             <div id="knowledge-search-results" class="knowledge-list">
-              <div class="empty-state" data-i18n="dashboard.knowledge_no_search">Noch keine Suche gestartet.</div>
+              <div class="empty-state" data-i18n="dashboard.knowledge_no_search"></div>
             </div>
           </div>
           <div class="knowledge-section">
-            <h4 class="card-section-title" data-i18n="dashboard.knowledge_recent_nodes">Nodes</h4>
+            <h4 class="card-section-title" data-i18n="dashboard.knowledge_recent_nodes"></h4>
             <div id="knowledge-node-list" class="knowledge-list">
-              <div class="empty-state" data-i18n="dashboard.knowledge_empty">Noch keine KG-Daten.</div>
+              <div class="empty-state" data-i18n="dashboard.knowledge_empty"></div>
             </div>
           </div>
           <div class="knowledge-section">
-            <h4 class="card-section-title" data-i18n="dashboard.knowledge_recent_edges">Edges</h4>
+            <h4 class="card-section-title" data-i18n="dashboard.knowledge_recent_edges"></h4>
             <div id="knowledge-edge-list" class="knowledge-list">
-              <div class="empty-state" data-i18n="dashboard.knowledge_empty">Noch keine KG-Daten.</div>
+              <div class="empty-state" data-i18n="dashboard.knowledge_empty"></div>
             </div>
           </div>
         </div>
@@ -449,27 +464,27 @@
     </div>
 
     <div class="dash-card dash-full-width" id="card-knowledge-graph-visual">
-      <div class="dash-card-header"><span class="card-icon">🗺️</span> <span data-i18n="dashboard.knowledge_visual_title">Graph View</span> <span class="collapse-toggle" data-card="card-knowledge-graph-visual" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3L3 6v15l6-3 6 3 6-3V3l-6 3-6-3z" fill="none"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg> <span data-i18n="dashboard.knowledge_visual_title"></span> <span class="collapse-toggle" data-card="card-knowledge-graph-visual" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div class="knowledge-visual-toolbar">
           <div class="knowledge-visual-meta">
-            <div id="knowledge-graph-mode" class="knowledge-visual-mode" data-i18n="dashboard.knowledge_visual_overview">Overview Graph</div>
-            <div id="knowledge-graph-caption" class="knowledge-visual-caption" data-i18n="dashboard.knowledge_visual_empty">The graph view appears as soon as KG data is available.</div>
+            <div id="knowledge-graph-mode" class="knowledge-visual-mode" data-i18n="dashboard.knowledge_visual_overview"></div>
+            <div id="knowledge-graph-caption" class="knowledge-visual-caption" data-i18n="dashboard.knowledge_visual_empty"></div>
           </div>
-          <button type="button" id="knowledge-graph-reset" class="btn btn-secondary btn-sm is-hidden" data-i18n="dashboard.knowledge_visual_reset">Overview</button>
+          <button type="button" id="knowledge-graph-reset" class="btn btn-secondary btn-sm is-hidden" data-i18n="dashboard.knowledge_visual_reset"></button>
         </div>
         <div id="knowledge-graph-legend" class="knowledge-graph-legend"></div>
         <div id="knowledge-graph-visual" class="knowledge-visual-wrap">
-          <div class="empty-state" data-i18n="dashboard.knowledge_visual_empty">The graph view appears as soon as KG data is available.</div>
+          <div class="empty-state" data-i18n="dashboard.knowledge_visual_empty"></div>
         </div>
       </div>
     </div>
 
     <div class="dash-card dash-full-width" id="card-knowledge-graph-detail" style="display:none;">
-      <div class="dash-card-header"><span class="card-icon">🧭</span> <span data-i18n="dashboard.knowledge_detail_title">Node Inspector</span> <span class="collapse-toggle" data-card="card-knowledge-graph-detail" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polygon points="16 8 14 14 8 16 10 10" fill="currentColor" stroke="none"/></svg> <span data-i18n="dashboard.knowledge_detail_title"></span> <span class="collapse-toggle" data-card="card-knowledge-graph-detail" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div id="knowledge-detail-panel" class="knowledge-detail-panel">
-          <div class="empty-state" data-i18n="dashboard.knowledge_detail_empty">Wähle einen Node aus, um Details und Nachbarn zu sehen.</div>
+          <div class="empty-state" data-i18n="dashboard.knowledge_detail_empty"></div>
         </div>
       </div>
     </div>
@@ -478,37 +493,37 @@
   </div><!-- #tab-knowledge -->
 
   <!-- ═══ Tab 4b: Datei-Sync ════════════════════════════════════════════════════ -->
-  <div class="dash-tab-panel is-hidden" id="tab-filesync">
+  <div class="dash-tab-panel is-hidden" id="tab-filesync" role="tabpanel" aria-labelledby="dash-tab-filesync">
     <div class="dash-grid">
 
     <!-- File Sync full-width panel -->
     <div class="dash-card dash-full-width" id="card-filesync">
       <div class="dash-card-header">
-        <span class="card-icon">📡</span> <span data-i18n="dashboard.filesync_title">Datei-Sync Status</span>
-        <span class="collapse-toggle" data-card="card-filesync" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span>
+        <svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v6m0 0L8 6m4 2l4-2" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M7 13h2v4H7zm8 0h2v4h-2z" fill="currentColor" stroke="none"/></svg> <span data-i18n="dashboard.filesync_title"></span>
+        <span class="collapse-toggle" data-card="card-filesync" data-i18n-title="dashboard.activity_collapse" title="">▼</span>
         <div style="margin-left:auto;display:flex;gap:.5rem;align-items:center;">
-          <span class="kc-sync-status-dot" id="fs-indexer-dot" style="font-size:.75rem;">⚫</span>
+          <span class="kc-sync-status-dot" id="fs-indexer-dot" style="font-size:.75rem;"></span>
           <span class="kc-sync-status-label" id="fs-indexer-status">—</span>
-          <button class="btn btn-secondary btn-sm" onclick="loadFileSyncStatus()" id="btn-fs-refresh-dash" data-i18n="knowledge.filesync_refresh">🔄 Refresh</button>
-          <button class="btn btn-primary btn-sm" onclick="triggerFileSyncRescan()" id="btn-fs-rescan-dash" data-i18n="knowledge.filesync_rescan">🔍 Rescan</button>
+          <button class="btn btn-secondary btn-sm" onclick="loadFileSyncStatus()" id="btn-fs-refresh-dash" data-i18n="knowledge.filesync_refresh"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" fill="none"/><polyline points="21 3 21 8 16 8"/></svg> Refresh</button>
+          <button class="btn btn-primary btn-sm" onclick="triggerFileSyncRescan()" id="btn-fs-rescan-dash" data-i18n="knowledge.filesync_rescan"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16" y1="16" x2="21" y2="21"/></svg> Rescan</button>
         </div>
       </div>
       <div class="dash-card-body">
         <div class="fs-dash-grid">
           <div class="fs-dash-col" id="fs-dash-indexer">
-            <div class="fs-dash-section-title">📁 <span data-i18n="knowledge.filesync_indexer_title">File Indexer</span></div>
+            <div class="fs-dash-section-title"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill="none"/></svg> <span data-i18n="knowledge.filesync_indexer_title"></span></div>
             <div class="fs-dash-body" id="fs-indexer-body"><div class="kc-sync-loading">Loading…</div></div>
           </div>
           <div class="fs-dash-col" id="fs-dash-kg">
-            <div class="fs-dash-section-title">🧠 <span data-i18n="knowledge.filesync_kg_title">Knowledge Graph</span></div>
+            <div class="fs-dash-section-title"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v.5A3.5 3.5 0 0 0 5.5 9c0 1 .4 1.9 1 2.5A3.5 3.5 0 0 0 5 15.5c0 1.9 1.3 3.5 3 3.8V21a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-1.7c1.7-.3 3-1.9 3-3.8a3.5 3.5 0 0 0-1.5-4c.6-.6 1-1.5 1-2.5A3.5 3.5 0 0 0 15 5.5V5a3 3 0 0 0-3-3z"/></svg> <span data-i18n="knowledge.filesync_kg_title"></span></div>
             <div class="fs-dash-body" id="fs-kg-body"><div class="kc-sync-loading">Loading…</div></div>
           </div>
           <div class="fs-dash-col" id="fs-dash-colls">
-            <div class="fs-dash-section-title">📂 <span data-i18n="knowledge.filesync_collections_title">Collections</span></div>
+            <div class="fs-dash-section-title"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2z" fill="none"/></svg> <span data-i18n="knowledge.filesync_collections_title"></span></div>
             <div class="fs-dash-body" id="fs-collections-body"><div class="kc-sync-loading">Loading…</div></div>
           </div>
           <div class="fs-dash-col" id="fs-dash-lastsync">
-            <div class="fs-dash-section-title">⏱️ <span data-i18n="knowledge.filesync_last_sync_title">Last Synchronization</span></div>
+            <div class="fs-dash-section-title"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg> <span data-i18n="knowledge.filesync_last_sync_title"></span></div>
             <div class="fs-dash-body" id="fs-lastsync-body"><div class="kc-sync-loading">Loading…</div></div>
           </div>
         </div>
@@ -519,71 +534,71 @@
   </div><!-- #tab-filesync -->
 
   <!-- ═══ Tab 4c: Audit ══════════════════════════════════════════════════════ -->
-  <div class="dash-tab-panel is-hidden" id="tab-audit">
+  <div class="dash-tab-panel is-hidden" id="tab-audit" role="tabpanel" aria-labelledby="dash-tab-audit">
     <div class="dash-grid">
       <div class="dash-card dash-full-width" id="card-audit-log">
         <div class="dash-card-header">
-          <span class="card-icon">🧾</span>
-          <span data-i18n="dashboard.audit_title">Audit</span>
-          <span class="collapse-toggle" data-card="card-audit-log" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span>
+          <svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none"/><path d="M14 2v6h6" stroke-linecap="round"/><path d="M8 13h8M8 17h5" stroke-linecap="round"/></svg>
+          <span data-i18n="dashboard.audit_title"></span>
+          <span class="collapse-toggle" data-card="card-audit-log" data-i18n-title="dashboard.activity_collapse" title="">▼</span>
         </div>
         <div class="dash-card-body">
           <div class="audit-controls">
-            <input type="search" id="audit-search" class="profile-search" data-i18n-placeholder="dashboard.audit_search_placeholder" placeholder="Audit durchsuchen...">
+            <input type="search" id="audit-search" class="profile-search" data-i18n-placeholder="dashboard.audit_search_placeholder" placeholder="">
             <select id="audit-source-filter" class="audit-select">
-              <option value="" data-i18n="dashboard.audit_filter_all_sources">Alle Quellen</option>
-              <option value="agent_tool" data-i18n="dashboard.audit_source_agent_tool">Agent-Tools</option>
-              <option value="mission" data-i18n="dashboard.audit_source_mission">Missions</option>
-              <option value="heartbeat" data-i18n="dashboard.audit_source_heartbeat">Heartbeat</option>
-              <option value="remote" data-i18n="dashboard.audit_source_remote">Remote</option>
-              <option value="system" data-i18n="dashboard.audit_source_system">System</option>
+              <option value="" data-i18n="dashboard.audit_filter_all_sources"></option>
+              <option value="agent_tool" data-i18n="dashboard.audit_source_agent_tool"></option>
+              <option value="mission" data-i18n="dashboard.audit_source_mission"></option>
+              <option value="heartbeat" data-i18n="dashboard.audit_source_heartbeat"></option>
+              <option value="remote" data-i18n="dashboard.audit_source_remote"></option>
+              <option value="system" data-i18n="dashboard.audit_source_system"></option>
             </select>
             <select id="audit-status-filter" class="audit-select">
-              <option value="" data-i18n="dashboard.audit_filter_all_statuses">Alle Status</option>
-              <option value="running" data-i18n="dashboard.audit_status_running">Läuft</option>
-              <option value="success" data-i18n="dashboard.audit_status_success">Erfolgreich</option>
-              <option value="error" data-i18n="dashboard.audit_status_error">Fehler</option>
-              <option value="warning" data-i18n="dashboard.audit_status_warning">Warnung</option>
-              <option value="blocked" data-i18n="dashboard.audit_status_blocked">Blockiert</option>
-              <option value="sanitized" data-i18n="dashboard.audit_status_sanitized">Bereinigt</option>
+              <option value="" data-i18n="dashboard.audit_filter_all_statuses"></option>
+              <option value="running" data-i18n="dashboard.audit_status_running"></option>
+              <option value="success" data-i18n="dashboard.audit_status_success"></option>
+              <option value="error" data-i18n="dashboard.audit_status_error"></option>
+              <option value="warning" data-i18n="dashboard.audit_status_warning"></option>
+              <option value="blocked" data-i18n="dashboard.audit_status_blocked"></option>
+              <option value="sanitized" data-i18n="dashboard.audit_status_sanitized"></option>
             </select>
             <select id="audit-type-filter" class="audit-select">
-              <option value="" data-i18n="dashboard.audit_filter_all_types">Alle Typen</option>
-              <option value="tool_call" data-i18n="dashboard.audit_type_tool_call">Tool Call</option>
-              <option value="agent_action" data-i18n="dashboard.audit_type_agent_action">Action Lifecycle</option>
-              <option value="mission_run" data-i18n="dashboard.audit_type_mission_run">Mission Run</option>
-              <option value="heartbeat_run" data-i18n="dashboard.audit_type_heartbeat_run">Heartbeat Run</option>
-              <option value="remote_heartbeat" data-i18n="dashboard.audit_type_remote_heartbeat">Remote Heartbeat</option>
-              <option value="remote_command" data-i18n="dashboard.audit_type_remote_command">Remote Command</option>
-              <option value="remote_connect" data-i18n="dashboard.audit_type_remote_connect">Remote Connect</option>
-              <option value="remote_disconnect" data-i18n="dashboard.audit_type_remote_disconnect">Remote Disconnect</option>
+              <option value="" data-i18n="dashboard.audit_filter_all_types"></option>
+              <option value="tool_call" data-i18n="dashboard.audit_type_tool_call"></option>
+              <option value="agent_action" data-i18n="dashboard.audit_type_agent_action"></option>
+              <option value="mission_run" data-i18n="dashboard.audit_type_mission_run"></option>
+              <option value="heartbeat_run" data-i18n="dashboard.audit_type_heartbeat_run"></option>
+              <option value="remote_heartbeat" data-i18n="dashboard.audit_type_remote_heartbeat"></option>
+              <option value="remote_command" data-i18n="dashboard.audit_type_remote_command"></option>
+              <option value="remote_connect" data-i18n="dashboard.audit_type_remote_connect"></option>
+              <option value="remote_disconnect" data-i18n="dashboard.audit_type_remote_disconnect"></option>
             </select>
-            <input type="datetime-local" id="audit-from-filter" class="audit-date-input" data-i18n-title="dashboard.audit_filter_from" title="Von">
-            <input type="datetime-local" id="audit-to-filter" class="audit-date-input" data-i18n-title="dashboard.audit_filter_to" title="Bis">
-            <button type="button" id="audit-refresh" class="log-btn" data-i18n="dashboard.audit_refresh">Aktualisieren</button>
-            <button type="button" id="audit-clear-filtered" class="log-btn audit-danger-btn" data-i18n="dashboard.audit_clear_filtered">Gefilterte löschen</button>
+            <input type="datetime-local" id="audit-from-filter" class="audit-date-input" data-i18n-title="dashboard.audit_filter_from" title="">
+            <input type="datetime-local" id="audit-to-filter" class="audit-date-input" data-i18n-title="dashboard.audit_filter_to" title="">
+            <button type="button" id="audit-refresh" class="log-btn" data-i18n="dashboard.audit_refresh"></button>
+            <button type="button" id="audit-clear-filtered" class="log-btn audit-danger-btn" data-i18n="dashboard.audit_clear_filtered"></button>
           </div>
           <div id="audit-content" class="audit-table-wrap">
             <table class="audit-table">
               <thead>
                 <tr>
-                  <th data-i18n="dashboard.audit_col_time">Zeit</th>
-                  <th data-i18n="dashboard.audit_col_source">Quelle</th>
-                  <th data-i18n="dashboard.audit_col_type">Typ</th>
-                  <th data-i18n="dashboard.audit_col_target">Ziel</th>
-                  <th data-i18n="dashboard.audit_col_status">Status</th>
-                  <th data-i18n="dashboard.audit_col_summary">Zusammenfassung</th>
-                  <th data-i18n="dashboard.audit_col_duration">Dauer</th>
-                  <th data-i18n="dashboard.audit_col_actions">Aktion</th>
+                  <th data-i18n="dashboard.audit_col_time"></th>
+                  <th data-i18n="dashboard.audit_col_source"></th>
+                  <th data-i18n="dashboard.audit_col_type"></th>
+                  <th data-i18n="dashboard.audit_col_target"></th>
+                  <th data-i18n="dashboard.audit_col_status"></th>
+                  <th data-i18n="dashboard.audit_col_summary"></th>
+                  <th data-i18n="dashboard.audit_col_duration"></th>
+                  <th data-i18n="dashboard.audit_col_actions"></th>
                 </tr>
               </thead>
               <tbody id="audit-tbody"></tbody>
             </table>
-            <div id="audit-empty" class="empty-state" data-i18n="dashboard.audit_empty">Noch keine Audit-Einträge.</div>
+            <div id="audit-empty" class="empty-state" data-i18n="dashboard.audit_empty"></div>
             <div class="audit-pager">
-              <button type="button" id="audit-prev" class="mh-more-btn" data-i18n="dashboard.audit_prev">Zurück</button>
+              <button type="button" id="audit-prev" class="mh-more-btn" data-i18n="dashboard.audit_prev"></button>
               <span id="audit-page-meta" class="audit-page-meta"></span>
-              <button type="button" id="audit-next" class="mh-more-btn" data-i18n="dashboard.audit_next">Weiter</button>
+              <button type="button" id="audit-next" class="mh-more-btn" data-i18n="dashboard.audit_next"></button>
             </div>
           </div>
         </div>
@@ -592,51 +607,51 @@
   </div><!-- #tab-audit -->
 
   <!-- ═══ Tab 4d: Cronjobs ═══════════════════════════════════════════════════ -->
-  <div class="dash-tab-panel is-hidden" id="tab-cronjobs">
+  <div class="dash-tab-panel is-hidden" id="tab-cronjobs" role="tabpanel" aria-labelledby="dash-tab-cronjobs">
     <div class="dash-grid">
       <div class="dash-card dash-full-width" id="card-cronjobs">
         <div class="dash-card-header">
-          <span class="card-icon">⏱️</span>
-          <span data-i18n="dashboard.cronjobs_title">Cronjobs</span>
-          <span class="collapse-toggle" data-card="card-cronjobs" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span>
+          <svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span data-i18n="dashboard.cronjobs_title"></span>
+          <span class="collapse-toggle" data-card="card-cronjobs" data-i18n-title="dashboard.activity_collapse" title="">▼</span>
         </div>
         <div class="dash-card-body">
           <div class="cronjobs-summary" id="cronjobs-summary">
-            <div class="cronjobs-summary-item"><span class="cronjobs-summary-value">—</span><span data-i18n="dashboard.cronjobs_total">Gesamt</span></div>
-            <div class="cronjobs-summary-item"><span class="cronjobs-summary-value">—</span><span data-i18n="dashboard.cronjobs_enabled">Aktiv</span></div>
-            <div class="cronjobs-summary-item"><span class="cronjobs-summary-value">—</span><span data-i18n="dashboard.cronjobs_disabled">Deaktiviert</span></div>
+            <div class="cronjobs-summary-item"><span class="cronjobs-summary-value">—</span><span data-i18n="dashboard.cronjobs_total"></span></div>
+            <div class="cronjobs-summary-item"><span class="cronjobs-summary-value">—</span><span data-i18n="dashboard.cronjobs_enabled"></span></div>
+            <div class="cronjobs-summary-item"><span class="cronjobs-summary-value">—</span><span data-i18n="dashboard.cronjobs_disabled"></span></div>
           </div>
           <div class="cronjobs-controls">
-            <input type="search" id="cronjobs-search" class="profile-search" data-i18n-placeholder="dashboard.cronjobs_search_placeholder" placeholder="Cronjobs durchsuchen...">
+            <input type="search" id="cronjobs-search" class="profile-search" data-i18n-placeholder="dashboard.cronjobs_search_placeholder" placeholder="">
             <select id="cronjobs-source-filter" class="cronjobs-select">
-              <option value="" data-i18n="dashboard.cronjobs_filter_all_sources">Alle Quellen</option>
-              <option value="agent" data-i18n="dashboard.cronjobs_source_agent">Agent</option>
-              <option value="mission" data-i18n="dashboard.cronjobs_source_mission">Missions</option>
-              <option value="system" data-i18n="dashboard.cronjobs_source_system">System</option>
+              <option value="" data-i18n="dashboard.cronjobs_filter_all_sources"></option>
+              <option value="agent" data-i18n="dashboard.cronjobs_source_agent"></option>
+              <option value="mission" data-i18n="dashboard.cronjobs_source_mission"></option>
+              <option value="system" data-i18n="dashboard.cronjobs_source_system"></option>
             </select>
             <select id="cronjobs-status-filter" class="cronjobs-select">
-              <option value="" data-i18n="dashboard.cronjobs_filter_all_statuses">Alle Status</option>
-              <option value="enabled" data-i18n="dashboard.cronjobs_status_enabled">Aktiv</option>
-              <option value="disabled" data-i18n="dashboard.cronjobs_status_disabled">Deaktiviert</option>
+              <option value="" data-i18n="dashboard.cronjobs_filter_all_statuses"></option>
+              <option value="enabled" data-i18n="dashboard.cronjobs_status_enabled"></option>
+              <option value="disabled" data-i18n="dashboard.cronjobs_status_disabled"></option>
             </select>
-            <button type="button" id="cronjobs-refresh" class="log-btn" data-i18n="dashboard.cronjobs_refresh">Aktualisieren</button>
+            <button type="button" id="cronjobs-refresh" class="log-btn" data-i18n="dashboard.cronjobs_refresh"></button>
           </div>
           <div class="cronjobs-table-wrap">
             <table class="cronjobs-table">
               <thead>
                 <tr>
-                  <th data-i18n="dashboard.cronjobs_col_id">ID</th>
-                  <th data-i18n="dashboard.cronjobs_col_source">Quelle</th>
-                  <th data-i18n="dashboard.cronjobs_col_schedule">Zeitplan</th>
-                  <th data-i18n="dashboard.cronjobs_col_next_run">Nächster Lauf</th>
-                  <th data-i18n="dashboard.cronjobs_col_status">Status</th>
-                  <th data-i18n="dashboard.cronjobs_col_prompt">Prompt</th>
-                  <th data-i18n="dashboard.cronjobs_col_actions">Aktion</th>
+                  <th data-i18n="dashboard.cronjobs_col_id"></th>
+                  <th data-i18n="dashboard.cronjobs_col_source"></th>
+                  <th data-i18n="dashboard.cronjobs_col_schedule"></th>
+                  <th data-i18n="dashboard.cronjobs_col_next_run"></th>
+                  <th data-i18n="dashboard.cronjobs_col_status"></th>
+                  <th data-i18n="dashboard.cronjobs_col_prompt"></th>
+                  <th data-i18n="dashboard.cronjobs_col_actions"></th>
                 </tr>
               </thead>
               <tbody id="cronjobs-tbody"></tbody>
             </table>
-            <div id="cronjobs-empty" class="empty-state" data-i18n="dashboard.cronjobs_empty">Keine Cronjobs vorhanden.</div>
+            <div id="cronjobs-empty" class="empty-state" data-i18n="dashboard.cronjobs_empty"></div>
           </div>
         </div>
       </div>
@@ -644,12 +659,12 @@
   </div><!-- #tab-cronjobs -->
 
   <!-- ═══ Tab 5: System & Logs ════════════════════════════════════════════ -->
-  <div class="dash-tab-panel" id="tab-system">
+  <div class="dash-tab-panel" id="tab-system" role="tabpanel" aria-labelledby="dash-tab-system">
     <div class="dash-grid">
 
     <!-- 7. Operations Overview -->
     <div class="dash-card" id="card-operations">
-      <div class="dash-card-header"><span class="card-icon">⚙️</span> <span data-i18n="dashboard.operations_title">Betrieb & Dienste</span> <span class="collapse-toggle" data-card="card-operations" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" stroke-linecap="round"/></svg> <span data-i18n="dashboard.operations_title">Betrieb & Dienste</span> <span class="collapse-toggle" data-card="card-operations" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div class="ops-grid" id="ops-grid"></div>
         <div class="integration-grid" id="integration-grid"></div>
@@ -658,7 +673,7 @@
 
     <!-- 7b. LLM Guardian Security -->
     <div class="dash-card is-hidden" id="card-guardian">
-      <div class="dash-card-header"><span class="card-icon">🛡️</span> <span data-i18n="dashboard.guardian_title">LLM Guardian</span> <span class="collapse-toggle" data-card="card-guardian" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5z" fill="none"/></svg> <span data-i18n="dashboard.guardian_title"></span> <span class="collapse-toggle" data-card="card-guardian" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div id="guardian-status"></div>
         <div id="guardian-metrics"></div>
@@ -667,7 +682,7 @@
 
     <!-- Daemon Skills Overview -->
     <div class="dash-card is-hidden" id="card-daemons">
-      <div class="dash-card-header"><span class="card-icon">👹</span> <span data-i18n="dashboard.daemons_title">Daemon Skills</span> <span class="collapse-toggle" data-card="card-daemons" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l8 4v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V6z" fill="none"/><circle cx="12" cy="11" r="3" fill="currentColor" stroke="none"/></svg> <span data-i18n="dashboard.daemons_title"></span> <span class="collapse-toggle" data-card="card-daemons" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div id="daemon-summary"></div>
         <div id="daemon-list"></div>
@@ -675,7 +690,7 @@
     </div>
 
     <div class="dash-card" id="card-helper-llm">
-      <div class="dash-card-header"><span class="card-icon">🪶</span> <span data-i18n="dashboard.helper_llm_title">Helper LLM</span> <span class="collapse-toggle" data-card="card-helper-llm" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 4c-4 0-9 2-12 5l-4 4v3l4-1c3-3 5-7 5-11z" fill="none"/><path d="M16 8L8 16M14 10l-4 4M12 12l-2 2" stroke-linecap="round"/></svg> <span data-i18n="dashboard.helper_llm_title"></span> <span class="collapse-toggle" data-card="card-helper-llm" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div id="helper-llm-status"></div>
         <div id="helper-llm-metrics"></div>
@@ -685,7 +700,7 @@
 
     <!-- 8. Activity & Automations (full width) -->
     <div class="dash-card dash-full-width" id="card-activity">
-      <div class="dash-card-header"><span class="card-icon">⚡</span> <span data-i18n="dashboard.activity_title">Aktivität</span> <span class="collapse-toggle" data-card="card-activity" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L3 14h7l-1 8 10-12h-7z" fill="currentColor" stroke="none"/></svg> <span data-i18n="dashboard.activity_title"></span> <span class="collapse-toggle" data-card="card-activity" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div class="activity-grid" id="activity-stats"></div>
         <div id="activity-details"></div>
@@ -694,21 +709,20 @@
 
     <!-- 9. Prompt Builder Analytics (full width) -->
     <div class="dash-card dash-full-width" id="card-prompt">
-      <div class="dash-card-header"><span class="card-icon">📝</span> <span data-i18n="dashboard.prompt_title">Prompt-Analyse</span> <span class="collapse-toggle" data-card="card-prompt" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke-linecap="round"/></svg> <span data-i18n="dashboard.prompt_title"></span> <span class="collapse-toggle" data-card="card-prompt" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
-        <div id="prompt-no-data" class="empty-state" data-i18n="dashboard.prompt_no_data">Noch keine Daten. Statistiken erscheinen nach dem ersten
-          Gespräch und werden bei Serverneustart gelöscht.</div>
+        <div id="prompt-no-data" class="empty-state" data-i18n="dashboard.prompt_no_data"></div>
         <div id="prompt-content">
           <div class="prompt-kpi-grid" id="prompt-kpis"></div>
           <div class="prompt-details-grid">
             <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_history">Prompt-Verlauf</h4>
+              <h4 class="dash-subheading" data-i18n="dashboard.prompt_history"></h4>
               <div class="prompt-chart-wrap">
                 <canvas id="prompt-size-chart"></canvas>
               </div>
             </div>
             <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_tier_distribution">Tier-Verteilung</h4>
+              <h4 class="dash-subheading" data-i18n="dashboard.prompt_tier_distribution"></h4>
               <div class="prompt-chart-wrap">
                 <canvas id="prompt-tier-chart"></canvas>
               </div>
@@ -716,11 +730,11 @@
           </div>
           <div class="prompt-details-grid mt-sm">
             <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_budget_shed_sections">Budget Shed Bereiche</h4>
+              <h4 class="dash-subheading" data-i18n="dashboard.prompt_budget_shed_sections"></h4>
               <div class="shed-list" id="shed-list"></div>
             </div>
             <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_savings">Einsparungen</h4>
+              <h4 class="dash-subheading" data-i18n="dashboard.prompt_savings"></h4>
               <div class="prompt-chart-wrap">
                 <canvas id="prompt-savings-chart"></canvas>
               </div>
@@ -728,19 +742,19 @@
           </div>
           <!-- Savings breakdown KPIs -->
           <div class="mt-sm">
-            <h4 class="dash-subheading" data-i18n="dashboard.prompt_savings_breakdown_title">Einspar-Analyse</h4>
+            <h4 class="dash-subheading" data-i18n="dashboard.prompt_savings_breakdown_title"></h4>
             <div class="prompt-kpi-grid" id="prompt-savings-kpis"></div>
           </div>
           <!-- Prompt section distribution -->
           <div class="prompt-details-grid mt-sm">
             <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_section_dist">Ø Prompt-Verteilung</h4>
+              <h4 class="dash-subheading" data-i18n="dashboard.prompt_section_dist"></h4>
               <div class="prompt-chart-wrap prompt-chart-wrap-lg">
                 <canvas id="prompt-section-dist-chart"></canvas>
               </div>
             </div>
             <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_section_dist_hint">Zeichen je Bereich (Durchschnitt)</h4>
+              <h4 class="dash-subheading" data-i18n="dashboard.prompt_section_dist_hint"></h4>
               <div class="prompt-section-legend" id="prompt-section-legend"></div>
             </div>
           </div>
@@ -750,7 +764,7 @@
 
     <!-- 10. GitHub Repositories (full width) -->
     <div class="dash-card dash-full-width is-hidden" id="card-adaptive-tools">
-      <div class="dash-card-header"><span class="card-icon">🔧</span> <span data-i18n="dashboard.adaptive_tools_title">Adaptive Tool-Filterung</span> <span class="collapse-toggle" data-card="card-adaptive-tools" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 7l3-3 3 3-3 3z" fill="none"/><path d="M5 12l3-3 4 4-3 3zM14 7l3 3" stroke-linecap="round"/></svg> <span data-i18n="dashboard.adaptive_tools_title"></span> <span class="collapse-toggle" data-card="card-adaptive-tools" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div class="prompt-kpi-grid" id="adaptive-tools-kpis"></div>
         <div id="adaptive-tools-list" class="mt-sm"></div>
@@ -758,40 +772,40 @@
     </div>
 
     <div class="dash-card dash-full-width is-hidden" id="card-tooling-telemetry">
-      <div class="dash-card-header"><span class="card-icon">🩺</span> <span data-i18n="dashboard.tooling_telemetry_title">Tooling-Diagnose</span> <span class="collapse-toggle" data-card="card-tooling-telemetry" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v6a5 5 0 0 0 10 0V3" stroke-linecap="round"/><circle cx="19" cy="14" r="3"/><path d="M9 14v3a4 4 0 0 0 4 4" stroke-linecap="round"/></svg> <span data-i18n="dashboard.tooling_telemetry_title"></span> <span class="collapse-toggle" data-card="card-tooling-telemetry" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div id="tooling-telemetry-summary" class="mb-sm"></div>
         <div class="tooling-telemetry-grid">
           <div class="tooling-telemetry-section">
-            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_parse_sources">Parse-Quellen</h4>
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_parse_sources"></h4>
             <div id="tooling-telemetry-parse"></div>
           </div>
           <div class="tooling-telemetry-section">
-            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_recovery_events">Recovery-Ereignisse</h4>
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_recovery_events"></h4>
             <div id="tooling-telemetry-recovery"></div>
           </div>
           <div class="tooling-telemetry-section">
-            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_policy_events">Policy-Signale</h4>
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_policy_events"></h4>
             <div id="tooling-telemetry-policy"></div>
           </div>
           <div class="tooling-telemetry-section">
-            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_retrieval_events">Retrieval-Metriken</h4>
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_retrieval_events"></h4>
             <div id="tooling-telemetry-retrieval"></div>
           </div>
           <div class="tooling-telemetry-section">
-            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_failure_tools">Fehleranfällige Tools</h4>
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_failure_tools"></h4>
             <div id="tooling-telemetry-failures"></div>
           </div>
           <div class="tooling-telemetry-section">
-            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_tool_families">Toolfamilien</h4>
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_tool_families"></h4>
             <div id="tooling-telemetry-families"></div>
           </div>
           <div class="tooling-telemetry-section">
-            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_scopes">Modell-Segmente</h4>
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_scopes"></h4>
             <div id="tooling-telemetry-scopes"></div>
           </div>
           <div class="tooling-telemetry-section">
-            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_model_comparison">Modellvergleich</h4>
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_model_comparison"></h4>
             <div id="tooling-telemetry-comparison"></div>
           </div>
         </div>
@@ -800,7 +814,7 @@
 
     <!-- 11. GitHub Repositories (full width) -->
         <div class="dash-card dash-full-width is-hidden" id="card-github">
-      <div class="dash-card-header"><span class="card-icon">🐙</span> <span data-i18n="dashboard.github_title">GitHub Repositories</span> <span class="collapse-toggle" data-card="card-github" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a5 5 0 0 0-5 5v3a5 5 0 0 0 10 0V8a5 5 0 0 0-5-5z" fill="none"/><path d="M7 11c-3 0-5 2-5 5v2M12 11v6c0 2-1 4-3 4M17 11c3 0 5 2 5 5v2" stroke-linecap="round"/></svg> <span data-i18n="dashboard.github_title"></span> <span class="collapse-toggle" data-card="card-github" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div id="github-content"></div>
       </div>
@@ -808,15 +822,15 @@
 
     <!-- 11. Log Viewer (full width) -->
     <div class="dash-card dash-full-width" id="card-logs">
-      <div class="dash-card-header"><span class="card-icon">📋</span> <span data-i18n="dashboard.logs_title">Live-Log</span> <span class="collapse-toggle" data-card="card-logs" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/></svg> <span data-i18n="dashboard.logs_title"></span> <span class="collapse-toggle" data-card="card-logs" data-i18n-title="dashboard.activity_collapse" title="">▼</span></div>
       <div class="dash-card-body">
         <div class="log-controls">
-          <input type="text" id="log-filter" data-i18n-placeholder="dashboard.logs_filter_placeholder" placeholder="Logs filtern (Regex unterstützt)...">
-          <button class="log-btn" id="log-scroll-btn" data-i18n-title="dashboard.logs_scroll_to_bottom_title" title="Zum Ende springen" data-i18n="dashboard.logs_scroll_to_bottom">⬇ Aktuell</button>
-          <button class="log-btn" id="log-refresh-btn" data-i18n-title="dashboard.logs_refresh_title" title="Logs neu laden" data-i18n="dashboard.logs_refresh">🔄 Aktualisieren</button>
+          <input type="text" id="log-filter" data-i18n-placeholder="dashboard.logs_filter_placeholder" placeholder="">
+          <button class="log-btn" id="log-scroll-btn" data-i18n-title="dashboard.logs_scroll_to_bottom_title" title="" data-i18n="dashboard.logs_scroll_to_bottom"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="6 13 12 19 18 13"/></svg> Aktuell</button>
+          <button class="log-btn" id="log-refresh-btn" data-i18n-title="dashboard.logs_refresh_title" title="" data-i18n="dashboard.logs_refresh"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" fill="none"/><polyline points="21 3 21 8 16 8"/></svg> Aktualisieren</button>
         </div>
         <div class="log-viewer" id="log-viewer">
-          <div class="log-line text-secondary" data-i18n="dashboard.logs_loading">Logs werden geladen...</div>
+          <div class="log-line text-secondary" data-i18n="dashboard.logs_loading"></div>
         </div>
         <div class="log-meta" id="log-meta"></div>
       </div>
@@ -832,11 +846,11 @@
   <script src="/js/knowledge/file_sync_status.js" defer></script>
 
   <!-- Core-Facts Modal -->
-  <div class="cf-overlay" id="cfOverlay">
+  <div class="cf-overlay" id="cfOverlay" role="dialog" aria-modal="true" aria-labelledby="cfTitleLabel">
     <div class="cf-modal">
       <div class="cf-header">
-        <span class="cf-title">🧠 <span data-i18n="dashboard.core_facts_modal_title">Kernfakten</span></span>
-        <button class="cf-close" id="cfClose" data-i18n-title="common.btn_close" title="Schließen">&times;</button>
+        <span class="cf-title" id="cfTitleLabel"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v.5A3.5 3.5 0 0 0 5.5 9c0 1 .4 1.9 1 2.5A3.5 3.5 0 0 0 5 15.5c0 1.9 1.3 3.5 3 3.8V21a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-1.7c1.7-.3 3-1.9 3-3.8a3.5 3.5 0 0 0-1.5-4c.6-.6 1-1.5 1-2.5A3.5 3.5 0 0 0 15 5.5V5a3 3 0 0 0-3-3z"/></svg> <span data-i18n="dashboard.core_facts_modal_title"></span></span>
+        <button class="cf-close" id="cfClose" data-i18n-title="common.btn_close" title="">&times;</button>
       </div>
       <div class="cf-body" id="cfBody">
         <div class="empty-state" data-i18n="dashboard.core_facts_modal_loading">Wird geladen…</div>
@@ -845,40 +859,40 @@
   </div>
 
   <!-- Cron Edit Modal -->
-  <div class="cf-overlay" id="cronEditOverlay">
+  <div class="cf-overlay" id="cronEditOverlay" role="dialog" aria-modal="true" aria-labelledby="cronEditTitleLabel">
     <div class="cf-modal">
       <div class="cf-header">
-        <span class="cf-title">⏰ <span data-i18n="dashboard.cron_edit_title">Aufgabe bearbeiten</span></span>
+        <span class="cf-title" id="cronEditTitleLabel"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14" stroke-linecap="round" stroke-linejoin="round"/></svg> <span data-i18n="dashboard.cron_edit_title"></span></span>
         <button class="cf-close" id="cronEditClose">&times;</button>
       </div>
       <div class="cf-body">
         <div class="cron-edit-form">
           <div class="cron-form-group">
-            <label class="cron-form-label" data-i18n="dashboard.cron_edit_id_label">Aufgaben-ID</label>
+            <label class="cron-form-label" data-i18n="dashboard.cron_edit_id_label"></label>
             <input type="text" id="cronEditId" class="cf-add-input cron-edit-id" readonly>
           </div>
           <div class="cron-form-group">
-            <label class="cron-form-label" data-i18n="dashboard.cron_edit_source_label">Quelle</label>
+            <label class="cron-form-label" data-i18n="dashboard.cron_edit_source_label"></label>
             <input type="text" id="cronEditSource" class="cf-add-input cron-edit-id" readonly>
           </div>
           <div class="cron-form-group">
-            <label class="cron-form-label" data-i18n="dashboard.cron_edit_expr_label">Cron-Ausdruck</label>
+            <label class="cron-form-label" data-i18n="dashboard.cron_edit_expr_label"></label>
             <input type="text" id="cronEditExpr" class="cf-add-input" placeholder="0 0 9 * * *">
           </div>
           <div class="cron-form-group">
-            <label class="cron-form-label" data-i18n="dashboard.cron_edit_status_label">Status</label>
+            <label class="cron-form-label" data-i18n="dashboard.cron_edit_status_label"></label>
             <select id="cronEditDisabled" class="cf-add-input">
-              <option value="enabled" data-i18n="dashboard.cronjobs_status_enabled">Aktiv</option>
-              <option value="disabled" data-i18n="dashboard.cronjobs_status_disabled">Deaktiviert</option>
+              <option value="enabled" data-i18n="dashboard.cronjobs_status_enabled"></option>
+              <option value="disabled" data-i18n="dashboard.cronjobs_status_disabled"></option>
             </select>
           </div>
           <div class="cron-form-group">
-            <label class="cron-form-label" data-i18n="dashboard.cron_edit_prompt_label">Aufgaben-Prompt</label>
+            <label class="cron-form-label" data-i18n="dashboard.cron_edit_prompt_label"></label>
             <textarea id="cronEditPrompt" class="cf-add-input cron-edit-textarea" rows="8"></textarea>
           </div>
           <div class="cron-form-actions">
-            <button class="cf-add-btn cron-btn-cancel" onclick="closeCronEditModal()" data-i18n="dashboard.cron_edit_cancel">Abbrechen</button>
-            <button class="cf-add-btn" id="cronEditSaveBtn" onclick="saveCronEdit()" data-i18n="dashboard.cron_edit_save">Speichern</button>
+            <button class="cf-add-btn cron-btn-cancel" onclick="closeCronEditModal()" data-i18n="dashboard.cron_edit_cancel"></button>
+            <button class="cf-add-btn" id="cronEditSaveBtn" onclick="saveCronEdit()" data-i18n="dashboard.cron_edit_save"></button>
           </div>
         </div>
       </div>
@@ -886,10 +900,10 @@
   </div>
 
   <!-- Knowledge Graph Detail Modal -->
-  <div class="cf-overlay" id="kgDetailOverlay">
+  <div class="cf-overlay" id="kgDetailOverlay" role="dialog" aria-modal="true" aria-labelledby="kgDetailTitleLabel">
     <div class="cf-modal cf-modal-wide">
       <div class="cf-header">
-        <span class="cf-title">🧭 <span data-i18n="dashboard.knowledge_detail_title">Node Inspector</span></span>
+        <span class="cf-title" id="kgDetailTitleLabel"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polygon points="16 8 14 14 8 16 10 10" fill="currentColor" stroke="none"/></svg> <span data-i18n="dashboard.knowledge_detail_title"></span></span>
         <button class="cf-close" id="kgDetailClose">&times;</button>
       </div>
       <div class="cf-body" id="kgDetailBody">

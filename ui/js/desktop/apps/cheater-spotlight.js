@@ -10,16 +10,16 @@
         overlay.className = 'cheater-spotlight';
         overlay.setAttribute('role', 'dialog');
         overlay.setAttribute('aria-modal', 'true');
-        overlay.setAttribute('aria-label', t('cheater.spotlight_title', 'Cheat Sheets durchsuchen'));
+        overlay.setAttribute('aria-label', t('cheater.spotlight_title'));
         overlay.innerHTML = `
             <div class="cheater-spotlight-backdrop" data-backdrop></div>
             <div class="cheater-spotlight-panel">
                 <input type="text" class="cheater-spotlight-input" data-input
-                       placeholder="${esc(t('cheater.spotlight_placeholder', 'Suche oder erstelle...'))}"
-                       aria-label="${esc(t('cheater.spotlight_input_label', 'Suche'))}"
+                       placeholder="${esc(t('cheater.spotlight_placeholder'))}"
+                       aria-label="${esc(t('cheater.spotlight_input_label'))}"
                        autocomplete="off" spellcheck="false">
                 <ul class="cheater-spotlight-results" data-results role="listbox"></ul>
-                <div class="cheater-spotlight-hint" data-hint>${esc(t('cheater.spotlight_hint', '↑↓ navigieren · ↵ öffnen · ⌘N neu erstellen · Esc schließen'))}</div>
+                <div class="cheater-spotlight-hint" data-hint>${esc(t('cheater.spotlight_hint'))}</div>
             </div>
         `;
         document.body.appendChild(overlay);
@@ -71,7 +71,7 @@
             }
             const matches = fuzzyFilter(state.searchIndex, q).slice(0, MAX_VISIBLE);
             if (matches.length === 0) {
-                currentResults = [{ action: 'create', query: q, label: '+ Neues Sheet erstellen mit “' + q + '”' }];
+                currentResults = [{ action: 'create', query: q, label: t('cheater.spotlight_create_fallback').replace('{{query}}', q) }];
             } else {
                 currentResults = matches.map(e => ({ action: 'open', entry: e }));
             }
@@ -81,7 +81,7 @@
 
         function render() {
             if (!currentResults.length) {
-                results.innerHTML = `<li class="cheater-spotlight-empty">${esc(t('cheater.spotlight_empty', 'Keine Treffer — Enter erstellt ein neues Sheet'))}</li>`;
+                results.innerHTML = `<li class="cheater-spotlight-empty">${esc(t('cheater.spotlight_empty'))}</li>`;
                 return;
             }
             results.innerHTML = currentResults.map((r, i) => {
@@ -112,12 +112,12 @@
             const diff = Date.now() - new Date(iso).getTime();
             if (Number.isNaN(diff)) return '';
             const min = Math.floor(diff / 60000);
-            if (min < 1) return t('cheater.just_now', 'gerade eben');
-            if (min < 60) return t('cheater.minutes_ago_short', 'vor ' + min + 'm');
+            if (min < 1) return t('cheater.just_now');
+            if (min < 60) return t('cheater.minutes_ago_short').replace('{{n}}', String(min));
             const hr = Math.floor(min / 60);
-            if (hr < 24) return t('cheater.hours_ago_short', 'vor ' + hr + 'h');
+            if (hr < 24) return t('cheater.hours_ago_short').replace('{{n}}', String(hr));
             const day = Math.floor(hr / 24);
-            return t('cheater.days_ago_short', 'vor ' + day + 'T');
+            return t('cheater.days_ago_short').replace('{{n}}', String(day));
         }
 
         backdrop.addEventListener('click', close);
@@ -139,7 +139,7 @@
             const menu = document.createElement('ul');
             menu.className = 'cheater-context-menu';
             menu.setAttribute('role', 'menu');
-            menu.innerHTML = `<li role="menuitem" data-action="delete">🗑️ ${esc(t('cheater.delete', 'Löschen'))}</li>`;
+            menu.innerHTML = `<li role="menuitem" data-action="delete">🗑️ ${esc(t('cheater.delete'))}</li>`;
             menu.style.left = x + 'px';
             menu.style.top = y + 'px';
             document.body.appendChild(menu);
@@ -153,27 +153,52 @@
         }
 
         function deleteEntry(entry) {
-            const toast = document.createElement('div');
-            toast.className = 'cheater-toast';
-            toast.innerHTML = `<span>${esc(t('cheater.deleted', 'Sheet gelöscht'))}</span><button data-undo>${esc(t('cheater.undo', 'Rückgängig'))}</button>`;
-            document.body.appendChild(toast);
-            const commit = async () => {
-                try {
-                    await state.api('/api/cheatsheets/' + encodeURIComponent(entry.id), { method: 'DELETE' });
-                    state.searchIndex = state.searchIndex.filter(e => e.id !== entry.id);
-                    if (typeof state.refreshHome === 'function') state.refreshHome();
-                    runSearch();
-                } catch (err) {
-                    state.notify('cheater.error.delete_failed', 'error');
-                    console.error('cheater delete failed', err);
-                } finally {
+            const esc = state.esc;
+            const t = state.t;
+            const confirmModal = document.createElement('div');
+            confirmModal.className = 'cheater-modal';
+            confirmModal.setAttribute('role', 'dialog');
+            confirmModal.setAttribute('aria-modal', 'true');
+            confirmModal.setAttribute('aria-label', t('cheater.confirm_delete_title'));
+            confirmModal.innerHTML = `
+                <div class="cheater-modal-backdrop" data-backdrop></div>
+                <div class="cheater-modal-panel">
+                    <h2 class="cheater-modal-title">${esc(t('cheater.confirm_delete_title'))}</h2>
+                    <p class="cheater-confirm-text">${esc(t('cheater.confirm_delete_text').replace('{{name}}', entry.name || t('cheater.untitled_sheet')))}</p>
+                    <div class="cheater-modal-footer">
+                        <button type="button" class="cheater-secondary" data-action="cancel">${esc(t('cheater.cancel'))}</button>
+                        <button type="button" class="cheater-primary cheater-danger-btn" data-action="confirm">${esc(t('cheater.delete'))}</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(confirmModal);
+            const closeConfirm = () => confirmModal.remove();
+            confirmModal.querySelector('[data-backdrop]').addEventListener('click', closeConfirm);
+            confirmModal.querySelector('[data-action="cancel"]').addEventListener('click', closeConfirm);
+            confirmModal.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeConfirm(); });
+            confirmModal.querySelector('[data-action="confirm"]').addEventListener('click', async () => {
+                closeConfirm();
+                const toast = document.createElement('div');
+                toast.className = 'cheater-toast';
+                toast.innerHTML = `<span>${esc(t('cheater.deleted'))}</span><button data-undo>${esc(t('cheater.undo'))}</button>`;
+                document.body.appendChild(toast);
+                const commit = async () => {
+                    try {
+                        await state.api('/api/cheatsheets/' + encodeURIComponent(entry.id), { method: 'DELETE' });
+                        state.searchIndex = state.searchIndex.filter(e => e.id !== entry.id);
+                        if (typeof state.refreshHome === 'function') state.refreshHome();
+                        runSearch();
+                    } catch (err) {
+                        state.notify('cheater.error.delete_failed', 'error');
+                        console.error('cheater delete failed', err);
+                    } finally {
+                        toast.remove();
+                    }
+                };
+                const timer = setTimeout(commit, 5000);
+                toast.querySelector('[data-undo]').addEventListener('click', () => {
+                    clearTimeout(timer);
                     toast.remove();
-                }
-            };
-            const timer = setTimeout(commit, 5000);
-            toast.querySelector('[data-undo]').addEventListener('click', () => {
-                clearTimeout(timer);
-                toast.remove();
+                });
             });
         }
 

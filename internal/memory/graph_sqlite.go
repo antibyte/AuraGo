@@ -2,13 +2,17 @@ package memory
 
 import (
 	"aurago/internal/dbutil"
+	"aurago/internal/kgquality"
+	"aurago/internal/memory/kgsemantic"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -48,37 +52,59 @@ type KnowledgeGraphDuplicateCandidate struct {
 }
 
 type KnowledgeGraphQualityReport struct {
-	Nodes               int                                `json:"nodes"`
-	Edges               int                                `json:"edges"`
-	ProtectedNodes      int                                `json:"protected_nodes"`
-	IsolatedNodes       int                                `json:"isolated_nodes"`
-	UntypedNodes        int                                `json:"untyped_nodes"`
-	DuplicateGroups     int                                `json:"duplicate_groups"`
-	DuplicateNodes      int                                `json:"duplicate_nodes"`
-	IsolatedSample      []Node                             `json:"isolated_sample"`
-	UntypedSample       []Node                             `json:"untyped_sample"`
-	DuplicateCandidates []KnowledgeGraphDuplicateCandidate `json:"duplicate_candidates"`
+	Nodes                 int                                `json:"nodes"`
+	Edges                 int                                `json:"edges"`
+	PendingEdges          int                                `json:"pending_edges"`
+	LowConfidenceEdges    int                                `json:"low_confidence_edges"`
+	CoMentionEdges        int                                `json:"co_mention_edges"`
+	PendingCoMentionEdges int                                `json:"pending_co_mention_edges"`
+	SemanticEdges         int                                `json:"semantic_edges"`
+	EdgeBySource          map[string]int                     `json:"edge_by_source"`
+	GenericNodes          int                                `json:"generic_nodes"`
+	ProtectedNodes        int                                `json:"protected_nodes"`
+	IsolatedNodes         int                                `json:"isolated_nodes"`
+	UntypedNodes          int                                `json:"untyped_nodes"`
+	DuplicateGroups       int                                `json:"duplicate_groups"`
+	DuplicateNodes        int                                `json:"duplicate_nodes"`
+	IDDuplicateGroups     int                                `json:"id_duplicate_groups"`
+	IDDuplicateNodes      int                                `json:"id_duplicate_nodes"`
+	IsolatedSample        []Node                             `json:"isolated_sample"`
+	UntypedSample         []Node                             `json:"untyped_sample"`
+	GenericSample         []Node                             `json:"generic_sample"`
+	DuplicateCandidates   []KnowledgeGraphDuplicateCandidate `json:"duplicate_candidates"`
+	IDDuplicateCandidates []KnowledgeGraphDuplicateCandidate `json:"id_duplicate_candidates"`
 }
 
 type KnowledgeGraph struct {
-	db                     *sql.DB
-	logger                 *slog.Logger
-	accessQueue            chan knowledgeGraphAccessHit
-	doneChan               chan struct{}
-	closeOnce              sync.Once
-	wg                     sync.WaitGroup
-	semantic               *knowledgeGraphSemanticIndex
-	droppedHits            atomic.Int64 // count of access-queue hits dropped due to full channel
-	minSemanticSimilarity   float32
-	excludedNodeTypes       map[string]bool
-	excludedNodeTypesMu     sync.RWMutex
-	semanticReindexInterval time.Duration
-	lastSemanticReindex     time.Time
-	lastSemanticReindexMu   sync.Mutex
+	db                       *sql.DB
+	logger                   *slog.Logger
+	accessQueue              chan knowledgeGraphAccessHit
+	flushAccessHits          chan chan struct{}
+	doneChan                 chan struct{}
+	closeOnce                sync.Once
+	wg                       sync.WaitGroup
+	semantic                 *kgsemantic.Index
+	semanticMu               sync.RWMutex
+	droppedHits              atomic.Int64 // count of access-queue hits dropped due to full channel
+	minSemanticSimilarity    atomic.Uint32
+	excludedNodeTypes        map[string]bool
+	excludedNodeTypesMu      sync.RWMutex
+	protectOptimizeSources   map[string]bool
+	protectOptimizeSourcesMu sync.RWMutex
+	protectIDPrefixes        []string
+	protectIDPrefixesMu      sync.RWMutex
+	qualityPolicyValue       kgquality.Policy
+	qualityPolicyMu          sync.RWMutex
+	semanticReindexInterval  time.Duration
+	lastSemanticReindex      time.Time
+	lastSemanticReindexMu    sync.Mutex
+	reindexInProgress        atomic.Bool
 }
 
 const knowledgeGraphWriteTimeout = 5 * time.Second
 const knowledgeGraphPropertyValueLimit = 500
+const knowledgeGraphAccessQueueSize = 2500
+const knowledgeGraphDroppedAccessHitsThreshold = 1
 const coOccurrenceThreshold = 15
 
 var ErrKnowledgeGraphProtectedNode = errors.New("knowledge graph node is protected")
@@ -96,12 +122,17 @@ type ImportantNode struct {
 }
 
 type KnowledgeGraphStats struct {
-	TotalNodes      int            `json:"total_nodes"`
-	TotalEdges      int            `json:"total_edges"`
-	MeaningfulEdges int            `json:"meaningful_edges"`
-	CoMentionEdges  int            `json:"co_mention_edges"`
-	ByType          map[string]int `json:"by_type"`
-	BySource        map[string]int `json:"by_source"`
+	TotalNodes            int            `json:"total_nodes"`
+	TotalEdges            int            `json:"total_edges"`
+	MeaningfulEdges       int            `json:"meaningful_edges"`
+	PendingEdges          int            `json:"pending_edges"`
+	LowConfidenceEdges    int            `json:"low_confidence_edges"`
+	CoMentionEdges        int            `json:"co_mention_edges"`
+	PendingCoMentionEdges int            `json:"pending_co_mention_edges"`
+	GenericNodes          int            `json:"generic_nodes"`
+	ByType                map[string]int `json:"by_type"`
+	BySource              map[string]int `json:"by_source"`
+	EdgeBySource          map[string]int `json:"edge_by_source"`
 }
 
 type FileSyncStats struct {
@@ -116,11 +147,6 @@ type KGCollectionStats struct {
 	EdgeCount  int        `json:"edge_count"`
 	FileCount  int        `json:"file_count"`
 	LastSyncAt *time.Time `json:"last_sync_at,omitempty"`
-}
-
-type kgBFSLevel struct {
-	nodeID string
-	depth  int
 }
 
 func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logger) (*KnowledgeGraph, error) {
@@ -138,14 +164,16 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 	}
 
 	kg := &KnowledgeGraph{
-		db:                    db,
-		logger:                logger,
-		accessQueue:           make(chan knowledgeGraphAccessHit, 1000),
-		doneChan:              make(chan struct{}),
-		minSemanticSimilarity:   0.60,
+		db:                      db,
+		logger:                  logger,
+		accessQueue:             make(chan knowledgeGraphAccessHit, knowledgeGraphAccessQueueSize),
+		flushAccessHits:         make(chan chan struct{}),
+		doneChan:                make(chan struct{}),
 		excludedNodeTypes:       map[string]bool{"activity_entity": true, "unknown": true},
+		qualityPolicyValue:      kgquality.DefaultPolicy(),
 		semanticReindexInterval: 5 * time.Minute,
 	}
+	kg.minSemanticSimilarity.Store(math.Float32bits(0.60))
 	kg.wg.Add(1)
 	go kg.accessCountWorker()
 	if err := kg.initTables(); err != nil {
@@ -164,14 +192,37 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 	return kg, nil
 }
 
+func (kg *KnowledgeGraph) SetQualityPolicy(policy kgquality.Policy) {
+	if kg == nil {
+		return
+	}
+	kg.qualityPolicyMu.Lock()
+	kg.qualityPolicyValue = kgquality.NormalizePolicy(policy)
+	kg.qualityPolicyMu.Unlock()
+}
+
+func (kg *KnowledgeGraph) qualityPolicy() kgquality.Policy {
+	if kg == nil {
+		return kgquality.DefaultPolicy()
+	}
+	kg.qualityPolicyMu.RLock()
+	policy := kg.qualityPolicyValue
+	kg.qualityPolicyMu.RUnlock()
+	return kgquality.NormalizePolicy(policy)
+}
+
 func (kg *KnowledgeGraph) Close() error {
 	var err error
 	kg.closeOnce.Do(func() {
 		close(kg.doneChan)
 		kg.wg.Wait()
 		kg.drainAccessQueue()
-		if kg.semantic != nil {
-			kg.semantic.Close()
+		kg.semanticMu.Lock()
+		idx := kg.semantic
+		kg.semantic = nil
+		kg.semanticMu.Unlock()
+		if idx != nil {
+			idx.Close()
 		}
 		err = kg.db.Close()
 	})
@@ -278,19 +329,64 @@ func (kg *KnowledgeGraph) accessCountWorker() {
 			}
 		case <-ticker.C:
 			flush()
+		case ack, ok := <-kg.flushAccessHits:
+			if !ok {
+				continue
+			}
+			flush()
+			if ack != nil {
+				close(ack)
+			}
 		}
 	}
 }
 
+func (kg *KnowledgeGraph) accessCountReliable() bool {
+	return kg != nil && kg.DroppedAccessHits() < knowledgeGraphDroppedAccessHitsThreshold
+}
+
+// FlushAccessHits drains the async access queue and waits for the worker batch flush.
+func (kg *KnowledgeGraph) FlushAccessHits() error {
+	if kg == nil {
+		return nil
+	}
+	kg.drainAccessQueue()
+	ack := make(chan struct{})
+	select {
+	case kg.flushAccessHits <- ack:
+		select {
+		case <-ack:
+			return nil
+		case <-time.After(knowledgeGraphWriteTimeout):
+			return fmt.Errorf("flush access hits ack timed out")
+		}
+	case <-time.After(knowledgeGraphWriteTimeout):
+		return fmt.Errorf("flush access hits request timed out")
+	}
+}
+
 func (kg *KnowledgeGraph) Stats() (nodes int, edges int, err error) {
+	tx, txErr := kg.beginReadTx("KG Stats")
+	if txErr != nil {
+		return 0, 0, txErr
+	}
+	defer tx.Rollback()
+
 	var nodeErr, edgeErr error
-	if nodeErr = kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&nodes); nodeErr != nil {
+	if nodeErr = tx.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&nodes); nodeErr != nil {
 		kg.logger.Warn("KG Stats: failed to count nodes", "error", nodeErr)
 	}
-	if edgeErr = kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&edges); edgeErr != nil {
+	if edgeErr = tx.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&edges); edgeErr != nil {
 		kg.logger.Warn("KG Stats: failed to count edges", "error", edgeErr)
 	}
-	return nodes, edges, errors.Join(nodeErr, edgeErr)
+	if err := errors.Join(nodeErr, edgeErr); err != nil {
+		return nodes, edges, err
+	}
+	if commitErr := tx.Commit(); commitErr != nil {
+		kg.logger.Warn("KG Stats: failed to commit read transaction", "error", commitErr)
+		return nodes, edges, commitErr
+	}
+	return nodes, edges, nil
 }
 
 func (kg *KnowledgeGraph) ResetSemanticIndex() error {
@@ -348,6 +444,28 @@ func normalizeKnowledgeGraphProperties(properties map[string]string) map[string]
 		safe[k] = v
 	}
 	return safe
+}
+
+func ensureKnowledgeGraphEdgeQualityProperties(properties map[string]string, defaultSource string, now time.Time) map[string]string {
+	properties = normalizeKnowledgeGraphProperties(properties)
+	defaultSource = strings.TrimSpace(defaultSource)
+	if defaultSource == "" {
+		defaultSource = "auto_extraction"
+	}
+	if strings.TrimSpace(properties["source"]) == "" {
+		properties["source"] = defaultSource
+	}
+	if strings.TrimSpace(properties["confidence"]) == "" {
+		if strings.TrimSpace(properties["source"]) == "manual" {
+			properties["confidence"] = "1.00"
+		} else {
+			properties["confidence"] = "0.50"
+		}
+	}
+	if strings.TrimSpace(properties["extracted_at"]) == "" {
+		properties["extracted_at"] = now.Format("2006-01-02")
+	}
+	return properties
 }
 
 func sanitizeKnowledgeGraphNodeProperties(properties map[string]string, protected bool) map[string]string {
@@ -455,20 +573,44 @@ func mergeAutoExtractedProperties(existing, incoming map[string]string) map[stri
 }
 
 func mergeKnowledgeGraphLabel(existing, incoming string) string {
+	return mergeKnowledgeGraphLabels(existing, incoming, false)
+}
+
+func mergeKnowledgeGraphLabels(existing, incoming string, preferLonger bool) string {
 	existing = strings.TrimSpace(existing)
 	incoming = strings.TrimSpace(incoming)
 	switch {
 	case existing == "" || strings.EqualFold(existing, "unknown"):
-		if incoming != "" {
-			return incoming
-		}
+		return incoming
 	case incoming == "" || strings.EqualFold(incoming, "unknown"):
 		return existing
+	}
+	if preferLonger && len([]rune(incoming)) > len([]rune(existing)) {
+		return incoming
 	}
 	if existing == "" {
 		return incoming
 	}
 	return existing
+}
+
+func isSensitiveKnowledgeGraphPropertyKey(key string) bool {
+	key = strings.ToLower(strings.TrimSpace(key))
+	if key == "" {
+		return false
+	}
+	switch key {
+	case "password", "passwd", "secret", "token", "api_key", "apikey",
+		"access_token", "refresh_token", "private_key", "master_key",
+		"credential", "credentials", "auth", "authorization":
+		return true
+	}
+	for _, suffix := range []string{"_password", "_passwd", "_secret", "_token", "_api_key", "_credential"} {
+		if strings.HasSuffix(key, suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 func knowledgeGraphEdgeKey(source, target, relation string) string {
@@ -482,6 +624,23 @@ func boolToInt(v bool) int {
 	return 0
 }
 
+func (kg *KnowledgeGraph) getMinSemanticSimilarity() float32 {
+	if kg == nil {
+		return 0
+	}
+	return math.Float32frombits(kg.minSemanticSimilarity.Load())
+}
+
+func (kg *KnowledgeGraph) semanticIndex() *kgsemantic.Index {
+	if kg == nil {
+		return nil
+	}
+	kg.semanticMu.RLock()
+	idx := kg.semantic
+	kg.semanticMu.RUnlock()
+	return idx
+}
+
 // SetMinSemanticSimilarity configures the minimum similarity threshold for KG
 // semantic search. Values outside [0,1] are clamped.
 func (kg *KnowledgeGraph) SetMinSemanticSimilarity(v float64) {
@@ -491,7 +650,7 @@ func (kg *KnowledgeGraph) SetMinSemanticSimilarity(v float64) {
 	if v > 1 {
 		v = 1
 	}
-	kg.minSemanticSimilarity = float32(v)
+	kg.minSemanticSimilarity.Store(math.Float32bits(float32(v)))
 }
 
 // SetExcludedNodeTypes configures which node types are filtered out of semantic
@@ -512,6 +671,108 @@ func (kg *KnowledgeGraph) isExcludedNodeType(nodeType string) bool {
 	kg.excludedNodeTypesMu.RLock()
 	defer kg.excludedNodeTypesMu.RUnlock()
 	return kg.excludedNodeTypes[strings.ToLower(strings.TrimSpace(nodeType))]
+}
+
+// SetProtectOptimizeSources configures node property sources that OptimizeGraph must
+// not delete. An empty configured list falls back to built-in defaults.
+func (kg *KnowledgeGraph) SetProtectOptimizeSources(sources []string) {
+	kg.protectOptimizeSourcesMu.Lock()
+	defer kg.protectOptimizeSourcesMu.Unlock()
+	kg.protectOptimizeSources = make(map[string]bool, len(sources))
+	for _, source := range sources {
+		source = strings.ToLower(strings.TrimSpace(source))
+		if source != "" {
+			kg.protectOptimizeSources[source] = true
+		}
+	}
+}
+
+// SetProtectIDPrefixes configures node ID prefixes that OptimizeGraph must not delete.
+func (kg *KnowledgeGraph) SetProtectIDPrefixes(prefixes []string) {
+	kg.protectIDPrefixesMu.Lock()
+	defer kg.protectIDPrefixesMu.Unlock()
+	kg.protectIDPrefixes = make([]string, 0, len(prefixes))
+	for _, prefix := range prefixes {
+		prefix = strings.TrimSpace(prefix)
+		if prefix != "" {
+			kg.protectIDPrefixes = append(kg.protectIDPrefixes, prefix)
+		}
+	}
+}
+
+func defaultKnowledgeGraphProtectOptimizeSources() []string {
+	return []string{"planner", "inventory_sync", "manual", "file_sync", "core_memory"}
+}
+
+func defaultKnowledgeGraphProtectIDPrefixes() []string {
+	return []string{"core_fact_", "dev_", "contact_"}
+}
+
+func (kg *KnowledgeGraph) listProtectOptimizeSources() []string {
+	defaults := defaultKnowledgeGraphProtectOptimizeSources()
+	if kg == nil {
+		return defaults
+	}
+	kg.protectOptimizeSourcesMu.RLock()
+	defer kg.protectOptimizeSourcesMu.RUnlock()
+	if len(kg.protectOptimizeSources) == 0 {
+		return defaults
+	}
+	sources := make([]string, 0, len(kg.protectOptimizeSources))
+	for source := range kg.protectOptimizeSources {
+		sources = append(sources, source)
+	}
+	sort.Strings(sources)
+	return sources
+}
+
+func (kg *KnowledgeGraph) listProtectIDPrefixes() []string {
+	defaults := defaultKnowledgeGraphProtectIDPrefixes()
+	if kg == nil {
+		return defaults
+	}
+	kg.protectIDPrefixesMu.RLock()
+	defer kg.protectIDPrefixesMu.RUnlock()
+	if len(kg.protectIDPrefixes) == 0 {
+		return defaults
+	}
+	return append([]string(nil), kg.protectIDPrefixes...)
+}
+
+func knowledgeGraphSQLInPlaceholders(count int) string {
+	if count <= 0 {
+		return ""
+	}
+	return strings.TrimSuffix(strings.Repeat("?,", count), ",")
+}
+
+func (kg *KnowledgeGraph) isKnowledgeGraphOptimizeProtected(nodeID, source string) bool {
+	if kg == nil {
+		return false
+	}
+	nodeID = strings.TrimSpace(nodeID)
+	source = strings.ToLower(strings.TrimSpace(source))
+
+	for _, prefix := range kg.listProtectIDPrefixes() {
+		if strings.HasPrefix(nodeID, prefix) {
+			return true
+		}
+	}
+
+	kg.protectOptimizeSourcesMu.RLock()
+	sources := kg.protectOptimizeSources
+	if len(sources) == 0 {
+		kg.protectOptimizeSourcesMu.RUnlock()
+		for _, defaultSource := range defaultKnowledgeGraphProtectOptimizeSources() {
+			if source == defaultSource {
+				return true
+			}
+		}
+		return false
+	}
+	protected := sources[source]
+	kg.protectOptimizeSourcesMu.RUnlock()
+	return protected
 }
 
 // SetSemanticReindexInterval configures how often RunSemanticReindexIfDue may

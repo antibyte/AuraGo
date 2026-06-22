@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	OperationalIssueTitlePrefix = "System issue:"
-	operationalIssueMarker      = "[aurago:operational_issue]"
+	OperationalIssueTitlePrefix     = "System issue:"
+	operationalIssueMarker          = "[aurago:operational_issue]"
+	operationalIssueReminderMetaKey = "operational_issue_reminder_last_seen"
 )
 
 // OperationalIssue describes a problem detected by a background agent context.
@@ -198,6 +199,38 @@ func BuildOperationalIssueReminderText(todos []Todo) string {
 		b.WriteString("\n")
 	}
 	return strings.TrimSpace(b.String())
+}
+
+// ClaimOperationalIssueReminderForDay marks the operational issue reminder as
+// shown for the local day. It returns false when the day was already claimed.
+func ClaimOperationalIssueReminderForDay(db *sql.DB, now time.Time) (bool, error) {
+	if db == nil {
+		return false, nil
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return false, fmt.Errorf("begin operational issue reminder claim: %w", err)
+	}
+	defer tx.Rollback()
+
+	dayKey := reminderDayKey(now)
+	lastSeen, err := getPlannerMetaTx(tx, operationalIssueReminderMetaKey)
+	if err != nil {
+		return false, err
+	}
+	if reminderMatchesDay(lastSeen, dayKey) {
+		if err := tx.Commit(); err != nil {
+			return false, fmt.Errorf("commit operational issue reminder no-op: %w", err)
+		}
+		return false, nil
+	}
+	if err := upsertPlannerMetaTx(tx, operationalIssueReminderMetaKey, dayKey); err != nil {
+		return false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return false, fmt.Errorf("commit operational issue reminder claim: %w", err)
+	}
+	return true, nil
 }
 
 func compactOperationalIssuePromptDetail(detail string) string {

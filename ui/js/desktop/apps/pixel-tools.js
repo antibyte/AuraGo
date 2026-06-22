@@ -20,7 +20,7 @@
                                 list.innerHTML = this.layers.map((layer, i) => {
                                     const isActive = i === this.activeLayerIdx;
                                     return `<div class="pixel-layer-item${isActive ? ' active' : ''}" data-layer-idx="${i}">
-                                        <button class="pixel-layer-vis" type="button" data-layer-vis="${i}" title="${this.esc(this.t('pixel.toggle_visibility', 'Toggle Visibility'))}">${layer.visible ? '👁' : '◻'}</button>
+                                        <button class="pixel-layer-vis" type="button" data-layer-vis="${i}" title="${this.esc(this.t('pixel.toggle_visibility'))}">${layer.visible ? '👁' : '◻'}</button>
                                         <span class="pixel-layer-name" data-layer-name="${i}">${this.esc(layer.name)}</span>
                                         <input type="range" class="pixel-slider pixel-layer-opacity" data-layer-opacity="${i}" min="0" max="100" value="${Math.round(layer.opacity * 100)}">
                                     </div>`;
@@ -113,7 +113,7 @@
                                     }, 'image/png');
                                     this.releaseTempCanvas(tmpC);
                                 } catch (_) {}
-                                this.notify({ type: 'success', message: this.t('pixel.copied', 'Selection copied') });
+                                this.notify({ type: 'success', message: this.t('pixel.copied') });
             }),
             cutSelection: Pixel.bindRuntime(runtime, function cutSelection() {
                                 if (!this.selection || !this.canvas.width) return;
@@ -334,12 +334,12 @@
                                 this.pushHistory('text');
             }),
             addLayer: Pixel.bindRuntime(runtime, function addLayer() {
-                                if (this.layers.length >= 10) { this.notify({ type: 'error', message: this.t('pixel.max_layers', 'Maximum 10 layers') }); return; }
+                                if (this.layers.length >= 10) { this.notify({ type: 'error', message: this.t('pixel.max_layers') }); return; }
                                 this.ensureBackgroundMigrated();
                                 const c = document.createElement('canvas');
                                 c.width = this.imgWidth;
                                 c.height = this.imgHeight;
-                                this.layers.push({ canvas: c, name: this.t('pixel.layer', 'Layer') + ' ' + (this.layers.length + 1), visible: true, opacity: 1 });
+                                this.layers.push({ canvas: c, name: this.t('pixel.layer') + ' ' + (this.layers.length + 1), visible: true, opacity: 1 });
                                 this.activeLayerIdx = this.layers.length - 1;
                                 this.compositeLayers();
                                 this.refreshLayerPanel();
@@ -390,7 +390,7 @@
             flattenLayers: Pixel.bindRuntime(runtime, function flattenLayers() {
                                 if (this.layers.length <= 1) return;
                                 this.compositeLayers();
-                                this.layers = [{ canvas: null, name: this.t('pixel.layer_background', 'Background'), visible: true, opacity: 1 }];
+                                this.layers = [{ canvas: null, name: this.t('pixel.layer_background'), visible: true, opacity: 1 }];
                                 this.activeLayerIdx = 0;
                                 this.refreshLayerPanel();
                                 this.pushHistory('flatten');

@@ -14,6 +14,7 @@ func TestDesktopBuiltInAppsUseDedicatedThemeAppIcons(t *testing.T) {
 	source := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, marker := range []string{
 		"radio: 'radio'",
+		"teevee: 'teevee'",
 		"gallery: 'gallery'",
 		"music: 'audio-player'",
 		"looper: 'looper'",
@@ -37,6 +38,7 @@ func TestDesktopBuiltInAppsUseDedicatedThemeAppIcons(t *testing.T) {
 	for _, forbidden := range []string{
 		"Trash: 'package'",
 		"radio: 'audio'",
+		"teevee: 'video'",
 		"gallery: 'image'",
 		"looper: 'workflow'",
 		"'agent-chat': 'mail'",
@@ -53,7 +55,7 @@ func TestDesktopBuiltInAppsUseDedicatedThemeAppIcons(t *testing.T) {
 	}
 	for _, theme := range []string{"papirus", "whitesur"} {
 		manifest := rawDesktopAssetText(t, "img/"+theme+"/manifest.json")
-		for _, key := range []string{"agent-chat", "code-studio", "commandcode", "galaxa-deluxe", "gallery", "launchpad", "looper", "nasscad", "pixel", "quakejs", "radio", "software-store", "trash", "trash-empty", "trash-full", "zipper"} {
+		for _, key := range []string{"agent-chat", "code-studio", "commandcode", "galaxa-deluxe", "gallery", "launchpad", "looper", "nasscad", "pixel", "quakejs", "radio", "software-store", "teevee", "trash", "trash-empty", "trash-full", "zipper"} {
 			if !strings.Contains(manifest, `"`+key+`"`) {
 				t.Fatalf("%s theme manifest missing %q", theme, key)
 			}
@@ -87,7 +89,7 @@ func TestDesktopBuiltInAppsUseFocusedThemeIconNames(t *testing.T) {
 	}
 
 	catalog := desktop.DesktopIconCatalog(map[string]string{"appearance.icon_theme": "papirus"})
-	for _, key := range []string{"software-store", "zipper", "pixel", "trash-empty", "trash-full"} {
+	for _, key := range []string{"software-store", "zipper", "pixel", "teevee", "trash-empty", "trash-full"} {
 		if !containsString(catalog.Preferred, key) {
 			t.Fatalf("backend icon catalog missing focused icon %q", key)
 		}
@@ -118,7 +120,7 @@ func TestDesktopBuiltInAppsUseFocusedThemeIconNames(t *testing.T) {
 		if err := json.Unmarshal(data, &manifest); err != nil {
 			t.Fatalf("parse %s manifest: %v", theme, err)
 		}
-		for _, key := range []string{"software-store", "zipper", "pixel", "agent-chat", "trash-empty", "trash-full"} {
+		for _, key := range []string{"software-store", "zipper", "pixel", "agent-chat", "teevee", "trash-empty", "trash-full"} {
 			path, ok := manifest.Icons[key]
 			if !ok {
 				t.Fatalf("%s theme manifest missing focused icon %q", theme, key)
@@ -136,6 +138,74 @@ func TestDesktopBuiltInAppsUseFocusedThemeIconNames(t *testing.T) {
 		}
 		if manifest.Icons["trash"] != manifest.Icons["trash-empty"] {
 			t.Fatalf("%s theme trash alias path = %q, want empty trash path %q", theme, manifest.Icons["trash"], manifest.Icons["trash-empty"])
+		}
+	}
+}
+
+func TestDesktopStoreAppsUseDedicatedThemeIcons(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, marker := range []string{
+		"'store-n8n': 'n8n'",
+		"'store-node-red': 'node-red'",
+		"'store-open-webui': 'open-webui'",
+		"'store-olivetin': 'olivetin'",
+		"'store-romm': 'romm'",
+		"'store-dozzle': 'dozzle'",
+		"'store-termix': 'termix'",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop store app icon mapping missing marker %q", marker)
+		}
+	}
+	for _, placeholder := range []string{
+		"'store-n8n': 'workflow'",
+		"'store-node-red': 'workflow'",
+		"'store-open-webui': 'chat'",
+		"'store-olivetin': 'terminal'",
+		"'store-romm': 'run'",
+		"'store-dozzle': 'terminal'",
+		"'store-termix': 'terminal'",
+	} {
+		if strings.Contains(source, placeholder) {
+			t.Fatalf("desktop store app icon mapping still uses placeholder marker %q", placeholder)
+		}
+	}
+
+	catalog := desktop.DesktopIconCatalog(map[string]string{"appearance.icon_theme": "papirus"})
+	for _, key := range []string{"n8n", "node-red", "open-webui", "olivetin", "romm", "dozzle", "termix"} {
+		if !containsString(catalog.Preferred, key) {
+			t.Fatalf("backend icon catalog missing store app icon %q", key)
+		}
+	}
+
+	for _, theme := range []string{"papirus", "whitesur"} {
+		data, err := Content.ReadFile("img/" + theme + "/manifest.json")
+		if err != nil {
+			t.Fatalf("read %s manifest: %v", theme, err)
+		}
+		var manifest struct {
+			Icons map[string]string `json:"icons"`
+		}
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			t.Fatalf("parse %s manifest: %v", theme, err)
+		}
+		for _, key := range []string{"n8n", "node-red", "open-webui", "olivetin", "romm", "dozzle", "termix"} {
+			path, ok := manifest.Icons[key]
+			if !ok {
+				t.Fatalf("%s theme manifest missing store app icon %q", theme, key)
+			}
+			svg, err := Content.ReadFile(path)
+			if err != nil {
+				t.Fatalf("%s store app icon %q not embedded at %s: %v", theme, key, path, err)
+			}
+			if !strings.Contains(string(svg), "<svg") {
+				t.Fatalf("%s store app icon %q is not an SVG asset", theme, key)
+			}
+		}
+		if manifest.Icons["n8n"] == manifest.Icons["node-red"] {
+			t.Fatalf("%s theme must expose distinct n8n and Node-RED icons", theme)
 		}
 	}
 }

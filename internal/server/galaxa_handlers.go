@@ -30,6 +30,8 @@ var (
 )
 
 func getGalaxaDB(dataDir string) (*sql.DB, error) {
+	galaxaDBMu.Lock()
+	defer galaxaDBMu.Unlock()
 	galaxaDBOnce.Do(func() {
 		dbPath := filepath.Join(dataDir, "galaxa.db")
 		galaxaDBInst, galaxaDBErr = dbutil.Open(dbPath)

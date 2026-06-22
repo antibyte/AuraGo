@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -15,6 +17,15 @@ import (
 
 const maxJournalHygieneIterations = 5
 const maxNotesAutoArchivePerHygieneRun = 20
+const knowledgeGraphDuplicateIssueThreshold = 3
+
+const plannerMetaKGDroppedAccessHitsKey = "kg_dropped_access_hits_last_recorded"
+
+var (
+	lastRecordedKGDroppedAccessHits int64
+	kgDroppedAccessHitsStateMu      sync.Mutex
+	kgDroppedAccessHitsStateLoaded  bool
+)
 
 func runJournalDuplicateConsolidation(stm *memory.SQLiteMemory, opts memory.JournalConsolidationOptions) (int, error) {
 	totalRemoved := 0
@@ -185,6 +196,144 @@ func buildMemoryReflectionReviewIssue(scope string, curator memory.MemoryCurator
 	}, true
 }
 
+func recordKnowledgeGraphQualityIssues(plannerDB *sql.DB, kg *memory.KnowledgeGraph, logger *slog.Logger) {
+	if kg == nil {
+		return
+	}
+	report, err := kg.QualityReport(5)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("[MemoryHygiene] Failed to build knowledge graph quality report", "error", err)
+		}
+		return
+	}
+	if issue, ok := buildKnowledgeGraphDuplicateIssue(report); ok {
+		recordOperationalIssue(RunConfig{PlannerDB: plannerDB, MessageSource: "maintenance", IsMaintenance: true}, issue, logger)
+	}
+	recordKnowledgeGraphDroppedAccessHitsIssue(plannerDB, kg, logger)
+}
+
+func buildKnowledgeGraphDuplicateIssue(report *memory.KnowledgeGraphQualityReport) (planner.OperationalIssue, bool) {
+	if report == nil {
+		return planner.OperationalIssue{}, false
+	}
+	if report.DuplicateGroups <= knowledgeGraphDuplicateIssueThreshold && report.IDDuplicateGroups <= knowledgeGraphDuplicateIssueThreshold {
+		return planner.OperationalIssue{}, false
+	}
+	sampleIDs := make([]string, 0, 8)
+	for _, candidate := range append(report.DuplicateCandidates, report.IDDuplicateCandidates...) {
+		for _, id := range candidate.IDs {
+			id = strings.TrimSpace(id)
+			if id == "" {
+				continue
+			}
+			sampleIDs = append(sampleIDs, id)
+			if len(sampleIDs) >= 8 {
+				break
+			}
+		}
+		if len(sampleIDs) >= 8 {
+			break
+		}
+	}
+	detail := fmt.Sprintf(
+		"Knowledge graph has label_duplicate_groups=%d label_duplicate_nodes=%d id_duplicate_groups=%d id_duplicate_nodes=%d. Review and merge manually in the dashboard; no auto-merge is performed.",
+		report.DuplicateGroups,
+		report.DuplicateNodes,
+		report.IDDuplicateGroups,
+		report.IDDuplicateNodes,
+	)
+	if len(sampleIDs) > 0 {
+		detail += " Sample IDs: " + strings.Join(sampleIDs, ", ")
+	}
+	return planner.OperationalIssue{
+		Source:      "maintenance",
+		Context:     "knowledge_graph",
+		Title:       "Knowledge graph duplicates detected",
+		Detail:      detail,
+		Severity:    "warning",
+		Reference:   "kg_duplicates",
+		Fingerprint: "maintenance|knowledge_graph|duplicates",
+		OccurredAt:  time.Now(),
+	}, true
+}
+
+func ensureKGDroppedAccessHitsBaseline(plannerDB *sql.DB, logger *slog.Logger) {
+	kgDroppedAccessHitsStateMu.Lock()
+	defer kgDroppedAccessHitsStateMu.Unlock()
+	if kgDroppedAccessHitsStateLoaded {
+		return
+	}
+	kgDroppedAccessHitsStateLoaded = true
+	if plannerDB == nil {
+		return
+	}
+	raw, err := planner.GetPlannerMeta(plannerDB, plannerMetaKGDroppedAccessHitsKey)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("[MemoryHygiene] Failed to load KG dropped-access baseline", "error", err)
+		}
+		return
+	}
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return
+	}
+	parsed, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("[MemoryHygiene] Invalid KG dropped-access baseline", "value", raw, "error", err)
+		}
+		return
+	}
+	if parsed > 0 {
+		lastRecordedKGDroppedAccessHits = parsed
+	}
+}
+
+func persistKGDroppedAccessHitsBaseline(plannerDB *sql.DB, value int64, logger *slog.Logger) {
+	if plannerDB == nil {
+		return
+	}
+	if err := planner.SetPlannerMeta(plannerDB, plannerMetaKGDroppedAccessHitsKey, strconv.FormatInt(value, 10)); err != nil && logger != nil {
+		logger.Warn("[MemoryHygiene] Failed to persist KG dropped-access baseline", "error", err)
+	}
+}
+
+func recordKnowledgeGraphDroppedAccessHitsIssue(plannerDB *sql.DB, kg *memory.KnowledgeGraph, logger *slog.Logger) {
+	if kg == nil {
+		return
+	}
+	ensureKGDroppedAccessHitsBaseline(plannerDB, logger)
+
+	current := kg.DroppedAccessHits()
+	delta := current - lastRecordedKGDroppedAccessHits
+	lastRecordedKGDroppedAccessHits = current
+	persistKGDroppedAccessHitsBaseline(plannerDB, current, logger)
+
+	issue, ok := buildKnowledgeGraphDroppedAccessHitsIssue(delta)
+	if !ok {
+		return
+	}
+	recordOperationalIssue(RunConfig{PlannerDB: plannerDB, MessageSource: "maintenance", IsMaintenance: true}, issue, logger)
+}
+
+func buildKnowledgeGraphDroppedAccessHitsIssue(delta int64) (planner.OperationalIssue, bool) {
+	if delta <= 0 {
+		return planner.OperationalIssue{}, false
+	}
+	return planner.OperationalIssue{
+		Source:      "maintenance",
+		Context:     "knowledge_graph",
+		Title:       "Knowledge graph access updates were dropped",
+		Detail:      fmt.Sprintf("Dropped %d knowledge graph access-counter updates since the previous maintenance run because the async queue was full. Importance scores may be slightly stale until load decreases.", delta),
+		Severity:    "warning",
+		Reference:   "kg_dropped_access_hits",
+		Fingerprint: "maintenance|knowledge_graph|dropped_access_hits",
+		OccurredAt:  time.Now(),
+	}, true
+}
+
 func recordKnowledgeGraphSparseIssue(plannerDB *sql.DB, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph, logger *slog.Logger) {
 	if stm == nil || kg == nil {
 		return
@@ -217,6 +366,30 @@ func recordKnowledgeGraphSparseIssue(plannerDB *sql.DB, stm *memory.SQLiteMemory
 	recordOperationalIssue(RunConfig{PlannerDB: plannerDB, MessageSource: "maintenance", IsMaintenance: true}, issue, logger)
 }
 
+func recordKnowledgeGraphSemanticReindexBacklogIssue(plannerDB *sql.DB, dirtyNodes, dirtyEdges int, logger *slog.Logger) {
+	issue, ok := buildKnowledgeGraphSemanticReindexBacklogIssue(dirtyNodes, dirtyEdges)
+	if !ok {
+		return
+	}
+	recordOperationalIssue(RunConfig{PlannerDB: plannerDB, MessageSource: "maintenance", IsMaintenance: true}, issue, logger)
+}
+
+func buildKnowledgeGraphSemanticReindexBacklogIssue(dirtyNodes, dirtyEdges int) (planner.OperationalIssue, bool) {
+	if dirtyNodes <= 5000 && dirtyEdges <= 5000 {
+		return planner.OperationalIssue{}, false
+	}
+	return planner.OperationalIssue{
+		Source:      "maintenance",
+		Context:     "knowledge_graph",
+		Title:       "Knowledge graph semantic reindex backlog is high",
+		Detail:      fmt.Sprintf("Semantic reindex still has dirty_nodes=%d and dirty_edges=%d after the latest maintenance run. The nightly batch only processes 5000 dirty rows per pass.", dirtyNodes, dirtyEdges),
+		Severity:    "warning",
+		Reference:   "kg_semantic_reindex_backlog",
+		Fingerprint: "maintenance|knowledge_graph|semantic_reindex_backlog",
+		OccurredAt:  time.Now(),
+	}, true
+}
+
 func buildKnowledgeGraphSparseIssue(coreFacts []string, nodes int, edges int) (planner.OperationalIssue, bool) {
 	if len(coreFacts) == 0 || nodes >= 3 {
 		return planner.OperationalIssue{}, false
@@ -235,6 +408,9 @@ func buildKnowledgeGraphSparseIssue(coreFacts []string, nodes int, edges int) (p
 
 func buildCoreMemoryReviewIssue(coreFacts []string) (planner.OperationalIssue, bool) {
 	var lowSignal []string
+	for _, issue := range memory.ReviewCoreMemoryFacts(coreFacts) {
+		lowSignal = append(lowSignal, formatCoreMemoryReviewCandidate(issue.Fact, issue.Reason))
+	}
 	for _, fact := range coreFacts {
 		trimmed := strings.TrimSpace(fact)
 		if trimmed == "" {
@@ -242,11 +418,14 @@ func buildCoreMemoryReviewIssue(coreFacts []string) (planner.OperationalIssue, b
 		}
 		lower := strings.ToLower(trimmed)
 		if strings.Contains(lower, "test fact") || strings.Contains(lower, "test-fact") {
-			lowSignal = append(lowSignal, trimmed)
+			lowSignal = append(lowSignal, formatCoreMemoryReviewCandidate(trimmed, "low-signal test fact"))
 		}
 	}
 	if len(lowSignal) == 0 {
 		return planner.OperationalIssue{}, false
+	}
+	if len(lowSignal) > 5 {
+		lowSignal = append(lowSignal[:5], fmt.Sprintf("...%d more", len(lowSignal)-5))
 	}
 	return planner.OperationalIssue{
 		Source:      "maintenance",
@@ -258,4 +437,16 @@ func buildCoreMemoryReviewIssue(coreFacts []string) (planner.OperationalIssue, b
 		Fingerprint: "memory_maintenance|core_memory_review|low_signal",
 		OccurredAt:  time.Now(),
 	}, true
+}
+
+func formatCoreMemoryReviewCandidate(fact, reason string) string {
+	fact = strings.TrimSpace(fact)
+	if len(fact) > 180 {
+		fact = fact[:177] + "..."
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return fact
+	}
+	return fact + " (" + reason + ")"
 }

@@ -1,0 +1,614 @@
+[
+  {
+    "id": "aimlapi",
+    "aura_provider_type": "aimlapi",
+    "name": "AIML API",
+    "default_model": "gpt-5.5-2026-04-23",
+    "env_vars": [
+      "AIMLAPI_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "alibaba-coding-plan",
+    "aura_provider_type": "alibaba-coding-plan",
+    "name": "Alibaba Coding Plan",
+    "default_model": "qwen3.7-plus",
+    "env_vars": [
+      "ALIBABA_CODING_PLAN_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "amazon-bedrock",
+    "aura_provider_type": "amazon-bedrock",
+    "name": "Amazon Bedrock",
+    "default_model": "us.anthropic.claude-opus-4-8",
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "anthropic",
+    "aura_provider_type": "anthropic",
+    "name": "Anthropic",
+    "default_model": "claude-opus-4-8",
+    "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "azure",
+    "aura_provider_type": "azure",
+    "name": "Azure",
+    "default_model": "gpt-5.5",
+    "env_vars": [
+      "AZURE_OPENAI_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "cerebras",
+    "aura_provider_type": "cerebras",
+    "name": "Cerebras",
+    "default_model": "zai-glm-4.7",
+    "env_vars": [
+      "CEREBRAS_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "cloudflare-ai-gateway",
+    "aura_provider_type": "cloudflare-ai-gateway",
+    "name": "Cloudflare AI Gateway",
+    "default_model": "anthropic/claude-opus-4-8",
+    "env_vars": [
+      "CLOUDFLARE_AI_GATEWAY_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "cursor",
+    "aura_provider_type": "cursor",
+    "name": "Cursor",
+    "default_model": "claude-4.6-opus-high",
+    "env_vars": [
+      "CURSOR_ACCESS_TOKEN"
+    ],
+    "oauth_provider": "cursor",
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "deepseek",
+    "aura_provider_type": "deepseek",
+    "name": "DeepSeek",
+    "default_model": "deepseek-v4-pro",
+    "env_vars": [
+      "DEEPSEEK_API_KEY"
+    ],
+    "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "firepass",
+    "aura_provider_type": "firepass",
+    "name": "Firepass",
+    "default_model": "kimi-k2.6-turbo",
+    "env_vars": [
+      "FIREPASS_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "fireworks",
+    "aura_provider_type": "fireworks",
+    "name": "Fireworks",
+    "default_model": "kimi-k2.7-code",
+    "env_vars": [
+      "FIREWORKS_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "github-copilot",
+    "aura_provider_type": "copilot",
+    "name": "Github Copilot",
+    "default_model": "gpt-5.5",
+    "env_vars": [
+      "COPILOT_GITHUB_TOKEN"
+    ],
+    "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "gitlab-duo",
+    "aura_provider_type": "gitlab-duo",
+    "name": "Gitlab Duo",
+    "default_model": "duo-chat-opus-4-6",
+    "env_vars": [
+      "GITLAB_TOKEN"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "google",
+    "aura_provider_type": "google",
+    "name": "Google",
+    "default_model": "gemini-3.1-pro-preview",
+    "env_vars": [
+      "GEMINI_API_KEY"
+    ],
+    "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "google-antigravity",
+    "aura_provider_type": "google-antigravity",
+    "name": "Google Antigravity",
+    "default_model": "gemini-3.1-pro",
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "google-gemini-cli",
+    "aura_provider_type": "google-gemini-cli",
+    "name": "Google Gemini Cli",
+    "default_model": "gemini-3.1-pro-preview",
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "google-vertex",
+    "aura_provider_type": "google-vertex",
+    "name": "Google Vertex",
+    "default_model": "gemini-3.1-pro-preview",
+    "allow_unauthenticated": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "groq",
+    "aura_provider_type": "groq",
+    "name": "Groq",
+    "default_model": "openai/gpt-oss-120b",
+    "env_vars": [
+      "GROQ_API_KEY"
+    ],
+    "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "huggingface",
+    "aura_provider_type": "huggingface",
+    "name": "Hugging Face",
+    "default_model": "deepseek-ai/DeepSeek-R1",
+    "env_vars": [
+      "HUGGINGFACE_HUB_TOKEN",
+      "HF_TOKEN"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "kilo",
+    "aura_provider_type": "kilo",
+    "name": "Kilo Gateway",
+    "default_model": "anthropic/claude-opus-4.8",
+    "env_vars": [
+      "KILO_API_KEY"
+    ],
+    "allow_unauthenticated": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "kimi-code",
+    "aura_provider_type": "kimi-code",
+    "name": "Kimi Code",
+    "default_model": "kimi-for-coding",
+    "env_vars": [
+      "KIMI_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "litellm",
+    "aura_provider_type": "litellm",
+    "name": "LiteLLM",
+    "default_model": "claude-opus-4-8",
+    "env_vars": [
+      "LITELLM_API_KEY"
+    ],
+    "allow_unauthenticated": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "lm-studio",
+    "aura_provider_type": "lmstudio",
+    "name": "Lm Studio",
+    "default_model": "llama-3-8b",
+    "env_vars": [
+      "LM_STUDIO_API_KEY"
+    ],
+    "allow_unauthenticated": true,
+    "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "minimax",
+    "aura_provider_type": "minimax",
+    "name": "Minimax",
+    "default_model": "MiniMax-M3",
+    "env_vars": [
+      "MINIMAX_API_KEY"
+    ],
+    "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "minimax-code",
+    "aura_provider_type": "minimax-code",
+    "name": "Minimax Code",
+    "default_model": "MiniMax-M3",
+    "env_vars": [
+      "MINIMAX_CODE_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "minimax-code-cn",
+    "aura_provider_type": "minimax-code-cn",
+    "name": "Minimax Code Cn",
+    "default_model": "MiniMax-M3",
+    "env_vars": [
+      "MINIMAX_CODE_CN_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "mistral",
+    "aura_provider_type": "mistral",
+    "name": "Mistral",
+    "default_model": "devstral-medium-latest",
+    "env_vars": [
+      "MISTRAL_API_KEY"
+    ],
+    "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "moonshot",
+    "aura_provider_type": "moonshot",
+    "name": "Moonshot",
+    "default_model": "kimi-k2.7-code",
+    "env_vars": [
+      "MOONSHOT_API_KEY",
+      "KIMI_API_KEY"
+    ],
+    "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "nanogpt",
+    "aura_provider_type": "nanogpt",
+    "name": "NanoGPT",
+    "default_model": "openai/gpt-5.5",
+    "env_vars": [
+      "NANO_GPT_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "nvidia",
+    "aura_provider_type": "nvidia",
+    "name": "NVIDIA",
+    "default_model": "nvidia/llama-3.1-nemotron-70b-instruct",
+    "env_vars": [
+      "NVIDIA_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "ollama",
+    "aura_provider_type": "ollama",
+    "name": "Ollama",
+    "default_model": "gpt-oss:20b",
+    "env_vars": [
+      "OLLAMA_API_KEY"
+    ],
+    "allow_unauthenticated": true,
+    "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "ollama-cloud",
+    "aura_provider_type": "ollama-cloud",
+    "name": "Ollama Cloud",
+    "default_model": "gpt-oss:120b",
+    "env_vars": [
+      "OLLAMA_CLOUD_API_KEY"
+    ],
+    "oauth_provider": "ollama-cloud",
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "openai",
+    "aura_provider_type": "openai",
+    "name": "Openai",
+    "default_model": "gpt-5.5",
+    "env_vars": [
+      "OPENAI_API_KEY"
+    ],
+    "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "openai-codex",
+    "aura_provider_type": "openai-codex",
+    "name": "Openai Codex",
+    "default_model": "gpt-5.5",
+    "env_vars": [
+      "OPENAI_CODEX_OAUTH_TOKEN"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "opencode-go",
+    "aura_provider_type": "opencode-go",
+    "name": "Opencode Go",
+    "default_model": "kimi-k2.7-code",
+    "env_vars": [
+      "OPENCODE_API_KEY"
+    ],
+    "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "opencode-zen",
+    "aura_provider_type": "opencode-zen",
+    "name": "Opencode Zen",
+    "default_model": "claude-opus-4-8",
+    "env_vars": [
+      "OPENCODE_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "openrouter",
+    "aura_provider_type": "openrouter",
+    "name": "OpenRouter",
+    "default_model": "openai/gpt-5.5",
+    "env_vars": [
+      "OPENROUTER_API_KEY"
+    ],
+    "allow_unauthenticated": true,
+    "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "qianfan",
+    "aura_provider_type": "qianfan",
+    "name": "Qianfan",
+    "default_model": "deepseek-v3.2",
+    "env_vars": [
+      "QIANFAN_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "qwen-portal",
+    "aura_provider_type": "qwen-portal",
+    "name": "Qwen Portal",
+    "default_model": "coder-model",
+    "env_vars": [
+      "QWEN_OAUTH_TOKEN",
+      "QWEN_PORTAL_API_KEY"
+    ],
+    "oauth_provider": "qwen-portal",
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "synthetic",
+    "aura_provider_type": "synthetic",
+    "name": "Synthetic",
+    "default_model": "hf:zai-org/GLM-5.1",
+    "env_vars": [
+      "SYNTHETIC_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "together",
+    "aura_provider_type": "together",
+    "name": "Together",
+    "default_model": "moonshotai/Kimi-K2.7-Code",
+    "env_vars": [
+      "TOGETHER_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "umans",
+    "aura_provider_type": "umans",
+    "name": "Umans AI Coding Plan",
+    "default_model": "umans-coder",
+    "env_vars": [
+      "UMANS_AI_CODING_PLAN_API_KEY"
+    ],
+    "allow_unauthenticated": true,
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "venice",
+    "aura_provider_type": "venice",
+    "name": "Venice",
+    "default_model": "llama-3.3-70b",
+    "env_vars": [
+      "VENICE_API_KEY"
+    ],
+    "allow_unauthenticated": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "vercel-ai-gateway",
+    "aura_provider_type": "vercel-ai-gateway",
+    "name": "Vercel AI Gateway",
+    "default_model": "anthropic/claude-opus-4.8",
+    "env_vars": [
+      "AI_GATEWAY_API_KEY"
+    ],
+    "allow_unauthenticated": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "vllm",
+    "aura_provider_type": "vllm",
+    "name": "vLLM",
+    "default_model": "gpt-oss-20b",
+    "env_vars": [
+      "VLLM_API_KEY"
+    ],
+    "allow_unauthenticated": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "wafer-serverless",
+    "aura_provider_type": "wafer-serverless",
+    "name": "Wafer Serverless",
+    "default_model": "GLM-5.1",
+    "env_vars": [
+      "WAFER_SERVERLESS_API_KEY"
+    ],
+    "oauth_provider": "wafer-serverless",
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "xai",
+    "aura_provider_type": "xai",
+    "name": "Xai",
+    "default_model": "grok-4-fast-non-reasoning",
+    "env_vars": [
+      "XAI_API_KEY"
+    ],
+    "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "xai-oauth",
+    "aura_provider_type": "xai-oauth",
+    "name": "xAI Grok OAuth (SuperGrok)",
+    "default_model": "grok-4.3",
+    "env_vars": [
+      "XAI_OAUTH_TOKEN",
+      "XAI_API_KEY"
+    ],
+    "oauth_provider": "xai-oauth",
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "xiaomi",
+    "aura_provider_type": "xiaomi",
+    "name": "Xiaomi",
+    "default_model": "mimo-v2-flash",
+    "env_vars": [
+      "XIAOMI_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "xiaomi-token-plan-ams",
+    "aura_provider_type": "xiaomi-token-plan-ams",
+    "name": "Xiaomi Token Plan Ams",
+    "default_model": "mimo-v2.5",
+    "env_vars": [
+      "XIAOMI_TOKEN_PLAN_AMS_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "xiaomi-token-plan-cn",
+    "aura_provider_type": "xiaomi-token-plan-cn",
+    "name": "Xiaomi Token Plan Cn",
+    "default_model": "mimo-v2.5",
+    "env_vars": [
+      "XIAOMI_TOKEN_PLAN_CN_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "xiaomi-token-plan-sgp",
+    "aura_provider_type": "xiaomi-token-plan-sgp",
+    "name": "Xiaomi Token Plan Sgp",
+    "default_model": "mimo-v2.5",
+    "env_vars": [
+      "XIAOMI_TOKEN_PLAN_SGP_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "zai",
+    "aura_provider_type": "zai",
+    "name": "zAI",
+    "default_model": "glm-5.2",
+    "env_vars": [
+      "ZAI_API_KEY"
+    ],
+    "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "zenmux",
+    "aura_provider_type": "zenmux",
+    "name": "ZenMux",
+    "default_model": "anthropic/claude-opus-4.8",
+    "env_vars": [
+      "ZENMUX_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "zhipu-coding-plan",
+    "aura_provider_type": "zhipu-coding-plan",
+    "name": "Zhipu Coding Plan",
+    "default_model": "glm-5.2",
+    "env_vars": [
+      "ZHIPU_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  }
+]

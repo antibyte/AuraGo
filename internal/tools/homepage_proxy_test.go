@@ -113,6 +113,21 @@ func TestBuildCaddyfileWithProxiesWithRoutes(t *testing.T) {
 	}
 }
 
+func TestBuildCaddyfileWithProxiesAllowsSandboxedPreviewAssets(t *testing.T) {
+	result := buildCaddyfileWithProxies("", 8080, []ProxyRoute{{Path: "/app", Port: 3000}})
+	for _, want := range []string{
+		`Access-Control-Allow-Origin "*"`,
+		`Access-Control-Allow-Methods "GET, HEAD, OPTIONS"`,
+		`Access-Control-Allow-Headers "*"`,
+		`@cors_preflight method OPTIONS`,
+		`respond @cors_preflight 204`,
+	} {
+		if !strings.Contains(result, want) {
+			t.Fatalf("expected Caddyfile CORS marker %q, got:\n%s", want, result)
+		}
+	}
+}
+
 func TestBuildCaddyfileWithProxiesDomain(t *testing.T) {
 	routes := []ProxyRoute{{Path: "/app", Port: 3000}}
 	result := buildCaddyfileWithProxies("example.com", 443, routes)

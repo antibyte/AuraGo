@@ -2,7 +2,7 @@
 
 AuraGo supports **Slash Commands** – commands that can be entered directly in chat to perform specific actions. All commands start with a forward slash `/`.
 
-> 📅 **Updated:** March 2026
+> 📅 **Updated:** June 2026
 
 ---
 

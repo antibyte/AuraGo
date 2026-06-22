@@ -5,7 +5,7 @@
   "help.browser_automation.allow_file_uploads": "Erlaubt dem Agenten, lokale Dateien über Datei-Eingabefelder auf Webseiten hochzuladen.",
   "help.browser_automation.allow_file_downloads": "Erlaubt dem Agenten, Dateien von Webseiten herunterzuladen. Heruntergeladene Dateien werden im konfigurierten Download-Verzeichnis gespeichert.",
   "help.browser_automation.mode": "Betriebsmodus für den Browser-Automation-Service. Derzeit wird nur der 'sidecar'-Modus unterstützt, der CloakBrowser in einem isolierten Docker-Container ausführt.",
-  "help.browser_automation.url": "Interne URL des CloakBrowser-Sidecar-Services. Verwenden Sie den Docker-Container-Namen oder Service-Namen als Hostname (z.B. http://browser-automation:7331).",
+  "help.browser_automation.url": "Interne URL des CloakBrowser-Sidecar-Services. Nutze den Docker-Container-Namen oder Service-Namen als Hostname (z.B. http://browser-automation:7331).",
   "help.browser_automation.container_name": "Docker-Container-Name für den Browser-Automation-Sidecar. Muss auf dem Docker-Host eindeutig sein.",
   "help.browser_automation.image": "Docker-Image für den Browser-Automation-Sidecar. Wird automatisch aus dem Dockerfile im konfigurierten Verzeichnis erstellt.",
   "help.browser_automation.dockerfile_dir": "Verzeichnis mit dem Dockerfile zum Erstellen des Browser-Automation-Images. Standard ist das AuraGo-Installationsverzeichnis.",

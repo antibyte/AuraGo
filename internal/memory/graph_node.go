@@ -4,10 +4,38 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
 )
+
+const knowledgeGraphPlaceholderLabel = "Unknown"
+const knowledgeGraphPlaceholderSource = "auto_placeholder"
+const knowledgeGraphPlaceholderGraceDays = 7
+
+func knowledgeGraphPlaceholderNodeProperties() map[string]string {
+	return map[string]string{
+		"type":   "unknown",
+		"source": knowledgeGraphPlaceholderSource,
+	}
+}
+
+func ensureKnowledgeGraphPlaceholderNodeTx(tx *sql.Tx, id string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil
+	}
+	propsJSON, err := json.Marshal(knowledgeGraphPlaceholderNodeProperties())
+	if err != nil {
+		return fmt.Errorf("marshal placeholder node properties: %w", err)
+	}
+	_, err = tx.Exec(`
+		INSERT OR IGNORE INTO kg_nodes (id, label, properties, updated_at)
+		VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+	`, id, knowledgeGraphPlaceholderLabel, string(propsJSON))
+	return err
+}
 
 func validateNodeSchema(properties map[string]string) map[string]string {
 	if properties == nil {
@@ -43,6 +71,10 @@ func validateNodeSchema(properties map[string]string) map[string]string {
 }
 
 func (kg *KnowledgeGraph) AddNode(id, label string, properties map[string]string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("node id is required")
+	}
 	isProtected := strings.EqualFold(strings.TrimSpace(properties["protected"]), "true")
 	properties = sanitizeKnowledgeGraphNodeProperties(properties, isProtected)
 
@@ -66,6 +98,7 @@ func (kg *KnowledgeGraph) AddNode(id, label string, properties map[string]string
 		isProtectedFinal = 1
 	}
 	finalProps = sanitizeKnowledgeGraphNodeProperties(finalProps, isProtectedFinal != 0)
+	finalProps = validateNodeSchema(finalProps)
 
 	propsJSON, err := json.Marshal(finalProps)
 	if err != nil {
@@ -88,7 +121,7 @@ func (kg *KnowledgeGraph) AddNode(id, label string, properties map[string]string
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	kg.upsertSemanticNodeIndex(Node{ID: id, Label: finalLabel, Properties: finalProps})
+	kg.indexSemanticNodeAfterWrite(Node{ID: id, Label: finalLabel, Properties: finalProps})
 	return nil
 }
 
@@ -196,7 +229,7 @@ func (kg *KnowledgeGraph) UpdateNode(id, label string, properties map[string]str
 	}
 
 	node := &Node{ID: id, Label: finalLabel, Properties: finalProps, Protected: existingProtected != 0}
-	kg.upsertSemanticNodeIndex(*node)
+	kg.indexSemanticNodeAfterWrite(*node)
 	return node, nil
 }
 
@@ -239,25 +272,11 @@ func (kg *KnowledgeGraph) SetNodeProtected(id string, protected bool) (*Node, er
 	}
 
 	node := &Node{ID: id, Label: label, Properties: properties, Protected: protected}
-	kg.upsertSemanticNodeIndex(*node)
+	kg.indexSemanticNodeAfterWrite(*node)
 	return node, nil
 }
 
 func (kg *KnowledgeGraph) DeleteNode(id string) error {
-	var edgesToClean []Edge
-	if kg.semantic != nil {
-		rows, err := kg.db.Query("SELECT source, target, relation FROM kg_edges WHERE source = ? OR target = ?", id, id)
-		if err == nil {
-			for rows.Next() {
-				var src, tgt, rel string
-				if rows.Scan(&src, &tgt, &rel) == nil {
-					edgesToClean = append(edgesToClean, Edge{Source: src, Target: tgt, Relation: rel})
-				}
-			}
-			rows.Close()
-		}
-	}
-
 	tx, err := kg.db.Begin()
 	if err != nil {
 		return fmt.Errorf("begin delete node: %w", err)
@@ -275,6 +294,27 @@ func (kg *KnowledgeGraph) DeleteNode(id string) error {
 		return ErrKnowledgeGraphProtectedNode
 	}
 
+	var edgesToClean []Edge
+	if kg.semanticIndex() != nil {
+		edgeRows, err := tx.Query("SELECT source, target, relation FROM kg_edges WHERE source = ? OR target = ?", id, id)
+		if err != nil {
+			return fmt.Errorf("load incident edges for node %s: %w", id, err)
+		}
+		for edgeRows.Next() {
+			var src, tgt, rel string
+			if err := edgeRows.Scan(&src, &tgt, &rel); err != nil {
+				edgeRows.Close()
+				return fmt.Errorf("scan incident edge for node %s: %w", id, err)
+			}
+			edgesToClean = append(edgesToClean, Edge{Source: src, Target: tgt, Relation: rel})
+		}
+		if err := edgeRows.Err(); err != nil {
+			edgeRows.Close()
+			return fmt.Errorf("iterate incident edges for node %s: %w", id, err)
+		}
+		edgeRows.Close()
+	}
+
 	if _, err := tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id); err != nil {
 		return fmt.Errorf("delete edges for node %s: %w", id, err)
 	}
@@ -286,11 +326,7 @@ func (kg *KnowledgeGraph) DeleteNode(id string) error {
 		return err
 	}
 
-	if kg.semantic != nil {
-		kg.semantic.mu.Lock()
-		delete(kg.semantic.contentCache, id)
-		kg.semantic.mu.Unlock()
-
+	if kg.semanticIndex() != nil {
 		for _, e := range edgesToClean {
 			if err := kg.removeSemanticEdgeIndex(e.Source, e.Target, e.Relation); err != nil && kg.logger != nil {
 				kg.logger.Warn("DeleteNode: failed to remove semantic edge index", "source", e.Source, "target", e.Target, "relation", e.Relation, "error", err)
@@ -319,11 +355,15 @@ func (kg *KnowledgeGraph) GetAllNodes(limit int) ([]Node, error) {
 		var n Node
 		var propsJSON string
 		var protected int
-		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
-			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetAllNodes", n.ID, propsJSON, protected)
-			n.Protected = protected != 0
-			nodes = append(nodes, n)
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+			return nil, fmt.Errorf("scan node in GetAllNodes: %w", err)
 		}
+		n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetAllNodes", n.ID, propsJSON, protected)
+		n.Protected = protected != 0
+		nodes = append(nodes, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate GetAllNodes rows: %w", err)
 	}
 	return nodes, nil
 }
@@ -351,11 +391,15 @@ func (kg *KnowledgeGraph) GetNodesByType(nodeType string, limit int) ([]Node, er
 		var n Node
 		var propsJSON string
 		var protected int
-		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
-			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetNodesByType", n.ID, propsJSON, protected)
-			n.Protected = protected != 0
-			nodes = append(nodes, n)
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+			return nil, fmt.Errorf("scan node in GetNodesByType: %w", err)
 		}
+		n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetNodesByType", n.ID, propsJSON, protected)
+		n.Protected = protected != 0
+		nodes = append(nodes, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate GetNodesByType rows: %w", err)
 	}
 	if nodes == nil {
 		nodes = []Node{}
@@ -382,17 +426,22 @@ func (kg *KnowledgeGraph) GetImportantNodes(limit int, minScore int) ([]Importan
 			(CASE WHEN json_extract(n.properties, '$.type') IS NOT NULL
 				AND json_extract(n.properties, '$.type') != '' THEN 15 ELSE 0 END) +
 			MIN(n.access_count, 20) +
-			MIN((
-				SELECT COUNT(*) FROM kg_edges e
-				WHERE (e.source = n.id OR e.target = n.id)
-				  AND e.relation != 'co_mentioned_with'
-			) * 3, 30) +
+			MIN(COALESCE(deg.meaningful_degree, 0) * 3, 30) +
 			(CASE WHEN (SELECT COUNT(*) FROM json_each(n.properties)
 				WHERE key NOT IN ('source','extracted_at','last_seen','session_id','channel','protected')) >= 3
 				THEN 10 ELSE 0 END) +
 			(CASE WHEN n.updated_at > datetime('now', '-7 days') THEN 5 ELSE 0 END)
 			AS importance_score
 		FROM kg_nodes n
+		LEFT JOIN (
+			SELECT node_id, COUNT(*) AS meaningful_degree
+			FROM (
+				SELECT source AS node_id FROM kg_edges WHERE relation != 'co_mentioned_with'
+				UNION ALL
+				SELECT target AS node_id FROM kg_edges WHERE relation != 'co_mentioned_with'
+			)
+			GROUP BY node_id
+		) deg ON deg.node_id = n.id
 		WHERE importance_score >= ?
 		ORDER BY importance_score DESC
 		LIMIT ?
@@ -407,11 +456,15 @@ func (kg *KnowledgeGraph) GetImportantNodes(limit int, minScore int) ([]Importan
 		var n ImportantNode
 		var propsJSON string
 		var protected int
-		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected, &n.ImportanceScore); err == nil {
-			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetImportantNodes", n.ID, propsJSON, protected)
-			n.Protected = protected != 0
-			result = append(result, n)
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected, &n.ImportanceScore); err != nil {
+			return nil, fmt.Errorf("scan important node: %w", err)
 		}
+		n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetImportantNodes", n.ID, propsJSON, protected)
+		n.Protected = protected != 0
+		result = append(result, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate important nodes: %w", err)
 	}
 	return result, nil
 }
@@ -433,11 +486,15 @@ func (kg *KnowledgeGraph) GetRecentChanges(since time.Time) ([]Node, error) {
 		var n Node
 		var propsJSON string
 		var protected int
-		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
-			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetRecentChanges", n.ID, propsJSON, protected)
-			n.Protected = protected != 0
-			nodes = append(nodes, n)
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+			return nil, fmt.Errorf("scan recent change node: %w", err)
 		}
+		n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetRecentChanges", n.ID, propsJSON, protected)
+		n.Protected = protected != 0
+		nodes = append(nodes, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate recent changes: %w", err)
 	}
 	return nodes, nil
 }
@@ -473,9 +530,17 @@ func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
 	if !sourceFound {
 		return fmt.Errorf("source node not found: %s", sourceID)
 	}
+	if sourceProtected != 0 {
+		return ErrKnowledgeGraphProtectedNode
+	}
+
+	removedEdges := kg.collectSemanticEdgeIdentities(tx, `
+		SELECT source, target, relation FROM kg_edges
+		WHERE source = ? OR target = ?
+	`, sourceID, sourceID)
 
 	mergedLabel := mergeKnowledgeGraphLabel(targetLabel, sourceLabel)
-	mergedProtected := targetProtected != 0 || sourceProtected != 0
+	mergedProtected := targetProtected != 0
 	mergedProps := mergeKnowledgeGraphProperties(targetProps, sourceProps)
 	mergedProps = sanitizeKnowledgeGraphNodeProperties(mergedProps, mergedProtected)
 	propsJSON, err := json.Marshal(mergedProps)
@@ -537,12 +602,14 @@ func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
 	}
 	if _, err := tx.Exec(`
 		DELETE FROM kg_edges
-		WHERE rowid NOT IN (
+		WHERE (source IN (?, ?) OR target IN (?, ?))
+		  AND rowid NOT IN (
 			SELECT MIN(rowid)
 			FROM kg_edges
+			WHERE source IN (?, ?) OR target IN (?, ?)
 			GROUP BY source, target, relation
 		)
-	`); err != nil {
+	`, targetID, sourceID, targetID, sourceID, targetID, sourceID, targetID, sourceID); err != nil {
 		return fmt.Errorf("deduplicate merged edges: %w", err)
 	}
 
@@ -555,16 +622,14 @@ func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
 		return err
 	}
 
-	if err := kg.removeSemanticNodeIndex(sourceID); err != nil && kg.logger != nil {
-		kg.logger.Warn("MergeNodes: failed to remove source semantic node index", "source_id", sourceID, "error", err)
-	}
-	kg.upsertSemanticNodeIndex(Node{ID: targetID, Label: mergedLabel, Properties: mergedProps, Protected: mergedProtected})
+	kg.removeSemanticIndexesForDeletedGraphData([]string{sourceID}, removedEdges)
+	kg.indexSemanticNodeAfterWrite(Node{ID: targetID, Label: mergedLabel, Properties: mergedProps, Protected: mergedProtected})
 	incidentEdges, err := kg.GetImportantEdges(500, []string{targetID})
 	if err != nil {
 		return fmt.Errorf("reload merged incident edges: %w", err)
 	}
 	for _, edge := range incidentEdges {
-		kg.upsertSemanticEdgeIndex(edge)
+		kg.indexSemanticEdgeAfterWrite(edge)
 	}
 
 	return nil
@@ -577,9 +642,23 @@ func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
 	}
 	defer tx.Rollback()
 
+	sourceFileEdges := kg.collectSemanticEdgeIdentities(tx, `
+		SELECT source, target, relation FROM kg_edges
+		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source_file') = ?
+	`, path)
+	if _, err := tx.Exec(`
+		DELETE FROM kg_edges
+		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source_file') = ?
+	`, path); err != nil {
+		return 0, fmt.Errorf("delete source-file edges before node cleanup: %w", err)
+	}
+
 	rows, err := tx.Query(`
 		SELECT id FROM kg_nodes
-		WHERE json_extract(properties, '$.source_file') = ?
+		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source_file') = ?
 		  AND protected = 0
 	`, path)
 	if err != nil {
@@ -588,55 +667,57 @@ func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
 	var ids []string
 	for rows.Next() {
 		var id string
-		if err := rows.Scan(&id); err == nil {
-			ids = append(ids, id)
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("scan node id for source file delete: %w", err)
 		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return 0, fmt.Errorf("iterate node ids for source file delete: %w", err)
 	}
 	rows.Close()
 
-	incidentEdges := make([]Edge, 0)
-	for _, id := range ids {
-		edgeRows, err := tx.Query(`
-			SELECT source, target, relation FROM kg_edges
-			WHERE source = ? OR target = ?
-		`, id, id)
-		if err != nil {
-			kg.logger.Warn("DeleteNodesBySourceFile: failed to load incident edges", "id", id, "error", err)
-			continue
+	if len(ids) == 0 {
+		if err := tx.Commit(); err != nil {
+			return 0, fmt.Errorf("commit delete source-file edges: %w", err)
 		}
-		for edgeRows.Next() {
-			var edge Edge
-			if err := edgeRows.Scan(&edge.Source, &edge.Target, &edge.Relation); err == nil {
-				incidentEdges = append(incidentEdges, edge)
-			}
-		}
-		edgeRows.Close()
+		kg.removeSemanticIndexesForDeletedGraphData(nil, sourceFileEdges)
+		return 0, nil
 	}
 
+	var toDelete []string
 	for _, id := range ids {
-		if _, err := tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id); err != nil {
-			kg.logger.Warn("DeleteNodesBySourceFile: failed to delete edges for node", "id", id, "error", err)
+		var degree int
+		if err := tx.QueryRow("SELECT COUNT(*) FROM kg_edges WHERE source = ? OR target = ?", id, id).Scan(&degree); err != nil {
+			return 0, fmt.Errorf("count remaining source-file node edges: %w", err)
 		}
-		if _, err := tx.Exec("DELETE FROM kg_nodes WHERE id = ?", id); err != nil {
-			kg.logger.Warn("DeleteNodesBySourceFile: failed to delete node", "id", id, "error", err)
+		if degree == 0 {
+			toDelete = append(toDelete, id)
 		}
+	}
+
+	var deleted int
+	if len(toDelete) > 0 {
+		inPlaceholders := knowledgeGraphSQLInPlaceholders(len(toDelete))
+		inArgs := make([]interface{}, len(toDelete))
+		for i, id := range toDelete {
+			inArgs[i] = id
+		}
+		deleteRes, err := tx.Exec(fmt.Sprintf("DELETE FROM kg_nodes WHERE id IN (%s)", inPlaceholders), inArgs...)
+		if err != nil {
+			return 0, fmt.Errorf("batch delete nodes by source file: %w", err)
+		}
+		deleted64, _ := deleteRes.RowsAffected()
+		deleted = int(deleted64)
 	}
 
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("commit delete nodes by source file: %w", err)
 	}
-	for _, edge := range incidentEdges {
-		if err := kg.removeSemanticEdgeIndex(edge.Source, edge.Target, edge.Relation); err != nil && kg.logger != nil {
-			kg.logger.Warn("DeleteNodesBySourceFile: failed to remove semantic edge index",
-				"source", edge.Source, "target", edge.Target, "relation", edge.Relation, "error", err)
-		}
-	}
-	for _, id := range ids {
-		if err := kg.removeSemanticNodeIndex(id); err != nil && kg.logger != nil {
-			kg.logger.Warn("DeleteNodesBySourceFile: failed to remove semantic node index", "id", id, "error", err)
-		}
-	}
-	return len(ids), nil
+	kg.removeSemanticIndexesForDeletedGraphData(toDelete, sourceFileEdges)
+	return deleted, nil
 }
 
 func (kg *KnowledgeGraph) GetNodesBySourceFile(path string, limit int) ([]Node, error) {
@@ -658,44 +739,61 @@ func (kg *KnowledgeGraph) GetNodesBySourceFile(path string, limit int) ([]Node, 
 		var n Node
 		var propsJSON string
 		var protected int
-		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
-			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetNodesBySourceFile", n.ID, propsJSON, protected)
-			n.Protected = protected != 0
-			nodes = append(nodes, n)
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+			return nil, fmt.Errorf("scan node by source file: %w", err)
 		}
+		n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetNodesBySourceFile", n.ID, propsJSON, protected)
+		n.Protected = protected != 0
+		nodes = append(nodes, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate nodes by source file: %w", err)
 	}
 	return nodes, nil
 }
 
 func (kg *KnowledgeGraph) batchGetNodes(ids []string) []Node {
-	if len(ids) == 0 {
-		return nil
+	nodes, err := loadNodesByIDs(kg.db, ids, kg.logger, "batchGetNodes")
+	if err != nil && kg.logger != nil {
+		kg.logger.Warn("batchGetNodes failed", "error", err)
 	}
-	placeholders := make([]string, len(ids))
+	return nodes
+}
+
+func loadNodesByIDs(q knowledgeGraphQueryer, ids []string, logger *slog.Logger, op string) ([]Node, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	placeholders := knowledgeGraphSQLInPlaceholders(len(ids))
 	args := make([]interface{}, len(ids))
 	for i, id := range ids {
-		placeholders[i] = "?"
 		args[i] = id
 	}
-	query := fmt.Sprintf("SELECT id, label, properties, protected FROM kg_nodes WHERE id IN (%s)", strings.Join(placeholders, ","))
-	rows, err := kg.db.Query(query, args...)
+	rows, err := q.Query(fmt.Sprintf(
+		"SELECT id, label, properties, protected FROM kg_nodes WHERE id IN (%s) ORDER BY id",
+		placeholders,
+	), args...)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("query nodes by ids: %w", err)
 	}
 	defer rows.Close()
 
-	var nodes []Node
+	nodes := make([]Node, 0, len(ids))
 	for rows.Next() {
 		var n Node
 		var propsJSON string
 		var protected int
-		if rows.Scan(&n.ID, &n.Label, &propsJSON, &protected) == nil {
-			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "batchGetNodes", n.ID, propsJSON, protected)
-			n.Protected = protected != 0
-			nodes = append(nodes, n)
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+			return nil, fmt.Errorf("scan node by id: %w", err)
 		}
+		n.Properties = decodeKnowledgeGraphNodeProperties(logger, op, n.ID, propsJSON, protected)
+		n.Protected = protected != 0
+		nodes = append(nodes, n)
 	}
-	return nodes
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate nodes by ids: %w", err)
+	}
+	return nodes, nil
 }
 
 func loadKnowledgeGraphNode(tx *sql.Tx, id string) (label string, properties map[string]string, protected int, found bool, err error) {
@@ -752,16 +850,5 @@ func sortKnowledgeGraphNodes(nodes map[string]Node) []Node {
 }
 
 func choosePreferredAutoExtractedLabel(existing, incoming string) string {
-	existing = strings.TrimSpace(existing)
-	incoming = strings.TrimSpace(incoming)
-	switch {
-	case existing == "" || strings.EqualFold(existing, "unknown"):
-		return incoming
-	case incoming == "" || strings.EqualFold(incoming, "unknown"):
-		return existing
-	case len([]rune(incoming)) > len([]rune(existing)):
-		return incoming
-	default:
-		return existing
-	}
+	return mergeKnowledgeGraphLabels(existing, incoming, true)
 }

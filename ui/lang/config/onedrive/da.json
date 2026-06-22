@@ -75,5 +75,6 @@
   "config.updates.running": "Kører…",
   "config.web_scraper.summary_mode": "Opsummeringstilstand",
   "config.webdav.secret_empty": "Værdien er tom",
-  "config.onedrive.disconnect_confirm_title": "Afbryd OneDrive?"
+  "config.onedrive.disconnect_confirm_title": "Afbryd OneDrive?",
+  "config.onedrive.enabled_help": "Aktiverer OneDrive-filadgang, når Microsoft-godkendelsen er fuldført."
 }

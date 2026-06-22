@@ -175,8 +175,8 @@
                 <div class="fm-modal-title">${esc(title)}</div>
                 <input type="text" name="value" value="${esc(value || '')}" autocomplete="off" spellcheck="false">
                 <div class="fm-modal-actions">
-                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel', 'Cancel'))}</button>
-                    <button type="submit" class="fm-btn primary">${esc(t('desktop.ok', 'OK'))}</button>
+                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel'))}</button>
+                    <button type="submit" class="fm-btn primary">${esc(t('desktop.ok'))}</button>
                 </div>
             </form>`;
             document.body.appendChild(overlay);
@@ -201,8 +201,8 @@
                 <div class="fm-modal-title">${esc(title)}</div>
                 <p class="fm-modal-message">${esc(message)}</p>
                 <div class="fm-modal-actions">
-                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel', 'Cancel'))}</button>
-                    <button type="button" class="fm-btn danger" data-confirm>${esc(t('desktop.delete', 'Delete'))}</button>
+                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel'))}</button>
+                    <button type="button" class="fm-btn danger" data-confirm>${esc(t('desktop.delete'))}</button>
                 </div>
             </div>`;
             document.body.appendChild(overlay);
@@ -371,7 +371,7 @@
             const result = await api('/api/desktop/files?path=' + encodeURIComponent(path));
             fm.files = Array.isArray(result.files) ? result.files : [];
         } catch (err) {
-            showNotification({ type: 'error', message: t('desktop.fm.error_load', 'Failed to load files') + ': ' + (err.message || String(err)) });
+            showNotification({ type: 'error', message: t('desktop.fm.error_load') + ': ' + (err.message || String(err)) });
             fm.files = [];
         }
         fm.loading = false;
@@ -555,29 +555,29 @@
         const readonly = (typeof isReadonly === 'function') ? isReadonly() : false;
         return `<div class="fm-selection-toolbar">
             <div class="fm-selection-toolbar-left">
-                <button type="button" class="fm-selection-close" data-action="selection-close" title="${esc(t('desktop.close', 'Close'))}" aria-label="${esc(t('desktop.close', 'Close'))}">
+                <button type="button" class="fm-selection-close" data-action="selection-close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}">
                     ${iconMarkup('x', '\u00D7', '', 16)}
                 </button>
                 <span class="fm-selection-count">0</span>
-                <span class="fm-selection-label">${esc(t('desktop.fm.selected', 'selected'))}</span>
+                <span class="fm-selection-label">${esc(t('desktop.fm.selected'))}</span>
             </div>
             <div class="fm-selection-toolbar-actions">
                 <button type="button" class="fm-selection-btn" data-action="selection-open" title="Open" aria-label="Open">
                     ${iconMarkup('folder-open', '\u25B6', '', 16)}
                 </button>
-                <button type="button" class="fm-selection-btn" data-action="selection-copy" title="${esc(t('desktop.fm.copy', 'Copy'))}" aria-label="${esc(t('desktop.fm.copy', 'Copy'))}">
+                <button type="button" class="fm-selection-btn" data-action="selection-copy" title="${esc(t('desktop.fm.copy'))}" aria-label="${esc(t('desktop.fm.copy'))}">
                     ${iconMarkup('copy', '\u2398', '', 16)}
                 </button>
-                <button type="button" class="fm-selection-btn" data-action="selection-cut" title="${esc(t('desktop.fm.cut', 'Cut'))}" aria-label="${esc(t('desktop.fm.cut', 'Cut'))}"${readonly ? ' disabled' : ''}>
+                <button type="button" class="fm-selection-btn" data-action="selection-cut" title="${esc(t('desktop.fm.cut'))}" aria-label="${esc(t('desktop.fm.cut'))}"${readonly ? ' disabled' : ''}>
                     ${iconMarkup('scissors', '\u2702', '', 16)}
                 </button>
-                <button type="button" class="fm-selection-btn${hasFile ? '' : ' is-hidden'}" data-action="selection-download" title="${esc(t('desktop.fm.download', 'Download'))}" aria-label="${esc(t('desktop.fm.download', 'Download'))}">
+                <button type="button" class="fm-selection-btn${hasFile ? '' : ' is-hidden'}" data-action="selection-download" title="${esc(t('desktop.fm.download'))}" aria-label="${esc(t('desktop.fm.download'))}">
                     ${iconMarkup('download', '\u2193', '', 16)}
                 </button>
-                <button type="button" class="fm-selection-btn" data-action="selection-delete" title="${esc(t('desktop.fm.delete', 'Delete'))}" aria-label="${esc(t('desktop.fm.delete', 'Delete'))}"${readonly ? ' disabled' : ''}>
+                <button type="button" class="fm-selection-btn" data-action="selection-delete" title="${esc(t('desktop.fm.delete'))}" aria-label="${esc(t('desktop.fm.delete'))}"${readonly ? ' disabled' : ''}>
                     ${iconMarkup('trash', '\u267B', '', 16)}
                 </button>
-                <button type="button" class="fm-selection-btn" data-action="selection-properties" title="${esc(t('desktop.fm.properties', 'Properties'))}" aria-label="${esc(t('desktop.fm.properties', 'Properties'))}">
+                <button type="button" class="fm-selection-btn" data-action="selection-properties" title="${esc(t('desktop.fm.properties'))}" aria-label="${esc(t('desktop.fm.properties'))}">
                     ${iconMarkup('info', 'i', '', 16)}
                 </button>
             </div>
@@ -846,7 +846,7 @@
         const fwdDisabled = !canGoForward() ? ' disabled' : '';
         return `<div class="fm-toolbar">
             <div class="fm-toolbar-group">
-                <button type="button" class="fm-toolbtn fm-sidebar-toggle" data-action="sidebar-toggle" title="${esc(t('desktop.fm.toggle_sidebar', 'Toggle sidebar'))}" aria-label="${esc(t('desktop.fm.toggle_sidebar', 'Toggle sidebar'))}">
+                <button type="button" class="fm-toolbtn fm-sidebar-toggle" data-action="sidebar-toggle" title="${esc(t('desktop.fm.toggle_sidebar'))}" aria-label="${esc(t('desktop.fm.toggle_sidebar'))}">
                     ${iconMarkup('list', '\u2630', '', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn" data-action="back" title="${esc(t('desktop.back'))}"${backDisabled}>
@@ -855,7 +855,7 @@
                 <button type="button" class="fm-toolbtn" data-action="forward" title="${esc(t('desktop.forward'))}"${fwdDisabled}>
                     ${iconMarkup('chevron-right', '\u203A', '', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn" data-action="up" title="${esc(t('desktop.up', 'Up'))}">
+                <button type="button" class="fm-toolbtn" data-action="up" title="${esc(t('desktop.up'))}">
                     ${iconMarkup('arrow-up', '\u2191', '', 16)}
                 </button>
             </div>
@@ -863,19 +863,19 @@
                 ${renderBreadcrumbSegments()}
             </div>
             <div class="fm-toolbar-group fm-toolbar-right">
-                <button type="button" class="fm-toolbtn${fm.previewOpen ? ' active' : ''}" data-action="toggle-preview" title="${esc(t('desktop.fm.toggle_preview', 'Toggle Preview Panel (Ctrl+P)'))}">
+                <button type="button" class="fm-toolbtn${fm.previewOpen ? ' active' : ''}" data-action="toggle-preview" title="${esc(t('desktop.fm.toggle_preview'))}">
                     ${iconMarkup('layout', '\u25EB', '', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn${fm.splitViewEnabled ? ' active' : ''}" data-action="toggle-split" title="${esc(t('desktop.fm.toggle_split', 'Toggle Split View (Alt+S)'))}">
+                <button type="button" class="fm-toolbtn${fm.splitViewEnabled ? ' active' : ''}" data-action="toggle-split" title="${esc(t('desktop.fm.toggle_split'))}">
                     ${iconMarkup('columns', '\u25EB', '', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn${fm.showHidden ? ' active' : ''}" data-action="toggle-hidden" title="${esc(t('desktop.fm.toggle_hidden', 'Show/Hide Hidden Files (Ctrl+H)'))}">
+                <button type="button" class="fm-toolbtn${fm.showHidden ? ' active' : ''}" data-action="toggle-hidden" title="${esc(t('desktop.fm.toggle_hidden'))}">
                     ${iconMarkup(fm.showHidden ? 'eye' : 'eye-off', fm.showHidden ? '\uD83D\uDC41' : '\uD83D\uDC41\u0338', '', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn${fm.viewMode === 'grid' ? ' active' : ''}" data-action="view-grid" title="${esc(t('desktop.fm.view_grid', 'Grid View'))}">
+                <button type="button" class="fm-toolbtn${fm.viewMode === 'grid' ? ' active' : ''}" data-action="view-grid" title="${esc(t('desktop.fm.view_grid'))}">
                     ${iconMarkup('grid', '\u25A6', '', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn${fm.viewMode === 'list' ? ' active' : ''}" data-action="view-list" title="${esc(t('desktop.fm.view_list', 'List View'))}">
+                <button type="button" class="fm-toolbtn${fm.viewMode === 'list' ? ' active' : ''}" data-action="view-list" title="${esc(t('desktop.fm.view_list'))}">
                     ${iconMarkup('list', '\u2630', '', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn" data-action="search-toggle" title="${esc(t('desktop.search'))} (Ctrl+F)">
@@ -889,7 +889,7 @@
         const hidden = fm.searchQuery ? '' : ' hidden';
         return `<div class="fm-search-bar" data-fm-search${hidden}>
             ${iconMarkup('search', '\u2315', 'fm-search-icon', 14)}
-            <input type="text" class="fm-search-input" placeholder="${esc(t('desktop.fm.search_placeholder', 'Search files...'))}" value="${esc(fm.searchQuery)}" inputmode="search" enterkeyhint="search" autocapitalize="off">
+            <input type="text" class="fm-search-input" placeholder="${esc(t('desktop.fm.search_placeholder'))}" value="${esc(fm.searchQuery)}" inputmode="search" enterkeyhint="search" autocapitalize="off">
             <button type="button" class="fm-search-clear" data-action="search-clear">${iconMarkup('x', '\u00D7', '', 14)}</button>
         </div>`;
     }
@@ -910,18 +910,18 @@
             return `<div class="fm-sidebar-item${isActive ? ' active' : ''} fm-favorite-item" data-sidebar-path="${esc(fav)}" draggable="true" data-fav-index="${idx}" role="button" tabindex="0" style="position:relative">
                 ${iconMarkup('star', '\u2605', 'fm-sidebar-icon', 18)}
                 <span class="fm-sidebar-label">${esc(baseName(fav) || fav)}</span>
-                <button type="button" class="fm-favorite-remove" data-action="remove-favorite" data-path="${esc(fav)}" title="${esc(t('desktop.fm.remove_favorite', 'Remove from Favorites'))}" style="position:absolute;right:8px;background:none;border:none;color:var(--vd-muted);cursor:pointer;font-size:1rem;line-height:1;display:none;align-items:center;justify-content:center;height:100%;top:0">&times;</button>
+                <button type="button" class="fm-favorite-remove" data-action="remove-favorite" data-path="${esc(fav)}" title="${esc(t('desktop.fm.remove_favorite'))}" style="position:absolute;right:8px;background:none;border:none;color:var(--vd-muted);cursor:pointer;font-size:1rem;line-height:1;display:none;align-items:center;justify-content:center;height:100%;top:0">&times;</button>
             </div>`;
         }).join('');
 
         return `<aside class="fm-sidebar">
             <div class="fm-sidebar-section">
-                <div class="fm-sidebar-head">${esc(t('desktop.fm.quick_access', 'Quick Access'))}</div>
-                ${items || `<div class="fm-sidebar-empty">${esc(t('desktop.fm.workspace_root', 'Workspace'))}</div>`}
+                <div class="fm-sidebar-head">${esc(t('desktop.fm.quick_access'))}</div>
+                ${items || `<div class="fm-sidebar-empty">${esc(t('desktop.fm.workspace_root'))}</div>`}
             </div>
             <div class="fm-sidebar-section fm-favorites-section">
-                <div class="fm-sidebar-head">${esc(t('desktop.fm.favorites', 'Favorites'))}</div>
-                ${favItems || `<div class="fm-sidebar-empty" style="font-size:0.7rem;color:var(--vd-muted);padding:8px 12px">${esc(t('desktop.fm.drag_favorite_hint', 'Drag folders here'))}</div>`}
+                <div class="fm-sidebar-head">${esc(t('desktop.fm.favorites'))}</div>
+                ${favItems || `<div class="fm-sidebar-empty" style="font-size:0.7rem;color:var(--vd-muted);padding:8px 12px">${esc(t('desktop.fm.drag_favorite_hint'))}</div>`}
             </div>
         </aside>`;
     }
@@ -939,14 +939,14 @@
 
     function renderContentHtml() {
         if (fm.loading) {
-            return `<div class="fm-loading"><div class="fm-spinner"></div><div>${esc(t('desktop.fm.loading', 'Loading...'))}</div></div>`;
+            return `<div class="fm-loading"><div class="fm-spinner"></div><div>${esc(t('desktop.fm.loading'))}</div></div>`;
         }
         const files = getDisplayFiles();
         if (!files.length) {
             if (fm.filteredFiles !== null && fm.searchQuery) {
-                return `<div class="fm-empty">${iconMarkup('search', '\u2315', 'fm-empty-icon', 32)}<div>${esc(t('desktop.fm.no_results', 'No files match "{{query}}"', { query: fm.searchQuery }))}</div></div>`;
+                return `<div class="fm-empty">${iconMarkup('search', '\u2315', 'fm-empty-icon', 32)}<div>${esc(t('desktop.fm.no_results', { query: fm.searchQuery }))}</div></div>`;
             }
-            return `<div class="fm-empty">${iconMarkup('folder-open', '\u25A1', 'fm-empty-icon', 32)}<div>${esc(t('desktop.fm.empty_folder', 'This folder is empty'))}</div></div>`;
+            return `<div class="fm-empty">${iconMarkup('folder-open', '\u25A1', 'fm-empty-icon', 32)}<div>${esc(t('desktop.fm.empty_folder'))}</div></div>`;
         }
         const renderFiles = files.length > FILE_INCREMENTAL_THRESHOLD ? files.slice(0, FILE_RENDER_BATCH_SIZE) : files;
         const incrementalAttr = files.length > FILE_INCREMENTAL_THRESHOLD ? ` data-fm-incremental="${esc(String(files.length))}"` : '';
@@ -956,22 +956,22 @@
         return `<div class="fm-list">
             <div class="fm-list-header">
                 <div class="fm-list-cell fm-col-name" data-sort="name" role="button" tabindex="0" style="position:relative">
-                    ${esc(t('desktop.fm.sort_name', 'Name'))}
+                    ${esc(t('desktop.fm.sort_name'))}
                     ${fm.sortBy === 'name' ? iconMarkup(fm.sortAsc ? 'chevron-up' : 'chevron-down', fm.sortAsc ? '\u2191' : '\u2193', 'fm-sort-indicator', 12) : ''}
                     <div class="fm-col-resize-handle" data-col-key="name"></div>
                 </div>
                 <div class="fm-list-cell fm-col-size" data-sort="size" role="button" tabindex="0" style="position:relative">
-                    ${esc(t('desktop.fm.sort_size', 'Size'))}
+                    ${esc(t('desktop.fm.sort_size'))}
                     ${fm.sortBy === 'size' ? iconMarkup(fm.sortAsc ? 'chevron-up' : 'chevron-down', fm.sortAsc ? '\u2191' : '\u2193', 'fm-sort-indicator', 12) : ''}
                     <div class="fm-col-resize-handle" data-col-key="size"></div>
                 </div>
                 <div class="fm-list-cell fm-col-date" data-sort="date" role="button" tabindex="0" style="position:relative">
-                    ${esc(t('desktop.fm.sort_date', 'Date Modified'))}
+                    ${esc(t('desktop.fm.sort_date'))}
                     ${fm.sortBy === 'date' ? iconMarkup(fm.sortAsc ? 'chevron-up' : 'chevron-down', fm.sortAsc ? '\u2191' : '\u2193', 'fm-sort-indicator', 12) : ''}
                     <div class="fm-col-resize-handle" data-col-key="date"></div>
                 </div>
                 <div class="fm-list-cell fm-col-type" data-sort="type" role="button" tabindex="0" style="position:relative">
-                    ${esc(t('desktop.fm.sort_type', 'Type'))}
+                    ${esc(t('desktop.fm.sort_type'))}
                     ${fm.sortBy === 'type' ? iconMarkup(fm.sortAsc ? 'chevron-up' : 'chevron-down', fm.sortAsc ? '\u2191' : '\u2193', 'fm-sort-indicator', 12) : ''}
                     <div class="fm-col-resize-handle" data-col-key="type"></div>
                 </div>
@@ -1011,7 +1011,7 @@
         const cut = (fm.clipboard && fm.clipboard.mode === 'cut' && fm.clipboard.paths.includes(file.path)) ? ' cut-item' : '';
         const preview = !isDir && isPreviewableImage(file);
         const nameContent = fm.renamePath === file.path
-            ? `<input class="fm-rename-input" data-rename-input value="${esc(file.name)}" aria-label="${esc(t('desktop.fm.rename', 'Rename'))}">`
+            ? `<input class="fm-rename-input" data-rename-input value="${esc(file.name)}" aria-label="${esc(t('desktop.fm.rename'))}">`
             : esc(file.name);
         return `<div class="fm-grid-item${selected}${cut}" data-path="${esc(file.path)}" data-type="${esc(file.type)}" role="button" tabindex="0" title="${esc(file.name)}">
             <div class="fm-grid-icon${preview ? ' has-preview' : ''}">${thumbnailMarkup(file, iconKey, isDir ? '\u25A0' : '\u25A1', 'grid')}</div>

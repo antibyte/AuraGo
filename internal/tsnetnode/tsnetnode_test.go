@@ -13,6 +13,7 @@ import (
 
 	"aurago/internal/config"
 
+	"github.com/gorilla/websocket"
 	"tailscale.com/tsnet"
 )
 
@@ -250,6 +251,59 @@ func TestStoreAppProxyRoutesAPIPrefixToAPITarget(t *testing.T) {
 				t.Fatalf("body = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestStoreAppProxyForwardsWebSocketUpgrade(t *testing.T) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/comms" {
+			t.Fatalf("backend path = %q, want /comms", r.URL.Path)
+		}
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("backend websocket upgrade: %v", err)
+			return
+		}
+		defer conn.Close()
+		messageType, payload, err := conn.ReadMessage()
+		if err != nil {
+			t.Errorf("backend read websocket message: %v", err)
+			return
+		}
+		if err := conn.WriteMessage(messageType, append([]byte("echo:"), payload...)); err != nil {
+			t.Errorf("backend write websocket message: %v", err)
+		}
+	}))
+	defer backend.Close()
+
+	handler, err := newStoreAppProxyHandler(StoreAppProxySpec{
+		ID:        "node-red",
+		Port:      1880,
+		TargetURL: backend.URL + "/",
+		Enabled:   true,
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("newStoreAppProxyHandler() error = %v", err)
+	}
+	proxy := httptest.NewServer(handler)
+	defer proxy.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(proxy.URL, "http") + "/comms"
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, http.Header{"Origin": []string{"https://aurago.taild1480.ts.net"}})
+	if err != nil {
+		t.Fatalf("dial proxied websocket: %v", err)
+	}
+	defer conn.Close()
+	if err := conn.WriteMessage(websocket.TextMessage, []byte("hello")); err != nil {
+		t.Fatalf("write proxied websocket: %v", err)
+	}
+	messageType, payload, err := conn.ReadMessage()
+	if err != nil {
+		t.Fatalf("read proxied websocket: %v", err)
+	}
+	if messageType != websocket.TextMessage || string(payload) != "echo:hello" {
+		t.Fatalf("proxied websocket message = type %d payload %q, want text echo:hello", messageType, payload)
 	}
 }
 

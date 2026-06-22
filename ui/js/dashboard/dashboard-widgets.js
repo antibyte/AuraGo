@@ -38,18 +38,101 @@
             grid.innerHTML = statsHTML + (typeBadges ? `<div class="knowledge-type-badges">${typeBadges}</div>` : '');
         }
 
+        function renderKnowledgeGraphHealth(health) {
+            const metrics = document.getElementById('knowledge-health-metrics');
+            const status = document.getElementById('knowledge-health-status');
+            if (!metrics || !status) return;
+
+            const semanticEnabled = !!health?.semantic_enabled;
+            const stats = [
+                { val: Number(health?.dirty_nodes || 0), lbl: t('dashboard.knowledge_health_dirty_nodes') },
+                { val: Number(health?.dirty_edges || 0), lbl: t('dashboard.knowledge_health_dirty_edges') },
+                { val: Number(health?.isolated_nodes || 0), lbl: t('dashboard.knowledge_health_isolated_nodes') },
+                { val: Number(health?.label_duplicate_groups || 0), lbl: t('dashboard.knowledge_health_label_duplicate_groups') },
+                { val: Number(health?.id_duplicate_groups || 0), lbl: t('dashboard.knowledge_health_id_duplicate_groups') },
+                { val: Number(health?.dropped_access_hits || 0), lbl: t('dashboard.knowledge_health_dropped_hits') },
+                {
+                    val: semanticEnabled ? t('dashboard.knowledge_health_semantic_on') : t('dashboard.knowledge_health_semantic_off'),
+                    lbl: t('dashboard.knowledge_health_semantic_enabled'),
+                },
+            ];
+            metrics.innerHTML = stats.map(stat => `
+                <div class="mem-stat">
+                    <div class="mem-stat-val">${esc(String(stat.val))}</div>
+                    <div class="mem-stat-lbl">${esc(stat.lbl)}</div>
+                </div>
+            `).join('');
+
+            const pills = [];
+            if (health?.needs_reindex) {
+                pills.push(`<span class="pill-status pill-warning">${t('dashboard.knowledge_health_needs_reindex')}</span>`);
+            } else {
+                pills.push(`<span class="pill-status pill-completed">${t('dashboard.knowledge_health_index_ok')}</span>`);
+            }
+            if (health?.reindex_backlog) {
+                pills.push(`<span class="pill-status pill-warning">${t('dashboard.knowledge_health_reindex_backlog')}</span>`);
+            }
+            status.innerHTML = pills.join('');
+        }
+
+        function renderKnowledgeGraphDuplicateCandidates(container, candidates, emptyKey) {
+            if (!container) return;
+            const rows = Array.isArray(candidates) ? candidates : [];
+            if (!rows.length) {
+                container.innerHTML = `<div class="empty-state">${t(emptyKey)}</div>`;
+                return;
+            }
+            let html = '<table class="kg-table kg-table-compact"><thead><tr>' +
+                `<th>${t('dashboard.kg_col_label')}</th>` +
+                `<th>${t('dashboard.kg_col_count')}</th>` +
+                `<th>${t('dashboard.kg_col_id')}</th>` +
+                `<th>${t('dashboard.kg_col_actions')}</th>` +
+                '</tr></thead><tbody>';
+            rows.forEach(candidate => {
+                const rawIDs = Array.isArray(candidate.ids) ? candidate.ids.filter(id => String(id || '').trim()) : [];
+                const targetID = rawIDs[0] || '';
+                const idLinks = rawIDs.map(id =>
+                    `<span class="kg-cell-link" data-kg-open-node="${esc(id)}">${esc(id)}</span>`
+                ).join(', ');
+                const mergeButtons = rawIDs.slice(1).map(sourceID => `
+                    <button type="button" class="btn btn-secondary btn-sm"
+                        data-kg-merge-source="${esc(sourceID)}"
+                        data-kg-merge-target="${esc(targetID)}"
+                        data-kg-merge-label="${esc(candidate.label || candidate.normalized_label || 'Node')}">
+                        ${t('dashboard.knowledge_quality_merge_btn')}
+                    </button>`).join(' ');
+                html += `<tr>
+                    <td>${esc(candidate.label || candidate.normalized_label || 'Node')}</td>
+                    <td class="text-secondary">${Number(candidate.count || 0)}</td>
+                    <td class="text-secondary">${idLinks || '—'}</td>
+                    <td class="kg-merge-actions">${mergeButtons || '—'}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
         function renderKnowledgeGraphQuality(report) {
             const metrics = document.getElementById('knowledge-quality-metrics');
             const isolated = document.getElementById('knowledge-quality-isolated');
             const untyped = document.getElementById('knowledge-quality-untyped');
             const duplicates = document.getElementById('knowledge-quality-duplicates');
-            if (!metrics || !isolated || !untyped || !duplicates) return;
+            const idDuplicates = document.getElementById('knowledge-quality-id-duplicates');
+            if (!metrics || !isolated || !untyped || !duplicates || !idDuplicates) return;
 
             const stats = [
                 { val: Number(report?.protected_nodes || 0), lbl: t('dashboard.knowledge_quality_protected') },
+                { val: Number(report?.pending_edges || 0), lbl: t('dashboard.knowledge_quality_pending_edges') },
+                { val: Number(report?.low_confidence_edges || 0), lbl: t('dashboard.knowledge_quality_low_confidence_edges') },
+                { val: Number(report?.pending_co_mention_edges || 0), lbl: t('dashboard.knowledge_quality_pending_co_mentions') },
+                { val: Number(report?.co_mention_edges || 0), lbl: t('dashboard.knowledge_quality_co_mentions') },
+                { val: Number(report?.semantic_edges || 0), lbl: t('dashboard.knowledge_quality_semantic_edges') },
+                { val: Number(report?.generic_nodes || 0), lbl: t('dashboard.knowledge_quality_generic_nodes') },
+                { val: Number(report?.duplicate_groups || 0) + Number(report?.id_duplicate_groups || 0), lbl: t('dashboard.knowledge_quality_duplicate_suggestions') },
                 { val: Number(report?.isolated_nodes || 0), lbl: t('dashboard.knowledge_quality_isolated') },
                 { val: Number(report?.untyped_nodes || 0), lbl: t('dashboard.knowledge_quality_untyped') },
-                { val: Number(report?.duplicate_groups || 0), lbl: t('dashboard.knowledge_quality_duplicates') },
+                { val: Number(report?.duplicate_groups || 0), lbl: t('dashboard.knowledge_quality_label_duplicates') },
+                { val: Number(report?.id_duplicate_groups || 0), lbl: t('dashboard.knowledge_quality_id_duplicates') },
             ];
             metrics.innerHTML = stats.map(stat => `
                 <div class="mem-stat">
@@ -60,29 +143,8 @@
 
             renderKnowledgeGraphQualityNodeList(isolated, report?.isolated_sample, 'dashboard.knowledge_quality_empty_isolated');
             renderKnowledgeGraphQualityNodeList(untyped, report?.untyped_sample, 'dashboard.knowledge_quality_empty_untyped');
-
-            const candidates = Array.isArray(report?.duplicate_candidates) ? report.duplicate_candidates : [];
-            if (!candidates.length) {
-                duplicates.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_quality_empty_duplicates')}</div>`;
-            } else {
-                let html = '<table class="kg-table kg-table-compact"><thead><tr>' +
-                    `<th>${t('dashboard.kg_col_label')}</th>` +
-                    `<th>${t('dashboard.kg_col_count')}</th>` +
-                    `<th>ID</th>` +
-                    '</tr></thead><tbody>';
-                candidates.forEach(candidate => {
-                    const ids = (Array.isArray(candidate.ids) ? candidate.ids : []).map(id =>
-                        `<span class="kg-cell-link" data-kg-open-node="${esc(id || '')}">${esc(id || '')}</span>`
-                    ).join(', ');
-                    html += `<tr>
-                        <td>${esc(candidate.label || candidate.normalized_label || 'Node')}</td>
-                        <td class="text-secondary">${Number(candidate.count || 0)}</td>
-                        <td class="text-secondary">${ids || '—'}</td>
-                    </tr>`;
-                });
-                html += '</tbody></table>';
-                duplicates.innerHTML = html;
-            }
+            renderKnowledgeGraphDuplicateCandidates(duplicates, report?.duplicate_candidates, 'dashboard.knowledge_quality_empty_duplicates');
+            renderKnowledgeGraphDuplicateCandidates(idDuplicates, report?.id_duplicate_candidates, 'dashboard.knowledge_quality_empty_id_duplicates');
         }
 
         function renderKnowledgeGraphQualityNodeList(container, nodes, emptyKey) {
@@ -526,6 +588,38 @@
 
             KnowledgeGraphState.editingEdgeKey = '';
             if (typeof showToast === 'function') showToast(t('dashboard.knowledge_edge_saved'), 'success', 2500);
+            await loadTabKnowledge();
+        }
+
+        async function mergeKnowledgeGraphNodes(targetID, sourceID, label) {
+            targetID = String(targetID || '').trim();
+            sourceID = String(sourceID || '').trim();
+            if (!targetID || !sourceID || targetID === sourceID) return;
+
+            const confirmed = typeof showConfirm === 'function'
+                ? await showConfirm(
+                    t('dashboard.knowledge_quality_merge_confirm_title'),
+                    t('dashboard.knowledge_quality_merge_confirm', { source: sourceID, target: targetID, label: label || sourceID })
+                )
+                : true;
+            if (!confirmed) return;
+
+            const response = await fetch('/api/knowledge-graph/merge', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_id: targetID, source_id: sourceID }),
+            });
+            const payload = await safeReadJSON(response);
+            if (!response.ok) {
+                if (typeof showToast === 'function') {
+                    showToast(payload?.error || t('dashboard.knowledge_quality_merge_error'), 'error', 5000);
+                }
+                return;
+            }
+            if (typeof showToast === 'function') {
+                showToast(t('dashboard.knowledge_quality_merge_success'), 'success', 2500);
+            }
             await loadTabKnowledge();
         }
 
@@ -1150,8 +1244,13 @@
         function renderMemoryStats(data) {
             if (!data) return;
             const container = document.getElementById('memory-stats');
-            const gn = (data.knowledge_graph || {}).nodes || 0;
-            const ge = (data.knowledge_graph || {}).edges || 0;
+            const kg = data.knowledge_graph || {};
+            const gn = kg.nodes || 0;
+            const ge = kg.edges || 0;
+            let graphVal = gn + ' / ' + ge;
+            if ((kg.dirty_nodes || 0) > 0) {
+                graphVal += ' · ' + t('dashboard.memory_graph_dirty_hint', { count: kg.dirty_nodes });
+            }
 
             let embeddingVal = data.vectordb_entries || 0;
             let embeddingLbl = t('dashboard.memory_embeddings');
@@ -1163,7 +1262,7 @@
                 { val: data.core_memory_facts || 0, lbl: t('dashboard.memory_core_facts'), clickable: true },
                 { val: data.chat_messages || 0, lbl: t('dashboard.memory_messages') },
                 { val: embeddingVal, lbl: embeddingLbl },
-                { val: gn + ' / ' + ge, lbl: t('dashboard.memory_graph_label') },
+                { val: graphVal, lbl: t('dashboard.memory_graph_label') },
                 { val: data.journal_entries || 0, lbl: t('dashboard.memory_journal') },
                 { val: data.notes_count || 0, lbl: t('dashboard.memory_notes') },
                 { val: data.error_patterns || 0, lbl: t('dashboard.memory_error_patterns') },
@@ -2891,7 +2990,7 @@
         async function loadMissionHistory(append) {
             try {
                 const url = `/api/dashboard/mission-history?limit=${MH_PAGE_SIZE}&offset=${mhOffset}`;
-                const resp = await fetch(url);
+                const resp = await fetch(url, { credentials: 'same-origin' });
                 if (!resp.ok) return;
                 const data = await resp.json();
                 renderMissionHistory(data, append);
@@ -2965,7 +3064,7 @@
                 { icon: '🥚', val: inv.nests || 0, lbl: t('dashboard.operations_nests'), sub: t('dashboard.operations_eggs_connected', {n: inv.connected_eggs || 0}) },
                 { icon: '📂', val: idx.indexed_files || 0, lbl: t('dashboard.operations_indexed'), sub: idx.enabled ? t('dashboard.operations_of_files', {n: idx.total_files || 0}) : t('dashboard.operations_disabled') },
                 { icon: '📡', val: mq.connected ? '✓' : '✗', lbl: t('dashboard.operations_mqtt'), sub: mq.enabled ? t('dashboard.operations_buffered', {n: mq.buffer || 0}) : t('dashboard.operations_disabled') },
-                { icon: '�', val: notes.open || 0, lbl: t('dashboard.operations_notes_open'), sub: t('dashboard.operations_notes_sub', {total: notes.total || 0, done: notes.done || 0}) },
+                { icon: '📝', val: notes.open || 0, lbl: t('dashboard.operations_notes_open'), sub: t('dashboard.operations_notes_sub', {total: notes.total || 0, done: notes.done || 0}) },
                 { icon: '🔐', val: sec.vault_keys || 0, lbl: t('dashboard.operations_vault_keys'), sub: t('dashboard.operations_api_tokens', {n: sec.tokens || 0}) },
                 { icon: '📱', val: overview.devices || 0, lbl: t('dashboard.operations_devices'), sub: t('dashboard.operations_inventory') },
                 { icon: '🧠', val: overview.context?.has_summary ? '✓' : '✗', lbl: t('dashboard.operations_summary'), sub: t('dashboard.operations_chars_count', {n: ((overview.context?.total_chars || 0) / 1000).toFixed(1)}) },
@@ -3092,7 +3191,7 @@
                 const total = dm.total || 0;
                 items.push({
                     icon: '👹',
-                    lbl: t('dashboard.quickstatus_daemons') || 'Daemons',
+                    lbl: t('dashboard.quickstatus_daemons'),
                     val: `${running} / ${total}`,
                     status: autoDisabled > 0 ? 'warning' : (running > 0 ? 'ok' : 'neutral'),
                     info: autoDisabled > 0 ? `${autoDisabled} auto-disabled` : ''
@@ -3358,19 +3457,19 @@
                 <div class="guardian-metrics-grid">
                     <div class="guardian-metric">
                         <div class="guardian-metric-val">${daemons.length}</div>
-                        <div class="guardian-metric-lbl">${t('dashboard.daemons_total') || 'Total'}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.daemons_total')}</div>
                     </div>
                     <div class="guardian-metric">
                         <div class="guardian-metric-val ok">${running}</div>
-                        <div class="guardian-metric-lbl">${t('dashboard.daemons_running') || 'Running'}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.daemons_running')}</div>
                     </div>
                     <div class="guardian-metric">
                         <div class="guardian-metric-val">${stopped}</div>
-                        <div class="guardian-metric-lbl">${t('dashboard.daemons_stopped') || 'Stopped'}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.daemons_stopped')}</div>
                     </div>
                     <div class="guardian-metric">
                         <div class="guardian-metric-val${errored > 0 ? ' warn' : ''}">${errored}</div>
-                        <div class="guardian-metric-lbl">${t('dashboard.daemons_error') || 'Error'}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.daemons_error')}</div>
                     </div>
                 </div>`;
 
@@ -3390,21 +3489,24 @@
                 // Uptime from started_at
                 let uptimeHtml = '';
                 if (d.started_at && (s === 'running' || s === 'starting')) {
-                    const ms = Date.now() - Date.parse(d.started_at);
-                    uptimeHtml = `<span class="daemon-uptime">${formatDuration(ms)}</span>`;
+                    const startedMs = Date.parse(d.started_at);
+                    if (!Number.isNaN(startedMs)) {
+                        const ms = Date.now() - startedMs;
+                        uptimeHtml = `<span class="daemon-uptime">${formatDuration(ms)}</span>`;
+                    }
                 }
 
                 // Wake-up stats badge
                 const wakeCount = d.wake_up_count || 0;
                 const suppressedCount = d.suppressed_count || 0;
-                const wakeLabel = t('dashboard.daemons_wakeups') || 'Wake-ups';
+                const wakeLabel = t('dashboard.daemons_wakeups');
                 const wakeHtml = wakeCount > 0
                     ? `<span class="daemon-badge daemon-badge-wake" title="${wakeLabel}: ${wakeCount}${suppressedCount > 0 ? ` (${suppressedCount} suppressed)` : ''}">💬 ${wakeCount}</span>`
                     : '';
 
                 // Restart count badge
                 const restartCount = d.restart_count || 0;
-                const restartLabel = t('dashboard.daemons_restarts') || 'Restarts';
+                const restartLabel = t('dashboard.daemons_restarts');
                 const restartHtml = restartCount > 0
                     ? `<span class="daemon-badge daemon-badge-restart${restartCount >= 3 ? ' warn' : ''}" title="${restartLabel}: ${restartCount}">↻ ${restartCount}</span>`
                     : '';
@@ -3412,8 +3514,11 @@
                 // Last wake-up time
                 let lastWakeHtml = '';
                 if (d.last_wake_up) {
-                    const wLabel = t('dashboard.daemons_last_wakeup') || 'Last wake-up';
-                    lastWakeHtml = `<span class="daemon-meta-item" title="${wLabel}">${relativeTime(Date.parse(d.last_wake_up))}</span>`;
+                    const wakeMs = Date.parse(d.last_wake_up);
+                    if (!Number.isNaN(wakeMs)) {
+                        const wLabel = t('dashboard.daemons_last_wakeup');
+                        lastWakeHtml = `<span class="daemon-meta-item" title="${wLabel}">${relativeTime(wakeMs)}</span>`;
+                    }
                 }
 
                 // Error detail

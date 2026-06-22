@@ -283,6 +283,51 @@ agent:
 	}
 }
 
+func TestMemoryOnDemandRetrievalDefaultsAndOverrides(t *testing.T) {
+	cfg := loadConfigFromTestYAML(t, `{}`)
+
+	if !cfg.Tools.Memory.OnDemandRetrieval.Enabled {
+		t.Fatal("tools.memory.ondemand_retrieval.enabled should default to true")
+	}
+	if cfg.Tools.Memory.OnDemandRetrieval.MaxEssentialMemories != 1 {
+		t.Fatalf("max_essential_memories = %d, want 1", cfg.Tools.Memory.OnDemandRetrieval.MaxEssentialMemories)
+	}
+	if cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableMemories != 6 {
+		t.Fatalf("max_available_memories = %d, want 6", cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableMemories)
+	}
+	if cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableKGNodes != 6 {
+		t.Fatalf("max_available_kg_nodes = %d, want 6", cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableKGNodes)
+	}
+	if cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableChars != 1600 {
+		t.Fatalf("max_available_chars = %d, want 1600", cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableChars)
+	}
+	if cfg.Tools.Memory.OnDemandRetrieval.DedupeScope != "turn" {
+		t.Fatalf("dedupe_scope = %q, want turn", cfg.Tools.Memory.OnDemandRetrieval.DedupeScope)
+	}
+
+	cfg = loadConfigFromTestYAML(t, `
+tools:
+  memory:
+    ondemand_retrieval:
+      enabled: false
+      max_essential_memories: 2
+      max_available_memories: 3
+      max_available_kg_nodes: 4
+      max_available_chars: 900
+      dedupe_scope: session
+`)
+	if cfg.Tools.Memory.OnDemandRetrieval.Enabled {
+		t.Fatal("explicit ondemand_retrieval.enabled=false should be preserved")
+	}
+	if cfg.Tools.Memory.OnDemandRetrieval.MaxEssentialMemories != 2 ||
+		cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableMemories != 3 ||
+		cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableKGNodes != 4 ||
+		cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableChars != 900 ||
+		cfg.Tools.Memory.OnDemandRetrieval.DedupeScope != "session" {
+		t.Fatalf("override config not preserved: %+v", cfg.Tools.Memory.OnDemandRetrieval)
+	}
+}
+
 func TestAdaptiveToolsDefaultAlwaysIncludeUsesBalancedCore(t *testing.T) {
 	cfg := loadConfigFromTestYAML(t, `
 agent:

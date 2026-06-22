@@ -373,6 +373,7 @@ type ToolCall struct {
 	SkillArgs           map[string]interface{}   `json:"skill_args"`
 	Content             string                   `json:"content"`
 	Query               string                   `json:"query"` // Alias for content in query_memory
+	HistoryQuery        string                   `json:"history_query"`
 	Resource            string                   `json:"resource"`
 	Mode                string                   `json:"mode"`
 	Sources             []string                 `json:"sources"`         // Memory sources filter for query_memory/context_memory
@@ -429,6 +430,7 @@ type ToolCall struct {
 	ArtifactType        string                   `json:"artifact_type"`
 	ArtifactID          string                   `json:"artifact_id"`
 	ArtifactIDs         []string                 `json:"artifact_ids"`
+	IDs                 []string                 `json:"ids"`
 	Command             string                   `json:"command"`
 	ThresholdLow        int                      `json:"threshold_low"`
 	ThresholdMedium     int                      `json:"threshold_medium"`

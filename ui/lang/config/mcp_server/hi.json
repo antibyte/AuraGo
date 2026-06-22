@@ -30,5 +30,7 @@
   "config.mcp_server.general_title": "सामान्य",
   "config.mcp_server.general_desc": "MCP सर्वर सक्षम करें और बुनियादी सेटिंग्स कॉन्फ़िगर करें।",
   "config.mcp_server.connection_title": "कनेक्शन",
-  "config.mcp_server.connection_desc": "MCP सर्वर के लिए एंडपॉइंट और प्रमाणीकरण सेटिंग्स।"
+  "config.mcp_server.connection_desc": "MCP सर्वर के लिए एंडपॉइंट और प्रमाणीकरण सेटिंग्स।",
+  "config.mcp_server.enabled_help": "Exposes AuraGo's built-in MCP server endpoint.",
+  "config.mcp_server.require_auth_help": "Requires clients to use an MCP access token before tools are exposed."
 }

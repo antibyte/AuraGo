@@ -665,6 +665,162 @@ func TestHandleBackupCreateRequiresPasswordForPlaintextConfigSecrets(t *testing.
 	}
 }
 
+func TestBackupCreateRequiresAdminBearerScope(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	vault := newTestVault(t, filepath.Join(dir, "vault.bin"), "03")
+	tokens, err := security.NewTokenManager(vault, filepath.Join(dir, "tokens.json"))
+	if err != nil {
+		t.Fatalf("NewTokenManager: %v", err)
+	}
+	rawToken, _, err := tokens.Create("limited token", []string{"webhook"}, nil)
+	if err != nil {
+		t.Fatalf("Create token: %v", err)
+	}
+
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  port: 1234\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(config): %v", err)
+	}
+
+	cfg := &config.Config{ConfigPath: configPath}
+	cfg.WebConfig.Enabled = true
+	cfg.Auth.Enabled = true
+	cfg.Auth.PasswordHash = "$2a$12$not-a-real-hash-but-present"
+	cfg.Auth.SessionSecret = "session-secret"
+	s := &Server{Cfg: cfg, Logger: slog.Default(), TokenManager: tokens}
+
+	mux := http.NewServeMux()
+	s.registerConfigAPIRoutes(mux, nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/backup/create", strings.NewReader(`{}`))
+	req.Header.Set("Authorization", "Bearer "+rawToken)
+	rec := httptest.NewRecorder()
+
+	authMiddleware(s, mux).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+}
+
+func TestHandleBackupCreateIncludesRuntimeStateMarkers(t *testing.T) {
+	t.Parallel()
+
+	instanceRoot := t.TempDir()
+	dataDir := filepath.Join(instanceRoot, "data")
+	promptsDir := filepath.Join(instanceRoot, "prompts")
+	skillsDir := filepath.Join(instanceRoot, "agent_workspace", "skills")
+	toolsDir := filepath.Join(instanceRoot, "agent_workspace", "tools")
+	workdir := filepath.Join(instanceRoot, "agent_workspace", "workdir")
+	for _, dir := range []string{dataDir, promptsDir, skillsDir, toolsDir, workdir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("MkdirAll(%s): %v", dir, err)
+		}
+	}
+
+	configPath := filepath.Join(instanceRoot, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  port: 1234\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(config): %v", err)
+	}
+	for name, content := range map[string]string{
+		"heartbeat_state.json":          `{"last_run":"2026-06-16T10:00:00Z"}`,
+		"embeddings_reset_pending.json": `{"reason":"test"}`,
+	} {
+		if err := os.WriteFile(filepath.Join(dataDir, name), []byte(content), 0o600); err != nil {
+			t.Fatalf("WriteFile(%s): %v", name, err)
+		}
+	}
+
+	cfg := &config.Config{ConfigPath: configPath}
+	cfg.Directories.DataDir = dataDir
+	cfg.Directories.PromptsDir = promptsDir
+	cfg.Directories.SkillsDir = skillsDir
+	cfg.Directories.ToolsDir = toolsDir
+	cfg.Directories.WorkspaceDir = workdir
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/backup/create", strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handleBackupCreate(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	zr, err := zip.NewReader(bytes.NewReader(rec.Body.Bytes()), int64(rec.Body.Len()))
+	if err != nil {
+		t.Fatalf("zip.NewReader: %v", err)
+	}
+	entries := map[string]bool{}
+	for _, f := range zr.File {
+		entries[f.Name] = true
+	}
+	for _, want := range []string{
+		"data/heartbeat_state.json",
+		"data/embeddings_reset_pending.json",
+	} {
+		if !entries[want] {
+			t.Fatalf("backup missing %s; entries=%v", want, entries)
+		}
+	}
+}
+
+func TestHandleBackupCreateFailsWhenRequestedDirectoryContainsOversizedFile(t *testing.T) {
+	t.Parallel()
+
+	instanceRoot := t.TempDir()
+	dataDir := filepath.Join(instanceRoot, "data")
+	promptsDir := filepath.Join(instanceRoot, "prompts")
+	skillsDir := filepath.Join(instanceRoot, "agent_workspace", "skills")
+	toolsDir := filepath.Join(instanceRoot, "agent_workspace", "tools")
+	workdir := filepath.Join(instanceRoot, "agent_workspace", "workdir")
+	vectorDir := filepath.Join(dataDir, "vectordb")
+	for _, dir := range []string{dataDir, promptsDir, skillsDir, toolsDir, workdir, vectorDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("MkdirAll(%s): %v", dir, err)
+		}
+	}
+
+	configPath := filepath.Join(instanceRoot, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  port: 1234\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(config): %v", err)
+	}
+	oversizedPath := filepath.Join(vectorDir, "oversized.bin")
+	f, err := os.Create(oversizedPath)
+	if err != nil {
+		t.Fatalf("Create oversized file: %v", err)
+	}
+	if err := f.Truncate(101 << 20); err != nil {
+		_ = f.Close()
+		t.Fatalf("Truncate oversized file: %v", err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatalf("Close oversized file: %v", err)
+	}
+
+	cfg := &config.Config{ConfigPath: configPath}
+	cfg.Directories.DataDir = dataDir
+	cfg.Directories.PromptsDir = promptsDir
+	cfg.Directories.SkillsDir = skillsDir
+	cfg.Directories.ToolsDir = toolsDir
+	cfg.Directories.WorkspaceDir = workdir
+	cfg.Directories.VectorDBDir = vectorDir
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/backup/create", strings.NewReader(`{"include_vectordb":true}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handleBackupCreate(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusInternalServerError, rec.Body.String())
+	}
+}
+
 func TestEncryptedBackupRestoresTokenStoreWithNewVaultKey(t *testing.T) {
 	t.Parallel()
 

@@ -1,0 +1,928 @@
+.teevee-app {
+    --teevee-bg: #08111d;
+    --teevee-panel: rgba(16, 28, 43, 0.86);
+    --teevee-panel-strong: rgba(19, 34, 52, 0.94);
+    --teevee-line: rgba(255, 255, 255, 0.12);
+    --teevee-muted: rgba(231, 242, 255, 0.66);
+    --teevee-accent: #37d3c5;
+    --teevee-accent-strong: #6af3e8;
+    --teevee-warm: #ffb14a;
+    --teevee-blue: #4fb7ff;
+    --teevee-danger: #ff4b5f;
+    position: relative;
+    display: grid;
+    grid-template-columns: 268px minmax(0, 1fr);
+    min-height: 100%;
+    height: 100%;
+    color: var(--vd-text, #f2f8ff);
+    background:
+        radial-gradient(circle at 18% 12%, rgba(79, 183, 255, 0.2), transparent 28%),
+        radial-gradient(circle at 74% 78%, rgba(255, 75, 95, 0.16), transparent 34%),
+        linear-gradient(145deg, rgba(6, 13, 23, 0.98), rgba(9, 17, 29, 0.9)),
+        #08111d;
+    overflow: hidden;
+}
+
+.teevee-app::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.65), transparent 72%);
+}
+
+.teevee-sidebar,
+.teevee-main,
+.teevee-toast {
+    position: relative;
+    z-index: 1;
+}
+
+.desktop-body[data-theme="light"] .teevee-app {
+    --teevee-bg: #eef5f8;
+    --teevee-panel: rgba(255, 255, 255, 0.82);
+    --teevee-panel-strong: rgba(255, 255, 255, 0.94);
+    --teevee-line: rgba(22, 42, 61, 0.15);
+    --teevee-muted: rgba(38, 58, 78, 0.72);
+    color: var(--vd-text, #152132);
+    background:
+        linear-gradient(145deg, rgba(238, 247, 249, 0.95), rgba(222, 235, 241, 0.88)),
+        #eef5f8;
+}
+
+.teevee-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+    min-height: 0;
+    padding: 18px;
+    border-right: 1px solid var(--teevee-line);
+    background: linear-gradient(180deg, rgba(4, 12, 22, 0.64), rgba(4, 12, 22, 0.22));
+    backdrop-filter: blur(18px);
+}
+
+.desktop-body[data-theme="light"] .teevee-sidebar {
+    background: rgba(255, 255, 255, 0.36);
+}
+
+.teevee-brand {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    min-height: 54px;
+}
+
+.teevee-brand-icon {
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    border: 1px solid rgba(55, 211, 197, 0.42);
+    border-radius: 8px;
+    color: #07141b;
+    background: linear-gradient(135deg, #74fff0, #4fb7ff 58%, #ffb14a);
+    box-shadow: 0 16px 34px rgba(55, 211, 197, 0.18);
+}
+
+.teevee-brand strong,
+.teevee-brand span,
+.teevee-now strong,
+.teevee-now em,
+.teevee-channel-body strong,
+.teevee-channel-body span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.teevee-brand strong {
+    display: block;
+    font-size: 1.05rem;
+    letter-spacing: 0;
+}
+
+.teevee-brand span {
+    display: block;
+    color: var(--teevee-muted);
+    font-size: 0.76rem;
+}
+
+.teevee-search {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--teevee-line);
+    border-radius: 8px;
+    background: var(--teevee-panel);
+}
+
+.teevee-search:focus-within,
+.teevee-select-field:focus-within {
+    border-color: rgba(106, 243, 232, 0.58);
+    box-shadow: 0 0 0 3px rgba(55, 211, 197, 0.12);
+}
+
+.teevee-search input {
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    color: inherit;
+    background: transparent;
+    font: inherit;
+    font-size: 0.95rem;
+}
+
+.teevee-search input::placeholder {
+    color: rgba(231, 242, 255, 0.48);
+}
+
+.desktop-body[data-theme="light"] .teevee-search input::placeholder {
+    color: rgba(38, 58, 78, 0.5);
+}
+
+.teevee-control-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.teevee-select-field {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid var(--teevee-line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.055);
+}
+
+.teevee-select-field span {
+    color: var(--teevee-muted);
+    font-size: 0.72rem;
+    font-weight: 850;
+    text-transform: uppercase;
+}
+
+.teevee-select-field select {
+    width: 100%;
+    min-width: 0;
+    min-height: 34px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    color: inherit;
+    background: rgba(4, 12, 22, 0.62);
+    font: inherit;
+    font-weight: 720;
+}
+
+.desktop-body[data-theme="light"] .teevee-select-field select {
+    background: rgba(255, 255, 255, 0.88);
+}
+
+.teevee-filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    flex: 0 0 auto;
+    min-height: 0;
+    overflow: visible;
+}
+
+.teevee-filter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+    min-height: 34px;
+    padding: 0 9px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: var(--teevee-muted);
+    background: transparent;
+    cursor: pointer;
+    font-weight: 720;
+    text-align: left;
+    transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.teevee-filter:hover,
+.teevee-filter:focus-visible {
+    color: inherit;
+    border-color: rgba(55, 211, 197, 0.34);
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.teevee-filter span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.teevee-filter:nth-child(-n+2) {
+    grid-column: 1 / -1;
+}
+
+.teevee-filter.active {
+    color: #06141b;
+    background: linear-gradient(135deg, #69f5e9, #4fc2ff);
+    box-shadow: 0 12px 28px rgba(46, 203, 194, 0.2);
+}
+
+.teevee-filter em {
+    min-width: 24px;
+    border-radius: 999px;
+    padding: 2px 7px;
+    color: inherit;
+    background: rgba(255, 255, 255, 0.18);
+    font-size: 0.72rem;
+    font-style: normal;
+    text-align: center;
+}
+
+.teevee-shortcuts-panel {
+    display: grid;
+    gap: 12px;
+    flex: 1 1 140px;
+    min-height: 130px;
+    padding-top: 12px;
+    border-top: 1px solid var(--teevee-line);
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.teevee-favorites,
+.teevee-recent {
+    min-width: 0;
+}
+
+.teevee-recent:not([hidden]) + .teevee-favorites:not([hidden]) {
+    padding-top: 12px;
+    border-top: 1px solid var(--teevee-line);
+}
+
+.teevee-favorites h3,
+.teevee-recent h3 {
+    margin: 0 0 8px;
+    color: var(--teevee-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.teevee-shortcut-list {
+    display: grid;
+    gap: 6px;
+}
+
+.teevee-shortcut-list button {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    padding: 0 9px;
+    border: 1px solid var(--teevee-line);
+    border-radius: 8px;
+    color: inherit;
+    background: rgba(255, 255, 255, 0.04);
+    cursor: pointer;
+    text-align: left;
+}
+
+.teevee-shortcut-list button:hover,
+.teevee-shortcut-list button:focus-visible {
+    border-color: rgba(55, 211, 197, 0.42);
+    background: rgba(55, 211, 197, 0.1);
+}
+
+.teevee-shortcut-list span,
+.teevee-shortcut-list em {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.teevee-shortcut-list span {
+    justify-self: start;
+}
+
+.teevee-shortcut-list em {
+    justify-self: end;
+    color: var(--teevee-muted);
+    font-size: 0.76rem;
+    font-style: normal;
+}
+
+.teevee-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 370px;
+    min-width: 0;
+    min-height: 0;
+}
+
+.teevee-stage {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    padding: 16px;
+}
+
+.teevee-player {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    container-type: inline-size;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    border: 1px solid var(--teevee-line);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent 36%),
+        var(--teevee-panel);
+    overflow: hidden;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.34);
+}
+
+.teevee-video-shell {
+    position: relative;
+    min-height: 0;
+    background:
+        radial-gradient(circle at 50% 45%, rgba(79, 183, 255, 0.09), transparent 35%),
+        #02050a;
+}
+
+.teevee-video-mount,
+.teevee-video-mount video {
+    width: 100%;
+    height: 100%;
+}
+
+.teevee-video-mount video {
+    display: block;
+    object-fit: contain;
+    background: #02050a;
+}
+
+.teevee-video-fullscreen {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 2;
+    display: inline-grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    color: #f4fbff;
+    background: rgba(4, 12, 22, 0.64);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+    cursor: pointer;
+    opacity: 0.86;
+    backdrop-filter: blur(10px);
+    transition: border-color 150ms ease, background 150ms ease, opacity 150ms ease, transform 150ms ease;
+}
+
+.teevee-video-fullscreen:hover,
+.teevee-video-fullscreen:focus-visible {
+    border-color: rgba(55, 211, 197, 0.56);
+    background: rgba(55, 211, 197, 0.18);
+    opacity: 1;
+    transform: translateY(-1px);
+}
+
+.teevee-player-state {
+    position: absolute;
+    inset: auto 16px 16px 16px;
+    display: grid;
+    grid-template-columns: 10px minmax(0, 1fr);
+    gap: 5px 10px;
+    align-items: center;
+    max-width: min(520px, calc(100% - 32px));
+    padding: 12px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    background: rgba(3, 9, 16, 0.78);
+    backdrop-filter: blur(12px);
+}
+
+.teevee-player-state strong,
+.teevee-player-state span:last-child {
+    grid-column: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.teevee-player-state span:last-child {
+    color: var(--teevee-muted);
+    font-size: 0.85rem;
+}
+
+.teevee-live-dot {
+    grid-row: 1 / span 2;
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: var(--teevee-danger);
+    box-shadow: 0 0 0 5px rgba(255, 75, 95, 0.15);
+}
+
+.teevee-player-bar {
+    display: grid;
+    grid-template-columns: 42px 42px minmax(150px, 1fr) 42px 42px minmax(78px, 112px) 42px;
+    align-items: center;
+    gap: 8px;
+    min-height: 64px;
+    padding: 10px;
+    border-top: 1px solid var(--teevee-line);
+    background:
+        linear-gradient(90deg, rgba(55, 211, 197, 0.08), transparent 46%, rgba(255, 177, 74, 0.07)),
+        var(--teevee-panel-strong);
+}
+
+.teevee-icon-button,
+.teevee-refresh {
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid var(--teevee-line);
+    border-radius: 8px;
+    color: inherit;
+    background: rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.teevee-icon-button {
+    width: 42px;
+    height: 42px;
+}
+
+.teevee-icon-button:hover,
+.teevee-refresh:hover,
+.teevee-icon-button:focus-visible,
+.teevee-refresh:focus-visible {
+    border-color: rgba(55, 211, 197, 0.48);
+    background: rgba(55, 211, 197, 0.14);
+    transform: translateY(-1px);
+}
+
+.teevee-icon-button.active {
+    color: #06141b;
+    border-color: transparent;
+    background: var(--teevee-accent);
+}
+
+.teevee-primary {
+    color: #06141b;
+    border-color: transparent;
+    background: linear-gradient(135deg, var(--teevee-accent-strong), #4bbcff);
+}
+
+.teevee-now {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+}
+
+.teevee-now span {
+    color: var(--teevee-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.teevee-now strong {
+    display: -webkit-box;
+    font-size: 0.98rem;
+    line-height: 1.14;
+    white-space: normal;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.teevee-now em {
+    color: var(--teevee-muted);
+    font-size: 0.8rem;
+    font-style: normal;
+}
+
+.teevee-volume {
+    width: 100%;
+    min-width: 0;
+    accent-color: var(--teevee-accent);
+}
+
+.teevee-list-panel {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+    border-left: 1px solid var(--teevee-line);
+    background: rgba(4, 12, 22, 0.24);
+}
+
+.desktop-body[data-theme="light"] .teevee-list-panel {
+    background: rgba(255, 255, 255, 0.32);
+}
+
+.teevee-list-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 60px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--teevee-line);
+}
+
+.teevee-list-head div {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+}
+
+.teevee-list-head strong,
+.teevee-list-head span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.teevee-list-head span {
+    color: var(--teevee-muted);
+    font-size: 0.78rem;
+}
+
+.teevee-refresh {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 auto;
+}
+
+.teevee-status {
+    min-height: 34px;
+    padding: 9px 14px 0;
+    color: var(--teevee-muted);
+    font-size: 0.84rem;
+}
+
+.teevee-channel-list {
+    display: grid;
+    align-content: start;
+    gap: 8px;
+    min-height: 0;
+    padding: 12px 12px 16px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.teevee-channel {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    min-height: 62px;
+    padding: 9px;
+    border: 1px solid var(--teevee-line);
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.035)),
+        rgba(255, 255, 255, 0.035);
+    cursor: pointer;
+    transition: border-color 160ms ease, background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.teevee-channel:hover,
+.teevee-channel:focus-visible,
+.teevee-channel.active {
+    border-color: rgba(55, 211, 197, 0.48);
+    background: rgba(55, 211, 197, 0.12);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.16);
+    transform: translateY(-1px);
+}
+
+.teevee-channel.unsupported {
+    opacity: 0.72;
+}
+
+.teevee-channel-logo {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+
+.teevee-channel-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 4px;
+}
+
+.teevee-channel-body {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+}
+
+.teevee-channel-body strong {
+    font-size: 0.94rem;
+}
+
+.teevee-channel-body span {
+    color: var(--teevee-muted);
+    font-size: 0.78rem;
+}
+
+.teevee-channel-side {
+    display: grid;
+    justify-items: end;
+    gap: 6px;
+}
+
+.teevee-live,
+.teevee-badge {
+    border-radius: 999px;
+    padding: 2px 7px;
+    font-size: 0.66rem;
+    font-weight: 850;
+}
+
+.teevee-live {
+    color: #fff;
+    background: var(--teevee-danger);
+}
+
+.teevee-badge {
+    color: var(--teevee-muted);
+    background: rgba(255, 255, 255, 0.09);
+}
+
+.teevee-heart {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    line-height: 1;
+    color: var(--teevee-muted);
+    background: transparent;
+    cursor: pointer;
+    transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.teevee-heart:hover,
+.teevee-heart.active {
+    color: var(--teevee-danger);
+}
+
+.teevee-heart:active {
+    transform: scale(0.92);
+}
+
+.teevee-empty {
+    display: grid;
+    place-items: center;
+    gap: 10px;
+    min-height: 180px;
+    border: 1px dashed var(--teevee-line);
+    border-radius: 8px;
+    color: var(--teevee-muted);
+    text-align: center;
+}
+
+.teevee-toast {
+    position: absolute;
+    right: 18px;
+    bottom: 80px;
+    z-index: 5;
+    max-width: min(420px, calc(100% - 36px));
+    padding: 11px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    color: #fff;
+    background: rgba(5, 12, 20, 0.88);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
+}
+
+.teevee-skeleton span,
+.teevee-skeleton strong,
+.teevee-skeleton em {
+    display: block;
+    border-radius: 8px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.07));
+    background-size: 220% 100%;
+    animation: teevee-shimmer 1.25s ease-in-out infinite;
+}
+
+.teevee-skeleton span:first-child {
+    width: 44px;
+    height: 44px;
+}
+
+.teevee-skeleton strong {
+    width: 62%;
+    height: 12px;
+}
+
+.teevee-skeleton em {
+    width: 42px;
+    height: 18px;
+}
+
+@keyframes teevee-shimmer {
+    0% { background-position: 180% 0; }
+    100% { background-position: -40% 0; }
+}
+
+@container (max-width: 620px) {
+    .teevee-player-bar {
+        grid-template-columns: 42px 42px minmax(150px, 1fr) 42px 42px 42px;
+    }
+
+    .teevee-volume {
+        display: none;
+    }
+}
+
+@container (max-width: 500px) {
+    .teevee-player-bar {
+        grid-template-columns: 42px minmax(135px, 1fr) 42px 42px;
+    }
+
+    .teevee-player-bar [data-action="stop"],
+    .teevee-player-bar [data-action="mute"] {
+        display: none;
+    }
+}
+
+@media (max-width: 1020px) {
+    .teevee-app {
+        grid-template-columns: 226px minmax(0, 1fr);
+    }
+
+    .teevee-main {
+        grid-template-columns: minmax(0, 1fr) 300px;
+    }
+
+    .teevee-sidebar {
+        width: 210px;
+    }
+}
+
+@media (max-width: 820px) {
+    .teevee-app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .teevee-sidebar {
+        display: grid;
+        grid-template-columns: minmax(140px, 0.8fr) minmax(180px, 1fr);
+        gap: 10px;
+        padding: 12px;
+        border-right: 0;
+        border-bottom: 1px solid var(--teevee-line);
+    }
+
+    .teevee-brand {
+        grid-column: 1;
+    }
+
+    .teevee-search {
+        grid-column: 2;
+    }
+
+    .teevee-filters {
+        grid-column: 1 / -1;
+        display: flex;
+        flex: 0 0 auto;
+        overflow-x: auto;
+    }
+
+    .teevee-control-grid {
+        grid-column: 1 / -1;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .teevee-filter {
+        flex: 0 0 auto;
+    }
+
+    .teevee-shortcuts-panel {
+        display: none;
+    }
+
+    .teevee-main {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(340px, 58%) minmax(0, 1fr);
+    }
+
+    .teevee-stage {
+        padding: 10px;
+    }
+
+    .teevee-list-panel {
+        border-left: 0;
+        border-top: 1px solid var(--teevee-line);
+    }
+}
+
+@media (max-width: 560px) {
+    .teevee-sidebar {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .teevee-brand {
+        min-height: 46px;
+    }
+
+    .teevee-brand-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .teevee-search,
+    .teevee-brand,
+    .teevee-control-grid,
+    .teevee-filters {
+        grid-column: 1;
+    }
+
+    .teevee-control-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .teevee-select-field {
+        padding: 8px;
+    }
+
+    .teevee-main {
+        grid-template-rows: minmax(250px, 46%) minmax(0, 1fr);
+    }
+
+    .teevee-stage {
+        padding: 8px;
+    }
+
+    .teevee-list-head {
+        min-height: 52px;
+        padding: 10px 12px;
+    }
+
+    .teevee-channel-list {
+        gap: 6px;
+        padding: 8px;
+    }
+
+    .teevee-channel {
+        min-height: 56px;
+    }
+
+    .teevee-player-bar {
+        grid-template-columns: 40px 40px minmax(0, 1fr) 40px 40px;
+        min-height: 56px;
+        padding: 8px;
+    }
+
+    .teevee-volume,
+    .teevee-player-bar [data-action="fullscreen"] {
+        display: none;
+    }
+}
+
+.teevee-sentinel {
+    height: 1px;
+    margin: 4px 0;
+    pointer-events: none;
+    visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .teevee-skeleton span,
+    .teevee-skeleton strong,
+    .teevee-skeleton em {
+        animation: none;
+    }
+}

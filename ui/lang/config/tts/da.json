@@ -53,5 +53,6 @@
   "config.tts.piper_status_disabled": "⚪ Piper er deaktiveret",
   "config.tts.piper_status_running": "Piper kører",
   "config.tts.piper_status_stopped": "🟡 Piper er stoppet",
-  "config.tts.piper_status_error": "🔴 Piper fejl"
+  "config.tts.piper_status_error": "🔴 Piper fejl",
+  "config.tts.language_custom_help": "Brug Brugerdefineret kun, når din TTS-udbyder kræver en sprogkode, der ikke står på listen."
 }

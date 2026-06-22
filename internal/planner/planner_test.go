@@ -1466,9 +1466,16 @@ func TestListTodosEmpty(t *testing.T) {
 }
 
 type mockKG struct {
-	nodes   map[string]mockNode
-	deleted []string
-	addErr  error
+	nodes        map[string]mockNode
+	edges        []mockEdge
+	deleted      []string
+	deletedEdges []mockEdge
+	addErr       error
+}
+
+type mockEdge struct {
+	source, target, relation string
+	props                    map[string]string
 }
 
 type mockNode struct {
@@ -1493,6 +1500,107 @@ func (m *mockKG) DeleteNode(id string) error {
 	m.deleted = append(m.deleted, id)
 	delete(m.nodes, id)
 	return nil
+}
+
+func (m *mockKG) AddEdge(source, target, relation string, properties map[string]string) error {
+	m.edges = append(m.edges, mockEdge{source: source, target: target, relation: relation, props: properties})
+	return nil
+}
+
+func (m *mockKG) PrunePlannerEdges(source, relation string, keepTargets map[string]struct{}) (int, error) {
+	removed := 0
+	kept := make([]mockEdge, 0, len(m.edges))
+	for _, edge := range m.edges {
+		if edge.source == source && edge.relation == relation {
+			if edge.props["source"] != PlannerKGSource {
+				kept = append(kept, edge)
+				continue
+			}
+			if _, ok := keepTargets[edge.target]; !ok {
+				m.deletedEdges = append(m.deletedEdges, edge)
+				removed++
+				continue
+			}
+		}
+		kept = append(kept, edge)
+	}
+	m.edges = kept
+	return removed, nil
+}
+
+func (m *mockKG) PrunePlannerNodesByPrefix(prefix string, keepIDs map[string]struct{}) (int, error) {
+	removed := 0
+	for id := range m.nodes {
+		if !strings.HasPrefix(id, prefix) {
+			continue
+		}
+		if keepIDs != nil {
+			if _, keep := keepIDs[id]; keep {
+				continue
+			}
+		}
+		delete(m.nodes, id)
+		m.deleted = append(m.deleted, id)
+		removed++
+	}
+	if removed > 0 {
+		kept := make([]mockEdge, 0, len(m.edges))
+		for _, edge := range m.edges {
+			if strings.HasPrefix(edge.source, prefix) {
+				if _, ok := m.nodes[edge.source]; !ok {
+					continue
+				}
+			}
+			if strings.HasPrefix(edge.target, prefix) {
+				if _, ok := m.nodes[edge.target]; !ok {
+					continue
+				}
+			}
+			kept = append(kept, edge)
+		}
+		m.edges = kept
+	}
+	return removed, nil
+}
+
+func (m *mockKG) PruneStalePlannerRootNodes(keepIDs map[string]struct{}) (int, error) {
+	removed := 0
+	for id := range m.nodes {
+		if !strings.HasPrefix(id, "appointment_") && !(strings.HasPrefix(id, "todo_") && !strings.Contains(id, "_item_")) {
+			continue
+		}
+		if keepIDs != nil {
+			if _, keep := keepIDs[id]; keep {
+				continue
+			}
+		}
+		delete(m.nodes, id)
+		m.deleted = append(m.deleted, id)
+		removed++
+	}
+	return removed, nil
+}
+
+func (m *mockKG) PruneStalePlannerItemNodes(keepIDs map[string]struct{}) (int, error) {
+	removed := 0
+	for id := range m.nodes {
+		if !strings.HasPrefix(id, "todo_") || !strings.Contains(id, "_item_") {
+			continue
+		}
+		if keepIDs != nil {
+			if _, keep := keepIDs[id]; keep {
+				continue
+			}
+		}
+		delete(m.nodes, id)
+		m.deleted = append(m.deleted, id)
+		removed++
+	}
+	return removed, nil
+}
+
+func (m *mockKG) DeleteStalePlannerSyncEdges(expectedEdges map[string]struct{}, activePlannerNodes map[string]struct{}) (int, error) {
+	return 0, nil
 }
 
 func TestSyncAppointmentToKG(t *testing.T) {

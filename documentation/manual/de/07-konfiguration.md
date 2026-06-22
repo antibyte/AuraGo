@@ -34,6 +34,19 @@ Die einfachste und sicherste Methode, AuraGo zu konfigurieren:
 
 > 💡 **Tipp:** Sensible Werte wie API-Keys oder Passwörter werden automatisch im Vault gespeichert, wenn sie über die Web-UI eingegeben werden.
 
+### Config-UX (Sidebar, Save-Leiste, ungespeicherte Änderungen)
+
+| Feature | Verhalten |
+|---------|----------|
+| **Sidebar-Suche** | Bereiche filtern; Tastatur mit Pfeiltasten und Enter |
+| **Fixe Save-Leiste** | Speichern und Status bleiben beim Scrollen sichtbar |
+| **Ungespeicherte Änderungen** | Wechsel der Sidebar oder Browser Zurück/Vor → Bestätigungsdialog |
+| **Save-Status** | Fortschritt für Screenreader (`role="status"`) |
+| **Schalter** | Switch-Semantik und Tastaturbedienung |
+
+> Tipp: Hash-URLs wie `/config#server` springen direkt in einen Bereich.
+
+
 ### Direkte YAML-Bearbeitung
 
 Fortgeschrittene Nutzer oder Docker-Deployments können `config.yaml` direkt bearbeiten:
@@ -253,6 +266,13 @@ tools:
   memory:
     enabled: true
     readonly: false
+    ondemand_retrieval:
+      enabled: true
+      max_essential_memories: 1
+      max_available_memories: 6
+      max_available_kg_nodes: 6
+      max_available_chars: 1600
+      dedupe_scope: turn
   knowledge_graph:
     enabled: true
     readonly: false

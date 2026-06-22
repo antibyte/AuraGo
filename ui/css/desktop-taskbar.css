@@ -1,4 +1,4 @@
-/* desktop-taskbar.css — taskbar, topbar, brand, start button, dock, task buttons, clock, status */
+/* desktop-taskbar.css — taskbar, brand, start button, dock, task buttons, clock, status */
 
 .vd-topbar,
 .vd-taskbar {
@@ -37,6 +37,33 @@
     transition: background var(--ds-motion-duration-base) var(--ds-motion-ease-standard);
 }
 
+.desktop-body[data-theme="standard"] .vd-taskbar {
+    background: var(--vd-shell-context-menu-bg);
+    border-color: var(--vd-shell-context-menu-border);
+    border-top-color: var(--vd-shell-context-menu-border);
+    box-shadow: var(--vd-shell-context-menu-shadow);
+    backdrop-filter: var(--vd-shell-context-menu-blur);
+    -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
+}
+
+.desktop-body[data-theme="standard"] .vd-start-button {
+    border-radius: 13px;
+    transform: translateY(-3px);
+    background: var(--vd-shell-context-menu-bg);
+    border: 1px solid var(--vd-shell-context-menu-border);
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.desktop-body[data-theme="standard"] .vd-start-button:hover {
+    transform: translateY(-5px);
+    background: #3c3c3c;
+    box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.34),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
 /* Subtle inner-top shine */
 .vd-taskbar::before {
     content: '';
@@ -66,27 +93,6 @@
     align-items: center;
     gap: 10px;
     margin-left: auto;
-}
-
-.vd-shortcuts-trigger {
-    width: 32px;
-    height: 32px;
-    border: 1px solid var(--vd-border);
-    border-radius: var(--ds-radius-sm);
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--vd-muted);
-    font-size: 16px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    transition: background 0.15s, color 0.15s;
-}
-
-.vd-shortcuts-trigger:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: var(--vd-text);
 }
 
 .vd-show-desktop-btn {
@@ -372,6 +378,28 @@
     transition: background 0.15s var(--ds-motion-ease-standard), border-color 0.15s var(--ds-motion-ease-standard), box-shadow 0.15s var(--ds-motion-ease-standard);
 }
 
+.desktop-body[data-theme="standard"] .vd-task-button {
+    min-width: 46px;
+    border-radius: 9px;
+    border-color: transparent;
+    background: transparent;
+}
+
+.desktop-body[data-theme="standard"] .vd-task-button:hover {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.desktop-body[data-theme="standard"] .vd-task-button.running {
+    border-color: transparent;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.desktop-body[data-theme="standard"] .vd-task-button.running:hover {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
+}
+
 .vd-task-button:hover {
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.13);
@@ -405,9 +433,15 @@
 }
 
 .vd-task-button.active {
-    border-color: rgba(39, 199, 166, 0.5);
-    background: rgba(39, 199, 166, 0.12);
-    box-shadow: 0 0 12px rgba(39, 199, 166, 0.1), inset 0 1px 0 rgba(39, 199, 166, 0.12);
+    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.5);
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12);
+    box-shadow: 0 0 12px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.1), inset 0 1px 0 rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12);
+}
+
+.desktop-body[data-theme="standard"] .vd-task-button.active {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 -3px 0 rgba(233, 84, 32, 0.6);
 }
 
 .vd-task-button:active,
@@ -552,5 +586,15 @@
 
     .vd-taskbar-apps::-webkit-scrollbar {
         display: none;
+    }
+
+    /* Standard theme mobile floating island uses Yaru aubergine with orange glow */
+    .desktop-body[data-theme="standard"] .vd-taskbar {
+        background: var(--vd-shell-taskbar);
+        border-color: var(--vd-shell-taskbar-border);
+        box-shadow:
+            var(--ds-elevation-3),
+            0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+            0 8px 32px rgba(0, 0, 0, 0.38);
     }
 }

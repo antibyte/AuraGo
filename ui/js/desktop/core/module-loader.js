@@ -80,6 +80,10 @@
             styles: appStyles('/css/radio.css'),
             scripts: ['/js/desktop/apps/radio.js']
         },
+        'teevee': {
+            styles: appStyles('/css/teevee.css'),
+            scripts: ['/js/vendor/hls.min.js', '/js/desktop/core/media-helpers.js', '/js/desktop/apps/teevee.js']
+        },
         'looper': {
             styles: appStyles('/css/desktop-app-looper.css'),
             scripts: ['/js/desktop/apps/looper.js']
@@ -110,11 +114,51 @@
         },
         'galaxa-deluxe': {
             styles: appStyles('/css/galaxa-deluxe.css'),
-            scripts: ['/js/desktop/apps/galaxa-deluxe.js']
+            scripts: [
+                '/js/desktop/apps/galaxa-constants.js',
+                '/js/desktop/apps/galaxa-tweens.js',
+                '/js/desktop/apps/galaxa-audio.js',
+                '/js/desktop/apps/galaxa-sprites.js',
+                '/js/desktop/apps/galaxa-background.js',
+                '/js/desktop/apps/galaxa-entities-core.js',
+                '/js/desktop/apps/galaxa-entities-spawning.js',
+                '/js/desktop/apps/galaxa-entities-behaviors.js',
+                '/js/desktop/apps/galaxa-entities.js',
+                '/js/desktop/apps/galaxa-render-effects.js',
+                '/js/desktop/apps/galaxa-render-stage.js',
+                '/js/desktop/apps/galaxa-render-hud.js',
+                '/js/desktop/apps/galaxa-render.js',
+                '/js/desktop/apps/galaxa-shop.js',
+                '/js/desktop/apps/galaxa-relics.js',
+                '/js/desktop/apps/galaxa-demo.js',
+                '/js/desktop/apps/galaxa-supers.js',
+                '/js/desktop/apps/galaxa-biome-transitions.js',
+                '/js/desktop/apps/galaxa-combo-ladder.js',
+                '/js/desktop/apps/galaxa-adaptive-music.js',
+                '/js/desktop/apps/galaxa-game.js',
+                '/js/desktop/apps/galaxa-deluxe.js'
+            ]
+        },
+        'chess': {
+            styles: appStyles('/css/cm-chessboard.css', '/css/desktop-app-chess.css'),
+            scripts: [
+                '/js/desktop/apps/chess-engine.js',
+                '/js/desktop/apps/chess-agent.js',
+                '/js/desktop/apps/chess.js'
+            ]
         },
         'nasscad': {
             styles: appStyles('/css/desktop-app-nasscad.css'),
             scripts: ['/js/desktop/apps/nasscad.js']
+        },
+        'openscad': {
+            styles: appStyles('/css/desktop-app-openscad.css', '/css/stl-viewer.css'),
+            scripts: [
+                '/js/vendor/three.min.js',
+                '/js/vendor/STLLoader.min.js',
+                '/js/vendor/OrbitControls.min.js',
+                '/js/desktop/apps/openscad.js'
+            ]
         },
         'viewer-3d': {
             styles: appStyles('/css/stl-viewer.css'),
@@ -159,6 +203,7 @@
                 '/js/vendor/highlight.min.js',
                 '/js/desktop/apps/cheater.js',
                 '/js/desktop/apps/cheater-templates.js',
+                '/js/desktop/apps/cheater-toolbar.js',
                 '/js/desktop/apps/cheater-spotlight.js',
                 '/js/desktop/apps/cheater-attachments.js'
             ]
@@ -174,6 +219,10 @@
                 '/js/desktop/chat-renderer.js',
                 '/js/desktop/apps/homepage-studio.js'
             ]
+        },
+        'pet-picker': {
+            styles: appStyles('/css/desktop-app-pet-picker.css'),
+            scripts: ['/js/desktop/apps/pet-picker.js']
         }
     };
 

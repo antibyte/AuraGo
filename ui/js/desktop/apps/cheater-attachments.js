@@ -6,14 +6,14 @@
         const esc = state.esc;
         const panel = document.createElement('aside');
         panel.className = 'cheater-attach-panel';
-        panel.setAttribute('aria-label', t('cheater.attachments', 'Anhänge'));
+        panel.setAttribute('aria-label', t('cheater.attachments'));
         panel.innerHTML = `
             <header class="cheater-attach-header">
-                <h3>${esc(t('cheater.attachments', 'Anhänge'))}</h3>
-                <button type="button" class="cheater-attach-close" data-action="close" aria-label="${esc(t('cheater.close', 'Schließen'))}">×</button>
+                <h3>${esc(t('cheater.attachments'))}</h3>
+                <button type="button" class="cheater-attach-close" data-action="close" aria-label="${esc(t('cheater.close'))}">×</button>
             </header>
             <div class="cheater-attach-drop" data-drop>
-                <p>${esc(t('cheater.attach_drop_hint', 'Datei hier ablegen oder klicken'))}</p>
+                <p>${esc(t('cheater.attach_drop_hint'))}</p>
                 <input type="file" data-file hidden>
             </div>
             <ul class="cheater-attach-list" data-list role="list"></ul>
@@ -38,12 +38,12 @@
         function render() {
             const items = (state.sheet.attachments || []);
             list.innerHTML = items.length === 0
-                ? `<li class="cheater-attach-empty">${esc(t('cheater.attach_empty', 'Keine Anhänge'))}</li>`
+                ? `<li class="cheater-attach-empty">${esc(t('cheater.attach_empty'))}</li>`
                 : items.map(a => `<li class="cheater-attach-item" data-id="${esc(a.id)}">
                     <span class="cheater-attach-icon">📄</span>
                     <span class="cheater-attach-name">${esc(a.filename)}</span>
-                    <span class="cheater-attach-size">${esc(String(a.char_count || 0))} ${esc(t('cheater.chars', 'Zeichen'))}</span>
-                    <button type="button" class="cheater-attach-delete" data-action="delete" data-id="${esc(a.id)}" aria-label="${esc(t('cheater.delete', 'Löschen'))}">🗑️</button>
+                    <span class="cheater-attach-size">${esc(String(a.char_count || 0))} ${esc(t('cheater.chars'))}</span>
+                    <button type="button" class="cheater-attach-delete" data-action="delete" data-id="${esc(a.id)}" aria-label="${esc(t('cheater.delete'))}">🗑️</button>
                 </li>`).join('');
             const countNode = state.host.querySelector('[data-attach-count]');
             if (countNode) countNode.textContent = String(items.length);
@@ -93,7 +93,7 @@
         }
 
         async function deleteAttachment(id) {
-            const toast = showToast(t('cheater.attach_undeleted', 'Anhang gelöscht') + ' · ' + t('cheater.undo', 'Rückgängig'), () => {
+            const toast = showToast(t('cheater.attach_undeleted') + ' · ' + t('cheater.undo'), () => {
                 clearTimeout(timer);
                 refresh();
             });
@@ -110,7 +110,7 @@
         function showToast(message, onUndo) {
             const el = document.createElement('div');
             el.className = 'cheater-toast';
-            el.innerHTML = `<span>${esc(message)}</span><button type="button" data-undo>${esc(t('cheater.undo', 'Rückgängig'))}</button>`;
+            el.innerHTML = `<span>${esc(message)}</span><button type="button" data-undo>${esc(t('cheater.undo'))}</button>`;
             el.querySelector('[data-undo]').addEventListener('click', () => { onUndo(); el.remove(); });
             document.body.appendChild(el);
             return { close: () => el.remove() };

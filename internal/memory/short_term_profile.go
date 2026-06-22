@@ -118,43 +118,62 @@ func (s *SQLiteMemory) GetCoreMemoryUpdatedAt() (time.Time, error) {
 // maxCoreMemoryFactLen is the maximum byte length of a single core memory fact.
 const maxCoreMemoryFactLen = 10_000
 
+func normalizeCoreMemoryFactForDedupe(fact string) string {
+	return strings.ToLower(strings.Join(strings.Fields(strings.TrimSpace(fact)), " "))
+}
+
 // AddCoreMemoryFact inserts a new fact and returns its assigned ID.
-// If an identical fact already exists, it updates the timestamp instead of creating a duplicate.
+// If a normalized equivalent fact already exists, it updates the timestamp instead of creating a duplicate.
 func (s *SQLiteMemory) AddCoreMemoryFact(fact string) (int64, error) {
 	if len(fact) > maxCoreMemoryFactLen {
 		fact = truncateUTF8Bytes(fact, maxCoreMemoryFactLen)
 	}
+	normalized := normalizeCoreMemoryFactForDedupe(fact)
 
 	var existingID int64
-	err := s.db.QueryRow("SELECT id FROM core_memory WHERE fact = ? LIMIT 1", fact).Scan(&existingID)
-	if err == nil {
+	existingID, err := s.findCoreMemoryIDByNormalizedFact(fact)
+	if err == nil && existingID > 0 {
 		_, updateErr := s.db.Exec(
 			"UPDATE core_memory SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
 			existingID,
 		)
 		return existingID, updateErr
 	}
+	if err != nil && err != sql.ErrNoRows {
+		return 0, err
+	}
 
-	res, err := s.db.Exec("INSERT OR IGNORE INTO core_memory (fact) VALUES (?)", fact)
+	res, err := s.db.Exec("INSERT OR IGNORE INTO core_memory (fact, normalized_fact) VALUES (?, ?)", fact, normalized)
 	if err != nil {
 		return 0, err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	if affected == 0 {
+		existingID, err = s.findCoreMemoryIDByNormalizedFact(fact)
+		return existingID, err
 	}
 	id, err := res.LastInsertId()
 	if err != nil {
 		return 0, err
 	}
-	if id == 0 {
-		err := s.db.QueryRow("SELECT id FROM core_memory WHERE fact = ? LIMIT 1", fact).Scan(&existingID)
-		return existingID, err
-	}
 	return id, nil
+}
+
+func (s *SQLiteMemory) findCoreMemoryIDByNormalizedFact(fact string) (int64, error) {
+	normalized := normalizeCoreMemoryFactForDedupe(fact)
+	var id int64
+	err := s.db.QueryRow("SELECT id FROM core_memory WHERE normalized_fact = ? LIMIT 1", normalized).Scan(&id)
+	return id, err
 }
 
 // UpdateCoreMemoryFact overwrites an existing entry's text by ID.
 func (s *SQLiteMemory) UpdateCoreMemoryFact(id int64, fact string) error {
 	res, err := s.db.Exec(
-		"UPDATE core_memory SET fact = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-		fact, id,
+		"UPDATE core_memory SET fact = ?, normalized_fact = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		fact, normalizeCoreMemoryFactForDedupe(fact), id,
 	)
 	if err != nil {
 		return err
@@ -203,12 +222,12 @@ func (s *SQLiteMemory) FindCoreMemoryIDByFact(fact string) (int64, error) {
 
 // CoreMemoryFactExists reports whether the given text is already stored.
 func (s *SQLiteMemory) CoreMemoryFactExists(fact string) bool {
-	var count int
-	if err := s.db.QueryRow("SELECT COUNT(*) FROM core_memory WHERE fact = ?", fact).Scan(&count); err != nil {
+	id, err := s.findCoreMemoryIDByNormalizedFact(fact)
+	if err != nil && err != sql.ErrNoRows {
 		s.logger.Warn("CoreMemoryFactExists: DB query failed", "error", err)
 		return false
 	}
-	return count > 0
+	return id > 0
 }
 
 // ── User Profile (Profiling Engine) ──────────────────────────────────────────

@@ -343,6 +343,13 @@ tools:
     memory:
         enabled: true
         read_only: false           # Agent darf Memories nicht ändern
+        ondemand_retrieval:
+            enabled: true
+            max_essential_memories: 1
+            max_available_memories: 6
+            max_available_kg_nodes: 6
+            max_available_chars: 1600
+            dedupe_scope: turn
     
     knowledge_graph:
         enabled: true

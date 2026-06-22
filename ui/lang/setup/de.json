@@ -8,7 +8,7 @@
   "setup.feature_vision": "Vision",
   "setup.feature_websearch": "Suche",
   "setup.header_subtitle": "Schnellkonfiguration",
-  "setup.https_warning": "Sie verwenden eine unverschlüsselte HTTP-Verbindung. API-Schlüssel könnten unsicher übertragen werden.",
+  "setup.https_warning": "Du verwendest eine unverschlüsselte HTTP-Verbindung. API-Schlüssel könnten unsicher übertragen werden.",
   "setup.language_cs": "Čeština",
   "setup.language_custom": "Benutzerdefiniert",
   "setup.language_da": "Dansk",
@@ -194,5 +194,11 @@
   "setup.toast_config_saved": "Konfiguration gespeichert!",
   "setup.toast_error_prefix": "Fehler:",
   "setup.plan_embedding_warning": "Dieser Plan verwendet nicht OpenRouter. Bitte stelle sicher, dass ein Embedding-Modell konfiguriert ist; AuraGo kann ohne Embeddings nicht seine volle Leistungsfähigkeit erreichen.",
-  "setup.provider_embedding_warning": "Bei Providern außer OpenRouter solltest du im nächsten Setup-Schritt ein Embedding-Modell wählen und prüfen. AuraGo kann ohne Embeddings nicht seine volle Leistungsfähigkeit erreichen."
+  "setup.provider_embedding_warning": "Bei Providern außer OpenRouter solltest du im nächsten Setup-Schritt ein Embedding-Modell wählen und prüfen. AuraGo kann ohne Embeddings nicht seine volle Leistungsfähigkeit erreichen.",
+  "setup.success_config_links_title": "Empfohlene nächste Schritte",
+  "setup.success_config_links_desc": "Öffne die vollständige Konfiguration, wenn du diese Bereiche feinjustieren willst.",
+  "setup.success_config_providers": "Provider & Modelle prüfen",
+  "setup.success_config_security": "Login & Sicherheit",
+  "setup.success_config_server": "Server & Ports",
+  "setup.success_config_backup": "Backups einrichten"
 }

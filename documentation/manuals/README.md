@@ -46,3 +46,14 @@
 ---
 
 > 💡 **Hinweis:** Die Handbücher werden fortlaufend aktualisiert und erweitert, um neue Funktionen und Integrationen abzubilden. Zuletzt abgeglichen mit dem Code: Juni 2026.
+
+## Weitere Guides im Repository
+
+| Dokument | Beschreibung |
+|----------|--------------|
+| [configuration.md](../configuration.md) | Vollständige Config-Referenz |
+| [docker_installation.md](../docker_installation.md) | Container-Setup |
+| [architecture.md](../architecture.md) | Systemarchitektur |
+| [telegram_setup.md](../telegram_setup.md) | Telegram-Bot |
+| [google_setup.md](../google_setup.md) | Google OAuth |
+| [output_compression.md](../output_compression.md) | Tool-Output-Kompression |

@@ -19,6 +19,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/credentials"
 	"aurago/internal/inventory"
+	"aurago/internal/memory"
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/tools"
@@ -268,6 +269,16 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			return result
 
+		case "recall_memory":
+			if !cfg.Tools.Memory.Enabled {
+				return `Tool Output: {"status":"error","message":"Memory tools are disabled. Set tools.memory.enabled=true in config.yaml."}`
+			}
+			result, err := executeRecallMemory(tc, longTermMem)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"recall_memory failed: %v"}`, err)
+			}
+			return result
+
 		case "context_memory":
 			if !cfg.Tools.Memory.Enabled {
 				return `Tool Output: {"status":"error","message":"Memory tools are disabled. Set tools.memory.enabled=true in config.yaml."}`
@@ -275,6 +286,16 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			result, err := executeContextMemoryQuery(tc, shortTermMem, longTermMem, kg, plannerDB, cheatsheetDB)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"context_memory failed: %v"}`, err)
+			}
+			return result
+
+		case "explore_kg":
+			if !cfg.Tools.KnowledgeGraph.Enabled {
+				return `Tool Output: {"status":"error","message":"Knowledge graph is disabled. Set tools.knowledge_graph.enabled=true in config.yaml."}`
+			}
+			result, err := executeExploreKG(tc, kg)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"explore_kg failed: %v"}`, err)
 			}
 			return result
 
@@ -411,13 +432,16 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			if cfg.Tools.KnowledgeGraph.ReadOnly {
 				switch req.Operation {
-				case "add_node", "add_edge", "delete_node", "delete_edge", "update_node", "update_edge", "optimize":
+				case "add_node", "add_edge", "delete_node", "delete_edge", "update_node", "update_edge", "merge_nodes", "optimize", "optimize_graph":
 					return `Tool Output: {"status":"error","message":"Knowledge graph is in read-only mode. Disable tools.knowledge_graph.read_only to allow changes."}`
 				}
 			}
 			logger.Info("LLM requested knowledge graph operation", "op", req.Operation)
 			switch req.Operation {
 			case "add_node":
+				if strings.TrimSpace(req.ID) == "" || strings.TrimSpace(req.Label) == "" {
+					return `Tool Output: {"status": "error", "message": "id and label are required for add_node"}`
+				}
 				err := kg.AddNode(req.ID, req.Label, req.Properties)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
@@ -425,6 +449,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return `Tool Output: {"status": "success", "message": "Node added to graph"}`
 
 			case "add_edge":
+				if strings.TrimSpace(req.Source) == "" || strings.TrimSpace(req.Target) == "" || strings.TrimSpace(req.Relation) == "" {
+					return `Tool Output: {"status": "error", "message": "source, target, and relation are required for add_edge"}`
+				}
 				err := kg.AddEdge(req.Source, req.Target, req.Relation, req.Properties)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
@@ -463,6 +490,53 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					"label":      node.Label,
 					"properties": node.Properties,
 					"protected":  node.Protected,
+				})
+				return "Tool Output: " + string(data)
+
+			case "merge_nodes":
+				if req.Source == "" || req.Target == "" {
+					return `Tool Output: {"status": "error", "message": "source and target are required for merge_nodes"}`
+				}
+				if req.Source == req.Target {
+					return `Tool Output: {"status": "error", "message": "source and target must differ for merge_nodes"}`
+				}
+				sourceNode, err := kg.GetNode(req.Source)
+				if err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+				}
+				if sourceNode == nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Source node not found: %s"}`, req.Source)
+				}
+				if sourceNode.Protected {
+					return `Tool Output: {"status": "error", "message": "Protected source nodes cannot be merged"}`
+				}
+				if targetNode, err := kg.GetNode(req.Target); err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+				} else if targetNode == nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Target node not found: %s"}`, req.Target)
+				}
+				if err := kg.MergeNodes(req.Target, req.Source); err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+				}
+				mergedNode, err := kg.GetNode(req.Target)
+				if err != nil || mergedNode == nil {
+					data, _ := json.Marshal(map[string]interface{}{
+						"status":    "success",
+						"message":   "Nodes merged",
+						"target_id": req.Target,
+						"source_id": req.Source,
+					})
+					return "Tool Output: " + string(data)
+				}
+				data, _ := json.Marshal(map[string]interface{}{
+					"status":     "success",
+					"message":    "Nodes merged",
+					"target_id":  req.Target,
+					"source_id":  req.Source,
+					"id":         mergedNode.ID,
+					"label":      mergedNode.Label,
+					"properties": mergedNode.Properties,
+					"protected":  mergedNode.Protected,
 				})
 				return "Tool Output: " + string(data)
 
@@ -518,7 +592,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if limit <= 0 {
 					limit = 20
 				}
-				nodes, edges := kg.GetNeighbors(req.ID, limit)
+				nodes, edges := kg.GetNeighborsWithOptions(req.ID, limit, memory.KnowledgeGraphQueryOptions{IncludeLowConfidence: req.IncludeLowConfidence})
 				if len(nodes) == 0 && len(edges) == 0 {
 					return fmt.Sprintf(`Tool Output: {"status": "not_found", "message": "No neighbors found for node: %s"}`, req.ID)
 				}
@@ -550,8 +624,24 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return "Tool Output: " + string(data)
 
 			case "search":
-				res := kg.Search(req.Content)
+				res := kg.SearchWithOptions(req.Content, memory.KnowledgeGraphQueryOptions{IncludeLowConfidence: req.IncludeLowConfidence})
 				return fmt.Sprintf("Tool Output: %s", res)
+
+			case "graph_health":
+				stats, err := kg.GetStats()
+				if err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+				}
+				quality, err := kg.QualityReport(req.Limit)
+				if err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+				}
+				data, _ := json.Marshal(map[string]interface{}{
+					"status":  "success",
+					"stats":   stats,
+					"quality": quality,
+				})
+				return "Tool Output: " + string(data)
 
 			case "explore":
 				if req.Content == "" {
@@ -562,7 +652,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			case "suggest_relations":
 				return fmt.Sprintf("Tool Output: %s", kg.SuggestRelations(req.Limit))
 
-			case "optimize":
+			case "optimize", "optimize_graph":
 				res := runMemoryOrchestrator(decodeMemoryOrchestratorArgs(tc), cfg, logger, llmClient, longTermMem, shortTermMem, kg)
 				return fmt.Sprintf("Tool Output: %s", res)
 

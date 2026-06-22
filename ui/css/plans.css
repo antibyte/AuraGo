@@ -13,26 +13,26 @@ body {
 .plans-page {
   max-width: 1440px;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: var(--space-6);
 }
 
 .plans-toolbar {
   display: flex;
-  gap: 1rem;
+  gap: var(--space-4);
   align-items: end;
   flex-wrap: wrap;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
 }
 
 .plans-toolbar-group {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-1);
   min-width: 180px;
 }
 
 .plans-toolbar-group label {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   color: var(--plans-text-soft);
   font-variant: small-caps;
   letter-spacing: 0.08em;
@@ -41,9 +41,9 @@ body {
 .plans-check {
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: var(--space-2);
   color: var(--plans-text-soft);
-  padding-bottom: 0.7rem;
+  padding-bottom: var(--space-3);
 }
 
 .plans-check input {
@@ -55,9 +55,9 @@ body {
   border: 1px solid var(--plans-border);
   background: var(--plans-surface);
   color: var(--text-primary, #e5e7eb);
-  border-radius: 12px;
-  padding: 0.7rem 0.9rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  border-radius: var(--radius-3xl);
+  padding: var(--space-3) var(--space-4);
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
 }
 
 .plans-toolbar-group input:hover,
@@ -75,19 +75,19 @@ body {
 .plans-layout {
   display: grid;
   grid-template-columns: 360px minmax(0, 1fr);
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .plans-page .panel {
   border: 1px solid var(--plans-border);
   background: linear-gradient(180deg, var(--plans-surface), var(--plans-surface-soft));
-  border-radius: 20px;
-  box-shadow: 0 18px 50px rgba(2, 6, 23, 0.18);
+  border-radius: var(--radius);
+  box-shadow: var(--surface-shadow);
   overflow: hidden;
 }
 
 .plans-page .panel-header {
-  padding: 1rem 1.1rem;
+  padding: var(--space-4) var(--space-5);
   border-bottom: 1px solid var(--plans-border);
 }
 
@@ -95,7 +95,7 @@ body {
 .plans-page .panel-header h2,
 .plans-page .panel-header h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--text-base);
 }
 
 .plan-list {
@@ -104,10 +104,10 @@ body {
 }
 
 .plan-row {
-  padding: 0.95rem 1.1rem;
+  padding: var(--space-4) var(--space-5);
   border-bottom: 1px solid var(--plans-border);
   cursor: pointer;
-  transition: background 0.18s ease, transform 0.18s ease;
+  transition: background var(--transition-base) ease, transform var(--transition-base) ease;
 }
 
 .plan-row:hover,
@@ -118,7 +118,7 @@ body {
 .plan-row-title {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--space-4);
   align-items: center;
   font-weight: 600;
 }
@@ -126,41 +126,41 @@ body {
 .plan-row-meta,
 .muted {
   color: var(--plans-text-soft);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 
 .plan-detail {
-  padding: 1.2rem;
+  padding: var(--space-5);
 }
 
 .plan-head {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--space-4);
   align-items: start;
   flex-wrap: wrap;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
 }
 
 .plan-head h2 {
   margin: 0;
-  font-size: 1.4rem;
+  font-size: var(--text-xl);
 }
 
 .plan-badges,
 .plan-actions,
 .task-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
 .plans-page .badge {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
-  padding: 0.3rem 0.65rem;
-  font-size: 0.78rem;
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
   border: 1px solid var(--plans-border);
   background: rgba(255,255,255,0.04);
 }
@@ -181,8 +181,8 @@ body {
   border: 1px solid var(--plans-border);
   background: rgba(255,255,255,0.03);
   color: var(--text-primary, #e5e7eb);
-  border-radius: 12px;
-  padding: 0.65rem 0.9rem;
+  border-radius: var(--radius-3xl);
+  padding: var(--space-3) var(--space-4);
   cursor: pointer;
 }
 
@@ -200,38 +200,38 @@ body {
 .plan-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.9fr);
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .plans-page .card {
   border: 1px solid var(--plans-border);
-  border-radius: 18px;
+  border-radius: var(--radius-2xl);
   background: rgba(255,255,255,0.02);
-  padding: 1rem;
+  padding: var(--space-4);
 }
 
 .plans-page .card h3 {
   margin-top: 0;
-  margin-bottom: 0.8rem;
+  margin-bottom: var(--space-3);
 }
 
 .task-list,
 .event-list {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: var(--space-3);
 }
 
 .task-item,
 .event-item {
   border: 1px solid var(--plans-border);
-  border-radius: 16px;
+  border-radius: var(--radius-2xl);
   background: rgba(255,255,255,0.025);
-  padding: 0.9rem;
+  padding: var(--space-4);
 }
 
 .task-item.subtask {
-  margin-left: 1.25rem;
+  margin-left: var(--space-5);
   border-style: dashed;
 }
 
@@ -243,7 +243,7 @@ body {
 .task-head {
   display: flex;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--space-3);
   align-items: start;
 }
 
@@ -255,21 +255,21 @@ body {
 .task-artifacts,
 .event-type {
   color: var(--plans-text-soft);
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
 }
 
 .task-artifacts {
-  margin-top: 0.6rem;
+  margin-top: var(--space-2);
 }
 
 .task-actions {
-  margin-top: 0.75rem;
+  margin-top: var(--space-3);
 }
 
 .task-tree {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: var(--space-3);
 }
 
 .inline-note {
@@ -279,22 +279,22 @@ body {
   border: 1px solid var(--plans-border);
   background: rgba(255,255,255,0.03);
   color: var(--text-primary, #e5e7eb);
-  border-radius: 14px;
-  padding: 0.8rem;
+  border-radius: var(--radius-2xl);
+  padding: var(--space-3);
 }
 
 .plans-page .detail-toolbar {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--space-4);
   align-items: center;
-  margin-bottom: 0.9rem;
+  margin-bottom: var(--space-4);
   flex-wrap: wrap;
 }
 
 .plans-page .status-line {
   color: var(--plans-text-soft);
-  margin: 0.4rem 0 0 0;
+  margin: var(--space-2) 0 0 0;
 }
 
 .plans-page .empty-state {
@@ -308,7 +308,7 @@ body {
 .plan-modal .modal-header,
 .plan-modal .modal-body,
 .plan-modal .modal-footer {
-  padding: 1rem 1.1rem;
+  padding: var(--space-4) var(--space-5);
 }
 
 .plan-modal .modal-header {
@@ -319,7 +319,7 @@ body {
   border-top: 1px solid var(--plans-border);
   display: flex;
   justify-content: flex-end;
-  gap: 0.65rem;
+  gap: var(--space-3);
 }
 
 @media (max-width: 1080px) {

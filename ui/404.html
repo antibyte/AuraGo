@@ -34,7 +34,7 @@
             justify-content: center;
             min-height: 100vh;
             min-height: 100dvh;
-            padding: 2rem;
+            padding: var(--space-8);
             text-align: center;
             position: relative;
             isolation: isolate;
@@ -49,29 +49,29 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 0.5rem;
+            margin-bottom: var(--space-2);
             animation: float 3s ease-in-out infinite;
         }
 
         .not-found-title {
-            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            font-size: var(--text-xl);
             font-weight: 600;
             color: var(--text-primary);
-            margin-bottom: 0.75rem;
+            margin-bottom: var(--space-3);
             text-wrap: balance;
         }
 
         .not-found-desc {
-            font-size: var(--text-sm, 0.875rem);
+            font-size: var(--text-sm);
             color: var(--text-secondary);
             max-width: 40ch;
-            margin-bottom: 2rem;
+            margin-bottom: var(--space-8);
             text-wrap: pretty;
         }
 
         .not-found-actions {
             display: flex;
-            gap: 0.75rem;
+            gap: var(--space-3);
             flex-wrap: wrap;
             justify-content: center;
         }
@@ -79,13 +79,13 @@
         .not-found-link {
             display: inline-flex;
             align-items: center;
-            gap: 0.4rem;
-            padding: 0.65rem 1.4rem;
-            border-radius: 12px;
-            font-size: 0.875rem;
+            gap: var(--space-2);
+            padding: var(--space-3) var(--space-6);
+            border-radius: var(--radius-xl);
+            font-size: var(--text-sm);
             font-weight: 600;
             text-decoration: none;
-            transition: all 0.2s ease;
+            transition: all var(--transition-base) ease;
         }
 
         .not-found-link-primary {
@@ -111,15 +111,15 @@
 
         .not-found-logo {
             position: absolute;
-            top: 1.5rem;
-            left: 1.5rem;
+            top: var(--space-6);
+            left: var(--space-6);
             text-decoration: none;
             color: inherit;
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: var(--space-2);
             font-weight: 700;
-            font-size: 0.9rem;
+            font-size: var(--text-sm);
         }
 
         .not-found-logo .logo-wordmark-accent {
@@ -133,7 +133,7 @@
 </head>
 
 <body>
-    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content">Skip to content</a>
+    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
 
     <a href="/" class="not-found-logo">
         <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
@@ -141,11 +141,11 @@
 
     <main id="main-content" class="not-found-page">
         <div class="not-found-code">404</div>
-        <h1 class="not-found-title" data-i18n="notfound.title">Page not found</h1>
-        <p class="not-found-desc" data-i18n="notfound.description">The page you are looking for does not exist or has been moved.</p>
+        <h1 class="not-found-title" data-i18n="notfound.title"></h1>
+        <p class="not-found-desc" data-i18n="notfound.description"></p>
         <div class="not-found-actions">
-            <a href="/" class="not-found-link not-found-link-primary" data-i18n="notfound.go_home">Go to Chat</a>
-            <a href="/dashboard" class="not-found-link not-found-link-secondary" data-i18n="notfound.go_dashboard">Dashboard</a>
+            <a href="/" class="not-found-link not-found-link-primary" data-i18n="notfound.go_home"></a>
+            <a href="/dashboard" class="not-found-link not-found-link-secondary" data-i18n="notfound.go_dashboard"></a>
         </div>
     </main>
 

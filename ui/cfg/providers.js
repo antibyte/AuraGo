@@ -4,6 +4,8 @@
 let _orModelsCache = null;
 let _orModelsCacheTime = 0;
 const OR_CACHE_TTL = 5 * 60 * 1000;
+let _providerCatalogCache = null;
+let _providerCatalogPromise = null;
 
         async function queryOllamaModelsInModal() {
             const spinner = document.getElementById('prov-ollama-spinner');
@@ -586,7 +588,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 if (!cb || cb.id === 'pp-select-all') return; // skip select-all, handled separately
                 if (cb.checked) selected.add(cb.dataset.name); else selected.delete(cb.dataset.name);
                 const sc = overlay.querySelector('#pp-sel-count');
-                if (sc) sc.textContent = selected.size + ' ' + (t('config.providers.pricing_picker_selected') || 'selected');
+                if (sc) sc.textContent = selected.size + ' ' + (t('config.providers.pricing_picker_selected'));
                 const sa = overlay.querySelector('#pp-select-all');
                 if (sa) { const v = getVisible(); sa.checked = v.length > 0 && v.every(m => selected.has(m.name)); }
             });
@@ -814,6 +816,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             </div>`;
             document.getElementById('content').innerHTML = html;
             providerRenderCards();
+            providerLoadCatalog().then(() => providerRenderCards());
         }
 
         function providerRenderCards() {
@@ -851,6 +854,11 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                         : (p.api_key ? '<span class="prov-text-success">' + t('config.providers.key_set') + '</span>' : '<span class="prov-text-muted">—</span>');
                     authInfo = maskedKey;
                 }
+                const oauthAction = isOAuth
+                    ? `<button type="button" class="btn-save prov-btn-muted prov-btn-xs prov-oauth-card-btn" id="oauth-action-${idx}" onclick="providerStartOAuthConnect(providersCache[${idx}] && providersCache[${idx}].id)">
+                            ${escapeHtml(t('config.providers.oauth_connect'))}
+                       </button>`
+                    : '';
                 html += `
                 <div class="provider-card prov-provider-card" data-idx="${idx}">
                     <div class="prov-provider-head">
@@ -859,6 +867,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                             <span class="prov-provider-id">ID: ${escapeAttr(p.id)}</span>
                         </div>
                         <div class="prov-provider-head-actions">
+                            ${oauthAction}
                             <button onclick="providerEdit(${idx})" class="prov-icon-btn is-edit" title="${t('config.providers.card_edit_tooltip')}">✏️</button>
                             <button onclick="providerDelete(${idx})" class="prov-icon-btn is-delete" title="${t('config.providers.card_delete_tooltip')}">🗑️</button>
                         </div>
@@ -878,22 +887,14 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     fetch('/api/oauth/status?provider=' + encodeURIComponent(p.id))
                         .then(r => r.json())
                         .then(st => {
-                            const el = document.getElementById('oauth-status-' + idx);
-                            if (!el) return;
-                            if (st.authorized && !st.expired) {
-                                el.innerHTML = '<span class="prov-text-success">✅ ' + t('config.providers.authorized') + '</span>';
-                            } else if (st.authorized && st.expired) {
-                                el.innerHTML = '<span class="prov-text-warning">⚠️ ' + t('config.providers.token_expired') + '</span>';
-                            } else {
-                                el.innerHTML = '<span class="prov-text-danger">❌ ' + t('config.providers.not_authorized') + '</span>';
-                            }
+                            providerSetOAuthCardState(idx, st);
                         }).catch(() => {});
                 }
             });
         }
 
         // Known base URLs for auto-fill when creating new providers
-        const PROVIDER_BASE_URLS = {
+        const PROVIDER_BASE_URL_FALLBACKS = {
             openrouter: 'https://openrouter.ai/api/v1',
             openai: 'https://api.openai.com/v1',
             ollama: 'http://localhost:11434',
@@ -945,7 +946,359 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             'opencode-go': 'config.providers.hint.opencode_go'
         };
 
-        const PROVIDER_TYPES = ['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','manifest','yepapi','custom','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'];
+        const PROVIDER_TYPE_FALLBACKS = ['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','manifest','yepapi','custom','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'];
+
+        function providerOAuthFieldLabel(field) {
+            const labels = {
+                provider: t('config.providers.oauth_field_provider'),
+                auth_type: t('config.providers.oauth_field_auth_type'),
+                oauth_auth_url: t('config.providers.oauth_field_auth_url'),
+                oauth_token_url: t('config.providers.oauth_field_token_url'),
+                oauth_client_id: t('config.providers.oauth_field_client_id')
+            };
+            return labels[field] || field;
+        }
+
+        function providerOAuthMissingFieldsText(st) {
+            const fields = st && Array.isArray(st.missing_fields) ? st.missing_fields : [];
+            if (!fields.length) return '';
+            return t('config.providers.oauth_missing_fields', {
+                fields: fields.map(providerOAuthFieldLabel).join(', ')
+            });
+        }
+
+        function providerOAuthStatusText(st) {
+            if (st && st.configured === false) return { cls: 'is-warn', text: t('config.providers.oauth_missing_config'), detail: providerOAuthMissingFieldsText(st) };
+            if (st && st.authorized && !st.expired) return { cls: 'is-ok', text: t('config.providers.authorized'), detail: st.expiry ? `${t('config.providers.expires')}: ${new Date(st.expiry).toLocaleString()}` : '' };
+            if (st && st.authorized && st.expired) return { cls: 'is-warn', text: t('config.providers.token_expired_reauth'), detail: '' };
+            return { cls: 'is-error', text: t('config.providers.not_authorized_click'), detail: '' };
+        }
+
+        function providerOAuthStatusHTML(st) {
+            const status = providerOAuthStatusText(st);
+            const tone = status.cls === 'is-ok' ? 'prov-text-success' : (status.cls === 'is-warn' ? 'prov-text-warning' : 'prov-text-danger');
+            return `<span class="${tone}">${escapeHtml(status.text)}</span>` + (status.detail ? ` <span class="prov-oauth-expiry">${escapeHtml(status.detail)}</span>` : '');
+        }
+
+        function providerOAuthActionLabel(st) {
+            if (st && st.authorized && !st.expired) return t('config.providers.oauth_reauthorize');
+            if (st && st.authorized && st.expired) return t('config.providers.oauth_reauthorize');
+            return t('config.providers.oauth_connect');
+        }
+
+        function providerSetOAuthCardState(idx, st) {
+            const statusEl = document.getElementById('oauth-status-' + idx);
+            if (statusEl) statusEl.innerHTML = providerOAuthStatusHTML(st);
+            const actionBtn = document.getElementById('oauth-action-' + idx);
+            if (!actionBtn) return;
+            actionBtn.textContent = providerOAuthActionLabel(st);
+            const unavailable = st && st.configured === false;
+            actionBtn.disabled = unavailable;
+            actionBtn.title = unavailable ? (providerOAuthMissingFieldsText(st) || t('config.providers.oauth_connect_unavailable')) : '';
+        }
+
+        function providerSetOAuthModalStatus(st) {
+            const statusEl = document.getElementById('prov-oauth-status');
+            if (!statusEl) return;
+            const status = providerOAuthStatusText(st);
+            statusEl.className = `prov-oauth-status ${status.cls}`;
+            statusEl.innerHTML = `<span>${escapeHtml(status.text)}</span>` + (status.detail ? `<small>${escapeHtml(status.detail)}</small>` : '');
+        }
+
+        function providerSetOAuthRedirectURI(st) {
+            const redirectEl = document.getElementById('prov-oauth-redirect-uri');
+            const copyBtn = document.getElementById('prov-oauth-copy-redirect');
+            const redirectURI = st && st.redirect_uri ? st.redirect_uri : '';
+            if (redirectEl) redirectEl.textContent = redirectURI || '...';
+            if (copyBtn) {
+                copyBtn.dataset.redirectUri = redirectURI;
+                copyBtn.disabled = !redirectURI;
+            }
+        }
+
+        function providerSetOAuthPopupFallback(visible, url) {
+            const fallback = document.getElementById('prov-oauth-popup-fallback');
+            const link = document.getElementById('prov-oauth-direct-link');
+            if (link && url) link.href = url;
+            if (fallback) {
+                setHidden(fallback, !visible);
+            } else if (visible && url) {
+                providerShowOAuthDirectLink(url);
+            }
+        }
+
+        function providerShowOAuthDirectLink(url) {
+            const wrap = document.getElementById('providers-list') || document.getElementById('content') || document.body;
+            let banner = document.getElementById('provider-oauth-direct-banner');
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'provider-oauth-direct-banner';
+                banner.className = 'prov-oauth-direct-banner';
+                wrap.prepend(banner);
+            }
+            banner.innerHTML = `
+                <div>
+                    <strong>${escapeHtml(t('config.providers.oauth_popup_blocked'))}</strong>
+                </div>
+                <a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t('config.providers.oauth_open_login'))}</a>
+                <button type="button" class="prov-icon-btn" onclick="document.getElementById('provider-oauth-direct-banner')?.remove()">×</button>
+            `;
+        }
+
+        async function providerCopyOAuthRedirectURI() {
+            const copyBtn = document.getElementById('prov-oauth-copy-redirect');
+            const uri = copyBtn ? (copyBtn.dataset.redirectUri || '') : '';
+            if (!uri) return;
+            try {
+                await navigator.clipboard.writeText(uri);
+                showToast(t('config.providers.oauth_redirect_copied'));
+            } catch (e) {
+                showToast(uri);
+            }
+        }
+
+        async function providerRefreshOAuthStatus(providerID) {
+            if (!providerID) return null;
+            const resp = await fetch('/api/oauth/status?provider=' + encodeURIComponent(providerID));
+            const st = await resp.json();
+            const idx = (providersCache || []).findIndex(p => p.id === providerID);
+            if (idx >= 0) {
+                providerSetOAuthCardState(idx, st);
+            }
+            providerSetOAuthModalStatus(st);
+            providerSetOAuthRedirectURI(st);
+            return st;
+        }
+
+        async function providerRefreshOAuthRedirectPreview(providerID) {
+            try {
+                const previewID = providerID || '__oauth_redirect_preview__';
+                const resp = await fetch('/api/oauth/status?provider=' + encodeURIComponent(previewID));
+                const st = await resp.json();
+                providerSetOAuthRedirectURI(st);
+                return st;
+            } catch (e) {
+                providerSetOAuthRedirectURI({ redirect_uri: window.location.origin + '/api/oauth/callback' });
+                return null;
+            }
+        }
+
+        function providerPollOAuthUntilConnected(providerID) {
+            const startedAt = Date.now();
+            const poll = () => {
+                providerRefreshOAuthStatus(providerID).then(st => {
+                    if (st && st.authorized && !st.expired) {
+                        providerRenderCards();
+                        return;
+                    }
+                    if (Date.now() - startedAt < 120000) {
+                        setTimeout(poll, 3000);
+                    }
+                }).catch(() => {
+                    if (Date.now() - startedAt < 120000) {
+                        setTimeout(poll, 5000);
+                    }
+                });
+            };
+            setTimeout(poll, 3000);
+        }
+
+        function providerOAuthStartURL(providerID) {
+            return '/api/oauth/start?provider=' + encodeURIComponent(providerID) + '&launch=1';
+        }
+
+        function providerPrepareOAuthPopup() {
+            const popup = window.open('', '_blank');
+            if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+                return null;
+            }
+            popup.opener = null;
+            return popup;
+        }
+
+        function providerLaunchOAuthWindow(providerID, preparedPopup) {
+            const url = providerOAuthStartURL(providerID);
+            const popup = preparedPopup || providerPrepareOAuthPopup();
+            if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+                return { opened: false, url };
+            }
+            popup.location.href = url;
+            return { opened: true, url };
+        }
+
+        async function providerStartOAuthConnect(providerID, preparedPopup) {
+            if (!providerID) {
+                showToast(t('config.providers.oauth_save_first'), 'warn');
+                return;
+            }
+            const statusEl = document.getElementById('prov-oauth-status');
+            if (statusEl) {
+                statusEl.className = 'prov-oauth-status is-warn';
+                statusEl.textContent = t('config.providers.oauth_waiting');
+            }
+            const launch = providerLaunchOAuthWindow(providerID, preparedPopup);
+            providerSetOAuthPopupFallback(!launch.opened, launch.url);
+            if (!launch.opened) {
+                showToast(t('config.providers.oauth_popup_blocked'), 'warn');
+                if (statusEl) statusEl.textContent = t('config.providers.oauth_popup_blocked');
+            } else if (statusEl) {
+                statusEl.textContent = t('config.providers.oauth_started');
+            }
+            providerPollOAuthUntilConnected(providerID);
+        }
+
+        async function providerSubmitOAuthPaste(providerID) {
+            const input = document.getElementById('prov-oauth-paste-url');
+            const pastedURL = input ? input.value.trim() : '';
+            if (!providerID || !pastedURL) {
+                showToast(t('config.providers.oauth_paste_help'), 'warn');
+                return;
+            }
+            const resp = await fetch('/api/oauth/manual', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: pastedURL })
+            });
+            const result = await resp.json().catch(() => ({}));
+            if (!resp.ok || result.success === false) {
+                showToast(result.message || t('config.common.error'), 'error');
+                return;
+            }
+            showToast(result.message || t('config.providers.oauth_paste_success'));
+            if (input) input.value = '';
+            await providerRefreshOAuthStatus(providerID);
+            providerRenderCards();
+        }
+
+        function providerHandleOAuthPayload(data) {
+            if (!data || data.type !== 'aurago:oauth-provider-connected') return;
+            const idInput = document.getElementById('prov-id');
+            const providerID = data.provider_id || (idInput ? idInput.value.trim() : '');
+            if (!providerID) return;
+            providerRefreshOAuthStatus(providerID).then(() => providerRenderCards()).catch(() => {});
+        }
+
+        function providerHandleOAuthMessage(event) {
+            if (event.origin !== window.location.origin) return;
+            providerHandleOAuthPayload(event.data || {});
+        }
+
+        function providerHandleOAuthBroadcast(event) {
+            providerHandleOAuthPayload(event.data || {});
+        }
+
+        if (!window.__auragoProviderOAuthMessageHandler) {
+            window.addEventListener('message', providerHandleOAuthMessage);
+            window.__auragoProviderOAuthMessageHandler = true;
+        }
+        if (!window.__auragoProviderOAuthBroadcastHandler) {
+            try {
+                const oauthChannel = new BroadcastChannel('aurago-oauth');
+                oauthChannel.onmessage = providerHandleOAuthBroadcast;
+                window.__auragoProviderOAuthBroadcastChannel = oauthChannel;
+                window.__auragoProviderOAuthBroadcastHandler = true;
+            } catch (e) {}
+        }
+
+        async function providerLoadCatalog() {
+            if (_providerCatalogCache) return _providerCatalogCache;
+            if (_providerCatalogPromise) return _providerCatalogPromise;
+            _providerCatalogPromise = fetch('/api/models/catalog')
+                .then(async resp => {
+                    if (!resp.ok) throw new Error('catalog unavailable');
+                    const json = await resp.json();
+                    _providerCatalogCache = json;
+                    return json;
+                })
+                .catch(() => null)
+                .finally(() => { _providerCatalogPromise = null; });
+            return _providerCatalogPromise;
+        }
+
+        function providerCatalogTypes() {
+            const types = [...PROVIDER_TYPE_FALLBACKS];
+            const seen = new Set(types);
+            const providers = (_providerCatalogCache && _providerCatalogCache.providers) || [];
+            providers
+                .filter(p => p && !p.catalog_only && p.aura_provider_type)
+                .forEach(p => {
+                    if (!seen.has(p.aura_provider_type)) {
+                        seen.add(p.aura_provider_type);
+                        types.push(p.aura_provider_type);
+                    }
+                });
+            return types;
+        }
+
+        function providerCatalogProvider(type) {
+            const typ = (type || '').toLowerCase();
+            const providers = (_providerCatalogCache && _providerCatalogCache.providers) || [];
+            return providers.find(p => p.aura_provider_type === typ || p.id === typ) || null;
+        }
+
+        function providerCatalogModelsForType(type) {
+            const typ = (type || '').toLowerCase();
+            const models = (_providerCatalogCache && _providerCatalogCache.models) || [];
+            return models
+                .filter(m => m && m.provider === typ && !m.catalog_only)
+                .sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+        }
+
+        function providerBaseURLForType(type) {
+            const typ = (type || '').toLowerCase();
+            const catalogModel = providerCatalogModelsForType(typ).find(m => m.base_url);
+            return (catalogModel && catalogModel.base_url) || PROVIDER_BASE_URL_FALLBACKS[typ] || '';
+        }
+
+        function providerKnownBaseURLs() {
+            const urls = new Set(Object.values(PROVIDER_BASE_URL_FALLBACKS).filter(Boolean));
+            const models = (_providerCatalogCache && _providerCatalogCache.models) || [];
+            models.forEach(m => { if (m.base_url) urls.add(m.base_url); });
+            return urls;
+        }
+
+        function providerTypeLabel(typ) {
+            const key = 'config.providers.type_' + typ.replace('-', '_');
+            const label = t(key);
+            if (label && label !== key) return label;
+            const provider = providerCatalogProvider(typ);
+            return (provider && provider.name) || typ;
+        }
+
+        function providerCatalogModelCost(model) {
+            const cost = (model && model.cost) || {};
+            return {
+                id: model.id,
+                inputPerMillion: cost.input || 0,
+                outputPerMillion: cost.output || 0
+            };
+        }
+
+        function providerRenderCatalogModelPicker(type) {
+            const select = document.getElementById('prov-catalog-model');
+            if (!select) return;
+            const models = providerCatalogModelsForType(type);
+            if (models.length === 0) {
+                select.innerHTML = '';
+                setHidden(select, true);
+                return;
+            }
+            const modelInput = document.getElementById('prov-model');
+            const currentModel = (modelInput && modelInput.value || '').trim();
+            select.innerHTML = `<option value="">${escapeHtml(t('config.providers.catalog_model_placeholder'))}</option>` +
+                models.slice(0, 800).map(model => {
+                    const label = model.name && model.name !== model.id ? `${model.name} (${model.id})` : model.id;
+                    return `<option value="${escapeAttr(model.id)}"${model.id === currentModel ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+                }).join('');
+            setHidden(select, false);
+            select.onchange = () => {
+                const picked = models.find(model => model.id === select.value);
+                if (!picked || !modelInput) return;
+                modelInput.value = picked.id;
+                modelInput.dispatchEvent(new Event('input', { bubbles: true }));
+                updateProviderModelCost(providerCatalogModelCost(picked));
+            };
+        }
 
         function providerShowModal(title, data, onSave) {
             // Remove existing modal
@@ -991,14 +1344,14 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     <div class="field-label">${t('config.providers.field_type_label')}</div>
                     <div class="field-help">${t('config.providers.type_help')}</div>
                     <select class="field-select" id="prov-type">
-                        ${PROVIDER_TYPES.map(typ =>
-                            `<option value="${typ}"${data.type === typ ? ' selected' : ''}>${t('config.providers.type_' + typ.replace('-', '_'))}</option>`
+                        ${providerCatalogTypes().map(typ =>
+                            `<option value="${typ}"${data.type === typ ? ' selected' : ''}>${escapeHtml(providerTypeLabel(typ))}</option>`
                         ).join('')}
                     </select>
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.providers.field_base_url_label')}</div>
-                    <input class="field-input ${isAutoURLInitial ? 'is-disabled' : ''}" id="prov-url" value="${escapeAttr(isAutoURLInitial ? '' : (data.base_url || ''))}" placeholder="${isAutoURLInitial ? initialURLHint : (PROVIDER_BASE_URLS[data.type] || PROVIDER_BASE_URLS.openrouter)}" ${isAutoURLInitial ? 'disabled' : ''}>
+                    <input class="field-input ${isAutoURLInitial ? 'is-disabled' : ''}" id="prov-url" value="${escapeAttr(isAutoURLInitial ? '' : (data.base_url || ''))}" placeholder="${isAutoURLInitial ? initialURLHint : (providerBaseURLForType(data.type) || PROVIDER_BASE_URL_FALLBACKS.openrouter)}" ${isAutoURLInitial ? 'disabled' : ''}>
                     <div id="prov-url-auto-hint" class="prov-field-hint ${isAutoURLInitial ? '' : 'is-hidden'}">${initialURLHint}</div>
                 </div>
 
@@ -1011,6 +1364,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 <div class="field-group">
                     <div class="field-label">${t('config.providers.field_model_label')}</div>
                     <input class="field-input" id="prov-model" value="${escapeAttr(data.model || '')}" placeholder="${t('config.providers.model_placeholder')}">
+                    <select class="field-select prov-catalog-model-picker is-hidden" id="prov-catalog-model"></select>
                 </div>
 
                 <div class="field-group prov-group-divider" id="prov-capabilities-block">
@@ -1154,16 +1508,46 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                         <div class="field-help">${t('config.providers.oauth_scopes_help')}</div>
                         <input class="field-input" id="prov-oauth-scopes" value="${escapeAttr(data.oauth_scopes || '')}" placeholder="${t('config.providers.scopes_placeholder')}">
                     </div>
+                    <div class="field-group prov-oauth-redirect-box">
+                        <div>
+                            <div class="field-label">${t('config.providers.oauth_redirect_uri_label')}</div>
+                            <div class="field-help">${t('config.providers.oauth_redirect_uri_help')}</div>
+                            <code id="prov-oauth-redirect-uri" class="prov-oauth-redirect-uri">...</code>
+                        </div>
+                        <button type="button" class="btn-save prov-btn-muted prov-btn-sm" id="prov-oauth-copy-redirect" disabled>
+                            ${t('config.providers.oauth_copy_redirect')}
+                        </button>
+                    </div>
                     ${data._editMode && currentAuthType === 'oauth2' ? `
-                    <div class="field-group prov-oauth-group">
-                        <div id="prov-oauth-status" class="prov-oauth-status">⏳ ${t('config.providers.checking_status')}</div>
+                    <div class="field-group prov-oauth-connect-panel">
+                        <div class="prov-oauth-connect-head">
+                            <div>
+                                <div class="field-label">${t('config.providers.oauth_connect_title')}</div>
+                                <div class="field-help">${t('config.providers.oauth_connect_hint')}</div>
+                            </div>
+                            <div id="prov-oauth-status" class="prov-oauth-status is-warn">${t('config.providers.checking_status')}</div>
+                        </div>
                         <div class="prov-oauth-actions">
-                            <button class="btn-save prov-oauth-authorize-btn" id="prov-oauth-authorize-btn">
-                                🔐 ${t('config.providers.authorize')}
+                            <button type="button" class="btn-save prov-oauth-authorize-btn" id="prov-oauth-authorize-btn">
+                                ${t('config.providers.oauth_connect')}
                             </button>
-                            <button class="btn-save prov-oauth-revoke-btn" id="prov-oauth-revoke-btn">
-                                🗑️ ${t('config.providers.revoke_token')}
+                            <button type="button" class="btn-save prov-oauth-revoke-btn" id="prov-oauth-revoke-btn">
+                                ${t('config.providers.revoke_token')}
                             </button>
+                        </div>
+                        <div id="prov-oauth-popup-fallback" class="prov-oauth-direct-box is-hidden">
+                            <div class="field-help">${t('config.providers.oauth_popup_blocked')}</div>
+                            <a id="prov-oauth-direct-link" href="#" target="_blank" rel="noopener noreferrer">${t('config.providers.oauth_open_login')}</a>
+                        </div>
+                        <div class="prov-oauth-paste-box">
+                            <div class="field-label">${t('config.providers.oauth_paste_label')}</div>
+                            <div class="field-help">${t('config.providers.oauth_paste_help')}</div>
+                            <div class="prov-oauth-paste-row">
+                                <input class="field-input" id="prov-oauth-paste-url" value="" placeholder="${escapeAttr(t('config.providers.oauth_paste_placeholder'))}">
+                                <button type="button" class="btn-save prov-btn-muted prov-btn-sm" id="prov-oauth-paste-submit">
+                                    ${t('config.providers.oauth_paste_submit')}
+                                </button>
+                            </div>
                         </div>
                     </div>
                     ` : ''}
@@ -1193,6 +1577,9 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 <div class="prov-modal-actions">
                     <button type="button" id="provider-modal-cancel-btn" class="btn-save prov-btn-muted prov-btn-md">
                         ${t('config.providers.cancel')}
+                    </button>
+                    <button class="btn-save prov-btn-md ${isOAuth ? '' : 'is-hidden'}" id="prov-save-connect-btn">
+                        ${t('config.providers.oauth_save_connect')}
                     </button>
                     <button class="btn-save prov-btn-md" id="prov-save-btn">
                         ${t('config.providers.save')}
@@ -1225,7 +1612,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             const openrouterBlock = document.getElementById('prov-openrouter-block');
             const accountIdBlock = document.getElementById('prov-account-id-block');
             const urlAutoHint = document.getElementById('prov-url-auto-hint');
-            const knownUrls = new Set(Object.values(PROVIDER_BASE_URLS).filter(Boolean));
+            const knownUrls = providerKnownBaseURLs();
             typeSelect.addEventListener('change', () => {
                 const typ = typeSelect.value;
                 const currentUrl = urlInput.value.trim();
@@ -1240,12 +1627,13 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 } else {
                     urlInput.disabled = false;
                     urlInput.classList.remove('is-disabled');
-                    if ((!currentUrl || knownUrls.has(currentUrl)) && PROVIDER_BASE_URLS[typ]) {
-                        urlInput.value = PROVIDER_BASE_URLS[typ];
+                    const defaultBaseURL = providerBaseURLForType(typ);
+                    if ((!currentUrl || knownUrls.has(currentUrl)) && defaultBaseURL) {
+                        urlInput.value = defaultBaseURL;
                     }
                 }
                 // Update placeholder
-                urlInput.placeholder = isWorkersAI ? t('config.providers.workers_ai_url_auto') : (isManagedManifest ? t('config.providers.manifest_url_auto') : (PROVIDER_BASE_URLS[typ] || 'https://...'));
+                urlInput.placeholder = isWorkersAI ? t('config.providers.workers_ai_url_auto') : (isManagedManifest ? t('config.providers.manifest_url_auto') : (providerBaseURLForType(typ) || 'https://...'));
                 // Update hint
                 if (hintEl) {
                     const hintKey = PROVIDER_HINTS[typ];
@@ -1265,6 +1653,8 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 if (fetchPricingBtn) {
                     setHidden(fetchPricingBtn, !['openrouter','openai','anthropic','google','ollama','workers-ai','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'].includes(typ));
                 }
+                providerRenderCatalogModelPicker(typ);
+                updateProviderOAuthActionVisibility();
                 // Show/hide Copilot auth block
                 const copilotBlock = document.getElementById('prov-copilot-block');
                 if (copilotBlock) setHidden(copilotBlock, typ !== 'copilot');
@@ -1285,6 +1675,10 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 modelInput.addEventListener('input', () => {
                     clearTimeout(capDetectTimer);
                     capDetectTimer = setTimeout(() => providerRefreshCapabilityDetection(false), 350);
+                    const catalogSelect = document.getElementById('prov-catalog-model');
+                    if (catalogSelect && catalogSelect.value !== modelInput.value) {
+                        catalogSelect.value = modelInput.value;
+                    }
                 });
             }
 
@@ -1292,12 +1686,21 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             const authTypeSelect = document.getElementById('prov-auth-type');
             const apikeySection = document.getElementById('prov-apikey-section');
             const oauthSection = document.getElementById('prov-oauth-section');
+            const saveConnectBtn = document.getElementById('prov-save-connect-btn');
+            function updateProviderOAuthActionVisibility() {
+                const isOA = authTypeSelect && authTypeSelect.value === 'oauth2';
+                const isCopilot = typeSelect && typeSelect.value === 'copilot';
+                if (saveConnectBtn) setHidden(saveConnectBtn, !isOA || isCopilot);
+            }
             authTypeSelect.addEventListener('change', () => {
                 const isOA = authTypeSelect.value === 'oauth2';
                 setHidden(apikeySection, isOA);
                 setHidden(oauthSection, !isOA);
                 if (!isOA) rebuildCopyKeyDropdown();
+                if (isOA) providerRefreshOAuthRedirectPreview(document.getElementById('prov-id')?.value.trim()).catch(() => {});
+                updateProviderOAuthActionVisibility();
             });
+            updateProviderOAuthActionVisibility();
 
             // ── Copilot device-code flow ──
             const copilotStartBtn = document.getElementById('copilot-start-auth-btn');
@@ -1439,16 +1842,17 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             // ── OAuth Authorize button ──
             const authBtn = document.getElementById('prov-oauth-authorize-btn');
             if (authBtn) {
-                authBtn.onclick = async () => {
-                    try {
-                        const resp = await fetch('/api/oauth/start?provider=' + encodeURIComponent(data.id));
-                            if (!resp.ok) { showToast(await resp.text(), 'error'); return; }
-                        const result = await resp.json();
-                        if (result.auth_url) {
-                            window.open(result.auth_url, '_blank', 'width=600,height=700,noopener,noreferrer');
-                        }
-                        } catch (e) { showToast(e.message || t('config.common.error'), 'error'); }
-                };
+                authBtn.onclick = () => providerStartOAuthConnect(data.id);
+            }
+
+            const copyRedirectBtn = document.getElementById('prov-oauth-copy-redirect');
+            if (copyRedirectBtn) {
+                copyRedirectBtn.onclick = () => providerCopyOAuthRedirectURI();
+            }
+
+            const pasteBtn = document.getElementById('prov-oauth-paste-submit');
+            if (pasteBtn) {
+                pasteBtn.onclick = () => providerSubmitOAuthPaste(data.id);
             }
 
             // ── OAuth Revoke button ──
@@ -1458,32 +1862,21 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     if (!(await showConfirm(t('config.providers.revoke_confirm_title'), t('config.providers.revoke_confirm')))) return;
                     try {
                         await fetch('/api/oauth/revoke?provider=' + encodeURIComponent(data.id), { method: 'DELETE' });
-                        const statusEl = document.getElementById('prov-oauth-status');
-                        if (statusEl) statusEl.innerHTML = '<span class="prov-text-danger">❌ ' + t('config.providers.not_authorized') + '</span>';
+                        await providerRefreshOAuthStatus(data.id);
+                        providerRenderCards();
                         } catch (e) { showToast(e.message || t('config.common.error'), 'error'); }
                 };
             }
 
             // ── Fetch OAuth status for edit mode ──
             if (data._editMode && currentAuthType === 'oauth2' && data.id) {
-                fetch('/api/oauth/status?provider=' + encodeURIComponent(data.id))
-                    .then(r => r.json())
-                    .then(st => {
-                        const statusEl = document.getElementById('prov-oauth-status');
-                        if (!statusEl) return;
-                        if (st.authorized && !st.expired) {
-                            statusEl.innerHTML = '<span class="prov-text-success">✅ ' + t('config.providers.authorized') + '</span>'
-                                + (st.expiry ? `<span class="prov-oauth-expiry">(${t('config.providers.expires')}: ${new Date(st.expiry).toLocaleString()})</span>` : '');
-                        } else if (st.authorized && st.expired) {
-                            statusEl.innerHTML = '<span class="prov-text-warning">⚠️ ' + t('config.providers.token_expired_reauth') + '</span>';
-                        } else {
-                            statusEl.innerHTML = '<span class="prov-text-danger">❌ ' + t('config.providers.not_authorized_click') + '</span>';
-                        }
-                    }).catch(() => {});
+                providerRefreshOAuthStatus(data.id).catch(() => {});
+            } else if (currentAuthType === 'oauth2') {
+                providerRefreshOAuthRedirectPreview(data.id).catch(() => {});
             }
 
-            // ── Save handler ──
-            document.getElementById('prov-save-btn').onclick = async () => {
+            // ── Save handlers ──
+            async function submitProviderModal(connectAfterSave) {
                 const id = document.getElementById('prov-id').value.trim();
                 const name = document.getElementById('prov-name').value.trim();
                 const type = document.getElementById('prov-type').value;
@@ -1492,13 +1885,13 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 const auth_type = document.getElementById('prov-auth-type').value;
                 const account_id = (document.getElementById('prov-account-id') || {}).value ? document.getElementById('prov-account-id').value.trim() : '';
 
-                    if (!id) { showToast(t('config.providers.id_empty_error'), 'warn'); return; }
+                if (!id) { showToast(t('config.providers.id_empty_error'), 'warn'); return; }
                 if (type === 'workers-ai') {
-                        if (!account_id) { showToast(t('config.providers.account_id_empty_error'), 'warn'); return; }
+                    if (!account_id) { showToast(t('config.providers.account_id_empty_error'), 'warn'); return; }
                 } else if (type === 'manifest') {
-                        // Manifest providers are resolved from the Manifest integration settings.
+                    // Manifest providers are resolved from the Manifest integration settings.
                 } else if (!base_url) {
-                        showToast(t('config.providers.url_empty_error'), 'warn'); return;
+                    showToast(t('config.providers.url_empty_error'), 'warn'); return;
                 }
 
                 const entry = { id, name: name || id, type, base_url, model, auth_type, account_id };
@@ -1514,7 +1907,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     entry.oauth_scopes = document.getElementById('prov-oauth-scopes').value.trim();
 
                     if (!entry.oauth_auth_url || !entry.oauth_token_url || !entry.oauth_client_id) {
-                            showToast(t('config.providers.oauth_required_error'), 'warn');
+                        showToast(t('config.providers.oauth_required_error'), 'warn');
                         return;
                     }
                 } else {
@@ -1554,9 +1947,20 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 entry.models = providerGetModels();
                 entry.capabilities = providerReadCapabilities();
 
-                onSave(entry);
+                const preparedPopup = connectAfterSave ? providerPrepareOAuthPopup() : null;
+                const savedID = await onSave(entry);
+                if (!savedID) {
+                    if (preparedPopup && !preparedPopup.closed) preparedPopup.close();
+                    return;
+                }
                 closeProviderModal();
-            };
+                if (connectAfterSave) providerStartOAuthConnect(savedID, preparedPopup);
+            }
+
+            document.getElementById('prov-save-btn').onclick = () => submitProviderModal(false);
+            if (saveConnectBtn) {
+                saveConnectBtn.onclick = () => submitProviderModal(true);
+            }
 
             // Focus first editable field
             setTimeout(() => {
@@ -1567,10 +1971,13 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             // Trigger initial auto-fill for new providers
             if (!data._editMode && !data.base_url) {
                 const initType = typeSelect.value;
-                if (PROVIDER_BASE_URLS[initType]) {
-                    urlInput.value = PROVIDER_BASE_URLS[initType];
+                const defaultBaseURL = providerBaseURLForType(initType);
+                if (defaultBaseURL) {
+                    urlInput.value = defaultBaseURL;
                 }
             }
+            providerRenderCatalogModelPicker(typeSelect.value);
+            providerLoadCatalog().then(() => providerRenderCatalogModelPicker(typeSelect.value));
         }
 
         function providerAdd() {
@@ -1580,11 +1987,17 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 async (entry) => {
                     // Check unique ID
                     if (providersCache.some(p => p.id === entry.id)) {
-                            showToast(t('config.providers.id_exists'), 'warn');
-                        return;
+                        showToast(t('config.providers.id_exists'), 'warn');
+                        return null;
                     }
                     providersCache.push(entry);
-                    await providerSave();
+                    const ok = await providerSave();
+                    if (!ok) {
+                        providersCache.pop();
+                        providerRenderCards();
+                        return null;
+                    }
+                    return entry.id;
                 }
             );
         }
@@ -1595,8 +2008,15 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 t('config.providers.edit_provider'),
                 p,
                 async (entry) => {
+                    const previous = providersCache[idx];
                     providersCache[idx] = entry;
-                    await providerSave();
+                    const ok = await providerSave();
+                    if (!ok) {
+                        providersCache[idx] = previous;
+                        providerRenderCards();
+                        return null;
+                    }
+                    return entry.id;
                 }
             );
         }
@@ -1605,7 +2025,11 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             const p = providersCache[idx];
             if (!(await showConfirm(t('config.providers.delete_confirm_title'), t('config.providers.delete_confirm', { name: p.name || p.id })))) return;
             providersCache.splice(idx, 1);
-            providerSave();
+            const ok = await providerSave();
+            if (!ok) {
+                providersCache.splice(idx, 0, p);
+                providerRenderCards();
+            }
         }
 
         async function providerSave() {
@@ -1617,8 +2041,8 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 });
                 if (!resp.ok) {
                     const txt = await resp.text();
-                        showToast(txt || t('config.common.error'), 'error');
-                    return;
+                    showToast(txt || t('config.common.error'), 'error');
+                    return false;
                 }
                 const result = await resp.json();
                 // Reload providers from server (API keys will be masked)
@@ -1631,7 +2055,9 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     const modelEl = document.getElementById('ab-model');
                     if (modelEl) modelEl.textContent = result.active_llm_model;
                 }
+                return true;
             } catch (e) {
-                    showToast(e.message || t('config.common.error'), 'error');
+                showToast(e.message || t('config.common.error'), 'error');
+                return false;
             }
         }

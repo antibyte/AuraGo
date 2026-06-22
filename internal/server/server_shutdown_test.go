@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log/slog"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"aurago/internal/dbutil"
@@ -50,8 +51,6 @@ func TestCloseRuntimeResourcesClosesServerOwnedSQLiteHandles(t *testing.T) {
 }
 
 func TestCloseGalaxaDBResetsSingleton(t *testing.T) {
-	t.Parallel()
-
 	root := t.TempDir()
 	if _, err := getGalaxaDB(root); err != nil {
 		t.Fatalf("getGalaxaDB: %v", err)
@@ -61,4 +60,26 @@ func TestCloseGalaxaDBResetsSingleton(t *testing.T) {
 	if galaxaDBInst != nil {
 		t.Fatal("expected galaxa singleton to be cleared")
 	}
+}
+
+func TestGalaxaDBSingletonOpenCloseIsConcurrencySafe(t *testing.T) {
+	root := t.TempDir()
+	var wg sync.WaitGroup
+
+	for i := 0; i < 24; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 50; j++ {
+				if _, err := getGalaxaDB(root); err != nil {
+					t.Errorf("getGalaxaDB: %v", err)
+					return
+				}
+				closeGalaxaDB(slog.Default())
+			}
+		}()
+	}
+
+	wg.Wait()
+	closeGalaxaDB(slog.Default())
 }

@@ -31,5 +31,14 @@
   "config.vercel.token_empty": "Veuillez entrer un jeton",
   "config.vercel.token_label": "Jeton d'accès personnel",
   "config.vercel.token_saved": "Jeton enregistré dans le coffre-fort",
-  "config.vercel.token_title": "Jeton API"
+  "config.vercel.token_title": "Jeton API",
+  "config.vercel.enabled_help": "Autorise AuraGo à se connecter à Vercel avec le token enregistré.",
+  "config.vercel.readonly_help": "Autorise la lecture des données Vercel mais bloque les déploiements et modifications.",
+  "config.vercel.allow_deploy_help": "Autorise les déploiements de projets quand le mode lecture seule est désactivé.",
+  "config.vercel.allow_project_management_help": "Autorise la création, la mise à jour et la suppression de projets Vercel.",
+  "config.vercel.allow_env_management_help": "Autorise la gestion des variables d’environnement des projets Vercel.",
+  "config.vercel.allow_domain_management_help": "Autorise l’ajout, la mise à jour et la suppression de domaines Vercel.",
+  "config.vercel.default_project_id_help": "ID de projet optionnel utilisé si l’agent ne précise pas de projet.",
+  "config.vercel.team_id_help": "ID d’équipe Vercel optionnel pour les appels API d’équipe.",
+  "config.vercel.team_slug_help": "Slug d’équipe Vercel optionnel pour les appels API d’équipe."
 }

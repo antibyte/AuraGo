@@ -27,7 +27,7 @@ function renderTTSSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.language_label') + '</div>';
     html += '<div class="field-help">' + t('config.tts.language_help') + '</div>';
-    html += '<input class="field-input" type="text" data-path="tts.language" value="' + escapeAttr(data.language || '') + '" placeholder="' + t('config.tts.language_placeholder') + '">';
+    html += ttsLanguageSelect('tts.language', data.language || 'de');
     html += '</div>';
 
     const showEL = currentProvider === 'elevenlabs';
@@ -147,6 +147,22 @@ function renderTTSSection(section) {
     } else {
         piperSetBanner('neutral', t('config.tts.piper_status_disabled'));
     }
+}
+
+function ttsLanguageSelect(path, selected) {
+    const languages = ['de', 'en', 'fr', 'es', 'it', 'pt', 'nl', 'ja', 'zh'];
+    const customOption = typeof CFG_OPTION_OTHER_CUSTOM === 'string' ? CFG_OPTION_OTHER_CUSTOM : 'Other / Custom';
+    const current = String(selected || '').trim();
+    const isCustom = current && !languages.includes(current);
+    let html = '<select class="field-select" data-path="' + escapeAttr(path) + '" onchange="cfgToggleCustomInput(this)">';
+    languages.forEach(code => {
+        html += '<option value="' + code + '"' + (current === code ? ' selected' : '') + '>' + code + '</option>';
+    });
+    html += '<option value="' + escapeAttr(customOption) + '"' + (isCustom ? ' selected' : '') + '>' + cfgFieldOptionLabel(customOption) + '</option>';
+    html += '</select>';
+    html += '<input class="field-input cfg-custom-input' + (isCustom ? '' : ' is-hidden') + '" type="text" data-custom-for="' + escapeAttr(path) + '" value="' + escapeAttr(isCustom ? current : '') + '" placeholder="' + escapeAttr(t('config.tts.language_placeholder')) + '">';
+    html += '<div class="field-help">' + t('config.tts.language_custom_help') + '</div>';
+    return html;
 }
 
 function ttsProviderChanged(val) {

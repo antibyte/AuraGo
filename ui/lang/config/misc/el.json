@@ -67,5 +67,8 @@
   "config.vault.delete_desc": "Αυτό θα <strong>διαγράψει οριστικά</strong> το θησαυροφυλάκιο. Όλα τα αποθηκευμένα κλειδιά API, οι κωδικοί πρόσβασης και τα διαπιστευτήρια θα χαθούν για πάντα!<br><br>Πληκτρολογήστε <strong style=\"color:#f87171;\">delete</strong> για να συνεχίσετε:",
   "config.vault.delete_title": "⚠️ Οριστική διαγραφή vault",
   "config.vault.deleted_toast": "✓ Το vault διαγράφηκε. Εισαγάγετε νέο κύριο κλειδί, αποθηκεύστε και επανεκκινήστε το AuraGo.",
-  "config.vault.destroy_button": "Καταστροφή"
+  "config.vault.destroy_button": "Καταστροφή",
+  "config.menu": "Μενού",
+  "config.toggle_sidebar": "Εναλλαγή πλευρικής μπάρας",
+  "config.page_description": "Ρυθμίστε τον πράκτορα AI σας"
 }

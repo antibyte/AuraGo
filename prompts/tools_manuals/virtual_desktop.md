@@ -37,6 +37,10 @@ Generated widgets are sandboxed. Do not navigate `window.top` or `window.parent`
 - `get_widget`: retrieve full details for one widget. Use `widget_id`.
 - `diagnose_app`: run diagnostics on a desktop app. Use `app_id`; checks registration, built-in status, entry file path/readability/non-empty content, `health`/`health_reason`, and recommendations.
 - `diagnose_widget`: run diagnostics on a widget. Use `widget_id`; checks registration, widget payload, entry path/readability/non-empty content, standalone/app-backed flags, and recommendations.
+- `list_pets`: list installed desktop pets. Returns `pets` and the `active_pet`.
+- `set_pet`: activate or configure a pet. Use `pet_id`, and optionally `enabled`, `scale`, `position_x`, `position_y`. Pass `enabled: false` to hide the pet without deleting it.
+- `set_pet_reaction`: change the active pet's animation. Use `reaction` (`idle`, `walk`, `run`, `eat`, `sleep`, `alert`, `happy`, `surprised`, `angry`, `sad`, `love`, `dance`). The pet will return to `idle` automatically after the reaction finishes.
+- `pet_say`: make the active pet show a speech bubble. Use `message` and optional `duration_ms` (default 3000).
 
 ## Path Rules
 

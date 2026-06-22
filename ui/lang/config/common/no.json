@@ -31,5 +31,9 @@
   "config.common.inactive": "Inaktiv",
   "config.feature_unavailable": "Denne funksjonen er ikke tilgjengelig i det nåværende kjøremiljøet.",
   "config.docker_mode_banner": "AuraGo kjører inne i en Docker-container. Noen funksjoner kan være begrenset.",
-  "config.firewall.docker_blocked": "Brannmuradministrasjon er ikke tilgjengelig inne i en Docker-container."
+  "config.firewall.docker_blocked": "Brannmuradministrasjon er ikke tilgjengelig inne i en Docker-container.",
+  "config.unsaved_changes.title": "Unsaved changes",
+  "config.unsaved_changes.message": "You have unsaved changes. Discard them and switch sections?",
+  "config.unsaved_changes.discard": "Discard changes",
+  "config.unsaved_changes.stay": "Stay here"
 }

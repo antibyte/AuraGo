@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"path/filepath"
+	"strings"
 
 	"aurago/internal/tools"
 )
@@ -30,6 +32,9 @@ func dispatchListAgentSkills(tc ToolCall, dc *DispatchContext) string {
 	}
 	out := make([]listedAgentSkill, 0, len(entries))
 	for _, entry := range entries {
+		if err := ensureAgentSkillUsable(&entry); err != nil {
+			continue
+		}
 		out = append(out, listedAgentSkill{
 			Name:           entry.Name,
 			Description:    entry.Description,
@@ -101,6 +106,30 @@ func dispatchRunAgentSkillScript(ctx context.Context, tc ToolCall, dc *DispatchC
 	script := firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "script"), toolArgString(tc.Params, "path"))
 	if script == "" {
 		return "Tool Output: ERROR script path is required."
+	}
+	ext := strings.ToLower(filepath.Ext(script))
+	if cfg != nil {
+		allowed := cfg.Tools.SkillManager.AllowedScriptLanguages
+		if allowed == nil {
+			allowed = []string{"python"}
+		}
+		langAllowed := false
+		for _, lang := range allowed {
+			switch {
+			case lang == "python" && ext == ".py":
+				langAllowed = true
+			case lang == "bash" && ext == ".sh":
+				langAllowed = true
+			case lang == "javascript" && ext == ".js":
+				langAllowed = true
+			}
+		}
+		if !langAllowed {
+			return fmt.Sprintf("Tool Output: [PERMISSION DENIED] Script language %q is not in allowed_script_languages config. Allowed: %v", ext, allowed)
+		}
+	}
+	if ext == ".sh" && cfg != nil && !cfg.Agent.AllowShell {
+		return "Tool Output: [PERMISSION DENIED] Bash scripts require agent.allow_shell to be enabled in Danger Zone settings."
 	}
 	entry, err := mgr.GetAgentSkillByName(name)
 	if err != nil {

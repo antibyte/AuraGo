@@ -229,6 +229,170 @@ func StaticCodeAnalysis(code string) []Finding {
 	return findings
 }
 
+var bashDangerousPatterns = []dangerousPattern{
+	{
+		Name:     "bash_eval",
+		Regex:    regexp.MustCompile(`\beval\s+`),
+		Severity: "critical",
+		Category: "exec",
+		Message:  "eval in shell scripts can execute arbitrary code",
+	},
+	{
+		Name:     "bash_curl_pipe",
+		Regex:    regexp.MustCompile(`curl\s.*\|\s*(bash|sh|zsh)`),
+		Severity: "critical",
+		Category: "exec",
+		Message:  "Piping curl output to shell executes remote code",
+	},
+	{
+		Name:     "bash_wget_pipe",
+		Regex:    regexp.MustCompile(`wget\s.*\|\s*(bash|sh|zsh)`),
+		Severity: "critical",
+		Category: "exec",
+		Message:  "Piping wget output to shell executes remote code",
+	},
+	{
+		Name:     "bash_rm_rf",
+		Regex:    regexp.MustCompile(`rm\s+(-[a-zA-Z]*r[a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*r)\s`),
+		Severity: "critical",
+		Category: "file",
+		Message:  "rm -rf can recursively delete files",
+	},
+	{
+		Name:     "bash_base64_decode_exec",
+		Regex:    regexp.MustCompile(`base64\s+(-d|--decode)\s*.*\|\s*(bash|sh)`),
+		Severity: "critical",
+		Category: "injection",
+		Message:  "Base64-decoded content piped to shell — possible obfuscated execution",
+	},
+	{
+		Name:     "bash_nc_listener",
+			Regex:    regexp.MustCompile(`nc\s+(-l|-p)\s`),
+		Severity: "warning",
+		Category: "network",
+		Message:  "Netcat listener can expose shell access",
+	},
+	{
+		Name:     "bash_dev_tcp",
+		Regex:    regexp.MustCompile(`/dev/tcp/`),
+		Severity: "warning",
+		Category: "network",
+		Message:  "Bash /dev/tcp creates raw network connections",
+	},
+	{
+		Name:     "bash_cron_modify",
+		Regex:    regexp.MustCompile(`crontab\s+(-[a-zA-Z]*[eil])`),
+		Severity: "warning",
+		Category: "exec",
+		Message:  "Modifying crontab can schedule persistent tasks",
+	},
+	{
+		Name:     "bash_passwd_access",
+		Regex:    regexp.MustCompile(`/etc/(passwd|shadow)`),
+		Severity: "warning",
+		Category: "file",
+		Message:  "Accessing system credential files",
+	},
+}
+
+var jsDangerousPatterns = []dangerousPattern{
+	{
+		Name:     "js_eval",
+		Regex:    regexp.MustCompile(`\beval\s*\(`),
+		Severity: "critical",
+		Category: "exec",
+		Message:  "eval() can execute arbitrary code",
+	},
+	{
+		Name:     "js_function_constructor",
+		Regex:    regexp.MustCompile(`new\s+Function\s*\(`),
+		Severity: "critical",
+		Category: "exec",
+		Message:  "Function constructor can execute arbitrary code",
+	},
+	{
+		Name:     "js_child_process_exec",
+		Regex:    regexp.MustCompile(`child_process\.\w*(exec|spawn|execSync|execFile)\s*\(`),
+		Severity: "warning",
+		Category: "exec",
+		Message:  "child_process execution spawns system commands",
+	},
+	{
+		Name:     "js_require_child_process",
+		Regex:    regexp.MustCompile(`require\s*\(\s*['"]child_process['"]\s*\)`),
+		Severity: "info",
+		Category: "import",
+		Message:  "Imports child_process module for command execution",
+	},
+	{
+		Name:     "js_require_fs",
+		Regex:    regexp.MustCompile(`require\s*\(\s*['"]fs['"]\s*\)`),
+		Severity: "info",
+		Category: "file",
+		Message:  "Imports filesystem module",
+	},
+	{
+		Name:     "js_process_env",
+		Regex:    regexp.MustCompile(`process\.env\b`),
+		Severity: "info",
+		Category: "injection",
+		Message:  "Accesses process environment variables",
+	},
+	{
+		Name:     "js_net_connect",
+		Regex:    regexp.MustCompile(`(?:require\s*\(\s*['"]net['"]\s*\)|\.connect\s*\()`),
+		Severity: "info",
+		Category: "network",
+		Message:  "Creates network connections",
+	},
+	{
+		Name:     "js_http_request",
+		Regex:    regexp.MustCompile(`(?:https?\.get|https?\.request|fetch\s*\()`),
+		Severity: "info",
+		Category: "network",
+		Message:  "Makes HTTP requests",
+	},
+	{
+		Name:     "js_write_file",
+		Regex:    regexp.MustCompile(`fs\.\w*(writeFile|writeFileSync|unlink|unlinkSync|rmdir|rm)\s*\(`),
+		Severity: "warning",
+		Category: "file",
+		Message:  "Writes or deletes files on the filesystem",
+	},
+}
+
+// StaticCodeAnalysisBash scans Bash/shell source code for dangerous patterns.
+func StaticCodeAnalysisBash(code string) []Finding {
+	return runPatternAnalysis(code, bashDangerousPatterns)
+}
+
+// StaticCodeAnalysisJS scans JavaScript source code for dangerous patterns.
+func StaticCodeAnalysisJS(code string) []Finding {
+	return runPatternAnalysis(code, jsDangerousPatterns)
+}
+
+func runPatternAnalysis(code string, patterns []dangerousPattern) []Finding {
+	var findings []Finding
+	lines := strings.Split(code, "\n")
+	for _, pattern := range patterns {
+		for lineNum, line := range lines {
+			if pattern.Regex.MatchString(line) {
+				if pattern.SkipIfContains != "" && strings.Contains(line, pattern.SkipIfContains) {
+					continue
+				}
+				findings = append(findings, Finding{
+					Severity: pattern.Severity,
+					Category: pattern.Category,
+					Message:  pattern.Message,
+					Line:     lineNum + 1,
+					Pattern:  pattern.Name,
+				})
+			}
+		}
+	}
+	return findings
+}
+
 // ValidateSkillUpload checks an uploaded file for basic validity.
 func ValidateSkillUpload(fileData []byte, filename string, maxSizeMB int) *ValidationResult {
 	result := &ValidationResult{Passed: true}

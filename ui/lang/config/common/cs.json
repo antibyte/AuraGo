@@ -31,5 +31,9 @@
   "config.common.inactive": "Neaktivní",
   "config.feature_unavailable": "Tato funkce není v aktuálním běhovém prostředí dostupná.",
   "config.docker_mode_banner": "AuraGo běží uvnitř kontejneru Docker. Některé funkce mohou být omezeny.",
-  "config.firewall.docker_blocked": "Správa firewallu není uvnitř kontejneru Docker dostupná."
+  "config.firewall.docker_blocked": "Správa firewallu není uvnitř kontejneru Docker dostupná.",
+  "config.unsaved_changes.title": "Unsaved changes",
+  "config.unsaved_changes.message": "You have unsaved changes. Discard them and switch sections?",
+  "config.unsaved_changes.discard": "Discard changes",
+  "config.unsaved_changes.stay": "Stay here"
 }

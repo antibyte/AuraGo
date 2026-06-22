@@ -81,5 +81,21 @@ func ConfigFromAuraConfig(cfg *config.Config) Config {
 			MaxMemoryMB:     desktopCfg.CodeStudio.MaxMemoryMB,
 			MaxCPUCores:     desktopCfg.CodeStudio.MaxCPUCores,
 		},
+		OpenSCAD: OpenSCADConfig{
+			Enabled:                 desktopCfg.OpenSCAD.Enabled,
+			Image:                   strings.TrimSpace(desktopCfg.OpenSCAD.Image),
+			AutoStart:               desktopCfg.OpenSCAD.AutoStart,
+			AutoStopMinutes:         desktopCfg.OpenSCAD.AutoStopMinutes,
+			MaxMemoryMB:             desktopCfg.OpenSCAD.MaxMemoryMB,
+			MaxCPUCores:             desktopCfg.OpenSCAD.MaxCPUCores,
+			MaxConcurrentJobs:       desktopCfg.OpenSCAD.MaxConcurrentJobs,
+			GeometryBackend:         strings.TrimSpace(desktopCfg.OpenSCAD.GeometryBackend),
+			DefaultExports:          append([]string(nil), desktopCfg.OpenSCAD.DefaultExports...),
+			MaxSourceKB:             desktopCfg.OpenSCAD.MaxSourceKB,
+			MaxOutputMB:             desktopCfg.OpenSCAD.MaxOutputMB,
+			RenderTimeoutSeconds:    desktopCfg.OpenSCAD.RenderTimeoutSeconds,
+			MaxRenderTimeoutSeconds: desktopCfg.OpenSCAD.MaxRenderTimeoutSeconds,
+			JobRetentionDays:        desktopCfg.OpenSCAD.JobRetentionDays,
+		},
 	}
 }

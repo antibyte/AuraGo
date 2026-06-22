@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"aurago/internal/config"
 	"aurago/internal/memory"
 )
 
@@ -78,6 +79,45 @@ func TestHandleKnowledgeGraphSearch(t *testing.T) {
 	}
 }
 
+func TestHandleKnowledgeGraphSearchHonorsIncludeLowConfidence(t *testing.T) {
+	s := newTestKnowledgeGraphServer(t)
+	if err := s.KG.AddNode("andi", "Andi", map[string]string{"type": "person"}); err != nil {
+		t.Fatalf("AddNode andi: %v", err)
+	}
+	if err := s.KG.AddNode("png", "png", map[string]string{"type": "concept"}); err != nil {
+		t.Fatalf("AddNode png: %v", err)
+	}
+	if err := s.KG.AddEdge("andi", "png", "co_mentioned_with", map[string]string{"source": "pending", "weight": "1"}); err != nil {
+		t.Fatalf("AddEdge pending: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/knowledge-graph/search?q=andi", nil)
+	rec := httptest.NewRecorder()
+	handleKnowledgeGraphSearch(s).ServeHTTP(rec, req)
+	var hidden struct {
+		Edges []memory.Edge `json:"edges"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &hidden); err != nil {
+		t.Fatalf("decode default payload: %v", err)
+	}
+	if len(hidden.Edges) != 0 {
+		t.Fatalf("default search should hide low-confidence edge, got %#v", hidden.Edges)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/knowledge-graph/search?q=andi&include_low_confidence=true", nil)
+	rec = httptest.NewRecorder()
+	handleKnowledgeGraphSearch(s).ServeHTTP(rec, req)
+	var included struct {
+		Edges []memory.Edge `json:"edges"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &included); err != nil {
+		t.Fatalf("decode override payload: %v", err)
+	}
+	if len(included.Edges) != 1 || included.Edges[0].Relation != "co_mentioned_with" {
+		t.Fatalf("override search should include low-confidence edge, got %#v", included.Edges)
+	}
+}
+
 func TestHandleKnowledgeGraphNodeDetail(t *testing.T) {
 	s := newTestKnowledgeGraphServer(t)
 	if err := s.KG.AddNode("proxmox", "Proxmox", map[string]string{"type": "service"}); err != nil {
@@ -113,6 +153,71 @@ func TestHandleKnowledgeGraphNodeDetail(t *testing.T) {
 	}
 }
 
+func TestHandleKnowledgeGraphNodeDetailHonorsIncludeLowConfidence(t *testing.T) {
+	s := newTestKnowledgeGraphServer(t)
+	if err := s.KG.AddNode("andi", "Andi", map[string]string{"type": "person"}); err != nil {
+		t.Fatalf("AddNode andi: %v", err)
+	}
+	if err := s.KG.AddNode("png", "png", map[string]string{"type": "concept"}); err != nil {
+		t.Fatalf("AddNode png: %v", err)
+	}
+	if err := s.KG.AddEdge("andi", "png", "co_mentioned_with", map[string]string{"source": "pending", "weight": "1"}); err != nil {
+		t.Fatalf("AddEdge pending: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/knowledge-graph/node?id=andi&limit=10", nil)
+	rec := httptest.NewRecorder()
+	handleKnowledgeGraphNodeDetail(s).ServeHTTP(rec, req)
+	var hidden struct {
+		Edges []memory.Edge `json:"edges"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &hidden); err != nil {
+		t.Fatalf("decode default payload: %v", err)
+	}
+	if len(hidden.Edges) != 0 {
+		t.Fatalf("default node detail should hide low-confidence edge, got %#v", hidden.Edges)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/knowledge-graph/node?id=andi&limit=10&include_low_confidence=true", nil)
+	rec = httptest.NewRecorder()
+	handleKnowledgeGraphNodeDetail(s).ServeHTTP(rec, req)
+	var included struct {
+		Edges []memory.Edge `json:"edges"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &included); err != nil {
+		t.Fatalf("decode override payload: %v", err)
+	}
+	if len(included.Edges) != 1 || included.Edges[0].Relation != "co_mentioned_with" {
+		t.Fatalf("override node detail should include low-confidence edge, got %#v", included.Edges)
+	}
+}
+
+func TestHandleKnowledgeGraphHealth(t *testing.T) {
+	s := newTestKnowledgeGraphServer(t)
+	if err := s.KG.AddNode("nas", "NAS", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/knowledge-graph/health", nil)
+	rec := httptest.NewRecorder()
+	handleKnowledgeGraphHealth(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d, body=%s", rec.Code, rec.Body.String())
+	}
+
+	var payload memory.KnowledgeGraphHealthReport
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode payload: %v", err)
+	}
+	if payload.TotalNodes != 1 {
+		t.Fatalf("TotalNodes = %d, want 1", payload.TotalNodes)
+	}
+	if payload.DirtyNodes != 1 {
+		t.Fatalf("DirtyNodes = %d, want 1", payload.DirtyNodes)
+	}
+}
+
 func TestHandleKnowledgeGraphQuality(t *testing.T) {
 	s := newTestKnowledgeGraphServer(t)
 	if err := s.KG.AddNode("router", "Router", map[string]string{"type": "device", "protected": "true"}); err != nil {
@@ -126,6 +231,9 @@ func TestHandleKnowledgeGraphQuality(t *testing.T) {
 	}
 	if err := s.KG.AddEdge("router", "nas_a", "backs_up", nil); err != nil {
 		t.Fatalf("AddEdge: %v", err)
+	}
+	if err := s.KG.AddEdge("router", "nas_b", "co_mentioned_with", map[string]string{"source": "pending", "weight": "1"}); err != nil {
+		t.Fatalf("AddEdge pending: %v", err)
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/knowledge-graph/quality?limit=5", nil)
@@ -148,6 +256,12 @@ func TestHandleKnowledgeGraphQuality(t *testing.T) {
 	}
 	if payload.UntypedNodes != 1 {
 		t.Fatalf("UntypedNodes = %d, want 1", payload.UntypedNodes)
+	}
+	if payload.PendingEdges != 1 {
+		t.Fatalf("PendingEdges = %d, want 1", payload.PendingEdges)
+	}
+	if payload.LowConfidenceEdges != 1 {
+		t.Fatalf("LowConfidenceEdges = %d, want 1", payload.LowConfidenceEdges)
 	}
 }
 
@@ -233,6 +347,77 @@ func TestHandleKnowledgeGraphEdgeUpdate(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK, got %d, body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandleKnowledgeGraphMerge(t *testing.T) {
+	s := newTestKnowledgeGraphServer(t)
+	if err := s.KG.AddNode("nas_primary", "NAS", map[string]string{"type": "device", "ip": "10.0.0.1"}); err != nil {
+		t.Fatalf("AddNode primary: %v", err)
+	}
+	if err := s.KG.AddNode("nas_secondary", "NAS", map[string]string{"type": "device", "role": "backup"}); err != nil {
+		t.Fatalf("AddNode secondary: %v", err)
+	}
+	if err := s.KG.AddEdge("nas_secondary", "service_backup", "hosts", nil); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	body := bytes.NewBufferString(`{"target_id":"nas_primary","source_id":"nas_secondary"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/knowledge-graph/merge", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handleKnowledgeGraphMerge(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d, body=%s", rec.Code, rec.Body.String())
+	}
+	if node, err := s.KG.GetNode("nas_secondary"); err != nil || node != nil {
+		t.Fatalf("expected source node removed, node=%v err=%v", node, err)
+	}
+	merged, err := s.KG.GetNode("nas_primary")
+	if err != nil || merged == nil {
+		t.Fatalf("expected merged target node, node=%v err=%v", merged, err)
+	}
+	if merged.Properties["ip"] != "10.0.0.1" || merged.Properties["role"] != "backup" {
+		t.Fatalf("merged properties = %#v, want merged props", merged.Properties)
+	}
+}
+
+func TestRequireAdminBlocksKnowledgeGraphMergeWhenAuthEnabled(t *testing.T) {
+	s := newTestKnowledgeGraphServer(t)
+	s.Cfg = &config.Config{}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.SessionSecret = "session-secret"
+	s.Cfg.Auth.PasswordHash = "configured"
+
+	body := bytes.NewBufferString(`{"target_id":"target","source_id":"source"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/knowledge-graph/merge", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	requireAdmin(s, handleKnowledgeGraphMerge(s)).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized, got %d, body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandleKnowledgeGraphMergeProtectedSourceRejected(t *testing.T) {
+	s := newTestKnowledgeGraphServer(t)
+	if err := s.KG.AddNode("keeper", "Keeper", map[string]string{"protected": "true"}); err != nil {
+		t.Fatalf("AddNode keeper: %v", err)
+	}
+	if err := s.KG.AddNode("target", "Target", nil); err != nil {
+		t.Fatalf("AddNode target: %v", err)
+	}
+
+	body := bytes.NewBufferString(`{"target_id":"target","source_id":"keeper"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/knowledge-graph/merge", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handleKnowledgeGraphMerge(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409 Conflict, got %d, body=%s", rec.Code, rec.Body.String())
 	}
 }
 

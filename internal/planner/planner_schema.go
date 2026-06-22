@@ -128,6 +128,15 @@ func ensurePlannerIndexes(db *sql.DB) error {
 			return fmt.Errorf("ensure operational issue indexes: %w", err)
 		}
 	}
+	hasAppointmentContacts, err := plannerTableExists(db, "appointment_contacts")
+	if err != nil {
+		return err
+	}
+	if hasAppointmentContacts {
+		if _, err := db.Exec(appointmentContactIndexesSQL()); err != nil {
+			return fmt.Errorf("ensure appointment_contacts indexes: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -311,11 +320,8 @@ func migratePlannerToV5(db *sql.DB) error {
 			return fmt.Errorf("create appointment_contacts table: %w", err)
 		}
 	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_appointment_contacts_appointment ON appointment_contacts(appointment_id)`); err != nil {
-		return fmt.Errorf("create appointment_contacts appointment index: %w", err)
-	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_appointment_contacts_contact ON appointment_contacts(contact_id)`); err != nil {
-		return fmt.Errorf("create appointment_contacts contact index: %w", err)
+	if _, err := db.Exec(appointmentContactIndexesSQL()); err != nil {
+		return fmt.Errorf("create appointment_contacts indexes: %w", err)
 	}
 	return nil
 }
@@ -455,6 +461,12 @@ func plannerTablesSQL() string {
 			key TEXT PRIMARY KEY,
 			value TEXT NOT NULL DEFAULT ''
 		);
+		CREATE TABLE IF NOT EXISTS appointment_contacts (
+			appointment_id TEXT NOT NULL,
+			contact_id TEXT NOT NULL,
+			UNIQUE(appointment_id, contact_id)
+		);
+	` + appointmentContactIndexesSQL() + `
 	` + operationalIssuesSQL() + `
 	` + operationalIssueIndexesSQL() + `
 	` + plannerIndexesSQL())
@@ -544,6 +556,13 @@ func plannerIndexesSQL() string {
 		CREATE INDEX IF NOT EXISTS idx_todos_remind_daily ON todos(remind_daily, status);
 		CREATE INDEX IF NOT EXISTS idx_todo_items_todo ON todo_items(todo_id);
 		CREATE INDEX IF NOT EXISTS idx_todo_items_order ON todo_items(todo_id, position);
+	`)
+}
+
+func appointmentContactIndexesSQL() string {
+	return strings.TrimSpace(`
+		CREATE INDEX IF NOT EXISTS idx_appointment_contacts_appointment ON appointment_contacts(appointment_id);
+		CREATE INDEX IF NOT EXISTS idx_appointment_contacts_contact ON appointment_contacts(contact_id);
 	`)
 }
 

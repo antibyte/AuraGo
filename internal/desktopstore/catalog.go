@@ -3,7 +3,7 @@ package desktopstore
 // DefaultCatalog returns the fixed allowlist of Docker web apps that the store
 // is allowed to install.
 func DefaultCatalog() []CatalogEntry {
-	return []CatalogEntry{
+	return withCatalogDefaults([]CatalogEntry{
 		{
 			ID:          "homarr",
 			Name:        "Homarr",
@@ -25,7 +25,7 @@ func DefaultCatalog() []CatalogEntry {
 			Name:        "n8n",
 			Description: "Workflow automation with integrations, triggers, and visual flows.",
 			Image:       "ghcr.io/n8n-io/n8n:latest",
-			Icon:        "workflow",
+			Icon:        "n8n",
 			LogoSlug:    "n8n",
 			LogoURL:     logoURL("n8n"),
 			PrimaryPort: PortSpec{ContainerPort: 5678, Protocol: "tcp"},
@@ -42,7 +42,7 @@ func DefaultCatalog() []CatalogEntry {
 			Name:        "Node-RED",
 			Description: "Low-code automation flows for devices, APIs, and services.",
 			Image:       "ghcr.io/node-red/node-red:latest",
-			Icon:        "workflow",
+			Icon:        "node-red",
 			LogoSlug:    "node-red",
 			LogoURL:     logoURL("node-red"),
 			PrimaryPort: PortSpec{ContainerPort: 1880, Protocol: "tcp"},
@@ -55,7 +55,7 @@ func DefaultCatalog() []CatalogEntry {
 			Name:        "Open WebUI",
 			Description: "Self-hosted chat interface for local and remote LLM providers.",
 			Image:       "ghcr.io/open-webui/open-webui:main",
-			Icon:        "chat",
+			Icon:        "open-webui",
 			LogoSlug:    "open-webui",
 			LogoURL:     logoURL("open-webui"),
 			PrimaryPort: PortSpec{ContainerPort: 8080, Protocol: "tcp"},
@@ -117,7 +117,7 @@ func DefaultCatalog() []CatalogEntry {
 			Name:        "OliveTin",
 			Description: "Web UI for running predefined shell automation actions.",
 			Image:       "ghcr.io/olivetin/olivetin:latest",
-			Icon:        "terminal",
+			Icon:        "olivetin",
 			LogoSlug:    "olivetin",
 			LogoURL:     logoURL("olivetin"),
 			PrimaryPort: PortSpec{ContainerPort: 1337, Protocol: "tcp"},
@@ -203,7 +203,7 @@ func DefaultCatalog() []CatalogEntry {
 			Name:        "RomM",
 			Description: "ROM library manager with metadata, browser players, saves, and collection management.",
 			Image:       "ghcr.io/rommapp/romm:latest",
-			Icon:        "run",
+			Icon:        "romm",
 			LogoSlug:    "romm",
 			LogoURL:     logoURL("romm"),
 			PrimaryPort: PortSpec{ID: "web", Name: "Web UI", ContainerPort: 8080, Protocol: "tcp"},
@@ -292,7 +292,7 @@ func DefaultCatalog() []CatalogEntry {
 			Name:        "Dozzle",
 			Description: "Real-time Docker log viewer for local containers.",
 			Image:       "ghcr.io/amir20/dozzle:latest",
-			Icon:        "terminal",
+			Icon:        "dozzle",
 			LogoSlug:    "dozzle",
 			LogoURL:     logoURL("dozzle"),
 			PrimaryPort: PortSpec{ID: "web", Name: "Logs", ContainerPort: 8080, Protocol: "tcp"},
@@ -329,7 +329,7 @@ func DefaultCatalog() []CatalogEntry {
 			Name:        "Termix",
 			Description: "Self-hosted SSH and remote desktop management platform with RDP, VNC, and Telnet support.",
 			Image:       "ghcr.io/lukegus/termix:latest",
-			Icon:        "terminal",
+			Icon:        "termix",
 			LogoSlug:    "termix",
 			LogoURL:     logoURL("termix"),
 			PrimaryPort: PortSpec{ID: "web", Name: "Web UI", ContainerPort: 8080, Protocol: "tcp"},
@@ -370,15 +370,42 @@ func DefaultCatalog() []CatalogEntry {
 				{WorkspacePath: "Shared/CommandCode", ContainerPath: "/workspace"},
 			},
 			Metadata: map[string]string{
-				"store_ui":           "terminal-preview",
-				"terminal_enabled":   "true",
-				"terminal_command":   "cmd",
-				"preview_port_id":    "web",
-				"open_maximized":     "true",
-				"workspace_path":     "Shared/CommandCode",
+				"store_ui":         "terminal-preview",
+				"terminal_enabled": "true",
+				"terminal_command": "cmd",
+				"preview_port_id":  "web",
+				"open_maximized":   "true",
+				"workspace_path":   "Shared/CommandCode",
 			},
 		},
+		{
+			ID:           "openscad",
+			Name:         "OpenSCAD",
+			Description:  "Script-based parametric CAD compiler with previews and export files.",
+			Image:        "openscad/openscad:latest",
+			Icon:         "openscad",
+			LogoSlug:     "openscad",
+			LogoURL:      "",
+			Runtime:      RuntimeNativeManagedApp,
+			DesktopAppID: "openscad",
+			Metadata: map[string]string{
+				"native_runtime": "openscad",
+				"open_maximized": "true",
+			},
+		},
+	})
+}
+
+func withCatalogDefaults(entries []CatalogEntry) []CatalogEntry {
+	for i := range entries {
+		if entries[i].Runtime == "" {
+			entries[i].Runtime = RuntimeContainerWebApp
+		}
+		if entries[i].DesktopAppID == "" {
+			entries[i].DesktopAppID = DesktopAppID(entries[i].ID)
+		}
 	}
+	return entries
 }
 
 const oliveTinDefaultConfig = `actions:

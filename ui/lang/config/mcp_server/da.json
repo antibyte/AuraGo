@@ -30,5 +30,7 @@
   "config.mcp_server.general_title": "Generelt",
   "config.mcp_server.general_desc": "Aktivér MCP-serveren og konfigurer grundlæggende indstillinger.",
   "config.mcp_server.connection_title": "Forbindelse",
-  "config.mcp_server.connection_desc": "Endpoint- og godkendelsesindstillinger for MCP-serveren."
+  "config.mcp_server.connection_desc": "Endpoint- og godkendelsesindstillinger for MCP-serveren.",
+  "config.mcp_server.enabled_help": "Exposes AuraGo's built-in MCP server endpoint.",
+  "config.mcp_server.require_auth_help": "Requires clients to use an MCP access token before tools are exposed."
 }

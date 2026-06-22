@@ -42,15 +42,20 @@ async function renderMCPServerSection(section) {
 
     // Enabled toggle
     html += `<div class="mcp-srv-toggle-row">
-        <span class="mcp-srv-toggle-label">${t('config.mcp_server.enabled_label')}</span>
+        <div class="mcp-srv-toggle-copy">
+            <span class="mcp-srv-toggle-label">${t('config.mcp_server.enabled_label')}</span>
+            <div class="field-help">${t('config.mcp_server.enabled_help')}</div>
+        </div>
         <div class="toggle ${enabled ? 'on' : ''}" data-path="mcp_server.enabled" onclick="toggleBool(this)"></div>
     </div>`;
 
     html += `<div class="mcp-srv-toggle-row">
-        <span class="mcp-srv-toggle-label">${t('config.mcp_server.vscode_bridge')}</span>
+        <div class="mcp-srv-toggle-copy">
+            <span class="mcp-srv-toggle-label">${t('config.mcp_server.vscode_bridge')}</span>
+            <div class="field-help">${t('config.mcp_server.vscode_bridge_desc')}</div>
+        </div>
         <div class="toggle ${vscodeBridge ? 'on' : ''}" data-path="mcp_server.vscode_debug_bridge" onclick="mcpToggleVSCodeBridge(this)"></div>
-    </div>
-    <div class="mcp-srv-tools-desc">${t('config.mcp_server.vscode_bridge_desc')}</div>`;
+    </div>`;
 
     if (vscodeBridge) {
         html += `<div class="wh-notice mcp-srv-notice-info">
@@ -73,7 +78,10 @@ async function renderMCPServerSection(section) {
 
     // Require Auth toggle
     html += `<div class="mcp-srv-toggle-row">
-        <span class="mcp-srv-toggle-label">${t('config.mcp_server.require_auth')}</span>
+        <div class="mcp-srv-toggle-copy">
+            <span class="mcp-srv-toggle-label">${t('config.mcp_server.require_auth')}</span>
+            <div class="field-help">${t('config.mcp_server.require_auth_help')}</div>
+        </div>
         <div class="toggle ${effectiveRequireAuth ? 'on' : ''}" data-path="mcp_server.require_auth" onclick="toggleBool(this)"></div>
     </div>`;
 

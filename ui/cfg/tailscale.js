@@ -280,7 +280,7 @@ async function _tsnetRefreshStatus() {
                 }
                 if (data.http_fallback) {
                     info += `<div class="ts-warning-detail">
-                        ⚠️ ${t('config.tailscale.tsnet_http_fallback_notice') || 'Running in HTTP mode (port 80) — enable HTTPS in the Tailscale admin panel for encrypted access.'}
+                        ⚠️ ${t('config.tailscale.tsnet_http_fallback_notice')}
                         <a href="https://tailscale.com/s/https" target="_blank" rel="noopener noreferrer" class="ts-link-ml">Enable HTTPS →</a>
                     </div>`;
                     const httpBase = data.dns ? data.dns.replace(/\.$/, '') : (data.ips && data.ips.length ? data.ips[0] : null);
@@ -319,7 +319,7 @@ async function _tsnetRefreshStatus() {
             }
             if (startBtn) startBtn.classList.add('is-hidden');
         } else if (data.starting) {
-            info += `<span class="ts-color-warning">⏳ ${t('config.tailscale.tsnet_status_starting') || 'Waiting for authentication…'}</span>`;
+            info += `<span class="ts-color-warning">⏳ ${t('config.tailscale.tsnet_status_starting')}</span>`;
             if (startBtn) startBtn.classList.add('is-hidden');
         } else {
             info += `<span class="ts-color-muted">○ ${t('config.tailscale.tsnet_status_stopped')}</span>`;
@@ -362,7 +362,7 @@ async function _tsnetStart() {
         if (data.error) {
             showToast(data.error, 'error');
         } else {
-            showToast(t('config.tailscale.tsnet_starting_toast') || 'Starting…', 'success');
+            showToast(t('config.tailscale.tsnet_starting_toast'), 'success');
             let attempts = 0;
             const poll = setInterval(async () => {
                 await _tsnetRefreshStatus();

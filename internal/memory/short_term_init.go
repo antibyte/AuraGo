@@ -134,6 +134,7 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	CREATE TABLE IF NOT EXISTS core_memory (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		fact TEXT NOT NULL,
+		normalized_fact TEXT NOT NULL DEFAULT '',
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
@@ -263,14 +264,28 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		}
 	}
 
-	// Migration: add unique constraint on fact to prevent duplicates.
-	// First remove any existing duplicates, keeping the newest entry for each fact.
-	_, _ = db.Exec(`
-		DELETE FROM core_memory WHERE id NOT IN (
-			SELECT MAX(id) FROM core_memory GROUP BY fact
-		)
-	`)
-	_, _ = db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_core_memory_fact_unique ON core_memory(fact)`)
+	deletedCoreDuplicates, err := migrateCoreMemoryUniqueFacts(db, logger)
+	if err != nil {
+		if closeErr := db.Close(); closeErr != nil {
+			logger.Warn("Failed to close SQLite after core_memory duplicate cleanup error", "error", closeErr)
+		}
+		return nil, fmt.Errorf("core_memory duplicate cleanup: %w", err)
+	}
+	if deletedCoreDuplicates > 0 {
+		logger.Warn("Removed duplicate core memory facts before unique-index migration", "deleted", deletedCoreDuplicates)
+	}
+	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_core_memory_fact_unique ON core_memory(fact)`); err != nil {
+		if closeErr := db.Close(); closeErr != nil {
+			logger.Warn("Failed to close SQLite after core_memory unique-index error", "error", closeErr)
+		}
+		return nil, fmt.Errorf("core_memory unique index: %w", err)
+	}
+	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_core_memory_normalized_fact_unique ON core_memory(normalized_fact)`); err != nil {
+		if closeErr := db.Close(); closeErr != nil {
+			logger.Warn("Failed to close SQLite after core_memory normalized unique-index error", "error", closeErr)
+		}
+		return nil, fmt.Errorf("core_memory normalized unique index: %w", err)
+	}
 
 	if _, err := db.Exec(conflictSchema); err != nil {
 		return nil, fmt.Errorf("failed to create conflict schema: %w", err)
@@ -314,6 +329,65 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	}
 
 	return stm, nil
+}
+
+func migrateCoreMemoryUniqueFacts(db *sql.DB, logger *slog.Logger) (int64, error) {
+	if err := migrateAddColumn(db, logger, "core_memory", "normalized_fact", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return 0, err
+	}
+
+	rows, err := db.Query("SELECT id, fact FROM core_memory ORDER BY id ASC")
+	if err != nil {
+		return 0, err
+	}
+	type coreFactRow struct {
+		id         int64
+		normalized string
+	}
+	seen := make(map[string]int64)
+	updates := make([]coreFactRow, 0)
+	deleteIDs := make([]int64, 0)
+	for rows.Next() {
+		var id int64
+		var fact string
+		if err := rows.Scan(&id, &fact); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("scan core memory fact for normalized migration: %w", err)
+		}
+		normalized := normalizeCoreMemoryFactForDedupe(fact)
+		if _, ok := seen[normalized]; ok {
+			deleteIDs = append(deleteIDs, id)
+			continue
+		}
+		seen[normalized] = id
+		updates = append(updates, coreFactRow{id: id, normalized: normalized})
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return 0, fmt.Errorf("iterate core memory facts for normalized migration: %w", err)
+	}
+	rows.Close()
+
+	tx, err := db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	for _, update := range updates {
+		if _, err := tx.Exec("UPDATE core_memory SET normalized_fact = ? WHERE id = ?", update.normalized, update.id); err != nil {
+			return 0, fmt.Errorf("backfill core_memory.normalized_fact: %w", err)
+		}
+	}
+	for _, id := range deleteIDs {
+		if _, err := tx.Exec("DELETE FROM core_memory WHERE id = ?", id); err != nil {
+			return 0, fmt.Errorf("delete duplicate normalized core memory fact: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit normalized core memory migration: %w", err)
+	}
+	return int64(len(deleteIDs)), nil
 }
 
 // migrateFileIndexToCollectionAware migrates file_indices and file_embedding_docs tables

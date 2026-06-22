@@ -46,6 +46,16 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 					},
 				}, "query"),
 			),
+			tool("recall_memory",
+				"Read specific long-term memory entries by ID from the Available Context Index. Use only when the listed memory teaser is needed for the current task.",
+				schema(map[string]interface{}{
+					"ids": map[string]interface{}{
+						"type":        "array",
+						"description": "Memory IDs from [memory:<id>] entries in the Available Context Index.",
+						"items":       map[string]interface{}{"type": "string"},
+					},
+				}, "ids"),
+			),
 			tool("context_manager",
 				"Manage the current conversation context window. Operations: 'status' (check token budget and messages count), 'compact' (summarize old messages into a single statement to free up tokens), 'drop' (remove a specific message by its index).",
 				schema(map[string]interface{}{
@@ -112,24 +122,36 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 	))
 
 	if ff.KnowledgeGraphEnabled {
-		tools = append(tools, tool("knowledge_graph",
+		tools = append(tools, tool("explore_kg",
+			"Expand specific Knowledge Graph nodes by ID from the Available Context Index. Read-only alias for subgraph exploration.",
+			schema(map[string]interface{}{
+				"ids": map[string]interface{}{
+					"type":        "array",
+					"description": "Knowledge Graph node IDs from [kg:<id>] entries in the Available Context Index.",
+					"items":       map[string]interface{}{"type": "string"},
+				},
+				"depth": prop("integer", "Traversal depth 1-3. Default: 1."),
+				"limit": prop("integer", "Maximum nodes and edges per requested ID. Default: 20."),
+			}, "ids"),
+		), tool("knowledge_graph",
 			"Manage a structured graph of entities and relationships. Use for tracking people, devices, services, projects, and their connections. Nightly auto-extraction also populates the graph from conversations.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
-					"description": "Operation: 'add_node' (create entity), 'add_edge' (create relationship), 'delete_node' (remove entity+edges), 'delete_edge' (remove relationship), 'update_node' (modify node properties, merges with existing), 'update_edge' (modify edge relation/properties), 'get_node' (retrieve single node), 'get_neighbors' (get connected nodes and edges), 'subgraph' (get neighborhood subgraph around a node), 'search' (full-text search across nodes and edges), 'explore' (traverse graph randomly), 'suggest_relations' (suggest new relations)",
-					"enum":        []string{"add_node", "add_edge", "delete_node", "delete_edge", "update_node", "update_edge", "get_node", "get_neighbors", "subgraph", "search", "explore", "suggest_relations"},
+					"description": "Operation: 'add_node' (create entity), 'add_edge' (create relationship), 'delete_node' (remove entity+edges), 'delete_edge' (remove relationship), 'update_node' (modify node properties, merges with existing), 'update_edge' (modify edge relation/properties), 'merge_nodes' (merge source node into target and delete source), 'get_node' (retrieve single node), 'get_neighbors' (get connected nodes and edges), 'subgraph' (get neighborhood subgraph around a node), 'search' (full-text search across nodes and edges), 'graph_health' (read quality/stats), 'explore' (traverse graph randomly), 'suggest_relations' (suggest new relations)",
+					"enum":        []string{"add_node", "add_edge", "delete_node", "delete_edge", "update_node", "update_edge", "merge_nodes", "get_node", "get_neighbors", "subgraph", "search", "graph_health", "explore", "suggest_relations"},
 				},
-				"id":           prop("string", "Node ID (for add_node, delete_node, update_node, get_node, get_neighbors, subgraph)"),
-				"label":        prop("string", "Human-readable label for the node (for add_node, update_node)"),
-				"source":       prop("string", "Source node ID (for add_edge, delete_edge, update_edge)"),
-				"target":       prop("string", "Target node ID (for add_edge, delete_edge, update_edge)"),
-				"relation":     prop("string", "Relationship type (e.g. 'owns', 'uses', 'manages', 'connected_to')"),
-				"content":      prop("string", "Search query text (for search operation)"),
-				"properties":   map[string]interface{}{"type": "object", "description": "Optional metadata properties for the node or edge"},
-				"new_relation": prop("string", "New relation type for update_edge (optional, defaults to current relation)"),
-				"depth":        prop("integer", "Depth for subgraph traversal (1-3, default 2)"),
-				"limit":        prop("integer", "Max results for get_neighbors (default 20)"),
+				"id":                     prop("string", "Node ID (for add_node, delete_node, update_node, get_node, get_neighbors, subgraph)"),
+				"label":                  prop("string", "Human-readable label for the node (for add_node, update_node)"),
+				"source":                 prop("string", "Source node ID (for add_edge, delete_edge, update_edge, merge_nodes)"),
+				"target":                 prop("string", "Target node ID kept after merge (for add_edge, delete_edge, update_edge, merge_nodes)"),
+				"relation":               prop("string", "Relationship type (e.g. 'owns', 'uses', 'manages', 'connected_to')"),
+				"content":                prop("string", "Search query text (for search operation)"),
+				"properties":             map[string]interface{}{"type": "object", "description": "Optional metadata properties for the node or edge"},
+				"new_relation":           prop("string", "New relation type for update_edge (optional, defaults to current relation)"),
+				"depth":                  prop("integer", "Depth for subgraph traversal (1-3, default 2)"),
+				"limit":                  prop("integer", "Max results for get_neighbors (default 20)"),
+				"include_low_confidence": prop("boolean", "Include low-confidence pending co-mention edges in search and get_neighbors results. Defaults to false."),
 			}, "operation"),
 		))
 	}

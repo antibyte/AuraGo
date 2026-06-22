@@ -347,35 +347,8 @@ func Start(opts StartOptions) error {
 	s.HeartbeatScheduler.Start()
 	s.restartUptimeKumaPoller()
 
-	// Initialize Skill Manager (always; gated by config in handlers)
-	if cfg.Tools.SkillManager.Enabled {
-		skillsDB, err := tools.InitSkillsDB(cfg.SQLite.SkillsPath)
-		if err != nil {
-			logger.Warn("Failed to initialize Skills DB", "error", err, "path", cfg.SQLite.SkillsPath)
-		} else {
-			s.SkillsDB = skillsDB
-			s.SkillManager = tools.NewSkillManager(skillsDB, cfg.Directories.SkillsDir, logger)
-			tools.SetDefaultSkillManager(s.SkillManager)
-			if err := s.SkillManager.SyncFromDisk(); err != nil {
-				logger.Warn("Failed to sync skills from disk", "error", err)
-			}
-			if err := tools.MigrateAgentSkillsDB(skillsDB); err != nil {
-				logger.Warn("Failed to initialize Agent Skills schema", "error", err)
-			} else {
-				s.AgentSkillManager = tools.NewAgentSkillManager(skillsDB, cfg.Directories.AgentSkillsDir, cfg.Directories.WorkspaceDir, logger)
-				tools.SetDefaultAgentSkillManager(s.AgentSkillManager)
-				if err := s.AgentSkillManager.SyncFromDisk(context.Background(), s.LLMGuardian, cfg.Tools.SkillManager.ScanWithGuardian); err != nil {
-					logger.Warn("Failed to sync Agent Skills from disk", "error", err)
-				}
-				logger.Info("Agent Skills initialized", "agent_skills_dir", cfg.Directories.AgentSkillsDir)
-			}
-			logger.Info("Skill Manager initialized", "skills_dir", cfg.Directories.SkillsDir)
-			if shouldSeedWelcomeContent(s.IsFirstStart) {
-				// Seed bundled example skills only during first-start setup.
-				tools.SeedWelcomeSkills(s.SkillManager, cfg.Directories.SkillsDir, installDir, logger)
-			}
-		}
-	}
+	// Initialize Skill Manager and Agent Skills (classic manager gated by config)
+	s.initSkillManagers(context.Background(), installDir)
 
 	// Initialize Remote Control Hub
 	remote.InsecureHostKey = cfg.RemoteControl.SSHInsecureHostKey
@@ -1102,6 +1075,45 @@ func shouldSeedWelcomeContent(isFirstStart bool) bool {
 	return isFirstStart
 }
 
+func (s *Server) initSkillManagers(ctx context.Context, installDir string) {
+	cfg := s.Cfg
+	logger := s.Logger
+	if cfg == nil || logger == nil {
+		return
+	}
+	skillsDB, err := tools.InitSkillsDB(cfg.SQLite.SkillsPath)
+	if err != nil {
+		logger.Warn("Failed to initialize Skills DB", "error", err, "path", cfg.SQLite.SkillsPath)
+		return
+	}
+	s.SkillsDB = skillsDB
+
+	if cfg.Tools.SkillManager.Enabled {
+		s.SkillManager = tools.NewSkillManager(skillsDB, cfg.Directories.SkillsDir, logger)
+		tools.SetDefaultSkillManager(s.SkillManager)
+		if err := s.SkillManager.SyncFromDisk(); err != nil {
+			logger.Warn("Failed to sync skills from disk", "error", err)
+		}
+		logger.Info("Skill Manager initialized", "skills_dir", cfg.Directories.SkillsDir)
+		if shouldSeedWelcomeContent(s.IsFirstStart) {
+			tools.SeedWelcomeSkills(s.SkillManager, cfg.Directories.SkillsDir, installDir, logger)
+		}
+	} else {
+		tools.SetDefaultSkillManager(nil)
+	}
+
+	if err := tools.MigrateAgentSkillsDB(skillsDB); err != nil {
+		logger.Warn("Failed to initialize Agent Skills schema", "error", err)
+		return
+	}
+	s.AgentSkillManager = tools.NewAgentSkillManager(skillsDB, cfg.Directories.AgentSkillsDir, cfg.Directories.WorkspaceDir, logger)
+	tools.SetDefaultAgentSkillManager(s.AgentSkillManager)
+	if err := s.AgentSkillManager.SyncFromDisk(ctx, s.LLMGuardian, cfg.Tools.SkillManager.ScanWithGuardian); err != nil {
+		logger.Warn("Failed to sync Agent Skills from disk", "error", err)
+	}
+	logger.Info("Agent Skills initialized", "agent_skills_dir", cfg.Directories.AgentSkillsDir)
+}
+
 // runHTTP starts the server in HTTP mode (for local/LAN use)
 func (s *Server) runHTTP(mux *http.ServeMux, ttsServer *http.Server, shutdownCh chan struct{}) error {
 	addr := fmt.Sprintf("%s:%d", s.Cfg.Server.Host, s.Cfg.Server.Port)
@@ -1260,7 +1272,7 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 		// as prebuilt static assets and must not require runtime eval.
 		// TODO: Replace unsafe-inline with nonce-based CSP after moving inline UI
 		// handlers/styles into bundled JS/CSS.
-		connectSrc := "connect-src 'self' blob: ws: wss: https://api.open-meteo.com https://geocoding-api.open-meteo.com https://de1.api.radio-browser.info" + desktopStoreProxyConnectSources(r) + "; "
+		connectSrc := "connect-src 'self' blob: ws: wss: https://api.open-meteo.com https://geocoding-api.open-meteo.com https://de1.api.radio-browser.info https://iptv-org.github.io" + desktopStoreProxyConnectSources(r) + "; "
 		csp := "default-src 'self'; " +
 			"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; " +
 			"style-src 'self' 'unsafe-inline'; " +

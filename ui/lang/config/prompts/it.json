@@ -35,5 +35,6 @@
   "config.prompts.saved": "Salvato.",
   "config.prompts.setting_active": "Impostazione attiva...",
   "config.prompts.delete_confirm": "Eliminare davvero la personalità \"{name}\"?",
-  "config.prompts.deleting": "Eliminazione in corso..."
+  "config.prompts.deleting": "Eliminazione in corso...",
+  "config.prompts.delete_confirm_title": "Eliminare la personalità?"
 }

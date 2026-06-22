@@ -48,5 +48,17 @@
   "config.cloudflare_tunnel.status_disabled": "Cloudflare Tunnel अक्षम है",
   "config.cloudflare_tunnel.status_running": "टनल चल रही है",
   "config.cloudflare_tunnel.status_stopped": "टनल नहीं चल रही",
-  "config.cloudflare_tunnel.status_error": "टनल स्थिति लोड नहीं हो सकी"
+  "config.cloudflare_tunnel.status_error": "टनल स्थिति लोड नहीं हो सकी",
+  "config.cloudflare_tunnel.enabled_help": "AuraGo के लिए Cloudflare Tunnel प्रबंधन चालू करता है।",
+  "config.cloudflare_tunnel.readonly_help": "इंटीग्रेशन को केवल स्थिति जांच तक सीमित करता है और tunnel बदलाव रोकता है।",
+  "config.cloudflare_tunnel.auto_start_help": "AuraGo शुरू होने पर cloudflared को अपने आप शुरू करता है।",
+  "config.cloudflare_tunnel.mode_help": "चुनें कि AuraGo Docker, native binary या सबसे अच्छा runtime अपने आप पहचाने।",
+  "config.cloudflare_tunnel.auth_method_help": "चुनें कि tunnel Cloudflare के साथ कैसे प्रमाणित होगा।",
+  "config.cloudflare_tunnel.tunnel_name_help": "Cloudflare में named tunnel का नाम। केवल named tunnels के लिए आवश्यक।",
+  "config.cloudflare_tunnel.account_id_help": "Named tunnel operations के लिए वैकल्पिक Cloudflare account ID।",
+  "config.cloudflare_tunnel.metrics_port_help": "cloudflared के लिए स्थानीय metrics port। metrics बंद करने के लिए 0 उपयोग करें।",
+  "config.cloudflare_tunnel.log_level_help": "AuraGo कितनी cloudflared logging रिकॉर्ड करेगा, इसे नियंत्रित करता है।",
+  "config.cloudflare_tunnel.expose_web_ui_help": "AuraGo Web UI को tunnel के माध्यम से route करता है।",
+  "config.cloudflare_tunnel.expose_homepage_help": "Homepage web server को tunnel के माध्यम से route करता है।",
+  "config.cloudflare_tunnel.expose_target_help": "token या quick tunnels के लिए उपयोग की जाने वाली एकल local service चुनें।"
 }

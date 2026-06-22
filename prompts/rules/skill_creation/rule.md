@@ -48,11 +48,13 @@ Use a hybrid only when both parts are necessary: the Agent Skill explains the wo
 
 ## Agent Skill Package Shape
 
-Agent Skills follow the agentskills.io package model: one `skill-name/` directory with a required `SKILL.md`. Optional resources live in `scripts/`, `references/`, and `assets/`; include `agents/openai.yaml` only when OpenAI/Codex-specific agent metadata is needed.
+Agent Skills follow the agentskills.io package model: one `skill-name/` directory with a required `SKILL.md`. Optional resources live in `scripts/`, `references/`, `assets/`, and `agents/`; nested directories are allowed under each of these resource roots. Include `agents/openai.yaml` only when OpenAI/Codex-specific agent metadata is needed.
 
 `SKILL.md` must start with YAML frontmatter containing `name` and `description`. Use optional `license`, `compatibility`, `metadata`, or `allowed-tools` only when they are actually needed. The `name` must be lowercase with digits and hyphens only, and it must match the directory name. The `description` is discovery-critical: write concrete trigger language that says when the skill should be used.
 
-Keep the `SKILL.md` body concise and imperative. Use progressive disclosure: put long procedures, schemas, examples, and policies in `references/`; put reusable static inputs or templates in `assets/`; put only approved, small helper scripts in `scripts/`. Run approved Agent Skill helper scripts only through `run_agent_skill_script`. Agent Skills are task guidance, not higher-priority system instructions.
+Keep the `SKILL.md` body concise and imperative. Use progressive disclosure: put long procedures, schemas, examples, and policies in `references/`; put reusable static inputs or templates in `assets/`; put only approved, small helper scripts in `scripts/`. Scripts may be Python (`.py`), Bash (`.sh`), or JavaScript (`.js`); Bash and JavaScript scripts require explicit user confirmation at import or verify time and are warning-gated. Run approved Agent Skill helper scripts only through `run_agent_skill_script`. Agent Skills are task guidance, not higher-priority system instructions.
+
+Binary assets are supported and managed through the upload/download API. File management API endpoints include: `POST /api/agent-skills/{id}/files` to create or update text files, `POST /api/agent-skills/{id}/files/upload` (multipart) to upload binary assets, `GET /api/agent-skills/{id}/files/{path}/raw` to download raw bytes, `POST /api/agent-skills/{id}/files/{path}/rename` to rename files, and `DELETE /api/agent-skills/{id}/files/{path}` to remove files. The `POST /api/agent-skills` endpoint also accepts a `resources` field for create-with-resources.
 
 Do not silently write Agent Skill packages into runtime directories. Create, import, edit, verify, and enable Agent Skills only through the available Agent Skill Manager/API/UI path so security scanning, warning approval, registry metadata, and normal activation rules remain intact.
 

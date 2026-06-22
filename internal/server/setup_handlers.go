@@ -482,8 +482,8 @@ func setupValidationMessage(err error) string {
 }
 
 // needsSetup returns true if the Quick Setup wizard should be shown.
-// We check that at least one provider with a non-empty API key (or OAuth)
-// exists and is referenced by the main LLM slot.
+// We check that at least one provider with a usable API key exists. OAuth2
+// providers only count after their access token has been applied to LLM.APIKey.
 func needsSetup(cfg *config.Config) bool {
 	llmConfigured := false
 	// If the LLM has a resolved API key, the provider side is configured.
@@ -496,7 +496,7 @@ func needsSetup(cfg *config.Config) bool {
 			return true
 		}
 		for _, p := range cfg.Providers {
-			if p.APIKey != "" || p.AuthType == "oauth2" {
+			if p.APIKey != "" {
 				llmConfigured = true
 				break
 			}

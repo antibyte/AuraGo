@@ -470,6 +470,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/office/workbook", handleDesktopOfficeWorkbook(s))
 	mux.HandleFunc("/api/desktop/office/export", handleDesktopOfficeExport(s))
 	mux.HandleFunc("/api/desktop/viewer/content", handleDesktopViewerContent(s))
+	mux.HandleFunc("/api/desktop/teevee/stream", handleDesktopTeeVeeStream(s))
 	mux.HandleFunc("/api/desktop/apps", handleDesktopApps(s))
 	mux.HandleFunc("/api/desktop/shortcuts", handleDesktopShortcuts(s))
 	mux.HandleFunc("/api/desktop/widgets", handleDesktopWidgets(s))
@@ -477,6 +478,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/embed-token", handleDesktopEmbedToken(s))
 	mux.HandleFunc("/api/desktop/chat", handleDesktopChat(s))
 	mux.HandleFunc("/api/desktop/chat/stream", handleDesktopChatStream(s))
+	mux.HandleFunc("/api/desktop/chess/agent-move", handleDesktopChessAgentMove(s))
 	mux.HandleFunc("/api/desktop/ws", handleDesktopWS(s))
 	mux.HandleFunc("/api/agodesk/ws", handleAgodeskWebSocket(s))
 	mux.HandleFunc("/api/agodesk/tts/", handleAgodeskTTSAsset(s))
@@ -514,7 +516,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/looper/pause", handleLooperPause(s))
 	mux.HandleFunc("/api/desktop/looper/resume", handleLooperResume(s))
 	mux.HandleFunc("/api/desktop/looper/status", handleLooperStatus(s))
+	mux.HandleFunc("/api/desktop/pets", handleDesktopPets(s))
 	registerCodeStudioRoutes(mux, s)
+	registerOpenSCADRoutes(mux, s)
 
 	// Pixel image editor endpoints
 	mux.HandleFunc("/api/pixel/config", handlePixelConfig(s))
@@ -525,6 +529,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// Galaxa Deluxe highscore endpoints
 	mux.HandleFunc("/api/desktop/galaxa/highscore", handleGalaxaHighscoreGet(s))
 	mux.HandleFunc("/api/desktop/galaxa/highscore/submit", handleGalaxaHighscorePost(s))
+
+	// Radio app: proxy radio-browser.info JSON through the backend to avoid
+	// browser CORS errors and provide failover across API mirrors.
+	mux.HandleFunc("/api/radio-browser/", handleRadioBrowserProxy(s))
 
 	s.registerConfigAPIRoutes(mux, sse)
 

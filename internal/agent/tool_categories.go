@@ -26,6 +26,8 @@ var discoverToolAliases = map[string]string{
 	"ddg":                    "ddg_search",
 	"brave":                  "brave_search",
 	"pdf extractor":          "pdf_extractor",
+	"openscad":               "openscad_render",
+	"cad":                    "openscad_render",
 }
 
 func resolveDiscoverToolName(name string) string {
@@ -87,12 +89,14 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"manage_memory", "Read and update long-term memory stores"},
 		{"query_memory", "Search memory and knowledge snippets"},
 		{"context_memory", "Retrieve contextual memory for the current task"},
+		{"recall_memory", "Read specific long-term memories by ID"},
 		{"context_manager", "Manage compressed context and session state"},
 		{"remember", "Store durable facts, events, and learnings in the right memory layer"},
 		{"read_tool_output", "Read compacted tool output by output_ref with focused views"},
 		{"retrieve_original_output", "Retrieve the original uncompressed output of a previous compressed tool call"},
 		{"memory_reflect", "Reflect on recent memory and extract useful learnings"},
 		{"cheatsheet", "Create, update, search, and use reusable procedure notes"},
+		{"explore_kg", "Expand specific Knowledge Graph nodes by ID"},
 		{"knowledge_graph", "Query and update structured entity relationships"},
 		{"secrets_vault", "Store and retrieve secret references through the vault"},
 		{"manage_notes", "Create and manage short-term notes"},
@@ -208,6 +212,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"virtual_desktop_widgets", "Manage browser desktop widgets and notifications"},
 		{"office_document", "Create, read, patch, and export virtual desktop Writer documents"},
 		{"office_workbook", "Create, read, edit, evaluate, and export virtual desktop spreadsheets"},
+		{"openscad_render", "Render OpenSCAD CAD source to preview and export files"},
 		{"meshcentral", "Remote desktop via MeshCentral (screenshot, command, file transfer)"},
 		{"remote_control_devices", "List and inspect remote control devices"},
 		{"remote_control_shell", "Run shell commands on remote control devices"},

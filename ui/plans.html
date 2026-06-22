@@ -29,12 +29,12 @@
   <link rel="stylesheet" href="/css/plans.css">
 </head>
 <body>
-  <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content">Skip to content</a>
+  <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
   <header class="app-header">
     <a href="/" class="logo">
       <div class="logo-icon">🗺️</div>
       <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-      <span class="logo-subtitle" data-i18n="plans.logo_subtitle">PLANS</span>
+      <span class="logo-subtitle" data-i18n="plans.logo_subtitle"></span>
     </a>
     <div class="header-actions">
       <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
@@ -46,38 +46,38 @@
   <main class="plans-page" id="main-content">
     <section class="plans-toolbar">
       <div class="plans-toolbar-group">
-        <label for="session-id" data-i18n="plans.session_label">Session</label>
+        <label for="session-id" data-i18n="plans.session_label"></label>
         <input id="session-id" type="text" value="default">
       </div>
       <div class="plans-toolbar-group">
-        <label for="status-filter" data-i18n="plans.status_label">Status</label>
+        <label for="status-filter" data-i18n="plans.status_label"></label>
         <select id="status-filter">
-          <option value="all" data-i18n="plans.status_all">All</option>
-          <option value="draft" data-i18n="plans.status_draft">Draft</option>
-          <option value="active" data-i18n="plans.status_active">Active</option>
-          <option value="paused" data-i18n="plans.status_paused">Paused</option>
-          <option value="blocked" data-i18n="plans.status_blocked">Blocked</option>
-          <option value="completed" data-i18n="plans.status_completed">Completed</option>
-          <option value="cancelled" data-i18n="plans.status_cancelled">Cancelled</option>
+          <option value="all" data-i18n="plans.status_all"></option>
+          <option value="draft" data-i18n="plans.status_draft"></option>
+          <option value="active" data-i18n="plans.status_active"></option>
+          <option value="paused" data-i18n="plans.status_paused"></option>
+          <option value="blocked" data-i18n="plans.status_blocked"></option>
+          <option value="completed" data-i18n="plans.status_completed"></option>
+          <option value="cancelled" data-i18n="plans.status_cancelled"></option>
         </select>
       </div>
       <label class="plans-check">
         <input id="include-archived" type="checkbox">
-        <span data-i18n="plans.show_archived">Show archived</span>
+        <span data-i18n="plans.show_archived"></span>
       </label>
-      <button id="refresh-btn" class="btn btn-primary" data-i18n="plans.refresh">Refresh</button>
+      <button id="refresh-btn" class="btn btn-primary" data-i18n="plans.refresh"></button>
     </section>
 
     <section class="plans-layout">
       <aside class="plans-sidebar panel">
         <div class="panel-header">
-          <h1 data-i18n="plans.heading">Session Plans</h1>
+          <h1 data-i18n="plans.heading"></h1>
         </div>
         <div id="plan-list" class="plan-list"></div>
       </aside>
 
       <section class="plans-detail panel">
-        <div id="plan-detail" class="plan-detail empty-state" data-i18n="plans.empty_detail">Select a plan to inspect tasks, events, and progress.</div>
+        <div id="plan-detail" class="plan-detail empty-state" data-i18n="plans.empty_detail"></div>
       </section>
     </section>
   </main>
@@ -85,14 +85,14 @@
   <div class="modal-overlay" id="blocker-modal">
     <div class="modal-content plan-modal">
       <div class="modal-header">
-        <h3 data-i18n="plans.block_modal_title">Set Blocker</h3>
+        <h3 data-i18n="plans.block_modal_title"></h3>
       </div>
       <div class="modal-body">
-        <textarea id="blocker-reason" class="inline-note" data-i18n-placeholder="plans.block_prompt" placeholder="Describe the blocker"></textarea>
+        <textarea id="blocker-reason" class="inline-note" data-i18n-placeholder="plans.block_prompt" placeholder=""></textarea>
       </div>
       <div class="modal-footer">
-        <button id="blocker-cancel" class="btn" data-i18n="common.btn_cancel">Cancel</button>
-        <button id="blocker-confirm" class="btn btn-primary" data-i18n="common.btn_ok">OK</button>
+        <button id="blocker-cancel" class="btn" data-i18n="common.btn_cancel"></button>
+        <button id="blocker-confirm" class="btn btn-primary" data-i18n="common.btn_ok"></button>
       </div>
     </div>
   </div>
@@ -100,15 +100,15 @@
   <div class="modal-overlay" id="split-modal">
     <div class="modal-content plan-modal">
       <div class="modal-header">
-        <h3 data-i18n="plans.split_modal_title">Split Task</h3>
+        <h3 data-i18n="plans.split_modal_title"></h3>
       </div>
       <div class="modal-body">
-        <p class="muted" data-i18n="plans.split_prompt">Enter one subtask per line.</p>
-        <textarea id="split-items" class="inline-note" data-i18n-placeholder="plans.split_placeholder" placeholder="Inspect logs&#10;Patch handler&#10;Verify fix"></textarea>
+        <p class="muted" data-i18n="plans.split_prompt"></p>
+        <textarea id="split-items" class="inline-note" data-i18n-placeholder="plans.split_placeholder" placeholder=""></textarea>
       </div>
       <div class="modal-footer">
-        <button id="split-cancel" class="btn" data-i18n="common.btn_cancel">Cancel</button>
-        <button id="split-confirm" class="btn btn-primary" data-i18n="plans.split">Split</button>
+        <button id="split-cancel" class="btn" data-i18n="common.btn_cancel"></button>
+        <button id="split-confirm" class="btn btn-primary" data-i18n="plans.split"></button>
       </div>
     </div>
   </div>
