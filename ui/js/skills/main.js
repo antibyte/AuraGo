@@ -29,8 +29,8 @@ let searchDebounceHandle = null;
 let codeMirrorModulePromise = null;
 let agentResourcePathDialogResolve = null;
 let agentFileDeleteInFlight = false;
-let agentFileDeleteConfirmButton = null;
-let agentFileDeleteConfirmButtonID = '';
+let agentFileDeleteDialogResolve = null;
+let agentFileDeleteBusy = false;
 
 // ── Initialization ──────────────────────────────────────────────────────────
 
@@ -935,34 +935,66 @@ function showDisabledState() {
     }
 
     async function showAgentFileDeleteConfirm(message) {
-        const promise = showConfirm(t('skills.agent_delete_file_title'), message);
-        const confirmBtn = document.getElementById('shared-modal-confirm') || document.getElementById('modal-confirm');
-        if (confirmBtn) {
-            agentFileDeleteConfirmButton = confirmBtn;
-            agentFileDeleteConfirmButtonID = confirmBtn.id || '';
-            confirmBtn.id = 'agent-file-delete-confirm-btn';
-            confirmBtn.textContent = t('skills.agent_delete_file_button');
-        }
-        return promise;
+        const overlay = document.getElementById('agent-file-delete-modal');
+        const messageEl = document.getElementById('agent-file-delete-message');
+        if (!overlay) return Promise.resolve(false);
+        if (messageEl) messageEl.textContent = message;
+        setAgentFileDeleteBusy(false);
+        overlay.style.display = 'flex';
+        overlay.classList.add('active');
+        overlay.onclick = event => {
+            if (event.target === overlay) cancelAgentFileDeleteDialog();
+        };
+        return new Promise(resolve => {
+            agentFileDeleteDialogResolve = resolve;
+        });
     }
 
-    function restoreAgentFileDeleteConfirmButton() {
-        if (agentFileDeleteConfirmButton) {
-            if (agentFileDeleteConfirmButtonID) {
-                agentFileDeleteConfirmButton.id = agentFileDeleteConfirmButtonID;
-            } else {
-                agentFileDeleteConfirmButton.removeAttribute('id');
-            }
-            agentFileDeleteConfirmButton.disabled = false;
+    function closeAgentFileDeleteDialog(result) {
+        const overlay = document.getElementById('agent-file-delete-modal');
+        if (overlay) {
+            overlay.classList.remove('active');
+            overlay.style.display = 'none';
+            overlay.onclick = null;
         }
-        agentFileDeleteConfirmButton = null;
-        agentFileDeleteConfirmButtonID = '';
+        setAgentFileDeleteBusy(false);
+        const resolve = agentFileDeleteDialogResolve;
+        agentFileDeleteDialogResolve = null;
+        if (resolve) resolve(result);
     }
 
     function setAgentFileDeleteBusy(busy) {
+        agentFileDeleteBusy = busy;
         const confirmBtn = document.getElementById('agent-file-delete-confirm-btn');
+        const cancelBtn = document.getElementById('agent-file-delete-cancel-btn');
         if (confirmBtn) {
             confirmBtn.disabled = busy;
+        }
+        if (cancelBtn) {
+            cancelBtn.disabled = busy;
+        }
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    function confirmAgentFileDeleteDialog() {
+        if (agentFileDeleteBusy) return;
+        setAgentFileDeleteBusy(true);
+        const resolve = agentFileDeleteDialogResolve;
+        agentFileDeleteDialogResolve = null;
+        if (resolve) resolve(true);
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    function cancelAgentFileDeleteDialog() {
+        if (agentFileDeleteBusy) return;
+        closeAgentFileDeleteDialog(false);
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    function onAgentFileDeleteKeydown(event) {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            cancelAgentFileDeleteDialog();
         }
     }
 
@@ -973,14 +1005,10 @@ function showDisabledState() {
         const path = document.getElementById('agent-resource-path').value.trim();
         if (!path) return;
         const msg = t('skills.agent_delete_file_text').replace('{path}', path);
-        const confirmed = await showAgentFileDeleteConfirm(msg);
-        if (!confirmed) {
-            restoreAgentFileDeleteConfirmButton();
-            return;
-        }
         agentFileDeleteInFlight = true;
-        setAgentFileDeleteBusy(true);
         try {
+            const confirmed = await showAgentFileDeleteConfirm(msg);
+            if (!confirmed) return;
             const resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}/files?path=${encodeURIComponent(path)}`, {
                 method: 'DELETE'
             });
@@ -994,9 +1022,8 @@ function showDisabledState() {
                 showToast(data.message || t('common.error'), 'error');
             }
         } finally {
-            setAgentFileDeleteBusy(false);
+            closeAgentFileDeleteDialog(null);
             agentFileDeleteInFlight = false;
-            restoreAgentFileDeleteConfirmButton();
         }
     }
 
@@ -1057,6 +1084,7 @@ function showDisabledState() {
         if (data.status === 'uploaded') {
             showToast(t('skills.upload_success'), 'success');
             renderAgentResourceList((data.skill && data.skill.resources) || []);
+            loadAgentSkillResource(path);
             await loadAgentSkills();
         } else {
             showToast(data.message || t('common.error'), 'error');

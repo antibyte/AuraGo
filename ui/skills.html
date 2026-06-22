@@ -259,6 +259,23 @@
         </div>
     </div>
 
+    <!-- AGENT RESOURCE DELETE CONFIRM MODAL -->
+    <div class="modal-overlay" id="agent-file-delete-modal" role="dialog" aria-modal="true" aria-labelledby="agent-file-delete-title" aria-describedby="agent-file-delete-message" style="display:none;" onkeydown="onAgentFileDeleteKeydown(event)">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="agent-file-delete-title" data-i18n="skills.agent_delete_file_title"></h2>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="cancelAgentFileDeleteDialog()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="agent-file-delete-message"></p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" type="button" id="agent-file-delete-cancel-btn" onclick="cancelAgentFileDeleteDialog()" data-i18n="common.btn_cancel"></button>
+                <button class="btn btn-danger" type="button" id="agent-file-delete-confirm-btn" onclick="confirmAgentFileDeleteDialog()" data-i18n="skills.agent_delete_file_button"></button>
+            </div>
+        </div>
+    </div>
+
     <!-- DETAIL MODAL -->
     <div class="modal-overlay" id="detail-modal">
         <div class="modal modal-wide">

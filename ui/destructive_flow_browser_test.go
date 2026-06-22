@@ -273,6 +273,10 @@ func TestAgentSkillsResourceDialogContract(t *testing.T) {
 		`id="agent-resource-path-input"`,
 		`id="agent-resource-path-error"`,
 		`id="agent-resource-path-confirm-btn"`,
+		`id="agent-file-delete-modal"`,
+		`id="agent-file-delete-message"`,
+		`id="agent-file-delete-confirm-btn"`,
+		`id="agent-file-delete-cancel-btn"`,
 	} {
 		if !strings.Contains(htmlText, marker) {
 			t.Fatalf("agent skill resource dialog is missing stable modal marker %q", marker)
@@ -288,10 +292,30 @@ func TestAgentSkillsResourceDialogContract(t *testing.T) {
 		"setAgentFileDeleteBusy(false);",
 		"function setAgentFileDeleteBusy(busy)",
 		"agent-file-delete-confirm-btn",
+		"function confirmAgentFileDeleteDialog()",
+		"function cancelAgentFileDeleteDialog()",
 	} {
 		if !strings.Contains(jsText, marker) {
 			t.Fatalf("agent skill resource dialog flow is missing JS marker %q", marker)
 		}
+	}
+	guardIndex := strings.Index(jsText, "agentFileDeleteInFlight = true;")
+	confirmIndex := strings.Index(jsText, "await showAgentFileDeleteConfirm(msg)")
+	if guardIndex < 0 || confirmIndex < 0 || guardIndex > confirmIndex {
+		t.Fatalf("agent skill delete guard must be set before opening the confirm dialog")
+	}
+	for _, forbidden := range []string{
+		"shared-modal-confirm",
+		"modal-confirm",
+		"confirmBtn.id = 'agent-file-delete-confirm-btn'",
+	} {
+		if strings.Contains(jsText, forbidden) {
+			t.Fatalf("agent skill file delete flow must not mutate shared confirm modal marker %q", forbidden)
+		}
+	}
+	uploadSuccessIndex := strings.Index(jsText, "if (data.status === 'uploaded')")
+	if uploadSuccessIndex < 0 || !strings.Contains(jsText[uploadSuccessIndex:], "loadAgentSkillResource(path);") {
+		t.Fatalf("agent skill upload flow must select the uploaded resource after success")
 	}
 }
 
