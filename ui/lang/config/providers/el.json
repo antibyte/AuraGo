@@ -186,5 +186,11 @@
   "config.providers.oauth_popup_blocked": "Το αναδυόμενο παράθυρο σύνδεσης μπλοκαρίστηκε. Χρησιμοποίησε τον άμεσο σύνδεσμο παρακάτω.",
   "config.providers.oauth_open_login": "Άνοιγμα σύνδεσης",
   "config.providers.oauth_missing_config": "Η OAuth διαμόρφωση είναι ελλιπής",
+  "config.providers.oauth_missing_fields": "Λείπουν πεδία: {{fields}}",
+  "config.providers.oauth_field_provider": "Πάροχος",
+  "config.providers.oauth_field_auth_type": "Τύπος ελέγχου ταυτότητας",
+  "config.providers.oauth_field_auth_url": "Auth URL",
+  "config.providers.oauth_field_token_url": "Token URL",
+  "config.providers.oauth_field_client_id": "Client ID",
   "config.providers.oauth_connect_unavailable": "Συμπλήρωσε τα OAuth πεδία πριν τη σύνδεση."
 }

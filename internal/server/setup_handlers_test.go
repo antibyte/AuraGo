@@ -85,6 +85,51 @@ func TestNeedsSetupRequiresPasswordWhenAuthEnabled(t *testing.T) {
 	}
 }
 
+func TestNeedsSetupRequiresOAuthTokenForOAuthProvider(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Providers: []config.ProviderEntry{{
+			ID:            "main",
+			Type:          "openai",
+			BaseURL:       "https://api.example/v1",
+			Model:         "model",
+			AuthType:      "oauth2",
+			OAuthAuthURL:  "https://accounts.example/authorize",
+			OAuthTokenURL: "https://accounts.example/token",
+			OAuthClientID: "client-id",
+		}},
+	}
+	cfg.LLM.Provider = "main"
+
+	if !needsSetup(cfg) {
+		t.Fatal("expected setup to remain required until an OAuth access token is applied")
+	}
+}
+
+func TestNeedsSetupAcceptsOAuthProviderWithAppliedToken(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Providers: []config.ProviderEntry{{
+			ID:            "main",
+			Type:          "openai",
+			BaseURL:       "https://api.example/v1",
+			Model:         "model",
+			AuthType:      "oauth2",
+			OAuthAuthURL:  "https://accounts.example/authorize",
+			OAuthTokenURL: "https://accounts.example/token",
+			OAuthClientID: "client-id",
+		}},
+	}
+	cfg.LLM.Provider = "main"
+	cfg.LLM.APIKey = "oauth-access-token"
+
+	if needsSetup(cfg) {
+		t.Fatal("expected setup to be complete once an OAuth access token is applied")
+	}
+}
+
 func TestExtractSetupAdminPasswordStripsTemporaryField(t *testing.T) {
 	t.Parallel()
 

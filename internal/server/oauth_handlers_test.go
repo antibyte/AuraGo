@@ -287,6 +287,159 @@ func TestOAuthManualCompletesStoredPKCESession(t *testing.T) {
 	}
 }
 
+func TestOAuthCallbackResultBroadcastsProviderID(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"access_token": "callback-access",
+			"token_type":   "Bearer",
+			"expires_in":   3600,
+		})
+	}))
+	t.Cleanup(tokenServer.Close)
+
+	server, vault := newOAuthHandlerTestServer(t, tokenServer.URL)
+	session, err := newOAuthSession("main", oauthFlowModeBrowserCallback, "http://aurago.example/api/oauth/callback", time.Now().UTC())
+	if err != nil {
+		t.Fatalf("newOAuthSession() error = %v", err)
+	}
+	if err := storeOAuthSession(vault, session); err != nil {
+		t.Fatalf("storeOAuthSession() error = %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/oauth/callback?code=callback-code&state="+session.State, nil)
+	req.Host = "aurago.example"
+	rec := httptest.NewRecorder()
+
+	handleOAuthCallback(server).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `new BroadcastChannel("aurago-oauth")`) {
+		t.Fatalf("callback result did not initialize OAuth BroadcastChannel: %s", body)
+	}
+	if !strings.Contains(body, `"provider_id":"main"`) {
+		t.Fatalf("callback result did not include provider_id in broadcast payload: %s", body)
+	}
+}
+
+func TestOAuthCallbackErrorBroadcastsProviderID(t *testing.T) {
+	server, vault := newOAuthHandlerTestServer(t, "https://accounts.example/token")
+	session, err := newOAuthSession("main", oauthFlowModeBrowserCallback, "http://aurago.example/api/oauth/callback", time.Now().UTC())
+	if err != nil {
+		t.Fatalf("newOAuthSession() error = %v", err)
+	}
+	if err := storeOAuthSession(vault, session); err != nil {
+		t.Fatalf("storeOAuthSession() error = %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/oauth/callback?error=access_denied&error_description=user+cancelled&state="+session.State, nil)
+	req.Host = "aurago.example"
+	rec := httptest.NewRecorder()
+
+	handleOAuthCallback(server).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Authorization denied") {
+		t.Fatalf("callback error page should mention denied authorization: %s", body)
+	}
+	if !strings.Contains(body, `"provider_id":"main"`) {
+		t.Fatalf("callback error result did not include provider_id in broadcast payload: %s", body)
+	}
+}
+
+func TestOAuthCallbackShowsHelpfulTokenExchangeError(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"error":             "invalid_grant",
+			"error_description": "redirect_uri mismatch",
+		})
+	}))
+	t.Cleanup(tokenServer.Close)
+
+	server, vault := newOAuthHandlerTestServer(t, tokenServer.URL)
+	session, err := newOAuthSession("main", oauthFlowModeBrowserCallback, "http://aurago.example/api/oauth/callback", time.Now().UTC())
+	if err != nil {
+		t.Fatalf("newOAuthSession() error = %v", err)
+	}
+	if err := storeOAuthSession(vault, session); err != nil {
+		t.Fatalf("storeOAuthSession() error = %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/oauth/callback?code=bad-code&state="+session.State, nil)
+	req.Host = "aurago.example"
+	rec := httptest.NewRecorder()
+
+	handleOAuthCallback(server).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Redirect URI") {
+		t.Fatalf("callback error should mention Redirect URI; body=%s", body)
+	}
+	if strings.Contains(body, "Token exchange failed</p>") {
+		t.Fatalf("callback error should not show only a generic token exchange failure: %s", body)
+	}
+}
+
+func TestOAuthManualShowsHelpfulTokenExchangeError(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"error":             "invalid_client",
+			"error_description": "client secret is invalid",
+		})
+	}))
+	t.Cleanup(tokenServer.Close)
+
+	server, vault := newOAuthHandlerTestServer(t, tokenServer.URL)
+	session, err := newOAuthSession("main", oauthFlowModeBrowserCallback, "http://aurago.example/api/oauth/callback", time.Now().UTC())
+	if err != nil {
+		t.Fatalf("newOAuthSession() error = %v", err)
+	}
+	if err := storeOAuthSession(vault, session); err != nil {
+		t.Fatalf("storeOAuthSession() error = %v", err)
+	}
+
+	body := strings.NewReader(`{"url":"http://localhost:8088/api/oauth/callback?code=bad-code&state=` + session.State + `"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/oauth/manual", body)
+	req.Host = "aurago.example"
+	rec := httptest.NewRecorder()
+
+	handleOAuthManual(server).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var result struct {
+		Success bool   `json:"success"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if result.Success {
+		t.Fatalf("success = true, want false; body=%s", rec.Body.String())
+	}
+	if !strings.Contains(result.Message, "Client ID or client secret") {
+		t.Fatalf("manual error should mention client credentials; message=%q", result.Message)
+	}
+	if result.Message == "Token exchange failed" {
+		t.Fatalf("manual error should not be generic")
+	}
+}
+
 func TestOAuthManualAppliesTokenToRuntimeClients(t *testing.T) {
 	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 

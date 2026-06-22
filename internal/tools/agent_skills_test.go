@@ -439,3 +439,86 @@ print(json.dumps({
 		t.Fatalf("script did not inherit safe environment value: %s", out)
 	}
 }
+
+func setupAgentSkillManagerOnDisk(t *testing.T) (*AgentSkillManager, string) {
+	t.Helper()
+	tmp := t.TempDir()
+	db, err := InitAgentSkillsDB(filepath.Join(tmp, "skills.db"))
+	if err != nil {
+		t.Fatalf("InitAgentSkillsDB: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	dir := filepath.Join(tmp, "agent_skills")
+	mgr := NewAgentSkillManager(db, dir, filepath.Join(tmp, "workspace"), slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	return mgr, dir
+}
+
+func TestAgentSkillSyncFromDiskKeepsExistingCleanSkillEnabled(t *testing.T) {
+	mgr, dir := setupAgentSkillManagerOnDisk(t)
+	skillDir := filepath.Join(dir, "keep-enabled")
+	writeAgentSkillFile(t, skillDir, "SKILL.md", validAgentSkillMarkdown("keep-enabled"))
+	if err := mgr.SyncFromDisk(context.Background(), nil, false); err != nil {
+		t.Fatalf("SyncFromDisk: %v", err)
+	}
+	entry, err := mgr.GetAgentSkillByName("keep-enabled")
+	if err != nil {
+		t.Fatalf("GetAgentSkillByName: %v", err)
+	}
+	if err := mgr.EnableAgentSkill(entry.ID, true, "test"); err != nil {
+		t.Fatalf("EnableAgentSkill: %v", err)
+	}
+	writeAgentSkillFile(t, skillDir, "references/notes.md", "# notes\n")
+	if err := mgr.SyncFromDisk(context.Background(), nil, false); err != nil {
+		t.Fatalf("SyncFromDisk second: %v", err)
+	}
+	updated, err := mgr.GetAgentSkill(entry.ID)
+	if err != nil {
+		t.Fatalf("GetAgentSkill: %v", err)
+	}
+	if !updated.Enabled || updated.SecurityStatus != SecurityClean {
+		t.Fatalf("enabled=%v status=%s", updated.Enabled, updated.SecurityStatus)
+	}
+}
+
+func TestAgentSkillSyncFromDiskDisablesUnapprovedWarning(t *testing.T) {
+	mgr, dir := setupAgentSkillManagerOnDisk(t)
+	skillDir := filepath.Join(dir, "warn-sync")
+	writeAgentSkillFile(t, skillDir, "SKILL.md", validAgentSkillMarkdown("warn-sync"))
+	if err := mgr.SyncFromDisk(context.Background(), nil, false); err != nil {
+		t.Fatalf("SyncFromDisk: %v", err)
+	}
+	entry, err := mgr.GetAgentSkillByName("warn-sync")
+	if err != nil {
+		t.Fatalf("GetAgentSkillByName: %v", err)
+	}
+	if err := mgr.EnableAgentSkill(entry.ID, true, "test"); err != nil {
+		t.Fatalf("EnableAgentSkill: %v", err)
+	}
+	writeAgentSkillFile(t, skillDir, "SKILL.md", validAgentSkillMarkdown("warn-sync")+"\nReads /etc/passwd.\n")
+	if err := mgr.SyncFromDisk(context.Background(), nil, false); err != nil {
+		t.Fatalf("SyncFromDisk warn: %v", err)
+	}
+	updated, err := mgr.GetAgentSkill(entry.ID)
+	if err != nil {
+		t.Fatalf("GetAgentSkill: %v", err)
+	}
+	if updated.SecurityStatus != SecurityWarning || updated.Enabled || updated.WarningApproved {
+		t.Fatalf("status=%s enabled=%v approved=%v", updated.SecurityStatus, updated.Enabled, updated.WarningApproved)
+	}
+}
+
+func TestAgentSkillSyncFromDiskNewSkillDisabled(t *testing.T) {
+	mgr, dir := setupAgentSkillManagerOnDisk(t)
+	skillDir := filepath.Join(dir, "new-sync")
+	writeAgentSkillFile(t, skillDir, "SKILL.md", validAgentSkillMarkdown("new-sync"))
+	if err := mgr.SyncFromDisk(context.Background(), nil, false); err != nil {
+		t.Fatalf("SyncFromDisk: %v", err)
+	}
+	entry, err := mgr.GetAgentSkillByName("new-sync")
+	if err != nil {
+		t.Fatalf("GetAgentSkillByName: %v", err)
+	}
+	if entry.Enabled {
+		t.Fatal("new sync skill should be disabled")
+	}
+}

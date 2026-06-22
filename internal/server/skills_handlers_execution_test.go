@@ -1,7 +1,12 @@
 package server
 
 import (
+	"encoding/json"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -60,5 +65,40 @@ func TestLoadPlainSkillSecretsRequiresPythonSecretInjectionEnabled(t *testing.T)
 
 	if got := loadPlainSkillSecrets(s, skill); len(got) != 0 {
 		t.Fatalf("loadPlainSkillSecrets() = %#v, want no secrets when injection disabled", got)
+	}
+}
+
+func TestHandleTestSkillForbiddenWhenDisabled(t *testing.T) {
+	tmp := t.TempDir()
+	db, err := tools.InitSkillsDB(filepath.Join(tmp, "skills.db"))
+	if err != nil {
+		t.Fatalf("InitSkillsDB: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	skillsDir := filepath.Join(tmp, "skills")
+	mgr := tools.NewSkillManager(db, skillsDir, slog.Default())
+	entry, err := mgr.CreateSkillEntry("api_blocked", "test", `def run(): return "x"`, tools.SkillTypeUser, "test", "", nil)
+	if err != nil {
+		t.Fatalf("CreateSkillEntry: %v", err)
+	}
+	if err := mgr.EnableSkill(entry.ID, false, "test"); err != nil {
+		t.Fatalf("EnableSkill: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.Directories.SkillsDir = skillsDir
+	cfg.Directories.WorkspaceDir = filepath.Join(tmp, "workspace")
+	s := &Server{Cfg: cfg, SkillManager: mgr, Logger: slog.Default()}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/skills/"+entry.ID+"/test", strings.NewReader(`{"args":{}}`))
+	handleTestSkill(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body["status"] != "error" {
+		t.Fatalf("body=%v", body)
 	}
 }

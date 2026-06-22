@@ -113,6 +113,7 @@ func handleCreateAgentSkill(s *Server) http.HandlerFunc {
 			}
 			entry, _ = mgr.GetAgentSkill(entry.ID)
 		}
+		entry = autoEnableCleanAgentSkill(s, mgr, entry)
 		writeAgentSkillJSON(w, http.StatusCreated, map[string]interface{}{
 			"status": "created",
 			"skill":  entry,
@@ -171,6 +172,7 @@ func handleImportAgentSkill(s *Server) http.HandlerFunc {
 				})
 				return
 			}
+			entry = autoEnableCleanAgentSkill(s, mgr, entry)
 			writeAgentSkillJSON(w, http.StatusCreated, map[string]interface{}{
 				"status":     "imported",
 				"skill":      entry,
@@ -195,6 +197,7 @@ func handleImportAgentSkill(s *Server) http.HandlerFunc {
 			})
 			return
 		}
+		entry = autoEnableCleanAgentSkill(s, mgr, entry)
 		writeAgentSkillJSON(w, http.StatusCreated, map[string]interface{}{
 			"status":     "imported",
 			"skill":      entry,
@@ -317,6 +320,7 @@ func handleVerifyAgentSkill(s *Server) http.HandlerFunc {
 			jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Agent Skill verification failed", "Agent Skill verification failed", err, "agent_skill_id", id)
 			return
 		}
+		entry = autoEnableCleanAgentSkill(s, s.AgentSkillManager, entry)
 		writeAgentSkillJSON(w, http.StatusOK, map[string]interface{}{
 			"status":          "scanned",
 			"skill":           entry,
@@ -644,6 +648,20 @@ func handleRunAgentSkillScript(s *Server) http.HandlerFunc {
 			"message": message,
 		})
 	}
+}
+
+func autoEnableCleanAgentSkill(s *Server, mgr *tools.AgentSkillManager, entry *tools.AgentSkillRegistryEntry) *tools.AgentSkillRegistryEntry {
+	if s == nil || s.Cfg == nil || mgr == nil || entry == nil {
+		return entry
+	}
+	if s.Cfg.Tools.SkillManager.AutoEnableClean && entry.SecurityStatus == tools.SecurityClean {
+		if err := mgr.EnableAgentSkill(entry.ID, true, "system:auto_enable"); err == nil {
+			if updated, getErr := mgr.GetAgentSkill(entry.ID); getErr == nil {
+				return updated
+			}
+		}
+	}
+	return entry
 }
 
 func agentSkillManagerConfig(s *Server) (readOnly, allowUploads bool, maxSizeMB int, useGuardian bool) {

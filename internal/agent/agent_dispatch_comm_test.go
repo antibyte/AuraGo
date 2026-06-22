@@ -108,6 +108,48 @@ func TestExecuteSkillRedirectsNativeToolBeforeFilteringArgs(t *testing.T) {
 	}
 }
 
+func TestExecuteSkillBlocksDisabledRegistrySkill(t *testing.T) {
+	tmp := t.TempDir()
+	db, err := tools.InitSkillsDB(filepath.Join(tmp, "skills.db"))
+	if err != nil {
+		t.Fatalf("InitSkillsDB: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	skillsDir := filepath.Join(tmp, "skills")
+	mgr := tools.NewSkillManager(db, skillsDir, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	old := tools.DefaultSkillManager()
+	tools.SetDefaultSkillManager(mgr)
+	t.Cleanup(func() { tools.SetDefaultSkillManager(old) })
+
+	entry, err := mgr.CreateSkillEntry("blocked_skill", "blocked", `def run(): return "SECRET_OUTPUT"`, tools.SkillTypeUser, "test", "", nil)
+	if err != nil {
+		t.Fatalf("CreateSkillEntry: %v", err)
+	}
+	if err := mgr.EnableSkill(entry.ID, false, "test"); err != nil {
+		t.Fatalf("EnableSkill: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.SkillsDir = skillsDir
+	cfg.Directories.WorkspaceDir = filepath.Join(tmp, "workspace")
+	out, ok := dispatchComm(context.Background(), ToolCall{
+		Action: "execute_skill",
+		Skill:  "blocked_skill",
+	}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if !ok {
+		t.Fatal("expected dispatchComm to handle execute_skill")
+	}
+	if !strings.Contains(out, `ERROR executing skill: skill "blocked_skill" is disabled`) {
+		t.Fatalf("output = %q", out)
+	}
+	if strings.Contains(out, "SECRET_OUTPUT") {
+		t.Fatalf("script ran despite disabled skill: %s", out)
+	}
+}
+
 func TestMergeSkillVaultKeysAcceptsPySuffix(t *testing.T) {
 	dir := t.TempDir()
 	manifest := tools.SkillManifest{

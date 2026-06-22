@@ -214,5 +214,18 @@
   "skills.agent_delete_file_confirm": "Ta bort fil {path}?",
   "skills.agent_nonpython_warning": "Detta skript är inte Python. Bash- och JavaScript-skript kräver uttryckligt användargodkännande innan de kan köras.",
   "skills.agent_agents_folder": "Agenter",
-  "skills.agent_create_with_resources": "Skapa med resurser"
+  "skills.agent_create_with_resources": "Skapa med resurser",
+  "skills.agent_resource_new_title": "Ny resursfil",
+  "skills.agent_resource_rename_title": "Byt namn på resursfil",
+  "skills.agent_resource_upload_title": "Målsökväg för uppladdning",
+  "skills.agent_resource_path_label": "Filsökväg",
+  "skills.agent_resource_path_help": "Använd en relativ sökväg i paketet, till exempel references/guide.md eller scripts/run.py.",
+  "skills.agent_resource_path_invalid": "Använd en relativ sökväg utan .., backslash eller enhetsbokstav.",
+  "skills.agent_resource_confirm_create": "Skapa fil",
+  "skills.agent_resource_confirm_rename": "Byt namn",
+  "skills.agent_resource_confirm_upload": "Ladda upp här",
+  "skills.agent_delete_file_title": "Ta bort resursfil",
+  "skills.agent_delete_file_text": "Ta bort {path} från denna Agent Skill?",
+  "skills.agent_delete_file_button": "Ta bort fil",
+  "skills.agent_resource_empty_hint": "Lägg till referenser, skript eller assets som skillen ska använda."
 }

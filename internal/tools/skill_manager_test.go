@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -494,3 +495,77 @@ os.system("ls")
 	}
 }
 
+
+func TestGetExecutableSkillByNameBlocksDisabledAndPending(t *testing.T) {
+	mgr, _ := setupTestSkillManager(t)
+	created, err := mgr.CreateSkillEntry("exec_guard", "guard test", `def run(): return "ok"`, SkillTypeUser, "test", "", nil)
+	if err != nil {
+		t.Fatalf("CreateSkillEntry: %v", err)
+	}
+	if err := mgr.EnableSkill(created.ID, false, "test"); err != nil {
+		t.Fatalf("EnableSkill false: %v", err)
+	}
+	if _, err := mgr.GetExecutableSkillByName("exec_guard"); err == nil || !strings.Contains(err.Error(), "is disabled") {
+		t.Fatalf("disabled skill err = %v", err)
+	}
+	if err := mgr.EnableSkill(created.ID, true, "test"); err != nil {
+		t.Fatalf("EnableSkill true: %v", err)
+	}
+	if _, err := mgr.db.Exec("UPDATE skills_registry SET security_status = ? WHERE id = ?", string(SecurityPending), created.ID); err != nil {
+		t.Fatalf("update pending: %v", err)
+	}
+	if _, err := mgr.GetExecutableSkillByName("exec_guard"); err == nil || !strings.Contains(err.Error(), "pending cannot execute") {
+		t.Fatalf("pending skill err = %v", err)
+	}
+	if _, err := mgr.db.Exec("UPDATE skills_registry SET security_status = ? WHERE id = ?", string(SecurityClean), created.ID); err != nil {
+		t.Fatalf("update clean: %v", err)
+	}
+	if _, err := mgr.GetExecutableSkillByName("exec_guard"); err != nil {
+		t.Fatalf("clean enabled skill: %v", err)
+	}
+}
+
+func TestSyncFromDiskNewPythonSkillDisabledByDefault(t *testing.T) {
+	mgr, skillsDir := setupTestSkillManager(t)
+	manifest := `{"name":"local_skill","description":"Created on disk","executable":"local_skill.py","parameters":{}}`
+	if err := os.WriteFile(filepath.Join(skillsDir, "local_skill.py"), []byte(`def run(): return "ok"`), 0644); err != nil {
+		t.Fatalf("write py: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(skillsDir, "local_skill.json"), []byte(manifest), 0644); err != nil {
+		t.Fatalf("write json: %v", err)
+	}
+	if err := mgr.SyncFromDisk(); err != nil {
+		t.Fatalf("SyncFromDisk: %v", err)
+	}
+	skills, err := mgr.ListSkillsFiltered("", "", "local_skill", nil)
+	if err != nil {
+		t.Fatalf("ListSkillsFiltered: %v", err)
+	}
+	if len(skills) != 1 {
+		t.Fatalf("skills count = %d", len(skills))
+	}
+	if skills[0].Enabled {
+		t.Fatal("new disk-synced Python skill should be disabled")
+	}
+}
+
+func TestSyncFromDiskBuiltinSkillEnabledByDefault(t *testing.T) {
+	mgr, skillsDir := setupTestSkillManager(t)
+	manifest := `{"name":"builtin_demo","description":"Builtin on disk","executable":"__builtin__","parameters":{}}`
+	if err := os.WriteFile(filepath.Join(skillsDir, "builtin_demo.json"), []byte(manifest), 0644); err != nil {
+		t.Fatalf("write json: %v", err)
+	}
+	if err := mgr.SyncFromDisk(); err != nil {
+		t.Fatalf("SyncFromDisk: %v", err)
+	}
+	skills, err := mgr.ListSkillsFiltered(string(SkillTypeBuiltIn), "", "builtin_demo", nil)
+	if err != nil {
+		t.Fatalf("ListSkillsFiltered: %v", err)
+	}
+	if len(skills) != 1 {
+		t.Fatalf("skills count = %d", len(skills))
+	}
+	if !skills[0].Enabled {
+		t.Fatal("builtin disk-synced skill should be enabled")
+	}
+}

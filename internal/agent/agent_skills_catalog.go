@@ -21,6 +21,9 @@ func buildAgentSkillsPromptCatalog() string {
 		if entry.SecurityStatus == tools.SecurityDangerous || entry.SecurityStatus == tools.SecurityError || entry.SecurityStatus == tools.SecurityPending {
 			continue
 		}
+		if entry.SecurityStatus == tools.SecurityWarning && !entry.WarningApproved {
+			continue
+		}
 		b.WriteString(fmt.Sprintf("- `%s`: %s\n", entry.Name, strings.TrimSpace(entry.Description)))
 	}
 	return strings.TrimSpace(b.String())

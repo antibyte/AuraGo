@@ -13,20 +13,22 @@ func TestConfigProviderOAuthWizardContract(t *testing.T) {
 
 	providersJS := readDesktopAssetText(t, "cfg/providers.js")
 	for _, marker := range []string{
-		"async function providerStartOAuthConnect(providerID)",
-		"function providerLaunchOAuthWindow(providerID)",
+		"async function providerStartOAuthConnect(providerID, preparedPopup)",
+		"function providerLaunchOAuthWindow(providerID, preparedPopup)",
 		"'/api/oauth/start?provider=' + encodeURIComponent(providerID) + '&launch=1'",
-		"link.target = '_blank';",
-		"link.rel = 'noopener noreferrer';",
-		"link.click();",
+		"popup.opener = null;",
 		"providerPollOAuthUntilConnected(providerID);",
 		"function providerSubmitOAuthPaste(providerID)",
 		`id="prov-oauth-paste-url"`,
 		`id="prov-oauth-paste-submit"`,
 		"body: JSON.stringify({ url: pastedURL })",
 		"function providerHandleOAuthMessage(event)",
+		"function providerHandleOAuthBroadcast(event)",
+		"new BroadcastChannel('aurago-oauth')",
 		"aurago:oauth-provider-connected",
 		"window.addEventListener('message', providerHandleOAuthMessage);",
+		"providerOAuthMissingFieldsText(st)",
+		"config.providers.oauth_missing_fields",
 		"providerRefreshOAuthStatus(data.id)",
 	} {
 		if !strings.Contains(providersJS, marker) {
@@ -71,6 +73,12 @@ func TestConfigProviderOAuthTranslationsExistInAllLocales(t *testing.T) {
 		"config.providers.oauth_connect_title",
 		"config.providers.oauth_connect_hint",
 		"config.providers.oauth_connect",
+		"config.providers.oauth_missing_fields",
+		"config.providers.oauth_field_auth_url",
+		"config.providers.oauth_field_token_url",
+		"config.providers.oauth_field_client_id",
+		"config.providers.oauth_field_auth_type",
+		"config.providers.oauth_field_provider",
 		"config.providers.oauth_waiting",
 		"config.providers.oauth_started",
 		"config.providers.oauth_paste_label",
@@ -94,5 +102,14 @@ func TestConfigProviderOAuthTranslationsExistInAllLocales(t *testing.T) {
 				t.Fatalf("%s missing %s", path, key)
 			}
 		}
+	}
+}
+
+func TestGoogleWorkspaceOAuthRevokeUsesDelete(t *testing.T) {
+	t.Parallel()
+
+	googleWorkspaceJS := readDesktopAssetText(t, "cfg/google_workspace.js")
+	if !strings.Contains(googleWorkspaceJS, "fetch('/api/oauth/revoke?provider=google_workspace', { method: 'DELETE' })") {
+		t.Fatal("Google Workspace OAuth disconnect must use DELETE to match /api/oauth/revoke")
 	}
 }

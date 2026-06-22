@@ -30,11 +30,24 @@ func TestConfigWindowOpenUsesNoopener(t *testing.T) {
 		content := readUITestFile(t, file)
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
-			if windowOpen.MatchString(line) && !strings.Contains(line, "noopener") {
+			if windowOpen.MatchString(line) && !strings.Contains(line, "noopener") && !allowsDetachedBlankPopup(lines, i) {
 				t.Fatalf("%s:%d window.open must include noopener,noreferrer", filepath.ToSlash(file), i+1)
 			}
 		}
 	}
+}
+
+func allowsDetachedBlankPopup(lines []string, idx int) bool {
+	line := strings.ReplaceAll(lines[idx], " ", "")
+	if !strings.Contains(line, "window.open('','_blank')") && !strings.Contains(line, `window.open("","_blank")`) {
+		return false
+	}
+	for i := idx + 1; i < len(lines) && i <= idx+5; i++ {
+		if strings.Contains(strings.ReplaceAll(lines[i], " ", ""), ".opener=null") {
+			return true
+		}
+	}
+	return false
 }
 
 func TestConfigAndSetupErrorsAreNotRawInnerHTML(t *testing.T) {

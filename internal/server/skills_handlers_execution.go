@@ -62,6 +62,12 @@ func handleTestSkill(s *Server) http.HandlerFunc {
 			jsonLoggedError(w, s.Logger, http.StatusNotFound, "Skill not found", "Skill lookup failed", err, "skill_id", id)
 			return
 		}
+		if _, err := s.SkillManager.GetExecutableSkillByName(skill.Name); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			_ = json.NewEncoder(w).Encode(map[string]any{"status": "error", "message": err.Error()})
+			return
+		}
 
 		var req struct {
 			Args map[string]interface{} `json:"args"`

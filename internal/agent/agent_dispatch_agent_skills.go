@@ -32,6 +32,9 @@ func dispatchListAgentSkills(tc ToolCall, dc *DispatchContext) string {
 	}
 	out := make([]listedAgentSkill, 0, len(entries))
 	for _, entry := range entries {
+		if err := ensureAgentSkillUsable(&entry); err != nil {
+			continue
+		}
 		out = append(out, listedAgentSkill{
 			Name:           entry.Name,
 			Description:    entry.Description,

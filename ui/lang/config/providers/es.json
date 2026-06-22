@@ -186,5 +186,11 @@
   "config.providers.oauth_popup_blocked": "El popup de inicio de sesión fue bloqueado. Usa el enlace directo de abajo.",
   "config.providers.oauth_open_login": "Abrir login",
   "config.providers.oauth_missing_config": "Configuración OAuth incompleta",
+  "config.providers.oauth_missing_fields": "Campos faltantes: {{fields}}",
+  "config.providers.oauth_field_provider": "Proveedor",
+  "config.providers.oauth_field_auth_type": "Tipo de autenticación",
+  "config.providers.oauth_field_auth_url": "URL de autorización",
+  "config.providers.oauth_field_token_url": "URL de token",
+  "config.providers.oauth_field_client_id": "ID de cliente",
   "config.providers.oauth_connect_unavailable": "Completa los campos OAuth antes de conectar."
 }

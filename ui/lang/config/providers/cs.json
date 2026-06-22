@@ -186,5 +186,11 @@
   "config.providers.oauth_popup_blocked": "Přihlašovací popup byl zablokován. Použij přímý odkaz níže.",
   "config.providers.oauth_open_login": "Otevřít přihlášení",
   "config.providers.oauth_missing_config": "OAuth konfigurace není úplná",
+  "config.providers.oauth_missing_fields": "Chybějící pole: {{fields}}",
+  "config.providers.oauth_field_provider": "Poskytovatel",
+  "config.providers.oauth_field_auth_type": "Typ ověření",
+  "config.providers.oauth_field_auth_url": "Auth URL",
+  "config.providers.oauth_field_token_url": "Token URL",
+  "config.providers.oauth_field_client_id": "Client ID",
   "config.providers.oauth_connect_unavailable": "Před připojením doplň OAuth pole."
 }

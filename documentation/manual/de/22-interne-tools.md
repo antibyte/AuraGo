@@ -99,7 +99,7 @@ Lädt die vollständigen SKILL.md-Anweisungen für ein aktiviertes Agent Skill P
 | `name` | string | Alias für skill |
 
 ### `run_agent_skill_script`
-Führt ein genehmigtes Python-Skript aus einem aktivierten Agent Skill Paket mit JSON-Argumenten aus.
+Führt ein genehmigtes Hilfsskript aus einem aktivierten Agent Skill Paket mit JSON-Argumenten aus.
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
@@ -107,6 +107,8 @@ Führt ein genehmigtes Python-Skript aus einem aktivierten Agent Skill Paket mit
 | `name` | string | Alias für skill |
 | `script` | string | Skriptpfad unter scripts/, z.B. scripts/analyze.py |
 | `args` | object | JSON-Argumente, die an das Skript über stdin gesendet werden |
+
+Unterstützte registrierte Skript-Endungen sind `.py`, `.sh` und `.js`; Bash und JavaScript müssen in `tools.skill_manager.allowed_script_languages` erlaubt sein, und Bash benötigt zusätzlich `agent.allow_shell`.
 
 ### `run_tool`
 Führt ein gespeichertes benutzerdefiniertes Python-Tool aus dem Agent-Tools-Verzeichnis aus.

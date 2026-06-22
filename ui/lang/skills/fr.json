@@ -214,5 +214,18 @@
   "skills.agent_delete_file_confirm": "Supprimer le fichier {path} ?",
   "skills.agent_nonpython_warning": "Ce script n'est pas un Python. Les scripts Bash et JavaScript nécessitent une approbation explicite de ta part avant d'être exécutés.",
   "skills.agent_agents_folder": "Agents",
-  "skills.agent_create_with_resources": "Créer avec ressources"
+  "skills.agent_create_with_resources": "Créer avec ressources",
+  "skills.agent_resource_new_title": "Nouveau fichier ressource",
+  "skills.agent_resource_rename_title": "Renommer le fichier ressource",
+  "skills.agent_resource_upload_title": "Chemin cible du téléversement",
+  "skills.agent_resource_path_label": "Chemin du fichier",
+  "skills.agent_resource_path_help": "Utilise un chemin relatif dans le paquet, comme references/guide.md ou scripts/run.py.",
+  "skills.agent_resource_path_invalid": "Utilise un chemin relatif sans .., antislash ni lettre de lecteur.",
+  "skills.agent_resource_confirm_create": "Créer le fichier",
+  "skills.agent_resource_confirm_rename": "Renommer",
+  "skills.agent_resource_confirm_upload": "Téléverser ici",
+  "skills.agent_delete_file_title": "Supprimer le fichier ressource",
+  "skills.agent_delete_file_text": "Supprimer {path} de cet Agent Skill ?",
+  "skills.agent_delete_file_button": "Supprimer le fichier",
+  "skills.agent_resource_empty_hint": "Ajoute des références, scripts ou assets que le skill doit utiliser."
 }

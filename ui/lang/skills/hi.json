@@ -214,5 +214,18 @@
   "skills.agent_delete_file_confirm": "फ़ाइल {path} हटाएँ?",
   "skills.agent_nonpython_warning": "यह स्क्रिप्ट Python नहीं है। Bash और JavaScript स्क्रिप्ट को निष्पादित करने से पहले उपयोगकर्ता के स्पष्ट अनुमोदन की आवश्यकता होती है।",
   "skills.agent_agents_folder": "एजेंट्स",
-  "skills.agent_create_with_resources": "संसाधनों के साथ बनाएँ"
+  "skills.agent_create_with_resources": "संसाधनों के साथ बनाएँ",
+  "skills.agent_resource_new_title": "नई संसाधन फ़ाइल",
+  "skills.agent_resource_rename_title": "संसाधन फ़ाइल का नाम बदलें",
+  "skills.agent_resource_upload_title": "अपलोड लक्ष्य पथ",
+  "skills.agent_resource_path_label": "फ़ाइल पथ",
+  "skills.agent_resource_path_help": "पैकेज के भीतर relative path इस्तेमाल करें, जैसे references/guide.md या scripts/run.py.",
+  "skills.agent_resource_path_invalid": "ऐसा relative path इस्तेमाल करें जिसमें .., backslash या drive letter न हो.",
+  "skills.agent_resource_confirm_create": "फ़ाइल बनाएँ",
+  "skills.agent_resource_confirm_rename": "नाम बदलें",
+  "skills.agent_resource_confirm_upload": "यहाँ अपलोड करें",
+  "skills.agent_delete_file_title": "संसाधन फ़ाइल हटाएँ",
+  "skills.agent_delete_file_text": "इस Agent Skill से {path} हटाएँ?",
+  "skills.agent_delete_file_button": "फ़ाइल हटाएँ",
+  "skills.agent_resource_empty_hint": "वे references, scripts या assets जोड़ें जिन्हें skill इस्तेमाल करेगा."
 }

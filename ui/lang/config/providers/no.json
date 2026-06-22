@@ -186,5 +186,11 @@
   "config.providers.oauth_popup_blocked": "Login-popupen ble blokkert. Bruk direktelenken nedenfor.",
   "config.providers.oauth_open_login": "Åpne login",
   "config.providers.oauth_missing_config": "OAuth-konfigurasjonen er ufullstendig",
+  "config.providers.oauth_missing_fields": "Manglende felt: {{fields}}",
+  "config.providers.oauth_field_provider": "Leverandør",
+  "config.providers.oauth_field_auth_type": "Autentiseringstype",
+  "config.providers.oauth_field_auth_url": "Auth-URL",
+  "config.providers.oauth_field_token_url": "Token-URL",
+  "config.providers.oauth_field_client_id": "Client-ID",
   "config.providers.oauth_connect_unavailable": "Fyll ut OAuth-feltene før du kobler til."
 }

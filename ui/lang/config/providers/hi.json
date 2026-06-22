@@ -186,5 +186,11 @@
   "config.providers.oauth_popup_blocked": "लॉगिन popup ब्लॉक हो गया. नीचे दिए सीधे लिंक का उपयोग करें.",
   "config.providers.oauth_open_login": "लॉगिन खोलें",
   "config.providers.oauth_missing_config": "OAuth कॉन्फ़िगरेशन अधूरा है",
+  "config.providers.oauth_missing_fields": "गुम फ़ील्ड: {{fields}}",
+  "config.providers.oauth_field_provider": "प्रोवाइडर",
+  "config.providers.oauth_field_auth_type": "प्रमाणीकरण प्रकार",
+  "config.providers.oauth_field_auth_url": "Auth URL",
+  "config.providers.oauth_field_token_url": "Token URL",
+  "config.providers.oauth_field_client_id": "Client ID",
   "config.providers.oauth_connect_unavailable": "कनेक्ट करने से पहले OAuth फ़ील्ड पूरे करें."
 }

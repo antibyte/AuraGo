@@ -948,8 +948,27 @@ let _providerCatalogPromise = null;
 
         const PROVIDER_TYPE_FALLBACKS = ['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','manifest','yepapi','custom','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'];
 
+        function providerOAuthFieldLabel(field) {
+            const labels = {
+                provider: t('config.providers.oauth_field_provider'),
+                auth_type: t('config.providers.oauth_field_auth_type'),
+                oauth_auth_url: t('config.providers.oauth_field_auth_url'),
+                oauth_token_url: t('config.providers.oauth_field_token_url'),
+                oauth_client_id: t('config.providers.oauth_field_client_id')
+            };
+            return labels[field] || field;
+        }
+
+        function providerOAuthMissingFieldsText(st) {
+            const fields = st && Array.isArray(st.missing_fields) ? st.missing_fields : [];
+            if (!fields.length) return '';
+            return t('config.providers.oauth_missing_fields', {
+                fields: fields.map(providerOAuthFieldLabel).join(', ')
+            });
+        }
+
         function providerOAuthStatusText(st) {
-            if (st && st.configured === false) return { cls: 'is-warn', text: t('config.providers.oauth_missing_config'), detail: '' };
+            if (st && st.configured === false) return { cls: 'is-warn', text: t('config.providers.oauth_missing_config'), detail: providerOAuthMissingFieldsText(st) };
             if (st && st.authorized && !st.expired) return { cls: 'is-ok', text: t('config.providers.authorized'), detail: st.expiry ? `${t('config.providers.expires')}: ${new Date(st.expiry).toLocaleString()}` : '' };
             if (st && st.authorized && st.expired) return { cls: 'is-warn', text: t('config.providers.token_expired_reauth'), detail: '' };
             return { cls: 'is-error', text: t('config.providers.not_authorized_click'), detail: '' };
@@ -975,7 +994,7 @@ let _providerCatalogPromise = null;
             actionBtn.textContent = providerOAuthActionLabel(st);
             const unavailable = st && st.configured === false;
             actionBtn.disabled = unavailable;
-            actionBtn.title = unavailable ? t('config.providers.oauth_connect_unavailable') : '';
+            actionBtn.title = unavailable ? (providerOAuthMissingFieldsText(st) || t('config.providers.oauth_connect_unavailable')) : '';
         }
 
         function providerSetOAuthModalStatus(st) {
@@ -1151,9 +1170,7 @@ let _providerCatalogPromise = null;
             providerRenderCards();
         }
 
-        function providerHandleOAuthMessage(event) {
-            if (event.origin !== window.location.origin) return;
-            const data = event.data || {};
+        function providerHandleOAuthPayload(data) {
             if (!data || data.type !== 'aurago:oauth-provider-connected') return;
             const idInput = document.getElementById('prov-id');
             const providerID = data.provider_id || (idInput ? idInput.value.trim() : '');
@@ -1161,9 +1178,26 @@ let _providerCatalogPromise = null;
             providerRefreshOAuthStatus(providerID).then(() => providerRenderCards()).catch(() => {});
         }
 
+        function providerHandleOAuthMessage(event) {
+            if (event.origin !== window.location.origin) return;
+            providerHandleOAuthPayload(event.data || {});
+        }
+
+        function providerHandleOAuthBroadcast(event) {
+            providerHandleOAuthPayload(event.data || {});
+        }
+
         if (!window.__auragoProviderOAuthMessageHandler) {
             window.addEventListener('message', providerHandleOAuthMessage);
             window.__auragoProviderOAuthMessageHandler = true;
+        }
+        if (!window.__auragoProviderOAuthBroadcastHandler) {
+            try {
+                const oauthChannel = new BroadcastChannel('aurago-oauth');
+                oauthChannel.onmessage = providerHandleOAuthBroadcast;
+                window.__auragoProviderOAuthBroadcastChannel = oauthChannel;
+                window.__auragoProviderOAuthBroadcastHandler = true;
+            } catch (e) {}
         }
 
         async function providerLoadCatalog() {
