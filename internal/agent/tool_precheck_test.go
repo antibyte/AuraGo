@@ -49,3 +49,33 @@ func TestPrecheckMessagingToolArgsAllowsNonEmptyMessage(t *testing.T) {
 		t.Fatalf("expected call to proceed, got blocked output %q", out)
 	}
 }
+
+func TestPrecheckMessagingToolArgsSkipsMissionMutationOnHeartbeat(t *testing.T) {
+	tc := ToolCall{
+		IsTool:    true,
+		Action:    "manage_missions",
+		Operation: "run",
+		Params:    map[string]interface{}{"id": "mission_123"},
+	}
+
+	out, blocked := precheckMessagingToolArgs(tc, RunConfig{MessageSource: "heartbeat"}, "heartbeat")
+	if !blocked {
+		t.Fatal("expected heartbeat mission mutation to be blocked")
+	}
+	if !strings.Contains(out, `"status":"skipped"`) {
+		t.Fatalf("expected skipped status, got %q", out)
+	}
+}
+
+func TestPrecheckMessagingToolArgsAllowsMissionReadOnHeartbeat(t *testing.T) {
+	tc := ToolCall{
+		IsTool:    true,
+		Action:    "manage_missions",
+		Operation: "history",
+	}
+
+	out, blocked := precheckMessagingToolArgs(tc, RunConfig{MessageSource: "heartbeat"}, "heartbeat")
+	if blocked {
+		t.Fatalf("expected heartbeat mission read to proceed, got %q", out)
+	}
+}

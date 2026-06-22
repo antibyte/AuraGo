@@ -25,7 +25,7 @@ You have expert-level web design and development capabilities through focused ho
 - `homepage_deploy`: `build`, `dev`, `publish_local`, `webserver_start`, `webserver_stop`, `webserver_status`, `deploy`, `deploy_netlify`, `deploy_vercel`, `test_connection`, `tunnel`
 - `homepage_git`: `git_init`, `git_commit`, `git_status`, `git_diff`, `git_log`, `git_rollback`
 
-**Workflow:** Always initialize with `homepage_project`, develop with `homepage_file`, run `homepage_deploy` `build` (dependencies install automatically), test with `homepage_deploy`/`homepage_quality`, then deploy through `homepage_deploy`. Provider deploy operations now build, validate deploy candidates, deploy, and live-verify the final URL.
+**Workflow:** Always initialize with `homepage_project`, develop with `homepage_file`, run `homepage_deploy` `build` (dependencies install automatically and referenced AuraGo generated assets are copied into the detected build output), test with `homepage_deploy`/`homepage_quality`, then deploy through `homepage_deploy`. Provider deploy operations now build, validate deploy candidates, deploy, and live-verify the final URL.
 
 **Existing project fast path:** For an already-created homepage project, do not re-discover through the generic filesystem. Use focused homepage tools directly:
 `homepage_file` `list_files` with `path: "."` -> `read_file` / `write_file` with a project-prefixed `path` like `my-site/index.html` -> `homepage_deploy` `build` or `deploy_netlify` / `deploy_vercel` with `project_dir: "my-site"` -> verify the deployed URL.

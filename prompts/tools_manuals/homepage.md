@@ -189,6 +189,8 @@ Returns up to 200 files, excluding node_modules, .next, and .git.
 ```
 
 ### build — Build for production
+For framework projects, `build` runs inside the managed `aurago-homepage` container, not the host shell. After a successful build, referenced AuraGo assets such as `/files/generated_images/*`, generated image `/assets/img_*` paths, videos, audio, and documents are copied into the detected build output so the local Caddy server and deploy candidates can serve them.
+
 ```json
 {"action": "homepage", "operation": "build", "project_dir": "my-site"}
 ```

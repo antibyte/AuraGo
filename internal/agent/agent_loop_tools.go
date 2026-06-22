@@ -37,7 +37,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	ptc := s.pendingTCs[0]
 	s.pendingTCs = s.pendingTCs[1:]
 	s.toolCallCount++
-	if ptc.Action == "homepage" || ptc.Action == "homepage_tool" {
+	if isHomepageRuleTool(ptc.Action) {
 		s.homepageUsedInChain = true
 	}
 	actionLedger, toolAction := beginAgentToolAction(s, ptc, agentActionTurnID(sessionID, len(s.req.Messages), s.toolCallCount))
@@ -190,7 +190,7 @@ func executeAgentToolTurn(
 	currentLogger := s.currentLogger
 
 	s.toolCallCount++
-	if tc.Action == "homepage" || tc.Action == "homepage_tool" {
+	if isHomepageRuleTool(tc.Action) {
 		s.homepageUsedInChain = true
 	}
 	actionLedger, toolAction := beginAgentToolAction(s, tc, agentActionTurnID(sessionID, len(s.req.Messages), s.toolCallCount))
@@ -536,7 +536,7 @@ func executeAgentToolTurn(
 			btc := s.pendingTCs[0]
 			s.pendingTCs = s.pendingTCs[1:]
 			s.toolCallCount++
-			if btc.Action == "homepage" || btc.Action == "homepage_tool" {
+			if isHomepageRuleTool(btc.Action) {
 				s.homepageUsedInChain = true
 			}
 			batchedLedger, batchedAction := beginAgentToolAction(s, btc, agentActionTurnID(sessionID, len(s.req.Messages), s.toolCallCount))

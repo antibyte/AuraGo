@@ -2,9 +2,12 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -269,6 +272,102 @@ func TestExtractOutput(t *testing.T) {
 	got = extractOutput("plain text")
 	if got != "plain text" {
 		t.Errorf("expected 'plain text', got %q", got)
+	}
+}
+
+func TestHomepageBuildCopiesReferencedGeneratedAssets(t *testing.T) {
+	dir := t.TempDir()
+	workspace := filepath.Join(dir, "workspace")
+	dataDir := filepath.Join(dir, "data")
+	projectRoot := filepath.Join(workspace, "ki-news")
+	buildDir := filepath.Join(projectRoot, "dist")
+	imageName := "img_20260622_ki_news.webp"
+
+	for _, path := range []string{
+		filepath.Join(projectRoot, "node_modules"),
+		filepath.Join(buildDir, "assets"),
+		filepath.Join(dataDir, "generated_images"),
+	} {
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "package.json"), []byte(`{"scripts":{"build":"vite"}}`), 0o644); err != nil {
+		t.Fatalf("write package.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(buildDir, "index.html"), []byte(`<div id="root"></div><script src="/assets/main.js"></script>`), 0o644); err != nil {
+		t.Fatalf("write index.html: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(buildDir, "assets", "main.js"), []byte(`const hero="/files/generated_images/`+imageName+`";`), 0o644); err != nil {
+		t.Fatalf("write bundle: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "generated_images", imageName), []byte("webp-bytes"), 0o644); err != nil {
+		t.Fatalf("write generated image: %v", err)
+	}
+
+	oldExec := homepageDockerExecFunc
+	oldInternal := homepageDockerExecInternalFunc
+	defer func() {
+		homepageDockerExecFunc = oldExec
+		homepageDockerExecInternalFunc = oldInternal
+	}()
+	homepageDockerExecInternalFunc = func(cfg DockerConfig, containerName, command, user string, env []string) string {
+		return `{"status":"ok","exit_code":0,"output":""}`
+	}
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		if !strings.Contains(command, "npm run build") {
+			t.Fatalf("unexpected docker exec command: %s", command)
+		}
+		return `{"status":"ok","exit_code":0,"output":"built"}`
+	}
+
+	result := HomepageBuild(HomepageConfig{WorkspacePath: workspace, DataDir: dataDir}, "ki-news", slogDiscard())
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+		t.Fatalf("build result is not JSON: %s", result)
+	}
+	if parsed["status"] != "ok" {
+		t.Fatalf("build failed: %s", result)
+	}
+	copied, err := os.ReadFile(filepath.Join(buildDir, "files", "generated_images", imageName))
+	if err != nil {
+		t.Fatalf("expected build to copy generated image into dist: %v", err)
+	}
+	if string(copied) != "webp-bytes" {
+		t.Fatalf("copied generated image = %q, want webp-bytes", string(copied))
+	}
+}
+
+func TestHomepageBuildMissingNpmGuidesContainerRebuild(t *testing.T) {
+	dir := t.TempDir()
+	workspace := filepath.Join(dir, "workspace")
+	projectRoot := filepath.Join(workspace, "ki-news")
+	if err := os.MkdirAll(filepath.Join(projectRoot, "node_modules"), 0o755); err != nil {
+		t.Fatalf("mkdir node_modules: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "package.json"), []byte(`{"scripts":{"build":"vite"}}`), 0o644); err != nil {
+		t.Fatalf("write package.json: %v", err)
+	}
+
+	oldExec := homepageDockerExecFunc
+	oldInternal := homepageDockerExecInternalFunc
+	defer func() {
+		homepageDockerExecFunc = oldExec
+		homepageDockerExecInternalFunc = oldInternal
+	}()
+	homepageDockerExecInternalFunc = func(cfg DockerConfig, containerName, command, user string, env []string) string {
+		return `{"status":"ok","exit_code":0,"output":""}`
+	}
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		return `{"status":"error","exit_code":127,"output":"/bin/sh: 1: npm: not found"}`
+	}
+
+	result := HomepageBuild(HomepageConfig{WorkspacePath: workspace}, "ki-news", slogDiscard())
+	if !strings.Contains(strings.ToLower(result), "homepage rebuild") {
+		t.Fatalf("expected npm-missing result to guide homepage rebuild, got: %s", result)
+	}
+	if strings.Contains(strings.ToLower(result), "curl -fssl https://deb.nodesource.com") {
+		t.Fatalf("expected container rebuild guidance, not host Node install commands: %s", result)
 	}
 }
 

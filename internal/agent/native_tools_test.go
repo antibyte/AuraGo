@@ -973,6 +973,54 @@ func TestNativeToolCallToToolCallHomepageSubOperationPreservesToolAction(t *test
 	}
 }
 
+func TestNativeToolCallToToolCallFocusedHomepageFileLegacyActionOperation(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	native := openai.ToolCall{
+		ID:   "call_homepage_file_write",
+		Type: openai.ToolTypeFunction,
+		Function: openai.FunctionCall{
+			Name:      "homepage_file",
+			Arguments: `{"action":"write_file","path":"demo/index.html","content":"ok"}`,
+		},
+	}
+
+	tc := NativeToolCallToToolCall(native, logger)
+	if tc.Action != "homepage_file" {
+		t.Fatalf("Action = %q, want homepage_file", tc.Action)
+	}
+	if tc.Operation != "write_file" {
+		t.Fatalf("Operation = %q, want write_file", tc.Operation)
+	}
+	if tc.SubOperation != "" {
+		t.Fatalf("SubOperation = %q, want empty", tc.SubOperation)
+	}
+}
+
+func TestNativeToolCallToToolCallFocusedHomepageFileDoesNotTreatFileOperationAsEditSubOperation(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	native := openai.ToolCall{
+		ID:   "call_homepage_file_edit_bad_alias",
+		Type: openai.ToolTypeFunction,
+		Function: openai.FunctionCall{
+			Name:      "homepage_file",
+			Arguments: `{"operation":"edit_file","path":"demo/index.html","action":"write_file","content":"ok"}`,
+		},
+	}
+
+	tc := NativeToolCallToToolCall(native, logger)
+	if tc.Action != "homepage_file" {
+		t.Fatalf("Action = %q, want homepage_file", tc.Action)
+	}
+	if tc.Operation != "edit_file" {
+		t.Fatalf("Operation = %q, want edit_file", tc.Operation)
+	}
+	if tc.SubOperation == "write_file" {
+		t.Fatalf("SubOperation = %q, want a valid edit operation or empty", tc.SubOperation)
+	}
+}
+
 func TestNativeToolCallToToolCallHomepageStringBoolDraft(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 

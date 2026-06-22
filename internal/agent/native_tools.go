@@ -642,7 +642,7 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 	// used an "action" argument for a sub-operation, which can overwrite tc.Action
 	// during unmarshal. Preserve that value separately and restore the tool name.
 	if tc.Action != "" && tc.Action != name && tc.SubOperation == "" {
-		tc.SubOperation = tc.Action
+		normalizeNativeActionAlias(name, tc.Action, &tc)
 	}
 	tc.Action = name
 
@@ -659,6 +659,70 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 	}
 
 	return tc
+}
+
+var focusedHomepageToolOperations = map[string]map[string]bool{
+	"homepage_project": {
+		"init": true, "start": true, "stop": true, "status": true, "rebuild": true, "destroy": true,
+		"exec": true, "init_project": true, "build": true, "install_deps": true, "dev": true,
+		"webserver_start": true, "webserver_stop": true, "webserver_status": true, "publish_local": true,
+		"tunnel": true, "test_connection": true,
+	},
+	"homepage_file": {
+		"list_files": true, "read_file": true, "write_file": true, "edit_file": true,
+		"json_edit": true, "yaml_edit": true, "xml_edit": true, "optimize_images": true,
+	},
+	"homepage_quality": {
+		"lighthouse": true, "screenshot": true, "check_js": true, "lint": true, "optimize_images": true,
+	},
+	"homepage_deploy": {
+		"build": true, "dev": true, "publish_local": true, "webserver_start": true, "webserver_stop": true,
+		"webserver_status": true, "test_connection": true, "tunnel": true, "deploy": true,
+		"deploy_netlify": true, "deploy_vercel": true,
+	},
+	"homepage_git": {
+		"git_init": true, "git_commit": true, "git_status": true, "git_diff": true, "git_log": true,
+		"git_rollback": true, "save_revision": true, "list_revisions": true, "get_revision": true,
+		"diff_revision": true, "restore_revision": true, "revision_status": true,
+	},
+}
+
+var homepageFileEditSubOperations = map[string]bool{
+	"str_replace":   true,
+	"insert_after":  true,
+	"insert_before": true,
+	"append":        true,
+	"prepend":       true,
+	"delete_lines":  true,
+	"get":           true,
+	"set":           true,
+	"delete":        true,
+	"remove":        true,
+}
+
+func normalizeNativeActionAlias(toolName, rawAction string, tc *ToolCall) {
+	rawAction = strings.TrimSpace(rawAction)
+	lowerAction := strings.ToLower(rawAction)
+	if operations, ok := focusedHomepageToolOperations[toolName]; ok {
+		if tc.Operation == "" && operations[lowerAction] {
+			tc.Operation = lowerAction
+			return
+		}
+		if toolName == "homepage_file" && homepageFileEditOperation(tc.Operation) && homepageFileEditSubOperations[lowerAction] {
+			tc.SubOperation = lowerAction
+		}
+		return
+	}
+	tc.SubOperation = rawAction
+}
+
+func homepageFileEditOperation(operation string) bool {
+	switch strings.ToLower(strings.TrimSpace(operation)) {
+	case "edit_file", "json_edit", "yaml_edit", "xml_edit":
+		return true
+	default:
+		return false
+	}
 }
 
 func normalizeCustomToolShortcutArgs(customName string, raw map[string]interface{}) map[string]interface{} {

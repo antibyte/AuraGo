@@ -1789,7 +1789,7 @@ func calculateEffectiveMaxCalls(cfg *config.Config, tc ToolCall, homepageActiveI
 
 	// 2. Homepage Tool: absolutes Limit für komplexe Web-Workflows
 	// Gilt sobald Homepage in der aktuellen Kette aktiv ist ODER der aktuelle Call homepage ist.
-	isHomepage := tc.Action == "homepage" || tc.Action == "homepage_tool" || tc.Tool == "homepage"
+	isHomepage := isHomepageRuleTool(tc.Action) || tc.Tool == "homepage"
 	if (isHomepage || homepageActiveInChain) && cfg.Homepage.Enabled && cfg.Homepage.CircuitBreakerMaxCalls > 0 {
 		if cfg.Homepage.CircuitBreakerMaxCalls > effectiveMaxCalls {
 			logger.Debug("[Circuit Breaker] Homepage max calls applied", "base_limit", effectiveMaxCalls, "homepage_limit", cfg.Homepage.CircuitBreakerMaxCalls)

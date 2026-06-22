@@ -8,6 +8,16 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+func TestRecoveryHintForReadToolOutputMissingRef(t *testing.T) {
+	hint := recoveryHintForToolFailure(
+		ToolCall{Action: "read_tool_output"},
+		`Tool Output: {"status":"error","message":"ref is required"}`,
+	)
+	if !strings.Contains(hint, "output_ref") {
+		t.Fatalf("hint = %q, want output_ref guidance", hint)
+	}
+}
+
 func TestToolRecoveryStateHandleDuplicateToolCallTriggersCircuitBreaker(t *testing.T) {
 	state := newToolRecoveryState()
 	req := openai.ChatCompletionRequest{}

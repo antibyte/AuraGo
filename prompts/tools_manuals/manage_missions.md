@@ -38,5 +38,6 @@ Missions support three execution types (set via the V2 API):
 - `locked`: prevents accidental deletion
 - `cron_expr`: standard cron format (e.g. `0 */6 * * *` = every 6 hours). When provided, the mission is automatically set to `scheduled` execution type.
 - Missions without a `cron_expr` default to `manual` execution type
+- Heartbeat wake-ups are read-only for Mission Control. During heartbeat checks, use `list` or history/status-style inspection only; do not `add`, `update`, `delete`, or `run` missions.
 - Triggered missions are configured via the V2 REST API. Use `trigger_config.min_interval_seconds` to debounce any trigger type; MQTT can additionally use `mqtt_min_interval_seconds` as a topic-specific override.
 - Planner triggers use `planner_appointment_due`, `planner_todo_overdue`, or `planner_operational_issue`. They can be filtered with appointment/todo IDs, `planner_title_contains`, or operational issue `planner_issue_source` / `planner_issue_severity`.

@@ -912,7 +912,50 @@ func HomepageBuild(cfg HomepageConfig, projectDir string, logger *slog.Logger) s
 	if err := homepageEnsureProjectNodeArtifactsWritable(dockerCfg, projectDir, logger); err != nil {
 		return errJSON("Homepage project %q has Node/Vite artifacts that are not writable and automatic permission repair failed: %v", projectDir, err)
 	}
-	return homepageDockerExecFunc(dockerCfg, homepageContainerName, fmt.Sprintf("cd /workspace/%s && %s 2>&1", projectDir, homepageBuildCommand(project.PackageManager)), "")
+	result := homepageDockerExecFunc(dockerCfg, homepageContainerName, fmt.Sprintf("cd /workspace/%s && %s 2>&1", projectDir, homepageBuildCommand(project.PackageManager)), "")
+	if homepageBuildSucceeded(result) {
+		copyReferencedAssetsAfterBuild(cfg, project, logger)
+	}
+	return decorateHomepageBuildRuntimeFailure(result, projectDir)
+}
+
+func homepageBuildSucceeded(raw string) bool {
+	var parsed struct {
+		Status   string `json:"status"`
+		ExitCode int    `json:"exit_code"`
+	}
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+		return false
+	}
+	return parsed.Status == "ok" && parsed.ExitCode == 0
+}
+
+func copyReferencedAssetsAfterBuild(cfg HomepageConfig, project homepageProjectInfo, logger *slog.Logger) {
+	if strings.TrimSpace(cfg.DataDir) == "" {
+		return
+	}
+	candidate, err := homepageDetectDeployCandidate(cfg, project.ProjectDir, "", project.Framework)
+	if err != nil {
+		if logger != nil {
+			logger.Debug("[Homepage] Build succeeded but no deployable output was detected for asset bundling",
+				"project_dir", project.ProjectDir, "error", err)
+		}
+		return
+	}
+	copyAssetsToBuildDir(candidate.Path, cfg.DataDir, logger)
+}
+
+func decorateHomepageBuildRuntimeFailure(raw string, projectDir string) string {
+	if homepageBuildSucceeded(raw) {
+		return raw
+	}
+	output := strings.ToLower(strings.TrimSpace(extractOutput(raw)))
+	if strings.Contains(output, "npm: not found") ||
+		strings.Contains(output, "npm: command not found") ||
+		strings.Contains(output, "npm not found") {
+		return errJSON("Build failed because npm is missing inside the AuraGo homepage dev container for project_dir %q. Run homepage rebuild or homepage init to recreate the managed container with Node.js/npm, then retry the homepage build. Do not install Node.js on the host as the primary fix. Original build output: %s", projectDir, truncateStr(strings.TrimSpace(extractOutput(raw)), 500))
+	}
+	return raw
 }
 
 // HomepageInstallDeps installs npm packages inside the container.

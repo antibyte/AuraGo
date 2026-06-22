@@ -169,6 +169,8 @@ func recoveryHintForToolFailure(tc ToolCall, resultContent string) string {
 	lower := strings.ToLower(errText)
 
 	switch {
+	case tc.Action == "read_tool_output" && strings.Contains(lower, "ref is required"):
+		return "read_tool_output requires the output_ref/ref from a previous compact tool result. Do not call it without a ref; inspect the prior tool output for an output_ref first, or continue with the compact output if no ref was provided."
 	case tc.Action == "homepage" && strings.Contains(lower, `missing script: "build"`):
 		return "The project has no build script. Treat it as a static site or fix package.json before trying again. Check whether project_dir is correct and whether a dist/build/output directory is even needed."
 	case tc.Action == "homepage" && strings.Contains(lower, "path is required"):

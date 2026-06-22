@@ -10,6 +10,10 @@ func precheckMessagingToolArgs(tc ToolCall, runCfg RunConfig, sessionID string) 
 		return "", false
 	}
 
+	if out, blocked := precheckAutonomousMissionMutation(tc, runCfg, sessionID); blocked {
+		return out, true
+	}
+
 	var message string
 	switch tc.Action {
 	case "send_telegram":
@@ -36,4 +40,32 @@ func precheckMessagingToolArgs(tc ToolCall, runCfg RunConfig, sessionID string) 
 	}
 	encoded, _ := json.Marshal(payload)
 	return "Tool Output: " + string(encoded), true
+}
+
+func precheckAutonomousMissionMutation(tc ToolCall, runCfg RunConfig, sessionID string) (string, bool) {
+	if tc.Action != "manage_missions" || !isHeartbeatRun(runCfg, sessionID) {
+		return "", false
+	}
+	operation := strings.ToLower(strings.TrimSpace(firstNonEmptyToolString(
+		tc.Operation,
+		stringValueFromMap(tc.Params, "operation"),
+	)))
+	switch operation {
+	case "list", "history", "get", "status":
+		return "", false
+	case "create", "add", "update", "edit", "delete", "remove", "run", "run_now", "execute":
+		payload := map[string]interface{}{
+			"status":  "skipped",
+			"message": "manage_missions " + operation + " skipped during heartbeat: heartbeat runs are read-only for mission control",
+		}
+		encoded, _ := json.Marshal(payload)
+		return "Tool Output: " + string(encoded), true
+	default:
+		return "", false
+	}
+}
+
+func isHeartbeatRun(runCfg RunConfig, sessionID string) bool {
+	return strings.EqualFold(strings.TrimSpace(runCfg.MessageSource), "heartbeat") ||
+		strings.EqualFold(strings.TrimSpace(sessionID), "heartbeat")
 }

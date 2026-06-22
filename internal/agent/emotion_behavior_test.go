@@ -168,3 +168,16 @@ func TestCalculateEffectiveMaxCallsReducesForTenseRecoveryState(t *testing.T) {
 		t.Fatalf("calculateEffectiveMaxCalls() = %d, want 9", got)
 	}
 }
+
+func TestCalculateEffectiveMaxCallsAppliesHomepageLimitForFocusedTools(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.CircuitBreaker.MaxToolCalls = 10
+	cfg.Homepage.Enabled = true
+	cfg.Homepage.CircuitBreakerMaxCalls = 75
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	got := calculateEffectiveMaxCalls(cfg, ToolCall{Action: "homepage_deploy"}, false, false, nil, logger)
+	if got != 75 {
+		t.Fatalf("calculateEffectiveMaxCalls() = %d, want 75", got)
+	}
+}
