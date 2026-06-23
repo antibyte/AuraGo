@@ -50,8 +50,33 @@ type Sheet struct {
 }
 
 type Cell struct {
-	Value   string `json:"value,omitempty"`
-	Formula string `json:"formula,omitempty"`
+	Value   string      `json:"value,omitempty"`
+	Formula string      `json:"formula,omitempty"`
+	Format  *CellFormat `json:"format,omitempty"`
+}
+
+type CellFormat struct {
+	Bold      bool         `json:"bold,omitempty"`
+	Italic    bool         `json:"italic,omitempty"`
+	Underline bool         `json:"underline,omitempty"`
+	FontColor string       `json:"fontColor,omitempty"`
+	FillColor string       `json:"fillColor,omitempty"`
+	HAlign    string       `json:"hAlign,omitempty"`
+	VAlign    string       `json:"vAlign,omitempty"`
+	NumFormat string       `json:"numFormat,omitempty"`
+	Borders   *CellBorders `json:"borders,omitempty"`
+}
+
+type CellBorders struct {
+	Top    *BorderStyle `json:"top,omitempty"`
+	Bottom *BorderStyle `json:"bottom,omitempty"`
+	Left   *BorderStyle `json:"left,omitempty"`
+	Right  *BorderStyle `json:"right,omitempty"`
+}
+
+type BorderStyle struct {
+	Style string `json:"style"`
+	Color string `json:"color"`
 }
 
 func DecodeDocument(name string, data []byte) (Document, error) {
@@ -195,10 +220,20 @@ func EncodeWorkbook(workbook Workbook) ([]byte, error) {
 					if err := f.SetCellFormula(name, addr, formula); err != nil {
 						return nil, fmt.Errorf("set formula %s!%s: %w", name, addr, err)
 					}
-					continue
-				}
-				if err := f.SetCellStr(name, addr, cell.Value); err != nil {
+				} else if err := f.SetCellStr(name, addr, cell.Value); err != nil {
 					return nil, fmt.Errorf("set value %s!%s: %w", name, addr, err)
+				}
+				if cell.Format != nil && !cellFormatIsEmpty(cell.Format) {
+					style := excelizeStyleFromCellFormat(cell.Format)
+					if style != nil {
+						styleID, err := f.NewStyle(style)
+						if err != nil {
+							return nil, fmt.Errorf("create style %s!%s: %w", name, addr, err)
+						}
+						if err := f.SetCellStyle(name, addr, addr, styleID); err != nil {
+							return nil, fmt.Errorf("set style %s!%s: %w", name, addr, err)
+						}
+					}
 				}
 			}
 		}
@@ -404,7 +439,13 @@ func decodeXLSX(data []byte) (Workbook, error) {
 			for c, value := range row {
 				addr, _ := excelize.CoordinatesToCellName(c+1, r+1)
 				formula, _ := f.GetCellFormula(name, addr)
-				sheet.Rows[r][c] = Cell{Value: value, Formula: formula}
+				cell := Cell{Value: value, Formula: formula}
+				if styleID, err := f.GetCellStyle(name, addr); err == nil && styleID > 0 {
+					if style, err := f.GetStyle(styleID); err == nil {
+						cell.Format = cellFormatFromExcelizeStyle(style)
+					}
+				}
+				sheet.Rows[r][c] = cell
 			}
 		}
 		workbook.Sheets = append(workbook.Sheets, sheet)
@@ -413,6 +454,268 @@ func decodeXLSX(data []byte) (Workbook, error) {
 		workbook.Sheets = []Sheet{{Name: "Sheet1"}}
 	}
 	return workbook, nil
+}
+
+var (
+	builtInNumFormatByID = map[int]string{
+		0:  "general",
+		1:  "0",
+		2:  "0.00",
+		3:  "#,##0",
+		4:  "#,##0.00",
+		9:  "0%",
+		10: "0.00%",
+		11: "0.00E+00",
+		12: "# ?/?",
+		13: "# ??/??",
+		14: "mm-dd-yy",
+		15: "d-mmm-yy",
+		16: "d-mmm",
+		17: "mmm-yy",
+		18: "h:mm AM/PM",
+		19: "h:mm:ss AM/PM",
+		20: "hh:mm",
+		21: "hh:mm:ss",
+		22: "m/d/yy hh:mm",
+		37: "#,##0 ;(#,##0)",
+		38: "#,##0 ;[red](#,##0)",
+		39: "#,##0.00 ;(#,##0.00)",
+		40: "#,##0.00 ;[red](#,##0.00)",
+		41: "_(* #,##0_);_(* \\(#,##0\\);_(* \"-\"_);_(@_)",
+		42: "_(\"$\"* #,##0_);_(\"$\"* \\(#,##0\\);_(\"$\"* \"-\"_);_(@_)",
+		43: "_(* #,##0.00_);_(* \\(#,##0.00\\);_(* \"-\"??_);_(@_)",
+		44: "_(\"$\"* #,##0.00_);_(\"$\"* \\(#,##0.00\\);_(\"$\"* \"-\"??_);_(@_)",
+		45: "mm:ss",
+		46: "[h]:mm:ss",
+		47: "mm:ss.0",
+		48: "##0.0E+0",
+		49: "@",
+	}
+	builtInNumFormatByCode map[string]int
+
+	borderStyleNameByID = map[int]string{
+		1:  "thin",
+		2:  "medium",
+		3:  "dashed",
+		4:  "dotted",
+		5:  "thick",
+		6:  "double",
+		7:  "hair",
+		8:  "mediumDashed",
+		9:  "dashDot",
+		10: "mediumDashDot",
+		11: "dashDotDot",
+		12: "mediumDashDotDot",
+		13: "slantDashDot",
+	}
+	borderStyleIDByName map[string]int
+)
+
+func init() {
+	builtInNumFormatByCode = make(map[string]int, len(builtInNumFormatByID))
+	for id, code := range builtInNumFormatByID {
+		builtInNumFormatByCode[strings.ToLower(code)] = id
+	}
+
+	borderStyleIDByName = make(map[string]int, len(borderStyleNameByID))
+	for id, name := range borderStyleNameByID {
+		borderStyleIDByName[strings.ToLower(name)] = id
+	}
+}
+
+func cellFormatFromExcelizeStyle(style *excelize.Style) *CellFormat {
+	if style == nil {
+		return nil
+	}
+	format := &CellFormat{}
+	hasFormat := false
+
+	if style.Font != nil {
+		if style.Font.Bold {
+			format.Bold = true
+			hasFormat = true
+		}
+		if style.Font.Italic {
+			format.Italic = true
+			hasFormat = true
+		}
+		if style.Font.Underline != "" && !strings.EqualFold(style.Font.Underline, "none") {
+			format.Underline = true
+			hasFormat = true
+		}
+		if style.Font.Color != "" {
+			format.FontColor = style.Font.Color
+			hasFormat = true
+		}
+	}
+
+	if style.Fill.Type == "pattern" && len(style.Fill.Color) > 0 {
+		format.FillColor = style.Fill.Color[0]
+		hasFormat = true
+	}
+
+	if style.Alignment != nil {
+		if style.Alignment.Horizontal != "" {
+			format.HAlign = style.Alignment.Horizontal
+			hasFormat = true
+		}
+		if style.Alignment.Vertical != "" {
+			format.VAlign = style.Alignment.Vertical
+			hasFormat = true
+		}
+	}
+
+	if style.CustomNumFmt != nil && *style.CustomNumFmt != "" {
+		format.NumFormat = *style.CustomNumFmt
+		hasFormat = true
+	} else if style.NumFmt != 0 {
+		if code, ok := builtInNumFormatByID[style.NumFmt]; ok {
+			format.NumFormat = code
+			hasFormat = true
+		}
+	}
+
+	borders := cellBordersFromExcelizeBorder(style.Border)
+	if borders != nil {
+		format.Borders = borders
+		hasFormat = true
+	}
+
+	if !hasFormat {
+		return nil
+	}
+	return format
+}
+
+func cellBordersFromExcelizeBorder(borders []excelize.Border) *CellBorders {
+	cellBorders := &CellBorders{}
+	hasBorder := false
+	for _, b := range borders {
+		if b.Style == 0 && b.Color == "" {
+			continue
+		}
+		style := ""
+		if b.Style != 0 {
+			style = borderStyleNameByID[b.Style]
+			if style == "" {
+				style = "thin"
+			}
+		}
+		border := &BorderStyle{Style: style, Color: b.Color}
+		switch b.Type {
+		case "top":
+			cellBorders.Top = border
+			hasBorder = true
+		case "bottom":
+			cellBorders.Bottom = border
+			hasBorder = true
+		case "left":
+			cellBorders.Left = border
+			hasBorder = true
+		case "right":
+			cellBorders.Right = border
+			hasBorder = true
+		}
+	}
+	if !hasBorder {
+		return nil
+	}
+	return cellBorders
+}
+
+func cellFormatIsEmpty(format *CellFormat) bool {
+	if format == nil {
+		return true
+	}
+	return !format.Bold && !format.Italic && !format.Underline &&
+		format.FontColor == "" && format.FillColor == "" &&
+		format.HAlign == "" && format.VAlign == "" &&
+		format.NumFormat == "" && format.Borders == nil
+}
+
+func excelizeStyleFromCellFormat(format *CellFormat) *excelize.Style {
+	if format == nil || cellFormatIsEmpty(format) {
+		return nil
+	}
+	style := &excelize.Style{}
+
+	if format.Bold || format.Italic || format.Underline || format.FontColor != "" {
+		style.Font = &excelize.Font{
+			Bold:   format.Bold,
+			Italic: format.Italic,
+			Color:  stripHexPrefix(format.FontColor),
+		}
+		if format.Underline {
+			style.Font.Underline = "single"
+		}
+	}
+
+	if format.FillColor != "" {
+		style.Fill = excelize.Fill{
+			Type:    "pattern",
+			Pattern: 1,
+			Color:   []string{stripHexPrefix(format.FillColor)},
+		}
+	}
+
+	if format.HAlign != "" || format.VAlign != "" {
+		style.Alignment = &excelize.Alignment{
+			Horizontal: format.HAlign,
+			Vertical:   format.VAlign,
+		}
+	}
+
+	if format.NumFormat != "" {
+		code := strings.ToLower(format.NumFormat)
+		if code == "general" {
+			// Default number format; no need to apply it explicitly.
+		} else if id, ok := builtInNumFormatByCode[code]; ok {
+			style.NumFmt = id
+		} else {
+			custom := format.NumFormat
+			style.CustomNumFmt = &custom
+		}
+	}
+
+	style.Border = excelizeBordersFromCellBorders(format.Borders)
+
+	return style
+}
+
+func excelizeBordersFromCellBorders(borders *CellBorders) []excelize.Border {
+	if borders == nil {
+		return nil
+	}
+	var result []excelize.Border
+	addBorder := func(borderType string, border *BorderStyle) {
+		if border == nil {
+			return
+		}
+		style := 0
+		if border.Style != "" {
+			id, ok := borderStyleIDByName[strings.ToLower(border.Style)]
+			if ok {
+				style = id
+			}
+		}
+		if style == 0 && border.Color == "" {
+			return
+		}
+		result = append(result, excelize.Border{
+			Type:  borderType,
+			Color: stripHexPrefix(border.Color),
+			Style: style,
+		})
+	}
+	addBorder("top", borders.Top)
+	addBorder("bottom", borders.Bottom)
+	addBorder("left", borders.Left)
+	addBorder("right", borders.Right)
+	return result
+}
+
+func stripHexPrefix(color string) string {
+	return strings.TrimPrefix(strings.TrimSpace(color), "#")
 }
 
 func decodeCSV(data []byte) (Workbook, error) {

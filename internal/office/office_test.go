@@ -104,6 +104,71 @@ func TestWorkbookXLSXRoundTrip(t *testing.T) {
 	}
 }
 
+func TestWorkbookXLSXFormatRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	want := Workbook{
+		Sheets: []Sheet{{
+			Name: "Styled",
+			Rows: [][]Cell{
+				{{
+					Value: "Header",
+					Format: &CellFormat{
+						Bold:      true,
+						FillColor: "#DDEBF7",
+						HAlign:    "center",
+						VAlign:    "center",
+					},
+				}},
+				{{
+					Value: "42.5",
+					Format: &CellFormat{
+						NumFormat: "0.00",
+					},
+				}},
+				{{
+					Value: "Border",
+					Format: &CellFormat{
+						Borders: &CellBorders{
+							Top:  &BorderStyle{Style: "thin", Color: "#000000"},
+							Left: &BorderStyle{Style: "medium", Color: "#FF0000"},
+						},
+					},
+				}},
+			},
+		}},
+	}
+	data, err := EncodeWorkbook(want)
+	if err != nil {
+		t.Fatalf("EncodeWorkbook: %v", err)
+	}
+	got, err := DecodeWorkbook("styled.xlsx", data)
+	if err != nil {
+		t.Fatalf("DecodeWorkbook: %v", err)
+	}
+	if len(got.Sheets) != 1 || len(got.Sheets[0].Rows) != 3 {
+		t.Fatalf("unexpected sheets/rows: %+v", got)
+	}
+	rows := got.Sheets[0].Rows
+
+	header := rows[0][0].Format
+	if header == nil || !header.Bold || !strings.EqualFold(header.FillColor, "DDEBF7") || header.HAlign != "center" || header.VAlign != "center" {
+		t.Fatalf("header format = %+v", header)
+	}
+
+	numFmt := rows[1][0].Format
+	if numFmt == nil || numFmt.NumFormat != "0.00" {
+		t.Fatalf("number format = %+v", numFmt)
+	}
+
+	borderCell := rows[2][0].Format
+	if borderCell == nil || borderCell.Borders == nil ||
+		borderCell.Borders.Top == nil || borderCell.Borders.Top.Style != "thin" || !strings.EqualFold(borderCell.Borders.Top.Color, "000000") ||
+		borderCell.Borders.Left == nil || borderCell.Borders.Left.Style != "medium" || !strings.EqualFold(borderCell.Borders.Left.Color, "FF0000") {
+		t.Fatalf("border format = %+v", borderCell)
+	}
+}
+
 func TestEncodeWorkbookNormalizesAvgFormula(t *testing.T) {
 	t.Parallel()
 
