@@ -31,7 +31,12 @@
         },
         'sheets': {
             styles: appStyles('/css/desktop-app-office.css'),
-            scripts: ['/js/desktop/apps/sheets.js']
+            scripts: [
+                '/js/desktop/apps/sheets-formulas.js',
+                '/js/desktop/apps/sheets-format.js',
+                '/js/desktop/apps/sheets-search.js',
+                '/js/desktop/apps/sheets.js'
+            ]
         },
         'settings': {
             styles: appStyles('/css/desktop-app-settings.css')

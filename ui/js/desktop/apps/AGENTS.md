@@ -1,0 +1,155 @@
+# Desktop App Modules - Child DOX Contract
+
+## Purpose
+
+This subtree owns built-in virtual desktop app modules that are loaded lazily by
+`ui/js/desktop/core/module-loader.js`.
+
+- `galaxa-*.js` implements Galaxa Deluxe, a modular Canvas 2D arcade shooter
+  with procedural audio, biomed progression, parry/super combat, and persistent
+  meta-progression.
+- `chess*.js` implements Chess, a casual desktop chess app using
+  `cm-chessboard`, `chess.js`, a local Stockfish WebWorker, and the optional
+  AuraGo agent move endpoint.
+- `cheater*.js` implements the Cheater app, a cheat-sheet manager with a
+  textarea-based Markdown editor, live preview, Markdown toolbar, command
+  palette (spotlight), and attachments side panel.
+- `sheets*.js` implements the Sheets app, a spreadsheet editor with formula
+  engine, cell formatting, undo/redo, auto-save, search/replace, and multi-sheet
+  support. Split across `sheets.js` (core), `sheets-formulas.js` (formula
+  engine), `sheets-format.js` (format toolbar), and `sheets-search.js`
+  (find/replace overlay).
+
+## Ownership
+
+Owned by this subtree. Backend integration lives in `internal/server/` and app
+registration lives in `internal/desktop/types.go`.
+
+## Local Contracts
+
+- Built-in app load order is defined in `ui/js/desktop/core/module-loader.js`.
+- Galaxa modules attach to the shared `window.GalaxaCore` (GC) namespace and
+  expose `GC.create<Name>(ctx)` factories that augment a per-instance `ctx`
+  created via `Object.create(GC)` in `galaxa-deluxe.js`.
+- Galaxa load order is defined under the `galaxa-deluxe` entry.
+  `galaxa-constants.js` and `galaxa-tweens.js` must load before factory modules.
+- New Galaxa constants (biomes, super defs, parry tuning, explosion profiles)
+  are added to `galaxa-constants.js`, not duplicated in game logic files.
+- Galaxa visible UI strings use `galaxa.*` keys in all
+  `ui/lang/desktop/*.json` files and must not rely on inline fallback text.
+- Chess exposes `window.ChessApp = { render, dispose }`; every desktop window
+  instance must own and clean up its own `chess.js` game, `cm-chessboard`
+  board, Stockfish worker, Agent client, event handlers, and pending search
+  token state.
+- Chess loads `ui/js/vendor/chess-vendor.esm.js` with dynamic `import()` from
+  `chess.js`; the lazy loader remains classic-script based.
+- Chess engine code must load Stockfish only from
+  `/js/vendor/stockfish/stockfish-18-lite-single.js` and browser-side agent
+  moves must call `/api/desktop/chess/agent-move`.
+- Chess visible UI strings use `desktop.*` keys in all
+  `ui/lang/desktop/*.json` files.
+- Cheater exposes `window.CheaterApp = { render, dispose, openSheet,
+  openCreateModal, formatRelativeShort }`; every desktop window instance owns
+  its own save debounce timer, preview debounce timer, polling timer, and
+  AbortController for in-flight saves.
+- Cheater editor uses a stable `<textarea>` source (NOT `contenteditable`) so
+  cursor, selection, and native undo stay intact. Live preview is rendered into
+  a separate `.cheater-preview` panel via `window.marked` + `window.hljs`.
+- Cheater view modes (`edit`/`split`/`preview`) are persisted per-window in
+  `localStorage` under `cheater.viewMode`.
+- Cheater toolbar is a separate `cheater-toolbar.js` module exposing
+  `window.CheaterToolbar.mount(state, slot)`; toolbar buttons use
+  `textarea.setRangeText` to stay caret-safe. Do not inline the toolbar into
+  `cheater.js`.
+- Cheater visible UI strings use `cheater.*` keys in all
+  `ui/lang/desktop/*.json` files.
+- Sheets exposes `window.SheetsApp = { render, dispose }`; every desktop window
+  instance owns its own undo/redo stacks, auto-save timer, dirty state, and
+  context menu state.
+- Sheets formula engine lives in `sheets-formulas.js` and exposes
+  `window.SheetsFormulas = { evaluate, tokenize, parseCellRef, cellName,
+  columnName, numericCellValue, rangeValues }`.
+- Sheets format toolbar lives in `sheets-format.js` and exposes
+  `window.SheetsFormat = { renderToolbar, applyFormat, getFormatForCell,
+  renderFormatStyles, updateToolbarState }`.
+- Sheets search/replace lives in `sheets-search.js` and exposes
+  `window.SheetsSearch = { openSearch, closeSearch, findNext, findPrev,
+  replace, replaceAll }`.
+- Sheets sub-module load order in `module-loader.js` must be: formulas, format,
+  search, then sheets.js (core). This is because sheets.js references
+  `window.SheetsFormulas` at render time.
+- Sheets visible UI strings use `desktop.sheets_*` keys in all
+  `ui/lang/desktop/*.json` files.
+
+## Work Guidance
+
+- Files exceeding 1100 lines must be added to `knownOversizedContinuations` in
+  `ui/desktop_js_line_budget_test.go` (currently `galaxa-deluxe.js`,
+  `galaxa-entities.js`, `galaxa-render.js`).
+- Performance-sensitive Galaxa rendering respects the `ctx.settings.particles`
+  setting (`low`/`medium`/`high`); particle/trail caps must scale accordingly.
+- Galaxa audio uses Web Audio API synthesis only (no sample files). New SFX
+  must check `ctx.G.muted` and respect `ctx.G.vol`.
+- Galaxa canvas resource caches (`cachedRadialGradient`, `spriteAtlasCache`,
+  `ensureNebulaCanvas`) must be reused; see
+  `ui/desktop_runtime_performance_test.go` for enforced markers.
+- Keep Chess split across `chess.js`, `chess-engine.js`, and `chess-agent.js`;
+  do not fold worker or API bridge logic into the main app file.
+- Keep Cheater split across `cheater.js`, `cheater-toolbar.js`,
+  `cheater-spotlight.js`, `cheater-templates.js`, and `cheater-attachments.js`;
+  do not fold the toolbar, spotlight, or attachment logic into the main app
+  file.
+- Keep Sheets split across `sheets.js`, `sheets-formulas.js`,
+  `sheets-format.js`, and `sheets-search.js`; do not fold the formula engine,
+  format toolbar, or search/replace logic into the main app file.
+- New formula functions must be added to `sheets-formulas.js` and kept in sync
+  with the Go evaluator in `internal/office/` (see `EvaluateFormulaForSheet`).
+- Rebuild chess vendor assets with `npm run build:chess-vendor` after changing
+  vendored chess package versions or copied Stockfish assets.
+
+## Verification
+
+- `go test ./ui/ -run TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget`
+- `go test ./ui/ -run TestGalaxaDeluxeCachesCanvasResources`
+- `go test ./ui/ -run TestVirtualDesktopJSUsesSemanticChunkNames`
+- `go test ./ui/ -run "TestDesktopChess|TestDesktopAppsExposeDisposeLifecycle|TestDesktopAppAssetsRegistry"`
+- `go test ./ui/ -run "TestDesktopCheater"`
+- `go test ./ui/ -run "TestDesktopSheets"`
+- `go build ./cmd/aurago`
+
+## Child DOX Index
+
+- `galaxa-demo.js` - AI pilot and demo lifecycle; reactive combat AI (aim, fire,
+  dodge, collect powerups), menu auto-tap for shop/evo, and game-over
+  auto-restart loop. Attaches `ctx.startDemo()` and `ctx.updateDemo(dt)` via
+  `GC.createDemo(ctx)`. Uses the `ctx.G.ai` input source merged in
+  `galaxa-game.js` when `ctx.G.demoMode` is true. No child DOX file needed.
+- `cheater.js` - Cheater app entry: library, editor, create modal, auto-save,
+  polling, view-mode toggle. Exposes `window.CheaterApp`. Editor uses a stable
+  `<textarea>` source and renders a separate live preview via `marked`/`hljs`.
+  No child DOX file needed.
+- `cheater-toolbar.js` - Markdown formatting toolbar (bold, italic, code,
+  link, heading, lists, quote, divider) plus shortcut help modal. Mounts into
+  the editor toolbar slot via `window.CheaterToolbar.mount(state, slot)`. No
+  child DOX file needed.
+- `cheater-spotlight.js` - Command-palette overlay with fuzzy search, keyboard
+  navigation, delete confirmation, and create-from-query fallback. No child DOX
+  file needed.
+- `cheater-templates.js` - New-sheet templates (empty, deployment, debug,
+  routine, API, backup) returning localized names via `cheater.template.*`
+  keys. No child DOX file needed.
+- `cheater-attachments.js` - Attachment upload/delete side panel with
+  drag-and-drop and 5-second undo. No child DOX file needed.
+- `sheets.js` - Sheets app core: grid rendering, selection, save/load, sheet
+  tabs, context menu, undo/redo, auto-save, dirty state, status bar, format
+  toolbar integration, search integration. Exposes `window.SheetsApp`. No child
+  DOX file needed.
+- `sheets-formulas.js` - Formula engine: tokenizer, recursive-descent parser,
+  cell/range evaluation, extended functions (IF, VLOOKUP, CONCAT, DATE, string
+  functions, etc.). Exposes `window.SheetsFormulas`. No child DOX file needed.
+- `sheets-format.js` - Format toolbar: bold/italic/underline toggles, color
+  pickers, alignment buttons, number format dropdown, border dropdown. Exposes
+  `window.SheetsFormat`. No child DOX file needed.
+- `sheets-search.js` - Search/replace overlay: find next/prev, match case,
+  replace current, replace all, match highlighting. Exposes
+  `window.SheetsSearch`. No child DOX file needed.

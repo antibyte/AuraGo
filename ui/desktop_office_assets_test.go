@@ -107,6 +107,97 @@ func TestDesktopSheetsSupportsSelectionFormulaBarAndContextMenu(t *testing.T) {
 	}
 }
 
+func TestDesktopSheetsEnhancedFeatures(t *testing.T) {
+	t.Parallel()
+
+	sheetsJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", "sheets.js"))
+	requiredJS := []string{
+		"window.SheetsFormulas",
+		"window.SheetsFormat",
+		"window.SheetsSearch",
+		"undoStack",
+		"redoStack",
+		"isDirty",
+		"autosaveTimer",
+		"pushSnapshot",
+		"office-status-bar",
+		"office-format-bar",
+		"openSearch",
+		"addNewSheet",
+		"renameSheetPrompt",
+		"duplicateSheet",
+		"deleteSheet",
+	}
+	for _, marker := range requiredJS {
+		if !strings.Contains(sheetsJS, marker) {
+			t.Fatalf("sheets enhanced feature missing marker %q", marker)
+		}
+	}
+
+	formulasJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", "sheets-formulas.js"))
+	for _, marker := range []string{
+		"window.SheetsFormulas",
+		"evaluateFormulaForSheet",
+		"parseCellRef",
+		"cellName",
+		"columnName",
+	} {
+		if !strings.Contains(formulasJS, marker) {
+			t.Fatalf("sheets-formulas.js missing marker %q", marker)
+		}
+	}
+
+	formatJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", "sheets-format.js"))
+	for _, marker := range []string{
+		"window.SheetsFormat",
+		"renderToolbar",
+		"applyFormat",
+		"renderFormatStyles",
+	} {
+		if !strings.Contains(formatJS, marker) {
+			t.Fatalf("sheets-format.js missing marker %q", marker)
+		}
+	}
+
+	searchJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", "sheets-search.js"))
+	for _, marker := range []string{
+		"window.SheetsSearch",
+		"openSearch",
+		"closeSearch",
+		"replaceAll",
+	} {
+		if !strings.Contains(searchJS, marker) {
+			t.Fatalf("sheets-search.js missing marker %q", marker)
+		}
+	}
+
+	moduleLoader := readDesktopAssetText(t, filepath.Join("js", "desktop", "core", "module-loader.js"))
+	for _, marker := range []string{
+		"/js/desktop/apps/sheets-formulas.js",
+		"/js/desktop/apps/sheets-format.js",
+		"/js/desktop/apps/sheets-search.js",
+	} {
+		if !strings.Contains(moduleLoader, marker) {
+			t.Fatalf("module-loader.js missing sheets sub-module %q", marker)
+		}
+	}
+
+	desktopCSS := readAllDesktopCSS(t)
+	requiredCSS := []string{
+		".office-format-toolbar",
+		".office-search-overlay",
+		".office-status-bar",
+		".office-color-picker",
+		".office-cell-search-match",
+		".office-sheet-add-btn",
+	}
+	for _, marker := range requiredCSS {
+		if !strings.Contains(desktopCSS, marker) {
+			t.Fatalf("desktop.css missing enhanced sheets style %q", marker)
+		}
+	}
+}
+
 func TestDesktopOfficeAppsRespectReadonlyMode(t *testing.T) {
 	t.Parallel()
 
@@ -225,9 +316,17 @@ func TestVirtualDesktopConfigExposesRemoteSessionLimits(t *testing.T) {
 func TestDesktopSheetsDisplaysFormulaResultsWithoutLosingSourceFormula(t *testing.T) {
 	t.Parallel()
 
-	sheetsJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", "sheets.js"))
+	formulasJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", "sheets-formulas.js"))
 	for _, marker := range []string{
 		"function evaluateFormulaForSheet",
+	} {
+		if !strings.Contains(formulasJS, marker) {
+			t.Fatalf("sheets-formulas.js missing formula marker %q", marker)
+		}
+	}
+
+	sheetsJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", "sheets.js"))
+	for _, marker := range []string{
 		"data-formula=",
 		"data-display-value=",
 		"cellFromInputElement(input)",
@@ -277,6 +376,46 @@ func TestDesktopOfficeI18NKeys(t *testing.T) {
 		"help.virtual_desktop.office_workbook",
 		"config.virtual_desktop.office_workbook_readonly_label",
 		"help.virtual_desktop.office_workbook_readonly",
+		"desktop.sheets_format_bold",
+		"desktop.sheets_format_italic",
+		"desktop.sheets_format_underline",
+		"desktop.sheets_format_font_color",
+		"desktop.sheets_format_fill_color",
+		"desktop.sheets_format_align_left",
+		"desktop.sheets_format_align_center",
+		"desktop.sheets_format_align_right",
+		"desktop.sheets_format_number",
+		"desktop.sheets_format_currency",
+		"desktop.sheets_format_percent",
+		"desktop.sheets_format_date",
+		"desktop.sheets_format_text",
+		"desktop.sheets_format_borders",
+		"desktop.sheets_format_border_outer",
+		"desktop.sheets_format_border_all",
+		"desktop.sheets_format_border_none",
+		"desktop.sheets_format_border_top",
+		"desktop.sheets_format_border_bottom",
+		"desktop.sheets_format_border_left",
+		"desktop.sheets_format_border_right",
+		"desktop.sheets_search",
+		"desktop.sheets_replace",
+		"desktop.sheets_replace_all",
+		"desktop.sheets_match_case",
+		"desktop.sheets_no_matches",
+		"desktop.sheets_match_count",
+		"desktop.sheets_undo",
+		"desktop.sheets_redo",
+		"desktop.sheets_add_sheet",
+		"desktop.sheets_rename_sheet",
+		"desktop.sheets_delete_sheet",
+		"desktop.sheets_duplicate_sheet",
+		"desktop.sheets_status_sum",
+		"desktop.sheets_status_count",
+		"desktop.sheets_status_avg",
+		"desktop.sheets_autosave",
+		"desktop.sheets_dirty_indicator",
+		"desktop.menu_format",
+		"desktop.sheets_rename_sheet_title",
 	}
 	entries, err := os.ReadDir(filepath.Join("lang", "desktop"))
 	if err != nil {
