@@ -13,14 +13,14 @@
     // sprite appeared to "leave the field" by ~one player height during supers.
     // New value gives sprite bottom at 592, drawn at canvas y ~633 when zoomed
     // (8px clear of canvas bottom).
-    GC.PLAYER_Y_MAX = GC.H - 60;
+    GC.PLAYER_Y_MAX = GC.H - 80;
     GC.PLAYER_VERTICAL_SPEED_MULT = 0.85;
     GC.PB_SPEED = 500;
     GC.EB_SPEED = 260;
     GC.FCOLS = 10;
     GC.FROWS = 5;
-    GC.ESP_X = 36;
-    GC.ESP_Y = 32;
+    GC.ESP_X = 48;
+    GC.ESP_Y = 43;
     GC.FTOP = 60;
     GC.DIVE_SPD = 180;
     GC.EXTRA_LIFE = 20000;
@@ -177,8 +177,8 @@
 
     GC.SHIP_TYPES = {
         classic: { name: 'Classic', speedMult: 1, lifeMod: 0, hitboxMod: 0, invMult: 1, diveTargetMod: 1 },
-        interceptor: { name: 'Interceptor', speedMult: 1.3, lifeMod: -1, hitboxMod: -2, invMult: 1, diveTargetMod: 1 },
-        heavy: { name: 'Heavy', speedMult: 0.8, lifeMod: 1, hitboxMod: 2, invMult: 1, diveTargetMod: 1 },
+        interceptor: { name: 'Interceptor', speedMult: 1.3, lifeMod: -1, hitboxMod: -3, invMult: 1, diveTargetMod: 1 },
+        heavy: { name: 'Heavy', speedMult: 0.8, lifeMod: 1, hitboxMod: 3, invMult: 1, diveTargetMod: 1 },
         stealth: { name: 'Stealth', speedMult: 1, lifeMod: 0, hitboxMod: 0, invMult: 0.6, diveTargetMod: 0.5 }
     };
 
@@ -208,7 +208,7 @@
     // NEW: Parry tuning
     GC.PARRY_WINDOW = 120;     // ms active parry window
     GC.PARRY_COOLDOWN = 600;   // ms cooldown after window ends
-    GC.PARRY_RADIUS = 28;      // px radius around player
+    GC.PARRY_RADIUS = 38;      // px radius around player (scaled 1.33x for 32×32 player)
 
     // NEW: Explosion profiles per enemy type (flash size, shockwave strength, debris count, color set)
     GC.EXPLOSION_PROFILE = {
@@ -264,7 +264,7 @@
 
     GC.DEMO_DECISION_MS = 50;
     GC.DEMO_DODGE_LOOKAHEAD = 18;
-    GC.DEMO_DODGE_RADIUS = 28;
+    GC.DEMO_DODGE_RADIUS = 38;
     GC.DEMO_MENU_TAP_MS = 180;
     GC.DEMO_AIM_DEADZONE = 6;
 })();

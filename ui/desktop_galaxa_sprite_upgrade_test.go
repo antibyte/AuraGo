@@ -13,11 +13,11 @@ func TestGalaxaPremiumCodeDefinedSprites(t *testing.T) {
 	entities := readEmbeddedText(t, "js/desktop/apps/galaxa-entities.js")
 
 	for _, marker := range []string{
-		"const PREMIUM_PIXEL_ART_VERSION = 'galaxa-premium-v4'",
+		"const PREMIUM_PIXEL_ART_VERSION = 'galaxa-premium-v5'",
 		"const PLAYER_FRAME = Object.freeze({ idleA: 0, idleB: 1, bankLeft: 2, bankRight: 3, boost: 4, fire: 5, super: 6 })",
 		"const ENEMY_FRAME_COUNTS = Object.freeze({ bee: 4, butterfly: 4, stalker: 4, sniper: 4, hunter: 4, spinner: 4, bomber: 4, lasher: 4, weaver: 4, splitter: 4, shield_bee: 4, kamikaze: 4, carrier: 4, teleporter: 4, boss: 3, miniboss: 3 })",
-		"PREMIUM_PIXEL_ART_VERSION,",
-		"playerIcon: playerFrames[PLAYER_FRAME.idleA]",
+		"PREMIUM_PIXEL_ART_VERSION: 'galaxa-premium-v5'",
+		"playerIcon: expandedPF[_rawSP.PLAYER_FRAME.idleA]",
 		"function validateSpritePalette(",
 		"function validateSpriteSet(",
 		"function validateSpriteFrameCount(",

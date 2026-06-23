@@ -103,7 +103,7 @@
             return { diveRate: 1, ebSpd: 1, lives: 3 + ship.lifeMod, puFromBee: true }[key];
         }
         function getShipSpeed() { return GC.PLAYER_SPEED * (GC.SHIP_TYPES[settings.ship] || GC.SHIP_TYPES.classic).speedMult; }
-        function getShipHitbox() { const mod = (GC.SHIP_TYPES[settings.ship] || GC.SHIP_TYPES.classic).hitboxMod; return { x: gameCtx.G.p.x - 6 + mod, y: gameCtx.G.p.y - 6 + mod, w: 12 - mod * 2, h: 12 - mod * 2 }; }
+        function getShipHitbox() { const mod = (GC.SHIP_TYPES[settings.ship] || GC.SHIP_TYPES.classic).hitboxMod; return { x: gameCtx.G.p.x - 8 + mod, y: gameCtx.G.p.y - 8 + mod, w: 16 - mod * 2, h: 16 - mod * 2 }; }
         function getShipInvMult() { return (GC.SHIP_TYPES[settings.ship] || GC.SHIP_TYPES.classic).invMult; }
         function setPUClass(type) {
             const cls = ['galaxa-powerup-active'];

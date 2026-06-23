@@ -303,31 +303,31 @@
                 const playerFrame = (ctx.getPlayerSpriteFrame && ctx.getPlayerSpriteFrame()) || ctx.SP.playerIcon || ctx.SP.player;
                 if (p.inv > 0) {
                     const rpc = ctx.rainbowPC();
-                    ctx.drawSp(ctx.c, playerFrame, rpc, p.x - 12, p.y - 12, false, true);
+                    ctx.drawSp(ctx.c, playerFrame, rpc, p.x - 16, p.y - 16, false, true);
                     if (p.dual) {
-                        ctx.drawSp(ctx.c, playerFrame, rpc, p.x + 28, p.y - 12, false, true);
+                        ctx.drawSp(ctx.c, playerFrame, rpc, p.x + 36, p.y - 16, false, true);
                     }
                 } else {
-                    ctx.drawSp(ctx.c, playerFrame, ctx.SP.pC, p.x - 12, p.y - 12, false);
+                    ctx.drawSp(ctx.c, playerFrame, ctx.SP.pC, p.x - 16, p.y - 16, false);
                     if (p.dual) {
-                        ctx.drawSp(ctx.c, playerFrame, ctx.SP.pC, p.x + 28, p.y - 12, false);
+                        ctx.drawSp(ctx.c, playerFrame, ctx.SP.pC, p.x + 36, p.y - 16, false);
                     }
                 }
                 if (p.alive) {
                     const beatMod = ctx.G.beatPhase > 0.85 ? 1.3 : 1;
                     const eg = (0.5 + Math.sin(ctx.tick * 0.15) * 0.3) * beatMod;
                     const flameGlowCol = ctx.G.activePU && ctx.PU_COL[ctx.G.activePU.type] ? ctx.PU_COL[ctx.G.activePU.type] : '#ff6600';
-                    renderFlame(ctx.c, p.x - 6, p.y + 11, eg, ctx.tick);
-                    renderFlame(ctx.c, p.x + 3, p.y + 11, eg, ctx.tick);
+                    renderFlame(ctx.c, p.x - 8, p.y + 15, eg, ctx.tick);
+                    renderFlame(ctx.c, p.x + 4, p.y + 15, eg, ctx.tick);
                     if (p.dual) {
-                        renderFlame(ctx.c, p.x + 28, p.y + 11, eg, ctx.tick);
-                        renderFlame(ctx.c, p.x + 34, p.y + 11, eg, ctx.tick);
+                        renderFlame(ctx.c, p.x + 36, p.y + 15, eg, ctx.tick);
+                        renderFlame(ctx.c, p.x + 44, p.y + 15, eg, ctx.tick);
                     }
                 }
                 ctx.c.restore();
             }
             if (p.cap) {
-                ctx.drawSp(ctx.c, ctx.SP.playerIcon || ctx.SP.player, ctx.SP.pC, p.cap.x - 12, p.cap.y - 12, false);
+                ctx.drawSp(ctx.c, ctx.SP.playerIcon || ctx.SP.player, ctx.SP.pC, p.cap.x - 16, p.cap.y - 16, false);
             }
             if (ctx.G.shieldHits > 0 && p.alive) {
                 ctx.c.strokeStyle = '#4488ff'; ctx.c.lineWidth = 1.5; ctx.c.globalAlpha = 0.5 + Math.sin(ctx.tick * 0.1) * 0.2;
@@ -388,7 +388,7 @@
             // NEW: Super meter bar — rendered above player when partially/fully charged
             if (p.alive && (ctx.G.superMeter || 0) > 0) {
                 const _def = ctx.SUPER_DEFS[ctx.settings.ship] || ctx.SUPER_DEFS.classic;
-                const _bw = 40, _bh = 3, _bx = p.x - _bw / 2, _by = p.y + 28;
+                const _bw = 40, _bh = 3, _bx = p.x - _bw / 2, _by = p.y + 32;
                 ctx.c.fillStyle = '#222'; ctx.c.fillRect(_bx - 1, _by - 1, _bw + 2, _bh + 2);
                 ctx.c.fillStyle = '#333'; ctx.c.fillRect(_bx, _by, _bw, _bh);
                 const _ratio = ctx.G.superMeter / ctx.SUPER_COST;
@@ -601,10 +601,12 @@
                 const fl = e.hitF > 0;
                 const _eref = ctx.enemySpriteFor(e);
                 const sp = _eref.sp, cols = _eref.cols;
+                const _isBoss = e.type === 'boss' || e.type === 'miniboss';
+                const _eOff = _isBoss ? 16 : 12;
                 if (e.type === 'hunter' && e.st !== 'DEAD') {
                     ctx.c.globalAlpha = 0.25 + Math.sin(ctx.tick * 0.12) * 0.1;
                     ctx.c.shadowBlur = 10; ctx.c.shadowColor = '#ff6600';
-                    ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 12, false);
+                    ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff, false);
                     ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1;
                 }
                 const _spawnT = e.spawnAnim || 0;
@@ -617,24 +619,25 @@
                     ctx.c.translate(e.x, e.y);
                     ctx.c.scale(_sc, _sc);
                     ctx.c.translate(-e.x, -e.y);
-                    ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 12, fl);
+                    ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff, fl);
                     ctx.c.restore();
                 } else {
-                    ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 12, fl);
+                    ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff, fl);
                 }
                 if (fl && e.hitF > 60) {
                     const _hitAlpha = (e.hitF - 60) / 40 * 0.5;
                     ctx.c.globalAlpha = _hitAlpha;
                     ctx.c.fillStyle = '#ffffff';
-                    ctx.c.fillRect(e.x - 13, e.y - 13, 26, 26);
+                    const _hPad = _isBoss ? 17 : 13;
+                    ctx.c.fillRect(e.x - _hPad, e.y - _hPad, _hPad * 2, _hPad * 2);
                     ctx.c.globalAlpha = 1;
                 }
                 if (!fl && ctx.G.beatPhase > 0.82 && (e.type === 'bee' || e.type === 'butterfly')) {
                     // beat glow drawn in batched pass below to avoid per-enemy shadowBlur changes
                 }
-                if (e.rageMode > 0) { ctx.c.globalAlpha = 0.3 + Math.sin(ctx.tick * 0.3) * 0.15; ctx.c.shadowBlur = 8; ctx.c.shadowColor = '#ff0000'; ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 12, false); ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1; }
+                if (e.rageMode > 0) { ctx.c.globalAlpha = 0.3 + Math.sin(ctx.tick * 0.3) * 0.15; ctx.c.shadowBlur = 8; ctx.c.shadowColor = '#ff0000'; ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff, false); ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1; }
                 if (e.weakPoint && (e.type === 'boss' || e.type === 'miniboss')) { const wpx = e.x + e.weakPoint.x, wpy = e.y + e.weakPoint.y; const wpPulse = 0.6 + Math.sin(ctx.tick * 0.15) * 0.4; ctx.c.globalAlpha = wpPulse; ctx.c.fillStyle = '#ff4444'; ctx.c.shadowBlur = 8; ctx.c.shadowColor = '#ff4444'; ctx.c.beginPath(); ctx.c.arc(wpx, wpy, 3, 0, Math.PI * 2); ctx.c.fill(); ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1; }
-                if (e.type === 'kamikaze' && e.st === 'DIVING') { ctx.c.globalAlpha = 0.15; ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 18, false); ctx.c.globalAlpha = 0.08; ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 24, false); ctx.c.globalAlpha = 1; }
+                if (e.type === 'kamikaze' && e.st === 'DIVING') { ctx.c.globalAlpha = 0.15; ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff - 6, false); ctx.c.globalAlpha = 0.08; ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff - 12, false); ctx.c.globalAlpha = 1; }
             }
 
             // batched beat-glow pass — one shadow setup per color type instead of per enemy
@@ -800,9 +803,9 @@
                 ctx.c.fillStyle = ctx.PU_COL[ctx.G.activePU.type]; ctx.c.font = '9px "Courier New",monospace'; ctx.c.textAlign = 'center';
                 const labels = { rapid: 'RAPID FIRE', spread: 'SPREAD SHOT', shield: 'SHIELD', speed: 'SPEED BOOST', magnet: 'MAGNET', laser: 'LASER', timeslow: 'TIME SLOW' };
                 const label = labels[ctx.G.activePU.type];
-                if (label) ctx.c.fillText(label, p.x, p.y + 22);
+                if (label) ctx.c.fillText(label, p.x, p.y + 26);
                 if (ctx.G.activePU.type !== 'shield' && ctx.PU_DUR[ctx.G.activePU.type]) {
-                    const bw = 40, bh = 3, bx = p.x - bw / 2, by = p.y + 24;
+                    const bw = 40, bh = 3, bx = p.x - bw / 2, by = p.y + 28;
                     ctx.c.fillStyle = '#333'; ctx.c.fillRect(bx, by, bw, bh);
                     ctx.c.fillStyle = ctx.PU_COL[ctx.G.activePU.type]; ctx.c.fillRect(bx, by, bw * (ctx.G.puTimer / ctx.PU_DUR[ctx.G.activePU.type]), bh);
                 }
@@ -1120,7 +1123,7 @@
                 ctx.c.fillStyle = puCol; ctx.c.fillRect(barX, barY, barW * ratio, barH);
                 if ((ratio < 0.3 || isExpiringSoon) && Math.sin(ctx.tick * (isExpiringSoon ? 0.4 : 0.2)) > 0) { ctx.c.fillStyle = '#fff'; ctx.c.fillRect(barX, barY, barW * ratio, barH); }
                 if (ctx.G.p && ctx.G.p.alive) {
-                    const cx = ctx.G.p.x, cy = ctx.G.p.y, r = 24;
+                    const cx = ctx.G.p.x, cy = ctx.G.p.y, r = 32;
                     const startA = -Math.PI / 2, endA = startA + ratio * Math.PI * 2;
                     ctx.c.strokeStyle = puCol; ctx.c.lineWidth = 2; ctx.c.globalAlpha = 0.5;
                     ctx.c.shadowBlur = 4; ctx.c.shadowColor = puCol;
@@ -1166,7 +1169,7 @@
                 ctx.c.fillText(_secs + 's', ctx.W / 2, ctx.H - 56);
                 ctx.c.restore();
             }
-            for (let i = 0; i < Math.min(ctx.G.lives, 5); i++) ctx.drawSp(ctx.c, ctx.SP.playerIcon || ctx.SP.player, ctx.SP.pC, 10 + i * 26, ctx.H - 24, false);
+            for (let i = 0; i < Math.min(ctx.G.lives, 5); i++) ctx.drawSp(ctx.c, ctx.SP.playerIcon || ctx.SP.player, ctx.SP.pC, 10 + i * 34, ctx.H - 32, false);
             if (ctx.G.activePU) {
                 const puIconX = ctx.W - 20, puIconY = ctx.H - 20;
                 const expiring = ctx.G.activePU.type !== 'shield' && ctx.PU_DUR[ctx.G.activePU.type] && ctx.G.puTimer < 2000;

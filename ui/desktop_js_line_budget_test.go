@@ -20,6 +20,7 @@ func TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget(t *testing.T) {
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "quickconnect-launchpad-chat.js")): true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "galaxa-entities.js")):             true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "galaxa-render.js")):                true,
+		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "galaxa-sprites.js")):              true,
 	}
 	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {

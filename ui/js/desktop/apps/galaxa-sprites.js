@@ -32,7 +32,7 @@
                 }
                 return out;
             };
-            const PREMIUM_PIXEL_ART_VERSION = 'galaxa-premium-v4';
+            const PREMIUM_PIXEL_ART_VERSION = 'galaxa-premium-v5';
             const PLAYER_FRAME = Object.freeze({ idleA: 0, idleB: 1, bankLeft: 2, bankRight: 3, boost: 4, fire: 5, super: 6 });
             const ENEMY_FRAME_COUNTS = Object.freeze({ bee: 4, butterfly: 4, stalker: 4, sniper: 4, hunter: 4, spinner: 4, bomber: 4, lasher: 4, weaver: 4, splitter: 4, shield_bee: 4, kamikaze: 4, carrier: 4, teleporter: 4, boss: 3, miniboss: 3 });
             const playerBase = p([
@@ -681,7 +681,71 @@
             return _rcCache;
         }
 
-        const SP = buildSprites();
+        const _rawSP = buildSprites();
+        const expandP = (grid, newW, newH) => {
+            const h = grid.length, refW = grid[0] ? grid[0].length : 0;
+            const ox = Math.floor((newW - refW) / 2), oy = Math.floor((newH - h) / 2);
+            const out = [];
+            for (let y = 0; y < newH; y++) out.push(new Array(newW).fill(0));
+            for (let gy = 0; gy < h; gy++) {
+                const srcRow = grid[gy], dy = gy + oy;
+                if (dy < 0 || dy >= newH) continue;
+                const dstRow = out[dy];
+                for (let gx = 0; gx < srcRow.length; gx++) {
+                    const dx = gx + ox;
+                    if (dx >= 0 && dx < newW) dstRow[dx] = srcRow[gx];
+                }
+            }
+            return out;
+        };
+        const withPx = (base, pixels) => {
+            const out = base.map(row => row.slice());
+            for (let i = 0; i < pixels.length; i++) { const px = pixels[i]; out[px[1]][px[0]] = px[2]; }
+            return out;
+        };
+        const expandEnemy = (frames, detail) => frames.map(fr => withPx(expandP(fr, 24, 24), detail));
+        const beeD = [[10,0,4],[13,0,4],[10,1,5],[13,1,5],[2,8,4],[21,8,4],[2,9,4],[21,9,4],[2,10,4],[21,10,4],[11,17,6],[12,17,6]];
+        const bfD = [[1,3,7],[22,3,7],[0,4,7],[23,4,7],[0,10,7],[23,10,7],[1,11,7],[22,11,7]];
+        const stalkerD = [[11,0,8],[12,0,8],[11,1,9],[12,1,9],[3,7,'a'],[20,7,'a']];
+        const sniperD = [[11,0,6],[12,0,6],[11,1,5],[12,1,5]];
+        const hunterD = [[11,0,8],[12,0,8],[2,9,'b'],[21,9,'b']];
+        const spinnerD = [[11,0,7],[12,0,7],[1,7,7],[22,7,7]];
+        const bomberD = [[11,0,8],[12,0,8],[11,17,9],[12,17,9],[11,18,'a'],[12,18,'a']];
+        const lasherD = [[9,17,5],[12,17,5],[15,17,5],[17,17,5],[9,18,6],[12,18,6],[15,18,6],[17,18,6]];
+        const weaverD = [[3,7,'a'],[20,7,'a'],[3,8,'a'],[20,8,'a']];
+        const splitterD = [[11,0,6],[12,0,6],[11,17,7],[12,17,7]];
+        const shield_beeD = [[4,0,2],[19,0,2],[4,1,3],[19,1,3],[4,17,2],[19,17,2],[4,18,3],[19,18,3]];
+        const kamikazeD = [[11,0,6],[12,0,6],[11,1,5],[12,1,5],[10,17,4],[13,17,4],[11,18,5],[12,18,5]];
+        const carrierD = [[11,0,8],[12,0,8],[9,17,3],[14,17,3],[9,18,3],[14,18,3]];
+        const teleporterD = [[3,1,7],[20,1,7],[3,22,7],[20,22,7]];
+        const bossD = [[3,8,'a'],[28,8,'a'],[3,9,'a'],[28,9,'a'],[5,16,9],[26,16,9],[15,24,8],[16,24,8],[15,25,8],[16,25,8]];
+        const bossHitD = [[3,8,'a'],[28,8,'a']];
+        const bossCritD = [[3,8,'a'],[28,8,'a'],[15,24,'c'],[16,24,'c']];
+        const shieldD = [[3,1,1],[20,1,1],[3,22,1],[20,22,1],[11,0,1],[12,0,1],[11,23,1],[12,23,1]];
+        const playerBaseD = [[2,6,'a'],[3,7,'a'],[29,6,'a'],[28,7,'a'],[1,10,'c'],[30,10,'c'],[0,11,'c'],[31,11,'c'],[14,28,8],[17,28,8],[15,29,8],[16,29,8],[15,30,6],[16,30,6]];
+        const expandedPF = _rawSP.playerFrames.map(fr => withPx(expandP(fr, 32, 32), playerBaseD));
+        const SP = {
+            PREMIUM_PIXEL_ART_VERSION: 'galaxa-premium-v5',
+            PLAYER_FRAME: _rawSP.PLAYER_FRAME, ENEMY_FRAME_COUNTS: _rawSP.ENEMY_FRAME_COUNTS, pC: _rawSP.pC,
+            playerFrames: expandedPF, player: expandedPF[_rawSP.PLAYER_FRAME.idleA], playerIcon: expandedPF[_rawSP.PLAYER_FRAME.idleA],
+            bee: expandEnemy(_rawSP.bee, beeD), bC: _rawSP.bC,
+            bf: expandEnemy(_rawSP.bf, bfD), bfC: _rawSP.bfC,
+            stalker: expandEnemy(_rawSP.stalker, stalkerD), stalkerC: _rawSP.stalkerC,
+            sniper: expandEnemy(_rawSP.sniper, sniperD), sniperC: _rawSP.sniperC,
+            hunter: expandEnemy(_rawSP.hunter, hunterD), hunterC: _rawSP.hunterC,
+            spinner: expandEnemy(_rawSP.spinner, spinnerD), spinnerC: _rawSP.spinnerC,
+            bomber: expandEnemy(_rawSP.bomber, bomberD), bomberC: _rawSP.bomberC,
+            lasher: expandEnemy(_rawSP.lasher, lasherD), lasherC: _rawSP.lasherC,
+            weaver: expandEnemy(_rawSP.weaver, weaverD), weaverC: _rawSP.weaverC,
+            splitter: expandEnemy(_rawSP.splitter, splitterD), splitterC: _rawSP.splitterC,
+            shield_bee: expandEnemy(_rawSP.shield_bee, shield_beeD), shield_beeC: _rawSP.shield_beeC,
+            kamikaze: expandEnemy(_rawSP.kamikaze, kamikazeD), kamikazeC: _rawSP.kamikazeC,
+            carrier: expandEnemy(_rawSP.carrier, carrierD), carrierC: _rawSP.carrierC,
+            teleporter: expandEnemy(_rawSP.teleporter, teleporterD), teleporterC: _rawSP.teleporterC,
+            boss: withPx(expandP(_rawSP.boss, 32, 32), bossD), bossHit: withPx(expandP(_rawSP.bossHit, 32, 32), bossHitD),
+            bossCrit: withPx(expandP(_rawSP.bossCrit, 32, 32), bossCritD), bossC: _rawSP.bossC, bossRedC: _rawSP.bossRedC, bossBlueC: _rawSP.bossBlueC,
+            pwShield: withPx(expandP(_rawSP.pwShield, 24, 24), shieldD), pwC: _rawSP.pwC,
+        };
 
         const ENEMY_SPRITE_KEYS = {
             bee: ['bee', 'bC'], butterfly: ['bf', 'bfC'], stalker: ['stalker', 'stalkerC'],

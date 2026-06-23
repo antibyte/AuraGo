@@ -162,7 +162,7 @@
                 if (now - lastFireT < cd) return;
                 lastFireT = now;
                 ctx.G.bul.push({ x: ctx.G.p.x, y: ctx.G.p.y - 8, w: ctx.G.activePU.type === 'mega_laser' ? 6 : 4, h: 14, vx: 0, vy: -ctx.PB_SPEED * 1.5, laser: true });
-                if (ctx.G.p.dual) ctx.G.bul.push({ x: ctx.G.p.x + 28, y: ctx.G.p.y - 8, w: ctx.G.activePU.type === 'mega_laser' ? 6 : 4, h: 14, vx: 0, vy: -ctx.PB_SPEED * 1.5, laser: true });
+                if (ctx.G.p.dual) ctx.G.bul.push({ x: ctx.G.p.x + 36, y: ctx.G.p.y - 8, w: ctx.G.activePU.type === 'mega_laser' ? 6 : 4, h: 14, vx: 0, vy: -ctx.PB_SPEED * 1.5, laser: true });
                 ctx.SFX.laserShoot(ctx.G.p.x);
                 return;
             }
@@ -215,7 +215,7 @@
                     let _fc = 0; for (const _fb of ctx.G.bul) if (!_fb.vx && !_fb.laser) _fc++;
                     if (_fc >= max) return;
                     ctx.G.bul.push({ x: ctx.G.p.x, y: ctx.G.p.y - 8, w: 2, h: 6, vx: 0, vy: -ctx.PB_SPEED, pierce: isPierce });
-                    if (ctx.G.p.dual) ctx.G.bul.push({ x: ctx.G.p.x + 28, y: ctx.G.p.y - 8, w: 2, h: 6, vx: 0, vy: -ctx.PB_SPEED, pierce: isPierce });
+                    if (ctx.G.p.dual) ctx.G.bul.push({ x: ctx.G.p.x + 36, y: ctx.G.p.y - 8, w: 2, h: 6, vx: 0, vy: -ctx.PB_SPEED, pierce: isPierce });
                 }
                 if (lv >= 4 && !isRapid && !isUltraRapid) {
                     ctx.G.bul.push({ x: ctx.G.p.x, y: ctx.G.p.y - 8, w: 2, h: 6, vx: -Math.sin(0.2) * ctx.PB_SPEED * 0.2, vy: -ctx.PB_SPEED, pierce: isPierce });
@@ -750,20 +750,20 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 if (ctx.G.trails.length < _trailCap) {
                     // NEW: direction-aware thruster particles — stronger lateral thrust when moving
                     const _latVx = (inp.r ? 1 : 0) - (inp.l ? 1 : 0);
-                    ctx.G.trails.push({ x: ctx.G.p.x - 6, y: ctx.G.p.y + 12, vx: (Math.random() - 0.5) * 10 + _latVx * -15, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
-                    ctx.G.trails.push({ x: ctx.G.p.x + 3, y: ctx.G.p.y + 12, vx: (Math.random() - 0.5) * 10 + _latVx * -15, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
-                    ctx.G.trails.push({ x: ctx.G.p.x - 4, y: ctx.G.p.y + 14, vx: (Math.random() - 0.5) * 5, vy: 15 + Math.random() * 10, life: 100, t: 0, col: tCol2, size: 1 });
+                    ctx.G.trails.push({ x: ctx.G.p.x - 8, y: ctx.G.p.y + 16, vx: (Math.random() - 0.5) * 10 + _latVx * -15, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
+                    ctx.G.trails.push({ x: ctx.G.p.x + 4, y: ctx.G.p.y + 16, vx: (Math.random() - 0.5) * 10 + _latVx * -15, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
+                    ctx.G.trails.push({ x: ctx.G.p.x - 5, y: ctx.G.p.y + 18, vx: (Math.random() - 0.5) * 5, vy: 15 + Math.random() * 10, life: 100, t: 0, col: tCol2, size: 1 });
                     if (ctx.G.p.dual) {
-                        ctx.G.trails.push({ x: ctx.G.p.x + 28, y: ctx.G.p.y + 12, vx: (Math.random() - 0.5) * 10 + _latVx * -15, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
-                        ctx.G.trails.push({ x: ctx.G.p.x + 34, y: ctx.G.p.y + 12, vx: (Math.random() - 0.5) * 10 + _latVx * -15, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
+                        ctx.G.trails.push({ x: ctx.G.p.x + 36, y: ctx.G.p.y + 16, vx: (Math.random() - 0.5) * 10 + _latVx * -15, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
+                        ctx.G.trails.push({ x: ctx.G.p.x + 44, y: ctx.G.p.y + 16, vx: (Math.random() - 0.5) * 10 + _latVx * -15, vy: 20 + Math.random() * 15, life: 150, t: 0, col: tCol1, size: 2 });
                     }
                     if (Math.abs(_latVx) > 0 && ctx.G.trails.length < _trailCap - 5) {
                         const wakeDir = _latVx > 0 ? -1 : 1;
-                        ctx.G.trails.push({ x: ctx.G.p.x + wakeDir * 10, y: ctx.G.p.y + 8, vx: wakeDir * (40 + Math.random() * 30), vy: 10 + Math.random() * 10, life: 120, t: 0, col: 'rgba(255,200,100,0.3)', size: 1 });
+                        ctx.G.trails.push({ x: ctx.G.p.x + wakeDir * 13, y: ctx.G.p.y + 10, vx: wakeDir * (40 + Math.random() * 30), vy: 10 + Math.random() * 10, life: 120, t: 0, col: 'rgba(255,200,100,0.3)', size: 1 });
                     }
                     // NEW: Super Nova Barrage adds extra glow trails
                     if (_superDef && ctx.G.superType === 'classic') {
-                        for (let _si = 0; _si < 3; _si++) ctx.G.trails.push({ x: ctx.G.p.x + (Math.random()-0.5)*20, y: ctx.G.p.y + 10, vx: (Math.random()-0.5)*30, vy: 30 + Math.random()*20, life: 200, t: 0, col: tCol1, size: 2 });
+                        for (let _si = 0; _si < 3; _si++) ctx.G.trails.push({ x: ctx.G.p.x + (Math.random()-0.5)*26, y: ctx.G.p.y + 13, vx: (Math.random()-0.5)*30, vy: 30 + Math.random()*20, life: 200, t: 0, col: tCol1, size: 2 });
                     }
                 }
             }
@@ -772,7 +772,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 const _pu = ctx.G.powerups[i];
                 _pu.y += 60 * dt; _pu.t += dt * 1000;
                 if (_pu.y > ctx.H + 20) continue;
-                if (ctx.G.p.alive && ctx.hit({ x: _pu.x - 5, y: _pu.y - 5, w: 10, h: 10 }, { x: ctx.G.p.x - 6, y: ctx.G.p.y - 6, w: 12, h: 12 })) {
+                if (ctx.G.p.alive && ctx.hit({ x: _pu.x - 6, y: _pu.y - 6, w: 12, h: 12 }, { x: ctx.G.p.x - 8, y: ctx.G.p.y - 8, w: 16, h: 16 })) {
                     // NEW: Overcharge — reject powerup by pressing down
                     if (inp.d && _pu.type !== 'bomb' && _pu.type !== 'multibomb' && _pu.type !== 'supernova' && _pu.type !== 'levelskip') {
                         ctx.G.overcharge++;
@@ -825,8 +825,8 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 for (let j = ctx.G.enemies.length - 1; j >= 0; j--) {
                     const e = ctx.G.enemies[j]; if (e.st === 'DEAD') continue;
                     if (e.invulnerable) continue;
-                    const ew = (e.type === 'boss' || e.type === 'miniboss') ? 24 : (e.type === 'hunter' ? 18 : e.type === 'sniper' ? 14 : 16);
-                    if (ctx.hit(b, { x: e.x - ew / 2, y: e.y - 8, w: ew, h: 16 })) {
+                    const ew = (e.type === 'boss' || e.type === 'miniboss') ? 32 : (e.type === 'hunter' ? 24 : e.type === 'sniper' ? 18 : 20);
+                    if (ctx.hit(b, { x: e.x - ew / 2, y: e.y - 10, w: ew, h: 20 })) {
                         // Weak point check for bosses
                         if (e.weakPoint && (e.type === 'boss' || e.type === 'miniboss')) {
                             const wpx = e.x + e.weakPoint.x, wpy = e.y + e.weakPoint.y;
@@ -940,8 +940,8 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                     const _ob = ctx.G.ebul[bi];
                     for (const os of ctx.G.orbitalShields) {
                         if (!os.active) continue;
-                        const osx = ctx.G.p.x + Math.cos(os.angle) * 24;
-                        const osy = ctx.G.p.y + Math.sin(os.angle) * 24;
+                        const osx = ctx.G.p.x + Math.cos(os.angle) * 32;
+                        const osy = ctx.G.p.y + Math.sin(os.angle) * 32;
                         if (Math.hypot(_ob.x - osx, _ob.y - osy) < 8) {
                             os.active = false; ctx.G.orbitalBlocks = (ctx.G.orbitalBlocks || 0) + 1;
                             ctx.SFX.orbitalShieldHit(_ob.x);
@@ -981,7 +981,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 if (ctx.G.mirrorField && Math.random() < 0.2 && origELen > 0) { ctx.G.ebul.push({ x: b.x, y: b.y, w: b.w || 2, h: b.h || 4, vx: -(b.vx || 0), vy: b.vy || 0, kind: b.kind }); }
                 // Gravity well mutation
                 if (ctx.G.gravityWell) { const _gbx = ctx.W / 2 - b.x, _gby = ctx.H / 3 - b.y, _gbd = Math.hypot(_gbx, _gby); if (_gbd > 20) { b.x += (_gbx / _gbd) * 30 * eDt; b.y += (_gby / _gbd) * 30 * eDt; } }
-                if (ctx.G.p.alive && ctx.G.p.inv <= 0 && ctx.hit(b, { x: ctx.G.p.x - 6, y: ctx.G.p.y - 6, w: 12, h: 12 })) { ctx.killP(); continue; }
+                if (ctx.G.p.alive && ctx.G.p.inv <= 0 && ctx.hit(b, { x: ctx.G.p.x - 8, y: ctx.G.p.y - 8, w: 16, h: 16 })) { ctx.killP(); continue; }
                 // NEW: Parry deflection — if parry active and bullet within parry radius, reflect it back
                 if (ctx.G.p.alive && ctx.G.parryActive > 0) {
                     const _pdx = b.x - ctx.G.p.x, _pdy = b.y - ctx.G.p.y;
@@ -1012,7 +1012,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 if (ctx.G.p.alive && ctx.G.p.inv <= 0 && !ctx.G._closeCallCooldown) {
                     const _cdx = ctx.G.p.x - b.x, _cdy = ctx.G.p.y - b.y;
                     const _cdist = Math.hypot(_cdx, _cdy);
-                    if (_cdist < 18 && _cdist > 8) {
+                    if (_cdist < 24 && _cdist > 10) {
                         ctx.G._closeCallCooldown = 500;
                         ctx.addScore(500, ctx.G.p.x, ctx.G.p.y - 10, '#ffaa00');
                         ctx.G.scorePopups.push({ x: ctx.G.p.x, y: ctx.G.p.y - 20, text: 'CLOSE CALL!', t: 0, dur: 1000, col: '#ffaa00', big: true });
@@ -1273,8 +1273,8 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             e.sTmr = e.type === 'hunter' ? 350 + Math.random() * 450 : e.type === 'miniboss' ? 500 + Math.random() * 800 : (e.type === 'spinner' || e.type === 'bomber' || e.type === 'lasher') ? 600 + Math.random() * 700 : 800 + Math.random() * 1200;
                         }
                         if (ctx.G.p.alive && ctx.G.p.inv <= 0) {
-                            const ew = (e.type === 'boss' || e.type === 'miniboss') ? 16 : e.type === 'hunter' ? 14 : 12;
-                            if (ctx.hit({ x: e.x - ew / 2, y: e.y - 8, w: ew, h: 16 }, { x: ctx.G.p.x - 6, y: ctx.G.p.y - 6, w: 12, h: 12 })) {
+                            const ew = (e.type === 'boss' || e.type === 'miniboss') ? 20 : e.type === 'hunter' ? 18 : 16;
+                            if (ctx.hit({ x: e.x - ew / 2, y: e.y - 10, w: ew, h: 20 }, { x: ctx.G.p.x - 8, y: ctx.G.p.y - 8, w: 16, h: 16 })) {
                                 // NEW: Kamikaze explodes on contact, damaging player
                                 if (e.type === 'kamikaze') {
                                     ctx.boom(e.x, e.y, false, 'kamikaze');
