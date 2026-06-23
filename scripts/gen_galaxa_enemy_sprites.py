@@ -1,4 +1,10 @@
-"""Generate distinct 20x20 enemy frames and 24x24 boss art; patch galaxa-sprites.js."""
+"""Generate distinct 20x20 enemy frames and 24x24 boss art; patch galaxa-sprites.js.
+
+Note: The JS runtime expands these to 24x24 (enemies) and 32x32 (boss/player)
+via expandP() + withPx() post-processing. This generator produces the base art
+at the original sizes; coordinate indices in transform functions are relative
+to those base sizes.
+"""
 from __future__ import annotations
 
 import re
@@ -6,6 +12,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SPRITES = ROOT / "ui/js/desktop/apps/galaxa-sprites.js"
+
+CURRENT_VERSION = 5  # bump when art changes
 
 
 def pad(rows: list[str], w: int, h: int) -> list[str]:
@@ -626,9 +634,10 @@ def main() -> None:
     text = replace_boss_p(text, "bossHit", boss_hit(BOSS_BASE))
     text = replace_boss_p(text, "bossCrit", boss_crit(BOSS_BASE))
 
-    text = text.replace(
-        "const PREMIUM_PIXEL_ART_VERSION = 'galaxa-premium-v3'",
-        "const PREMIUM_PIXEL_ART_VERSION = 'galaxa-premium-v4'",
+    text = re.sub(
+        r"const PREMIUM_PIXEL_ART_VERSION = 'galaxa-premium-v\d+'",
+        f"const PREMIUM_PIXEL_ART_VERSION = 'galaxa-premium-v{CURRENT_VERSION}'",
+        text,
     )
 
     # Expand palettes for new digits used
