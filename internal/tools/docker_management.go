@@ -741,12 +741,17 @@ func DockerCompose(cfg DockerConfig, file, cmd string) string {
 }
 
 func validateDockerComposeFilePath(cfg DockerConfig, file string) (string, error) {
-	absFile, err := filepath.Abs(file)
+	rawFile := strings.TrimSpace(file)
+	workspace := strings.TrimSpace(cfg.WorkspaceDir)
+	candidate := rawFile
+	if workspace != "" && !filepath.IsAbs(rawFile) {
+		candidate = filepath.Join(workspace, rawFile)
+	}
+	absFile, err := filepath.Abs(candidate)
 	if err != nil {
 		return "", fmt.Errorf("invalid compose file path: %w", err)
 	}
 	cleanFile := filepath.Clean(absFile)
-	workspace := strings.TrimSpace(cfg.WorkspaceDir)
 	if workspace == "" {
 		return cleanFile, nil
 	}

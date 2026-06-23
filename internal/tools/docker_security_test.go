@@ -207,6 +207,22 @@ func TestDockerComposeRejectsComposeFileOutsideWorkspace(t *testing.T) {
 	}
 }
 
+func TestDockerComposeResolvesRelativeFileAgainstWorkspace(t *testing.T) {
+	workspace := t.TempDir()
+	composeFile := filepath.Join(workspace, "compose.yml")
+	if err := os.WriteFile(composeFile, []byte("services: {}\n"), 0o644); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+
+	got, err := validateDockerComposeFilePath(DockerConfig{WorkspaceDir: workspace}, "compose.yml")
+	if err != nil {
+		t.Fatalf("validateDockerComposeFilePath() returned error: %v", err)
+	}
+	if got != composeFile {
+		t.Fatalf("compose path = %q, want %q", got, composeFile)
+	}
+}
+
 func TestCLIBuildsRejectReadOnlyBeforeRunningDocker(t *testing.T) {
 	configureDockerSecurityTestPermissions(t, true)
 	markerDir := prependFakeCommandsToPath(t, "docker", "git")

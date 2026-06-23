@@ -735,21 +735,29 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			// Auto-start / stop Security Proxy (Caddy) container when enabled flag changes
 			if oldCfg.SecurityProxy.Enabled != newCfg.SecurityProxy.Enabled {
 				if newCfg.SecurityProxy.Enabled {
-					go func() {
-						if err := s.ProxyManager.Start(); err != nil {
-							s.Logger.Error("[Config UI] Failed to auto-start security proxy", "error", err)
-						} else {
-							s.Logger.Info("[Config UI] Security proxy auto-started")
-						}
-					}()
+					if securityProxyAutoStartAllowed(newCfg) {
+						go func() {
+							if err := s.ProxyManager.Start(); err != nil {
+								s.Logger.Error("[Config UI] Failed to auto-start security proxy", "error", err)
+							} else {
+								s.Logger.Info("[Config UI] Security proxy auto-started")
+							}
+						}()
+					} else if !newCfg.Docker.Enabled {
+						s.Logger.Info("[Config UI] Docker is disabled; skipping security proxy auto-start")
+					}
 				} else {
-					go func() {
-						if err := s.ProxyManager.Stop(); err != nil {
-							s.Logger.Warn("[Config UI] Failed to stop security proxy", "error", err)
-						} else {
-							s.Logger.Info("[Config UI] Security proxy stopped")
-						}
-					}()
+					if newCfg.Docker.Enabled {
+						go func() {
+							if err := s.ProxyManager.Stop(); err != nil {
+								s.Logger.Warn("[Config UI] Failed to stop security proxy", "error", err)
+							} else {
+								s.Logger.Info("[Config UI] Security proxy stopped")
+							}
+						}()
+					} else {
+						s.Logger.Info("[Config UI] Docker is disabled; skipping security proxy stop")
+					}
 				}
 			}
 
@@ -757,7 +765,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			homepageDevToggled := oldCfg.Homepage.Enabled != newCfg.Homepage.Enabled
 			homepageDevPathChanged := newCfg.Homepage.Enabled && oldCfg.Homepage.WorkspacePath != newCfg.Homepage.WorkspacePath
 			if homepageDevToggled || homepageDevPathChanged {
-				if newCfg.Homepage.Enabled && newCfg.Homepage.WorkspacePath != "" {
+				if homepageDevAutoStartAllowed(newCfg) {
 					go func() {
 						homepageCfg := tools.HomepageConfig{
 							DockerHost:       newCfg.Docker.Host,
@@ -768,14 +776,18 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 						result := tools.HomepageInit(homepageCfg, s.Logger)
 						s.Logger.Info("[Config UI] Homepage dev container auto-started", "result", result)
 					}()
+				} else if newCfg.Homepage.Enabled && !newCfg.Docker.Enabled {
+					s.Logger.Info("[Config UI] Docker is disabled; skipping Homepage dev container auto-start")
 				} else if newCfg.Homepage.Enabled && newCfg.Homepage.WorkspacePath == "" {
 					s.Logger.Warn("[Config UI] Homepage dev container enabled but workspace_path is not set — cannot start")
-				} else {
+				} else if newCfg.Docker.Enabled {
 					go func() {
 						homepageCfg := tools.HomepageConfig{DockerHost: newCfg.Docker.Host}
 						tools.HomepageStop(homepageCfg, s.Logger)
 						s.Logger.Info("[Config UI] Homepage dev container stopped")
 					}()
+				} else {
+					s.Logger.Info("[Config UI] Docker is disabled; skipping Homepage dev container stop")
 				}
 			}
 
@@ -784,7 +796,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			webserverToggled := oldCfg.Homepage.WebServerEnabled != newCfg.Homepage.WebServerEnabled
 			webserverPathChanged := newCfg.Homepage.WebServerEnabled && oldCfg.Homepage.WorkspacePath != newCfg.Homepage.WorkspacePath
 			if webserverToggled || webserverPathChanged {
-				if newCfg.Homepage.WebServerEnabled && newCfg.Homepage.WorkspacePath != "" {
+				if homepageWebServerAutoStartAllowed(newCfg) {
 					go func() {
 						homepageCfg := tools.HomepageConfig{
 							DockerHost:            newCfg.Docker.Host,
@@ -797,14 +809,18 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 						result := tools.HomepageWebServerStart(homepageCfg, "", "", s.Logger)
 						s.Logger.Info("[Config UI] Homepage web server auto-started", "result", result)
 					}()
+				} else if newCfg.Homepage.WebServerEnabled && !newCfg.Docker.Enabled {
+					s.Logger.Info("[Config UI] Docker is disabled; skipping Homepage web server auto-start")
 				} else if newCfg.Homepage.WebServerEnabled && newCfg.Homepage.WorkspacePath == "" {
 					s.Logger.Warn("[Config UI] Homepage web server enabled but workspace_path is not set — cannot start")
-				} else {
+				} else if newCfg.Docker.Enabled {
 					go func() {
 						homepageCfg := tools.HomepageConfig{DockerHost: newCfg.Docker.Host}
 						tools.HomepageWebServerStop(homepageCfg, s.Logger)
 						s.Logger.Info("[Config UI] Homepage web server stopped")
 					}()
+				} else {
+					s.Logger.Info("[Config UI] Docker is disabled; skipping Homepage web server stop")
 				}
 			}
 
@@ -916,25 +932,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			// Hot-reload Cloudflare Tunnel: stop immediately when disabled, start when enabled.
 			cfEnabledChanged := oldCfg.CloudflareTunnel.Enabled != newCfg.CloudflareTunnel.Enabled
 			if cfEnabledChanged {
-				cfBaseCfg := tools.CloudflareTunnelConfig{
-					Enabled:        newCfg.CloudflareTunnel.Enabled,
-					Mode:           newCfg.CloudflareTunnel.Mode,
-					AuthMethod:     newCfg.CloudflareTunnel.AuthMethod,
-					TunnelName:     newCfg.CloudflareTunnel.TunnelName,
-					AccountID:      newCfg.CloudflareTunnel.AccountID,
-					TunnelID:       newCfg.CloudflareTunnel.TunnelID,
-					LoopbackPort:   newCfg.CloudflareTunnel.LoopbackPort,
-					ExposeWebUI:    newCfg.CloudflareTunnel.ExposeWebUI,
-					ExposeHomepage: newCfg.CloudflareTunnel.ExposeHomepage,
-					MetricsPort:    newCfg.CloudflareTunnel.MetricsPort,
-					LogLevel:       newCfg.CloudflareTunnel.LogLevel,
-					DockerHost:     newCfg.Docker.Host,
-					DataDir:        newCfg.Directories.DataDir,
-					WebUIPort:      newCfg.Server.Port,
-					HomepagePort:   newCfg.Homepage.WebServerPort,
-					HTTPSEnabled:   newCfg.Server.HTTPS.Enabled,
-					HTTPSPort:      newCfg.Server.HTTPS.HTTPSPort,
-				}
+				cfBaseCfg := cloudflareTunnelRuntimeConfig(newCfg)
 				vault := s.Vault
 				reg := s.Registry
 				log := s.Logger
@@ -944,12 +942,14 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 						result := tools.CloudflareTunnelStop(cfBaseCfg, reg, log)
 						log.Info("[CloudflareTunnel] Hot-reload: tunnel stopped because cloudflare_tunnel.enabled=false", "result", result)
 					}()
-				} else if newCfg.CloudflareTunnel.AutoStart {
+				} else if cloudflareTunnelAutoStartAllowed(newCfg) {
 					// Enabled with auto_start → start immediately.
 					go func() {
 						result := tools.CloudflareTunnelStart(cfBaseCfg, vault, reg, log)
 						log.Info("[CloudflareTunnel] Hot-reload: tunnel started because cloudflare_tunnel.enabled=true", "result", result)
 					}()
+				} else if newCfg.CloudflareTunnel.AutoStart && !newCfg.Docker.Enabled {
+					log.Info("[CloudflareTunnel] Hot-reload: Docker is disabled; skipping Docker-mode start")
 				}
 			}
 
@@ -958,34 +958,18 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			cfExposeChanged := oldCfg.CloudflareTunnel.ExposeWebUI != newCfg.CloudflareTunnel.ExposeWebUI ||
 				oldCfg.CloudflareTunnel.ExposeHomepage != newCfg.CloudflareTunnel.ExposeHomepage
 			if cfExposeChanged && newCfg.CloudflareTunnel.Enabled {
-				cfTunnelCfg := tools.CloudflareTunnelConfig{
-					Enabled:        newCfg.CloudflareTunnel.Enabled,
-					ReadOnly:       newCfg.CloudflareTunnel.ReadOnly,
-					Mode:           newCfg.CloudflareTunnel.Mode,
-					AutoStart:      newCfg.CloudflareTunnel.AutoStart,
-					AuthMethod:     newCfg.CloudflareTunnel.AuthMethod,
-					TunnelName:     newCfg.CloudflareTunnel.TunnelName,
-					AccountID:      newCfg.CloudflareTunnel.AccountID,
-					TunnelID:       newCfg.CloudflareTunnel.TunnelID,
-					LoopbackPort:   newCfg.CloudflareTunnel.LoopbackPort,
-					ExposeWebUI:    newCfg.CloudflareTunnel.ExposeWebUI,
-					ExposeHomepage: newCfg.CloudflareTunnel.ExposeHomepage,
-					MetricsPort:    newCfg.CloudflareTunnel.MetricsPort,
-					LogLevel:       newCfg.CloudflareTunnel.LogLevel,
-					DockerHost:     newCfg.Docker.Host,
-					DataDir:        newCfg.Directories.DataDir,
-					WebUIPort:      newCfg.Server.Port,
-					HomepagePort:   newCfg.Homepage.WebServerPort,
-					HTTPSEnabled:   newCfg.Server.HTTPS.Enabled,
-					HTTPSPort:      newCfg.Server.HTTPS.HTTPSPort,
-				}
+				cfTunnelCfg := cloudflareTunnelRuntimeConfig(newCfg)
 				vault := s.Vault
 				reg := s.Registry
 				log := s.Logger
-				go func() {
-					result := tools.CloudflareTunnelRestart(cfTunnelCfg, vault, reg, log)
-					log.Info("[CloudflareTunnel] Hot-reload: tunnel restarted due to expose target change", "result", result)
-				}()
+				if cloudflareTunnelRuntimeAllowed(newCfg) {
+					go func() {
+						result := tools.CloudflareTunnelRestart(cfTunnelCfg, vault, reg, log)
+						log.Info("[CloudflareTunnel] Hot-reload: tunnel restarted due to expose target change", "result", result)
+					}()
+				} else if !newCfg.Docker.Enabled {
+					log.Info("[CloudflareTunnel] Hot-reload: Docker is disabled; skipping Docker-mode restart")
+				}
 			}
 
 			loopbackPortChanged := DedicatedInternalLoopbackPort(&oldCfg) != DedicatedInternalLoopbackPort(newCfg)

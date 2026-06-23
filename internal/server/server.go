@@ -376,7 +376,7 @@ func Start(opts StartOptions) error {
 
 	// Initialize Security Proxy Manager
 	s.ProxyManager = proxy.NewManager(cfg, logger)
-	if cfg.SecurityProxy.Enabled {
+	if securityProxyAutoStartAllowed(cfg) {
 		logger.Info("Security proxy enabled — starting container automatically")
 		go func() {
 			if err := s.ProxyManager.Start(); err != nil {
@@ -385,11 +385,13 @@ func Start(opts StartOptions) error {
 				logger.Info("Security proxy started")
 			}
 		}()
+	} else if cfg.SecurityProxy.Enabled && !cfg.Docker.Enabled {
+		logger.Info("Docker is disabled; skipping security proxy auto-start")
 	}
 
 	// Auto-start Homepage dev container (aurago-homepage) if homepage is enabled.
 	// HomepageInit is idempotent: it starts a stopped container or creates it fresh.
-	if cfg.Homepage.Enabled && cfg.Homepage.WorkspacePath != "" {
+	if homepageDevAutoStartAllowed(cfg) {
 		logger.Info("Homepage dev container enabled — starting automatically")
 		go func() {
 			homepageCfg := tools.HomepageConfig{
@@ -413,6 +415,8 @@ func Start(opts StartOptions) error {
 			}
 			logger.Error("Homepage dev container auto-start exhausted all retries")
 		}()
+	} else if cfg.Homepage.Enabled && !cfg.Docker.Enabled {
+		logger.Info("Docker is disabled; skipping Homepage dev container auto-start")
 	} else if cfg.Homepage.Enabled && cfg.Homepage.WorkspacePath == "" {
 		logger.Warn("Homepage dev container enabled but homepage.workspace_path is not set — skipping auto-start")
 	}
@@ -420,7 +424,7 @@ func Start(opts StartOptions) error {
 	// Auto-start Homepage web server (Caddy) if enabled.
 	// Note: webserver_enabled is independent of homepage.enabled (the dev container feature).
 	// We only require WorkspacePath to be set so the Docker bind mount has an absolute path.
-	if cfg.Homepage.WebServerEnabled && cfg.Homepage.WorkspacePath != "" {
+	if homepageWebServerAutoStartAllowed(cfg) {
 		logger.Info("Homepage web server enabled — starting container automatically")
 		// Ensure the workspace directory exists so the Docker bind-mount never fails
 		// on a fresh system or after the directory was removed. An empty workspace is
@@ -457,6 +461,8 @@ func Start(opts StartOptions) error {
 			}
 			logger.Error("Homepage web server auto-start exhausted all retries")
 		}()
+	} else if cfg.Homepage.WebServerEnabled && !cfg.Docker.Enabled {
+		logger.Info("Docker is disabled; skipping Homepage web server auto-start")
 	} else if cfg.Homepage.WebServerEnabled && cfg.Homepage.WorkspacePath == "" {
 		logger.Warn("Homepage web server is enabled but homepage.workspace_path is not set — skipping auto-start")
 	}
@@ -781,39 +787,14 @@ func Start(opts StartOptions) error {
 	}
 
 	// Start Cloudflare Tunnel if enabled and auto_start is true
-	if cfg.CloudflareTunnel.Enabled && cfg.CloudflareTunnel.AutoStart {
+	if cloudflareTunnelAutoStartAllowed(cfg) {
 		go func() {
-			tunnelCfg := tools.CloudflareTunnelConfig{
-				Enabled:        cfg.CloudflareTunnel.Enabled,
-				ReadOnly:       cfg.CloudflareTunnel.ReadOnly,
-				Mode:           cfg.CloudflareTunnel.Mode,
-				AutoStart:      cfg.CloudflareTunnel.AutoStart,
-				AuthMethod:     cfg.CloudflareTunnel.AuthMethod,
-				TunnelName:     cfg.CloudflareTunnel.TunnelName,
-				AccountID:      cfg.CloudflareTunnel.AccountID,
-				TunnelID:       cfg.CloudflareTunnel.TunnelID,
-				LoopbackPort:   cfg.CloudflareTunnel.LoopbackPort,
-				ExposeWebUI:    cfg.CloudflareTunnel.ExposeWebUI,
-				ExposeHomepage: cfg.CloudflareTunnel.ExposeHomepage,
-				MetricsPort:    cfg.CloudflareTunnel.MetricsPort,
-				LogLevel:       cfg.CloudflareTunnel.LogLevel,
-				DockerHost:     cfg.Docker.Host,
-				WebUIPort:      cfg.Server.Port,
-				HomepagePort:   cfg.Homepage.WebServerPort,
-				DataDir:        cfg.Directories.DataDir,
-				HTTPSEnabled:   cfg.Server.HTTPS.Enabled,
-				HTTPSPort:      cfg.Server.HTTPS.HTTPSPort,
-			}
-			for _, r := range cfg.CloudflareTunnel.CustomIngress {
-				tunnelCfg.CustomIngress = append(tunnelCfg.CustomIngress, tools.CloudflareIngress{
-					Hostname: r.Hostname,
-					Service:  r.Service,
-					Path:     r.Path,
-				})
-			}
+			tunnelCfg := cloudflareTunnelRuntimeConfig(cfg)
 			result := tools.CloudflareTunnelStart(tunnelCfg, vault, registry, logger)
 			logger.Info("[CloudflareTunnel] Auto-start result", "result", result)
 		}()
+	} else if cfg.CloudflareTunnel.Enabled && cfg.CloudflareTunnel.AutoStart && !cfg.Docker.Enabled {
+		logger.Info("[CloudflareTunnel] Docker is disabled; skipping Docker-mode auto-start")
 	}
 
 	if cfg.Docker.Enabled {
