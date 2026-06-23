@@ -816,92 +816,96 @@ func Start(opts StartOptions) error {
 		}()
 	}
 
-	// Auto-start Gotenberg container if document_creator is enabled with gotenberg backend
-	if cfg.Tools.DocumentCreator.Enabled && strings.EqualFold(cfg.Tools.DocumentCreator.Backend, "gotenberg") {
-		go tools.EnsureGotenbergRunning(cfg.Docker.Host, logger)
-	}
-
-	// Auto-start Browser Automation sidecar whenever the integration is active in sidecar mode and auto_start is enabled.
-	if cfg.BrowserAutomation.Enabled && cfg.Tools.BrowserAutomation.Enabled && cfg.BrowserAutomation.AutoStart && strings.EqualFold(cfg.BrowserAutomation.Mode, "sidecar") {
-		if sidecarCfg, err := tools.ResolveBrowserAutomationSidecarConfig(cfg); err == nil {
-			go tools.EnsureBrowserAutomationSidecarRunning(cfg.Docker.Host, sidecarCfg, logger)
-		} else {
-			logger.Warn("[BrowserAutomation] Failed to resolve sidecar config", "error", err)
+	if cfg.Docker.Enabled {
+		// Auto-start Gotenberg container if document_creator is enabled with gotenberg backend
+		if cfg.Tools.DocumentCreator.Enabled && strings.EqualFold(cfg.Tools.DocumentCreator.Backend, "gotenberg") {
+			go tools.EnsureGotenbergRunning(cfg.Docker.Host, logger)
 		}
-	}
 
-	// Auto-start Space Agent sidecar whenever the integration is active and auto_start is enabled.
-	if cfg.SpaceAgent.Enabled && cfg.SpaceAgent.AutoStart {
-		if err := s.ensureSpaceAgentSecrets(cfg); err != nil {
-			logger.Warn("[SpaceAgent] Failed to ensure vault secrets", "error", err)
-		} else if sidecarCfg, err := tools.ResolveSpaceAgentSidecarConfig(cfg, spaceAgentBridgeBaseURL(s, cfg, nil)); err == nil {
-			go tools.EnsureSpaceAgentSidecarRunning(cfg.Docker.Host, sidecarCfg, logger)
-		} else {
-			logger.Warn("[SpaceAgent] Failed to resolve sidecar config", "error", err)
+		// Auto-start Browser Automation sidecar whenever the integration is active in sidecar mode and auto_start is enabled.
+		if cfg.BrowserAutomation.Enabled && cfg.Tools.BrowserAutomation.Enabled && cfg.BrowserAutomation.AutoStart && strings.EqualFold(cfg.BrowserAutomation.Mode, "sidecar") {
+			if sidecarCfg, err := tools.ResolveBrowserAutomationSidecarConfig(cfg); err == nil {
+				go tools.EnsureBrowserAutomationSidecarRunning(cfg.Docker.Host, sidecarCfg, logger)
+			} else {
+				logger.Warn("[BrowserAutomation] Failed to resolve sidecar config", "error", err)
+			}
 		}
-	}
 
-	// Auto-start Manifest sidecars whenever the integration is active in managed mode and auto_start is enabled.
-	if cfg.Manifest.Enabled && cfg.Manifest.AutoStart && strings.EqualFold(cfg.Manifest.Mode, "managed") {
-		if err := s.ensureManifestSecrets(cfg); err != nil {
-			logger.Warn("[Manifest] Failed to ensure vault secrets", "error", err)
-		} else {
-			go func() {
-				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-				defer cancel()
-				if err := tools.EnsureManifestSidecarsRunning(ctx, cfg.Docker.Host, cfg, logger); err != nil {
-					logger.Warn("[Manifest] Failed to auto-start sidecars", "error", err)
-				}
-			}()
+		// Auto-start Space Agent sidecar whenever the integration is active and auto_start is enabled.
+		if cfg.SpaceAgent.Enabled && cfg.SpaceAgent.AutoStart {
+			if err := s.ensureSpaceAgentSecrets(cfg); err != nil {
+				logger.Warn("[SpaceAgent] Failed to ensure vault secrets", "error", err)
+			} else if sidecarCfg, err := tools.ResolveSpaceAgentSidecarConfig(cfg, spaceAgentBridgeBaseURL(s, cfg, nil)); err == nil {
+				go tools.EnsureSpaceAgentSidecarRunning(cfg.Docker.Host, sidecarCfg, logger)
+			} else {
+				logger.Warn("[SpaceAgent] Failed to resolve sidecar config", "error", err)
+			}
 		}
-	}
 
-	// Auto-start Dograh stack whenever the integration is active in managed mode and auto_start is enabled.
-	if cfg.Dograh.Enabled && cfg.Dograh.AutoStart && strings.EqualFold(cfg.Dograh.Mode, "managed") {
-		if err := s.ensureDograhSecrets(cfg); err != nil {
-			logger.Warn("[Dograh] Failed to ensure vault secrets", "error", err)
-		} else {
-			go func() {
-				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
-				defer cancel()
-				if err := tools.EnsureDograhStackRunning(ctx, cfg.Docker.Host, cfg, logger); err != nil {
-					logger.Warn("[Dograh] Failed to auto-start stack", "error", err)
-				}
-			}()
+		// Auto-start Manifest sidecars whenever the integration is active in managed mode and auto_start is enabled.
+		if cfg.Manifest.Enabled && cfg.Manifest.AutoStart && strings.EqualFold(cfg.Manifest.Mode, "managed") {
+			if err := s.ensureManifestSecrets(cfg); err != nil {
+				logger.Warn("[Manifest] Failed to ensure vault secrets", "error", err)
+			} else {
+				go func() {
+					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+					defer cancel()
+					if err := tools.EnsureManifestSidecarsRunning(ctx, cfg.Docker.Host, cfg, logger); err != nil {
+						logger.Warn("[Manifest] Failed to auto-start sidecars", "error", err)
+					}
+				}()
+			}
 		}
-	}
 
-	// Auto-start Ansible sidecar container if enabled in sidecar mode
-	if cfg.Ansible.Enabled && cfg.Ansible.Mode == "sidecar" {
-		inventoryDir := ""
-		if cfg.Ansible.DefaultInventory != "" {
-			inventoryDir = filepath.Dir(cfg.Ansible.DefaultInventory)
+		// Auto-start Dograh stack whenever the integration is active in managed mode and auto_start is enabled.
+		if cfg.Dograh.Enabled && cfg.Dograh.AutoStart && strings.EqualFold(cfg.Dograh.Mode, "managed") {
+			if err := s.ensureDograhSecrets(cfg); err != nil {
+				logger.Warn("[Dograh] Failed to ensure vault secrets", "error", err)
+			} else {
+				go func() {
+					ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+					defer cancel()
+					if err := tools.EnsureDograhStackRunning(ctx, cfg.Docker.Host, cfg, logger); err != nil {
+						logger.Warn("[Dograh] Failed to auto-start stack", "error", err)
+					}
+				}()
+			}
 		}
-		go tools.EnsureAnsibleSidecarRunning(cfg.Docker.Host, tools.AnsibleSidecarConfig{
-			Token:         cfg.Ansible.Token,
-			Timeout:       cfg.Ansible.Timeout,
-			Image:         cfg.Ansible.Image,
-			ContainerName: cfg.Ansible.ContainerName,
-			PlaybooksDir:  cfg.Ansible.PlaybooksDir,
-			InventoryDir:  inventoryDir,
-			AutoBuild:     cfg.Ansible.AutoBuild,
-			DockerfileDir: cfg.Ansible.DockerfileDir,
-		}, logger)
-	}
 
-	// Auto-start local Ollama embeddings container if enabled
-	if cfg.Embeddings.LocalOllama.Enabled {
-		go tools.EnsureOllamaEmbeddingsRunning(cfg, logger)
-	}
+		// Auto-start Ansible sidecar container if enabled in sidecar mode
+		if cfg.Ansible.Enabled && cfg.Ansible.Mode == "sidecar" {
+			inventoryDir := ""
+			if cfg.Ansible.DefaultInventory != "" {
+				inventoryDir = filepath.Dir(cfg.Ansible.DefaultInventory)
+			}
+			go tools.EnsureAnsibleSidecarRunning(cfg.Docker.Host, tools.AnsibleSidecarConfig{
+				Token:         cfg.Ansible.Token,
+				Timeout:       cfg.Ansible.Timeout,
+				Image:         cfg.Ansible.Image,
+				ContainerName: cfg.Ansible.ContainerName,
+				PlaybooksDir:  cfg.Ansible.PlaybooksDir,
+				InventoryDir:  inventoryDir,
+				AutoBuild:     cfg.Ansible.AutoBuild,
+				DockerfileDir: cfg.Ansible.DockerfileDir,
+			}, logger)
+		}
 
-	// Auto-start Piper TTS container if enabled
-	if cfg.TTS.Piper.Enabled {
-		go tools.EnsurePiperRunning(cfg, logger)
-	}
+		// Auto-start local Ollama embeddings container if enabled
+		if cfg.Embeddings.LocalOllama.Enabled {
+			go tools.EnsureOllamaEmbeddingsRunning(cfg, logger)
+		}
 
-	// Auto-start managed Ollama container if enabled
-	if cfg.Ollama.ManagedInstance.Enabled {
-		go tools.EnsureOllamaManagedRunning(cfg, logger)
+		// Auto-start Piper TTS container if enabled
+		if cfg.TTS.Piper.Enabled {
+			go tools.EnsurePiperRunning(cfg, logger)
+		}
+
+		// Auto-start managed Ollama container if enabled
+		if cfg.Ollama.ManagedInstance.Enabled {
+			go tools.EnsureOllamaManagedRunning(cfg, logger)
+		}
+	} else {
+		logger.Info("Docker is disabled; skipping managed sidecar auto-start")
 	}
 
 	// Start Fritz!Box telephony poller if enabled

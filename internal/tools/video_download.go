@@ -361,6 +361,16 @@ func dockerRunYtDlp(ctx context.Context, cfg *config.Config, args []string, logg
 }
 
 func dockerRequestContext(ctx context.Context, cfg DockerConfig, method, endpoint, body string) ([]byte, int, error) {
+	if dockerMethodMutates(method) {
+		if err := requireDockerMutationPermission(); err != nil {
+			return nil, 0, err
+		}
+	} else if err := requireDockerPermission(); err != nil {
+		return nil, 0, err
+	}
+	if err := validateDockerCreateRequestBinds(cfg, method, endpoint, body); err != nil {
+		return nil, 0, err
+	}
 	var reqBody io.Reader
 	if body != "" {
 		reqBody = strings.NewReader(body)

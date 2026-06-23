@@ -629,7 +629,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			}
 
 			// Auto-start Gotenberg container if document_creator just became active
-			if newCfg.Tools.DocumentCreator.Enabled && strings.EqualFold(newCfg.Tools.DocumentCreator.Backend, "gotenberg") {
+			if newCfg.Docker.Enabled && newCfg.Tools.DocumentCreator.Enabled && strings.EqualFold(newCfg.Tools.DocumentCreator.Backend, "gotenberg") {
 				if !oldCfg.Tools.DocumentCreator.Enabled || !strings.EqualFold(oldCfg.Tools.DocumentCreator.Backend, "gotenberg") {
 					go tools.EnsureGotenbergRunning(newCfg.Docker.Host, s.Logger)
 				}
@@ -641,6 +641,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				oldCfg.Tools.BrowserAutomation.Enabled != newCfg.Tools.BrowserAutomation.Enabled ||
 				oldCfg.Directories.WorkspaceDir != newCfg.Directories.WorkspaceDir
 			if browserAutomationChanged &&
+				newCfg.Docker.Enabled &&
 				newCfg.BrowserAutomation.Enabled &&
 				newCfg.BrowserAutomation.AutoStart &&
 				newCfg.Tools.BrowserAutomation.Enabled &&
@@ -663,7 +664,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			oldManifestRuntime.APIKey = ""
 			newManifestRuntime.APIKey = ""
 			manifestRuntimeChanged := oldManifestRuntime != newManifestRuntime || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker
-			if manifestChanged && newCfg.Manifest.Enabled && newCfg.Manifest.AutoStart && strings.EqualFold(newCfg.Manifest.Mode, "managed") {
+			if manifestChanged && newCfg.Docker.Enabled && newCfg.Manifest.Enabled && newCfg.Manifest.AutoStart && strings.EqualFold(newCfg.Manifest.Mode, "managed") {
 				if err := s.ensureManifestSecrets(newCfg); err != nil {
 					s.Logger.Warn("[Config UI] Failed to ensure Manifest secrets", "error", err)
 				} else {
@@ -703,7 +704,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			if dograhChanged {
 				syncMCPAfterUnlock = true
 			}
-			if dograhChanged && newCfg.Dograh.Enabled && newCfg.Dograh.AutoStart && strings.EqualFold(newCfg.Dograh.Mode, "managed") {
+			if dograhChanged && newCfg.Docker.Enabled && newCfg.Dograh.Enabled && newCfg.Dograh.AutoStart && strings.EqualFold(newCfg.Dograh.Mode, "managed") {
 				if err := s.ensureDograhSecrets(newCfg); err != nil {
 					s.Logger.Warn("[Config UI] Failed to ensure Dograh secrets", "error", err)
 				} else {
@@ -808,12 +809,12 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			}
 
 			// Auto-start local Ollama embeddings container if just enabled
-			if newCfg.Embeddings.LocalOllama.Enabled && !oldCfg.Embeddings.LocalOllama.Enabled {
+			if newCfg.Docker.Enabled && newCfg.Embeddings.LocalOllama.Enabled && !oldCfg.Embeddings.LocalOllama.Enabled {
 				go tools.EnsureOllamaEmbeddingsRunning(newCfg, s.Logger)
 			}
 
 			// Auto-start managed Ollama container if just enabled
-			if newCfg.Ollama.ManagedInstance.Enabled && !oldCfg.Ollama.ManagedInstance.Enabled {
+			if newCfg.Docker.Enabled && newCfg.Ollama.ManagedInstance.Enabled && !oldCfg.Ollama.ManagedInstance.Enabled {
 				go tools.EnsureOllamaManagedRunning(newCfg, s.Logger)
 			}
 			// Stop managed Ollama container if just disabled
@@ -825,7 +826,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			}
 
 			// Auto-start Piper TTS container if just enabled
-			if newCfg.TTS.Piper.Enabled && !oldCfg.TTS.Piper.Enabled {
+			if newCfg.Docker.Enabled && newCfg.TTS.Piper.Enabled && !oldCfg.TTS.Piper.Enabled {
 				go tools.EnsurePiperRunning(newCfg, s.Logger)
 			}
 
@@ -869,10 +870,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 					AutoBuild:     newCfg.Ansible.AutoBuild,
 					DockerfileDir: newCfg.Ansible.DockerfileDir,
 				}
-				if !oldCfg.Ansible.Enabled || oldCfg.Ansible.Mode != "sidecar" {
+				if newCfg.Docker.Enabled && (!oldCfg.Ansible.Enabled || oldCfg.Ansible.Mode != "sidecar") {
 					// Newly enabled — create/start container
 					go tools.EnsureAnsibleSidecarRunning(newCfg.Docker.Host, sidecarCfg, s.Logger)
-				} else if newCfg.Ansible.Token != oldCfg.Ansible.Token && newCfg.Ansible.Token != "" {
+				} else if newCfg.Docker.Enabled && newCfg.Ansible.Token != oldCfg.Ansible.Token && newCfg.Ansible.Token != "" {
 					// Token changed while already running — recreate container to apply new token
 					go tools.ReapplyAnsibleToken(newCfg.Docker.Host, sidecarCfg, s.Logger)
 				}

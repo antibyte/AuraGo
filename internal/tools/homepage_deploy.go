@@ -543,7 +543,7 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 	}
 
 	// Check if Docker is available
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Host: cfg.DockerHost, WorkspaceDir: cfg.WorkspacePath}
 
 	// Copy any referenced generated images into the build directory so
 	// Caddy/Python can serve them as static assets (the main AuraGo server's
@@ -1095,6 +1095,9 @@ func copyAssetsToBuildDir(buildPath, dataDir string, logger *slog.Logger) {
 }
 
 func homepageBuildImage(dockerCfg DockerConfig) string {
+	if err := requireDockerMutationPermission(); err != nil {
+		return errJSON("%v", err)
+	}
 	// Build the image via the Docker Engine HTTP API.
 	// POST /build with a tar archive containing the Dockerfile — no docker CLI needed.
 	var buf bytes.Buffer

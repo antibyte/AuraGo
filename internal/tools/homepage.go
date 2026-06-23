@@ -238,7 +238,7 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 	invalidateDockerAvailabilityCache(cfg.DockerHost)
 
 	// Check if Docker is available
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Host: cfg.DockerHost, WorkspaceDir: cfg.WorkspacePath}
 	if !checkDockerAvailable(cfg.DockerHost) {
 		// Check if local Python server is allowed (Danger Zone)
 		if !cfg.AllowLocalServer {

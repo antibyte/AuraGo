@@ -161,6 +161,9 @@ func dockerRequest(cfg DockerConfig, method, endpoint string, body string) ([]by
 	} else if err := requireDockerPermission(); err != nil {
 		return nil, 0, err
 	}
+	if err := validateDockerCreateRequestBinds(cfg, method, endpoint, body); err != nil {
+		return nil, 0, err
+	}
 	return dockerRequestWithRetry(cfg, method, endpoint, body, 3)
 }
 
@@ -247,6 +250,9 @@ func DockerRequestContext(ctx context.Context, cfg DockerConfig, method, endpoin
 			return nil, 0, err
 		}
 	} else if err := requireDockerPermission(); err != nil {
+		return nil, 0, err
+	}
+	if err := validateDockerCreateRequestBinds(cfg, method, endpoint, body); err != nil {
 		return nil, 0, err
 	}
 	client := getPullDockerClient(cfg)
@@ -604,6 +610,9 @@ func DockerListImages(cfg DockerConfig) string {
 // per-request context so long pulls don't get killed prematurely.
 // It returns nil if the image already exists locally.
 func PullImageWait(ctx context.Context, cfg DockerConfig, image string, logger *slog.Logger) error {
+	ctx, cancel := dockerContextWithFallbackTimeout(ctx, 15*time.Minute)
+	defer cancel()
+
 	// Check if image already exists.
 	filterURL := fmt.Sprintf("/images/json?filters=%%7B%%22reference%%22%%3A%%5B%%22%s%%22%%5D%%7D", url.QueryEscape(image))
 	data, code, err := dockerRequest(cfg, "GET", filterURL, "")
@@ -614,6 +623,9 @@ func PullImageWait(ctx context.Context, cfg DockerConfig, image string, logger *
 		}
 	}
 
+	if err := requireDockerMutationPermission(); err != nil {
+		return err
+	}
 	if logger != nil {
 		logger.Info("Pulling Docker image", "image", image)
 	}
@@ -655,6 +667,8 @@ func PullImageForce(ctx context.Context, cfg DockerConfig, image string, logger 
 	if err := requireDockerMutationPermission(); err != nil {
 		return err
 	}
+	ctx, cancel := dockerContextWithFallbackTimeout(ctx, 15*time.Minute)
+	defer cancel()
 	if strings.TrimSpace(image) == "" {
 		return fmt.Errorf("image is required")
 	}
@@ -723,6 +737,8 @@ func BuildImageContextWait(ctx context.Context, cfg DockerConfig, image, dockerf
 	if err := requireDockerMutationPermission(); err != nil {
 		return err
 	}
+	ctx, cancel := dockerContextWithFallbackTimeout(ctx, 30*time.Minute)
+	defer cancel()
 	if strings.TrimSpace(image) == "" {
 		return fmt.Errorf("image is required")
 	}
@@ -839,6 +855,65 @@ func drainDockerBuildStream(r io.Reader) error {
 		}
 	}
 	return scanner.Err()
+}
+
+func dockerContextWithFallbackTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if _, ok := ctx.Deadline(); ok {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, timeout)
+}
+
+func validateDockerCreateRequestBinds(cfg DockerConfig, method, endpoint, body string) error {
+	if strings.ToUpper(strings.TrimSpace(method)) != http.MethodPost {
+		return nil
+	}
+	if !strings.HasPrefix(strings.TrimSpace(endpoint), "/containers/create") {
+		return nil
+	}
+	if strings.TrimSpace(body) == "" {
+		return nil
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(body), &payload); err != nil {
+		return fmt.Errorf("invalid Docker create payload: %w", err)
+	}
+	return validateDockerCreatePayloadBinds(cfg, payload)
+}
+
+func validateDockerCreatePayloadBinds(cfg DockerConfig, payload map[string]interface{}) error {
+	hostConfig, ok := payload["HostConfig"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	rawBinds, ok := hostConfig["Binds"]
+	if !ok || rawBinds == nil {
+		return nil
+	}
+	switch binds := rawBinds.(type) {
+	case []string:
+		for _, bind := range binds {
+			if err := validateDockerBindMount(cfg, bind); err != nil {
+				return err
+			}
+		}
+	case []interface{}:
+		for _, raw := range binds {
+			bind, ok := raw.(string)
+			if !ok {
+				return fmt.Errorf("invalid Docker create payload HostConfig.Binds entry type %T", raw)
+			}
+			if err := validateDockerBindMount(cfg, bind); err != nil {
+				return err
+			}
+		}
+	default:
+		return fmt.Errorf("invalid Docker create payload HostConfig.Binds type %T", rawBinds)
+	}
+	return nil
 }
 
 // DockerPullImage pulls an image from a registry.

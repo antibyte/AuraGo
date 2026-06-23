@@ -637,6 +637,9 @@ func ensureSpaceAgentSourceAndImage(cfg SpaceAgentSidecarConfig, logger interfac
 	Warn(string, ...any)
 	Error(string, ...any)
 }) error {
+	if err := requireDockerMutationPermission(); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(cfg.SourcePath), 0o750); err != nil {
 		return fmt.Errorf("create sidecar dir: %w", err)
 	}

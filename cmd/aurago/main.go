@@ -616,8 +616,10 @@ func main() {
 		appLog.Warn("Web Push manager initialization failed -- push notifications disabled", "error", err)
 	}
 
-	if cfg.Embeddings.LocalOllama.Enabled {
+	if cfg.Docker.Enabled && cfg.Embeddings.LocalOllama.Enabled {
 		tools.EnsureOllamaEmbeddingsRunning(cfg, appLog)
+	} else if cfg.Embeddings.LocalOllama.Enabled {
+		appLog.Info("[Ollama Embeddings] Docker is disabled; skipping auto-start")
 	}
 
 	// Initialize Long-Term memory (VectorDB) after vault secrets are applied

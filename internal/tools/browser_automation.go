@@ -822,6 +822,9 @@ func buildBrowserAutomationImage(image, dockerfileDir string, logger interface {
 	Warn(string, ...any)
 	Error(string, ...any)
 }) error {
+	if err := requireDockerMutationPermission(); err != nil {
+		return err
+	}
 	if dockerfileDir == "" {
 		dockerfileDir = "."
 	}

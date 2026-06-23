@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
 	"os/exec"
 	pathpkg "path"
 	"path/filepath"
@@ -721,14 +722,9 @@ func DockerCompose(cfg DockerConfig, file, cmd string) string {
 	if file == "" || cmd == "" {
 		return errJSON("file and command required")
 	}
-	// Validate compose file path
-	absFile, err := filepath.Abs(file)
+	composeFile, err := validateDockerComposeFilePath(cfg, file)
 	if err != nil {
-		return errJSON("invalid compose file path: %v", err)
-	}
-	// Block path traversal attempts
-	if strings.Contains(absFile, "..") {
-		return errJSON("path traversal is not allowed in compose file paths")
+		return errJSON("%v", err)
 	}
 	parts, err := dockerComposeParts(cmd)
 	if err != nil {
@@ -739,9 +735,38 @@ func DockerCompose(cfg DockerConfig, file, cmd string) string {
 			return errJSON("%v", err)
 		}
 	}
-	args := []string{"compose", "-f", file}
+	args := []string{"compose", "-f", composeFile}
 	args = append(args, parts...)
 	return runDockerCLIHelper(cfg, args...)
+}
+
+func validateDockerComposeFilePath(cfg DockerConfig, file string) (string, error) {
+	absFile, err := filepath.Abs(file)
+	if err != nil {
+		return "", fmt.Errorf("invalid compose file path: %w", err)
+	}
+	cleanFile := filepath.Clean(absFile)
+	workspace := strings.TrimSpace(cfg.WorkspaceDir)
+	if workspace == "" {
+		return cleanFile, nil
+	}
+	absWorkspace, err := filepath.Abs(workspace)
+	if err != nil {
+		return "", fmt.Errorf("invalid workspace path: %w", err)
+	}
+	cleanWorkspace := filepath.Clean(absWorkspace)
+	if !dockerPathEqualOrWithin(cleanFile, cleanWorkspace) {
+		return "", fmt.Errorf("compose file path %q must stay within the configured workspace", cleanFile)
+	}
+	if _, err := os.Lstat(cleanFile); err == nil {
+		if resolved, err := filepath.EvalSymlinks(cleanFile); err == nil {
+			resolved = filepath.Clean(resolved)
+			if !dockerPathEqualOrWithin(resolved, cleanWorkspace) {
+				return "", fmt.Errorf("compose file symlink target %q must stay within the configured workspace", resolved)
+			}
+		}
+	}
+	return cleanFile, nil
 }
 
 func dockerComposeReadOnlySubcommand(subcommand string) bool {
