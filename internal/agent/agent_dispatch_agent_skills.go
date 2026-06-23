@@ -5,9 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"html"
-	"path/filepath"
-	"strings"
 
 	"aurago/internal/tools"
 )
@@ -74,9 +71,16 @@ func dispatchActivateAgentSkill(tc ToolCall, dc *DispatchContext) string {
 	if err != nil {
 		return fmt.Sprintf("Tool Output: ERROR reading Agent Skill package: %v", err)
 	}
-	instructions := fmt.Sprintf(`<agent_skill name="%s" security_status="%s">
-%s
-</agent_skill>`, html.EscapeString(pkg.Name), entry.SecurityStatus, pkg.Body)
+	instructionPayload := map[string]interface{}{
+		"name":            pkg.Name,
+		"security_status": entry.SecurityStatus,
+		"skill_md":        pkg.Body,
+	}
+	instructionData, err := json.MarshalIndent(instructionPayload, "", "  ")
+	if err != nil {
+		return fmt.Sprintf("Tool Output: ERROR serializing Agent Skill instructions: %v", err)
+	}
+	instructions := "<external_data type=\"agent_skill\">\n" + string(instructionData) + "\n</external_data>"
 	resp := map[string]interface{}{
 		"name":        pkg.Name,
 		"description": pkg.Description,
@@ -92,9 +96,6 @@ func dispatchActivateAgentSkill(tc ToolCall, dc *DispatchContext) string {
 
 func dispatchRunAgentSkillScript(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
 	cfg := dc.Cfg
-	if cfg != nil && !cfg.Agent.AllowPython {
-		return "Tool Output: [PERMISSION DENIED] run_agent_skill_script is disabled in Danger Zone settings (agent.allow_python: false)."
-	}
 	mgr := tools.DefaultAgentSkillManager()
 	if mgr == nil {
 		return "Tool Output: ERROR Agent Skill Manager is not available."
@@ -107,29 +108,8 @@ func dispatchRunAgentSkillScript(ctx context.Context, tc ToolCall, dc *DispatchC
 	if script == "" {
 		return "Tool Output: ERROR script path is required."
 	}
-	ext := strings.ToLower(filepath.Ext(script))
-	if cfg != nil {
-		allowed := cfg.Tools.SkillManager.AllowedScriptLanguages
-		if allowed == nil {
-			allowed = []string{"python"}
-		}
-		langAllowed := false
-		for _, lang := range allowed {
-			switch {
-			case lang == "python" && ext == ".py":
-				langAllowed = true
-			case lang == "bash" && ext == ".sh":
-				langAllowed = true
-			case lang == "javascript" && ext == ".js":
-				langAllowed = true
-			}
-		}
-		if !langAllowed {
-			return fmt.Sprintf("Tool Output: [PERMISSION DENIED] Script language %q is not in allowed_script_languages config. Allowed: %v", ext, allowed)
-		}
-	}
-	if ext == ".sh" && cfg != nil && !cfg.Agent.AllowShell {
-		return "Tool Output: [PERMISSION DENIED] Bash scripts require agent.allow_shell to be enabled in Danger Zone settings."
+	if err := tools.ValidateAgentSkillScriptPolicy(cfg, script); err != nil {
+		return "Tool Output: [PERMISSION DENIED] " + err.Error()
 	}
 	entry, err := mgr.GetAgentSkillByName(name)
 	if err != nil {
@@ -165,7 +145,7 @@ func dispatchRunAgentSkillScript(ctx context.Context, tc ToolCall, dc *DispatchC
 	if jsonErr != nil {
 		return fmt.Sprintf("Tool Output: ERROR serializing script result: %v", jsonErr)
 	}
-	return "Tool Output: Agent Skill script result:\n" + output + "\nAgent Skill script metadata:\n" + string(data)
+	return "Tool Output: Agent Skill script result:\n" + string(data)
 }
 
 func marshalAgentSkillDispatchJSON(v interface{}) ([]byte, error) {

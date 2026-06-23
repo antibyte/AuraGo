@@ -59,6 +59,23 @@ data = pickle.load(open("data.pkl", "rb"))
 	}
 }
 
+func TestStaticCodeAnalysisRequestsWithoutTimeoutIgnoresComments(t *testing.T) {
+	code := `import requests
+requests.get(url)  # timeout is handled by the caller
+requests.post(url, timeout=5)
+`
+	findings := StaticCodeAnalysis(code)
+	count := 0
+	for _, f := range findings {
+		if f.Pattern == "requests_no_timeout" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("requests_no_timeout count = %d, want 1; findings=%+v", count, findings)
+	}
+}
+
 // TestStaticCodeAnalysis_LineNumbers verifies line numbers are correct.
 func TestStaticCodeAnalysis_LineNumbers(t *testing.T) {
 	code := `# line 1

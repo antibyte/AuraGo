@@ -212,7 +212,7 @@ func StaticCodeAnalysis(code string) []Finding {
 	for _, pattern := range dangerousPatterns {
 		for lineNum, line := range lines {
 			if pattern.Regex.MatchString(line) {
-				if pattern.SkipIfContains != "" && strings.Contains(line, pattern.SkipIfContains) {
+				if shouldSkipDangerousPattern(pattern, line) {
 					continue
 				}
 				findings = append(findings, Finding{
@@ -267,7 +267,7 @@ var bashDangerousPatterns = []dangerousPattern{
 	},
 	{
 		Name:     "bash_nc_listener",
-			Regex:    regexp.MustCompile(`nc\s+(-l|-p)\s`),
+		Regex:    regexp.MustCompile(`nc\s+(-l|-p)\s`),
 		Severity: "warning",
 		Category: "network",
 		Message:  "Netcat listener can expose shell access",
@@ -377,7 +377,7 @@ func runPatternAnalysis(code string, patterns []dangerousPattern) []Finding {
 	for _, pattern := range patterns {
 		for lineNum, line := range lines {
 			if pattern.Regex.MatchString(line) {
-				if pattern.SkipIfContains != "" && strings.Contains(line, pattern.SkipIfContains) {
+				if shouldSkipDangerousPattern(pattern, line) {
 					continue
 				}
 				findings = append(findings, Finding{
@@ -391,6 +391,46 @@ func runPatternAnalysis(code string, patterns []dangerousPattern) []Finding {
 		}
 	}
 	return findings
+}
+
+var pythonTimeoutArgRe = regexp.MustCompile(`\btimeout\s*=`)
+
+func shouldSkipDangerousPattern(pattern dangerousPattern, line string) bool {
+	if pattern.Name == "requests_no_timeout" {
+		return pythonTimeoutArgRe.MatchString(stripPythonLineComment(line))
+	}
+	return pattern.SkipIfContains != "" && strings.Contains(line, pattern.SkipIfContains)
+}
+
+func stripPythonLineComment(line string) string {
+	inSingle := false
+	inDouble := false
+	escaped := false
+	for i, r := range line {
+		if escaped {
+			escaped = false
+			continue
+		}
+		if r == '\\' && (inSingle || inDouble) {
+			escaped = true
+			continue
+		}
+		switch r {
+		case '\'':
+			if !inDouble {
+				inSingle = !inSingle
+			}
+		case '"':
+			if !inSingle {
+				inDouble = !inDouble
+			}
+		case '#':
+			if !inSingle && !inDouble {
+				return line[:i]
+			}
+		}
+	}
+	return line
 }
 
 // ValidateSkillUpload checks an uploaded file for basic validity.

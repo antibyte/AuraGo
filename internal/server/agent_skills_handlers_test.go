@@ -219,3 +219,44 @@ func TestAgentSkillAPIVerifyAutoEnableClean(t *testing.T) {
 		t.Fatal("expected skill.enabled true after verify with AutoEnableClean")
 	}
 }
+
+func TestAgentSkillAPITestRespectsDangerZonePolicy(t *testing.T) {
+	s, mux := newTestAgentSkillServer(t)
+	s.Cfg.Agent.AllowPython = false
+
+	createBody := `{"name":"test-policy","description":"Policy test. Use when testing Agent Skill script policy.","body":"# Policy\nRun scripts/echo.py."}`
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/agent-skills", strings.NewReader(createBody)))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	id := decodeAgentSkillResponse(t, rec)["skill"].(map[string]interface{})["id"].(string)
+
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/agent-skills/"+id+"/files", strings.NewReader(`{"path":"scripts/echo.py","content":"print('ok')\n"}`)))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("write file status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/agent-skills/"+id+"/verify", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("verify status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/agent-skills/"+id, strings.NewReader(`{"enabled":true}`)))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("enable status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/agent-skills/"+id+"/test", strings.NewReader(`{"script":"scripts/echo.py","args":{}}`)))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("test status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	body := decodeAgentSkillResponse(t, rec)
+	if body["status"] != "error" || !strings.Contains(body["message"].(string), "agent.allow_python") {
+		t.Fatalf("test response = %+v, want agent.allow_python policy error", body)
+	}
+}

@@ -64,9 +64,9 @@ func handleCreateAgentSkill(s *Server) http.HandlerFunc {
 			Content     string `json:"content"`
 			SkillMD     string `json:"skill_md"`
 			Resources   []struct {
-				Path     string `json:"path"`
-				Content  string `json:"content"`
-				Binary   bool   `json:"binary"`
+				Path    string `json:"path"`
+				Content string `json:"content"`
+				Binary  bool   `json:"binary"`
 			} `json:"resources"`
 		}
 		if err := json.NewDecoder(io.LimitReader(r.Body, 2<<20)).Decode(&req); err != nil {
@@ -378,9 +378,9 @@ func handleAgentSkillFile(s *Server) http.HandlerFunc {
 				return
 			}
 			var req struct {
-				Path     string `json:"path"`
-				Content  string `json:"content"`
-				Binary   bool   `json:"binary"`
+				Path    string `json:"path"`
+				Content string `json:"content"`
+				Binary  bool   `json:"binary"`
 			}
 			if err := json.NewDecoder(io.LimitReader(r.Body, 2<<20)).Decode(&req); err != nil {
 				jsonError(w, "Invalid request body", http.StatusBadRequest)
@@ -527,11 +527,11 @@ func handleAgentSkillFileUpload(s *Server) http.HandlerFunc {
 		}
 		entry, _ := s.AgentSkillManager.GetAgentSkill(id)
 		writeAgentSkillJSON(w, http.StatusOK, map[string]interface{}{
-			"status":   "uploaded",
-			"path":     relPath,
-			"binary":   isBinary,
-			"size":     len(data),
-			"skill":    entry,
+			"status": "uploaded",
+			"path":   relPath,
+			"binary": isBinary,
+			"size":   len(data),
+			"skill":  entry,
 		})
 	}
 }
@@ -585,13 +585,13 @@ func isUTF8(data []byte) bool {
 			if i+2 >= len(data) || data[i+1]&0xC0 != 0x80 || data[i+2]&0xC0 != 0x80 {
 				return false
 			}
-			r = (r&0x0F)<<12 | (rune(data[i+1]&0x3F)<<6) | rune(data[i+2]&0x3F)
+			r = (r&0x0F)<<12 | (rune(data[i+1]&0x3F) << 6) | rune(data[i+2]&0x3F)
 			size = 3
 		} else if r&0xF8 == 0xF0 {
 			if i+3 >= len(data) || data[i+1]&0xC0 != 0x80 || data[i+2]&0xC0 != 0x80 || data[i+3]&0xC0 != 0x80 {
 				return false
 			}
-			r = (r&0x07)<<18 | (rune(data[i+1]&0x3F)<<12) | (rune(data[i+2]&0x3F)<<6) | rune(data[i+3]&0x3F)
+			r = (r&0x07)<<18 | (rune(data[i+1]&0x3F) << 12) | (rune(data[i+2]&0x3F) << 6) | rune(data[i+3]&0x3F)
 			size = 4
 		} else {
 			return false
@@ -634,6 +634,14 @@ func handleRunAgentSkillScript(s *Server) http.HandlerFunc {
 		}
 		if req.Args == nil {
 			req.Args = map[string]interface{}{}
+		}
+		if err := tools.ValidateAgentSkillScriptPolicy(s.Cfg, req.Script); err != nil {
+			writeAgentSkillJSON(w, http.StatusOK, map[string]interface{}{
+				"status":  "error",
+				"output":  "",
+				"message": err.Error(),
+			})
+			return
 		}
 		output, err := s.AgentSkillManager.RunAgentSkillScript(r.Context(), id, req.Script, req.Args)
 		status := "ok"

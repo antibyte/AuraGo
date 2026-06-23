@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -57,6 +58,21 @@ func resolveSkillBridgeTools(cfg *config.Config, skillsDir, skillName string) []
 		}
 	}
 	return result
+}
+
+func loggableToolArgKeys(args map[string]interface{}) []string {
+	if len(args) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(args))
+	for k := range args {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	if len(keys) > 20 {
+		keys = append(keys[:20], fmt.Sprintf("...(+%d)", len(keys)-20))
+	}
+	return keys
 }
 
 // toolBridgeURL constructs the loopback URL for the tool bridge endpoint.
@@ -519,7 +535,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return fmt.Sprintf("Tool Output: Internal Skills Configuration (use get_skill_documentation for skills with has_documentation=true):\n%s", string(b))
 
 		case "execute_skill":
-			logger.Info("LLM requested skill execution", "skill", tc.Skill, "args", tc.SkillArgs, "params", tc.Params)
+			logger.Info("LLM requested skill execution",
+				"skill", tc.Skill,
+				"skill_arg_keys", loggableToolArgKeys(tc.SkillArgs),
+				"param_keys", loggableToolArgKeys(tc.Params),
+			)
 			// Robust argument lookup: handle both 'skill_args' and 'params'
 			args := tc.SkillArgs
 			if args == nil {

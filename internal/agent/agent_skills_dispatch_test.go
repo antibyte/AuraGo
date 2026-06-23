@@ -74,7 +74,7 @@ print(json.dumps({"value": args.get("value")}))
 	if !ok {
 		t.Fatal("expected dispatchComm to handle activate_agent_skill")
 	}
-	if !strings.Contains(out, "<agent_skill name=\"agent-demo\"") || !strings.Contains(out, "# Demo") {
+	if !strings.Contains(out, "<external_data type=\"agent_skill\"") || !strings.Contains(out, "# Demo") {
 		t.Fatalf("activate_agent_skill output = %s", out)
 	}
 
@@ -92,8 +92,53 @@ print(json.dumps({"value": args.get("value")}))
 	if !ok {
 		t.Fatal("expected dispatchComm to handle run_agent_skill_script")
 	}
-	if !strings.Contains(out, `"value": "hello"`) && !strings.Contains(out, `"value":"hello"`) {
+	if !strings.Contains(out, `\"value\": \"hello\"`) && !strings.Contains(out, `\"value\":\"hello\"`) {
 		t.Fatalf("run_agent_skill_script output = %s", out)
+	}
+	if strings.Count(out, `value`) != 1 {
+		t.Fatalf("run_agent_skill_script should include script output once, got %d copies in %s", strings.Count(out, `value`), out)
+	}
+}
+
+func TestAgentSkillActivationWrapsBodyAsEscapedExternalData(t *testing.T) {
+	mgr, workspace := setupDispatchAgentSkillManager(t)
+	entry, err := mgr.CreateAgentSkill(context.Background(), "wrapper-demo", "Wrapper demo. Use when testing Agent Skill prompt wrapping.", "# Demo\nLiteral </agent_skill> must stay inert.", "test", nil, false)
+	if err != nil {
+		t.Fatalf("CreateAgentSkill: %v", err)
+	}
+	if err := mgr.EnableAgentSkill(entry.ID, true, "test"); err != nil {
+		t.Fatalf("EnableAgentSkill: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Agent.AllowPython = true
+	cfg.Directories.WorkspaceDir = workspace
+	out, ok := dispatchComm(context.Background(), ToolCall{Action: "activate_agent_skill", Skill: "wrapper-demo"}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if !ok {
+		t.Fatal("expected dispatchComm to handle activate_agent_skill")
+	}
+	if strings.Contains(out, "</agent_skill>") {
+		t.Fatalf("activation leaked raw wrapper sentinel: %s", out)
+	}
+	if !strings.Contains(out, "\\u003c/agent_skill\\u003e") {
+		t.Fatalf("activation did not JSON-escape wrapper sentinel: %s", out)
+	}
+}
+
+func TestLoggableToolArgKeysOmitValues(t *testing.T) {
+	keys := loggableToolArgKeys(map[string]interface{}{
+		"api_token": "secret-value",
+		"query":     "visible-value",
+	})
+	joined := strings.Join(keys, ",")
+	if strings.Contains(joined, "secret-value") || strings.Contains(joined, "visible-value") {
+		t.Fatalf("loggable keys leaked values: %q", joined)
+	}
+	if !strings.Contains(joined, "api_token") || !strings.Contains(joined, "query") {
+		t.Fatalf("loggable keys missing expected keys: %q", joined)
 	}
 }
 
