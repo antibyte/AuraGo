@@ -1187,6 +1187,114 @@
     flex-shrink: 0;
 }
 
+/* === Writer Toolbar: office-fmt-btn style === */
+.office-writer .ql-toolbar.ql-snow button {
+    min-width: 30px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    border-radius: var(--ds-radius-sm);
+    background: transparent;
+    color: var(--vd-text);
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0 6px;
+    cursor: pointer;
+    transition: background 120ms, border-color 120ms;
+    white-space: nowrap;
+    float: none;
+    width: auto;
+}
+
+.office-writer .ql-toolbar.ql-snow button:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--vd-border);
+}
+
+.office-writer .ql-toolbar.ql-snow button.ql-active {
+    background: rgba(39, 199, 166, 0.15);
+    border-color: rgba(39, 199, 196, 0.35);
+    color: var(--vd-accent, #27c7a6);
+}
+
+.office-writer .ql-toolbar.ql-snow .ql-stroke {
+    stroke: var(--vd-text);
+}
+
+.office-writer .ql-toolbar.ql-snow .ql-fill {
+    fill: var(--vd-text);
+}
+
+.office-writer .ql-toolbar.ql-snow button:hover .ql-stroke,
+.office-writer .ql-toolbar.ql-snow button.ql-active .ql-stroke {
+    stroke: var(--vd-accent, #27c7a6);
+}
+
+.office-writer .ql-toolbar.ql-snow button:hover .ql-fill,
+.office-writer .ql-toolbar.ql-snow button.ql-active .ql-fill {
+    fill: var(--vd-accent, #27c7a6);
+}
+
+.office-writer .ql-toolbar.ql-snow .ql-picker-label {
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--vd-border);
+    border-radius: var(--ds-radius-sm);
+    background: rgba(0, 0, 0, 0.22);
+    color: var(--vd-text);
+    font: inherit;
+    font-size: 0.78rem;
+    padding: 0 8px;
+    cursor: pointer;
+    transition: background 120ms, border-color 120ms;
+}
+
+.office-writer .ql-toolbar.ql-snow .ql-picker-label:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--ds-color-border-default, rgba(255, 255, 255, 0.16));
+}
+
+.office-writer .ql-toolbar.ql-snow .ql-formats {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-right: 0;
+    padding-right: 8px;
+    border-right: 1px solid var(--vd-border);
+}
+
+.office-writer .ql-toolbar.ql-snow .ql-formats:last-child {
+    border-right: none;
+    padding-right: 0;
+}
+
+.office-writer .ql-toolbar.ql-snow .ql-picker-options {
+    background: rgba(10, 15, 24, 0.98);
+    border-color: var(--vd-border);
+    border-radius: var(--ds-radius-md);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    padding: 4px;
+}
+
+.office-writer .ql-toolbar.ql-snow .ql-picker-item {
+    border-radius: var(--ds-radius-sm);
+    padding: 4px 8px;
+    color: var(--vd-text);
+}
+
+.office-writer .ql-toolbar.ql-snow .ql-picker-item:hover {
+    background: rgba(39, 199, 166, 0.12);
+    color: var(--vd-accent, #27c7a6);
+}
+
+.office-writer .ql-toolbar.ql-snow .ql-picker-item.ql-selected {
+    color: var(--vd-accent, #27c7a6);
+}
+
 /* === Writer Focus Mode === */
 .office-writer.focus-mode .office-toolbar {
     display: none;
