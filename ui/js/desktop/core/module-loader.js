@@ -26,7 +26,7 @@
             styles: appStyles('/css/desktop-app-office.css')
         },
         'writer': {
-            styles: appStyles('/css/desktop-app-office.css', '/css/quill.snow.css'),
+            styles: appStyles('/css/quill.snow.css', '/css/desktop-app-office.css'),
             scripts: ['/js/vendor/quill.js', '/js/desktop/apps/writer.js']
         },
         'sheets': {
