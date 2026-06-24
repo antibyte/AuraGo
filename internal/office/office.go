@@ -630,7 +630,14 @@ func cellFormatIsEmpty(format *CellFormat) bool {
 	return !format.Bold && !format.Italic && !format.Underline &&
 		format.FontColor == "" && format.FillColor == "" &&
 		format.HAlign == "" && format.VAlign == "" &&
-		format.NumFormat == "" && format.Borders == nil
+		format.NumFormat == "" && cellBordersIsEmpty(format.Borders)
+}
+
+func cellBordersIsEmpty(borders *CellBorders) bool {
+	if borders == nil {
+		return true
+	}
+	return borders.Top == nil && borders.Bottom == nil && borders.Left == nil && borders.Right == nil
 }
 
 func excelizeStyleFromCellFormat(format *CellFormat) *excelize.Style {

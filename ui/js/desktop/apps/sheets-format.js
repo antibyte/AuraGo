@@ -1,52 +1,57 @@
 (function () {
     'use strict';
 
+    function escapeHTML(s) {
+        return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
     function renderToolbar(host, t, onFormatChange) {
         if (!host) return null;
+        const e = escapeHTML;
         const toolbar = document.createElement('div');
         toolbar.className = 'office-format-toolbar';
         toolbar.innerHTML = `
-            <button type="button" class="office-fmt-btn" data-fmt="bold" title="${t('desktop.sheets_format_bold')}"><strong>B</strong></button>
-            <button type="button" class="office-fmt-btn" data-fmt="italic" title="${t('desktop.sheets_format_italic')}"><em>I</em></button>
-            <button type="button" class="office-fmt-btn" data-fmt="underline" title="${t('desktop.sheets_format_underline')}"><u>U</u></button>
+            <button type="button" class="office-fmt-btn" data-fmt="bold" title="${e(t('desktop.sheets_format_bold'))}"><strong>B</strong></button>
+            <button type="button" class="office-fmt-btn" data-fmt="italic" title="${e(t('desktop.sheets_format_italic'))}"><em>I</em></button>
+            <button type="button" class="office-fmt-btn" data-fmt="underline" title="${e(t('desktop.sheets_format_underline'))}"><u>U</u></button>
             <span class="office-fmt-separator"></span>
-            <button type="button" class="office-fmt-btn" data-fmt="align-left" title="${t('desktop.sheets_format_align_left')}">&#8676;</button>
-            <button type="button" class="office-fmt-btn" data-fmt="align-center" title="${t('desktop.sheets_format_align_center')}">&#8633;</button>
-            <button type="button" class="office-fmt-btn" data-fmt="align-right" title="${t('desktop.sheets_format_align_right')}">&#8677;</button>
+            <button type="button" class="office-fmt-btn" data-fmt="align-left" title="${e(t('desktop.sheets_format_align_left'))}">&#8676;</button>
+            <button type="button" class="office-fmt-btn" data-fmt="align-center" title="${e(t('desktop.sheets_format_align_center'))}">&#8633;</button>
+            <button type="button" class="office-fmt-btn" data-fmt="align-right" title="${e(t('desktop.sheets_format_align_right'))}">&#8677;</button>
             <span class="office-fmt-separator"></span>
             <div class="office-fmt-dropdown" data-dropdown="font-color">
-                <button type="button" class="office-fmt-btn office-fmt-color-btn" data-fmt="font-color" title="${t('desktop.sheets_format_font_color')}">
+                <button type="button" class="office-fmt-btn office-fmt-color-btn" data-fmt="font-color" title="${e(t('desktop.sheets_format_font_color'))}">
                     <span class="office-fmt-color-indicator" style="border-bottom-color:#f6f7fb">A</span>
                 </button>
                 <div class="office-color-picker" data-picker="font-color" hidden></div>
             </div>
             <div class="office-fmt-dropdown" data-dropdown="fill-color">
-                <button type="button" class="office-fmt-btn office-fmt-color-btn" data-fmt="fill-color" title="${t('desktop.sheets_format_fill_color')}">
+                <button type="button" class="office-fmt-btn office-fmt-color-btn" data-fmt="fill-color" title="${e(t('desktop.sheets_format_fill_color'))}">
                     <span class="office-fmt-color-indicator office-fmt-fill-indicator" style="background:#27c7a6">&#9632;</span>
                 </button>
                 <div class="office-color-picker" data-picker="fill-color" hidden></div>
             </div>
             <span class="office-fmt-separator"></span>
-            <select class="office-fmt-select" data-fmt="number-format" title="${t('desktop.sheets_format_number')}">
+            <select class="office-fmt-select" data-fmt="number-format" title="${e(t('desktop.sheets_format_number'))}">
                 <option value="">General</option>
-                <option value="0">${t('desktop.sheets_format_number')}</option>
-                <option value="0.00">${t('desktop.sheets_format_number')} (0.00)</option>
+                <option value="0">${e(t('desktop.sheets_format_number'))}</option>
+                <option value="0.00">${e(t('desktop.sheets_format_number'))} (0.00)</option>
                 <option value="#,##0">#,##0</option>
-                <option value="$#,##0.00">${t('desktop.sheets_format_currency')}</option>
-                <option value="0%">${t('desktop.sheets_format_percent')}</option>
-                <option value="mm-dd-yy">${t('desktop.sheets_format_date')}</option>
-                <option value="@">${t('desktop.sheets_format_text')}</option>
+                <option value="$#,##0.00">${e(t('desktop.sheets_format_currency'))}</option>
+                <option value="0%">${e(t('desktop.sheets_format_percent'))}</option>
+                <option value="mm-dd-yy">${e(t('desktop.sheets_format_date'))}</option>
+                <option value="@">${e(t('desktop.sheets_format_text'))}</option>
             </select>
             <span class="office-fmt-separator"></span>
-            <select class="office-fmt-select" data-fmt="border" title="${t('desktop.sheets_format_borders')}">
-                <option value="">${t('desktop.sheets_format_border_none')}</option>
-                <option value="outer">${t('desktop.sheets_format_border_outer')}</option>
-                <option value="all">${t('desktop.sheets_format_border_all')}</option>
-                <option value="inner">${t('desktop.sheets_format_border_inner')}</option>
-                <option value="top">${t('desktop.sheets_format_border_top')}</option>
-                <option value="bottom">${t('desktop.sheets_format_border_bottom')}</option>
-                <option value="left">${t('desktop.sheets_format_border_left')}</option>
-                <option value="right">${t('desktop.sheets_format_border_right')}</option>
+            <select class="office-fmt-select" data-fmt="border" title="${e(t('desktop.sheets_format_borders'))}">
+                <option value="">${e(t('desktop.sheets_format_border_none'))}</option>
+                <option value="outer">${e(t('desktop.sheets_format_border_outer'))}</option>
+                <option value="all">${e(t('desktop.sheets_format_border_all'))}</option>
+                <option value="inner">${e(t('desktop.sheets_format_border_inner'))}</option>
+                <option value="top">${e(t('desktop.sheets_format_border_top'))}</option>
+                <option value="bottom">${e(t('desktop.sheets_format_border_bottom'))}</option>
+                <option value="left">${e(t('desktop.sheets_format_border_left'))}</option>
+                <option value="right">${e(t('desktop.sheets_format_border_right'))}</option>
             </select>`;
         host.appendChild(toolbar);
 

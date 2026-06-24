@@ -140,17 +140,26 @@
         const formulaFunction = name => {
             expect('(');
             const args = [];
+            const rangeFuncs = { VLOOKUP: [1], HLOOKUP: [1] };
+            const rangeArgIndices = rangeFuncs[name] || [];
+            let argIndex = 0;
             if (peek().type !== ')') {
                 do {
                     if (peek().type === 'cell' && tokens[index + 1] && tokens[index + 1].type === ':') {
                         const start = expect('cell').value;
                         expect(':');
-                        args.push(...rangeValues(start, expect('cell').value));
+                        const end = expect('cell').value;
+                        if (rangeArgIndices.includes(argIndex)) {
+                            args.push(rangeValuesArray(sheet, start, end));
+                        } else {
+                            args.push(...rangeValues(sheet, start, end));
+                        }
                     } else if (peek().type === 'string') {
                         args.push(tokens[index++].value);
                     } else {
                         args.push(comparison());
                     }
+                    argIndex++;
                 } while (take(','));
             }
             expect(')');
@@ -172,8 +181,9 @@
             }
             if (name === 'STDEV') {
                 const nums = args.map(a => Number(a) || 0);
-                const mean = nums.reduce((s, v) => s + v, 0) / Math.max(1, nums.length);
-                const variance = nums.reduce((s, v) => s + (v - mean) ** 2, 0) / Math.max(1, nums.length - 1);
+                if (nums.length < 2) return 0;
+                const mean = nums.reduce((s, v) => s + v, 0) / nums.length;
+                const variance = nums.reduce((s, v) => s + (v - mean) ** 2, 0) / (nums.length - 1);
                 return Math.sqrt(variance);
             }
             if (name === 'IF') {
@@ -240,6 +250,33 @@
                 }
             }
             return values;
+        };
+
+        const rangeValuesArray = (sheetRef, start, end) => {
+            const a = parseCellRef(start);
+            const b = parseCellRef(end);
+            if (b.row < a.row || b.col < a.col) return [];
+            const rows = [];
+            for (let r = a.row; r <= b.row; r++) {
+                const row = [];
+                for (let c = a.col; c <= b.col; c++) {
+                    const cell = sheetRef && sheetRef.rows && sheetRef.rows[r] && sheetRef.rows[r][c];
+                    if (cell) {
+                        if (cell.formula) {
+                            const v = evaluateFormulaForSheet(sheetRef, cell.formula);
+                            const n = Number(v);
+                            row.push(Number.isFinite(n) ? n : v);
+                        } else {
+                            const n = Number(cell.value);
+                            row.push(Number.isFinite(n) ? n : (cell.value || ''));
+                        }
+                    } else {
+                        row.push('');
+                    }
+                }
+                rows.push(row);
+            }
+            return rows;
         };
 
         const result = comparison();

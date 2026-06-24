@@ -11,7 +11,7 @@
     function render(host, windowId, context) {
         if (!host) return;
         dispose(windowId);
-        instances.set(windowId, { container: host, closeContextMenu: () => closeSheetContextMenu() });
+        instances.set(windowId, { container: host, closeContextMenu: () => closeSheetContextMenu(), autosaveTimer: null, closeSearch: null, formatClickHandler: null });
         const ctx = context || {};
         const esc = ctx.esc || (value => String(value == null ? '' : value));
         const rawT = ctx.t || ((key, vars) => interpolate(key, vars));
@@ -37,7 +37,6 @@
         let undoStack = [];
         let redoStack = [];
         let isDirty = false;
-        let autosaveTimer = null;
         let isUndoRedoAction = false;
         let formatToolbar = null;
 
@@ -98,11 +97,14 @@
 
         function scheduleAutosave() {
             if (readonly || !isDirty) return;
-            if (autosaveTimer) clearTimeout(autosaveTimer);
-            autosaveTimer = setTimeout(() => {
-                autosaveTimer = null;
-                if (isDirty) save().catch(() => {});
-            }, AUTOSAVE_DELAY);
+            const inst = instances.get(windowId);
+            if (inst && inst.autosaveTimer) clearTimeout(inst.autosaveTimer);
+            if (inst) {
+                inst.autosaveTimer = setTimeout(() => {
+                    inst.autosaveTimer = null;
+                    if (isDirty) save().catch(() => {});
+                }, AUTOSAVE_DELAY);
+            }
         }
 
         function pushSnapshot() {
@@ -518,11 +520,14 @@
                     select.value = '';
                 });
             });
-            document.addEventListener('click', e => {
+            const closePickersHandler = e => {
                 if (!e.target.closest('.office-fmt-dropdown')) {
                     toolbar.querySelectorAll('.office-color-picker').forEach(p => p.hidden = true);
                 }
-            });
+            };
+            document.addEventListener('click', closePickersHandler);
+            const inst = instances.get(windowId);
+            if (inst) inst.formatClickHandler = closePickersHandler;
         }
 
         function applyFormulaBar() {
@@ -538,7 +543,12 @@
 
         function openSearch() {
             if (searchModule) {
-                searchModule.openSearch(host, gridHost, workbook, activeSheet, t, esc, (r, c) => selectCell(r, c, false));
+                const inst = instances.get(windowId);
+                if (inst) inst.closeSearch = () => searchModule.closeSearch();
+                searchModule.openSearch(host, gridHost, workbook, () => activeSheet, t, esc, (r, c) => selectCell(r, c, false), {
+                    pushSnapshot: pushSnapshot,
+                    setDirty: setDirty
+                });
             }
         }
 
@@ -679,12 +689,17 @@
 
         function copyRange() {
             const range = selectionRange();
+            const sheet = workbook.sheets[activeSheet];
             const rows = [];
             for (let r = range.startRow; r <= range.endRow; r++) {
                 const values = [];
                 for (let c = range.startCol; c <= range.endCol; c++) {
-                    const input = cellInput(r, c);
-                    values.push(input ? input.value : '');
+                    const cell = sheet && sheet.rows && sheet.rows[r] && sheet.rows[r][c];
+                    if (cell && cell.formula) {
+                        values.push('=' + cell.formula);
+                    } else {
+                        values.push(cell ? (cell.value || '') : '');
+                    }
                 }
                 rows.push(values.join('\t'));
             }
@@ -824,14 +839,18 @@
             selection = { anchor: clampCell(selection.anchor), focus: clampCell(selection.focus) };
         }
 
+        let isSaving = false;
+
         async function save() {
-            if (readonly) return;
-            captureGrid();
-            setStatus(t('desktop.saving'));
-            const path = pathInput.value.trim() || DEFAULT_PATH;
-            workbook.path = path;
-            const body = await api('/api/desktop/office/workbook', {
-                method: 'PUT',
+            if (readonly || isSaving) return;
+            isSaving = true;
+            try {
+                captureGrid();
+                setStatus(t('desktop.saving'));
+                const path = pathInput.value.trim() || DEFAULT_PATH;
+                workbook.path = path;
+                const body = await api('/api/desktop/office/workbook', {
+                    method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path, workbook, office_version: officeVersion })
             });
@@ -841,6 +860,9 @@
             setStatus(t('desktop.sheets_saved'));
             notify({ type: 'success', message: t('desktop.sheets_saved') });
             await refreshDesktop();
+            } finally {
+                isSaving = false;
+            }
         }
 
         function newWorkbook() {
@@ -1031,7 +1053,11 @@
 
     function dispose(windowId) {
         const instance = instances.get(windowId);
-        if (instance && typeof instance.closeContextMenu === 'function') instance.closeContextMenu();
+        if (!instance) return;
+        if (typeof instance.closeContextMenu === 'function') instance.closeContextMenu();
+        if (instance.autosaveTimer) clearTimeout(instance.autosaveTimer);
+        if (typeof instance.closeSearch === 'function') instance.closeSearch();
+        if (instance.formatClickHandler) document.removeEventListener('click', instance.formatClickHandler);
         instances.delete(windowId);
     }
 
@@ -1077,15 +1103,23 @@
         return padded;
     }
 
+    function cellIsEmpty(cell) {
+        if (!cell) return true;
+        const v = cell.value != null ? String(cell.value) : '';
+        const f = cell.formula || '';
+        return v.trim() === '' && f.trim() === '';
+    }
+
     function trimRows(rows) {
         let lastRow = -1;
         rows.forEach((row, r) => {
-            if (row.some(cell => (cell.value || cell.formula || '').trim() !== '')) lastRow = r;
+            if (row.some(cell => !cellIsEmpty(cell))) lastRow = r;
         });
+        if (lastRow < 0) return [];
         return rows.slice(0, lastRow + 1).map(row => {
             let lastCol = -1;
             row.forEach((cell, c) => {
-                if ((cell.value || cell.formula || '').trim() !== '') lastCol = c;
+                if (!cellIsEmpty(cell)) lastCol = c;
             });
             return row.slice(0, lastCol + 1);
         });
