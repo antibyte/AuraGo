@@ -11,6 +11,11 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
 - `chess*.js` implements Chess, a casual desktop chess app using
   `cm-chessboard`, `chess.js`, a local Stockfish WebWorker, and the optional
   AuraGo agent move endpoint.
+- `writer.js` implements the Writer app, a word-processing editor with Quill
+  rich-text, auto-save with debounce, dirty-state tracking, word/character/page
+  count in a status bar, find & replace overlay with match highlighting, an
+  enhanced formatting toolbar (font, size, color, background, alignment,
+  blockquote, code-block, image), and agent integration.
 - `cheater*.js` implements the Cheater app, a cheat-sheet manager with a
   textarea-based Markdown editor, live preview, Markdown toolbar, command
   palette (spotlight), and attachments side panel.
@@ -80,6 +85,17 @@ registration lives in `internal/desktop/types.go`.
   `window.SheetsFormulas` at render time.
 - Sheets visible UI strings use `desktop.sheets_*` keys in all
   `ui/lang/desktop/*.json` files.
+- Writer exposes `window.WriterApp = { render, dispose }`; every desktop window
+  instance owns its own Quill editor, auto-save timer, dirty state flag, and
+  search/overlay state. Auto-save debounces at 800 ms via `markDirty()` triggered
+  on Quill `text-change` and input events.
+- Writer visible UI strings use `desktop.writer_*` keys in all
+  `ui/lang/desktop/*.json` files. New keys require translations across all 16
+  supported languages.
+- Writer search/find uses Quill's `deleteText`/`insertText` in `silent` mode
+  with regex-based match detection, formatted highlight via `formatText`
+  background, and scroll-to-match via `getBounds`. Highlight cleanup on save
+  and close avoids stale formats leaking into saved content.
 
 ## Work Guidance
 
@@ -102,6 +118,9 @@ registration lives in `internal/desktop/types.go`.
 - Keep Sheets split across `sheets.js`, `sheets-formulas.js`,
   `sheets-format.js`, and `sheets-search.js`; do not fold the formula engine,
   format toolbar, or search/replace logic into the main app file.
+- Keep Writer self-contained in `writer.js` below the 1100-line budget;
+  if find/replace grows unwieldy, extract into `writer-search.js` and register
+  in `module-loader.js` and `DESKTOP_APP_ASSETS`.
 - New formula functions must be added to `sheets-formulas.js` and kept in sync
   with the Go evaluator in `internal/office/` (see `EvaluateFormulaForSheet`).
 - Rebuild chess vendor assets with `npm run build:chess-vendor` after changing
@@ -119,6 +138,11 @@ registration lives in `internal/desktop/types.go`.
 
 ## Child DOX Index
 
+- `writer.js` - Word-processing editor: Quill rich-text, auto-save with 800 ms
+  debounce, dirty-state tracking, word/character/page status bar, find &
+  replace overlay with match highlighting, enhanced formatting toolbar (font,
+  size, color, background, alignment, blockquote, code-block, image), and agent
+  integration. Exposes `window.WriterApp`. No child DOX file needed.
 - `galaxa-demo.js` - AI pilot and demo lifecycle; reactive combat AI (aim, fire,
   dodge, collect powerups), menu auto-tap for shop/evo, and game-over
   auto-restart loop. Attaches `ctx.startDemo()` and `ctx.updateDemo(dt)` via

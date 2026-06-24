@@ -690,6 +690,11 @@
     grid-template-rows: auto auto auto 1fr auto;
 }
 
+/* Writer uses 4 rows: toolbar, format toolbar, editor (1fr), statusbar */
+.office-writer {
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
 .office-format-bar {
     display: flex;
     align-items: center;
@@ -996,4 +1001,228 @@
 
 .office-sheet-grid-wrap {
     position: relative;
+}
+
+/* === Writer Statusbar === */
+.office-writer-statusbar {
+    display: flex;
+    align-items: center;
+    border-top: 1px solid var(--vd-border);
+    padding: 4px 12px;
+    background: linear-gradient(180deg, rgba(8, 12, 18, 0.55) 0%, rgba(8, 12, 18, 0.3) 100%);
+    font-size: 0.74rem;
+    color: var(--vd-muted);
+    min-height: 26px;
+}
+
+.office-writer-statusbar-left {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.office-writer-statusbar-center {
+    flex: 0 0 auto;
+    text-align: center;
+    padding: 0 16px;
+}
+
+.office-writer-statusbar-right {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    opacity: 0.8;
+}
+
+.office-writer-statusbar .dirty-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--vd-accent);
+    margin-right: 6px;
+    animation: pulse 1.5s ease infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* === Writer Search Overlay === */
+.office-writer-search-overlay {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    z-index: var(--vd-z-menu);
+    min-width: 380px;
+    padding: 10px 12px;
+    border: 1px solid var(--vd-border);
+    border-radius: var(--ds-radius-md);
+    background: rgba(10, 15, 24, 0.98);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.office-writer-search-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.office-writer-search-input {
+    flex: 1;
+    height: 30px;
+    border: 1px solid var(--vd-border);
+    border-radius: var(--ds-radius-sm);
+    background: rgba(0, 0, 0, 0.32);
+    color: var(--vd-text);
+    padding: 0 10px;
+    font: inherit;
+    font-size: 0.84rem;
+}
+
+.office-writer-search-input:focus {
+    outline: none;
+    border-color: var(--vd-accent);
+}
+
+.office-writer-search-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.78rem;
+    color: var(--vd-muted);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.office-writer-search-count {
+    font-size: 0.78rem;
+    color: var(--vd-muted);
+    min-width: 60px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.office-writer-search-btn {
+    min-width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--vd-border);
+    border-radius: var(--ds-radius-sm);
+    background: transparent;
+    color: var(--vd-text);
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: background 120ms;
+}
+
+.office-writer-search-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.office-writer-search-replace-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.office-writer-search-match {
+    background: rgba(250, 204, 21, 0.25);
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+/* === Writer Enhanced Toolbar === */
+.office-writer .ql-color-picker .ql-picker-label svg {
+    vertical-align: middle;
+}
+
+.office-writer .ql-background .ql-picker-label svg {
+    vertical-align: middle;
+}
+
+.office-writer .ql-align .ql-picker-label svg {
+    vertical-align: middle;
+}
+
+.office-writer .ql-font .ql-picker-label {
+    min-width: 80px;
+}
+
+.office-writer .ql-size .ql-picker-label {
+    min-width: 50px;
+}
+
+.office-writer .ql-image svg {
+    vertical-align: middle;
+}
+
+.office-writer .ql-code-block svg {
+    vertical-align: middle;
+}
+
+.office-writer .ql-blockquote svg {
+    vertical-align: middle;
+}
+
+/* === Writer Toolbar Responsive Wrapping === */
+.office-writer .ql-toolbar.ql-snow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.office-writer .ql-toolbar.ql-snow .ql-formats {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* === Writer Focus Mode === */
+.office-writer.focus-mode .office-toolbar {
+    display: none;
+}
+
+.office-writer.focus-mode .office-writer-tools {
+    display: none;
+}
+
+.office-writer.focus-mode .office-writer-statusbar {
+    display: none;
+}
+
+.office-writer.focus-mode .office-writer-editor .ql-editor {
+    max-width: 640px;
+    padding-top: 60px;
+}
+
+/* === Writer Dirty State Visual === */
+.office-writer.is-dirty .office-title-input {
+    border-color: var(--vd-accent);
+    box-shadow: 0 0 0 1px rgba(39, 199, 166, 0.25);
+}
+
+/* === Writer Search Match Highlight in Quill === */
+.office-writer-editor .ql-editor .writer-search-highlight {
+    background: rgba(250, 204, 21, 0.35);
+    border-radius: 2px;
+}
+
+.office-writer-editor .ql-editor .writer-search-highlight.current {
+    background: rgba(250, 204, 21, 0.6);
+    outline: 1px solid rgba(250, 204, 21, 0.8);
+}
+
+/* === Writer Editor Image Styles === */
+.office-writer-editor .ql-editor img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--ds-radius-sm);
+    margin: 0.5em 0;
 }
