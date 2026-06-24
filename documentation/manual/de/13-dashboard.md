@@ -174,12 +174,13 @@ DELETE-Endpunkte benötigen Admin-Zugriff.
 
 Der Tab **Cronjobs** zeigt interne geplante Aufgaben aus dem eingebauten CronManager — inklusive Scheduler-Tool-Jobs und zeitgesteuerter Missionen im gleichen Scheduler.
 
-Die Tabelle zeigt Job-ID, Quelle, Cron-Ausdruck, nächsten Lauf, Aktiv-/Deaktiviert-Status, Prompt und Zeilenaktionen. Suche sowie Quellen- und Statusfilter helfen, Agent-Jobs von Mission-Zeitplänen zu trennen.
+Die Tabelle zeigt Job-ID, Quelle, Cron-Ausdruck, nächsten Lauf, Status (`enabled`, `disabled` oder `error`), Prompt und Zeilenaktionen. Fehlerzeilen zeigen `last_error` im Status-Hinweis, damit ungültige gespeicherte Jobs und deaktivierte Scheduler-Laufzeit sichtbar sind.
 
 Admins können Cron-Ausdruck, Prompt und Aktivierung über die Zeilenaktion bearbeiten. Die Quelle wird im Dialog angezeigt, aber automatisch beibehalten.
 
 ```bash
 GET /api/dashboard/cronjobs?q=backup&source=agent&status=enabled
+GET /api/dashboard/cronjobs?status=error
 PUT /api/dashboard/cronjobs
 DELETE /api/dashboard/cronjobs/{id}
 ```

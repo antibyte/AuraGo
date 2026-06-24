@@ -22,7 +22,9 @@ type CronJob struct {
 	Source     string `json:"source,omitempty"`
 }
 
-type cronJobListItem struct {
+const schedulerDisabledByConfiguration = "scheduler disabled by configuration"
+
+type CronJobRuntimeStatus struct {
 	CronJob
 	Registered bool   `json:"registered"`
 	LastError  string `json:"last_error,omitempty"`
@@ -72,22 +74,11 @@ func (m *CronManager) Start(callback func(prompt string)) error {
 		m.jobs = []CronJob{}
 	}
 
-	var scheduleErrs []error
-	for _, job := range m.jobs {
-		if err := m.scheduleInternal(job); err != nil {
-			slog.Warn("[CronManager] Failed to register persisted cron job",
-				"id", job.ID,
-				"source", job.Source,
-				"cron_expr", job.CronExpr,
-				"error", err)
-			m.registrationErrors[job.ID] = err.Error()
-			scheduleErrs = append(scheduleErrs, fmt.Errorf("register cron job %q (%s): %w", job.ID, job.CronExpr, err))
-		}
-	}
+	err = m.refreshRuntimeRegistrationsLocked()
 
 	m.engine.Start()
 	m.started = true
-	return errors.Join(scheduleErrs...)
+	return err
 }
 
 // RegisterRunner registers a source-specific runner for cron jobs.
@@ -137,6 +128,57 @@ func (m *CronManager) scheduleInternal(job CronJob) error {
 	m.cronEntryIDs[j.ID] = entryID
 	delete(m.registrationErrors, j.ID)
 	return nil
+}
+
+func schedulerRuntimeEnabled() bool {
+	perms, configured := currentRuntimePermissions()
+	return configured && perms.SchedulerEnabled
+}
+
+func (m *CronManager) clearRuntimeEntriesLocked() {
+	for jobID, entryID := range m.cronEntryIDs {
+		m.engine.Remove(entryID)
+		delete(m.cronEntryIDs, jobID)
+	}
+}
+
+func (m *CronManager) refreshRuntimeRegistrationsLocked() error {
+	m.clearRuntimeEntriesLocked()
+
+	if !schedulerRuntimeEnabled() {
+		for _, job := range m.jobs {
+			if job.Disabled {
+				delete(m.registrationErrors, job.ID)
+				continue
+			}
+			m.registrationErrors[job.ID] = schedulerDisabledByConfiguration
+		}
+		return nil
+	}
+
+	var scheduleErrs []error
+	for _, job := range m.jobs {
+		if job.Disabled {
+			delete(m.registrationErrors, job.ID)
+			continue
+		}
+		if err := m.scheduleInternal(job); err != nil {
+			slog.Warn("[CronManager] Failed to register persisted cron job",
+				"id", job.ID,
+				"source", job.Source,
+				"cron_expr", job.CronExpr,
+				"error", err)
+			m.registrationErrors[job.ID] = err.Error()
+			scheduleErrs = append(scheduleErrs, fmt.Errorf("register cron job %q (%s): %w", job.ID, job.CronExpr, err))
+		}
+	}
+	return errors.Join(scheduleErrs...)
+}
+
+func (m *CronManager) RefreshRuntimePermissions() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.refreshRuntimeRegistrationsLocked()
 }
 
 // Stop shuts down the cron engine. Must be called during graceful shutdown
@@ -229,20 +271,47 @@ func (m *CronManager) GetJobs() []CronJob {
 	return out
 }
 
-func (m *CronManager) jobsWithRuntimeStatusLocked() []cronJobListItem {
-	out := make([]cronJobListItem, 0, len(m.jobs))
+func (m *CronManager) GetJobsWithRuntimeStatus() []CronJobRuntimeStatus {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.jobsWithRuntimeStatusLocked()
+}
+
+func (m *CronManager) jobsWithRuntimeStatusLocked() []CronJobRuntimeStatus {
+	out := make([]CronJobRuntimeStatus, 0, len(m.jobs))
 	for _, job := range m.jobs {
 		_, registered := m.cronEntryIDs[job.ID]
 		if job.Disabled {
 			registered = false
 		}
-		out = append(out, cronJobListItem{
+		out = append(out, CronJobRuntimeStatus{
 			CronJob:    job,
 			Registered: registered,
 			LastError:  m.registrationErrors[job.ID],
 		})
 	}
 	return out
+}
+
+func (m *CronManager) removeJobLocked(id string) bool {
+	found := false
+	if entryID, hasEntry := m.cronEntryIDs[id]; hasEntry {
+		m.engine.Remove(entryID)
+		delete(m.cronEntryIDs, id)
+		found = true
+	}
+	delete(m.registrationErrors, id)
+
+	filtered := []CronJob{}
+	for _, j := range m.jobs {
+		if j.ID == id {
+			found = true
+			continue
+		}
+		filtered = append(filtered, j)
+	}
+	m.jobs = filtered
+	return found
 }
 
 // ManageSchedule handles cron job operations with i18n support.
@@ -278,18 +347,9 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 			jobID = fmt.Sprintf("%d", time.Now().UnixNano())
 		}
 
-		// Idempotent add: remove existing job with same ID to avoid duplicates
-		if existingEntryID, exists := m.cronEntryIDs[jobID]; exists && jobID != "" {
-			m.engine.Remove(existingEntryID)
-			delete(m.cronEntryIDs, jobID)
-			delete(m.registrationErrors, jobID)
-			filtered := []CronJob{}
-			for _, j := range m.jobs {
-				if j.ID != jobID {
-					filtered = append(filtered, j)
-				}
-			}
-			m.jobs = filtered
+		// Idempotent add: remove any existing persisted/runtime job with the same ID.
+		if jobID != "" {
+			m.removeJobLocked(jobID)
 		}
 
 		job := CronJob{
@@ -316,27 +376,10 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 			return fmt.Sprintf(`{"status": "error", "message": "%s"}`, i18n.T(lang, "tools.cron_remove_id_required")), nil
 		}
 
-		found := false
-		entryID, hasEntry := m.cronEntryIDs[id]
-		if hasEntry {
-			m.engine.Remove(entryID)
-			delete(m.cronEntryIDs, id)
-			found = true
-		}
-		delete(m.registrationErrors, id)
-
-		filtered := []CronJob{}
-		for _, j := range m.jobs {
-			if j.ID == id {
-				found = true
-				continue
-			}
-			filtered = append(filtered, j)
-		}
+		found := m.removeJobLocked(id)
 		if !found {
 			return fmt.Sprintf(`{"status": "warning", "message": "%s"}`, i18n.T(lang, "tools.cron_job_not_found")), nil
 		}
-		m.jobs = filtered
 		if err := m.saveLocked(); err != nil {
 			return "", err
 		}

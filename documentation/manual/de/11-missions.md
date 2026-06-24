@@ -150,17 +150,17 @@ Missionen sind **Agent-Prompts** — der Agent nutzt seine Tools, um die Aufgabe
 
 ## Scheduling mit Cron
 
-AuraGo verwendet **Cron-Ausdrücke** für die Zeitplanung. Das Format ist:
+AuraGo akzeptiert **Cron-Ausdrücke** mit 5 Feldern und optional 6 Feldern mit Sekunden am Anfang:
 
 ```
-┌───────────── Minute (0 - 59)
-│ ┌───────────── Stunde (0 - 23)
-│ │ ┌───────────── Tag des Monats (1 - 31)
-│ │ │ ┌───────────── Monat (1 - 12)
-│ │ │ │ ┌───────────── Wochentag (0 - 6, Sonntag = 0)
-│ │ │ │ │
-│ │ │ │ │
-* * * * *
+┌───────────── Sekunde (0 - 59, optional)
+│ ┌───────────── Minute (0 - 59)
+│ │ ┌───────────── Stunde (0 - 23)
+│ │ │ ┌───────────── Tag des Monats (1 - 31)
+│ │ │ │ ┌───────────── Monat (1 - 12)
+│ │ │ │ │ ┌───────────── Wochentag (0 - 6, Sonntag = 0)
+│ │ │ │ │ │
+* * * * * *
 ```
 
 ### Häufige Cron-Muster
@@ -172,6 +172,7 @@ AuraGo verwendet **Cron-Ausdrücke** für die Zeitplanung. Das Format ist:
 | `0 0 * * 0` | Jeden Sonntag um Mitternacht |
 | `0 9-17 * * 1-5` | Stündlich von 9-17 Uhr, Mo-Fr |
 | `*/15 * * * *` | Alle 15 Minuten |
+| `0 */15 * * * *` | Alle 15 Minuten mit expliziten Sekunden |
 | `0 0 1 * *` | Am 1. jeden Monats |
 
 > 💡 Nutze [crontab.guru](https://crontab.guru) zum Testen deiner Cron-Ausdrücke.

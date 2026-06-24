@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -534,6 +536,109 @@ func TestHandleDashboardCronjobsContractUpdateAndDelete(t *testing.T) {
 	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/dashboard/cronjobs/mission_daily", nil)
 	rec = httptest.NewRecorder()
 	handleDashboardCronjobByID(s).ServeHTTP(rec, deleteReq)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("delete status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	if got := len(cronMgr.GetJobs()); got != 0 {
+		t.Fatalf("cron job count after delete = %d, want 0", got)
+	}
+}
+
+func TestHandleDashboardCronjobsReportsRuntimeErrors(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{SchedulerEnabled: true})
+	t.Cleanup(tools.ClearRuntimePermissionsForTest)
+
+	dir := t.TempDir()
+	legacyJobs := []byte(`[
+		{"id":"good-job","cron_expr":"0 * * * *","task_prompt":"run good job"},
+		{"id":"bad-job","cron_expr":"not a cron expression","task_prompt":"run bad job"}
+	]`)
+	if err := os.WriteFile(filepath.Join(dir, "crontab.json"), legacyJobs, 0o600); err != nil {
+		t.Fatalf("write legacy cron json: %v", err)
+	}
+
+	cronMgr := tools.NewCronManager(dir)
+	t.Cleanup(func() { _ = cronMgr.Close() })
+	if err := cronMgr.Start(func(string) {}); err == nil {
+		t.Fatal("Start returned nil, want invalid persisted cron expression")
+	}
+
+	s := &Server{CronManager: cronMgr, Logger: logger}
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/cronjobs?status=error", nil)
+	rec := httptest.NewRecorder()
+	handleDashboardCronjobs(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d; body=%s", rec.Code, rec.Body.String())
+	}
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode cronjobs response: %v", err)
+	}
+	if got := int(body["total"].(float64)); got != 1 {
+		t.Fatalf("total = %d, want 1", got)
+	}
+	if got := int(body["errors"].(float64)); got != 1 {
+		t.Fatalf("errors = %d, want 1", got)
+	}
+	jobs := body["jobs"].([]interface{})
+	job := jobs[0].(map[string]interface{})
+	if job["id"] != "bad-job" || job["status"] != "error" || job["registered"] != false {
+		t.Fatalf("bad job payload = %#v, want error and unregistered", job)
+	}
+	if lastErr, _ := job["last_error"].(string); !strings.Contains(lastErr, "not a cron expression") {
+		t.Fatalf("last_error = %q, want parse error", lastErr)
+	}
+}
+
+func TestHandleCronAPILegacyContract(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{SchedulerEnabled: true})
+	t.Cleanup(tools.ClearRuntimePermissionsForTest)
+	cronMgr := tools.NewCronManager(t.TempDir())
+	t.Cleanup(func() { _ = cronMgr.Close() })
+
+	s := &Server{CronManager: cronMgr, Logger: logger}
+	handler := handleCronAPI(s)
+
+	postReq := httptest.NewRequest(http.MethodPost, "/api/cron", bytes.NewReader([]byte(`{"id":"legacy-job","cron_expr":"0 8 * * *","task_prompt":"run legacy"}`)))
+	postReq.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, postReq)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("post status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+
+	getReq := httptest.NewRequest(http.MethodGet, "/api/cron", nil)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, getReq)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"legacy-job"`) {
+		t.Fatalf("get status/body = %d/%s, want listed legacy job", rec.Code, rec.Body.String())
+	}
+
+	putReq := httptest.NewRequest(http.MethodPut, "/api/cron", bytes.NewReader([]byte(`{"id":"legacy-job","cron_expr":"0 9 * * *","task_prompt":"run updated"}`)))
+	putReq.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, putReq)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("put status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	jobs := cronMgr.GetJobs()
+	if len(jobs) != 1 || jobs[0].CronExpr != "0 9 * * *" || jobs[0].TaskPrompt != "run updated" {
+		t.Fatalf("jobs after put = %+v, want single updated job", jobs)
+	}
+
+	badDeleteReq := httptest.NewRequest(http.MethodDelete, "/api/cron?id=missing", nil)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, badDeleteReq)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("delete missing status = %d, want 404; body=%s", rec.Code, rec.Body.String())
+	}
+
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/cron?id=legacy-job", nil)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, deleteReq)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("delete status = %d, want 200; body=%s", rec.Code, rec.Body.String())
 	}

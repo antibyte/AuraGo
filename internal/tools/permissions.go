@@ -95,6 +95,9 @@ func requireDockerMutationPermission() error {
 }
 
 func requireSchedulerPermission(operation string) error {
+	if operation == "list" {
+		return nil
+	}
 	perms, configured := currentRuntimePermissions()
 	if !configured {
 		return requireRuntimePermission("scheduler", false)

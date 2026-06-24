@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"aurago/internal/agent"
@@ -130,10 +132,7 @@ func handleDashboardActivity(s *Server) http.HandlerFunc {
 	}
 }
 
-// handleCronAPI handles DELETE and PUT operations on cron jobs from the dashboard.
-//
-//	DELETE /api/cron?id=xxx                    – removes the cron job
-//	PUT    /api/cron  {id, cron_expr, task_prompt} – updates (remove + re-add)
+// handleCronAPI handles legacy cron job CRUD operations.
 func handleCronAPI(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.CronManager == nil {
@@ -141,53 +140,137 @@ func handleCronAPI(s *Server) http.HandlerFunc {
 			return
 		}
 		switch r.Method {
+		case http.MethodGet:
+			result, err := s.CronManager.ManageSchedule("list", "", "", "", dashboardLanguage(s))
+			if err != nil {
+				if s.Logger != nil {
+					s.Logger.Error("Failed to list cron jobs", "error", err)
+				}
+				jsonError(w, "Failed to list cron jobs", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			if _, err := w.Write([]byte(result)); err != nil && s.Logger != nil {
+				s.Logger.Debug("failed to write cron list response", "error", err)
+			}
+
+		case http.MethodPost:
+			var body dashboardCronjobUpdateRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				jsonError(w, "Invalid cron job request", http.StatusBadRequest)
+				return
+			}
+			body.ID = strings.TrimSpace(body.ID)
+			body.CronExpr = strings.TrimSpace(body.CronExpr)
+			body.TaskPrompt = strings.TrimSpace(body.TaskPrompt)
+			if body.CronExpr == "" || body.TaskPrompt == "" {
+				jsonError(w, "cron_expr and task_prompt required", http.StatusBadRequest)
+				return
+			}
+			if body.Disabled != nil && *body.Disabled && body.ID == "" {
+				jsonError(w, "id required when disabled is true", http.StatusBadRequest)
+				return
+			}
+			result, err := s.CronManager.ManageSchedule("add", body.ID, body.CronExpr, body.TaskPrompt, dashboardLanguage(s))
+			if err != nil {
+				if s.Logger != nil {
+					s.Logger.Error("Failed to add cron job", "id", body.ID, "error", err)
+				}
+				jsonError(w, "Failed to add cron job", http.StatusInternalServerError)
+				return
+			}
+			if !writeCronManagerStatus(w, result) {
+				return
+			}
+			if body.Disabled != nil && *body.Disabled {
+				if result, err := s.CronManager.ManageSchedule("disable", body.ID, "", "", dashboardLanguage(s)); err != nil {
+					jsonError(w, "Failed to disable cron job", http.StatusInternalServerError)
+					return
+				} else if !writeCronManagerStatus(w, result) {
+					return
+				}
+			}
+
 		case http.MethodDelete:
-			id := r.URL.Query().Get("id")
+			id := legacyCronIDFromRequest(r)
 			if id == "" {
 				jsonError(w, "id required", http.StatusBadRequest)
 				return
 			}
-			result, err := s.CronManager.ManageSchedule("remove", id, "", "", "")
+			result, err := s.CronManager.ManageSchedule("remove", id, "", "", dashboardLanguage(s))
 			if err != nil {
-				s.Logger.Error("Failed to remove cron job", "id", id, "error", err)
+				if s.Logger != nil {
+					s.Logger.Error("Failed to remove cron job", "id", id, "error", err)
+				}
 				jsonError(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
-			w.Header().Set("Content-Type", "application/json")
-			if _, err := w.Write([]byte(result)); err != nil {
-				s.Logger.Debug("failed to write cron remove response", "error", err)
+			if !writeCronManagerStatus(w, result) {
+				return
 			}
 
 		case http.MethodPut:
-			var body struct {
-				ID         string `json:"id"`
-				CronExpr   string `json:"cron_expr"`
-				TaskPrompt string `json:"task_prompt"`
-			}
+			var body dashboardCronjobUpdateRequest
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ID == "" || body.CronExpr == "" || body.TaskPrompt == "" {
 				jsonError(w, "id, cron_expr, and task_prompt required", http.StatusBadRequest)
 				return
 			}
-			// Remove old job first (ignore if not found)
-			if _, err := s.CronManager.ManageSchedule("remove", body.ID, "", "", ""); err != nil {
-				s.Logger.Warn("Failed to remove old cron job before update", "id", body.ID, "error", err)
-			}
-			// Re-add with same ID and updated parameters
-			result, err := s.CronManager.ManageSchedule("add", body.ID, body.CronExpr, body.TaskPrompt, "")
+			body.ID = strings.TrimSpace(body.ID)
+			body.CronExpr = strings.TrimSpace(body.CronExpr)
+			body.TaskPrompt = strings.TrimSpace(body.TaskPrompt)
+			removeResult, err := s.CronManager.ManageSchedule("remove", body.ID, "", "", dashboardLanguage(s))
 			if err != nil {
-				s.Logger.Error("Failed to add updated cron job", "id", body.ID, "error", err)
+				if s.Logger != nil {
+					s.Logger.Warn("Failed to remove old cron job before update", "id", body.ID, "error", err)
+				}
+				jsonError(w, "Failed to remove existing cron job", http.StatusInternalServerError)
+				return
+			}
+			if !cronManagerSucceeded(removeResult) {
+				writeCronManagerStatus(w, removeResult)
+				return
+			}
+			result, err := s.CronManager.ManageSchedule("add", body.ID, body.CronExpr, body.TaskPrompt, dashboardLanguage(s))
+			if err != nil {
+				if s.Logger != nil {
+					s.Logger.Error("Failed to add updated cron job", "id", body.ID, "error", err)
+				}
 				jsonError(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
-			w.Header().Set("Content-Type", "application/json")
-			if _, err := w.Write([]byte(result)); err != nil {
-				s.Logger.Debug("failed to write cron update response", "error", err)
+			if !writeCronManagerStatus(w, result) {
+				return
+			}
+			if body.Disabled != nil && *body.Disabled {
+				if result, err := s.CronManager.ManageSchedule("disable", body.ID, "", "", dashboardLanguage(s)); err != nil {
+					jsonError(w, "Failed to disable updated cron job", http.StatusInternalServerError)
+					return
+				} else if !writeCronManagerStatus(w, result) {
+					return
+				}
 			}
 
 		default:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
+}
+
+func legacyCronIDFromRequest(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	if id := strings.TrimSpace(r.URL.Query().Get("id")); id != "" {
+		return id
+	}
+	raw := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/cron/"), "/")
+	if raw == "" || raw == r.URL.Path {
+		return ""
+	}
+	if id, err := url.PathUnescape(raw); err == nil {
+		return strings.TrimSpace(id)
+	}
+	return ""
 }
 
 // handleDashboardPromptStats returns aggregated prompt builder metrics.

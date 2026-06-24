@@ -1124,11 +1124,14 @@ DELETE /api/sql-connections/{id}
 ```http
 GET /api/cron
 POST /api/cron
-PUT /api/cron/{id}
+PUT /api/cron
+DELETE /api/cron?id={id}
 DELETE /api/cron/{id}
 ```
 
-**Response:**
+Requires an administrator session. The legacy handler maps `GET=list`, `POST=add`, `PUT=update`, and `DELETE=remove`; failures use HTTP 400/404/500 instead of a success envelope.
+
+**GET response:**
 ```json
 {
   "jobs": []

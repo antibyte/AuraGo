@@ -52,6 +52,57 @@ func TestCronManagerReadOnlyRuntimePolicyAllowsListOnly(t *testing.T) {
 	}
 }
 
+func TestCronManagerDisabledRuntimePolicyAllowsListOnly(t *testing.T) {
+	ConfigureRuntimePermissions(RuntimePermissions{SchedulerEnabled: false})
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+
+	dir := tempSystemTaskDir(t)
+	seed := NewCronManager(dir)
+	if err := seed.store.save(systemTaskNamespaceCron, []CronJob{
+		{ID: "disabled-runtime-job", CronExpr: "0 * * * *", TaskPrompt: "run later"},
+	}); err != nil {
+		t.Fatalf("seed cron store: %v", err)
+	}
+	if err := seed.Close(); err != nil {
+		t.Fatalf("close seed cron manager: %v", err)
+	}
+
+	mgr := NewCronManager(dir)
+	t.Cleanup(func() { _ = mgr.Close() })
+	if err := mgr.Start(func(string) {}); err != nil {
+		t.Fatalf("Start with scheduler disabled: %v", err)
+	}
+
+	statuses := mgr.GetJobsWithRuntimeStatus()
+	if len(statuses) != 1 {
+		t.Fatalf("runtime status count = %d, want 1", len(statuses))
+	}
+	if statuses[0].Registered {
+		t.Fatalf("disabled scheduler registered job: %+v", statuses[0])
+	}
+	if !strings.Contains(statuses[0].LastError, "scheduler disabled by configuration") {
+		t.Fatalf("LastError = %q, want scheduler disabled message", statuses[0].LastError)
+	}
+
+	listResult, err := mgr.ManageSchedule("list", "", "", "", "en")
+	if err != nil {
+		t.Fatalf("ManageSchedule list returned unexpected error: %v", err)
+	}
+	if !strings.Contains(listResult, "scheduler disabled by configuration") {
+		t.Fatalf("ManageSchedule list = %s, want disabled runtime status", listResult)
+	}
+
+	addResult, err := mgr.ManageSchedule("add", "job-1", "0 * * * *", "run cleanup", "en")
+	if err != nil {
+		t.Fatalf("ManageSchedule add returned unexpected error: %v", err)
+	}
+	if !strings.Contains(addResult, "scheduler is disabled") {
+		t.Fatalf("ManageSchedule add = %s, want scheduler permission denial", addResult)
+	}
+}
+
 func TestCronManagerPersistsToSQLiteStore(t *testing.T) {
 	dir := tempSystemTaskDir(t)
 	mgr := NewCronManager(dir)
@@ -214,6 +265,83 @@ func TestCronManagerAcceptsSecondsFieldExpressions(t *testing.T) {
 	}
 	if !strings.Contains(result, `"status": "success"`) {
 		t.Fatalf("expected success response, got %s", result)
+	}
+}
+
+func TestCronManagerIdempotentAddReplacesDisabledJob(t *testing.T) {
+	ConfigureRuntimePermissions(RuntimePermissions{SchedulerEnabled: true})
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+
+	mgr := NewCronManager(tempSystemTaskDir(t))
+	t.Cleanup(func() { _ = mgr.Close() })
+
+	if _, err := mgr.ManageSchedule("add", "job-disabled", "0 8 * * *", "old prompt", "en"); err != nil {
+		t.Fatalf("ManageSchedule add old job: %v", err)
+	}
+	if _, err := mgr.ManageSchedule("disable", "job-disabled", "", "", "en"); err != nil {
+		t.Fatalf("ManageSchedule disable old job: %v", err)
+	}
+	if _, err := mgr.ManageSchedule("add", "job-disabled", "0 9 * * *", "new prompt", "en"); err != nil {
+		t.Fatalf("ManageSchedule add replacement: %v", err)
+	}
+
+	jobs := mgr.GetJobs()
+	if len(jobs) != 1 {
+		t.Fatalf("job count after replacing disabled job = %d, want 1: %+v", len(jobs), jobs)
+	}
+	if jobs[0].Disabled || jobs[0].CronExpr != "0 9 * * *" || jobs[0].TaskPrompt != "new prompt" {
+		t.Fatalf("replacement job = %+v, want enabled new job", jobs[0])
+	}
+	statuses := mgr.GetJobsWithRuntimeStatus()
+	if len(statuses) != 1 || !statuses[0].Registered {
+		t.Fatalf("runtime statuses after replacement = %+v, want one registered job", statuses)
+	}
+}
+
+func TestCronManagerRefreshRuntimePermissionsReregistersValidJobs(t *testing.T) {
+	ConfigureRuntimePermissions(RuntimePermissions{SchedulerEnabled: false})
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+
+	dir := tempSystemTaskDir(t)
+	seed := NewCronManager(dir)
+	if err := seed.store.save(systemTaskNamespaceCron, []CronJob{
+		{ID: "good-job", CronExpr: "0 * * * *", TaskPrompt: "run good job"},
+		{ID: "bad-job", CronExpr: "not a cron expression", TaskPrompt: "run bad job"},
+	}); err != nil {
+		t.Fatalf("seed cron store: %v", err)
+	}
+	if err := seed.Close(); err != nil {
+		t.Fatalf("close seed cron manager: %v", err)
+	}
+
+	mgr := NewCronManager(dir)
+	t.Cleanup(func() { _ = mgr.Close() })
+	if err := mgr.Start(func(string) {}); err != nil {
+		t.Fatalf("Start with scheduler disabled: %v", err)
+	}
+
+	ConfigureRuntimePermissions(RuntimePermissions{SchedulerEnabled: true})
+	err := mgr.RefreshRuntimePermissions()
+	if err == nil {
+		t.Fatal("RefreshRuntimePermissions returned nil, want bad persisted cron error")
+	}
+
+	statusByID := map[string]CronJobRuntimeStatus{}
+	for _, status := range mgr.GetJobsWithRuntimeStatus() {
+		statusByID[status.ID] = status
+	}
+	if !statusByID["good-job"].Registered {
+		t.Fatalf("good job status = %+v, want registered", statusByID["good-job"])
+	}
+	if statusByID["bad-job"].Registered {
+		t.Fatalf("bad job status = %+v, want not registered", statusByID["bad-job"])
+	}
+	if !strings.Contains(statusByID["bad-job"].LastError, "not a cron expression") {
+		t.Fatalf("bad job LastError = %q, want parse error", statusByID["bad-job"].LastError)
 	}
 }
 

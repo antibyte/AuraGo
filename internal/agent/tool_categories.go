@@ -75,7 +75,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"execute_python", "Execute Python code in AuraGo's managed virtual environment"},
 		{"golangci_lint", "Run golangci-lint on Go packages or paths"},
 		{"upnp_scan", "Discover UPnP/SSDP devices on the local network"},
-		{"cron_scheduler", "Create, list, pause, resume, and delete scheduled cron jobs"},
+		{"cron_scheduler", "Create, list, enable, disable, and remove scheduled cron jobs"},
 		{"manage_plan", "Manage multi-step execution plans"},
 		{"manage_missions", "Manage long-running autonomous missions"},
 		{"manage_appointments", "Manage calendar appointments and reminders"},

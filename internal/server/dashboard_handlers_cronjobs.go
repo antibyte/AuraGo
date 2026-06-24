@@ -20,6 +20,8 @@ type dashboardCronjob struct {
 	Status     string `json:"status"`
 	Source     string `json:"source"`
 	NextRun    string `json:"next_run,omitempty"`
+	Registered bool   `json:"registered"`
+	LastError  string `json:"last_error,omitempty"`
 }
 
 type dashboardCronjobUpdateRequest struct {
@@ -88,16 +90,20 @@ func handleDashboardCronjobByID(s *Server) http.HandlerFunc {
 }
 
 func handleDashboardCronjobsList(s *Server, w http.ResponseWriter, r *http.Request) {
-	jobs := dashboardCronjobsFromTools(s.CronManager.GetJobs())
+	jobs := dashboardCronjobsFromTools(s.CronManager.GetJobsWithRuntimeStatus())
 	filtered := filterDashboardCronjobs(jobs, r.URL.Query())
 
 	enabled := 0
 	disabled := 0
+	errors := 0
 	sources := map[string]int{}
 	for _, job := range filtered {
-		if job.Disabled {
+		switch job.Status {
+		case "disabled":
 			disabled++
-		} else {
+		case "error":
+			errors++
+		default:
 			enabled++
 		}
 		if job.Source != "" {
@@ -110,6 +116,7 @@ func handleDashboardCronjobsList(s *Server, w http.ResponseWriter, r *http.Reque
 		"total":    len(filtered),
 		"enabled":  enabled,
 		"disabled": disabled,
+		"errors":   errors,
 		"sources":  sources,
 	})
 }
@@ -175,7 +182,7 @@ func handleDashboardCronjobsUpdate(s *Server, w http.ResponseWriter, r *http.Req
 	writeCronManagerStatus(w, result)
 }
 
-func dashboardCronjobsFromTools(jobs []tools.CronJob) []dashboardCronjob {
+func dashboardCronjobsFromTools(jobs []tools.CronJobRuntimeStatus) []dashboardCronjob {
 	out := make([]dashboardCronjob, 0, len(jobs))
 	for _, job := range jobs {
 		item := dashboardCronjob{
@@ -185,12 +192,19 @@ func dashboardCronjobsFromTools(jobs []tools.CronJob) []dashboardCronjob {
 			Disabled:   job.Disabled,
 			Status:     "enabled",
 			Source:     job.Source,
+			Registered: job.Registered,
+			LastError:  job.LastError,
 		}
 		if item.Source == "" {
 			item.Source = "agent"
 		}
 		if item.Disabled {
 			item.Status = "disabled"
+		} else if item.LastError != "" || !item.Registered {
+			item.Status = "error"
+			if item.LastError == "" {
+				item.LastError = "cron job is not registered"
+			}
 		} else if next := nextCronRun(job.CronExpr); !next.IsZero() {
 			item.NextRun = next.Format(time.RFC3339)
 		}
@@ -208,15 +222,12 @@ func filterDashboardCronjobs(jobs []dashboardCronjob, query url.Values) []dashbo
 		if source != "" && job.Source != source {
 			continue
 		}
-		if status == "enabled" && job.Disabled {
-			continue
-		}
-		if status == "disabled" && !job.Disabled {
+		if status != "" && job.Status != status {
 			continue
 		}
 		if q != "" {
 			haystack := strings.ToLower(strings.Join([]string{
-				job.ID, job.CronExpr, job.TaskPrompt, job.Source, job.Status,
+				job.ID, job.CronExpr, job.TaskPrompt, job.Source, job.Status, job.LastError,
 			}, " "))
 			if !strings.Contains(haystack, q) {
 				continue
@@ -277,7 +288,7 @@ func writeCronManagerStatus(w http.ResponseWriter, raw string) bool {
 	}
 	if result.Status != "success" {
 		status := http.StatusBadRequest
-		if result.Status == "warning" && strings.Contains(strings.ToLower(result.Message), "not found") {
+		if result.Status == "warning" {
 			status = http.StatusNotFound
 		}
 		jsonError(w, result.Message, status)

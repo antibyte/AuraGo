@@ -159,6 +159,16 @@ func TestAuthMiddlewareLetsAdminProtectedBearerReachAdminGate(t *testing.T) {
 	}
 }
 
+func TestIsAdminProtectedPathIncludesLegacyCronAPI(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{"/api/cron", "/api/cron/job-1"} {
+		if !isAdminProtectedPath(path) {
+			t.Fatalf("%s should be admin protected", path)
+		}
+	}
+}
+
 func TestRequireAdminAllowsBearerTokenWithAdminScope(t *testing.T) {
 	t.Parallel()
 

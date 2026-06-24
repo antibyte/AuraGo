@@ -174,12 +174,13 @@ DELETE endpoints require administrator access.
 
 The **Cronjobs** tab lists internal scheduled jobs from the built-in CronManager — including scheduler-tool jobs and mission-backed schedules stored in the same scheduler.
 
-The table shows job ID, source, cron expression, next run, enabled/disabled status, prompt, and row actions. Search and source/status filters help separate agent-created jobs from mission schedules.
+The table shows job ID, source, cron expression, next run, status (`enabled`, `disabled`, or `error`), prompt, and row actions. Error rows expose the scheduler `last_error` in the status tooltip so invalid persisted jobs and disabled scheduler runtime are visible.
 
 Administrators can edit cron expression, prompt, and enabled state from the row action. The job source is shown in the edit dialog but preserved automatically.
 
 ```bash
 GET /api/dashboard/cronjobs?q=backup&source=agent&status=enabled
+GET /api/dashboard/cronjobs?status=error
 PUT /api/dashboard/cronjobs
 DELETE /api/dashboard/cronjobs/{id}
 ```

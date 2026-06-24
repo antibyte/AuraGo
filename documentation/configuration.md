@@ -487,8 +487,8 @@ Enable/disable built-in agent tools and set read-only mode. All tools are enable
 
 | Key | Default | Description |
 |---|---|---|
-| `enabled` | `true` | Enable the cron scheduler tool. |
-| `read_only` | `false` | When `true`, the agent can only list scheduled jobs but cannot add or remove them. |
+| `enabled` | `true` | Enable the cron scheduler runtime and tool. When `false`, persisted jobs are loaded but not run. |
+| `read_only` | `false` | When `true`, active jobs keep running but the agent can only list scheduled jobs and cannot add, remove, enable, or disable them. |
 
 ### `tools.notes`
 

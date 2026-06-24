@@ -149,16 +149,17 @@ curl http://localhost:8088/api/missions/v2/remote-targets
 
 ## Scheduling with Cron
 
-AuraGo uses standard **cron expressions** for scheduled missions:
+AuraGo accepts standard 5-field **cron expressions** and optional 6-field expressions with seconds first for scheduled missions:
 
 ```
-┌───────────── minute (0 - 59)
-│ ┌───────────── hour (0 - 23)
-│ │ ┌───────────── day of month (1 - 31)
-│ │ │ ┌───────────── month (1 - 12)
-│ │ │ │ ┌───────────── weekday (0 - 6, Sunday = 0)
-│ │ │ │ │
-* * * * *
+┌───────────── second (0 - 59, optional)
+│ ┌───────────── minute (0 - 59)
+│ │ ┌───────────── hour (0 - 23)
+│ │ │ ┌───────────── day of month (1 - 31)
+│ │ │ │ ┌───────────── month (1 - 12)
+│ │ │ │ │ ┌───────────── weekday (0 - 6, Sunday = 0)
+│ │ │ │ │ │
+* * * * * *
 ```
 
 ### Common Cron Patterns
@@ -170,6 +171,7 @@ AuraGo uses standard **cron expressions** for scheduled missions:
 | `0 0 * * 0` | Every Sunday at midnight |
 | `0 9-17 * * 1-5` | Hourly 9–17, Mon–Fri |
 | `*/15 * * * *` | Every 15 minutes |
+| `0 */15 * * * *` | Every 15 minutes, with explicit seconds |
 | `0 0 1 * *` | First day of each month |
 
 > 💡 Use [crontab.guru](https://crontab.guru) to test cron expressions.

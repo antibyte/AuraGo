@@ -1010,6 +1010,11 @@ func newServerFromOptions(opts StartOptions) *Server {
 		MissionsEnabled:      cfg.Tools.Missions.Enabled,
 		MissionsReadOnly:     cfg.Tools.Missions.ReadOnly,
 	})
+	if opts.CronManager != nil {
+		if err := opts.CronManager.RefreshRuntimePermissions(); err != nil && logger != nil {
+			logger.Warn("Failed to refresh cron runtime permissions", "error", err)
+		}
+	}
 
 	s := &Server{
 		Cfg:                cfg,

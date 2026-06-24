@@ -33,7 +33,7 @@ Schedule tasks to run automatically at future times or on recurring intervals. S
 |-----------|------|----------|-------------|
 | `operation` | string | yes | `add`, `remove`, `enable`, `disable`, or `list` |
 | `id` | string | for `remove`, `enable`, `disable`; optional for `add` | Unique task identifier |
-| `cron_expr` | string | for `add` | **6-field** cron expression (see format above) |
+| `cron_expr` | string | for `add` | **5-field or 6-field** cron expression (see format above) |
 | `task_prompt` | string | for `add` | Prompt to execute when the task triggers |
 
 ## Examples
@@ -52,7 +52,7 @@ Schedule tasks to run automatically at future times or on recurring intervals. S
 
 ## Notes
 
-- **6-field format:** Unlike standard cron (5 fields), this uses seconds as the first field.
+- **Cron format:** Use standard 5-field cron (`*/15 * * * *`) or 6-field cron with seconds first (`0 */15 * * * *`).
 - **Backward compatibility:** Existing 5-field entries still work and are interpreted without an explicit seconds field.
 - **Runtime status:** `list` includes `registered`; `false` means the entry is persisted but not bound to the in-process scheduler. Check `last_error` when present.
 - **One-time vs recurring:** Specific month/day combinations (e.g. `0 0 12 25 3 *`) run annually unless combined with conditions.

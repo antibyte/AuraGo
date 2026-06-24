@@ -15,6 +15,7 @@ func TestDashboardCronjobsTabContract(t *testing.T) {
 		`id="cronjobs-search"`,
 		`id="cronjobs-source-filter"`,
 		`id="cronjobs-status-filter"`,
+		`dashboard.cronjobs_status_error`,
 		`id="cronjobs-tbody"`,
 		`id="cronjobs-refresh"`,
 	} {
@@ -40,6 +41,8 @@ func TestDashboardCronjobsTabContract(t *testing.T) {
 		"/api/dashboard/cronjobs",
 		"showConfirm(",
 		"cronjobs-status-filter",
+		"dashboard.cronjobs_status_error",
+		"last_error",
 	} {
 		if !strings.Contains(widgetsJS, marker) {
 			t.Fatalf("dashboard widgets JS missing cronjobs marker %q", marker)

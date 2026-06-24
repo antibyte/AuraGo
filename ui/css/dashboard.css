@@ -4296,6 +4296,9 @@
 .cronjobs-row-disabled {
     opacity: 0.72;
 }
+.cronjobs-row-error td {
+    border-color: color-mix(in srgb, var(--danger) 20%, var(--border-subtle));
+}
 .cronjobs-id,
 .cronjobs-expr {
     font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
@@ -4323,6 +4326,7 @@
 .cronjobs-source-system { color: #60a5fa; background: color-mix(in srgb, #60a5fa 12%, transparent); border-color: color-mix(in srgb, #60a5fa 22%, transparent); }
 .cronjobs-status-enabled { background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); border-color: color-mix(in srgb, var(--success) 22%, transparent); }
 .cronjobs-status-disabled { background: color-mix(in srgb, var(--text-secondary) 12%, transparent); color: var(--text-secondary); border-color: color-mix(in srgb, var(--text-secondary) 20%, transparent); }
+.cronjobs-status-error { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 24%, transparent); }
 .cronjobs-row-btn {
     width: 2rem;
     height: 2rem;

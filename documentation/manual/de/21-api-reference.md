@@ -1125,9 +1125,12 @@ DELETE /api/sql-connections/{id}
 ```http
 GET /api/cron
 POST /api/cron
-PUT /api/cron/{id}
+PUT /api/cron
+DELETE /api/cron?id={id}
 DELETE /api/cron/{id}
 ```
+
+Benötigt eine Admin-Sitzung. Der Legacy-Handler ordnet `GET=list`, `POST=add`, `PUT=update` und `DELETE=remove` zu; Fehler nutzen HTTP 400/404/500 statt einer erfolgreichen Antwort mit Fehlertext.
 
 **Antwort (GET):**
 ```json

@@ -401,8 +401,8 @@ tools:
         enabled: true
         readonly: false
     scheduler:
-        enabled: true
-        readonly: false
+        enabled: true                                      # global scheduler kill switch; false loads persisted jobs but does not run them
+        readonly: false                                     # true allows listing only; existing active jobs keep running
     notes:
         enabled: true
         readonly: false

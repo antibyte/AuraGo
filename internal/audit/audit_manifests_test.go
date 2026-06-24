@@ -94,6 +94,9 @@ func TestRouteContractManifestCoversRegisteredServerRoutes(t *testing.T) {
 			t.Fatalf("mutating route %s is public without a bootstrap exception", c.Pattern)
 		}
 	}
+	if !routeContractExists(contracts, "/api/cron", "session-admin") {
+		t.Fatal("/api/cron must have an explicit session-admin route contract")
+	}
 
 	routes := extractLiteralRoutes(t, repoPath("internal/server"))
 	for _, route := range routes {
@@ -101,6 +104,15 @@ func TestRouteContractManifestCoversRegisteredServerRoutes(t *testing.T) {
 			t.Fatalf("registered route %q is missing from RouteContractManifest", route)
 		}
 	}
+}
+
+func routeContractExists(contracts []RouteContract, pattern, auth string) bool {
+	for _, c := range contracts {
+		if c.Pattern == pattern && c.Auth == auth {
+			return true
+		}
+	}
+	return false
 }
 
 func TestNetworkClientInventoryCoversProductionHTTPClients(t *testing.T) {

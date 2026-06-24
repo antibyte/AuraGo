@@ -1,10 +1,14 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -101,5 +105,36 @@ func TestHandleMissionDeleteV2ForceDeletesRemoteMission(t *testing.T) {
 	}
 	if _, ok := mgr.Get("mission_remote_force_delete"); ok {
 		t.Fatal("mission still exists after force delete")
+	}
+}
+
+func TestMissionV2AcceptsSecondsFieldCron(t *testing.T) {
+	allowMissionMutationsForTest(t)
+
+	dir := t.TempDir()
+	cronMgr := tools.NewCronManager(dir)
+	t.Cleanup(func() { _ = cronMgr.Close() })
+	mgr := tools.NewMissionManagerV2(dir, cronMgr)
+	s := &Server{
+		MissionManagerV2: mgr,
+		Logger:           slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
+	}
+	body, _ := json.Marshal(map[string]interface{}{
+		"name":           "Seconds cron mission",
+		"prompt":         "run the mission",
+		"execution_type": "scheduled",
+		"schedule":       "0 */15 * * * *",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/missions/v2", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	handleCreateMissionV2(s).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status = %d body=%s, want 201", rr.Code, rr.Body.String())
+	}
+	if len(cronMgr.GetJobs()) != 1 {
+		t.Fatalf("cron jobs = %+v, want one registered scheduled mission", cronMgr.GetJobs())
 	}
 }

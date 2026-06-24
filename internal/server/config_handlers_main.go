@@ -543,6 +543,13 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				MissionsEnabled:      newCfg.Tools.Missions.Enabled,
 				MissionsReadOnly:     newCfg.Tools.Missions.ReadOnly,
 			})
+			if s.CronManager != nil {
+				if err := s.CronManager.RefreshRuntimePermissions(); err != nil {
+					if s.Logger != nil {
+						s.Logger.Warn("Failed to refresh cron runtime permissions", "error", err)
+					}
+				}
+			}
 
 			// Sync the global debug-mode flag used by the agent.
 			if oldCfg.Agent.DebugMode != newCfg.Agent.DebugMode {

@@ -817,6 +817,18 @@ func main() {
 	}
 
 	// Cron Manager for autonomous triggers
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{
+		AllowShell:           cfg.Agent.AllowShell,
+		AllowPython:          cfg.Agent.AllowPython,
+		AllowFilesystemWrite: cfg.Agent.AllowFilesystemWrite,
+		AllowNetworkRequests: cfg.Agent.AllowNetworkRequests,
+		DockerEnabled:        cfg.Docker.Enabled,
+		DockerReadOnly:       cfg.Docker.ReadOnly,
+		SchedulerEnabled:     cfg.Tools.Scheduler.Enabled,
+		SchedulerReadOnly:    cfg.Tools.Scheduler.ReadOnly,
+		MissionsEnabled:      cfg.Tools.Missions.Enabled,
+		MissionsReadOnly:     cfg.Tools.Missions.ReadOnly,
+	})
 	cronManager := tools.NewCronManager(cfg.Directories.DataDir)
 	err = cronManager.Start(func(prompt string) {
 		appLog.Info("Scheduling autonomous cron task", "prompt", prompt)

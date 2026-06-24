@@ -2714,6 +2714,7 @@
                     { value: Number(data?.total || 0), label: t('dashboard.cronjobs_total') },
                     { value: Number(data?.enabled || 0), label: t('dashboard.cronjobs_enabled') },
                     { value: Number(data?.disabled || 0), label: t('dashboard.cronjobs_disabled') },
+                    { value: Number(data?.errors || 0), label: t('dashboard.cronjobs_errors') },
                 ];
                 summaryEl.innerHTML = items.map(item => `
                     <div class="cronjobs-summary-item">
@@ -2732,17 +2733,24 @@
 
             jobs.forEach(job => {
                 const disabled = !!job.disabled;
-                const status = disabled ? 'disabled' : 'enabled';
+                const rawStatus = typeof job.status === 'string' ? job.status : '';
+                const status = ['enabled', 'disabled', 'error'].includes(rawStatus) ? rawStatus : (disabled ? 'disabled' : 'enabled');
+                const hasError = status === 'error';
                 const tr = document.createElement('tr');
-                tr.className = disabled ? 'cronjobs-row cronjobs-row-disabled' : 'cronjobs-row';
-                const nextRun = cronjobFormatNextRun(job.next_run, disabled);
-                const promptTitle = job.task_prompt || '';
+                const rowClasses = ['cronjobs-row'];
+                if (disabled) rowClasses.push('cronjobs-row-disabled');
+                if (hasError) rowClasses.push('cronjobs-row-error');
+                tr.className = rowClasses.join(' ');
+                const nextRun = cronjobFormatNextRun(job.next_run, disabled, hasError);
+                const lastError = job.last_error || '';
+                const promptTitle = lastError ? `${lastError}\n\n${job.task_prompt || ''}` : job.task_prompt || '';
+                const statusTitle = lastError || cronjobStatusLabel(status);
                 tr.innerHTML = `
                     <td data-label="${esc(t('dashboard.cronjobs_col_id'))}"><span class="cronjobs-id">${esc(job.id || '—')}</span></td>
                     <td data-label="${esc(t('dashboard.cronjobs_col_source'))}"><span class="cronjobs-source cronjobs-source-${esc(job.source || 'agent')}">${esc(cronjobSourceLabel(job.source))}</span></td>
                     <td data-label="${esc(t('dashboard.cronjobs_col_schedule'))}"><code class="cronjobs-expr">${esc(job.cron_expr || '—')}</code></td>
                     <td data-label="${esc(t('dashboard.cronjobs_col_next_run'))}">${esc(nextRun)}</td>
-                    <td data-label="${esc(t('dashboard.cronjobs_col_status'))}"><span class="cronjobs-status cronjobs-status-${status}">${esc(cronjobStatusLabel(status))}</span></td>
+                    <td data-label="${esc(t('dashboard.cronjobs_col_status'))}"><span class="cronjobs-status cronjobs-status-${status}" title="${esc(statusTitle)}">${esc(cronjobStatusLabel(status))}</span></td>
                     <td data-label="${esc(t('dashboard.cronjobs_col_prompt'))}" title="${esc(promptTitle)}">${esc(truncate(job.task_prompt || '', 120) || '—')}</td>
                     <td data-label="${esc(t('dashboard.cronjobs_col_actions'))}">
                         <button type="button" class="cronjobs-row-btn"
@@ -2767,11 +2775,14 @@
         }
 
         function cronjobStatusLabel(status) {
-            return status === 'disabled' ? t('dashboard.cronjobs_status_disabled') : t('dashboard.cronjobs_status_enabled');
+            if (status === 'disabled') return t('dashboard.cronjobs_status_disabled');
+            if (status === 'error') return t('dashboard.cronjobs_status_error');
+            return t('dashboard.cronjobs_status_enabled');
         }
 
-        function cronjobFormatNextRun(value, disabled) {
+        function cronjobFormatNextRun(value, disabled, hasError) {
             if (disabled) return t('dashboard.cronjobs_next_run_disabled');
+            if (hasError) return t('dashboard.cronjobs_next_run_error');
             if (!value) return '—';
             const date = new Date(value);
             if (Number.isNaN(date.getTime())) return '—';
