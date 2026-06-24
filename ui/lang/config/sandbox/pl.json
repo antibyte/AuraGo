@@ -42,5 +42,7 @@
   "config.shell_sandbox.system_caps": "Możliwości systemu",
   "config.shell_sandbox.in_docker": "Wykryto Docker",
   "config.shell_sandbox.native": "Host natywny",
-  "config.shell_sandbox.ready": "Gotowy"
+  "config.shell_sandbox.ready": "Gotowy",
+  "config.sandbox.local_python_fallback_label": "Lokalny fallback Pythona",
+  "config.sandbox.local_python_fallback_warning": "Uruchamia kod w lokalnym Pythonie poza izolacją, gdy sandbox zawiedzie. Włączaj tylko świadomie."
 }

@@ -1673,16 +1673,16 @@ type Config struct {
 		SkillTimeoutSeconds      int `yaml:"skill_timeout_seconds"`      // skill execution timeout (default: 120)
 		BackgroundTimeoutSeconds int `yaml:"background_timeout_seconds"` // background Python/shell/tool execution timeout (default: 3600)
 		SkillManager             struct {
-			Enabled               bool     `yaml:"enabled"`                  // enable skill manager web UI and API (default: true)
-			AllowUploads          bool     `yaml:"allow_uploads"`            // allow uploading new skills via web UI (default: true)
-			ReadOnly              bool     `yaml:"readonly"`                 // read-only mode: list/view only (default: false)
-			RequireScan           bool     `yaml:"require_scan"`             // require security scan before enabling (default: true)
-			RequireSandbox        bool     `yaml:"require_sandbox"`          // require sandbox for skill execution (default: false)
-			MaxUploadSizeMB       int      `yaml:"max_upload_size_mb"`       // max upload file size in MB (default: 1)
-			AutoEnableClean       bool     `yaml:"auto_enable_clean"`        // auto-enable skills that pass all scans (default: false)
-			ScanWithGuardian      bool     `yaml:"scan_with_guardian"`       // use LLM Guardian for code review on upload (default: false, costs tokens)
+			Enabled                bool     `yaml:"enabled"`                  // enable skill manager web UI and API (default: true)
+			AllowUploads           bool     `yaml:"allow_uploads"`            // allow uploading new skills via web UI (default: true)
+			ReadOnly               bool     `yaml:"readonly"`                 // read-only mode: list/view only (default: false)
+			RequireScan            bool     `yaml:"require_scan"`             // require security scan before enabling (default: true)
+			RequireSandbox         bool     `yaml:"require_sandbox"`          // require sandbox for skill execution (default: false)
+			MaxUploadSizeMB        int      `yaml:"max_upload_size_mb"`       // max upload file size in MB (default: 1)
+			AutoEnableClean        bool     `yaml:"auto_enable_clean"`        // auto-enable skills that pass all scans (default: false)
+			ScanWithGuardian       bool     `yaml:"scan_with_guardian"`       // use LLM Guardian for code review on upload (default: false, costs tokens)
 			AllowedScriptLanguages []string `yaml:"allowed_script_languages"` // allowed script languages for Agent Skills (default: ["python"])
-			AllowBinaryAssets     bool     `yaml:"allow_binary_assets"`      // allow binary asset upload/download for Agent Skills (default: true)
+			AllowBinaryAssets      bool     `yaml:"allow_binary_assets"`      // allow binary asset upload/download for Agent Skills (default: true)
 		} `yaml:"skill_manager"`
 		DaemonSkills struct {
 			Enabled              bool    `yaml:"enabled"`                // enable daemon skill support (default: false, opt-in)
@@ -1707,15 +1707,16 @@ type Config struct {
 		Model        string `yaml:"-" json:"-"` // resolved from provider entry
 	} `yaml:"mission_preparation"`
 	Sandbox struct {
-		Enabled        bool   `yaml:"enabled"`
-		Backend        string `yaml:"backend"`         // "docker" (default), "podman"
-		DockerHost     string `yaml:"docker_host"`     // override; empty = inherit from docker.host or auto-detect
-		Image          string `yaml:"image"`           // container image (default: "python:3.11-slim")
-		AutoInstall    bool   `yaml:"auto_install"`    // auto-install llm-sandbox Python package (default: true)
-		PoolSize       int    `yaml:"pool_size"`       // pre-warmed container pool size (0 = no pooling)
-		TimeoutSeconds int    `yaml:"timeout_seconds"` // execution timeout per run (default: 30)
-		NetworkEnabled bool   `yaml:"network_enabled"` // allow sandbox containers to access the network
-		KeepAlive      bool   `yaml:"keep_alive"`      // keep sandbox MCP server running between calls
+		Enabled                  bool   `yaml:"enabled"`
+		Backend                  string `yaml:"backend"`                     // "docker" (default), "podman"
+		DockerHost               string `yaml:"docker_host"`                 // override; empty = inherit from docker.host or auto-detect
+		Image                    string `yaml:"image"`                       // container image (default: "python:3.11-slim")
+		AutoInstall              bool   `yaml:"auto_install"`                // auto-install llm-sandbox Python package (default: true)
+		PoolSize                 int    `yaml:"pool_size"`                   // pre-warmed container pool size (0 = no pooling)
+		TimeoutSeconds           int    `yaml:"timeout_seconds"`             // execution timeout per run (default: 30)
+		NetworkEnabled           bool   `yaml:"network_enabled"`             // allow sandbox containers to access the network
+		KeepAlive                bool   `yaml:"keep_alive"`                  // keep sandbox MCP server running between calls
+		AllowLocalPythonFallback bool   `yaml:"allow_local_python_fallback"` // allow unsandboxed Python fallback if sandbox execution fails (default: false)
 	} `yaml:"sandbox"`
 	ShellSandbox struct {
 		Enabled             bool `yaml:"enabled"`               // enable Landlock-based shell sandbox (default: false)

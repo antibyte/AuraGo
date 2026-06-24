@@ -31,8 +31,64 @@ func TestAuthBypassDoesNotAllowArbitraryStaticSuffix(t *testing.T) {
 	if isAuthBypassed("/api/config/secret.png") {
 		t.Fatal("unexpected auth bypass for arbitrary API path ending in .png")
 	}
+	if isAuthBypassed("/api/remote/download/linux/amd64") {
+		t.Fatal("remote binary downloads must require a session")
+	}
 	if !isAuthBypassed("/img/robot.png") {
 		t.Fatal("expected public UI image assets to remain available without auth")
+	}
+}
+
+func TestRemoteDownloadRequiresSessionAndDoesNotCreateEnrollment(t *testing.T) {
+	tmp := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("Chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+
+	if err := os.MkdirAll("deploy", 0o755); err != nil {
+		t.Fatalf("MkdirAll deploy: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join("deploy", "aurago-remote_linux_amd64"), []byte("binary"), 0o644); err != nil {
+		t.Fatalf("WriteFile binary: %v", err)
+	}
+
+	db, err := remote.InitDB(filepath.Join(tmp, "remote.db"))
+	if err != nil {
+		t.Fatalf("remote InitDB: %v", err)
+	}
+	defer db.Close()
+
+	cfg := &config.Config{}
+	cfg.Auth.Enabled = true
+	cfg.Auth.PasswordHash = "configured"
+	cfg.Auth.SessionSecret = "remote-download-session-secret"
+	cfg.Server.Port = 8088
+	s := &Server{
+		Cfg:       cfg,
+		Logger:    slog.Default(),
+		RemoteHub: remote.NewRemoteHub(db, nil, slog.Default()),
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/remote/download/linux/amd64?name=test", nil)
+	req.Host = "aurago.local"
+	rec := httptest.NewRecorder()
+
+	authMiddleware(s, handleRemoteDownload(s)).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusUnauthorized, rec.Body.String())
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM remote_enrollments`).Scan(&count); err != nil {
+		t.Fatalf("count remote_enrollments: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("unauthenticated download created %d enrollment(s), want 0", count)
 	}
 }
 

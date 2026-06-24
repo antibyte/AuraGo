@@ -710,7 +710,7 @@ invasion_control:
     enabled: false
 remote_control:
     enabled: false
-    readonly: false
+    readonly: true
     connection_mode: auto                                # "auto", "tailscale", or "manual" for personalized remote-agent download URLs
     tailscale_address: ""                                # host/IP for Tailscale mode, e.g. aurago.tailnet.ts.net or 100.x.y.z:8090
     supervisor_url: ""                                   # explicit ws(s):// URL for manual mode, e.g. wss://aurago.example.com/api/remote/ws
@@ -1314,6 +1314,7 @@ sandbox:
     timeout_seconds: 30
     network_enabled: false
     keep_alive: false
+    allow_local_python_fallback: false
 shell_sandbox:
     enabled: false
     allow_unsafe_fallback: false

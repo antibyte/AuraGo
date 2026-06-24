@@ -42,5 +42,7 @@
   "config.shell_sandbox.system_caps": "システム機能",
   "config.shell_sandbox.in_docker": "Docker検出",
   "config.shell_sandbox.native": "ネイティブホスト",
-  "config.shell_sandbox.ready": "準備完了"
+  "config.shell_sandbox.ready": "準備完了",
+  "config.sandbox.local_python_fallback_label": "ローカル Python フォールバック",
+  "config.sandbox.local_python_fallback_warning": "サンドボックス失敗時に隔離外のローカル Python でコードを実行します。意図している場合だけ有効にしてください。"
 }

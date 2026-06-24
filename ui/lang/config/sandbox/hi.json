@@ -42,5 +42,7 @@
   "config.shell_sandbox.system_caps": "सिस्टम क्षमताएं",
   "config.shell_sandbox.in_docker": "Docker पहचाना गया",
   "config.shell_sandbox.native": "मूल होस्ट",
-  "config.shell_sandbox.ready": "तैयार"
+  "config.shell_sandbox.ready": "तैयार",
+  "config.sandbox.local_python_fallback_label": "स्थानीय Python fallback",
+  "config.sandbox.local_python_fallback_warning": "Sandbox विफल होने पर कोड को isolation के बाहर स्थानीय Python में चलाता है। इसे केवल जानबूझकर चालू करें।"
 }

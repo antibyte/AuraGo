@@ -133,11 +133,26 @@ async function renderSandboxSection(section) {
     </div>`;
 
     html += `<div class="cfg-toggle-row-compact">
+        <div class="toggle ${sbCfg.allow_local_python_fallback ? 'on' : ''}" data-path="sandbox.allow_local_python_fallback" onclick="toggleBool(this)"></div>
+        <span class="cfg-toggle-label">${t('config.sandbox.local_python_fallback_label')}</span>
+    </div>`;
+
+    html += `<div class="cfg-toggle-row-compact">
         <div class="toggle ${sbCfg.keep_alive ? 'on' : ''}" data-path="sandbox.keep_alive" onclick="toggleBool(this)"></div>
         <span class="cfg-toggle-label">${t('config.sandbox.keep_alive_label')}</span>
     </div>`;
 
     html += `</div>`;
+
+    if (sbCfg.allow_local_python_fallback) {
+        html += `<div class="wh-notice sb-notice-warning">
+            <span>⚠️</span>
+            <div>
+                <strong>${t('config.sandbox.local_python_fallback_label')}</strong><br>
+                <small>${t('config.sandbox.local_python_fallback_warning')}</small>
+            </div>
+        </div>`;
+    }
 
     html += `</div></div>`; // close sb-card-body & sb-card (Options)
 

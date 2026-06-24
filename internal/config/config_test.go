@@ -676,8 +676,29 @@ func TestLoadRemoteControlDefaults(t *testing.T) {
 	if !cfg.RemoteControl.AuditLog {
 		t.Fatal("expected remote_control.audit_log to default to true")
 	}
+	if !cfg.RemoteControl.ReadOnly {
+		t.Fatal("expected remote_control.readonly to default to true")
+	}
+}
+
+func TestLoadRemoteControlReadOnlyExplicitFalsePreserved(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+remote_control:
+  readonly: false
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
 	if cfg.RemoteControl.ReadOnly {
-		t.Fatal("expected remote_control.readonly to default to false")
+		t.Fatal("expected explicit remote_control.readonly=false to be preserved")
 	}
 }
 
@@ -699,6 +720,44 @@ remote_control:
 
 	if cfg.RemoteControl.AuditLog {
 		t.Fatal("expected explicit remote_control.audit_log=false to be preserved")
+	}
+}
+
+func TestLoadSandboxLocalPythonFallbackDefaultAndExplicit(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		content string
+		want    bool
+	}{
+		{
+			name:    "default",
+			content: "server:\n  ui_language: en\n",
+			want:    false,
+		},
+		{
+			name: "explicit true",
+			content: `
+sandbox:
+  allow_local_python_fallback: true
+`,
+			want: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(configPath, []byte(tc.content), 0o644); err != nil {
+				t.Fatalf("failed to write config file: %v", err)
+			}
+
+			cfg, err := Load(configPath)
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+
+			if cfg.Sandbox.AllowLocalPythonFallback != tc.want {
+				t.Fatalf("allow_local_python_fallback = %v, want %v", cfg.Sandbox.AllowLocalPythonFallback, tc.want)
+			}
+		})
 	}
 }
 

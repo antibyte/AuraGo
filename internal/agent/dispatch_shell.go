@@ -8,6 +8,12 @@ import (
 	"aurago/internal/tools"
 )
 
+var (
+	sandboxExecuteCodeFunc       = tools.SandboxExecuteCode
+	executePythonFunc            = tools.ExecutePython
+	executePythonWithSecretsFunc = tools.ExecutePythonWithSecrets
+)
+
 func dispatchShell(tc ToolCall, dc *DispatchContext) string {
 	cfg := dc.Cfg
 	configureToolRuntimePermissions(cfg)
@@ -48,17 +54,16 @@ func dispatchShell(tc ToolCall, dc *DispatchContext) string {
 			codeToRun = tools.BuildCredentialPrelude(creds) + codeToRun
 		}
 		logger.Info("LLM requested sandbox execution", "language", lang, "code_len", len(req.Code), "libraries", len(req.Libraries))
-		result, err := tools.SandboxExecuteCode(codeToRun, lang, req.Libraries, cfg.Sandbox.TimeoutSeconds, logger)
+		result, err := sandboxExecuteCodeFunc(codeToRun, lang, req.Libraries, cfg.Sandbox.TimeoutSeconds, logger)
 		if err != nil {
-			// Fall back to execute_python if sandbox not ready and Python is allowed
-			if cfg.Agent.AllowPython && lang == "python" {
-				logger.Warn("Sandbox execution failed, falling back to execute_python", "error", err)
+			if cfg.Sandbox.AllowLocalPythonFallback && cfg.Agent.AllowPython && lang == "python" {
+				logger.Warn("Sandbox execution failed, explicit local Python fallback enabled", "error", err)
 				var stdout, stderr string
 				var pyErr error
 				if len(secrets) > 0 || len(creds) > 0 {
-					stdout, stderr, pyErr = tools.ExecutePythonWithSecrets(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
+					stdout, stderr, pyErr = executePythonWithSecretsFunc(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
 				} else {
-					stdout, stderr, pyErr = tools.ExecutePython(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
+					stdout, stderr, pyErr = executePythonFunc(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
 				}
 				// Scrub all outputs to prevent secret leakage via error messages/tracebacks
 				stdout = security.Scrub(stdout)

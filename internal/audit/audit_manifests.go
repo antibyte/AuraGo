@@ -98,7 +98,7 @@ func RouteContractManifest() []RouteContract {
 		{Pattern: "/api/openrouter/models", Methods: []string{"GET"}, Auth: "public", Category: "setup"},
 		{Pattern: "/api/internal/", Methods: []string{"POST", "DELETE"}, Auth: "internal-loopback-token", Category: "internal"},
 		{Pattern: "/api/remote/ws", Methods: []string{"GET"}, Auth: "remote-key-handshake", Category: "remote"},
-		{Pattern: "/api/remote/download/", Methods: []string{"GET"}, Auth: "enrollment-token", Category: "remote"},
+		{Pattern: "/api/remote/download/", Methods: []string{"GET"}, Auth: "session", Category: "remote"},
 		{Pattern: "/api/invasion/ws", Methods: []string{"GET"}, Auth: "hmac-handshake", Category: "invasion"},
 		{Pattern: "/api/config", Methods: []string{"GET", "PUT"}, Auth: "session", Category: "config", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/config/", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "config"},

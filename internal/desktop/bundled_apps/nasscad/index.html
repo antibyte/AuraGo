@@ -3092,7 +3092,7 @@ function deserializeGeo(d){const g=new THREE.BufferGeometry();g.setAttribute('po
 function init(){
   try {
   const vp=document.getElementById('vp');
-  if(!vp) { alert('❌ #vp not found'); return; }
+  if(!vp) { _nasAlert('❌ #vp not found'); return; }
   scene=new THREE.Scene();
   cam=new THREE.PerspectiveCamera(50,vp.clientWidth/vp.clientHeight,1,20000);
   updCam();
@@ -3199,7 +3199,7 @@ function init(){
   setInterval(()=>{ if(GeometryPool.initialized) updPoolStats(); }, 1000);
   } catch(e) {
     const msg = '❌ CRASH init(): ' + e.message + '\n\n' + (e.stack||'').substring(0,300);
-    alert(msg);
+    _nasAlert(msg);
     console.error('NASSCAD init crash:', e);
   }
 }
@@ -7899,7 +7899,7 @@ function openDownloadsFolder(){
     if(!w) throw new Error('bloque');
     nasLog('INFO', 'Folder opened: ' + fileUrl);
   } catch(e) {
-    alert('Your files are in:\n\n' + winPath + '\n\nCopy this path into Windows Explorer.');
+    _nasAlert('Your files are in:\n\n' + winPath + '\n\nCopy this path into Windows Explorer.');
     nasLog('INFO', 'Dossier: ' + winPath);
   }
 }
@@ -8978,11 +8978,19 @@ async function idbLoadSettings(){
 
 
 
-// ── _nasAlert — toast d'erreur non bloquant (remplace alert() non-fatal) ──
+// ── _nasAlert — toast d'erreur non bloquant (remplace alert()) ──
 // Affiche un bandeau en haut du viewport pendant 5s, sans bloquer l'UI.
-// Les deux alert() critiques (crash init / #vp not found) sont conservés.
 function _nasAlert(msg) {
-  nasLog('WARN', '_nasAlert: ' + msg);
+  try {
+    if (typeof nasLog === 'function') nasLog('WARN', '_nasAlert: ' + msg);
+    else console.warn('_nasAlert:', msg);
+  } catch (_) {
+    console.warn('_nasAlert:', msg);
+  }
+  if (!document.body) {
+    console.warn('_nasAlert:', msg);
+    return;
+  }
   let _ta = document.getElementById('_nasalert-toast');
   if (!_ta) {
     _ta = document.createElement('div');

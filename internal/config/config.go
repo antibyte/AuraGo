@@ -612,9 +612,10 @@ func Load(path string) (*Config, error) {
 	cfg.Composio.CacheTTLSeconds = 300
 	cfg.Composio.MaxResultBytes = 262144
 
-	// Remote control defaults: disabled by default, mutable operations allowed
-	// unless readonly is explicitly enabled, and audit logging stays on.
+	// Remote control defaults: disabled by default, read-only for newly enrolled
+	// devices unless mutable operations are explicitly enabled, and audit logging stays on.
 	cfg.RemoteControl.ConnectionMode = "auto"
+	cfg.RemoteControl.ReadOnly = true
 	cfg.RemoteControl.DiscoveryPort = 8092
 	cfg.RemoteControl.MaxFileSizeMB = 50
 	cfg.RemoteControl.AuditLog = true

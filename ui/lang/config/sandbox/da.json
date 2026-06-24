@@ -42,5 +42,7 @@
   "config.shell_sandbox.system_caps": "Systemfunktioner",
   "config.shell_sandbox.in_docker": "Docker registreret",
   "config.shell_sandbox.native": "Nativ vært",
-  "config.shell_sandbox.ready": "Klar"
+  "config.shell_sandbox.ready": "Klar",
+  "config.sandbox.local_python_fallback_label": "Lokal Python-reserve",
+  "config.sandbox.local_python_fallback_warning": "Kører kode i lokal Python uden for isoleringen, hvis sandboxen fejler. Brug kun bevidst."
 }

@@ -12,6 +12,47 @@ on:
   workflow_dispatch:
 
 jobs:
+  js-security:
+    name: JS audits and sidecar checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Audit root runtime dependencies
+        run: npm audit --omit=dev --audit-level=moderate
+
+      - name: Check root JS syntax
+        run: |
+          node --check scripts/build-codemirror.js
+          node --check scripts/build-ui-bundles.js
+
+      - name: Install browser sidecar dependencies
+        working-directory: browser_automation_sidecar
+        run: npm ci
+
+      - name: Audit browser sidecar runtime dependencies
+        working-directory: browser_automation_sidecar
+        run: npm audit --omit=dev --audit-level=moderate
+
+      - name: Check browser sidecar syntax
+        run: node --check browser_automation_sidecar/server.js
+
+      - name: Run browser sidecar auth tests
+        run: node browser_automation_sidecar/test_auth.js
+
   go-security:
     name: Go tests and vulnerability scan
     runs-on: ubuntu-latest

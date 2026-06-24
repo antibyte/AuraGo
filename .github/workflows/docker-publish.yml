@@ -19,6 +19,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
 
     steps:
       - name: Checkout repository
@@ -32,7 +33,7 @@ jobs:
 
       - name: Build CodeMirror bundle
         run: |
-          npm install --no-audit --no-fund
+          npm ci --no-audit --no-fund
           node scripts/build-codemirror.js
 
       # Docker registry requires all-lowercase image names.
@@ -57,6 +58,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
       # Compute image tags:
       #   push a v* tag        → ghcr.io/antibyte/aurago:<exact-tag> + :latest + :sha-<short>
       # Date-based release tags such as v2026.04.23.3 are intentionally handled
@@ -80,9 +84,18 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          provenance: true
+          sbom: true
           # Cache layers in the registry to speed up subsequent builds
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_LC }}:buildcache
           cache-to:   type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_LC }}:buildcache,mode=max
+
+      - name: Sign AuraGo image tags
+        run: |
+          while IFS= read -r image; do
+            [ -n "$image" ] || continue
+            cosign sign --yes "$image"
+          done <<< "${{ steps.meta.outputs.tags }}"
 
       - name: Extract Code Studio metadata (tags, labels)
         id: code-studio-meta
@@ -103,8 +116,17 @@ jobs:
           push: true
           tags: ${{ steps.code-studio-meta.outputs.tags }}
           labels: ${{ steps.code-studio-meta.outputs.labels }}
+          provenance: true
+          sbom: true
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.CODE_STUDIO_IMAGE_LC }}:buildcache
           cache-to:   type=registry,ref=${{ env.REGISTRY }}/${{ env.CODE_STUDIO_IMAGE_LC }}:buildcache,mode=max
+
+      - name: Sign Code Studio image tags
+        run: |
+          while IFS= read -r image; do
+            [ -n "$image" ] || continue
+            cosign sign --yes "$image"
+          done <<< "${{ steps.code-studio-meta.outputs.tags }}"
 
       - name: Extract CommandCode metadata (tags, labels)
         id: commandcode-meta
@@ -125,5 +147,14 @@ jobs:
           push: true
           tags: ${{ steps.commandcode-meta.outputs.tags }}
           labels: ${{ steps.commandcode-meta.outputs.labels }}
+          provenance: true
+          sbom: true
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.COMMANDCODE_IMAGE_LC }}:buildcache
           cache-to:   type=registry,ref=${{ env.REGISTRY }}/${{ env.COMMANDCODE_IMAGE_LC }}:buildcache,mode=max
+
+      - name: Sign CommandCode image tags
+        run: |
+          while IFS= read -r image; do
+            [ -n "$image" ] || continue
+            cosign sign --yes "$image"
+          done <<< "${{ steps.commandcode-meta.outputs.tags }}"

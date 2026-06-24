@@ -30,7 +30,7 @@ echo ""
 if command -v node >/dev/null 2>&1; then
   echo "[0/5] Building UI assets ..."
   if [ ! -d node_modules ] && command -v npm >/dev/null 2>&1; then
-    npm install --no-audit --no-fund
+    npm ci --no-audit --no-fund
   fi
   node scripts/build-codemirror.js
   if command -v npm >/dev/null 2>&1; then
@@ -221,6 +221,19 @@ cp update.sh "$DEPLOY_DIR/update.sh" 2>/dev/null || true
       >> "../$DEPLOY_DIR/SHA256SUMS"
   fi
 )
+
+if [ "${GITHUB_ACTIONS:-}" = "true" ] && command -v cosign >/dev/null 2>&1; then
+  echo "    → signing SHA256SUMS with cosign keyless"
+  (
+    cd "$DEPLOY_DIR"
+    cosign sign-blob --yes \
+      --output-signature SHA256SUMS.sig \
+      --output-certificate SHA256SUMS.pem \
+      SHA256SUMS
+  )
+else
+  echo "    → cosign signing skipped (requires GitHub Actions OIDC and cosign)"
+fi
 
 echo "━━━ Done! Artifacts in $DEPLOY_DIR/ ━━━"
 ls -lh "$DEPLOY_DIR/"

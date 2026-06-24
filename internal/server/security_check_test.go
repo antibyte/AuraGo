@@ -2,6 +2,7 @@ package server
 
 import (
 	"aurago/internal/config"
+	"strings"
 	"testing"
 )
 
@@ -45,6 +46,25 @@ func TestCheckSecuritySkipsPythonNoSandboxWhenSandboxReady(t *testing.T) {
 	}
 }
 
+func TestCheckSecurityNoPasswordTextSaysLocked(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Auth.Enabled = true
+
+	hints := CheckSecurity(cfg)
+	hint := findSecurityHint(hints, "no_password")
+	if hint == nil {
+		t.Fatalf("expected no_password hint, got %#v", hints)
+	}
+	if strings.Contains(strings.ToLower(hint.Description), "bypassed") {
+		t.Fatalf("no_password hint should not claim auth is bypassed: %q", hint.Description)
+	}
+	if !strings.Contains(strings.ToLower(hint.Description), "locked") {
+		t.Fatalf("no_password hint should explain access is locked: %q", hint.Description)
+	}
+}
+
 func TestCheckSecurityDoesNotTreatLANHTTPSTailnetAsInternetFacing(t *testing.T) {
 	t.Parallel()
 
@@ -68,10 +88,13 @@ func TestCheckSecurityDoesNotTreatLANHTTPSTailnetAsInternetFacing(t *testing.T) 
 	}
 
 	hints := CheckSecurity(cfg)
-	for _, id := range []string{"docker_enabled_no_readonly", "self_update_public", "totp_disabled"} {
+	for _, id := range []string{"self_update_public", "totp_disabled"} {
 		if hasSecurityHint(hints, id) {
 			t.Fatalf("did not expect %s for LAN/tailnet-only instance, got %#v", id, hints)
 		}
+	}
+	if !hasSecurityHint(hints, "docker_enabled_no_readonly") {
+		t.Fatalf("expected Docker write-access warning for network-facing LAN/tailnet instance, got %#v", hints)
 	}
 }
 
@@ -132,10 +155,14 @@ func TestPublicHostnameLikelyTreatsTailnetAndPrivateHostsAsNonPublic(t *testing.
 }
 
 func hasSecurityHint(hints []SecurityHint, id string) bool {
+	return findSecurityHint(hints, id) != nil
+}
+
+func findSecurityHint(hints []SecurityHint, id string) *SecurityHint {
 	for _, hint := range hints {
 		if hint.ID == id {
-			return true
+			return &hint
 		}
 	}
-	return false
+	return nil
 }

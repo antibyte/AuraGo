@@ -642,12 +642,11 @@ var authBypassPrefixes = []string{
 	"/api/composio/callback",
 	"/api/oauth/callback",
 	"/api/ui-language",
-	"/api/remote/ws",       // Remote agent WebSocket — has its own key-based auth
-	"/api/remote/download", // Personalized binary download — generates an enrollment token
-	"/api/agodesk/ws",      // agodesk WebSocket — performs pairing inside the socket protocol
-	"/api/agodesk/tts/",    // agodesk TTS assets — limited to cached TTS audio filenames
-	"/api/agodesk/media/",  // agodesk media assets — limited to explicit media buckets by the handler
-	"/api/invasion/ws",     // Egg WebSocket — has its own HMAC-based auth handshake
+	"/api/remote/ws",      // Remote agent WebSocket — has its own key-based auth
+	"/api/agodesk/ws",     // agodesk WebSocket — performs pairing inside the socket protocol
+	"/api/agodesk/tts/",   // agodesk TTS assets — limited to cached TTS audio filenames
+	"/api/agodesk/media/", // agodesk media assets — limited to explicit media buckets by the handler
+	"/api/invasion/ws",    // Egg WebSocket — has its own HMAC-based auth handshake
 	"/mcp",
 	"/api/space-agent/bridge/messages", // Space Agent bridge has its own Bearer token auth
 	"/setup",

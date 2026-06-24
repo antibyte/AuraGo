@@ -42,5 +42,7 @@
   "config.shell_sandbox.system_caps": "Systemfunktioner",
   "config.shell_sandbox.in_docker": "Docker upptäckt",
   "config.shell_sandbox.native": "Nativ värd",
-  "config.shell_sandbox.ready": "Redo"
+  "config.shell_sandbox.ready": "Redo",
+  "config.sandbox.local_python_fallback_label": "Lokal Python-reserv",
+  "config.sandbox.local_python_fallback_warning": "Kör kod i lokal Python utanför isoleringen om sandlådan misslyckas. Aktivera bara medvetet."
 }

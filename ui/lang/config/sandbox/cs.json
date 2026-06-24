@@ -42,5 +42,7 @@
   "config.shell_sandbox.system_caps": "Systémové schopnosti",
   "config.shell_sandbox.in_docker": "Docker detekován",
   "config.shell_sandbox.native": "Nativní hostitel",
-  "config.shell_sandbox.ready": "Připraven"
+  "config.shell_sandbox.ready": "Připraven",
+  "config.sandbox.local_python_fallback_label": "Lokální záloha Pythonu",
+  "config.sandbox.local_python_fallback_warning": "Při selhání sandboxu spustí kód v lokálním Pythonu mimo izolaci. Používej jen vědomě."
 }

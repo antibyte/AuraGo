@@ -216,7 +216,7 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 			ID: "no_password", Severity: SevCritical,
 			Title: "No password configured",
 			Description: "Login guard is enabled but no password has been set. " +
-				"Authentication is effectively bypassed — set a password in the Login Guard section.",
+				"Normal access is locked until a password is configured. Set a password in the Login Guard section.",
 			AutoFixable: false,
 		})
 	}
@@ -463,11 +463,11 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		})
 	}
 
-	// 20. docker_enabled_no_readonly — Docker write access on internet-facing instance
-	if cfg.Docker.Enabled && !cfg.Docker.ReadOnly && facing {
+	// 20. docker_enabled_no_readonly — Docker write access on network-facing instance
+	if cfg.Docker.Enabled && !cfg.Docker.ReadOnly && networkFacing {
 		hints = append(hints, SecurityHint{
 			ID: "docker_enabled_no_readonly", Severity: SevWarning,
-			Title: "Docker: write access enabled on internet-facing instance",
+			Title: "Docker: write access enabled on network-facing instance",
 			Description: "The Docker integration has full write access (create, start, stop, remove containers) " +
 				"and this instance is reachable from the network. Enable docker.readonly to limit the " +
 				"agent to read-only Docker operations.",

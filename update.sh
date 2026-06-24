@@ -188,6 +188,58 @@ sha256_file() {
     fi
 }
 
+strict_release_verify_enabled() {
+    case "${AURAGO_STRICT_RELEASE_VERIFY:-}" in
+        1|true|TRUE|yes|YES) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+verify_release_checksums_signature() {
+    [ -n "${RELEASE_BASE:-}" ] || die "RELEASE_BASE is not set."
+    [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && [ -f "$RELEASE_CHECKSUMS_FILE" ] || die "Release checksums are not available."
+
+    local sig_file cert_file
+    sig_file="$(mktemp "/tmp/aurago-sha256-sig.XXXXXX")"
+    cert_file="$(mktemp "/tmp/aurago-sha256-cert.XXXXXX")"
+
+    if ! fetch_url_to_file "${RELEASE_BASE}/SHA256SUMS.sig" "$sig_file" || ! fetch_url_to_file "${RELEASE_BASE}/SHA256SUMS.pem" "$cert_file"; then
+        rm -f "$sig_file" "$cert_file"
+        if strict_release_verify_enabled; then
+            die "Release signature files are missing and AURAGO_STRICT_RELEASE_VERIFY=1 is set."
+        fi
+        warn "Release signature files not found; continuing with SHA256 manifest verification only."
+        return 0
+    fi
+
+    if ! command -v cosign >/dev/null 2>&1; then
+        rm -f "$sig_file" "$cert_file"
+        if strict_release_verify_enabled; then
+            die "cosign is required for strict release signature verification."
+        fi
+        warn "cosign not found; continuing with SHA256 manifest verification only."
+        return 0
+    fi
+
+    if cosign verify-blob \
+        --certificate "$cert_file" \
+        --signature "$sig_file" \
+        --certificate-identity-regexp "https://github.com/${GITHUB_REPO}/.*" \
+        --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+        "$RELEASE_CHECKSUMS_FILE" >/dev/null 2>&1; then
+        ok "Release checksum signature verified."
+    else
+        rm -f "$sig_file" "$cert_file"
+        if strict_release_verify_enabled; then
+            die "Release checksum signature verification failed."
+        fi
+        warn "Release checksum signature verification failed; continuing with SHA256 manifest verification only."
+        return 0
+    fi
+
+    rm -f "$sig_file" "$cert_file"
+}
+
 fetch_release_checksums() {
     [ -n "${RELEASE_BASE:-}" ] || die "RELEASE_BASE is not set."
     if [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && [ -f "${RELEASE_CHECKSUMS_FILE:-}" ]; then
@@ -199,6 +251,7 @@ fetch_release_checksums() {
         RELEASE_CHECKSUMS_FILE=""
         return 1
     fi
+    verify_release_checksums_signature
 }
 
 verify_release_asset() {

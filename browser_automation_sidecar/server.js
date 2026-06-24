@@ -10,8 +10,27 @@ const HEADLESS = process.env.HEADLESS !== 'false';
 const ALLOW_FILE_UPLOADS = process.env.ALLOW_FILE_UPLOADS !== 'false';
 const ALLOW_FILE_DOWNLOADS = process.env.ALLOW_FILE_DOWNLOADS !== 'false';
 const READ_ONLY = process.env.READ_ONLY === 'true';
-const SIDECAR_TOKEN = String(process.env.AURAGO_BROWSER_AUTOMATION_TOKEN || '').trim();
+const RAW_SIDECAR_TOKEN = String(process.env.AURAGO_BROWSER_AUTOMATION_TOKEN || '').trim();
 const ALLOW_UNAUTH = /^(1|true|yes)$/i.test(String(process.env.AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH || '').trim());
+const PLACEHOLDER_TOKENS = new Set([
+  'change_me_please',
+  'changeme',
+  'change-me',
+  'change-me-please',
+  'please_change_me',
+  'replace_me',
+  'replace-me',
+  'your_token_here',
+]);
+const hasPlaceholderToken = PLACEHOLDER_TOKENS.has(RAW_SIDECAR_TOKEN.toLowerCase());
+if (RAW_SIDECAR_TOKEN && hasPlaceholderToken && !ALLOW_UNAUTH) {
+  console.error('AURAGO_BROWSER_AUTOMATION_TOKEN uses a known placeholder value. Set a strong random token, or use AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH=1 only for isolated development.');
+  process.exit(1);
+}
+if (RAW_SIDECAR_TOKEN && hasPlaceholderToken && ALLOW_UNAUTH) {
+  console.warn('Ignoring placeholder AURAGO_BROWSER_AUTOMATION_TOKEN because explicit unauthenticated development mode is enabled.');
+}
+const SIDECAR_TOKEN = hasPlaceholderToken && ALLOW_UNAUTH ? '' : RAW_SIDECAR_TOKEN;
 const SESSION_TTL_MS = Math.max(1, parseInt(process.env.SESSION_TTL_MINUTES || '30', 10)) * 60 * 1000;
 const MAX_SESSIONS = Math.max(1, parseInt(process.env.MAX_SESSIONS || '3', 10));
 const VIEWPORT_WIDTH = Math.max(320, parseInt(process.env.VIEWPORT_WIDTH || '1280', 10));

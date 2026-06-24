@@ -42,5 +42,7 @@
   "config.shell_sandbox.system_caps": "系统功能",
   "config.shell_sandbox.in_docker": "检测到Docker",
   "config.shell_sandbox.native": "原生主机",
-  "config.shell_sandbox.ready": "就绪"
+  "config.shell_sandbox.ready": "就绪",
+  "config.sandbox.local_python_fallback_label": "本地 Python 回退",
+  "config.sandbox.local_python_fallback_warning": "当沙箱失败时，会在隔离外的本地 Python 中运行代码。请仅在明确需要时启用。"
 }

@@ -214,9 +214,9 @@ services:
       - ALLOW_FILE_UPLOADS=true
       - ALLOW_FILE_DOWNLOADS=true
       - READ_ONLY=false
-      # Required by default for manually started sidecars. Replace this token.
+      # Required by default for manually started sidecars. Set a strong random token.
       # Managed AuraGo sidecars receive their token automatically from the backend.
-      - AURAGO_BROWSER_AUTOMATION_TOKEN=${AURAGO_BROWSER_AUTOMATION_TOKEN:-change_me_please}
+      - AURAGO_BROWSER_AUTOMATION_TOKEN=${AURAGO_BROWSER_AUTOMATION_TOKEN:?Set AURAGO_BROWSER_AUTOMATION_TOKEN to a strong random token}
       # Development-only opt-in for isolated local testing without a token:
       # - AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH=1
       - SESSION_TTL_MINUTES=30
@@ -303,11 +303,11 @@ services:
   # subset AuraGo actually needs. This is the default and recommended setup.
   #
   # SECURITY NOTES:
-  #   - EXEC=1 is required for the DockerExec tool to run commands in containers
-  #   - POST=1 allows starting/stopping containers (needed for Invasion Control)
+  #   - EXEC=0 by default blocks container exec through the proxy
+  #   - POST=1 allows starting/stopping containers (needed for managed sidecars and Invasion Control)
   #   - IMAGES=1 + POST=1 allow AuraGo to pull managed sidecar images such as Code Studio
   #   - Together these grant significant control — only use if you need these features
-  #   - If you don't need container exec, set EXEC=0 for improved security
+  #   - Set EXEC=1 only if you need DockerExec or homepage container-command features
   #
   # To switch to direct socket access (NOT recommended):
   #   1. Uncomment the docker.sock volume mount in the aurago service above.
@@ -328,10 +328,10 @@ services:
       - IMAGES=1
       - NETWORKS=1
       - VOLUMES=1
-      - POST=1          # allow start/stop/restart/create (needed for Invasion Control)
+      - POST=1          # allow start/stop/restart/create (needed for managed sidecars and Invasion Control)
       - BUILD=0          # Code Studio uses a published image; keep Docker build API disabled by default
       - COMMIT=0
-      - EXEC=1          # needed for DockerExec tool — set to 0 if not used
+      - EXEC=0          # set to 1 only for DockerExec/homepage container-command features
       - SWARM=0
     healthcheck:
       # Enhanced healthcheck: verify both ping and container list API work

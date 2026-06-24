@@ -42,5 +42,7 @@
   "config.shell_sandbox.system_caps": "Δυνατότητες Συστήματος",
   "config.shell_sandbox.in_docker": "Docker εντοπίστηκε",
   "config.shell_sandbox.native": "Εγγενής κεντρικός υπολογιστής",
-  "config.shell_sandbox.ready": "Έτοιμο"
+  "config.shell_sandbox.ready": "Έτοιμο",
+  "config.sandbox.local_python_fallback_label": "Τοπική εφεδρεία Python",
+  "config.sandbox.local_python_fallback_warning": "Εκτελεί κώδικα στην τοπική Python εκτός απομόνωσης αν αποτύχει το sandbox. Ενεργοποίησέ το μόνο συνειδητά."
 }
