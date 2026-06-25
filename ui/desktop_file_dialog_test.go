@@ -88,7 +88,7 @@ func TestDesktopFirstPartyAppsReceiveFileDialogCallbacks(t *testing.T) {
 		"js/desktop/apps/sheets.js",
 		"js/desktop/apps/viewer.js",
 		"js/desktop/apps/viewer-3d.js",
-		"js/desktop/apps/code-studio/actions-agent-editor.js",
+		"js/desktop/apps/code-studio/core.js",
 	} {
 		source := readDesktopFileDialogAsset(t, path)
 		if !strings.Contains(source, "exportDesktopFile") && !strings.Contains(source, "importFilesFromHost") &&
