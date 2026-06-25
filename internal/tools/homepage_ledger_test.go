@@ -167,6 +167,73 @@ func TestRecordHomepageDeploymentPersistsTargetDeploymentAndManifest(t *testing.
 	}
 }
 
+func TestRecordHomepageDeploymentKeepsDeploymentTargetLinkAfterUpsert(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	workspace := t.TempDir()
+	cfg := HomepageConfig{WorkspacePath: workspace}
+	projectA := "site-a"
+	projectB := "site-b"
+	for _, projectDir := range []string{projectA, projectB} {
+		buildPath := filepath.Join(workspace, projectDir)
+		if err := os.MkdirAll(buildPath, 0755); err != nil {
+			t.Fatalf("mkdir %s: %v", projectDir, err)
+		}
+		if err := os.WriteFile(filepath.Join(buildPath, "index.html"), []byte(projectDir), 0644); err != nil {
+			t.Fatalf("write %s: %v", projectDir, err)
+		}
+	}
+	projA, err := EnsureHomepageProjectForDir(db, cfg, projectA, "site-a", "html")
+	if err != nil {
+		t.Fatalf("ensure site-a: %v", err)
+	}
+	projB, err := EnsureHomepageProjectForDir(db, cfg, projectB, "site-b", "html")
+	if err != nil {
+		t.Fatalf("ensure site-b: %v", err)
+	}
+	if err := RecordHomepageDeployment(db, HomepageDeploymentRecord{
+		ProjectID:        projA.ID,
+		Provider:         "netlify",
+		ProviderTargetID: "site-a-target",
+		ProviderDeployID: "deploy-a-1",
+		URL:              "https://a-one.example",
+		Status:           "ok",
+	}); err != nil {
+		t.Fatalf("record site-a first deployment: %v", err)
+	}
+	if err := RecordHomepageDeployment(db, HomepageDeploymentRecord{
+		ProjectID:        projB.ID,
+		Provider:         "netlify",
+		ProviderTargetID: "site-b-target",
+		ProviderDeployID: "deploy-b-1",
+		URL:              "https://b.example",
+		Status:           "ok",
+	}); err != nil {
+		t.Fatalf("record site-b deployment: %v", err)
+	}
+	if err := RecordHomepageDeployment(db, HomepageDeploymentRecord{
+		ProjectID:        projA.ID,
+		Provider:         "netlify",
+		ProviderTargetID: "site-a-target",
+		ProviderDeployID: "deploy-a-2",
+		URL:              "https://a-two.example",
+		Status:           "ok",
+	}); err != nil {
+		t.Fatalf("record site-a second deployment: %v", err)
+	}
+
+	var linkedProjectID int64
+	err = db.QueryRow(`SELECT t.project_id
+		FROM homepage_deployments d
+		JOIN homepage_deploy_targets t ON t.id = d.target_id
+		WHERE d.provider_deploy_id = 'deploy-a-2'`).Scan(&linkedProjectID)
+	if err != nil {
+		t.Fatalf("read linked target project: %v", err)
+	}
+	if linkedProjectID != projA.ID {
+		t.Fatalf("deploy-a-2 linked to project %d, want %d", linkedProjectID, projA.ID)
+	}
+}
+
 func TestRecordHomepageDeploymentFromResultParsesProviderFields(t *testing.T) {
 	db := newHomepageLedgerTestDB(t)
 	workspace := t.TempDir()
@@ -203,6 +270,42 @@ func TestRecordHomepageDeploymentFromResultParsesProviderFields(t *testing.T) {
 	}
 }
 
+func TestRecordHomepageDeploymentFromResultUsesNetlifyFallbackProjectAndBuildDir(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	workspace := t.TempDir()
+	cfg := HomepageConfig{WorkspacePath: workspace}
+	originalDir := "next-site"
+	fallbackDir := "next-site-static"
+	buildDir := "public"
+	buildPath := filepath.Join(workspace, fallbackDir, buildDir)
+	if err := os.MkdirAll(buildPath, 0755); err != nil {
+		t.Fatalf("mkdir fallback build: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(buildPath, "index.html"), []byte("<h1>fallback</h1>"), 0644); err != nil {
+		t.Fatalf("write fallback build: %v", err)
+	}
+	if _, err := EnsureHomepageProjectForDir(db, cfg, originalDir, "next-site", "next"); err != nil {
+		t.Fatalf("ensure original project: %v", err)
+	}
+	result := `{"status":"ok","deploy_id":"deploy-1","site_id":"site-1","verified_url":"https://fallback.example","fallback_project_dir":"next-site-static","fallback_build_dir":"public"}`
+
+	warnings := RecordHomepageDeploymentFromResult(cfg, db, originalDir, "netlify", "", result, slog.Default())
+	if len(warnings) > 0 {
+		t.Fatalf("warnings: %v", warnings)
+	}
+	var projectDir, build string
+	err := db.QueryRow(`SELECT p.project_dir, d.build_dir
+		FROM homepage_deployments d
+		JOIN homepage_projects p ON p.id = d.project_id
+		WHERE d.provider_deploy_id = 'deploy-1'`).Scan(&projectDir, &build)
+	if err != nil {
+		t.Fatalf("read deployment: %v", err)
+	}
+	if projectDir != fallbackDir || build != buildDir {
+		t.Fatalf("projectDir=%q buildDir=%q, want %q/%q", projectDir, build, fallbackDir, buildDir)
+	}
+}
+
 func TestReconcileHomepageProjectDetectsLocalChanges(t *testing.T) {
 	db := newHomepageLedgerTestDB(t)
 	workspace := t.TempDir()
@@ -235,6 +338,53 @@ func TestReconcileHomepageProjectDetectsLocalChanges(t *testing.T) {
 	}
 	if state.DriftStatus != "local_changed" {
 		t.Fatalf("DriftStatus = %q, want local_changed", state.DriftStatus)
+	}
+}
+
+func TestReconcileHomepageProjectDetectsUndeployedLatestRevision(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	workspace := t.TempDir()
+	projectDir := "site-a"
+	projectPath := filepath.Join(workspace, projectDir)
+	if err := os.MkdirAll(projectPath, 0755); err != nil {
+		t.Fatalf("mkdir project: %v", err)
+	}
+	cfg := HomepageConfig{WorkspacePath: workspace}
+	if err := os.WriteFile(filepath.Join(projectPath, "index.html"), []byte("one"), 0644); err != nil {
+		t.Fatalf("write initial file: %v", err)
+	}
+	proj, err := EnsureHomepageProjectForDir(db, cfg, projectDir, "site-a", "html")
+	if err != nil {
+		t.Fatalf("ensure project: %v", err)
+	}
+	initial := SaveHomepageRevisionAndState(cfg, db, projectDir, "initial", "test", "test", nil, slog.Default())
+	if len(initial.Warnings) > 0 || initial.RevisionID == 0 {
+		t.Fatalf("initial revision = %#v", initial)
+	}
+	if err := RecordHomepageDeployment(db, HomepageDeploymentRecord{
+		ProjectID:  proj.ID,
+		RevisionID: initial.RevisionID,
+		Provider:   "local",
+		URL:        "",
+		BuildDir:   ".",
+		Status:     "ok",
+	}); err != nil {
+		t.Fatalf("record initial deploy: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectPath, "index.html"), []byte("two"), 0644); err != nil {
+		t.Fatalf("write changed file: %v", err)
+	}
+	changed := SaveHomepageRevisionAndState(cfg, db, projectDir, "changed", "test", "test", nil, slog.Default())
+	if len(changed.Warnings) > 0 || changed.RevisionID == 0 {
+		t.Fatalf("changed revision = %#v", changed)
+	}
+
+	state, err := ReconcileHomepageProject(cfg, db, projectDir, slog.Default())
+	if err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	if state.DriftStatus != "not_deployed" {
+		t.Fatalf("DriftStatus = %q, want not_deployed; message=%q", state.DriftStatus, state.DriftMessage)
 	}
 }
 
@@ -298,6 +448,71 @@ func TestReconcileHomepageProjectDetectsRemoteChanges(t *testing.T) {
 	}
 	if observations < 2 {
 		t.Fatalf("observations = %d, want at least 2", observations)
+	}
+}
+
+func TestGetHomepageManagedSiteIncludesTargetsAndRemoteObservations(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	workspace := t.TempDir()
+	projectDir := "site-a"
+	projectPath := filepath.Join(workspace, projectDir)
+	if err := os.MkdirAll(projectPath, 0755); err != nil {
+		t.Fatalf("mkdir project: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectPath, "index.html"), []byte("one"), 0644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	cfg := HomepageConfig{WorkspacePath: workspace}
+	proj, err := EnsureHomepageProjectForDir(db, cfg, projectDir, "site-a", "html")
+	if err != nil {
+		t.Fatalf("ensure project: %v", err)
+	}
+	save := SaveHomepageRevisionAndState(cfg, db, projectDir, "initial", "test", "test", nil, slog.Default())
+	if len(save.Warnings) > 0 {
+		t.Fatalf("save revision warnings: %v", save.Warnings)
+	}
+
+	body := "remote-one"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(body))
+	}))
+	defer server.Close()
+	if err := RecordHomepageDeployment(db, HomepageDeploymentRecord{
+		ProjectID:        proj.ID,
+		RevisionID:       save.RevisionID,
+		Provider:         "netlify",
+		ProviderTargetID: "site-1",
+		ProviderDeployID: "deploy-1",
+		URL:              server.URL,
+		BuildDir:         ".",
+		ArtifactHash:     "artifact-1",
+		Status:           "ok",
+	}); err != nil {
+		t.Fatalf("record deployment: %v", err)
+	}
+	if _, err := ReconcileHomepageProject(cfg, db, projectDir, slog.Default()); err != nil {
+		t.Fatalf("first reconcile: %v", err)
+	}
+	body = "remote-two"
+	if _, err := ReconcileHomepageProject(cfg, db, projectDir, slog.Default()); err != nil {
+		t.Fatalf("second reconcile: %v", err)
+	}
+
+	site, err := GetHomepageManagedSite(db, proj.ID)
+	if err != nil {
+		t.Fatalf("managed site: %v", err)
+	}
+	if len(site.DeployTargets) != 1 {
+		t.Fatalf("DeployTargets len = %d, want 1", len(site.DeployTargets))
+	}
+	if site.DeployTargets[0].Provider != "netlify" || site.DeployTargets[0].ProviderTargetID != "site-1" {
+		t.Fatalf("unexpected deploy target: %+v", site.DeployTargets[0])
+	}
+	if len(site.RemoteObservations) == 0 {
+		t.Fatal("RemoteObservations should be populated")
+	}
+	if site.RemoteObservations[0].Status == "" || site.RemoteObservations[0].URL != server.URL {
+		t.Fatalf("unexpected remote observation: %+v", site.RemoteObservations[0])
 	}
 }
 

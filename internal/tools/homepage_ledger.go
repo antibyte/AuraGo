@@ -76,22 +76,24 @@ type HomepageArtifactManifestFile struct {
 
 // HomepageManagedSite is the compact read model exposed to APIs and agent context.
 type HomepageManagedSite struct {
-	ID                int64                       `json:"id"`
-	Name              string                      `json:"name"`
-	Framework         string                      `json:"framework,omitempty"`
-	URL               string                      `json:"url,omitempty"`
-	ProjectDir        string                      `json:"project_dir"`
-	Status            string                      `json:"status"`
-	LastEditedAt      string                      `json:"last_edited_at,omitempty"`
-	LastDeployedAt    string                      `json:"last_deployed_at,omitempty"`
-	LastDeployURL     string                      `json:"last_deploy_url,omitempty"`
-	LocalRoot         string                      `json:"local_root,omitempty"`
-	CurrentRevisionID int64                       `json:"current_revision_id,omitempty"`
-	GitSHA            string                      `json:"git_sha,omitempty"`
-	LastReconciledAt  string                      `json:"last_reconciled_at,omitempty"`
-	DriftStatus       string                      `json:"drift_status"`
-	DriftMessage      string                      `json:"drift_message,omitempty"`
-	Deployments       []HomepageManagedDeployment `json:"deployments,omitempty"`
+	ID                 int64                              `json:"id"`
+	Name               string                             `json:"name"`
+	Framework          string                             `json:"framework,omitempty"`
+	URL                string                             `json:"url,omitempty"`
+	ProjectDir         string                             `json:"project_dir"`
+	Status             string                             `json:"status"`
+	LastEditedAt       string                             `json:"last_edited_at,omitempty"`
+	LastDeployedAt     string                             `json:"last_deployed_at,omitempty"`
+	LastDeployURL      string                             `json:"last_deploy_url,omitempty"`
+	LocalRoot          string                             `json:"local_root,omitempty"`
+	CurrentRevisionID  int64                              `json:"current_revision_id,omitempty"`
+	GitSHA             string                             `json:"git_sha,omitempty"`
+	LastReconciledAt   string                             `json:"last_reconciled_at,omitempty"`
+	DriftStatus        string                             `json:"drift_status"`
+	DriftMessage       string                             `json:"drift_message,omitempty"`
+	Deployments        []HomepageManagedDeployment        `json:"deployments,omitempty"`
+	DeployTargets      []HomepageManagedDeployTarget      `json:"deploy_targets,omitempty"`
+	RemoteObservations []HomepageManagedRemoteObservation `json:"remote_observations,omitempty"`
 }
 
 // HomepageManagedDeployment is the compact deployment read model.
@@ -105,6 +107,29 @@ type HomepageManagedDeployment struct {
 	URL              string `json:"url,omitempty"`
 	BuildDir         string `json:"build_dir,omitempty"`
 	ArtifactHash     string `json:"artifact_hash,omitempty"`
+	Status           string `json:"status"`
+}
+
+// HomepageManagedDeployTarget is the compact current remote target read model.
+type HomepageManagedDeployTarget struct {
+	ID               int64  `json:"id"`
+	Provider         string `json:"provider"`
+	ProviderTargetID string `json:"provider_target_id,omitempty"`
+	URL              string `json:"url,omitempty"`
+	RemotePath       string `json:"remote_path,omitempty"`
+	LastSeenAt       string `json:"last_seen_at,omitempty"`
+	UpdatedAt        string `json:"updated_at,omitempty"`
+}
+
+// HomepageManagedRemoteObservation is the compact remote observation read model.
+type HomepageManagedRemoteObservation struct {
+	ID               int64  `json:"id"`
+	TargetID         int64  `json:"target_id,omitempty"`
+	ObservedAt       string `json:"observed_at"`
+	Provider         string `json:"provider"`
+	URL              string `json:"url,omitempty"`
+	ProviderDeployID string `json:"provider_deploy_id,omitempty"`
+	ContentHash      string `json:"content_hash,omitempty"`
 	Status           string `json:"status"`
 }
 
@@ -319,7 +344,7 @@ func RecordHomepageDeployment(db *sql.DB, rec HomepageDeploymentRecord) error {
 		metadataJSON = string(b)
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
-	res, err := db.Exec(`INSERT INTO homepage_deploy_targets
+	_, err := db.Exec(`INSERT INTO homepage_deploy_targets
 		(project_id, provider, provider_target_id, url, remote_path, metadata_json, last_seen_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(project_id, provider) DO UPDATE SET
@@ -333,9 +358,13 @@ func RecordHomepageDeployment(db *sql.DB, rec HomepageDeploymentRecord) error {
 	if err != nil {
 		return fmt.Errorf("failed to upsert deploy target: %w", err)
 	}
-	targetID, _ := res.LastInsertId()
-	if targetID == 0 {
-		_ = db.QueryRow("SELECT id FROM homepage_deploy_targets WHERE project_id = ? AND provider = ?", rec.ProjectID, rec.Provider).Scan(&targetID)
+	var targetID int64
+	if err := db.QueryRow(
+		"SELECT id FROM homepage_deploy_targets WHERE project_id = ? AND provider = ?",
+		rec.ProjectID,
+		rec.Provider,
+	).Scan(&targetID); err != nil {
+		return fmt.Errorf("failed to read deploy target id: %w", err)
 	}
 	var revisionID interface{}
 	if rec.RevisionID > 0 {
@@ -369,16 +398,26 @@ func RecordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectD
 	if db == nil {
 		return []string{"homepage registry DB not initialized"}
 	}
-	proj, err := EnsureHomepageProjectForDir(db, cfg, projectDir, "", "")
-	if err != nil {
-		return []string{err.Error()}
-	}
 	parsed := map[string]interface{}{}
 	if err := json.Unmarshal([]byte(rawResult), &parsed); err != nil {
 		return []string{fmt.Sprintf("deployment result was not JSON: %v", err)}
 	}
 	if status, _ := parsed["status"].(string); status == "error" {
 		return nil
+	}
+	provider = strings.ToLower(strings.TrimSpace(provider))
+	if fallbackProjectDir := ledgerString(parsed, "fallback_project_dir"); fallbackProjectDir != "" {
+		projectDir = fallbackProjectDir
+	}
+	if fallbackBuildDir := ledgerString(parsed, "fallback_build_dir"); fallbackBuildDir != "" {
+		buildDir = fallbackBuildDir
+	}
+	if parsedProjectDir := ledgerString(parsed, "project_dir"); parsedProjectDir != "" && provider != "netlify" {
+		projectDir = parsedProjectDir
+	}
+	proj, err := EnsureHomepageProjectForDir(db, cfg, projectDir, "", "")
+	if err != nil {
+		return []string{err.Error()}
 	}
 	if buildDir == "" {
 		buildDir = ledgerString(parsed, "build_dir")
@@ -405,7 +444,6 @@ func RecordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectD
 		logger.Warn("[Homepage] Artifact manifest failed", "project_dir", proj.ProjectDir, "build_dir", buildDir, "error", err)
 		warnings = append(warnings, fmt.Sprintf("artifact manifest failed: %v", err))
 	}
-	provider = strings.ToLower(strings.TrimSpace(provider))
 	targetID := firstLedgerString(parsed, "site_id", "new_site_id", "deploy_site_id", "project_id")
 	deployID := firstLedgerString(parsed, "deployment_id", "deploy_id", "id")
 	url := firstLedgerString(parsed, "verified_url", "deployment_url", "deploy_url", "url", "deploy_ssl_url", "deploy_deploy_url")
@@ -549,6 +587,19 @@ func ReconcileHomepageProject(cfg HomepageConfig, db *sql.DB, projectDir string,
 		}
 	}
 	if drift == "clean" {
+		state, stateErr := GetHomepageProjectState(db, proj.ID)
+		if stateErr == nil && state.CurrentRevisionID > 0 {
+			latestDeployedRevision := latestSuccessfulHomepageDeploymentRevision(db, proj.ID)
+			if latestDeployedRevision == 0 {
+				drift = "not_deployed"
+				message = "current revision has not been deployed"
+			} else if latestDeployedRevision < state.CurrentRevisionID {
+				drift = "not_deployed"
+				message = fmt.Sprintf("current revision %d is newer than deployed revision %d", state.CurrentRevisionID, latestDeployedRevision)
+			}
+		}
+	}
+	if drift == "clean" {
 		var deployments int
 		_ = db.QueryRow("SELECT COUNT(*) FROM homepage_deployments WHERE project_id = ?", proj.ID).Scan(&deployments)
 		if deployments == 0 {
@@ -610,7 +661,17 @@ func GetHomepageManagedSite(db *sql.DB, id int64) (HomepageManagedSite, error) {
 			if err != nil {
 				return HomepageManagedSite{}, err
 			}
+			targets, err := ListHomepageManagedDeployTargets(db, id)
+			if err != nil {
+				return HomepageManagedSite{}, err
+			}
+			observations, err := ListHomepageManagedRemoteObservations(db, id, 10)
+			if err != nil {
+				return HomepageManagedSite{}, err
+			}
 			site.Deployments = deployments
+			site.DeployTargets = targets
+			site.RemoteObservations = observations
 			return site, nil
 		}
 	}
@@ -637,6 +698,66 @@ func ListHomepageManagedDeployments(db *sql.DB, projectID int64, limit int) ([]H
 		deployments = append(deployments, dep)
 	}
 	return deployments, rows.Err()
+}
+
+// ListHomepageManagedDeployTargets returns current deploy targets for a project.
+func ListHomepageManagedDeployTargets(db *sql.DB, projectID int64) ([]HomepageManagedDeployTarget, error) {
+	rows, err := db.Query(`SELECT id, provider, provider_target_id, url, remote_path,
+			COALESCE(last_seen_at, ''), COALESCE(updated_at, '')
+		FROM homepage_deploy_targets
+		WHERE project_id = ?
+		ORDER BY updated_at DESC, id DESC`, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var targets []HomepageManagedDeployTarget
+	for rows.Next() {
+		var target HomepageManagedDeployTarget
+		if err := rows.Scan(&target.ID, &target.Provider, &target.ProviderTargetID, &target.URL, &target.RemotePath, &target.LastSeenAt, &target.UpdatedAt); err != nil {
+			return nil, err
+		}
+		targets = append(targets, target)
+	}
+	return targets, rows.Err()
+}
+
+// ListHomepageManagedRemoteObservations returns recent remote observations for a project.
+func ListHomepageManagedRemoteObservations(db *sql.DB, projectID int64, limit int) ([]HomepageManagedRemoteObservation, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	rows, err := db.Query(`SELECT id, COALESCE(target_id, 0), observed_at, provider, url,
+			provider_deploy_id, content_hash, status
+		FROM homepage_remote_observations
+		WHERE project_id = ?
+		ORDER BY observed_at DESC, id DESC
+		LIMIT ?`, projectID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var observations []HomepageManagedRemoteObservation
+	for rows.Next() {
+		var obs HomepageManagedRemoteObservation
+		if err := rows.Scan(&obs.ID, &obs.TargetID, &obs.ObservedAt, &obs.Provider, &obs.URL, &obs.ProviderDeployID, &obs.ContentHash, &obs.Status); err != nil {
+			return nil, err
+		}
+		observations = append(observations, obs)
+	}
+	return observations, rows.Err()
+}
+
+func latestSuccessfulHomepageDeploymentRevision(db *sql.DB, projectID int64) int64 {
+	var revision sql.NullInt64
+	_ = db.QueryRow(`SELECT revision_id
+		FROM homepage_deployments
+		WHERE project_id = ? AND status NOT IN ('error', 'failed') AND revision_id IS NOT NULL
+		ORDER BY created_at DESC, id DESC LIMIT 1`, projectID).Scan(&revision)
+	if revision.Valid {
+		return revision.Int64
+	}
+	return 0
 }
 
 func observeHomepageRemote(db *sql.DB, projectID int64) (string, string) {

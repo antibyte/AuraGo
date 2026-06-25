@@ -611,6 +611,9 @@ func buildManagedSitesPromptContext(runCfg RunConfig) string {
 	}
 	for i := 0; i < limit; i++ {
 		site := sites[i]
+		if detailed, detailErr := tools.GetHomepageManagedSite(runCfg.HomepageRegistryDB, site.ID); detailErr == nil {
+			site = detailed
+		}
 		line := fmt.Sprintf("- %s (`%s`): drift=%s", site.Name, site.ProjectDir, site.DriftStatus)
 		if site.LocalRoot != "" {
 			line += fmt.Sprintf(", local=%s", site.LocalRoot)
@@ -630,6 +633,31 @@ func buildManagedSitesPromptContext(runCfg RunConfig) string {
 		}
 		if site.DriftMessage != "" {
 			line += fmt.Sprintf(", note=%s", site.DriftMessage)
+		}
+		if len(site.DeployTargets) > 0 {
+			var targets []string
+			for _, target := range site.DeployTargets {
+				value := target.URL
+				if value == "" {
+					value = target.RemotePath
+				}
+				if value == "" {
+					value = target.ProviderTargetID
+				}
+				if value != "" {
+					targets = append(targets, fmt.Sprintf("%s=%s", target.Provider, value))
+				} else {
+					targets = append(targets, target.Provider)
+				}
+			}
+			line += ", targets=" + strings.Join(targets, "|")
+		}
+		if len(site.RemoteObservations) > 0 {
+			obs := site.RemoteObservations[0]
+			line += fmt.Sprintf(", remote=%s/%s", obs.Provider, obs.Status)
+			if obs.ObservedAt != "" {
+				line += fmt.Sprintf("@%s", obs.ObservedAt)
+			}
 		}
 		b.WriteString(line)
 		b.WriteByte('\n')

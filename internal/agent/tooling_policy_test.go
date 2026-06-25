@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -401,8 +404,40 @@ func TestBuildPromptContextFlagsInjectsManagedSitesContext(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Homepage.Enabled = true
 	cfg.Homepage.WorkspacePath = t.TempDir()
-	if _, err := tools.EnsureHomepageProjectForDir(db, tools.HomepageConfig{WorkspacePath: cfg.Homepage.WorkspacePath}, "site-a", "Site A", "html"); err != nil {
+	sitePath := filepath.Join(cfg.Homepage.WorkspacePath, "site-a")
+	if err := os.MkdirAll(sitePath, 0755); err != nil {
+		t.Fatalf("mkdir site: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(sitePath, "index.html"), []byte("<h1>Site A</h1>"), 0644); err != nil {
+		t.Fatalf("write site: %v", err)
+	}
+	homepageCfg := tools.HomepageConfig{WorkspacePath: cfg.Homepage.WorkspacePath}
+	proj, err := tools.EnsureHomepageProjectForDir(db, homepageCfg, "site-a", "Site A", "html")
+	if err != nil {
 		t.Fatalf("EnsureHomepageProjectForDir failed: %v", err)
+	}
+	save := tools.SaveHomepageRevisionAndState(homepageCfg, db, "site-a", "initial", "test", "test", nil, slog.Default())
+	if len(save.Warnings) > 0 {
+		t.Fatalf("save revision warnings: %v", save.Warnings)
+	}
+	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("remote"))
+	}))
+	defer remoteServer.Close()
+	if err := tools.RecordHomepageDeployment(db, tools.HomepageDeploymentRecord{
+		ProjectID:        proj.ID,
+		RevisionID:       save.RevisionID,
+		Provider:         "netlify",
+		ProviderTargetID: "site-1",
+		ProviderDeployID: "deploy-1",
+		URL:              remoteServer.URL,
+		BuildDir:         ".",
+		Status:           "ok",
+	}); err != nil {
+		t.Fatalf("record deployment: %v", err)
+	}
+	if _, err := tools.ReconcileHomepageProject(homepageCfg, db, "site-a", slog.Default()); err != nil {
+		t.Fatalf("reconcile: %v", err)
 	}
 
 	flags := buildPromptContextFlags(RunConfig{
@@ -412,6 +447,12 @@ func TestBuildPromptContextFlagsInjectsManagedSitesContext(t *testing.T) {
 
 	if !strings.Contains(flags.ReuseContext, "# MANAGED WEBSITES") || !strings.Contains(flags.ReuseContext, "site-a") {
 		t.Fatalf("ReuseContext missing managed site summary: %q", flags.ReuseContext)
+	}
+	if !strings.Contains(flags.ReuseContext, "netlify=") {
+		t.Fatalf("ReuseContext missing deploy target provider: %q", flags.ReuseContext)
+	}
+	if !strings.Contains(flags.ReuseContext, "remote=") {
+		t.Fatalf("ReuseContext missing remote observation summary: %q", flags.ReuseContext)
 	}
 }
 

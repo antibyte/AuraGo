@@ -222,6 +222,27 @@ func TestHandleHomepageSitesListDetailAndReconcile(t *testing.T) {
 	}
 	if got := tools.SaveHomepageRevisionAndState(homepageCfg, db, projectDir, "initial", "test", "test", nil, slog.Default()); len(got.Warnings) > 0 {
 		t.Fatalf("save revision warnings: %v", got.Warnings)
+	} else {
+		remoteBody := "remote-one"
+		remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(remoteBody))
+		}))
+		defer remoteServer.Close()
+		if err := tools.RecordHomepageDeployment(db, tools.HomepageDeploymentRecord{
+			ProjectID:        proj.ID,
+			RevisionID:       got.RevisionID,
+			Provider:         "netlify",
+			ProviderTargetID: "site-1",
+			ProviderDeployID: "deploy-1",
+			URL:              remoteServer.URL,
+			BuildDir:         ".",
+			Status:           "ok",
+		}); err != nil {
+			t.Fatalf("record deployment: %v", err)
+		}
+		if _, err := tools.ReconcileHomepageProject(homepageCfg, db, projectDir, slog.Default()); err != nil {
+			t.Fatalf("reconcile before detail: %v", err)
+		}
 	}
 
 	s := &Server{HomepageRegistryDB: db, Cfg: cfg, Logger: slog.Default()}
@@ -252,6 +273,12 @@ func TestHandleHomepageSitesListDetailAndReconcile(t *testing.T) {
 	handleHomepageSiteByID(s)(detailRec, detailReq)
 	if detailRec.Code != http.StatusOK {
 		t.Fatalf("detail status = %d: %s", detailRec.Code, detailRec.Body.String())
+	}
+	if !strings.Contains(detailRec.Body.String(), `"deploy_targets"`) {
+		t.Fatalf("detail response missing deploy_targets: %s", detailRec.Body.String())
+	}
+	if !strings.Contains(detailRec.Body.String(), `"remote_observations"`) {
+		t.Fatalf("detail response missing remote_observations: %s", detailRec.Body.String())
 	}
 
 	if err := os.WriteFile(filepath.Join(projectPath, "index.html"), []byte("<h1>Changed</h1>"), 0644); err != nil {
